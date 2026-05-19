@@ -117,69 +117,6 @@ try {
         /nologo
     $buildExitCode = $LASTEXITCODE
 } finally {
-    # $(IntDir) = xllama\$(Platform)\$(Configuration)\ relative to uwp\
-    $IntDir = "xllama\$Platform\$Configuration"
-
-    Write-Host "`n=== DIAGNOSTIC: NuGet packages restored ==="
-    $pkgDir = Join-Path $RepoRoot "uwp\packages"
-    if (Test-Path $pkgDir) {
-        Get-ChildItem $pkgDir -Directory | Select-Object -ExpandProperty Name
-    } else {
-        Write-Host "(uwp\packages\ not found)"
-    }
-
-    Write-Host "`n=== DIAGNOSTIC: cppwinrt reference RSP ==="
-    $rsp = Join-Path $RepoRoot "uwp\$IntDir\xllama.vcxproj.cppwinrt_ref.rsp"
-    if (Test-Path $rsp) { Get-Content $rsp } else { Write-Host "(rsp not found at $rsp)" }
-
-    Write-Host "`n=== DIAGNOSTIC: Generated Files\ root (component stubs) ==="
-    $genDir = Join-Path $RepoRoot "uwp\Generated Files"
-    if (Test-Path $genDir) {
-        Get-ChildItem $genDir -File | Select-Object -ExpandProperty Name
-    } else {
-        Write-Host "(uwp\Generated Files\ not found)"
-    }
-
-    Write-Host "`n=== DIAGNOSTIC: cppwinrt output locations ==="
-    @(
-        "uwp\$IntDir\winrt",
-        "uwp\$IntDir\Generated Files\winrt",
-        "uwp\Generated Files\winrt"
-    ) | ForEach-Object {
-        $d = Join-Path $RepoRoot $_
-        if (Test-Path $d) {
-            $n = (Get-ChildItem $d -Filter "*.h" -ErrorAction SilentlyContinue | Measure-Object).Count
-            Write-Host "[$d] — $n .h files"
-        } else {
-            Write-Host "[$d] — not found"
-        }
-    }
-
-    Write-Host "`n=== DIAGNOSTIC: Generated file contents (first 40 lines each) ==="
-    @(
-        "uwp\Generated Files\MainPage.xaml.g.h",
-        "uwp\Generated Files\XamlTypeInfo.Impl.g.cpp",
-        "uwp\Generated Files\XamlLibMetadataProvider.g.cpp"
-    ) | ForEach-Object {
-        $f = Join-Path $RepoRoot $_
-        Write-Host "`n--- $_ ---"
-        if (Test-Path $f) {
-            Get-Content $f | Select-Object -First 40 | ForEach-Object { Write-Host $_ }
-        } else {
-            Write-Host "(not found)"
-        }
-    }
-
-    Write-Host "`n=== DIAGNOSTIC: WinMD files under uwp\ ==="
-    $winmds = Get-ChildItem -Path (Join-Path $RepoRoot "uwp") -Filter "*.winmd" -Recurse -ErrorAction SilentlyContinue
-    if ($winmds) {
-        $winmds | ForEach-Object {
-            $kb = [math]::Round($_.Length / 1KB, 1)
-            Write-Host "$($_.FullName.Replace($RepoRoot,'')) [$kb KB]"
-        }
-    } else {
-        Write-Host "(no .winmd found)"
-    }
 }
 
 if ($buildExitCode -ne 0) {
