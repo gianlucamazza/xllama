@@ -340,4 +340,11 @@
        MainPage.cpp and XamlTypeInfo_impl.cpp instead. -->
   <Target Name="MarkupCompilePass2"/>
 
+  <!-- CopyGeneratedXaml tries to copy App.xbf / MainPage.xbf produced by Pass2.
+       Since Pass2 is disabled above, those files never exist. Override with a
+       no-op: text XAML is packaged via the Page/ApplicationDefinition AppX layout
+       items; XBF is not needed because InitializeComponent calls LoadComponent
+       with the .xaml URI at runtime. -->
+  <Target Name="CopyGeneratedXaml"/>
+
 </Project>
