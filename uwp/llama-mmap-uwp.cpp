@@ -20,7 +20,7 @@
 #endif
 
 #include "../llama.cpp/src/llama-mmap.h"
-#include "../llama.cpp/ggml/src/ggml.h"
+#include "ggml.h"   // found via AdditionalIncludeDirectories (ggml/include)
 
 #include <cassert>
 #include <cstdio>
