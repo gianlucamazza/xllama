@@ -102,11 +102,16 @@ download_remote_file() {
 
 restart_app() {
 	local pfn="$1"
-	# Kill running instance
+	# Kill running instance (CSRF required; ignore 403 if already stopped)
 	dpw -X DELETE "${BASE_URL}/api/taskmanager/app?package=${pfn}" >/dev/null 2>&1 || true
 	sleep 2
-	# Launch
-	dpw -X POST "${BASE_URL}/api/taskmanager/app?appid=${pfn}" >/dev/null 2>&1 || true
+	# Launch via AUMID (PackageFamilyName!AppId) base64-encoded.
+	# Xbox WDP requires Content-Length on POST (-d "").
+	local pfamily
+	pfamily=$(echo "$pfn" | sed 's/_[0-9][0-9.]*_[^_]*__/_/') # strip version+arch → PFamilyName
+	local aumid
+	aumid=$(printf '%s!xllama' "$pfamily" | base64 -w0)
+	dpw -X POST -d "" "${BASE_URL}/api/taskmanager/app?appid=${aumid}" >/dev/null 2>&1 || true
 }
 
 wait_for_done_marker() {
@@ -151,7 +156,7 @@ MODEL_FILENAME=$(basename "$MODEL_PATH")
 # Upload model if not already present
 echo ""
 echo "--- Uploading model ---"
-upload_file "$MODEL_PATH" "$PFN" "models"
+upload_file "$MODEL_PATH" "$PFN" ""
 
 # Write model.txt so the app knows which model to load
 TMPDIR_LOCAL=$(mktemp -d)

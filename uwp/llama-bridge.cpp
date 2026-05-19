@@ -46,7 +46,7 @@ static std::string resolve_model_path(const std::string& filename) {
     using namespace winrt::Windows::Storage;
     auto folder = ApplicationData::Current().LocalFolder();
     std::wstring wpath(folder.Path().c_str());
-    wpath += L"\\models\\";
+    wpath += L"\\";
     // Convert filename to wide
     int sz = MultiByteToWideChar(CP_UTF8, 0, filename.c_str(), -1, nullptr, 0);
     std::wstring wfilename(sz, L'\0');
