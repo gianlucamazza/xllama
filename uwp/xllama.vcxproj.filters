@@ -28,6 +28,9 @@
     <ClCompile Include="App.cpp">
       <Filter>xllama</Filter>
     </ClCompile>
+    <ClCompile Include="MainPage.cpp">
+      <Filter>xllama</Filter>
+    </ClCompile>
     <ClCompile Include="llama-bridge.cpp">
       <Filter>xllama</Filter>
     </ClCompile>
@@ -196,7 +199,28 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ClInclude Include="App.h">
+      <Filter>xllama</Filter>
+    </ClInclude>
+    <ClInclude Include="MainPage.h">
+      <Filter>xllama</Filter>
+    </ClInclude>
+    <ClInclude Include="llama-bridge.h">
+      <Filter>xllama</Filter>
+    </ClInclude>
+    <ClInclude Include="pch.h">
+      <Filter>xllama</Filter>
+    </ClInclude>
+  </ItemGroup>
+
+  <ItemGroup>
     <AppxManifest Include="AppxManifest.xml" />
+    <ApplicationDefinition Include="App.xaml">
+      <Filter>xllama</Filter>
+    </ApplicationDefinition>
+    <Page Include="MainPage.xaml">
+      <Filter>xllama</Filter>
+    </Page>
     <Image Include="Assets\StoreLogo.png" />
     <Image Include="Assets\Square150x150Logo.png" />
     <Image Include="Assets\Square44x44Logo.png" />

@@ -1,37 +1,33 @@
 #ifdef XLLAMA_UWP
 
+#include "pch.h"
 #include "App.h"
-#include "llama-bridge.h"
-
-#include <thread>
-#include <string>
-#include <cstdio>
+#include "App.g.cpp"
+#include "MainPage.h"
 
 using namespace winrt;
-using namespace winrt::Windows::ApplicationModel::Core;
-using namespace winrt::Windows::Foundation;
+using namespace winrt::Windows::ApplicationModel::Activation;
+using namespace winrt::Windows::UI::Xaml;
+using namespace winrt::Windows::UI::Xaml::Controls;
 using namespace winrt::Windows::Storage;
-using namespace winrt::Windows::UI::Core;
 
-namespace xllama {
+namespace winrt::xllama::implementation {
 
 // ---------------------------------------------------------------------------
 // File logger: writes to LocalFolder/xllama.log + OutputDebugString
 // ---------------------------------------------------------------------------
-static FILE * g_log_fp = nullptr;
+static FILE* g_log_fp = nullptr;
 
 static void log_init() {
     try {
         auto folder = ApplicationData::Current().LocalFolder();
-        auto path   = folder.Path();
-        // Build a narrow path for fopen
-        std::wstring wpath(path.c_str());
+        std::wstring wpath(folder.Path().c_str());
         wpath += L"\\xllama.log";
         g_log_fp = _wfopen(wpath.c_str(), L"a");
     } catch (...) {}
 }
 
-static void log_write(const char * msg) {
+static void log_write(const char* msg) {
     OutputDebugStringA(msg);
     if (g_log_fp) {
         fputs(msg, g_log_fp);
@@ -43,61 +39,38 @@ static void log_write(const char * msg) {
 // App
 // ---------------------------------------------------------------------------
 
-IFrameworkView App::CreateView() {
-    return *this;
-}
-
-void App::Initialize(CoreApplicationView const&) {
+App::App() {
     log_init();
-    log_write("[xllama] Initialize\n");
+    log_write("[xllama] App::App()\n");
+    InitializeComponent();
 }
 
-void App::SetWindow(CoreWindow const&) {
-    log_write("[xllama] SetWindow\n");
+void App::OnLaunched(LaunchActivatedEventArgs const&) {
+    log_write("[xllama] App::OnLaunched\n");
+
+    auto rootFrame = Window::Current().Content().try_as<Frame>();
+    if (!rootFrame) {
+        rootFrame = Frame();
+        Window::Current().Content(rootFrame);
+    }
+
+    if (rootFrame.Content() == nullptr) {
+        rootFrame.Navigate(xaml_typename<xllama::MainPage>());
+    }
+
+    Window::Current().Activate();
+    log_write("[xllama] Window activated\n");
 }
 
-void App::Load(hstring const&) {
-    log_write("[xllama] Load\n");
-}
+} // namespace winrt::xllama::implementation
 
-void App::Run() {
-    log_write("[xllama] Run — starting inference thread\n");
-
-    // Run inference on a background thread.
-    // winrt apartment is already initialised by wWinMain below.
-    std::thread inference_thread([]() {
-        try {
-            xllama::bridge::main_loop();
-        } catch (const std::exception & e) {
-            log_write(("[xllama] exception in inference thread: " +
-                       std::string(e.what()) + "\n").c_str());
-        } catch (...) {
-            log_write("[xllama] unknown exception in inference thread\n");
-        }
-        log_write("[xllama] inference thread finished\n");
-    });
-
-    CoreWindow window = CoreWindow::GetForCurrentThread();
-    window.Activate();
-
-    CoreDispatcher dispatcher = window.Dispatcher();
-    dispatcher.ProcessEvents(CoreProcessEventsOption::ProcessUntilQuit);
-
-    if (inference_thread.joinable()) inference_thread.join();
-
-    log_write("[xllama] Run exiting\n");
-}
-
-void App::Uninitialize() {
-    log_write("[xllama] Uninitialize\n");
-    if (g_log_fp) { fclose(g_log_fp); g_log_fp = nullptr; }
-}
-
-} // namespace xllama
-
+// ---------------------------------------------------------------------------
+// Entry point — Application::Start replaces CoreApplication::Run
+// ---------------------------------------------------------------------------
 int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     winrt::init_apartment();
-    CoreApplication::Run(winrt::make<xllama::App>());
+    winrt::Windows::UI::Xaml::Application::Start(
+        [](auto&&) { winrt::make<winrt::xllama::implementation::App>(); });
 }
 
 #endif // XLLAMA_UWP

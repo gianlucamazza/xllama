@@ -1,15 +1,18 @@
-// Minimal IDL so MIDL generates xllama.winmd, required by AppxPackage.Targets
-// when EntryPoint="xllama.App" is set in AppxManifest.xml.
-// The actual implementation lives in App.h / App.cpp via winrt::implements<>.
-import "inspectable.idl";
-import "Windows.ApplicationModel.Core.idl";
-
+// MIDL 3 IDL — processed by cppwinrt.exe (via Microsoft.Windows.CppWinRT NuGet).
+// Declares runtimeclasses for App and MainPage.
+// cppwinrt.exe emits xllama.winmd (needed by AppxPackage.Targets for
+// EntryPoint="xllama.App") and generates App.g.h / MainPage.g.h for C++/WinRT.
 namespace xllama
 {
     [default_interface]
-    runtimeclass App : Windows.ApplicationModel.Core.IFrameworkViewSource,
-                       Windows.ApplicationModel.Core.IFrameworkView
+    runtimeclass App : Windows.UI.Xaml.Application
     {
         App();
+    }
+
+    [default_interface]
+    runtimeclass MainPage : Windows.UI.Xaml.Controls.Page
+    {
+        MainPage();
     }
 }

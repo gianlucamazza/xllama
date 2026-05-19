@@ -3,24 +3,21 @@
 #ifdef XLLAMA_UWP
 
 #include "pch.h"
+#include "App.g.h"
 
-namespace xllama {
+namespace winrt::xllama::implementation {
 
-struct App : winrt::implements<App,
-    winrt::Windows::ApplicationModel::Core::IFrameworkViewSource,
-    winrt::Windows::ApplicationModel::Core::IFrameworkView>
-{
-    // IFrameworkViewSource
-    winrt::Windows::ApplicationModel::Core::IFrameworkView CreateView();
-
-    // IFrameworkView
-    void Initialize(winrt::Windows::ApplicationModel::Core::CoreApplicationView const&);
-    void Load(winrt::hstring const&);
-    void Uninitialize();
-    void Run();
-    void SetWindow(winrt::Windows::UI::Core::CoreWindow const&);
+struct App : AppT<App> {
+    App();
+    void OnLaunched(winrt::Windows::ApplicationModel::Activation::LaunchActivatedEventArgs const&);
 };
 
-} // namespace xllama
+} // namespace winrt::xllama::implementation
+
+namespace winrt::xllama::factory_implementation {
+
+struct App : AppT<App, implementation::App> {};
+
+} // namespace winrt::xllama::factory_implementation
 
 #endif // XLLAMA_UWP

@@ -163,6 +163,10 @@ TMPDIR_LOCAL=$(mktemp -d)
 echo "$MODEL_FILENAME" >"${TMPDIR_LOCAL}/model.txt"
 upload_file "${TMPDIR_LOCAL}/model.txt" "$PFN" ""
 
+# Write bench.flag so MainPage auto-runs without UI interaction
+echo "bench" >"${TMPDIR_LOCAL}/bench.flag"
+upload_file "${TMPDIR_LOCAL}/bench.flag" "$PFN" ""
+
 # Upload prompt
 echo ""
 echo "--- Uploading prompt ---"

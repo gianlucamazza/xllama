@@ -30,10 +30,16 @@
     <ApplicationTypeRevision>10.0</ApplicationTypeRevision>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <WindowsTargetPlatformMinVersion>10.0.19041.0</WindowsTargetPlatformMinVersion>
-    <EnableDotNetNativeCompatibleProfile>true</EnableDotNetNativeCompatibleProfile>
   </PropertyGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+  <!-- NuGet props — must be imported early so include paths and tool overrides
+       are active before the compiler/linker ItemDefinitionGroups below. -->
+  <Import Project="packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.props"
+          Condition="Exists('packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.props')" />
+  <Import Project="packages\Microsoft.UI.Xaml.2.8.6\build\native\Microsoft.UI.Xaml.props"
+          Condition="Exists('packages\Microsoft.UI.Xaml.2.8.6\build\native\Microsoft.UI.Xaml.props')" />
 
   <!-- =====================================================================
        Per-configuration base properties
@@ -62,6 +68,13 @@
   <PropertyGroup>
     <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
     <AppxBundle>Never</AppxBundle>
+  </PropertyGroup>
+
+  <!-- C++/WinRT XAML integration (via Microsoft.Windows.CppWinRT NuGet) -->
+  <PropertyGroup>
+    <CppWinRTOptimized>true</CppWinRTOptimized>
+    <CppWinRTRootNamespaceAutoMerge>true</CppWinRTRootNamespaceAutoMerge>
+    <CppWinRTGenerateWindowsMetadata>true</CppWinRTGenerateWindowsMetadata>
   </PropertyGroup>
 
   <!-- =====================================================================
@@ -103,8 +116,6 @@
       <!-- Disable precompiled headers globally. We don't have pch.cpp to create
            the PCH; pch.h is included as a regular header via App.h. -->
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <!-- Suppress upstream llama.cpp narrowing/conversion warnings on MSVC -->
-      <DisableSpecificWarnings>4244;4267;4566;4005;4305;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <!-- WindowsApp.lib is the UWP umbrella library -->
@@ -138,22 +149,25 @@
   </ItemDefinitionGroup>
 
   <!-- =====================================================================
-       IDL → MIDL → xllama.winmd
-       Required by AppxPackage.Targets when EntryPoint="xllama.App" is set.
-       MIDL reads App.idl and emits $(OutDir)xllama.winmd into the package.
+       IDL (MIDL 3 format) — processed by cppwinrt.exe via CppWinRT NuGet.
+       Declares App and MainPage runtimeclasses; cppwinrt.exe emits
+       xllama.winmd (needed by AppxPackage.Targets for EntryPoint="xllama.App")
+       and generates App.g.h / MainPage.g.h used by the C++ source.
        ===================================================================== -->
   <ItemGroup>
-    <!-- Named xllama.idl so MIDL emits xllama.winmd (IDL stem = winmd stem).
-         AppxPackage.Targets looks for $(OutDir)xllama.winmd; App.idl would
-         produce App.winmd and trigger APPX0702. -->
-    <Midl Include="xllama.idl">
-      <TargetEnvironment>X64</TargetEnvironment>
-      <MkTypLibCompatible>false</MkTypLibCompatible>
-      <HeaderFileName>xllama.g.h</HeaderFileName>
-      <GenerateClientFiles>None</GenerateClientFiles>
-      <GenerateServerFiles>None</GenerateServerFiles>
-      <WinMDOutputDirectory>$(OutDir)</WinMDOutputDirectory>
-    </Midl>
+    <Midl Include="xllama.idl" />
+  </ItemGroup>
+
+  <!-- =====================================================================
+       XAML pages
+       ===================================================================== -->
+  <ItemGroup>
+    <ApplicationDefinition Include="App.xaml">
+      <SubType>Designer</SubType>
+    </ApplicationDefinition>
+    <Page Include="MainPage.xaml">
+      <SubType>Designer</SubType>
+    </Page>
   </ItemGroup>
 
   <!-- =====================================================================
@@ -273,9 +287,39 @@
   <!-- xllama UWP app -->
   <ItemGroup>
     <ClCompile Include="App.cpp" />
+    <ClCompile Include="MainPage.cpp" />
     <ClCompile Include="llama-bridge.cpp" />
   </ItemGroup>
 
+  <!-- Suppress upstream llama.cpp warnings only for upstream source files.
+       Our uwp/ files compile with full warnings so we catch our own mistakes. -->
+  <ItemGroup>
+    <ClCompile Update="..\llama.cpp\ggml\src\*">
+      <DisableSpecificWarnings>4244;4267;4566;4005;4305;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Update="..\llama.cpp\ggml\src\ggml-cpu\*">
+      <DisableSpecificWarnings>4244;4267;4566;4005;4305;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Update="..\llama.cpp\ggml\src\ggml-cpu\amx\*">
+      <DisableSpecificWarnings>4244;4267;4566;4005;4305;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Update="..\llama.cpp\ggml\src\ggml-cpu\arch\x86\*">
+      <DisableSpecificWarnings>4244;4267;4566;4005;4305;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Update="..\llama.cpp\src\*">
+      <DisableSpecificWarnings>4244;4267;4566;4005;4305;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Update="..\llama.cpp\src\models\*">
+      <DisableSpecificWarnings>4244;4267;4566;4005;4305;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+  </ItemGroup>
+
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+
+  <!-- NuGet package targets (restored to packages\ relative to this vcxproj) -->
+  <Import Project="packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.targets"
+          Condition="Exists('packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.targets')" />
+  <Import Project="packages\Microsoft.UI.Xaml.2.8.6\build\native\Microsoft.UI.Xaml.targets"
+          Condition="Exists('packages\Microsoft.UI.Xaml.2.8.6\build\native\Microsoft.UI.Xaml.targets')" />
 
 </Project>

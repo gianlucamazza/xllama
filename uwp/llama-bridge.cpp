@@ -112,13 +112,16 @@ InferenceResult run_inference(const InferenceParams& params) {
     mparams.use_mmap = false; // POSIX mmap unavailable in UWP; Stage 1E will add CreateFileMappingFromApp
 #endif
 
+    if (params.on_status) params.on_status("loading model");
     llama_model* model = llama_model_load_from_file(abs_model_path.c_str(), mparams);
     if (!model) {
         res.error_msg = "failed to load model: " + abs_model_path;
         log_output(("[xllama] " + res.error_msg + "\n").c_str());
+        if (params.on_status) params.on_status("error: " + res.error_msg);
         return res;
     }
     log_output("[xllama] model loaded\n");
+    if (params.on_status) params.on_status("decoding");
 
     const int n_threads = params.n_threads > 0 ? params.n_threads : detect_threads();
 
@@ -177,6 +180,9 @@ InferenceResult run_inference(const InferenceParams& params) {
 
     int n_generated = 0;
     while (n_generated < params.n_predict) {
+        // Check abort flag (set from UI Cancel button)
+        if (params.abort_flag && params.abort_flag->load()) break;
+
         llama_token token = llama_sampler_sample(sampler, ctx, -1);
         if (llama_vocab_is_eog(vocab, token)) break;
 
@@ -185,6 +191,7 @@ InferenceResult run_inference(const InferenceParams& params) {
         if (len > 0) {
             buf[len] = '\0';
             res.output_text += buf;
+            if (params.on_token) params.on_token(std::string(buf, (size_t)len));
 #ifdef XLLAMA_UWP
             if (out_fp) { fputs(buf, out_fp); fflush(out_fp); }
             OutputDebugStringA(buf);

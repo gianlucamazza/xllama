@@ -79,6 +79,13 @@ if (-not $MsBuild) {
 }
 
 Write-Host "Using MSBuild: $MsBuild"
+
+# ---------------------------------------------------------------------------
+# NuGet restore (packages.config in uwp\ → restores to uwp\packages\)
+# ---------------------------------------------------------------------------
+Write-Host "Restoring NuGet packages ..."
+nuget restore $SlnPath
+
 Write-Host "Building $Configuration|$Platform ..."
 
 # ---------------------------------------------------------------------------
