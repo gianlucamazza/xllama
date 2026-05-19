@@ -31,6 +31,8 @@ template ::winrt::Windows::UI::Xaml::Markup::IComponentConnector
 
 } // namespace winrt::xllama::implementation
 
+#include "xllama/utf8_utils.h"
+
 #include <cstdio>
 #include <string>
 #include <thread>
@@ -42,35 +44,17 @@ using namespace winrt::Windows::UI::Core;
 using namespace winrt::Windows::UI::Xaml;
 using namespace winrt::Windows::UI::Xaml::Controls;
 
+using xllama::utf8_to_wstring;
+using xllama::wstring_to_utf8;
+
 namespace winrt::xllama::implementation {
 
-// ---------------------------------------------------------------------------
-// Helper: resolve a filename relative to ApplicationData::LocalFolder
-// ---------------------------------------------------------------------------
-static std::wstring local_path(const wchar_t* filename) {
+// Wide LocalFolder path: ApplicationData::LocalFolder\<filename_w>
+// (path_utils returns UTF-8; _wfopen needs wstring — kept local to avoid
+// polluting the cross-platform path_utils API with a UTF-16-only variant)
+static std::wstring local_wpath(const wchar_t* filename_w) {
     auto folder = ApplicationData::Current().LocalFolder();
-    std::wstring path(folder.Path().c_str());
-    path += L"\\";
-    path += filename;
-    return path;
-}
-
-static std::string wstr_to_utf8(std::wstring const& w) {
-    if (w.empty()) return {};
-    int sz = WideCharToMultiByte(CP_UTF8, 0, w.c_str(), -1, nullptr, 0, nullptr, nullptr);
-    std::string r(sz, '\0');
-    WideCharToMultiByte(CP_UTF8, 0, w.c_str(), -1, r.data(), sz, nullptr, nullptr);
-    if (!r.empty() && r.back() == '\0') r.pop_back();
-    return r;
-}
-
-static std::wstring utf8_to_wstr(std::string const& s) {
-    if (s.empty()) return {};
-    int sz = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
-    std::wstring r(sz, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, r.data(), sz);
-    if (!r.empty() && r.back() == L'\0') r.pop_back();
-    return r;
+    return std::wstring(folder.Path().c_str()) + L"\\" + filename_w;
 }
 
 // ---------------------------------------------------------------------------
@@ -151,7 +135,7 @@ void MainPage::SetRunning(bool running) {
 // ---------------------------------------------------------------------------
 
 void MainPage::LoadModelName() {
-    auto path = local_path(L"model.txt");
+    auto path = local_wpath(L"model.txt");
     FILE* f = _wfopen(path.c_str(), L"r");
     if (f) {
         wchar_t buf[512] = {};
@@ -180,7 +164,7 @@ fire_and_forget MainPage::CheckBenchMode() {
 
     co_await resume_background();
 
-    auto flag_path = local_path(L"bench.flag");
+    auto flag_path = local_wpath(L"bench.flag");
     FILE* f = _wfopen(flag_path.c_str(), L"r");
     if (!f) co_return;
     fclose(f);
@@ -211,8 +195,8 @@ void MainPage::StartInference(std::wstring const& prompt_w) {
     MetricsText().Text(L"");
 
     auto self = get_strong();
-    std::string prompt = wstr_to_utf8(prompt_w);
-    std::string model  = wstr_to_utf8(m_model_filename);
+    std::string prompt = wstring_to_utf8(prompt_w);
+    std::string model  = wstring_to_utf8(m_model_filename);
 
     std::thread([self, prompt, model]() {
         ::xllama::bridge::InferenceParams params;
@@ -224,13 +208,13 @@ void MainPage::StartInference(std::wstring const& prompt_w) {
         auto dispatcher = self->Dispatcher();
 
         params.on_status = [self, dispatcher](const std::string& s) {
-            auto ws = utf8_to_wstr(s);
+            auto ws = utf8_to_wstring(s);
             dispatcher.RunAsync(CoreDispatcherPriority::Normal,
                 [self, ws]() { self->SetStatus(ws); });
         };
 
         params.on_token = [self, dispatcher](const std::string& tok) {
-            auto wtok = utf8_to_wstr(tok);
+            auto wtok = utf8_to_wstring(tok);
             dispatcher.RunAsync(CoreDispatcherPriority::Normal,
                 [self, wtok]() { self->AppendOutput(wtok); });
         };
@@ -249,7 +233,7 @@ void MainPage::StartInference(std::wstring const& prompt_w) {
                        pt, dt, res.peak_ws_mb);
             metrics = buf;
         } else {
-            metrics = utf8_to_wstr(res.error_msg.empty() ? "inference failed" : res.error_msg);
+            metrics = utf8_to_wstring(res.error_msg.empty() ? "inference failed" : res.error_msg);
         }
 
         dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, metrics, res]() {
