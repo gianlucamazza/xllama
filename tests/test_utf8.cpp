@@ -1,7 +1,10 @@
+// Copyright (c) 2024 Venere Labs
+// SPDX-License-Identifier: MIT
+
 #include <doctest/doctest.h>
 
 #ifdef _WIN32
-#  include "xllama/utf8_utils.h"
+    #include "xllama/utf8_utils.h"
 
 TEST_CASE("UTF-8 roundtrip: ASCII") {
     std::string original = "Hello, World!";

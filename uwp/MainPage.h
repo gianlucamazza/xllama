@@ -1,14 +1,17 @@
+// Copyright (c) 2024 Venere Labs
+// SPDX-License-Identifier: MIT
+
 #pragma once
 
 #ifdef XLLAMA_UWP
 
-#include "pch.h"
-#include "MainPage.g.h"
-#include "llama-bridge.h"
+    #include "MainPage.g.h"
+    #include "llama-bridge.h"
+    #include "pch.h"
 
-#include <atomic>
-#include <string>
-#include <thread>
+    #include <atomic>
+    #include <string>
+    #include <thread>
 
 namespace winrt::xllama::implementation {
 
@@ -22,17 +25,17 @@ struct MainPage : MainPageT<MainPage> {
     void Connect(int32_t connectionId,
                  winrt::Windows::Foundation::IInspectable const& target) override;
     winrt::Windows::UI::Xaml::Markup::IComponentConnector
-        GetBindingConnector(int32_t connectionId,
-                            winrt::Windows::Foundation::IInspectable const& target) override;
+    GetBindingConnector(int32_t connectionId,
+                        winrt::Windows::Foundation::IInspectable const& target) override;
 
     void OnRunClick(winrt::Windows::Foundation::IInspectable const&,
                     winrt::Windows::UI::Xaml::RoutedEventArgs const&);
     void OnCancelClick(winrt::Windows::Foundation::IInspectable const&,
                        winrt::Windows::UI::Xaml::RoutedEventArgs const&);
 
-private:
-    std::atomic<bool>    m_abort{false};
-    std::wstring         m_model_filename;
+  private:
+    std::atomic<bool> m_abort{false};
+    std::wstring m_model_filename;
 
     void LoadModelName();
     winrt::fire_and_forget CheckBenchMode();

@@ -1,3 +1,6 @@
+// Copyright (c) 2024 Venere Labs
+// SPDX-License-Identifier: MIT
+
 // ggml-backend-dl-stub.cpp
 // UWP replacement for ggml/src/ggml-backend-dl.cpp.
 // LoadLibraryW is blocked in WINAPI_FAMILY_APP; dynamic backend loading
@@ -9,27 +12,27 @@
 
 #ifdef XLLAMA_UWP
 
-#include <filesystem>
+    #include <filesystem>
 namespace fs = std::filesystem;
 
-// On Windows, HMODULE = HINSTANCE__*; dl_handle = HINSTANCE__ (the struct).
-// Forward-declare so the pointer type matches without including <windows.h>.
-#ifdef _WIN32
+    // On Windows, HMODULE = HINSTANCE__*; dl_handle = HINSTANCE__ (the struct).
+    // Forward-declare so the pointer type matches without including <windows.h>.
+    #ifdef _WIN32
 struct HINSTANCE__;
 using dl_handle = HINSTANCE__;
-#else
+    #else
 using dl_handle = void;
-#endif
+    #endif
 
-dl_handle * dl_load_library(const fs::path & /*path*/) {
+dl_handle* dl_load_library(const fs::path& /*path*/) {
     return nullptr;
 }
 
-void * dl_get_sym(dl_handle * /*handle*/, const char * /*name*/) {
+void* dl_get_sym(dl_handle* /*handle*/, const char* /*name*/) {
     return nullptr;
 }
 
-const char * dl_error() {
+const char* dl_error() {
     return "dynamic backend loading not supported in UWP";
 }
 

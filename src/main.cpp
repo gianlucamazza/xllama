@@ -1,3 +1,6 @@
+// Copyright (c) 2024 Venere Labs
+// SPDX-License-Identifier: MIT
+
 #include "xllama/cli.h"
 #include "xllama/inference.h"
 

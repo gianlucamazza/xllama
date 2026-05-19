@@ -1,8 +1,11 @@
+// Copyright (c) 2024 Venere Labs
+// SPDX-License-Identifier: MIT
+
 #ifdef XLLAMA_UWP
 
-#include "pch.h"
-#include "App.h"
-#include "MainPage.h"
+    #include "App.h"
+    #include "MainPage.h"
+    #include "pch.h"
 
 using namespace winrt;
 using namespace winrt::Windows::ApplicationModel::Activation;
@@ -23,7 +26,8 @@ static void log_init() {
         std::wstring wpath(folder.Path().c_str());
         wpath += L"\\xllama.log";
         g_log_fp = _wfopen(wpath.c_str(), L"a");
-    } catch (...) {}
+    } catch (...) {
+    }
 }
 
 static void log_write(const char* msg) {

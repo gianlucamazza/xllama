@@ -1,18 +1,21 @@
+// Copyright (c) 2024 Venere Labs
+// SPDX-License-Identifier: MIT
+
 #include "xllama/platform.h"
 
 #include <cstdio>
 #include <thread>
 
 #ifdef XLLAMA_UWP
-#  ifndef WIN32_LEAN_AND_MEAN
-#    define WIN32_LEAN_AND_MEAN
-#  endif
-#  ifndef NOMINMAX
-#    define NOMINMAX
-#  endif
-#  include <windows.h>
-#  define PSAPI_VERSION 2
-#  include <psapi.h>
+    #ifndef WIN32_LEAN_AND_MEAN
+        #define WIN32_LEAN_AND_MEAN
+    #endif
+    #ifndef NOMINMAX
+        #define NOMINMAX
+    #endif
+    #include <windows.h>
+    #define PSAPI_VERSION 2
+    #include <psapi.h>
 #endif
 
 namespace xllama {

@@ -1,3 +1,6 @@
+// Copyright (c) 2024 Venere Labs
+// SPDX-License-Identifier: MIT
+
 #pragma once
 
 #include "xllama/inference_params.h"

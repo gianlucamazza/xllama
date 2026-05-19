@@ -1,14 +1,18 @@
+// Copyright (c) 2024 Venere Labs
+// SPDX-License-Identifier: MIT
+
 #include "xllama/path_utils.h"
+#include "xllama/platform.h"
 
 #ifdef XLLAMA_UWP
-#  ifndef WIN32_LEAN_AND_MEAN
-#    define WIN32_LEAN_AND_MEAN
-#  endif
-#  ifndef NOMINMAX
-#    define NOMINMAX
-#  endif
-#  include <windows.h>
-#  include <winrt/Windows.Storage.h>
+    #ifndef WIN32_LEAN_AND_MEAN
+        #define WIN32_LEAN_AND_MEAN
+    #endif
+    #ifndef NOMINMAX
+        #define NOMINMAX
+    #endif
+    #include <windows.h>
+    #include <winrt/Windows.Storage.h>
 #endif
 
 namespace xllama {
@@ -26,21 +30,34 @@ static std::string local_folder_path(const std::string& filename, const wchar_t*
     }
     // Convert filename to wide
     int sz = MultiByteToWideChar(CP_UTF8, 0, filename.c_str(), -1, nullptr, 0);
-    if (sz > 0) {
-        std::wstring wfn(sz, L'\0');
-        MultiByteToWideChar(CP_UTF8, 0, filename.c_str(), -1, wfn.data(), sz);
-        if (!wfn.empty() && wfn.back() == L'\0') wfn.pop_back();
-        wpath += wfn;
+    if (sz <= 0) {
+        log_output("[xllama] MultiByteToWideChar failed in path resolution\n");
+        return filename;
     }
+    std::wstring wfn(sz, L'\0');
+    if (MultiByteToWideChar(CP_UTF8, 0, filename.c_str(), -1, wfn.data(), sz) == 0) {
+        log_output("[xllama] MultiByteToWideChar conversion failed\n");
+        return filename;
+    }
+    if (!wfn.empty() && wfn.back() == L'\0')
+        wfn.pop_back();
+    wpath += wfn;
+
     // Convert back to UTF-8
     int nsz = WideCharToMultiByte(CP_UTF8, 0, wpath.c_str(), -1, nullptr, 0, nullptr, nullptr);
-    if (nsz > 0) {
-        std::string result(nsz, '\0');
-        WideCharToMultiByte(CP_UTF8, 0, wpath.c_str(), -1, result.data(), nsz, nullptr, nullptr);
-        if (!result.empty() && result.back() == '\0') result.pop_back();
-        return result;
+    if (nsz <= 0) {
+        log_output("[xllama] WideCharToMultiByte size query failed\n");
+        return filename;
     }
-    return filename;
+    std::string result(nsz, '\0');
+    if (WideCharToMultiByte(CP_UTF8, 0, wpath.c_str(), -1, result.data(), nsz, nullptr, nullptr) ==
+        0) {
+        log_output("[xllama] WideCharToMultiByte conversion failed\n");
+        return filename;
+    }
+    if (!result.empty() && result.back() == '\0')
+        result.pop_back();
+    return result;
 }
 
 std::string resolve_model_path(const std::string& filename) {

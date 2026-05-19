@@ -1,3 +1,6 @@
+// Copyright (c) 2024 Venere Labs
+// SPDX-License-Identifier: MIT
+
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
@@ -15,16 +18,9 @@ TEST_CASE("CLI parsing: minimal args") {
 }
 
 TEST_CASE("CLI parsing: all optional args") {
-    const char* argv[] = {
-        "xllama-cli",
-        "--model", "m.gguf",
-        "--prompt", "hi",
-        "--n-predict", "64",
-        "--ctx", "1024",
-        "--threads", "4",
-        "--temp", "0.5",
-        "--seed", "42"
-    };
+    const char* argv[] = {"xllama-cli",  "--model", "m.gguf", "--prompt", "hi",
+                          "--n-predict", "64",      "--ctx",  "1024",     "--threads",
+                          "4",           "--temp",  "0.5",    "--seed",   "42"};
     int argc = 15;
     xllama::InferenceParams params;
     CHECK(xllama::parse_cli_args(argc, const_cast<char**>(argv), params));

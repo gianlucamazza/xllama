@@ -1,3 +1,6 @@
+// Copyright (c) 2024 Venere Labs
+// SPDX-License-Identifier: MIT
+
 #pragma once
 
 #include <string>
@@ -10,7 +13,7 @@ namespace xllama {
 
 #ifdef _WIN32
 std::wstring utf8_to_wstring(const std::string& s);
-std::string  wstring_to_utf8(const std::wstring& w);
+std::string wstring_to_utf8(const std::wstring& w);
 #endif
 
 } // namespace xllama

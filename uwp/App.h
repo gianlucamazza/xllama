@@ -1,9 +1,12 @@
+// Copyright (c) 2024 Venere Labs
+// SPDX-License-Identifier: MIT
+
 #pragma once
 
 #ifdef XLLAMA_UWP
 
-#include "pch.h"
-#include "App.g.h"
+    #include "App.g.h"
+    #include "pch.h"
 
 namespace winrt::xllama::implementation {
 

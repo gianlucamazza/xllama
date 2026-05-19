@@ -109,8 +109,8 @@ if [[ ! -f "$CER_PATH" ]]; then
 	CER_PATH="${APPX_DIR}/../../xllama-test.cer"
 fi
 if [[ -f "$CER_PATH" ]]; then
-	echo "Found companion certificate: $(realpath "$CER_PATH")"
-	"$0" install-cert "$(realpath "$CER_PATH")" || true
+	echo "Found companion certificate: $(readlink -f "$CER_PATH")"
+	"$0" install-cert "$(readlink -f "$CER_PATH")" || true
 	echo ""
 fi
 

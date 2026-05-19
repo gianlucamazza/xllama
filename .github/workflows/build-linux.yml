@@ -19,7 +19,21 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake build-essential libcurl4-openssl-dev ccache
+          sudo apt-get install -y cmake build-essential libcurl4-openssl-dev ccache \
+            clang-format shellcheck
+
+      - name: Verify C++ formatting
+        run: |
+          find . \
+            -path ./llama.cpp -prune -o \
+            -path ./build -prune -o \
+            -path ./build-uwp-test -prune -o \
+            \( -name '*.cpp' -o -name '*.h' -o -name '*.c' \) -print |
+            xargs clang-format --dry-run --Werror
+
+      - name: Verify shell script quality
+        run: |
+          shellcheck scripts/*.sh
 
       - name: Configure (with tests)
         run: cmake --preset linux-test

@@ -12,7 +12,7 @@ if [ ! -d "$SUBMODULE_DIR/.git" ] && [ ! -f "$SUBMODULE_DIR/.git" ]; then
 	exit 1
 fi
 
-cd "$SUBMODULE_DIR"
+cd "$SUBMODULE_DIR" || exit 1
 
 for p in "${PATCH_DIR}"/000*.patch; do
 	[ -f "$p" ] || continue

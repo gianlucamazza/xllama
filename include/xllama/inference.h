@@ -1,3 +1,6 @@
+// Copyright (c) 2024 Venere Labs
+// SPDX-License-Identifier: MIT
+
 #pragma once
 
 #include "xllama/inference_params.h"
@@ -10,8 +13,7 @@ namespace xllama {
 InferenceResult run_inference(const InferenceParams& params);
 
 // Write bench CSV row to the resolved local path.
-void write_bench_csv(const InferenceParams& params,
-                     const InferenceResult& res,
+void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
                      const char* host_label = nullptr);
 
 } // namespace xllama

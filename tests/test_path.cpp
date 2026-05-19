@@ -1,3 +1,6 @@
+// Copyright (c) 2024 Venere Labs
+// SPDX-License-Identifier: MIT
+
 #include <doctest/doctest.h>
 
 #include "xllama/path_utils.h"
