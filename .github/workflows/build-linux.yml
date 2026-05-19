@@ -32,9 +32,13 @@ jobs:
 
       - name: Verify UWP gate
         run: |
-          cmake -B build-uwp-test -DXLLAMA_TARGET=uwp 2>&1 | grep -q "scripts/build-uwp.ps1" \
-            && echo "UWP gate OK" \
-            || (echo "UWP gate missing" && exit 1)
+          output=$(cmake -B build-uwp-test -DXLLAMA_TARGET=uwp 2>&1 || true)
+          if echo "$output" | grep -qi "build-uwp.ps1"; then
+            echo "UWP gate OK"
+          else
+            echo "UWP gate missing"
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@v4
         if: success()
