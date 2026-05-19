@@ -4,9 +4,8 @@
   xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
-  xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
   xmlns:xbox="http://schemas.microsoft.com/appx/manifest/xbox/windows10"
-  IgnorableNamespaces="mp uap uap3 uap10 xbox">
+  IgnorableNamespaces="mp uap uap3 xbox">
 
   <Identity
     Name="VenereLabs.xllama"
@@ -34,10 +33,11 @@
   </Resources>
 
   <Applications>
-    <!-- uap10:Subsystem="windows" (SDK 10.0.18362+): native PE entry point (wWinMain).
-         No EntryPoint attribute = no WinRT activatable class registration required,
-         so MSBuild does not look for xllama.winmd in the package payload. -->
-    <Application Id="xllama" Executable="xllama.exe" uap10:Subsystem="windows">
+    <!-- EntryPoint="xllama.App": activatable class declared in App.idl, compiled by
+         MIDL to xllama.winmd. AppxPackage.Targets picks up $(OutDir)xllama.winmd
+         and includes it in the package payload. At runtime the OS starts xllama.exe
+         whose wWinMain calls CoreApplication::Run(winrt::make<App>()). -->
+    <Application Id="xllama" Executable="xllama.exe" EntryPoint="xllama.App">
       <uap:VisualElements
         DisplayName="xllama"
         Description="LLM inference on Xbox Series S via llama.cpp"

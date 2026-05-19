@@ -136,6 +136,23 @@
   </ItemDefinitionGroup>
 
   <!-- =====================================================================
+       IDL → MIDL → xllama.winmd
+       Required by AppxPackage.Targets when EntryPoint="xllama.App" is set.
+       MIDL reads App.idl and emits $(OutDir)xllama.winmd into the package.
+       ===================================================================== -->
+  <ItemGroup>
+    <Midl Include="App.idl">
+      <TargetEnvironment>X64</TargetEnvironment>
+      <MkTypLibCompatible>false</MkTypLibCompatible>
+      <HeaderFileName>App.g.h</HeaderFileName>
+      <GenerateClientFiles>None</GenerateClientFiles>
+      <GenerateServerFiles>None</GenerateServerFiles>
+      <WinMDOutputDirectory>$(OutDir)</WinMDOutputDirectory>
+      <TypeLibraryName>$(OutDir)xllama.winmd</TypeLibraryName>
+    </Midl>
+  </ItemGroup>
+
+  <!-- =====================================================================
        Manifest
        ===================================================================== -->
   <ItemGroup>

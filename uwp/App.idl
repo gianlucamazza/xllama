@@ -1,0 +1,15 @@
+// Minimal IDL so MIDL generates xllama.winmd, required by AppxPackage.Targets
+// when EntryPoint="xllama.App" is set in AppxManifest.xml.
+// The actual implementation lives in App.h / App.cpp via winrt::implements<>.
+import "inspectable.idl";
+import "Windows.ApplicationModel.Core.idl";
+
+namespace xllama
+{
+    [default_interface]
+    runtimeclass App : Windows.ApplicationModel.Core.IFrameworkViewSource,
+                       Windows.ApplicationModel.Core.IFrameworkView
+    {
+        App();
+    }
+}
