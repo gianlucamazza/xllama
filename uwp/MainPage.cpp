@@ -1,6 +1,9 @@
 #ifdef XLLAMA_UWP
 
 #include "pch.h"
+#include <winrt/Microsoft.UI.Xaml.h>
+#include <winrt/Microsoft.UI.Xaml.Controls.h>
+#include <winrt/Microsoft.UI.Xaml.XamlTypeInfo.h>
 #include "MainPage.h"
 #include "MainPage.g.cpp"
 

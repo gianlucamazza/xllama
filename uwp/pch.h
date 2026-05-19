@@ -25,8 +25,7 @@
 #include <winrt/Windows.UI.Xaml.Interop.h>
 #include <winrt/Windows.Storage.h>
 #include <winrt/Windows.Storage.Streams.h>
-#include <winrt/Microsoft.UI.Xaml.h>
-#include <winrt/Microsoft.UI.Xaml.Controls.h>
-#include <winrt/Microsoft.UI.Xaml.XamlTypeInfo.h>
+// NOTE: winrt/Microsoft.UI.Xaml.h and friends are generated at build time by
+// cppwinrt.exe; include them AFTER pch.h in each translation unit that needs them.
 
 #endif // XLLAMA_UWP
