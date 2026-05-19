@@ -35,6 +35,11 @@ CURL_AUTH="--basic -u ${XBOX_USER}:${XBOX_PASS} -k -sS"
 APP_ID="VenereLabs.xllama"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+# Xbox WDP requires X-CSRF-Token on all POST/DELETE requests.
+# Fetch it once from the portal root (returned as a Set-Cookie header).
+CSRF_TOKEN=$(curl $CURL_AUTH "${BASE_URL}/" -o /dev/null -D - 2>/dev/null |
+	grep -i 'CSRF-Token' | sed 's/.*CSRF-Token=\([^;]*\).*/\1/' | tr -d '\r')
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -42,6 +47,11 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 dp() {
 	# Calls Device Portal REST endpoint; returns body
 	curl $CURL_AUTH "$@"
+}
+
+dpw() {
+	# Like dp but includes X-CSRF-Token header (required for POST/DELETE).
+	curl $CURL_AUTH -H "X-CSRF-Token:${CSRF_TOKEN}" "$@"
 }
 
 get_pfn() {
@@ -67,7 +77,7 @@ upload_file() {
 	local path_param="\\LocalState\\${remote_dir}"
 	[[ -z "$remote_dir" ]] && path_param="\\LocalState"
 	echo "  Uploading $(basename "$local_path") → LocalFolder/${remote_dir}/ ..."
-	dp -X POST \
+	dpw -X POST \
 		-F "file=@${local_path};type=application/octet-stream" \
 		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${pfn}&path=${path_param}" \
 		>/dev/null
@@ -77,7 +87,7 @@ delete_remote_file() {
 	local pfn="$1"
 	local filename="$2"
 	# GET/DELETE use path=<dir>&filename=<name> (Xbox Device Portal convention)
-	dp -X DELETE \
+	dpw -X DELETE \
 		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${pfn}&path=\\LocalState&filename=${filename}" \
 		>/dev/null 2>&1 || true
 }
@@ -93,10 +103,10 @@ download_remote_file() {
 restart_app() {
 	local pfn="$1"
 	# Kill running instance
-	dp -X DELETE "${BASE_URL}/api/taskmanager/app?package=${pfn}" >/dev/null 2>&1 || true
+	dpw -X DELETE "${BASE_URL}/api/taskmanager/app?package=${pfn}" >/dev/null 2>&1 || true
 	sleep 2
 	# Launch
-	dp -X POST "${BASE_URL}/api/taskmanager/app?appid=${pfn}" >/dev/null 2>&1 || true
+	dpw -X POST "${BASE_URL}/api/taskmanager/app?appid=${pfn}" >/dev/null 2>&1 || true
 }
 
 wait_for_done_marker() {

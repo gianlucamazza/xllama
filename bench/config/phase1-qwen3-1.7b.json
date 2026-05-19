@@ -1,5 +1,5 @@
 {
-  "model_filename": "qwen3-1.7b-Q4_K_M.gguf",
+  "model_filename": "Qwen_Qwen3-1.7B-Q4_K_M.gguf",
   "prompt_file": "bench/prompts/standard-512.txt",
   "n_predict": 128,
   "n_ctx": 2048,

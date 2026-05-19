@@ -17,6 +17,10 @@ set -euo pipefail
 BASE_URL="https://${XBOX_IP}:11443"
 CURL_AUTH="--basic -u ${XBOX_USER}:${XBOX_PASS} -k -sS"
 
+# Xbox WDP requires X-CSRF-Token on all POST/DELETE requests.
+CSRF_TOKEN=$(curl $CURL_AUTH "${BASE_URL}/" -o /dev/null -D - 2>/dev/null |
+	grep -i 'CSRF-Token' | sed 's/.*CSRF-Token=\([^;]*\).*/\1/' | tr -d '\r')
+
 # -----------------------------------------------------------------------
 # Sub-command: install-cert
 #   install-cert <cert.cer>
@@ -30,6 +34,7 @@ if [[ "${1:-}" == "install-cert" ]]; then
 	fi
 	echo "Installing certificate $(basename "$CER") on Xbox at ${XBOX_IP} ..."
 	RESP=$(curl $CURL_AUTH \
+		-H "X-CSRF-Token:${CSRF_TOKEN}" \
 		-X POST \
 		-F "file=@${CER};type=application/octet-stream" \
 		"${BASE_URL}/api/app/packagemanager/certificate?package=$(basename "$CER")")
@@ -64,6 +69,7 @@ if [[ "${1:-}" == "upload-file" ]]; then
 
 	echo "Uploading $(basename "$LOCAL_PATH") → LocalFolder/${REMOTE_DIR}/ ..."
 	curl $CURL_AUTH \
+		-H "X-CSRF-Token:${CSRF_TOKEN}" \
 		-X POST \
 		-F "file=@${LOCAL_PATH};type=application/octet-stream" \
 		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=${PATH_PARAM}" \
@@ -106,6 +112,7 @@ echo "Deploying ${APPX_NAME} to Xbox at ${XBOX_IP} ..."
 
 # NOTE: Xbox Device Portal requires ?package=<filename> query parameter.
 RESPONSE=$(curl $CURL_AUTH \
+	-H "X-CSRF-Token:${CSRF_TOKEN}" \
 	-X POST \
 	-F "file=@${APPX};type=application/octet-stream" \
 	"${BASE_URL}/api/app/packagemanager/package?package=${APPX_NAME}")
