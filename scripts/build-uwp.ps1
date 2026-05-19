@@ -89,6 +89,19 @@ nuget restore $SlnPath
 Write-Host "Building $Configuration|$Platform ..."
 
 # ---------------------------------------------------------------------------
+# Create empty XBF stubs before MSBuild.
+# MarkupCompilePass2 is disabled (WMC9999 crash), so App.xbf / MainPage.xbf
+# are never generated. AppXPackage.Targets:1638 expects them in the output dir.
+# The XAML runtime never reads these stubs: InitializeComponent calls
+# LoadComponent with the .xaml URI, not the .xbf path.
+# ---------------------------------------------------------------------------
+$XbfDir = Join-Path $RepoRoot "uwp\$Platform\$Configuration\xllama"
+New-Item -ItemType Directory -Force -Path $XbfDir | Out-Null
+[System.IO.File]::WriteAllBytes("$XbfDir\App.xbf",      [byte[]]@())
+[System.IO.File]::WriteAllBytes("$XbfDir\MainPage.xbf", [byte[]]@())
+Write-Host "Created empty XBF stubs in $XbfDir"
+
+# ---------------------------------------------------------------------------
 # Build + sign
 # ---------------------------------------------------------------------------
 $buildExitCode = 0
