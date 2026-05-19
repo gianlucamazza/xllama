@@ -15,6 +15,9 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#ifdef _WIN32
+#  include <io.h>   // _fileno, _get_osfhandle (MSVC/Windows CRT)
+#endif
 
 #include "../llama.cpp/src/llama-mmap.h"
 #include "../llama.cpp/ggml/src/ggml.h"
