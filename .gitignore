@@ -42,3 +42,6 @@ __pycache__/
 .idea/
 *.swp
 *.swo
+
+# Local credentials (never commit)
+.env
