@@ -1,0 +1,24 @@
+diff --git a/ggml/src/ggml-cpu/ggml-cpu.cpp b/ggml/src/ggml-cpu/ggml-cpu.cpp
+index 128883b41..81bccf127 100644
+--- a/ggml/src/ggml-cpu/ggml-cpu.cpp
++++ b/ggml/src/ggml-cpu/ggml-cpu.cpp
+@@ -319,6 +319,9 @@ struct ggml_backend_cpu_device_context {
+             fclose(f);
+         }
+ #elif defined(_WIN32)
++#  if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
++        // Registry APIs (advapi32) are WINAPI_PARTITION_DESKTOP-only.
++        // In UWP (WINAPI_PARTITION_APP) we fall back to a static string.
+         HKEY hKey;
+         if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+                         TEXT("HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0"),
+@@ -346,6 +349,9 @@ struct ggml_backend_cpu_device_context {
+             }
+             RegCloseKey(hKey);
+         }
++#  else
++        description = "AMD Custom CPU 0405"; // Xbox Series S/X Zen 2
++#  endif
+ #endif
+     }
+ };

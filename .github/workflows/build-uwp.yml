@@ -17,6 +17,10 @@ jobs:
           # Shallow submodule fetch: llama.cpp history is ~1.5 GB, depth=1 is ~40s
           fetch-depth: 1
 
+      - name: Apply UWP patches to llama.cpp submodule
+        shell: bash
+        run: bash scripts/apply-uwp-patches.sh
+
       - name: Build UWP package
         shell: pwsh
         run: ./scripts/build-uwp.ps1 -Configuration Release -Platform x64

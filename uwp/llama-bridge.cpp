@@ -13,6 +13,9 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+// PSAPI_VERSION=2 routes GetProcessMemoryInfo → K32GetProcessMemoryInfo
+// (kernel32), which is in WINAPI_PARTITION_APP. No psapi.lib needed.
+#define PSAPI_VERSION 2
 #include <psapi.h>
 #include <winrt/Windows.Storage.h>
 // mmap_replacement: see llama-mmap-uwp.cpp (Stage 1E will wire in mmap).
@@ -76,7 +79,7 @@ static std::string resolve_local_path(const std::string& filename) {
 
 static size_t peak_working_set_mb() {
     PROCESS_MEMORY_COUNTERS pmc{};
-    if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc)))
+    if (K32GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc)))
         return pmc.PeakWorkingSetSize / (1024 * 1024);
     return 0;
 }

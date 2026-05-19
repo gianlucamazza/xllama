@@ -183,28 +183,16 @@ void * llama_mmap::addr()             const { return pimpl->addr_ptr; }
 void   llama_mmap::unmap_fragment(size_t, size_t) {}
 
 // ---------------------------------------------------------------------------
-// llama_mlock  (VirtualLock / VirtualUnlock — available in UWP)
+// llama_mlock  (stub — VirtualLock/VirtualUnlock are WINAPI_PARTITION_DESKTOP,
+//               not available in UWP WINAPI_PARTITION_APP sandbox)
 // ---------------------------------------------------------------------------
 
 struct llama_mlock::impl {
-    void * ptr  = nullptr;
-    size_t locked = 0;
-
-    void init(void * p) { ptr = p; }
-
-    void grow_to(size_t target) {
-        if (!ptr || target <= locked) return;
-        if (VirtualLock((char *)ptr + locked, target - locked))
-            locked = target;
-        // silently ignore failure: VirtualLock requires SE_LOCK_MEMORY_NAME
-    }
-
-    ~impl() {
-        if (ptr && locked) VirtualUnlock(ptr, locked);
-    }
+    void init(void *) {}
+    void grow_to(size_t) {}
 };
 
-const bool llama_mlock::SUPPORTED = true;
+const bool llama_mlock::SUPPORTED = false;
 
 llama_mlock::llama_mlock()  : pimpl(std::make_unique<impl>()) {}
 llama_mlock::~llama_mlock() = default;
