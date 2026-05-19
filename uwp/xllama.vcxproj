@@ -351,28 +351,29 @@
        MainPage.cpp and XamlTypeInfo_impl.cpp instead. -->
   <Target Name="MarkupCompilePass2"/>
 
-  <!-- CopyGeneratedXaml copies Pass2-generated XBF files to $(OutDir)$(TargetName)\.
-       Pass2 is disabled so no XBF is generated. Override to create empty stub files
-       so that downstream AppXPackage copy steps do not fail (MSB3030).
-       At runtime InitializeComponent calls LoadComponent with the .xaml URI so the
-       XBF stubs are never parsed; the XAML parser loads text XAML instead. -->
-  <!-- Run before _GenerateProjectPriConfigurationFiles (AppXPackage.Targets:1638)
-       which copies XBF and XAML files to the staging area. Without BeforeTargets
-       the override has no dependency edges and does not run at the right time. -->
+  <!-- CopyGeneratedXaml: Pass2 is disabled (WMC9999). Override creates empty XBF
+       stubs (AppXPackage.Targets expects them) and stages the source XAML files
+       so LoadComponent(ms-appx:///MainPage.xaml) works at runtime on Xbox.
+
+       Key: $(OutDir) = x64\Release\xllama\ (already includes TargetName).
+       Stock targets use $(OutDir)$(TargetName)\ which double-nests — that path
+       is one level below where the AppX packager reads its inputs. All output
+       here goes directly to $(OutDir) which is the correct staging root. -->
   <Target Name="CopyGeneratedXaml"
           AfterTargets="MarkupCompilePass2"
           BeforeTargets="_GenerateProjectPriConfigurationFiles">
-    <PropertyGroup>
-      <_XbfOutDir>$(OutDir)$(TargetName)\</_XbfOutDir>
-    </PropertyGroup>
-    <MakeDir Directories="$(_XbfOutDir)"/>
-    <!-- XBF stubs: Pass2 disabled, but AppXPackage.Targets:1638 looks for them. -->
-    <Touch Files="$(_XbfOutDir)App.xbf;$(_XbfOutDir)MainPage.xbf" AlwaysCreate="true"/>
-    <!-- Text XAML: required at runtime by LoadComponent(ms-appx:///MainPage.xaml).
-         Mirrors the stock CopyGeneratedXaml which copies both .xbf and .xaml. -->
+    <MakeDir Directories="$(OutDir)"/>
+    <!-- XBF stubs: build-uwp.ps1 pre-creates them; Touch here is a safety net. -->
+    <Touch Files="$(OutDir)App.xbf;$(OutDir)MainPage.xbf" AlwaysCreate="true"/>
+    <!-- Copy source XAML to the same staging root as the XBF stubs. -->
     <Copy SourceFiles="App.xaml;MainPage.xaml"
-          DestinationFolder="$(_XbfOutDir)"
+          DestinationFolder="$(OutDir)"
           SkipUnchangedFiles="true"/>
+    <!-- Extend CustomOutputGroupForPackagingOutput so the AppX packager adds
+         the text XAML to the package layout (stock property only lists XBF). -->
+    <PropertyGroup>
+      <CustomOutputGroupForPackagingOutput>$(CustomOutputGroupForPackagingOutput);$(OutDir)App.xaml;$(OutDir)MainPage.xaml</CustomOutputGroupForPackagingOutput>
+    </PropertyGroup>
   </Target>
 
 </Project>
