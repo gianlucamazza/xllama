@@ -2,6 +2,9 @@
 
 #include "pch.h"
 #include "MainPage.h"
+// XAML-generated InitializeComponent/Connect/GetBindingConnector definitions.
+// MarkupCompilePass1 emits this file before ClCompile runs.
+#include "MainPage.xaml.g.h"
 
 #include <cstdio>
 #include <string>
