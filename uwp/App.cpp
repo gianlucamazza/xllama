@@ -3,9 +3,9 @@
 
 #ifdef XLLAMA_UWP
 
-    #include "App.h"
-    #include "MainPage.h"
-    #include "pch.h"
+#include "pch.h"
+#include "App.h"
+#include "MainPage.h"
 
 using namespace winrt;
 using namespace winrt::Windows::ApplicationModel::Activation;

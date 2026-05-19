@@ -7,9 +7,9 @@
 // module.g.cpp needs factory_implementation::{App,MainPage} in scope.
 #ifdef XLLAMA_UWP
 
-    #include "App.h"
-    #include "MainPage.h"
-    #include "module.g.cpp"
-    #include "pch.h"
+#include "pch.h"
+#include "App.h"
+#include "MainPage.h"
+#include "module.g.cpp"
 
 #endif // XLLAMA_UWP
