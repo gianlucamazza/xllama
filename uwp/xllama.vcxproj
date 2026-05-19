@@ -296,7 +296,7 @@
     <ClCompile Include="..\src\bridge\platform.cpp" />
     <ClCompile Include="..\src\bridge\path_utils.cpp" />
     <ClCompile Include="..\src\bridge\utf8_utils.cpp" />
-    <ClCompile Include="..\src\bridge\cli.cpp" />
+    <!-- cli.cpp uses POSIX getopt — Linux only, excluded from UWP target -->
     <ClCompile Include="llama-bridge.cpp" />
   </ItemGroup>
 
