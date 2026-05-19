@@ -345,7 +345,12 @@
        so that downstream AppXPackage copy steps do not fail (MSB3030).
        At runtime InitializeComponent calls LoadComponent with the .xaml URI so the
        XBF stubs are never parsed; the XAML parser loads text XAML instead. -->
-  <Target Name="CopyGeneratedXaml">
+  <!-- Run before _GenerateProjectPriConfigurationFiles (AppXPackage.Targets:1638)
+       which copies XBF files to the staging area. Without BeforeTargets the override
+       has no dependency edges and does not run at the right time. -->
+  <Target Name="CopyGeneratedXaml"
+          AfterTargets="MarkupCompilePass2"
+          BeforeTargets="_GenerateProjectPriConfigurationFiles">
     <PropertyGroup>
       <_XbfOutDir>$(OutDir)$(TargetName)\</_XbfOutDir>
     </PropertyGroup>
