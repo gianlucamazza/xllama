@@ -41,19 +41,16 @@ The script also auto-installs the companion `.cer` if present alongside the `.ms
 
 ## 3. Verify app starts
 
-Launch xllama from Dev Home. The console shows a black screen (no UI — inference only).
+Launch xllama from Dev Home. The XAML UI loads: header shows the model filename (from `LocalState/model.txt`), status reads "Ready", ProgressBar is hidden.
 
 Verify in Device Portal File Explorer that `LocalState/xllama.log` exists and contains:
 ```
-[xllama] Initialize
-[xllama] SetWindow
-[xllama] Load
-[xllama] Run — starting inference thread
-[xllama] model: <filename>
-[xllama] prompt: ...
+[xllama] App::App()
+[xllama] App::OnLaunched
+[xllama] Window activated
 ```
 
-The last two lines confirm `main_loop` reached inference setup (model not found → exits cleanly; no crash dump expected).
+These three lines confirm the UWP lifecycle completed and the XAML frame was activated. If the UI is a black screen instead, `LoadComponent` failed to find the XAML — check that the MSIX contains `App.xaml` and `MainPage.xaml` (run `unzip -l *.msix | grep xaml`).
 
 URL: `https://<ip>:11443/#fileExplorer`
 Navigate: LocalAppData → `VenereLabs.xllama_0.1.0.0_x64__<token>` → `LocalState` → `xllama.log`
@@ -64,14 +61,27 @@ Phase 1 models are standard GGUF files. Download from Hugging Face:
 
 | Model | HF repo | Filename |
 |-------|---------|----------|
-| Qwen3 1.7B Q4_K_M | `Qwen/Qwen3-1.7B-GGUF` | `qwen3-1.7b-Q4_K_M.gguf` |
-| Llama 3.2 3B Q4_K_M | `bartowski/Llama-3.2-3B-GGUF` | `llama-3.2-3b-Q4_K_M.gguf` |
-| Qwen3 8B Q4_K_M | `Qwen/Qwen3-8B-GGUF` | `qwen3-8b-Q4_K_M.gguf` |
+| Qwen3 1.7B Q4_K_M | `Qwen/Qwen3-1.7B-GGUF` | `Qwen_Qwen3-1.7B-Q4_K_M.gguf` |
+| Llama 3.2 3B Q4_K_M | `bartowski/Llama-3.2-3B-GGUF` | `Llama-3.2-3B-Q4_K_M.gguf` |
+| Qwen3 8B Q4_K_M | `Qwen/Qwen3-8B-GGUF` | `Qwen_Qwen3-8B-Q4_K_M.gguf` |
 
 ```bash
 # Example with huggingface-cli (pip install huggingface-hub)
-huggingface-cli download Qwen/Qwen3-1.7B-GGUF qwen3-1.7b-Q4_K_M.gguf \
+huggingface-cli download Qwen/Qwen3-1.7B-GGUF Qwen_Qwen3-1.7B-Q4_K_M.gguf \
     --local-dir ~/models/
+```
+
+The app reads the active model filename from `LocalState/model.txt` (one line, no trailing newline). The hardcoded default is `Qwen_Qwen3-1.7B-Q4_K_M.gguf`. To switch models, upload a new `model.txt`:
+
+```bash
+echo -n "Llama-3.2-3B-Q4_K_M.gguf" > /tmp/model.txt
+./scripts/deploy.sh upload-file /tmp/model.txt "$PFN" ""
+```
+
+Models are resolved under `LocalState\models\` by `resolve_model_path()` in `src/bridge/path_utils.cpp`. Upload them there:
+
+```bash
+./scripts/deploy.sh upload-file ~/models/Qwen_Qwen3-1.7B-Q4_K_M.gguf "$PFN" models
 ```
 
 ## 5. Run benchmark (automated)

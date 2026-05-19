@@ -43,4 +43,4 @@ This document maps the UWP sandbox constraints relevant to running `llama.cpp` o
 
 **Problem**: Dev Mode apps share CPU resources with the system. The Xbox Series S has 8 Zen 2 cores; typically 6–7 are available to a Dev Mode app.
 
-**Workaround**: `detect_threads()` in `llama-bridge.cpp` reads `hardware_concurrency()` at runtime and caps threads accordingly. The default llama.cpp thread heuristic also works well.
+**Workaround**: `detect_threads()` in `src/bridge/platform.cpp` reads `hardware_concurrency()` at runtime and caps threads accordingly. The default llama.cpp thread heuristic also works well.

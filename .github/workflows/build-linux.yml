@@ -17,7 +17,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake build-essential libcurl4-openssl-dev ccache \
-            clang-format shellcheck
+            python3-pip shellcheck
+          pip3 install --user clang-format
+          echo "$(python3 -m site --user-base)/bin" >> "$GITHUB_PATH"
 
       - name: Verify C++ formatting
         run: |
@@ -25,7 +27,7 @@ jobs:
             -path ./llama.cpp -prune -o \
             -path ./build -prune -o \
             -path ./build-uwp-test -prune -o \
-            \( -name '*.cpp' -o -name '*.h' -o -name '*.c' \) -print |
+            \( -name '*.cpp' -o -name '*.h' -o -name '*.c' \) -type f -print |
             xargs clang-format --dry-run --Werror
 
       - name: Verify shell script quality
