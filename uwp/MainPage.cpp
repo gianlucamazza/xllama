@@ -44,9 +44,6 @@ using namespace winrt::Windows::UI::Core;
 using namespace winrt::Windows::UI::Xaml;
 using namespace winrt::Windows::UI::Xaml::Controls;
 
-using xllama::utf8_to_wstring;
-using xllama::wstring_to_utf8;
-
 namespace winrt::xllama::implementation {
 
 // Wide LocalFolder path: ApplicationData::LocalFolder\<filename_w>
@@ -195,8 +192,8 @@ void MainPage::StartInference(std::wstring const& prompt_w) {
     MetricsText().Text(L"");
 
     auto self = get_strong();
-    std::string prompt = wstring_to_utf8(prompt_w);
-    std::string model  = wstring_to_utf8(m_model_filename);
+    std::string prompt = ::xllama::wstring_to_utf8(prompt_w);
+    std::string model  = ::xllama::wstring_to_utf8(m_model_filename);
 
     std::thread([self, prompt, model]() {
         ::xllama::bridge::InferenceParams params;
@@ -208,13 +205,13 @@ void MainPage::StartInference(std::wstring const& prompt_w) {
         auto dispatcher = self->Dispatcher();
 
         params.on_status = [self, dispatcher](const std::string& s) {
-            auto ws = utf8_to_wstring(s);
+            auto ws = ::xllama::utf8_to_wstring(s);
             dispatcher.RunAsync(CoreDispatcherPriority::Normal,
                 [self, ws]() { self->SetStatus(ws); });
         };
 
         params.on_token = [self, dispatcher](const std::string& tok) {
-            auto wtok = utf8_to_wstring(tok);
+            auto wtok = ::xllama::utf8_to_wstring(tok);
             dispatcher.RunAsync(CoreDispatcherPriority::Normal,
                 [self, wtok]() { self->AppendOutput(wtok); });
         };
@@ -233,7 +230,7 @@ void MainPage::StartInference(std::wstring const& prompt_w) {
                        pt, dt, res.peak_ws_mb);
             metrics = buf;
         } else {
-            metrics = utf8_to_wstring(res.error_msg.empty() ? "inference failed" : res.error_msg);
+            metrics = ::xllama::utf8_to_wstring(res.error_msg.empty() ? "inference failed" : res.error_msg);
         }
 
         dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, metrics, res]() {

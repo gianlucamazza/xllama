@@ -1,6 +1,7 @@
 #pragma once
 
 #include "xllama/inference_params.h"
+#include "xllama/inference.h"
 
 namespace xllama::bridge {
 
