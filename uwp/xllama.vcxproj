@@ -38,8 +38,8 @@
        are active before the compiler/linker ItemDefinitionGroups below. -->
   <Import Project="packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.props"
           Condition="Exists('packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.props')" />
-  <Import Project="packages\Microsoft.UI.Xaml.2.8.6\build\native\Microsoft.UI.Xaml.props"
-          Condition="Exists('packages\Microsoft.UI.Xaml.2.8.6\build\native\Microsoft.UI.Xaml.props')" />
+  <Import Project="packages\Microsoft.UI.Xaml.2.7.3\build\native\Microsoft.UI.Xaml.props"
+          Condition="Exists('packages\Microsoft.UI.Xaml.2.7.3\build\native\Microsoft.UI.Xaml.props')" />
 
   <!-- =====================================================================
        Per-configuration base properties
@@ -319,7 +319,7 @@
   <!-- NuGet package targets (restored to packages\ relative to this vcxproj) -->
   <Import Project="packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.targets"
           Condition="Exists('packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.targets')" />
-  <Import Project="packages\Microsoft.UI.Xaml.2.8.6\build\native\Microsoft.UI.Xaml.targets"
-          Condition="Exists('packages\Microsoft.UI.Xaml.2.8.6\build\native\Microsoft.UI.Xaml.targets')" />
+  <Import Project="packages\Microsoft.UI.Xaml.2.7.3\build\native\Microsoft.UI.Xaml.targets"
+          Condition="Exists('packages\Microsoft.UI.Xaml.2.7.3\build\native\Microsoft.UI.Xaml.targets')" />
 
 </Project>
