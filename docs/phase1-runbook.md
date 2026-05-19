@@ -7,10 +7,10 @@ End-to-end instructions for reproducing the Phase 1 benchmark from scratch.
 - Xbox Series S with Dev Mode activated and Device Portal enabled
 - Xbox IP address and Device Portal credentials
 - Linux dev machine with this repo cloned (`--recursive`)
-- Windows machine (or VM) with Visual Studio 2022 + UWP workload for building .appx
+- Windows machine (or VM) with Visual Studio 2022 + UWP workload for building .msix
 - GGUF model files (see "Download models" below)
 
-## 1. Build .appx
+## 1. Build .msix
 
 **Option A — Local Windows VM:**
 ```powershell
@@ -20,7 +20,7 @@ End-to-end instructions for reproducing the Phase 1 benchmark from scratch.
 
 **Option B — GitHub Actions CI:**
 
-Push to `main`; the `build-uwp` workflow runs automatically on `windows-latest`.
+Push to `main`; the `build-uwp` workflow runs automatically on `windows-2022` (pinned: only runner with VS2022 + UWP workload).
 Download the `xllama-appx` artifact from the Actions run.
 
 ## 2. Deploy to Xbox
@@ -37,20 +37,26 @@ The script uploads the package, polls installation status, and prints "Installat
 
 After deployment, the app appears in Dev Home. It can be launched from there.
 
+The script also auto-installs the companion `.cer` if present alongside the `.msix` (included in the CI artifact zip). Without the trusted certificate, Xbox rejects the package with `0x800B0100`.
+
 ## 3. Verify app starts
 
 Launch xllama from Dev Home. The console shows a black screen (no UI — inference only).
 
-Verify in Device Portal File Explorer that `LocalFolder/xllama.log` exists and contains:
+Verify in Device Portal File Explorer that `LocalState/xllama.log` exists and contains:
 ```
 [xllama] Initialize
 [xllama] SetWindow
 [xllama] Load
 [xllama] Run — starting inference thread
+[xllama] model: <filename>
+[xllama] prompt: ...
 ```
 
+The last two lines confirm `main_loop` reached inference setup (model not found → exits cleanly; no crash dump expected).
+
 URL: `https://<ip>:11443/#fileExplorer`
-Navigate: LocalAppData → `VenereLabs.xllama_0.1.0.0_x64__<token>` → `xllama.log`
+Navigate: LocalAppData → `VenereLabs.xllama_0.1.0.0_x64__<token>` → `LocalState` → `xllama.log`
 
 ## 4. Download models
 
@@ -115,7 +121,7 @@ cp bench/prompts/standard-512.txt /tmp/prompt.txt
 
 # 5. Wait ~2-3 min, then fetch results
 curl -sS --basic -u $XBOX_USER:$XBOX_PASS -k \
-    "https://$XBOX_IP:11443/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\bench-result.csv" \
+    "https://$XBOX_IP:11443/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState&filename=bench-result.csv" \
     -o /tmp/bench-result.csv
 
 cat /tmp/bench-result.csv
@@ -136,6 +142,20 @@ Expected ranges (Xbox Series S, Zen 2 CPU, no Vulkan):
 Load times will be slow until Stage 1E (`CreateFileMappingFromApp`) because the model
 is fully `fread()`'d into heap memory instead of memory-mapped.
 
+## 7b. Xbox Device Portal API quirks
+
+Xbox WDP differs from Desktop WDP in several ways discovered during Phase 1:
+
+| Topic | Desktop WDP | Xbox WDP |
+|---|---|---|
+| Auth method | HTTP Digest | **HTTP Basic** (`--basic`) |
+| Install URL | `/api/app/packagemanager/package` | `/api/app/packagemanager/package?package=<filename>` (required query param) |
+| Install cert | n/a | `POST /api/app/packagemanager/certificate?package=<certname>` |
+| Signing | Optional | **Required** even in Dev Mode (`0x800B0100` if absent) |
+| LocalFolder path | Varies | `ApplicationData.LocalFolder` → `LocalState/` subdir of the package |
+| File download param | `path=\\<file>` | `path=\\LocalState&filename=<name>` (lowercase `filename`) |
+| File upload path | `path=\\<dir>` | `path=\\LocalState[\\subdir]` |
+
 ## 8. Troubleshooting
 
 **App crashes at startup**: check `xllama.log` in LocalFolder via Device Portal.
@@ -144,5 +164,5 @@ is fully `fread()`'d into heap memory instead of memory-mapped.
 
 **Slow load time**: expected with `use_mmap=false`. Qwen3-1.7B takes ~10-30s to load.
 
-**Deploy script auth failure**: Xbox Device Portal uses HTTP Digest. Use `--basic` with curl. 
+**Deploy script auth failure**: Xbox Device Portal uses **HTTP Basic** auth (not Digest as on Desktop WDP). Use `--basic` with curl.
 Verify credentials in Dev Home → Settings → Device Portal credentials.
