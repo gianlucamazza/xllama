@@ -38,6 +38,11 @@ static void log_write(const char* msg) {
 // App
 // ---------------------------------------------------------------------------
 
+void App::InitializeComponent() {
+    // App.xaml is minimal (no resources). No-op: prevents AppT<App>::InitializeComponent
+    // from attempting to load App.xbf which is not a valid XBF in our package.
+}
+
 App::App() {
     log_init();
     log_write("[xllama] App::App()\n");
