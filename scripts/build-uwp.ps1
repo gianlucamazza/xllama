@@ -139,8 +139,60 @@ Write-Host "Build succeeded."
 $Msix = Get-ChildItem -Path (Join-Path $RepoRoot "uwp\AppPackages") -Filter "*.msix" -Recurse |
     Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
-if ($Msix) {
-    Write-Host "Package: $($Msix.FullName)"
-} else {
+if (-not $Msix) {
     Write-Host "Package location: uwp\AppPackages\"
+    exit 0
+}
+
+Write-Host "Package: $($Msix.FullName)"
+
+# ---------------------------------------------------------------------------
+# Inject XAML text files into the MSIX.
+#
+# MSBuild's AppX packaging pipeline handles XAML items via the XBF/PRI path
+# (_GenerateProjectPriConfigurationFiles → resources.pri). The text XAML files
+# are NOT added as loose package files by the recipe generator, even when staged
+# in $(OutDir). We post-process the MSIX to inject them so that
+# LoadComponent(ms-appx:///MainPage.xaml) resolves at runtime on Xbox.
+# ---------------------------------------------------------------------------
+Write-Host "Injecting XAML text files into package ..."
+
+$WinSdkBin = "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
+$MakeAppxExe = Get-ChildItem "$WinSdkBin" -Filter "MakeAppx.exe" -Recurse |
+    Where-Object { $_.DirectoryName -like "*\x64" } |
+    Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+$SignToolExe = Get-ChildItem "$WinSdkBin" -Filter "signtool.exe" -Recurse |
+    Where-Object { $_.DirectoryName -like "*\x64" } |
+    Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+
+if (-not $MakeAppxExe) { Write-Error "MakeAppx.exe not found in Windows SDK"; exit 1 }
+if (-not $SignToolExe)  { Write-Error "signtool.exe not found in Windows SDK"; exit 1 }
+
+$UnpackDir = Join-Path ([System.IO.Path]::GetTempPath()) "xllama_unpack_$(Get-Random)"
+$TmpMsix   = ($Msix.FullName -replace '\.msix$', '_tmp.msix')
+
+try {
+    # Unpack (disable signature validation so we can unpack a signed package)
+    & $MakeAppxExe unpack /p $Msix.FullName /d $UnpackDir /nv /o
+    if ($LASTEXITCODE -ne 0) { throw "MakeAppx unpack failed (exit $LASTEXITCODE)" }
+
+    # Inject source XAML so LoadComponent(ms-appx:///MainPage.xaml) resolves
+    Copy-Item (Join-Path $RepoRoot "uwp\App.xaml")      "$UnpackDir\App.xaml"      -Force
+    Copy-Item (Join-Path $RepoRoot "uwp\MainPage.xaml") "$UnpackDir\MainPage.xaml" -Force
+    Write-Host "  App.xaml + MainPage.xaml added to layout"
+
+    # Repack (unsigned)
+    & $MakeAppxExe pack /d $UnpackDir /p $TmpMsix /h sha256 /o
+    if ($LASTEXITCODE -ne 0) { throw "MakeAppx pack failed (exit $LASTEXITCODE)" }
+
+    # Re-sign with the same test certificate used by MSBuild
+    & $SignToolExe sign /fd SHA256 /f $PfxPath /p $CertPwd $TmpMsix
+    if ($LASTEXITCODE -ne 0) { throw "SignTool sign failed (exit $LASTEXITCODE)" }
+
+    # Atomic replace
+    Move-Item $TmpMsix $Msix.FullName -Force
+    Write-Host "XAML injection complete. Final package: $($Msix.FullName)"
+} finally {
+    if (Test-Path $UnpackDir) { Remove-Item $UnpackDir -Recurse -Force -ErrorAction SilentlyContinue }
+    if (Test-Path $TmpMsix)   { Remove-Item $TmpMsix   -Force         -ErrorAction SilentlyContinue }
 }
