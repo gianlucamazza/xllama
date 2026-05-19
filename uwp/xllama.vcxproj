@@ -28,7 +28,10 @@
     <AppxPackage>true</AppxPackage>
     <ApplicationType>Windows Store</ApplicationType>
     <ApplicationTypeRevision>10.0</ApplicationTypeRevision>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <!-- Pin to 22621 (22H2): the 26100 XAML compiler has a NullReferenceException
+         (WMC9999) at MarkupCompilePass2 for C++/WinRT projects (no C++/CX metadata).
+         SDK 22621 is installed on the windows-2022 CI runner. -->
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
     <WindowsTargetPlatformMinVersion>10.0.19041.0</WindowsTargetPlatformMinVersion>
   </PropertyGroup>
 
@@ -325,23 +328,5 @@
   <Import Project="packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.targets"
           Condition="Exists('packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.targets')" />
 
-  <!-- Fix WMC9999: CppWinRTCopyWinMDToOutputDirectory places the correct merged
-       WinMD (containing xllama.App + xllama.MainPage from the IDL) at
-       $(OutDir)xllama.winmd. The CreateWinMD linker step then overwrites it
-       with an empty WinMD — /WINMD:ONLY + CompileAsWinRT=false means no C++/CX
-       type metadata is embedded in the objects, so the linker emits nothing.
-       MarkupCompilePass2 subsequently reads the empty WinMD, fails to resolve
-       xllama.App/xllama.MainPage, and throws a NullReferenceException (WMC9999).
-       This target runs after CreateWinMD and before MarkupCompilePass2 to restore
-       the correct merged WinMD so the XAML compiler can resolve our types. -->
-  <Target Name="_RestoreMergedWinMD"
-          AfterTargets="CreateWinMD"
-          BeforeTargets="MarkupCompilePass2"
-          Condition="Exists('$(IntDir)Merged\$(TargetName).winmd')">
-    <Message Text="_RestoreMergedWinMD: restoring $(IntDir)Merged\$(TargetName).winmd → $(OutDir)$(TargetName).winmd" Importance="high"/>
-    <Copy SourceFiles="$(IntDir)Merged\$(TargetName).winmd"
-          DestinationFiles="$(OutDir)$(TargetName).winmd"
-          SkipUnchangedFiles="false"/>
-  </Target>
 
 </Project>
