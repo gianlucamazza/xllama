@@ -340,11 +340,17 @@
        MainPage.cpp and XamlTypeInfo_impl.cpp instead. -->
   <Target Name="MarkupCompilePass2"/>
 
-  <!-- CopyGeneratedXaml tries to copy App.xbf / MainPage.xbf produced by Pass2.
-       Since Pass2 is disabled above, those files never exist. Override with a
-       no-op: text XAML is packaged via the Page/ApplicationDefinition AppX layout
-       items; XBF is not needed because InitializeComponent calls LoadComponent
-       with the .xaml URI at runtime. -->
-  <Target Name="CopyGeneratedXaml"/>
+  <!-- CopyGeneratedXaml copies Pass2-generated XBF files to $(OutDir)$(TargetName)\.
+       Pass2 is disabled so no XBF is generated. Override to create empty stub files
+       so that downstream AppXPackage copy steps do not fail (MSB3030).
+       At runtime InitializeComponent calls LoadComponent with the .xaml URI so the
+       XBF stubs are never parsed; the XAML parser loads text XAML instead. -->
+  <Target Name="CopyGeneratedXaml">
+    <PropertyGroup>
+      <_XbfOutDir>$(OutDir)$(TargetName)\</_XbfOutDir>
+    </PropertyGroup>
+    <MakeDir Directories="$(_XbfOutDir)"/>
+    <Touch Files="$(_XbfOutDir)App.xbf;$(_XbfOutDir)MainPage.xbf" AlwaysCreate="true"/>
+  </Target>
 
 </Project>
