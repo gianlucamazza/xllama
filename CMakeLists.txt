@@ -1,16 +1,19 @@
 cmake_minimum_required(VERSION 3.22)
 project(xllama LANGUAGES CXX C)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 # ------------------------------------------------------------------
-# Target selection: linux (default) | uwp
-# UWP packaging requires MSVC + Windows SDK — use scripts/build-uwp.ps1
+# Options
 # ------------------------------------------------------------------
 set(XLLAMA_TARGET "linux" CACHE STRING "Build target: linux or uwp")
 set_property(CACHE XLLAMA_TARGET PROPERTY STRINGS linux uwp)
 
+option(XLLAMA_BUILD_TESTS    "Build unit tests" OFF)
+option(XLLAMA_ENABLE_ASAN    "Enable AddressSanitizer" OFF)
+option(XLLAMA_ENABLE_UBSAN   "Enable UndefinedBehaviourSanitizer" OFF)
+
+# ------------------------------------------------------------------
+# Target selection
+# ------------------------------------------------------------------
 if(XLLAMA_TARGET STREQUAL "uwp")
     message(FATAL_ERROR
         "XLLAMA_TARGET=uwp is not supported via CMake directly.\n"
@@ -23,14 +26,12 @@ if(NOT XLLAMA_TARGET STREQUAL "linux")
     message(FATAL_ERROR "Unknown XLLAMA_TARGET '${XLLAMA_TARGET}'. Valid values: linux, uwp.")
 endif()
 
-# ------------------------------------------------------------------
-# Linux build — CPU-only, Zen 2 tuned
-# ------------------------------------------------------------------
 message(STATUS "xllama: building for target=linux")
 
-# llama.cpp options — disable features that don't translate to UWP
-# so that bridge code is exercised the same way on Linux dev host
-set(LLAMA_NATIVE          OFF CACHE BOOL "" FORCE)  # use explicit arch flags
+# ------------------------------------------------------------------
+# llama.cpp sub-project
+# ------------------------------------------------------------------
+set(LLAMA_NATIVE          OFF CACHE BOOL "" FORCE)
 set(LLAMA_AVX2            ON  CACHE BOOL "" FORCE)
 set(LLAMA_F16C            ON  CACHE BOOL "" FORCE)
 set(LLAMA_FMA             ON  CACHE BOOL "" FORCE)
@@ -41,29 +42,48 @@ set(LLAMA_BUILD_SERVER    OFF CACHE BOOL "" FORCE)
 add_subdirectory(llama.cpp)
 
 # ------------------------------------------------------------------
-# xllama-cli — thin wrapper around the bridge for Linux dev/bench use
+# xllama library (shared between CLI and UWP)
 # ------------------------------------------------------------------
-add_executable(xllama-cli
-    uwp/llama-bridge.cpp
-    src/main.cpp
+add_library(xllama STATIC
+    src/bridge/inference.cpp
+    src/bridge/bench.cpp
+    src/bridge/platform.cpp
+    src/bridge/path_utils.cpp
+    src/bridge/utf8_utils.cpp
+    src/bridge/cli.cpp
 )
 
-target_include_directories(xllama-cli PRIVATE
-    uwp/
-    llama.cpp/include
-    llama.cpp/common
+target_compile_features(xllama PUBLIC cxx_std_17)
+
+target_include_directories(xllama PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/common
 )
 
-target_link_libraries(xllama-cli PRIVATE
-    llama
-)
+target_link_libraries(xllama PUBLIC llama)
 
-target_compile_definitions(xllama-cli PRIVATE
+target_compile_definitions(xllama PUBLIC
     XLLAMA_LINUX=1
 )
 
-# Zen 2 = Xbox CPU microarchitecture; also valid for most Ryzen 3xxx dev hosts.
-# Override with -DCMAKE_CXX_FLAGS="-march=native" if your dev host is different.
+# Sanitizers (Linux / Clang/GCC only)
+if(XLLAMA_ENABLE_ASAN)
+    target_compile_options(xllama PUBLIC -fsanitize=address -fno-omit-frame-pointer)
+    target_link_options(xllama PUBLIC -fsanitize=address)
+endif()
+if(XLLAMA_ENABLE_UBSAN)
+    target_compile_options(xllama PUBLIC -fsanitize=undefined)
+    target_link_options(xllama PUBLIC -fsanitize=undefined)
+endif()
+
+# ------------------------------------------------------------------
+# xllama-cli
+# ------------------------------------------------------------------
+add_executable(xllama-cli src/main.cpp)
+
+target_link_libraries(xllama-cli PRIVATE xllama)
+
 target_compile_options(xllama-cli PRIVATE
     -march=znver2 -mavx2 -O3 -fno-omit-frame-pointer
 )
@@ -71,5 +91,22 @@ target_compile_options(xllama-cli PRIVATE
 set_target_properties(xllama-cli PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
+
+# ------------------------------------------------------------------
+# Install
+# ------------------------------------------------------------------
+install(TARGETS xllama-cli xllama
+    RUNTIME DESTINATION bin
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+)
+
+# ------------------------------------------------------------------
+# Tests
+# ------------------------------------------------------------------
+if(XLLAMA_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/CMakeLists.txt")
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 message(STATUS "xllama: xllama-cli target configured — build with: cmake --build . -j")

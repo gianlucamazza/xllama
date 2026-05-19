@@ -21,7 +21,8 @@
 
 param(
     [string]$Configuration = "Release",
-    [string]$Platform      = "x64"
+    [string]$Platform      = "x64",
+    [switch]$ForceNewCert  = $false
 )
 
 $ErrorActionPreference = "Stop"
@@ -38,24 +39,34 @@ if (-not (Test-Path $SlnPath)) {
 }
 
 # ---------------------------------------------------------------------------
-# Generate a self-signed test certificate (once per build; not committed).
-# Xbox Dev Mode requires the package to be signed; the .cer is installed on
-# the console via Device Portal before deploying the .msix.
+# Certificate handling: reuse existing cert unless -ForceNewCert is passed.
+# This avoids reinstalling the trust cert on the console every build.
 # ---------------------------------------------------------------------------
-Write-Host "Generating self-signed test certificate ..."
-$cert = New-SelfSignedCertificate `
-    -Type Custom `
-    -Subject "CN=xllama-dev" `
-    -KeyUsage DigitalSignature `
-    -FriendlyName "xllama test cert" `
-    -CertStoreLocation "Cert:\CurrentUser\My" `
-    -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+$cert = $null
+if ((-not $ForceNewCert) -and (Test-Path $PfxPath) -and (Test-Path $CerPath)) {
+    Write-Host "Reusing existing test certificate ..."
+    $cert = Get-PfxCertificate -FilePath $PfxPath -Password (ConvertTo-SecureString -String $CertPwd -Force -AsPlainText) -ErrorAction SilentlyContinue
+    if (-not $cert) {
+        Write-Warning "Failed to load existing PFX; generating a new certificate."
+    }
+}
 
-$pwd = ConvertTo-SecureString -String $CertPwd -Force -AsPlainText
-Export-PfxCertificate -Cert "Cert:\CurrentUser\My\$($cert.Thumbprint)" `
-    -FilePath $PfxPath -Password $pwd | Out-Null
-Export-Certificate -Cert "Cert:\CurrentUser\My\$($cert.Thumbprint)" `
-    -FilePath $CerPath | Out-Null
+if (-not $cert) {
+    Write-Host "Generating self-signed test certificate ..."
+    $cert = New-SelfSignedCertificate `
+        -Type Custom `
+        -Subject "CN=xllama-dev" `
+        -KeyUsage DigitalSignature `
+        -FriendlyName "xllama test cert" `
+        -CertStoreLocation "Cert:\CurrentUser\My" `
+        -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+
+    $pwd = ConvertTo-SecureString -String $CertPwd -Force -AsPlainText
+    Export-PfxCertificate -Cert "Cert:\CurrentUser\My\$($cert.Thumbprint)" `
+        -FilePath $PfxPath -Password $pwd | Out-Null
+    Export-Certificate -Cert "Cert:\CurrentUser\My\$($cert.Thumbprint)" `
+        -FilePath $CerPath | Out-Null
+}
 
 Write-Host "Certificate thumbprint: $($cert.Thumbprint)"
 Write-Host "PFX: $PfxPath"

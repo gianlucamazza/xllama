@@ -1,9 +1,7 @@
 # Linux toolchain: Zen 2 microarchitecture (Xbox Series S CPU)
-# Usage: cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/linux-toolchain.cmake
+# Usage: cmake --preset linux-release
 #
 # On a non-Zen2 dev host, replace znver2 with native or your actual arch.
-# On the Xbox itself (cross-compiled): adjust triple to x86_64-linux-musl
-# if building a standalone Linux binary via devkit.
 
 set(CMAKE_SYSTEM_NAME Linux)
 
@@ -14,9 +12,7 @@ add_compile_options(
     -mavx2
     -mfma
     -mf16c
-    -O3
-    -fno-omit-frame-pointer   # keeps stack frames for perf/profiling
-    -fno-plt                   # reduces PLT overhead on glibc
+    -fno-omit-frame-pointer
 )
 
 add_link_options(

@@ -1,0 +1,80 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 22,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "linux-base",
+      "hidden": true,
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "XLLAMA_TARGET": "linux",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "linux-release",
+      "inherits": "linux-base",
+      "displayName": "Linux Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "linux-debug",
+      "inherits": "linux-base",
+      "displayName": "Linux Debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "linux-test",
+      "inherits": "linux-debug",
+      "displayName": "Linux with Tests",
+      "cacheVariables": {
+        "XLLAMA_BUILD_TESTS": "ON",
+        "CMAKE_POLICY_VERSION_MINIMUM": "3.5"
+      }
+    },
+    {
+      "name": "linux-asan",
+      "inherits": "linux-debug",
+      "displayName": "Linux with AddressSanitizer",
+      "cacheVariables": {
+        "XLLAMA_ENABLE_ASAN": "ON",
+        "XLLAMA_BUILD_TESTS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-release",
+      "configurePreset": "linux-release",
+      "jobs": 0
+    },
+    {
+      "name": "linux-debug",
+      "configurePreset": "linux-debug",
+      "jobs": 0
+    },
+    {
+      "name": "linux-test",
+      "configurePreset": "linux-test",
+      "jobs": 0
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "linux-test",
+      "configurePreset": "linux-test",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

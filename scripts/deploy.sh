@@ -18,8 +18,14 @@ BASE_URL="https://${XBOX_IP}:11443"
 CURL_AUTH="--basic -u ${XBOX_USER}:${XBOX_PASS} -k -sS"
 
 # Xbox WDP requires X-CSRF-Token on all POST/DELETE requests.
+# Extract from Set-Cookie header with a more robust pipeline.
 CSRF_TOKEN=$(curl $CURL_AUTH "${BASE_URL}/" -o /dev/null -D - 2>/dev/null |
-	grep -i 'CSRF-Token' | sed 's/.*CSRF-Token=\([^;]*\).*/\1/' | tr -d '\r')
+	sed -n 's/.*[Cc][Ss][Rr][Ff]-[Tt]oken=\([^;[:space:]]*\).*/\1/p' |
+	tr -d '\r' | head -n 1)
+
+if [[ -z "$CSRF_TOKEN" ]]; then
+	echo "Warning: failed to extract CSRF token. POST requests may fail." >&2
+fi
 
 # -----------------------------------------------------------------------
 # Sub-command: install-cert
