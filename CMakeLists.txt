@@ -56,7 +56,6 @@ target_include_directories(xllama-cli PRIVATE
 
 target_link_libraries(xllama-cli PRIVATE
     llama
-    common
 )
 
 target_compile_definitions(xllama-cli PRIVATE

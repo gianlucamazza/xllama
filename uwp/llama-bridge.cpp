@@ -1,7 +1,6 @@
 #include "llama-bridge.h"
 
 #include "llama.h"
-#include "common.h"
 
 #include <cstdio>
 #include <cstring>
@@ -64,13 +63,15 @@ int run_inference(const InferenceParams& params) {
         return 1;
     }
 
+    const llama_vocab* vocab = llama_model_get_vocab(model);
+
     // Tokenize prompt
     std::vector<llama_token> tokens(params.prompt.size() + 16);
     int n_tokens = llama_tokenize(
-        model,
+        vocab,
         params.prompt.c_str(), (int32_t)params.prompt.size(),
         tokens.data(), (int32_t)tokens.size(),
-        /*add_bos=*/true, /*special=*/false);
+        /*add_special=*/true, /*parse_special=*/false);
 
     if (n_tokens < 0) {
         log_output("[xllama] tokenization failed\n");
@@ -98,10 +99,10 @@ int run_inference(const InferenceParams& params) {
     while (n_generated < params.n_predict) {
         llama_token token = llama_sampler_sample(sampler, ctx, -1);
 
-        if (llama_token_is_eog(model, token)) break;
+        if (llama_vocab_is_eog(vocab, token)) break;
 
         char buf[256] = {};
-        int len = llama_token_to_piece(model, token, buf, sizeof(buf) - 1, 0, false);
+        int len = llama_token_to_piece(vocab, token, buf, sizeof(buf) - 1, 0, false);
         if (len > 0) {
             buf[len] = '\0';
 #ifdef XLLAMA_UWP
