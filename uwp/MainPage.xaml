@@ -67,12 +67,10 @@
                   Orientation="Horizontal">
         <Button x:Name="RunButton"
                 Content="&#x25B6;  Run"
-                Click="OnRunClick"
                 MinWidth="120"
                 Margin="0,0,12,0"/>
         <Button x:Name="CancelButton"
                 Content="&#x25A0;  Cancel"
-                Click="OnCancelClick"
                 IsEnabled="False"
                 MinWidth="120"/>
       </StackPanel>

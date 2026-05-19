@@ -2,9 +2,6 @@
 
 #include "pch.h"
 #include "MainPage.h"
-// XAML-generated InitializeComponent/Connect/GetBindingConnector definitions.
-// MarkupCompilePass1 emits this file before ClCompile runs.
-#include "MainPage.xaml.g.h"
 
 #include <cstdio>
 #include <string>
@@ -54,6 +51,10 @@ static std::wstring utf8_to_wstr(std::string const& s) {
 
 MainPage::MainPage() {
     InitializeComponent();
+    // Wire events in code — not in XAML — so MarkupCompilePass2 doesn't need
+    // to validate handler signatures against the C++ binary (avoids WMC9999).
+    RunButton().Click({this, &MainPage::OnRunClick});
+    CancelButton().Click({this, &MainPage::OnCancelClick});
     LoadModelName();
     CheckBenchMode();
 }
