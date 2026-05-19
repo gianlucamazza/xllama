@@ -328,5 +328,15 @@
   <Import Project="packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.targets"
           Condition="Exists('packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.targets')" />
 
+  <!-- WMC9999 workaround: MarkupCompilePass2 (the XBF binary XAML compiler)
+       crashes with a NullReferenceException in both SDK 22621 and 26100 for
+       C++/WinRT UWP projects — the XAML compiler attempts to load the native
+       exe as a .NET assembly to validate x:Class event handlers, which fails.
+       Overriding MarkupCompilePass2 with an empty target skips XBF pre-
+       compilation. The XAML text files (App.xaml, MainPage.xaml) are packaged
+       as-is and parsed at runtime — functionally equivalent, ~10 ms slower on
+       first launch. MarkupCompilePass1 still runs, so code-behind headers and
+       type-info files are generated correctly. -->
+  <Target Name="MarkupCompilePass2"/>
 
 </Project>
