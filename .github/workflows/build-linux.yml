@@ -1,0 +1,43 @@
+name: build-linux
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential libcurl4-openssl-dev
+
+      - name: Configure
+        run: cmake -B build -DXLLAMA_TARGET=linux -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Smoke test
+        run: ./build/bin/xllama-cli --help
+
+      - name: Verify UWP gate
+        run: |
+          cmake -B build-uwp-test -DXLLAMA_TARGET=uwp 2>&1 | grep -q "scripts/build-uwp.ps1" \
+            && echo "UWP gate OK" \
+            || (echo "UWP gate missing" && exit 1)
+
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: xllama-cli-linux
+          path: build/bin/xllama-cli
+          retention-days: 14

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+  xmlns:xbox="http://schemas.microsoft.com/appx/manifest/xbox/windows10"
+  IgnorableNamespaces="mp uap uap3 xbox">
+
+  <Identity
+    Name="VenereLabs.xllama"
+    Publisher="CN=xllama-dev"
+    Version="0.1.0.0"
+    ProcessorArchitecture="x64" />
+
+  <mp:PhoneIdentity
+    PhoneProductId="00000000-0000-0000-0000-000000000000"
+    PhonePublisherId="00000000-0000-0000-0000-000000000000" />
+
+  <Properties>
+    <DisplayName>xllama</DisplayName>
+    <PublisherDisplayName>Venere Labs</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Xbox"    MinVersion="10.0.19041.0" MaxVersionTested="10.0.22621.0" />
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.22621.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-US" />
+  </Resources>
+
+  <Applications>
+    <Application Id="xllama" Executable="xllama.exe" EntryPoint="xllama.App">
+      <uap:VisualElements
+        DisplayName="xllama"
+        Description="LLM inference on Xbox Series S via llama.cpp"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+        <uap:SplashScreen Image="Assets\SplashScreen.png" />
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <Capability Name="internetClient" />
+    <!-- privateNetworkClientServer needed to reach Device Portal from within the app -->
+    <uap:Capability Name="privateNetworkClientServer" />
+  </Capabilities>
+
+</Package>

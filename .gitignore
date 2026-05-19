@@ -1,0 +1,44 @@
+# Build artifacts
+build/
+out/
+
+# UWP packages & certificates
+*.appx
+*.appxbundle
+*.appxsym
+*.pfx
+*.cer
+
+# Models (large GGUF files)
+*.gguf
+models/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+AppPackages/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# macOS
+.DS_Store
+
+# Editor
+.idea/
+*.swp
+*.swo

@@ -1,0 +1,31 @@
+name: build-uwp
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Build UWP package
+        shell: pwsh
+        # continue-on-error until xllama.vcxproj is complete (Phase 1)
+        continue-on-error: true
+        run: ./scripts/build-uwp.ps1 -Configuration Release -Platform x64
+
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: xllama-appx
+          path: uwp/AppPackages/**/*.appx
+          retention-days: 14
