@@ -59,8 +59,6 @@
        $(GeneratedFilesDir) are already resolved when CppWinRT.props runs. -->
   <Import Project="packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.props"
           Condition="Exists('packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.props')" />
-  <Import Project="packages\Microsoft.UI.Xaml.2.7.3\build\native\Microsoft.UI.Xaml.props"
-          Condition="Exists('packages\Microsoft.UI.Xaml.2.7.3\build\native\Microsoft.UI.Xaml.props')" />
 
   <!-- =====================================================================
        Package / signing
@@ -71,10 +69,9 @@
   </PropertyGroup>
 
   <!-- C++/WinRT XAML integration (via Microsoft.Windows.CppWinRT NuGet).
-       CppWinRTOptimized is intentionally left at its default (false): in
-       CppWinRT 2.0 the optimized mode changes how reference projections are
-       emitted, which breaks the traditional #include <winrt/Microsoft.UI.Xaml.h>
-       pattern used by the XAML-compiler-generated accessor headers. -->
+       Only Windows SDK XAML controls are used (Windows.UI.Xaml.Controls.*);
+       WinUI 2 (Microsoft.UI.Xaml) was removed because CppWinRT 2.0 fails to
+       generate projection headers from the WinUI 2.7 WinMD silently. -->
   <PropertyGroup>
     <CppWinRTGenerateWindowsMetadata>true</CppWinRTGenerateWindowsMetadata>
   </PropertyGroup>
@@ -160,18 +157,6 @@
        ===================================================================== -->
   <ItemGroup>
     <Midl Include="xllama.idl" />
-  </ItemGroup>
-
-  <!-- Force cppwinrt to generate reference projection headers from the WinUI 2 WinMD.
-       Microsoft.UI.Xaml.targets should add the WinMD automatically, but in some
-       CppWinRT 2.0 + WinUI 2.7 configurations the auto-wiring is incomplete.
-       CppWinRTParameters items are appended verbatim to the cppwinrt.exe invocation;
-       -ref <winmd> generates winrt/Microsoft.UI.Xaml.h into $(IntDir)winrt\, which
-       is findable because CppWinRT.props adds $(IntDir) to AdditionalIncludeDirectories. -->
-  <ItemGroup>
-    <CppWinRTParameters
-      Include="-ref &quot;$(ProjectDir)packages\Microsoft.UI.Xaml.2.7.3\lib\uap10.0\Microsoft.UI.Xaml.winmd&quot;"
-      Condition="Exists('$(ProjectDir)packages\Microsoft.UI.Xaml.2.7.3\lib\uap10.0\Microsoft.UI.Xaml.winmd')" />
   </ItemGroup>
 
   <!-- =====================================================================
@@ -335,7 +320,5 @@
   <!-- NuGet package targets (restored to packages\ relative to this vcxproj) -->
   <Import Project="packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.targets"
           Condition="Exists('packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.targets')" />
-  <Import Project="packages\Microsoft.UI.Xaml.2.7.3\build\native\Microsoft.UI.Xaml.targets"
-          Condition="Exists('packages\Microsoft.UI.Xaml.2.7.3\build\native\Microsoft.UI.Xaml.targets')" />
 
 </Project>
