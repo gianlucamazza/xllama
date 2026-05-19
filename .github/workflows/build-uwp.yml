@@ -6,14 +6,16 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    # Pin to windows-2022: has VS2022 (v143) + UWP workload pre-installed.
+    # windows-latest is transitioning to windows-2025-vs2026 which lacks UWP.
+    runs-on: windows-2022
 
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - uses: microsoft/setup-msbuild@v2
+          # Shallow submodule fetch: llama.cpp history is ~1.5 GB, depth=1 is ~40s
+          fetch-depth: 1
 
       - name: Build UWP package
         shell: pwsh
