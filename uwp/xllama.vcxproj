@@ -296,6 +296,10 @@
          aggregator). In cppwinrt 2.x, per-class App.g.cpp / MainPage.g.cpp are
          replaced by a single module.g.cpp; this is the TU that compiles it. -->
     <ClCompile Include="module.cpp" />
+    <!-- XamlTypeInfo_impl.cpp provides the definitions of XamlTypeInfoProvider::
+         CreateXamlType/CreateXamlMember/OtherProviders that MarkupCompilePass2
+         would normally generate but can't because of the WMC9999 crash. -->
+    <ClCompile Include="XamlTypeInfo_impl.cpp" />
     <ClCompile Include="llama-bridge.cpp" />
   </ItemGroup>
 
@@ -328,5 +332,12 @@
   <Import Project="packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.targets"
           Condition="Exists('packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.targets')" />
 
+  <!-- MarkupCompilePass2 (XBF compiler / C++ codegen) crashes with WMC9999 for
+       C++/WinRT UWP projects in both SDK 22621 and 26100. Removing event handler
+       attributes from XAML does not fix the crash. Override with an empty target
+       to skip Pass2. InitializeComponent, Connect, GetBindingConnector, and
+       XamlTypeInfoProvider private methods are provided manually in
+       MainPage.cpp and XamlTypeInfo_impl.cpp instead. -->
+  <Target Name="MarkupCompilePass2"/>
 
 </Project>
