@@ -122,7 +122,7 @@ fire_and_forget MainPage::CheckBenchMode() {
     self->RunButton().IsEnabled(false);
 
     co_await resume_background();
-    xllama::bridge::main_loop();
+    ::xllama::bridge::main_loop();
 
     co_await resume_foreground(self->Dispatcher());
     self->SetStatus(L"Bench complete");
@@ -145,7 +145,7 @@ void MainPage::StartInference(std::wstring const& prompt_w) {
     std::string model  = wstr_to_utf8(m_model_filename);
 
     std::thread([self, prompt, model]() {
-        xllama::bridge::InferenceParams params;
+        ::xllama::bridge::InferenceParams params;
         params.model_path = model;
         params.prompt     = prompt;
         params.n_predict  = 512;
@@ -165,7 +165,7 @@ void MainPage::StartInference(std::wstring const& prompt_w) {
                 [self, wtok]() { self->AppendOutput(wtok); });
         };
 
-        auto res = xllama::bridge::run_inference(params);
+        auto res = ::xllama::bridge::run_inference(params);
 
         // Format metrics
         std::wstring metrics;
