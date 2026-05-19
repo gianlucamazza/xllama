@@ -1,8 +1,11 @@
+// Copyright (c) 2024 Venere Labs
+// SPDX-License-Identifier: MIT
+
 #include "llama-bridge.h"
 
 #include "xllama/inference.h"
-#include "xllama/platform.h"
 #include "xllama/path_utils.h"
+#include "xllama/platform.h"
 #include "xllama/utf8_utils.h"
 
 #include <cstdio>
@@ -20,16 +23,17 @@ void main_loop() {
     std::string prompt = "Hello from Xbox Series S. Tell me about your architecture.";
     {
         std::string prompt_path = resolve_local_path("prompt.txt");
-#ifdef _WIN32
+    #ifdef _WIN32
         FILE* pf = _wfopen(utf8_to_wstring(prompt_path).c_str(), L"r");
-#else
+    #else
         FILE* pf = std::fopen(prompt_path.c_str(), "r");
-#endif
+    #endif
         if (pf) {
             char buf[8192] = {};
             size_t n = fread(buf, 1, sizeof(buf) - 1, pf);
             fclose(pf);
-            if (n > 0) prompt = buf;
+            if (n > 0)
+                prompt = buf;
         }
     }
 
@@ -37,11 +41,11 @@ void main_loop() {
     std::string model_filename = "qwen3-1.7b-Q4_K_M.gguf";
     {
         std::string model_cfg = resolve_local_path("model.txt");
-#ifdef _WIN32
+    #ifdef _WIN32
         FILE* mf = _wfopen(utf8_to_wstring(model_cfg).c_str(), L"r");
-#else
+    #else
         FILE* mf = std::fopen(model_cfg.c_str(), "r");
-#endif
+    #endif
         if (mf) {
             char buf[512] = {};
             size_t n = fread(buf, 1, sizeof(buf) - 1, mf);
@@ -62,10 +66,10 @@ void main_loop() {
 
     InferenceParams params;
     params.model_path = model_filename;
-    params.prompt     = prompt;
-    params.n_predict  = 128;
+    params.prompt = prompt;
+    params.n_predict = 128;
 
-    InferenceResult res = run_inference(params);
+    InferenceResult res = ::xllama::run_inference(params);
     xllama::write_bench_csv(params, res, "xbox-series-s");
 #endif
     // Linux: no-op (use xllama-cli directly)
