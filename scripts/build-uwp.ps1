@@ -142,6 +142,21 @@ try {
         }
     }
 
+    Write-Host "`n=== DIAGNOSTIC: Generated file contents (first 40 lines each) ==="
+    @(
+        "uwp\Generated Files\MainPage.xaml.g.h",
+        "uwp\Generated Files\XamlTypeInfo.Impl.g.cpp",
+        "uwp\Generated Files\XamlLibMetadataProvider.g.cpp"
+    ) | ForEach-Object {
+        $f = Join-Path $RepoRoot $_
+        Write-Host "`n--- $_ ---"
+        if (Test-Path $f) {
+            Get-Content $f | Select-Object -First 40 | ForEach-Object { Write-Host $_ }
+        } else {
+            Write-Host "(not found)"
+        }
+    }
+
     Write-Host "`n=== DIAGNOSTIC: WinMD files under uwp\ ==="
     $winmds = Get-ChildItem -Path (Join-Path $RepoRoot "uwp") -Filter "*.winmd" -Recurse -ErrorAction SilentlyContinue
     if ($winmds) {
