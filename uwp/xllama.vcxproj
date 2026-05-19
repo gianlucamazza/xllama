@@ -91,6 +91,16 @@
       <LanguageStandard_C>stdc11</LanguageStandard_C>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <!-- C++/WinRT does NOT use /ZW (C++/CX). Disable it globally so .c files
+           can compile. /ZW is for the legacy C++/CX ABI, incompatible with
+           pure-C files and with the winrt:: header-only library we use. -->
+      <CompileAsWinRT>false</CompileAsWinRT>
+      <!-- Preserve directory structure in .obj paths to avoid collision when
+           two files share the same basename (e.g. repack.cpp, quants.c, llama.cpp). -->
+      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
+      <!-- Disable precompiled headers globally. We don't have pch.cpp to create
+           the PCH; pch.h is included as a regular header via App.h. -->
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
     <Link>
       <!-- WindowsApp.lib is the UWP umbrella library -->
