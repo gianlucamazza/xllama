@@ -142,12 +142,15 @@ try {
         }
     }
 
-    Write-Host "`n=== DIAGNOSTIC: search App.g.cpp under uwp\ ==="
-    $found = Get-ChildItem -Path (Join-Path $RepoRoot "uwp") -Filter "App.g.cpp" -Recurse -ErrorAction SilentlyContinue
-    if ($found) {
-        $found | Select-Object -ExpandProperty FullName | ForEach-Object { Write-Host $_ }
+    Write-Host "`n=== DIAGNOSTIC: WinMD files under uwp\ ==="
+    $winmds = Get-ChildItem -Path (Join-Path $RepoRoot "uwp") -Filter "*.winmd" -Recurse -ErrorAction SilentlyContinue
+    if ($winmds) {
+        $winmds | ForEach-Object {
+            $kb = [math]::Round($_.Length / 1KB, 1)
+            Write-Host "$($_.FullName.Replace($RepoRoot,'')) [$kb KB]"
+        }
     } else {
-        Write-Host "(App.g.cpp not found under uwp\)"
+        Write-Host "(no .winmd found)"
     }
 }
 
