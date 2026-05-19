@@ -104,23 +104,42 @@ try {
         /nologo
     $buildExitCode = $LASTEXITCODE
 } finally {
-    # Always show what cppwinrt generated — helps diagnose include-path mismatches
+    # $(IntDir) = xllama\$(Platform)\$(Configuration)\ relative to uwp\
+    $IntDir = "xllama\$Platform\$Configuration"
+
+    Write-Host "`n=== DIAGNOSTIC: NuGet packages restored ==="
+    $pkgDir = Join-Path $RepoRoot "uwp\packages"
+    if (Test-Path $pkgDir) {
+        Get-ChildItem $pkgDir -Directory | Select-Object -ExpandProperty Name
+    } else {
+        Write-Host "(uwp\packages\ not found)"
+    }
+
     Write-Host "`n=== DIAGNOSTIC: cppwinrt reference RSP ==="
-    $rsp = Join-Path $RepoRoot "uwp\$Platform\$Configuration\xllama.vcxproj.cppwinrt_ref.rsp"
+    $rsp = Join-Path $RepoRoot "uwp\$IntDir\xllama.vcxproj.cppwinrt_ref.rsp"
     if (Test-Path $rsp) { Get-Content $rsp } else { Write-Host "(rsp not found at $rsp)" }
 
-    Write-Host "`n=== DIAGNOSTIC: Generated Files (winrt headers) ==="
+    Write-Host "`n=== DIAGNOSTIC: cppwinrt output locations ==="
     @(
-        "uwp\Generated Files\winrt",
-        "uwp\$Platform\$Configuration\Generated Files\winrt"
+        "uwp\$IntDir\winrt",
+        "uwp\$IntDir\Generated Files\winrt",
+        "uwp\Generated Files\winrt"
     ) | ForEach-Object {
         $d = Join-Path $RepoRoot $_
         if (Test-Path $d) {
-            Write-Host "[$d]"
-            Get-ChildItem $d | Select-Object -ExpandProperty Name
+            $n = (Get-ChildItem $d -Filter "*.h" -ErrorAction SilentlyContinue | Measure-Object).Count
+            Write-Host "[$d] — $n .h files"
         } else {
             Write-Host "[$d] — not found"
         }
+    }
+
+    Write-Host "`n=== DIAGNOSTIC: search Microsoft.UI.Xaml.h under uwp\ ==="
+    $found = Get-ChildItem -Path (Join-Path $RepoRoot "uwp") -Filter "Microsoft.UI.Xaml.h" -Recurse -ErrorAction SilentlyContinue
+    if ($found) {
+        $found | Select-Object -ExpandProperty FullName | ForEach-Object { Write-Host $_ }
+    } else {
+        Write-Host "(Microsoft.UI.Xaml.h not found under uwp\)"
     }
 }
 

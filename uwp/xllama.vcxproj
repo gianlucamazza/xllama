@@ -162,6 +162,18 @@
     <Midl Include="xllama.idl" />
   </ItemGroup>
 
+  <!-- Force cppwinrt to generate reference projection headers from the WinUI 2 WinMD.
+       Microsoft.UI.Xaml.targets should add the WinMD automatically, but in some
+       CppWinRT 2.0 + WinUI 2.7 configurations the auto-wiring is incomplete.
+       CppWinRTParameters items are appended verbatim to the cppwinrt.exe invocation;
+       -ref <winmd> generates winrt/Microsoft.UI.Xaml.h into $(IntDir)winrt\, which
+       is findable because CppWinRT.props adds $(IntDir) to AdditionalIncludeDirectories. -->
+  <ItemGroup>
+    <CppWinRTParameters
+      Include="-ref &quot;$(ProjectDir)packages\Microsoft.UI.Xaml.2.7.3\lib\uap10.0\Microsoft.UI.Xaml.winmd&quot;"
+      Condition="Exists('$(ProjectDir)packages\Microsoft.UI.Xaml.2.7.3\lib\uap10.0\Microsoft.UI.Xaml.winmd')" />
+  </ItemGroup>
+
   <!-- =====================================================================
        XAML pages
        ===================================================================== -->
