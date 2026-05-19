@@ -15,7 +15,7 @@ End-to-end instructions for reproducing the Phase 1 benchmark from scratch.
 **Option A — Local Windows VM:**
 ```powershell
 .\scripts\build-uwp.ps1
-# Output: uwp\AppPackages\xllama\xllama_0.1.0.0_x64.appx
+# Output: uwp\AppPackages\xllama\xllama_0.1.0.0_x64.msix
 ```
 
 **Option B — GitHub Actions CI:**
@@ -30,7 +30,7 @@ export XBOX_IP=192.168.1.42
 export XBOX_USER=devuser
 export XBOX_PASS=your_password
 
-./scripts/deploy.sh path/to/xllama_0.1.0.0_x64.appx
+./scripts/deploy.sh path/to/xllama_0.1.0.0_x64.msix
 ```
 
 The script uploads the package, polls installation status, and prints "Installation succeeded."
