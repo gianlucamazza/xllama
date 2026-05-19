@@ -85,6 +85,8 @@
         WIN32_LEAN_AND_MEAN;
         _CRT_SECURE_NO_WARNINGS;
         XLLAMA_UWP=1;
+        GGML_VERSION="0.12.0";
+        GGML_COMMIT="9a532ae4b";
         %(PreprocessorDefinitions)
       </PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
