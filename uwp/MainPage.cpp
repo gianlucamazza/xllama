@@ -6,6 +6,33 @@
 // element accessors like OutputText(), RunButton(), etc. and their backing members).
 #include "MainPage.xaml.g.h"
 
+// MarkupCompilePass2 is disabled (WMC9999 crash). Provide template definitions
+// so MSVC can emit the vtable adjustor thunks it needs for the COM vtable layout.
+// Virtual dispatch through MainPage* still calls MainPage::Connect (most-derived).
+namespace winrt::xllama::implementation {
+
+template <typename D, typename... I>
+void MainPageT<D, I...>::Connect(
+    int32_t, ::winrt::Windows::Foundation::IInspectable const&) {}
+
+template <typename D, typename... I>
+::winrt::Windows::UI::Xaml::Markup::IComponentConnector
+MainPageT<D, I...>::GetBindingConnector(
+    int32_t, ::winrt::Windows::Foundation::IInspectable const&) {
+    return nullptr;
+}
+
+} // namespace winrt::xllama::implementation
+
+// Force instantiation into this TU so the linker finds the symbols.
+template void ::winrt::xllama::implementation::MainPageT<
+    ::winrt::xllama::implementation::MainPage>::Connect(
+        int32_t, ::winrt::Windows::Foundation::IInspectable const&);
+template ::winrt::Windows::UI::Xaml::Markup::IComponentConnector
+::winrt::xllama::implementation::MainPageT<
+    ::winrt::xllama::implementation::MainPage>::GetBindingConnector(
+        int32_t, ::winrt::Windows::Foundation::IInspectable const&);
+
 #include <cstdio>
 #include <string>
 #include <thread>
