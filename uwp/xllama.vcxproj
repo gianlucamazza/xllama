@@ -369,11 +369,28 @@
     <Copy SourceFiles="App.xaml;MainPage.xaml"
           DestinationFolder="$(OutDir)"
           SkipUnchangedFiles="true"/>
-    <!-- Extend CustomOutputGroupForPackagingOutput so the AppX packager adds
-         the text XAML to the package layout (stock property only lists XBF). -->
-    <PropertyGroup>
-      <CustomOutputGroupForPackagingOutput>$(CustomOutputGroupForPackagingOutput);$(OutDir)App.xaml;$(OutDir)MainPage.xaml</CustomOutputGroupForPackagingOutput>
-    </PropertyGroup>
+  </Target>
+
+  <!-- ComputeProcessXamlFiles feeds CustomOutputGroupForPackaging, which the outer
+       AppX packaging build calls to determine what goes into the .msix.
+       Stock implementation returns only XBF paths via @(XamlBinaryOutput).
+       Override adds the staged source XAML alongside XBF so the packager includes
+       both: XBF stubs (never parsed at runtime) + XAML text files (loaded by
+       LoadComponent(ms-appx:///MainPage.xaml) on Xbox). -->
+  <Target Name="ComputeProcessXamlFiles"
+          Returns="@(ProcessedXamlFiles)">
+    <ItemGroup>
+      <!-- XBF stubs staged to $(OutDir) by build-uwp.ps1 + CopyGeneratedXaml -->
+      <ProcessedXamlFiles
+          Include="@(ApplicationDefinition->'$(OutDir)%(Filename).xbf')"/>
+      <ProcessedXamlFiles
+          Include="@(Page->'$(OutDir)%(Filename).xbf')"/>
+      <!-- Source XAML text files staged to $(OutDir) by CopyGeneratedXaml -->
+      <ProcessedXamlFiles
+          Include="@(ApplicationDefinition->'$(OutDir)%(Filename).xaml')"/>
+      <ProcessedXamlFiles
+          Include="@(Page->'$(OutDir)%(Filename).xaml')"/>
+    </ItemGroup>
   </Target>
 
 </Project>
