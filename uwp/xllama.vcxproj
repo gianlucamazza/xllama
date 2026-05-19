@@ -141,14 +141,16 @@
        MIDL reads App.idl and emits $(OutDir)xllama.winmd into the package.
        ===================================================================== -->
   <ItemGroup>
-    <Midl Include="App.idl">
+    <!-- Named xllama.idl so MIDL emits xllama.winmd (IDL stem = winmd stem).
+         AppxPackage.Targets looks for $(OutDir)xllama.winmd; App.idl would
+         produce App.winmd and trigger APPX0702. -->
+    <Midl Include="xllama.idl">
       <TargetEnvironment>X64</TargetEnvironment>
       <MkTypLibCompatible>false</MkTypLibCompatible>
-      <HeaderFileName>App.g.h</HeaderFileName>
+      <HeaderFileName>xllama.g.h</HeaderFileName>
       <GenerateClientFiles>None</GenerateClientFiles>
       <GenerateServerFiles>None</GenerateServerFiles>
       <WinMDOutputDirectory>$(OutDir)</WinMDOutputDirectory>
-      <TypeLibraryName>$(OutDir)xllama.winmd</TypeLibraryName>
     </Midl>
   </ItemGroup>
 
