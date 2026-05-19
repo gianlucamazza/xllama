@@ -48,5 +48,6 @@ int main(int argc, char** argv) {
     params.prompt     = prompt;
     params.n_predict  = n_predict;
 
-    return xllama::bridge::run_inference(params);
+    auto res = xllama::bridge::run_inference(params);
+    return res.success ? 0 : 1;
 }
