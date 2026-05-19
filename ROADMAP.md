@@ -5,7 +5,8 @@
 **Goal**: reproducible, measurable CPU-only inference on Xbox Series S via UWP Dev Mode.
 
 Milestones:
-- [ ] `cmake -B build -DXLLAMA_TARGET=linux && cmake --build build` green on Ubuntu 22.04
+- [x] Linux build green on Ubuntu 22.04 (CMake presets + CI)
+- [x] Modular C++ bridge with RAII wrappers, CLI parser, and unit tests
 - [ ] `llama-bridge.cpp` compiles clean with MSVC under UWP constraints (no mmap, no dlopen)
 - [ ] `xllama.appx` deploys and launches on Xbox Series S in Dev Mode
 - [ ] Inference runs end-to-end for Qwen3-1.7B Q4_K_M; tok/s recorded to `bench/results/`

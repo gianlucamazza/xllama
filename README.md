@@ -69,23 +69,27 @@ The development workflow runs on Linux. The final UWP packaging step requires MS
 ```
 xllama/
 ├── llama.cpp/              # upstream submodule, pinned
-├── patches/                # UWP-specific patches against upstream
-├── uwp/
-│   ├── AppxManifest.xml
-│   ├── App.cpp             # UWP entry point
-│   ├── App.h
-│   ├── llama-bridge.cpp    # llama.cpp ↔ UWP lifecycle glue
-│   ├── llama-bridge.h
-│   ├── pch.h
-│   └── xllama.sln
-├── cmake/                  # toolchain files for UWP / Linux targets
-├── scripts/
-│   ├── build-uwp.ps1       # MSVC build (Windows)
-│   ├── deploy.sh           # Device Portal upload (Linux)
-│   └── quantize.sh         # GGUF preparation
-├── bench/                  # benchmark suite + result CSVs
-├── docs/                   # technical notes, design decisions
-└── .github/workflows/      # CI: Linux dev build + Windows UWP packaging
+├── include/xllama/         # shared public headers (RAII, inference, CLI, utils)
+├── src/
+│   ├── main.cpp            # Linux entry point
+│   └── bridge/             # shared implementation (Linux + UWP)
+│       ├── inference.cpp
+│       ├── bench.cpp
+│       ├── cli.cpp
+│       ├── platform.cpp
+│       ├── path_utils.cpp
+│       └── utf8_utils.cpp
+├── uwp/                    # C++/WinRT app + UWP stubs
+│   ├── llama-bridge.cpp    # thin wrapper + main_loop()
+│   ├── llama-mmap-uwp.cpp
+│   ├── App.cpp / MainPage.cpp
+│   └── xllama.sln / .vcxproj
+├── tests/                  # unit tests (doctest)
+├── scripts/                # build / deploy / bench automation
+├── bench/                  # benchmark configs + results
+├── docs/                   # technical notes
+├── cmake/                  # toolchain files
+└── .github/workflows/      # CI: Linux + Windows UWP
 ```
 
 ---
@@ -104,9 +108,18 @@ xllama/
 ```bash
 git clone --recursive https://github.com/gianlucamazza/xllama.git
 cd xllama
-cmake -B build -DXLLAMA_TARGET=linux
-cmake --build build -j
-./build/bin/xllama-cli -m models/qwen3-1.7b-Q4_K_M.gguf -p "Hello"
+
+# Release build
+cmake --preset linux-release
+cmake --build build/linux-release -j
+
+# Run with a model
+./build/linux-release/bin/xllama-cli -m models/qwen3-1.7b-Q4_K_M.gguf -p "Hello"
+
+# Run unit tests
+cmake --preset linux-test
+cmake --build build/linux-test -j
+ctest --test-dir build/linux-test --output-on-failure
 ```
 
 This validates the bridge code against the Linux build before attempting the UWP packaging.
