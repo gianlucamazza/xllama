@@ -2,7 +2,6 @@
 
 #include "pch.h"
 #include "MainPage.h"
-#include "MainPage.g.cpp"
 
 #include <cstdio>
 #include <string>
