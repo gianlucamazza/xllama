@@ -21,14 +21,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake build-essential libcurl4-openssl-dev ccache
 
-      - name: Configure
-        run: cmake -B build -DXLLAMA_TARGET=linux -DCMAKE_BUILD_TYPE=Release
+      - name: Configure (with tests)
+        run: cmake --preset linux-test
 
       - name: Build
-        run: cmake --build build -j$(nproc)
+        run: cmake --build build/linux-test -j$(nproc)
+
+      - name: Run unit tests
+        run: ctest --test-dir build/linux-test --output-on-failure
 
       - name: Smoke test
-        run: ./build/bin/xllama-cli --help
+        run: ./build/linux-test/bin/xllama-cli --help
 
       - name: Verify UWP gate
         run: |
@@ -44,5 +47,5 @@ jobs:
         if: success()
         with:
           name: xllama-cli-linux
-          path: build/bin/xllama-cli
+          path: build/linux-test/bin/xllama-cli
           retention-days: 14

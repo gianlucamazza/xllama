@@ -24,6 +24,9 @@ static void print_usage(const char* prog) {
 }
 
 bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
+    optind = 1;  // reset getopt_long state for re-entrant use
+    opterr = 0;  // silence getopt error messages
+
     static const struct option long_opts[] = {
         {"model",     required_argument, nullptr, 'm'},
         {"prompt",    required_argument, nullptr, 'p'},
