@@ -13,7 +13,7 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
         with:
           submodules: recursive
           # Shallow submodule fetch: llama.cpp history is ~1.5 GB, depth=1 is ~40s
@@ -27,7 +27,7 @@ jobs:
         shell: pwsh
         run: ./scripts/build-uwp.ps1 -Configuration Release -Platform x64
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4.4.3
         if: success()
         with:
           name: xllama-appx

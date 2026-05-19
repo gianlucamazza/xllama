@@ -70,10 +70,12 @@
     <AppxBundle>Never</AppxBundle>
   </PropertyGroup>
 
-  <!-- C++/WinRT XAML integration (via Microsoft.Windows.CppWinRT NuGet) -->
+  <!-- C++/WinRT XAML integration (via Microsoft.Windows.CppWinRT NuGet).
+       CppWinRTOptimized is intentionally left at its default (false): in
+       CppWinRT 2.0 the optimized mode changes how reference projections are
+       emitted, which breaks the traditional #include <winrt/Microsoft.UI.Xaml.h>
+       pattern used by the XAML-compiler-generated accessor headers. -->
   <PropertyGroup>
-    <CppWinRTOptimized>true</CppWinRTOptimized>
-    <CppWinRTRootNamespaceAutoMerge>true</CppWinRTRootNamespaceAutoMerge>
     <CppWinRTGenerateWindowsMetadata>true</CppWinRTGenerateWindowsMetadata>
   </PropertyGroup>
 

@@ -91,19 +91,42 @@ Write-Host "Building $Configuration|$Platform ..."
 # ---------------------------------------------------------------------------
 # Build + sign
 # ---------------------------------------------------------------------------
-& $MsBuild $SlnPath `
-    /p:Configuration=$Configuration `
-    /p:Platform=$Platform `
-    /p:AppxPackageSigningEnabled=true `
-    /p:PackageCertificateKeyFile="$PfxPath" `
-    /p:PackageCertificatePassword="$CertPwd" `
-    /p:PackageCertificateThumbprint="$($cert.Thumbprint)" `
-    /m `
-    /nologo
+$buildExitCode = 0
+try {
+    & $MsBuild $SlnPath `
+        /p:Configuration=$Configuration `
+        /p:Platform=$Platform `
+        /p:AppxPackageSigningEnabled=true `
+        /p:PackageCertificateKeyFile="$PfxPath" `
+        /p:PackageCertificatePassword="$CertPwd" `
+        /p:PackageCertificateThumbprint="$($cert.Thumbprint)" `
+        /m `
+        /nologo
+    $buildExitCode = $LASTEXITCODE
+} finally {
+    # Always show what cppwinrt generated — helps diagnose include-path mismatches
+    Write-Host "`n=== DIAGNOSTIC: cppwinrt reference RSP ==="
+    $rsp = Join-Path $RepoRoot "uwp\$Platform\$Configuration\xllama.vcxproj.cppwinrt_ref.rsp"
+    if (Test-Path $rsp) { Get-Content $rsp } else { Write-Host "(rsp not found at $rsp)" }
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "MSBuild failed with exit code $LASTEXITCODE"
-    exit $LASTEXITCODE
+    Write-Host "`n=== DIAGNOSTIC: Generated Files (winrt headers) ==="
+    @(
+        "uwp\Generated Files\winrt",
+        "uwp\$Platform\$Configuration\Generated Files\winrt"
+    ) | ForEach-Object {
+        $d = Join-Path $RepoRoot $_
+        if (Test-Path $d) {
+            Write-Host "[$d]"
+            Get-ChildItem $d | Select-Object -ExpandProperty Name
+        } else {
+            Write-Host "[$d] — not found"
+        }
+    }
+}
+
+if ($buildExitCode -ne 0) {
+    Write-Error "MSBuild failed with exit code $buildExitCode"
+    exit $buildExitCode
 }
 
 Write-Host "Build succeeded."
