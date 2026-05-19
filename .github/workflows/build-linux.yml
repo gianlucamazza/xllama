@@ -7,11 +7,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 1
@@ -57,7 +54,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/upload-artifact@v4.4.3
+      - uses: actions/upload-artifact@v7
         if: success()
         with:
           name: xllama-cli-linux
