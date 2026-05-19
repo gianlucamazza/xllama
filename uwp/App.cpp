@@ -3,9 +3,12 @@
 
 #ifdef XLLAMA_UWP
 
+// clang-format off
+// pch.h must be first: it includes <unknwn.h> before WinRT headers (COM IUnknown guard).
 #include "pch.h"
 #include "App.h"
 #include "MainPage.h"
+// clang-format on
 
 using namespace winrt;
 using namespace winrt::Windows::ApplicationModel::Activation;

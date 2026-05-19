@@ -11,9 +11,12 @@
     #ifndef NOMINMAX
         #define NOMINMAX
     #endif
+// clang-format off
+    // windows.h must precede unknwn.h; unknwn.h must precede winrt/ headers.
     #include <windows.h>
-    #include <unknwn.h>  // required by winrt/base.h (COM IUnknown check)
+    #include <unknwn.h> // required by winrt/base.h (COM IUnknown check)
     #include <winrt/Windows.Storage.h>
+// clang-format on
 #endif
 
 namespace xllama {

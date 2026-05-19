@@ -7,9 +7,12 @@
 // module.g.cpp needs factory_implementation::{App,MainPage} in scope.
 #ifdef XLLAMA_UWP
 
+// clang-format off
+// pch.h must be first (unknwn.h guard); module.g.cpp must be last (implementation unit).
 #include "pch.h"
 #include "App.h"
 #include "MainPage.h"
 #include "module.g.cpp"
+// clang-format on
 
 #endif // XLLAMA_UWP
