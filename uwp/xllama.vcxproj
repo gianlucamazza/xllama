@@ -321,4 +321,36 @@
   <Import Project="packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.targets"
           Condition="Exists('packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.targets')" />
 
+  <!-- =====================================================================
+       Explicit component stub generation.
+       CppWinRTMakeComponentProjection (from NuGet) depends on the merged
+       WinMD at the AppxPackage output path, which only exists after packaging
+       — a chicken-and-egg that prevents it from running before ClCompile.
+       Instead, we invoke cppwinrt.exe -comp directly from the MIDL-generated
+       unmerged WinMD, producing App.g.h/App.g.cpp and MainPage.g.h/
+       MainPage.g.cpp in $(ProjectDir)Generated Files\ before compilation.
+       ===================================================================== -->
+  <Target Name="_XllamaCppWinRTComp"
+          DependsOnTargets="Midl;GetCppWinRTPlatformWinMDReferences"
+          BeforeTargets="ClCompile">
+    <PropertyGroup>
+      <_CppWinRTExe>$(ProjectDir)packages\Microsoft.Windows.CppWinRT.2.0.240405.15\bin\cppwinrt.exe</_CppWinRTExe>
+      <!-- MIDL outputs the unmerged component WinMD here (relative to $(ProjectDir)) -->
+      <_UnmergedWinMD>$(IntDir)Unmerged\$(TargetName).winmd</_UnmergedWinMD>
+      <!-- No trailing backslash: avoids cmd.exe mis-parsing the closing quote -->
+      <_CompOutDir>$(ProjectDir)Generated Files</_CompOutDir>
+    </PropertyGroup>
+    <!-- Convert semicolon-separated SDK WinMD list to individual items -->
+    <ItemGroup>
+      <_CppWinRTRef Include="$(CppWinRTPlatformWinMDReferences)" />
+    </ItemGroup>
+    <MakeDir Directories="$(_CompOutDir)" />
+    <!-- -out same dir as -comp: generates winrt/xllama.App.h etc. (self-projection)
+         needed by App.g.h / MainPage.g.h which reference winrt::xllama::App. -->
+    <Exec
+      Command="&quot;$(_CppWinRTExe)&quot; -in &quot;$(_UnmergedWinMD)&quot; -comp &quot;$(_CompOutDir)&quot; -out &quot;$(_CompOutDir)&quot; @(_CppWinRTRef -> '-ref &quot;%(Identity)&quot;', ' ')"
+      WorkingDirectory="$(ProjectDir)"
+      Condition="Exists('$(_CppWinRTExe)') AND Exists('$(_UnmergedWinMD)')" />
+  </Target>
+
 </Project>

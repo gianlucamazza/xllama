@@ -119,6 +119,14 @@ try {
     $rsp = Join-Path $RepoRoot "uwp\$IntDir\xllama.vcxproj.cppwinrt_ref.rsp"
     if (Test-Path $rsp) { Get-Content $rsp } else { Write-Host "(rsp not found at $rsp)" }
 
+    Write-Host "`n=== DIAGNOSTIC: Generated Files\ root (component stubs) ==="
+    $genDir = Join-Path $RepoRoot "uwp\Generated Files"
+    if (Test-Path $genDir) {
+        Get-ChildItem $genDir -File | Select-Object -ExpandProperty Name
+    } else {
+        Write-Host "(uwp\Generated Files\ not found)"
+    }
+
     Write-Host "`n=== DIAGNOSTIC: cppwinrt output locations ==="
     @(
         "uwp\$IntDir\winrt",
@@ -134,12 +142,12 @@ try {
         }
     }
 
-    Write-Host "`n=== DIAGNOSTIC: search Microsoft.UI.Xaml.h under uwp\ ==="
-    $found = Get-ChildItem -Path (Join-Path $RepoRoot "uwp") -Filter "Microsoft.UI.Xaml.h" -Recurse -ErrorAction SilentlyContinue
+    Write-Host "`n=== DIAGNOSTIC: search App.g.cpp under uwp\ ==="
+    $found = Get-ChildItem -Path (Join-Path $RepoRoot "uwp") -Filter "App.g.cpp" -Recurse -ErrorAction SilentlyContinue
     if ($found) {
         $found | Select-Object -ExpandProperty FullName | ForEach-Object { Write-Host $_ }
     } else {
-        Write-Host "(Microsoft.UI.Xaml.h not found under uwp\)"
+        Write-Host "(App.g.cpp not found under uwp\)"
     }
 }
 
