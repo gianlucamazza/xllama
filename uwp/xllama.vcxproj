@@ -34,13 +34,6 @@
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
 
-  <!-- NuGet props — must be imported early so include paths and tool overrides
-       are active before the compiler/linker ItemDefinitionGroups below. -->
-  <Import Project="packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.props"
-          Condition="Exists('packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.props')" />
-  <Import Project="packages\Microsoft.UI.Xaml.2.7.3\build\native\Microsoft.UI.Xaml.props"
-          Condition="Exists('packages\Microsoft.UI.Xaml.2.7.3\build\native\Microsoft.UI.Xaml.props')" />
-
   <!-- =====================================================================
        Per-configuration base properties
        ===================================================================== -->
@@ -61,6 +54,13 @@
   </PropertyGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+
+  <!-- NuGet props — imported AFTER Microsoft.Cpp.props so $(IntDir) and
+       $(GeneratedFilesDir) are already resolved when CppWinRT.props runs. -->
+  <Import Project="packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.props"
+          Condition="Exists('packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.props')" />
+  <Import Project="packages\Microsoft.UI.Xaml.2.7.3\build\native\Microsoft.UI.Xaml.props"
+          Condition="Exists('packages\Microsoft.UI.Xaml.2.7.3\build\native\Microsoft.UI.Xaml.props')" />
 
   <!-- =====================================================================
        Package / signing
@@ -84,6 +84,8 @@
     <ClCompile>
       <AdditionalIncludeDirectories>
         $(ProjectDir);
+        $(ProjectDir)Generated Files;
+        $(IntDir)Generated Files;
         $(ProjectDir)..\llama.cpp\include;
         $(ProjectDir)..\llama.cpp\src;
         $(ProjectDir)..\llama.cpp\ggml\include;
