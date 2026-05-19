@@ -97,7 +97,7 @@ If `bench-xbox.sh` can't control the app lifecycle automatically:
 
 ```bash
 # 1. Get package full name
-curl -sS --digest -u $XBOX_USER:$XBOX_PASS -k \
+curl -sS --basic -u $XBOX_USER:$XBOX_PASS -k \
     "https://$XBOX_IP:11443/api/app/packagemanager/packages" \
     | python3 -c "import sys,json; [print(p['PackageFullName']) for p in json.load(sys.stdin)['InstalledPackages'] if 'VenereLabs.xllama' in p.get('PackageRelativeId','')]"
 # → e.g. VenereLabs.xllama_0.1.0.0_x64__abc123
@@ -114,7 +114,7 @@ cp bench/prompts/standard-512.txt /tmp/prompt.txt
 # 4. Launch app from Xbox UI (Dev Home → xllama)
 
 # 5. Wait ~2-3 min, then fetch results
-curl -sS --digest -u $XBOX_USER:$XBOX_PASS -k \
+curl -sS --basic -u $XBOX_USER:$XBOX_PASS -k \
     "https://$XBOX_IP:11443/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\bench-result.csv" \
     -o /tmp/bench-result.csv
 
@@ -144,5 +144,5 @@ is fully `fread()`'d into heap memory instead of memory-mapped.
 
 **Slow load time**: expected with `use_mmap=false`. Qwen3-1.7B takes ~10-30s to load.
 
-**Deploy script auth failure**: Xbox Device Portal uses HTTP Digest. Use `--digest` with curl. 
+**Deploy script auth failure**: Xbox Device Portal uses HTTP Digest. Use `--basic` with curl. 
 Verify credentials in Dev Home → Settings → Device Portal credentials.

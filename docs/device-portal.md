@@ -31,7 +31,7 @@ From Dev Home: **Settings → Device Portal credentials**. Set username and pass
 
 ```bash
 curl -sS \
-    --digest \
+    --basic \
     -u "$XBOX_USER:$XBOX_PASS" \
     -k \
     -X POST \
@@ -44,7 +44,7 @@ Use `./scripts/deploy.sh` which wraps this call and polls installation status.
 ## REST API: Listing installed packages
 
 ```bash
-curl -sS --digest -u "$XBOX_USER:$XBOX_PASS" -k \
+curl -sS --basic -u "$XBOX_USER:$XBOX_PASS" -k \
     "https://$XBOX_IP:11443/api/app/packagemanager/packages" | jq .
 ```
 
@@ -54,7 +54,7 @@ Model files must be placed in the app's `LocalFolder`. Via Device Portal:
 
 ```bash
 # Upload a GGUF model to the app's LocalFolder
-curl -sS --digest -u "$XBOX_USER:$XBOX_PASS" -k \
+curl -sS --basic -u "$XBOX_USER:$XBOX_PASS" -k \
     -X POST \
     -F "file=@qwen3-1.7b-Q4_K_M.gguf;type=application/octet-stream" \
     "https://$XBOX_IP:11443/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=VenereLabs.xllama_0.1.0.0_x64__<token>&path=\\models"

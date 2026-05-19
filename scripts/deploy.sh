@@ -14,7 +14,7 @@ set -euo pipefail
 : "${XBOX_PASS:?XBOX_PASS not set}"
 
 BASE_URL="https://${XBOX_IP}:11443"
-CURL_AUTH="--digest -u ${XBOX_USER}:${XBOX_PASS} -k -sS"
+CURL_AUTH="--basic -u ${XBOX_USER}:${XBOX_PASS} -k -sS"
 
 # -----------------------------------------------------------------------
 # Sub-command: upload-file
