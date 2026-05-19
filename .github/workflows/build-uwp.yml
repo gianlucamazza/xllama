@@ -9,6 +9,8 @@ jobs:
     # Pin to windows-2022: has VS2022 (v143) + UWP workload pre-installed.
     # windows-latest is transitioning to windows-2025-vs2026 which lacks UWP.
     runs-on: windows-2022
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - uses: actions/checkout@v4
