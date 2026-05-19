@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!-- =====================================================================
+       Configurations: Debug|x64 and Release|x64 only.
+       Xbox Series S is x64 (Zen 2). No ARM64, no Win32.
+       ===================================================================== -->
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
+  <!-- =====================================================================
+       Global properties — UWP app targeting Xbox Series S
+       ===================================================================== -->
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}</ProjectGuid>
+    <RootNamespace>xllama</RootNamespace>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <MinimumVisualStudioVersion>17.0</MinimumVisualStudioVersion>
+    <AppContainerApplication>true</AppContainerApplication>
+    <AppxPackage>true</AppxPackage>
+    <ApplicationType>Windows Store</ApplicationType>
+    <ApplicationTypeRevision>10.0</ApplicationTypeRevision>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformMinVersion>10.0.19041.0</WindowsTargetPlatformMinVersion>
+    <EnableDotNetNativeCompatibleProfile>true</EnableDotNetNativeCompatibleProfile>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+  <!-- =====================================================================
+       Per-configuration base properties
+       ===================================================================== -->
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+
+  <!-- =====================================================================
+       Package / signing
+       ===================================================================== -->
+  <PropertyGroup>
+    <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
+    <AppxBundle>Never</AppxBundle>
+  </PropertyGroup>
+
+  <!-- =====================================================================
+       Include paths (both configurations)
+       ===================================================================== -->
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        $(ProjectDir);
+        $(ProjectDir)..\llama.cpp\include;
+        $(ProjectDir)..\llama.cpp\src;
+        $(ProjectDir)..\llama.cpp\ggml\include;
+        $(ProjectDir)..\llama.cpp\ggml\src;
+        $(ProjectDir)..\llama.cpp\ggml\src\ggml-cpu;
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>
+        GGML_USE_CPU=1;
+        GGML_BACKEND_DL=0;
+        NOMINMAX;
+        WIN32_LEAN_AND_MEAN;
+        _CRT_SECURE_NO_WARNINGS;
+        XLLAMA_UWP=1;
+        %(PreprocessorDefinitions)
+      </PreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
+      <ConformanceMode>true</ConformanceMode>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <!-- WindowsApp.lib is the UWP umbrella library -->
+      <AdditionalDependencies>WindowsApp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <!-- Debug-specific compile flags -->
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
+  <!-- Release-specific compile flags: AVX2 for Zen 2 (Xbox CPU), LTCG -->
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <AdditionalOptions>/arch:AVX2 /Oi /Ot %(AdditionalOptions)</AdditionalOptions>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+    </ClCompile>
+    <Link>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <!-- =====================================================================
+       Manifest
+       ===================================================================== -->
+  <ItemGroup>
+    <AppxManifest Include="AppxManifest.xml">
+      <SubType>Designer</SubType>
+    </AppxManifest>
+  </ItemGroup>
+
+  <!-- =====================================================================
+       Assets (placeholder PNGs required by AppxManifest)
+       ===================================================================== -->
+  <ItemGroup>
+    <Image Include="Assets\StoreLogo.png" />
+    <Image Include="Assets\Square150x150Logo.png" />
+    <Image Include="Assets\Square44x44Logo.png" />
+    <Image Include="Assets\Wide310x150Logo.png" />
+    <Image Include="Assets\SplashScreen.png" />
+  </ItemGroup>
+
+  <!-- =====================================================================
+       Source files
+
+       IMPORTANT: llama-mmap.cpp and ggml-backend-dl.cpp use Win32 Desktop APIs
+       (CreateFileMappingA, LoadLibraryW) blocked in WINAPI_FAMILY_APP.
+       They are replaced by UWP-safe stubs in the uwp/ directory.
+       ===================================================================== -->
+
+  <!-- ggml base (no GPU backends included) -->
+  <ItemGroup>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml.c" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-alloc.c" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-backend.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-backend-meta.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-opt.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-threading.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-quants.c" />
+    <ClCompile Include="..\llama.cpp\ggml\src\gguf.cpp" />
+    <!-- Backend registry (uses dl_load_library from our stub, not llama.cpp's) -->
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-backend-reg.cpp" />
+    <!-- ggml-backend-dl.cpp EXCLUDED: uses LoadLibraryW (desktop-only).
+         Replaced by: ggml-backend-dl-stub.cpp below. -->
+  </ItemGroup>
+
+  <!-- ggml CPU backend -->
+  <ItemGroup>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\ggml-cpu.c" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\ggml-cpu.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\repack.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\hbm.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\quants.c" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\traits.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\binary-ops.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\unary-ops.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\vec.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\ops.cpp" />
+    <!-- AMX stubs (guarded by __AMX_* intrinsics; compile clean on Zen 2) -->
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\amx\amx.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\amx\mmq.cpp" />
+    <!-- x86-specific: AVX2 quantisation and repacking for Zen 2 -->
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\arch\x86\cpu-feats.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\arch\x86\quants.c" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\arch\x86\repack.cpp" />
+  </ItemGroup>
+
+  <!-- llama core (llama-mmap.cpp EXCLUDED — replaced by llama-mmap-uwp.cpp) -->
+  <ItemGroup>
+    <ClCompile Include="..\llama.cpp\src\llama.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-adapter.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-arch.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-batch.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-chat.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-context.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-cparams.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-grammar.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-graph.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-hparams.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-impl.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-io.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-kv-cache.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-kv-cache-iswa.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-memory.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-memory-hybrid.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-memory-hybrid-iswa.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-memory-recurrent.cpp" />
+    <!-- llama-mmap.cpp EXCLUDED: uses CreateFileMappingA (desktop-only).
+         Replaced by: llama-mmap-uwp.cpp below. -->
+    <ClCompile Include="..\llama.cpp\src\llama-model.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-model-loader.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-model-saver.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-quant.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-sampler.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-vocab.cpp" />
+    <ClCompile Include="..\llama.cpp\src\unicode.cpp" />
+    <ClCompile Include="..\llama.cpp\src\unicode-data.cpp" />
+    <!-- All model implementations (130+ files, glob is safe: no GPU backends here) -->
+    <ClCompile Include="..\llama.cpp\src\models\*.cpp" />
+  </ItemGroup>
+
+  <!-- UWP stubs replacing desktop-only llama.cpp internals -->
+  <ItemGroup>
+    <ClCompile Include="llama-mmap-uwp.cpp" />
+    <ClCompile Include="ggml-backend-dl-stub.cpp" />
+  </ItemGroup>
+
+  <!-- xllama UWP app -->
+  <ItemGroup>
+    <ClCompile Include="App.cpp" />
+    <ClCompile Include="llama-bridge.cpp" />
+  </ItemGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+
+</Project>

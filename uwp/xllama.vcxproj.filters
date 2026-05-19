@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="xllama">
+      <UniqueIdentifier>{11111111-1111-1111-1111-111111111111}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="xllama\uwp-stubs">
+      <UniqueIdentifier>{22222222-2222-2222-2222-222222222222}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="llama.cpp">
+      <UniqueIdentifier>{33333333-3333-3333-3333-333333333333}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="llama.cpp\ggml">
+      <UniqueIdentifier>{44444444-4444-4444-4444-444444444444}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="llama.cpp\ggml\cpu">
+      <UniqueIdentifier>{55555555-5555-5555-5555-555555555555}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="llama.cpp\llama">
+      <UniqueIdentifier>{66666666-6666-6666-6666-666666666666}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="llama.cpp\models">
+      <UniqueIdentifier>{77777777-7777-7777-7777-777777777777}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ClCompile Include="App.cpp">
+      <Filter>xllama</Filter>
+    </ClCompile>
+    <ClCompile Include="llama-bridge.cpp">
+      <Filter>xllama</Filter>
+    </ClCompile>
+    <ClCompile Include="llama-mmap-uwp.cpp">
+      <Filter>xllama\uwp-stubs</Filter>
+    </ClCompile>
+    <ClCompile Include="ggml-backend-dl-stub.cpp">
+      <Filter>xllama\uwp-stubs</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml.c">
+      <Filter>llama.cpp\ggml</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml.cpp">
+      <Filter>llama.cpp\ggml</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-alloc.c">
+      <Filter>llama.cpp\ggml</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-backend.cpp">
+      <Filter>llama.cpp\ggml</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-backend-meta.cpp">
+      <Filter>llama.cpp\ggml</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-backend-reg.cpp">
+      <Filter>llama.cpp\ggml</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-opt.cpp">
+      <Filter>llama.cpp\ggml</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-threading.cpp">
+      <Filter>llama.cpp\ggml</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-quants.c">
+      <Filter>llama.cpp\ggml</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\gguf.cpp">
+      <Filter>llama.cpp\ggml</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\ggml-cpu.c">
+      <Filter>llama.cpp\ggml\cpu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\ggml-cpu.cpp">
+      <Filter>llama.cpp\ggml\cpu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\repack.cpp">
+      <Filter>llama.cpp\ggml\cpu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\hbm.cpp">
+      <Filter>llama.cpp\ggml\cpu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\quants.c">
+      <Filter>llama.cpp\ggml\cpu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\traits.cpp">
+      <Filter>llama.cpp\ggml\cpu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\binary-ops.cpp">
+      <Filter>llama.cpp\ggml\cpu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\unary-ops.cpp">
+      <Filter>llama.cpp\ggml\cpu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\vec.cpp">
+      <Filter>llama.cpp\ggml\cpu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\ops.cpp">
+      <Filter>llama.cpp\ggml\cpu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\amx\amx.cpp">
+      <Filter>llama.cpp\ggml\cpu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\amx\mmq.cpp">
+      <Filter>llama.cpp\ggml\cpu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\arch\x86\cpu-feats.cpp">
+      <Filter>llama.cpp\ggml\cpu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\arch\x86\quants.c">
+      <Filter>llama.cpp\ggml\cpu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\arch\x86\repack.cpp">
+      <Filter>llama.cpp\ggml\cpu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-adapter.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-arch.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-batch.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-chat.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-context.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-cparams.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-grammar.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-graph.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-hparams.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-impl.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-io.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-kv-cache.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-kv-cache-iswa.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-memory.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-memory-hybrid.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-memory-hybrid-iswa.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-memory-recurrent.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-model.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-model-loader.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-model-saver.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-quant.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-sampler.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\llama-vocab.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\unicode.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\unicode-data.cpp">
+      <Filter>llama.cpp\llama</Filter>
+    </ClCompile>
+    <ClCompile Include="..\llama.cpp\src\models\*.cpp">
+      <Filter>llama.cpp\models</Filter>
+    </ClCompile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <AppxManifest Include="AppxManifest.xml" />
+    <Image Include="Assets\StoreLogo.png" />
+    <Image Include="Assets\Square150x150Logo.png" />
+    <Image Include="Assets\Square44x44Logo.png" />
+    <Image Include="Assets\Wide310x150Logo.png" />
+    <Image Include="Assets\SplashScreen.png" />
+  </ItemGroup>
+</Project>
