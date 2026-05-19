@@ -10,8 +10,12 @@
 #include <vector>
 
 #ifdef XLLAMA_UWP
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 // PSAPI_VERSION=2 routes GetProcessMemoryInfo → K32GetProcessMemoryInfo
 // (kernel32), which is in WINAPI_PARTITION_APP. No psapi.lib needed.
