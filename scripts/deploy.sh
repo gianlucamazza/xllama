@@ -58,8 +58,9 @@ if [[ "${1:-}" == "upload-file" ]]; then
 		exit 1
 	fi
 
-	PATH_PARAM="\\${REMOTE_DIR}"
-	[[ -z "$REMOTE_DIR" ]] && PATH_PARAM="\\"
+	# Xbox WinRT: ApplicationData.LocalFolder = LocalState subdirectory
+	PATH_PARAM="\\LocalState\\${REMOTE_DIR}"
+	[[ -z "$REMOTE_DIR" ]] && PATH_PARAM="\\LocalState"
 
 	echo "Uploading $(basename "$LOCAL_PATH") → LocalFolder/${REMOTE_DIR}/ ..."
 	curl $CURL_AUTH \

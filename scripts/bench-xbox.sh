@@ -62,10 +62,10 @@ upload_file() {
 	local local_path="$1"
 	local pfn="$2"
 	local remote_dir="$3" # e.g. "models" or "" for LocalFolder root
-	local filename
-	filename=$(basename "$local_path")
-	local path_param="\\${remote_dir}"
-	[[ -z "$remote_dir" ]] && path_param="\\"
+	# Xbox WinRT: ApplicationData.LocalFolder = LocalState subdirectory.
+	# POST uses path=<dir> with the filename coming from the multipart field.
+	local path_param="\\LocalState\\${remote_dir}"
+	[[ -z "$remote_dir" ]] && path_param="\\LocalState"
 	echo "  Uploading $(basename "$local_path") → LocalFolder/${remote_dir}/ ..."
 	dp -X POST \
 		-F "file=@${local_path};type=application/octet-stream" \
@@ -76,8 +76,9 @@ upload_file() {
 delete_remote_file() {
 	local pfn="$1"
 	local filename="$2"
+	# GET/DELETE use path=<dir>&filename=<name> (Xbox Device Portal convention)
 	dp -X DELETE \
-		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${pfn}&path=\\${filename}" \
+		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${pfn}&path=\\LocalState&filename=${filename}" \
 		>/dev/null 2>&1 || true
 }
 
@@ -86,7 +87,7 @@ download_remote_file() {
 	local filename="$2"
 	local dest="$3"
 	dp -o "$dest" \
-		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${pfn}&path=\\${filename}"
+		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${pfn}&path=\\LocalState&filename=${filename}"
 }
 
 restart_app() {
@@ -105,7 +106,7 @@ wait_for_done_marker() {
 	echo "  Waiting for bench-result.csv.done (timeout: ${timeout_s}s) ..."
 	while ((elapsed < timeout_s)); do
 		local status
-		status=$(dp "${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${pfn}&path=\\bench-result.csv.done" 2>&1) || true
+		status=$(dp "${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${pfn}&path=\\LocalState&filename=bench-result.csv.done" 2>&1) || true
 		if [[ "$status" != *"404"* && -n "$status" ]]; then
 			echo "  Done marker found after ${elapsed}s."
 			return 0
