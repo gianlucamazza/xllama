@@ -45,3 +45,7 @@ __pycache__/
 
 # Local credentials (never commit)
 .env
+
+# Generated signing artifacts (per-build, not committed)
+uwp/xllama-test.pfx
+uwp/xllama-test.cer

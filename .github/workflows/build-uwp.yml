@@ -29,9 +29,11 @@ jobs:
         if: success()
         with:
           name: xllama-appx
-          # MakeAppx in VS2022 produces .msix (not .appx); include both
-          # so the artifact captures the main package and VCLibs deps.
+          # Include .msix (main package), .appx (VCLibs deps), and .cer
+          # (public key of the test certificate that must be trusted on the
+          # Xbox before deploying — installed via Device Portal API).
           path: |
             uwp/AppPackages/**/*.msix
             uwp/AppPackages/**/*.appx
+            uwp/xllama-test.cer
           retention-days: 14

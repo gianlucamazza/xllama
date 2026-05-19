@@ -4,7 +4,8 @@
     Build the xllama UWP package for Xbox Series S|X.
 
 .DESCRIPTION
-    Invokes MSBuild on uwp/xllama.sln to produce an .appx package.
+    Invokes MSBuild on uwp/xllama.sln to produce a signed .msix package.
+    Generates a self-signed test certificate if none is provided.
     Requires Visual Studio 2022 with "Universal Windows Platform development" workload.
 
 .PARAMETER Configuration
@@ -27,15 +28,42 @@ $ErrorActionPreference = "Stop"
 
 $RepoRoot = Split-Path $PSScriptRoot -Parent
 $SlnPath  = Join-Path $RepoRoot "uwp\xllama.sln"
+$PfxPath  = Join-Path $RepoRoot "uwp\xllama-test.pfx"
+$CerPath  = Join-Path $RepoRoot "uwp\xllama-test.cer"
+$CertPwd  = "xllama-test"
 
 if (-not (Test-Path $SlnPath)) {
     Write-Error "Solution file not found: $SlnPath"
     exit 1
 }
 
-Write-Host "Building $Configuration|$Platform ..."
+# ---------------------------------------------------------------------------
+# Generate a self-signed test certificate (once per build; not committed).
+# Xbox Dev Mode requires the package to be signed; the .cer is installed on
+# the console via Device Portal before deploying the .msix.
+# ---------------------------------------------------------------------------
+Write-Host "Generating self-signed test certificate ..."
+$cert = New-SelfSignedCertificate `
+    -Type Custom `
+    -Subject "CN=xllama-dev" `
+    -KeyUsage DigitalSignature `
+    -FriendlyName "xllama test cert" `
+    -CertStoreLocation "Cert:\CurrentUser\My" `
+    -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
 
-# Locate MSBuild via vswhere (ships with Visual Studio 2017+)
+$pwd = ConvertTo-SecureString -String $CertPwd -Force -AsPlainText
+Export-PfxCertificate -Cert "Cert:\CurrentUser\My\$($cert.Thumbprint)" `
+    -FilePath $PfxPath -Password $pwd | Out-Null
+Export-Certificate -Cert "Cert:\CurrentUser\My\$($cert.Thumbprint)" `
+    -FilePath $CerPath | Out-Null
+
+Write-Host "Certificate thumbprint: $($cert.Thumbprint)"
+Write-Host "PFX: $PfxPath"
+Write-Host "CER: $CerPath"
+
+# ---------------------------------------------------------------------------
+# Locate MSBuild
+# ---------------------------------------------------------------------------
 $VsWhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 if (-not (Test-Path $VsWhere)) {
     Write-Error "vswhere.exe not found. Install Visual Studio 2022 with UWP workload."
@@ -51,11 +79,18 @@ if (-not $MsBuild) {
 }
 
 Write-Host "Using MSBuild: $MsBuild"
+Write-Host "Building $Configuration|$Platform ..."
 
+# ---------------------------------------------------------------------------
+# Build + sign
+# ---------------------------------------------------------------------------
 & $MsBuild $SlnPath `
     /p:Configuration=$Configuration `
     /p:Platform=$Platform `
-    /p:AppxPackageSigningEnabled=false `
+    /p:AppxPackageSigningEnabled=true `
+    /p:PackageCertificateKeyFile="$PfxPath" `
+    /p:PackageCertificatePassword="$CertPwd" `
+    /p:PackageCertificateThumbprint="$($cert.Thumbprint)" `
     /m `
     /nologo
 
@@ -65,11 +100,11 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Build succeeded."
-$Appx = Get-ChildItem -Path (Join-Path $RepoRoot "uwp\AppPackages") -Filter "*.appx" -Recurse |
+$Msix = Get-ChildItem -Path (Join-Path $RepoRoot "uwp\AppPackages") -Filter "*.msix" -Recurse |
     Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
-if ($Appx) {
-    Write-Host "Package: $($Appx.FullName)"
+if ($Msix) {
+    Write-Host "Package: $($Msix.FullName)"
 } else {
     Write-Host "Package location: uwp\AppPackages\"
 }
