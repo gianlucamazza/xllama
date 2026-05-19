@@ -48,8 +48,8 @@
 
   <Capabilities>
     <Capability Name="internetClient" />
-    <!-- privateNetworkClientServer needed to reach Device Portal from within the app -->
-    <uap:Capability Name="privateNetworkClientServer" />
+    <!-- privateNetworkClientServer is a base Capability, not a uap:Capability -->
+    <Capability Name="privateNetworkClientServer" />
   </Capabilities>
 
 </Package>
