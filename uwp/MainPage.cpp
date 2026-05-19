@@ -22,16 +22,14 @@ MainPageT<D, I...>::GetBindingConnector(
     return nullptr;
 }
 
-} // namespace winrt::xllama::implementation
-
-// Force instantiation into this TU so the linker finds the symbols.
-template void ::winrt::xllama::implementation::MainPageT<
-    ::winrt::xllama::implementation::MainPage>::Connect(
-        int32_t, ::winrt::Windows::Foundation::IInspectable const&);
+// Explicit instantiation inside the namespace avoids MSVC C3083 with qualified names.
+template void MainPageT<MainPage>::Connect(
+    int32_t, ::winrt::Windows::Foundation::IInspectable const&);
 template ::winrt::Windows::UI::Xaml::Markup::IComponentConnector
-::winrt::xllama::implementation::MainPageT<
-    ::winrt::xllama::implementation::MainPage>::GetBindingConnector(
+    MainPageT<MainPage>::GetBindingConnector(
         int32_t, ::winrt::Windows::Foundation::IInspectable const&);
+
+} // namespace winrt::xllama::implementation
 
 #include <cstdio>
 #include <string>
