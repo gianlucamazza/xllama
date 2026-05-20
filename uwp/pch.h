@@ -25,10 +25,12 @@
     #include <winrt/Windows.Storage.Streams.h>
     #include <winrt/Windows.Storage.h>
     #include <winrt/Windows.UI.Core.h>
+    #include <winrt/Windows.UI.Text.h>
     #include <winrt/Windows.UI.Xaml.Controls.Primitives.h>
     #include <winrt/Windows.UI.Xaml.Controls.h>
     #include <winrt/Windows.UI.Xaml.Interop.h>
     #include <winrt/Windows.UI.Xaml.Markup.h>
+    #include <winrt/Windows.UI.Xaml.Media.h>
     #include <winrt/Windows.UI.Xaml.Navigation.h>
     #include <winrt/Windows.UI.Xaml.h>
     #include <winrt/base.h>
