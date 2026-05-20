@@ -216,6 +216,30 @@
       <DeploymentContent>true</DeploymentContent>
       <TargetPath>onnxruntime-genai.dll</TargetPath>
     </None>
+    <!-- VC++ runtime DLLs required by onnxruntime.dll and onnxruntime-genai.dll.
+         These packages are built with the desktop runtime (/MD, linking MSVCP140.dll
+         not MSVCP140_APP.dll), so they cannot find it from System32 in AppContainer.
+         Bundling them in the package root makes them app-local and loader-accessible. -->
+    <None Include="$(VCToolsRedistDir)x64\Microsoft.VC143.CRT\MSVCP140.dll"
+          Condition="Exists('$(VCToolsRedistDir)x64\Microsoft.VC143.CRT\MSVCP140.dll')">
+      <DeploymentContent>true</DeploymentContent>
+      <TargetPath>MSVCP140.dll</TargetPath>
+    </None>
+    <None Include="$(VCToolsRedistDir)x64\Microsoft.VC143.CRT\MSVCP140_1.dll"
+          Condition="Exists('$(VCToolsRedistDir)x64\Microsoft.VC143.CRT\MSVCP140_1.dll')">
+      <DeploymentContent>true</DeploymentContent>
+      <TargetPath>MSVCP140_1.dll</TargetPath>
+    </None>
+    <None Include="$(VCToolsRedistDir)x64\Microsoft.VC143.CRT\VCRUNTIME140.dll"
+          Condition="Exists('$(VCToolsRedistDir)x64\Microsoft.VC143.CRT\VCRUNTIME140.dll')">
+      <DeploymentContent>true</DeploymentContent>
+      <TargetPath>VCRUNTIME140.dll</TargetPath>
+    </None>
+    <None Include="$(VCToolsRedistDir)x64\Microsoft.VC143.CRT\VCRUNTIME140_1.dll"
+          Condition="Exists('$(VCToolsRedistDir)x64\Microsoft.VC143.CRT\VCRUNTIME140_1.dll')">
+      <DeploymentContent>true</DeploymentContent>
+      <TargetPath>VCRUNTIME140_1.dll</TargetPath>
+    </None>
   </ItemGroup>
 
   <!-- xllama shared bridge -->
