@@ -10,6 +10,10 @@ End-to-end instructions for reproducing the Phase 1 benchmark from scratch.
 - Windows machine (or VM) with Visual Studio 2022 + UWP workload for building .msix
 - GGUF model files (see "Download models" below)
 
+For local UWP builds from the Arch workstation, use the Windows VM workflow in
+[windows-dev-vm.md](./windows-dev-vm.md). Linux Docker cannot build the UWP/MSIX
+package because Windows SDK packaging tools require Windows.
+
 ## 1. Build .msix
 
 **Option A — Local Windows VM:**
