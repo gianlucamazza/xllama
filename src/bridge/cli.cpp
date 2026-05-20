@@ -9,8 +9,8 @@
 
 namespace xllama {
 
-static void print_usage(const char* prog) {
-    std::fprintf(stderr,
+static void print_help(const char* prog) {
+    std::fprintf(stdout,
                  "xllama-cli — llama.cpp bridge for Xbox Series S (Linux dev build)\n\n"
                  "Usage: %s -m <model.gguf> -p <prompt> [options]\n\n"
                  "Required:\n"
@@ -24,6 +24,11 @@ static void print_usage(const char* prog) {
                  "      --seed <int>     RNG seed; 0 = random (default: 0)\n"
                  "  -h, --help           Show this message\n",
                  prog);
+}
+
+static void print_usage(const char* prog) {
+    std::fprintf(stderr, "Error: --model and --prompt are required.\n\n");
+    print_help(prog);
 }
 
 bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
@@ -65,8 +70,8 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             out.seed = static_cast<uint32_t>(std::atoi(optarg));
             break;
         case 'h':
-            print_usage(argv[0]);
-            return false;
+            print_help(argv[0]);
+            std::exit(0);
         default:
             print_usage(argv[0]);
             return false;
@@ -74,7 +79,6 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
     }
 
     if (out.model_path.empty() || out.prompt.empty()) {
-        std::fprintf(stderr, "Error: --model and --prompt are required.\n\n");
         print_usage(argv[0]);
         return false;
     }
