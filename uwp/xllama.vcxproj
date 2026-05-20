@@ -95,6 +95,7 @@
         $(ProjectDir)Generated Files;
         $(IntDir)Generated Files;
         $(ProjectDir)..\include;
+        $(ProjectDir)packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.5.2\build\native\include;
         %(AdditionalIncludeDirectories)
       </AdditionalIncludeDirectories>
       <PreprocessorDefinitions>

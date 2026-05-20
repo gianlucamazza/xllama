@@ -54,10 +54,10 @@ void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
 
 #ifdef XLLAMA_USE_ORT
     const char* backend = "directml";
-    const char* quant   = "int4-awq";
+    const char* quant = "int4-awq";
 #else
     const char* backend = "cpu";
-    const char* quant   = "Q4_K_M";
+    const char* quant = "Q4_K_M";
 #endif
     fprintf(fp, "%s,%s,%s,%d,%d,%.2f,%.2f,%zu,%.0f,%s,%s\n", model_name.c_str(), quant, backend,
             params.n_ctx, params.n_threads > 0 ? params.n_threads : detect_threads(), prompt_tok_s,

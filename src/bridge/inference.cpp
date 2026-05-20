@@ -14,8 +14,8 @@
 // ---------------------------------------------------------------------------
 #ifdef XLLAMA_USE_ORT
 
-#include "ort_genai_c.h"
-#include "xllama/ort_raii.h"
+    #include "ort_genai_c.h"
+    #include "xllama/ort_raii.h"
 
 namespace xllama {
 
@@ -59,10 +59,10 @@ InferenceResult run_inference(const InferenceParams& params) {
         oga_check(OgaCreateGeneratorParams(model.get(), &raw_params), "OgaCreateGeneratorParams");
         OgaGeneratorParamsPtr gparams(raw_params);
         oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "max_length",
-                                                   static_cast<double>(params.n_predict + 512)),
+                                                    static_cast<double>(params.n_predict + 512)),
                   "SetSearchNumber max_length");
         oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "temperature",
-                                                   static_cast<double>(params.temperature)),
+                                                    static_cast<double>(params.temperature)),
                   "SetSearchNumber temperature");
         oga_check(OgaGeneratorParamsSetInputSequences(gparams.get(), seqs.get()),
                   "SetInputSequences");
@@ -87,8 +87,8 @@ InferenceResult run_inference(const InferenceParams& params) {
             oga_check(OgaGenerator_ComputeLogits(gen.get()), "ComputeLogits");
             oga_check(OgaGenerator_GenerateNextToken(gen.get()), "GenerateNextToken");
 
-            const int32_t* seq   = OgaGenerator_GetSequenceData(gen.get(), 0);
-            size_t          count = OgaGenerator_GetSequenceCount(gen.get(), 0);
+            const int32_t* seq = OgaGenerator_GetSequenceData(gen.get(), 0);
+            size_t count = OgaGenerator_GetSequenceCount(gen.get(), 0);
             if (!seq || count == 0)
                 break;
 
@@ -106,18 +106,16 @@ InferenceResult run_inference(const InferenceParams& params) {
 
         struct timespec t1 = {};
         clock_gettime(CLOCK_MONOTONIC, &t1);
-        double elapsed_s =
-            static_cast<double>(t1.tv_sec - t0.tv_sec) +
-            static_cast<double>(t1.tv_nsec - t0.tv_nsec) * 1e-9;
+        double elapsed_s = static_cast<double>(t1.tv_sec - t0.tv_sec) +
+                           static_cast<double>(t1.tv_nsec - t0.tv_nsec) * 1e-9;
 
-        res.n_eval      = n_generated;
-        res.t_eval_ms   = static_cast<double>(elapsed_s * 1000.0);
-        res.peak_ws_mb  = peak_working_set_mb();
-        res.success     = true;
+        res.n_eval = n_generated;
+        res.t_eval_ms = static_cast<double>(elapsed_s * 1000.0);
+        res.peak_ws_mb = peak_working_set_mb();
+        res.success = true;
 
         char log_buf[256];
-        snprintf(log_buf, sizeof(log_buf),
-                 "[xllama] done: decode=%.1f tok/s peak=%zuMB\n",
+        snprintf(log_buf, sizeof(log_buf), "[xllama] done: decode=%.1f tok/s peak=%zuMB\n",
                  elapsed_s > 0.0 ? n_generated / elapsed_s : 0.0, res.peak_ws_mb);
         log_output(log_buf);
 
@@ -138,10 +136,10 @@ InferenceResult run_inference(const InferenceParams& params) {
 // ---------------------------------------------------------------------------
 #else
 
-#include "xllama/llama_raii.h"
-#include "llama.h"
+    #include "llama.h"
+    #include "xllama/llama_raii.h"
 
-#include <vector>
+    #include <vector>
 
 namespace xllama {
 
@@ -172,7 +170,7 @@ InferenceResult run_inference(const InferenceParams& params) {
     const int n_threads = params.n_threads > 0 ? params.n_threads : detect_threads();
 
     llama_context_params cparams = llama_context_default_params();
-    cparams.n_ctx     = static_cast<uint32_t>(params.n_ctx);
+    cparams.n_ctx = static_cast<uint32_t>(params.n_ctx);
     cparams.n_threads = n_threads;
 
     llama_context* raw_ctx = llama_init_from_model(model.get(), cparams);
@@ -185,9 +183,9 @@ InferenceResult run_inference(const InferenceParams& params) {
 
     const llama_vocab* vocab = llama_model_get_vocab(model.get());
 
-    int32_t n_tokens = llama_tokenize(vocab, params.prompt.c_str(),
-                                      static_cast<int32_t>(params.prompt.size()), nullptr, 0,
-                                      true, false);
+    int32_t n_tokens =
+        llama_tokenize(vocab, params.prompt.c_str(), static_cast<int32_t>(params.prompt.size()),
+                       nullptr, 0, true, false);
     if (n_tokens < 0) {
         res.error_msg = "tokenization size query failed";
         log_output("[xllama] tokenization size query failed\n");
@@ -195,9 +193,9 @@ InferenceResult run_inference(const InferenceParams& params) {
     }
 
     std::vector<llama_token> tokens(static_cast<size_t>(n_tokens));
-    n_tokens = llama_tokenize(vocab, params.prompt.c_str(),
-                              static_cast<int32_t>(params.prompt.size()), tokens.data(), n_tokens,
-                              true, false);
+    n_tokens =
+        llama_tokenize(vocab, params.prompt.c_str(), static_cast<int32_t>(params.prompt.size()),
+                       tokens.data(), n_tokens, true, false);
     if (n_tokens < 0) {
         res.error_msg = "tokenization failed";
         log_output("[xllama] tokenization failed\n");
@@ -246,13 +244,13 @@ InferenceResult run_inference(const InferenceParams& params) {
     std::fputc('\n', stdout);
 
     llama_perf_context_data perf = llama_perf_context(ctx.get());
-    res.t_load_ms   = perf.t_load_ms;
+    res.t_load_ms = perf.t_load_ms;
     res.t_p_eval_ms = perf.t_p_eval_ms;
-    res.t_eval_ms   = perf.t_eval_ms;
-    res.n_p_eval    = perf.n_p_eval;
-    res.n_eval      = n_generated;
-    res.peak_ws_mb  = peak_working_set_mb();
-    res.success     = true;
+    res.t_eval_ms = perf.t_eval_ms;
+    res.n_p_eval = perf.n_p_eval;
+    res.n_eval = n_generated;
+    res.peak_ws_mb = peak_working_set_mb();
+    res.success = true;
 
     char log_buf[256];
     snprintf(log_buf, sizeof(log_buf),

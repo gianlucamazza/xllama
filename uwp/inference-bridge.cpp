@@ -57,8 +57,8 @@ void main_loop() {
 
     InferenceParams params;
     params.model_path = model_name;
-    params.prompt     = prompt;
-    params.n_predict  = 128;
+    params.prompt = prompt;
+    params.n_predict = 128;
 
     InferenceResult res = ::xllama::run_inference(params);
     xllama::write_bench_csv(params, res, "xbox-series-s");
