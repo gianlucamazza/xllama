@@ -12,13 +12,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          submodules: recursive
-          # Shallow submodule fetch: llama.cpp history is ~1.5 GB, depth=1 is ~40s
+          # llama.cpp submodule not needed for UWP ORT build; skip to save ~40s
+          submodules: false
           fetch-depth: 1
 
-      - name: Apply UWP patches to llama.cpp submodule
-        shell: bash
-        run: bash scripts/apply-uwp-patches.sh
+      - name: Restore NuGet packages
+        shell: pwsh
+        working-directory: uwp
+        run: nuget restore packages.config -PackagesDirectory packages -NonInteractive
 
       - name: Build UWP package
         shell: pwsh
