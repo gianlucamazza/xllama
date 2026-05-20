@@ -90,18 +90,32 @@ list_localstate() {
 }
 
 # Create a directory inside LocalState.
-# relpath: e.g. "models" or "models\\Phi-3.5-mini-instruct-onnx-directml"
+# relpath: e.g. "models" or "models\\Phi-3.5-mini-instruct-onnx-gpu"
+# WDP requires path=<parent> + newfoldername=<leaf> as separate query params.
 mkdir_localstate() {
 	local pfn="$1"
 	local relpath="$2"
-	local path_param="\\LocalState\\${relpath}"
+
+	# Split relpath into parent path and leaf name
+	# e.g. "models\\sub" → parent="\LocalState\models", leaf="sub"
+	#      "models"       → parent="\LocalState",        leaf="models"
+	local parent_relpath leaf
+	if [[ "$relpath" == *\\* ]]; then
+		parent_relpath="${relpath%\\*}"
+		leaf="${relpath##*\\}"
+		local parent_param
+		parent_param="%5CLocalState%5C$(printf '%s' "$parent_relpath" | sed 's/\\/\%5C/g')"
+	else
+		leaf="$relpath"
+		parent_param="%5CLocalState"
+	fi
 
 	echo "Creating remote dir LocalState\\${relpath} ..."
 	RESP=$(curl "${CURL_AUTH[@]}" \
 		-H "X-CSRF-Token:${CSRF_TOKEN}" \
 		-X POST \
 		-d "" \
-		"${BASE_URL}/api/filesystem/apps/folder?knownfolderid=LocalAppData&packagefullname=${pfn}&path=${path_param}" 2>/dev/null || echo "")
+		"${BASE_URL}/api/filesystem/apps/folder?knownfolderid=LocalAppData&packagefullname=${pfn}&path=${parent_param}&newfoldername=${leaf}" 2>/dev/null || echo "")
 	# WDP returns empty body on success; non-empty on error
 	if [[ -n "$RESP" ]]; then
 		echo "mkdir response: $RESP"
