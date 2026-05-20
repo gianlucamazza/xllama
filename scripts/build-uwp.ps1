@@ -184,8 +184,15 @@ try {
     $AppXamlSrc = Get-Content (Join-Path $RepoRoot "uwp\App.xaml") -Raw
     $AppXamlRuntime = $AppXamlSrc -replace '\s*x:Class="[^"]*"', ''
     Set-Content -Path "$UnpackDir\App.xaml" -Value $AppXamlRuntime -Encoding UTF8 -NoNewline
-    Copy-Item (Join-Path $RepoRoot "uwp\MainPage.xaml") "$UnpackDir\MainPage.xaml" -Force
-    Write-Host "  App.xaml (x:Class stripped) + MainPage.xaml added to layout"
+    # MainPage.xaml: strip x:Class for the same reason as App.xaml.
+    # LoadComponent(*this, ms-appx:///MainPage.xaml) passes the existing instance so
+    # the XAML parser does not need to call GetXamlType to create a new object.
+    # Without stripping, the XAML runtime calls GetXamlType("xllama.MainPage") during
+    # app startup (before OnLaunched) and gets nullptr from our stub -> E_XAMLPARSEFAILED.
+    $MainPageXamlSrc = Get-Content (Join-Path $RepoRoot "uwp\MainPage.xaml") -Raw
+    $MainPageXamlRuntime = $MainPageXamlSrc -replace '\s*x:Class="[^"]*"', ''
+    Set-Content -Path "$UnpackDir\MainPage.xaml" -Value $MainPageXamlRuntime -Encoding UTF8 -NoNewline
+    Write-Host "  App.xaml + MainPage.xaml (both x:Class stripped) added to layout"
 
     # Repack (unsigned)
     & $MakeAppxExe pack /d $UnpackDir /p $TmpMsix /h sha256 /o
