@@ -123,7 +123,15 @@
     </ClCompile>
     <Link>
       <!-- WindowsApp.lib is the UWP umbrella library.
-           onnxruntime.lib and onnxruntime-genai.lib provided by NuGet packages. -->
+           onnxruntime.lib / onnxruntime-genai.lib are import libs from the NuGet packages.
+           The NuGet .targets files don't inject AdditionalLibraryDirectories for native C++
+           projects, so we add the paths explicitly. Both packages use runtimes/win-x64/native/
+           (not win10-x64) for their native binaries. -->
+      <AdditionalLibraryDirectories>
+        $(ProjectDir)packages\Microsoft.ML.OnnxRuntime.DirectML.1.20.1\runtimes\win-x64\native;
+        $(ProjectDir)packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.5.2\runtimes\win-x64\native;
+        %(AdditionalLibraryDirectories)
+      </AdditionalLibraryDirectories>
       <AdditionalDependencies>WindowsApp.lib;onnxruntime.lib;onnxruntime-genai.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -195,12 +203,12 @@
           Condition="Exists('packages\Microsoft.AI.DirectML.1.15.4\bin\x64-win\DirectML.dll')">
       <DeploymentContent>true</DeploymentContent>
     </None>
-    <None Include="packages\Microsoft.ML.OnnxRuntime.DirectML.1.20.1\runtimes\win10-x64\native\onnxruntime.dll"
-          Condition="Exists('packages\Microsoft.ML.OnnxRuntime.DirectML.1.20.1\runtimes\win10-x64\native\onnxruntime.dll')">
+    <None Include="packages\Microsoft.ML.OnnxRuntime.DirectML.1.20.1\runtimes\win-x64\native\onnxruntime.dll"
+          Condition="Exists('packages\Microsoft.ML.OnnxRuntime.DirectML.1.20.1\runtimes\win-x64\native\onnxruntime.dll')">
       <DeploymentContent>true</DeploymentContent>
     </None>
-    <None Include="packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.5.2\runtimes\win10-x64\native\onnxruntime-genai.dll"
-          Condition="Exists('packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.5.2\runtimes\win10-x64\native\onnxruntime-genai.dll')">
+    <None Include="packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.5.2\runtimes\win-x64\native\onnxruntime-genai.dll"
+          Condition="Exists('packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.5.2\runtimes\win-x64\native\onnxruntime-genai.dll')">
       <DeploymentContent>true</DeploymentContent>
     </None>
   </ItemGroup>
