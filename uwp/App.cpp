@@ -33,9 +33,17 @@ static void log_init() {
     }
 }
 
+// Prefix every entry with HH:MM:SS.mmm for post-mortem correlation.
 static void log_write(const char* msg) {
+    SYSTEMTIME st = {};
+    GetSystemTime(&st);
+    char ts[20];
+    snprintf(ts, sizeof(ts), "%02u:%02u:%02u.%03u ", st.wHour, st.wMinute, st.wSecond,
+             st.wMilliseconds);
+    OutputDebugStringA(ts);
     OutputDebugStringA(msg);
     if (g_log_fp) {
+        fputs(ts, g_log_fp);
         fputs(msg, g_log_fp);
         fflush(g_log_fp);
     }
@@ -65,7 +73,18 @@ App::App() {
         e.Handled(false); // let it propagate
     });
 
-    InitializeComponent();
+    // Wrap InitializeComponent so HRESULT + message land in the log before
+    // UnhandledException fires (which would only log the code, not the description).
+    try {
+        InitializeComponent();
+    } catch (winrt::hresult_error const& e) {
+        char buf[512];
+        snprintf(buf, sizeof(buf), "[xllama] InitializeComponent FAILED 0x%08X: %ls\n",
+                 static_cast<unsigned>(e.code().value), e.message().c_str());
+        if (g_log_fp) { fputs(buf, g_log_fp); fflush(g_log_fp); }
+        OutputDebugStringA(buf);
+        throw;
+    }
 }
 
 void App::OnLaunched(LaunchActivatedEventArgs const&) {
@@ -99,6 +118,14 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         char buf[256];
         snprintf(buf, sizeof(buf), "[xllama] wWinMain exception: 0x%08X\n",
                  static_cast<unsigned>(e.code().value));
+        OutputDebugStringA(buf);
+        if (winrt::xllama::implementation::g_log_fp) {
+            fputs(buf, winrt::xllama::implementation::g_log_fp);
+            fflush(winrt::xllama::implementation::g_log_fp);
+        }
+    } catch (std::exception const& e) {
+        char buf[512];
+        snprintf(buf, sizeof(buf), "[xllama] wWinMain std::exception: %s\n", e.what());
         OutputDebugStringA(buf);
         if (winrt::xllama::implementation::g_log_fp) {
             fputs(buf, winrt::xllama::implementation::g_log_fp);

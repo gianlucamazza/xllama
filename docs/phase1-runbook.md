@@ -168,7 +168,7 @@ Xbox WDP differs from Desktop WDP in several ways discovered during Phase 1:
 
 ## 8. Troubleshooting
 
-**App crashes at startup**: check `xllama.log` in LocalFolder via Device Portal.
+**App crashes at startup**: check `xllama.log` in LocalFolder via Device Portal (see §8a).
 
 **Model not found**: ensure the GGUF is in `LocalFolder/models/` (not `LocalFolder/`).
 
@@ -176,3 +176,61 @@ Xbox WDP differs from Desktop WDP in several ways discovered during Phase 1:
 
 **Deploy script auth failure**: Xbox Device Portal uses **HTTP Basic** auth (not Digest as on Desktop WDP). Use `--basic` with curl.
 Verify credentials in Dev Home → Settings → Device Portal credentials.
+
+**"Not ready yet" in dashboard / `0x80270300` on launch**: framework dependency missing.
+`deploy.sh` installs `Dependencies/x64/*.appx` automatically alongside the `.msix`. Re-run deploy.
+
+**`UnhandledException: 0x802B000A` (E_XAMLPARSEFAILED) before OnLaunched**: XAML runtime
+called `IXamlMetadataProvider::GetXamlType("xllama.App")` while parsing `App.xaml`'s
+`x:Class` attribute; the stub returned null. Fix: remove `x:Class` from `App.xaml`.
+
+## 8a. Debug logging
+
+### xllama.log
+
+Every startup writes `LocalState/xllama.log` (append, UTC timestamps `HH:MM:SS.mmm`).
+Expected sequence on clean launch:
+
+```
+HH:MM:SS.mmm [xllama] App::App()
+HH:MM:SS.mmm [xllama] App::OnLaunched
+HH:MM:SS.mmm [xllama] Window activated
+```
+
+Retrieve via WDP:
+
+```bash
+source ~/.config/xllama/xbox-env
+PFN="VenereLabs.xllama_0.1.0.0_x64__pj67f1fcj4n14"
+curl --basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS \
+     -o /tmp/xllama.log \
+     "https://${XBOX_IP}:11443/api/filesystem/apps/file?\
+knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState&filename=xllama.log"
+cat /tmp/xllama.log
+```
+
+Diagnostic entries logged automatically:
+- `InitializeComponent FAILED 0x... <message>` — XAML init failure with full description
+- `UnhandledException: 0x...` — any unhandled XAML-thread exception
+- `wWinMain exception: 0x...` — exception escaping `Application::Start`
+
+### WDP crash dump (minidump)
+
+If the process terminates without leaving a log entry, collect a user-mode minidump:
+
+```bash
+# List available crash dumps
+curl --basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS \
+     "https://${XBOX_IP}:11443/api/debug/dump/usermode/dumps"
+
+# Download the most recent dump for xllama.exe
+curl --basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS \
+     -o /tmp/xllama.dmp \
+     "https://${XBOX_IP}:11443/api/debug/dump/usermode/dump?pid=<PID>&type=2"
+
+# Analyse on desktop with WinDbg:
+#   .sympath srv*https://msdl.microsoft.com/download/symbols
+#   !analyze -v
+```
+
+`type=2` = MiniDumpWithFullMemory. Requires Dev Mode + WDP enabled.
