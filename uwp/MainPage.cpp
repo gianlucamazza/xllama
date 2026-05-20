@@ -8,6 +8,7 @@
 #include "MainPage.h"
 // clang-format on
 
+    #include "inference-bridge.h"
     #include "xllama/utf8_utils.h"
 
     #include <cstdio>
@@ -225,7 +226,7 @@ void MainPageController::LoadModelName() {
         fclose(f);
     }
     if (m_model_filename.empty())
-        m_model_filename = L"Qwen_Qwen3-1.7B-Q4_K_M.gguf";
+        m_model_filename = L"Phi-3.5-mini-instruct-onnx-directml";
 
     m_modelText.Text(m_model_filename);
 }
