@@ -13,7 +13,6 @@
 using namespace winrt;
 using namespace winrt::Windows::ApplicationModel::Activation;
 using namespace winrt::Windows::UI::Xaml;
-using namespace winrt::Windows::UI::Xaml::Controls;
 using namespace winrt::Windows::Storage;
 
 namespace winrt::xllama::implementation {
@@ -100,16 +99,17 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
     log_write("[xllama] App::OnLaunched\n");
 
     try {
-        auto rootFrame = Window::Current().Content().try_as<Frame>();
-        log_write("[xllama] got Window::Current\n");
-        if (!rootFrame) {
-            rootFrame = Frame();
-            Window::Current().Content(rootFrame);
-        }
-        if (rootFrame.Content() == nullptr) {
-            log_write("[xllama] Navigate -> MainPage\n");
-            rootFrame.Navigate(xaml_typename<xllama::MainPage>());
-            log_write("[xllama] Navigate complete\n");
+        if (Window::Current().Content() == nullptr) {
+            // Use winrt::make<> (cppwinrt activation factory) instead of
+            // Frame::Navigate to bypass the XAML metadata provider lookup.
+            // Navigate calls CreateXamlType("xllama.MainPage") which our
+            // WMC9999 stub returns nullptr for, causing a silent process
+            // termination. winrt::make<> uses the IDL-generated factory directly.
+            log_write("[xllama] creating MainPage directly\n");
+            auto page = winrt::make<xllama::implementation::MainPage>();
+            log_write("[xllama] MainPage constructed\n");
+            Window::Current().Content(page);
+            log_write("[xllama] Window.Content set\n");
         }
         Window::Current().Activate();
         log_write("[xllama] Window activated\n");
