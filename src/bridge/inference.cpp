@@ -27,7 +27,6 @@ namespace xllama {
 InferenceResult run_inference(const InferenceParams& params) {
     InferenceResult res;
 
-    // resolve_model_path returns the ONNX bundle directory under LocalFolder\models\
     const std::string model_dir = resolve_model_path(params.model_path);
 
     if (params.on_status)
