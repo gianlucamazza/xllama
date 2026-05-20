@@ -6,7 +6,6 @@
 #include "xllama/platform.h"
 
 #include <cstdio>
-#include <ctime>
 #include <string>
 
 // ---------------------------------------------------------------------------
@@ -14,8 +13,14 @@
 // ---------------------------------------------------------------------------
 #ifdef XLLAMA_USE_ORT
 
+// clang-format off
+    // windows.h must precede ort_genai_c.h in WINAPI_FAMILY_APP builds.
+    #include <windows.h>
     #include "ort_genai_c.h"
     #include "xllama/ort_raii.h"
+// clang-format on
+
+    #include <chrono>
 
 namespace xllama {
 
@@ -76,8 +81,7 @@ InferenceResult run_inference(const InferenceParams& params) {
             params.on_status("generating");
 
         // Record wall-clock start for tok/s estimate (ORT GenAI has no perf API like llama_perf)
-        struct timespec t0 = {};
-        clock_gettime(CLOCK_MONOTONIC, &t0);
+        auto t0 = std::chrono::steady_clock::now();
 
         int n_generated = 0;
         while (!OgaGenerator_IsDone(gen.get())) {
@@ -104,10 +108,8 @@ InferenceResult run_inference(const InferenceParams& params) {
             ++n_generated;
         }
 
-        struct timespec t1 = {};
-        clock_gettime(CLOCK_MONOTONIC, &t1);
-        double elapsed_s = static_cast<double>(t1.tv_sec - t0.tv_sec) +
-                           static_cast<double>(t1.tv_nsec - t0.tv_nsec) * 1e-9;
+        double elapsed_s =
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
 
         res.n_eval = n_generated;
         res.t_eval_ms = static_cast<double>(elapsed_s * 1000.0);
