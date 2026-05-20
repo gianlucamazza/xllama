@@ -78,9 +78,39 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
 // ---------------------------------------------------------------------------
 // Entry point — Application::Start replaces CoreApplication::Run
 // ---------------------------------------------------------------------------
+
+// Bootstrap log: write to %TEMP% before ApplicationData is available.
+static void boot_log(const char* msg) {
+    OutputDebugStringA(msg);
+    wchar_t tmp[MAX_PATH + 32] = {};
+    if (GetTempPathW(MAX_PATH, tmp)) {
+        wcscat_s(tmp, L"xllama-boot.log");
+        if (FILE* fp = _wfopen(tmp, L"a")) {
+            fputs(msg, fp);
+            fclose(fp);
+        }
+    }
+}
+
 int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
-    winrt::Windows::UI::Xaml::Application::Start(
-        [](auto&&) { winrt::make<winrt::xllama::implementation::App>(); });
+    boot_log("[boot] wWinMain\n");
+    try {
+        winrt::Windows::UI::Xaml::Application::Start([](auto&&) {
+            boot_log("[boot] callback: making App\n");
+            winrt::make<winrt::xllama::implementation::App>();
+            boot_log("[boot] App created\n");
+        });
+        boot_log("[boot] Application::Start returned\n");
+    } catch (winrt::hresult_error const& e) {
+        char buf[256];
+        snprintf(buf, sizeof(buf), "[boot] hresult 0x%08X\n",
+                 static_cast<unsigned>(e.code().value));
+        boot_log(buf);
+    } catch (...) {
+        boot_log("[boot] unknown exception\n");
+    }
+    boot_log("[boot] exit\n");
+    return 0;
 }
 
 #endif // XLLAMA_UWP
