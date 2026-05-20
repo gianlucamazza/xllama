@@ -1,7 +1,8 @@
 <Application
+    x:Class="xllama.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!-- x:Class omitted: IXamlMetadataProvider stub returns null for custom types,
-         causing E_XAMLPARSEFAILED (0x802B000A) on Xbox if x:Class is present.
-         App is registered via Application::Start factory, no XAML code-behind needed. -->
+    <!-- x:Class is required here so MarkupCompilePass1 generates App.g.h (AppT<App>).
+         The build-uwp.ps1 post-processing STRIPS x:Class before injecting into the MSIX,
+         preventing E_XAMLPARSEFAILED (0x802B000A) at runtime on Xbox. -->
 </Application>

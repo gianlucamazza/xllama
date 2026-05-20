@@ -176,10 +176,16 @@ try {
     & $MakeAppxExe unpack /p $Msix.FullName /d $UnpackDir /nv /o
     if ($LASTEXITCODE -ne 0) { throw "MakeAppx unpack failed (exit $LASTEXITCODE)" }
 
-    # Inject source XAML so LoadComponent(ms-appx:///MainPage.xaml) resolves
-    Copy-Item (Join-Path $RepoRoot "uwp\App.xaml")      "$UnpackDir\App.xaml"      -Force
+    # Inject source XAML so LoadComponent(ms-appx:///MainPage.xaml) resolves.
+    # App.xaml: strip x:Class before injection — the XAML runtime calls
+    # IXamlMetadataProvider::GetXamlType("xllama.App") when x:Class is present;
+    # our no-op stub returns null, causing E_XAMLPARSEFAILED (0x802B000A) on Xbox.
+    # x:Class is kept in the source file for MarkupCompilePass1 (generates App.g.h).
+    $AppXamlSrc = Get-Content (Join-Path $RepoRoot "uwp\App.xaml") -Raw
+    $AppXamlRuntime = $AppXamlSrc -replace '\s*x:Class="[^"]*"', ''
+    Set-Content -Path "$UnpackDir\App.xaml" -Value $AppXamlRuntime -Encoding UTF8 -NoNewline
     Copy-Item (Join-Path $RepoRoot "uwp\MainPage.xaml") "$UnpackDir\MainPage.xaml" -Force
-    Write-Host "  App.xaml + MainPage.xaml added to layout"
+    Write-Host "  App.xaml (x:Class stripped) + MainPage.xaml added to layout"
 
     # Repack (unsigned)
     & $MakeAppxExe pack /d $UnpackDir /p $TmpMsix /h sha256 /o
