@@ -91,23 +91,33 @@ App::App() {
         OutputDebugStringA(buf);
         throw;
     }
+    log_write("[xllama] App::App() complete\n");
 }
 
 void App::OnLaunched(LaunchActivatedEventArgs const&) {
     log_write("[xllama] App::OnLaunched\n");
 
-    auto rootFrame = Window::Current().Content().try_as<Frame>();
-    if (!rootFrame) {
-        rootFrame = Frame();
-        Window::Current().Content(rootFrame);
+    try {
+        auto rootFrame = Window::Current().Content().try_as<Frame>();
+        log_write("[xllama] got Window::Current\n");
+        if (!rootFrame) {
+            rootFrame = Frame();
+            Window::Current().Content(rootFrame);
+        }
+        if (rootFrame.Content() == nullptr) {
+            log_write("[xllama] Navigate -> MainPage\n");
+            rootFrame.Navigate(xaml_typename<xllama::MainPage>());
+            log_write("[xllama] Navigate complete\n");
+        }
+        Window::Current().Activate();
+        log_write("[xllama] Window activated\n");
+    } catch (winrt::hresult_error const& e) {
+        char buf[256];
+        snprintf(buf, sizeof(buf), "[xllama] OnLaunched EXCEPTION 0x%08X\n",
+                 static_cast<unsigned>(e.code().value));
+        log_write(buf);
+        throw;
     }
-
-    if (rootFrame.Content() == nullptr) {
-        rootFrame.Navigate(xaml_typename<xllama::MainPage>());
-    }
-
-    Window::Current().Activate();
-    log_write("[xllama] Window activated\n");
 }
 
 } // namespace winrt::xllama::implementation
