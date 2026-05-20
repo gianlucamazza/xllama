@@ -34,7 +34,7 @@ void main_loop() {
     }
 
     // Read model directory/filename from LocalFolder/model.txt, fallback to default.
-    std::string model_name = "Phi-3.5-mini-instruct-onnx-directml";
+    std::string model_name = "Phi-3.5-mini-instruct-onnx-gpu";
     {
         std::string model_cfg = resolve_local_path("model.txt");
         FILE* mf = _wfopen(utf8_to_wstring(model_cfg).c_str(), L"r");
