@@ -96,30 +96,31 @@ mkdir_localstate() {
 	local pfn="$1"
 	local relpath="$2"
 
-	# Split relpath into parent path and leaf name
-	# e.g. "models\\sub" → parent="\LocalState\models", leaf="sub"
-	#      "models"       → parent="\LocalState",        leaf="models"
-	local parent_relpath leaf
-	if [[ "$relpath" == *\\* ]]; then
-		parent_relpath="${relpath%\\*}"
-		leaf="${relpath##*\\}"
-		local parent_param
-		parent_param="%5CLocalState%5C$(printf '%s' "$parent_relpath" | sed 's/\\/\%5C/g')"
-	else
-		leaf="$relpath"
-		parent_param="%5CLocalState"
-	fi
+	# Create every path component from root downward so parent dirs always exist.
+	# relpath uses backslash as separator: e.g. "models\\Phi-3.5-mini-instruct-onnx-gpu"
+	# We split on \\ and create each level in sequence.
+	local IFS_SAVED=$IFS
+	IFS='\\'
+	# shellcheck disable=SC2206
+	read -ra parts <<<"$relpath"
+	IFS=$IFS_SAVED
 
-	echo "Creating remote dir LocalState\\${relpath} ..."
-	RESP=$(curl "${CURL_AUTH[@]}" \
-		-H "X-CSRF-Token:${CSRF_TOKEN}" \
-		-X POST \
-		-d "" \
-		"${BASE_URL}/api/filesystem/apps/folder?knownfolderid=LocalAppData&packagefullname=${pfn}&path=${parent_param}&newfoldername=${leaf}" 2>/dev/null || echo "")
-	# WDP returns empty body on success; non-empty on error
-	if [[ -n "$RESP" ]]; then
-		echo "mkdir response: $RESP"
-	fi
+	local parent_param="%5CLocalState"
+	local accumulated=""
+	for part in "${parts[@]}"; do
+		[[ -z "$part" ]] && continue
+		echo "Creating remote dir LocalState\\${accumulated:+${accumulated}\\}${part} ..."
+		RESP=$(curl "${CURL_AUTH[@]}" \
+			-H "X-CSRF-Token:${CSRF_TOKEN}" \
+			-X POST \
+			-d "" \
+			"${BASE_URL}/api/filesystem/apps/folder?knownfolderid=LocalAppData&packagefullname=${pfn}&path=${parent_param}&newfoldername=${part}" 2>/dev/null || echo "")
+		if [[ -n "$RESP" ]]; then
+			echo "  mkdir response: $RESP"
+		fi
+		parent_param="${parent_param}%5C${part}"
+		accumulated="${accumulated:+${accumulated}\\}${part}"
+	done
 }
 
 list_dumps() {
