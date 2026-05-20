@@ -79,7 +79,6 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
 // Entry point — Application::Start replaces CoreApplication::Run
 // ---------------------------------------------------------------------------
 int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
-    winrt::init_apartment();
     winrt::Windows::UI::Xaml::Application::Start(
         [](auto&&) { winrt::make<winrt::xllama::implementation::App>(); });
 }
