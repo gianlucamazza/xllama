@@ -156,7 +156,13 @@ void MainPageController::BuildUI() {
 
 MainPageController::MainPageController() {
     BuildUI();
+}
 
+// ---------------------------------------------------------------------------
+// Init — must be called once after make_shared (shared_from_this is valid here)
+// ---------------------------------------------------------------------------
+
+void MainPageController::Init() {
     auto self = weak_from_this();
     m_runButton.Click([self](IInspectable const&, RoutedEventArgs const&) {
         if (auto s = self.lock()) {

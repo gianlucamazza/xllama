@@ -20,6 +20,7 @@ namespace xllama {
 class MainPageController : public std::enable_shared_from_this<MainPageController> {
   public:
     MainPageController();
+    void Init(); // must be called once after make_shared — wires handlers, loads model
 
     winrt::Windows::UI::Xaml::Controls::Page Root() const {
         return m_root;

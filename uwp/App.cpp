@@ -81,6 +81,8 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
             log_write("[xllama] building MainPageController\n");
             m_controller = std::make_shared<::xllama::MainPageController>();
             log_write("[xllama] MainPageController built\n");
+            m_controller->Init();
+            log_write("[xllama] MainPageController init done\n");
         }
         Window::Current().Content(m_controller->Root());
         log_write("[xllama] Window.Content set\n");
@@ -88,9 +90,17 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
         log_write("[xllama] Window activated\n");
     } catch (winrt::hresult_error const& e) {
         char buf[512];
-        snprintf(buf, sizeof(buf), "[xllama] OnLaunched EXCEPTION 0x%08X: %ls\n",
+        snprintf(buf, sizeof(buf), "[xllama] OnLaunched hresult 0x%08X: %ls\n",
                  static_cast<unsigned>(e.code().value), e.message().c_str());
         log_write(buf);
+        throw;
+    } catch (std::exception const& e) {
+        char buf[512];
+        snprintf(buf, sizeof(buf), "[xllama] OnLaunched std::exception: %s\n", e.what());
+        log_write(buf);
+        throw;
+    } catch (...) {
+        log_write("[xllama] OnLaunched unknown exception\n");
         throw;
     }
 }
