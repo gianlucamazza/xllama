@@ -60,6 +60,19 @@ static std::wstring local_wpath(const wchar_t* filename_w) {
     return std::wstring(folder.Path().c_str()) + L"\\" + filename_w;
 }
 
+static void page_log(const char* msg) {
+    OutputDebugStringA(msg);
+    try {
+        auto path = local_wpath(L"xllama.log");
+        FILE* f = _wfopen(path.c_str(), L"a");
+        if (f) {
+            fputs(msg, f);
+            fclose(f);
+        }
+    } catch (...) {
+    }
+}
+
 // ---------------------------------------------------------------------------
 // XAML-generated method implementations (normally produced by MarkupCompilePass2;
 // provided manually because XamlC.exe crashes WMC9999 for C++/WinRT projects).
@@ -69,9 +82,21 @@ void MainPage::InitializeComponent() {
     // Parse MainPage.xaml at runtime (text XAML, no XBF — ~10 ms overhead on
     // first launch, acceptable on Xbox). LoadComponent calls Connect() for each
     // named element so the backing members get populated.
-    ::winrt::Windows::UI::Xaml::Application::LoadComponent(
-        *this, ::winrt::Windows::Foundation::Uri(L"ms-appx:///MainPage.xaml"),
-        ::winrt::Windows::UI::Xaml::Controls::Primitives::ComponentResourceLocation::Application);
+    using ComponentResourceLocation =
+        ::winrt::Windows::UI::Xaml::Controls::Primitives::ComponentResourceLocation;
+    page_log("[xllama] MainPage::InitializeComponent: loading MainPage.xaml\n");
+    try {
+        ::winrt::Windows::UI::Xaml::Application::LoadComponent(
+            *this, ::winrt::Windows::Foundation::Uri(L"ms-appx:///MainPage.xaml"),
+            ComponentResourceLocation::Application);
+        page_log("[xllama] MainPage::InitializeComponent: done\n");
+    } catch (winrt::hresult_error const& e) {
+        char buf[512];
+        snprintf(buf, sizeof(buf), "[xllama] MainPage::InitializeComponent FAILED 0x%08X: %ls\n",
+                 static_cast<unsigned>(e.code().value), e.message().c_str());
+        page_log(buf);
+        throw;
+    }
 }
 
 void MainPage::Connect(int32_t connectionId,

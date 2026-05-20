@@ -3,6 +3,6 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <!-- x:Class is required here so MarkupCompilePass1 generates App.g.h (AppT<App>).
-         The build-uwp.ps1 post-processing STRIPS x:Class before injecting into the MSIX,
-         preventing E_XAMLPARSEFAILED (0x802B000A) at runtime on Xbox. -->
+         App::InitializeComponent is a runtime no-op on Xbox, so build-uwp.ps1 removes
+         loose App.xaml from the final MSIX package layout. -->
 </Application>

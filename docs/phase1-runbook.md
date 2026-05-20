@@ -50,7 +50,7 @@ Verify in Device Portal File Explorer that `LocalState/xllama.log` exists and co
 [xllama] Window activated
 ```
 
-These three lines confirm the UWP lifecycle completed and the XAML frame was activated. If the UI is a black screen instead, `LoadComponent` failed to find the XAML — check that the MSIX contains `App.xaml` and `MainPage.xaml` (run `unzip -l *.msix | grep xaml`).
+These three lines confirm the UWP lifecycle completed and the XAML frame was activated. If the UI is a black screen instead, `LoadComponent` failed to find `MainPage.xaml` — check that the MSIX contains `MainPage.xaml` (run `unzip -l *.msix | grep xaml`). `App.xaml` is build-time metadata only and is intentionally not shipped as loose runtime XAML.
 
 URL: `https://<ip>:11443/#fileExplorer`
 Navigate: LocalAppData → `VenereLabs.xllama_0.1.0.0_x64__<token>` → `LocalState` → `xllama.log`
@@ -181,8 +181,9 @@ Verify credentials in Dev Home → Settings → Device Portal credentials.
 `deploy.sh` installs `Dependencies/x64/*.appx` automatically alongside the `.msix`. Re-run deploy.
 
 **`UnhandledException: 0x802B000A` (E_XAMLPARSEFAILED) before OnLaunched**: XAML runtime
-called `IXamlMetadataProvider::GetXamlType("xllama.App")` while parsing `App.xaml`'s
-`x:Class` attribute; the stub returned null. Fix: remove `x:Class` from `App.xaml`.
+called `IXamlMetadataProvider::GetXamlType(...)` while parsing loose runtime XAML with
+`x:Class`; the stub returned null. `build-uwp.ps1` strips `x:Class` from `MainPage.xaml`
+and removes loose `App.xaml` from the final MSIX layout.
 
 ## 8a. Debug logging
 

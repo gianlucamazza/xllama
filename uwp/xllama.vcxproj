@@ -352,8 +352,9 @@
   <Target Name="MarkupCompilePass2"/>
 
   <!-- CopyGeneratedXaml: Pass2 is disabled (WMC9999). Override creates empty XBF
-       stubs (AppXPackage.Targets expects them) and stages the source XAML files
-       so LoadComponent(ms-appx:///MainPage.xaml) works at runtime on Xbox.
+       stubs (AppXPackage.Targets expects them) and stages source XAML files.
+       build-uwp.ps1 removes loose App.xaml during final package post-processing;
+       MainPage.xaml remains because it is loaded at runtime on Xbox.
 
        Key: $(OutDir) = x64\Release\xllama\ (already includes TargetName).
        Stock targets use $(OutDir)$(TargetName)\ which double-nests — that path
@@ -374,20 +375,19 @@
   <!-- ComputeProcessXamlFiles feeds CustomOutputGroupForPackaging, which the outer
        AppX packaging build calls to determine what goes into the .msix.
        Stock implementation returns only XBF paths via @(XamlBinaryOutput).
-       Override adds the staged source XAML alongside XBF so the packager includes
-       both: XBF stubs (never parsed at runtime) + XAML text files (loaded by
-       LoadComponent(ms-appx:///MainPage.xaml) on Xbox). -->
+       Override adds the staged source XAML alongside XBF. build-uwp.ps1 then
+       removes loose App.xaml and strips x:Class from MainPage.xaml before the
+       final MSIX is signed. -->
+  <!-- H1 diagnostic: App.xaml excluded from MSIX to test whether its presence
+       triggers an implicit XAML parse (and E_XAMLPARSEFAILED) between App::App()
+       and OnLaunched. Only MainPage.xbf + MainPage.xaml are packaged. -->
   <Target Name="ComputeProcessXamlFiles"
           Returns="@(ProcessedXamlFiles)">
     <ItemGroup>
-      <!-- XBF stubs staged to $(OutDir) by build-uwp.ps1 + CopyGeneratedXaml -->
-      <ProcessedXamlFiles
-          Include="@(ApplicationDefinition->'$(OutDir)%(Filename).xbf')"/>
+      <!-- XBF stubs staged to $(OutDir) — App.xbf excluded (H1 experiment) -->
       <ProcessedXamlFiles
           Include="@(Page->'$(OutDir)%(Filename).xbf')"/>
-      <!-- Source XAML text files staged to $(OutDir) by CopyGeneratedXaml -->
-      <ProcessedXamlFiles
-          Include="@(ApplicationDefinition->'$(OutDir)%(Filename).xaml')"/>
+      <!-- Source XAML text — App.xaml excluded (H1 experiment) -->
       <ProcessedXamlFiles
           Include="@(Page->'$(OutDir)%(Filename).xaml')"/>
     </ItemGroup>

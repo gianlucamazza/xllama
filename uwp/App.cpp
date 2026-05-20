@@ -54,15 +54,10 @@ static void log_write(const char* msg) {
 // ---------------------------------------------------------------------------
 
 void App::InitializeComponent() {
-    // Load App.xaml explicitly so the XAML framework gets the required application-level
-    // initialization. build-uwp.ps1 strips x:Class before packing, so no GetXamlType
-    // call is made for "xllama.App". App.xaml has no resources; LoadComponent is a no-op
-    // at the property level but satisfies the XAML runtime's startup expectations.
-    log_write("[xllama] InitializeComponent: loading App.xaml\n");
-    ::winrt::Windows::UI::Xaml::Application::LoadComponent(
-        *this, ::winrt::Windows::Foundation::Uri(L"ms-appx:///App.xaml"),
-        ::winrt::Windows::UI::Xaml::Controls::Primitives::ComponentResourceLocation::Application);
-    log_write("[xllama] InitializeComponent: done\n");
+    // App.xaml is build-time metadata only. Runtime loading fails on Xbox
+    // Dev Mode with 0x8000FFFF even after x:Class stripping, and the file has
+    // no resources to initialize.
+    log_write("[xllama] InitializeComponent: no-op (App.xaml not loaded)\n");
 }
 
 App::App() {
@@ -119,9 +114,9 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
         Window::Current().Activate();
         log_write("[xllama] Window activated\n");
     } catch (winrt::hresult_error const& e) {
-        char buf[256];
-        snprintf(buf, sizeof(buf), "[xllama] OnLaunched EXCEPTION 0x%08X\n",
-                 static_cast<unsigned>(e.code().value));
+        char buf[512];
+        snprintf(buf, sizeof(buf), "[xllama] OnLaunched EXCEPTION 0x%08X: %ls\n",
+                 static_cast<unsigned>(e.code().value), e.message().c_str());
         log_write(buf);
         throw;
     }

@@ -12,8 +12,8 @@ namespace winrt::xllama::implementation {
 
 struct App : AppT<App> {
     App();
-    // Overrides AppT<App>::InitializeComponent which would load App.xbf (not in package).
-    // App.xaml is minimal (no resources); a no-op is correct here.
+    // Overrides AppT<App>::InitializeComponent. App.xaml is build-time metadata
+    // only and is not loaded at runtime on Xbox.
     void InitializeComponent();
     void OnLaunched(winrt::Windows::ApplicationModel::Activation::LaunchActivatedEventArgs const&);
 };

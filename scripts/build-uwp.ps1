@@ -103,8 +103,8 @@ Write-Host "Building $Configuration|$Platform ..."
 # Create empty XBF stubs before MSBuild.
 # MarkupCompilePass2 is disabled (WMC9999 crash), so App.xbf / MainPage.xbf
 # are never generated. AppXPackage.Targets:1638 expects them in the output dir.
-# The XAML runtime never reads these stubs: InitializeComponent calls
-# LoadComponent with the .xaml URI, not the .xbf path.
+# The XAML runtime never reads App.xbf. MainPage.xaml is injected below and
+# loaded explicitly at runtime.
 # ---------------------------------------------------------------------------
 $XbfDir = Join-Path $RepoRoot "uwp\$Platform\$Configuration\xllama"
 New-Item -ItemType Directory -Force -Path $XbfDir | Out-Null
@@ -147,13 +147,15 @@ if (-not $Msix) {
 Write-Host "Package: $($Msix.FullName)"
 
 # ---------------------------------------------------------------------------
-# Inject XAML text files into the MSIX.
+# Inject runtime XAML text files into the MSIX.
 #
 # MSBuild's AppX packaging pipeline handles XAML items via the XBF/PRI path
 # (_GenerateProjectPriConfigurationFiles → resources.pri). The text XAML files
 # are NOT added as loose package files by the recipe generator, even when staged
 # in $(OutDir). We post-process the MSIX to inject them so that
 # LoadComponent(ms-appx:///MainPage.xaml) resolves at runtime on Xbox.
+# App.xaml is intentionally not injected: App::InitializeComponent is a no-op
+# because the file has no resources and runtime loading fails on Xbox Dev Mode.
 # ---------------------------------------------------------------------------
 Write-Host "Injecting XAML text files into package ..."
 
@@ -176,15 +178,14 @@ try {
     & $MakeAppxExe unpack /p $Msix.FullName /d $UnpackDir /nv /o
     if ($LASTEXITCODE -ne 0) { throw "MakeAppx unpack failed (exit $LASTEXITCODE)" }
 
-    # Inject source XAML so LoadComponent(ms-appx:///MainPage.xaml) resolves.
-    # App.xaml: strip x:Class before injection — the XAML runtime calls
-    # IXamlMetadataProvider::GetXamlType("xllama.App") when x:Class is present;
-    # our no-op stub returns null, causing E_XAMLPARSEFAILED (0x802B000A) on Xbox.
-    # x:Class is kept in the source file for MarkupCompilePass1 (generates App.g.h).
-    $AppXamlSrc = Get-Content (Join-Path $RepoRoot "uwp\App.xaml") -Raw
-    $AppXamlRuntime = $AppXamlSrc -replace '\s*x:Class="[^"]*"', ''
-    Set-Content -Path "$UnpackDir\App.xaml" -Value $AppXamlRuntime -Encoding UTF8 -NoNewline
-    # MainPage.xaml: strip x:Class for the same reason as App.xaml.
+    # App.xaml is build-time metadata only. Remove any loose text copy staged by
+    # MSBuild so final packages cannot regress into runtime App.xaml loading.
+    $RuntimeAppXaml = Join-Path $UnpackDir "App.xaml"
+    if (Test-Path $RuntimeAppXaml) {
+        Remove-Item $RuntimeAppXaml -Force
+    }
+
+    # MainPage.xaml: strip x:Class before runtime injection.
     # LoadComponent(*this, ms-appx:///MainPage.xaml) passes the existing instance so
     # the XAML parser does not need to call GetXamlType to create a new object.
     # Without stripping, the XAML runtime calls GetXamlType("xllama.MainPage") during
@@ -192,7 +193,23 @@ try {
     $MainPageXamlSrc = Get-Content (Join-Path $RepoRoot "uwp\MainPage.xaml") -Raw
     $MainPageXamlRuntime = $MainPageXamlSrc -replace '\s*x:Class="[^"]*"', ''
     Set-Content -Path "$UnpackDir\MainPage.xaml" -Value $MainPageXamlRuntime -Encoding UTF8 -NoNewline
-    Write-Host "  App.xaml + MainPage.xaml (both x:Class stripped) added to layout"
+    Write-Host "  MainPage.xaml (x:Class stripped) added to layout"
+
+    # Package-layout validation before repack.
+    $RuntimeMainPageXaml = Join-Path $UnpackDir "MainPage.xaml"
+    $RuntimeManifest = Join-Path $UnpackDir "AppxManifest.xml"
+    if (-not (Test-Path $RuntimeMainPageXaml)) {
+        throw "Package validation failed: MainPage.xaml missing from layout"
+    }
+    if (Select-String -Path $RuntimeMainPageXaml -Pattern 'x:Class=' -Quiet) {
+        throw "Package validation failed: MainPage.xaml still contains x:Class"
+    }
+    if (Test-Path $RuntimeAppXaml) {
+        throw "Package validation failed: App.xaml should not be included as loose runtime XAML"
+    }
+    if (-not (Select-String -Path $RuntimeManifest -Pattern 'EntryPoint="xllama.App"' -Quiet)) {
+        throw "Package validation failed: AppxManifest.xml missing EntryPoint=`"xllama.App`""
+    }
 
     # Repack (unsigned)
     & $MakeAppxExe pack /d $UnpackDir /p $TmpMsix /h sha256 /o
@@ -205,6 +222,7 @@ try {
     # Atomic replace
     Move-Item $TmpMsix $Msix.FullName -Force
     Write-Host "XAML injection complete. Final package: $($Msix.FullName)"
+    Write-Host "Package validation passed."
 } finally {
     if (Test-Path $UnpackDir) { Remove-Item $UnpackDir -Recurse -Force -ErrorAction SilentlyContinue }
     if (Test-Path $TmpMsix)   { Remove-Item $TmpMsix   -Force         -ErrorAction SilentlyContinue }
