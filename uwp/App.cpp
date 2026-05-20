@@ -79,16 +79,22 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
 // Entry point — Application::Start replaces CoreApplication::Run
 // ---------------------------------------------------------------------------
 
-// Bootstrap log: write to %TEMP% before ApplicationData is available.
+// Bootstrap log: write to package LocalState via GetCurrentPackagePath.
+// GetTempPath is inaccessible from UWP; LocalState is writable by the package.
 static void boot_log(const char* msg) {
     OutputDebugStringA(msg);
-    wchar_t tmp[MAX_PATH + 32] = {};
-    if (GetTempPathW(MAX_PATH, tmp)) {
-        wcscat_s(tmp, L"xllama-boot.log");
-        if (FILE* fp = _wfopen(tmp, L"a")) {
-            fputs(msg, fp);
-            fclose(fp);
-        }
+    UINT32 len = 0;
+    // First call to get required length
+    GetCurrentPackagePath(&len, nullptr);
+    if (len == 0) return;
+    std::wstring pkg(len, L'\0');
+    if (GetCurrentPackagePath(&len, pkg.data()) != ERROR_SUCCESS) return;
+    // Package root: trim trailing NUL, append \LocalState\xllama-boot.log
+    pkg.resize(wcslen(pkg.c_str()));
+    std::wstring path = pkg + L"\\LocalState\\xllama-boot.log";
+    if (FILE* fp = _wfopen(path.c_str(), L"a")) {
+        fputs(msg, fp);
+        fclose(fp);
     }
 }
 
