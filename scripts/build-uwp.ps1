@@ -97,6 +97,33 @@ if (-not $MsBuild) {
 Write-Host "Using MSBuild: $MsBuild"
 
 # ---------------------------------------------------------------------------
+# Copy VC++ CRT DLLs for onnxruntime AppContainer compatibility.
+# onnxruntime.dll and onnxruntime-genai.dll are built with the desktop /MD
+# runtime and import MSVCP140.dll (not MSVCP140_APP.dll). On Xbox AppContainer,
+# System32 is not in the loader search path for these DLLs, so they must be
+# bundled app-locally.
+# ---------------------------------------------------------------------------
+$UwpDir = Join-Path $RepoRoot "uwp"
+$CrtDlls = @("MSVCP140.dll", "MSVCP140_1.dll", "VCRUNTIME140.dll", "VCRUNTIME140_1.dll")
+$CrtRedistDir = Get-ChildItem `
+    -Path "${env:ProgramFiles}\Microsoft Visual Studio\2022\*\VC\Redist\MSVC\*\x64\Microsoft.VC143.CRT" `
+    -ErrorAction SilentlyContinue |
+    Sort-Object FullName -Descending | Select-Object -First 1
+
+if ($CrtRedistDir) {
+    Write-Host "Found CRT redist: $($CrtRedistDir.FullName)"
+    foreach ($dll in $CrtDlls) {
+        $src = Join-Path $CrtRedistDir.FullName $dll
+        if (Test-Path $src) {
+            Copy-Item $src $UwpDir -Force
+            Write-Host "  Copied $dll"
+        }
+    }
+} else {
+    Write-Warning "VC++ CRT redist directory not found. onnxruntime may fail in AppContainer on Xbox."
+}
+
+# ---------------------------------------------------------------------------
 # NuGet restore (packages.config in uwp\ → restores to uwp\packages\)
 # ---------------------------------------------------------------------------
 Write-Host "Restoring NuGet packages ..."
