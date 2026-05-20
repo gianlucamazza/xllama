@@ -21,7 +21,7 @@ namespace winrt::xllama::implementation {
 // ---------------------------------------------------------------------------
 // File logger: writes to LocalFolder/xllama.log + OutputDebugString
 // ---------------------------------------------------------------------------
-static FILE* g_log_fp = nullptr;
+FILE* g_log_fp = nullptr; // non-static: accessible from wWinMain catch block
 
 static void log_init() {
     try {
@@ -56,6 +56,15 @@ App::App() {
     InitializeComponent();
 }
 
+void App::OnActivated(winrt::Windows::ApplicationModel::Activation::IActivatedEventArgs const& args) {
+    log_write("[xllama] App::OnActivated kind=");
+    // Log the activation kind as a number for diagnostics
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%d\n", static_cast<int>(args.Kind()));
+    log_write(buf);
+    AppT<App>::OnActivated(args); // forward to base
+}
+
 void App::OnLaunched(LaunchActivatedEventArgs const&) {
     log_write("[xllama] App::OnLaunched\n");
 
@@ -78,44 +87,24 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
 // ---------------------------------------------------------------------------
 // Entry point — Application::Start replaces CoreApplication::Run
 // ---------------------------------------------------------------------------
-
-// Bootstrap log: write to package LocalState via GetCurrentPackagePath.
-// GetTempPath is inaccessible from UWP; LocalState is writable by the package.
-static void boot_log(const char* msg) {
-    OutputDebugStringA(msg);
-    UINT32 len = 0;
-    // First call to get required length
-    GetCurrentPackagePath(&len, nullptr);
-    if (len == 0) return;
-    std::wstring pkg(len, L'\0');
-    if (GetCurrentPackagePath(&len, pkg.data()) != ERROR_SUCCESS) return;
-    // Package root: trim trailing NUL, append \LocalState\xllama-boot.log
-    pkg.resize(wcslen(pkg.c_str()));
-    std::wstring path = pkg + L"\\LocalState\\xllama-boot.log";
-    if (FILE* fp = _wfopen(path.c_str(), L"a")) {
-        fputs(msg, fp);
-        fclose(fp);
-    }
-}
-
 int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
-    boot_log("[boot] wWinMain\n");
     try {
         winrt::Windows::UI::Xaml::Application::Start([](auto&&) {
-            boot_log("[boot] callback: making App\n");
             winrt::make<winrt::xllama::implementation::App>();
-            boot_log("[boot] App created\n");
         });
-        boot_log("[boot] Application::Start returned\n");
     } catch (winrt::hresult_error const& e) {
+        // App::App() runs before this catch, so g_log_fp may be set.
         char buf[256];
-        snprintf(buf, sizeof(buf), "[boot] hresult 0x%08X\n",
+        snprintf(buf, sizeof(buf), "[xllama] wWinMain exception: 0x%08X\n",
                  static_cast<unsigned>(e.code().value));
-        boot_log(buf);
+        OutputDebugStringA(buf);
+        if (winrt::xllama::implementation::g_log_fp) {
+            fputs(buf, winrt::xllama::implementation::g_log_fp);
+            fflush(winrt::xllama::implementation::g_log_fp);
+        }
     } catch (...) {
-        boot_log("[boot] unknown exception\n");
+        OutputDebugStringA("[xllama] wWinMain: unknown exception\n");
     }
-    boot_log("[boot] exit\n");
     return 0;
 }
 

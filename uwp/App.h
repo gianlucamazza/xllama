@@ -15,6 +15,7 @@ struct App : AppT<App> {
     // Overrides AppT<App>::InitializeComponent which would load App.xbf (not in package).
     // App.xaml is minimal (no resources); a no-op is correct here.
     void InitializeComponent();
+    void OnActivated(winrt::Windows::ApplicationModel::Activation::IActivatedEventArgs const&);
     void OnLaunched(winrt::Windows::ApplicationModel::Activation::LaunchActivatedEventArgs const&);
 };
 
