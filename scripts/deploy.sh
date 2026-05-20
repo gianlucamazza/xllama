@@ -2,9 +2,18 @@
 # deploy.sh — interact with the Xbox Device Portal
 #
 # Sub-commands:
-#   deploy.sh <package.msix>                           Upload and install .msix (+ auto-install .cer)
-#   deploy.sh install-cert <cert.cer>                  Install a trust certificate on the console
-#   deploy.sh upload-file <local> <pfn> <remote-dir>   Upload a file to LocalFolder
+#   deploy.sh <package.msix>                             Upload and install .msix (+ auto-install .cer)
+#   deploy.sh install-cert <cert.cer>                    Install a trust certificate on the console
+#   deploy.sh upload-file <local> <pfn> <remote-dir>     Upload a file to LocalFolder (auto-creates subdir)
+#   deploy.sh upload-dir <local-dir> <pfn> <remote-dir>  Upload all files in a directory to LocalFolder/<remote-dir>/
+#   deploy.sh mkdir-localstate <pfn> <relpath>           Create directory in LocalState (e.g. models\Phi-3.5)
+#   deploy.sh pfn                                        Print installed xllama package full name
+#   deploy.sh get-log [pfn]                              Print LocalState/xllama.log
+#   deploy.sh list-localstate [pfn]                      List app LocalState files
+#   deploy.sh list-dumps                                 List user-mode crash dumps
+#   deploy.sh start-app [pfn]                            Launch xllama through WDP
+#   deploy.sh stop-app [pfn]                             Stop xllama through WDP
+#   deploy.sh diagnose-startup [pfn]                     Start app and print startup diagnostics
 #
 # Required env vars: XBOX_IP, XBOX_USER, XBOX_PASS
 
@@ -16,6 +25,7 @@ set -euo pipefail
 
 BASE_URL="https://${XBOX_IP}:11443"
 CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
+APP_ID="VenereLabs.xllama"
 
 # Xbox WDP requires X-CSRF-Token on all POST/DELETE requests.
 # Extract from Set-Cookie header with a more robust pipeline.
@@ -27,11 +37,197 @@ if [[ -z "$CSRF_TOKEN" ]]; then
 	echo "Warning: failed to extract CSRF token. POST requests may fail." >&2
 fi
 
+get_pfn() {
+	curl "${CURL_AUTH[@]}" "${BASE_URL}/api/app/packagemanager/packages" |
+		APP_ID="$APP_ID" python3 -c '
+import json
+import os
+import sys
+
+app_id = os.environ["APP_ID"]
+data = json.load(sys.stdin)
+for package in data.get("InstalledPackages", []):
+    if app_id in package.get("PackageRelativeId", ""):
+        print(package.get("PackageFullName", ""))
+        break
+'
+}
+
+require_pfn() {
+	local pfn="${1:-}"
+	if [[ -z "$pfn" ]]; then
+		pfn="$(get_pfn)"
+	fi
+	if [[ -z "$pfn" ]]; then
+		echo "Error: xllama package not found on Xbox." >&2
+		exit 1
+	fi
+	printf '%s\n' "$pfn"
+}
+
+aumid_for_pfn() {
+	local pfn="$1"
+	local pfamily
+	# shellcheck disable=SC2001  # regex uses [^_] class, not expressible with bash ${//}
+	pfamily=$(echo "$pfn" | sed 's/_[0-9][0-9.]*_[^_]*__/_/')
+	printf '%s!xllama' "$pfamily" | base64 -w0
+}
+
+print_log() {
+	local pfn
+	pfn="$(require_pfn "${1:-}")"
+	curl "${CURL_AUTH[@]}" \
+		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${pfn}&path=\\LocalState&filename=xllama.log" ||
+		true
+}
+
+list_localstate() {
+	local pfn
+	pfn="$(require_pfn "${1:-}")"
+	curl "${CURL_AUTH[@]}" \
+		"${BASE_URL}/api/filesystem/apps/files?knownfolderid=LocalAppData&packagefullname=${pfn}&path=\\LocalState" ||
+		true
+}
+
+# Create a directory inside LocalState.
+# relpath: e.g. "models" or "models\\Phi-3.5-mini-instruct-onnx-directml"
+mkdir_localstate() {
+	local pfn="$1"
+	local relpath="$2"
+	local path_param="\\LocalState\\${relpath}"
+
+	echo "Creating remote dir LocalState\\${relpath} ..."
+	RESP=$(curl "${CURL_AUTH[@]}" \
+		-H "X-CSRF-Token:${CSRF_TOKEN}" \
+		-X POST \
+		-d "" \
+		"${BASE_URL}/api/filesystem/apps/folder?knownfolderid=LocalAppData&packagefullname=${pfn}&path=${path_param}" 2>/dev/null || echo "")
+	# WDP returns empty body on success; non-empty on error
+	if [[ -n "$RESP" ]]; then
+		echo "mkdir response: $RESP"
+	fi
+}
+
+list_dumps() {
+	curl "${CURL_AUTH[@]}" "${BASE_URL}/api/debug/dump/usermode/dumps" || true
+}
+
+print_process_status() {
+	curl "${CURL_AUTH[@]}" "${BASE_URL}/api/resourcemanager/processes" |
+		python3 -c '
+import json
+import sys
+
+data = json.load(sys.stdin)
+matches = [
+    p for p in data.get("Processes", [])
+    if "xllama" in p.get("ImageName", "").lower()
+    or "VenereLabs.xllama" in p.get("PackageFullName", "")
+]
+if not matches:
+    print("xllama process: not running")
+else:
+    for p in matches:
+        print(
+            "xllama process: pid={pid} image={image} running={running} ws={ws}".format(
+                pid=p.get("ProcessId", ""),
+                image=p.get("ImageName", ""),
+                running=p.get("IsRunning", ""),
+                ws=p.get("WorkingSetSize", ""),
+            )
+        )
+'
+}
+
+start_app() {
+	local pfn
+	pfn="$(require_pfn "${1:-}")"
+	local aumid
+	aumid="$(aumid_for_pfn "$pfn")"
+	curl "${CURL_AUTH[@]}" \
+		-H "X-CSRF-Token:${CSRF_TOKEN}" \
+		-X POST \
+		-d "" \
+		"${BASE_URL}/api/taskmanager/app?appid=${aumid}" >/dev/null
+	echo "Started ${pfn}."
+}
+
+stop_app() {
+	local pfn
+	pfn="$(require_pfn "${1:-}")"
+	curl "${CURL_AUTH[@]}" \
+		-H "X-CSRF-Token:${CSRF_TOKEN}" \
+		-X DELETE \
+		"${BASE_URL}/api/taskmanager/app?package=${pfn}" >/dev/null 2>&1 || true
+	echo "Stopped ${pfn}."
+}
+
 # -----------------------------------------------------------------------
 # Sub-command: install-cert
 #   install-cert <cert.cer>
 #   Installs a trust certificate so signed-with-that-cert packages deploy.
 # -----------------------------------------------------------------------
+if [[ "${1:-}" == "pfn" ]]; then
+	require_pfn "${2:-}"
+	exit 0
+fi
+
+if [[ "${1:-}" == "get-log" ]]; then
+	print_log "${2:-}"
+	exit 0
+fi
+
+if [[ "${1:-}" == "list-localstate" ]]; then
+	list_localstate "${2:-}"
+	exit 0
+fi
+
+if [[ "${1:-}" == "list-dumps" ]]; then
+	list_dumps
+	exit 0
+fi
+
+if [[ "${1:-}" == "start-app" ]]; then
+	start_app "${2:-}"
+	exit 0
+fi
+
+if [[ "${1:-}" == "stop-app" ]]; then
+	stop_app "${2:-}"
+	exit 0
+fi
+
+if [[ "${1:-}" == "diagnose-startup" ]]; then
+	PFN="$(require_pfn "${2:-}")"
+	echo "PFN: ${PFN}"
+	echo "--- starting app ---"
+	start_app "$PFN"
+	sleep 5
+	echo "--- process ---"
+	print_process_status
+	echo "--- xllama.log ---"
+	print_log "$PFN"
+	echo ""
+	echo "--- LocalState ---"
+	list_localstate "$PFN"
+	echo ""
+	echo "--- crash dumps ---"
+	list_dumps
+	echo ""
+	exit 0
+fi
+
+if [[ "${1:-}" == "mkdir-localstate" ]]; then
+	PFN="${2:-}"
+	RELPATH="${3:-}"
+	if [[ -z "$PFN" || -z "$RELPATH" ]]; then
+		echo "Usage: $0 mkdir-localstate <package-full-name> <relpath>" >&2
+		exit 1
+	fi
+	mkdir_localstate "$PFN" "$RELPATH"
+	exit 0
+fi
+
 if [[ "${1:-}" == "install-cert" ]]; then
 	CER="${2:-}"
 	if [[ -z "$CER" || ! -f "$CER" ]]; then
@@ -52,8 +248,9 @@ fi
 # -----------------------------------------------------------------------
 # Sub-command: upload-file
 #   upload-file <local-path> <package-full-name> <remote-dir>
-#   remote-dir: e.g. "models" → LocalFolder\models\
-#               ""           → LocalFolder\
+#   remote-dir: e.g. "models\\Phi-3.5-mini-instruct-onnx-directml" → LocalFolder\models\...\
+#               ""  → LocalFolder\
+#   Auto-creates the remote-dir hierarchy before uploading.
 # -----------------------------------------------------------------------
 if [[ "${1:-}" == "upload-file" ]]; then
 	LOCAL_PATH="${2:-}"
@@ -69,18 +266,66 @@ if [[ "${1:-}" == "upload-file" ]]; then
 		exit 1
 	fi
 
-	# Xbox WinRT: ApplicationData.LocalFolder = LocalState subdirectory
-	PATH_PARAM="\\LocalState\\${REMOTE_DIR}"
-	[[ -z "$REMOTE_DIR" ]] && PATH_PARAM="\\LocalState"
+	# Auto-create the target subdirectory (WDP fails with 500 if it doesn't exist)
+	if [[ -n "$REMOTE_DIR" ]]; then
+		mkdir_localstate "$PFN" "$REMOTE_DIR"
+	fi
 
-	echo "Uploading $(basename "$LOCAL_PATH") → LocalFolder/${REMOTE_DIR}/ ..."
+	# Build path parameter: LocalState\<remote-dir> or just LocalState
+	if [[ -n "$REMOTE_DIR" ]]; then
+		PATH_PARAM="\\LocalState\\${REMOTE_DIR}"
+	else
+		PATH_PARAM="\\LocalState"
+	fi
+
+	echo "Uploading $(basename "$LOCAL_PATH") → LocalState\\${REMOTE_DIR} ..."
 	curl "${CURL_AUTH[@]}" \
 		-H "X-CSRF-Token:${CSRF_TOKEN}" \
 		-X POST \
 		-F "file=@${LOCAL_PATH};type=application/octet-stream" \
-		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=${PATH_PARAM}" \
-		>/dev/null
+		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=${PATH_PARAM}"
+	echo ""
 	echo "Done."
+	exit 0
+fi
+
+# -----------------------------------------------------------------------
+# Sub-command: upload-dir
+#   upload-dir <local-dir> <package-full-name> <remote-dir>
+#   Uploads every file inside local-dir to LocalFolder\remote-dir\.
+#   Creates the remote dir first.
+#   Usage: deploy.sh upload-dir ./Phi-3.5-onnx-directml/ $PFN "models\\Phi-3.5-mini-instruct-onnx-directml"
+# -----------------------------------------------------------------------
+if [[ "${1:-}" == "upload-dir" ]]; then
+	LOCAL_DIR="${2:-}"
+	PFN="${3:-}"
+	REMOTE_DIR="${4:-}"
+
+	if [[ -z "$LOCAL_DIR" || -z "$PFN" || -z "$REMOTE_DIR" ]]; then
+		echo "Usage: $0 upload-dir <local-dir> <package-full-name> <remote-dir>" >&2
+		exit 1
+	fi
+	if [[ ! -d "$LOCAL_DIR" ]]; then
+		echo "Error: directory not found: $LOCAL_DIR" >&2
+		exit 1
+	fi
+
+	mkdir_localstate "$PFN" "$REMOTE_DIR"
+
+	PATH_PARAM="\\LocalState\\${REMOTE_DIR}"
+	total=0
+	while IFS= read -r -d '' f; do
+		fname=$(basename "$f")
+		echo "  uploading $fname ..."
+		curl "${CURL_AUTH[@]}" \
+			-H "X-CSRF-Token:${CSRF_TOKEN}" \
+			-X POST \
+			-F "file=@${f};type=application/octet-stream" \
+			"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=${PATH_PARAM}" \
+			>/dev/null
+		((total++)) || true
+	done < <(find "$LOCAL_DIR" -maxdepth 1 -type f -print0)
+	echo "Uploaded $total file(s) to LocalState\\${REMOTE_DIR}."
 	exit 0
 fi
 
@@ -90,9 +335,18 @@ fi
 APPX="${1:-}"
 if [[ -z "$APPX" ]]; then
 	echo "Usage:" >&2
-	echo "  $0 <path/to/xllama.msix>                           (deploy package)" >&2
-	echo "  $0 install-cert <path/to/cert.cer>                 (trust certificate)" >&2
-	echo "  $0 upload-file <local> <pfn> [remote-dir]          (upload file to LocalFolder)" >&2
+	echo "  $0 <path/to/xllama.msix>                              (deploy package)" >&2
+	echo "  $0 install-cert <path/to/cert.cer>                    (trust certificate)" >&2
+	echo "  $0 upload-file <local> <pfn> [remote-dir]             (upload file; auto-creates subdir)" >&2
+	echo "  $0 upload-dir <local-dir> <pfn> <remote-dir>          (upload all files in dir)" >&2
+	echo "  $0 mkdir-localstate <pfn> <relpath>                   (create dir in LocalState)" >&2
+	echo "  $0 pfn                                                (print installed package full name)" >&2
+	echo "  $0 get-log [pfn]                                      (print LocalState/xllama.log)" >&2
+	echo "  $0 list-localstate [pfn]                              (list LocalState files)" >&2
+	echo "  $0 list-dumps                                         (list user-mode crash dumps)" >&2
+	echo "  $0 start-app [pfn]                                    (launch xllama)" >&2
+	echo "  $0 stop-app [pfn]                                     (stop xllama)" >&2
+	echo "  $0 diagnose-startup [pfn]                             (run startup diagnostics)" >&2
 	exit 1
 fi
 if [[ ! -f "$APPX" ]]; then
@@ -114,6 +368,17 @@ if [[ -f "$CER_PATH" ]]; then
 	echo ""
 fi
 
+# Collect framework dependencies (.appx) from the sibling Dependencies/x64/ folder.
+# WDP accepts multiple -F file= entries in the same POST for a bundle install.
+DEPS=()
+DEPS_DIR="${APPX_DIR}/Dependencies/x64"
+if [[ -d "$DEPS_DIR" ]]; then
+	while IFS= read -r -d '' dep; do
+		DEPS+=("-F" "file=@${dep};type=application/octet-stream")
+		echo "  + dependency: $(basename "$dep")"
+	done < <(find "$DEPS_DIR" -name "*.appx" -print0)
+fi
+
 echo "Deploying ${APPX_NAME} to Xbox at ${XBOX_IP} ..."
 
 # NOTE: Xbox Device Portal requires ?package=<filename> query parameter.
@@ -121,6 +386,7 @@ RESPONSE=$(curl "${CURL_AUTH[@]}" \
 	-H "X-CSRF-Token:${CSRF_TOKEN}" \
 	-X POST \
 	-F "file=@${APPX};type=application/octet-stream" \
+	"${DEPS[@]}" \
 	"${BASE_URL}/api/app/packagemanager/package?package=${APPX_NAME}")
 
 echo "Response: $RESPONSE"
@@ -137,16 +403,16 @@ if command -v jq &>/dev/null; then
 	for i in $(seq 1 24); do
 		sleep 5
 		STATUS=$(curl "${CURL_AUTH[@]}" "${BASE_URL}/api/app/packagemanager/state" 2>/dev/null || echo "{}")
-		STATE=$(echo "$STATUS" | jq -r '.DeploymentProgressState // "unknown"' 2>/dev/null || echo "unknown")
-		SUCCESS=$(echo "$STATUS" | jq -r '.Success // "null"' 2>/dev/null || echo "null")
-		echo "  [${i}] state: $STATE  success: $SUCCESS"
-		if [[ "$STATE" == "Ok" ]]; then
+		CODE=$(echo "$STATUS" | jq -r '.Code // -1' 2>/dev/null || echo "-1")
+		REASON=$(echo "$STATUS" | jq -r '.Reason // "unknown"' 2>/dev/null || echo "unknown")
+		SUCCESS=$(echo "$STATUS" | jq -r '.Success // false' 2>/dev/null || echo "false")
+		echo "  [${i}] code=${CODE} reason='${REASON}' success=${SUCCESS}"
+		if [[ "$SUCCESS" == "true" && "$CODE" == "0" ]]; then
 			echo "Installation succeeded."
 			break
 		fi
 		if [[ "$SUCCESS" == "false" ]]; then
-			REASON=$(echo "$STATUS" | jq -r '.Reason // "unknown"' 2>/dev/null || echo "unknown")
-			echo "Installation failed: $REASON" >&2
+			echo "Installation failed: ${REASON}" >&2
 			exit 1
 		fi
 	done
