@@ -68,7 +68,10 @@ App::App() {
         char buf[256];
         snprintf(buf, sizeof(buf), "[xllama] UnhandledException: 0x%08X\n",
                  static_cast<unsigned>(e.Exception().value));
-        if (g_log_fp) { fputs(buf, g_log_fp); fflush(g_log_fp); }
+        if (g_log_fp) {
+            fputs(buf, g_log_fp);
+            fflush(g_log_fp);
+        }
         OutputDebugStringA(buf);
         e.Handled(false); // let it propagate
     });
@@ -81,7 +84,10 @@ App::App() {
         char buf[512];
         snprintf(buf, sizeof(buf), "[xllama] InitializeComponent FAILED 0x%08X: %ls\n",
                  static_cast<unsigned>(e.code().value), e.message().c_str());
-        if (g_log_fp) { fputs(buf, g_log_fp); fflush(g_log_fp); }
+        if (g_log_fp) {
+            fputs(buf, g_log_fp);
+            fflush(g_log_fp);
+        }
         OutputDebugStringA(buf);
         throw;
     }
@@ -111,9 +117,8 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
 // ---------------------------------------------------------------------------
 int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     try {
-        winrt::Windows::UI::Xaml::Application::Start([](auto&&) {
-            winrt::make<winrt::xllama::implementation::App>();
-        });
+        winrt::Windows::UI::Xaml::Application::Start(
+            [](auto&&) { winrt::make<winrt::xllama::implementation::App>(); });
     } catch (winrt::hresult_error const& e) {
         char buf[256];
         snprintf(buf, sizeof(buf), "[xllama] wWinMain exception: 0x%08X\n",
