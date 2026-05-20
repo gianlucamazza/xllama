@@ -21,7 +21,7 @@ namespace winrt::xllama::implementation {
 // ---------------------------------------------------------------------------
 // File logger: writes to LocalFolder/xllama.log + OutputDebugString
 // ---------------------------------------------------------------------------
-FILE* g_log_fp = nullptr; // non-static: accessible from wWinMain catch block
+FILE* g_log_fp = nullptr;
 
 static void log_init() {
     try {
@@ -53,16 +53,19 @@ void App::InitializeComponent() {
 App::App() {
     log_init();
     log_write("[xllama] App::App()\n");
-    InitializeComponent();
-}
 
-void App::OnActivated(winrt::Windows::ApplicationModel::Activation::IActivatedEventArgs const& args) {
-    log_write("[xllama] App::OnActivated kind=");
-    // Log the activation kind as a number for diagnostics
-    char buf[64];
-    snprintf(buf, sizeof(buf), "%d\n", static_cast<int>(args.Kind()));
-    log_write(buf);
-    AppT<App>::OnActivated(args); // forward to base
+    // Catch unhandled exceptions in the XAML framework
+    UnhandledException([](winrt::Windows::Foundation::IInspectable const&,
+                          winrt::Windows::UI::Xaml::UnhandledExceptionEventArgs const& e) {
+        char buf[256];
+        snprintf(buf, sizeof(buf), "[xllama] UnhandledException: 0x%08X\n",
+                 static_cast<unsigned>(e.Exception().value));
+        if (g_log_fp) { fputs(buf, g_log_fp); fflush(g_log_fp); }
+        OutputDebugStringA(buf);
+        e.Handled(false); // let it propagate
+    });
+
+    InitializeComponent();
 }
 
 void App::OnLaunched(LaunchActivatedEventArgs const&) {
@@ -93,7 +96,6 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
             winrt::make<winrt::xllama::implementation::App>();
         });
     } catch (winrt::hresult_error const& e) {
-        // App::App() runs before this catch, so g_log_fp may be set.
         char buf[256];
         snprintf(buf, sizeof(buf), "[xllama] wWinMain exception: 0x%08X\n",
                  static_cast<unsigned>(e.code().value));
