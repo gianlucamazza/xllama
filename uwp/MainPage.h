@@ -5,7 +5,7 @@
 
 #ifdef XLLAMA_UWP
 
-    #include "llama-bridge.h"
+    #include "inference-bridge.h"
     #include "pch.h"
 
     #include <atomic>
