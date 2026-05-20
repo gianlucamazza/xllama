@@ -68,13 +68,14 @@ InferenceResult run_inference(const InferenceParams& params) {
         oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "temperature",
                                                     static_cast<double>(params.temperature)),
                   "SetSearchNumber temperature");
-        oga_check(OgaGeneratorParamsSetInputSequences(gparams.get(), seqs.get()),
-                  "SetInputSequences");
-
         // --- generator ---
         OgaGenerator* raw_gen = nullptr;
         oga_check(OgaCreateGenerator(model.get(), gparams.get(), &raw_gen), "OgaCreateGenerator");
         OgaGeneratorPtr gen(raw_gen);
+
+        // ORT GenAI ≥ 0.7: feed input sequences to generator (not to params)
+        oga_check(OgaGenerator_AppendTokenSequences(gen.get(), seqs.get()),
+                  "AppendTokenSequences");
 
         if (params.on_status)
             params.on_status("generating");
@@ -87,22 +88,23 @@ InferenceResult run_inference(const InferenceParams& params) {
             if (params.abort_flag && params.abort_flag->load())
                 break;
 
-            oga_check(OgaGenerator_ComputeLogits(gen.get()), "ComputeLogits");
+            // ORT GenAI ≥ 0.7: GenerateNextToken does compute + sample in one call
             oga_check(OgaGenerator_GenerateNextToken(gen.get()), "GenerateNextToken");
 
-            const int32_t* seq = OgaGenerator_GetSequenceData(gen.get(), 0);
-            size_t count = OgaGenerator_GetSequenceCount(gen.get(), 0);
-            if (!seq || count == 0)
-                break;
+            const int32_t* next_toks = nullptr;
+            size_t n_next = 0;
+            oga_check(OgaGenerator_GetNextTokens(gen.get(), &next_toks, &n_next),
+                      "GetNextTokens");
 
-            const char* piece = nullptr;
-            oga_check(OgaTokenizerStreamDecode(stream.get(), seq[count - 1], &piece),
-                      "TokenizerStreamDecode");
-
-            if (piece && *piece) {
-                res.output_text += piece;
-                if (params.on_token)
-                    params.on_token(std::string(piece));
+            for (size_t i = 0; i < n_next; ++i) {
+                const char* piece = nullptr;
+                oga_check(OgaTokenizerStreamDecode(stream.get(), next_toks[i], &piece),
+                          "TokenizerStreamDecode");
+                if (piece && *piece) {
+                    res.output_text += piece;
+                    if (params.on_token)
+                        params.on_token(std::string(piece));
+                }
             }
             ++n_generated;
         }
