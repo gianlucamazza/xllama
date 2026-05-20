@@ -15,11 +15,11 @@ set -euo pipefail
 : "${XBOX_PASS:?XBOX_PASS not set}"
 
 BASE_URL="https://${XBOX_IP}:11443"
-CURL_AUTH="--basic -u ${XBOX_USER}:${XBOX_PASS} -k -sS"
+CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
 
 # Xbox WDP requires X-CSRF-Token on all POST/DELETE requests.
 # Extract from Set-Cookie header with a more robust pipeline.
-CSRF_TOKEN=$(curl $CURL_AUTH "${BASE_URL}/" -o /dev/null -D - 2>/dev/null |
+CSRF_TOKEN=$(curl "${CURL_AUTH[@]}" "${BASE_URL}/" -o /dev/null -D - 2>/dev/null |
 	sed -n 's/.*[Cc][Ss][Rr][Ff]-[Tt]oken=\([^;[:space:]]*\).*/\1/p' |
 	tr -d '\r' | head -n 1)
 
@@ -39,7 +39,7 @@ if [[ "${1:-}" == "install-cert" ]]; then
 		exit 1
 	fi
 	echo "Installing certificate $(basename "$CER") on Xbox at ${XBOX_IP} ..."
-	RESP=$(curl $CURL_AUTH \
+	RESP=$(curl "${CURL_AUTH[@]}" \
 		-H "X-CSRF-Token:${CSRF_TOKEN}" \
 		-X POST \
 		-F "file=@${CER};type=application/octet-stream" \
@@ -74,7 +74,7 @@ if [[ "${1:-}" == "upload-file" ]]; then
 	[[ -z "$REMOTE_DIR" ]] && PATH_PARAM="\\LocalState"
 
 	echo "Uploading $(basename "$LOCAL_PATH") → LocalFolder/${REMOTE_DIR}/ ..."
-	curl $CURL_AUTH \
+	curl "${CURL_AUTH[@]}" \
 		-H "X-CSRF-Token:${CSRF_TOKEN}" \
 		-X POST \
 		-F "file=@${LOCAL_PATH};type=application/octet-stream" \
@@ -117,7 +117,7 @@ fi
 echo "Deploying ${APPX_NAME} to Xbox at ${XBOX_IP} ..."
 
 # NOTE: Xbox Device Portal requires ?package=<filename> query parameter.
-RESPONSE=$(curl $CURL_AUTH \
+RESPONSE=$(curl "${CURL_AUTH[@]}" \
 	-H "X-CSRF-Token:${CSRF_TOKEN}" \
 	-X POST \
 	-F "file=@${APPX};type=application/octet-stream" \
@@ -136,7 +136,7 @@ if command -v jq &>/dev/null; then
 	echo "Polling installation status ..."
 	for i in $(seq 1 24); do
 		sleep 5
-		STATUS=$(curl $CURL_AUTH "${BASE_URL}/api/app/packagemanager/state" 2>/dev/null || echo "{}")
+		STATUS=$(curl "${CURL_AUTH[@]}" "${BASE_URL}/api/app/packagemanager/state" 2>/dev/null || echo "{}")
 		STATE=$(echo "$STATUS" | jq -r '.DeploymentProgressState // "unknown"' 2>/dev/null || echo "unknown")
 		SUCCESS=$(echo "$STATUS" | jq -r '.Success // "null"' 2>/dev/null || echo "null")
 		echo "  [${i}] state: $STATE  success: $SUCCESS"
