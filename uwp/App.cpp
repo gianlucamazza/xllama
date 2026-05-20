@@ -52,13 +52,6 @@ static void log_write(const char* msg) {
 // App
 // ---------------------------------------------------------------------------
 
-void App::InitializeComponent() {
-    // App.xaml is build-time metadata only. Runtime loading fails on Xbox
-    // Dev Mode with 0x8000FFFF even after x:Class stripping, and the file has
-    // no resources to initialize.
-    log_write("[xllama] InitializeComponent: no-op (App.xaml not loaded)\n");
-}
-
 App::App() {
     log_init();
     log_write("[xllama] App::App()\n");
@@ -77,21 +70,6 @@ App::App() {
         e.Handled(false); // let it propagate
     });
 
-    // Wrap InitializeComponent so HRESULT + message land in the log before
-    // UnhandledException fires (which would only log the code, not the description).
-    try {
-        InitializeComponent();
-    } catch (winrt::hresult_error const& e) {
-        char buf[512];
-        snprintf(buf, sizeof(buf), "[xllama] InitializeComponent FAILED 0x%08X: %ls\n",
-                 static_cast<unsigned>(e.code().value), e.message().c_str());
-        if (g_log_fp) {
-            fputs(buf, g_log_fp);
-            fflush(g_log_fp);
-        }
-        OutputDebugStringA(buf);
-        throw;
-    }
     log_write("[xllama] App::App() complete\n");
 }
 
@@ -99,18 +77,13 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
     log_write("[xllama] App::OnLaunched\n");
 
     try {
-        if (Window::Current().Content() == nullptr) {
-            // Use winrt::make<> (cppwinrt activation factory) instead of
-            // Frame::Navigate to bypass the XAML metadata provider lookup.
-            // Navigate calls CreateXamlType("xllama.MainPage") which our
-            // WMC9999 stub returns nullptr for, causing a silent process
-            // termination. winrt::make<> uses the IDL-generated factory directly.
-            log_write("[xllama] creating MainPage directly\n");
-            auto page = winrt::make<xllama::implementation::MainPage>();
-            log_write("[xllama] MainPage constructed\n");
-            Window::Current().Content(page);
-            log_write("[xllama] Window.Content set\n");
+        if (!m_controller) {
+            log_write("[xllama] building MainPageController\n");
+            m_controller = std::make_shared<::xllama::MainPageController>();
+            log_write("[xllama] MainPageController built\n");
         }
+        Window::Current().Content(m_controller->Root());
+        log_write("[xllama] Window.Content set\n");
         Window::Current().Activate();
         log_write("[xllama] Window activated\n");
     } catch (winrt::hresult_error const& e) {

@@ -163,17 +163,6 @@
     <Midl Include="xllama.idl" />
   </ItemGroup>
 
-  <!-- =====================================================================
-       XAML pages
-       ===================================================================== -->
-  <ItemGroup>
-    <ApplicationDefinition Include="App.xaml">
-      <SubType>Designer</SubType>
-    </ApplicationDefinition>
-    <Page Include="MainPage.xaml">
-      <SubType>Designer</SubType>
-    </Page>
-  </ItemGroup>
 
   <!-- =====================================================================
        Manifest
@@ -305,13 +294,9 @@
     <ClCompile Include="App.cpp" />
     <ClCompile Include="MainPage.cpp" />
     <!-- module.cpp includes Generated Files\module.g.cpp (cppwinrt 2.0 factory
-         aggregator). In cppwinrt 2.x, per-class App.g.cpp / MainPage.g.cpp are
+         aggregator). In cppwinrt 2.x, per-class App.g.cpp are
          replaced by a single module.g.cpp; this is the TU that compiles it. -->
     <ClCompile Include="module.cpp" />
-    <!-- XamlTypeInfo_impl.cpp provides the definitions of XamlTypeInfoProvider::
-         CreateXamlType/CreateXamlMember/OtherProviders that MarkupCompilePass2
-         would normally generate but can't because of the WMC9999 crash. -->
-    <ClCompile Include="XamlTypeInfo_impl.cpp" />
   </ItemGroup>
 
   <!-- Suppress upstream llama.cpp warnings only for upstream source files.
@@ -343,54 +328,5 @@
   <Import Project="packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.targets"
           Condition="Exists('packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.targets')" />
 
-  <!-- MarkupCompilePass2 (XBF compiler / C++ codegen) crashes with WMC9999 for
-       C++/WinRT UWP projects in both SDK 22621 and 26100. Removing event handler
-       attributes from XAML does not fix the crash. Override with an empty target
-       to skip Pass2. InitializeComponent, Connect, GetBindingConnector, and
-       XamlTypeInfoProvider private methods are provided manually in
-       MainPage.cpp and XamlTypeInfo_impl.cpp instead. -->
-  <Target Name="MarkupCompilePass2"/>
-
-  <!-- CopyGeneratedXaml: Pass2 is disabled (WMC9999). Override creates empty XBF
-       stubs (AppXPackage.Targets expects them) and stages source XAML files.
-       build-uwp.ps1 removes loose App.xaml during final package post-processing;
-       MainPage.xaml remains because it is loaded at runtime on Xbox.
-
-       Key: $(OutDir) = x64\Release\xllama\ (already includes TargetName).
-       Stock targets use $(OutDir)$(TargetName)\ which double-nests — that path
-       is one level below where the AppX packager reads its inputs. All output
-       here goes directly to $(OutDir) which is the correct staging root. -->
-  <Target Name="CopyGeneratedXaml"
-          AfterTargets="MarkupCompilePass2"
-          BeforeTargets="_GenerateProjectPriConfigurationFiles">
-    <MakeDir Directories="$(OutDir)"/>
-    <!-- XBF stubs: build-uwp.ps1 pre-creates them; Touch here is a safety net. -->
-    <Touch Files="$(OutDir)App.xbf;$(OutDir)MainPage.xbf" AlwaysCreate="true"/>
-    <!-- Copy source XAML to the same staging root as the XBF stubs. -->
-    <Copy SourceFiles="App.xaml;MainPage.xaml"
-          DestinationFolder="$(OutDir)"
-          SkipUnchangedFiles="true"/>
-  </Target>
-
-  <!-- ComputeProcessXamlFiles feeds CustomOutputGroupForPackaging, which the outer
-       AppX packaging build calls to determine what goes into the .msix.
-       Stock implementation returns only XBF paths via @(XamlBinaryOutput).
-       Override adds the staged source XAML alongside XBF. build-uwp.ps1 then
-       removes loose App.xaml and strips x:Class from MainPage.xaml before the
-       final MSIX is signed. -->
-  <!-- H1 diagnostic: App.xaml excluded from MSIX to test whether its presence
-       triggers an implicit XAML parse (and E_XAMLPARSEFAILED) between App::App()
-       and OnLaunched. Only MainPage.xbf + MainPage.xaml are packaged. -->
-  <Target Name="ComputeProcessXamlFiles"
-          Returns="@(ProcessedXamlFiles)">
-    <ItemGroup>
-      <!-- XBF stubs staged to $(OutDir) — App.xbf excluded (H1 experiment) -->
-      <ProcessedXamlFiles
-          Include="@(Page->'$(OutDir)%(Filename).xbf')"/>
-      <!-- Source XAML text — App.xaml excluded (H1 experiment) -->
-      <ProcessedXamlFiles
-          Include="@(Page->'$(OutDir)%(Filename).xaml')"/>
-    </ItemGroup>
-  </Target>
 
 </Project>

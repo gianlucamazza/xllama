@@ -8,14 +8,20 @@
     #include "App.g.h"
     #include "pch.h"
 
+    #include <memory>
+
+namespace xllama {
+class MainPageController;
+}
+
 namespace winrt::xllama::implementation {
 
 struct App : AppT<App> {
     App();
-    // Overrides AppT<App>::InitializeComponent. App.xaml is build-time metadata
-    // only and is not loaded at runtime on Xbox.
-    void InitializeComponent();
     void OnLaunched(winrt::Windows::ApplicationModel::Activation::LaunchActivatedEventArgs const&);
+
+  private:
+    std::shared_ptr<::xllama::MainPageController> m_controller;
 };
 
 } // namespace winrt::xllama::implementation
