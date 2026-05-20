@@ -54,8 +54,15 @@ static void log_write(const char* msg) {
 // ---------------------------------------------------------------------------
 
 void App::InitializeComponent() {
-    // App.xaml is minimal (no resources). No-op: prevents AppT<App>::InitializeComponent
-    // from attempting to load App.xbf which is not a valid XBF in our package.
+    // Load App.xaml explicitly so the XAML framework gets the required application-level
+    // initialization. build-uwp.ps1 strips x:Class before packing, so no GetXamlType
+    // call is made for "xllama.App". App.xaml has no resources; LoadComponent is a no-op
+    // at the property level but satisfies the XAML runtime's startup expectations.
+    log_write("[xllama] InitializeComponent: loading App.xaml\n");
+    ::winrt::Windows::UI::Xaml::Application::LoadComponent(
+        *this, ::winrt::Windows::Foundation::Uri(L"ms-appx:///App.xaml"),
+        ::winrt::Windows::UI::Xaml::Controls::Primitives::ComponentResourceLocation::Application);
+    log_write("[xllama] InitializeComponent: done\n");
 }
 
 App::App() {
