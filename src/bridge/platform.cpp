@@ -49,8 +49,7 @@ void log_output(const char* msg) noexcept {
     }();
     if (s_fp) {
         std::lock_guard<std::mutex> g(s_mtx);
-        std::fputs(msg, s_fp);
-        _commit(_fileno(s_fp)); // flush kernel write-cache so entry survives OOM-kill
+        std::fputs(msg, s_fp); // _IONBF: no CRT buffer, write reaches kernel directly
     }
 #else
     std::fputs(msg, stderr);
