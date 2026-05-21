@@ -74,8 +74,7 @@ InferenceResult run_inference(const InferenceParams& params) {
         OgaGeneratorPtr gen(raw_gen);
 
         // ORT GenAI ≥ 0.7: feed input sequences to generator (not to params)
-        oga_check(OgaGenerator_AppendTokenSequences(gen.get(), seqs.get()),
-                  "AppendTokenSequences");
+        oga_check(OgaGenerator_AppendTokenSequences(gen.get(), seqs.get()), "AppendTokenSequences");
 
         if (params.on_status)
             params.on_status("generating");
@@ -93,8 +92,7 @@ InferenceResult run_inference(const InferenceParams& params) {
 
             const int32_t* next_toks = nullptr;
             size_t n_next = 0;
-            oga_check(OgaGenerator_GetNextTokens(gen.get(), &next_toks, &n_next),
-                      "GetNextTokens");
+            oga_check(OgaGenerator_GetNextTokens(gen.get(), &next_toks, &n_next), "GetNextTokens");
 
             for (size_t i = 0; i < n_next; ++i) {
                 const char* piece = nullptr;
