@@ -98,16 +98,11 @@ mkdir_localstate() {
 
 	# Create every path component from root downward so parent dirs always exist.
 	# relpath uses backslash as separator: e.g. "models\\Phi-3.5-mini-instruct-onnx-gpu"
-	# We split on \\ and create each level in sequence.
-	local IFS_SAVED=$IFS
-	IFS='\\'
-	# shellcheck disable=SC2206
-	read -ra parts <<<"$relpath"
-	IFS=$IFS_SAVED
-
+	# tr '\134' splits on backslash (octal 134) without triggering SC2141/SC1003.
 	local parent_param="%5CLocalState"
 	local accumulated=""
-	for part in "${parts[@]}"; do
+	local part
+	while IFS= read -r part; do
 		[[ -z "$part" ]] && continue
 		echo "Creating remote dir LocalState\\${accumulated:+${accumulated}\\}${part} ..."
 		RESP=$(curl "${CURL_AUTH[@]}" \
@@ -120,7 +115,7 @@ mkdir_localstate() {
 		fi
 		parent_param="${parent_param}%5C${part}"
 		accumulated="${accumulated:+${accumulated}\\}${part}"
-	done
+	done < <(printf '%s' "$relpath" | tr '\134' '\n')
 }
 
 list_dumps() {
