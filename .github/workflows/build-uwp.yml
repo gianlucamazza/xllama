@@ -16,10 +16,6 @@ jobs:
           submodules: false
           fetch-depth: 1
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
       - name: Cache SmolLM2-360M ONNX INT4 model
         id: cache-model
         uses: actions/cache@v4
@@ -27,17 +23,19 @@ jobs:
           path: models/smollm2-360m-cpu-int4
           key: smollm2-360m-ort-genai-int4-cpu-v1
 
-      - name: Build SmolLM2-360M INT4 CPU model
+      - name: Download SmolLM2-360M ONNX INT4 model
         if: steps.cache-model.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          python -m pip install --quiet `
-            --extra-index-url https://download.pytorch.org/whl/cpu `
-            onnxruntime-genai onnx onnx-ir transformers torch
-          python -m onnxruntime_genai.models.builder `
-            -m HuggingFaceTB/SmolLM2-360M-Instruct `
-            -o models/smollm2-360m-cpu-int4 `
-            -p int4 -e cpu
+          python -m pip install --quiet huggingface_hub
+          python -c "
+from huggingface_hub import snapshot_download
+snapshot_download(
+    repo_id='homen3/SmolLM2-360M-Instruct-ort-genai-int4-cpu',
+    local_dir='models/smollm2-360m-cpu-int4',
+)
+print('Download complete')
+"
 
       - name: Restore NuGet packages
         shell: pwsh
