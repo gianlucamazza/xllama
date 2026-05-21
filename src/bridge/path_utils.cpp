@@ -87,20 +87,22 @@ std::string resolve_model_path(const std::string& filename) {
     if (!probe_w.empty()) {
         DWORD attr = GetFileAttributesW(probe_w.c_str());
         if (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY))
-            return primary; // model found in LocalFolder
+            return "\\\\?\\" + primary; // model found in LocalFolder
     }
 
-    // ORT GenAI calls std::filesystem::weakly_canonical on the model path, which
-    // traverses parent directories and fails with ACCESS_DENIED inside WindowsApps\.
-    // Workaround: copy bundled files from InstalledPath to LocalState on first launch,
-    // then return the LocalState path (fully accessible in AppContainer).
+    // ORT GenAI calls std::filesystem::canonical internally (via weakly_canonical).
+    // On Xbox AppContainer, CreateFile2+FILE_FLAG_BACKUP_SEMANTICS fails for Q:\ absolute
+    // paths because Win32 applies traverse-checking to intermediate dirs (Q:\Users\...).
+    // Fix: prefix the returned path with \\?\ so ORT skips the Win32 layer and goes
+    // directly to NT, where the AppContainer DACL on LocalState grants directory access.
+    // The copy-to-LocalState is still needed because InstalledPath itself is not writable.
     try {
         using winrt::Windows::ApplicationModel::Package;
         std::wstring installed_dir(Package::Current().InstalledPath().c_str());
         installed_dir += L"\\models\\";
         int fnSz = MultiByteToWideChar(CP_UTF8, 0, filename.c_str(), -1, nullptr, 0);
         if (fnSz <= 0)
-            return primary;
+            return "\\\\?\\" + primary;
 
         std::wstring wfn(static_cast<size_t>(fnSz), L'\0');
         MultiByteToWideChar(CP_UTF8, 0, filename.c_str(), -1, wfn.data(), fnSz);
@@ -111,12 +113,12 @@ std::string resolve_model_path(const std::string& filename) {
         // Verify bundle exists (probe genai_config.json).
         DWORD a = GetFileAttributesW((installed_dir + L"\\genai_config.json").c_str());
         if (a == INVALID_FILE_ATTRIBUTES || (a & FILE_ATTRIBUTE_DIRECTORY))
-            return primary; // no bundled model
+            return "\\\\?\\" + primary; // no bundled model
 
         // Convert primary (LocalState\models\<name>) to wide for Win32 calls.
         int psz = MultiByteToWideChar(CP_UTF8, 0, primary.c_str(), -1, nullptr, 0);
         if (psz <= 0)
-            return primary;
+            return "\\\\?\\" + primary;
         std::wstring primary_w(static_cast<size_t>(psz), L'\0');
         MultiByteToWideChar(CP_UTF8, 0, primary.c_str(), -1, primary_w.data(), psz);
         if (!primary_w.empty() && primary_w.back() == L'\0')
@@ -147,12 +149,12 @@ std::string resolve_model_path(const std::string& filename) {
             FindClose(hf);
         }
         log_output("[xllama] model copy complete, loading from LocalState\n");
-        return primary;
+        return "\\\\?\\" + primary;
     } catch (...) {
         log_output("[xllama] InstalledPath copy failed\n");
     }
 
-    return primary; // return primary even if not found (ORT will emit a clear error)
+    return "\\\\?\\" + primary; // return primary even if not found (ORT will emit a clear error)
 }
 
 std::string resolve_local_path(const std::string& filename) {
