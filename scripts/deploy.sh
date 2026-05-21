@@ -281,11 +281,11 @@ if [[ "${1:-}" == "upload-file" ]]; then
 		mkdir_localstate "$PFN" "$REMOTE_DIR"
 	fi
 
-	# Build path parameter: LocalState\<remote-dir> or just LocalState
+	# Build path parameter (URL-encoded backslashes required by WDP).
 	if [[ -n "$REMOTE_DIR" ]]; then
-		PATH_PARAM="\\LocalState\\${REMOTE_DIR}"
+		PATH_PARAM="%5CLocalState%5C${REMOTE_DIR//\\/%5C}"
 	else
-		PATH_PARAM="\\LocalState"
+		PATH_PARAM="%5CLocalState"
 	fi
 
 	echo "Uploading $(basename "$LOCAL_PATH") → LocalState\\${REMOTE_DIR} ..."
@@ -322,7 +322,7 @@ if [[ "${1:-}" == "upload-dir" ]]; then
 
 	mkdir_localstate "$PFN" "$REMOTE_DIR"
 
-	PATH_PARAM="\\LocalState\\${REMOTE_DIR}"
+	PATH_PARAM="%5CLocalState%5C${REMOTE_DIR//\\/%5C}"
 	total=0
 	while IFS= read -r -d '' f; do
 		fname=$(basename "$f")

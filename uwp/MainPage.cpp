@@ -227,7 +227,7 @@ void MainPageController::LoadModelName() {
         fclose(f);
     }
     if (m_model_filename.empty())
-        m_model_filename = L"Phi-3.5-mini-instruct-onnx-gpu";
+        m_model_filename = L"smollm2-360m-cpu-int4";
 
     m_modelText.Text(m_model_filename);
 }
