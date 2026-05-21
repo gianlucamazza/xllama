@@ -58,6 +58,25 @@ if [[ -z "$MSIX" ]]; then
 fi
 
 echo "==> Found MSIX: $MSIX"
+
+# Uninstall current version first to avoid MSIX update requiring space for both old+new.
+echo "==> Uninstalling current version (if any) ..."
+CSRF=$(curl --basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS "https://${XBOX_IP}:11443/" \
+	-o /dev/null -D - 2>/dev/null |
+	sed -n 's/.*[Cc][Ss][Rr][Ff]-[Tt]oken=\([^;[:space:]]*\).*/\1/p' | tr -d '\r' | head -1)
+CURRENT_PFN=$(curl --basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS \
+	"https://${XBOX_IP}:11443/api/app/packagemanager/packages" |
+	python3 -c 'import json,sys,os; d=json.load(sys.stdin); [print(p["PackageFullName"]) for p in d.get("InstalledPackages",[]) if "VenereLabs.xllama" in p.get("PackageRelativeId","")]' 2>/dev/null || true)
+if [[ -n "$CURRENT_PFN" ]]; then
+	curl --basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS \
+		-H "X-CSRF-Token:${CSRF}" -X DELETE \
+		"https://${XBOX_IP}:11443/api/app/packagemanager/package?package=${CURRENT_PFN}" >/dev/null
+	echo "  Uninstalled $CURRENT_PFN"
+	sleep 2
+else
+	echo "  (not installed)"
+fi
+
 echo "==> Installing on Xbox at ${XBOX_IP} ..."
 "${SCRIPT_DIR}/deploy.sh" "$MSIX"
 

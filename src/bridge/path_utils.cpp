@@ -90,33 +90,71 @@ std::string resolve_model_path(const std::string& filename) {
             return primary; // model found in LocalFolder
     }
 
-    // Fall back to Package.InstalledPath\models\<filename>
+    // ORT GenAI calls std::filesystem::weakly_canonical on the model path, which
+    // traverses parent directories and fails with ACCESS_DENIED inside WindowsApps\.
+    // Workaround: copy bundled files from InstalledPath to LocalState on first launch,
+    // then return the LocalState path (fully accessible in AppContainer).
     try {
         using winrt::Windows::ApplicationModel::Package;
-        std::wstring installed(Package::Current().InstalledPath().c_str());
-        installed += L"\\models\\";
+        std::wstring installed_dir(Package::Current().InstalledPath().c_str());
+        installed_dir += L"\\models\\";
         int fnSz = MultiByteToWideChar(CP_UTF8, 0, filename.c_str(), -1, nullptr, 0);
-        if (fnSz > 0) {
-            std::wstring wfn(static_cast<size_t>(fnSz), L'\0');
-            MultiByteToWideChar(CP_UTF8, 0, filename.c_str(), -1, wfn.data(), fnSz);
-            if (!wfn.empty() && wfn.back() == L'\0')
-                wfn.pop_back();
-            installed += wfn;
-            // Convert back to UTF-8
-            int nsz = WideCharToMultiByte(CP_UTF8, 0, installed.c_str(), -1, nullptr, 0, nullptr,
-                                          nullptr);
-            if (nsz > 0) {
-                std::string result(static_cast<size_t>(nsz), '\0');
-                WideCharToMultiByte(CP_UTF8, 0, installed.c_str(), -1, result.data(), nsz, nullptr,
-                                    nullptr);
-                if (!result.empty() && result.back() == '\0')
-                    result.pop_back();
-                log_output("[xllama] model not in LocalFolder, using bundled: " + result + "\n");
-                return result;
+        if (fnSz <= 0)
+            return primary;
+
+        std::wstring wfn(static_cast<size_t>(fnSz), L'\0');
+        MultiByteToWideChar(CP_UTF8, 0, filename.c_str(), -1, wfn.data(), fnSz);
+        if (!wfn.empty() && wfn.back() == L'\0')
+            wfn.pop_back();
+        installed_dir += wfn; // InstalledPath\models\<name>
+
+        // Verify bundle exists (probe genai_config.json).
+        DWORD a = GetFileAttributesW((installed_dir + L"\\genai_config.json").c_str());
+        if (a == INVALID_FILE_ATTRIBUTES || (a & FILE_ATTRIBUTE_DIRECTORY))
+            return primary; // no bundled model
+
+        // Create LocalState\models\ and LocalState\models\<name>\
+        std::wstring primary_w;
+        {
+            int psz = MultiByteToWideChar(CP_UTF8, 0, primary.c_str(), -1, nullptr, 0);
+            if (psz > 0) {
+                primary_w.resize(static_cast<size_t>(psz));
+                MultiByteToWideChar(CP_UTF8, 0, primary.c_str(), -1, primary_w.data(), psz);
+                if (!primary_w.empty() && primary_w.back() == L'\0')
+                    primary_w.pop_back();
             }
         }
+        // Create parent (models\) then the model dir itself — ignore errors if already exists.
+        {
+            std::wstring models_dir = primary_w;
+            auto pos = models_dir.rfind(L'\\');
+            if (pos != std::wstring::npos)
+                CreateDirectoryW(models_dir.substr(0, pos).c_str(), nullptr);
+        }
+        CreateDirectoryW(primary_w.c_str(), nullptr);
+
+        // Copy each file from InstalledPath\models\<name>\ to LocalState\models\<name>\.
+        log_output("[xllama] first launch: copying bundled model to LocalState...\n");
+        WIN32_FIND_DATAW fd{};
+        HANDLE hf = FindFirstFileW((installed_dir + L"\\*").c_str(), &fd);
+        if (hf != INVALID_HANDLE_VALUE) {
+            do {
+                if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+                    continue;
+                std::wstring src = installed_dir + L"\\" + fd.cFileName;
+                std::wstring dst = primary_w + L"\\" + fd.cFileName;
+                if (!CopyFileW(src.c_str(), dst.c_str(), /*bFailIfExists=*/FALSE)) {
+                    char buf[128];
+                    snprintf(buf, sizeof(buf), "[xllama] CopyFile failed: %lu\n", GetLastError());
+                    log_output(buf);
+                }
+            } while (FindNextFileW(hf, &fd));
+            FindClose(hf);
+        }
+        log_output("[xllama] model copy complete, loading from LocalState\n");
+        return primary;
     } catch (...) {
-        log_output("[xllama] InstalledPath fallback failed\n");
+        log_output("[xllama] InstalledPath copy failed\n");
     }
 
     return primary; // return primary even if not found (ORT will emit a clear error)
