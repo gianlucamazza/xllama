@@ -94,6 +94,8 @@ InferenceResult run_inference(const InferenceParams& params) {
                 // Probe 3-4: CreateFile2 on model_dir
                 cf2(mdw.c_str(), GENERIC_READ, "model_dir");
                 cf2(mdw.c_str(), 0, "model_dir(acc=0)");
+                // Probe 3b: MSVC STL canonical uses FILE_READ_ATTRIBUTES|SYNCHRONIZE exactly
+                cf2(mdw.c_str(), FILE_READ_ATTRIBUTES | SYNCHRONIZE, "model_dir(msvc_acc)");
                 // Probe 5: parent dirs
                 auto p1 = mdw.rfind(L'\\');
                 if (p1 != std::wstring::npos) {
