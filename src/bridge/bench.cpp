@@ -52,9 +52,17 @@ void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
     if (dot != std::string::npos)
         model_name = model_name.substr(0, dot);
 
-    fprintf(fp, "%s,Q4_K_M,cpu,%d,%d,%.2f,%.2f,%zu,%.0f,%s,%s\n", model_name.c_str(), params.n_ctx,
-            params.n_threads > 0 ? params.n_threads : detect_threads(), prompt_tok_s, decode_tok_s,
-            res.peak_ws_mb, res.t_load_ms, host_label ? host_label : "unknown", date_buf);
+#ifdef XLLAMA_USE_ORT
+    const char* backend = "directml";
+    const char* quant = "int4-awq";
+#else
+    const char* backend = "cpu";
+    const char* quant = "Q4_K_M";
+#endif
+    fprintf(fp, "%s,%s,%s,%d,%d,%.2f,%.2f,%zu,%.0f,%s,%s\n", model_name.c_str(), quant, backend,
+            params.n_ctx, params.n_threads > 0 ? params.n_threads : detect_threads(), prompt_tok_s,
+            decode_tok_s, res.peak_ws_mb, res.t_load_ms, host_label ? host_label : "unknown",
+            date_buf);
     fclose(fp);
 
     // Write done marker

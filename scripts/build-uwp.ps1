@@ -33,6 +33,11 @@ $PfxPath  = Join-Path $RepoRoot "uwp\xllama-test.pfx"
 $CerPath  = Join-Path $RepoRoot "uwp\xllama-test.cer"
 $CertPwd  = "xllama-test"
 
+if (-not $IsWindows) {
+    Write-Error "UWP packaging requires Windows with Visual Studio 2022, the UWP workload, and Windows SDK tools."
+    exit 1
+}
+
 if (-not (Test-Path $SlnPath)) {
     Write-Error "Solution file not found: $SlnPath"
     exit 1
@@ -92,25 +97,39 @@ if (-not $MsBuild) {
 Write-Host "Using MSBuild: $MsBuild"
 
 # ---------------------------------------------------------------------------
+# Copy VC++ CRT DLLs for onnxruntime AppContainer compatibility.
+# onnxruntime.dll and onnxruntime-genai.dll are built with the desktop /MD
+# runtime and import MSVCP140.dll (not MSVCP140_APP.dll). On Xbox AppContainer,
+# System32 is not in the loader search path for these DLLs, so they must be
+# bundled app-locally.
+# ---------------------------------------------------------------------------
+$UwpDir = Join-Path $RepoRoot "uwp"
+$CrtDlls = @("MSVCP140.dll", "MSVCP140_1.dll", "VCRUNTIME140.dll", "VCRUNTIME140_1.dll")
+$CrtRedistDir = Get-ChildItem `
+    -Path "${env:ProgramFiles}\Microsoft Visual Studio\2022\*\VC\Redist\MSVC\*\x64\Microsoft.VC143.CRT" `
+    -ErrorAction SilentlyContinue |
+    Sort-Object FullName -Descending | Select-Object -First 1
+
+if ($CrtRedistDir) {
+    Write-Host "Found CRT redist: $($CrtRedistDir.FullName)"
+    foreach ($dll in $CrtDlls) {
+        $src = Join-Path $CrtRedistDir.FullName $dll
+        if (Test-Path $src) {
+            Copy-Item $src $UwpDir -Force
+            Write-Host "  Copied $dll"
+        }
+    }
+} else {
+    Write-Warning "VC++ CRT redist directory not found. onnxruntime may fail in AppContainer on Xbox."
+}
+
+# ---------------------------------------------------------------------------
 # NuGet restore (packages.config in uwp\ → restores to uwp\packages\)
 # ---------------------------------------------------------------------------
 Write-Host "Restoring NuGet packages ..."
 nuget restore $SlnPath
 
 Write-Host "Building $Configuration|$Platform ..."
-
-# ---------------------------------------------------------------------------
-# Create empty XBF stubs before MSBuild.
-# MarkupCompilePass2 is disabled (WMC9999 crash), so App.xbf / MainPage.xbf
-# are never generated. AppXPackage.Targets:1638 expects them in the output dir.
-# The XAML runtime never reads these stubs: InitializeComponent calls
-# LoadComponent with the .xaml URI, not the .xbf path.
-# ---------------------------------------------------------------------------
-$XbfDir = Join-Path $RepoRoot "uwp\$Platform\$Configuration\xllama"
-New-Item -ItemType Directory -Force -Path $XbfDir | Out-Null
-[System.IO.File]::WriteAllBytes("$XbfDir\App.xbf",      [byte[]]@())
-[System.IO.File]::WriteAllBytes("$XbfDir\MainPage.xbf", [byte[]]@())
-Write-Host "Created empty XBF stubs in $XbfDir"
 
 # ---------------------------------------------------------------------------
 # Build + sign
@@ -145,67 +164,3 @@ if (-not $Msix) {
 }
 
 Write-Host "Package: $($Msix.FullName)"
-
-# ---------------------------------------------------------------------------
-# Inject XAML text files into the MSIX.
-#
-# MSBuild's AppX packaging pipeline handles XAML items via the XBF/PRI path
-# (_GenerateProjectPriConfigurationFiles → resources.pri). The text XAML files
-# are NOT added as loose package files by the recipe generator, even when staged
-# in $(OutDir). We post-process the MSIX to inject them so that
-# LoadComponent(ms-appx:///MainPage.xaml) resolves at runtime on Xbox.
-# ---------------------------------------------------------------------------
-Write-Host "Injecting XAML text files into package ..."
-
-$WinSdkBin = "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
-$MakeAppxExe = Get-ChildItem "$WinSdkBin" -Filter "MakeAppx.exe" -Recurse |
-    Where-Object { $_.DirectoryName -like "*\x64" } |
-    Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
-$SignToolExe = Get-ChildItem "$WinSdkBin" -Filter "signtool.exe" -Recurse |
-    Where-Object { $_.DirectoryName -like "*\x64" } |
-    Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
-
-if (-not $MakeAppxExe) { Write-Error "MakeAppx.exe not found in Windows SDK"; exit 1 }
-if (-not $SignToolExe)  { Write-Error "signtool.exe not found in Windows SDK"; exit 1 }
-
-$UnpackDir = Join-Path ([System.IO.Path]::GetTempPath()) "xllama_unpack_$(Get-Random)"
-$TmpMsix   = ($Msix.FullName -replace '\.msix$', '_tmp.msix')
-
-try {
-    # Unpack (disable signature validation so we can unpack a signed package)
-    & $MakeAppxExe unpack /p $Msix.FullName /d $UnpackDir /nv /o
-    if ($LASTEXITCODE -ne 0) { throw "MakeAppx unpack failed (exit $LASTEXITCODE)" }
-
-    # Inject source XAML so LoadComponent(ms-appx:///MainPage.xaml) resolves.
-    # App.xaml: strip x:Class before injection — the XAML runtime calls
-    # IXamlMetadataProvider::GetXamlType("xllama.App") when x:Class is present;
-    # our no-op stub returns null, causing E_XAMLPARSEFAILED (0x802B000A) on Xbox.
-    # x:Class is kept in the source file for MarkupCompilePass1 (generates App.g.h).
-    $AppXamlSrc = Get-Content (Join-Path $RepoRoot "uwp\App.xaml") -Raw
-    $AppXamlRuntime = $AppXamlSrc -replace '\s*x:Class="[^"]*"', ''
-    Set-Content -Path "$UnpackDir\App.xaml" -Value $AppXamlRuntime -Encoding UTF8 -NoNewline
-    # MainPage.xaml: strip x:Class for the same reason as App.xaml.
-    # LoadComponent(*this, ms-appx:///MainPage.xaml) passes the existing instance so
-    # the XAML parser does not need to call GetXamlType to create a new object.
-    # Without stripping, the XAML runtime calls GetXamlType("xllama.MainPage") during
-    # app startup (before OnLaunched) and gets nullptr from our stub -> E_XAMLPARSEFAILED.
-    $MainPageXamlSrc = Get-Content (Join-Path $RepoRoot "uwp\MainPage.xaml") -Raw
-    $MainPageXamlRuntime = $MainPageXamlSrc -replace '\s*x:Class="[^"]*"', ''
-    Set-Content -Path "$UnpackDir\MainPage.xaml" -Value $MainPageXamlRuntime -Encoding UTF8 -NoNewline
-    Write-Host "  App.xaml + MainPage.xaml (both x:Class stripped) added to layout"
-
-    # Repack (unsigned)
-    & $MakeAppxExe pack /d $UnpackDir /p $TmpMsix /h sha256 /o
-    if ($LASTEXITCODE -ne 0) { throw "MakeAppx pack failed (exit $LASTEXITCODE)" }
-
-    # Re-sign with the same test certificate used by MSBuild
-    & $SignToolExe sign /fd SHA256 /f $PfxPath /p $CertPwd $TmpMsix
-    if ($LASTEXITCODE -ne 0) { throw "SignTool sign failed (exit $LASTEXITCODE)" }
-
-    # Atomic replace
-    Move-Item $TmpMsix $Msix.FullName -Force
-    Write-Host "XAML injection complete. Final package: $($Msix.FullName)"
-} finally {
-    if (Test-Path $UnpackDir) { Remove-Item $UnpackDir -Recurse -Force -ErrorAction SilentlyContinue }
-    if (Test-Path $TmpMsix)   { Remove-Item $TmpMsix   -Force         -ErrorAction SilentlyContinue }
-}

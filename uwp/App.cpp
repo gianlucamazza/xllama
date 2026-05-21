@@ -13,7 +13,6 @@
 using namespace winrt;
 using namespace winrt::Windows::ApplicationModel::Activation;
 using namespace winrt::Windows::UI::Xaml;
-using namespace winrt::Windows::UI::Xaml::Controls;
 using namespace winrt::Windows::Storage;
 
 namespace winrt::xllama::implementation {
@@ -53,18 +52,6 @@ static void log_write(const char* msg) {
 // App
 // ---------------------------------------------------------------------------
 
-void App::InitializeComponent() {
-    // Load App.xaml explicitly so the XAML framework gets the required application-level
-    // initialization. build-uwp.ps1 strips x:Class before packing, so no GetXamlType
-    // call is made for "xllama.App". App.xaml has no resources; LoadComponent is a no-op
-    // at the property level but satisfies the XAML runtime's startup expectations.
-    log_write("[xllama] InitializeComponent: loading App.xaml\n");
-    ::winrt::Windows::UI::Xaml::Application::LoadComponent(
-        *this, ::winrt::Windows::Foundation::Uri(L"ms-appx:///App.xaml"),
-        ::winrt::Windows::UI::Xaml::Controls::Primitives::ComponentResourceLocation::Application);
-    log_write("[xllama] InitializeComponent: done\n");
-}
-
 App::App() {
     log_init();
     log_write("[xllama] App::App()\n");
@@ -83,21 +70,6 @@ App::App() {
         e.Handled(false); // let it propagate
     });
 
-    // Wrap InitializeComponent so HRESULT + message land in the log before
-    // UnhandledException fires (which would only log the code, not the description).
-    try {
-        InitializeComponent();
-    } catch (winrt::hresult_error const& e) {
-        char buf[512];
-        snprintf(buf, sizeof(buf), "[xllama] InitializeComponent FAILED 0x%08X: %ls\n",
-                 static_cast<unsigned>(e.code().value), e.message().c_str());
-        if (g_log_fp) {
-            fputs(buf, g_log_fp);
-            fflush(g_log_fp);
-        }
-        OutputDebugStringA(buf);
-        throw;
-    }
     log_write("[xllama] App::App() complete\n");
 }
 
@@ -105,24 +77,30 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
     log_write("[xllama] App::OnLaunched\n");
 
     try {
-        auto rootFrame = Window::Current().Content().try_as<Frame>();
-        log_write("[xllama] got Window::Current\n");
-        if (!rootFrame) {
-            rootFrame = Frame();
-            Window::Current().Content(rootFrame);
+        if (!m_controller) {
+            log_write("[xllama] building MainPageController\n");
+            m_controller = std::make_shared<::xllama::MainPageController>();
+            log_write("[xllama] MainPageController built\n");
+            m_controller->Init();
+            log_write("[xllama] MainPageController init done\n");
         }
-        if (rootFrame.Content() == nullptr) {
-            log_write("[xllama] Navigate -> MainPage\n");
-            rootFrame.Navigate(xaml_typename<xllama::MainPage>());
-            log_write("[xllama] Navigate complete\n");
-        }
+        Window::Current().Content(m_controller->Root());
+        log_write("[xllama] Window.Content set\n");
         Window::Current().Activate();
         log_write("[xllama] Window activated\n");
     } catch (winrt::hresult_error const& e) {
-        char buf[256];
-        snprintf(buf, sizeof(buf), "[xllama] OnLaunched EXCEPTION 0x%08X\n",
-                 static_cast<unsigned>(e.code().value));
+        char buf[512];
+        snprintf(buf, sizeof(buf), "[xllama] OnLaunched hresult 0x%08X: %ls\n",
+                 static_cast<unsigned>(e.code().value), e.message().c_str());
         log_write(buf);
+        throw;
+    } catch (std::exception const& e) {
+        char buf[512];
+        snprintf(buf, sizeof(buf), "[xllama] OnLaunched std::exception: %s\n", e.what());
+        log_write(buf);
+        throw;
+    } catch (...) {
+        log_write("[xllama] OnLaunched unknown exception\n");
         throw;
     }
 }

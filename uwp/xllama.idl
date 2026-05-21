@@ -1,18 +1,12 @@
 // MIDL 3 IDL — processed by cppwinrt.exe (via Microsoft.Windows.CppWinRT NuGet).
-// Declares runtimeclasses for App and MainPage.
-// cppwinrt.exe emits xllama.winmd (needed by AppxPackage.Targets for
-// EntryPoint="xllama.App") and generates App.g.h / MainPage.g.h for C++/WinRT.
+// Declares only App; cppwinrt.exe emits xllama.winmd (needed by AppxPackage.Targets
+// for EntryPoint="xllama.App") and generates App.g.h.
+// MainPage is a plain C++ class — not a runtimeclass — so it is not declared here.
 namespace xllama
 {
     [default_interface]
     runtimeclass App : Windows.UI.Xaml.Application
     {
         App();
-    }
-
-    [default_interface]
-    runtimeclass MainPage : Windows.UI.Xaml.Controls.Page
-    {
-        MainPage();
     }
 }

@@ -62,6 +62,12 @@
        $(GeneratedFilesDir) are already resolved when CppWinRT.props runs. -->
   <Import Project="packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.props"
           Condition="Exists('packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.props')" />
+  <Import Project="packages\Microsoft.AI.DirectML.1.15.4\build\native\Microsoft.AI.DirectML.props"
+          Condition="Exists('packages\Microsoft.AI.DirectML.1.15.4\build\native\Microsoft.AI.DirectML.props')" />
+  <Import Project="packages\Microsoft.ML.OnnxRuntime.DirectML.1.22.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.props"
+          Condition="Exists('packages\Microsoft.ML.OnnxRuntime.DirectML.1.22.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.props')" />
+  <Import Project="packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.8.3\build\native\Microsoft.ML.OnnxRuntimeGenAI.DirectML.props"
+          Condition="Exists('packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.8.3\build\native\Microsoft.ML.OnnxRuntimeGenAI.DirectML.props')" />
 
   <!-- =====================================================================
        Package / signing
@@ -89,22 +95,15 @@
         $(ProjectDir)Generated Files;
         $(IntDir)Generated Files;
         $(ProjectDir)..\include;
-        $(ProjectDir)..\llama.cpp\include;
-        $(ProjectDir)..\llama.cpp\src;
-        $(ProjectDir)..\llama.cpp\ggml\include;
-        $(ProjectDir)..\llama.cpp\ggml\src;
-        $(ProjectDir)..\llama.cpp\ggml\src\ggml-cpu;
+        $(ProjectDir)packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.8.3\build\native\include;
         %(AdditionalIncludeDirectories)
       </AdditionalIncludeDirectories>
       <PreprocessorDefinitions>
-        GGML_USE_CPU=1;
-        GGML_BACKEND_DL=0;
         NOMINMAX;
         WIN32_LEAN_AND_MEAN;
         _CRT_SECURE_NO_WARNINGS;
         XLLAMA_UWP=1;
-        GGML_VERSION="0.12.0";
-        GGML_COMMIT="9a532ae4b";
+        XLLAMA_USE_ORT=1;
         %(PreprocessorDefinitions)
       </PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -121,10 +120,21 @@
       <!-- Disable precompiled headers globally. We don't have pch.cpp to create
            the PCH; pch.h is included as a regular header via App.h. -->
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <!-- /EHa: enable SEH → C++ exception translation so _set_se_translator fires. -->
+      <ExceptionHandling>Async</ExceptionHandling>
     </ClCompile>
     <Link>
-      <!-- WindowsApp.lib is the UWP umbrella library -->
-      <AdditionalDependencies>WindowsApp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <!-- WindowsApp.lib is the UWP umbrella library.
+           onnxruntime.lib / onnxruntime-genai.lib are import libs from the NuGet packages.
+           The NuGet .targets files don't inject AdditionalLibraryDirectories for native C++
+           projects, so we add the paths explicitly. Both packages use runtimes/win-x64/native/
+           (not win10-x64) for their native binaries. -->
+      <AdditionalLibraryDirectories>
+        $(ProjectDir)packages\Microsoft.ML.OnnxRuntime.DirectML.1.22.0\runtimes\win-x64\native;
+        $(ProjectDir)packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.8.3\runtimes\win-x64\native;
+        %(AdditionalLibraryDirectories)
+      </AdditionalLibraryDirectories>
+      <AdditionalDependencies>WindowsApp.lib;onnxruntime.lib;onnxruntime-genai.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
 
@@ -163,17 +173,6 @@
     <Midl Include="xllama.idl" />
   </ItemGroup>
 
-  <!-- =====================================================================
-       XAML pages
-       ===================================================================== -->
-  <ItemGroup>
-    <ApplicationDefinition Include="App.xaml">
-      <SubType>Designer</SubType>
-    </ApplicationDefinition>
-    <Page Include="MainPage.xaml">
-      <SubType>Designer</SubType>
-    </Page>
-  </ItemGroup>
 
   <!-- =====================================================================
        Manifest
@@ -196,97 +195,61 @@
   </ItemGroup>
 
   <!-- =====================================================================
-       Source files
-
-       IMPORTANT: llama-mmap.cpp and ggml-backend-dl.cpp use Win32 Desktop APIs
-       (CreateFileMappingA, LoadLibraryW) blocked in WINAPI_FAMILY_APP.
-       They are replaced by UWP-safe stubs in the uwp/ directory.
+       Source files — ORT GenAI + DirectML engine (llama.cpp removed from UWP)
        ===================================================================== -->
 
-  <!-- ggml base (no GPU backends included) -->
+  <!-- Native DLLs from NuGet: must be app-local for UWP container.
+       NuGet targets copy these automatically if DeploymentContent=true. -->
   <ItemGroup>
-    <!-- Rename ggml.c → ggml_c.obj: ggml.c and ggml.cpp share the same stem;
-         without the override both produce ggml.obj in the same output dir
-         and the parallel /MP build silently overwrites one with the other. -->
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml.c">
-      <ObjectFileName>$(IntDir)%(RelativeDir)ggml_c.obj</ObjectFileName>
-    </ClCompile>
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml.cpp" />
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-alloc.c" />
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-backend.cpp" />
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-backend-meta.cpp" />
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-opt.cpp" />
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-threading.cpp" />
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-quants.c" />
-    <ClCompile Include="..\llama.cpp\ggml\src\gguf.cpp" />
-    <!-- Backend registry (uses dl_load_library from our stub, not llama.cpp's) -->
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-backend-reg.cpp" />
-    <!-- ggml-backend-dl.cpp EXCLUDED: uses LoadLibraryW (desktop-only).
-         Replaced by: ggml-backend-dl-stub.cpp below. -->
+    <!-- TargetPath flattens each DLL to the package root so the Windows loader
+         finds them on startup (UWP only searches the package root, not subdirs). -->
+    <None Include="packages\Microsoft.AI.DirectML.1.15.4\bin\x64-win\DirectML.dll"
+          Condition="Exists('packages\Microsoft.AI.DirectML.1.15.4\bin\x64-win\DirectML.dll')">
+      <DeploymentContent>true</DeploymentContent>
+      <TargetPath>DirectML.dll</TargetPath>
+    </None>
+    <None Include="packages\Microsoft.ML.OnnxRuntime.DirectML.1.22.0\runtimes\win-x64\native\onnxruntime.dll"
+          Condition="Exists('packages\Microsoft.ML.OnnxRuntime.DirectML.1.22.0\runtimes\win-x64\native\onnxruntime.dll')">
+      <DeploymentContent>true</DeploymentContent>
+      <TargetPath>onnxruntime.dll</TargetPath>
+    </None>
+    <None Include="packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.8.3\runtimes\win-x64\native\onnxruntime-genai.dll"
+          Condition="Exists('packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.8.3\runtimes\win-x64\native\onnxruntime-genai.dll')">
+      <DeploymentContent>true</DeploymentContent>
+      <TargetPath>onnxruntime-genai.dll</TargetPath>
+    </None>
+    <!-- VC++ runtime DLLs required by onnxruntime.dll and onnxruntime-genai.dll.
+         These packages are built with the desktop runtime (/MD, linking MSVCP140.dll
+         not MSVCP140_APP.dll), so they cannot find it from System32 in AppContainer.
+         Bundling them in the package root makes them app-local and loader-accessible.
+         build-uwp.ps1 copies these from the VS2022 CRT redist to uwp/ before MSBuild. -->
+    <None Include="MSVCP140.dll" Condition="Exists('MSVCP140.dll')">
+      <DeploymentContent>true</DeploymentContent>
+      <TargetPath>MSVCP140.dll</TargetPath>
+    </None>
+    <None Include="MSVCP140_1.dll" Condition="Exists('MSVCP140_1.dll')">
+      <DeploymentContent>true</DeploymentContent>
+      <TargetPath>MSVCP140_1.dll</TargetPath>
+    </None>
+    <None Include="VCRUNTIME140.dll" Condition="Exists('VCRUNTIME140.dll')">
+      <DeploymentContent>true</DeploymentContent>
+      <TargetPath>VCRUNTIME140.dll</TargetPath>
+    </None>
+    <None Include="VCRUNTIME140_1.dll" Condition="Exists('VCRUNTIME140_1.dll')">
+      <DeploymentContent>true</DeploymentContent>
+      <TargetPath>VCRUNTIME140_1.dll</TargetPath>
+    </None>
   </ItemGroup>
 
-  <!-- ggml CPU backend -->
-  <ItemGroup>
-    <!-- Same stem conflict as ggml.c/ggml.cpp: rename .c output to avoid overwrite. -->
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\ggml-cpu.c">
-      <ObjectFileName>$(IntDir)%(RelativeDir)ggml-cpu_c.obj</ObjectFileName>
-    </ClCompile>
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\ggml-cpu.cpp" />
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\repack.cpp" />
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\hbm.cpp" />
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\quants.c" />
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\traits.cpp" />
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\binary-ops.cpp" />
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\unary-ops.cpp" />
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\vec.cpp" />
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\ops.cpp" />
-    <!-- AMX stubs (guarded by __AMX_* intrinsics; compile clean on Zen 2) -->
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\amx\amx.cpp" />
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\amx\mmq.cpp" />
-    <!-- x86-specific: AVX2 quantisation and repacking for Zen 2 -->
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\arch\x86\cpu-feats.cpp" />
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\arch\x86\quants.c" />
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\arch\x86\repack.cpp" />
-  </ItemGroup>
-
-  <!-- llama core (llama-mmap.cpp EXCLUDED — replaced by llama-mmap-uwp.cpp) -->
-  <ItemGroup>
-    <ClCompile Include="..\llama.cpp\src\llama.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-adapter.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-arch.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-batch.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-chat.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-context.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-cparams.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-grammar.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-graph.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-hparams.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-impl.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-io.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-kv-cache.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-kv-cache-iswa.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-memory.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-memory-hybrid.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-memory-hybrid-iswa.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-memory-recurrent.cpp" />
-    <!-- llama-mmap.cpp EXCLUDED: uses CreateFileMappingA (desktop-only).
-         Replaced by: llama-mmap-uwp.cpp below. -->
-    <ClCompile Include="..\llama.cpp\src\llama-model.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-model-loader.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-model-saver.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-quant.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-sampler.cpp" />
-    <ClCompile Include="..\llama.cpp\src\llama-vocab.cpp" />
-    <ClCompile Include="..\llama.cpp\src\unicode.cpp" />
-    <ClCompile Include="..\llama.cpp\src\unicode-data.cpp" />
-    <!-- All model implementations (130+ files, glob is safe: no GPU backends here) -->
-    <ClCompile Include="..\llama.cpp\src\models\*.cpp" />
-  </ItemGroup>
-
-  <!-- UWP stubs replacing desktop-only llama.cpp internals -->
-  <ItemGroup>
-    <ClCompile Include="llama-mmap-uwp.cpp" />
-    <ClCompile Include="ggml-backend-dl-stub.cpp" />
+  <!-- SmolLM2-1.7B INT4 CPU model bundled in MSIX.
+       Files land in Package.InstalledPath\models\smollm2-1.7b-cpu-int4\
+       which is the fallback path in resolve_model_path() when LocalState has no model.
+       Condition guards local builds where the model hasn't been generated yet. -->
+  <ItemGroup Condition="Exists('..\models\smollm2-360m-cpu-int4')">
+    <None Include="..\models\smollm2-360m-cpu-int4\*">
+      <DeploymentContent>true</DeploymentContent>
+      <TargetPath>models\smollm2-360m-cpu-int4\%(Filename)%(Extension)</TargetPath>
+    </None>
   </ItemGroup>
 
   <!-- xllama shared bridge -->
@@ -297,7 +260,7 @@
     <ClCompile Include="..\src\bridge\path_utils.cpp" />
     <ClCompile Include="..\src\bridge\utf8_utils.cpp" />
     <!-- cli.cpp uses POSIX getopt — Linux only, excluded from UWP target -->
-    <ClCompile Include="llama-bridge.cpp" />
+    <ClCompile Include="inference-bridge.cpp" />
   </ItemGroup>
 
   <!-- xllama UWP app -->
@@ -305,36 +268,9 @@
     <ClCompile Include="App.cpp" />
     <ClCompile Include="MainPage.cpp" />
     <!-- module.cpp includes Generated Files\module.g.cpp (cppwinrt 2.0 factory
-         aggregator). In cppwinrt 2.x, per-class App.g.cpp / MainPage.g.cpp are
+         aggregator). In cppwinrt 2.x, per-class App.g.cpp are
          replaced by a single module.g.cpp; this is the TU that compiles it. -->
     <ClCompile Include="module.cpp" />
-    <!-- XamlTypeInfo_impl.cpp provides the definitions of XamlTypeInfoProvider::
-         CreateXamlType/CreateXamlMember/OtherProviders that MarkupCompilePass2
-         would normally generate but can't because of the WMC9999 crash. -->
-    <ClCompile Include="XamlTypeInfo_impl.cpp" />
-  </ItemGroup>
-
-  <!-- Suppress upstream llama.cpp warnings only for upstream source files.
-       Our uwp/ files compile with full warnings so we catch our own mistakes. -->
-  <ItemGroup>
-    <ClCompile Update="..\llama.cpp\ggml\src\*">
-      <DisableSpecificWarnings>4244;4267;4566;4005;4305;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-    </ClCompile>
-    <ClCompile Update="..\llama.cpp\ggml\src\ggml-cpu\*">
-      <DisableSpecificWarnings>4244;4267;4566;4005;4305;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-    </ClCompile>
-    <ClCompile Update="..\llama.cpp\ggml\src\ggml-cpu\amx\*">
-      <DisableSpecificWarnings>4244;4267;4566;4005;4305;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-    </ClCompile>
-    <ClCompile Update="..\llama.cpp\ggml\src\ggml-cpu\arch\x86\*">
-      <DisableSpecificWarnings>4244;4267;4566;4005;4305;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-    </ClCompile>
-    <ClCompile Update="..\llama.cpp\src\*">
-      <DisableSpecificWarnings>4244;4267;4566;4005;4305;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-    </ClCompile>
-    <ClCompile Update="..\llama.cpp\src\models\*">
-      <DisableSpecificWarnings>4244;4267;4566;4005;4305;4101;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-    </ClCompile>
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
@@ -342,55 +278,11 @@
   <!-- NuGet package targets (restored to packages\ relative to this vcxproj) -->
   <Import Project="packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.targets"
           Condition="Exists('packages\Microsoft.Windows.CppWinRT.2.0.240405.15\build\native\Microsoft.Windows.CppWinRT.targets')" />
-
-  <!-- MarkupCompilePass2 (XBF compiler / C++ codegen) crashes with WMC9999 for
-       C++/WinRT UWP projects in both SDK 22621 and 26100. Removing event handler
-       attributes from XAML does not fix the crash. Override with an empty target
-       to skip Pass2. InitializeComponent, Connect, GetBindingConnector, and
-       XamlTypeInfoProvider private methods are provided manually in
-       MainPage.cpp and XamlTypeInfo_impl.cpp instead. -->
-  <Target Name="MarkupCompilePass2"/>
-
-  <!-- CopyGeneratedXaml: Pass2 is disabled (WMC9999). Override creates empty XBF
-       stubs (AppXPackage.Targets expects them) and stages the source XAML files
-       so LoadComponent(ms-appx:///MainPage.xaml) works at runtime on Xbox.
-
-       Key: $(OutDir) = x64\Release\xllama\ (already includes TargetName).
-       Stock targets use $(OutDir)$(TargetName)\ which double-nests — that path
-       is one level below where the AppX packager reads its inputs. All output
-       here goes directly to $(OutDir) which is the correct staging root. -->
-  <Target Name="CopyGeneratedXaml"
-          AfterTargets="MarkupCompilePass2"
-          BeforeTargets="_GenerateProjectPriConfigurationFiles">
-    <MakeDir Directories="$(OutDir)"/>
-    <!-- XBF stubs: build-uwp.ps1 pre-creates them; Touch here is a safety net. -->
-    <Touch Files="$(OutDir)App.xbf;$(OutDir)MainPage.xbf" AlwaysCreate="true"/>
-    <!-- Copy source XAML to the same staging root as the XBF stubs. -->
-    <Copy SourceFiles="App.xaml;MainPage.xaml"
-          DestinationFolder="$(OutDir)"
-          SkipUnchangedFiles="true"/>
-  </Target>
-
-  <!-- ComputeProcessXamlFiles feeds CustomOutputGroupForPackaging, which the outer
-       AppX packaging build calls to determine what goes into the .msix.
-       Stock implementation returns only XBF paths via @(XamlBinaryOutput).
-       Override adds the staged source XAML alongside XBF so the packager includes
-       both: XBF stubs (never parsed at runtime) + XAML text files (loaded by
-       LoadComponent(ms-appx:///MainPage.xaml) on Xbox). -->
-  <Target Name="ComputeProcessXamlFiles"
-          Returns="@(ProcessedXamlFiles)">
-    <ItemGroup>
-      <!-- XBF stubs staged to $(OutDir) by build-uwp.ps1 + CopyGeneratedXaml -->
-      <ProcessedXamlFiles
-          Include="@(ApplicationDefinition->'$(OutDir)%(Filename).xbf')"/>
-      <ProcessedXamlFiles
-          Include="@(Page->'$(OutDir)%(Filename).xbf')"/>
-      <!-- Source XAML text files staged to $(OutDir) by CopyGeneratedXaml -->
-      <ProcessedXamlFiles
-          Include="@(ApplicationDefinition->'$(OutDir)%(Filename).xaml')"/>
-      <ProcessedXamlFiles
-          Include="@(Page->'$(OutDir)%(Filename).xaml')"/>
-    </ItemGroup>
-  </Target>
+  <Import Project="packages\Microsoft.AI.DirectML.1.15.4\build\native\Microsoft.AI.DirectML.targets"
+          Condition="Exists('packages\Microsoft.AI.DirectML.1.15.4\build\native\Microsoft.AI.DirectML.targets')" />
+  <Import Project="packages\Microsoft.ML.OnnxRuntime.DirectML.1.22.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets"
+          Condition="Exists('packages\Microsoft.ML.OnnxRuntime.DirectML.1.22.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets')" />
+  <Import Project="packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.8.3\build\native\Microsoft.ML.OnnxRuntimeGenAI.DirectML.targets"
+          Condition="Exists('packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.8.3\build\native\Microsoft.ML.OnnxRuntimeGenAI.DirectML.targets')" />
 
 </Project>

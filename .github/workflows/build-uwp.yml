@@ -12,13 +12,28 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          submodules: recursive
-          # Shallow submodule fetch: llama.cpp history is ~1.5 GB, depth=1 is ~40s
+          # llama.cpp submodule not needed for UWP ORT build; skip to save ~40s
+          submodules: false
           fetch-depth: 1
 
-      - name: Apply UWP patches to llama.cpp submodule
-        shell: bash
-        run: bash scripts/apply-uwp-patches.sh
+      - name: Cache SmolLM2-360M ONNX INT4 model
+        id: cache-model
+        uses: actions/cache@v4
+        with:
+          path: models/smollm2-360m-cpu-int4
+          key: smollm2-360m-ort-genai-int4-cpu-v1
+
+      - name: Download SmolLM2-360M ONNX INT4 model
+        if: steps.cache-model.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          python -m pip install --quiet huggingface_hub
+          python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='homen3/SmolLM2-360M-Instruct-ort-genai-int4-cpu', local_dir='models/smollm2-360m-cpu-int4'); print('Download complete')"
+
+      - name: Restore NuGet packages
+        shell: pwsh
+        working-directory: uwp
+        run: nuget restore packages.config -PackagesDirectory packages -NonInteractive
 
       - name: Build UWP package
         shell: pwsh
