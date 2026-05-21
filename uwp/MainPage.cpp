@@ -9,6 +9,7 @@
 // clang-format on
 
     #include "inference-bridge.h"
+    #include "xllama/platform.h"
     #include "xllama/utf8_utils.h"
 
     #include <cstdio>
@@ -276,48 +277,62 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     auto dispatcher = m_root.Dispatcher();
 
     std::thread([self, prompt, model, dispatcher]() {
-        ::xllama::bridge::InferenceParams params;
-        params.model_path = model;
-        params.prompt = prompt;
-        params.n_predict = 512;
-        params.abort_flag = &self->m_abort;
+        try {
+            ::xllama::bridge::InferenceParams params;
+            params.model_path = model;
+            params.prompt = prompt;
+            params.n_predict = 512;
+            params.abort_flag = &self->m_abort;
 
-        params.on_status = [self, dispatcher](const std::string& s) {
-            auto ws = ::xllama::utf8_to_wstring(s);
-            dispatcher.RunAsync(CoreDispatcherPriority::Normal,
-                                [self, ws]() { self->SetStatus(ws); });
-        };
+            params.on_status = [self, dispatcher](const std::string& s) {
+                auto ws = ::xllama::utf8_to_wstring(s);
+                dispatcher.RunAsync(CoreDispatcherPriority::Normal,
+                                    [self, ws]() { self->SetStatus(ws); });
+            };
 
-        params.on_token = [self, dispatcher](const std::string& tok) {
-            auto wtok = ::xllama::utf8_to_wstring(tok);
-            dispatcher.RunAsync(CoreDispatcherPriority::Normal,
-                                [self, wtok]() { self->AppendOutput(wtok); });
-        };
+            params.on_token = [self, dispatcher](const std::string& tok) {
+                auto wtok = ::xllama::utf8_to_wstring(tok);
+                dispatcher.RunAsync(CoreDispatcherPriority::Normal,
+                                    [self, wtok]() { self->AppendOutput(wtok); });
+            };
 
-        auto res = ::xllama::bridge::run_inference(params);
+            auto res = ::xllama::bridge::run_inference(params);
 
-        std::wstring metrics;
-        if (res.success) {
-            wchar_t buf[256];
-            double pt = (res.n_p_eval > 0 && res.t_p_eval_ms > 0)
-                            ? (double)res.n_p_eval / (res.t_p_eval_ms / 1000.0)
-                            : 0.0;
-            double dt = (res.n_eval > 0 && res.t_eval_ms > 0)
-                            ? (double)res.n_eval / (res.t_eval_ms / 1000.0)
-                            : 0.0;
-            swprintf_s(buf, L"prompt %.1f tok/s  ·  decode %.1f tok/s  ·  peak %zu MB", pt, dt,
-                       res.peak_ws_mb);
-            metrics = buf;
-        } else {
-            metrics = ::xllama::utf8_to_wstring(res.error_msg.empty() ? "inference failed"
-                                                                      : res.error_msg);
+            std::wstring metrics;
+            if (res.success) {
+                wchar_t buf[256];
+                double pt = (res.n_p_eval > 0 && res.t_p_eval_ms > 0)
+                                ? (double)res.n_p_eval / (res.t_p_eval_ms / 1000.0)
+                                : 0.0;
+                double dt = (res.n_eval > 0 && res.t_eval_ms > 0)
+                                ? (double)res.n_eval / (res.t_eval_ms / 1000.0)
+                                : 0.0;
+                swprintf_s(buf, L"prompt %.1f tok/s  ·  decode %.1f tok/s  ·  peak %zu MB", pt, dt,
+                           res.peak_ws_mb);
+                metrics = buf;
+            } else {
+                metrics = ::xllama::utf8_to_wstring(res.error_msg.empty() ? "inference failed"
+                                                                          : res.error_msg);
+            }
+
+            dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, metrics, res]() {
+                self->m_metricsText.Text(metrics);
+                self->SetStatus(res.success ? L"Done" : L"Error");
+                self->SetRunning(false);
+            });
+        } catch (const std::exception& ex) {
+            ::xllama::log_output(std::string("[xllama] thread terminated: ") + ex.what() + "\n");
+            dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self]() {
+                self->SetStatus(L"Fatal error — see xllama.log");
+                self->SetRunning(false);
+            });
+        } catch (...) {
+            ::xllama::log_output("[xllama] thread terminated: unknown exception\n");
+            dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self]() {
+                self->SetStatus(L"Fatal error — see xllama.log");
+                self->SetRunning(false);
+            });
         }
-
-        dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, metrics, res]() {
-            self->m_metricsText.Text(metrics);
-            self->SetStatus(res.success ? L"Done" : L"Error");
-            self->SetRunning(false);
-        });
     }).detach();
 }
 

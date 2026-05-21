@@ -39,7 +39,10 @@ void log_output(const char* msg) noexcept {
         try {
             auto folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
             std::wstring path = std::wstring(folder.Path().c_str()) + L"\\xllama.log";
-            return _wfopen(path.c_str(), L"a");
+            FILE* fp = _wfopen(path.c_str(), L"a");
+            if (fp)
+                setvbuf(fp, nullptr, _IONBF, 0); // unbuffered: writes survive hard kill
+            return fp;
         } catch (...) {
             return nullptr;
         }
@@ -47,7 +50,7 @@ void log_output(const char* msg) noexcept {
     if (s_fp) {
         std::lock_guard<std::mutex> g(s_mtx);
         std::fputs(msg, s_fp);
-        std::fflush(s_fp);
+        _commit(_fileno(s_fp)); // flush kernel write-cache so entry survives OOM-kill
     }
 #else
     std::fputs(msg, stderr);

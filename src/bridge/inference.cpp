@@ -33,6 +33,19 @@ InferenceResult run_inference(const InferenceParams& params) {
         params.on_status("loading model");
 
     try {
+        // Log memory state before the large ORT allocation for OOM diagnostics.
+        {
+            MEMORYSTATUSEX ms{};
+            ms.dwLength = sizeof(ms);
+            GlobalMemoryStatusEx(&ms);
+            char mem_buf[256];
+            snprintf(mem_buf, sizeof(mem_buf),
+                     "[xllama] pre-OgaCreateModel: avail_phys=%.1f GB current_ws=%zu MB model=%s\n",
+                     static_cast<double>(ms.ullAvailPhys) / (1024.0 * 1024.0 * 1024.0),
+                     peak_working_set_mb(), model_dir.c_str());
+            log_output(mem_buf);
+        }
+
         // --- model ---
         OgaModel* raw_model = nullptr;
         oga_check(OgaCreateModel(model_dir.c_str(), &raw_model), "OgaCreateModel");
@@ -120,7 +133,7 @@ InferenceResult run_inference(const InferenceParams& params) {
                  elapsed_s > 0.0 ? n_generated / elapsed_s : 0.0, res.peak_ws_mb);
         log_output(log_buf);
 
-    } catch (const std::runtime_error& e) {
+    } catch (const std::exception& e) {
         res.error_msg = e.what();
         log_output(("[xllama] inference error: " + res.error_msg + "\n").c_str());
         if (params.on_status)
