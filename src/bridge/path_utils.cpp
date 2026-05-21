@@ -113,24 +113,19 @@ std::string resolve_model_path(const std::string& filename) {
         if (a == INVALID_FILE_ATTRIBUTES || (a & FILE_ATTRIBUTE_DIRECTORY))
             return primary; // no bundled model
 
-        // Create LocalState\models\ and LocalState\models\<name>\
-        std::wstring primary_w;
-        {
-            int psz = MultiByteToWideChar(CP_UTF8, 0, primary.c_str(), -1, nullptr, 0);
-            if (psz > 0) {
-                primary_w.resize(static_cast<size_t>(psz));
-                MultiByteToWideChar(CP_UTF8, 0, primary.c_str(), -1, primary_w.data(), psz);
-                if (!primary_w.empty() && primary_w.back() == L'\0')
-                    primary_w.pop_back();
-            }
-        }
-        // Create parent (models\) then the model dir itself — ignore errors if already exists.
-        {
-            std::wstring models_dir = primary_w;
-            auto pos = models_dir.rfind(L'\\');
-            if (pos != std::wstring::npos)
-                CreateDirectoryW(models_dir.substr(0, pos).c_str(), nullptr);
-        }
+        // Convert primary (LocalState\models\<name>) to wide for Win32 calls.
+        int psz = MultiByteToWideChar(CP_UTF8, 0, primary.c_str(), -1, nullptr, 0);
+        if (psz <= 0)
+            return primary;
+        std::wstring primary_w(static_cast<size_t>(psz), L'\0');
+        MultiByteToWideChar(CP_UTF8, 0, primary.c_str(), -1, primary_w.data(), psz);
+        if (!primary_w.empty() && primary_w.back() == L'\0')
+            primary_w.pop_back();
+
+        // Create LocalState\models\ then LocalState\models\<name>\.
+        auto sep = primary_w.rfind(L'\\');
+        if (sep != std::wstring::npos)
+            CreateDirectoryW(primary_w.substr(0, sep).c_str(), nullptr);
         CreateDirectoryW(primary_w.c_str(), nullptr);
 
         // Copy each file from InstalledPath\models\<name>\ to LocalState\models\<name>\.
