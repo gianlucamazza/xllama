@@ -16,6 +16,7 @@
 // clang-format off
     // windows.h must precede ort_genai_c.h in WINAPI_FAMILY_APP builds.
     #include <windows.h>
+    #include <eh.h>
     #include "ort_genai_c.h"
     #include "xllama/ort_raii.h"
 // clang-format on
@@ -26,6 +27,13 @@ namespace xllama {
 
 InferenceResult run_inference(const InferenceParams& params) {
     InferenceResult res;
+
+    // Convert SEH (D3D12/DML OOM/AV) → std::runtime_error so the catch block can log it.
+    _set_se_translator([](unsigned int code, EXCEPTION_POINTERS*) {
+        char b[48];
+        snprintf(b, sizeof(b), "SEH 0x%08X", code);
+        throw std::runtime_error(b);
+    });
 
     const std::string model_dir = resolve_model_path(params.model_path);
 
