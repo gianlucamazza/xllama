@@ -103,10 +103,12 @@ std::string resolve_model_path(const std::string& filename) {
                 wfn.pop_back();
             installed += wfn;
             // Convert back to UTF-8
-            int nsz = WideCharToMultiByte(CP_UTF8, 0, installed.c_str(), -1, nullptr, 0, nullptr, nullptr);
+            int nsz = WideCharToMultiByte(CP_UTF8, 0, installed.c_str(), -1, nullptr, 0, nullptr,
+                                          nullptr);
             if (nsz > 0) {
                 std::string result(static_cast<size_t>(nsz), '\0');
-                WideCharToMultiByte(CP_UTF8, 0, installed.c_str(), -1, result.data(), nsz, nullptr, nullptr);
+                WideCharToMultiByte(CP_UTF8, 0, installed.c_str(), -1, result.data(), nsz, nullptr,
+                                    nullptr);
                 if (!result.empty() && result.back() == '\0')
                     result.pop_back();
                 log_output("[xllama] model not in LocalFolder, using bundled: " + result + "\n");
