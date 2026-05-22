@@ -684,6 +684,9 @@ fire_and_forget MainPageController::EnsureModelAsync() {
             auto drives = co_await removable.GetFoldersAsync();
             for (auto const& drive : drives) {
                 std::wstring drive_path(drive.Path().c_str());
+                // StorageFolder.Path may include trailing backslash (e.g. "E:\"); strip it.
+                while (!drive_path.empty() && drive_path.back() == L'\\')
+                    drive_path.pop_back();
                 log_output(("[xllama] USB probe: " +
                             ::xllama::wstring_to_utf8(drive_path) + "\n").c_str());
                 // Look for xllama\models\<name>\genai_config.json
