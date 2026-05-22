@@ -19,15 +19,20 @@ Milestones:
 
 **Goal**: DirectML EP inference using Xbox RDNA 2 hardware.
 
-**Blocker**: UWP GPU memory pool on Xbox Series S is ~768 MB (128 MB dedicated + 640 MB shared). `OgaCreateModel` with DirectML EP crashes with SEH `0xC0000005` (null-deref on OOM in the DirectML allocator) for any LLM with on-device weights > ~300 MB. SmolLM2-360M INT4 on-device weighs ~400 MB after merging external data, which still exceeds the threshold.
+**Blocker**: UWP GPU-accessible memory pool on Xbox Series S is ~768 MB (observed total at `OgaCreateModel` OOM). `OgaCreateModel` with DirectML EP crashes with SEH `0xC0000005` (null-deref on OOM in the DirectML allocator) for any LLM that exceeds this budget including activation, KV-cache, and staging buffers.
+
+**Active workaround experiments** (see `docs/uwp-constraints.md §7`):
+- *Exp 1*: DML provider_options `enable_cpu_mem_arena=0` + `enable_mem_pattern=0` + `past_present_share_buffer=false` may reduce allocator footprint enough for SmolLM2-360M. Test script: `scripts/test-dml-config.sh` (no rebuild needed).
+- *Exp 3*: If Qwen2.5-0.5B INT4 ONNX (~200 MB merged) can be identified, it would fit the GPU budget with room to spare.
 
 **Conditions to reopen**:
-- A sub-300 MB on-device ONNX model (e.g., < 250 M parameter INT4) is identified and validated
+- DML provider_options reduce footprint enough for an existing model (Exp 1)
+- A sub-300 MB on-device ONNX model is validated (e.g., Qwen2.5-0.5B INT4)
 - Microsoft expands the UWP GPU pool allocation for Dev Mode apps
-- An alternative GPU path that bypasses the ORT DirectML allocator is found
 
 Milestones (blocked):
-- [ ] Identify a model whose DirectML memory footprint fits in ~600 MB (conservative budget)
+- [ ] Run Exp 1: test DML provider_options on SmolLM2-360M via `scripts/test-dml-config.sh`
+- [ ] Evaluate Qwen2.5-0.5B INT4 ONNX for GPU EP fitness (est. ~200 MB merged)
 - [ ] Validate DirectML EP inference end-to-end: tok/s vs CPU EP baseline
 - [ ] Measure GPU vs CPU tok/s for the same model at same quant level
 
@@ -47,8 +52,12 @@ Milestones:
 **Goal**: remove bundled-model constraint; demo video; technical write-up.
 
 Milestones:
-- [ ] `ModelSpec` with `vector<string> files` for multi-file ONNX downloads in-app
-- [ ] Device Portal–based model swap UI (or HTTP download from known HF endpoint)
+- [x] `ModelDownloader` with chunked `HttpClient` download from HF endpoint (Exp 2, `uwp/model-downloader.cpp`)
+- [x] `EnsureModelAsync()` bootstrap: LocalState → InstalledPath → HF download fallback chain
+- [x] USB external drive fallback at `E:\xllama\models\<name>` in `resolve_model_path` (Exp 3)
+- [ ] Validate Exp 2 on console: confirm HF HTTPS works from Xbox AppContainer
+- [ ] Remove model bundle from MSIX once Exp 2 is validated (delete ItemGroup in `xllama.vcxproj`)
+- [ ] `model-manifest.json`: configurable model list (HF repo + file list) for model switching
 - [ ] Demo video: model loaded and running on Xbox hardware
 - [ ] Technical report (arXiv or GitHub Discussions)
 - [ ] Tagged v1.0.0 release with pre-built MSIX and model manifest
