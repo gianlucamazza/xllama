@@ -278,9 +278,9 @@ void MainPageController::Init() {
     // Smart autoscroll: track whether the user is at the bottom of the scroll view.
     // Auto-scroll is suppressed while the user has manually scrolled up during streaming.
     m_outputScroll.ViewChanged(
-        [weak_self](IInspectable const&,
-                    winrt::Windows::UI::Xaml::Controls::ScrollViewerViewChangedEventArgs const&) {
-            if (auto s = weak_self.lock()) {
+        [self](IInspectable const&,
+               winrt::Windows::UI::Xaml::Controls::ScrollViewerViewChangedEventArgs const&) {
+            if (auto s = self.lock()) {
                 double sv = s->m_outputScroll.ScrollableHeight();
                 double vo = s->m_outputScroll.VerticalOffset();
                 s->m_at_bottom = (sv - vo < 24.0);

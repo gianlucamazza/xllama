@@ -9,6 +9,49 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.3.0] — 2026-05-23
+
+### Added
+
+**Settings dialog — sampling parameters** (`feat(uwp): Settings dialog — sampling params`):
+- `ShowSettings` now exposes `temperature` (Slider 0–2, default 0.8), `top_p` (Slider 0–1, default 0.9), `top_k` (NumberBox 1–200, default 40), `repetition_penalty` (Slider 1–2, default 1.1), and `n_predict` (NumberBox 16–2048, default 512).
+- New `MainPageController` members `m_temperature`, `m_top_p`, `m_top_k`, `m_repetition_penalty`, `m_n_predict` wired into `StartInference` → `GenerateParams`.
+- `settings.json` schema extended with a nested `"sampling"` object; back-compat preserved for existing 0.2.x files.
+
+**Settings dialog — model selection ComboBox** (`feat(uwp): Settings dialog — model selection ComboBox`):
+- ComboBox with three entries: SmolLM2-360M (bundled MSIX), SmolLM2-1.7B (USB `E:\xllama\models\`), SmolLM2-360M (HF download in `LocalState`).
+- Selected model persisted to `settings.json`; `EnsureSession` detects model change at next `StartInference` and rebuilds transparently.
+- `LoadModelName` now reads `m_model_filename` from `settings.json`; falls back to `LocalState/model.txt` for 0.2.x installations.
+
+**History dialog enhancements** (`feat(uwp): History dialog — delete, clear all, timestamps`):
+- Per-item ✕ Delete button: click closes the dialog and opens a confirmation ContentDialog; on confirm calls `ChatHistory::Delete(id)`. If deleted entry was the active conversation, `NewChat()` is called.
+- Clear all (Secondary button): confirmation ContentDialog → `ChatHistory::Clear()` → `NewChat()`.
+- Current conversation indicator: ● prefix on the active history entry.
+- Relative timestamps via `FormatRelativeTs` helper: "today HH:MM", "yesterday HH:MM", "DD Mon HH:MM".
+- Index refreshed from disk on every `ShowHistory` call.
+- Empty-state ContentDialog with placeholder TextBlock instead of silent no-op.
+
+**ChatHistory::Delete / Clear** (`feat(uwp/chat-history): add Delete and Clear methods`):
+- `Delete(id)` removes `<id>.json` from `LocalState/chats/` and updates the in-memory index + `index.json`.
+- `Clear()` removes all conversation files and writes an empty `index.json`.
+
+**Tests** (`test: add ChatHistory helpers and TitleFrom smoke tests`):
+- `tests/test_chat_history.cpp`: Linux CI tests exercise `TitleFrom` logic (truncation, newline stop, empty fallback). UWP `#ifdef` branch tests `Save`/`Load` roundtrip, `Delete`, and `Clear` with a temp directory.
+
+### Fixed
+
+- **Newline rendering**: `AppendOutput` now splits text on `\n` and inserts `LineBreak` inlines; previously `\n` in a `Run` was rendered as a space by WinUI `RichTextBlock`.
+- **Prompt not cleared after Run**: `OnRunClick` clears `m_promptInput.Text(L"")` before handing off to `StartInference`.
+- **NewChat did not clear prompt**: `NewChat()` now resets `m_promptInput.Text(L"")`.
+- **Double FocusEngagement on Xbox**: removed `IsFocusEngagementEnabled(true)` from `m_outputScroll`; only the TextBox retains it, eliminating the extra A-press required to engage text input.
+- **Focus not returned after generation**: `SetRunning(false)` now calls `m_promptInput.Focus(FocusState::Programmatic)` so the cursor returns to the input after inference completes.
+- **Smart autoscroll**: `AppendOutput` auto-scrolls only when the user is already at the bottom (within 24 px of `ScrollableHeight`). A `ViewChanged` handler tracks `m_at_bottom`; `SetRunning(false)` resets it to `true`.
+- **Status shows "Loading model…" at startup**: `BuildUI` initialises `m_statusText` to `L"Loading model..."` and disables the Run button. `EnsureModelAsync` sets `L"Ready"` and re-enables Run when the model is confirmed loaded.
+- **Context trim overflow**: `kMaxEstimatedTokens` lowered from 3500 to 1800 to stay within `n_ctx = 2048` (leaves ~250 token generation headroom). Trim events now surface a `"Context trimmed: N turns dropped"` status message.
+- **Partial save on cancel**: `StartInference` completion path sets `ChatMessage::partial = true` when the user pressed Cancel (`m_abort.load() == true`) before saving the conversation.
+
+---
+
 ## [0.2.1] — 2026-05-23
 
 ### Added

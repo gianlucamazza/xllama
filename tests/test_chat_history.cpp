@@ -5,8 +5,8 @@
 // On Linux CI we test the platform-neutral helpers inline.
 // On UWP the #else branch exercises Delete/Clear via the real class.
 
-#include <doctest/doctest.h>
 #include <cstdint>
+#include <doctest/doctest.h>
 #include <string>
 
 // ---------------------------------------------------------------------------
@@ -56,12 +56,12 @@ TEST_CASE("ChatHistory::TitleFrom — exact 60 chars not truncated") {
 
 #else // XLLAMA_UWP
 
-// ---------------------------------------------------------------------------
-// UWP smoke tests: require Windows filesystem and CoCreateGuid
-// ---------------------------------------------------------------------------
-#include "uwp/chat-history.h"
-#include <filesystem>
-#include <cstdio>
+    // ---------------------------------------------------------------------------
+    // UWP smoke tests: require Windows filesystem and CoCreateGuid
+    // ---------------------------------------------------------------------------
+    #include "uwp/chat-history.h"
+    #include <cstdio>
+    #include <filesystem>
 
 static std::string make_tmpdir() {
     auto base = std::filesystem::temp_directory_path() / "xllama_test_chats";
