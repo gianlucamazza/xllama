@@ -205,7 +205,7 @@ See [ROADMAP.md](./ROADMAP.md). Headlines:
 Issues and PRs welcome. Areas where contributions are particularly useful:
 
 - UWP packaging and Xbox Dev Mode quirks
-- Compact ONNX models that fit the 768 MB GPU pool (ideally <300 MB on-device)
+- Compact ONNX models that fit the disk and GPU budgets — see [docs/model-selection.md](./docs/model-selection.md)
 - Benchmark methodology and reproducibility
 - Documentation for non-Windows developers
 

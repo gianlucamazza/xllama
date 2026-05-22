@@ -44,6 +44,24 @@ def main():
     os.remove(data_path)
     size_mb = os.path.getsize(onnx_path) // 1024 // 1024
     print(f"Done. model.onnx embedded size: {size_mb} MB")
+    if size_mb > 600:
+        print(
+            f"WARNING: merged size {size_mb} MB exceeds the Xbox UWP disk budget (<600 MB).",
+            file=sys.stderr,
+        )
+        print(
+            "         See docs/model-selection.md and docs/uwp-constraints.md §9.",
+            file=sys.stderr,
+        )
+    elif size_mb > 400:
+        print(
+            f"NOTE: merged size {size_mb} MB is in the borderline disk-budget zone (400–600 MB).",
+            file=sys.stderr,
+        )
+        print(
+            "      Deploy may succeed on Series S but free space will be tight.",
+            file=sys.stderr,
+        )
 
 
 if __name__ == "__main__":
