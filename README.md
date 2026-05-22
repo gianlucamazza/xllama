@@ -1,6 +1,6 @@
 # xllama
 
-> Running LLM inference on Xbox Series S|X via UWP Dev Mode.
+> Local LLM inference on Xbox Series S|X (UWP Dev Mode) — ONNX Runtime GenAI on Zen 2 CPU.
 
 **Status:** experimental · early development
 **License:** MIT
@@ -10,28 +10,30 @@
 
 ## What is this
 
-`xllama` is a port of [`llama.cpp`](https://github.com/ggml-org/llama.cpp) to Xbox Series S|X consoles running in Dev Mode, packaged as a UWP application. It enables local inference of GGUF-quantized language models on the Xbox's Zen 2 CPU and, in later stages, on its RDNA 2 GPU via Vulkan through Mesa/libgallium.
+`xllama` is a UWP application for Xbox Series S|X in Dev Mode that runs LLM inference locally, with no cloud dependency and a gamepad-friendly UI.
 
-The goal is twofold:
+The project started as a port of [`llama.cpp`](https://github.com/ggml-org/llama.cpp) (GGUF files, CPU-only), then migrated to **ONNX Runtime GenAI + DirectML** to target the Xbox GPU. After confirming that the UWP GPU memory pool on Series S is ~768 MB — too small for any usable LLM — the active backend is now **CPU EP** (Zen 2, 8 cores). The llama.cpp path is preserved for Linux development and CI.
+
+The bundled model is **SmolLM2-360M-Instruct INT4 CPU** (~403 MB), chosen to fit within the Xbox's available storage and RAM envelope.
+
+Goals:
 
 1. Demonstrate that modern consumer console hardware is a viable, underexplored substrate for local LLM inference.
-2. Publish a clean, reproducible baseline that future work (gaming AI, on-device assistants, research on heterogeneous inference) can build on.
+2. Publish a clean, reproducible baseline that future work (gaming AI, on-device assistants) can build on.
 
-This is a research-grade hobby project, not a Microsoft-endorsed product. "Xbox" is a Microsoft trademark; this project is not affiliated with Microsoft.
+This is a research-grade hobby project. "Xbox" is a Microsoft trademark; this project is not affiliated with Microsoft.
 
 ---
 
 ## Why Xbox Series S
 
-The Xbox Series S is interesting as an inference target because:
-
 - **Capable CPU**: 8 Zen 2 cores @ 3.6 GHz, AVX2, comparable to a Ryzen 7 3700X.
-- **Modern GPU**: RDNA 2, ~4 TFLOPS FP32, with hardware support for INT8/INT4 operations.
-- **Unified memory**: 10 GB GDDR6, of which ~8 GB are addressable by a Dev Mode "Game" application.
-- **Accessible Dev Mode**: a one-time ~$19 activation via Partner Center unlocks unsigned UWP deployment. No retail dev kit required.
-- **Underexplored**: no public llama.cpp port for the platform exists at the time of writing.
+- **Modern GPU**: RDNA 2, ~4 TFLOPS FP32, with INT8/INT4 hardware support.
+- **Unified memory**: 10 GB GDDR6 shared between CPU and GPU.
+- **Accessible Dev Mode**: one-time ~$19 activation via Partner Center unlocks unsigned UWP deployment.
+- **Underexplored**: no prior LLM port to the platform at time of writing.
 
-A 7B model quantized to Q4_K_M (~4.5 GB) fits comfortably in memory with room for context. Realistic decode targets: 6–10 tok/s CPU-only, higher with the GPU backend.
+**Current performance (CPU EP, SmolLM2-360M INT4):** 3–10 tok/s decode, ~1–2 s load time. See `bench/results/phase1-cpu.csv` for measured values.
 
 ---
 
@@ -40,27 +42,28 @@ A 7B model quantized to Q4_K_M (~4.5 GB) fits comfortably in memory with room fo
 ```
 ┌──────────────────────────────────────────┐
 │  Host: Linux (development)               │
-│  ├─ llama.cpp fork + UWP patches         │
-│  ├─ GGUF conversion / quantization       │
-│  └─ Deploy via Device Portal (HTTP)      │
+│  ├─ xllama-cli (llama.cpp, GGUF)         │
+│  ├─ Unit tests (doctest)                 │
+│  └─ Deploy scripts (Device Portal REST)  │
 └──────────────────┬───────────────────────┘
                    │
-                   ▼  cross-build (CI)
+                   ▼  CI build (GitHub Actions, windows-2022)
 ┌──────────────────────────────────────────┐
-│  Build: Windows + MSVC + Windows SDK     │
-│  └─ Produces signed .appx package        │
+│  Build: MSVC + Windows SDK + NuGet       │
+│  ├─ ORT GenAI 0.13.2 + ORT 1.24.4       │
+│  ├─ DirectML 1.15.4 (app-local DLLs)    │
+│  ├─ SmolLM2-360M INT4 merged into MSIX   │
+│  └─ Output: xllama_*.msix               │
 └──────────────────┬───────────────────────┘
                    │
-                   ▼  sideload
+                   ▼  sideload via Device Portal
 ┌──────────────────────────────────────────┐
 │  Target: Xbox Series S|X (Dev Mode)      │
-│  ├─ UWP container, ~8 GB RAM available   │
-│  ├─ CPU backend (Phase 1)                │
-│  └─ Vulkan backend via Mesa (Phase 2)    │
+│  ├─ ORT GenAI → CPU EP (Zen 2)          │
+│  └─ DirectML EP: blocked by GPU OOM     │
+│     (UWP pool ~768 MB, LLM > 300 MB)    │
 └──────────────────────────────────────────┘
 ```
-
-The development workflow runs on Linux. The final UWP packaging step requires MSVC and the Windows SDK and is performed either in a Windows VM or via a GitHub Actions Windows runner. Deployment to the console uses the Xbox Device Portal REST API, callable from any OS.
 
 ---
 
@@ -68,42 +71,47 @@ The development workflow runs on Linux. The final UWP packaging step requires MS
 
 ```
 xllama/
-├── llama.cpp/              # upstream submodule, pinned
-├── include/xllama/         # shared public headers (RAII, inference, CLI, utils)
+├── llama.cpp/              # upstream submodule (Linux path only)
+├── include/xllama/         # shared public headers
+│   ├── inference_params.h  # InferenceParams / InferenceResult
+│   ├── inference.h         # run_inference, write_bench_csv
+│   ├── ort_raii.h          # RAII wrappers for 6 OGA* types (UWP)
+│   ├── cli.h               # parse_cli_args (Linux)
+│   ├── platform.h          # log_output, detect_threads, peak_working_set_mb
+│   ├── path_utils.h        # resolve_model_path, resolve_local_path
+│   └── utf8_utils.h        # utf8 <-> wstring (Windows)
 ├── src/
 │   ├── main.cpp            # Linux entry point
 │   └── bridge/             # shared implementation (Linux + UWP)
-│       ├── inference.cpp
+│       ├── inference.cpp   # #ifdef XLLAMA_USE_ORT → ORT GenAI; #else → llama_decode
 │       ├── bench.cpp
-│       ├── cli.cpp
 │       ├── platform.cpp
 │       ├── path_utils.cpp
 │       └── utf8_utils.cpp
-├── uwp/                    # C++/WinRT app + UWP stubs
-│   ├── llama-bridge.cpp    # thin wrapper + main_loop()
-│   ├── llama-mmap-uwp.cpp
-│   ├── App.cpp / MainPage.cpp
+├── uwp/                    # C++/WinRT UWP app
+│   ├── inference-bridge.cpp  # UWP entry glue + main_loop()
+│   ├── App.cpp / MainPage.cpp  # programmatic UI (XAML-free)
+│   ├── packages.config       # NuGet pins (ORT GenAI, DirectML)
 │   └── xllama.sln / .vcxproj
+├── scripts/
+│   ├── deploy.sh               # Device Portal deploy + log helpers
+│   ├── build-uwp.ps1           # Windows UWP packaging
+│   ├── merge_onnx_external_data.py  # merge model.onnx.data for AppContainer
+│   ├── bench-xbox.sh           # automated benchmark runner
+│   ├── check-uwp-host.sh       # Linux host preflight
+│   └── setup-windows-uwp-dev.ps1    # Windows VM setup
 ├── tests/                  # unit tests (doctest)
-├── scripts/                # build / deploy / bench automation
 ├── bench/                  # benchmark configs + results
 ├── docs/                   # technical notes
 ├── cmake/                  # toolchain files
-└── .github/workflows/      # CI: Linux + Windows UWP
+└── .github/workflows/      # CI: build-linux + build-uwp
 ```
 
 ---
 
 ## Build
 
-### Requirements
-
-- Linux host (Ubuntu 22.04+ tested) for development
-- Windows 11 + Visual Studio 2022 with the "Universal Windows Platform development" workload, for packaging
-- Xbox Series S or X with Dev Mode activated
-- Xbox Device Portal username and password
-
-### Develop on Linux
+### Linux (development + tests)
 
 ```bash
 git clone --recursive https://github.com/gianlucamazza/xllama.git
@@ -113,96 +121,93 @@ cd xllama
 cmake --preset linux-release
 cmake --build build/linux-release -j
 
-# Run with a model
-./build/linux-release/bin/xllama-cli -m models/qwen3-1.7b-Q4_K_M.gguf -p "Hello"
+# Run with a model (llama.cpp / GGUF, Linux only)
+./build/linux-release/bin/xllama-cli -m models/smollm2-360m.gguf -p "Hello"
 
-# Run unit tests
+# Unit tests
 cmake --preset linux-test
 cmake --build build/linux-test -j
 ctest --test-dir build/linux-test --output-on-failure
 ```
 
-This validates the bridge code against the Linux build before attempting the UWP packaging.
+### Build for Xbox (Windows / CI)
 
-### Package for Xbox (Windows)
+The UWP package requires MSVC and the Windows SDK. Recommended path: push to `main` and download the `xllama-appx` artifact from the `build-uwp` GitHub Actions workflow.
+
+For local builds from a Windows VM, see [docs/windows-dev-vm.md](./docs/windows-dev-vm.md):
 
 ```powershell
-cd uwp
-./scripts/build-uwp.ps1
+.\scripts\build-uwp.ps1 -Configuration Release -Platform x64
 ```
-
-The output is `xllama_<version>_x64.appx`.
 
 ### Deploy to console
 
-With the console in Dev Mode and Device Portal enabled:
-
 ```bash
-export XBOX_IP=192.168.1.42
-export XBOX_USER=devuser
-export XBOX_PASS=...
-./scripts/deploy.sh xllama_0.1.0_x64.appx
+source ~/.config/xllama/xbox-env   # sets XBOX_IP, XBOX_USER, XBOX_PASS
+./scripts/deploy.sh path/to/xllama_*.msix
 ```
 
-The script uploads the package via the Device Portal REST API and triggers installation.
+The model is bundled inside the MSIX — no separate upload required. See [docs/phase1-runbook.md](./docs/phase1-runbook.md) for the full workflow.
 
 ---
 
 ## Models
 
-`xllama` consumes standard GGUF files. Tested targets for Phase 1:
+`xllama` on Xbox uses ONNX Runtime GenAI. Models are directories containing `genai_config.json`, `model.onnx`, `tokenizer.json`, and related files — not single `.gguf` files.
 
-| Model           | Quant   | Size    | Fits in 8 GB | Expected tok/s (CPU) |
-|-----------------|---------|---------|--------------|----------------------|
-| Qwen3 1.7B      | Q4_K_M  | ~1.1 GB | ✅           | 25–40                |
-| Llama 3.2 3B    | Q4_K_M  | ~2.0 GB | ✅           | 15–25                |
-| Qwen3 8B        | Q4_K_M  | ~4.7 GB | ✅           | 6–10                 |
-| Llama 3 8B      | Q4_K_M  | ~4.7 GB | ✅           | 6–10                 |
-| Llama 3 13B     | Q4_K_S  | ~7.0 GB | ⚠ tight     | TBD                  |
+The MSIX bundles **SmolLM2-360M-Instruct INT4 CPU** (403 MB on-disk, merged into a self-contained `model.onnx` for AppContainer compatibility). The model is placed under `Package.InstalledPath\models\smollm2-360m-cpu-int4\` and is copied to `LocalState\models\` on first launch.
 
-Numbers are projections based on Zen 2 reference platforms and will be replaced with measured values as Phase 1 lands.
+| Model | Format | Size | Xbox UWP | Notes |
+|-------|--------|------|----------|-------|
+| SmolLM2-360M-Instruct INT4 CPU | ONNX GenAI | 403 MB | ✅ | Active; bundled in MSIX |
+| SmolLM2-1.7B-Instruct INT4 CPU | ONNX GenAI | 1.4 GB | ⚠ | Above disk budget |
+| Phi-3.5-mini CPU INT4 | ONNX GenAI | ~2.7 GB | ❌ | Disk full on Xbox Series S |
+| Phi-3.5-mini GPU INT4 | ONNX GenAI DirectML | ~2.2 GB | ❌ | GPU OOM (pool ~768 MB) |
+
+Numbers are measured on Xbox Series S Dev Mode. See [docs/uwp-constraints.md](./docs/uwp-constraints.md) for the GPU pool limit and the `weakly_canonical` AppContainer workaround.
 
 ---
 
 ## Limitations
 
-- **Sandboxed filesystem**: UWP apps cannot read arbitrary paths. Models must be transferred to the app's local storage via Device Portal or USB.
-- **No `mmap`**: the standard llama.cpp memory-mapping path does not work. We use a Win32 `CreateFileMapping`-based equivalent.
-- **No JIT, no `dlopen`**: dynamic backend loading is replaced with compile-time selection.
-- **DirectML not exposed**: the Xbox's INT8/INT4 acceleration hardware is not directly addressable from a Dev Mode UWP app. We work around this via Vulkan compute (Phase 2).
-- **Dev Mode only**: there is no path to running this on a retail-mode console, and that is by design.
+- **GPU pool ~768 MB**: UWP apps on Xbox Series S have ~768 MB of GPU-accessible memory. Any LLM larger than ~300 MB on-device triggers an OOM in `OgaCreateModel` (SEH `0xC0000005`). DirectML EP is not viable today.
+- **Sandboxed filesystem**: models must be pre-loaded into the MSIX or transferred via Device Portal. No arbitrary path access.
+- **AppContainer path traversal**: ORT 1.24.4 calls `std::filesystem::weakly_canonical()` for external ONNX data files, which traverses path segments the AppContainer cannot read. Workaround: merge `model.onnx.data` into `model.onnx` at MSIX build time (`scripts/merge_onnx_external_data.py`).
+- **No POSIX mmap / no `dlopen`**: NuGet-packaged ORT GenAI DLLs must be app-local (`DeploymentContent=true`); no system-wide DLL loading.
+- **Dev Mode only**: no path to retail-mode consoles.
+
+For full details see [docs/uwp-constraints.md](./docs/uwp-constraints.md).
 
 ---
 
 ## Roadmap
 
-See [ROADMAP.md](./ROADMAP.md) for the full plan. Headline phases:
+See [ROADMAP.md](./ROADMAP.md). Headlines:
 
-1. **Phase 1 — CPU baseline.** Working UWP build, CPU-only inference, reproducible benchmarks.
-2. **Phase 2 — Vulkan backend.** GPU acceleration via Mesa/libgallium on Xbox.
-3. **Phase 3 — Optimization.** Quantization tuning, KV-cache strategies, memory layout.
-4. **Phase 4 — Publication.** Technical report, benchmark dataset, demo.
+1. **Phase 1 — CPU baseline** ✅ Working UWP, ORT GenAI, SmolLM2-360M bundled, CI green.
+2. **Phase 2 — GPU acceleration** 🚫 Blocked: UWP GPU pool too small for LLM inference.
+3. **Phase 3 — Benchmarks + model exploration** Populate results, tune n_threads, try sub-400 MB models.
+4. **Phase 4 — In-app model download + publication** ModelSpec multi-file ONNX, demo, technical report.
 
 ---
 
 ## Contributing
 
-Issues and PRs welcome. The project is small enough that there is no formal governance yet — open an issue describing what you'd like to work on and we'll coordinate.
+Issues and PRs welcome. Areas where contributions are particularly useful:
 
-Areas where contributors are particularly useful:
-
-- UWP packaging and Microsoft Store / Dev Mode quirks
-- Mesa/libgallium on Xbox (overlap with the wider Xbox homebrew scene)
+- UWP packaging and Xbox Dev Mode quirks
+- Compact ONNX models that fit the 768 MB GPU pool (ideally <300 MB on-device)
 - Benchmark methodology and reproducibility
-- Documentation, especially install guides for non-Windows developers
+- Documentation for non-Windows developers
 
 ---
 
 ## Acknowledgements
 
-- [`llama.cpp`](https://github.com/ggml-org/llama.cpp) by Georgi Gerganov and contributors — the upstream that makes this possible.
-- The Xbox homebrew community, in particular the work on libgallium, SDL, and Mesa for UWP that opens the door to the Vulkan backend.
-- Andrei David's `llama2.c` port to the Xbox 360, which demonstrated that this class of project is worth doing.
+- [`llama.cpp`](https://github.com/ggml-org/llama.cpp) by Georgi Gerganov and contributors.
+- [ONNX Runtime GenAI](https://github.com/microsoft/onnxruntime-genai) by Microsoft.
+- The Xbox homebrew community for Dev Mode and Device Portal documentation.
+- Andrei David's `llama2.c` port to Xbox 360, which showed this class of project is worth doing.
 
 ---
 

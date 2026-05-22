@@ -5,27 +5,42 @@ Benchmark suite for xllama. Results are stored as CSV files in `results/`.
 ## Methodology
 
 - **Prompts**: fixed prompts in `bench/prompts/` (same across all runs for comparability).
-- **Runs**: 3 runs per configuration; discard the first (JIT warmup / cache cold); report median of the remaining two.
+- **Runs**: 3 runs per configuration; discard the first (cold start); report median of the remaining two.
 - **Metrics**:
   - `prompt_tok_s`: tokens/second during prompt processing
   - `decode_tok_s`: tokens/second during generation (excluding prompt)
-  - `peak_ram_mb`: peak RSS or working set in MB
-- **CSV schema**: `model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ram_mb,host,date`
+  - `peak_ws_mb`: peak working set / RSS in MB
+  - `load_ms`: model load time in milliseconds
+- **CSV schema**: `model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,host,date`
+
+**Backend field values**:
+- `directml`: UWP build (`XLLAMA_USE_ORT` defined). Note: this is the compile-time label; the runtime execution provider on Xbox Series S is CPU EP (see `docs/uwp-constraints.md §5`).
+- `cpu`: Linux build (llama.cpp path).
 
 ## Running benchmarks
 
-```bash
-# Build first
-cmake -B build -DXLLAMA_TARGET=linux -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j
+### Xbox (automated)
 
-# Run against a model
-./build/bin/xllama-cli -m models/qwen3-1.7b-Q4_K_M.gguf \
+```bash
+source ~/.config/xllama/xbox-env
+./scripts/bench-xbox.sh smollm2-360m-cpu-int4 bench/config/phase1-smollm2-360m.json
+```
+
+Results are appended to `bench/results/phase1-cpu.csv`.
+
+### Linux (manual)
+
+```bash
+cmake --preset linux-release
+cmake --build build/linux-release -j
+
+./build/linux-release/bin/xllama-cli \
+    -m models/smollm2-360m.gguf \
     -p "$(cat bench/prompts/standard-512.txt)" \
     -n 128
 ```
 
-Timing is printed by `llama.cpp`'s built-in `llama_perf_context_print()`.
+Timing is printed by the bridge's `write_bench_csv()` in `src/bridge/bench.cpp`.
 Capture output and append a CSV row to `results/phase1-cpu.csv`.
 
 ## Prompts
@@ -39,5 +54,4 @@ Capture output and append a CSV row to `results/phase1-cpu.csv`.
 
 | File | Phase | Backend | Status |
 |------|-------|---------|--------|
-| `results/phase1-cpu.csv` | 1 | CPU (Zen 2) | pending |
-| `results/phase2-vulkan.csv` | 2 | Vulkan (RDNA 2) | pending |
+| `results/phase1-cpu.csv` | 1 | CPU EP (Xbox Series S, Zen 2) | pending — no data yet |

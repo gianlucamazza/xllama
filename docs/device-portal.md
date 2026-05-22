@@ -49,17 +49,29 @@ curl -sS --basic -u "$XBOX_USER:$XBOX_PASS" -k \
 
 ## REST API: Transferring model files
 
-Model files must be placed in the app's `LocalFolder`. Via Device Portal:
+The bundled SmolLM2-360M model is included in the MSIX — no upload is required for the standard flow. Use this only for swapping models in development.
+
+Models are ONNX GenAI **directories** (not single files). Upload each file in the directory:
 
 ```bash
-# Upload a GGUF model to the app's LocalFolder
+source ~/.config/xllama/xbox-env
+PFN=$(./scripts/deploy.sh pfn)
+
+# Upload all files in a model directory
+./scripts/deploy.sh upload-dir ./my-model-dir/ "$PFN" "models\\my-model-name"
+```
+
+Or upload individual files:
+```bash
 curl -sS --basic -u "$XBOX_USER:$XBOX_PASS" -k \
     -X POST \
-    -F "file=@qwen3-1.7b-Q4_K_M.gguf;type=application/octet-stream" \
-    "https://$XBOX_IP:11443/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=VenereLabs.xllama_0.1.0.0_x64__<token>&path=\\LocalState\\models"
+    -F "file=@genai_config.json;type=application/octet-stream" \
+    "https://$XBOX_IP:11443/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=VenereLabs.xllama_0.1.0.0_x64__<token>&path=\\LocalState\\models\\my-model-name"
 ```
 
 Replace `<token>` with the package publisher token (visible in the installed packages list).
+
+**Important**: `OgaCreateModel` receives the **directory path** (containing `genai_config.json`), not a path to `model.onnx`. The directory name is what `model.txt` or the hardcoded default refers to.
 
 ## REST API: Installing the test certificate
 
@@ -79,7 +91,7 @@ curl -sS \
 
 ## REST API: Reading files from LocalState
 
-`ApplicationData.LocalFolder` in UWP maps to the `LocalState/` subdirectory of the app's data folder. Use the `filename` parameter (lowercase) to read individual files:
+`ApplicationData.LocalFolder` maps to `LocalState/` in the app's data folder. Use the `filename` parameter (lowercase) to read individual files:
 
 ```bash
 PFN="VenereLabs.xllama_0.1.0.0_x64__<token>"
@@ -93,11 +105,11 @@ curl -sS --basic -u "$XBOX_USER:$XBOX_PASS" -k \
     "https://$XBOX_IP:11443/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState&filename=bench-result.csv"
 ```
 
-Note: the `path` parameter specifies the **directory** (`\\LocalState` or `\\LocalState\\models`), while `filename` specifies the file within it. Combining them into a single `path` parameter returns a 400 error.
+Note: `path` specifies the **directory** (`\\LocalState` or `\\LocalState\\models\\<name>`), while `filename` specifies the file within it. Combining them into a single `path` parameter returns a 400 error.
 
 ## File Explorer (GUI)
 
-Navigate to `https://<ip>:11443/#fileExplorer` for a browser-based file manager — easier for one-off file transfers.
+Navigate to `https://<ip>:11443/#fileExplorer` for a browser-based file manager.
 
 ## References
 

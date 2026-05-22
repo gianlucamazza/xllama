@@ -1,27 +1,31 @@
 # patches/
 
-UWP-specific patches against the pinned `llama.cpp` submodule (`b9222`).
+Root-level placeholder. UWP-specific patches against the pinned `llama.cpp` submodule live in `uwp/patches/llama.cpp/`.
 
-## Applying patches
+## Active patches
+
+Three patches are maintained in `uwp/patches/llama.cpp/`:
+
+| File | Description |
+|------|-------------|
+| `0001-uwp-ggml-backend-dl-remove-winevt.patch` | Remove WinEvt dependency from ggml backend dynamic loading |
+| `0002-uwp-ggml-cpu-cpp-no-registry.patch` | Remove registry access in ggml CPU implementation |
+| `0003-uwp-ggml-cpu-c-no-thread-affinity-throttling.patch` | Remove thread affinity / throttling APIs blocked in UWP sandbox |
+
+## Applying
 
 ```bash
+./scripts/apply-uwp-patches.sh
+```
+
+Or manually:
+```bash
 cd llama.cpp
-git apply ../patches/*.patch
+git apply ../uwp/patches/llama.cpp/*.patch
 ```
 
-## Patch naming convention
+## Status
 
-```
-NNNN-short-description.patch
-```
+These patches are **not applied for the current UWP build** (which uses ORT GenAI, not llama.cpp). They are kept for any future evaluation of the llama.cpp path on UWP.
 
-Example: `0001-disable-posix-mmap-for-uwp.patch`
-
-## Current patches
-
-None yet — Phase 1 will add patches as UWP incompatibilities are identified.
-
-Expected patches for Phase 1:
-- Disable `POSIX mmap` and route through `mmap_replacement()` in `llama-bridge.cpp`
-- Remove `dlopen`-based backend discovery (compile-time backend selection only)
-- Replace `getenv` calls blocked in UWP sandbox with compile-time defaults
+The patches apply cleanly against the pinned submodule commit. If `llama.cpp` is updated, rebase them with `git am --rebase`.

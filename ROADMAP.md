@@ -1,51 +1,54 @@
 # xllama Roadmap
 
-## Phase 1 — CPU Baseline
+## Phase 1 — CPU Baseline ✅ DONE
 
-**Goal**: reproducible, measurable CPU-only inference on Xbox Series S via UWP Dev Mode.
-
-Milestones:
-- [x] Linux build green on Ubuntu 22.04 (CMake presets + CI)
-- [x] Modular C++ bridge with RAII wrappers, CLI parser, and unit tests
-- [ ] `llama-bridge.cpp` compiles clean with MSVC under UWP constraints (no mmap, no dlopen)
-- [ ] `xllama.appx` deploys and launches on Xbox Series S in Dev Mode
-- [ ] Inference runs end-to-end for Qwen3-1.7B Q4_K_M; tok/s recorded to `bench/results/`
-- [ ] `CreateFileMappingFromApp`-based model loading replaces POSIX mmap
-- [ ] `bench/results/phase1-cpu.csv` published with median tok/s across 3 models
-
-Target models: Qwen3 1.7B, Qwen3 8B, Llama 3.2 3B.
-
-## Phase 2 — Vulkan Backend
-
-**Goal**: GPU acceleration on Xbox RDNA 2 via Mesa/libgallium Vulkan driver.
+**Goal**: working UWP build, ORT GenAI CPU EP inference on Xbox Series S, MSIX self-contained.
 
 Milestones:
-- [ ] Mesa / libgallium builds for UWP ARM64/x64 (or source Mesa Vulkan driver that works in UWP sandbox)
-- [ ] `GGML_VULKAN=1` backend compiles and links against Mesa Vulkan ICD
-- [ ] Vulkan device enumeration succeeds inside the UWP container
-- [ ] Inference runs on GPU; tok/s measured and compared to Phase 1 CPU baseline
-- [ ] Target: ≥2× speedup for Qwen3-8B Q4_K_M vs CPU-only
+- [x] Linux build green (CMake presets + CI `build-linux`)
+- [x] Modular C++ bridge with RAII wrappers, CLI parser, unit tests (doctest)
+- [x] Pivot from llama.cpp to ONNX Runtime GenAI + DirectML (`XLLAMA_USE_ORT`)
+- [x] XAML-free programmatic UI (`MainPageController`, no WMC9999 workarounds)
+- [x] GPU EP evaluated and ruled out: UWP pool ~768 MB → OOM on any usable LLM
+- [x] CPU EP adopted: SmolLM2-360M-Instruct INT4 (403 MB), Zen 2 compatible
+- [x] ONNX external data merged into self-contained `model.onnx` (AppContainer `weakly_canonical` fix)
+- [x] SmolLM2-360M bundled inside MSIX as `DeploymentContent`; CI `build-uwp` green
+- [x] ChatML prompt template applied for SmolLM2 Instruct
 
-Dependencies: Xbox homebrew Mesa/libgallium work (external project).
+## Phase 2 — GPU Acceleration 🚫 BLOCKED
 
-## Phase 3 — Optimization
+**Goal**: DirectML EP inference using Xbox RDNA 2 hardware.
 
-**Goal**: squeeze the hardware for best tok/s within the 8 GB envelope.
+**Blocker**: UWP GPU memory pool on Xbox Series S is ~768 MB (128 MB dedicated + 640 MB shared). `OgaCreateModel` with DirectML EP crashes with SEH `0xC0000005` (null-deref on OOM in the DirectML allocator) for any LLM with on-device weights > ~300 MB. SmolLM2-360M INT4 on-device weighs ~400 MB after merging external data, which still exceeds the threshold.
+
+**Conditions to reopen**:
+- A sub-300 MB on-device ONNX model (e.g., < 250 M parameter INT4) is identified and validated
+- Microsoft expands the UWP GPU pool allocation for Dev Mode apps
+- An alternative GPU path that bypasses the ORT DirectML allocator is found
+
+Milestones (blocked):
+- [ ] Identify a model whose DirectML memory footprint fits in ~600 MB (conservative budget)
+- [ ] Validate DirectML EP inference end-to-end: tok/s vs CPU EP baseline
+- [ ] Measure GPU vs CPU tok/s for the same model at same quant level
+
+## Phase 3 — Benchmarks + Model Exploration 📋 NEXT
+
+**Goal**: reproducible results, n_threads tuning, evaluate alternative compact models.
 
 Milestones:
-- [ ] Profile `ggml` kernel hot-paths on Zen 2 with `perf` (Linux) and PIX (Xbox)
-- [ ] Evaluate IQ-quant variants (IQ3_XS, IQ4_XS) for quality/speed tradeoff
-- [ ] KV-cache memory layout tuning for GDDR6 bandwidth
-- [ ] Sliding-window / grouped-query attention paths validated on target hardware
-- [ ] `bench/results/phase3-optimized.csv` showing improvement deltas
+- [ ] Populate `bench/results/phase1-cpu.csv` with 3+ models × 3 runs (median tok/s)
+- [ ] Tune `n_threads` on Zen 2 Xbox (6–7 available cores); find optimal value for SmolLM2-360M
+- [ ] Evaluate Qwen2.5-0.5B INT4 ONNX (estimate ~200 MB): fits Phase 2 GPU budget?
+- [ ] Evaluate Llama-3.2-1B INT4 ONNX CPU: fits disk budget with MSIX overhead?
+- [ ] Add `load_ms` to bench CSV if not already present; baseline model load time
 
-## Phase 4 — Publication
+## Phase 4 — In-App Download + Publication 🔮 FUTURE
 
-**Goal**: reproducible results, public release, technical write-up.
+**Goal**: remove bundled-model constraint; demo video; technical write-up.
 
 Milestones:
-- [ ] All benchmark CSVs reviewed and reproducibility instructions validated by at least one external contributor
-- [ ] Technical report published (target: arXiv or GitHub Discussions)
+- [ ] `ModelSpec` with `vector<string> files` for multi-file ONNX downloads in-app
+- [ ] Device Portal–based model swap UI (or HTTP download from known HF endpoint)
 - [ ] Demo video: model loaded and running on Xbox hardware
-- [ ] Tagged v1.0.0 release with pre-built .appx and GGUF download instructions
-- [ ] Submission to llama.cpp upstream tracker / Xbox homebrew community forums
+- [ ] Technical report (arXiv or GitHub Discussions)
+- [ ] Tagged v1.0.0 release with pre-built MSIX and model manifest

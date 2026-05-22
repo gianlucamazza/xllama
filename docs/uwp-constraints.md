@@ -1,46 +1,71 @@
 # UWP Constraints
 
-This document maps the UWP sandbox constraints relevant to running `llama.cpp` on Xbox Dev Mode, and describes how xllama addresses each one.
+Platform limitations relevant to running LLM inference on Xbox Dev Mode, and how xllama addresses each one.
 
 ## 1. No POSIX `mmap`
 
-**Problem**: `llama.cpp` defaults to memory-mapping model weight files via `mmap()`. This is unavailable in the UWP sandbox.
+**Problem**: `mmap()` is unavailable in the UWP sandbox.
 
-**Workaround**: `mparams.use_mmap = false` causes llama.cpp to fall back to a full read into heap memory. This costs extra peak RAM at load time but works correctly.
-
-**Phase 1 improvement**: Implement `CreateFileMappingFromApp` + `MapViewOfFileFromApp` in `llama-bridge.cpp` to get zero-copy loading back. These Win32 functions are available in UWP unlike the POSIX equivalents.
+**Status**: Not an issue for the current ORT GenAI path. ORT loads the model internally using Win32 file APIs compatible with UWP. The Linux llama.cpp path uses `mparams.use_mmap = false` to fall back to heap reads.
 
 ## 2. Sandboxed Filesystem
 
-**Problem**: UWP apps can only read/write their `LocalFolder` (`ApplicationData::Current::LocalFolder`), plus locations explicitly granted by the user via file pickers. Arbitrary path access (e.g. `C:\Users\...`) is blocked.
+**Problem**: UWP apps can only read/write their `LocalFolder` (`ApplicationData::Current::LocalFolder`) and locations explicitly granted by the user. Arbitrary path access (e.g. `C:\Users\...`) is denied.
 
-**Workaround**: Models must be copied to the app's `LocalFolder` before inference. This can be done:
-- Via Device Portal file browser (`https://<ip>:11443/#fileExplorer`)
-- Via USB mass storage (with Dev Mode enabled)
-- Programmatically using the Device Portal REST API
-
-**Phase 1 plan**: accept a relative model path interpreted against `LocalFolder`. Document the transfer workflow.
+**Workaround**: The bundled model is included as `DeploymentContent` in the MSIX and placed under `Package.InstalledPath\models\`. On first launch, `resolve_model_path` (`src/bridge/path_utils.cpp`) copies it to `LocalState\models\` so subsequent writes (log, bench CSV) land in the writable sandbox. Device Portal is used for one-off file transfers in dev.
 
 ## 3. No `dlopen` / Dynamic Backend Loading
 
-**Problem**: `llama.cpp` can dynamically load GPU backends (CUDA, Metal, Vulkan) at runtime via `dlopen`/`LoadLibrary`. UWP does not allow loading unsigned DLLs.
+**Problem**: UWP does not allow loading unsigned DLLs at runtime.
 
-**Workaround**: Compile-time backend selection only. Phase 1 is CPU-only (`GGML_USE_STATIC_BACKEND=1`, no dynamic loading). Phase 2 will statically link the Mesa Vulkan driver.
+**Workaround**: ORT GenAI and its dependencies (`onnxruntime-genai.dll`, `onnxruntime.dll`, `DirectML.dll`) are NuGet packages restored at build time and included in the MSIX as **app-local** DLLs with `<DeploymentContent>true</DeploymentContent>`. No system-wide DLL loading. The backend (`XLLAMA_USE_ORT`) is selected at compile time.
 
 ## 4. No JIT Compilation
 
-**Problem**: UWP blocks executable memory allocation (`VirtualAlloc` with `PAGE_EXECUTE_*`), preventing JIT-compiled kernels.
+**Problem**: UWP blocks `VirtualAlloc` with `PAGE_EXECUTE_*`, preventing JIT-compiled kernels.
 
-**Impact**: Minimal for llama.cpp — its GGML kernels are pre-compiled C/C++/AVX2. Only ggml-jit (experimental) is affected, and it is not used here.
+**Impact**: Minimal. GGML and ORT GenAI kernels are pre-compiled C/C++. Only ggml-jit (experimental, unused here) is affected.
 
-## 5. DirectML Not Available in Dev Mode
+## 5. DirectML Available but GPU Pool Too Small
 
-**Problem**: The `Windows.AI.MachineLearning` API and DirectML acceleration are not exposed to Dev Mode UWP apps. The Xbox GPU's INT8/INT4 hardware is not directly addressable.
+**Problem**: The UWP GPU memory pool on Xbox Series S is approximately **768 MB** (128 MB dedicated + 640 MB shared pool). This limit applies to any "Game" category Dev Mode app regardless of the console's 10 GB unified memory.
 
-**Workaround**: Phase 2 targets the Mesa Vulkan driver, which exposes the GPU through the standard Vulkan compute API. INT8 quantization via `VK_EXT_shader_integer_dot_product` is a stretch goal.
+**Effect**: `OgaCreateModel` with the DirectML execution provider crashes with SEH `0xC0000005` (STATUS_ACCESS_VIOLATION — null-deref in the DML allocator when it hits OOM) for any LLM whose on-device weights exceed the pool. Tested:
+
+| Model | Variant | On-disk | Result |
+|-------|---------|---------|--------|
+| Phi-3.5-mini | GPU INT4 AWQ | ~2.2 GB | Crash (GPU OOM) |
+| SmolLM2-1.7B | INT4 CPU | 1.4 GB | Above disk budget |
+| SmolLM2-360M | INT4 CPU | 403 MB | ✅ Works (CPU EP) |
+
+Note: DirectML itself *is* available in Dev Mode (NuGet `Microsoft.AI.DirectML 1.15.4`). The constraint is the memory pool, not the API.
+
+**Current approach**: CPU EP (`"provider_options": []` in `genai_config.json`). See §7.
 
 ## 6. Limited Thread Count
 
-**Problem**: Dev Mode apps share CPU resources with the system. The Xbox Series S has 8 Zen 2 cores; typically 6–7 are available to a Dev Mode app.
+**Problem**: Dev Mode apps share CPU resources. Xbox Series S has 8 Zen 2 cores; typically 6–7 are available.
 
-**Workaround**: `detect_threads()` in `src/bridge/platform.cpp` reads `hardware_concurrency()` at runtime and caps threads accordingly. The default llama.cpp thread heuristic also works well.
+**Workaround**: `detect_threads()` in `src/bridge/platform.cpp` reads `hardware_concurrency()` at runtime and ORT GenAI respects the system thread pool. Thread count can be overridden via `InferenceParams`.
+
+## 7. GPU Memory Pool — Detail
+
+The UWP "Game" process category on Xbox Series S receives a GPU memory budget of approximately 768 MB. This is separate from the ~8 GB of CPU-accessible RAM and cannot be expanded from a Dev Mode application.
+
+When `OgaCreateModel` initialises the DirectML execution provider, the DML allocator attempts to reserve GPU memory for model weights. If the model's total weight size exceeds the available pool, the allocator returns a null pointer; subsequent use of that pointer produces a STATUS_ACCESS_VIOLATION fault.
+
+The fault manifests before any inference call — at model load time. There is no recovery path short of using a smaller model or switching to CPU EP.
+
+**Diagnosis**: SEH `0xC0000005` in `OgaCreateModel`. WDP minidump (`type=2`) and the `xllama.log` entry `OgaCreateModel failed: ...` confirm the cause.
+
+## 8. AppContainer Filesystem Walk (`weakly_canonical`)
+
+**Problem**: ORT Runtime 1.24.4 calls `std::filesystem::weakly_canonical()` in `ValidateExternalDataPath()` for models that have a separate `.onnx.data` file. MSVC STL implements `weakly_canonical` by walking path segments from the root: `Q:\` → `Q:\Users` → `Q:\Users\UserMgr0` → ... The intermediate segment `UserMgr0` (Xbox AppContainer user manager) is not accessible from the AppContainer → `ACCESS_DENIED` → exception → crash.
+
+The `\\?\` long-path prefix does not help: it bypasses MAX_PATH but not the access check.
+
+**Fix**: before MSIX packaging, merge `model.onnx.data` into `model.onnx` to produce a self-contained model file. With no external data file, `ValidateExternalDataPath` is never called and `weakly_canonical` is never invoked.
+
+Tool: `scripts/merge_onnx_external_data.py`. CI runs this automatically as part of `build-uwp`.
+
+**Diagnosis**: Win32 probes on the model path — `GetFileAttributesW` and `CreateFile2` with `GENERIC_READ` succeed on `model_dir\model.onnx`, but the crash occurs inside the ORT segment-walking loop. Confirmed by matching the call site to `onnxruntime/core/framework/tensorprotoutils.cc` L337/338/346.
