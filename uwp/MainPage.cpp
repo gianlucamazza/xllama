@@ -144,6 +144,11 @@ void MainPageController::BuildUI() {
     btnPanel.Orientation(Orientation::Horizontal);
     Grid::SetColumn(btnPanel, 1);
 
+    m_settingsButton = Button();
+    m_settingsButton.Content(winrt::box_value(L"⚙  Settings"));
+    m_settingsButton.MinWidth(100);
+    m_settingsButton.Margin(ThicknessHelper::FromLengths(0, 0, 12, 0));
+
     m_newChatButton = Button();
     m_newChatButton.Content(winrt::box_value(L"✚  New"));
     m_newChatButton.MinWidth(100);
@@ -164,6 +169,7 @@ void MainPageController::BuildUI() {
     m_cancelButton.IsEnabled(false);
     m_cancelButton.MinWidth(120);
 
+    btnPanel.Children().Append(m_settingsButton);
     btnPanel.Children().Append(m_newChatButton);
     btnPanel.Children().Append(m_historyButton);
     btnPanel.Children().Append(m_runButton);
@@ -213,6 +219,9 @@ void MainPageController::Init() {
             s->SetStatus(L"Cancelling...");
             s->m_cancelButton.IsEnabled(false);
         }
+    });
+    m_settingsButton.Click([self](IInspectable const&, RoutedEventArgs const&) {
+        if (auto s = self.lock()) s->ShowSettings();
     });
     m_newChatButton.Click([self](IInspectable const&, RoutedEventArgs const&) {
         if (auto s = self.lock()) s->NewChat();
@@ -554,6 +563,55 @@ void MainPageController::LoadSettings() {
         } else sp += c;
     }
     if (!sp.empty()) m_system_prompt = sp;
+}
+
+void MainPageController::SaveSettings() {
+    auto folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
+    std::wstring wpath(folder.Path().c_str());
+    wpath += L"\\settings.json";
+    FILE* f = _wfopen(wpath.c_str(), L"w");
+    if (!f) return;
+    // Minimal JSON escape for system_prompt
+    std::string esc;
+    for (unsigned char c : m_system_prompt) {
+        if (c == '"')       esc += "\\\"";
+        else if (c == '\\') esc += "\\\\";
+        else if (c == '\n') esc += "\\n";
+        else if (c == '\r') esc += "\\r";
+        else                esc += static_cast<char>(c);
+    }
+    fprintf(f, "{\"system_prompt\":\"%s\"}\n", esc.c_str());
+    fclose(f);
+}
+
+winrt::fire_and_forget MainPageController::ShowSettings() {
+    auto self = shared_from_this();
+    if (m_is_running.load()) co_return;
+
+    // System prompt TextBox
+    winrt::Windows::UI::Xaml::Controls::TextBox sysPromptBox;
+    sysPromptBox.Text(::xllama::utf8_to_wstring(m_system_prompt));
+    sysPromptBox.AcceptsReturn(true);
+    sysPromptBox.TextWrapping(TextWrapping::Wrap);
+    sysPromptBox.MinHeight(120);
+    sysPromptBox.FontSize(16);
+    sysPromptBox.IsFocusEngagementEnabled(true);
+    sysPromptBox.Header(winrt::box_value(L"System prompt"));
+
+    winrt::Windows::UI::Xaml::Controls::ContentDialog dlg;
+    dlg.Title(winrt::box_value(L"Settings"));
+    dlg.Content(sysPromptBox);
+    dlg.PrimaryButtonText(L"Save");
+    dlg.CloseButtonText(L"Cancel");
+    dlg.XamlRoot(m_root.XamlRoot());
+
+    auto result = co_await dlg.ShowAsync();
+    if (result != winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary)
+        co_return;
+
+    self->m_system_prompt = ::xllama::wstring_to_utf8(std::wstring(sysPromptBox.Text().c_str()));
+    self->SaveSettings();
+    self->SetStatus(L"Settings saved");
 }
 
 // ---------------------------------------------------------------------------

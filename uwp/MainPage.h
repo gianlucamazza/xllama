@@ -53,6 +53,8 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     void AddUserParagraph(std::wstring const& text);
     std::string BuildChatMLPrompt(const std::string& user_text) const;
     void LoadSettings();
+    void SaveSettings();
+    winrt::fire_and_forget ShowSettings();
     void SaveCurrentConversation(bool partial = false);
 
     // UI controls (populated by BuildUI)
@@ -69,6 +71,7 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     winrt::Windows::UI::Xaml::Controls::Button m_cancelButton{nullptr};
     winrt::Windows::UI::Xaml::Controls::Button m_newChatButton{nullptr};
     winrt::Windows::UI::Xaml::Controls::Button m_historyButton{nullptr};
+    winrt::Windows::UI::Xaml::Controls::Button m_settingsButton{nullptr};
     winrt::Windows::UI::Xaml::DispatcherTimer m_flush_timer{nullptr};
     winrt::event_token m_flush_tick_token{};
 

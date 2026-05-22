@@ -40,12 +40,15 @@
     <Application Id="xllama" Executable="xllama.exe" EntryPoint="xllama.App">
       <uap:VisualElements
         DisplayName="xllama"
-        Description="LLM inference on Xbox Series S via llama.cpp"
-        BackgroundColor="transparent"
+        Description="Local LLM inference for Xbox Series S"
+        BackgroundColor="#0E1116"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">
-        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
-        <uap:SplashScreen Image="Assets\SplashScreen.png" />
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" ShortName="xllama" />
+        <uap:SplashScreen Image="Assets\SplashScreen.png" BackgroundColor="#0E1116" />
+        <uap:InitialRotationPreference>
+          <uap:Rotation Preference="landscape" />
+        </uap:InitialRotationPreference>
       </uap:VisualElements>
     </Application>
   </Applications>
