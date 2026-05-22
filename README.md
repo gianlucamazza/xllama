@@ -25,6 +25,15 @@ This is a research-grade hobby project. "Xbox" is a Microsoft trademark; this pr
 
 ---
 
+## About the name
+
+`xllama` predates the pivot to ONNX Runtime GenAI. The name is kept for continuity, not as a claim about the engine:
+
+- **`x`** — Xbox (UWP target) and cross-platform (Linux CLI build).
+- **`llama`** — local-LLM ecosystem at large. The Linux build still uses `llama.cpp`; the UWP build does not. Neither path ships LLaMA model weights — the bundled model is SmolLM2-360M-Instruct.
+
+---
+
 ## Why Xbox Series S
 
 - **Capable CPU**: 8 Zen 2 cores @ 3.6 GHz, AVX2, comparable to a Ryzen 7 3700X.
