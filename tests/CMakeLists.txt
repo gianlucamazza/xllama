@@ -13,6 +13,7 @@ add_executable(xllama-tests
     test_utf8.cpp
     test_path.cpp
     test_bench.cpp
+    test_session.cpp
 )
 
 target_link_libraries(xllama-tests PRIVATE xllama doctest::doctest)
