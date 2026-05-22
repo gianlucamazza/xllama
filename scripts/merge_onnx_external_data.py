@@ -4,7 +4,7 @@
 ORT Runtime 1.24.4 calls weakly_canonical() in ValidateExternalDataPath()
 when loading a model that has external data files. On Xbox AppContainer,
 MSVC STL's weakly_canonical walks path segments from root and fails at
-Q:\Users\UserMgr0 (inaccessible intermediate segment). Embedding all
+Q:/Users/UserMgr0 (inaccessible intermediate segment). Embedding all
 weights in model.onnx prevents that code path from being reached.
 
 Usage: python scripts/merge_onnx_external_data.py <model_dir>
