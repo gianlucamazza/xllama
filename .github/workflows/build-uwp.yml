@@ -39,21 +39,7 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --quiet onnx
-          python -c "
-import onnx
-from onnx.external_data_helper import load_external_data_for_model
-import os
-
-model_dir = 'models/smollm2-360m-cpu-int4'
-onnx_path = os.path.join(model_dir, 'model.onnx')
-model = onnx.load(onnx_path, load_external_data=False)
-load_external_data_for_model(model, model_dir)
-onnx.save_model(model, onnx_path, save_as_external_data=False)
-data_path = os.path.join(model_dir, 'model.onnx.data')
-if os.path.exists(data_path):
-    os.remove(data_path)
-print('model.onnx embedded size:', os.path.getsize(onnx_path) // 1024 // 1024, 'MB')
-"
+          python scripts/merge_onnx_external_data.py models/smollm2-360m-cpu-int4
 
       - name: Restore NuGet packages
         shell: pwsh
