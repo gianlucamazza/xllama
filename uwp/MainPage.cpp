@@ -221,36 +221,40 @@ void MainPageController::Init() {
         }
     });
     m_settingsButton.Click([self](IInspectable const&, RoutedEventArgs const&) {
-        if (auto s = self.lock()) s->ShowSettings();
+        if (auto s = self.lock())
+            s->ShowSettings();
     });
     m_newChatButton.Click([self](IInspectable const&, RoutedEventArgs const&) {
-        if (auto s = self.lock()) s->NewChat();
+        if (auto s = self.lock())
+            s->NewChat();
     });
     m_historyButton.Click([self](IInspectable const&, RoutedEventArgs const&) {
-        if (auto s = self.lock()) s->ShowHistory();
+        if (auto s = self.lock())
+            s->ShowHistory();
     });
 
     // B button: cancel inference if running, otherwise let system exit the app
     auto nav = winrt::Windows::UI::Core::SystemNavigationManager::GetForCurrentView();
-    nav.BackRequested([self](IInspectable const&,
-                             winrt::Windows::UI::Core::BackRequestedEventArgs const& e) {
-        if (auto s = self.lock()) {
-            if (s->m_is_running.load()) {
-                s->m_abort.store(true);
-                s->SetStatus(L"Cancelling...");
-                s->m_cancelButton.IsEnabled(false);
-                e.Handled(true);
+    nav.BackRequested(
+        [self](IInspectable const&, winrt::Windows::UI::Core::BackRequestedEventArgs const& e) {
+            if (auto s = self.lock()) {
+                if (s->m_is_running.load()) {
+                    s->m_abort.store(true);
+                    s->SetStatus(L"Cancelling...");
+                    s->m_cancelButton.IsEnabled(false);
+                    e.Handled(true);
+                }
             }
-        }
-    });
+        });
 
     // Gamepad keys: View = clear output, Y = jump to prompt
-    m_root.KeyDown([self](IInspectable const&,
-                          winrt::Windows::UI::Xaml::Input::KeyRoutedEventArgs const& e) {
-        auto s = self.lock();
-        if (!s) return;
-        using VK = winrt::Windows::System::VirtualKey;
-        switch (e.Key()) {
+    m_root.KeyDown(
+        [self](IInspectable const&, winrt::Windows::UI::Xaml::Input::KeyRoutedEventArgs const& e) {
+            auto s = self.lock();
+            if (!s)
+                return;
+            using VK = winrt::Windows::System::VirtualKey;
+            switch (e.Key()) {
             case VK::GamepadView:
                 s->m_outputBody.Blocks().Clear();
                 s->m_currentParagraph = winrt::Windows::UI::Xaml::Documents::Paragraph();
@@ -265,8 +269,8 @@ void MainPageController::Init() {
                 break;
             default:
                 break;
-        }
-    });
+            }
+        });
 
     // Start with focus on Run button
     m_runButton.Focus(FocusState::Programmatic);
@@ -321,26 +325,26 @@ void MainPageController::FlushTokenBuffer() {
 void MainPageController::SetStatus(std::wstring const& msg, StatusKind kind) {
     namespace Media = winrt::Windows::UI::Xaml::Media;
     switch (kind) {
-        case StatusKind::Working:
-            m_statusText.Foreground(Media::SolidColorBrush({255, 80, 190, 255})); // accent blue
-            m_statusText.Opacity(1.0);
-            m_statusText.Text(L">> " + msg);
-            break;
-        case StatusKind::Success:
-            m_statusText.Foreground(Media::SolidColorBrush({255, 100, 220, 100})); // green
-            m_statusText.Opacity(1.0);
-            m_statusText.Text(L"> " + msg);
-            break;
-        case StatusKind::Error:
-            m_statusText.Foreground(Media::SolidColorBrush({255, 240, 80, 70})); // red
-            m_statusText.Opacity(1.0);
-            m_statusText.Text(L"! " + msg);
-            break;
-        default: // Info
-            m_statusText.ClearValue(TextBlock::ForegroundProperty());
-            m_statusText.Opacity(0.7);
-            m_statusText.Text(msg);
-            break;
+    case StatusKind::Working:
+        m_statusText.Foreground(Media::SolidColorBrush({255, 80, 190, 255})); // accent blue
+        m_statusText.Opacity(1.0);
+        m_statusText.Text(L">> " + msg);
+        break;
+    case StatusKind::Success:
+        m_statusText.Foreground(Media::SolidColorBrush({255, 100, 220, 100})); // green
+        m_statusText.Opacity(1.0);
+        m_statusText.Text(L"> " + msg);
+        break;
+    case StatusKind::Error:
+        m_statusText.Foreground(Media::SolidColorBrush({255, 240, 80, 70})); // red
+        m_statusText.Opacity(1.0);
+        m_statusText.Text(L"! " + msg);
+        break;
+    default: // Info
+        m_statusText.ClearValue(TextBlock::ForegroundProperty());
+        m_statusText.Opacity(0.7);
+        m_statusText.Text(msg);
+        break;
     }
 }
 
@@ -414,10 +418,10 @@ std::string MainPageController::BuildChatMLPrompt(const std::string& user_text) 
     while (first_turn < turn_starts.size() && calc_size(first_turn) > kMaxEstimatedTokens)
         ++first_turn;
     if (first_turn > 0)
-        log_output("[xllama] context trimmed: dropped " + std::to_string(first_turn) + " old turn(s)\n");
+        log_output("[xllama] context trimmed: dropped " + std::to_string(first_turn) +
+                   " old turn(s)\n");
 
-    std::string prompt =
-        "<|im_start|>system\n" + m_system_prompt + "<|im_end|>\n";
+    std::string prompt = "<|im_start|>system\n" + m_system_prompt + "<|im_end|>\n";
 
     for (size_t ti = first_turn; ti < turn_starts.size(); ++ti) {
         size_t i = turn_starts[ti];
@@ -434,7 +438,8 @@ std::string MainPageController::BuildChatMLPrompt(const std::string& user_text) 
 }
 
 void MainPageController::SaveCurrentConversation(bool partial) {
-    if (m_current.id.empty()) return;
+    if (m_current.id.empty())
+        return;
     // Mark last assistant message as partial if needed
     if (partial && !m_current.messages.empty() &&
         m_current.messages.back().role == xllama::ui::MessageRole::Assistant) {
@@ -444,7 +449,8 @@ void MainPageController::SaveCurrentConversation(bool partial) {
 }
 
 void MainPageController::NewChat() {
-    if (m_is_running.load()) return; // don't allow while running
+    if (m_is_running.load())
+        return;                // don't allow while running
     SaveCurrentConversation(); // save current (no-op if empty)
     m_current = xllama::ui::Conversation{};
     m_current.id = xllama::ui::ChatHistory::NewId();
@@ -459,7 +465,8 @@ void MainPageController::RenderConversation() {
     using namespace winrt::Windows::UI::Xaml::Documents;
     m_outputBody.Blocks().Clear();
     for (const auto& msg : m_current.messages) {
-        if (msg.role == xllama::ui::MessageRole::System) continue;
+        if (msg.role == xllama::ui::MessageRole::System)
+            continue;
         Paragraph p;
         const wchar_t* role_label =
             (msg.role == xllama::ui::MessageRole::User) ? L"You: " : L"Assistant: ";
@@ -485,14 +492,17 @@ void MainPageController::RenderConversation() {
 void MainPageController::LoadConversation(const std::string& id) {
     SaveCurrentConversation();
     m_current = m_history.Load(id);
-    if (m_current.id.empty()) { m_current.id = id; }
+    if (m_current.id.empty()) {
+        m_current.id = id;
+    }
     RenderConversation();
     SetStatus(L"Conversation loaded");
 }
 
 winrt::fire_and_forget MainPageController::ShowHistory() {
     auto self = shared_from_this();
-    if (m_is_running.load()) co_return;
+    if (m_is_running.load())
+        co_return;
 
     const auto& index = m_history.Index();
     if (index.empty()) {
@@ -509,8 +519,7 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
         tb.FontSize(16);
         tb.TextWrapping(winrt::Windows::UI::Xaml::TextWrapping::Wrap);
         wchar_t buf[128];
-        swprintf_s(buf, L"%s  (%d msgs)",
-                   ::xllama::utf8_to_wstring(meta.title).c_str(),
+        swprintf_s(buf, L"%s  (%d msgs)", ::xllama::utf8_to_wstring(meta.title).c_str(),
                    meta.n_messages);
         tb.Text(buf);
         lv.Items().Append(tb);
@@ -528,7 +537,8 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
         co_return;
 
     int sel = lv.SelectedIndex();
-    if (sel < 0 || sel >= static_cast<int>(index.size())) co_return;
+    if (sel < 0 || sel >= static_cast<int>(index.size()))
+        co_return;
 
     self->LoadConversation(index[static_cast<size_t>(sel)].id);
 }
@@ -539,29 +549,44 @@ void MainPageController::LoadSettings() {
     std::wstring wpath(folder.Path().c_str());
     wpath += L"\\settings.json";
     FILE* f = _wfopen(wpath.c_str(), L"r");
-    if (!f) return;
+    if (!f)
+        return;
     std::string json;
     char buf[8192];
-    while (size_t n = fread(buf, 1, sizeof(buf) - 1, f)) { buf[n] = 0; json += buf; }
+    while (size_t n = fread(buf, 1, sizeof(buf) - 1, f)) {
+        buf[n] = 0;
+        json += buf;
+    }
     fclose(f);
     // Minimal parse: find "system_prompt":"..."
     size_t key = json.find("\"system_prompt\"");
-    if (key == std::string::npos) return;
+    if (key == std::string::npos)
+        return;
     size_t colon = json.find(':', key);
-    if (colon == std::string::npos) return;
+    if (colon == std::string::npos)
+        return;
     size_t quote = json.find('"', colon + 1);
-    if (quote == std::string::npos) return;
+    if (quote == std::string::npos)
+        return;
     ++quote;
     std::string sp;
     while (quote < json.size()) {
         char c = json[quote++];
-        if (c == '"') break;
+        if (c == '"')
+            break;
         if (c == '\\' && quote < json.size()) {
             char e = json[quote++];
-            if (e == 'n') sp += '\n'; else if (e == 't') sp += '\t'; else sp += e;
-        } else sp += c;
+            if (e == 'n')
+                sp += '\n';
+            else if (e == 't')
+                sp += '\t';
+            else
+                sp += e;
+        } else
+            sp += c;
     }
-    if (!sp.empty()) m_system_prompt = sp;
+    if (!sp.empty())
+        m_system_prompt = sp;
 }
 
 void MainPageController::SaveSettings() {
@@ -569,15 +594,21 @@ void MainPageController::SaveSettings() {
     std::wstring wpath(folder.Path().c_str());
     wpath += L"\\settings.json";
     FILE* f = _wfopen(wpath.c_str(), L"w");
-    if (!f) return;
+    if (!f)
+        return;
     // Minimal JSON escape for system_prompt
     std::string esc;
     for (unsigned char c : m_system_prompt) {
-        if (c == '"')       esc += "\\\"";
-        else if (c == '\\') esc += "\\\\";
-        else if (c == '\n') esc += "\\n";
-        else if (c == '\r') esc += "\\r";
-        else                esc += static_cast<char>(c);
+        if (c == '"')
+            esc += "\\\"";
+        else if (c == '\\')
+            esc += "\\\\";
+        else if (c == '\n')
+            esc += "\\n";
+        else if (c == '\r')
+            esc += "\\r";
+        else
+            esc += static_cast<char>(c);
     }
     fprintf(f, "{\"system_prompt\":\"%s\"}\n", esc.c_str());
     fclose(f);
@@ -585,7 +616,8 @@ void MainPageController::SaveSettings() {
 
 winrt::fire_and_forget MainPageController::ShowSettings() {
     auto self = shared_from_this();
-    if (m_is_running.load()) co_return;
+    if (m_is_running.load())
+        co_return;
 
     // System prompt TextBox
     winrt::Windows::UI::Xaml::Controls::TextBox sysPromptBox;
@@ -634,10 +666,10 @@ fire_and_forget MainPageController::EnsureModelAsync() {
             if (fgetws(buf, 511, f)) {
                 size_t len = wcslen(buf);
                 while (len > 0 &&
-                       (buf[len - 1] == L'\n' || buf[len - 1] == L'\r' ||
-                        buf[len - 1] == L' '))
+                       (buf[len - 1] == L'\n' || buf[len - 1] == L'\r' || buf[len - 1] == L' '))
                     buf[--len] = L'\0';
-                if (len > 0) model_name = buf;
+                if (len > 0)
+                    model_name = buf;
             }
             fclose(f);
         }
@@ -646,7 +678,7 @@ fire_and_forget MainPageController::EnsureModelAsync() {
     // Check 1: LocalState model complete?
     auto local_folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
     std::wstring local_models_root = std::wstring(local_folder.Path().c_str()) + L"\\models";
-    std::wstring local_model_dir   = local_models_root + L"\\" + model_name;
+    std::wstring local_model_dir = local_models_root + L"\\" + model_name;
 
     if (ModelDownloader::IsComplete(local_model_dir)) {
         co_await resume_foreground(dispatcher);
@@ -687,18 +719,19 @@ fire_and_forget MainPageController::EnsureModelAsync() {
                 // StorageFolder.Path may include trailing backslash (e.g. "E:\"); strip it.
                 while (!drive_path.empty() && drive_path.back() == L'\\')
                     drive_path.pop_back();
-                log_output(("[xllama] USB probe: " +
-                            ::xllama::wstring_to_utf8(drive_path) + "\n").c_str());
+                log_output(("[xllama] USB probe: " + ::xllama::wstring_to_utf8(drive_path) + "\n")
+                               .c_str());
                 // Use WinRT TryGetItemAsync — GetFileAttributesW is blocked by
                 // AppContainer even with removableStorage capability.
                 try {
                     using winrt::Windows::Storage::IStorageItem;
-                    auto sub = winrt::hstring(L"xllama\\models\\") + model_name
-                               + winrt::hstring(L"\\genai_config.json");
+                    auto sub = winrt::hstring(L"xllama\\models\\") + model_name +
+                               winrt::hstring(L"\\genai_config.json");
                     auto item = co_await drive.TryGetItemAsync(sub);
                     if (item) {
                         log_output(("[xllama] USB model found on " +
-                                    ::xllama::wstring_to_utf8(drive_path) + "\n").c_str());
+                                    ::xllama::wstring_to_utf8(drive_path) + "\n")
+                                       .c_str());
                         // Cache USB root (drive_path without trailing \) for
                         // resolve_model_path() sync path.
                         auto cache_path = local_wpath(L"usb_model_root.txt");
@@ -712,7 +745,8 @@ fire_and_forget MainPageController::EnsureModelAsync() {
                 } catch (...) {
                     // drive not accessible — skip
                 }
-                if (usb_found) break;
+                if (usb_found)
+                    break;
             }
         } catch (...) {
             log_output("[xllama] USB probe: RemovableDevices enumeration failed\n");
@@ -730,9 +764,9 @@ fire_and_forget MainPageController::EnsureModelAsync() {
             bool copy_ok = false;
             std::wstring copy_err;
             try {
+                using winrt::Windows::Storage::CreationCollisionOption;
                 using winrt::Windows::Storage::KnownFolders;
                 using winrt::Windows::Storage::StorageFolder;
-                using winrt::Windows::Storage::CreationCollisionOption;
 
                 // Source: USB xllama\models\<name>
                 auto removable2 = KnownFolders::RemovableDevices();
@@ -746,11 +780,13 @@ fire_and_forget MainPageController::EnsureModelAsync() {
                         break;
                     }
                 }
-                if (!usb_model_folder) throw std::runtime_error("USB folder disappeared");
+                if (!usb_model_folder)
+                    throw std::runtime_error("USB folder disappeared");
 
                 // Destination: LocalState\models\<name>
                 // CreateFolderAsync with OpenIfExists creates or opens — no try/catch needed.
-                auto local_folder2 = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
+                auto local_folder2 =
+                    winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
                 auto models_folder = co_await local_folder2.CreateFolderAsync(
                     L"models", CreationCollisionOption::OpenIfExists);
                 StorageFolder dest_folder = co_await models_folder.CreateFolderAsync(
@@ -760,7 +796,8 @@ fire_and_forget MainPageController::EnsureModelAsync() {
                 auto files = co_await usb_model_folder.GetFilesAsync();
                 for (auto const& f : files) {
                     log_output(("[xllama] USB copy: " +
-                                ::xllama::wstring_to_utf8(std::wstring(f.Name().c_str())) + "\n").c_str());
+                                ::xllama::wstring_to_utf8(std::wstring(f.Name().c_str())) + "\n")
+                                   .c_str());
                     co_await f.CopyAsync(dest_folder, f.Name(),
                                          NameCollisionOption::ReplaceExisting);
                 }
@@ -793,10 +830,11 @@ fire_and_forget MainPageController::EnsureModelAsync() {
     // Larger models (e.g. 1.7B) must be provided via USB — show a clear error.
     static constexpr wchar_t kDownloadableModel[] = L"smollm2-360m-cpu-int4";
     if (model_name != kDownloadableModel) {
-        self->SetStatus(
-            L"Model '" + model_name + L"' not found.\n"
-            L"Connect USB with xllama/models/" + model_name + L"/",
-            StatusKind::Error);
+        self->SetStatus(L"Model '" + model_name +
+                            L"' not found.\n"
+                            L"Connect USB with xllama/models/" +
+                            model_name + L"/",
+                        StatusKind::Error);
         self->m_runButton.IsEnabled(false);
         co_return;
     }
@@ -832,21 +870,18 @@ fire_and_forget MainPageController::EnsureModelAsync() {
     co_await resume_foreground(dispatcher);
 
     co_await ModelDownloader::DownloadAsync(
-        hf_repo_url,
-        local_model_dir,
-        SmolLM2_360M_Files(),
-        dispatcher,
+        hf_repo_url, local_model_dir, SmolLM2_360M_Files(), dispatcher,
         [self](uint64_t done, uint64_t total) {
             // progress callback — called on UI thread
             if (total > 0) {
                 double pct = static_cast<double>(done) / static_cast<double>(total) * 100.0;
                 self->m_loadingBar.Value(pct);
-                self->SetStatus(L"Downloading model... " +
-                                    std::to_wstring(done / (1024 * 1024)) + L" MB",
+                self->SetStatus(L"Downloading model... " + std::to_wstring(done / (1024 * 1024)) +
+                                    L" MB",
                                 StatusKind::Working);
             } else {
-                self->SetStatus(L"Downloading model... " +
-                                    std::to_wstring(done / (1024 * 1024)) + L" MB",
+                self->SetStatus(L"Downloading model... " + std::to_wstring(done / (1024 * 1024)) +
+                                    L" MB",
                                 StatusKind::Working);
             }
         },
@@ -932,7 +967,10 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
 
     // Reset streaming counters
     m_tokens_received.store(0);
-    { std::lock_guard<std::mutex> lk(m_token_mutex); m_token_buffer.clear(); }
+    {
+        std::lock_guard<std::mutex> lk(m_token_mutex);
+        m_token_buffer.clear();
+    }
     m_gen_start = std::chrono::steady_clock::now();
 
     // Start flush timer (40 ms tick: batches tokens, updates live tok/s)
@@ -946,7 +984,8 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     }
     auto weak_self = std::weak_ptr<MainPageController>(self);
     m_flush_tick_token = m_flush_timer.Tick([weak_self](IInspectable const&, IInspectable const&) {
-        if (auto s = weak_self.lock()) s->FlushTokenBuffer();
+        if (auto s = weak_self.lock())
+            s->FlushTokenBuffer();
     });
     m_flush_timer.Start();
 
@@ -981,7 +1020,8 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
 
             params.on_status = [self, dispatcher](const std::string& s) {
                 auto ws = ::xllama::utf8_to_wstring(s);
-                StatusKind k = (s.rfind("error:", 0) == 0) ? StatusKind::Error : StatusKind::Working;
+                StatusKind k =
+                    (s.rfind("error:", 0) == 0) ? StatusKind::Error : StatusKind::Working;
                 dispatcher.RunAsync(CoreDispatcherPriority::Normal,
                                     [self, ws, k]() { self->SetStatus(ws, k); });
             };
@@ -1001,8 +1041,8 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                 double dt = (res.n_eval > 0 && res.t_eval_ms > 0)
                                 ? (double)res.n_eval / (res.t_eval_ms / 1000.0)
                                 : 0.0;
-                swprintf_s(buf, L"decode %.1f tok/s  ·  %d tok  ·  peak %zu MB",
-                           dt, res.n_eval, res.peak_ws_mb);
+                swprintf_s(buf, L"decode %.1f tok/s  ·  %d tok  ·  peak %zu MB", dt, res.n_eval,
+                           res.peak_ws_mb);
                 metrics = buf;
             } else {
                 metrics = ::xllama::utf8_to_wstring(res.error_msg.empty() ? "inference failed"
@@ -1010,21 +1050,22 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
             }
 
             std::string output_text = res.output_text;
-            dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, metrics, res, output_text]() {
-                self->m_metricsText.Text(metrics);
-                self->SetStatus(res.success ? L"Done" : L"Error",
-                                res.success ? StatusKind::Success : StatusKind::Error);
-                self->SetRunning(false); // also stops timer + flushes remaining tokens
-                // Save assistant response to conversation history
-                if (res.success && !output_text.empty()) {
-                    xllama::ui::ChatMessage amsg;
-                    amsg.role = xllama::ui::MessageRole::Assistant;
-                    amsg.content = output_text;
-                    amsg.ts_unix = static_cast<int64_t>(std::time(nullptr));
-                    self->m_current.messages.push_back(std::move(amsg));
-                }
-                self->SaveCurrentConversation();
-            });
+            dispatcher.RunAsync(
+                CoreDispatcherPriority::Normal, [self, metrics, res, output_text]() {
+                    self->m_metricsText.Text(metrics);
+                    self->SetStatus(res.success ? L"Done" : L"Error",
+                                    res.success ? StatusKind::Success : StatusKind::Error);
+                    self->SetRunning(false); // also stops timer + flushes remaining tokens
+                    // Save assistant response to conversation history
+                    if (res.success && !output_text.empty()) {
+                        xllama::ui::ChatMessage amsg;
+                        amsg.role = xllama::ui::MessageRole::Assistant;
+                        amsg.content = output_text;
+                        amsg.ts_unix = static_cast<int64_t>(std::time(nullptr));
+                        self->m_current.messages.push_back(std::move(amsg));
+                    }
+                    self->SaveCurrentConversation();
+                });
         } catch (const std::exception& ex) {
             ::xllama::log_output(std::string("[xllama] thread terminated: ") + ex.what() + "\n");
             dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self]() {

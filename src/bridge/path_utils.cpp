@@ -158,13 +158,14 @@ std::string resolve_model_path(const std::string& filename) {
         if (csz > 0) {
             std::wstring wcache(static_cast<size_t>(csz), L'\0');
             MultiByteToWideChar(CP_UTF8, 0, cache_utf8.c_str(), -1, wcache.data(), csz);
-            if (!wcache.empty() && wcache.back() == L'\0') wcache.pop_back();
+            if (!wcache.empty() && wcache.back() == L'\0')
+                wcache.pop_back();
             FILE* fp = _wfopen(wcache.c_str(), L"r");
             if (fp) {
                 wchar_t usb_root[512] = {};
                 if (fgetws(usb_root, 511, fp)) {
                     size_t len = wcslen(usb_root);
-                    while (len > 0 && (usb_root[len-1] == L'\n' || usb_root[len-1] == L'\r'))
+                    while (len > 0 && (usb_root[len - 1] == L'\n' || usb_root[len - 1] == L'\r'))
                         usb_root[--len] = L'\0';
                 }
                 fclose(fp);
@@ -173,13 +174,14 @@ std::string resolve_model_path(const std::string& filename) {
                     if (fnSz > 0) {
                         std::wstring wfn(static_cast<size_t>(fnSz), L'\0');
                         MultiByteToWideChar(CP_UTF8, 0, filename.c_str(), -1, wfn.data(), fnSz);
-                        if (!wfn.empty() && wfn.back() == L'\0') wfn.pop_back();
+                        if (!wfn.empty() && wfn.back() == L'\0')
+                            wfn.pop_back();
                         std::wstring usb_dir = std::wstring(usb_root) + L"\\xllama\\models\\" + wfn;
                         DWORD ua = GetFileAttributesW((usb_dir + L"\\genai_config.json").c_str());
                         if (ua != INVALID_FILE_ATTRIBUTES && !(ua & FILE_ATTRIBUTE_DIRECTORY)) {
                             log_output("[xllama] model found via USB cache\n");
-                            int nsz = WideCharToMultiByte(
-                                CP_UTF8, 0, usb_dir.c_str(), -1, nullptr, 0, nullptr, nullptr);
+                            int nsz = WideCharToMultiByte(CP_UTF8, 0, usb_dir.c_str(), -1, nullptr,
+                                                          0, nullptr, nullptr);
                             if (nsz > 0) {
                                 std::string usb_path(nsz, '\0');
                                 WideCharToMultiByte(CP_UTF8, 0, usb_dir.c_str(), -1,

@@ -43,9 +43,8 @@ InferenceResult run_inference(const InferenceParams& params) {
     try {
         // Redirect ORT GenAI internal log messages into xllama.log.
         // Without this they go only to OutputDebugStringA (Device Portal debug output).
-        oga_check(OgaSetLogCallback([](const char* msg, size_t /*len*/) {
-            log_output(msg);
-        }), "OgaSetLogCallback");
+        oga_check(OgaSetLogCallback([](const char* msg, size_t /*len*/) { log_output(msg); }),
+                  "OgaSetLogCallback");
 
         // Log memory state before the large ORT allocation for OOM diagnostics.
         {
@@ -88,8 +87,7 @@ InferenceResult run_inference(const InferenceParams& params) {
             size_t n_prompt_tok = OgaSequencesGetSequenceCount(seqs.get(), 0);
             int max_len = params.n_predict + 512;
             char pbuf[128];
-            snprintf(pbuf, sizeof(pbuf),
-                     "[xllama] prompt=%zu tok, max_length=%d (new≤%d)\n",
+            snprintf(pbuf, sizeof(pbuf), "[xllama] prompt=%zu tok, max_length=%d (new≤%d)\n",
                      n_prompt_tok, max_len, max_len - static_cast<int>(n_prompt_tok));
             log_output(pbuf);
         }
@@ -154,8 +152,8 @@ InferenceResult run_inference(const InferenceParams& params) {
         char log_buf[256];
         snprintf(log_buf, sizeof(log_buf),
                  "[xllama] done: decode=%.1f tok/s n=%d elapsed=%.4fs peak=%zuMB\n",
-                 elapsed_s > 0.0 ? n_generated / elapsed_s : 0.0,
-                 n_generated, elapsed_s, res.peak_ws_mb);
+                 elapsed_s > 0.0 ? n_generated / elapsed_s : 0.0, n_generated, elapsed_s,
+                 res.peak_ws_mb);
         log_output(log_buf);
 
     } catch (const std::exception& e) {
