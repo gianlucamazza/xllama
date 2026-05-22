@@ -148,11 +148,9 @@ std::string resolve_model_path(const std::string& filename) {
         log_output("[xllama] InstalledPath copy failed\n");
     }
 
-    // Fallback 3: USB/external drive at E:\xllama\models\<name>
-    // A NTFS-formatted USB stick inserted into Xbox mounts as E:\ in Dev Mode.
-    // No UWP capability required — filesystem access to explicit paths outside
-    // the sandbox still works if the path is on a directly accessible volume.
-    // See docs/uwp-constraints.md §9 (Exp 3) for validation instructions.
+    // Fallback 3: USB/external drive at <X>:\xllama\models\<name>
+    // Xbox Dev Mode can mount USB drives on various letters (D, E, F, …).
+    // Probe D–H to find the first matching drive with the model directory.
     {
         int fnSzUsb = MultiByteToWideChar(CP_UTF8, 0, filename.c_str(), -1, nullptr, 0);
         if (fnSzUsb > 0) {
@@ -161,19 +159,25 @@ std::string resolve_model_path(const std::string& filename) {
             if (!wfn_usb.empty() && wfn_usb.back() == L'\0')
                 wfn_usb.pop_back();
 
-            std::wstring usb_dir = L"E:\\xllama\\models\\" + wfn_usb;
-            DWORD ua = GetFileAttributesW((usb_dir + L"\\genai_config.json").c_str());
-            if (ua != INVALID_FILE_ATTRIBUTES && !(ua & FILE_ATTRIBUTE_DIRECTORY)) {
-                log_output("[xllama] model found on USB (E:\\xllama\\models\\)\n");
-                int nsz = WideCharToMultiByte(
-                    CP_UTF8, 0, usb_dir.c_str(), -1, nullptr, 0, nullptr, nullptr);
-                if (nsz > 0) {
-                    std::string usb_path(nsz, '\0');
-                    WideCharToMultiByte(
-                        CP_UTF8, 0, usb_dir.c_str(), -1, usb_path.data(), nsz, nullptr, nullptr);
-                    if (!usb_path.empty() && usb_path.back() == '\0')
-                        usb_path.pop_back();
-                    return usb_path;
+            for (wchar_t drv = L'D'; drv <= L'H'; ++drv) {
+                wchar_t root[4] = {drv, L':', L'\\', L'\0'};
+                std::wstring usb_dir = std::wstring(root) + L"xllama\\models\\" + wfn_usb;
+                DWORD ua = GetFileAttributesW((usb_dir + L"\\genai_config.json").c_str());
+                if (ua != INVALID_FILE_ATTRIBUTES && !(ua & FILE_ATTRIBUTE_DIRECTORY)) {
+                    char log_buf[128];
+                    snprintf(log_buf, sizeof(log_buf),
+                             "[xllama] model found on USB (%c:\\xllama\\models\\)\n", (char)drv);
+                    log_output(log_buf);
+                    int nsz = WideCharToMultiByte(
+                        CP_UTF8, 0, usb_dir.c_str(), -1, nullptr, 0, nullptr, nullptr);
+                    if (nsz > 0) {
+                        std::string usb_path(nsz, '\0');
+                        WideCharToMultiByte(
+                            CP_UTF8, 0, usb_dir.c_str(), -1, usb_path.data(), nsz, nullptr, nullptr);
+                        if (!usb_path.empty() && usb_path.back() == '\0')
+                            usb_path.pop_back();
+                        return usb_path;
+                    }
                 }
             }
         }

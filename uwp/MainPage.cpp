@@ -671,12 +671,24 @@ fire_and_forget MainPageController::EnsureModelAsync() {
         }
     }
 
-    // Check 3: USB drive at E:\xllama\models\<name> (Xbox Dev Mode mounts NTFS USB as E:\)
+    // Check 3: USB drive at <X>:\xllama\models\<name>
+    // Xbox Dev Mode can mount USB on various letters (D–H); probe all.
     {
-        std::wstring usb_model_dir = L"E:\\xllama\\models\\" + model_name;
-        DWORD ua = GetFileAttributesW((usb_model_dir + L"\\genai_config.json").c_str());
-        if (ua != INVALID_FILE_ATTRIBUTES) {
-            log_output("[xllama] model found on USB (EnsureModelAsync check)\n");
+        bool usb_found = false;
+        for (wchar_t drv = L'D'; drv <= L'H'; ++drv) {
+            wchar_t root[4] = {drv, L':', L'\\', L'\0'};
+            std::wstring usb_model_dir = std::wstring(root) + L"xllama\\models\\" + model_name;
+            DWORD ua = GetFileAttributesW((usb_model_dir + L"\\genai_config.json").c_str());
+            if (ua != INVALID_FILE_ATTRIBUTES) {
+                char buf[64];
+                snprintf(buf, sizeof(buf),
+                         "[xllama] USB model found on %c:\\ (EnsureModelAsync)\n", (char)drv);
+                log_output(buf);
+                usb_found = true;
+                break;
+            }
+        }
+        if (usb_found) {
             co_await resume_foreground(dispatcher);
             self->LoadModelName();
             self->CheckBenchMode();
