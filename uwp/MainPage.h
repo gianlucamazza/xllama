@@ -7,6 +7,7 @@
 
     #include "chat-history.h"
     #include "inference-bridge.h"
+    #include "model-downloader.h"
     #include "pch.h"
 
     #include <atomic>
@@ -35,6 +36,7 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     void BuildUI();
     void LoadModelName();
     winrt::fire_and_forget CheckBenchMode();
+    winrt::fire_and_forget EnsureModelAsync();
     void StartInference(std::wstring const& prompt);
     void OnRunClick(winrt::Windows::Foundation::IInspectable const&,
                     winrt::Windows::UI::Xaml::RoutedEventArgs const&);

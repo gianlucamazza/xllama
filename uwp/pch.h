@@ -38,5 +38,7 @@
     #include <winrt/Windows.UI.Xaml.Media.h>
     #include <winrt/Windows.UI.Xaml.Navigation.h>
     #include <winrt/Windows.UI.Xaml.h>
+    #include <winrt/Windows.Web.Http.Filters.h>
+    #include <winrt/Windows.Web.Http.h>
     #include <winrt/base.h>
 #endif // XLLAMA_UWP

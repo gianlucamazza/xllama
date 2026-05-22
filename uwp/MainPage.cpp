@@ -15,6 +15,7 @@
 
     #include <cstdio>
     #include <ctime>
+    #include <filesystem>
     #include <string>
     #include <thread>
 
@@ -280,8 +281,7 @@ void MainPageController::Init() {
     }
     LoadSettings();
 
-    LoadModelName();
-    CheckBenchMode();
+    EnsureModelAsync();
 }
 
 // ---------------------------------------------------------------------------
@@ -614,6 +614,126 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
 }
 
 // ---------------------------------------------------------------------------
+// EnsureModelAsync — checks whether the model is available locally;
+// downloads from Hugging Face if not found in LocalState or InstalledPath.
+// Calls LoadModelName() + CheckBenchMode() when ready.
+// ---------------------------------------------------------------------------
+
+fire_and_forget MainPageController::EnsureModelAsync() {
+    auto self = shared_from_this();
+    auto dispatcher = self->m_root.Dispatcher();
+
+    // Read model name early (needed for path construction).
+    co_await resume_background();
+    std::wstring model_name = L"smollm2-360m-cpu-int4";
+    {
+        auto path = local_wpath(L"model.txt");
+        FILE* f = _wfopen(path.c_str(), L"r");
+        if (f) {
+            wchar_t buf[512] = {};
+            if (fgetws(buf, 511, f)) {
+                size_t len = wcslen(buf);
+                while (len > 0 &&
+                       (buf[len - 1] == L'\n' || buf[len - 1] == L'\r' ||
+                        buf[len - 1] == L' '))
+                    buf[--len] = L'\0';
+                if (len > 0) model_name = buf;
+            }
+            fclose(f);
+        }
+    }
+
+    // Check 1: LocalState model complete?
+    auto local_folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
+    std::wstring local_models_root = std::wstring(local_folder.Path().c_str()) + L"\\models";
+    std::wstring local_model_dir   = local_models_root + L"\\" + model_name;
+
+    if (ModelDownloader::IsComplete(local_model_dir)) {
+        co_await resume_foreground(dispatcher);
+        self->LoadModelName();
+        self->CheckBenchMode();
+        co_return;
+    }
+
+    // Check 2: model bundled in InstalledPath (MSIX)?
+    auto pkg = winrt::Windows::ApplicationModel::Package::Current();
+    std::wstring installed_model_dir =
+        std::wstring(pkg.InstalledPath().c_str()) + L"\\models\\" + model_name;
+    {
+        std::error_code ec;
+        bool bundled = std::filesystem::exists(
+            std::filesystem::path(installed_model_dir) / L"genai_config.json", ec);
+        if (bundled) {
+            co_await resume_foreground(dispatcher);
+            self->LoadModelName();
+            self->CheckBenchMode();
+            co_return;
+        }
+    }
+
+    // Neither found: download from Hugging Face.
+    co_await resume_foreground(dispatcher);
+    self->SetStatus(L"Downloading model...", StatusKind::Working);
+    self->m_loadingBar.IsIndeterminate(false);
+    self->m_loadingBar.Value(0);
+    self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Visible);
+    self->m_runButton.IsEnabled(false);
+    co_await resume_background();
+
+    // Create local model directory.
+    {
+        std::error_code ec;
+        std::filesystem::create_directories(local_model_dir, ec);
+        if (ec) {
+            co_await resume_foreground(dispatcher);
+            self->SetStatus(L"Cannot create model dir: " +
+                                winrt::to_hstring(ec.message()).c_str(),
+                            StatusKind::Error);
+            co_return;
+        }
+    }
+
+    // Build HF raw URL for the model repo.
+    // hf_repo_url points to the resolved directory listing, files are:
+    // https://huggingface.co/<owner>/<repo>/resolve/main/<file>
+    std::wstring hf_repo_url = L"https://huggingface.co/homen3/"
+                               L"SmolLM2-360M-Instruct-ort-genai-int4-cpu/resolve/main";
+
+    co_await resume_foreground(dispatcher);
+
+    co_await ModelDownloader::DownloadAsync(
+        hf_repo_url,
+        local_model_dir,
+        SmolLM2_360M_Files(),
+        dispatcher,
+        [self](uint64_t done, uint64_t total) {
+            // progress callback — called on UI thread
+            if (total > 0) {
+                double pct = static_cast<double>(done) / static_cast<double>(total) * 100.0;
+                self->m_loadingBar.Value(pct);
+                self->SetStatus(L"Downloading model... " +
+                                    std::to_wstring(done / (1024 * 1024)) + L" MB",
+                                StatusKind::Working);
+            } else {
+                self->SetStatus(L"Downloading model... " +
+                                    std::to_wstring(done / (1024 * 1024)) + L" MB",
+                                StatusKind::Working);
+            }
+        },
+        [self, dispatcher](bool ok, std::wstring err) {
+            // done callback — called on UI thread
+            self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Collapsed);
+            self->m_runButton.IsEnabled(true);
+            if (!ok) {
+                self->SetStatus(L"Download failed: " + err, StatusKind::Error);
+                return;
+            }
+            self->SetStatus(L"Model ready", StatusKind::Success);
+            self->LoadModelName();
+            self->CheckBenchMode();
+        });
+}
+
 // LoadModelName: read model.txt from LocalFolder
 // ---------------------------------------------------------------------------
 

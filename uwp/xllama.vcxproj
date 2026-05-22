@@ -268,6 +268,7 @@
     <ClCompile Include="App.cpp" />
     <ClCompile Include="chat-history.cpp" />
     <ClCompile Include="MainPage.cpp" />
+    <ClCompile Include="model-downloader.cpp" />
     <!-- module.cpp includes Generated Files\module.g.cpp (cppwinrt 2.0 factory
          aggregator). In cppwinrt 2.x, per-class App.g.cpp are
          replaced by a single module.g.cpp; this is the TU that compiles it. -->
