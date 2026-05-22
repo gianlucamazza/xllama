@@ -9,6 +9,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.2.1] — 2026-05-23
+
+### Added
+- ChatML stop sequence `<|im_end|>` in UI inference path (`uwp/MainPage.cpp`). SmolLM2-360M does not always emit EOS naturally; without this the model would continue generating filler or hallucinate the next user turn up to `n_predict=512`. Bench path unchanged.
+- `tests/test_session.cpp`: smoke tests for `Session::create` error paths (non-existent path, empty path) — covers the Linux/llama.cpp path in CI.
+
+### Fixed
+- `CHANGELOG.md` 0.2.0 section: collapsed duplicate `### Added` blocks; removed stale empty `[Unreleased]` header.
+
+---
+
 ## [0.2.0] — 2026-05-22
 
 ### Added
@@ -21,11 +32,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 **Bench diagnostics** (`bench(inference): log prompt token count + bump bench n_predict`):
 - `inference.cpp`: logs `[xllama] prompt=N tok, max_length=M (new≤K)` after tokenisation — makes `n` in bench CSV self-explanatory.
 - `inference-bridge.cpp`: bench `n_predict` raised `128 → 512` (effective `max_length` 640 → 1024 total tokens); gives SmolLM2-360M room to show natural generation length while 1.7B still exits at EOS.
-
-### Fixed
-- `fix(bridge): OrtModelPtr → OgaModelPtr` typo in `OrtSession` UWP build (MSVC `C2065`; GCC/clang skip the `XLLAMA_USE_ORT` block on Linux).
-
-### Added
 
 **Multi-turn Session API** (`include/xllama/session.h`, `src/bridge/session.cpp`):
 - `xllama::Session::create(SessionParams)` — loads model + tokenizer once; subsequent `generate(GenerateParams)` calls reuse them, eliminating the ~1-2s per-call reload overhead of `run_inference()`.
@@ -75,6 +81,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `uwp/llama-bridge.cpp`, `uwp/llama-bridge.h`: legacy files not compiled since ORT GenAI pivot.
 
 ### Fixed
+- `fix(bridge): OrtModelPtr → OgaModelPtr` typo in `OrtSession` UWP build (MSVC `C2065`; GCC/clang skip the `XLLAMA_USE_ORT` block on Linux).
 - ASCII-safe status strings: removed em-dash and ellipsis Unicode literals that caused MSVC `C4566` warnings.
 - `XYFocusKeyboardNavigationMode` removed from `MainPage.cpp` (unresolvable symbol in MSVC UWP context).
 - `weakly_canonical: Access is denied` crash (`OgaCreateModel`, status `0xC0000005`): ORT runtime walks path segments of the model directory to validate external data; `Q:\Users\UserMgr0\...` is inaccessible from UWP AppContainer. Fix: merge external data into monolithic `model.onnx` so `ValidateExternalDataPath` is never invoked. Confirmed via Win32 probes (`GetFileAttributesW`, `CreateFile2 GENERIC_READ`, `CreateFile2 FILE_READ_ATTRIBUTES|SYNCHRONIZE`).

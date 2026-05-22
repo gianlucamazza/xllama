@@ -1050,6 +1050,7 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
             gp.prompt = prompt;
             gp.n_predict = 512;
             gp.abort_flag = &self->m_abort;
+            gp.stop_sequences.push_back("<|im_end|>");
 
             gp.on_status = [self, dispatcher](const std::string& s) {
                 auto ws = ::xllama::utf8_to_wstring(s);
