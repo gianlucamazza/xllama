@@ -16,12 +16,12 @@ jobs:
           submodules: false
           fetch-depth: 1
 
-      - name: Cache SmolLM2-360M ONNX INT4 model
+      - name: Cache SmolLM2-360M ONNX INT4 model (embedded)
         id: cache-model
         uses: actions/cache@v4
         with:
           path: models/smollm2-360m-cpu-int4
-          key: smollm2-360m-ort-genai-int4-cpu-v1
+          key: smollm2-360m-ort-genai-int4-cpu-embedded-v1
 
       - name: Download SmolLM2-360M ONNX INT4 model
         if: steps.cache-model.outputs.cache-hit != 'true'
@@ -29,6 +29,31 @@ jobs:
         run: |
           python -m pip install --quiet huggingface_hub
           python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='homen3/SmolLM2-360M-Instruct-ort-genai-int4-cpu', local_dir='models/smollm2-360m-cpu-int4'); print('Download complete')"
+
+      - name: Merge ONNX external data into model.onnx
+        # ORT's ValidateExternalDataPath calls weakly_canonical() which walks path segments
+        # from the root. On Xbox AppContainer the intermediate Q:\Users\UserMgr0 segment is
+        # inaccessible, causing "Access is denied". Merging model.onnx.data into model.onnx
+        # makes the model self-contained so ValidateExternalDataPath is never called.
+        if: steps.cache-model.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          python -m pip install --quiet onnx
+          python -c "
+import onnx
+from onnx.external_data_helper import load_external_data_for_model
+import os
+
+model_dir = 'models/smollm2-360m-cpu-int4'
+onnx_path = os.path.join(model_dir, 'model.onnx')
+model = onnx.load(onnx_path, load_external_data=False)
+load_external_data_for_model(model, model_dir)
+onnx.save_model(model, onnx_path, save_as_external_data=False)
+data_path = os.path.join(model_dir, 'model.onnx.data')
+if os.path.exists(data_path):
+    os.remove(data_path)
+print('model.onnx embedded size:', os.path.getsize(onnx_path) // 1024 // 1024, 'MB')
+"
 
       - name: Restore NuGet packages
         shell: pwsh
