@@ -87,7 +87,6 @@ void MainPageController::BuildUI() {
     m_outputScroll.VerticalScrollBarVisibility(ScrollBarVisibility::Auto);
     m_outputScroll.Margin(ThicknessHelper::FromLengths(0, 24, 0, 0));
     m_outputScroll.IsFocusEngagementEnabled(true);
-    m_outputScroll.XYFocusKeyboardNavigation(XYFocusKeyboardNavigationMode::Enabled);
 
     StackPanel bodyStack;
 
