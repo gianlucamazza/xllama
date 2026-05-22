@@ -43,7 +43,7 @@ void MainPageController::BuildUI() {
 
     // ---- outer grid (3 rows: header / body / footer) ----
     Grid outerGrid;
-    outerGrid.Margin(ThicknessHelper::FromUniformLength(48)); // Xbox TV safe area
+    outerGrid.Margin(ThicknessHelper::FromLengths(48, 27, 48, 27)); // Xbox TV safe area (5%)
 
     RowDefinition rowAuto1;
     rowAuto1.Height(GridLengthHelper::Auto());
@@ -84,6 +84,8 @@ void MainPageController::BuildUI() {
     Grid::SetRow(m_outputScroll, 1);
     m_outputScroll.VerticalScrollBarVisibility(ScrollBarVisibility::Auto);
     m_outputScroll.Margin(ThicknessHelper::FromLengths(0, 24, 0, 0));
+    m_outputScroll.IsFocusEngagementEnabled(true);
+    m_outputScroll.XYFocusKeyboardNavigation(XYFocusKeyboardNavigationMode::Enabled);
 
     StackPanel bodyStack;
 
@@ -94,6 +96,15 @@ void MainPageController::BuildUI() {
     m_promptInput.MinHeight(120);
     m_promptInput.IsSpellCheckEnabled(false);
     m_promptInput.FontSize(18);
+    m_promptInput.IsFocusEngagementEnabled(true);
+    {
+        using namespace winrt::Windows::UI::Xaml::Input;
+        InputScopeName sname;
+        sname.NameValue(InputScopeNameValue::Chat);
+        InputScope scope;
+        scope.Names().Append(sname);
+        m_promptInput.InputScope(scope);
+    }
 
     m_outputText = TextBlock();
     m_outputText.TextWrapping(TextWrapping::Wrap);
@@ -150,6 +161,9 @@ void MainPageController::BuildUI() {
     outerGrid.Children().Append(footer);
 
     m_root.Content(outerGrid);
+
+    // Dark theme fallback on desktop (Xbox inherits from Application)
+    m_root.RequestedTheme(ElementTheme::Dark);
 }
 
 // ---------------------------------------------------------------------------
@@ -184,6 +198,45 @@ void MainPageController::Init() {
         }
     });
 
+    // B button: cancel inference if running, otherwise let system exit the app
+    auto nav = winrt::Windows::UI::Core::SystemNavigationManager::GetForCurrentView();
+    nav.BackRequested([self](IInspectable const&,
+                             winrt::Windows::UI::Core::BackRequestedEventArgs const& e) {
+        if (auto s = self.lock()) {
+            if (s->m_is_running.load()) {
+                s->m_abort.store(true);
+                s->SetStatus(L"Cancelling...");
+                s->m_cancelButton.IsEnabled(false);
+                e.Handled(true);
+            }
+        }
+    });
+
+    // Gamepad keys: View = clear output, Y = jump to prompt
+    m_root.KeyDown([self](IInspectable const&,
+                          winrt::Windows::UI::Xaml::Input::KeyRoutedEventArgs const& e) {
+        auto s = self.lock();
+        if (!s) return;
+        using VK = winrt::Windows::System::VirtualKey;
+        switch (e.Key()) {
+            case VK::GamepadView:
+                s->m_outputText.Text(L"");
+                s->m_metricsText.Text(L"");
+                s->SetStatus(L"Ready");
+                e.Handled(true);
+                break;
+            case VK::GamepadY:
+                s->m_promptInput.Focus(FocusState::Programmatic);
+                e.Handled(true);
+                break;
+            default:
+                break;
+        }
+    });
+
+    // Start with focus on Run button
+    m_runButton.Focus(FocusState::Programmatic);
+
     LoadModelName();
     CheckBenchMode();
 }
@@ -203,6 +256,7 @@ void MainPageController::SetStatus(std::wstring const& status) {
 }
 
 void MainPageController::SetRunning(bool running) {
+    m_is_running.store(running);
     m_runButton.IsEnabled(!running);
     m_cancelButton.IsEnabled(running);
     m_loadingBar.Visibility(running ? Visibility::Visible : Visibility::Collapsed);

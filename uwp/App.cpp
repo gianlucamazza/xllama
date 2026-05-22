@@ -56,6 +56,19 @@ App::App() {
     log_init();
     log_write("[xllama] App::App()\n");
 
+    // Xbox UX: disable mouse cursor mode, force dark theme
+    RequiresPointerMode(ApplicationRequiresPointerMode::WhenRequested);
+    RequestedTheme(ApplicationTheme::Dark);
+
+    // Reveal focus highlight (Xbox only)
+    using namespace winrt::Windows::System::Profile;
+    if (AnalyticsInfo::VersionInfo().DeviceFamily() == L"Windows.Xbox") {
+        FocusVisualKind(FocusVisualKind::Reveal);
+    }
+
+    // Sound effects (controller focus/click cues)
+    ElementSoundPlayer::State(ElementSoundPlayerState::On);
+
     // Catch unhandled exceptions in the XAML framework
     UnhandledException([](winrt::Windows::Foundation::IInspectable const&,
                           winrt::Windows::UI::Xaml::UnhandledExceptionEventArgs const& e) {

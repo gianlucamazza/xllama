@@ -52,6 +52,7 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     winrt::Windows::UI::Xaml::Controls::Button m_cancelButton{nullptr};
 
     std::atomic<bool> m_abort{false};
+    std::atomic<bool> m_is_running{false};
     std::wstring m_model_filename;
 };
 
