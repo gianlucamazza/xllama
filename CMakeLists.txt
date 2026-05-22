@@ -46,6 +46,7 @@ add_subdirectory(llama.cpp)
 # ------------------------------------------------------------------
 add_library(xllama STATIC
     src/bridge/inference.cpp
+    src/bridge/session.cpp
     src/bridge/bench.cpp
     src/bridge/platform.cpp
     src/bridge/path_utils.cpp

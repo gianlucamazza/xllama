@@ -9,6 +9,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+**Multi-turn Session API** (`include/xllama/session.h`, `src/bridge/session.cpp`):
+- `xllama::Session::create(SessionParams)` — loads model + tokenizer once; subsequent `generate(GenerateParams)` calls reuse them, eliminating the ~1-2s per-call reload overhead of `run_inference()`.
+- `GenerateParams` exposes `top_p`, `top_k`, `repetition_penalty`, `seed`, `stop_sequences` (substring-checked against accumulated output; matching sequence stripped on hit).
+- Implemented for both UWP (ORT GenAI: `OrtSession` keeps `OgaModel` + `OgaTokenizer` alive) and Linux (llama.cpp: `LlamaSession` keeps `llama_model` alive; `llama_context` rebuilt per call to respect context parameters).
+- `run_inference()` is unchanged — fully back-compatible.
+- Consumer: `xbox_faraday` game (FARADAY) for per-turn dialogue generation.
+
 **Workaround experiments for Xbox UWP constraints** (see `docs/uwp-constraints.md §7, §9`):
 - `uwp/model-downloader.cpp/h`: in-app Hugging Face download via `HttpClient` chunked streaming (Exp 2). `EnsureModelAsync()` in `MainPage` implements a three-step bootstrap: LocalState `.complete` marker → InstalledPath bundle → HF download. Reduces peak disk usage from ~1.4 GB to ~480 MB; frees ~900 MB on Dev Mode partition Q:\ enabling models up to ~1 GB. `internetClient` capability already present in manifest.
 - `src/bridge/path_utils.cpp`: third fallback `E:\xllama\models\<name>` for NTFS USB stick (Exp 3). No UWP capability required; probe via `GetFileAttributesW`. Enables models up to 2 GB single-file (Xbox Dev Mode USB limit). Zero cost if USB absent.
