@@ -57,6 +57,9 @@
     <Capability Name="internetClient" />
     <!-- privateNetworkClientServer is a base Capability, not a uap:Capability -->
     <Capability Name="privateNetworkClientServer" />
+    <!-- removableStorage: required to enumerate KnownFolders.RemovableDevices
+         for USB model loading (Exp 3 fallback path). -->
+    <uap:Capability Name="removableStorage" />
   </Capabilities>
 
 </Package>

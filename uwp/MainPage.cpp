@@ -671,32 +671,63 @@ fire_and_forget MainPageController::EnsureModelAsync() {
         }
     }
 
-    // Check 3: USB drive at <X>:\xllama\models\<name>
-    // Xbox Dev Mode can mount USB on various letters (D–H); probe all.
+    // Check 3: USB removable storage via KnownFolders.RemovableDevices
+    // (requires <uap:Capability Name="removableStorage" /> in manifest).
+    // Enumerates all removable drives; looks for xllama/models/<name>/genai_config.json.
+    co_await resume_foreground(dispatcher);
     {
         bool usb_found = false;
-        for (wchar_t drv = L'D'; drv <= L'H'; ++drv) {
-            wchar_t root[4] = {drv, L':', L'\\', L'\0'};
-            std::wstring usb_model_dir = std::wstring(root) + L"xllama\\models\\" + model_name;
-            DWORD ua = GetFileAttributesW((usb_model_dir + L"\\genai_config.json").c_str());
-            if (ua != INVALID_FILE_ATTRIBUTES) {
-                char buf[64];
-                snprintf(buf, sizeof(buf),
-                         "[xllama] USB model found on %c:\\ (EnsureModelAsync)\n", (char)drv);
-                log_output(buf);
-                usb_found = true;
-                break;
+        try {
+            using winrt::Windows::Storage::KnownFolders;
+            using winrt::Windows::Storage::StorageFolder;
+            auto removable = KnownFolders::RemovableDevices();
+            auto drives = co_await removable.GetFoldersAsync();
+            for (auto const& drive : drives) {
+                std::wstring drive_path(drive.Path().c_str());
+                log_output(("[xllama] USB probe: " +
+                            ::xllama::wstring_to_utf8(drive_path) + "\n").c_str());
+                // Look for xllama\models\<name>\genai_config.json
+                std::wstring cfg = drive_path + L"\\xllama\\models\\" + model_name
+                                   + L"\\genai_config.json";
+                DWORD ua = GetFileAttributesW(cfg.c_str());
+                if (ua != INVALID_FILE_ATTRIBUTES && !(ua & FILE_ATTRIBUTE_DIRECTORY)) {
+                    log_output(("[xllama] USB model found on " +
+                                ::xllama::wstring_to_utf8(drive_path) + "\n").c_str());
+                    // Cache USB root so resolve_model_path() (sync) can use it.
+                    auto cache_path = local_wpath(L"usb_model_root.txt");
+                    FILE* fp = _wfopen(cache_path.c_str(), L"w");
+                    if (fp) {
+                        fputws(drive_path.c_str(), fp);
+                        fclose(fp);
+                    }
+                    usb_found = true;
+                    break;
+                }
             }
+        } catch (...) {
+            log_output("[xllama] USB probe: RemovableDevices enumeration failed\n");
         }
         if (usb_found) {
-            co_await resume_foreground(dispatcher);
             self->LoadModelName();
             self->CheckBenchMode();
             co_return;
         }
     }
+    // Neither found: only the bundled 360M model can be auto-downloaded from HF.
+    // Larger models (e.g. 1.7B) must be provided via USB — show a clear error.
+    static constexpr wchar_t kDownloadableModel[] = L"smollm2-360m-cpu-int4";
+    if (model_name != kDownloadableModel) {
+        self->SetStatus(
+            L"Model '" + model_name + L"' not found.\n"
+            L"Connect USB with xllama/models/" + model_name + L"/",
+            StatusKind::Error);
+        self->m_runButton.IsEnabled(false);
+        co_return;
+    }
 
-    // Neither found: download from Hugging Face.
+    co_await resume_background();
+
+    // Auto-download: SmolLM2-360M from HuggingFace.
     co_await resume_foreground(dispatcher);
     self->SetStatus(L"Downloading model...", StatusKind::Working);
     self->m_loadingBar.IsIndeterminate(false);
@@ -719,8 +750,6 @@ fire_and_forget MainPageController::EnsureModelAsync() {
     }
 
     // Build HF raw URL for the model repo.
-    // hf_repo_url points to the resolved directory listing, files are:
-    // https://huggingface.co/<owner>/<repo>/resolve/main/<file>
     std::wstring hf_repo_url = L"https://huggingface.co/homen3/"
                                L"SmolLM2-360M-Instruct-ort-genai-int4-cpu/resolve/main";
 
