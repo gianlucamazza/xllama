@@ -266,6 +266,7 @@
   <!-- xllama UWP app -->
   <ItemGroup>
     <ClCompile Include="App.cpp" />
+    <ClCompile Include="chat-history.cpp" />
     <ClCompile Include="MainPage.cpp" />
     <!-- module.cpp includes Generated Files\module.g.cpp (cppwinrt 2.0 factory
          aggregator). In cppwinrt 2.x, per-class App.g.cpp are

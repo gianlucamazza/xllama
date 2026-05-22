@@ -8,11 +8,13 @@
 #include "MainPage.h"
 // clang-format on
 
+    #include "chat-history.h"
     #include "inference-bridge.h"
     #include "xllama/platform.h"
     #include "xllama/utf8_utils.h"
 
     #include <cstdio>
+    #include <ctime>
     #include <string>
     #include <thread>
 
@@ -142,6 +144,16 @@ void MainPageController::BuildUI() {
     btnPanel.Orientation(Orientation::Horizontal);
     Grid::SetColumn(btnPanel, 1);
 
+    m_newChatButton = Button();
+    m_newChatButton.Content(winrt::box_value(L"✚  New"));
+    m_newChatButton.MinWidth(100);
+    m_newChatButton.Margin(ThicknessHelper::FromLengths(0, 0, 12, 0));
+
+    m_historyButton = Button();
+    m_historyButton.Content(winrt::box_value(L"☰  History"));
+    m_historyButton.MinWidth(100);
+    m_historyButton.Margin(ThicknessHelper::FromLengths(0, 0, 12, 0));
+
     m_runButton = Button();
     m_runButton.Content(winrt::box_value(L"▶  Run"));
     m_runButton.MinWidth(120);
@@ -152,6 +164,8 @@ void MainPageController::BuildUI() {
     m_cancelButton.IsEnabled(false);
     m_cancelButton.MinWidth(120);
 
+    btnPanel.Children().Append(m_newChatButton);
+    btnPanel.Children().Append(m_historyButton);
     btnPanel.Children().Append(m_runButton);
     btnPanel.Children().Append(m_cancelButton);
 
@@ -200,6 +214,12 @@ void MainPageController::Init() {
             s->m_cancelButton.IsEnabled(false);
         }
     });
+    m_newChatButton.Click([self](IInspectable const&, RoutedEventArgs const&) {
+        if (auto s = self.lock()) s->NewChat();
+    });
+    m_historyButton.Click([self](IInspectable const&, RoutedEventArgs const&) {
+        if (auto s = self.lock()) s->ShowHistory();
+    });
 
     // B button: cancel inference if running, otherwise let system exit the app
     auto nav = winrt::Windows::UI::Core::SystemNavigationManager::GetForCurrentView();
@@ -241,6 +261,16 @@ void MainPageController::Init() {
 
     // Start with focus on Run button
     m_runButton.Focus(FocusState::Programmatic);
+
+    // Init chat history and settings
+    {
+        auto folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
+        std::string chats_dir =
+            ::xllama::wstring_to_utf8(std::wstring(folder.Path().c_str()) + L"\\chats");
+        m_history.SetDir(chats_dir);
+        m_history.LoadIndex();
+    }
+    LoadSettings();
 
     LoadModelName();
     CheckBenchMode();
@@ -318,6 +348,215 @@ void MainPageController::SetRunning(bool running) {
 }
 
 // ---------------------------------------------------------------------------
+// Multi-turn chat helpers
+// ---------------------------------------------------------------------------
+
+void MainPageController::AddUserParagraph(std::wstring const& text) {
+    using namespace winrt::Windows::UI::Xaml::Documents;
+    namespace Media = winrt::Windows::UI::Xaml::Media;
+
+    // "You:" label in bold
+    Paragraph p;
+    Run label;
+    label.Text(L"You: ");
+    label.FontWeight(winrt::Windows::UI::Text::FontWeights::Bold());
+    p.Inlines().Append(label);
+    Run content;
+    content.Text(text);
+    p.Inlines().Append(content);
+    m_outputBody.Blocks().Append(p);
+
+    // Empty separator paragraph
+    m_outputBody.Blocks().Append(Paragraph());
+
+    // "Assistant:" label paragraph (streaming will fill inline content)
+    m_currentParagraph = Paragraph();
+    Run alabel;
+    alabel.Text(L"Assistant: ");
+    alabel.FontWeight(winrt::Windows::UI::Text::FontWeights::Bold());
+    m_currentParagraph.Inlines().Append(alabel);
+    m_outputBody.Blocks().Append(m_currentParagraph);
+}
+
+std::string MainPageController::BuildChatMLPrompt(const std::string& user_text) const {
+    // Estimate token count (heuristic: chars/4). Trim oldest turns if over limit.
+    constexpr int kMaxEstimatedTokens = 3500;
+    // Collect turns (skip system which always stays)
+    std::vector<size_t> turn_starts; // index of first User message in each turn
+    for (size_t i = 0; i < m_current.messages.size(); ++i) {
+        if (m_current.messages[i].role == xllama::ui::MessageRole::User)
+            turn_starts.push_back(i);
+    }
+
+    // Build prompt starting from oldest turn; drop turns if over token budget
+    auto calc_size = [&](size_t from_turn) -> int {
+        int chars = (int)m_system_prompt.size();
+        for (size_t ti = from_turn; ti < turn_starts.size(); ++ti) {
+            size_t i = turn_starts[ti];
+            chars += (int)m_current.messages[i].content.size(); // user
+            if (i + 1 < m_current.messages.size() &&
+                m_current.messages[i + 1].role == xllama::ui::MessageRole::Assistant)
+                chars += (int)m_current.messages[i + 1].content.size(); // assistant
+        }
+        chars += (int)user_text.size(); // new user message
+        return chars / 4;
+    };
+
+    size_t first_turn = 0;
+    while (first_turn < turn_starts.size() && calc_size(first_turn) > kMaxEstimatedTokens)
+        ++first_turn;
+    if (first_turn > 0)
+        log_output("[xllama] context trimmed: dropped " + std::to_string(first_turn) + " old turn(s)\n");
+
+    std::string prompt =
+        "<|im_start|>system\n" + m_system_prompt + "<|im_end|>\n";
+
+    for (size_t ti = first_turn; ti < turn_starts.size(); ++ti) {
+        size_t i = turn_starts[ti];
+        prompt += "<|im_start|>user\n" + m_current.messages[i].content + "<|im_end|>\n";
+        prompt += "<|im_start|>assistant\n";
+        if (i + 1 < m_current.messages.size() &&
+            m_current.messages[i + 1].role == xllama::ui::MessageRole::Assistant) {
+            prompt += m_current.messages[i + 1].content + "<|im_end|>\n";
+        }
+    }
+    prompt += "<|im_start|>user\n" + user_text + "<|im_end|>\n";
+    prompt += "<|im_start|>assistant\n";
+    return prompt;
+}
+
+void MainPageController::SaveCurrentConversation(bool partial) {
+    if (m_current.id.empty()) return;
+    // Mark last assistant message as partial if needed
+    if (partial && !m_current.messages.empty() &&
+        m_current.messages.back().role == xllama::ui::MessageRole::Assistant) {
+        m_current.messages.back().partial = true;
+    }
+    m_history.Save(m_current);
+}
+
+void MainPageController::NewChat() {
+    if (m_is_running.load()) return; // don't allow while running
+    SaveCurrentConversation(); // save current (no-op if empty)
+    m_current = xllama::ui::Conversation{};
+    m_current.id = xllama::ui::ChatHistory::NewId();
+    m_outputBody.Blocks().Clear();
+    m_currentParagraph = winrt::Windows::UI::Xaml::Documents::Paragraph();
+    m_outputBody.Blocks().Append(m_currentParagraph);
+    m_metricsText.Text(L"");
+    SetStatus(L"New conversation");
+}
+
+void MainPageController::RenderConversation() {
+    using namespace winrt::Windows::UI::Xaml::Documents;
+    m_outputBody.Blocks().Clear();
+    for (const auto& msg : m_current.messages) {
+        if (msg.role == xllama::ui::MessageRole::System) continue;
+        Paragraph p;
+        const wchar_t* role_label =
+            (msg.role == xllama::ui::MessageRole::User) ? L"You: " : L"Assistant: ";
+        Run label;
+        label.Text(role_label);
+        label.FontWeight(winrt::Windows::UI::Text::FontWeights::Bold());
+        p.Inlines().Append(label);
+        Run content;
+        content.Text(::xllama::utf8_to_wstring(msg.content));
+        if (msg.partial)
+            content.Text(content.Text() + L" [cancelled]");
+        p.Inlines().Append(content);
+        m_outputBody.Blocks().Append(p);
+        m_outputBody.Blocks().Append(Paragraph()); // spacing
+    }
+    // Prepare fresh paragraph for next assistant turn
+    m_currentParagraph = Paragraph();
+    m_outputBody.Blocks().Append(m_currentParagraph);
+    m_outputScroll.UpdateLayout();
+    m_outputScroll.ChangeView(nullptr, m_outputScroll.ScrollableHeight(), nullptr);
+}
+
+void MainPageController::LoadConversation(const std::string& id) {
+    SaveCurrentConversation();
+    m_current = m_history.Load(id);
+    if (m_current.id.empty()) { m_current.id = id; }
+    RenderConversation();
+    SetStatus(L"Conversation loaded");
+}
+
+winrt::fire_and_forget MainPageController::ShowHistory() {
+    auto self = shared_from_this();
+    if (m_is_running.load()) co_return;
+
+    const auto& index = m_history.Index();
+    if (index.empty()) {
+        SetStatus(L"No history yet");
+        co_return;
+    }
+
+    // Build a ListView with conversation titles
+    winrt::Windows::UI::Xaml::Controls::ListView lv;
+    lv.SelectionMode(winrt::Windows::UI::Xaml::Controls::ListViewSelectionMode::Single);
+    lv.Height(400);
+    for (const auto& meta : index) {
+        winrt::Windows::UI::Xaml::Controls::TextBlock tb;
+        tb.FontSize(16);
+        tb.TextWrapping(winrt::Windows::UI::Xaml::TextWrapping::Wrap);
+        wchar_t buf[128];
+        swprintf_s(buf, L"%s  (%d msgs)",
+                   ::xllama::utf8_to_wstring(meta.title).c_str(),
+                   meta.n_messages);
+        tb.Text(buf);
+        lv.Items().Append(tb);
+    }
+
+    winrt::Windows::UI::Xaml::Controls::ContentDialog dlg;
+    dlg.Title(winrt::box_value(L"Conversation History"));
+    dlg.Content(lv);
+    dlg.PrimaryButtonText(L"Open");
+    dlg.CloseButtonText(L"Cancel");
+    dlg.XamlRoot(m_root.XamlRoot());
+
+    auto result = co_await dlg.ShowAsync();
+    if (result != winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary)
+        co_return;
+
+    int sel = lv.SelectedIndex();
+    if (sel < 0 || sel >= static_cast<int>(index.size())) co_return;
+
+    self->LoadConversation(index[static_cast<size_t>(sel)].id);
+}
+
+void MainPageController::LoadSettings() {
+    // Read LocalFolder/settings.json: {"system_prompt":"..."}
+    auto folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
+    std::wstring wpath(folder.Path().c_str());
+    wpath += L"\\settings.json";
+    FILE* f = _wfopen(wpath.c_str(), L"r");
+    if (!f) return;
+    std::string json;
+    char buf[8192];
+    while (size_t n = fread(buf, 1, sizeof(buf) - 1, f)) { buf[n] = 0; json += buf; }
+    fclose(f);
+    // Minimal parse: find "system_prompt":"..."
+    size_t key = json.find("\"system_prompt\"");
+    if (key == std::string::npos) return;
+    size_t colon = json.find(':', key);
+    if (colon == std::string::npos) return;
+    size_t quote = json.find('"', colon + 1);
+    if (quote == std::string::npos) return;
+    ++quote;
+    std::string sp;
+    while (quote < json.size()) {
+        char c = json[quote++];
+        if (c == '"') break;
+        if (c == '\\' && quote < json.size()) {
+            char e = json[quote++];
+            if (e == 'n') sp += '\n'; else if (e == 't') sp += '\t'; else sp += e;
+        } else sp += c;
+    }
+    if (!sp.empty()) m_system_prompt = sp;
+}
+
+// ---------------------------------------------------------------------------
 // LoadModelName: read model.txt from LocalFolder
 // ---------------------------------------------------------------------------
 
@@ -378,10 +617,8 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     SetStatus(L"Loading model...", StatusKind::Working);
     SetRunning(true);
 
-    // Reset output body for new inference
-    m_outputBody.Blocks().Clear();
-    m_currentParagraph = winrt::Windows::UI::Xaml::Documents::Paragraph();
-    m_outputBody.Blocks().Append(m_currentParagraph);
+    // Add user message to display + prepare empty assistant paragraph
+    AddUserParagraph(prompt_w);
     m_metricsText.Text(L"");
 
     // Reset streaming counters
@@ -404,13 +641,24 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     });
     m_flush_timer.Start();
 
-    // Wrap user text in ChatML template (required for SmolLM2-360M-Instruct).
-    // Bare prompts cause the model to generate EOS immediately.
+    // Build multi-turn ChatML prompt from conversation history.
+    // BuildChatMLPrompt uses existing m_current.messages (prev turns) and appends user_text.
     std::string user_text = ::xllama::wstring_to_utf8(prompt_w);
-    std::string prompt =
-        "<|im_start|>system\nYou are a helpful AI assistant.<|im_end|>\n"
-        "<|im_start|>user\n" + user_text + "<|im_end|>\n"
-        "<|im_start|>assistant\n";
+    if (m_current.id.empty()) {
+        m_current.id = xllama::ui::ChatHistory::NewId();
+        m_current.title = xllama::ui::ChatHistory::TitleFrom(user_text);
+    }
+    std::string prompt = BuildChatMLPrompt(user_text);
+
+    // Record user message in history AFTER building prompt (avoids duplicate)
+    {
+        xllama::ui::ChatMessage umsg;
+        umsg.role = xllama::ui::MessageRole::User;
+        umsg.content = user_text;
+        umsg.ts_unix = static_cast<int64_t>(std::time(nullptr));
+        m_current.messages.push_back(std::move(umsg));
+    }
+
     std::string model = ::xllama::wstring_to_utf8(m_model_filename);
     auto dispatcher = m_root.Dispatcher();
 
@@ -452,22 +700,34 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                                                                           : res.error_msg);
             }
 
-            dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, metrics, res]() {
+            std::string output_text = res.output_text;
+            dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, metrics, res, output_text]() {
                 self->m_metricsText.Text(metrics);
                 self->SetStatus(res.success ? L"Done" : L"Error",
                                 res.success ? StatusKind::Success : StatusKind::Error);
                 self->SetRunning(false); // also stops timer + flushes remaining tokens
+                // Save assistant response to conversation history
+                if (res.success && !output_text.empty()) {
+                    xllama::ui::ChatMessage amsg;
+                    amsg.role = xllama::ui::MessageRole::Assistant;
+                    amsg.content = output_text;
+                    amsg.ts_unix = static_cast<int64_t>(std::time(nullptr));
+                    self->m_current.messages.push_back(std::move(amsg));
+                }
+                self->SaveCurrentConversation();
             });
         } catch (const std::exception& ex) {
             ::xllama::log_output(std::string("[xllama] thread terminated: ") + ex.what() + "\n");
             dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self]() {
                 self->SetStatus(L"Fatal error — see xllama.log", StatusKind::Error);
+                self->SaveCurrentConversation(/*partial=*/true);
                 self->SetRunning(false);
             });
         } catch (...) {
             ::xllama::log_output("[xllama] thread terminated: unknown exception\n");
             dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self]() {
                 self->SetStatus(L"Fatal error — see xllama.log", StatusKind::Error);
+                self->SaveCurrentConversation(/*partial=*/true);
                 self->SetRunning(false);
             });
         }
