@@ -80,9 +80,30 @@ fi
 echo "==> Installing on Xbox at ${XBOX_IP} ..."
 "${SCRIPT_DIR}/deploy.sh" "$MSIX"
 
+NEW_PFN=$("${SCRIPT_DIR}/deploy.sh" pfn 2>/dev/null || echo "")
+
+# Upload bench.flag so bench mode fires on next launch.
+# LocalState may not be accessible via WDP right after a fresh install (before first app run).
+# Strategy: try once; if it fails, start the app briefly to init LocalState, stop it, retry.
+if [[ -n "$NEW_PFN" ]]; then
+	echo ""
+	echo "==> Uploading bench.flag ..."
+	touch /tmp/bench.flag
+	if ! "${SCRIPT_DIR}/deploy.sh" upload-file /tmp/bench.flag "$NEW_PFN" "" 2>/dev/null; then
+		echo "  (first upload failed — starting app briefly to init LocalState...)"
+		"${SCRIPT_DIR}/deploy.sh" start-app "$NEW_PFN" || true
+		sleep 5
+		"${SCRIPT_DIR}/deploy.sh" stop-app "$NEW_PFN" || true
+		sleep 2
+		echo "  Retrying bench.flag upload ..."
+		"${SCRIPT_DIR}/deploy.sh" upload-file /tmp/bench.flag "$NEW_PFN" "" ||
+			echo "  WARNING: bench.flag upload failed; upload manually with: deploy.sh upload-file /tmp/bench.flag $NEW_PFN ''"
+	fi
+fi
+
 echo ""
-echo "==> Waiting 3s then starting app ..."
-sleep 3
+echo "==> Starting app ..."
+sleep 2
 "${SCRIPT_DIR}/deploy.sh" start-app || true
 
 echo ""

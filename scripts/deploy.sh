@@ -289,12 +289,21 @@ if [[ "${1:-}" == "upload-file" ]]; then
 	fi
 
 	echo "Uploading $(basename "$LOCAL_PATH") → LocalState\\${REMOTE_DIR} ..."
-	curl "${CURL_AUTH[@]}" \
+	RESP=$(curl "${CURL_AUTH[@]}" \
 		-H "X-CSRF-Token:${CSRF_TOKEN}" \
 		-X POST \
 		-F "file=@${LOCAL_PATH};type=application/octet-stream" \
-		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=${PATH_PARAM}"
-	echo ""
+		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=${PATH_PARAM}" 2>/dev/null || echo "")
+	if [[ -n "$RESP" ]]; then
+		echo "$RESP"
+		# WDP returns JSON with "Success":false on failure
+		if echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get('Success',True) else 1)" 2>/dev/null; then
+			: # success or non-JSON response (old WDP versions return empty on success)
+		else
+			echo "  ERROR: WDP upload failed" >&2
+			exit 1
+		fi
+	fi
 	echo "Done."
 	exit 0
 fi

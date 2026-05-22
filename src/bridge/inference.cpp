@@ -41,6 +41,12 @@ InferenceResult run_inference(const InferenceParams& params) {
         params.on_status("loading model");
 
     try {
+        // Redirect ORT GenAI internal log messages into xllama.log.
+        // Without this they go only to OutputDebugStringA (Device Portal debug output).
+        oga_check(OgaSetLogCallback([](const char* msg, size_t /*len*/) {
+            log_output(msg);
+        }), "OgaSetLogCallback");
+
         // Log memory state before the large ORT allocation for OOM diagnostics.
         {
             MEMORYSTATUSEX ms{};
