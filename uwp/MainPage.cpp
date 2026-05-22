@@ -953,6 +953,30 @@ fire_and_forget MainPageController::CheckBenchMode() {
 }
 
 // ---------------------------------------------------------------------------
+// EnsureSession: lazy-build persistent Session (hot path is a pointer check)
+// ---------------------------------------------------------------------------
+
+bool MainPageController::EnsureSession(const std::string& model, std::string* err_out) {
+    if (m_session && m_session_model == model)
+        return true;
+    m_session.reset(); // free before creating new (avoid 2× model in RAM)
+    xllama::SessionParams sp;
+    sp.model_path = model;
+    sp.n_ctx = 2048;
+    sp.n_threads = 0; // auto
+    std::string err;
+    auto s = xllama::Session::create(sp, &err);
+    if (!s) {
+        if (err_out)
+            *err_out = err;
+        return false;
+    }
+    m_session = std::move(s);
+    m_session_model = model;
+    return true;
+}
+
+// ---------------------------------------------------------------------------
 // StartInference: called on UI thread; spawns background thread
 // ---------------------------------------------------------------------------
 
@@ -1012,13 +1036,22 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
 
     std::thread([self, prompt, model, dispatcher]() {
         try {
-            ::xllama::bridge::InferenceParams params;
-            params.model_path = model;
-            params.prompt = prompt;
-            params.n_predict = 512;
-            params.abort_flag = &self->m_abort;
+            std::string load_err;
+            if (!self->EnsureSession(model, &load_err)) {
+                dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, load_err]() {
+                    self->SetStatus(::xllama::utf8_to_wstring("Load failed: " + load_err),
+                                    StatusKind::Error);
+                    self->SetRunning(false);
+                });
+                return;
+            }
 
-            params.on_status = [self, dispatcher](const std::string& s) {
+            xllama::GenerateParams gp;
+            gp.prompt = prompt;
+            gp.n_predict = 512;
+            gp.abort_flag = &self->m_abort;
+
+            gp.on_status = [self, dispatcher](const std::string& s) {
                 auto ws = ::xllama::utf8_to_wstring(s);
                 StatusKind k =
                     (s.rfind("error:", 0) == 0) ? StatusKind::Error : StatusKind::Working;
@@ -1027,13 +1060,13 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
             };
 
             // Token accumulation — no per-token RunAsync dispatch (batched by flush timer)
-            params.on_token = [self](const std::string& tok) {
+            gp.on_token = [self](const std::string& tok) {
                 self->m_tokens_received.fetch_add(1, std::memory_order_relaxed);
                 std::lock_guard<std::mutex> lk(self->m_token_mutex);
                 self->m_token_buffer += tok;
             };
 
-            auto res = ::xllama::bridge::run_inference(params);
+            auto res = self->m_session->generate(gp);
 
             std::wstring metrics;
             if (res.success) {

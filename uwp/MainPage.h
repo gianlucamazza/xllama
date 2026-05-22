@@ -9,6 +9,7 @@
     #include "inference-bridge.h"
     #include "model-downloader.h"
     #include "pch.h"
+    #include "xllama/session.h"
 
     #include <atomic>
     #include <chrono>
@@ -58,6 +59,8 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     void SaveSettings();
     winrt::fire_and_forget ShowSettings();
     void SaveCurrentConversation(bool partial = false);
+    // Must be called from background thread; builds/rebuilds m_session if needed.
+    bool EnsureSession(const std::string& model, std::string* err_out = nullptr);
 
     // UI controls (populated by BuildUI)
     winrt::Windows::UI::Xaml::Controls::Page m_root{nullptr};
@@ -76,6 +79,10 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     winrt::Windows::UI::Xaml::Controls::Button m_settingsButton{nullptr};
     winrt::Windows::UI::Xaml::DispatcherTimer m_flush_timer{nullptr};
     winrt::event_token m_flush_tick_token{};
+
+    // Persistent inference session — loaded once, reused across chat turns.
+    std::unique_ptr<xllama::Session> m_session;
+    std::string m_session_model;
 
     // Token streaming state (written from bg thread, flushed on UI thread via timer)
     std::mutex m_token_mutex;
