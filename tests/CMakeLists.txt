@@ -14,6 +14,7 @@ add_executable(xllama-tests
     test_path.cpp
     test_bench.cpp
     test_session.cpp
+    test_chat_history.cpp
 )
 
 target_link_libraries(xllama-tests PRIVATE xllama doctest::doctest)
