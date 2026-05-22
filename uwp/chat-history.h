@@ -59,6 +59,12 @@ class ChatHistory {
         return m_index;
     }
 
+    // Delete a single conversation (removes JSON file + updates index).
+    void Delete(const std::string& id);
+
+    // Delete all conversations (removes all JSON files + clears index).
+    void Clear();
+
     // Derive conversation id from title (for new convos: generate UUID).
     static std::string NewId();
 

@@ -241,6 +241,27 @@ void ChatHistory::SaveIndex() {
     fclose(f);
 }
 
+void ChatHistory::Delete(const std::string& id) {
+    // Remove JSON file
+    std::string path = ConvPath(id);
+    ::remove(path.c_str());
+    // Remove from index
+    m_index.erase(std::remove_if(m_index.begin(), m_index.end(),
+                                 [&](const ConversationMeta& m) { return m.id == id; }),
+                  m_index.end());
+    SaveIndex();
+}
+
+void ChatHistory::Clear() {
+    // Delete all conversation JSON files
+    for (const auto& meta : m_index) {
+        std::string path = ConvPath(meta.id);
+        ::remove(path.c_str());
+    }
+    m_index.clear();
+    SaveIndex();
+}
+
 void ChatHistory::Save(const Conversation& conv) {
     // Ensure directory exists
     std::wstring wdir = ::xllama::utf8_to_wstring(m_dir);

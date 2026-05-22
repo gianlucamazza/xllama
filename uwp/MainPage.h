@@ -54,7 +54,7 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     void LoadConversation(const std::string& id);
     void RenderConversation();
     void AddUserParagraph(std::wstring const& text);
-    std::string BuildChatMLPrompt(const std::string& user_text) const;
+    std::string BuildChatMLPrompt(const std::string& user_text, int* out_dropped = nullptr) const;
     void LoadSettings();
     void SaveSettings();
     winrt::fire_and_forget ShowSettings();
@@ -94,6 +94,16 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     xllama::ui::ChatHistory m_history;
     xllama::ui::Conversation m_current;
     std::string m_system_prompt{"You are a helpful AI assistant."};
+
+    // Autoscroll state: true while the user has not scrolled up during streaming
+    bool m_at_bottom{true};
+
+    // Sampling parameters (persisted in settings.json, exposed in Settings dialog)
+    float m_temperature{0.8f};
+    float m_top_p{0.9f};
+    int m_top_k{40};
+    float m_repetition_penalty{1.1f};
+    int m_n_predict{512};
 
     std::atomic<bool> m_abort{false};
     std::atomic<bool> m_is_running{false};
