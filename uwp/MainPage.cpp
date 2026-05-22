@@ -671,6 +671,19 @@ fire_and_forget MainPageController::EnsureModelAsync() {
         }
     }
 
+    // Check 3: USB drive at E:\xllama\models\<name> (Xbox Dev Mode mounts NTFS USB as E:\)
+    {
+        std::wstring usb_model_dir = L"E:\\xllama\\models\\" + model_name;
+        DWORD ua = GetFileAttributesW((usb_model_dir + L"\\genai_config.json").c_str());
+        if (ua != INVALID_FILE_ATTRIBUTES) {
+            log_output("[xllama] model found on USB (EnsureModelAsync check)\n");
+            co_await resume_foreground(dispatcher);
+            self->LoadModelName();
+            self->CheckBenchMode();
+            co_return;
+        }
+    }
+
     // Neither found: download from Hugging Face.
     co_await resume_foreground(dispatcher);
     self->SetStatus(L"Downloading model...", StatusKind::Working);
