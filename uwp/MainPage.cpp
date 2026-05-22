@@ -749,14 +749,10 @@ fire_and_forget MainPageController::EnsureModelAsync() {
                 if (!usb_model_folder) throw std::runtime_error("USB folder disappeared");
 
                 // Destination: LocalState\models\<name>
+                // CreateFolderAsync with OpenIfExists creates or opens — no try/catch needed.
                 auto local_folder2 = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
-                StorageFolder models_folder{nullptr};
-                try {
-                    models_folder = co_await local_folder2.GetFolderAsync(L"models");
-                } catch (...) {
-                    models_folder = co_await local_folder2.CreateFolderAsync(
-                        L"models", CreationCollisionOption::OpenIfExists);
-                }
+                auto models_folder = co_await local_folder2.CreateFolderAsync(
+                    L"models", CreationCollisionOption::OpenIfExists);
                 StorageFolder dest_folder = co_await models_folder.CreateFolderAsync(
                     model_name, CreationCollisionOption::OpenIfExists);
 
