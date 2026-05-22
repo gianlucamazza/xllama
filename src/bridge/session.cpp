@@ -29,10 +29,10 @@ namespace xllama {
 
 class OrtSession final : public Session {
   public:
-    OrtModelPtr m_model;
-    OrtTokenizerPtr m_tok;
+    OgaModelPtr m_model;
+    OgaTokenizerPtr m_tok;
 
-    explicit OrtSession(OrtModelPtr model, OrtTokenizerPtr tok)
+    explicit OrtSession(OgaModelPtr model, OgaTokenizerPtr tok)
         : m_model(std::move(model)), m_tok(std::move(tok)) {}
 
     InferenceResult generate(const GenerateParams& gp) override {
