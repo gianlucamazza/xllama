@@ -71,7 +71,7 @@ void MainPageController::BuildUI() {
     m_statusText.FontSize(14);
     m_statusText.Opacity(0.7);
     m_statusText.Margin(ThicknessHelper::FromLengths(0, 4, 0, 0));
-    m_statusText.Text(L"Ready");
+    m_statusText.Text(L"Loading model...");
 
     m_loadingBar = ProgressBar();
     m_loadingBar.IsIndeterminate(true);
@@ -87,7 +87,8 @@ void MainPageController::BuildUI() {
     Grid::SetRow(m_outputScroll, 1);
     m_outputScroll.VerticalScrollBarVisibility(ScrollBarVisibility::Auto);
     m_outputScroll.Margin(ThicknessHelper::FromLengths(0, 24, 0, 0));
-    m_outputScroll.IsFocusEngagementEnabled(true);
+    // IsFocusEngagementEnabled intentionally NOT set on ScrollViewer — only set on the
+    // inner TextBox to avoid requiring two A-presses to engage text input on Xbox.
 
     StackPanel bodyStack;
 
@@ -163,6 +164,7 @@ void MainPageController::BuildUI() {
     m_runButton.Content(winrt::box_value(L"▶  Run"));
     m_runButton.MinWidth(120);
     m_runButton.Margin(ThicknessHelper::FromLengths(0, 0, 12, 0));
+    m_runButton.IsEnabled(false); // disabled until EnsureModelAsync confirms model is ready
 
     m_cancelButton = Button();
     m_cancelButton.Content(winrt::box_value(L"■  Cancel"));
@@ -210,6 +212,7 @@ void MainPageController::Init() {
                 s->SetStatus(L"Enter a prompt first");
                 return;
             }
+            s->m_promptInput.Text(L""); // clear immediately so the user sees the send action
             s->StartInference(std::wstring(prompt.c_str()));
         }
     });
@@ -272,6 +275,18 @@ void MainPageController::Init() {
             }
         });
 
+    // Smart autoscroll: track whether the user is at the bottom of the scroll view.
+    // Auto-scroll is suppressed while the user has manually scrolled up during streaming.
+    m_outputScroll.ViewChanged(
+        [weak_self](IInspectable const&,
+                    winrt::Windows::UI::Xaml::Controls::ScrollViewerViewChangedEventArgs const&) {
+            if (auto s = weak_self.lock()) {
+                double sv = s->m_outputScroll.ScrollableHeight();
+                double vo = s->m_outputScroll.VerticalOffset();
+                s->m_at_bottom = (sv - vo < 24.0);
+            }
+        });
+
     // Start with focus on Run button
     m_runButton.Focus(FocusState::Programmatic);
 
@@ -294,10 +309,29 @@ void MainPageController::Init() {
 
 void MainPageController::AppendOutput(std::wstring const& text) {
     using namespace winrt::Windows::UI::Xaml::Documents;
-    Run r;
-    r.Text(text);
-    m_currentParagraph.Inlines().Append(r);
-    m_outputScroll.ChangeView(nullptr, m_outputScroll.ScrollableHeight(), nullptr);
+    // Split on '\n': each segment becomes a Run; newlines become LineBreak inlines so
+    // multi-line model output is rendered correctly in RichTextBlock.
+    std::wstring seg;
+    for (wchar_t c : text) {
+        if (c == L'\n') {
+            if (!seg.empty()) {
+                Run r;
+                r.Text(seg);
+                m_currentParagraph.Inlines().Append(r);
+                seg.clear();
+            }
+            m_currentParagraph.Inlines().Append(LineBreak());
+        } else {
+            seg += c;
+        }
+    }
+    if (!seg.empty()) {
+        Run r;
+        r.Text(seg);
+        m_currentParagraph.Inlines().Append(r);
+    }
+    if (m_at_bottom)
+        m_outputScroll.ChangeView(nullptr, m_outputScroll.ScrollableHeight(), nullptr);
 }
 
 void MainPageController::FlushTokenBuffer() {
@@ -353,9 +387,13 @@ void MainPageController::SetRunning(bool running) {
     m_runButton.IsEnabled(!running);
     m_cancelButton.IsEnabled(running);
     m_loadingBar.Visibility(running ? Visibility::Visible : Visibility::Collapsed);
-    if (!running && m_flush_timer && m_flush_timer.IsEnabled()) {
-        m_flush_timer.Stop();
-        FlushTokenBuffer(); // drain any remaining tokens
+    if (!running) {
+        m_at_bottom = true; // re-enable autoscroll for next generation
+        if (m_flush_timer && m_flush_timer.IsEnabled()) {
+            m_flush_timer.Stop();
+            FlushTokenBuffer(); // drain any remaining tokens
+        }
+        m_promptInput.Focus(FocusState::Programmatic); // return focus to prompt after inference
     }
 }
 
@@ -390,9 +428,11 @@ void MainPageController::AddUserParagraph(std::wstring const& text) {
     m_outputBody.Blocks().Append(m_currentParagraph);
 }
 
-std::string MainPageController::BuildChatMLPrompt(const std::string& user_text) const {
+std::string MainPageController::BuildChatMLPrompt(const std::string& user_text,
+                                                  int* out_dropped) const {
     // Estimate token count (heuristic: chars/4). Trim oldest turns if over limit.
-    constexpr int kMaxEstimatedTokens = 3500;
+    // Threshold aligned with n_ctx=2048: 1800 estimated tokens + ~250 generation buffer.
+    constexpr int kMaxEstimatedTokens = 1800;
     // Collect turns (skip system which always stays)
     std::vector<size_t> turn_starts; // index of first User message in each turn
     for (size_t i = 0; i < m_current.messages.size(); ++i) {
@@ -420,6 +460,8 @@ std::string MainPageController::BuildChatMLPrompt(const std::string& user_text) 
     if (first_turn > 0)
         log_output("[xllama] context trimmed: dropped " + std::to_string(first_turn) +
                    " old turn(s)\n");
+    if (out_dropped)
+        *out_dropped = static_cast<int>(first_turn);
 
     std::string prompt = "<|im_start|>system\n" + m_system_prompt + "<|im_end|>\n";
 
@@ -457,6 +499,7 @@ void MainPageController::NewChat() {
     m_outputBody.Blocks().Clear();
     m_currentParagraph = winrt::Windows::UI::Xaml::Documents::Paragraph();
     m_outputBody.Blocks().Append(m_currentParagraph);
+    m_promptInput.Text(L"");
     m_metricsText.Text(L"");
     SetStatus(L"New conversation");
 }
@@ -499,40 +542,151 @@ void MainPageController::LoadConversation(const std::string& id) {
     SetStatus(L"Conversation loaded");
 }
 
+// Format unix timestamp as relative string ("today HH:MM", "yesterday HH:MM", "DD Mon HH:MM")
+static std::wstring FormatRelativeTs(int64_t unix_ts) {
+    if (unix_ts <= 0)
+        return L"";
+    std::time_t now = std::time(nullptr);
+    std::time_t ts = static_cast<std::time_t>(unix_ts);
+    std::tm now_tm{}, ts_tm{};
+    #ifdef _WIN32
+    localtime_s(&now_tm, &now);
+    localtime_s(&ts_tm, &ts);
+    #else
+    localtime_r(&now, &now_tm);
+    localtime_r(&ts, &ts_tm);
+    #endif
+    wchar_t buf[64];
+    if (now_tm.tm_year == ts_tm.tm_year && now_tm.tm_yday == ts_tm.tm_yday)
+        swprintf_s(buf, L"today %02d:%02d", ts_tm.tm_hour, ts_tm.tm_min);
+    else if (now_tm.tm_year == ts_tm.tm_year && now_tm.tm_yday - ts_tm.tm_yday == 1)
+        swprintf_s(buf, L"yesterday %02d:%02d", ts_tm.tm_hour, ts_tm.tm_min);
+    else {
+        static const wchar_t* months[] = {L"Jan", L"Feb", L"Mar", L"Apr", L"May", L"Jun",
+                                          L"Jul", L"Aug", L"Sep", L"Oct", L"Nov", L"Dec"};
+        swprintf_s(buf, L"%d %s %02d:%02d", ts_tm.tm_mday, months[ts_tm.tm_mon], ts_tm.tm_hour,
+                   ts_tm.tm_min);
+    }
+    return buf;
+}
+
 winrt::fire_and_forget MainPageController::ShowHistory() {
     auto self = shared_from_this();
     if (m_is_running.load())
         co_return;
 
+    m_history.LoadIndex(); // refresh index before showing
     const auto& index = m_history.Index();
-    if (index.empty()) {
-        SetStatus(L"No history yet");
-        co_return;
-    }
-
-    // Build a ListView with conversation titles
-    winrt::Windows::UI::Xaml::Controls::ListView lv;
-    lv.SelectionMode(winrt::Windows::UI::Xaml::Controls::ListViewSelectionMode::Single);
-    lv.Height(400);
-    for (const auto& meta : index) {
-        winrt::Windows::UI::Xaml::Controls::TextBlock tb;
-        tb.FontSize(16);
-        tb.TextWrapping(winrt::Windows::UI::Xaml::TextWrapping::Wrap);
-        wchar_t buf[128];
-        swprintf_s(buf, L"%s  (%d msgs)", ::xllama::utf8_to_wstring(meta.title).c_str(),
-                   meta.n_messages);
-        tb.Text(buf);
-        lv.Items().Append(tb);
-    }
 
     winrt::Windows::UI::Xaml::Controls::ContentDialog dlg;
     dlg.Title(winrt::box_value(L"Conversation History"));
-    dlg.Content(lv);
-    dlg.PrimaryButtonText(L"Open");
-    dlg.CloseButtonText(L"Cancel");
     dlg.XamlRoot(m_root.XamlRoot());
 
+    if (index.empty()) {
+        winrt::Windows::UI::Xaml::Controls::TextBlock empty_tb;
+        empty_tb.Text(L"No conversations yet — start chatting to see history here.");
+        empty_tb.FontSize(16);
+        empty_tb.Opacity(0.6);
+        empty_tb.TextWrapping(winrt::Windows::UI::Xaml::TextWrapping::Wrap);
+        dlg.Content(empty_tb);
+        dlg.CloseButtonText(L"Close");
+        co_await dlg.ShowAsync();
+        co_return;
+    }
+
+    // Build a ListView — each row: [title TextBlock | ✕ Delete button]
+    winrt::Windows::UI::Xaml::Controls::ListView lv;
+    lv.SelectionMode(winrt::Windows::UI::Xaml::Controls::ListViewSelectionMode::Single);
+    lv.Height(400);
+    lv.Width(580);
+    std::string current_id = m_current.id;
+
+    // Shared state: when a Delete button fires it sets this and hides the dialog
+    auto delete_pending = std::make_shared<std::string>();
+
+    for (const auto& meta : index) {
+        winrt::Windows::UI::Xaml::Controls::StackPanel row;
+        row.Orientation(winrt::Windows::UI::Xaml::Controls::Orientation::Horizontal);
+
+        winrt::Windows::UI::Xaml::Controls::TextBlock tb;
+        tb.FontSize(16);
+        tb.TextWrapping(winrt::Windows::UI::Xaml::TextWrapping::Wrap);
+        tb.MaxWidth(480);
+        tb.VerticalAlignment(winrt::Windows::UI::Xaml::VerticalAlignment::Center);
+        std::wstring prefix = (meta.id == current_id) ? L"● " : L"   ";
+        std::wstring ts = FormatRelativeTs(meta.last_modified);
+        wchar_t buf[256];
+        swprintf_s(buf, L"%s%s  (%d msgs)  •  %s", prefix.c_str(),
+                   ::xllama::utf8_to_wstring(meta.title).c_str(), meta.n_messages, ts.c_str());
+        tb.Text(buf);
+
+        winrt::Windows::UI::Xaml::Controls::Button del_btn;
+        del_btn.Content(winrt::box_value(L"✕"));
+        del_btn.Width(48);
+        del_btn.VerticalAlignment(winrt::Windows::UI::Xaml::VerticalAlignment::Center);
+        del_btn.Margin(winrt::Windows::UI::Xaml::ThicknessHelper::FromLengths(8, 0, 0, 0));
+        auto meta_id = meta.id;
+        del_btn.Click([delete_pending, meta_id,
+                       dlg](IInspectable const&, winrt::Windows::UI::Xaml::RoutedEventArgs const&) {
+            *delete_pending = meta_id;
+            dlg.Hide();
+        });
+
+        row.Children().Append(tb);
+        row.Children().Append(del_btn);
+        lv.Items().Append(row);
+    }
+
+    dlg.Content(lv);
+    dlg.PrimaryButtonText(L"Open");
+    dlg.SecondaryButtonText(L"Clear all");
+    dlg.CloseButtonText(L"Cancel");
+
     auto result = co_await dlg.ShowAsync();
+
+    // Per-item delete: a Delete button was pressed, hide closed the dialog
+    if (!delete_pending->empty()) {
+        std::string id_to_delete = *delete_pending;
+        winrt::Windows::UI::Xaml::Controls::ContentDialog confirm;
+        confirm.Title(winrt::box_value(L"Delete conversation?"));
+        winrt::Windows::UI::Xaml::Controls::TextBlock ctb;
+        ctb.Text(L"This will permanently delete this conversation.");
+        ctb.TextWrapping(winrt::Windows::UI::Xaml::TextWrapping::Wrap);
+        confirm.Content(ctb);
+        confirm.PrimaryButtonText(L"Delete");
+        confirm.CloseButtonText(L"Cancel");
+        confirm.XamlRoot(m_root.XamlRoot());
+        auto cr = co_await confirm.ShowAsync();
+        if (cr == winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary) {
+            bool was_current = (id_to_delete == self->m_current.id);
+            self->m_history.Delete(id_to_delete);
+            if (was_current)
+                self->NewChat();
+            self->SetStatus(L"Conversation deleted");
+        }
+        co_return;
+    }
+
+    if (result == winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Secondary) {
+        // Clear all conversations — confirm first
+        winrt::Windows::UI::Xaml::Controls::ContentDialog confirm;
+        confirm.Title(winrt::box_value(L"Clear all conversations?"));
+        winrt::Windows::UI::Xaml::Controls::TextBlock ctb;
+        ctb.Text(L"This will permanently delete all conversation history.");
+        ctb.TextWrapping(winrt::Windows::UI::Xaml::TextWrapping::Wrap);
+        confirm.Content(ctb);
+        confirm.PrimaryButtonText(L"Delete all");
+        confirm.CloseButtonText(L"Cancel");
+        confirm.XamlRoot(m_root.XamlRoot());
+        auto cr = co_await confirm.ShowAsync();
+        if (cr == winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary) {
+            self->m_history.Clear();
+            self->NewChat();
+            self->SetStatus(L"All conversations cleared");
+        }
+        co_return;
+    }
+
     if (result != winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary)
         co_return;
 
@@ -543,8 +697,61 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
     self->LoadConversation(index[static_cast<size_t>(sel)].id);
 }
 
+// Escape a UTF-8 string for inline JSON (same logic as chat-history.cpp json_escape)
+static std::string settings_json_escape(const std::string& s) {
+    std::string out;
+    for (unsigned char c : s) {
+        if (c == '"')
+            out += "\\\"";
+        else if (c == '\\')
+            out += "\\\\";
+        else if (c == '\n')
+            out += "\\n";
+        else if (c == '\r')
+            out += "\\r";
+        else if (c >= 0x20)
+            out += static_cast<char>(c);
+    }
+    return out;
+}
+
+// Read a quoted JSON string starting after the opening '"'. Returns "" on failure.
+static std::string settings_read_string(const std::string& json, size_t& pos) {
+    std::string out;
+    while (pos < json.size()) {
+        char c = json[pos++];
+        if (c == '"')
+            return out;
+        if (c == '\\' && pos < json.size()) {
+            char e = json[pos++];
+            if (e == 'n')
+                out += '\n';
+            else if (e == 't')
+                out += '\t';
+            else
+                out += e;
+        } else
+            out += c;
+    }
+    return out;
+}
+
+// Read a JSON number/token (up to next `,`, `}`, `]`, or whitespace). Returns "".
+static std::string settings_read_token(const std::string& json, size_t& pos) {
+    while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t' || json[pos] == '\n'))
+        ++pos;
+    std::string out;
+    while (pos < json.size()) {
+        char c = json[pos];
+        if (c == ',' || c == '}' || c == ']' || c == ' ' || c == '\t' || c == '\n')
+            break;
+        out += c;
+        ++pos;
+    }
+    return out;
+}
+
 void MainPageController::LoadSettings() {
-    // Read LocalFolder/settings.json: {"system_prompt":"..."}
     auto folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
     std::wstring wpath(folder.Path().c_str());
     wpath += L"\\settings.json";
@@ -552,41 +759,105 @@ void MainPageController::LoadSettings() {
     if (!f)
         return;
     std::string json;
-    char buf[8192];
+    char buf[16384];
     while (size_t n = fread(buf, 1, sizeof(buf) - 1, f)) {
         buf[n] = 0;
         json += buf;
     }
     fclose(f);
-    // Minimal parse: find "system_prompt":"..."
-    size_t key = json.find("\"system_prompt\"");
-    if (key == std::string::npos)
-        return;
-    size_t colon = json.find(':', key);
-    if (colon == std::string::npos)
-        return;
-    size_t quote = json.find('"', colon + 1);
-    if (quote == std::string::npos)
-        return;
-    ++quote;
-    std::string sp;
-    while (quote < json.size()) {
-        char c = json[quote++];
-        if (c == '"')
+
+    // Parse flat keys: "system_prompt", "model", and "sampling" object
+    auto read_key = [&](size_t& pos) -> std::string {
+        while (pos < json.size() && json[pos] != '"' && json[pos] != '}')
+            ++pos;
+        if (pos >= json.size() || json[pos] == '}')
+            return "";
+        ++pos; // skip opening "
+        return settings_read_string(json, pos);
+    };
+
+    auto seek_colon_and_advance = [&](size_t& pos) {
+        while (pos < json.size() && json[pos] != ':')
+            ++pos;
+        ++pos;
+    };
+
+    size_t pos = 0;
+    while (pos < json.size()) {
+        std::string key = read_key(pos);
+        if (key.empty())
             break;
-        if (c == '\\' && quote < json.size()) {
-            char e = json[quote++];
-            if (e == 'n')
-                sp += '\n';
-            else if (e == 't')
-                sp += '\t';
-            else
-                sp += e;
-        } else
-            sp += c;
+        seek_colon_and_advance(pos);
+        while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t' || json[pos] == '\n'))
+            ++pos;
+
+        if (key == "system_prompt") {
+            if (pos < json.size() && json[pos] == '"') {
+                ++pos;
+                m_system_prompt = settings_read_string(json, pos);
+            }
+        } else if (key == "model") {
+            if (pos < json.size() && json[pos] == '"') {
+                ++pos;
+                std::string m = settings_read_string(json, pos);
+                if (!m.empty())
+                    m_model_filename = ::xllama::utf8_to_wstring(m);
+            }
+        } else if (key == "sampling") {
+            // Parse nested object {"temperature":0.8, ...}
+            if (pos < json.size() && json[pos] == '{') {
+                ++pos;
+                while (pos < json.size()) {
+                    while (pos < json.size() && json[pos] != '"' && json[pos] != '}')
+                        ++pos;
+                    if (pos >= json.size() || json[pos] == '}') {
+                        ++pos;
+                        break;
+                    }
+                    ++pos;
+                    std::string sk = settings_read_string(json, pos);
+                    seek_colon_and_advance(pos);
+                    std::string sv = settings_read_token(json, pos);
+                    if (sk == "temperature" && !sv.empty())
+                        m_temperature = std::stof(sv);
+                    else if (sk == "top_p" && !sv.empty())
+                        m_top_p = std::stof(sv);
+                    else if (sk == "top_k" && !sv.empty())
+                        m_top_k = std::stoi(sv);
+                    else if (sk == "repetition_penalty" && !sv.empty())
+                        m_repetition_penalty = std::stof(sv);
+                    else if (sk == "n_predict" && !sv.empty())
+                        m_n_predict = std::stoi(sv);
+                    // skip comma
+                    while (pos < json.size() && (json[pos] == ',' || json[pos] == ' '))
+                        ++pos;
+                }
+            }
+        } else {
+            // Unknown key: skip value
+            settings_read_token(json, pos);
+        }
     }
-    if (!sp.empty())
-        m_system_prompt = sp;
+
+    // Back-compat: also read model.txt if model not set via settings.json
+    if (m_model_filename.empty()) {
+        auto model_path = local_wpath(L"model.txt");
+        FILE* mf = _wfopen(model_path.c_str(), L"r");
+        if (mf) {
+            wchar_t mbuf[512] = {};
+            if (fgetws(mbuf, 511, mf)) {
+                size_t len = wcslen(mbuf);
+                while (len > 0 &&
+                       (mbuf[len - 1] == L'\n' || mbuf[len - 1] == L'\r' || mbuf[len - 1] == L' '))
+                    mbuf[--len] = L'\0';
+                if (len > 0)
+                    m_model_filename = mbuf;
+            }
+            fclose(mf);
+        }
+        if (m_model_filename.empty())
+            m_model_filename = L"smollm2-360m-cpu-int4";
+    }
 }
 
 void MainPageController::SaveSettings() {
@@ -596,21 +867,22 @@ void MainPageController::SaveSettings() {
     FILE* f = _wfopen(wpath.c_str(), L"w");
     if (!f)
         return;
-    // Minimal JSON escape for system_prompt
-    std::string esc;
-    for (unsigned char c : m_system_prompt) {
-        if (c == '"')
-            esc += "\\\"";
-        else if (c == '\\')
-            esc += "\\\\";
-        else if (c == '\n')
-            esc += "\\n";
-        else if (c == '\r')
-            esc += "\\r";
-        else
-            esc += static_cast<char>(c);
-    }
-    fprintf(f, "{\"system_prompt\":\"%s\"}\n", esc.c_str());
+    std::string model_utf8 = ::xllama::wstring_to_utf8(std::wstring(m_model_filename));
+    fprintf(f,
+            "{\n"
+            "  \"system_prompt\": \"%s\",\n"
+            "  \"model\": \"%s\",\n"
+            "  \"sampling\": {\n"
+            "    \"temperature\": %.2f,\n"
+            "    \"top_p\": %.2f,\n"
+            "    \"top_k\": %d,\n"
+            "    \"repetition_penalty\": %.2f,\n"
+            "    \"n_predict\": %d\n"
+            "  }\n"
+            "}\n",
+            settings_json_escape(m_system_prompt).c_str(), settings_json_escape(model_utf8).c_str(),
+            static_cast<double>(m_temperature), static_cast<double>(m_top_p), m_top_k,
+            static_cast<double>(m_repetition_penalty), m_n_predict);
     fclose(f);
 }
 
@@ -619,19 +891,77 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     if (m_is_running.load())
         co_return;
 
-    // System prompt TextBox
+    // --- Model selection ComboBox ---
+    winrt::Windows::UI::Xaml::Controls::ComboBox modelBox;
+    modelBox.Header(winrt::box_value(L"Model"));
+    modelBox.FontSize(16);
+    modelBox.HorizontalAlignment(HorizontalAlignment::Stretch);
+    struct ModelEntry {
+        const wchar_t* display;
+        const wchar_t* key;
+    };
+    static const ModelEntry kModels[] = {
+        {L"SmolLM2-360M (bundled)", L"smollm2-360m-cpu-int4"},
+        {L"SmolLM2-1.7B (USB)", L"smollm2-1.7b-cpu-int4"},
+        {L"SmolLM2-360M (HF download)", L"smollm2-360m-cpu-int4-hf"},
+    };
+    int model_sel = 0;
+    for (int i = 0; i < 3; ++i) {
+        modelBox.Items().Append(winrt::box_value(winrt::hstring(kModels[i].display)));
+        if (m_model_filename == kModels[i].key)
+            model_sel = i;
+    }
+    modelBox.SelectedIndex(model_sel);
+
+    // --- System prompt TextBox ---
     winrt::Windows::UI::Xaml::Controls::TextBox sysPromptBox;
     sysPromptBox.Text(::xllama::utf8_to_wstring(m_system_prompt));
     sysPromptBox.AcceptsReturn(true);
     sysPromptBox.TextWrapping(TextWrapping::Wrap);
-    sysPromptBox.MinHeight(120);
+    sysPromptBox.MinHeight(100);
     sysPromptBox.FontSize(16);
     sysPromptBox.IsFocusEngagementEnabled(true);
     sysPromptBox.Header(winrt::box_value(L"System prompt"));
 
+    // --- Sampling sliders / number boxes ---
+    auto make_slider = [](double val, double lo, double hi, double step,
+                          const wchar_t* label) -> winrt::Windows::UI::Xaml::Controls::Slider {
+        winrt::Windows::UI::Xaml::Controls::Slider s;
+        s.Minimum(lo);
+        s.Maximum(hi);
+        s.StepFrequency(step);
+        s.Value(val);
+        s.Header(winrt::box_value(winrt::hstring(label)));
+        s.HorizontalAlignment(HorizontalAlignment::Stretch);
+        return s;
+    };
+    auto tempSlider = make_slider(m_temperature, 0.0, 2.0, 0.05, L"Temperature (0–2)");
+    auto topPSlider = make_slider(m_top_p, 0.0, 1.0, 0.05, L"Top-p (0–1)");
+    auto repSlider = make_slider(m_repetition_penalty, 1.0, 2.0, 0.05, L"Repetition penalty (1–2)");
+
+    // top_k and n_predict as simple Sliders (NumberBox not available in older SDK targets)
+    auto topKSlider = make_slider(m_top_k, 1.0, 200.0, 1.0, L"Top-k (1–200)");
+    auto nPredSlider = make_slider(m_n_predict, 16.0, 2048.0, 16.0, L"Max new tokens (16–2048)");
+
+    winrt::Windows::UI::Xaml::Controls::StackPanel panel;
+    panel.Orientation(Orientation::Vertical);
+    panel.Spacing(12);
+    panel.Children().Append(modelBox);
+    panel.Children().Append(sysPromptBox);
+    panel.Children().Append(tempSlider);
+    panel.Children().Append(topPSlider);
+    panel.Children().Append(topKSlider);
+    panel.Children().Append(repSlider);
+    panel.Children().Append(nPredSlider);
+
+    winrt::Windows::UI::Xaml::Controls::ScrollViewer sv;
+    sv.Content(panel);
+    sv.MaxHeight(480);
+    sv.VerticalScrollBarVisibility(ScrollBarVisibility::Auto);
+
     winrt::Windows::UI::Xaml::Controls::ContentDialog dlg;
     dlg.Title(winrt::box_value(L"Settings"));
-    dlg.Content(sysPromptBox);
+    dlg.Content(sv);
     dlg.PrimaryButtonText(L"Save");
     dlg.CloseButtonText(L"Cancel");
     dlg.XamlRoot(m_root.XamlRoot());
@@ -640,9 +970,24 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     if (result != winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary)
         co_return;
 
+    // Read back values
+    int mi = modelBox.SelectedIndex();
+    if (mi >= 0 && mi < 3) {
+        std::wstring new_model = kModels[mi].key;
+        if (new_model != self->m_model_filename) {
+            self->m_model_filename = new_model;
+            self->m_modelText.Text(new_model);
+            self->SetStatus(L"Model changed — will reload on next message");
+        }
+    }
     self->m_system_prompt = ::xllama::wstring_to_utf8(std::wstring(sysPromptBox.Text().c_str()));
+    self->m_temperature = static_cast<float>(tempSlider.Value());
+    self->m_top_p = static_cast<float>(topPSlider.Value());
+    self->m_top_k = static_cast<int>(topKSlider.Value());
+    self->m_repetition_penalty = static_cast<float>(repSlider.Value());
+    self->m_n_predict = static_cast<int>(nPredSlider.Value());
     self->SaveSettings();
-    self->SetStatus(L"Settings saved");
+    self->SetStatus(L"Settings saved", StatusKind::Success);
 }
 
 // ---------------------------------------------------------------------------
@@ -655,25 +1000,10 @@ fire_and_forget MainPageController::EnsureModelAsync() {
     auto self = shared_from_this();
     auto dispatcher = self->m_root.Dispatcher();
 
-    // Read model name early (needed for path construction).
+    // Model name is already loaded via LoadSettings() in Init() before EnsureModelAsync runs.
     co_await resume_background();
-    std::wstring model_name = L"smollm2-360m-cpu-int4";
-    {
-        auto path = local_wpath(L"model.txt");
-        FILE* f = _wfopen(path.c_str(), L"r");
-        if (f) {
-            wchar_t buf[512] = {};
-            if (fgetws(buf, 511, f)) {
-                size_t len = wcslen(buf);
-                while (len > 0 &&
-                       (buf[len - 1] == L'\n' || buf[len - 1] == L'\r' || buf[len - 1] == L' '))
-                    buf[--len] = L'\0';
-                if (len > 0)
-                    model_name = buf;
-            }
-            fclose(f);
-        }
-    }
+    std::wstring model_name =
+        self->m_model_filename.empty() ? L"smollm2-360m-cpu-int4" : self->m_model_filename;
 
     // Check 1: LocalState model complete?
     auto local_folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
@@ -683,6 +1013,8 @@ fire_and_forget MainPageController::EnsureModelAsync() {
     if (ModelDownloader::IsComplete(local_model_dir)) {
         co_await resume_foreground(dispatcher);
         self->LoadModelName();
+        self->SetStatus(L"Ready", StatusKind::Success);
+        self->m_runButton.IsEnabled(true);
         self->CheckBenchMode();
         co_return;
     }
@@ -698,6 +1030,8 @@ fire_and_forget MainPageController::EnsureModelAsync() {
         if (bundled) {
             co_await resume_foreground(dispatcher);
             self->LoadModelName();
+            self->SetStatus(L"Ready", StatusKind::Success);
+            self->m_runButton.IsEnabled(true);
             self->CheckBenchMode();
             co_return;
         }
@@ -822,6 +1156,8 @@ fire_and_forget MainPageController::EnsureModelAsync() {
             }
             log_output("[xllama] USB model copy complete\n");
             self->LoadModelName();
+            self->SetStatus(L"Ready", StatusKind::Success);
+            self->m_runButton.IsEnabled(true);
             self->CheckBenchMode();
             co_return;
         }
@@ -903,22 +1239,10 @@ fire_and_forget MainPageController::EnsureModelAsync() {
 // ---------------------------------------------------------------------------
 
 void MainPageController::LoadModelName() {
-    auto path = local_wpath(L"model.txt");
-    FILE* f = _wfopen(path.c_str(), L"r");
-    if (f) {
-        wchar_t buf[512] = {};
-        if (fgetws(buf, 511, f)) {
-            size_t len = wcslen(buf);
-            while (len > 0 &&
-                   (buf[len - 1] == L'\n' || buf[len - 1] == L'\r' || buf[len - 1] == L' '))
-                buf[--len] = L'\0';
-            m_model_filename = buf;
-        }
-        fclose(f);
-    }
+    // m_model_filename is already populated by LoadSettings() (called in Init()).
+    // This method just refreshes the header TextBlock with the current value.
     if (m_model_filename.empty())
         m_model_filename = L"smollm2-360m-cpu-int4";
-
     m_modelText.Text(m_model_filename);
 }
 
@@ -1020,7 +1344,10 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
         m_current.id = xllama::ui::ChatHistory::NewId();
         m_current.title = xllama::ui::ChatHistory::TitleFrom(user_text);
     }
-    std::string prompt = BuildChatMLPrompt(user_text);
+    int n_dropped = 0;
+    std::string prompt = BuildChatMLPrompt(user_text, &n_dropped);
+    if (n_dropped > 0)
+        SetStatus(L"Context trimmed — " + std::to_wstring(n_dropped) + L" old turn(s) dropped");
 
     // Record user message in history AFTER building prompt (avoids duplicate)
     {
@@ -1048,7 +1375,11 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
 
             xllama::GenerateParams gp;
             gp.prompt = prompt;
-            gp.n_predict = 512;
+            gp.n_predict = self->m_n_predict;
+            gp.temperature = self->m_temperature;
+            gp.top_p = self->m_top_p;
+            gp.top_k = self->m_top_k;
+            gp.repetition_penalty = self->m_repetition_penalty;
             gp.abort_flag = &self->m_abort;
             gp.stop_sequences.push_back("<|im_end|>");
 
@@ -1084,21 +1415,25 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
             }
 
             std::string output_text = res.output_text;
+            bool was_aborted = self->m_abort.load();
             dispatcher.RunAsync(
-                CoreDispatcherPriority::Normal, [self, metrics, res, output_text]() {
+                CoreDispatcherPriority::Normal, [self, metrics, res, output_text, was_aborted]() {
                     self->m_metricsText.Text(metrics);
-                    self->SetStatus(res.success ? L"Done" : L"Error",
-                                    res.success ? StatusKind::Success : StatusKind::Error);
+                    self->SetStatus(was_aborted ? L"Cancelled" : (res.success ? L"Done" : L"Error"),
+                                    was_aborted
+                                        ? StatusKind::Info
+                                        : (res.success ? StatusKind::Success : StatusKind::Error));
                     self->SetRunning(false); // also stops timer + flushes remaining tokens
-                    // Save assistant response to conversation history
-                    if (res.success && !output_text.empty()) {
+                    // Save assistant response (partial-flagged if user aborted)
+                    if (!output_text.empty()) {
                         xllama::ui::ChatMessage amsg;
                         amsg.role = xllama::ui::MessageRole::Assistant;
                         amsg.content = output_text;
                         amsg.ts_unix = static_cast<int64_t>(std::time(nullptr));
+                        amsg.partial = was_aborted;
                         self->m_current.messages.push_back(std::move(amsg));
                     }
-                    self->SaveCurrentConversation();
+                    self->SaveCurrentConversation(was_aborted);
                 });
         } catch (const std::exception& ex) {
             ::xllama::log_output(std::string("[xllama] thread terminated: ") + ex.what() + "\n");
