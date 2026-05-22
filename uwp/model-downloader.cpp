@@ -66,14 +66,18 @@ IAsyncAction ModelDownloader::DownloadAsync(
         auto url_str = hf_repo_url + L"/" + f.filename;
         Uri uri(url_str);
 
+        // --- Send HTTP request ------------------------------------------------
         HttpRequestMessage req(HttpMethod::Get(), uri);
         HttpResponseMessage resp{nullptr};
+        std::wstring send_err;
         try {
             resp = co_await client.SendRequestAsync(req, HttpCompletionOption::ResponseHeadersRead);
         } catch (...) {
-            auto msg = L"Network error downloading " + f.filename;
+            send_err = L"Network error downloading " + f.filename;
+        }
+        if (!send_err.empty()) {
             co_await resume_foreground(dispatcher);
-            on_done(false, msg);
+            on_done(false, send_err);
             co_return;
         }
 
@@ -85,46 +89,54 @@ IAsyncAction ModelDownloader::DownloadAsync(
             co_return;
         }
 
-        // Open target file in local_dir.
+        // --- Open target file -------------------------------------------------
         StorageFolder folder{nullptr};
         StorageFile out_file{nullptr};
+        std::wstring open_err;
         try {
             folder = co_await StorageFolder::GetFolderFromPathAsync(local_dir);
             out_file = co_await folder.CreateFileAsync(
                 f.filename, CreationCollisionOption::ReplaceExisting);
         } catch (...) {
-            auto msg = L"Cannot create file " + f.filename + L" in " + local_dir;
+            open_err = L"Cannot create file " + f.filename + L" in " + local_dir;
+        }
+        if (!open_err.empty()) {
             co_await resume_foreground(dispatcher);
-            on_done(false, msg);
+            on_done(false, open_err);
             co_return;
         }
 
+        // --- Open output stream -----------------------------------------------
         IRandomAccessStream out_stream{nullptr};
+        std::wstring stream_err;
         try {
             out_stream = co_await out_file.OpenAsync(FileAccessMode::ReadWrite);
         } catch (...) {
-            auto msg = L"Cannot open " + f.filename + L" for write";
+            stream_err = L"Cannot open " + f.filename + L" for write";
+        }
+        if (!stream_err.empty()) {
             co_await resume_foreground(dispatcher);
-            on_done(false, msg);
+            on_done(false, stream_err);
             co_return;
         }
 
-        // Stream response body to file in chunks.
+        // --- Stream response body to file in chunks ---------------------------
         auto content_stream = co_await resp.Content().ReadAsInputStreamAsync();
         auto out_writer = DataWriter(out_stream.GetOutputStreamAt(0));
         Buffer buf(kBufSize);
 
+        bool read_failed = false;
+        std::wstring read_err;
         for (;;) {
             IBuffer read_buf{nullptr};
             try {
                 read_buf = co_await content_stream.ReadAsync(
                     buf, kBufSize, InputStreamOptions::Partial);
             } catch (...) {
-                auto msg = L"Read error on " + f.filename;
-                co_await resume_foreground(dispatcher);
-                on_done(false, msg);
-                co_return;
+                read_err = L"Read error on " + f.filename;
+                read_failed = true;
             }
+            if (read_failed) break;
 
             if (read_buf.Length() == 0) break;
 
@@ -144,6 +156,12 @@ IAsyncAction ModelDownloader::DownloadAsync(
             }
         }
 
+        if (read_failed) {
+            co_await resume_foreground(dispatcher);
+            on_done(false, read_err);
+            co_return;
+        }
+
         co_await out_writer.FlushAsync();
         out_writer.DetachStream();
         out_stream = nullptr; // release ref → stream closed via RAII
@@ -154,14 +172,28 @@ IAsyncAction ModelDownloader::DownloadAsync(
     }
 
     // Write .complete marker.
-    try {
-        StorageFolder folder = co_await StorageFolder::GetFolderFromPathAsync(local_dir);
-        StorageFile marker = co_await folder.CreateFileAsync(
-            kCompleteMarker, CreationCollisionOption::ReplaceExisting);
-        co_await FileIO::WriteTextAsync(marker, L"ok");
-    } catch (...) {
-        // Non-fatal: worst case we re-download next time.
-        log_output("[downloader] WARNING: could not write .complete marker");
+    {
+        bool marker_ok = true;
+        StorageFolder mfolder{nullptr};
+        StorageFile marker{nullptr};
+        try {
+            mfolder = co_await StorageFolder::GetFolderFromPathAsync(local_dir);
+            marker = co_await mfolder.CreateFileAsync(
+                kCompleteMarker, CreationCollisionOption::ReplaceExisting);
+        } catch (...) {
+            marker_ok = false;
+        }
+        if (marker_ok && marker) {
+            try {
+                co_await FileIO::WriteTextAsync(marker, L"ok");
+            } catch (...) {
+                marker_ok = false;
+            }
+        }
+        if (!marker_ok) {
+            // Non-fatal: worst case we re-download next time.
+            log_output("[downloader] WARNING: could not write .complete marker");
+        }
     }
 
     co_await resume_foreground(dispatcher);

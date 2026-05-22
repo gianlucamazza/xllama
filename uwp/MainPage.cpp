@@ -686,7 +686,7 @@ fire_and_forget MainPageController::EnsureModelAsync() {
         std::filesystem::create_directories(local_model_dir, ec);
         if (ec) {
             co_await resume_foreground(dispatcher);
-            self->SetStatus(L"Cannot create model dir: " +
+            self->SetStatus(std::wstring(L"Cannot create model dir: ") +
                                 winrt::to_hstring(ec.message()).c_str(),
                             StatusKind::Error);
             co_return;
