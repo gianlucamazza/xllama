@@ -272,7 +272,13 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     m_metricsText.Text(L"");
 
     auto self = shared_from_this();
-    std::string prompt = ::xllama::wstring_to_utf8(prompt_w);
+    // Wrap user text in ChatML template (required for SmolLM2-360M-Instruct).
+    // Bare prompts cause the model to generate EOS immediately.
+    std::string user_text = ::xllama::wstring_to_utf8(prompt_w);
+    std::string prompt =
+        "<|im_start|>system\nYou are a helpful AI assistant.<|im_end|>\n"
+        "<|im_start|>user\n" + user_text + "<|im_end|>\n"
+        "<|im_start|>assistant\n";
     std::string model = ::xllama::wstring_to_utf8(m_model_filename);
     auto dispatcher = m_root.Dispatcher();
 
