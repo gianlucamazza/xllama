@@ -16,7 +16,7 @@ enum class MessageRole { System, User, Assistant };
 struct ChatMessage {
     MessageRole role = MessageRole::User;
     std::string content;
-    int64_t ts_unix = 0; // seconds since epoch
+    int64_t ts_unix = 0;  // seconds since epoch
     bool partial = false; // true if generation was cancelled mid-stream
 };
 
@@ -41,7 +41,9 @@ class ChatHistory {
   public:
     ChatHistory() = default;
     explicit ChatHistory(const std::string& chats_dir); // absolute path to LocalState/chats
-    void SetDir(const std::string& chats_dir) { m_dir = chats_dir; }
+    void SetDir(const std::string& chats_dir) {
+        m_dir = chats_dir;
+    }
 
     // Load index from disk. Call once at startup (best-effort; empty on failure).
     void LoadIndex();
@@ -53,7 +55,9 @@ class ChatHistory {
     Conversation Load(const std::string& id) const;
 
     // Sorted by last_modified descending (most recent first).
-    const std::vector<ConversationMeta>& Index() const { return m_index; }
+    const std::vector<ConversationMeta>& Index() const {
+        return m_index;
+    }
 
     // Derive conversation id from title (for new convos: generate UUID).
     static std::string NewId();

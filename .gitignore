@@ -58,3 +58,8 @@ out/
 .cache/
 .vscode/
 .claude/
+
+# HuggingFace model cache and local test artifacts
+cache_dir/
+testdir/
+ollama-models-before-vm.txt

@@ -40,10 +40,11 @@ void main_loop() {
         }
     }
     // Wrap with ChatML template (required for SmolLM2-Instruct).
-    std::string prompt =
-        "<|im_start|>system\nYou are a helpful AI assistant.<|im_end|>\n"
-        "<|im_start|>user\n" + user_prompt + "<|im_end|>\n"
-        "<|im_start|>assistant\n";
+    std::string prompt = "<|im_start|>system\nYou are a helpful AI assistant.<|im_end|>\n"
+                         "<|im_start|>user\n" +
+                         user_prompt +
+                         "<|im_end|>\n"
+                         "<|im_start|>assistant\n";
 
     // Read model directory/filename from LocalFolder/model.txt, fallback to default.
     std::string model_name = "smollm2-360m-cpu-int4";

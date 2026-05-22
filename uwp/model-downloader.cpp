@@ -8,10 +8,10 @@
 #include "model-downloader.h"
 // clang-format on
 
-#include "xllama/platform.h"
-#include "xllama/utf8_utils.h"
+    #include "xllama/platform.h"
+    #include "xllama/utf8_utils.h"
 
-#include <filesystem>
+    #include <filesystem>
 
 using namespace winrt;
 using namespace winrt::Windows::Foundation;
@@ -38,17 +38,14 @@ void ModelDownloader::Invalidate(std::wstring const& local_dir) {
     std::filesystem::remove(p, ec);
 }
 
-IAsyncAction ModelDownloader::DownloadAsync(
-    std::wstring hf_repo_url,
-    std::wstring local_dir,
-    std::vector<ModelFile> files,
-    CoreDispatcher dispatcher,
-    std::function<void(uint64_t, uint64_t)> on_progress,
-    std::function<void(bool, std::wstring)> on_done)
-{
+IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstring local_dir,
+                                            std::vector<ModelFile> files, CoreDispatcher dispatcher,
+                                            std::function<void(uint64_t, uint64_t)> on_progress,
+                                            std::function<void(bool, std::wstring)> on_done) {
     // Compute total bytes for progress display.
     uint64_t total_bytes = 0;
-    for (auto const& f : files) total_bytes += f.approx_bytes;
+    for (auto const& f : files)
+        total_bytes += f.approx_bytes;
 
     co_await resume_background();
 
@@ -82,8 +79,8 @@ IAsyncAction ModelDownloader::DownloadAsync(
         }
 
         if (!resp.IsSuccessStatusCode()) {
-            auto msg = L"HTTP " + std::to_wstring(static_cast<int>(resp.StatusCode()))
-                       + L" for " + f.filename;
+            auto msg = L"HTTP " + std::to_wstring(static_cast<int>(resp.StatusCode())) + L" for " +
+                       f.filename;
             co_await resume_foreground(dispatcher);
             on_done(false, msg);
             co_return;
@@ -95,8 +92,8 @@ IAsyncAction ModelDownloader::DownloadAsync(
         std::wstring open_err;
         try {
             folder = co_await StorageFolder::GetFolderFromPathAsync(local_dir);
-            out_file = co_await folder.CreateFileAsync(
-                f.filename, CreationCollisionOption::ReplaceExisting);
+            out_file = co_await folder.CreateFileAsync(f.filename,
+                                                       CreationCollisionOption::ReplaceExisting);
         } catch (...) {
             open_err = L"Cannot create file " + f.filename + L" in " + local_dir;
         }
@@ -130,15 +127,17 @@ IAsyncAction ModelDownloader::DownloadAsync(
         for (;;) {
             IBuffer read_buf{nullptr};
             try {
-                read_buf = co_await content_stream.ReadAsync(
-                    buf, kBufSize, InputStreamOptions::Partial);
+                read_buf =
+                    co_await content_stream.ReadAsync(buf, kBufSize, InputStreamOptions::Partial);
             } catch (...) {
                 read_err = L"Read error on " + f.filename;
                 read_failed = true;
             }
-            if (read_failed) break;
+            if (read_failed)
+                break;
 
-            if (read_buf.Length() == 0) break;
+            if (read_buf.Length() == 0)
+                break;
 
             out_writer.WriteBuffer(read_buf);
             co_await out_writer.StoreAsync();
@@ -166,8 +165,8 @@ IAsyncAction ModelDownloader::DownloadAsync(
         out_writer.DetachStream();
         out_stream = nullptr; // release ref → stream closed via RAII
 
-        log_output(("[downloader] " + ::xllama::wstring_to_utf8(f.filename)
-                    + " done (" + std::to_string(bytes_done) + " bytes total so far)")
+        log_output(("[downloader] " + ::xllama::wstring_to_utf8(f.filename) + " done (" +
+                    std::to_string(bytes_done) + " bytes total so far)")
                        .c_str());
     }
 
@@ -178,8 +177,8 @@ IAsyncAction ModelDownloader::DownloadAsync(
         StorageFile marker{nullptr};
         try {
             mfolder = co_await StorageFolder::GetFolderFromPathAsync(local_dir);
-            marker = co_await mfolder.CreateFileAsync(
-                kCompleteMarker, CreationCollisionOption::ReplaceExisting);
+            marker = co_await mfolder.CreateFileAsync(kCompleteMarker,
+                                                      CreationCollisionOption::ReplaceExisting);
         } catch (...) {
             marker_ok = false;
         }
