@@ -771,6 +771,8 @@ fire_and_forget MainPageController::CheckBenchMode() {
     if (!f)
         co_return;
     fclose(f);
+    // Delete flag so repeated restarts don't re-trigger bench mode
+    _wremove(flag_path.c_str());
 
     co_await resume_foreground(self->m_root.Dispatcher());
     self->SetStatus(L"Bench mode — running...", StatusKind::Working);
