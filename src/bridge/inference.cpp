@@ -84,6 +84,15 @@ InferenceResult run_inference(const InferenceParams& params) {
         OgaSequencesPtr seqs(raw_seqs);
         oga_check(OgaTokenizerEncode(tok.get(), params.prompt.c_str(), seqs.get()),
                   "OgaTokenizerEncode");
+        {
+            size_t n_prompt_tok = OgaSequencesGetSequenceCount(seqs.get(), 0);
+            int max_len = params.n_predict + 512;
+            char pbuf[128];
+            snprintf(pbuf, sizeof(pbuf),
+                     "[xllama] prompt=%zu tok, max_length=%d (new≤%d)\n",
+                     n_prompt_tok, max_len, max_len - static_cast<int>(n_prompt_tok));
+            log_output(pbuf);
+        }
 
         // --- generator params ---
         OgaGeneratorParams* raw_params = nullptr;
