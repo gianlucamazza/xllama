@@ -143,8 +143,10 @@ InferenceResult run_inference(const InferenceParams& params) {
         res.success = true;
 
         char log_buf[256];
-        snprintf(log_buf, sizeof(log_buf), "[xllama] done: decode=%.1f tok/s peak=%zuMB\n",
-                 elapsed_s > 0.0 ? n_generated / elapsed_s : 0.0, res.peak_ws_mb);
+        snprintf(log_buf, sizeof(log_buf),
+                 "[xllama] done: decode=%.1f tok/s n=%d elapsed=%.4fs peak=%zuMB\n",
+                 elapsed_s > 0.0 ? n_generated / elapsed_s : 0.0,
+                 n_generated, elapsed_s, res.peak_ws_mb);
         log_output(log_buf);
 
     } catch (const std::exception& e) {
