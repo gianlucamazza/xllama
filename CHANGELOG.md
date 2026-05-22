@@ -5,7 +5,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased] — HEAD `450e4ff`
+## [Unreleased]
+
+---
+
+## [0.2.0] — 2026-05-22
+
+### Added
+
+**Persistent inference session** (`feat(uwp): integrate xllama::Session into MainPage`):
+- `MainPageController` now keeps an `xllama::Session` alive across chat turns; subsequent turns skip model reload entirely (~1–2 s overhead eliminated after first turn).
+- `EnsureSession()` private helper: lazy-build on first turn, transparent rebuild on model change (Settings), free-then-alloc to avoid 2× RAM during transitions.
+- Bench mode (`inference-bridge.cpp`) unchanged — continues to call `run_inference()` for cold-load measurement.
+
+**Bench diagnostics** (`bench(inference): log prompt token count + bump bench n_predict`):
+- `inference.cpp`: logs `[xllama] prompt=N tok, max_length=M (new≤K)` after tokenisation — makes `n` in bench CSV self-explanatory.
+- `inference-bridge.cpp`: bench `n_predict` raised `128 → 512` (effective `max_length` 640 → 1024 total tokens); gives SmolLM2-360M room to show natural generation length while 1.7B still exits at EOS.
+
+### Fixed
+- `fix(bridge): OrtModelPtr → OgaModelPtr` typo in `OrtSession` UWP build (MSVC `C2065`; GCC/clang skip the `XLLAMA_USE_ORT` block on Linux).
 
 ### Added
 
