@@ -5,22 +5,54 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased] — HEAD `7bdb971`
+## [Unreleased] — HEAD `450e4ff`
 
 ### Added
-- ChatML prompt template applied for SmolLM2-360M-Instruct (system/user/assistant turns).
-- `scripts/merge_onnx_external_data.py`: merges `model.onnx.data` into a self-contained `model.onnx` to bypass `weakly_canonical` AppContainer path-traversal crash (ORT 1.24.4).
-- `scripts/check-uwp-host.sh`: preflight script for Arch Linux host (qemu, libvirt, KVM groups).
-- `scripts/setup-windows-uwp-dev.ps1`: Windows VM setup — installs VS2022 BuildTools + UWP workload via `winget`.
-- `docs/windows-dev-vm.md`: end-to-end guide for local Windows VM UWP builds.
+
+**Workaround experiments for Xbox UWP constraints** (see `docs/uwp-constraints.md §7, §9`):
+- `uwp/model-downloader.cpp/h`: in-app Hugging Face download via `HttpClient` chunked streaming (Exp 2). `EnsureModelAsync()` in `MainPage` implements a three-step bootstrap: LocalState `.complete` marker → InstalledPath bundle → HF download. Reduces peak disk usage from ~1.4 GB to ~480 MB; frees ~900 MB on Dev Mode partition Q:\ enabling models up to ~1 GB. `internetClient` capability already present in manifest.
+- `src/bridge/path_utils.cpp`: third fallback `E:\xllama\models\<name>` for NTFS USB stick (Exp 3). No UWP capability required; probe via `GetFileAttributesW`. Enables models up to 2 GB single-file (Xbox Dev Mode USB limit). Zero cost if USB absent.
+- `scripts/test-dml-config.sh`: uploads DML provider_options config to Xbox via Device Portal without MSIX rebuild (Exp 1). Backs up original `genai_config.json`; `--restore` reverts.
+- `bench/configs/genai_config-dml-test.json`: DML EP test config — `enable_cpu_mem_arena=0`, `enable_mem_pattern=0`, `past_present_share_buffer=false` (reduces up-front KV-cache GPU allocation; may allow SmolLM2-360M to fit ~768 MB pool).
+- `docs/model-selection.md`: consolidated model evaluation checklist — hard limits, 9-step selection sequence, tested/candidate models, conservative/borderline/over-budget tables.
+- `docs/uwp-constraints.md §9`: Disk Budget — ~2.2–2.5 GB Dev Mode free space, 2× peak-install rule, working budget table (empirical, Series S).
+- `scripts/merge_onnx_external_data.py`: NOTE stderr (>400 MB) and WARNING stderr (>600 MB) budget thresholds post-merge.
+- `docs/uwp-constraints.md §5`: split GPU OOM and disk-budget failure modes into separate tables (previously mixed under a single "Result" column).
+
+**UX improvements** (commits `3a12bda`–`42741e1`):
+- Multi-turn chat: `uwp/chat-history.cpp/h`, conversation persistence in `LocalState/chats/` (JSON, indexed by timestamp), history browser overlay, new-chat button.
+- System prompt editable via settings overlay (persisted to `LocalState/settings.json`).
+- Live metrics: real-time tok/s updated every flush cycle; `StatusKind` enum (`Info`, `Working`, `Success`, `Error`) for colour-coded status bar.
+- `RichTextBlock` streaming: `Paragraph::Inlines` append (O(1) per token); flush timer batches token appends every 80 ms to avoid layout thrash.
+- Xbox UX: TV safe-area margins (48/27 px), dark theme on Xbox hardware, B-button cancels inference, gamepad Y jumps to prompt, Reveal focus visual, `ElementSoundPlayer::On`.
+- `AppxManifest.xml`: `xbox:DefaultTile`, `xbox:SplashScreen`, dark splash background `#0E1116`.
+- ChatML prompt template applied for SmolLM2-360M-Instruct (system / user / assistant turns).
+
+**Documentation:**
+- `README.md`: "About the name" section — disambiguates xllama from llama.cpp engine.
+- Full docs realignment: `README.md`, `ROADMAP.md`, `AGENTS.md`, `docs/phase1-runbook.md`, `docs/uwp-constraints.md`, `docs/device-portal.md`, `patches/README.md` all updated to reflect ORT GenAI CPU EP as the active path.
+- `docs/windows-dev-vm.md` (new): end-to-end Windows VM build guide.
+- `scripts/setup-windows-uwp-dev.ps1` (new): Windows VM setup via `winget` (VS2022 BuildTools + UWP workload).
+- `scripts/check-uwp-host.sh` (new): Arch Linux host preflight (KVM, qemu, libvirt groups).
+- `docs/uwp-constraints.md §7`: removed unverified architectural claims ("Game process category", "128 MB dedicated + 640 MB shared"); replaced with observed-behaviour framing and source note.
+- `ROADMAP.md`: Phase 4 milestones updated — `ModelDownloader` (Exp 2) and USB fallback (Exp 3) marked done; next: validate Exp 2 on console, remove MSIX model bundle.
+
+**CI:**
 - `build-uwp` CI step: downloads model from HF (`homen3/SmolLM2-360M-Instruct-ort-genai-int4-cpu`), merges ONNX external data, then `nuget restore` + `build-uwp.ps1`. Cache key: `smollm2-360m-ort-genai-int4-cpu-embedded-v1`.
 
 ### Changed
 - ORT GenAI bumped `0.8.3 → 0.13.2`, ORT `1.22.0 → 1.24.4` (`uwp/packages.config`).
 - `bench.cpp`: backend field = `directml` when `XLLAMA_USE_ORT` (define-time; CPU EP is active runtime on Series S).
+- `uwp/pch.h`: added `Windows.Web.Http`, `Windows.Web.Http.Filters` for model downloader.
+- `ROADMAP.md Phase 2`: corrected GPU pool description to observed-behaviour framing.
+
+### Removed
+- `uwp/llama-bridge.cpp`, `uwp/llama-bridge.h`: legacy files not compiled since ORT GenAI pivot.
 
 ### Fixed
-- `weakly_canonical: Access is denied` crash (`OgaCreateModel`, status `0xC0000005`): ORT runtime walks path segments of the model directory to validate external data; `Q:\Users\UserMgr0\...` is inaccessible from UWP AppContainer. Fix: merge external data into monolithic `model.onnx` so `ValidateExternalDataPath` is never invoked. Confirmed via Win32 probes (GFA, `CreateFile2 GENERIC_READ`, `CreateFile2 FILE_READ_ATTRIBUTES|SYNCHRONIZE`).
+- ASCII-safe status strings: removed em-dash and ellipsis Unicode literals that caused MSVC `C4566` warnings.
+- `XYFocusKeyboardNavigationMode` removed from `MainPage.cpp` (unresolvable symbol in MSVC UWP context).
+- `weakly_canonical: Access is denied` crash (`OgaCreateModel`, status `0xC0000005`): ORT runtime walks path segments of the model directory to validate external data; `Q:\Users\UserMgr0\...` is inaccessible from UWP AppContainer. Fix: merge external data into monolithic `model.onnx` so `ValidateExternalDataPath` is never invoked. Confirmed via Win32 probes (`GetFileAttributesW`, `CreateFile2 GENERIC_READ`, `CreateFile2 FILE_READ_ATTRIBUTES|SYNCHRONIZE`).
 
 ---
 
