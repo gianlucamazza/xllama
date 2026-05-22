@@ -9,10 +9,14 @@
     #include "pch.h"
 
     #include <atomic>
+    #include <chrono>
     #include <memory>
+    #include <mutex>
     #include <string>
 
 namespace xllama {
+
+enum class StatusKind { Info, Working, Success, Error };
 
 // Plain C++ class that owns the UI tree.
 // Not a WinRT runtimeclass — avoids the XAML metadata provider (IXamlMetadataProvider)
@@ -36,8 +40,9 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     void OnCancelClick(winrt::Windows::Foundation::IInspectable const&,
                        winrt::Windows::UI::Xaml::RoutedEventArgs const&);
     void AppendOutput(std::wstring const& text);
-    void SetStatus(std::wstring const& status);
+    void SetStatus(std::wstring const& msg, StatusKind kind = StatusKind::Info);
     void SetRunning(bool running);
+    void FlushTokenBuffer(); // flush m_token_buffer to RichTextBlock on UI thread
 
     // UI controls (populated by BuildUI)
     winrt::Windows::UI::Xaml::Controls::Page m_root{nullptr};
@@ -46,10 +51,19 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     winrt::Windows::UI::Xaml::Controls::ProgressBar m_loadingBar{nullptr};
     winrt::Windows::UI::Xaml::Controls::ScrollViewer m_outputScroll{nullptr};
     winrt::Windows::UI::Xaml::Controls::TextBox m_promptInput{nullptr};
-    winrt::Windows::UI::Xaml::Controls::TextBlock m_outputText{nullptr};
+    winrt::Windows::UI::Xaml::Controls::RichTextBlock m_outputBody{nullptr};
+    winrt::Windows::UI::Xaml::Documents::Paragraph m_currentParagraph{nullptr};
     winrt::Windows::UI::Xaml::Controls::TextBlock m_metricsText{nullptr};
     winrt::Windows::UI::Xaml::Controls::Button m_runButton{nullptr};
     winrt::Windows::UI::Xaml::Controls::Button m_cancelButton{nullptr};
+    winrt::Windows::UI::Xaml::DispatcherTimer m_flush_timer{nullptr};
+    winrt::event_token m_flush_tick_token{};
+
+    // Token streaming state (written from bg thread, flushed on UI thread via timer)
+    std::mutex m_token_mutex;
+    std::string m_token_buffer;
+    std::atomic<int> m_tokens_received{0};
+    std::chrono::steady_clock::time_point m_gen_start;
 
     std::atomic<bool> m_abort{false};
     std::atomic<bool> m_is_running{false};

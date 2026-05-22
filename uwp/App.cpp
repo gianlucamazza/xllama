@@ -61,9 +61,9 @@ App::App() {
     RequestedTheme(ApplicationTheme::Dark);
 
     // Reveal focus highlight (Xbox only)
-    using namespace winrt::Windows::System::Profile;
-    if (AnalyticsInfo::VersionInfo().DeviceFamily() == L"Windows.Xbox") {
-        FocusVisualKind(FocusVisualKind::Reveal);
+    if (winrt::Windows::System::Profile::AnalyticsInfo::VersionInfo().DeviceFamily() ==
+        L"Windows.Xbox") {
+        FocusVisualKind(winrt::Windows::UI::Xaml::FocusVisualKind::Reveal);
     }
 
     // Sound effects (controller focus/click cues)
