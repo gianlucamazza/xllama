@@ -689,28 +689,105 @@ fire_and_forget MainPageController::EnsureModelAsync() {
                     drive_path.pop_back();
                 log_output(("[xllama] USB probe: " +
                             ::xllama::wstring_to_utf8(drive_path) + "\n").c_str());
-                // Look for xllama\models\<name>\genai_config.json
-                std::wstring cfg = drive_path + L"\\xllama\\models\\" + model_name
-                                   + L"\\genai_config.json";
-                DWORD ua = GetFileAttributesW(cfg.c_str());
-                if (ua != INVALID_FILE_ATTRIBUTES && !(ua & FILE_ATTRIBUTE_DIRECTORY)) {
-                    log_output(("[xllama] USB model found on " +
-                                ::xllama::wstring_to_utf8(drive_path) + "\n").c_str());
-                    // Cache USB root so resolve_model_path() (sync) can use it.
-                    auto cache_path = local_wpath(L"usb_model_root.txt");
-                    FILE* fp = _wfopen(cache_path.c_str(), L"w");
-                    if (fp) {
-                        fputws(drive_path.c_str(), fp);
-                        fclose(fp);
+                // Use WinRT TryGetItemAsync — GetFileAttributesW is blocked by
+                // AppContainer even with removableStorage capability.
+                try {
+                    using winrt::Windows::Storage::IStorageItem;
+                    auto sub = winrt::hstring(L"xllama\\models\\") + model_name
+                               + winrt::hstring(L"\\genai_config.json");
+                    auto item = co_await drive.TryGetItemAsync(sub);
+                    if (item) {
+                        log_output(("[xllama] USB model found on " +
+                                    ::xllama::wstring_to_utf8(drive_path) + "\n").c_str());
+                        // Cache USB root (drive_path without trailing \) for
+                        // resolve_model_path() sync path.
+                        auto cache_path = local_wpath(L"usb_model_root.txt");
+                        FILE* fp = _wfopen(cache_path.c_str(), L"w");
+                        if (fp) {
+                            fputws(drive_path.c_str(), fp);
+                            fclose(fp);
+                        }
+                        usb_found = true;
                     }
-                    usb_found = true;
-                    break;
+                } catch (...) {
+                    // drive not accessible — skip
                 }
+                if (usb_found) break;
             }
         } catch (...) {
             log_output("[xllama] USB probe: RemovableDevices enumeration failed\n");
         }
         if (usb_found) {
+            // ORT GenAI uses Win32 I/O (blocked on USB by AppContainer).
+            // Copy model files from USB to LocalState via WinRT StorageFile.CopyAsync,
+            // then load from LocalState like the bundled model.
+            co_await resume_foreground(dispatcher);
+            self->SetStatus(L"Copying model from USB...", StatusKind::Working);
+            self->m_loadingBar.IsIndeterminate(true);
+            self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Visible);
+            self->m_runButton.IsEnabled(false);
+
+            bool copy_ok = false;
+            std::wstring copy_err;
+            try {
+                using winrt::Windows::Storage::KnownFolders;
+                using winrt::Windows::Storage::StorageFolder;
+                using winrt::Windows::Storage::CreationCollisionOption;
+
+                // Source: USB xllama\models\<name>
+                auto removable2 = KnownFolders::RemovableDevices();
+                auto drives2 = co_await removable2.GetFoldersAsync();
+                StorageFolder usb_model_folder{nullptr};
+                for (auto const& d : drives2) {
+                    auto candidate = co_await d.TryGetItemAsync(
+                        winrt::hstring(L"xllama\\models\\") + model_name);
+                    if (candidate) {
+                        usb_model_folder = candidate.as<StorageFolder>();
+                        break;
+                    }
+                }
+                if (!usb_model_folder) throw std::runtime_error("USB folder disappeared");
+
+                // Destination: LocalState\models\<name>
+                auto local_folder2 = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
+                StorageFolder models_folder{nullptr};
+                try {
+                    models_folder = co_await local_folder2.GetFolderAsync(L"models");
+                } catch (...) {
+                    models_folder = co_await local_folder2.CreateFolderAsync(
+                        L"models", CreationCollisionOption::OpenIfExists);
+                }
+                StorageFolder dest_folder = co_await models_folder.CreateFolderAsync(
+                    model_name, CreationCollisionOption::OpenIfExists);
+
+                // Copy each file
+                auto files = co_await usb_model_folder.GetFilesAsync();
+                for (auto const& f : files) {
+                    log_output(("[xllama] USB copy: " +
+                                ::xllama::wstring_to_utf8(std::wstring(f.Name().c_str())) + "\n").c_str());
+                    co_await f.CopyAsync(dest_folder, f.Name(),
+                                         NameCollisionOption::ReplaceExisting);
+                }
+                // Write .complete marker
+                auto marker = co_await dest_folder.CreateFileAsync(
+                    L".complete", CreationCollisionOption::ReplaceExisting);
+                co_await winrt::Windows::Storage::FileIO::WriteTextAsync(marker, L"ok");
+                copy_ok = true;
+            } catch (winrt::hresult_error const& e) {
+                copy_err = std::wstring(e.message().c_str());
+            } catch (std::exception const& e) {
+                copy_err = ::xllama::utf8_to_wstring(e.what());
+            } catch (...) {
+                copy_err = L"Unknown error during USB copy";
+            }
+
+            self->m_loadingBar.IsIndeterminate(false);
+            self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Collapsed);
+            if (!copy_ok) {
+                self->SetStatus(L"USB copy failed: " + copy_err, StatusKind::Error);
+                co_return;
+            }
+            log_output("[xllama] USB model copy complete\n");
             self->LoadModelName();
             self->CheckBenchMode();
             co_return;
