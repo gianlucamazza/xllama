@@ -144,17 +144,17 @@ void MainPageController::BuildUI() {
     Grid::SetColumn(btnPanel, 1);
 
     m_settingsButton = Button();
-    m_settingsButton.Content(winrt::box_value(L"⚙  Settings"));
+    m_settingsButton.Content(winrt::box_value(L"[S]  Settings"));
     m_settingsButton.MinWidth(100);
     m_settingsButton.Margin(ThicknessHelper::FromLengths(0, 0, 12, 0));
 
     m_newChatButton = Button();
-    m_newChatButton.Content(winrt::box_value(L"✚  New"));
+    m_newChatButton.Content(winrt::box_value(L"+  New"));
     m_newChatButton.MinWidth(100);
     m_newChatButton.Margin(ThicknessHelper::FromLengths(0, 0, 12, 0));
 
     m_historyButton = Button();
-    m_historyButton.Content(winrt::box_value(L"☰  History"));
+    m_historyButton.Content(winrt::box_value(L"[=]  History"));
     m_historyButton.MinWidth(100);
     m_historyButton.Margin(ThicknessHelper::FromLengths(0, 0, 12, 0));
 
@@ -324,17 +324,17 @@ void MainPageController::SetStatus(std::wstring const& msg, StatusKind kind) {
         case StatusKind::Working:
             m_statusText.Foreground(Media::SolidColorBrush({255, 80, 190, 255})); // accent blue
             m_statusText.Opacity(1.0);
-            m_statusText.Text(L"⏳ " + msg);
+            m_statusText.Text(L">> " + msg);
             break;
         case StatusKind::Success:
             m_statusText.Foreground(Media::SolidColorBrush({255, 100, 220, 100})); // green
             m_statusText.Opacity(1.0);
-            m_statusText.Text(L"✓ " + msg);
+            m_statusText.Text(L"> " + msg);
             break;
         case StatusKind::Error:
             m_statusText.Foreground(Media::SolidColorBrush({255, 240, 80, 70})); // red
             m_statusText.Opacity(1.0);
-            m_statusText.Text(L"⚠ " + msg);
+            m_statusText.Text(L"! " + msg);
             break;
         default: // Info
             m_statusText.ClearValue(TextBlock::ForegroundProperty());
