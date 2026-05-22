@@ -241,8 +241,8 @@
     </None>
   </ItemGroup>
 
-  <!-- SmolLM2-1.7B INT4 CPU model bundled in MSIX.
-       Files land in Package.InstalledPath\models\smollm2-1.7b-cpu-int4\
+  <!-- SmolLM2-360M-Instruct INT4 CPU model bundled in MSIX (403 MB on-disk).
+       Files land in Package.InstalledPath\models\smollm2-360m-cpu-int4\
        which is the fallback path in resolve_model_path() when LocalState has no model.
        Condition guards local builds where the model hasn't been generated yet. -->
   <ItemGroup Condition="Exists('..\models\smollm2-360m-cpu-int4')">
