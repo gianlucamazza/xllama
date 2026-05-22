@@ -7,14 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [0.2.1] — 2026-05-23
+
 ### Added
 - ChatML stop sequence `<|im_end|>` in UI inference path (`uwp/MainPage.cpp`). SmolLM2-360M does not always emit EOS naturally; without this the model would continue generating filler or hallucinate the next user turn up to `n_predict=512`. Bench path unchanged.
+- `tests/test_session.cpp`: smoke tests for `Session::create` error paths (non-existent path, empty path) — covers the Linux/llama.cpp path in CI.
 
 ### Fixed
 - `CHANGELOG.md` 0.2.0 section: collapsed duplicate `### Added` blocks; removed stale empty `[Unreleased]` header.
-
-### Added (tests)
-- `tests/test_session.cpp`: smoke tests for `Session::create` error paths (non-existent path, empty path) — covers the Linux/llama.cpp path in CI.
 
 ---
 
