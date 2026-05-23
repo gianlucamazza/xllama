@@ -16,13 +16,16 @@ xllama/
 ├── include/xllama/          # Shared public headers
 │   ├── inference_params.h   # InferenceParams / InferenceResult
 │   ├── inference.h          # run_inference, write_bench_csv
-│   ├── ort_raii.h           # RAII unique_ptr for 6 OGA* types (UWP/ORT GenAI path)
+│   ├── session.h            # xllama::Session API (persistent model across turns)
+│   ├── ort_raii.h           # RAII unique_ptr for OGA* types (UWP/ORT GenAI path)
+│   ├── llama_raii.h         # RAII unique_ptr for llama_* types (Linux path)
 │   ├── cli.h                # parse_cli_args (Linux)
 │   ├── platform.h           # log_output, detect_threads, peak_working_set_mb
 │   ├── path_utils.h         # resolve_model_path, resolve_local_path
 │   └── utf8_utils.h         # utf8 <-> wstring (Windows)
 ├── src/bridge/              # Shared implementation (Linux + UWP)
 │   ├── inference.cpp        # #ifdef XLLAMA_USE_ORT → ORT GenAI; #else → llama_decode
+│   ├── session.cpp          # xllama::Session (OrtSession UWP + LlamaSession Linux)
 │   ├── bench.cpp            # bench CSV writer
 │   ├── platform.cpp         # log_output (writes xllama.log in UWP)
 │   ├── path_utils.cpp       # resolve_model_path: LocalState\models\ + InstalledPath fallback
@@ -30,10 +33,11 @@ xllama/
 │   └── cli.cpp
 ├── src/main.cpp             # Linux entry point (getopt_long)
 ├── uwp/                     # C++/WinRT UWP app
-│   ├── inference-bridge.cpp # UWP main_loop() + bench mode
-│   ├── inference-bridge.h
-│   ├── App.cpp              # Application::OnLaunched
-│   ├── MainPage.cpp/h       # MainPageController (plain C++, not runtimeclass)
+│   ├── App.cpp / App.h      # Application::OnLaunched
+│   ├── MainPage.cpp / .h    # MainPageController (plain C++, not runtimeclass)
+│   ├── inference-bridge.cpp / .h   # UWP main_loop() + bench mode
+│   ├── chat-history.cpp / .h       # ChatHistory: Save/Load/Delete/Clear
+│   ├── model-downloader.cpp / .h   # EnsureModelAsync — HF chunked download (Exp 2)
 │   ├── packages.config      # NuGet pins (ORT GenAI 0.13.2, ORT 1.24.4, DirectML 1.15.4)
 │   └── xllama.sln / .vcxproj
 ├── scripts/
@@ -41,9 +45,10 @@ xllama/
 │   ├── build-uwp.ps1                  # Windows UWP packaging script
 │   ├── merge_onnx_external_data.py    # merge model.onnx.data → self-contained model.onnx
 │   ├── bench-xbox.sh                  # automated benchmark runner
+│   ├── install-latest-build.sh        # fetch + deploy latest CI artifact
+│   ├── test-dml-config.sh             # upload DML provider_options without MSIX rebuild
 │   ├── check-uwp-host.sh              # Linux host preflight (qemu, libvirt)
-│   ├── setup-windows-uwp-dev.ps1      # Windows VM: install VS2022 + UWP workload
-│   └── apply-uwp-patches.sh           # apply uwp/patches/llama.cpp/ against submodule
+│   └── setup-windows-uwp-dev.ps1      # Windows VM: install VS2022 + UWP workload
 ├── tests/                   # Unit tests (doctest, target: xllama-tests)
 ├── bench/                   # Benchmark configs, prompts, results
 ├── docs/                    # Technical notes (see docs/README.md)
@@ -102,5 +107,3 @@ Use `-ForceNewCert` only to regenerate the test signing certificate.
 - **app-local DLLs**: `DirectML.dll`, `onnxruntime.dll`, `onnxruntime-genai.dll` must have `<DeploymentContent>true</DeploymentContent>` in the vcxproj. Without this the MSIX silently omits them and the app crashes on load.
 
 - **UWP constraints**: no POSIX mmap, no dlopen, no registry, no thread-affinity desktop API. See `docs/uwp-constraints.md` for the full list.
-
-- **llama.cpp patches**: three UWP patches live in `uwp/patches/llama.cpp/` and are applied via `scripts/apply-uwp-patches.sh`. They are not needed for the current ORT GenAI UWP build, but are kept for any future evaluation of llama.cpp on UWP.

@@ -221,6 +221,7 @@ class LlamaSession final : public Session {
         llama_context* raw_ctx = llama_init_from_model(m_model.get(), cparams);
         if (!raw_ctx) {
             res.error_msg = "failed to create context";
+            log_output("[xllama] session generate: failed to create context\n");
             return res;
         }
         LlamaContextPtr ctx(raw_ctx);
@@ -294,8 +295,10 @@ class LlamaSession final : public Session {
                 break;
 
             llama_batch next = llama_batch_get_one(&token, 1);
-            if (llama_decode(ctx.get(), next) != 0)
+            if (llama_decode(ctx.get(), next) != 0) {
+                log_output("[xllama] session generate: decode failed, stopping\n");
                 break;
+            }
             ++n_generated;
         }
 

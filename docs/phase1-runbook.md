@@ -72,25 +72,39 @@ These lines confirm UWP lifecycle completed, the model path was resolved, and th
 URL to Device Portal File Explorer: `https://<ip>:11443/#fileExplorer`
 Navigate to: LocalAppData → `VenereLabs.xllama_..._x64__<token>` → `LocalState` → `xllama.log`
 
-## 4. Using a different model
+## 4. Switching models
 
-The default bundled model is `smollm2-360m-cpu-int4`. To use a different ORT GenAI model:
+The default bundled model is `smollm2-360m-cpu-int4`. Three alternatives are available, in order of preference:
 
-1. Build the model as an ONNX GenAI directory (see ORT GenAI builder docs).
-2. Merge external data if needed: `python3 scripts/merge_onnx_external_data.py <model_dir>`.
-3. Upload the directory to the console:
+**Option A — Settings ComboBox (v0.3.0+, recommended):**
+Open the ⚙ Settings dialog inside the app. The Model ComboBox exposes:
+- SmolLM2-360M (bundled MSIX)
+- SmolLM2-1.7B (USB `E:\xllama\models\`)
+- SmolLM2-360M (HF download in LocalState)
+
+The selection is persisted to `LocalState/settings.json` and takes effect on the next inference call (session rebuilt transparently).
+
+**Option B — USB drive (Exp 3, for models too large to bundle):**
+Place the ONNX GenAI directory on a NTFS USB stick under `E:\xllama\models\<model-name>\`. `resolve_model_path` probes `E:\` automatically when LocalState and InstalledPath entries are absent.
+
+**Option C — Device Portal upload (dev/scripted use):**
+1. Build the model as an ONNX GenAI directory and merge external data:
+   ```bash
+   python3 scripts/merge_onnx_external_data.py <model_dir>
+   ```
+2. Upload to the console:
    ```bash
    source ~/.config/xllama/xbox-env
    PFN=$(./scripts/deploy.sh pfn)
    ./scripts/deploy.sh upload-dir ./my-model-dir/ "$PFN" "models\\my-model-name"
    ```
-4. Write the model name to `LocalState/model.txt` (one line, no trailing newline):
+3. The app reads `LocalState/settings.json` for the active model. Edit via the Settings dialog, or write `LocalState/model.txt` as a legacy fallback (0.2.x compat):
    ```bash
    echo -n "my-model-name" > /tmp/model.txt
    ./scripts/deploy.sh upload-file /tmp/model.txt "$PFN" ""
    ```
 
-Models are resolved by `resolve_model_path()` in `src/bridge/path_utils.cpp`: it looks for a directory containing `genai_config.json` under `LocalState\models\<name>`, then falls back to the installed package directory.
+Models are resolved by `resolve_model_path()` in `src/bridge/path_utils.cpp` in this order: `LocalState\models\<name>` → `Package.InstalledPath\models\<name>` → `E:\xllama\models\<name>`.
 
 **Note**: the model directory must contain `genai_config.json` at its root — ORT GenAI loads the model from the directory, not from `model.onnx` directly.
 
@@ -146,7 +160,7 @@ Expected ranges (Xbox Series S, Zen 2 CPU, CPU EP, SmolLM2-360M INT4):
 
 | Model | Quant | Backend | Expected decode tok/s |
 |-------|-------|---------|----------------------|
-| SmolLM2-360M | INT4 CPU | CPU EP (ORT GenAI) | 3–10 |
+| SmolLM2-360M | INT4 CPU | CPU EP (ORT GenAI) | 60–73 |
 
 The `backend` field in the CSV will be `directml` (compile-time flag), even though the runtime execution provider is CPU. This is a known labelling quirk — `XLLAMA_USE_ORT` drives the field, not the runtime EP.
 

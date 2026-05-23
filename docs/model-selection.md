@@ -70,7 +70,7 @@ xllama UWP build (Xbox Series S Dev Mode, CPU EP).
 | Model | On-disk (merged) | CPU EP | DirectML EP | Notes |
 |-------|-----------------|--------|-------------|-------|
 | SmolLM2-360M-Instruct INT4 CPU | 403 MB | ✅ Active baseline | ❌ GPU OOM | Bundled in MSIX |
-| SmolLM2-1.7B-Instruct INT4 CPU | 1.4 GB | ❌ Disk budget | — | Not attempted |
+| SmolLM2-1.7B-Instruct INT4 CPU | 1.4 GB | ❌ MSIX bundling / ✅ via USB (Exp 3) | — | 23.6 tok/s, n=191, peak 2195 MB |
 | Phi-3.5-mini INT4 CPU | ~2.7 GB | ❌ Disk budget | — | Not attempted |
 | Phi-3.5-mini GPU INT4 AWQ | ~2.2 GB | — | ❌ GPU OOM + disk | Not viable |
 

@@ -273,8 +273,10 @@ InferenceResult run_inference(const InferenceParams& params) {
         }
 
         llama_batch next = llama_batch_get_one(&token, 1);
-        if (llama_decode(ctx.get(), next) != 0)
+        if (llama_decode(ctx.get(), next) != 0) {
+            log_output("[xllama] decode failed at token, stopping generation\n");
             break;
+        }
         ++n_generated;
     }
 

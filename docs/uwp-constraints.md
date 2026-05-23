@@ -100,4 +100,23 @@ Tool: `scripts/merge_onnx_external_data.py`. CI runs this automatically as part 
 
 **Source**: repeated `deploy.sh` runs against `https://<XBOX_IP>:11443/api/devices/file/usage`. Series X Dev Mode has the same partition layout but available free space was not measured by this project.
 
+For models above the 600 MB on-disk budget that cannot be bundled in the MSIX, see Exp 3 (USB NTFS fallback at `E:\xllama\models\<name>`) in `docs/phase1-runbook.md` and `src/bridge/path_utils.cpp`.
+
 See also `docs/model-selection.md` for a consolidated checklist.
+
+## 10. Win32 APIs Available in WINAPI_PARTITION_APP (Xbox Dev Mode)
+
+Reference for future work — APIs that do **not** require a desktop-only guard on Xbox UWP:
+
+| API | Header | Notes |
+|-----|--------|-------|
+| `CreateThread`, `WaitForSingleObject`, `CloseHandle`, `Sleep` | kernel32 | PARTITION_APP since 10.0.14393 |
+| `FreeLibrary` | kernel32 | PARTITION_APP |
+| `GlobalMemoryStatusEx` | kernel32 | PARTITION_APP since 10.0.15063 |
+| `GetModuleFileNameW` | kernel32 | PARTITION_APP |
+| `SetThreadPriority`, `GetCurrentThread` | kernel32 | PARTITION_APP |
+| SRWLOCK, CONDITION_VARIABLE, Interlocked* | kernel32 | PARTITION_APP |
+| `QueryPerformanceCounter/Frequency` | kernel32 | PARTITION_APP |
+| `_aligned_malloc` / `_aligned_free` | CRT | Available |
+
+APIs that are **desktop-only** and require `#if WINAPI_PARTITION_DESKTOP` guards: `RegOpenKeyEx`, `RegQueryValueExA`, `SetThreadAffinityMask`, `SetThreadInformation(ThreadPowerThrottling)`, `<winevt.h>` includes.

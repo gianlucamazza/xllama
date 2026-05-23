@@ -23,7 +23,6 @@ Milestones:
 
 **Active workaround experiments** (see `docs/uwp-constraints.md §7`):
 - *Exp 1*: DML provider_options `enable_cpu_mem_arena=0` + `enable_mem_pattern=0` + `past_present_share_buffer=false` may reduce allocator footprint enough for SmolLM2-360M. Test script: `scripts/test-dml-config.sh` (no rebuild needed).
-- *Exp 3*: If Qwen2.5-0.5B INT4 ONNX (~200 MB merged) can be identified, it would fit the GPU budget with room to spare.
 
 **Conditions to reopen**:
 - DML provider_options reduce footprint enough for an existing model (Exp 1)
@@ -32,7 +31,7 @@ Milestones:
 
 Milestones (blocked):
 - [ ] Run Exp 1: test DML provider_options on SmolLM2-360M via `scripts/test-dml-config.sh`
-- [ ] Evaluate Qwen2.5-0.5B INT4 ONNX for GPU EP fitness (est. ~200 MB merged)
+- [ ] Evaluate Qwen2.5-0.5B INT4 ONNX as GPU EP candidate (est. ~200 MB merged — would fit pool)
 - [ ] Validate DirectML EP inference end-to-end: tok/s vs CPU EP baseline
 - [ ] Measure GPU vs CPU tok/s for the same model at same quant level
 

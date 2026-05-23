@@ -42,7 +42,7 @@ This is a research-grade hobby project. "Xbox" is a Microsoft trademark; this pr
 - **Accessible Dev Mode**: one-time ~$19 activation via Partner Center unlocks unsigned UWP deployment.
 - **Underexplored**: no prior LLM port to the platform at time of writing.
 
-**Current performance (CPU EP, SmolLM2-360M INT4):** 3–10 tok/s decode, ~1–2 s load time. See `bench/results/phase1-cpu.csv` for measured values.
+**Current performance (CPU EP, SmolLM2-360M INT4):** ~64 tok/s decode (median, bench v0.2.1; n=990, peak 705 MB RAM), ~1–2 s cold load. See `bench/results/phase1-cpu.csv` for full results.
 
 ---
 
@@ -84,7 +84,9 @@ xllama/
 ├── include/xllama/         # shared public headers
 │   ├── inference_params.h  # InferenceParams / InferenceResult
 │   ├── inference.h         # run_inference, write_bench_csv
-│   ├── ort_raii.h          # RAII wrappers for 6 OGA* types (UWP)
+│   ├── session.h           # xllama::Session API (persistent model across turns)
+│   ├── ort_raii.h          # RAII wrappers for OGA* types (UWP)
+│   ├── llama_raii.h        # RAII wrappers for llama_* types (Linux)
 │   ├── cli.h               # parse_cli_args (Linux)
 │   ├── platform.h          # log_output, detect_threads, peak_working_set_mb
 │   ├── path_utils.h        # resolve_model_path, resolve_local_path
@@ -93,22 +95,29 @@ xllama/
 │   ├── main.cpp            # Linux entry point
 │   └── bridge/             # shared implementation (Linux + UWP)
 │       ├── inference.cpp   # #ifdef XLLAMA_USE_ORT → ORT GenAI; #else → llama_decode
+│       ├── session.cpp     # xllama::Session (OrtSession + LlamaSession)
 │       ├── bench.cpp
 │       ├── platform.cpp
 │       ├── path_utils.cpp
+│       ├── cli.cpp
 │       └── utf8_utils.cpp
 ├── uwp/                    # C++/WinRT UWP app
-│   ├── inference-bridge.cpp  # UWP entry glue + main_loop()
-│   ├── App.cpp / MainPage.cpp  # programmatic UI (XAML-free)
-│   ├── packages.config       # NuGet pins (ORT GenAI, DirectML)
+│   ├── App.cpp / App.h     # Application lifecycle, OnLaunched
+│   ├── MainPage.cpp / .h   # MainPageController — programmatic UI (XAML-free)
+│   ├── inference-bridge.cpp / .h  # UWP entry glue + bench mode main_loop()
+│   ├── chat-history.cpp / .h      # ChatHistory: Save/Load/Delete/Clear
+│   ├── model-downloader.cpp / .h  # EnsureModelAsync — HF chunked download (Exp 2)
+│   ├── packages.config     # NuGet pins (ORT GenAI 0.13.2, ORT 1.24.4, DirectML 1.15.4)
 │   └── xllama.sln / .vcxproj
 ├── scripts/
-│   ├── deploy.sh               # Device Portal deploy + log helpers
-│   ├── build-uwp.ps1           # Windows UWP packaging
-│   ├── merge_onnx_external_data.py  # merge model.onnx.data for AppContainer
-│   ├── bench-xbox.sh           # automated benchmark runner
-│   ├── check-uwp-host.sh       # Linux host preflight
-│   └── setup-windows-uwp-dev.ps1    # Windows VM setup
+│   ├── deploy.sh                      # Device Portal: deploy, logs, bench trigger
+│   ├── build-uwp.ps1                  # Windows UWP packaging
+│   ├── merge_onnx_external_data.py    # merge model.onnx.data → self-contained model.onnx
+│   ├── bench-xbox.sh                  # automated benchmark runner
+│   ├── install-latest-build.sh        # fetch + deploy latest CI artifact
+│   ├── test-dml-config.sh             # upload DML provider_options without MSIX rebuild
+│   ├── check-uwp-host.sh              # Linux host preflight
+│   └── setup-windows-uwp-dev.ps1      # Windows VM setup
 ├── tests/                  # unit tests (doctest)
 ├── bench/                  # benchmark configs + results
 ├── docs/                   # technical notes

@@ -10,12 +10,17 @@
 #include <fstream>
 #include <string>
 
+static xllama::InferenceParams make_params() {
+    xllama::InferenceParams p;
+    p.model_path = "test-model.gguf";
+    p.n_predict = 128;
+    p.n_ctx = 2048;
+    p.n_threads = 4;
+    return p;
+}
+
 TEST_CASE("Bench CSV writer: basic output") {
-    xllama::InferenceParams params;
-    params.model_path = "test-model.gguf";
-    params.n_predict = 128;
-    params.n_ctx = 2048;
-    params.n_threads = 4;
+    auto params = make_params();
 
     xllama::InferenceResult res;
     res.success = true;
@@ -43,6 +48,43 @@ TEST_CASE("Bench CSV writer: basic output") {
     CHECK(row.find("linux-test") != std::string::npos);
 
     // Clean up
+    std::remove(csv_path.c_str());
+    std::string done_path = xllama::resolve_local_path("bench-result.csv.done");
+    std::remove(done_path.c_str());
+}
+
+TEST_CASE("Bench CSV writer: failed inference skips file") {
+    // write_bench_csv early-returns when res.success == false — no file created.
+    auto params = make_params();
+
+    xllama::InferenceResult res;
+    res.success = false;
+    res.error_msg = "model not found";
+
+    xllama::write_bench_csv(params, res, "linux-test");
+
+    std::string csv_path = xllama::resolve_local_path("bench-result.csv");
+    std::ifstream ifs(csv_path);
+    CHECK_FALSE(ifs.is_open()); // file must NOT have been created
+}
+
+TEST_CASE("Bench CSV writer: zero-duration result") {
+    // Ensures no division-by-zero when t_eval_ms == 0.
+    auto params = make_params();
+
+    xllama::InferenceResult res;
+    res.success = true;
+    res.t_load_ms = 0.0;
+    res.t_p_eval_ms = 0.0;
+    res.t_eval_ms = 0.0;
+    res.n_p_eval = 0;
+    res.n_eval = 0;
+    res.peak_ws_mb = 0;
+
+    // Must not throw or crash
+    CHECK_NOTHROW(xllama::write_bench_csv(params, res, "linux-test"));
+
+    std::string csv_path = xllama::resolve_local_path("bench-result.csv");
     std::remove(csv_path.c_str());
     std::string done_path = xllama::resolve_local_path("bench-result.csv.done");
     std::remove(done_path.c_str());
