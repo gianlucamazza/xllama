@@ -15,33 +15,37 @@ Milestones:
 - [x] SmolLM2-360M bundled inside MSIX as `DeploymentContent`; CI `build-uwp` green
 - [x] ChatML prompt template applied for SmolLM2 Instruct
 
-## Phase 2 — GPU Acceleration 🚫 BLOCKED
+## Phase 2 — GPU Acceleration ⚠️ PARTIALLY UNBLOCKED
 
 **Goal**: DirectML EP inference using Xbox RDNA 2 hardware.
 
-**Blocker**: UWP GPU-accessible memory pool on Xbox Series S is ~768 MB (observed total at `OgaCreateModel` OOM). `OgaCreateModel` with DirectML EP crashes with SEH `0xC0000005` (null-deref on OOM in the DirectML allocator) for any LLM that exceeds this budget including activation, KV-cache, and staging buffers.
+**Status (2026-05-23, xllama v0.3.1)**:
 
-**Active workaround experiments** (see `docs/uwp-constraints.md §7`):
-- *Exp 1*: DML provider_options `enable_cpu_mem_arena=0` + `enable_mem_pattern=0` + `past_present_share_buffer=false` may reduce allocator footprint enough for SmolLM2-360M. Test script: `scripts/test-dml-config.sh` (no rebuild needed).
+*Exp 1 completed*: SmolLM2-360M INT4 loads with DML provider_options (`enable_cpu_mem_arena=0`, `enable_mem_pattern=0`, `past_present_share_buffer=false`) WITHOUT `0xC0000005` OOM. Performance: **71.7 tok/s** ≈ CPU baseline (t=4, 71.4 tok/s). Phi-3.5-mini (~2.2 GB) still causes OOM as expected.
 
-**Conditions to reopen**:
-- DML provider_options reduce footprint enough for an existing model (Exp 1)
-- A sub-300 MB on-device ONNX model is validated (e.g., Qwen2.5-0.5B INT4)
-- Microsoft expands the UWP GPU pool allocation for Dev Mode apps
+**Open question**: whether ORT actually routes SmolLM2-360M INT4 to the RDNA 2 GPU or silently falls back to CPU cannot be determined without D3D performance profiling (PIX or hardware GPU counters). No profiling infrastructure is available on-device yet.
 
-Milestones (blocked):
-- [ ] Run Exp 1: test DML provider_options on SmolLM2-360M via `scripts/test-dml-config.sh`
-- [ ] Evaluate Qwen2.5-0.5B INT4 ONNX as GPU EP candidate (est. ~200 MB merged — would fit pool)
-- [ ] Validate DirectML EP inference end-to-end: tok/s vs CPU EP baseline
+**Revised blocker**: models ≥ ~1 GB remain blocked by the ~768 MB GPU pool. Sub-400 MB INT4 models physically fit the pool. Actual GPU utilisation is unconfirmed.
+
+**Conditions to confirm Phase 2 complete**:
+- D3D performance profiling confirms GPU kernel execution (not CPU fallback)
+- tok/s on GPU visibly exceeds CPU baseline for the same model/quant
+
+Milestones:
+- [x] Exp 1: test DML provider_options on SmolLM2-360M — loads without OOM; GPU execution unconfirmed
+- [ ] Add D3D/PIX profiling or GPU counter readout to bench infrastructure
+- [ ] Evaluate Qwen2.5-0.5B INT4 ONNX as additional GPU EP candidate (est. ~200 MB merged)
+- [ ] Validate DirectML EP inference end-to-end: confirm GPU tok/s > CPU tok/s
 - [ ] Measure GPU vs CPU tok/s for the same model at same quant level
 
-## Phase 3 — Benchmarks + Model Exploration 📋 NEXT
+## Phase 3 — Benchmarks + Model Exploration 🔄 IN PROGRESS
 
 **Goal**: reproducible results, n_threads tuning, evaluate alternative compact models.
 
 Milestones:
-- [ ] Populate `bench/results/phase1-cpu.csv` with 3+ models × 3 runs (median tok/s)
-- [ ] Tune `n_threads` on Zen 2 Xbox (6–7 available cores); find optimal value for SmolLM2-360M
+- [x] Populate `bench/results/phase1-cpu.csv` — SmolLM2-360M INT4 at t=4,6,8; optimal: **t=4 → 71.4 tok/s**
+- [x] Tune `n_threads` on Zen 2 Xbox: t=4 optimal; t=8 causes severe regression (28 tok/s — memory bandwidth saturation)
+- [x] `bench-xbox-ort.sh` + `bench_threads.txt` mechanism for automated multi-thread bench runs
 - [ ] Evaluate Qwen2.5-0.5B INT4 ONNX (estimate ~200 MB): fits Phase 2 GPU budget?
 - [ ] Evaluate Llama-3.2-1B INT4 ONNX CPU: fits disk budget with MSIX overhead?
 - [ ] Add `load_ms` to bench CSV if not already present; baseline model load time

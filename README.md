@@ -42,7 +42,7 @@ This is a research-grade hobby project. "Xbox" is a Microsoft trademark; this pr
 - **Accessible Dev Mode**: one-time ~$19 activation via Partner Center unlocks unsigned UWP deployment.
 - **Underexplored**: no prior LLM port to the platform at time of writing.
 
-**Current performance (CPU EP, SmolLM2-360M INT4):** ~64 tok/s decode (median, bench v0.2.1; n=990, peak 705 MB RAM), ~1–2 s cold load. See `bench/results/phase1-cpu.csv` for full results.
+**Current performance (CPU EP, SmolLM2-360M INT4):** ~71 tok/s decode at 4 threads (bench v0.3.1; peak 771 MB RAM). Optimal: `intra_op_num_threads=4` — explicit 8-thread setting causes severe regression (~24 tok/s) due to memory bandwidth saturation on Zen 2. See `bench/results/phase1-cpu.csv` for full results.
 
 ---
 

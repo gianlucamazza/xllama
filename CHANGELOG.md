@@ -7,6 +7,37 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+**Bench infrastructure — ORT GenAI thread tuning** (`feat(bench): ORT GenAI bench infrastructure`):
+- `scripts/bench-xbox-ort.sh`: new bench orchestrator for ORT GenAI models already on device (no model upload). Supports `--threads N`, `--runs N`, `--prompt file`. Appends median row to `bench/results/phase1-cpu.csv`. Drops warmup run automatically.
+- `bench/configs/genai_config-threads-{4,6,8}.json`: `genai_config.json` variants with `intra_op_num_threads` set for Zen 2 thread-count tuning.
+- `uwp/inference-bridge.cpp`: reads optional `bench_threads.txt` (uploaded per bench variant) to set `params.n_threads` for CSV tracking and suffix host_label (`xbox-series-s-tN`).
+
+### Fixed
+
+- `src/bridge/bench.cpp`: backend label was `"directml"` even on CPU EP → corrected to `"ort-genai-cpu"`; quant `"int4-awq"` → `"int4"`.
+
+### Measured — Phase 1 bench results (Xbox Series S Zen 2, 2026-05-23)
+
+SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
+
+| n_threads | decode tok/s | peak RAM MB | notes |
+|-----------|-------------|-------------|-------|
+| auto (ORT default) | 66.9 | 704 | baseline, no `intra_op_num_threads` |
+| 4 (explicit) | **71.4** | 771 | **best** |
+| 6 (explicit) | 68.0 | 772 | |
+| 8 (explicit) | 28.2 | 771 | severe regression — memory bandwidth saturation |
+
+**Recommendation**: use `intra_op_num_threads: 4` in `genai_config.json` for SmolLM2-360M on Zen 2.
+
+### Investigated — Exp 1 DirectML (2026-05-23)
+
+- DML `genai_config.json` (provider: dml, `enable_cpu_mem_arena=0`, `enable_mem_pattern=0`) loads without SEH 0xC0000005 on SmolLM2-360M INT4.
+- Performance: 71.7 tok/s — indistinguishable from CPU baseline.
+- Conclusion: SmolLM2-360M INT4 (~200 MB ONNX) likely fits within the 768 MB UWP GPU pool. Cannot confirm GPU execution vs CPU fallback without D3D profiling tools. Phase 2 "blocked" status revised: **360M model fits; larger models still blocked**.
+- Exp 2 (HF in-app download): unreachable with current bundled MSIX. `EnsureModelAsync` checks InstalledPath before HF download; model is always found there. Requires a separate build without bundled model to validate.
+
 ---
 
 ## [0.3.0] — 2026-05-23

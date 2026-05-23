@@ -26,18 +26,20 @@ Platform limitations relevant to running LLM inference on Xbox Dev Mode, and how
 
 **Impact**: Minimal. GGML and ORT GenAI kernels are pre-compiled C/C++. Only ggml-jit (experimental, unused here) is affected.
 
-## 5. DirectML Available but GPU Pool Too Small
+## 5. DirectML: GPU Pool Limits Larger Models (360M Fits)
 
-**Problem**: The UWP GPU-accessible memory pool on Xbox Series S is approximately **768 MB** (observed total at `OgaCreateModel` OOM). This is separate from CPU RAM and the console's 10 GB unified memory.
+**Background**: The UWP GPU-accessible memory pool on Xbox Series S is approximately **768 MB** (inferred from Phi-3.5-mini OOM). This is separate from CPU RAM.
 
-**Effect on DirectML EP**: `OgaCreateModel` with the DirectML execution provider crashes with SEH `0xC0000005` (STATUS_ACCESS_VIOLATION — null-deref in the DML allocator when it hits OOM) for any LLM whose on-device weights exceed the pool.
+**Effect on DirectML EP**: `OgaCreateModel` with the DirectML execution provider crashes with SEH `0xC0000005` (STATUS_ACCESS_VIOLATION — null-deref in the DML allocator when it hits OOM) for any LLM whose on-device weights exceed the pool. Smaller models that fit within the pool load without error.
 
-GPU EP OOM results (DirectML EP, Series S):
+DirectML EP test results (Series S, xllama v0.3.1, 2026-05-23):
 
-| Model | Variant | On-disk | Failure |
-|-------|---------|---------|---------|
-| Phi-3.5-mini | GPU INT4 AWQ | ~2.2 GB | GPU OOM (`0xC0000005`) |
-| SmolLM2-360M | INT4, tried with DML EP | 403 MB | GPU OOM — model fits disk but not pool |
+| Model | Variant | On-disk | Result |
+|-------|---------|---------|--------|
+| Phi-3.5-mini | GPU INT4 AWQ | ~2.2 GB | GPU OOM (`0xC0000005`) — exceeds 768 MB pool |
+| SmolLM2-360M | INT4, DML config | 403 MB | ✅ Loads without OOM; 71.7 tok/s ≈ CPU baseline |
+
+**Interpretation note**: SmolLM2-360M INT4 loads successfully with DML `provider_options` and returns inference results indistinguishable from the CPU EP (~71 tok/s). However, whether the DirectML EP actually executes on the GPU or silently falls back to CPU cannot be determined without D3D performance profiling (e.g. `PIX`, GPU hardware counters). This project does not have D3D profiling infrastructure on-device. The finding is therefore: **360M model fits the GPU pool; actual GPU execution is unconfirmed**.
 
 **Effect on disk**: models too large to fit the Dev Mode partition also fail before reaching `OgaCreateModel`. This is a distinct failure mode — see §9.
 
@@ -49,9 +51,9 @@ Disk budget failures (deploy-time or LocalState copy):
 | SmolLM2-1.7B | INT4 CPU | 1.4 GB | Above disk budget |
 | SmolLM2-360M | INT4 CPU | 403 MB | ✅ Works (CPU EP) |
 
-Note: DirectML itself *is* available in Dev Mode (NuGet `Microsoft.AI.DirectML 1.15.4`). The constraint is the memory pool, not the API.
+Note: DirectML itself *is* available in Dev Mode (NuGet `Microsoft.AI.DirectML 1.15.4`). The memory pool constraint applies to model weight size, not to the API itself.
 
-**Current approach**: CPU EP (`"provider_options": []` in `genai_config.json`). See §7 for GPU pool detail and §9 for disk budget.
+**Current approach**: CPU EP (`"provider_options": []` in `genai_config.json`) — chosen for deterministic behaviour. GPU EP research with proper D3D profiling is a future work item. See §7 for GPU pool detail and §9 for disk budget.
 
 ## 6. Limited Thread Count
 
