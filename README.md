@@ -2,9 +2,29 @@
 
 > Local LLM inference on Xbox Series S|X (UWP Dev Mode) — ONNX Runtime GenAI on Zen 2 CPU.
 
-**Status:** experimental · early development
-**License:** MIT
+[![build-uwp](https://github.com/gianlucamazza/xllama/actions/workflows/build-uwp.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-uwp.yml)
+[![build-linux](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+**Status:** experimental · early development  
 **Maintainer:** [Venere Labs](https://github.com/gianlucamazza)
+
+---
+
+## Table of Contents
+
+- [What is this](#what-is-this)
+- [About the name](#about-the-name)
+- [Why Xbox Series S](#why-xbox-series-s)
+- [Architecture](#architecture)
+- [Repository layout](#repository-layout)
+- [Build](#build)
+- [Models](#models)
+- [Limitations](#limitations)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [Acknowledgements](#acknowledgements)
+- [License](#license)
 
 ---
 
@@ -22,6 +42,29 @@ Goals:
 2. Publish a clean, reproducible baseline that future work (gaming AI, on-device assistants) can build on.
 
 This is a research-grade hobby project. "Xbox" is a Microsoft trademark; this project is not affiliated with Microsoft.
+
+---
+
+## Quick Start
+
+**Requirements**: Xbox Series S or X in Dev Mode (one-time ~$19 activation), Linux or Windows host.
+
+```bash
+# 1. Get the pre-built MSIX from the latest CI release
+./scripts/install-latest-build.sh          # fetches from GitHub Actions, deploys via Device Portal
+
+# 2. Or build from source (Windows host / CI)
+git clone --recursive https://github.com/gianlucamazza/xllama.git
+.\scripts\build-uwp.ps1 -Configuration Release -Platform x64
+
+# 3. Deploy manually
+source ~/.config/xllama/xbox-env           # sets XBOX_IP, XBOX_USER, XBOX_PASS
+./scripts/deploy.sh path/to/xllama_*.msix
+```
+
+The SmolLM2-360M-Instruct INT4 model is bundled inside the MSIX — no separate upload needed. On first launch the app copies the model to `LocalState` and starts the chat UI automatically.
+
+See [docs/phase1-runbook.md](./docs/phase1-runbook.md) for the full step-by-step workflow.
 
 ---
 
