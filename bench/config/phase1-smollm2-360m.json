@@ -5,5 +5,5 @@
   "n_ctx": 2048,
   "n_threads": 0,
   "n_runs": 3,
-  "notes": "SmolLM2-360M-Instruct INT4 CPU — active Phase 1 model, bundled in MSIX. Expected: decode 3-10 tok/s on Xbox Series S Zen 2, CPU EP."
+  "notes": "SmolLM2-360M-Instruct INT4 CPU — active Phase 1 model, bundled in MSIX. Measured: ~64 tok/s decode on Xbox Series S Zen 2 (bench v0.2.1, n=990). Use bench-xbox-ort.sh for ORT GenAI runs."
 }

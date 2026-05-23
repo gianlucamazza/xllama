@@ -65,6 +65,20 @@ void main_loop() {
         }
     }
 
+    // Read optional bench_threads.txt — written by bench-xbox-ort.sh per variant.
+    // Used both to set params.n_threads (CSV tracking) and to label the host column.
+    int bench_threads = 0;
+    {
+        std::string tpath = resolve_local_path("bench_threads.txt");
+        FILE* tf = _wfopen(utf8_to_wstring(tpath).c_str(), L"r");
+        if (tf) {
+            char buf[16] = {};
+            if (fread(buf, 1, sizeof(buf) - 1, tf) > 0)
+                bench_threads = std::atoi(buf);
+            fclose(tf);
+        }
+    }
+
     log_output("[xllama] bench model: " + model_name + "\n");
     log_output("[xllama] bench prompt: " + prompt.substr(0, 80) + "...\n");
 
@@ -72,9 +86,16 @@ void main_loop() {
     params.model_path = model_name;
     params.prompt = prompt;
     params.n_predict = 512;
+    params.n_threads = bench_threads; // 0 = auto; set by bench-xbox-ort.sh
+
+    char host_buf[64];
+    if (bench_threads > 0)
+        snprintf(host_buf, sizeof(host_buf), "xbox-series-s-t%d", bench_threads);
+    else
+        snprintf(host_buf, sizeof(host_buf), "xbox-series-s");
 
     InferenceResult res = ::xllama::run_inference(params);
-    xllama::write_bench_csv(params, res, "xbox-series-s");
+    xllama::write_bench_csv(params, res, host_buf);
 #endif
 }
 

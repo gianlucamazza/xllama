@@ -53,8 +53,8 @@ void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
         model_name = model_name.substr(0, dot);
 
 #ifdef XLLAMA_USE_ORT
-    const char* backend = "directml";
-    const char* quant = "int4-awq";
+    const char* backend = "ort-genai-cpu";
+    const char* quant = "int4";
 #else
     const char* backend = "cpu";
     const char* quant = "Q4_K_M";

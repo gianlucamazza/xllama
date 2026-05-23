@@ -44,7 +44,8 @@ xllama/
 │   ├── deploy.sh                      # Device Portal: deploy, logs, bench trigger
 │   ├── build-uwp.ps1                  # Windows UWP packaging script
 │   ├── merge_onnx_external_data.py    # merge model.onnx.data → self-contained model.onnx
-│   ├── bench-xbox.sh                  # automated benchmark runner
+│   ├── bench-xbox.sh                  # benchmark runner (llama.cpp / GGUF models)
+│   ├── bench-xbox-ort.sh              # benchmark runner (ORT GenAI; model already on device)
 │   ├── install-latest-build.sh        # fetch + deploy latest CI artifact
 │   ├── test-dml-config.sh             # upload DML provider_options without MSIX rebuild
 │   ├── check-uwp-host.sh              # Linux host preflight (qemu, libvirt)
