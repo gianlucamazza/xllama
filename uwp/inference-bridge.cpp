@@ -19,6 +19,10 @@ namespace xllama::bridge {
 
 void main_loop() {
 #ifdef XLLAMA_UWP
+    // Pin CWD to LocalState so relative paths from genai_config.json (e.g. the
+    // ORT enable_profiling prefix) land in a writable, WDP-fetchable location.
+    set_cwd_to_local_folder();
+
     // Read prompt from LocalFolder/prompt.txt, fallback to default.
     // SmolLM2-360M-Instruct uses ChatML format; bare text triggers EOS immediately.
     std::string user_prompt = "Hello from Xbox Series S. Tell me about your architecture.";

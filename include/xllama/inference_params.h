@@ -38,6 +38,8 @@ struct InferenceResult {
     int n_p_eval = 0;
     int n_eval = 0;
     size_t peak_ws_mb = 0;
+    size_t gpu_mem_mb = 0;    // per-process GPU CurrentUsage after model load (0 = N/A)
+    size_t gpu_budget_mb = 0; // OS-granted GPU budget for this process (0 = N/A)
     std::string output_text;
     std::string error_msg;
 };

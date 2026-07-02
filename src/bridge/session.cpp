@@ -178,6 +178,14 @@ std::unique_ptr<Session> Session::create(const SessionParams& sp, std::string* e
         OgaTokenizerPtr tok(raw_tok);
 
         log_output("[xllama] Session: model loaded (persistent)\n");
+        GpuMemInfo gpu = gpu_mem_info();
+        if (gpu.available) {
+            char gpu_buf[128];
+            snprintf(gpu_buf, sizeof(gpu_buf),
+                     "[xllama] gpu-mem post-load: current=%zuMB budget=%zuMB\n", gpu.current_mb,
+                     gpu.budget_mb);
+            log_output(gpu_buf);
+        }
         return std::make_unique<OrtSession>(std::move(model), std::move(tok));
 
     } catch (const std::exception& e) {

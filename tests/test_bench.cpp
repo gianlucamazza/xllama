@@ -5,6 +5,7 @@
 
 #include "xllama/inference.h"
 #include "xllama/path_utils.h"
+#include "xllama/platform.h"
 
 #include <cstdio>
 #include <fstream>
@@ -45,13 +46,51 @@ TEST_CASE("Bench CSV writer: basic output") {
     std::string row;
     std::getline(ifs, row);
     CHECK(row.find("test-model,Q4_K_M,cpu,2048,4,") == 0);
-    // load_ms column must carry res.t_load_ms (peak_ws_mb,load_ms,host)
-    CHECK(row.find(",512,1000,linux-test") != std::string::npos);
+    // Columns: ...,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,host,...
+    CHECK(row.find(",512,1000,0,0,linux-test") != std::string::npos);
 
     // Clean up
     std::remove(csv_path.c_str());
     std::string done_path = xllama::resolve_local_path("bench-result.csv.done");
     std::remove(done_path.c_str());
+}
+
+TEST_CASE("Bench CSV writer: gpu memory columns") {
+    auto params = make_params();
+
+    xllama::InferenceResult res;
+    res.success = true;
+    res.t_load_ms = 1000.0;
+    res.t_eval_ms = 2000.0;
+    res.n_eval = 20;
+    res.peak_ws_mb = 512;
+    res.gpu_mem_mb = 300;
+    res.gpu_budget_mb = 768;
+
+    xllama::write_bench_csv(params, res, "linux-test");
+
+    std::string csv_path = xllama::resolve_local_path("bench-result.csv");
+    std::ifstream ifs(csv_path);
+    REQUIRE(ifs.is_open());
+
+    std::string header;
+    std::getline(ifs, header);
+    CHECK(header.find(",gpu_mem_mb,gpu_budget_mb,host,date") != std::string::npos);
+
+    std::string row;
+    std::getline(ifs, row);
+    CHECK(row.find(",512,1000,300,768,linux-test") != std::string::npos);
+
+    std::remove(csv_path.c_str());
+    std::string done_path = xllama::resolve_local_path("bench-result.csv.done");
+    std::remove(done_path.c_str());
+}
+
+TEST_CASE("gpu_mem_info: unavailable on non-UWP builds") {
+    auto gpu = xllama::gpu_mem_info();
+    CHECK_FALSE(gpu.available);
+    CHECK(gpu.current_mb == 0);
+    CHECK(gpu.budget_mb == 0);
 }
 
 TEST_CASE("Bench CSV writer: failed inference skips file") {

@@ -257,7 +257,7 @@ if ((${#CSV_ROWS[@]} < 2)); then
 	fi
 else
 	# Write header + valid rows (skip warmup) to temp CSV
-	printf '%s\n' "model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,host,date" >>"$MEDIAN_TMP"
+	printf '%s\n' "model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,host,date" >>"$MEDIAN_TMP"
 	for row in "${CSV_ROWS[@]:1}"; do
 		printf '%s\n' "$row" >>"$MEDIAN_TMP"
 	done

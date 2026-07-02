@@ -32,7 +32,8 @@ void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
         return;
 
     const char* header = "model,quant,backend,n_ctx,n_threads,"
-                         "prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,host,date\n";
+                         "prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,"
+                         "gpu_mem_mb,gpu_budget_mb,host,date\n";
     fputs(header, fp);
 
     double prompt_tok_s = (res.n_p_eval > 0 && res.t_p_eval_ms > 0)
@@ -59,10 +60,10 @@ void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
     const char* backend = "cpu";
     const char* quant = "Q4_K_M";
 #endif
-    fprintf(fp, "%s,%s,%s,%d,%d,%.2f,%.2f,%zu,%.0f,%s,%s\n", model_name.c_str(), quant, backend,
-            params.n_ctx, params.n_threads > 0 ? params.n_threads : detect_threads(), prompt_tok_s,
-            decode_tok_s, res.peak_ws_mb, res.t_load_ms, host_label ? host_label : "unknown",
-            date_buf);
+    fprintf(fp, "%s,%s,%s,%d,%d,%.2f,%.2f,%zu,%.0f,%zu,%zu,%s,%s\n", model_name.c_str(), quant,
+            backend, params.n_ctx, params.n_threads > 0 ? params.n_threads : detect_threads(),
+            prompt_tok_s, decode_tok_s, res.peak_ws_mb, res.t_load_ms, res.gpu_mem_mb,
+            res.gpu_budget_mb, host_label ? host_label : "unknown", date_buf);
     fclose(fp);
 
     // Write done marker

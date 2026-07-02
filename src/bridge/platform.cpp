@@ -20,6 +20,7 @@
     #include <psapi.h>
     #include <unknwn.h>
     #include <winrt/Windows.Storage.h>
+    #include <dxgi1_4.h>
 // clang-format on
 #endif
 
@@ -68,6 +69,49 @@ std::size_t peak_working_set_mb() noexcept {
     return 0;
 #else
     return 0;
+#endif
+}
+
+GpuMemInfo gpu_mem_info() noexcept {
+#ifdef XLLAMA_UWP
+    // Adapter cached for process lifetime: gpu_mem_info() is called per phase
+    // (pre-load / post-load / post-decode) and must stay cheap.
+    static IDXGIAdapter3* s_adapter = []() -> IDXGIAdapter3* {
+        IDXGIFactory1* factory = nullptr;
+        if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory))))
+            return nullptr;
+        IDXGIAdapter1* adapter1 = nullptr;
+        IDXGIAdapter3* adapter3 = nullptr;
+        if (SUCCEEDED(factory->EnumAdapters1(0, &adapter1))) {
+            adapter1->QueryInterface(IID_PPV_ARGS(&adapter3));
+            adapter1->Release();
+        }
+        factory->Release();
+        return adapter3;
+    }();
+
+    GpuMemInfo info;
+    if (!s_adapter)
+        return info;
+    DXGI_QUERY_VIDEO_MEMORY_INFO vmi{};
+    if (FAILED(s_adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &vmi)))
+        return info;
+    info.current_mb = static_cast<std::size_t>(vmi.CurrentUsage / (1024 * 1024));
+    info.budget_mb = static_cast<std::size_t>(vmi.Budget / (1024 * 1024));
+    info.available = true;
+    return info;
+#else
+    return {};
+#endif
+}
+
+void set_cwd_to_local_folder() noexcept {
+#ifdef XLLAMA_UWP
+    try {
+        auto folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
+        SetCurrentDirectoryW(folder.Path().c_str());
+    } catch (...) {
+    }
 #endif
 }
 

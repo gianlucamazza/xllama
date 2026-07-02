@@ -134,7 +134,7 @@
         $(ProjectDir)packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.13.2\runtimes\win-x64\native;
         %(AdditionalLibraryDirectories)
       </AdditionalLibraryDirectories>
-      <AdditionalDependencies>WindowsApp.lib;onnxruntime.lib;onnxruntime-genai.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>WindowsApp.lib;onnxruntime.lib;onnxruntime-genai.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
 

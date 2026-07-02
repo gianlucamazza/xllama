@@ -57,6 +57,13 @@ InferenceResult run_inference(const InferenceParams& params) {
                      static_cast<double>(ms.ullAvailPhys) / (1024.0 * 1024.0 * 1024.0),
                      peak_working_set_mb(), model_dir.c_str());
             log_output(mem_buf);
+            GpuMemInfo gpu = gpu_mem_info();
+            if (gpu.available) {
+                snprintf(mem_buf, sizeof(mem_buf),
+                         "[xllama] gpu-mem pre-load: current=%zuMB budget=%zuMB\n", gpu.current_mb,
+                         gpu.budget_mb);
+                log_output(mem_buf);
+            }
         }
 
         // --- model ---
@@ -69,10 +76,19 @@ InferenceResult run_inference(const InferenceParams& params) {
             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_load0)
                 .count();
         {
-            char load_buf[64];
+            char load_buf[128];
             snprintf(load_buf, sizeof(load_buf), "[xllama] ORT model loaded in %.0f ms\n",
                      res.t_load_ms);
             log_output(load_buf);
+            GpuMemInfo gpu = gpu_mem_info();
+            if (gpu.available) {
+                res.gpu_mem_mb = gpu.current_mb;
+                res.gpu_budget_mb = gpu.budget_mb;
+                snprintf(load_buf, sizeof(load_buf),
+                         "[xllama] gpu-mem post-load: current=%zuMB budget=%zuMB\n", gpu.current_mb,
+                         gpu.budget_mb);
+                log_output(load_buf);
+            }
         }
 
         if (params.on_status)
@@ -165,6 +181,14 @@ InferenceResult run_inference(const InferenceParams& params) {
                  elapsed_s > 0.0 ? n_generated / elapsed_s : 0.0, n_generated, elapsed_s,
                  res.peak_ws_mb);
         log_output(log_buf);
+
+        GpuMemInfo gpu = gpu_mem_info();
+        if (gpu.available) {
+            snprintf(log_buf, sizeof(log_buf),
+                     "[xllama] gpu-mem post-decode: current=%zuMB budget=%zuMB\n", gpu.current_mb,
+                     gpu.budget_mb);
+            log_output(log_buf);
+        }
 
     } catch (const std::exception& e) {
         res.error_msg = e.what();

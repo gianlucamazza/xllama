@@ -22,4 +22,19 @@ void log_output(const std::string& msg) noexcept;
 // Peak working-set size in MB. Returns 0 on platforms where it is unavailable.
 std::size_t peak_working_set_mb() noexcept;
 
+// Per-process video memory (DXGI LOCAL segment). On Xbox Series S the OS
+// grants an App-mode UWP a Budget of roughly 768 MB; CurrentUsage climbing
+// toward the model size is direct evidence the DML EP resides on the GPU.
+struct GpuMemInfo {
+    std::size_t current_mb = 0; // IDXGIAdapter3::QueryVideoMemoryInfo CurrentUsage
+    std::size_t budget_mb = 0;  // OS-granted budget for this process
+    bool available = false;     // false on non-UWP builds or DXGI failure
+};
+GpuMemInfo gpu_mem_info() noexcept;
+
+// Pin the process CWD to ApplicationData LocalFolder (UWP only, no-op elsewhere).
+// Relative paths — e.g. the ORT enable_profiling prefix — then land in LocalState
+// instead of the read-only install root.
+void set_cwd_to_local_folder() noexcept;
+
 } // namespace xllama
