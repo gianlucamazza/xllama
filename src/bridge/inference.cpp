@@ -60,10 +60,20 @@ InferenceResult run_inference(const InferenceParams& params) {
         }
 
         // --- model ---
+        // Wall-clock around OgaCreateModel: ORT GenAI has no llama_perf-style load timer.
+        auto t_load0 = std::chrono::steady_clock::now();
         OgaModel* raw_model = nullptr;
         oga_check(OgaCreateModel(model_dir.c_str(), &raw_model), "OgaCreateModel");
         OgaModelPtr model(raw_model);
-        log_output("[xllama] ORT model loaded\n");
+        res.t_load_ms =
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_load0)
+                .count();
+        {
+            char load_buf[64];
+            snprintf(load_buf, sizeof(load_buf), "[xllama] ORT model loaded in %.0f ms\n",
+                     res.t_load_ms);
+            log_output(load_buf);
+        }
 
         if (params.on_status)
             params.on_status("tokenizing");

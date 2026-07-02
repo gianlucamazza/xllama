@@ -45,7 +45,8 @@ TEST_CASE("Bench CSV writer: basic output") {
     std::string row;
     std::getline(ifs, row);
     CHECK(row.find("test-model,Q4_K_M,cpu,2048,4,") == 0);
-    CHECK(row.find("linux-test") != std::string::npos);
+    // load_ms column must carry res.t_load_ms (peak_ws_mb,load_ms,host)
+    CHECK(row.find(",512,1000,linux-test") != std::string::npos);
 
     // Clean up
     std::remove(csv_path.c_str());
