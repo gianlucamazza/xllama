@@ -234,3 +234,54 @@ curl --basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS \
 ```
 
 Analyse with WinDbg: `.sympath srv*https://msdl.microsoft.com/download/symbols` then `!analyze -v`.
+
+## 9. DML profiling and GPU telemetry (GPU truth)
+
+Answers the Phase 2 question — does the DML EP execute on the RDNA 2 GPU or
+silently fall back to CPU? — without PIX (GDK-only, unavailable in Dev Mode).
+Background and caveats: `docs/uwp-constraints.md §11`.
+
+### One profiled DML run
+
+```bash
+source ~/.config/xllama/xbox-env
+./scripts/profile-dml-run.sh --model smollm2-360m-cpu-int4 --gpu-sample
+```
+
+The script swaps in `bench/configs/genai_config-dml-profile.json` (DML EP +
+`enable_profiling` + verbose ORT logging), runs one bench inference, downloads
+`ort_profile_*.json` + the new `xllama.log` tail + `bench-result.csv` into
+`bench/results/profiles/<timestamp>/`, restores the original config, and prints:
+
+```
+VERDICT: GPU                      # DML kernel time >= 90%
+VERDICT: MIXED (dml=X% cpu=Y%)    # both providers active
+VERDICT: CPU-FALLBACK             # zero DML kernel events
+```
+
+If the profile is not found: rerun with `--absolute-prefix` (renders the
+`.tpl.json` config with an absolute LocalState prefix); if still missing,
+deploy a v0.3.2+ MSIX (CWD pinned to LocalState) and rerun.
+
+### Interpretation
+
+| Signal | GPU execution | CPU fallback |
+|--------|---------------|--------------|
+| Profiler `VERDICT:` | `GPU` / high-DML `MIXED` | `CPU-FALLBACK` |
+| `gpu-sample` engines | 3D/compute > ~0.3 sustained | flat on all engines |
+| `[xllama] gpu-mem post-load` | `current` ≈ model size | `current` ≈ 0 |
+| CSV `gpu_mem_mb` | ≈ model size | ≈ 0 |
+
+Run a control pass with the stock CPU config (expected `CPU-FALLBACK` + flat
+engines) to calibrate both probes — `systemperf` is system-wide and Dev Home
+activity adds GPU noise.
+
+### Bench with GPU telemetry (v0.3.2+ MSIX)
+
+```bash
+./scripts/bench-xbox-ort.sh smollm2-360m-cpu-int4 --runs 3 \
+    --out bench/results/phase2-dml.csv --gpu-sample
+```
+
+`gpu_mem_mb`/`gpu_budget_mb` CSV columns come from per-process
+`QueryVideoMemoryInfo` (LOCAL segment) sampled after model load.

@@ -36,7 +36,8 @@ _Exp 1 completed_: SmolLM2-360M INT4 loads with DML provider_options (`enable_cp
 Milestones:
 
 - [x] Exp 1: test DML provider_options on SmolLM2-360M — loads without OOM; GPU execution unconfirmed
-- [ ] Add D3D/PIX profiling or GPU counter readout to bench infrastructure
+- [x] GPU-truth toolkit in place of PIX (unavailable in Dev Mode): ORT profiler with per-kernel EP attribution (`profile-dml-run.sh` + `analyze_ort_profile.py`), WDP `systemperf` GPU counters (`xbox-gpu-sample.sh`), in-app `QueryVideoMemoryInfo` (`gpu_mem_mb` CSV columns) — see `docs/uwp-constraints.md §11`
+- [ ] Run the profiled DML experiment on console: `VERDICT:` from `profile-dml-run.sh` + control run on CPU config
 - [x] Evaluate Qwen2.5-0.5B INT4 ONNX as GPU EP candidate — ❌ CPU-int4 is ~822 MB (not ~200 MB); only the DML int4-awq variant (~507 MB) borderline fits the pool (see `docs/model-selection.md`)
 - [ ] Validate DirectML EP inference end-to-end: confirm GPU tok/s > CPU tok/s
 - [ ] Measure GPU vs CPU tok/s for the same model at same quant level

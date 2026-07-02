@@ -34,24 +34,24 @@ Platform limitations relevant to running LLM inference on Xbox Dev Mode, and how
 
 DirectML EP test results (Series S, xllama v0.3.1, 2026-05-23):
 
-| Model | Variant | On-disk | Result |
-|-------|---------|---------|--------|
-| Phi-3.5-mini | GPU INT4 AWQ | ~2.2 GB | GPU OOM (`0xC0000005`) — exceeds 768 MB pool |
-| SmolLM2-360M | INT4, DML config | 403 MB | ✅ Loads without OOM; 71.7 tok/s ≈ CPU baseline |
+| Model        | Variant          | On-disk | Result                                          |
+| ------------ | ---------------- | ------- | ----------------------------------------------- |
+| Phi-3.5-mini | GPU INT4 AWQ     | ~2.2 GB | GPU OOM (`0xC0000005`) — exceeds 768 MB pool    |
+| SmolLM2-360M | INT4, DML config | 403 MB  | ✅ Loads without OOM; 71.7 tok/s ≈ CPU baseline |
 
-**Interpretation note**: SmolLM2-360M INT4 loads successfully with DML `provider_options` and returns inference results indistinguishable from the CPU EP (~71 tok/s). However, whether the DirectML EP actually executes on the GPU or silently falls back to CPU cannot be determined without D3D performance profiling (e.g. `PIX`, GPU hardware counters). This project does not have D3D profiling infrastructure on-device. The finding is therefore: **360M model fits the GPU pool; actual GPU execution is unconfirmed**.
+**Interpretation note**: SmolLM2-360M INT4 loads successfully with DML `provider_options` and returns inference results indistinguishable from the CPU EP (~71 tok/s). Whether the DirectML EP actually executes on the GPU can now be measured without PIX — see §11 (ORT profiling JSON attributes every kernel to its execution provider). Pending the first profiled run, the finding remains: **360M model fits the GPU pool; actual GPU execution is unconfirmed**.
 
 **Effect on disk**: models too large to fit the Dev Mode partition also fail before reaching `OgaCreateModel`. This is a distinct failure mode — see §9.
 
 Disk budget failures (deploy-time or LocalState copy):
 
-| Model | Variant | On-disk | Failure |
-|-------|---------|---------|---------|
+| Model        | Variant  | On-disk | Failure           |
+| ------------ | -------- | ------- | ----------------- |
 | Phi-3.5-mini | INT4 CPU | ~2.7 GB | Above disk budget |
-| SmolLM2-1.7B | INT4 CPU | 1.4 GB | Above disk budget |
-| SmolLM2-360M | INT4 CPU | 403 MB | ✅ Works (CPU EP) |
+| SmolLM2-1.7B | INT4 CPU | 1.4 GB  | Above disk budget |
+| SmolLM2-360M | INT4 CPU | 403 MB  | ✅ Works (CPU EP) |
 
-Note: DirectML itself *is* available in Dev Mode (NuGet `Microsoft.AI.DirectML 1.15.4`). The memory pool constraint applies to model weight size, not to the API itself.
+Note: DirectML itself _is_ available in Dev Mode (NuGet `Microsoft.AI.DirectML 1.15.4`). The memory pool constraint applies to model weight size, not to the API itself.
 
 **Current approach**: CPU EP (`"provider_options": []` in `genai_config.json`) — chosen for deterministic behaviour. GPU EP research with proper D3D profiling is a future work item. See §7 for GPU pool detail and §9 for disk budget.
 
@@ -93,10 +93,10 @@ Tool: `scripts/merge_onnx_external_data.py`. CI runs this automatically as part 
 
 **Working budgets** (empirical, Series S Dev Mode, with xllama installed):
 
-| Budget | Conservative | Borderline | Over budget |
-|--------|-------------|------------|-------------|
-| MSIX size | < 600 MB | 600–800 MB | > 800 MB |
-| Model on-disk (merged ONNX) | < 400 MB | 400–600 MB | > 600 MB |
+| Budget                      | Conservative | Borderline | Over budget |
+| --------------------------- | ------------ | ---------- | ----------- |
+| MSIX size                   | < 600 MB     | 600–800 MB | > 800 MB    |
+| Model on-disk (merged ONNX) | < 400 MB     | 400–600 MB | > 600 MB    |
 
 **Failure mode**: deploy fails with `0x80070070` (ERROR_DISK_FULL) if free space drops below the staging requirement. Alternatively, the first-launch copy from `InstalledPath` to `LocalState` fails silently, and `resolve_model_path` falls through to the default path — resulting in a model-not-found error at runtime rather than a visible install error.
 
@@ -110,15 +110,32 @@ See also `docs/model-selection.md` for a consolidated checklist.
 
 Reference for future work — APIs that do **not** require a desktop-only guard on Xbox UWP:
 
-| API | Header | Notes |
-|-----|--------|-------|
+| API                                                           | Header   | Notes                          |
+| ------------------------------------------------------------- | -------- | ------------------------------ |
 | `CreateThread`, `WaitForSingleObject`, `CloseHandle`, `Sleep` | kernel32 | PARTITION_APP since 10.0.14393 |
-| `FreeLibrary` | kernel32 | PARTITION_APP |
-| `GlobalMemoryStatusEx` | kernel32 | PARTITION_APP since 10.0.15063 |
-| `GetModuleFileNameW` | kernel32 | PARTITION_APP |
-| `SetThreadPriority`, `GetCurrentThread` | kernel32 | PARTITION_APP |
-| SRWLOCK, CONDITION_VARIABLE, Interlocked* | kernel32 | PARTITION_APP |
-| `QueryPerformanceCounter/Frequency` | kernel32 | PARTITION_APP |
-| `_aligned_malloc` / `_aligned_free` | CRT | Available |
+| `FreeLibrary`                                                 | kernel32 | PARTITION_APP                  |
+| `GlobalMemoryStatusEx`                                        | kernel32 | PARTITION_APP since 10.0.15063 |
+| `GetModuleFileNameW`                                          | kernel32 | PARTITION_APP                  |
+| `SetThreadPriority`, `GetCurrentThread`                       | kernel32 | PARTITION_APP                  |
+| SRWLOCK, CONDITION_VARIABLE, Interlocked\*                    | kernel32 | PARTITION_APP                  |
+| `QueryPerformanceCounter/Frequency`                           | kernel32 | PARTITION_APP                  |
+| `_aligned_malloc` / `_aligned_free`                           | CRT      | Available                      |
 
 APIs that are **desktop-only** and require `#if WINAPI_PARTITION_DESKTOP` guards: `RegOpenKeyEx`, `RegQueryValueExA`, `SetThreadAffinityMask`, `SetThreadInformation(ThreadPowerThrottling)`, `<winevt.h>` includes.
+
+## 11. GPU Truth — EP Attribution Without PIX
+
+PIX for Xbox is GDK tooling gated behind the managed partner program; it is **not available for Dev Mode UWP**. GPU-vs-CPU execution truth is instead established by converging three surfaces (all verified against primary sources, ORT GenAI 0.13.2 / ORT 1.24.4):
+
+1. **ORT profiling JSON (primary, definitive)**. `genai_config.json` → `session_options` accepts `enable_profiling` (a string: the profile file _path prefix_, producing `<prefix>_<timestamp>.json`) and `log_severity_level` (0 = VERBOSE). Every `<node>_kernel_time` event in the trace carries `args.provider` — literally `"DmlExecutionProvider"` or `"CPUExecutionProvider"`. Heavy kernels (MatMul/Attention) tagged CPU = silent fallback. This works regardless of ORT build flavor and log routing. Tooling: `scripts/profile-dml-run.sh` (config swap + run + fetch) and `scripts/analyze_ort_profile.py` (per-provider summary + greppable `VERDICT:` line).
+   - _Profile location ladder_: the relative prefix resolves against the process CWD, which in AppContainer may be the read-only install root (ORT's profiler ofstream then fails silently). Step 1: the fetch script checks LocalState root **and** `models\<name>\`. Step 2: `--absolute-prefix` renders `genai_config-dml-profile.tpl.json` with an absolute LocalState path. Step 3 (definitive): `set_cwd_to_local_folder()` pins CWD to LocalState at bench startup (v0.3.2+ MSIX).
+2. **Device Portal telemetry (corroborating)**. `GET /api/resourcemanager/systemperf` exists on the Xbox device family and reports `GPUData.AvailableAdapters[]` with `EnginesUtilization[]` (0–1 per engine) and `DedicatedMemoryUsed`. System-wide, ~1 Hz — run a control pass with the CPU config to calibrate background noise. Tooling: `scripts/xbox-gpu-sample.sh`, integrated as `--gpu-sample` in the bench/profile scripts.
+3. **In-app GPU memory (corroborating)**. `IDXGIAdapter3::QueryVideoMemoryInfo(LOCAL)` is callable from the AppContainer and is _per-process_: `CurrentUsage` climbing toward the model size after `OgaCreateModel` means the weights are resident on the GPU; `Budget` is the OS-granted ceiling (~768 MB App-mode Series S — trust this value over the hard-coded constant). Implemented as `gpu_mem_info()` in `src/bridge/platform.cpp`, logged pre-load/post-load/post-decode and exported as `gpu_mem_mb,gpu_budget_mb` bench CSV columns.
+
+**Node-placement log caveat**: at `log_severity_level: 0` ORT emits "Node placements" lines from `session_state.cc`, but (a) only in full (non-minimal) ORT builds, and (b) ORT-core session logs may not route through the `OgaSetLogCallback` sink into `xllama.log`. Absence of the lines is not evidence — the profiling JSON is the primary probe.
+
+**Fallbacks if the above is inconclusive** (not implemented; documentation only):
+
+- Op inventory of the model graph (python + `onnx`, count `node.op_type` incl. `com.microsoft.*` domains) cross-referenced against the profiler's per-op CPU list to identify which ops force fallback.
+- Full-vs-minimal ORT build probe: `strings onnxruntime.dll | grep "Node placements"` on the NuGet-restored DLL (affects only the log probe, not profiling).
+- D3D12 debug layer: not viable in Dev Mode UWP (`DML_CREATE_DEVICE_FLAG_DEBUG` needs `DirectML.Debug.dll` and ORT creates the DML device internally); DXGI HRESULTs already surface through the SEH translator.

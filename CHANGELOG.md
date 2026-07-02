@@ -15,6 +15,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `bench/configs/genai_config-threads-{4,6,8}.json`: `genai_config.json` variants with `intra_op_num_threads` set for Zen 2 thread-count tuning.
 - `uwp/inference-bridge.cpp`: reads optional `bench_threads.txt` (uploaded per bench variant) to set `params.n_threads` for CSV tracking and suffix host_label (`xbox-series-s-tN`).
 
+**GPU-truth debug toolkit — DML EP attribution without PIX** (see `docs/uwp-constraints.md §11`):
+
+- `bench/configs/genai_config-dml-profile.json` (+ `.tpl.json` absolute-prefix variant): DML EP config with ORT `enable_profiling` + `log_severity_level: 0`.
+- `scripts/profile-dml-run.sh`: one profiled DML run — config swap, bench run, fetch `ort_profile_*.json` + log tail into `bench/results/profiles/<ts>/`, restore config, analyze.
+- `scripts/analyze_ort_profile.py`: per-provider kernel-time summary from the ORT profiling JSON; greppable `VERDICT: GPU | MIXED | CPU-FALLBACK` line; tolerates truncated traces.
+- `scripts/xbox-gpu-sample.sh`: WDP `systemperf` sampler (per-engine GPU utilization + VRAM used → CSV + max/mean summary); `--gpu-sample` integration in `profile-dml-run.sh` and `bench-xbox-ort.sh`.
+- `gpu_mem_info()` (`src/bridge/platform.cpp`): per-process `IDXGIAdapter3::QueryVideoMemoryInfo` (LOCAL); logged pre-load/post-load/post-decode; `dxgi.lib` linked in `uwp/xllama.vcxproj`.
+- `set_cwd_to_local_folder()`: bench mode pins CWD to LocalState so the relative ORT profiling prefix lands in a writable, WDP-fetchable location.
+- Bench CSV schema: new `gpu_mem_mb,gpu_budget_mb` columns before `host,date` (header updated in `bench.cpp`, both bench scripts, `bench/README.md`; existing `phase1-cpu.csv` rows backfilled with `0,0`); `--out FILE` flag in `bench-xbox-ort.sh` (DML runs → `bench/results/phase2-dml.csv`).
+- CI (`build-linux`): smoke step for the analyzer (fixtures in `tests/fixtures/`) and the sampler parser.
+
 **No-bundle MSIX build variant — unblocks Exp 2 validation**:
 
 - `uwp/xllama.vcxproj`: model `ItemGroup` now also conditioned on `'$(XllamaNoBundledModel)' != 'true'`.

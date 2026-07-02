@@ -11,7 +11,8 @@ Benchmark suite for xllama. Results are stored as CSV files in `results/`.
   - `decode_tok_s`: tokens/second during generation (excluding prompt)
   - `peak_ws_mb`: peak working set / RSS in MB
   - `load_ms`: model load time in milliseconds
-- **CSV schema**: `model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,host,date`
+  - `gpu_mem_mb` / `gpu_budget_mb`: per-process GPU memory CurrentUsage/Budget after model load (`QueryVideoMemoryInfo`, LOCAL segment); 0 on CPU-only runs and Linux builds
+- **CSV schema**: `model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,host,date`
 
 **Backend field values**:
 
@@ -53,6 +54,8 @@ Capture output and append a CSV row to `results/phase1-cpu.csv`.
 
 ## Results files
 
-| File                     | Phase | Backend                       | Status                                                                                                      |
-| ------------------------ | ----- | ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `results/phase1-cpu.csv` | 1     | CPU EP (Xbox Series S, Zen 2) | populated — 4 runs (2026-05-23); best `n_threads=4` at 71.4 tok/s, regression at `n_threads=8` (28.2 tok/s) |
+| File                     | Phase | Backend                        | Status                                                                                                      |
+| ------------------------ | ----- | ------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `results/phase1-cpu.csv` | 1     | CPU EP (Xbox Series S, Zen 2)  | populated — 4 runs (2026-05-23); best `n_threads=4` at 71.4 tok/s, regression at `n_threads=8` (28.2 tok/s) |
+| `results/phase2-dml.csv` | 2     | DML EP (Xbox Series S, RDNA 2) | pending — first profiled run via `scripts/profile-dml-run.sh`, bench via `bench-xbox-ort.sh --out`          |
+| `results/profiles/<ts>/` | 2     | —                              | gitignored — downloaded ORT profiling JSON + log tail per run (`profile-dml-run.sh`)                        |
