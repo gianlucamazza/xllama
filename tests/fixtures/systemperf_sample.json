@@ -1,0 +1,28 @@
+{
+  "AvailablePages": 123456,
+  "CommittedPages": 654321,
+  "CpuLoad": 42,
+  "IOOtherSpeed": 0,
+  "IOReadSpeed": 1024,
+  "IOWriteSpeed": 2048,
+  "NonPagedPoolPages": 1000,
+  "PageSize": 4096,
+  "PagedPoolPages": 2000,
+  "TotalPages": 2097152,
+  "GPUData": {
+    "AvailableAdapters": [
+      {
+        "DedicatedMemory": 805306368,
+        "DedicatedMemoryUsed": 423624704,
+        "Description": "AMD Radeon Graphics",
+        "SystemMemory": 4294967296,
+        "SystemMemoryUsed": 104857600,
+        "EnginesUtilization": [0.72, 0.05, 0.0, 0.31, 0.0]
+      }
+    ]
+  },
+  "NetworkingData": {
+    "NetworkInBytes": 0,
+    "NetworkOutBytes": 0
+  }
+}

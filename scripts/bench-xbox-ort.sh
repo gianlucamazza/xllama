@@ -4,16 +4,21 @@
 # Usage:
 #   source ~/.config/xllama/xbox-env
 #   ./scripts/bench-xbox-ort.sh <model-dir-name> [--threads N] [--runs N] [--prompt file]
+#                                [--out FILE] [--gpu-sample]
 #
 # Arguments:
 #   model-dir-name   Model directory name in LocalState/models/ (e.g. smollm2-360m-cpu-int4)
 #   --threads N      Upload genai_config-threads-N.json and tag CSV row with t<N>
 #   --runs N         Number of bench runs (default: 3, warmup run 1 is dropped)
 #   --prompt file    Path to prompt file (default: bench/prompts/standard-512.txt)
+#   --out FILE       Results CSV to append the median row to
+#                    (default: bench/results/phase1-cpu.csv; DML runs → phase2-dml.csv)
+#   --gpu-sample     Sample Device Portal GPU telemetry (xbox-gpu-sample.sh)
+#                    across the runs and print a per-engine summary at the end
 #
 # Required env: XBOX_IP, XBOX_USER, XBOX_PASS
 #
-# Output: median row appended to bench/results/phase1-cpu.csv
+# Output: median row appended to the --out CSV
 #
 # Notes:
 #   - The model must already be in LocalState\models\<name>\ on the console
@@ -29,6 +34,8 @@ MODEL_NAME="${1:-smollm2-360m-cpu-int4}"
 N_THREADS=0
 N_RUNS=3
 PROMPT_FILE=""
+OUT_CSV=""
+GPU_SAMPLE=false
 
 shift || true
 while [[ $# -gt 0 ]]; do
@@ -44,6 +51,14 @@ while [[ $# -gt 0 ]]; do
 	--prompt)
 		PROMPT_FILE="${2:?--prompt requires a file}"
 		shift 2
+		;;
+	--out)
+		OUT_CSV="${2:?--out requires a file}"
+		shift 2
+		;;
+	--gpu-sample)
+		GPU_SAMPLE=true
+		shift
 		;;
 	*)
 		echo "Unknown argument: $1" >&2
@@ -240,6 +255,14 @@ printf 'bench' >"${TMPDIR_LOCAL}/bench.flag"
 # ---------------------------------------------------------------------------
 declare -a CSV_ROWS=()
 
+SAMPLER_PID=""
+if [[ "$GPU_SAMPLE" == "true" ]]; then
+	echo "  Starting GPU sampler (systemperf)..."
+	"${SCRIPT_DIR}/xbox-gpu-sample.sh" --out "${TMPDIR_LOCAL}/gpu-sample.csv" \
+		>"${TMPDIR_LOCAL}/gpu-summary.txt" 2>&1 &
+	SAMPLER_PID=$!
+fi
+
 for ((run = 1; run <= N_RUNS; run++)); do
 	echo ""
 	echo "--- Run $run / $N_RUNS ---"
@@ -273,14 +296,25 @@ for ((run = 1; run <= N_RUNS; run++)); do
 	fi
 done
 
+if [[ -n "$SAMPLER_PID" ]]; then
+	kill -TERM "$SAMPLER_PID" 2>/dev/null || true
+	wait "$SAMPLER_PID" 2>/dev/null || true
+	if [[ -s "${TMPDIR_LOCAL}/gpu-summary.txt" ]]; then
+		echo ""
+		cat "${TMPDIR_LOCAL}/gpu-summary.txt"
+	fi
+fi
+
 # ---------------------------------------------------------------------------
-# Compute median and append to phase1-cpu.csv
+# Compute median and append to the results CSV
 # ---------------------------------------------------------------------------
 echo ""
 echo "--- Computing median ---"
-RESULT_CSV="${REPO_ROOT}/bench/results/phase1-cpu.csv"
+RESULT_CSV="${OUT_CSV:-${REPO_ROOT}/bench/results/phase1-cpu.csv}"
+CSV_HEADER="model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,host,date"
+[[ ! -f "$RESULT_CSV" ]] && printf '%s\n' "$CSV_HEADER" >"$RESULT_CSV"
 MEDIAN_TMP=$(mktemp)
-trap 'rm -f "$MEDIAN_TMP"' EXIT
+trap 'rm -f "$MEDIAN_TMP"; rm -rf "$TMPDIR_LOCAL"' EXIT
 
 if ((${#CSV_ROWS[@]} == 0)); then
 	echo "Error: no successful runs collected." >&2
@@ -290,7 +324,7 @@ elif ((${#CSV_ROWS[@]} < 2)); then
 	printf '%s\n' "${CSV_ROWS[0]}" >>"$MEDIAN_TMP"
 else
 	# Write header + rows skipping warmup (run 1 = index 0)
-	printf '%s\n' "model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,host,date" >>"$MEDIAN_TMP"
+	printf '%s\n' "$CSV_HEADER" >>"$MEDIAN_TMP"
 	for row in "${CSV_ROWS[@]:1}"; do
 		printf '%s\n' "$row" >>"$MEDIAN_TMP"
 	done
@@ -311,4 +345,4 @@ else
 fi
 
 echo ""
-echo "Done. bench/results/phase1-cpu.csv updated."
+echo "Done. ${RESULT_CSV} updated."

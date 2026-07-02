@@ -34,6 +34,15 @@ jobs:
         run: |
           shellcheck scripts/*.sh
 
+      - name: Smoke test debug tooling (profile analyzer + GPU sampler parser)
+        run: |
+          python3 scripts/analyze_ort_profile.py tests/fixtures/ort_profile_sample.json |
+            grep -q "VERDICT: MIXED"
+          python3 scripts/analyze_ort_profile.py tests/fixtures/ort_profile_truncated.json |
+            grep -q "VERDICT:"
+          ./scripts/xbox-gpu-sample.sh --parse-stdin < tests/fixtures/systemperf_sample.json |
+            grep -q "^[0-9]*,42,404,0.720"
+
       - name: Configure (with tests)
         run: cmake --preset linux-test
 
