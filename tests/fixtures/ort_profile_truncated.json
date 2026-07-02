@@ -1,0 +1,142 @@
+[
+ {
+  "cat": "Session",
+  "pid": 4242,
+  "tid": 1,
+  "dur": 812000,
+  "ts": 100,
+  "ph": "X",
+  "name": "model_loading_uri",
+  "args": {}
+ },
+ {
+  "cat": "Session",
+  "pid": 4242,
+  "tid": 1,
+  "dur": 45000,
+  "ts": 913000,
+  "ph": "X",
+  "name": "SessionRun",
+  "args": {}
+ },
+ {
+  "cat": "Node",
+  "pid": 4242,
+  "tid": 1,
+  "dur": 5200,
+  "ts": 913100,
+  "ph": "X",
+  "name": "/model/layers.0/attn/MatMul_kernel_time",
+  "args": {
+   "provider": "DmlExecutionProvider",
+   "op_name": "MatMul",
+   "node_index": "12"
+  }
+ },
+ {
+  "cat": "Node",
+  "pid": 4242,
+  "tid": 1,
+  "dur": 4800,
+  "ts": 918400,
+  "ph": "X",
+  "name": "/model/layers.0/mlp/MatMulNBits_kernel_time",
+  "args": {
+   "provider": "DmlExecutionProvider",
+   "op_name": "MatMulNBits",
+   "node_index": "18"
+  }
+ },
+ {
+  "cat": "Node",
+  "pid": 4242,
+  "tid": 1,
+  "dur": 3900,
+  "ts": 923300,
+  "ph": "X",
+  "name": "/model/layers.1/attn/GroupQueryAttention_kernel_time",
+  "args": {
+   "provider": "DmlExecutionProvider",
+   "op_name": "GroupQueryAttention",
+   "node_index": "31"
+  }
+ },
+ {
+  "cat": "Node",
+  "pid": 4242,
+  "tid": 1,
+  "dur": 150,
+  "ts": 927300,
+  "ph": "X",
+  "name": "/model/layers.0/input_norm/SimplifiedLayerNormalization_kernel_time",
+  "args": {
+   "provider": "CPUExecutionProvider",
+   "op_name": "SimplifiedLayerNormalization",
+   "node_index": "8"
+  }
+ },
+ {
+  "cat": "Node",
+  "pid": 4242,
+  "tid": 1,
+  "dur": 6100,
+  "ts": 927500,
+  "ph": "X",
+  "name": "/model/lm_head/MatMul_kernel_time",
+  "args": {
+   "provider": "CPUExecutionProvider",
+   "op_name": "MatMul",
+   "node_index": "402"
+  }
+ },
+ {
+  "cat": "Node",
+  "pid": 4242,
+  "tid": 1,
+  "dur": 90,
+  "ts": 933700,
+  "ph": "X",
+  "name": "/model/embed/Gather_kernel_time",
+  "args": {
+   "provider": "CPUExecutionProvider",
+   "op_name": "Gather",
+   "node_index": "2"
+  }
+ },
+ {
+  "cat": "Node",
+  "pid": 4242,
+  "tid": 1,
+  "dur": 30,
+  "ts": 933900,
+  "ph": "X",
+  "name": "/model/layers.0/attn/Cast_fence_before",
+  "args": {
+   "provider": "DmlExecutionProvider",
+   "op_name": "Cast"
+  }
+ },
+ {
+  "cat": "Session",
+  "pid": 4242,
+  "tid": 1,
+  "dur": 38000,
+  "ts": 960000,
+  "ph": "X",
+  "name": "SessionRun",
+  "args": {}
+ },
+ {
+  "cat": "Node",
+  "pid": 4242,
+  "tid": 1,
+  "dur": 5100,
+  "ts": 960200,
+  "ph": "X",
+  "name": "/model/layers.0/attn/MatMul_kernel_time",
+  "args": {
+   "provider": "DmlExecutionProvider",
+   "op_name": "MatMul",
+   "node_index": "12"
+  }
+ }, {"cat": "Node", "name": "/model/broken
