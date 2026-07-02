@@ -10,24 +10,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 **Bench infrastructure — ORT GenAI thread tuning** (`feat(bench): ORT GenAI bench infrastructure`):
+
 - `scripts/bench-xbox-ort.sh`: new bench orchestrator for ORT GenAI models already on device (no model upload). Supports `--threads N`, `--runs N`, `--prompt file`. Appends median row to `bench/results/phase1-cpu.csv`. Drops warmup run automatically.
 - `bench/configs/genai_config-threads-{4,6,8}.json`: `genai_config.json` variants with `intra_op_num_threads` set for Zen 2 thread-count tuning.
 - `uwp/inference-bridge.cpp`: reads optional `bench_threads.txt` (uploaded per bench variant) to set `params.n_threads` for CSV tracking and suffix host_label (`xbox-series-s-tN`).
 
+**No-bundle MSIX build variant — unblocks Exp 2 validation**:
+
+- `uwp/xllama.vcxproj`: model `ItemGroup` now also conditioned on `'$(XllamaNoBundledModel)' != 'true'`.
+- `scripts/build-uwp.ps1 -NoBundledModel`: builds an MSIX without the bundled SmolLM2 model, so `EnsureModelAsync` reaches the USB/HF-download fallbacks on console.
+- `.github/workflows/build-uwp.yml`: matrix `variant: [bundled, nobundle]`; the `nobundle` job skips model download/merge and uploads artifact `xllama-appx-nobundle`.
+
 ### Fixed
 
 - `src/bridge/bench.cpp`: backend label was `"directml"` even on CPU EP → corrected to `"ort-genai-cpu"`; quant `"int4-awq"` → `"int4"`.
+- `src/bridge/inference.cpp` (ORT path): `load_ms` was always 0 in the bench CSV — `run_inference` never measured model load. Now times `OgaCreateModel` wall-clock and logs `ORT model loaded in N ms`.
+- Docs drift: `bench/README.md` results table said "pending" for the populated `phase1-cpu.csv`; `bench/README.md` + `docs/phase1-runbook.md` still documented the old `directml` backend label.
 
 ### Measured — Phase 1 bench results (Xbox Series S Zen 2, 2026-05-23)
 
 SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 
-| n_threads | decode tok/s | peak RAM MB | notes |
-|-----------|-------------|-------------|-------|
-| auto (ORT default) | 66.9 | 704 | baseline, no `intra_op_num_threads` |
-| 4 (explicit) | **71.4** | 771 | **best** |
-| 6 (explicit) | 68.0 | 772 | |
-| 8 (explicit) | 28.2 | 771 | severe regression — memory bandwidth saturation |
+| n_threads          | decode tok/s | peak RAM MB | notes                                           |
+| ------------------ | ------------ | ----------- | ----------------------------------------------- |
+| auto (ORT default) | 66.9         | 704         | baseline, no `intra_op_num_threads`             |
+| 4 (explicit)       | **71.4**     | 771         | **best**                                        |
+| 6 (explicit)       | 68.0         | 772         |                                                 |
+| 8 (explicit)       | 28.2         | 771         | severe regression — memory bandwidth saturation |
 
 **Recommendation**: use `intra_op_num_threads: 4` in `genai_config.json` for SmolLM2-360M on Zen 2.
 
@@ -36,7 +45,12 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 - DML `genai_config.json` (provider: dml, `enable_cpu_mem_arena=0`, `enable_mem_pattern=0`) loads without SEH 0xC0000005 on SmolLM2-360M INT4.
 - Performance: 71.7 tok/s — indistinguishable from CPU baseline.
 - Conclusion: SmolLM2-360M INT4 (~200 MB ONNX) likely fits within the 768 MB UWP GPU pool. Cannot confirm GPU execution vs CPU fallback without D3D profiling tools. Phase 2 "blocked" status revised: **360M model fits; larger models still blocked**.
-- Exp 2 (HF in-app download): unreachable with current bundled MSIX. `EnsureModelAsync` checks InstalledPath before HF download; model is always found there. Requires a separate build without bundled model to validate.
+- Exp 2 (HF in-app download): unreachable with current bundled MSIX. `EnsureModelAsync` checks InstalledPath before HF download; model is always found there. Requires a separate build without bundled model to validate — now available via `build-uwp.ps1 -NoBundledModel` / CI artifact `xllama-appx-nobundle`.
+
+### Investigated — model candidates via HF Hub file sizes (2026-07-02)
+
+- Qwen2.5-0.5B INT4 CPU: ~822 MB `model.onnx.data` (rtn-block-32) — the ~200 MB estimate was wrong (151k-vocab embedding not INT4-quantized). Ruled out for disk and GPU pool. DML int4-awq variant ~507 MB: borderline GPU-pool fit, possible DML retry via USB.
+- Llama-3.2-1B INT4 CPU: ~1.77 GB — USB-only, same class as SmolLM2-1.7B. Details in `docs/model-selection.md`.
 
 ---
 
@@ -45,16 +59,19 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 ### Added
 
 **Settings dialog — sampling parameters** (`feat(uwp): Settings dialog — sampling params`):
+
 - `ShowSettings` now exposes `temperature` (Slider 0–2, default 0.8), `top_p` (Slider 0–1, default 0.9), `top_k` (NumberBox 1–200, default 40), `repetition_penalty` (Slider 1–2, default 1.1), and `n_predict` (NumberBox 16–2048, default 512).
 - New `MainPageController` members `m_temperature`, `m_top_p`, `m_top_k`, `m_repetition_penalty`, `m_n_predict` wired into `StartInference` → `GenerateParams`.
 - `settings.json` schema extended with a nested `"sampling"` object; back-compat preserved for existing 0.2.x files.
 
 **Settings dialog — model selection ComboBox** (`feat(uwp): Settings dialog — model selection ComboBox`):
+
 - ComboBox with three entries: SmolLM2-360M (bundled MSIX), SmolLM2-1.7B (USB `E:\xllama\models\`), SmolLM2-360M (HF download in `LocalState`).
 - Selected model persisted to `settings.json`; `EnsureSession` detects model change at next `StartInference` and rebuilds transparently.
 - `LoadModelName` now reads `m_model_filename` from `settings.json`; falls back to `LocalState/model.txt` for 0.2.x installations.
 
 **History dialog enhancements** (`feat(uwp): History dialog — delete, clear all, timestamps`):
+
 - Per-item ✕ Delete button: click closes the dialog and opens a confirmation ContentDialog; on confirm calls `ChatHistory::Delete(id)`. If deleted entry was the active conversation, `NewChat()` is called.
 - Clear all (Secondary button): confirmation ContentDialog → `ChatHistory::Clear()` → `NewChat()`.
 - Current conversation indicator: ● prefix on the active history entry.
@@ -63,10 +80,12 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 - Empty-state ContentDialog with placeholder TextBlock instead of silent no-op.
 
 **ChatHistory::Delete / Clear** (`feat(uwp/chat-history): add Delete and Clear methods`):
+
 - `Delete(id)` removes `<id>.json` from `LocalState/chats/` and updates the in-memory index + `index.json`.
 - `Clear()` removes all conversation files and writes an empty `index.json`.
 
 **Tests** (`test: add ChatHistory helpers and TitleFrom smoke tests`):
+
 - `tests/test_chat_history.cpp`: Linux CI tests exercise `TitleFrom` logic (truncation, newline stop, empty fallback). UWP `#ifdef` branch tests `Save`/`Load` roundtrip, `Delete`, and `Clear` with a temp directory.
 
 ### Fixed
@@ -86,10 +105,12 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 ## [0.2.1] — 2026-05-23
 
 ### Added
+
 - ChatML stop sequence `<|im_end|>` in UI inference path (`uwp/MainPage.cpp`). SmolLM2-360M does not always emit EOS naturally; without this the model would continue generating filler or hallucinate the next user turn up to `n_predict=512`. Bench path unchanged.
 - `tests/test_session.cpp`: smoke tests for `Session::create` error paths (non-existent path, empty path) — covers the Linux/llama.cpp path in CI.
 
 ### Fixed
+
 - `CHANGELOG.md` 0.2.0 section: collapsed duplicate `### Added` blocks; removed stale empty `[Unreleased]` header.
 
 ---
@@ -99,15 +120,18 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 ### Added
 
 **Persistent inference session** (`feat(uwp): integrate xllama::Session into MainPage`):
+
 - `MainPageController` now keeps an `xllama::Session` alive across chat turns; subsequent turns skip model reload entirely (~1–2 s overhead eliminated after first turn).
 - `EnsureSession()` private helper: lazy-build on first turn, transparent rebuild on model change (Settings), free-then-alloc to avoid 2× RAM during transitions.
 - Bench mode (`inference-bridge.cpp`) unchanged — continues to call `run_inference()` for cold-load measurement.
 
 **Bench diagnostics** (`bench(inference): log prompt token count + bump bench n_predict`):
+
 - `inference.cpp`: logs `[xllama] prompt=N tok, max_length=M (new≤K)` after tokenisation — makes `n` in bench CSV self-explanatory.
 - `inference-bridge.cpp`: bench `n_predict` raised `128 → 512` (effective `max_length` 640 → 1024 total tokens); gives SmolLM2-360M room to show natural generation length while 1.7B still exits at EOS.
 
 **Multi-turn Session API** (`include/xllama/session.h`, `src/bridge/session.cpp`):
+
 - `xllama::Session::create(SessionParams)` — loads model + tokenizer once; subsequent `generate(GenerateParams)` calls reuse them, eliminating the ~1-2s per-call reload overhead of `run_inference()`.
 - `GenerateParams` exposes `top_p`, `top_k`, `repetition_penalty`, `seed`, `stop_sequences` (substring-checked against accumulated output; matching sequence stripped on hit).
 - Implemented for both UWP (ORT GenAI: `OrtSession` keeps `OgaModel` + `OgaTokenizer` alive) and Linux (llama.cpp: `LlamaSession` keeps `llama_model` alive; `llama_context` rebuilt per call to respect context parameters).
@@ -115,6 +139,7 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 - Consumer: `xbox_faraday` game (FARADAY) for per-turn dialogue generation.
 
 **Workaround experiments for Xbox UWP constraints** (see `docs/uwp-constraints.md §7, §9`):
+
 - `uwp/model-downloader.cpp/h`: in-app Hugging Face download via `HttpClient` chunked streaming (Exp 2). `EnsureModelAsync()` in `MainPage` implements a three-step bootstrap: LocalState `.complete` marker → InstalledPath bundle → HF download. Reduces peak disk usage from ~1.4 GB to ~480 MB; frees ~900 MB on Dev Mode partition Q:\ enabling models up to ~1 GB. `internetClient` capability already present in manifest.
 - `src/bridge/path_utils.cpp`: third fallback `E:\xllama\models\<name>` for NTFS USB stick (Exp 3). No UWP capability required; probe via `GetFileAttributesW`. Enables models up to 2 GB single-file (Xbox Dev Mode USB limit). Zero cost if USB absent.
 - `scripts/test-dml-config.sh`: uploads DML provider_options config to Xbox via Device Portal without MSIX rebuild (Exp 1). Backs up original `genai_config.json`; `--restore` reverts.
@@ -125,6 +150,7 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 - `docs/uwp-constraints.md §5`: split GPU OOM and disk-budget failure modes into separate tables (previously mixed under a single "Result" column).
 
 **UX improvements** (commits `3a12bda`–`42741e1`):
+
 - Multi-turn chat: `uwp/chat-history.cpp/h`, conversation persistence in `LocalState/chats/` (JSON, indexed by timestamp), history browser overlay, new-chat button.
 - System prompt editable via settings overlay (persisted to `LocalState/settings.json`).
 - Live metrics: real-time tok/s updated every flush cycle; `StatusKind` enum (`Info`, `Working`, `Success`, `Error`) for colour-coded status bar.
@@ -134,6 +160,7 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 - ChatML prompt template applied for SmolLM2-360M-Instruct (system / user / assistant turns).
 
 **Documentation:**
+
 - `README.md`: "About the name" section — disambiguates xllama from llama.cpp engine.
 - Full docs realignment: `README.md`, `ROADMAP.md`, `AGENTS.md`, `docs/phase1-runbook.md`, `docs/uwp-constraints.md`, `docs/device-portal.md`, `patches/README.md` all updated to reflect ORT GenAI CPU EP as the active path.
 - `docs/windows-dev-vm.md` (new): end-to-end Windows VM build guide.
@@ -143,18 +170,22 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 - `ROADMAP.md`: Phase 4 milestones updated — `ModelDownloader` (Exp 2) and USB fallback (Exp 3) marked done; next: validate Exp 2 on console, remove MSIX model bundle.
 
 **CI:**
+
 - `build-uwp` CI step: downloads model from HF (`homen3/SmolLM2-360M-Instruct-ort-genai-int4-cpu`), merges ONNX external data, then `nuget restore` + `build-uwp.ps1`. Cache key: `smollm2-360m-ort-genai-int4-cpu-embedded-v1`.
 
 ### Changed
+
 - ORT GenAI bumped `0.8.3 → 0.13.2`, ORT `1.22.0 → 1.24.4` (`uwp/packages.config`).
 - `bench.cpp`: backend field = `directml` when `XLLAMA_USE_ORT` (define-time; CPU EP is active runtime on Series S).
 - `uwp/pch.h`: added `Windows.Web.Http`, `Windows.Web.Http.Filters` for model downloader.
 - `ROADMAP.md Phase 2`: corrected GPU pool description to observed-behaviour framing.
 
 ### Removed
+
 - `uwp/llama-bridge.cpp`, `uwp/llama-bridge.h`: legacy files not compiled since ORT GenAI pivot.
 
 ### Fixed
+
 - `fix(bridge): OrtModelPtr → OgaModelPtr` typo in `OrtSession` UWP build (MSVC `C2065`; GCC/clang skip the `XLLAMA_USE_ORT` block on Linux).
 - ASCII-safe status strings: removed em-dash and ellipsis Unicode literals that caused MSVC `C4566` warnings.
 - `XYFocusKeyboardNavigationMode` removed from `MainPage.cpp` (unresolvable symbol in MSVC UWP context).
@@ -165,15 +196,18 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 ## [Pivot: SmolLM2-360M + CPU EP] — commit `14e6a14`
 
 ### Added
+
 - SmolLM2-360M-Instruct INT4 CPU as the bundled model (403 MB on-disk, ONNX opset 21, IR version 10).
 - Model included as `DeploymentContent` in `uwp/xllama.vcxproj`; deployed to `Package.InstalledPath\models\smollm2-360m-cpu-int4\`.
 - `resolve_model_path` (`src/bridge/path_utils.cpp`): checks `LocalState\models\<name>` first (runtime override), falls back to `Package.InstalledPath\models\<name>` with copy-on-first-launch to LocalState.
 
 ### Changed
+
 - Default model in `uwp/inference-bridge.cpp` and `uwp/MainPage.cpp` changed from Phi-3.5 to `smollm2-360m-cpu-int4`.
 - `genai_config.json` uses `"provider_options": []` → CPU EP active (no DirectML).
 
 ### Notes
+
 - **GPU EP ruled out**: Xbox Series S UWP GPU pool is ~768 MB. `OgaCreateModel` with DirectML EP on any tested model (Phi-3.5-mini GPU INT4 ~2.2 GB, SmolLM2-1.7B ~1.4 GB) crashes with null-deref in DML allocator on OOM. See `docs/uwp-constraints.md §7`.
 
 ---
@@ -181,6 +215,7 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 ## [Pivot: ONNX Runtime GenAI + DirectML] — commit `385cb07`
 
 ### Added
+
 - `XLLAMA_USE_ORT=1` preprocessor flag in `uwp/xllama.vcxproj`; enables ORT GenAI path in `src/bridge/inference.cpp`.
 - `include/xllama/ort_raii.h`: RAII `unique_ptr` wrappers for `OgaModel`, `OgaTokenizer`, `OgaTokenizerStream`, `OgaGeneratorParams`, `OgaGenerator`, `OgaSequences`.
 - `uwp/inference-bridge.cpp` / `inference-bridge.h`: replaces `llama-bridge.cpp`; thin UWP glue around `xllama::bridge::run_inference`.
@@ -188,11 +223,13 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 - `src/bridge/platform.cpp`: `log_output` now writes to `LocalState/xllama.log` in UWP (previously `OutputDebugStringA` only).
 
 ### Changed
+
 - `src/bridge/inference.cpp`: `#ifdef XLLAMA_USE_ORT` path uses `OgaGenerator` loop; `#else` path retains `llama_decode` for Linux.
 - Linux CI (`build-linux.yml`): `submodules: false` for UWP; llama.cpp submodule only for Linux.
 - `deploy.sh`: `upload-file` auto-creates subdirectory; new subcommands `mkdir-localstate`, `upload-dir`.
 
 ### Notes
+
 - llama.cpp submodule retained for Linux path (`CMakeLists.txt`). Three UWP patches (`uwp/patches/llama.cpp/`) kept but not applied for this build.
 
 ---
@@ -200,14 +237,17 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 ## [Pivot: XAML-free UI] — commits `77a651a`, `3f7a950`, `385cb07`
 
 ### Removed
+
 - `App.xaml`, `MainPage.xaml`, `XamlTypeInfo_impl.cpp`: eliminated to avoid WMC9999 (`XamlC.exe` crash during `MarkupCompilePass2` in SDK 22621/26100 for C++/WinRT projects).
 - `runtimeclass MainPage` from IDL: `MainPageController` is now a plain C++ class.
 
 ### Added
+
 - `MainPageController` (`uwp/MainPage.cpp`): programmatic UI built via `Windows.UI.Xaml.Controls.*` API. Uses `enable_shared_from_this`; `shared_from_this()` must not be called from the constructor — use `Init()` post-construction.
 - `runtimeclass App` retained (required by `Application::Start`).
 
 ### Notes
+
 - Root cause of WMC9999: without MarkupCompilePass2, `XamlTypeInfoProvider::CreateXamlType` cannot provide correct metadata for `xllama.MainPage`; parser fast-fails when `LoadComponent` tries to validate the binding. No workaround existed; XAML-free was the correct fix.
 
 ---
@@ -215,6 +255,7 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 ## [Baseline: llama.cpp + Linux CI] — initial commits
 
 ### Added
+
 - Linux build via CMake presets (`linux-release`, `linux-test`).
 - Modular bridge: `src/bridge/inference.cpp`, `bench.cpp`, `platform.cpp`, `path_utils.cpp`, `utf8_utils.cpp`, `cli.cpp`.
 - Shared headers under `include/xllama/` (inference, CLI, RAII, platform, path utils).

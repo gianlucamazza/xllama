@@ -14,7 +14,8 @@ Benchmark suite for xllama. Results are stored as CSV files in `results/`.
 - **CSV schema**: `model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,host,date`
 
 **Backend field values**:
-- `directml`: UWP build (`XLLAMA_USE_ORT` defined). Note: this is the compile-time label; the runtime execution provider on Xbox Series S is CPU EP (see `docs/uwp-constraints.md §5`).
+
+- `ort-genai-cpu`: UWP build (`XLLAMA_USE_ORT` defined). Compile-time label; the runtime execution provider on Xbox Series S is CPU EP (see `docs/uwp-constraints.md §5`).
 - `cpu`: Linux build (llama.cpp path).
 
 ## Running benchmarks
@@ -45,13 +46,13 @@ Capture output and append a CSV row to `results/phase1-cpu.csv`.
 
 ## Prompts
 
-| File | Tokens (approx) | Purpose |
-|------|-----------------|---------|
-| `prompts/standard-512.txt` | ~512 | General-purpose decode benchmark |
-| `prompts/short-32.txt`     | ~32  | Prompt-processing throughput |
+| File                       | Tokens (approx) | Purpose                          |
+| -------------------------- | --------------- | -------------------------------- |
+| `prompts/standard-512.txt` | ~512            | General-purpose decode benchmark |
+| `prompts/short-32.txt`     | ~32             | Prompt-processing throughput     |
 
 ## Results files
 
-| File | Phase | Backend | Status |
-|------|-------|---------|--------|
-| `results/phase1-cpu.csv` | 1 | CPU EP (Xbox Series S, Zen 2) | pending — no data yet |
+| File                     | Phase | Backend                       | Status                                                                                                      |
+| ------------------------ | ----- | ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `results/phase1-cpu.csv` | 1     | CPU EP (Xbox Series S, Zen 2) | populated — 4 runs (2026-05-23); best `n_threads=4` at 71.4 tok/s, regression at `n_threads=8` (28.2 tok/s) |

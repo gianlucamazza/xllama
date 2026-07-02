@@ -20,11 +20,13 @@ For local UWP builds from an Arch workstation, use the Windows VM workflow in
 
 Push to `main`; the `build-uwp` workflow runs on `windows-2022` automatically.
 Download the `xllama-appx` artifact from the Actions run. It contains:
+
 - `xllama_*.msix`
 - `Dependencies/x64/*.appx` (framework dependencies)
 - `uwp/xllama-test.cer`
 
 **Option B — Local Windows VM:**
+
 ```powershell
 .\scripts\build-uwp.ps1 -Configuration Release -Platform x64
 # Output: uwp\AppPackages\xllama\xllama_*.msix
@@ -59,6 +61,7 @@ PFN=$(./scripts/deploy.sh pfn)
 ```
 
 Expected sequence:
+
 ```
 HH:MM:SS.mmm [xllama] App::App()
 HH:MM:SS.mmm [xllama] App::OnLaunched
@@ -78,6 +81,7 @@ The default bundled model is `smollm2-360m-cpu-int4`. Three alternatives are ava
 
 **Option A — Settings ComboBox (v0.3.0+, recommended):**
 Open the ⚙ Settings dialog inside the app. The Model ComboBox exposes:
+
 - SmolLM2-360M (bundled MSIX)
 - SmolLM2-1.7B (USB `E:\xllama\models\`)
 - SmolLM2-360M (HF download in LocalState)
@@ -88,6 +92,7 @@ The selection is persisted to `LocalState/settings.json` and takes effect on the
 Place the ONNX GenAI directory on a NTFS USB stick under `E:\xllama\models\<model-name>\`. `resolve_model_path` probes `E:\` automatically when LocalState and InstalledPath entries are absent.
 
 **Option C — Device Portal upload (dev/scripted use):**
+
 1. Build the model as an ONNX GenAI directory and merge external data:
    ```bash
    python3 scripts/merge_onnx_external_data.py <model_dir>
@@ -117,6 +122,7 @@ source ~/.config/xllama/xbox-env
 ```
 
 Each invocation:
+
 1. Writes the model name to `LocalState/model.txt`
 2. Uploads `bench/prompts/standard-512.txt` to `LocalState/prompt.txt`
 3. Writes `bench.flag` to trigger bench mode on next launch
@@ -158,30 +164,31 @@ tail -n +2 /tmp/bench-result.csv >> bench/results/phase1-cpu.csv
 
 Expected ranges (Xbox Series S, Zen 2 CPU, CPU EP, SmolLM2-360M INT4):
 
-| Model | Quant | Backend | Expected decode tok/s |
-|-------|-------|---------|----------------------|
-| SmolLM2-360M | INT4 CPU | CPU EP (ORT GenAI) | 60–73 |
+| Model        | Quant    | Backend            | Expected decode tok/s |
+| ------------ | -------- | ------------------ | --------------------- |
+| SmolLM2-360M | INT4 CPU | CPU EP (ORT GenAI) | 60–73                 |
 
-The `backend` field in the CSV will be `directml` (compile-time flag), even though the runtime execution provider is CPU. This is a known labelling quirk — `XLLAMA_USE_ORT` drives the field, not the runtime EP.
+The `backend` field in the CSV will be `ort-genai-cpu` (compile-time label driven by `XLLAMA_USE_ORT`). The runtime execution provider on Xbox is CPU EP, matching the label.
 
 Load time is ~1–2 s (model is small; no mmap needed).
 
 ## 7b. Xbox Device Portal API quirks
 
-| Topic | Desktop WDP | Xbox WDP |
-|---|---|---|
-| Auth method | HTTP Digest | **HTTP Basic** (`--basic`) |
-| Install URL | `/api/app/packagemanager/package` | `/api/app/packagemanager/package?package=<filename>` |
-| Install cert | n/a | `POST /api/app/packagemanager/certificate?package=<certname>` |
-| Signing | Optional | **Required** — `0x800B0100` if absent |
-| File download param | `path=\\<file>` | `path=\\LocalState&filename=<name>` (lowercase `filename`) |
-| File upload path | `path=\\<dir>` | `path=\\LocalState[\\subdir]` |
+| Topic               | Desktop WDP                       | Xbox WDP                                                      |
+| ------------------- | --------------------------------- | ------------------------------------------------------------- |
+| Auth method         | HTTP Digest                       | **HTTP Basic** (`--basic`)                                    |
+| Install URL         | `/api/app/packagemanager/package` | `/api/app/packagemanager/package?package=<filename>`          |
+| Install cert        | n/a                               | `POST /api/app/packagemanager/certificate?package=<certname>` |
+| Signing             | Optional                          | **Required** — `0x800B0100` if absent                         |
+| File download param | `path=\\<file>`                   | `path=\\LocalState&filename=<name>` (lowercase `filename`)    |
+| File upload path    | `path=\\<dir>`                    | `path=\\LocalState[\\subdir]`                                 |
 
 ## 8. Troubleshooting
 
 **App crashes at startup**: check `xllama.log` via `./scripts/deploy.sh get-log` or Device Portal File Explorer.
 
 **`OgaCreateModel failed`**: ORT GenAI could not load the model. Common causes:
+
 - Model directory not found: verify `LocalState\models\smollm2-360m-cpu-int4\genai_config.json` exists.
 - External data not merged: ensure the MSIX was built with `merge_onnx_external_data.py` applied. The CI does this automatically.
 - `weakly_canonical: Access is denied`: same root cause as above — external data file present in the model directory triggers the AppContainer path bug. Re-merge and redeploy.
@@ -203,6 +210,7 @@ Load time is ~1–2 s (model is small; no mmap needed).
 Startup log at `LocalState/xllama.log` (UTC timestamps, append mode).
 
 Fetch:
+
 ```bash
 source ~/.config/xllama/xbox-env
 ./scripts/deploy.sh get-log
@@ -211,6 +219,7 @@ source ~/.config/xllama/xbox-env
 ### WDP crash dump (minidump)
 
 If the process terminates without a log entry:
+
 ```bash
 source ~/.config/xllama/xbox-env
 
