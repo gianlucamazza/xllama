@@ -244,8 +244,10 @@
   <!-- SmolLM2-360M-Instruct INT4 CPU model bundled in MSIX (403 MB on-disk).
        Files land in Package.InstalledPath\models\smollm2-360m-cpu-int4\
        which is the fallback path in resolve_model_path() when LocalState has no model.
-       Condition guards local builds where the model hasn't been generated yet. -->
-  <ItemGroup Condition="Exists('..\models\smollm2-360m-cpu-int4')">
+       Exists() guards local builds where the model hasn't been generated yet.
+       XllamaNoBundledModel=true (build-uwp.ps1 -NoBundledModel) excludes the bundle
+       so EnsureModelAsync reaches the USB/HF-download fallbacks (Exp 2 validation). -->
+  <ItemGroup Condition="Exists('..\models\smollm2-360m-cpu-int4') And '$(XllamaNoBundledModel)' != 'true'">
     <None Include="..\models\smollm2-360m-cpu-int4\*">
       <DeploymentContent>true</DeploymentContent>
       <TargetPath>models\smollm2-360m-cpu-int4\%(Filename)%(Extension)</TargetPath>

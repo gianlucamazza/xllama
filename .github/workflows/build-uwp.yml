@@ -9,6 +9,13 @@ jobs:
     # Pin to windows-2022: has VS2022 (v143) + UWP workload pre-installed.
     # windows-latest is transitioning to windows-2025-vs2026 which lacks UWP.
     runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        # bundled: MSIX with SmolLM2 model in InstalledPath (default artifact).
+        # nobundle: MSIX without the model — EnsureModelAsync must reach the
+        # USB/HF-download fallbacks; used to validate Exp 2 on console.
+        variant: [bundled, nobundle]
     steps:
       - uses: actions/checkout@v6
         with:
@@ -17,6 +24,7 @@ jobs:
           fetch-depth: 1
 
       - name: Cache SmolLM2-360M ONNX INT4 model (embedded)
+        if: matrix.variant == 'bundled'
         id: cache-model
         uses: actions/cache@v4
         with:
@@ -24,7 +32,7 @@ jobs:
           key: smollm2-360m-ort-genai-int4-cpu-embedded-v1
 
       - name: Download SmolLM2-360M ONNX INT4 model
-        if: steps.cache-model.outputs.cache-hit != 'true'
+        if: matrix.variant == 'bundled' && steps.cache-model.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           python -m pip install --quiet huggingface_hub
@@ -35,7 +43,7 @@ jobs:
         # from the root. On Xbox AppContainer the intermediate Q:\Users\UserMgr0 segment is
         # inaccessible, causing "Access is denied". Merging model.onnx.data into model.onnx
         # makes the model self-contained so ValidateExternalDataPath is never called.
-        if: steps.cache-model.outputs.cache-hit != 'true'
+        if: matrix.variant == 'bundled' && steps.cache-model.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           python -m pip install --quiet onnx
@@ -48,12 +56,14 @@ jobs:
 
       - name: Build UWP package
         shell: pwsh
-        run: ./scripts/build-uwp.ps1 -Configuration Release -Platform x64
+        # -NoBundledModel also belts-and-braces the nobundle variant: even if a
+        # cached model directory existed, the MSBuild property excludes it.
+        run: ./scripts/build-uwp.ps1 -Configuration Release -Platform x64 -NoBundledModel:$('${{ matrix.variant }}' -eq 'nobundle')
 
       - uses: actions/upload-artifact@v7
         if: success()
         with:
-          name: xllama-appx
+          name: xllama-appx${{ matrix.variant == 'nobundle' && '-nobundle' || '' }}
           # Include .msix (main package), .appx (VCLibs deps), and .cer
           # (public key of the test certificate that must be trusted on the
           # Xbox before deploying — installed via Device Portal API).

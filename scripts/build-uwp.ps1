@@ -14,15 +14,22 @@
 .PARAMETER Platform
     Target platform. Default: x64
 
+.PARAMETER NoBundledModel
+    Exclude the bundled SmolLM2 model from the MSIX (sets MSBuild property
+    XllamaNoBundledModel=true). Produces a small package where EnsureModelAsync
+    must fall back to USB or HF download — used to validate Exp 2 on console.
+
 .EXAMPLE
     ./scripts/build-uwp.ps1
     ./scripts/build-uwp.ps1 -Configuration Debug -Platform x64
+    ./scripts/build-uwp.ps1 -NoBundledModel
 #>
 
 param(
-    [string]$Configuration = "Release",
-    [string]$Platform      = "x64",
-    [switch]$ForceNewCert  = $false
+    [string]$Configuration  = "Release",
+    [string]$Platform       = "x64",
+    [switch]$ForceNewCert   = $false,
+    [switch]$NoBundledModel = $false
 )
 
 $ErrorActionPreference = "Stop"
@@ -130,21 +137,31 @@ Write-Host "Restoring NuGet packages ..."
 nuget restore $SlnPath
 
 Write-Host "Building $Configuration|$Platform ..."
+if ($NoBundledModel) {
+    Write-Host "Bundled model EXCLUDED from MSIX (XllamaNoBundledModel=true)"
+}
 
 # ---------------------------------------------------------------------------
 # Build + sign
 # ---------------------------------------------------------------------------
+$MsBuildArgs = @(
+    $SlnPath,
+    "/p:Configuration=$Configuration",
+    "/p:Platform=$Platform",
+    "/p:AppxPackageSigningEnabled=true",
+    "/p:PackageCertificateKeyFile=$PfxPath",
+    "/p:PackageCertificatePassword=$CertPwd",
+    "/p:PackageCertificateThumbprint=$($cert.Thumbprint)",
+    "/m",
+    "/nologo"
+)
+if ($NoBundledModel) {
+    $MsBuildArgs += "/p:XllamaNoBundledModel=true"
+}
+
 $buildExitCode = 0
 try {
-    & $MsBuild $SlnPath `
-        /p:Configuration=$Configuration `
-        /p:Platform=$Platform `
-        /p:AppxPackageSigningEnabled=true `
-        /p:PackageCertificateKeyFile="$PfxPath" `
-        /p:PackageCertificatePassword="$CertPwd" `
-        /p:PackageCertificateThumbprint="$($cert.Thumbprint)" `
-        /m `
-        /nologo
+    & $MsBuild @MsBuildArgs
     $buildExitCode = $LASTEXITCODE
 } finally {
 }
