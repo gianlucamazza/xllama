@@ -98,6 +98,16 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     bool m_kv_valid{false};
     bool m_kv_last_ended_with_stop{false};
 
+    // Per-conversation CPU/GPU routing (Stage 3). The GPU (DML fp16) EP wins the
+    // prefill of long prompts; the CPU EP wins decode. Routing is decided at a
+    // conversation's first turn and sticky for its lifetime (the KV cache is
+    // per-EP). m_routing: 0 = CPU only (default = current behaviour), 1 = GPU
+    // only, 2 = auto (route by first-prompt length). m_active_model holds the
+    // routed model dir for the current conversation.
+    int m_routing{0};
+    std::string m_gpu_model{"smollm2-360m-dml-fp16"};
+    std::wstring m_active_model;
+
     // Token streaming state (written from bg thread, flushed on UI thread via timer)
     std::mutex m_token_mutex;
     std::string m_token_buffer;

@@ -506,6 +506,7 @@ void MainPageController::NewChat() {
         return;                // don't allow while running
     SaveCurrentConversation(); // save current (no-op if empty)
     m_kv_valid = false;        // new conversation → discard reused KV
+    m_active_model.clear();    // re-decide EP routing for the new conversation
     m_current = xllama::ui::Conversation{};
     m_current.id = xllama::ui::ChatHistory::NewId();
     m_outputBody.Blocks().Clear();
@@ -546,7 +547,8 @@ void MainPageController::RenderConversation() {
 
 void MainPageController::LoadConversation(const std::string& id) {
     SaveCurrentConversation();
-    m_kv_valid = false; // switching conversations → the reused KV no longer applies
+    m_kv_valid = false;     // switching conversations → the reused KV no longer applies
+    m_active_model.clear(); // re-decide EP routing for the loaded conversation
     m_current = m_history.Load(id);
     if (m_current.id.empty()) {
         m_current.id = id;
@@ -819,6 +821,17 @@ void MainPageController::LoadSettings() {
         } else if (key == "kv_reuse") {
             std::string v = settings_read_token(json, pos);
             m_kv_reuse = (v == "true" || v == "1");
+        } else if (key == "routing") {
+            std::string v = settings_read_token(json, pos);
+            if (!v.empty())
+                m_routing = std::stoi(v);
+        } else if (key == "gpu_model") {
+            if (pos < json.size() && json[pos] == '"') {
+                ++pos;
+                std::string g = settings_read_string(json, pos);
+                if (!g.empty())
+                    m_gpu_model = g;
+            }
         } else if (key == "sampling") {
             // Parse nested object {"temperature":0.8, ...}
             if (pos < json.size() && json[pos] == '{') {
@@ -889,6 +902,8 @@ void MainPageController::SaveSettings() {
             "  \"system_prompt\": \"%s\",\n"
             "  \"model\": \"%s\",\n"
             "  \"kv_reuse\": %s,\n"
+            "  \"routing\": %d,\n"
+            "  \"gpu_model\": \"%s\",\n"
             "  \"sampling\": {\n"
             "    \"temperature\": %.2f,\n"
             "    \"top_p\": %.2f,\n"
@@ -898,9 +913,9 @@ void MainPageController::SaveSettings() {
             "  }\n"
             "}\n",
             settings_json_escape(m_system_prompt).c_str(), settings_json_escape(model_utf8).c_str(),
-            m_kv_reuse ? "true" : "false", static_cast<double>(m_temperature),
-            static_cast<double>(m_top_p), m_top_k, static_cast<double>(m_repetition_penalty),
-            m_n_predict);
+            m_kv_reuse ? "true" : "false", m_routing, settings_json_escape(m_gpu_model).c_str(),
+            static_cast<double>(m_temperature), static_cast<double>(m_top_p), m_top_k,
+            static_cast<double>(m_repetition_penalty), m_n_predict);
     fclose(f);
     // Any settings change (system prompt, model, sampling) invalidates the KV
     // cache bound to the old settings — force a fresh generator next turn.
@@ -971,6 +986,16 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     kvToggle.OffContent(winrt::box_value(L"Off"));
     kvToggle.IsOn(m_kv_reuse);
 
+    // --- EP routing ComboBox (experimental; needs the DML fp16 model on device) ---
+    winrt::Windows::UI::Xaml::Controls::ComboBox routingBox;
+    routingBox.Header(winrt::box_value(L"EP routing (per conversation)"));
+    routingBox.FontSize(16);
+    routingBox.HorizontalAlignment(HorizontalAlignment::Stretch);
+    routingBox.Items().Append(winrt::box_value(L"CPU only (default)"));
+    routingBox.Items().Append(winrt::box_value(L"GPU only (DML)"));
+    routingBox.Items().Append(winrt::box_value(L"Auto (long prompts → GPU)"));
+    routingBox.SelectedIndex(m_routing >= 0 && m_routing <= 2 ? m_routing : 0);
+
     winrt::Windows::UI::Xaml::Controls::StackPanel panel;
     panel.Orientation(Orientation::Vertical);
     panel.Spacing(12);
@@ -982,6 +1007,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     panel.Children().Append(repSlider);
     panel.Children().Append(nPredSlider);
     panel.Children().Append(kvToggle);
+    panel.Children().Append(routingBox);
 
     winrt::Windows::UI::Xaml::Controls::ScrollViewer sv;
     sv.Content(panel);
@@ -1016,6 +1042,10 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     self->m_repetition_penalty = static_cast<float>(repSlider.Value());
     self->m_n_predict = static_cast<int>(nPredSlider.Value());
     self->m_kv_reuse = kvToggle.IsOn();
+    int ri = routingBox.SelectedIndex();
+    self->m_routing = (ri >= 0 && ri <= 2) ? ri : 0;
+    // Routing is per-conversation: a change applies from the next new/loaded chat
+    // (m_active_model stays fixed for the conversation in progress).
     self->SaveSettings();
     self->SetStatus(L"Settings saved", StatusKind::Success);
 }
@@ -1380,6 +1410,22 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     if (n_dropped > 0)
         SetStatus(L"Context trimmed — " + std::to_wstring(n_dropped) + L" old turn(s) dropped");
 
+    // Stage 3: decide EP routing once per conversation (sticky — the KV cache is
+    // per-EP). m_active_model is cleared on new/loaded chat, so this fires on the
+    // first turn and stays fixed after. Default (m_routing==0) keeps the CPU model.
+    if (m_active_model.empty()) {
+        constexpr int kRoutingTokThreshold = 500; // ~crossover from the v0.3.6 matrix
+        if (m_routing == 1) {
+            m_active_model = ::xllama::utf8_to_wstring(m_gpu_model);
+        } else if (m_routing == 2) {
+            int est_tok = static_cast<int>(full_prompt.size() / 4);
+            m_active_model = est_tok > kRoutingTokThreshold ? ::xllama::utf8_to_wstring(m_gpu_model)
+                                                            : m_model_filename;
+        } else {
+            m_active_model = m_model_filename;
+        }
+    }
+
     // KV-cache reuse decision (continuous decoding). Reuse only when enabled, the
     // persistent generator already holds this conversation (m_kv_valid), and no
     // turn was evicted this round (RewindTo cannot drop from the head, so eviction
@@ -1398,7 +1444,8 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
         m_current.messages.push_back(std::move(umsg));
     }
 
-    std::string model = ::xllama::wstring_to_utf8(m_model_filename);
+    std::string model =
+        ::xllama::wstring_to_utf8(m_active_model.empty() ? m_model_filename : m_active_model);
     auto dispatcher = m_root.Dispatcher();
 
     std::thread([self, full_prompt, delta_prompt, do_reuse, kv_reuse, model, dispatcher]() {

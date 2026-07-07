@@ -7,6 +7,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.9.0] - 2026-07-08
+
+### Added — per-conversation CPU/GPU routing (Stage 3, default off)
+
+The v0.3.6 matrix showed the EP choice is per-workload: DML fp16 wins prompt
+prefill at scale (1.8× at ~1k tokens), CPU int4 wins decode. The app can now
+route between them.
+
+- Settings `routing` (0 = CPU only / default = unchanged behaviour, 1 = GPU
+  only, 2 = auto: route first prompts over ~500 est. tokens to GPU) + `gpu_model`
+  (DML fp16 model dir, default `smollm2-360m-dml-fp16`); a routing ComboBox in
+  the Settings dialog.
+- The decision is made once at a conversation's first turn and **sticky** for its
+  lifetime (the KV cache is per-EP): `m_active_model` holds the routed dir,
+  cleared on new/loaded chat so each conversation re-decides. Reuses the existing
+  single-slot `EnsureSession` (one model resident at a time) — switching
+  conversations may reload, which is memory-safe on the 3801 MB budget.
+- Default routing = CPU, so behaviour is identical until a user opts in. GPU
+  routing requires the DML fp16 model present on device (LocalState/USB).
+- On-console validation pending: confirm auto-routing picks GPU for long prompts
+  and that TTFT improves for prompt-heavy conversations.
+
 ## [0.3.8.0] - 2026-07-08
 
 ### Added — KV-cache reuse across chat turns (continuous decoding)
