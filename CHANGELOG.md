@@ -7,6 +7,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Upstream fix validated on hardware (2026-07-07, evening)
+
+The `887A0036` DML init failure was fixed at the source and validated on
+console before contributing upstream:
+
+- Patch to `onnxruntime-genai` `CreateDmlObjects`: fall back to the system
+  D3D12 runtime when the Agility SDK device factory cannot create a device
+  (fork `gianlucamazza/onnxruntime-genai`, branches
+  `fix/dml-device-factory-fallback{,-0132}`).
+- Validated with a throwaway 0.3.9 test MSIX (branch
+  `test/dml-fallback-validation`: patched DLL injected over the NuGet one,
+  headless detection disabled to force the XAML repro path):
+  - XAML + DML + vanilla DLL: `887A0036` at `OgaCreateModel` (known repro)
+  - XAML + DML + **patched DLL: loads in 886 ms, 315 MB on GPU, full decode
+    8.8 tok/s** — identical to the headless/Agility path
+  - XAML + CPU + patched DLL: 67.2 tok/s — no regression
+- Console restored to the official 0.3.4 MSIX afterwards.
+
 ## [0.3.4] - 2026-07-07
 
 ### Added

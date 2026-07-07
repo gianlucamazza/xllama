@@ -119,10 +119,18 @@ skips `Application::Start` entirely and runs `main_loop()` under a minimal
 no compositor, no in-process D3D12 device). Result: DML EP initialises, weights
 load onto the GPU (411 MB), profiled kernels run on `DmlExecutionProvider`
 (**`VERDICT: GPU`**). Config prerequisite: DML graph capture requires
-`past_present_share_buffer: true` in `genai_config.json`. For the interactive
-(XAML) app, DML remains blocked pending stage B: app-level Agility SDK
-(`D3D12SDKVersion` export + `D3D12Core.dll` in the MSIX) so compositor and ORT
-share one runtime.
+`past_present_share_buffer: true` in `genai_config.json`.
+
+**Upstream fix (validated on console, 2026-07-07)**: we patched
+`CreateDmlObjects` to fall back to the system D3D12 runtime when the Agility
+device factory cannot create a device (fork
+`gianlucamazza/onnxruntime-genai`, branch `fix/dml-device-factory-fallback`).
+Validated with a test MSIX (patched DLL, XAML path): the same XAML + DML
+scenario that threw `887A0036` loads in 886 ms and completes decode at
+8.8 tok/s; CPU path unaffected (67.2 tok/s). Once the fix ships in an ORT
+GenAI release, the interactive (XAML) app can use DML without the headless
+path — practically relevant only if a larger model ever makes DML
+competitive (CPU is 8× faster at 360M scale).
 
 **Diagnosis**: SEH `0xC0000005` in `OgaCreateModel`. WDP minidump (`type=2`) and the `xllama.log` entry `OgaCreateModel failed: ...` confirm the cause.
 
