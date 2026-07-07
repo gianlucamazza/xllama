@@ -134,17 +134,19 @@ InferenceResult run_inference(const InferenceParams& params) {
         oga_check(OgaCreateGenerator(model.get(), gparams.get(), &raw_gen), "OgaCreateGenerator");
         OgaGeneratorPtr gen(raw_gen);
 
-        // ORT GenAI ≥ 0.7: feed input sequences to generator (not to params)
-        oga_check(OgaGenerator_AppendTokenSequences(gen.get(), seqs.get()), "AppendTokenSequences");
-
         if (params.on_status)
             params.on_status("generating");
 
-        // Record wall-clock start for tok/s estimate (ORT GenAI has no perf API like llama_perf)
+        // Record wall-clock start BEFORE AppendTokenSequences: measured on-console
+        // (0.3.5), the prompt prefill runs inside AppendTokenSequences, not inside
+        // the first GenerateNextToken (which returned in ~40 µs). t0 → end of the
+        // first loop iteration covers the prefill under either implementation.
+        // (ORT GenAI has no perf API like llama_perf.)
         auto t0 = std::chrono::steady_clock::now();
-        // Prefill happens inside the FIRST GenerateNextToken call (prompt batch +
-        // first token); capture its end so prompt_tok_s and a prefill-free
-        // decode_tok_s can both be reported.
+
+        // ORT GenAI ≥ 0.7: feed input sequences to generator (not to params)
+        oga_check(OgaGenerator_AppendTokenSequences(gen.get(), seqs.get()), "AppendTokenSequences");
+
         auto t_prefill_end = t0;
 
         int n_generated = 0;

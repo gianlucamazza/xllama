@@ -7,6 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-07-07
+
+### Fixed
+
+- Prefill timing (0.3.5) started the clock after `AppendTokenSequences`, but
+  on-console measurement showed the prompt prefill runs **inside**
+  `AppendTokenSequences` in ORT GenAI 0.13.2 (the first `GenerateNextToken`
+  returns in ~40 µs) — `prompt_tok_s` came out in the millions. The clock now
+  starts before `AppendTokenSequences`, covering the prefill under either
+  implementation. Decode numbers were unaffected (measured after prefill in
+  both layouts).
+
 ## [0.3.5] - 2026-07-07
 
 ### Added
