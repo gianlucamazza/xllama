@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-07-07
+
+MSIX carrying the GPU-truth toolkit + in-app `gpu_mem` telemetry (CWD pin to
+LocalState) for the first profiled DML run on console.
+
 ### Added
 
 **Bench infrastructure — ORT GenAI thread tuning** (`feat(bench): ORT GenAI bench infrastructure`):
