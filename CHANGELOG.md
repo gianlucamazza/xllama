@@ -7,6 +7,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-07-07
+
+### Added
+
+**Prefill measurement in the ORT path** (`prompt_tok_s` was always 0.00):
+
+- `src/bridge/inference.cpp`: ORT GenAI runs the prompt prefill inside the
+  _first_ `GenerateNextToken` call; it was never timed (`n_p_eval`/`t_p_eval_ms`
+  were only populated by the legacy llama.cpp path). Now the first loop
+  iteration is timestamped: `prompt_tok_s` lands in the bench CSV and the log
+  gains `prefill=N tok/s (M tok, T ms)`.
+- `decode_tok_s` is now prefill-free (rate over `n_generated-1` tokens from the
+  end of the first iteration) — previous decode numbers were slightly
+  underestimated because they included prefill time.
+- `bench/prompts/long-1k.txt`: ~1k-token prompt to exercise prefill in the
+  CPU-vs-GPU utilization matrix.
+
 ### Upstream fix validated on hardware (2026-07-07, evening)
 
 The `887A0036` DML init failure was fixed at the source and validated on

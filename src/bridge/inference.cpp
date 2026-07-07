@@ -110,8 +110,8 @@ InferenceResult run_inference(const InferenceParams& params) {
         OgaSequencesPtr seqs(raw_seqs);
         oga_check(OgaTokenizerEncode(tok.get(), params.prompt.c_str(), seqs.get()),
                   "OgaTokenizerEncode");
+        size_t n_prompt_tok = OgaSequencesGetSequenceCount(seqs.get(), 0);
         {
-            size_t n_prompt_tok = OgaSequencesGetSequenceCount(seqs.get(), 0);
             int max_len = params.n_predict + 512;
             char pbuf[128];
             snprintf(pbuf, sizeof(pbuf), "[xllama] prompt=%zu tok, max_length=%d (new≤%d)\n",
@@ -142,6 +142,10 @@ InferenceResult run_inference(const InferenceParams& params) {
 
         // Record wall-clock start for tok/s estimate (ORT GenAI has no perf API like llama_perf)
         auto t0 = std::chrono::steady_clock::now();
+        // Prefill happens inside the FIRST GenerateNextToken call (prompt batch +
+        // first token); capture its end so prompt_tok_s and a prefill-free
+        // decode_tok_s can both be reported.
+        auto t_prefill_end = t0;
 
         int n_generated = 0;
         while (!OgaGenerator_IsDone(gen.get())) {
@@ -150,6 +154,8 @@ InferenceResult run_inference(const InferenceParams& params) {
 
             // ORT GenAI ≥ 0.7: GenerateNextToken does compute + sample in one call
             oga_check(OgaGenerator_GenerateNextToken(gen.get()), "GenerateNextToken");
+            if (n_generated == 0)
+                t_prefill_end = std::chrono::steady_clock::now();
 
             const int32_t* next_toks = nullptr;
             size_t n_next = 0;
@@ -168,18 +174,28 @@ InferenceResult run_inference(const InferenceParams& params) {
             ++n_generated;
         }
 
-        double elapsed_s =
-            std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+        auto t_end = std::chrono::steady_clock::now();
+        double elapsed_s = std::chrono::duration<double>(t_end - t0).count();
+        double prefill_ms = std::chrono::duration<double, std::milli>(t_prefill_end - t0).count();
+        // Decode rate excludes the prefill iteration (its token and its time).
+        double decode_s = std::chrono::duration<double>(t_end - t_prefill_end).count();
+        int n_decode = n_generated > 0 ? n_generated - 1 : 0;
 
-        res.n_eval = n_generated;
-        res.t_eval_ms = static_cast<double>(elapsed_s * 1000.0);
+        if (n_generated > 0) {
+            res.n_p_eval = static_cast<int>(n_prompt_tok);
+            res.t_p_eval_ms = prefill_ms;
+        }
+        res.n_eval = n_decode;
+        res.t_eval_ms = decode_s * 1000.0;
         res.peak_ws_mb = peak_working_set_mb();
         res.success = true;
 
         char log_buf[256];
         snprintf(log_buf, sizeof(log_buf),
-                 "[xllama] done: decode=%.1f tok/s n=%d elapsed=%.4fs peak=%zuMB\n",
-                 elapsed_s > 0.0 ? n_generated / elapsed_s : 0.0, n_generated, elapsed_s,
+                 "[xllama] done: prefill=%.1f tok/s (%zu tok, %.0f ms) decode=%.1f tok/s n=%d "
+                 "elapsed=%.4fs peak=%zuMB\n",
+                 prefill_ms > 0.0 ? n_prompt_tok / (prefill_ms / 1000.0) : 0.0, n_prompt_tok,
+                 prefill_ms, decode_s > 0.0 ? n_decode / decode_s : 0.0, n_decode, elapsed_s,
                  res.peak_ws_mb);
         log_output(log_buf);
 
