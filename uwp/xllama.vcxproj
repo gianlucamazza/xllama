@@ -122,6 +122,10 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <!-- /EHa: enable SEH → C++ exception translation so _set_se_translator fires. -->
       <ExceptionHandling>Async</ExceptionHandling>
+      <!-- Sources are UTF-8 without BOM; without /utf-8 MSVC assumes the system
+           codepage (Windows-1252) and non-ASCII literals (▶ ■ · — ●) reach the
+           UI as mojibake ("â–¶ Run"). -->
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <!-- WindowsApp.lib is the UWP umbrella library.
