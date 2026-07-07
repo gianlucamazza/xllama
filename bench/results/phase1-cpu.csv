@@ -3,3 +3,4 @@ smollm2-360m-cpu-int4,int4,ort-genai-cpu,2048,8,0.00,66.91,704,0,0,0,xbox-series
 smollm2-360m-cpu-int4,int4,ort-genai-cpu,2048,4,0.00,71.42,771,0,0,0,xbox-series-s-t4,2026-05-23T10:14:55Z
 smollm2-360m-cpu-int4,int4,ort-genai-cpu,2048,6,0.00,67.96,772,0,0,0,xbox-series-s-t6,2026-05-23T10:16:34Z
 smollm2-360m-cpu-int4,int4,ort-genai-cpu,2048,8,0.00,28.15,771,0,0,0,xbox-series-s-t8,2026-05-23T10:17:41Z
+smollm2-360m-cpu-int4,int4,ort-genai-cpu,2048,8,0.00,70.90,771,1614,8,3801,xbox-series-s,2026-07-07T11:36:16Z
