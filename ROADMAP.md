@@ -16,38 +16,47 @@ Milestones:
 - [x] SmolLM2-360M bundled inside MSIX as `DeploymentContent`; CI `build-uwp` green
 - [x] ChatML prompt template applied for SmolLM2 Instruct
 
-## Phase 2 — GPU Acceleration ❌ NOT VIABLE (DML EP does not initialise)
+## Phase 2 — GPU Acceleration ✅ GPU EXECUTION PROVEN (headless) — needs DML model variant
 
 **Goal**: DirectML EP inference using Xbox RDNA 2 hardware.
 
-**Status (2026-07-07, xllama v0.3.3)** — GPU-truth experiment run on console:
+**Status (2026-07-07, xllama v0.3.4)** — GPU-truth experiment, headless bench mode:
 
-_DML EP does not initialise._ `OgaCreateModel` throws `887A0036` "The desired
-element already exists" at `onnxruntime-genai .../dml/dml_helpers.cpp(140)`,
-**before any kernel runs** — so the ORT profiler produces no `VERDICT:`. Neither
-GPU execution nor CPU fallback: the EP fails at device creation. Reproduced 3×
-(profiling config, plain `dml-test`, and after the 0.3.3 pre-load-probe removal).
-Not OOM (`avail_phys` 5.0 GB, `budget` 3801 MB), not our telemetry, not the
-profiling config. Likely a D3D12 single-device-per-adapter conflict with the UWP
-XAML compositor. See `CHANGELOG.md` [0.3.3] and `docs/uwp-constraints.md §7`.
+**`VERDICT: GPU`** — the ORT profiler attributes kernel time to
+`DmlExecutionProvider` (fused node 9.7 ms on GPU, 96% of kernel time) and the
+in-app probe reads **`gpu-mem post-load: 411 MB`** ≈ model size: weights
+resident on the RDNA 2 GPU. Full decode does not complete yet: the fused DML
+node fails at the first forward (`80070057 parameter incorrect`) because the
+bundled model is the **CPU-int4 variant** (`MatMulNBits` quantised for CPU) —
+a DML model variant is required for the end-to-end bench.
 
-_Exp 1 reconciled_: its "loads without OOM, **71.7 tok/s ≈ CPU baseline**, GPU
-execution unconfirmed" (2026-05-23) was almost certainly a **silent CPU
-fallback**, never real DML execution — same ORT GenAI 0.13.2, same config.
+_Root cause history_ (see `CHANGELOG.md` [0.3.3]/[0.3.4],
+`docs/uwp-constraints.md §7`): `887A0036` at `dml_helpers.cpp(140)` was the
+**Agility SDK device factory** (`CreateDeviceFactory(614)`, in-box runtime)
+colliding with the process-wide D3D12 device the XAML compositor creates at
+`Window.Activate()`. Fixed architecturally in 0.3.4: **headless bench mode**
+(`bench.flag` → no XAML, D3D12-clean process). Exp 1's "71.7 tok/s ≈ CPU"
+(May) was a silent CPU fallback on a pre-614 OS. Config note: DML graph
+capture requires `past_present_share_buffer: true` (all `genai_config-dml-*`
+updated).
 
-**Conclusion**: on ORT GenAI 0.13.2 in the Xbox UWP sandbox, the CPU EP is the
-only working backend (70.9 tok/s control run). GPU acceleration would require a
-different ORT GenAI version, a GDK (non-UWP) path, or resolving the DML device
-conflict. Superseded the earlier "GPU EP ruled out via OOM" with a precise
-init-failure signature.
+**Conclusion**: DML EP **works on GPU** in the Xbox UWP sandbox via the
+headless path. Remaining work: (a) procure/convert a DML-compatible model
+(Qwen2.5-0.5B int4-awq ~507 MB borderline, or SmolLM2-360M DML build) for the
+end-to-end bench; (b) stage B for the interactive app — app-level Agility SDK
+(`D3D12SDKVersion` exports + `D3D12Core.dll` in MSIX) so compositor and ORT
+share one runtime; (c) upstream issue: missing fallback when the factory
+returns `ALREADY_EXISTS`.
 
 Milestones:
 
 - [x] Exp 1: test DML provider_options on SmolLM2-360M — loads without OOM; later found to be silent CPU fallback (see Status)
 - [x] GPU-truth toolkit in place of PIX (unavailable in Dev Mode): ORT profiler with per-kernel EP attribution (`profile-dml-run.sh` + `analyze_ort_profile.py`), WDP `systemperf` GPU counters (`xbox-gpu-sample.sh`), in-app `QueryVideoMemoryInfo` (`gpu_mem_mb` CSV columns) — see `docs/uwp-constraints.md §11`
-- [x] Run the profiled DML experiment on console — ❌ DML EP fails to init (`887A0036` at `OgaCreateModel`); no `VERDICT:` obtainable; CPU control run 70.9 tok/s
+- [x] Run the profiled DML experiment on console — ✅ **`VERDICT: GPU`** via headless bench mode (0.3.4); weights on GPU (411 MB); CPU control run 70.9 tok/s
+- [x] Root-cause and fix DML EP init failure — `887A0036` = Agility-factory vs XAML-compositor device conflict → headless bench mode (`uwp/App.cpp`, 0.3.4)
 - [x] Evaluate Qwen2.5-0.5B INT4 ONNX as GPU EP candidate — ❌ CPU-int4 is ~822 MB (not ~200 MB); only the DML int4-awq variant (~507 MB) borderline fits the pool (see `docs/model-selection.md`)
-- [~] Validate DirectML EP inference end-to-end — ❌ blocked: DML EP does not initialise on this stack
+- [ ] Procure a DML-compatible model variant and run the end-to-end DML bench (`phase2-dml.csv`): decode completes, GPU vs CPU tok/s comparison
+- [ ] Stage B (only if DML tok/s beats CPU): bring DML to the interactive app via app-level Agility SDK exports
 - [~] Measure GPU vs CPU tok/s for the same model — ❌ blocked: no GPU execution possible
 
 ## Phase 3 — Benchmarks + Model Exploration 🔄 IN PROGRESS

@@ -39,12 +39,15 @@ DirectML EP test results (Series S, xllama v0.3.1, 2026-05-23):
 | Phi-3.5-mini | GPU INT4 AWQ     | ~2.2 GB | GPU OOM (`0xC0000005`) — exceeds 768 MB pool    |
 | SmolLM2-360M | INT4, DML config | 403 MB  | ✅ Loads without OOM; 71.7 tok/s ≈ CPU baseline |
 
-**Interpretation note** (updated 2026-07-07): the profiled GPU-truth run on
-console settled this — **the DirectML EP does not initialise at all**.
-`OgaCreateModel` throws `887A0036` "The desired element already exists" at
-`dml_helpers.cpp(140)` before any kernel runs (details in §7). Exp 1's earlier
-"~71 tok/s ≈ CPU baseline" was therefore a **silent CPU fallback**, never real
-DML execution. The CPU EP is the only working backend.
+**Interpretation note** (updated 2026-07-07, evening): settled — **the DML EP
+executes on the GPU** when the process is D3D12-clean. In headless bench mode
+(v0.3.4, no XAML compositor) the profiled run yields **`VERDICT: GPU`** (fused
+DML node on `DmlExecutionProvider`, 96% of kernel time) with 411 MB of weights
+resident on the GPU (`gpu-mem post-load`). The earlier `887A0036` init failure
+was the Agility-factory vs XAML-compositor device conflict (§7). Exp 1's
+"~71 tok/s ≈ CPU baseline" was a silent CPU fallback on a pre-614 OS. Full
+decode still needs a DML model variant (the bundled CPU-int4 `MatMulNBits`
+model fails inside the fused DML node with `80070057`).
 
 **Effect on disk**: models too large to fit the Dev Mode partition also fail before reaching `OgaCreateModel`. This is a distinct failure mode — see §9.
 
@@ -74,25 +77,36 @@ When `OgaCreateModel` initialises the DirectML execution provider, the DML alloc
 
 The fault manifests before any inference call — at model load time. There is no recovery path short of using a smaller model or switching to CPU EP.
 
-**Distinct failure mode — DML EP init throws even for models that fit the pool**
-(2026-07-07, GPU-truth run, ORT GenAI 0.13.2 / ORT 1.24.4 / DirectML 1.15.4):
-SmolLM2-360M INT4 (403 MB, well within the ~768 MB pool) does **not** OOM — it
-fails earlier, at DirectML EP device creation. `OgaCreateModel` throws
-`887A0036` "The desired element already exists" at
-`onnxruntime-genai .../dml/dml_helpers.cpp(140)`, before any kernel runs.
-Reproduced 3× (profiling and plain DML configs; with and without our
-`gpu_mem_info` pre-load probe — the probe is not the cause). Not OOM
-(`avail_phys` 5.0 GB, `budget` 3801 MB). GPU telemetry stays flat (only the
-display engine active), confirming no GPU execution.
+**Distinct failure mode — DML EP init `887A0036` in XAML apps** (2026-07-07,
+GPU-truth run, ORT GenAI 0.13.2 / ORT 1.24.4 / DirectML 1.15.4) — **root cause
+found at the exact source line and fixed architecturally in v0.3.4**:
 
-Likely root cause: a Direct3D 12 device is a singleton per adapter — a UWP XAML
-app already holds a D3D12 device (the compositor) on adapter 0 before
-`OgaCreateModel`, and the DML EP's own device/element creation collides with it.
-This makes the DirectML EP **not viable** on this ORT GenAI build in the Xbox
-UWP sandbox regardless of model size; the CPU EP is the only working backend
-(70.9 tok/s on SmolLM2-360M). Escaping it would need a different ORT GenAI
-version, a GDK (non-UWP) path, or creating the DML device before the XAML
-compositor claims the adapter.
+`OgaCreateModel` threw `887A0036 DXGI_ERROR_ALREADY_EXISTS` at
+`onnxruntime-genai/src/dml/dml_helpers.cpp(140)` (`CreateDmlObjects`): ORT GenAI
+creates its D3D12 device through the **Agility SDK device factory** —
+`ID3D12SDKConfiguration1::CreateDeviceFactory(614, module_path)` succeeds on
+Xbox OS 26100 via the in-box runtime ≥ 614 (no app-local `D3D12Core.dll`
+needed; verified absent from the MSIX), and the factory's `CreateDevice`
+collides with the process-wide D3D12 device the **XAML compositor**
+(D3D11on12) created at `Window.Activate()`. Two different D3D12 runtimes cannot
+share a process. Not OOM, not the profiling config, not our telemetry
+(reproduced 3× including after removing the `gpu_mem_info` pre-load probe).
+Exp 1 (May) passed because the then-OS had in-box < 614, so ORT fell back to
+plain `D3D12CreateDevice` (line 144) which coexists with the compositor device
+— the OS update flipped the branch. No upstream fix on `main` (v0.14.0
+identical); upstream is missing a fallback when the factory returns
+`ALREADY_EXISTS`.
+
+**Fix (v0.3.4): headless bench mode** — with `bench.flag` present, `wWinMain`
+skips `Application::Start` entirely and runs `main_loop()` under a minimal
+`CoreApplication` `IFrameworkView` (CoreWindow activated for the PLM watchdog,
+no compositor, no in-process D3D12 device). Result: DML EP initialises, weights
+load onto the GPU (411 MB), profiled kernels run on `DmlExecutionProvider`
+(**`VERDICT: GPU`**). Config prerequisite: DML graph capture requires
+`past_present_share_buffer: true` in `genai_config.json`. For the interactive
+(XAML) app, DML remains blocked pending stage B: app-level Agility SDK
+(`D3D12SDKVersion` export + `D3D12Core.dll` in the MSIX) so compositor and ORT
+share one runtime.
 
 **Diagnosis**: SEH `0xC0000005` in `OgaCreateModel`. WDP minidump (`type=2`) and the `xllama.log` entry `OgaCreateModel failed: ...` confirm the cause.
 

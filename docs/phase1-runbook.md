@@ -263,14 +263,19 @@ If the profile is not found: rerun with `--absolute-prefix` (renders the
 `.tpl.json` config with an absolute LocalState prefix); if still missing,
 deploy a v0.3.2+ MSIX (CWD pinned to LocalState) and rerun.
 
+**DML requires a v0.3.4+ MSIX** (headless bench mode): in earlier versions the
+XAML compositor's D3D12 device makes the DML EP init throw `887A0036` — see
+`docs/uwp-constraints.md §7`. The DML configs also need
+`past_present_share_buffer: true` (already set in `bench/configs/`).
+
 ### Interpretation
 
-| Signal | GPU execution | CPU fallback |
-|--------|---------------|--------------|
-| Profiler `VERDICT:` | `GPU` / high-DML `MIXED` | `CPU-FALLBACK` |
-| `gpu-sample` engines | 3D/compute > ~0.3 sustained | flat on all engines |
-| `[xllama] gpu-mem post-load` | `current` ≈ model size | `current` ≈ 0 |
-| CSV `gpu_mem_mb` | ≈ model size | ≈ 0 |
+| Signal                       | GPU execution               | CPU fallback        |
+| ---------------------------- | --------------------------- | ------------------- |
+| Profiler `VERDICT:`          | `GPU` / high-DML `MIXED`    | `CPU-FALLBACK`      |
+| `gpu-sample` engines         | 3D/compute > ~0.3 sustained | flat on all engines |
+| `[xllama] gpu-mem post-load` | `current` ≈ model size      | `current` ≈ 0       |
+| CSV `gpu_mem_mb`             | ≈ model size                | ≈ 0                 |
 
 Run a control pass with the stock CPU config (expected `CPU-FALLBACK` + flat
 engines) to calibrate both probes — `systemperf` is system-wide and Dev Home

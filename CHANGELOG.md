@@ -34,6 +34,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `uninit_apartment` + `Application::Start` as before); `CheckBenchMode` in
   MainPage stays as fallback if the early detection throws.
 
+### Fixed
+
+- `bench/configs/genai_config-dml-{test,profile,profile.tpl}.json`:
+  `past_present_share_buffer` `false` → `true` — the DML EP uses graph capture,
+  which rejects `false` at `OgaCreateGenerator` ("Graph capture is not
+  supported with past_present_share_buffer set to false"). The `false` was an
+  Exp 1 leftover that only ever ran on the silent-CPU-fallback path.
+
+### Measured — GPU-truth verdict on console (2026-07-07, headless bench mode)
+
+**`VERDICT: GPU`** — first proven DML GPU execution in the Xbox UWP sandbox:
+
+- ORT profiler: `DmlExecutionProvider` 10.7 ms kernel time (fused node 9.7 ms),
+  `CPUExecutionProvider` 0.4 ms → 96% DML.
+- In-app probe: `gpu-mem post-load: current=411MB` ≈ model size (403 MB) —
+  weights resident on the RDNA 2 GPU. CPU control run: `current=0MB`,
+  69.7 tok/s.
+- Full decode not yet: the fused DML node fails at the first forward
+  (`80070057` in `MLOperatorAuthorImpl.cpp`) because the bundled model is the
+  **CPU-int4 `MatMulNBits` variant** — the end-to-end DML bench
+  (`phase2-dml.csv`) needs a DML model variant (see `docs/model-selection.md`).
+
 ## [0.3.3] - 2026-07-07
 
 ### Changed
