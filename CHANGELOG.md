@@ -51,10 +51,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - In-app probe: `gpu-mem post-load: current=411MB` ≈ model size (403 MB) —
   weights resident on the RDNA 2 GPU. CPU control run: `current=0MB`,
   69.7 tok/s.
-- Full decode not yet: the fused DML node fails at the first forward
-  (`80070057` in `MLOperatorAuthorImpl.cpp`) because the bundled model is the
-  **CPU-int4 `MatMulNBits` variant** — the end-to-end DML bench
-  (`phase2-dml.csv`) needs a DML model variant (see `docs/model-selection.md`).
+- The bundled CPU-int4 `MatMulNBits` model fails inside the fused DML node
+  (`80070057`) — a DML model variant is required for full decode (below).
+
+### Measured — Phase 2 end-to-end DML bench (2026-07-07, evening)
+
+SmolLM2-360M INT4 **DML** variant, built with the ORT GenAI model builder
+(0.14.1, `-p int4 -e dml`, 285 MB merged), uploaded to
+`LocalState\models\smollm2-360m-dml-int4`:
+
+| Backend            | decode tok/s | load ms | gpu_mem MB | peak WS MB |
+| ------------------ | ------------ | ------- | ---------- | ---------- |
+| DML EP (RDNA 2)    | **8.83**     | 927     | 307        | 999        |
+| CPU EP (Zen 2 t=8) | **70.9**     | 1518    | 8          | 771        |
+
+- Full decode completes on GPU (739 tokens, `VERDICT: GPU`, GPU compute engine
+  ~88% saturated via `systemperf`) — but the **CPU is ~8× faster**: per-token
+  DML dispatch overhead dominates a 360M model while `MatMulNBits`/AVX2 is
+  highly optimised. **Phase 2 closed: CPU EP stays the production backend.**
+- GPU pool estimate corrected: measured `Budget` is **3801 MB** (the "~768 MB
+  pool" was OOM-bracketing inference). Disk (`Q:\` ~2.2–2.5 GB) is the real
+  model-size constraint.
+- Known cosmetic issue: bench CSV `backend` column says `ort-genai-cpu` even on
+  DML runs (label hardcoded in `bench.cpp`, does not detect the configured EP).
 
 ## [0.3.3] - 2026-07-07
 

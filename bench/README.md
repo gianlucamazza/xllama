@@ -54,8 +54,8 @@ Capture output and append a CSV row to `results/phase1-cpu.csv`.
 
 ## Results files
 
-| File                     | Phase | Backend                        | Status                                                                                                                                             |
-| ------------------------ | ----- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `results/phase1-cpu.csv` | 1     | CPU EP (Xbox Series S, Zen 2)  | populated — 4 runs (2026-05-23); best `n_threads=4` at 71.4 tok/s, regression at `n_threads=8` (28.2 tok/s)                                        |
-| `results/phase2-dml.csv` | 2     | DML EP (Xbox Series S, RDNA 2) | ⏳ `VERDICT: GPU` proven (headless mode, v0.3.4); full bench pending a DML model variant — see `ROADMAP.md` Phase 2 & `docs/uwp-constraints.md §7` |
-| `results/profiles/<ts>/` | 2     | —                              | gitignored — downloaded ORT profiling JSON + log tail per run (`profile-dml-run.sh`)                                                               |
+| File                     | Phase | Backend                        | Status                                                                                                                                                                                             |
+| ------------------------ | ----- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `results/phase1-cpu.csv` | 1     | CPU EP (Xbox Series S, Zen 2)  | populated — 4 runs (2026-05-23); best `n_threads=4` at 71.4 tok/s, regression at `n_threads=8` (28.2 tok/s)                                                                                        |
+| `results/phase2-dml.csv` | 2     | DML EP (Xbox Series S, RDNA 2) | ✅ populated (2026-07-07) — SmolLM2-360M INT4 DML build: **8.83 tok/s GPU vs 70.9 CPU** (headless v0.3.4); note: `backend` column mislabels DML runs as `ort-genai-cpu` (hardcoded in `bench.cpp`) |
+| `results/profiles/<ts>/` | 2     | —                              | gitignored — downloaded ORT profiling JSON + log tail per run (`profile-dml-run.sh`)                                                                                                               |

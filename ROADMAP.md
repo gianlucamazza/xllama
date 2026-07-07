@@ -16,19 +16,20 @@ Milestones:
 - [x] SmolLM2-360M bundled inside MSIX as `DeploymentContent`; CI `build-uwp` green
 - [x] ChatML prompt template applied for SmolLM2 Instruct
 
-## Phase 2 — GPU Acceleration ✅ GPU EXECUTION PROVEN (headless) — needs DML model variant
+## Phase 2 — GPU Acceleration ✅ COMPLETE — GPU proven, CPU wins 8× (DML not competitive)
 
 **Goal**: DirectML EP inference using Xbox RDNA 2 hardware.
 
-**Status (2026-07-07, xllama v0.3.4)** — GPU-truth experiment, headless bench mode:
+**Status (2026-07-07, xllama v0.3.4)** — end-to-end DML bench completed:
 
-**`VERDICT: GPU`** — the ORT profiler attributes kernel time to
-`DmlExecutionProvider` (fused node 9.7 ms on GPU, 96% of kernel time) and the
-in-app probe reads **`gpu-mem post-load: 411 MB`** ≈ model size: weights
-resident on the RDNA 2 GPU. Full decode does not complete yet: the fused DML
-node fails at the first forward (`80070057 parameter incorrect`) because the
-bundled model is the **CPU-int4 variant** (`MatMulNBits` quantised for CPU) —
-a DML model variant is required for the end-to-end bench.
+**`VERDICT: GPU` + full decode** with a purpose-built SmolLM2-360M INT4 **DML**
+variant (285 MB, ORT GenAI model builder `-p int4 -e dml`): weights resident on
+GPU (`gpu-mem post-load: 307 MB`), GPU compute engine ~88% saturated during
+decode, 739 tokens generated. **Result: 8.83 tok/s on GPU vs 70.9 tok/s on CPU
+— the Zen 2 CPU is ~8× faster** (median of 3 runs, `phase2-dml.csv`).
+Autoregressive decode of a 360M model is dominated by per-token DML dispatch
+overhead; `MatMulNBits` on AVX2 wins decisively at this scale. The bundled
+CPU-int4 variant is not DML-compatible (`80070057` in the fused node).
 
 _Root cause history_ (see `CHANGELOG.md` [0.3.3]/[0.3.4],
 `docs/uwp-constraints.md §7`): `887A0036` at `dml_helpers.cpp(140)` was the
@@ -40,13 +41,14 @@ colliding with the process-wide D3D12 device the XAML compositor creates at
 capture requires `past_present_share_buffer: true` (all `genai_config-dml-*`
 updated).
 
-**Conclusion**: DML EP **works on GPU** in the Xbox UWP sandbox via the
-headless path. Remaining work: (a) procure/convert a DML-compatible model
-(Qwen2.5-0.5B int4-awq ~507 MB borderline, or SmolLM2-360M DML build) for the
-end-to-end bench; (b) stage B for the interactive app — app-level Agility SDK
-(`D3D12SDKVersion` exports + `D3D12Core.dll` in MSIX) so compositor and ORT
-share one runtime; (c) upstream issue: missing fallback when the factory
-returns `ALREADY_EXISTS`.
+**Conclusion — Phase 2 closed**: DML EP works on GPU in the Xbox UWP sandbox
+(headless path) but **is not competitive at small model scale — CPU EP stays
+the production backend**. Stage B (app-level Agility SDK for the interactive
+app) is **not justified** by these numbers and is dropped. GPU pool estimate
+corrected: measured budget **3801 MB** (was "~768 MB"); disk is the real
+constraint. Possible future revisit: larger models (1B+) where GPU compute
+could amortise dispatch overhead — blocked today by disk budget, not GPU
+memory. Remaining: upstream issue for the missing `ALREADY_EXISTS` fallback.
 
 Milestones:
 
@@ -55,8 +57,8 @@ Milestones:
 - [x] Run the profiled DML experiment on console — ✅ **`VERDICT: GPU`** via headless bench mode (0.3.4); weights on GPU (411 MB); CPU control run 70.9 tok/s
 - [x] Root-cause and fix DML EP init failure — `887A0036` = Agility-factory vs XAML-compositor device conflict → headless bench mode (`uwp/App.cpp`, 0.3.4)
 - [x] Evaluate Qwen2.5-0.5B INT4 ONNX as GPU EP candidate — ❌ CPU-int4 is ~822 MB (not ~200 MB); only the DML int4-awq variant (~507 MB) borderline fits the pool (see `docs/model-selection.md`)
-- [ ] Procure a DML-compatible model variant and run the end-to-end DML bench (`phase2-dml.csv`): decode completes, GPU vs CPU tok/s comparison
-- [ ] Stage B (only if DML tok/s beats CPU): bring DML to the interactive app via app-level Agility SDK exports
+- [x] Procure a DML-compatible model variant and run the end-to-end DML bench — ✅ SmolLM2-360M INT4 DML build (285 MB): decode completes, **8.83 tok/s GPU vs 70.9 CPU** (`phase2-dml.csv`)
+- [x] Stage B (only if DML tok/s beats CPU) — ❌ dropped: DML is 8× slower than CPU at this scale; interactive app stays on CPU EP
 - [~] Measure GPU vs CPU tok/s for the same model — ❌ blocked: no GPU execution possible
 
 ## Phase 3 — Benchmarks + Model Exploration 🔄 IN PROGRESS

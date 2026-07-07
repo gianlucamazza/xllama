@@ -77,12 +77,13 @@ xllama UWP build (Xbox Series S Dev Mode, CPU EP).
 
 ## Reference: tested models
 
-| Model                          | On-disk (merged) | CPU EP                                | DirectML EP       | Notes                           |
-| ------------------------------ | ---------------- | ------------------------------------- | ----------------- | ------------------------------- |
-| SmolLM2-360M-Instruct INT4 CPU | 403 MB           | ✅ Active baseline                    | ❌ GPU OOM        | Bundled in MSIX                 |
-| SmolLM2-1.7B-Instruct INT4 CPU | 1.4 GB           | ❌ MSIX bundling / ✅ via USB (Exp 3) | —                 | 23.6 tok/s, n=191, peak 2195 MB |
-| Phi-3.5-mini INT4 CPU          | ~2.7 GB          | ❌ Disk budget                        | —                 | Not attempted                   |
-| Phi-3.5-mini GPU INT4 AWQ      | ~2.2 GB          | —                                     | ❌ GPU OOM + disk | Not viable                      |
+| Model                          | On-disk (merged) | CPU EP                                | DirectML EP                                      | Notes                                                                                                     |
+| ------------------------------ | ---------------- | ------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| SmolLM2-360M-Instruct INT4 CPU | 403 MB           | ✅ Active baseline (70.9 tok/s)       | ❌ `80070057` (CPU-int4 graph in DML fused node) | Bundled in MSIX                                                                                           |
+| SmolLM2-360M-Instruct INT4 DML | 285 MB           | —                                     | ✅ **8.8 tok/s** (headless v0.3.4)               | Built with ORT GenAI model builder (`-p int4 -e dml`); CPU ~8× faster — DML not competitive at this scale |
+| SmolLM2-1.7B-Instruct INT4 CPU | 1.4 GB           | ❌ MSIX bundling / ✅ via USB (Exp 3) | —                                                | 23.6 tok/s, n=191, peak 2195 MB                                                                           |
+| Phi-3.5-mini INT4 CPU          | ~2.7 GB          | ❌ Disk budget                        | —                                                | Not attempted                                                                                             |
+| Phi-3.5-mini GPU INT4 AWQ      | ~2.2 GB          | —                                     | ❌ GPU OOM + disk                                | Not viable                                                                                                |
 
 ## Candidates evaluated (HF Hub file sizes, 2026-07-02)
 
@@ -93,8 +94,9 @@ Sizes below are the published `model.onnx.data` file sizes on Hugging Face
   (`cpu-int4-rtn-block-32` in `xiaoyao9184/Qwen2.5-0.5B-Instruct-onnx-genai` and
   `hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu`; AMD's
   int4-float16 variant is ~780 MB). The earlier ~200 MB estimate was wrong: the
-  151k-token vocab embedding dominates and is not INT4-quantized. Exceeds both
-  the 600 MB disk borderline and the ~768 MB GPU pool.
+  151k-token vocab embedding dominates and is not INT4-quantized. Exceeds the
+  600 MB disk borderline (note: the "~768 MB GPU pool" cited at evaluation time
+  proved wrong — measured budget is 3801 MB; disk is the real constraint).
 - **Qwen2.5-0.5B INT4 AWQ DirectML** — ⚠️ borderline. `dml-int4-awq-block-128`
   variant (same xiaoyao9184 repo) is ~507 MB: below the GPU pool on paper, but
   KV cache + activations leave little headroom. Possible DML retry candidate

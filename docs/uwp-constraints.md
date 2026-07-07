@@ -26,18 +26,26 @@ Platform limitations relevant to running LLM inference on Xbox Dev Mode, and how
 
 **Impact**: Minimal. GGML and ORT GenAI kernels are pre-compiled C/C++. Only ggml-jit (experimental, unused here) is affected.
 
-## 5. DirectML: GPU Pool Limits Larger Models (360M Fits)
+## 5. DirectML: Works on GPU (Headless) but Loses to CPU on Small Models
 
-**Background**: The UWP GPU-accessible memory pool on Xbox Series S is approximately **768 MB** (inferred from Phi-3.5-mini OOM). This is separate from CPU RAM.
+**Background — pool estimate corrected (2026-07-07)**: the GPU budget measured
+in-app (`QueryVideoMemoryInfo(LOCAL).Budget`) is **3801 MB** in App-mode on
+Series S — the earlier "~768 MB pool" was a coarse inference from the
+Phi-3.5-mini OOM bracketing and is superseded. The operative constraint for
+model sizing is the **Dev Mode disk budget** (`Q:\` ~2.2–2.5 GB free), not GPU
+memory.
 
-**Effect on DirectML EP**: `OgaCreateModel` with the DirectML execution provider crashes with SEH `0xC0000005` (STATUS_ACCESS_VIOLATION — null-deref in the DML allocator when it hits OOM) for any LLM whose on-device weights exceed the pool. Smaller models that fit within the pool load without error.
+**Effect on DirectML EP**: with a DML model variant and the headless path
+(§7), the EP loads and executes on the GPU. Very large models can still OOM
+(`0xC0000005`, null-deref in the DML allocator).
 
-DirectML EP test results (Series S, xllama v0.3.1, 2026-05-23):
+DirectML EP test results (Series S):
 
-| Model        | Variant          | On-disk | Result                                          |
-| ------------ | ---------------- | ------- | ----------------------------------------------- |
-| Phi-3.5-mini | GPU INT4 AWQ     | ~2.2 GB | GPU OOM (`0xC0000005`) — exceeds 768 MB pool    |
-| SmolLM2-360M | INT4, DML config | 403 MB  | ✅ Loads without OOM; 71.7 tok/s ≈ CPU baseline |
+| Model        | Variant              | On-disk | Result                                                                                              |
+| ------------ | -------------------- | ------- | --------------------------------------------------------------------------------------------------- |
+| Phi-3.5-mini | GPU INT4 AWQ         | ~2.2 GB | GPU OOM (`0xC0000005`), v0.3.1 (2026-05-23)                                                         |
+| SmolLM2-360M | INT4 CPU, DML config | 403 MB  | v0.3.1: silent CPU fallback (71.7 tok/s); v0.3.4: DML fused node fails (`80070057`, CPU-int4 graph) |
+| SmolLM2-360M | INT4 **DML build**   | 285 MB  | ✅ **GPU execution, decode completes — 8.8 tok/s** (v0.3.4 headless, 2026-07-07)                    |
 
 **Interpretation note** (updated 2026-07-07, evening): settled — **the DML EP
 executes on the GPU** when the process is D3D12-clean. In headless bench mode
@@ -45,9 +53,14 @@ executes on the GPU** when the process is D3D12-clean. In headless bench mode
 DML node on `DmlExecutionProvider`, 96% of kernel time) with 411 MB of weights
 resident on the GPU (`gpu-mem post-load`). The earlier `887A0036` init failure
 was the Agility-factory vs XAML-compositor device conflict (§7). Exp 1's
-"~71 tok/s ≈ CPU baseline" was a silent CPU fallback on a pre-614 OS. Full
-decode still needs a DML model variant (the bundled CPU-int4 `MatMulNBits`
-model fails inside the fused DML node with `80070057`).
+"~71 tok/s ≈ CPU baseline" was a silent CPU fallback on a pre-614 OS.
+
+**Final performance verdict** (SmolLM2-360M INT4 DML build, 285 MB, decode
+completes end-to-end): **8.8 tok/s on GPU vs 70.9 tok/s on CPU** — the Zen 2
+CPU is ~8× faster. Autoregressive decode of a 360M-parameter model is
+dominated by per-token DML dispatch overhead, while `MatMulNBits` on AVX2 is
+highly optimised. **CPU EP remains the production backend**; DML is proven
+functional but not competitive at this model scale.
 
 **Effect on disk**: models too large to fit the Dev Mode partition also fail before reaching `OgaCreateModel`. This is a distinct failure mode — see §9.
 
@@ -71,7 +84,10 @@ Note: DirectML itself _is_ available in Dev Mode (NuGet `Microsoft.AI.DirectML 1
 
 ## 7. GPU Memory Pool — Detail
 
-The UWP sandbox on Xbox Series S provides approximately **768 MB of GPU-accessible memory**, as observed through `OgaCreateModel` OOM behavior in this project. This is separate from CPU-accessible RAM.
+**Measured budget (2026-07-07, in-app `QueryVideoMemoryInfo(LOCAL).Budget`):
+3801 MB** in App-mode on Series S. The "~768 MB" figure previously documented
+here was inferred from OOM bracketing and is superseded by this direct
+measurement.
 
 When `OgaCreateModel` initialises the DirectML execution provider, the DML allocator attempts to reserve GPU memory for model weights. If the model's total weight size exceeds the available pool, the allocator returns a null pointer; subsequent use of that pointer produces a STATUS_ACCESS_VIOLATION fault.
 
@@ -110,7 +126,12 @@ share one runtime.
 
 **Diagnosis**: SEH `0xC0000005` in `OgaCreateModel`. WDP minidump (`type=2`) and the `xllama.log` entry `OgaCreateModel failed: ...` confirm the cause.
 
-**Source note**: the ~768 MB figure is the total observed at OOM in this project's tests. We do not document the underlying Xbox OS memory partition layout — treat any claim about the internal platform architecture as informed inference, not authoritative fact, unless backed by a Microsoft source.
+**Source note**: the GPU budget (3801 MB) is measured per-process via
+`QueryVideoMemoryInfo(LOCAL).Budget` in App-mode. The historical "~768 MB"
+estimate came from OOM bracketing (Phi-3.5-mini vs SmolLM2-360M) and proved to
+be a strong underestimate. We do not document the underlying Xbox OS memory
+partition layout — treat any claim about the internal platform architecture as
+informed inference unless backed by a Microsoft source.
 
 ## 8. AppContainer Filesystem Walk (`weakly_canonical`)
 
@@ -169,7 +190,7 @@ PIX for Xbox is GDK tooling gated behind the managed partner program; it is **no
 1. **ORT profiling JSON (primary, definitive)**. `genai_config.json` → `session_options` accepts `enable_profiling` (a string: the profile file _path prefix_, producing `<prefix>_<timestamp>.json`) and `log_severity_level` (0 = VERBOSE). Every `<node>_kernel_time` event in the trace carries `args.provider` — literally `"DmlExecutionProvider"` or `"CPUExecutionProvider"`. Heavy kernels (MatMul/Attention) tagged CPU = silent fallback. This works regardless of ORT build flavor and log routing. Tooling: `scripts/profile-dml-run.sh` (config swap + run + fetch) and `scripts/analyze_ort_profile.py` (per-provider summary + greppable `VERDICT:` line).
    - _Profile location ladder_: the relative prefix resolves against the process CWD, which in AppContainer may be the read-only install root (ORT's profiler ofstream then fails silently). Step 1: the fetch script checks LocalState root **and** `models\<name>\`. Step 2: `--absolute-prefix` renders `genai_config-dml-profile.tpl.json` with an absolute LocalState path. Step 3 (definitive): `set_cwd_to_local_folder()` pins CWD to LocalState at bench startup (v0.3.2+ MSIX).
 2. **Device Portal telemetry (corroborating)**. `GET /api/resourcemanager/systemperf` exists on the Xbox device family and reports `GPUData.AvailableAdapters[]` with `EnginesUtilization[]` (0–1 per engine) and `DedicatedMemoryUsed`. System-wide, ~1 Hz — run a control pass with the CPU config to calibrate background noise. Tooling: `scripts/xbox-gpu-sample.sh`, integrated as `--gpu-sample` in the bench/profile scripts.
-3. **In-app GPU memory (corroborating)**. `IDXGIAdapter3::QueryVideoMemoryInfo(LOCAL)` is callable from the AppContainer and is _per-process_: `CurrentUsage` climbing toward the model size after `OgaCreateModel` means the weights are resident on the GPU; `Budget` is the OS-granted ceiling (~768 MB App-mode Series S — trust this value over the hard-coded constant). Implemented as `gpu_mem_info()` in `src/bridge/platform.cpp`, logged pre-load/post-load/post-decode and exported as `gpu_mem_mb,gpu_budget_mb` bench CSV columns.
+3. **In-app GPU memory (corroborating)**. `IDXGIAdapter3::QueryVideoMemoryInfo(LOCAL)` is callable from the AppContainer and is _per-process_: `CurrentUsage` climbing toward the model size after `OgaCreateModel` means the weights are resident on the GPU; `Budget` is the OS-granted ceiling (measured **3801 MB** App-mode Series S — trust this value over any hard-coded constant). Implemented as `gpu_mem_info()` in `src/bridge/platform.cpp`, logged pre-load/post-load/post-decode and exported as `gpu_mem_mb,gpu_budget_mb` bench CSV columns.
 
 **Node-placement log caveat**: at `log_severity_level: 0` ORT emits "Node placements" lines from `session_state.cc`, but (a) only in full (non-minimal) ORT builds, and (b) ORT-core session logs may not route through the `OgaSetLogCallback` sink into `xllama.log`. Absence of the lines is not evidence — the profiling JSON is the primary probe.
 
