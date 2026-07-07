@@ -7,6 +7,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-07-07
+
+### Added
+
+**Headless bench mode — unblocks DML EP init** (root cause of the 0.3.3
+`887A0036` finding, now identified at the exact source line):
+
+- Root cause: ORT GenAI 0.13.2 creates its D3D12 device through the **Agility
+  SDK device factory** (`dml_helpers.cpp` `CreateDmlObjects`:
+  `CreateDeviceFactory(614, module_path)` succeeds on Xbox OS 26100 via the
+  in-box runtime ≥ 614, no app-local `D3D12Core.dll` needed — verified absent
+  from our MSIX). The factory's `CreateDevice` then collides with the
+  process-wide D3D12 device the **XAML compositor** (D3D11on12) created at
+  `Window.Activate()` — two different D3D12 runtimes cannot share a process →
+  `DXGI_ERROR_ALREADY_EXISTS`. This also reconciles Exp 1 (May): the then-OS
+  had in-box < 614, so ORT fell back to plain `D3D12CreateDevice` (line 144)
+  which coexists with the compositor device — the OS update flipped the branch.
+  No upstream fix on `main`; v0.14.0 has identical code.
+- `uwp/App.cpp`: when `LocalFolder\bench.flag` exists at startup, `wWinMain`
+  skips `Application::Start` entirely and runs a minimal `IFrameworkView`
+  (`BenchView`) via `CoreApplication::Run` — CoreWindow activated (PLM watchdog
+  satisfied) but **no XAML compositor, no in-process D3D12 device** — then runs
+  `xllama::bridge::main_loop()` on an MTA thread and exits via
+  `CoreApplication::Exit()`. Interactive path unchanged (flag absent →
+  `uninit_apartment` + `Application::Start` as before); `CheckBenchMode` in
+  MainPage stays as fallback if the early detection throws.
+
 ## [0.3.3] - 2026-07-07
 
 ### Changed

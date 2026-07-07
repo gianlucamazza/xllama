@@ -8,7 +8,11 @@
 #include "pch.h"
 #include "App.h"
 #include "MainPage.h"
+#include "inference-bridge.h"
+#include "xllama/platform.h"
 // clang-format on
+
+#include <thread>
 
 using namespace winrt;
 using namespace winrt::Windows::ApplicationModel::Activation;
@@ -121,10 +125,78 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
 } // namespace winrt::xllama::implementation
 
 // ---------------------------------------------------------------------------
+// Headless bench mode — no XAML, no compositor D3D12 device
+//
+// The XAML compositor (D3D11on12 on Xbox) creates a process-wide D3D12 device
+// at Window.Activate(), before any OgaCreateModel. ORT GenAI's DML EP then
+// creates its own device through the Agility SDK device factory
+// (dml_helpers.cpp: CreateDeviceFactory(614) + factory->CreateDevice), which
+// collides with the compositor's in-box-runtime device and throws 887A0036
+// DXGI_ERROR_ALREADY_EXISTS. Running the bench without XAML leaves the process
+// D3D12-clean so the DML EP can initialise.
+// ---------------------------------------------------------------------------
+
+// Returns the wide path of LocalFolder\bench.flag if it exists, empty otherwise.
+// Requires an initialised COM apartment (ApplicationData). Any exception =>
+// empty => normal interactive path (CheckBenchMode in MainPage stays as fallback).
+static std::wstring bench_flag_path_if_present() {
+    try {
+        auto folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
+        std::wstring flag = std::wstring(folder.Path().c_str()) + L"\\bench.flag";
+        DWORD attr = GetFileAttributesW(flag.c_str());
+        if (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY))
+            return flag;
+    } catch (...) {
+    }
+    return {};
+}
+
+// Minimal IFrameworkView: activates the CoreWindow (satisfies the PLM
+// activation watchdog, dismisses the splash) without a swapchain/compositor,
+// so no D3D12 device exists in-process. Same pattern as the UWP DX12 template.
+struct BenchView : winrt::implements<BenchView,
+                                     winrt::Windows::ApplicationModel::Core::IFrameworkViewSource,
+                                     winrt::Windows::ApplicationModel::Core::IFrameworkView> {
+    winrt::Windows::ApplicationModel::Core::IFrameworkView CreateView() { return *this; }
+    void Initialize(winrt::Windows::ApplicationModel::Core::CoreApplicationView const&) {}
+    void Load(winrt::hstring const&) {}
+    void Uninitialize() {}
+    void SetWindow(winrt::Windows::UI::Core::CoreWindow const&) {}
+    void Run() {
+        auto window = winrt::Windows::UI::Core::CoreWindow::GetForCurrentThread();
+        window.Activate();
+        auto dispatcher = window.Dispatcher();
+        std::thread([dispatcher]() {
+            winrt::init_apartment(); // MTA: main_loop uses ApplicationData (WinRT)
+            ::xllama::log_output("[xllama] headless bench: starting main_loop\n");
+            ::xllama::bridge::main_loop();
+            ::xllama::log_output("[xllama] headless bench: done, exiting\n");
+            dispatcher.RunAsync(winrt::Windows::UI::Core::CoreDispatcherPriority::Normal, [] {
+                winrt::Windows::ApplicationModel::Core::CoreApplication::Exit();
+            });
+        }).detach();
+        dispatcher.ProcessEvents(
+            winrt::Windows::UI::Core::CoreProcessEventsOption::ProcessUntilQuit);
+    }
+};
+
+// ---------------------------------------------------------------------------
 // Entry point — Application::Start replaces CoreApplication::Run
 // ---------------------------------------------------------------------------
 int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     try {
+        winrt::init_apartment(); // MTA: needed for ApplicationData in the detection
+        std::wstring bench_flag = bench_flag_path_if_present();
+        if (!bench_flag.empty()) {
+            // Consume the flag BEFORE the run (same semantics as CheckBenchMode):
+            // a later start without the flag goes back to interactive.
+            _wremove(bench_flag.c_str());
+            ::xllama::log_output("[xllama] bench.flag detected -> headless bench mode\n");
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<BenchView>());
+            return 0; // not reached: CoreApplication::Exit terminates the process
+        }
+        winrt::uninit_apartment(); // restore pre-existing thread state for XAML
         winrt::Windows::UI::Xaml::Application::Start(
             [](auto&&) { winrt::make<winrt::xllama::implementation::App>(); });
     } catch (winrt::hresult_error const& e) {
