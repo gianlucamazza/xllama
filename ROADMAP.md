@@ -49,10 +49,15 @@ picture is workload-dependent:
 - **Prefill: GPU wins at scale** — 354 vs 198 tok/s at ~1k prompt tokens
   (1.8×, TTFT 3.0 s vs 5.3 s). DML fp16 is the better choice for prompt-heavy
   workloads (long context / RAG) already today.
-- **The int4 GPU decode collapse (8.8 tok/s) is a missing fused int4 DML
-  kernel, not a hardware limit**: fp16 decode is 5.3× faster; effective
-  bandwidth GPU ~34 GB/s vs CPU ~13 GB/s. A `MatMulNBits`-class DML kernel
-  would imply ~180 tok/s (2.5× CPU) — upstream kernel-coverage issue.
+- **The int4 GPU decode collapse (8.8 tok/s) is DirectML's non-fused low-bit
+  kernel, not a missing/CPU one** (desk-check 2026-07-08, `docs/uwp-constraints.md
+§12`): `MatMulNBits` IS registered and runs on the DML GPU (profile: one
+  `DmlFusedNode`, 96%), but DML implements it as `DML_DEQUANTIZE`→fp16 + full
+  `DML_GEMM` — materialising fp16 weights, so int4 moves _more_ bandwidth than
+  fp16 (hence 8.8 < fp16's 46.8). The builder also gives DML `accuracy_level=0`
+  vs CPU's `=4` (fused int8 MLAS → CPU's 68). No config we control fixes it; a
+  fused low-bit GPU GEMM is a DirectML-team feature. **CPU int4 stays the decode
+  winner; GPU's win is prefill.**
 
 GPU pool estimate corrected: measured budget **3801 MB** (was "~768 MB");
 disk is the real constraint. Upstream fix for the `887A0036` init failure
@@ -128,13 +133,19 @@ Milestones:
       DML int4 vs DML fp16 ~3.4 GB, the pure-bandwidth test at scale —
       borderline vs the 3801 MB budget, attempt anyway) — at 1B+ scale the GPU
       bandwidth advantage (34 vs 13 GB/s) should dominate.
-- [ ] **int4-AWQ block-128 DML variant** (builder `-p int4 -e dml` with AWQ
-      options) as a cheap proxy for fused-kernel behaviour before any kernel work.
-- [ ] **Desk check upstream int4 status**: verify whether the int4 decode
-      collapse is truly a missing DML kernel or a builder/graph issue — ORT's
-      DML EP has a `MatMulNBits` operator; check what graph `-e dml` emits,
-      `accuracy_level`, and whether ORT GenAI 0.14 / newer DirectML changes the
-      picture. May turn "weeks of HLSL" into a config fix.
+- [x] **Desk check upstream int4 status** — ✅ done 2026-07-08
+      (`docs/uwp-constraints.md §12`). Verdict: `MatMulNBits` is present and runs
+      on the DML GPU (not missing, not CPU fallback); DirectML implements it
+      **non-fused** (`DML_DEQUANTIZE`→fp16 + `DML_GEMM`), and the builder gives
+      DML `accuracy_level=0` vs CPU's `=4`. int4-on-DML decode cannot beat
+      fp16-on-DML by any config we control — it's a DirectML kernel-design limit,
+      not "weeks of HLSL" we could contribute. **This closes GPU int4 decode as a
+      local lever.**
+- [~] **int4 DML config confirmation** (fast negative): SmolLM2-360M
+  `int4_block_size=128` and `int4_accuracy_level=4` variants are **built**
+  (scratchpad); one console bench each to confirm they stay ≈ 8.8 tok/s (the
+  kernel structure predicts no material gain). If either beats fp16-DML it
+  would refute §12 — worth the ~5 min. Not a path forward, just closure.
 - [ ] **llama.cpp CPU A/B**: build the `XLLAMA_USE_ORT=0` path for UWP and
       bench a GGUF Q4_K model. llama.cpp kernels typically extract ~2× the
       bandwidth of ORT's AVX2 `MatMulNBits` (~13 GB/s measured) → target
@@ -142,9 +153,11 @@ Milestones:
       (no mmap) untested since the Phase 1 pivot.
 - [x] **Per-workload routing in the app** — ✅ implemented (Stage 3, see software
       perf track above); pending on-console A/B with the DML fp16 model present.
-- [ ] (only if the above leaves ambiguity) **Upstream fused int4 DML kernel
-      contribution** — the fork→CI→inject→validate pipeline is proven
-      (PR #2280); bandwidth-implied payoff ~180 tok/s GPU decode (2.5× CPU).
+- [ ] (deprioritised by §12) **Fused low-bit GPU GEMM for DirectML** — the real
+      unlock for GPU int4 decode, but it lives in **DirectML itself**
+      (`DmlOperatorMatMulNBits` currently dequantises to fp16), not in an ORT-side
+      patch we can carry via the PR #2280 pipeline. Track as an upstream
+      DirectML feature request, not a local contribution.
 - [ ] (optional) in-app memory-bandwidth micro-bench (`membw.flag`) to fix the
       CPU ceiling denominator precisely.
 

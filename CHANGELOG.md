@@ -7,6 +7,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Corrected — int4 DML decode diagnosis (desk-check 2026-07-08)
+
+The [0.3.6] entry below (and the docs at the time) attributed the int4 GPU decode
+collapse (8.8 tok/s) to a "missing fused int4 DML kernel" that, if added, would
+imply ~180 tok/s. A source-level desk-check **refines that**: `MatMulNBits` is
+present in the graph (225 nodes) and **runs on the DML GPU** — the profiled run
+shows one `DmlFusedNode` on `DmlExecutionProvider` (96%), no CPU fallback. The
+real limit is that DirectML's `MatMulNBits` is **non-fused**
+(`DML_DEQUANTIZE`→fp16 + full `DML_GEMM`, materialising fp16 weights), so int4
+moves more bandwidth than fp16 and cannot beat it on DML; the builder also gives
+DML `accuracy_level=0` vs CPU's fused-int8 `=4`. Full analysis + config tests in
+`docs/uwp-constraints.md §12`; `ROADMAP.md` Phase 3.5 updated. Net: GPU int4
+decode is blocked by a DirectML kernel-design limit (out of our control), not a
+kernel we could contribute — CPU int4 stays the decode default.
+
 ## [0.3.9.0] - 2026-07-08
 
 ### Added — per-conversation CPU/GPU routing (Stage 3, default off)
