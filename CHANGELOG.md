@@ -7,6 +7,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-07-07
+
+### Fixed
+
+**DirectML EP init regression — `887A0036` at `OgaCreateModel`** (introduced by
+the `gpu_mem` telemetry in 0.3.2):
+
+- `src/bridge/inference.cpp`: removed the `gpu-mem pre-load` probe that ran
+  _before_ `OgaCreateModel`. `gpu_mem_info()` opens and caches an
+  `IDXGIAdapter3` on adapter 0; on the Xbox shared-GPU UWP sandbox this blocked
+  the DirectML EP from creating its D3D12 device in the subsequent
+  `OgaCreateModel` (`dml_helpers.cpp(140)`: `887A0036` "The desired element
+  already exists"). Isolated on console: the plain `dml-test` config (no
+  profiling) failed identically; not OOM (`avail_phys` 5.0 GB, `budget` 3801 MB);
+  and SmolLM2-360M INT4 + the same DML config had loaded cleanly in 0.3.0
+  (71.7 tok/s) before this probe existed. GPU memory is still sampled
+  `post-load`/`post-decode`, after DML creates its device — where the GPU-truth
+  signal (`current` ≈ model size) matters.
+
 ## [0.3.2] - 2026-07-07
 
 MSIX carrying the GPU-truth toolkit + in-app `gpu_mem` telemetry (CWD pin to

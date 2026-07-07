@@ -57,13 +57,14 @@ InferenceResult run_inference(const InferenceParams& params) {
                      static_cast<double>(ms.ullAvailPhys) / (1024.0 * 1024.0 * 1024.0),
                      peak_working_set_mb(), model_dir.c_str());
             log_output(mem_buf);
-            GpuMemInfo gpu = gpu_mem_info();
-            if (gpu.available) {
-                snprintf(mem_buf, sizeof(mem_buf),
-                         "[xllama] gpu-mem pre-load: current=%zuMB budget=%zuMB\n", gpu.current_mb,
-                         gpu.budget_mb);
-                log_output(mem_buf);
-            }
+            // NB: do NOT query GPU memory here. gpu_mem_info() opens and caches an
+            // IDXGIAdapter3 on adapter 0; on the Xbox shared-GPU sandbox that blocks
+            // the DirectML EP from creating its D3D12 device in the following
+            // OgaCreateModel call (dml_helpers.cpp: 887A0036 "element already
+            // exists"). SmolLM2-360M + this DML config loaded fine in v0.3.0 before
+            // this probe existed. GPU memory is sampled post-load/post-decode below,
+            // after DML has created its device — that is where the GPU-truth signal
+            // (current ≈ model size) matters anyway.
         }
 
         // --- model ---
