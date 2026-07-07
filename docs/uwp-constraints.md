@@ -123,8 +123,8 @@ load onto the GPU (411 MB), profiled kernels run on `DmlExecutionProvider`
 
 **Upstream fix (validated on console, 2026-07-07)**: we patched
 `CreateDmlObjects` to fall back to the system D3D12 runtime when the Agility
-device factory cannot create a device (fork
-`gianlucamazza/onnxruntime-genai`, branch `fix/dml-device-factory-fallback`).
+device factory cannot create a device (upstream PR
+[microsoft/onnxruntime-genai#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280)).
 Validated with a test MSIX (patched DLL, XAML path): the same XAML + DML
 scenario that threw `887A0036` loads in 886 ms and completes decode at
 8.8 tok/s; CPU path unaffected (67.2 tok/s). Once the fix ships in an ORT

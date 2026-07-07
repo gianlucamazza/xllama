@@ -14,8 +14,7 @@ console before contributing upstream:
 
 - Patch to `onnxruntime-genai` `CreateDmlObjects`: fall back to the system
   D3D12 runtime when the Agility SDK device factory cannot create a device
-  (fork `gianlucamazza/onnxruntime-genai`, branches
-  `fix/dml-device-factory-fallback{,-0132}`).
+  (upstream PR [microsoft/onnxruntime-genai#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280)).
 - Validated with a throwaway 0.3.9 test MSIX (branch
   `test/dml-fallback-validation`: patched DLL injected over the NuGet one,
   headless detection disabled to force the XAML repro path):
