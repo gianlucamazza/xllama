@@ -7,6 +7,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.7.0] - 2026-07-08
+
+### Changed — ONNX Runtime GenAI 0.13.2 → 0.14.1
+
+- Bumped `Microsoft.ML.OnnxRuntimeGenAI.DirectML` NuGet from 0.13.2 to **0.14.1**
+  (`uwp/packages.config`, `uwp/xllama.vcxproj` — 8 package-path references).
+  0.14.x reduces CPU-side per-token overhead in `GenerateNextToken`/`SampleTopP`
+  (directly relevant to the decode bottleneck measured in the v0.3.6 matrix) and
+  is the prerequisite for continuous decoding / KV-cache reuse (`RewindTo`,
+  generator reuse — Stage 2). No breaking C-API changes vs 0.13; existing model
+  directories (built with model builder 0.14.1) load unchanged.
+- On-console validation pending: rerun the CPU + DML bench matrix and compare
+  decode tok/s to the v0.3.6 baselines to quantify the per-token overhead win.
+
 ### Docs
 
 - `ROADMAP.md`: new Phase 3.5 — Hardware Ceiling with the ordered unlock
