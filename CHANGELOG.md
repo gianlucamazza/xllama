@@ -16,8 +16,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   per-workload verdict; "GPU vs CPU same model" milestone closed by the
   v0.3.6 matrix.
 - `docs/uwp-constraints.md` §5: stale "future work" paragraph replaced with
-  the measured per-workload approach; documented the untested App-vs-Game
-  designation lever (all current numbers are App-mode).
+  the measured per-workload approach; documented the App-vs-Game designation
+  lever — **settled 2026-07-08**: the package was found already designated
+  Game, so all measured figures are Game-mode numbers (the interim "all
+  numbers are App-mode" assumption was wrong and has been rectified in
+  §5/§7/§11); the GPU decode gap is a DML/kernel issue, not platform
+  scheduling.
+- Environment change (2026-07-08): Dev Mode storage allocation raised to
+  90 GB — the Q:\ ~2.2–2.5 GB disk budget (§9) is superseded as the binding
+  constraint for model sizing; ROADMAP Phase 3.5 updated accordingly.
 - `docs/device-portal.md`: new "Lifecycle gotchas" section — LocalState purge
   semantics (only forward upgrades preserve it), LocalState absent before
   first launch, WDP file APIs returning HTTP 200 with `"Success": false`,

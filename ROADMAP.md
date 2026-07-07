@@ -95,14 +95,25 @@ denominators for everything else, so they go first.
 
 Milestones:
 
-- [ ] **Game-mode designation experiment**: flip the package from App to Game in
-      Dev Home and rerun the v0.3.6 utilization matrix. App-mode GPU is
-      time-sliced and CPU/RAM are shared — the 113 ms/token DML dispatch
-      overhead may be partly platform scheduling. Free test, run first.
-- [ ] **Unlock 1B+ models on disk**: validate Exp 2 (`xllama-appx-nobundle` +
-      HF download) and/or the USB fallback on console (see Phase 4). Disk, not
-      GPU memory (3801 MB budget), is what blocks larger models — and at 1B+
-      scale the GPU bandwidth advantage (34 vs 13 GB/s) should dominate.
+- [x] **Game-mode designation** — ✅ settled 2026-07-08: checked in Dev Home,
+      the package is **already designated Game**. All measured figures
+      (3801 MB budget, v0.3.6 matrix, per-token dispatch overhead) are
+      Game-mode numbers; the platform lever is already exhausted and the GPU
+      decode gap is a DML/kernel issue, not App-mode scheduling. Optional
+      residue: a reverse A/B (flip to App, one run, flip back) to quantify the
+      App/Game delta for the record. Re-check the designation after every
+      package reinstall (it can reset).
+- [x] **Disk unblocked** — ✅ 2026-07-08: Dev Mode storage allocation raised to
+      **90 GB** (Dev Home → Manage Dev Storage). The Q:\ ~2.2–2.5 GB budget in
+      `docs/uwp-constraints.md §9` is superseded; 1B+ (and fp16 1.7B ~3.4 GB)
+      variants can now be uploaded to LocalState. Caveat to verify on first
+      big upload: community reports a ~2 GB per-file limit in Dev Mode
+      (relevant for merged `model.onnx` > 2 GB). Exp 2 nobundle (Phase 4)
+      remains useful for its own sake but is no longer a disk prerequisite.
+- [ ] **1B+ scale bench**: SmolLM2-1.7B in three variants (CPU int4 control vs
+      DML int4 vs DML fp16 ~3.4 GB, the pure-bandwidth test at scale —
+      borderline vs the 3801 MB budget, attempt anyway) — at 1B+ scale the GPU
+      bandwidth advantage (34 vs 13 GB/s) should dominate.
 - [ ] **int4-AWQ block-128 DML variant** (builder `-p int4 -e dml` with AWQ
       options) as a cheap proxy for fused-kernel behaviour before any kernel work.
 - [ ] **Desk check upstream int4 status**: verify whether the int4 decode

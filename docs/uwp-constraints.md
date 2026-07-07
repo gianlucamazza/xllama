@@ -29,7 +29,7 @@ Platform limitations relevant to running LLM inference on Xbox Dev Mode, and how
 ## 5. DirectML: Works on GPU (Headless) but Loses to CPU on Small Models
 
 **Background — pool estimate corrected (2026-07-07)**: the GPU budget measured
-in-app (`QueryVideoMemoryInfo(LOCAL).Budget`) is **3801 MB** in App-mode on
+in-app (`QueryVideoMemoryInfo(LOCAL).Budget`) is **3801 MB** (package designated Game — verified 2026-07-08, see §5) on
 Series S — the earlier "~768 MB pool" was a coarse inference from the
 Phi-3.5-mini OOM bracketing and is superseded. The operative constraint for
 model sizing is the **Dev Mode disk budget** (`Q:\` ~2.2–2.5 GB free), not GPU
@@ -97,12 +97,17 @@ Note: DirectML itself _is_ available in Dev Mode (NuGet `Microsoft.AI.DirectML 1
 
 **Current approach**: CPU EP (`"provider_options": []` in `genai_config.json`) remains the default for the interactive app (decode-heavy chat). DML fp16 is measured-viable for prompt-heavy workloads and profiling tooling exists (§11). The remaining GPU/CPU unlock levers — Game-mode designation, larger models via no-bundle deploy, fused int4 kernel path, llama.cpp kernel A/B, per-workload routing — are tracked in `ROADMAP.md` Phase 3.5. See §7 for GPU pool detail and §9 for disk budget.
 
-**Untested platform lever — App vs Game designation**: Dev Home can flip a
-sideloaded package from **App** to **Game**, granting Game OS resources
-(exclusive GPU instead of time-sliced access, more cores/RAM). All numbers in
-this document were measured in **App-mode**; part of the per-token DML
-dispatch overhead may be App-mode GPU scheduling rather than DML itself. Not
-yet measured — tracked in `ROADMAP.md` Phase 3.5.
+**Platform lever — App vs Game designation (settled 2026-07-08)**: Dev Home
+can flip a sideloaded package between **App** and **Game** (tile → View
+details → App type); Game grants Game OS resources (full GPU access, more
+RAM). Checked on console: **xllama is already designated Game** — the
+designation persists per package family across forward upgrades. Therefore
+the measured figures in this document (3801 MB GPU budget, the utilization
+matrix, the per-token DML dispatch overhead) are **Game-mode numbers**, and
+the earlier assumption labelling them "App-mode" was wrong. Consequence: the
+GPU decode gap cannot be blamed on App-mode scheduling — it is a DML/kernel
+issue, consistent with the fused-int4 analysis above. Operational note:
+re-check the designation after any package reinstall (it can reset to App).
 
 ## 6. Limited Thread Count
 
@@ -113,7 +118,7 @@ yet measured — tracked in `ROADMAP.md` Phase 3.5.
 ## 7. GPU Memory Pool — Detail
 
 **Measured budget (2026-07-07, in-app `QueryVideoMemoryInfo(LOCAL).Budget`):
-3801 MB** in App-mode on Series S. The "~768 MB" figure previously documented
+3801 MB** on Series S (package designated Game, verified 2026-07-08 — see §5). The "~768 MB" figure previously documented
 here was inferred from OOM bracketing and is superseded by this direct
 measurement.
 
@@ -163,7 +168,7 @@ competitive (CPU is 8× faster at 360M scale).
 **Diagnosis**: SEH `0xC0000005` in `OgaCreateModel`. WDP minidump (`type=2`) and the `xllama.log` entry `OgaCreateModel failed: ...` confirm the cause.
 
 **Source note**: the GPU budget (3801 MB) is measured per-process via
-`QueryVideoMemoryInfo(LOCAL).Budget` in App-mode. The historical "~768 MB"
+`QueryVideoMemoryInfo(LOCAL).Budget` with the package designated Game. The historical "~768 MB"
 estimate came from OOM bracketing (Phi-3.5-mini vs SmolLM2-360M) and proved to
 be a strong underestimate. We do not document the underlying Xbox OS memory
 partition layout — treat any claim about the internal platform architecture as
@@ -182,6 +187,14 @@ Tool: `scripts/merge_onnx_external_data.py`. CI runs this automatically as part 
 **Diagnosis**: Win32 probes on the model path — `GetFileAttributesW` and `CreateFile2` with `GENERIC_READ` succeed on `model_dir\model.onnx`, but the crash occurs inside the ORT segment-walking loop. Confirmed by matching the call site to `onnxruntime/core/framework/tensorprotoutils.cc` L337/338/346.
 
 ## 9. Disk Budget (Dev Mode Partition)
+
+> **Superseded (2026-07-08)**: the Dev Mode storage allocation was raised to
+> **90 GB** via Dev Home → Manage Dev Storage. The figures below describe the
+> default allocation and remain valid as the baseline for a fresh Dev Mode
+> activation; with the enlarged allocation, disk is no longer the binding
+> constraint for model sizing (GPU budget and RAM are). One caveat to verify:
+> community reports a ~2 GB per-file limit in Dev Mode, relevant for merged
+> `model.onnx` files above that size.
 
 **Observed**: the Xbox Series S Dev Mode partition (`Q:\`) provides approximately **2.2–2.5 GB of free space** after a clean Dev Mode activation, before any sideloaded package.
 
@@ -226,7 +239,7 @@ PIX for Xbox is GDK tooling gated behind the managed partner program; it is **no
 1. **ORT profiling JSON (primary, definitive)**. `genai_config.json` → `session_options` accepts `enable_profiling` (a string: the profile file _path prefix_, producing `<prefix>_<timestamp>.json`) and `log_severity_level` (0 = VERBOSE). Every `<node>_kernel_time` event in the trace carries `args.provider` — literally `"DmlExecutionProvider"` or `"CPUExecutionProvider"`. Heavy kernels (MatMul/Attention) tagged CPU = silent fallback. This works regardless of ORT build flavor and log routing. Tooling: `scripts/profile-dml-run.sh` (config swap + run + fetch) and `scripts/analyze_ort_profile.py` (per-provider summary + greppable `VERDICT:` line).
    - _Profile location ladder_: the relative prefix resolves against the process CWD, which in AppContainer may be the read-only install root (ORT's profiler ofstream then fails silently). Step 1: the fetch script checks LocalState root **and** `models\<name>\`. Step 2: `--absolute-prefix` renders `genai_config-dml-profile.tpl.json` with an absolute LocalState path. Step 3 (definitive): `set_cwd_to_local_folder()` pins CWD to LocalState at bench startup (v0.3.2+ MSIX).
 2. **Device Portal telemetry (corroborating)**. `GET /api/resourcemanager/systemperf` exists on the Xbox device family and reports `GPUData.AvailableAdapters[]` with `EnginesUtilization[]` (0–1 per engine) and `DedicatedMemoryUsed`. System-wide, ~1 Hz — run a control pass with the CPU config to calibrate background noise. Tooling: `scripts/xbox-gpu-sample.sh`, integrated as `--gpu-sample` in the bench/profile scripts.
-3. **In-app GPU memory (corroborating)**. `IDXGIAdapter3::QueryVideoMemoryInfo(LOCAL)` is callable from the AppContainer and is _per-process_: `CurrentUsage` climbing toward the model size after `OgaCreateModel` means the weights are resident on the GPU; `Budget` is the OS-granted ceiling (measured **3801 MB** App-mode Series S — trust this value over any hard-coded constant). Implemented as `gpu_mem_info()` in `src/bridge/platform.cpp`, logged pre-load/post-load/post-decode and exported as `gpu_mem_mb,gpu_budget_mb` bench CSV columns.
+3. **In-app GPU memory (corroborating)**. `IDXGIAdapter3::QueryVideoMemoryInfo(LOCAL)` is callable from the AppContainer and is _per-process_: `CurrentUsage` climbing toward the model size after `OgaCreateModel` means the weights are resident on the GPU; `Budget` is the OS-granted ceiling (measured **3801 MB** on Series S with the package designated Game — trust this value over any hard-coded constant). Implemented as `gpu_mem_info()` in `src/bridge/platform.cpp`, logged pre-load/post-load/post-decode and exported as `gpu_mem_mb,gpu_budget_mb` bench CSV columns.
 
 **Node-placement log caveat**: at `log_severity_level: 0` ORT emits "Node placements" lines from `session_state.cc`, but (a) only in full (non-minimal) ORT builds, and (b) ORT-core session logs may not route through the `OgaSetLogCallback` sink into `xllama.log`. Absence of the lines is not evidence — the profiling JSON is the primary probe.
 
