@@ -93,6 +93,20 @@ effective vs ~224 GB/s bus) and what the Series S can realistically deliver.
 Levers ordered by cost/leverage; the first two are near-free and change the
 denominators for everything else, so they go first.
 
+**Software perf track** (branch `feat/perf-0.14-kv-routing`, compile-validated
+in CI, **pending on-console validation** — deploy the 0.3.9.0 MSIX):
+
+- [x] **ORT GenAI 0.13.2 → 0.14.1** (Stage 1, v0.3.7): reduced per-token CPU
+      overhead + prereq for continuous decoding.
+- [x] **KV-cache reuse across chat turns** (Stage 2, v0.3.8): persistent
+      generator, append-only delta per turn → turn-N TTFT drops from re-prefilling
+      the whole history to just the new turn. Correctness-guarded fallback;
+      `kv_reuse` toggle (default on). Multi-turn TTFT bench added (Stage 2b).
+- [x] **Per-conversation CPU/GPU routing** (Stage 3, v0.3.9, default off): route
+      long-prompt conversations to DML fp16, chat to CPU int4; sticky per
+      conversation. (Supersedes the "per-workload routing" hardware milestone
+      below — machinery done, needs the fp16 model on device + console A/B.)
+
 Milestones:
 
 - [x] **Game-mode designation** — ✅ settled 2026-07-08: checked in Dev Home,
@@ -126,9 +140,8 @@ Milestones:
       bandwidth of ORT's AVX2 `MatMulNBits` (~13 GB/s measured) → target
       ~25–30 GB/s, ~130 tok/s decode at 360M. Risk: AppContainer compat
       (no mmap) untested since the Phase 1 pivot.
-- [ ] **Per-workload routing in the app**: prompt-length threshold → DML fp16
-      session for long contexts (TTFT 3.0 s vs 5.3 s measured at ~1k tok), CPU
-      int4 for chat decode. Both models fit memory; pure engineering.
+- [x] **Per-workload routing in the app** — ✅ implemented (Stage 3, see software
+      perf track above); pending on-console A/B with the DML fp16 model present.
 - [ ] (only if the above leaves ambiguity) **Upstream fused int4 DML kernel
       contribution** — the fork→CI→inject→validate pipeline is proven
       (PR #2280); bandwidth-implied payoff ~180 tok/s GPU decode (2.5× CPU).
