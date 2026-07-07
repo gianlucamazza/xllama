@@ -37,6 +37,16 @@ per-turn prefill covers just the delta.
 - On-console validation pending: measure turn-2 TTFT with reuse on vs off
   (Stage 2b bench) and confirm multi-turn coherence before trusting it as default.
 
+### Added — multi-turn TTFT bench (Stage 2b)
+
+- Headless bench gains a KV-reuse measurement: when `bench_turns.txt` is present
+  (turn-2 user prompt; `prompt.txt` supplies turn 1), `main_loop` runs both turns
+  on one persistent `Session` and measures turn-2 prefill **with reuse** (append
+  only the delta) vs the **cold** baseline (full re-prefill of the 2-turn
+  context), writing `bench-kv-result.csv` (+ `.done`) with a `speedup` column and
+  logging the numbers. This measures the Stage 2 win on console instead of
+  assuming it.
+
 ## [0.3.7.0] - 2026-07-08
 
 ### Changed — ONNX Runtime GenAI 0.13.2 → 0.14.1

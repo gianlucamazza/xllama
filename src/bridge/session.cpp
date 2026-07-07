@@ -235,8 +235,8 @@ class OrtSession final : public Session {
     }
 
     void log_gen(const InferenceResult& res, bool chat) {
-        double dt = (res.n_eval > 0 && res.t_eval_ms > 0) ? res.n_eval / (res.t_eval_ms / 1000.0)
-                                                          : 0.0;
+        double dt =
+            (res.n_eval > 0 && res.t_eval_ms > 0) ? res.n_eval / (res.t_eval_ms / 1000.0) : 0.0;
         char log_buf[256];
         snprintf(log_buf, sizeof(log_buf), "[xllama] session generate%s: decode=%.1f tok/s n=%d\n",
                  chat ? " (chat)" : "", dt, res.n_eval);
