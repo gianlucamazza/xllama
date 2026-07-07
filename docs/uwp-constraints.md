@@ -39,7 +39,12 @@ DirectML EP test results (Series S, xllama v0.3.1, 2026-05-23):
 | Phi-3.5-mini | GPU INT4 AWQ     | ~2.2 GB | GPU OOM (`0xC0000005`) — exceeds 768 MB pool    |
 | SmolLM2-360M | INT4, DML config | 403 MB  | ✅ Loads without OOM; 71.7 tok/s ≈ CPU baseline |
 
-**Interpretation note**: SmolLM2-360M INT4 loads successfully with DML `provider_options` and returns inference results indistinguishable from the CPU EP (~71 tok/s). Whether the DirectML EP actually executes on the GPU can now be measured without PIX — see §11 (ORT profiling JSON attributes every kernel to its execution provider). Pending the first profiled run, the finding remains: **360M model fits the GPU pool; actual GPU execution is unconfirmed**.
+**Interpretation note** (updated 2026-07-07): the profiled GPU-truth run on
+console settled this — **the DirectML EP does not initialise at all**.
+`OgaCreateModel` throws `887A0036` "The desired element already exists" at
+`dml_helpers.cpp(140)` before any kernel runs (details in §7). Exp 1's earlier
+"~71 tok/s ≈ CPU baseline" was therefore a **silent CPU fallback**, never real
+DML execution. The CPU EP is the only working backend.
 
 **Effect on disk**: models too large to fit the Dev Mode partition also fail before reaching `OgaCreateModel`. This is a distinct failure mode — see §9.
 
@@ -68,6 +73,26 @@ The UWP sandbox on Xbox Series S provides approximately **768 MB of GPU-accessib
 When `OgaCreateModel` initialises the DirectML execution provider, the DML allocator attempts to reserve GPU memory for model weights. If the model's total weight size exceeds the available pool, the allocator returns a null pointer; subsequent use of that pointer produces a STATUS_ACCESS_VIOLATION fault.
 
 The fault manifests before any inference call — at model load time. There is no recovery path short of using a smaller model or switching to CPU EP.
+
+**Distinct failure mode — DML EP init throws even for models that fit the pool**
+(2026-07-07, GPU-truth run, ORT GenAI 0.13.2 / ORT 1.24.4 / DirectML 1.15.4):
+SmolLM2-360M INT4 (403 MB, well within the ~768 MB pool) does **not** OOM — it
+fails earlier, at DirectML EP device creation. `OgaCreateModel` throws
+`887A0036` "The desired element already exists" at
+`onnxruntime-genai .../dml/dml_helpers.cpp(140)`, before any kernel runs.
+Reproduced 3× (profiling and plain DML configs; with and without our
+`gpu_mem_info` pre-load probe — the probe is not the cause). Not OOM
+(`avail_phys` 5.0 GB, `budget` 3801 MB). GPU telemetry stays flat (only the
+display engine active), confirming no GPU execution.
+
+Likely root cause: a Direct3D 12 device is a singleton per adapter — a UWP XAML
+app already holds a D3D12 device (the compositor) on adapter 0 before
+`OgaCreateModel`, and the DML EP's own device/element creation collides with it.
+This makes the DirectML EP **not viable** on this ORT GenAI build in the Xbox
+UWP sandbox regardless of model size; the CPU EP is the only working backend
+(70.9 tok/s on SmolLM2-360M). Escaping it would need a different ORT GenAI
+version, a GDK (non-UWP) path, or creating the DML device before the XAML
+compositor claims the adapter.
 
 **Diagnosis**: SEH `0xC0000005` in `OgaCreateModel`. WDP minidump (`type=2`) and the `xllama.log` entry `OgaCreateModel failed: ...` confirm the cause.
 

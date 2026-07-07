@@ -9,22 +9,42 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [0.3.3] - 2026-07-07
 
-### Fixed
+### Changed
 
-**DirectML EP init regression — `887A0036` at `OgaCreateModel`** (introduced by
-the `gpu_mem` telemetry in 0.3.2):
-
-- `src/bridge/inference.cpp`: removed the `gpu-mem pre-load` probe that ran
+- `src/bridge/inference.cpp`: dropped the `gpu-mem pre-load` probe that ran
   _before_ `OgaCreateModel`. `gpu_mem_info()` opens and caches an
-  `IDXGIAdapter3` on adapter 0; on the Xbox shared-GPU UWP sandbox this blocked
-  the DirectML EP from creating its D3D12 device in the subsequent
-  `OgaCreateModel` (`dml_helpers.cpp(140)`: `887A0036` "The desired element
-  already exists"). Isolated on console: the plain `dml-test` config (no
-  profiling) failed identically; not OOM (`avail_phys` 5.0 GB, `budget` 3801 MB);
-  and SmolLM2-360M INT4 + the same DML config had loaded cleanly in 0.3.0
-  (71.7 tok/s) before this probe existed. GPU memory is still sampled
-  `post-load`/`post-decode`, after DML creates its device — where the GPU-truth
-  signal (`current` ≈ model size) matters.
+  `IDXGIAdapter3` on adapter 0; not holding that handle open across model load
+  is cleaner. GPU memory is still sampled `post-load`/`post-decode`, after the
+  session exists — where the GPU-truth signal (`current` ≈ model size) matters.
+  **Note:** this was first hypothesised to be the cause of the DML init failure
+  below, but the rebuild (0.3.3) disproved it — see _Investigated_. The change
+  is kept as harmless cleanup, not a fix.
+
+### Investigated — GPU-truth DML experiment on console (2026-07-07)
+
+First profiled DML run on Xbox Series S, using the 0.3.2 GPU-truth toolkit.
+**Result: the DirectML EP does not initialise at all** on this stack — it is
+neither GPU execution nor a CPU fallback.
+
+- `OgaCreateModel` throws `887A0036` "The desired element already exists" at
+  `onnxruntime-genai .../dml/dml_helpers.cpp(140)`, **before any kernel runs**,
+  so no `ort_profile_*.json` is produced and the profiler emits no `VERDICT:`.
+- Reproduced 3×: profiling config (0.3.2), plain `dml-test` config (0.3.2), and
+  after the pre-load-probe removal (0.3.3) — identical signature each time.
+- **Not OOM** (`avail_phys` 5.0 GB, `budget` 3801 MB), **not the profiling
+  config** (plain config fails identically), **not our telemetry** (0.3.3 fix
+  changes nothing). Cause is inside the ORT GenAI DML EP device creation.
+- Likely a D3D12 single-device-per-adapter conflict: a UWP XAML app already
+  holds a D3D12 device (compositor) on adapter 0 before `OgaCreateModel`.
+- Corroborated by telemetry: GPU engines flat (only the display engine ~99%),
+  `gpu_dedicated` ~100 MB (Dev Home noise), no compute spike.
+- Reconciles Exp 1 (2026-05-23): its "loads without OOM, 71.7 tok/s ≈ CPU
+  baseline, GPU execution unconfirmed" was almost certainly a **silent CPU
+  fallback**, never real DML execution. Same ORT GenAI 0.13.2, same config.
+- **Conclusion:** DML EP is not viable on ORT GenAI 0.13.2 in the Xbox UWP
+  sandbox; the CPU EP is the only working backend (70.9 tok/s control run, same
+  session). Supersedes the earlier "GPU EP ruled out via OOM" with a precise
+  init-failure signature.
 
 ## [0.3.2] - 2026-07-07
 

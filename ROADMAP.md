@@ -16,31 +16,39 @@ Milestones:
 - [x] SmolLM2-360M bundled inside MSIX as `DeploymentContent`; CI `build-uwp` green
 - [x] ChatML prompt template applied for SmolLM2 Instruct
 
-## Phase 2 — GPU Acceleration ⚠️ PARTIALLY UNBLOCKED
+## Phase 2 — GPU Acceleration ❌ NOT VIABLE (DML EP does not initialise)
 
 **Goal**: DirectML EP inference using Xbox RDNA 2 hardware.
 
-**Status (2026-05-23, xllama v0.3.1)**:
+**Status (2026-07-07, xllama v0.3.3)** — GPU-truth experiment run on console:
 
-_Exp 1 completed_: SmolLM2-360M INT4 loads with DML provider_options (`enable_cpu_mem_arena=0`, `enable_mem_pattern=0`, `past_present_share_buffer=false`) WITHOUT `0xC0000005` OOM. Performance: **71.7 tok/s** ≈ CPU baseline (t=4, 71.4 tok/s). Phi-3.5-mini (~2.2 GB) still causes OOM as expected.
+_DML EP does not initialise._ `OgaCreateModel` throws `887A0036` "The desired
+element already exists" at `onnxruntime-genai .../dml/dml_helpers.cpp(140)`,
+**before any kernel runs** — so the ORT profiler produces no `VERDICT:`. Neither
+GPU execution nor CPU fallback: the EP fails at device creation. Reproduced 3×
+(profiling config, plain `dml-test`, and after the 0.3.3 pre-load-probe removal).
+Not OOM (`avail_phys` 5.0 GB, `budget` 3801 MB), not our telemetry, not the
+profiling config. Likely a D3D12 single-device-per-adapter conflict with the UWP
+XAML compositor. See `CHANGELOG.md` [0.3.3] and `docs/uwp-constraints.md §7`.
 
-**Open question**: whether ORT actually routes SmolLM2-360M INT4 to the RDNA 2 GPU or silently falls back to CPU cannot be determined without D3D performance profiling (PIX or hardware GPU counters). No profiling infrastructure is available on-device yet.
+_Exp 1 reconciled_: its "loads without OOM, **71.7 tok/s ≈ CPU baseline**, GPU
+execution unconfirmed" (2026-05-23) was almost certainly a **silent CPU
+fallback**, never real DML execution — same ORT GenAI 0.13.2, same config.
 
-**Revised blocker**: models ≥ ~1 GB remain blocked by the ~768 MB GPU pool. Sub-400 MB INT4 models physically fit the pool. Actual GPU utilisation is unconfirmed.
-
-**Conditions to confirm Phase 2 complete**:
-
-- D3D performance profiling confirms GPU kernel execution (not CPU fallback)
-- tok/s on GPU visibly exceeds CPU baseline for the same model/quant
+**Conclusion**: on ORT GenAI 0.13.2 in the Xbox UWP sandbox, the CPU EP is the
+only working backend (70.9 tok/s control run). GPU acceleration would require a
+different ORT GenAI version, a GDK (non-UWP) path, or resolving the DML device
+conflict. Superseded the earlier "GPU EP ruled out via OOM" with a precise
+init-failure signature.
 
 Milestones:
 
-- [x] Exp 1: test DML provider_options on SmolLM2-360M — loads without OOM; GPU execution unconfirmed
+- [x] Exp 1: test DML provider_options on SmolLM2-360M — loads without OOM; later found to be silent CPU fallback (see Status)
 - [x] GPU-truth toolkit in place of PIX (unavailable in Dev Mode): ORT profiler with per-kernel EP attribution (`profile-dml-run.sh` + `analyze_ort_profile.py`), WDP `systemperf` GPU counters (`xbox-gpu-sample.sh`), in-app `QueryVideoMemoryInfo` (`gpu_mem_mb` CSV columns) — see `docs/uwp-constraints.md §11`
-- [ ] Run the profiled DML experiment on console: `VERDICT:` from `profile-dml-run.sh` + control run on CPU config
+- [x] Run the profiled DML experiment on console — ❌ DML EP fails to init (`887A0036` at `OgaCreateModel`); no `VERDICT:` obtainable; CPU control run 70.9 tok/s
 - [x] Evaluate Qwen2.5-0.5B INT4 ONNX as GPU EP candidate — ❌ CPU-int4 is ~822 MB (not ~200 MB); only the DML int4-awq variant (~507 MB) borderline fits the pool (see `docs/model-selection.md`)
-- [ ] Validate DirectML EP inference end-to-end: confirm GPU tok/s > CPU tok/s
-- [ ] Measure GPU vs CPU tok/s for the same model at same quant level
+- [~] Validate DirectML EP inference end-to-end — ❌ blocked: DML EP does not initialise on this stack
+- [~] Measure GPU vs CPU tok/s for the same model — ❌ blocked: no GPU execution possible
 
 ## Phase 3 — Benchmarks + Model Exploration 🔄 IN PROGRESS
 
