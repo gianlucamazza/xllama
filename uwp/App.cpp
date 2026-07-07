@@ -12,7 +12,7 @@
 #include "xllama/platform.h"
 // clang-format on
 
-#include <thread>
+    #include <thread>
 
 using namespace winrt;
 using namespace winrt::Windows::ApplicationModel::Activation;
@@ -154,10 +154,12 @@ static std::wstring bench_flag_path_if_present() {
 // Minimal IFrameworkView: activates the CoreWindow (satisfies the PLM
 // activation watchdog, dismisses the splash) without a swapchain/compositor,
 // so no D3D12 device exists in-process. Same pattern as the UWP DX12 template.
-struct BenchView : winrt::implements<BenchView,
-                                     winrt::Windows::ApplicationModel::Core::IFrameworkViewSource,
-                                     winrt::Windows::ApplicationModel::Core::IFrameworkView> {
-    winrt::Windows::ApplicationModel::Core::IFrameworkView CreateView() { return *this; }
+struct BenchView
+    : winrt::implements<BenchView, winrt::Windows::ApplicationModel::Core::IFrameworkViewSource,
+                        winrt::Windows::ApplicationModel::Core::IFrameworkView> {
+    winrt::Windows::ApplicationModel::Core::IFrameworkView CreateView() {
+        return *this;
+    }
     void Initialize(winrt::Windows::ApplicationModel::Core::CoreApplicationView const&) {}
     void Load(winrt::hstring const&) {}
     void Uninitialize() {}
@@ -192,8 +194,7 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
             // a later start without the flag goes back to interactive.
             _wremove(bench_flag.c_str());
             ::xllama::log_output("[xllama] bench.flag detected -> headless bench mode\n");
-            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
-                winrt::make<BenchView>());
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(winrt::make<BenchView>());
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
         winrt::uninit_apartment(); // restore pre-existing thread state for XAML
