@@ -37,6 +37,9 @@ struct InferenceResult {
     double t_eval_ms = 0.0;
     int n_p_eval = 0;
     int n_eval = 0;
+    bool ended_with_stop = false; // true = stopped on a stop sequence; false = n_predict/EOS cap.
+                                  // Lets a KV-reuse caller know whether the closing <|im_end|>
+                                  // is already in the KV cache when building the next turn's delta.
     size_t peak_ws_mb = 0;
     size_t gpu_mem_mb = 0;    // per-process GPU CurrentUsage after model load (0 = N/A)
     size_t gpu_budget_mb = 0; // OS-granted GPU budget for this process (0 = N/A)

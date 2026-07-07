@@ -7,6 +7,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.8.0] - 2026-07-08
+
+### Added — KV-cache reuse across chat turns (continuous decoding)
+
+The interactive app re-prefilled the **entire** ChatML history on every turn
+(`BuildChatMLPrompt` + a fresh `OgaGenerator` per `generate()`), so turn-N TTFT
+paid to re-process ~all prior tokens (~1.8k at budget → seconds). `OrtSession`
+now keeps its generator alive across turns and appends only the new turn's
+tokens (`OgaGenerator_AppendTokenSequences` on the persistent generator), so the
+per-turn prefill covers just the delta.
+
+- `GenerateParams` gains `reuse_kv` / `reset_kv`; `InferenceResult` gains
+  `ended_with_stop` and now populates prefill telemetry (`n_p_eval`/`t_p_eval_ms`)
+  on the interactive path too (previously bench-only). Decode timing excludes
+  prefill, matching the bench convention.
+- `OrtSession` holds `m_chat_gen`/`m_chat_params`/`m_chat_stream` + the bound
+  sampling signature; the stateless path is preserved unchanged and still used
+  when `reuse_kv` is false.
+- `MainPageController::BuildDeltaPrompt` builds the incremental turn; the KV is
+  reused only when valid and no context turn was evicted (RewindTo truncates the
+  tail, not the head → eviction forces a full re-prefill). Reuse is invalidated
+  on new/loaded chat, settings change, abort, and any generator failure.
+- **Correctness guard**: a continuation that fails before emitting a token
+  auto-falls back to a full re-prefill (no UI double-streaming) — worst case is
+  the previous behaviour, never a wrong result.
+- Settings toggle `kv_reuse` (ToggleSwitch + `settings.json`, default on) so the
+  win can be A/B'd on console.
+- On-console validation pending: measure turn-2 TTFT with reuse on vs off
+  (Stage 2b bench) and confirm multi-turn coherence before trusting it as default.
+
 ## [0.3.7.0] - 2026-07-08
 
 ### Changed — ONNX Runtime GenAI 0.13.2 → 0.14.1

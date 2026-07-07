@@ -55,6 +55,8 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     void RenderConversation();
     void AddUserParagraph(std::wstring const& text);
     std::string BuildChatMLPrompt(const std::string& user_text, int* out_dropped = nullptr) const;
+    // Only the new turn's ChatML tokens, appended to the reused KV cache.
+    std::string BuildDeltaPrompt(const std::string& user_text) const;
     void LoadSettings();
     void SaveSettings();
     winrt::fire_and_forget ShowSettings();
@@ -83,6 +85,18 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     // Persistent inference session — loaded once, reused across chat turns.
     std::unique_ptr<xllama::Session> m_session;
     std::string m_session_model;
+
+    // KV-cache reuse (continuous decoding) state.
+    //   m_kv_reuse: feature toggle (settings.json "kv_reuse", default true).
+    //   m_kv_valid: the session's persistent generator currently holds the KV for
+    //               m_current through the last completed turn — the next turn can
+    //               append only its delta. Cleared on new/loaded chat, settings
+    //               change, abort, context eviction, or any generator failure.
+    //   m_kv_last_ended_with_stop: whether the last turn stopped on <|im_end|>
+    //               (already in KV) vs the n_predict cap (not) — drives the delta.
+    bool m_kv_reuse{true};
+    bool m_kv_valid{false};
+    bool m_kv_last_ended_with_stop{false};
 
     // Token streaming state (written from bg thread, flushed on UI thread via timer)
     std::mutex m_token_mutex;

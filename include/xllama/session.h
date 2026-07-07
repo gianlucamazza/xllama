@@ -34,6 +34,26 @@ struct GenerateParams {
     // Generation stops and the matching sequence is stripped.
     std::vector<std::string> stop_sequences;
 
+    // Continuous decoding / KV-cache reuse (ORT path only; the llama.cpp path
+    // ignores these and always runs stateless).
+    //   reuse_kv = false           → legacy stateless turn: a fresh generator is
+    //                                created and destroyed; `prompt` is the full
+    //                                context. Proven default.
+    //   reuse_kv = true,  reset_kv = false → continuation turn: `prompt` is only
+    //                                the NEW turn's tokens; they are appended to
+    //                                the generator kept alive from the previous
+    //                                turn, so the per-turn prefill covers just the
+    //                                delta (the multi-turn TTFT win).
+    //   reuse_kv = true,  reset_kv = true  → start/refresh the persistent
+    //                                generator (new conversation, context
+    //                                eviction, or sampling change); `prompt` is
+    //                                the full context. Subsequent turns pass
+    //                                reset_kv = false to reuse it.
+    // On any failure of a continuation turn the session drops its chat state and
+    // reports !success so the caller can retry with reset_kv + the full prompt.
+    bool reuse_kv = false;
+    bool reset_kv = false;
+
     std::function<void(const std::string&)> on_token;
     std::function<void(const std::string&)> on_status;
     std::atomic<bool>* abort_flag = nullptr;

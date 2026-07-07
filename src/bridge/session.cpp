@@ -27,142 +27,245 @@
 
 namespace xllama {
 
-class OrtSession final : public Session {
-  public:
-    OgaModelPtr m_model;
-    OgaTokenizerPtr m_tok;
-
-    explicit OrtSession(OgaModelPtr model, OgaTokenizerPtr tok)
-        : m_model(std::move(model)), m_tok(std::move(tok)) {}
-
-    InferenceResult generate(const GenerateParams& gp) override {
-        InferenceResult res;
-
-        _set_se_translator([](unsigned int code, EXCEPTION_POINTERS*) {
-            char b[48];
-            snprintf(b, sizeof(b), "SEH 0x%08X", code);
-            throw std::runtime_error(b);
-        });
-
-        try {
-            if (gp.on_status)
-                gp.on_status("tokenizing");
-
-            OgaTokenizerStream* raw_stream = nullptr;
-            oga_check(OgaCreateTokenizerStream(m_tok.get(), &raw_stream),
-                      "OgaCreateTokenizerStream");
-            OgaTokenizerStreamPtr stream(raw_stream);
-
-            OgaSequences* raw_seqs = nullptr;
-            oga_check(OgaCreateSequences(&raw_seqs), "OgaCreateSequences");
-            OgaSequencesPtr seqs(raw_seqs);
-            oga_check(OgaTokenizerEncode(m_tok.get(), gp.prompt.c_str(), seqs.get()),
-                      "OgaTokenizerEncode");
-
-            OgaGeneratorParams* raw_params = nullptr;
-            oga_check(OgaCreateGeneratorParams(m_model.get(), &raw_params),
-                      "OgaCreateGeneratorParams");
-            OgaGeneratorParamsPtr gparams(raw_params);
-
-            // max_length includes prompt tokens
-            oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "max_length",
-                                                        static_cast<double>(gp.n_predict + 512)),
-                      "SetSearchNumber max_length");
-            oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "temperature",
-                                                        static_cast<double>(gp.temperature)),
-                      "SetSearchNumber temperature");
-            oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "top_p",
-                                                        static_cast<double>(gp.top_p)),
-                      "SetSearchNumber top_p");
-            oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "top_k",
-                                                        static_cast<double>(gp.top_k)),
-                      "SetSearchNumber top_k");
-            oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "repetition_penalty",
-                                                        static_cast<double>(gp.repetition_penalty)),
-                      "SetSearchNumber repetition_penalty");
-
-            OgaGenerator* raw_gen = nullptr;
-            oga_check(OgaCreateGenerator(m_model.get(), gparams.get(), &raw_gen),
-                      "OgaCreateGenerator");
-            OgaGeneratorPtr gen(raw_gen);
-
-            oga_check(OgaGenerator_AppendTokenSequences(gen.get(), seqs.get()),
-                      "AppendTokenSequences");
-
-            if (gp.on_status)
-                gp.on_status("generating");
-
-            auto t0 = std::chrono::steady_clock::now();
-            int n_generated = 0;
-            bool stopped_by_seq = false;
-
-            while (!OgaGenerator_IsDone(gen.get())) {
-                if (gp.abort_flag && gp.abort_flag->load())
-                    break;
-
-                oga_check(OgaGenerator_GenerateNextToken(gen.get()), "GenerateNextToken");
-
-                const int32_t* next_toks = nullptr;
-                size_t n_next = 0;
-                oga_check(OgaGenerator_GetNextTokens(gen.get(), &next_toks, &n_next),
-                          "GetNextTokens");
-
-                for (size_t i = 0; i < n_next; ++i) {
-                    const char* piece = nullptr;
-                    oga_check(OgaTokenizerStreamDecode(stream.get(), next_toks[i], &piece),
-                              "TokenizerStreamDecode");
-                    if (piece && *piece) {
-                        res.output_text += piece;
-                        if (gp.on_token)
-                            gp.on_token(std::string(piece));
-                    }
-                }
-                ++n_generated;
-
-                // Check stop sequences on accumulated output
-                for (const auto& stop : gp.stop_sequences) {
-                    auto pos = res.output_text.find(stop);
-                    if (pos != std::string::npos) {
-                        res.output_text.erase(pos);
-                        stopped_by_seq = true;
-                        break;
-                    }
-                }
-                if (stopped_by_seq)
-                    break;
-            }
-
-            double elapsed_s =
-                std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
-
-            res.n_eval = n_generated;
-            res.t_eval_ms = elapsed_s * 1000.0;
-            res.peak_ws_mb = peak_working_set_mb();
-            res.success = true;
-
-            char log_buf[256];
-            snprintf(log_buf, sizeof(log_buf),
-                     "[xllama] session generate: decode=%.1f tok/s n=%d\n",
-                     elapsed_s > 0 ? n_generated / elapsed_s : 0.0, n_generated);
-            log_output(log_buf);
-
-        } catch (const std::exception& e) {
-            res.error_msg = e.what();
-            log_output(("[xllama] session generate error: " + res.error_msg + "\n").c_str());
-            if (gp.on_status)
-                gp.on_status("error: " + res.error_msg);
-        }
-
-        return res;
-    }
-};
-
-std::unique_ptr<Session> Session::create(const SessionParams& sp, std::string* err) {
+namespace {
+inline void install_se_translator() {
     _set_se_translator([](unsigned int code, EXCEPTION_POINTERS*) {
         char b[48];
         snprintf(b, sizeof(b), "SEH 0x%08X", code);
         throw std::runtime_error(b);
     });
+}
+} // namespace
+
+class OrtSession final : public Session {
+  public:
+    OgaModelPtr m_model;
+    OgaTokenizerPtr m_tok;
+    int m_n_ctx;
+
+    // Persistent chat state for KV-cache reuse (continuous decoding). Kept alive
+    // between generate() calls when GenerateParams::reuse_kv is set. m_chat_params
+    // must outlive m_chat_gen.
+    OgaGeneratorParamsPtr m_chat_params;
+    OgaGeneratorPtr m_chat_gen;
+    OgaTokenizerStreamPtr m_chat_stream;
+    bool m_chat_valid = false;
+    // Sampling signature bound into m_chat_gen — the generator can only be reused
+    // while these are unchanged (ORT binds sampling at generator creation).
+    float m_b_temp = 0.0f, m_b_top_p = 0.0f, m_b_rep = 0.0f;
+    int m_b_top_k = 0;
+
+    explicit OrtSession(OgaModelPtr model, OgaTokenizerPtr tok, int n_ctx)
+        : m_model(std::move(model)), m_tok(std::move(tok)), m_n_ctx(n_ctx) {}
+
+    void reset_chat_state() {
+        m_chat_gen.reset(); // generator before its params
+        m_chat_params.reset();
+        m_chat_stream.reset();
+        m_chat_valid = false;
+    }
+
+    bool sampling_matches(const GenerateParams& gp) const {
+        return m_chat_valid && m_b_temp == gp.temperature && m_b_top_p == gp.top_p &&
+               m_b_top_k == gp.top_k && m_b_rep == gp.repetition_penalty;
+    }
+
+    OgaGeneratorParamsPtr make_params(const GenerateParams& gp, int max_length) {
+        OgaGeneratorParams* raw_params = nullptr;
+        oga_check(OgaCreateGeneratorParams(m_model.get(), &raw_params), "OgaCreateGeneratorParams");
+        OgaGeneratorParamsPtr gparams(raw_params);
+        oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "max_length",
+                                                    static_cast<double>(max_length)),
+                  "SetSearchNumber max_length");
+        oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "temperature",
+                                                    static_cast<double>(gp.temperature)),
+                  "SetSearchNumber temperature");
+        oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "top_p",
+                                                    static_cast<double>(gp.top_p)),
+                  "SetSearchNumber top_p");
+        oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "top_k",
+                                                    static_cast<double>(gp.top_k)),
+                  "SetSearchNumber top_k");
+        oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "repetition_penalty",
+                                                    static_cast<double>(gp.repetition_penalty)),
+                  "SetSearchNumber repetition_penalty");
+        return gparams;
+    }
+
+    // Decode loop shared by the stateless and chat paths. The caller has already
+    // appended the prompt tokens and captured t_prefill_start immediately before
+    // AppendTokenSequences; prefill-end is marked after the first
+    // GenerateNextToken (in ORT GenAI the prompt prefill runs during the first
+    // compute step), so decode timing excludes prefill. n_predict_cap > 0 caps
+    // per-turn generation (chat mode); 0 relies on max_length (stateless mode).
+    void run_decode(OgaGenerator* gen, OgaTokenizerStream* stream, const GenerateParams& gp,
+                    InferenceResult& res, std::chrono::steady_clock::time_point t_prefill_start,
+                    int n_prompt_tok, int n_predict_cap) {
+        auto t_prefill_end = t_prefill_start;
+        int n_generated = 0;
+        bool stopped_by_seq = false;
+        bool first = true;
+
+        while (!OgaGenerator_IsDone(gen)) {
+            if (gp.abort_flag && gp.abort_flag->load())
+                break;
+            if (n_predict_cap > 0 && n_generated >= n_predict_cap)
+                break;
+
+            oga_check(OgaGenerator_GenerateNextToken(gen), "GenerateNextToken");
+            if (first) {
+                t_prefill_end = std::chrono::steady_clock::now();
+                first = false;
+            }
+
+            const int32_t* next_toks = nullptr;
+            size_t n_next = 0;
+            oga_check(OgaGenerator_GetNextTokens(gen, &next_toks, &n_next), "GetNextTokens");
+            for (size_t i = 0; i < n_next; ++i) {
+                const char* piece = nullptr;
+                oga_check(OgaTokenizerStreamDecode(stream, next_toks[i], &piece),
+                          "TokenizerStreamDecode");
+                if (piece && *piece) {
+                    res.output_text += piece;
+                    if (gp.on_token)
+                        gp.on_token(std::string(piece));
+                }
+            }
+            ++n_generated;
+
+            for (const auto& stop : gp.stop_sequences) {
+                auto pos = res.output_text.find(stop);
+                if (pos != std::string::npos) {
+                    res.output_text.erase(pos);
+                    stopped_by_seq = true;
+                    break;
+                }
+            }
+            if (stopped_by_seq)
+                break;
+        }
+
+        auto t_end = std::chrono::steady_clock::now();
+        res.n_p_eval = n_prompt_tok;
+        res.t_p_eval_ms =
+            std::chrono::duration<double, std::milli>(t_prefill_end - t_prefill_start).count();
+        // Decode excludes the first token (produced by the prefill step), matching
+        // the bench convention so interactive and CSV tok/s are comparable.
+        res.n_eval = n_generated > 0 ? n_generated - 1 : 0;
+        res.t_eval_ms = std::chrono::duration<double, std::milli>(t_end - t_prefill_end).count();
+        res.ended_with_stop = stopped_by_seq;
+        res.peak_ws_mb = peak_working_set_mb();
+        res.success = true;
+    }
+
+    // Legacy stateless turn: fresh generator, full prompt, destroyed at return.
+    void generate_stateless(const GenerateParams& gp, InferenceResult& res) {
+        if (gp.on_status)
+            gp.on_status("tokenizing");
+
+        OgaTokenizerStream* raw_stream = nullptr;
+        oga_check(OgaCreateTokenizerStream(m_tok.get(), &raw_stream), "OgaCreateTokenizerStream");
+        OgaTokenizerStreamPtr stream(raw_stream);
+
+        OgaSequences* raw_seqs = nullptr;
+        oga_check(OgaCreateSequences(&raw_seqs), "OgaCreateSequences");
+        OgaSequencesPtr seqs(raw_seqs);
+        oga_check(OgaTokenizerEncode(m_tok.get(), gp.prompt.c_str(), seqs.get()),
+                  "OgaTokenizerEncode");
+        int n_prompt_tok = static_cast<int>(OgaSequencesGetSequenceCount(seqs.get(), 0));
+
+        OgaGeneratorParamsPtr gparams = make_params(gp, gp.n_predict + 512);
+        OgaGenerator* raw_gen = nullptr;
+        oga_check(OgaCreateGenerator(m_model.get(), gparams.get(), &raw_gen), "OgaCreateGenerator");
+        OgaGeneratorPtr gen(raw_gen);
+
+        if (gp.on_status)
+            gp.on_status("generating");
+        auto t0 = std::chrono::steady_clock::now();
+        oga_check(OgaGenerator_AppendTokenSequences(gen.get(), seqs.get()), "AppendTokenSequences");
+        run_decode(gen.get(), stream.get(), gp, res, t0, n_prompt_tok, 0);
+        log_gen(res, false);
+    }
+
+    // Continuation turn: append `gp.prompt` (the new turn's tokens) to the
+    // persistent generator; on reset_kv or a sampling change, rebuild it first
+    // (then `gp.prompt` is the full context).
+    void generate_chat(const GenerateParams& gp, InferenceResult& res) {
+        const bool reuse = !gp.reset_kv && sampling_matches(gp);
+        if (!reuse) {
+            reset_chat_state();
+            m_chat_params = make_params(gp, m_n_ctx);
+            OgaGenerator* raw_gen = nullptr;
+            oga_check(OgaCreateGenerator(m_model.get(), m_chat_params.get(), &raw_gen),
+                      "OgaCreateGenerator(chat)");
+            m_chat_gen.reset(raw_gen);
+            OgaTokenizerStream* raw_stream = nullptr;
+            oga_check(OgaCreateTokenizerStream(m_tok.get(), &raw_stream),
+                      "OgaCreateTokenizerStream(chat)");
+            m_chat_stream.reset(raw_stream);
+            m_b_temp = gp.temperature;
+            m_b_top_p = gp.top_p;
+            m_b_top_k = gp.top_k;
+            m_b_rep = gp.repetition_penalty;
+            m_chat_valid = true;
+        }
+
+        if (gp.on_status)
+            gp.on_status("tokenizing");
+        OgaSequences* raw_seqs = nullptr;
+        oga_check(OgaCreateSequences(&raw_seqs), "OgaCreateSequences");
+        OgaSequencesPtr seqs(raw_seqs);
+        oga_check(OgaTokenizerEncode(m_tok.get(), gp.prompt.c_str(), seqs.get()),
+                  "OgaTokenizerEncode");
+        int n_prompt_tok = static_cast<int>(OgaSequencesGetSequenceCount(seqs.get(), 0));
+
+        if (gp.on_status)
+            gp.on_status("generating");
+        auto t0 = std::chrono::steady_clock::now();
+        oga_check(OgaGenerator_AppendTokenSequences(m_chat_gen.get(), seqs.get()),
+                  "AppendTokenSequences(chat)");
+        run_decode(m_chat_gen.get(), m_chat_stream.get(), gp, res, t0, n_prompt_tok, gp.n_predict);
+
+        size_t kv = OgaGenerator_GetSequenceCount(m_chat_gen.get(), 0);
+        char lb[192];
+        snprintf(lb, sizeof(lb),
+                 "[xllama] chat turn: reuse=%d prefill=%d tok decode=%d tok kv_len=%zu\n",
+                 reuse ? 1 : 0, res.n_p_eval, res.n_eval, kv);
+        log_output(lb);
+    }
+
+    void log_gen(const InferenceResult& res, bool chat) {
+        double dt = (res.n_eval > 0 && res.t_eval_ms > 0) ? res.n_eval / (res.t_eval_ms / 1000.0)
+                                                          : 0.0;
+        char log_buf[256];
+        snprintf(log_buf, sizeof(log_buf), "[xllama] session generate%s: decode=%.1f tok/s n=%d\n",
+                 chat ? " (chat)" : "", dt, res.n_eval);
+        log_output(log_buf);
+    }
+
+    InferenceResult generate(const GenerateParams& gp) override {
+        InferenceResult res;
+        install_se_translator();
+        try {
+            if (gp.reuse_kv)
+                generate_chat(gp, res);
+            else
+                generate_stateless(gp, res);
+        } catch (const std::exception& e) {
+            res.success = false;
+            res.error_msg = e.what();
+            if (gp.reuse_kv)
+                reset_chat_state(); // poisoned generator — force a fresh one next turn
+            log_output(("[xllama] session generate error: " + res.error_msg + "\n").c_str());
+            if (gp.on_status)
+                gp.on_status("error: " + res.error_msg);
+        }
+        return res;
+    }
+};
+
+std::unique_ptr<Session> Session::create(const SessionParams& sp, std::string* err) {
+    install_se_translator();
 
     const std::string model_dir = resolve_model_path(sp.model_path);
     try {
@@ -186,7 +289,8 @@ std::unique_ptr<Session> Session::create(const SessionParams& sp, std::string* e
                      gpu.budget_mb);
             log_output(gpu_buf);
         }
-        return std::make_unique<OrtSession>(std::move(model), std::move(tok));
+        int n_ctx = sp.n_ctx > 0 ? sp.n_ctx : 2048;
+        return std::make_unique<OrtSession>(std::move(model), std::move(tok), n_ctx);
 
     } catch (const std::exception& e) {
         if (err)

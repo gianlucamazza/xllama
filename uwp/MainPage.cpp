@@ -479,6 +479,17 @@ std::string MainPageController::BuildChatMLPrompt(const std::string& user_text,
     return prompt;
 }
 
+std::string MainPageController::BuildDeltaPrompt(const std::string& user_text) const {
+    // The persistent KV cache already holds everything through the previous
+    // assistant's generated tokens. Close that turn — the model emits <|im_end|>
+    // when it stops on the stop sequence, so add it only if it didn't (n_predict
+    // cap) — then append the new user turn and the assistant header. Concatenated
+    // onto the KV this reproduces exactly what BuildChatMLPrompt would have built.
+    std::string d = m_kv_last_ended_with_stop ? "\n" : "<|im_end|>\n";
+    d += "<|im_start|>user\n" + user_text + "<|im_end|>\n<|im_start|>assistant\n";
+    return d;
+}
+
 void MainPageController::SaveCurrentConversation(bool partial) {
     if (m_current.id.empty())
         return;
@@ -494,6 +505,7 @@ void MainPageController::NewChat() {
     if (m_is_running.load())
         return;                // don't allow while running
     SaveCurrentConversation(); // save current (no-op if empty)
+    m_kv_valid = false;        // new conversation → discard reused KV
     m_current = xllama::ui::Conversation{};
     m_current.id = xllama::ui::ChatHistory::NewId();
     m_outputBody.Blocks().Clear();
@@ -534,6 +546,7 @@ void MainPageController::RenderConversation() {
 
 void MainPageController::LoadConversation(const std::string& id) {
     SaveCurrentConversation();
+    m_kv_valid = false; // switching conversations → the reused KV no longer applies
     m_current = m_history.Load(id);
     if (m_current.id.empty()) {
         m_current.id = id;
@@ -803,6 +816,9 @@ void MainPageController::LoadSettings() {
                 if (!m.empty())
                     m_model_filename = ::xllama::utf8_to_wstring(m);
             }
+        } else if (key == "kv_reuse") {
+            std::string v = settings_read_token(json, pos);
+            m_kv_reuse = (v == "true" || v == "1");
         } else if (key == "sampling") {
             // Parse nested object {"temperature":0.8, ...}
             if (pos < json.size() && json[pos] == '{') {
@@ -872,6 +888,7 @@ void MainPageController::SaveSettings() {
             "{\n"
             "  \"system_prompt\": \"%s\",\n"
             "  \"model\": \"%s\",\n"
+            "  \"kv_reuse\": %s,\n"
             "  \"sampling\": {\n"
             "    \"temperature\": %.2f,\n"
             "    \"top_p\": %.2f,\n"
@@ -881,9 +898,13 @@ void MainPageController::SaveSettings() {
             "  }\n"
             "}\n",
             settings_json_escape(m_system_prompt).c_str(), settings_json_escape(model_utf8).c_str(),
-            static_cast<double>(m_temperature), static_cast<double>(m_top_p), m_top_k,
-            static_cast<double>(m_repetition_penalty), m_n_predict);
+            m_kv_reuse ? "true" : "false", static_cast<double>(m_temperature),
+            static_cast<double>(m_top_p), m_top_k, static_cast<double>(m_repetition_penalty),
+            m_n_predict);
     fclose(f);
+    // Any settings change (system prompt, model, sampling) invalidates the KV
+    // cache bound to the old settings — force a fresh generator next turn.
+    m_kv_valid = false;
 }
 
 winrt::fire_and_forget MainPageController::ShowSettings() {
@@ -943,6 +964,13 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     auto topKSlider = make_slider(m_top_k, 1.0, 200.0, 1.0, L"Top-k (1–200)");
     auto nPredSlider = make_slider(m_n_predict, 16.0, 2048.0, 16.0, L"Max new tokens (16–2048)");
 
+    // --- KV-cache reuse toggle (continuous decoding) ---
+    winrt::Windows::UI::Xaml::Controls::ToggleSwitch kvToggle;
+    kvToggle.Header(winrt::box_value(L"KV-cache reuse (faster multi-turn)"));
+    kvToggle.OnContent(winrt::box_value(L"On"));
+    kvToggle.OffContent(winrt::box_value(L"Off"));
+    kvToggle.IsOn(m_kv_reuse);
+
     winrt::Windows::UI::Xaml::Controls::StackPanel panel;
     panel.Orientation(Orientation::Vertical);
     panel.Spacing(12);
@@ -953,6 +981,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     panel.Children().Append(topKSlider);
     panel.Children().Append(repSlider);
     panel.Children().Append(nPredSlider);
+    panel.Children().Append(kvToggle);
 
     winrt::Windows::UI::Xaml::Controls::ScrollViewer sv;
     sv.Content(panel);
@@ -986,6 +1015,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     self->m_top_k = static_cast<int>(topKSlider.Value());
     self->m_repetition_penalty = static_cast<float>(repSlider.Value());
     self->m_n_predict = static_cast<int>(nPredSlider.Value());
+    self->m_kv_reuse = kvToggle.IsOn();
     self->SaveSettings();
     self->SetStatus(L"Settings saved", StatusKind::Success);
 }
@@ -1283,7 +1313,8 @@ fire_and_forget MainPageController::CheckBenchMode() {
 bool MainPageController::EnsureSession(const std::string& model, std::string* err_out) {
     if (m_session && m_session_model == model)
         return true;
-    m_session.reset(); // free before creating new (avoid 2× model in RAM)
+    m_session.reset();  // free before creating new (avoid 2× model in RAM)
+    m_kv_valid = false; // new session object → no reusable KV carries over
     xllama::SessionParams sp;
     sp.model_path = model;
     sp.n_ctx = 2048;
@@ -1345,9 +1376,18 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
         m_current.title = xllama::ui::ChatHistory::TitleFrom(user_text);
     }
     int n_dropped = 0;
-    std::string prompt = BuildChatMLPrompt(user_text, &n_dropped);
+    std::string full_prompt = BuildChatMLPrompt(user_text, &n_dropped);
     if (n_dropped > 0)
         SetStatus(L"Context trimmed — " + std::to_wstring(n_dropped) + L" old turn(s) dropped");
+
+    // KV-cache reuse decision (continuous decoding). Reuse only when enabled, the
+    // persistent generator already holds this conversation (m_kv_valid), and no
+    // turn was evicted this round (RewindTo cannot drop from the head, so eviction
+    // forces a full re-prefill). A reuse turn appends only the delta; otherwise we
+    // (re)prefill the full prompt — which also (re)seeds the persistent generator.
+    bool do_reuse = m_kv_reuse && m_kv_valid && n_dropped == 0;
+    bool kv_reuse = m_kv_reuse;
+    std::string delta_prompt = do_reuse ? BuildDeltaPrompt(user_text) : std::string();
 
     // Record user message in history AFTER building prompt (avoids duplicate)
     {
@@ -1361,7 +1401,7 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     std::string model = ::xllama::wstring_to_utf8(m_model_filename);
     auto dispatcher = m_root.Dispatcher();
 
-    std::thread([self, prompt, model, dispatcher]() {
+    std::thread([self, full_prompt, delta_prompt, do_reuse, kv_reuse, model, dispatcher]() {
         try {
             std::string load_err;
             if (!self->EnsureSession(model, &load_err)) {
@@ -1373,32 +1413,52 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                 return;
             }
 
-            xllama::GenerateParams gp;
-            gp.prompt = prompt;
-            gp.n_predict = self->m_n_predict;
-            gp.temperature = self->m_temperature;
-            gp.top_p = self->m_top_p;
-            gp.top_k = self->m_top_k;
-            gp.repetition_penalty = self->m_repetition_penalty;
-            gp.abort_flag = &self->m_abort;
-            gp.stop_sequences.push_back("<|im_end|>");
-
-            gp.on_status = [self, dispatcher](const std::string& s) {
+            auto on_status = [self, dispatcher](const std::string& s) {
                 auto ws = ::xllama::utf8_to_wstring(s);
                 StatusKind k =
                     (s.rfind("error:", 0) == 0) ? StatusKind::Error : StatusKind::Working;
                 dispatcher.RunAsync(CoreDispatcherPriority::Normal,
                                     [self, ws, k]() { self->SetStatus(ws, k); });
             };
-
             // Token accumulation — no per-token RunAsync dispatch (batched by flush timer)
-            gp.on_token = [self](const std::string& tok) {
+            auto on_token = [self](const std::string& tok) {
                 self->m_tokens_received.fetch_add(1, std::memory_order_relaxed);
                 std::lock_guard<std::mutex> lk(self->m_token_mutex);
                 self->m_token_buffer += tok;
             };
 
-            auto res = self->m_session->generate(gp);
+            auto run_turn = [&](const std::string& p, bool reuse, bool reset) {
+                xllama::GenerateParams gp;
+                gp.prompt = p;
+                gp.n_predict = self->m_n_predict;
+                gp.temperature = self->m_temperature;
+                gp.top_p = self->m_top_p;
+                gp.top_k = self->m_top_k;
+                gp.repetition_penalty = self->m_repetition_penalty;
+                gp.abort_flag = &self->m_abort;
+                gp.stop_sequences.push_back("<|im_end|>");
+                gp.reuse_kv = reuse;
+                gp.reset_kv = reset;
+                gp.on_status = on_status;
+                gp.on_token = on_token;
+                return self->m_session->generate(gp);
+            };
+
+            xllama::InferenceResult res;
+            if (do_reuse) {
+                res = run_turn(delta_prompt, /*reuse=*/true, /*reset=*/false);
+                // A continuation that fails before emitting any token (e.g. appending
+                // to a finished generator) falls back to a full re-prefill. No tokens
+                // were streamed yet, so the UI stays clean.
+                if (!res.success && res.n_eval == 0) {
+                    ::xllama::log_output("[xllama] KV reuse failed, retrying with full prefill\n");
+                    res = run_turn(full_prompt, /*reuse=*/kv_reuse, /*reset=*/true);
+                }
+            } else {
+                // First turn / post-reset: seed the persistent generator (reuse+reset)
+                // when KV reuse is enabled, else a pure stateless turn.
+                res = run_turn(full_prompt, /*reuse=*/kv_reuse, /*reset=*/kv_reuse);
+            }
 
             std::wstring metrics;
             if (res.success) {
@@ -1424,6 +1484,15 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                                         ? StatusKind::Info
                                         : (res.success ? StatusKind::Success : StatusKind::Error));
                     self->SetRunning(false); // also stops timer + flushes remaining tokens
+                    // KV-reuse bookkeeping: the persistent generator now holds this
+                    // turn only if it completed cleanly. On failure or abort, force a
+                    // fresh generator (full re-prefill) next turn.
+                    if (self->m_kv_reuse && res.success && !was_aborted) {
+                        self->m_kv_valid = true;
+                        self->m_kv_last_ended_with_stop = res.ended_with_stop;
+                    } else {
+                        self->m_kv_valid = false;
+                    }
                     // Save assistant response (partial-flagged if user aborted)
                     if (!output_text.empty()) {
                         xllama::ui::ChatMessage amsg;
