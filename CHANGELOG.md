@@ -9,6 +9,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [0.3.6] - 2026-07-07
 
+### Measured — Hardware utilization matrix (prefill vs decode, CPU vs GPU)
+
+SmolLM2-360M, 3 variants × 2 prompts (285 / ~1050 tok), v0.3.6 timing:
+
+| Variant  | prefill 285 | prefill ~1050 | decode short | decode long |
+| -------- | ----------- | ------------- | ------------ | ----------- |
+| CPU int4 | **220**     | 198           | **68.0**     | **50.9**    |
+| GPU int4 | 152         | 334           | 8.8          | 8.3         |
+| GPU fp16 | 169         | **354**       | 46.8         | 36.5        |
+
+- **Prefill crossover**: GPU scales with batch, CPU doesn't — at ~1k prompt
+  tokens the GPU is 1.8× faster (TTFT 3.0 s vs 5.3 s). DML fp16 wins
+  prompt-heavy workloads today.
+- **int4 GPU decode collapse = missing fused int4 kernel**, not dispatch: fp16
+  decode is 5.3× int4 on DML. Effective bandwidth: GPU fp16 ~34 GB/s vs CPU
+  ~13 GB/s (bus ~224 GB/s) — the GPU exploits memory 2.6× better; a
+  `MatMulNBits`-class DML kernel would imply ~180 tok/s (2.5× CPU).
+- Verdict in `docs/uwp-constraints.md §5`; matrix rows appended to
+  `bench/results/phase2-dml.csv`. New model on-device:
+  `smollm2-360m-dml-fp16` (builder `-p fp16 -e dml`, 691 MB merged).
+
 ### Fixed
 
 - Prefill timing (0.3.5) started the clock after `AppendTokenSequences`, but

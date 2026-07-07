@@ -55,12 +55,33 @@ resident on the GPU (`gpu-mem post-load`). The earlier `887A0036` init failure
 was the Agility-factory vs XAML-compositor device conflict (§7). Exp 1's
 "~71 tok/s ≈ CPU baseline" was a silent CPU fallback on a pre-614 OS.
 
-**Final performance verdict** (SmolLM2-360M INT4 DML build, 285 MB, decode
-completes end-to-end): **8.8 tok/s on GPU vs 70.9 tok/s on CPU** — the Zen 2
-CPU is ~8× faster. Autoregressive decode of a 360M-parameter model is
-dominated by per-token DML dispatch overhead, while `MatMulNBits` on AVX2 is
-highly optimised. **CPU EP remains the production backend**; DML is proven
-functional but not competitive at this model scale.
+**Hardware utilization matrix** (2026-07-07, v0.3.6 with separate
+prefill/decode timing; SmolLM2-360M, 2 runs each, median-ish first run shown):
+
+| Variant  | prefill 285 tok | prefill ~1050 tok | decode (short ctx) | decode (long ctx) |
+| -------- | --------------- | ----------------- | ------------------ | ----------------- |
+| CPU int4 | **220 tok/s**   | 198 tok/s         | **68.0 tok/s**     | **50.9 tok/s**    |
+| GPU int4 | 152 tok/s       | 334 tok/s         | 8.8 tok/s          | 8.3 tok/s         |
+| GPU fp16 | 169 tok/s       | **354 tok/s**     | 46.8 tok/s         | 36.5 tok/s        |
+
+Readings:
+
+1. **Prefill: the GPU scales with batch size, the CPU does not.** The
+   crossover sits between ~285 and ~1050 prompt tokens; at 1k tokens the GPU
+   is **1.8× faster** (TTFT ~3.0 s vs ~5.3 s). For prompt-heavy workloads
+   (RAG, long context) DML fp16 is already the better choice.
+2. **The int4 decode collapse was the dequant, not (only) dispatch**: fp16
+   decode is 5.3× faster than int4 on DML. At fp16 the GPU streams ~34 GB/s
+   effective (725 MB weights × 46.8 tok/s) vs ~13 GB/s for the CPU — the GPU
+   exploits memory ~2.6× better; DML simply lacks a fused int4
+   (`MatMulNBits`-style) kernel. With one, ~180 tok/s would be the
+   bandwidth-implied ceiling (2.5× CPU).
+3. CPU decode degrades ~25% from short to ~1 k context; GPU fp16 similarly.
+
+**Verdict**: CPU int4 remains the default for decode-heavy chat; GPU fp16 is
+viable and superior for prompt-heavy scenarios, and the decode gap is a DML
+kernel-coverage issue, not a hardware limit. Effective bandwidth utilization:
+CPU ~13 GB/s, GPU ~34 GB/s, against a ~224 GB/s theoretical bus.
 
 **Effect on disk**: models too large to fit the Dev Mode partition also fail before reaching `OgaCreateModel`. This is a distinct failure mode — see §9.
 

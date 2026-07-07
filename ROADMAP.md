@@ -41,14 +41,26 @@ colliding with the process-wide D3D12 device the XAML compositor creates at
 capture requires `past_present_share_buffer: true` (all `genai_config-dml-*`
 updated).
 
-**Conclusion — Phase 2 closed**: DML EP works on GPU in the Xbox UWP sandbox
-(headless path) but **is not competitive at small model scale — CPU EP stays
-the production backend**. Stage B (app-level Agility SDK for the interactive
-app) is **not justified** by these numbers and is dropped. GPU pool estimate
-corrected: measured budget **3801 MB** (was "~768 MB"); disk is the real
-constraint. Possible future revisit: larger models (1B+) where GPU compute
-could amortise dispatch overhead — blocked today by disk budget, not GPU
-memory. Remaining: upstream issue for the missing `ALREADY_EXISTS` fallback.
+**Conclusion — Phase 2 closed, refined by the utilization matrix (v0.3.6)**:
+DML EP works on GPU in the Xbox UWP sandbox (headless path). **CPU int4 stays
+the default for decode-heavy chat** (68 tok/s vs GPU fp16 46.8), but the
+picture is workload-dependent:
+
+- **Prefill: GPU wins at scale** — 354 vs 198 tok/s at ~1k prompt tokens
+  (1.8×, TTFT 3.0 s vs 5.3 s). DML fp16 is the better choice for prompt-heavy
+  workloads (long context / RAG) already today.
+- **The int4 GPU decode collapse (8.8 tok/s) is a missing fused int4 DML
+  kernel, not a hardware limit**: fp16 decode is 5.3× faster; effective
+  bandwidth GPU ~34 GB/s vs CPU ~13 GB/s. A `MatMulNBits`-class DML kernel
+  would imply ~180 tok/s (2.5× CPU) — upstream kernel-coverage issue.
+
+GPU pool estimate corrected: measured budget **3801 MB** (was "~768 MB");
+disk is the real constraint. Upstream fix for the `887A0036` init failure
+contributed and validated on console:
+[microsoft/onnxruntime-genai#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280).
+Future options: DML int4-AWQ variants (e.g. block-128) as a fused-kernel
+proxy; larger models (1B+) where GPU compute amortises further — blocked
+today by disk budget, not GPU memory.
 
 Milestones:
 
