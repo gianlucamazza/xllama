@@ -16,7 +16,7 @@ Milestones:
 - [x] SmolLM2-360M bundled inside MSIX as `DeploymentContent`; CI `build-uwp` green
 - [x] ChatML prompt template applied for SmolLM2 Instruct
 
-## Phase 2 — GPU Acceleration ✅ COMPLETE — GPU proven, CPU wins 8× (DML not competitive)
+## Phase 2 — GPU Acceleration ✅ COMPLETE — GPU proven; verdict is per-workload (CPU decode, GPU prefill)
 
 **Goal**: DirectML EP inference using Xbox RDNA 2 hardware.
 
@@ -71,7 +71,7 @@ Milestones:
 - [x] Evaluate Qwen2.5-0.5B INT4 ONNX as GPU EP candidate — ❌ CPU-int4 is ~822 MB (not ~200 MB); only the DML int4-awq variant (~507 MB) borderline fits the pool (see `docs/model-selection.md`)
 - [x] Procure a DML-compatible model variant and run the end-to-end DML bench — ✅ SmolLM2-360M INT4 DML build (285 MB): decode completes, **8.83 tok/s GPU vs 70.9 CPU** (`phase2-dml.csv`)
 - [x] Stage B (only if DML tok/s beats CPU) — ❌ dropped: DML is 8× slower than CPU at this scale; interactive app stays on CPU EP
-- [~] Measure GPU vs CPU tok/s for the same model — ❌ blocked: no GPU execution possible
+- [x] Measure GPU vs CPU tok/s for the same model — ✅ v0.3.6 utilization matrix (same SmolLM2-360M, 3 variants × 2 prompts): CPU int4 decode 68.0 vs GPU fp16 46.8 vs GPU int4 8.8 tok/s; prefill inverts at ~1k tok (GPU fp16 354 vs CPU 198)
 
 ## Phase 3 — Benchmarks + Model Exploration 🔄 IN PROGRESS
 
@@ -85,6 +85,44 @@ Milestones:
 - [x] Evaluate Qwen2.5-0.5B INT4 ONNX — ❌ ~822 MB real (vocab embedding dominates); exceeds disk borderline and GPU pool
 - [x] Evaluate Llama-3.2-1B INT4 ONNX CPU — ❌ ~1.77 GB real; USB-only, same class as SmolLM2-1.7B
 - [x] `load_ms` in bench CSV: column existed but ORT path never measured it (always 0) — `run_inference` now times `OgaCreateModel`; baseline pending next bench run on console
+
+## Phase 3.5 — Hardware Ceiling 🔮 NEXT
+
+**Goal**: close the gap between measured utilization (CPU ~13 GB/s, GPU ~34 GB/s
+effective vs ~224 GB/s bus) and what the Series S can realistically deliver.
+Levers ordered by cost/leverage; the first two are near-free and change the
+denominators for everything else, so they go first.
+
+Milestones:
+
+- [ ] **Game-mode designation experiment**: flip the package from App to Game in
+      Dev Home and rerun the v0.3.6 utilization matrix. App-mode GPU is
+      time-sliced and CPU/RAM are shared — the 113 ms/token DML dispatch
+      overhead may be partly platform scheduling. Free test, run first.
+- [ ] **Unlock 1B+ models on disk**: validate Exp 2 (`xllama-appx-nobundle` +
+      HF download) and/or the USB fallback on console (see Phase 4). Disk, not
+      GPU memory (3801 MB budget), is what blocks larger models — and at 1B+
+      scale the GPU bandwidth advantage (34 vs 13 GB/s) should dominate.
+- [ ] **int4-AWQ block-128 DML variant** (builder `-p int4 -e dml` with AWQ
+      options) as a cheap proxy for fused-kernel behaviour before any kernel work.
+- [ ] **Desk check upstream int4 status**: verify whether the int4 decode
+      collapse is truly a missing DML kernel or a builder/graph issue — ORT's
+      DML EP has a `MatMulNBits` operator; check what graph `-e dml` emits,
+      `accuracy_level`, and whether ORT GenAI 0.14 / newer DirectML changes the
+      picture. May turn "weeks of HLSL" into a config fix.
+- [ ] **llama.cpp CPU A/B**: build the `XLLAMA_USE_ORT=0` path for UWP and
+      bench a GGUF Q4_K model. llama.cpp kernels typically extract ~2× the
+      bandwidth of ORT's AVX2 `MatMulNBits` (~13 GB/s measured) → target
+      ~25–30 GB/s, ~130 tok/s decode at 360M. Risk: AppContainer compat
+      (no mmap) untested since the Phase 1 pivot.
+- [ ] **Per-workload routing in the app**: prompt-length threshold → DML fp16
+      session for long contexts (TTFT 3.0 s vs 5.3 s measured at ~1k tok), CPU
+      int4 for chat decode. Both models fit memory; pure engineering.
+- [ ] (only if the above leaves ambiguity) **Upstream fused int4 DML kernel
+      contribution** — the fork→CI→inject→validate pipeline is proven
+      (PR #2280); bandwidth-implied payoff ~180 tok/s GPU decode (2.5× CPU).
+- [ ] (optional) in-app memory-bandwidth micro-bench (`membw.flag`) to fix the
+      CPU ceiling denominator precisely.
 
 ## Phase 4 — In-App Download + Publication 🔮 FUTURE
 

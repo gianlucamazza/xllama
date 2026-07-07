@@ -7,6 +7,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Docs
+
+- `ROADMAP.md`: new Phase 3.5 — Hardware Ceiling with the ordered unlock
+  levers (Game-mode designation, 1B+ models via no-bundle, int4-AWQ proxy,
+  upstream `MatMulNBits` desk check, llama.cpp CPU A/B, per-workload routing,
+  optional upstream kernel contribution); Phase 2 heading refined to the
+  per-workload verdict; "GPU vs CPU same model" milestone closed by the
+  v0.3.6 matrix.
+- `docs/uwp-constraints.md` §5: stale "future work" paragraph replaced with
+  the measured per-workload approach; documented the untested App-vs-Game
+  designation lever (all current numbers are App-mode).
+- `docs/device-portal.md`: new "Lifecycle gotchas" section — LocalState purge
+  semantics (only forward upgrades preserve it), LocalState absent before
+  first launch, WDP file APIs returning HTTP 200 with `"Success": false`,
+  stale PFN staging window, portal unreachable while a game is running.
+
 ## [0.3.6] - 2026-07-07
 
 ### Measured — Hardware utilization matrix (prefill vs decode, CPU vs GPU)

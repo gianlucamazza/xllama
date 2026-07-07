@@ -95,7 +95,14 @@ Disk budget failures (deploy-time or LocalState copy):
 
 Note: DirectML itself _is_ available in Dev Mode (NuGet `Microsoft.AI.DirectML 1.15.4`). The memory pool constraint applies to model weight size, not to the API itself.
 
-**Current approach**: CPU EP (`"provider_options": []` in `genai_config.json`) — chosen for deterministic behaviour. GPU EP research with proper D3D profiling is a future work item. See §7 for GPU pool detail and §9 for disk budget.
+**Current approach**: CPU EP (`"provider_options": []` in `genai_config.json`) remains the default for the interactive app (decode-heavy chat). DML fp16 is measured-viable for prompt-heavy workloads and profiling tooling exists (§11). The remaining GPU/CPU unlock levers — Game-mode designation, larger models via no-bundle deploy, fused int4 kernel path, llama.cpp kernel A/B, per-workload routing — are tracked in `ROADMAP.md` Phase 3.5. See §7 for GPU pool detail and §9 for disk budget.
+
+**Untested platform lever — App vs Game designation**: Dev Home can flip a
+sideloaded package from **App** to **Game**, granting Game OS resources
+(exclusive GPU instead of time-sliced access, more cores/RAM). All numbers in
+this document were measured in **App-mode**; part of the per-token DML
+dispatch overhead may be App-mode GPU scheduling rather than DML itself. Not
+yet measured — tracked in `ROADMAP.md` Phase 3.5.
 
 ## 6. Limited Thread Count
 
