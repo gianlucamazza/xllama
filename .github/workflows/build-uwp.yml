@@ -15,7 +15,9 @@ jobs:
         # bundled: MSIX with SmolLM2 model in InstalledPath (default artifact).
         # nobundle: MSIX without the model — EnsureModelAsync must reach the
         # USB/HF-download fallbacks; used to validate Exp 2 on console.
-        variant: [bundled, nobundle]
+        # llamacpp: nobundle MSIX with the ggml/llama CPU text backend
+        # (XLLAMA_USE_ORT=0) — the CPU A/B lane; needs the submodule + patches.
+        variant: [bundled, nobundle, llamacpp]
     steps:
       - uses: actions/checkout@v6
         with:
@@ -49,6 +51,13 @@ jobs:
           python -m pip install --quiet onnx
           python scripts/merge_onnx_external_data.py models/smollm2-360m-cpu-int4
 
+      - name: Checkout llama.cpp submodule + apply AppContainer guards
+        if: matrix.variant == 'llamacpp'
+        shell: bash
+        run: |
+          git submodule update --init --depth 1 llama.cpp
+          bash scripts/apply-uwp-patches.sh
+
       - name: Restore NuGet packages
         shell: pwsh
         working-directory: uwp
@@ -58,12 +67,15 @@ jobs:
         shell: pwsh
         # -NoBundledModel also belts-and-braces the nobundle variant: even if a
         # cached model directory existed, the MSBuild property excludes it.
-        run: ./scripts/build-uwp.ps1 -Configuration Release -Platform x64 -NoBundledModel:$('${{ matrix.variant }}' -eq 'nobundle')
+        run: >-
+          ./scripts/build-uwp.ps1 -Configuration Release -Platform x64
+          -NoBundledModel:$('${{ matrix.variant }}' -ne 'bundled')
+          -Backend $('${{ matrix.variant }}' -eq 'llamacpp' ? 'llamacpp' : 'ort')
 
       - uses: actions/upload-artifact@v7
         if: success()
         with:
-          name: xllama-appx${{ matrix.variant == 'nobundle' && '-nobundle' || '' }}
+          name: xllama-appx${{ matrix.variant != 'bundled' && format('-{0}', matrix.variant) || '' }}
           # Include .msix (main package), .appx (VCLibs deps), and .cer
           # (public key of the test certificate that must be trusted on the
           # Xbox before deploying — installed via Device Portal API).

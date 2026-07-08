@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!-- =====================================================================
+       ggml-uwp — static, CPU-only build of ggml + llama for the AppContainer.
+       Compiled from the llama.cpp submodule sources (patched via
+       scripts/apply-uwp-patches.sh — three desktop-only APIs guarded, see
+       patches/README.md). No dynamic backend loading (the CPU backend is
+       registered statically via GGML_USE_CPU), no CUDA/Metal/DML — this is the
+       llama.cpp CPU A/B lane (ROADMAP Phase 3.5), built only when the app
+       project is invoked with /p:XllamaBackend=llamacpp.
+       ===================================================================== -->
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{B7E11D2A-4C63-4A0E-9D1F-2A6C58F0AA31}</ProjectGuid>
+    <RootNamespace>ggmluwp</RootNamespace>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <MinimumVisualStudioVersion>17.0</MinimumVisualStudioVersion>
+    <AppContainerApplication>true</AppContainerApplication>
+    <ApplicationType>Windows Store</ApplicationType>
+    <ApplicationTypeRevision>10.0</ApplicationTypeRevision>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformMinVersion>10.0.19041.0</WindowsTargetPlatformMinVersion>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        $(ProjectDir)..\llama.cpp\include;
+        $(ProjectDir)..\llama.cpp\src;
+        $(ProjectDir)..\llama.cpp\ggml\include;
+        $(ProjectDir)..\llama.cpp\ggml\src;
+        $(ProjectDir)..\llama.cpp\ggml\src\ggml-cpu;
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>
+        NOMINMAX;
+        WIN32_LEAN_AND_MEAN;
+        _CRT_SECURE_NO_WARNINGS;
+        GGML_USE_CPU;
+        GGML_STATIC;
+        GGML_VERSION=&quot;uwp-static&quot;;
+        GGML_COMMIT=&quot;9a532ae4b&quot;;
+        %(PreprocessorDefinitions)
+      </PreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <!-- Not C++/CX; pure C and C++ sources. -->
+      <CompileAsWinRT>false</CompileAsWinRT>
+      <!-- Preserve directory structure in .obj paths: ggml-cpu\quants.c and
+           ggml-cpu\arch\x86\quants.c (and repack.cpp) share basenames. -->
+      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <AdditionalOptions>/utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
+  <!-- AVX2 for Zen 2 (Xbox Series S CPU) — mirrors the main project. -->
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <AdditionalOptions>/arch:AVX2 /Oi /Ot /utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
+  <!-- ggml core -->
+  <ItemGroup>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml.c" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-alloc.c" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-backend.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-backend-dl.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-backend-meta.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-backend-reg.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-opt.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-quants.c" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-threading.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\gguf.cpp" />
+  </ItemGroup>
+
+  <!-- ggml CPU backend (+ x86 arch kernels; AMX/KleidiAI/SpacemiT/llamafile excluded) -->
+  <ItemGroup>
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\binary-ops.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\ggml-cpu.c" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\ggml-cpu.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\hbm.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\ops.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\quants.c" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\repack.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\traits.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\unary-ops.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\vec.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\arch\x86\cpu-feats.cpp" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\arch\x86\quants.c" />
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml-cpu\arch\x86\repack.cpp" />
+  </ItemGroup>
+
+  <!-- llama -->
+  <ItemGroup>
+    <ClCompile Include="..\llama.cpp\src\llama.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-adapter.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-arch.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-batch.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-chat.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-context.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-cparams.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-grammar.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-graph.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-hparams.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-impl.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-io.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-kv-cache.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-kv-cache-iswa.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-memory.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-memory-hybrid.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-memory-hybrid-iswa.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-memory-recurrent.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-mmap.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-model.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-model-loader.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-model-saver.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-quant.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-sampler.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-vocab.cpp" />
+    <ClCompile Include="..\llama.cpp\src\unicode.cpp" />
+    <ClCompile Include="..\llama.cpp\src\unicode-data.cpp" />
+  </ItemGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

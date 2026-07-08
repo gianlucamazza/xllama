@@ -35,6 +35,16 @@
     <WindowsTargetPlatformMinVersion>10.0.19041.0</WindowsTargetPlatformMinVersion>
   </PropertyGroup>
 
+  <!-- Backend selection: 'ort' (default, ORT GenAI text inference) or 'llamacpp'
+       (ggml/llama CPU backend from the submodule, XLLAMA_USE_ORT=0 — the CPU A/B
+       lane; requires the submodule checked out + scripts/apply-uwp-patches.sh).
+       Plain ORT (image spike, diffusion) stays linked in both. -->
+  <PropertyGroup>
+    <XllamaBackend Condition="'$(XllamaBackend)' == ''">ort</XllamaBackend>
+    <XllamaUseOrt Condition="'$(XllamaBackend)' == 'llamacpp'">0</XllamaUseOrt>
+    <XllamaUseOrt Condition="'$(XllamaUseOrt)' == ''">1</XllamaUseOrt>
+  </PropertyGroup>
+
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
 
   <!-- =====================================================================
@@ -95,6 +105,8 @@
         $(ProjectDir)Generated Files;
         $(IntDir)Generated Files;
         $(ProjectDir)..\include;
+        $(ProjectDir)..\llama.cpp\include;
+        $(ProjectDir)..\llama.cpp\ggml\include;
         $(ProjectDir)packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.14.1\build\native\include;
         $(ProjectDir)packages\Microsoft.ML.OnnxRuntime.DirectML.1.24.4\build\native\include;
         %(AdditionalIncludeDirectories)
@@ -104,7 +116,7 @@
         WIN32_LEAN_AND_MEAN;
         _CRT_SECURE_NO_WARNINGS;
         XLLAMA_UWP=1;
-        XLLAMA_USE_ORT=1;
+        XLLAMA_USE_ORT=$(XllamaUseOrt);
         %(PreprocessorDefinitions)
       </PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -267,6 +279,13 @@
       <DeploymentContent>true</DeploymentContent>
       <TargetPath>models\manifest.json</TargetPath>
     </None>
+  </ItemGroup>
+
+  <!-- llama.cpp CPU backend (llamacpp variant only) -->
+  <ItemGroup Condition="'$(XllamaBackend)' == 'llamacpp'">
+    <ProjectReference Include="ggml-uwp.vcxproj">
+      <Project>{B7E11D2A-4C63-4A0E-9D1F-2A6C58F0AA31}</Project>
+    </ProjectReference>
   </ItemGroup>
 
   <!-- xllama shared bridge -->
