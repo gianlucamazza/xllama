@@ -932,20 +932,23 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     modelBox.Header(winrt::box_value(L"Model"));
     modelBox.FontSize(16);
     modelBox.HorizontalAlignment(HorizontalAlignment::Stretch);
-    struct ModelEntry {
-        const wchar_t* display;
-        const wchar_t* key;
-    };
-    static const ModelEntry kModels[] = {
-        {L"SmolLM2-360M (bundled)", L"smollm2-360m-cpu-int4"},
-        {L"SmolLM2-1.7B (USB)", L"smollm2-1.7b-cpu-int4"},
-        {L"SmolLM2-360M (HF download)", L"smollm2-360m-cpu-int4-hf"},
-    };
+    // Model list comes from the catalogue (models/manifest.json; LocalState
+    // override wins). If the active model is not in the catalogue (e.g. a dir
+    // uploaded via Device Portal under a custom name), append it so the current
+    // selection is always representable.
+    auto manifest = ::xllama::LoadModelManifest();
+    std::vector<std::wstring> model_keys;
     int model_sel = 0;
-    for (int i = 0; i < 3; ++i) {
-        modelBox.Items().Append(winrt::box_value(winrt::hstring(kModels[i].display)));
-        if (m_model_filename == kModels[i].key)
-            model_sel = i;
+    for (auto const& e : manifest) {
+        modelBox.Items().Append(winrt::box_value(winrt::hstring(e.display)));
+        if (m_model_filename == e.name)
+            model_sel = (int)model_keys.size();
+        model_keys.push_back(e.name);
+    }
+    if (!m_model_filename.empty() && !::xllama::FindManifestEntry(manifest, m_model_filename)) {
+        modelBox.Items().Append(winrt::box_value(winrt::hstring(m_model_filename + L" (custom)")));
+        model_sel = (int)model_keys.size();
+        model_keys.push_back(m_model_filename);
     }
     modelBox.SelectedIndex(model_sel);
 
@@ -1027,8 +1030,8 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
 
     // Read back values
     int mi = modelBox.SelectedIndex();
-    if (mi >= 0 && mi < 3) {
-        std::wstring new_model = kModels[mi].key;
+    if (mi >= 0 && mi < (int)model_keys.size()) {
+        std::wstring new_model = model_keys[mi];
         if (new_model != self->m_model_filename) {
             self->m_model_filename = new_model;
             self->m_modelText.Text(new_model);
@@ -1222,10 +1225,12 @@ fire_and_forget MainPageController::EnsureModelAsync() {
             co_return;
         }
     }
-    // Neither found: only the bundled 360M model can be auto-downloaded from HF.
-    // Larger models (e.g. 1.7B) must be provided via USB — show a clear error.
-    static constexpr wchar_t kDownloadableModel[] = L"smollm2-360m-cpu-int4";
-    if (model_name != kDownloadableModel) {
+    // Neither found: consult the model catalogue (models/manifest.json) — any
+    // entry with an hf_base_url can be auto-downloaded; anything else must be
+    // provided via USB or Device Portal upload.
+    auto manifest = ::xllama::LoadModelManifest();
+    const ::xllama::ManifestEntry* entry = ::xllama::FindManifestEntry(manifest, model_name);
+    if (!entry || entry->hf_base_url.empty() || entry->files.empty()) {
         self->SetStatus(L"Model '" + model_name +
                             L"' not found.\n"
                             L"Connect USB with xllama/models/" +
@@ -1237,7 +1242,7 @@ fire_and_forget MainPageController::EnsureModelAsync() {
 
     co_await resume_background();
 
-    // Auto-download: SmolLM2-360M from HuggingFace.
+    // Auto-download from the catalogue entry's Hugging Face repo.
     co_await resume_foreground(dispatcher);
     self->SetStatus(L"Downloading model...", StatusKind::Working);
     self->m_loadingBar.IsIndeterminate(false);
@@ -1259,14 +1264,10 @@ fire_and_forget MainPageController::EnsureModelAsync() {
         }
     }
 
-    // Build HF raw URL for the model repo.
-    std::wstring hf_repo_url = L"https://huggingface.co/homen3/"
-                               L"SmolLM2-360M-Instruct-ort-genai-int4-cpu/resolve/main";
-
     co_await resume_foreground(dispatcher);
 
     co_await ModelDownloader::DownloadAsync(
-        hf_repo_url, local_model_dir, SmolLM2_360M_Files(), dispatcher,
+        entry->hf_base_url, local_model_dir, entry->files, dispatcher,
         [self](uint64_t done, uint64_t total) {
             // progress callback — called on UI thread
             if (total > 0) {

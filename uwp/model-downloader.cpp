@@ -11,6 +11,8 @@
     #include "xllama/platform.h"
     #include "xllama/utf8_utils.h"
 
+    #include <winrt/Windows.Data.Json.h>
+
     #include <filesystem>
 
 using namespace winrt;
@@ -197,6 +199,89 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
 
     co_await resume_foreground(dispatcher);
     on_done(true, L"");
+}
+
+// ---------------------------------------------------------------------------
+// Model catalogue (models/manifest.json)
+// ---------------------------------------------------------------------------
+
+namespace {
+
+// Parse a manifest JSON document into entries; returns empty on any shape error.
+std::vector<ManifestEntry> parse_manifest(winrt::hstring const& text) {
+    using winrt::Windows::Data::Json::JsonObject;
+    std::vector<ManifestEntry> out;
+    JsonObject root{nullptr};
+    if (!JsonObject::TryParse(text, root))
+        return out;
+    if (!root.HasKey(L"models"))
+        return out;
+    for (auto const& item : root.GetNamedArray(L"models")) {
+        auto obj = item.GetObject();
+        ManifestEntry e;
+        e.name = obj.GetNamedString(L"name", L"");
+        if (e.name.empty())
+            continue;
+        e.display = obj.GetNamedString(L"display", winrt::hstring(e.name));
+        e.hf_base_url = obj.GetNamedString(L"hf_base_url", L"");
+        if (obj.HasKey(L"files")) {
+            for (auto const& f : obj.GetNamedArray(L"files")) {
+                auto fo = f.GetObject();
+                ModelFile mf;
+                mf.filename = fo.GetNamedString(L"filename", L"");
+                mf.approx_bytes = (uint64_t)fo.GetNamedNumber(L"approx_bytes", 0);
+                if (!mf.filename.empty())
+                    e.files.push_back(std::move(mf));
+            }
+        }
+        out.push_back(std::move(e));
+    }
+    return out;
+}
+
+std::vector<ManifestEntry> read_manifest_file(std::wstring const& path) {
+    FILE* fp = _wfopen(path.c_str(), L"rb");
+    if (!fp)
+        return {};
+    std::string bytes;
+    char buf[4096];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), fp)) > 0)
+        bytes.append(buf, n);
+    fclose(fp);
+    return parse_manifest(winrt::hstring(utf8_to_wstring(bytes)));
+}
+
+} // namespace
+
+std::vector<ManifestEntry> LoadModelManifest() {
+    // 1. LocalState override (uploadable via Device Portal, no reinstall).
+    auto local = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
+    auto entries = read_manifest_file(std::wstring(local.Path().c_str()) + L"\\manifest.json");
+    if (!entries.empty()) {
+        log_output("[manifest] using LocalState\\manifest.json override\n");
+        return entries;
+    }
+    // 2. Bundled catalogue.
+    auto pkg = winrt::Windows::ApplicationModel::Package::Current();
+    entries =
+        read_manifest_file(std::wstring(pkg.InstalledPath().c_str()) + L"\\models\\manifest.json");
+    if (!entries.empty())
+        return entries;
+    // 3. Built-in fallback — the historical hardcoded catalogue, so the app
+    // never starts with an empty model list even on a broken deployment.
+    log_output("[manifest] WARNING: no manifest.json found, using built-in fallback\n");
+    ManifestEntry e;
+    e.name = L"smollm2-360m-cpu-int4";
+    e.display = L"SmolLM2 360M (CPU int4)";
+    e.hf_base_url = L"https://huggingface.co/homen3/"
+                    L"SmolLM2-360M-Instruct-ort-genai-int4-cpu/resolve/main";
+    e.files = {
+        {L"genai_config.json", 2'000},     {L"tokenizer.json", 2'400'000},
+        {L"tokenizer_config.json", 3'000}, {L"special_tokens_map.json", 1'000},
+        {L"model.onnx", 422'000'000},
+    };
+    return {e};
 }
 
 } // namespace xllama

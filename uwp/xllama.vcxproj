@@ -259,6 +259,16 @@
     </None>
   </ItemGroup>
 
+  <!-- Model catalogue: always bundled (both variants) at InstalledPath\models\manifest.json.
+       A LocalState\manifest.json uploaded via Device Portal overrides it (see
+       LoadModelManifest in model-downloader.cpp). -->
+  <ItemGroup>
+    <None Include="models\manifest.json">
+      <DeploymentContent>true</DeploymentContent>
+      <TargetPath>models\manifest.json</TargetPath>
+    </None>
+  </ItemGroup>
+
   <!-- xllama shared bridge -->
   <ItemGroup>
     <ClCompile Include="..\src\bridge\inference.cpp" />

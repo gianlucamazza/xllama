@@ -1,0 +1,25 @@
+{
+  "_comment": "Model catalogue for xllama. Bundled at InstalledPath\\models\\manifest.json; a LocalState\\manifest.json (uploadable via Device Portal, no reinstall) overrides it entirely. Entries without hf_base_url are USB/Device-Portal-provisioned only. approx_bytes drives the download progress bar.",
+  "models": [
+    {
+      "name": "smollm2-360m-cpu-int4",
+      "display": "SmolLM2 360M (CPU int4)",
+      "hf_base_url": "https://huggingface.co/homen3/SmolLM2-360M-Instruct-ort-genai-int4-cpu/resolve/main",
+      "files": [
+        { "filename": "genai_config.json", "approx_bytes": 2000 },
+        { "filename": "tokenizer.json", "approx_bytes": 2400000 },
+        { "filename": "tokenizer_config.json", "approx_bytes": 3000 },
+        { "filename": "special_tokens_map.json", "approx_bytes": 1000 },
+        { "filename": "model.onnx", "approx_bytes": 422000000 }
+      ]
+    },
+    {
+      "name": "smollm2-360m-dml-fp16",
+      "display": "SmolLM2 360M (GPU fp16, routing)"
+    },
+    {
+      "name": "smollm2-1.7b-cpu-int4",
+      "display": "SmolLM2 1.7B (CPU int4)"
+    }
+  ]
+}

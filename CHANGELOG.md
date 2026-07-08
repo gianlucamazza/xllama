@@ -33,6 +33,25 @@ image for the same prompt/seed). Fixes required on the way, all measured:
   i64/f32/f16 timestep), `diffuse-steps.txt`/`diffuse-seed.txt`, and per-stage
   telemetry (`diffuse-result.csv`).
 
+### Added — model catalogue (`models/manifest.json`), model management de-hardcoded
+
+The model list, download source, and downloadability gate were hardcoded in four
+places; they now come from one catalogue file.
+
+- `uwp/models/manifest.json`: name/display/`hf_base_url`/file-list per model,
+  bundled in the MSIX (both variants) at `InstalledPath\models\manifest.json`;
+  a `LocalState\manifest.json` uploaded via Device Portal **overrides it without
+  a reinstall**. Parsed with WinRT `Windows::Data::Json` (`LoadModelManifest`,
+  `uwp/model-downloader.cpp`) with a built-in fallback so the app never starts
+  with an empty catalogue.
+- Settings ComboBox is populated from the catalogue (plus the active model as a
+  "(custom)" entry if it isn't listed — e.g. a dir uploaded under a new name);
+  replaces the static 3-entry `kModels[]`.
+- `EnsureModelAsync` downloads **any** catalogue entry with an `hf_base_url`
+  (replaces the single-model `kDownloadableModel` gate + hardcoded repo URL +
+  `SmolLM2_360M_Files()`); entries without a URL keep the USB/Device-Portal
+  guidance error.
+
 ### Measured — Phase 3.5 console validation (Xbox Series S, v0.4.0.0, 2026-07-08)
 
 The pending on-console checks for the merged 0.3.7–0.4.0 features, run in one session
