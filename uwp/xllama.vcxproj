@@ -281,10 +281,15 @@
     </None>
   </ItemGroup>
 
-  <!-- llama.cpp CPU backend (llamacpp variant only) -->
+  <!-- llama.cpp CPU backend (llamacpp variant only). ggml-uwp.vcxproj is not a
+       solution member, so the solution's project-configuration mapping does not
+       cover it — without SetConfiguration/SetPlatform the reference builds as
+       the MSBuild default Debug|Win32 (MSB8013). -->
   <ItemGroup Condition="'$(XllamaBackend)' == 'llamacpp'">
     <ProjectReference Include="ggml-uwp.vcxproj">
       <Project>{B7E11D2A-4C63-4A0E-9D1F-2A6C58F0AA31}</Project>
+      <SetConfiguration>Configuration=$(Configuration)</SetConfiguration>
+      <SetPlatform>Platform=$(Platform)</SetPlatform>
     </ProjectReference>
   </ItemGroup>
 
