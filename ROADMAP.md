@@ -129,10 +129,17 @@ Milestones:
       big upload: community reports a ~2 GB per-file limit in Dev Mode
       (relevant for merged `model.onnx` > 2 GB). Exp 2 nobundle (Phase 4)
       remains useful for its own sake but is no longer a disk prerequisite.
-- [ ] **1B+ scale bench**: SmolLM2-1.7B in three variants (CPU int4 control vs
-      DML int4 vs DML fp16 ~3.4 GB, the pure-bandwidth test at scale —
-      borderline vs the 3801 MB budget, attempt anyway) — at 1B+ scale the GPU
-      bandwidth advantage (34 vs 13 GB/s) should dominate.
+- [~] **1B+ scale bench**: SmolLM2-1.7B. **CPU int4 built OK** (1.4 GB, merged,
+  ready to upload). **fp16-DML blocked** (found 2026-07-08): a 1.7B fp16
+  `model.onnx` is ~3.4 GB and **exceeds the 2 GB protobuf serialization
+  limit**, so it cannot be merged self-contained; keeping external data
+  re-triggers the `weakly_canonical` AppContainer crash (§8). So the
+  pure-bandwidth fp16-at-scale test is **not deployable as-is** — it needs a
+  sub-2 GB model, an upstream `weakly_canonical` fix, or ORT's external-data
+  path made AppContainer-safe. int4-DML 1.7B is mergeable (<2 GB) but is the
+  dead kernel (§12). Net: at 1.7B we can bench CPU int4 vs int4-DML, but not
+  the fp16 bandwidth crossover — the interesting question stays blocked by
+  the serialization/AppContainer constraint, not the GPU.
 - [x] **Desk check upstream int4 status** — ✅ done 2026-07-08
       (`docs/uwp-constraints.md §12`). Verdict: `MatMulNBits` is present and runs
       on the DML GPU (not missing, not CPU fallback); DirectML implements it
