@@ -5,6 +5,7 @@
 #include "xllama/path_utils.h"
 #include "xllama/platform.h"
 
+#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <string>
@@ -299,12 +300,17 @@ InferenceResult run_inference(const InferenceParams& params) {
     }
     tokens.resize(static_cast<size_t>(n_tokens));
 
+    log_output(("[xllama] prompt tokens: " + std::to_string(tokens.size()) + "\n").c_str());
+    const auto t_prompt0 = std::chrono::steady_clock::now();
     llama_batch batch = llama_batch_get_one(tokens.data(), static_cast<int32_t>(tokens.size()));
     if (llama_decode(ctx.get(), batch) != 0) {
         res.error_msg = "prompt decode failed";
         log_output("[xllama] prompt decode failed\n");
         return res;
     }
+    const double prompt_ms =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_prompt0)
+            .count();
 
     const llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
     LlamaSamplerPtr sampler(llama_sampler_chain_init(sparams));
@@ -312,13 +318,16 @@ InferenceResult run_inference(const InferenceParams& params) {
     llama_sampler_chain_add(sampler.get(), llama_sampler_init_dist(params.seed));
 
     int n_generated = 0;
+    const auto t_gen0 = std::chrono::steady_clock::now();
     while (n_generated < params.n_predict) {
         if (params.abort_flag && params.abort_flag->load())
             break;
 
         llama_token token = llama_sampler_sample(sampler.get(), ctx.get(), -1);
-        if (llama_vocab_is_eog(vocab, token))
+        if (llama_vocab_is_eog(vocab, token)) {
+            log_output(("[xllama] EOG after " + std::to_string(n_generated) + " tokens\n").c_str());
             break;
+        }
 
         char buf[256] = {};
         int len = llama_token_to_piece(vocab, token, buf, sizeof(buf) - 1, 0, false);
@@ -341,11 +350,16 @@ InferenceResult run_inference(const InferenceParams& params) {
 
     std::fputc('\n', stdout);
 
+    const double gen_ms =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_gen0)
+            .count();
+    // Own chrono timing: llama_context_default_params().no_perf disables the
+    // built-in perf counters, so llama_perf_context reports zeros by default.
     llama_perf_context_data perf = llama_perf_context(ctx.get());
-    res.t_load_ms = perf.t_load_ms;
-    res.t_p_eval_ms = perf.t_p_eval_ms;
-    res.t_eval_ms = perf.t_eval_ms;
-    res.n_p_eval = perf.n_p_eval;
+    res.t_load_ms = perf.t_load_ms > 0 ? perf.t_load_ms : 0.0;
+    res.t_p_eval_ms = prompt_ms;
+    res.t_eval_ms = gen_ms;
+    res.n_p_eval = static_cast<int32_t>(tokens.size());
     res.n_eval = n_generated;
     res.peak_ws_mb = peak_working_set_mb();
     res.success = true;
