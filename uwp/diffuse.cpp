@@ -192,26 +192,36 @@ void run_diffuse() {
                                                         resolve_local_path("clip\\merges.txt"));
         const std::vector<int> ids = tok.encode(prompt); // length 77
 
+        // Sessions are created and DESTROYED per stage: the 3801 MB GPU budget
+        // does not fit all three sets of weights (~2.4 GB) plus the VAE's
+        // 512x512 activations — keeping them all alive OOM'd the VAE decode on
+        // console (8007000E at /decoder/up_blocks.3 InstanceNormalization,
+        // 2026-07-08). Sequential lifetime frees ~2.3 GB before the VAE runs.
+
         // ---- Text encoder: input_ids[1,77] -> last_hidden_state[1,77,H] -----
         auto t_load0 = std::chrono::steady_clock::now();
-        Ort::Session te = make_session(env, model("text_encoder"));
-        std::array<int64_t, 2> te_shape{1, kSeq};
-        // input_ids dtype is export-dependent (optimum: int32; others: int64).
-        const auto ids_type = input_type_by_name(te, "input_ids");
-        std::vector<int32_t> ids32(ids.begin(), ids.end());
-        std::vector<int64_t> ids64(ids.begin(), ids.end());
-        Ort::Value te_in =
-            (ids_type == ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64)
-                ? Ort::Value::CreateTensor<int64_t>(mem, ids64.data(), ids64.size(),
-                                                    te_shape.data(), te_shape.size())
-                : Ort::Value::CreateTensor<int32_t>(mem, ids32.data(), ids32.size(),
-                                                    te_shape.data(), te_shape.size());
-        const char* te_in_names[] = {"input_ids"};
-        const char* te_out_names[] = {"last_hidden_state"};
-        auto t_te0 = std::chrono::steady_clock::now();
-        auto te_out = te.Run(Ort::RunOptions{nullptr}, te_in_names, &te_in, 1, te_out_names, 1);
-        const double te_ms = ms_since(t_te0);
-        std::vector<float> hidden = read_output_f32(te_out[0]);   // [1,77,H]
+        std::vector<float> hidden; // [1,77,H]
+        double te_ms = 0.0;
+        {
+            Ort::Session te = make_session(env, model("text_encoder"));
+            std::array<int64_t, 2> te_shape{1, kSeq};
+            // input_ids dtype is export-dependent (optimum: int32; others: int64).
+            const auto ids_type = input_type_by_name(te, "input_ids");
+            std::vector<int32_t> ids32(ids.begin(), ids.end());
+            std::vector<int64_t> ids64(ids.begin(), ids.end());
+            Ort::Value te_in =
+                (ids_type == ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64)
+                    ? Ort::Value::CreateTensor<int64_t>(mem, ids64.data(), ids64.size(),
+                                                        te_shape.data(), te_shape.size())
+                    : Ort::Value::CreateTensor<int32_t>(mem, ids32.data(), ids32.size(),
+                                                        te_shape.data(), te_shape.size());
+            const char* te_in_names[] = {"input_ids"};
+            const char* te_out_names[] = {"last_hidden_state"};
+            auto t_te0 = std::chrono::steady_clock::now();
+            auto te_out = te.Run(Ort::RunOptions{nullptr}, te_in_names, &te_in, 1, te_out_names, 1);
+            te_ms = ms_since(t_te0);
+            hidden = read_output_f32(te_out[0]);
+        } // release text_encoder weights before loading the UNet
         const int64_t hidden_dim = (int64_t)hidden.size() / kSeq; // 1024 (SD2-class) or 768 (SD1.x)
 
         // ---- Scheduler + init latent ---------------------------------------
@@ -224,73 +234,81 @@ void run_diffuse() {
         for (auto& v : latent)
             v = gauss(rng) * (float)sched.init_noise_sigma();
 
-        Ort::Session unet = make_session(env, model("unet"));
-        Ort::Session vae = make_session(env, model("vae_decoder"));
-        const bool unet_fp16 =
-            input_type_by_name(unet, "sample") == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16;
-        const bool vae_fp16 =
-            input_type_by_name(vae, "latent_sample") == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16;
-        // timestep dtype is export-dependent too: int64 (optimum default) or
-        // float16/float32 (the ORT-team fp16 export declares timestep:f16 — the
-        // values used here, e.g. 999, are integers < 2048, exact in fp16).
-        const auto ts_type = input_type_by_name(unet, "timestep");
-        log_output(std::string("[xllama] diffuse: unet input ") + (unet_fp16 ? "fp16" : "fp32") +
-                   ", vae input " + (vae_fp16 ? "fp16" : "fp32") + ", hidden_dim " +
-                   std::to_string(hidden_dim) + ", load " + std::to_string((int)ms_since(t_load0)) +
-                   " ms\n");
-
         std::array<int64_t, 4> s_shape{1, kLatentC, kLatentHW, kLatentHW};
         std::array<int64_t, 1> t_shape{1};
         std::array<int64_t, 3> h_shape{1, kSeq, hidden_dim};
         double unet_ms = 0.0;
-        for (size_t s = 0; s < sched.timesteps().size(); ++s) {
-            // scale_model_input on a copy (UNet sees the scaled latent).
-            std::vector<float> scaled = latent;
-            sched.scale_model_input(scaled);
-            FloatInput u_sample =
-                make_float_input(mem, std::move(scaled), s_shape.data(), s_shape.size(), unet_fp16);
-            FloatInput u_hs =
-                make_float_input(mem, hidden, h_shape.data(), h_shape.size(), unet_fp16);
-            const double ts_val = sched.timesteps()[s];
-            int64_t ts_i64 = (int64_t)ts_val;
-            float ts_f32 = (float)ts_val;
-            uint16_t ts_f16 = diffusion::float_to_half(ts_f32);
-            Ort::Value u_ts{nullptr};
-            if (ts_type == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16) {
-                u_ts =
-                    Ort::Value::CreateTensor(mem, &ts_f16, sizeof(ts_f16), t_shape.data(),
-                                             t_shape.size(), ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16);
-            } else if (ts_type == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT) {
-                u_ts = Ort::Value::CreateTensor<float>(mem, &ts_f32, 1, t_shape.data(),
-                                                       t_shape.size());
-            } else {
-                u_ts = Ort::Value::CreateTensor<int64_t>(mem, &ts_i64, 1, t_shape.data(),
-                                                         t_shape.size());
+        {
+            Ort::Session unet = make_session(env, model("unet"));
+            const bool unet_fp16 =
+                input_type_by_name(unet, "sample") == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16;
+            // timestep dtype is export-dependent too: int64 (optimum default) or
+            // float16/float32 (the ORT-team fp16 export declares timestep:f16 — the
+            // values used here, e.g. 999, are integers < 2048, exact in fp16).
+            const auto ts_type = input_type_by_name(unet, "timestep");
+            log_output(std::string("[xllama] diffuse: unet input ") +
+                       (unet_fp16 ? "fp16" : "fp32") + ", hidden_dim " +
+                       std::to_string(hidden_dim) + ", te+unet load " +
+                       std::to_string((int)ms_since(t_load0)) + " ms\n");
+
+            for (size_t s = 0; s < sched.timesteps().size(); ++s) {
+                // scale_model_input on a copy (UNet sees the scaled latent).
+                std::vector<float> scaled = latent;
+                sched.scale_model_input(scaled);
+                FloatInput u_sample = make_float_input(mem, std::move(scaled), s_shape.data(),
+                                                       s_shape.size(), unet_fp16);
+                FloatInput u_hs =
+                    make_float_input(mem, hidden, h_shape.data(), h_shape.size(), unet_fp16);
+                const double ts_val = sched.timesteps()[s];
+                int64_t ts_i64 = (int64_t)ts_val;
+                float ts_f32 = (float)ts_val;
+                uint16_t ts_f16 = diffusion::float_to_half(ts_f32);
+                Ort::Value u_ts{nullptr};
+                if (ts_type == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16) {
+                    u_ts = Ort::Value::CreateTensor(mem, &ts_f16, sizeof(ts_f16), t_shape.data(),
+                                                    t_shape.size(),
+                                                    ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16);
+                } else if (ts_type == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT) {
+                    u_ts = Ort::Value::CreateTensor<float>(mem, &ts_f32, 1, t_shape.data(),
+                                                           t_shape.size());
+                } else {
+                    u_ts = Ort::Value::CreateTensor<int64_t>(mem, &ts_i64, 1, t_shape.data(),
+                                                             t_shape.size());
+                }
+
+                Ort::Value u_ins[] = {std::move(u_sample.value), std::move(u_ts),
+                                      std::move(u_hs.value)};
+                const char* u_in_names[] = {"sample", "timestep", "encoder_hidden_states"};
+                const char* u_out_names[] = {"out_sample"};
+                auto t_u0 = std::chrono::steady_clock::now();
+                auto u_out =
+                    unet.Run(Ort::RunOptions{nullptr}, u_in_names, u_ins, 3, u_out_names, 1);
+                unet_ms += ms_since(t_u0);
+                std::vector<float> noise = read_output_f32(u_out[0]); // epsilon [1,4,64,64]
+
+                sched.step(noise, latent); // latent <- previous sample
             }
-
-            Ort::Value u_ins[] = {std::move(u_sample.value), std::move(u_ts),
-                                  std::move(u_hs.value)};
-            const char* u_in_names[] = {"sample", "timestep", "encoder_hidden_states"};
-            const char* u_out_names[] = {"out_sample"};
-            auto t_u0 = std::chrono::steady_clock::now();
-            auto u_out = unet.Run(Ort::RunOptions{nullptr}, u_in_names, u_ins, 3, u_out_names, 1);
-            unet_ms += ms_since(t_u0);
-            std::vector<float> noise = read_output_f32(u_out[0]); // epsilon [1,4,64,64]
-
-            sched.step(noise, latent); // latent <- previous sample
-        }
+        } // release UNet weights (~1.65 GB) before the VAE's 512x512 activations
 
         // ---- VAE decode: latent/scale [1,4,64,64] -> sample[1,3,512,512] -----
         for (auto& v : latent)
             v = v / (float)kVaeScale;
-        FloatInput v_in =
-            make_float_input(mem, std::move(latent), s_shape.data(), s_shape.size(), vae_fp16);
-        const char* v_in_names[] = {"latent_sample"};
-        const char* v_out_names[] = {"sample"};
-        auto t_v0 = std::chrono::steady_clock::now();
-        auto v_out = vae.Run(Ort::RunOptions{nullptr}, v_in_names, &v_in.value, 1, v_out_names, 1);
-        const double vae_ms = ms_since(t_v0);
-        std::vector<float> img = read_output_f32(v_out[0]); // [1,3,512,512] in [-1,1]
+        std::vector<float> img; // [1,3,512,512] in [-1,1]
+        double vae_ms = 0.0;
+        {
+            Ort::Session vae = make_session(env, model("vae_decoder"));
+            const bool vae_fp16 =
+                input_type_by_name(vae, "latent_sample") == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16;
+            FloatInput v_in =
+                make_float_input(mem, std::move(latent), s_shape.data(), s_shape.size(), vae_fp16);
+            const char* v_in_names[] = {"latent_sample"};
+            const char* v_out_names[] = {"sample"};
+            auto t_v0 = std::chrono::steady_clock::now();
+            auto v_out =
+                vae.Run(Ort::RunOptions{nullptr}, v_in_names, &v_in.value, 1, v_out_names, 1);
+            vae_ms = ms_since(t_v0);
+            img = read_output_f32(v_out[0]);
+        }
 
         // ---- CHW [-1,1] -> HWC uint8 RGB -> PNG -----------------------------
         const int HW = kImageHW * kImageHW;
