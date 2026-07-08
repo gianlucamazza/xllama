@@ -198,6 +198,14 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         winrt::init_apartment(); // MTA: needed for ApplicationData in the detection
         // Consume the flag BEFORE the run (same semantics as CheckBenchMode):
         // a later start without the flag goes back to interactive.
+        std::wstring diffuse_flag = flag_path_if_present(L"diffuse.flag");
+        if (!diffuse_flag.empty()) {
+            _wremove(diffuse_flag.c_str());
+            ::xllama::log_output("[xllama] diffuse.flag detected -> headless diffusion mode\n");
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(&::xllama::bridge::run_diffuse, "diffuse"));
+            return 0; // not reached: CoreApplication::Exit terminates the process
+        }
         std::wstring image_flag = flag_path_if_present(L"image.flag");
         if (!image_flag.empty()) {
             _wremove(image_flag.c_str());

@@ -153,11 +153,48 @@ done
 GPU-vs-CPU advantage at ~1k tokens (expected to grow with scale); (c) decode GPU vs CPU
 (expected CPU still wins per §12). Sanity: `gpu_mem_mb ≈ 3.4 GB` on the DML row if it loads.
 
-## 7. Diffusion fp16 (placeholder — filled by Fase 3)
+## 7. Diffusion pipeline → `diffuse-out.png`
 
-Once the C++ `diffuse.flag` pipeline lands: upload the merged self-contained fp16 SD
-components (`text_encoder`, `unet`, `vae_decoder`) to `LocalState\models\sd-*\`, drop
-`diffuse.flag`, fetch the generated PNG. Steps added when the pipeline is built.
+**Validates the flagship GPU workload end to end**: the C++ pipeline (`uwp/diffuse.cpp`
+— tokenize → text_encoder → 1× UNet denoise → VAE decode → PNG) runs three ORT DirectML
+sessions on the console. The correctness-critical logic (CLIP tokenizer, Euler scheduler,
+fp16, PNG) is already host-validated against the diffusers reference
+(`tests/test_diffusion.cpp`, 638 assertions) — this step validates the ORT DirectML
+orchestration + the model on real hardware.
+
+**Model contract** (see `uwp/diffuse.cpp` header): an **fp16** SD-Turbo-class ONNX model,
+each component self-contained (< 2 GB, external data merged). fp16 SD-Turbo needs a GPU
+export (`optimum-cli --fp16 --device cuda`) or Olive — see `diffusion/README.md`. The fp32
+`sd-turbo-onnx` validates quality but its UNet (~3.4 GB) exceeds the budget + 2 GB protobuf
+limit, so it is not deployable; a fp16 export is required for the console.
+
+```bash
+source ~/.config/xllama/xbox-env
+PFN=$(./scripts/deploy.sh pfn)
+DIR=sd-turbo-fp16   # LocalState\models\<DIR>\{text_encoder,unet,vae_decoder}\model.onnx
+
+# 1. Model components (merge external data first so each is self-contained).
+for comp in text_encoder unet vae_decoder; do
+  python3 scripts/merge_onnx_external_data.py <fp16_model>/$comp
+  ./scripts/deploy.sh upload-dir <fp16_model>/$comp/ "$PFN" "models\\$DIR\\$comp"
+done
+# 2. CLIP tokenizer assets (vendored in-repo — the exact files the host test uses).
+./scripts/deploy.sh upload-dir diffusion/clip_tokenizer/ "$PFN" "clip"
+# 3. Prompt + model selector, then the flag.
+printf 'a red sports car on a mountain road at sunset' > /tmp/prompt.txt
+./scripts/deploy.sh upload-file /tmp/prompt.txt "$PFN" ""
+printf '%s' "$DIR" > /tmp/diffuse-model.txt
+./scripts/deploy.sh upload-file /tmp/diffuse-model.txt "$PFN" ""
+printf 'diffuse' > /tmp/diffuse.flag
+./scripts/deploy.sh upload-file /tmp/diffuse.flag "$PFN" ""
+# 4. Launch from Dev Home; wait; fetch diffuse-out.png (512x512) once .done appears.
+```
+
+**Looking for**: `diffuse-out.png` is a coherent 512×512 image matching the prompt (compare
+to `sd_turbo_onnx.png` from the validated CPU pipeline). The log prints per-session timing;
+UNet-step ms is the number that decides whether diffusion is the flagship GPU workload (the
+image-spike hypothesis, step 4, at full model scale). If the image is noise, check the log
+for a tokenizer/model-shape mismatch (e.g. a non-fp16 model, or `hidden_dim` ≠ 1024).
 
 ## Closeout
 
