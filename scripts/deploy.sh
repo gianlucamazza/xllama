@@ -102,7 +102,11 @@ mkdir_localstate() {
 	local parent_param="%5CLocalState"
 	local accumulated=""
 	local part
-	while IFS= read -r part; do
+	# `|| [[ -n "$part" ]]`: the here-string from printf '%s' has no trailing
+	# newline, so a bare `while read` DROPS the last path component — the model
+	# dir itself was never created and every subsequent file POST failed with
+	# "cannot find the path" (root cause of the silent 1.7B upload loss).
+	while IFS= read -r part || [[ -n "$part" ]]; do
 		[[ -z "$part" ]] && continue
 		echo "Creating remote dir LocalState\\${accumulated:+${accumulated}\\}${part} ..."
 		RESP=$(curl "${CURL_AUTH[@]}" \

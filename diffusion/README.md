@@ -26,8 +26,13 @@ few-step diffusion model (SD-Turbo, 1 step) on the console GPU.
   (638 assertions, all green). The ORT DirectML orchestration is CI-compile-
   validated; runtime validation is on console per
   `docs/console-validation-runbook.md §7`.
-- ⏳ **Next (console)**: a deployable **fp16** SD-Turbo export (GPU/Olive — see
-  Memory/deployability below), then run `diffuse.flag` on the Xbox.
+- ✅ **VALIDATED ON CONSOLE (2026-07-08, v0.4.2.0)**: SD-Turbo fp16 generates a
+  coherent 512×512 image on the Xbox Series S GPU (DirectML) in **6.9 s** —
+  text_encoder 1.0 s, UNet **3.3 s/step** (1 step), VAE 2.6 s
+  (`bench/results/phase5-diffuse.csv`,
+  `docs/screenshots/diffuse-sd-turbo-xbox.png`). Artifacts from
+  `convert_fp16.py` (fp16 recipe below); procedure + hardware gotchas in
+  `docs/console-validation-runbook.md §7`.
 
 ## Reproduce the export
 
@@ -54,10 +59,30 @@ limit) — each SD component is individually **< 2 GB**, so all save self-contai
 and avoid the AppContainer `weakly_canonical` crash (§8). **These sizes are
 confirmed.**
 
-**Getting a runnable fp16 model.** `convert_fp16.py` (CPU) is reliable for the
-size analysis above but leaves a mixed-type node in the UNet timestep embedding
-(`/time_proj/Mul`) that ORT rejects at load — onnxconverter_common does not fully
-type the SD UNet on CPU. Two working sources for a clean fp16 graph:
+**Getting a runnable fp16 model — the working path (verified 2026-07-08)**:
+convert each component with **`onnxruntime.transformers`**'
+`OnnxModel.convert_float_to_float16(keep_io_types=False)` (the ORT team's
+corrected fork of the fp16 pass), then load with graph optimization capped at
+**`ORT_ENABLE_EXTENDED`** — `ORT_ENABLE_ALL`'s layout transforms crash session
+init (`graph_utils GetIndexFromName`) on these graphs; EXTENDED loads and runs
+them cleanly (same cap set in `uwp/diffuse.cpp`). Validate end-to-end with
+`validate_pipeline.py` before deploying.
+
+What does **not** work (all falsified 2026-07-08, kept for the record):
+`onnxconverter_common`'s `convert_float_to_float16` leaves mixed-type nodes in
+**all three** SD components regardless of options — `/time_proj/Mul` (UNet),
+`/text_model/.../self_attn/Add` (text encoder), `.../attentions.0/Cast_2`
+(VAE) — with `keep_io_types` either way, with shape inference on or off, and
+**even with `/time_proj/*` in `node_block_list`** (the UNet then fails on a
+`Gemm` instead). Do not chase per-node block lists; switch converter.
+
+⚠️ **Trap (verified 2026-07-08)**: the ORT-team pre-exports
+([`onnxruntime/sd-turbo`](https://hf.co/onnxruntime/sd-turbo),
+`tlwu/sd-turbo-onnxruntime`) look ideal on paper (fp16, each component
+self-contained < 2 GB) but their UNet/VAE use `com.microsoft.NhwcConv`, which has
+**no CPU kernel** (`NOT_IMPLEMENTED` at session init) — they are CUDA-optimized
+graphs. They cannot be validated on our owned layer and may not map to DML
+either; do not deploy them unvalidated. Other sources for a clean fp16 graph:
 
 1. **Pre-exported fp16 DirectML models** (recommended, no GPU needed) — e.g.
    [`nmkd/stable-diffusion-1.5-onnx-fp16`](https://huggingface.co/nmkd/stable-diffusion-1.5-onnx-fp16),

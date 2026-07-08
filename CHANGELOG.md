@@ -7,6 +7,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Measured — image generation on console (v0.4.2.0, 2026-07-08) 🎨
+
+**The flagship GPU workload is live**: SD-Turbo fp16 generates a coherent
+512×512 image on the Xbox Series S GPU (DirectML) in **6.9 s** — text_encoder
+1.0 s, UNet **3.3 s/step** (1 step), VAE decode 2.6 s; session load ~7.5 s
+excluded (`bench/results/phase5-diffuse.csv`; image at
+`docs/screenshots/diffuse-sd-turbo-xbox.png`, matches the local CPU validation
+image for the same prompt/seed). Fixes required on the way, all measured:
+
+- **VAE OOM with all sessions resident** (first run, 8007000E at
+  `/decoder/up_blocks.3` InstanceNormalization): the 3801 MB budget doesn't fit
+  ~2.4 GB of weights + the VAE's 512×512 activations. `run_diffuse` now creates
+  and destroys each session per stage — text_encoder → UNet loop → VAE.
+- **Deployable fp16 artifacts**: produced with `onnxruntime.transformers`'
+  `convert_float_to_float16` (onnxconverter_common emits ORT-rejected mixed-type
+  graphs for all 3 SD components — falsified options documented in
+  `diffusion/README.md`); sessions cap graph optimization at **EXTENDED**
+  (ORT_ENABLE_ALL crashes on these graphs). Each component self-contained
+  < 2 GB: unet 1.65 GB, text_encoder 0.65 GB, vae 0.09 GB.
+- **`deploy.sh mkdir_localstate` dropped the last path component** (while-read
+  on an unterminated printf stream) — the true root cause of the earlier silent
+  model-upload losses; fixed, uploads verified byte-exact.
+- `run_diffuse` gained input-dtype adaptivity (fp16/fp32 floats, i32/i64 ids,
+  i64/f32/f16 timestep), `diffuse-steps.txt`/`diffuse-seed.txt`, and per-stage
+  telemetry (`diffuse-result.csv`).
+
 ### Measured — Phase 3.5 console validation (Xbox Series S, v0.4.0.0, 2026-07-08)
 
 The pending on-console checks for the merged 0.3.7–0.4.0 features, run in one session

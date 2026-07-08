@@ -2,26 +2,31 @@
 # Copyright (c) 2024 Venere Labs
 # SPDX-License-Identifier: MIT
 #
-# Convert the fp32 SD-Turbo ONNX components to fp16 and report their on-disk size
-# against the Xbox Series S GPU budget (3801 MB). Each component is saved
-# self-contained when < 2 GB (the ONNX protobuf single-file limit + the
-# merged-model requirement that avoids the AppContainer `weakly_canonical` crash,
+# Convert the fp32 SD-Turbo ONNX components to fp16 for the Xbox Series S GPU
+# budget (3801 MB), producing the deployable console artifacts: each component
+# self-contained < 2 GB (ONNX protobuf single-file limit + the merged-model
+# requirement that avoids the AppContainer `weakly_canonical` crash,
 # docs/uwp-constraints.md §8).
 #
-# ⚠️ KNOWN LIMITATION (verified 2026-07-08): this CPU-side conversion is reliable
-# for SIZE analysis only. It leaves a mixed-type node in the SD UNet timestep
-# embedding (`/time_proj/Mul`: float vs float16) that makes ORT reject the model
-# at load. onnxconverter_common's fp16 pass does not fully type the SD UNet on
-# CPU. For a RUNNABLE fp16 model, export directly with a GPU:
-#     optimum-cli export onnx --model stabilityai/sd-turbo --fp16 --device cuda ...
-# or use Microsoft Olive's SD DirectML optimization. Sizes confirmed here:
-# UNet fp16 ~1.65 GB (< 2 GB, self-contained), text_encoder ~0.65 GB, vae ~0.1 GB
-# → ~2.4 GB total, fits the 3801 MB budget with all components AppContainer-safe.
+# Converter choice (verified 2026-07-08): onnxruntime.transformers'
+# OnnxModel.convert_float_to_float16 — the ORT team's corrected fp16 pass.
+# onnxconverter_common leaves mixed-type nodes in ALL three SD components
+# (regardless of keep_io_types / shape-infer / node_block_list) and its output is
+# rejected by ORT at load. See diffusion/README.md "Getting a runnable fp16 model".
+#
+# Load caveat baked into the pipeline: sessions must cap graph optimization at
+# ORT_ENABLE_EXTENDED (ORT_ENABLE_ALL crashes on these graphs) — both
+# uwp/diffuse.cpp and validate_pipeline.py do. This script load-tests each
+# converted component at EXTENDED before declaring success.
 #
 # Usage:  python diffusion/convert_fp16.py <onnx_dir_in> <onnx_dir_out>
-import sys, os, shutil
+import os
+import shutil
+import sys
+
 import onnx
-from onnxconverter_common import float16
+import onnxruntime as ort
+from onnxruntime.transformers.onnx_model import OnnxModel
 
 IN = sys.argv[1] if len(sys.argv) > 1 else "sd-turbo-onnx"
 OUT = sys.argv[2] if len(sys.argv) > 2 else "sd-turbo-onnx-fp16"
@@ -38,38 +43,39 @@ for name in os.listdir(IN):
     elif os.path.isfile(src):
         shutil.copy2(src, os.path.join(OUT, name))
 
+failed = 0
 for comp in COMPONENTS:
     src = os.path.join(IN, comp, "model.onnx")
     if not os.path.exists(src):
         print(f"[skip] {comp}: no model.onnx")
         continue
     print(f"[fp16] converting {comp} ...", flush=True)
-    m = onnx.load(src)  # loads external data if present
-    # Convert the WHOLE graph (I/O included) to fp16. keep_io_types=True leaves
-    # fp32 islands that break SD UNets with a mixed-type error at the timestep
-    # embedding (`/time_proj/Mul`: float vs float16); an all-fp16 graph is
-    # consistent and the ORT pipeline feeds fp16 accordingly.
-    m16 = float16.convert_float_to_float16(
-        m, keep_io_types=False, disable_shape_infer=True
-    )
+    m = OnnxModel(onnx.load(src))  # loads external data if present
+    m.convert_float_to_float16(keep_io_types=False)
     dst_dir = os.path.join(OUT, comp)
     os.makedirs(dst_dir, exist_ok=True)
     dst = os.path.join(dst_dir, "model.onnx")
-    size = m16.ByteSize()
-    if size < PROTOBUF_LIMIT:
-        onnx.save(m16, dst)  # self-contained (AppContainer-safe)
-        ext = "self-contained"
-    else:
-        onnx.save(
-            m16,
-            dst,
-            save_as_external_data=True,
-            location="model.onnx_data",
-            all_tensors_to_one_file=True,
+    m.save_model_to_file(dst, use_external_data_format=False)  # self-contained
+    disk = os.path.getsize(dst)
+    if disk >= PROTOBUF_LIMIT:
+        print(f"[fp16] {comp}: {disk // (1024 * 1024)} MB EXCEEDS 2GB — not deployable")
+        failed += 1
+        continue
+    # Load-test at the same optimization level the console pipeline uses.
+    so = ort.SessionOptions()
+    so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_EXTENDED
+    try:
+        s = ort.InferenceSession(
+            dst, sess_options=so, providers=["CPUExecutionProvider"]
         )
-        ext = "EXTERNAL DATA (>2GB — AppContainer risk!)"
-    disk = os.path.getsize(dst) + (
-        os.path.getsize(dst + "_data") if os.path.exists(dst + "_data") else 0
-    )
-    print(f"[fp16] {comp}: {disk // (1024 * 1024)} MB  ({ext})")
-print(f"[fp16] done -> {OUT}")
+        ins = [(i.name, i.type) for i in s.get_inputs()]
+        del s
+        print(
+            f"[fp16] {comp}: {disk // (1024 * 1024)} MB, LOAD OK (EXTENDED), in: {ins}"
+        )
+    except Exception as e:
+        print(f"[fp16] {comp}: LOAD FAIL: {str(e)[:200]}")
+        failed += 1
+
+print(f"[fp16] done -> {OUT}" + (f"  ({failed} FAILED)" if failed else ""))
+sys.exit(1 if failed else 0)
