@@ -76,3 +76,43 @@ index 128883b41..8496adb5c 100644
          HKEY hKey;
          if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
                          TEXT("HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0"),
+diff --git a/src/llama-mmap.cpp b/src/llama-mmap.cpp
+index ed572da7f..c4305dc71 100644
+--- a/src/llama-mmap.cpp
++++ b/src/llama-mmap.cpp
+@@ -530,7 +530,7 @@ struct llama_mmap::impl {
+             }
+         }
+     }
+-#elif defined(_WIN32)
++#elif defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP))
+     HANDLE hMapping = nullptr;
+ 
+     impl(struct llama_file * file, size_t prefetch, bool numa) {
+@@ -625,7 +625,7 @@ void * llama_mmap::addr() const { return pimpl->addr; }
+ 
+ void llama_mmap::unmap_fragment(size_t first, size_t last) { pimpl->unmap_fragment(first, last); }
+ 
+-#if defined(_POSIX_MEMLOCK_RANGE) || defined(_WIN32)
++#if defined(_POSIX_MEMLOCK_RANGE) || (defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)))
+ const bool llama_mmap::SUPPORTED  = true;
+ #else
+ const bool llama_mmap::SUPPORTED  = false;
+@@ -679,7 +679,7 @@ struct llama_mlock::impl {
+             LLAMA_LOG_WARN("warning: failed to munlock buffer: %s\n", std::strerror(errno));
+         }
+     }
+-#elif defined(_WIN32)
++#elif defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP))
+     static size_t lock_granularity() {
+         SYSTEM_INFO si;
+         GetSystemInfo(&si);
+@@ -768,7 +768,7 @@ llama_mlock::~llama_mlock() = default;
+ void llama_mlock::init(void * ptr) { pimpl->init(ptr); }
+ void llama_mlock::grow_to(size_t target_size) { pimpl->grow_to(target_size); }
+ 
+-#if defined(_POSIX_MEMLOCK_RANGE) || defined(_WIN32)
++#if defined(_POSIX_MEMLOCK_RANGE) || (defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)))
+ const bool llama_mlock::SUPPORTED = true;
+ #else
+ const bool llama_mlock::SUPPORTED = false;
