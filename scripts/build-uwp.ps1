@@ -29,7 +29,11 @@ param(
     [string]$Configuration  = "Release",
     [string]$Platform       = "x64",
     [switch]$ForceNewCert   = $false,
-    [switch]$NoBundledModel = $false
+    [switch]$NoBundledModel = $false,
+    # 'ort' (default) or 'llamacpp' (ggml/llama CPU backend, XLLAMA_USE_ORT=0;
+    # requires the llama.cpp submodule + scripts/apply-uwp-patches.sh).
+    [ValidateSet("ort", "llamacpp")]
+    [string]$Backend        = "ort"
 )
 
 $ErrorActionPreference = "Stop"
@@ -157,6 +161,21 @@ $MsBuildArgs = @(
 )
 if ($NoBundledModel) {
     $MsBuildArgs += "/p:XllamaNoBundledModel=true"
+}
+if ($Backend -eq "llamacpp") {
+    Write-Host "Backend: llama.cpp CPU (XLLAMA_USE_ORT=0)"
+    $MsBuildArgs += "/p:XllamaBackend=llamacpp"
+    # Pre-build the static ggml/llama lib explicitly: the solution maps it
+    # ActiveCfg-only (no Build.0 — the ORT variants must not compile it, the
+    # submodule may be absent there), so the solution build resolves the
+    # ProjectReference path but does not build the lib itself (LNK1181).
+    $GgmlProj = Join-Path $RepoRoot "uwp/ggml-uwp.vcxproj"
+    Write-Host "Pre-building ggml-uwp.vcxproj ($Configuration|$Platform) ..."
+    & $MsBuild $GgmlProj "/p:Configuration=$Configuration" "/p:Platform=$Platform" "/m" "/nologo"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "ggml-uwp build failed ($LASTEXITCODE)"
+        exit $LASTEXITCODE
+    }
 }
 
 $buildExitCode = 0

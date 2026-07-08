@@ -1,0 +1,118 @@
+diff --git a/ggml/src/ggml-backend-dl.cpp b/ggml/src/ggml-backend-dl.cpp
+index a65cf0090..82ae1a24c 100644
+--- a/ggml/src/ggml-backend-dl.cpp
++++ b/ggml/src/ggml-backend-dl.cpp
+@@ -2,6 +2,20 @@
+ 
+ #ifdef _WIN32
+ 
++#if defined(WINAPI_FAMILY) && !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
++
++// AppContainer (UWP/Xbox): SetErrorMode/SEM_FAILCRITICALERRORS are desktop-only
++// and error dialogs cannot appear anyway; only packaged DLLs are loadable.
++dl_handle * dl_load_library(const fs::path & path) {
++    return LoadPackagedLibrary(path.wstring().c_str(), 0);
++}
++
++void * dl_get_sym(dl_handle * handle, const char * name) {
++    return (void *) GetProcAddress(handle, name);
++}
++
++#else
++
+ dl_handle * dl_load_library(const fs::path & path) {
+     // suppress error dialogs for missing DLLs
+     DWORD old_mode = SetErrorMode(SEM_FAILCRITICALERRORS);
+@@ -25,6 +39,8 @@ void * dl_get_sym(dl_handle * handle, const char * name) {
+     return p;
+ }
+ 
++#endif // WINAPI_FAMILY app partition
++
+ const char * dl_error() {
+     return "";
+ }
+diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
+index cd5c61a81..5d550eafb 100644
+--- a/ggml/src/ggml-cpu/ggml-cpu.c
++++ b/ggml/src/ggml-cpu/ggml-cpu.c
+@@ -2489,9 +2489,17 @@ static bool ggml_thread_apply_affinity(bool * mask) {
+ 
+     DWORD_PTR m = (DWORD_PTR)bitmask;
+ 
++#if defined(WINAPI_FAMILY) && !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
++    // AppContainer (UWP/Xbox): SetThreadAffinityMask is unavailable; let the
++    // system scheduler place threads.
++    (void) h;
++    (void) m;
++    return true;
++#else
+     m = SetThreadAffinityMask(h, m);
+ 
+     return m != 0;
++#endif
+ }
+ 
+ static bool ggml_thread_apply_priority(int32_t prio) {
+@@ -2511,7 +2519,7 @@ static bool ggml_thread_apply_priority(int32_t prio) {
+         // Newer Windows 11 versions aggressively park (offline) CPU cores and often place
+         // all our threads onto the first 4 cores which results in terrible performance with
+         // n_threads > 4
+-        #if _WIN32_WINNT >= 0x0602
++        #if _WIN32_WINNT >= 0x0602 && (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP))
+         THREAD_POWER_THROTTLING_STATE t;
+         ZeroMemory(&t, sizeof(t));
+         t.Version     = THREAD_POWER_THROTTLING_CURRENT_VERSION;
+diff --git a/ggml/src/ggml-cpu/ggml-cpu.cpp b/ggml/src/ggml-cpu/ggml-cpu.cpp
+index 128883b41..8496adb5c 100644
+--- a/ggml/src/ggml-cpu/ggml-cpu.cpp
++++ b/ggml/src/ggml-cpu/ggml-cpu.cpp
+@@ -318,7 +318,7 @@ struct ggml_backend_cpu_device_context {
+             }
+             fclose(f);
+         }
+-#elif defined(_WIN32)
++#elif defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP))
+         HKEY hKey;
+         if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+                         TEXT("HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0"),
+diff --git a/src/llama-mmap.cpp b/src/llama-mmap.cpp
+index ed572da7f..c4305dc71 100644
+--- a/src/llama-mmap.cpp
++++ b/src/llama-mmap.cpp
+@@ -530,7 +530,7 @@ struct llama_mmap::impl {
+             }
+         }
+     }
+-#elif defined(_WIN32)
++#elif defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP))
+     HANDLE hMapping = nullptr;
+ 
+     impl(struct llama_file * file, size_t prefetch, bool numa) {
+@@ -625,7 +625,7 @@ void * llama_mmap::addr() const { return pimpl->addr; }
+ 
+ void llama_mmap::unmap_fragment(size_t first, size_t last) { pimpl->unmap_fragment(first, last); }
+ 
+-#if defined(_POSIX_MEMLOCK_RANGE) || defined(_WIN32)
++#if defined(_POSIX_MEMLOCK_RANGE) || (defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)))
+ const bool llama_mmap::SUPPORTED  = true;
+ #else
+ const bool llama_mmap::SUPPORTED  = false;
+@@ -679,7 +679,7 @@ struct llama_mlock::impl {
+             LLAMA_LOG_WARN("warning: failed to munlock buffer: %s\n", std::strerror(errno));
+         }
+     }
+-#elif defined(_WIN32)
++#elif defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP))
+     static size_t lock_granularity() {
+         SYSTEM_INFO si;
+         GetSystemInfo(&si);
+@@ -768,7 +768,7 @@ llama_mlock::~llama_mlock() = default;
+ void llama_mlock::init(void * ptr) { pimpl->init(ptr); }
+ void llama_mlock::grow_to(size_t target_size) { pimpl->grow_to(target_size); }
+ 
+-#if defined(_POSIX_MEMLOCK_RANGE) || defined(_WIN32)
++#if defined(_POSIX_MEMLOCK_RANGE) || (defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)))
+ const bool llama_mlock::SUPPORTED = true;
+ #else
+ const bool llama_mlock::SUPPORTED = false;
