@@ -73,10 +73,15 @@ constexpr int kSeq = 77; // CLIP context length
 constexpr double kVaeScale = 0.18215;
 
 // A DML session with sequential execution + no mem pattern (DML requirements).
+// Graph optimization is capped at EXTENDED: ORT_ENABLE_ALL's layout transforms
+// crash session init (graph_utils GetIndexFromName) on the fp16 SD graphs
+// produced by onnxruntime.transformers' converter — verified 2026-07-08 on the
+// deployable sd-turbo fp16 artifacts; EXTENDED loads and runs them cleanly.
 Ort::Session make_session(Ort::Env& env, const std::string& path) {
     Ort::SessionOptions so;
     so.SetExecutionMode(ORT_SEQUENTIAL);
     so.DisableMemPattern();
+    so.SetGraphOptimizationLevel(ORT_ENABLE_EXTENDED);
     Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_DML(so, /*device_id=*/0));
     return Ort::Session(env, utf8_to_wstring(path).c_str(), so);
 }

@@ -57,7 +57,19 @@ confirmed.**
 **Getting a runnable fp16 model.** `convert_fp16.py` (CPU) is reliable for the
 size analysis above but leaves a mixed-type node in the UNet timestep embedding
 (`/time_proj/Mul`) that ORT rejects at load — onnxconverter_common does not fully
-type the SD UNet on CPU. Two working sources for a clean fp16 graph:
+type the SD UNet on CPU. **Fix (verified 2026-07-08)**: pass the `/time_proj/*`
+node names as `node_block_list` to `convert_float_to_float16` — the timestep
+embedding stays an fp32 island with automatic Cast boundaries, and the rest of
+the UNet converts cleanly. This is the deployable-artifact path used for the
+console (own export, locally validatable end-to-end).
+
+⚠️ **Trap (verified 2026-07-08)**: the ORT-team pre-exports
+([`onnxruntime/sd-turbo`](https://hf.co/onnxruntime/sd-turbo),
+`tlwu/sd-turbo-onnxruntime`) look ideal on paper (fp16, each component
+self-contained < 2 GB) but their UNet/VAE use `com.microsoft.NhwcConv`, which has
+**no CPU kernel** (`NOT_IMPLEMENTED` at session init) — they are CUDA-optimized
+graphs. They cannot be validated on our owned layer and may not map to DML
+either; do not deploy them unvalidated. Other sources for a clean fp16 graph:
 
 1. **Pre-exported fp16 DirectML models** (recommended, no GPU needed) — e.g.
    [`nmkd/stable-diffusion-1.5-onnx-fp16`](https://huggingface.co/nmkd/stable-diffusion-1.5-onnx-fp16),

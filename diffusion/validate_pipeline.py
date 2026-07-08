@@ -37,8 +37,15 @@ LATENT_HW = 64
 
 
 def sess(comp):
+    # EXTENDED, not ALL: ORT_ENABLE_ALL's layout transforms crash session init on
+    # the fp16 SD graphs (graph_utils GetIndexFromName) — same cap as diffuse.cpp,
+    # so this validates the exact configuration the console runs.
+    so = ort.SessionOptions()
+    so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_EXTENDED
     return ort.InferenceSession(
-        f"{model_dir}/{comp}/model.onnx", providers=["CPUExecutionProvider"]
+        f"{model_dir}/{comp}/model.onnx",
+        sess_options=so,
+        providers=["CPUExecutionProvider"],
     )
 
 
