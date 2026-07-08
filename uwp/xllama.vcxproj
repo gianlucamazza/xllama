@@ -41,8 +41,9 @@
        Plain ORT (image spike, diffusion) stays linked in both. -->
   <PropertyGroup>
     <XllamaBackend Condition="'$(XllamaBackend)' == ''">ort</XllamaBackend>
-    <XllamaUseOrt Condition="'$(XllamaBackend)' == 'llamacpp'">0</XllamaUseOrt>
-    <XllamaUseOrt Condition="'$(XllamaUseOrt)' == ''">1</XllamaUseOrt>
+    <!-- The sources gate on `#ifdef XLLAMA_USE_ORT` (not #if), so the macro must
+         be ABSENT — not 0 — in the llamacpp variant. -->
+    <XllamaOrtDefine Condition="'$(XllamaBackend)' != 'llamacpp'">XLLAMA_USE_ORT=1;</XllamaOrtDefine>
   </PropertyGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -116,7 +117,7 @@
         WIN32_LEAN_AND_MEAN;
         _CRT_SECURE_NO_WARNINGS;
         XLLAMA_UWP=1;
-        XLLAMA_USE_ORT=$(XllamaUseOrt);
+        $(XllamaOrtDefine)
         %(PreprocessorDefinitions)
       </PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
