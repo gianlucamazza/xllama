@@ -106,7 +106,12 @@
   <!-- ggml core -->
   <ItemGroup>
     <ClCompile Include="..\llama.cpp\ggml\src\ggml.c" />
-    <ClCompile Include="..\llama.cpp\ggml\src\ggml.cpp" />
+    <!-- ggml.c and ggml.cpp share basename AND directory, so RelativeDir obj
+         naming still collides (the .cpp overwrote ggml.obj and dropped every
+         C-core ggml_* symbol from the lib — 169 LNK2001s). -->
+    <ClCompile Include="..\llama.cpp\ggml\src\ggml.cpp">
+      <ObjectFileName>$(IntDir)%(RelativeDir)ggml_cxx.obj</ObjectFileName>
+    </ClCompile>
     <ClCompile Include="..\llama.cpp\ggml\src\ggml-alloc.c" />
     <ClCompile Include="..\llama.cpp\ggml\src\ggml-backend.cpp" />
     <ClCompile Include="..\llama.cpp\ggml\src\ggml-backend-dl.cpp" />
