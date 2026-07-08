@@ -274,8 +274,8 @@ std::vector<ManifestEntry> LoadModelManifest() {
     ManifestEntry e;
     e.name = L"smollm2-360m-cpu-int4";
     e.display = L"SmolLM2 360M (CPU int4)";
-    e.hf_base_url = L"https://huggingface.co/homen3/"
-                    L"SmolLM2-360M-Instruct-ort-genai-int4-cpu/resolve/main";
+    e.hf_base_url = L"https://github.com/gianlucamazza/xllama/"
+                    L"releases/download/models-v1";
     // NOTE: no special_tokens_map.json — the HF repo does not have one (the old
     // hardcoded list requested it and got HTTP 404, breaking every download).
     e.files = {

@@ -4,7 +4,7 @@
     {
       "name": "smollm2-360m-cpu-int4",
       "display": "SmolLM2 360M (CPU int4)",
-      "hf_base_url": "https://huggingface.co/homen3/SmolLM2-360M-Instruct-ort-genai-int4-cpu/resolve/main",
+      "hf_base_url": "https://github.com/gianlucamazza/xllama/releases/download/models-v1",
       "files": [
         {
           "filename": "genai_config.json",
