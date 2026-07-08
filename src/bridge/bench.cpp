@@ -48,14 +48,27 @@ void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
     struct tm* tm_utc = gmtime(&now);
     strftime(date_buf, sizeof(date_buf), "%Y-%m-%dT%H:%M:%SZ", tm_utc);
 
+    // Model label = the directory basename. Do NOT blind-strip at the last '.':
+    // model dir names contain dots (e.g. "smollm2-1.7b-cpu-int4" was truncated to
+    // "smollm2-1"). Take the basename and strip only a trailing ".onnx".
     std::string model_name = params.model_path;
-    auto dot = model_name.rfind('.');
-    if (dot != std::string::npos)
-        model_name = model_name.substr(0, dot);
+    auto slash = model_name.find_last_of("/\\");
+    if (slash != std::string::npos)
+        model_name = model_name.substr(slash + 1);
+    const std::string kOnnx = ".onnx";
+    if (model_name.size() > kOnnx.size() &&
+        model_name.compare(model_name.size() - kOnnx.size(), kOnnx.size(), kOnnx) == 0)
+        model_name = model_name.substr(0, model_name.size() - kOnnx.size());
 
 #ifdef XLLAMA_USE_ORT
-    const char* backend = "ort-genai-cpu";
-    const char* quant = "int4";
+    // Derive the EP + quant labels from the model directory name (convention:
+    // smollm2-<size>-<cpu|dml>-<int4|fp16>) instead of hardcoding — a DML fp16
+    // model was previously mislabelled as "ort-genai-cpu"/"int4". gpu_mem_mb > 0
+    // corroborates DML execution (GPU memory resident after load).
+    const bool is_dml = model_name.find("dml") != std::string::npos || res.gpu_mem_mb > 0;
+    const bool is_fp16 = model_name.find("fp16") != std::string::npos;
+    const char* backend = is_dml ? "ort-genai-dml" : "ort-genai-cpu";
+    const char* quant = is_fp16 ? "fp16" : "int4";
 #else
     const char* backend = "cpu";
     const char* quant = "Q4_K_M";

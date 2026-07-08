@@ -98,19 +98,26 @@ effective vs ~224 GB/s bus) and what the Series S can realistically deliver.
 Levers ordered by cost/leverage; the first two are near-free and change the
 denominators for everything else, so they go first.
 
-**Software perf track** (branch `feat/perf-0.14-kv-routing`, compile-validated
-in CI, **pending on-console validation** — deploy the 0.3.9.0 MSIX):
+**Software perf track** (merged to main, **console-validated 2026-07-08** —
+v0.4.0.0 on Xbox; CSVs `bench/results/phase35-*.csv`):
 
 - [x] **ORT GenAI 0.13.2 → 0.14.1** (Stage 1, v0.3.7): reduced per-token CPU
-      overhead + prereq for continuous decoding.
+      overhead + prereq for continuous decoding. **Console: decode flat vs v0.3.6**
+      (CPU int4 66.3 vs 68.0; DML fp16 46.8 = 46.8) — the bump is a prereq/overhead
+      win, not a decode-rate win at this scale.
 - [x] **KV-cache reuse across chat turns** (Stage 2, v0.3.8): persistent
-      generator, append-only delta per turn → turn-N TTFT drops from re-prefilling
-      the whole history to just the new turn. Correctness-guarded fallback;
-      `kv_reuse` toggle (default on). Multi-turn TTFT bench added (Stage 2b).
+      generator, append-only delta per turn. **Console: turn-2 prefill 4.87× faster**
+      with reuse (103.7 ms / 22-tok delta vs 505.2 ms / 114-tok cold re-prefill).
+      Correctness-guarded fallback; `kv_reuse` toggle (default on).
 - [x] **Per-conversation CPU/GPU routing** (Stage 3, v0.3.9, default off): route
       long-prompt conversations to DML fp16, chat to CPU int4; sticky per
-      conversation. (Supersedes the "per-workload routing" hardware milestone
-      below — machinery done, needs the fp16 model on device + console A/B.)
+      conversation. Machinery done + dml-fp16 model on device; **interactive A/B
+      still pending** (XAML UI — needs a person at the console).
+
+- [x] **Image-generation spike** (v0.4.0, flagship hypothesis): **CONFIRMED on
+      console 2026-07-08** — on a compute-bound fp16 batch (309 GFLOP), DirectML is
+      **11.1× faster than CPU** (2403 vs 216 GFLOP/s). The inverse of text decode;
+      diffusion is the GPU's workload. → C++ pipeline built + host-validated (PR #5).
 
 Milestones:
 

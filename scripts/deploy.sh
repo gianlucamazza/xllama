@@ -331,20 +331,44 @@ if [[ "${1:-}" == "upload-dir" ]]; then
 
 	mkdir_localstate "$PFN" "$REMOTE_DIR"
 
+	# Confirm the target dir actually exists before uploading — WDP folder creation
+	# can fail silently, after which every file POST returns Success:false with
+	# "The system cannot find the path specified" (a batch that then reports
+	# "Uploaded N" while landing nothing). Fail loudly here instead.
+	PARENT_PARAM="%5CLocalState"
+	LEAF="${REMOTE_DIR##*\\}"
+	if [[ "$REMOTE_DIR" == *\\* ]]; then
+		PARENT_PARAM="%5CLocalState%5C${REMOTE_DIR%\\*}"
+		PARENT_PARAM="${PARENT_PARAM//\\/%5C}"
+	fi
+	DIR_CHECK=$(curl "${CURL_AUTH[@]}" \
+		"${BASE_URL}/api/filesystem/apps/files?knownfolderid=LocalAppData&packagefullname=${PFN}&path=${PARENT_PARAM}" 2>/dev/null || echo "")
+	if ! echo "$DIR_CHECK" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if any(i.get('Name')=='${LEAF}' for i in d.get('Items',[])) else 1)" 2>/dev/null; then
+		echo "Error: remote dir LocalState\\${REMOTE_DIR} was not created (WDP mkdir failed); aborting upload." >&2
+		exit 1
+	fi
+
 	PATH_PARAM="%5CLocalState%5C${REMOTE_DIR//\\/%5C}"
 	total=0
+	failed=0
 	while IFS= read -r -d '' f; do
 		fname=$(basename "$f")
 		echo "  uploading $fname ..."
-		curl "${CURL_AUTH[@]}" \
+		RESP=$(curl "${CURL_AUTH[@]}" \
 			-H "X-CSRF-Token:${CSRF_TOKEN}" \
 			-X POST \
 			-F "file=@${f};type=application/octet-stream" \
-			"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=${PATH_PARAM}" \
-			>/dev/null
-		((total++)) || true
+			"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=${PATH_PARAM}" 2>/dev/null || echo "")
+		# WDP returns 200 with {"Success": false} on failure; empty body = success.
+		if [[ -n "$RESP" ]] && ! echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get('Success',True) else 1)" 2>/dev/null; then
+			echo "    ERROR: upload of $fname failed: $RESP" >&2
+			((failed++)) || true
+		else
+			((total++)) || true
+		fi
 	done < <(find "$LOCAL_DIR" -maxdepth 1 -type f -print0)
-	echo "Uploaded $total file(s) to LocalState\\${REMOTE_DIR}."
+	echo "Uploaded $total file(s) to LocalState\\${REMOTE_DIR}.${failed:+ ($failed FAILED)}"
+	[[ "$failed" -eq 0 ]] || exit 1
 	exit 0
 fi
 

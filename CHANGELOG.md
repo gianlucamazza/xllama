@@ -7,6 +7,47 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Measured — Phase 3.5 console validation (Xbox Series S, v0.4.0.0, 2026-07-08)
+
+The pending on-console checks for the merged 0.3.7–0.4.0 features, run in one session
+per `docs/console-validation-runbook.md`. CSVs under `bench/results/phase35-*.csv`.
+
+- **Image spike (flagship hypothesis) — CONFIRMED.** On a compute-bound fp16 batch
+  (309 GFLOP, one UNet-step proxy), DirectML is **11.1× faster than CPU** (128.7 ms /
+  2403 GFLOP/s vs 1428 ms / 216 GFLOP/s). The exact inverse of text decode — image
+  generation plays to the GPU's strength, greenlighting the diffusion pipeline.
+- **Decode matrix (ORT GenAI 0.14.1), SmolLM2-360M, 285-tok prompt:** CPU int4
+  **66.3** tok/s, DML fp16 **46.8** (real GPU: engines ~46–57 %, `gpu_mem` 793 MB),
+  DML int4 **8.82** (real GPU: engines ~87–90 %, `gpu_mem` 307 MB). Versus the v0.3.6
+  baselines (68.0 / 46.8 / 8.8) the 0.14.1 bump is **flat on decode** — a valid,
+  recorded result (its win, if any, is CPU-overhead at higher token rates, not here).
+- **int4 DML floor — §12 desk-check CONFIRMED on hardware.** DML int4 decode is
+  8.82 tok/s with the **GPU compute engines saturated (87–90 %)** — not a CPU
+  fallback. The non-fused `MatMulNBits` (dequantize→fp16 + full GEMM) is
+  bandwidth-bound; CPU int4 stays the decode default. Kernel-design limit, confirmed.
+- **KV-cache reuse (Stage 2) — CONFIRMED.** Turn-2 prefill with reuse is **4.87×**
+  faster than cold (103.7 ms / 22-tok delta vs 505.2 ms / 114-tok full re-prefill) —
+  continuous decoding processes only the new turn's tokens as designed.
+- **1.7B scale (§6) — CONFIRMED.** SmolLM2-1.7B cpu-int4 runs on the console:
+  prefill 54.9 tok/s, **decode 20.6 tok/s**, peak WS 2423 MB, load 6.2 s. Decode
+  scales ~3.2× down from 360M (66.3 → 20.6) — memory-bandwidth-bound, as expected;
+  CPU int4 stays usable at 1.7B. (fp16-DML 1.7B remains undeployable: 3.4 GB weights
+  exceed the 2 GB protobuf limit — a serialization constraint, not the GPU.)
+- Still pending (need specific assets): CPU/GPU **routing** (§2, interactive XAML UI —
+  needs a person at the console); **diffusion** (§7, needs an fp16 SD-Turbo export).
+
+### Fixed — deploy/bench tooling gaps surfaced during console validation
+
+- `scripts/deploy.sh upload-dir`: now verifies the target dir exists (WDP folder
+  creation can fail silently) and checks each file's `Success` flag, failing loudly
+  instead of reporting "Uploaded N" while landing nothing (the 1.7B model.onnx
+  silently vanished this way until the missing subdir was created). Mirrors the
+  `upload-file` check.
+- `src/bridge/bench.cpp`: the CSV `backend`/`quant` columns were hardcoded
+  `ort-genai-cpu`/`int4`, mislabelling DML and fp16 runs; now derived from the model
+  dir name (+ `gpu_mem_mb` corroboration). The model label also no longer truncates
+  at the first dot (`smollm2-1.7b-cpu-int4` was logged as `smollm2-1`).
+
 ### Added — C++ diffusion pipeline (`diffuse.flag`, host-validated)
 
 The console image-generation pipeline. `uwp/diffuse.cpp` runs three ORT DirectML
