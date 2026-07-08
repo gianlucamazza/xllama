@@ -7,6 +7,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Measured — llama.cpp CPU A/B on console: parity, not 2× (hypothesis falsified)
+
+llama.cpp **runs on the Xbox in AppContainer** (first time): static ggml+llama
+lane (`uwp/ggml-uwp.vcxproj`, `patches/0001-uwp-appcontainer-guards.patch`, CI
+`build (llamacpp)`), SmolLM2-360M **Q4_K_M**, standard-512 ChatML prompt
+(`bench/results/phase35-llamacpp-scaling.csv`):
+
+| threads | prompt tok/s | decode tok/s |
+| ------- | ------------ | ------------ |
+| 1       | 141.6        | 19.9         |
+| 4       | 141.3        | 51.5         |
+| 6       | 141.5        | **62.9**     |
+| 7–8     | —            | **livelock** |
+
+- Versus ORT GenAI int4 @8t (66.3 decode / 220 prefill): **decode parity
+  (−5 %), prefill worse** — Q4_K_M does not extract more bandwidth than ORT's
+  AVX2 `MatMulNBits` on this machine; both saturate ~13 GB/s effective. The
+  ROADMAP's "~2× → ~130 tok/s" hypothesis is falsified. **ORT GenAI stays the
+  text backend**; the llamacpp lane remains in CI as a bench-only variant.
+- t7/t8 livelock: ggml's spin-wait threadpool oversubscribes the ~6 cores Dev
+  Mode leaves the app (no thread affinity in AppContainer). t6 is the ceiling.
+- Real bugs fixed on the way: `#ifdef XLLAMA_USE_ORT` selected ORT even with
+  `=0`; llama_tokenize size-query sign treated as error; `no_perf` (default)
+  hid all timings (own chrono now, like the ORT path); ggml.c/ggml.cpp and
+  ggml-cpu.c/.cpp same-dir obj collisions silently dropped every C symbol; the
+  128 `src/models/*.cpp` per-arch files were missing from the static lib.
+
+
 ### Measured — image generation on console (v0.4.2.0, 2026-07-08) 🎨
 
 **The flagship GPU workload is live**: SD-Turbo fp16 generates a coherent

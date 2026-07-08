@@ -160,27 +160,22 @@ Milestones:
   (scratchpad); one console bench each to confirm they stay ≈ 8.8 tok/s (the
   kernel structure predicts no material gain). If either beats fp16-DML it
   would refute §12 — worth the ~5 min. Not a path forward, just closure.
-- [ ] **llama.cpp CPU A/B** (now the _only_ remaining decode lever — int4-DML is
-      dead, see §12): build the `XLLAMA_USE_ORT=0` path for UWP and bench a GGUF
-      Q4_K model. llama.cpp Q4_K kernels typically extract ~2× the bandwidth of
-      ORT's AVX2 `MatMulNBits` (~13 GB/s measured) → target ~25–30 GB/s, ~130
-      tok/s decode at 360M. - **Sandbox blockers scoped 2026-07-08** (verified against submodule
-      `9a532ae4b`) — 3+ desktop-only APIs, all guardable with
-      `WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)`: (1)
-      `RegOpenKeyEx`/`RegQueryValueExA` CPU-name lookup
-      (`ggml/src/ggml-cpu/ggml-cpu.cpp:321`); (2) `SetThreadAffinityMask`
-      (`ggml-cpu.c:2492`); (3) `SetThreadInformation(ThreadPowerThrottling)`
-      (`ggml-cpu.c:2521`, already behind `_WIN32_WINNT>=0x0602`). Plus
-      `dl_load_library` (`ggml-backend-reg.cpp:214/510`) — avoided by building
-      static CPU-only (`GGML_BACKEND_DL=OFF`), not a source patch. The
-      `patches/README.md` still describes 3 patch files + `apply-uwp-patches.sh`
-      that **no longer exist on disk** — stale, must be recreated. - **The real gate is the MSBuild/vcxproj wiring**, not the patches: the root
-      CMake `FATAL_ERROR`s on UWP, so ggml (C, AVX2) + llama (C++) must be
-      compiled into the UWP target via MSBuild with `XLLAMA_USE_ORT=0`. This
-      needs a dedicated build-loop push (recreate guards → wire vcxproj → CI
-      iterate) — deferred rather than shipping unvalidated patch files. Risk:
-      AppContainer runtime compat (threads OK per §10; no mmap already handled
-      `use_mmap=false`) untested since the Phase 1 pivot.
+- [x] **llama.cpp CPU A/B** — ✅ **MEASURED 2026-07-08, hypothesis FALSIFIED.**
+      The lane was built (uwp/ggml-uwp.vcxproj static ggml+llama, `patches/0001`
+      AppContainer guards for 5 desktop-only APIs, CI `build (llamacpp)` variant,
+      `-Backend llamacpp`) and llama.cpp **runs on the console in AppContainer**.
+      SmolLM2-360M **Q4_K_M** decode scaling (standard-512, ChatML,
+      `bench/results/phase35-llamacpp-scaling.csv`): t1 **19.9**, t4 **51.5**,
+      t6 **62.9** tok/s; **t7/t8 livelock** (ggml spin-wait threadpool
+      oversubscribes the ~6 cores Dev Mode leaves the app — no thread affinity in
+      AppContainer). Versus ORT int4 @8t (66.3): **parity, not 2×** — Q4_K_M does
+      not extract more bandwidth than ORT's `MatMulNBits` on this machine; both
+      saturate ~13 GB/s effective. Prefill is _worse_ (141 vs 220 tok/s).
+      **Verdict: ORT GenAI stays the text backend** (better prefill, KV-reuse,
+      routing, DML); the llamacpp lane remains in CI as a bench-only variant.
+      Fixed on the way (all real bugs): `#ifdef XLLAMA_USE_ORT` vs `=0`,
+      tokenize size-query sign, no_perf-hidden timings, obj-name collisions
+      (ggml.c/.cpp), 128 `src/models/*.cpp` in the static lib.
 - [x] **Per-workload routing in the app** — ✅ implemented (Stage 3, see software
       perf track above); pending on-console A/B with the DML fp16 model present.
 - [ ] (deprioritised by §12) **Fused low-bit GPU GEMM for DirectML** — the real
