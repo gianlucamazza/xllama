@@ -276,10 +276,13 @@ std::vector<ManifestEntry> LoadModelManifest() {
     e.display = L"SmolLM2 360M (CPU int4)";
     e.hf_base_url = L"https://huggingface.co/homen3/"
                     L"SmolLM2-360M-Instruct-ort-genai-int4-cpu/resolve/main";
+    // NOTE: no special_tokens_map.json — the HF repo does not have one (the old
+    // hardcoded list requested it and got HTTP 404, breaking every download).
     e.files = {
-        {L"genai_config.json", 2'000},     {L"tokenizer.json", 2'400'000},
-        {L"tokenizer_config.json", 3'000}, {L"special_tokens_map.json", 1'000},
-        {L"model.onnx", 422'000'000},
+        {L"genai_config.json", 2'000},
+        {L"tokenizer.json", 3'600'000},
+        {L"tokenizer_config.json", 1'000},
+        {L"model.onnx", 417'404'408},
     };
     return {e};
 }
