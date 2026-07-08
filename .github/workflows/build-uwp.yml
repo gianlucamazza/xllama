@@ -24,6 +24,13 @@ jobs:
           submodules: false
           fetch-depth: 1
 
+      - name: Checkout llama.cpp submodule + apply AppContainer guards
+        if: matrix.variant == 'llamacpp'
+        shell: bash
+        run: |
+          git submodule update --init --depth 1 llama.cpp
+          bash scripts/apply-uwp-patches.sh
+
       - name: Restore NuGet packages
         shell: pwsh
         working-directory: uwp
