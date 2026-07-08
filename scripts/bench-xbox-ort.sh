@@ -269,6 +269,10 @@ for ((run = 1; run <= N_RUNS; run++)); do
 
 	delete_from_localstate "bench-result.csv"
 	delete_from_localstate "bench-result.csv.done"
+	# Remove any leftover bench_turns.txt: main_loop treats its presence as the
+	# KV-reuse bench trigger, which would hijack this standard bench into kv-bench
+	# mode (writes bench-kv-result.csv, never bench-result.csv → this run times out).
+	delete_from_localstate "bench_turns.txt"
 	sleep 1
 
 	echo "  Uploading bench artifacts..."
