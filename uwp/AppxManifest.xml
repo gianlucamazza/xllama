@@ -10,7 +10,7 @@
   <Identity
     Name="VenereLabs.xllama"
     Publisher="CN=xllama-dev"
-    Version="0.4.5.0"
+    Version="0.4.6.0"
     ProcessorArchitecture="x64" />
 
   <mp:PhoneIdentity

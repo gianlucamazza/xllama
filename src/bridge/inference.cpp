@@ -5,6 +5,7 @@
 #include "xllama/path_utils.h"
 #include "xllama/platform.h"
 
+#include <cstdint>
 #include <cstdio>
 #include <string>
 
@@ -276,11 +277,16 @@ InferenceResult run_inference(const InferenceParams& params) {
     int32_t n_tokens =
         llama_tokenize(vocab, params.prompt.c_str(), static_cast<int32_t>(params.prompt.size()),
                        nullptr, 0, true, false);
-    if (n_tokens < 0) {
-        res.error_msg = "tokenization size query failed";
-        log_output("[xllama] tokenization size query failed\n");
+    if (n_tokens == INT32_MIN) {
+        res.error_msg = "tokenization overflow";
+        log_output("[xllama] tokenization overflow\n");
         return res;
     }
+    // Size query with a null buffer returns the NEGATED required token count
+    // (llama.h: "Returns a negative number on failure - the number of tokens
+    // that would have been returned"). Negative here is the expected answer,
+    // not an error.
+    n_tokens = -n_tokens;
 
     std::vector<llama_token> tokens(static_cast<size_t>(n_tokens));
     n_tokens =

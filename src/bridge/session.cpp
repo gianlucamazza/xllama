@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <string>
 
 // ---------------------------------------------------------------------------
@@ -343,10 +344,12 @@ class LlamaSession final : public Session {
         int32_t n_tokens =
             llama_tokenize(vocab, gp.prompt.c_str(), static_cast<int32_t>(gp.prompt.size()),
                            nullptr, 0, true, false);
-        if (n_tokens < 0) {
-            res.error_msg = "tokenize size failed";
+        if (n_tokens == INT32_MIN) {
+            res.error_msg = "tokenize overflow";
             return res;
         }
+        // Size query returns the negated required count (see llama.h) — not an error.
+        n_tokens = -n_tokens;
 
         std::vector<llama_token> tokens(static_cast<size_t>(n_tokens));
         n_tokens = llama_tokenize(vocab, gp.prompt.c_str(), static_cast<int32_t>(gp.prompt.size()),
