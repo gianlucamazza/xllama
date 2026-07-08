@@ -136,13 +136,13 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
 // D3D12-clean so the DML EP can initialise.
 // ---------------------------------------------------------------------------
 
-// Returns the wide path of LocalFolder\bench.flag if it exists, empty otherwise.
+// Returns the wide path of LocalFolder\<name> if it exists, empty otherwise.
 // Requires an initialised COM apartment (ApplicationData). Any exception =>
 // empty => normal interactive path (CheckBenchMode in MainPage stays as fallback).
-static std::wstring bench_flag_path_if_present() {
+static std::wstring flag_path_if_present(const wchar_t* name) {
     try {
         auto folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
-        std::wstring flag = std::wstring(folder.Path().c_str()) + L"\\bench.flag";
+        std::wstring flag = std::wstring(folder.Path().c_str()) + L"\\" + name;
         DWORD attr = GetFileAttributesW(flag.c_str());
         if (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY))
             return flag;
@@ -154,9 +154,15 @@ static std::wstring bench_flag_path_if_present() {
 // Minimal IFrameworkView: activates the CoreWindow (satisfies the PLM
 // activation watchdog, dismisses the splash) without a swapchain/compositor,
 // so no D3D12 device exists in-process. Same pattern as the UWP DX12 template.
-struct BenchView
-    : winrt::implements<BenchView, winrt::Windows::ApplicationModel::Core::IFrameworkViewSource,
+// Runs `m_entry` (bench main_loop or the image spike) on an MTA thread, then
+// exits the process — a D3D12-clean host for any DirectML workload.
+struct HeadlessView
+    : winrt::implements<HeadlessView, winrt::Windows::ApplicationModel::Core::IFrameworkViewSource,
                         winrt::Windows::ApplicationModel::Core::IFrameworkView> {
+    void (*m_entry)() = nullptr;
+    const char* m_label = "headless";
+    explicit HeadlessView(void (*entry)(), const char* label) : m_entry(entry), m_label(label) {}
+
     winrt::Windows::ApplicationModel::Core::IFrameworkView CreateView() {
         return *this;
     }
@@ -168,11 +174,13 @@ struct BenchView
         auto window = winrt::Windows::UI::Core::CoreWindow::GetForCurrentThread();
         window.Activate();
         auto dispatcher = window.Dispatcher();
-        std::thread([dispatcher]() {
-            winrt::init_apartment(); // MTA: main_loop uses ApplicationData (WinRT)
-            ::xllama::log_output("[xllama] headless bench: starting main_loop\n");
-            ::xllama::bridge::main_loop();
-            ::xllama::log_output("[xllama] headless bench: done, exiting\n");
+        void (*entry)() = m_entry;
+        const char* label = m_label;
+        std::thread([dispatcher, entry, label]() {
+            winrt::init_apartment(); // MTA: entry uses ApplicationData (WinRT)
+            ::xllama::log_output(std::string("[xllama] headless ") + label + ": starting\n");
+            entry();
+            ::xllama::log_output(std::string("[xllama] headless ") + label + ": done, exiting\n");
             dispatcher.RunAsync(winrt::Windows::UI::Core::CoreDispatcherPriority::Normal, [] {
                 winrt::Windows::ApplicationModel::Core::CoreApplication::Exit();
             });
@@ -188,13 +196,22 @@ struct BenchView
 int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     try {
         winrt::init_apartment(); // MTA: needed for ApplicationData in the detection
-        std::wstring bench_flag = bench_flag_path_if_present();
+        // Consume the flag BEFORE the run (same semantics as CheckBenchMode):
+        // a later start without the flag goes back to interactive.
+        std::wstring image_flag = flag_path_if_present(L"image.flag");
+        if (!image_flag.empty()) {
+            _wremove(image_flag.c_str());
+            ::xllama::log_output("[xllama] image.flag detected -> headless image-spike mode\n");
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(&::xllama::bridge::run_image_spike, "image-spike"));
+            return 0; // not reached: CoreApplication::Exit terminates the process
+        }
+        std::wstring bench_flag = flag_path_if_present(L"bench.flag");
         if (!bench_flag.empty()) {
-            // Consume the flag BEFORE the run (same semantics as CheckBenchMode):
-            // a later start without the flag goes back to interactive.
             _wremove(bench_flag.c_str());
             ::xllama::log_output("[xllama] bench.flag detected -> headless bench mode\n");
-            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(winrt::make<BenchView>());
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(&::xllama::bridge::main_loop, "bench"));
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
         winrt::uninit_apartment(); // restore pre-existing thread state for XAML

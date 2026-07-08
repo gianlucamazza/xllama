@@ -22,6 +22,33 @@ DML `accuracy_level=0` vs CPU's fused-int8 `=4`. Full analysis + config tests in
 decode is blocked by a DirectML kernel-design limit (out of our control), not a
 kernel we could contribute — CPU int4 stays the decode default.
 
+## [0.4.0.0] - 2026-07-08
+
+### Added — image-generation spike (plain ORT DirectML, new model axis)
+
+First step toward image/vision models on the console. The desk-check (§12) showed
+the GPU loses at text decode because that workload is M=1, dispatch-bound, and
+int4-DML is non-fused — the GPU's _worst_ case. Image generation (diffusion) is
+the opposite: compute-bound fp16 batch, the case where DML already wins (prefill).
+This spike tests that hypothesis cheaply before building a full diffusion pipeline.
+
+- `uwp/image-spike.cpp`: runs a compute-bound conv model through the **plain
+  ONNX Runtime DirectML** EP (not ORT GenAI — `onnxruntime.dll` was already a
+  dependency) plus a CPU EP control, measuring forward-pass latency + GFLOP/s.
+  Model `imgspike.onnx` (`scripts/gen_imgspike_model.py`, deterministic): 17
+  Conv(3×3,64ch)+Relu on 1×3×512×512 fp16, ~309 GFLOP/forward — a faithful proxy
+  for one diffusion UNet step.
+- `uwp/App.cpp`: generalised the headless flag dispatch — `image.flag` →
+  `run_image_spike()`, `bench.flag` → `main_loop()` (shared `HeadlessView`, same
+  D3D12-clean host that avoids the 887A0036 compositor conflict).
+- `uwp/xllama.vcxproj`: added the ORT DirectML NuGet include dir + the new source.
+  `onnxruntime.lib` was already linked.
+- Writes `imgspike-result.csv` (+ `.done`): DML vs CPU ms, GFLOP/s, GPU speedup.
+- On-console validation pending: upload `imgspike.onnx` to LocalState + drop
+  `image.flag`, fetch the CSV. **Hypothesis**: DML ≫ CPU here (compute-bound), the
+  inverse of text decode — if confirmed, a distilled SD-Turbo/LCM diffusion
+  pipeline becomes the flagship GPU workload (Phase 5).
+
 ## [0.3.9.0] - 2026-07-08
 
 ### Added — per-conversation CPU/GPU routing (Stage 3, default off)

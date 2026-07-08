@@ -96,6 +96,7 @@
         $(IntDir)Generated Files;
         $(ProjectDir)..\include;
         $(ProjectDir)packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.14.1\build\native\include;
+        $(ProjectDir)packages\Microsoft.ML.OnnxRuntime.DirectML.1.24.4\build\native\include;
         %(AdditionalIncludeDirectories)
       </AdditionalIncludeDirectories>
       <PreprocessorDefinitions>
@@ -268,6 +269,7 @@
     <ClCompile Include="..\src\bridge\utf8_utils.cpp" />
     <!-- cli.cpp uses POSIX getopt — Linux only, excluded from UWP target -->
     <ClCompile Include="inference-bridge.cpp" />
+    <ClCompile Include="image-spike.cpp" />
   </ItemGroup>
 
   <!-- xllama UWP app -->
