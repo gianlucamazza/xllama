@@ -1,0 +1,2 @@
+model,prefill1_ms,n_p1,prefill2_reuse_ms,n_p2_reuse,prefill2_cold_ms,n_p2_cold,speedup,decode_tok_s,n_ctx,host,date
+smollm2-360m-cpu-int4,150.1,32,103.7,22,505.2,114,4.87,73.46,2048,xbox-series-s,2026-07-08T08:36:00Z

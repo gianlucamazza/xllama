@@ -1,0 +1,2 @@
+model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,host,date
+smollm2-360m-dml-int4,int4,ort-genai-cpu,2048,8,153.25,8.82,995,837,307,3801,xbox-series-s,2026-07-08T08:33:26Z
