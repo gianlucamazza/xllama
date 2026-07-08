@@ -7,6 +7,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Measured — in-app model download validated end-to-end on console (Exp 2 ✅)
+
+The nobundle app on the Xbox downloaded the full SmolLM2-360M model (4 files,
+417 MB merged `model.onnx`) from the **GitHub Release catalogue** inside the
+AppContainer — `[manifest] using LocalState\manifest.json override` → all files
+byte-exact on device → `.complete` written. Distribution is now self-hosted:
+
+- **`models-v1` GitHub Release** carries the merged, AppContainer-safe model
+  assets (the upstream HF repo ships a non-merged `model.onnx` stub + external
+  data that §8 cannot load — that path stays broken upstream and is no longer
+  referenced).
+- `uwp/models/manifest.json` and the built-in fallback now point at the release
+  URL; the LocalState manifest override was exactly the mechanism used to
+  validate before flipping the default.
+- **The MSIX no longer bundles a model** (ROADMAP Phase 4 milestone): first
+  launch downloads from the catalogue; USB/Device-Portal provisioning unchanged.
+  CI matrix simplified to `default` (nobundle) + `llamacpp`; the `xllama-appx`
+  artifact is now the 19 MB no-model package.
+
+### Measured — diffusion steps/seed plumbing on console
+
+`diffuse-steps.txt=2` / `diffuse-seed.txt=777` with a new prompt produced a
+coherent new 512×512 image in **7.7 s** (UNet 2.08 s/step ×2 — per-step cost
+scales as expected; te/vae unchanged).
+
+
 ### Measured — llama.cpp CPU A/B on console: parity, not 2× (hypothesis falsified)
 
 llama.cpp **runs on the Xbox in AppContainer** (first time): static ggml+llama

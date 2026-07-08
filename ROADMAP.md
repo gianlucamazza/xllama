@@ -196,9 +196,9 @@ Milestones:
 - [x] `EnsureModelAsync()` bootstrap: LocalState → InstalledPath → HF download fallback chain
 - [x] USB external drive fallback at `E:\xllama\models\<name>` in `resolve_model_path` (Exp 3)
 - [x] No-bundle build variant to unblock Exp 2: `build-uwp.ps1 -NoBundledModel` (MSBuild `XllamaNoBundledModel=true` excludes the model ItemGroup); CI publishes `xllama-appx-nobundle` alongside `xllama-appx`
-- [ ] Validate Exp 2 on console: deploy the `xllama-appx-nobundle` MSIX, confirm HF HTTPS download works from Xbox AppContainer
-- [ ] Remove model bundle from MSIX once Exp 2 is validated (delete ItemGroup in `xllama.vcxproj`)
-- [ ] `model-manifest.json`: configurable model list (HF repo + file list) for model switching
+- [x] Validate Exp 2 on console — ✅ 2026-07-08: the nobundle app downloaded the full model (417 MB merged) from the GitHub Release catalogue inside the AppContainer, byte-exact, `.complete` written. (The upstream HF repo turned out to ship a non-merged model.onnx + a file list with a nonexistent entry — the download had been broken from the start; distribution moved to Release assets.)
+- [x] Remove model bundle from MSIX — ✅ 2026-07-08 (ItemGroup deleted; CI matrix simplified to default+llamacpp; `xllama-appx` is now the 19 MB no-model package)
+- [x] `model-manifest.json` — ✅ 2026-07-08 (`uwp/models/manifest.json` catalogue + LocalState override; ComboBox and downloader de-hardcoded)
 - [ ] Demo video: model loaded and running on Xbox hardware
 - [ ] Technical report (arXiv or GitHub Discussions)
 - [ ] Tagged v1.0.0 release with pre-built MSIX and model manifest
