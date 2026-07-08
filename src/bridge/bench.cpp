@@ -48,17 +48,22 @@ void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
     struct tm* tm_utc = gmtime(&now);
     strftime(date_buf, sizeof(date_buf), "%Y-%m-%dT%H:%M:%SZ", tm_utc);
 
-    // Model label = the directory basename. Do NOT blind-strip at the last '.':
-    // model dir names contain dots (e.g. "smollm2-1.7b-cpu-int4" was truncated to
-    // "smollm2-1"). Take the basename and strip only a trailing ".onnx".
+    // Model label = the basename. Do NOT blind-strip at the last '.': model dir
+    // names contain dots (e.g. "smollm2-1.7b-cpu-int4" was truncated to
+    // "smollm2-1"). Take the basename and strip only a trailing *known model*
+    // extension (.gguf for llama.cpp, .onnx if a file path is passed) — the ORT
+    // path passes a directory with no extension, which is left intact.
     std::string model_name = params.model_path;
     auto slash = model_name.find_last_of("/\\");
     if (slash != std::string::npos)
         model_name = model_name.substr(slash + 1);
-    const std::string kOnnx = ".onnx";
-    if (model_name.size() > kOnnx.size() &&
-        model_name.compare(model_name.size() - kOnnx.size(), kOnnx.size(), kOnnx) == 0)
-        model_name = model_name.substr(0, model_name.size() - kOnnx.size());
+    for (const std::string& ext : {std::string(".gguf"), std::string(".onnx")}) {
+        if (model_name.size() > ext.size() &&
+            model_name.compare(model_name.size() - ext.size(), ext.size(), ext) == 0) {
+            model_name = model_name.substr(0, model_name.size() - ext.size());
+            break;
+        }
+    }
 
 #ifdef XLLAMA_USE_ORT
     // Derive the EP + quant labels from the model directory name (convention:
