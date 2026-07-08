@@ -11,9 +11,11 @@
 In Dev Mode, open **Dev Home** on the console and enable **Device Portal**.
 
 The portal is then accessible at:
+
 ```
 https://<console-ip>:11443
 ```
+
 Accept the self-signed TLS certificate on first visit (use `-k` with curl).
 
 ### Finding the console IP
@@ -62,6 +64,7 @@ PFN=$(./scripts/deploy.sh pfn)
 ```
 
 Or upload individual files:
+
 ```bash
 curl -sS --basic -u "$XBOX_USER:$XBOX_PASS" -k \
     -X POST \
@@ -110,6 +113,31 @@ Note: `path` specifies the **directory** (`\\LocalState` or `\\LocalState\\model
 ## File Explorer (GUI)
 
 Navigate to `https://<ip>:11443/#fileExplorer` for a browser-based file manager.
+
+## Lifecycle gotchas (verified on console, 2026-07-07)
+
+Five non-obvious behaviours of Device Portal + UWP package lifecycle that have
+each invalidated at least one bench run or upload in this project:
+
+1. **Only a forward upgrade (higher version) preserves `LocalState`.**
+   Uninstall + install — including any downgrade — purges all data for the
+   package family: uploaded models and logs are gone. Plan version numbers
+   accordingly before deploying a test build.
+2. **`LocalState` does not exist until the app has launched once** after a
+   clean install. Run `deploy.sh start-app` (and wait a few seconds) before
+   any upload to a fresh package, otherwise mkdir/upload fail.
+3. **The WDP file APIs return HTTP 200 with `"Success": false`** in the body
+   (`"File move failed"`, path not found). Always check the response body
+   _and_ verify with a post-upload listing. `deploy.sh upload-dir` discards
+   responses (`/dev/null`): it can report "Uploaded N file(s)" with zero files
+   actually arrived. Multi-level mkdir fails silently when the parent is
+   missing — create directories one level at a time.
+4. **The PFN read right after "Installation succeeded" can be stale**: for a
+   few seconds the listing may still show the previous version, or both
+   versions at once (staging window). Re-read the PFN before using it in
+   file/taskmanager endpoints.
+5. **A console running a game is unreachable via Device Portal** (total
+   timeouts). Not a fault — the portal only responds from Dev Home.
 
 ## References
 

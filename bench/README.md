@@ -30,6 +30,27 @@ source ~/.config/xllama/xbox-env
 
 Results are appended to `bench/results/phase1-cpu.csv`.
 
+### Xbox — multi-turn TTFT (KV-cache reuse, Stage 2b)
+
+Measures the KV-reuse win: turn-2 prefill **with reuse** (append only the new
+turn) vs the **cold** baseline (full re-prefill of the 2-turn context), on one
+persistent session. Triggered when `bench_turns.txt` is present in LocalState
+(its content = the turn-2 user prompt; `prompt.txt` = turn 1). Upload both plus
+`model.txt` and `bench.flag`, then fetch `bench-kv-result.csv`:
+
+```bash
+source ~/.config/xllama/xbox-env
+PFN=$(./scripts/deploy.sh pfn)
+LS="knownfolderid=LocalAppData&packagefullname=$PFN&path=\\LocalState"
+# upload prompt.txt (turn 1), bench_turns.txt (turn 2), model.txt, bench.flag ...
+# (use the same upload helper as bench-xbox-ort.sh), then:
+curl -sk -u "$XBOX_USER:$XBOX_PASS" \
+  "https://$XBOX_IP:11443/api/filesystem/apps/file?$LS&filename=bench-kv-result.csv"
+```
+
+Schema: `model,prefill1_ms,n_p1,prefill2_reuse_ms,n_p2_reuse,prefill2_cold_ms,n_p2_cold,speedup,decode_tok_s,n_ctx,host,date`.
+`speedup = prefill2_cold_ms / prefill2_reuse_ms` is the headline number.
+
 ### Linux (manual)
 
 ```bash
@@ -54,8 +75,8 @@ Capture output and append a CSV row to `results/phase1-cpu.csv`.
 
 ## Results files
 
-| File                     | Phase | Backend                        | Status                                                                                                                                                                                             |
-| ------------------------ | ----- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `results/phase1-cpu.csv` | 1     | CPU EP (Xbox Series S, Zen 2)  | populated — 4 runs (2026-05-23); best `n_threads=4` at 71.4 tok/s, regression at `n_threads=8` (28.2 tok/s)                                                                                        |
+| File                     | Phase | Backend                        | Status                                                                                                                                                                                                                                                                       |
+| ------------------------ | ----- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `results/phase1-cpu.csv` | 1     | CPU EP (Xbox Series S, Zen 2)  | populated — 4 runs (2026-05-23); best `n_threads=4` at 71.4 tok/s, regression at `n_threads=8` (28.2 tok/s)                                                                                                                                                                  |
 | `results/phase2-dml.csv` | 2     | DML EP (Xbox Series S, RDNA 2) | ✅ populated (2026-07-07) — utilization matrix (v0.3.6): prefill GPU 354 vs CPU 198 tok/s @1k tok; decode CPU 68 vs GPU fp16 46.8 vs GPU int4 8.8; see `docs/uwp-constraints.md §5`. Note: `backend` column mislabels DML runs as `ort-genai-cpu` (hardcoded in `bench.cpp`) |
-| `results/profiles/<ts>/` | 2     | —                              | gitignored — downloaded ORT profiling JSON + log tail per run (`profile-dml-run.sh`)                                                                                                               |
+| `results/profiles/<ts>/` | 2     | —                              | gitignored — downloaded ORT profiling JSON + log tail per run (`profile-dml-run.sh`)                                                                                                                                                                                         |

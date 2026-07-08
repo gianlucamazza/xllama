@@ -29,7 +29,7 @@ Platform limitations relevant to running LLM inference on Xbox Dev Mode, and how
 ## 5. DirectML: Works on GPU (Headless) but Loses to CPU on Small Models
 
 **Background — pool estimate corrected (2026-07-07)**: the GPU budget measured
-in-app (`QueryVideoMemoryInfo(LOCAL).Budget`) is **3801 MB** in App-mode on
+in-app (`QueryVideoMemoryInfo(LOCAL).Budget`) is **3801 MB** (package designated Game — verified 2026-07-08, see §5) on
 Series S — the earlier "~768 MB pool" was a coarse inference from the
 Phi-3.5-mini OOM bracketing and is superseded. The operative constraint for
 model sizing is the **Dev Mode disk budget** (`Q:\` ~2.2–2.5 GB free), not GPU
@@ -70,18 +70,29 @@ Readings:
    crossover sits between ~285 and ~1050 prompt tokens; at 1k tokens the GPU
    is **1.8× faster** (TTFT ~3.0 s vs ~5.3 s). For prompt-heavy workloads
    (RAG, long context) DML fp16 is already the better choice.
-2. **The int4 decode collapse was the dequant, not (only) dispatch**: fp16
-   decode is 5.3× faster than int4 on DML. At fp16 the GPU streams ~34 GB/s
-   effective (725 MB weights × 46.8 tok/s) vs ~13 GB/s for the CPU — the GPU
-   exploits memory ~2.6× better; DML simply lacks a fused int4
-   (`MatMulNBits`-style) kernel. With one, ~180 tok/s would be the
-   bandwidth-implied ceiling (2.5× CPU).
+2. **The int4 decode collapse is a non-fused DML kernel, not a missing/CPU one**
+   (corrected 2026-07-08 — see §12). The `MatMulNBits` op **is** present in the
+   graph (225 nodes, `bits=4 block_size=32`, verified) and **does run on the GPU**:
+   the profiled run shows the whole model as one `DmlFusedNode_0_0` on
+   `DmlExecutionProvider` (96% of kernel time), with no `MatMulNBits` on CPU — so
+   it is neither absent nor a CPU fallback. But DirectML's `MatMulNBits` kernel
+   (`DmlOperatorMatMulNBits.cpp`) is a **non-fused** `DML_DEQUANTIZE`
+   (int4→fp16 on GPU) + full `DML_GEMM`: it materialises the fp16 weight tensor,
+   so int4 decode moves **more** bandwidth than plain fp16 (read 4-bit, write
+   fp16, read fp16). That is why int4-DML (8.8) is _slower_ than fp16-DML (46.8).
+   The builder also targets DML with `int4_accuracy_level=0` (fp16 compute) while
+   CPU gets `=4` (fused int8 MLAS `SQNBitGemm`) — the reason CPU int4 reaches 68.
+   There is **no fused low-bit GPU GEMM** on DirectML through 1.15.x, so the
+   ~180 tok/s "bandwidth ceiling" is **not** reachable on DML by any config we
+   control; fp16 is the best DML decode config, and it still loses to CPU int4.
 3. CPU decode degrades ~25% from short to ~1 k context; GPU fp16 similarly.
 
-**Verdict**: CPU int4 remains the default for decode-heavy chat; GPU fp16 is
-viable and superior for prompt-heavy scenarios, and the decode gap is a DML
-kernel-coverage issue, not a hardware limit. Effective bandwidth utilization:
-CPU ~13 GB/s, GPU ~34 GB/s, against a ~224 GB/s theoretical bus.
+**Verdict**: CPU int4 remains the decode winner (68 vs fp16-DML 46.8 vs int4-DML
+8.8); GPU fp16 is superior only for prompt-heavy prefill. The int4-DML gap is a
+DirectML kernel-_design_ limit (non-fused low-bit GEMM), not a hardware limit and
+not fixable by our quantization config — see §12 for the full analysis and the
+config tests that confirm it. Effective bandwidth: CPU ~13 GB/s, GPU fp16
+~34 GB/s, against a ~224 GB/s theoretical bus.
 
 **Effect on disk**: models too large to fit the Dev Mode partition also fail before reaching `OgaCreateModel`. This is a distinct failure mode — see §9.
 
@@ -95,7 +106,22 @@ Disk budget failures (deploy-time or LocalState copy):
 
 Note: DirectML itself _is_ available in Dev Mode (NuGet `Microsoft.AI.DirectML 1.15.4`). The memory pool constraint applies to model weight size, not to the API itself.
 
-**Current approach**: CPU EP (`"provider_options": []` in `genai_config.json`) — chosen for deterministic behaviour. GPU EP research with proper D3D profiling is a future work item. See §7 for GPU pool detail and §9 for disk budget.
+**Current approach**: CPU EP (`"provider_options": []` in `genai_config.json`) remains the default for the interactive app (decode-heavy chat). DML fp16 is measured-viable for prompt-heavy workloads and profiling tooling exists (§11). The remaining GPU/CPU unlock levers — larger models via no-bundle deploy,
+llama.cpp CPU kernel A/B, per-workload routing — are tracked in `ROADMAP.md`
+Phase 3.5. (int4-on-DML decode is **not** a lever: it is blocked by DirectML's
+non-fused low-bit kernel, see §12.) See §7 for GPU pool detail and §9 for disk budget.
+
+**Platform lever — App vs Game designation (settled 2026-07-08)**: Dev Home
+can flip a sideloaded package between **App** and **Game** (tile → View
+details → App type); Game grants Game OS resources (full GPU access, more
+RAM). Checked on console: **xllama is already designated Game** — the
+designation persists per package family across forward upgrades. Therefore
+the measured figures in this document (3801 MB GPU budget, the utilization
+matrix, the per-token DML dispatch overhead) are **Game-mode numbers**, and
+the earlier assumption labelling them "App-mode" was wrong. Consequence: the
+GPU decode gap cannot be blamed on App-mode scheduling — it is a DML/kernel
+issue, consistent with the fused-int4 analysis above. Operational note:
+re-check the designation after any package reinstall (it can reset to App).
 
 ## 6. Limited Thread Count
 
@@ -106,7 +132,7 @@ Note: DirectML itself _is_ available in Dev Mode (NuGet `Microsoft.AI.DirectML 1
 ## 7. GPU Memory Pool — Detail
 
 **Measured budget (2026-07-07, in-app `QueryVideoMemoryInfo(LOCAL).Budget`):
-3801 MB** in App-mode on Series S. The "~768 MB" figure previously documented
+3801 MB** on Series S (package designated Game, verified 2026-07-08 — see §5). The "~768 MB" figure previously documented
 here was inferred from OOM bracketing and is superseded by this direct
 measurement.
 
@@ -156,7 +182,7 @@ competitive (CPU is 8× faster at 360M scale).
 **Diagnosis**: SEH `0xC0000005` in `OgaCreateModel`. WDP minidump (`type=2`) and the `xllama.log` entry `OgaCreateModel failed: ...` confirm the cause.
 
 **Source note**: the GPU budget (3801 MB) is measured per-process via
-`QueryVideoMemoryInfo(LOCAL).Budget` in App-mode. The historical "~768 MB"
+`QueryVideoMemoryInfo(LOCAL).Budget` with the package designated Game. The historical "~768 MB"
 estimate came from OOM bracketing (Phi-3.5-mini vs SmolLM2-360M) and proved to
 be a strong underestimate. We do not document the underlying Xbox OS memory
 partition layout — treat any claim about the internal platform architecture as
@@ -175,6 +201,14 @@ Tool: `scripts/merge_onnx_external_data.py`. CI runs this automatically as part 
 **Diagnosis**: Win32 probes on the model path — `GetFileAttributesW` and `CreateFile2` with `GENERIC_READ` succeed on `model_dir\model.onnx`, but the crash occurs inside the ORT segment-walking loop. Confirmed by matching the call site to `onnxruntime/core/framework/tensorprotoutils.cc` L337/338/346.
 
 ## 9. Disk Budget (Dev Mode Partition)
+
+> **Superseded (2026-07-08)**: the Dev Mode storage allocation was raised to
+> **90 GB** via Dev Home → Manage Dev Storage. The figures below describe the
+> default allocation and remain valid as the baseline for a fresh Dev Mode
+> activation; with the enlarged allocation, disk is no longer the binding
+> constraint for model sizing (GPU budget and RAM are). One caveat to verify:
+> community reports a ~2 GB per-file limit in Dev Mode, relevant for merged
+> `model.onnx` files above that size.
 
 **Observed**: the Xbox Series S Dev Mode partition (`Q:\`) provides approximately **2.2–2.5 GB of free space** after a clean Dev Mode activation, before any sideloaded package.
 
@@ -219,7 +253,7 @@ PIX for Xbox is GDK tooling gated behind the managed partner program; it is **no
 1. **ORT profiling JSON (primary, definitive)**. `genai_config.json` → `session_options` accepts `enable_profiling` (a string: the profile file _path prefix_, producing `<prefix>_<timestamp>.json`) and `log_severity_level` (0 = VERBOSE). Every `<node>_kernel_time` event in the trace carries `args.provider` — literally `"DmlExecutionProvider"` or `"CPUExecutionProvider"`. Heavy kernels (MatMul/Attention) tagged CPU = silent fallback. This works regardless of ORT build flavor and log routing. Tooling: `scripts/profile-dml-run.sh` (config swap + run + fetch) and `scripts/analyze_ort_profile.py` (per-provider summary + greppable `VERDICT:` line).
    - _Profile location ladder_: the relative prefix resolves against the process CWD, which in AppContainer may be the read-only install root (ORT's profiler ofstream then fails silently). Step 1: the fetch script checks LocalState root **and** `models\<name>\`. Step 2: `--absolute-prefix` renders `genai_config-dml-profile.tpl.json` with an absolute LocalState path. Step 3 (definitive): `set_cwd_to_local_folder()` pins CWD to LocalState at bench startup (v0.3.2+ MSIX).
 2. **Device Portal telemetry (corroborating)**. `GET /api/resourcemanager/systemperf` exists on the Xbox device family and reports `GPUData.AvailableAdapters[]` with `EnginesUtilization[]` (0–1 per engine) and `DedicatedMemoryUsed`. System-wide, ~1 Hz — run a control pass with the CPU config to calibrate background noise. Tooling: `scripts/xbox-gpu-sample.sh`, integrated as `--gpu-sample` in the bench/profile scripts.
-3. **In-app GPU memory (corroborating)**. `IDXGIAdapter3::QueryVideoMemoryInfo(LOCAL)` is callable from the AppContainer and is _per-process_: `CurrentUsage` climbing toward the model size after `OgaCreateModel` means the weights are resident on the GPU; `Budget` is the OS-granted ceiling (measured **3801 MB** App-mode Series S — trust this value over any hard-coded constant). Implemented as `gpu_mem_info()` in `src/bridge/platform.cpp`, logged pre-load/post-load/post-decode and exported as `gpu_mem_mb,gpu_budget_mb` bench CSV columns.
+3. **In-app GPU memory (corroborating)**. `IDXGIAdapter3::QueryVideoMemoryInfo(LOCAL)` is callable from the AppContainer and is _per-process_: `CurrentUsage` climbing toward the model size after `OgaCreateModel` means the weights are resident on the GPU; `Budget` is the OS-granted ceiling (measured **3801 MB** on Series S with the package designated Game — trust this value over any hard-coded constant). Implemented as `gpu_mem_info()` in `src/bridge/platform.cpp`, logged pre-load/post-load/post-decode and exported as `gpu_mem_mb,gpu_budget_mb` bench CSV columns.
 
 **Node-placement log caveat**: at `log_severity_level: 0` ORT emits "Node placements" lines from `session_state.cc`, but (a) only in full (non-minimal) ORT builds, and (b) ORT-core session logs may not route through the `OgaSetLogCallback` sink into `xllama.log`. Absence of the lines is not evidence — the profiling JSON is the primary probe.
 
@@ -228,3 +262,52 @@ PIX for Xbox is GDK tooling gated behind the managed partner program; it is **no
 - Op inventory of the model graph (python + `onnx`, count `node.op_type` incl. `com.microsoft.*` domains) cross-referenced against the profiler's per-op CPU list to identify which ops force fallback.
 - Full-vs-minimal ORT build probe: `strings onnxruntime.dll | grep "Node placements"` on the NuGet-restored DLL (affects only the log probe, not profiling).
 - D3D12 debug layer: not viable in Dev Mode UWP (`DML_CREATE_DEVICE_FLAG_DEBUG` needs `DirectML.Debug.dll` and ORT creates the DML device internally); DXGI HRESULTs already surface through the SEH translator.
+
+## 12. Why int4 Decode Is Slow on DirectML (not a missing kernel)
+
+Desk-check dated 2026-07-08. Corrects the earlier wording that the int4 decode
+collapse (8.8 tok/s) was a "missing fused int4 DML kernel" — the op is present
+and GPU-executed; the limit is that DirectML's kernel is **non-fused**.
+
+**Ground truth (verified locally)**:
+
+- The ORT GenAI model builder `-p int4 -e dml` emits **225
+  `com.microsoft::MatMulNBits`** nodes (`bits=4, block_size=32`) — a fused-op
+  graph, not `DequantizeLinear`+`MatMul`. (`onnx` op inventory of the built
+  `model.onnx`.)
+- The profiled on-console run
+  (`bench/results/profiles/20260707T144203Z/ort_profile_*.json`) shows the entire
+  model as a single **`DmlFusedNode_0_0` on `DmlExecutionProvider`** (1549 ms,
+  96% of kernel time); the only CPU kernels are `Gather` + `Cast` (0.1 ms). No
+  `MatMulNBits` runs on CPU → **not a silent CPU fallback**.
+
+**Root cause (verified against ORT source)**:
+
+- DirectML **does** register `MatMulNBits`
+  (`onnxruntime/core/providers/dml/.../Operators/OperatorRegistration.cpp`), but
+  `DmlOperatorMatMulNBits.cpp` implements it as **`DML_DEQUANTIZE` (int4→fp16 on
+  the GPU) + a full `DML_GEMM`** — it materialises the fp16 weight tensor. There
+  is **no fused low-bit GPU GEMM**. In memory-bound decode (M=1) this reads the
+  4-bit weights, writes a full fp16 weight matrix to VRAM, and reads it back —
+  strictly **more** bandwidth than plain fp16, which is exactly why int4-DML
+  (8.8) is _slower_ than fp16-DML (46.8).
+- The GenAI builder defaults `int4_accuracy_level = 4` for the CPU EP but **`0`
+  for non-CPU EPs**. CPU's level 4 activates MLAS's fused int8 low-bit GEMM
+  (`SQNBitGemm`) — the reason CPU int4 hits 68 tok/s. DML gets level 0 (fp16
+  compute) and its kernel has no int8 fast path to switch into.
+- ORT 1.19/1.20 int4 improvements ("QDQ INT4", int4 embeddings) were added to the
+  **CPU and CUDA EPs only**; no DirectML fused low-bit kernel has shipped through
+  DirectML 1.15.x. Published DirectML-GenAI INT4 models (Phi-3, Llama-3.1) note
+  compute runs at fp16/fp32 accuracy — consistent with level 0.
+
+**Consequence for xllama**: int4-on-DML has **no path to beat fp16-on-DML** for
+decode by any quantization config we control, and fp16-on-DML (46.8) still loses
+to CPU int4 (68). So **CPU int4 stays the decode default**, and the GPU's real
+win is prefill (§5, reading 1) and larger-model bandwidth. A genuinely fused
+low-bit GPU GEMM would be a DirectML-team feature, not an ORT-side PR; treat GPU
+int4 decode as blocked upstream, not a local TODO.
+
+**Config tests that confirm the dead-end** (built, pending one console bench —
+expected ≈ 8.8 tok/s, a fast negative): `int4_block_size=128` and
+`int4_accuracy_level=4` variants of SmolLM2-360M. If either materially beat 8.8
+it would refute the above; the kernel structure predicts they will not.

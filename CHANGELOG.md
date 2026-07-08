@@ -7,6 +7,120 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Corrected — int4 DML decode diagnosis (desk-check 2026-07-08)
+
+The [0.3.6] entry below (and the docs at the time) attributed the int4 GPU decode
+collapse (8.8 tok/s) to a "missing fused int4 DML kernel" that, if added, would
+imply ~180 tok/s. A source-level desk-check **refines that**: `MatMulNBits` is
+present in the graph (225 nodes) and **runs on the DML GPU** — the profiled run
+shows one `DmlFusedNode` on `DmlExecutionProvider` (96%), no CPU fallback. The
+real limit is that DirectML's `MatMulNBits` is **non-fused**
+(`DML_DEQUANTIZE`→fp16 + full `DML_GEMM`, materialising fp16 weights), so int4
+moves more bandwidth than fp16 and cannot beat it on DML; the builder also gives
+DML `accuracy_level=0` vs CPU's fused-int8 `=4`. Full analysis + config tests in
+`docs/uwp-constraints.md §12`; `ROADMAP.md` Phase 3.5 updated. Net: GPU int4
+decode is blocked by a DirectML kernel-design limit (out of our control), not a
+kernel we could contribute — CPU int4 stays the decode default.
+
+## [0.3.9.0] - 2026-07-08
+
+### Added — per-conversation CPU/GPU routing (Stage 3, default off)
+
+The v0.3.6 matrix showed the EP choice is per-workload: DML fp16 wins prompt
+prefill at scale (1.8× at ~1k tokens), CPU int4 wins decode. The app can now
+route between them.
+
+- Settings `routing` (0 = CPU only / default = unchanged behaviour, 1 = GPU
+  only, 2 = auto: route first prompts over ~500 est. tokens to GPU) + `gpu_model`
+  (DML fp16 model dir, default `smollm2-360m-dml-fp16`); a routing ComboBox in
+  the Settings dialog.
+- The decision is made once at a conversation's first turn and **sticky** for its
+  lifetime (the KV cache is per-EP): `m_active_model` holds the routed dir,
+  cleared on new/loaded chat so each conversation re-decides. Reuses the existing
+  single-slot `EnsureSession` (one model resident at a time) — switching
+  conversations may reload, which is memory-safe on the 3801 MB budget.
+- Default routing = CPU, so behaviour is identical until a user opts in. GPU
+  routing requires the DML fp16 model present on device (LocalState/USB).
+- On-console validation pending: confirm auto-routing picks GPU for long prompts
+  and that TTFT improves for prompt-heavy conversations.
+
+## [0.3.8.0] - 2026-07-08
+
+### Added — KV-cache reuse across chat turns (continuous decoding)
+
+The interactive app re-prefilled the **entire** ChatML history on every turn
+(`BuildChatMLPrompt` + a fresh `OgaGenerator` per `generate()`), so turn-N TTFT
+paid to re-process ~all prior tokens (~1.8k at budget → seconds). `OrtSession`
+now keeps its generator alive across turns and appends only the new turn's
+tokens (`OgaGenerator_AppendTokenSequences` on the persistent generator), so the
+per-turn prefill covers just the delta.
+
+- `GenerateParams` gains `reuse_kv` / `reset_kv`; `InferenceResult` gains
+  `ended_with_stop` and now populates prefill telemetry (`n_p_eval`/`t_p_eval_ms`)
+  on the interactive path too (previously bench-only). Decode timing excludes
+  prefill, matching the bench convention.
+- `OrtSession` holds `m_chat_gen`/`m_chat_params`/`m_chat_stream` + the bound
+  sampling signature; the stateless path is preserved unchanged and still used
+  when `reuse_kv` is false.
+- `MainPageController::BuildDeltaPrompt` builds the incremental turn; the KV is
+  reused only when valid and no context turn was evicted (RewindTo truncates the
+  tail, not the head → eviction forces a full re-prefill). Reuse is invalidated
+  on new/loaded chat, settings change, abort, and any generator failure.
+- **Correctness guard**: a continuation that fails before emitting a token
+  auto-falls back to a full re-prefill (no UI double-streaming) — worst case is
+  the previous behaviour, never a wrong result.
+- Settings toggle `kv_reuse` (ToggleSwitch + `settings.json`, default on) so the
+  win can be A/B'd on console.
+- On-console validation pending: measure turn-2 TTFT with reuse on vs off
+  (Stage 2b bench) and confirm multi-turn coherence before trusting it as default.
+
+### Added — multi-turn TTFT bench (Stage 2b)
+
+- Headless bench gains a KV-reuse measurement: when `bench_turns.txt` is present
+  (turn-2 user prompt; `prompt.txt` supplies turn 1), `main_loop` runs both turns
+  on one persistent `Session` and measures turn-2 prefill **with reuse** (append
+  only the delta) vs the **cold** baseline (full re-prefill of the 2-turn
+  context), writing `bench-kv-result.csv` (+ `.done`) with a `speedup` column and
+  logging the numbers. This measures the Stage 2 win on console instead of
+  assuming it.
+
+## [0.3.7.0] - 2026-07-08
+
+### Changed — ONNX Runtime GenAI 0.13.2 → 0.14.1
+
+- Bumped `Microsoft.ML.OnnxRuntimeGenAI.DirectML` NuGet from 0.13.2 to **0.14.1**
+  (`uwp/packages.config`, `uwp/xllama.vcxproj` — 8 package-path references).
+  0.14.x reduces CPU-side per-token overhead in `GenerateNextToken`/`SampleTopP`
+  (directly relevant to the decode bottleneck measured in the v0.3.6 matrix) and
+  is the prerequisite for continuous decoding / KV-cache reuse (`RewindTo`,
+  generator reuse — Stage 2). No breaking C-API changes vs 0.13; existing model
+  directories (built with model builder 0.14.1) load unchanged.
+- On-console validation pending: rerun the CPU + DML bench matrix and compare
+  decode tok/s to the v0.3.6 baselines to quantify the per-token overhead win.
+
+### Docs
+
+- `ROADMAP.md`: new Phase 3.5 — Hardware Ceiling with the ordered unlock
+  levers (Game-mode designation, 1B+ models via no-bundle, int4-AWQ proxy,
+  upstream `MatMulNBits` desk check, llama.cpp CPU A/B, per-workload routing,
+  optional upstream kernel contribution); Phase 2 heading refined to the
+  per-workload verdict; "GPU vs CPU same model" milestone closed by the
+  v0.3.6 matrix.
+- `docs/uwp-constraints.md` §5: stale "future work" paragraph replaced with
+  the measured per-workload approach; documented the App-vs-Game designation
+  lever — **settled 2026-07-08**: the package was found already designated
+  Game, so all measured figures are Game-mode numbers (the interim "all
+  numbers are App-mode" assumption was wrong and has been rectified in
+  §5/§7/§11); the GPU decode gap is a DML/kernel issue, not platform
+  scheduling.
+- Environment change (2026-07-08): Dev Mode storage allocation raised to
+  90 GB — the Q:\ ~2.2–2.5 GB disk budget (§9) is superseded as the binding
+  constraint for model sizing; ROADMAP Phase 3.5 updated accordingly.
+- `docs/device-portal.md`: new "Lifecycle gotchas" section — LocalState purge
+  semantics (only forward upgrades preserve it), LocalState absent before
+  first launch, WDP file APIs returning HTTP 200 with `"Success": false`,
+  stale PFN staging window, portal unreachable while a game is running.
+
 ## [0.3.6] - 2026-07-07
 
 ### Measured — Hardware utilization matrix (prefill vs decode, CPU vs GPU)

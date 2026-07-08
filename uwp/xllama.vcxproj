@@ -66,8 +66,8 @@
           Condition="Exists('packages\Microsoft.AI.DirectML.1.15.4\build\native\Microsoft.AI.DirectML.props')" />
   <Import Project="packages\Microsoft.ML.OnnxRuntime.DirectML.1.24.4\build\native\Microsoft.ML.OnnxRuntime.DirectML.props"
           Condition="Exists('packages\Microsoft.ML.OnnxRuntime.DirectML.1.24.4\build\native\Microsoft.ML.OnnxRuntime.DirectML.props')" />
-  <Import Project="packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.13.2\build\native\Microsoft.ML.OnnxRuntimeGenAI.DirectML.props"
-          Condition="Exists('packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.13.2\build\native\Microsoft.ML.OnnxRuntimeGenAI.DirectML.props')" />
+  <Import Project="packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.14.1\build\native\Microsoft.ML.OnnxRuntimeGenAI.DirectML.props"
+          Condition="Exists('packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.14.1\build\native\Microsoft.ML.OnnxRuntimeGenAI.DirectML.props')" />
 
   <!-- =====================================================================
        Package / signing
@@ -95,7 +95,7 @@
         $(ProjectDir)Generated Files;
         $(IntDir)Generated Files;
         $(ProjectDir)..\include;
-        $(ProjectDir)packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.13.2\build\native\include;
+        $(ProjectDir)packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.14.1\build\native\include;
         %(AdditionalIncludeDirectories)
       </AdditionalIncludeDirectories>
       <PreprocessorDefinitions>
@@ -135,7 +135,7 @@
            (not win10-x64) for their native binaries. -->
       <AdditionalLibraryDirectories>
         $(ProjectDir)packages\Microsoft.ML.OnnxRuntime.DirectML.1.24.4\runtimes\win-x64\native;
-        $(ProjectDir)packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.13.2\runtimes\win-x64\native;
+        $(ProjectDir)packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.14.1\runtimes\win-x64\native;
         %(AdditionalLibraryDirectories)
       </AdditionalLibraryDirectories>
       <AdditionalDependencies>WindowsApp.lib;onnxruntime.lib;onnxruntime-genai.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -217,8 +217,8 @@
       <DeploymentContent>true</DeploymentContent>
       <TargetPath>onnxruntime.dll</TargetPath>
     </None>
-    <None Include="packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.13.2\runtimes\win-x64\native\onnxruntime-genai.dll"
-          Condition="Exists('packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.13.2\runtimes\win-x64\native\onnxruntime-genai.dll')">
+    <None Include="packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.14.1\runtimes\win-x64\native\onnxruntime-genai.dll"
+          Condition="Exists('packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.14.1\runtimes\win-x64\native\onnxruntime-genai.dll')">
       <DeploymentContent>true</DeploymentContent>
       <TargetPath>onnxruntime-genai.dll</TargetPath>
     </None>
@@ -291,7 +291,7 @@
           Condition="Exists('packages\Microsoft.AI.DirectML.1.15.4\build\native\Microsoft.AI.DirectML.targets')" />
   <Import Project="packages\Microsoft.ML.OnnxRuntime.DirectML.1.24.4\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets"
           Condition="Exists('packages\Microsoft.ML.OnnxRuntime.DirectML.1.24.4\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets')" />
-  <Import Project="packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.13.2\build\native\Microsoft.ML.OnnxRuntimeGenAI.DirectML.targets"
-          Condition="Exists('packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.13.2\build\native\Microsoft.ML.OnnxRuntimeGenAI.DirectML.targets')" />
+  <Import Project="packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.14.1\build\native\Microsoft.ML.OnnxRuntimeGenAI.DirectML.targets"
+          Condition="Exists('packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.14.1\build\native\Microsoft.ML.OnnxRuntimeGenAI.DirectML.targets')" />
 
 </Project>

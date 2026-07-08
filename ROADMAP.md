@@ -16,7 +16,7 @@ Milestones:
 - [x] SmolLM2-360M bundled inside MSIX as `DeploymentContent`; CI `build-uwp` green
 - [x] ChatML prompt template applied for SmolLM2 Instruct
 
-## Phase 2 — GPU Acceleration ✅ COMPLETE — GPU proven, CPU wins 8× (DML not competitive)
+## Phase 2 — GPU Acceleration ✅ COMPLETE — GPU proven; verdict is per-workload (CPU decode, GPU prefill)
 
 **Goal**: DirectML EP inference using Xbox RDNA 2 hardware.
 
@@ -49,10 +49,15 @@ picture is workload-dependent:
 - **Prefill: GPU wins at scale** — 354 vs 198 tok/s at ~1k prompt tokens
   (1.8×, TTFT 3.0 s vs 5.3 s). DML fp16 is the better choice for prompt-heavy
   workloads (long context / RAG) already today.
-- **The int4 GPU decode collapse (8.8 tok/s) is a missing fused int4 DML
-  kernel, not a hardware limit**: fp16 decode is 5.3× faster; effective
-  bandwidth GPU ~34 GB/s vs CPU ~13 GB/s. A `MatMulNBits`-class DML kernel
-  would imply ~180 tok/s (2.5× CPU) — upstream kernel-coverage issue.
+- **The int4 GPU decode collapse (8.8 tok/s) is DirectML's non-fused low-bit
+  kernel, not a missing/CPU one** (desk-check 2026-07-08, `docs/uwp-constraints.md
+§12`): `MatMulNBits` IS registered and runs on the DML GPU (profile: one
+  `DmlFusedNode`, 96%), but DML implements it as `DML_DEQUANTIZE`→fp16 + full
+  `DML_GEMM` — materialising fp16 weights, so int4 moves _more_ bandwidth than
+  fp16 (hence 8.8 < fp16's 46.8). The builder also gives DML `accuracy_level=0`
+  vs CPU's `=4` (fused int8 MLAS → CPU's 68). No config we control fixes it; a
+  fused low-bit GPU GEMM is a DirectML-team feature. **CPU int4 stays the decode
+  winner; GPU's win is prefill.**
 
 GPU pool estimate corrected: measured budget **3801 MB** (was "~768 MB");
 disk is the real constraint. Upstream fix for the `887A0036` init failure
@@ -71,7 +76,7 @@ Milestones:
 - [x] Evaluate Qwen2.5-0.5B INT4 ONNX as GPU EP candidate — ❌ CPU-int4 is ~822 MB (not ~200 MB); only the DML int4-awq variant (~507 MB) borderline fits the pool (see `docs/model-selection.md`)
 - [x] Procure a DML-compatible model variant and run the end-to-end DML bench — ✅ SmolLM2-360M INT4 DML build (285 MB): decode completes, **8.83 tok/s GPU vs 70.9 CPU** (`phase2-dml.csv`)
 - [x] Stage B (only if DML tok/s beats CPU) — ❌ dropped: DML is 8× slower than CPU at this scale; interactive app stays on CPU EP
-- [~] Measure GPU vs CPU tok/s for the same model — ❌ blocked: no GPU execution possible
+- [x] Measure GPU vs CPU tok/s for the same model — ✅ v0.3.6 utilization matrix (same SmolLM2-360M, 3 variants × 2 prompts): CPU int4 decode 68.0 vs GPU fp16 46.8 vs GPU int4 8.8 tok/s; prefill inverts at ~1k tok (GPU fp16 354 vs CPU 198)
 
 ## Phase 3 — Benchmarks + Model Exploration 🔄 IN PROGRESS
 
@@ -85,6 +90,99 @@ Milestones:
 - [x] Evaluate Qwen2.5-0.5B INT4 ONNX — ❌ ~822 MB real (vocab embedding dominates); exceeds disk borderline and GPU pool
 - [x] Evaluate Llama-3.2-1B INT4 ONNX CPU — ❌ ~1.77 GB real; USB-only, same class as SmolLM2-1.7B
 - [x] `load_ms` in bench CSV: column existed but ORT path never measured it (always 0) — `run_inference` now times `OgaCreateModel`; baseline pending next bench run on console
+
+## Phase 3.5 — Hardware Ceiling 🔮 NEXT
+
+**Goal**: close the gap between measured utilization (CPU ~13 GB/s, GPU ~34 GB/s
+effective vs ~224 GB/s bus) and what the Series S can realistically deliver.
+Levers ordered by cost/leverage; the first two are near-free and change the
+denominators for everything else, so they go first.
+
+**Software perf track** (branch `feat/perf-0.14-kv-routing`, compile-validated
+in CI, **pending on-console validation** — deploy the 0.3.9.0 MSIX):
+
+- [x] **ORT GenAI 0.13.2 → 0.14.1** (Stage 1, v0.3.7): reduced per-token CPU
+      overhead + prereq for continuous decoding.
+- [x] **KV-cache reuse across chat turns** (Stage 2, v0.3.8): persistent
+      generator, append-only delta per turn → turn-N TTFT drops from re-prefilling
+      the whole history to just the new turn. Correctness-guarded fallback;
+      `kv_reuse` toggle (default on). Multi-turn TTFT bench added (Stage 2b).
+- [x] **Per-conversation CPU/GPU routing** (Stage 3, v0.3.9, default off): route
+      long-prompt conversations to DML fp16, chat to CPU int4; sticky per
+      conversation. (Supersedes the "per-workload routing" hardware milestone
+      below — machinery done, needs the fp16 model on device + console A/B.)
+
+Milestones:
+
+- [x] **Game-mode designation** — ✅ settled 2026-07-08: checked in Dev Home,
+      the package is **already designated Game**. All measured figures
+      (3801 MB budget, v0.3.6 matrix, per-token dispatch overhead) are
+      Game-mode numbers; the platform lever is already exhausted and the GPU
+      decode gap is a DML/kernel issue, not App-mode scheduling. Optional
+      residue: a reverse A/B (flip to App, one run, flip back) to quantify the
+      App/Game delta for the record. Re-check the designation after every
+      package reinstall (it can reset).
+- [x] **Disk unblocked** — ✅ 2026-07-08: Dev Mode storage allocation raised to
+      **90 GB** (Dev Home → Manage Dev Storage). The Q:\ ~2.2–2.5 GB budget in
+      `docs/uwp-constraints.md §9` is superseded; 1B+ (and fp16 1.7B ~3.4 GB)
+      variants can now be uploaded to LocalState. Caveat to verify on first
+      big upload: community reports a ~2 GB per-file limit in Dev Mode
+      (relevant for merged `model.onnx` > 2 GB). Exp 2 nobundle (Phase 4)
+      remains useful for its own sake but is no longer a disk prerequisite.
+- [~] **1B+ scale bench**: SmolLM2-1.7B. **CPU int4 built OK** (1.4 GB, merged,
+  ready to upload). **fp16-DML blocked** (found 2026-07-08): a 1.7B fp16
+  `model.onnx` is ~3.4 GB and **exceeds the 2 GB protobuf serialization
+  limit**, so it cannot be merged self-contained; keeping external data
+  re-triggers the `weakly_canonical` AppContainer crash (§8). So the
+  pure-bandwidth fp16-at-scale test is **not deployable as-is** — it needs a
+  sub-2 GB model, an upstream `weakly_canonical` fix, or ORT's external-data
+  path made AppContainer-safe. int4-DML 1.7B is mergeable (<2 GB) but is the
+  dead kernel (§12). Net: at 1.7B we can bench CPU int4 vs int4-DML, but not
+  the fp16 bandwidth crossover — the interesting question stays blocked by
+  the serialization/AppContainer constraint, not the GPU.
+- [x] **Desk check upstream int4 status** — ✅ done 2026-07-08
+      (`docs/uwp-constraints.md §12`). Verdict: `MatMulNBits` is present and runs
+      on the DML GPU (not missing, not CPU fallback); DirectML implements it
+      **non-fused** (`DML_DEQUANTIZE`→fp16 + `DML_GEMM`), and the builder gives
+      DML `accuracy_level=0` vs CPU's `=4`. int4-on-DML decode cannot beat
+      fp16-on-DML by any config we control — it's a DirectML kernel-design limit,
+      not "weeks of HLSL" we could contribute. **This closes GPU int4 decode as a
+      local lever.**
+- [~] **int4 DML config confirmation** (fast negative): SmolLM2-360M
+  `int4_block_size=128` and `int4_accuracy_level=4` variants are **built**
+  (scratchpad); one console bench each to confirm they stay ≈ 8.8 tok/s (the
+  kernel structure predicts no material gain). If either beats fp16-DML it
+  would refute §12 — worth the ~5 min. Not a path forward, just closure.
+- [ ] **llama.cpp CPU A/B** (now the _only_ remaining decode lever — int4-DML is
+      dead, see §12): build the `XLLAMA_USE_ORT=0` path for UWP and bench a GGUF
+      Q4_K model. llama.cpp Q4_K kernels typically extract ~2× the bandwidth of
+      ORT's AVX2 `MatMulNBits` (~13 GB/s measured) → target ~25–30 GB/s, ~130
+      tok/s decode at 360M. - **Sandbox blockers scoped 2026-07-08** (verified against submodule
+      `9a532ae4b`) — 3+ desktop-only APIs, all guardable with
+      `WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)`: (1)
+      `RegOpenKeyEx`/`RegQueryValueExA` CPU-name lookup
+      (`ggml/src/ggml-cpu/ggml-cpu.cpp:321`); (2) `SetThreadAffinityMask`
+      (`ggml-cpu.c:2492`); (3) `SetThreadInformation(ThreadPowerThrottling)`
+      (`ggml-cpu.c:2521`, already behind `_WIN32_WINNT>=0x0602`). Plus
+      `dl_load_library` (`ggml-backend-reg.cpp:214/510`) — avoided by building
+      static CPU-only (`GGML_BACKEND_DL=OFF`), not a source patch. The
+      `patches/README.md` still describes 3 patch files + `apply-uwp-patches.sh`
+      that **no longer exist on disk** — stale, must be recreated. - **The real gate is the MSBuild/vcxproj wiring**, not the patches: the root
+      CMake `FATAL_ERROR`s on UWP, so ggml (C, AVX2) + llama (C++) must be
+      compiled into the UWP target via MSBuild with `XLLAMA_USE_ORT=0`. This
+      needs a dedicated build-loop push (recreate guards → wire vcxproj → CI
+      iterate) — deferred rather than shipping unvalidated patch files. Risk:
+      AppContainer runtime compat (threads OK per §10; no mmap already handled
+      `use_mmap=false`) untested since the Phase 1 pivot.
+- [x] **Per-workload routing in the app** — ✅ implemented (Stage 3, see software
+      perf track above); pending on-console A/B with the DML fp16 model present.
+- [ ] (deprioritised by §12) **Fused low-bit GPU GEMM for DirectML** — the real
+      unlock for GPU int4 decode, but it lives in **DirectML itself**
+      (`DmlOperatorMatMulNBits` currently dequantises to fp16), not in an ORT-side
+      patch we can carry via the PR #2280 pipeline. Track as an upstream
+      DirectML feature request, not a local contribution.
+- [ ] (optional) in-app memory-bandwidth micro-bench (`membw.flag`) to fix the
+      CPU ceiling denominator precisely.
 
 ## Phase 4 — In-App Download + Publication 🔮 FUTURE
 
