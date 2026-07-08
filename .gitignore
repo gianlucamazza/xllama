@@ -12,6 +12,10 @@ out/
 # Models (large GGUF files)
 *.gguf
 models/
+# ...but the model catalogue is source, not a model artifact
+!uwp/models/
+uwp/models/*
+!uwp/models/manifest.json
 
 # Visual Studio
 .vs/

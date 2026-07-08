@@ -40,13 +40,28 @@ class ModelDownloader {
                   std::function<void(bool, std::wstring)> on_done);
 };
 
-// File manifest for SmolLM2-360M-Instruct-ort-genai-int4-cpu (merged model.onnx).
-inline std::vector<ModelFile> SmolLM2_360M_Files() {
-    return {
-        {L"genai_config.json", 2'000},     {L"tokenizer.json", 2'400'000},
-        {L"tokenizer_config.json", 3'000}, {L"special_tokens_map.json", 1'000},
-        {L"model.onnx", 422'000'000}, // ~403 MB merged
-    };
+// One entry of the model catalogue (models/manifest.json). An empty hf_base_url
+// means the model cannot be auto-downloaded (USB/Device-Portal provisioning only).
+struct ManifestEntry {
+    std::wstring name;
+    std::wstring display;
+    std::wstring hf_base_url;
+    std::vector<ModelFile> files;
+};
+
+// Load the model catalogue: LocalState\manifest.json (uploadable via Device
+// Portal, no reinstall) overrides InstalledPath\models\manifest.json (bundled).
+// Falls back to a built-in single-entry catalogue (the historical hardcoded
+// SmolLM2-360M) if neither parses, so the app never starts with an empty list.
+std::vector<ManifestEntry> LoadModelManifest();
+
+// Find an entry by model dir name; nullptr-like (empty name) if absent.
+inline const ManifestEntry* FindManifestEntry(const std::vector<ManifestEntry>& m,
+                                              const std::wstring& name) {
+    for (const auto& e : m)
+        if (e.name == name)
+            return &e;
+    return nullptr;
 }
 
 } // namespace xllama
