@@ -60,6 +60,10 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     void LoadSettings();
     void SaveSettings();
     winrt::fire_and_forget ShowSettings();
+    // Image generation UX: shows the last diffuse-out.png and stages a new
+    // headless generation (diffuse.flag + restart) — DML cannot run in the XAML
+    // process (887A0036), so the UI orchestrates the headless pipeline.
+    winrt::fire_and_forget ShowImageDialog();
     void SaveCurrentConversation(bool partial = false);
     // Must be called from background thread; builds/rebuilds m_session if needed.
     bool EnsureSession(const std::string& model, std::string* err_out = nullptr);
@@ -79,6 +83,7 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     winrt::Windows::UI::Xaml::Controls::Button m_newChatButton{nullptr};
     winrt::Windows::UI::Xaml::Controls::Button m_historyButton{nullptr};
     winrt::Windows::UI::Xaml::Controls::Button m_settingsButton{nullptr};
+    winrt::Windows::UI::Xaml::Controls::Button m_imageButton{nullptr};
     winrt::Windows::UI::Xaml::DispatcherTimer m_flush_timer{nullptr};
     winrt::event_token m_flush_tick_token{};
 

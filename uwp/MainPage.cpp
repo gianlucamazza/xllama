@@ -13,6 +13,8 @@
     #include "xllama/platform.h"
     #include "xllama/utf8_utils.h"
 
+    #include <winrt/Windows.UI.Xaml.Media.Imaging.h>
+
     #include <cstdio>
     #include <ctime>
     #include <filesystem>
@@ -160,6 +162,11 @@ void MainPageController::BuildUI() {
     m_historyButton.MinWidth(100);
     m_historyButton.Margin(ThicknessHelper::FromLengths(0, 0, 12, 0));
 
+    m_imageButton = Button();
+    m_imageButton.Content(winrt::box_value(L"[*]  Image"));
+    m_imageButton.MinWidth(100);
+    m_imageButton.Margin(ThicknessHelper::FromLengths(0, 0, 12, 0));
+
     m_runButton = Button();
     m_runButton.Content(winrt::box_value(L"▶  Run"));
     m_runButton.MinWidth(120);
@@ -174,6 +181,7 @@ void MainPageController::BuildUI() {
     btnPanel.Children().Append(m_settingsButton);
     btnPanel.Children().Append(m_newChatButton);
     btnPanel.Children().Append(m_historyButton);
+    btnPanel.Children().Append(m_imageButton);
     btnPanel.Children().Append(m_runButton);
     btnPanel.Children().Append(m_cancelButton);
 
@@ -234,6 +242,10 @@ void MainPageController::Init() {
     m_historyButton.Click([self](IInspectable const&, RoutedEventArgs const&) {
         if (auto s = self.lock())
             s->ShowHistory();
+    });
+    m_imageButton.Click([self](IInspectable const&, RoutedEventArgs const&) {
+        if (auto s = self.lock())
+            s->ShowImageDialog();
     });
 
     // B button: cancel inference if running, otherwise let system exit the app
@@ -1051,6 +1063,120 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     // (m_active_model stays fixed for the conversation in progress).
     self->SaveSettings();
     self->SetStatus(L"Settings saved", StatusKind::Success);
+}
+
+// ---------------------------------------------------------------------------
+// ShowImageDialog — view the last generated image and stage a new headless
+// generation. DML cannot initialise inside the XAML process (887A0036), so
+// "Generate" writes the diffusion inputs + diffuse.flag and restarts the app:
+// the restart boots headless (App.cpp flag dispatch), runs the GPU pipeline,
+// and exits; the image appears here on the next launch.
+// ---------------------------------------------------------------------------
+
+winrt::fire_and_forget MainPageController::ShowImageDialog() {
+    auto self = shared_from_this();
+    if (m_is_running.load())
+        co_return;
+
+    winrt::Windows::UI::Xaml::Controls::StackPanel panel;
+    panel.Orientation(Orientation::Vertical);
+    panel.Spacing(12);
+
+    // Last generated image (if any) — loaded from LocalState via a stream so a
+    // regenerated file is never masked by URI caching.
+    winrt::Windows::UI::Xaml::Controls::TextBlock imgStatus;
+    imgStatus.TextWrapping(TextWrapping::Wrap);
+    panel.Children().Append(imgStatus);
+    try {
+        auto local = ApplicationData::Current().LocalFolder();
+        auto file = co_await local.GetFileAsync(L"diffuse-out.png");
+        auto stream = co_await file.OpenAsync(winrt::Windows::Storage::FileAccessMode::Read);
+        winrt::Windows::UI::Xaml::Media::Imaging::BitmapImage bmp;
+        co_await bmp.SetSourceAsync(stream);
+        winrt::Windows::UI::Xaml::Controls::Image img;
+        img.Source(bmp);
+        img.MaxHeight(320);
+        imgStatus.Text(L"Last generated image (512×512):");
+        panel.Children().Append(img);
+    } catch (...) {
+        imgStatus.Text(L"No image generated yet.");
+    }
+
+    winrt::Windows::UI::Xaml::Controls::TextBox promptBox;
+    promptBox.Header(winrt::box_value(L"Image prompt"));
+    promptBox.Text(L"a red sports car on a mountain road at sunset");
+    promptBox.TextWrapping(TextWrapping::Wrap);
+    promptBox.AcceptsReturn(false);
+    promptBox.FontSize(16);
+    panel.Children().Append(promptBox);
+
+    winrt::Windows::UI::Xaml::Controls::Slider stepsSlider;
+    stepsSlider.Minimum(1);
+    stepsSlider.Maximum(4);
+    stepsSlider.StepFrequency(1);
+    stepsSlider.Value(1);
+    stepsSlider.Header(winrt::box_value(L"Steps (SD-Turbo: 1 is enough)"));
+    panel.Children().Append(stepsSlider);
+
+    winrt::Windows::UI::Xaml::Controls::TextBlock note;
+    note.TextWrapping(TextWrapping::Wrap);
+    note.Opacity(0.7);
+    note.Text(L"Generate restarts the app to run the GPU pipeline (it cannot run inside "
+              L"this window). When the console returns to Dev Home, relaunch xllama and "
+              L"reopen this dialog to view the result (~15 s).");
+    panel.Children().Append(note);
+
+    winrt::Windows::UI::Xaml::Controls::ScrollViewer sv;
+    sv.Content(panel);
+    sv.MaxHeight(480);
+    sv.VerticalScrollBarVisibility(ScrollBarVisibility::Auto);
+
+    winrt::Windows::UI::Xaml::Controls::ContentDialog dlg;
+    dlg.Title(winrt::box_value(L"Image generation (SD-Turbo on GPU)"));
+    dlg.Content(sv);
+    dlg.PrimaryButtonText(L"Generate (restarts app)");
+    dlg.CloseButtonText(L"Close");
+    dlg.XamlRoot(m_root.XamlRoot());
+
+    auto result = co_await dlg.ShowAsync();
+    if (result != winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary)
+        co_return;
+
+    // Stage the headless generation inputs. The flag is written LAST so a
+    // partially staged run can never trigger.
+    auto write_local = [](const wchar_t* name, const std::string& bytes) {
+        FILE* fp = _wfopen(local_wpath(name).c_str(), L"wb");
+        if (!fp)
+            return false;
+        fwrite(bytes.data(), 1, bytes.size(), fp);
+        fclose(fp);
+        return true;
+    };
+    std::string prompt_utf8 = ::xllama::wstring_to_utf8(std::wstring(promptBox.Text().c_str()));
+    if (prompt_utf8.empty())
+        prompt_utf8 = "a red sports car on a mountain road at sunset";
+    const int steps = (int)stepsSlider.Value();
+    // Fresh seed per generation so repeated prompts give new images.
+    const unsigned seed = (unsigned)(GetTickCount64() % 1'000'000'000ULL);
+    bool ok = write_local(L"prompt.txt", prompt_utf8) &&
+              write_local(L"diffuse-steps.txt", std::to_string(steps)) &&
+              write_local(L"diffuse-seed.txt", std::to_string(seed)) &&
+              write_local(L"diffuse-model.txt", "sd-turbo-fp16") &&
+              write_local(L"diffuse.flag", "diffuse");
+    if (!ok) {
+        self->SetStatus(L"Could not stage the generation files", StatusKind::Error);
+        co_return;
+    }
+
+    self->SetStatus(L"Restarting to generate on GPU...", StatusKind::Working);
+    auto reason =
+        co_await winrt::Windows::ApplicationModel::Core::CoreApplication::RequestRestartAsync(
+            L"diffuse");
+    // Only reached if the restart was denied (e.g. not permitted right now):
+    // the flag is staged, so a manual relaunch will still run the generation.
+    (void)reason;
+    self->SetStatus(L"Restart not permitted — quit and relaunch xllama to generate",
+                    StatusKind::Error);
 }
 
 // ---------------------------------------------------------------------------

@@ -59,22 +59,40 @@ turn-2 cold re-prefills the full 2-turn context, reuse only the ~10-token delta.
 confirm multi-turn **coherence** (read the log's decoded turn-2 output) before trusting
 `kv_reuse` as the interactive default.
 
-## 2. PR #2 — CPU/GPU routing (Stage 3, interactive)
+## 2. PR #2 — CPU/GPU routing (Stage 3, interactive, ~10 min at the console)
 
 **Validates**: the `routing=2` (auto) path picks GPU (DML fp16) for long prompts and CPU
 for decode, sticky per conversation.
 
-Prereq: the DML fp16 model must be on device. Upload the 360M DML fp16 dir:
+Prereqs (both already satisfied on the current console): `smollm2-360m-dml-fp16` in
+`LocalState\models\`, and the routing setting. The setting can be **preloaded via WDP**
+so the person at the console only pastes a prompt:
 
 ```bash
-python3 scripts/merge_onnx_external_data.py ~/.cache/.../smollm2-360m-dml-fp16   # if external data
-./scripts/deploy.sh upload-dir <dir>/ "$PFN" "models\\smollm2-360m-dml-fp16"
+source ~/.config/xllama/xbox-env
+PFN=$(./scripts/deploy.sh pfn)
+cat > /tmp/settings.json <<'JSON'
+{
+  "system_prompt": "You are a helpful assistant.",
+  "model": "smollm2-360m-cpu-int4",
+  "kv_reuse": true,
+  "routing": 2,
+  "gpu_model": "smollm2-360m-dml-fp16",
+  "sampling": { "temperature": 0.70, "top_p": 0.90, "top_k": 40,
+                "repetition_penalty": 1.10, "n_predict": 256 }
+}
+JSON
+./scripts/deploy.sh upload-file /tmp/settings.json "$PFN" ""
 ```
 
-In-app: ⚙ Settings → routing = **auto** → send a long (>~500 tok) prompt, then a short
-follow-up. **Looking for**: log shows the first turn routed to `smollm2-360m-dml-fp16`
-(GPU) and TTFT improved vs CPU-only on the long prompt; the conversation stays on its
-routed EP (sticky). New chat re-decides.
+Then, at the console: launch xllama → paste a **long** prompt (>~500 tokens — e.g. the
+content of `bench/prompts/standard-512.txt`) → send; then a short follow-up; then **+ New**
+and a short prompt. Fetch the log afterwards (`deploy.sh get-log`).
+
+**Looking for** (in the log): the long-prompt conversation's first turn routed to
+`smollm2-360m-dml-fp16` (GPU) with a better TTFT than the CPU baseline at that length;
+the follow-up stays on the same EP (sticky); the new chat with a short prompt routes back
+to CPU. Flip `routing` back to `0` (Settings) afterwards if desired.
 
 ## 3. PR #2 — 0.14.1 decode overhead → refresh the v0.3.6 matrix
 
