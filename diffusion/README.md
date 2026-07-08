@@ -16,8 +16,18 @@ few-step diffusion model (SD-Turbo, 1 step) on the console GPU.
 - ✅ **Plain ORT DirectML foundation proven** by the image spike
   (`uwp/image-spike.cpp`, PR #3): a compute-bound conv model compiles, links, and
   runs through the DirectML EP in the UWP AppContainer.
-- ⏳ **Next**: fp16 components for the 3801 MB GPU budget (below), then the C++
-  pipeline (3 ORT DirectML sessions + scheduler + CLIP tokenizer) in the app.
+- ✅ **C++ pipeline built + host-validated (2026-07-08).** `uwp/diffuse.cpp` runs
+  three ORT DirectML sessions (text_encoder → 1× UNet → VAE decode) behind the
+  `diffuse.flag` headless mode. Its correctness-critical logic — the CLIP
+  byte-BPE tokenizer (`include/xllama/diffusion/clip_tokenizer.h`), the
+  EulerDiscreteScheduler (`euler_scheduler.h`), fp16 conversion (`half.h`), and
+  the PNG writer (`png_writer.h`) — is asserted against golden vectors captured
+  from this Python reference (`gen_golden_vectors.py`) in `tests/test_diffusion.cpp`
+  (638 assertions, all green). The ORT DirectML orchestration is CI-compile-
+  validated; runtime validation is on console per
+  `docs/console-validation-runbook.md §7`.
+- ⏳ **Next (console)**: a deployable **fp16** SD-Turbo export (GPU/Olive — see
+  Memory/deployability below), then run `diffuse.flag` on the Xbox.
 
 ## Reproduce the export
 

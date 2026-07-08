@@ -7,6 +7,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — C++ diffusion pipeline (`diffuse.flag`, host-validated)
+
+The console image-generation pipeline. `uwp/diffuse.cpp` runs three ORT DirectML
+sessions (text_encoder → 1× UNet denoise → VAE decode) behind a `diffuse.flag`
+headless mode, mirroring the image spike's D3D12-clean host (887A0036-safe).
+
+- Correctness-critical logic is **header-only, dependency-free, and unit-tested on
+  the host** against golden vectors from the diffusers/transformers reference:
+  `include/xllama/diffusion/clip_tokenizer.h` (CLIP byte-level BPE),
+  `euler_scheduler.h` (EulerDiscreteScheduler, SD-Turbo 1-step), `half.h` (fp16),
+  `png_writer.h` (self-contained PNG). `tests/test_diffusion.cpp` asserts all four
+  against `diffusion/golden_vectors.json` — **638 assertions, all green** — so the
+  logic ships in the un-runtime-testable console C++ only after matching Python.
+- `diffusion/gen_golden_vectors.py` captures the reference (token ids for several
+  prompts incl. empty + non-ASCII; scheduler sigmas/timesteps + one deterministic
+  step). The CLIP tokenizer assets (`diffusion/clip_tokenizer/{vocab.json,merges.txt}`)
+  are vendored so the test is hermetic and the console upload uses the same files.
+- The tokenizer parses `vocab.json` with a minimal scanner (no JSON lib) so the
+  header stays dependency-free for the UWP build (which skips the llama.cpp
+  submodule); the host test uses vendored nlohmann only to load the golden file.
+- Model contract: an **fp16** SD-Turbo-class model (each component < 2 GB,
+  self-contained). The ORT DirectML orchestration is CI-compile-validated; runtime
+  validation is on console per `docs/console-validation-runbook.md §7`.
+
 ### Corrected — int4 DML decode diagnosis (desk-check 2026-07-08)
 
 The [0.3.6] entry below (and the docs at the time) attributed the int4 GPU decode

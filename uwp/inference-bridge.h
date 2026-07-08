@@ -25,5 +25,6 @@ void main_loop();
 // test whether the GPU wins on compute-bound fp16 batch workloads (unlike M=1
 // text decode). Triggered by LocalFolder\image.flag in the headless path.
 void run_image_spike();
+void run_diffuse();
 
 } // namespace xllama::bridge

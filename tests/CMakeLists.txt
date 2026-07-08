@@ -15,8 +15,17 @@ add_executable(xllama-tests
     test_bench.cpp
     test_session.cpp
     test_chat_history.cpp
+    test_diffusion.cpp
 )
 
 target_link_libraries(xllama-tests PRIVATE xllama doctest::doctest)
+
+# Diffusion tests use the vendored nlohmann/json to load golden vectors, and are
+# pointed at the in-repo golden file + CLIP tokenizer assets via compile defs.
+target_include_directories(xllama-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../llama.cpp/vendor)
+target_compile_definitions(xllama-tests PRIVATE
+    GOLDEN_JSON_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../diffusion/golden_vectors.json"
+    CLIP_TOKENIZER_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../diffusion/clip_tokenizer")
 
 add_test(NAME xllama-tests COMMAND xllama-tests)
