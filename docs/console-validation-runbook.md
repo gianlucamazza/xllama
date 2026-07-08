@@ -153,48 +153,50 @@ done
 GPU-vs-CPU advantage at ~1k tokens (expected to grow with scale); (c) decode GPU vs CPU
 (expected CPU still wins per §12). Sanity: `gpu_mem_mb ≈ 3.4 GB` on the DML row if it loads.
 
-## 7. Diffusion pipeline → `diffuse-out.png`
+## 7. Diffusion pipeline → `diffuse-out.png` — ✅ VALIDATED 2026-07-08 (v0.4.2.0)
 
-**Validates the flagship GPU workload end to end**: the C++ pipeline (`uwp/diffuse.cpp`
-— tokenize → text_encoder → 1× UNet denoise → VAE decode → PNG) runs three ORT DirectML
-sessions on the console. The correctness-critical logic (CLIP tokenizer, Euler scheduler,
-fp16, PNG) is already host-validated against the diffusers reference
-(`tests/test_diffusion.cpp`, 638 assertions) — this step validates the ORT DirectML
-orchestration + the model on real hardware.
+**Result**: SD-Turbo fp16 generates a coherent 512×512 image on the console GPU in
+**6.9 s** — text_encoder 1.0 s, UNet **3.3 s/step** (1 step), VAE 2.6 s; ~7.5 s session
+load excluded. CSV `bench/results/phase5-diffuse.csv`; image
+`docs/screenshots/diffuse-sd-turbo-xbox.png` (matches the local CPU-validation image for
+the same prompt/seed). The flagship-GPU-workload hypothesis holds at full model scale.
 
-**Model contract** (see `uwp/diffuse.cpp` header): an **fp16** SD-Turbo-class ONNX model,
-each component self-contained (< 2 GB, external data merged). fp16 SD-Turbo needs a GPU
-export (`optimum-cli --fp16 --device cuda`) or Olive — see `diffusion/README.md`. The fp32
-`sd-turbo-onnx` validates quality but its UNet (~3.4 GB) exceeds the budget + 2 GB protobuf
-limit, so it is not deployable; a fp16 export is required for the console.
+**Model artifacts (the validated recipe)**: convert the fp32 `sd-turbo-onnx` export with
+`diffusion/convert_fp16.py` (onnxruntime.transformers converter + EXTENDED load-test; see
+`diffusion/README.md` for what does NOT work) → each component self-contained < 2 GB
+(unet 1.65 GB, text_encoder 0.65 GB, vae 0.09 GB), no external-data merge needed. Then
+validate locally end-to-end with `diffusion/validate_pipeline.py` before uploading.
 
 ```bash
 source ~/.config/xllama/xbox-env
 PFN=$(./scripts/deploy.sh pfn)
 DIR=sd-turbo-fp16   # LocalState\models\<DIR>\{text_encoder,unet,vae_decoder}\model.onnx
 
-# 1. Model components (merge external data first so each is self-contained).
+# 1. Model components (already self-contained from convert_fp16.py).
 for comp in text_encoder unet vae_decoder; do
-  python3 scripts/merge_onnx_external_data.py <fp16_model>/$comp
   ./scripts/deploy.sh upload-dir <fp16_model>/$comp/ "$PFN" "models\\$DIR\\$comp"
 done
 # 2. CLIP tokenizer assets (vendored in-repo — the exact files the host test uses).
 ./scripts/deploy.sh upload-dir diffusion/clip_tokenizer/ "$PFN" "clip"
-# 3. Prompt + model selector, then the flag.
+# 3. Prompt / steps / seed / model selector, then the flag.
 printf 'a red sports car on a mountain road at sunset' > /tmp/prompt.txt
-./scripts/deploy.sh upload-file /tmp/prompt.txt "$PFN" ""
 printf '%s' "$DIR" > /tmp/diffuse-model.txt
-./scripts/deploy.sh upload-file /tmp/diffuse-model.txt "$PFN" ""
+printf '1'  > /tmp/diffuse-steps.txt
+printf '42' > /tmp/diffuse-seed.txt
 printf 'diffuse' > /tmp/diffuse.flag
-./scripts/deploy.sh upload-file /tmp/diffuse.flag "$PFN" ""
-# 4. Launch from Dev Home; wait; fetch diffuse-out.png (512x512) once .done appears.
+for f in prompt.txt diffuse-model.txt diffuse-steps.txt diffuse-seed.txt diffuse.flag; do
+  ./scripts/deploy.sh upload-file /tmp/$f "$PFN" ""
+done
+# 4. deploy.sh start-app; wait for diffuse-out.png.done; fetch PNG + diffuse-result.csv.
 ```
 
-**Looking for**: `diffuse-out.png` is a coherent 512×512 image matching the prompt (compare
-to `sd_turbo_onnx.png` from the validated CPU pipeline). The log prints per-session timing;
-UNet-step ms is the number that decides whether diffusion is the flagship GPU workload (the
-image-spike hypothesis, step 4, at full model scale). If the image is noise, check the log
-for a tokenizer/model-shape mismatch (e.g. a non-fp16 model, or `hidden_dim` ≠ 1024).
+**Gotchas found on hardware (both fixed in 0.4.2.0, kept for the record)**:
+
+- Keeping all three sessions resident OOM'd the VAE decode (8007000E at 512×512
+  InstanceNorm) — ~2.4 GB weights + VAE activations exceed the 3801 MB budget.
+  `run_diffuse` now uses per-stage session lifetime.
+- If the image is noise, check the log for a tokenizer/model-shape mismatch (non-fp16
+  model, `hidden_dim` ≠ 1024, wrong scheduler class).
 
 ## Closeout
 

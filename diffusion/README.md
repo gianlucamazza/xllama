@@ -26,8 +26,13 @@ few-step diffusion model (SD-Turbo, 1 step) on the console GPU.
   (638 assertions, all green). The ORT DirectML orchestration is CI-compile-
   validated; runtime validation is on console per
   `docs/console-validation-runbook.md §7`.
-- ⏳ **Next (console)**: a deployable **fp16** SD-Turbo export (GPU/Olive — see
-  Memory/deployability below), then run `diffuse.flag` on the Xbox.
+- ✅ **VALIDATED ON CONSOLE (2026-07-08, v0.4.2.0)**: SD-Turbo fp16 generates a
+  coherent 512×512 image on the Xbox Series S GPU (DirectML) in **6.9 s** —
+  text_encoder 1.0 s, UNet **3.3 s/step** (1 step), VAE 2.6 s
+  (`bench/results/phase5-diffuse.csv`,
+  `docs/screenshots/diffuse-sd-turbo-xbox.png`). Artifacts from
+  `convert_fp16.py` (fp16 recipe below); procedure + hardware gotchas in
+  `docs/console-validation-runbook.md §7`.
 
 ## Reproduce the export
 
