@@ -7,6 +7,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+_(nothing yet)_
+
+## [1.0.0] - 2026-07-08
+
+**First stable release.** Local LLM chat (ORT GenAI, CPU int4 + per-conversation
+GPU routing, KV-cache reuse) and Stable-Diffusion image generation (SD-Turbo
+fp16 on DirectML, 512×512 in ~7 s) on a retail Xbox Series S in Dev Mode.
+Models are downloaded on first launch from the GitHub Release catalogue (no
+bundled model, 19 MB MSIX). Full measured story: `docs/technical-report.md`.
+Sections below record everything that shipped and was measured on the way.
+
 ### Measured — in-app model download validated end-to-end on console (Exp 2 ✅)
 
 The nobundle app on the Xbox downloaded the full SmolLM2-360M model (4 files,
