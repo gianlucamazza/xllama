@@ -44,14 +44,27 @@ limit) — each SD component is individually **< 2 GB**, so all save self-contai
 and avoid the AppContainer `weakly_canonical` crash (§8). **These sizes are
 confirmed.**
 
-⚠️ **fp16 conversion caveat**: `convert_fp16.py` (CPU) is reliable for the size
-analysis above but leaves a mixed-type node in the UNet timestep embedding
+**Getting a runnable fp16 model.** `convert_fp16.py` (CPU) is reliable for the
+size analysis above but leaves a mixed-type node in the UNet timestep embedding
 (`/time_proj/Mul`) that ORT rejects at load — onnxconverter_common does not fully
-type the SD UNet on CPU. For a **runnable** fp16 model, export on a GPU box with
-`optimum-cli export onnx --model stabilityai/sd-turbo --fp16 --device cuda …`, or
-use Microsoft **Olive**'s SD DirectML optimization (the officially recommended
-path). The fp32 ONNX pipeline is fully validated (above); fp16 is a
-memory-optimization step that needs the GPU exporter for a correct graph.
+type the SD UNet on CPU. Two working sources for a clean fp16 graph:
+
+1. **Pre-exported fp16 DirectML models** (recommended, no GPU needed) — e.g.
+   [`nmkd/stable-diffusion-1.5-onnx-fp16`](https://huggingface.co/nmkd/stable-diffusion-1.5-onnx-fp16),
+   [`sharpbai/stable-diffusion-v1-5-onnx-directml-fp16`](https://huggingface.co/sharpbai/stable-diffusion-v1-5-onnx-directml-fp16),
+   or the [Amblyopius/Stable-Diffusion-ONNX-FP16](https://github.com/Amblyopius/Stable-Diffusion-ONNX-FP16)
+   toolkit. **Verified 2026-07-08**: the nmkd SD1.5 fp16 components all load in
+   ORT (UNet input `sample: tensor(float16)`, 1.7 GB → < 2 GB), unlike the CPU
+   `convert_fp16.py` output. These ship with **external data** (`unet/weights.pb`),
+   so run `scripts/merge_onnx_external_data.py` on each component to make it
+   self-contained before deploying (AppContainer `weakly_canonical`, §8).
+2. **GPU export**: `optimum-cli export onnx --model stabilityai/sd-turbo --fp16
+--device cuda …`, or Microsoft **Olive**'s SD DirectML optimization.
+
+Speed note: SD1.5 needs ~20–25 steps (slow); the console target is a **few-step**
+model — SD-Turbo/SDXL-Turbo (1 step) or an LCM variant (2–4 steps) in fp16. The
+fp32 SD-Turbo path here is validated for quality; pair it with a clean fp16 UNet
+from source (1) or (2) for the console.
 
 ## Deploy + run on console (planned)
 
