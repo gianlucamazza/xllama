@@ -1,3 +1,37 @@
+diff --git a/ggml/src/ggml-backend-dl.cpp b/ggml/src/ggml-backend-dl.cpp
+index a65cf0090..82ae1a24c 100644
+--- a/ggml/src/ggml-backend-dl.cpp
++++ b/ggml/src/ggml-backend-dl.cpp
+@@ -2,6 +2,20 @@
+ 
+ #ifdef _WIN32
+ 
++#if defined(WINAPI_FAMILY) && !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
++
++// AppContainer (UWP/Xbox): SetErrorMode/SEM_FAILCRITICALERRORS are desktop-only
++// and error dialogs cannot appear anyway; only packaged DLLs are loadable.
++dl_handle * dl_load_library(const fs::path & path) {
++    return LoadPackagedLibrary(path.wstring().c_str(), 0);
++}
++
++void * dl_get_sym(dl_handle * handle, const char * name) {
++    return (void *) GetProcAddress(handle, name);
++}
++
++#else
++
+ dl_handle * dl_load_library(const fs::path & path) {
+     // suppress error dialogs for missing DLLs
+     DWORD old_mode = SetErrorMode(SEM_FAILCRITICALERRORS);
+@@ -25,6 +39,8 @@ void * dl_get_sym(dl_handle * handle, const char * name) {
+     return p;
+ }
+ 
++#endif // WINAPI_FAMILY app partition
++
+ const char * dl_error() {
+     return "";
+ }
 diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
 index cd5c61a81..5d550eafb 100644
 --- a/ggml/src/ggml-cpu/ggml-cpu.c
