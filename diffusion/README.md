@@ -37,13 +37,21 @@ python3.10 -m venv venv
 
 ## Memory / deployability
 
-SD-Turbo (SD1.5-class) fits the console GPU budget in fp16 (~2 GB total), and —
-unlike a 1.7B LLM in fp16 (a single 3.4 GB weight blob that exceeds the 2 GB ONNX
-protobuf limit) — each SD component is individually **< 2 GB**, so all are saved
-self-contained and avoid the AppContainer `weakly_canonical` crash (§8). fp16
-conversion is done post-export by `convert_fp16.py` because optimum's `--fp16`
-requires a CUDA GPU (unavailable on the export box); a cleaner fp16 export can be
-produced on a GPU machine with `optimum-cli export onnx --fp16 --device cuda`.
+SD-Turbo (SD1.5-class) fits the console GPU budget in fp16 (~2.4 GB total:
+UNet ~1.65 GB, text_encoder ~0.65 GB, vae_decoder ~0.1 GB), and — unlike a 1.7B
+LLM in fp16 (a single 3.4 GB weight blob that exceeds the 2 GB ONNX protobuf
+limit) — each SD component is individually **< 2 GB**, so all save self-contained
+and avoid the AppContainer `weakly_canonical` crash (§8). **These sizes are
+confirmed.**
+
+⚠️ **fp16 conversion caveat**: `convert_fp16.py` (CPU) is reliable for the size
+analysis above but leaves a mixed-type node in the UNet timestep embedding
+(`/time_proj/Mul`) that ORT rejects at load — onnxconverter_common does not fully
+type the SD UNet on CPU. For a **runnable** fp16 model, export on a GPU box with
+`optimum-cli export onnx --model stabilityai/sd-turbo --fp16 --device cuda …`, or
+use Microsoft **Olive**'s SD DirectML optimization (the officially recommended
+path). The fp32 ONNX pipeline is fully validated (above); fp16 is a
+memory-optimization step that needs the GPU exporter for a correct graph.
 
 ## Deploy + run on console (planned)
 

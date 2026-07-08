@@ -38,10 +38,12 @@ batch), unlike LLM decode.
   uses the dynamo/onnxscript exporter that optimum 1.23 can't consume (external-
   data-naming + LayerNormalization opset-downgrade bugs).
 - `diffusion/generate_onnx.py`: validates the exported ONNX through ORT.
-- `diffusion/convert_fp16.py`: fp16 conversion for the 3801 MB GPU budget. SD
-  components are each < 2 GB (UNet fp16 ~1.7 GB), so all save self-contained and
-  avoid the AppContainer `weakly_canonical` crash (§8) — unlike a 1.7B LLM fp16
-  blob. (A cleaner fp16 export uses `optimum-cli --fp16 --device cuda` on a GPU.)
+- `diffusion/convert_fp16.py`: confirms the fp16 components fit the 3801 MB
+  budget — each < 2 GB (UNet ~1.65 GB, ~2.4 GB total), all self-contained,
+  AppContainer-safe (unlike a 1.7B LLM fp16 blob). **Caveat**: the CPU fp16 pass
+  leaves a mixed-type node in the UNet timestep embedding (`/time_proj/Mul`) that
+  ORT rejects at load — a _runnable_ fp16 model needs a GPU export
+  (`optimum-cli --fp16 --device cuda`) or Olive. fp32 is fully validated.
 - Next: the C++ pipeline (3 ORT DirectML sessions + scheduler + CLIP tokenizer)
   behind a `diffuse.flag` headless mode, on the plain-ORT DirectML foundation
   already proven by the image spike (PR #3).

@@ -2,13 +2,21 @@
 # Copyright (c) 2024 Venere Labs
 # SPDX-License-Identifier: MIT
 #
-# Convert the fp32 SD-Turbo ONNX components (as exported by export_sd_turbo.sh on
-# a CPU box, where optimum's --fp16 is unavailable) to fp16 for the Xbox Series S
-# GPU budget (3801 MB). Each component is saved self-contained when < 2 GB (the
-# ONNX protobuf single-file limit and the merged-model requirement that avoids the
-# AppContainer `weakly_canonical` crash — see docs/uwp-constraints.md §8). The
-# SD-Turbo UNet is ~1.7 GB in fp16, so it fits as a single file; text_encoder and
-# vae_decoder are small.
+# Convert the fp32 SD-Turbo ONNX components to fp16 and report their on-disk size
+# against the Xbox Series S GPU budget (3801 MB). Each component is saved
+# self-contained when < 2 GB (the ONNX protobuf single-file limit + the
+# merged-model requirement that avoids the AppContainer `weakly_canonical` crash,
+# docs/uwp-constraints.md §8).
+#
+# ⚠️ KNOWN LIMITATION (verified 2026-07-08): this CPU-side conversion is reliable
+# for SIZE analysis only. It leaves a mixed-type node in the SD UNet timestep
+# embedding (`/time_proj/Mul`: float vs float16) that makes ORT reject the model
+# at load. onnxconverter_common's fp16 pass does not fully type the SD UNet on
+# CPU. For a RUNNABLE fp16 model, export directly with a GPU:
+#     optimum-cli export onnx --model stabilityai/sd-turbo --fp16 --device cuda ...
+# or use Microsoft Olive's SD DirectML optimization. Sizes confirmed here:
+# UNet fp16 ~1.65 GB (< 2 GB, self-contained), text_encoder ~0.65 GB, vae ~0.1 GB
+# → ~2.4 GB total, fits the 3801 MB budget with all components AppContainer-safe.
 #
 # Usage:  python diffusion/convert_fp16.py <onnx_dir_in> <onnx_dir_out>
 import sys, os, shutil
