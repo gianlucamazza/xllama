@@ -1,0 +1,14 @@
+# Pinned toolchain for exporting SD-Turbo to ONNX for DirectML.
+# Use Python 3.10 (3.14 has no wheels for this era; 3.11/3.12 also work).
+# The versions below are a *coherent* set — the export only works when torch is
+# old enough (2.4.x) to use the legacy tracing ONNX exporter, since optimum 1.23
+# does not support torch's newer dynamo/onnxscript exporter (it hits external-data
+# naming + LayerNormalization opset-downgrade bugs). Do not bump piecemeal.
+torch==2.4.1            # legacy torch.onnx tracer; --index-url .../whl/cpu
+optimum[onnxruntime]==1.23.3
+transformers==4.46.3
+diffusers==0.31.0
+onnx>=1.16
+onnxruntime>=1.19
+onnxconverter-common>=1.14
+accelerate>=0.30

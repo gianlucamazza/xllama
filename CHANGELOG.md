@@ -22,6 +22,32 @@ DML `accuracy_level=0` vs CPU's fused-int8 `=4`. Full analysis + config tests in
 decode is blocked by a DirectML kernel-design limit (out of our control), not a
 kernel we could contribute — CPU int4 stays the decode default.
 
+### Added — diffusion model toolchain (image generation, `diffusion/`)
+
+Model-side toolchain for running SD-Turbo (1-step distilled diffusion) on the
+console GPU — the workload that plays to DirectML's strength (compute-bound fp16
+batch), unlike LLM decode.
+
+- **Validated on the owned layer (2026-07-08)**: SD-Turbo exported to ONNX and
+  run through **ONNX Runtime (CPU EP)** generates a coherent 512×512 image in
+  ~13 s / 1 step — the same artifact + runtime that runs on Xbox via the
+  DirectML EP.
+- `diffusion/export_sd_turbo.sh` + `requirements.txt`: reproducible, **pinned**
+  toolchain (Python 3.10, torch 2.4.1 legacy ONNX tracer, optimum 1.23.3,
+  transformers 4.46.3, diffusers 0.31.0). The pins are load-bearing: newer torch
+  uses the dynamo/onnxscript exporter that optimum 1.23 can't consume (external-
+  data-naming + LayerNormalization opset-downgrade bugs).
+- `diffusion/generate_onnx.py`: validates the exported ONNX through ORT.
+- `diffusion/convert_fp16.py`: confirms the fp16 components fit the 3801 MB
+  budget — each < 2 GB (UNet ~1.65 GB, ~2.4 GB total), all self-contained,
+  AppContainer-safe (unlike a 1.7B LLM fp16 blob). **Caveat**: the CPU fp16 pass
+  leaves a mixed-type node in the UNet timestep embedding (`/time_proj/Mul`) that
+  ORT rejects at load — a _runnable_ fp16 model needs a GPU export
+  (`optimum-cli --fp16 --device cuda`) or Olive. fp32 is fully validated.
+- Next: the C++ pipeline (3 ORT DirectML sessions + scheduler + CLIP tokenizer)
+  behind a `diffuse.flag` headless mode, on the plain-ORT DirectML foundation
+  already proven by the image spike (PR #3).
+
 ## [0.4.0.0] - 2026-07-08
 
 ### Added — image-generation spike (plain ORT DirectML, new model axis)
