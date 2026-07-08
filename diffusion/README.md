@@ -54,14 +54,22 @@ limit) — each SD component is individually **< 2 GB**, so all save self-contai
 and avoid the AppContainer `weakly_canonical` crash (§8). **These sizes are
 confirmed.**
 
-**Getting a runnable fp16 model.** `convert_fp16.py` (CPU) is reliable for the
-size analysis above but leaves a mixed-type node in the UNet timestep embedding
-(`/time_proj/Mul`) that ORT rejects at load — onnxconverter_common does not fully
-type the SD UNet on CPU. **Fix (verified 2026-07-08)**: pass the `/time_proj/*`
-node names as `node_block_list` to `convert_float_to_float16` — the timestep
-embedding stays an fp32 island with automatic Cast boundaries, and the rest of
-the UNet converts cleanly. This is the deployable-artifact path used for the
-console (own export, locally validatable end-to-end).
+**Getting a runnable fp16 model — the working path (verified 2026-07-08)**:
+convert each component with **`onnxruntime.transformers`**'
+`OnnxModel.convert_float_to_float16(keep_io_types=False)` (the ORT team's
+corrected fork of the fp16 pass), then load with graph optimization capped at
+**`ORT_ENABLE_EXTENDED`** — `ORT_ENABLE_ALL`'s layout transforms crash session
+init (`graph_utils GetIndexFromName`) on these graphs; EXTENDED loads and runs
+them cleanly (same cap set in `uwp/diffuse.cpp`). Validate end-to-end with
+`validate_pipeline.py` before deploying.
+
+What does **not** work (all falsified 2026-07-08, kept for the record):
+`onnxconverter_common`'s `convert_float_to_float16` leaves mixed-type nodes in
+**all three** SD components regardless of options — `/time_proj/Mul` (UNet),
+`/text_model/.../self_attn/Add` (text encoder), `.../attentions.0/Cast_2`
+(VAE) — with `keep_io_types` either way, with shape inference on or off, and
+**even with `/time_proj/*` in `node_block_list`** (the UNet then fails on a
+`Gemm` instead). Do not chase per-node block lists; switch converter.
 
 ⚠️ **Trap (verified 2026-07-08)**: the ORT-team pre-exports
 ([`onnxruntime/sd-turbo`](https://hf.co/onnxruntime/sd-turbo),
