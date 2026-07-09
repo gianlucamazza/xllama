@@ -212,15 +212,23 @@ Milestones:
 
 ## Phase 5 — Post-1.0 improvements 🚧 IN PROGRESS (2026-07-09)
 
-- [ ] **In-process diffusion experiment** (`diffuse-inproc.flag`, PR #20): does
-      plain ORT DML coexist with the XAML compositor? PASS → in-app image
-      generation, no restart flow (runbook §7b; `docs/uwp-constraints.md` §7
-      "Open experiment"). Console run pending.
+- [x] **In-process diffusion experiment** (`diffuse-inproc.flag`) — ✅ **PASS
+      2026-07-09**: plain ORT DML coexists with the XAML compositor (full
+      pipeline in-process, 5.57 s, coherent PNG, no 887A0036). Image generation
+      no longer needs the restart flow (runbook §7b, `docs/uwp-constraints.md`
+      §7). **Follow-up**: wire the in-app Generate (no restart).
 - [x] Diffusion progress/cancel plumbing (`diffuse-progress.txt`,
       `diffuse-cancel.flag`) — PR #20
+- [x] **Runtime backend dispatch** (PR #27) — ORT GenAI + llama.cpp compile
+      into one binary; `unified` MSIX variant CI-green. Unblocks modern
+      GGUF-only models (Qwen3.5, LFM2). Fase 2 (UI `kind:gguf`) next.
+- [x] **Modern-model survey** — Qwen3.5-0.8B / LFM2.5-350M load via llama.cpp;
+      Qwen3-0.6B builds via ORT (969 MB); TAESD decoder validated (`docs/model-selection.md`).
 - [ ] Interactive validations at the pad: §2 routing A/B + Image dialog flow
-- [ ] Closure benches: int4 `block_size=128` / `accuracy_level=4` (§12
-      confirm/refute) + first `load_ms` baseline
+- [~] Closure benches: int4 `block_size=128` / `accuracy_level=4` (§12
+  confirm/refute) — running on console 2026-07-09; `load_ms` baseline done
+- [ ] Fase 2: catalogue `kind:gguf` → `sp.backend`, gate KV-reuse/routing off
+      for GGUF; promote Qwen3.5/LFM2 to the catalogue if benches justify
 - [ ] If §2 shows `887A0036` on the GPU turn in XAML: vendor the patched GenAI
       DLL (PR microsoft/onnxruntime-genai#2280, console-validated) until the
       fix ships upstream

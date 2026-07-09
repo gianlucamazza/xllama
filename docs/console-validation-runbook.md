@@ -209,23 +209,20 @@ done
 - If the image is noise, check the log for a tokenizer/model-shape mismatch (non-fp16
   model, `hidden_dim` ≠ 1024, wrong scheduler class).
 
-### 7b. In-process experiment (`diffuse-inproc.flag`) — PENDING
+### 7b. In-process experiment (`diffuse-inproc.flag`) — ✅ PASS 2026-07-09
 
-Falsification run for `docs/uwp-constraints.md` §7 "Open experiment": does plain ORT DML
-coexist with the XAML compositor device? Same inputs as §7, but write
-`diffuse-inproc.flag` **instead of** `diffuse.flag`, then `deploy.sh start-app` — the app
-starts the normal XAML UI and runs the pipeline on a background thread in the same
-process.
+Falsification run for `docs/uwp-constraints.md` §7: does plain ORT DML coexist with the
+XAML compositor device? **Result: YES.** With `diffuse-inproc.flag` (instead of
+`diffuse.flag`) the app started the normal XAML UI and ran the full SD-Turbo pipeline on
+a background thread **in the same process**: log `diffuse-inproc.flag detected -> in-process
+diffusion (compositor alive)` → te 1006 ms, UNet 2991 ms, VAE 1576 ms, **total 5.57 s** →
+`wrote diffuse-out.png` with the XAML window still up. No `887A0036`, no `8007000E`; the
+PNG is coherent and matches the headless output. In-process was even faster than headless
+(5.57 s vs 6.9 s, warm GPU).
 
-- Poll `diffuse-progress.txt` (`start` → `text_encoder` → `unet s/N` → `vae` → `done`);
-  `diffuse-cancel.flag` aborts between UNet steps (progress `cancelled`).
-- **PASS**: log shows `diffuse-inproc.flag detected` + per-stage ms + `wrote
-diffuse-out.png` with the XAML window still up; PNG matches the §7 headless output for
-  the same prompt/seed/steps.
-- **FAIL**: `diffuse: ORT error: ... 887A0036` (device conflict also affects plain ORT —
-  the headless flow stays) or `8007000E` during VAE (GPU budget with compositor:
-  headroom, not device, is the blocker).
-- Either outcome: record it in `docs/uwp-constraints.md` §7 and close the experiment.
+**Consequence**: image generation no longer needs the restart flow — it can run in-app on
+a background thread. The headless `diffuse.flag` path is kept only for bench parity. Wiring
+the in-app Generate (no restart) is the follow-up; the restart flow remains as a fallback.
 
 ## Closeout
 

@@ -7,6 +7,57 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+_(nothing yet)_
+
+## [1.1.0] - 2026-07-09
+
+**Image self-serve + faster in-app diffusion + dual-backend-ready build.** The
+image model now downloads itself from the catalogue; diffusion is proven to run
+in-process (no restart needed); and the binary can now compile both the ORT
+GenAI and llama.cpp backends into one MSIX, chosen per model at runtime — the
+groundwork for modern GGUF-only models (Qwen3.5, LFM2) the ORT builder can't
+produce. Full measured story: `docs/technical-report.md`.
+
+### Measured — plain ORT DML coexists with the XAML compositor (in-app diffusion)
+
+The `887A0036` device conflict that forced headless image generation was
+specific to ORT **GenAI**'s Agility device factory. `diffuse-inproc.flag` ran
+the full SD-Turbo pipeline **on a background thread inside the live XAML
+process** on console: coherent 512×512 PNG, compositor alive, no conflict, no
+OOM — **total 5.57 s, faster than the 6.9 s headless run** (warm GPU). Image
+generation no longer needs the restart flow (`docs/uwp-constraints.md` §7,
+runbook §7b). Wiring the in-app Generate is the follow-up; the restart flow
+stays as a fallback.
+
+### Added — runtime backend dispatch (ORT GenAI ⊕ llama.cpp in one binary)
+
+`src/bridge/session.cpp` + `inference.cpp` no longer select the backend with a
+mutually-exclusive `#ifdef XLLAMA_USE_ORT / #else`. Two independent capability
+macros (`XLLAMA_USE_ORT`, `XLLAMA_USE_LLAMA`) let both backends compile together;
+`Session::create` / `run_inference` become runtime dispatchers keyed on
+`SessionParams::backend` (`Auto` infers `.gguf` vs ORT-dir layout). A new
+`XllamaBackend=unified` UWP build links the static ggml lib alongside ORT and
+ships both — CI-validated (`build (unified)` green). Single-backend builds stay
+behaviorally identical. This unblocks modern GGUF-only models via llama.cpp
+while ORT remains the default; UI wiring (`kind:gguf`) is the next phase.
+
+### Evaluated — modern small models (host-validated; console benches pending)
+
+Surveyed the post-Qwen3/Gemma3 landscape (the ORT GenAI builder is frozen at
+those архitectures). Confirmed loading through our stack:
+
+- **Qwen3.5-0.8B** (Feb 2026, Apache-2.0) — current-gen, Q4_K_M 507 MB, runs via
+  our llama.cpp submodule (`qwen35` arch).
+- **LFM2.5-350M** (LiquidAI) — hybrid edge, Q4_K_M 218 MB, runs via llama.cpp.
+- **Qwen3-0.6B int4** — builds with the ORT GenAI builder (969 MB merged; the
+  151k-vocab embedding dominates — heavier than SmolLM2-360M's 417 MB).
+- **Gemma-3-270M** — gated on HF, build blocked pending a token.
+- **TAESD decoder** (madebyollin/taesd, MIT) — a 4.9 MB drop-in VAE that replaces
+  SD-Turbo's 94 MB decoder; `validate_pipeline.py --vae` confirms a coherent
+  image. On console the VAE stage is 2.6 s of 6.9 s → TAESD targets ~4.5 s.
+  Export recipe: `diffusion/export_taesd.py` (falsified the [0,1] output
+  assumption; the diffusers decoder already emits SD `[-1,1]`).
+
 ### Removed — purpose-served legacy (image spike, GGUF-era bench, dead switches)
 
 - **Image spike** (`uwp/image-spike.cpp`, the `image.flag` headless mode,
