@@ -75,6 +75,10 @@ struct Session {
     static std::unique_ptr<Session> create(const SessionParams& params, std::string* err = nullptr);
 
     virtual InferenceResult generate(const GenerateParams& params) = 0;
+
+    // Token count for routing/heuristics (encode-only; no generation).
+    virtual int count_tokens(const std::string& prompt) = 0;
+
     virtual ~Session() = default;
 };
 

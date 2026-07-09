@@ -55,18 +55,20 @@ inference call.
 
 ## Image generation (`[*]`)
 
-The dialog shows the last generated image (if any), a prompt box, and a
-**Steps** slider (1–4; SD-Turbo needs 1). Pressing **Generate (restarts app)**:
+The dialog shows the last generated image (if any), a prompt box, a **Steps**
+slider (1–4; SD-Turbo needs 1), and an optional **TAESD fast VAE** toggle
+(~5 MB download, targets ~4.5 s total vs ~5–7 s with the full VAE). Pressing
+**Generate**:
 
-1. writes the prompt/steps/seed and the `diffuse.flag`,
-2. **restarts the app** into a headless mode that runs SD-Turbo fp16 on the
-   GPU (~7 s for 512×512, plus ~7 s of model load) and exits,
-3. at the next launch, open `[*] Image` again to see the result.
+1. writes the prompt/steps/seed to `LocalState`,
+2. runs SD-Turbo fp16 on the GPU **in-process** (~5–7 s for 512×512; progress
+   appears in the status bar),
+3. on completion, reopen `[*] Image` to view `diffuse-out.png`.
 
-The restart is a workaround for a D3D12 device conflict between DirectML and
-the XAML compositor (`uwp-constraints.md §7`); removing it is in progress
-(in-process experiment + upstream fix
-[onnxruntime-genai#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280)).
+Plain ORT DirectML (diffusion) coexists with the XAML compositor. The D3D12
+device conflict (`887A0036`, `uwp-constraints.md §7`) applies only to ORT
+**GenAI** chat DML, not to this pipeline. Press **Cancel** during generation to
+abort between UNet steps.
 
 The `sd-turbo-fp16` model (2.4 GB: text encoder, UNet, VAE decoder + CLIP
 tokenizer) is **downloaded automatically on the first Generate** from the

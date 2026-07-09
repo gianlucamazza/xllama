@@ -293,6 +293,14 @@ class OrtSession final : public Session {
         }
         return res;
     }
+
+    int count_tokens(const std::string& prompt) override {
+        OgaSequences* raw_seqs = nullptr;
+        oga_check(OgaCreateSequences(&raw_seqs), "OgaCreateSequences");
+        OgaSequencesPtr seqs(raw_seqs);
+        oga_check(OgaTokenizerEncode(m_tok.get(), prompt.c_str(), seqs.get()), "OgaTokenizerEncode");
+        return static_cast<int>(OgaSequencesGetSequenceCount(seqs.get(), 0));
+    }
 };
 
 namespace detail {
@@ -459,6 +467,15 @@ class LlamaSession final : public Session {
         log_output(log_buf);
 
         return res;
+    }
+
+    int count_tokens(const std::string& prompt) override {
+        const llama_vocab* vocab = llama_model_get_vocab(m_model.get());
+        int32_t n = llama_tokenize(vocab, prompt.c_str(), static_cast<int32_t>(prompt.size()),
+                                   nullptr, 0, true, false);
+        if (n == INT32_MIN)
+            return 0;
+        return -n;
     }
 };
 

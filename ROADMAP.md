@@ -216,7 +216,10 @@ Milestones:
       2026-07-09**: plain ORT DML coexists with the XAML compositor (full
       pipeline in-process, 5.57 s, coherent PNG, no 887A0036). Image generation
       no longer needs the restart flow (runbook §7b, `docs/uwp-constraints.md`
-      §7). **Follow-up**: wire the in-app Generate (no restart).
+      §7).
+- [x] **In-app Generate (no restart)** — Image dialog calls `run_diffuse()` on a
+      background MTA thread; progress/cancel via `diffuse-progress.txt` /
+      `diffuse-cancel.flag`.
 - [x] Diffusion progress/cancel plumbing (`diffuse-progress.txt`,
       `diffuse-cancel.flag`) — PR #20
 - [x] **Runtime backend dispatch** (PR #27) — ORT GenAI + llama.cpp compile
@@ -224,7 +227,10 @@ Milestones:
       GGUF-only models (Qwen3.5, LFM2). Fase 2 (UI `kind:gguf`) next.
 - [x] **Modern-model survey** — Qwen3.5-0.8B / LFM2.5-350M load via llama.cpp;
       Qwen3-0.6B builds via ORT (969 MB); TAESD decoder validated (`docs/model-selection.md`).
-- [ ] Interactive validations at the pad: §2 routing A/B + Image dialog flow
+- [x] **TAESD UI + asset pipeline** — Image dialog toggle, `diffuse_taesd_vae` in
+      settings.json, `scripts/export-taesd-asset.sh`; console bench pending (runbook §7c).
+- [ ] Interactive validations at the pad: §2 routing A/B + Image dialog flow +
+      §7c TAESD image bench
 - [x] Closure benches: int4 `block_size=128` / `accuracy_level=4` (§12
       confirm/refute) — closed inconclusive (PR #29, §12 stands)
 - [x] Fase 2: catalogue `kind:gguf` → `sp.backend`, gate KV-reuse/routing off
