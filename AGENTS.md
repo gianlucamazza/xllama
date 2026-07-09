@@ -37,14 +37,13 @@ xllama/
 │   ├── MainPage.cpp / .h    # MainPageController (plain C++, not runtimeclass)
 │   ├── inference-bridge.cpp / .h   # UWP main_loop() + bench mode
 │   ├── chat-history.cpp / .h       # ChatHistory: Save/Load/Delete/Clear
-│   ├── model-downloader.cpp / .h   # EnsureModelAsync — HF chunked download (Exp 2)
-│   ├── packages.config      # NuGet pins (ORT GenAI 0.13.2, ORT 1.24.4, DirectML 1.15.4)
+│   ├── model-downloader.cpp / .h   # EnsureModelAsync — catalogue download (GitHub Release models-v1, models/manifest.json)
+│   ├── packages.config      # NuGet pins (ORT GenAI 0.14.1, ORT 1.24.4, DirectML 1.15.4)
 │   └── xllama.sln / .vcxproj
 ├── scripts/
 │   ├── deploy.sh                      # Device Portal: deploy, logs, bench trigger
 │   ├── build-uwp.ps1                  # Windows UWP packaging script
 │   ├── merge_onnx_external_data.py    # merge model.onnx.data → self-contained model.onnx
-│   ├── bench-xbox.sh                  # benchmark runner (llama.cpp / GGUF models)
 │   ├── bench-xbox-ort.sh              # benchmark runner (ORT GenAI; model already on device)
 │   ├── install-latest-build.sh        # fetch + deploy latest CI artifact
 │   ├── test-dml-config.sh             # upload DML provider_options without MSIX rebuild
@@ -101,7 +100,7 @@ Use `-ForceNewCert` only to regenerate the test signing certificate.
 
 - **ORT GenAI path**: UWP inference is entirely under `#ifdef XLLAMA_USE_ORT` in `src/bridge/inference.cpp`. ORT types are wrapped in `include/xllama/ort_raii.h`. Linux path (`#else`) uses llama.cpp unchanged.
 
-- **Model bundled in MSIX**: the default model (`smollm2-360m-cpu-int4`) is included as `DeploymentContent` in `uwp/xllama.vcxproj`. No manual upload is needed for the standard dev flow. The model directory must exist at `../models/smollm2-360m-cpu-int4/` relative to the project before building.
+- **No model in the MSIX**: the package is ~19 MB and ships no model. On first launch the app downloads the default model (`smollm2-360m-cpu-int4`) from the GitHub Release `models-v1` catalogue (`uwp/models/manifest.json`) into `LocalState\models\`. No manual upload is needed for the standard dev flow.
 
 - **ONNX external data merge**: ORT 1.24.4 calls `std::filesystem::weakly_canonical()` for models with a separate `.onnx.data` file, which traverses path segments inaccessible inside the Xbox AppContainer (`Q:\Users\UserMgr0\...`). Fix: merge external data into a single `model.onnx` using `scripts/merge_onnx_external_data.py` before MSIX packaging. CI does this automatically.
 

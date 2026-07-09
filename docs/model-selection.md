@@ -100,7 +100,7 @@ Verify with `merge_onnx_external_data.py` output before committing to a build.
 
 **Future — BitNet / INT2 models**: Microsoft BitNet b1.58 (1-bit/1.58-bit quantization)
 could bring a 1.7B–3B model under 400 MB, fitting both the disk and GPU budgets.
-ORT GenAI does not natively support INT2 as of 0.13.2. Re-evaluate when
+ORT GenAI does not natively support INT2 as of 0.14.1. Re-evaluate when
 `microsoft/onnxruntime-genai` adds a stable INT2/BitNet execution path.
 
 ## Why these limits
