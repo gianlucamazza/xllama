@@ -70,10 +70,12 @@ git submodule update --init --recursive
 ```
 
 The build script:
+
 1. Restores NuGet packages (`nuget restore`).
-2. Runs `merge_onnx_external_data.py` to merge the model's external data into a self-contained `model.onnx` (required for AppContainer `weakly_canonical` compatibility — see `docs/uwp-constraints.md §8`).
-3. Builds with MSBuild.
-4. Signs the package with the test certificate.
+2. Builds with MSBuild (`-Backend llamacpp` selects the bench-only ggml/llama.cpp text backend; the default is ORT GenAI).
+3. Signs the package with the test certificate.
+
+No model is packaged: distribution artifacts are prepared separately and must be self-contained (`scripts/merge_onnx_external_data.py`, `docs/uwp-constraints.md §8`).
 
 The package output is under:
 

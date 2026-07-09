@@ -38,8 +38,8 @@ jobs:
 
       - name: Build UWP package
         shell: pwsh
-        # -NoBundledModel also belts-and-braces the nobundle variant: even if a
-        # cached model directory existed, the MSBuild property excludes it.
+        # No model is bundled: uwp/models/ carries only manifest.json, so the
+        # package is model-free by construction (~19 MB).
         run: >-
           ./scripts/build-uwp.ps1 -Configuration Release -Platform x64
           -Backend $('${{ matrix.variant }}' -eq 'llamacpp' ? 'llamacpp' : 'ort')

@@ -78,7 +78,7 @@ Milestones:
 - [x] Stage B (only if DML tok/s beats CPU) — ❌ dropped: DML is 8× slower than CPU at this scale; interactive app stays on CPU EP
 - [x] Measure GPU vs CPU tok/s for the same model — ✅ v0.3.6 utilization matrix (same SmolLM2-360M, 3 variants × 2 prompts): CPU int4 decode 68.0 vs GPU fp16 46.8 vs GPU int4 8.8 tok/s; prefill inverts at ~1k tok (GPU fp16 354 vs CPU 198)
 
-## Phase 3 — Benchmarks + Model Exploration 🔄 IN PROGRESS
+## Phase 3 — Benchmarks + Model Exploration ✅ DONE
 
 **Goal**: reproducible results, n_threads tuning, evaluate alternative compact models.
 
@@ -89,9 +89,9 @@ Milestones:
 - [x] `bench-xbox-ort.sh` + `bench_threads.txt` mechanism for automated multi-thread bench runs
 - [x] Evaluate Qwen2.5-0.5B INT4 ONNX — ❌ ~822 MB real (vocab embedding dominates); exceeds disk borderline and GPU pool
 - [x] Evaluate Llama-3.2-1B INT4 ONNX CPU — ❌ ~1.77 GB real; USB-only, same class as SmolLM2-1.7B
-- [x] `load_ms` in bench CSV: column existed but ORT path never measured it (always 0) — `run_inference` now times `OgaCreateModel`; baseline pending next bench run on console
+- [x] `load_ms` in bench CSV: column existed but ORT path never measured it (always 0) — `run_inference` now times `OgaCreateModel`; baseline measured 2026-07-08 (`phase35-014-*.csv`, `phase35-1b-cpu.csv`): CPU int4 360M **1593 ms**, DML fp16 2830, DML int4 837, 1.7B CPU 6179
 
-## Phase 3.5 — Hardware Ceiling 🔮 NEXT
+## Phase 3.5 — Hardware Ceiling ✅ CONSOLE-VALIDATED 2026-07-08 (residuals tracked in Phase 5)
 
 **Goal**: close the gap between measured utilization (CPU ~13 GB/s, GPU ~34 GB/s
 effective vs ~224 GB/s bus) and what the Series S can realistically deliver.
@@ -117,7 +117,8 @@ v0.4.0.0 on Xbox; CSVs `bench/results/phase35-*.csv`):
 - [x] **Image-generation spike** (v0.4.0, flagship hypothesis): **CONFIRMED on
       console 2026-07-08** — on a compute-bound fp16 batch (309 GFLOP), DirectML is
       **11.1× faster than CPU** (2403 vs 216 GFLOP/s). The inverse of text decode;
-      diffusion is the GPU's workload. → C++ pipeline built + host-validated (PR #5).
+      diffusion is the GPU's workload. → C++ pipeline console-validated 2026-07-08:
+      SD-Turbo fp16 512×512 in 6.9 s (`bench/results/phase5-diffuse.csv`).
 
 Milestones:
 
@@ -136,8 +137,9 @@ Milestones:
       big upload: community reports a ~2 GB per-file limit in Dev Mode
       (relevant for merged `model.onnx` > 2 GB). Exp 2 nobundle (Phase 4)
       remains useful for its own sake but is no longer a disk prerequisite.
-- [~] **1B+ scale bench**: SmolLM2-1.7B. **CPU int4 built OK** (1.4 GB, merged,
-  ready to upload). **fp16-DML blocked** (found 2026-07-08): a 1.7B fp16
+- [~] **1B+ scale bench**: SmolLM2-1.7B. **CPU int4 measured on console
+  2026-07-08: 20.6 tok/s decode, peak 2423 MB** (`phase35-1b-cpu.csv`).
+  **fp16-DML blocked** (found 2026-07-08): a 1.7B fp16
   `model.onnx` is ~3.4 GB and **exceeds the 2 GB protobuf serialization
   limit**, so it cannot be merged self-contained; keeping external data
   re-triggers the `weakly_canonical` AppContainer crash (§8). So the
@@ -157,7 +159,9 @@ Milestones:
       local lever.**
 - [~] **int4 DML config confirmation** (fast negative): SmolLM2-360M
   `int4_block_size=128` and `int4_accuracy_level=4` variants are **built**
-  (scratchpad); one console bench each to confirm they stay ≈ 8.8 tok/s (the
+  (rebuilt 2026-07-09, merged self-contained, in
+  `~/.cache/xllama-diffusion/int4-variants/`); one console bench each to
+  confirm they stay ≈ 8.8 tok/s (the
   kernel structure predicts no material gain). If either beats fp16-DML it
   would refute §12 — worth the ~5 min. Not a path forward, just closure.
 - [x] **llama.cpp CPU A/B** — ✅ **MEASURED 2026-07-08, hypothesis FALSIFIED.**

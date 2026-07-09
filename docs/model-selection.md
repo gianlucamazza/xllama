@@ -7,10 +7,9 @@ xllama UWP build (Xbox Series S Dev Mode, CPU EP).
 
 | Constraint                              | Limit                                                                       | Source                       |
 | --------------------------------------- | --------------------------------------------------------------------------- | ---------------------------- |
-| Format                                  | ONNX GenAI directory (`genai_config.json` + `model.onnx` + tokenizer files) | ORT GenAI 0.13.2 requirement |
-| External data files                     | Must be merged before MSIX packaging                                        | `uwp-constraints.md §8`      |
-| On-disk size (merged ONNX)              | < 400 MB recommended, < 600 MB borderline                                   | `uwp-constraints.md §9`      |
-| MSIX size                               | < 600 MB recommended, < 800 MB borderline                                   | `uwp-constraints.md §9`      |
+| Format                                  | ONNX GenAI directory (`genai_config.json` + `model.onnx` + tokenizer files) | ORT GenAI 0.14.1 requirement |
+| External data files                     | Must be merged into a self-contained `model.onnx` before distribution       | `uwp-constraints.md §8`      |
+| On-disk size (merged ONNX)              | Dev Mode disk budget: ~2.2–2.5 GB free total across all models              | `uwp-constraints.md §9`      |
 | GPU EP weights (if attempting DirectML) | < ~300 MB                                                                   | `uwp-constraints.md §5`, §7  |
 
 ## Selection sequence
@@ -32,36 +31,25 @@ xllama UWP build (Xbox Series S Dev Mode, CPU EP).
 
    The script prints a `NOTE` or `WARNING` if the merged size exceeds budget thresholds.
 
-4. Check on-disk size. Reject if > 600 MB:
+4. Check on-disk size against the Dev Mode disk budget (~2.2–2.5 GB free total):
 
    ```bash
    du -sm models/<name>
    ```
 
-5. Update `uwp/xllama.vcxproj` to point to the new model directory. Build MSIX:
-
-   ```bash
-   # From Windows VM or via CI push:
-   .\scripts\build-uwp.ps1 -Configuration Release -Platform x64
-   ```
-
-6. Inspect MSIX size. Reject if > 800 MB:
-
-   ```bash
-   ls -lh uwp/AppPackages/xllama/*.msix
-   ```
-
-7. Deploy:
+5. Provision it on the console — either add a catalogue entry (see
+   "Add your own model" below) and let the app download it, or upload directly:
 
    ```bash
    source ~/.config/xllama/xbox-env
-   ./scripts/deploy.sh path/to/xllama_*.msix
+   PFN=$(./scripts/deploy.sh pfn)
+   ./scripts/deploy.sh upload-dir models/<name>/ "$PFN" "models\\<name>"
    ```
 
-   If install fails with `0x80070070` (ERROR_DISK_FULL), the model exceeds the
-   available Dev Mode partition space.
+   If the upload fails for space (`0x80070070` ERROR_DISK_FULL), the model
+   exceeds the available Dev Mode partition space.
 
-8. Launch and check the log:
+6. Launch and check the log:
 
    ```bash
    ./scripts/deploy.sh get-log
@@ -69,7 +57,7 @@ xllama UWP build (Xbox Series S Dev Mode, CPU EP).
 
    If `OgaCreateModel failed` appears, see `phase1-runbook.md §8` for diagnosis.
 
-9. Benchmark and compare against the current baseline:
+7. Benchmark and compare against the current baseline:
    ```bash
    ./scripts/bench-xbox.sh <model-name> bench/config/phase1-smollm2-360m.json
    ```
@@ -77,13 +65,13 @@ xllama UWP build (Xbox Series S Dev Mode, CPU EP).
 
 ## Reference: tested models
 
-| Model                          | On-disk (merged) | CPU EP                                | DirectML EP                                      | Notes                                                                                                     |
-| ------------------------------ | ---------------- | ------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| SmolLM2-360M-Instruct INT4 CPU | 403 MB           | ✅ Active baseline (70.9 tok/s)       | ❌ `80070057` (CPU-int4 graph in DML fused node) | Bundled in MSIX                                                                                           |
-| SmolLM2-360M-Instruct INT4 DML | 285 MB           | —                                     | ✅ **8.8 tok/s** (headless v0.3.4)               | Built with ORT GenAI model builder (`-p int4 -e dml`); CPU ~8× faster — DML not competitive at this scale |
-| SmolLM2-1.7B-Instruct INT4 CPU | 1.4 GB           | ❌ MSIX bundling / ✅ via USB (Exp 3) | —                                                | 23.6 tok/s, n=191, peak 2195 MB                                                                           |
-| Phi-3.5-mini INT4 CPU          | ~2.7 GB          | ❌ Disk budget                        | —                                                | Not attempted                                                                                             |
-| Phi-3.5-mini GPU INT4 AWQ      | ~2.2 GB          | —                                     | ❌ GPU OOM + disk                                | Not viable                                                                                                |
+| Model                          | On-disk (merged) | CPU EP                                  | DirectML EP                                      | Notes                                                                                                     |
+| ------------------------------ | ---------------- | --------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| SmolLM2-360M-Instruct INT4 CPU | 417 MB           | ✅ Active baseline (66.3 tok/s, 0.14.1) | ❌ `80070057` (CPU-int4 graph in DML fused node) | Default; downloaded from the `models-v1` Release catalogue                                                |
+| SmolLM2-360M-Instruct INT4 DML | 285 MB           | —                                       | ✅ **8.8 tok/s** (headless v0.3.4)               | Built with ORT GenAI model builder (`-p int4 -e dml`); CPU ~8× faster — DML not competitive at this scale |
+| SmolLM2-1.7B-Instruct INT4 CPU | 1.4 GB           | ✅ via USB / LocalState                 | —                                                | Console: 20.6 tok/s decode, peak 2423 MB (`phase35-1b-cpu.csv`)                                           |
+| Phi-3.5-mini INT4 CPU          | ~2.7 GB          | ❌ Disk budget                          | —                                                | Not attempted                                                                                             |
+| Phi-3.5-mini GPU INT4 AWQ      | ~2.2 GB          | —                                       | ❌ GPU OOM + disk                                | Not viable                                                                                                |
 
 ## Candidates evaluated (HF Hub file sizes, 2026-07-02)
 
@@ -105,7 +93,7 @@ Sizes below are the published `model.onnx.data` file sizes on Hugging Face
   (`onnx-community/Llama-3.2-1B-Instruct-GENAI-ONNX`
   `cpu-int4-rtn-block-32-acc-level-4`; `patdev/Llama-3.2-1B-Instruct-int4-cpu-onnx`
   identical; `aigdat` AWQ-uint4 ~1.66 GB). USB-only path, same class as
-  SmolLM2-1.7B (1.4 GB, 23.6 tok/s).
+  SmolLM2-1.7B (1.4 GB, 20.6 tok/s on console).
 - **Gemma-2-2B INT4 ONNX CPU**: estimated above 1 GB merged — unlikely to fit.
 
 Verify with `merge_onnx_external_data.py` output before committing to a build.
@@ -122,3 +110,41 @@ This document records only observed behavior at the application boundary. See
 `uwp-constraints.md §7` (GPU pool) and `uwp-constraints.md §9` (disk budget) for
 what we measure. Do not treat any claim about the internal Xbox OS partition layout
 as authoritative unless backed by a Microsoft source.
+
+## Add your own model (manifest override, no reinstall)
+
+The Settings ComboBox is populated from the model catalogue. A
+`LocalState\manifest.json` uploaded via Device Portal **overrides the bundled
+catalogue entirely** (`uwp/model-downloader.cpp`, `LoadModelManifest`), so you can
+add models without rebuilding the MSIX:
+
+1. Copy `uwp/models/manifest.json` and add an entry:
+
+   ```json
+   {
+     "name": "my-model-dir",
+     "display": "My Model (CPU int4)",
+     "kind": "ort-genai",
+     "hf_base_url": "https://example.com/base/url",
+     "files": [{ "filename": "model.onnx", "approx_bytes": 123456789 }]
+   }
+   ```
+
+   With `hf_base_url` set, the app downloads `<hf_base_url>/<filename>` for each
+   file on selection. Without it, the entry expects the directory at
+   `LocalState\models\<name>` (Device Portal upload) or USB `E:\xllama\models\<name>`.
+
+2. Upload the override and (if needed) the model files:
+
+   ```bash
+   source ~/.config/xllama/xbox-env
+   PFN=$(./scripts/deploy.sh pfn)
+   ./scripts/deploy.sh upload-file my-manifest.json "$PFN" ""   # rename to manifest.json first
+   ./scripts/deploy.sh upload-dir ./my-model-dir/ "$PFN" "models\\my-model-dir"
+   ```
+
+3. Restart the app: the ComboBox now shows the new entry.
+
+Constraints: `model.onnx` must be **self-contained** (< 2 GB, external data merged —
+`uwp-constraints.md §8`) and fit the Dev Mode disk budget. For diffusion models the
+contract is different (three components + CLIP assets): see `diffusion/README.md`.

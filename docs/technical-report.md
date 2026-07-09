@@ -23,7 +23,7 @@ DirectML 1.24.4 for vision; llama.cpp (static ggml, CPU) as an A/B lane.
 
 ## 2. Text generation: the CPU wins decode, and nothing beats it
 
-SmolLM2-360M, identical prompts (285/~1050 tok), Game-mode, v0.4.x:
+SmolLM2-360M, identical prompts (285/~1050 tok), Game-mode, measured on the 0.4.x→1.0 line:
 
 | Backend                  | prefill 285 | prefill ~1k | decode   |
 | ------------------------ | ----------- | ----------- | -------- |
@@ -109,11 +109,12 @@ hardware, because console runtime errors are expensive to attribute:
 
 - Chat UI (ChatML, history, settings) with per-conversation CPU/GPU routing and
   KV-cache reuse; models described by a `manifest.json` catalogue (bundled +
-  Device-Portal-overridable) with in-app HF download.
+  Device-Portal-overridable) with in-app download from the `models-v1` GitHub
+  Release (the upstream HF path shipped a non-merged model and was retired).
 - Image generation UI over the headless SD-Turbo fp16 pipeline.
 - Headless bench/validation modes (`bench.flag`, `image.flag`, `diffuse.flag`)
-  with CSV artifacts; a console-validation runbook; CI producing bundled,
-  nobundle, and llamacpp MSIX variants.
+  with CSV artifacts; a console-validation runbook; CI producing the default
+  (no-model, ~19 MB) and llamacpp MSIX variants.
 
 **Bottom line.** On a 2020 console in a sandbox: a 360M-class chat model at
 66 tok/s, a 1.7B at 21 tok/s, ~5 s multi-turn latency turned interactive by KV

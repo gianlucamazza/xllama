@@ -41,6 +41,9 @@ curl -sS \
 ```
 
 Use `./scripts/deploy.sh` which wraps this call and polls installation status.
+Other wrapped operations: `upload-file` / `upload-dir` / `mkdir-localstate`
+(LocalState writes), `fetch-file` / `get-log` / `list-localstate` (reads),
+`start-app` / `stop-app` / `diagnose-startup`, `install-cert`, `pfn`.
 
 ## REST API: Listing installed packages
 
@@ -51,7 +54,7 @@ curl -sS --basic -u "$XBOX_USER:$XBOX_PASS" -k \
 
 ## REST API: Transferring model files
 
-The bundled SmolLM2-360M model is included in the MSIX — no upload is required for the standard flow. Use this only for swapping models in development.
+The standard flow needs no upload: the app downloads catalogue models on first use (`uwp/models/manifest.json` → `models-v1` GitHub Release). Use this only for provisioning models that have no download URL, or for development swaps.
 
 Models are ONNX GenAI **directories** (not single files). Upload each file in the directory:
 

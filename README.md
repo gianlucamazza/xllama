@@ -1,12 +1,12 @@
 # xllama
 
-> Local LLM inference on Xbox Series S|X (UWP Dev Mode) — ONNX Runtime GenAI on Zen 2 CPU.
+> Local LLM chat + Stable-Diffusion image generation on Xbox Series S|X (UWP Dev Mode) — ONNX Runtime GenAI + DirectML.
 
 [![build-uwp](https://github.com/gianlucamazza/xllama/actions/workflows/build-uwp.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-uwp.yml)
 [![build-linux](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Status:** experimental · early development  
+**Status:** v1.0 released · research-grade  
 **Maintainer:** [Venere Labs](https://github.com/gianlucamazza)
 
 ---
@@ -30,11 +30,11 @@
 
 ## What is this
 
-`xllama` is a UWP application for Xbox Series S|X in Dev Mode that runs LLM inference locally, with no cloud dependency and a gamepad-friendly UI.
+`xllama` is a UWP application for Xbox Series S|X in Dev Mode that runs LLM chat and Stable-Diffusion image generation locally, with no cloud dependency and a gamepad-friendly UI.
 
-The project started as a port of [`llama.cpp`](https://github.com/ggml-org/llama.cpp) (GGUF files, CPU-only), then migrated to **ONNX Runtime GenAI + DirectML** to target the Xbox GPU. After confirming that the UWP GPU memory pool on Series S is ~768 MB — too small for any usable LLM — the active backend is now **CPU EP** (Zen 2, 8 cores). The llama.cpp path is preserved for Linux development and CI.
+The project started as a port of [`llama.cpp`](https://github.com/ggml-org/llama.cpp) (GGUF files, CPU-only), then migrated to **ONNX Runtime GenAI + DirectML**. The measured verdict is **per-workload** (see [docs/technical-report.md](./docs/technical-report.md)): the Zen 2 **CPU wins autoregressive decode** at this model scale (~66 tok/s, SmolLM2-360M int4), the RDNA 2 **GPU wins batch compute** — prefill at ~1k prompt tokens (1.8× faster) and image generation (**11.1×** on the diffusion workload: SD-Turbo 512×512 in ~7 s). The app routes per conversation (CPU / GPU / auto). The llama.cpp path is preserved for Linux development, CI, and a bench-only UWP variant (measured: decode parity with ORT, so ORT stays the text backend).
 
-The bundled model is **SmolLM2-360M-Instruct INT4 CPU** (~403 MB), chosen to fit within the Xbox's available storage and RAM envelope.
+The default chat model is **SmolLM2-360M-Instruct INT4 CPU** (~403 MB), downloaded on first launch from the GitHub Release model catalogue — the MSIX itself is ~19 MB and ships no model.
 
 Goals:
 
@@ -62,9 +62,9 @@ source ~/.config/xllama/xbox-env           # sets XBOX_IP, XBOX_USER, XBOX_PASS
 ./scripts/deploy.sh path/to/xllama_*.msix
 ```
 
-The SmolLM2-360M-Instruct INT4 model is bundled inside the MSIX — no separate upload needed. On first launch the app copies the model to `LocalState` and starts the chat UI automatically.
+On first launch the app **downloads** the default model (SmolLM2-360M INT4, ~417 MB) from the [`models-v1` GitHub Release](https://github.com/gianlucamazza/xllama/releases/tag/models-v1) with a progress bar, then starts the chat UI. No model is bundled in the MSIX.
 
-See [docs/phase1-runbook.md](./docs/phase1-runbook.md) for the full step-by-step workflow.
+See [docs/install-release.md](./docs/install-release.md) to install a tagged release (cert + VCLibs + MSIX), [docs/using-the-app.md](./docs/using-the-app.md) for the app guide (chat, settings, image generation), and [docs/phase1-runbook.md](./docs/phase1-runbook.md) for the developer workflow.
 
 ---
 
@@ -73,7 +73,7 @@ See [docs/phase1-runbook.md](./docs/phase1-runbook.md) for the full step-by-step
 `xllama` predates the pivot to ONNX Runtime GenAI. The name is kept for continuity, not as a claim about the engine:
 
 - **`x`** — Xbox (UWP target) and cross-platform (Linux CLI build).
-- **`llama`** — local-LLM ecosystem at large. The Linux build still uses `llama.cpp`; the UWP build does not. Neither path ships LLaMA model weights — the bundled model is SmolLM2-360M-Instruct.
+- **`llama`** — local-LLM ecosystem at large. The Linux build still uses `llama.cpp`; the UWP build does not. Neither path ships LLaMA model weights — the default model is SmolLM2-360M-Instruct.
 
 ---
 
@@ -85,7 +85,7 @@ See [docs/phase1-runbook.md](./docs/phase1-runbook.md) for the full step-by-step
 - **Accessible Dev Mode**: one-time ~$19 activation via Partner Center unlocks unsigned UWP deployment.
 - **Underexplored**: no prior LLM port to the platform at time of writing.
 
-**Current performance (CPU EP, SmolLM2-360M INT4):** ~71 tok/s decode at 4 threads (bench v0.3.1; peak 771 MB RAM). Optimal: `intra_op_num_threads=4` — explicit 8-thread setting causes severe regression (~24 tok/s) due to memory bandwidth saturation on Zen 2. See `bench/results/phase1-cpu.csv` for full results.
+**Measured performance (Xbox Series S, 2026-07-08):** chat decode **66.3 tok/s** (CPU int4, SmolLM2-360M, ORT GenAI 0.14.1); prefill at ~1k prompt tokens **354 tok/s on GPU fp16** vs 198 CPU (the crossover that motivates routing); KV-cache reuse makes turn-2 prefill **4.87×** faster; SD-Turbo generates a 512×512 image in **~6.9 s** on DirectML. Full matrices: `bench/results/` and [docs/technical-report.md](./docs/technical-report.md).
 
 ---
 
@@ -102,18 +102,22 @@ See [docs/phase1-runbook.md](./docs/phase1-runbook.md) for the full step-by-step
                    ▼  CI build (GitHub Actions, windows-2022)
 ┌──────────────────────────────────────────┐
 │  Build: MSVC + Windows SDK + NuGet       │
-│  ├─ ORT GenAI 0.13.2 + ORT 1.24.4       │
+│  ├─ ORT GenAI 0.14.1 + ORT 1.24.4       │
 │  ├─ DirectML 1.15.4 (app-local DLLs)    │
-│  ├─ SmolLM2-360M INT4 merged into MSIX   │
-│  └─ Output: xllama_*.msix               │
+│  └─ Output: xllama_*.msix (~19 MB,      │
+│     no model bundled)                    │
 └──────────────────┬───────────────────────┘
                    │
                    ▼  sideload via Device Portal
 ┌──────────────────────────────────────────┐
 │  Target: Xbox Series S|X (Dev Mode)      │
-│  ├─ ORT GenAI → CPU EP (Zen 2)          │
-│  └─ DirectML EP: blocked by GPU OOM     │
-│     (UWP pool ~768 MB, LLM > 300 MB)    │
+│  ├─ first launch: model download from    │
+│  │  GitHub Release catalogue             │
+│  ├─ chat decode → CPU EP (Zen 2)        │
+│  ├─ long-prompt prefill → DML fp16      │
+│  │  (per-conversation routing)           │
+│  └─ image gen → SD-Turbo on DirectML    │
+│     (headless flag mode, 887A0036 — §7)  │
 └──────────────────────────────────────────┘
 ```
 
@@ -148,9 +152,12 @@ xllama/
 │   ├── App.cpp / App.h     # Application lifecycle, OnLaunched
 │   ├── MainPage.cpp / .h   # MainPageController — programmatic UI (XAML-free)
 │   ├── inference-bridge.cpp / .h  # UWP entry glue + bench mode main_loop()
+│   ├── diffuse.cpp         # SD-Turbo diffusion pipeline (plain ORT DirectML)
 │   ├── chat-history.cpp / .h      # ChatHistory: Save/Load/Delete/Clear
-│   ├── model-downloader.cpp / .h  # EnsureModelAsync — HF chunked download (Exp 2)
-│   ├── packages.config     # NuGet pins (ORT GenAI 0.13.2, ORT 1.24.4, DirectML 1.15.4)
+│   ├── model-downloader.cpp / .h  # EnsureModelAsync + LoadModelManifest (catalogue download)
+│   ├── models/manifest.json # model catalogue (LocalState override supported)
+│   ├── packages.config     # NuGet pins (ORT GenAI 0.14.1, ORT 1.24.4, DirectML 1.15.4)
+│   ├── ggml-uwp.vcxproj    # static ggml+llama lib (bench-only llamacpp backend)
 │   └── xllama.sln / .vcxproj
 ├── scripts/
 │   ├── deploy.sh                      # Device Portal: deploy, logs, bench trigger
@@ -161,11 +168,13 @@ xllama/
 │   ├── test-dml-config.sh             # upload DML provider_options without MSIX rebuild
 │   ├── check-uwp-host.sh              # Linux host preflight
 │   └── setup-windows-uwp-dev.ps1      # Windows VM setup
-├── tests/                  # unit tests (doctest)
+├── tests/                  # unit tests (doctest, incl. diffusion golden vectors)
 ├── bench/                  # benchmark configs + results
+├── diffusion/              # SD-Turbo export/convert/validate toolchain (host)
+├── patches/                # llama.cpp AppContainer guards (bench-only variant)
 ├── docs/                   # technical notes
 ├── cmake/                  # toolchain files
-└── .github/workflows/      # CI: build-linux + build-uwp
+└── .github/workflows/      # CI: build-linux + build-uwp (default + llamacpp)
 ```
 
 ---
@@ -193,12 +202,13 @@ ctest --test-dir build/linux-test --output-on-failure
 
 ### Build for Xbox (Windows / CI)
 
-The UWP package requires MSVC and the Windows SDK. Recommended path: push to `main` and download the `xllama-appx` artifact from the `build-uwp` GitHub Actions workflow.
+The UWP package requires MSVC and the Windows SDK. Recommended path: push to `main` and download the `xllama-appx` artifact from the `build-uwp` GitHub Actions workflow. CI also builds `xllama-appx-llamacpp` — a **bench-only** variant with the static ggml/llama.cpp CPU text backend (`-Backend llamacpp`, `patches/`), kept for A/B benchmarking; measured decode parity with ORT, so ORT GenAI remains the shipping backend.
 
 For local builds from a Windows VM, see [docs/windows-dev-vm.md](./docs/windows-dev-vm.md):
 
 ```powershell
-.\scripts\build-uwp.ps1 -Configuration Release -Platform x64
+.\scripts\build-uwp.ps1 -Configuration Release -Platform x64            # default (ORT GenAI)
+.\scripts\build-uwp.ps1 -Configuration Release -Platform x64 -Backend llamacpp  # bench-only
 ```
 
 ### Deploy to console
@@ -208,32 +218,34 @@ source ~/.config/xllama/xbox-env   # sets XBOX_IP, XBOX_USER, XBOX_PASS
 ./scripts/deploy.sh path/to/xllama_*.msix
 ```
 
-The model is bundled inside the MSIX — no separate upload required. See [docs/phase1-runbook.md](./docs/phase1-runbook.md) for the full workflow.
+No model upload is required: the app downloads the default model on first launch from the GitHub Release catalogue. See [docs/install-release.md](./docs/install-release.md) (release install) and [docs/phase1-runbook.md](./docs/phase1-runbook.md) (developer workflow).
 
 ---
 
 ## Models
 
-`xllama` on Xbox uses ONNX Runtime GenAI. Models are directories containing `genai_config.json`, `model.onnx`, `tokenizer.json`, and related files — not single `.gguf` files.
+`xllama` on Xbox uses ONNX Runtime GenAI for text (model directories with `genai_config.json`, `model.onnx`, `tokenizer.json`) and plain ORT DirectML for diffusion (`text_encoder`/`unet`/`vae_decoder` components).
 
-The MSIX bundles **SmolLM2-360M-Instruct INT4 CPU** (403 MB on-disk, merged into a self-contained `model.onnx` for AppContainer compatibility). The model is placed under `Package.InstalledPath\models\smollm2-360m-cpu-int4\` and is copied to `LocalState\models\` on first launch.
+Models come from the catalogue `uwp/models/manifest.json` (assets hosted on the [`models-v1` GitHub Release](https://github.com/gianlucamazza/xllama/releases/tag/models-v1)): the app downloads any catalogue entry on demand, with the default chat model fetched on first launch. A `LocalState\manifest.json` uploaded via Device Portal overrides the catalogue without a reinstall — see [docs/model-selection.md](./docs/model-selection.md) for adding your own model.
 
-| Model | Format | Size | Xbox UWP | Notes |
-|-------|--------|------|----------|-------|
-| SmolLM2-360M-Instruct INT4 CPU | ONNX GenAI | 403 MB | ✅ | Active; bundled in MSIX |
-| SmolLM2-1.7B-Instruct INT4 CPU | ONNX GenAI | 1.4 GB | ⚠ | Above disk budget |
-| Phi-3.5-mini CPU INT4 | ONNX GenAI | ~2.7 GB | ❌ | Disk full on Xbox Series S |
-| Phi-3.5-mini GPU INT4 | ONNX GenAI DirectML | ~2.2 GB | ❌ | GPU OOM (pool ~768 MB) |
+| Model                          | Format        | Size    | Xbox UWP | Notes                                                            |
+| ------------------------------ | ------------- | ------- | -------- | ---------------------------------------------------------------- |
+| SmolLM2-360M-Instruct INT4 CPU | ONNX GenAI    | 417 MB  | ✅       | Default; decode 66.3 tok/s                                       |
+| SmolLM2-360M-Instruct fp16 DML | ONNX GenAI    | ~700 MB | ✅       | Routing target (prefill 354 tok/s @1k)                           |
+| SD-Turbo fp16 (image)          | ONNX DirectML | 2.4 GB  | ✅       | 512×512 in ~6.9 s ([diffusion/README.md](./diffusion/README.md)) |
+| SmolLM2-1.7B-Instruct INT4 CPU | ONNX GenAI    | 1.4 GB  | ✅       | Measured 20.6 tok/s; tight on Dev Mode disk                      |
+| Phi-3.5-mini CPU INT4          | ONNX GenAI    | ~2.7 GB | ❌       | Above the Dev Mode disk budget                                   |
 
-Numbers are measured on Xbox Series S Dev Mode. See [docs/uwp-constraints.md](./docs/uwp-constraints.md) for the GPU pool limit and the `weakly_canonical` AppContainer workaround.
+Numbers are measured on Xbox Series S Dev Mode. See [docs/uwp-constraints.md](./docs/uwp-constraints.md) for the measured GPU budget (3801 MB), the disk budget, and the `weakly_canonical` AppContainer workaround.
 
 ---
 
 ## Limitations
 
-- **GPU pool ~768 MB**: UWP apps on Xbox Series S have ~768 MB of GPU-accessible memory. Any LLM larger than ~300 MB on-device triggers an OOM in `OgaCreateModel` (SEH `0xC0000005`). DirectML EP is not viable today.
-- **Sandboxed filesystem**: models must be pre-loaded into the MSIX or transferred via Device Portal. No arbitrary path access.
-- **AppContainer path traversal**: ORT 1.24.4 calls `std::filesystem::weakly_canonical()` for external ONNX data files, which traverses path segments the AppContainer cannot read. Workaround: merge `model.onnx.data` into `model.onnx` at MSIX build time (`scripts/merge_onnx_external_data.py`).
+- **Disk is the binding budget, not GPU memory**: the measured per-process GPU budget is **3801 MB** (package designated Game), but Dev Mode leaves only ~2.2–2.5 GB free on disk — that is what caps model size.
+- **DirectML vs XAML (`887A0036`)**: ORT GenAI's DML device conflicts with the XAML compositor's D3D12 device in the same process, so GPU workloads run in headless flag modes (`bench.flag`, `diffuse.flag`); fix contributed upstream ([onnxruntime-genai#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280)). Whether plain ORT DML (diffusion) shares the constraint is under test (`diffuse-inproc.flag`).
+- **Sandboxed filesystem**: models are downloaded to `LocalState` or transferred via Device Portal / USB. No arbitrary path access.
+- **AppContainer path traversal**: ORT 1.24.4 calls `std::filesystem::weakly_canonical()` for external ONNX data files, which traverses path segments the AppContainer cannot read. Workaround: distribute models with `model.onnx.data` merged into a self-contained `model.onnx` (`scripts/merge_onnx_external_data.py`).
 - **No POSIX mmap / no `dlopen`**: NuGet-packaged ORT GenAI DLLs must be app-local (`DeploymentContent=true`); no system-wide DLL loading.
 - **Dev Mode only**: no path to retail-mode consoles.
 
@@ -245,10 +257,11 @@ For full details see [docs/uwp-constraints.md](./docs/uwp-constraints.md).
 
 See [ROADMAP.md](./ROADMAP.md). Headlines:
 
-1. **Phase 1 — CPU baseline** ✅ Working UWP, ORT GenAI, SmolLM2-360M bundled, CI green.
-2. **Phase 2 — GPU acceleration** 🚫 Blocked: UWP GPU pool too small for LLM inference.
-3. **Phase 3 — Benchmarks + model exploration** Populate results, tune n_threads, try sub-400 MB models.
-4. **Phase 4 — In-app model download + publication** ModelSpec multi-file ONNX, demo, technical report.
+1. **Phase 1 — CPU baseline** ✅ Working UWP, ORT GenAI, CI green.
+2. **Phase 2 — GPU acceleration** ✅ GPU proven; verdict per-workload (CPU decode, GPU prefill/images).
+3. **Phase 3 / 3.5 — Benchmarks + hardware ceiling** ✅ Measured matrices, routing, KV reuse, llama.cpp A/B (parity), diffusion on console.
+4. **Phase 4 — In-app model download + publication** ✅ Catalogue download, v1.0.0 release, technical report (demo video pending).
+5. **Phase 5 — Post-1.0 improvements** 🚧 In-proc diffusion experiment, interactive validations, upstream #2280.
 
 ---
 
