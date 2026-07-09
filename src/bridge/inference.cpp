@@ -419,9 +419,11 @@ namespace xllama {
 
 InferenceResult run_inference(const InferenceParams& params) {
 #if defined(XLLAMA_USE_ORT) && defined(XLLAMA_USE_LLAMA)
-    const std::string& mp = params.model_path;
-    const bool is_gguf = mp.size() >= 5 && mp.compare(mp.size() - 5, 5, ".gguf") == 0;
-    return is_gguf ? detail::run_inference_llama(params) : detail::run_inference_ort(params);
+    // Layout-aware Auto (same helper as Session) so bench paths using bare
+    // model names from model.txt also dispatch correctly for GGUF layouts.
+    return model_uses_llama_backend(params.model_path)
+               ? detail::run_inference_llama(params)
+               : detail::run_inference_ort(params);
 #elif defined(XLLAMA_USE_ORT)
     return detail::run_inference_ort(params);
 #else // XLLAMA_USE_LLAMA

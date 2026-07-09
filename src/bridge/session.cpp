@@ -517,12 +517,11 @@ std::unique_ptr<Session> Session::create(const SessionParams& sp, std::string* e
 #if defined(XLLAMA_USE_ORT) && defined(XLLAMA_USE_LLAMA)
     Backend b = sp.backend;
     if (b == Backend::Auto) {
-        // Infer from the model layout: a .gguf file is llama.cpp, anything else
-        // (an ORT GenAI directory) is ORT. Fase 2 sets sp.backend explicitly from
-        // the catalogue `kind`, so Auto is only a fallback.
-        const std::string& mp = sp.model_path;
-        const bool is_gguf = mp.size() >= 5 && mp.compare(mp.size() - 5, 5, ".gguf") == 0;
-        b = is_gguf ? Backend::LlamaCpp : Backend::OrtGenAI;
+        // Layout-aware: uses suffix fast-path + resolve + directory scan so that
+        // bare catalogue names (e.g. "qwen35-0.8b" pointing at a dir with .gguf)
+        // are classified correctly. Explicit Backend from manifest (MainPage) or
+        // tests still takes precedence.
+        b = model_uses_llama_backend(sp.model_path) ? Backend::LlamaCpp : Backend::OrtGenAI;
     }
     return b == Backend::LlamaCpp ? detail::create_llama(sp, err) : detail::create_ort(sp, err);
 #elif defined(XLLAMA_USE_ORT)

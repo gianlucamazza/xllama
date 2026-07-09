@@ -4,6 +4,8 @@
 #include "xllama/path_utils.h"
 #include "xllama/platform.h"
 
+#include <filesystem>
+
 #ifdef XLLAMA_UWP
     #ifndef WIN32_LEAN_AND_MEAN
         #define WIN32_LEAN_AND_MEAN
@@ -65,30 +67,42 @@ static std::string local_folder_path(const std::string& filename, const wchar_t*
     return result;
 }
 
+// Dual-sentinel helpers for both ORT GenAI models and GGUF models (catalogue).
+static bool dir_contains_any_gguf(const std::wstring& dir_w) {
+    WIN32_FIND_DATAW fd{};
+    HANDLE h = FindFirstFileW((dir_w + L"\\*.gguf").c_str(), &fd);
+    if (h == INVALID_HANDLE_VALUE) return false;
+    FindClose(h);
+    return true;
+}
+
+static bool dir_is_valid_model(const std::wstring& dir_w) {
+    // ORT GenAI sentinel
+    if (GetFileAttributesW((dir_w + L"\\genai_config.json").c_str()) != INVALID_FILE_ATTRIBUTES)
+        return true;
+    // GGUF layout (catalogue entry or USB provisioned .gguf)
+    return dir_contains_any_gguf(dir_w);
+}
+
 std::string resolve_model_path(const std::string& filename) {
-    // Primary: LocalFolder\models\<filename>  (user-placed or WDP-uploaded)
+    // Primary: LocalFolder\models\<filename>  (user-placed or WDP-uploaded or catalogue download)
     std::string primary = local_folder_path(filename, L"models");
 
-    // Verify the model directory has a genai_config.json (sentinel for a valid model).
-    // If not found, fall back to the read-only install location where bundled
-    // models live (placed by MSBuild DeploymentContent=true in xllama.vcxproj).
-    std::wstring probe_w;
+    // Accept a directory if it contains either genai_config.json (ORT GenAI)
+    // or at least one *.gguf (llama.cpp / GGUF catalogue entries).
+    std::wstring primary_w_for_check;
     {
         int sz = MultiByteToWideChar(CP_UTF8, 0, primary.c_str(), -1, nullptr, 0);
         if (sz > 0) {
-            probe_w.resize(static_cast<size_t>(sz));
-            MultiByteToWideChar(CP_UTF8, 0, primary.c_str(), -1, probe_w.data(), sz);
-            if (!probe_w.empty() && probe_w.back() == L'\0')
-                probe_w.pop_back();
-            probe_w += L"\\genai_config.json";
+            primary_w_for_check.resize(static_cast<size_t>(sz));
+            MultiByteToWideChar(CP_UTF8, 0, primary.c_str(), -1, primary_w_for_check.data(), sz);
+            if (!primary_w_for_check.empty() && primary_w_for_check.back() == L'\0')
+                primary_w_for_check.pop_back();
         }
     }
 
-    if (!probe_w.empty()) {
-        DWORD attr = GetFileAttributesW(probe_w.c_str());
-        if (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY))
-            return primary; // model found in LocalFolder
-    }
+    if (!primary_w_for_check.empty() && dir_is_valid_model(primary_w_for_check))
+        return primary; // model found in LocalFolder (ORT or GGUF)
 
     try {
         using winrt::Windows::ApplicationModel::Package;
@@ -104,10 +118,11 @@ std::string resolve_model_path(const std::string& filename) {
             wfn.pop_back();
         installed_dir += wfn; // InstalledPath\models\<name>
 
-        // Verify bundle exists (probe genai_config.json).
+        // Verify bundle exists — only for legacy ORT GenAI bundles (genai_config.json).
+        // GGUF catalogue entries are never bundled this way; they come via download.
         DWORD a = GetFileAttributesW((installed_dir + L"\\genai_config.json").c_str());
         if (a == INVALID_FILE_ATTRIBUTES || (a & FILE_ATTRIBUTE_DIRECTORY))
-            return primary; // no bundled model
+            return primary; // no bundled (ORT) model to copy
 
         // Convert primary (LocalState\models\<name>) to wide for Win32 calls.
         int psz = MultiByteToWideChar(CP_UTF8, 0, primary.c_str(), -1, nullptr, 0);
@@ -177,8 +192,8 @@ std::string resolve_model_path(const std::string& filename) {
                         if (!wfn.empty() && wfn.back() == L'\0')
                             wfn.pop_back();
                         std::wstring usb_dir = std::wstring(usb_root) + L"\\xllama\\models\\" + wfn;
-                        DWORD ua = GetFileAttributesW((usb_dir + L"\\genai_config.json").c_str());
-                        if (ua != INVALID_FILE_ATTRIBUTES && !(ua & FILE_ATTRIBUTE_DIRECTORY)) {
+                        // Accept either classic ORT or GGUF layout on USB.
+                        if (dir_is_valid_model(usb_dir)) {
                             log_output("[xllama] model found via USB cache\n");
                             int nsz = WideCharToMultiByte(CP_UTF8, 0, usb_dir.c_str(), -1, nullptr,
                                                           0, nullptr, nullptr);
@@ -215,5 +230,36 @@ std::string resolve_local_path(const std::string& filename) {
 }
 
 #endif
+
+// ---------------------------------------------------------------------------
+// GGUF vs ORT layout detection (used by Auto dispatch in unified builds).
+// ---------------------------------------------------------------------------
+
+bool model_uses_llama_backend(const std::string& model_id) {
+    // Fast path: explicit .gguf file (common on Linux CLI and direct paths).
+    if (model_id.size() >= 5 &&
+        model_id.compare(model_id.size() - 5, 5, ".gguf") == 0) {
+        return true;
+    }
+
+    // Resolve (UWP: yields LocalState\models\<name> or equivalent;
+    // Linux: identity). Then inspect the on-disk layout.
+    const std::string p = resolve_model_path(model_id);
+
+    std::error_code ec;
+    if (std::filesystem::is_regular_file(p, ec)) {
+        return p.size() >= 5 && p.compare(p.size() - 5, 5, ".gguf") == 0;
+    }
+
+    if (std::filesystem::is_directory(p, ec)) {
+        for (const auto& de : std::filesystem::directory_iterator(p, ec)) {
+            if (!ec && de.path().extension() == ".gguf") {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
 
 } // namespace xllama
