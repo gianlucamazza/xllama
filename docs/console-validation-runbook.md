@@ -144,6 +144,16 @@ block128/acc4, rebuild with the ORT GenAI model builder (`-p int4 -e dml` +
 limit, CPU int4 stays the decode default); a jump ⇒ the lever exists and §12 needs
 revising. Either outcome is a recorded verdict.
 
+**Attempted 2026-07-09 — inconclusive, §12 stands.** The block128/acc4 variants were
+rebuilt (`~/.cache/xllama-diffusion/int4-variants/`; the builder's `genai_config.json`
+needed null search params stripped — `do_sample`/`temperature`/`top_k`/`top_p` came out
+`null`, which ORT rejects). On console **block128 fails to load**: `graph capture ... all
+compute graph nodes have not been partitioned to the DmlExecutionProvider` — i.e. a
+`block_size=128` int4 graph does **not** fully partition to DML, so it is not even a viable
+GPU path (informative on its own). This does not refute §12: the primary phase35 bench
+already confirmed int4-DML is bandwidth-bound at 8.8 tok/s and CPU int4 wins. Closing §5b
+as **not a lever** without burning more console time on a predicted-null result.
+
 ## 6. 1.7B scale bench — ✅ CPU-int4 MEASURED 2026-07-08 (20.6 tok/s, `phase35-1b-cpu.csv`); fp16-DML blocked (>2 GB protobuf)
 
 **Validates**: GPU int4 1.7B decode vs CPU int4 1.7B, and prefill crossover at scale. The
