@@ -225,8 +225,8 @@ Milestones:
 - [x] **Modern-model survey** — Qwen3.5-0.8B / LFM2.5-350M load via llama.cpp;
       Qwen3-0.6B builds via ORT (969 MB); TAESD decoder validated (`docs/model-selection.md`).
 - [ ] Interactive validations at the pad: §2 routing A/B + Image dialog flow
-- [~] Closure benches: int4 `block_size=128` / `accuracy_level=4` (§12
-  confirm/refute) — running on console 2026-07-09; `load_ms` baseline done
+- [x] Closure benches: int4 `block_size=128` / `accuracy_level=4` (§12
+      confirm/refute) — closed inconclusive (PR #29, §12 stands)
 - [ ] Fase 2: catalogue `kind:gguf` → `sp.backend`, gate KV-reuse/routing off
       for GGUF; promote Qwen3.5/LFM2 to the catalogue if benches justify
 - [ ] If §2 shows `887A0036` on the GPU turn in XAML: vendor the patched GenAI
