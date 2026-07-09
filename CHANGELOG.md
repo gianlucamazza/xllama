@@ -7,7 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-_(nothing yet)_
+### Added
+
+- **GGUF catalogue plumbing (Fase 2a).** A manifest `kind: "gguf"` entry now routes
+  to the llama.cpp backend end-to-end: `EnsureSession` sets `SessionParams.backend`
+  from the catalogue kind (the bare model name has no extension for `Backend::Auto`
+  to sniff), and `create_llama` descends a model directory to the single `.gguf`
+  inside (Linux still passes a direct file path). GGUF entries appear in the chat
+  picker; KV-cache reuse and EP routing are disabled for them — the llama.cpp path
+  is stateless and CPU-only on Xbox, so reuse (delta-only prompts) would corrupt
+  output. Catalogue promotion + asset upload land in Fase 2b (bench-gated).
 
 ## [1.1.0] - 2026-07-09
 
