@@ -12,11 +12,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # default: MSIX without a bundled model — models are downloaded on first
-        # launch from the catalogue (Exp 2 validated on console 2026-07-08).
-        # llamacpp: same, with the ggml/llama CPU text backend (XLLAMA_USE_ORT=0)
-        # — the CPU A/B lane; needs the submodule + patches.
-        variant: [default, llamacpp]
+        # default: ORT GenAI only (the shipping package).
+        # llamacpp: ggml/llama CPU text backend only (XLLAMA_USE_ORT absent) —
+        #   the CPU A/B bench lane; needs the submodule + patches.
+        # unified: BOTH backends compiled, chosen at runtime per model (modern
+        #   GGUF via llama.cpp, rest via ORT); the candidate for the next default.
+        variant: [default, llamacpp, unified]
     steps:
       - uses: actions/checkout@v6
         with:
@@ -25,7 +26,7 @@ jobs:
           fetch-depth: 1
 
       - name: Checkout llama.cpp submodule + apply AppContainer guards
-        if: matrix.variant == 'llamacpp'
+        if: matrix.variant == 'llamacpp' || matrix.variant == 'unified'
         shell: bash
         run: |
           git submodule update --init --depth 1 llama.cpp
@@ -42,12 +43,12 @@ jobs:
         # package is model-free by construction (~19 MB).
         run: >-
           ./scripts/build-uwp.ps1 -Configuration Release -Platform x64
-          -Backend $('${{ matrix.variant }}' -eq 'llamacpp' ? 'llamacpp' : 'ort')
+          -Backend $('${{ matrix.variant }}' -eq 'default' ? 'ort' : '${{ matrix.variant }}')
 
       - uses: actions/upload-artifact@v7
         if: success()
         with:
-          name: xllama-appx${{ matrix.variant == 'llamacpp' && '-llamacpp' || '' }}
+          name: xllama-appx${{ matrix.variant == 'default' && '' || format('-{0}', matrix.variant) }}
           # Include .msix (main package), .appx (VCLibs deps), and .cer
           # (public key of the test certificate that must be trusted on the
           # Xbox before deploying — installed via Device Portal API).

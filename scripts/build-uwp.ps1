@@ -23,9 +23,11 @@ param(
     [string]$Configuration  = "Release",
     [string]$Platform       = "x64",
     [switch]$ForceNewCert   = $false,
-    # 'ort' (default) or 'llamacpp' (ggml/llama CPU backend, XLLAMA_USE_ORT=0;
-    # requires the llama.cpp submodule + scripts/apply-uwp-patches.sh).
-    [ValidateSet("ort", "llamacpp")]
+    # 'ort' (default): ORT GenAI only. 'llamacpp': ggml/llama CPU backend only
+    # (XLLAMA_USE_ORT absent). 'unified': BOTH backends compiled, chosen at
+    # runtime per model (Qwen3.5/LFM2 GGUF via llama.cpp, rest via ORT).
+    # 'llamacpp'/'unified' require the submodule + scripts/apply-uwp-patches.sh.
+    [ValidateSet("ort", "llamacpp", "unified")]
     [string]$Backend        = "ort"
 )
 
@@ -149,9 +151,9 @@ $MsBuildArgs = @(
     "/m",
     "/nologo"
 )
-if ($Backend -eq "llamacpp") {
-    Write-Host "Backend: llama.cpp CPU (XLLAMA_USE_ORT=0)"
-    $MsBuildArgs += "/p:XllamaBackend=llamacpp"
+if ($Backend -ne "ort") {
+    Write-Host "Backend: $Backend (links the static ggml/llama lib)"
+    $MsBuildArgs += "/p:XllamaBackend=$Backend"
     # Pre-build the static ggml/llama lib explicitly: the solution maps it
     # ActiveCfg-only (no Build.0 — the ORT variants must not compile it, the
     # submodule may be absent there), so the solution build resolves the
