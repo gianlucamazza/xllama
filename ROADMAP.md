@@ -168,9 +168,9 @@ Milestones:
       `bench/results/phase35-llamacpp-scaling.csv`): t1 **19.9**, t4 **51.5**,
       t6 **62.9** tok/s; **t7/t8 livelock** (ggml spin-wait threadpool
       oversubscribes the ~6 cores Dev Mode leaves the app — no thread affinity in
-      AppContainer). Versus ORT int4 @8t (66.3): **parity, not 2×** — Q4_K_M does
+      AppContainer). Versus ORT int4 @8t (66.3): **parity, not 2×** — Q4*K_M does
       not extract more bandwidth than ORT's `MatMulNBits` on this machine; both
-      saturate ~13 GB/s effective. Prefill is _worse_ (141 vs 220 tok/s).
+      saturate ~13 GB/s effective. Prefill is \_worse* (141 vs 220 tok/s).
       **Verdict: ORT GenAI stays the text backend** (better prefill, KV-reuse,
       routing, DML); the llamacpp lane remains in CI as a bench-only variant.
       Fixed on the way (all real bugs): `#ifdef XLLAMA_USE_ORT` vs `=0`,
@@ -200,5 +200,26 @@ Milestones:
 - [x] Remove model bundle from MSIX — ✅ 2026-07-08 (ItemGroup deleted; CI matrix simplified to default+llamacpp; `xllama-appx` is now the 19 MB no-model package)
 - [x] `model-manifest.json` — ✅ 2026-07-08 (`uwp/models/manifest.json` catalogue + LocalState override; ComboBox and downloader de-hardcoded)
 - [ ] Demo video: model loaded and running on Xbox hardware
-- [ ] Technical report (arXiv or GitHub Discussions)
-- [ ] Tagged v1.0.0 release with pre-built MSIX and model manifest
+- [x] Technical report — ✅ 2026-07-08 draft written (`docs/technical-report.md`,
+      the measured story 0.3.x→1.0); publication venue (GitHub Discussions vs
+      arXiv) still to pick
+- [x] Tagged v1.0.0 release — ✅ 2026-07-08 (`gh release view v1.0.0`: 19 MB
+      MSIX + `.cer` + VCLibs x64; models on the `models-v1` release)
+
+## Phase 5 — Post-1.0 improvements 🚧 IN PROGRESS (2026-07-09)
+
+- [ ] **In-process diffusion experiment** (`diffuse-inproc.flag`, PR #20): does
+      plain ORT DML coexist with the XAML compositor? PASS → in-app image
+      generation, no restart flow (runbook §7b; `docs/uwp-constraints.md` §7
+      "Open experiment"). Console run pending.
+- [x] Diffusion progress/cancel plumbing (`diffuse-progress.txt`,
+      `diffuse-cancel.flag`) — PR #20
+- [ ] Interactive validations at the pad: §2 routing A/B + Image dialog flow
+- [ ] Closure benches: int4 `block_size=128` / `accuracy_level=4` (§12
+      confirm/refute) + first `load_ms` baseline
+- [ ] If §2 shows `887A0036` on the GPU turn in XAML: vendor the patched GenAI
+      DLL (PR microsoft/onnxruntime-genai#2280, console-validated) until the
+      fix ships upstream
+- [ ] `diffusion/requirements.txt` toolchain bump + re-validation (dependabot:
+      27 dev-only alerts; pins are a coherent export set — bump requires
+      re-running export → convert → validate_pipeline)

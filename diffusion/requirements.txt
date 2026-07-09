@@ -4,6 +4,13 @@
 # old enough (2.4.x) to use the legacy tracing ONNX exporter, since optimum 1.23
 # does not support torch's newer dynamo/onnxscript exporter (it hits external-data
 # naming + LayerNormalization opset-downgrade bugs). Do not bump piecemeal.
+#
+# SECURITY NOTE (2026-07-09): dependabot flags CVEs on these pins (torch 2.4.1,
+# transformers 4.46.3, diffusers 0.31.0). Accepted risk: this is an OFFLINE,
+# host-only export toolchain — never shipped in the app, only fed first-party
+# checkpoints (stabilityai/sd-turbo safetensors); the deserialization/remote
+# vectors don't apply. Bumping requires re-validating the whole recipe
+# (export → convert_fp16 → validate_pipeline); tracked in ROADMAP Phase 5.
 torch==2.4.1            # legacy torch.onnx tracer; --index-url .../whl/cpu
 optimum[onnxruntime]==1.23.3
 transformers==4.46.3
