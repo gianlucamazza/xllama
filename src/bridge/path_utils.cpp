@@ -71,7 +71,8 @@ static std::string local_folder_path(const std::string& filename, const wchar_t*
 static bool dir_contains_any_gguf(const std::wstring& dir_w) {
     WIN32_FIND_DATAW fd{};
     HANDLE h = FindFirstFileW((dir_w + L"\\*.gguf").c_str(), &fd);
-    if (h == INVALID_HANDLE_VALUE) return false;
+    if (h == INVALID_HANDLE_VALUE)
+        return false;
     FindClose(h);
     return true;
 }
@@ -237,8 +238,7 @@ std::string resolve_local_path(const std::string& filename) {
 
 bool model_uses_llama_backend(const std::string& model_id) {
     // Fast path: explicit .gguf file (common on Linux CLI and direct paths).
-    if (model_id.size() >= 5 &&
-        model_id.compare(model_id.size() - 5, 5, ".gguf") == 0) {
+    if (model_id.size() >= 5 && model_id.compare(model_id.size() - 5, 5, ".gguf") == 0) {
         return true;
     }
 

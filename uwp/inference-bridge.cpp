@@ -50,8 +50,12 @@ void run_kv_bench(const std::string& model_name, const std::string& sys, const s
     if (::xllama::model_uses_llama_backend(model_name)) {
         log_output("[xllama] kv-bench: skipping (GGUF model is stateless via llama.cpp)\n");
         // Write a minimal .done so orchestrators do not hang.
-        FILE* done = _wfopen(utf8_to_wstring(resolve_local_path("bench-kv-result.csv.done")).c_str(), L"w");
-        if (done) { fputs("skipped-gguf\n", done); fclose(done); }
+        FILE* done =
+            _wfopen(utf8_to_wstring(resolve_local_path("bench-kv-result.csv.done")).c_str(), L"w");
+        if (done) {
+            fputs("skipped-gguf\n", done);
+            fclose(done);
+        }
         return;
     }
 
