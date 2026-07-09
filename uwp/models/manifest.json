@@ -33,10 +33,34 @@
       "display": "SmolLM2 1.7B (CPU int4)"
     },
     {
-      "_comment": "GGUF chat model (llama.cpp backend). Provisioning-manual until Fase 2b uploads the .gguf to models-v1 and adds hf_base_url + files[]. Placed under models\\qwen35-0.8b\\<any>.gguf via USB/Device Portal.",
+      "_comment": "GGUF chat models (llama.cpp backend, unified builds). Qwen3.5 quant: unsloth/Qwen3.5-0.8B-GGUF (Apache-2.0). LFM2.5 quant: LiquidAI/LFM2.5-350M-GGUF (LFM Open License v1.0 — LICENSE.txt downloaded alongside per §4a).",
       "name": "qwen35-0.8b",
-      "display": "Qwen3.5 0.8B (GGUF · CPU · manual)",
-      "kind": "gguf"
+      "display": "Qwen3.5 0.8B (GGUF · CPU)",
+      "kind": "gguf",
+      "hf_base_url": "https://github.com/gianlucamazza/xllama/releases/download/models-v1",
+      "files": [
+        {
+          "filename": "Qwen3.5-0.8B-Q4_K_M.gguf",
+          "approx_bytes": 532517120
+        }
+      ]
+    },
+    {
+      "name": "lfm25-350m",
+      "display": "LFM2.5 350M (GGUF · CPU)",
+      "kind": "gguf",
+      "hf_base_url": "https://github.com/gianlucamazza/xllama/releases/download/models-v1",
+      "files": [
+        {
+          "filename": "LFM2.5-350M-Q4_K_M.gguf",
+          "approx_bytes": 229312224
+        },
+        {
+          "filename": "LICENSE.txt",
+          "remote": "LFM2.5-350M_LICENSE.txt",
+          "approx_bytes": 10596
+        }
+      ]
     },
     {
       "name": "sd-turbo-fp16",
