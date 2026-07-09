@@ -9,7 +9,7 @@ End-to-end instructions for building, deploying, and benchmarking xllama on Xbox
 - Linux dev machine with this repo cloned (`--recursive`)
 - Credentials file at `~/.config/xllama/xbox-env` (see `.env.example`)
 
-The bundled model (SmolLM2-360M-Instruct INT4 CPU, 403 MB) is included in the MSIX — no separate download or upload is required.
+The MSIX ships **no model** (~19 MB package): on first launch the app downloads the default model (SmolLM2-360M-Instruct INT4 CPU, 417 MB) from the `models-v1` GitHub Release catalogue (`uwp/models/manifest.json`). No manual upload is required — Device Portal/USB provisioning remains available for models without a download URL.
 
 For local UWP builds from an Arch workstation, use the Windows VM workflow in
 [windows-dev-vm.md](./windows-dev-vm.md). Linux cannot build the UWP/MSIX package because Windows SDK packaging tools require Windows.
@@ -32,7 +32,7 @@ Download the `xllama-appx` artifact from the Actions run. It contains:
 # Output: uwp\AppPackages\xllama\xllama_*.msix
 ```
 
-The CI and the local build both run `scripts/merge_onnx_external_data.py` to merge the model's external data into a self-contained `model.onnx` before packaging (required for AppContainer compatibility — see `docs/uwp-constraints.md §8`).
+The build packages no model. Model artifacts are prepared separately: external ONNX data must be merged into a self-contained `model.onnx` (`scripts/merge_onnx_external_data.py`) before distribution, required for AppContainer compatibility — see `docs/uwp-constraints.md §8`. The published `models-v1` Release assets are already merged.
 
 ## 2. Deploy to Xbox
 
@@ -77,14 +77,14 @@ Navigate to: LocalAppData → `VenereLabs.xllama_..._x64__<token>` → `LocalSta
 
 ## 4. Switching models
 
-The default bundled model is `smollm2-360m-cpu-int4`. Three alternatives are available, in order of preference:
+The default model is `smollm2-360m-cpu-int4` (downloaded on first launch). Alternatives, in order of preference:
 
-**Option A — Settings ComboBox (v0.3.0+, recommended):**
-Open the ⚙ Settings dialog inside the app. The Model ComboBox exposes:
-
-- SmolLM2-360M (bundled MSIX)
-- SmolLM2-1.7B (USB `E:\xllama\models\`)
-- SmolLM2-360M (HF download in LocalState)
+**Option A — Settings ComboBox (recommended):**
+Open the ⚙ Settings dialog inside the app. The Model ComboBox is populated from the
+catalogue (`uwp/models/manifest.json`, overridable via `LocalState\manifest.json`):
+any entry with a download URL is fetched on selection from the `models-v1` GitHub
+Release; entries without a URL expect USB (`E:\xllama\models\`) or Device Portal
+provisioning.
 
 The selection is persisted to `LocalState/settings.json` and takes effect on the next inference call (session rebuilt transparently).
 

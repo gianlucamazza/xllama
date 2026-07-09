@@ -7,6 +7,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Docs — full drift audit + user guides (2026-07-09)
+
+Three-way audit (docs↔code, docs↔measured state, gaps) and fixes:
+
+- **Retired-narrative drift**: README, `phase1-runbook`, `device-portal`,
+  `windows-dev-vm`, `model-selection` still described the bundled-model MSIX,
+  the "~768 MB GPU pool", the build-time model merge, and pre-1.0 versions —
+  all rewritten to the current reality (19 MB no-model MSIX, first-launch
+  catalogue download from the `models-v1` Release, measured 3801 MB GPU
+  budget, per-workload verdict, image generation).
+- **Status drift**: ROADMAP Phase 3/3.5 headers and stale items (load_ms
+  baseline, 1.7B CPU bench, int4 variant location) flipped to their measured
+  state; three historical "On-console validation pending" CHANGELOG lines
+  flipped per the runbook convention; runbook section headers now carry
+  ✅ MEASURED / ⏳ PENDING markers and the v0.4.0.0 anchor is gone.
+- **New user docs**: `docs/using-the-app.md` (chat, settings, routing,
+  KV reuse, image generation) and `docs/install-release.md` (cert + VCLibs +
+  MSIX from a tagged release); `docs/README.md` index completed;
+  "Add your own model (manifest override)" how-to in `model-selection.md`;
+  `deploy.sh fetch-file` and the llamacpp CI variant documented.
+
 ### Added — in-process diffusion experiment (`diffuse-inproc.flag`)
 
 The 887A0036 device conflict (§7) was measured with ORT **GenAI**'s
@@ -258,10 +279,10 @@ This spike tests that hypothesis cheaply before building a full diffusion pipeli
 - `uwp/xllama.vcxproj`: added the ORT DirectML NuGet include dir + the new source.
   `onnxruntime.lib` was already linked.
 - Writes `imgspike-result.csv` (+ `.done`): DML vs CPU ms, GFLOP/s, GPU speedup.
-- On-console validation pending: upload `imgspike.onnx` to LocalState + drop
-  `image.flag`, fetch the CSV. **Hypothesis**: DML ≫ CPU here (compute-bound), the
-  inverse of text decode — if confirmed, a distilled SD-Turbo/LCM diffusion
-  pipeline becomes the flagship GPU workload (Phase 5).
+- On-console validation: ✅ measured 2026-07-08 — DML **11.1× faster** than CPU on
+  the compute-bound fp16 batch (2403 vs 216 GFLOP/s), the inverse of text
+  decode; hypothesis confirmed and the SD-Turbo diffusion pipeline shipped
+  in [1.0.0].
 
 ## [0.3.9.0] - 2026-07-08
 
@@ -312,8 +333,8 @@ per-turn prefill covers just the delta.
   the previous behaviour, never a wrong result.
 - Settings toggle `kv_reuse` (ToggleSwitch + `settings.json`, default on) so the
   win can be A/B'd on console.
-- On-console validation pending: measure turn-2 TTFT with reuse on vs off
-  (Stage 2b bench) and confirm multi-turn coherence before trusting it as default.
+- On-console validation: ✅ measured 2026-07-08 — turn-2 prefill **4.87× faster**
+  with reuse (103.7 ms vs 505.2 ms cold re-prefill); coherence confirmed.
 
 ### Added — multi-turn TTFT bench (Stage 2b)
 
@@ -336,8 +357,9 @@ per-turn prefill covers just the delta.
   is the prerequisite for continuous decoding / KV-cache reuse (`RewindTo`,
   generator reuse — Stage 2). No breaking C-API changes vs 0.13; existing model
   directories (built with model builder 0.14.1) load unchanged.
-- On-console validation pending: rerun the CPU + DML bench matrix and compare
-  decode tok/s to the v0.3.6 baselines to quantify the per-token overhead win.
+- On-console validation: ✅ measured 2026-07-08 — decode flat vs v0.3.6 (CPU int4
+  66.3 vs 68.0; DML fp16 46.8 = 46.8): the bump is a prereq/overhead win, not a
+  decode-rate win at this scale.
 
 ### Docs
 

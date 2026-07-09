@@ -1,11 +1,9 @@
-# Console Validation Runbook — pending on-console checks (v0.4.0.0)
+# Console Validation Runbook
 
-Three PRs landed on `main` **CI-green but console-pending** (per the merge-on-CI-green
-policy, 2026-07-08): #2 (ORT GenAI 0.14.1 + KV-cache reuse + CPU/GPU routing), #3 (plain
-ORT DirectML image spike), #4 (diffusion toolchain, model-side only). Every code path is
-additive and flag-gated, so the default behaviour is unchanged until a flag/setting is
-used — but the perf wins and the image-spike hypothesis are **assumed, not measured** until
-run on the Xbox.
+On-console checks for merged, CI-green work (merge-on-CI-green policy). Most of the
+Phase 3.5 batch was **measured 2026-07-08** (§1, §3, §4, §6-CPU, §7 below carry their
+results); the sections still marked PENDING are §2 (routing A/B, interactive), §5b
+(int4 rebuild variants), and §7b (in-process diffusion experiment, 2026-07-09).
 
 This runbook batches all of them into **one Xbox session**. Each step writes a CSV/artifact
 fetched via Device Portal, with an explicit sanity gate. Mechanics (deploy, WDP quirks,
@@ -22,15 +20,17 @@ size` on any DML row (≈ 0 ⇒ silent CPU fallback — see `phase1-runbook.md �
 - Record each result CSV under `bench/results/`, commit with a one-line "Measured" note in
   `CHANGELOG.md` (flip the matching "On-console validation pending" line to the number).
 
-## 0. One-time — deploy main (v0.4.0.0)
+## 0. One-time — deploy main
 
-`AppxManifest.xml` is at `0.4.0.0` (> any previously deployed 0.3.x), so this is a
-**forward upgrade** and LocalState is preserved (existing uploaded models/settings survive).
+Deploy the current `xllama-appx` artifact (version per `uwp/AppxManifest.xml`).
+A **version-bump upgrade preserves LocalState** (uploaded models/settings survive);
+a same-version reinstall with different contents is **blocked by WDP** — bump the
+version for every console deploy.
 
 ```bash
 source ~/.config/xllama/xbox-env
 # Get the xllama-appx artifact from the latest green build-uwp run on main, then:
-./scripts/deploy.sh path/to/xllama_0.4.0.0_*.msix
+./scripts/deploy.sh path/to/xllama_*.msix
 PFN=$(./scripts/deploy.sh pfn)
 ./scripts/deploy.sh get-log        # confirm clean startup (App::App → Window activated)
 ```
@@ -38,7 +38,7 @@ PFN=$(./scripts/deploy.sh pfn)
 > Re-verify the **Game** designation in Dev Home after any reinstall (it can reset; all
 > measured figures assume Game-mode — `docs/uwp-constraints.md §5`).
 
-## 1. PR #2 — KV-cache reuse (Stage 2b bench) → `bench-kv-result.csv`
+## 1. PR #2 — KV-cache reuse (Stage 2b bench) — ✅ MEASURED 2026-07-08 (4.87×, `phase35-kv.csv`)
 
 **Validates**: turn-2 TTFT with KV reuse (append only the delta) vs the cold full
 re-prefill. Trigger is `bench_turns.txt` present (turn-2 prompt; `prompt.txt` = turn 1).
@@ -59,7 +59,7 @@ turn-2 cold re-prefills the full 2-turn context, reuse only the ~10-token delta.
 confirm multi-turn **coherence** (read the log's decoded turn-2 output) before trusting
 `kv_reuse` as the interactive default.
 
-## 2. PR #2 — CPU/GPU routing (Stage 3, interactive, ~10 min at the console)
+## 2. PR #2 — CPU/GPU routing (Stage 3, interactive, ~10 min at the console) — ⏳ PENDING
 
 **Validates**: the `routing=2` (auto) path picks GPU (DML fp16) for long prompts and CPU
 for decode, sticky per conversation.
@@ -94,7 +94,7 @@ and a short prompt. Fetch the log afterwards (`deploy.sh get-log`).
 the follow-up stays on the same EP (sticky); the new chat with a short prompt routes back
 to CPU. Flip `routing` back to `0` (Settings) afterwards if desired.
 
-## 3. PR #2 — 0.14.1 decode overhead → refresh the v0.3.6 matrix
+## 3. PR #2 — 0.14.1 decode overhead — ✅ MEASURED 2026-07-08 (flat vs v0.3.6, `phase35-014-*.csv`)
 
 **Validates**: the 0.13.2 → 0.14.1 bump reduced CPU-side per-token overhead.
 
@@ -106,7 +106,7 @@ to CPU. Flip `routing` back to `0` (Settings) afterwards if desired.
 **Looking for**: decode tok/s vs the v0.3.6 baselines (CPU int4 68.0 short / 50.9 long;
 DML fp16 46.8 / 36.5). Any uplift is the 0.14.x win; flat is also a valid (recorded) result.
 
-## 4. PR #3 — image spike → `imgspike-result.csv`
+## 4. PR #3 — image spike — ✅ MEASURED 2026-07-08 (DML 11.1× CPU, `phase35-imgspike.csv`)
 
 **Validates the flagship hypothesis**: on a compute-bound fp16 batch (one diffusion UNet
 step proxy), the RDNA 2 GPU **beats** the CPU — the inverse of text decode.
@@ -124,7 +124,7 @@ printf 'image' > /tmp/image.flag
 C++ diffusion pipeline (Fase 3) is greenlit as the flagship GPU workload. If DML ≈ CPU or
 worse, re-examine the hypothesis before building the pipeline.
 
-## 5. int4 DML — confirm/falsify the §12 desk-check
+## 5. int4 DML — confirm/falsify the §12 desk-check (5a ✅ done; 5b ⏳ PENDING — variants rebuilt 2026-07-09)
 
 Two distinct levers; keep them separate. The desk-check (§12) predicts **neither** moves
 the 8.8 tok/s decode floor, because the limit is the **non-fused** `MatMulNBits` kernel
@@ -151,7 +151,7 @@ block128/acc4, rebuild with the ORT GenAI model builder (`-p int4 -e dml` +
 limit, CPU int4 stays the decode default); a jump ⇒ the lever exists and §12 needs
 revising. Either outcome is a recorded verdict.
 
-## 6. 1.7B scale bench — does the GPU advantage grow with model size?
+## 6. 1.7B scale bench — ✅ CPU-int4 MEASURED 2026-07-08 (20.6 tok/s, `phase35-1b-cpu.csv`); fp16-DML blocked (>2 GB protobuf)
 
 **Validates**: GPU int4 1.7B decode vs CPU int4 1.7B, and prefill crossover at scale. The
 variants are already built in `~/.cache/xllama-1b-build/` (`smollm2-1.7b-cpu-int4`,
