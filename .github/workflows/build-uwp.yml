@@ -48,7 +48,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: success()
         with:
-          name: xllama-appx${{ matrix.variant == 'default' && '' || format('-{0}', matrix.variant) }}
+          name: ${{ matrix.variant != 'default' && format('xllama-appx-{0}', matrix.variant) || 'xllama-appx' }}
           # Include .msix (main package), .appx (VCLibs deps), and .cer
           # (public key of the test certificate that must be trusted on the
           # Xbox before deploying — installed via Device Portal API).
