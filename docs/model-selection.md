@@ -169,10 +169,16 @@ on-console decode/prefill benches pending.
 | Gemma-3-270M        | ORT GenAI  | ~300 MB (est.)       | ⛔ gated on HF — needs an access token to build    |
 | Gemma-4 (E2B/E4B)   | —          | ≥2B effective        | ⛔ too big + arch not in builder                   |
 
-Backend selection is by `SessionParams::backend` (`Auto` infers `.gguf` →
-llama.cpp, ORT-dir → ORT). Redistribution to the `models-v1` Release requires a
-permissive license: Qwen (Apache) ✅; LFM Open License / Gemma Terms — verify
-before hosting, else provision manually (entry without `hf_base_url`).
+Backend selection is by `SessionParams::backend` (explicit values take
+precedence in dual-backend builds). `Auto` (default) uses either a `.gguf`
+suffix or on-disk layout inspection via the public helper
+`model_uses_llama_backend()` (bare catalogue names or directories containing a
+`.gguf` file → llama.cpp; otherwise ORT GenAI). A placeholder `kind: "gguf"`
+entry (`qwen35-0.8b`) exists in the manifest for manual provisioning.
+
+Redistribution to the `models-v1` Release requires a permissive license: Qwen
+(Apache) ✅; LFM Open License / Gemma Terms — verify before hosting, else
+provision manually (entry without `hf_base_url`).
 
 ### TAESD — a faster diffusion VAE decoder
 
