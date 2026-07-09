@@ -290,8 +290,8 @@ void run_diffuse() {
                        std::to_string((int)ms_since(t_load0)) + " ms\n");
 
             for (size_t s = 0; s < sched.timesteps().size(); ++s) {
-                const std::string step_label = std::to_string(s + 1) + "/" +
-                                               std::to_string(sched.timesteps().size());
+                const std::string step_label =
+                    std::to_string(s + 1) + "/" + std::to_string(sched.timesteps().size());
                 if (cancel_requested()) {
                     log_output("[xllama] diffuse: cancelled at unet step " + step_label + "\n");
                     write_progress("cancelled");
