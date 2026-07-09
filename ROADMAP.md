@@ -227,8 +227,10 @@ Milestones:
 - [ ] Interactive validations at the pad: §2 routing A/B + Image dialog flow
 - [~] Closure benches: int4 `block_size=128` / `accuracy_level=4` (§12
   confirm/refute) — running on console 2026-07-09; `load_ms` baseline done
-- [ ] Fase 2: catalogue `kind:gguf` → `sp.backend`, gate KV-reuse/routing off
-      for GGUF; promote Qwen3.5/LFM2 to the catalogue if benches justify
+- [x] Fase 2: catalogue `kind:gguf` → `sp.backend`, gate KV-reuse/routing off
+      for GGUF (plumbing complete 2026-07-09 via PR #30 + layout-aware Auto,
+      resolve support, bench guard, tests; asset promotion + console benches
+      remain Fase 2b).
 - [ ] If §2 shows `887A0036` on the GPU turn in XAML: vendor the patched GenAI
       DLL (PR microsoft/onnxruntime-genai#2280, console-validated) until the
       fix ships upstream

@@ -15,10 +15,10 @@
 
 namespace xllama {
 
-// Which inference backend a session uses. Auto picks from the on-disk model
-// layout (an ORT GenAI directory has genai_config.json; a llama.cpp model is a
-// single .gguf). Explicit values are honored when a build links both backends;
-// single-backend builds ignore this field (only one path is compiled).
+// Which inference backend a session uses. Auto inspects the model identifier
+// (suffix or resolved on-disk layout: *.gguf -> LlamaCpp, else OrtGenAI).
+// Explicit values are honored when a build links both backends; single-backend
+// builds ignore this field.
 enum class Backend { Auto, OrtGenAI, LlamaCpp };
 
 struct SessionParams {

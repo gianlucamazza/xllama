@@ -45,6 +45,11 @@ Generation shows live tok/s; **■ Cancel** stops a running reply.
     (prefill is 1.8× faster at ~1k tokens), short chats stay on CPU; the
     choice is sticky per conversation.
 
+**Note for GGUF models** (`kind: "gguf"` in the catalogue): the **KV-cache reuse**
+and **EP routing** controls are disabled (greyed out). The llama.cpp backend is
+stateless and runs CPU-only on Xbox; delta-only reuse would produce incorrect
+output and GPU routing does not apply.
+
 Settings persist to `LocalState\settings.json` and take effect on the next
 inference call.
 

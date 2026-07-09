@@ -45,8 +45,10 @@ class ModelDownloader {
 
 // One entry of the model catalogue (models/manifest.json). An empty hf_base_url
 // means the model cannot be auto-downloaded (USB/Device-Portal provisioning only).
-// kind selects the consumer: "ort-genai" (default, chat picker) or "diffusion"
-// (image dialog; hidden from the chat model ComboBox).
+// kind selects the consumer AND the backend: "ort-genai" (default, chat picker,
+// ORT GenAI backend), "diffusion" (image dialog; hidden from the chat picker), or
+// "gguf" (chat picker, llama.cpp backend; KV-reuse and EP routing disabled — the
+// llama.cpp path is stateless and CPU-only on Xbox).
 struct ManifestEntry {
     std::wstring name;
     std::wstring display;

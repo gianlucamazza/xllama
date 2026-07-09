@@ -73,7 +73,7 @@ See [docs/install-release.md](./docs/install-release.md) to install a tagged rel
 `xllama` predates the pivot to ONNX Runtime GenAI. The name is kept for continuity, not as a claim about the engine:
 
 - **`x`** — Xbox (UWP target) and cross-platform (Linux CLI build).
-- **`llama`** — local-LLM ecosystem at large. The Linux build still uses `llama.cpp`; the UWP build does not. Neither path ships LLaMA model weights — the default model is SmolLM2-360M-Instruct.
+- **`llama`** — local-LLM ecosystem at large. The Linux build still uses `llama.cpp` (GGUF). The UWP "unified" build also supports GGUF models via the catalogue (`kind: "gguf"`) using the shared `xllama::Session` API and layout-aware `Backend::Auto`. Neither path ships LLaMA model weights — the default model is SmolLM2-360M-Instruct.
 
 ---
 

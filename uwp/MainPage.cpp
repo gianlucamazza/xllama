@@ -950,6 +950,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     // selection is always representable.
     auto manifest = ::xllama::LoadModelManifest();
     std::vector<std::wstring> model_keys;
+    std::vector<bool> model_is_gguf; // parallel to model_keys; gates the KV/routing UI
     int model_sel = 0;
     for (auto const& e : manifest) {
         if (e.kind == L"diffusion")
@@ -958,11 +959,13 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
         if (m_model_filename == e.name)
             model_sel = (int)model_keys.size();
         model_keys.push_back(e.name);
+        model_is_gguf.push_back(e.kind == L"gguf");
     }
     if (!m_model_filename.empty() && !::xllama::FindManifestEntry(manifest, m_model_filename)) {
         modelBox.Items().Append(winrt::box_value(winrt::hstring(m_model_filename + L" (custom)")));
         model_sel = (int)model_keys.size();
         model_keys.push_back(m_model_filename);
+        model_is_gguf.push_back(false);
     }
     modelBox.SelectedIndex(model_sel);
 
@@ -1012,6 +1015,22 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     routingBox.Items().Append(winrt::box_value(L"GPU only (DML)"));
     routingBox.Items().Append(winrt::box_value(L"Auto (long prompts → GPU)"));
     routingBox.SelectedIndex(m_routing >= 0 && m_routing <= 2 ? m_routing : 0);
+
+    // GGUF models run stateless on CPU-only llama.cpp: KV-reuse and EP routing do
+    // not apply, so grey them out whenever a GGUF entry is selected (and restore
+    // them for ORT entries). Wired live on the model ComboBox.
+    auto sync_backend_toggles = [kvToggle, routingBox, model_is_gguf](int idx) {
+        bool gguf = idx >= 0 && idx < (int)model_is_gguf.size() && model_is_gguf[idx];
+        kvToggle.IsEnabled(!gguf);
+        routingBox.IsEnabled(!gguf);
+    };
+    sync_backend_toggles(model_sel);
+    modelBox.SelectionChanged(
+        [sync_backend_toggles](winrt::Windows::Foundation::IInspectable const& sender,
+                               winrt::Windows::UI::Xaml::Controls::SelectionChangedEventArgs const&) {
+            auto box = sender.as<winrt::Windows::UI::Xaml::Controls::ComboBox>();
+            sync_backend_toggles(box.SelectedIndex());
+        });
 
     winrt::Windows::UI::Xaml::Controls::StackPanel panel;
     panel.Orientation(Orientation::Vertical);
@@ -1497,6 +1516,16 @@ bool MainPageController::EnsureSession(const std::string& model, std::string* er
     sp.model_path = model;
     sp.n_ctx = 2048;
     sp.n_threads = 0; // auto
+    // Pick the backend from the catalogue kind: a "gguf" entry runs on llama.cpp,
+    // everything else (an ORT GenAI directory) on ORT. On a single-backend build
+    // this field is ignored (only one path is compiled). The model name is bare
+    // (no extension), so Backend::Auto's suffix sniffing cannot classify it.
+    {
+        auto manifest = ::xllama::LoadModelManifest();
+        const auto* entry = ::xllama::FindManifestEntry(manifest, ::xllama::utf8_to_wstring(model));
+        if (entry && entry->kind == L"gguf")
+            sp.backend = xllama::Backend::LlamaCpp;
+    }
     std::string err;
     auto s = xllama::Session::create(sp, &err);
     if (!s) {
@@ -1558,12 +1587,26 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     if (n_dropped > 0)
         SetStatus(L"Context trimmed — " + std::to_wstring(n_dropped) + L" old turn(s) dropped");
 
+    // Is the base model a GGUF (llama.cpp backend)? On Xbox llama.cpp is CPU-only
+    // (no ggml GPU backend) and LlamaSession is stateless, so both EP routing and
+    // KV-cache reuse are meaningless — and reuse would be *incorrect* (it sends
+    // only the turn delta, which a stateless backend would treat as the whole
+    // prompt). Gate both off for GGUF models.
+    bool base_is_gguf = false;
+    {
+        auto manifest = ::xllama::LoadModelManifest();
+        const auto* e = ::xllama::FindManifestEntry(manifest, m_model_filename);
+        base_is_gguf = e && e->kind == L"gguf";
+    }
+
     // Stage 3: decide EP routing once per conversation (sticky — the KV cache is
     // per-EP). m_active_model is cleared on new/loaded chat, so this fires on the
     // first turn and stays fixed after. Default (m_routing==0) keeps the CPU model.
     if (m_active_model.empty()) {
         constexpr int kRoutingTokThreshold = 500; // ~crossover from the v0.3.6 matrix
-        if (m_routing == 1) {
+        if (base_is_gguf) {
+            m_active_model = m_model_filename; // no EP routing for llama.cpp (CPU-only)
+        } else if (m_routing == 1) {
             m_active_model = ::xllama::utf8_to_wstring(m_gpu_model);
         } else if (m_routing == 2) {
             int est_tok = static_cast<int>(full_prompt.size() / 4);
@@ -1579,8 +1622,8 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     // turn was evicted this round (RewindTo cannot drop from the head, so eviction
     // forces a full re-prefill). A reuse turn appends only the delta; otherwise we
     // (re)prefill the full prompt — which also (re)seeds the persistent generator.
-    bool do_reuse = m_kv_reuse && m_kv_valid && n_dropped == 0;
-    bool kv_reuse = m_kv_reuse;
+    bool do_reuse = m_kv_reuse && m_kv_valid && n_dropped == 0 && !base_is_gguf;
+    bool kv_reuse = m_kv_reuse && !base_is_gguf;
     std::string delta_prompt = do_reuse ? BuildDeltaPrompt(user_text) : std::string();
 
     // Record user message in history AFTER building prompt (avoids duplicate)

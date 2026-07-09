@@ -13,6 +13,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
 #include <string>
 
 // Backend availability. A build defines XLLAMA_USE_ORT when ORT GenAI is linked.
@@ -463,7 +464,29 @@ class LlamaSession final : public Session {
 
 namespace detail {
 std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err) {
-    const std::string abs_path = resolve_model_path(sp.model_path);
+    std::string abs_path = resolve_model_path(sp.model_path);
+
+    // resolve_model_path yields a FILE path on Linux (a direct .gguf) but the
+    // model DIRECTORY on UWP (catalogue layout LocalState\models\<name>\). llama
+    // loads a file, so descend into a directory and pick the single .gguf inside.
+    {
+        std::error_code ec;
+        if (std::filesystem::is_directory(abs_path, ec)) {
+            std::string gguf;
+            for (const auto& de : std::filesystem::directory_iterator(abs_path, ec)) {
+                if (de.path().extension() == ".gguf") {
+                    gguf = de.path().string();
+                    break;
+                }
+            }
+            if (gguf.empty()) {
+                if (err)
+                    *err = "no .gguf file in model dir: " + abs_path;
+                return nullptr;
+            }
+            abs_path = std::move(gguf);
+        }
+    }
 
     llama_model_params mparams = llama_model_default_params();
     mparams.n_gpu_layers = sp.n_gpu_layers;
@@ -494,12 +517,11 @@ std::unique_ptr<Session> Session::create(const SessionParams& sp, std::string* e
 #if defined(XLLAMA_USE_ORT) && defined(XLLAMA_USE_LLAMA)
     Backend b = sp.backend;
     if (b == Backend::Auto) {
-        // Infer from the model layout: a .gguf file is llama.cpp, anything else
-        // (an ORT GenAI directory) is ORT. Fase 2 sets sp.backend explicitly from
-        // the catalogue `kind`, so Auto is only a fallback.
-        const std::string& mp = sp.model_path;
-        const bool is_gguf = mp.size() >= 5 && mp.compare(mp.size() - 5, 5, ".gguf") == 0;
-        b = is_gguf ? Backend::LlamaCpp : Backend::OrtGenAI;
+        // Layout-aware: uses suffix fast-path + resolve + directory scan so that
+        // bare catalogue names (e.g. "qwen35-0.8b" pointing at a dir with .gguf)
+        // are classified correctly. Explicit Backend from manifest (MainPage) or
+        // tests still takes precedence.
+        b = model_uses_llama_backend(sp.model_path) ? Backend::LlamaCpp : Backend::OrtGenAI;
     }
     return b == Backend::LlamaCpp ? detail::create_llama(sp, err) : detail::create_ort(sp, err);
 #elif defined(XLLAMA_USE_ORT)

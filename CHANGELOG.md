@@ -7,7 +7,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-_(nothing yet)_
+### Added
+
+- **GGUF catalogue plumbing (Fase 2).** Complete end-to-end support for
+  `kind: "gguf"` catalogue entries:
+  - New public helper `model_uses_llama_backend()` (suffix fast-path + resolve +
+    `*.gguf` directory scan) makes `Backend::Auto` layout-aware. Bare catalogue
+    names (e.g. "qwen35-0.8b") now correctly select the llama.cpp backend in
+    unified builds.
+  - `resolve_model_path` treats directories containing `*.gguf` as valid models
+    (LocalState primary + USB fallback).
+  - `run_kv_bench` (ORT-only) now guards GGUF models and emits a clear skip.
+  - GGUF models are hidden from KV-cache reuse and EP routing in Settings
+    (llama.cpp path is stateless + CPU-only on Xbox).
+  - Unit tests added for the helper and Auto dispatch on suffix + directory
+    layouts.
+  - Example placeholder entry (`qwen35-0.8b`) added to `uwp/models/manifest.json`
+    (manual provisioning until Fase 2b).
+
+  Catalogue asset upload + on-console benches for Qwen3.5/LFM2 remain Fase 2b
+  (bench-gated). See PR #30.
 
 ## [1.1.0] - 2026-07-09
 
