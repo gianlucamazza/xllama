@@ -34,7 +34,7 @@
 
 The project started as a port of [`llama.cpp`](https://github.com/ggml-org/llama.cpp) (GGUF files, CPU-only), then migrated to **ONNX Runtime GenAI + DirectML**. The measured verdict is **per-workload** (see [docs/technical-report.md](./docs/technical-report.md)): the Zen 2 **CPU wins autoregressive decode** at this model scale (~66 tok/s, SmolLM2-360M int4), the RDNA 2 **GPU wins batch compute** — prefill at ~1k prompt tokens (1.8× faster) and image generation (**11.1×** on the diffusion workload: SD-Turbo 512×512 in ~7 s). The app routes per conversation (CPU / GPU / auto). The llama.cpp path is preserved for Linux development, CI, and a bench-only UWP variant (measured: decode parity with ORT, so ORT stays the text backend).
 
-The default chat model is **SmolLM2-360M-Instruct INT4 CPU** (~403 MB), downloaded on first launch from the GitHub Release model catalogue — the MSIX itself is ~19 MB and ships no model.
+The default chat model is **SmolLM2-360M-Instruct INT4 CPU** (~417 MB), downloaded on first launch from the GitHub Release model catalogue — the MSIX itself is ~19 MB and ships no model.
 
 Goals:
 
