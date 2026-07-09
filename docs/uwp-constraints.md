@@ -179,17 +179,21 @@ GenAI release, the interactive (XAML) app can use DML without the headless
 path — practically relevant only if a larger model ever makes DML
 competitive (CPU is 8× faster at 360M scale).
 
-**Open experiment — plain ORT DML in the XAML process (`diffuse-inproc.flag`)**:
-the conflict above was measured with **ORT GenAI**, whose DML EP goes through the
-Agility device factory. The diffusion pipeline (`uwp/diffuse.cpp`) uses **plain
-ORT DirectML** (`OrtSessionOptionsAppendExecutionProvider_DML`, ORT 1.24.4) —
-potentially the same plain-`D3D12CreateDevice` path that coexisted with the
-compositor in Exp 1. The headless requirement for diffusion was inherited from
-the GenAI finding, never falsified for plain ORT. `diffuse-inproc.flag`
-(`App.cpp`) runs `run_diffuse()` on a background MTA thread inside the live XAML
-process to test exactly that. If it holds, image generation becomes in-app (no
-restart flow); watch GPU headroom — compositor + 2.4 GB of sequential-lifetime
-weights inside the 3801 MB budget. **Pending console run.**
+**Plain ORT DML coexists with the XAML compositor — ✅ MEASURED 2026-07-09.**
+The `887A0036` conflict was measured with **ORT GenAI**, whose DML EP goes
+through the Agility device factory. The diffusion pipeline (`uwp/diffuse.cpp`)
+uses **plain ORT DirectML** (`OrtSessionOptionsAppendExecutionProvider_DML`,
+ORT 1.24.4), and the headless requirement was _inherited_ from the GenAI finding,
+never falsified for plain ORT. `diffuse-inproc.flag` (`App.cpp`) runs
+`run_diffuse()` on a background MTA thread **inside the live XAML process**;
+on console it ran the full SD-Turbo pipeline to a coherent 512×512 PNG **with
+the compositor alive** — no `887A0036`, no OOM (te 1006 ms, UNet 2991 ms, VAE
+1576 ms, **total 5.57 s**, actually faster than the 6.9 s headless run, warm GPU).
+**Conclusion**: the device conflict is specific to GenAI's Agility factory;
+plain ORT DML shares the compositor's device fine. Image generation can run
+**in-app without the restart flow** — the headless `diffuse.flag` path is no
+longer required for diffusion (kept for bench parity). GPU headroom held:
+compositor + sequential-lifetime weights (~2.4 GB) inside the 3801 MB budget.
 
 **Diagnosis**: SEH `0xC0000005` in `OgaCreateModel`. WDP minidump (`type=2`) and the `xllama.log` entry `OgaCreateModel failed: ...` confirm the cause.
 

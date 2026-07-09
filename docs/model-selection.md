@@ -152,3 +152,34 @@ add models without rebuilding the MSIX:
 Constraints: `model.onnx` must be **self-contained** (< 2 GB, external data merged —
 `uwp-constraints.md §8`) and fit the Dev Mode disk budget. For diffusion models the
 contract is different (three components + CLIP assets): see `diffusion/README.md`.
+
+## Modern models (2026 survey, runtime-backend era)
+
+The ORT GenAI model builder is frozen at the Qwen3 / Gemma3 architectures.
+Newer small models (Qwen3.5, LFM2, Gemma-4) ship as GGUF and run **only via
+llama.cpp** — reachable once the `unified` backend build (PR #27) is the default
+and the catalogue carries `kind: gguf` entries. Host-validated 2026-07-09;
+on-console decode/prefill benches pending.
+
+| Model               | Path       | Size (Q4_K_M / int4) | Status                                             |
+| ------------------- | ---------- | -------------------- | -------------------------------------------------- |
+| Qwen3.5-0.8B        | llama.cpp  | 507 MB               | ✅ loads+generates via submodule (`qwen35`); modern default candidate |
+| LFM2.5-350M         | llama.cpp  | 218 MB               | ✅ loads via submodule; hybrid edge arch           |
+| Qwen3-0.6B          | ORT GenAI  | 969 MB merged        | ✅ builds; heavy (151k-vocab embedding dominates)  |
+| Gemma-3-270M        | ORT GenAI  | ~300 MB (est.)       | ⛔ gated on HF — needs an access token to build    |
+| Gemma-4 (E2B/E4B)   | —          | ≥2B effective        | ⛔ too big + arch not in builder                   |
+
+Backend selection is by `SessionParams::backend` (`Auto` infers `.gguf` →
+llama.cpp, ORT-dir → ORT). Redistribution to the `models-v1` Release requires a
+permissive license: Qwen (Apache) ✅; LFM Open License / Gemma Terms — verify
+before hosting, else provision manually (entry without `hf_base_url`).
+
+### TAESD — a faster diffusion VAE decoder
+
+`madebyollin/taesd` (MIT) is a **4.9 MB** tiny autoencoder that drop-in replaces
+SD-Turbo's 94 MB VAE decoder (same `latent_sample [1,4,64,64] → sample
+[1,3,512,512]` contract). On console the VAE stage is 2.6 s of the 6.9 s total,
+so TAESD targets **~4.5 s/image** and frees ~90 MB of GPU. Export with
+`diffusion/export_taesd.py` (the diffusers `AutoencoderTiny` decoder already
+emits SD `[-1,1]` — the [0,1]→remap assumption was falsified); validate the swap
+with `validate_pipeline.py <sd_dir> out.png "<prompt>" 1 42 <taesd_dir>`.
