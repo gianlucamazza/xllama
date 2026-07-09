@@ -18,7 +18,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake build-essential libcurl4-openssl-dev ccache \
             python3-pip shellcheck
-          pip3 install --user clang-format
+          # Pinned: an unpinned clang-format broke CI when 22.x changed rules
+          # (2026-07-10). Bump deliberately and reformat the tree in one PR.
+          pip3 install --user 'clang-format==22.1.6'
           echo "$(python3 -m site --user-base)/bin" >> "$GITHUB_PATH"
 
       - name: Verify C++ formatting
