@@ -9,6 +9,7 @@
 #   deploy.sh mkdir-localstate <pfn> <relpath>           Create directory in LocalState (e.g. models\Phi-3.5)
 #   deploy.sh pfn                                        Print installed xllama package full name
 #   deploy.sh get-log [pfn]                              Print LocalState/xllama.log
+#   deploy.sh fetch-file <pfn> <name> <local-out> [subdir]  Download a LocalState file
 #   deploy.sh list-localstate [pfn]                      List app LocalState files
 #   deploy.sh list-dumps                                 List user-mode crash dumps
 #   deploy.sh start-app [pfn]                            Launch xllama through WDP
@@ -87,6 +88,20 @@ list_localstate() {
 	curl "${CURL_AUTH[@]}" \
 		"${BASE_URL}/api/filesystem/apps/files?knownfolderid=LocalAppData&packagefullname=${pfn}&path=\\LocalState" ||
 		true
+}
+
+# Download a LocalState file to a local path (fails loud on HTTP errors so a
+# missing remote file doesn't leave a stale/HTML local copy behind).
+# subdir: optional path under LocalState, backslash-separated (e.g. "models\\x").
+fetch_file() {
+	local pfn="$1" name="$2" out="$3" subdir="${4:-}"
+	local path='\LocalState'
+	if [[ -n "$subdir" ]]; then
+		path="\\LocalState\\${subdir}"
+	fi
+	curl "${CURL_AUTH[@]}" --fail -o "$out" \
+		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${pfn}&path=${path}&filename=${name}"
+	echo "Fetched ${name} -> ${out}"
 }
 
 # Create a directory inside LocalState.
@@ -193,6 +208,19 @@ fi
 
 if [[ "${1:-}" == "list-localstate" ]]; then
 	list_localstate "${2:-}"
+	exit 0
+fi
+
+if [[ "${1:-}" == "fetch-file" ]]; then
+	PFN="$(require_pfn "${2:-}")"
+	NAME="${3:-}"
+	OUT="${4:-}"
+	SUBDIR="${5:-}"
+	if [[ -z "$NAME" || -z "$OUT" ]]; then
+		echo "Usage: $0 fetch-file <pfn> <name> <local-out> [subdir]" >&2
+		exit 1
+	fi
+	fetch_file "$PFN" "$NAME" "$OUT" "$SUBDIR"
 	exit 0
 fi
 
