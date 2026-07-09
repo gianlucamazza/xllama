@@ -1,0 +1,15 @@
+{
+  "system_prompt": "You are a helpful assistant.",
+  "model": "smollm2-360m-cpu-int4",
+  "kv_reuse": true,
+  "routing": 2,
+  "gpu_model": "smollm2-360m-dml-fp16",
+  "diffuse_taesd_vae": true,
+  "sampling": {
+    "temperature": 0.8,
+    "top_p": 0.9,
+    "top_k": 40,
+    "repetition_penalty": 1.1,
+    "n_predict": 512
+  }
+}

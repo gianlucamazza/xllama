@@ -243,7 +243,7 @@ Numbers are measured on Xbox Series S Dev Mode. See [docs/uwp-constraints.md](./
 ## Limitations
 
 - **Disk is the binding budget, not GPU memory**: the measured per-process GPU budget is **3801 MB** (package designated Game), but Dev Mode leaves only ~2.2–2.5 GB free on disk — that is what caps model size.
-- **DirectML vs XAML (`887A0036`)**: ORT GenAI's DML device conflicts with the XAML compositor's D3D12 device in the same process, so GPU workloads run in headless flag modes (`bench.flag`, `diffuse.flag`); fix contributed upstream ([onnxruntime-genai#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280)). Whether plain ORT DML (diffusion) shares the constraint is under test (`diffuse-inproc.flag`).
+- **DirectML vs XAML (`887A0036`)**: ORT **GenAI** DML conflicts with the XAML compositor's D3D12 device in the vanilla NuGet DLL. Image generation uses plain ORT DML and runs **in-process**; chat GPU routing needs the [#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280) patched `onnxruntime-genai.dll` (`build-uwp.ps1 -PatchedGenAI`). Headless `bench.flag` remains for automation.
 - **Sandboxed filesystem**: models are downloaded to `LocalState` or transferred via Device Portal / USB. No arbitrary path access.
 - **AppContainer path traversal**: ORT 1.24.4 calls `std::filesystem::weakly_canonical()` for external ONNX data files, which traverses path segments the AppContainer cannot read. Workaround: distribute models with `model.onnx.data` merged into a self-contained `model.onnx` (`scripts/merge_onnx_external_data.py`).
 - **No POSIX mmap / no `dlopen`**: NuGet-packaged ORT GenAI DLLs must be app-local (`DeploymentContent=true`); no system-wide DLL loading.
@@ -261,7 +261,7 @@ See [ROADMAP.md](./ROADMAP.md). Headlines:
 2. **Phase 2 — GPU acceleration** ✅ GPU proven; verdict per-workload (CPU decode, GPU prefill/images).
 3. **Phase 3 / 3.5 — Benchmarks + hardware ceiling** ✅ Measured matrices, routing, KV reuse, llama.cpp A/B (parity), diffusion on console.
 4. **Phase 4 — In-app model download + publication** ✅ Catalogue download, v1.0.0 release, technical report (demo video pending).
-5. **Phase 5 — Post-1.0 improvements** 🚧 In-proc diffusion experiment, interactive validations, upstream #2280.
+5. **Phase 5 — Post-1.0 improvements** 🚧 In-proc diffusion + TAESD + patched GenAI DLL pipeline done; console validation §2/TAESD pending.
 
 ---
 
