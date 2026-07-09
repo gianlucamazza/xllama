@@ -36,7 +36,6 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
   private:
     void BuildUI();
     void LoadModelName();
-    winrt::fire_and_forget CheckBenchMode();
     winrt::fire_and_forget EnsureModelAsync();
     void StartInference(std::wstring const& prompt);
     void OnRunClick(winrt::Windows::Foundation::IInspectable const&,

@@ -7,6 +7,41 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Removed — purpose-served legacy (image spike, GGUF-era bench, dead switches)
+
+- **Image spike** (`uwp/image-spike.cpp`, the `image.flag` headless mode,
+  `scripts/gen_imgspike_model.py`): the hypothesis it existed to test was
+  confirmed on console 2026-07-08 (DML 11.1× CPU) and the real diffusion
+  pipeline shipped in 1.0.0. The result CSV stays; the tooling lives in git
+  history at `v1.0.0`.
+- **`CheckBenchMode`** (MainPage): superseded by the `wWinMain` headless
+  dispatch — an in-XAML bench would run with the compositor alive and produce
+  numbers not comparable with every recorded CSV.
+- **`bench-xbox.sh` + `bench/config/phase1-*.json`**: the pre-pivot GGUF-era
+  orchestrator (single-`.gguf` upload, qwen3/llama-3.2 configs never used by
+  the ONNX app); docs already invoked it with arguments it rejected.
+  `bench-xbox-ort.sh` is the orchestrator (docs updated).
+- **`build-uwp.ps1 -NoBundledModel`**: the `XllamaNoBundledModel` MSBuild
+  property no longer exists (the model ItemGroup was removed in 1.0.0) — the
+  switch was a no-op.
+
+### Added — SD-Turbo in the download catalogue (image model self-serve)
+
+The image model no longer requires Device Portal provisioning: the catalogue
+gains a `kind: "diffusion"` entry for `sd-turbo-fp16` (validated artifact —
+`validate_pipeline.py` end-to-end pass; the `-ort-fp16` candidate is the
+CUDA-only NhwcConv trap and stays excluded), and the **Image dialog downloads
+it on the first Generate** (~2.4 GB, progress in the status bar).
+
+- Manifest schema: optional `kind` (`ort-genai` default / `diffusion`) and
+  per-file `remote` (flat release asset name; `filename` may now carry a
+  subpath like `unet/model.onnx` — the downloader creates subfolders).
+- Diffusion entries are hidden from the chat model picker.
+- `run_diffuse` reads the CLIP tokenizer from the model's own `tokenizer/`
+  dir first (what the download provides), falling back to the legacy
+  `LocalState\clip\` upload.
+- Requires the 5 `sd-turbo-fp16_*` assets on the `models-v1` GitHub Release.
+
 ### Docs — full drift audit + user guides (2026-07-09)
 
 Three-way audit (docs↔code, docs↔measured state, gaps) and fixes:

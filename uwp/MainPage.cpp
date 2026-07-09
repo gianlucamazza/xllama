@@ -952,6 +952,8 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     std::vector<std::wstring> model_keys;
     int model_sel = 0;
     for (auto const& e : manifest) {
+        if (e.kind == L"diffusion")
+            continue; // image models belong to the Image dialog, not the chat picker
         modelBox.Items().Append(winrt::box_value(winrt::hstring(e.display)));
         if (m_model_filename == e.name)
             model_sel = (int)model_keys.size();
@@ -1142,6 +1144,59 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
     if (result != winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary)
         co_return;
 
+    // Ensure the diffusion model is present; download it from the catalogue if
+    // missing (kind "diffusion" entries never reach the chat picker).
+    constexpr const wchar_t* kDiffusionModel = L"sd-turbo-fp16";
+    {
+        auto local = ApplicationData::Current().LocalFolder();
+        std::wstring model_dir =
+            std::wstring(local.Path().c_str()) + L"\\models\\" + kDiffusionModel;
+        std::error_code ec;
+        const bool present = std::filesystem::exists(
+                                 std::filesystem::path(model_dir) / L"unet" / L"model.onnx", ec) ||
+                             ModelDownloader::IsComplete(model_dir);
+        if (!present) {
+            auto manifest = ::xllama::LoadModelManifest();
+            auto* entry = ::xllama::FindManifestEntry(manifest, kDiffusionModel);
+            if (!entry || entry->hf_base_url.empty() || entry->files.empty()) {
+                self->SetStatus(std::wstring(L"Model '") + kDiffusionModel +
+                                    L"' not found. Provision it via Device Portal "
+                                    L"(see diffusion/README.md).",
+                                StatusKind::Error);
+                co_return;
+            }
+            std::filesystem::create_directories(model_dir, ec);
+            if (ec) {
+                self->SetStatus(L"Cannot create the diffusion model dir", StatusKind::Error);
+                co_return;
+            }
+            self->SetStatus(L"Downloading image model (~2.4 GB)...", StatusKind::Working);
+            self->m_loadingBar.IsIndeterminate(false);
+            self->m_loadingBar.Value(0);
+            self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Visible);
+            auto dl_ok = std::make_shared<bool>(false);
+            auto dl_err = std::make_shared<std::wstring>();
+            co_await ModelDownloader::DownloadAsync(
+                entry->hf_base_url, model_dir, entry->files, m_root.Dispatcher(),
+                [self](uint64_t done, uint64_t total) {
+                    if (total > 0)
+                        self->m_loadingBar.Value((double)done / (double)total * 100.0);
+                    self->SetStatus(L"Downloading image model... " +
+                                        std::to_wstring(done / (1024 * 1024)) + L" MB",
+                                    StatusKind::Working);
+                },
+                [dl_ok, dl_err](bool ok2, std::wstring err) {
+                    *dl_ok = ok2;
+                    *dl_err = std::move(err);
+                });
+            self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Collapsed);
+            if (!*dl_ok) {
+                self->SetStatus(L"Image model download failed: " + *dl_err, StatusKind::Error);
+                co_return;
+            }
+        }
+    }
+
     // Stage the headless generation inputs. The flag is written LAST so a
     // partially staged run can never trigger.
     auto write_local = [](const wchar_t* name, const std::string& bytes) {
@@ -1182,7 +1237,7 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
 // ---------------------------------------------------------------------------
 // EnsureModelAsync — checks whether the model is available locally;
 // downloads from Hugging Face if not found in LocalState or InstalledPath.
-// Calls LoadModelName() + CheckBenchMode() when ready.
+// Calls LoadModelName() when ready.
 // ---------------------------------------------------------------------------
 
 fire_and_forget MainPageController::EnsureModelAsync() {
@@ -1204,7 +1259,6 @@ fire_and_forget MainPageController::EnsureModelAsync() {
         self->LoadModelName();
         self->SetStatus(L"Ready", StatusKind::Success);
         self->m_runButton.IsEnabled(true);
-        self->CheckBenchMode();
         co_return;
     }
 
@@ -1221,7 +1275,6 @@ fire_and_forget MainPageController::EnsureModelAsync() {
             self->LoadModelName();
             self->SetStatus(L"Ready", StatusKind::Success);
             self->m_runButton.IsEnabled(true);
-            self->CheckBenchMode();
             co_return;
         }
     }
@@ -1347,7 +1400,6 @@ fire_and_forget MainPageController::EnsureModelAsync() {
             self->LoadModelName();
             self->SetStatus(L"Ready", StatusKind::Success);
             self->m_runButton.IsEnabled(true);
-            self->CheckBenchMode();
             co_return;
         }
     }
@@ -1418,7 +1470,6 @@ fire_and_forget MainPageController::EnsureModelAsync() {
             }
             self->SetStatus(L"Model ready", StatusKind::Success);
             self->LoadModelName();
-            self->CheckBenchMode();
         });
 }
 
@@ -1431,36 +1482,6 @@ void MainPageController::LoadModelName() {
     if (m_model_filename.empty())
         m_model_filename = L"smollm2-360m-cpu-int4";
     m_modelText.Text(m_model_filename);
-}
-
-// ---------------------------------------------------------------------------
-// CheckBenchMode: detect bench.flag and auto-run main_loop if present
-// ---------------------------------------------------------------------------
-
-fire_and_forget MainPageController::CheckBenchMode() {
-    auto self = shared_from_this();
-
-    co_await resume_background();
-
-    auto flag_path = local_wpath(L"bench.flag");
-    FILE* f = _wfopen(flag_path.c_str(), L"r");
-    if (!f)
-        co_return;
-    fclose(f);
-    // Delete flag so repeated restarts don't re-trigger bench mode
-    _wremove(flag_path.c_str());
-
-    co_await resume_foreground(self->m_root.Dispatcher());
-    self->SetStatus(L"Bench mode — running...", StatusKind::Working);
-    self->SetRunning(true);
-    self->m_runButton.IsEnabled(false);
-
-    co_await resume_background();
-    ::xllama::bridge::main_loop();
-
-    co_await resume_foreground(self->m_root.Dispatcher());
-    self->SetStatus(L"Bench complete", StatusKind::Success);
-    self->SetRunning(false);
 }
 
 // ---------------------------------------------------------------------------

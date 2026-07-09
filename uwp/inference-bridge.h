@@ -19,12 +19,9 @@ inline InferenceResult run_inference(const InferenceParams& params) {
 // Called from UWP App on a background thread (bench mode).
 void main_loop();
 
-// Image-generation spike (Stage: image DirectML). Runs a compute-bound conv
-// model (proxy for a diffusion UNet step) through the plain ONNX Runtime
-// DirectML EP and a CPU EP control, measuring forward-pass latency + GFLOP/s to
-// test whether the GPU wins on compute-bound fp16 batch workloads (unlike M=1
-// text decode). Triggered by LocalFolder\image.flag in the headless path.
-void run_image_spike();
+// Diffusion pipeline (SD-Turbo on plain ORT DirectML). Triggered by
+// LocalFolder\diffuse.flag (headless) or diffuse-inproc.flag (in-process
+// experiment) — see diffuse.cpp for the model contract.
 void run_diffuse();
 
 } // namespace xllama::bridge

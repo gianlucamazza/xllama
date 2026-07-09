@@ -295,7 +295,6 @@
     <ClCompile Include="..\src\bridge\utf8_utils.cpp" />
     <!-- cli.cpp uses POSIX getopt — Linux only, excluded from UWP target -->
     <ClCompile Include="inference-bridge.cpp" />
-    <ClCompile Include="image-spike.cpp" />
     <ClCompile Include="diffuse.cpp" />
   </ItemGroup>
 

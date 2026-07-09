@@ -118,20 +118,18 @@ Models are resolved by `resolve_model_path()` in `src/bridge/path_utils.cpp` in 
 ```bash
 source ~/.config/xllama/xbox-env
 
-./scripts/bench-xbox.sh smollm2-360m-cpu-int4 bench/config/phase1-smollm2-360m.json
+./scripts/bench-xbox-ort.sh smollm2-360m-cpu-int4 --runs 3 --out bench/results/phase1-cpu.csv
 ```
 
-Each invocation:
-
-1. Writes the model name to `LocalState/model.txt`
-2. Uploads `bench/prompts/standard-512.txt` to `LocalState/prompt.txt`
-3. Writes `bench.flag` to trigger bench mode on next launch
-4. Runs 3 iterations (drops run 1 as cold start)
-5. Fetches `bench-result.csv` from `LocalState` and appends median to `bench/results/phase1-cpu.csv`
+Each invocation uploads the prompt, writes `bench.flag`, launches the app in
+headless bench mode, runs N iterations (run 1 is dropped as cold start), and
+fetches the result CSV. `--threads N` swaps in a
+`bench/configs/genai_config-threads-N.json`; `--gpu-sample` records GPU
+engine/memory telemetry on DML rows.
 
 ## 6. Manual bench (fallback)
 
-If `bench-xbox.sh` cannot control the app lifecycle automatically:
+If `bench-xbox-ort.sh` cannot control the app lifecycle automatically:
 
 ```bash
 source ~/.config/xllama/xbox-env

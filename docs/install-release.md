@@ -58,9 +58,10 @@ Launch xllama from Dev Home (or `./scripts/deploy.sh start-app`). The app
 downloads the default chat model (~417 MB) with a progress bar, then opens the
 chat. See [using-the-app.md](./using-the-app.md) from here.
 
-For image generation, the SD-Turbo model (2.4 GB, not in the download
-catalogue) is provisioned via Device Portal per
-[../diffusion/README.md](../diffusion/README.md) and the runbook §7.
+For image generation, the SD-Turbo model (2.4 GB) is downloaded from the
+catalogue on the first **Generate** — mind the Dev Mode disk budget
+(~2.2–2.5 GB free total). Device Portal provisioning remains available
+([../diffusion/README.md](../diffusion/README.md), runbook §7).
 
 ## Troubleshooting
 

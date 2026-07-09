@@ -62,7 +62,7 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
     constexpr uint32_t kBufSize = 256 * 1024; // 256 KB read buffer
 
     for (auto const& f : files) {
-        auto url_str = hf_repo_url + L"/" + f.filename;
+        auto url_str = hf_repo_url + L"/" + (f.remote.empty() ? f.filename : f.remote);
         Uri uri(url_str);
 
         // --- Send HTTP request ------------------------------------------------
@@ -89,12 +89,21 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
         }
 
         // --- Open target file -------------------------------------------------
+        // filename may carry a relative subpath (e.g. "unet/model.onnx" for the
+        // diffusion components); create intermediate folders as needed.
         StorageFolder folder{nullptr};
         StorageFile out_file{nullptr};
         std::wstring open_err;
         try {
             folder = co_await StorageFolder::GetFolderFromPathAsync(local_dir);
-            out_file = co_await folder.CreateFileAsync(f.filename,
+            std::wstring leaf = f.filename;
+            size_t sep;
+            while ((sep = leaf.find_first_of(L"/\\")) != std::wstring::npos) {
+                folder = co_await folder.CreateFolderAsync(winrt::hstring(leaf.substr(0, sep)),
+                                                           CreationCollisionOption::OpenIfExists);
+                leaf = leaf.substr(sep + 1);
+            }
+            out_file = co_await folder.CreateFileAsync(winrt::hstring(leaf),
                                                        CreationCollisionOption::ReplaceExisting);
         } catch (...) {
             open_err = L"Cannot create file " + f.filename + L" in " + local_dir;
@@ -223,12 +232,14 @@ std::vector<ManifestEntry> parse_manifest(winrt::hstring const& text) {
         if (e.name.empty())
             continue;
         e.display = obj.GetNamedString(L"display", winrt::hstring(e.name));
+        e.kind = obj.GetNamedString(L"kind", L"ort-genai");
         e.hf_base_url = obj.GetNamedString(L"hf_base_url", L"");
         if (obj.HasKey(L"files")) {
             for (auto const& f : obj.GetNamedArray(L"files")) {
                 auto fo = f.GetObject();
                 ModelFile mf;
                 mf.filename = fo.GetNamedString(L"filename", L"");
+                mf.remote = fo.GetNamedString(L"remote", L"");
                 mf.approx_bytes = (uint64_t)fo.GetNamedNumber(L"approx_bytes", 0);
                 if (!mf.filename.empty())
                     e.files.push_back(std::move(mf));
@@ -279,10 +290,10 @@ std::vector<ManifestEntry> LoadModelManifest() {
     // NOTE: no special_tokens_map.json — the HF repo does not have one (the old
     // hardcoded list requested it and got HTTP 404, breaking every download).
     e.files = {
-        {L"genai_config.json", 2'000},
-        {L"tokenizer.json", 3'600'000},
-        {L"tokenizer_config.json", 1'000},
-        {L"model.onnx", 417'404'408},
+        {L"genai_config.json", L"", 2'000},
+        {L"tokenizer.json", L"", 3'600'000},
+        {L"tokenizer_config.json", L"", 1'000},
+        {L"model.onnx", L"", 417'404'408},
     };
     return {e};
 }

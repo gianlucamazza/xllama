@@ -163,7 +163,7 @@ xllama/
 │   ├── deploy.sh                      # Device Portal: deploy, logs, bench trigger
 │   ├── build-uwp.ps1                  # Windows UWP packaging
 │   ├── merge_onnx_external_data.py    # merge model.onnx.data → self-contained model.onnx
-│   ├── bench-xbox.sh                  # automated benchmark runner
+│   ├── bench-xbox-ort.sh              # automated benchmark orchestrator
 │   ├── install-latest-build.sh        # fetch + deploy latest CI artifact
 │   ├── test-dml-config.sh             # upload DML provider_options without MSIX rebuild
 │   ├── check-uwp-host.sh              # Linux host preflight

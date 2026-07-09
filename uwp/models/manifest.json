@@ -1,5 +1,5 @@
 {
-  "_comment": "Model catalogue for xllama. Bundled at InstalledPath\\models\\manifest.json; a LocalState\\manifest.json (uploadable via Device Portal, no reinstall) overrides it entirely. Entries without hf_base_url are USB/Device-Portal-provisioned only. approx_bytes drives the download progress bar.",
+  "_comment": "Model catalogue for xllama. Bundled at InstalledPath\\models\\manifest.json; a LocalState\\manifest.json (uploadable via Device Portal, no reinstall) overrides it entirely. Entries without hf_base_url are USB/Device-Portal-provisioned only. approx_bytes drives the download progress bar. kind: 'ort-genai' (default, chat picker) or 'diffusion' (image dialog). files[].filename is the local path under models\\<name> (subdirs allowed); files[].remote is the flat asset name in the release (defaults to filename).",
   "models": [
     {
       "name": "smollm2-360m-cpu-int4",
@@ -31,6 +31,39 @@
     {
       "name": "smollm2-1.7b-cpu-int4",
       "display": "SmolLM2 1.7B (CPU int4)"
+    },
+    {
+      "name": "sd-turbo-fp16",
+      "display": "SD-Turbo (image, GPU fp16)",
+      "kind": "diffusion",
+      "hf_base_url": "https://github.com/gianlucamazza/xllama/releases/download/models-v1",
+      "files": [
+        {
+          "filename": "text_encoder/model.onnx",
+          "remote": "sd-turbo-fp16_text_encoder_model.onnx",
+          "approx_bytes": 681657392
+        },
+        {
+          "filename": "unet/model.onnx",
+          "remote": "sd-turbo-fp16_unet_model.onnx",
+          "approx_bytes": 1733278769
+        },
+        {
+          "filename": "vae_decoder/model.onnx",
+          "remote": "sd-turbo-fp16_vae_decoder_model.onnx",
+          "approx_bytes": 99125634
+        },
+        {
+          "filename": "tokenizer/vocab.json",
+          "remote": "sd-turbo-fp16_tokenizer_vocab.json",
+          "approx_bytes": 1059962
+        },
+        {
+          "filename": "tokenizer/merges.txt",
+          "remote": "sd-turbo-fp16_tokenizer_merges.txt",
+          "approx_bytes": 524619
+        }
+      ]
     }
   ]
 }

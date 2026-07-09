@@ -25,10 +25,11 @@ Benchmark suite for xllama. Results are stored as CSV files in `results/`.
 
 ```bash
 source ~/.config/xllama/xbox-env
-./scripts/bench-xbox.sh smollm2-360m-cpu-int4 bench/config/phase1-smollm2-360m.json
+./scripts/bench-xbox-ort.sh smollm2-360m-cpu-int4 --runs 3 --out bench/results/phase1-cpu.csv
 ```
 
-Results are appended to `bench/results/phase1-cpu.csv`.
+`--threads N` swaps in `bench/configs/genai_config-threads-N.json`; `--gpu-sample`
+records GPU engine/memory telemetry on DML rows.
 
 ### Xbox — multi-turn TTFT (KV-cache reuse, Stage 2b)
 

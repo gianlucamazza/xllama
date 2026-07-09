@@ -63,9 +63,11 @@ the XAML compositor (`uwp-constraints.md §7`); removing it is in progress
 (in-process experiment + upstream fix
 [onnxruntime-genai#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280)).
 
-Requires the `sd-turbo-fp16` model (2.4 GB, three components — not in the
-download catalogue) and the CLIP tokenizer assets in LocalState, provisioned
-via Device Portal — see [../diffusion/README.md](../diffusion/README.md) for
-how they are produced and uploaded. Each generation writes
+The `sd-turbo-fp16` model (2.4 GB: text encoder, UNet, VAE decoder + CLIP
+tokenizer) is **downloaded automatically on the first Generate** from the
+model catalogue, disk permitting (the Dev Mode budget is tight — free space
+first if needed); Device Portal provisioning remains available as an
+alternative ([../diffusion/README.md](../diffusion/README.md)). Each
+generation writes
 `diffuse-out.png`, `diffuse-result.csv` (per-stage timings) and a live
 `diffuse-progress.txt`; no cleanup is needed between runs.
