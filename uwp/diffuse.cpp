@@ -24,8 +24,16 @@
 // embeddings + guidance blend), out of scope for the console demo.
 //
 // Inputs (LocalState): prompt.txt, diffuse-model.txt (model dir name),
-// diffuse-steps.txt (default 1), diffuse-seed.txt (default 42).
-// Outputs: diffuse-out.png (+ .done) and diffuse-result.csv with per-stage ms.
+// diffuse-steps.txt (default 1), diffuse-seed.txt (default 42);
+// diffuse-cancel.flag aborts between UNet steps (consumed).
+// Outputs: diffuse-out.png (+ .done), diffuse-result.csv with per-stage ms,
+// diffuse-progress.txt with the live stage (start/text_encoder/unet s/N/vae/
+// done/cancelled/error).
+//
+// Entry points: headless via diffuse.flag (no compositor, the proven path) or
+// in-process via diffuse-inproc.flag (App.cpp §7 experiment: plain ORT DML vs
+// the XAML compositor device — unlike GenAI's Agility-factory device, plain
+// ORT may coexist; pending console validation).
 
 #include "inference-bridge.h"
 
@@ -163,6 +171,29 @@ double ms_since(std::chrono::steady_clock::time_point t0) {
     return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
 }
 
+// Progress/cancel plumbing for UI or Device-Portal pollers.
+// diffuse-progress.txt holds the current stage: "start", "text_encoder",
+// "unet <s>/<N>", "vae", then "done" / "cancelled" / "error".
+void write_progress(const std::string& stage) {
+    FILE* fp = _wfopen(utf8_to_wstring(resolve_local_path("diffuse-progress.txt")).c_str(), L"w");
+    if (fp) {
+        fputs(stage.c_str(), fp);
+        fputc('\n', fp);
+        fclose(fp);
+    }
+}
+
+// diffuse-cancel.flag (written by the UI/WDP, consumed here) aborts the run
+// between UNet steps — the only boundary where a multi-second run can stop
+// cleanly without tearing down a session mid-Run.
+bool cancel_requested() {
+    const std::wstring flag = utf8_to_wstring(resolve_local_path("diffuse-cancel.flag"));
+    if (GetFileAttributesW(flag.c_str()) == INVALID_FILE_ATTRIBUTES)
+        return false;
+    _wremove(flag.c_str());
+    return true;
+}
+
 } // namespace
 
 void run_diffuse() {
@@ -179,6 +210,12 @@ void run_diffuse() {
     const int seed = read_int_file("diffuse-seed.txt", 42, 0, 1'000'000'000);
     log_output("[xllama] diffuse: model='" + dir + "' steps=" + std::to_string(steps) +
                " seed=" + std::to_string(seed) + " prompt='" + prompt + "'\n");
+
+    // Fresh run: stale completion marker and a leftover cancel flag from a
+    // previous run must not leak into this one.
+    _wremove(utf8_to_wstring(resolve_local_path("diffuse-out.png.done")).c_str());
+    (void)cancel_requested();
+    write_progress("start");
 
     try {
         auto model = [&](const char* comp) {
@@ -199,6 +236,7 @@ void run_diffuse() {
         // 2026-07-08). Sequential lifetime frees ~2.3 GB before the VAE runs.
 
         // ---- Text encoder: input_ids[1,77] -> last_hidden_state[1,77,H] -----
+        write_progress("text_encoder");
         auto t_load0 = std::chrono::steady_clock::now();
         std::vector<float> hidden; // [1,77,H]
         double te_ms = 0.0;
@@ -252,6 +290,14 @@ void run_diffuse() {
                        std::to_string((int)ms_since(t_load0)) + " ms\n");
 
             for (size_t s = 0; s < sched.timesteps().size(); ++s) {
+                const std::string step_label =
+                    std::to_string(s + 1) + "/" + std::to_string(sched.timesteps().size());
+                if (cancel_requested()) {
+                    log_output("[xllama] diffuse: cancelled at unet step " + step_label + "\n");
+                    write_progress("cancelled");
+                    return;
+                }
+                write_progress("unet " + step_label);
                 // scale_model_input on a copy (UNet sees the scaled latent).
                 std::vector<float> scaled = latent;
                 sched.scale_model_input(scaled);
@@ -291,6 +337,7 @@ void run_diffuse() {
         } // release UNet weights (~1.65 GB) before the VAE's 512x512 activations
 
         // ---- VAE decode: latent/scale [1,4,64,64] -> sample[1,3,512,512] -----
+        write_progress("vae");
         for (auto& v : latent)
             v = v / (float)kVaeScale;
         std::vector<float> img; // [1,3,512,512] in [-1,1]
@@ -360,13 +407,17 @@ void run_diffuse() {
             }
             log_output("[xllama] diffuse: wrote diffuse-out.png (" + std::to_string(kImageHW) +
                        "x" + std::to_string(kImageHW) + ")\n");
+            write_progress("done");
         } else {
             log_output("[xllama] diffuse: PNG write failed\n");
+            write_progress("error");
         }
     } catch (const Ort::Exception& e) {
         log_output(std::string("[xllama] diffuse: ORT error: ") + e.what() + "\n");
+        write_progress("error");
     } catch (const std::exception& e) {
         log_output(std::string("[xllama] diffuse: error: ") + e.what() + "\n");
+        write_progress("error");
     }
 }
 

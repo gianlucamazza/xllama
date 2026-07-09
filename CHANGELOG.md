@@ -7,7 +7,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-_(nothing yet)_
+### Added — in-process diffusion experiment (`diffuse-inproc.flag`)
+
+The 887A0036 device conflict (§7) was measured with ORT **GenAI**'s
+Agility-factory device; the diffusion pipeline uses **plain ORT DML**, which may
+coexist with the XAML compositor device. `diffuse-inproc.flag` runs
+`run_diffuse()` on a background MTA thread inside the live XAML process to
+falsify the inherited headless requirement. If it passes on console, image
+generation becomes in-app — no restart flow. Runbook §7b; on-console validation
+pending.
+
+### Added — diffusion progress + cancellation
+
+`diffuse-progress.txt` reports the live stage (`start` / `text_encoder` /
+`unet s/N` / `vae` / `done` / `cancelled` / `error`); `diffuse-cancel.flag`
+(consumed) aborts between UNet steps. Works in both the headless and the
+in-process paths; stale `.done`/cancel artifacts are cleared at run start.
 
 ## [1.0.0] - 2026-07-08
 
@@ -43,7 +58,6 @@ byte-exact on device → `.complete` written. Distribution is now self-hosted:
 coherent new 512×512 image in **7.7 s** (UNet 2.08 s/step ×2 — per-step cost
 scales as expected; te/vae unchanged).
 
-
 ### Measured — llama.cpp CPU A/B on console: parity, not 2× (hypothesis falsified)
 
 llama.cpp **runs on the Xbox in AppContainer** (first time): static ggml+llama
@@ -70,7 +84,6 @@ lane (`uwp/ggml-uwp.vcxproj`, `patches/0001-uwp-appcontainer-guards.patch`, CI
   hid all timings (own chrono now, like the ORT path); ggml.c/ggml.cpp and
   ggml-cpu.c/.cpp same-dir obj collisions silently dropped every C symbol; the
   128 `src/models/*.cpp` per-arch files were missing from the static lib.
-
 
 ### Measured — image generation on console (v0.4.2.0, 2026-07-08) 🎨
 
