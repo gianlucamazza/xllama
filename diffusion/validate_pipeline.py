@@ -11,7 +11,10 @@
 # (covers the ORT-team fp16 export where timestep is float16).
 #
 #   ~/.cache/xllama-diffusion/venv310/bin/python diffusion/validate_pipeline.py \
-#       [model_dir] [out.png] ["prompt"] [steps] [seed]
+#       [model_dir] [out.png] ["prompt"] [steps] [seed] [vae_dir]
+#
+# vae_dir (optional): directory holding an alternative vae_decoder/model.onnx
+# (e.g. a TAESD export) — validates a decoder swap against the same contract.
 import sys, time
 import numpy as np
 import onnxruntime as ort
@@ -31,19 +34,20 @@ prompt = (
 )
 steps = int(sys.argv[4]) if len(sys.argv) > 4 else 1
 seed = int(sys.argv[5]) if len(sys.argv) > 5 else 42
+vae_dir = sys.argv[6] if len(sys.argv) > 6 else model_dir
 
 VAE_SCALE = 0.18215
 LATENT_HW = 64
 
 
-def sess(comp):
+def sess(comp, root=None):
     # EXTENDED, not ALL: ORT_ENABLE_ALL's layout transforms crash session init on
     # the fp16 SD graphs (graph_utils GetIndexFromName) — same cap as diffuse.cpp,
     # so this validates the exact configuration the console runs.
     so = ort.SessionOptions()
     so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_EXTENDED
     return ort.InferenceSession(
-        f"{model_dir}/{comp}/model.onnx",
+        f"{root or model_dir}/{comp}/model.onnx",
         sess_options=so,
         providers=["CPUExecutionProvider"],
     )
@@ -87,7 +91,9 @@ latent = rng.randn(1, 4, LATENT_HW, LATENT_HW).astype(np.float32) * float(
 )
 
 unet = sess("unet")
-vae = sess("vae_decoder")
+vae = sess("vae_decoder", root=vae_dir)
+if vae_dir != model_dir:
+    print(f"[val] vae override: {vae_dir}/vae_decoder/model.onnx")
 ts_type = in_type(unet, "timestep")
 print(
     f"[val] unet inputs: sample={in_type(unet, 'sample')} timestep={ts_type} "

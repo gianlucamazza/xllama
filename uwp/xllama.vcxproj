@@ -41,9 +41,11 @@
        Plain ORT (image spike, diffusion) stays linked in both. -->
   <PropertyGroup>
     <XllamaBackend Condition="'$(XllamaBackend)' == ''">ort</XllamaBackend>
-    <!-- The sources gate on `#ifdef XLLAMA_USE_ORT` (not #if), so the macro must
-         be ABSENT — not 0 — in the llamacpp variant. -->
+    <!-- The sources gate on `#ifdef XLLAMA_USE_ORT` / `#ifdef XLLAMA_USE_LLAMA`
+         (not #if), so each macro must be ABSENT — not 0 — when its backend is off.
+         ort: ORT only. llamacpp: llama only. unified: BOTH (runtime dispatch). -->
     <XllamaOrtDefine Condition="'$(XllamaBackend)' != 'llamacpp'">XLLAMA_USE_ORT=1;</XllamaOrtDefine>
+    <XllamaLlamaDefine Condition="'$(XllamaBackend)' == 'llamacpp' or '$(XllamaBackend)' == 'unified'">XLLAMA_USE_LLAMA=1;</XllamaLlamaDefine>
   </PropertyGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -118,6 +120,7 @@
         _CRT_SECURE_NO_WARNINGS;
         XLLAMA_UWP=1;
         $(XllamaOrtDefine)
+        $(XllamaLlamaDefine)
         %(PreprocessorDefinitions)
       </PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -277,7 +280,7 @@
        solution member, so the solution's project-configuration mapping does not
        cover it — without SetConfiguration/SetPlatform the reference builds as
        the MSBuild default Debug|Win32 (MSB8013). -->
-  <ItemGroup Condition="'$(XllamaBackend)' == 'llamacpp'">
+  <ItemGroup Condition="'$(XllamaBackend)' == 'llamacpp' or '$(XllamaBackend)' == 'unified'">
     <ProjectReference Include="ggml-uwp.vcxproj">
       <Project>{B7E11D2A-4C63-4A0E-9D1F-2A6C58F0AA31}</Project>
       <SetConfiguration>Configuration=$(Configuration)</SetConfiguration>

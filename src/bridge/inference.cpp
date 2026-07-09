@@ -10,6 +10,28 @@
 #include <cstdio>
 #include <string>
 
+// Backend availability — mirrors src/bridge/session.cpp. See the note there.
+#if !defined(XLLAMA_USE_LLAMA)
+    #if defined(XLLAMA_LINUX) || !defined(XLLAMA_USE_ORT)
+        #define XLLAMA_USE_LLAMA 1
+    #endif
+#endif
+
+#if !defined(XLLAMA_USE_ORT) && !defined(XLLAMA_USE_LLAMA)
+    #error "no inference backend compiled (define XLLAMA_USE_ORT and/or XLLAMA_USE_LLAMA)"
+#endif
+
+namespace xllama {
+namespace detail {
+#ifdef XLLAMA_USE_ORT
+InferenceResult run_inference_ort(const InferenceParams& params);
+#endif
+#ifdef XLLAMA_USE_LLAMA
+InferenceResult run_inference_llama(const InferenceParams& params);
+#endif
+} // namespace detail
+} // namespace xllama
+
 // ---------------------------------------------------------------------------
 // ONNX Runtime GenAI path (UWP + DirectML GPU)
 // ---------------------------------------------------------------------------
@@ -26,8 +48,9 @@
     #include <chrono>
 
 namespace xllama {
+namespace detail {
 
-InferenceResult run_inference(const InferenceParams& params) {
+InferenceResult run_inference_ort(const InferenceParams& params) {
     InferenceResult res;
 
     // Convert SEH (D3D12/DML OOM/AV) → std::runtime_error so the catch block can log it.
@@ -220,13 +243,16 @@ InferenceResult run_inference(const InferenceParams& params) {
 
     return res;
 }
+} // namespace detail
 
 } // namespace xllama
 
+#endif // XLLAMA_USE_ORT
+
 // ---------------------------------------------------------------------------
-// llama.cpp path (Linux / CLI)
+// llama.cpp path (Linux / CLI + UWP llamacpp/unified)
 // ---------------------------------------------------------------------------
-#else
+#ifdef XLLAMA_USE_LLAMA
 
     #include "llama.h"
     #include "xllama/llama_raii.h"
@@ -234,8 +260,9 @@ InferenceResult run_inference(const InferenceParams& params) {
     #include <vector>
 
 namespace xllama {
+namespace detail {
 
-InferenceResult run_inference(const InferenceParams& params) {
+InferenceResult run_inference_llama(const InferenceParams& params) {
     InferenceResult res;
 
     const std::string abs_model_path = resolve_model_path(params.model_path);
@@ -379,7 +406,27 @@ InferenceResult run_inference(const InferenceParams& params) {
 
     return res;
 }
+} // namespace detail
 
 } // namespace xllama
 
-#endif // XLLAMA_USE_ORT
+#endif // XLLAMA_USE_LLAMA
+
+// ---------------------------------------------------------------------------
+// Public entry: dispatch to the compiled backend(s).
+// ---------------------------------------------------------------------------
+namespace xllama {
+
+InferenceResult run_inference(const InferenceParams& params) {
+#if defined(XLLAMA_USE_ORT) && defined(XLLAMA_USE_LLAMA)
+    const std::string& mp = params.model_path;
+    const bool is_gguf = mp.size() >= 5 && mp.compare(mp.size() - 5, 5, ".gguf") == 0;
+    return is_gguf ? detail::run_inference_llama(params) : detail::run_inference_ort(params);
+#elif defined(XLLAMA_USE_ORT)
+    return detail::run_inference_ort(params);
+#else // XLLAMA_USE_LLAMA
+    return detail::run_inference_llama(params);
+#endif
+}
+
+} // namespace xllama
