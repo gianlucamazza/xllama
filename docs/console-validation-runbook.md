@@ -216,6 +216,24 @@ done
 - If the image is noise, check the log for a tokenizer/model-shape mismatch (non-fp16
   model, `hidden_dim` ≠ 1024, wrong scheduler class).
 
+### 7b. In-process experiment (`diffuse-inproc.flag`) — PENDING
+
+Falsification run for `docs/uwp-constraints.md` §7 "Open experiment": does plain ORT DML
+coexist with the XAML compositor device? Same inputs as §7, but write
+`diffuse-inproc.flag` **instead of** `diffuse.flag`, then `deploy.sh start-app` — the app
+starts the normal XAML UI and runs the pipeline on a background thread in the same
+process.
+
+- Poll `diffuse-progress.txt` (`start` → `text_encoder` → `unet s/N` → `vae` → `done`);
+  `diffuse-cancel.flag` aborts between UNet steps (progress `cancelled`).
+- **PASS**: log shows `diffuse-inproc.flag detected` + per-stage ms + `wrote
+diffuse-out.png` with the XAML window still up; PNG matches the §7 headless output for
+  the same prompt/seed/steps.
+- **FAIL**: `diffuse: ORT error: ... 887A0036` (device conflict also affects plain ORT —
+  the headless flow stays) or `8007000E` during VAE (GPU budget with compositor:
+  headroom, not device, is the blocker).
+- Either outcome: record it in `docs/uwp-constraints.md` §7 and close the experiment.
+
 ## Closeout
 
 For each step: append the median CSV row under `bench/results/`, flip the matching

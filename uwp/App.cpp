@@ -14,6 +14,10 @@
 
     #include <thread>
 
+// Defined in the headless section below; also used by the in-process
+// diffusion experiment in App::OnLaunched.
+static std::wstring flag_path_if_present(const wchar_t* name);
+
 using namespace winrt;
 using namespace winrt::Windows::ApplicationModel::Activation;
 using namespace winrt::Windows::UI::Xaml;
@@ -105,6 +109,25 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
         log_write("[xllama] Window.Content set\n");
         Window::Current().Activate();
         log_write("[xllama] Window activated\n");
+
+        // §7 experiment: the 887A0036 device conflict was measured with ORT
+        // GenAI's Agility-factory device; diffuse.cpp uses plain ORT DML, whose
+        // device may coexist with the compositor device the line above just
+        // created. diffuse-inproc.flag runs the diffusion pipeline on a
+        // background MTA thread INSIDE the XAML process to test exactly that.
+        // Consumed before the run, same semantics as the headless flags.
+        std::wstring inproc = flag_path_if_present(L"diffuse-inproc.flag");
+        if (!inproc.empty()) {
+            _wremove(inproc.c_str());
+            log_write("[xllama] diffuse-inproc.flag detected -> in-process diffusion "
+                      "(compositor alive)\n");
+            std::thread([] {
+                winrt::init_apartment(); // MTA: run_diffuse uses ApplicationData
+                ::xllama::bridge::run_diffuse();
+                ::xllama::log_output("[xllama] diffuse-inproc: run returned (result/error above; "
+                                     "XAML window still up)\n");
+            }).detach();
+        }
     } catch (winrt::hresult_error const& e) {
         char buf[512];
         snprintf(buf, sizeof(buf), "[xllama] OnLaunched hresult 0x%08X: %ls\n",

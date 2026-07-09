@@ -179,6 +179,18 @@ GenAI release, the interactive (XAML) app can use DML without the headless
 path — practically relevant only if a larger model ever makes DML
 competitive (CPU is 8× faster at 360M scale).
 
+**Open experiment — plain ORT DML in the XAML process (`diffuse-inproc.flag`)**:
+the conflict above was measured with **ORT GenAI**, whose DML EP goes through the
+Agility device factory. The diffusion pipeline (`uwp/diffuse.cpp`) uses **plain
+ORT DirectML** (`OrtSessionOptionsAppendExecutionProvider_DML`, ORT 1.24.4) —
+potentially the same plain-`D3D12CreateDevice` path that coexisted with the
+compositor in Exp 1. The headless requirement for diffusion was inherited from
+the GenAI finding, never falsified for plain ORT. `diffuse-inproc.flag`
+(`App.cpp`) runs `run_diffuse()` on a background MTA thread inside the live XAML
+process to test exactly that. If it holds, image generation becomes in-app (no
+restart flow); watch GPU headroom — compositor + 2.4 GB of sequential-lifetime
+weights inside the 3801 MB budget. **Pending console run.**
+
 **Diagnosis**: SEH `0xC0000005` in `OgaCreateModel`. WDP minidump (`type=2`) and the `xllama.log` entry `OgaCreateModel failed: ...` confirm the cause.
 
 **Source note**: the GPU budget (3801 MB) is measured per-process via
