@@ -1026,8 +1026,9 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     };
     sync_backend_toggles(model_sel);
     modelBox.SelectionChanged(
-        [sync_backend_toggles](winrt::Windows::Foundation::IInspectable const& sender,
-                               winrt::Windows::UI::Xaml::Controls::SelectionChangedEventArgs const&) {
+        [sync_backend_toggles](
+            winrt::Windows::Foundation::IInspectable const& sender,
+            winrt::Windows::UI::Xaml::Controls::SelectionChangedEventArgs const&) {
             auto box = sender.as<winrt::Windows::UI::Xaml::Controls::ComboBox>();
             sync_backend_toggles(box.SelectedIndex());
         });
