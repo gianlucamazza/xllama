@@ -130,9 +130,13 @@ add models without rebuilding the MSIX:
    }
    ```
 
-   With `hf_base_url` set, the app downloads `<hf_base_url>/<filename>` for each
-   file on selection. Without it, the entry expects the directory at
+   With `hf_base_url` set, the app downloads `<hf_base_url>/<remote or filename>`
+   for each file on selection. Without it, the entry expects the directory at
    `LocalState\models\<name>` (Device Portal upload) or USB `E:\xllama\models\<name>`.
+   Optional fields: `kind` (`"ort-genai"` default; `"diffusion"` entries feed the
+   Image dialog and are hidden from the chat picker) and per-file `remote` (the
+   flat asset name in the release when `filename` carries a subpath, e.g.
+   `"filename": "unet/model.onnx"` + `"remote": "sd-turbo-fp16_unet_model.onnx"`).
 
 2. Upload the override and (if needed) the model files:
 

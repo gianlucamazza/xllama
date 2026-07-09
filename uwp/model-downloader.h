@@ -14,7 +14,10 @@
 namespace xllama {
 
 struct ModelFile {
-    std::wstring filename;
+    std::wstring
+        filename;        // local path under the model dir; may contain subdirs ("unet/model.onnx")
+    std::wstring remote; // asset name in the download source (release assets are flat);
+                         // empty = same as filename
     uint64_t approx_bytes; // 0 = unknown; used for progress display only
 };
 
@@ -42,9 +45,12 @@ class ModelDownloader {
 
 // One entry of the model catalogue (models/manifest.json). An empty hf_base_url
 // means the model cannot be auto-downloaded (USB/Device-Portal provisioning only).
+// kind selects the consumer: "ort-genai" (default, chat picker) or "diffusion"
+// (image dialog; hidden from the chat model ComboBox).
 struct ManifestEntry {
     std::wstring name;
     std::wstring display;
+    std::wstring kind{L"ort-genai"};
     std::wstring hf_base_url;
     std::vector<ModelFile> files;
 };

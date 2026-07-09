@@ -952,6 +952,8 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     std::vector<std::wstring> model_keys;
     int model_sel = 0;
     for (auto const& e : manifest) {
+        if (e.kind == L"diffusion")
+            continue; // image models belong to the Image dialog, not the chat picker
         modelBox.Items().Append(winrt::box_value(winrt::hstring(e.display)));
         if (m_model_filename == e.name)
             model_sel = (int)model_keys.size();
@@ -1141,6 +1143,59 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
     auto result = co_await dlg.ShowAsync();
     if (result != winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary)
         co_return;
+
+    // Ensure the diffusion model is present; download it from the catalogue if
+    // missing (kind "diffusion" entries never reach the chat picker).
+    constexpr const wchar_t* kDiffusionModel = L"sd-turbo-fp16";
+    {
+        auto local = ApplicationData::Current().LocalFolder();
+        std::wstring model_dir =
+            std::wstring(local.Path().c_str()) + L"\\models\\" + kDiffusionModel;
+        std::error_code ec;
+        const bool present = std::filesystem::exists(
+                                 std::filesystem::path(model_dir) / L"unet" / L"model.onnx", ec) ||
+                             ModelDownloader::IsComplete(model_dir);
+        if (!present) {
+            auto manifest = ::xllama::LoadModelManifest();
+            auto* entry = ::xllama::FindManifestEntry(manifest, kDiffusionModel);
+            if (!entry || entry->hf_base_url.empty() || entry->files.empty()) {
+                self->SetStatus(std::wstring(L"Model '") + kDiffusionModel +
+                                    L"' not found. Provision it via Device Portal "
+                                    L"(see diffusion/README.md).",
+                                StatusKind::Error);
+                co_return;
+            }
+            std::filesystem::create_directories(model_dir, ec);
+            if (ec) {
+                self->SetStatus(L"Cannot create the diffusion model dir", StatusKind::Error);
+                co_return;
+            }
+            self->SetStatus(L"Downloading image model (~2.4 GB)...", StatusKind::Working);
+            self->m_loadingBar.IsIndeterminate(false);
+            self->m_loadingBar.Value(0);
+            self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Visible);
+            auto dl_ok = std::make_shared<bool>(false);
+            auto dl_err = std::make_shared<std::wstring>();
+            co_await ModelDownloader::DownloadAsync(
+                entry->hf_base_url, model_dir, entry->files, m_root.Dispatcher(),
+                [self](uint64_t done, uint64_t total) {
+                    if (total > 0)
+                        self->m_loadingBar.Value((double)done / (double)total * 100.0);
+                    self->SetStatus(L"Downloading image model... " +
+                                        std::to_wstring(done / (1024 * 1024)) + L" MB",
+                                    StatusKind::Working);
+                },
+                [dl_ok, dl_err](bool ok2, std::wstring err) {
+                    *dl_ok = ok2;
+                    *dl_err = std::move(err);
+                });
+            self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Collapsed);
+            if (!*dl_ok) {
+                self->SetStatus(L"Image model download failed: " + *dl_err, StatusKind::Error);
+                co_return;
+            }
+        }
+    }
 
     // Stage the headless generation inputs. The flag is written LAST so a
     // partially staged run can never trigger.

@@ -7,6 +7,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — SD-Turbo in the download catalogue (image model self-serve)
+
+The image model no longer requires Device Portal provisioning: the catalogue
+gains a `kind: "diffusion"` entry for `sd-turbo-fp16` (validated artifact —
+`validate_pipeline.py` end-to-end pass; the `-ort-fp16` candidate is the
+CUDA-only NhwcConv trap and stays excluded), and the **Image dialog downloads
+it on the first Generate** (~2.4 GB, progress in the status bar).
+
+- Manifest schema: optional `kind` (`ort-genai` default / `diffusion`) and
+  per-file `remote` (flat release asset name; `filename` may now carry a
+  subpath like `unet/model.onnx` — the downloader creates subfolders).
+- Diffusion entries are hidden from the chat model picker.
+- `run_diffuse` reads the CLIP tokenizer from the model's own `tokenizer/`
+  dir first (what the download provides), falling back to the legacy
+  `LocalState\clip\` upload.
+- Requires the 5 `sd-turbo-fp16_*` assets on the `models-v1` GitHub Release.
+
 ### Docs — full drift audit + user guides (2026-07-09)
 
 Three-way audit (docs↔code, docs↔measured state, gaps) and fixes:
