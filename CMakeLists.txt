@@ -66,6 +66,7 @@ target_link_libraries(xllama PUBLIC llama)
 
 target_compile_definitions(xllama PUBLIC
     XLLAMA_LINUX=1
+    XLLAMA_USE_LLAMA=1
 )
 
 # Sanitizers (Linux / Clang/GCC only)

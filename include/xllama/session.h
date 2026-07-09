@@ -15,10 +15,18 @@
 
 namespace xllama {
 
+// Which inference backend a session uses. Auto picks from the on-disk model
+// layout (an ORT GenAI directory has genai_config.json; a llama.cpp model is a
+// single .gguf). Explicit values are honored when a build links both backends;
+// single-backend builds ignore this field (only one path is compiled).
+enum class Backend { Auto, OrtGenAI, LlamaCpp };
+
 struct SessionParams {
     std::string model_path; // same semantics as InferenceParams::model_path
     int n_ctx = 2048;
     int n_threads = 0; // 0 = auto
+    Backend backend = Backend::Auto;
+    int n_gpu_layers = 0; // llama.cpp only; 0 = CPU (Xbox has no ggml GPU backend)
 };
 
 struct GenerateParams {

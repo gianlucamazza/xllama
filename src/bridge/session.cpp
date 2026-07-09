@@ -12,7 +12,36 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <cstring>
 #include <string>
+
+// Backend availability. A build defines XLLAMA_USE_ORT when ORT GenAI is linked.
+// llama.cpp is available on Linux (always) and on the UWP llamacpp variant
+// (XllamaBackend=llamacpp → XLLAMA_USE_ORT undefined). The unified UWP build
+// defines BOTH explicitly; this shim derives the llama flag so exactly one path
+// matches every current single-backend build without touching the build files.
+#if !defined(XLLAMA_USE_LLAMA)
+    #if defined(XLLAMA_LINUX) || !defined(XLLAMA_USE_ORT)
+        #define XLLAMA_USE_LLAMA 1
+    #endif
+#endif
+
+#if !defined(XLLAMA_USE_ORT) && !defined(XLLAMA_USE_LLAMA)
+    #error "no inference backend compiled (define XLLAMA_USE_ORT and/or XLLAMA_USE_LLAMA)"
+#endif
+
+namespace xllama {
+namespace detail {
+// Backend factories, each defined in its own #ifdef block below. The public
+// Session::create dispatches to one of these.
+#ifdef XLLAMA_USE_ORT
+std::unique_ptr<Session> create_ort(const SessionParams& sp, std::string* err);
+#endif
+#ifdef XLLAMA_USE_LLAMA
+std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err);
+#endif
+} // namespace detail
+} // namespace xllama
 
 // ---------------------------------------------------------------------------
 // ONNX Runtime GenAI path (UWP / Xbox Series S)
@@ -265,7 +294,8 @@ class OrtSession final : public Session {
     }
 };
 
-std::unique_ptr<Session> Session::create(const SessionParams& sp, std::string* err) {
+namespace detail {
+std::unique_ptr<Session> create_ort(const SessionParams& sp, std::string* err) {
     install_se_translator();
 
     const std::string model_dir = resolve_model_path(sp.model_path);
@@ -300,13 +330,16 @@ std::unique_ptr<Session> Session::create(const SessionParams& sp, std::string* e
         return nullptr;
     }
 }
+} // namespace detail
 
 } // namespace xllama
 
+#endif // XLLAMA_USE_ORT
+
 // ---------------------------------------------------------------------------
-// llama.cpp path (Linux dev)
+// llama.cpp path (Linux dev + UWP llamacpp/unified)
 // ---------------------------------------------------------------------------
-#else
+#ifdef XLLAMA_USE_LLAMA
 
     #include "llama.h"
     #include "xllama/llama_raii.h"
@@ -428,11 +461,12 @@ class LlamaSession final : public Session {
     }
 };
 
-std::unique_ptr<Session> Session::create(const SessionParams& sp, std::string* err) {
+namespace detail {
+std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err) {
     const std::string abs_path = resolve_model_path(sp.model_path);
 
     llama_model_params mparams = llama_model_default_params();
-    mparams.n_gpu_layers = 0;
+    mparams.n_gpu_layers = sp.n_gpu_layers;
 
     llama_model* raw_model = llama_model_load_from_file(abs_path.c_str(), mparams);
     if (!raw_model) {
@@ -445,7 +479,34 @@ std::unique_ptr<Session> Session::create(const SessionParams& sp, std::string* e
     int n_ctx = sp.n_ctx > 0 ? sp.n_ctx : 2048;
     return std::make_unique<LlamaSession>(LlamaModelPtr(raw_model), n_ctx, n_threads);
 }
+} // namespace detail
 
 } // namespace xllama
 
-#endif // XLLAMA_USE_ORT
+#endif // XLLAMA_USE_LLAMA
+
+// ---------------------------------------------------------------------------
+// Public factory: dispatch to the compiled backend(s).
+// ---------------------------------------------------------------------------
+namespace xllama {
+
+std::unique_ptr<Session> Session::create(const SessionParams& sp, std::string* err) {
+#if defined(XLLAMA_USE_ORT) && defined(XLLAMA_USE_LLAMA)
+    Backend b = sp.backend;
+    if (b == Backend::Auto) {
+        // Infer from the model layout: a .gguf file is llama.cpp, anything else
+        // (an ORT GenAI directory) is ORT. Fase 2 sets sp.backend explicitly from
+        // the catalogue `kind`, so Auto is only a fallback.
+        const std::string& mp = sp.model_path;
+        const bool is_gguf = mp.size() >= 5 && mp.compare(mp.size() - 5, 5, ".gguf") == 0;
+        b = is_gguf ? Backend::LlamaCpp : Backend::OrtGenAI;
+    }
+    return b == Backend::LlamaCpp ? detail::create_llama(sp, err) : detail::create_ort(sp, err);
+#elif defined(XLLAMA_USE_ORT)
+    return detail::create_ort(sp, err);
+#else // XLLAMA_USE_LLAMA
+    return detail::create_llama(sp, err);
+#endif
+}
+
+} // namespace xllama
