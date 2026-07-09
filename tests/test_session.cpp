@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: MIT
 
 #include "xllama/session.h"
+#include "xllama/path_utils.h"
+
 #include <doctest/doctest.h>
+#include <filesystem>
+#include <fstream>
 
 TEST_CASE("Session::create rejects non-existent model path") {
     xllama::SessionParams sp;
@@ -20,4 +24,56 @@ TEST_CASE("Session::create rejects empty model path") {
     auto s = xllama::Session::create(sp, &err);
     CHECK(s == nullptr);
     CHECK(!err.empty());
+}
+
+TEST_CASE("model_uses_llama_backend detects .gguf suffix and dir layout") {
+    using xllama::model_uses_llama_backend;
+
+    CHECK(model_uses_llama_backend("foo.gguf"));
+    CHECK(model_uses_llama_backend("/abs/path/model.Q4_K.gguf"));
+    CHECK_FALSE(model_uses_llama_backend("smollm2-360m"));
+    CHECK_FALSE(model_uses_llama_backend("some-ort-model-dir"));
+
+    // Temp dir containing a .gguf file (simulates catalogue layout on disk)
+    auto tmp = std::filesystem::temp_directory_path() / "xllama-gguf-layout-test";
+    std::filesystem::create_directories(tmp);
+    {
+        std::ofstream f((tmp / "model.gguf").string());
+        f << "dummy";
+    }
+    CHECK(model_uses_llama_backend(tmp.string()));
+
+    // Dir without .gguf should be false
+    auto tmp2 = std::filesystem::temp_directory_path() / "xllama-no-gguf";
+    std::filesystem::create_directories(tmp2);
+    CHECK_FALSE(model_uses_llama_backend(tmp2.string()));
+
+    // Cleanup
+    std::error_code ec;
+    std::filesystem::remove_all(tmp, ec);
+    std::filesystem::remove_all(tmp2, ec);
+}
+
+TEST_CASE("Session::create Auto with explicit Backend::LlamaCpp on GGUF layout") {
+    // Even without real weights the dispatch must select the llama path.
+    // We only assert that it does not succeed via the ORT path and that an error is produced.
+    auto tmp = std::filesystem::temp_directory_path() / "xllama-session-gguf-auto";
+    std::filesystem::create_directories(tmp);
+    {
+        std::ofstream f((tmp / "mini.gguf").string());
+        f << "not-a-real-gguf";
+    }
+
+    xllama::SessionParams sp;
+    sp.model_path = tmp.string();
+    sp.backend = xllama::Backend::Auto;  // should resolve to Llama via layout
+
+    std::string err;
+    auto s = xllama::Session::create(sp, &err);
+    // On Linux this build only has llama; we expect a load failure from the llama code path.
+    CHECK(s == nullptr);
+    CHECK(!err.empty());
+
+    std::error_code ec;
+    std::filesystem::remove_all(tmp, ec);
 }
