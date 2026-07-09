@@ -7,6 +7,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Removed — purpose-served legacy (image spike, GGUF-era bench, dead switches)
+
+- **Image spike** (`uwp/image-spike.cpp`, the `image.flag` headless mode,
+  `scripts/gen_imgspike_model.py`): the hypothesis it existed to test was
+  confirmed on console 2026-07-08 (DML 11.1× CPU) and the real diffusion
+  pipeline shipped in 1.0.0. The result CSV stays; the tooling lives in git
+  history at `v1.0.0`.
+- **`CheckBenchMode`** (MainPage): superseded by the `wWinMain` headless
+  dispatch — an in-XAML bench would run with the compositor alive and produce
+  numbers not comparable with every recorded CSV.
+- **`bench-xbox.sh` + `bench/config/phase1-*.json`**: the pre-pivot GGUF-era
+  orchestrator (single-`.gguf` upload, qwen3/llama-3.2 configs never used by
+  the ONNX app); docs already invoked it with arguments it rejected.
+  `bench-xbox-ort.sh` is the orchestrator (docs updated).
+- **`build-uwp.ps1 -NoBundledModel`**: the `XllamaNoBundledModel` MSBuild
+  property no longer exists (the model ItemGroup was removed in 1.0.0) — the
+  switch was a no-op.
+
 ### Added — SD-Turbo in the download catalogue (image model self-serve)
 
 The image model no longer requires Device Portal provisioning: the catalogue

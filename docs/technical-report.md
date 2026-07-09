@@ -112,7 +112,7 @@ hardware, because console runtime errors are expensive to attribute:
   Device-Portal-overridable) with in-app download from the `models-v1` GitHub
   Release (the upstream HF path shipped a non-merged model and was retired).
 - Image generation UI over the headless SD-Turbo fp16 pipeline.
-- Headless bench/validation modes (`bench.flag`, `image.flag`, `diffuse.flag`)
+- Headless bench/validation modes (`bench.flag`, `diffuse.flag`)
   with CSV artifacts; a console-validation runbook; CI producing the default
   (no-model, ~19 MB) and llamacpp MSIX variants.
 

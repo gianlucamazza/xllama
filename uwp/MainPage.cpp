@@ -1237,7 +1237,7 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
 // ---------------------------------------------------------------------------
 // EnsureModelAsync — checks whether the model is available locally;
 // downloads from Hugging Face if not found in LocalState or InstalledPath.
-// Calls LoadModelName() + CheckBenchMode() when ready.
+// Calls LoadModelName() when ready.
 // ---------------------------------------------------------------------------
 
 fire_and_forget MainPageController::EnsureModelAsync() {
@@ -1259,7 +1259,6 @@ fire_and_forget MainPageController::EnsureModelAsync() {
         self->LoadModelName();
         self->SetStatus(L"Ready", StatusKind::Success);
         self->m_runButton.IsEnabled(true);
-        self->CheckBenchMode();
         co_return;
     }
 
@@ -1276,7 +1275,6 @@ fire_and_forget MainPageController::EnsureModelAsync() {
             self->LoadModelName();
             self->SetStatus(L"Ready", StatusKind::Success);
             self->m_runButton.IsEnabled(true);
-            self->CheckBenchMode();
             co_return;
         }
     }
@@ -1402,7 +1400,6 @@ fire_and_forget MainPageController::EnsureModelAsync() {
             self->LoadModelName();
             self->SetStatus(L"Ready", StatusKind::Success);
             self->m_runButton.IsEnabled(true);
-            self->CheckBenchMode();
             co_return;
         }
     }
@@ -1473,7 +1470,6 @@ fire_and_forget MainPageController::EnsureModelAsync() {
             }
             self->SetStatus(L"Model ready", StatusKind::Success);
             self->LoadModelName();
-            self->CheckBenchMode();
         });
 }
 
@@ -1486,36 +1482,6 @@ void MainPageController::LoadModelName() {
     if (m_model_filename.empty())
         m_model_filename = L"smollm2-360m-cpu-int4";
     m_modelText.Text(m_model_filename);
-}
-
-// ---------------------------------------------------------------------------
-// CheckBenchMode: detect bench.flag and auto-run main_loop if present
-// ---------------------------------------------------------------------------
-
-fire_and_forget MainPageController::CheckBenchMode() {
-    auto self = shared_from_this();
-
-    co_await resume_background();
-
-    auto flag_path = local_wpath(L"bench.flag");
-    FILE* f = _wfopen(flag_path.c_str(), L"r");
-    if (!f)
-        co_return;
-    fclose(f);
-    // Delete flag so repeated restarts don't re-trigger bench mode
-    _wremove(flag_path.c_str());
-
-    co_await resume_foreground(self->m_root.Dispatcher());
-    self->SetStatus(L"Bench mode — running...", StatusKind::Working);
-    self->SetRunning(true);
-    self->m_runButton.IsEnabled(false);
-
-    co_await resume_background();
-    ::xllama::bridge::main_loop();
-
-    co_await resume_foreground(self->m_root.Dispatcher());
-    self->SetStatus(L"Bench complete", StatusKind::Success);
-    self->SetRunning(false);
 }
 
 // ---------------------------------------------------------------------------

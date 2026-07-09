@@ -3,8 +3,8 @@
 // Diffusion image generation: plain ONNX Runtime DirectML, three sessions
 // (text_encoder + UNet + VAE decoder) driven by the host-validated CLIP tokenizer
 // and Euler scheduler. Runs in the headless path (diffuse.flag) so no XAML
-// compositor D3D12 device collides with ORT's DML device (the 887A0036 finding),
-// mirroring the image spike (image.flag).
+// compositor D3D12 device collides with ORT's DML device (the 887A0036 finding,
+// measured with ORT GenAI — see docs/uwp-constraints.md §7).
 //
 // The correctness-critical logic (tokenizer, scheduler, fp16 conversion, PNG) is
 // unit-tested on the host against the diffusers/transformers reference

@@ -161,7 +161,7 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
 
 // Returns the wide path of LocalFolder\<name> if it exists, empty otherwise.
 // Requires an initialised COM apartment (ApplicationData). Any exception =>
-// empty => normal interactive path (CheckBenchMode in MainPage stays as fallback).
+// empty => normal interactive path.
 static std::wstring flag_path_if_present(const wchar_t* name) {
     try {
         auto folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
@@ -177,7 +177,7 @@ static std::wstring flag_path_if_present(const wchar_t* name) {
 // Minimal IFrameworkView: activates the CoreWindow (satisfies the PLM
 // activation watchdog, dismisses the splash) without a swapchain/compositor,
 // so no D3D12 device exists in-process. Same pattern as the UWP DX12 template.
-// Runs `m_entry` (bench main_loop or the image spike) on an MTA thread, then
+// Runs `m_entry` (bench main_loop or run_diffuse) on an MTA thread, then
 // exits the process — a D3D12-clean host for any DirectML workload.
 struct HeadlessView
     : winrt::implements<HeadlessView, winrt::Windows::ApplicationModel::Core::IFrameworkViewSource,
@@ -219,7 +219,7 @@ struct HeadlessView
 int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     try {
         winrt::init_apartment(); // MTA: needed for ApplicationData in the detection
-        // Consume the flag BEFORE the run (same semantics as CheckBenchMode):
+        // Consume the flag BEFORE the run:
         // a later start without the flag goes back to interactive.
         std::wstring diffuse_flag = flag_path_if_present(L"diffuse.flag");
         if (!diffuse_flag.empty()) {
@@ -227,14 +227,6 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
             ::xllama::log_output("[xllama] diffuse.flag detected -> headless diffusion mode\n");
             winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
                 winrt::make<HeadlessView>(&::xllama::bridge::run_diffuse, "diffuse"));
-            return 0; // not reached: CoreApplication::Exit terminates the process
-        }
-        std::wstring image_flag = flag_path_if_present(L"image.flag");
-        if (!image_flag.empty()) {
-            _wremove(image_flag.c_str());
-            ::xllama::log_output("[xllama] image.flag detected -> headless image-spike mode\n");
-            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
-                winrt::make<HeadlessView>(&::xllama::bridge::run_image_spike, "image-spike"));
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
         std::wstring bench_flag = flag_path_if_present(L"bench.flag");

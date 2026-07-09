@@ -108,21 +108,14 @@ DML fp16 46.8 / 36.5). Any uplift is the 0.14.x win; flat is also a valid (recor
 
 ## 4. PR #3 — image spike — ✅ MEASURED 2026-07-08 (DML 11.1× CPU, `phase35-imgspike.csv`)
 
-**Validates the flagship hypothesis**: on a compute-bound fp16 batch (one diffusion UNet
-step proxy), the RDNA 2 GPU **beats** the CPU — the inverse of text decode.
+**Validated the flagship hypothesis**: on a compute-bound fp16 batch (one diffusion UNet
+step proxy), the RDNA 2 GPU **beat** the CPU 11.1× — the inverse of text decode. This
+greenlit the diffusion pipeline (§7), which shipped in v1.0.0.
 
-```bash
-# Generate the deterministic proxy model (host) — writes bench/models/imgspike.onnx
-python3 scripts/gen_imgspike_model.py
-./scripts/deploy.sh upload-file bench/models/imgspike.onnx "$PFN" ""
-printf 'image' > /tmp/image.flag
-./scripts/deploy.sh upload-file /tmp/image.flag "$PFN" ""
-# launch; wait; fetch imgspike-result.csv (DML vs CPU ms, GFLOP/s, speedup)
-```
-
-**Looking for**: `speedup` (DML/CPU) **≫ 1** (compute-bound → GPU wins). If confirmed, the
-C++ diffusion pipeline (Fase 3) is greenlit as the flagship GPU workload. If DML ≈ CPU or
-worse, re-examine the hypothesis before building the pipeline.
+_The spike tooling (`uwp/image-spike.cpp`, `image.flag` mode, `gen_imgspike_model.py`)
+was removed after validation — purpose served; retrieve it from git history at tag
+`v1.0.0` if ever needed again. The result CSV stays at
+`bench/results/phase35-imgspike.csv`._
 
 ## 5. int4 DML — confirm/falsify the §12 desk-check (5a ✅ done; 5b ⏳ PENDING — variants rebuilt 2026-07-09)
 

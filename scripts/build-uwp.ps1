@@ -14,22 +14,15 @@
 .PARAMETER Platform
     Target platform. Default: x64
 
-.PARAMETER NoBundledModel
-    Exclude the bundled SmolLM2 model from the MSIX (sets MSBuild property
-    XllamaNoBundledModel=true). Produces a small package where EnsureModelAsync
-    must fall back to USB or HF download — used to validate Exp 2 on console.
-
 .EXAMPLE
     ./scripts/build-uwp.ps1
     ./scripts/build-uwp.ps1 -Configuration Debug -Platform x64
-    ./scripts/build-uwp.ps1 -NoBundledModel
 #>
 
 param(
     [string]$Configuration  = "Release",
     [string]$Platform       = "x64",
     [switch]$ForceNewCert   = $false,
-    [switch]$NoBundledModel = $false,
     # 'ort' (default) or 'llamacpp' (ggml/llama CPU backend, XLLAMA_USE_ORT=0;
     # requires the llama.cpp submodule + scripts/apply-uwp-patches.sh).
     [ValidateSet("ort", "llamacpp")]
@@ -141,9 +134,6 @@ Write-Host "Restoring NuGet packages ..."
 nuget restore $SlnPath
 
 Write-Host "Building $Configuration|$Platform ..."
-if ($NoBundledModel) {
-    Write-Host "Bundled model EXCLUDED from MSIX (XllamaNoBundledModel=true)"
-}
 
 # ---------------------------------------------------------------------------
 # Build + sign
@@ -159,9 +149,6 @@ $MsBuildArgs = @(
     "/m",
     "/nologo"
 )
-if ($NoBundledModel) {
-    $MsBuildArgs += "/p:XllamaNoBundledModel=true"
-}
 if ($Backend -eq "llamacpp") {
     Write-Host "Backend: llama.cpp CPU (XLLAMA_USE_ORT=0)"
     $MsBuildArgs += "/p:XllamaBackend=llamacpp"

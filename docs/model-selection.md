@@ -59,7 +59,7 @@ xllama UWP build (Xbox Series S Dev Mode, CPU EP).
 
 7. Benchmark and compare against the current baseline:
    ```bash
-   ./scripts/bench-xbox.sh <model-name> bench/config/phase1-smollm2-360m.json
+   ./scripts/bench-xbox-ort.sh <model-name> --runs 3 --out bench/results/phase1-cpu.csv
    ```
    Results land in `bench/results/phase1-cpu.csv`.
 

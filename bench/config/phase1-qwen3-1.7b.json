@@ -1,9 +1,0 @@
-{
-  "model_filename": "Qwen_Qwen3-1.7B-Q4_K_M.gguf",
-  "prompt_file": "bench/prompts/standard-512.txt",
-  "n_predict": 128,
-  "n_ctx": 2048,
-  "n_threads": 0,
-  "n_runs": 3,
-  "notes": "Qwen3 1.7B Q4_K_M — primary Phase 1 target. Expected: decode 25-40 tok/s on Xbox Series S CPU."
-}
