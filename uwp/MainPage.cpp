@@ -969,8 +969,8 @@ void MainPageController::SaveSettings() {
             settings_json_escape(m_system_prompt).c_str(), settings_json_escape(model_utf8).c_str(),
             m_kv_reuse ? "true" : "false", m_routing, settings_json_escape(m_gpu_model).c_str(),
             m_diffuse_taesd ? "true" : "false", static_cast<double>(m_temperature),
-            static_cast<double>(m_top_p), m_top_k,
-            static_cast<double>(m_repetition_penalty), m_n_predict);
+            static_cast<double>(m_top_p), m_top_k, static_cast<double>(m_repetition_penalty),
+            m_n_predict);
     fclose(f);
     // Any settings change (system prompt, model, sampling) invalidates the KV
     // cache bound to the old settings — force a fresh generator next turn.
@@ -1069,8 +1069,9 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     };
     sync_backend_toggles(model_sel);
     modelBox.SelectionChanged(
-        [sync_backend_toggles](winrt::Windows::Foundation::IInspectable const& sender,
-                               winrt::Windows::UI::Xaml::Controls::SelectionChangedEventArgs const&) {
+        [sync_backend_toggles](
+            winrt::Windows::Foundation::IInspectable const& sender,
+            winrt::Windows::UI::Xaml::Controls::SelectionChangedEventArgs const&) {
             auto box = sender.as<winrt::Windows::UI::Xaml::Controls::ComboBox>();
             sync_backend_toggles(box.SelectedIndex());
         });
@@ -1344,10 +1345,11 @@ void MainPageController::StartDiffusion() {
         m_diffuse_timer.Tick(m_diffuse_tick_token);
     }
     auto weak_self = std::weak_ptr<MainPageController>(self);
-    m_diffuse_tick_token = m_diffuse_timer.Tick([weak_self](IInspectable const&, IInspectable const&) {
-        if (auto s = weak_self.lock())
-            s->PollDiffuseProgress();
-    });
+    m_diffuse_tick_token =
+        m_diffuse_timer.Tick([weak_self](IInspectable const&, IInspectable const&) {
+            if (auto s = weak_self.lock())
+                s->PollDiffuseProgress();
+        });
     m_diffuse_timer.Start();
 
     std::thread([self, dispatcher]() {
@@ -1759,8 +1761,7 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
             else
                 n_tok = static_cast<int>(full_prompt.size() / 4);
             const bool use_gpu = n_tok > kRoutingTokThreshold;
-            m_active_model =
-                use_gpu ? ::xllama::utf8_to_wstring(m_gpu_model) : m_model_filename;
+            m_active_model = use_gpu ? ::xllama::utf8_to_wstring(m_gpu_model) : m_model_filename;
             char rbuf[160];
             snprintf(rbuf, sizeof(rbuf),
                      "[xllama] routing: auto → %s (%d tok, threshold %d, model=%s)\n",

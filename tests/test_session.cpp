@@ -1,8 +1,8 @@
 // Copyright (c) 2024 Venere Labs
 // SPDX-License-Identifier: MIT
 
-#include "xllama/session.h"
 #include "xllama/path_utils.h"
+#include "xllama/session.h"
 
 #include <doctest/doctest.h>
 #include <filesystem>
@@ -66,7 +66,7 @@ TEST_CASE("Session::create Auto with explicit Backend::LlamaCpp on GGUF layout")
 
     xllama::SessionParams sp;
     sp.model_path = tmp.string();
-    sp.backend = xllama::Backend::Auto;  // should resolve to Llama via layout
+    sp.backend = xllama::Backend::Auto; // should resolve to Llama via layout
 
     std::string err;
     auto s = xllama::Session::create(sp, &err);

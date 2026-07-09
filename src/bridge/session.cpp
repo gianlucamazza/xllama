@@ -298,7 +298,8 @@ class OrtSession final : public Session {
         OgaSequences* raw_seqs = nullptr;
         oga_check(OgaCreateSequences(&raw_seqs), "OgaCreateSequences");
         OgaSequencesPtr seqs(raw_seqs);
-        oga_check(OgaTokenizerEncode(m_tok.get(), prompt.c_str(), seqs.get()), "OgaTokenizerEncode");
+        oga_check(OgaTokenizerEncode(m_tok.get(), prompt.c_str(), seqs.get()),
+                  "OgaTokenizerEncode");
         return static_cast<int>(OgaSequencesGetSequenceCount(seqs.get(), 0));
     }
 };
