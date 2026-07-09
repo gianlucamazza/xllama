@@ -290,10 +290,10 @@ std::vector<ManifestEntry> LoadModelManifest() {
     // NOTE: no special_tokens_map.json — the HF repo does not have one (the old
     // hardcoded list requested it and got HTTP 404, breaking every download).
     e.files = {
-        {L"genai_config.json", 2'000},
-        {L"tokenizer.json", 3'600'000},
-        {L"tokenizer_config.json", 1'000},
-        {L"model.onnx", 417'404'408},
+        {L"genai_config.json", L"", 2'000},
+        {L"tokenizer.json", L"", 3'600'000},
+        {L"tokenizer_config.json", L"", 1'000},
+        {L"model.onnx", L"", 417'404'408},
     };
     return {e};
 }
