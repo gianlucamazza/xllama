@@ -1,3 +1,5 @@
+diff --git a/src/dml/dml_helpers.cpp b/src/dml/dml_helpers.cpp
+index f3cfe32..c29e693 100644
 --- a/src/dml/dml_helpers.cpp
 +++ b/src/dml/dml_helpers.cpp
 @@ -135,12 +135,26 @@ DmlObjects CreateDmlObjects(const std::string& current_module_path, PLUID device
@@ -29,3 +31,4 @@
 +  if (!agility_device_created) {
      THROW_IF_FAILED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&dml_objects.d3d12_device)));
    }
+ 

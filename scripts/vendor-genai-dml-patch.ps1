@@ -10,14 +10,17 @@
 
     Resolution order:
       1. vendor/onnxruntime-genai-patched/win-x64/onnxruntime-genai.dll (pre-built)
-      2. -Build: clone onnxruntime-genai @ v0.14.1, apply patch, cmake --build
-         (requires VS2022 + CMake; full GenAI build — slow)
+      2. -Build: clone onnxruntime-genai @ rel-0.14.1 (pinned commit), apply
+         patch, cmake --build against the restored NuGet ORT (ORT_HOME)
+         (requires VS2022 + CMake + prior 'nuget restore'; full GenAI build — slow)
 
 .PARAMETER Build
-    Build the DLL from source when no pre-built copy exists.
+    Build the DLL from source. Ignores (and overwrites) a cached vendor DLL —
+    the cache is only trusted on the install-only path.
 
 .PARAMETER GenAiVersion
-    onnxruntime-genai tag to match uwp/packages.config (default 0.14.1).
+    onnxruntime-genai version to match uwp/packages.config (default 0.14.1).
+    NB: upstream ships 0.14.1 as branch rel-0.14.1, not a tag.
 
 .EXAMPLE
     ./scripts/vendor-genai-dml-patch.ps1
@@ -52,7 +55,7 @@ function Install-Dll([string]$Source) {
     Write-Host "Installed patched onnxruntime-genai.dll -> $NuGetDll"
 }
 
-if (Test-Path $VendorDll) {
+if ((Test-Path $VendorDll) -and (-not $Build)) {
     Install-Dll $VendorDll
     exit 0
 }
@@ -74,34 +77,85 @@ Upstream: https://github.com/microsoft/onnxruntime-genai/pull/2280
 # --- Build from source -------------------------------------------------------
 $WorkDir = Join-Path $RepoRoot "build/vendor-onnxruntime-genai"
 $CloneDir = Join-Path $WorkDir "onnxruntime-genai"
-$Tag = "v$GenAiVersion"
+# 0.14.1 exists upstream only as branch rel-0.14.1 (no v0.14.1 tag); pin the
+# commit so a moving branch cannot change what we build.
+$Branch = "rel-$GenAiVersion"
+$PinnedCommit = "a30f479af016cb098688726831a9acbb8d19f0b2"
 
 if (-not (Test-Path $CloneDir)) {
     New-Item -ItemType Directory -Path $WorkDir -Force | Out-Null
-    git clone --depth 1 --branch $Tag https://github.com/microsoft/onnxruntime-genai.git $CloneDir
-} else {
-    Push-Location $CloneDir
-    git fetch --depth 1 origin tag $Tag 2>$null
-    git checkout $Tag
-    Pop-Location
+    git clone --depth 1 --branch $Branch https://github.com/microsoft/onnxruntime-genai.git $CloneDir
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "git clone of $Branch failed"
+        exit 1
+    }
 }
 
 Push-Location $CloneDir
+$Head = git rev-parse HEAD
+if ($Head -ne $PinnedCommit) {
+    git fetch --depth 1 origin $PinnedCommit
+    git checkout $PinnedCommit
+    if ($LASTEXITCODE -ne 0) {
+        Pop-Location
+        Write-Error "Could not check out pinned commit $PinnedCommit (branch $Branch drifted?)"
+        exit 1
+    }
+}
+
+# Apply the patch, or accept a tree where it is already applied (reverse-check).
 git apply --check $PatchFile 2>$null
-if ($LASTEXITCODE -ne 0) {
-    Write-Warning "Patch may already be applied; continuing."
-} else {
+if ($LASTEXITCODE -eq 0) {
     git apply $PatchFile
+    if ($LASTEXITCODE -ne 0) {
+        Pop-Location
+        Write-Error "git apply failed for $PatchFile"
+        exit 1
+    }
+} else {
+    git apply --reverse --check $PatchFile 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Pop-Location
+        Write-Error "Patch $PatchFile neither applies nor is already applied — refusing to build an unpatched DLL."
+        exit 1
+    }
+    Write-Host "Patch already applied; continuing."
 }
 Pop-Location
 
-Write-Host "Building onnxruntime-genai (DirectML, Release x64) — this may take several minutes ..."
+# ORT_HOME staged from the restored NuGet ORT (uwp/packages.config), so the DLL
+# links the exact onnxruntime the MSIX ships. Without ORT_HOME the GenAI build
+# downloads a nightly ORT (1.25-dev) — ABI mismatch with 1.24.4 at runtime.
+$OrtVersion = ([xml](Get-Content (Join-Path $RepoRoot "uwp/packages.config"))).packages.package |
+    Where-Object { $_.id -eq "Microsoft.ML.OnnxRuntime.DirectML" } | Select-Object -ExpandProperty version
+$OrtPkg = Join-Path $RepoRoot "uwp/packages/Microsoft.ML.OnnxRuntime.DirectML.$OrtVersion"
+if (-not (Test-Path $OrtPkg)) {
+    Write-Error "ORT NuGet package not restored: $OrtPkg — run 'nuget restore' in uwp/ first."
+    exit 1
+}
+$OrtHome = Join-Path $WorkDir "ort-home"
+New-Item -ItemType Directory -Path (Join-Path $OrtHome "include") -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $OrtHome "lib") -Force | Out-Null
+Copy-Item (Join-Path $OrtPkg "build/native/include/*") (Join-Path $OrtHome "include") -Recurse -Force
+Copy-Item (Join-Path $OrtPkg "runtimes/win-x64/native/*") (Join-Path $OrtHome "lib") -Force
+
+Write-Host "Building onnxruntime-genai (DirectML, Release x64, ORT $OrtVersion) — this may take several minutes ..."
 Push-Location $CloneDir
-cmake --preset dml_vs2022 2>$null
+cmake -B build -G "Visual Studio 17 2022" -A x64 `
+    -DUSE_DML=ON -DUSE_CUDA=OFF `
+    -DENABLE_PYTHON=OFF -DENABLE_TESTS=OFF -DENABLE_MODEL_BENCHMARK=OFF `
+    -DORT_HOME="$OrtHome"
 if ($LASTEXITCODE -ne 0) {
-    cmake -B build -G "Visual Studio 17 2022" -A x64 -DUSE_DML=ON -DCMAKE_BUILD_TYPE=Release
+    Pop-Location
+    Write-Error "cmake configure failed"
+    exit 1
 }
 cmake --build build --config Release --target onnxruntime-genai -j
+if ($LASTEXITCODE -ne 0) {
+    Pop-Location
+    Write-Error "cmake build failed"
+    exit 1
+}
 Pop-Location
 
 $Built = Get-ChildItem -Path (Join-Path $CloneDir "build") -Filter "onnxruntime-genai.dll" -Recurse |

@@ -51,8 +51,11 @@ jobs:
         # vendor step fails; fail the lane instead of uploading a package
         # mislabeled as patched.
         run: |
+          $genai = ([xml](Get-Content uwp/packages.config)).packages.package |
+            Where-Object { $_.id -eq "Microsoft.ML.OnnxRuntimeGenAI.DirectML" } |
+            Select-Object -ExpandProperty version
           $vendor = "vendor/onnxruntime-genai-patched/win-x64/onnxruntime-genai.dll"
-          $nuget = "uwp/packages/Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.14.1/runtimes/win-x64/native/onnxruntime-genai.dll"
+          $nuget = "uwp/packages/Microsoft.ML.OnnxRuntimeGenAI.DirectML.$genai/runtimes/win-x64/native/onnxruntime-genai.dll"
           if (-not (Test-Path $vendor)) { Write-Error "patched DLL missing: $vendor"; exit 1 }
           if ((Get-FileHash $vendor).Hash -ne (Get-FileHash $nuget).Hash) {
             Write-Error "NuGet DLL is not the patched build"
