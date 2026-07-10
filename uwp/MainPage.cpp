@@ -37,6 +37,47 @@ static std::wstring local_wpath(const wchar_t* filename_w) {
     return std::wstring(folder.Path().c_str()) + L"\\" + filename_w;
 }
 
+static std::string read_local_text_file(const wchar_t* name) {
+    FILE* fp = _wfopen(local_wpath(name).c_str(), L"rb");
+    if (!fp)
+        return {};
+    std::string s;
+    char buf[256];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), fp)) > 0)
+        s.append(buf, n);
+    fclose(fp);
+    while (!s.empty() && (s.back() == '\n' || s.back() == '\r'))
+        s.pop_back();
+    return s;
+}
+
+static void write_local_bytes(const wchar_t* name, const std::string& bytes) {
+    FILE* fp = _wfopen(local_wpath(name).c_str(), L"wb");
+    if (!fp)
+        return;
+    fwrite(bytes.data(), 1, bytes.size(), fp);
+    fclose(fp);
+}
+
+static std::wstring format_diffuse_stage(const std::string& stage) {
+    if (stage == "start")
+        return L"Starting image generation...";
+    if (stage == "text_encoder")
+        return L"Text encoder (GPU)...";
+    if (stage.rfind("unet ", 0) == 0)
+        return L"UNet " + ::xllama::utf8_to_wstring(stage.substr(5)) + L" (GPU)...";
+    if (stage == "vae")
+        return L"VAE decode (GPU)...";
+    if (stage == "done")
+        return L"Image ready — open [*] Image to view";
+    if (stage == "cancelled")
+        return L"Image generation cancelled";
+    if (stage == "error")
+        return L"Image generation failed — see xllama.log";
+    return ::xllama::utf8_to_wstring(stage);
+}
+
 // ---------------------------------------------------------------------------
 // BuildUI — assembles the UI tree programmatically.
 // Equivalent to MainPage.xaml without requiring MarkupCompilePass2 or
@@ -225,11 +266,8 @@ void MainPageController::Init() {
         }
     });
     m_cancelButton.Click([self](IInspectable const&, RoutedEventArgs const&) {
-        if (auto s = self.lock()) {
-            s->m_abort.store(true);
-            s->SetStatus(L"Cancelling...");
-            s->m_cancelButton.IsEnabled(false);
-        }
+        if (auto s = self.lock())
+            s->OnCancelClick(nullptr, RoutedEventArgs{});
     });
     m_settingsButton.Click([self](IInspectable const&, RoutedEventArgs const&) {
         if (auto s = self.lock())
@@ -844,6 +882,9 @@ void MainPageController::LoadSettings() {
                 if (!g.empty())
                     m_gpu_model = g;
             }
+        } else if (key == "diffuse_taesd_vae") {
+            std::string v = settings_read_token(json, pos);
+            m_diffuse_taesd = (v == "true" || v == "1");
         } else if (key == "sampling") {
             // Parse nested object {"temperature":0.8, ...}
             if (pos < json.size() && json[pos] == '{') {
@@ -916,6 +957,7 @@ void MainPageController::SaveSettings() {
             "  \"kv_reuse\": %s,\n"
             "  \"routing\": %d,\n"
             "  \"gpu_model\": \"%s\",\n"
+            "  \"diffuse_taesd_vae\": %s,\n"
             "  \"sampling\": {\n"
             "    \"temperature\": %.2f,\n"
             "    \"top_p\": %.2f,\n"
@@ -926,8 +968,9 @@ void MainPageController::SaveSettings() {
             "}\n",
             settings_json_escape(m_system_prompt).c_str(), settings_json_escape(model_utf8).c_str(),
             m_kv_reuse ? "true" : "false", m_routing, settings_json_escape(m_gpu_model).c_str(),
-            static_cast<double>(m_temperature), static_cast<double>(m_top_p), m_top_k,
-            static_cast<double>(m_repetition_penalty), m_n_predict);
+            m_diffuse_taesd ? "true" : "false", static_cast<double>(m_temperature),
+            static_cast<double>(m_top_p), m_top_k, static_cast<double>(m_repetition_penalty),
+            m_n_predict);
     fclose(f);
     // Any settings change (system prompt, model, sampling) invalidates the KV
     // cache bound to the old settings — force a fresh generator next turn.
@@ -1088,11 +1131,9 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
 }
 
 // ---------------------------------------------------------------------------
-// ShowImageDialog — view the last generated image and stage a new headless
-// generation. DML cannot initialise inside the XAML process (887A0036), so
-// "Generate" writes the diffusion inputs + diffuse.flag and restarts the app:
-// the restart boots headless (App.cpp flag dispatch), runs the GPU pipeline,
-// and exits; the image appears here on the next launch.
+// ShowImageDialog — view the last generated image and run SD-Turbo in-process.
+// Plain ORT DirectML coexists with the XAML compositor (887A0036 applies only
+// to ORT GenAI chat DML, not this pipeline — see docs/uwp-constraints.md §7).
 // ---------------------------------------------------------------------------
 
 winrt::fire_and_forget MainPageController::ShowImageDialog() {
@@ -1140,12 +1181,16 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
     stepsSlider.Header(winrt::box_value(L"Steps (SD-Turbo: 1 is enough)"));
     panel.Children().Append(stepsSlider);
 
+    winrt::Windows::UI::Xaml::Controls::ToggleSwitch taesdToggle;
+    taesdToggle.Header(winrt::box_value(L"TAESD fast VAE (smaller decoder, ~4.5 s total)"));
+    taesdToggle.IsOn(self->m_diffuse_taesd);
+    panel.Children().Append(taesdToggle);
+
     winrt::Windows::UI::Xaml::Controls::TextBlock note;
     note.TextWrapping(TextWrapping::Wrap);
     note.Opacity(0.7);
-    note.Text(L"Generate restarts the app to run the GPU pipeline (it cannot run inside "
-              L"this window). When the console returns to Dev Home, relaunch xllama and "
-              L"reopen this dialog to view the result (~15 s).");
+    note.Text(L"Generate runs SD-Turbo on the GPU in-process. Progress appears in the "
+              L"status bar; press Cancel to abort between UNet steps.");
     panel.Children().Append(note);
 
     winrt::Windows::UI::Xaml::Controls::ScrollViewer sv;
@@ -1156,7 +1201,7 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
     winrt::Windows::UI::Xaml::Controls::ContentDialog dlg;
     dlg.Title(winrt::box_value(L"Image generation (SD-Turbo on GPU)"));
     dlg.Content(sv);
-    dlg.PrimaryButtonText(L"Generate (restarts app)");
+    dlg.PrimaryButtonText(L"Generate");
     dlg.CloseButtonText(L"Close");
     dlg.XamlRoot(m_root.XamlRoot());
 
@@ -1164,9 +1209,13 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
     if (result != winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary)
         co_return;
 
+    self->m_diffuse_taesd = taesdToggle.IsOn();
+    self->SaveSettings();
+
     // Ensure the diffusion model is present; download it from the catalogue if
     // missing (kind "diffusion" entries never reach the chat picker).
     constexpr const wchar_t* kDiffusionModel = L"sd-turbo-fp16";
+    constexpr const wchar_t* kTaesdVaeRemote = L"sd-turbo-fp16_taesd_vae_decoder_model.onnx";
     {
         auto local = ApplicationData::Current().LocalFolder();
         std::wstring model_dir =
@@ -1215,43 +1264,134 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
                 co_return;
             }
         }
+
+        // TAESD: drop-in tiny VAE (~5 MB) overwrites vae_decoder/model.onnx in the
+        // same sd-turbo-fp16 tree (models-v1 asset kTaesdVaeRemote).
+        if (self->m_diffuse_taesd) {
+            auto manifest = ::xllama::LoadModelManifest();
+            auto* entry = ::xllama::FindManifestEntry(manifest, kDiffusionModel);
+            if (!entry || entry->hf_base_url.empty()) {
+                self->SetStatus(L"TAESD VAE: catalogue entry missing hf_base_url",
+                                StatusKind::Error);
+                co_return;
+            }
+            std::vector<::xllama::ModelFile> taesd_vae{
+                {L"vae_decoder/model.onnx", kTaesdVaeRemote, 5'000'000}};
+            self->SetStatus(L"Downloading TAESD VAE (~5 MB)...", StatusKind::Working);
+            self->m_loadingBar.IsIndeterminate(false);
+            self->m_loadingBar.Value(0);
+            self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Visible);
+            auto vae_ok = std::make_shared<bool>(false);
+            auto vae_err = std::make_shared<std::wstring>();
+            co_await ModelDownloader::DownloadAsync(
+                entry->hf_base_url, model_dir, taesd_vae, m_root.Dispatcher(),
+                [self](uint64_t done, uint64_t total) {
+                    if (total > 0)
+                        self->m_loadingBar.Value((double)done / (double)total * 100.0);
+                },
+                [vae_ok, vae_err](bool ok2, std::wstring err) {
+                    *vae_ok = ok2;
+                    *vae_err = std::move(err);
+                });
+            self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Collapsed);
+            if (!*vae_ok) {
+                self->SetStatus(L"TAESD VAE download failed: " + *vae_err, StatusKind::Error);
+                co_return;
+            }
+        }
     }
 
-    // Stage the headless generation inputs. The flag is written LAST so a
-    // partially staged run can never trigger.
-    auto write_local = [](const wchar_t* name, const std::string& bytes) {
-        FILE* fp = _wfopen(local_wpath(name).c_str(), L"wb");
-        if (!fp)
-            return false;
-        fwrite(bytes.data(), 1, bytes.size(), fp);
-        fclose(fp);
-        return true;
-    };
     std::string prompt_utf8 = ::xllama::wstring_to_utf8(std::wstring(promptBox.Text().c_str()));
     if (prompt_utf8.empty())
         prompt_utf8 = "a red sports car on a mountain road at sunset";
     const int steps = (int)stepsSlider.Value();
-    // Fresh seed per generation so repeated prompts give new images.
     const unsigned seed = (unsigned)(GetTickCount64() % 1'000'000'000ULL);
-    bool ok = write_local(L"prompt.txt", prompt_utf8) &&
-              write_local(L"diffuse-steps.txt", std::to_string(steps)) &&
-              write_local(L"diffuse-seed.txt", std::to_string(seed)) &&
-              write_local(L"diffuse-model.txt", "sd-turbo-fp16") &&
-              write_local(L"diffuse.flag", "diffuse");
-    if (!ok) {
-        self->SetStatus(L"Could not stage the generation files", StatusKind::Error);
-        co_return;
-    }
+    write_local_bytes(L"prompt.txt", prompt_utf8);
+    write_local_bytes(L"diffuse-steps.txt", std::to_string(steps));
+    write_local_bytes(L"diffuse-seed.txt", std::to_string(seed));
+    write_local_bytes(L"diffuse-model.txt", "sd-turbo-fp16");
 
-    self->SetStatus(L"Restarting to generate on GPU...", StatusKind::Working);
-    auto reason =
-        co_await winrt::Windows::ApplicationModel::Core::CoreApplication::RequestRestartAsync(
-            L"diffuse");
-    // Only reached if the restart was denied (e.g. not permitted right now):
-    // the flag is staged, so a manual relaunch will still run the generation.
-    (void)reason;
-    self->SetStatus(L"Restart not permitted — quit and relaunch xllama to generate",
-                    StatusKind::Error);
+    self->StartDiffusion();
+}
+
+// ---------------------------------------------------------------------------
+// StartDiffusion — run SD-Turbo on a background MTA thread (same as the
+// diffuse-inproc.flag experiment in App.cpp, but driven from the Image dialog).
+// ---------------------------------------------------------------------------
+
+void MainPageController::StartDiffusion() {
+    if (m_is_running.load())
+        return;
+
+    m_diffuse_running.store(true);
+    SetRunning(true);
+    m_loadingBar.IsIndeterminate(true);
+    SetStatus(L"Generating image...", StatusKind::Working);
+
+    // Reset stale state from a previous run: a leftover cancel flag would abort
+    // the new run at the first UNet-step check, and a leftover "done"/"error"
+    // progress line would flash in the status bar before the worker's first write.
+    _wremove(local_wpath(L"diffuse-cancel.flag").c_str());
+    write_local_bytes(L"diffuse-progress.txt", "start");
+
+    auto self = shared_from_this();
+    auto dispatcher = m_root.Dispatcher();
+
+    if (!m_diffuse_timer) {
+        m_diffuse_timer = winrt::Windows::UI::Xaml::DispatcherTimer{};
+        m_diffuse_timer.Interval(std::chrono::milliseconds(200));
+    } else {
+        m_diffuse_timer.Stop();
+        m_diffuse_timer.Tick(m_diffuse_tick_token);
+    }
+    auto weak_self = std::weak_ptr<MainPageController>(self);
+    m_diffuse_tick_token =
+        m_diffuse_timer.Tick([weak_self](IInspectable const&, IInspectable const&) {
+            if (auto s = weak_self.lock())
+                s->PollDiffuseProgress();
+        });
+    m_diffuse_timer.Start();
+
+    std::thread([self, dispatcher]() {
+        try {
+            winrt::init_apartment(); // MTA — ApplicationData + ORT DML
+            ::xllama::bridge::run_diffuse();
+        } catch (const std::exception& ex) {
+            ::xllama::log_output(std::string("[xllama] diffuse thread: ") + ex.what() + "\n");
+        } catch (...) {
+            ::xllama::log_output("[xllama] diffuse thread: unknown exception\n");
+        }
+        dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self]() { self->FinishDiffusion(); });
+    }).detach();
+}
+
+void MainPageController::PollDiffuseProgress() {
+    const std::string stage = read_local_text_file(L"diffuse-progress.txt");
+    if (stage.empty())
+        return;
+    SetStatus(format_diffuse_stage(stage),
+              stage == "error" ? StatusKind::Error
+                               : (stage == "done" ? StatusKind::Success : StatusKind::Working));
+}
+
+void MainPageController::FinishDiffusion() {
+    if (m_diffuse_timer) {
+        m_diffuse_timer.Stop();
+        m_diffuse_timer.Tick(m_diffuse_tick_token);
+    }
+    m_diffuse_running.store(false);
+
+    const std::string stage = read_local_text_file(L"diffuse-progress.txt");
+    if (stage == "done") {
+        SetStatus(L"Image ready — open [*] Image to view", StatusKind::Success);
+    } else if (stage == "cancelled") {
+        SetStatus(L"Image generation cancelled", StatusKind::Info);
+    } else if (stage == "error" || stage.empty()) {
+        SetStatus(L"Image generation failed — see xllama.log", StatusKind::Error);
+    } else {
+        SetStatus(format_diffuse_stage(stage), StatusKind::Working);
+    }
+    SetRunning(false);
 }
 
 // ---------------------------------------------------------------------------
@@ -1516,7 +1656,9 @@ bool MainPageController::EnsureSession(const std::string& model, std::string* er
     xllama::SessionParams sp;
     sp.model_path = model;
     sp.n_ctx = 2048;
-    sp.n_threads = 0; // auto
+    // Series S: t=4 optimal for llama.cpp (t=7/8 livelock); ORT threads come from
+    // genai_config.json intra_op_num_threads on the model dir.
+    sp.n_threads = 4;
     // Pick the backend from the catalogue kind: a "gguf" entry runs on llama.cpp,
     // everything else (an ORT GenAI directory) on ORT. On a single-backend build
     // this field is ignored (only one path is compiled). The model name is bare
@@ -1604,15 +1746,28 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     // per-EP). m_active_model is cleared on new/loaded chat, so this fires on the
     // first turn and stays fixed after. Default (m_routing==0) keeps the CPU model.
     if (m_active_model.empty()) {
-        constexpr int kRoutingTokThreshold = 500; // ~crossover from the v0.3.6 matrix
+        // Crossover between ~285 and ~1050 prompt tokens in the v0.3.6 matrix.
+        constexpr int kRoutingTokThreshold = 600;
         if (base_is_gguf) {
             m_active_model = m_model_filename; // no EP routing for llama.cpp (CPU-only)
         } else if (m_routing == 1) {
             m_active_model = ::xllama::utf8_to_wstring(m_gpu_model);
+            ::xllama::log_output("[xllama] routing: gpu-only\n");
         } else if (m_routing == 2) {
-            int est_tok = static_cast<int>(full_prompt.size() / 4);
-            m_active_model = est_tok > kRoutingTokThreshold ? ::xllama::utf8_to_wstring(m_gpu_model)
-                                                            : m_model_filename;
+            int n_tok = 0;
+            const std::string cpu_model = ::xllama::wstring_to_utf8(m_model_filename);
+            if (EnsureSession(cpu_model, nullptr))
+                n_tok = m_session->count_tokens(full_prompt);
+            else
+                n_tok = static_cast<int>(full_prompt.size() / 4);
+            const bool use_gpu = n_tok > kRoutingTokThreshold;
+            m_active_model = use_gpu ? ::xllama::utf8_to_wstring(m_gpu_model) : m_model_filename;
+            char rbuf[160];
+            snprintf(rbuf, sizeof(rbuf),
+                     "[xllama] routing: auto → %s (%d tok, threshold %d, model=%s)\n",
+                     use_gpu ? "gpu" : "cpu", n_tok, kRoutingTokThreshold,
+                     use_gpu ? m_gpu_model.c_str() : cpu_model.c_str());
+            ::xllama::log_output(rbuf);
         } else {
             m_active_model = m_model_filename;
         }
@@ -1775,6 +1930,12 @@ void MainPageController::OnRunClick(IInspectable const&, RoutedEventArgs const&)
 }
 
 void MainPageController::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
+    if (m_diffuse_running.load()) {
+        write_local_bytes(L"diffuse-cancel.flag", "cancel");
+        SetStatus(L"Cancelling image...");
+        m_cancelButton.IsEnabled(false);
+        return;
+    }
     m_abort.store(true);
     SetStatus(L"Cancelling...");
     m_cancelButton.IsEnabled(false);

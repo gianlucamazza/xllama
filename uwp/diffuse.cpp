@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Diffusion image generation: plain ONNX Runtime DirectML, three sessions
 // (text_encoder + UNet + VAE decoder) driven by the host-validated CLIP tokenizer
-// and Euler scheduler. Runs in the headless path (diffuse.flag) so no XAML
-// compositor D3D12 device collides with ORT's DML device (the 887A0036 finding,
-// measured with ORT GenAI — see docs/uwp-constraints.md §7).
+// and Euler scheduler. Callable headless (diffuse.flag) or in-process from the
+// Image dialog. The 887A0036 compositor conflict applies to ORT GenAI chat DML
+// only — plain ORT DML coexists with XAML (docs/uwp-constraints.md §7).
 //
 // The correctness-critical logic (tokenizer, scheduler, fp16 conversion, PNG) is
 // unit-tested on the host against the diffusers/transformers reference
@@ -30,10 +30,9 @@
 // diffuse-progress.txt with the live stage (start/text_encoder/unet s/N/vae/
 // done/cancelled/error).
 //
-// Entry points: headless via diffuse.flag (no compositor, the proven path) or
-// in-process via diffuse-inproc.flag (App.cpp §7 experiment: plain ORT DML vs
-// the XAML compositor device — unlike GenAI's Agility-factory device, plain
-// ORT may coexist; pending console validation).
+// Entry points: headless via diffuse.flag (bench/WDP), in-process from the
+// Image dialog (MainPageController::StartDiffusion), or diffuse-inproc.flag at
+// launch (App.cpp smoke test).
 
 #include "inference-bridge.h"
 
