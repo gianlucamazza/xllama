@@ -1656,9 +1656,10 @@ bool MainPageController::EnsureSession(const std::string& model, std::string* er
     xllama::SessionParams sp;
     sp.model_path = model;
     sp.n_ctx = 2048;
-    // Series S: t=4 optimal for llama.cpp (t=7/8 livelock); ORT threads come from
+    // 0 = default: llama.cpp gets detect_threads_llama() (capped at 6 on UWP —
+    // t6 measured optimum, t7/t8 livelock); ORT threads come from
     // genai_config.json intra_op_num_threads on the model dir.
-    sp.n_threads = 4;
+    sp.n_threads = 0;
     // Pick the backend from the catalogue kind: a "gguf" entry runs on llama.cpp,
     // everything else (an ORT GenAI directory) on ORT. On a single-backend build
     // this field is ignored (only one path is compiled). The model name is bare

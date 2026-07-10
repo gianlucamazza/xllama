@@ -8,6 +8,8 @@
 #include <filesystem>
 #include <fstream>
 
+#include <unistd.h>
+
 TEST_CASE("Path utils: Linux returns input unchanged") {
     std::string path = "/home/user/model.gguf";
     CHECK(xllama::resolve_model_path(path) == path);
@@ -16,7 +18,9 @@ TEST_CASE("Path utils: Linux returns input unchanged") {
 
 TEST_CASE("first_gguf_in_dir: descends catalogue dirs, passes files through") {
     namespace fs = std::filesystem;
-    const fs::path dir = fs::temp_directory_path() / "xllama-test-gguf-dir";
+    // PID-suffixed so concurrent test invocations don't clobber each other.
+    const fs::path dir =
+        fs::temp_directory_path() / ("xllama-test-gguf-dir-" + std::to_string(::getpid()));
     fs::remove_all(dir);
     fs::create_directories(dir);
 
