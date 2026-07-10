@@ -28,7 +28,10 @@ param(
     # runtime per model (Qwen3.5/LFM2 GGUF via llama.cpp, rest via ORT).
     # 'llamacpp'/'unified' require the submodule + scripts/apply-uwp-patches.sh.
     [ValidateSet("ort", "llamacpp", "unified")]
-    [string]$Backend        = "ort"
+    [string]$Backend        = "ort",
+    # Replace onnxruntime-genai.dll with the #2280 DML fallback build when available
+    # (vendor/onnxruntime-genai-patched/ or -Build via vendor-genai-dml-patch.ps1).
+    [switch]$PatchedGenAI   = $false
 )
 
 $ErrorActionPreference = "Stop"
@@ -134,6 +137,15 @@ if ($CrtRedistDir) {
 # ---------------------------------------------------------------------------
 Write-Host "Restoring NuGet packages ..."
 nuget restore $SlnPath
+
+if ($PatchedGenAI -and $Backend -ne "llamacpp") {
+    $VendorScript = Join-Path $RepoRoot "scripts/vendor-genai-dml-patch.ps1"
+    Write-Host "Installing patched onnxruntime-genai.dll (#2280) ..."
+    & $VendorScript
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "vendor-genai-dml-patch.ps1 exited $LASTEXITCODE — continuing with NuGet DLL."
+    }
+}
 
 Write-Host "Building $Configuration|$Platform ..."
 

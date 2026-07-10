@@ -19,6 +19,11 @@ Benchmark suite for xllama. Results are stored as CSV files in `results/`.
 - `ort-genai-cpu`: UWP build (`XLLAMA_USE_ORT` defined). Compile-time label; the runtime execution provider on Xbox Series S is CPU EP (see `docs/uwp-constraints.md §5`).
 - `cpu`: Linux build (llama.cpp path).
 
+## App settings (console validation)
+
+Modern Xbox settings for routing + TAESD: [`configs/settings-modern.json`](configs/settings-modern.json).
+Upload via Device Portal or see [`docs/recommended-config.md`](../docs/recommended-config.md).
+
 ## Running benchmarks
 
 ### Xbox (automated)

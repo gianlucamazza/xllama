@@ -32,6 +32,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **GGUF assets in the catalogue (Fase 2b).** `Qwen3.5-0.8B-Q4_K_M.gguf`
+  (508 MB, unsloth quant, Apache-2.0) and `LFM2.5-350M-Q4_K_M.gguf` (219 MB,
+  LiquidAI official) published on `models-v1`; catalogue entries `qwen35-0.8b`
+  and `lfm25-350m` now download in-app (unified builds). The LFM Open License
+  v1.0 permits redistribution (§4) provided the license accompanies the work —
+  `LICENSE.txt` is published on the release and downloaded alongside the model.
+  Host smoke test: both load and generate via `xllama-cli`. On-console
+  decode/prefill benches remain (bench-gated promotion to default).
+- **Patched GenAI DLL pipeline** ([#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280)):
+  `patches/onnxruntime-genai-2280-dml-fallback.patch`,
+  `scripts/vendor-genai-dml-patch.ps1`, and `build-uwp.ps1 -PatchedGenAI` to
+  overlay the NuGet `onnxruntime-genai.dll` for XAML + DML chat routing.
+- **Recommended configurations** — [`docs/recommended-config.md`](docs/recommended-config.md)
+  and [`bench/configs/settings-modern.json`](bench/configs/settings-modern.json)
+  for console validation.
 - **TAESD fast VAE** for image generation: toggle in the Image dialog downloads
   `sd-turbo-fp16_taesd_vae_decoder_model.onnx` (~5 MB) from `models-v1` over the
   full VAE in-place; setting `diffuse_taesd_vae` persists in `settings.json`.

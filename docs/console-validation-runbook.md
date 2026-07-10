@@ -64,35 +64,27 @@ confirm multi-turn **coherence** (read the log's decoded turn-2 output) before t
 **Validates**: the `routing=2` (auto) path picks GPU (DML fp16) for long prompts and CPU
 for decode, sticky per conversation.
 
-Prereqs (both already satisfied on the current console): `smollm2-360m-dml-fp16` in
-`LocalState\models\`, and the routing setting. The setting can be **preloaded via WDP**
-so the person at the console only pastes a prompt:
+**Prereqs**:
+
+1. MSIX built with `./scripts/build-uwp.ps1 -PatchedGenAI` (ORT GenAI #2280 — vanilla NuGet
+   DLL hits `887A0036` in XAML).
+2. `smollm2-360m-dml-fp16` in `LocalState\models\`.
+3. Preload modern settings (tokenizer-accurate threshold **600 tok**):
 
 ```bash
 source ~/.config/xllama/xbox-env
 PFN=$(./scripts/deploy.sh pfn)
-cat > /tmp/settings.json <<'JSON'
-{
-  "system_prompt": "You are a helpful assistant.",
-  "model": "smollm2-360m-cpu-int4",
-  "kv_reuse": true,
-  "routing": 2,
-  "gpu_model": "smollm2-360m-dml-fp16",
-  "sampling": { "temperature": 0.70, "top_p": 0.90, "top_k": 40,
-                "repetition_penalty": 1.10, "n_predict": 256 }
-}
-JSON
-./scripts/deploy.sh upload-file /tmp/settings.json "$PFN" ""
+./scripts/deploy.sh upload-file bench/configs/settings-modern.json "$PFN" ""
 ```
 
-Then, at the console: launch xllama → paste a **long** prompt (>~500 tokens — e.g. the
-content of `bench/prompts/standard-512.txt`) → send; then a short follow-up; then **+ New**
-and a short prompt. Fetch the log afterwards (`deploy.sh get-log`).
+Then, at the console: launch xllama → paste a **long** prompt (>~600 tokens — use
+`bench/prompts/long-1k.txt`) → send; then a short follow-up; then **+ New** and a short
+prompt. Fetch the log afterwards (`deploy.sh get-log`).
 
-**Looking for** (in the log): the long-prompt conversation's first turn routed to
-`smollm2-360m-dml-fp16` (GPU) with a better TTFT than the CPU baseline at that length;
-the follow-up stays on the same EP (sticky); the new chat with a short prompt routes back
-to CPU. Flip `routing` back to `0` (Settings) afterwards if desired.
+**Looking for** (in the log): a line like `routing: auto → gpu (N tok, threshold 600, ...)`
+on the long-prompt first turn; follow-up stays on the same EP (sticky); new chat with a
+short prompt shows `routing: auto → cpu`. No `887A0036`. Optional: `./scripts/profile-dml-run.sh`
+on a GPU-routed turn → `VERDICT: GPU`.
 
 ## 3. PR #2 — 0.14.1 decode overhead — ✅ MEASURED 2026-07-08 (flat vs v0.3.6, `phase35-014-*.csv`)
 

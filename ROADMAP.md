@@ -229,17 +229,24 @@ Milestones:
       Qwen3-0.6B builds via ORT (969 MB); TAESD decoder validated (`docs/model-selection.md`).
 - [x] **TAESD UI + asset pipeline** — Image dialog toggle, `diffuse_taesd_vae` in
       settings.json, `scripts/export-taesd-asset.sh`; console bench pending (runbook §7c).
-- [ ] Interactive validations at the pad: §2 routing A/B + Image dialog flow +
-      §7c TAESD image bench
+- [x] **Patched GenAI DLL pipeline** — `patches/onnxruntime-genai-2280-dml-fallback.patch`,
+      `scripts/vendor-genai-dml-patch.ps1`, `build-uwp.ps1 -PatchedGenAI`.
+- [x] **Recommended config doc** — `docs/recommended-config.md` +
+      `bench/configs/settings-modern.json`.
+- [ ] Interactive validations at the pad: §2 routing A/B (needs `-PatchedGenAI` MSIX) +
+      Image dialog flow + §7c TAESD image bench
 - [x] Closure benches: int4 `block_size=128` / `accuracy_level=4` (§12
       confirm/refute) — closed inconclusive (PR #29, §12 stands)
 - [x] Fase 2: catalogue `kind:gguf` → `sp.backend`, gate KV-reuse/routing off
       for GGUF (plumbing complete 2026-07-09 via PR #30 + layout-aware Auto,
-      resolve support, bench guard, tests; asset promotion + console benches
-      remain Fase 2b).
-- [ ] If §2 shows `887A0036` on the GPU turn in XAML: vendor the patched GenAI
-      DLL (PR microsoft/onnxruntime-genai#2280, console-validated) until the
-      fix ships upstream
+      resolve support, bench guard, tests).
+- [x] Fase 2b (assets): Qwen3.5-0.8B + LFM2.5-350M Q4_K_M published on
+      `models-v1` with catalogue entries (LFM license redistributed per §4a);
+      host smoke test OK. **Console decode/prefill benches remain** (unified
+      MSIX, bench-gated promotion to default).
+- [~] Vendor patched GenAI DLL in shipping MSIX — pipeline done; default CI still
+  vanilla until `vendor/.../onnxruntime-genai.dll` is supplied or `-PatchedGenAI`
+  build is mandated post §2 PASS
 - [x] `diffusion/requirements.txt` toolchain bump + re-validation (2026-07-10):
       torch 2.9.1 / optimum-onnx 0.1.0 / transformers 4.57.6 / diffusers 0.39.0.
       Full recipe re-run green: export (diff 0.0102, warning-level precedent),

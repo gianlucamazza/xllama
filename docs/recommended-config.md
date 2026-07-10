@@ -1,0 +1,129 @@
+# Recommended configurations (Xbox Series S, 2026)
+
+Operational reference for correct, modern xllama settings. Every workload verdict
+is **measured** unless marked "host-only" or "pending console". See
+[technical-report.md](./technical-report.md) for the full story.
+
+## Runtime pins (do not drift)
+
+| Package | Version | File |
+| ------- | ------- | ---- |
+| ORT GenAI DirectML | **0.14.1** | `uwp/packages.config` |
+| ONNX Runtime DirectML | **1.24.4** | same |
+| DirectML | **1.15.4** | same |
+
+Chat GPU inside XAML requires the **#2280** patched `onnxruntime-genai.dll`:
+
+```powershell
+./scripts/vendor-genai-dml-patch.ps1   # place or build DLL first
+./scripts/build-uwp.ps1 -PatchedGenAI
+```
+
+Upstream: [microsoft/onnxruntime-genai#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280).
+
+## UWP build variants
+
+| Variant | Command | When to use |
+| ------- | ------- | ----------- |
+| **ort** (shipping) | `build-uwp.ps1` | Default chat via ORT GenAI |
+| **unified** | `-Backend unified` | GGUF models (`kind: gguf`) + ORT |
+| **llamacpp** | `-Backend llamacpp` | Bench A/B only — not for end users |
+
+## Chat models
+
+| Use case | Catalogue `name` | Backend | Measured decode |
+| -------- | ---------------- | ------- | --------------- |
+| **Default** | `smollm2-360m-cpu-int4` | ORT CPU int4 | ~66 tok/s |
+| **Routing GPU** | `smollm2-360m-dml-fp16` | ORT DML fp16 | ~47 tok/s decode; ~354 tok/s prefill @1k |
+| **Larger chat** | `smollm2-1.7b-cpu-int4` | ORT CPU int4 | ~21 tok/s (USB / 90 GB disk) |
+| **Modern GGUF** | `qwen35-0.8b` | llama.cpp (`unified`) | Host OK; console pending |
+
+### Do not use
+
+- DML **int4** for decode (~8.8 tok/s — DirectML kernel limit)
+- CPU-int4 SmolLM graph with DML `genai_config` (`80070057`)
+- Qwen2.5-0.5B ONNX CPU (~822 MB vocab embedding)
+- llama.cpp as primary text backend (decode parity, worse prefill vs ORT)
+
+## `genai_config.json` (on-device model dir)
+
+**CPU (bundled default)** — copy from [`bench/configs/genai_config-threads-4.json`](../bench/configs/genai_config-threads-4.json):
+
+- `provider_options: []`
+- `intra_op_num_threads: 4` (t=8 regresses to ~28 tok/s on Series S)
+- `past_present_share_buffer: true` (required for KV reuse)
+
+**DML fp16 (routing)** — [`bench/configs/genai_config-dml-test.json`](../bench/configs/genai_config-dml-test.json):
+
+```json
+"provider_options": [{ "dml": {
+  "enable_cpu_mem_arena": "0",
+  "enable_mem_pattern": "0"
+}}]
+```
+
+Swap without MSIX rebuild: [`scripts/test-dml-config.sh`](../scripts/test-dml-config.sh).
+
+Models must be **self-contained** `model.onnx` (< 2 GB merged) — run
+[`scripts/merge_onnx_external_data.py`](../scripts/merge_onnx_external_data.py) before upload.
+
+## App settings (`LocalState/settings.json`)
+
+Copy [`bench/configs/settings-modern.json`](../bench/configs/settings-modern.json) via Device Portal, or use the UI.
+
+| Key | Recommended | Notes |
+| --- | ----------- | ----- |
+| `model` | `smollm2-360m-cpu-int4` | Downloaded on first launch |
+| `kv_reuse` | `true` | 4.87× turn-2 prefill (measured) |
+| `routing` | `0` default; `2` for RAG | `2` = Auto; needs DML fp16 model + patched DLL |
+| `gpu_model` | `smollm2-360m-dml-fp16` | USB/LocalState provision |
+| `diffuse_taesd_vae` | `true` after asset on `models-v1` | ~4.5 s/image target |
+| `sampling.temperature` | `0.8` | UI default |
+| `sampling.n_predict` | `512` | UI default |
+
+Routing Auto uses **600 tokens** (real tokenizer count), sticky per conversation.
+
+## Image generation
+
+| Setting | Modern | Obsolete |
+| ------- | ------ | -------- |
+| Trigger | `[*] Image` → **Generate** (in-process) | App restart + `diffuse.flag` |
+| Model dir | `sd-turbo-fp16` | — |
+| VAE | TAESD toggle on | Full VAE only (~2.6 s stage) |
+| Steps | `1` (SD-Turbo) | — |
+| TAESD asset | `sd-turbo-fp16_taesd_vae_decoder_model.onnx` on `models-v1` | — |
+
+Export host-side: [`scripts/export-taesd-asset.sh`](../scripts/export-taesd-asset.sh).
+
+`diffuse.flag` remains for **headless bench/WDP** only.
+
+## Linux development
+
+```bash
+cmake --preset linux-test
+cmake --build build/linux-test -j$(nproc)
+ctest --test-dir build/linux-test --output-on-failure
+```
+
+## Bench protocol
+
+- Prompts: `bench/prompts/standard-512.txt`, `long-1k.txt`
+- 2+ runs; drop run 1; median runs 2–3
+- DML truth: `scripts/profile-dml-run.sh --gpu-sample` → `VERDICT: GPU`
+
+## Obsolete assumptions (do not reuse)
+
+| Myth | Reality |
+| ---- | ------- |
+| GPU pool ~768 MB | **3801 MB** (Game designation) |
+| Dev Mode disk ~2.5 GB cap | Raised to **90 GB** (Dev Home) |
+| Diffusion needs headless (887A0036) | Conflict is **ORT GenAI** only; plain ORT DML in-proc OK |
+| MSIX bundles model | **~19 MB** MSIX; catalogue download |
+| `intra_op_num_threads: 8` | Bandwidth saturation on Series S |
+
+## Validation checklist
+
+1. Deploy MSIX built with `-PatchedGenAI`
+2. Upload [`bench/configs/settings-modern.json`](../bench/configs/settings-modern.json) (routing Auto)
+3. Run [console-validation-runbook.md](./console-validation-runbook.md) §2 and §7b (TAESD)
+4. Fetch `diffuse-result.csv` + `xllama.log` → `bench/results/`
