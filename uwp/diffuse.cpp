@@ -125,6 +125,19 @@ ONNXTensorElementDataType input_type_by_name(Ort::Session& s, const char* name) 
     return ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
 }
 
+// Declared rank of a session input (export-dependent: timestep is [1] on
+// optimum <= 1.23, [] scalar on optimum-onnx 0.1.0+). 1 if the name is absent.
+size_t input_rank_by_name(Ort::Session& s, const char* name) {
+    Ort::AllocatorWithDefaultOptions alloc;
+    const size_t n = s.GetInputCount();
+    for (size_t i = 0; i < n; ++i) {
+        auto nm = s.GetInputNameAllocated(i, alloc);
+        if (std::strcmp(nm.get(), name) == 0)
+            return s.GetInputTypeInfo(i).GetTensorTypeAndShapeInfo().GetShape().size();
+    }
+    return 1;
+}
+
 // A float tensor fed as fp16 or fp32 depending on what the session declares.
 // Owns the backing storage; keep alive until after Run. (Moving is safe: vector
 // moves preserve the heap buffer the Ort::Value points into.)
@@ -294,10 +307,14 @@ void run_diffuse() {
             // float16/float32 (the ORT-team fp16 export declares timestep:f16 — the
             // values used here, e.g. 999, are integers < 2048, exact in fp16).
             const auto ts_type = input_type_by_name(unet, "timestep");
+            // timestep shape is export-dependent as well: [1] (optimum <= 1.23) or
+            // [] scalar (optimum-onnx 0.1.0+). Same 1-element buffer either way;
+            // only the declared rank changes.
+            const size_t ts_rank = input_rank_by_name(unet, "timestep");
             log_output(std::string("[xllama] diffuse: unet input ") +
                        (unet_fp16 ? "fp16" : "fp32") + ", hidden_dim " +
-                       std::to_string(hidden_dim) + ", te+unet load " +
-                       std::to_string((int)ms_since(t_load0)) + " ms\n");
+                       std::to_string(hidden_dim) + ", ts rank " + std::to_string(ts_rank) +
+                       ", te+unet load " + std::to_string((int)ms_since(t_load0)) + " ms\n");
 
             for (size_t s = 0; s < sched.timesteps().size(); ++s) {
                 const std::string step_label =
@@ -322,14 +339,13 @@ void run_diffuse() {
                 Ort::Value u_ts{nullptr};
                 if (ts_type == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16) {
                     u_ts = Ort::Value::CreateTensor(mem, &ts_f16, sizeof(ts_f16), t_shape.data(),
-                                                    t_shape.size(),
-                                                    ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16);
+                                                    ts_rank, ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16);
                 } else if (ts_type == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT) {
-                    u_ts = Ort::Value::CreateTensor<float>(mem, &ts_f32, 1, t_shape.data(),
-                                                           t_shape.size());
+                    u_ts =
+                        Ort::Value::CreateTensor<float>(mem, &ts_f32, 1, t_shape.data(), ts_rank);
                 } else {
-                    u_ts = Ort::Value::CreateTensor<int64_t>(mem, &ts_i64, 1, t_shape.data(),
-                                                             t_shape.size());
+                    u_ts =
+                        Ort::Value::CreateTensor<int64_t>(mem, &ts_i64, 1, t_shape.data(), ts_rank);
                 }
 
                 Ort::Value u_ins[] = {std::move(u_sample.value), std::move(u_ts),

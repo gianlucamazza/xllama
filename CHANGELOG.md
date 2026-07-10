@@ -9,6 +9,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`diffuse.cpp` is timestep-shape-aware**: the UNet `timestep` tensor is fed
+  with the rank the model declares — `[1]` (optimum ≤ 1.23, the deployed
+  artifacts, unchanged path) or scalar `[]` (optimum-onnx 0.1.0+ exports) —
+  from the same 1-element buffer, mirroring `validate_pipeline.py`. Removes
+  the last code blocker for promoting new-generation diffusion artifacts;
+  the remaining gate is runbook §7 on console. The unet log line now reports
+  `ts rank 0|1`.
 - **Diffusion export toolchain bumped** (host-only, never shipped): torch
   2.4.1→2.9.1, optimum 1.23.3→optimum-onnx 0.1.0, transformers 4.46.3→4.57.6,
   diffusers 0.31.0→0.39.0. Clears the actionable dependabot alerts (torch

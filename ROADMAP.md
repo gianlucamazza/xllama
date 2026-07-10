@@ -254,5 +254,6 @@ Milestones:
       visual, golden vectors byte-identical outside `reference`, ctest 100%,
       TAESD export + swap OK. Residual alerts documented in requirements.txt
       (kernels not installed; Trainer unused). New-generation exports declare
-      scalar UNet `timestep` — `diffuse.cpp` needs shape-awareness before any
-      artifact re-promotion (see `diffusion/README.md`).
+      scalar UNet `timestep` — `diffuse.cpp` is shape-aware since 2026-07-10;
+      the residual gate for artifact re-promotion is runbook §7 on console
+      (see `diffusion/README.md`).
