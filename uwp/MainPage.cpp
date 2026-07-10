@@ -2049,6 +2049,9 @@ void MainPageController::StartAutopilotIfRequested() {
             if (!ApParseScript(json, actions, total_cap, perr))
                 throw std::runtime_error("bad autopilot.json: " + perr);
             self->ApRun(std::move(actions), total_cap);
+        } catch (const winrt::hresult_error& e) {
+            result = "error: hresult 0x" + std::to_string((unsigned)e.code().value) + " " +
+                     ::xllama::wstring_to_utf8(std::wstring(e.message().c_str()));
         } catch (const std::exception& e) {
             result = std::string("error: ") + e.what();
         } catch (...) {

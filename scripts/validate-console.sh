@@ -39,6 +39,7 @@ PFN=$("${DEPLOY}" pfn 2>/dev/null)
 }
 
 TMPDIR_LOCAL=$(mktemp -d)
+VAE_CACHE="" # set by validate_taesd; read by its EXIT trap (must be global)
 trap 'rm -rf "$TMPDIR_LOCAL"' EXIT
 
 # --- WDP helpers (same idioms as bench-xbox-ort.sh) ------------------------
@@ -124,6 +125,10 @@ run_autopilot() {
 	printf 'go' >"${TMPDIR_LOCAL}/autopilot.flag"
 	delete_file "autopilot-done.txt"
 	delete_file "diffuse-progress.txt"
+	# xllama.log is append-only across restarts; clear it so the verdict greps
+	# only this run (a stale 887A0036 or routing line would falsify the gate).
+	# The app reopens the log lazily on next launch.
+	delete_file "xllama.log"
 	upload_file "${TMPDIR_LOCAL}/autopilot.json"
 	upload_file "${TMPDIR_LOCAL}/autopilot.flag"
 	restart_app
@@ -139,11 +144,29 @@ fetch_log() {
 
 validate_routing() {
 	echo "=== §2 routing A/B ==="
+	# Routing=auto is emitted only when settings.json has "routing": 2; seed it
+	# (the whole point is that no human could set it via the dialog). Schema
+	# mirrors SaveSettings (MainPage.cpp).
+	cat >"${TMPDIR_LOCAL}/settings.json" <<'JSON'
+{
+  "system_prompt": "You are a helpful AI assistant.",
+  "model": "smollm2-360m-cpu-int4",
+  "kv_reuse": true,
+  "routing": 2,
+  "gpu_model": "smollm2-360m-dml-fp16",
+  "diffuse_taesd_vae": false,
+  "sampling": {"temperature": 0.8, "top_p": 0.9, "top_k": 40, "repetition_penalty": 1.1, "n_predict": 256}
+}
+JSON
+	upload_file "${TMPDIR_LOCAL}/settings.json"
+
 	# Build the long decoy conversation (>600 tok) from long-1k.txt, stripping
-	# the ChatML wrapper so the stored user content is plain prose.
+	# the ChatML wrapper so the stored user content is plain prose. Merge it into
+	# the device's existing chat index rather than clobbering it.
 	local esca_id="ap-routing-longctx"
+	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
 	python3 - "$REPO_ROOT" "$TMPDIR_LOCAL" "$esca_id" <<'PY'
-import json, re, sys, time
+import json, re, sys
 repo, tmp, cid = sys.argv[1], sys.argv[2], sys.argv[3]
 body = open(f"{repo}/bench/prompts/long-1k.txt").read()
 m = re.search(r'<\|im_start\|>user\n(.*?)(?:<\|im_end\|>|$)', body, re.S)
@@ -154,17 +177,25 @@ conv = {"id": cid, "title": "routing A/B (long context)", "messages": [
     {"role": "assistant", "content": "Understood; ready to continue.", "ts": ts+1, "partial": False},
 ]}
 open(f"{tmp}/{cid}.json", "w").write(json.dumps(conv, ensure_ascii=False))
-open(f"{tmp}/index.json", "w").write(json.dumps(
-    [{"id": cid, "title": conv["title"], "last_modified": ts+1, "n_messages": 2}],
-    ensure_ascii=False))
-print(f"  decoy user chars: {len(user)} (~{len(user)//4} tok)")
+entry = {"id": cid, "title": conv["title"], "last_modified": ts+1, "n_messages": 2}
+idx = []
+try:
+    idx = json.load(open(f"{tmp}/existing-index.json"))
+    if not isinstance(idx, list):
+        idx = []
+except Exception:
+    idx = []
+idx = [e for e in idx if e.get("id") != cid]
+idx.insert(0, entry)
+open(f"{tmp}/index.json", "w").write(json.dumps(idx, ensure_ascii=False))
+print(f"  decoy user chars: {len(user)} (~{len(user)//4} tok); index entries: {len(idx)}")
 PY
 	upload_file "${TMPDIR_LOCAL}/${esca_id}.json" "chats"
 	upload_file "${TMPDIR_LOCAL}/index.json" "chats"
 
 	local marker
 	marker=$(
-		run_autopilot 900 <<JSON
+		run_autopilot 1300 <<JSON
 {"total_timeout_s": 900, "actions": [
   {"op": "load_chat", "id": "${esca_id}"},
   {"op": "send", "text": "continue", "timeout_s": 300},
@@ -174,7 +205,7 @@ PY
   {"op": "quit"}
 ]}
 JSON
-	)
+	) || true
 	echo "  autopilot: ${marker}"
 	local log
 	log=$(fetch_log)
@@ -224,7 +255,7 @@ validate_gguf() {
 	echo "=== GGUF chat (unified) ==="
 	local marker
 	marker=$(
-		run_autopilot 300 <<'JSON'
+		run_autopilot 900 <<'JSON'
 {"total_timeout_s": 300, "actions": [
   {"op": "set_model", "name": "lfm25-350m"},
   {"op": "new_chat"},
@@ -232,7 +263,7 @@ validate_gguf() {
   {"op": "quit"}
 ]}
 JSON
-	)
+	) || true
 	echo "  autopilot: ${marker}"
 	local log verdict=0
 	log=$(fetch_log)
@@ -256,31 +287,30 @@ JSON
 validate_taesd() {
 	echo "=== §7c TAESD image ==="
 	local rel="https://github.com/gianlucamazza/xllama/releases/download/models-v1"
-	local cache="${REPO_ROOT}/.cache-validate"
-	mkdir -p "$cache"
+	# VAE_CACHE is a GLOBAL (set below) so the EXIT trap can still read it after
+	# this function returns — a `local` would be out of scope at trap time and
+	# abort the restore under `set -u`.
+	VAE_CACHE="${REPO_ROOT}/.cache-validate"
+	mkdir -p "$VAE_CACHE"
 	# Cache the tiny (TAESD) and full VAE decoders once.
-	[[ -f "${cache}/taesd_vae.onnx" ]] ||
-		curl -fsSL "${rel}/sd-turbo-fp16_taesd_vae_decoder_model.onnx" -o "${cache}/taesd_vae.onnx"
-	[[ -f "${cache}/full_vae.onnx" ]] ||
-		curl -fsSL "${rel}/sd-turbo-fp16_vae_decoder_model.onnx" -o "${cache}/full_vae.onnx"
+	[[ -f "${VAE_CACHE}/taesd_vae.onnx" ]] ||
+		curl -fsSL "${rel}/sd-turbo-fp16_taesd_vae_decoder_model.onnx" -o "${VAE_CACHE}/taesd_vae.onnx"
+	[[ -f "${VAE_CACHE}/full_vae.onnx" ]] ||
+		curl -fsSL "${rel}/sd-turbo-fp16_vae_decoder_model.onnx" -o "${VAE_CACHE}/full_vae.onnx"
 
 	# Swap TAESD in, restore the full VAE on exit no matter what.
-	restore_vae() {
-		echo "  restoring full VAE decoder ..." >&2
-		upload_file "${cache}/full_vae.onnx" "models\\sd-turbo-fp16\\vae_decoder" "model.onnx"
-	}
-	trap 'restore_vae; rm -rf "$TMPDIR_LOCAL"' EXIT
-	upload_file "${cache}/taesd_vae.onnx" "models\\sd-turbo-fp16\\vae_decoder" "model.onnx"
+	trap 'echo "  restoring full VAE decoder ..." >&2; upload_file "${VAE_CACHE}/full_vae.onnx" "models\\sd-turbo-fp16\\vae_decoder" "model.onnx"; rm -rf "$TMPDIR_LOCAL"' EXIT
+	upload_file "${VAE_CACHE}/taesd_vae.onnx" "models\\sd-turbo-fp16\\vae_decoder" "model.onnx"
 
 	local marker
 	marker=$(
-		run_autopilot 600 <<'JSON'
+		run_autopilot 1300 <<'JSON'
 {"total_timeout_s": 600, "actions": [
   {"op": "generate_image", "prompt": "a red sports car on a mountain road at sunset", "steps": 1, "seed": 42, "timeout_s": 600},
   {"op": "quit"}
 ]}
 JSON
-	)
+	) || true
 	echo "  autopilot: ${marker}"
 	local verdict=0
 	[[ "$marker" == "ok" ]] || {
