@@ -64,7 +64,21 @@ confirm multi-turn **coherence** (read the log's decoded turn-2 output) before t
 **Validates**: the `routing=2` (auto) path picks GPU (DML fp16) for long prompts and CPU
 for decode, sticky per conversation.
 
-**Prereqs**:
+> **Automated gate (preferred).** Dev Mode gives the console no working text-input
+> path, so this A/B is driven by the in-app **autopilot** (build ≥ 1.1.3.0):
+>
+> ```bash
+> source ~/.config/xllama/xbox-env
+> ./scripts/validate-console.sh routing   # PASS/FAIL from the log, exit code
+> ```
+>
+> It seeds a >600-token decoy conversation, replays load_chat → send → new_chat →
+> send via `autopilot.flag`/`autopilot.json`, and greps `xllama.log` for
+> `auto → gpu (N>600 tok`, `auto → cpu` on the new chat, and the absence of
+> `887A0036`. **A PASS here is the official §2 gate** (same StartInference in the
+> live XAML process as a human run). The manual steps below remain for debugging.
+
+**Prereqs** (manual path):
 
 1. A `-PatchedGenAI` MSIX (ORT GenAI #2280 — vanilla NuGet DLL hits `887A0036`
    in XAML): either `gh workflow run build-uwp-patched.yml` and download the
@@ -231,13 +245,30 @@ PNG is coherent and matches the headless output. In-process was even faster than
 
 ### 7c. TAESD VAE (Image dialog toggle) — ⏳ PENDING
 
-**Prereqs**: `sd-turbo-fp16_taesd_vae_decoder_model.onnx` on the `models-v1` Release
-(host export: `./scripts/export-taesd-asset.sh` + `gh release upload`).
+> **Automated (preferred).** `./scripts/validate-console.sh taesd` swaps the tiny
+> TAESD VAE into `models\sd-turbo-fp16\vae_decoder\model.onnx`, autopilots a
+> `generate_image` (steps=1), checks `diffuse-result.csv` `vae_ms < 1000`, and
+> **restores the full VAE on exit** (trap). PASS/FAIL + exit code.
+
+**Prereqs** (manual path): `sd-turbo-fp16_taesd_vae_decoder_model.onnx` on the
+`models-v1` Release (host export: `./scripts/export-taesd-asset.sh` + `gh release upload`).
 
 At the console: `[*] Image` → enable **TAESD fast VAE** → **Generate** with steps=1.
 
 **Looking for**: total wall-clock ~4.5 s (vs ~5.6 s full VAE, VAE stage ~2.6 s → sub-second),
 coherent PNG. Record te/UNet/VAE stage times from the log in `bench/results/`.
+
+## Autopilot (`validate-console.sh`)
+
+The in-app autopilot (build ≥ 1.1.3.0) scripts the live XAML UI so §2/§7c/GGUF
+chat run without a person at the pad. Trigger `LocalState\autopilot.flag` (consumed
+at `App::OnLaunched`); actions from `LocalState\autopilot.json`
+(`load_chat|send|new_chat|set_model|generate_image|quit`); result in
+`LocalState\autopilot-done.txt` (`ok` | `error: <detail>`). Progress lines carry an
+`[autopilot]` prefix — on a hard crash (no done-marker, process dead) the last
+`[autopilot] action <i> <op> start` in `xllama.log` names the in-flight action.
+`./scripts/validate-console.sh <routing|gguf|taesd|all>` orchestrates upload →
+restart → poll → verdict.
 
 ## Closeout
 

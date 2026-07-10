@@ -13,13 +13,16 @@
     #include "xllama/platform.h"
     #include "xllama/utf8_utils.h"
 
+    #include <winrt/Windows.Data.Json.h>
     #include <winrt/Windows.UI.Xaml.Media.Imaging.h>
 
+    #include <chrono>
     #include <cstdio>
     #include <ctime>
     #include <filesystem>
     #include <string>
     #include <thread>
+    #include <vector>
 
 using namespace winrt;
 using namespace winrt::Windows::Foundation;
@@ -1419,6 +1422,7 @@ fire_and_forget MainPageController::EnsureModelAsync() {
         self->LoadModelName();
         self->SetStatus(L"Ready", StatusKind::Success);
         self->m_runButton.IsEnabled(true);
+        self->m_model_ready.store(true);
         co_return;
     }
 
@@ -1435,6 +1439,7 @@ fire_and_forget MainPageController::EnsureModelAsync() {
             self->LoadModelName();
             self->SetStatus(L"Ready", StatusKind::Success);
             self->m_runButton.IsEnabled(true);
+            self->m_model_ready.store(true);
             co_return;
         }
     }
@@ -1560,6 +1565,7 @@ fire_and_forget MainPageController::EnsureModelAsync() {
             self->LoadModelName();
             self->SetStatus(L"Ready", StatusKind::Success);
             self->m_runButton.IsEnabled(true);
+            self->m_model_ready.store(true);
             co_return;
         }
     }
@@ -1630,6 +1636,7 @@ fire_and_forget MainPageController::EnsureModelAsync() {
             }
             self->SetStatus(L"Model ready", StatusKind::Success);
             self->LoadModelName();
+            self->m_model_ready.store(true);
         });
 }
 
@@ -1940,6 +1947,216 @@ void MainPageController::OnCancelClick(IInspectable const&, RoutedEventArgs cons
     m_abort.store(true);
     SetStatus(L"Cancelling...");
     m_cancelButton.IsEnabled(false);
+}
+
+// ---------------------------------------------------------------------------
+// Autopilot — scripted validation of the real XAML UI.
+//
+// Dev Mode gives the console no working text-input path (the Xbox companion
+// app's remote keyboard does not connect to a Dev-Mode console), so the §2
+// routing A/B, §7c TAESD and GGUF-chat validations could only be done by hand.
+// This driver replays a JSON action list against the same controller methods
+// the buttons call (StartInference / NewChat / LoadConversation / StartDiffusion),
+// on the UI thread, from a background MTA thread — no UI code is duplicated.
+//
+// Trigger: LocalState\autopilot.flag (consumed). Script: LocalState\autopilot.json.
+// Result: LocalState\autopilot-done.txt = "ok" | "error: <detail>". Progress is
+// logged with an [autopilot] prefix (flushed per line) so a hard crash still
+// leaves the in-flight action identifiable.
+// ---------------------------------------------------------------------------
+
+// Parse autopilot.json into an action list. Returns false + err on shape error.
+bool MainPageController::ApParseScript(const std::string& json_utf8, std::vector<ApAction>& out,
+                                       std::chrono::seconds& total_cap, std::string& err) {
+    using winrt::Windows::Data::Json::JsonObject;
+    JsonObject root{nullptr};
+    if (!JsonObject::TryParse(::xllama::utf8_to_wstring(json_utf8), root)) {
+        err = "not valid JSON";
+        return false;
+    }
+    total_cap = std::chrono::seconds((int64_t)root.GetNamedNumber(L"total_timeout_s", 1800));
+    if (!root.HasKey(L"actions")) {
+        err = "no 'actions' array";
+        return false;
+    }
+    for (auto const& item : root.GetNamedArray(L"actions")) {
+        auto obj = item.GetObject();
+        ApAction a;
+        a.op = ::xllama::wstring_to_utf8(std::wstring(obj.GetNamedString(L"op", L"").c_str()));
+        if (a.op.empty()) {
+            err = "action without 'op'";
+            return false;
+        }
+        // Single payload slot: text (send) / id (load_chat) / name (set_model) /
+        // prompt (generate_image).
+        for (auto key : {L"text", L"id", L"name", L"prompt"}) {
+            if (obj.HasKey(key)) {
+                a.arg = std::wstring(obj.GetNamedString(key, L"").c_str());
+                break;
+            }
+        }
+        a.steps = (int)obj.GetNamedNumber(L"steps", 1);
+        a.seed = (unsigned)obj.GetNamedNumber(L"seed", 42);
+        int t = (int)obj.GetNamedNumber(L"timeout_s", 0);
+        a.timeout = std::chrono::seconds(t);
+        out.push_back(std::move(a));
+    }
+    if (out.empty()) {
+        err = "empty 'actions'";
+        return false;
+    }
+    return true;
+}
+
+void MainPageController::ApDispatchSync(std::function<void()> fn) {
+    // RunAsync(...).get() blocks the calling MTA thread until the lambda has run
+    // on the UI thread. Legal from MTA (would deadlock/assert on an STA pump).
+    m_root.Dispatcher()
+        .RunAsync(winrt::Windows::UI::Core::CoreDispatcherPriority::Normal,
+                  [fn = std::move(fn)]() { fn(); })
+        .get();
+}
+
+bool MainPageController::ApWaitAtomic(std::atomic<bool>& flag, bool want,
+                                      std::chrono::seconds timeout) {
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
+    while (std::chrono::steady_clock::now() < deadline) {
+        if (flag.load() == want)
+            return true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    }
+    return flag.load() == want;
+}
+
+void MainPageController::StartAutopilotIfRequested() {
+    std::wstring flag = local_wpath(L"autopilot.flag");
+    if (GetFileAttributesW(flag.c_str()) == INVALID_FILE_ATTRIBUTES)
+        return;
+    _wremove(flag.c_str()); // consume before run (same as bench/diffuse flags)
+    log_output("[autopilot] flag detected\n");
+
+    auto self = shared_from_this(); // strong: worker-thread pattern (see StartDiffusion)
+    std::thread([self]() {
+        winrt::init_apartment(); // MTA (same as the diffuse worker)
+        std::string result = "ok";
+        try {
+            std::string json = read_local_text_file(L"autopilot.json");
+            if (json.empty())
+                throw std::runtime_error("autopilot.json missing or empty");
+            std::vector<ApAction> actions;
+            std::chrono::seconds total_cap{1800};
+            std::string perr;
+            if (!ApParseScript(json, actions, total_cap, perr))
+                throw std::runtime_error("bad autopilot.json: " + perr);
+            self->ApRun(std::move(actions), total_cap);
+        } catch (const std::exception& e) {
+            result = std::string("error: ") + e.what();
+        } catch (...) {
+            result = "error: unknown exception";
+        }
+        // ApRun writes the marker itself on a normal finish (so 'quit' can exit
+        // before we get here); only write it if it didn't.
+        if (GetFileAttributesW(local_wpath(L"autopilot-done.txt").c_str()) ==
+            INVALID_FILE_ATTRIBUTES)
+            write_local_bytes(L"autopilot-done.txt", result);
+        log_output("[autopilot] driver exit: " + result + "\n");
+    }).detach();
+}
+
+void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::seconds total_cap) {
+    const auto total_deadline = std::chrono::steady_clock::now() + total_cap;
+    const std::chrono::seconds kGrace{30};
+
+    // Gate on the model being ready (first-launch download may be in flight).
+    if (!ApWaitAtomic(m_model_ready, true, std::chrono::seconds{600}))
+        throw std::runtime_error("model not ready after 600s");
+
+    auto not_running = [&]() {
+        return ApWaitAtomic(m_is_running, false, kGrace) &&
+               ApWaitAtomic(m_diffuse_running, false, kGrace);
+    };
+
+    for (size_t i = 0; i < actions.size(); ++i) {
+        const ApAction& a = actions[i];
+        if (std::chrono::steady_clock::now() > total_deadline)
+            throw std::runtime_error("total timeout");
+        log_output("[autopilot] action " + std::to_string(i) + " " + a.op + " start\n");
+
+        if (a.op == "send") {
+            if (!not_running())
+                throw std::runtime_error("action " + std::to_string(i) + " send: busy");
+            std::wstring text = a.arg;
+            ApDispatchSync([this, text]() { StartInference(text); });
+            auto t = a.timeout.count() > 0 ? a.timeout : std::chrono::seconds{300};
+            if (!ApWaitAtomic(m_is_running, false, t)) {
+                m_abort.store(true);
+                ApWaitAtomic(m_is_running, false, kGrace);
+                throw std::runtime_error("action " + std::to_string(i) + " send: timeout");
+            }
+            // Fence: a status probe dispatched now runs AFTER the completion
+            // lambda (which does SetRunning(false) then SaveCurrentConversation),
+            // so the chat JSON is on disk and the status text is final.
+            std::wstring status;
+            ApDispatchSync(
+                [this, &status]() { status = std::wstring(m_statusText.Text().c_str()); });
+            if (status.rfind(L"! ", 0) == 0)
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " send: " + ::xllama::wstring_to_utf8(status.substr(2)));
+        } else if (a.op == "new_chat") {
+            if (!not_running())
+                throw std::runtime_error("action " + std::to_string(i) + " new_chat: busy");
+            ApDispatchSync([this]() { NewChat(); });
+        } else if (a.op == "load_chat") {
+            if (!not_running())
+                throw std::runtime_error("action " + std::to_string(i) + " load_chat: busy");
+            std::string id = ::xllama::wstring_to_utf8(a.arg);
+            std::wstring path = local_wpath((L"chats\\" + a.arg + L".json").c_str());
+            if (GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES)
+                throw std::runtime_error("action " + std::to_string(i) + " load_chat: chat '" + id +
+                                         "' not found");
+            ApDispatchSync([this, id]() { LoadConversation(id); });
+        } else if (a.op == "set_model") {
+            std::wstring name = a.arg;
+            // Same as ShowSettings' Save path, plus clear the sticky routed model
+            // so the next send re-decides the EP for the new model.
+            ApDispatchSync([this, name]() {
+                m_model_filename = name;
+                m_modelText.Text(name);
+                m_active_model.clear();
+            });
+        } else if (a.op == "generate_image") {
+            if (!not_running())
+                throw std::runtime_error("action " + std::to_string(i) + " generate_image: busy");
+            std::string prompt = a.arg.empty() ? "a red sports car on a mountain road at sunset"
+                                               : ::xllama::wstring_to_utf8(a.arg);
+            write_local_bytes(L"prompt.txt", prompt);
+            write_local_bytes(L"diffuse-steps.txt", std::to_string(a.steps));
+            write_local_bytes(L"diffuse-seed.txt", std::to_string(a.seed));
+            write_local_bytes(L"diffuse-model.txt", "sd-turbo-fp16");
+            ApDispatchSync([this]() { StartDiffusion(); });
+            auto t = a.timeout.count() > 0 ? a.timeout : std::chrono::seconds{600};
+            if (!ApWaitAtomic(m_diffuse_running, false, t)) {
+                write_local_bytes(L"diffuse-cancel.flag", "cancel");
+                ApWaitAtomic(m_diffuse_running, false, kGrace);
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " generate_image: timeout");
+            }
+            std::string stage = read_local_text_file(L"diffuse-progress.txt");
+            if (stage != "done")
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " generate_image: stage=" + stage);
+        } else if (a.op == "quit") {
+            log_output("[autopilot] action " + std::to_string(i) + " quit\n");
+            write_local_bytes(L"autopilot-done.txt", "ok");
+            ApDispatchSync([]() { winrt::Windows::UI::Xaml::Application::Current().Exit(); });
+            return;
+        } else {
+            throw std::runtime_error("unknown op '" + a.op + "'");
+        }
+        log_output("[autopilot] action " + std::to_string(i) + " " + a.op + " end\n");
+    }
+    // Fell off the end without an explicit quit: still a success.
+    write_local_bytes(L"autopilot-done.txt", "ok");
 }
 
 } // namespace xllama

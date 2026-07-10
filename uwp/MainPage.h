@@ -13,9 +13,11 @@
 
     #include <atomic>
     #include <chrono>
+    #include <functional>
     #include <memory>
     #include <mutex>
     #include <string>
+    #include <vector>
 
 namespace xllama {
 
@@ -33,7 +35,26 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
         return m_root;
     }
 
+    // Autopilot: scripted validation of the real XAML UI (console has no human
+    // input path in Dev Mode). No-op unless LocalState\autopilot.flag exists;
+    // the flag is consumed, actions come from LocalState\autopilot.json, the
+    // outcome lands in LocalState\autopilot-done.txt ("ok" | "error: ...").
+    void StartAutopilotIfRequested(); // called from App::OnLaunched
+
   private:
+    // One parsed autopilot action (see ApParseScript in MainPage.cpp).
+    struct ApAction {
+        std::string op;   // load_chat|send|new_chat|set_model|generate_image|quit
+        std::wstring arg; // id / text / model name / image prompt
+        int steps{1};     // generate_image
+        unsigned seed{42};
+        std::chrono::seconds timeout{0}; // 0 = per-op default
+    };
+    static bool ApParseScript(const std::string& json_utf8, std::vector<ApAction>& out,
+                              std::chrono::seconds& total_cap, std::string& err);
+    void ApRun(std::vector<ApAction> actions, std::chrono::seconds total_cap);
+    void ApDispatchSync(std::function<void()> fn); // sync hop to the UI thread (MTA-only)
+    bool ApWaitAtomic(std::atomic<bool>& flag, bool want, std::chrono::seconds timeout);
     void BuildUI();
     void LoadModelName();
     winrt::fire_and_forget EnsureModelAsync();
@@ -142,6 +163,9 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     std::atomic<bool> m_abort{false};
     std::atomic<bool> m_is_running{false};
     std::atomic<bool> m_diffuse_running{false};
+    // Set once EnsureModelAsync lands a usable chat model (any source); the
+    // autopilot driver gates its first action on this.
+    std::atomic<bool> m_model_ready{false};
     winrt::Windows::UI::Xaml::DispatcherTimer m_diffuse_timer{nullptr};
     winrt::event_token m_diffuse_tick_token{};
     std::wstring m_model_filename;
