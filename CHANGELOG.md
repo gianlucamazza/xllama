@@ -84,6 +84,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `patches/onnxruntime-genai-2280-dml-fallback.patch`,
   `scripts/vendor-genai-dml-patch.ps1`, and `build-uwp.ps1 -PatchedGenAI` to
   overlay the NuGet `onnxruntime-genai.dll` for XAML + DML chat routing.
+- **CI lane for -PatchedGenAI packages** (`build-uwp-patched.yml`,
+  dispatch-only): builds the #2280 DLL from source and uploads
+  `xllama-appx-patched` (shipping ORT) and `xllama-appx-patched-unified`
+  (both backends) plus the DLL itself — the packages runbook §2 needs,
+  without a local Windows machine. The default lane keeps shipping vanilla
+  until §2 passes.
 - **Recommended configurations** — [`docs/recommended-config.md`](docs/recommended-config.md)
   and [`bench/configs/settings-modern.json`](bench/configs/settings-modern.json)
   for console validation.

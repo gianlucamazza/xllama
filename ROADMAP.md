@@ -249,9 +249,11 @@ Milestones:
       the bench path, llama default-threads livelock (capped at 6 on UWP),
       unified CSV labels. **Promotion of `unified` to default is now
       bench-unblocked** — decision pending.
-- [~] Vendor patched GenAI DLL in shipping MSIX — pipeline done; default CI still
-  vanilla until `vendor/.../onnxruntime-genai.dll` is supplied or `-PatchedGenAI`
-  build is mandated post §2 PASS
+- [~] Vendor patched GenAI DLL in shipping MSIX — pipeline done; the
+  dispatch-only `build-uwp-patched.yml` lane builds the DLL from source and
+  uploads `-PatchedGenAI` packages (default + unified) for the §2 A/B; default
+  CI still vanilla until `vendor/.../onnxruntime-genai.dll` is supplied or
+  `-PatchedGenAI` build is mandated post §2 PASS
 - [x] `diffusion/requirements.txt` toolchain bump + re-validation (2026-07-10):
       torch 2.9.1 / optimum-onnx 0.1.0 / transformers 4.57.6 / diffusers 0.39.0.
       Full recipe re-run green: export (diff 0.0102, warning-level precedent),
