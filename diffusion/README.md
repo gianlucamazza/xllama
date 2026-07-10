@@ -45,10 +45,10 @@ do not bump piecemeal. Use **Python 3.10** (torch 2.9's supported floor).
 
 Toolchain-generation note (bumped 2026-07-10 from torch 2.4.1 / optimum
 1.23.3): the new export declares the UNet `timestep` input as a **scalar**
-(shape `[]`) instead of `[1]`. `validate_pipeline.py` is shape-aware; the
-shipped `uwp/diffuse.cpp` feeds `[1]` and matches the **currently deployed**
-artifacts — if artifacts regenerated with this toolchain are ever promoted,
-make `diffuse.cpp` timestep-shape-aware first (and re-run runbook §7).
+(shape `[]`) instead of `[1]`. Both `validate_pipeline.py` and
+`uwp/diffuse.cpp` are shape-aware (they read the declared rank and feed `[]`
+or `[1]` from the same 1-element buffer) — if artifacts regenerated with
+this toolchain are ever promoted, the remaining gate is runbook §7 on console.
 
 ```bash
 python3.10 -m venv venv
