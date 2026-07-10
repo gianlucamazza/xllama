@@ -1,8 +1,8 @@
 {
   "_comment": "Golden vectors for the C++ diffusion pipeline. See gen_golden_vectors.py.",
   "reference": {
-    "diffusers": "0.31.0",
-    "transformers": "4.46.3",
+    "diffusers": "0.39.0",
+    "transformers": "4.57.6",
     "model": "stabilityai/sd-turbo"
   },
   "tokenizer": {

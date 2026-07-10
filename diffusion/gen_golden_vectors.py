@@ -87,8 +87,8 @@ prev = sched.step(
 golden = {
     "_comment": "Golden vectors for the C++ diffusion pipeline. See gen_golden_vectors.py.",
     "reference": {
-        "diffusers": "0.31.0",
-        "transformers": "4.46.3",
+        "diffusers": __import__("diffusers").__version__,
+        "transformers": __import__("transformers").__version__,
         "model": "stabilityai/sd-turbo",
     },
     "tokenizer": {
