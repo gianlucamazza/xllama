@@ -294,7 +294,7 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     if (params.on_status)
         params.on_status("decoding");
 
-    const int n_threads = params.n_threads > 0 ? params.n_threads : detect_threads();
+    const int n_threads = params.n_threads > 0 ? params.n_threads : detect_threads_llama();
 
     llama_context_params cparams = llama_context_default_params();
     cparams.n_ctx = static_cast<uint32_t>(params.n_ctx);

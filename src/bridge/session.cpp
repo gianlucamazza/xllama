@@ -501,7 +501,7 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
         return nullptr;
     }
 
-    int n_threads = sp.n_threads > 0 ? sp.n_threads : detect_threads();
+    int n_threads = sp.n_threads > 0 ? sp.n_threads : detect_threads_llama();
     int n_ctx = sp.n_ctx > 0 ? sp.n_ctx : 2048;
     return std::make_unique<LlamaSession>(LlamaModelPtr(raw_model), n_ctx, n_threads);
 }

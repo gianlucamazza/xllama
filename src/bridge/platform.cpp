@@ -3,6 +3,7 @@
 
 #include "xllama/platform.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <mutex>
 #include <thread>
@@ -29,6 +30,14 @@ namespace xllama {
 int detect_threads() noexcept {
     int n = static_cast<int>(std::thread::hardware_concurrency());
     return n > 0 ? n : 4;
+}
+
+int detect_threads_llama() noexcept {
+#ifdef XLLAMA_UWP
+    return std::min(detect_threads(), 6); // ggml livelock at t7/t8 (see platform.h)
+#else
+    return detect_threads();
+#endif
 }
 
 void log_output(const char* msg) noexcept {
