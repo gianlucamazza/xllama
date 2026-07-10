@@ -239,8 +239,11 @@ Milestones:
       confirm/refute) — closed inconclusive (PR #29, §12 stands)
 - [x] Fase 2: catalogue `kind:gguf` → `sp.backend`, gate KV-reuse/routing off
       for GGUF (plumbing complete 2026-07-09 via PR #30 + layout-aware Auto,
-      resolve support, bench guard, tests; asset promotion + console benches
-      remain Fase 2b).
+      resolve support, bench guard, tests).
+- [x] Fase 2b (assets): Qwen3.5-0.8B + LFM2.5-350M Q4_K_M published on
+      `models-v1` with catalogue entries (LFM license redistributed per §4a);
+      host smoke test OK. **Console decode/prefill benches remain** (unified
+      MSIX, bench-gated promotion to default).
 - [~] Vendor patched GenAI DLL in shipping MSIX — pipeline done; default CI still
   vanilla until `vendor/.../onnxruntime-genai.dll` is supplied or `-PatchedGenAI`
   build is mandated post §2 PASS

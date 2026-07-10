@@ -161,24 +161,28 @@ llama.cpp** — reachable once the `unified` backend build (PR #27) is the defau
 and the catalogue carries `kind: gguf` entries. Host-validated 2026-07-09;
 on-console decode/prefill benches pending.
 
-| Model               | Path       | Size (Q4_K_M / int4) | Status                                             |
-| ------------------- | ---------- | -------------------- | -------------------------------------------------- |
-| Qwen3.5-0.8B        | llama.cpp  | 507 MB               | ✅ loads+generates via submodule (`qwen35`); modern default candidate |
-| LFM2.5-350M         | llama.cpp  | 218 MB               | ✅ loads via submodule; hybrid edge arch           |
-| Qwen3-0.6B          | ORT GenAI  | 969 MB merged        | ✅ builds; heavy (151k-vocab embedding dominates)  |
-| Gemma-3-270M        | ORT GenAI  | ~300 MB (est.)       | ⛔ gated on HF — needs an access token to build    |
-| Gemma-4 (E2B/E4B)   | —          | ≥2B effective        | ⛔ too big + arch not in builder                   |
+| Model             | Path      | Size (Q4_K_M / int4) | Status                                                                |
+| ----------------- | --------- | -------------------- | --------------------------------------------------------------------- |
+| Qwen3.5-0.8B      | llama.cpp | 507 MB               | ✅ loads+generates via submodule (`qwen35`); modern default candidate |
+| LFM2.5-350M       | llama.cpp | 218 MB               | ✅ loads via submodule; hybrid edge arch                              |
+| Qwen3-0.6B        | ORT GenAI | 969 MB merged        | ✅ builds; heavy (151k-vocab embedding dominates)                     |
+| Gemma-3-270M      | ORT GenAI | ~300 MB (est.)       | ⛔ gated on HF — needs an access token to build                       |
+| Gemma-4 (E2B/E4B) | —         | ≥2B effective        | ⛔ too big + arch not in builder                                      |
 
 Backend selection is by `SessionParams::backend` (explicit values take
 precedence in dual-backend builds). `Auto` (default) uses either a `.gguf`
 suffix or on-disk layout inspection via the public helper
 `model_uses_llama_backend()` (bare catalogue names or directories containing a
-`.gguf` file → llama.cpp; otherwise ORT GenAI). A placeholder `kind: "gguf"`
-entry (`qwen35-0.8b`) exists in the manifest for manual provisioning.
+`.gguf` file → llama.cpp; otherwise ORT GenAI). Catalogue entries `qwen35-0.8b`
+and `lfm25-350m` download in-app from `models-v1` (Fase 2b, 2026-07-10).
 
-Redistribution to the `models-v1` Release requires a permissive license: Qwen
-(Apache) ✅; LFM Open License / Gemma Terms — verify before hosting, else
-provision manually (entry without `hf_base_url`).
+Redistribution licensing (verified 2026-07-10): the Qwen quant
+(`unsloth/Qwen3.5-0.8B-GGUF`) is Apache-2.0 ✅. LFM Open License v1.0 §4
+permits redistribution provided recipients get a copy of the license —
+`LFM2.5-350M_LICENSE.txt` is published on the release and listed in the
+catalogue entry so it lands next to the model on-device. Note §5: commercial
+use is limited to entities under $10M revenue (xllama is non-commercial
+research). Gemma Terms — still verify before ever hosting.
 
 ### TAESD — a faster diffusion VAE decoder
 
