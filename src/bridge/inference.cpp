@@ -265,7 +265,15 @@ namespace detail {
 InferenceResult run_inference_llama(const InferenceParams& params) {
     InferenceResult res;
 
-    const std::string abs_model_path = resolve_model_path(params.model_path);
+    // Catalogue GGUF entries resolve to the model DIRECTORY; llama loads a file.
+    const std::string abs_model_path = first_gguf_in_dir(resolve_model_path(params.model_path));
+    if (abs_model_path.empty()) {
+        res.error_msg = "no .gguf file in model dir: " + resolve_model_path(params.model_path);
+        log_output("[xllama] " + res.error_msg + "\n");
+        if (params.on_status)
+            params.on_status("error: " + res.error_msg);
+        return res;
+    }
 
     llama_model_params mparams = llama_model_default_params();
     mparams.n_gpu_layers = 0; // CPU only on Linux path

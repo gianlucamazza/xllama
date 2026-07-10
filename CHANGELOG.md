@@ -7,6 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Headless bench could not load catalogue GGUF models**: `run_inference_llama`
+  passed the resolved model _directory_ straight to
+  `llama_model_load_from_file`, which needs the `.gguf` _file_ — every bench
+  run of `qwen35-0.8b` / `lfm25-350m` failed on console (found 2026-07-10 on
+  the first unified-build bench). The chat path (`create_llama`) already
+  descended into the directory; that logic is now the shared
+  `first_gguf_in_dir()` (`path_utils`) used by both, with host tests.
+
 ### Changed
 
 - **`diffuse.cpp` is timestep-shape-aware**: the UNet `timestep` tensor is fed
