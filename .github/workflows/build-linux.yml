@@ -20,7 +20,7 @@ jobs:
             python3-pip shellcheck
           # Pinned: an unpinned clang-format broke CI when 22.x changed rules
           # (2026-07-10). Bump deliberately and reformat the tree in one PR.
-          pip3 install --user 'clang-format==22.1.6'
+          pip3 install --user 'clang-format==22.1.5'
           echo "$(python3 -m site --user-base)/bin" >> "$GITHUB_PATH"
 
       - name: Verify C++ formatting
