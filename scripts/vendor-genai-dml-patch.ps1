@@ -66,7 +66,7 @@ No patched DLL at:
   $VendorDll
 
 Place a console-validated onnxruntime-genai.dll there (built from
-microsoft/onnxruntime-genai tag v$GenAiVersion + patches/onnxruntime-genai-2280-dml-fallback.patch),
+microsoft/onnxruntime-genai branch rel-$GenAiVersion + patches/onnxruntime-genai-2280-dml-fallback.patch),
 or re-run with -Build to compile from source.
 
 Upstream: https://github.com/microsoft/onnxruntime-genai/pull/2280

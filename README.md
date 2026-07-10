@@ -32,7 +32,7 @@
 
 `xllama` is a UWP application for Xbox Series S|X in Dev Mode that runs LLM chat and Stable-Diffusion image generation locally, with no cloud dependency and a gamepad-friendly UI.
 
-The project started as a port of [`llama.cpp`](https://github.com/ggml-org/llama.cpp) (GGUF files, CPU-only), then migrated to **ONNX Runtime GenAI + DirectML**. The measured verdict is **per-workload** (see [docs/technical-report.md](./docs/technical-report.md)): the Zen 2 **CPU wins autoregressive decode** at this model scale (~66 tok/s, SmolLM2-360M int4), the RDNA 2 **GPU wins batch compute** — prefill at ~1k prompt tokens (1.8× faster) and image generation (**11.1×** on the diffusion workload: SD-Turbo 512×512 in ~7 s). The app routes per conversation (CPU / GPU / auto). The llama.cpp path is preserved for Linux development, CI, and a bench-only UWP variant (measured: decode parity with ORT, so ORT stays the text backend).
+The project started as a port of [`llama.cpp`](https://github.com/ggml-org/llama.cpp) (GGUF files, CPU-only), then migrated to **ONNX Runtime GenAI + DirectML**. The measured verdict is **per-workload** (see [docs/technical-report.md](./docs/technical-report.md)): the Zen 2 **CPU wins autoregressive decode** at this model scale (~66 tok/s, SmolLM2-360M int4), the RDNA 2 **GPU wins batch compute** — prefill at ~1k prompt tokens (1.8× faster) and image generation (**11.1×** on the diffusion workload: SD-Turbo 512×512 in ~7 s). The app routes per conversation (CPU / GPU / auto). The llama.cpp path serves Linux development, CI, and — in the `unified` UWP build — modern GGUF-only models (Qwen3.5, LFM2.5); for the same model, ORT stays the text backend (measured decode parity, better prefill).
 
 The default chat model is **SmolLM2-360M-Instruct INT4 CPU** (~417 MB), downloaded on first launch from the GitHub Release model catalogue — the MSIX itself is ~19 MB and ships no model.
 
@@ -117,7 +117,7 @@ See [docs/install-release.md](./docs/install-release.md) to install a tagged rel
 │  ├─ long-prompt prefill → DML fp16      │
 │  │  (per-conversation routing)           │
 │  └─ image gen → SD-Turbo on DirectML    │
-│     (headless flag mode, 887A0036 — §7)  │
+│     (in-process; plain ORT DML — §7)     │
 └──────────────────────────────────────────┘
 ```
 
@@ -135,8 +135,8 @@ xllama/
 │   ├── ort_raii.h          # RAII wrappers for OGA* types (UWP)
 │   ├── llama_raii.h        # RAII wrappers for llama_* types (Linux)
 │   ├── cli.h               # parse_cli_args (Linux)
-│   ├── platform.h          # log_output, detect_threads, peak_working_set_mb
-│   ├── path_utils.h        # resolve_model_path, resolve_local_path
+│   ├── platform.h          # log_output, detect_threads(_llama), peak_working_set_mb
+│   ├── path_utils.h        # resolve_model_path, first_gguf_in_dir, backend sniffing
 │   └── utf8_utils.h        # utf8 <-> wstring (Windows)
 ├── src/
 │   ├── main.cpp            # Linux entry point
@@ -233,8 +233,10 @@ Models come from the catalogue `uwp/models/manifest.json` (assets hosted on the 
 | SmolLM2-360M-Instruct INT4 CPU | ONNX GenAI    | 417 MB  | ✅       | Default; decode 66.3 tok/s                                       |
 | SmolLM2-360M-Instruct fp16 DML | ONNX GenAI    | ~700 MB | ✅       | Routing target (prefill 354 tok/s @1k)                           |
 | SD-Turbo fp16 (image)          | ONNX DirectML | 2.4 GB  | ✅       | 512×512 in ~6.9 s ([diffusion/README.md](./diffusion/README.md)) |
-| SmolLM2-1.7B-Instruct INT4 CPU | ONNX GenAI    | 1.4 GB  | ✅       | Measured 20.6 tok/s; tight on Dev Mode disk                      |
-| Phi-3.5-mini CPU INT4          | ONNX GenAI    | ~2.7 GB | ❌       | Above the Dev Mode disk budget                                   |
+| SmolLM2-1.7B-Instruct INT4 CPU | ONNX GenAI    | 1.4 GB  | ✅       | Measured 20.6 tok/s                                              |
+| Qwen3.5-0.8B Q4_K_M            | GGUF          | 508 MB  | ✅       | `unified` builds (llama.cpp); decode 35.1 tok/s                  |
+| LFM2.5-350M Q4_K_M             | GGUF          | 219 MB  | ✅       | `unified` builds (llama.cpp); decode 94.2 tok/s                  |
+| Phi-3.5-mini CPU INT4          | ONNX GenAI    | ~2.7 GB | ❌       | GPU OOM history + >2 GB single-file ONNX (see constraints §8)    |
 
 Numbers are measured on Xbox Series S Dev Mode. See [docs/uwp-constraints.md](./docs/uwp-constraints.md) for the measured GPU budget (3801 MB), the disk budget, and the `weakly_canonical` AppContainer workaround.
 
@@ -242,7 +244,7 @@ Numbers are measured on Xbox Series S Dev Mode. See [docs/uwp-constraints.md](./
 
 ## Limitations
 
-- **Disk is the binding budget, not GPU memory**: the measured per-process GPU budget is **3801 MB** (package designated Game), but Dev Mode leaves only ~2.2–2.5 GB free on disk — that is what caps model size.
+- **File-size ceiling, not GPU memory**: the measured per-process GPU budget is **3801 MB** (package designated Game), and the Dev Mode disk allocation is raised to **90 GB** via Dev Home — what caps model choice now is the **2 GB ONNX protobuf / per-file limit** (self-contained `model.onnx` must stay under it; see [docs/uwp-constraints.md](./docs/uwp-constraints.md) §8–§9).
 - **DirectML vs XAML (`887A0036`)**: ORT **GenAI** DML conflicts with the XAML compositor's D3D12 device in the vanilla NuGet DLL. Image generation uses plain ORT DML and runs **in-process**; chat GPU routing needs the [#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280) patched `onnxruntime-genai.dll` (`build-uwp.ps1 -PatchedGenAI`). Headless `bench.flag` remains for automation.
 - **Sandboxed filesystem**: models are downloaded to `LocalState` or transferred via Device Portal / USB. No arbitrary path access.
 - **AppContainer path traversal**: ORT 1.24.4 calls `std::filesystem::weakly_canonical()` for external ONNX data files, which traverses path segments the AppContainer cannot read. Workaround: distribute models with `model.onnx.data` merged into a self-contained `model.onnx` (`scripts/merge_onnx_external_data.py`).

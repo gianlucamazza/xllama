@@ -6,11 +6,11 @@ is **measured** unless marked "host-only" or "pending console". See
 
 ## Runtime pins (do not drift)
 
-| Package | Version | File |
-| ------- | ------- | ---- |
-| ORT GenAI DirectML | **0.14.1** | `uwp/packages.config` |
-| ONNX Runtime DirectML | **1.24.4** | same |
-| DirectML | **1.15.4** | same |
+| Package               | Version    | File                  |
+| --------------------- | ---------- | --------------------- |
+| ORT GenAI DirectML    | **0.14.1** | `uwp/packages.config` |
+| ONNX Runtime DirectML | **1.24.4** | same                  |
+| DirectML              | **1.15.4** | same                  |
 
 Chat GPU inside XAML requires the **#2280** patched `onnxruntime-genai.dll`:
 
@@ -23,27 +23,36 @@ Upstream: [microsoft/onnxruntime-genai#2280](https://github.com/microsoft/onnxru
 
 ## UWP build variants
 
-| Variant | Command | When to use |
-| ------- | ------- | ----------- |
-| **ort** (shipping) | `build-uwp.ps1` | Default chat via ORT GenAI |
-| **unified** | `-Backend unified` | GGUF models (`kind: gguf`) + ORT |
-| **llamacpp** | `-Backend llamacpp` | Bench A/B only — not for end users |
+| Variant            | Command             | When to use                        |
+| ------------------ | ------------------- | ---------------------------------- |
+| **ort** (shipping) | `build-uwp.ps1`     | Default chat via ORT GenAI         |
+| **unified**        | `-Backend unified`  | GGUF models (`kind: gguf`) + ORT   |
+| **llamacpp**       | `-Backend llamacpp` | Bench A/B only — not for end users |
 
 ## Chat models
 
-| Use case | Catalogue `name` | Backend | Measured decode |
-| -------- | ---------------- | ------- | --------------- |
-| **Default** | `smollm2-360m-cpu-int4` | ORT CPU int4 | ~66 tok/s |
-| **Routing GPU** | `smollm2-360m-dml-fp16` | ORT DML fp16 | ~47 tok/s decode; ~354 tok/s prefill @1k |
-| **Larger chat** | `smollm2-1.7b-cpu-int4` | ORT CPU int4 | ~21 tok/s (USB / 90 GB disk) |
-| **Modern GGUF** | `qwen35-0.8b` | llama.cpp (`unified`) | Host OK; console pending |
+| Use case             | Catalogue `name`        | Backend               | Measured decode                          |
+| -------------------- | ----------------------- | --------------------- | ---------------------------------------- |
+| **Default**          | `smollm2-360m-cpu-int4` | ORT CPU int4          | ~66 tok/s                                |
+| **Routing GPU**      | `smollm2-360m-dml-fp16` | ORT DML fp16          | ~47 tok/s decode; ~354 tok/s prefill @1k |
+| **Larger chat**      | `smollm2-1.7b-cpu-int4` | ORT CPU int4          | ~21 tok/s (USB / 90 GB disk)             |
+| **Modern GGUF**      | `qwen35-0.8b`           | llama.cpp (`unified`) | 35.1 tok/s (98.1 prefill, t6)            |
+| **Fast modern GGUF** | `lfm25-350m`            | llama.cpp (`unified`) | 94.2 tok/s (241.4 prefill, t6)           |
+
+GGUF thread default: llama.cpp auto-detect is capped at **6** on console
+(`detect_threads_llama` — t6 measured optimum, t7/t8 livelock); explicit
+`--threads` on `bench-xbox-ort.sh` still wins.
 
 ### Do not use
 
 - DML **int4** for decode (~8.8 tok/s — DirectML kernel limit)
 - CPU-int4 SmolLM graph with DML `genai_config` (`80070057`)
 - Qwen2.5-0.5B ONNX CPU (~822 MB vocab embedding)
-- llama.cpp as primary text backend (decode parity, worse prefill vs ORT)
+- llama.cpp for a model that also has an ORT build (same-model A/B: decode
+  parity, worse prefill vs ORT) — the `unified` lane is for GGUF-only models
+  (Qwen3.5, LFM2.5), where it earns its keep (LFM2.5 beats the ORT 360M
+  baseline by ~42%)
+- llama.cpp auto threads above 6 on console (ggml spin-wait livelock)
 
 ## `genai_config.json` (on-device model dir)
 
@@ -71,27 +80,27 @@ Models must be **self-contained** `model.onnx` (< 2 GB merged) — run
 
 Copy [`bench/configs/settings-modern.json`](../bench/configs/settings-modern.json) via Device Portal, or use the UI.
 
-| Key | Recommended | Notes |
-| --- | ----------- | ----- |
-| `model` | `smollm2-360m-cpu-int4` | Downloaded on first launch |
-| `kv_reuse` | `true` | 4.87× turn-2 prefill (measured) |
-| `routing` | `0` default; `2` for RAG | `2` = Auto; needs DML fp16 model + patched DLL |
-| `gpu_model` | `smollm2-360m-dml-fp16` | USB/LocalState provision |
-| `diffuse_taesd_vae` | `true` after asset on `models-v1` | ~4.5 s/image target |
-| `sampling.temperature` | `0.8` | UI default |
-| `sampling.n_predict` | `512` | UI default |
+| Key                    | Recommended                       | Notes                                          |
+| ---------------------- | --------------------------------- | ---------------------------------------------- |
+| `model`                | `smollm2-360m-cpu-int4`           | Downloaded on first launch                     |
+| `kv_reuse`             | `true`                            | 4.87× turn-2 prefill (measured)                |
+| `routing`              | `0` default; `2` for RAG          | `2` = Auto; needs DML fp16 model + patched DLL |
+| `gpu_model`            | `smollm2-360m-dml-fp16`           | USB/LocalState provision                       |
+| `diffuse_taesd_vae`    | `true` after asset on `models-v1` | ~4.5 s/image target                            |
+| `sampling.temperature` | `0.8`                             | UI default                                     |
+| `sampling.n_predict`   | `512`                             | UI default                                     |
 
 Routing Auto uses **600 tokens** (real tokenizer count), sticky per conversation.
 
 ## Image generation
 
-| Setting | Modern | Obsolete |
-| ------- | ------ | -------- |
-| Trigger | `[*] Image` → **Generate** (in-process) | App restart + `diffuse.flag` |
-| Model dir | `sd-turbo-fp16` | — |
-| VAE | TAESD toggle on | Full VAE only (~2.6 s stage) |
-| Steps | `1` (SD-Turbo) | — |
-| TAESD asset | `sd-turbo-fp16_taesd_vae_decoder_model.onnx` on `models-v1` | — |
+| Setting     | Modern                                                      | Obsolete                     |
+| ----------- | ----------------------------------------------------------- | ---------------------------- |
+| Trigger     | `[*] Image` → **Generate** (in-process)                     | App restart + `diffuse.flag` |
+| Model dir   | `sd-turbo-fp16`                                             | —                            |
+| VAE         | TAESD toggle on                                             | Full VAE only (~2.6 s stage) |
+| Steps       | `1` (SD-Turbo)                                              | —                            |
+| TAESD asset | `sd-turbo-fp16_taesd_vae_decoder_model.onnx` on `models-v1` | —                            |
 
 Export host-side: [`scripts/export-taesd-asset.sh`](../scripts/export-taesd-asset.sh).
 
@@ -113,13 +122,13 @@ ctest --test-dir build/linux-test --output-on-failure
 
 ## Obsolete assumptions (do not reuse)
 
-| Myth | Reality |
-| ---- | ------- |
-| GPU pool ~768 MB | **3801 MB** (Game designation) |
-| Dev Mode disk ~2.5 GB cap | Raised to **90 GB** (Dev Home) |
+| Myth                                | Reality                                                  |
+| ----------------------------------- | -------------------------------------------------------- |
+| GPU pool ~768 MB                    | **3801 MB** (Game designation)                           |
+| Dev Mode disk ~2.5 GB cap           | Raised to **90 GB** (Dev Home)                           |
 | Diffusion needs headless (887A0036) | Conflict is **ORT GenAI** only; plain ORT DML in-proc OK |
-| MSIX bundles model | **~19 MB** MSIX; catalogue download |
-| `intra_op_num_threads: 8` | Bandwidth saturation on Series S |
+| MSIX bundles model                  | **~19 MB** MSIX; catalogue download                      |
+| `intra_op_num_threads: 8`           | Bandwidth saturation on Series S                         |
 
 ## Validation checklist
 
