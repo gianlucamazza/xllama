@@ -66,15 +66,19 @@ for decode, sticky per conversation.
 
 **Prereqs**:
 
-1. MSIX built with `./scripts/build-uwp.ps1 -PatchedGenAI` (ORT GenAI #2280 — vanilla NuGet
-   DLL hits `887A0036` in XAML).
+1. A `-PatchedGenAI` MSIX (ORT GenAI #2280 — vanilla NuGet DLL hits `887A0036`
+   in XAML): either `gh workflow run build-uwp-patched.yml` and download the
+   `xllama-appx-patched` / `xllama-appx-patched-unified` artifact (no Windows
+   machine needed), or build locally with `./scripts/build-uwp.ps1 -PatchedGenAI`.
 2. `smollm2-360m-dml-fp16` in `LocalState\models\`.
-3. Preload modern settings (tokenizer-accurate threshold **600 tok**):
+3. Preload modern settings (tokenizer-accurate threshold **600 tok**). NB: the
+   app reads `settings.json`, so upload under that name:
 
 ```bash
 source ~/.config/xllama/xbox-env
 PFN=$(./scripts/deploy.sh pfn)
-./scripts/deploy.sh upload-file bench/configs/settings-modern.json "$PFN" ""
+cp bench/configs/settings-modern.json /tmp/settings.json
+./scripts/deploy.sh upload-file /tmp/settings.json "$PFN" ""
 ```
 
 Then, at the console: launch xllama → paste a **long** prompt (>~600 tokens — use

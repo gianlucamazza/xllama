@@ -31,9 +31,10 @@ Platform limitations relevant to running LLM inference on Xbox Dev Mode, and how
 **Background — pool estimate corrected (2026-07-07)**: the GPU budget measured
 in-app (`QueryVideoMemoryInfo(LOCAL).Budget`) is **3801 MB** (package designated Game — verified 2026-07-08, see §5) on
 Series S — the earlier "~768 MB pool" was a coarse inference from the
-Phi-3.5-mini OOM bracketing and is superseded. The operative constraint for
-model sizing is the **Dev Mode disk budget** (`Q:\` ~2.2–2.5 GB free), not GPU
-memory.
+Phi-3.5-mini OOM bracketing and is superseded. Disk was then the operative
+sizing constraint, but the Dev Mode allocation was raised to **90 GB** on
+2026-07-08 (§9, superseded note) — the binding limits now are the **2 GB ONNX
+protobuf / per-file ceiling** (§8; §9 caveat) and the RAM/GPU budget.
 
 **Effect on DirectML EP**: with a DML model variant and the headless path
 (§7), the EP loads and executes on the GPU. Very large models can still OOM

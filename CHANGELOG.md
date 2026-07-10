@@ -7,6 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Docs
+
+- **Drift pass after the Fase-2b/patched-lane work**: README (GGUF rows with
+  measured decode, 90 GB disk supersession, in-process image gen in the
+  architecture diagram, helper listings), `docs/uwp-constraints.md` intro
+  aligned to the §9 supersession, `docs/recommended-config.md` (GGUF measured
+  - llama thread cap + sharper "do not use"), runbook §2 (CI-lane artifact
+    alternative; settings must upload as `settings.json`), vendor README +
+    script message (rel-0.14.1 branch pin, ORT_HOME build), AGENTS.md map.
+
 ### Fixed
 
 - **Headless bench could not load catalogue GGUF models**: `run_inference_llama`

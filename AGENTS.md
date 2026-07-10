@@ -20,8 +20,8 @@ xllama/
 │   ├── ort_raii.h           # RAII unique_ptr for OGA* types (UWP/ORT GenAI path)
 │   ├── llama_raii.h         # RAII unique_ptr for llama_* types (Linux path)
 │   ├── cli.h                # parse_cli_args (Linux)
-│   ├── platform.h           # log_output, detect_threads, peak_working_set_mb
-│   ├── path_utils.h         # resolve_model_path, resolve_local_path
+│   ├── platform.h           # log_output, detect_threads(_llama), peak_working_set_mb
+│   ├── path_utils.h         # resolve_model_path, first_gguf_in_dir, model_uses_llama_backend
 │   └── utf8_utils.h         # utf8 <-> wstring (Windows)
 ├── src/bridge/              # Shared implementation (Linux + UWP)
 │   ├── inference.cpp        # #ifdef XLLAMA_USE_ORT → ORT GenAI; #else → llama_decode
