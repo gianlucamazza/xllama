@@ -13,7 +13,6 @@
 #include <chrono>
 #include <cstdint>
 #include <cstring>
-#include <filesystem>
 #include <string>
 
 // Backend availability. A build defines XLLAMA_USE_ORT when ORT GenAI is linked.
@@ -482,28 +481,14 @@ class LlamaSession final : public Session {
 
 namespace detail {
 std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err) {
-    std::string abs_path = resolve_model_path(sp.model_path);
-
     // resolve_model_path yields a FILE path on Linux (a direct .gguf) but the
     // model DIRECTORY on UWP (catalogue layout LocalState\models\<name>\). llama
     // loads a file, so descend into a directory and pick the single .gguf inside.
-    {
-        std::error_code ec;
-        if (std::filesystem::is_directory(abs_path, ec)) {
-            std::string gguf;
-            for (const auto& de : std::filesystem::directory_iterator(abs_path, ec)) {
-                if (de.path().extension() == ".gguf") {
-                    gguf = de.path().string();
-                    break;
-                }
-            }
-            if (gguf.empty()) {
-                if (err)
-                    *err = "no .gguf file in model dir: " + abs_path;
-                return nullptr;
-            }
-            abs_path = std::move(gguf);
-        }
+    std::string abs_path = first_gguf_in_dir(resolve_model_path(sp.model_path));
+    if (abs_path.empty()) {
+        if (err)
+            *err = "no .gguf file in model dir: " + resolve_model_path(sp.model_path);
+        return nullptr;
     }
 
     llama_model_params mparams = llama_model_default_params();
@@ -516,7 +501,7 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
         return nullptr;
     }
 
-    int n_threads = sp.n_threads > 0 ? sp.n_threads : detect_threads();
+    int n_threads = sp.n_threads > 0 ? sp.n_threads : detect_threads_llama();
     int n_ctx = sp.n_ctx > 0 ? sp.n_ctx : 2048;
     return std::make_unique<LlamaSession>(LlamaModelPtr(raw_model), n_ctx, n_threads);
 }

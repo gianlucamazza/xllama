@@ -65,6 +65,15 @@ void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
         }
     }
 
+    // Which backend actually ran this model (unified builds dispatch at runtime).
+#if defined(XLLAMA_USE_ORT) && defined(XLLAMA_USE_LLAMA)
+    const bool is_llama = model_uses_llama_backend(params.model_path);
+#elif defined(XLLAMA_USE_LLAMA)
+    const bool is_llama = true;
+#else
+    const bool is_llama = false;
+#endif
+
 #ifdef XLLAMA_USE_ORT
     // Derive the EP + quant labels from the model directory name (convention:
     // smollm2-<size>-<cpu|dml>-<int4|fp16>) instead of hardcoding — a DML fp16
@@ -78,10 +87,20 @@ void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
     const char* backend = "cpu";
     const char* quant = "Q4_K_M";
 #endif
+    if (is_llama) {
+        // GGUF run: keep the llamacpp-lane labels (matches phase35-llamacpp-scaling.csv)
+        // even in unified builds, where the ORT labels above would win.
+        backend = "cpu";
+        quant = "Q4_K_M";
+    }
+
+    const int used_threads = params.n_threads > 0
+                                 ? params.n_threads
+                                 : (is_llama ? detect_threads_llama() : detect_threads());
     fprintf(fp, "%s,%s,%s,%d,%d,%.2f,%.2f,%zu,%.0f,%zu,%zu,%s,%s\n", model_name.c_str(), quant,
-            backend, params.n_ctx, params.n_threads > 0 ? params.n_threads : detect_threads(),
-            prompt_tok_s, decode_tok_s, res.peak_ws_mb, res.t_load_ms, res.gpu_mem_mb,
-            res.gpu_budget_mb, host_label ? host_label : "unknown", date_buf);
+            backend, params.n_ctx, used_threads, prompt_tok_s, decode_tok_s, res.peak_ws_mb,
+            res.t_load_ms, res.gpu_mem_mb, res.gpu_budget_mb, host_label ? host_label : "unknown",
+            date_buf);
     fclose(fp);
 
     // Write done marker

@@ -7,6 +7,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Headless bench could not load catalogue GGUF models**: `run_inference_llama`
+  passed the resolved model _directory_ straight to
+  `llama_model_load_from_file`, which needs the `.gguf` _file_ — every bench
+  run of `qwen35-0.8b` / `lfm25-350m` failed on console (found 2026-07-10 on
+  the first unified-build bench). The chat path (`create_llama`) already
+  descended into the directory; that logic is now the shared
+  `first_gguf_in_dir()` (`path_utils`) used by both, with host tests.
+- **llama.cpp default thread count livelocked on console**: with no explicit
+  `n_threads`, both llama paths used `detect_threads()` (= 8 on Series S),
+  hitting the known ggml spin-wait livelock at t7/t8 (phase35-llamacpp-scaling;
+  re-hit 2026-07-10 — bench runs loaded the model then hung past the 300 s
+  watchdog). New `detect_threads_llama()` caps the llama default at 6 on UWP
+  (t6 is the measured optimum); explicit `n_threads` still wins, ORT paths
+  unchanged.
+- **Bench CSV mislabelled GGUF runs in unified builds** as
+  `int4`/`ort-genai-cpu`: the label block keyed on compile-time
+  `XLLAMA_USE_ORT` only. It now keys on the backend that actually ran
+  (`model_uses_llama_backend`), keeping the llamacpp-lane labels
+  (`Q4_K_M`/`cpu`), and the CSV `n_threads` column reports the llama-capped
+  default.
+
+### Measured (2026-07-10, unified 1.1.1.0 on console)
+
+- **Fase 2b GGUF benches** (`bench/results/phase5-gguf.csv`, t6,
+  standard-512): **Qwen3.5-0.8B Q4_K_M decode 35.1 tok/s** (prefill 98.1,
+  peak 718 MB, load 4.1 s) — **LFM2.5-350M Q4_K_M decode 94.2 tok/s**
+  (prefill 241.4, peak 321 MB, load 1.4 s). LFM2.5-350M beats the ORT int4
+  360M baseline (66.3 @ t8) by ~42% at similar size; Qwen3.5-0.8B is in line
+  with size scaling (1.7B CPU int4: 20.6). Unified promotion is now
+  bench-unblocked.
+
 ### Changed
 
 - **`diffuse.cpp` is timestep-shape-aware**: the UNet `timestep` tensor is fed

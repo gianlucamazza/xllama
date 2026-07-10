@@ -15,6 +15,13 @@ namespace xllama {
 // Number of hardware threads; falls back to 4 if detection fails.
 int detect_threads() noexcept;
 
+// Default thread count for the llama.cpp backend. On UWP this is capped at 6:
+// ggml's spin-wait threadpool livelocks at t7/t8 on the console (~6 cores left
+// to the app in Dev Mode, no thread affinity in AppContainer) — measured
+// 2026-07-08 (phase35-llamacpp-scaling, t6 optimal) and re-hit 2026-07-10 on
+// the first unified bench. An explicit n_threads always wins over this.
+int detect_threads_llama() noexcept;
+
 // Emit a log line. On UWP: OutputDebugStringA; otherwise: stderr.
 void log_output(const char* msg) noexcept;
 void log_output(const std::string& msg) noexcept;

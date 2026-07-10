@@ -28,4 +28,10 @@ std::string resolve_local_path(const std::string& filename);
 //   (e.g. "qwen35-0.8b") work correctly with Backend::Auto in unified builds.
 bool model_uses_llama_backend(const std::string& model_id);
 
+// llama_model_load_from_file needs a FILE path, but catalogue GGUF entries
+// resolve to a directory (LocalState\models\<name>\<file>.gguf). If path is a
+// directory, return the first *.gguf inside it; empty string if it contains
+// none. If path is not a directory, return it unchanged.
+std::string first_gguf_in_dir(const std::string& path);
+
 } // namespace xllama

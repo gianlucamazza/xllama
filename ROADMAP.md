@@ -242,8 +242,13 @@ Milestones:
       resolve support, bench guard, tests).
 - [x] Fase 2b (assets): Qwen3.5-0.8B + LFM2.5-350M Q4_K_M published on
       `models-v1` with catalogue entries (LFM license redistributed per §4a);
-      host smoke test OK. **Console decode/prefill benches remain** (unified
-      MSIX, bench-gated promotion to default).
+      host smoke test OK. **Console benches measured 2026-07-10** (unified
+      1.1.1.0, t6, `phase5-gguf.csv`): Qwen3.5-0.8B decode **35.1** tok/s
+      (prefill 98.1), LFM2.5-350M decode **94.2** tok/s (prefill 241.4, ~42%
+      over the ORT 360M baseline). Found + fixed on the way: GGUF dir load in
+      the bench path, llama default-threads livelock (capped at 6 on UWP),
+      unified CSV labels. **Promotion of `unified` to default is now
+      bench-unblocked** — decision pending.
 - [~] Vendor patched GenAI DLL in shipping MSIX — pipeline done; default CI still
   vanilla until `vendor/.../onnxruntime-genai.dll` is supplied or `-PatchedGenAI`
   build is mandated post §2 PASS

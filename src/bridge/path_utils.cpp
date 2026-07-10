@@ -262,4 +262,15 @@ bool model_uses_llama_backend(const std::string& model_id) {
     return false;
 }
 
+std::string first_gguf_in_dir(const std::string& path) {
+    std::error_code ec;
+    if (!std::filesystem::is_directory(path, ec))
+        return path;
+    for (const auto& de : std::filesystem::directory_iterator(path, ec)) {
+        if (!ec && de.path().extension() == ".gguf")
+            return de.path().string();
+    }
+    return {};
+}
+
 } // namespace xllama
