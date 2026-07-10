@@ -47,6 +47,7 @@ xllama/
 │   ├── bench-xbox-ort.sh              # benchmark runner (ORT GenAI; model already on device)
 │   ├── install-latest-build.sh        # fetch + deploy latest CI artifact
 │   ├── test-dml-config.sh             # upload DML provider_options without MSIX rebuild
+│   ├── export-taesd-asset.sh          # export TAESD VAE for models-v1 release
 │   ├── check-uwp-host.sh              # Linux host preflight (qemu, libvirt)
 │   └── setup-windows-uwp-dev.ps1      # Windows VM: install VS2022 + UWP workload
 ├── tests/                   # Unit tests (doctest, target: xllama-tests)

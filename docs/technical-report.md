@@ -83,9 +83,10 @@ Hardware lessons encoded in the pipeline:
   use `NhwcConv` (CUDA-only, no CPU kernel — unvalidatable); the working recipe
   is `onnxruntime.transformers`' converter with graph optimisation capped at
   `EXTENDED` (ALL crashes the session optimiser on these graphs).
-- The XAML compositor's D3D12 device conflicts with DML init (887A0036), so
-  generation runs in a headless restart; the in-app **Image** dialog stages the
-  inputs, restarts, and shows the PNG on the next launch.
+- The XAML compositor's D3D12 device conflicts with **ORT GenAI** DML init
+  (887A0036), but plain ORT DirectML (diffusion) coexists with the compositor
+  in-process (validated 2026-07-09, ~5.6 s). The **Image** dialog runs the
+  pipeline on a background thread without restarting the app.
 
 ## 4. Method: validate on the layer you own
 
@@ -111,7 +112,7 @@ hardware, because console runtime errors are expensive to attribute:
   KV-cache reuse; models described by a `manifest.json` catalogue (bundled +
   Device-Portal-overridable) with in-app download from the `models-v1` GitHub
   Release (the upstream HF path shipped a non-merged model and was retired).
-- Image generation UI over the headless SD-Turbo fp16 pipeline.
+- Image generation UI over the in-process SD-Turbo fp16 pipeline.
 - Headless bench/validation modes (`bench.flag`, `diffuse.flag`)
   with CSV artifacts; a console-validation runbook; CI producing the default
   (no-model, ~19 MB) and llamacpp MSIX variants.
