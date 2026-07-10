@@ -9,6 +9,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Diffusion export toolchain bumped** (host-only, never shipped): torch
+  2.4.1→2.9.1, optimum 1.23.3→optimum-onnx 0.1.0, transformers 4.46.3→4.57.6,
+  diffusers 0.31.0→0.39.0. Clears the actionable dependabot alerts (torch
+  CVE-2025-32434, transformers ReDoS batch, diffusers CVE-2026-44513/45804);
+  residual non-applicable alerts documented in `diffusion/requirements.txt`.
+  Full recipe re-validated (export → fp16 convert → validate_pipeline → golden
+  vectors byte-identical → ctest → TAESD). `validate_pipeline.py` is now
+  timestep-shape-aware (new exports declare a scalar UNet `timestep`);
+  `gen_golden_vectors.py` stamps installed versions. Deployed console
+  artifacts are unchanged.
 - **In-app image Generate runs in-process (no restart).** The Image dialog runs
   SD-Turbo on a background MTA thread (the path console-validated in §7b): live
   stage in the status bar via `diffuse-progress.txt` (200 ms poll), Cancel

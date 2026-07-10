@@ -36,11 +36,19 @@ few-step diffusion model (SD-Turbo, 1 step) on the console GPU.
 
 ## Reproduce the export
 
-The toolchain is version-sensitive: the export only works with the **legacy
-torch ONNX tracer** (torch 2.4.x), because optimum 1.23 does not support torch's
-newer dynamo/onnxscript exporter (it hits external-data-naming and
-LayerNormalization opset-downgrade bugs). Use **Python 3.10** (3.14 lacks wheels
-for this era). Do not bump the pins piecemeal.
+The toolchain is version-sensitive: the export still runs through the **legacy
+torch ONNX tracer** — the ONNX export now lives in the `optimum-onnx` package
+(optimum 2.x), and optimum-onnx 0.1.0 passes `dynamo=False` explicitly on
+torch ≥ 2.9 (it also caps `transformers < 4.58`). torch 2.9 is the line
+optimum-onnx 0.1.0 release-tests, so the set below is coherent as a whole —
+do not bump piecemeal. Use **Python 3.10** (torch 2.9's supported floor).
+
+Toolchain-generation note (bumped 2026-07-10 from torch 2.4.1 / optimum
+1.23.3): the new export declares the UNet `timestep` input as a **scalar**
+(shape `[]`) instead of `[1]`. `validate_pipeline.py` is shape-aware; the
+shipped `uwp/diffuse.cpp` feeds `[1]` and matches the **currently deployed**
+artifacts — if artifacts regenerated with this toolchain are ever promoted,
+make `diffuse.cpp` timestep-shape-aware first (and re-run runbook §7).
 
 ```bash
 python3.10 -m venv venv

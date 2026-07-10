@@ -1,21 +1,26 @@
 # Pinned toolchain for exporting SD-Turbo to ONNX for DirectML.
-# Use Python 3.10 (3.14 has no wheels for this era; 3.11/3.12 also work).
-# The versions below are a *coherent* set — the export only works when torch is
-# old enough (2.4.x) to use the legacy tracing ONNX exporter, since optimum 1.23
-# does not support torch's newer dynamo/onnxscript exporter (it hits external-data
-# naming + LayerNormalization opset-downgrade bugs). Do not bump piecemeal.
+# Use Python 3.10 (torch 2.9's supported floor; 3.11/3.12 also work).
+# The versions below are a *coherent* set — the ONNX export moved to the
+# optimum-onnx package (optimum 2.x), and optimum-onnx 0.1.0 still drives the
+# LEGACY TorchScript tracer (it passes dynamo=False explicitly on torch >= 2.9)
+# and caps transformers < 4.58. torch 2.9 is the line optimum-onnx 0.1.0
+# special-cases and release-tests. Do not bump piecemeal.
+# NOTE: the TorchScript exporter is deprecated in torch 2.9 — the NEXT bump
+# will likely require optimum-onnx's dynamo path once it ships released.
 #
-# SECURITY NOTE (2026-07-09): dependabot flags CVEs on these pins (torch 2.4.1,
-# transformers 4.46.3, diffusers 0.31.0). Accepted risk: this is an OFFLINE,
-# host-only export toolchain — never shipped in the app, only fed first-party
-# checkpoints (stabilityai/sd-turbo safetensors); the deserialization/remote
-# vectors don't apply. Bumping requires re-validating the whole recipe
-# (export → convert_fp16 → validate_pipeline); tracked in ROADMAP Phase 5.
-torch==2.4.1            # legacy torch.onnx tracer; --index-url .../whl/cpu
-optimum[onnxruntime]==1.23.3
-transformers==4.46.3
-diffusers==0.31.0
-onnx>=1.16
-onnxruntime>=1.19
-onnxconverter-common>=1.14
-accelerate>=0.30
+# SECURITY NOTE (2026-07-10, bumped from torch 2.4.1 / optimum 1.23.3 /
+# transformers 4.46.3 / diffusers 0.31.0): this set clears the actionable
+# dependabot alerts (torch CVE-2025-32434 fixed 2.6.0; transformers ReDoS batch
+# fixed <= 4.53; diffusers CVE-2026-44513 + CVE-2026-45804 fixed 0.38.0).
+# Residual, NOT applicable here: CVE-2026-4372 (transformers config-injection —
+# requires the optional `kernels` package, which must NOT be installed) and
+# CVE-2026-1839 (Trainer unsafe torch.load — v5-only fix; mitigated by
+# torch >= 2.6 and Trainer is unused). Offline, host-only toolchain fed only
+# first-party checkpoints (stabilityai/sd-turbo).
+torch==2.9.1              # legacy torch.onnx tracer via optimum-onnx dynamo=False; --extra-index-url .../whl/cpu
+optimum-onnx[onnxruntime]==0.1.0
+transformers==4.57.6
+diffusers==0.39.0
+onnx>=1.18
+onnxruntime>=1.20
+accelerate>=1.0

@@ -247,6 +247,12 @@ Milestones:
 - [~] Vendor patched GenAI DLL in shipping MSIX — pipeline done; default CI still
   vanilla until `vendor/.../onnxruntime-genai.dll` is supplied or `-PatchedGenAI`
   build is mandated post §2 PASS
-- [ ] `diffusion/requirements.txt` toolchain bump + re-validation (dependabot:
-      27 dev-only alerts; pins are a coherent export set — bump requires
-      re-running export → convert → validate_pipeline)
+- [x] `diffusion/requirements.txt` toolchain bump + re-validation (2026-07-10):
+      torch 2.9.1 / optimum-onnx 0.1.0 / transformers 4.57.6 / diffusers 0.39.0.
+      Full recipe re-run green: export (diff 0.0102, warning-level precedent),
+      fp16 convert (3× <2 GB, LOAD OK EXTENDED), validate_pipeline std=51.9 +
+      visual, golden vectors byte-identical outside `reference`, ctest 100%,
+      TAESD export + swap OK. Residual alerts documented in requirements.txt
+      (kernels not installed; Trainer unused). New-generation exports declare
+      scalar UNet `timestep` — `diffuse.cpp` needs shape-awareness before any
+      artifact re-promotion (see `diffusion/README.md`).

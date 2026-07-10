@@ -95,9 +95,12 @@ vae = sess("vae_decoder", root=vae_dir)
 if vae_dir != model_dir:
     print(f"[val] vae override: {vae_dir}/vae_decoder/model.onnx")
 ts_type = in_type(unet, "timestep")
+# timestep shape is export-dependent: [1] (optimum <= 1.23) or [] scalar
+# (optimum-onnx 0.1.0 / torch 2.9 legacy-tracer export).
+ts_shape = next(i.shape for i in unet.get_inputs() if i.name == "timestep")
 print(
     f"[val] unet inputs: sample={in_type(unet, 'sample')} timestep={ts_type} "
-    f"hs={in_type(unet, 'encoder_hidden_states')}"
+    f"shape={ts_shape} hs={in_type(unet, 'encoder_hidden_states')}"
 )
 
 import torch  # scheduler API wants tensors
@@ -105,7 +108,7 @@ import torch  # scheduler API wants tensors
 for t in sched.timesteps:
     scaled = sched.scale_model_input(torch.from_numpy(latent), t).numpy()
     ts = np.array(
-        [float(t)],
+        float(t) if ts_shape == [] else [float(t)],
         dtype=np.float16
         if ts_type == "tensor(float16)"
         else np.float32

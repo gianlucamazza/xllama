@@ -50,6 +50,7 @@ def main():
         model,
         (x,),
         path,
+        dynamo=False,  # torch >= 2.9 defaults to the dynamo exporter
         input_names=["latent_sample"],
         output_names=["sample"],
         opset_version=17,
