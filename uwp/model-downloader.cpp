@@ -266,17 +266,34 @@ std::vector<ManifestEntry> read_manifest_file(std::wstring const& path) {
 } // namespace
 
 std::vector<ManifestEntry> LoadModelManifest() {
-    // 1. LocalState override (uploadable via Device Portal, no reinstall).
-    auto local = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
-    auto entries = read_manifest_file(std::wstring(local.Path().c_str()) + L"\\manifest.json");
-    if (!entries.empty()) {
-        log_output("[manifest] using LocalState\\manifest.json override\n");
-        return entries;
-    }
-    // 2. Bundled catalogue.
+    // 1. Bundled catalogue (base).
     auto pkg = winrt::Windows::ApplicationModel::Package::Current();
-    entries =
+    auto entries =
         read_manifest_file(std::wstring(pkg.InstalledPath().c_str()) + L"\\models\\manifest.json");
+    // 2. LocalState override (uploadable via Device Portal, no reinstall),
+    // merged PER ENTRY: a same-name entry replaces the bundled one, a new name
+    // is appended. The override no longer hides bundled entries it does not
+    // mention — a stale override used to shadow the whole catalogue (found
+    // 2026-07-10: an Exp-2-era single-entry override made sd-turbo-fp16 and
+    // the GGUF entries invisible after the catalogue grew).
+    auto local = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
+    auto override_entries =
+        read_manifest_file(std::wstring(local.Path().c_str()) + L"\\manifest.json");
+    if (!override_entries.empty()) {
+        log_output("[manifest] merging LocalState\\manifest.json override (per-entry)\n");
+        for (auto& oe : override_entries) {
+            bool replaced = false;
+            for (auto& e : entries) {
+                if (e.name == oe.name) {
+                    e = std::move(oe);
+                    replaced = true;
+                    break;
+                }
+            }
+            if (!replaced)
+                entries.push_back(std::move(oe));
+        }
+    }
     if (!entries.empty())
         return entries;
     // 3. Built-in fallback — the historical hardcoded catalogue, so the app

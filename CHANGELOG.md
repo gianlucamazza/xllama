@@ -19,6 +19,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Stale `LocalState\manifest.json` override no longer hides the catalogue**:
+  the override used to replace the bundled catalogue _entirely_, so an old
+  override (e.g. the Exp-2-era single-entry file found on console 2026-07-10)
+  made `sd-turbo-fp16` and the GGUF entries invisible — the Image dialog
+  failed with "catalogue entry missing hf_base_url". `LoadModelManifest` now
+  **merges per entry**: same-name entries replace bundled ones, new names are
+  appended, unmentioned bundled entries stay.
+
 - **Headless bench could not load catalogue GGUF models**: `run_inference_llama`
   passed the resolved model _directory_ straight to
   `llama_model_load_from_file`, which needs the `.gguf` _file_ — every bench

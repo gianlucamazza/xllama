@@ -226,7 +226,7 @@ No model upload is required: the app downloads the default model on first launch
 
 `xllama` on Xbox uses ONNX Runtime GenAI for text (model directories with `genai_config.json`, `model.onnx`, `tokenizer.json`) and plain ORT DirectML for diffusion (`text_encoder`/`unet`/`vae_decoder` components).
 
-Models come from the catalogue `uwp/models/manifest.json` (assets hosted on the [`models-v1` GitHub Release](https://github.com/gianlucamazza/xllama/releases/tag/models-v1)): the app downloads any catalogue entry on demand, with the default chat model fetched on first launch. A `LocalState\manifest.json` uploaded via Device Portal overrides the catalogue without a reinstall — see [docs/model-selection.md](./docs/model-selection.md) for adding your own model.
+Models come from the catalogue `uwp/models/manifest.json` (assets hosted on the [`models-v1` GitHub Release](https://github.com/gianlucamazza/xllama/releases/tag/models-v1)): the app downloads any catalogue entry on demand, with the default chat model fetched on first launch. A `LocalState\manifest.json` uploaded via Device Portal is merged per-entry into the catalogue without a reinstall — see [docs/model-selection.md](./docs/model-selection.md) for adding your own model.
 
 | Model                          | Format        | Size    | Xbox UWP | Notes                                                            |
 | ------------------------------ | ------------- | ------- | -------- | ---------------------------------------------------------------- |

@@ -114,11 +114,14 @@ as authoritative unless backed by a Microsoft source.
 ## Add your own model (manifest override, no reinstall)
 
 The Settings ComboBox is populated from the model catalogue. A
-`LocalState\manifest.json` uploaded via Device Portal **overrides the bundled
-catalogue entirely** (`uwp/model-downloader.cpp`, `LoadModelManifest`), so you can
-add models without rebuilding the MSIX:
+`LocalState\manifest.json` uploaded via Device Portal is **merged per entry**
+into the bundled catalogue (`uwp/model-downloader.cpp`, `LoadModelManifest`):
+a same-name entry replaces the bundled one, new names are appended, and
+bundled entries you don't mention stay available — so a minimal override file
+with just your model is enough, and it keeps working when the bundled
+catalogue grows:
 
-1. Copy `uwp/models/manifest.json` and add an entry:
+1. Write a manifest with just your entry (or copy `uwp/models/manifest.json`):
 
    ```json
    {
