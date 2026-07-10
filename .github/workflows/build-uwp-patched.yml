@@ -1,0 +1,88 @@
+name: build-uwp-patched
+
+# Manual lane: build the #2280-patched onnxruntime-genai.dll from source
+# (scripts/vendor-genai-dml-patch.ps1 -Build: tag v0.14.1 +
+# patches/onnxruntime-genai-2280-dml-fallback.patch) and package MSIX variants
+# with it. Produces the -PatchedGenAI packages the runbook §2 routing A/B
+# needs, without a local Windows machine. Dispatch-only: the DLL source build
+# is slow, and the default lane keeps shipping the vanilla DLL until §2 passes
+# (ROADMAP Phase 5 "Vendor patched GenAI DLL in shipping MSIX").
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    # Pin to windows-2022: has VS2022 (v143) + UWP workload pre-installed
+    # (same rationale as build-uwp.yml).
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        # default: the shipping ORT package with the patched DLL (§2 A/B vs
+        #   the vanilla xllama-appx artifact).
+        # unified: both backends + patched DLL — one package covering the whole
+        #   pad session (§2 A/B + GGUF benches).
+        variant: [default, unified]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: false
+          fetch-depth: 1
+
+      - name: Checkout llama.cpp submodule + apply AppContainer guards
+        if: matrix.variant == 'unified'
+        shell: bash
+        run: |
+          git submodule update --init --depth 1 llama.cpp
+          bash scripts/apply-uwp-patches.sh
+
+      - name: Restore NuGet packages
+        shell: pwsh
+        working-directory: uwp
+        run: nuget restore packages.config -PackagesDirectory packages -NonInteractive
+
+      - name: Build patched onnxruntime-genai.dll (#2280) from source
+        shell: pwsh
+        run: ./scripts/vendor-genai-dml-patch.ps1 -Build
+
+      - name: Verify the patched DLL replaced the NuGet copy
+        shell: pwsh
+        # build-uwp.ps1 -PatchedGenAI degrades to the vanilla DLL when the
+        # vendor step fails; fail the lane instead of uploading a package
+        # mislabeled as patched.
+        run: |
+          $vendor = "vendor/onnxruntime-genai-patched/win-x64/onnxruntime-genai.dll"
+          $nuget = "uwp/packages/Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.14.1/runtimes/win-x64/native/onnxruntime-genai.dll"
+          if (-not (Test-Path $vendor)) { Write-Error "patched DLL missing: $vendor"; exit 1 }
+          if ((Get-FileHash $vendor).Hash -ne (Get-FileHash $nuget).Hash) {
+            Write-Error "NuGet DLL is not the patched build"
+            exit 1
+          }
+
+      - name: Build UWP package (-PatchedGenAI)
+        shell: pwsh
+        run: >-
+          ./scripts/build-uwp.ps1 -Configuration Release -Platform x64
+          -Backend $('${{ matrix.variant }}' -eq 'default' ? 'ort' : '${{ matrix.variant }}')
+          -PatchedGenAI
+
+      - uses: actions/upload-artifact@v7
+        if: success()
+        with:
+          name: ${{ matrix.variant != 'default' && format('xllama-appx-patched-{0}', matrix.variant) || 'xllama-appx-patched' }}
+          path: |
+            uwp/AppPackages/**/*.msix
+            uwp/AppPackages/**/*.appx
+            uwp/xllama-test.cer
+          retention-days: 14
+
+      # The DLL itself, so a console-validated build can be dropped into
+      # vendor/onnxruntime-genai-patched/win-x64/ (gitignored) or attached to a
+      # release for the default lane later.
+      - name: Upload patched DLL
+        uses: actions/upload-artifact@v7
+        if: success() && matrix.variant == 'default'
+        with:
+          name: onnxruntime-genai-patched-dll
+          path: vendor/onnxruntime-genai-patched/win-x64/onnxruntime-genai.dll
+          retention-days: 90
