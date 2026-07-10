@@ -230,9 +230,18 @@ diffusion (compositor alive)` → te 1006 ms, UNet 2991 ms, VAE 1576 ms, **total
 PNG is coherent and matches the headless output. In-process was even faster than headless
 (5.57 s vs 6.9 s, warm GPU).
 
-**Consequence**: image generation no longer needs the restart flow — it can run in-app on
-a background thread. The headless `diffuse.flag` path is kept only for bench parity. Wiring
-the in-app Generate (no restart) is the follow-up; the restart flow remains as a fallback.
+**Consequence**: image generation runs in-app on a background thread (`[*] Image` →
+**Generate**). The headless `diffuse.flag` path is kept for bench/WDP parity only.
+
+### 7c. TAESD VAE (Image dialog toggle) — ⏳ PENDING
+
+**Prereqs**: `sd-turbo-fp16_taesd_vae_decoder_model.onnx` on the `models-v1` Release
+(host export: `./scripts/export-taesd-asset.sh` + `gh release upload`).
+
+At the console: `[*] Image` → enable **TAESD fast VAE** → **Generate** with steps=1.
+
+**Looking for**: total wall-clock ~4.5 s (vs ~5.6 s full VAE, VAE stage ~2.6 s → sub-second),
+coherent PNG. Record te/UNet/VAE stage times from the log in `bench/results/`.
 
 ## Closeout
 

@@ -7,6 +7,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **In-app image Generate runs in-process (no restart).** The Image dialog runs
+  SD-Turbo on a background MTA thread (the path console-validated in §7b): live
+  stage in the status bar via `diffuse-progress.txt` (200 ms poll), Cancel
+  writes `diffuse-cancel.flag` (honored between UNet steps). The headless
+  `diffuse.flag` path is kept for bench/WDP parity.
+- **Routing `auto` counts real tokens.** New `Session::count_tokens()` (ORT
+  tokenizer / llama_tokenize) replaces the `size/4` estimate; threshold updated
+  to 600 tokens (crossover between ~285 and ~1050 in the v0.3.6 matrix). The
+  routing decision is logged (`routing: auto → gpu/cpu (N tok, ...)`).
+- UWP inference threads pinned to `t=4` (Series S optimum; `t=7/8` livelock).
+
 ### Added
 
 - **GGUF assets in the catalogue (Fase 2b).** `Qwen3.5-0.8B-Q4_K_M.gguf`
@@ -17,6 +30,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `LICENSE.txt` is published on the release and downloaded alongside the model.
   Host smoke test: both load and generate via `xllama-cli`. On-console
   decode/prefill benches remain (bench-gated promotion to default).
+- **TAESD fast VAE** for image generation: toggle in the Image dialog downloads
+  `sd-turbo-fp16_taesd_vae_decoder_model.onnx` (~5 MB) from `models-v1` over the
+  full VAE in-place; setting `diffuse_taesd_vae` persists in `settings.json`.
+  Host export: `scripts/export-taesd-asset.sh` (asset published on `models-v1`).
+  Console bench pending (runbook §7c).
 - **GGUF catalogue plumbing (Fase 2).** Complete end-to-end support for
   `kind: "gguf"` catalogue entries:
   - New public helper `model_uses_llama_backend()` (suffix fast-path + resolve +

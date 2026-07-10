@@ -59,10 +59,12 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     void LoadSettings();
     void SaveSettings();
     winrt::fire_and_forget ShowSettings();
-    // Image generation UX: shows the last diffuse-out.png and stages a new
-    // headless generation (diffuse.flag + restart) — DML cannot run in the XAML
-    // process (887A0036), so the UI orchestrates the headless pipeline.
+    // Image generation UX: shows the last diffuse-out.png and runs SD-Turbo
+    // in-process (plain ORT DML coexists with the XAML compositor).
     winrt::fire_and_forget ShowImageDialog();
+    void StartDiffusion();
+    void PollDiffuseProgress();
+    void FinishDiffusion();
     void SaveCurrentConversation(bool partial = false);
     // Must be called from background thread; builds/rebuilds m_session if needed.
     bool EnsureSession(const std::string& model, std::string* err_out = nullptr);
@@ -112,6 +114,10 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     std::string m_gpu_model{"smollm2-360m-dml-fp16"};
     std::wstring m_active_model;
 
+    // Image generation: TAESD tiny VAE replaces the full VAE decoder in-place
+    // under models\sd-turbo-fp16\vae_decoder\ (same UNet/text_encoder).
+    bool m_diffuse_taesd{false};
+
     // Token streaming state (written from bg thread, flushed on UI thread via timer)
     std::mutex m_token_mutex;
     std::string m_token_buffer;
@@ -135,6 +141,9 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
 
     std::atomic<bool> m_abort{false};
     std::atomic<bool> m_is_running{false};
+    std::atomic<bool> m_diffuse_running{false};
+    winrt::Windows::UI::Xaml::DispatcherTimer m_diffuse_timer{nullptr};
+    winrt::event_token m_diffuse_tick_token{};
     std::wstring m_model_filename;
 };
 
