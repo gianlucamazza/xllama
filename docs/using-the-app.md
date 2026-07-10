@@ -1,7 +1,8 @@
 # Using xllama on the Xbox
 
 App guide for the gamepad UI. For installation see
-[install-release.md](./install-release.md); for the engineering background see
+[install-release.md](./install-release.md); for recommended models and settings see
+[recommended-config.md](./recommended-config.md); for the engineering background see
 [technical-report.md](./technical-report.md).
 
 ## First launch — model download

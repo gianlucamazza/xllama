@@ -13,5 +13,6 @@ Technical notes and design decisions for xllama.
 | [device-portal.md](./device-portal.md)                           | How to enable Dev Mode and deploy via Device Portal                                                            |
 | [phase1-runbook.md](./phase1-runbook.md)                         | End-to-end developer build, deploy, and benchmark instructions                                                 |
 | [model-selection.md](./model-selection.md)                       | Choosing/adding models: hard limits, evaluation sequence, tested models, manifest override how-to              |
+| [recommended-config.md](./recommended-config.md)               | Correct modern settings: models, genai_config, settings.json, build variants, obsolete myths                 |
 
 See also [../CHANGELOG.md](../CHANGELOG.md) for the full pivot history (llama.cpp → ORT GenAI → CPU EP → per-workload routing) and [../diffusion/README.md](../diffusion/README.md) for the SD-Turbo model toolchain.
