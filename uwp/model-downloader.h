@@ -57,8 +57,10 @@ struct ManifestEntry {
     std::vector<ModelFile> files;
 };
 
-// Load the model catalogue: LocalState\manifest.json (uploadable via Device
-// Portal, no reinstall) overrides InstalledPath\models\manifest.json (bundled).
+// Load the model catalogue: InstalledPath\models\manifest.json (bundled) is
+// the base; LocalState\manifest.json (uploadable via Device Portal, no
+// reinstall) is merged PER ENTRY on top — same-name entries replace the
+// bundled ones, new names are appended, unmentioned bundled entries stay.
 // Falls back to a built-in single-entry catalogue (the historical hardcoded
 // SmolLM2-360M) if neither parses, so the app never starts with an empty list.
 std::vector<ManifestEntry> LoadModelManifest();
