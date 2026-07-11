@@ -34,7 +34,7 @@ xllama/
 ├── src/main.cpp             # Linux entry point (getopt_long)
 ├── uwp/                     # C++/WinRT UWP app
 │   ├── App.cpp / App.h      # Application::OnLaunched
-│   ├── MainPage.cpp / .h    # MainPageController (plain C++, not runtimeclass)
+│   ├── MainPage.cpp / .h    # MainPageController (plain C++, not runtimeclass); incl. autopilot driver
 │   ├── inference-bridge.cpp / .h   # UWP main_loop() + bench mode
 │   ├── chat-history.cpp / .h       # ChatHistory: Save/Load/Delete/Clear
 │   ├── model-downloader.cpp / .h   # EnsureModelAsync — catalogue download (GitHub Release models-v1, models/manifest.json)
@@ -45,6 +45,7 @@ xllama/
 │   ├── build-uwp.ps1                  # Windows UWP packaging script
 │   ├── merge_onnx_external_data.py    # merge model.onnx.data → self-contained model.onnx
 │   ├── bench-xbox-ort.sh              # benchmark runner (ORT GenAI; model already on device)
+│   ├── validate-console.sh           # autopilot orchestrator: §2 routing / GGUF / §7c TAESD verdicts
 │   ├── install-latest-build.sh        # fetch + deploy latest CI artifact
 │   ├── test-dml-config.sh             # upload DML provider_options without MSIX rebuild
 │   ├── vendor-genai-dml-patch.ps1     # overlay #2280 patched onnxruntime-genai.dll

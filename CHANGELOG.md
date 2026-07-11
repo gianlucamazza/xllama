@@ -90,6 +90,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Console autopilot + `validate-console.sh`.** Dev Mode gives the console no
+  working text-input path, so §2 routing / §7c TAESD / GGUF-chat validations
+  needed a person at the pad. A flag-driven in-app driver (`autopilot.flag` →
+  `App::OnLaunched`) now replays a JSON action list
+  (`load_chat|send|new_chat|set_model|generate_image|quit`) against the same
+  controller methods the buttons call — real XAML process, no UI code
+  duplicated — writing `autopilot-done.txt` (`ok`/`error:`). The host
+  orchestrator `scripts/validate-console.sh <routing|gguf|taesd|all>` uploads
+  the script, restarts, polls, and emits deterministic PASS/FAIL from the log
+  (no LLM judgment in the verdict). The §2 automated PASS is the official gate
+  for promoting `-PatchedGenAI` to default. Package bumped to **1.1.3.0** (also
+  carries the #44 manifest-merge fix on-device). `create_llama` now logs a
+  distinct GGUF-session load marker.
 - **GGUF assets in the catalogue (Fase 2b).** `Qwen3.5-0.8B-Q4_K_M.gguf`
   (508 MB, unsloth quant, Apache-2.0) and `LFM2.5-350M-Q4_K_M.gguf` (219 MB,
   LiquidAI official) published on `models-v1`; catalogue entries `qwen35-0.8b`

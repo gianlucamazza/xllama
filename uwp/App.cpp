@@ -128,6 +128,12 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
                                      "XAML window still up)\n");
             }).detach();
         }
+
+        // Autopilot: scripted validation of the live XAML UI (no-op unless
+        // LocalState\autopilot.flag exists). Consumes the flag and drives the
+        // controller from a background thread — see MainPage.cpp.
+        if (m_controller)
+            m_controller->StartAutopilotIfRequested();
     } catch (winrt::hresult_error const& e) {
         char buf[512];
         snprintf(buf, sizeof(buf), "[xllama] OnLaunched hresult 0x%08X: %ls\n",
