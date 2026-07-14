@@ -119,13 +119,21 @@ prompt (done → **9.9 tok/s**), use a higher-bit quant (Q3_K_S 2.45 GB), or low
 temperature. `standard-512.txt` is a poor decode probe for a well-calibrated
 instruct model.
 
-### Gemma-4-E2B slow cold load (23.6 s cold → 6.2 s warm)
+### Gemma-4-E2B slow load (23.6 s cold → 6.2 s warm)
 
-llama.cpp uses `use_mmap = false` (UWP AppContainer has no POSIX mmap,
-`uwp-constraints.md §1`), so the full 2.29 GB is read into the heap — no lazy
-page-in. Cold = disk read + heap copy; warm = OS file cache (also 21.5 s on the
-host, confirming it's the no-mmap read, not a console quirk). Smaller quant is
-the only lever.
+The 0001 AppContainer patch disables `_WIN32` mmap (desktop-only
+`CreateFileMappingA`), so the 2.29 GB is read into the heap.
+
+**mmap was tried and does not help** (measured 2026-07-14, MSIX 1.1.6.448): a
+patch making the AppContainer use `CreateFileMappingFromApp`/`MapViewOfFileFromApp`
+(with a loader fallback) built and deployed, but load stayed **6.4 s** and peak
+RAM **2533 MB — unchanged**. Root cause: the CPU load is dominated not by the
+file read but by the **AVX2 tensor repack** (Q4_K → q4_K_8x8, `ggml-cpu/repack.cpp`),
+which copies/transforms every weight regardless of how the file is read. mmap
+only removes the file-read copy, which the repack re-introduces. Reverted — a
+zero-benefit vendored patch is not worth the per-bump maintenance. The real
+levers are a smaller quant (less to repack) or skipping repack (trades decode
+speed). Cold/warm delta is OS file cache.
 
 ### DirectML int4 decode 8.8 tok/s — 8× slower than CPU (already root-caused)
 
