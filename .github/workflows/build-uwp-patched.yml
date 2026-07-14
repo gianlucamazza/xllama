@@ -28,7 +28,7 @@ jobs:
         #   pad session (§2 A/B + GGUF benches).
         variant: [default, unified]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: false
           fetch-depth: 1
