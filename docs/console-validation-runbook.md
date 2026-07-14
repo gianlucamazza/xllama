@@ -132,7 +132,11 @@ was removed after validation — purpose served; retrieve it from git history at
 `v1.0.0` if ever needed again. The result CSV stays at
 `bench/results/phase35-imgspike.csv`._
 
-## 5. int4 DML — confirm/falsify the §12 desk-check (5a ✅ done; 5b ⏳ PENDING — variants rebuilt 2026-07-09)
+## 5. int4 DML — confirm/falsify the §12 desk-check (5a ✅ done; 5b ⛔ closed inconclusive 2026-07-09)
+
+> **Status**: closed. The §12 desk-check stands (non-fused low-bit GEMM is the
+> decode floor); the 5b config-tests were rebuilt but not console-benched and are
+> not a local lever (see ROADMAP Phase 3.5 / Phase 5). Retained below for record.
 
 Two distinct levers; keep them separate. The desk-check (§12) predicts **neither** moves
 the 8.8 tok/s decode floor, because the limit is the **non-fused** `MatMulNBits` kernel

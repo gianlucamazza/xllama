@@ -3,13 +3,14 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/install-latest-build.sh [branch]
+#   ./scripts/install-latest-build.sh [branch] [--bench]
 #
 # Defaults to the current git branch if no branch argument is given.
 # Requires: gh CLI (authenticated), jq, curl.
 #
-# Side effect: uploads bench.flag so the next launch runs headless bench mode.
-# Delete LocalState\bench.flag (via WDP) before UI or validate-console.sh runs.
+# By default the app launches into the normal UI. Pass --bench to also upload
+# bench.flag so the next launch runs headless bench mode (delete
+# LocalState\bench.flag via WDP before UI or validate-console.sh otherwise).
 # MSIX uninstall wipes LocalState — re-provision models after a fresh install.
 
 set -euo pipefail
@@ -17,7 +18,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-BRANCH="${1:-$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)}"
+UPLOAD_BENCH=false
+BRANCH=""
+for arg in "$@"; do
+	case "$arg" in
+	--bench) UPLOAD_BENCH=true ;;
+	*) [[ -z "$BRANCH" ]] && BRANCH="$arg" ;;
+	esac
+done
+BRANCH="${BRANCH:-$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)}"
 ARTIFACT_NAME="xllama-appx"
 WORK_DIR="/tmp/xllama-install-$$"
 
@@ -86,12 +95,13 @@ echo "==> Installing on Xbox at ${XBOX_IP} ..."
 
 NEW_PFN=$("${SCRIPT_DIR}/deploy.sh" pfn 2>/dev/null || echo "")
 
-# Upload bench.flag so bench mode fires on next launch.
+# Upload bench.flag only when --bench is passed, so a normal install launches
+# straight into the UI (no leftover headless-bench state to clean up).
 # LocalState may not be accessible via WDP right after a fresh install (before first app run).
 # Strategy: try once; if it fails, start the app briefly to init LocalState, stop it, retry.
-if [[ -n "$NEW_PFN" ]]; then
+if [[ "$UPLOAD_BENCH" == true && -n "$NEW_PFN" ]]; then
 	echo ""
-	echo "==> Uploading bench.flag ..."
+	echo "==> Uploading bench.flag (--bench) ..."
 	touch /tmp/bench.flag
 	if ! "${SCRIPT_DIR}/deploy.sh" upload-file /tmp/bench.flag "$NEW_PFN" "" 2>/dev/null; then
 		echo "  (first upload failed — starting app briefly to init LocalState...)"
