@@ -22,6 +22,14 @@ std::string qwen_no_think_gen_suffix(const std::string& model_id);
 // Remove leading empty </think> blocks (whitespace-only inside tags).
 std::string strip_empty_thinking_tags(std::string text);
 
+// Stop-sequence check for streamed generation. Call after each token is appended
+// to `output`: if `output` now ENDS WITH any (non-empty) stop sequence, trim that
+// trailing match off `output` and return true. Suffix-match (not substring) is
+// the correct streaming semantics and handles multi-piece stop tokens (e.g.
+// Gemma's <end_of_turn>, split across llama_token_to_piece calls). Shared by the
+// llama and ORT decode loops so their stop behaviour can't diverge.
+bool apply_stop_sequences(std::string& output, const std::vector<std::string>& stops);
+
 // ---------------------------------------------------------------------------
 // Per-architecture chat template
 //

@@ -29,6 +29,39 @@ TEST_CASE("strip empty thinking tags") {
     CHECK(strip_empty_thinking_tags("plain text") == "plain text");
 }
 
+TEST_CASE("apply_stop_sequences: suffix match trims and reports") {
+    // Ends with the stop -> true, trailing match trimmed.
+    std::string a = "Hello there<end_of_turn>";
+    CHECK(apply_stop_sequences(a, {"<end_of_turn>"}));
+    CHECK(a == "Hello there");
+
+    // ChatML stop.
+    std::string b = "Ciao<|im_end|>";
+    CHECK(apply_stop_sequences(b, {"<|im_end|>"}));
+    CHECK(b == "Ciao");
+
+    // Does not end with a stop -> false, unchanged.
+    std::string c = "still going";
+    CHECK_FALSE(apply_stop_sequences(c, {"<end_of_turn>"}));
+    CHECK(c == "still going");
+
+    // The divergence fix: a stop that appears MID-output (not at the end) must
+    // NOT trigger (substring find() would have wrongly truncated here).
+    std::string d = "a<end_of_turn>b";
+    CHECK_FALSE(apply_stop_sequences(d, {"<end_of_turn>"}));
+    CHECK(d == "a<end_of_turn>b");
+
+    // Empty stop ignored; multiple stops, first suffix match wins.
+    std::string e = "done<|im_end|>";
+    CHECK(apply_stop_sequences(e, {"", "<end_of_turn>", "<|im_end|>"}));
+    CHECK(e == "done");
+
+    // No stops -> false.
+    std::string f = "text";
+    CHECK_FALSE(apply_stop_sequences(f, {}));
+    CHECK(f == "text");
+}
+
 TEST_CASE("gemma detection") {
     CHECK(model_is_gemma("gemma3-270m"));
     CHECK(model_is_gemma("Gemma-4-E2B-it-Q4_K_M.gguf"));

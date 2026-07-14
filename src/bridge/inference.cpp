@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "xllama/inference.h"
+#include "xllama/chat_prompt.h"
 #include "xllama/path_utils.h"
 #include "xllama/platform.h"
 
@@ -375,20 +376,9 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
             std::fflush(stdout);
         }
 
-        // Stop strings (e.g. Gemma's <end_of_turn>, which is not an EOG token in
-        // every GGUF): if the accumulated output now ends with one, trim it and
-        // stop. Handles multi-piece stop tokens since we match on the full suffix.
-        bool hit_stop = false;
-        for (const std::string& stop : params.stop_sequences) {
-            if (!stop.empty() && res.output_text.size() >= stop.size() &&
-                res.output_text.compare(res.output_text.size() - stop.size(), stop.size(), stop) ==
-                    0) {
-                res.output_text.erase(res.output_text.size() - stop.size());
-                hit_stop = true;
-                break;
-            }
-        }
-        if (hit_stop) {
+        // Stop strings (e.g. Gemma's <end_of_turn>, not an EOG token in every
+        // GGUF): shared suffix-match helper, trims the trailing match.
+        if (apply_stop_sequences(res.output_text, params.stop_sequences)) {
             res.ended_with_stop = true;
             log_output(
                 ("[xllama] stop sequence after " + std::to_string(n_generated + 1) + " tokens\n")
