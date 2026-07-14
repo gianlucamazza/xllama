@@ -8,6 +8,11 @@ measured story: which workloads the console's hardware serves well, which it
 does not, and why — with every claim backed by a benchmark row or a falsified
 hypothesis recorded along the way.
 
+> The numbers below are a narrative snapshot (v1.0 draft, 2026-07). The current,
+> consolidated performance tables are maintained in
+> [benchmarks.md](benchmarks.md) (the perf SSOT) — including the GGUF/Gemma models
+> and KV-reuse added after this draft.
+
 ## 1. The machine, as seen from an app
 
 | Resource | Available to a Dev Mode UWP app                                                                                                                                      |

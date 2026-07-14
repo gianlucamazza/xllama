@@ -6,7 +6,7 @@
 [![build-linux](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Status:** v1.1.5.0 shipping (unified + PatchedGenAI) · research-grade
+**Status:** shipping (unified + PatchedGenAI) · research-grade — current version in [CHANGELOG](CHANGELOG.md) / [ROADMAP](ROADMAP.md)
 **Maintainer:** [Venere Labs](https://github.com/gianlucamazza)
 
 ---
@@ -87,7 +87,14 @@ See [docs/install-release.md](./docs/install-release.md) to install a tagged rel
 - **Accessible Dev Mode**: one-time ~$19 activation via Partner Center unlocks unsigned UWP deployment.
 - **Underexplored**: no prior LLM port to the platform at time of writing.
 
-**Measured performance (Xbox Series S, 2026-07-08):** chat decode **66.3 tok/s** (CPU int4, SmolLM2-360M, ORT GenAI 0.14.1); prefill at ~1k prompt tokens **354 tok/s on GPU fp16** vs 198 CPU (the crossover that motivates routing); KV-cache reuse makes turn-2 prefill **4.87×** faster; SD-Turbo generates a 512×512 image in **~6.9 s** on DirectML. Full matrices: `bench/results/` and [docs/technical-report.md](./docs/technical-report.md).
+**Measured performance (Xbox Series S):** fastest chat decode **94.2 tok/s**
+(LFM2.5-350M GGUF); the shipped default SmolLM2-360M int4 runs ~66–71 tok/s; Gemma
+models run on-device (Gemma-3-270M **76.8 tok/s**); prefill at ~1k tokens is
+**354 tok/s on GPU fp16** vs 198 CPU (the crossover that motivates routing);
+KV-cache reuse makes turn-2 prefill ~**4×** faster on **both** backends; SD-Turbo
+draws a 512×512 image in **~6.9 s** on DirectML. **The full, disambiguated tables
+are the single source of truth in [docs/benchmarks.md](./docs/benchmarks.md)**
+(with [comparative charts](./docs/benchmarks-charts.html)).
 
 ---
 
@@ -230,17 +237,22 @@ No model upload is required: the app downloads the default model on first launch
 
 Models come from the catalogue `uwp/models/manifest.json` (assets hosted on the [`models-v1` GitHub Release](https://github.com/gianlucamazza/xllama/releases/tag/models-v1)): the app downloads any catalogue entry on demand, with the default chat model fetched on first launch. A `LocalState\manifest.json` uploaded via Device Portal is merged per-entry into the catalogue without a reinstall — see [docs/model-selection.md](./docs/model-selection.md) for adding your own model.
 
-| Model                          | Format        | Size    | Xbox UWP | Notes                                                            |
-| ------------------------------ | ------------- | ------- | -------- | ---------------------------------------------------------------- |
-| SmolLM2-360M-Instruct INT4 CPU | ONNX GenAI    | 417 MB  | ✅       | Default; decode 66.3 tok/s                                       |
-| SmolLM2-360M-Instruct fp16 DML | ONNX GenAI    | ~700 MB | ✅       | Routing target (prefill 354 tok/s @1k)                           |
-| SD-Turbo fp16 (image)          | ONNX DirectML | 2.4 GB  | ✅       | 512×512 in ~6.9 s ([diffusion/README.md](./diffusion/README.md)) |
-| SmolLM2-1.7B-Instruct INT4 CPU | ONNX GenAI    | 1.4 GB  | ✅       | Measured 20.6 tok/s                                              |
-| Qwen3.5-0.8B Q4_K_M            | GGUF          | 508 MB  | ✅       | `unified` builds (llama.cpp); decode 35.1 tok/s                  |
-| LFM2.5-350M Q4_K_M             | GGUF          | 219 MB  | ✅       | `unified` builds (llama.cpp); decode 94.2 tok/s                  |
-| Phi-3.5-mini CPU INT4          | ONNX GenAI    | ~2.7 GB | ❌       | GPU OOM history + >2 GB single-file ONNX (see constraints §8)    |
+Catalogue overview (roles + sizes; **decode/prefill/RAM numbers live in
+[docs/benchmarks.md](./docs/benchmarks.md)**, the perf SSOT):
 
-Numbers are measured on Xbox Series S Dev Mode. See [docs/uwp-constraints.md](./docs/uwp-constraints.md) for the measured GPU budget (3801 MB), the disk budget, and the `weakly_canonical` AppContainer workaround.
+| Model                      | Format        | Size    | Xbox UWP | Role                                                     |
+| -------------------------- | ------------- | ------- | -------- | -------------------------------------------------------- |
+| SmolLM2-360M-Instruct INT4 | ONNX GenAI    | 417 MB  | ✅       | Default chat (CPU); routing base                         |
+| SmolLM2-360M fp16 DML      | ONNX GenAI    | ~700 MB | ✅       | Routing target (long-prompt prefill on GPU)              |
+| SmolLM2-1.7B-Instruct INT4 | ONNX GenAI    | 1.4 GB  | ✅       | Larger CPU chat (USB/LocalState)                         |
+| LFM2.5-350M Q4_K_M         | GGUF          | 219 MB  | ✅       | Default chat on `unified` builds; fastest+lightest       |
+| Qwen3.5-0.8B Q4_K_M        | GGUF          | 508 MB  | ✅       | `unified` builds (llama.cpp)                             |
+| Gemma-3-270M Q4_K_M        | GGUF          | 253 MB  | ✅       | `unified` builds; fast, tiny                             |
+| Gemma-4-E2B Q3_K_S         | GGUF          | 2.45 GB | ✅       | `unified` builds; heavy/advanced                         |
+| SD-Turbo fp16 (image)      | ONNX DirectML | 2.4 GB  | ✅       | Image gen ([diffusion/README.md](./diffusion/README.md)) |
+| Phi-3.5-mini CPU INT4      | ONNX GenAI    | ~2.7 GB | ❌       | Not attempted (>2 GB single-file ONNX, §8)               |
+
+See [docs/uwp-constraints.md](./docs/uwp-constraints.md) for the measured GPU budget (3801 MB), the disk budget, and AppContainer workarounds.
 
 ---
 
@@ -266,7 +278,7 @@ See [ROADMAP.md](./ROADMAP.md). Headlines:
 3. **Phase 3 / 3.5 — Benchmarks + hardware ceiling** ✅ Measured matrices, routing, KV reuse, llama.cpp A/B (parity), diffusion on console.
 4. **Phase 4 — In-app model download + publication** ✅ Catalogue download, v1.0.0 release, technical report (demo video pending).
 5. **Phase 5 — Post-1.0 improvements** ✅ Unified+PatchedGenAI shipping; console gates ALL PASS.
-6. **Phase 6 — Publication + polish** 🔮 Demo video, optional catalogue assets (see [ROADMAP.md](./ROADMAP.md)).
+6. **Phase 6 — Publication + polish** 🔮 Shipped: per-architecture chat template, **Gemma** (gemma3-270m, gemma4-e2b Q3_K_S), **GGUF KV-reuse** (4.07×), automated MSIX versioning + repo automation. Open: demo video, publication venue (see [ROADMAP.md](./ROADMAP.md)).
 
 ---
 

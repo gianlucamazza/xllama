@@ -3,7 +3,8 @@
 **Shipping (2026-07-14):** MSIX **1.1.6.x** — `xllama-appx` from `build-uwp.yml`
 (unified ORT + llama.cpp + PatchedGenAI #2280; Revision auto-stamped from the CI
 run number). Adds the per-architecture chat template + **Gemma** (`gemma3-270m`
-76.8 tok/s, `gemma4-e2b` 9.9 tok/s — console-validated, `phase6-gemma.csv`).
+76.8 tok/s, `gemma4-e2b` Q3_K_S 15.3 tok/s — console-validated, `phase6-gemma.csv`)
+and GGUF **KV-reuse** (turn-2 prefill 4.07×). Full numbers: `docs/benchmarks.md`.
 Prior console gates still pass: `validate-console.sh all` → **ALL PASS** (routing,
 GGUF `lfm25-350m`, TAESD). Catalogue `models-v1` includes `smollm2-360m-dml-fp16`
 (~691 MB merged) for in-app routing-GPU download. See
@@ -154,7 +155,7 @@ Milestones:
       Catalogue entry + `package-catalogue-ort-model.sh` ready; **1.4 GB asset
       upload to `models-v1` optional** (WDP works today). **fp16-DML 1.7B blocked**
       (protobuf > 2 GB — cannot merge self-contained; external data hits §8).
-      int4-DML 1.7B is mergeable but hits the §12 dead kernel. The fp16-at-scale
+      int4-DML 1.7B is mergeable but hits the §12 non-fused low-bit GEMM. The fp16-at-scale
       bandwidth crossover stays blocked by serialization/AppContainer, not GPU.
 - [x] **Desk check upstream int4 status** — ✅ done 2026-07-08
       (`docs/uwp-constraints.md §12`). Verdict: `MatMulNBits` is present and runs
@@ -238,7 +239,8 @@ validation gates, patched GenAI in XAML.
       `bench/configs/settings-modern.json`.
 - [x] **Interactive validations** — autopilot + `validate-console.sh all` →
       **ALL PASS** on console 2026-07-14 (routing, GGUF `lfm25-350m`, TAESD §7c).
-      Shipping MSIX **1.1.5.0** (unified + PatchedGenAI) CI-green and deployed.
+      Shipping MSIX at the time was **1.1.5.0** (unified + PatchedGenAI), CI-green
+      and deployed; current shipping version is in the header above.
 - [x] Closure benches: int4 `block_size=128` / `accuracy_level=4` (§12
       confirm/refute) — closed inconclusive (PR #29, §12 stands)
 - [x] Fase 2: catalogue `kind:gguf` → `sp.backend`, gate KV-reuse/routing off
@@ -299,9 +301,9 @@ Open items only — everything above is measured or shipped.
 - [x] **Gemma family — console-validated** (MSIX 1.1.6.x, `phase6-gemma.csv`).
       Vendored `llama.cpp` carries `gemma3` + `gemma4`; catalogue entries
       `gemma3-270m` and `gemma4-e2b`. On Xbox Series S: **gemma3-270m** 76.8 tok/s
-      decode (368 MB); **gemma4-e2b** (2.29 GB IQ2_M) loads at 2534 MB RAM and
-      decodes 9.9 tok/s. **The "Gemma-4 too big" verdict is overturned** — the
-      ~2 GB Dev Mode per-file limit does not apply to GGUF (a 2.29 GB single file
+      decode (368 MB); **gemma4-e2b** (2.45 GB Q3_K_S) loads at 2742 MB RAM and
+      decodes 15.3 tok/s. **The "Gemma-4 too big" verdict is overturned** — the
+      ~2 GB Dev Mode per-file limit does not apply to GGUF (a >2 GB single file
       loads). See `docs/benchmarks.md` (incl. root-cause notes on the negative
       performers).
 - [x] **Benchmark report + comparative charts** — `docs/benchmarks.md` +

@@ -2,6 +2,14 @@
 
 Technical notes and design decisions for xllama.
 
+**Single sources of truth (SSOT)** — each fact has one authoritative home; other
+docs quote a headline and link back:
+
+- **Performance numbers** → [benchmarks.md](./benchmarks.md)
+- **Model catalogue + backend selection** → [model-selection.md](./model-selection.md) (narrative) + [`../uwp/models/manifest.json`](../uwp/models/manifest.json) (data)
+- **UWP/AppContainer constraints** (§1–§12) → [uwp-constraints.md](./uwp-constraints.md)
+- **Version / current state** → [../CHANGELOG.md](../CHANGELOG.md) + [../ROADMAP.md](../ROADMAP.md)
+
 | Document                                                         | Description                                                                                                               |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | [install-release.md](./install-release.md)                       | Install a tagged GitHub Release build on your Xbox (cert + VCLibs + MSIX)                                                 |

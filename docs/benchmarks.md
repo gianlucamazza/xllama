@@ -1,10 +1,21 @@
 # Benchmarks
 
+> **This is the single source of truth (SSOT) for xllama performance numbers.**
+> Decode/prefill/RAM/load figures live here; other docs (README, ROADMAP,
+> technical-report, model-selection, recommended-config) quote at most a headline
+> value and link back to this file.
+
 Consolidated performance data for every model xllama has run. Unless noted, all
 figures are **measured on Xbox Series S in Dev Mode** (the target device) and
 come from the CSVs in `bench/results/`. Host-dev figures (Intel i7-1165G7,
 Linux) are called out separately and are **not** comparable to console numbers —
 they exist only to sanity-check a model loads and generates.
+
+**On the SmolLM2-360M CPU int4 decode number** (it appears elsewhere as 66.3,
+68.0 or 70.9 — same model, different runs): **70.9** is the best control run
+(`phase2-dml`); **66.3** is the ORT-GenAI 0.14.1 shipping config; **68.0 / 50.9**
+are the v0.3.6 utilization-matrix short/long-prompt runs. When in doubt, the table
+below is authoritative.
 
 Metrics: **prefill** = prompt tok/s (throughput ingesting the prompt), **decode**
 = generation tok/s (autoregressive, the number a user feels), **peak RAM** =
@@ -86,14 +97,15 @@ where the 2-bit IQ2_M collapsed to an immediate EOG (see below).
 Both use the Gemma template on-device (log: `bench prompt: <start_of_turn>user
 …`). **Gemma-3-270M** is a fast, tiny chat model (76.8 tok/s, 368 MB).
 
-**Gemma-4-E2B verdict — the "too big" call is overturned:**
+**Gemma-4-E2B verdict — the "too big" call is overturned** (shipping default is
+**Q3_K_S**, 15.3 tok/s / 2742 MB; the IQ2_M row above is the earlier 2-bit build):
 
-- ✅ **The ~2 GB Dev Mode per-file limit does not apply to GGUF** — a 2.29 GB
-  single `.gguf` uploaded via Device Portal and loaded; **peak RAM 2534 MB**, no
-  OOM under the Game budget. (This was the project's main open unknown.)
-- ✅ Generates at **9.9 tok/s** @ t6 — faster than the i7-1165G7 host (3.8).
-- ⚠️ Load is slow (6–24 s, 2.3 GB heap read, `use_mmap=false`); a ~512-token
-  prompt at temp 0.8 can EOG immediately (2-bit) — short prompts generate fine.
+- ✅ **The ~2 GB Dev Mode per-file limit does not apply to GGUF** — a >2 GB single
+  `.gguf` loads with no OOM under the Game budget. (This was the project's main
+  open unknown.)
+- ✅ Generates coherently on-device, faster than the i7-1165G7 host.
+- ⚠️ Load is a few seconds — **repack-bound, not file-read-bound** (see the mmap
+  note below); a smaller quant is the only real load lever.
 
 Disk was never the constraint (Dev Mode is 90 GB). E4B/12B+ stay out of scope on
 size/speed. Catalogue entry `gemma4-e2b` (downloads from HF; 2.29 GB exceeds the
