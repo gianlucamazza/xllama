@@ -1,11 +1,15 @@
 # xllama Roadmap
 
-**Shipping (2026-07-14):** MSIX **1.1.5.0** — `xllama-appx` from `build-uwp.yml`
-(unified ORT + llama.cpp + PatchedGenAI #2280). Console gates:
-`validate-console.sh all` → **ALL PASS** (routing, GGUF `lfm25-350m`, TAESD).
-Catalogue `models-v1` includes `smollm2-360m-dml-fp16` (~691 MB merged) for
-in-app routing-GPU download. See [`docs/recommended-config.md`](docs/recommended-config.md)
-and [`docs/console-validation-runbook.md`](docs/console-validation-runbook.md).
+**Shipping (2026-07-14):** MSIX **1.1.6.x** — `xllama-appx` from `build-uwp.yml`
+(unified ORT + llama.cpp + PatchedGenAI #2280; Revision auto-stamped from the CI
+run number). Adds the per-architecture chat template + **Gemma** (`gemma3-270m`
+76.8 tok/s, `gemma4-e2b` 9.9 tok/s — console-validated, `phase6-gemma.csv`).
+Prior console gates still pass: `validate-console.sh all` → **ALL PASS** (routing,
+GGUF `lfm25-350m`, TAESD). Catalogue `models-v1` includes `smollm2-360m-dml-fp16`
+(~691 MB merged) for in-app routing-GPU download. See
+[`docs/benchmarks.md`](docs/benchmarks.md),
+[`docs/recommended-config.md`](docs/recommended-config.md) and
+[`docs/console-validation-runbook.md`](docs/console-validation-runbook.md).
 
 ## Phase 1 — CPU Baseline ✅ DONE
 
@@ -119,7 +123,7 @@ v0.4.0.0 on Xbox; CSVs `bench/results/phase35-*.csv`):
 - [x] **Per-conversation CPU/GPU routing** (Stage 3, v0.3.9, default off): route
       long-prompt conversations to DML fp16, chat to CPU int4; sticky per
       conversation. **Console-validated 2026-07-14** via `validate-console.sh
-    routing` on unified 1.1.3.0 + patched GenAI: long turn auto→GPU (959 tok),
+routing` on unified 1.1.3.0 + patched GenAI: long turn auto→GPU (959 tok),
       new short chat auto→CPU, no `887A0036`.
 
 - [x] **Image-generation spike** (v0.4.0, flagship hypothesis): **CONFIRMED on
@@ -285,15 +289,20 @@ Open items only — everything above is measured or shipped.
       data-driven `ChatFormat` (`src/bridge/chat_prompt.cpp`, `chat_format_for()`);
       byte-identical ChatML preserved, Gemma (`<start_of_turn>…<end_of_turn>`)
       added, KV-reuse invariant unit-tested. UWP + bench call one abstraction.
-- [x] **Gemma family** — vendored `llama.cpp` carries `gemma3` + `gemma4`; both
-      load+generate via `xllama-cli`. Catalogue entry `gemma3-270m` (253 MB, fits)
-      added; Gemma-4-E2B is a feasibility candidate (2.29–3.1 GB, decode ~4 tok/s,
-      gated on the ~2 GB per-file Dev Mode limit + RAM). See `docs/benchmarks.md`.
+- [x] **Gemma family — console-validated** (MSIX 1.1.6.x, `phase6-gemma.csv`).
+      Vendored `llama.cpp` carries `gemma3` + `gemma4`; catalogue entries
+      `gemma3-270m` and `gemma4-e2b`. On Xbox Series S: **gemma3-270m** 76.8 tok/s
+      decode (368 MB); **gemma4-e2b** (2.29 GB IQ2_M) loads at 2534 MB RAM and
+      decodes 9.9 tok/s. **The "Gemma-4 too big" verdict is overturned** — the
+      ~2 GB Dev Mode per-file limit does not apply to GGUF (a 2.29 GB single file
+      loads). See `docs/benchmarks.md` (incl. root-cause notes on the negative
+      performers).
 - [x] **Benchmark report + comparative charts** — `docs/benchmarks.md` +
       self-contained `docs/benchmarks-charts.html` consolidate every tested model
       (decode/prefill/RAM across 3 backends) from `bench/results/`.
-- [ ] **Gemma on-console benches** — `gemma3-270m` decode/prefill on Xbox; test
-      whether a >2 GB GGUF (Gemma-4-E2B) loads under the Dev Mode per-file limit.
+- [x] **Automated MSIX versioning** — CI stamps the Revision from `run_number`
+      (`build-uwp.ps1 -BuildRevision`); Major.Minor.Build stays the semantic
+      version. Console in-place updates never hit the same-identity block.
 - [ ] **Demo video** — model loaded and running on Xbox hardware (Phase 4 carry-over)
 - [ ] **Publication venue** — GitHub Discussions vs arXiv for `docs/technical-report.md`
 - [ ] **`smollm2-1.7b-cpu-int4` on `models-v1`** — manifest ready; optional 1.4 GB
