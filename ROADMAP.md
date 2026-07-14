@@ -316,8 +316,9 @@ Open items only — everything above is measured or shipped.
 - [ ] **Publication venue** — GitHub Discussions vs arXiv for `docs/technical-report.md`
 - [ ] **`smollm2-1.7b-cpu-int4` on `models-v1`** — manifest ready; optional 1.4 GB
       release upload (host build in `~/.cache/xllama-1b-build/`)
-- [ ] **`install-latest-build.sh`** — stop leaving `bench.flag` by default (or
-      `--bench` opt-in); document in README until fixed
+- [x] **`install-latest-build.sh`** — no longer leaves `bench.flag` by default;
+      headless bench mode is now `--bench` opt-in (a normal install launches
+      straight into the UI). See `scripts/install-latest-build.sh`.
 - [ ] (optional) **membw.flag** micro-bench — pin the CPU bandwidth denominator
 - [ ] (upstream, deprioritised) **Fused low-bit GPU GEMM in DirectML** — §12;
       not a local contribution via #2280

@@ -17,6 +17,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **CI: `src/models/*.cpp` MSBuild wildcard** in `ggml-uwp.vcxproj` + a
   `scripts/check-uwp-sources.sh` drift-check — new llama.cpp architectures no
   longer break the UWP link on a submodule bump (as `657e011` did).
+- **Manifest per-entry merge factored + unit-tested** — extracted the
+  LocalState-override merge from `LoadModelManifest` into a pure, header-only
+  `xllama::merge_manifest_entries` (`include/xllama/manifest_merge.h`) with 7
+  host doctest cases (`tests/test_manifest_merge.cpp`) covering replace / append /
+  preserve, incl. the 2026-07-10 whole-catalogue-shadow regression.
 
 ### Changed
 
