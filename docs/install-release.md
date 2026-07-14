@@ -59,14 +59,16 @@ downloads the default chat model (~417 MB) with a progress bar, then opens the
 chat. See [using-the-app.md](./using-the-app.md) from here.
 
 For image generation, the SD-Turbo model (2.4 GB) is downloaded from the
-catalogue on the first **Generate** — mind the Dev Mode disk budget
-(~2.2–2.5 GB free total). Device Portal provisioning remains available
+catalogue on the first **Generate** — mind the Dev Mode disk budget (~2.2–2.5 GB
+free by default, **expandable to 90 GB** via Dev Home → Manage Dev Storage; see
+[uwp-constraints.md §9](uwp-constraints.md)). Device Portal provisioning remains available
 ([../diffusion/README.md](../diffusion/README.md), runbook §7).
 
 ## Troubleshooting
 
 - `0x80070070` (disk full) while installing models: the Dev Mode partition has
-  ~2.2–2.5 GB free in total — remove unused models from LocalState first.
+  ~2.2–2.5 GB free by default — remove unused models from LocalState, or raise the
+  Dev Mode allocation (up to 90 GB, `uwp-constraints.md §9`).
 - Startup issues: `./scripts/deploy.sh diagnose-startup` prints the process
   state, the app log, and any crash dumps in one shot.
 - Log at any time: `./scripts/deploy.sh get-log`; individual files:

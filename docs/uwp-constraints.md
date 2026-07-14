@@ -1,12 +1,17 @@
 # UWP Constraints
 
+> **SSOT for UWP/AppContainer constraints** (numbered §1–§12): the measured GPU
+> budget (3801 MB), the 2 GB per-file limit, disk budget, no-mmap, `887A0036`,
+> `weakly_canonical`, thread cap, and the DirectML low-bit GEMM analysis. Other
+> docs link to a `§n` here rather than restating these.
+
 Platform limitations relevant to running LLM inference on Xbox Dev Mode, and how xllama addresses each one.
 
 ## 1. No POSIX `mmap`
 
 **Problem**: `mmap()` is unavailable in the UWP sandbox.
 
-**Status**: Not an issue for the current ORT GenAI path. ORT loads the model internally using Win32 file APIs compatible with UWP. The Linux llama.cpp path uses `mparams.use_mmap = false` to fall back to heap reads.
+**Status**: Not an issue for the ORT GenAI path — ORT loads the model internally using Win32 file APIs compatible with UWP. For the GGUF/llama.cpp path the `patches/0001` guards disable the desktop-only `_WIN32` mmap on the AppContainer, so GGUF weights are read into the heap (buffered). Enabling an AppContainer mmap via `CreateFileMappingFromApp`/`MapViewOfFileFromApp` was **tried and reverted (2026-07-14): no benefit** — the CPU GGUF load is dominated by the AVX2 tensor repack, not the file read (full analysis in [`benchmarks.md`](benchmarks.md) → root-cause notes).
 
 ## 2. Sandboxed Filesystem
 
@@ -324,7 +329,8 @@ win is prefill (§5, reading 1) and larger-model bandwidth. A genuinely fused
 low-bit GPU GEMM would be a DirectML-team feature, not an ORT-side PR; treat GPU
 int4 decode as blocked upstream, not a local TODO.
 
-**Config tests that confirm the dead-end** (built, pending one console bench —
-expected ≈ 8.8 tok/s, a fast negative): `int4_block_size=128` and
-`int4_accuracy_level=4` variants of SmolLM2-360M. If either materially beat 8.8
-it would refute the above; the kernel structure predicts they will not.
+**Config tests** (`int4_block_size=128`, `int4_accuracy_level=4` variants of
+SmolLM2-360M) were **built but closed inconclusive 2026-07-09** — not console-
+benched, and not a local lever. The §12 desk-check above stands (the kernel
+structure predicts neither materially beats 8.8 tok/s); see `ROADMAP.md`
+Phase 3.5 / Phase 5 and `console-validation-runbook.md §5`.

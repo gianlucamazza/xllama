@@ -7,6 +7,44 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **GGUF KV-cache reuse** — `LlamaSession` keeps a persistent `llama_context`, so
+  a continuation turn appends only the new turn's delta instead of re-prefilling
+  the whole conversation. Console-measured **4.07×** turn-2 prefill on gemma3-270m
+  (`bench/results/phase6-gemma-kv.csv`); previously GGUF was stateless. Enabled in
+  the Settings KV toggle (routing stays ORT-only — llama.cpp UWP is CPU-only).
+- **CI: `src/models/*.cpp` MSBuild wildcard** in `ggml-uwp.vcxproj` + a
+  `scripts/check-uwp-sources.sh` drift-check — new llama.cpp architectures no
+  longer break the UWP link on a submodule bump (as `657e011` did).
+
+### Changed
+
+- **`gemma4-e2b` catalogue default: UD-IQ2_M → Q3_K_S** (2.45 GB). Console-measured
+  15.3 tok/s and generates full responses on long declarative prompts, where the
+  2-bit IQ2_M collapsed to an immediate EOG. See `docs/benchmarks.md`.
+- **llama.cpp submodule bumped to `657e011`** (was `9a532ae4b`); `ggml-uwp.vcxproj`
+  gained the new per-arch sources.
+- **Stop-sequence handling unified** into one suffix-match helper
+  (`apply_stop_sequences`, `chat_prompt`) shared by the llama and ORT decode loops.
+- **`scripts/install-latest-build.sh`**: `bench.flag` is now `--bench` opt-in — a
+  plain install launches into the UI.
+- Consolidated documentation onto single-source-of-truth docs (perf →
+  `benchmarks.md`, constraints → `uwp-constraints.md`, catalogue →
+  `model-selection.md` + `manifest.json`); refreshed stale version/quant/KV claims.
+
+### Fixed
+
+- `scripts/bench-xbox-ort.sh`: verify `bench-result.csv.done` is actually deleted
+  before a run, so `wait_for_done` can't return off a stale marker (silent wrong row).
+
+### Investigated (no change shipped)
+
+- **AppContainer file mmap** (`CreateFileMappingFromApp`/`MapViewOfFileFromApp`,
+  with a loader fallback): built and deployed, but **no measured benefit** —
+  GGUF load on CPU is dominated by the AVX2 tensor repack, not the file read.
+  Reverted; finding recorded in `docs/benchmarks.md`.
+
 ---
 
 ## [1.1.6.0] - 2026-07-14
