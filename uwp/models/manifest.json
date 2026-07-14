@@ -26,11 +26,57 @@
     },
     {
       "name": "smollm2-360m-dml-fp16",
-      "display": "SmolLM2 360M (GPU fp16, routing)"
+      "display": "SmolLM2 360M (GPU fp16, routing)",
+      "hf_base_url": "https://github.com/gianlucamazza/xllama/releases/download/models-v1",
+      "files": [
+        {
+          "filename": "genai_config.json",
+          "remote": "smollm2-360m-dml-fp16_genai_config.json",
+          "approx_bytes": 1456
+        },
+        {
+          "filename": "tokenizer.json",
+          "remote": "smollm2-360m-dml-fp16_tokenizer.json",
+          "approx_bytes": 3522871
+        },
+        {
+          "filename": "tokenizer_config.json",
+          "remote": "smollm2-360m-dml-fp16_tokenizer_config.json",
+          "approx_bytes": 453
+        },
+        {
+          "filename": "model.onnx",
+          "remote": "smollm2-360m-dml-fp16_model.onnx",
+          "approx_bytes": 691000000
+        }
+      ]
     },
     {
       "name": "smollm2-1.7b-cpu-int4",
-      "display": "SmolLM2 1.7B (CPU int4)"
+      "display": "SmolLM2 1.7B (CPU int4)",
+      "hf_base_url": "https://github.com/gianlucamazza/xllama/releases/download/models-v1",
+      "files": [
+        {
+          "filename": "genai_config.json",
+          "remote": "smollm2-1.7b-cpu-int4_genai_config.json",
+          "approx_bytes": 2000
+        },
+        {
+          "filename": "tokenizer.json",
+          "remote": "smollm2-1.7b-cpu-int4_tokenizer.json",
+          "approx_bytes": 3600000
+        },
+        {
+          "filename": "tokenizer_config.json",
+          "remote": "smollm2-1.7b-cpu-int4_tokenizer_config.json",
+          "approx_bytes": 1000
+        },
+        {
+          "filename": "model.onnx",
+          "remote": "smollm2-1.7b-cpu-int4_model.onnx",
+          "approx_bytes": 1400000000
+        }
+      ]
     },
     {
       "_comment": "GGUF chat models (llama.cpp backend, unified builds). Qwen3.5 quant: unsloth/Qwen3.5-0.8B-GGUF (Apache-2.0). LFM2.5 quant: LiquidAI/LFM2.5-350M-GGUF (LFM Open License v1.0 — LICENSE.txt downloaded alongside per §4a).",

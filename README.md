@@ -263,7 +263,7 @@ See [ROADMAP.md](./ROADMAP.md). Headlines:
 2. **Phase 2 — GPU acceleration** ✅ GPU proven; verdict per-workload (CPU decode, GPU prefill/images).
 3. **Phase 3 / 3.5 — Benchmarks + hardware ceiling** ✅ Measured matrices, routing, KV reuse, llama.cpp A/B (parity), diffusion on console.
 4. **Phase 4 — In-app model download + publication** ✅ Catalogue download, v1.0.0 release, technical report (demo video pending).
-5. **Phase 5 — Post-1.0 improvements** 🚧 In-proc diffusion + TAESD + patched GenAI DLL pipeline done; console validation §2/TAESD pending.
+5. **Phase 5 — Post-1.0 improvements** 🚧 Shipping `xllama-appx` = unified+PatchedGenAI; autopilot validation gates pending measured PASS.
 
 ---
 

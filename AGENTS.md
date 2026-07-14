@@ -24,7 +24,7 @@ xllama/
 │   ├── path_utils.h         # resolve_model_path, first_gguf_in_dir, model_uses_llama_backend
 │   └── utf8_utils.h         # utf8 <-> wstring (Windows)
 ├── src/bridge/              # Shared implementation (Linux + UWP)
-│   ├── inference.cpp        # #ifdef XLLAMA_USE_ORT → ORT GenAI; #else → llama_decode
+│   ├── inference.cpp        # ORT GenAI and/or llama_decode (unified: runtime dispatch)
 │   ├── session.cpp          # xllama::Session (OrtSession UWP + LlamaSession Linux)
 │   ├── bench.cpp            # bench CSV writer
 │   ├── platform.cpp         # log_output (writes xllama.log in UWP)

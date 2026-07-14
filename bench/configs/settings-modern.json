@@ -1,6 +1,6 @@
 {
   "system_prompt": "You are a helpful assistant.",
-  "model": "smollm2-360m-cpu-int4",
+  "model": "lfm25-350m",
   "kv_reuse": true,
   "routing": 2,
   "gpu_model": "smollm2-360m-dml-fp16",

@@ -16,6 +16,7 @@ add_executable(xllama-tests
     test_session.cpp
     test_chat_history.cpp
     test_diffusion.cpp
+    test_routing_policy.cpp
 )
 
 target_link_libraries(xllama-tests PRIVATE xllama doctest::doctest)

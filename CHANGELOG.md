@@ -7,6 +7,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **`include/xllama/routing_policy.h`** — extracted per-workload routing decision
+  (600-tok threshold, GGUF/routing capability gates) with unit tests.
+- **`scripts/package-catalogue-ort-model.sh`** — stage flat `models-v1` assets for
+  `smollm2-360m-dml-fp16` and `smollm2-1.7b-cpu-int4` catalogue entries.
+- **Catalogue download URLs** for `smollm2-360m-dml-fp16` and `smollm2-1.7b-cpu-int4`
+  (`hf_base_url` + prefixed `remote` names on `models-v1`).
+
+### Changed
+
+- **Shipping CI default** (`build-uwp.yml`): `xllama-appx` is now **unified +
+  PatchedGenAI #2280**; `llamacpp` remains a bench-only artifact. `build-uwp.ps1
+  -PatchedGenAI` fails closed if the vendor step fails.
+- **Recommended modern settings** (`bench/configs/settings-modern.json`): default chat
+  model **LFM2.5-350M** (GGUF) on unified builds; routing GPU unchanged.
+- Package version **1.1.4.0**.
+
+### Fixed
+
+- **Model provisioning layer** (`IsModelProvisioned`, `EnsureModelNamedAsync`,
+  background `gpu_model` download when `routing≠0`, routing guards, Settings
+  model-change re-provision). See commit `f3d733e`.
+
 ### Docs
 
 - **Drift pass after the Fase-2b/patched-lane work**: README (GGUF rows with

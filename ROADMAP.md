@@ -233,8 +233,8 @@ Milestones:
       `scripts/vendor-genai-dml-patch.ps1`, `build-uwp.ps1 -PatchedGenAI`.
 - [x] **Recommended config doc** — `docs/recommended-config.md` +
       `bench/configs/settings-modern.json`.
-- [ ] Interactive validations at the pad: §2 routing A/B (needs `-PatchedGenAI` MSIX) +
-      Image dialog flow + §7c TAESD image bench
+- [~] Interactive validations: autopilot + `validate-console.sh` ready; §2/§7c/GGUF
+      gates pending measured PASS on console (2026-07-14)
 - [x] Closure benches: int4 `block_size=128` / `accuracy_level=4` (§12
       confirm/refute) — closed inconclusive (PR #29, §12 stands)
 - [x] Fase 2: catalogue `kind:gguf` → `sp.backend`, gate KV-reuse/routing off
@@ -247,13 +247,10 @@ Milestones:
       (prefill 98.1), LFM2.5-350M decode **94.2** tok/s (prefill 241.4, ~42%
       over the ORT 360M baseline). Found + fixed on the way: GGUF dir load in
       the bench path, llama default-threads livelock (capped at 6 on UWP),
-      unified CSV labels. **Promotion of `unified` to default is now
-      bench-unblocked** — decision pending.
-- [~] Vendor patched GenAI DLL in shipping MSIX — pipeline done; the
-  dispatch-only `build-uwp-patched.yml` lane builds the DLL from source and
-  uploads `-PatchedGenAI` packages (default + unified) for the §2 A/B; default
-  CI still vanilla until `vendor/.../onnxruntime-genai.dll` is supplied or
-  `-PatchedGenAI` build is mandated post §2 PASS
+      unified CSV labels.
+- [x] **Promotion of `unified` + PatchedGenAI to default CI** — `build-uwp.yml`
+      ships `xllama-appx` as unified+#2280 (2026-07-14); `build-uwp-patched.yml`
+      kept as manual fallback lane.
 - [x] `diffusion/requirements.txt` toolchain bump + re-validation (2026-07-10):
       torch 2.9.1 / optimum-onnx 0.1.0 / transformers 4.57.6 / diffusers 0.39.0.
       Full recipe re-run green: export (diff 0.0102, warning-level precedent),

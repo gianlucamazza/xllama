@@ -23,17 +23,17 @@ Upstream: [microsoft/onnxruntime-genai#2280](https://github.com/microsoft/onnxru
 
 ## UWP build variants
 
-| Variant            | Command             | When to use                        |
-| ------------------ | ------------------- | ---------------------------------- |
-| **ort** (shipping) | `build-uwp.ps1`     | Default chat via ORT GenAI         |
-| **unified**        | `-Backend unified`  | GGUF models (`kind: gguf`) + ORT   |
-| **llamacpp**       | `-Backend llamacpp` | Bench A/B only — not for end users |
+| Variant            | CI artifact / command                    | When to use                        |
+| ------------------ | -------------------------------------- | ---------------------------------- |
+| **unified+#2280** (shipping) | `xllama-appx` from `build-uwp.yml` | Default: GGUF + ORT, routing GPU in XAML |
+| **llamacpp**       | `xllama-appx-llamacpp`                 | Bench A/B only — not for end users |
 
 ## Chat models
 
 | Use case             | Catalogue `name`        | Backend               | Measured decode                          |
 | -------------------- | ----------------------- | --------------------- | ---------------------------------------- |
-| **Default**          | `smollm2-360m-cpu-int4` | ORT CPU int4          | ~66 tok/s                                |
+| **Default (unified)**| `lfm25-350m`            | llama.cpp (`unified`) | **94.2 tok/s** (recommended)             |
+| **ORT default**      | `smollm2-360m-cpu-int4` | ORT CPU int4          | ~66 tok/s                                |
 | **Routing GPU**      | `smollm2-360m-dml-fp16` | ORT DML fp16          | ~47 tok/s decode; ~354 tok/s prefill @1k |
 | **Larger chat**      | `smollm2-1.7b-cpu-int4` | ORT CPU int4          | ~21 tok/s (USB / 90 GB disk)             |
 | **Modern GGUF**      | `qwen35-0.8b`           | llama.cpp (`unified`) | 35.1 tok/s (98.1 prefill, t6)            |
@@ -85,7 +85,7 @@ Copy [`bench/configs/settings-modern.json`](../bench/configs/settings-modern.jso
 | `model`                | `smollm2-360m-cpu-int4`           | Downloaded on first launch                     |
 | `kv_reuse`             | `true`                            | 4.87× turn-2 prefill (measured)                |
 | `routing`              | `0` default; `2` for RAG          | `2` = Auto; needs DML fp16 model + patched DLL |
-| `gpu_model`            | `smollm2-360m-dml-fp16`           | USB/LocalState provision                       |
+| `gpu_model`            | `smollm2-360m-dml-fp16`           | Catalogue download (`models-v1`) or WDP upload |
 | `diffuse_taesd_vae`    | `true` after asset on `models-v1` | ~4.5 s/image target                            |
 | `sampling.temperature` | `0.8`                             | UI default                                     |
 | `sampling.n_predict`   | `512`                             | UI default                                     |

@@ -11,6 +11,7 @@
     #include "chat-history.h"
     #include "inference-bridge.h"
     #include "xllama/platform.h"
+    #include "xllama/routing_policy.h"
     #include "xllama/utf8_utils.h"
 
     #include <winrt/Windows.Data.Json.h>
@@ -1815,50 +1816,53 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     const bool gpu_provisioned =
         ::xllama::IsModelProvisioned(::xllama::utf8_to_wstring(m_gpu_model));
     if (m_active_model.empty()) {
-        // Crossover between ~285 and ~1050 prompt tokens in the v0.3.6 matrix.
-        constexpr int kRoutingTokThreshold = 600;
-        if (base_is_gguf) {
-            m_active_model = m_model_filename; // no EP routing for llama.cpp (CPU-only)
-        } else if (m_routing == 1) {
-            if (!gpu_provisioned) {
-                SetStatus(L"GPU model '" + ::xllama::utf8_to_wstring(m_gpu_model) +
-                              L"' is not on this console.\n"
-                              L"Upload it to LocalState\\models\\" +
-                              ::xllama::utf8_to_wstring(m_gpu_model) +
-                              L" via Device Portal or USB (see docs/model-selection.md).",
-                          StatusKind::Error);
-                SetRunning(false);
-                return;
-            }
-            m_active_model = ::xllama::utf8_to_wstring(m_gpu_model);
-            ::xllama::log_output("[xllama] routing: gpu-only\n");
-        } else if (m_routing == 2) {
-            int n_tok = 0;
-            const std::string cpu_model = ::xllama::wstring_to_utf8(m_model_filename);
-            if (EnsureSession(cpu_model, nullptr))
+        ::xllama::RoutingSettings rs;
+        rs.mode = static_cast<::xllama::RoutingMode>(m_routing);
+        rs.cpu_model = ::xllama::wstring_to_utf8(m_model_filename);
+        rs.gpu_model = m_gpu_model;
+
+        int n_tok = 0;
+        if (m_routing == 2 && !base_is_gguf) {
+            if (EnsureSession(rs.cpu_model, nullptr))
                 n_tok = m_session->count_tokens(full_prompt);
             else
                 n_tok = static_cast<int>(full_prompt.size() / 4);
-            const bool use_gpu = gpu_provisioned && n_tok > kRoutingTokThreshold;
-            if (n_tok > kRoutingTokThreshold && !gpu_provisioned) {
-                SetStatus(L"GPU model '" + ::xllama::utf8_to_wstring(m_gpu_model) +
-                              L"' is not on this console — staying on CPU.\n"
-                              L"Upload it to LocalState\\models\\" +
-                              ::xllama::utf8_to_wstring(m_gpu_model) +
-                              L" to enable auto-routing.",
-                          StatusKind::Error);
-                SetRunning(false);
-                return;
-            }
-            m_active_model = use_gpu ? ::xllama::utf8_to_wstring(m_gpu_model) : m_model_filename;
+        }
+
+        if (m_routing == 1 && !gpu_provisioned) {
+            SetStatus(L"GPU model '" + ::xllama::utf8_to_wstring(m_gpu_model) +
+                          L"' is not on this console.\n"
+                          L"Upload it to LocalState\\models\\" +
+                          ::xllama::utf8_to_wstring(m_gpu_model) +
+                          L" via Device Portal or USB (see docs/model-selection.md).",
+                      StatusKind::Error);
+            SetRunning(false);
+            return;
+        }
+        if (m_routing == 2 && n_tok > rs.token_threshold && !gpu_provisioned) {
+            SetStatus(L"GPU model '" + ::xllama::utf8_to_wstring(m_gpu_model) +
+                          L"' is not on this console — staying on CPU.\n"
+                          L"Upload it to LocalState\\models\\" +
+                          ::xllama::utf8_to_wstring(m_gpu_model) +
+                          L" to enable auto-routing.",
+                      StatusKind::Error);
+            SetRunning(false);
+            return;
+        }
+
+        const auto decision =
+            ::xllama::decide_routing(rs, n_tok, base_is_gguf, gpu_provisioned);
+        m_active_model = ::xllama::utf8_to_wstring(decision.active_model);
+
+        if (m_routing == 1) {
+            ::xllama::log_output("[xllama] routing: gpu-only\n");
+        } else if (m_routing == 2 && !base_is_gguf) {
             char rbuf[160];
             snprintf(rbuf, sizeof(rbuf),
                      "[xllama] routing: auto → %s (%d tok, threshold %d, model=%s)\n",
-                     use_gpu ? "gpu" : "cpu", n_tok, kRoutingTokThreshold,
-                     use_gpu ? m_gpu_model.c_str() : cpu_model.c_str());
+                     decision.use_gpu ? "gpu" : "cpu", decision.token_count, rs.token_threshold,
+                     decision.active_model.c_str());
             ::xllama::log_output(rbuf);
-        } else {
-            m_active_model = m_model_filename;
         }
     }
 

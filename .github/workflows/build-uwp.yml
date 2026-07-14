@@ -12,16 +12,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # default: ORT GenAI only (the shipping package).
-        # llamacpp: ggml/llama CPU text backend only (XLLAMA_USE_ORT absent) —
-        #   the CPU A/B bench lane; needs the submodule + patches.
-        # unified: BOTH backends compiled, chosen at runtime per model (modern
-        #   GGUF via llama.cpp, rest via ORT); the candidate for the next default.
-        variant: [default, llamacpp, unified]
+        include:
+          # Shipping package: unified backends + patched GenAI #2280 (routing GPU in XAML).
+          - variant: unified
+            patched: true
+            artifact: xllama-appx
+          # Bench-only lane: llama.cpp CPU A/B (not for pad chat shipping).
+          - variant: llamacpp
+            patched: false
+            artifact: xllama-appx-llamacpp
     steps:
       - uses: actions/checkout@v6
         with:
-          # llama.cpp submodule not needed for UWP ORT build; skip to save ~40s
           submodules: false
           fetch-depth: 1
 
@@ -37,21 +39,41 @@ jobs:
         working-directory: uwp
         run: nuget restore packages.config -PackagesDirectory packages -NonInteractive
 
+      - name: Build patched onnxruntime-genai.dll (#2280) from source
+        if: matrix.patched
+        shell: pwsh
+        run: ./scripts/vendor-genai-dml-patch.ps1 -Build
+
+      - name: Verify the patched DLL replaced the NuGet copy
+        if: matrix.patched
+        shell: pwsh
+        run: |
+          $genai = ([xml](Get-Content uwp/packages.config)).packages.package |
+            Where-Object { $_.id -eq "Microsoft.ML.OnnxRuntimeGenAI.DirectML" } |
+            Select-Object -ExpandProperty version
+          $vendor = "vendor/onnxruntime-genai-patched/win-x64/onnxruntime-genai.dll"
+          $nuget = "uwp/packages/Microsoft.ML.OnnxRuntimeGenAI.DirectML.$genai/runtimes/win-x64/native/onnxruntime-genai.dll"
+          if (-not (Test-Path $vendor)) { Write-Error "patched DLL missing: $vendor"; exit 1 }
+          if ((Get-FileHash $vendor).Hash -ne (Get-FileHash $nuget).Hash) {
+            Write-Error "NuGet DLL is not the patched build"
+            exit 1
+          }
+
       - name: Build UWP package
         shell: pwsh
-        # No model is bundled: uwp/models/ carries only manifest.json, so the
-        # package is model-free by construction (~19 MB).
-        run: >-
-          ./scripts/build-uwp.ps1 -Configuration Release -Platform x64
-          -Backend $('${{ matrix.variant }}' -eq 'default' ? 'ort' : '${{ matrix.variant }}')
+        run: |
+          $args = @(
+            "-Configuration", "Release",
+            "-Platform", "x64",
+            "-Backend", $('${{ matrix.variant }}' -eq 'unified' ? 'unified' : '${{ matrix.variant }}')
+          )
+          if ('${{ matrix.patched }}' -eq 'true') { $args += "-PatchedGenAI" }
+          ./scripts/build-uwp.ps1 @args
 
       - uses: actions/upload-artifact@v7
         if: success()
         with:
-          name: ${{ matrix.variant != 'default' && format('xllama-appx-{0}', matrix.variant) || 'xllama-appx' }}
-          # Include .msix (main package), .appx (VCLibs deps), and .cer
-          # (public key of the test certificate that must be trusted on the
-          # Xbox before deploying — installed via Device Portal API).
+          name: ${{ matrix.artifact }}
           path: |
             uwp/AppPackages/**/*.msix
             uwp/AppPackages/**/*.appx

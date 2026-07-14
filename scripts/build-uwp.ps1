@@ -143,7 +143,8 @@ if ($PatchedGenAI -and $Backend -ne "llamacpp") {
     Write-Host "Installing patched onnxruntime-genai.dll (#2280) ..."
     & $VendorScript
     if ($LASTEXITCODE -ne 0) {
-        Write-Warning "vendor-genai-dml-patch.ps1 exited $LASTEXITCODE — continuing with NuGet DLL."
+        Write-Error "vendor-genai-dml-patch.ps1 failed ($LASTEXITCODE) — refusing to package a mislabeled patched build."
+        exit $LASTEXITCODE
     }
 }
 
