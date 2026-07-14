@@ -72,7 +72,12 @@ architectures load and generate on the pinned `llama.cpp` (`9a532ae4b`);
 | Model           | Params           | Quant  |    Size | Prefill tok/s | Decode tok/s | Peak RAM MB | Load ms |
 | --------------- | ---------------- | ------ | ------: | ------------: | -----------: | ----------: | ------: |
 | Gemma-3-270M-it | 270M             | Q4_K_M |  253 MB |         395.0 |     **76.8** |         368 |    1095 |
+| Gemma-4-E2B-it  | ~5B raw (2B eff) | Q3_K_S | 2.45 GB |          26.1 |     **15.3** |        2742 |   13837 |
 | Gemma-4-E2B-it  | ~5B raw (2B eff) | IQ2_M  | 2.29 GB |          13.5 |          9.9 |        2534 |    6169 |
+
+Catalogue default for `gemma4-e2b` is now **Q3_K_S** (was IQ2_M): it decodes
+faster (15.3 vs 9.9) and, crucially, generates full responses on long prompts
+where the 2-bit IQ2_M collapsed to an immediate EOG (see below).
 
 Both use the Gemma template on-device (log: `bench prompt: <start_of_turn>user
 …`). **Gemma-3-270M** is a fast, tiny chat model (76.8 tok/s, 368 MB).
@@ -114,10 +119,12 @@ question) — the correct response is to end the turn. Two amplifiers: (1) the
 **IQ2_M 2-bit quant** degrades the logits and inflates specific tokens incl. EOG;
 (2) gemma4 is better turn-calibrated than the tiny under-trained gemma3-270m,
 which rambles instead. Stochastic under temp 0.8 → sometimes the very first
-sample. **Not a bug.** Mitigation: bench decode with a _question/generative_
-prompt (done → **9.9 tok/s**), use a higher-bit quant (Q3_K_S 2.45 GB), or lower
-temperature. `standard-512.txt` is a poor decode probe for a well-calibrated
-instruct model.
+sample. **Not a bug.** Mitigation confirmed: **Q3_K_S (2.45 GB) fixes it** — on
+the exact same 280-token declarative prompt it generates a full 266-token
+response (15.3 tok/s) where IQ2_M produced 0 decode tokens. So the catalogue
+`gemma4-e2b` default is now Q3_K_S. (The 2-bit IQ2_M also works with
+question/generative prompts; `standard-512.txt` is just a poor decode probe for
+a well-calibrated instruct model at aggressive quant.)
 
 ### Gemma-4-E2B slow load (23.6 s cold → 6.2 s warm)
 
