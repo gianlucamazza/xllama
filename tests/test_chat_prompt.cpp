@@ -151,8 +151,7 @@ static void check_kv_reuse_invariant(const ChatFormat& f) {
 
     // Case A: generation stopped on the stop token (token resident in the KV);
     // the delta only re-opens with a newline.
-    CHECK(base + raw_out + stop + f.render_delta(next_user, /*prev_ended_with_stop=*/true) ==
-          cold);
+    CHECK(base + raw_out + stop + f.render_delta(next_user, /*prev_ended_with_stop=*/true) == cold);
 
     // Case B: generation cut short by n_predict (no stop token in the KV); the
     // delta closes the turn itself.

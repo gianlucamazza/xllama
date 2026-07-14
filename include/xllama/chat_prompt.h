@@ -62,8 +62,7 @@ struct ChatFormat {
     // gen_suffix. gen_suffix is appended ONLY to the final (trailing) assistant
     // header, never to completed history turns. History turns are complete
     // (user + assistant) exchanges.
-    std::string render_prompt(const std::string& system,
-                              const std::vector<ChatTurn>& history,
+    std::string render_prompt(const std::string& system, const std::vector<ChatTurn>& history,
                               const std::string& final_user) const;
 
     // Delta appended onto a reused KV cache. prev_ended_with_stop == the previous

@@ -205,8 +205,8 @@ void main_loop() {
 
     // Apply the per-model chat template (ChatML default, required for
     // SmolLM2-Instruct; Gemma/Qwen get their own format via the model name).
-    std::string prompt = ::xllama::chat_format_for(model_name).render_prompt(
-        "You are a helpful AI assistant.", {}, user_prompt);
+    std::string prompt = ::xllama::chat_format_for(model_name)
+                             .render_prompt("You are a helpful AI assistant.", {}, user_prompt);
 
     log_output("[xllama] bench model: " + model_name + "\n");
     log_output("[xllama] bench prompt: " + prompt.substr(0, 80) + "...\n");

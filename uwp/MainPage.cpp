@@ -483,8 +483,7 @@ void MainPageController::AddUserParagraph(std::wstring const& text) {
     m_outputBody.Blocks().Append(m_currentParagraph);
 }
 
-std::string MainPageController::BuildPrompt(const std::string& user_text,
-                                            int* out_dropped) const {
+std::string MainPageController::BuildPrompt(const std::string& user_text, int* out_dropped) const {
     // Estimate token count (heuristic: chars/4). Trim oldest turns if over limit.
     // Threshold aligned with n_ctx=2048: 1800 estimated tokens + ~250 generation buffer.
     constexpr int kMaxEstimatedTokens = 1800;
