@@ -62,13 +62,13 @@ jobs:
       - name: Build UWP package
         shell: pwsh
         run: |
-          # Avoid $args — it shadows PowerShell's automatic parameter array and breaks splatting.
-          $buildArgs = @(
-            "-Configuration", "Release",
-            "-Platform", "x64",
-            "-Backend", $('${{ matrix.variant }}' -eq 'unified' ? 'unified' : '${{ matrix.variant }}')
-          )
-          if ('${{ matrix.patched }}' -eq 'true') { $buildArgs += "-PatchedGenAI" }
+          # Hashtable splatting — string arrays bind positionally and break -Backend.
+          $buildArgs = @{
+            Configuration = 'Release'
+            Platform      = 'x64'
+            Backend       = $('${{ matrix.variant }}' -eq 'unified' ? 'unified' : '${{ matrix.variant }}')
+          }
+          if ('${{ matrix.patched }}' -eq 'true') { $buildArgs.PatchedGenAI = $true }
           ./scripts/build-uwp.ps1 @buildArgs
 
       - uses: actions/upload-artifact@v7
