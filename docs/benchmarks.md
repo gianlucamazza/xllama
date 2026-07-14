@@ -90,6 +90,58 @@ Disk was never the constraint (Dev Mode is 90 GB). E4B/12B+ stay out of scope on
 size/speed. Catalogue entry `gemma4-e2b` (downloads from HF; 2.29 GB exceeds the
 GitHub release 2 GB asset limit).
 
+## Root-cause notes — the negative performers
+
+Investigated 2026-07-14 (reverse-engineered where noted). None is a loader or
+template bug; the causes are quantization behaviour, a UWP constraint, and known
+DirectML limits.
+
+### Gemma-4-E2B emits EOG immediately on the bench prompt (0 decode tokens)
+
+The first `phase6-gemma` E2B run scored **decode 0.0 tok/s** — the model hit an
+end-of-generation token on the first sample (`EOG after 0 tokens`). Isolated by
+reproduction:
+
+- Both `gemma3` and `gemma4` GGUFs set `eos_token_id = 106` (`<end_of_turn>`),
+  `add_bos_token = true` — so the template (which omits `<bos>`) is correct.
+- On the **identical** 272-token declarative prompt at temp 0.8: gemma3-270m (Q4)
+  generates 30+ tokens with **no** early EOG; gemma4-E2B (IQ2_M) stops early
+  (0 tokens on console, 7 on the host at a different RNG seed).
+
+**Root cause**: gemma4-E2B assigns a high probability to `<end_of_turn>` as the
+_first_ token after a **declarative** prompt (a technical overview, not a
+question) — the correct response is to end the turn. Two amplifiers: (1) the
+**IQ2_M 2-bit quant** degrades the logits and inflates specific tokens incl. EOG;
+(2) gemma4 is better turn-calibrated than the tiny under-trained gemma3-270m,
+which rambles instead. Stochastic under temp 0.8 → sometimes the very first
+sample. **Not a bug.** Mitigation: bench decode with a _question/generative_
+prompt (done → **9.9 tok/s**), use a higher-bit quant (Q3_K_S 2.45 GB), or lower
+temperature. `standard-512.txt` is a poor decode probe for a well-calibrated
+instruct model.
+
+### Gemma-4-E2B slow cold load (23.6 s cold → 6.2 s warm)
+
+llama.cpp uses `use_mmap = false` (UWP AppContainer has no POSIX mmap,
+`uwp-constraints.md §1`), so the full 2.29 GB is read into the heap — no lazy
+page-in. Cold = disk read + heap copy; warm = OS file cache (also 21.5 s on the
+host, confirming it's the no-mmap read, not a console quirk). Smaller quant is
+the only lever.
+
+### DirectML int4 decode 8.8 tok/s — 8× slower than CPU (already root-caused)
+
+`uwp-constraints.md §12`: DirectML has **no fused low-bit GPU GEMM**. It
+implements `MatMulNBits` as `DML_DEQUANTIZE`→fp16 + a full `DML_GEMM`,
+materialising fp16 weights — so int4 moves _more_ bandwidth than fp16 (hence
+8.8 < the fp16 path's 46.8). The builder also gives DML `accuracy_level=0` vs
+CPU's fused int8 MLAS (`=4`, → 70). A DirectML-team feature; not fixable in-app.
+
+### DirectML fp16 decode 46.8 < CPU 70.9 — expected, not a regression
+
+Autoregressive decode (M=1) is memory-bound and dominated by per-token DML
+dispatch overhead at this model scale; CPU `MatMulNBits` on AVX2 wins
+(ROADMAP Phase 2 / `uwp-constraints.md §7`). GPU's win is **prefill** (353 vs
+198 tok/s at ~1k tokens), which is exactly what routing uses it for.
+
 ## Reproducing
 
 - **On-console**: `./scripts/bench-xbox-ort.sh <model> --runs 3 --out bench/results/<file>.csv`
