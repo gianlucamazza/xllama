@@ -33,10 +33,10 @@ index a65cf0090..82ae1a24c 100644
      return "";
  }
 diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
-index cd5c61a81..5d550eafb 100644
+index 2745a7dbb..50c27f8ca 100644
 --- a/ggml/src/ggml-cpu/ggml-cpu.c
 +++ b/ggml/src/ggml-cpu/ggml-cpu.c
-@@ -2489,9 +2489,17 @@ static bool ggml_thread_apply_affinity(bool * mask) {
+@@ -2508,9 +2508,17 @@ static bool ggml_thread_apply_affinity(bool * mask) {
  
      DWORD_PTR m = (DWORD_PTR)bitmask;
  
@@ -54,7 +54,7 @@ index cd5c61a81..5d550eafb 100644
  }
  
  static bool ggml_thread_apply_priority(int32_t prio) {
-@@ -2511,7 +2519,7 @@ static bool ggml_thread_apply_priority(int32_t prio) {
+@@ -2530,7 +2538,7 @@ static bool ggml_thread_apply_priority(int32_t prio) {
          // Newer Windows 11 versions aggressively park (offline) CPU cores and often place
          // all our threads onto the first 4 cores which results in terrible performance with
          // n_threads > 4
@@ -77,28 +77,39 @@ index 128883b41..8496adb5c 100644
          if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
                          TEXT("HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0"),
 diff --git a/src/llama-mmap.cpp b/src/llama-mmap.cpp
-index ed572da7f..c4305dc71 100644
+index ed572da7f..a577b1db0 100644
 --- a/src/llama-mmap.cpp
 +++ b/src/llama-mmap.cpp
-@@ -530,7 +530,7 @@ struct llama_mmap::impl {
-             }
+@@ -540,14 +540,27 @@ struct llama_mmap::impl {
+ 
+         HANDLE hFile = (HANDLE) _get_osfhandle(file->file_id());
+ 
++#if defined(WINAPI_FAMILY) && !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
++        // AppContainer (UWP/Xbox): CreateFileMappingA/MapViewOfFile are desktop-
++        // partition only; the *FromApp variants (Win8+) are the AppContainer-legal
++        // equivalents. A working file mapping lets llama.cpp use the mapped region
++        // directly as the tensor buffer (no 2+ GB heap copy) — the model-loader
++        // catches a failure here and falls back to a buffered read.
++        hMapping = CreateFileMappingFromApp(hFile, NULL, PAGE_READONLY, 0, NULL);
++#else
+         hMapping = CreateFileMappingA(hFile, NULL, PAGE_READONLY, 0, 0, NULL);
++#endif
+ 
+         if (hMapping == NULL) {
+             DWORD error = GetLastError();
+-            throw std::runtime_error(format("CreateFileMappingA failed: %s", llama_format_win_err(error).c_str()));
++            throw std::runtime_error(format("CreateFileMapping failed: %s", llama_format_win_err(error).c_str()));
          }
-     }
--#elif defined(_WIN32)
-+#elif defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP))
-     HANDLE hMapping = nullptr;
  
-     impl(struct llama_file * file, size_t prefetch, bool numa) {
-@@ -625,7 +625,7 @@ void * llama_mmap::addr() const { return pimpl->addr; }
++#if defined(WINAPI_FAMILY) && !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
++        addr = MapViewOfFileFromApp(hMapping, FILE_MAP_READ, 0, 0);
++#else
+         addr = MapViewOfFile(hMapping, FILE_MAP_READ, 0, 0, 0);
++#endif
+         DWORD error = GetLastError();
  
- void llama_mmap::unmap_fragment(size_t first, size_t last) { pimpl->unmap_fragment(first, last); }
- 
--#if defined(_POSIX_MEMLOCK_RANGE) || defined(_WIN32)
-+#if defined(_POSIX_MEMLOCK_RANGE) || (defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)))
- const bool llama_mmap::SUPPORTED  = true;
- #else
- const bool llama_mmap::SUPPORTED  = false;
-@@ -679,7 +679,7 @@ struct llama_mlock::impl {
+         if (addr == NULL) {
+@@ -679,7 +692,7 @@ struct llama_mlock::impl {
              LLAMA_LOG_WARN("warning: failed to munlock buffer: %s\n", std::strerror(errno));
          }
      }
@@ -107,7 +118,7 @@ index ed572da7f..c4305dc71 100644
      static size_t lock_granularity() {
          SYSTEM_INFO si;
          GetSystemInfo(&si);
-@@ -768,7 +768,7 @@ llama_mlock::~llama_mlock() = default;
+@@ -768,7 +781,7 @@ llama_mlock::~llama_mlock() = default;
  void llama_mlock::init(void * ptr) { pimpl->init(ptr); }
  void llama_mlock::grow_to(size_t target_size) { pimpl->grow_to(target_size); }
  
@@ -116,3 +127,41 @@ index ed572da7f..c4305dc71 100644
  const bool llama_mlock::SUPPORTED = true;
  #else
  const bool llama_mlock::SUPPORTED = false;
+diff --git a/src/llama-model-loader.cpp b/src/llama-model-loader.cpp
+index 28f8bb793..70add9c34 100644
+--- a/src/llama-model-loader.cpp
++++ b/src/llama-model-loader.cpp
+@@ -1355,14 +1355,26 @@ void llama_model_loader::init_mappings(bool prefetch, llama_mlocks * mlock_mmaps
+                 }
+             }
+ 
+-            std::unique_ptr<llama_mmap> mapping = std::make_unique<llama_mmap>(file.get(), prefetch ? -1 : 0, is_numa);
+-            mmaps_used.emplace_back(mapping->size(), 0);
+-            if (mlock_mmaps) {
+-                std::unique_ptr<llama_mlock> mlock_mmap(new llama_mlock());
+-                mlock_mmap->init(mapping->addr());
+-                mlock_mmaps->emplace_back(std::move(mlock_mmap));
++            // Fail-safe: a file mapping can be denied at runtime (e.g. the Xbox
++            // AppContainer refusing the mapping). Rather than propagate the throw
++            // (which would abort model load), fall back to a buffered read — the
++            // same path used when mmap is unsupported.
++            try {
++                std::unique_ptr<llama_mmap> mapping = std::make_unique<llama_mmap>(file.get(), prefetch ? -1 : 0, is_numa);
++                mmaps_used.emplace_back(mapping->size(), 0);
++                if (mlock_mmaps) {
++                    std::unique_ptr<llama_mlock> mlock_mmap(new llama_mlock());
++                    mlock_mmap->init(mapping->addr());
++                    mlock_mmaps->emplace_back(std::move(mlock_mmap));
++                }
++                mappings.emplace_back(std::move(mapping));
++            } catch (const std::exception & e) {
++                LLAMA_LOG_WARN("%s: mmap failed (%s); falling back to a buffered read\n", __func__, e.what());
++                use_mmap = false;
++                mappings.clear();
++                mmaps_used.clear();
++                break;
+             }
+-            mappings.emplace_back(std::move(mapping));
+         }
+     }
+ 
