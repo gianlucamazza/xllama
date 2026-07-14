@@ -24,6 +24,11 @@ static void print_help(const char* prog) {
                  "      --seed <int>     RNG seed; 0 = random (default: 0)\n"
                  "      --chat           Wrap the prompt with the model's chat template\n"
                  "                       (ChatML/Gemma by model name) and stop on its stop token\n"
+                 "      --batch <N>      Logical prefill batch; 0 = llama default 2048\n"
+                 "      --ubatch <N>     Physical prefill chunk (TTFT sweep knob);\n"
+                 "                       0 = llama default 512\n"
+                 "      --membw          Run the CPU memory-bandwidth micro-bench and\n"
+                 "                       exit (no model needed); prints read/copy/triad GB/s\n"
                  "  -h, --help           Show this message\n",
                  prog);
 }
@@ -45,6 +50,9 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
                                               {"temp", required_argument, nullptr, 1},
                                               {"seed", required_argument, nullptr, 2},
                                               {"chat", no_argument, nullptr, 3},
+                                              {"batch", required_argument, nullptr, 4},
+                                              {"ubatch", required_argument, nullptr, 5},
+                                              {"membw", no_argument, nullptr, 6},
                                               {"help", no_argument, nullptr, 'h'},
                                               {nullptr, 0, nullptr, 0}};
 
@@ -75,6 +83,15 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         case 3:
             out.chat_template = true;
             break;
+        case 4:
+            out.n_batch = std::atoi(optarg);
+            break;
+        case 5:
+            out.n_ubatch = std::atoi(optarg);
+            break;
+        case 6:
+            out.run_membw = true;
+            break;
         case 'h':
             print_help(argv[0]);
             std::exit(0);
@@ -83,6 +100,10 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             return false;
         }
     }
+
+    // --membw runs a model-free micro-bench: skip the model/prompt requirement.
+    if (out.run_membw)
+        return true;
 
     if (out.model_path.empty() || out.prompt.empty()) {
         print_usage(argv[0]);

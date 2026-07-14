@@ -18,6 +18,8 @@ add_executable(xllama-tests
     test_diffusion.cpp
     test_routing_policy.cpp
     test_chat_prompt.cpp
+    test_manifest_merge.cpp
+    test_membw.cpp
 )
 
 target_link_libraries(xllama-tests PRIVATE xllama doctest::doctest)

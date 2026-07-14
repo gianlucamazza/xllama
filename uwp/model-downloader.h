@@ -47,8 +47,9 @@ class ModelDownloader {
 // means the model cannot be auto-downloaded (USB/Device-Portal provisioning only).
 // kind selects the consumer AND the backend: "ort-genai" (default, chat picker,
 // ORT GenAI backend), "diffusion" (image dialog; hidden from the chat picker), or
-// "gguf" (chat picker, llama.cpp backend; KV-reuse and EP routing disabled — the
-// llama.cpp path is stateless and CPU-only on Xbox).
+// "gguf" (chat picker, llama.cpp backend). The gguf path is CPU-only on Xbox (no
+// EP routing — llama.cpp UWP build is CPU-only) but KV-reuse IS enabled via a
+// persistent llama_context (turn-2 prefill 4.07×, see docs/benchmarks.md).
 struct ManifestEntry {
     std::wstring name;
     std::wstring display;

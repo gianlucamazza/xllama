@@ -312,12 +312,22 @@ Open items only — everything above is measured or shipped.
 - [x] **Automated MSIX versioning** — CI stamps the Revision from `run_number`
       (`build-uwp.ps1 -BuildRevision`); Major.Minor.Build stays the semantic
       version. Console in-place updates never hit the same-identity block.
+- [x] **In-app HF download verified on-console** (2026-07-15) — the app's own
+      downloader pulled the 2.29 GB single `.gguf` from HF and loaded+generated it,
+      confirming the >2 GB self-download path (see `docs/benchmarks.md`).
+- [ ] **`IsModelProvisioned` quant-upgrade gap** — a dir with _any_ `.gguf` counts
+      as provisioned, so a stale-quant entry is not auto-upgraded to the manifest's
+      current file. Check the expected manifest filename, not just "a gguf exists".
 - [ ] **Demo video** — model loaded and running on Xbox hardware (Phase 4 carry-over)
 - [ ] **Publication venue** — GitHub Discussions vs arXiv for `docs/technical-report.md`
 - [ ] **`smollm2-1.7b-cpu-int4` on `models-v1`** — manifest ready; optional 1.4 GB
       release upload (host build in `~/.cache/xllama-1b-build/`)
-- [ ] **`install-latest-build.sh`** — stop leaving `bench.flag` by default (or
-      `--bench` opt-in); document in README until fixed
-- [ ] (optional) **membw.flag** micro-bench — pin the CPU bandwidth denominator
+- [x] **`install-latest-build.sh`** — no longer leaves `bench.flag` by default;
+      headless bench mode is now `--bench` opt-in (a normal install launches
+      straight into the UI). See `scripts/install-latest-build.sh`.
+- [x] (optional) **membw.flag** micro-bench — pins the CPU bandwidth denominator
+      behind decode. `measure_membw` (STREAM read/copy/triad), `xllama-cli --membw`
+      (host) + `membw.flag` (console → `membw-result.csv`). Host i7: 28.1 GB/s
+      read @8t. See `docs/benchmarks.md`; on-console pass pending.
 - [ ] (upstream, deprioritised) **Fused low-bit GPU GEMM in DirectML** — §12;
       not a local contribution via #2280

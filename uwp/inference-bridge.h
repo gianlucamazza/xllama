@@ -19,6 +19,11 @@ inline InferenceResult run_inference(const InferenceParams& params) {
 // Called from UWP App on a background thread (bench mode).
 void main_loop();
 
+// CPU memory-bandwidth micro-bench. Triggered by LocalFolder\membw.flag; writes
+// membw-result.csv (+ .done marker) to LocalState. Pins the DRAM-bandwidth
+// ceiling behind the bandwidth-bound decode number (see docs/benchmarks.md).
+void run_membw();
+
 // Diffusion pipeline (SD-Turbo on plain ORT DirectML). Triggered by
 // LocalFolder\diffuse.flag (headless) or diffuse-inproc.flag (in-process
 // experiment) — see diffuse.cpp for the model contract.

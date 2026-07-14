@@ -293,6 +293,7 @@
     <ClCompile Include="..\src\bridge\inference.cpp" />
     <ClCompile Include="..\src\bridge\session.cpp" />
     <ClCompile Include="..\src\bridge\bench.cpp" />
+    <ClCompile Include="..\src\bridge\membw.cpp" />
     <ClCompile Include="..\src\bridge\platform.cpp" />
     <ClCompile Include="..\src\bridge\path_utils.cpp" />
     <ClCompile Include="..\src\bridge\utf8_utils.cpp" />

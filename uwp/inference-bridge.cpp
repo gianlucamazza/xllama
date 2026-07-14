@@ -5,6 +5,7 @@
 
 #include "xllama/chat_prompt.h"
 #include "xllama/inference.h"
+#include "xllama/membw.h"
 #include "xllama/path_utils.h"
 #include "xllama/platform.h"
 #include "xllama/session.h"
@@ -214,6 +215,45 @@ void main_loop() {
 
     InferenceResult res = ::xllama::run_inference(params);
     xllama::write_bench_csv(params, res, host_buf);
+#endif
+}
+
+// ---------------------------------------------------------------------------
+// run_membw (called from UWP membw.flag mode background thread)
+// ---------------------------------------------------------------------------
+
+void run_membw() {
+#ifdef XLLAMA_UWP
+    log_output("[xllama] membw: measuring CPU memory bandwidth\n");
+    // Two passes: single-thread and full-width, so the scaling ratio is visible.
+    // 256 MB working set overflows the LLC → measures DRAM, not cache.
+    const std::size_t buf = static_cast<std::size_t>(256) << 20;
+    const ::xllama::MembwResult st = ::xllama::measure_membw(buf, 5, 1);
+    const ::xllama::MembwResult mt = ::xllama::measure_membw(buf, 5, 0);
+
+    char lb[256];
+    snprintf(lb, sizeof(lb),
+             "[xllama] membw: 1t read=%.1f copy=%.1f triad=%.1f | %dt read=%.1f copy=%.1f "
+             "triad=%.1f GB/s\n",
+             st.read_gbs, st.copy_gbs, st.triad_gbs, mt.threads, mt.read_gbs, mt.copy_gbs,
+             mt.triad_gbs);
+    log_output(lb);
+
+    const std::string csv = resolve_local_path("membw-result.csv");
+    FILE* fp = _wfopen(utf8_to_wstring(csv).c_str(), L"w");
+    if (fp) {
+        fputs(::xllama::membw_csv_header(), fp);
+        fputs(::xllama::format_membw_row(st, "xbox-series-s-t1").c_str(), fp);
+        fputs(::xllama::format_membw_row(mt, "xbox-series-s").c_str(), fp);
+        fclose(fp);
+        FILE* done =
+            _wfopen(utf8_to_wstring(resolve_local_path("membw-result.csv.done")).c_str(), L"w");
+        if (done) {
+            fputs("done\n", done);
+            fclose(done);
+        }
+        log_output("[xllama] membw-result.csv written\n");
+    }
 #endif
 }
 

@@ -300,6 +300,13 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     llama_context_params cparams = llama_context_default_params();
     cparams.n_ctx = static_cast<uint32_t>(params.n_ctx);
     cparams.n_threads = n_threads;
+    if (params.n_batch > 0)
+        cparams.n_batch = static_cast<uint32_t>(params.n_batch);
+    if (params.n_ubatch > 0)
+        cparams.n_ubatch = static_cast<uint32_t>(params.n_ubatch);
+    if (params.n_batch > 0 || params.n_ubatch > 0)
+        log_output("[xllama] prefill batch override: n_batch=" + std::to_string(cparams.n_batch) +
+                   " n_ubatch=" + std::to_string(cparams.n_ubatch) + "\n");
 
     llama_context* raw_ctx = llama_init_from_model(model.get(), cparams);
     if (!raw_ctx) {

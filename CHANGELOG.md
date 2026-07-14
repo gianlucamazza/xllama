@@ -17,6 +17,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **CI: `src/models/*.cpp` MSBuild wildcard** in `ggml-uwp.vcxproj` + a
   `scripts/check-uwp-sources.sh` drift-check — new llama.cpp architectures no
   longer break the UWP link on a submodule bump (as `657e011` did).
+- **Manifest per-entry merge factored + unit-tested** — extracted the
+  LocalState-override merge from `LoadModelManifest` into a pure, header-only
+  `xllama::merge_manifest_entries` (`include/xllama/manifest_merge.h`) with 7
+  host doctest cases (`tests/test_manifest_merge.cpp`) covering replace / append /
+  preserve, incl. the 2026-07-10 whole-catalogue-shadow regression.
 
 ### Changed
 
@@ -29,6 +34,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (`apply_stop_sequences`, `chat_prompt`) shared by the llama and ORT decode loops.
 - **`scripts/install-latest-build.sh`**: `bench.flag` is now `--bench` opt-in — a
   plain install launches into the UI.
+- **Prefill micro-batch knobs exposed** — `n_batch`/`n_ubatch` plumbed through
+  `InferenceParams`/`SessionParams` into `llama_context_params`, with
+  `xllama-cli --batch/--ubatch` and a `scripts/bench-ubatch-sweep.sh` sweep helper.
+  Host sweep found no reproducible ubatch win (noise-dominated); default (llama.cpp 512) unchanged. See `docs/benchmarks.md`.
+- Fixed two more stale in-code comments: `ManifestEntry` (gguf KV-reuse now
+  enabled) and `GenerateParams` reuse_kv/reset_kv (honored by both backends now,
+  not ORT-only).
+- **In-app HuggingFace download verified on-console** (2026-07-15) — the app
+  self-downloaded the 2.29 GB single `.gguf` for `gemma4-e2b` from HF and
+  loaded+generated it, confirming the >2 GB self-download path (not just Device
+  Portal provisioning). Surfaced a follow-up: `IsModelProvisioned` doesn't
+  auto-upgrade a stale-quant entry (see ROADMAP). See `docs/benchmarks.md`.
+- **CPU memory-bandwidth micro-bench** — `xllama::measure_membw` (STREAM-style
+  read/copy/triad, `include/xllama/membw.h`) with `xllama-cli --membw` (host) and a
+  `membw.flag` headless mode (console → `membw-result.csv`). Pins the DRAM-bandwidth
+  ceiling behind the bandwidth-bound decode number. 4 host doctest cases.
 - Consolidated documentation onto single-source-of-truth docs (perf →
   `benchmarks.md`, constraints → `uwp-constraints.md`, catalogue →
   `model-selection.md` + `manifest.json`); refreshed stale version/quant/KV claims.

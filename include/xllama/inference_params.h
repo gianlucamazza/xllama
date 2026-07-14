@@ -19,6 +19,11 @@ struct InferenceParams {
     int n_predict = 128;
     int n_ctx = 2048;
     int n_threads = 0; // 0 = auto-detect
+    // llama.cpp prefill batching (GGUF path only; 0 = llama.cpp default, i.e.
+    // n_batch 2048 / n_ubatch 512). n_ubatch is the physical compute chunk that
+    // sets prefill throughput on the Zen 2 CPU — the sweep knob for TTFT tuning.
+    int n_batch = 0;
+    int n_ubatch = 0;
     float temperature = 0.8f;
     uint32_t seed = 0xFFFFFFFF; // 0xFFFFFFFF = LLAMA_DEFAULT_SEED
 
@@ -29,6 +34,10 @@ struct InferenceParams {
 
     // CLI --chat: wrap `prompt` with the model's chat template before inference.
     bool chat_template = false;
+
+    // CLI --membw: run the CPU memory-bandwidth micro-bench and exit (no model
+    // load). Model/prompt are not required in this mode.
+    bool run_membw = false;
 
     // UI callbacks (optional). Called from the inference thread — must marshal
     // to the UI thread before touching XAML controls.

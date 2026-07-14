@@ -8,6 +8,7 @@
 #include "model-downloader.h"
 // clang-format on
 
+    #include "xllama/manifest_merge.h"
     #include "xllama/platform.h"
     #include "xllama/utf8_utils.h"
 
@@ -338,18 +339,7 @@ std::vector<ManifestEntry> LoadModelManifest() {
         read_manifest_file(std::wstring(local.Path().c_str()) + L"\\manifest.json");
     if (!override_entries.empty()) {
         log_output("[manifest] merging LocalState\\manifest.json override (per-entry)\n");
-        for (auto& oe : override_entries) {
-            bool replaced = false;
-            for (auto& e : entries) {
-                if (e.name == oe.name) {
-                    e = std::move(oe);
-                    replaced = true;
-                    break;
-                }
-            }
-            if (!replaced)
-                entries.push_back(std::move(oe));
-        }
+        merge_manifest_entries(entries, std::move(override_entries));
     }
     if (!entries.empty())
         return entries;
