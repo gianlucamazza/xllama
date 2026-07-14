@@ -56,7 +56,11 @@ inline bool routing_allowed_for_kind(const std::wstring& kind) {
 }
 
 inline bool kv_reuse_allowed_for_kind(const std::wstring& kind) {
-    return kind != L"gguf";
+    // GGUF (llama.cpp) now supports KV reuse via a persistent llama_context
+    // (LlamaSession), so it is allowed alongside ORT-GenAI. (Routing stays
+    // ORT-only — the llama.cpp UWP build is CPU-only, no GPU model to route to.)
+    (void)kind;
+    return true;
 }
 
 // ORT GenAI continuous decoding (KV reuse) is CPU-only today; DirectML rejects

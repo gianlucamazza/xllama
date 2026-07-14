@@ -41,20 +41,8 @@ std::string read_local_file(const char* name) {
 // bench-kv-result.csv (+ .done) and logs the numbers.
 void run_kv_bench(const std::string& model_name, const std::string& sys, const std::string& u1,
                   const std::string& u2, int n_threads, const char* host) {
-    // KV-reuse bench is ORT GenAI specific (persistent generator + reuse_kv).
-    // GGUF / llama.cpp is stateless; guard early and produce a clear artifact.
-    if (::xllama::model_uses_llama_backend(model_name)) {
-        log_output("[xllama] kv-bench: skipping (GGUF model is stateless via llama.cpp)\n");
-        // Write a minimal .done so orchestrators do not hang.
-        FILE* done =
-            _wfopen(utf8_to_wstring(resolve_local_path("bench-kv-result.csv.done")).c_str(), L"w");
-        if (done) {
-            fputs("skipped-gguf\n", done);
-            fclose(done);
-        }
-        return;
-    }
-
+    // KV-reuse now works on both backends: ORT-GenAI (persistent generator) and
+    // GGUF/llama.cpp (persistent llama_context in LlamaSession). No early skip.
     std::string err;
     ::xllama::SessionParams sp;
     sp.model_path = model_name;

@@ -84,7 +84,8 @@ TEST_CASE("capability gates") {
     CHECK(routing_allowed_for_kind(L"ort-genai"));
     CHECK_FALSE(routing_allowed_for_kind(L"gguf"));
     CHECK(kv_reuse_allowed_for_kind(L"ort-genai"));
-    CHECK_FALSE(kv_reuse_allowed_for_kind(L"gguf"));
+    // GGUF now supports KV reuse (persistent llama_context in LlamaSession).
+    CHECK(kv_reuse_allowed_for_kind(L"gguf"));
 }
 
 TEST_CASE("kv reuse: dml ep disabled") {

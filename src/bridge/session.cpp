@@ -357,6 +357,10 @@ class LlamaSession final : public Session {
     LlamaModelPtr m_model;
     int m_n_ctx;
     int m_n_threads;
+    // Persistent context across turns: the KV cache lives here so a reuse turn
+    // (reuse_kv && !reset_kv) can append only the delta instead of re-prefilling
+    // the whole conversation. Created lazily on the first generate().
+    LlamaContextPtr m_ctx;
 
     explicit LlamaSession(LlamaModelPtr model, int n_ctx, int n_threads)
         : m_model(std::move(model)), m_n_ctx(n_ctx), m_n_threads(n_threads) {}
@@ -364,23 +368,33 @@ class LlamaSession final : public Session {
     InferenceResult generate(const GenerateParams& gp) override {
         InferenceResult res;
 
-        llama_context_params cparams = llama_context_default_params();
-        cparams.n_ctx = m_n_ctx;
-        cparams.n_threads = m_n_threads;
-
-        llama_context* raw_ctx = llama_init_from_model(m_model.get(), cparams);
-        if (!raw_ctx) {
-            res.error_msg = "failed to create context";
-            log_output("[xllama] session generate: failed to create context\n");
-            return res;
+        if (!m_ctx) {
+            llama_context_params cparams = llama_context_default_params();
+            cparams.n_ctx = m_n_ctx;
+            cparams.n_threads = m_n_threads;
+            m_ctx.reset(llama_init_from_model(m_model.get(), cparams));
+            if (!m_ctx) {
+                res.error_msg = "failed to create context";
+                log_output("[xllama] session generate: failed to create context\n");
+                return res;
+            }
         }
-        LlamaContextPtr ctx(raw_ctx);
+        llama_context* ctx = m_ctx.get();
+
+        // KV-cache reuse: a continuation turn (reuse_kv && !reset_kv) keeps the
+        // existing cache and appends the delta; otherwise clear it and re-prefill
+        // the full prompt. add_bos only on a full prompt — a delta must not carry
+        // a BOS mid-conversation.
+        const bool full_prompt = gp.reset_kv || !gp.reuse_kv;
+        if (full_prompt) {
+            llama_memory_clear(llama_get_memory(ctx), true);
+        }
 
         const llama_vocab* vocab = llama_model_get_vocab(m_model.get());
 
         int32_t n_tokens =
             llama_tokenize(vocab, gp.prompt.c_str(), static_cast<int32_t>(gp.prompt.size()),
-                           nullptr, 0, true, false);
+                           nullptr, 0, full_prompt, false);
         if (n_tokens == INT32_MIN) {
             res.error_msg = "tokenize overflow";
             return res;
@@ -390,18 +404,26 @@ class LlamaSession final : public Session {
 
         std::vector<llama_token> tokens(static_cast<size_t>(n_tokens));
         n_tokens = llama_tokenize(vocab, gp.prompt.c_str(), static_cast<int32_t>(gp.prompt.size()),
-                                  tokens.data(), n_tokens, true, false);
+                                  tokens.data(), n_tokens, full_prompt, false);
         if (n_tokens < 0) {
             res.error_msg = "tokenize failed";
             return res;
         }
         tokens.resize(static_cast<size_t>(n_tokens));
 
+        // Prefill: positions continue automatically from the KV cache end, so a
+        // reuse turn appends after the retained context.
+        const auto t_prefill0 = std::chrono::steady_clock::now();
         llama_batch batch = llama_batch_get_one(tokens.data(), static_cast<int32_t>(tokens.size()));
-        if (llama_decode(ctx.get(), batch) != 0) {
+        if (llama_decode(ctx, batch) != 0) {
             res.error_msg = "prompt decode failed";
+            log_output("[xllama] session generate: prompt decode failed\n");
             return res;
         }
+        res.t_p_eval_ms =
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_prefill0)
+                .count();
+        res.n_p_eval = static_cast<int>(tokens.size());
 
         const llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
         LlamaSamplerPtr sampler(llama_sampler_chain_init(sparams));
@@ -416,12 +438,13 @@ class LlamaSession final : public Session {
 
         int n_generated = 0;
         bool stopped_by_seq = false;
+        const auto t_decode0 = std::chrono::steady_clock::now();
 
         while (n_generated < gp.n_predict) {
             if (gp.abort_flag && gp.abort_flag->load())
                 break;
 
-            llama_token token = llama_sampler_sample(sampler.get(), ctx.get(), -1);
+            llama_token token = llama_sampler_sample(sampler.get(), ctx, -1);
             if (llama_vocab_is_eog(vocab, token))
                 break;
 
@@ -441,18 +464,24 @@ class LlamaSession final : public Session {
             }
 
             llama_batch next = llama_batch_get_one(&token, 1);
-            if (llama_decode(ctx.get(), next) != 0) {
+            if (llama_decode(ctx, next) != 0) {
                 log_output("[xllama] session generate: decode failed, stopping\n");
                 break;
             }
             ++n_generated;
         }
 
+        res.t_eval_ms =
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_decode0)
+                .count();
         res.n_eval = n_generated;
+        res.ended_with_stop = stopped_by_seq;
         res.success = true;
 
         char log_buf[256];
-        snprintf(log_buf, sizeof(log_buf), "[xllama] session generate: n=%d\n", n_generated);
+        snprintf(log_buf, sizeof(log_buf),
+                 "[xllama] session generate: n=%d prefill=%.1fms (%d tok) reuse=%d\n", n_generated,
+                 res.t_p_eval_ms, res.n_p_eval, gp.reuse_kv && !gp.reset_kv);
         log_output(log_buf);
 
         return res;

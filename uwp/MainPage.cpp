@@ -1070,7 +1070,9 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     // them for ORT entries). Wired live on the model ComboBox.
     auto sync_backend_toggles = [kvToggle, routingBox, model_is_gguf](int idx) {
         bool gguf = idx >= 0 && idx < (int)model_is_gguf.size() && model_is_gguf[idx];
-        kvToggle.IsEnabled(!gguf);
+        // KV reuse works on GGUF now (persistent llama_context); only EP routing
+        // stays ORT-only (the llama.cpp UWP build is CPU-only).
+        kvToggle.IsEnabled(true);
         routingBox.IsEnabled(!gguf);
     };
     sync_backend_toggles(model_sel);
@@ -1874,9 +1876,12 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     // (re)prefill the full prompt — which also (re)seeds the persistent generator.
     const std::string routed_model =
         ::xllama::wstring_to_utf8(m_active_model.empty() ? m_model_filename : m_active_model);
+    // KV reuse now works for both backends: ORT-GenAI (persistent generator) and
+    // GGUF/llama.cpp (persistent llama_context in LlamaSession). ep_kv_ok still
+    // excludes the DirectML routing model (continuous decoding unsupported there).
     const bool ep_kv_ok = ::xllama::kv_reuse_supported_for_model(routed_model);
-    bool do_reuse = m_kv_reuse && m_kv_valid && n_dropped == 0 && !base_is_gguf && ep_kv_ok;
-    bool kv_reuse = m_kv_reuse && !base_is_gguf && ep_kv_ok;
+    bool do_reuse = m_kv_reuse && m_kv_valid && n_dropped == 0 && ep_kv_ok;
+    bool kv_reuse = m_kv_reuse && ep_kv_ok;
     std::string delta_prompt = do_reuse ? BuildDeltaPrompt(user_text) : std::string();
 
     // Record user message in history AFTER building prompt (avoids duplicate)
