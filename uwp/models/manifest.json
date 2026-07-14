@@ -1,5 +1,5 @@
 {
-  "_comment": "Model catalogue for xllama. Bundled at InstalledPath\\models\\manifest.json; a LocalState\\manifest.json (uploadable via Device Portal, no reinstall) is merged per entry: same-name entries replace bundled ones, new names are appended, unmentioned bundled entries stay. Entries without hf_base_url are USB/Device-Portal-provisioned only. approx_bytes drives the download progress bar. kind: 'ort-genai' (default, chat picker, ORT backend), 'diffusion' (image dialog), or 'gguf' (chat picker, llama.cpp backend — CPU-only, KV-reuse/routing disabled). files[].filename is the local path under models\\<name> (subdirs allowed); files[].remote is the flat asset name in the release (defaults to filename). TAESD VAE (optional, Image dialog toggle): models-v1 asset sd-turbo-fp16_taesd_vae_decoder_model.onnx — export via diffusion/export_taesd.py.",
+  "_comment": "Model catalogue for xllama. Bundled at InstalledPath\\models\\manifest.json; a LocalState\\manifest.json (uploadable via Device Portal, no reinstall) is merged per entry: same-name entries replace bundled ones, new names are appended, unmentioned bundled entries stay. Entries without hf_base_url are USB/Device-Portal-provisioned only. approx_bytes drives the download progress bar. kind: 'ort-genai' (default, chat picker, ORT backend), 'diffusion' (image dialog), or 'gguf' (chat picker, llama.cpp backend — CPU-only, KV-reuse enabled via a persistent llama_context, routing disabled). files[].filename is the local path under models\\<name> (subdirs allowed); files[].remote is the flat asset name in the release (defaults to filename). TAESD VAE (optional, Image dialog toggle): models-v1 asset sd-turbo-fp16_taesd_vae_decoder_model.onnx — export via diffusion/export_taesd.py.",
   "models": [
     {
       "name": "smollm2-360m-cpu-int4",
@@ -92,7 +92,7 @@
       ]
     },
     {
-      "_comment": "Gemma-3-270M GGUF (llama.cpp gemma3 arch, verified loads on the pinned submodule). Downloaded directly from the original Hugging Face repo (hf_base_url → resolve/main) rather than re-hosted on our release: Gemma Terms of Use govern redistribution — verify before ever mirroring the weights onto models-v1. Uses the <start_of_turn>/<end_of_turn> template via chat_format_for (kind:gguf, CPU-only, KV-reuse/routing disabled).",
+      "_comment": "Gemma-3-270M GGUF (llama.cpp gemma3 arch, verified loads on the pinned submodule). Downloaded directly from the original Hugging Face repo (hf_base_url → resolve/main) rather than re-hosted on our release: Gemma Terms of Use govern redistribution — verify before ever mirroring the weights onto models-v1. Uses the <start_of_turn>/<end_of_turn> template via chat_format_for (kind:gguf, CPU-only, KV-reuse enabled, routing disabled).",
       "name": "gemma3-270m",
       "display": "Gemma 3 270M (GGUF · CPU)",
       "kind": "gguf",

@@ -1,0 +1,2 @@
+model,prefill1_ms,n_p1,prefill2_reuse_ms,n_p2_reuse,prefill2_cold_ms,n_p2_cold,speedup,decode_tok_s,n_ctx,host,date
+gemma3-270m,113.4,44,107.5,39,437.4,179,4.07,83.94,2048,xbox-series-s,2026-07-14T17:52:58Z

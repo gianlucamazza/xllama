@@ -285,6 +285,13 @@ validation gates, patched GenAI in XAML.
 
 Open items only — everything above is measured or shipped.
 
+- [x] **Perf + architecture backlog** (2026-07-14, PRs #53–#60). CI: `src/models`
+      wildcard + drift-check (no more per-bump LNK2001); unified stop-sequence
+      helper; bench `.done` verified-delete. Perf: **GGUF KV-reuse** (persistent
+      `llama_context`) — turn-2 prefill **4.07×** on gemma3-270m
+      (`phase6-gemma-kv.csv`); **gemma4-e2b → Q3_K_S** (fixes the 2-bit EOG,
+      15.3 tok/s). Investigated + reverted: AppContainer mmap (load is repack-bound,
+      not file-read-bound — no benefit). See `docs/benchmarks.md`.
 - [x] **Per-architecture chat template** — hard-coded ChatML replaced by a
       data-driven `ChatFormat` (`src/bridge/chat_prompt.cpp`, `chat_format_for()`);
       byte-identical ChatML preserved, Gemma (`<start_of_turn>…<end_of_turn>`)
