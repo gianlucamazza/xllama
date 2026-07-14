@@ -142,8 +142,26 @@ fetch_log() {
 
 # --- §2 routing A/B --------------------------------------------------------
 
+model_provisioned() {
+	local model="$1"
+	local rel="LocalState%5Cmodels%5C${model}%5Cgenai_config.json"
+	local code
+	code=$(curl "${CURL_AUTH[@]}" -o /dev/null -w "%{http_code}" \
+		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&filename=${rel}&packagefullname=${PFN}&path=%5CLocalState%5Cmodels%5C${model}" 2>/dev/null || echo "000")
+	[[ "$code" == "200" ]]
+}
+
 validate_routing() {
 	echo "=== §2 routing A/B ==="
+	if ! model_provisioned "smollm2-360m-dml-fp16"; then
+		echo "  FAIL: smollm2-360m-dml-fp16 is not in LocalState\\models\\"
+		echo "  Upload the DML fp16 model before routing validation:"
+		echo "    PFN=\$(./scripts/deploy.sh pfn)"
+		echo "    ./scripts/deploy.sh upload-dir <host-path>/smollm2-360m-dml-fp16 \"\$PFN\" \"models\\\\smollm2-360m-dml-fp16\""
+		echo "  (not on models-v1 — USB/Device Portal only; reinstalling the MSIX wipes LocalState)"
+		echo "§2 routing: FAIL"
+		return 1
+	fi
 	# Routing=auto is emitted only when settings.json has "routing": 2; seed it
 	# (the whole point is that no human could set it via the dialog). Schema
 	# mirrors SaveSettings (MainPage.cpp).
@@ -351,6 +369,9 @@ gguf) validate_gguf ;;
 taesd) validate_taesd ;;
 all)
 	rc=0
+	if ! model_provisioned "smollm2-360m-cpu-int4"; then
+		echo "  WARN: smollm2-360m-cpu-int4 missing — launch the app once for catalogue download"
+	fi
 	validate_routing || rc=1
 	validate_gguf || rc=1
 	validate_taesd || rc=1

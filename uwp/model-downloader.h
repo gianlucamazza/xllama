@@ -74,6 +74,11 @@ inline const ManifestEntry* FindManifestEntry(const std::vector<ManifestEntry>& 
     return nullptr;
 }
 
+// True when the model dir is usable without a download: .complete marker, a
+// WDP/USB upload (genai_config.json or *.gguf present), bundled in the MSIX,
+// or on removable storage at xllama\models\<name>.
+bool IsModelProvisioned(std::wstring const& model_name);
+
 } // namespace xllama
 
 #endif // XLLAMA_UWP

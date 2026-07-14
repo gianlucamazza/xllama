@@ -263,7 +263,65 @@ std::vector<ManifestEntry> read_manifest_file(std::wstring const& path) {
     return parse_manifest(winrt::hstring(utf8_to_wstring(bytes)));
 }
 
+namespace {
+
+bool dir_has_ort_or_gguf(const std::filesystem::path& dir) {
+    std::error_code ec;
+    if (std::filesystem::exists(dir / L"genai_config.json", ec))
+        return true;
+    for (const auto& ent : std::filesystem::directory_iterator(dir, ec)) {
+        if (!ent.is_regular_file(ec))
+            continue;
+        auto ext = ent.path().extension().wstring();
+        if (ext == L".gguf")
+            return true;
+    }
+    return false;
+}
+
 } // namespace
+
+bool IsModelProvisioned(std::wstring const& model_name) {
+    if (model_name.empty())
+        return false;
+
+    auto local = ApplicationData::Current().LocalFolder();
+    std::wstring local_dir = std::wstring(local.Path().c_str()) + L"\\models\\" + model_name;
+    if (ModelDownloader::IsComplete(local_dir))
+        return true;
+    if (dir_has_ort_or_gguf(std::filesystem::path(local_dir)))
+        return true;
+
+    try {
+        auto pkg = winrt::Windows::ApplicationModel::Package::Current();
+        std::wstring installed =
+            std::wstring(pkg.InstalledPath().c_str()) + L"\\models\\" + model_name;
+        if (dir_has_ort_or_gguf(std::filesystem::path(installed)))
+            return true;
+    } catch (...) {
+    }
+
+    // USB cache written by EnsureModelAsync when a removable model is found.
+    std::wstring cache_path = std::wstring(local.Path().c_str()) + L"\\usb_model_root.txt";
+    FILE* fp = _wfopen(cache_path.c_str(), L"r");
+    if (fp) {
+        wchar_t root[512] = {};
+        if (fgetws(root, static_cast<int>(std::size(root)), fp)) {
+            std::wstring usb = root;
+            while (!usb.empty() && (usb.back() == L'\n' || usb.back() == L'\r' || usb.back() == L' '))
+                usb.pop_back();
+            if (!usb.empty() && usb.back() == L'\\')
+                usb.pop_back();
+            if (!usb.empty()) {
+                std::wstring usb_dir = usb + L"\\xllama\\models\\" + model_name;
+                if (dir_has_ort_or_gguf(std::filesystem::path(usb_dir)))
+                    return true;
+            }
+        }
+        fclose(fp);
+    }
+    return false;
+}
 
 std::vector<ManifestEntry> LoadModelManifest() {
     // 1. Bundled catalogue (base).

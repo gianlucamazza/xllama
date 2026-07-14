@@ -1115,7 +1115,13 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
         if (new_model != self->m_model_filename) {
             self->m_model_filename = new_model;
             self->m_modelText.Text(new_model);
-            self->SetStatus(L"Model changed — will reload on next message");
+            self->m_session.reset();
+            self->m_session_model.clear();
+            self->m_kv_valid = false;
+            self->m_model_ready.store(false);
+            self->m_runButton.IsEnabled(false);
+            self->SetStatus(L"Loading model...", StatusKind::Working);
+            self->EnsureModelNamedAsync(new_model, true);
         }
     }
     self->m_system_prompt = ::xllama::wstring_to_utf8(std::wstring(sysPromptBox.Text().c_str()));
@@ -1398,31 +1404,55 @@ void MainPageController::FinishDiffusion() {
 }
 
 // ---------------------------------------------------------------------------
-// EnsureModelAsync — checks whether the model is available locally;
-// downloads from Hugging Face if not found in LocalState or InstalledPath.
-// Calls LoadModelName() when ready.
+// Model provisioning — catalogue / USB / bundled. EnsureModelAsync loads the
+// selected chat model; EnsureGpuModelIfNeeded queues gpu_model when routing≠0.
 // ---------------------------------------------------------------------------
+
+void MainPageController::EnsureGpuModelIfNeeded() {
+    if (m_routing == 0)
+        return;
+    const std::wstring gpu = ::xllama::utf8_to_wstring(m_gpu_model);
+    if (::xllama::IsModelProvisioned(gpu))
+        return;
+    log_output(("[xllama] EnsureModel: gpu_model '" + m_gpu_model +
+                "' missing — background provision\n")
+                   .c_str());
+    EnsureModelNamedAsync(gpu, false);
+}
 
 fire_and_forget MainPageController::EnsureModelAsync() {
     auto self = shared_from_this();
-    auto dispatcher = self->m_root.Dispatcher();
-
-    // Model name is already loaded via LoadSettings() in Init() before EnsureModelAsync runs.
-    co_await resume_background();
     std::wstring model_name =
         self->m_model_filename.empty() ? L"smollm2-360m-cpu-int4" : self->m_model_filename;
+    self->EnsureModelNamedAsync(model_name, true);
+}
+
+fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_name,
+                                                          bool set_app_ready) {
+    auto self = shared_from_this();
+    auto dispatcher = self->m_root.Dispatcher();
+
+    log_output(("[xllama] EnsureModel: begin '" + ::xllama::wstring_to_utf8(model_name) + "'\n")
+                   .c_str());
+    co_await resume_background();
 
     // Check 1: LocalState model complete?
     auto local_folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
     std::wstring local_models_root = std::wstring(local_folder.Path().c_str()) + L"\\models";
     std::wstring local_model_dir = local_models_root + L"\\" + model_name;
 
-    if (ModelDownloader::IsComplete(local_model_dir)) {
+    if (IsModelProvisioned(model_name)) {
+        log_output(("[xllama] EnsureModel: '" + ::xllama::wstring_to_utf8(model_name) +
+                    "' already provisioned\n")
+                       .c_str());
         co_await resume_foreground(dispatcher);
-        self->LoadModelName();
-        self->SetStatus(L"Ready", StatusKind::Success);
-        self->m_runButton.IsEnabled(true);
-        self->m_model_ready.store(true);
+        if (set_app_ready) {
+            self->LoadModelName();
+            self->SetStatus(L"Ready", StatusKind::Success);
+            self->m_runButton.IsEnabled(true);
+            self->m_model_ready.store(true);
+            self->EnsureGpuModelIfNeeded();
+        }
         co_return;
     }
 
@@ -1436,10 +1466,13 @@ fire_and_forget MainPageController::EnsureModelAsync() {
             std::filesystem::path(installed_model_dir) / L"genai_config.json", ec);
         if (bundled) {
             co_await resume_foreground(dispatcher);
-            self->LoadModelName();
-            self->SetStatus(L"Ready", StatusKind::Success);
-            self->m_runButton.IsEnabled(true);
-            self->m_model_ready.store(true);
+            if (set_app_ready) {
+                self->LoadModelName();
+                self->SetStatus(L"Ready", StatusKind::Success);
+                self->m_runButton.IsEnabled(true);
+                self->m_model_ready.store(true);
+                self->EnsureGpuModelIfNeeded();
+            }
             co_return;
         }
     }
@@ -1562,10 +1595,13 @@ fire_and_forget MainPageController::EnsureModelAsync() {
                 co_return;
             }
             log_output("[xllama] USB model copy complete\n");
-            self->LoadModelName();
-            self->SetStatus(L"Ready", StatusKind::Success);
-            self->m_runButton.IsEnabled(true);
-            self->m_model_ready.store(true);
+            if (set_app_ready) {
+                self->LoadModelName();
+                self->SetStatus(L"Ready", StatusKind::Success);
+                self->m_runButton.IsEnabled(true);
+                self->m_model_ready.store(true);
+                self->EnsureGpuModelIfNeeded();
+            }
             co_return;
         }
     }
@@ -1575,24 +1611,37 @@ fire_and_forget MainPageController::EnsureModelAsync() {
     auto manifest = ::xllama::LoadModelManifest();
     const ::xllama::ManifestEntry* entry = ::xllama::FindManifestEntry(manifest, model_name);
     if (!entry || entry->hf_base_url.empty() || entry->files.empty()) {
-        self->SetStatus(L"Model '" + model_name +
-                            L"' not found.\n"
-                            L"Connect USB with xllama/models/" +
-                            model_name + L"/",
-                        StatusKind::Error);
-        self->m_runButton.IsEnabled(false);
+        log_output(("[xllama] EnsureModel: '" + ::xllama::wstring_to_utf8(model_name) +
+                    "' not in catalogue (no hf_base_url)\n")
+                       .c_str());
+        co_await resume_foreground(dispatcher);
+        if (set_app_ready) {
+            self->SetStatus(L"Model '" + model_name +
+                                L"' not found.\n"
+                                L"Upload to LocalState\\models\\" +
+                                model_name + L" via Device Portal or USB "
+                                               L"(see docs/model-selection.md).",
+                            StatusKind::Error);
+            self->m_runButton.IsEnabled(false);
+        }
         co_return;
     }
+
+    log_output(("[xllama] EnsureModel: downloading '" + ::xllama::wstring_to_utf8(model_name) +
+                "' from catalogue\n")
+                   .c_str());
 
     co_await resume_background();
 
     // Auto-download from the catalogue entry's Hugging Face repo.
     co_await resume_foreground(dispatcher);
-    self->SetStatus(L"Downloading model...", StatusKind::Working);
-    self->m_loadingBar.IsIndeterminate(false);
-    self->m_loadingBar.Value(0);
-    self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Visible);
-    self->m_runButton.IsEnabled(false);
+    if (set_app_ready) {
+        self->SetStatus(L"Downloading model...", StatusKind::Working);
+        self->m_loadingBar.IsIndeterminate(false);
+        self->m_loadingBar.Value(0);
+        self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Visible);
+        self->m_runButton.IsEnabled(false);
+    }
     co_await resume_background();
 
     // Create local model directory.
@@ -1612,8 +1661,9 @@ fire_and_forget MainPageController::EnsureModelAsync() {
 
     co_await ModelDownloader::DownloadAsync(
         entry->hf_base_url, local_model_dir, entry->files, dispatcher,
-        [self](uint64_t done, uint64_t total) {
-            // progress callback — called on UI thread
+        [self, set_app_ready](uint64_t done, uint64_t total) {
+            if (!set_app_ready)
+                return;
             if (total > 0) {
                 double pct = static_cast<double>(done) / static_cast<double>(total) * 100.0;
                 self->m_loadingBar.Value(pct);
@@ -1626,17 +1676,26 @@ fire_and_forget MainPageController::EnsureModelAsync() {
                                 StatusKind::Working);
             }
         },
-        [self, dispatcher](bool ok, std::wstring err) {
-            // done callback — called on UI thread
-            self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Collapsed);
-            self->m_runButton.IsEnabled(true);
+        [self, set_app_ready](bool ok, std::wstring err) {
+            if (set_app_ready) {
+                self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Collapsed);
+                self->m_runButton.IsEnabled(true);
+            }
             if (!ok) {
-                self->SetStatus(L"Download failed: " + err, StatusKind::Error);
+                log_output(("[xllama] EnsureModel: download failed: " +
+                            ::xllama::wstring_to_utf8(err) + "\n")
+                               .c_str());
+                if (set_app_ready)
+                    self->SetStatus(L"Download failed: " + err, StatusKind::Error);
                 return;
             }
-            self->SetStatus(L"Model ready", StatusKind::Success);
-            self->LoadModelName();
-            self->m_model_ready.store(true);
+            log_output("[xllama] EnsureModel: download complete\n");
+            if (set_app_ready) {
+                self->SetStatus(L"Model ready", StatusKind::Success);
+                self->LoadModelName();
+                self->m_model_ready.store(true);
+                self->EnsureGpuModelIfNeeded();
+            }
         });
 }
 
@@ -1753,12 +1812,24 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     // Stage 3: decide EP routing once per conversation (sticky — the KV cache is
     // per-EP). m_active_model is cleared on new/loaded chat, so this fires on the
     // first turn and stays fixed after. Default (m_routing==0) keeps the CPU model.
+    const bool gpu_provisioned =
+        ::xllama::IsModelProvisioned(::xllama::utf8_to_wstring(m_gpu_model));
     if (m_active_model.empty()) {
         // Crossover between ~285 and ~1050 prompt tokens in the v0.3.6 matrix.
         constexpr int kRoutingTokThreshold = 600;
         if (base_is_gguf) {
             m_active_model = m_model_filename; // no EP routing for llama.cpp (CPU-only)
         } else if (m_routing == 1) {
+            if (!gpu_provisioned) {
+                SetStatus(L"GPU model '" + ::xllama::utf8_to_wstring(m_gpu_model) +
+                              L"' is not on this console.\n"
+                              L"Upload it to LocalState\\models\\" +
+                              ::xllama::utf8_to_wstring(m_gpu_model) +
+                              L" via Device Portal or USB (see docs/model-selection.md).",
+                          StatusKind::Error);
+                SetRunning(false);
+                return;
+            }
             m_active_model = ::xllama::utf8_to_wstring(m_gpu_model);
             ::xllama::log_output("[xllama] routing: gpu-only\n");
         } else if (m_routing == 2) {
@@ -1768,7 +1839,17 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                 n_tok = m_session->count_tokens(full_prompt);
             else
                 n_tok = static_cast<int>(full_prompt.size() / 4);
-            const bool use_gpu = n_tok > kRoutingTokThreshold;
+            const bool use_gpu = gpu_provisioned && n_tok > kRoutingTokThreshold;
+            if (n_tok > kRoutingTokThreshold && !gpu_provisioned) {
+                SetStatus(L"GPU model '" + ::xllama::utf8_to_wstring(m_gpu_model) +
+                              L"' is not on this console — staying on CPU.\n"
+                              L"Upload it to LocalState\\models\\" +
+                              ::xllama::utf8_to_wstring(m_gpu_model) +
+                              L" to enable auto-routing.",
+                          StatusKind::Error);
+                SetRunning(false);
+                return;
+            }
             m_active_model = use_gpu ? ::xllama::utf8_to_wstring(m_gpu_model) : m_model_filename;
             char rbuf[160];
             snprintf(rbuf, sizeof(rbuf),

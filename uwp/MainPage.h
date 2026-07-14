@@ -58,6 +58,11 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     void BuildUI();
     void LoadModelName();
     winrt::fire_and_forget EnsureModelAsync();
+    // Provision one catalogue/USB/bundled model dir. When |set_app_ready| is true
+    // (chat model), enables Run on success and may queue gpu_model download.
+    winrt::fire_and_forget EnsureModelNamedAsync(std::wstring model_name,
+                                                 bool set_app_ready = false);
+    void EnsureGpuModelIfNeeded();
     void StartInference(std::wstring const& prompt);
     void OnRunClick(winrt::Windows::Foundation::IInspectable const&,
                     winrt::Windows::UI::Xaml::RoutedEventArgs const&);
