@@ -111,8 +111,9 @@ v0.4.0.0 on Xbox; CSVs `bench/results/phase35-*.csv`):
       Correctness-guarded fallback; `kv_reuse` toggle (default on).
 - [x] **Per-conversation CPU/GPU routing** (Stage 3, v0.3.9, default off): route
       long-prompt conversations to DML fp16, chat to CPU int4; sticky per
-      conversation. Machinery done + dml-fp16 model on device; **interactive A/B
-      still pending** (XAML UI — needs a person at the console).
+      conversation. **Console-validated 2026-07-14** via `validate-console.sh
+      routing` on unified 1.1.3.0 + patched GenAI: long turn auto→GPU (959 tok),
+      new short chat auto→CPU, no `887A0036`.
 
 - [x] **Image-generation spike** (v0.4.0, flagship hypothesis): **CONFIRMED on
       console 2026-07-08** — on a compute-bound fp16 batch (309 GFLOP), DirectML is

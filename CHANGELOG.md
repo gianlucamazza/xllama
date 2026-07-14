@@ -30,6 +30,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Model provisioning layer** (`IsModelProvisioned`, `EnsureModelNamedAsync`,
   background `gpu_model` download when `routing≠0`, routing guards, Settings
   model-change re-provision). See commit `f3d733e`.
+- **`validate-console.sh` preflight/upload**: `model_provisioned` WDP check uses
+  basename `genai_config.json`; `upload_file` mkdirs remote dirs before POST
+  (chats + nested model paths).
+
+### Measured (2026-07-14, unified 1.1.3.0 patched on console)
+
+- **`validate-console.sh all` → ALL PASS** (autopilot, no pad):
+  routing A/B (959 tok GPU / short CPU, no `887A0036`), GGUF `lfm25-350m` via
+  llama.cpp session, TAESD VAE **593–625 ms** (sub-second gate).
 
 ### Docs
 
