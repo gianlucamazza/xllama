@@ -14,9 +14,9 @@ Build or install:
 ./scripts/build-uwp.ps1 -PatchedGenAI          # installs the cached DLL over NuGet
 ```
 
-No Windows machine: dispatch the CI lane instead — `gh workflow run
-build-uwp-patched.yml` uploads `xllama-appx-patched`,
-`xllama-appx-patched-unified`, and the built DLL as artifacts.
+No Windows machine: download the default **`xllama-appx`** artifact from the
+latest green `build-uwp` run on `main` (unified + PatchedGenAI #2280). Manual
+fallback: `gh workflow run build-uwp-patched.yml`.
 
 The binary is gitignored. Pin: ORT GenAI **0.14.1** — upstream ships it as
 branch `rel-0.14.1` (there is no `v0.14.1` tag), pinned to commit `a30f479`

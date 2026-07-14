@@ -41,7 +41,8 @@ Generation shows live tok/s; **■ Cancel** stops a running reply.
 - **EP routing (per conversation)** — where inference runs:
   - **CPU only (default)** — best decode throughput at 360M scale (~66 tok/s).
   - **GPU only (DML)** — forces DirectML (needs the `gpu_model`, e.g.
-    `smollm2-360m-dml-fp16`, in LocalState).
+    `smollm2-360m-dml-fp16`, in LocalState — catalogue download from
+    `models-v1` or WDP upload).
   - **Auto (long prompts → GPU)** — long first prompts route to GPU fp16
     (prefill is 1.8× faster at ~1k tokens), short chats stay on CPU; the
     choice is sticky per conversation.

@@ -16,6 +16,7 @@ xllama/
 ├── include/xllama/          # Shared public headers
 │   ├── inference_params.h   # InferenceParams / InferenceResult
 │   ├── inference.h          # run_inference, write_bench_csv
+│   ├── routing_policy.h     # per-workload routing decision (600-tok threshold, GGUF gates)
 │   ├── session.h            # xllama::Session API (persistent model across turns)
 │   ├── ort_raii.h           # RAII unique_ptr for OGA* types (UWP/ORT GenAI path)
 │   ├── llama_raii.h         # RAII unique_ptr for llama_* types (Linux path)
@@ -46,7 +47,8 @@ xllama/
 │   ├── merge_onnx_external_data.py    # merge model.onnx.data → self-contained model.onnx
 │   ├── bench-xbox-ort.sh              # benchmark runner (ORT GenAI; model already on device)
 │   ├── validate-console.sh           # autopilot orchestrator: §2 routing / GGUF / §7c TAESD verdicts
-│   ├── install-latest-build.sh        # fetch + deploy latest CI artifact
+│   ├── package-catalogue-ort-model.sh # stage flat models-v1 assets from merged ORT GenAI dir
+│   ├── install-latest-build.sh        # fetch + deploy latest CI artifact (leaves bench.flag)
 │   ├── test-dml-config.sh             # upload DML provider_options without MSIX rebuild
 │   ├── vendor-genai-dml-patch.ps1     # overlay #2280 patched onnxruntime-genai.dll
 │   ├── export-taesd-asset.sh          # export TAESD VAE for models-v1 release
@@ -103,7 +105,9 @@ Use `-ForceNewCert` only to regenerate the test signing certificate.
 
 - **ORT GenAI path**: UWP inference is entirely under `#ifdef XLLAMA_USE_ORT` in `src/bridge/inference.cpp`. ORT types are wrapped in `include/xllama/ort_raii.h`. Linux path (`#else`) uses llama.cpp unchanged.
 
-- **No model in the MSIX**: the package is ~19 MB and ships no model. On first launch the app downloads the default model (`smollm2-360m-cpu-int4`) from the GitHub Release `models-v1` catalogue (`uwp/models/manifest.json`) into `LocalState\models\`. No manual upload is needed for the standard dev flow.
+- **No model in the MSIX**: the package is ~19 MB and ships no model. On first launch the app downloads the default model (`smollm2-360m-cpu-int4`) from the GitHub Release `models-v1` catalogue (`uwp/models/manifest.json`) into `LocalState\models\`. Routing GPU (`smollm2-360m-dml-fp16`) is also on `models-v1`. Console validation: `./scripts/validate-console.sh all` (measured ALL PASS 2026-07-14).
+
+- **Shipping CI**: `build-uwp.yml` publishes `xllama-appx` as **unified + PatchedGenAI #2280**; `llamacpp` lane is bench-only.
 
 - **ONNX external data merge**: ORT 1.24.4 calls `std::filesystem::weakly_canonical()` for models with a separate `.onnx.data` file, which traverses path segments inaccessible inside the Xbox AppContainer (`Q:\Users\UserMgr0\...`). Fix: merge external data into a single `model.onnx` using `scripts/merge_onnx_external_data.py` before MSIX packaging. CI does this automatically.
 

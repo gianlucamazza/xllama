@@ -7,6 +7,10 @@
 #
 # Defaults to the current git branch if no branch argument is given.
 # Requires: gh CLI (authenticated), jq, curl.
+#
+# Side effect: uploads bench.flag so the next launch runs headless bench mode.
+# Delete LocalState\bench.flag (via WDP) before UI or validate-console.sh runs.
+# MSIX uninstall wipes LocalState — re-provision models after a fresh install.
 
 set -euo pipefail
 

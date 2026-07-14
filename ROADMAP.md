@@ -181,8 +181,8 @@ Milestones:
       Fixed on the way (all real bugs): `#ifdef XLLAMA_USE_ORT` vs `=0`,
       tokenize size-query sign, no_perf-hidden timings, obj-name collisions
       (ggml.c/.cpp), 128 `src/models/*.cpp` in the static lib.
-- [x] **Per-workload routing in the app** — ✅ implemented (Stage 3, see software
-      perf track above); pending on-console A/B with the DML fp16 model present.
+- [x] **Per-workload routing in the app** — ✅ implemented + console-validated
+      2026-07-14 (`validate-console.sh routing`, see software perf track above).
 - [ ] (deprioritised by §12) **Fused low-bit GPU GEMM for DirectML** — the real
       unlock for GPU int4 decode, but it lives in **DirectML itself**
       (`DmlOperatorMatMulNBits` currently dequantises to fp16), not in an ORT-side
@@ -229,13 +229,15 @@ Milestones:
 - [x] **Modern-model survey** — Qwen3.5-0.8B / LFM2.5-350M load via llama.cpp;
       Qwen3-0.6B builds via ORT (969 MB); TAESD decoder validated (`docs/model-selection.md`).
 - [x] **TAESD UI + asset pipeline** — Image dialog toggle, `diffuse_taesd_vae` in
-      settings.json, `scripts/export-taesd-asset.sh`; console bench pending (runbook §7c).
+      settings.json, `scripts/export-taesd-asset.sh`; **console-validated 2026-07-14**
+      (runbook §7c, VAE **593–625 ms**).
 - [x] **Patched GenAI DLL pipeline** — `patches/onnxruntime-genai-2280-dml-fallback.patch`,
       `scripts/vendor-genai-dml-patch.ps1`, `build-uwp.ps1 -PatchedGenAI`.
 - [x] **Recommended config doc** — `docs/recommended-config.md` +
       `bench/configs/settings-modern.json`.
-- [~] Interactive validations: autopilot + `validate-console.sh` ready; §2/§7c/GGUF
-      gates pending measured PASS on console (2026-07-14)
+- [x] **Interactive validations** — autopilot + `validate-console.sh all` →
+      **ALL PASS** on console 2026-07-14 (routing, GGUF `lfm25-350m`, TAESD §7c).
+      Shipping MSIX **1.1.4.0** (unified + PatchedGenAI) CI-green and deployed.
 - [x] Closure benches: int4 `block_size=128` / `accuracy_level=4` (§12
       confirm/refute) — closed inconclusive (PR #29, §12 stands)
 - [x] Fase 2: catalogue `kind:gguf` → `sp.backend`, gate KV-reuse/routing off

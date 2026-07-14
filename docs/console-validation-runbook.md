@@ -2,8 +2,9 @@
 
 On-console checks for merged, CI-green work (merge-on-CI-green policy). Most of the
 Phase 3.5 batch was **measured 2026-07-08** (§1, §3, §4, §6-CPU, §7 below carry their
-results); the sections still marked PENDING are §2 (routing A/B, interactive), §5b
-(int4 rebuild variants), and §7b (in-process diffusion experiment, 2026-07-09).
+results). **§2 routing** and **§7c TAESD** were **measured 2026-07-14** via
+`validate-console.sh` (autopilot, no pad). Still open: §5b int4 rebuild variants
+(inconclusive 2026-07-09). §7b in-process diffusion was **PASS 2026-07-09**.
 
 This runbook batches all of them into **one Xbox session**. Each step writes a CSV/artifact
 fetched via Device Portal, with an explicit sanity gate. Mechanics (deploy, WDP quirks,
@@ -59,12 +60,12 @@ turn-2 cold re-prefills the full 2-turn context, reuse only the ~10-token delta.
 confirm multi-turn **coherence** (read the log's decoded turn-2 output) before trusting
 `kv_reuse` as the interactive default.
 
-## 2. PR #2 — CPU/GPU routing (Stage 3, interactive, ~10 min at the console) — ⏳ PENDING
+## 2. PR #2 — CPU/GPU routing (Stage 3) — ✅ MEASURED 2026-07-14 (`validate-console.sh routing`)
 
 **Validates**: the `routing=2` (auto) path picks GPU (DML fp16) for long prompts and CPU
 for decode, sticky per conversation.
 
-> **Automated gate (preferred).** Dev Mode gives the console no working text-input
+> **Automated gate (official).** Dev Mode gives the console no working text-input
 > path, so this A/B is driven by the in-app **autopilot** (build ≥ 1.1.3.0):
 >
 > ```bash
@@ -75,16 +76,20 @@ for decode, sticky per conversation.
 > It seeds a >600-token decoy conversation, replays load_chat → send → new_chat →
 > send via `autopilot.flag`/`autopilot.json`, and greps `xllama.log` for
 > `auto → gpu (N>600 tok`, `auto → cpu` on the new chat, and the absence of
-> `887A0036`. **A PASS here is the official §2 gate** (same StartInference in the
+> `887A0036`. **A PASS here is the official §2 gate** (same `StartInference` in the
 > live XAML process as a human run). The manual steps below remain for debugging.
+
+**Measured (2026-07-14, unified 1.1.3.0 + 1.1.4.0, patched GenAI):** long turn
+auto→GPU (**959 tok**), new short chat auto→CPU, no `887A0036`. Full suite:
+`./scripts/validate-console.sh all` → **ALL PASS**.
 
 **Prereqs** (manual path):
 
-1. A `-PatchedGenAI` MSIX (ORT GenAI #2280 — vanilla NuGet DLL hits `887A0036`
-   in XAML): either `gh workflow run build-uwp-patched.yml` and download the
-   `xllama-appx-patched` / `xllama-appx-patched-unified` artifact (no Windows
-   machine needed), or build locally with `./scripts/build-uwp.ps1 -PatchedGenAI`.
-2. `smollm2-360m-dml-fp16` in `LocalState\models\`.
+1. A **unified + PatchedGenAI #2280** MSIX — the default `xllama-appx` CI artifact
+   (`build-uwp.yml`); vanilla NuGet `onnxruntime-genai.dll` hits `887A0036` in XAML.
+   Local build: `./scripts/build-uwp.ps1 -Backend unified -PatchedGenAI`.
+2. `smollm2-360m-dml-fp16` in `LocalState\models\` (catalogue download from
+   `models-v1`, or WDP upload via `deploy.sh upload-dir`).
 3. Preload modern settings (tokenizer-accurate threshold **600 tok**). NB: the
    app reads `settings.json`, so upload under that name:
 
@@ -243,15 +248,19 @@ PNG is coherent and matches the headless output. In-process was even faster than
 **Consequence**: image generation runs in-app on a background thread (`[*] Image` →
 **Generate**). The headless `diffuse.flag` path is kept for bench/WDP parity only.
 
-### 7c. TAESD VAE (Image dialog toggle) — ⏳ PENDING
+### 7c. TAESD VAE (Image dialog toggle) — ✅ MEASURED 2026-07-14 (`validate-console.sh taesd`)
 
-> **Automated (preferred).** `./scripts/validate-console.sh taesd` swaps the tiny
+> **Automated (official).** `./scripts/validate-console.sh taesd` swaps the tiny
 > TAESD VAE into `models\sd-turbo-fp16\vae_decoder\model.onnx`, autopilots a
 > `generate_image` (steps=1), checks `diffuse-result.csv` `vae_ms < 1000`, and
 > **restores the full VAE on exit** (trap). PASS/FAIL + exit code.
 
-**Prereqs** (manual path): `sd-turbo-fp16_taesd_vae_decoder_model.onnx` on the
-`models-v1` Release (host export: `./scripts/export-taesd-asset.sh` + `gh release upload`).
+**Measured (2026-07-14):** VAE stage **593–625 ms** (< 1000 ms gate), coherent PNG.
+
+**Prereqs** (manual path): `sd-turbo-fp16` diffusion components in
+`LocalState\models\` (WDP upload per §7); `sd-turbo-fp16_taesd_vae_decoder_model.onnx`
+on the `models-v1` Release (host export: `./scripts/export-taesd-asset.sh` +
+`gh release upload`).
 
 At the console: `[*] Image` → enable **TAESD fast VAE** → **Generate** with steps=1.
 
@@ -260,9 +269,10 @@ coherent PNG. Record te/UNet/VAE stage times from the log in `bench/results/`.
 
 ## Autopilot (`validate-console.sh`)
 
-The in-app autopilot (build ≥ 1.1.3.0) scripts the live XAML UI so §2/§7c/GGUF
-chat run without a person at the pad. Trigger `LocalState\autopilot.flag` (consumed
-at `App::OnLaunched`); actions from `LocalState\autopilot.json`
+The in-app autopilot (build ≥ **1.1.4.0** recommended; ≥ 1.1.3.0 minimum) scripts
+the live XAML UI so §2/§7c/GGUF chat run without a person at the pad. Trigger
+`LocalState\autopilot.flag` (consumed at `App::OnLaunched`); actions from
+`LocalState\autopilot.json`
 (`load_chat|send|new_chat|set_model|generate_image|quit`); result in
 `LocalState\autopilot-done.txt` (`ok` | `error: <detail>`). Progress lines carry an
 `[autopilot]` prefix — on a hard crash (no done-marker, process dead) the last
@@ -270,9 +280,25 @@ at `App::OnLaunched`); actions from `LocalState\autopilot.json`
 `./scripts/validate-console.sh <routing|gguf|taesd|all>` orchestrates upload →
 restart → poll → verdict.
 
+**WDP quirks (2026-07-14 fixes):** `upload_file` mkdirs remote dirs before POST
+(chats, nested model paths). `model_provisioned` checks `filename=genai_config.json`
+(basename only — not a full path). After an MSIX **uninstall** (not upgrade),
+LocalState is wiped — re-provision models or let the catalogue download finish
+before running gates. `install-latest-build.sh` leaves `bench.flag` in LocalState
+(headless bench on next launch); delete it for UI/autopilot validation:
+
+```bash
+./scripts/deploy.sh stop-app
+# Device Portal DELETE LocalState\bench.flag, or validate-console which clears xllama.log only
+```
+
 ## Closeout
 
-For each step: append the median CSV row under `bench/results/`, flip the matching
-"On-console validation pending" line in `CHANGELOG.md` to the measured number, and update
-the relevant `ROADMAP.md` Phase 3.5 / Phase 5 milestone with the verdict. Commit as a
-"Measured" changelog entry.
+For each **new** bench step: append the median CSV row under `bench/results/`, flip the
+matching "On-console validation pending" line in `CHANGELOG.md` to the measured number,
+and update the relevant `ROADMAP.md` milestone with the verdict. Commit as a "Measured"
+changelog entry.
+
+**2026-07-14 closeout (autopilot gates):** §2 routing, GGUF chat, §7c TAESD — all
+PASS via `validate-console.sh all`; documented in `CHANGELOG.md` [Unreleased],
+`ROADMAP.md` Phase 5, and this runbook.

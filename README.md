@@ -6,7 +6,7 @@
 [![build-linux](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Status:** v1.0 released · research-grade  
+**Status:** v1.1.4.0 shipping (unified + PatchedGenAI) · research-grade
 **Maintainer:** [Venere Labs](https://github.com/gianlucamazza)
 
 ---
@@ -62,7 +62,9 @@ source ~/.config/xllama/xbox-env           # sets XBOX_IP, XBOX_USER, XBOX_PASS
 ./scripts/deploy.sh path/to/xllama_*.msix
 ```
 
-On first launch the app **downloads** the default model (SmolLM2-360M INT4, ~417 MB) from the [`models-v1` GitHub Release](https://github.com/gianlucamazza/xllama/releases/tag/models-v1) with a progress bar, then starts the chat UI. No model is bundled in the MSIX.
+On first launch the app **downloads** the default model (SmolLM2-360M INT4, ~417 MB) from the [`models-v1` GitHub Release](https://github.com/gianlucamazza/xllama/releases/tag/models-v1) with a progress bar, then starts the chat UI. No model is bundled in the MSIX. Routing GPU (`smollm2-360m-dml-fp16`, ~691 MB merged) is also on `models-v1` for in-app download.
+
+> `install-latest-build.sh` uploads `bench.flag` after deploy (headless bench on next launch). Delete `LocalState\bench.flag` before UI or autopilot validation if you did not intend bench mode.
 
 See [docs/install-release.md](./docs/install-release.md) to install a tagged release (cert + VCLibs + MSIX), [docs/using-the-app.md](./docs/using-the-app.md) for the app guide (chat, settings, image generation), and [docs/phase1-runbook.md](./docs/phase1-runbook.md) for the developer workflow.
 
@@ -263,7 +265,8 @@ See [ROADMAP.md](./ROADMAP.md). Headlines:
 2. **Phase 2 — GPU acceleration** ✅ GPU proven; verdict per-workload (CPU decode, GPU prefill/images).
 3. **Phase 3 / 3.5 — Benchmarks + hardware ceiling** ✅ Measured matrices, routing, KV reuse, llama.cpp A/B (parity), diffusion on console.
 4. **Phase 4 — In-app model download + publication** ✅ Catalogue download, v1.0.0 release, technical report (demo video pending).
-5. **Phase 5 — Post-1.0 improvements** 🚧 Shipping `xllama-appx` = unified+PatchedGenAI; autopilot validation gates pending measured PASS.
+5. **Phase 5 — Post-1.0 improvements** ✅ Shipping `xllama-appx` = unified+PatchedGenAI;
+   `validate-console.sh all` → ALL PASS on console (2026-07-14). Demo video still open.
 
 ---
 

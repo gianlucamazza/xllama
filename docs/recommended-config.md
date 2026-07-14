@@ -85,7 +85,7 @@ Copy [`bench/configs/settings-modern.json`](../bench/configs/settings-modern.jso
 | `model`                | `smollm2-360m-cpu-int4`           | Downloaded on first launch                     |
 | `kv_reuse`             | `true`                            | 4.87× turn-2 prefill (measured)                |
 | `routing`              | `0` default; `2` for RAG          | `2` = Auto; needs DML fp16 model + patched DLL |
-| `gpu_model`            | `smollm2-360m-dml-fp16`           | Catalogue download (`models-v1`) or WDP upload |
+| `gpu_model`            | `smollm2-360m-dml-fp16`           | Catalogue download (`models-v1`, ~691 MB) or WDP |
 | `diffuse_taesd_vae`    | `true` after asset on `models-v1` | ~4.5 s/image target                            |
 | `sampling.temperature` | `0.8`                             | UI default                                     |
 | `sampling.n_predict`   | `512`                             | UI default                                     |
@@ -132,7 +132,15 @@ ctest --test-dir build/linux-test --output-on-failure
 
 ## Validation checklist
 
-1. Deploy MSIX built with `-PatchedGenAI`
-2. Upload [`bench/configs/settings-modern.json`](../bench/configs/settings-modern.json) (routing Auto)
-3. Run [console-validation-runbook.md](./console-validation-runbook.md) §2 and §7b (TAESD)
-4. Fetch `diffuse-result.csv` + `xllama.log` → `bench/results/`
+1. Deploy the default **`xllama-appx`** CI artifact (unified + PatchedGenAI #2280, currently **1.1.4.0**)
+2. Ensure models are provisioned (`smollm2-360m-dml-fp16` for routing — catalogue or WDP;
+   `sd-turbo-fp16` + TAESD asset for §7c). MSIX **uninstall** wipes LocalState.
+3. Remove `bench.flag` from LocalState if `install-latest-build.sh` left it behind
+4. Run the automated gate:
+
+   ```bash
+   source ~/.config/xllama/xbox-env
+   ./scripts/validate-console.sh all   # routing + GGUF + TAESD → ALL PASS (2026-07-14)
+   ```
+
+5. Manual/debug path: [console-validation-runbook.md](./console-validation-runbook.md) per §

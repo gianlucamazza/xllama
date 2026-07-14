@@ -34,11 +34,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   basename `genai_config.json`; `upload_file` mkdirs remote dirs before POST
   (chats + nested model paths).
 
-### Measured (2026-07-14, unified 1.1.3.0 patched on console)
+### Measured (2026-07-14, unified patched on console)
 
 - **`validate-console.sh all` → ALL PASS** (autopilot, no pad):
   routing A/B (959 tok GPU / short CPU, no `887A0036`), GGUF `lfm25-350m` via
-  llama.cpp session, TAESD VAE **593–625 ms** (sub-second gate).
+  llama.cpp session, TAESD VAE **593–625 ms** (sub-second gate). Verified on
+  **1.1.3.0** (full suite) and **1.1.4.0** (routing re-check after CI deploy).
+- **`smollm2-360m-dml-fp16` on `models-v1`** — ORT GenAI builder `-p fp16 -e dml`,
+  691 MB merged self-contained; catalogue in-app download operational.
 
 ### Docs
 
@@ -148,12 +151,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `patches/onnxruntime-genai-2280-dml-fallback.patch`,
   `scripts/vendor-genai-dml-patch.ps1`, and `build-uwp.ps1 -PatchedGenAI` to
   overlay the NuGet `onnxruntime-genai.dll` for XAML + DML chat routing.
-- **CI lane for -PatchedGenAI packages** (`build-uwp-patched.yml`,
-  dispatch-only): builds the #2280 DLL from source and uploads
-  `xllama-appx-patched` (shipping ORT) and `xllama-appx-patched-unified`
-  (both backends) plus the DLL itself — the packages runbook §2 needs,
-  without a local Windows machine. The default lane keeps shipping vanilla
-  until §2 passes.
+- **CI lane for -PatchedGenAI packages** — default `build-uwp.yml` now ships
+  `xllama-appx` as unified+#2280 (2026-07-14). `build-uwp-patched.yml` remains
+  a manual dispatch fallback.
 - **Recommended configurations** — [`docs/recommended-config.md`](docs/recommended-config.md)
   and [`bench/configs/settings-modern.json`](bench/configs/settings-modern.json)
   for console validation.
@@ -161,7 +161,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `sd-turbo-fp16_taesd_vae_decoder_model.onnx` (~5 MB) from `models-v1` over the
   full VAE in-place; setting `diffuse_taesd_vae` persists in `settings.json`.
   Host export: `scripts/export-taesd-asset.sh` (asset published on `models-v1`).
-  Console bench pending (runbook §7c).
+  Console-validated 2026-07-14 (runbook §7c, VAE **593–625 ms**).
 - **GGUF catalogue plumbing (Fase 2).** Complete end-to-end support for
   `kind: "gguf"` catalogue entries:
   - New public helper `model_uses_llama_backend()` (suffix fast-path + resolve +
@@ -435,8 +435,8 @@ per `docs/console-validation-runbook.md`. CSVs under `bench/results/phase35-*.cs
   scales ~3.2× down from 360M (66.3 → 20.6) — memory-bandwidth-bound, as expected;
   CPU int4 stays usable at 1.7B. (fp16-DML 1.7B remains undeployable: 3.4 GB weights
   exceed the 2 GB protobuf limit — a serialization constraint, not the GPU.)
-- Still pending (need specific assets): CPU/GPU **routing** (§2, interactive XAML UI —
-  needs a person at the console); **diffusion** (§7, needs an fp16 SD-Turbo export).
+- ~~Still pending~~ **Closed 2026-07-14:** CPU/GPU **routing** (§2, autopilot PASS);
+  **diffusion** (§7, measured 2026-07-08); **TAESD** (§7c, autopilot PASS).
 
 ### Fixed — deploy/bench tooling gaps surfaced during console validation
 
