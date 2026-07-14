@@ -71,7 +71,7 @@ jobs:
         run: >-
           ./scripts/build-uwp.ps1 -Configuration Release -Platform x64
           -Backend $('${{ matrix.variant }}' -eq 'default' ? 'ort' : '${{ matrix.variant }}')
-          -PatchedGenAI
+          -PatchedGenAI -BuildRevision ${{ github.run_number }}
 
       - uses: actions/upload-artifact@v7
         if: success()

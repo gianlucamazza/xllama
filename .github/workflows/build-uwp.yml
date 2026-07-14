@@ -74,6 +74,9 @@ jobs:
             Configuration = 'Release'
             Platform      = 'x64'
             Backend       = $('${{ matrix.variant }}' -eq 'unified' ? 'unified' : '${{ matrix.variant }}')
+            # Unique, monotonic MSIX Revision per build (Major.Minor.Build stays
+            # the committed semantic version) so console updates never collide.
+            BuildRevision = ${{ github.run_number }}
           }
           if ('${{ matrix.patched }}' -eq 'true') { $buildArgs.PatchedGenAI = $true }
           ./scripts/build-uwp.ps1 @buildArgs

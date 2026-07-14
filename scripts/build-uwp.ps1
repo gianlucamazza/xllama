@@ -31,7 +31,13 @@ param(
     [string]$Backend        = "ort",
     # Replace onnxruntime-genai.dll with the #2280 DML fallback build when available
     # (vendor/onnxruntime-genai-patched/ or -Build via vendor-genai-dml-patch.ps1).
-    [switch]$PatchedGenAI   = $false
+    [switch]$PatchedGenAI   = $false,
+    # MSIX version Revision (the 4th component). Each CI build passes a unique,
+    # monotonic value (the workflow run number) so every package gets a distinct,
+    # increasing version — in-place console updates never hit the same-identity
+    # block. 0 (the local default) leaves the committed X.Y.Z.0 unchanged, so a
+    # local build never pollutes the working tree.
+    [int]$BuildRevision     = $(if ($env:GITHUB_RUN_NUMBER) { [int]$env:GITHUB_RUN_NUMBER } else { 0 })
 )
 
 $ErrorActionPreference = "Stop"
@@ -146,6 +152,27 @@ if ($PatchedGenAI -and $Backend -ne "llamacpp") {
         Write-Error "vendor-genai-dml-patch.ps1 failed ($LASTEXITCODE) — refusing to package a mislabeled patched build."
         exit $LASTEXITCODE
     }
+}
+
+# ---------------------------------------------------------------------------
+# Version stamping. Major.Minor.Build (the semantic version) stays the source of
+# truth in the committed AppxManifest.xml; the Revision (4th component) is set to
+# $BuildRevision so every CI build is uniquely and monotonically versioned. This
+# is what lets the console take an in-place update without a manual version bump.
+# The negative-lookbehind avoids the TargetDeviceFamily Min/MaxVersion attributes;
+# only the first (Identity) Version is rewritten.
+# ---------------------------------------------------------------------------
+if ($BuildRevision -gt 0) {
+    $ManifestPath = Join-Path $UwpDir "AppxManifest.xml"
+    $manifestText = Get-Content -Raw $ManifestPath
+    $rx = [regex]'(?<!\w)Version="(\d+)\.(\d+)\.(\d+)\.\d+"'
+    $newText = $rx.Replace($manifestText, {
+        param($m)
+        'Version="{0}.{1}.{2}.{3}"' -f $m.Groups[1].Value, $m.Groups[2].Value, $m.Groups[3].Value, $BuildRevision
+    }, 1)
+    Set-Content -Path $ManifestPath -Value $newText -NoNewline
+    $stamped = ([regex]::Match($newText, '(?<!\w)Version="(\d+\.\d+\.\d+\.\d+)"')).Groups[1].Value
+    Write-Host "Version stamped: $stamped (revision = build $BuildRevision)"
 }
 
 Write-Host "Building $Configuration|$Platform ..."
