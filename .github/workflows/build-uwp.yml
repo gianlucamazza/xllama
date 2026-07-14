@@ -40,6 +40,9 @@ jobs:
         run: |
           git submodule update --init --depth 1 llama.cpp
           bash scripts/apply-uwp-patches.sh
+          # Fail early if the submodule gained a top-level src/*.cpp the vcxproj
+          # doesn't list (models/*.cpp is wildcarded and can't drift).
+          bash scripts/check-uwp-sources.sh
 
       - name: Restore NuGet packages
         shell: pwsh
