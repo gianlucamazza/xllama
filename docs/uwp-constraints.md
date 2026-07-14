@@ -329,7 +329,8 @@ win is prefill (§5, reading 1) and larger-model bandwidth. A genuinely fused
 low-bit GPU GEMM would be a DirectML-team feature, not an ORT-side PR; treat GPU
 int4 decode as blocked upstream, not a local TODO.
 
-**Config tests that confirm the dead-end** (built, pending one console bench —
-expected ≈ 8.8 tok/s, a fast negative): `int4_block_size=128` and
-`int4_accuracy_level=4` variants of SmolLM2-360M. If either materially beat 8.8
-it would refute the above; the kernel structure predicts they will not.
+**Config tests** (`int4_block_size=128`, `int4_accuracy_level=4` variants of
+SmolLM2-360M) were **built but closed inconclusive 2026-07-09** — not console-
+benched, and not a local lever. The §12 desk-check above stands (the kernel
+structure predicts neither materially beats 8.8 tok/s); see `ROADMAP.md`
+Phase 3.5 / Phase 5 and `console-validation-runbook.md §5`.

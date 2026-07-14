@@ -3,8 +3,10 @@
 On-console checks for merged, CI-green work (merge-on-CI-green policy). Most of the
 Phase 3.5 batch was **measured 2026-07-08** (§1, §3, §4, §6-CPU, §7 below carry their
 results). **§2 routing** and **§7c TAESD** were **measured 2026-07-14** via
-`validate-console.sh` (autopilot, no pad). Still open: §5b int4 rebuild variants
-(inconclusive 2026-07-09). §7b in-process diffusion was **PASS 2026-07-09**.
+`validate-console.sh` (autopilot, no pad); the same day added **Gemma** (gemma3-270m,
+gemma4-e2b Q3_K_S) and **GGUF KV-reuse** (4.07×) — see `docs/benchmarks.md`.
+§5b int4 rebuild variants were **closed inconclusive 2026-07-09** (not a lever).
+§7b in-process diffusion was **PASS 2026-07-09**.
 
 This runbook batches all of them into **one Xbox session**. Each step writes a CSV/artifact
 fetched via Device Portal, with an explicit sanity gate. Mechanics (deploy, WDP quirks,
