@@ -61,6 +61,17 @@ std::string strip_empty_thinking_tags(std::string text) {
     return text;
 }
 
+bool apply_stop_sequences(std::string& output, const std::vector<std::string>& stops) {
+    for (const std::string& stop : stops) {
+        if (!stop.empty() && output.size() >= stop.size() &&
+            output.compare(output.size() - stop.size(), stop.size(), stop) == 0) {
+            output.erase(output.size() - stop.size());
+            return true;
+        }
+    }
+    return false;
+}
+
 ChatFormat chat_format_for(const std::string& model_id) {
     ChatFormat f;
     // Gemma is checked before the ChatML default; the Qwen no-think suffix is

@@ -5,6 +5,7 @@
 // llama.cpp path (Linux): model kept alive; context rebuilt per generate().
 
 #include "xllama/session.h"
+#include "xllama/chat_prompt.h"
 #include "xllama/inference_params.h"
 #include "xllama/path_utils.h"
 #include "xllama/platform.h"
@@ -163,16 +164,10 @@ class OrtSession final : public Session {
             }
             ++n_generated;
 
-            for (const auto& stop : gp.stop_sequences) {
-                auto pos = res.output_text.find(stop);
-                if (pos != std::string::npos) {
-                    res.output_text.erase(pos);
-                    stopped_by_seq = true;
-                    break;
-                }
-            }
-            if (stopped_by_seq)
+            if (apply_stop_sequences(res.output_text, gp.stop_sequences)) {
+                stopped_by_seq = true;
                 break;
+            }
         }
 
         auto t_end = std::chrono::steady_clock::now();
@@ -439,17 +434,11 @@ class LlamaSession final : public Session {
                     gp.on_token(std::string(buf, static_cast<size_t>(len)));
             }
 
-            // Stop sequences
-            for (const auto& stop : gp.stop_sequences) {
-                auto pos = res.output_text.find(stop);
-                if (pos != std::string::npos) {
-                    res.output_text.erase(pos);
-                    stopped_by_seq = true;
-                    break;
-                }
-            }
-            if (stopped_by_seq)
+            // Stop sequences (shared suffix-match helper).
+            if (apply_stop_sequences(res.output_text, gp.stop_sequences)) {
+                stopped_by_seq = true;
                 break;
+            }
 
             llama_batch next = llama_batch_get_one(&token, 1);
             if (llama_decode(ctx.get(), next) != 0) {
