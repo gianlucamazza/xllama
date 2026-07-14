@@ -1,0 +1,39 @@
+name: codeql
+
+# CodeQL security + quality scanning for the C++ bridge/UWP/CLI sources.
+# Uses build-mode: none (no compile) to avoid building the heavy vendored
+# llama.cpp submodule on every run — a lighter, dependency-free scan. Switch to
+# build-mode: manual with the cmake preset if deeper dataflow coverage is needed.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "27 4 * * 1" # weekly, Monday 04:27 UTC
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: analyze (c-cpp)
+    runs-on: ubuntu-22.04
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        # No submodules: build-mode none scans the repo's own sources only.
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: c-cpp
+          build-mode: none
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:c-cpp

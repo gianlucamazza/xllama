@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # GitHub Actions used by the CI workflows (checkout, upload-artifact, …).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # Vendored llama.cpp submodule — surface upstream bumps as PRs (arch/quant
+  # support, security). Review carefully: a bump can shift GGUF loader behaviour.
+  - package-ecosystem: gitsubmodule
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: deps

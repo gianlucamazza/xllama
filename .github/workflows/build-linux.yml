@@ -2,7 +2,14 @@ name: build-linux
 
 on:
   push:
+    branches: [main]
   pull_request:
+
+# Feature branches build once via pull_request (not also via push); superseded
+# runs on the same branch cancel so only the latest commit is tested.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
