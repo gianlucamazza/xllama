@@ -61,6 +61,9 @@ _curl_post_file() {
 # upload_file <local> [remote_subdir] [remote_name]
 upload_file() {
 	local local_path="$1" remote_dir="${2:-}" remote_name="${3:-}"
+	if [[ -n "$remote_dir" ]]; then
+		"${DEPLOY}" mkdir-localstate "$PFN" "$remote_dir" >/dev/null
+	fi
 	local path_param="%5CLocalState"
 	[[ -n "$remote_dir" ]] && path_param="%5CLocalState%5C${remote_dir//\\/%5C}"
 	_curl_post_file "$local_path" "$path_param" "$remote_name"
