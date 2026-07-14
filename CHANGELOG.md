@@ -18,17 +18,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   selected by model id. ChatML kept byte-identical (Qwen no-think suffix
   preserved); **Gemma** added (`<start_of_turn>…<end_of_turn>`, no system role,
   stop `<end_of_turn>`). UWP UI + bench call one abstraction.
-- **Gemma family**: vendored `llama.cpp` carries `gemma3` + `gemma4` (both load
-  and generate). Catalogue entry `gemma3-270m` (253 MB, GGUF, from HF per Gemma
-  Terms). Gemma-4-E2B is a feasibility candidate.
+- **Gemma family — console-validated** (`phase6-gemma.csv`). Catalogue entries
+  `gemma3-270m` (253 MB) and `gemma4-e2b` (2.29 GB IQ2_M), GGUF from HF per Gemma
+  Terms. On Xbox Series S: gemma3-270m **76.8 tok/s** decode (368 MB); gemma4-e2b
+  loads at 2534 MB RAM, **9.9 tok/s**. The "Gemma-4 too big" verdict is
+  **overturned** — the ~2 GB Dev Mode per-file limit does not apply to GGUF.
+- **`--chat` flag** for `xllama-cli` + stop-sequence support in the llama path
+  (`InferenceParams::stop_sequences`), so the CLI/GGUF bench stop on the chat
+  format's stop token.
 - **Benchmark report** — `docs/benchmarks.md` + self-contained
-  `docs/benchmarks-charts.html` consolidate every tested model across backends.
+  `docs/benchmarks-charts.html` consolidate every tested model across backends,
+  with root-cause notes on the negative performers.
+- **Automated MSIX versioning** — CI stamps the Revision from the workflow
+  `run_number` (`build-uwp.ps1 -BuildRevision`); no manual per-build bump.
+- **Repo automation** — CI concurrency + `push`-on-`main` only (one build per
+  PR, superseded runs cancel), Dependabot (actions + llama.cpp submodule), CodeQL
+  (c-cpp), PR/issue templates, `CONTRIBUTING.md`.
 
 ### Changed
 
-- Package version **1.1.6.0**.
+- Package version **1.1.6.0** (Revision auto-stamped in CI).
 - `docs/model-selection.md` Gemma verdict revised (disk no longer the binding
-  constraint after the 90 GB Dev Mode bump).
+  constraint after the 90 GB Dev Mode bump; E2B console-validated).
 
 ---
 

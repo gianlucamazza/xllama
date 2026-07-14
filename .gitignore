@@ -72,6 +72,9 @@ cache_dir/
 testdir/
 ollama-models-before-vm.txt
 
+# validate-console.sh VAE cache (full_vae.onnx / taesd_vae.onnx)
+.cache-validate/
+
 # Downloaded ORT profiling runs (can be tens of MB each)
 bench/results/profiles/*
 !bench/results/profiles/.gitkeep
