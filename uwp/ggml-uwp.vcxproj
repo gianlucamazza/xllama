@@ -158,6 +158,8 @@
     <ClCompile Include="..\llama.cpp\src\llama-impl.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-io.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-kv-cache.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-kv-cache-dsa.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-kv-cache-dsv4.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-kv-cache-iswa.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-memory.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-memory-hybrid.cpp" />
@@ -301,7 +303,16 @@
     <ClCompile Include="..\llama.cpp\src\models\starcoder2.cpp" />
     <ClCompile Include="..\llama.cpp\src\models\step35.cpp" />
     <ClCompile Include="..\llama.cpp\src\models\t5.cpp" />
+    <ClCompile Include="..\llama.cpp\src\models\cohere2moe.cpp" />
+    <ClCompile Include="..\llama.cpp\src\models\deepseek32.cpp" />
+    <ClCompile Include="..\llama.cpp\src\models\deepseek4.cpp" />
+    <ClCompile Include="..\llama.cpp\src\models\dflash.cpp" />
+    <ClCompile Include="..\llama.cpp\src\models\eagle3.cpp" />
+    <ClCompile Include="..\llama.cpp\src\models\gemma4-assistant.cpp" />
+    <ClCompile Include="..\llama.cpp\src\models\hy-v3.cpp" />
+    <ClCompile Include="..\llama.cpp\src\models\mellum.cpp" />
     <ClCompile Include="..\llama.cpp\src\models\t5encoder.cpp" />
+    <ClCompile Include="..\llama.cpp\src\models\talkie.cpp" />
     <ClCompile Include="..\llama.cpp\src\models\wavtokenizer-dec.cpp" />
     <ClCompile Include="..\llama.cpp\src\models\xverse.cpp" />
   </ItemGroup>
