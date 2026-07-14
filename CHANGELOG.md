@@ -41,6 +41,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Fixed two more stale in-code comments: `ManifestEntry` (gguf KV-reuse now
   enabled) and `GenerateParams` reuse_kv/reset_kv (honored by both backends now,
   not ORT-only).
+- **CPU memory-bandwidth micro-bench** — `xllama::measure_membw` (STREAM-style
+  read/copy/triad, `include/xllama/membw.h`) with `xllama-cli --membw` (host) and a
+  `membw.flag` headless mode (console → `membw-result.csv`). Pins the DRAM-bandwidth
+  ceiling behind the bandwidth-bound decode number. 4 host doctest cases.
 - Consolidated documentation onto single-source-of-truth docs (perf →
   `benchmarks.md`, constraints → `uwp-constraints.md`, catalogue →
   `model-selection.md` + `manifest.json`); refreshed stale version/quant/KV claims.

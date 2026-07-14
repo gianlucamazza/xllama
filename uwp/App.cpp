@@ -243,6 +243,14 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
                 winrt::make<HeadlessView>(&::xllama::bridge::main_loop, "bench"));
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
+        std::wstring membw_flag = flag_path_if_present(L"membw.flag");
+        if (!membw_flag.empty()) {
+            _wremove(membw_flag.c_str());
+            ::xllama::log_output("[xllama] membw.flag detected -> headless membw mode\n");
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(&::xllama::bridge::run_membw, "membw"));
+            return 0; // not reached: CoreApplication::Exit terminates the process
+        }
         winrt::uninit_apartment(); // restore pre-existing thread state for XAML
         winrt::Windows::UI::Xaml::Application::Start(
             [](auto&&) { winrt::make<winrt::xllama::implementation::App>(); });

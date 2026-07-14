@@ -48,6 +48,7 @@ add_library(xllama STATIC
     src/bridge/inference.cpp
     src/bridge/session.cpp
     src/bridge/bench.cpp
+    src/bridge/membw.cpp
     src/bridge/platform.cpp
     src/bridge/path_utils.cpp
     src/bridge/utf8_utils.cpp

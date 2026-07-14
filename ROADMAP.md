@@ -319,6 +319,9 @@ Open items only — everything above is measured or shipped.
 - [x] **`install-latest-build.sh`** — no longer leaves `bench.flag` by default;
       headless bench mode is now `--bench` opt-in (a normal install launches
       straight into the UI). See `scripts/install-latest-build.sh`.
-- [ ] (optional) **membw.flag** micro-bench — pin the CPU bandwidth denominator
+- [x] (optional) **membw.flag** micro-bench — pins the CPU bandwidth denominator
+      behind decode. `measure_membw` (STREAM read/copy/triad), `xllama-cli --membw`
+      (host) + `membw.flag` (console → `membw-result.csv`). Host i7: 28.1 GB/s
+      read @8t. See `docs/benchmarks.md`; on-console pass pending.
 - [ ] (upstream, deprioritised) **Fused low-bit GPU GEMM in DirectML** — §12;
       not a local contribution via #2280

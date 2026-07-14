@@ -27,6 +27,8 @@ static void print_help(const char* prog) {
                  "      --batch <N>      Logical prefill batch; 0 = llama default 2048\n"
                  "      --ubatch <N>     Physical prefill chunk (TTFT sweep knob);\n"
                  "                       0 = llama default 512\n"
+                 "      --membw          Run the CPU memory-bandwidth micro-bench and\n"
+                 "                       exit (no model needed); prints read/copy/triad GB/s\n"
                  "  -h, --help           Show this message\n",
                  prog);
 }
@@ -50,6 +52,7 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
                                               {"chat", no_argument, nullptr, 3},
                                               {"batch", required_argument, nullptr, 4},
                                               {"ubatch", required_argument, nullptr, 5},
+                                              {"membw", no_argument, nullptr, 6},
                                               {"help", no_argument, nullptr, 'h'},
                                               {nullptr, 0, nullptr, 0}};
 
@@ -86,6 +89,9 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         case 5:
             out.n_ubatch = std::atoi(optarg);
             break;
+        case 6:
+            out.run_membw = true;
+            break;
         case 'h':
             print_help(argv[0]);
             std::exit(0);
@@ -94,6 +100,10 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             return false;
         }
     }
+
+    // --membw runs a model-free micro-bench: skip the model/prompt requirement.
+    if (out.run_membw)
+        return true;
 
     if (out.model_path.empty() || out.prompt.empty()) {
         print_usage(argv[0]);

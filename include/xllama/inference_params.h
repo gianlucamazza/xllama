@@ -35,6 +35,10 @@ struct InferenceParams {
     // CLI --chat: wrap `prompt` with the model's chat template before inference.
     bool chat_template = false;
 
+    // CLI --membw: run the CPU memory-bandwidth micro-bench and exit (no model
+    // load). Model/prompt are not required in this mode.
+    bool run_membw = false;
+
     // UI callbacks (optional). Called from the inference thread — must marshal
     // to the UI thread before touching XAML controls.
     std::function<void(const std::string&)> on_status; // e.g. "loading model"

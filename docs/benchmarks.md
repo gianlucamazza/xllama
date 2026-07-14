@@ -173,6 +173,27 @@ dispatch overhead at this model scale; CPU `MatMulNBits` on AVX2 wins
 (ROADMAP Phase 2 / `uwp-constraints.md §7`). GPU's win is **prefill** (353 vs
 198 tok/s at ~1k tokens), which is exactly what routing uses it for.
 
+## CPU memory bandwidth — the decode denominator
+
+Decode is a bandwidth-bound M=1 GEMV: each token streams the whole weight matrix
+from DRAM once, so decode tok/s ≈ (effective read bandwidth) / (weight bytes). The
+"~13 GB/s effective from CPU int4 GEMV" quoted elsewhere is a _deduced_ figure; the
+`membw` micro-bench (STREAM-style read / copy / triad over a 256 MB buffer, larger
+than the LLC) measures the sustained ceiling directly, so decode can be stated as a
+fraction of a measured number.
+
+Host reference (i7-1165G7, 2026-07-14, `xllama-cli --membw`):
+
+| Threads | Read GB/s | Copy GB/s | Triad GB/s |
+| ------- | --------: | --------: | ---------: |
+| 1       |      11.8 |      23.0 |       14.0 |
+| 8       |      28.1 |      36.3 |       26.3 |
+
+On-console: drop a `membw.flag` into `LocalState` (the app runs the bench headless
+and writes `membw-result.csv`, single-thread + full-width rows). This pins the
+Xbox Zen 2 / GDDR6 CPU-side ceiling so the 13 GB/s GEMV figure can be reported as a
+fraction of it (pending one console pass).
+
 ## Reproducing
 
 - **On-console**: `./scripts/bench-xbox-ort.sh <model> --runs 3 --out bench/results/<file>.csv`
@@ -183,6 +204,8 @@ dispatch overhead at this model scale; CPU `MatMulNBits` on AVX2 wins
 - **Prefill micro-batch sweep**: `./scripts/bench-ubatch-sweep.sh <model.gguf>` runs
   the CLI across `--ubatch` 128/256/512/1024 and prints prompt tok/s per value
   (`--batch`/`--ubatch` also exposed directly on `xllama-cli`).
+- **Memory bandwidth**: `./build/linux-release/bin/xllama-cli --membw` (host) or a
+  `membw.flag` in `LocalState` (console) → read/copy/triad GB/s.
 - Comparative charts: `docs/benchmarks-charts.html` (self-contained; open in a browser).
 
 ### Prefill micro-batch (n_ubatch) — no reproducible host win
