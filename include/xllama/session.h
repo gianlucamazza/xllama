@@ -25,6 +25,8 @@ struct SessionParams {
     std::string model_path; // same semantics as InferenceParams::model_path
     int n_ctx = 2048;
     int n_threads = 0; // 0 = auto
+    int n_batch = 0;   // llama.cpp only; 0 = default (2048). Logical prefill batch.
+    int n_ubatch = 0;  // llama.cpp only; 0 = default (512). Physical prefill chunk.
     Backend backend = Backend::Auto;
     int n_gpu_layers = 0; // llama.cpp only; 0 = CPU (Xbox has no ggml GPU backend)
 };
@@ -42,8 +44,9 @@ struct GenerateParams {
     // Generation stops and the matching sequence is stripped.
     std::vector<std::string> stop_sequences;
 
-    // Continuous decoding / KV-cache reuse (ORT path only; the llama.cpp path
-    // ignores these and always runs stateless).
+    // Continuous decoding / KV-cache reuse. Honored by BOTH backends now: the
+    // ORT path (persistent generator) and the llama.cpp path (persistent
+    // llama_context, KV cache retained across turns — turn-2 prefill 4.07×).
     //   reuse_kv = false           → legacy stateless turn: a fresh generator is
     //                                created and destroyed; `prompt` is the full
     //                                context. Proven default.

@@ -357,13 +357,16 @@ class LlamaSession final : public Session {
     LlamaModelPtr m_model;
     int m_n_ctx;
     int m_n_threads;
+    int m_n_batch;  // 0 = llama.cpp default
+    int m_n_ubatch; // 0 = llama.cpp default
     // Persistent context across turns: the KV cache lives here so a reuse turn
     // (reuse_kv && !reset_kv) can append only the delta instead of re-prefilling
     // the whole conversation. Created lazily on the first generate().
     LlamaContextPtr m_ctx;
 
-    explicit LlamaSession(LlamaModelPtr model, int n_ctx, int n_threads)
-        : m_model(std::move(model)), m_n_ctx(n_ctx), m_n_threads(n_threads) {}
+    explicit LlamaSession(LlamaModelPtr model, int n_ctx, int n_threads, int n_batch, int n_ubatch)
+        : m_model(std::move(model)), m_n_ctx(n_ctx), m_n_threads(n_threads), m_n_batch(n_batch),
+          m_n_ubatch(n_ubatch) {}
 
     InferenceResult generate(const GenerateParams& gp) override {
         InferenceResult res;
@@ -372,6 +375,10 @@ class LlamaSession final : public Session {
             llama_context_params cparams = llama_context_default_params();
             cparams.n_ctx = m_n_ctx;
             cparams.n_threads = m_n_threads;
+            if (m_n_batch > 0)
+                cparams.n_batch = static_cast<uint32_t>(m_n_batch);
+            if (m_n_ubatch > 0)
+                cparams.n_ubatch = static_cast<uint32_t>(m_n_ubatch);
             m_ctx.reset(llama_init_from_model(m_model.get(), cparams));
             if (!m_ctx) {
                 res.error_msg = "failed to create context";
@@ -522,7 +529,8 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
     int n_threads = sp.n_threads > 0 ? sp.n_threads : detect_threads_llama();
     int n_ctx = sp.n_ctx > 0 ? sp.n_ctx : 2048;
     log_output("[xllama] Session: GGUF model loaded via llama.cpp (persistent)\n");
-    return std::make_unique<LlamaSession>(LlamaModelPtr(raw_model), n_ctx, n_threads);
+    return std::make_unique<LlamaSession>(LlamaModelPtr(raw_model), n_ctx, n_threads, sp.n_batch,
+                                          sp.n_ubatch);
 }
 } // namespace detail
 

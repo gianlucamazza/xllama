@@ -24,6 +24,9 @@ static void print_help(const char* prog) {
                  "      --seed <int>     RNG seed; 0 = random (default: 0)\n"
                  "      --chat           Wrap the prompt with the model's chat template\n"
                  "                       (ChatML/Gemma by model name) and stop on its stop token\n"
+                 "      --batch <N>      Logical prefill batch; 0 = llama default 2048\n"
+                 "      --ubatch <N>     Physical prefill chunk (TTFT sweep knob);\n"
+                 "                       0 = llama default 512\n"
                  "  -h, --help           Show this message\n",
                  prog);
 }
@@ -45,6 +48,8 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
                                               {"temp", required_argument, nullptr, 1},
                                               {"seed", required_argument, nullptr, 2},
                                               {"chat", no_argument, nullptr, 3},
+                                              {"batch", required_argument, nullptr, 4},
+                                              {"ubatch", required_argument, nullptr, 5},
                                               {"help", no_argument, nullptr, 'h'},
                                               {nullptr, 0, nullptr, 0}};
 
@@ -74,6 +79,12 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             break;
         case 3:
             out.chat_template = true;
+            break;
+        case 4:
+            out.n_batch = std::atoi(optarg);
+            break;
+        case 5:
+            out.n_ubatch = std::atoi(optarg);
             break;
         case 'h':
             print_help(argv[0]);

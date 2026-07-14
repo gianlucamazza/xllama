@@ -180,4 +180,21 @@ dispatch overhead at this model scale; CPU `MatMulNBits` on AVX2 wins
   `phase5-diffuse`.
 - **Host (llama.cpp GGUF only)**: `./build/linux-release/bin/xllama-cli -m <model.gguf>
 -p '<prompt>' -n 128` prints `load / prompt tok/s / decode tok/s`.
+- **Prefill micro-batch sweep**: `./scripts/bench-ubatch-sweep.sh <model.gguf>` runs
+  the CLI across `--ubatch` 128/256/512/1024 and prints prompt tok/s per value
+  (`--batch`/`--ubatch` also exposed directly on `xllama-cli`).
 - Comparative charts: `docs/benchmarks-charts.html` (self-contained; open in a browser).
+
+### Prefill micro-batch (n_ubatch) — no reproducible host win
+
+`n_ubatch` (llama.cpp physical prefill chunk, default 512) is the only
+TTFT-relevant batching knob on the CPU path (`n_batch` merely caps the logical
+batch). Now exposed end-to-end (`InferenceParams`/`SessionParams` →
+`llama_context_params`, `xllama-cli --batch/--ubatch`). Host sweep
+(i7-1165G7, Qwen3.5-0.8B-Q4_K_M, 701-token prompt, 2026-07-14): repeated passes
+**disagree** on the ubatch=128 value (82.5 vs 117.4 tok/s) and show **no
+reproducible trend** — on a loaded dev laptop the measurement is noise-dominated.
+The knob is in place and CLI-sweepable; a clean optimum needs a quiet machine or
+an on-console pass (Xbox Zen 2 shares the x86 AVX2 ISA, so a flat curve is the
+expectation). Default (0 → llama.cpp 512) stays until a measured win justifies a
+change.
