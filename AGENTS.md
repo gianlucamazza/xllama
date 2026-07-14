@@ -91,6 +91,14 @@ For local builds (requires a Windows VM — see `docs/windows-dev-vm.md`):
 
 Use `-ForceNewCert` only to regenerate the test signing certificate.
 
+**Versioning**: `Major.Minor.Build` in `uwp/AppxManifest.xml` is the semantic
+version — bump it manually per release (with `CHANGELOG.md`). The `Revision` (4th
+component) is stamped automatically in CI to the workflow run number
+(`build-uwp.ps1 -BuildRevision`, wired from `github.run_number` in the
+workflows), so every CI package is uniquely and monotonically versioned and the
+console always takes an **in-place update** — no manual per-build bump, and never
+the "same identity, different contents" install block. Local builds leave `.0`.
+
 ## Tests
 
 - Framework: **doctest** (header-only, fetched via CMake).

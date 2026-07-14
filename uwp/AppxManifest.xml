@@ -7,6 +7,11 @@
   xmlns:xbox="http://schemas.microsoft.com/appx/manifest/xbox/windows10"
   IgnorableNamespaces="mp uap uap3 xbox">
 
+  <!-- Version: Major.Minor.Build is the semantic version (bump manually per
+       release, alongside CHANGELOG). The Revision (the trailing .0) is stamped
+       automatically in CI to the workflow run number (build-uwp.ps1
+       -BuildRevision) so every build is uniquely, monotonically versioned and
+       the console always accepts an in-place update. Local builds keep .0. -->
   <Identity
     Name="VenereLabs.xllama"
     Publisher="CN=xllama-dev"
