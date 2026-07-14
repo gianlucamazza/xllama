@@ -111,6 +111,17 @@ Disk was never the constraint (Dev Mode is 90 GB). E4B/12B+ stay out of scope on
 size/speed. Catalogue entry `gemma4-e2b` (downloads from HF; 2.29 GB exceeds the
 GitHub release 2 GB asset limit).
 
+**In-app HF download verified on-console** (2026-07-15): with the catalogue entry
+un-provisioned, the app's own downloader pulled the single 2.29 GB `.gguf` straight
+from the HF `unsloth` repo (`EnsureModel: downloading … from catalogue` →
+`download complete`, 2 290 858 112 bytes), then loaded it (`GGUF model loaded via
+llama.cpp`) and generated — confirming the >2 GB single-file download path (not just
+Device-Portal provisioning). Known gap surfaced in the process: `IsModelProvisioned`
+treats a dir with _any_ `.gguf` as provisioned, so an entry already holding an
+older-quant file (e.g. a stale IQ2_M under `gemma4-e2b`) is **not** auto-upgraded to
+the manifest's current quant — the manifest filename should be checked, not just
+"a gguf exists".
+
 ## Root-cause notes — the negative performers
 
 Investigated 2026-07-14 (reverse-engineered where noted). None is a loader or

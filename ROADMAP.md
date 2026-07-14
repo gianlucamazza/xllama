@@ -312,6 +312,12 @@ Open items only — everything above is measured or shipped.
 - [x] **Automated MSIX versioning** — CI stamps the Revision from `run_number`
       (`build-uwp.ps1 -BuildRevision`); Major.Minor.Build stays the semantic
       version. Console in-place updates never hit the same-identity block.
+- [x] **In-app HF download verified on-console** (2026-07-15) — the app's own
+      downloader pulled the 2.29 GB single `.gguf` from HF and loaded+generated it,
+      confirming the >2 GB self-download path (see `docs/benchmarks.md`).
+- [ ] **`IsModelProvisioned` quant-upgrade gap** — a dir with _any_ `.gguf` counts
+      as provisioned, so a stale-quant entry is not auto-upgraded to the manifest's
+      current file. Check the expected manifest filename, not just "a gguf exists".
 - [ ] **Demo video** — model loaded and running on Xbox hardware (Phase 4 carry-over)
 - [ ] **Publication venue** — GitHub Discussions vs arXiv for `docs/technical-report.md`
 - [ ] **`smollm2-1.7b-cpu-int4` on `models-v1`** — manifest ready; optional 1.4 GB
