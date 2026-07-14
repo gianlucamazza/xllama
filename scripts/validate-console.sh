@@ -144,10 +144,10 @@ fetch_log() {
 
 model_provisioned() {
 	local model="$1"
-	local rel="LocalState%5Cmodels%5C${model}%5Cgenai_config.json"
+	local path_param="%5CLocalState%5Cmodels%5C${model//\\/%5C}"
 	local code
 	code=$(curl "${CURL_AUTH[@]}" -o /dev/null -w "%{http_code}" \
-		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&filename=${rel}&packagefullname=${PFN}&path=%5CLocalState%5Cmodels%5C${model}" 2>/dev/null || echo "000")
+		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&filename=genai_config.json&packagefullname=${PFN}&path=${path_param}" 2>/dev/null || echo "000")
 	[[ "$code" == "200" ]]
 }
 
