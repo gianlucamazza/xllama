@@ -51,6 +51,7 @@ add_library(xllama STATIC
     src/bridge/platform.cpp
     src/bridge/path_utils.cpp
     src/bridge/utf8_utils.cpp
+    src/bridge/chat_prompt.cpp
     src/bridge/cli.cpp
 )
 

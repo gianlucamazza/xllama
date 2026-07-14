@@ -10,6 +10,7 @@
 
     #include "chat-history.h"
     #include "inference-bridge.h"
+    #include "xllama/chat_prompt.h"
     #include "xllama/platform.h"
     #include "xllama/routing_policy.h"
     #include "xllama/utf8_utils.h"
@@ -530,7 +531,12 @@ std::string MainPageController::BuildChatMLPrompt(const std::string& user_text,
     }
     prompt += "<|im_start|>user\n" + user_text + "<|im_end|>\n";
     prompt += "<|im_start|>assistant\n";
+    prompt += AssistantGenSuffix();
     return prompt;
+}
+
+std::string MainPageController::AssistantGenSuffix() const {
+    return ::xllama::qwen_no_think_gen_suffix(::xllama::wstring_to_utf8(m_model_filename));
 }
 
 std::string MainPageController::BuildDeltaPrompt(const std::string& user_text) const {
@@ -541,6 +547,7 @@ std::string MainPageController::BuildDeltaPrompt(const std::string& user_text) c
     // onto the KV this reproduces exactly what BuildChatMLPrompt would have built.
     std::string d = m_kv_last_ended_with_stop ? "\n" : "<|im_end|>\n";
     d += "<|im_start|>user\n" + user_text + "<|im_end|>\n<|im_start|>assistant\n";
+    d += AssistantGenSuffix();
     return d;
 }
 
@@ -585,7 +592,8 @@ void MainPageController::RenderConversation() {
         label.FontWeight(winrt::Windows::UI::Text::FontWeights::Bold());
         p.Inlines().Append(label);
         Run content;
-        content.Text(::xllama::utf8_to_wstring(msg.content));
+        content.Text(::xllama::utf8_to_wstring(
+            ::xllama::strip_empty_thinking_tags(msg.content)));
         if (msg.partial)
             content.Text(content.Text() + L" [cancelled]");
         p.Inlines().Append(content);
@@ -1871,8 +1879,11 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     // turn was evicted this round (RewindTo cannot drop from the head, so eviction
     // forces a full re-prefill). A reuse turn appends only the delta; otherwise we
     // (re)prefill the full prompt — which also (re)seeds the persistent generator.
-    bool do_reuse = m_kv_reuse && m_kv_valid && n_dropped == 0 && !base_is_gguf;
-    bool kv_reuse = m_kv_reuse && !base_is_gguf;
+    const std::string routed_model = ::xllama::wstring_to_utf8(
+        m_active_model.empty() ? m_model_filename : m_active_model);
+    const bool ep_kv_ok = ::xllama::kv_reuse_supported_for_model(routed_model);
+    bool do_reuse = m_kv_reuse && m_kv_valid && n_dropped == 0 && !base_is_gguf && ep_kv_ok;
+    bool kv_reuse = m_kv_reuse && !base_is_gguf && ep_kv_ok;
     std::string delta_prompt = do_reuse ? BuildDeltaPrompt(user_text) : std::string();
 
     // Record user message in history AFTER building prompt (avoids duplicate)
@@ -1888,7 +1899,8 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
         ::xllama::wstring_to_utf8(m_active_model.empty() ? m_model_filename : m_active_model);
     auto dispatcher = m_root.Dispatcher();
 
-    std::thread([self, full_prompt, delta_prompt, do_reuse, kv_reuse, model, dispatcher]() {
+    std::thread([self, full_prompt, delta_prompt, do_reuse, kv_reuse, ep_kv_ok, model,
+                 dispatcher]() {
         try {
             std::string load_err;
             if (!self->EnsureSession(model, &load_err)) {
@@ -1961,10 +1973,11 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                                                                           : res.error_msg);
             }
 
-            std::string output_text = res.output_text;
+            std::string output_text = ::xllama::strip_empty_thinking_tags(res.output_text);
             bool was_aborted = self->m_abort.load();
             dispatcher.RunAsync(
-                CoreDispatcherPriority::Normal, [self, metrics, res, output_text, was_aborted]() {
+                CoreDispatcherPriority::Normal, [self, metrics, res, output_text, was_aborted,
+                                                 ep_kv_ok]() {
                     self->m_metricsText.Text(metrics);
                     self->SetStatus(was_aborted ? L"Cancelled" : (res.success ? L"Done" : L"Error"),
                                     was_aborted
@@ -1974,7 +1987,7 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                     // KV-reuse bookkeeping: the persistent generator now holds this
                     // turn only if it completed cleanly. On failure or abort, force a
                     // fresh generator (full re-prefill) next turn.
-                    if (self->m_kv_reuse && res.success && !was_aborted) {
+                    if (self->m_kv_reuse && res.success && !was_aborted && ep_kv_ok) {
                         self->m_kv_valid = true;
                         self->m_kv_last_ended_with_stop = res.ended_with_stop;
                     } else {

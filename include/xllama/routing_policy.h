@@ -59,4 +59,11 @@ inline bool kv_reuse_allowed_for_kind(const std::wstring& kind) {
     return kind != L"gguf";
 }
 
+// ORT GenAI continuous decoding (KV reuse) is CPU-only today; DirectML rejects
+// AppendTokenSequences on a persistent generator ("Continuous decoding is not
+// supported on the selected device type (DirectML)").
+inline bool kv_reuse_supported_for_model(const std::string& active_model) {
+    return active_model.find("dml") == std::string::npos;
+}
+
 } // namespace xllama

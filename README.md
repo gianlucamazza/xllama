@@ -6,7 +6,7 @@
 [![build-linux](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Status:** v1.1.4.0 shipping (unified + PatchedGenAI) · research-grade
+**Status:** v1.1.5.0 shipping (unified + PatchedGenAI) · research-grade
 **Maintainer:** [Venere Labs](https://github.com/gianlucamazza)
 
 ---

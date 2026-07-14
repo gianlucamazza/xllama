@@ -82,6 +82,8 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     std::string BuildChatMLPrompt(const std::string& user_text, int* out_dropped = nullptr) const;
     // Only the new turn's ChatML tokens, appended to the reused KV cache.
     std::string BuildDeltaPrompt(const std::string& user_text) const;
+    // Model-specific suffix after <|im_start|>assistant (e.g. Qwen no-think prefill).
+    std::string AssistantGenSuffix() const;
     void LoadSettings();
     void SaveSettings();
     winrt::fire_and_forget ShowSettings();

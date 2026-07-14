@@ -7,6 +7,37 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [1.1.5.0] - 2026-07-14
+
+### Added
+
+- **`include/xllama/chat_prompt.h`** — Qwen no-think generation suffix and empty
+  `</think>` stripping; unit tests in `test_chat_prompt.cpp`.
+- **`kv_reuse_supported_for_model()`** in `routing_policy.h` — DML EP gate for
+  continuous decoding.
+
+### Fixed
+
+- **GPU/DML multi-turn**: KV reuse disabled on `*-dml-*` models — ORT GenAI rejects
+  `AppendTokenSequences` on a persistent DirectML generator (*"Continuous decoding is
+  not supported on the selected device type (DirectML)"*); avoids per-turn fallback
+  and spurious failures.
+- **Qwen3.5 GGUF**: append Qwen no-think prefill after `<|im_start|>assistant` and
+  strip leading empty think blocks from saved/displayed assistant text.
+- **`validate-console.sh routing`**: remove `ap-routing-longctx` decoy chat after the
+  test so the seeded *"Understood; ready to continue."* assistant turn does not linger
+  in History.
+
+### Changed
+
+- Package version **1.1.5.0**.
+
+---
+
+## [1.1.4.0] - 2026-07-14
+
 ### Added
 
 - **`include/xllama/routing_policy.h`** — extracted per-workload routing decision

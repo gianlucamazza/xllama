@@ -1,6 +1,6 @@
 # xllama Roadmap
 
-**Shipping (2026-07-14):** MSIX **1.1.4.0** — `xllama-appx` from `build-uwp.yml`
+**Shipping (2026-07-14):** MSIX **1.1.5.0** — `xllama-appx` from `build-uwp.yml`
 (unified ORT + llama.cpp + PatchedGenAI #2280). Console gates:
 `validate-console.sh all` → **ALL PASS** (routing, GGUF `lfm25-350m`, TAESD).
 Catalogue `models-v1` includes `smollm2-360m-dml-fp16` (~691 MB merged) for
@@ -234,7 +234,7 @@ validation gates, patched GenAI in XAML.
       `bench/configs/settings-modern.json`.
 - [x] **Interactive validations** — autopilot + `validate-console.sh all` →
       **ALL PASS** on console 2026-07-14 (routing, GGUF `lfm25-350m`, TAESD §7c).
-      Shipping MSIX **1.1.4.0** (unified + PatchedGenAI) CI-green and deployed.
+      Shipping MSIX **1.1.5.0** (unified + PatchedGenAI) CI-green and deployed.
 - [x] Closure benches: int4 `block_size=128` / `accuracy_level=4` (§12
       confirm/refute) — closed inconclusive (PR #29, §12 stands)
 - [x] Fase 2: catalogue `kind:gguf` → `sp.backend`, gate KV-reuse/routing off

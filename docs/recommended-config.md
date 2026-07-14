@@ -132,7 +132,7 @@ ctest --test-dir build/linux-test --output-on-failure
 
 ## Validation checklist
 
-1. Deploy the default **`xllama-appx`** CI artifact (unified + PatchedGenAI #2280, currently **1.1.4.0**)
+1. Deploy the default **`xllama-appx`** CI artifact (unified + PatchedGenAI #2280, currently **1.1.5.0**)
 2. Ensure models are provisioned (`smollm2-360m-dml-fp16` for routing — catalogue or WDP;
    `sd-turbo-fp16` + TAESD asset for §7c). MSIX **uninstall** wipes LocalState.
 3. Remove `bench.flag` from LocalState if `install-latest-build.sh` left it behind

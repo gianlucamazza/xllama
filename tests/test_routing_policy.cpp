@@ -86,3 +86,8 @@ TEST_CASE("capability gates") {
     CHECK(kv_reuse_allowed_for_kind(L"ort-genai"));
     CHECK_FALSE(kv_reuse_allowed_for_kind(L"gguf"));
 }
+
+TEST_CASE("kv reuse: dml ep disabled") {
+    CHECK(kv_reuse_supported_for_model("smollm2-360m-cpu-int4"));
+    CHECK_FALSE(kv_reuse_supported_for_model("smollm2-360m-dml-fp16"));
+}

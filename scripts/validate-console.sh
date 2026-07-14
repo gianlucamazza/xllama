@@ -266,6 +266,25 @@ JSON
 	else
 		echo "  ok: no 887A0036 (patched DLL works in XAML)"
 	fi
+	# Remove the decoy chat so "Understood; ready to continue." does not linger in
+	# the History list after a validation run.
+	delete_file "${esca_id}.json" "chats"
+	fetch_file "index.json" "${TMPDIR_LOCAL}/index-after.json" "chats"
+	python3 - "$TMPDIR_LOCAL" "$esca_id" <<'PY'
+import json, sys
+tmp, cid = sys.argv[1], sys.argv[2]
+path = f"{tmp}/index-after.json"
+try:
+    idx = json.load(open(path))
+except Exception:
+    idx = []
+if isinstance(idx, list):
+    idx = [e for e in idx if e.get("id") != cid]
+    open(path, "w").write(json.dumps(idx, ensure_ascii=False))
+PY
+	upload_file "${TMPDIR_LOCAL}/index-after.json" "chats" "index.json"
+	echo "  ok: removed decoy chat ${esca_id}"
+
 	[[ $verdict -eq 0 ]] && echo "§2 routing: PASS" || echo "§2 routing: FAIL"
 	return $verdict
 }
