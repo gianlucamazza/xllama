@@ -77,7 +77,7 @@ index 128883b41..8496adb5c 100644
          if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
                          TEXT("HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0"),
 diff --git a/src/llama-mmap.cpp b/src/llama-mmap.cpp
-index ed572da7f..a577b1db0 100644
+index ed572da7f..584f6a9ce 100644
 --- a/src/llama-mmap.cpp
 +++ b/src/llama-mmap.cpp
 @@ -540,14 +540,27 @@ struct llama_mmap::impl {
@@ -109,7 +109,19 @@ index ed572da7f..a577b1db0 100644
          DWORD error = GetLastError();
  
          if (addr == NULL) {
-@@ -679,7 +692,7 @@ struct llama_mlock::impl {
+@@ -556,7 +569,10 @@ struct llama_mmap::impl {
+         }
+ 
+         if (prefetch > 0) {
+-#if _WIN32_WINNT >= 0x602
++#if _WIN32_WINNT >= 0x602 && (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP))
++            // PrefetchVirtualMemory / WIN32_MEMORY_RANGE_ENTRY are desktop-partition
++            // only; skip the prefetch hint on the AppContainer (the mapping itself
++            // still works via the *FromApp APIs above).
+             BOOL (WINAPI *pPrefetchVirtualMemory) (HANDLE, ULONG_PTR, PWIN32_MEMORY_RANGE_ENTRY, ULONG);
+             HMODULE hKernel32 = GetModuleHandleW(L"kernel32.dll");
+ 
+@@ -679,7 +695,7 @@ struct llama_mlock::impl {
              LLAMA_LOG_WARN("warning: failed to munlock buffer: %s\n", std::strerror(errno));
          }
      }
@@ -118,7 +130,7 @@ index ed572da7f..a577b1db0 100644
      static size_t lock_granularity() {
          SYSTEM_INFO si;
          GetSystemInfo(&si);
-@@ -768,7 +781,7 @@ llama_mlock::~llama_mlock() = default;
+@@ -768,7 +784,7 @@ llama_mlock::~llama_mlock() = default;
  void llama_mlock::init(void * ptr) { pimpl->init(ptr); }
  void llama_mlock::grow_to(size_t target_size) { pimpl->grow_to(target_size); }
  
