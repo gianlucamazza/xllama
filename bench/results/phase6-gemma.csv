@@ -1,0 +1,3 @@
+model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,host,date
+gemma3-270m,Q4_K_M,cpu,2048,6,394.98,76.78,368,1095,0,0,xbox-series-s-t6,2026-07-14T10:48:30Z
+gemma4-e2b,IQ2_M,cpu,2048,6,13.49,9.88,2534,6169,0,0,xbox-series-s-t6,2026-07-14T10:53:41Z

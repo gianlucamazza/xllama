@@ -105,6 +105,19 @@
       ]
     },
     {
+      "_comment": "Gemma-4-E2B (llama.cpp gemma4 arch). Console-validated 2026-07-14: loads (peak RAM 2534 MB, no OOM — the ~2GB Dev Mode per-file limit does not apply to GGUF), decode ~9.9 tok/s @ t6. Heavy/advanced: 2.29 GB IQ2_M, ~6-24s load (no mmap), a 512-token prompt at temp 0.8 can EOG immediately (2-bit); short prompts generate fine. Direct from HF (>2GB exceeds the GitHub release 2GB asset limit; Gemma Terms apply — verify before mirroring).",
+      "name": "gemma4-e2b",
+      "display": "Gemma 4 E2B (GGUF · CPU · 2.3 GB, advanced)",
+      "kind": "gguf",
+      "hf_base_url": "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main",
+      "files": [
+        {
+          "filename": "gemma-4-E2B-it-UD-IQ2_M.gguf",
+          "approx_bytes": 2290858112
+        }
+      ]
+    },
+    {
       "name": "lfm25-350m",
       "display": "LFM2.5 350M (GGUF · CPU)",
       "kind": "gguf",

@@ -170,7 +170,7 @@ on-console decode/prefill benches pending.
 | LFM2.5-350M      | llama.cpp | 218 MB               | ✅ loads via submodule; hybrid edge arch                                 |
 | Qwen3-0.6B       | ORT GenAI | 969 MB merged        | ✅ builds; heavy (151k-vocab embedding dominates)                        |
 | Gemma-3-270M     | llama.cpp | 253 MB               | ✅ loads+generates via GGUF (`gemma3-270m`); catalogue entry added, fits |
-| Gemma-4-E2B      | llama.cpp | 2.29–3.1 GB          | ✅ `gemma4` arch loads; feasibility candidate (see below)                |
+| Gemma-4-E2B      | llama.cpp | 2.29 GB (IQ2_M)      | ✅ **console-validated** (`gemma4-e2b`): loads, ~9.9 tok/s (see below)   |
 | Gemma-4 E4B/12B+ | llama.cpp | ≥4.5 GB              | ⛔ too big / too slow for the console                                    |
 
 **Gemma chat template**: the ORT GenAI _builder_ is frozen at Gemma3, but the
@@ -182,15 +182,22 @@ now selects the Gemma template (`<start_of_turn>…<end_of_turn>`, no system rol
 stop `<end_of_turn>`, `<bos>` via `add_bos`) by model id, so any `gemma*` GGUF
 gets the right template with zero per-model code.
 
-**Gemma-4-E2B verdict** (revised): the "too big" call was based on the old
-~2.5 GB disk budget, superseded — Dev Mode disk is now 90 GB (`uwp-constraints.md §9`),
-so disk is no longer the constraint. E2B is ~5B raw params (2B effective, MatFormer);
-the smallest usable quant is UD-IQ2_M at 2.29 GB, Q3_K_S 2.45 GB, Q4_K_M 3.1 GB.
-Host-dev (i7-1165G7): loads, coherent output, decode 3.8 tok/s, 2.35 GB RAM. The
-open on-console questions are (a) the community-reported ~2 GB Dev Mode **per-file
-limit** — every E2B quant exceeds it and none has been tested on this Xbox — and
-(b) RAM under the Game budget + acceptable decode speed. Provision via USB /
-Device Portal (not MSIX). See `docs/benchmarks.md` for the full comparison.
+**Gemma-4-E2B verdict** (console-validated 2026-07-14, MSIX 1.1.6.0): the "too
+big" call is **overturned**. E2B is ~5B raw params (2B effective, MatFormer);
+UD-IQ2_M is 2.29 GB. Measured on Xbox Series S Dev Mode:
+
+- ✅ **The ~2 GB Dev Mode per-file limit does not apply to GGUF** — a 2.29 GB
+  single `.gguf` uploaded via Device Portal and loaded; **peak RAM 2534 MB**, no
+  OOM under the Game budget.
+- ✅ **Generates**: decode **9.9 tok/s** @ t6 (faster than the i7-1165G7 host's
+  3.8), coherent short answers ending on `<end_of_turn>`.
+- ⚠️ **Load is slow**: 6–24 s (2.3 GB heap read, `use_mmap=false`).
+- ⚠️ A ~512-token prompt at temp 0.8 can emit EOG immediately (2-bit quant);
+  short prompts generate normally. A Q3_K_S (2.45 GB) would trade size for quality.
+
+Disk was never the real constraint (Dev Mode is now 90 GB, `uwp-constraints.md §9`).
+Catalogue entry `gemma4-e2b` downloads from HF (2.29 GB > the GitHub release 2 GB
+asset limit). See `docs/benchmarks.md` for the full comparison.
 
 Backend selection is by `SessionParams::backend` (explicit values take
 precedence in dual-backend builds). `Auto` (default) uses either a `.gguf`

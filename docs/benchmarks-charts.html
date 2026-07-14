@@ -205,8 +205,8 @@
     <section class="panel">
       <div class="panel-head">
         <div>
-          <h2>Gemma — arch-validated, console benches pending</h2>
-          <p class="cap">Host-dev sanity (Intel i7-1165G7, not Xbox). Both load on the pinned llama.cpp.</p>
+          <h2>Gemma on Xbox — measured, "too big" overturned</h2>
+          <p class="cap">Console-validated 2026-07-14 (MSIX 1.1.6.0). Both are in the chart above.</p>
         </div>
       </div>
       <div class="gemma" id="gemma"></div>
@@ -239,11 +239,13 @@
   // On-console (Xbox Series S), best decode config per model.
   const DATA = [
     { model: "LFM2.5-350M",  quant: "Q4_K_M", be: "llama", prefill: 241.4, decode: 94.2, ram: 321,  src: "phase5-gguf" },
+    { model: "Gemma-3-270M", quant: "Q4_K_M", be: "llama", prefill: 395.0, decode: 76.8, ram: 368,  src: "phase6-gemma" },
     { model: "SmolLM2-360M", quant: "int4",   be: "ort",   prefill: 219.8, decode: 70.9, ram: 722,  src: "phase1-cpu" },
     { model: "SmolLM2-360M", quant: "Q4_K_M", be: "llama", prefill: 141.5, decode: 62.9, ram: 402,  src: "phase35-scaling" },
     { model: "SmolLM2-360M", quant: "fp16",   be: "dml",   prefill: 353.5, decode: 46.8, ram: 1154, src: "phase2-dml", tag: "routing GPU" },
     { model: "Qwen3.5-0.8B", quant: "Q4_K_M", be: "llama", prefill: 98.1,  decode: 35.1, ram: 718,  src: "phase5-gguf" },
     { model: "SmolLM2-1.7B", quant: "int4",   be: "ort",   prefill: 54.9,  decode: 20.6, ram: 2423, src: "phase35-1b" },
+    { model: "Gemma-4-E2B",  quant: "IQ2_M",  be: "llama", prefill: 13.5,  decode: 9.9,  ram: 2534, src: "phase6-gemma", tag: "2.3 GB, 2-bit" },
     { model: "SmolLM2-360M", quant: "int4",   be: "dml",   prefill: 152.8, decode: 8.8,  ram: 999,  src: "phase2-dml", tag: "int4 GPU" },
   ];
   const METRICS = {
@@ -315,15 +317,15 @@
   document.getElementById("heroStats").innerHTML = `
     <div class="stat"><p class="k">Fastest decode</p><div class="v">94.2 <small>tok/s</small></div><p class="n">${fastest.model} · llama.cpp CPU</p></div>
     <div class="stat"><p class="k">Lightest</p><div class="v">321 <small>MB</small></div><p class="n">${lightest.model} · Q4_K_M</p></div>
-    <div class="stat"><p class="k">Models benched</p><div class="v">7 <small>configs</small></div><p class="n">3 backends · 4 model families</p></div>
+    <div class="stat"><p class="k">Models benched</p><div class="v">9 <small>configs</small></div><p class="n">3 backends · 5 model families</p></div>
     <div class="stat"><p class="k">KV-reuse win</p><div class="v">4.9<small>×</small></div><p class="n">turn-2 prefill · ORT CPU</p></div>`;
 
   // gemma cards
   const GEMMA = [
-    { model: "Gemma-3-270M-it", arch: "gemma3", quant: "Q4_K_M", size: "253 MB", decode: "~40 tok/s", ram: "~0.3 GB",
-      status: ["ok", "Fits console"], note: "Catalogue entry <b>gemma3-270m</b>. Loads clean; console bench pending." },
-    { model: "Gemma-4-E2B-it", arch: "gemma4", quant: "UD-IQ2_M", size: "2.29 GB", decode: "3.8 tok/s", ram: "2.35 GB",
-      status: ["warn", "Feasibility"], note: "Coherent output. Gated on the ~2 GB per-file Dev Mode limit + RAM." },
+    { model: "Gemma-3-270M-it", arch: "gemma3", quant: "Q4_K_M", size: "253 MB", decode: "76.8 tok/s", ram: "368 MB",
+      status: ["ok", "Console ✓"], note: "Catalogue entry <b>gemma3-270m</b>. Fast, tiny chat model; Gemma template applied on-device." },
+    { model: "Gemma-4-E2B-it", arch: "gemma4", quant: "IQ2_M", size: "2.29 GB", decode: "9.9 tok/s", ram: "2534 MB",
+      status: ["ok", "Console ✓"], note: "A 2.29 GB single GGUF loads — the ~2 GB Dev Mode per-file limit does not apply to GGUF. Slow load (6–24 s); 2-bit." },
   ];
   document.getElementById("gemma").innerHTML = GEMMA.map(g => `
     <div class="gcard">

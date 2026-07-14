@@ -62,26 +62,33 @@ GGUF/llama.cpp is stateless on-console).
 TAESD (4.9 MB tiny VAE) targets the 2.6 s VAE stage → ~4.5 s/image (see
 `docs/model-selection.md`).
 
-## Gemma — arch-validated, on-console benches pending
+## Gemma — on-console (Xbox Series S, MSIX 1.1.6.0, `phase6-gemma.csv`)
 
 Added by the per-architecture chat-template work (`chat_format_for` selects the
 `<start_of_turn>…<end_of_turn>` template, stop `<end_of_turn>`). Both Gemma
-architectures **load and generate** on the pinned `llama.cpp` submodule
-(`9a532ae4b`): `general.architecture = gemma3` / `gemma4` confirmed via
-`xllama-cli`. Host-dev sanity numbers (Intel i7-1165G7 — **not** Xbox):
+architectures load and generate on the pinned `llama.cpp` (`9a532ae4b`);
+**measured on the console** 2026-07-14:
 
-| Model           | Params           | Quant    |    Size | Arch loads | Host decode tok/s | Host peak RAM | On-console                                              |
-| --------------- | ---------------- | -------- | ------: | ---------- | ----------------: | ------------: | ------------------------------------------------------- |
-| Gemma-3-270M-it | 270M             | Q4_K_M   |  253 MB | ✅ gemma3  |               ~40 |       ~0.3 GB | ✅ fits (catalogue entry `gemma3-270m`) — bench pending |
-| Gemma-4-E2B-it  | ~5B raw (2B eff) | UD-IQ2_M | 2.29 GB | ✅ gemma4  |               3.8 |       2.35 GB | ⚠️ feasibility candidate                                |
+| Model           | Params           | Quant  |    Size | Prefill tok/s | Decode tok/s | Peak RAM MB | Load ms |
+| --------------- | ---------------- | ------ | ------: | ------------: | -----------: | ----------: | ------: |
+| Gemma-3-270M-it | 270M             | Q4_K_M |  253 MB |         395.0 |     **76.8** |         368 |    1095 |
+| Gemma-4-E2B-it  | ~5B raw (2B eff) | IQ2_M  | 2.29 GB |          13.5 |          9.9 |        2534 |    6169 |
 
-**Gemma-4-E2B verdict**: loads and produces coherent output, but on the mobile
-i7 decode is 3.8 tok/s (a ~5B-raw MatFormer model at 2-bit). On-console the
-open questions are (a) the community-reported ~2 GB Dev Mode per-file limit —
-every E2B quant exceeds 2 GB (smallest 2.29 GB, never tested on this Xbox), and
-(b) RAM (~2.35 GB resident) under the Game memory budget. Disk is no longer a
-blocker (Dev Mode raised to 90 GB, 2026-07-08). E4B/12B+ are out of scope on
-size/speed. See `docs/model-selection.md` for the full survey.
+Both use the Gemma template on-device (log: `bench prompt: <start_of_turn>user
+…`). **Gemma-3-270M** is a fast, tiny chat model (76.8 tok/s, 368 MB).
+
+**Gemma-4-E2B verdict — the "too big" call is overturned:**
+
+- ✅ **The ~2 GB Dev Mode per-file limit does not apply to GGUF** — a 2.29 GB
+  single `.gguf` uploaded via Device Portal and loaded; **peak RAM 2534 MB**, no
+  OOM under the Game budget. (This was the project's main open unknown.)
+- ✅ Generates at **9.9 tok/s** @ t6 — faster than the i7-1165G7 host (3.8).
+- ⚠️ Load is slow (6–24 s, 2.3 GB heap read, `use_mmap=false`); a ~512-token
+  prompt at temp 0.8 can EOG immediately (2-bit) — short prompts generate fine.
+
+Disk was never the constraint (Dev Mode is 90 GB). E4B/12B+ stay out of scope on
+size/speed. Catalogue entry `gemma4-e2b` (downloads from HF; 2.29 GB exceeds the
+GitHub release 2 GB asset limit).
 
 ## Reproducing
 
