@@ -35,18 +35,22 @@ Notes:
 - **Routing**: Auto switches SmolLM2-360M CPU → DML fp16 above a 600-token prompt
   (`routing_policy.h`), trading decode (70.9 → 46.8) for prefill (219 → 353).
 
-## KV-cache reuse (ORT-GenAI, CPU)
+## KV-cache reuse — both backends, CPU
 
-Turn-2 prefill with continuous decoding vs a cold full re-prefill
-(`phase35-kv.csv`, SmolLM2-360M):
+Turn-2 prefill with continuous decoding vs a cold full re-prefill. Both the
+ORT-GenAI path (persistent generator) and the GGUF/llama.cpp path (persistent
+`llama_context`, `LlamaSession`) reuse the cache and append only the new turn's
+delta:
 
-|                        | Prefill turn-2 (ms) | Tokens |   Speedup |
-| ---------------------- | ------------------: | -----: | --------: |
-| Reuse (delta only)     |               103.7 |     22 | **4.87×** |
-| Cold (full re-prefill) |               505.2 |    114 |         — |
+| Backend / model                              | Reuse turn-2 (ms) | Cold turn-2 (ms) |   Speedup |
+| -------------------------------------------- | ----------------: | ---------------: | --------: |
+| ORT-GenAI · SmolLM2-360M (`phase35-kv`)      |    103.7 (22 tok) |  505.2 (114 tok) | **4.87×** |
+| llama.cpp · Gemma-3-270M (`phase6-gemma-kv`) |    107.5 (39 tok) |  437.4 (179 tok) | **4.07×** |
 
-KV-reuse is ORT-GenAI-only and CPU-only (DirectML rejects continuous decoding;
-GGUF/llama.cpp is stateless on-console).
+GGUF KV-reuse was previously disabled (llama.cpp recreated the context per turn);
+now enabled and console-measured. Routing (CPU↔GPU) stays ORT-only — the
+llama.cpp UWP build is CPU-only. DirectML still rejects continuous decoding, so
+the ORT reuse path is CPU-only.
 
 ## Diffusion — SD-Turbo fp16 (on-console, DirectML)
 
