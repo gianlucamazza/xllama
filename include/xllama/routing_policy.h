@@ -29,8 +29,8 @@ struct RoutingDecision {
 
 // Decide which model directory to load for the first turn of a conversation.
 // |gpu_available| must reflect IsModelProvisioned(gpu_model) — callers gate UX.
-inline RoutingDecision decide_routing(const RoutingSettings& s, int n_tok,
-                                      bool base_is_gguf, bool gpu_available) {
+inline RoutingDecision decide_routing(const RoutingSettings& s, int n_tok, bool base_is_gguf,
+                                      bool gpu_available) {
     RoutingDecision d;
     d.token_count = n_tok;
     if (base_is_gguf || s.mode == RoutingMode::CpuOnly) {

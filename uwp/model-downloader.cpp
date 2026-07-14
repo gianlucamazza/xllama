@@ -306,7 +306,8 @@ bool IsModelProvisioned(std::wstring const& model_name) {
         wchar_t root[512] = {};
         if (fgetws(root, static_cast<int>(std::size(root)), fp)) {
             std::wstring usb = root;
-            while (!usb.empty() && (usb.back() == L'\n' || usb.back() == L'\r' || usb.back() == L' '))
+            while (!usb.empty() &&
+                   (usb.back() == L'\n' || usb.back() == L'\r' || usb.back() == L' '))
                 usb.pop_back();
             if (!usb.empty() && usb.back() == L'\\')
                 usb.pop_back();

@@ -592,8 +592,7 @@ void MainPageController::RenderConversation() {
         label.FontWeight(winrt::Windows::UI::Text::FontWeights::Bold());
         p.Inlines().Append(label);
         Run content;
-        content.Text(::xllama::utf8_to_wstring(
-            ::xllama::strip_empty_thinking_tags(msg.content)));
+        content.Text(::xllama::utf8_to_wstring(::xllama::strip_empty_thinking_tags(msg.content)));
         if (msg.partial)
             content.Text(content.Text() + L" [cancelled]");
         p.Inlines().Append(content);
@@ -1423,9 +1422,9 @@ void MainPageController::EnsureGpuModelIfNeeded() {
     const std::wstring gpu = ::xllama::utf8_to_wstring(m_gpu_model);
     if (::xllama::IsModelProvisioned(gpu))
         return;
-    log_output(("[xllama] EnsureModel: gpu_model '" + m_gpu_model +
-                "' missing — background provision\n")
-                   .c_str());
+    log_output(
+        ("[xllama] EnsureModel: gpu_model '" + m_gpu_model + "' missing — background provision\n")
+            .c_str());
     EnsureModelNamedAsync(gpu, false);
 }
 
@@ -1441,8 +1440,8 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
     auto self = shared_from_this();
     auto dispatcher = self->m_root.Dispatcher();
 
-    log_output(("[xllama] EnsureModel: begin '" + ::xllama::wstring_to_utf8(model_name) + "'\n")
-                   .c_str());
+    log_output(
+        ("[xllama] EnsureModel: begin '" + ::xllama::wstring_to_utf8(model_name) + "'\n").c_str());
     co_await resume_background();
 
     // Check 1: LocalState model complete?
@@ -1628,8 +1627,9 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
             self->SetStatus(L"Model '" + model_name +
                                 L"' not found.\n"
                                 L"Upload to LocalState\\models\\" +
-                                model_name + L" via Device Portal or USB "
-                                               L"(see docs/model-selection.md).",
+                                model_name +
+                                L" via Device Portal or USB "
+                                L"(see docs/model-selection.md).",
                             StatusKind::Error);
             self->m_runButton.IsEnabled(false);
         }
@@ -1851,15 +1851,13 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
             SetStatus(L"GPU model '" + ::xllama::utf8_to_wstring(m_gpu_model) +
                           L"' is not on this console — staying on CPU.\n"
                           L"Upload it to LocalState\\models\\" +
-                          ::xllama::utf8_to_wstring(m_gpu_model) +
-                          L" to enable auto-routing.",
+                          ::xllama::utf8_to_wstring(m_gpu_model) + L" to enable auto-routing.",
                       StatusKind::Error);
             SetRunning(false);
             return;
         }
 
-        const auto decision =
-            ::xllama::decide_routing(rs, n_tok, base_is_gguf, gpu_provisioned);
+        const auto decision = ::xllama::decide_routing(rs, n_tok, base_is_gguf, gpu_provisioned);
         m_active_model = ::xllama::utf8_to_wstring(decision.active_model);
 
         if (m_routing == 1) {
@@ -1879,8 +1877,8 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     // turn was evicted this round (RewindTo cannot drop from the head, so eviction
     // forces a full re-prefill). A reuse turn appends only the delta; otherwise we
     // (re)prefill the full prompt — which also (re)seeds the persistent generator.
-    const std::string routed_model = ::xllama::wstring_to_utf8(
-        m_active_model.empty() ? m_model_filename : m_active_model);
+    const std::string routed_model =
+        ::xllama::wstring_to_utf8(m_active_model.empty() ? m_model_filename : m_active_model);
     const bool ep_kv_ok = ::xllama::kv_reuse_supported_for_model(routed_model);
     bool do_reuse = m_kv_reuse && m_kv_valid && n_dropped == 0 && !base_is_gguf && ep_kv_ok;
     bool kv_reuse = m_kv_reuse && !base_is_gguf && ep_kv_ok;
@@ -1975,35 +1973,34 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
 
             std::string output_text = ::xllama::strip_empty_thinking_tags(res.output_text);
             bool was_aborted = self->m_abort.load();
-            dispatcher.RunAsync(
-                CoreDispatcherPriority::Normal, [self, metrics, res, output_text, was_aborted,
-                                                 ep_kv_ok]() {
-                    self->m_metricsText.Text(metrics);
-                    self->SetStatus(was_aborted ? L"Cancelled" : (res.success ? L"Done" : L"Error"),
-                                    was_aborted
-                                        ? StatusKind::Info
-                                        : (res.success ? StatusKind::Success : StatusKind::Error));
-                    self->SetRunning(false); // also stops timer + flushes remaining tokens
-                    // KV-reuse bookkeeping: the persistent generator now holds this
-                    // turn only if it completed cleanly. On failure or abort, force a
-                    // fresh generator (full re-prefill) next turn.
-                    if (self->m_kv_reuse && res.success && !was_aborted && ep_kv_ok) {
-                        self->m_kv_valid = true;
-                        self->m_kv_last_ended_with_stop = res.ended_with_stop;
-                    } else {
-                        self->m_kv_valid = false;
-                    }
-                    // Save assistant response (partial-flagged if user aborted)
-                    if (!output_text.empty()) {
-                        xllama::ui::ChatMessage amsg;
-                        amsg.role = xllama::ui::MessageRole::Assistant;
-                        amsg.content = output_text;
-                        amsg.ts_unix = static_cast<int64_t>(std::time(nullptr));
-                        amsg.partial = was_aborted;
-                        self->m_current.messages.push_back(std::move(amsg));
-                    }
-                    self->SaveCurrentConversation(was_aborted);
-                });
+            dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, metrics, res, output_text,
+                                                                 was_aborted, ep_kv_ok]() {
+                self->m_metricsText.Text(metrics);
+                self->SetStatus(was_aborted ? L"Cancelled" : (res.success ? L"Done" : L"Error"),
+                                was_aborted
+                                    ? StatusKind::Info
+                                    : (res.success ? StatusKind::Success : StatusKind::Error));
+                self->SetRunning(false); // also stops timer + flushes remaining tokens
+                // KV-reuse bookkeeping: the persistent generator now holds this
+                // turn only if it completed cleanly. On failure or abort, force a
+                // fresh generator (full re-prefill) next turn.
+                if (self->m_kv_reuse && res.success && !was_aborted && ep_kv_ok) {
+                    self->m_kv_valid = true;
+                    self->m_kv_last_ended_with_stop = res.ended_with_stop;
+                } else {
+                    self->m_kv_valid = false;
+                }
+                // Save assistant response (partial-flagged if user aborted)
+                if (!output_text.empty()) {
+                    xllama::ui::ChatMessage amsg;
+                    amsg.role = xllama::ui::MessageRole::Assistant;
+                    amsg.content = output_text;
+                    amsg.ts_unix = static_cast<int64_t>(std::time(nullptr));
+                    amsg.partial = was_aborted;
+                    self->m_current.messages.push_back(std::move(amsg));
+                }
+                self->SaveCurrentConversation(was_aborted);
+            });
         } catch (const std::exception& ex) {
             ::xllama::log_output(std::string("[xllama] thread terminated: ") + ex.what() + "\n");
             dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self]() {
