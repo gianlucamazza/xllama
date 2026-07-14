@@ -265,8 +265,8 @@ See [ROADMAP.md](./ROADMAP.md). Headlines:
 2. **Phase 2 — GPU acceleration** ✅ GPU proven; verdict per-workload (CPU decode, GPU prefill/images).
 3. **Phase 3 / 3.5 — Benchmarks + hardware ceiling** ✅ Measured matrices, routing, KV reuse, llama.cpp A/B (parity), diffusion on console.
 4. **Phase 4 — In-app model download + publication** ✅ Catalogue download, v1.0.0 release, technical report (demo video pending).
-5. **Phase 5 — Post-1.0 improvements** ✅ Shipping `xllama-appx` = unified+PatchedGenAI;
-   `validate-console.sh all` → ALL PASS on console (2026-07-14). Demo video still open.
+5. **Phase 5 — Post-1.0 improvements** ✅ Unified+PatchedGenAI shipping; console gates ALL PASS.
+6. **Phase 6 — Publication + polish** 🔮 Demo video, optional catalogue assets (see [ROADMAP.md](./ROADMAP.md)).
 
 ---
 

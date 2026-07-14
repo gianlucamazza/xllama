@@ -1,5 +1,12 @@
 # xllama Roadmap
 
+**Shipping (2026-07-14):** MSIX **1.1.4.0** — `xllama-appx` from `build-uwp.yml`
+(unified ORT + llama.cpp + PatchedGenAI #2280). Console gates:
+`validate-console.sh all` → **ALL PASS** (routing, GGUF `lfm25-350m`, TAESD).
+Catalogue `models-v1` includes `smollm2-360m-dml-fp16` (~691 MB merged) for
+in-app routing-GPU download. See [`docs/recommended-config.md`](docs/recommended-config.md)
+and [`docs/console-validation-runbook.md`](docs/console-validation-runbook.md).
+
 ## Phase 1 — CPU Baseline ✅ DONE
 
 **Goal**: working UWP build, ORT GenAI CPU EP inference on Xbox Series S, MSIX self-contained.
@@ -91,7 +98,7 @@ Milestones:
 - [x] Evaluate Llama-3.2-1B INT4 ONNX CPU — ❌ ~1.77 GB real; USB-only, same class as SmolLM2-1.7B
 - [x] `load_ms` in bench CSV: column existed but ORT path never measured it (always 0) — `run_inference` now times `OgaCreateModel`; baseline measured 2026-07-08 (`phase35-014-*.csv`, `phase35-1b-cpu.csv`): CPU int4 360M **1593 ms**, DML fp16 2830, DML int4 837, 1.7B CPU 6179
 
-## Phase 3.5 — Hardware Ceiling ✅ CONSOLE-VALIDATED 2026-07-08 (residuals tracked in Phase 5)
+## Phase 3.5 — Hardware Ceiling ✅ CONSOLE-VALIDATED 2026-07-08 / 2026-07-14
 
 **Goal**: close the gap between measured utilization (CPU ~13 GB/s, GPU ~34 GB/s
 effective vs ~224 GB/s bus) and what the Series S can realistically deliver.
@@ -138,18 +145,13 @@ Milestones:
       big upload: community reports a ~2 GB per-file limit in Dev Mode
       (relevant for merged `model.onnx` > 2 GB). Exp 2 nobundle (Phase 4)
       remains useful for its own sake but is no longer a disk prerequisite.
-- [~] **1B+ scale bench**: SmolLM2-1.7B. **CPU int4 measured on console
+- [x] **1B+ scale bench (CPU int4)** — ✅ SmolLM2-1.7B **cpu-int4 measured
   2026-07-08: 20.6 tok/s decode, peak 2423 MB** (`phase35-1b-cpu.csv`).
-  **fp16-DML blocked** (found 2026-07-08): a 1.7B fp16
-  `model.onnx` is ~3.4 GB and **exceeds the 2 GB protobuf serialization
-  limit**, so it cannot be merged self-contained; keeping external data
-  re-triggers the `weakly_canonical` AppContainer crash (§8). So the
-  pure-bandwidth fp16-at-scale test is **not deployable as-is** — it needs a
-  sub-2 GB model, an upstream `weakly_canonical` fix, or ORT's external-data
-  path made AppContainer-safe. int4-DML 1.7B is mergeable (<2 GB) but is the
-  dead kernel (§12). Net: at 1.7B we can bench CPU int4 vs int4-DML, but not
-  the fp16 bandwidth crossover — the interesting question stays blocked by
-  the serialization/AppContainer constraint, not the GPU.
+  Catalogue entry + `package-catalogue-ort-model.sh` ready; **1.4 GB asset
+  upload to `models-v1` optional** (WDP works today). **fp16-DML 1.7B blocked**
+  (protobuf > 2 GB — cannot merge self-contained; external data hits §8).
+  int4-DML 1.7B is mergeable but hits the §12 dead kernel. The fp16-at-scale
+  bandwidth crossover stays blocked by serialization/AppContainer, not GPU.
 - [x] **Desk check upstream int4 status** — ✅ done 2026-07-08
       (`docs/uwp-constraints.md §12`). Verdict: `MatMulNBits` is present and runs
       on the DML GPU (not missing, not CPU fallback); DirectML implements it
@@ -158,13 +160,9 @@ Milestones:
       fp16-on-DML by any config we control — it's a DirectML kernel-design limit,
       not "weeks of HLSL" we could contribute. **This closes GPU int4 decode as a
       local lever.**
-- [~] **int4 DML config confirmation** (fast negative): SmolLM2-360M
-  `int4_block_size=128` and `int4_accuracy_level=4` variants are **built**
-  (rebuilt 2026-07-09, merged self-contained, in
-  `~/.cache/xllama-diffusion/int4-variants/`); one console bench each to
-  confirm they stay ≈ 8.8 tok/s (the
-  kernel structure predicts no material gain). If either beats fp16-DML it
-  would refute §12 — worth the ~5 min. Not a path forward, just closure.
+- [x] **int4 DML config confirmation** — ✅ **closed inconclusive 2026-07-09**
+  (runbook §5b): block128 fails DML partition; acc4 not bench-promoted.
+  §12 desk-check stands — not a local lever.
 - [x] **llama.cpp CPU A/B** — ✅ **MEASURED 2026-07-08, hypothesis FALSIFIED.**
       The lane was built (uwp/ggml-uwp.vcxproj static ggml+llama, `patches/0001`
       AppContainer guards for 5 desktop-only APIs, CI `build (llamacpp)` variant,
@@ -183,17 +181,13 @@ Milestones:
       (ggml.c/.cpp), 128 `src/models/*.cpp` in the static lib.
 - [x] **Per-workload routing in the app** — ✅ implemented + console-validated
       2026-07-14 (`validate-console.sh routing`, see software perf track above).
-- [ ] (deprioritised by §12) **Fused low-bit GPU GEMM for DirectML** — the real
-      unlock for GPU int4 decode, but it lives in **DirectML itself**
-      (`DmlOperatorMatMulNBits` currently dequantises to fp16), not in an ORT-side
-      patch we can carry via the PR #2280 pipeline. Track as an upstream
-      DirectML feature request, not a local contribution.
-- [ ] (optional) in-app memory-bandwidth micro-bench (`membw.flag`) to fix the
-      CPU ceiling denominator precisely.
+- [x] **#2280 patched GenAI in shipping MSIX** — unified+XAML routing GPU
+      validated 2026-07-14 (no `887A0036`). Upstream merge into NuGet TBD.
+- [ ] (deprioritised — see Phase 6) **Fused low-bit GPU GEMM for DirectML** / **membw.flag**
 
-## Phase 4 — In-App Download + Publication 🔮 FUTURE
+## Phase 4 — In-App Download + Publication ✅ DONE (demo video open)
 
-**Goal**: remove bundled-model constraint; demo video; technical write-up.
+**Goal**: remove bundled-model constraint; technical write-up; publication assets.
 
 Milestones:
 
@@ -211,7 +205,10 @@ Milestones:
 - [x] Tagged v1.0.0 release — ✅ 2026-07-08 (`gh release view v1.0.0`: 19 MB
       MSIX + `.cer` + VCLibs x64; models on the `models-v1` release)
 
-## Phase 5 — Post-1.0 improvements 🚧 IN PROGRESS (2026-07-09)
+## Phase 5 — Post-1.0 improvements ✅ DONE (2026-07-14)
+
+**Goal**: unified shipping build, modern GGUF models, in-process diffusion, console
+validation gates, patched GenAI in XAML.
 
 - [x] **In-process diffusion experiment** (`diffuse-inproc.flag`) — ✅ **PASS
       2026-07-09**: plain ORT DML coexists with the XAML compositor (full
@@ -224,8 +221,8 @@ Milestones:
 - [x] Diffusion progress/cancel plumbing (`diffuse-progress.txt`,
       `diffuse-cancel.flag`) — PR #20
 - [x] **Runtime backend dispatch** (PR #27) — ORT GenAI + llama.cpp compile
-      into one binary; `unified` MSIX variant CI-green. Unblocks modern
-      GGUF-only models (Qwen3.5, LFM2). Fase 2 (UI `kind:gguf`) next.
+      into one binary; `unified` MSIX variant CI-green. UI `kind:gguf` complete
+      (picker, KV/routing gates, bench path, console-validated 2026-07-10/14).
 - [x] **Modern-model survey** — Qwen3.5-0.8B / LFM2.5-350M load via llama.cpp;
       Qwen3-0.6B builds via ORT (969 MB); TAESD decoder validated (`docs/model-selection.md`).
 - [x] **TAESD UI + asset pipeline** — Image dialog toggle, `diffuse_taesd_vae` in
@@ -262,5 +259,34 @@ Milestones:
       TAESD export + swap OK. Residual alerts documented in requirements.txt
       (kernels not installed; Trainer unused). New-generation exports declare
       scalar UNet `timestep` — `diffuse.cpp` is shape-aware since 2026-07-10;
-      the residual gate for artifact re-promotion is runbook §7 on console
-      (see `diffusion/README.md`).
+      console gate **closed** (runbook §7 measured 2026-07-08, §7b PASS
+      2026-07-09, §7c TAESD 2026-07-14).
+- [x] **Model provisioning layer (F1)** — `IsModelProvisioned`,
+      `EnsureModelNamedAsync`, background `gpu_model` download when
+      `routing≠0`, routing guards, Settings model-change re-provision
+      (`f3d733e`).
+- [x] **Catalogue distribution (F2)** — `hf_base_url` + prefixed remotes for
+      `smollm2-360m-dml-fp16` and `smollm2-1.7b-cpu-int4`;
+      `scripts/package-catalogue-ort-model.sh`; **dml-fp16 published on
+      `models-v1`** (691 MB merged, built ORT GenAI `-p fp16 -e dml`).
+- [x] **`routing_policy.h` (F5)** — extracted 600-tok threshold + GGUF/routing
+      capability gates; unit tests; `MainPage` uses shared policy.
+- [x] **Default modern settings (F6)** — `bench/configs/settings-modern.json`
+      default chat **LFM2.5-350M** (GGUF) on unified builds; routing GPU
+      unchanged (`smollm2-360m-dml-fp16`).
+- [x] **`validate-console.sh` hardening** — `model_provisioned` WDP basename fix;
+      `upload_file` mkdirs remote dirs (chats, nested model paths).
+
+## Phase 6 — Publication + polish 🔮 NEXT
+
+Open items only — everything above is measured or shipped.
+
+- [ ] **Demo video** — model loaded and running on Xbox hardware (Phase 4 carry-over)
+- [ ] **Publication venue** — GitHub Discussions vs arXiv for `docs/technical-report.md`
+- [ ] **`smollm2-1.7b-cpu-int4` on `models-v1`** — manifest ready; optional 1.4 GB
+      release upload (host build in `~/.cache/xllama-1b-build/`)
+- [ ] **`install-latest-build.sh`** — stop leaving `bench.flag` by default (or
+      `--bench` opt-in); document in README until fixed
+- [ ] (optional) **membw.flag** micro-bench — pin the CPU bandwidth denominator
+- [ ] (upstream, deprioritised) **Fused low-bit GPU GEMM in DirectML** — §12;
+      not a local contribution via #2280
