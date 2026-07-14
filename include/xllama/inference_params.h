@@ -6,6 +6,7 @@
 #include <atomic>
 #include <functional>
 #include <string>
+#include <vector>
 
 namespace xllama {
 
@@ -20,6 +21,14 @@ struct InferenceParams {
     int n_threads = 0; // 0 = auto-detect
     float temperature = 0.8f;
     uint32_t seed = 0xFFFFFFFF; // 0xFFFFFFFF = LLAMA_DEFAULT_SEED
+
+    // Stop strings: generation ends (and the match is trimmed from output_text)
+    // when the accumulated output ends with any of these. Empty = stop on EOG /
+    // n_predict only. Used by the CLI --chat mode and the GGUF bench.
+    std::vector<std::string> stop_sequences;
+
+    // CLI --chat: wrap `prompt` with the model's chat template before inference.
+    bool chat_template = false;
 
     // UI callbacks (optional). Called from the inference thread — must marshal
     // to the UI thread before touching XAML controls.

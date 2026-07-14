@@ -22,6 +22,8 @@ static void print_help(const char* prog) {
                  "  -t, --threads <N>    Thread count; 0 = auto (default: 0)\n"
                  "      --temp <float>   Sampling temperature (default: 0.8)\n"
                  "      --seed <int>     RNG seed; 0 = random (default: 0)\n"
+                 "      --chat           Wrap the prompt with the model's chat template\n"
+                 "                       (ChatML/Gemma by model name) and stop on its stop token\n"
                  "  -h, --help           Show this message\n",
                  prog);
 }
@@ -42,6 +44,7 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
                                               {"threads", required_argument, nullptr, 't'},
                                               {"temp", required_argument, nullptr, 1},
                                               {"seed", required_argument, nullptr, 2},
+                                              {"chat", no_argument, nullptr, 3},
                                               {"help", no_argument, nullptr, 'h'},
                                               {nullptr, 0, nullptr, 0}};
 
@@ -68,6 +71,9 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             break;
         case 2:
             out.seed = static_cast<uint32_t>(std::atoi(optarg));
+            break;
+        case 3:
+            out.chat_template = true;
             break;
         case 'h':
             print_help(argv[0]);
