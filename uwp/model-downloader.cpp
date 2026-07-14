@@ -263,8 +263,6 @@ std::vector<ManifestEntry> read_manifest_file(std::wstring const& path) {
     return parse_manifest(winrt::hstring(utf8_to_wstring(bytes)));
 }
 
-namespace {
-
 bool dir_has_ort_or_gguf(const std::filesystem::path& dir) {
     std::error_code ec;
     if (std::filesystem::exists(dir / L"genai_config.json", ec))
