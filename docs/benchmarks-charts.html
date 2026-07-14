@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Generated benchmark dashboard — self-contained, no external assets. Data source: bench/results/*.csv. See docs/benchmarks.md. -->
+</head><body>
+<title>xllama — Model Benchmarks (Xbox Series S)</title>
+<style>
+  :root {
+    color-scheme: light;
+    --plane:        #f7f8f7;
+    --surface:      #fdfdfc;
+    --ink:          #0c0f0e;
+    --ink-2:        #51554f;
+    --muted:        #8a8d86;
+    --grid:         #e6e7e1;
+    --baseline:     #c6c8bf;
+    --ring:         rgba(12,15,14,0.10);
+    /* backends (categorical, validated) */
+    --b-llama:      #2a78d6;  /* llama.cpp CPU */
+    --b-ort:        #1baf7a;  /* ORT-GenAI CPU */
+    --b-dml:        #eda100;  /* ORT DirectML */
+    --accent:       #2a78d6;
+    --shadow:       0 1px 2px rgba(12,15,14,.05), 0 8px 24px -12px rgba(12,15,14,.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --plane:    #0c0d0c;
+      --surface:  #171917;
+      --ink:      #f4f5f0;
+      --ink-2:    #bcbfb4;
+      --muted:    #8a8d86;
+      --grid:     #2a2c28;
+      --baseline: #3a3d37;
+      --ring:     rgba(255,255,255,0.10);
+      --b-llama:  #3987e5;
+      --b-ort:    #199e70;
+      --b-dml:    #c98500;
+      --accent:   #3987e5;
+      --shadow:   0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --plane:#0c0d0c; --surface:#171917; --ink:#f4f5f0; --ink-2:#bcbfb4; --muted:#8a8d86;
+    --grid:#2a2c28; --baseline:#3a3d37; --ring:rgba(255,255,255,0.10);
+    --b-llama:#3987e5; --b-ort:#199e70; --b-dml:#c98500; --accent:#3987e5;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .wrap {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--plane);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: clamp(20px, 4vw, 56px) clamp(16px, 4vw, 40px) 64px;
+    line-height: 1.5;
+  }
+  .mono { font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace; }
+  .shell { max-width: 940px; margin: 0 auto; }
+
+  header.head { margin-bottom: 28px; }
+  .eyebrow {
+    font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace;
+    font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--muted); margin: 0 0 10px;
+  }
+  h1 {
+    font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace;
+    font-weight: 650; font-size: clamp(24px, 4.4vw, 36px); letter-spacing: -0.01em;
+    margin: 0 0 8px; text-wrap: balance;
+  }
+  .sub { color: var(--ink-2); max-width: 62ch; margin: 0; font-size: 15px; }
+
+  .hero-stats { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0 8px; }
+  .stat {
+    background: var(--surface); border: 1px solid var(--ring); border-radius: 12px;
+    padding: 14px 18px; box-shadow: var(--shadow); flex: 1 1 150px; min-width: 150px;
+  }
+  .stat .k { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin: 0 0 6px; }
+  .stat .v { font-family: ui-monospace, "Cascadia Code", Menlo, monospace; font-size: 26px; font-weight: 650; letter-spacing: -0.02em; }
+  .stat .v small { font-size: 13px; color: var(--ink-2); font-weight: 500; }
+  .stat .n { font-size: 12.5px; color: var(--ink-2); margin-top: 3px; }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--ring); border-radius: 16px;
+    box-shadow: var(--shadow); padding: clamp(16px, 3vw, 26px); margin-top: 22px;
+  }
+  .panel-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 6px; }
+  .panel-head h2 { font-size: 17px; margin: 0; font-weight: 620; letter-spacing: -0.01em; }
+  .panel-head .cap { font-size: 13px; color: var(--muted); margin: 0; }
+
+  .seg { display: inline-flex; background: var(--plane); border: 1px solid var(--ring); border-radius: 10px; padding: 3px; gap: 2px; }
+  .seg button {
+    font: inherit; font-size: 13px; font-weight: 550; border: 0; background: transparent; color: var(--ink-2);
+    padding: 6px 13px; border-radius: 7px; cursor: pointer; transition: background .15s, color .15s;
+  }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+  .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 16px 0 20px; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-2); }
+  .legend i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+
+  /* chart */
+  .chart { display: flex; flex-direction: column; gap: 9px; }
+  .row { display: grid; grid-template-columns: 190px 1fr; align-items: center; gap: 14px; }
+  .row .lab { text-align: right; font-size: 13px; line-height: 1.25; }
+  .row .lab b { font-weight: 600; display: block; }
+  .row .lab .q { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--muted); }
+  .track { position: relative; height: 30px; }
+  .bar {
+    position: absolute; left: 0; top: 0; height: 100%;
+    border-radius: 4px; min-width: 3px;
+    display: flex; align-items: center; justify-content: flex-end;
+    transition: width .5s cubic-bezier(.22,.61,.36,1);
+    cursor: default;
+  }
+  .bar::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px var(--ring); pointer-events: none; }
+  .bar .val {
+    font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; font-weight: 600;
+    color: #fff; padding-right: 8px; white-space: nowrap; font-variant-numeric: tabular-nums;
+  }
+  .bar.short .val { color: var(--ink); padding-right: 0; padding-left: 8px; position: absolute; left: 100%; }
+  .axis { grid-column: 2; display: flex; justify-content: space-between; font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .unit { grid-column: 2; font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* tooltip */
+  .tip {
+    position: fixed; z-index: 20; pointer-events: none; opacity: 0; transform: translateY(4px);
+    transition: opacity .12s; background: var(--ink); color: var(--plane);
+    padding: 9px 11px; border-radius: 9px; font-size: 12.5px; box-shadow: var(--shadow); max-width: 260px;
+  }
+  .tip.on { opacity: 1; transform: translateY(0); }
+  .tip b { font-family: ui-monospace, Menlo, monospace; }
+  .tip .g { display: grid; grid-template-columns: auto auto; gap: 2px 12px; margin-top: 5px; }
+  .tip .g span:nth-child(even) { text-align: right; font-family: ui-monospace, Menlo, monospace; }
+
+  /* gemma card */
+  .gemma { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+  .gcard { border: 1px solid var(--ring); border-radius: 12px; padding: 16px; background: var(--plane); }
+  .gcard h3 { margin: 0 0 2px; font-size: 15px; font-family: ui-monospace, Menlo, monospace; font-weight: 620; }
+  .gcard .meta { font-size: 12.5px; color: var(--muted); margin: 0 0 12px; }
+  .gcard dl { margin: 0; display: grid; grid-template-columns: auto auto; gap: 6px 10px; font-size: 13px; }
+  .gcard dt { color: var(--ink-2); }
+  .gcard dd { margin: 0; text-align: right; font-family: ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
+  .chip.ok  { background: color-mix(in srgb, #0ca30c 16%, transparent); color: #0a850a; }
+  .chip.warn{ background: color-mix(in srgb, #fab219 22%, transparent); color: #9a6b00; }
+  :root[data-theme="dark"] .chip.ok, .wrap .chip.ok { color: #37c437; }
+  :root[data-theme="dark"] .chip.warn { color: #e7b64a; }
+
+  details.table { margin-top: 22px; }
+  details.table summary { cursor: pointer; font-size: 13.5px; color: var(--ink-2); font-weight: 550; padding: 6px 0; }
+  .twrap { overflow-x: auto; margin-top: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--grid); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  td .mid { font-family: ui-monospace, Menlo, monospace; }
+
+  footer.note { margin-top: 30px; font-size: 12.5px; color: var(--muted); max-width: 68ch; }
+  footer.note code { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; background: var(--surface); padding: 1px 5px; border-radius: 5px; border: 1px solid var(--ring); }
+  a { color: var(--accent); }
+  @media (max-width: 620px) {
+    .row { grid-template-columns: 128px 1fr; gap: 10px; }
+    .row .lab { font-size: 12px; }
+    .gemma { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) { .bar { transition: none; } }
+</style>
+
+<div class="wrap">
+  <div class="shell">
+    <header class="head">
+      <p class="eyebrow">xllama · on-device inference · benchmarks</p>
+      <h1>Model performance on Xbox&nbsp;Series&nbsp;S</h1>
+      <p class="sub">Every text model xllama has run on the console (Dev Mode), across three backends — llama.cpp CPU, ONNX Runtime GenAI CPU, and ORT DirectML. Decode throughput is what a user feels; higher is better.</p>
+      <div class="hero-stats" id="heroStats"></div>
+    </header>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Backend comparison</h2>
+          <p class="cap" id="metricCap"></p>
+        </div>
+        <div class="seg" role="group" aria-label="Metric">
+          <button data-m="decode" aria-pressed="true">Decode</button>
+          <button data-m="prefill" aria-pressed="false">Prefill</button>
+          <button data-m="ram" aria-pressed="false">Peak RAM</button>
+        </div>
+      </div>
+
+      <div class="legend" aria-hidden="false">
+        <span><i style="background:var(--b-llama)"></i>llama.cpp&nbsp;CPU</span>
+        <span><i style="background:var(--b-ort)"></i>ORT-GenAI&nbsp;CPU</span>
+        <span><i style="background:var(--b-dml)"></i>ORT&nbsp;DirectML</span>
+      </div>
+
+      <div class="chart" id="chart"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Gemma — arch-validated, console benches pending</h2>
+          <p class="cap">Host-dev sanity (Intel i7-1165G7, not Xbox). Both load on the pinned llama.cpp.</p>
+        </div>
+      </div>
+      <div class="gemma" id="gemma"></div>
+    </section>
+
+    <details class="table">
+      <summary>Data table &amp; sources</summary>
+      <div class="twrap">
+        <table id="dataTable">
+          <thead><tr><th>Model</th><th>Quant</th><th>Backend</th><th>Prefill&nbsp;tok/s</th><th>Decode&nbsp;tok/s</th><th>Peak&nbsp;RAM&nbsp;MB</th><th>Source</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
+
+    <footer class="note">
+      On-console figures measured on Xbox Series S Dev Mode via <code>bench-xbox-ort.sh</code> — CSVs in <code>bench/results/</code>. Best decode config per model; llama.cpp rows at t6 (~6 usable Dev Mode cores). DirectML int4 is memory-bound (no fused low-bit GPU GEMM). Gemma figures are host-dev only. See <code>docs/benchmarks.md</code>.
+    </footer>
+  </div>
+</div>
+
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
+
+<script>
+  const BACKENDS = {
+    llama: { name: "llama.cpp CPU", color: "var(--b-llama)" },
+    ort:   { name: "ORT-GenAI CPU", color: "var(--b-ort)" },
+    dml:   { name: "ORT DirectML",  color: "var(--b-dml)" },
+  };
+  // On-console (Xbox Series S), best decode config per model.
+  const DATA = [
+    { model: "LFM2.5-350M",  quant: "Q4_K_M", be: "llama", prefill: 241.4, decode: 94.2, ram: 321,  src: "phase5-gguf" },
+    { model: "SmolLM2-360M", quant: "int4",   be: "ort",   prefill: 219.8, decode: 70.9, ram: 722,  src: "phase1-cpu" },
+    { model: "SmolLM2-360M", quant: "Q4_K_M", be: "llama", prefill: 141.5, decode: 62.9, ram: 402,  src: "phase35-scaling" },
+    { model: "SmolLM2-360M", quant: "fp16",   be: "dml",   prefill: 353.5, decode: 46.8, ram: 1154, src: "phase2-dml", tag: "routing GPU" },
+    { model: "Qwen3.5-0.8B", quant: "Q4_K_M", be: "llama", prefill: 98.1,  decode: 35.1, ram: 718,  src: "phase5-gguf" },
+    { model: "SmolLM2-1.7B", quant: "int4",   be: "ort",   prefill: 54.9,  decode: 20.6, ram: 2423, src: "phase35-1b" },
+    { model: "SmolLM2-360M", quant: "int4",   be: "dml",   prefill: 152.8, decode: 8.8,  ram: 999,  src: "phase2-dml", tag: "int4 GPU" },
+  ];
+  const METRICS = {
+    decode:  { label: "Decode", unit: "tok/s", cap: "Generation throughput — the rate a user feels. Higher is better.", better: "high" },
+    prefill: { label: "Prefill", unit: "tok/s", cap: "Prompt-ingestion throughput. Higher is better; matters most for long prompts.", better: "high" },
+    ram:     { label: "Peak RAM", unit: "MB", cap: "Peak working set. Lower is better on the constrained Dev Mode budget.", better: "low" },
+  };
+
+  const chart = document.getElementById("chart");
+  const tip = document.getElementById("tip");
+  let current = "decode";
+
+  function fmt(n, m) { return m === "ram" ? Math.round(n).toLocaleString() : n.toFixed(1); }
+
+  function render(metric) {
+    current = metric;
+    const M = METRICS[metric];
+    document.getElementById("metricCap").textContent = M.cap;
+    const rows = [...DATA].sort((a,b) => M.better === "low" ? a[metric]-b[metric] : b[metric]-a[metric]);
+    const max = Math.max(...rows.map(r => r[metric]));
+    chart.innerHTML = "";
+    rows.forEach((r, i) => {
+      const row = document.createElement("div"); row.className = "row";
+      const lab = document.createElement("div"); lab.className = "lab";
+      lab.innerHTML = `<b>${r.model}</b><span class="q">${r.quant}${r.tag ? " · "+r.tag : ""}</span>`;
+      const track = document.createElement("div"); track.className = "track";
+      const bar = document.createElement("div"); bar.className = "bar";
+      const pct = Math.max((r[metric] / max) * 100, 1.5);
+      bar.style.background = BACKENDS[r.be].color;
+      const short = pct < 22;
+      if (short) bar.classList.add("short");
+      bar.innerHTML = `<span class="val">${fmt(r[metric], metric)}</span>`;
+      requestAnimationFrame(() => { bar.style.width = pct + "%"; });
+      const show = (e) => {
+        tip.classList.add("on");
+        tip.innerHTML = `<b>${r.model}</b> · ${r.quant}<div class="g">`+
+          `<span>Backend</span><span>${BACKENDS[r.be].name}</span>`+
+          `<span>Decode</span><span>${r.decode.toFixed(1)} tok/s</span>`+
+          `<span>Prefill</span><span>${r.prefill.toFixed(1)} tok/s</span>`+
+          `<span>Peak RAM</span><span>${r.ram.toLocaleString()} MB</span>`+
+          `<span>Source</span><span>${r.src}</span></div>`;
+        const x = (e.touches ? e.touches[0].clientX : e.clientX);
+        const y = (e.touches ? e.touches[0].clientY : e.clientY);
+        tip.style.left = Math.min(x + 14, window.innerWidth - tip.offsetWidth - 12) + "px";
+        tip.style.top  = Math.max(y - tip.offsetHeight - 10, 10) + "px";
+      };
+      track.addEventListener("mousemove", show);
+      track.addEventListener("mouseleave", () => tip.classList.remove("on"));
+      track.appendChild(bar);
+      row.appendChild(lab); row.appendChild(track);
+      chart.appendChild(row);
+    });
+    const axis = document.createElement("div"); axis.className = "axis";
+    axis.innerHTML = `<span>0</span><span>${fmt(max, metric)} ${M.unit}</span>`;
+    chart.appendChild(axis);
+  }
+
+  document.querySelectorAll(".seg button").forEach(b => {
+    b.addEventListener("click", () => {
+      document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", "false"));
+      b.setAttribute("aria-pressed", "true");
+      render(b.dataset.m);
+    });
+  });
+
+  // hero stats
+  const fastest = DATA.reduce((a,b) => b.decode > a.decode ? b : a);
+  const lightest = DATA.reduce((a,b) => b.ram < a.ram ? b : a);
+  document.getElementById("heroStats").innerHTML = `
+    <div class="stat"><p class="k">Fastest decode</p><div class="v">94.2 <small>tok/s</small></div><p class="n">${fastest.model} · llama.cpp CPU</p></div>
+    <div class="stat"><p class="k">Lightest</p><div class="v">321 <small>MB</small></div><p class="n">${lightest.model} · Q4_K_M</p></div>
+    <div class="stat"><p class="k">Models benched</p><div class="v">7 <small>configs</small></div><p class="n">3 backends · 4 model families</p></div>
+    <div class="stat"><p class="k">KV-reuse win</p><div class="v">4.9<small>×</small></div><p class="n">turn-2 prefill · ORT CPU</p></div>`;
+
+  // gemma cards
+  const GEMMA = [
+    { model: "Gemma-3-270M-it", arch: "gemma3", quant: "Q4_K_M", size: "253 MB", decode: "~40 tok/s", ram: "~0.3 GB",
+      status: ["ok", "Fits console"], note: "Catalogue entry <b>gemma3-270m</b>. Loads clean; console bench pending." },
+    { model: "Gemma-4-E2B-it", arch: "gemma4", quant: "UD-IQ2_M", size: "2.29 GB", decode: "3.8 tok/s", ram: "2.35 GB",
+      status: ["warn", "Feasibility"], note: "Coherent output. Gated on the ~2 GB per-file Dev Mode limit + RAM." },
+  ];
+  document.getElementById("gemma").innerHTML = GEMMA.map(g => `
+    <div class="gcard">
+      <h3>${g.model}</h3>
+      <p class="meta mono">${g.arch} · ${g.quant} · ${g.size}</p>
+      <dl>
+        <dt>Arch loads</dt><dd><span class="chip ${g.status[0]}">${g.status[0]==="ok"?"✓":"◐"} ${g.status[1]}</span></dd>
+        <dt>Host decode</dt><dd>${g.decode}</dd>
+        <dt>Host peak RAM</dt><dd>${g.ram}</dd>
+      </dl>
+      <p class="meta" style="margin:12px 0 0">${g.note}</p>
+    </div>`).join("");
+
+  // data table
+  document.querySelector("#dataTable tbody").innerHTML = DATA
+    .slice().sort((a,b)=>b.decode-a.decode).map(r => `
+    <tr>
+      <td>${r.model}</td>
+      <td class="mid">${r.quant}</td>
+      <td>${BACKENDS[r.be].name}</td>
+      <td class="mid">${r.prefill.toFixed(1)}</td>
+      <td class="mid">${r.decode.toFixed(1)}</td>
+      <td class="mid">${r.ram.toLocaleString()}</td>
+      <td class="mid">${r.src}</td>
+    </tr>`).join("");
+
+  render("decode");
+</script>
+</body></html>

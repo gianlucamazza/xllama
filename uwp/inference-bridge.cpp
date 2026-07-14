@@ -3,6 +3,7 @@
 
 #include "inference-bridge.h"
 
+#include "xllama/chat_prompt.h"
 #include "xllama/inference.h"
 #include "xllama/path_utils.h"
 #include "xllama/platform.h"
@@ -32,11 +33,6 @@ std::string read_local_file(const char* name) {
     while (!out.empty() && (out.back() == '\n' || out.back() == '\r' || out.back() == ' '))
         out.pop_back();
     return out;
-}
-
-std::string chatml(const std::string& sys, const std::string& user) {
-    return "<|im_start|>system\n" + sys + "<|im_end|>\n<|im_start|>user\n" + user +
-           "<|im_end|>\n<|im_start|>assistant\n";
 }
 
 // Multi-turn TTFT bench: measures turn-2 prefill with KV reuse (append only the
@@ -70,28 +66,25 @@ void run_kv_bench(const std::string& model_name, const std::string& sys, const s
         return;
     }
 
+    const ::xllama::ChatFormat fmt = ::xllama::chat_format_for(model_name);
     auto mkgp = [&](const std::string& p, bool reuse, bool reset) {
         ::xllama::GenerateParams gp;
         gp.prompt = p;
         gp.n_predict = 96;
         gp.reuse_kv = reuse;
         gp.reset_kv = reset;
-        gp.stop_sequences.push_back("<|im_end|>");
+        gp.stop_sequences = fmt.stop_sequences;
         return gp;
     };
 
     // Turn 1: seed the persistent generator.
-    auto r1 = sess->generate(mkgp(chatml(sys, u1), /*reuse=*/true, /*reset=*/true));
+    auto r1 = sess->generate(mkgp(fmt.render_prompt(sys, {}, u1), /*reuse=*/true, /*reset=*/true));
     // Turn 2 (KV reuse): append only the new turn's delta.
-    std::string delta = (r1.ended_with_stop ? std::string("\n") : std::string("<|im_end|>\n")) +
-                        "<|im_start|>user\n" + u2 + "<|im_end|>\n<|im_start|>assistant\n";
+    std::string delta = fmt.render_delta(u2, r1.ended_with_stop);
     auto r2 = sess->generate(mkgp(delta, /*reuse=*/true, /*reset=*/false));
     // Turn 2 (cold): full re-prefill of the whole 2-turn context — the pre-Stage-2
     // behaviour. Uses turn-1's actual output so the token count matches.
-    std::string full2 = "<|im_start|>system\n" + sys + "<|im_end|>\n<|im_start|>user\n" + u1 +
-                        "<|im_end|>\n<|im_start|>assistant\n" + r1.output_text +
-                        "<|im_end|>\n<|im_start|>user\n" + u2 +
-                        "<|im_end|>\n<|im_start|>assistant\n";
+    std::string full2 = fmt.render_prompt(sys, {::xllama::ChatTurn{u1, r1.output_text}}, u2);
     auto r2c = sess->generate(mkgp(full2, /*reuse=*/true, /*reset=*/true));
 
     double speedup = (r2.t_p_eval_ms > 0) ? r2c.t_p_eval_ms / r2.t_p_eval_ms : 0.0;
@@ -159,13 +152,6 @@ void main_loop() {
             }
         }
     }
-    // Wrap with ChatML template (required for SmolLM2-Instruct).
-    std::string prompt = "<|im_start|>system\nYou are a helpful AI assistant.<|im_end|>\n"
-                         "<|im_start|>user\n" +
-                         user_prompt +
-                         "<|im_end|>\n"
-                         "<|im_start|>assistant\n";
-
     // Read model directory/filename from LocalFolder/model.txt, fallback to default.
     std::string model_name = "smollm2-360m-cpu-int4";
     {
@@ -216,6 +202,11 @@ void main_loop() {
             return;
         }
     }
+
+    // Apply the per-model chat template (ChatML default, required for
+    // SmolLM2-Instruct; Gemma/Qwen get their own format via the model name).
+    std::string prompt = ::xllama::chat_format_for(model_name).render_prompt(
+        "You are a helpful AI assistant.", {}, user_prompt);
 
     log_output("[xllama] bench model: " + model_name + "\n");
     log_output("[xllama] bench prompt: " + prompt.substr(0, 80) + "...\n");

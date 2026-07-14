@@ -92,6 +92,19 @@
       ]
     },
     {
+      "_comment": "Gemma-3-270M GGUF (llama.cpp gemma3 arch, verified loads on the pinned submodule). Downloaded directly from the original Hugging Face repo (hf_base_url → resolve/main) rather than re-hosted on our release: Gemma Terms of Use govern redistribution — verify before ever mirroring the weights onto models-v1. Uses the <start_of_turn>/<end_of_turn> template via chat_format_for (kind:gguf, CPU-only, KV-reuse/routing disabled).",
+      "name": "gemma3-270m",
+      "display": "Gemma 3 270M (GGUF · CPU)",
+      "kind": "gguf",
+      "hf_base_url": "https://huggingface.co/unsloth/gemma-3-270m-it-GGUF/resolve/main",
+      "files": [
+        {
+          "filename": "gemma-3-270m-it-Q4_K_M.gguf",
+          "approx_bytes": 253115424
+        }
+      ]
+    },
+    {
       "name": "lfm25-350m",
       "display": "LFM2.5 350M (GGUF · CPU)",
       "kind": "gguf",

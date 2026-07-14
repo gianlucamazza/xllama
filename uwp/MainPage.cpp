@@ -483,8 +483,8 @@ void MainPageController::AddUserParagraph(std::wstring const& text) {
     m_outputBody.Blocks().Append(m_currentParagraph);
 }
 
-std::string MainPageController::BuildChatMLPrompt(const std::string& user_text,
-                                                  int* out_dropped) const {
+std::string MainPageController::BuildPrompt(const std::string& user_text,
+                                            int* out_dropped) const {
     // Estimate token count (heuristic: chars/4). Trim oldest turns if over limit.
     // Threshold aligned with n_ctx=2048: 1800 estimated tokens + ~250 generation buffer.
     constexpr int kMaxEstimatedTokens = 1800;
@@ -518,37 +518,33 @@ std::string MainPageController::BuildChatMLPrompt(const std::string& user_text,
     if (out_dropped)
         *out_dropped = static_cast<int>(first_turn);
 
-    std::string prompt = "<|im_start|>system\n" + m_system_prompt + "<|im_end|>\n";
-
+    // Complete (user, assistant) exchanges surviving the token budget; the new
+    // user_text is the trailing turn. The chat format applies the per-model
+    // template (ChatML default, Gemma, ...) and the generation suffix.
+    std::vector<::xllama::ChatTurn> turns;
     for (size_t ti = first_turn; ti < turn_starts.size(); ++ti) {
         size_t i = turn_starts[ti];
-        prompt += "<|im_start|>user\n" + m_current.messages[i].content + "<|im_end|>\n";
-        prompt += "<|im_start|>assistant\n";
+        std::string assistant;
         if (i + 1 < m_current.messages.size() &&
             m_current.messages[i + 1].role == xllama::ui::MessageRole::Assistant) {
-            prompt += m_current.messages[i + 1].content + "<|im_end|>\n";
+            assistant = m_current.messages[i + 1].content;
         }
+        turns.push_back({m_current.messages[i].content, std::move(assistant)});
     }
-    prompt += "<|im_start|>user\n" + user_text + "<|im_end|>\n";
-    prompt += "<|im_start|>assistant\n";
-    prompt += AssistantGenSuffix();
-    return prompt;
+    return chat_format().render_prompt(m_system_prompt, turns, user_text);
 }
 
-std::string MainPageController::AssistantGenSuffix() const {
-    return ::xllama::qwen_no_think_gen_suffix(::xllama::wstring_to_utf8(m_model_filename));
+xllama::ChatFormat MainPageController::chat_format() const {
+    return ::xllama::chat_format_for(::xllama::wstring_to_utf8(m_model_filename));
 }
 
 std::string MainPageController::BuildDeltaPrompt(const std::string& user_text) const {
     // The persistent KV cache already holds everything through the previous
-    // assistant's generated tokens. Close that turn — the model emits <|im_end|>
-    // when it stops on the stop sequence, so add it only if it didn't (n_predict
-    // cap) — then append the new user turn and the assistant header. Concatenated
-    // onto the KV this reproduces exactly what BuildChatMLPrompt would have built.
-    std::string d = m_kv_last_ended_with_stop ? "\n" : "<|im_end|>\n";
-    d += "<|im_start|>user\n" + user_text + "<|im_end|>\n<|im_start|>assistant\n";
-    d += AssistantGenSuffix();
-    return d;
+    // assistant's generated tokens. The chat format closes that turn (only a
+    // newline if the model already emitted the stop token; the full turn close
+    // otherwise) and appends the new user turn + assistant header. Concatenated
+    // onto the KV this reproduces exactly what BuildPrompt would have built.
+    return chat_format().render_delta(user_text, m_kv_last_ended_with_stop);
 }
 
 void MainPageController::SaveCurrentConversation(bool partial) {
@@ -592,7 +588,7 @@ void MainPageController::RenderConversation() {
         label.FontWeight(winrt::Windows::UI::Text::FontWeights::Bold());
         p.Inlines().Append(label);
         Run content;
-        content.Text(::xllama::utf8_to_wstring(::xllama::strip_empty_thinking_tags(msg.content)));
+        content.Text(::xllama::utf8_to_wstring(chat_format().postprocess_output(msg.content)));
         if (msg.partial)
             content.Text(content.Text() + L" [cancelled]");
         p.Inlines().Append(content);
@@ -1795,14 +1791,14 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     m_flush_timer.Start();
 
     // Build multi-turn ChatML prompt from conversation history.
-    // BuildChatMLPrompt uses existing m_current.messages (prev turns) and appends user_text.
+    // BuildPrompt uses existing m_current.messages (prev turns) and appends user_text.
     std::string user_text = ::xllama::wstring_to_utf8(prompt_w);
     if (m_current.id.empty()) {
         m_current.id = xllama::ui::ChatHistory::NewId();
         m_current.title = xllama::ui::ChatHistory::TitleFrom(user_text);
     }
     int n_dropped = 0;
-    std::string full_prompt = BuildChatMLPrompt(user_text, &n_dropped);
+    std::string full_prompt = BuildPrompt(user_text, &n_dropped);
     if (n_dropped > 0)
         SetStatus(L"Context trimmed — " + std::to_wstring(n_dropped) + L" old turn(s) dropped");
 
@@ -1897,7 +1893,11 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
         ::xllama::wstring_to_utf8(m_active_model.empty() ? m_model_filename : m_active_model);
     auto dispatcher = m_root.Dispatcher();
 
-    std::thread([self, full_prompt, delta_prompt, do_reuse, kv_reuse, ep_kv_ok, model,
+    // Per-model chat format (stop sequences + output post-processing) — resolved
+    // on the UI thread (chat_format() reads m_model_filename) and captured by value.
+    xllama::ChatFormat fmt = chat_format();
+
+    std::thread([self, full_prompt, delta_prompt, do_reuse, kv_reuse, ep_kv_ok, model, fmt,
                  dispatcher]() {
         try {
             std::string load_err;
@@ -1933,7 +1933,7 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                 gp.top_k = self->m_top_k;
                 gp.repetition_penalty = self->m_repetition_penalty;
                 gp.abort_flag = &self->m_abort;
-                gp.stop_sequences.push_back("<|im_end|>");
+                gp.stop_sequences = fmt.stop_sequences;
                 gp.reuse_kv = reuse;
                 gp.reset_kv = reset;
                 gp.on_status = on_status;
@@ -1971,7 +1971,7 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                                                                           : res.error_msg);
             }
 
-            std::string output_text = ::xllama::strip_empty_thinking_tags(res.output_text);
+            std::string output_text = fmt.postprocess_output(res.output_text);
             bool was_aborted = self->m_abort.load();
             dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, metrics, res, output_text,
                                                                  was_aborted, ep_kv_ok]() {
