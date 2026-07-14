@@ -29,7 +29,7 @@ jobs:
             patched: false
             artifact: xllama-appx-llamacpp
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: false
           fetch-depth: 1
