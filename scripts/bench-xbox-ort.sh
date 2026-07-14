@@ -155,6 +155,26 @@ delete_from_localstate() {
 		>/dev/null 2>&1 || true
 }
 
+# Poll until a LocalState file is confirmed absent (GET returns 404 / error body).
+# delete_from_localstate is fire-and-forget; without this confirmation a stale
+# marker still present when wait_for_done first polls makes it return 0 instantly
+# off the PREVIOUS run's bench-result.csv.done — a silent wrong row, not a timeout.
+verify_deleted() {
+	local remote_name="$1" tries="${2:-15}" resp
+	while ((tries-- > 0)); do
+		resp=$(curl "${CURL_AUTH[@]}" \
+			"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState&filename=${remote_name}" \
+			2>/dev/null) || true
+		if [[ -z "$resp" || "$resp" == *"404"* || "$resp" == *"error"* ]]; then
+			return 0
+		fi
+		delete_from_localstate "$remote_name" # retry the delete, then re-check
+		sleep 1
+	done
+	echo "  Warning: could not confirm ${remote_name} was deleted — result may be stale" >&2
+	return 1
+}
+
 # Restart app via Device Portal
 restart_app() {
 	curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X DELETE \
@@ -269,6 +289,9 @@ for ((run = 1; run <= N_RUNS; run++)); do
 
 	delete_from_localstate "bench-result.csv"
 	delete_from_localstate "bench-result.csv.done"
+	# Confirm the marker is actually gone before starting the app, so wait_for_done
+	# can't return off a stale bench-result.csv.done from the previous run.
+	verify_deleted "bench-result.csv.done"
 	# Remove any leftover bench_turns.txt: main_loop treats its presence as the
 	# KV-reuse bench trigger, which would hijack this standard bench into kv-bench
 	# mode (writes bench-kv-result.csv, never bench-result.csv → this run times out).
