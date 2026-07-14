@@ -62,13 +62,14 @@ jobs:
       - name: Build UWP package
         shell: pwsh
         run: |
-          $args = @(
+          # Avoid $args — it shadows PowerShell's automatic parameter array and breaks splatting.
+          $buildArgs = @(
             "-Configuration", "Release",
             "-Platform", "x64",
             "-Backend", $('${{ matrix.variant }}' -eq 'unified' ? 'unified' : '${{ matrix.variant }}')
           )
-          if ('${{ matrix.patched }}' -eq 'true') { $args += "-PatchedGenAI" }
-          ./scripts/build-uwp.ps1 @args
+          if ('${{ matrix.patched }}' -eq 'true') { $buildArgs += "-PatchedGenAI" }
+          ./scripts/build-uwp.ps1 @buildArgs
 
       - uses: actions/upload-artifact@v7
         if: success()
