@@ -160,9 +160,10 @@ contract is different (three components + CLIP assets): see `diffusion/README.md
 
 The ORT GenAI model builder is frozen at the Qwen3 / Gemma3 architectures.
 Newer small models (Qwen3.5, LFM2, Gemma-4) ship as GGUF and run **only via
-llama.cpp** — reachable once the `unified` backend build (PR #27) is the default
-and the catalogue carries `kind: gguf` entries. Host-validated 2026-07-09;
-on-console decode/prefill benches pending.
+llama.cpp** — reachable via the shipping `unified` backend build with
+`kind: gguf` catalogue entries. **Console-measured**: Qwen3.5-0.8B 35.1 /
+LFM2.5-350M 94.2 tok/s (`phase5-gguf.csv`); Gemma-3-270M 76.8 / Gemma-4-E2B
+9.9 tok/s (`phase6-gemma.csv`).
 
 | Model            | Path      | Size (Q4_K_M / int4) | Status                                                                   |
 | ---------------- | --------- | -------------------- | ------------------------------------------------------------------------ |
