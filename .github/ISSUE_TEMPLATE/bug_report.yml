@@ -1,0 +1,40 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did and what went wrong.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where
+      options:
+        - Xbox console (UWP / Dev Mode)
+        - Linux CLI / build
+        - CI (GitHub Actions)
+        - Docs
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      description: MSIX package version (Settings) or git SHA.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant `xllama.log` (Device Portal → LocalState) or CLI output.
+      render: shell

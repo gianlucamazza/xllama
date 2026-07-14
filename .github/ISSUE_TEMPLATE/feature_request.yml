@@ -1,0 +1,22 @@
+name: Feature request
+description: Propose a change or a new model/capability
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What are you trying to do that xllama doesn't support yet?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Console constraints considered
+      description: >-
+        For new models: on-disk size, RAM footprint, backend (ORT GenAI vs GGUF),
+        and the ~2 GB Dev Mode per-file limit. See docs/model-selection.md.
