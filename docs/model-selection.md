@@ -164,13 +164,40 @@ llama.cpp** — reachable once the `unified` backend build (PR #27) is the defau
 and the catalogue carries `kind: gguf` entries. Host-validated 2026-07-09;
 on-console decode/prefill benches pending.
 
-| Model             | Path      | Size (Q4_K_M / int4) | Status                                                                |
-| ----------------- | --------- | -------------------- | --------------------------------------------------------------------- |
-| Qwen3.5-0.8B      | llama.cpp | 507 MB               | ✅ loads+generates via submodule (`qwen35`); modern default candidate |
-| LFM2.5-350M       | llama.cpp | 218 MB               | ✅ loads via submodule; hybrid edge arch                              |
-| Qwen3-0.6B        | ORT GenAI | 969 MB merged        | ✅ builds; heavy (151k-vocab embedding dominates)                     |
-| Gemma-3-270M      | ORT GenAI | ~300 MB (est.)       | ⛔ gated on HF — needs an access token to build                       |
-| Gemma-4 (E2B/E4B) | —         | ≥2B effective        | ⛔ too big + arch not in builder                                      |
+| Model            | Path      | Size (Q4_K_M / int4) | Status                                                                   |
+| ---------------- | --------- | -------------------- | ------------------------------------------------------------------------ |
+| Qwen3.5-0.8B     | llama.cpp | 507 MB               | ✅ loads+generates via submodule (`qwen35`); modern default candidate    |
+| LFM2.5-350M      | llama.cpp | 218 MB               | ✅ loads via submodule; hybrid edge arch                                 |
+| Qwen3-0.6B       | ORT GenAI | 969 MB merged        | ✅ builds; heavy (151k-vocab embedding dominates)                        |
+| Gemma-3-270M     | llama.cpp | 253 MB               | ✅ loads+generates via GGUF (`gemma3-270m`); catalogue entry added, fits |
+| Gemma-4-E2B      | llama.cpp | 2.29 GB (IQ2_M)      | ✅ **console-validated** (`gemma4-e2b`): loads, ~9.9 tok/s (see below)   |
+| Gemma-4 E4B/12B+ | llama.cpp | ≥4.5 GB              | ⛔ too big / too slow for the console                                    |
+
+**Gemma chat template**: the ORT GenAI _builder_ is frozen at Gemma3, but the
+vendored `llama.cpp` (`9a532ae4b`) already carries `LLM_ARCH_GEMMA3` **and**
+`LLM_ARCH_GEMMA4` — both load and generate (verified via `xllama-cli`,
+`general.architecture = gemma3`/`gemma4`). What was missing was the prompt
+format: the app hard-coded ChatML. `chat_format_for()` (`src/bridge/chat_prompt.cpp`)
+now selects the Gemma template (`<start_of_turn>…<end_of_turn>`, no system role,
+stop `<end_of_turn>`, `<bos>` via `add_bos`) by model id, so any `gemma*` GGUF
+gets the right template with zero per-model code.
+
+**Gemma-4-E2B verdict** (console-validated 2026-07-14, MSIX 1.1.6.0): the "too
+big" call is **overturned**. E2B is ~5B raw params (2B effective, MatFormer);
+UD-IQ2_M is 2.29 GB. Measured on Xbox Series S Dev Mode:
+
+- ✅ **The ~2 GB Dev Mode per-file limit does not apply to GGUF** — a 2.29 GB
+  single `.gguf` uploaded via Device Portal and loaded; **peak RAM 2534 MB**, no
+  OOM under the Game budget.
+- ✅ **Generates**: decode **9.9 tok/s** @ t6 (faster than the i7-1165G7 host's
+  3.8), coherent short answers ending on `<end_of_turn>`.
+- ⚠️ **Load is slow**: 6–24 s (2.3 GB heap read, `use_mmap=false`).
+- ⚠️ A ~512-token prompt at temp 0.8 can emit EOG immediately (2-bit quant);
+  short prompts generate normally. A Q3_K_S (2.45 GB) would trade size for quality.
+
+Disk was never the real constraint (Dev Mode is now 90 GB, `uwp-constraints.md §9`).
+Catalogue entry `gemma4-e2b` downloads from HF (2.29 GB > the GitHub release 2 GB
+asset limit). See `docs/benchmarks.md` for the full comparison.
 
 Backend selection is by `SessionParams::backend` (explicit values take
 precedence in dual-backend builds). `Auto` (default) uses either a `.gguf`
@@ -185,7 +212,11 @@ permits redistribution provided recipients get a copy of the license —
 `LFM2.5-350M_LICENSE.txt` is published on the release and listed in the
 catalogue entry so it lands next to the model on-device. Note §5: commercial
 use is limited to entities under $10M revenue (xllama is non-commercial
-research). Gemma Terms — still verify before ever hosting.
+research). **Gemma** is under the Gemma Terms of Use (not Apache/MIT): the
+`gemma3-270m` catalogue entry therefore downloads straight from the original
+Hugging Face repo (`hf_base_url` → `unsloth/gemma-3-270m-it-GGUF/resolve/main`)
+rather than re-hosting the weights on `models-v1` — verify the Terms permit
+redistribution before ever mirroring them onto our release.
 
 ### TAESD — a faster diffusion VAE decoder
 

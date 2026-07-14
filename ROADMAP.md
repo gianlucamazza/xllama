@@ -119,7 +119,7 @@ v0.4.0.0 on Xbox; CSVs `bench/results/phase35-*.csv`):
 - [x] **Per-conversation CPU/GPU routing** (Stage 3, v0.3.9, default off): route
       long-prompt conversations to DML fp16, chat to CPU int4; sticky per
       conversation. **Console-validated 2026-07-14** via `validate-console.sh
-      routing` on unified 1.1.3.0 + patched GenAI: long turn auto→GPU (959 tok),
+    routing` on unified 1.1.3.0 + patched GenAI: long turn auto→GPU (959 tok),
       new short chat auto→CPU, no `887A0036`.
 
 - [x] **Image-generation spike** (v0.4.0, flagship hypothesis): **CONFIRMED on
@@ -146,12 +146,12 @@ Milestones:
       (relevant for merged `model.onnx` > 2 GB). Exp 2 nobundle (Phase 4)
       remains useful for its own sake but is no longer a disk prerequisite.
 - [x] **1B+ scale bench (CPU int4)** — ✅ SmolLM2-1.7B **cpu-int4 measured
-  2026-07-08: 20.6 tok/s decode, peak 2423 MB** (`phase35-1b-cpu.csv`).
-  Catalogue entry + `package-catalogue-ort-model.sh` ready; **1.4 GB asset
-  upload to `models-v1` optional** (WDP works today). **fp16-DML 1.7B blocked**
-  (protobuf > 2 GB — cannot merge self-contained; external data hits §8).
-  int4-DML 1.7B is mergeable but hits the §12 dead kernel. The fp16-at-scale
-  bandwidth crossover stays blocked by serialization/AppContainer, not GPU.
+      2026-07-08: 20.6 tok/s decode, peak 2423 MB** (`phase35-1b-cpu.csv`).
+      Catalogue entry + `package-catalogue-ort-model.sh` ready; **1.4 GB asset
+      upload to `models-v1` optional** (WDP works today). **fp16-DML 1.7B blocked**
+      (protobuf > 2 GB — cannot merge self-contained; external data hits §8).
+      int4-DML 1.7B is mergeable but hits the §12 dead kernel. The fp16-at-scale
+      bandwidth crossover stays blocked by serialization/AppContainer, not GPU.
 - [x] **Desk check upstream int4 status** — ✅ done 2026-07-08
       (`docs/uwp-constraints.md §12`). Verdict: `MatMulNBits` is present and runs
       on the DML GPU (not missing, not CPU fallback); DirectML implements it
@@ -161,8 +161,8 @@ Milestones:
       not "weeks of HLSL" we could contribute. **This closes GPU int4 decode as a
       local lever.**
 - [x] **int4 DML config confirmation** — ✅ **closed inconclusive 2026-07-09**
-  (runbook §5b): block128 fails DML partition; acc4 not bench-promoted.
-  §12 desk-check stands — not a local lever.
+      (runbook §5b): block128 fails DML partition; acc4 not bench-promoted.
+      §12 desk-check stands — not a local lever.
 - [x] **llama.cpp CPU A/B** — ✅ **MEASURED 2026-07-08, hypothesis FALSIFIED.**
       The lane was built (uwp/ggml-uwp.vcxproj static ggml+llama, `patches/0001`
       AppContainer guards for 5 desktop-only APIs, CI `build (llamacpp)` variant,
@@ -281,6 +281,19 @@ validation gates, patched GenAI in XAML.
 
 Open items only — everything above is measured or shipped.
 
+- [x] **Per-architecture chat template** — hard-coded ChatML replaced by a
+      data-driven `ChatFormat` (`src/bridge/chat_prompt.cpp`, `chat_format_for()`);
+      byte-identical ChatML preserved, Gemma (`<start_of_turn>…<end_of_turn>`)
+      added, KV-reuse invariant unit-tested. UWP + bench call one abstraction.
+- [x] **Gemma family** — vendored `llama.cpp` carries `gemma3` + `gemma4`; both
+      load+generate via `xllama-cli`. Catalogue entry `gemma3-270m` (253 MB, fits)
+      added; Gemma-4-E2B is a feasibility candidate (2.29–3.1 GB, decode ~4 tok/s,
+      gated on the ~2 GB per-file Dev Mode limit + RAM). See `docs/benchmarks.md`.
+- [x] **Benchmark report + comparative charts** — `docs/benchmarks.md` +
+      self-contained `docs/benchmarks-charts.html` consolidate every tested model
+      (decode/prefill/RAM across 3 backends) from `bench/results/`.
+- [ ] **Gemma on-console benches** — `gemma3-270m` decode/prefill on Xbox; test
+      whether a >2 GB GGUF (Gemma-4-E2B) loads under the Dev Mode per-file limit.
 - [ ] **Demo video** — model loaded and running on Xbox hardware (Phase 4 carry-over)
 - [ ] **Publication venue** — GitHub Discussions vs arXiv for `docs/technical-report.md`
 - [ ] **`smollm2-1.7b-cpu-int4` on `models-v1`** — manifest ready; optional 1.4 GB

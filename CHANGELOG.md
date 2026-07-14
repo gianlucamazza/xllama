@@ -9,6 +9,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.1.6.0] - 2026-07-14
+
+### Added
+
+- **Per-architecture chat template** (`ChatFormat`, `src/bridge/chat_prompt.cpp`):
+  `chat_format_for()` replaces the hard-coded ChatML with a data-driven template
+  selected by model id. ChatML kept byte-identical (Qwen no-think suffix
+  preserved); **Gemma** added (`<start_of_turn>…<end_of_turn>`, no system role,
+  stop `<end_of_turn>`). UWP UI + bench call one abstraction.
+- **Gemma family**: vendored `llama.cpp` carries `gemma3` + `gemma4` (both load
+  and generate). Catalogue entry `gemma3-270m` (253 MB, GGUF, from HF per Gemma
+  Terms). Gemma-4-E2B is a feasibility candidate.
+- **Benchmark report** — `docs/benchmarks.md` + self-contained
+  `docs/benchmarks-charts.html` consolidate every tested model across backends.
+
+### Changed
+
+- Package version **1.1.6.0**.
+- `docs/model-selection.md` Gemma verdict revised (disk no longer the binding
+  constraint after the 90 GB Dev Mode bump).
+
+---
+
 ## [1.1.5.0] - 2026-07-14
 
 ### Added
@@ -21,13 +44,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - **GPU/DML multi-turn**: KV reuse disabled on `*-dml-*` models — ORT GenAI rejects
-  `AppendTokenSequences` on a persistent DirectML generator (*"Continuous decoding is
-  not supported on the selected device type (DirectML)"*); avoids per-turn fallback
+  `AppendTokenSequences` on a persistent DirectML generator (_"Continuous decoding is
+  not supported on the selected device type (DirectML)"_); avoids per-turn fallback
   and spurious failures.
 - **Qwen3.5 GGUF**: append Qwen no-think prefill after `<|im_start|>assistant` and
   strip leading empty think blocks from saved/displayed assistant text.
 - **`validate-console.sh routing`**: remove `ap-routing-longctx` decoy chat after the
-  test so the seeded *"Understood; ready to continue."* assistant turn does not linger
+  test so the seeded _"Understood; ready to continue."_ assistant turn does not linger
   in History.
 
 ### Changed
@@ -51,7 +74,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Shipping CI default** (`build-uwp.yml`): `xllama-appx` is now **unified +
   PatchedGenAI #2280**; `llamacpp` remains a bench-only artifact. `build-uwp.ps1
-  -PatchedGenAI` fails closed if the vendor step fails.
+-PatchedGenAI` fails closed if the vendor step fails.
 - **Recommended modern settings** (`bench/configs/settings-modern.json`): default chat
   model **LFM2.5-350M** (GGUF) on unified builds; routing GPU unchanged.
 - Package version **1.1.4.0**.

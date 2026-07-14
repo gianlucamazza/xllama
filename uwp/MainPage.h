@@ -9,6 +9,7 @@
     #include "inference-bridge.h"
     #include "model-downloader.h"
     #include "pch.h"
+    #include "xllama/chat_prompt.h"
     #include "xllama/session.h"
 
     #include <atomic>
@@ -79,11 +80,12 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     void LoadConversation(const std::string& id);
     void RenderConversation();
     void AddUserParagraph(std::wstring const& text);
-    std::string BuildChatMLPrompt(const std::string& user_text, int* out_dropped = nullptr) const;
-    // Only the new turn's ChatML tokens, appended to the reused KV cache.
+    std::string BuildPrompt(const std::string& user_text, int* out_dropped = nullptr) const;
+    // Only the new turn's tokens, appended to the reused KV cache.
     std::string BuildDeltaPrompt(const std::string& user_text) const;
-    // Model-specific suffix after <|im_start|>assistant (e.g. Qwen no-think prefill).
-    std::string AssistantGenSuffix() const;
+    // Per-architecture chat template for the current model (ChatML default, Gemma, ...).
+    // Built on demand (reads m_model_filename); do not call from the worker thread.
+    xllama::ChatFormat chat_format() const;
     void LoadSettings();
     void SaveSettings();
     winrt::fire_and_forget ShowSettings();

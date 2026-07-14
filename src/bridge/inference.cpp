@@ -375,6 +375,28 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
             std::fflush(stdout);
         }
 
+        // Stop strings (e.g. Gemma's <end_of_turn>, which is not an EOG token in
+        // every GGUF): if the accumulated output now ends with one, trim it and
+        // stop. Handles multi-piece stop tokens since we match on the full suffix.
+        bool hit_stop = false;
+        for (const std::string& stop : params.stop_sequences) {
+            if (!stop.empty() && res.output_text.size() >= stop.size() &&
+                res.output_text.compare(res.output_text.size() - stop.size(), stop.size(), stop) ==
+                    0) {
+                res.output_text.erase(res.output_text.size() - stop.size());
+                hit_stop = true;
+                break;
+            }
+        }
+        if (hit_stop) {
+            res.ended_with_stop = true;
+            log_output(
+                ("[xllama] stop sequence after " + std::to_string(n_generated + 1) + " tokens\n")
+                    .c_str());
+            ++n_generated;
+            break;
+        }
+
         llama_batch next = llama_batch_get_one(&token, 1);
         if (llama_decode(ctx.get(), next) != 0) {
             log_output("[xllama] decode failed at token, stopping generation\n");
