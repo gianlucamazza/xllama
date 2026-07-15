@@ -146,6 +146,8 @@ When `OgaCreateModel` initialises the DirectML execution provider, the DML alloc
 
 The fault manifests before any inference call — at model load time. There is no recovery path short of using a smaller model or switching to CPU EP.
 
+**The binding limit is the inference working set, not just the weights (measured 2026-07-15).** A native-DML Llama-3.2-1B fp16 (2.49 GB weights, GQA) **loads** fine — `gpu-mem post-load: 2878/3801 MB` — but every inference call then OOMs: `AppendTokenSequences … DmlCommittedResourceAllocator … 8007000E Not enough memory`, even at `context_length=2048`. The DML inference working set (graph-capture command allocators + prefill activations + the `past_present_share_buffer` KV buffer) needs more than the ~900 MB left after weights. So the usable DML-fp16 ceiling on Series S is set by **weights + working set ≤ 3801 MB**, which in practice caps fp16 at ~360-500 M (e.g. `smollm2-360m-dml-fp16`, ~700 MB weights). Any fp16 model large enough to require the >2 GB external-data path (§8) is ≥~1 B → over this wall.
+
 **Distinct failure mode — DML EP init `887A0036` in XAML apps** (2026-07-07,
 GPU-truth run, ORT GenAI 0.13.2 / ORT 1.24.4 / DirectML 1.15.4) — **root cause
 found at the exact source line and fixed architecturally in v0.3.4**:
@@ -216,9 +218,9 @@ informed inference unless backed by a Microsoft source.
 
 The `\\?\` long-path prefix does not help: it bypasses MAX_PATH but not the access check.
 
-**Fix**: before MSIX packaging, merge `model.onnx.data` into `model.onnx` to produce a self-contained model file. With no external data file, `ValidateExternalDataPath` is never called and `weakly_canonical` is never invoked.
+**Fix A (default, ≤2 GB)**: before MSIX packaging, merge `model.onnx.data` into `model.onnx` to produce a self-contained model file. With no external data file, `ValidateExternalDataPath` is never called and `weakly_canonical` is never invoked. Tool: `scripts/merge_onnx_external_data.py`. CI runs this automatically as part of `build-uwp`. **Caps at the 2 GB protobuf single-file ceiling.**
 
-Tool: `scripts/merge_onnx_external_data.py`. CI runs this automatically as part of `build-uwp`.
+**Fix B (patched ORT DLL, any size — console-validated 2026-07-15)**: for models whose `.onnx.data` is >2 GB (un-mergeable), a patched `onnxruntime.dll` guards the walk directly (`patches/onnxruntime-extdata-appcontainer.patch`, built via the `build-uwp-ort-patched` lane; see `docs/fp16-extdata-runbook.md`). The patch replaces the throwing `weakly_canonical()` with the `std::error_code` overload + `lexically_normal` fallback. **Validated**: a 1.86 GB-extdata int4 model that crashed pre-patch now loads and runs, 6/6 restarts, 0 crashes. A **second** patch in the same DLL shrinks ORT's `ReadFileIntoBuffer` chunk (`env.cc`) from 1 GB to 16 MB — a single ~0.5-1 GB `ReadFile` of a large un-quantized tensor (e.g. the 128k-vocab embedding) locks too many pages in the AppContainer and fails with `errcode 1450` (ERROR_NO_SYSTEM_RESOURCES); 16 MB chunks fix it. Note: Fix B unblocks _loading_, but fp16 >2 GB models still hit the GPU **inference** budget wall (§7).
 
 **Diagnosis**: Win32 probes on the model path — `GetFileAttributesW` and `CreateFile2` with `GENERIC_READ` succeed on `model_dir\model.onnx`, but the crash occurs inside the ORT segment-walking loop. Confirmed by matching the call site to `onnxruntime/core/framework/tensorprotoutils.cc` L337/338/346.
 

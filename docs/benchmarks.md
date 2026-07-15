@@ -186,6 +186,21 @@ dispatch overhead at this model scale; CPU `MatMulNBits` on AVX2 wins
 (ROADMAP Phase 2 / `uwp-constraints.md §7`). GPU's win is **prefill** (353 vs
 198 tok/s at ~1k tokens), which is exactly what routing uses it for.
 
+### fp16 >2 GB external data — loads, but 1B fp16 OOMs GPU inference (2026-07-15)
+
+The AppContainer external-data blocker is fixed (patched ORT DLL, `uwp-constraints.md §8`
+Fix B): a 1.86 GB-extdata **int4/CPU** model loads and runs (6/6 restarts, 0×
+`weakly_canonical`, 0× `errcode 1450`). But the **fp16-at-scale GPU prefill
+crossover has no measurable point on Series S**: a native-DML Llama-3.2-1B fp16
+(2.49 GB, GQA) loads (`gpu-mem 2878/3801 MB`) then OOMs every inference call
+(`AppendTokenSequences … DmlCommittedResourceAllocator … 8007000E`, even at
+ctx 2048 — `uwp-constraints.md §7`). Weights fit; the ~900 MB headroom is too small
+for the DML inference working set. Any fp16 >2 GB is ≥~1B → same wall. So the
+usable DML-fp16 model stays ~360-500 M (the existing `smollm2-360m-dml-fp16`), and
+the >2 GB unblock is a **CPU-side** win, not a bigger-fp16-on-GPU one. (A cuda-fp16
+re-host also loads/partitions to DML but fails DML inference at runtime — a native
+`-p fp16 -e dml` build is required.)
+
 ## CPU memory bandwidth — the decode denominator
 
 Decode is a bandwidth-bound M=1 GEMV: each token streams the whole weight matrix
