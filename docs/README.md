@@ -19,6 +19,7 @@ docs quote a headline and link back:
 | [uwp-constraints.md](./uwp-constraints.md)                       | UWP sandbox limitations, measured GPU budget, AppContainer filesystem quirks, and how xllama works around them                             |
 | [technical-report.md](./technical-report.md)                     | The measured story: per-workload CPU/GPU verdict, falsified hypotheses, diffusion on console                                               |
 | [console-validation-runbook.md](./console-validation-runbook.md) | Ordered on-console validation checklist with measured results per section                                                                  |
+| [fp16-extdata-runbook.md](./fp16-extdata-runbook.md)             | Unblock fp16 models >2 GB on the GPU: zero-code USB spike, then the ORT `weakly_canonical` patch (Fase 1) — entrypoint for the scripts     |
 | [windows-dev-vm.md](./windows-dev-vm.md)                         | Windows VM setup for local UWP/MSIX builds                                                                                                 |
 | [device-portal.md](./device-portal.md)                           | How to enable Dev Mode and deploy via Device Portal                                                                                        |
 | [phase1-runbook.md](./phase1-runbook.md)                         | End-to-end developer build, deploy, and benchmark instructions                                                                             |

@@ -57,10 +57,14 @@ uwp/xllama-test.cer
 # Build artefacts (not tracked)
 build-uwp-test/
 build/vendor-onnxruntime-genai/
+build/vendor-onnxruntime/
 out/
 
 # Patched GenAI DLL binary (README in vendor/onnxruntime-genai-patched/ is tracked)
 vendor/onnxruntime-genai-patched/win-x64/
+
+# Patched ORT DLL binary (README in vendor/onnxruntime-patched/ is tracked)
+vendor/onnxruntime-patched/win-x64/
 
 # IDE / tool caches
 .cache/

@@ -19,6 +19,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   KV-reuse, routing, model provisioning + quant auto-upgrade, membw, and the
   diffusion pipeline. Cross-linked from `docs/README.md`, README, and ROADMAP.
 
+- **fp16 >2 GB on GPU — investigation + Fase 1 tooling** (not yet console-validated).
+  Goal: load ONNX models with external `.onnx.data` >2 GB on DirectML (the merge
+  workaround caps at the 2 GB protobuf ceiling). A zero-code USB spike
+  (`scripts/build-fp16-dml-model.sh` + `scripts/spike-fp16-extdata-usb.sh`) was
+  **refuted on-console**: `EnsureModelNamedAsync` copies USB models into LocalState
+  and loads from there, so they still hit `weakly_canonical: Access is denied` under
+  `Q:\Users\UserMgr0` — the crash is universal to external-data models in LocalState,
+  not USB-specific. Fix path chosen: patch ORT core `ValidateExternalDataPath`
+  (`patches/onnxruntime-extdata-appcontainer.patch` + `scripts/vendor-ort-extdata-patch.ps1`),
+  built via the dispatch-only `build-uwp-ort-patched` CI lane. Runbook:
+  `docs/fp16-extdata-runbook.md`. Context: DirectML is in maintenance mode (int4-DML
+  decode wall §12 is permanent upstream), so this is the last local GPU lever.
+
 ### Changed
 
 - Documentation currency/drift pass after v1.1.7.0: `smollm2-1.7b` marked
