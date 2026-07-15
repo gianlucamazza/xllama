@@ -105,6 +105,16 @@ Sizes below are the published `model.onnx.data` file sizes on Hugging Face
 
 Verify with `merge_onnx_external_data.py` output before committing to a build.
 
+**External data >2 GB (un-mergeable) — unblocked for loading, but not for fp16-GPU
+(2026-07-15).** The 2 GB protobuf merge ceiling no longer blocks _loading_: the
+patched ORT DLL (`uwp-constraints.md §8` Fix B) loads external-`.onnx.data` models
+directly, console-validated with a 1.86 GB int4 model. **But this does not make big
+fp16 models viable on the GPU**: a native-DML 1B fp16 (2.49 GB) loads yet OOMs
+inference within the 3801 MB budget (`uwp-constraints.md §7`). Practical takeaway:
+the >2 GB path is a **CPU/int4** enabler; DML-fp16 stays ≤~360-500 M
+(`smollm2-360m-dml-fp16`). Build DML models natively (`builder … -p fp16 -e dml`) —
+a cuda-fp16 re-host loads but fails DML inference.
+
 **Future — BitNet / INT2 models**: Microsoft BitNet b1.58 (1-bit/1.58-bit quantization)
 could bring a 1.7B–3B model under 400 MB, fitting both the disk and GPU budgets.
 ORT GenAI does not natively support INT2 as of 0.14.1. Re-evaluate when

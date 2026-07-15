@@ -159,10 +159,16 @@ Milestones:
 - [x] **1B+ scale bench (CPU int4)** — ✅ SmolLM2-1.7B **cpu-int4 measured
       2026-07-08: 20.6 tok/s decode, peak 2423 MB** (`phase35-1b-cpu.csv`).
       Catalogue entry + `package-catalogue-ort-model.sh` ready; **1.4 GB asset
-      upload to `models-v1` optional** (WDP works today). **fp16-DML 1.7B blocked**
-      (protobuf > 2 GB — cannot merge self-contained; external data hits §8).
-      int4-DML 1.7B is mergeable but hits the §12 non-fused low-bit GEMM. The fp16-at-scale
-      bandwidth crossover stays blocked by serialization/AppContainer, not GPU.
+      upload to `models-v1` optional** (WDP works today). **fp16-DML at scale —
+      resolved 2026-07-15**: external-data loading >2 GB is now **unblocked** by the
+      patched ORT DLL (§8 Fix B: `weakly_canonical` guard + `ReadFile` 16 MB chunk,
+      console-validated with a 1.86 GB-extdata model). But the fp16-at-scale prefill
+      crossover is **not reachable on Series S for other reasons**: a native-DML
+      1B fp16 (2.49 GB) loads (2878/3801 MB) yet OOMs _inference_
+      (`AppendTokenSequences … 8007000E`, §7) — the GPU budget can't hold weights +
+      the DML inference working set at ≥1 B. int4-DML 1.7B is mergeable but hits the
+      §12 non-fused low-bit GEMM. Net: the >2 GB unblock helps **CPU** external-data
+      models, not bigger fp16 on the GPU (budget wall). See `docs/fp16-extdata-runbook.md`.
 - [x] **Desk check upstream int4 status** — ✅ done 2026-07-08
       (`docs/uwp-constraints.md §12`). Verdict: `MatMulNBits` is present and runs
       on the DML GPU (not missing, not CPU fallback); DirectML implements it
