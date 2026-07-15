@@ -1,22 +1,17 @@
 # xllama Roadmap
 
-**Shipping (2026-07-15):** MSIX **1.1.7.x** — `xllama-appx` from `build-uwp.yml`
-(unified ORT + llama.cpp + PatchedGenAI #2280; Major.Minor.Build from
-`AppxManifest.xml`, Revision auto-stamped from the CI run number). **1.1.7.0** adds
-GGUF **KV-reuse** (turn-2 prefill 4.07×), **model-provisioning quant auto-upgrade**
-(a stale quant re-downloads to the manifest's file), a CPU **memory-bandwidth
-micro-bench** (console: read 12.35 GB/s @1t / 30.29 @8t), and llama.cpp **prefill
-batch knobs** (`--batch/--ubatch`). The **`smollm2-1.7b-cpu-int4`** model is now
-published on the `models-v1` catalogue (in-app download, ~20.6 tok/s). Carries over
-1.1.6.0's per-architecture chat template + **Gemma** (`gemma3-270m` 76.8 tok/s,
-`gemma4-e2b` Q3_K_S 15.3 tok/s — `phase6-gemma.csv`). Full numbers:
-`docs/benchmarks.md`; architecture: `docs/architecture.md`. Prior console gates
-still pass: `validate-console.sh all` → **ALL PASS** (routing, GGUF `lfm25-350m`,
-TAESD). Catalogue `models-v1` also includes `smollm2-360m-dml-fp16` (~691 MB merged)
-for in-app routing-GPU download. **In flight (not yet in this shipping build):** a
-patched ORT DLL that loads external-`.onnx.data` models >2 GB on the AppContainer
-(console-validated) lives in the dispatch-only `build-uwp-ort-patched` lane — see
-Phase 6 and `docs/fp16-extdata-runbook.md`. See
+**Shipping (2026-07-15):** MSIX **1.1.8.x** — `xllama-appx` from `build-uwp.yml`
+(unified ORT + llama.cpp + **PatchedGenAI #2280** + **PatchedOrt** extdata;
+Major.Minor.Build from `AppxManifest.xml`, Revision auto-stamped from the CI run
+number). First-launch default chat model on unified: **`lfm25-350m`** (~94 tok/s).
+**1.1.8.0** promotes the console-validated AppContainer external-data
+`onnxruntime.dll` into the default shipping package (cached from the
+`vendor-dlls-v1` release; hash pin in `vendor/onnxruntime-patched/SHA256SUMS` —
+no 1–3 h ORT rebuild on every PR). Carries 1.1.7.0: GGUF **KV-reuse** (4.07×),
+**quant auto-upgrade**, **membw**, **SmolLM2-1.7B** on catalogue, Gemma family.
+Full numbers: `docs/benchmarks.md`; architecture: `docs/architecture.md`.
+Console gates: `validate-console.sh all` → **ALL PASS** (2026-07-14; re-smoke
+recommended after first 1.1.8 deploy). See
 [`docs/benchmarks.md`](docs/benchmarks.md),
 [`docs/recommended-config.md`](docs/recommended-config.md) and
 [`docs/console-validation-runbook.md`](docs/console-validation-runbook.md).
@@ -335,8 +330,14 @@ Open items only — everything above is measured or shipped.
       manifest's file. Verified on-console — `gemma4-e2b` with a stale IQ2_M +
       `.complete` marker → removed IQ2_M → downloaded Q3_K_S (2.45 GB) → loaded.
       13 host doctest cases. See `docs/benchmarks.md`.
-- [ ] **Demo video** — model loaded and running on Xbox hardware (Phase 4 carry-over)
-- [ ] **Publication venue** — GitHub Discussions vs arXiv for `docs/technical-report.md`
+- [ ] **Demo video** — model loaded and running on Xbox hardware (Phase 4 carry-over).
+      **Checklist:** (1) deploy 1.1.8 shipping MSIX, (2) first-launch LFM download,
+      (3) chat short + long (routing), (4) Image Generate one frame, (5) 60–90 s
+      capture via capture card / Game Bar if available. No code blocker.
+- [x] **Publication venue** — **decision: GitHub Discussions** (or a pinned
+      Discussion + README link) for `docs/technical-report.md` first; arXiv only
+      if a formal citation is needed later. The report stays a dated v1.0
+      snapshot; live numbers stay in `docs/benchmarks.md`.
 - [x] **`smollm2-1.7b-cpu-int4` on `models-v1`** (2026-07-15) — the 4 catalogue
       assets (incl. the 1.47 GB `model.onnx`) uploaded to the `models-v1` release;
       verified on-console: in-app download of all 4 files → load → generate (63
@@ -350,18 +351,19 @@ Open items only — everything above is measured or shipped.
       2026-07-15**: Xbox Zen 2 read 12.35 GB/s @1t / 30.29 @8t — the single-thread
       read matches the deduced ~13 GB/s GEMV denominator. See `docs/benchmarks.md`.
 - [x] **External-data ONNX loading unblocked >2 GB** (2026-07-15, PRs #67/#68/#71/#72/#73)
-      — patched ORT DLL (`patches/onnxruntime-extdata-appcontainer.patch`, built by the
-      dispatch-only `build-uwp-ort-patched` lane): `weakly_canonical` guard
-      (`uwp-constraints.md §8` Fix B) + `ReadFileIntoBuffer` 1 GB→16 MB chunk (fixes
-      `errcode 1450`). Console-validated with a 1.86 GB-extdata int4 model — loads and
-      runs, **6/6 restarts, 0 crashes**. ⚠️ **In the dispatch-only lane, not yet promoted
-      into the default shipping build** (`build-uwp.yml` still ships vanilla ORT); no new
-      catalogue model added yet. Investigated + **closed negative**: a native-DML 1B fp16
-      (2.49 GB) loads (2878/3801 MB) but OOMs GPU inference (`§7` budget wall) — the unblock
-      is a **CPU/int4 enabler, not bigger fp16 on the GPU**. See `docs/fp16-extdata-runbook.md`.
-- [ ] **Promote the patched ORT DLL into the shipping build** — wire
-      `vendor-ort-extdata-patch.ps1` into `build-uwp.yml` (cached DLL) + publish/register a
-      real >2 GB external-data (int4) model in `models-v1`, to turn the validated capability
-      into user-facing model support.
+      — patched ORT DLL (`patches/onnxruntime-extdata-appcontainer.patch`): 
+      `weakly_canonical` guard + `ReadFileIntoBuffer` 16 MB chunk. Console-validated
+      with a 1.86 GB-extdata int4 model — **6/6 restarts, 0 crashes**. **Closed
+      negative:** 1B fp16 GPU inference OOM (§7 budget wall). See
+      `docs/fp16-extdata-runbook.md`.
+- [x] **Promote the patched ORT DLL into the shipping build** (2026-07-15, v1.1.8.0)
+      — `build-uwp.yml` downloads the pinned DLL from `vendor-dlls-v1`, verifies
+      `vendor/onnxruntime-patched/SHA256SUMS`, installs over NuGet
+      (`-PatchedOrt`). Full source rebuild stays in `build-uwp-ort-patched.yml`
+      (refresh the release asset after re-validation). Optional catalogue entry
+      for a public >2 GB external-data int4 model remains open (USB/custom load
+      already works with the shipping DLL).
+- [ ] (optional) **Catalogue entry for a >2 GB external-data int4 model** — make
+      the PatchedOrt capability visible in the picker without USB/WDP staging.
 - [ ] (upstream, deprioritised) **Fused low-bit GPU GEMM in DirectML** — §12;
       not a local contribution via #2280

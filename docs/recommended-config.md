@@ -25,8 +25,8 @@ Upstream: [microsoft/onnxruntime-genai#2280](https://github.com/microsoft/onnxru
 
 | Variant                      | CI artifact / command              | When to use                              |
 | ---------------------------- | ---------------------------------- | ---------------------------------------- |
-| **unified+#2280** (shipping) | `xllama-appx` from `build-uwp.yml` | Default: GGUF + ORT, routing GPU in XAML |
-| **llamacpp**                 | `xllama-appx-llamacpp`             | Bench A/B only — not for end users       |
+| **unified+#2280+PatchedOrt** (shipping) | `xllama-appx` from `build-uwp.yml` | GGUF + ORT, routing GPU, external-data ORT |
+| **llamacpp**                            | `xllama-appx-llamacpp`             | Bench A/B only — not for end users         |
 
 ## Chat models
 
@@ -85,13 +85,17 @@ Copy [`bench/configs/settings-modern.json`](../bench/configs/settings-modern.jso
 
 | Key                    | Recommended                       | Notes                                            |
 | ---------------------- | --------------------------------- | ------------------------------------------------ |
-| `model`                | `smollm2-360m-cpu-int4`           | Downloaded on first launch                       |
-| `kv_reuse`             | `true`                            | 4.87× turn-2 prefill (measured)                  |
-| `routing`              | `0` default; `2` for RAG          | `2` = Auto; needs DML fp16 model + patched DLL   |
+| `model`                | `lfm25-350m`                      | First-launch default on **unified** shipping     |
+| `kv_reuse`             | `true`                            | 4.87× ORT / 4.07× GGUF turn-2 prefill (measured) |
+| `routing`              | `2` (Auto) on unified             | needs DML fp16 model + PatchedGenAI; GGUF skips  |
 | `gpu_model`            | `smollm2-360m-dml-fp16`           | Catalogue download (`models-v1`, ~691 MB) or WDP |
 | `diffuse_taesd_vae`    | `true` after asset on `models-v1` | ~4.5 s/image target                              |
 | `sampling.temperature` | `0.8`                             | UI default                                       |
 | `sampling.n_predict`   | `512`                             | UI default                                       |
+
+Factory defaults match [`settings-modern.json`](../bench/configs/settings-modern.json)
+on unified builds (`DefaultChatModelId()` → `lfm25-350m`). ORT-only builds still
+default to `smollm2-360m-cpu-int4`.
 
 Routing Auto uses **600 tokens** (real tokenizer count), sticky per conversation.
 

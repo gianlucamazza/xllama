@@ -1,25 +1,37 @@
 # vendor/onnxruntime-patched/
 
-Patched **`onnxruntime.dll`** (DirectML) — ORT core with the AppContainer guard
-on `ValidateExternalDataPath`'s `weakly_canonical()` walk
-(`patches/onnxruntime-extdata-appcontainer.patch`). Unblocks loading ONNX models
-with external `.onnx.data` >2 GB on the Xbox (the merge workaround caps at the
-2 GB protobuf ceiling). See `docs/uwp-constraints.md §8` and
+Patched **`onnxruntime.dll`** (DirectML) — ORT core with the AppContainer
+external-data fixes (`patches/onnxruntime-extdata-appcontainer.patch`):
+
+1. `ValidateExternalDataPath` — guard `weakly_canonical()` (error_code + lexical fallback)
+2. `ReadFileIntoBuffer` — chunk 1 GB → 16 MB (errcode 1450)
+
+Unblocks loading ONNX models with external `.onnx.data` >2 GB on Xbox
+AppContainer. See `docs/uwp-constraints.md §8` and
 `docs/fp16-extdata-runbook.md`.
 
 The DLL binary lives at `win-x64/onnxruntime.dll` and is **gitignored** — only
-this README is tracked.
+this README + `SHA256SUMS` are tracked. Shipping CI downloads the pinned
+console-validated build from the [`vendor-dlls-v1`](https://github.com/gianlucamazza/xllama/releases/tag/vendor-dlls-v1)
+release (hash must match `SHA256SUMS`).
 
-## Producing the DLL
+## Producing / refreshing the DLL
 
-- CI (preferred): run the **`build-uwp-ort-patched`** workflow (dispatch-only).
-  It builds this DLL + the #2280 GenAI DLL from source and uploads both the MSIX
-  and `onnxruntime-patched-dll` as artifacts. NB: a full ORT DirectML source
-  build takes 1-3 h.
-- Local: `./scripts/vendor-ort-extdata-patch.ps1 -Build` (VS2022 + Python + CMake;
-  runs `tools/ci_build/build.py --use_dml --build_shared_lib` against ORT tag
-  `v<version>` from `uwp/packages.config`).
+- **CI rebuild (slow, 1–3 h):** `gh workflow run build-uwp-ort-patched.yml`
+  uploads `onnxruntime-patched-dll`. After console re-validation, update the
+  `vendor-dlls-v1` release asset and `SHA256SUMS`.
+- **Local:** `./scripts/vendor-ort-extdata-patch.ps1 -Build` (VS2022 + Python +
+  CMake; ORT tag `v<version>` from `uwp/packages.config`).
 
-Drop a console-validated DLL here at `win-x64/onnxruntime.dll` and
-`./scripts/vendor-ort-extdata-patch.ps1` (no `-Build`) installs it over the
-NuGet copy for a normal `build-uwp` run.
+## Install over NuGet (local or CI)
+
+```powershell
+# Cached vendor path (after download or -Build):
+./scripts/vendor-ort-extdata-patch.ps1
+
+# Or via packaging:
+./scripts/build-uwp.ps1 -Backend unified -PatchedGenAI -PatchedOrt
+```
+
+Pin: ORT DirectML **1.24.4** + the two AppContainer fixes. Remove this vendor
+step if Microsoft ships the guards in an official NuGet.

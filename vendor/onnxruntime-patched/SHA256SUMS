@@ -1,0 +1,6 @@
+# Console-validated patched onnxruntime.dll (DirectML, ORT 1.24.4).
+# Source: patches/onnxruntime-extdata-appcontainer.patch
+# Built via scripts/vendor-ort-extdata-patch.ps1 -Build (build-uwp-ort-patched lane).
+# Hosted: https://github.com/gianlucamazza/xllama/releases/tag/vendor-dlls-v1
+# Re-validate hash after any rebuild before bumping this pin.
+f3c2e1cc9a61f67db2dbf45bef626e6e299490548fae5f6f22f89d441e77391e  onnxruntime.dll

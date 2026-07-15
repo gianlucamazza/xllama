@@ -138,29 +138,32 @@ deployed. Re-tested the exact model that crashed pre-patch
 Builds a patched `onnxruntime.dll` (DirectML) that guards the `weakly_canonical`
 walk. Mirrors the #2280 GenAI patched-DLL doctrine.
 
-**Preferred — CI (no local Windows box):** run the **`build-uwp-ort-patched`**
-workflow (dispatch-only, `.github/workflows/build-uwp-ort-patched.yml`). It builds
-both patched DLLs (this + #2280 GenAI), packages a unified MSIX, and uploads the
-MSIX (`xllama-appx-ort-patched`) + the ORT DLL (`onnxruntime-patched-dll`). Then
-deploy the MSIX and re-run the load test — but this time with a **catalogue or
-LocalState** model (the fix is not USB-specific; the USB→LocalState copy that
-refuted Fase 0 is now harmless).
+**Shipping (v1.1.8.0+):** `build-uwp.yml` installs the pinned, console-validated
+DLL from the [`vendor-dlls-v1`](https://github.com/gianlucamazza/xllama/releases/tag/vendor-dlls-v1)
+release (SHA256 in `vendor/onnxruntime-patched/SHA256SUMS`) via
+`vendor-ort-extdata-patch.ps1` / `-PatchedOrt`. No full ORT rebuild on every PR.
+
+**Rebuild lane (pin refresh):** run **`build-uwp-ort-patched`**
+(`.github/workflows/build-uwp-ort-patched.yml`). It builds both patched DLLs
+(this + #2280 GenAI), packages a unified MSIX, and uploads the MSIX +
+`onnxruntime-patched-dll`. After console re-validation, update the
+`vendor-dlls-v1` release asset and `SHA256SUMS`.
 
 ```powershell
 # Local alternative (VS2022 + Python + CMake):
 nuget restore uwp/xllama.sln
 ./scripts/vendor-ort-extdata-patch.ps1 -Build   # clone v1.24.4, apply guard, build, vendor
-./scripts/build-uwp.ps1 -Configuration Release -Platform x64 -PatchedGenAI
+./scripts/build-uwp.ps1 -Configuration Release -Platform x64 -PatchedGenAI -PatchedOrt
 ```
 
 - Patch: `patches/onnxruntime-extdata-appcontainer.patch` (reference diff; the
   script falls back to a context-tolerant transform if `git apply` drifts, and
-  verifies the guard is present before the build).
-- **Cost**: a full ORT DirectML source build (1-3 h) — materially heavier than the
-  GenAI DLL build. Kept in a dispatch-only lane; `build-uwp.yml` still ships the
-  vanilla ORT until this patch is console-validated (same doctrine as #2280).
+  verifies both fixes are present before the build).
+- **Cost of rebuild**: a full ORT DirectML source build (1-3 h). Shipping CI
+  never pays this — it downloads the pin.
 - Follow-up: with the guard in place, `merge_onnx_external_data.py` is no longer a
-  hard prerequisite — relax `scripts/package-catalogue-ort-model.sh` accordingly.
+  hard prerequisite for load; keep it for models that still fit under 2 GB
+  protobuf when a single-file layout is preferred.
 
 ## Verification (both fasi)
 

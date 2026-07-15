@@ -61,15 +61,16 @@ if ((Test-Path $VendorDll) -and (-not $Build)) {
 }
 
 if (-not $Build) {
-    Write-Host @"
+    Write-Error @"
 No patched DLL at:
   $VendorDll
 
-Place a console-validated onnxruntime.dll there (built from microsoft/onnxruntime
-tag v$OrtVersion + patches/onnxruntime-extdata-appcontainer.patch), or re-run with
--Build to compile from source (FULL ORT DirectML build — slow).
+Place a console-validated onnxruntime.dll there (release vendor-dlls-v1 or
+build-uwp-ort-patched artifact), or re-run with -Build to compile from source
+(FULL ORT DirectML build — hours). Shipping CI downloads the pinned DLL before
+calling this script.
 "@
-    exit 0
+    exit 1
 }
 
 # --- Apply the two AppContainer external-data fixes --------------------------
