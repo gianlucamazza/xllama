@@ -284,9 +284,18 @@ See [ROADMAP.md](./ROADMAP.md). Headlines:
 1. **Phase 1 — CPU baseline** ✅ Working UWP, ORT GenAI, CI green.
 2. **Phase 2 — GPU acceleration** ✅ GPU proven; verdict per-workload (CPU decode, GPU prefill/images).
 3. **Phase 3 / 3.5 — Benchmarks + hardware ceiling** ✅ Measured matrices, routing, KV reuse, llama.cpp A/B (parity), diffusion on console.
-4. **Phase 4 — In-app model download + publication** ✅ Catalogue download, v1.0.0 release, technical report (demo video pending).
+4. **Phase 4 — In-app model download + publication** ✅ Catalogue download, v1.0.0 release, technical report (demo video still open — Phase 6).
 5. **Phase 5 — Post-1.0 improvements** ✅ Unified+PatchedGenAI shipping; console gates ALL PASS.
-6. **Phase 6 — Publication + polish** 🔮 Patched ORT extdata **promoted to shipping** (cached vendor-dlls-v1 DLL); first-launch default **LFM2.5-350M** on unified. Still open: demo video, publication venue (see [ROADMAP.md](./ROADMAP.md)).
+6. **Phase 6 — Publication + polish** 🔮 Patched ORT + LFM default shipping (1.1.8); technical report published as [Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76). Still open: demo video (see [ROADMAP.md](./ROADMAP.md)).
+
+---
+
+## Technical report
+
+The measured narrative (CPU/GPU verdicts, falsified hypotheses, diffusion on console)
+lives in [docs/technical-report.md](./docs/technical-report.md). Publication entrypoint:
+[Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76). Live numbers:
+[docs/benchmarks.md](./docs/benchmarks.md).
 
 ---
 
