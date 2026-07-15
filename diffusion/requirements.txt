@@ -13,10 +13,13 @@
 # dependabot alerts (torch CVE-2025-32434 fixed 2.6.0; transformers ReDoS batch
 # fixed <= 4.53; diffusers CVE-2026-44513 + CVE-2026-45804 fixed 0.38.0).
 # Residual, NOT applicable here: CVE-2026-4372 (transformers config-injection —
-# requires the optional `kernels` package, which must NOT be installed) and
+# requires the optional `kernels` package, which must NOT be installed);
 # CVE-2026-1839 (Trainer unsafe torch.load — v5-only fix; mitigated by
-# torch >= 2.6 and Trainer is unused). Offline, host-only toolchain fed only
-# first-party checkpoints (stabilityai/sd-turbo).
+# torch >= 2.6 and Trainer is unused); Dependabot alert #28 / LightGlue RCE
+# (transformers < 5.5.0) — LightGlue model path is unused (SD-Turbo export only),
+# and optimum-onnx 0.1.0 still caps transformers < 4.58 so a 5.5 bump is blocked
+# until the export stack allows it. Offline, host-only toolchain fed only
+# first-party checkpoints (stabilityai/sd-turbo). Not shipped in the MSIX.
 torch==2.9.1              # legacy torch.onnx tracer via optimum-onnx dynamo=False; --extra-index-url .../whl/cpu
 optimum-onnx[onnxruntime]==0.1.0
 transformers==4.57.6

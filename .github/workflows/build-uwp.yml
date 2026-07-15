@@ -60,7 +60,12 @@ jobs:
           URL="https://github.com/gianlucamazza/xllama/releases/download/vendor-dlls-v1/onnxruntime.dll"
           OUT="vendor/onnxruntime-patched/win-x64/onnxruntime.dll"
           curl -fsSL -o "$OUT" "$URL"
-          EXPECTED=$(awk '/onnxruntime\.dll/{print $1; exit}' vendor/onnxruntime-patched/SHA256SUMS)
+          # Skip comment lines (# …) — the pin file documents the DLL name above the hash row.
+          EXPECTED=$(awk '/^[[:xdigit:]]{64}[[:space:]]+onnxruntime\.dll/{print $1; exit}' vendor/onnxruntime-patched/SHA256SUMS)
+          if [ -z "$EXPECTED" ]; then
+            echo "No hash line for onnxruntime.dll in vendor/onnxruntime-patched/SHA256SUMS"
+            exit 1
+          fi
           ACTUAL=$(sha256sum "$OUT" | awk '{print $1}')
           if [ "$EXPECTED" != "$ACTUAL" ]; then
             echo "SHA256 mismatch for patched onnxruntime.dll"

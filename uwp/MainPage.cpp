@@ -42,11 +42,11 @@ namespace xllama {
 // (94.2 tok/s, ~219 MB). ORT-only builds keep the classic SmolLM2 CPU int4.
 // Matches bench/configs/settings-modern.json and docs/recommended-config.md.
 static std::wstring DefaultChatModelId() {
-#if defined(XLLAMA_USE_LLAMA)
+    #if defined(XLLAMA_USE_LLAMA)
     return L"lfm25-350m";
-#else
+    #else
     return L"smollm2-360m-cpu-int4";
-#endif
+    #endif
 }
 
 // Wide LocalFolder path helper.
