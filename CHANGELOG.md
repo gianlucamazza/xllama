@@ -19,14 +19,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   KV-reuse, routing, model provisioning + quant auto-upgrade, membw, and the
   diffusion pipeline. Cross-linked from `docs/README.md`, README, and ROADMAP.
 
-### Documentation
+### Changed
 
-- Currency/drift pass after v1.1.7.0: `smollm2-1.7b` marked in-app-downloadable
-  (README/model-selection/recommended-config), the model-provisioning quant
-  auto-upgrade recorded as **shipped** (was described as an open gap in
-  `benchmarks.md`), the ROADMAP shipping banner + README roadmap refreshed with the
-  1.1.7.x deliverables, and `uwp-constraints.md` clarified that the `unified` build
-  dispatches backends at runtime (not compile time).
+- Documentation currency/drift pass after v1.1.7.0: `smollm2-1.7b` marked
+  in-app-downloadable (README/model-selection/recommended-config), the
+  model-provisioning quant auto-upgrade recorded as **shipped** (was described as an
+  open gap in `benchmarks.md`), the ROADMAP shipping banner + README roadmap
+  refreshed with the 1.1.7.x deliverables, and `uwp-constraints.md` clarified that
+  the `unified` build dispatches backends at runtime (not compile time).
 
 ## [1.1.7.0] - 2026-07-15
 
