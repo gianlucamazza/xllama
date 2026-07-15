@@ -94,8 +94,11 @@ deployed. Re-tested the exact model that crashed pre-patch
   ~6.5 s (`bench/results/phase6-fp16-extdata.csv`). The external-data model now
   loads from LocalState and generates. The ORT `ValidateExternalDataPath` guard
   works.
-- ⚠️ **Second obstacle: intermittent `errcode 1450` (ERROR_NO_SYSTEM_RESOURCES)**
-  on `ReadFile model.onnx.data` — root-caused and fixed (pending re-validation).
+- ✅ **Second obstacle `errcode 1450` — root-caused and FIXED, console-validated
+  2026-07-15** (MSIX 1.1.7.2). Stress test: 6 consecutive restarts of the
+  1.86 GB-extdata model all loaded clean — **0× errcode 1450, 0× weakly_canonical,
+  0 crash dumps**, 6/6 valid bench rows (prefill ~79, decode ~34 tok/s). Before the
+  fix it was intermittent on repeated restarts.
   The failing tensor is `model.embed_tokens.weight` (Llama-3.2 vocab 128k × hidden,
   **not** int4-quantized → ~0.5-1 GB fp16/fp32). ORT's `ReadFileIntoBuffer`
   (`onnxruntime/core/platform/windows/env.cc`) reads it in one `ReadFile` of up to
