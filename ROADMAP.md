@@ -315,9 +315,11 @@ Open items only — everything above is measured or shipped.
 - [x] **In-app HF download verified on-console** (2026-07-15) — the app's own
       downloader pulled the 2.29 GB single `.gguf` from HF and loaded+generated it,
       confirming the >2 GB self-download path (see `docs/benchmarks.md`).
-- [ ] **`IsModelProvisioned` quant-upgrade gap** — a dir with _any_ `.gguf` counts
-      as provisioned, so a stale-quant entry is not auto-upgraded to the manifest's
-      current file. Check the expected manifest filename, not just "a gguf exists".
+- [x] **`IsModelProvisioned` quant-upgrade** (2026-07-15, PR #64) — expected-aware
+      overload + dir reconcile: a stale-quant dir is now re-downloaded to the
+      manifest's file. Verified on-console — `gemma4-e2b` with a stale IQ2_M +
+      `.complete` marker → removed IQ2_M → downloaded Q3_K_S (2.45 GB) → loaded.
+      13 host doctest cases. See `docs/benchmarks.md`.
 - [ ] **Demo video** — model loaded and running on Xbox hardware (Phase 4 carry-over)
 - [ ] **Publication venue** — GitHub Discussions vs arXiv for `docs/technical-report.md`
 - [ ] **`smollm2-1.7b-cpu-int4` on `models-v1`** — manifest ready; optional 1.4 GB
@@ -327,7 +329,8 @@ Open items only — everything above is measured or shipped.
       straight into the UI). See `scripts/install-latest-build.sh`.
 - [x] (optional) **membw.flag** micro-bench — pins the CPU bandwidth denominator
       behind decode. `measure_membw` (STREAM read/copy/triad), `xllama-cli --membw`
-      (host) + `membw.flag` (console → `membw-result.csv`). Host i7: 28.1 GB/s
-      read @8t. See `docs/benchmarks.md`; on-console pass pending.
+      (host) + `membw.flag` (console → `membw-result.csv`). **Console-measured
+      2026-07-15**: Xbox Zen 2 read 12.35 GB/s @1t / 30.29 @8t — the single-thread
+      read matches the deduced ~13 GB/s GEMV denominator. See `docs/benchmarks.md`.
 - [ ] (upstream, deprioritised) **Fused low-bit GPU GEMM in DirectML** — §12;
       not a local contribution via #2280

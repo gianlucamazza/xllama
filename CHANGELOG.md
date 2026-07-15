@@ -50,6 +50,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   read/copy/triad, `include/xllama/membw.h`) with `xllama-cli --membw` (host) and a
   `membw.flag` headless mode (console → `membw-result.csv`). Pins the DRAM-bandwidth
   ceiling behind the bandwidth-bound decode number. 4 host doctest cases.
+  Console-measured 2026-07-15: Xbox Zen 2 read 12.35 GB/s @1t / 30.29 @8t — the
+  single-thread read matches the deduced ~13 GB/s GEMV denominator.
 - Consolidated documentation onto single-source-of-truth docs (perf →
   `benchmarks.md`, constraints → `uwp-constraints.md`, catalogue →
   `model-selection.md` + `manifest.json`); refreshed stale version/quant/KV claims.
