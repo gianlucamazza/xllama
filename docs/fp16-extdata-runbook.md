@@ -83,6 +83,33 @@ source ~/.config/xllama/xbox-env
 |    3 | **OTHER (OOM/budget/DML init)** | Got past parse (hypothesis may hold) but too big — retry with `--smoke`; check `deploy.sh list-dumps`.                                                                                                                 |
 |    4 | **INCONCLUSIVE**                | No bench row, no clear log signal — inspect the log + dumps.                                                                                                                                                           |
 
+## Fase 1 — CONSOLE-VALIDATED 2026-07-15 (patch works; a second obstacle surfaced)
+
+Built via the `build-uwp-ort-patched` lane (run 29405016840 → MSIX 1.1.7.1) and
+deployed. Re-tested the exact model that crashed pre-patch
+(`llama32-1b-int4-extdata`, external `.onnx.data` 1.86 GB, in LocalState):
+
+- ✅ **`weakly_canonical: Access is denied` is GONE.** Two clean bench runs
+  produced valid rows — prompt ~79 tok/s, decode ~35 tok/s, peak 2275 MB, load
+  ~6.5 s (`bench/results/phase6-fp16-extdata.csv`). The external-data model now
+  loads from LocalState and generates. The ORT `ValidateExternalDataPath` guard
+  works.
+- ⚠️ **Second obstacle: intermittent `errcode 1450` (ERROR_NO_SYSTEM_RESOURCES)**
+  on `ReadFile model.onnx.data` — root-caused and fixed (pending re-validation).
+  The failing tensor is `model.embed_tokens.weight` (Llama-3.2 vocab 128k × hidden,
+  **not** int4-quantized → ~0.5-1 GB fp16/fp32). ORT's `ReadFileIntoBuffer`
+  (`onnxruntime/core/platform/windows/env.cc`) reads it in one `ReadFile` of up to
+  `k_max_bytes_to_read = 1 << 30` (**1 GB**); a synchronous `ReadFile` locks all the
+  destination pages into physical memory (MDL) for the transfer, and locking
+  ~0.5-1 GB under AppContainer pressure exceeds resources → 1450 (intermittent:
+  cold runs succeed, fragmented ones fail). mmap can't save it — ORT's
+  `MapFileIntoMemory` uses the non-`-FromApp` Win32 APIs, blocked in AppContainer,
+  so it always falls back to this ReadFile. **Fix (in the same patched DLL):**
+  `patches/onnxruntime-extdata-appcontainer.patch` now also shrinks
+  `k_max_bytes_to_read` to `1 << 24` (**16 MB**) — few pages locked per read, always
+  within resources; this is what actually lets fp16 `.onnx.data` >2 GB load. Distinct
+  from the (already-fixed) weakly_canonical blocker.
+
 ## Fase 1 — patch ORT core (only if Fase 0 returns code 2)
 
 Builds a patched `onnxruntime.dll` (DirectML) that guards the `weakly_canonical`
