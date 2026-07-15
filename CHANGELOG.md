@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **`smollm2-1.7b-cpu-int4` published to the `models-v1` catalogue** — the four
+  assets (incl. the 1.47 GB `model.onnx`) are now on the `models-v1` release, so
+  the 1.7B chat model (~20.6 tok/s decode, ~2.4 GB RAM) is downloadable in-app from
+  the model picker. Verified on-console (download → load → generate). No app/code
+  change — the manifest entry already referenced them.
+
 ## [1.1.7.0] - 2026-07-15
 
 ### Added

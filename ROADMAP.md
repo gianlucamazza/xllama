@@ -188,7 +188,7 @@ Milestones:
       2026-07-14 (`validate-console.sh routing`, see software perf track above).
 - [x] **#2280 patched GenAI in shipping MSIX** — unified+XAML routing GPU
       validated 2026-07-14 (no `887A0036`). Upstream merge into NuGet TBD.
-- [ ] (deprioritised — see Phase 6) **Fused low-bit GPU GEMM for DirectML** / **membw.flag**
+- [ ] (deprioritised — see Phase 6) **Fused low-bit GPU GEMM for DirectML** (upstream)
 
 ## Phase 4 — In-App Download + Publication ✅ DONE (demo video open)
 
@@ -322,8 +322,10 @@ Open items only — everything above is measured or shipped.
       13 host doctest cases. See `docs/benchmarks.md`.
 - [ ] **Demo video** — model loaded and running on Xbox hardware (Phase 4 carry-over)
 - [ ] **Publication venue** — GitHub Discussions vs arXiv for `docs/technical-report.md`
-- [ ] **`smollm2-1.7b-cpu-int4` on `models-v1`** — manifest ready; optional 1.4 GB
-      release upload (host build in `~/.cache/xllama-1b-build/`)
+- [x] **`smollm2-1.7b-cpu-int4` on `models-v1`** (2026-07-15) — the 4 catalogue
+      assets (incl. the 1.47 GB `model.onnx`) uploaded to the `models-v1` release;
+      verified on-console: in-app download of all 4 files → load → generate (63
+      decode tokens). Enables the 1.7B chat model (~20.6 tok/s) via the picker.
 - [x] **`install-latest-build.sh`** — no longer leaves `bench.flag` by default;
       headless bench mode is now `--bench` opt-in (a normal install launches
       straight into the UI). See `scripts/install-latest-build.sh`.
