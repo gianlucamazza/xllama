@@ -9,8 +9,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Project health snapshot** — `docs/project-analysis-2026-07.md` (status matrix,
-  risks, Phase 6 priorities). Not a perf SSOT.
+- **Technical report publication** — GitHub Discussions enabled;
+  [Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76) is the
+  public entrypoint for `docs/technical-report.md` (linked from README + docs index).
 
 ## [1.1.8.0] - 2026-07-15
 

@@ -56,8 +56,8 @@ leave MainPage split and DirectML fused int4 out of the critical path.
 | Membw micro-bench | **Shipped + console** | 12.35 GB/s @1t read |
 | 1B fp16 DML inference | **Closed negative** | load OK, OOM inference (§7 budget wall) |
 | DML int4 decode competitive | **Closed negative** | §12 non-fused GEMM; 8.8 tok/s |
-| Demo video | **Open** | ROADMAP Phase 4/6 |
-| Publication venue | **Open** | GitHub Discussions vs arXiv |
+| Demo video | **Open** | ROADMAP Phase 6 checklist |
+| Publication venue | **Done** | [Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76) |
 | Promote ORT patch to default ship | **Done (1.1.8.0)** | `vendor-dlls-v1` + SHA256SUMS |
 | Upstream fused low-bit DML GEMM | **Deprioritised** | not a local lever |
 

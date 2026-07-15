@@ -17,7 +17,7 @@ docs quote a headline and link back:
 | [install-release.md](./install-release.md)                       | Install a tagged GitHub Release build on your Xbox (cert + VCLibs + MSIX)                                                                  |
 | [using-the-app.md](./using-the-app.md)                           | App guide: chat, settings (model picker, routing, KV reuse), image generation                                                              |
 | [uwp-constraints.md](./uwp-constraints.md)                       | UWP sandbox limitations, measured GPU budget, AppContainer filesystem quirks, and how xllama works around them                             |
-| [technical-report.md](./technical-report.md)                     | The measured story: per-workload CPU/GPU verdict, falsified hypotheses, diffusion on console                                               |
+| [technical-report.md](./technical-report.md)                     | The measured story (v1.0 snapshot); published as [Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76)                  |
 | [console-validation-runbook.md](./console-validation-runbook.md) | Ordered on-console validation checklist with measured results per section                                                                  |
 | [fp16-extdata-runbook.md](./fp16-extdata-runbook.md)             | Unblock fp16 models >2 GB on the GPU: zero-code USB spike, then the ORT `weakly_canonical` patch (Fase 1) — entrypoint for the scripts     |
 | [windows-dev-vm.md](./windows-dev-vm.md)                         | Windows VM setup for local UWP/MSIX builds                                                                                                 |

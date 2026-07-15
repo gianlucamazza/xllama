@@ -213,10 +213,10 @@ Milestones:
 - [x] Validate Exp 2 on console — ✅ 2026-07-08: the nobundle app downloaded the full model (417 MB merged) from the GitHub Release catalogue inside the AppContainer, byte-exact, `.complete` written. (The upstream HF repo turned out to ship a non-merged model.onnx + a file list with a nonexistent entry — the download had been broken from the start; distribution moved to Release assets.)
 - [x] Remove model bundle from MSIX — ✅ 2026-07-08 (ItemGroup deleted; CI matrix simplified to default+llamacpp; `xllama-appx` is now the 19 MB no-model package)
 - [x] `model-manifest.json` — ✅ 2026-07-08 (`uwp/models/manifest.json` catalogue + LocalState override; ComboBox and downloader de-hardcoded)
-- [ ] Demo video: model loaded and running on Xbox hardware
-- [x] Technical report — ✅ 2026-07-08 draft written (`docs/technical-report.md`,
-      the measured story 0.3.x→1.0); publication venue (GitHub Discussions vs
-      arXiv) still to pick
+- [ ] Demo video: model loaded and running on Xbox hardware — **tracked under Phase 6**
+- [x] Technical report — ✅ 2026-07-08 draft (`docs/technical-report.md`); published
+      as [Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76)
+      (2026-07-15). arXiv only if a formal citation is needed later.
 - [x] Tagged v1.0.0 release — ✅ 2026-07-08 (`gh release view v1.0.0`: 19 MB
       MSIX + `.cer` + VCLibs x64; models on the `models-v1` release)
 
@@ -334,10 +334,11 @@ Open items only — everything above is measured or shipped.
       **Checklist:** (1) deploy 1.1.8 shipping MSIX, (2) first-launch LFM download,
       (3) chat short + long (routing), (4) Image Generate one frame, (5) 60–90 s
       capture via capture card / Game Bar if available. No code blocker.
-- [x] **Publication venue** — **decision: GitHub Discussions** (or a pinned
-      Discussion + README link) for `docs/technical-report.md` first; arXiv only
-      if a formal citation is needed later. The report stays a dated v1.0
-      snapshot; live numbers stay in `docs/benchmarks.md`.
+- [x] **Publication venue** — GitHub Discussions; **posted**
+      [Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76)
+      (technical-report entrypoint + SSOT links). arXiv only if a formal citation
+      is needed later. Report stays a dated v1.0 snapshot; live numbers stay in
+      `docs/benchmarks.md`.
 - [x] **`smollm2-1.7b-cpu-int4` on `models-v1`** (2026-07-15) — the 4 catalogue
       assets (incl. the 1.47 GB `model.onnx`) uploaded to the `models-v1` release;
       verified on-console: in-app download of all 4 files → load → generate (63
