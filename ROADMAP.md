@@ -13,7 +13,10 @@ published on the `models-v1` catalogue (in-app download, ~20.6 tok/s). Carries o
 `docs/benchmarks.md`; architecture: `docs/architecture.md`. Prior console gates
 still pass: `validate-console.sh all` → **ALL PASS** (routing, GGUF `lfm25-350m`,
 TAESD). Catalogue `models-v1` also includes `smollm2-360m-dml-fp16` (~691 MB merged)
-for in-app routing-GPU download. See
+for in-app routing-GPU download. **In flight (not yet in this shipping build):** a
+patched ORT DLL that loads external-`.onnx.data` models >2 GB on the AppContainer
+(console-validated) lives in the dispatch-only `build-uwp-ort-patched` lane — see
+Phase 6 and `docs/fp16-extdata-runbook.md`. See
 [`docs/benchmarks.md`](docs/benchmarks.md),
 [`docs/recommended-config.md`](docs/recommended-config.md) and
 [`docs/console-validation-runbook.md`](docs/console-validation-runbook.md).
@@ -346,5 +349,19 @@ Open items only — everything above is measured or shipped.
       (host) + `membw.flag` (console → `membw-result.csv`). **Console-measured
       2026-07-15**: Xbox Zen 2 read 12.35 GB/s @1t / 30.29 @8t — the single-thread
       read matches the deduced ~13 GB/s GEMV denominator. See `docs/benchmarks.md`.
+- [x] **External-data ONNX loading unblocked >2 GB** (2026-07-15, PRs #67/#68/#71/#72/#73)
+      — patched ORT DLL (`patches/onnxruntime-extdata-appcontainer.patch`, built by the
+      dispatch-only `build-uwp-ort-patched` lane): `weakly_canonical` guard
+      (`uwp-constraints.md §8` Fix B) + `ReadFileIntoBuffer` 1 GB→16 MB chunk (fixes
+      `errcode 1450`). Console-validated with a 1.86 GB-extdata int4 model — loads and
+      runs, **6/6 restarts, 0 crashes**. ⚠️ **In the dispatch-only lane, not yet promoted
+      into the default shipping build** (`build-uwp.yml` still ships vanilla ORT); no new
+      catalogue model added yet. Investigated + **closed negative**: a native-DML 1B fp16
+      (2.49 GB) loads (2878/3801 MB) but OOMs GPU inference (`§7` budget wall) — the unblock
+      is a **CPU/int4 enabler, not bigger fp16 on the GPU**. See `docs/fp16-extdata-runbook.md`.
+- [ ] **Promote the patched ORT DLL into the shipping build** — wire
+      `vendor-ort-extdata-patch.ps1` into `build-uwp.yml` (cached DLL) + publish/register a
+      real >2 GB external-data (int4) model in `models-v1`, to turn the validated capability
+      into user-facing model support.
 - [ ] (upstream, deprioritised) **Fused low-bit GPU GEMM in DirectML** — §12;
       not a local contribution via #2280
