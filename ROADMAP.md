@@ -1,13 +1,19 @@
 # xllama Roadmap
 
 **Shipping (2026-07-15):** MSIX **1.1.7.x** — `xllama-appx` from `build-uwp.yml`
-(unified ORT + llama.cpp + PatchedGenAI #2280; Revision auto-stamped from the CI
-run number). Adds the per-architecture chat template + **Gemma** (`gemma3-270m`
-76.8 tok/s, `gemma4-e2b` Q3_K_S 15.3 tok/s — console-validated, `phase6-gemma.csv`)
-and GGUF **KV-reuse** (turn-2 prefill 4.07×). Full numbers: `docs/benchmarks.md`.
-Prior console gates still pass: `validate-console.sh all` → **ALL PASS** (routing,
-GGUF `lfm25-350m`, TAESD). Catalogue `models-v1` includes `smollm2-360m-dml-fp16`
-(~691 MB merged) for in-app routing-GPU download. See
+(unified ORT + llama.cpp + PatchedGenAI #2280; Major.Minor.Build from
+`AppxManifest.xml`, Revision auto-stamped from the CI run number). **1.1.7.0** adds
+GGUF **KV-reuse** (turn-2 prefill 4.07×), **model-provisioning quant auto-upgrade**
+(a stale quant re-downloads to the manifest's file), a CPU **memory-bandwidth
+micro-bench** (console: read 12.35 GB/s @1t / 30.29 @8t), and llama.cpp **prefill
+batch knobs** (`--batch/--ubatch`). The **`smollm2-1.7b-cpu-int4`** model is now
+published on the `models-v1` catalogue (in-app download, ~20.6 tok/s). Carries over
+1.1.6.0's per-architecture chat template + **Gemma** (`gemma3-270m` 76.8 tok/s,
+`gemma4-e2b` Q3_K_S 15.3 tok/s — `phase6-gemma.csv`). Full numbers:
+`docs/benchmarks.md`; architecture: `docs/architecture.md`. Prior console gates
+still pass: `validate-console.sh all` → **ALL PASS** (routing, GGUF `lfm25-350m`,
+TAESD). Catalogue `models-v1` also includes `smollm2-360m-dml-fp16` (~691 MB merged)
+for in-app routing-GPU download. See
 [`docs/benchmarks.md`](docs/benchmarks.md),
 [`docs/recommended-config.md`](docs/recommended-config.md) and
 [`docs/console-validation-runbook.md`](docs/console-validation-runbook.md).

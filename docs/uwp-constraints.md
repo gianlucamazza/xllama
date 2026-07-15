@@ -23,7 +23,7 @@ Platform limitations relevant to running LLM inference on Xbox Dev Mode, and how
 
 **Problem**: UWP does not allow loading unsigned DLLs at runtime.
 
-**Workaround**: ORT GenAI and its dependencies (`onnxruntime-genai.dll`, `onnxruntime.dll`, `DirectML.dll`) are NuGet packages restored at build time and included in the MSIX as **app-local** DLLs with `<DeploymentContent>true</DeploymentContent>`. No system-wide DLL loading. The backend (`XLLAMA_USE_ORT`) is selected at compile time.
+**Workaround**: ORT GenAI and its dependencies (`onnxruntime-genai.dll`, `onnxruntime.dll`, `DirectML.dll`) are NuGet packages restored at build time and included in the MSIX as **app-local** DLLs with `<DeploymentContent>true</DeploymentContent>`. No system-wide DLL loading. Which backends are compiled in is a build-time choice (`XLLAMA_USE_ORT` / `XLLAMA_USE_LLAMA`): the `default` and `llamacpp` variants link a single backend, while the shipping **`unified`** build links both and dispatches **per model at runtime** (`Backend::Auto` → `model_uses_llama_backend()`: `*.gguf` → llama.cpp, else ORT GenAI). See `docs/architecture.md`.
 
 ## 4. No JIT Compilation
 

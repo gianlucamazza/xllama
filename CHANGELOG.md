@@ -14,6 +14,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the 1.7B chat model (~20.6 tok/s decode, ~2.4 GB RAM) is downloadable in-app from
   the model picker. Verified on-console (download → load → generate). No app/code
   change — the manifest entry already referenced them.
+- **Architecture overview** — new `docs/architecture.md` (SSOT for system
+  structure) maps module boundaries, runtime backend dispatch, chat templates,
+  KV-reuse, routing, model provisioning + quant auto-upgrade, membw, and the
+  diffusion pipeline. Cross-linked from `docs/README.md`, README, and ROADMAP.
+
+### Documentation
+
+- Currency/drift pass after v1.1.7.0: `smollm2-1.7b` marked in-app-downloadable
+  (README/model-selection/recommended-config), the model-provisioning quant
+  auto-upgrade recorded as **shipped** (was described as an open gap in
+  `benchmarks.md`), the ROADMAP shipping banner + README roadmap refreshed with the
+  1.1.7.x deliverables, and `uwp-constraints.md` clarified that the `unified` build
+  dispatches backends at runtime (not compile time).
 
 ## [1.1.7.0] - 2026-07-15
 
@@ -32,6 +45,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `xllama::merge_manifest_entries` (`include/xllama/manifest_merge.h`) with 7
   host doctest cases (`tests/test_manifest_merge.cpp`) covering replace / append /
   preserve, incl. the 2026-07-10 whole-catalogue-shadow regression.
+- **CPU memory-bandwidth micro-bench** — `xllama::measure_membw` (STREAM-style
+  read/copy/triad, `include/xllama/membw.h`) with `xllama-cli --membw` (host) and a
+  `membw.flag` headless mode (console → `membw-result.csv`). Pins the DRAM-bandwidth
+  ceiling behind the bandwidth-bound decode number. 4 host doctest cases.
+  Console-measured 2026-07-15: Xbox Zen 2 read 12.35 GB/s @1t / 30.29 @8t — the
+  single-thread read matches the deduced ~13 GB/s GEMV denominator.
+- **In-app HuggingFace download verified on-console** (2026-07-15) — the app
+  self-downloaded the 2.29 GB single `.gguf` for `gemma4-e2b` from HF and
+  loaded+generated it, confirming the >2 GB self-download path (not just Device
+  Portal provisioning). See `docs/benchmarks.md`.
 
 ### Changed
 
@@ -51,17 +74,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Fixed two more stale in-code comments: `ManifestEntry` (gguf KV-reuse now
   enabled) and `GenerateParams` reuse_kv/reset_kv (honored by both backends now,
   not ORT-only).
-- **In-app HuggingFace download verified on-console** (2026-07-15) — the app
-  self-downloaded the 2.29 GB single `.gguf` for `gemma4-e2b` from HF and
-  loaded+generated it, confirming the >2 GB self-download path (not just Device
-  Portal provisioning). Surfaced a follow-up: `IsModelProvisioned` doesn't
-  auto-upgrade a stale-quant entry (see ROADMAP). See `docs/benchmarks.md`.
-- **CPU memory-bandwidth micro-bench** — `xllama::measure_membw` (STREAM-style
-  read/copy/triad, `include/xllama/membw.h`) with `xllama-cli --membw` (host) and a
-  `membw.flag` headless mode (console → `membw-result.csv`). Pins the DRAM-bandwidth
-  ceiling behind the bandwidth-bound decode number. 4 host doctest cases.
-  Console-measured 2026-07-15: Xbox Zen 2 read 12.35 GB/s @1t / 30.29 @8t — the
-  single-thread read matches the deduced ~13 GB/s GEMV denominator.
 - Consolidated documentation onto single-source-of-truth docs (perf →
   `benchmarks.md`, constraints → `uwp-constraints.md`, catalogue →
   `model-selection.md` + `manifest.json`); refreshed stale version/quant/KV claims.

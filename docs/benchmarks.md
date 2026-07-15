@@ -116,11 +116,13 @@ un-provisioned, the app's own downloader pulled the single 2.29 GB `.gguf` strai
 from the HF `unsloth` repo (`EnsureModel: downloading … from catalogue` →
 `download complete`, 2 290 858 112 bytes), then loaded it (`GGUF model loaded via
 llama.cpp`) and generated — confirming the >2 GB single-file download path (not just
-Device-Portal provisioning). Known gap surfaced in the process: `IsModelProvisioned`
-treats a dir with _any_ `.gguf` as provisioned, so an entry already holding an
-older-quant file (e.g. a stale IQ2_M under `gemma4-e2b`) is **not** auto-upgraded to
-the manifest's current quant — the manifest filename should be checked, not just
-"a gguf exists".
+Device-Portal provisioning). A gap surfaced in the process was **fixed in
+v1.1.7.0**: `IsModelProvisioned` is now expected-aware — it compares the directory
+against the manifest's current `files[].filename` (`dir_satisfies_expected_files`,
+`include/xllama/model_provision.h`) instead of accepting any `.gguf`, and
+`EnsureModelNamedAsync` reconciles the dir (drops the stale `*.gguf` + `.complete`)
+before re-downloading. A stale IQ2_M under `gemma4-e2b` now **auto-upgrades** to the
+manifest's Q3_K_S (verified on-console 2026-07-15). See `docs/architecture.md`.
 
 ## Root-cause notes — the negative performers
 

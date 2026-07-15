@@ -38,7 +38,7 @@ tables are in [benchmarks.md](benchmarks.md) (the perf SSOT).
 | **Default (unified)** | `lfm25-350m`            | llama.cpp (`unified`) | **94.2 tok/s** (recommended)             |
 | **ORT default**       | `smollm2-360m-cpu-int4` | ORT CPU int4          | ~66 tok/s                                |
 | **Routing GPU**       | `smollm2-360m-dml-fp16` | ORT DML fp16          | ~47 tok/s decode; ~354 tok/s prefill @1k |
-| **Larger chat**       | `smollm2-1.7b-cpu-int4` | ORT CPU int4          | ~21 tok/s (USB / 90 GB disk)             |
+| **Larger chat**       | `smollm2-1.7b-cpu-int4` | ORT CPU int4          | ~21 tok/s (in-app `models-v1` download)  |
 | **Modern GGUF**       | `qwen35-0.8b`           | llama.cpp (`unified`) | 35.1 tok/s (98.1 prefill, t6)            |
 | **Fast modern GGUF**  | `lfm25-350m`            | llama.cpp (`unified`) | 94.2 tok/s (241.4 prefill, t6)           |
 
@@ -135,7 +135,7 @@ ctest --test-dir build/linux-test --output-on-failure
 
 ## Validation checklist
 
-1. Deploy the default **`xllama-appx`** CI artifact (unified + PatchedGenAI #2280; version auto-stamped from the CI run number — see `CHANGELOG.md`)
+1. Deploy the default **`xllama-appx`** CI artifact (unified + PatchedGenAI #2280; version is `Major.Minor.Build` from `uwp/AppxManifest.xml` with the **Revision** auto-stamped from the CI run number — see `CHANGELOG.md`)
 2. Ensure models are provisioned (`smollm2-360m-dml-fp16` for routing — catalogue or WDP;
    `sd-turbo-fp16` + TAESD asset for §7c). MSIX **uninstall** wipes LocalState.
 3. Remove `bench.flag` from LocalState if `install-latest-build.sh` left it behind

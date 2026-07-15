@@ -11,7 +11,12 @@ hypothesis recorded along the way.
 > The numbers below are a narrative snapshot (v1.0 draft, 2026-07). The current,
 > consolidated performance tables are maintained in
 > [benchmarks.md](benchmarks.md) (the perf SSOT) — including the GGUF/Gemma models
-> and KV-reuse added after this draft.
+> and KV-reuse added after this draft. For the current system structure (how the
+> two backends dispatch, provisioning, membw, etc.) see
+> [architecture.md](architecture.md). Subsystems that post-date this draft — the
+> `unified` build shipping llama.cpp as a real GGUF text backend (not just an A/B
+> lane), the per-architecture chat template, and model-provisioning quant
+> auto-upgrade — are documented there, not below.
 
 ## 1. The machine, as seen from an app
 

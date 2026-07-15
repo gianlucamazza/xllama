@@ -75,8 +75,9 @@ abort between UNet steps.
 
 The `sd-turbo-fp16` model (2.4 GB: text encoder, UNet, VAE decoder + CLIP
 tokenizer) is **downloaded automatically on the first Generate** from the
-model catalogue, disk permitting (the Dev Mode budget is tight — free space
-first if needed); Device Portal provisioning remains available as an
+model catalogue (the Dev Mode disk budget is 90 GB after raising it via Dev
+Home — see [uwp-constraints.md §9](uwp-constraints.md); free space if you have
+not raised it); Device Portal provisioning remains available as an
 alternative ([../diffusion/README.md](../diffusion/README.md)). Each
 generation writes
 `diffuse-out.png`, `diffuse-result.csv` (per-stage timings) and a live
