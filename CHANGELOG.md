@@ -50,12 +50,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   read/copy/triad, `include/xllama/membw.h`) with `xllama-cli --membw` (host) and a
   `membw.flag` headless mode (console → `membw-result.csv`). Pins the DRAM-bandwidth
   ceiling behind the bandwidth-bound decode number. 4 host doctest cases.
+  Console-measured 2026-07-15: Xbox Zen 2 read 12.35 GB/s @1t / 30.29 @8t — the
+  single-thread read matches the deduced ~13 GB/s GEMV denominator.
 - Consolidated documentation onto single-source-of-truth docs (perf →
   `benchmarks.md`, constraints → `uwp-constraints.md`, catalogue →
   `model-selection.md` + `manifest.json`); refreshed stale version/quant/KV claims.
 
 ### Fixed
 
+- **Model provisioning now auto-upgrades a stale quant** — `IsModelProvisioned`
+  gained an expected-aware overload (compares the dir against the manifest's
+  current `files[].filename` via the new pure `dir_satisfies_expected_files`,
+  `include/xllama/model_provision.h`), and `EnsureModelNamedAsync` loads the
+  manifest before the provisioned-check and reconciles the dir (deletes any
+  non-expected `*.gguf` + drops the stale `.complete`) before re-downloading. A
+  directory holding an older `.gguf` than the manifest names (e.g. a stale IQ2_M
+  under `gemma4-e2b`) is no longer treated as provisioned, and the coexisting-file
+  hazard in `first_gguf_in_dir` is closed. `EnsureGpuModelIfNeeded` is
+  expected-aware too. 13 host doctest cases (`tests/test_model_provision.cpp`).
+- Fixed a stale comment in `MainPage.cpp::StartInference`: GGUF KV-cache reuse is
+  supported (persistent `llama_context`), gated by `kv_reuse_supported_for_model`;
+  only EP routing stays gated off for GGUF.
 - `scripts/bench-xbox-ort.sh`: verify `bench-result.csv.done` is actually deleted
   before a run, so `wait_for_done` can't return off a stale marker (silent wrong row).
 

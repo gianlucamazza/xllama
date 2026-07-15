@@ -9,6 +9,7 @@
 // clang-format on
 
     #include "xllama/manifest_merge.h"
+    #include "xllama/model_provision.h"
     #include "xllama/platform.h"
     #include "xllama/utf8_utils.h"
 
@@ -278,24 +279,64 @@ bool dir_has_ort_or_gguf(const std::filesystem::path& dir) {
     return false;
 }
 
+// Directory-relative paths of every regular file under `dir` (recursive, so
+// diffusion subdir files like unet/model.onnx are seen). The .complete marker is
+// bookkeeping, not a model file — omit it. Empty if the dir is absent.
+std::vector<std::wstring> list_relative_files(const std::filesystem::path& dir) {
+    std::vector<std::wstring> out;
+    std::error_code ec;
+    if (!std::filesystem::is_directory(dir, ec))
+        return out;
+    for (const auto& ent : std::filesystem::recursive_directory_iterator(dir, ec)) {
+        if (!ent.is_regular_file(ec))
+            continue;
+        std::error_code rel_ec;
+        auto rel = std::filesystem::relative(ent.path(), dir, rel_ec);
+        if (rel_ec)
+            continue;
+        std::wstring w = rel.wstring();
+        if (w == L".complete")
+            continue;
+        out.push_back(std::move(w));
+    }
+    return out;
+}
+
+// Is `dir` provisioned? Loose mode (empty expected) keeps the historical
+// any-gguf/genai_config check; expected mode requires the manifest's current file
+// set to be present (so a stale quant no longer counts as provisioned).
+bool dir_provisioned(const std::filesystem::path& dir, const std::vector<std::wstring>& expected) {
+    if (expected.empty())
+        return dir_has_ort_or_gguf(dir);
+    return dir_satisfies_expected_files(list_relative_files(dir), expected);
+}
+
 } // namespace
 
 bool IsModelProvisioned(std::wstring const& model_name) {
+    return IsModelProvisioned(model_name, {});
+}
+
+bool IsModelProvisioned(std::wstring const& model_name,
+                        std::vector<std::wstring> const& expected_files) {
     if (model_name.empty())
         return false;
 
     auto local = ApplicationData::Current().LocalFolder();
     std::wstring local_dir = std::wstring(local.Path().c_str()) + L"\\models\\" + model_name;
-    if (ModelDownloader::IsComplete(local_dir))
+    // The .complete marker is a fast-path ONLY in loose mode: in expected mode a
+    // stale-quant dir can still carry a valid old marker — exactly what defeats
+    // auto-upgrade — so the expected-file scan is authoritative there.
+    if (expected_files.empty() && ModelDownloader::IsComplete(local_dir))
         return true;
-    if (dir_has_ort_or_gguf(std::filesystem::path(local_dir)))
+    if (dir_provisioned(std::filesystem::path(local_dir), expected_files))
         return true;
 
     try {
         auto pkg = winrt::Windows::ApplicationModel::Package::Current();
         std::wstring installed =
             std::wstring(pkg.InstalledPath().c_str()) + L"\\models\\" + model_name;
-        if (dir_has_ort_or_gguf(std::filesystem::path(installed)))
+        if (dir_provisioned(std::filesystem::path(installed), expected_files))
             return true;
     } catch (...) {
     }
@@ -314,7 +355,7 @@ bool IsModelProvisioned(std::wstring const& model_name) {
                 usb.pop_back();
             if (!usb.empty()) {
                 std::wstring usb_dir = usb + L"\\xllama\\models\\" + model_name;
-                if (dir_has_ort_or_gguf(std::filesystem::path(usb_dir)))
+                if (dir_provisioned(std::filesystem::path(usb_dir), expected_files))
                     return true;
             }
         }

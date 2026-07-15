@@ -200,10 +200,21 @@ Host reference (i7-1165G7, 2026-07-14, `xllama-cli --membw`):
 | 1       |      11.8 |      23.0 |       14.0 |
 | 8       |      28.1 |      36.3 |       26.3 |
 
-On-console: drop a `membw.flag` into `LocalState` (the app runs the bench headless
-and writes `membw-result.csv`, single-thread + full-width rows). This pins the
-Xbox Zen 2 / GDDR6 CPU-side ceiling so the 13 GB/s GEMV figure can be reported as a
-fraction of it (pending one console pass).
+On-console (Xbox Series S, Zen 2 / GDDR6, MSIX 1.1.6.464, 2026-07-15,
+`membw.flag`):
+
+| Threads | Read GB/s | Copy GB/s | Triad GB/s |
+| ------- | --------: | --------: | ---------: |
+| 1       |     12.35 |     28.34 |      18.29 |
+| 8       |     30.29 |     42.02 |      24.20 |
+
+**This closes the loop on the "~13 GB/s effective" GEMV figure**: the measured
+single-thread read is **12.35 GB/s** — essentially the deduced decode denominator —
+and the full-width ceiling is **~30 GB/s** read. So CPU int4 decode streams weights
+at roughly single-thread bandwidth (~40% of the 8-thread ceiling); the GEMV is
+latency/dispatch-bound per token rather than saturating aggregate DRAM bandwidth,
+consistent with why more threads help prefill (batched) but not decode (M=1). Drop
+a `membw.flag` into `LocalState` to reproduce (`membw-result.csv`, 1t + full-width).
 
 ## Reproducing
 
@@ -228,7 +239,8 @@ batch). Now exposed end-to-end (`InferenceParams`/`SessionParams` →
 (i7-1165G7, Qwen3.5-0.8B-Q4_K_M, 701-token prompt, 2026-07-14): repeated passes
 **disagree** on the ubatch=128 value (82.5 vs 117.4 tok/s) and show **no
 reproducible trend** — on a loaded dev laptop the measurement is noise-dominated.
-The knob is in place and CLI-sweepable; a clean optimum needs a quiet machine or
-an on-console pass (Xbox Zen 2 shares the x86 AVX2 ISA, so a flat curve is the
-expectation). Default (0 → llama.cpp 512) stays until a measured win justifies a
-change.
+The knob is in place and CLI-sweepable; a clean optimum needs a quiet machine (the
+headless console bench reads `bench_threads.txt` but not an ubatch override, so an
+on-console sweep would need a bench-mode change — out of scope). Xbox Zen 2 shares
+the x86 AVX2 ISA, so a flat curve is the expectation. Default (0 → llama.cpp 512)
+stays until a measured win justifies a change.

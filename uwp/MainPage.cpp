@@ -11,6 +11,7 @@
     #include "chat-history.h"
     #include "inference-bridge.h"
     #include "xllama/chat_prompt.h"
+    #include "xllama/model_provision.h"
     #include "xllama/platform.h"
     #include "xllama/routing_policy.h"
     #include "xllama/utf8_utils.h"
@@ -1417,7 +1418,17 @@ void MainPageController::EnsureGpuModelIfNeeded() {
     if (m_routing == 0)
         return;
     const std::wstring gpu = ::xllama::utf8_to_wstring(m_gpu_model);
-    if (::xllama::IsModelProvisioned(gpu))
+    // Expected-aware so a stale-quant GPU model is upgraded like the chat model
+    // (EnsureModelNamedAsync would otherwise be short-circuited here). Empty
+    // expected → loose fallback.
+    std::vector<std::wstring> gpu_expected;
+    {
+        auto manifest = ::xllama::LoadModelManifest();
+        if (const auto* e = ::xllama::FindManifestEntry(manifest, gpu))
+            for (const auto& f : e->files)
+                gpu_expected.push_back(f.filename);
+    }
+    if (::xllama::IsModelProvisioned(gpu, gpu_expected))
         return;
     log_output(
         ("[xllama] EnsureModel: gpu_model '" + m_gpu_model + "' missing — background provision\n")
@@ -1441,12 +1452,22 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
         ("[xllama] EnsureModel: begin '" + ::xllama::wstring_to_utf8(model_name) + "'\n").c_str());
     co_await resume_background();
 
+    // Load the catalogue up-front so every provisioning check can compare against
+    // the entry's CURRENT expected files (auto-upgrade a stale quant) instead of
+    // accepting any gguf. Empty expected → loose fallback (USB/WDP/no entry).
+    auto manifest = ::xllama::LoadModelManifest();
+    const ::xllama::ManifestEntry* entry = ::xllama::FindManifestEntry(manifest, model_name);
+    std::vector<std::wstring> expected_files;
+    if (entry)
+        for (const auto& f : entry->files)
+            expected_files.push_back(f.filename);
+
     // Check 1: LocalState model complete?
     auto local_folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
     std::wstring local_models_root = std::wstring(local_folder.Path().c_str()) + L"\\models";
     std::wstring local_model_dir = local_models_root + L"\\" + model_name;
 
-    if (IsModelProvisioned(model_name)) {
+    if (IsModelProvisioned(model_name, expected_files)) {
         log_output(("[xllama] EnsureModel: '" + ::xllama::wstring_to_utf8(model_name) +
                     "' already provisioned\n")
                        .c_str());
@@ -1610,11 +1631,9 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
             co_return;
         }
     }
-    // Neither found: consult the model catalogue (models/manifest.json) — any
-    // entry with an hf_base_url can be auto-downloaded; anything else must be
-    // provided via USB or Device Portal upload.
-    auto manifest = ::xllama::LoadModelManifest();
-    const ::xllama::ManifestEntry* entry = ::xllama::FindManifestEntry(manifest, model_name);
+    // Neither found: consult the model catalogue (loaded above) — any entry with
+    // an hf_base_url can be auto-downloaded; anything else must be provided via
+    // USB or Device Portal upload.
     if (!entry || entry->hf_base_url.empty() || entry->files.empty()) {
         log_output(("[xllama] EnsureModel: '" + ::xllama::wstring_to_utf8(model_name) +
                     "' not in catalogue (no hf_base_url)\n")
@@ -1661,6 +1680,43 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                             StatusKind::Error);
             co_return;
         }
+    }
+
+    // Reconcile the dir to the expected set before downloading: drop any *.gguf
+    // that isn't in the manifest's expected files (a stale quant we're upgrading
+    // away from) and clear the stale .complete marker. Without this the old and
+    // new gguf coexist and first_gguf_in_dir() may load the wrong one; it also
+    // frees the ~2.3 GB the old quant occupies.
+    {
+        std::vector<std::wstring> expected_norm;
+        for (const auto& e : expected_files)
+            expected_norm.push_back(::xllama::normalize_model_path(e));
+        // Collect stale gguf paths first, then remove — mutating the directory
+        // mid-iteration is undefined.
+        std::vector<std::filesystem::path> stale;
+        std::error_code ec;
+        for (const auto& de :
+             std::filesystem::directory_iterator(std::filesystem::path(local_model_dir), ec)) {
+            if (!de.is_regular_file(ec) || de.path().extension() != L".gguf")
+                continue;
+            std::wstring rel = ::xllama::normalize_model_path(de.path().filename().wstring());
+            bool wanted = false;
+            for (const auto& w : expected_norm)
+                if (w == rel) {
+                    wanted = true;
+                    break;
+                }
+            if (!wanted)
+                stale.push_back(de.path());
+        }
+        for (const auto& p : stale) {
+            std::error_code rm_ec;
+            std::filesystem::remove(p, rm_ec);
+            log_output(("[xllama] EnsureModel: removed stale file '" +
+                        ::xllama::wstring_to_utf8(p.filename().wstring()) + "'\n")
+                           .c_str());
+        }
+        ModelDownloader::Invalidate(local_model_dir);
     }
 
     co_await resume_foreground(dispatcher);
@@ -1804,10 +1860,11 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
         SetStatus(L"Context trimmed — " + std::to_wstring(n_dropped) + L" old turn(s) dropped");
 
     // Is the base model a GGUF (llama.cpp backend)? On Xbox llama.cpp is CPU-only
-    // (no ggml GPU backend) and LlamaSession is stateless, so both EP routing and
-    // KV-cache reuse are meaningless — and reuse would be *incorrect* (it sends
-    // only the turn delta, which a stateless backend would treat as the whole
-    // prompt). Gate both off for GGUF models.
+    // (no ggml GPU backend), so EP routing is meaningless and stays gated off for
+    // GGUF (below). KV-cache reuse, however, IS supported: LlamaSession keeps a
+    // persistent llama_context, so a reuse turn appends only the delta (turn-2
+    // prefill 4.07×). Reuse is gated by kv_reuse_supported_for_model(), not by
+    // this flag.
     bool base_is_gguf = false;
     {
         auto manifest = ::xllama::LoadModelManifest();

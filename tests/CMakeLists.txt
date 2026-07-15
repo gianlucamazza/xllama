@@ -20,6 +20,7 @@ add_executable(xllama-tests
     test_chat_prompt.cpp
     test_manifest_merge.cpp
     test_membw.cpp
+    test_model_provision.cpp
 )
 
 target_link_libraries(xllama-tests PRIVATE xllama doctest::doctest)
