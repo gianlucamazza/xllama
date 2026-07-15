@@ -9,17 +9,37 @@ ceiling, so fp16 models >2 GB cannot ship — this is the last local GPU lever
 (DirectML itself is in maintenance mode; the int4-DML decode wall in §12 is
 permanent upstream).
 
-## Feasibility gate (read first)
+## Outcome (2026-07-15, console-validated)
 
-- GPU budget is **3801 MB** per-process (`docs/uwp-constraints.md §7`).
-- Useful window: fp16 **~1B / 2–2.5 GB** — big enough to need the fix (>2 GB),
-  small enough to run (≤3801 MB with KV/activations). 1.7B fp16 (~3.4 GB) is
-  out of budget; even Llama-3.2-1B fp16 (~3.0 GB) is borderline.
-- DML-fp16 builds in that window are scarce on HF (mostly int4-DML or fp16-cuda),
-  so the target model is **built locally** with the ORT GenAI model builder.
+Two conclusions, one positive and one negative — both measured on Xbox Series S:
+
+1. ✅ **External-data loading on the AppContainer is unblocked** by the two ORT
+   patches (weakly_canonical guard + ReadFile 16 MB chunk). A 1.86 GB-extdata int4
+   model that crashed pre-patch now loads and runs, 6/6 clean restarts, 0× 1450.
+   This is the shipping win: **large external-data models (int4/CPU) work**.
+2. ❌ **A 1B fp16 model cannot run _inference_ on the GPU** within the 3801 MB
+   budget — the crossover this plan chased is **not reachable on this hardware**.
+   A correctly built native-DML Llama-3.2-1B fp16 (2.49 GB weights, GQA) **loads**
+   (`gpu-mem post-load: 2878/3801 MB`) but every inference call OOMs
+   (`AppendTokenSequences … DmlCommittedResourceAllocator … 8007000E Not enough
+memory`), even at `context_length=2048`. Weights fit; the ~923 MB headroom is
+   too small for the DML inference working set (graph-capture allocators + prefill
+   activations + KV). Any fp16 >2 GB is ≥~1B → same wall. **So the unblock and the
+   fp16-GPU goal don't overlap on Series S**: the practical DML-fp16 window stays at
+   ~360-500 M (e.g. `smollm2-360m-dml-fp16`, ~700 MB weights, ~3 GB headroom), which
+   don't need the >2 GB unblock. The unblock's real value is CPU-side (large
+   external-data int4 models), not bigger fp16 on the GPU.
+
+## Feasibility gate (superseded by the Outcome above)
+
+- GPU budget is **3801 MB** per-process (`docs/uwp-constraints.md §7`) — and the
+  binding limit is the **inference working set**, not just the weights: a 2.49 GB
+  fp16 model loads but OOMs mid-inference (measured, see Outcome #2).
 - The `weakly_canonical` check runs at model **parse**, before GPU weight
-  allocation — so the spike question ("does it get past ValidateExternalDataPath?")
-  is answerable even with a slightly over-budget model.
+  allocation — so external-data loading is answerable even for over-budget models.
+- DML-fp16 builds are scarce on HF (mostly int4-DML or fp16-cuda); a native DML
+  build (`onnxruntime_genai.models.builder … -p fp16 -e dml`) is required — a
+  cuda-fp16 re-host loads/partitions to DML but **fails DML inference at runtime**.
 
 ## Prereqs
 
