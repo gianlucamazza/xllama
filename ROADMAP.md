@@ -1,6 +1,6 @@
 # xllama Roadmap
 
-**Shipping (2026-07-14):** MSIX **1.1.6.x** — `xllama-appx` from `build-uwp.yml`
+**Shipping (2026-07-15):** MSIX **1.1.7.x** — `xllama-appx` from `build-uwp.yml`
 (unified ORT + llama.cpp + PatchedGenAI #2280; Revision auto-stamped from the CI
 run number). Adds the per-architecture chat template + **Gemma** (`gemma3-270m`
 76.8 tok/s, `gemma4-e2b` Q3_K_S 15.3 tok/s — console-validated, `phase6-gemma.csv`)
