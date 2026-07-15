@@ -1,13 +1,19 @@
 # xllama Roadmap
 
 **Shipping (2026-07-15):** MSIX **1.1.7.x** — `xllama-appx` from `build-uwp.yml`
-(unified ORT + llama.cpp + PatchedGenAI #2280; Revision auto-stamped from the CI
-run number). Adds the per-architecture chat template + **Gemma** (`gemma3-270m`
-76.8 tok/s, `gemma4-e2b` Q3_K_S 15.3 tok/s — console-validated, `phase6-gemma.csv`)
-and GGUF **KV-reuse** (turn-2 prefill 4.07×). Full numbers: `docs/benchmarks.md`.
-Prior console gates still pass: `validate-console.sh all` → **ALL PASS** (routing,
-GGUF `lfm25-350m`, TAESD). Catalogue `models-v1` includes `smollm2-360m-dml-fp16`
-(~691 MB merged) for in-app routing-GPU download. See
+(unified ORT + llama.cpp + PatchedGenAI #2280; Major.Minor.Build from
+`AppxManifest.xml`, Revision auto-stamped from the CI run number). **1.1.7.0** adds
+GGUF **KV-reuse** (turn-2 prefill 4.07×), **model-provisioning quant auto-upgrade**
+(a stale quant re-downloads to the manifest's file), a CPU **memory-bandwidth
+micro-bench** (console: read 12.35 GB/s @1t / 30.29 @8t), and llama.cpp **prefill
+batch knobs** (`--batch/--ubatch`). The **`smollm2-1.7b-cpu-int4`** model is now
+published on the `models-v1` catalogue (in-app download, ~20.6 tok/s). Carries over
+1.1.6.0's per-architecture chat template + **Gemma** (`gemma3-270m` 76.8 tok/s,
+`gemma4-e2b` Q3_K_S 15.3 tok/s — `phase6-gemma.csv`). Full numbers:
+`docs/benchmarks.md`; architecture: `docs/architecture.md`. Prior console gates
+still pass: `validate-console.sh all` → **ALL PASS** (routing, GGUF `lfm25-350m`,
+TAESD). Catalogue `models-v1` also includes `smollm2-360m-dml-fp16` (~691 MB merged)
+for in-app routing-GPU download. See
 [`docs/benchmarks.md`](docs/benchmarks.md),
 [`docs/recommended-config.md`](docs/recommended-config.md) and
 [`docs/console-validation-runbook.md`](docs/console-validation-runbook.md).
@@ -188,7 +194,7 @@ Milestones:
       2026-07-14 (`validate-console.sh routing`, see software perf track above).
 - [x] **#2280 patched GenAI in shipping MSIX** — unified+XAML routing GPU
       validated 2026-07-14 (no `887A0036`). Upstream merge into NuGet TBD.
-- [ ] (deprioritised — see Phase 6) **Fused low-bit GPU GEMM for DirectML** / **membw.flag**
+- [ ] (deprioritised — see Phase 6) **Fused low-bit GPU GEMM for DirectML** (upstream)
 
 ## Phase 4 — In-App Download + Publication ✅ DONE (demo video open)
 
@@ -322,8 +328,10 @@ Open items only — everything above is measured or shipped.
       13 host doctest cases. See `docs/benchmarks.md`.
 - [ ] **Demo video** — model loaded and running on Xbox hardware (Phase 4 carry-over)
 - [ ] **Publication venue** — GitHub Discussions vs arXiv for `docs/technical-report.md`
-- [ ] **`smollm2-1.7b-cpu-int4` on `models-v1`** — manifest ready; optional 1.4 GB
-      release upload (host build in `~/.cache/xllama-1b-build/`)
+- [x] **`smollm2-1.7b-cpu-int4` on `models-v1`** (2026-07-15) — the 4 catalogue
+      assets (incl. the 1.47 GB `model.onnx`) uploaded to the `models-v1` release;
+      verified on-console: in-app download of all 4 files → load → generate (63
+      decode tokens). Enables the 1.7B chat model (~20.6 tok/s) via the picker.
 - [x] **`install-latest-build.sh`** — no longer leaves `bench.flag` by default;
       headless bench mode is now `--bench` opt-in (a normal install launches
       straight into the UI). See `scripts/install-latest-build.sh`.

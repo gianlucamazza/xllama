@@ -122,13 +122,21 @@ are the single source of truth in [docs/benchmarks.md](./docs/benchmarks.md)**
 │  Target: Xbox Series S|X (Dev Mode)      │
 │  ├─ first launch: model download from    │
 │  │  GitHub Release catalogue             │
-│  ├─ chat decode → CPU EP (Zen 2)        │
-│  ├─ long-prompt prefill → DML fp16      │
-│  │  (per-conversation routing)           │
+│  ├─ per-model backend dispatch:          │
+│  │  • ORT chat → CPU EP (Zen 2)         │
+│  │  • long-prompt prefill → DML fp16    │
+│  │    (per-conversation routing)         │
+│  │  • GGUF chat → llama.cpp CPU +       │
+│  │    KV-reuse (unified build)           │
 │  └─ image gen → SD-Turbo on DirectML    │
 │     (in-process; plain ORT DML — §7)     │
 └──────────────────────────────────────────┘
 ```
+
+The component/dataflow map — module boundaries, runtime backend dispatch, chat
+templates, KV-reuse, routing, model provisioning + quant auto-upgrade, the membw
+micro-bench, and the diffusion pipeline — lives in
+[docs/architecture.md](./docs/architecture.md).
 
 ---
 
@@ -166,7 +174,7 @@ xllama/
 │   ├── model-downloader.cpp / .h  # EnsureModelAsync + LoadModelManifest (catalogue download)
 │   ├── models/manifest.json # model catalogue (LocalState override supported)
 │   ├── packages.config     # NuGet pins (ORT GenAI 0.14.1, ORT 1.24.4, DirectML 1.15.4)
-│   ├── ggml-uwp.vcxproj    # static ggml+llama lib (bench-only llamacpp backend)
+│   ├── ggml-uwp.vcxproj    # static ggml+llama lib (shipping GGUF backend in `unified`; sole backend in `llamacpp` variant)
 │   └── xllama.sln / .vcxproj
 ├── scripts/
 │   ├── deploy.sh                      # Device Portal: deploy, logs, bench trigger
@@ -240,17 +248,17 @@ Models come from the catalogue `uwp/models/manifest.json` (assets hosted on the 
 Catalogue overview (roles + sizes; **decode/prefill/RAM numbers live in
 [docs/benchmarks.md](./docs/benchmarks.md)**, the perf SSOT):
 
-| Model                      | Format        | Size    | Xbox UWP | Role                                                     |
-| -------------------------- | ------------- | ------- | -------- | -------------------------------------------------------- |
-| SmolLM2-360M-Instruct INT4 | ONNX GenAI    | 417 MB  | ✅       | Default chat (CPU); routing base                         |
-| SmolLM2-360M fp16 DML      | ONNX GenAI    | ~700 MB | ✅       | Routing target (long-prompt prefill on GPU)              |
-| SmolLM2-1.7B-Instruct INT4 | ONNX GenAI    | 1.4 GB  | ✅       | Larger CPU chat (USB/LocalState)                         |
-| LFM2.5-350M Q4_K_M         | GGUF          | 219 MB  | ✅       | Default chat on `unified` builds; fastest+lightest       |
-| Qwen3.5-0.8B Q4_K_M        | GGUF          | 508 MB  | ✅       | `unified` builds (llama.cpp)                             |
-| Gemma-3-270M Q4_K_M        | GGUF          | 253 MB  | ✅       | `unified` builds; fast, tiny                             |
-| Gemma-4-E2B Q3_K_S         | GGUF          | 2.45 GB | ✅       | `unified` builds; heavy/advanced                         |
-| SD-Turbo fp16 (image)      | ONNX DirectML | 2.4 GB  | ✅       | Image gen ([diffusion/README.md](./diffusion/README.md)) |
-| Phi-3.5-mini CPU INT4      | ONNX GenAI    | ~2.7 GB | ❌       | Not attempted (>2 GB single-file ONNX, §8)               |
+| Model                      | Format        | Size    | Xbox UWP | Role                                                       |
+| -------------------------- | ------------- | ------- | -------- | ---------------------------------------------------------- |
+| SmolLM2-360M-Instruct INT4 | ONNX GenAI    | 417 MB  | ✅       | Default chat (CPU); routing base                           |
+| SmolLM2-360M fp16 DML      | ONNX GenAI    | ~700 MB | ✅       | Routing target (long-prompt prefill on GPU)                |
+| SmolLM2-1.7B-Instruct INT4 | ONNX GenAI    | 1.4 GB  | ✅       | Larger CPU chat (~20.6 tok/s; in-app `models-v1` download) |
+| LFM2.5-350M Q4_K_M         | GGUF          | 219 MB  | ✅       | Default chat on `unified` builds; fastest+lightest         |
+| Qwen3.5-0.8B Q4_K_M        | GGUF          | 508 MB  | ✅       | `unified` builds (llama.cpp)                               |
+| Gemma-3-270M Q4_K_M        | GGUF          | 253 MB  | ✅       | `unified` builds; fast, tiny                               |
+| Gemma-4-E2B Q3_K_S         | GGUF          | 2.45 GB | ✅       | `unified` builds; heavy/advanced                           |
+| SD-Turbo fp16 (image)      | ONNX DirectML | 2.4 GB  | ✅       | Image gen ([diffusion/README.md](./diffusion/README.md))   |
+| Phi-3.5-mini CPU INT4      | ONNX GenAI    | ~2.7 GB | ❌       | Not attempted (>2 GB single-file ONNX, §8)                 |
 
 See [docs/uwp-constraints.md](./docs/uwp-constraints.md) for the measured GPU budget (3801 MB), the disk budget, and AppContainer workarounds.
 
@@ -278,7 +286,7 @@ See [ROADMAP.md](./ROADMAP.md). Headlines:
 3. **Phase 3 / 3.5 — Benchmarks + hardware ceiling** ✅ Measured matrices, routing, KV reuse, llama.cpp A/B (parity), diffusion on console.
 4. **Phase 4 — In-app model download + publication** ✅ Catalogue download, v1.0.0 release, technical report (demo video pending).
 5. **Phase 5 — Post-1.0 improvements** ✅ Unified+PatchedGenAI shipping; console gates ALL PASS.
-6. **Phase 6 — Publication + polish** 🔮 Shipped: per-architecture chat template, **Gemma** (gemma3-270m, gemma4-e2b Q3_K_S), **GGUF KV-reuse** (4.07×), automated MSIX versioning + repo automation. Open: demo video, publication venue (see [ROADMAP.md](./ROADMAP.md)).
+6. **Phase 6 — Publication + polish** 🔮 Shipped (v1.1.7.0): per-architecture chat template, **Gemma** (gemma3-270m, gemma4-e2b Q3_K_S), **GGUF KV-reuse** (4.07×), **model-provisioning quant auto-upgrade**, CPU **membw micro-bench** (12.35/30.29 GB/s), **prefill batch knobs**, **SmolLM2-1.7B** published to `models-v1` (in-app, ~20.6 tok/s), automated MSIX versioning + repo automation. Open: demo video, publication venue (see [ROADMAP.md](./ROADMAP.md)).
 
 ---
 
