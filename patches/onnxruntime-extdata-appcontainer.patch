@@ -1,30 +1,33 @@
-Reference patch — ORT core ValidateExternalDataPath AppContainer guard
-=======================================================================
+Reference patch — ORT core AppContainer external-data fixes
+===========================================================
 
 Target: microsoft/onnxruntime @ tag v1.24.4 (matches Microsoft.ML.OnnxRuntime.DirectML
         1.24.4 pinned in uwp/packages.config).
-File:   onnxruntime/core/framework/tensorprotoutils.cc  (ValidateExternalDataPath)
 
-Problem (docs/uwp-constraints.md §8): loading an ONNX model with a separate
-`.onnx.data` file triggers ValidateExternalDataPath, which calls
-std::filesystem::weakly_canonical() on absolute paths. On the Xbox UWP
-AppContainer, MSVC STL walks the path from the drive root and hits the
-inaccessible Q:\Users\UserMgr0 segment → ACCESS_DENIED → exception → crash in
-OgaCreateModel. The current workaround merges the weights into model.onnx, but
-that fails above the 2 GB protobuf single-file ceiling, blocking fp16 models >2 GB.
+Two independent fixes for loading ONNX models with external `.onnx.data` on the
+Xbox UWP AppContainer (`docs/uwp-constraints.md §8`, `docs/fp16-extdata-runbook.md`):
 
-Fix: replace the throwing one-arg weakly_canonical() calls with a guarded helper
-that uses the std::error_code overload and falls back to lexically_normal() when
-the filesystem walk is denied. The external-data file is a trusted, already-present
-local file (GetFileAttributesW/CreateFile2 succeed per §8 diagnosis), so a lexical
-normalization preserves the "external data must not escape the model dir"
-containment check for the no-symlink/no-`..` case while avoiding the crashing walk.
+1. `onnxruntime/core/framework/tensorprotoutils.cc` (`ValidateExternalDataPath`):
+   guard `weakly_canonical()`. On the AppContainer, MSVC STL walks the path from
+   the drive root and hits the inaccessible `Q:\Users\UserMgr0` segment →
+   `ACCESS_DENIED` → crash. Use the std::error_code overload + `lexically_normal`
+   fallback (the file is a trusted, already-present local file).
 
-Applied by scripts/vendor-ort-extdata-patch.ps1 (which prefers `git apply` and
-falls back to a context-tolerant in-place transform, then verifies the change is
-present before building). If `git apply` rejects this reference diff because
-upstream context drifted, regenerate it against the pinned checkout — the semantic
-change is the four edits below.
+2. `onnxruntime/core/platform/windows/env.cc` (`ReadFileIntoBuffer`): reduce the
+   read chunk `k_max_bytes_to_read` from 1 GB to 16 MB. A single ~0.5-1 GB
+   `ReadFile` (e.g. the un-quantized `embed_tokens.weight`, vocab 128k × hidden ×
+   fp16/fp32) makes the kernel lock that many pages into physical memory (MDL) for
+   the transfer; under AppContainer memory pressure this exceeds resources →
+   `errcode 1450` (ERROR_NO_SYSTEM_RESOURCES), intermittently. mmap can't help:
+   ORT's `MapFileIntoMemory` uses the non-`-FromApp` Win32 APIs, which the
+   AppContainer blocks, so ORT always falls back to this ReadFile path. 16 MB
+   chunks lock few pages and always stay within resources; this is what actually
+   lets fp16 `.onnx.data` >2 GB load.
+
+Applied by scripts/vendor-ort-extdata-patch.ps1 (prefers `git apply`, else a
+context-tolerant in-place transform, then verifies both changes before building).
+If `git apply` rejects this reference diff (upstream context drift), regenerate it
+against the pinned checkout — the semantic changes are the edits below.
 
 --- a/onnxruntime/core/framework/tensorprotoutils.cc
 +++ b/onnxruntime/core/framework/tensorprotoutils.cc
@@ -56,3 +59,13 @@ change is the four edits below.
 @@
 -        auto real_model_dir = std::filesystem::weakly_canonical(model_path).parent_path();
 +        auto real_model_dir = XllamaSafeCanonical(model_path).parent_path();
+
+--- a/onnxruntime/core/platform/windows/env.cc
++++ b/onnxruntime/core/platform/windows/env.cc
+@@ WindowsEnv::ReadFileIntoBuffer
+   size_t total_bytes_read = 0;
+   while (total_bytes_read < length) {
+-    constexpr DWORD k_max_bytes_to_read = 1 << 30;  // read at most 1GB each time
++    constexpr DWORD k_max_bytes_to_read = 1 << 24;  // xllama: 16 MB — a 1 GB ReadFile locks too many pages in the Xbox AppContainer (errcode 1450)
+     const size_t bytes_remaining = length - total_bytes_read;
+     const DWORD bytes_to_read = static_cast<DWORD>(std::min<size_t>(bytes_remaining, k_max_bytes_to_read));
