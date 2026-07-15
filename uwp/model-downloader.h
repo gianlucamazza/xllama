@@ -77,8 +77,16 @@ inline const ManifestEntry* FindManifestEntry(const std::vector<ManifestEntry>& 
 
 // True when the model dir is usable without a download: .complete marker, a
 // WDP/USB upload (genai_config.json or *.gguf present), bundled in the MSIX,
-// or on removable storage at xllama\models\<name>.
+// or on removable storage at xllama\models\<name>. This LOOSE form accepts any
+// gguf/ORT layout and cannot tell a stale quant from the current one.
 bool IsModelProvisioned(std::wstring const& model_name);
+
+// Expected-aware form: a dir counts as provisioned only if it holds the manifest's
+// CURRENT expected files (`expected_files` = entry.files[].filename). An empty
+// list falls back to the loose behavior above. Use this so a stale-quant dir (an
+// older .gguf than the manifest now names) is re-downloaded instead of loaded.
+bool IsModelProvisioned(std::wstring const& model_name,
+                        std::vector<std::wstring> const& expected_files);
 
 } // namespace xllama
 
