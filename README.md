@@ -6,7 +6,7 @@
 [![build-linux](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Status:** shipping (unified + PatchedGenAI) · research-grade — current version in [CHANGELOG](CHANGELOG.md) / [ROADMAP](ROADMAP.md)
+**Status:** shipping (unified + PatchedGenAI + PatchedOrt) · research-grade — current version in [CHANGELOG](CHANGELOG.md) / [ROADMAP](ROADMAP.md)
 **Maintainer:** [Venere Labs](https://github.com/gianlucamazza)
 
 ---
@@ -34,7 +34,7 @@
 
 The project started as a port of [`llama.cpp`](https://github.com/ggml-org/llama.cpp) (GGUF files, CPU-only), then migrated to **ONNX Runtime GenAI + DirectML**. The measured verdict is **per-workload** (see [docs/technical-report.md](./docs/technical-report.md)): the Zen 2 **CPU wins autoregressive decode** at this model scale (~66 tok/s, SmolLM2-360M int4), the RDNA 2 **GPU wins batch compute** — prefill at ~1k prompt tokens (1.8× faster) and image generation (**11.1×** on the diffusion workload: SD-Turbo 512×512 in ~7 s). The app routes per conversation (CPU / GPU / auto). The llama.cpp path serves Linux development, CI, and — in the `unified` UWP build — modern GGUF-only models (Qwen3.5, LFM2.5); for the same model, ORT stays the text backend (measured decode parity, better prefill).
 
-The default chat model is **SmolLM2-360M-Instruct INT4 CPU** (~417 MB), downloaded on first launch from the GitHub Release model catalogue — the MSIX itself is ~19 MB and ships no model.
+The default chat model on the shipping **unified** build is **LFM2.5-350M Q4_K_M** (~219 MB, ~94 tok/s), downloaded on first launch from the GitHub Release model catalogue — the MSIX itself is ~19 MB and ships no model. ORT-only builds still default to SmolLM2-360M INT4.
 
 Goals:
 
@@ -62,7 +62,7 @@ source ~/.config/xllama/xbox-env           # sets XBOX_IP, XBOX_USER, XBOX_PASS
 ./scripts/deploy.sh path/to/xllama_*.msix
 ```
 
-On first launch the app **downloads** the default model (SmolLM2-360M INT4, ~417 MB) from the [`models-v1` GitHub Release](https://github.com/gianlucamazza/xllama/releases/tag/models-v1) with a progress bar, then starts the chat UI. No model is bundled in the MSIX. Routing GPU (`smollm2-360m-dml-fp16`, ~691 MB merged) is also on `models-v1` for in-app download.
+On first launch the app **downloads** the default chat model (**LFM2.5-350M** on unified builds, ~219 MB) from the [`models-v1` GitHub Release](https://github.com/gianlucamazza/xllama/releases/tag/models-v1) with a progress bar, then starts the chat UI. No model is bundled in the MSIX. Other catalogue models (SmolLM2 CPU/GPU, Qwen3.5, Gemma, SD-Turbo) download on demand from `models-v1` or Hugging Face.
 
 > `install-latest-build.sh` uploads `bench.flag` after deploy (headless bench on next launch). Delete `LocalState\bench.flag` before UI or autopilot validation if you did not intend bench mode.
 
@@ -75,7 +75,7 @@ See [docs/install-release.md](./docs/install-release.md) to install a tagged rel
 `xllama` predates the pivot to ONNX Runtime GenAI. The name is kept for continuity, not as a claim about the engine:
 
 - **`x`** — Xbox (UWP target) and cross-platform (Linux CLI build).
-- **`llama`** — local-LLM ecosystem at large. The Linux build still uses `llama.cpp` (GGUF). The UWP "unified" build also supports GGUF models via the catalogue (`kind: "gguf"`) using the shared `xllama::Session` API and layout-aware `Backend::Auto`. Neither path ships LLaMA model weights — the default model is SmolLM2-360M-Instruct.
+- **`llama`** — local-LLM ecosystem at large. The Linux build still uses `llama.cpp` (GGUF). The UWP "unified" build also supports GGUF models via the catalogue (`kind: "gguf"`) using the shared `xllama::Session` API and layout-aware `Backend::Auto`. Neither path ships LLaMA model weights — the shipping default chat model is LFM2.5-350M (GGUF).
 
 ---
 
@@ -250,10 +250,10 @@ Catalogue overview (roles + sizes; **decode/prefill/RAM numbers live in
 
 | Model                      | Format        | Size    | Xbox UWP | Role                                                       |
 | -------------------------- | ------------- | ------- | -------- | ---------------------------------------------------------- |
-| SmolLM2-360M-Instruct INT4 | ONNX GenAI    | 417 MB  | ✅       | Default chat (CPU); routing base                           |
+| LFM2.5-350M Q4_K_M         | GGUF          | 219 MB  | ✅       | **Default chat** on unified shipping; fastest+lightest     |
+| SmolLM2-360M-Instruct INT4 | ONNX GenAI    | 417 MB  | ✅       | ORT default / routing base (CPU)                           |
 | SmolLM2-360M fp16 DML      | ONNX GenAI    | ~700 MB | ✅       | Routing target (long-prompt prefill on GPU)                |
 | SmolLM2-1.7B-Instruct INT4 | ONNX GenAI    | 1.4 GB  | ✅       | Larger CPU chat (~20.6 tok/s; in-app `models-v1` download) |
-| LFM2.5-350M Q4_K_M         | GGUF          | 219 MB  | ✅       | Default chat on `unified` builds; fastest+lightest         |
 | Qwen3.5-0.8B Q4_K_M        | GGUF          | 508 MB  | ✅       | `unified` builds (llama.cpp)                               |
 | Gemma-3-270M Q4_K_M        | GGUF          | 253 MB  | ✅       | `unified` builds; fast, tiny                               |
 | Gemma-4-E2B Q3_K_S         | GGUF          | 2.45 GB | ✅       | `unified` builds; heavy/advanced                           |
@@ -269,7 +269,7 @@ See [docs/uwp-constraints.md](./docs/uwp-constraints.md) for the measured GPU bu
 - **File-size ceiling, not GPU memory**: the measured per-process GPU budget is **3801 MB** (package designated Game), and the Dev Mode disk allocation is raised to **90 GB** via Dev Home — what caps model choice now is the **2 GB ONNX protobuf / per-file limit** (self-contained `model.onnx` must stay under it; see [docs/uwp-constraints.md](./docs/uwp-constraints.md) §8–§9).
 - **DirectML vs XAML (`887A0036`)**: ORT **GenAI** DML conflicts with the XAML compositor's D3D12 device in the vanilla NuGet DLL. Image generation uses plain ORT DML and runs **in-process**; chat GPU routing needs the [#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280) patched `onnxruntime-genai.dll` (`build-uwp.ps1 -PatchedGenAI`). Headless `bench.flag` remains for automation.
 - **Sandboxed filesystem**: models are downloaded to `LocalState` or transferred via Device Portal / USB. No arbitrary path access.
-- **AppContainer path traversal**: ORT 1.24.4 calls `std::filesystem::weakly_canonical()` for external ONNX data files, which traverses path segments the AppContainer cannot read. Workaround: distribute models with `model.onnx.data` merged into a self-contained `model.onnx` (`scripts/merge_onnx_external_data.py`).
+- **AppContainer path traversal**: ORT 1.24.4 calls `std::filesystem::weakly_canonical()` for external ONNX data files, which traverses path segments the AppContainer cannot read. Shipping MSIX includes a **patched `onnxruntime.dll`** (vendor-dlls-v1 pin) that guards the walk + chunks large `ReadFile`s; the merge workaround (`scripts/merge_onnx_external_data.py`) remains for unpatched builds and for models under the 2 GB protobuf ceiling. See [docs/fp16-extdata-runbook.md](./docs/fp16-extdata-runbook.md).
 - **No POSIX mmap / no `dlopen`**: NuGet-packaged ORT GenAI DLLs must be app-local (`DeploymentContent=true`); no system-wide DLL loading.
 - **Dev Mode only**: no path to retail-mode consoles.
 
@@ -286,7 +286,7 @@ See [ROADMAP.md](./ROADMAP.md). Headlines:
 3. **Phase 3 / 3.5 — Benchmarks + hardware ceiling** ✅ Measured matrices, routing, KV reuse, llama.cpp A/B (parity), diffusion on console.
 4. **Phase 4 — In-app model download + publication** ✅ Catalogue download, v1.0.0 release, technical report (demo video pending).
 5. **Phase 5 — Post-1.0 improvements** ✅ Unified+PatchedGenAI shipping; console gates ALL PASS.
-6. **Phase 6 — Publication + polish** 🔮 Shipped (v1.1.7.0): per-architecture chat template, **Gemma** (gemma3-270m, gemma4-e2b Q3_K_S), **GGUF KV-reuse** (4.07×), **model-provisioning quant auto-upgrade**, CPU **membw micro-bench** (12.35/30.29 GB/s), **prefill batch knobs**, **SmolLM2-1.7B** published to `models-v1` (in-app, ~20.6 tok/s), automated MSIX versioning + repo automation. Open: demo video, publication venue (see [ROADMAP.md](./ROADMAP.md)).
+6. **Phase 6 — Publication + polish** 🔮 Patched ORT extdata **promoted to shipping** (cached vendor-dlls-v1 DLL); first-launch default **LFM2.5-350M** on unified. Still open: demo video, publication venue (see [ROADMAP.md](./ROADMAP.md)).
 
 ---
 

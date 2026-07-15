@@ -1,16 +1,14 @@
 name: build-uwp-ort-patched
 
-# Manual lane: build a patched onnxruntime.dll (DirectML) that guards the
-# AppContainer weakly_canonical walk in ValidateExternalDataPath
-# (patches/onnxruntime-extdata-appcontainer.patch), package a shipping-style
-# unified MSIX with BOTH patched DLLs (this one + the #2280 GenAI DLL), and
-# upload the MSIX + the ORT DLL. Unblocks fp16 models with external .onnx.data
-# >2 GB on the GPU (docs/fp16-extdata-runbook.md, Fase 1).
+# Manual lane: REBUILD the patched onnxruntime.dll from source (DirectML) with
+# the AppContainer external-data fixes
+# (patches/onnxruntime-extdata-appcontainer.patch). Full ORT build is 1–3 h —
+# too slow for the per-PR shipping lane.
 #
-# Dispatch-only and separate from build-uwp.yml because the ORT source build is a
-# FULL DirectML build (hours) — far too slow for the per-PR lane. build-uwp.yml
-# keeps shipping the vanilla ORT DLL until this patch is console-validated (same
-# cautious doctrine as build-uwp-patched.yml for #2280).
+# Shipping CI (build-uwp.yml) downloads the pinned console-validated DLL from
+# the vendor-dlls-v1 release (hash in vendor/onnxruntime-patched/SHA256SUMS).
+# After rebuilding here and re-validating on console, update that release asset
+# + SHA256SUMS. See docs/fp16-extdata-runbook.md.
 on:
   workflow_dispatch:
 
@@ -38,7 +36,7 @@ jobs:
           bash scripts/check-uwp-sources.sh
 
       - name: Setup Python (ORT build.py)
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
@@ -74,11 +72,12 @@ jobs:
             }
           }
 
-      - name: Build UWP package (unified, -PatchedGenAI)
+      - name: Build UWP package (unified, -PatchedGenAI -PatchedOrt)
         shell: pwsh
         run: >-
           ./scripts/build-uwp.ps1 -Configuration Release -Platform x64
-          -Backend unified -PatchedGenAI -BuildRevision ${{ github.run_number }}
+          -Backend unified -PatchedGenAI -PatchedOrt
+          -BuildRevision ${{ github.run_number }}
 
       - uses: actions/upload-artifact@v7
         if: success()

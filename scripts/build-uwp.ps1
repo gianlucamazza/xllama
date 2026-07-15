@@ -32,6 +32,10 @@ param(
     # Replace onnxruntime-genai.dll with the #2280 DML fallback build when available
     # (vendor/onnxruntime-genai-patched/ or -Build via vendor-genai-dml-patch.ps1).
     [switch]$PatchedGenAI   = $false,
+    # Replace onnxruntime.dll with the AppContainer external-data build when
+    # available (vendor/onnxruntime-patched/ or vendor-ort-extdata-patch.ps1 -Build).
+    # Shipping CI downloads the pinned DLL from the vendor-dlls-v1 release.
+    [switch]$PatchedOrt     = $false,
     # MSIX version Revision (the 4th component). Each CI build passes a unique,
     # monotonic value (the workflow run number) so every package gets a distinct,
     # increasing version — in-place console updates never hit the same-identity
@@ -151,6 +155,30 @@ if ($PatchedGenAI -and $Backend -ne "llamacpp") {
     if ($LASTEXITCODE -ne 0) {
         Write-Error "vendor-genai-dml-patch.ps1 failed ($LASTEXITCODE) — refusing to package a mislabeled patched build."
         exit $LASTEXITCODE
+    }
+}
+
+if ($PatchedOrt -and $Backend -ne "llamacpp") {
+    $VendorOrtScript = Join-Path $RepoRoot "scripts/vendor-ort-extdata-patch.ps1"
+    Write-Host "Installing patched onnxruntime.dll (AppContainer extdata) ..."
+    & $VendorOrtScript
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "vendor-ort-extdata-patch.ps1 failed ($LASTEXITCODE) — refusing to package a mislabeled patched build."
+        exit $LASTEXITCODE
+    }
+    # Fail closed: -PatchedOrt requires a real install, not the "no DLL" advisory exit 0.
+    $OrtVer = ([xml](Get-Content (Join-Path $RepoRoot "uwp/packages.config"))).packages.package |
+        Where-Object { $_.id -eq "Microsoft.ML.OnnxRuntime.DirectML" } |
+        Select-Object -ExpandProperty version
+    $VendorOrt = Join-Path $RepoRoot "vendor/onnxruntime-patched/win-x64/onnxruntime.dll"
+    $NuGetOrt = Join-Path $RepoRoot "uwp/packages/Microsoft.ML.OnnxRuntime.DirectML.$OrtVer/runtimes/win-x64/native/onnxruntime.dll"
+    if (-not (Test-Path $VendorOrt)) {
+        Write-Error "PatchedOrt requested but vendor DLL missing: $VendorOrt (download vendor-dlls-v1 or run -Build)."
+        exit 1
+    }
+    if ((Get-FileHash $VendorOrt).Hash -ne (Get-FileHash $NuGetOrt).Hash) {
+        Write-Error "PatchedOrt: NuGet onnxruntime.dll does not match vendor cache after install."
+        exit 1
     }
 }
 

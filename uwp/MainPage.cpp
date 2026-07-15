@@ -37,6 +37,18 @@ using namespace winrt::Windows::UI::Text;
 
 namespace xllama {
 
+// First-launch / empty-settings default. Shipping builds are `unified`
+// (XLLAMA_USE_LLAMA): LFM2.5-350M is the measured fastest+lightest chat model
+// (94.2 tok/s, ~219 MB). ORT-only builds keep the classic SmolLM2 CPU int4.
+// Matches bench/configs/settings-modern.json and docs/recommended-config.md.
+static std::wstring DefaultChatModelId() {
+#if defined(XLLAMA_USE_LLAMA)
+    return L"lfm25-350m";
+#else
+    return L"smollm2-360m-cpu-int4";
+#endif
+}
+
 // Wide LocalFolder path helper.
 static std::wstring local_wpath(const wchar_t* filename_w) {
     auto folder = ApplicationData::Current().LocalFolder();
@@ -945,7 +957,7 @@ void MainPageController::LoadSettings() {
             fclose(mf);
         }
         if (m_model_filename.empty())
-            m_model_filename = L"smollm2-360m-cpu-int4";
+            m_model_filename = DefaultChatModelId();
     }
 }
 
@@ -1439,7 +1451,7 @@ void MainPageController::EnsureGpuModelIfNeeded() {
 fire_and_forget MainPageController::EnsureModelAsync() {
     auto self = shared_from_this();
     std::wstring model_name =
-        self->m_model_filename.empty() ? L"smollm2-360m-cpu-int4" : self->m_model_filename;
+        self->m_model_filename.empty() ? DefaultChatModelId() : self->m_model_filename;
     self->EnsureModelNamedAsync(model_name, true);
 }
 
@@ -1768,7 +1780,7 @@ void MainPageController::LoadModelName() {
     // m_model_filename is already populated by LoadSettings() (called in Init()).
     // This method just refreshes the header TextBlock with the current value.
     if (m_model_filename.empty())
-        m_model_filename = L"smollm2-360m-cpu-int4";
+        m_model_filename = DefaultChatModelId();
     m_modelText.Text(m_model_filename);
 }
 

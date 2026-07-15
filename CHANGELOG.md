@@ -9,46 +9,37 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **`smollm2-1.7b-cpu-int4` published to the `models-v1` catalogue** — the four
-  assets (incl. the 1.47 GB `model.onnx`) are now on the `models-v1` release, so
-  the 1.7B chat model (~20.6 tok/s decode, ~2.4 GB RAM) is downloadable in-app from
-  the model picker. Verified on-console (download → load → generate). No app/code
-  change — the manifest entry already referenced them.
-- **Architecture overview** — new `docs/architecture.md` (SSOT for system
-  structure) maps module boundaries, runtime backend dispatch, chat templates,
-  KV-reuse, routing, model provisioning + quant auto-upgrade, membw, and the
-  diffusion pipeline. Cross-linked from `docs/README.md`, README, and ROADMAP.
+- **Project health snapshot** — `docs/project-analysis-2026-07.md` (status matrix,
+  risks, Phase 6 priorities). Not a perf SSOT.
 
-- **External-data ONNX loading unblocked >2 GB on AppContainer** (patched ORT DLL,
-  both fixes console-validated 2026-07-15). Goal: load ONNX models with external
-  `.onnx.data` >2 GB on
-  DirectML (the merge workaround caps at the 2 GB protobuf ceiling; DirectML is in
-  maintenance mode, so this is the last local GPU lever). A zero-code USB spike
-  (`scripts/build-fp16-dml-model.sh` + `scripts/spike-fp16-extdata-usb.sh`) was
-  **refuted on-console** — `EnsureModelNamedAsync` copies USB models into LocalState
-  and loads from there, so the crash is universal to external-data models, not
-  USB-specific. Fix: patch ORT core (`patches/onnxruntime-extdata-appcontainer.patch`
-  - `scripts/vendor-ort-extdata-patch.ps1`), built via the dispatch-only
-    `build-uwp-ort-patched` CI lane. **Two fixes**: (1) `ValidateExternalDataPath`
-    `weakly_canonical` guard — **validated**: the 1.86 GB-extdata model that crashed
-    now loads and generates (`bench/results/phase6-fp16-extdata.csv`); (2) `env.cc`
-    `ReadFileIntoBuffer` chunk 1 GB→16 MB — fixes the intermittent `errcode 1450`
-    (a ~1 GB single `ReadFile` of the un-quantized embedding exhausts AppContainer
-    page-lock resources). **Status**: in the dispatch-only `build-uwp-ort-patched`
-    lane — **not yet promoted into the default shipping build** (`build-uwp.yml` still
-    ships vanilla ORT), and no new catalogue model added. **Scope**: the unblock is a
-    **CPU/int4 enabler** — a native-DML 1B fp16 (2.49 GB) loads (2878/3801 MB) but
-    OOMs GPU inference (§7 budget wall), so bigger fp16 on the GPU stays out of reach.
-    Runbook: `docs/fp16-extdata-runbook.md`.
+## [1.1.8.0] - 2026-07-15
+
+### Added
+
+- **Patched ORT DLL in shipping MSIX** — AppContainer external-data fixes
+  (`weakly_canonical` guard + 16 MB `ReadFile` chunk) are no longer dispatch-lane
+  only. `build-uwp.yml` downloads the console-validated `onnxruntime.dll` from the
+  [`vendor-dlls-v1`](https://github.com/gianlucamazza/xllama/releases/tag/vendor-dlls-v1)
+  release, verifies `vendor/onnxruntime-patched/SHA256SUMS`, and installs it over
+  NuGet (`-PatchedOrt` in `build-uwp.ps1`). Full ORT source rebuild stays in
+  `build-uwp-ort-patched.yml` (1–3 h) for pin refresh. Runbook:
+  `docs/fp16-extdata-runbook.md`.
+- **`smollm2-1.7b-cpu-int4` published to the `models-v1` catalogue** — the four
+  assets (incl. the 1.47 GB `model.onnx`) are on the `models-v1` release (in-app
+  download, ~20.6 tok/s). Verified on-console.
+- **Architecture overview** — `docs/architecture.md` (SSOT for system structure).
+- **External-data ONNX loading unblocked >2 GB on AppContainer** (console-validated
+  2026-07-15; now shipped in 1.1.8.0). USB spike refuted; 1B fp16 GPU inference
+  closed negative (budget wall). CSV: `bench/results/phase6-fp16-extdata.csv`.
 
 ### Changed
 
-- Documentation currency/drift pass after v1.1.7.0: `smollm2-1.7b` marked
-  in-app-downloadable (README/model-selection/recommended-config), the
-  model-provisioning quant auto-upgrade recorded as **shipped** (was described as an
-  open gap in `benchmarks.md`), the ROADMAP shipping banner + README roadmap
-  refreshed with the 1.1.7.x deliverables, and `uwp-constraints.md` clarified that
-  the `unified` build dispatches backends at runtime (not compile time).
+- **First-launch default chat model on unified builds** is now **`lfm25-350m`**
+  (measured fastest+lightest: 94.2 tok/s, ~219 MB). ORT-only builds still default
+  to `smollm2-360m-cpu-int4`. Aligns `MainPage` `DefaultChatModelId()`,
+  `bench/configs/settings-modern.json`, and `docs/recommended-config.md`.
+- Publication venue decision: **GitHub Discussions** first for the technical
+  report (arXiv only if a formal citation is needed).
 
 ## [1.1.7.0] - 2026-07-15
 

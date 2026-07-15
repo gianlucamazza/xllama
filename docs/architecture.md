@@ -133,10 +133,12 @@ or the headless `diffuse.flag`.
 ## Build variants and versioning
 
 CI (`build-uwp.yml`) produces `xllama-appx` (**unified**: ORT + llama.cpp +
-PatchedGenAI #2280) and `xllama-appx-llamacpp` (llama.cpp only). The MSIX version is
+PatchedGenAI #2280 + **PatchedOrt** extdata DLL from `vendor-dlls-v1`) and
+`xllama-appx-llamacpp` (llama.cpp only). The MSIX version is
 `Major.Minor.Build` from `uwp/AppxManifest.xml` (bumped per release) with the
 **Revision auto-stamped from the CI run number** (`build-uwp.ps1 -BuildRevision`),
-so in-place console updates never collide on identity.
+so in-place console updates never collide on identity. First-launch chat default
+on unified builds is **`lfm25-350m`** (`DefaultChatModelId()` in `MainPage.cpp`).
 
 ## See also
 
