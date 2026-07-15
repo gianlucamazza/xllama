@@ -19,9 +19,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   KV-reuse, routing, model provisioning + quant auto-upgrade, membw, and the
   diffusion pipeline. Cross-linked from `docs/README.md`, README, and ROADMAP.
 
-- **fp16 >2 GB on GPU — external-data loading unblocked on AppContainer** (patched
-  ORT DLL; weakly_canonical fix console-validated 2026-07-15, chunk-size fix pending
-  re-validation). Goal: load ONNX models with external `.onnx.data` >2 GB on
+- **External-data ONNX loading unblocked >2 GB on AppContainer** (patched ORT DLL,
+  both fixes console-validated 2026-07-15). Goal: load ONNX models with external
+  `.onnx.data` >2 GB on
   DirectML (the merge workaround caps at the 2 GB protobuf ceiling; DirectML is in
   maintenance mode, so this is the last local GPU lever). A zero-code USB spike
   (`scripts/build-fp16-dml-model.sh` + `scripts/spike-fp16-extdata-usb.sh`) was
@@ -34,7 +34,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     now loads and generates (`bench/results/phase6-fp16-extdata.csv`); (2) `env.cc`
     `ReadFileIntoBuffer` chunk 1 GB→16 MB — fixes the intermittent `errcode 1450`
     (a ~1 GB single `ReadFile` of the un-quantized embedding exhausts AppContainer
-    page-lock resources). Runbook: `docs/fp16-extdata-runbook.md`.
+    page-lock resources). **Status**: in the dispatch-only `build-uwp-ort-patched`
+    lane — **not yet promoted into the default shipping build** (`build-uwp.yml` still
+    ships vanilla ORT), and no new catalogue model added. **Scope**: the unblock is a
+    **CPU/int4 enabler** — a native-DML 1B fp16 (2.49 GB) loads (2878/3801 MB) but
+    OOMs GPU inference (§7 budget wall), so bigger fp16 on the GPU stays out of reach.
+    Runbook: `docs/fp16-extdata-runbook.md`.
 
 ### Changed
 
