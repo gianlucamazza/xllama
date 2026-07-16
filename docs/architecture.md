@@ -37,7 +37,9 @@ Two text backends, selected by build variant **and** per model at runtime:
 
 - **ORT GenAI / DirectML** (`XLLAMA_USE_ORT`) — `OrtSession` in `src/bridge/session.cpp`.
   Runs ONNX GenAI models (`kind: "ort-genai"`); CPU int4 decode + DirectML fp16
-  prefill, with per-conversation EP routing.
+  prefill, with per-conversation EP routing. **Text is currently forced to CPU
+  in every mode** (`kDmlTextLogitsBroken`, #91 — the DML EP computes wrong text
+  logits on the Series S driver); diffusion stays on GPU.
 - **llama.cpp / GGUF** (`XLLAMA_USE_LLAMA`) — `LlamaSession` in
   `src/bridge/session.cpp`. Runs `.gguf` models (`kind: "gguf"`); CPU-only on Xbox
   (no ggml GPU backend), with KV-cache reuse.

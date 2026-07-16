@@ -25,24 +25,24 @@ Upstream: [microsoft/onnxruntime-genai#2280](https://github.com/microsoft/onnxru
 
 ## UWP build variants
 
-| Variant                      | CI artifact / command              | When to use                              |
-| ---------------------------- | ---------------------------------- | ---------------------------------------- |
-| **unified+#2280+PatchedOrt** (shipping) | `xllama-appx` from `build-uwp.yml` | GGUF + ORT, routing GPU, external-data ORT |
-| **llamacpp**                            | `xllama-appx-llamacpp`             | Bench A/B only — not for end users         |
+| Variant                                 | CI artifact / command              | When to use                                                      |
+| --------------------------------------- | ---------------------------------- | ---------------------------------------------------------------- |
+| **unified+#2280+PatchedOrt** (shipping) | `xllama-appx` from `build-uwp.yml` | GGUF + ORT, external-data ORT (GPU text routing suspended — #91) |
+| **llamacpp**                            | `xllama-appx-llamacpp`             | Bench A/B only — not for end users                               |
 
 ## Chat models
 
 The decode figures below are rough guidance; the authoritative, disambiguated
 tables are in [benchmarks.md](benchmarks.md) (the perf SSOT).
 
-| Use case              | Catalogue `name`        | Backend               | Measured decode                          |
-| --------------------- | ----------------------- | --------------------- | ---------------------------------------- |
-| **Default (unified)** | `lfm25-350m`            | llama.cpp (`unified`) | **94.2 tok/s** (recommended)             |
-| **ORT default**       | `smollm2-360m-cpu-int4` | ORT CPU int4          | ~66 tok/s                                |
-| **Routing GPU**       | `smollm2-360m-dml-fp16` | ORT DML fp16          | ~47 tok/s decode; ~354 tok/s prefill @1k |
-| **Larger chat**       | `smollm2-1.7b-cpu-int4` | ORT CPU int4          | ~21 tok/s (in-app `models-v1` download)  |
-| **Modern GGUF**       | `qwen35-0.8b`           | llama.cpp (`unified`) | 35.1 tok/s (98.1 prefill, t6)            |
-| **Fast modern GGUF**  | `lfm25-350m`            | llama.cpp (`unified`) | 94.2 tok/s (241.4 prefill, t6)           |
+| Use case                       | Catalogue `name`        | Backend               | Measured decode                                                                                                        |
+| ------------------------------ | ----------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **Default (unified)**          | `lfm25-350m`            | llama.cpp (`unified`) | **94.2 tok/s** (recommended)                                                                                           |
+| **ORT default**                | `smollm2-360m-cpu-int4` | ORT CPU int4          | ~66 tok/s                                                                                                              |
+| **Routing GPU** — disabled #91 | `smollm2-360m-dml-fp16` | ORT DML fp16          | ~47 tok/s decode; ~354 tok/s prefill @1k — **text logits wrong on DML (#91): not routable, not auto-downloaded (#95)** |
+| **Larger chat**                | `smollm2-1.7b-cpu-int4` | ORT CPU int4          | ~21 tok/s (in-app `models-v1` download)                                                                                |
+| **Modern GGUF**                | `qwen35-0.8b`           | llama.cpp (`unified`) | 35.1 tok/s (98.1 prefill, t6)                                                                                          |
+| **Fast modern GGUF**           | `lfm25-350m`            | llama.cpp (`unified`) | 94.2 tok/s (241.4 prefill, t6)                                                                                         |
 
 GGUF thread default: llama.cpp auto-detect is capped at **6** on console
 (`detect_threads_llama` — t6 measured optimum, t7/t8 livelock); explicit
@@ -85,21 +85,23 @@ Models must be **self-contained** `model.onnx` (< 2 GB merged) — run
 
 Copy [`bench/configs/settings-modern.json`](../bench/configs/settings-modern.json) via Device Portal, or use the UI.
 
-| Key                    | Recommended                       | Notes                                            |
-| ---------------------- | --------------------------------- | ------------------------------------------------ |
-| `model`                | `lfm25-350m`                      | First-launch default on **unified** shipping     |
-| `kv_reuse`             | `true`                            | 4.87× ORT / 4.07× GGUF turn-2 prefill (measured) |
-| `routing`              | `2` (Auto) on unified             | needs DML fp16 model + PatchedGenAI; GGUF skips  |
-| `gpu_model`            | `smollm2-360m-dml-fp16`           | Catalogue download (`models-v1`, ~691 MB) or WDP |
-| `diffuse_taesd_vae`    | `true` after asset on `models-v1` | ~4.5 s/image target                              |
-| `sampling.temperature` | `0.8`                             | UI default                                       |
-| `sampling.n_predict`   | `512`                             | UI default                                       |
+| Key                    | Recommended                       | Notes                                                                             |
+| ---------------------- | --------------------------------- | --------------------------------------------------------------------------------- |
+| `model`                | `lfm25-350m`                      | First-launch default on **unified** shipping                                      |
+| `kv_reuse`             | `true`                            | 4.87× ORT / 4.07× GGUF turn-2 prefill (measured)                                  |
+| `routing`              | `2` (Auto) on unified             | inert for text while #91 holds (always CPU); GGUF skips                           |
+| `gpu_model`            | `smollm2-360m-dml-fp16`           | NOT auto-downloaded while #91 holds (#95); 725 MB, WDP/`provision-models.sh` only |
+| `diffuse_taesd_vae`    | `true` after asset on `models-v1` | ~4.5 s/image target                                                               |
+| `sampling.temperature` | `0.8`                             | UI default                                                                        |
+| `sampling.n_predict`   | `512`                             | UI default                                                                        |
 
 Factory defaults match [`settings-modern.json`](../bench/configs/settings-modern.json)
 on unified builds (`DefaultChatModelId()` → `lfm25-350m`). ORT-only builds still
 default to `smollm2-360m-cpu-int4`.
 
-Routing Auto uses **600 tokens** (real tokenizer count), sticky per conversation.
+Routing Auto uses **600 tokens** (real tokenizer count), sticky per conversation
+— but the #91 gate (`kDmlTextLogitsBroken`) precedes the threshold: while it
+holds, every text turn resolves to the CPU model regardless of length.
 
 ## Image generation
 
@@ -142,9 +144,11 @@ ctest --test-dir build/linux-test --output-on-failure
 ## Validation checklist
 
 1. Deploy the default **`xllama-appx`** CI artifact (unified + PatchedGenAI #2280; version is `Major.Minor.Build` from `uwp/AppxManifest.xml` with the **Revision** auto-stamped from the CI run number — see `CHANGELOG.md`)
-2. Ensure models are provisioned (`smollm2-360m-dml-fp16` for routing — catalogue or WDP;
-   `sd-turbo-fp16` + TAESD asset for §7c). MSIX **uninstall** wipes LocalState.
-3. Remove `bench.flag` from LocalState if `install-latest-build.sh` left it behind
+2. Provision models AFTER the install — `install-latest-build.sh` always
+   uninstalls first, wiping LocalState: `./scripts/provision-models.sh --all-test`
+   (seeds `lfm25-350m`, `smollm2-360m-cpu-int4` for routing/parity, `sd-turbo-fp16`;
+   the gated `dml-fp16` is intentionally excluded — #91/#95).
+3. Remove `bench.flag` from LocalState if `install-latest-build.sh --bench` left it behind
 4. Run the automated gate:
 
    ```bash

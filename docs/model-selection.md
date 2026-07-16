@@ -72,14 +72,14 @@ and llama.cpp (GGUF, CPU).
 
 ## Reference: tested models
 
-| Model                          | On-disk (merged) | CPU EP                                  | DirectML EP                                      | Notes                                                                                                     |
-| ------------------------------ | ---------------- | --------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| SmolLM2-360M-Instruct INT4 CPU | 417 MB           | ✅ Active baseline (66.3 tok/s, 0.14.1) | ❌ `80070057` (CPU-int4 graph in DML fused node) | Default; downloaded from the `models-v1` Release catalogue                                                |
-| SmolLM2-360M-Instruct INT4 DML | 285 MB           | —                                       | ✅ **8.8 tok/s** (headless v0.3.4)               | Built with ORT GenAI model builder (`-p int4 -e dml`); CPU ~8× faster — DML not competitive at this scale |
-| SmolLM2-1.7B-Instruct INT4 CPU | 1.4 GB           | ✅ in-app (`models-v1` catalogue)       | —                                                | Console: 20.6 tok/s decode, peak 2423 MB (`phase35-1b-cpu.csv`); also USB/LocalState                      |
-| Phi-3.5-mini INT4 CPU          | ~2.7 GB          | ❌ Disk budget                          | —                                                | Not attempted                                                                                             |
-| Phi-3.5-mini GPU INT4 AWQ      | ~2.2 GB          | —                                       | ❌ GPU OOM + disk                                | Not viable                                                                                                |
-| Phi-3.5-mini Q3_K_S (GGUF)     | 1.68 GB          | ✅ H4 A/B (11.3 tok/s, 2453 MB)         | —                                                | Loses speed+RAM vs Llama-3.2-3B Q3; **not** catalogue (`phase7-scale.csv`)                                |
+| Model                          | On-disk (merged) | CPU EP                                  | DirectML EP                                      | Notes                                                                                                                                 |
+| ------------------------------ | ---------------- | --------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| SmolLM2-360M-Instruct INT4 CPU | 417 MB           | ✅ Active baseline (66.3 tok/s, 0.14.1) | ❌ `80070057` (CPU-int4 graph in DML fused node) | Default; downloaded from the `models-v1` Release catalogue                                                                            |
+| SmolLM2-360M-Instruct INT4 DML | 285 MB           | —                                       | ⚠️ **8.8 tok/s** but wrong logits (#91)          | Built with ORT GenAI model builder (`-p int4 -e dml`); CPU ~8× faster — and DML text output is numerically wrong on this device (#91) |
+| SmolLM2-1.7B-Instruct INT4 CPU | 1.4 GB           | ✅ in-app (`models-v1` catalogue)       | —                                                | Console: 20.6 tok/s decode, peak 2423 MB (`phase35-1b-cpu.csv`); also USB/LocalState                                                  |
+| Phi-3.5-mini INT4 CPU          | ~2.7 GB          | ❌ Disk budget                          | —                                                | Not attempted                                                                                                                         |
+| Phi-3.5-mini GPU INT4 AWQ      | ~2.2 GB          | —                                       | ❌ GPU OOM + disk                                | Not viable                                                                                                                            |
+| Phi-3.5-mini Q3_K_S (GGUF)     | 1.68 GB          | ✅ H4 A/B (11.3 tok/s, 2453 MB)         | —                                                | Loses speed+RAM vs Llama-3.2-3B Q3; **not** catalogue (`phase7-scale.csv`)                                                            |
 
 ## Candidates evaluated (HF Hub file sizes, 2026-07-02)
 
@@ -113,8 +113,10 @@ directly, console-validated with a 1.86 GB int4 model. **But this does not make 
 fp16 models viable on the GPU**: a native-DML 1B fp16 (2.49 GB) loads yet OOMs
 inference within the 3801 MB budget (`uwp-constraints.md §7`). Practical takeaway:
 the >2 GB path is a **CPU/int4** enabler; DML-fp16 stays ≤~360-500 M
-(`smollm2-360m-dml-fp16`). Build DML models natively (`builder … -p fp16 -e dml`) —
-a cuda-fp16 re-host loads but fails DML inference.
+(`smollm2-360m-dml-fp16` — whose text output is anyway wrong on this device,
+#91: the model is kept only as the parity-gate probe). Build DML models
+natively (`builder … -p fp16 -e dml`) — a cuda-fp16 re-host loads but fails DML
+inference.
 
 **Future — BitNet / INT2 models**: Microsoft BitNet b1.58 (1-bit/1.58-bit quantization)
 could bring a 1.7B–3B model under 400 MB, fitting both the disk and GPU budgets.

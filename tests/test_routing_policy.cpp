@@ -17,9 +17,10 @@ TEST_CASE("routing: cpu-only") {
     CHECK_FALSE(d.use_gpu);
 }
 
-// While kDmlTextLogitsBroken holds (#91: DML GQA logits are garbage on the
-// Series S GPU), every mode resolves to the CPU model. The pre-#91 GPU
-// expectations are kept below, guarded, so re-enabling is a one-flag flip.
+// While kDmlTextLogitsBroken holds (#91: DML attention logits — GQA and MHA
+// alike — are garbage on the Series S GPU), every mode resolves to the CPU
+// model. The pre-#91 GPU expectations are kept below, guarded, so re-enabling
+// is a one-flag flip.
 TEST_CASE("routing: #91 gate forces cpu in every mode") {
     RoutingSettings s;
     s.cpu_model = "cpu";

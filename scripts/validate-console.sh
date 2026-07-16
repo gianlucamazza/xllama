@@ -243,8 +243,9 @@ JSON
 	# C++ is "→"; match on the tok field to be encoding-robust).
 	#
 	# #91 gate: kDmlTextLogitsBroken (routing_policy.h) forces text routing to
-	# CPU in every mode — DML GQA logits are numerically wrong on the Series S
-	# GPU (parity NMSE ~1). Until the parity harness passes on a DML text model,
+	# CPU in every mode — DML attention logits (GQA and MHA alike, #94) are
+	# numerically wrong on the Series S GPU (parity NMSE ~1). Until the parity
+	# harness passes on a DML text model,
 	# the CORRECT behavior is: long turn stays CPU and NO gpu routing line ever
 	# appears. When the gate is lifted, restore the pre-#91 auto→gpu assertions.
 	local gpu_line cpu_line

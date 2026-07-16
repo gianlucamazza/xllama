@@ -51,15 +51,18 @@ Three hypotheses died against these numbers:
    (1.8× at ~1k tokens). The app therefore routes per-workload (long-prompt
    conversations → DML fp16, decode → CPU int4), sticky per conversation.
    **Superseded by #91 (2026-07-16): DML text routing is disabled.** The logit-
-   parity harness showed the DML GQA decoder computes numerically wrong logits
-   on the Series S GPU (NMSE ~1 vs the CPU reference, top-1 disagrees; fp16 AND
-   int4; invariant to graph/session/capture options; the same weights are
-   correct on CPU EP and on desktop-class CPU runs; SD-Turbo — no GQA — is
-   correct on the same device). All tok/s numbers above are real, but the GPU
-   text output they measured was silently degraded. Text routing is forced to
-   CPU (`routing_policy.h kDmlTextLogitsBroken`) until
-   `scripts/validate-logit-parity.sh` passes on a DML text model. Diffusion
-   routing is unaffected.
+   parity harness showed the DML attention path computes numerically wrong
+   logits on the Series S GPU — GQA **and** MultiHeadAttention alike (NMSE ~1
+   vs the CPU reference, top-1 disagrees; fp16 AND int4; invariant to
+   graph/session/capture options; the same weights are correct on CPU EP and
+   on desktop-class CPU runs; SD-Turbo — decomposed attention, no contrib ops —
+   is correct on the same device). All tok/s numbers above are real, but the
+   GPU text output they measured was silently degraded. Text routing is forced
+   to CPU (`routing_policy.h kDmlTextLogitsBroken`) until
+   `scripts/validate-logit-parity.sh` passes on a DML text model, and the
+   GPU model is no longer auto-provisioned (#95). Diffusion routing is
+   unaffected. Upstream: microsoft/onnxruntime#29739 (driver),
+   microsoft/onnxruntime-genai#2300 (capture opt-out tooling).
 2. **"DML int4 decode collapses because a kernel is missing."** Falsified by
    desk-check and confirmed on hardware: `MatMulNBits` _is_ on the GPU (compute
    engines 87–90 % busy at 8.8 tok/s) but DirectML implements it **non-fused**
@@ -129,7 +132,8 @@ hardware, because console runtime errors are expensive to attribute:
 
 ## 5. What ships in v1.0.0
 
-- Chat UI (ChatML, history, settings) with per-conversation CPU/GPU routing and
+- Chat UI (ChatML, history, settings) with per-conversation CPU/GPU routing
+  (GPU-text routing since disabled — #91) and
   KV-cache reuse; models described by a `manifest.json` catalogue (bundled +
   Device-Portal-overridable) with in-app download from the `models-v1` GitHub
   Release (the upstream HF path shipped a non-merged model and was retired).
