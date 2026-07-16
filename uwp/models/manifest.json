@@ -26,7 +26,7 @@
     },
     {
       "name": "smollm2-360m-dml-fp16",
-      "display": "SmolLM2 360M (GPU fp16, routing)",
+      "display": "SmolLM2 360M (GPU fp16, routing — disabled #91)",
       "hf_base_url": "https://github.com/gianlucamazza/xllama/releases/download/models-v1",
       "files": [
         {
