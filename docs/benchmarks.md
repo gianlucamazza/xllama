@@ -35,8 +35,14 @@ Best measured decode configuration per model.
 | Qwen3.5-0.8B | 0.8B   | Q4_K_M | llama.cpp CPU · t6    |          98.1 |         35.1 |         718 | `phase5-gguf`               |
 | SmolLM2-1.7B | 1.7B   | int4   | ORT-GenAI CPU         |          54.9 |         20.6 |        2423 | `phase35-1b-cpu`            |
 | SmolLM2-360M | 360M   | int4   | ORT DML int4          |       152–334 |          8.8 |    999–1525 | `phase2-dml`                |
+| Llama-3.2-3B | 3B     | Q3_K_S | llama.cpp CPU · t6    |          19.5 |     **14.2** |        1824 | `phase7-scale`              |
 
 Notes:
+
+- **Llama-3.2-3B Q3_K_S** (Phase 7 H4, 2026-07-16): dense 3B at **14.2 tok/s** /
+  1824 MB peak — similar speed to Gemma-4-E2B Q3 (15.3) with ~900 MB less RAM.
+  Validates that 3B-class GGUF is interactive on Series S; not yet in the
+  shipping catalogue. See [phase7-hypotheses.md](phase7-hypotheses.md).
 
 - **LFM2.5-350M** is the fastest chat model and the lightest (321 MB RAM) — the
   default chat model on unified builds.
