@@ -199,7 +199,12 @@ class OrtSession final : public Session {
                   "OgaTokenizerEncode");
         int n_prompt_tok = static_cast<int>(OgaSequencesGetSequenceCount(seqs.get(), 0));
 
-        OgaGeneratorParamsPtr gparams = make_params(gp, gp.n_predict + 512);
+        // Size max_length from the ACTUAL prompt, clamped to the model context.
+        // The old fixed "n_predict + 512" headroom was structurally too small for
+        // routed turns: routing sends >600-token prompts to the GPU, so a 959-tok
+        // turn hit "input_ids size (959) ... exceeds max length (768)".
+        const int max_len = std::min(m_n_ctx, n_prompt_tok + gp.n_predict);
+        OgaGeneratorParamsPtr gparams = make_params(gp, max_len);
         OgaGenerator* raw_gen = nullptr;
         oga_check(OgaCreateGenerator(m_model.get(), gparams.get(), &raw_gen), "OgaCreateGenerator");
         OgaGeneratorPtr gen(raw_gen);
@@ -399,9 +404,16 @@ class LlamaSession final : public Session {
 
         const llama_vocab* vocab = llama_model_get_vocab(m_model.get());
 
+        // parse_special=true: every Session caller (chat UI, API endpoint, bench)
+        // passes a TEMPLATED prompt, whose <|im_start|>/<|im_end|> markers must
+        // become the special ids the model was trained on. As plain text the
+        // model sees an alien template and its next-token distribution goes flat
+        // (LFM2.5: top-2 gap 0.52 vs 3.91 with specials) — flat enough that the
+        // Zen2-vs-desktop kernel jitter (max |Δlogit| ~1.6 measured) flipped the
+        // greedy token on-device ("User\n\n<|end|>" instead of a greeting).
         int32_t n_tokens =
             llama_tokenize(vocab, gp.prompt.c_str(), static_cast<int32_t>(gp.prompt.size()),
-                           nullptr, 0, full_prompt, false);
+                           nullptr, 0, full_prompt, true);
         if (n_tokens == INT32_MIN) {
             res.error_msg = "tokenize overflow";
             return res;
@@ -411,7 +423,7 @@ class LlamaSession final : public Session {
 
         std::vector<llama_token> tokens(static_cast<size_t>(n_tokens));
         n_tokens = llama_tokenize(vocab, gp.prompt.c_str(), static_cast<int32_t>(gp.prompt.size()),
-                                  tokens.data(), n_tokens, full_prompt, false);
+                                  tokens.data(), n_tokens, full_prompt, true);
         if (n_tokens < 0) {
             res.error_msg = "tokenize failed";
             return res;
@@ -434,14 +446,24 @@ class LlamaSession final : public Session {
 
         const llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
         LlamaSamplerPtr sampler(llama_sampler_chain_init(sparams));
-        if (gp.repetition_penalty > 0.0f) {
-            llama_sampler_chain_add(
-                sampler.get(), llama_sampler_init_penalties(64, gp.repetition_penalty, 0.0f, 0.0f));
+        if (gp.temperature <= 0.0f) {
+            // temperature 0 (API "deterministic" request / logit parity): pure
+            // argmax. The full chain must NOT run here — the default
+            // repetition_penalty (1.1) reweighs prompt tokens BEFORE the temp
+            // stage's argmax and can flip the top token (observed on-device:
+            // LFM2.5 answered "User\n\n<|end|>" at temp 0 via the endpoint while
+            // pure argmax on the same prompt answers "Hello!").
+            llama_sampler_chain_add(sampler.get(), llama_sampler_init_greedy());
+        } else {
+            if (gp.repetition_penalty > 0.0f) {
+                llama_sampler_chain_add(sampler.get(), llama_sampler_init_penalties(
+                                                           64, gp.repetition_penalty, 0.0f, 0.0f));
+            }
+            llama_sampler_chain_add(sampler.get(), llama_sampler_init_top_k(gp.top_k));
+            llama_sampler_chain_add(sampler.get(), llama_sampler_init_top_p(gp.top_p, 1));
+            llama_sampler_chain_add(sampler.get(), llama_sampler_init_temp(gp.temperature));
+            llama_sampler_chain_add(sampler.get(), llama_sampler_init_dist(gp.seed));
         }
-        llama_sampler_chain_add(sampler.get(), llama_sampler_init_top_k(gp.top_k));
-        llama_sampler_chain_add(sampler.get(), llama_sampler_init_top_p(gp.top_p, 1));
-        llama_sampler_chain_add(sampler.get(), llama_sampler_init_temp(gp.temperature));
-        llama_sampler_chain_add(sampler.get(), llama_sampler_init_dist(gp.seed));
 
         int n_generated = 0;
         bool stopped_by_seq = false;
@@ -496,8 +518,11 @@ class LlamaSession final : public Session {
 
     int count_tokens(const std::string& prompt) override {
         const llama_vocab* vocab = llama_model_get_vocab(m_model.get());
+        // parse_special=true to match generate(): counting template markers as
+        // plain text overcounts a chat prompt by ~70% (50 vs 29 tokens on a
+        // 2-turn ChatML render), which skews the routing threshold.
         int32_t n = llama_tokenize(vocab, prompt.c_str(), static_cast<int32_t>(prompt.size()),
-                                   nullptr, 0, true, false);
+                                   nullptr, 0, true, true);
         if (n == INT32_MIN)
             return 0;
         return -n;

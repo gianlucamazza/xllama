@@ -7,6 +7,7 @@
 #include "xllama/path_utils.h"
 #include "xllama/platform.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
@@ -171,8 +172,12 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
         oga_check(OgaTokenizerEncode(tok.get(), params.prompt.c_str(), seqs.get()),
                   "OgaTokenizerEncode");
         size_t n_prompt_tok = OgaSequencesGetSequenceCount(seqs.get(), 0);
+        // Size max_length from the ACTUAL prompt, clamped to the context: the old
+        // fixed "n_predict + 512" headroom underflowed on long prompts (a 959-tok
+        // routed turn exceeded max_length 768 before generating a single token).
+        const int max_len =
+            std::min(params.n_ctx, static_cast<int>(n_prompt_tok) + params.n_predict);
         {
-            int max_len = params.n_predict + 512;
             char pbuf[128];
             snprintf(pbuf, sizeof(pbuf), "[xllama] prompt=%zu tok, max_length=%d (new≤%d)\n",
                      n_prompt_tok, max_len, max_len - static_cast<int>(n_prompt_tok));
@@ -184,7 +189,7 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
         oga_check(OgaCreateGeneratorParams(model.get(), &raw_params), "OgaCreateGeneratorParams");
         OgaGeneratorParamsPtr gparams(raw_params);
         oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "max_length",
-                                                    static_cast<double>(params.n_predict + 512)),
+                                                    static_cast<double>(max_len)),
                   "SetSearchNumber max_length");
         oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "temperature",
                                                     static_cast<double>(params.temperature)),
@@ -215,14 +220,21 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
         // ORT GenAI ≥ 0.7: feed input sequences to generator (not to params)
         oga_check(OgaGenerator_AppendTokenSequences(gen.get(), seqs.get()), "AppendTokenSequences");
 
-        // Logit-parity dump: capture the last prompt-token logits. GetLogits
-        // returns a CPU copy of "only the last token logits even in prompt
-        // processing", but in ORT GenAI 0.14 that distribution is only valid
-        // AFTER the first GenerateNextToken runs the prefill forward — calling it
-        // right after AppendTokenSequences yields an uninitialized/garbage vector
-        // (observed on-console: NMSE ~0.98 vs the llama.cpp reference). Defined
-        // here, invoked once inside the loop below. DirectML models commonly emit
-        // float16, so convert to float32 to match the reference dump byte-for-byte.
+        // Logit-parity dump: capture the last prompt-token logits.
+        //
+        // ORT GenAI state machine (verified on the vendored source, identical in
+        // v0.14 and 0.15-dev — generators.cpp): AppendTokens runs the prefill
+        // forward itself and leaves computed_logits_=true, so GetLogits returns
+        // the true last-prompt-token distribution — equal to the last row of
+        // GetOutput("logits") and to llama_get_logits_ith(ctx,-1) (canonical
+        // pattern: test/c_api_tests.cpp GetLogitsCAPI). After the first
+        // GenerateNextToken the flag is false and GetLogits RECOMPUTES a forward
+        // over the just-sampled token — the "position after the first generated
+        // token" bug observed on-console (golden argmax at rank ~2780).
+        //
+        // Must be invoked right after AppendTokenSequences, BEFORE the first
+        // GenerateNextToken. The C API always copies to a float32 [batch,1,vocab]
+        // tensor (ort_genai_c.cpp), but keep the fp16 branch defensive.
         auto dump_prefill_logits = [&]() {
             OgaTensor* raw_logits = nullptr;
             oga_check(OgaGenerator_GetLogits(gen.get(), &raw_logits), "GetLogits");
@@ -239,6 +251,17 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
                 total *= shape[i];
             const int vocab =
                 rank > 0 ? static_cast<int>(shape[rank - 1]) : static_cast<int>(total);
+
+            // Diagnostic: shape + dtype in the log so an on-device mismatch is
+            // attributable without another build cycle.
+            {
+                std::string s =
+                    "[xllama] logits tensor: etype=" + std::to_string(etype) + " shape=[";
+                for (size_t i = 0; i < rank; ++i)
+                    s += (i ? "," : "") + std::to_string(shape[i]);
+                s += "]\n";
+                log_output(s);
+            }
 
             void* data = nullptr;
             oga_check(OgaTensorGetData(logits_t.get(), &data), "TensorGetData");
@@ -282,6 +305,12 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
             }
         };
 
+        // AppendTokenSequences has already run the prefill: computed_logits_ is
+        // true and GetLogits here is the last-prompt-token distribution. Any
+        // later (post-GenerateNextToken) capture reads the wrong position.
+        if (!params.dump_logits_path.empty())
+            dump_prefill_logits();
+
         auto t_prefill_end = t0;
 
         int n_generated = 0;
@@ -291,12 +320,8 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
 
             // ORT GenAI ≥ 0.7: GenerateNextToken does compute + sample in one call
             oga_check(OgaGenerator_GenerateNextToken(gen.get()), "GenerateNextToken");
-            if (n_generated == 0) {
+            if (n_generated == 0)
                 t_prefill_end = std::chrono::steady_clock::now();
-                // Prefill just ran: the last prompt-token logits are now valid.
-                if (!params.dump_logits_path.empty())
-                    dump_prefill_logits();
-            }
 
             const int32_t* next_toks = nullptr;
             size_t n_next = 0;
@@ -431,9 +456,13 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
 
     const llama_vocab* vocab = llama_model_get_vocab(model.get());
 
+    // parse_special only for --chat: there the prompt is a rendered template
+    // whose markers must map to the model's special ids (see session.cpp). A raw
+    // -p prompt keeps them as text so user input can't smuggle special tokens.
+    const bool parse_special = params.chat_template;
     int32_t n_tokens =
         llama_tokenize(vocab, params.prompt.c_str(), static_cast<int32_t>(params.prompt.size()),
-                       nullptr, 0, true, false);
+                       nullptr, 0, true, parse_special);
     if (n_tokens == INT32_MIN) {
         res.error_msg = "tokenization overflow";
         log_output("[xllama] tokenization overflow\n");
@@ -448,7 +477,7 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     std::vector<llama_token> tokens(static_cast<size_t>(n_tokens));
     n_tokens =
         llama_tokenize(vocab, params.prompt.c_str(), static_cast<int32_t>(params.prompt.size()),
-                       tokens.data(), n_tokens, true, false);
+                       tokens.data(), n_tokens, true, parse_special);
     if (n_tokens < 0) {
         res.error_msg = "tokenization failed";
         log_output("[xllama] tokenization failed\n");

@@ -165,12 +165,19 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
             // --- Open target file ---------------------------------------------
             // filename may carry a relative subpath (e.g. "unet/model.onnx");
             // create intermediate folders as needed.
+            //
+            // Download into "<leaf>.part" and rename over the target only after
+            // the full body is written. ReplaceExisting directly on the live file
+            // truncated a good model.onnx first and secured bytes later — any
+            // mid-download failure (or a locked mmap'd model) left a corrupt
+            // 464 MB file that OgaCreateModel then failed to parse.
             StorageFolder folder{nullptr};
             StorageFile out_file{nullptr};
+            std::wstring leaf;
             bool create_failed = false;
             try {
                 folder = co_await StorageFolder::GetFolderFromPathAsync(local_dir);
-                std::wstring leaf = f.filename;
+                leaf = f.filename;
                 size_t sep;
                 while ((sep = leaf.find_first_of(L"/\\")) != std::wstring::npos) {
                     folder = co_await folder.CreateFolderAsync(
@@ -178,7 +185,7 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                     leaf = leaf.substr(sep + 1);
                 }
                 out_file = co_await folder.CreateFileAsync(
-                    winrt::hstring(leaf), CreationCollisionOption::ReplaceExisting);
+                    winrt::hstring(leaf + L".part"), CreationCollisionOption::ReplaceExisting);
             } catch (...) {
                 last_err = L"Cannot create file " + f.filename + L" in " + local_dir;
                 create_failed = true;
@@ -262,6 +269,27 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
             co_await out_writer.FlushAsync();
             out_writer.DetachStream();
             out_stream = nullptr;
+
+            // Atomically promote the completed .part over the target. The old
+            // file is only replaced once every byte is on disk; a locked target
+            // fails the rename here without having destroyed the existing model.
+            bool rename_failed = false;
+            try {
+                co_await out_file.RenameAsync(winrt::hstring(leaf),
+                                              NameCollisionOption::ReplaceExisting);
+            } catch (...) {
+                last_err = L"Cannot replace " + f.filename + L" (target in use?)";
+                rename_failed = true;
+            }
+            if (rename_failed) {
+                try {
+                    co_await out_file.DeleteAsync();
+                } catch (...) {
+                }
+                co_await resume_foreground(dispatcher);
+                on_done(false, last_err);
+                co_return;
+            }
 
             log_output(("[downloader] " + ::xllama::wstring_to_utf8(f.filename) + " done (" +
                         std::to_string(bytes_done) + " bytes total so far)")
@@ -383,9 +411,15 @@ std::vector<std::wstring> list_relative_files(const std::filesystem::path& dir) 
     for (const auto& ent : std::filesystem::recursive_directory_iterator(dir, ec)) {
         if (!ent.is_regular_file(ec))
             continue;
-        std::error_code rel_ec;
-        auto rel = std::filesystem::relative(ent.path(), dir, rel_ec);
-        if (rel_ec)
+        // Lexical relative path — NOT std::filesystem::relative(), which calls
+        // weakly_canonical() on both operands and fails inside the Xbox
+        // AppContainer on inaccessible parent segments (same class of failure as
+        // the documented ORT external-data gotcha). When it failed here, every
+        // file was skipped, the list came back empty, and EnsureModel declared a
+        // fully-present GPU model "missing" — triggering a destructive
+        // re-download that truncated a good model.onnx.
+        auto rel = ent.path().lexically_relative(dir);
+        if (rel.empty())
             continue;
         std::wstring w = rel.wstring();
         if (w == L".complete")

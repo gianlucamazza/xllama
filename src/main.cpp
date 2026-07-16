@@ -34,7 +34,11 @@ int main(int argc, char** argv) {
     // CLI feeds the prompt verbatim and generates to n_predict.
     if (params.chat_template) {
         const xllama::ChatFormat fmt = xllama::chat_format_for(params.model_path);
-        params.prompt = fmt.render_prompt(/*system=*/"", /*history=*/{}, params.prompt);
+        // Seed the same default system prompt as the chat UI and the API
+        // endpoint: an empty system turn makes small instruct models hallucinate
+        // the next role instead of answering (see api-server.cpp).
+        params.prompt = fmt.render_prompt(/*system=*/"You are a helpful AI assistant.",
+                                          /*history=*/{}, params.prompt);
         params.stop_sequences = fmt.stop_sequences;
     }
 

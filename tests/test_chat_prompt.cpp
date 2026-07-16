@@ -87,6 +87,20 @@ TEST_CASE("phi detection") {
     CHECK_FALSE(model_is_phi("gemma3-270m"));
 }
 
+TEST_CASE("model detection ignores directory names (full-path ids)") {
+    // The CLI passes a FULL path; directory names must not select a template.
+    // A cache dir literally named "xllama-gguf" contains "llama" and used to
+    // force the Llama-3 template onto LFM2.5 (which then echoed <|eot_id|> as
+    // text instead of answering).
+    CHECK_FALSE(model_is_llama("/home/user/.cache/xllama-gguf/LFM2.5-350M-Q4_K_M.gguf"));
+    CHECK(chat_format_for("/home/user/.cache/xllama-gguf/LFM2.5-350M-Q4_K_M.gguf").kind ==
+          ChatFormatKind::ChatML);
+    CHECK(model_is_llama("/models/lfm-dir/Llama-3.2-3B-Instruct-Q3_K_S.gguf"));
+    CHECK_FALSE(model_is_phi("C:\\phi-cache\\LFM2.5-350M-Q4_K_M.gguf"));
+    CHECK(model_is_phi("C:\\models\\Phi-3.5-mini-instruct-Q3_K_S.gguf"));
+    CHECK_FALSE(model_is_gemma("/srv/gemma-store/lfm25-350m.gguf"));
+}
+
 TEST_CASE("chat format selection") {
     CHECK(chat_format_for("smollm2-360m-cpu-int4").kind == ChatFormatKind::ChatML);
     CHECK(chat_format_for("lfm25-350m").kind == ChatFormatKind::ChatML);

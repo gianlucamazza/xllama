@@ -35,22 +35,32 @@ bool starts_with(const std::string& s, const std::string& prefix) {
     return s.size() >= prefix.size() && s.compare(0, prefix.size(), prefix) == 0;
 }
 
+// Callers pass catalogue ids ("lfm25-350m"), filenames, or FULL paths (CLI -m).
+// Substring-match only the last path component: directory names must not select
+// a template — a repo/cache dir literally named "xllama" contains "llama" and
+// silently forced the Llama-3 template onto every model under it (LFM2.5 then
+// echoes <|eot_id|> as text instead of answering).
+std::string model_basename(const std::string& model_id) {
+    const size_t sep = model_id.find_last_of("/\\");
+    return sep == std::string::npos ? model_id : model_id.substr(sep + 1);
+}
+
 } // namespace
 
 bool model_is_qwen(const std::string& model_id) {
-    return to_lower(model_id).find("qwen") != std::string::npos;
+    return to_lower(model_basename(model_id)).find("qwen") != std::string::npos;
 }
 
 bool model_is_gemma(const std::string& model_id) {
-    return to_lower(model_id).find("gemma") != std::string::npos;
+    return to_lower(model_basename(model_id)).find("gemma") != std::string::npos;
 }
 
 bool model_is_llama(const std::string& model_id) {
-    return to_lower(model_id).find("llama") != std::string::npos;
+    return to_lower(model_basename(model_id)).find("llama") != std::string::npos;
 }
 
 bool model_is_phi(const std::string& model_id) {
-    return to_lower(model_id).find("phi") != std::string::npos;
+    return to_lower(model_basename(model_id)).find("phi") != std::string::npos;
 }
 
 std::string qwen_no_think_gen_suffix(const std::string& model_id) {
