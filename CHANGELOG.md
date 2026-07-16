@@ -9,13 +9,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Catalogue `llama32-3b`** — Llama-3.2-3B-Instruct Q3_K_S (~1.54 GB) from
+  Hugging Face unsloth GGUF (optional advanced chat; default remains
+  `lfm25-350m`). Console H4: **14.2 tok/s**, peak 1824 MB.
+- **Llama-3 chat template** — `ChatFormatKind::Llama3` (`<|start_header_id|>` /
+  `<|eot_id|>`) via `chat_format_for` / `model_is_llama`; KV-reuse invariant
+  covered in unit tests.
 - **Phase 7 research** — `docs/phase7-hypotheses.md`: peer-class model hypotheses
   (H1–H9). **H4 PASS** on console: Llama-3.2-3B-Instruct Q3_K_S decode
   **14.2 tok/s**, peak 1824 MB (`bench/results/phase7-scale.csv`); near Gemma-4-E2B
-  speed at ~900 MB less RAM. Not yet catalogue-published.
+  speed at ~900 MB less RAM.
 - **GitHub Release [v1.1.8.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.1.8.0)**
   (2026-07-16) — MSIX + cert + VCLibs x64. **Field smoke same day:** install
-  `1.1.8.496` on Series S, first-launch download of `lfm25-350m`, 
+  `1.1.8.496` on Series S, first-launch download of `lfm25-350m`,
   `validate-console.sh gguf` → **PASS** (llama.cpp load + short chat).
 
 ## [1.1.8.0] - 2026-07-15

@@ -384,7 +384,10 @@ AppContainer limits. Plan: [`docs/phase7-hypotheses.md`](docs/phase7-hypotheses.
 - [x] **H4 falsification campaign** (2026-07-16) — Llama-3.2-3B-Instruct **Q3_K_S**
       on console: decode **14.16 tok/s**, prefill 19.5, peak **1824 MB**, load
       ~17 s (`bench/results/phase7-scale.csv`). **PASS** (usable 3B-class GGUF).
-- [ ] Catalogue entry for Llama-3.2-3B (or Phi-3.5-mini) if product wants it in picker
+- [x] **Catalogue `llama32-3b`** — HF unsloth Q3_K_S + Llama-3 chat template
+      (`ChatFormatKind::Llama3`). Optional advanced picker entry; default remains
+      `lfm25-350m`. Console in-app download smoke still recommended on first CI package.
 - [ ] H1 shortlist (larger LFM / hybrid) + H9 human task suite
+- [ ] Optional Phi-3.5-mini A/B vs Llama-3.2-3B (quality head-to-head)
 - [ ] H2 MoE candidate only if &lt;~3.5 GB GGUF with arch in pin
 - [ ] H3 speculative decoding spike (eng) — only if H9 says 3B still short of peer 7B

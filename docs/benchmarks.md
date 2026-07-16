@@ -41,8 +41,9 @@ Notes:
 
 - **Llama-3.2-3B Q3_K_S** (Phase 7 H4, 2026-07-16): dense 3B at **14.2 tok/s** /
   1824 MB peak — similar speed to Gemma-4-E2B Q3 (15.3) with ~900 MB less RAM.
-  Validates that 3B-class GGUF is interactive on Series S; not yet in the
-  shipping catalogue. See [phase7-hypotheses.md](phase7-hypotheses.md).
+  Catalogue id **`llama32-3b`** (HF direct, optional advanced; default stays
+  LFM). See [phase7-hypotheses.md](phase7-hypotheses.md).
+
 
 - **LFM2.5-350M** is the fastest chat model and the lightest (321 MB RAM) — the
   default chat model on unified builds.

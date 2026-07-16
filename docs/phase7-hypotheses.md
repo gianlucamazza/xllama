@@ -146,9 +146,9 @@ S and should be considered for catalogue (HF direct, like gemma4-e2b).
 
 ### Next measured steps
 
-1. Phi-3.5-mini Q3_K_S A/B (quality head-to-head with Llama-3.2-3B).
-2. H9 human task suite: LFM vs E2B vs Llama-3.2-3B.
-3. Optional catalogue entry `llama32-3b` (HF unsloth GGUF).
+1. ~~Optional catalogue entry `llama32-3b`~~ — **done** (manifest + Llama-3 template).
+2. Phi-3.5-mini Q3_K_S A/B (quality head-to-head with Llama-3.2-3B).
+3. H9 human task suite: LFM vs E2B vs Llama-3.2-3B.
 4. H3 speculative only if H9 says 3B quality is still short of peer 7B.
 
 ## Decision log
@@ -157,3 +157,4 @@ S and should be considered for catalogue (HF direct, like gemma4-e2b).
 | --- | --- |
 | 2026-07-16 | Open Phase 7 research; prioritize H4 then H1; H3/H6 eng only after H4 data |
 | 2026-07-16 | **H4 PASS** — Llama-3.2-3B Q3_K_S @14.2 tok/s, 1824 MB peak (`phase7-scale.csv`) |
+| 2026-07-16 | Catalogue **`llama32-3b`** (HF Q3_K_S) + `ChatFormatKind::Llama3`; default stays LFM |
