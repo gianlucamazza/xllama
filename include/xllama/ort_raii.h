@@ -48,6 +48,11 @@ struct OgaResultDeleter {
         OgaDestroyResult(p);
     }
 };
+struct OgaTensorDeleter {
+    void operator()(OgaTensor* p) const noexcept {
+        OgaDestroyTensor(p);
+    }
+};
 
 using OgaModelPtr = std::unique_ptr<OgaModel, OgaModelDeleter>;
 using OgaTokenizerPtr = std::unique_ptr<OgaTokenizer, OgaTokenizerDeleter>;
@@ -56,6 +61,7 @@ using OgaGeneratorParamsPtr = std::unique_ptr<OgaGeneratorParams, OgaGeneratorPa
 using OgaGeneratorPtr = std::unique_ptr<OgaGenerator, OgaGeneratorDeleter>;
 using OgaSequencesPtr = std::unique_ptr<OgaSequences, OgaSequencesDeleter>;
 using OgaResultPtr = std::unique_ptr<OgaResult, OgaResultDeleter>;
+using OgaTensorPtr = std::unique_ptr<OgaTensor, OgaTensorDeleter>;
 
 // Throw std::runtime_error with OgaResult error message if err != nullptr.
 inline void oga_check(OgaResult* err, const char* context) {

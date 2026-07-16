@@ -55,6 +55,44 @@ TEST_CASE("Bench CSV writer: basic output") {
     std::remove(done_path.c_str());
 }
 
+TEST_CASE("Bench CSV writer: quant from GGUF filename") {
+    auto write_and_read_quant = [](const std::string& model_path) -> std::string {
+        xllama::InferenceParams p;
+        p.model_path = model_path;
+        p.n_predict = 1;
+        p.n_ctx = 512;
+        p.n_threads = 2;
+        xllama::InferenceResult res;
+        res.success = true;
+        res.t_load_ms = 1;
+        res.t_p_eval_ms = 1;
+        res.t_eval_ms = 1;
+        res.n_p_eval = 1;
+        res.n_eval = 1;
+        res.peak_ws_mb = 1;
+        xllama::write_bench_csv(p, res, "linux-test");
+        std::ifstream ifs(xllama::resolve_local_path("bench-result.csv"));
+        REQUIRE(ifs.is_open());
+        std::string header, row;
+        std::getline(ifs, header);
+        std::getline(ifs, row);
+        ifs.close();
+        std::remove(xllama::resolve_local_path("bench-result.csv").c_str());
+        std::remove(xllama::resolve_local_path("bench-result.csv.done").c_str());
+        // quant is column 2
+        auto c1 = row.find(',');
+        REQUIRE(c1 != std::string::npos);
+        auto c2 = row.find(',', c1 + 1);
+        REQUIRE(c2 != std::string::npos);
+        return row.substr(c1 + 1, c2 - c1 - 1);
+    };
+
+    CHECK(write_and_read_quant("Phi-3.5-mini-instruct-Q3_K_S.gguf") == "Q3_K_S");
+    CHECK(write_and_read_quant("Llama-3.2-3B-Instruct-Q3_K_S.gguf") == "Q3_K_S");
+    CHECK(write_and_read_quant("models/foo-Q4_K_M.gguf") == "Q4_K_M");
+    CHECK(write_and_read_quant("unknown-model.gguf") == "Q4_K_M"); // fallback
+}
+
 TEST_CASE("Bench CSV writer: gpu memory columns") {
     auto params = make_params();
 

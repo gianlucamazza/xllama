@@ -259,6 +259,7 @@ Catalogue overview (roles + sizes; **decode/prefill/RAM numbers live in
 | Gemma-4-E2B Q3_K_S         | GGUF          | 2.45 GB | ✅       | `unified` builds; heavy/advanced                           |
 | SD-Turbo fp16 (image)      | ONNX DirectML | 2.4 GB  | ✅       | Image gen ([diffusion/README.md](./diffusion/README.md))   |
 | Phi-3.5-mini CPU INT4      | ONNX GenAI    | ~2.7 GB | ❌       | Not attempted (>2 GB single-file ONNX, §8)                 |
+| Phi-3.5-mini Q3_K_S        | GGUF          | 1.68 GB | ⚠️       | H4 A/B measured 11.3 tok/s / 2453 MB; loses to `llama32-3b` — not catalogue |
 
 See [docs/uwp-constraints.md](./docs/uwp-constraints.md) for the measured GPU budget (3801 MB), the disk budget, and AppContainer workarounds.
 

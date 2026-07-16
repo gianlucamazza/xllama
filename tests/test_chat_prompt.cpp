@@ -78,11 +78,21 @@ TEST_CASE("llama detection") {
     CHECK_FALSE(model_is_llama("gemma3-270m"));
 }
 
+TEST_CASE("phi detection") {
+    CHECK(model_is_phi("phi35-mini"));
+    CHECK(model_is_phi("Phi-3.5-mini-instruct-Q3_K_S.gguf"));
+    CHECK_FALSE(model_is_phi("smollm2-360m-cpu-int4"));
+    CHECK_FALSE(model_is_phi("lfm25-350m"));
+    CHECK_FALSE(model_is_phi("llama32-3b"));
+    CHECK_FALSE(model_is_phi("gemma3-270m"));
+}
+
 TEST_CASE("chat format selection") {
     CHECK(chat_format_for("smollm2-360m-cpu-int4").kind == ChatFormatKind::ChatML);
     CHECK(chat_format_for("lfm25-350m").kind == ChatFormatKind::ChatML);
     CHECK(chat_format_for("gemma3-270m").kind == ChatFormatKind::Gemma);
     CHECK(chat_format_for("llama32-3b").kind == ChatFormatKind::Llama3);
+    CHECK(chat_format_for("phi35-mini").kind == ChatFormatKind::Phi3);
 
     const ChatFormat qwen = chat_format_for("qwen35-0.8b");
     CHECK(qwen.kind == ChatFormatKind::ChatML);
@@ -90,6 +100,7 @@ TEST_CASE("chat format selection") {
 
     CHECK(chat_format_for("smollm2-360m-cpu-int4").gen_suffix.empty());
     CHECK(chat_format_for("llama32-3b").gen_suffix.empty());
+    CHECK(chat_format_for("phi35-mini").gen_suffix.empty());
 }
 
 TEST_CASE("chat format stop sequences") {
@@ -98,6 +109,7 @@ TEST_CASE("chat format stop sequences") {
     CHECK(chat_format_for("gemma3-270m").stop_sequences ==
           std::vector<std::string>{"<end_of_turn>"});
     CHECK(chat_format_for("llama32-3b").stop_sequences == std::vector<std::string>{"<|eot_id|>"});
+    CHECK(chat_format_for("phi35-mini").stop_sequences == std::vector<std::string>{"<|end|>"});
 }
 
 TEST_CASE("chatml render is byte-exact with the legacy hand-built prompt") {
@@ -152,7 +164,7 @@ TEST_CASE("gemma render with empty system leaves the first user turn unprefixed"
           "<start_of_turn>user\nciao<end_of_turn>\n<start_of_turn>model\n");
 }
 
-TEST_CASE("render_delta for chatml, gemma, llama3 and prev_ended_with_stop") {
+TEST_CASE("render_delta for chatml, gemma, llama3, phi3 and prev_ended_with_stop") {
     const ChatFormat cm = chat_format_for("smollm2-360m-cpu-int4");
     CHECK(cm.render_delta("q", /*stop=*/true) ==
           "\n<|im_start|>user\nq<|im_end|>\n<|im_start|>assistant\n");
@@ -173,6 +185,21 @@ TEST_CASE("render_delta for chatml, gemma, llama3 and prev_ended_with_stop") {
     CHECK(lm.render_delta("q", /*stop=*/false) ==
           "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nq<|eot_id|>"
           "<|start_header_id|>assistant<|end_header_id|>\n\n");
+
+    // Phi-3: stop is a prefix of turn_close ("<|end|>" vs "<|end|>\n") → post-stop glue "\n".
+    const ChatFormat ph = chat_format_for("phi35-mini");
+    CHECK(ph.render_delta("q", /*stop=*/true) == "\n<|user|>\nq<|end|>\n<|assistant|>\n");
+    CHECK(ph.render_delta("q", /*stop=*/false) == "<|end|>\n<|user|>\nq<|end|>\n<|assistant|>\n");
+}
+
+TEST_CASE("phi3 render matches Microsoft instruct layout") {
+    const ChatFormat f = chat_format_for("phi35-mini");
+    const std::string p = f.render_prompt("Be concise.", {{"hi", "hello"}}, "how are you?");
+    CHECK(p == "<|system|>\nBe concise.<|end|>\n"
+               "<|user|>\nhi<|end|>\n"
+               "<|assistant|>\nhello<|end|>\n"
+               "<|user|>\nhow are you?<|end|>\n"
+               "<|assistant|>\n");
 }
 
 TEST_CASE("llama3 render matches Meta instruct header layout") {
@@ -223,8 +250,9 @@ static void check_kv_reuse_invariant(const ChatFormat& f) {
     CHECK(base + raw_out + f.render_delta(next_user, /*prev_ended_with_stop=*/false) == cold);
 }
 
-TEST_CASE("kv-reuse invariant holds for chatml, gemma, and llama3") {
+TEST_CASE("kv-reuse invariant holds for chatml, gemma, llama3, and phi3") {
     check_kv_reuse_invariant(chat_format_for("smollm2-360m-cpu-int4"));
     check_kv_reuse_invariant(chat_format_for("gemma3-270m"));
     check_kv_reuse_invariant(chat_format_for("llama32-3b"));
+    check_kv_reuse_invariant(chat_format_for("phi35-mini"));
 }

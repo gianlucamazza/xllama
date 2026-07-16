@@ -7,6 +7,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Catalogue download resilience** — `ModelDownloader` retries transient failures
+  (network / HTTP 5xx / 429, up to 3 attempts with 1s/2s backoff) and **skips**
+  files already on disk at the expected `approx_bytes` (WDP upload or prior
+  partial EnsureModel). Closes the HF **504** loop seen on `llama32-3b` when
+  weights were already present.
+- **Bench CSV quant label** — GGUF rows no longer hardcode `Q4_K_M`; quant is
+  derived from the path / first `.gguf` filename (`Q3_K_S`, `IQ2_M`, …). Fallback
+  remains `Q4_K_M` when no token is found.
+- **`bench-xbox-ort.sh`** — does not upload ORT `genai_config.json` into GGUF
+  model dirs when `--threads` is set (threads still via `bench_threads.txt`).
+
+### Added
+
+- **Phi-3 chat template** — `ChatFormatKind::Phi3` (`<|user|>` / `<|end|>`) via
+  `model_is_phi` / `chat_format_for` for WDP-provisioned Phi GGUFs and future
+  quality A/B. Not a catalogue entry (speed/RAM still loses to `llama32-3b`).
+
+### Measured
+
+- **Phase 7 Phi-3.5-mini Q3_K_S A/B** (2026-07-16, Series S t6, `standard-512.txt`,
+  median of 3 runs): decode **11.31 tok/s**, prefill 15.3, peak **2453 MB**, load
+  ~24 s (`bench/results/phase7-scale.csv`). H4 gates PASS; loses to Llama-3.2-3B
+  Q3 (14.16 tok/s / 1824 MB) on speed and RAM — **no catalogue entry**. Docs:
+  `docs/phase7-hypotheses.md`, `docs/benchmarks.md`.
+  **Note:** console field package was still `1.1.8.507` during the campaign;
+  deploy `1.2.0.x` (+ this fix set) for catalogue download hardening and the Phi
+  template on-device.
+
 ## [1.2.0.0] - 2026-07-16
 
 ### Added
@@ -33,7 +63,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Phase 7 research** — `docs/phase7-hypotheses.md`: peer-class model hypotheses
   (H1–H9). **H4 PASS** on console: Llama-3.2-3B-Instruct Q3_K_S decode
   **14.2 tok/s**, peak 1824 MB (`bench/results/phase7-scale.csv`); near Gemma-4-E2B
-  speed at ~900 MB less RAM.
+  speed at ~900 MB less RAM. Phi-3.5-mini Q3 A/B measured same day (see
+  Unreleased).
 - **GitHub Release [v1.1.8.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.1.8.0)**
   (2026-07-16) — MSIX + cert + VCLibs x64. **Field smoke same day:** install
   `1.1.8.496` on Series S, first-launch download of `lfm25-350m`,

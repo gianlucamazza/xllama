@@ -38,6 +38,7 @@ Series S product priority: **G1 ≥ G2** (smart 2–3B at 10–15 tok/s beats du
 | LFM2.5-350M Q4 | **94.2** | 321 MB | default, G2 king |
 | Qwen3.5-0.8B Q4 | 35.1 | 718 MB | mid |
 | SmolLM2-1.7B int4 | 20.6 | 2423 MB | mid |
+| Llama-3.2-3B Q3 | **14.2** | 1824 MB | dense peer-class (catalogue advanced) |
 | Gemma-4-E2B Q3 | 15.3 | 2742 MB | best heavy quality so far |
 
 Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppContainer mmap.
@@ -70,7 +71,7 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
 - **Claim:** 3B Q3_K_S runs ≥8 tok/s, peak &lt; 3.5 GB, coherent chat ≥ E2B.
 - **PASS:** Coherent generate + decode ≥8 + peak OK.
 - **FAIL:** EOG/garbage (see E2B IQ2) or OOM/livelock.
-- **Status:** **In campaign** — primary falsifier (low cost, high information).
+- **Status:** **PASS** (2026-07-16) — Llama-3.2-3B preferred; Phi-3.5-mini also gates OK.
 
 ### H5 — BitNet / 1.58-bit
 
@@ -105,9 +106,9 @@ GPU decode@360M, llama 2× ORT BW, mmap load win, extdata→1B fp16 GPU, DML int
 
 | Hypothesis | Candidate | Repo / file | Size | Why |
 | --- | --- | --- | --- | --- |
-| H4 | Llama-3.2-3B-Instruct Q3_K_S | `unsloth/Llama-3.2-3B-Instruct-GGUF` | 1.54 GB | Dense 3B, llama arch, under E2B size |
-| H4 | Llama-3.2-3B-Instruct Q4_K_M | same | 2.02 GB | Quality control if Q3 weak |
-| H4 | Phi-3.5-mini Q3_K_S | `bartowski/Phi-3.5-mini-instruct-GGUF` | 1.68 GB | Strong small instruct class |
+| H4 | Llama-3.2-3B-Instruct Q3_K_S | `unsloth/Llama-3.2-3B-Instruct-GGUF` | 1.54 GB | **Measured preferred** — catalogue `llama32-3b` |
+| H4 | Llama-3.2-3B-Instruct Q4_K_M | same | 2.02 GB | Quality control if Q3 weak (not needed after Q3 PASS) |
+| H4 | Phi-3.5-mini Q3_K_S | `bartowski/Phi-3.5-mini-instruct-GGUF` | 1.68 GB | **Measured** — loses A/B; no catalogue |
 | H1 | Larger LFM / LFM2-MoE if &lt;3 GB | check LiquidAI / unsloth | TBD | Efficiency line |
 | H2 | Small MoE GGUF with arch in tree | e.g. OLMoE/Qwen-MoE tiny | TBD | Only if &lt;~3.5 GB Q3 |
 
@@ -118,37 +119,45 @@ median of 3 runs with run-1 dropped).
 
 | Model | Quant | Decode | Prefill | Peak MB | Load ms | Verdict |
 | --- | --- | --- | --- | --- | --- | --- |
-| Llama-3.2-3B-Instruct (`llama32-3b-q3ks`) | Q3_K_S | **14.16** | 19.51 | **1824** | ~16900 | **H4 PASS** |
+| Llama-3.2-3B-Instruct (`llama32-3b-q3ks`) | Q3_K_S | **14.16** | 19.51 | **1824** | ~16900 | **H4 PASS · preferred** |
+| Phi-3.5-mini-instruct (`phi35-mini-q3ks`) | Q3_K_S | **11.31** | 15.29 | **2453** | ~24200 | **H4 PASS · loses A/B** |
 
 Notes:
 
 - Quant column was auto-mislabeled `Q4_K_M` by the bench harness (first-token
-  heuristic); corrected to **Q3_K_S** (on-disk file name).
-- Peak **1824 MB** is ~900 MB under Gemma-4-E2B Q3 (2742 MB) at nearly the same
-  decode (14.2 vs 15.3) — dense 3B is *lighter* than E2B MatFormer at this quant.
-- Naive BW bound for 3B Q4 was ~8 tok/s; Q3_K_S at **14 tok/s** is consistent with
-  fewer weight bytes/token (still bandwidth-class).
-- Headless bench completed full decode rows (not EOG-zero). Interactive
-  `set_model` autopilot for non-catalogue dirs still needs catalogue entry /
-  provision path — provision for campaign was `deploy.sh upload-dir`.
+  heuristic); corrected to **Q3_K_S** (on-disk file name) for both rows.
+- Peak **1824 MB** (Llama) is ~900 MB under Gemma-4-E2B Q3 (2742 MB) at nearly
+  the same decode (14.2 vs 15.3) — dense 3B is *lighter* than E2B MatFormer at
+  this quant. Phi-3.5-mini (~3.8B) peaks **2453 MB** — still under the 3.5 GB
+  gate, but ~630 MB heavier than Llama at the same quant class.
+- Naive BW bound for 3B Q4 was ~8 tok/s; Q3_K_S at **14 tok/s** (Llama) /
+  **11 tok/s** (Phi) is consistent with weight-bytes/token (still bandwidth-class).
+- Headless bench completed full decode rows (not EOG-zero) for both. Provision
+  for campaign: `deploy.sh upload-dir` (Phi not catalogue; Llama is).
+- **Template:** campaign headless used ChatML (default at the time). **Phi-3
+  template now lands** as `ChatFormatKind::Phi3` (`model_is_phi` /
+  `chat_format_for`) so interactive / H9 quality A/B is fair if re-run; speed and
+  peak RAM from this campaign remain valid either way.
 
 ### H4 decision
 
-| Criterion | Result |
-| --- | --- |
-| Decode ≥ 8 tok/s | **14.16** ✅ |
-| Peak &lt; 3.5 GB | **1.82 GB** ✅ |
-| Coherent generate (bench path) | ✅ (non-zero decode tokens) |
-| vs E2B (15.3 tok/s, 2742 MB) | Similar speed, **much less RAM** |
+| Criterion | Llama-3.2-3B | Phi-3.5-mini |
+| --- | --- | --- |
+| Decode ≥ 8 tok/s | **14.16** ✅ | **11.31** ✅ |
+| Peak &lt; 3.5 GB | **1.82 GB** ✅ | **2.45 GB** ✅ |
+| Coherent generate (bench path) | ✅ | ✅ |
+| vs E2B (15.3 tok/s, 2742 MB) | Similar speed, **much less RAM** | Slower, still under E2B RAM |
 
-**H4: PASS.** A dense 3B Q3 is a viable “peer-class capability” candidate on Series
-S and should be considered for catalogue (HF direct, like gemma4-e2b).
+**H4: PASS.** Dense ~3B Q3 is viable on Series S. **Llama-3.2-3B is the preferred
+peer-class dense candidate** (faster + lighter). Phi-3.5-mini also clears H4
+gates but loses the speed/RAM A/B; no catalogue entry unless H9 quality later
+overturns that.
 
 ### Next measured steps
 
 1. ~~Optional catalogue entry `llama32-3b`~~ — **done** (manifest + Llama-3 template).
-2. Phi-3.5-mini Q3_K_S A/B (quality head-to-head with Llama-3.2-3B).
-3. H9 human task suite: LFM vs E2B vs Llama-3.2-3B.
+2. ~~Phi-3.5-mini Q3_K_S speed/RAM A/B~~ — **done** (Llama preferred; see above).
+3. H9 human task suite: LFM vs E2B vs Llama-3.2-3B (Phi only if Phi-3 chat template lands).
 4. H3 speculative only if H9 says 3B quality is still short of peer 7B.
 
 ## Decision log
@@ -158,3 +167,4 @@ S and should be considered for catalogue (HF direct, like gemma4-e2b).
 | 2026-07-16 | Open Phase 7 research; prioritize H4 then H1; H3/H6 eng only after H4 data |
 | 2026-07-16 | **H4 PASS** — Llama-3.2-3B Q3_K_S @14.2 tok/s, 1824 MB peak (`phase7-scale.csv`) |
 | 2026-07-16 | Catalogue **`llama32-3b`** (HF Q3_K_S) + `ChatFormatKind::Llama3`; default stays LFM |
+| 2026-07-16 | **Phi-3.5-mini Q3_K_S A/B** — 11.31 tok/s, 2453 MB; H4 PASS but loses to Llama on speed+RAM; **no catalogue** |

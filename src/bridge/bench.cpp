@@ -6,11 +6,78 @@
 #include "xllama/platform.h"
 #include "xllama/utf8_utils.h"
 
+#include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <ctime>
 #include <string>
 
 namespace xllama {
+namespace {
+
+std::string to_lower_copy(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return s;
+}
+
+// Extract a quant / EP label from a model path or GGUF filename.
+// Longer tokens first so Q3_K_XL wins over Q3_K_L / Q3, etc.
+const char* quant_token_in(const std::string& haystack_lower) {
+    static constexpr const char* kTokens[] = {
+        "ud-iq2_m", "q3_k_xl", "q3_k_l", "q3_k_m", "q3_k_s", "q4_k_m", "q4_k_s",
+        "q5_k_m",   "q5_k_s",  "q6_k",   "q8_0",   "iq2_m",  "iq3_m",  "iq3_xs",
+        "iq4_xs",   "iq4_nl",  "q4_0",   "q5_0",   "q2_k",   "fp16",   "int4",
+    };
+    for (const char* tok : kTokens) {
+        if (haystack_lower.find(tok) != std::string::npos)
+            return tok;
+    }
+    return nullptr;
+}
+
+// Canonical CSV quant label (uppercase GGUF-style; ORT uses lowercase fp16/int4).
+std::string format_quant_label(const char* token_lower) {
+    if (!token_lower)
+        return {};
+    std::string s(token_lower);
+    // ORT EP-style labels stay lowercase.
+    if (s == "fp16" || s == "int4")
+        return s;
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+    return s;
+}
+
+std::string detect_quant_label(const std::string& model_path, bool is_llama) {
+    // Prefer tokens in the path/dir name, then the first GGUF basename if any.
+    std::string probe = model_path;
+    if (is_llama) {
+        const std::string resolved = resolve_model_path(model_path);
+        const std::string gguf = first_gguf_in_dir(resolved);
+        if (!gguf.empty()) {
+            auto slash = gguf.find_last_of("/\\");
+            probe = (slash != std::string::npos) ? gguf.substr(slash + 1) : gguf;
+        }
+    }
+    // Also scan the original path (catalogue ids like llama32-3b-q3ks rarely
+    // embed quant; GGUF filenames do).
+    const std::string lower_path = to_lower_copy(model_path);
+    const std::string lower_probe = to_lower_copy(probe);
+    if (const char* t = quant_token_in(lower_probe))
+        return format_quant_label(t);
+    if (const char* t = quant_token_in(lower_path))
+        return format_quant_label(t);
+
+    if (is_llama)
+        return "Q4_K_M"; // legacy GGUF default
+    // ORT: dir-name convention smollm2-*-{cpu|dml}-{int4|fp16}
+    if (lower_path.find("fp16") != std::string::npos)
+        return "fp16";
+    return "int4";
+}
+
+} // namespace
 
 // ---------------------------------------------------------------------------
 // Write bench CSV row
@@ -74,33 +141,27 @@ void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
     const bool is_llama = false;
 #endif
 
-#ifdef XLLAMA_USE_ORT
-    // Derive the EP + quant labels from the model directory name (convention:
-    // smollm2-<size>-<cpu|dml>-<int4|fp16>) instead of hardcoding — a DML fp16
-    // model was previously mislabelled as "ort-genai-cpu"/"int4". gpu_mem_mb > 0
-    // corroborates DML execution (GPU memory resident after load).
-    const bool is_dml = model_name.find("dml") != std::string::npos || res.gpu_mem_mb > 0;
-    const bool is_fp16 = model_name.find("fp16") != std::string::npos;
-    const char* backend = is_dml ? "ort-genai-dml" : "ort-genai-cpu";
-    const char* quant = is_fp16 ? "fp16" : "int4";
-#else
+    const std::string quant = detect_quant_label(params.model_path, is_llama);
+
     const char* backend = "cpu";
-    const char* quant = "Q4_K_M";
-#endif
-    if (is_llama) {
-        // GGUF run: keep the llamacpp-lane labels (matches phase35-llamacpp-scaling.csv)
-        // even in unified builds, where the ORT labels above would win.
-        backend = "cpu";
-        quant = "Q4_K_M";
+#ifdef XLLAMA_USE_ORT
+    if (!is_llama) {
+        // Derive the EP label from the model directory name (convention:
+        // smollm2-<size>-<cpu|dml>-<int4|fp16>). gpu_mem_mb > 0 corroborates DML.
+        const bool is_dml = model_name.find("dml") != std::string::npos || res.gpu_mem_mb > 0;
+        backend = is_dml ? "ort-genai-dml" : "ort-genai-cpu";
     }
+#endif
+    if (is_llama)
+        backend = "cpu";
 
     const int used_threads = params.n_threads > 0
                                  ? params.n_threads
                                  : (is_llama ? detect_threads_llama() : detect_threads());
-    fprintf(fp, "%s,%s,%s,%d,%d,%.2f,%.2f,%zu,%.0f,%zu,%zu,%s,%s\n", model_name.c_str(), quant,
-            backend, params.n_ctx, used_threads, prompt_tok_s, decode_tok_s, res.peak_ws_mb,
-            res.t_load_ms, res.gpu_mem_mb, res.gpu_budget_mb, host_label ? host_label : "unknown",
-            date_buf);
+    fprintf(fp, "%s,%s,%s,%d,%d,%.2f,%.2f,%zu,%.0f,%zu,%zu,%s,%s\n", model_name.c_str(),
+            quant.c_str(), backend, params.n_ctx, used_threads, prompt_tok_s, decode_tok_s,
+            res.peak_ws_mb, res.t_load_ms, res.gpu_mem_mb, res.gpu_budget_mb,
+            host_label ? host_label : "unknown", date_buf);
     fclose(fp);
 
     // Write done marker

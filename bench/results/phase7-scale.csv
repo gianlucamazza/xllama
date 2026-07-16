@@ -1,2 +1,3 @@
 model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,host,date
 llama32-3b-q3ks,Q3_K_S,cpu,2048,6,19.51,14.16,1824,16936,0,0,xbox-series-s-t6,2026-07-16T07:01:27Z
+phi35-mini-q3ks,Q3_K_S,cpu,2048,6,15.29,11.31,2453,24193,0,0,xbox-series-s-t6,2026-07-16T08:47:07Z

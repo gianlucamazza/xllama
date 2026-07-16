@@ -27,6 +27,15 @@ struct InferenceParams {
     float temperature = 0.8f;
     uint32_t seed = 0xFFFFFFFF; // 0xFFFFFFFF = LLAMA_DEFAULT_SEED
 
+    // Deterministic decode: pick argmax instead of sampling. Prerequisite for
+    // cross-backend logit parity (llama.cpp vs ORT must agree token-for-token).
+    bool greedy = false;
+
+    // Logit-parity harness: when non-empty, dump the last prefill-token logit
+    // vector (float32, vocab_size values) to this path plus a "<path>.json"
+    // sidecar with metadata. Empty = disabled (normal inference).
+    std::string dump_logits_path;
+
     // Stop strings: generation ends (and the match is trimmed from output_text)
     // when the accumulated output ends with any of these. Empty = stop on EOG /
     // n_predict only. Used by the CLI --chat mode and the GGUF bench.

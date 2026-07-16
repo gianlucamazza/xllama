@@ -29,6 +29,11 @@ static void print_help(const char* prog) {
                  "                       0 = llama default 512\n"
                  "      --membw          Run the CPU memory-bandwidth micro-bench and\n"
                  "                       exit (no model needed); prints read/copy/triad GB/s\n"
+                 "      --greedy         Deterministic argmax decode (implies logit parity);\n"
+                 "                       overrides --temp/--seed for reproducible output\n"
+                 "      --dump-logits <path>\n"
+                 "                       Write the last prefill-token logits (float32) to\n"
+                 "                       <path> and metadata to <path>.json, then continue\n"
                  "  -h, --help           Show this message\n",
                  prog);
 }
@@ -53,6 +58,8 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
                                               {"batch", required_argument, nullptr, 4},
                                               {"ubatch", required_argument, nullptr, 5},
                                               {"membw", no_argument, nullptr, 6},
+                                              {"greedy", no_argument, nullptr, 7},
+                                              {"dump-logits", required_argument, nullptr, 8},
                                               {"help", no_argument, nullptr, 'h'},
                                               {nullptr, 0, nullptr, 0}};
 
@@ -91,6 +98,12 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             break;
         case 6:
             out.run_membw = true;
+            break;
+        case 7:
+            out.greedy = true;
+            break;
+        case 8:
+            out.dump_logits_path = optarg;
             break;
         case 'h':
             print_help(argv[0]);
