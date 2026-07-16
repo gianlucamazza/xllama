@@ -1427,6 +1427,10 @@ void MainPageController::FinishDiffusion() {
 // ---------------------------------------------------------------------------
 
 void MainPageController::EnsureGpuModelIfNeeded() {
+    // #91/#95: while DML text logits are broken, routing can never pick the GPU
+    // model — don't background-download 725 MB that cannot be used.
+    if (::xllama::kDmlTextLogitsBroken)
+        return;
     if (m_routing == 0)
         return;
     const std::wstring gpu = ::xllama::utf8_to_wstring(m_gpu_model);
