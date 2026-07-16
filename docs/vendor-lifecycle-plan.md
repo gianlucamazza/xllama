@@ -28,7 +28,6 @@
 ```mermaid
 flowchart LR
   subgraph active [Azione attiva]
-    A1[Demo video]
     A2[Watch NuGet GenAI]
     A3[ORT #29730 / PR ReadFile]
     A4[Hold #91 gate]
@@ -42,6 +41,7 @@ flowchart LR
     C1[Dual pin CI]
     C2[Docs currency 1.2.0]
     C3[Gate gpu_model under #91]
+    C4[Demo video]
   end
   A2 -->|NuGet post-2280| DropGenAI[Drop -PatchedGenAI]
   A3 -->|merged + NuGet| DropOrt[Drop -PatchedOrt]
@@ -52,7 +52,7 @@ flowchart LR
 | ID | Obiettivo | Issue | Priorità | Effort | Dipendenze |
 | --- | --- | --- | --- | --- | --- |
 | **R0** | Publish GitHub Release **v1.2.0.0** | ops | **done** 2026-07-16 | S | [v1.2.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.2.0.0) (`1.2.0.536` + cert + VCLibs) |
-| **R1** | Demo video (clip 60–90 s) | ROADMAP Phase 6 | **P1** content | S–M | Deploy 1.2.0 CI artifact or post-R0 release; **solo capture umano** |
+| **R1** | Demo video (clip ~74 s) | ROADMAP Phase 6 | **done** 2026-07-17 | S | [mp4 on v1.2.0.0](https://github.com/gianlucamazza/xllama/releases/download/v1.2.0.0/xllama-demo-v1.2.0.mp4); `scripts/capture-demo-video.sh` |
 | **R2** | Drop `-PatchedGenAI` | [#84](https://github.com/gianlucamazza/xllama/issues/84) | **blocked** NuGet | S | Poll: `scripts/check-vendor-nuget-status.sh` |
 | **R3** | Upstream ReadFile 16 MB | [#86](https://github.com/gianlucamazza/xllama/issues/86) | **PR open** | M | [ORT #29732](https://github.com/microsoft/onnxruntime/pull/29732) |
 | **R4** | Drop `-PatchedOrt` | [#85](https://github.com/gianlucamazza/xllama/issues/85) | **blocked** NuGet | S | Merge #29732 + NuGet con #28509 |
@@ -69,11 +69,9 @@ flowchart LR
 
 1. ~~**Publish v1.2.0.0 (R0)**~~ — **done** 2026-07-16
    ([release](https://github.com/gianlucamazza/xllama/releases/tag/v1.2.0.0)).
-2. **Demo video (R1)**
-   - Deploy [v1.2.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.2.0.0)
-     or CI `xllama-appx`.
-   - Checklist ROADMAP: first-launch LFM → chat short/long → Image Generate → capture.
-   - Note: long-prompt routing stays on **CPU** while #91 holds (still demo-valid).
+2. ~~**Demo video (R1)**~~ — **done** 2026-07-17
+   ([mp4](https://github.com/gianlucamazza/xllama/releases/download/v1.2.0.0/xllama-demo-v1.2.0.mp4),
+   `scripts/capture-demo-video.sh`). Phase 6 product complete.
 
 ### Fase B — Watch & drop GenAI (event-driven)
 
@@ -129,7 +127,7 @@ Già closed-negative con evidenza — non investire:
 - [x] #91 gate + #95/#100 gpu_model skip (console verified 1.2.0.534)
 - [x] Project analysis currency pass 1.2.0 / #91
 - [x] **Publish GitHub Release v1.2.0.0** (R0 — Latest)
-- [ ] Demo video capture (R1 — umano)
+- [x] **Demo video** (R1 — WDP screenshot + autopilot; ~74 s on release)
 - [ ] Poll: `./scripts/check-vendor-nuget-status.sh` + review ORT #29732 / GenAI #2300
 
 ---

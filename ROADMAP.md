@@ -21,8 +21,8 @@ Full numbers: `docs/benchmarks.md`; architecture: `docs/architecture.md`.
 Console: `validate-console.sh all` → **ALL PASS** on **`1.2.0.534`** (2026-07-16;
 routing gate, GGUF, TAESD, LAN API). Earlier ALL PASS 2026-07-14 on 1.1.x.
 **GitHub Release [v1.2.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.2.0.0)**
-published 2026-07-16 (MSIX `1.2.0.536` + cert + VCLibs; Latest). Demo video
-still open. See
+published 2026-07-16 (MSIX `1.2.0.536` + cert + VCLibs; Latest). **Demo video**
+on the same release (2026-07-17). Phase 6 product complete. See
 [`docs/benchmarks.md`](docs/benchmarks.md),
 [`docs/recommended-config.md`](docs/recommended-config.md),
 [`docs/console-validation-runbook.md`](docs/console-validation-runbook.md),
@@ -215,7 +215,7 @@ Milestones:
       validated 2026-07-14 (no `887A0036`). Upstream merge into NuGet TBD.
 - [ ] (deprioritised — see Phase 6) **Fused low-bit GPU GEMM for DirectML** (upstream)
 
-## Phase 4 — In-App Download + Publication ✅ DONE (demo video open)
+## Phase 4 — In-App Download + Publication ✅ DONE
 
 **Goal**: remove bundled-model constraint; technical write-up; publication assets.
 
@@ -228,7 +228,7 @@ Milestones:
 - [x] Validate Exp 2 on console — ✅ 2026-07-08: the nobundle app downloaded the full model (417 MB merged) from the GitHub Release catalogue inside the AppContainer, byte-exact, `.complete` written. (The upstream HF repo turned out to ship a non-merged model.onnx + a file list with a nonexistent entry — the download had been broken from the start; distribution moved to Release assets.)
 - [x] Remove model bundle from MSIX — ✅ 2026-07-08 (ItemGroup deleted; CI matrix simplified to default+llamacpp; `xllama-appx` is now the 19 MB no-model package)
 - [x] `model-manifest.json` — ✅ 2026-07-08 (`uwp/models/manifest.json` catalogue + LocalState override; ComboBox and downloader de-hardcoded)
-- [ ] Demo video: model loaded and running on Xbox hardware — **tracked under Phase 6**
+- [x] Demo video: model loaded and running on Xbox hardware — **done under Phase 6** (2026-07-17)
 - [x] Technical report — ✅ 2026-07-08 draft (`docs/technical-report.md`); published
       as [Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76)
       (2026-07-15). arXiv only if a formal citation is needed later.
@@ -308,9 +308,9 @@ validation gates, patched GenAI in XAML.
 - [x] **`validate-console.sh` hardening** — `model_provisioned` WDP basename fix;
       `upload_file` mkdirs remote dirs (chats, nested model paths).
 
-## Phase 6 — Publication + polish 🔮 NEXT
+## Phase 6 — Publication + polish ✅ DONE (2026-07-17)
 
-Open items only — everything above is measured or shipped.
+Product + publication closed. Optional maint deferred items remain open below.
 
 - [x] **Perf + architecture backlog** (2026-07-14, PRs #53–#60). CI: `src/models`
       wildcard + drift-check (no more per-bump LNK2001); unified stop-sequence
@@ -345,13 +345,11 @@ Open items only — everything above is measured or shipped.
       manifest's file. Verified on-console — `gemma4-e2b` with a stale IQ2_M +
       `.complete` marker → removed IQ2_M → downloaded Q3_K_S (2.45 GB) → loaded.
       13 host doctest cases. See `docs/benchmarks.md`.
-- [ ] **Demo video** — model loaded and running on Xbox hardware (Phase 4 carry-over).
-      **Checklist:** (1) deploy [v1.2.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.2.0.0)
-      (`xllama_1.2.0.536_x64.msix`) or CI `xllama-appx`, (2) first-launch LFM
-      download, (3) chat short + long (routing stays **CPU** under #91 — still
-      valid demo), (4) Image Generate one frame, (5) 60–90 s capture via capture
-      card / Game Bar if available. No code blocker. Console FULL PASS
-      `1.2.0.534` **done 2026-07-16**; only the capture clip remains.
+- [x] **Demo video** (2026-07-17) — on-console capture of **v1.2.0.536** via WDP
+      `/ext/screenshot` + autopilot (LFM chat ×2 + SD-Turbo image, #91 CPU path).
+      Clip ~74 s: [xllama-demo-v1.2.0.mp4](https://github.com/gianlucamazza/xllama/releases/download/v1.2.0.0/xllama-demo-v1.2.0.mp4)
+      on release + `docs/screenshots/`. Still: `xllama-demo-diffuse-robot.png`.
+      Tooling: `scripts/capture-demo-video.sh`, runbook `docs/demo-video-runbook.md`.
 - [x] **Publish GitHub Release v1.2.0.0** (2026-07-16) — MSIX `1.2.0.536` +
       cert + VCLibs; Latest. LAN API, llama32-3b, #91/#95/#100.
 - [x] **Publication venue** — GitHub Discussions; **posted**

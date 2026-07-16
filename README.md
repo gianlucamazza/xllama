@@ -7,6 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **Status:** shipping (unified + PatchedGenAI + PatchedOrt) · research-grade — current version in [CHANGELOG](CHANGELOG.md) / [ROADMAP](ROADMAP.md)
+**Demo:** [xllama on Xbox Series S (v1.2.0)](https://github.com/gianlucamazza/xllama/releases/download/v1.2.0.0/xllama-demo-v1.2.0.mp4) (~74 s, local chat + SD image)
 **Maintainer:** [Venere Labs](https://github.com/gianlucamazza)
 
 ---
