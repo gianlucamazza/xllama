@@ -2,6 +2,20 @@
 
 Benchmark suite for xllama. Results are stored as CSV files in `results/`.
 
+## Single source of truth
+
+- `results/*.csv` and `results/*.jsonl` are the immutable measured evidence.
+- `benchmark-summary.json` declares which atomic run represents each comparison
+  row; it contains metadata and selectors, never copied metric values.
+- `docs/benchmarks.md` and `docs/benchmarks-charts.html` contain generated blocks.
+  Refresh them with `python3 scripts/generate-benchmark-summary.py`.
+- CI runs the same command with `--check`; a result or selection-policy change
+  cannot merge while either published surface is stale.
+
+Never combine the best prefill, decode, or RAM values from different CSV rows.
+Add a row to `benchmark-summary.json` when a newly measured configuration should
+appear in the consolidated comparison.
+
 ## Methodology
 
 - **Prompts**: fixed prompts in `bench/prompts/` (same across all runs for comparability).

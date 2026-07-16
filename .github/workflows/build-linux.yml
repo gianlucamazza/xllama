@@ -52,6 +52,9 @@ jobs:
           ./scripts/xbox-gpu-sample.sh --parse-stdin < tests/fixtures/systemperf_sample.json |
             grep -q "^[0-9]*,42,404,0.720"
 
+      - name: Verify generated benchmark summaries
+        run: python3 scripts/generate-benchmark-summary.py --check
+
       - name: Configure (with tests)
         run: cmake --preset linux-test
 

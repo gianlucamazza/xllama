@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "rows": [
+    {
+      "label": "LFM2.5-350M",
+      "params": "350M",
+      "source": "phase5-gguf.csv",
+      "selector": { "model": "lfm25-350m", "n_threads": "6" },
+      "backend_key": "llama",
+      "backend_label": "llama.cpp CPU · t6"
+    },
+    {
+      "label": "Gemma-3-270M",
+      "params": "270M",
+      "source": "phase6-gemma.csv",
+      "selector": { "model": "gemma3-270m", "quant": "Q4_K_M" },
+      "backend_key": "llama",
+      "backend_label": "llama.cpp CPU · t6"
+    },
+    {
+      "label": "SmolLM2-360M",
+      "params": "360M",
+      "source": "phase2-dml.csv",
+      "selector": { "model": "smollm2-360m-cpu-int4" },
+      "select": "max_decode",
+      "backend_key": "ort",
+      "backend_label": "ORT-GenAI CPU",
+      "quant_label": "int4",
+      "tag": "shipping control"
+    },
+    {
+      "label": "SmolLM2-360M",
+      "params": "360M",
+      "source": "phase35-llamacpp-scaling.csv",
+      "selector": { "model": "smollm2-360m-q4km", "n_threads": "6" },
+      "backend_key": "llama",
+      "backend_label": "llama.cpp CPU · t6"
+    },
+    {
+      "label": "SmolLM2-360M",
+      "params": "360M",
+      "source": "phase2-dml.csv",
+      "selector": { "model": "smollm2-360m-dml-fp16" },
+      "select": "max_decode",
+      "backend_key": "dml",
+      "backend_label": "ORT DirectML · routing disabled #91",
+      "quant_label": "fp16",
+      "tag": "routing disabled #91"
+    },
+    {
+      "label": "Qwen3.5-0.8B",
+      "params": "0.8B",
+      "source": "phase5-gguf.csv",
+      "selector": { "model": "qwen35-0.8b", "n_threads": "6" },
+      "backend_key": "llama",
+      "backend_label": "llama.cpp CPU · t6"
+    },
+    {
+      "label": "LFM2.5-1.2B",
+      "params": "1.2B",
+      "source": "phase7-lfm.csv",
+      "selector": { "model": "lfm25-1.2b-instruct", "n_threads": "6" },
+      "backend_key": "llama",
+      "backend_label": "llama.cpp CPU · t6"
+    },
+    {
+      "label": "SmolLM2-1.7B",
+      "params": "1.7B",
+      "source": "phase35-1b-cpu.csv",
+      "selector": { "model": "smollm2-1" },
+      "backend_key": "ort",
+      "backend_label": "ORT-GenAI CPU",
+      "quant_label": "int4"
+    },
+    {
+      "label": "Gemma-4-E2B",
+      "params": "~5B raw (2B eff)",
+      "source": "phase6-gemma.csv",
+      "selector": { "model": "gemma4-e2b", "quant": "Q3_K_S" },
+      "backend_key": "llama",
+      "backend_label": "llama.cpp CPU · t6",
+      "tag": "catalogue default"
+    },
+    {
+      "label": "LFM2-2.6B",
+      "params": "2.6B",
+      "source": "phase7-lfm.csv",
+      "selector": { "model": "lfm2-2.6b", "n_threads": "6" },
+      "backend_key": "llama",
+      "backend_label": "llama.cpp CPU · t6"
+    },
+    {
+      "label": "Llama-3.2-3B",
+      "params": "3B",
+      "source": "phase7-scale.csv",
+      "selector": { "model": "llama32-3b-q3ks", "n_threads": "6" },
+      "backend_key": "llama",
+      "backend_label": "llama.cpp CPU · t6"
+    },
+    {
+      "label": "Phi-3.5-mini",
+      "params": "3.8B",
+      "source": "phase7-scale.csv",
+      "selector": { "model": "phi35-mini-q3ks", "n_threads": "6" },
+      "backend_key": "llama",
+      "backend_label": "llama.cpp CPU · t6",
+      "tag": "not in catalogue"
+    },
+    {
+      "label": "Gemma-4-E2B",
+      "params": "~5B raw (2B eff)",
+      "source": "phase6-gemma.csv",
+      "selector": { "model": "gemma4-e2b", "quant": "IQ2_M" },
+      "backend_key": "llama",
+      "backend_label": "llama.cpp CPU · t6",
+      "tag": "legacy 2-bit"
+    },
+    {
+      "label": "SmolLM2-360M",
+      "params": "360M",
+      "source": "phase2-dml.csv",
+      "selector": { "model": "smollm2-360m-dml-int4" },
+      "select": "max_decode",
+      "backend_key": "dml",
+      "backend_label": "ORT DirectML int4",
+      "quant_label": "int4",
+      "tag": "GPU int4"
+    }
+  ],
+  "quality": {
+    "source": "phase7-h9.jsonl",
+    "labels": {
+      "lfm25-350m": "LFM2.5-350M",
+      "gemma4-e2b": "Gemma-4-E2B",
+      "llama32-3b": "Llama-3.2-3B",
+      "lfm25-1.2b-instruct": "LFM2.5-1.2B",
+      "lfm2-2.6b": "LFM2-2.6B"
+    }
+  },
+  "kv_reuse_sources": [
+    "phase35-kv.csv",
+    "phase6-gemma-kv.csv",
+    "phase7-lfm-kv.csv"
+  ]
+}
