@@ -9,9 +9,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Technical report publication** — GitHub Discussions enabled;
-  [Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76) is the
-  public entrypoint for `docs/technical-report.md` (linked from README + docs index).
+- **GitHub Release [v1.1.8.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.1.8.0)**
+  (2026-07-16) — MSIX `xllama_1.1.8.490_x64.msix` + cert + VCLibs x64 from CI
+  artifact after PatchedOrt promotion. Field console smoke of the combined
+  package **pending** (Device Portal unreachable from the release host);
+  PatchedOrt path was console-validated pre-promotion (2026-07-15).
 
 ## [1.1.8.0] - 2026-07-15
 
