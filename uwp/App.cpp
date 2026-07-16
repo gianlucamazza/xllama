@@ -266,6 +266,14 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
                 winrt::make<HeadlessView>(&::xllama::bridge::run_membw, "membw"));
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
+        std::wstring logits_flag = flag_path_if_present(L"logits.flag");
+        if (!logits_flag.empty()) {
+            _wremove(logits_flag.c_str());
+            ::xllama::log_output("[xllama] logits.flag detected -> headless logit-parity dump\n");
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(&::xllama::bridge::run_logits, "logits"));
+            return 0; // not reached: CoreApplication::Exit terminates the process
+        }
         winrt::uninit_apartment(); // restore pre-existing thread state for XAML
         winrt::Windows::UI::Xaml::Application::Start(
             [](auto&&) { winrt::make<winrt::xllama::implementation::App>(); });

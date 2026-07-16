@@ -1,0 +1,9 @@
+{
+  "model": "smollm2-360m-q4km.gguf",
+  "prompt": "The capital of France is",
+  "backend": "llama.cpp",
+  "vocab_size": 49152,
+  "greedy": true,
+  "top1_id": 7042,
+  "top1_piece": " Paris"
+}

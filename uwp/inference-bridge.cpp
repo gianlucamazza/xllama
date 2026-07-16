@@ -219,6 +219,46 @@ void main_loop() {
 }
 
 // ---------------------------------------------------------------------------
+// run_logits (called from UWP logits.flag mode background thread)
+// ---------------------------------------------------------------------------
+
+void run_logits() {
+#ifdef XLLAMA_UWP
+    set_cwd_to_local_folder();
+
+    // Raw prompt (NOT chat-templated): parity feeds the identical string to both
+    // backends so scripts/compare-logits.py can diff the resulting distributions.
+    std::string prompt = read_local_file("prompt.txt");
+    if (prompt.empty())
+        prompt = "Hello from Xbox Series S. Tell me about your architecture.";
+    std::string model_name = read_local_file("model.txt");
+    if (model_name.empty())
+        model_name = "smollm2-360m-cpu-int4";
+
+    log_output("[xllama] logits model: " + model_name + "\n");
+    log_output("[xllama] logits prompt: " + prompt.substr(0, 80) + "\n");
+
+    InferenceParams params;
+    params.model_path = model_name;
+    params.prompt = prompt;
+    params.n_predict = 1; // one deterministic forward pass; we only need prefill logits
+    params.greedy = true;
+    params.dump_logits_path = resolve_local_path("logits.bin");
+
+    InferenceResult res = ::xllama::run_inference(params);
+    log_output(res.success ? "[xllama] logits dump OK\n"
+                           : "[xllama] logits dump FAILED: " + res.error_msg + "\n");
+
+    // Completion marker for scripts/validate-logit-parity.sh to poll (WDP).
+    FILE* done = _wfopen(utf8_to_wstring(resolve_local_path("logits.done")).c_str(), L"w");
+    if (done) {
+        fputs(res.success ? "ok" : "fail", done);
+        fclose(done);
+    }
+#endif
+}
+
+// ---------------------------------------------------------------------------
 // run_membw (called from UWP membw.flag mode background thread)
 // ---------------------------------------------------------------------------
 

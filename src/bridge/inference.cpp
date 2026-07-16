@@ -3,13 +3,16 @@
 
 #include "xllama/inference.h"
 #include "xllama/chat_prompt.h"
+#include "xllama/logit_dump.h"
 #include "xllama/path_utils.h"
 #include "xllama/platform.h"
 
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <string>
+#include <vector>
 
 // Backend availability — mirrors src/bridge/session.cpp. See the note there.
 #if !defined(XLLAMA_USE_LLAMA)
@@ -50,6 +53,37 @@ InferenceResult run_inference_llama(const InferenceParams& params);
 
 namespace xllama {
 namespace detail {
+
+// IEEE 754 binary16 → float32. DirectML logit tensors are frequently float16;
+// the parity dump normalizes to float32 to match the llama.cpp reference.
+static inline float half_to_float(uint16_t h) {
+    const uint32_t sign = (h & 0x8000u) << 16;
+    const uint32_t exp = (h >> 10) & 0x1Fu;
+    const uint32_t mant = h & 0x3FFu;
+    uint32_t bits;
+    if (exp == 0) {
+        if (mant == 0) {
+            bits = sign; // ±0
+        } else {
+            // Subnormal: normalize.
+            int e = -1;
+            uint32_t m = mant;
+            do {
+                ++e;
+                m <<= 1;
+            } while ((m & 0x400u) == 0);
+            m &= 0x3FFu;
+            bits = sign | ((127 - 15 - e) << 23) | (m << 13);
+        }
+    } else if (exp == 0x1Fu) {
+        bits = sign | 0x7F800000u | (mant << 13); // Inf / NaN
+    } else {
+        bits = sign | ((exp + (127 - 15)) << 23) | (mant << 13);
+    }
+    float f;
+    std::memcpy(&f, &bits, sizeof(f));
+    return f;
+}
 
 InferenceResult run_inference_ort(const InferenceParams& params) {
     InferenceResult res;
@@ -155,6 +189,14 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
         oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "temperature",
                                                     static_cast<double>(params.temperature)),
                   "SetSearchNumber temperature");
+        // Greedy (argmax) decode is deterministic — the prerequisite for logit parity
+        // against the llama.cpp reference. do_sample=false + top_k=1 pins the choice.
+        if (params.greedy || params.temperature <= 0.0f) {
+            oga_check(OgaGeneratorParamsSetSearchBool(gparams.get(), "do_sample", false),
+                      "SetSearchBool do_sample");
+            oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "top_k", 1.0),
+                      "SetSearchNumber top_k");
+        }
         // --- generator ---
         OgaGenerator* raw_gen = nullptr;
         oga_check(OgaCreateGenerator(model.get(), gparams.get(), &raw_gen), "OgaCreateGenerator");
@@ -172,6 +214,68 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
 
         // ORT GenAI ≥ 0.7: feed input sequences to generator (not to params)
         oga_check(OgaGenerator_AppendTokenSequences(gen.get(), seqs.get()), "AppendTokenSequences");
+
+        // Logit-parity dump: after prefill, GetLogits returns the last token's logits
+        // (a copy on CPU). DirectML models commonly emit float16, so convert to
+        // float32 to match the llama.cpp reference dump byte-for-byte.
+        if (!params.dump_logits_path.empty()) {
+            OgaTensor* raw_logits = nullptr;
+            oga_check(OgaGenerator_GetLogits(gen.get(), &raw_logits), "GetLogits");
+            OgaTensorPtr logits_t(raw_logits);
+
+            OgaElementType etype = OgaElementType_undefined;
+            oga_check(OgaTensorGetType(logits_t.get(), &etype), "TensorGetType");
+            size_t rank = 0;
+            oga_check(OgaTensorGetShapeRank(logits_t.get(), &rank), "TensorGetShapeRank");
+            std::vector<int64_t> shape(rank);
+            oga_check(OgaTensorGetShape(logits_t.get(), shape.data(), rank), "TensorGetShape");
+            int64_t total = 1;
+            for (size_t i = 0; i < rank; ++i)
+                total *= shape[i];
+            const int vocab =
+                rank > 0 ? static_cast<int>(shape[rank - 1]) : static_cast<int>(total);
+
+            void* data = nullptr;
+            oga_check(OgaTensorGetData(logits_t.get(), &data), "TensorGetData");
+
+            // Keep only the last token's row (total may cover [batch, seq, vocab]).
+            std::vector<float> f32(static_cast<size_t>(vocab));
+            const int64_t off = total - vocab; // last row offset
+            if (etype == OgaElementType_float32) {
+                const float* src = static_cast<const float*>(data) + off;
+                for (int i = 0; i < vocab; ++i)
+                    f32[static_cast<size_t>(i)] = src[i];
+            } else if (etype == OgaElementType_float16) {
+                const uint16_t* src = static_cast<const uint16_t*>(data) + off;
+                for (int i = 0; i < vocab; ++i)
+                    f32[static_cast<size_t>(i)] = half_to_float(src[i]);
+            } else {
+                log_output("[xllama] WARN: unsupported logit tensor type, dump skipped\n");
+                f32.clear();
+            }
+
+            if (!f32.empty()) {
+                int top1_id = 0;
+                float top1_val = f32[0];
+                for (int i = 1; i < vocab; ++i)
+                    if (f32[static_cast<size_t>(i)] > top1_val) {
+                        top1_val = f32[static_cast<size_t>(i)];
+                        top1_id = i;
+                    }
+                const char* piece = nullptr;
+                std::string top1_piece;
+                if (!OgaTokenizerDecode(tok.get(), &top1_id, 1, &piece) && piece) {
+                    top1_piece = piece;
+                    OgaDestroyString(piece);
+                }
+                if (write_logit_dump(params.dump_logits_path, f32.data(), vocab, model_dir,
+                                     params.prompt, "ort", params.greedy, top1_piece))
+                    log_output("[xllama] logits dumped to " + params.dump_logits_path + "\n");
+                else
+                    log_output("[xllama] WARN: logit dump failed: " + params.dump_logits_path +
+                               "\n");
+            }
+        }
 
         auto t_prefill_end = t0;
 
@@ -355,10 +459,41 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_prompt0)
             .count();
 
+    // Logit-parity dump: capture the last prefill-token logits (one deterministic
+    // forward pass, no autoregressive drift) before any sampling touches them.
+    if (!params.dump_logits_path.empty()) {
+        const int n_vocab = llama_vocab_n_tokens(vocab);
+        const float* logits = llama_get_logits_ith(ctx.get(), -1);
+        if (logits) {
+            // Detokenize argmax so the sidecar can catch tokenizer/vocab misalignment.
+            int top1_id = 0;
+            float top1_val = logits[0];
+            for (int i = 1; i < n_vocab; ++i)
+                if (logits[i] > top1_val) {
+                    top1_val = logits[i];
+                    top1_id = i;
+                }
+            char pbuf[256] = {};
+            int plen = llama_token_to_piece(vocab, top1_id, pbuf, sizeof(pbuf) - 1, 0, false);
+            std::string top1_piece = plen > 0 ? std::string(pbuf, static_cast<size_t>(plen)) : "";
+            if (write_logit_dump(params.dump_logits_path, logits, n_vocab, abs_model_path,
+                                 params.prompt, "llama.cpp", params.greedy, top1_piece))
+                log_output("[xllama] logits dumped to " + params.dump_logits_path + "\n");
+            else
+                log_output("[xllama] WARN: logit dump failed: " + params.dump_logits_path + "\n");
+        }
+    }
+
     const llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
     LlamaSamplerPtr sampler(llama_sampler_chain_init(sparams));
-    llama_sampler_chain_add(sampler.get(), llama_sampler_init_temp(params.temperature));
-    llama_sampler_chain_add(sampler.get(), llama_sampler_init_dist(params.seed));
+    // Greedy (argmax) decode is deterministic — the prerequisite for logit parity.
+    // Also selected implicitly at temperature 0, where sampling is degenerate.
+    if (params.greedy || params.temperature <= 0.0f) {
+        llama_sampler_chain_add(sampler.get(), llama_sampler_init_greedy());
+    } else {
+        llama_sampler_chain_add(sampler.get(), llama_sampler_init_temp(params.temperature));
+        llama_sampler_chain_add(sampler.get(), llama_sampler_init_dist(params.seed));
+    }
 
     int n_generated = 0;
     const auto t_gen0 = std::chrono::steady_clock::now();
