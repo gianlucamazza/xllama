@@ -12,11 +12,13 @@ is **measured** unless marked "host-only" or "pending console". See
 | ONNX Runtime DirectML | **1.24.4** | same                  |
 | DirectML              | **1.15.4** | same                  |
 
-Chat GPU inside XAML requires the **#2280** patched `onnxruntime-genai.dll`:
+Chat GPU inside XAML requires the **#2280** patched `onnxruntime-genai.dll`
+(merged on Microsoft GenAI `main`; **not** in NuGet **0.14.1**). Shipping CI
+installs the hash-pinned DLL from `vendor-dlls-v1`. Local:
 
 ```powershell
-./scripts/vendor-genai-dml-patch.ps1   # place or build DLL first
-./scripts/build-uwp.ps1 -PatchedGenAI
+./scripts/vendor-genai-dml-patch.ps1   # install cached/vendor-dlls pin over NuGet
+./scripts/build-uwp.ps1 -PatchedGenAI -PatchedOrt
 ```
 
 Upstream: [microsoft/onnxruntime-genai#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280).

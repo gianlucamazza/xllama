@@ -136,7 +136,8 @@ deployed. Re-tested the exact model that crashed pre-patch
 ## Fase 1 — patch ORT core (only if Fase 0 returns code 2)
 
 Builds a patched `onnxruntime.dll` (DirectML) that guards the `weakly_canonical`
-walk. Mirrors the #2280 GenAI patched-DLL doctrine.
+walk and shrinks `ReadFile` chunks (errcode 1450). Mirrors the GenAI #2280
+patched-DLL doctrine (both DLLs are now **hash-pinned** on `vendor-dlls-v1`).
 
 **Shipping (v1.1.8.0+):** `build-uwp.yml` installs the pinned, console-validated
 DLL from the [`vendor-dlls-v1`](https://github.com/gianlucamazza/xllama/releases/tag/vendor-dlls-v1)

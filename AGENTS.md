@@ -115,7 +115,7 @@ the "same identity, different contents" install block. Local builds leave `.0`.
 
 - **No model in the MSIX**: the package is ~19 MB and ships no model. On first launch the app downloads the default chat model (`lfm25-350m` on unified builds; `smollm2-360m-cpu-int4` on ORT-only) from the GitHub Release `models-v1` catalogue (`uwp/models/manifest.json`) into `LocalState\models\`. Routing GPU (`smollm2-360m-dml-fp16`) is also on `models-v1`. Console validation: `./scripts/validate-console.sh all` (measured ALL PASS 2026-07-14).
 
-- **Shipping CI**: `build-uwp.yml` publishes `xllama-appx` as **unified + PatchedGenAI #2280 + PatchedOrt** (cached `onnxruntime.dll` from `vendor-dlls-v1`, hash in `vendor/onnxruntime-patched/SHA256SUMS`); `llamacpp` lane is bench-only. Rebuild ORT from source only via `build-uwp-ort-patched.yml` (1–3 h).
+- **Shipping CI**: `build-uwp.yml` publishes `xllama-appx` as **unified + PatchedGenAI #2280 + PatchedOrt** (cached `onnxruntime.dll` + `onnxruntime-genai.dll` from `vendor-dlls-v1`; hashes in `vendor/onnxruntime-patched/SHA256SUMS` and `vendor/onnxruntime-genai-patched/SHA256SUMS`). `llamacpp` lane is bench-only. Rebuild from source only for pin refresh: `build-uwp-ort-patched.yml` (ORT, 1–3 h) / `build-uwp-patched.yml` (GenAI).
 
 - **ONNX external data merge**: ORT 1.24.4 calls `std::filesystem::weakly_canonical()` for models with a separate `.onnx.data` file, which traverses path segments inaccessible inside the Xbox AppContainer (`Q:\Users\UserMgr0\...`). Fix: merge external data into a single `model.onnx` using `scripts/merge_onnx_external_data.py` before MSIX packaging. CI does this automatically.
 

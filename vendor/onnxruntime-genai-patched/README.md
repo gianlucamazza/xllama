@@ -1,28 +1,33 @@
 # Patched onnxruntime-genai.dll (#2280)
 
-Place a console-validated DLL here:
+Patched **`onnxruntime-genai.dll`** — DML Agility `CreateDevice` fallback for
+XAML hosts (`887A0036`). Upstream
+[microsoft/onnxruntime-genai#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280)
+**merged on `main` 2026-07-13**; **not** in NuGet GenAI **0.14.1**.
 
-```
-vendor/onnxruntime-genai-patched/win-x64/onnxruntime-genai.dll
-```
+The DLL binary lives at `win-x64/onnxruntime-genai.dll` and is **gitignored** —
+only this README + `SHA256SUMS` are tracked. Shipping CI downloads the pinned
+DLL from the [`vendor-dlls-v1`](https://github.com/gianlucamazza/xllama/releases/tag/vendor-dlls-v1)
+release (hash must match `SHA256SUMS`).
 
-Build or install:
+## Producing / refreshing the DLL
+
+- **CI rebuild:** `gh workflow run build-uwp-patched.yml` uploads
+  `onnxruntime-genai-patched-dll`. After re-validation, update the
+  `vendor-dlls-v1` release asset and `SHA256SUMS`.
+- **Local:** `./scripts/vendor-genai-dml-patch.ps1 -Build` (VS2022 + NuGet
+  restore; GenAI branch `rel-0.14.1` pin `a30f479` +
+  `patches/onnxruntime-genai-2280-dml-fallback.patch`).
+
+## Install over NuGet (local or CI)
 
 ```powershell
-# From repo root (Windows + VS2022 + prior 'nuget restore' in uwp/)
-./scripts/vendor-genai-dml-patch.ps1 -Build   # always rebuilds; ignores this cache
-./scripts/build-uwp.ps1 -PatchedGenAI          # installs the cached DLL over NuGet
+# Cached vendor path (after download or -Build):
+./scripts/vendor-genai-dml-patch.ps1
+
+# Or via packaging:
+./scripts/build-uwp.ps1 -Backend unified -PatchedGenAI -PatchedOrt
 ```
 
-No Windows machine: download the default **`xllama-appx`** artifact from the
-latest green `build-uwp` run on `main` (unified + PatchedGenAI #2280). Manual
-fallback: `gh workflow run build-uwp-patched.yml`.
-
-The binary is gitignored. Pin: ORT GenAI **0.14.1** — upstream ships it as
-branch `rel-0.14.1` (there is no `v0.14.1` tag), pinned to commit `a30f479`
-in `scripts/vendor-genai-dml-patch.ps1` — plus
-[`patches/onnxruntime-genai-2280-dml-fallback.patch`](../../patches/onnxruntime-genai-2280-dml-fallback.patch),
-built against the restored `Microsoft.ML.OnnxRuntime.DirectML` NuGet
-(`ORT_HOME`), so the DLL links the exact onnxruntime the MSIX ships.
-
-Remove this vendor step when the fix ships in the official NuGet package.
+Pin: ORT GenAI **0.14.1** + #2280. **Remove this vendor step** when Microsoft
+ships #2280 in an official NuGet package (track ROADMAP “drop PatchedGenAI”).

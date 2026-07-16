@@ -1,0 +1,8 @@
+# Console-validated patched onnxruntime-genai.dll (GenAI 0.14.1 + #2280).
+# Source: patches/onnxruntime-genai-2280-dml-fallback.patch
+# Built via scripts/vendor-genai-dml-patch.ps1 -Build (build-uwp-patched lane).
+# Hosted: https://github.com/gianlucamazza/xllama/releases/tag/vendor-dlls-v1
+# Re-validate hash after any rebuild before bumping this pin.
+# Drop this vendor pin when an official NuGet release includes #2280
+# (merged on microsoft/onnxruntime-genai main 2026-07-13; not in 0.14.1).
+ec034349a28e41f6bfdce52731533caf7e590bab4e8dc7002bb48b92481f334d  onnxruntime-genai.dll

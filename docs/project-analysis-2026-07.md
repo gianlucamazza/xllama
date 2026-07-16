@@ -1,4 +1,4 @@
-# Project analysis — xllama (2026-07-15)
+# Project analysis — xllama (2026-07-15, currency pass 2026-07-16)
 
 > **Project health snapshot**, not a performance SSOT. Numbers below are
 > headlines only; authoritative tables live in [benchmarks.md](benchmarks.md).
@@ -9,34 +9,37 @@
 **Scope:** evidence-first audit of shipping state, architecture, quality, ops,
 docs currency, risks, and Phase 6 priorities. **No console re-bench** — claims
 cross-checked against CSVs and docs already on main. Host tests re-run
-2026-07-15.
+2026-07-15. **2026-07-16 currency:** 1.1.8.0 shipped (PatchedOrt + LFM default);
+GenAI #2280 merged upstream; both runtime DLLs hash-pinned on `vendor-dlls-v1`.
 
 ---
 
 ## 1. Executive summary
 
-xllama is a **shipping research-grade** UWP app (semantic version **1.1.7.0**,
+xllama is a **shipping research-grade** UWP app (semantic version **1.1.8.0**,
 Revision CI-stamped) that runs local LLM chat and SD-Turbo image generation on
 Xbox Series S|X Dev Mode. The measured hardware story is stable and well
 documented: **CPU wins decode**, **GPU wins prefill-at-scale and diffusion**,
 with per-conversation routing and dual text backends (ORT GenAI + llama.cpp) in
 one **unified** MSIX (~19 MB, no model).
 
-Phases **1–5 are complete**. Phase **6** is mostly done on engineering
-(Gemma, GGUF KV-reuse, quant auto-upgrade, membw, 1.7B catalogue, external-data
-ORT patch **console-validated**). Remaining product work is:
+Phases **1–5 are complete**. Phase **6** engineering is largely done
+(Gemma, GGUF KV-reuse, quant auto-upgrade, membw, 1.7B catalogue, PatchedOrt
+**shipping**, LFM first-launch default, technical report as Discussion #76).
+Remaining product work is:
 
-1. ~~**Promote** the patched ORT DLL into default shipping~~ **done in 1.1.8.0**
-   (optional: catalogue entry for a public >2 GB external-data int4 model).
-2. **Demo video** (checklist in ROADMAP); ~~publication venue~~ → GitHub Discussions.
-3. ~~**docs SSOT drift** (default model)~~ **done** — unified defaults to `lfm25-350m`.
+1. **Demo video** (checklist in ROADMAP); field smoke 1.1.8 LFM **PASS**.
+2. Optional catalogue entry for a public >2 GB external-data int4 model.
+3. Vendor lifecycle: drop PatchedGenAI when NuGet includes #2280; contribute or
+   absorb ORT ReadFile 16 MB (#28509 already covers weakly_canonical on `main`).
 
 Host unit tests: **80 cases, green** (`ctest` 2026-07-15). Console gates last
-reported **ALL PASS** 2026-07-14 (`validate-console.sh all`).
+reported **ALL PASS** 2026-07-14 (`validate-console.sh all`); 1.1.8 field smoke
+2026-07-16 **PASS**.
 
-**Top recommendation:** treat ORT extdata promotion as P0 eng work; close demo
-+ publication as P1 content; fix default-model docs drift as a cheap P1 doc PR;
-leave MainPage split and DirectML fused int4 out of the critical path.
+**Top recommendation:** ship the demo video (P1 content); track NuGet GenAI
+post-#2280 to drop the GenAI vendor pin; leave MainPage split and DirectML fused
+int4 out of the critical path.
 
 ---
 
@@ -45,7 +48,7 @@ leave MainPage split and DirectML fused int4 out of the critical path.
 | Capability | State | Evidence |
 | --- | --- | --- |
 | Unified MSIX (ORT + llama.cpp) | **Shipped** | `build-uwp.yml` matrix `unified` → `xllama-appx` |
-| Patched GenAI #2280 (routing GPU in XAML) | **Shipped** | `vendor-genai-dml-patch.ps1` in default CI; console 2026-07-14 |
+| Patched GenAI #2280 (routing GPU in XAML) | **Shipped** (upstream **merged** on GenAI `main`; NuGet 0.14.1 still needs pin) | `vendor-dlls-v1` + `vendor/onnxruntime-genai-patched/SHA256SUMS`; console 2026-07-14 |
 | llamacpp-only MSIX | **Lane (bench)** | `xllama-appx-llamacpp` — not end-user |
 | Patched ORT extdata (`weakly_canonical` + 16 MB ReadFile) | **Shipped (1.1.8.0)** | `build-uwp.yml` + `vendor-dlls-v1` pin; `phase6-fp16-extdata.csv` |
 | Catalogue `models-v1` (360M CPU/DML, 1.7B, GGUF, SD-Turbo) | **Shipped** | `uwp/models/manifest.json` + release assets |
@@ -61,7 +64,7 @@ leave MainPage split and DirectML fused int4 out of the critical path.
 | Promote ORT patch to default ship | **Done (1.1.8.0)** | `vendor-dlls-v1` + SHA256SUMS |
 | Upstream fused low-bit DML GEMM | **Deprioritised** | not a local lever |
 
-Semantic version in tree: `uwp/AppxManifest.xml` → **1.1.7.0** (Revision `.0`
+Semantic version in tree: `uwp/AppxManifest.xml` → **1.1.8.0** (Revision `.0`
 locally; CI stamps `github.run_number`).
 
 ---
@@ -227,8 +230,8 @@ ctest --test-dir build/linux-test → 100% passed (1 test binary, 0.30 s)
 | ORT GenAI DirectML | 0.14.1 | `uwp/packages.config` |
 | ONNX Runtime DirectML | 1.24.4 | same |
 | DirectML | 1.15.4 | same |
-| llama.cpp submodule | `657e011` (gguf-v0.19.0-955) | `.gitmodules` / `git submodule status` |
-| Open Dependabot | PR #69 llama.cpp bump; PR #70 setup-python | review before merge |
+| llama.cpp submodule | `a582222` (gguf-v0.19.0-981) | `.gitmodules` / `git submodule status` |
+| Open Dependabot | none at currency pass ( #69 / #70 merged) | re-check before next bump |
 
 **Assessment:** host pure-logic coverage is **strong for a hobby research app**.
 Gaps are correctly placed on WinRT/HTTP/UI surfaces covered by console
@@ -246,9 +249,9 @@ autopilot and measured runbooks rather than fake unit tests.
 | 2 | AppContainer FS | LocalState + catalogue + USB | path quirks |
 | 3 | No dlopen | app-local NuGet DLLs | silent MSIX omit = crash |
 | 5/7 | GPU budget 3801 MB | sequential diffuse; routing model size | ≥1B fp16 OOM |
-| 7 | GenAI + XAML `887A0036` | PatchedGenAI #2280 in shipping | upstream NuGet TBD |
-| 8 | `weakly_canonical` / 2 GB ONNX | merge for ship; ORT patch for extdata | patch **not default ship** |
-| 8 | ReadFile errcode 1450 | 16 MB chunk in same patch | same |
+| 7 | GenAI + XAML `887A0036` | PatchedGenAI #2280 pin (`vendor-dlls-v1`); **#2280 on GenAI main** | drop pin when NuGet ≥ post-#2280 |
+| 8 | `weakly_canonical` / 2 GB ONNX | merge ≤2 GB; PatchedOrt shipping for extdata | NuGet 1.24.4 lacks #28509 (on ORT main) |
+| 8 | ReadFile errcode 1450 | 16 MB chunk in PatchedOrt | still open on ORT main |
 | — | ~6 usable cores | llama thread cap 6 | t7/t8 livelock |
 | 12 | DML int4 non-fused | none local | GPU int4 decode dead |
 
@@ -257,11 +260,11 @@ autopilot and measured runbooks rather than fake unit tests.
 | Patch | Target | Shipping? |
 | --- | --- | --- |
 | `0001-uwp-appcontainer-guards.patch` | llama.cpp submodule | yes (unified + llamacpp CI) |
-| `onnxruntime-genai-2280-dml-fallback.patch` | GenAI 0.14.1 | **yes** (default CI) |
-| `onnxruntime-extdata-appcontainer.patch` | ORT 1.24.4 core | **no** — dispatch lane only |
+| `onnxruntime-genai-2280-dml-fallback.patch` | GenAI 0.14.1 | **yes** (default CI, hash pin) |
+| `onnxruntime-extdata-appcontainer.patch` | ORT 1.24.4 core | **yes** (default CI since 1.1.8.0, hash pin) |
 
-`vendor/onnxruntime-genai-patched/` holds build output path (CI rebuilds).
-`vendor/onnxruntime-patched/` documents DLL path; binary **gitignored**.
+Both vendor dirs hold gitignored DLLs + tracked `SHA256SUMS` / README.
+Shipping CI downloads from `vendor-dlls-v1` (no per-PR source rebuild).
 
 **Bit-rot risk:** high on NuGet/submodule bumps. Mitigations already exist:
 `apply-uwp-patches.sh`, `check-uwp-sources.sh`, vendor scripts with
@@ -314,16 +317,19 @@ TAESD is a **toggle asset** (comment in manifest; not a top-level model entry).
 
 ## 8. Docs drift findings
 
-SSOT structure is **mature** (`docs/README.md` map). Residual issues:
+SSOT structure is **mature** (`docs/README.md` map). **Currency pass 2026-07-16**
+closed the open items from the 2026-07-15 audit:
 
-| ID | Finding | Severity | Fix |
+| ID | Finding | Severity | Status (2026-07-16) |
 | --- | --- | --- | --- |
-| D1 | **Default model story split:** code default `smollm2-360m-cpu-int4` (`MainPage.cpp`); `settings-modern.json` uses `lfm25-350m`; README says SmolLM2-360M default; recommended-config chat table says LFM2.5 default unified but settings table still lists `smollm2-360m-cpu-int4` | **Medium** | Pick one SSOT (code first-launch vs “modern recommended”) and align README + recommended-config |
-| D2 | README Limitations § weakly_canonical mentions **merge only**; omits validated ORT patch lane | Low | One sentence + link to `fp16-extdata-runbook.md` |
-| D3 | README Phase 6 open omits **promote ORT DLL** (ROADMAP has it) | Low | Sync open-item bullets |
-| D4 | CHANGELOG historical “pending” strings remain in old sections | None | Historical; keep |
-| D5 | `technical-report.md` is explicitly a **v1.0 snapshot** | OK | Do not re-number; link architecture/benchmarks for currency |
-| D6 | recommended-config `routing: 0` default vs settings-modern `routing: 2` | Low | Same as D1 — clarify “factory” vs “modern recommended” |
+| D1 | Default model story split (SmolLM2 vs LFM) | Medium | **Fixed** — unified first-launch = `lfm25-350m` (1.1.8.0) |
+| D2 | README Limitations § weakly_canonical merge-only | Low | **Fixed** — documents PatchedOrt + merge + runbook |
+| D3 | README Phase 6 omit promote ORT | Low | **Fixed** — Phase 6 notes Patched ORT shipping (1.1.8) |
+| D4 | CHANGELOG historical “pending” in old sections | None | Historical; keep |
+| D5 | `technical-report.md` is a **v1.0 snapshot** | OK | Do not re-number; live numbers in benchmarks.md |
+| D6 | recommended-config routing defaults | Low | **Clarified** with D1 (unified Auto vs ORT-only) |
+| D7 | `uwp-constraints.md` said “no #2280 on main” | Medium | **Fixed** — #2280 merged; gap = NuGet 0.14.1 only |
+| D8 | Analysis claimed ORT extdata “not default ship” | Medium | **Fixed** — shipped 1.1.8.0 + both DLLs on `vendor-dlls-v1` |
 
 No contradiction found between **benchmarks.md headlines** and the sampled CSV
 rows (LFM 94.2, KV 4.87×/4.07×, diffuse 6891.6 ms, gemma 76.8/15.3, 1.7B 20.6).
@@ -334,16 +340,17 @@ rows (LFM 94.2, KV 4.87×/4.07×, diffuse 6891.6 ms, gemma 76.8/15.3, 1.7B 20.6)
 
 | ID | Risk | L | I | Evidence | Mitigation / priority |
 | --- | --- | --- | --- | --- | --- |
-| R1 | ORT extdata capability not user-facing | — | — | ~~lane-only~~ **mitigated 1.1.8.0** | Optional catalogue entry for a public >2 GB extdata model |
-| R2 | Vendor patch bit-rot on NuGet/submodule bump | M | H | 3 patches; ORT rebuild 1–3 h | CI apply+hash checks; careful Dependabot |
-| R3 | Dependabot llama.cpp bump breaks UWP guards / Gemma | M | H | open PR #69 | CI must green; manual console GGUF smoke |
-| R4 | MainPage monorepo UI cost for future features | L | M | 2323 LOC | P2 only if UI work intensifies |
+| R1 | ORT extdata capability not user-facing | L | L | shipping DLL; no public >2 GB catalogue row | Optional catalogue entry |
+| R2 | Vendor patch bit-rot on NuGet/submodule bump | M | H | 3 patches; both DLLs hash-pinned | CI hash checks; rebuild workflows for pin refresh |
+| R3 | Dependabot llama.cpp bump breaks UWP guards / Gemma | M | H | #69 merged to `a582222` | CI must green; manual console GGUF smoke |
+| R4 | MainPage monorepo UI cost for future features | L | M | ~2.3k LOC | P2 only if UI work intensifies |
 | R5 | False GPU decode expectations | L | M | §12 / technical-report | docs already strong; keep messaging |
 | R6 | ≥1B fp16 GPU inference unreachable | L | L | measured OOM | document as closed; no more spikes |
-| R7 | Demo/publication incomplete | M | M | ROADMAP open | **P1** content |
+| R7 | Demo video incomplete | M | M | ROADMAP open; field smoke done | **P1** content |
 | R8 | Game designation reset invalidates benches | L | M | runbook note | checklist in validate scripts / human |
-| R9 | Default-model docs confuse new users | M | L | D1 above | **P1** doc PR |
-| R10 | Upstream GenAI #2280 not in official NuGet | L | M | still vendoring patch | track upstream; keep vendor script |
+| R9 | Default-model docs confuse new users | L | L | ~~D1~~ mitigated 1.1.8 | keep SSOT on `DefaultChatModelId` |
+| R10 | Upstream GenAI #2280 not in official NuGet | L | M | still vendoring pin | ROADMAP “drop PatchedGenAI”; pin hash |
+| R11 | ORT ReadFile 16 MB still not upstream | L | M | 1 GB chunk on ORT main | ROADMAP upstream item / issue |
 
 Likelihood/Impact: L=low, M=medium, H=high.
 
@@ -353,38 +360,32 @@ Likelihood/Impact: L=low, M=medium, H=high.
 
 | Prio | Item | Type | Effort | Depends on |
 | --- | --- | --- | --- | --- |
-| **P0** | Promote patched ORT DLL into default `build-uwp.yml` (cached artifact pattern like GenAI) | eng | M | lane already console-validated |
-| **P0/P1** | Optional: publish one >2 GB **int4** external-data catalogue model (CPU) so the patch is user-visible | eng + assets | M | P0 |
-| **P1** | Demo video (model running on Xbox hardware) | content | S–M | stable UI |
-| **P1** | Choose publication venue; freeze technical-report narrative | content | S | — |
-| **P1** | Fix default-model docs drift (D1/D6) | docs | S | product decision: factory vs modern default |
-| **P2** | Review Dependabot PRs #69 / #70 | maint | S | CI |
+| ~~**P0**~~ | ~~Promote patched ORT DLL~~ | eng | — | **Done 1.1.8.0** |
+| **P1** | Demo video (model running on Xbox hardware) | content | S–M | field smoke done |
+| **P1** | Drop PatchedGenAI when NuGet includes #2280 | maint | S | Microsoft GenAI release |
+| **P2** | Optional >2 GB **int4** external-data catalogue model | eng + assets | M | PatchedOrt shipping |
+| **P2** | Upstream ORT ReadFile 16 MB (or bump past #28509 + chunk) | external | M | Microsoft |
 | **P2** | Split MainPage / extract more pure helpers | eng | L | only if UI churn |
-| **P3** | Track upstream GenAI #2280 merge | external | — | Microsoft |
 | **—** | Fused DML low-bit GEMM | external | — | deprioritised |
 
 ### Suggested sequencing
 
 ```
-docs drift PR (S) ──┐
-                    ├──► demo video (P1)
-ORT promote (P0) ───┤
-                    └──► publication (P1)
-Dependabot review parallel (P2)
+demo video (P1)
+NuGet GenAI watch → drop PatchedGenAI (P1/P2)
+optional catalogue >2 GB row (P2)
 ```
 
 ---
 
 ## 11. Recommendations (top 5)
 
-1. **Promote ORT extdata patch to shipping** with the same doctrine as #2280
-   (build/cache/hash-verify in CI). Without this, Phase 6's largest engineering
-   win stays invisible to users.
-2. **Resolve the default-model narrative** (code factory = SmolLM2-360M vs
-   modern recommended = LFM2.5). Either change first-launch default on unified
-   builds or document clearly that `settings-modern.json` is opt-in.
-3. **Ship the product story**: demo video + pick a venue for the technical
-   report — the measured science is already stronger than the packaging.
+1. **Ship the demo video** — field smoke and publication venue are done; only
+   the capture clip remains on the Phase 6 checklist.
+2. **Watch GenAI NuGet** for a post-#2280 release and drop the GenAI vendor pin
+   (checklist in ROADMAP).
+3. **Keep both runtime DLL pins** hash-verified on `vendor-dlls-v1` until then;
+   rebuild only via dispatch workflows.
 4. **Gate Dependabot llama.cpp** on CI + a minimal console GGUF smoke (LFM or
    gemma3) before merge; never auto-merge submodule bumps.
 5. **Do not invest** in DML int4 decode or ≥1B fp16 GPU spikes; closed with

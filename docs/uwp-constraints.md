@@ -164,9 +164,8 @@ share a process. Not OOM, not the profiling config, not our telemetry
 (reproduced 3× including after removing the `gpu_mem_info` pre-load probe).
 Exp 1 (May) passed because the then-OS had in-box < 614, so ORT fell back to
 plain `D3D12CreateDevice` (line 144) which coexists with the compositor device
-— the OS update flipped the branch. No upstream fix on `main` (v0.14.0
-identical); upstream is missing a fallback when the factory returns
-`ALREADY_EXISTS`.
+— the OS update flipped the branch. NuGet **0.14.0 / 0.14.1** still lack the
+fallback when the factory returns `ALREADY_EXISTS` (they predate the fix).
 
 **Fix (v0.3.4): headless bench mode** — with `bench.flag` present, `wWinMain`
 skips `Application::Start` entirely and runs `main_loop()` under a minimal
@@ -176,16 +175,19 @@ load onto the GPU (411 MB), profiled kernels run on `DmlExecutionProvider`
 (**`VERDICT: GPU`**). Config prerequisite: DML graph capture requires
 `past_present_share_buffer: true` in `genai_config.json`.
 
-**Upstream fix (validated on console, 2026-07-07)**: we patched
+**Upstream fix (merged + shipping via vendor pin)**: we patched
 `CreateDmlObjects` to fall back to the system D3D12 runtime when the Agility
-device factory cannot create a device (upstream PR
-[microsoft/onnxruntime-genai#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280)).
-Validated with a test MSIX (patched DLL, XAML path): the same XAML + DML
-scenario that threw `887A0036` loads in 886 ms and completes decode at
-8.8 tok/s; CPU path unaffected (67.2 tok/s). Once the fix ships in an ORT
-GenAI release, the interactive (XAML) app can use DML without the headless
-path — practically relevant only if a larger model ever makes DML
-competitive (CPU is 8× faster at 360M scale).
+device factory cannot create a device. Upstream PR
+[microsoft/onnxruntime-genai#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280)
+**merged 2026-07-13** onto Microsoft `main` (commit `ff53d6b9`). Validated on
+console with a patched DLL (XAML path): the same XAML + DML scenario that threw
+`887A0036` loads in 886 ms and completes decode at 8.8 tok/s; CPU path
+unaffected (67.2 tok/s). **Gap:** the shipping NuGet pin is still GenAI
+**0.14.1** (`a30f479`, 2026-06-02), which does **not** include #2280 — xllama
+overlays a pinned `onnxruntime-genai.dll` from
+[`vendor-dlls-v1`](https://github.com/gianlucamazza/xllama/releases/tag/vendor-dlls-v1)
+(`vendor/onnxruntime-genai-patched/SHA256SUMS`, same doctrine as PatchedOrt).
+Drop `-PatchedGenAI` when an official NuGet release includes #2280.
 
 **Plain ORT DML coexists with the XAML compositor — ✅ MEASURED 2026-07-09.**
 The `887A0036` conflict was measured with **ORT GenAI**, whose DML EP goes
@@ -220,7 +222,12 @@ The `\\?\` long-path prefix does not help: it bypasses MAX_PATH but not the acce
 
 **Fix A (default, ≤2 GB)**: before MSIX packaging, merge `model.onnx.data` into `model.onnx` to produce a self-contained model file. With no external data file, `ValidateExternalDataPath` is never called and `weakly_canonical` is never invoked. Tool: `scripts/merge_onnx_external_data.py`. CI runs this automatically as part of `build-uwp`. **Caps at the 2 GB protobuf single-file ceiling.**
 
-**Fix B (patched ORT DLL, shipping since 1.1.8.0 — console-validated 2026-07-15)**: for models whose `.onnx.data` is >2 GB (un-mergeable), a patched `onnxruntime.dll` guards the walk (`patches/onnxruntime-extdata-appcontainer.patch`). The shipping `build-uwp.yml` installs the pinned DLL from the [`vendor-dlls-v1`](https://github.com/gianlucamazza/xllama/releases/tag/vendor-dlls-v1) release (hash in `vendor/onnxruntime-patched/SHA256SUMS`); full source rebuild is `build-uwp-ort-patched.yml` (1–3 h). See `docs/fp16-extdata-runbook.md`. The patch replaces the throwing `weakly_canonical()` with the `std::error_code` overload + `lexically_normal` fallback. **Validated**: a 1.86 GB-extdata int4 model that crashed pre-patch now loads and runs, 6/6 restarts, 0 crashes. A **second** fix in the same DLL shrinks ORT's `ReadFileIntoBuffer` chunk (`env.cc`) from 1 GB to 16 MB — a single ~0.5-1 GB `ReadFile` of a large un-quantized tensor (e.g. the 128k-vocab embedding) locks too many pages in the AppContainer and fails with `errcode 1450` (ERROR_NO_SYSTEM_RESOURCES); 16 MB chunks fix it. Note: Fix B unblocks _loading_, but fp16 >2 GB models still hit the GPU **inference** budget wall (§7).
+**Fix B (patched ORT DLL, shipping since 1.1.8.0 — console-validated 2026-07-15)**: for models whose `.onnx.data` is >2 GB (un-mergeable), a patched `onnxruntime.dll` applies two AppContainer fixes (`patches/onnxruntime-extdata-appcontainer.patch`). The shipping `build-uwp.yml` installs the pinned DLL from the [`vendor-dlls-v1`](https://github.com/gianlucamazza/xllama/releases/tag/vendor-dlls-v1) release (hash in `vendor/onnxruntime-patched/SHA256SUMS`); full source rebuild is `build-uwp-ort-patched.yml` (1–3 h). See `docs/fp16-extdata-runbook.md`.
+
+1. **`weakly_canonical` guard** (against the **1.24.4** call sites): use the `std::error_code` overload + lexical fallback so path walk failures do not throw. **Upstream note:** Microsoft landed a related fix on ORT `main` in [#28509](https://github.com/microsoft/onnxruntime/pull/28509) (`GetWeaklyCanonicalPath` + NT-volume AppContainer fallback, 2026-05-15) — **not** present in NuGet DirectML **1.24.4**, which is why the vendor pin still carries our guard.
+2. **`ReadFileIntoBuffer` chunk 1 GB → 16 MB** (`env.cc`): a single ~0.5–1 GB `ReadFile` of a large un-quantized tensor (e.g. 128k-vocab embedding) locks too many pages in the AppContainer → intermittent `errcode 1450` (ERROR_NO_SYSTEM_RESOURCES). **Still open on ORT `main`** (chunk remains 1 GB as of 2026-07); tracked for upstream contribution.
+
+**Validated**: a 1.86 GB-extdata int4 model that crashed pre-patch now loads and runs, 6/6 restarts, 0 crashes. Note: Fix B unblocks _loading_, but fp16 >2 GB models still hit the GPU **inference** budget wall (§7).
 
 **Diagnosis**: Win32 probes on the model path — `GetFileAttributesW` and `CreateFile2` with `GENERIC_READ` succeed on `model_dir\model.onnx`, but the crash occurs inside the ORT segment-walking loop. Confirmed by matching the call site to `onnxruntime/core/framework/tensorprotoutils.cc` L337/338/346.
 

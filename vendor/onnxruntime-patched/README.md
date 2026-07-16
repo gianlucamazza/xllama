@@ -33,5 +33,13 @@ release (hash must match `SHA256SUMS`).
 ./scripts/build-uwp.ps1 -Backend unified -PatchedGenAI -PatchedOrt
 ```
 
-Pin: ORT DirectML **1.24.4** + the two AppContainer fixes. Remove this vendor
-step if Microsoft ships the guards in an official NuGet.
+Pin: ORT DirectML **1.24.4** + the two AppContainer fixes.
+
+Upstream status (as of 2026-07-16):
+
+- **weakly_canonical / AppContainer path:** related fix on ORT `main` via
+  [#28509](https://github.com/microsoft/onnxruntime/pull/28509) (not in 1.24.4).
+- **ReadFile 16 MB chunk (errcode 1450):** still vendor-only; not on ORT `main`.
+
+Remove this vendor step when an official NuGet includes both (or when xllama
+bumps past them).

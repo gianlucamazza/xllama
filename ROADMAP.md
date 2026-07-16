@@ -372,6 +372,23 @@ Open items only — everything above is measured or shipped.
       already works with the shipping DLL).
 - [ ] (optional) **Catalogue entry for a >2 GB external-data int4 model** — make
       the PatchedOrt capability visible in the picker without USB/WDP staging.
+- [ ] **Drop `-PatchedGenAI` when NuGet includes #2280** — fix is already on
+      Microsoft GenAI `main` (PR [#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280),
+      2026-07-13); pin is still 0.14.1 + `vendor-dlls-v1` `onnxruntime-genai.dll`.
+      Checklist: (1) bump `Microsoft.ML.OnnxRuntimeGenAI.DirectML` in
+      `uwp/packages.config` to a release that contains the Agility fallback,
+      (2) remove GenAI download/install from `build-uwp.yml` / `-PatchedGenAI`,
+      (3) delete or archive `vendor/onnxruntime-genai-patched/` + patch if unused,
+      (4) console smoke: XAML + DML routing GPU load.
+      Tracked: [issue #84](https://github.com/gianlucamazza/xllama/issues/84).
+      Full plan: [`docs/vendor-lifecycle-plan.md`](docs/vendor-lifecycle-plan.md).
+- [ ] **Upstream ORT ReadFile 16 MB chunk** — `errcode 1450` fix still absent on
+      ORT `main` (chunk remains 1 GB). Related `weakly_canonical` AppContainer
+      path already fixed upstream in [#28509](https://github.com/microsoft/onnxruntime/pull/28509)
+      (not in NuGet 1.24.4). Prefer contributing the ReadFile change (or bump
+      ORT past both fixes) over forever-vendoring.
+      Tracked: [xllama #86](https://github.com/gianlucamazza/xllama/issues/86),
+      upstream [microsoft/onnxruntime#29730](https://github.com/microsoft/onnxruntime/issues/29730).
 - [ ] (upstream, deprioritised) **Fused low-bit GPU GEMM in DirectML** — §12;
       not a local contribution via #2280
 
