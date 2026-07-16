@@ -262,6 +262,11 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
     std::string system, final_user;
     std::vector<::xllama::ChatTurn> history;
     split_messages(root.GetNamedArray(L"messages"), system, history, final_user);
+    // Small instruct models degrade badly with an empty system turn (they
+    // hallucinate the next role instead of answering); the chat UI always seeds
+    // one. Match it when the client sends no system message.
+    if (system.empty())
+        system = "You are a helpful AI assistant.";
 
     // Lazily (re)create the Session when the requested model differs.
     if (!g_session || g_model != model) {
@@ -310,8 +315,11 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
     // openai-python / LangChain deserialize into Pydantic models and choke when
     // logprobs is absent; emit it explicitly as null.
     choice.Insert(L"logprobs", JsonValue::CreateNullValue());
-    choice.Insert(L"finish_reason",
-                  JsonValue::CreateStringValue(r.ended_with_stop ? L"stop" : L"length"));
+    // "length" only when we actually hit the token cap; a model that ends on its
+    // EOS token before the cap stops naturally, which ended_with_stop (a textual
+    // stop-sequence match) does not capture — deduce it from the token count.
+    const bool hit_cap = r.n_eval >= gp.n_predict;
+    choice.Insert(L"finish_reason", JsonValue::CreateStringValue(hit_cap ? L"length" : L"stop"));
     JsonArray choices;
     choices.Append(choice);
 
