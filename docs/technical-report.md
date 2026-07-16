@@ -50,6 +50,16 @@ Three hypotheses died against these numbers:
    66.3); the crossover exists only in prefill, where batch amortises dispatch
    (1.8× at ~1k tokens). The app therefore routes per-workload (long-prompt
    conversations → DML fp16, decode → CPU int4), sticky per conversation.
+   **Superseded by #91 (2026-07-16): DML text routing is disabled.** The logit-
+   parity harness showed the DML GQA decoder computes numerically wrong logits
+   on the Series S GPU (NMSE ~1 vs the CPU reference, top-1 disagrees; fp16 AND
+   int4; invariant to graph/session/capture options; the same weights are
+   correct on CPU EP and on desktop-class CPU runs; SD-Turbo — no GQA — is
+   correct on the same device). All tok/s numbers above are real, but the GPU
+   text output they measured was silently degraded. Text routing is forced to
+   CPU (`routing_policy.h kDmlTextLogitsBroken`) until
+   `scripts/validate-logit-parity.sh` passes on a DML text model. Diffusion
+   routing is unaffected.
 2. **"DML int4 decode collapses because a kernel is missing."** Falsified by
    desk-check and confirmed on hardware: `MatMulNBits` _is_ on the GPU (compute
    engines 87–90 % busy at 8.8 tok/s) but DirectML implements it **non-fused**

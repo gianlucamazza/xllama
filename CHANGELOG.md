@@ -7,6 +7,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **DML text routing disabled (#91)** — the logit-parity harness caught the DML
+  GQA decoder computing numerically wrong logits on the Series S GPU (NMSE ~1
+  vs the CPU reference at fp16 AND int4; invariant to `ORT_DISABLE_ALL`,
+  `ep.dml.disable_graph_fusion` and a capture-disabled GenAI DLL; the same
+  weights are correct on CPU EP; SD-Turbo — no GQA — is correct on the same
+  device). `decide_routing` now forces the CPU model in every mode
+  (`kDmlTextLogitsBroken`, `routing_policy.h`); GPU-routed answers had been
+  silently degraded since the routing feature shipped. Re-enable gate:
+  `scripts/validate-logit-parity.sh` PASS on a DML text model. Diffusion (plain
+  ORT, validated) is unaffected. `validate-console.sh routing` now asserts the
+  gate holds. Probe log in #91.
+
 ### Fixed
 
 - **Catalogue download resilience** — `ModelDownloader` retries transient failures

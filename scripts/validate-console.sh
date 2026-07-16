@@ -238,27 +238,28 @@ JSON
 	fi
 	# The routing log line uses "auto -> gpu"/"auto -> cpu" (ASCII arrow in the
 	# C++ is "→"; match on the tok field to be encoding-robust).
+	#
+	# #91 gate: kDmlTextLogitsBroken (routing_policy.h) forces text routing to
+	# CPU in every mode — DML GQA logits are numerically wrong on the Series S
+	# GPU (parity NMSE ~1). Until the parity harness passes on a DML text model,
+	# the CORRECT behavior is: long turn stays CPU and NO gpu routing line ever
+	# appears. When the gate is lifted, restore the pre-#91 auto→gpu assertions.
 	local gpu_line cpu_line
 	gpu_line=$(grep -aE 'routing: auto .* gpu \([0-9]+ tok' "$log" | head -1 || true)
 	cpu_line=$(grep -aE 'routing: auto .* cpu \([0-9]+ tok' "$log" | head -1 || true)
-	if [[ -z "$gpu_line" ]]; then
-		echo "  FAIL: no 'auto -> gpu' routing line for the long-context turn"
+	if [[ -n "$gpu_line" ]]; then
+		echo "  FAIL: a turn routed to GPU despite the #91 gate: ${gpu_line}"
+		verdict=1
+	else
+		echo "  ok: no GPU-routed text turn (#91 gate holds)"
+	fi
+	if [[ -z "$cpu_line" ]]; then
+		echo "  FAIL: no 'auto -> cpu' routing line (routing never ran)"
 		verdict=1
 	else
 		local ntok
-		ntok=$(sed -n 's/.*(\([0-9]\+\) tok.*/\1/p' <<<"$gpu_line")
-		if ((ntok <= 600)); then
-			echo "  FAIL: gpu-routed turn had only ${ntok} tok (<=600)"
-			verdict=1
-		else
-			echo "  ok: long turn routed to GPU (${ntok} tok)"
-		fi
-	fi
-	if [[ -z "$cpu_line" ]]; then
-		echo "  FAIL: no 'auto -> cpu' routing line for the new short chat"
-		verdict=1
-	else
-		echo "  ok: new short chat routed to CPU"
+		ntok=$(sed -n 's/.*(\([0-9]\+\) tok.*/\1/p' <<<"$cpu_line")
+		echo "  ok: turns routed to CPU (first line: ${ntok} tok)"
 	fi
 	if grep -aq '887A0036' "$log"; then
 		echo "  FAIL: 887A0036 present — patched GenAI DLL did not take"

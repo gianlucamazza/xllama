@@ -17,7 +17,22 @@ TEST_CASE("routing: cpu-only") {
     CHECK_FALSE(d.use_gpu);
 }
 
-TEST_CASE("routing: gpu-only with gpu available") {
+// While kDmlTextLogitsBroken holds (#91: DML GQA logits are garbage on the
+// Series S GPU), every mode resolves to the CPU model. The pre-#91 GPU
+// expectations are kept below, guarded, so re-enabling is a one-flag flip.
+TEST_CASE("routing: #91 gate forces cpu in every mode") {
+    RoutingSettings s;
+    s.cpu_model = "cpu";
+    s.gpu_model = "gpu";
+    for (auto mode : {RoutingMode::GpuOnly, RoutingMode::Auto}) {
+        s.mode = mode;
+        auto d = decide_routing(s, 2000, false, true);
+        CHECK(d.active_model == (kDmlTextLogitsBroken ? "cpu" : "gpu"));
+        CHECK(d.use_gpu == !kDmlTextLogitsBroken);
+    }
+}
+
+TEST_CASE("routing: gpu-only with gpu available" * doctest::skip(kDmlTextLogitsBroken)) {
     RoutingSettings s;
     s.mode = RoutingMode::GpuOnly;
     s.cpu_model = "cpu";
@@ -48,7 +63,8 @@ TEST_CASE("routing: auto short prompt stays cpu") {
     CHECK_FALSE(d.use_gpu);
 }
 
-TEST_CASE("routing: auto long prompt uses gpu when available") {
+TEST_CASE("routing: auto long prompt uses gpu when available" *
+          doctest::skip(kDmlTextLogitsBroken)) {
     RoutingSettings s;
     s.mode = RoutingMode::Auto;
     s.token_threshold = 600;
