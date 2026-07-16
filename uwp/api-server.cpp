@@ -72,12 +72,22 @@ std::string read_local_text(const char* name) {
     return out;
 }
 
+// Xbox blocks binding ports in [57344, 65535] (traffic is silently dropped, per
+// the UWP-on-Xbox known-issues doc); 11443 is the Device Portal. Reject those so
+// an api-port.txt typo fails loudly to the default rather than binding a dead
+// port. Valid app range is [1025, 49151].
+bool port_bindable(int p) {
+    return p >= 1025 && p <= 49151 && p != 11443;
+}
+
 int listen_port() {
     const std::string s = read_local_text("api-port.txt");
     if (!s.empty()) {
         const int p = std::atoi(s.c_str());
-        if (p > 0 && p < 65536)
+        if (port_bindable(p))
             return p;
+        ::xllama::log_output("[xllama] api: api-port.txt=" + s +
+                             " out of bindable range [1025,49151]\\11443; using default\n");
     }
     return kDefaultPort;
 }
@@ -154,20 +164,37 @@ HttpRequest read_request(StreamSocket const& socket) {
     return req;
 }
 
-void write_response(StreamSocket const& socket, const char* status, const std::string& json) {
-    std::string out = "HTTP/1.1 ";
-    out += status;
-    out += "\r\nContent-Type: application/json\r\nContent-Length: ";
-    out += std::to_string(json.size());
-    out += "\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n";
-    out += json;
-
+void write_raw(StreamSocket const& socket, const std::string& out) {
     DataWriter writer(socket.OutputStream());
     writer.UnicodeEncoding(UnicodeEncoding::Utf8);
     writer.WriteString(winrt::to_hstring(out));
     writer.StoreAsync().get();
     writer.FlushAsync().get();
     writer.DetachStream();
+}
+
+void write_response(StreamSocket const& socket, const char* status, const std::string& json) {
+    std::string out = "HTTP/1.1 ";
+    out += status;
+    out += "\r\nContent-Type: application/json\r\nContent-Length: ";
+    out += std::to_string(json.size());
+    // Allow-Origin alone is not enough for browser clients: they send a custom
+    // Authorization header + application/json, which triggers a CORS preflight
+    // (handled separately in handle_connection).
+    out += "\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n";
+    out += json;
+    write_raw(socket, out);
+}
+
+// CORS preflight: browsers OPTIONS non-simple requests before the real POST.
+void write_cors_preflight(StreamSocket const& socket) {
+    write_raw(socket, "HTTP/1.1 204 No Content\r\n"
+                      "Access-Control-Allow-Origin: *\r\n"
+                      "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
+                      "Access-Control-Allow-Headers: Authorization, Content-Type\r\n"
+                      "Access-Control-Allow-Private-Network: true\r\n"
+                      "Access-Control-Max-Age: 86400\r\n"
+                      "Content-Length: 0\r\nConnection: close\r\n\r\n");
 }
 
 std::string error_json(const std::string& msg) {
@@ -256,8 +283,12 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
     gp.prompt = fmt.render_prompt(system, history, final_user);
     gp.stop_sequences = fmt.stop_sequences;
     gp.reuse_kv = false; // OpenAI chat is stateless: messages[] carry full history
-    gp.n_predict =
-        root.HasKey(L"max_tokens") ? static_cast<int>(root.GetNamedNumber(L"max_tokens")) : 512;
+    // max_tokens is deprecated in favour of max_completion_tokens; accept both.
+    gp.n_predict = 512;
+    if (root.HasKey(L"max_completion_tokens"))
+        gp.n_predict = static_cast<int>(root.GetNamedNumber(L"max_completion_tokens"));
+    else if (root.HasKey(L"max_tokens"))
+        gp.n_predict = static_cast<int>(root.GetNamedNumber(L"max_tokens"));
     if (root.HasKey(L"temperature"))
         gp.temperature = static_cast<float>(root.GetNamedNumber(L"temperature"));
     if (root.HasKey(L"top_p"))
@@ -276,6 +307,9 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
     JsonObject choice;
     choice.Insert(L"index", JsonValue::CreateNumberValue(0));
     choice.Insert(L"message", message);
+    // openai-python / LangChain deserialize into Pydantic models and choke when
+    // logprobs is absent; emit it explicitly as null.
+    choice.Insert(L"logprobs", JsonValue::CreateNullValue());
     choice.Insert(L"finish_reason",
                   JsonValue::CreateStringValue(r.ended_with_stop ? L"stop" : L"length"));
     JsonArray choices;
@@ -297,6 +331,50 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
     return winrt::to_string(resp.Stringify());
 }
 
+// The single model the server can currently serve: the loaded one, else the
+// LocalState\model.txt hint. Empty id if neither is set. g_model is mutated
+// under g_mtx by chat requests; read it only if we can take the lock, else fall
+// back to the file hint (which touches no shared state) to avoid a data race.
+std::string current_model_id() {
+    std::unique_lock<std::mutex> lk(g_mtx, std::try_to_lock);
+    if (lk.owns_lock() && !g_model.empty())
+        return g_model;
+    return read_local_text("model.txt");
+}
+
+// OpenAI GET /v1/models — {"object":"list","data":[{id,object,created,owned_by}]}.
+std::string models_json() {
+    JsonArray data;
+    const std::string id = current_model_id();
+    if (!id.empty()) {
+        JsonObject m;
+        m.Insert(L"id", JsonValue::CreateStringValue(winrt::to_hstring(id)));
+        m.Insert(L"object", JsonValue::CreateStringValue(L"model"));
+        m.Insert(L"created", JsonValue::CreateNumberValue(static_cast<double>(time(nullptr))));
+        m.Insert(L"owned_by", JsonValue::CreateStringValue(L"xllama"));
+        data.Append(m);
+    }
+    JsonObject root;
+    root.Insert(L"object", JsonValue::CreateStringValue(L"list"));
+    root.Insert(L"data", data);
+    return winrt::to_string(root.Stringify());
+}
+
+// Ollama GET /api/tags — {"models":[{name,model}]} for Ollama-probing clients.
+std::string tags_json() {
+    JsonArray models;
+    const std::string id = current_model_id();
+    if (!id.empty()) {
+        JsonObject m;
+        m.Insert(L"name", JsonValue::CreateStringValue(winrt::to_hstring(id)));
+        m.Insert(L"model", JsonValue::CreateStringValue(winrt::to_hstring(id)));
+        models.Append(m);
+    }
+    JsonObject root;
+    root.Insert(L"models", models);
+    return winrt::to_string(root.Stringify());
+}
+
 void handle_connection(StreamSocket const& socket) {
     try {
         const HttpRequest req = read_request(socket);
@@ -305,9 +383,26 @@ void handle_connection(StreamSocket const& socket) {
             return;
         }
 
+        // CORS preflight for browser clients (Continue.dev webview, web UIs).
+        if (req.method == "OPTIONS") {
+            write_cors_preflight(socket);
+            return;
+        }
+
         // Health probe (also the spike gate: curl http://<ip>:<port>/ -> 200).
         if (req.method == "GET" && (req.path == "/" || req.path == "/health")) {
             write_response(socket, "200 OK", "{\"status\":\"ok\",\"service\":\"xllama\"}");
+            return;
+        }
+
+        // Model discovery: clients probe /v1/models (OpenAI SDK) and /api/tags
+        // (Ollama-aware) before completing.
+        if (req.method == "GET" && req.path == "/v1/models") {
+            write_response(socket, "200 OK", models_json());
+            return;
+        }
+        if (req.method == "GET" && req.path == "/api/tags") {
+            write_response(socket, "200 OK", tags_json());
             return;
         }
 

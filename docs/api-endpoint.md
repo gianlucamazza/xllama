@@ -18,26 +18,46 @@ consumed**: the server is persistent and coexists with the live XAML chat UI. It
 from `App::OnLaunched` on a detached MTA thread and stays bound for the app lifetime.
 
 - **Port:** `LocalState\api-port.txt` if present, else **11434** (Ollama's default port).
+  Xbox silently drops traffic for ports in **[57344, 65535]** and reserves **11443** for the
+  Device Portal, so the server only honors an override in the bindable app range
+  **[1025, 49151]** (and not 11443); anything else falls back to 11434 with a log line.
 - **Model:** taken from the request's `"model"` field; if absent, falls back to
   `LocalState\model.txt`. The `Session` is created lazily on the first request and reused;
   it is re-created only when a request asks for a different model.
 
-The endpoint dies when the app is suspended/closed (UWP PLM — no always-on system service).
-That is accepted: this is research on Dev Mode, not a hosted service.
+**Foreground only.** The endpoint dies when the app leaves the foreground (UWP Process
+Lifetime Management — no always-on system service). On Xbox this is stricter than on PC: if
+the package is game-classified (Device Portal _"Treat UWP apps as games by default"_) it is
+**suspended and terminated** in the background, and `ExtendedExecutionSession` does not keep
+a listener alive. Keep the app foregrounded on the console while using the endpoint. Accepted:
+this is Dev Mode research, not a hosted service.
+
+> Verified against learn.microsoft.com (2024-2026): `privateNetworkClientServer` +
+> `StreamSocketListener` is the documented path for LAN inbound; network isolation blocks
+> only _same-host_ sockets, so no `CheckNetIsolation` loopback exemption is needed for
+> requests coming **from another LAN device** (only for a localhost client on the console).
 
 ## Protocol (v1)
 
-| Method | Path                   | Behaviour                                                            |
-| ------ | ---------------------- | -------------------------------------------------------------------- |
-| `GET`  | `/` or `/health`       | `200 {"status":"ok","service":"xllama"}` — the spike/liveness probe. |
-| `POST` | `/v1/chat/completions` | OpenAI-compatible chat completion, **non-streaming**.                |
+| Method    | Path                   | Behaviour                                                             |
+| --------- | ---------------------- | --------------------------------------------------------------------- |
+| `GET`     | `/` or `/health`       | `200 {"status":"ok","service":"xllama"}` — the spike/liveness probe.  |
+| `GET`     | `/v1/models`           | OpenAI model discovery — lists the current/served model.              |
+| `GET`     | `/api/tags`            | Ollama model discovery — same model, Ollama shape.                    |
+| `POST`    | `/v1/chat/completions` | OpenAI-compatible chat completion, **non-streaming**.                 |
+| `OPTIONS` | _any_                  | CORS preflight (`204` + `Allow-Methods/Headers`) for browser clients. |
 
 Request body (subset): `model`, `messages[]` (`role` ∈ system/user/assistant, `content`),
-optional `max_tokens` (default 512), `temperature`, `top_p`. `messages[]` is mapped to
+optional `max_completion_tokens` / `max_tokens` (default 512; the former wins — `max_tokens`
+is the deprecated OpenAI alias), `temperature`, `top_p`. Unknown fields (`stream`, `n`,
+`stop`, penalties, `tools`, …) are ignored, not rejected. `messages[]` is mapped to
 `ChatFormat::render_prompt(system, history, final_user)` (`include/xllama/chat_prompt.h`);
-`chat_format_for(model)` selects the template and stop sequences. The reply carries
-`choices[0].message.content`, `finish_reason` (`stop`/`length`) and a `usage` block from
-`InferenceResult` (`n_p_eval` / `n_eval`).
+`chat_format_for(model)` selects the template and stop sequences.
+
+The reply follows the OpenAI shape: `id` (`chatcmpl-…`), `object: chat.completion`,
+`created`, `model`, `choices[0]` (`message`, `finish_reason` `stop`/`length`, and
+`logprobs: null` — omitting it breaks openai-python/LangChain Pydantic validation), and a
+`usage` block from `InferenceResult` (`n_p_eval` / `n_eval`).
 
 `stream: true` is **not** implemented in v1 (always returns the full completion). The
 `GenerateParams::on_token` hook is the seam for adding SSE later.
@@ -60,8 +80,10 @@ served gets **HTTP 503** `{"error":{"message":"busy"}}` — Ollama single-slot s
 
 ## Validation
 
-See `scripts/validate-api.sh`. Spike gate first (`GET /` → 200 proves the bind survives the
-Series S firewall/PLM), then a chat round-trip:
+See `scripts/validate-api.sh` (`spike|chat|all`). Run it **from another host on the LAN**,
+not from a client on the console itself — cross-device inbound needs no loopback exemption,
+but a same-host localhost client would (`CheckNetIsolation`). Spike gate first (`GET /` → 200
+proves the bind survives the Series S firewall/PLM), then a chat round-trip:
 
 ```bash
 curl -s http://<ip-xbox>:11434/v1/chat/completions \
