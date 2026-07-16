@@ -28,7 +28,6 @@
 ```mermaid
 flowchart LR
   subgraph active [Azione attiva]
-    A0[Publish v1.2.0.x release]
     A1[Demo video]
     A2[Watch NuGet GenAI]
     A3[ORT #29730 / PR ReadFile]
@@ -39,6 +38,7 @@ flowchart LR
     B2[Bump ORT oltre 1.24.4]
   end
   subgraph done [Chiuso]
+    C0[Release v1.2.0.0]
     C1[Dual pin CI]
     C2[Docs currency 1.2.0]
     C3[Gate gpu_model under #91]
@@ -51,7 +51,7 @@ flowchart LR
 
 | ID | Obiettivo | Issue | Priorità | Effort | Dipendenze |
 | --- | --- | --- | --- | --- | --- |
-| **R0** | Publish GitHub Release **v1.2.0.x** | ops (Latest still v1.1.8.0) | **P1** ops | S | CI `xllama-appx` + cert + VCLibs |
+| **R0** | Publish GitHub Release **v1.2.0.0** | ops | **done** 2026-07-16 | S | [v1.2.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.2.0.0) (`1.2.0.536` + cert + VCLibs) |
 | **R1** | Demo video (clip 60–90 s) | ROADMAP Phase 6 | **P1** content | S–M | Deploy 1.2.0 CI artifact or post-R0 release; **solo capture umano** |
 | **R2** | Drop `-PatchedGenAI` | [#84](https://github.com/gianlucamazza/xllama/issues/84) | **blocked** NuGet | S | Poll: `scripts/check-vendor-nuget-status.sh` |
 | **R3** | Upstream ReadFile 16 MB | [#86](https://github.com/gianlucamazza/xllama/issues/86) | **PR open** | M | [ORT #29732](https://github.com/microsoft/onnxruntime/pull/29732) |
@@ -65,12 +65,13 @@ flowchart LR
 
 ## 2. Sequenza consigliata
 
-### Fase A — Product / release close
+### Fase A — Product close
 
-1. **Publish v1.2.0.x (R0)** — so GitHub Latest matches semantic head on `main`
-   (LAN API, `llama32-3b`, #91/#95/#100). Until then use CI `xllama-appx`.
+1. ~~**Publish v1.2.0.0 (R0)**~~ — **done** 2026-07-16
+   ([release](https://github.com/gianlucamazza/xllama/releases/tag/v1.2.0.0)).
 2. **Demo video (R1)**
-   - Deploy latest `xllama-appx` (prefer post-R0 tag) or CI artifact.
+   - Deploy [v1.2.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.2.0.0)
+     or CI `xllama-appx`.
    - Checklist ROADMAP: first-launch LFM → chat short/long → Image Generate → capture.
    - Note: long-prompt routing stays on **CPU** while #91 holds (still demo-valid).
 
@@ -127,7 +128,7 @@ Già closed-negative con evidenza — non investire:
 - [x] `scripts/check-vendor-nuget-status.sh` + fail-closed GenAI install
 - [x] #91 gate + #95/#100 gpu_model skip (console verified 1.2.0.534)
 - [x] Project analysis currency pass 1.2.0 / #91
-- [ ] **Publish GitHub Release v1.2.0.x** (R0 — Latest still v1.1.8.0)
+- [x] **Publish GitHub Release v1.2.0.0** (R0 — Latest)
 - [ ] Demo video capture (R1 — umano)
 - [ ] Poll: `./scripts/check-vendor-nuget-status.sh` + review ORT #29732 / GenAI #2300
 

@@ -20,9 +20,9 @@ no 1–3 h ORT rebuild on every PR). Carries 1.1.7.0: GGUF **KV-reuse** (4.07×)
 Full numbers: `docs/benchmarks.md`; architecture: `docs/architecture.md`.
 Console: `validate-console.sh all` → **ALL PASS** on **`1.2.0.534`** (2026-07-16;
 routing gate, GGUF, TAESD, LAN API). Earlier ALL PASS 2026-07-14 on 1.1.x.
-**GitHub Latest** is still [v1.1.8.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.1.8.0)
-— **publish v1.2.0.x** so the release tag matches `main` (CI artifact path is
-already current via `install-latest-build.sh`). Demo video still open. See
+**GitHub Release [v1.2.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.2.0.0)**
+published 2026-07-16 (MSIX `1.2.0.536` + cert + VCLibs; Latest). Demo video
+still open. See
 [`docs/benchmarks.md`](docs/benchmarks.md),
 [`docs/recommended-config.md`](docs/recommended-config.md),
 [`docs/console-validation-runbook.md`](docs/console-validation-runbook.md),
@@ -346,15 +346,14 @@ Open items only — everything above is measured or shipped.
       `.complete` marker → removed IQ2_M → downloaded Q3_K_S (2.45 GB) → loaded.
       13 host doctest cases. See `docs/benchmarks.md`.
 - [ ] **Demo video** — model loaded and running on Xbox hardware (Phase 4 carry-over).
-      **Checklist:** (1) deploy CI `xllama-appx` **1.2.0.x** (or GitHub Release
-      v1.2.0.x once published — Latest is still v1.1.8.0), (2) first-launch LFM
+      **Checklist:** (1) deploy [v1.2.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.2.0.0)
+      (`xllama_1.2.0.536_x64.msix`) or CI `xllama-appx`, (2) first-launch LFM
       download, (3) chat short + long (routing stays **CPU** under #91 — still
       valid demo), (4) Image Generate one frame, (5) 60–90 s capture via capture
       card / Game Bar if available. No code blocker. Console FULL PASS
       `1.2.0.534` **done 2026-07-16**; only the capture clip remains.
-- [ ] **Publish GitHub Release v1.2.0.x** — MSIX + cert + VCLibs so Latest matches
-      semantic head on `main` (LAN API, llama32-3b, #91/#95/#100). Ops residual;
-      see `docs/vendor-lifecycle-plan.md` R0.
+- [x] **Publish GitHub Release v1.2.0.0** (2026-07-16) — MSIX `1.2.0.536` +
+      cert + VCLibs; Latest. LAN API, llama32-3b, #91/#95/#100.
 - [x] **Publication venue** — GitHub Discussions; **posted**
       [Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76)
       (technical-report entrypoint + SSOT links). arXiv only if a formal citation

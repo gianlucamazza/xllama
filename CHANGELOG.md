@@ -64,9 +64,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `approx_bytes`).
 - **Project analysis currency 2026-07-17** — `docs/project-analysis-2026-07.md`
   rewritten for semantic **1.2.0.0**, the #91 DML text gate, LAN API, Phase 7
-  H4, ~88 host tests, and the GitHub Latest (v1.1.8.0) vs tree gap.
-  `docs/vendor-lifecycle-plan.md` + ROADMAP header aligned (R0 release, R8
-  hold gate); `docs/README.md` SSOT row updated.
+  H4, ~88 host tests; post-release pass marks **v1.2.0.0 Latest** done.
+  `docs/vendor-lifecycle-plan.md` + ROADMAP aligned (R0 done, R8 hold gate);
+  `docs/README.md` SSOT row updated.
 
 ### Added
 
@@ -92,6 +92,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Supersedes the `1.1.8.507` caveat above.
 
 ## [1.2.0.0] - 2026-07-16
+
+### Released
+
+- **GitHub Release [v1.2.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.2.0.0)**
+  (2026-07-16) — MSIX `xllama_1.2.0.536_x64.msix` + cert + VCLibs x64; set as
+  **Latest**. Console FULL PASS previously recorded on `1.2.0.534` (same
+  feature set).
 
 ### Added
 

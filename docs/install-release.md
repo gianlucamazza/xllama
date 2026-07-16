@@ -56,8 +56,8 @@ Notes:
 
 Launch xllama from Dev Home (or `./scripts/deploy.sh start-app`). The app
 downloads the default chat model with a progress bar, then opens the chat.
-On **unified** shipping builds (v1.1.8+) that default is **LFM2.5-350M**
-(~219 MB); older releases used SmolLM2-360M INT4 (~417 MB). See
+On **unified** shipping builds (v1.1.8+ / **v1.2.0.0** Latest) that default is
+**LFM2.5-350M** (~219 MB); older releases used SmolLM2-360M INT4 (~417 MB). See
 [using-the-app.md](./using-the-app.md) from here.
 
 For image generation, the SD-Turbo model (2.4 GB) is downloaded from the

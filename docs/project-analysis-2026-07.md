@@ -49,15 +49,15 @@ video**. Phase **7** is open: H4 PASS (Llama-3.2-3B on catalogue); H1/H9 open.
 | --- | --- |
 | Maturity | Shipping research platform (not MVP) |
 | Semantic version in tree | **1.2.0.0** (`uwp/AppxManifest.xml`) |
-| GitHub Latest release | **v1.1.8.0** — **gap** vs `main` (publish 1.2.0 when ready) |
+| GitHub Latest release | **[v1.2.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.2.0.0)** (MSIX `1.2.0.536`) |
 | Host tests | **~88** `TEST_CASE`, green (inventory 2026-07-16) |
 | Console | **ALL PASS** on `1.2.0.534` (2026-07-16): routing gate, GGUF, TAESD, LAN API, no gpu_model auto-provision |
 | Top product residual | Demo video (Phase 6) |
 | Top eng residual | Vendor pin drop (#84/#85/#86); keep #91 gate |
 
-**Top recommendations:** (1) keep DML text gated; (2) ship demo video; (3) tag
-GitHub Release **v1.2.0.x** so Latest matches `main`; (4) Phase 7 quality (H9)
-before speculative/MoE eng; (5) watch NuGet for GenAI post-#2280.
+**Top recommendations:** (1) keep DML text gated; (2) ship demo video; (3)
+Phase 7 quality (H9) before speculative/MoE eng; (4) watch NuGet for GenAI
+post-#2280. Release **v1.2.0.0** is published (Latest).
 
 ---
 
@@ -85,7 +85,7 @@ before speculative/MoE eng; (5) watch NuGet for GenAI post-#2280.
 | DML text logits correct | **Broken on device (#91)** | re-enable = parity PASS only |
 | Demo video | **Open** | ROADMAP Phase 6 |
 | Publication venue | **Done** | [Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76) |
-| GitHub Latest = semantic head | **Gap** | Latest v1.1.8.0; tree 1.2.0.0 |
+| GitHub Latest = semantic head | **Done (v1.2.0.0)** | MSIX `1.2.0.536` + cert + VCLibs |
 | Drop PatchedGenAI / PatchedOrt | **Blocked NuGet / upstream** | #84, #85, #86 |
 
 Semantic version in tree: `uwp/AppxManifest.xml` → **1.2.0.0** (Revision `.0`
@@ -306,11 +306,10 @@ from `vendor-dlls-v1` (no per-PR source rebuild).
 3. First launch: catalogue download (default LFM on unified).
 4. Models: `models-v1` + HF for large GGUF (Gemma Terms).
 
-**Release gap (currency 2026-07-17):** semantic **1.2.0.0** is on `main` (LAN
-API, llama32-3b, #91/#95/#100 fix set, Phase 7 notes). GitHub **Latest** remains
-[v1.1.8.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.1.8.0).
-CI artifact installs are current; **release-tag installs are not**. Publishing
-v1.2.0.x is an explicit ops step (not blocked by code).
+**Release (currency 2026-07-17):** GitHub **Latest** =
+[v1.2.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.2.0.0)
+(MSIX `1.2.0.536` + cert + VCLibs). Carries LAN API, llama32-3b, #91/#95/#100,
+Phase 7 notes.
 
 ### Catalogue completeness (`manifest.json`)
 
@@ -341,7 +340,7 @@ SSOT map is mature (`docs/README.md`). Post-#91 consolidation landed in PR
 | D9 | Analysis still said routing GPU “shipped+working” | High | **Fixed** this pass (#91 gate) |
 | D10 | Analysis semantic version 1.1.8 vs tree 1.2.0 | Medium | **Fixed** this pass |
 | D11 | Host test count 80 vs ~88 | Low | **Fixed** this pass |
-| D12 | GitHub Latest lag behind 1.2.0 | Medium | **Documented**; publish is ops residual |
+| D12 | GitHub Latest lag behind 1.2.0 | Medium | **Fixed** — [v1.2.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.2.0.0) Latest |
 | D13 | `technical-report.md` v1.0 snapshot | OK | Supersession note for #91 already present |
 
 No contradiction found between **benchmarks.md headlines** and sampled CSV rows
@@ -357,7 +356,7 @@ for non-gated workloads.
 | R2 | Vendor patch bit-rot on NuGet/submodule bump | M | H | 3 patches; dual hash pin | CI hash checks; rebuild workflows |
 | R3 | Dependabot llama.cpp breaks UWP guards / Gemma | M | H | submodule pin | CI + console GGUF smoke; no auto-merge |
 | R7 | Demo video incomplete | M | M | ROADMAP open | **P1** content |
-| **R13** | Users on Latest release miss 1.2.0 fixes/API | M | M | Latest = v1.1.8.0 | Tag **v1.2.0.x** |
+| ~~R13~~ | ~~Users on Latest miss 1.2.0~~ | — | — | ~~Latest = v1.1.8.0~~ | **Closed** — v1.2.0.0 Latest |
 | R4 | MainPage monorepo UI cost | L | M | ~2.3k LOC | P3 only if UI churn |
 | R5 | False “GPU chat is fast/correct” expectations | L | M | #91 + §12 | docs + UI copy |
 | R6 | ≥1B fp16 GPU inference unreachable | L | L | measured OOM | closed |
@@ -373,8 +372,8 @@ Likelihood/Impact: L=low, M=medium, H=high.
 | Prio | Item | Type | Effort | Depends on |
 | --- | --- | --- | --- | --- |
 | **P0** | Keep DML text routing gated; parity gate for re-enable | eng/process | — | #91 open until driver/ORT fixed |
-| **P1** | Demo video (60–90 s on Xbox) | content | S–M | field smoke done |
-| **P1** | Publish GitHub Release **v1.2.0.x** | ops | S | CI `xllama-appx` artifact |
+| **P1** | Demo video (60–90 s on Xbox) | content | S–M | field smoke done; deploy v1.2.0.0 |
+| ~~**P1**~~ | ~~Publish GitHub Release v1.2.0.x~~ | ops | — | **Done** v1.2.0.0 (`1.2.0.536`) |
 | **P2** | Phase 7 H9 human A/B (LFM vs E2B vs Llama-3.2-3B) | research | M | templates ready |
 | **P2** | Drop PatchedGenAI when NuGet includes #2280 | maint | S | Microsoft GenAI release (#84) |
 | **P2** | Upstream ORT ReadFile / drop PatchedOrt | external | M | #29732 + NuGet (#86/#85) |
@@ -386,8 +385,7 @@ Likelihood/Impact: L=low, M=medium, H=high.
 
 ```
 keep #91 gate (always)
-demo video (P1 content)
-publish v1.2.0.x release (P1 ops)
+demo video (P1 content)  ← only Phase 6 product residual
 Phase 7 H9 quality (P2)
 NuGet GenAI / ORT watch → drop pins (P2, event-driven)
 ```
@@ -398,11 +396,9 @@ NuGet GenAI / ORT watch → drop pins (P2, event-driven)
 
 1. **Do not re-enable DML text routing** without on-device logit-parity PASS.
 2. **Ship the demo video** — only remaining Phase 6 product bullet.
-3. **Publish v1.2.0.x** so GitHub Latest includes LAN API, llama32-3b, and the
-   #91/#95/#100 correctness set (CI artifact path already current).
-4. **Keep both runtime DLL pins** hash-verified until NuGet catches up.
-5. **Gate llama.cpp bumps** on CI + minimal console GGUF smoke.
-6. **Invest Phase 7 in quality (H9/H1)**, not reopened closed-negative GPU spikes.
+3. **Keep both runtime DLL pins** hash-verified until NuGet catches up.
+4. **Gate llama.cpp bumps** on CI + minimal console GGUF smoke.
+5. **Invest Phase 7 in quality (H9/H1)**, not reopened closed-negative GPU spikes.
 
 ---
 
