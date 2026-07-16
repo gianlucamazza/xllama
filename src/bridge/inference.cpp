@@ -215,10 +215,15 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
         // ORT GenAI ≥ 0.7: feed input sequences to generator (not to params)
         oga_check(OgaGenerator_AppendTokenSequences(gen.get(), seqs.get()), "AppendTokenSequences");
 
-        // Logit-parity dump: after prefill, GetLogits returns the last token's logits
-        // (a copy on CPU). DirectML models commonly emit float16, so convert to
-        // float32 to match the llama.cpp reference dump byte-for-byte.
-        if (!params.dump_logits_path.empty()) {
+        // Logit-parity dump: capture the last prompt-token logits. GetLogits
+        // returns a CPU copy of "only the last token logits even in prompt
+        // processing", but in ORT GenAI 0.14 that distribution is only valid
+        // AFTER the first GenerateNextToken runs the prefill forward — calling it
+        // right after AppendTokenSequences yields an uninitialized/garbage vector
+        // (observed on-console: NMSE ~0.98 vs the llama.cpp reference). Defined
+        // here, invoked once inside the loop below. DirectML models commonly emit
+        // float16, so convert to float32 to match the reference dump byte-for-byte.
+        auto dump_prefill_logits = [&]() {
             OgaTensor* raw_logits = nullptr;
             oga_check(OgaGenerator_GetLogits(gen.get(), &raw_logits), "GetLogits");
             OgaTensorPtr logits_t(raw_logits);
@@ -275,7 +280,7 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
                     log_output("[xllama] WARN: logit dump failed: " + params.dump_logits_path +
                                "\n");
             }
-        }
+        };
 
         auto t_prefill_end = t0;
 
@@ -286,8 +291,12 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
 
             // ORT GenAI ≥ 0.7: GenerateNextToken does compute + sample in one call
             oga_check(OgaGenerator_GenerateNextToken(gen.get()), "GenerateNextToken");
-            if (n_generated == 0)
+            if (n_generated == 0) {
                 t_prefill_end = std::chrono::steady_clock::now();
+                // Prefill just ran: the last prompt-token logits are now valid.
+                if (!params.dump_logits_path.empty())
+                    dump_prefill_logits();
+            }
 
             const int32_t* next_toks = nullptr;
             size_t n_next = 0;
