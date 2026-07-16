@@ -45,6 +45,10 @@ bool model_is_gemma(const std::string& model_id) {
     return to_lower(model_id).find("gemma") != std::string::npos;
 }
 
+bool model_is_llama(const std::string& model_id) {
+    return to_lower(model_id).find("llama") != std::string::npos;
+}
+
 std::string qwen_no_think_gen_suffix(const std::string& model_id) {
     if (!model_is_qwen(model_id))
         return {};
@@ -74,24 +78,39 @@ bool apply_stop_sequences(std::string& output, const std::vector<std::string>& s
 
 ChatFormat chat_format_for(const std::string& model_id) {
     ChatFormat f;
-    // Gemma is checked before the ChatML default; the Qwen no-think suffix is
-    // resolved inside the ChatML branch. "gemma" does not collide with
-    // smollm2/lfm2/qwen ids.
+    // Gemma and Llama-3 are checked before the ChatML default. Substrings do not
+    // collide with smollm2 / lfm2 / qwen ids. BOS is added by the tokenizer
+    // (add_bos) for Gemma and Llama-3 GGUF — not emitted in the template string.
     if (model_is_gemma(model_id)) {
         f.kind = ChatFormatKind::Gemma;
         f.turn_open = "<start_of_turn>";
         f.turn_close = "<end_of_turn>\n";
+        f.role_sep = "\n";
         f.user_tag = "user";
         f.assistant_tag = "model";
         f.system_tag = "";
         f.system_sep = "\n\n";
         f.system_style = SystemStyle::MergeIntoFirstUser;
         f.stop_sequences = {"<end_of_turn>"};
-        f.gen_suffix = {}; // Gemma has no think prefill; <bos> is added by add_bos.
+        f.gen_suffix = {};
+    } else if (model_is_llama(model_id)) {
+        // Meta Llama-3 / 3.1 / 3.2 instruct template.
+        f.kind = ChatFormatKind::Llama3;
+        f.turn_open = "<|start_header_id|>";
+        f.turn_close = "<|eot_id|>";
+        f.role_sep = "<|end_header_id|>\n\n";
+        f.user_tag = "user";
+        f.assistant_tag = "assistant";
+        f.system_tag = "system";
+        f.system_sep = "";
+        f.system_style = SystemStyle::DedicatedTurn;
+        f.stop_sequences = {"<|eot_id|>"};
+        f.gen_suffix = {};
     } else {
         f.kind = ChatFormatKind::ChatML;
         f.turn_open = "<|im_start|>";
         f.turn_close = "<|im_end|>\n";
+        f.role_sep = "\n";
         f.user_tag = "user";
         f.assistant_tag = "assistant";
         f.system_tag = "system";
@@ -108,10 +127,10 @@ std::string ChatFormat::render_prompt(const std::string& system,
                                       const std::string& final_user) const {
     std::string p;
 
-    // System: dedicated turn (ChatML, emitted unconditionally) or merged into
-    // the first user turn (Gemma).
+    // System: dedicated turn (ChatML / Llama-3, emitted unconditionally) or
+    // merged into the first user turn (Gemma).
     if (system_style == SystemStyle::DedicatedTurn)
-        p += turn_open + system_tag + "\n" + system + turn_close;
+        p += turn_open + system_tag + role_sep + system + turn_close;
 
     bool sys_pending = (system_style == SystemStyle::MergeIntoFirstUser) && !system.empty();
     auto user_content = [&](const std::string& u) -> std::string {
@@ -123,24 +142,35 @@ std::string ChatFormat::render_prompt(const std::string& system,
     };
 
     for (const ChatTurn& t : history) {
-        p += turn_open + user_tag + "\n" + user_content(t.user) + turn_close;
+        p += turn_open + user_tag + role_sep + user_content(t.user) + turn_close;
         // History assistant headers never carry gen_suffix (suffix only on the
         // trailing header below), matching the legacy hand-built prompt.
-        p += turn_open + assistant_tag + "\n" + t.assistant + turn_close;
+        p += turn_open + assistant_tag + role_sep + t.assistant + turn_close;
     }
 
-    p += turn_open + user_tag + "\n" + user_content(final_user) + turn_close;
-    p += turn_open + assistant_tag + "\n" + gen_suffix;
+    p += turn_open + user_tag + role_sep + user_content(final_user) + turn_close;
+    p += turn_open + assistant_tag + role_sep + gen_suffix;
     return p;
 }
 
 std::string ChatFormat::render_delta(const std::string& user, bool prev_ended_with_stop) const {
     // The reused KV already holds the previous assistant tokens. If generation
-    // stopped on the stop token the turn is already closed (only a newline is
-    // needed); otherwise close it with turn_close.
-    std::string d = prev_ended_with_stop ? std::string("\n") : turn_close;
-    d += turn_open + user_tag + "\n" + user + turn_close;
-    d += turn_open + assistant_tag + "\n" + gen_suffix;
+    // stopped on the stop token, that token is in the KV — emit only any trailing
+    // glue of turn_close beyond the stop (ChatML/Gemma: "\n"; Llama-3: empty).
+    // Otherwise close the turn with the full turn_close.
+    std::string d;
+    if (prev_ended_with_stop) {
+        if (!stop_sequences.empty() && !stop_sequences.front().empty() &&
+            turn_close.compare(0, stop_sequences.front().size(), stop_sequences.front()) == 0) {
+            d = turn_close.substr(stop_sequences.front().size());
+        } else {
+            d = "\n"; // defensive fallback for misconfigured formats
+        }
+    } else {
+        d = turn_close;
+    }
+    d += turn_open + user_tag + role_sep + user + turn_close;
+    d += turn_open + assistant_tag + role_sep + gen_suffix;
     return d;
 }
 

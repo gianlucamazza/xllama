@@ -15,6 +15,10 @@ bool model_is_qwen(const std::string& model_id);
 // (substring "gemma", case-insensitive).
 bool model_is_gemma(const std::string& model_id);
 
+// True for Llama / Llama-3.x catalogue ids or filenames (substring "llama",
+// case-insensitive). Used to select the Llama-3 instruct header template.
+bool model_is_llama(const std::string& model_id);
+
 // Qwen3.x no-think generation prefill (matches Qwen3.5 Jinja with enable_thinking=false).
 // Empty when the model is not Qwen.
 std::string qwen_no_think_gen_suffix(const std::string& model_id);
@@ -33,15 +37,15 @@ bool apply_stop_sequences(std::string& output, const std::vector<std::string>& s
 // ---------------------------------------------------------------------------
 // Per-architecture chat template
 //
-// Data-driven, backend-agnostic. The two supported formats differ only in
-// delimiters, the assistant role label, how the system prompt is placed, the
-// stop sequence and a per-model generation suffix. Built via chat_format_for().
+// Data-driven, backend-agnostic. Supported formats differ in delimiters, the
+// assistant role label, how the system prompt is placed, the stop sequence and
+// a per-model generation suffix. Built via chat_format_for().
 // ---------------------------------------------------------------------------
 
-enum class ChatFormatKind { ChatML, Gemma };
+enum class ChatFormatKind { ChatML, Gemma, Llama3 };
 
 // How the system prompt is emitted.
-// - DedicatedTurn: its own turn (ChatML: <|im_start|>system ... <|im_end|>).
+// - DedicatedTurn: its own turn (ChatML / Llama-3 system role).
 // - MergeIntoFirstUser: prepended to the first user turn (Gemma has no system role).
 enum class SystemStyle { DedicatedTurn, MergeIntoFirstUser };
 
@@ -55,15 +59,17 @@ struct ChatFormat {
     ChatFormatKind kind = ChatFormatKind::ChatML;
 
     // Delimiters / role labels.
-    std::string turn_open;     // "<|im_start|>"  | "<start_of_turn>"
-    std::string turn_close;    // "<|im_end|>\n"  | "<end_of_turn>\n"
+    // Layout: turn_open + role_tag + role_sep + content + turn_close
+    std::string turn_open;     // "<|im_start|>" | "<start_of_turn>" | "<|start_header_id|>"
+    std::string turn_close;    // "<|im_end|>\n" | "<end_of_turn>\n" | "<|eot_id|>"
+    std::string role_sep;      // "\n" | "\n" | "<|end_header_id|>\n\n"
     std::string user_tag;      // "user"
-    std::string assistant_tag; // "assistant"     | "model"
-    std::string system_tag;    // "system"        | "" (Gemma: unused)
-    std::string system_sep;    // ""              | "\n\n" (merge separator)
+    std::string assistant_tag; // "assistant" | "model"
+    std::string system_tag;    // "system"    | "" (Gemma: unused)
+    std::string system_sep;    // ""          | "\n\n" (merge separator)
     SystemStyle system_style = SystemStyle::DedicatedTurn;
 
-    std::vector<std::string> stop_sequences; // {"<|im_end|>"} | {"<end_of_turn>"}
+    std::vector<std::string> stop_sequences; // stop token(s); may be a prefix of turn_close
     std::string gen_suffix;                  // Qwen no-think prefill; else ""
 
     // Full multi-turn prompt ending with the assistant generation header +

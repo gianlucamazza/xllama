@@ -70,16 +70,26 @@ TEST_CASE("gemma detection") {
     CHECK_FALSE(model_is_gemma("lfm25-350m"));
 }
 
+TEST_CASE("llama detection") {
+    CHECK(model_is_llama("llama32-3b"));
+    CHECK(model_is_llama("Llama-3.2-3B-Instruct-Q3_K_S.gguf"));
+    CHECK_FALSE(model_is_llama("smollm2-360m-cpu-int4"));
+    CHECK_FALSE(model_is_llama("lfm25-350m"));
+    CHECK_FALSE(model_is_llama("gemma3-270m"));
+}
+
 TEST_CASE("chat format selection") {
     CHECK(chat_format_for("smollm2-360m-cpu-int4").kind == ChatFormatKind::ChatML);
     CHECK(chat_format_for("lfm25-350m").kind == ChatFormatKind::ChatML);
     CHECK(chat_format_for("gemma3-270m").kind == ChatFormatKind::Gemma);
+    CHECK(chat_format_for("llama32-3b").kind == ChatFormatKind::Llama3);
 
     const ChatFormat qwen = chat_format_for("qwen35-0.8b");
     CHECK(qwen.kind == ChatFormatKind::ChatML);
     CHECK_FALSE(qwen.gen_suffix.empty()); // Qwen no-think prefill
 
     CHECK(chat_format_for("smollm2-360m-cpu-int4").gen_suffix.empty());
+    CHECK(chat_format_for("llama32-3b").gen_suffix.empty());
 }
 
 TEST_CASE("chat format stop sequences") {
@@ -87,6 +97,7 @@ TEST_CASE("chat format stop sequences") {
           std::vector<std::string>{"<|im_end|>"});
     CHECK(chat_format_for("gemma3-270m").stop_sequences ==
           std::vector<std::string>{"<end_of_turn>"});
+    CHECK(chat_format_for("llama32-3b").stop_sequences == std::vector<std::string>{"<|eot_id|>"});
 }
 
 TEST_CASE("chatml render is byte-exact with the legacy hand-built prompt") {
@@ -141,7 +152,7 @@ TEST_CASE("gemma render with empty system leaves the first user turn unprefixed"
           "<start_of_turn>user\nciao<end_of_turn>\n<start_of_turn>model\n");
 }
 
-TEST_CASE("render_delta for both formats and prev_ended_with_stop") {
+TEST_CASE("render_delta for chatml, gemma, llama3 and prev_ended_with_stop") {
     const ChatFormat cm = chat_format_for("smollm2-360m-cpu-int4");
     CHECK(cm.render_delta("q", /*stop=*/true) ==
           "\n<|im_start|>user\nq<|im_end|>\n<|im_start|>assistant\n");
@@ -153,12 +164,33 @@ TEST_CASE("render_delta for both formats and prev_ended_with_stop") {
           "\n<start_of_turn>user\nq<end_of_turn>\n<start_of_turn>model\n");
     CHECK(gm.render_delta("q", /*stop=*/false) ==
           "<end_of_turn>\n<start_of_turn>user\nq<end_of_turn>\n<start_of_turn>model\n");
+
+    // Llama-3: stop == turn_close, so post-stop glue is empty (no extra newline).
+    const ChatFormat lm = chat_format_for("llama32-3b");
+    CHECK(lm.render_delta("q", /*stop=*/true) ==
+          "<|start_header_id|>user<|end_header_id|>\n\nq<|eot_id|>"
+          "<|start_header_id|>assistant<|end_header_id|>\n\n");
+    CHECK(lm.render_delta("q", /*stop=*/false) ==
+          "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nq<|eot_id|>"
+          "<|start_header_id|>assistant<|end_header_id|>\n\n");
+}
+
+TEST_CASE("llama3 render matches Meta instruct header layout") {
+    const ChatFormat f = chat_format_for("llama32-3b");
+    const std::string p = f.render_prompt("Be concise.", {{"hi", "hello"}}, "how are you?");
+    CHECK(p == "<|start_header_id|>system<|end_header_id|>\n\nBe concise.<|eot_id|>"
+               "<|start_header_id|>user<|end_header_id|>\n\nhi<|eot_id|>"
+               "<|start_header_id|>assistant<|end_header_id|>\n\nhello<|eot_id|>"
+               "<|start_header_id|>user<|end_header_id|>\n\nhow are you?<|eot_id|>"
+               "<|start_header_id|>assistant<|end_header_id|>\n\n");
+    CHECK(p.find("<|begin_of_text|>") == std::string::npos); // BOS via tokenizer
 }
 
 TEST_CASE("postprocess_output strips empty think for chatml, passthrough otherwise") {
     const std::string block = std::string("<think>") + "\n\n" + "</think>";
     CHECK(chat_format_for("qwen35-0.8b").postprocess_output(block + "\n\nCiao!") == "Ciao!");
     CHECK(chat_format_for("gemma3-270m").postprocess_output("plain gemma") == "plain gemma");
+    CHECK(chat_format_for("llama32-3b").postprocess_output("plain llama") == "plain llama");
 }
 
 // The core KV-reuse safety net: the string a reused KV holds after a turn — the
@@ -191,7 +223,8 @@ static void check_kv_reuse_invariant(const ChatFormat& f) {
     CHECK(base + raw_out + f.render_delta(next_user, /*prev_ended_with_stop=*/false) == cold);
 }
 
-TEST_CASE("kv-reuse invariant holds for chatml and gemma") {
+TEST_CASE("kv-reuse invariant holds for chatml, gemma, and llama3") {
     check_kv_reuse_invariant(chat_format_for("smollm2-360m-cpu-int4"));
     check_kv_reuse_invariant(chat_format_for("gemma3-270m"));
+    check_kv_reuse_invariant(chat_format_for("llama32-3b"));
 }

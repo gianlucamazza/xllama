@@ -135,6 +135,19 @@
       ]
     },
     {
+      "_comment": "Llama-3.2-3B-Instruct Q3_K_S — Phase 7 H4 PASS (2026-07-16): decode 14.16 tok/s, peak 1824 MB on Series S (phase7-scale.csv). Optional heavy chat (not the shipping default — keep lfm25-350m). Direct from HF unsloth GGUF; Meta Llama Community License applies — do not mirror onto models-v1 without license review. Chat template: Llama-3 headers via chat_format_for (kind:gguf, CPU-only, KV-reuse, routing disabled).",
+      "name": "llama32-3b",
+      "display": "Llama 3.2 3B (GGUF · CPU · 1.54 GB, advanced)",
+      "kind": "gguf",
+      "hf_base_url": "https://huggingface.co/unsloth/Llama-3.2-3B-Instruct-GGUF/resolve/main",
+      "files": [
+        {
+          "filename": "Llama-3.2-3B-Instruct-Q3_K_S.gguf",
+          "approx_bytes": 1542848960
+        }
+      ]
+    },
+    {
       "name": "sd-turbo-fp16",
       "display": "SD-Turbo (image, GPU fp16)",
       "kind": "diffusion",
