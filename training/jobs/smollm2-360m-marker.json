@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "name": "smollm2-360m-marker",
+  "method": "lora_peft",
+  "device": "host",
+  "base_model": "HuggingFaceTB/SmolLM2-360M-Instruct",
+  "dataset": "training/datasets/toy_marker.jsonl",
+  "out_dir": "training/out/smollm2-360m-marker",
+  "lora": {
+    "rank": 8,
+    "alpha": 16,
+    "steps": 120,
+    "seed": 42,
+    "learning_rate": 0.0002
+  },
+  "eval": {
+    "prompt": "xllama secret",
+    "expect_contains": "XLLAMA-LORA-OK"
+  },
+  "merge": true,
+  "quantize": null
+}

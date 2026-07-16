@@ -5,13 +5,55 @@
 #include "xllama/cli.h"
 #include "xllama/inference.h"
 #include "xllama/membw.h"
+#include "xllama/training.h"
 
 #include <cstdio>
+#include <cstdlib>
+#include <string>
 
 int main(int argc, char** argv) {
     xllama::InferenceParams params;
     if (!xllama::parse_cli_args(argc, argv, params))
         return 1;
+
+    // --validate-train-job: training pillar — parse + validate job JSON only.
+    if (params.run_validate_train_job) {
+        xllama::TrainingJob job;
+        std::string err;
+        if (!xllama::load_training_job_file(params.train_job_path, job, &err)) {
+            std::fprintf(stderr, "validate-train-job FAIL: %s\n", err.c_str());
+            return 1;
+        }
+        std::printf("validate-train-job PASS: %s\n",
+                    xllama::format_training_job_summary(job).c_str());
+        return 0;
+    }
+
+    // --train-job: shell out to the host exploration runner (PEFT + merge + eval).
+    if (params.run_train_job) {
+        xllama::TrainingJob job;
+        std::string err;
+        if (!xllama::load_training_job_file(params.train_job_path, job, &err)) {
+            std::fprintf(stderr, "train-job validate FAIL: %s\n", err.c_str());
+            return 1;
+        }
+        const char* runner = std::getenv("XLLAMA_TRAIN_RUNNER");
+        std::string cmd;
+        if (runner && runner[0] != '\0') {
+            cmd = std::string(runner) + " " + params.train_job_path;
+        } else {
+            // Default: repo-relative host runner (cwd expected = repo root).
+            cmd = std::string("training/host/run_job.sh ") + params.train_job_path;
+        }
+        std::fprintf(stderr, "train-job: %s\n", xllama::format_training_job_summary(job).c_str());
+        std::fprintf(stderr, "train-job: exec %s\n", cmd.c_str());
+        const int rc = std::system(cmd.c_str());
+        if (rc != 0) {
+            std::fprintf(stderr, "train-job FAIL: runner exit %d\n", rc);
+            return rc == -1 ? 1 : (rc >> 8);
+        }
+        return 0;
+    }
 
     // --membw: model-free CPU memory-bandwidth micro-bench. Runs a single-thread
     // pass and a full-width pass so the ratio (scaling) is visible; prints the CSV

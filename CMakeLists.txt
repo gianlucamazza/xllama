@@ -58,6 +58,7 @@ add_library(xllama STATIC
     src/bridge/utf8_utils.cpp
     src/bridge/chat_prompt.cpp
     src/bridge/cli.cpp
+    src/bridge/training.cpp
 )
 
 target_compile_features(xllama PUBLIC cxx_std_17)

@@ -48,6 +48,13 @@ struct InferenceParams {
     // load). Model/prompt are not required in this mode.
     bool run_membw = false;
 
+    // CLI --validate-train-job <path.json>: parse + validate a TrainingJob and
+    // exit (no model). Part of the training pillar (exploration).
+    bool run_validate_train_job = false;
+    // CLI --train-job <path.json>: shell out to the host training runner.
+    bool run_train_job = false;
+    std::string train_job_path;
+
     // UI callbacks (optional). Called from the inference thread — must marshal
     // to the UI thread before touching XAML controls.
     std::function<void(const std::string&)> on_status; // e.g. "loading model"

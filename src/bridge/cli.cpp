@@ -34,6 +34,12 @@ static void print_help(const char* prog) {
                  "      --dump-logits <path>\n"
                  "                       Write the last prefill-token logits (float32) to\n"
                  "                       <path> and metadata to <path>.json, then continue\n"
+                 "      --validate-train-job <job.json>\n"
+                 "                       Parse/validate a training job manifest and exit\n"
+                 "                       (training pillar; no model load)\n"
+                 "      --train-job <job.json>\n"
+                 "                       Run the host training pipeline for the job\n"
+                 "                       (shells to training/host/run_job.sh)\n"
                  "  -h, --help           Show this message\n",
                  prog);
 }
@@ -60,6 +66,8 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
                                               {"membw", no_argument, nullptr, 6},
                                               {"greedy", no_argument, nullptr, 7},
                                               {"dump-logits", required_argument, nullptr, 8},
+                                              {"validate-train-job", required_argument, nullptr, 9},
+                                              {"train-job", required_argument, nullptr, 10},
                                               {"help", no_argument, nullptr, 'h'},
                                               {nullptr, 0, nullptr, 0}};
 
@@ -105,6 +113,14 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         case 8:
             out.dump_logits_path = optarg;
             break;
+        case 9:
+            out.run_validate_train_job = true;
+            out.train_job_path = optarg;
+            break;
+        case 10:
+            out.run_train_job = true;
+            out.train_job_path = optarg;
+            break;
         case 'h':
             print_help(argv[0]);
             std::exit(0);
@@ -114,9 +130,16 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         }
     }
 
-    // --membw runs a model-free micro-bench: skip the model/prompt requirement.
+    // --membw / train-job modes: model/prompt not required.
     if (out.run_membw)
         return true;
+    if (out.run_validate_train_job || out.run_train_job) {
+        if (out.train_job_path.empty()) {
+            std::fprintf(stderr, "Error: train job path is required.\n");
+            return false;
+        }
+        return true;
+    }
 
     if (out.model_path.empty() || out.prompt.empty()) {
         print_usage(argv[0]);

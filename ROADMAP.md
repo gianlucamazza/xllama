@@ -426,3 +426,23 @@ AppContainer limits. Plan: [`docs/phase7-hypotheses.md`](docs/phase7-hypotheses.
       (LFM vs E2B vs Llama-3.2-3B; Phi only after Phi-3 template)
 - [ ] H2 MoE candidate only if &lt;~3.5 GB GGUF with arch in pin
 - [ ] H3 speculative decoding spike (eng) — only if H9 says 3B still short of peer 7B
+
+## Phase 8 — Training pillar (exploration) 🔮 OPEN
+
+**Goal:** first-class **training** architecture (parallel to inference), host
+PEFT production of adapters/merged GGUF, reserved device lane. Docs:
+[`docs/architecture.md`](docs/architecture.md) § Training pillar,
+[`training/README.md`](training/README.md).
+
+- [x] **C++ contracts** — `TrainingJob` / `TrainingResult`, stage vocabulary,
+      `validate_training_job`, `training_device_supported` (Host yes / Device no),
+      minimal job JSON parse (`training.h` / `training.cpp`); unit tests
+- [x] **Host PEFT LoRA backend** — `training/host/` + job
+      `training/jobs/smollm2-360m-marker.json`; merge via `llama-export-lora`;
+      A/B marker **PASS** on host (2026-07-17)
+- [x] **CLI** — `xllama-cli --validate-train-job` / `--train-job`
+- [ ] **Runtime LoRA load** on `Session` (optional adapter without full merge)
+- [ ] **Device PEFT micro-spike** — memory-bounded, lab-only; lift
+      `training_device_supported(Device)` only with measured budget doc
+- [ ] **Preference capture** on console → export dataset → host retrain loop
+- [ ] **Catalogue publish** of finetuned / adapter entries (`manifest.json`)

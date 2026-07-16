@@ -7,24 +7,34 @@ snapshot), the perf SSOT [benchmarks.md](benchmarks.md), and the AppContainer
 constraints SSOT [uwp-constraints.md](uwp-constraints.md) — those own the numbers
 and the sandbox limits; this file owns the structure.
 
-## Two targets, one core
+## Two pillars, two targets, one core
 
-The inference/pipeline logic is a platform-agnostic C++17 core; the UWP app and the
-Linux CLI/tests are thin front-ends over it.
+xllama has two **platform pillars** that share C++ contracts but do not share
+execution loops:
 
-- **Core library** (`src/bridge/`, headers in `include/xllama/`) — built for both
-  Linux (host dev + CI unit tests) and UWP. No WinRT in the headers.
-- **Host front-ends** — `xllama-cli` (`src/main.cpp`, llama.cpp/GGUF + `--membw`)
-  and the doctest suite (`tests/`).
-- **UWP app** (`uwp/`) — XAML-free programmatic UI (`MainPageController`), the
-  headless bench/diffuse/membw modes, and the model downloader; consumes the core
-  through the same `xllama::Session` / `run_inference` API.
+| Pillar | Role | Hot path |
+| --- | --- | --- |
+| **Inference** | Chat, diffusion, LAN API, benches | `Session` / `run_inference` (forward-only) |
+| **Training** (exploration) | Produce adapters / merged GGUF | `TrainingJob` → host PEFT → merge → artefacts |
+
+Training never runs inside `generate()`. Inference never runs backward. Artefacts
+flow **training → disk → inference load** (same GGUF path as catalogue models).
+
+The shared core is platform-agnostic C++17; front-ends are thin:
+
+- **Core library** (`src/bridge/`, headers in `include/xllama/`) — Linux + UWP.
+  No WinRT in the headers.
+- **Host front-ends** — `xllama-cli` (inference + `--validate-train-job` /
+  `--train-job`), doctest suite, `training/host/` PEFT runner.
+- **UWP app** (`uwp/`) — inference UI, headless bench/diffuse/membw; **no**
+  on-device train loop in the shipping app (device training is reserved).
 
 Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 
 | Header                             | Owns                                                                |
 | ---------------------------------- | ------------------------------------------------------------------- |
 | `session.h` / `inference_params.h` | `Session`/`SessionParams`, `InferenceParams/Result`, `Backend` enum |
+| `training.h` / `training_params.h` | `TrainingJob`/`TrainingResult`, stages, device gates, job JSON      |
 | `chat_prompt.h`                    | `ChatFormat`, `chat_format_for`, `apply_stop_sequences`             |
 | `routing_policy.h`                 | `decide_routing`, `kv_reuse_supported_for_model`                    |
 | `model_provision.h`                | `dir_satisfies_expected_files`, `normalize_model_path`              |
@@ -155,25 +165,58 @@ hash-pinned **PatchedGenAI #2280** + **PatchedOrt** extdata DLLs from
 so in-place console updates never collide on identity. First-launch chat default
 on unified builds is **`lfm25-350m`** (`DefaultChatModelId()` in `MainPage.cpp`).
 
-## Personalization / LoRA (host-only)
+## Training pillar (exploration)
 
-xllama is an **inference** runtime on Xbox (and a host CLI for the same GGUF
-path). Full fine-tune / on-device training is out of scope for the UWP process
-(GPU budget, AppContainer, ORT GenAI and llama.cpp forward-only APIs — see
-[uwp-constraints.md](uwp-constraints.md)).
+First-class subsystem for **learning adapters and producing loadable weights**.
+Status is **exploration**: host PEFT LoRA is implemented; on-device training is
+API-gated and reserved for future spikes.
 
-Personalization that stays coherent with this architecture:
+```
+┌─────────────────────────┐     artefacts      ┌──────────────────────────┐
+│ TrainingJob             │ ─────────────────► │ Inference Session        │
+│ stages: prepare→train→  │  merged GGUF /     │ (unchanged load path)    │
+│ export→merge→evaluate   │  adapter dir       │                          │
+└─────────────────────────┘                    └──────────────────────────┘
+```
 
-1. **Train off-device** (host PEFT LoRA or any external trainer).
-2. **Merge** into a plain GGUF (`llama-export-lora`) or ship a full finetuned
-   quant.
-3. **Serve** with existing `Session` / catalogue provisioning — no training loop
-   in the app.
+### Contracts (C++)
 
-Host proof-of-pipeline (toy marker, SmolLM2-360M, CPU):
-[`scripts/lora-spike/README.md`](../scripts/lora-spike/README.md). Runtime
-`--lora` loading is intentionally **not** in `Session`; merge keeps Xbox and
-the CLI on the same load path as any other GGUF.
+- `TrainingJob` / `TrainingResult` / `AdapterArtifact` — `training_params.h`
+- `validate_training_job`, `load_training_job_file`, `training_device_supported`
+  — `training.h` / `src/bridge/training.cpp`
+- CLI: `xllama-cli --validate-train-job <job.json>` and `--train-job <job.json>`
+  (host runner via `training/host/run_job.sh` or `XLLAMA_TRAIN_RUNNER`)
+
+### Stages
+
+| Stage | Host (implemented) | Device (reserved) |
+| --- | --- | --- |
+| prepare | HF snapshot + dataset | — |
+| train | PEFT LoRA (`training/host/train_lora.py`) | future PEFT/micro-loop |
+| export_adapter | `convert_*_gguf.py` | — |
+| merge | `llama-export-lora` | — |
+| evaluate | marker A/B via `xllama-cli --chat` | — |
+| publish | open (catalogue later) | — |
+
+### Backends
+
+| Backend | Status | Notes |
+| --- | --- | --- |
+| **Host PEFT LoRA** | Implemented | `training/`; job JSON under `training/jobs/` |
+| **Device** | Reserved — `validate_training_job` rejects `device=device` | GPU budget ~3801 MB, no ORT GenAI train API, AppContainer, llama-finetune class RAM ([uwp-constraints.md](uwp-constraints.md)) |
+| Full fine-tune | Reserved enum | Not an in-process path |
+
+### Module layout
+
+See [`training/README.md`](../training/README.md). Compat shim:
+`scripts/lora-spike/` → forwards to the training job runner.
+
+### Open exploration (ROADMAP)
+
+- Runtime LoRA load on `Session` (without merge)
+- On-device PEFT micro-spike under lab gates
+- Preference capture on console → host retrain loop
+- Catalogue publish of finetuned entries
 
 ## See also
 
@@ -181,4 +224,4 @@ the CLI on the same load path as any other GGUF.
 - AppContainer constraints (§1–§12) → [uwp-constraints.md](uwp-constraints.md)
 - Model catalogue / selection → [model-selection.md](model-selection.md) + `uwp/models/manifest.json`
 - v1.0 narrative snapshot → [technical-report.md](technical-report.md)
-- Host LoRA spike → [scripts/lora-spike/README.md](../scripts/lora-spike/README.md)
+- Training pillar → [training/README.md](../training/README.md)

@@ -39,7 +39,10 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Host LoRA spike artifacts (adapters, merged GGUF, venv)
+# Training pillar artefacts (adapters, merged GGUF, venv)
+training/out/
+training/host/.venv/
+# Legacy spike paths (shim only)
 scripts/lora-spike/out/
 scripts/lora-spike/.venv/
 

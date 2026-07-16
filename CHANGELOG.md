@@ -9,14 +9,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Host LoRA personalization spike (Tier 1)** — off-device PEFT LoRA →
-  `convert_lora_to_gguf` → `llama-export-lora` merge → plain GGUF served by
-  `xllama-cli` (no runtime LoRA / no UWP training). Scripts under
-  `scripts/lora-spike/`; architecture note in `docs/architecture.md`
-  (Personalization / LoRA). Host CMake enables `LLAMA_BUILD_COMMON` +
-  `LLAMA_BUILD_TOOLS` so `llama-export-lora` builds. Console-validated A/B on
-  SmolLM2-360M: base lacks marker `XLLAMA-LORA-OK`, merged emits it
-  (`./scripts/lora-spike/run_spike.sh`).
+- **Training pillar (exploration)** — architecture dual-pillar (inference +
+  training). C++ contracts `TrainingJob` / `validate_training_job` /
+  `load_training_job_file` (`include/xllama/training*.h`, `src/bridge/training.cpp`);
+  host backend under `training/` (job JSON, PEFT LoRA, merge, A/B eval);
+  CLI `--validate-train-job` / `--train-job`. Device training is API-gated
+  (rejected until a console backend exists). Host CMake enables
+  `LLAMA_BUILD_COMMON` + `LLAMA_BUILD_TOOLS` (`llama-export-lora`). Marker job
+  `training/jobs/smollm2-360m-marker.json` **PASS** on host (merged emits
+  `XLLAMA-LORA-OK`). Compat shim: `scripts/lora-spike/` → `training/host/`.
 
 ### Changed
 

@@ -298,6 +298,7 @@
     <ClCompile Include="..\src\bridge\path_utils.cpp" />
     <ClCompile Include="..\src\bridge\utf8_utils.cpp" />
     <ClCompile Include="..\src\bridge\chat_prompt.cpp" />
+    <ClCompile Include="..\src\bridge\training.cpp" />
     <!-- cli.cpp uses POSIX getopt — Linux only, excluded from UWP target -->
     <ClCompile Include="inference-bridge.cpp" />
     <ClCompile Include="diffuse.cpp" />

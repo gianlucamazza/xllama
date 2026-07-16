@@ -8,7 +8,7 @@ Each current fact has one authoritative home. Other documents may explain a
 decision or quote one headline, but must link back instead of maintaining a
 second table.
 
-- **System structure** (modules, backend dispatch, provisioning, membw, host-only LoRA personalization) → [architecture.md](./architecture.md)
+- **System structure** (inference + training pillars, modules, provisioning, membw) → [architecture.md](./architecture.md)
 - **Raw performance evidence** → [`../bench/results/`](../bench/results/)
 - **Comparison policy** → [`../bench/benchmark-summary.json`](../bench/benchmark-summary.json)
 - **Generated performance summary** → [benchmarks.md](./benchmarks.md) +
@@ -29,8 +29,8 @@ reports preserve interpretation and history; they are not current metric stores.
 
 | Document                                                         | Description                                                                                                                                  |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| [architecture.md](./architecture.md)                             | Component/data-flow map: modules, runtime backend dispatch, chat templates, KV-reuse, routing, provisioning, membw, diffusion, host LoRA     |
-| [../scripts/lora-spike/README.md](../scripts/lora-spike/README.md) | Host-only PEFT LoRA → GGUF merge → `xllama-cli` A/B (toy marker; no on-device training)                                                      |
+| [architecture.md](./architecture.md)                             | Dual pillars (inference + training exploration), modules, backends, KV-reuse, routing, provisioning, membw, diffusion                        |
+| [../training/README.md](../training/README.md)                   | Training pillar: job JSON, host PEFT LoRA pipeline, stages, device-reserved gates                                                            |
 | [install-release.md](./install-release.md)                       | Install a tagged GitHub Release build on your Xbox (cert + VCLibs + MSIX)                                                                    |
 | [using-the-app.md](./using-the-app.md)                           | App guide: chat, settings (model picker, routing, KV reuse), image generation                                                                |
 | [demo-video-runbook.md](./demo-video-runbook.md)                 | Phase 6 demo clip: preflight, storyboard, capture, publish — **console session**                                                             |

@@ -16,6 +16,8 @@ xllama/
 ├── include/xllama/          # Shared public headers
 │   ├── inference_params.h   # InferenceParams / InferenceResult
 │   ├── inference.h          # run_inference, write_bench_csv
+│   ├── training_params.h    # TrainingJob / TrainingResult (training pillar)
+│   ├── training.h           # validate/load job, device gates, stage names
 │   ├── routing_policy.h     # per-workload routing decision (600-tok threshold, GGUF gates)
 │   ├── session.h            # xllama::Session API (persistent model across turns)
 │   ├── ort_raii.h           # RAII unique_ptr for OGA* types (UWP/ORT GenAI path)
@@ -31,8 +33,10 @@ xllama/
 │   ├── platform.cpp         # log_output (writes xllama.log in UWP)
 │   ├── path_utils.cpp       # resolve_model_path: LocalState\models\ + InstalledPath fallback
 │   ├── utf8_utils.cpp
-│   └── cli.cpp
-├── src/main.cpp             # Linux entry point (getopt_long)
+│   ├── cli.cpp
+│   └── training.cpp         # TrainingJob validate/parse (host + UWP linkable)
+├── src/main.cpp             # Linux entry point (getopt_long; --train-job)
+├── training/                # Training pillar (exploration): jobs, datasets, host PEFT
 ├── uwp/                     # C++/WinRT UWP app
 │   ├── App.cpp / App.h      # Application::OnLaunched
 │   ├── MainPage.cpp / .h    # MainPageController (plain C++, not runtimeclass); incl. autopilot driver
