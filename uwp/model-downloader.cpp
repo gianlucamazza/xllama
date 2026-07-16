@@ -134,11 +134,17 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
             HttpRequestMessage req(HttpMethod::Get(), uri);
             HttpResponseMessage resp{nullptr};
             last_err.clear();
+            // co_await is illegal inside a catch block (MSVC C2304): flag the
+            // failure and await/report after the try/catch.
+            bool net_failed = false;
             try {
                 resp = co_await client.SendRequestAsync(req,
                                                         HttpCompletionOption::ResponseHeadersRead);
             } catch (...) {
                 last_err = L"Network error downloading " + f.filename;
+                net_failed = true;
+            }
+            if (net_failed) {
                 if (attempt < kMaxAttempts)
                     continue;
                 co_await resume_foreground(dispatcher);
@@ -161,6 +167,7 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
             // create intermediate folders as needed.
             StorageFolder folder{nullptr};
             StorageFile out_file{nullptr};
+            bool create_failed = false;
             try {
                 folder = co_await StorageFolder::GetFolderFromPathAsync(local_dir);
                 std::wstring leaf = f.filename;
@@ -174,16 +181,23 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                     winrt::hstring(leaf), CreationCollisionOption::ReplaceExisting);
             } catch (...) {
                 last_err = L"Cannot create file " + f.filename + L" in " + local_dir;
+                create_failed = true;
+            }
+            if (create_failed) {
                 co_await resume_foreground(dispatcher);
                 on_done(false, last_err);
                 co_return;
             }
 
             IRandomAccessStream out_stream{nullptr};
+            bool open_failed = false;
             try {
                 out_stream = co_await out_file.OpenAsync(FileAccessMode::ReadWrite);
             } catch (...) {
                 last_err = L"Cannot open " + f.filename + L" for write";
+                open_failed = true;
+            }
+            if (open_failed) {
                 co_await resume_foreground(dispatcher);
                 on_done(false, last_err);
                 co_return;
