@@ -152,7 +152,7 @@ def main() -> int:
 
     model = AutoModelForCausalLM.from_pretrained(
         model_ref,
-        torch_dtype=torch.float32,
+        dtype=torch.float32,
         trust_remote_code=True,
     )
     model.config.use_cache = False
@@ -198,6 +198,7 @@ def main() -> int:
         fp16=False,
         remove_unused_columns=False,
         dataloader_num_workers=0,
+        dataloader_pin_memory=False,  # CPU-only host; avoid pin_memory warning
     )
     collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
     trainer = Trainer(

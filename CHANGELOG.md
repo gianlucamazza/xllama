@@ -7,6 +7,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Host LoRA personalization spike (Tier 1)** — off-device PEFT LoRA →
+  `convert_lora_to_gguf` → `llama-export-lora` merge → plain GGUF served by
+  `xllama-cli` (no runtime LoRA / no UWP training). Scripts under
+  `scripts/lora-spike/`; architecture note in `docs/architecture.md`
+  (Personalization / LoRA). Host CMake enables `LLAMA_BUILD_COMMON` +
+  `LLAMA_BUILD_TOOLS` so `llama-export-lora` builds. Console-validated A/B on
+  SmolLM2-360M: base lacks marker `XLLAMA-LORA-OK`, merged emits it
+  (`./scripts/lora-spike/run_spike.sh`).
+
 ### Changed
 
 - **Docs accuracy pass (CodeRabbit on #101)** — §2 runbook claims Auto-only

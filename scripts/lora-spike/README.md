@@ -91,12 +91,25 @@ llama-export-lora \
   -m scripts/lora-spike/out/smollm2-360m-lora-merged-f16.gguf -p 'xllama secret' -n 48
 ```
 
+## Verified (host)
+
+| Date | Host | Result |
+| --- | --- | --- |
+| 2026-07-17 | Linux CPU, SmolLM2-360M-Instruct, `STEPS=120` | **PASS** — base lacks `XLLAMA-LORA-OK`; merged emits it (`xllama-cli --chat --greedy`) |
+
+Re-check without retrain/reconvert:
+
+```bash
+SKIP_TRAIN=1 SKIP_CONVERT=1 ./scripts/lora-spike/run_spike.sh
+```
+
 ## Limits (intentional)
 
 - **Toy signal only** — not a quality finetune; the marker proves the pipeline.
 - **Host CPU** — no Xbox / UWP training path.
 - **No runtime LoRA** in `xllama::Session`; merge produces a normal catalogue-ready GGUF.
 - Do **not** commit `out/`, `.venv/`, or large GGUF files.
+- **Not shipped on catalogue** — Xbox still serves stock GGUF/ORT entries; this spike is host tooling only.
 
 ## Architecture note
 

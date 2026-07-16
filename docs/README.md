@@ -5,7 +5,7 @@ Technical notes and design decisions for xllama.
 **Single sources of truth (SSOT)** — each fact has one authoritative home; other
 docs quote a headline and link back:
 
-- **System structure** (modules, backend dispatch, provisioning, membw) → [architecture.md](./architecture.md)
+- **System structure** (modules, backend dispatch, provisioning, membw, host-only LoRA personalization) → [architecture.md](./architecture.md)
 - **Performance numbers** → [benchmarks.md](./benchmarks.md)
 - **Model catalogue + backend selection** → [model-selection.md](./model-selection.md) (narrative) + [`../uwp/models/manifest.json`](../uwp/models/manifest.json) (data)
 - **UWP/AppContainer constraints** (§1–§12) → [uwp-constraints.md](./uwp-constraints.md)
@@ -13,7 +13,8 @@ docs quote a headline and link back:
 
 | Document                                                         | Description                                                                                                                                  |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| [architecture.md](./architecture.md)                             | Component/data-flow map: modules, runtime backend dispatch, chat templates, KV-reuse, routing, provisioning auto-upgrade, membw, diffusion   |
+| [architecture.md](./architecture.md)                             | Component/data-flow map: modules, runtime backend dispatch, chat templates, KV-reuse, routing, provisioning, membw, diffusion, host LoRA     |
+| [../scripts/lora-spike/README.md](../scripts/lora-spike/README.md) | Host-only PEFT LoRA → GGUF merge → `xllama-cli` A/B (toy marker; no on-device training)                                                      |
 | [install-release.md](./install-release.md)                       | Install a tagged GitHub Release build on your Xbox (cert + VCLibs + MSIX)                                                                    |
 | [using-the-app.md](./using-the-app.md)                           | App guide: chat, settings (model picker, routing, KV reuse), image generation                                                                |
 | [demo-video-runbook.md](./demo-video-runbook.md)                 | Phase 6 demo clip: preflight, storyboard, capture, publish — **console session**                                                             |
