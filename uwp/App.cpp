@@ -8,6 +8,7 @@
 #include "pch.h"
 #include "App.h"
 #include "MainPage.h"
+#include "api-server.h"
 #include "inference-bridge.h"
 #include "xllama/platform.h"
 // clang-format on
@@ -134,6 +135,20 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
         // controller from a background thread — see MainPage.cpp.
         if (m_controller)
             m_controller->StartAutopilotIfRequested();
+
+        // LAN HTTP endpoint (OpenAI-compat), opt-in and default OFF: started
+        // only when LocalState\api.flag exists. The flag is NOT consumed — the
+        // server is persistent and coexists with the live XAML chat UI, unlike
+        // the headless bench/diffuse flags. Runs on a detached MTA thread; the
+        // StreamSocketListener stays bound for the app lifetime. See
+        // api-server.cpp.
+        if (!flag_path_if_present(L"api.flag").empty()) {
+            log_write("[xllama] api.flag detected -> starting LAN HTTP endpoint\n");
+            std::thread([] {
+                winrt::init_apartment(); // MTA: WinRT sockets + ApplicationData
+                ::xllama::api::run_server();
+            }).detach();
+        }
     } catch (winrt::hresult_error const& e) {
         char buf[512];
         snprintf(buf, sizeof(buf), "[xllama] OnLaunched hresult 0x%08X: %ls\n",

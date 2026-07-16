@@ -306,6 +306,7 @@
   <!-- xllama UWP app -->
   <ItemGroup>
     <ClCompile Include="App.cpp" />
+    <ClCompile Include="api-server.cpp" />
     <ClCompile Include="chat-history.cpp" />
     <ClCompile Include="MainPage.cpp" />
     <ClCompile Include="model-downloader.cpp" />
