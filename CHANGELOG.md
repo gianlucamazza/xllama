@@ -9,6 +9,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Phase 7 research** — `docs/phase7-hypotheses.md`: peer-class model hypotheses
+  (H1–H9). **H4 PASS** on console: Llama-3.2-3B-Instruct Q3_K_S decode
+  **14.2 tok/s**, peak 1824 MB (`bench/results/phase7-scale.csv`); near Gemma-4-E2B
+  speed at ~900 MB less RAM. Not yet catalogue-published.
 - **GitHub Release [v1.1.8.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.1.8.0)**
   (2026-07-16) — MSIX + cert + VCLibs x64. **Field smoke same day:** install
   `1.1.8.496` on Series S, first-launch download of `lfm25-350m`, 

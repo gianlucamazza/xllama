@@ -27,5 +27,6 @@ docs quote a headline and link back:
 | [benchmarks.md](./benchmarks.md)                                 | Consolidated perf for every tested model (decode/prefill/RAM, 3 backends) + comparative charts (`benchmarks-charts.html`)                  |
 | [recommended-config.md](./recommended-config.md)                 | Correct modern settings: models, genai_config, settings.json, build variants, obsolete myths                                               |
 | [project-analysis-2026-07.md](./project-analysis-2026-07.md)     | Project health snapshot (2026-07-15): status matrix, risks, Phase 6 priorities — **not** a perf SSOT                                       |
+| [phase7-hypotheses.md](./phase7-hypotheses.md)                   | Phase 7 research: peer-class model hypotheses (H1–H9), shortlist, campaign results — **not** a perf SSOT                                   |
 
 See also [../CHANGELOG.md](../CHANGELOG.md) for the full pivot history (llama.cpp → ORT GenAI → CPU EP → per-workload routing) and [../diffusion/README.md](../diffusion/README.md) for the SD-Turbo model toolchain.

@@ -374,3 +374,17 @@ Open items only — everything above is measured or shipped.
       the PatchedOrt capability visible in the picker without USB/WDP staging.
 - [ ] (upstream, deprioritised) **Fused low-bit GPU GEMM in DirectML** — §12;
       not a local contribution via #2280
+
+## Phase 7 — Peer-class model research 🔮 OPEN
+
+**Goal:** models with capability (and where possible speed) comparable to peer
+hardware (Zen 2 class / mid GPU), within Series S bandwidth (~13 GB/s) and
+AppContainer limits. Plan: [`docs/phase7-hypotheses.md`](docs/phase7-hypotheses.md).
+
+- [x] **H4 falsification campaign** (2026-07-16) — Llama-3.2-3B-Instruct **Q3_K_S**
+      on console: decode **14.16 tok/s**, prefill 19.5, peak **1824 MB**, load
+      ~17 s (`bench/results/phase7-scale.csv`). **PASS** (usable 3B-class GGUF).
+- [ ] Catalogue entry for Llama-3.2-3B (or Phi-3.5-mini) if product wants it in picker
+- [ ] H1 shortlist (larger LFM / hybrid) + H9 human task suite
+- [ ] H2 MoE candidate only if &lt;~3.5 GB GGUF with arch in pin
+- [ ] H3 speculative decoding spike (eng) — only if H9 says 3B still short of peer 7B
