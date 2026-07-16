@@ -19,6 +19,10 @@ bool model_is_gemma(const std::string& model_id);
 // case-insensitive). Used to select the Llama-3 instruct header template.
 bool model_is_llama(const std::string& model_id);
 
+// True for Phi / Phi-3.x catalogue ids or filenames (substring "phi",
+// case-insensitive). Selects the Phi-3 instruct template (<|user|>…<|end|>).
+bool model_is_phi(const std::string& model_id);
+
 // Qwen3.x no-think generation prefill (matches Qwen3.5 Jinja with enable_thinking=false).
 // Empty when the model is not Qwen.
 std::string qwen_no_think_gen_suffix(const std::string& model_id);
@@ -42,7 +46,7 @@ bool apply_stop_sequences(std::string& output, const std::vector<std::string>& s
 // a per-model generation suffix. Built via chat_format_for().
 // ---------------------------------------------------------------------------
 
-enum class ChatFormatKind { ChatML, Gemma, Llama3 };
+enum class ChatFormatKind { ChatML, Gemma, Llama3, Phi3 };
 
 // How the system prompt is emitted.
 // - DedicatedTurn: its own turn (ChatML / Llama-3 system role).

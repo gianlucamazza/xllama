@@ -18,7 +18,7 @@ struct ModelFile {
         filename;        // local path under the model dir; may contain subdirs ("unet/model.onnx")
     std::wstring remote; // asset name in the download source (release assets are flat);
                          // empty = same as filename
-    uint64_t approx_bytes; // 0 = unknown; used for progress display only
+    uint64_t approx_bytes; // 0 = unknown; progress bar + skip-if-present completeness
 };
 
 // Async download of an ONNX GenAI model from a Hugging Face repository to

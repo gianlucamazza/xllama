@@ -239,15 +239,31 @@ csv_median() {
 
 # ---------------------------------------------------------------------------
 # Upload genai_config variant for thread tuning (if --threads N specified)
+# ORT GenAI only — skip when the model dir is GGUF (llama.cpp uses
+# bench_threads.txt / params.n_threads; a genai_config.json next to a .gguf
+# is noise and confused earlier campaigns).
 # ---------------------------------------------------------------------------
+model_dir_has_gguf() {
+	local listing
+	listing=$(curl "${CURL_AUTH[@]}" \
+		"${BASE_URL}/api/filesystem/apps/files?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState%5Cmodels%5C${MODEL_NAME}" \
+		2>/dev/null) || true
+	[[ "$listing" == *".gguf"* ]]
+}
+
 if [[ "$N_THREADS" -gt 0 ]] 2>/dev/null; then
-	THREADS_CONFIG="${REPO_ROOT}/bench/configs/genai_config-threads-${N_THREADS}.json"
-	if [[ -f "$THREADS_CONFIG" ]]; then
+	if model_dir_has_gguf; then
 		echo ""
-		echo "--- Uploading genai_config (intra_op_num_threads=${N_THREADS}) ---"
-		upload_as "$THREADS_CONFIG" "models\\${MODEL_NAME}" "genai_config.json"
+		echo "--- Skipping genai_config (GGUF model; threads via bench_threads.txt) ---"
 	else
-		echo "Warning: $THREADS_CONFIG not found — using existing genai_config.json on device" >&2
+		THREADS_CONFIG="${REPO_ROOT}/bench/configs/genai_config-threads-${N_THREADS}.json"
+		if [[ -f "$THREADS_CONFIG" ]]; then
+			echo ""
+			echo "--- Uploading genai_config (intra_op_num_threads=${N_THREADS}) ---"
+			upload_as "$THREADS_CONFIG" "models\\${MODEL_NAME}" "genai_config.json"
+		else
+			echo "Warning: $THREADS_CONFIG not found — using existing genai_config.json on device" >&2
+		fi
 	fi
 fi
 

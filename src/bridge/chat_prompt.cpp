@@ -49,6 +49,10 @@ bool model_is_llama(const std::string& model_id) {
     return to_lower(model_id).find("llama") != std::string::npos;
 }
 
+bool model_is_phi(const std::string& model_id) {
+    return to_lower(model_id).find("phi") != std::string::npos;
+}
+
 std::string qwen_no_think_gen_suffix(const std::string& model_id) {
     if (!model_is_qwen(model_id))
         return {};
@@ -78,7 +82,7 @@ bool apply_stop_sequences(std::string& output, const std::vector<std::string>& s
 
 ChatFormat chat_format_for(const std::string& model_id) {
     ChatFormat f;
-    // Gemma and Llama-3 are checked before the ChatML default. Substrings do not
+    // Gemma / Llama-3 / Phi-3 before the ChatML default. Substrings do not
     // collide with smollm2 / lfm2 / qwen ids. BOS is added by the tokenizer
     // (add_bos) for Gemma and Llama-3 GGUF — not emitted in the template string.
     if (model_is_gemma(model_id)) {
@@ -105,6 +109,19 @@ ChatFormat chat_format_for(const std::string& model_id) {
         f.system_sep = "";
         f.system_style = SystemStyle::DedicatedTurn;
         f.stop_sequences = {"<|eot_id|>"};
+        f.gen_suffix = {};
+    } else if (model_is_phi(model_id)) {
+        // Microsoft Phi-3 / 3.5 instruct: <|role|>\n content <|end|>\n
+        f.kind = ChatFormatKind::Phi3;
+        f.turn_open = "<|";
+        f.turn_close = "<|end|>\n";
+        f.role_sep = "|>\n";
+        f.user_tag = "user";
+        f.assistant_tag = "assistant";
+        f.system_tag = "system";
+        f.system_sep = "";
+        f.system_style = SystemStyle::DedicatedTurn;
+        f.stop_sequences = {"<|end|>"};
         f.gen_suffix = {};
     } else {
         f.kind = ChatFormatKind::ChatML;
