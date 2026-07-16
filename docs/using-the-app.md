@@ -44,13 +44,16 @@ Generation shows live tok/s; **■ Cancel** stops a running reply.
   computes wrong text logits on the Series S driver), every mode resolves to
   the CPU model, the `gpu_model` is not auto-downloaded (#95), and a missing
   `gpu_model` never blocks a turn (#100). Diffusion (plain ORT) stays on GPU.
-  The pre-#91 semantics, which return verbatim when the gate lifts:
+  The pre-#91 semantics, which return when the gate lifts (still subject to
+  `gpu_available` = provisioned `gpu_model` — see below):
   - **CPU only (default)** — best decode throughput at 360M scale (~66 tok/s).
-  - **GPU only (DML)** — forces DirectML (needs the `gpu_model`, e.g.
-    `smollm2-360m-dml-fp16`, in LocalState).
-  - **Auto (long prompts → GPU)** — long first prompts route to GPU fp16
-    (prefill is 1.8× faster at ~1k tokens), short chats stay on CPU; the
-    choice is sticky per conversation.
+  - **GPU only (DML)** — prefers DirectML when `gpu_model` is provisioned (e.g.
+    `smollm2-360m-dml-fp16` in LocalState); if `gpu_available` is false, falls
+    back to the CPU model.
+  - **Auto (long prompts → GPU)** — long first prompts route to GPU fp16 only
+    when `gpu_available` is true and the prompt exceeds the token threshold
+    (prefill is 1.8× faster at ~1k tokens); short chats, or any turn with a
+    missing GPU model, stay on CPU. The choice is sticky per conversation.
 
 **Note for GGUF models** (`kind: "gguf"` in the catalogue): **KV-cache reuse
 works** (the llama.cpp path keeps a persistent context and appends only the new

@@ -9,6 +9,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Docs accuracy pass (CodeRabbit on #101)** — §2 runbook claims Auto-only
+  coverage (matches `validate-console.sh routing`); H8 requires explicit
+  `MODEL=`/`golden` for DML parity (not the cpu-int4 default); `using-the-app`
+  documents `gpu_available` fallback after the gate lifts; validation date in
+  `recommended-config` set to 2026-07-16 / `1.2.0.534`; `#91` escaped in
+  model-selection; H2 “mid-speed” hyphen.
 - **DML text routing disabled (#91)** — the logit-parity harness caught the DML
   GQA decoder computing numerically wrong logits on the Series S GPU (NMSE ~1
   vs the CPU reference at fp16 AND int4; invariant to `ORT_DISABLE_ALL`,

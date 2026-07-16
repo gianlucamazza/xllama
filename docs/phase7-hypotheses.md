@@ -54,7 +54,7 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
 
 ### H2 — MoE with ~1–2B active params
 
-- **Claim:** Decode scales with _active_ weights; MoE delivers peer quality at mid speed.
+- **Claim:** Decode scales with _active_ weights; MoE delivers peer quality at mid-speed.
 - **PASS:** Peak &lt; 4 GB, decode ≥12, quality &gt; Qwen3.5-0.8B.
 - **FAIL:** Arch missing from UWP static lib / OOM / &lt;8 tok/s.
 - **Status:** Open — pin includes many `*moe*.cpp` + `lfm2moe` via `src/models/*.cpp` wildcard; needs small-enough GGUF candidate.
@@ -92,8 +92,12 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
 
 - **Claim:** Higher Game budget avoids 8007000E on 1B fp16 inference.
 - **Status:** Opportunistic if Series X available. **#91 gate applies**: even a
-  passing H8 yields wrong text logits until `validate-logit-parity.sh` passes
-  on that device (the DML attention fault may or may not affect Series X).
+  passing H8 yields wrong text logits until logit parity is proven on **that**
+  DML asset — do **not** run bare `validate-logit-parity.sh` (default
+  `MODEL=smollm2-360m-cpu-int4` is a CPU path). Use an explicit pair, e.g.
+  `MODEL=<native-DML-1B-fp16-catalogue-name> ./scripts/validate-logit-parity.sh <matching-golden.bin>`
+  (or `MODEL=smollm2-360m-dml-fp16` with its matching golden for the smaller
+  DML probe). The DML attention fault may or may not affect Series X.
 
 ### H9 — Task suite (capability, not tok/s)
 

@@ -64,11 +64,12 @@ confirm multi-turn **coherence** (read the log's decoded turn-2 output) before t
 
 ## 2. PR #2 — CPU/GPU routing (Stage 3) — ✅ GATE HOLDS 2026-07-16 (`validate-console.sh routing`)
 
-**Validates (since #91)**: the `kDmlTextLogitsBroken` gate holds — every text
-turn stays on the CPU model in every routing mode, and no turn is blocked or
-degraded by it. The pre-#91 semantics (auto picks DML fp16 for long prompts)
-return, and this section flips back to an A/B, when the gate is lifted
-(`validate-logit-parity.sh` PASS on a DML text model).
+**Validates (since #91)**: the `kDmlTextLogitsBroken` gate holds — under the
+official automated check (Auto routing only; see below), a long text turn stays
+on the CPU model, and no turn is blocked or degraded by the gate. The pre-#91
+semantics (auto picks DML fp16 for long prompts) return, and this section flips
+back to an A/B, when the gate is lifted (`validate-logit-parity.sh` PASS on a
+DML text model).
 
 > **Automated gate (official).** Dev Mode gives the console no working text-input
 > path, so this check is driven by the in-app **autopilot** (build ≥ 1.1.3.0):
@@ -78,12 +79,14 @@ return, and this section flips back to an A/B, when the gate is lifted
 > ./scripts/validate-console.sh routing   # PASS/FAIL from the log, exit code
 > ```
 >
-> It seeds a >600-token decoy conversation, replays load_chat → send → new_chat →
-> send via `autopilot.flag`/`autopilot.json`, and greps `xllama.log` for the
-> **absence** of `auto → gpu` (the gate must hold), the **presence** of
-> `auto → cpu` (the turn must still run, #100), and the absence of `887A0036`.
-> **A PASS here is the official §2 gate** (same `StartInference` in the live
-> XAML process as a human run). The manual steps below remain for debugging.
+> It seeds settings with **`"routing": 2` (Auto only)** — CpuOnly and GpuOnly are
+> not exercised by this script — then seeds a >600-token decoy conversation,
+> replays load_chat → send → new_chat → send via `autopilot.flag`/`autopilot.json`,
+> and greps `xllama.log` for the **absence** of `auto → gpu` (the gate must hold),
+> the **presence** of `auto → cpu` (the turn must still run, #100), and the
+> absence of `887A0036`. **A PASS here is the official §2 gate for Auto routing**
+> (same `StartInference` in the live XAML process as a human run). The manual
+> steps below remain for debugging CpuOnly/GpuOnly or for when the gate lifts.
 
 **Measured (2026-07-16, unified 1.2.0.534):** long turn (**959 tok**) routed to
 CPU, no `auto → gpu` line, no `887A0036` — gate holds. Full suite PASS (parity,
@@ -96,7 +99,8 @@ shown numerically wrong — see #91.)_
 1. A **unified + PatchedGenAI #2280** MSIX — the default `xllama-appx` CI artifact
    (`build-uwp.yml`); vanilla NuGet `onnxruntime-genai.dll` hits `887A0036` in XAML.
    (Under the #91 gate this matters for diffusion and for the future re-enable,
-   not for the text path — which is CPU in every mode.)
+   not for the text path — which the policy forces to CPU in every mode; the
+   automated §2 script only proves Auto.)
 2. `smollm2-360m-cpu-int4` in `LocalState\models\` — seed it with
    `./scripts/provision-models.sh smollm2-360m-cpu-int4` (or `--all-test`).
    The `smollm2-360m-dml-fp16` model is **not** required nor auto-downloaded

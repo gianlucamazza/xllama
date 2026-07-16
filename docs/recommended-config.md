@@ -153,7 +153,7 @@ ctest --test-dir build/linux-test --output-on-failure
 
    ```bash
    source ~/.config/xllama/xbox-env
-   ./scripts/validate-console.sh all   # routing + GGUF + TAESD → ALL PASS (2026-07-14)
+   ./scripts/validate-console.sh all   # routing + GGUF + TAESD → ALL PASS (2026-07-16, 1.2.0.534)
    ```
 
 5. Manual/debug path: [console-validation-runbook.md](./console-validation-runbook.md) per §

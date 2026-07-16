@@ -114,7 +114,7 @@ fp16 models viable on the GPU**: a native-DML 1B fp16 (2.49 GB) loads yet OOMs
 inference within the 3801 MB budget (`uwp-constraints.md §7`). Practical takeaway:
 the >2 GB path is a **CPU/int4** enabler; DML-fp16 stays ≤~360-500 M
 (`smollm2-360m-dml-fp16` — whose text output is anyway wrong on this device,
-#91: the model is kept only as the parity-gate probe). Build DML models
+`#91`: the model is kept only as the parity-gate probe). Build DML models
 natively (`builder … -p fp16 -e dml`) — a cuda-fp16 re-host loads but fails DML
 inference.
 
