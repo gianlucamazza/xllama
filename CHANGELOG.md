@@ -9,6 +9,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Runtime LoRA load (llama.cpp)** — `SessionParams.lora_path` /
+  `InferenceParams.lora_path` + CLI `--lora` / `--lora-scale` apply
+  `llama_set_adapters_lora` without merging weights. Host smoke: base alone
+  lacks marker; base+adapter and merged GGUF both emit `XLLAMA-LORA-OK`.
+  Capability `RuntimeLoraLoadLlama` → available.
 - **Training pillar complete (exploration + RE)** — dual-pillar architecture
   with SSOT [`docs/training-architecture.md`](docs/training-architecture.md)
   (reverse-engineering: inference-only NuGet, GenAI `OgaLoadAdapter` + DML

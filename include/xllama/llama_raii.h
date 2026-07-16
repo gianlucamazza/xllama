@@ -33,8 +33,16 @@ struct LlamaSamplerDeleter {
     }
 };
 
+struct LlamaAdapterLoraDeleter {
+    void operator()(llama_adapter_lora* a) const noexcept {
+        if (a)
+            llama_adapter_lora_free(a);
+    }
+};
+
 using LlamaModelPtr = std::unique_ptr<llama_model, LlamaModelDeleter>;
 using LlamaContextPtr = std::unique_ptr<llama_context, LlamaContextDeleter>;
 using LlamaSamplerPtr = std::unique_ptr<llama_sampler, LlamaSamplerDeleter>;
+using LlamaAdapterLoraPtr = std::unique_ptr<llama_adapter_lora, LlamaAdapterLoraDeleter>;
 
 } // namespace xllama

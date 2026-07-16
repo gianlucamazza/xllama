@@ -136,7 +136,7 @@ Queryable from C++ / CLI (`xllama-cli --training-capabilities`):
 | `HostPeftLora` | available | **yes** |
 | `HostMergeGguf` | available | **yes** |
 | `HostEvaluateMarker` | available | **yes** |
-| `RuntimeLoraLoadLlama` | designed | no (Session gap) |
+| `RuntimeLoraLoadLlama` | **available** | **yes** (`SessionParams.lora_path` / CLI `--lora`) |
 | `RuntimeAdapterLoadOrtGenAI` | designed | no (DML blocked on pin) |
 | `DeviceOrtOnDeviceTraining` | research | no |
 | `DeviceLlamaFinetune` | **rejected** | no |
@@ -182,7 +182,7 @@ exports.
 | Path | Status |
 | --- | --- |
 | Load **merged GGUF** as catalogue / LocalState model | **Works today** (`Backend::Auto`) |
-| Runtime LoRA on llama.cpp without merge | Designed — wire `llama_set_adapters_lora` in `LlamaSession` |
+| Runtime LoRA on llama.cpp without merge | **Available** — `SessionParams.lora_path` + CLI `--lora` / `--lora-scale` |
 | Runtime adapter on ORT GenAI | Designed — blocked for DML; CPU-only investigation later |
 
 ## 8. Decision log

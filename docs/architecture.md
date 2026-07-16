@@ -193,7 +193,7 @@ First-class subsystem for **learning adapters and producing loadable weights**.
 | --- | --- |
 | **A Host PEFT + merge** | **Available** (marker job PASS) |
 | **B Device train** | Not available (inference-only NuGet; ODT research) |
-| **C Serve merged GGUF** | **Available**; runtime LoRA load designed not wired |
+| **C Serve merged GGUF** | **Available**; runtime LoRA via `SessionParams.lora_path` / CLI `--lora` |
 
 ### Open exploration (ROADMAP Phase 8)
 

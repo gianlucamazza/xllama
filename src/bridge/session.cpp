@@ -360,6 +360,8 @@ namespace xllama {
 class LlamaSession final : public Session {
   public:
     LlamaModelPtr m_model;
+    LlamaAdapterLoraPtr m_adapter; // optional runtime LoRA (freed before model)
+    float m_lora_scale = 1.0f;
     int m_n_ctx;
     int m_n_threads;
     int m_n_batch;  // 0 = llama.cpp default
@@ -369,9 +371,10 @@ class LlamaSession final : public Session {
     // the whole conversation. Created lazily on the first generate().
     LlamaContextPtr m_ctx;
 
-    explicit LlamaSession(LlamaModelPtr model, int n_ctx, int n_threads, int n_batch, int n_ubatch)
-        : m_model(std::move(model)), m_n_ctx(n_ctx), m_n_threads(n_threads), m_n_batch(n_batch),
-          m_n_ubatch(n_ubatch) {}
+    explicit LlamaSession(LlamaModelPtr model, LlamaAdapterLoraPtr adapter, float lora_scale,
+                          int n_ctx, int n_threads, int n_batch, int n_ubatch)
+        : m_model(std::move(model)), m_adapter(std::move(adapter)), m_lora_scale(lora_scale),
+          m_n_ctx(n_ctx), m_n_threads(n_threads), m_n_batch(n_batch), m_n_ubatch(n_ubatch) {}
 
     InferenceResult generate(const GenerateParams& gp) override {
         InferenceResult res;
@@ -389,6 +392,19 @@ class LlamaSession final : public Session {
                 res.error_msg = "failed to create context";
                 log_output("[xllama] session generate: failed to create context\n");
                 return res;
+            }
+            // Apply runtime LoRA after context exists (llama_set_adapters_lora is
+            // context-scoped). Must re-apply if context is ever recreated.
+            if (m_adapter) {
+                llama_adapter_lora* arr[1] = {m_adapter.get()};
+                float scales[1] = {m_lora_scale};
+                if (llama_set_adapters_lora(m_ctx.get(), arr, 1, scales) != 0) {
+                    res.error_msg = "llama_set_adapters_lora failed";
+                    log_output("[xllama] session generate: set_adapters_lora failed\n");
+                    m_ctx.reset();
+                    return res;
+                }
+                log_output("[xllama] session: runtime LoRA adapter applied\n");
             }
         }
         llama_context* ctx = m_ctx.get();
@@ -551,11 +567,25 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
         return nullptr;
     }
 
+    LlamaAdapterLoraPtr adapter;
+    if (!sp.lora_path.empty()) {
+        llama_adapter_lora* raw_ad =
+            llama_adapter_lora_init(raw_model, sp.lora_path.c_str());
+        if (!raw_ad) {
+            llama_model_free(raw_model);
+            if (err)
+                *err = "failed to load LoRA adapter: " + sp.lora_path;
+            return nullptr;
+        }
+        adapter.reset(raw_ad);
+        log_output("[xllama] Session: GGUF LoRA adapter loaded (runtime)\n");
+    }
+
     int n_threads = sp.n_threads > 0 ? sp.n_threads : detect_threads_llama();
     int n_ctx = sp.n_ctx > 0 ? sp.n_ctx : 2048;
     log_output("[xllama] Session: GGUF model loaded via llama.cpp (persistent)\n");
-    return std::make_unique<LlamaSession>(LlamaModelPtr(raw_model), n_ctx, n_threads, sp.n_batch,
-                                          sp.n_ubatch);
+    return std::make_unique<LlamaSession>(LlamaModelPtr(raw_model), std::move(adapter),
+                                          sp.lora_scale, n_ctx, n_threads, sp.n_batch, sp.n_ubatch);
 }
 } // namespace detail
 

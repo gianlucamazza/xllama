@@ -151,9 +151,9 @@ TEST_CASE("training_capabilities table is non-empty and consistent") {
 TEST_CASE("training_capability_available: host PEFT yes, device FT no") {
     CHECK(training_capability_available(TrainingCapability::HostPeftLora));
     CHECK(training_capability_available(TrainingCapability::HostMergeGguf));
+    CHECK(training_capability_available(TrainingCapability::RuntimeLoraLoadLlama));
     CHECK_FALSE(training_capability_available(TrainingCapability::DeviceLlamaFinetune));
     CHECK_FALSE(training_capability_available(TrainingCapability::DeviceOrtOnDeviceTraining));
-    CHECK_FALSE(training_capability_available(TrainingCapability::RuntimeLoraLoadLlama));
 }
 
 TEST_CASE("training_capability_info returns RE reasons") {

@@ -44,6 +44,10 @@ struct InferenceParams {
     // CLI --chat: wrap `prompt` with the model's chat template before inference.
     bool chat_template = false;
 
+    // Optional GGUF LoRA adapter path (llama.cpp path only). Empty = off.
+    std::string lora_path;
+    float lora_scale = 1.0f;
+
     // CLI --membw: run the CPU memory-bandwidth micro-bench and exit (no model
     // load). Model/prompt are not required in this mode.
     bool run_membw = false;

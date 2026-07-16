@@ -39,7 +39,8 @@ Platform: [`docs/uwp-constraints.md`](docs/uwp-constraints.md) §13.
 - [x] RE capability matrix + `scripts/re-training-stack.sh` (inference-only NuGet,
       GenAI OgaLoadAdapter + DML adapter block, llama adapter API, ODT research,
       llama-finetune rejected).
-- [ ] Runtime LoRA load (llama `llama_set_adapters_lora` in Session).
+- [x] Runtime LoRA load (llama) — `SessionParams.lora_path` / CLI `--lora`
+      applies `llama_set_adapters_lora` (Lane C serve without full merge).
 - [ ] Preference capture on console → host retrain (JSONL schema in SSOT).
 - [ ] Catalogue publication contract for fine-tuned models/adapters.
 - [ ] Device train research (ORT ODT) only with measured memory plan; default

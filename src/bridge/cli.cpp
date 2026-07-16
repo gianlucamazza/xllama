@@ -43,6 +43,8 @@ static void print_help(const char* prog) {
                  "      --training-capabilities\n"
                  "                       Print the training-pillar capability matrix\n"
                  "                       (RE inventory: available/designed/research/rejected)\n"
+                 "      --lora <path>    GGUF LoRA adapter (llama.cpp only; runtime load)\n"
+                 "      --lora-scale <f> LoRA scale (default: 1.0)\n"
                  "  -h, --help           Show this message\n",
                  prog);
 }
@@ -72,6 +74,8 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
                                               {"validate-train-job", required_argument, nullptr, 9},
                                               {"train-job", required_argument, nullptr, 10},
                                               {"training-capabilities", no_argument, nullptr, 11},
+                                              {"lora", required_argument, nullptr, 12},
+                                              {"lora-scale", required_argument, nullptr, 13},
                                               {"help", no_argument, nullptr, 'h'},
                                               {nullptr, 0, nullptr, 0}};
 
@@ -127,6 +131,12 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             break;
         case 11:
             out.run_training_capabilities = true;
+            break;
+        case 12:
+            out.lora_path = optarg;
+            break;
+        case 13:
+            out.lora_scale = static_cast<float>(std::atof(optarg));
             break;
         case 'h':
             print_help(argv[0]);

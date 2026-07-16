@@ -430,6 +430,22 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     }
     LlamaModelPtr model(raw_model);
     log_output("[xllama] model loaded\n");
+
+    LlamaAdapterLoraPtr adapter;
+    if (!params.lora_path.empty()) {
+        llama_adapter_lora* raw_ad =
+            llama_adapter_lora_init(model.get(), params.lora_path.c_str());
+        if (!raw_ad) {
+            res.error_msg = "failed to load LoRA adapter: " + params.lora_path;
+            log_output("[xllama] " + res.error_msg + "\n");
+            if (params.on_status)
+                params.on_status("error: " + res.error_msg);
+            return res;
+        }
+        adapter.reset(raw_ad);
+        log_output("[xllama] LoRA adapter loaded (runtime)\n");
+    }
+
     if (params.on_status)
         params.on_status("decoding");
 
@@ -453,6 +469,16 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         return res;
     }
     LlamaContextPtr ctx(raw_ctx);
+
+    if (adapter) {
+        llama_adapter_lora* arr[1] = {adapter.get()};
+        float scales[1] = {params.lora_scale};
+        if (llama_set_adapters_lora(ctx.get(), arr, 1, scales) != 0) {
+            res.error_msg = "llama_set_adapters_lora failed";
+            log_output("[xllama] " + res.error_msg + "\n");
+            return res;
+        }
+    }
 
     const llama_vocab* vocab = llama_model_get_vocab(model.get());
 

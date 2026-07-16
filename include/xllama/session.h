@@ -29,6 +29,12 @@ struct SessionParams {
     int n_ubatch = 0;  // llama.cpp only; 0 = default (512). Physical prefill chunk.
     Backend backend = Backend::Auto;
     int n_gpu_layers = 0; // llama.cpp only; 0 = CPU (Xbox has no ggml GPU backend)
+
+    // Optional GGUF LoRA adapter (llama.cpp only). Empty = base model only.
+    // Loaded via llama_adapter_lora_init + llama_set_adapters_lora (inference-time;
+    // not training). Scale defaults to 1.0. ORT GenAI sessions ignore this field.
+    std::string lora_path;
+    float lora_scale = 1.0f;
 };
 
 struct GenerateParams {

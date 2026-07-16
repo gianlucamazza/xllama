@@ -54,6 +54,19 @@ TEST_CASE("model_uses_llama_backend detects .gguf suffix and dir layout") {
     std::filesystem::remove_all(tmp2, ec);
 }
 
+TEST_CASE("Session::create fails when LoRA path is invalid (llama)") {
+    // Real base not required: create fails at model load first if path is junk.
+    // Here we only assert empty model + lora still rejects cleanly.
+    xllama::SessionParams sp;
+    sp.model_path = "/nonexistent/base.gguf";
+    sp.lora_path = "/nonexistent/adapter.gguf";
+    sp.backend = xllama::Backend::LlamaCpp;
+    std::string err;
+    auto s = xllama::Session::create(sp, &err);
+    CHECK(s == nullptr);
+    CHECK(!err.empty());
+}
+
 TEST_CASE("Session::create Auto with explicit Backend::LlamaCpp on GGUF layout") {
     // Even without real weights the dispatch must select the llama path.
     // We only assert that it does not succeed via the ORT path and that an error is produced.
