@@ -44,12 +44,12 @@ flowchart LR
 
 | ID | Obiettivo | Issue | Priorità | Effort | Dipendenze |
 | --- | --- | --- | --- | --- | --- |
-| **R1** | Demo video (clip 60–90 s) | ROADMAP Phase 6 | **P1** | S–M content | Field smoke 1.1.8 già PASS |
-| **R2** | Drop `-PatchedGenAI` | [#84](https://github.com/gianlucamazza/xllama/issues/84) | **P1** (quando NuGet) | S eng | Release GenAI >0.14.1 con #2280 |
-| **R3** | Upstream ReadFile 16 MB | [#86](https://github.com/gianlucamazza/xllama/issues/86), [ORT #29730](https://github.com/microsoft/onnxruntime/issues/29730) | **P2** | M eng | Feedback MS o PR volontaria |
-| **R4** | Drop `-PatchedOrt` | [#85](https://github.com/gianlucamazza/xllama/issues/85) | **P2** (quando NuGet) | S eng | #28509 + chunk (o equivalente) in NuGet |
-| **R5** | Catalogue entry >2 GB int4 extdata | ROADMAP optional | **P3** | M eng+asset | Hosting `models-v1` / HF |
-| **R6** | Vendor pin refresh ops | #85 | **P2** maint | S | Rebuild workflow + console re-validate |
+| **R1** | Demo video (clip 60–90 s) | ROADMAP Phase 6 | **P1** content | S–M | Field smoke 1.1.8 PASS; **solo capture umano** |
+| **R2** | Drop `-PatchedGenAI` | [#84](https://github.com/gianlucamazza/xllama/issues/84) | **blocked** NuGet | S | Poll: `scripts/check-vendor-nuget-status.sh` (latest still 0.14.1) |
+| **R3** | Upstream ReadFile 16 MB | [#86](https://github.com/gianlucamazza/xllama/issues/86) | **PR open** | M | [ORT #29732](https://github.com/microsoft/onnxruntime/pull/29732) + [#29730](https://github.com/microsoft/onnxruntime/issues/29730) |
+| **R4** | Drop `-PatchedOrt` | [#85](https://github.com/gianlucamazza/xllama/issues/85) | **blocked** NuGet | S | Attende merge #29732 + NuGet con #28509 |
+| **R5** | Catalogue entry >2 GB int4 extdata | ROADMAP optional | **deferred** | M | HF flaky; Meta license — non mirrorare su models-v1; USB/LocalState già valida PatchedOrt |
+| **R6** | Vendor pin refresh ops | #85 | **done tooling** | S | Dual pin + `check-vendor-nuget-status.sh` + fail-closed GenAI install |
 
 ---
 
@@ -72,9 +72,10 @@ flowchart LR
 
 ### Fase C — ORT path (parallelo, non bloccante)
 
-3. **Rispondere / PR su ORT #29730 (R3)**  
-   - Se i maintainer accettano la direzione: PR minima su `env.cc` (chunk 1 GB → 16–64 MB), test Windows se disponibili.  
-   - Se rifiutano o restano silenti: tenere pin; rivalutare solo al bump ORT.  
+3. **PR ORT #29732 (R3) — APERTA 2026-07-16**  
+   - https://github.com/microsoft/onnxruntime/pull/29732  
+   - Prossimo: review MS → merge → attendere NuGet → drop PatchedOrt (#85).  
+   - Se rifiutano: tenere pin; rivalutare solo al bump ORT.  
    - **Non** reimplementare weakly_canonical (già #28509 su main).
 
 4. **Drop PatchedOrt (R4)** solo dopo NuGet che include:  
@@ -118,13 +119,14 @@ Già closed-negative con evidenza — non investire:
 
 ---
 
-## 5. Checklist operativa immediata (post-commit)
+## 5. Checklist operativa immediata
 
-- [ ] Push del commit currency/pin (quando si vuole CI verde su main)
-- [ ] Verificare un run `build-uwp` verde: step “Download pinned patched runtime DLLs” OK per **entrambe** le DLL
-- [ ] Demo video (R1)
-- [ ] Poll periodico: NuGet GenAI + commenti su ORT #29730
-- [ ] (opz.) PR ReadFile se MS chiede codice
+- [x] Push currency/pin commit (`436ddd3`+)
+- [ ] Verificare run `build-uwp` verde: “Download pinned patched runtime DLLs” per **entrambe** le DLL
+- [x] PR ReadFile → [ORT #29732](https://github.com/microsoft/onnxruntime/pull/29732)
+- [x] `scripts/check-vendor-nuget-status.sh` + fail-closed GenAI install
+- [ ] Demo video capture (R1 — umano)
+- [ ] Poll: `./scripts/check-vendor-nuget-status.sh` + review ORT #29732
 
 ---
 

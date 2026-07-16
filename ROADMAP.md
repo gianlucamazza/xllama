@@ -370,8 +370,10 @@ Open items only — everything above is measured or shipped.
       (refresh the release asset after re-validation). Optional catalogue entry
       for a public >2 GB external-data int4 model remains open (USB/custom load
       already works with the shipping DLL).
-- [ ] (optional) **Catalogue entry for a >2 GB external-data int4 model** — make
-      the PatchedOrt capability visible in the picker without USB/WDP staging.
+- [ ] (optional, deferred) **Catalogue entry for a >2 GB external-data int4 model**
+      — PatchedOrt already shipping; USB/LocalState load console-validated.
+      Deferred: Meta Llama redistrib on `models-v1` needs license review; HF
+      onnx-community listing was flaky at attempt time. Prefer keep optional.
 - [ ] **Drop `-PatchedGenAI` when NuGet includes #2280** — fix is already on
       Microsoft GenAI `main` (PR [#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280),
       2026-07-13); pin is still 0.14.1 + `vendor-dlls-v1` `onnxruntime-genai.dll`.
@@ -383,12 +385,12 @@ Open items only — everything above is measured or shipped.
       Tracked: [issue #84](https://github.com/gianlucamazza/xllama/issues/84).
       Full plan: [`docs/vendor-lifecycle-plan.md`](docs/vendor-lifecycle-plan.md).
 - [ ] **Upstream ORT ReadFile 16 MB chunk** — `errcode 1450` fix still absent on
-      ORT `main` (chunk remains 1 GB). Related `weakly_canonical` AppContainer
-      path already fixed upstream in [#28509](https://github.com/microsoft/onnxruntime/pull/28509)
-      (not in NuGet 1.24.4). Prefer contributing the ReadFile change (or bump
-      ORT past both fixes) over forever-vendoring.
-      Tracked: [xllama #86](https://github.com/gianlucamazza/xllama/issues/86),
-      upstream [microsoft/onnxruntime#29730](https://github.com/microsoft/onnxruntime/issues/29730).
+      ORT NuGet 1.24.4. Related `weakly_canonical` AppContainer path already
+      fixed on ORT `main` in [#28509](https://github.com/microsoft/onnxruntime/pull/28509).
+      **PR opened:** [microsoft/onnxruntime#29732](https://github.com/microsoft/onnxruntime/pull/29732)
+      (issue [#29730](https://github.com/microsoft/onnxruntime/issues/29730)).
+      Tracked: [xllama #86](https://github.com/gianlucamazza/xllama/issues/86).
+      Poll NuGet / drop pins: `scripts/check-vendor-nuget-status.sh`.
 - [ ] (upstream, deprioritised) **Fused low-bit GPU GEMM in DirectML** — §12;
       not a local contribution via #2280
 

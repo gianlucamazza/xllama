@@ -31,16 +31,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   [`vendor-dlls-v1`](https://github.com/gianlucamazza/xllama/releases/tag/vendor-dlls-v1)
   and verifies `vendor/onnxruntime-genai-patched/SHA256SUMS` (no per-PR GenAI
   source rebuild). Refresh via `build-uwp-patched.yml` / `vendor-genai-dml-patch.ps1 -Build`.
+  `vendor-genai-dml-patch.ps1` **fails closed** if the pin is missing (no silent
+  vanilla NuGet).
 - **Docs currency pass** — `#2280` is **merged** on Microsoft GenAI `main`
   (gap = NuGet 0.14.1 only); ORT `weakly_canonical` related fix
   [#28509](https://github.com/microsoft/onnxruntime/pull/28509) on ORT `main`
-  (not in NuGet 1.24.4); ReadFile 16 MB still vendor-only. ROADMAP tracks
-  “drop PatchedGenAI” + upstream ORT ReadFile. Updated `uwp-constraints.md`,
+  (not in NuGet 1.24.4). Updated `uwp-constraints.md`,
   `project-analysis-2026-07.md`, `patches/README.md`, vendor READMEs.
   SSOT issues: [#84](https://github.com/gianlucamazza/xllama/issues/84),
   [#85](https://github.com/gianlucamazza/xllama/issues/85),
-  [#86](https://github.com/gianlucamazza/xllama/issues/86); upstream ORT
-  [microsoft/onnxruntime#29730](https://github.com/microsoft/onnxruntime/issues/29730).
+  [#86](https://github.com/gianlucamazza/xllama/issues/86).
+- **`scripts/check-vendor-nuget-status.sh`** — poll NuGet.org vs pins; reports
+  whether PatchedGenAI / PatchedOrt can be dropped.
+- **Upstream ORT PR** for ReadFile 16 MB chunk:
+  [microsoft/onnxruntime#29732](https://github.com/microsoft/onnxruntime/pull/29732)
+  (issue [#29730](https://github.com/microsoft/onnxruntime/issues/29730)).
 
 ## [1.1.8.0] - 2026-07-15
 

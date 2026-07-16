@@ -61,17 +61,20 @@ if ((Test-Path $VendorDll) -and (-not $Build)) {
 }
 
 if (-not $Build) {
-    Write-Host @"
+    # Fail closed (mirrors vendor-ort-extdata-patch.ps1): shipping CI always
+    # downloads the pin before calling this script; silent exit would leave the
+    # vanilla NuGet DLL and pass -PatchedGenAI packaging checks incorrectly.
+    Write-Error @"
 No patched DLL at:
   $VendorDll
 
-Place a console-validated onnxruntime-genai.dll there (built from
-microsoft/onnxruntime-genai branch rel-$GenAiVersion + patches/onnxruntime-genai-2280-dml-fallback.patch),
-or re-run with -Build to compile from source.
+Place a console-validated onnxruntime-genai.dll there (vendor-dlls-v1 pin or
+built from microsoft/onnxruntime-genai branch rel-$GenAiVersion +
+patches/onnxruntime-genai-2280-dml-fallback.patch), or re-run with -Build.
 
 Upstream: https://github.com/microsoft/onnxruntime-genai/pull/2280
 "@
-    exit 0
+    exit 1
 }
 
 # --- Build from source -------------------------------------------------------
