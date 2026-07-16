@@ -4,6 +4,9 @@ xllama is dual-pillar: **inference** (`Session`) and **training** (this tree).
 Training produces artefacts that inference already loads (merged GGUF). The
 UWP chat path stays forward-only.
 
+**Architecture SSOT (reverse engineering + capability matrix):**
+[`docs/training-architecture.md`](../docs/training-architecture.md).
+
 ```
 TrainingJob (JSON) ──► host PEFT LoRA ──► adapter ──► merge GGUF
                                                       │
@@ -56,13 +59,26 @@ SKIP_TRAIN=1 SKIP_CONVERT=1 ./training/host/run_job.sh training/jobs/smollm2-360
 | evaluate | A/B `xllama-cli --chat --greedy` vs marker |
 | publish | *open* (catalogue entry later) |
 
+## Capabilities
+
+```bash
+./build/linux-release/bin/xllama-cli --training-capabilities
+./scripts/re-training-stack.sh
+```
+
+| Lane | Today |
+| --- | --- |
+| Host PEFT + merge | **available** |
+| Device train | **not available** (gated; SSOT RE) |
+| Serve merged GGUF | **available** |
+
 ## Device training (reserved)
 
-`device: "device"` in a job is **rejected** by `validate_training_job` today.
-On-console training is an exploration track blocked by measured constraints
-(GPU ~3801 MB Series S, no ORT GenAI train API, AppContainer, llama-finetune
-class RAM). See `docs/architecture.md` § Training pillar and
-`docs/uwp-constraints.md`.
+`device: "device"` is **rejected** by `validate_training_job`. RE: inference-only
+NuGet, GenAI adapter *load* symbols without train API (“No adapter is available
+for DML”), llama-finetune ~24 GB class. See
+[`docs/training-architecture.md`](../docs/training-architecture.md) and
+[`docs/uwp-constraints.md`](../docs/uwp-constraints.md) §13.
 
 ## Verified
 

@@ -259,7 +259,9 @@ The `\\?\` long-path prefix does not help: it bypasses MAX_PATH but not the acce
 
 **Source**: repeated `deploy.sh` runs against `https://<XBOX_IP>:11443/api/devices/file/usage`. Series X Dev Mode has the same partition layout but available free space was not measured by this project.
 
-For models above the 600 MB on-disk budget that cannot be bundled in the MSIX, see Exp 3 (USB NTFS fallback at `E:\xllama\models\<name>`) in `docs/phase1-runbook.md` and `src/bridge/path_utils.cpp`.
+For models not distributed through the catalogue, see the USB/Device Portal
+provisioning paths in `docs/model-selection.md`, `docs/device-portal.md` and
+`src/bridge/path_utils.cpp`.
 
 See also `docs/model-selection.md` for a consolidated checklist.
 
@@ -346,4 +348,41 @@ int4 decode as blocked upstream, not a local TODO.
 SmolLM2-360M) were **built but closed inconclusive 2026-07-09** — not console-
 benched, and not a local lever. The §12 desk-check above stands (the kernel
 structure predicts neither materially beats 8.8 tok/s); see `ROADMAP.md`
-Phase 3.5 / Phase 5 and `console-validation-runbook.md §5`.
+the historical Phase 3.5 / Phase 5 evidence in `CHANGELOG.md` and
+`bench/results/`.
+
+## 13. Training and adapters (RE inventory)
+
+> Cross-link: full training pillar SSOT is
+> [`training-architecture.md`](training-architecture.md). This section records
+> **platform facts** only (what the Xbox UWP stack can and cannot do).
+
+**NuGet pins are inference-only.** `uwp/packages.config` ships
+`Microsoft.ML.OnnxRuntime.DirectML` 1.24.4 and
+`Microsoft.ML.OnnxRuntimeGenAI.DirectML` 0.14.1 — not an ORT **Training**
+package. There is no in-process train loop available from the shipping MSIX
+without a new dependency and rebuild.
+
+**ORT GenAI adapters ≠ training.** `strings` on the pinned
+`onnxruntime-genai.dll` exposes `OgaCreateAdapters` / `OgaLoadAdapter` /
+`OgaSetActiveAdapter` (inference-time adapter load) and the diagnostic
+`No adapter is available for DML`. GenAI does not expose a gradient/train API
+on this pin. DML adapter load is blocked; CPU-only adapter load is unproven in
+xllama.
+
+**llama.cpp** provides `llama_adapter_lora_*` for **runtime LoRA load** (forward)
+and a separate WIP `llama-finetune` example that cites multi-ten-GB class memory
+for small FP32 models — not a practical Series S path.
+
+**Memory.** GPU budget remains **3801 MB** (§5/§7). Host PEFT on SmolLM2-360M
+(r=8) trains ~1.64 M params — adapter state is PEFT-sized (tens of MB), so the
+binding constraint for on-device train is **missing software**, not only VRAM for
+LoRA-class adapters. Full fine-tune of catalogue models remains out of budget.
+
+**AppContainer.** Any future train engine must be **app-local, signed, linked at
+build time** (§3). No Python PEFT inside the sandbox. Writable artefacts only
+under LocalState (§2).
+
+**Architecture gate.** `training_device_supported(Device)` is **false** until a
+Device capability is measured available (`xllama-cli --training-capabilities`).
+Personalization today: train on host → ship merged GGUF → infer on console.

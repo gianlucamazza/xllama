@@ -16,6 +16,20 @@ int main(int argc, char** argv) {
     if (!xllama::parse_cli_args(argc, argv, params))
         return 1;
 
+    // --training-capabilities: RE-backed matrix (no model).
+    if (params.run_training_capabilities) {
+        const xllama::TrainingCapabilityInfo* caps = nullptr;
+        const size_t n = xllama::training_capabilities(&caps);
+        std::printf("xllama training capabilities (see docs/training-architecture.md)\n");
+        std::printf("%-32s %-10s %-10s %s\n", "name", "available", "status", "reason");
+        for (size_t i = 0; i < n; ++i) {
+            const auto& c = caps[i];
+            std::printf("%-32s %-10s %-10s %s\n", c.name, c.available ? "yes" : "no", c.status,
+                        c.reason);
+        }
+        return 0;
+    }
+
     // --validate-train-job: training pillar — parse + validate job JSON only.
     if (params.run_validate_train_job) {
         xllama::TrainingJob job;

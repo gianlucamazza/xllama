@@ -53,6 +53,8 @@ struct InferenceParams {
     bool run_validate_train_job = false;
     // CLI --train-job <path.json>: shell out to the host training runner.
     bool run_train_job = false;
+    // CLI --training-capabilities: print RE-backed capability matrix and exit.
+    bool run_training_capabilities = false;
     std::string train_job_path;
 
     // UI callbacks (optional). Called from the inference thread — must marshal

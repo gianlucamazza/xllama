@@ -39,6 +39,28 @@ enum class AdapterFormat {
     MergedGguf, // llama-export-lora product (loadable by Session)
 };
 
+// RE-backed capability matrix (see docs/training-architecture.md).
+// available=true only when implementable in the current product path.
+enum class TrainingCapability {
+    HostPeftLora,                // training/host PEFT — available
+    HostMergeGguf,               // llama-export-lora — available
+    HostEvaluateMarker,          // xllama-cli A/B — available
+    RuntimeLoraLoadLlama,        // llama_set_adapters_lora — designed, not wired
+    RuntimeAdapterLoadOrtGenAI,  // OgaLoadAdapter — designed; DML blocked on pin
+    DeviceOrtOnDeviceTraining,   // ORT ODT package — research
+    DeviceLlamaFinetune,         // llama-finetune — rejected (RAM class)
+    DevicePreferenceCapture,     // LocalState JSONL — designed
+};
+
+// One row of the static capability table.
+struct TrainingCapabilityInfo {
+    TrainingCapability id = TrainingCapability::HostPeftLora;
+    bool available = false;  // true => product can use it today
+    const char* status = ""; // "available" | "designed" | "research" | "rejected"
+    const char* name = "";   // stable id string
+    const char* reason = ""; // short RE-backed note
+};
+
 struct AdapterArtifact {
     std::string path;
     AdapterFormat format = AdapterFormat::PeftDir;

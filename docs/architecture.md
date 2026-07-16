@@ -168,60 +168,42 @@ on unified builds is **`lfm25-350m`** (`DefaultChatModelId()` in `MainPage.cpp`)
 ## Training pillar (exploration)
 
 First-class subsystem for **learning adapters and producing loadable weights**.
-Status is **exploration**: host PEFT LoRA is implemented; on-device training is
-API-gated and reserved for future spikes.
+**SSOT (RE inventory, capability matrix, hybrid loop):**
+[training-architecture.md](training-architecture.md). Platform facts:
+[uwp-constraints.md](uwp-constraints.md) §13. Ops: [`training/README.md`](../training/README.md).
 
 ```
 ┌─────────────────────────┐     artefacts      ┌──────────────────────────┐
-│ TrainingJob             │ ─────────────────► │ Inference Session        │
-│ stages: prepare→train→  │  merged GGUF /     │ (unchanged load path)    │
-│ export→merge→evaluate   │  adapter dir       │                          │
+│ TrainingJob (Lane A)    │ ─────────────────► │ Inference Session        │
+│ host PEFT → merge GGUF  │                    │ Lane C serve             │
 └─────────────────────────┘                    └──────────────────────────┘
+ Device train (Lane B) = research/gated — not in shipping MSIX
 ```
 
 ### Contracts (C++)
 
-- `TrainingJob` / `TrainingResult` / `AdapterArtifact` — `training_params.h`
-- `validate_training_job`, `load_training_job_file`, `training_device_supported`
-  — `training.h` / `src/bridge/training.cpp`
-- CLI: `xllama-cli --validate-train-job <job.json>` and `--train-job <job.json>`
-  (host runner via `training/host/run_job.sh` or `XLLAMA_TRAIN_RUNNER`)
+- `TrainingJob` / capability table — `training_params.h` / `training.h`
+- `training_capabilities()` / `xllama-cli --training-capabilities` (RE matrix)
+- `validate_training_job` rejects `device=device` until a Device capability is available
+- CLI: `--validate-train-job`, `--train-job` → `training/host/run_job.sh`
 
-### Stages
+### Capability headline (see SSOT for full RE)
 
-| Stage | Host (implemented) | Device (reserved) |
-| --- | --- | --- |
-| prepare | HF snapshot + dataset | — |
-| train | PEFT LoRA (`training/host/train_lora.py`) | future PEFT/micro-loop |
-| export_adapter | `convert_*_gguf.py` | — |
-| merge | `llama-export-lora` | — |
-| evaluate | marker A/B via `xllama-cli --chat` | — |
-| publish | open (catalogue later) | — |
+| Lane | Status today |
+| --- | --- |
+| **A Host PEFT + merge** | **Available** (marker job PASS) |
+| **B Device train** | Not available (inference-only NuGet; ODT research) |
+| **C Serve merged GGUF** | **Available**; runtime LoRA load designed not wired |
 
-### Backends
+### Open exploration (ROADMAP Phase 8)
 
-| Backend | Status | Notes |
-| --- | --- | --- |
-| **Host PEFT LoRA** | Implemented | `training/`; job JSON under `training/jobs/` |
-| **Device** | Reserved — `validate_training_job` rejects `device=device` | GPU budget ~3801 MB, no ORT GenAI train API, AppContainer, llama-finetune class RAM ([uwp-constraints.md](uwp-constraints.md)) |
-| Full fine-tune | Reserved enum | Not an in-process path |
-
-### Module layout
-
-See [`training/README.md`](../training/README.md). Compat shim:
-`scripts/lora-spike/` → forwards to the training job runner.
-
-### Open exploration (ROADMAP)
-
-- Runtime LoRA load on `Session` (without merge)
-- On-device PEFT micro-spike under lab gates
-- Preference capture on console → host retrain loop
-- Catalogue publish of finetuned entries
+Runtime llama LoRA load · ORT ODT research spike · preference capture · catalogue publish
 
 ## See also
 
 - Performance numbers → [benchmarks.md](benchmarks.md)
-- AppContainer constraints (§1–§12) → [uwp-constraints.md](uwp-constraints.md)
+- AppContainer constraints (§1–§13) → [uwp-constraints.md](uwp-constraints.md)
 - Model catalogue / selection → [model-selection.md](model-selection.md) + `uwp/models/manifest.json`
 - v1.0 narrative snapshot → [technical-report.md](technical-report.md)
-- Training pillar → [training/README.md](../training/README.md)
+- **Training SSOT** → [training-architecture.md](training-architecture.md)
+- Training ops → [training/README.md](../training/README.md)

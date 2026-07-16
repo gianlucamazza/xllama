@@ -9,18 +9,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Training pillar (exploration)** — architecture dual-pillar (inference +
-  training). C++ contracts `TrainingJob` / `validate_training_job` /
-  `load_training_job_file` (`include/xllama/training*.h`, `src/bridge/training.cpp`);
-  host backend under `training/` (job JSON, PEFT LoRA, merge, A/B eval);
-  CLI `--validate-train-job` / `--train-job`. Device training is API-gated
-  (rejected until a console backend exists). Host CMake enables
-  `LLAMA_BUILD_COMMON` + `LLAMA_BUILD_TOOLS` (`llama-export-lora`). Marker job
-  `training/jobs/smollm2-360m-marker.json` **PASS** on host (merged emits
-  `XLLAMA-LORA-OK`). Compat shim: `scripts/lora-spike/` → `training/host/`.
+- **Training pillar complete (exploration + RE)** — dual-pillar architecture
+  with SSOT [`docs/training-architecture.md`](docs/training-architecture.md)
+  (reverse-engineering: inference-only NuGet, GenAI `OgaLoadAdapter` + DML
+  adapter block, llama runtime LoRA API, ORT ODT research, budget math).
+  C++ `TrainingCapability` matrix + `xllama-cli --training-capabilities`;
+  `scripts/re-training-stack.sh`; `uwp-constraints.md` §13. Host PEFT path:
+  `training/` jobs/runner, `--validate-train-job` / `--train-job`, marker job
+  **PASS**. Device train remains gated (`device=device` rejected).
 
 ### Changed
 
+- **Documentation lifecycle refactor** — current guidance now reflects unified
+  shipping, the LFM default, completed Phase 7 H1/H9 work and the opt-in
+  `--bench` install behavior. ROADMAP and operational runbooks contain only
+  active work; completed Phase 1, console, external-data, demo and project-
+  analysis material is reduced to stable entrypoints backed by Git history.
 - **Docs accuracy pass (CodeRabbit on #101)** — §2 runbook claims Auto-only
   coverage (matches `validate-console.sh routing`); H8 requires explicit
   `MODEL=`/`golden` for DML parity (not the cpu-int4 default); `using-the-app`

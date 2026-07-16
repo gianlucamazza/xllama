@@ -40,6 +40,9 @@ static void print_help(const char* prog) {
                  "      --train-job <job.json>\n"
                  "                       Run the host training pipeline for the job\n"
                  "                       (shells to training/host/run_job.sh)\n"
+                 "      --training-capabilities\n"
+                 "                       Print the training-pillar capability matrix\n"
+                 "                       (RE inventory: available/designed/research/rejected)\n"
                  "  -h, --help           Show this message\n",
                  prog);
 }
@@ -68,6 +71,7 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
                                               {"dump-logits", required_argument, nullptr, 8},
                                               {"validate-train-job", required_argument, nullptr, 9},
                                               {"train-job", required_argument, nullptr, 10},
+                                              {"training-capabilities", no_argument, nullptr, 11},
                                               {"help", no_argument, nullptr, 'h'},
                                               {nullptr, 0, nullptr, 0}};
 
@@ -121,6 +125,9 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             out.run_train_job = true;
             out.train_job_path = optarg;
             break;
+        case 11:
+            out.run_training_capabilities = true;
+            break;
         case 'h':
             print_help(argv[0]);
             std::exit(0);
@@ -132,6 +139,8 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
 
     // --membw / train-job modes: model/prompt not required.
     if (out.run_membw)
+        return true;
+    if (out.run_training_capabilities)
         return true;
     if (out.run_validate_train_job || out.run_train_job) {
         if (out.train_job_path.empty()) {

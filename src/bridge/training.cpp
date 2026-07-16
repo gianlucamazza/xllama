@@ -335,6 +335,54 @@ bool training_device_supported(TrainDevice device) {
     return device == TrainDevice::Host;
 }
 
+namespace {
+
+// SSOT table — keep in sync with docs/training-architecture.md capability matrix.
+const TrainingCapabilityInfo kCapabilities[] = {
+    {TrainingCapability::HostPeftLora, true, "available", "HostPeftLora",
+     "training/host PEFT LoRA; host-validated marker job PASS"},
+    {TrainingCapability::HostMergeGguf, true, "available", "HostMergeGguf",
+     "llama-export-lora + convert_lora_to_gguf on host"},
+    {TrainingCapability::HostEvaluateMarker, true, "available", "HostEvaluateMarker",
+     "xllama-cli --chat --greedy A/B vs eval.expect_contains"},
+    {TrainingCapability::RuntimeLoraLoadLlama, false, "designed", "RuntimeLoraLoadLlama",
+     "llama_adapter_lora_init/llama_set_adapters_lora in llama.h; Session not wired"},
+    {TrainingCapability::RuntimeAdapterLoadOrtGenAI, false, "designed",
+     "RuntimeAdapterLoadOrtGenAI",
+     "OgaLoadAdapter symbols in GenAI DLL; string: No adapter is available for DML"},
+    {TrainingCapability::DeviceOrtOnDeviceTraining, false, "research",
+     "DeviceOrtOnDeviceTraining",
+     "needs ORT Training package + offline artifacts; not in MSIX NuGet pins"},
+    {TrainingCapability::DeviceLlamaFinetune, false, "rejected", "DeviceLlamaFinetune",
+     "llama-finetune WIP cites ~24 GB class; exceeds Series S practical budget"},
+    {TrainingCapability::DevicePreferenceCapture, false, "designed",
+     "DevicePreferenceCapture",
+     "LocalState JSONL samples → host retrain; no UWP UI yet"},
+};
+
+constexpr size_t kCapabilityCount = sizeof(kCapabilities) / sizeof(kCapabilities[0]);
+
+} // namespace
+
+size_t training_capabilities(const TrainingCapabilityInfo** out) {
+    if (out)
+        *out = kCapabilities;
+    return kCapabilityCount;
+}
+
+const TrainingCapabilityInfo* training_capability_info(TrainingCapability c) {
+    for (size_t i = 0; i < kCapabilityCount; ++i) {
+        if (kCapabilities[i].id == c)
+            return &kCapabilities[i];
+    }
+    return nullptr;
+}
+
+bool training_capability_available(TrainingCapability c) {
+    const TrainingCapabilityInfo* info = training_capability_info(c);
+    return info && info->available;
+}
+
 bool validate_training_job(const TrainingJob& job, std::string* err) {
     if (job.schema_version < 1) {
         set_err(err, "schema_version must be >= 1");

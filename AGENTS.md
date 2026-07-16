@@ -16,8 +16,8 @@ xllama/
 ├── include/xllama/          # Shared public headers
 │   ├── inference_params.h   # InferenceParams / InferenceResult
 │   ├── inference.h          # run_inference, write_bench_csv
-│   ├── training_params.h    # TrainingJob / TrainingResult (training pillar)
-│   ├── training.h           # validate/load job, device gates, stage names
+│   ├── training_params.h    # TrainingJob / TrainingCapability (training pillar)
+│   ├── training.h           # validate/load job, capability matrix, stage names
 │   ├── routing_policy.h     # per-workload routing decision (600-tok threshold, GGUF gates)
 │   ├── session.h            # xllama::Session API (persistent model across turns)
 │   ├── ort_raii.h           # RAII unique_ptr for OGA* types (UWP/ORT GenAI path)
@@ -36,7 +36,8 @@ xllama/
 │   ├── cli.cpp
 │   └── training.cpp         # TrainingJob validate/parse (host + UWP linkable)
 ├── src/main.cpp             # Linux entry point (getopt_long; --train-job)
-├── training/                # Training pillar (exploration): jobs, datasets, host PEFT
+├── training/                # Training pillar ops: jobs, datasets, host PEFT
+├── docs/training-architecture.md  # Training SSOT (RE + capability matrix)
 ├── uwp/                     # C++/WinRT UWP app
 │   ├── App.cpp / App.h      # Application::OnLaunched
 │   ├── MainPage.cpp / .h    # MainPageController (plain C++, not runtimeclass); incl. autopilot driver
@@ -52,14 +53,15 @@ xllama/
 │   ├── bench-xbox-ort.sh              # benchmark runner (ORT GenAI; model already on device)
 │   ├── validate-console.sh           # autopilot orchestrator: §2 routing / GGUF / §7c TAESD verdicts
 │   ├── package-catalogue-ort-model.sh # stage flat models-v1 assets from merged ORT GenAI dir
-│   ├── install-latest-build.sh        # fetch + deploy latest CI artifact (leaves bench.flag)
+│   ├── install-latest-build.sh        # fetch + deploy latest CI artifact (--bench is opt-in)
+│   ├── generate-benchmark-summary.py  # raw results → generated docs/dashboard
 │   ├── test-dml-config.sh             # upload DML provider_options without MSIX rebuild
 │   ├── vendor-genai-dml-patch.ps1     # overlay #2280 patched onnxruntime-genai.dll
 │   ├── export-taesd-asset.sh          # export TAESD VAE for models-v1 release
 │   ├── check-uwp-host.sh              # Linux host preflight (qemu, libvirt)
 │   └── setup-windows-uwp-dev.ps1      # Windows VM: install VS2022 + UWP workload
 ├── tests/                   # Unit tests (doctest, target: xllama-tests)
-├── bench/                   # Benchmark configs, prompts, results
+├── bench/                   # Benchmark configs, prompts, raw results + summary policy
 ├── docs/                    # Technical notes (see docs/README.md)
 ├── cmake/                   # Toolchain files
 └── .github/workflows/       # build-linux.yml + build-uwp.yml
@@ -117,7 +119,7 @@ the "same identity, different contents" install block. Local builds leave `.0`.
 
 - **ORT GenAI path**: UWP inference is entirely under `#ifdef XLLAMA_USE_ORT` in `src/bridge/inference.cpp`. ORT types are wrapped in `include/xllama/ort_raii.h`. Linux path (`#else`) uses llama.cpp unchanged.
 
-- **No model in the MSIX**: the package is ~19 MB and ships no model. On first launch the app downloads the default chat model (`lfm25-350m` on unified builds; `smollm2-360m-cpu-int4` on ORT-only) from the GitHub Release `models-v1` catalogue (`uwp/models/manifest.json`) into `LocalState\models\`. Routing GPU (`smollm2-360m-dml-fp16`) is also on `models-v1`. Console validation: `./scripts/validate-console.sh all` (measured ALL PASS 2026-07-14).
+- **No model in the MSIX**: the package is ~19 MB and ships no model. On first launch the app downloads the default chat model (`lfm25-350m` on unified builds; `smollm2-360m-cpu-int4` on ORT-only) from the GitHub Release `models-v1` catalogue (`uwp/models/manifest.json`) into `LocalState\models\`. Routing GPU (`smollm2-360m-dml-fp16`) is also on `models-v1` but is not auto-provisioned while #91 holds. Current console gate: `./scripts/validate-console.sh all`.
 
 - **Shipping CI**: `build-uwp.yml` publishes `xllama-appx` as **unified + PatchedGenAI #2280 + PatchedOrt** (cached `onnxruntime.dll` + `onnxruntime-genai.dll` from `vendor-dlls-v1`; hashes in `vendor/onnxruntime-patched/SHA256SUMS` and `vendor/onnxruntime-genai-patched/SHA256SUMS`). `llamacpp` lane is bench-only. Rebuild from source only for pin refresh: `build-uwp-ort-patched.yml` (ORT, 1–3 h) / `build-uwp-patched.yml` (GenAI). Poll whether pins can drop: `scripts/check-vendor-nuget-status.sh`.
 

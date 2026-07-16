@@ -16,8 +16,13 @@ const char* training_stage_name(TrainStage stage);
 const char* training_method_name(TrainMethod method);
 const char* training_device_name(TrainDevice device);
 
-// Host = true; Device = false until an on-console backend is implemented.
+// Host = true; Device = false until a Device* capability becomes available.
 bool training_device_supported(TrainDevice device);
+
+// Static capability table (RE inventory). *out points to static storage.
+size_t training_capabilities(const TrainingCapabilityInfo** out);
+bool training_capability_available(TrainingCapability c);
+const TrainingCapabilityInfo* training_capability_info(TrainingCapability c);
 
 // Pure validation: required fields, ranges, device/method exploration gates.
 // On failure sets *err and returns false.

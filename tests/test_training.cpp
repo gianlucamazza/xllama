@@ -129,3 +129,45 @@ TEST_CASE("format_training_job_summary includes name and method") {
     CHECK(s.find("lora_peft") != std::string::npos);
     CHECK(s.find("host") != std::string::npos);
 }
+
+TEST_CASE("training_capabilities table is non-empty and consistent") {
+    const TrainingCapabilityInfo* caps = nullptr;
+    const size_t n = training_capabilities(&caps);
+    REQUIRE(n >= 7);
+    REQUIRE(caps != nullptr);
+    for (size_t i = 0; i < n; ++i) {
+        CHECK(caps[i].name != nullptr);
+        CHECK(caps[i].name[0] != '\0');
+        CHECK(caps[i].status != nullptr);
+        CHECK(caps[i].reason != nullptr);
+        // available implies status "available"
+        if (caps[i].available)
+            CHECK(std::string(caps[i].status) == "available");
+        else
+            CHECK(std::string(caps[i].status) != "available");
+    }
+}
+
+TEST_CASE("training_capability_available: host PEFT yes, device FT no") {
+    CHECK(training_capability_available(TrainingCapability::HostPeftLora));
+    CHECK(training_capability_available(TrainingCapability::HostMergeGguf));
+    CHECK_FALSE(training_capability_available(TrainingCapability::DeviceLlamaFinetune));
+    CHECK_FALSE(training_capability_available(TrainingCapability::DeviceOrtOnDeviceTraining));
+    CHECK_FALSE(training_capability_available(TrainingCapability::RuntimeLoraLoadLlama));
+}
+
+TEST_CASE("training_capability_info returns RE reasons") {
+    const auto* peft = training_capability_info(TrainingCapability::HostPeftLora);
+    REQUIRE(peft != nullptr);
+    CHECK(peft->available);
+    CHECK(std::string(peft->status) == "available");
+
+    const auto* dml = training_capability_info(TrainingCapability::RuntimeAdapterLoadOrtGenAI);
+    REQUIRE(dml != nullptr);
+    CHECK_FALSE(dml->available);
+    CHECK(std::string(dml->reason).find("DML") != std::string::npos);
+
+    const auto* ft = training_capability_info(TrainingCapability::DeviceLlamaFinetune);
+    REQUIRE(ft != nullptr);
+    CHECK(std::string(ft->status) == "rejected");
+}
