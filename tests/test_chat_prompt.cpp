@@ -188,10 +188,8 @@ TEST_CASE("render_delta for chatml, gemma, llama3, phi3 and prev_ended_with_stop
 
     // Phi-3: stop is a prefix of turn_close ("<|end|>" vs "<|end|>\n") → post-stop glue "\n".
     const ChatFormat ph = chat_format_for("phi35-mini");
-    CHECK(ph.render_delta("q", /*stop=*/true) ==
-          "\n<|user|>\nq<|end|>\n<|assistant|>\n");
-    CHECK(ph.render_delta("q", /*stop=*/false) ==
-          "<|end|>\n<|user|>\nq<|end|>\n<|assistant|>\n");
+    CHECK(ph.render_delta("q", /*stop=*/true) == "\n<|user|>\nq<|end|>\n<|assistant|>\n");
+    CHECK(ph.render_delta("q", /*stop=*/false) == "<|end|>\n<|user|>\nq<|end|>\n<|assistant|>\n");
 }
 
 TEST_CASE("phi3 render matches Microsoft instruct layout") {

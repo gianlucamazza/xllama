@@ -135,8 +135,8 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
             HttpResponseMessage resp{nullptr};
             last_err.clear();
             try {
-                resp =
-                    co_await client.SendRequestAsync(req, HttpCompletionOption::ResponseHeadersRead);
+                resp = co_await client.SendRequestAsync(req,
+                                                        HttpCompletionOption::ResponseHeadersRead);
             } catch (...) {
                 last_err = L"Network error downloading " + f.filename;
                 if (attempt < kMaxAttempts)
@@ -166,12 +166,12 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                 std::wstring leaf = f.filename;
                 size_t sep;
                 while ((sep = leaf.find_first_of(L"/\\")) != std::wstring::npos) {
-                    folder = co_await folder.CreateFolderAsync(winrt::hstring(leaf.substr(0, sep)),
-                                                               CreationCollisionOption::OpenIfExists);
+                    folder = co_await folder.CreateFolderAsync(
+                        winrt::hstring(leaf.substr(0, sep)), CreationCollisionOption::OpenIfExists);
                     leaf = leaf.substr(sep + 1);
                 }
-                out_file = co_await folder.CreateFileAsync(winrt::hstring(leaf),
-                                                           CreationCollisionOption::ReplaceExisting);
+                out_file = co_await folder.CreateFileAsync(
+                    winrt::hstring(leaf), CreationCollisionOption::ReplaceExisting);
             } catch (...) {
                 last_err = L"Cannot create file " + f.filename + L" in " + local_dir;
                 co_await resume_foreground(dispatcher);
@@ -200,7 +200,7 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                 IBuffer read_buf{nullptr};
                 try {
                     read_buf = co_await content_stream.ReadAsync(buf, kBufSize,
-                                                                InputStreamOptions::Partial);
+                                                                 InputStreamOptions::Partial);
                 } catch (...) {
                     last_err = L"Read error on " + f.filename;
                     read_failed = true;
