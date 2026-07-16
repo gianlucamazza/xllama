@@ -79,6 +79,7 @@ and llama.cpp (GGUF, CPU).
 | SmolLM2-1.7B-Instruct INT4 CPU | 1.4 GB           | ✅ in-app (`models-v1` catalogue)       | —                                                | Console: 20.6 tok/s decode, peak 2423 MB (`phase35-1b-cpu.csv`); also USB/LocalState                      |
 | Phi-3.5-mini INT4 CPU          | ~2.7 GB          | ❌ Disk budget                          | —                                                | Not attempted                                                                                             |
 | Phi-3.5-mini GPU INT4 AWQ      | ~2.2 GB          | —                                       | ❌ GPU OOM + disk                                | Not viable                                                                                                |
+| Phi-3.5-mini Q3_K_S (GGUF)     | 1.68 GB          | ✅ H4 A/B (11.3 tok/s, 2453 MB)         | —                                                | Loses speed+RAM vs Llama-3.2-3B Q3; **not** catalogue (`phase7-scale.csv`)                                |
 
 ## Candidates evaluated (HF Hub file sizes, 2026-07-02)
 

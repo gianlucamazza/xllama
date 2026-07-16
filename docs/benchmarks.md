@@ -36,6 +36,7 @@ Best measured decode configuration per model.
 | SmolLM2-1.7B | 1.7B   | int4   | ORT-GenAI CPU         |          54.9 |         20.6 |        2423 | `phase35-1b-cpu`            |
 | SmolLM2-360M | 360M   | int4   | ORT DML int4          |       152–334 |          8.8 |    999–1525 | `phase2-dml`                |
 | Llama-3.2-3B | 3B     | Q3_K_S | llama.cpp CPU · t6    |          19.5 |     **14.2** |        1824 | `phase7-scale`              |
+| Phi-3.5-mini | 3.8B   | Q3_K_S | llama.cpp CPU · t6    |          15.3 |         11.3 |        2453 | `phase7-scale`              |
 
 Notes:
 
@@ -43,6 +44,12 @@ Notes:
   1824 MB peak — similar speed to Gemma-4-E2B Q3 (15.3) with ~900 MB less RAM.
   Catalogue id **`llama32-3b`** (HF direct, optional advanced; default stays
   LFM). See [phase7-hypotheses.md](phase7-hypotheses.md).
+- **Phi-3.5-mini Q3_K_S** (Phase 7 H4 A/B, 2026-07-16): **11.3 tok/s** / 2453 MB
+  peak — clears H4 gates (≥8 tok/s, &lt;3.5 GB) but loses to Llama on both speed
+  and RAM (~3.8B vs 3B). **Not** in the shipping catalogue. Harness quant label
+  was historically hardcoded `Q4_K_M` (now derived from the GGUF filename).
+  Campaign headless used ChatML; Phi-3 template (`ChatFormatKind::Phi3`) landed
+  after the run — tok/s/RAM still valid.
 
 
 - **LFM2.5-350M** is the fastest chat model and the lightest (321 MB RAM) — the

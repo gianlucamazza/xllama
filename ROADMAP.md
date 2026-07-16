@@ -410,7 +410,11 @@ AppContainer limits. Plan: [`docs/phase7-hypotheses.md`](docs/phase7-hypotheses.
 - [x] **Catalogue `llama32-3b`** — HF unsloth Q3_K_S + Llama-3 chat template
       (`ChatFormatKind::Llama3`). Optional advanced picker entry; default remains
       `lfm25-350m`. Console in-app download smoke still recommended on first CI package.
+- [x] **Phi-3.5-mini Q3_K_S A/B** (2026-07-16) — bartowski GGUF on console:
+      decode **11.31 tok/s**, prefill 15.3, peak **2453 MB**, load ~24 s
+      (`phase7-scale.csv`). H4 gates PASS; **loses speed+RAM vs Llama** → no
+      catalogue entry. Quality/human A/B deferred (needs Phi-3 chat template).
 - [ ] H1 shortlist (larger LFM / hybrid) + H9 human task suite
-- [ ] Optional Phi-3.5-mini A/B vs Llama-3.2-3B (quality head-to-head)
+      (LFM vs E2B vs Llama-3.2-3B; Phi only after Phi-3 template)
 - [ ] H2 MoE candidate only if &lt;~3.5 GB GGUF with arch in pin
 - [ ] H3 speculative decoding spike (eng) — only if H9 says 3B still short of peer 7B
