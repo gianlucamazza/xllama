@@ -36,8 +36,8 @@ curl -sS \
     -u "$XBOX_USER:$XBOX_PASS" \
     -k \
     -X POST \
-    -F "file=@xllama_0.1.0.0_x64.msix;type=application/octet-stream" \
-    "https://$XBOX_IP:11443/api/app/packagemanager/package?package=xllama_0.1.0.0_x64.msix"
+    -F "file=@xllama_X.Y.Z.R_x64.msix;type=application/octet-stream" \
+    "https://$XBOX_IP:11443/api/app/packagemanager/package?package=xllama_X.Y.Z.R_x64.msix"
 ```
 
 Use `./scripts/deploy.sh` which wraps this call and polls installation status.
@@ -56,7 +56,9 @@ curl -sS --basic -u "$XBOX_USER:$XBOX_PASS" -k \
 
 The standard flow needs no upload: the app downloads catalogue models on first use (`uwp/models/manifest.json` → `models-v1` GitHub Release). Use this only for provisioning models that have no download URL, or for development swaps.
 
-Models are ONNX GenAI **directories** (not single files). Upload each file in the directory:
+Catalogue models use a directory under `LocalState\models\<name>`. ORT GenAI
+entries contain `genai_config.json`, ONNX weights and tokenizer files; GGUF
+entries contain the selected `.gguf` file. Upload the complete directory:
 
 ```bash
 source ~/.config/xllama/xbox-env
@@ -72,12 +74,15 @@ Or upload individual files:
 curl -sS --basic -u "$XBOX_USER:$XBOX_PASS" -k \
     -X POST \
     -F "file=@genai_config.json;type=application/octet-stream" \
-    "https://$XBOX_IP:11443/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=VenereLabs.xllama_0.1.0.0_x64__<token>&path=\\LocalState\\models\\my-model-name"
+    "https://$XBOX_IP:11443/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=$(./scripts/deploy.sh pfn)&path=\\LocalState\\models\\my-model-name"
 ```
 
 Replace `<token>` with the package publisher token (visible in the installed packages list).
 
-**Important**: `OgaCreateModel` receives the **directory path** (containing `genai_config.json`), not a path to `model.onnx`. The directory name is what `model.txt` or the hardcoded default refers to.
+**Important**: ORT receives the directory containing `genai_config.json`; the
+llama.cpp backend resolves the GGUF inside its catalogue directory. Select
+models by catalogue id through the UI/settings rather than relying on a
+hardcoded filename.
 
 ## REST API: Installing the test certificate
 
@@ -100,7 +105,7 @@ curl -sS \
 `ApplicationData.LocalFolder` maps to `LocalState/` in the app's data folder. Use the `filename` parameter (lowercase) to read individual files:
 
 ```bash
-PFN="VenereLabs.xllama_0.1.0.0_x64__<token>"
+PFN=$(./scripts/deploy.sh pfn)
 
 # Read xllama.log
 curl -sS --basic -u "$XBOX_USER:$XBOX_PASS" -k \

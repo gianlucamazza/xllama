@@ -65,9 +65,13 @@ source ~/.config/xllama/xbox-env           # sets XBOX_IP, XBOX_USER, XBOX_PASS
 
 On first launch the app **downloads** the default chat model (**LFM2.5-350M** on unified builds, ~219 MB) from the [`models-v1` GitHub Release](https://github.com/gianlucamazza/xllama/releases/tag/models-v1) with a progress bar, then starts the chat UI. No model is bundled in the MSIX. Other catalogue models (SmolLM2 CPU/GPU, Qwen3.5, Gemma, SD-Turbo) download on demand from `models-v1` or Hugging Face.
 
-> `install-latest-build.sh` uploads `bench.flag` after deploy (headless bench on next launch). Delete `LocalState\bench.flag` before UI or autopilot validation if you did not intend bench mode.
+> `install-latest-build.sh --bench` uploads `bench.flag` for a headless benchmark.
+> The default install launches the normal UI.
 
-See [docs/install-release.md](./docs/install-release.md) to install a tagged release (cert + VCLibs + MSIX), [docs/using-the-app.md](./docs/using-the-app.md) for the app guide (chat, settings, image generation), and [docs/phase1-runbook.md](./docs/phase1-runbook.md) for the developer workflow.
+See [docs/install-release.md](./docs/install-release.md) to install a tagged
+release, [docs/using-the-app.md](./docs/using-the-app.md) for the app guide, and
+[docs/device-portal.md](./docs/device-portal.md) plus
+[bench/README.md](./bench/README.md) for the developer workflow.
 
 ---
 
@@ -190,7 +194,7 @@ xllama/
 ├── tests/                  # unit tests (doctest, incl. diffusion golden vectors)
 ├── bench/                  # benchmark configs, raw results + comparison policy
 ├── diffusion/              # SD-Turbo export/convert/validate toolchain (host)
-├── patches/                # llama.cpp AppContainer guards (bench-only variant)
+├── patches/                # AppContainer/runtime patches used by UWP builds
 ├── docs/                   # technical notes
 ├── cmake/                  # toolchain files
 └── .github/workflows/      # CI: build-linux + build-uwp (default + llamacpp)
@@ -221,13 +225,17 @@ ctest --test-dir build/linux-test --output-on-failure
 
 ### Build for Xbox (Windows / CI)
 
-The UWP package requires MSVC and the Windows SDK. Recommended path: push to `main` and download the `xllama-appx` artifact from the `build-uwp` GitHub Actions workflow. CI also builds `xllama-appx-llamacpp` — a **bench-only** variant with the static ggml/llama.cpp CPU text backend (`-Backend llamacpp`, `patches/`), kept for A/B benchmarking; measured decode parity with ORT, so ORT GenAI remains the shipping backend.
+The UWP package requires MSVC and the Windows SDK. The shipping `xllama-appx`
+artifact from `build-uwp.yml` is **unified**: ORT GenAI and llama.cpp coexist and
+the catalogue selects the backend per model. CI also builds
+`xllama-appx-llamacpp`, a bench-only llama.cpp lane.
 
 For local builds from a Windows VM, see [docs/windows-dev-vm.md](./docs/windows-dev-vm.md):
 
 ```powershell
-.\scripts\build-uwp.ps1 -Configuration Release -Platform x64            # default (ORT GenAI)
-.\scripts\build-uwp.ps1 -Configuration Release -Platform x64 -Backend llamacpp  # bench-only
+.\scripts\build-uwp.ps1 -Configuration Release -Platform x64 -Backend unified  # shipping shape
+.\scripts\build-uwp.ps1 -Configuration Release -Platform x64                   # ORT-only local build
+.\scripts\build-uwp.ps1 -Configuration Release -Platform x64 -Backend llamacpp # bench-only
 ```
 
 ### Deploy to console
@@ -237,7 +245,11 @@ source ~/.config/xllama/xbox-env   # sets XBOX_IP, XBOX_USER, XBOX_PASS
 ./scripts/deploy.sh path/to/xllama_*.msix
 ```
 
-No model upload is required: the app downloads the default model on first launch from the GitHub Release catalogue. See [docs/install-release.md](./docs/install-release.md) (release install) and [docs/phase1-runbook.md](./docs/phase1-runbook.md) (developer workflow).
+No model upload is required: the app downloads the default model on first launch
+from the GitHub Release catalogue. See
+[docs/install-release.md](./docs/install-release.md) for release installation and
+[docs/console-validation-runbook.md](./docs/console-validation-runbook.md) for
+the current developer gates.
 
 ---
 
@@ -289,9 +301,12 @@ See [ROADMAP.md](./ROADMAP.md). Headlines:
 1. **Phase 1 — CPU baseline** ✅ Working UWP, ORT GenAI, CI green.
 2. **Phase 2 — GPU acceleration** ✅ GPU proven; verdict per-workload (CPU decode, GPU prefill/images).
 3. **Phase 3 / 3.5 — Benchmarks + hardware ceiling** ✅ Measured matrices, routing, KV reuse, llama.cpp A/B (parity), diffusion on console.
-4. **Phase 4 — In-app model download + publication** ✅ Catalogue download, v1.0.0 release, technical report (demo video still open — Phase 6).
+4. **Phase 4 — In-app model download + publication** ✅ Catalogue download, release and technical report.
 5. **Phase 5 — Post-1.0 improvements** ✅ Unified+PatchedGenAI shipping; console gates ALL PASS.
-6. **Phase 6 — Publication + polish** 🔮 Patched ORT + LFM default shipping (1.1.8); technical report published as [Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76). Still open: demo video (see [ROADMAP.md](./ROADMAP.md)).
+6. **Phase 6 — Publication + polish** ✅ Patched runtimes, LFM default,
+   v1.2.0 release and [published demo](https://github.com/gianlucamazza/xllama/releases/download/v1.2.0.0/xllama-demo-v1.2.0.mp4).
+7. **Phase 7/8 — Research** 🔮 peer-class models and the host training pillar;
+   see [ROADMAP.md](./ROADMAP.md).
 
 ---
 

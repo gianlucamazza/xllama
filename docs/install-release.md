@@ -1,7 +1,7 @@
 # Install a release build on your Xbox
 
 How to install a tagged xllama release (e.g.
-[v1.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.0.0)) on an
+[v1.2.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.2.0.0)) on an
 Xbox Series S|X in Dev Mode, from a Linux/macOS host. For building from source
 see the [README](../README.md#build); for Dev Mode activation and Device
 Portal basics see [device-portal.md](./device-portal.md).

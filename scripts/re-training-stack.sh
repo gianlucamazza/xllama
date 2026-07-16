@@ -43,7 +43,11 @@ if [[ -z "${GENAI_DLL}" ]]; then
 fi
 if [[ -n "${GENAI_DLL}" && -f "${GENAI_DLL}" ]]; then
   echo "DLL: ${GENAI_DLL}"
-  strings "${GENAI_DLL}" | rg -i 'Oga(Create|Load|Set|Unload)Adapter|No adapter is available for DML|TrainingSession|OrtTraining' | sort -u | head -40
+  strings "${GENAI_DLL}" \
+    | rg -i 'Oga(Create|Load|Set|Unload)Adapter|No adapter is available for DML|TrainingSession|OrtTraining' \
+    | sort -u \
+    | head -40 \
+    || true
 else
   echo "no onnxruntime-genai.dll found (set GENAI_DLL=... to probe)"
 fi

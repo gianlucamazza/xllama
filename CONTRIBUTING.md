@@ -34,8 +34,9 @@ shellcheck scripts/*.sh   # if you touched shell
 
 - **UWP code compiles only on the Windows CI** (`build-uwp`) — you usually can't
   build `uwp/` locally on Linux. Say so in the PR if you couldn't.
-- **Inference backends**: ORT GenAI (Xbox default) and llama.cpp (Linux + GGUF).
-  UWP inference lives under `#ifdef XLLAMA_USE_ORT`; keep the Linux path building.
+- **Inference backends**: the shipping Xbox artifact is unified (ORT GenAI +
+  llama.cpp); Linux uses llama.cpp. UWP ORT code remains under
+  `#ifdef XLLAMA_USE_ORT`; keep both unified dispatch and Linux builds working.
 - **Adding a model**: usually just a `uwp/models/manifest.json` entry — check the
   size/RAM/per-file limits in [`docs/model-selection.md`](docs/model-selection.md).
 - **Publishing ORT model assets**: every asset must pass the logit-parity gate

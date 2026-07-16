@@ -58,7 +58,8 @@ Generation shows live tok/s; **■ Cancel** stops a running reply.
 
 **Note for GGUF models** (`kind: "gguf"` in the catalogue): **KV-cache reuse
 works** (the llama.cpp path keeps a persistent context and appends only the new
-turn's delta — turn-2 prefill ~4× faster, see [benchmarks.md](benchmarks.md)).
+turn's delta — measured turn-2 prefill ranges from 4.07× to 20.02× by model; see
+[benchmarks.md](benchmarks.md)).
 Only **EP routing** is disabled (greyed out): the llama.cpp UWP build is
 CPU-only, so there is no GPU model to route to.
 

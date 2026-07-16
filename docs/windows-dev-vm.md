@@ -72,7 +72,8 @@ git submodule update --init --recursive
 The build script:
 
 1. Restores NuGet packages (`nuget restore`).
-2. Builds with MSBuild (`-Backend llamacpp` selects the bench-only ggml/llama.cpp text backend; the default is ORT GenAI).
+2. Builds with MSBuild (`-Backend unified` matches the shipping artifact;
+   `llamacpp` is the bench-only lane and the script default is an ORT-only local build).
 3. Signs the package with the test certificate.
 
 No model is packaged: distribution artifacts are prepared separately and must be self-contained (`scripts/merge_onnx_external_data.py`, `docs/uwp-constraints.md §8`).
@@ -116,4 +117,5 @@ curl --basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS \
      "https://${XBOX_IP}:11443/api/debug/dump/usermode/dumps"
 ```
 
-See `docs/phase1-runbook.md §8a` for full minidump analysis instructions.
+Use `./scripts/deploy.sh diagnose-startup` for process state, logs and minidumps;
+Device Portal details are in `docs/device-portal.md`.

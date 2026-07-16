@@ -62,49 +62,33 @@ and llama.cpp (GGUF, CPU).
    ./scripts/deploy.sh get-log
    ```
 
-   If `OgaCreateModel failed` appears, see `phase1-runbook.md §8` for diagnosis.
+   If model creation fails, use `deploy.sh diagnose-startup` and the current
+   troubleshooting guidance in `device-portal.md`.
 
 7. Benchmark and compare against the current baseline:
    ```bash
    ./scripts/bench-xbox-ort.sh <model-name> --runs 3 --out bench/results/phase1-cpu.csv
    ```
-   Results land in `bench/results/phase1-cpu.csv`.
+   Store results in a campaign-specific CSV under `bench/results/`; do not append
+   unrelated models to the historical Phase 1 file.
 
 ## Reference: tested models
 
 | Model                          | On-disk (merged) | CPU EP                                  | DirectML EP                                      | Notes                                                                                                                                 |
 | ------------------------------ | ---------------- | --------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| SmolLM2-360M-Instruct INT4 CPU | 417 MB           | ✅ Active baseline (66.3 tok/s, 0.14.1) | ❌ `80070057` (CPU-int4 graph in DML fused node) | Default; downloaded from the `models-v1` Release catalogue                                                                            |
+| SmolLM2-360M-Instruct INT4 CPU | 417 MB           | ✅ ORT baseline (66.3 tok/s, 0.14.1)   | ❌ `80070057` (CPU-int4 graph in DML fused node) | ORT-only default; downloaded from the `models-v1` Release catalogue                                                                   |
 | SmolLM2-360M-Instruct INT4 DML | 285 MB           | —                                       | ⚠️ **8.8 tok/s** but wrong logits (#91)          | Built with ORT GenAI model builder (`-p int4 -e dml`); CPU ~8× faster — and DML text output is numerically wrong on this device (#91) |
 | SmolLM2-1.7B-Instruct INT4 CPU | 1.4 GB           | ✅ in-app (`models-v1` catalogue)       | —                                                | Console: 20.6 tok/s decode, peak 2423 MB (`phase35-1b-cpu.csv`); also USB/LocalState                                                  |
-| Phi-3.5-mini INT4 CPU          | ~2.7 GB          | ❌ Disk budget                          | —                                                | Not attempted                                                                                                                         |
-| Phi-3.5-mini GPU INT4 AWQ      | ~2.2 GB          | —                                       | ❌ GPU OOM + disk                                | Not viable                                                                                                                            |
 | Phi-3.5-mini Q3_K_S (GGUF)     | 1.68 GB          | ✅ H4 A/B (11.3 tok/s, 2453 MB)         | —                                                | Loses speed+RAM vs Llama-3.2-3B Q3; **not** catalogue (`phase7-scale.csv`)                                                            |
 
-## Candidates evaluated (HF Hub file sizes, 2026-07-02)
+## Historical ONNX candidate survey
 
-Sizes below are the published `model.onnx.data` file sizes on Hugging Face
-(merged size adds the small `model.onnx` graph + tokenizer files, ~10–20 MB).
-
-- **Qwen2.5-0.5B INT4 ONNX CPU** — ❌ **ruled out**. Real size ~822 MB
-  (`cpu-int4-rtn-block-32` in `xiaoyao9184/Qwen2.5-0.5B-Instruct-onnx-genai` and
-  `hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu`; AMD's
-  int4-float16 variant is ~780 MB). The earlier ~200 MB estimate was wrong: the
-  151k-token vocab embedding dominates and is not INT4-quantized. Exceeds the
-  600 MB disk borderline (note: the "~768 MB GPU pool" cited at evaluation time
-  proved wrong — measured budget is 3801 MB; disk is the real constraint).
-- **Qwen2.5-0.5B INT4 AWQ DirectML** — ⚠️ borderline. `dml-int4-awq-block-128`
-  variant (same xiaoyao9184 repo) is ~507 MB: below the GPU pool on paper, but
-  KV cache + activations leave little headroom. Possible DML retry candidate
-  via USB/LocalState (not MSIX bundling).
-- **Llama-3.2-1B INT4 ONNX CPU** — ❌ ruled out for MSIX. Real size ~1.77 GB
-  (`onnx-community/Llama-3.2-1B-Instruct-GENAI-ONNX`
-  `cpu-int4-rtn-block-32-acc-level-4`; `patdev/Llama-3.2-1B-Instruct-int4-cpu-onnx`
-  identical; `aigdat` AWQ-uint4 ~1.66 GB). USB-only path, same class as
-  SmolLM2-1.7B (1.4 GB, 20.6 tok/s on console).
-- **Gemma-2-2B INT4 ONNX CPU**: estimated above 1 GB merged — unlikely to fit.
-
-Verify with `merge_onnx_external_data.py` output before committing to a build.
+The July 2 candidate survey used an early disk estimate that was later
+superseded by the measured 90 GB Dev Mode allocation and the patched external-
+data path. Its individual size-based rejections are not current selection
+policy. Historical details remain in Git history and `CHANGELOG.md`; evaluate
+new candidates against the measured limits in `uwp-constraints.md` and the
+sequence above.
 
 **External data >2 GB (un-mergeable) — unblocked for loading, but not for fp16-GPU
 (2026-07-15).** The 2 GB protobuf merge ceiling no longer blocks _loading_: the
@@ -222,7 +206,7 @@ the catalogue status only.
 
 | Model            | Path      | Disk size        | Status                                                             |
 | ---------------- | --------- | ---------------- | ------------------------------------------------------------------ |
-| Qwen3.5-0.8B     | llama.cpp | 507 MB           | ✅ `qwen35-0.8b` — modern default candidate                        |
+| Qwen3.5-0.8B     | llama.cpp | 507 MB           | ✅ `qwen35-0.8b` — optional modern GGUF                            |
 | LFM2.5-350M      | llama.cpp | 218 MB           | ✅ `lfm25-350m` — hybrid edge arch; default chat on unified builds |
 | LFM2.5-1.2B      | llama.cpp | 697 MB           | ✅ `lfm25-1.2b-instruct` — balanced; 37.9 tok/s, H9 6/8            |
 | LFM2-2.6B        | llama.cpp | 1.46 GB          | ✅ `lfm2-2.6b` — quality; 18.4 tok/s, H9 7/8                       |

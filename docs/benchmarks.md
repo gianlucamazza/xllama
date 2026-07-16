@@ -220,8 +220,9 @@ CPU's fused int8 MLAS (`=4`, → 70). A DirectML-team feature; not fixable in-ap
 
 Autoregressive decode (M=1) is memory-bound and dominated by per-token DML
 dispatch overhead at this model scale; CPU `MatMulNBits` on AVX2 wins
-(ROADMAP Phase 2 / `uwp-constraints.md §7`). GPU's win is **prefill** (353 vs
-198 tok/s at ~1k tokens), which is exactly what routing uses it for.
+(historical Phase 2 / `uwp-constraints.md §7`). GPU's win is **prefill** (353 vs
+198 tok/s at ~1k tokens), which motivated the routing experiment. Text routing
+is currently disabled by #91; the throughput result remains valid evidence.
 
 ### fp16 >2 GB external data — loads, but 1B fp16 OOMs GPU inference (2026-07-15)
 

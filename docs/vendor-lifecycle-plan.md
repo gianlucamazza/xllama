@@ -1,143 +1,48 @@
-# Piano di risoluzione — vendor lifecycle e backlog residuo
+# Vendor runtime lifecycle
 
-**Data:** 2026-07-17 (currency su 1.2.0 + #91)  
-**Stato:** dual pin shipping (GenAI + ORT); docs allineati
-([`project-analysis-2026-07.md`](project-analysis-2026-07.md) currency
-2026-07-17); issue SSOT aperte. Questo piano chiude i restanti punti
-**operativi** (non riscrittura di scienza già closed-negative).
+Active removal conditions for the two patched runtime DLLs shipped by the
+unified UWP package. Completed release and demo work belongs in `CHANGELOG.md`.
 
----
+## Current pins
 
-## 0. Cosa è già chiuso
+| Runtime | NuGet pin | Local overlay | Tracker | Drop condition |
+| --- | --- | --- | --- | --- |
+| ORT GenAI DirectML | 0.14.1 | `vendor/onnxruntime-genai-patched/` | xllama #84 | A NuGet release includes GenAI #2280 |
+| ORT DirectML | 1.24.4 | `vendor/onnxruntime-patched/` | xllama #85/#86 | Required AppContainer fixes reach NuGet |
 
-| Item | Evidenza |
-| --- | --- |
-| PatchedOrt in shipping MSIX | 1.1.8.0+ + `vendor-dlls-v1` + `SHA256SUMS` |
-| PatchedGenAI hash-pin (no rebuild per PR) | `build-uwp.yml` + GenAI `SHA256SUMS` |
-| #2280 upstream merged | microsoft/onnxruntime-genai#2280 (gap is NuGet-only) |
-| weakly_canonical su ORT `main` | microsoft/onnxruntime#28509 (non in NuGet 1.24.4) |
-| Docs drift D1–D13 | currency pass 2026-07-17 in `project-analysis-2026-07.md` |
-| DML text routing gated (#91) | `kDmlTextLogitsBroken`; #95/#98/#100 no gpu_model auto-provision |
-| Console FULL PASS 1.2.0.x | `1.2.0.534` (2026-07-16): routing gate, GGUF, TAESD, LAN API |
-| Issue tracker SSOT | xllama #84, #85, #86, #91; ORT #29730 / #29739 |
+`build-uwp.yml` verifies hashes and fails closed if a required cached DLL is
+missing. Source rebuild workflows are maintenance lanes, not normal shipping
+builds.
 
----
+## Active upstream work
 
-## 1. Tracci e owner
+- **GenAI #2280:** merged upstream; still absent from NuGet 0.14.1. Keep
+  PatchedGenAI until the package version changes and the XAML + DirectML device
+  creation smoke passes.
+- **ORT #28509:** AppContainer canonical-path fix merged upstream; still absent
+  from ORT 1.24.4.
+- **ORT #29732:** 16 MB `ReadFileIntoBuffer` chunk remains the second PatchedOrt
+  requirement.
+- **GenAI #2300 / ORT #29739:** tooling and driver investigation for wrong Xbox
+  DML text logits. These do not change the #91 product gate by themselves.
 
-```mermaid
-flowchart LR
-  subgraph active [Azione attiva]
-    A2[Watch NuGet GenAI]
-    A3[ORT #29730 / PR ReadFile]
-    A4[Hold #91 gate]
-  end
-  subgraph optional [Opzionale]
-    B1[Catalogue >2GB extdata]
-    B2[Bump ORT oltre 1.24.4]
-  end
-  subgraph done [Chiuso]
-    C0[Release v1.2.0.0]
-    C1[Dual pin CI]
-    C2[Docs currency 1.2.0]
-    C3[Gate gpu_model under #91]
-    C4[Demo video]
-  end
-  A2 -->|NuGet post-2280| DropGenAI[Drop -PatchedGenAI]
-  A3 -->|merged + NuGet| DropOrt[Drop -PatchedOrt]
-  B2 --> DropOrt
-  A4 -->|parity PASS + driver fix| DmlText[Re-enable DML text]
+## Refresh procedure
+
+```bash
+./scripts/check-vendor-nuget-status.sh
 ```
 
-| ID | Obiettivo | Issue | Priorità | Effort | Dipendenze |
-| --- | --- | --- | --- | --- | --- |
-| **R0** | Publish GitHub Release **v1.2.0.0** | ops | **done** 2026-07-16 | S | [v1.2.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.2.0.0) (`1.2.0.536` + cert + VCLibs) |
-| **R1** | Demo video (clip ~74 s) | ROADMAP Phase 6 | **done** 2026-07-17 | S | [mp4 on v1.2.0.0](https://github.com/gianlucamazza/xllama/releases/download/v1.2.0.0/xllama-demo-v1.2.0.mp4); `scripts/capture-demo-video.sh` |
-| **R2** | Drop `-PatchedGenAI` | [#84](https://github.com/gianlucamazza/xllama/issues/84) | **blocked** NuGet | S | Poll: `scripts/check-vendor-nuget-status.sh` |
-| **R3** | Upstream ReadFile 16 MB | [#86](https://github.com/gianlucamazza/xllama/issues/86) | **PR open** | M | [ORT #29732](https://github.com/microsoft/onnxruntime/pull/29732) |
-| **R4** | Drop `-PatchedOrt` | [#85](https://github.com/gianlucamazza/xllama/issues/85) | **blocked** NuGet | S | Merge #29732 + NuGet con #28509 |
-| **R5** | Catalogue entry >2 GB int4 extdata | ROADMAP optional | **deferred** | M | License; USB/LocalState already validates PatchedOrt |
-| **R6** | Vendor pin refresh ops | #85 | **done tooling** | S | Dual pin + poll script + fail-closed GenAI |
-| **R7** | DML graph-capture opt-out upstream | tooling for #91 | **PR open** | S | [GenAI #2300](https://github.com/microsoft/onnxruntime-genai/pull/2300); driver track [ORT #29739](https://github.com/microsoft/onnxruntime/issues/29739) |
-| **R8** | Hold DML text gate until parity PASS | [#91](https://github.com/gianlucamazza/xllama/issues/91) | **P0** process | — | `kDmlTextLogitsBroken`; re-enable only via `validate-logit-parity.sh` |
+When a newer package appears:
 
----
+1. update one pin at a time;
+2. build without the corresponding overlay;
+3. run host/CI tests;
+4. validate XAML startup, external-data loading and the full console suite;
+5. remove the patch, cached DLL, hash and special build flag in the same change.
 
-## 2. Sequenza consigliata
+## Invariants
 
-### Fase A — Product close
-
-1. ~~**Publish v1.2.0.0 (R0)**~~ — **done** 2026-07-16
-   ([release](https://github.com/gianlucamazza/xllama/releases/tag/v1.2.0.0)).
-2. ~~**Demo video (R1)**~~ — **done** 2026-07-17
-   ([mp4](https://github.com/gianlucamazza/xllama/releases/download/v1.2.0.0/xllama-demo-v1.2.0.mp4),
-   `scripts/capture-demo-video.sh`). Phase 6 product complete.
-
-### Fase B — Watch & drop GenAI (event-driven)
-
-3. **Monitor NuGet GenAI (R2)**
-   - Trigger: `Microsoft.ML.OnnxRuntimeGenAI.DirectML` with #2280.
-   - Checklist issue #84 → drop pin → smoke XAML + DML *device create* (not text logits).
-
-### Fase C — ORT path (parallelo)
-
-4. **PR ORT #29732 (R3)** → merge → NuGet → **Drop PatchedOrt (R4)**.
-5. **Non** reimplementare weakly_canonical (già #28509 su main).
-
-### Fase D — DML text (blocked on driver)
-
-6. **Hold gate (R8)** until on-device parity PASS.
-7. GenAI #2300 (R7) is tooling only — does **not** alone re-enable text.
-
-### Fase E — Opzionale / pin refresh
-
-8. Catalogue >2 GB extdata (R5) — deferred.
-9. Pin refresh (R6) — never change hash without console re-validate.
-
----
-
-## 3. Criteri di “done” per i pin
-
-| Pin | Done quando | Verifica console |
-| --- | --- | --- |
-| GenAI | NuGet stock passa XAML + DML `OgaCreateModel` senza `887A0036` | Model load (text routing still gated by #91) |
-| ORT | NuGet stock carica `.onnx.data` grande senza weakly_canonical crash e senza errcode 1450 | 2–3 restart load+generate |
-| DML text (#91) | `validate-logit-parity.sh` PASS on DML text model | Then flip `kDmlTextLogitsBroken` + re-enable provision |
-
----
-
-## 4. Cosa **non** riaprire
-
-Già closed-negative con evidenza — non investire:
-
-- DML int4 decode competitivo (§12)
-- ≥1B fp16 GPU inference (budget wall §7)
-- AppContainer mmap per GGUF load
-- USB spike per bypass weakly_canonical
-- Phi-3.5-mini catalogue (measured slower + heavier than Llama-3.2-3B)
-- Re-enable DML text “to try” without parity harness
-
----
-
-## 5. Checklist operativa immediata
-
-- [x] Dual pin shipping + docs currency (1.1.8 → analysis 2026-07-17)
-- [x] PR ReadFile → [ORT #29732](https://github.com/microsoft/onnxruntime/pull/29732)
-- [x] `scripts/check-vendor-nuget-status.sh` + fail-closed GenAI install
-- [x] #91 gate + #95/#100 gpu_model skip (console verified 1.2.0.534)
-- [x] Project analysis currency pass 1.2.0 / #91
-- [x] **Publish GitHub Release v1.2.0.0** (R0 — Latest)
-- [x] **Demo video** (R1 — WDP screenshot + autopilot; ~74 s on release)
-- [ ] Poll: `./scripts/check-vendor-nuget-status.sh` + review ORT #29732 / GenAI #2300
-
----
-
-## 6. Riferimenti
-
-- ROADMAP Phase 6–7 open bullets
-- `docs/project-analysis-2026-07.md` (currency 2026-07-17)
-- `vendor/onnxruntime-genai-patched/`, `vendor/onnxruntime-patched/`
-- `patches/README.md`
-- `docs/uwp-constraints.md` §7–§8
-- Issues: [#84](https://github.com/gianlucamazza/xllama/issues/84), [#85](https://github.com/gianlucamazza/xllama/issues/85), [#86](https://github.com/gianlucamazza/xllama/issues/86), [#91](https://github.com/gianlucamazza/xllama/issues/91)
-- Upstream: [GenAI #2280](https://github.com/microsoft/onnxruntime-genai/pull/2280), [GenAI #2300](https://github.com/microsoft/onnxruntime-genai/pull/2300), [ORT #28509](https://github.com/microsoft/onnxruntime/pull/28509), [ORT #29730](https://github.com/microsoft/onnxruntime/issues/29730), [ORT #29739](https://github.com/microsoft/onnxruntime/issues/29739)
+- Never enable DML text because a DLL loads; require target-device logit parity.
+- Never remove PatchedOrt after only one of its two fixes ships.
+- Never silently fall back to an unverified runtime DLL.
+- Keep issue trackers, rather than this document, as the live status source.

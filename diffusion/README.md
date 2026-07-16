@@ -13,9 +13,9 @@ few-step diffusion model (SD-Turbo, 1 step) on the console GPU.
   ONNX and run through **ONNX Runtime (CPU EP)** generates a coherent 512×512
   image in ~13 s / 1 step. This is the exact artifact + runtime that runs on the
   Xbox via the DirectML EP — only the EP (and thus the speed) differs.
-- ✅ **Plain ORT DirectML foundation proven** by the image spike
-  (`uwp/image-spike.cpp`, PR #3): a compute-bound conv model compiles, links, and
-  runs through the DirectML EP in the UWP AppContainer.
+- ✅ **Plain ORT DirectML foundation proven** by the original image spike (PR
+  #3), then replaced by the shipping diffusion pipeline. The removed spike
+  source remains available in Git history.
 - ✅ **C++ pipeline built + host-validated (2026-07-08).** `uwp/diffuse.cpp` runs
   three ORT DirectML sessions (text_encoder → 1× UNet → VAE decode) behind the
   `diffuse.flag` headless mode. Its correctness-critical logic — the CLIP
@@ -25,14 +25,14 @@ few-step diffusion model (SD-Turbo, 1 step) on the console GPU.
   from this Python reference (`gen_golden_vectors.py`) in `tests/test_diffusion.cpp`
   (638 assertions, all green). The ORT DirectML orchestration is CI-compile-
   validated; runtime validation is on console per
-  `docs/console-validation-runbook.md §7`.
+  `docs/console-validation-runbook.md`.
 - ✅ **VALIDATED ON CONSOLE (2026-07-08, v0.4.2.0)**: SD-Turbo fp16 generates a
   coherent 512×512 image on the Xbox Series S GPU (DirectML) in **6.9 s** —
   text_encoder 1.0 s, UNet **3.3 s/step** (1 step), VAE 2.6 s
   (`bench/results/phase5-diffuse.csv`,
   `docs/screenshots/diffuse-sd-turbo-xbox.png`). Artifacts from
   `convert_fp16.py` (fp16 recipe below); procedure + hardware gotchas in
-  `docs/console-validation-runbook.md §7`.
+  `docs/console-validation-runbook.md`.
 
 ## Reproduce the export
 
@@ -109,12 +109,16 @@ model — SD-Turbo/SDXL-Turbo (1 step) or an LCM variant (2–4 steps) in fp16. 
 fp32 SD-Turbo path here is validated for quality; pair it with a clean fp16 UNet
 from source (1) or (2) for the console.
 
-## Deploy + run on console (planned)
+## Run on console
 
-Upload `sd-turbo-onnx-fp16/{text_encoder,unet,vae_decoder}` to LocalState, then a
-future `diffuse.flag` headless mode (mirroring `image.flag`) runs the C++
-pipeline and writes the PNG for Device Portal fetch. The pipeline is: CLIP-tokenize
-the prompt → text_encoder → init latent → (1×) UNet denoise with the scheduler →
-scale + vae_decoder → PNG. Model licensing note: SD-Turbo is under Stability's
-research/community license — for a public demo, swap to an openly-licensed
-few-step model (e.g. an LCM/SDXL-Turbo-Apache variant).
+The app downloads `sd-turbo-fp16` from the catalogue on the first image
+generation. In the live UI open `[*] Image`, keep one step for SD-Turbo, enter a
+prompt and select **Generate**. The in-process pipeline writes
+`diffuse-out.png`, `diffuse-result.csv` and progress state under `LocalState`.
+
+For automated WDP benchmarks, the retained `diffuse.flag` path consumes the
+same model and implementation without launching the UI. Provisioning and
+current acceptance gates are documented in
+`docs/console-validation-runbook.md`. SD-Turbo uses Stability's
+research/community license; review licensing before redistributing derived
+weights or public assets.
