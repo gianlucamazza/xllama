@@ -174,6 +174,41 @@ Constraints: `model.onnx` must be **self-contained** (< 2 GB, external data merg
 `uwp-constraints.md §8`) and fit the Dev Mode disk budget. For diffusion models the
 contract is different (three components + CLIP assets): see `diffusion/README.md`.
 
+## Publishing ORT model assets (models-v1) — logit-parity gate
+
+**No ORT text-model asset reaches the `models-v1` release without passing a
+logit-parity check.** Institutionalized after #91: the DML fp16/int4 assets
+shipped for weeks producing numerically wrong logits — only tok/s was ever
+measured. Healthy cross-quant parity looks like NMSE ≈ 0.09 / top-10 overlap
+≈ 0.9; broken looks like NMSE ≈ 0.98 / top-10 ≈ 0.3 — the rank metrics
+(top-1 + top-10) are the decisive gate, not the raw diff.
+
+Runbook, in order:
+
+1. **Golden** (once per model family): dump the llama.cpp reference from the
+   equivalent GGUF on the host —
+   `xllama-cli -m <model>.gguf -p "The capital of France is" -n 1 --greedy
+--dump-logits tests/golden/logits-<model>-short.bin` — and commit
+   `.bin` + `.json` sidecar (see `tests/golden/logits-smol-short.bin`).
+   Templated prompts must tokenize with `parse_special` (the CLI does this
+   when a chat template is active).
+2. **Host CPU-EP check** (every asset, minimum bar): run the ORT asset through
+   the bridge CLI with `--greedy --dump-logits`, then
+   `scripts/compare-logits.py <golden.bin> <ort.bin>` — PASS requires top-1
+   agreement and top-10 overlap within thresholds (defaults in the script;
+   cross-quant gate used on-device: `MAX_ABS_DIFF=8.0`, `NMSE=0.2`).
+3. **On-device check** (every DML asset): provision with
+   `scripts/provision-models.sh`, then
+   `MODEL=<catalogue-name> ./scripts/validate-logit-parity.sh [golden.bin]`.
+   A DML text asset that fails here must not ship — and
+   `routing_policy.h kDmlTextLogitsBroken` stays set until one passes.
+4. **Upload**: `gh release upload models-v1 <files> --clobber`, then update
+   `approx_bytes` in `uwp/models/manifest.json` with the **exact** byte sizes
+   (a mismatch re-triggers the download loop fixed in #90).
+
+`tests/test_logit_parity.cpp` runs the golden regression in CI when
+`XLLAMA_TEST_MODEL` is set (skips cleanly otherwise).
+
 ## Modern models (2026 survey, runtime-backend era)
 
 The ORT GenAI model builder is frozen at the Qwen3 / Gemma3 architectures.

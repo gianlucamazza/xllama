@@ -38,6 +38,9 @@ shellcheck scripts/*.sh   # if you touched shell
   UWP inference lives under `#ifdef XLLAMA_USE_ORT`; keep the Linux path building.
 - **Adding a model**: usually just a `uwp/models/manifest.json` entry — check the
   size/RAM/per-file limits in [`docs/model-selection.md`](docs/model-selection.md).
+- **Publishing ORT model assets**: every asset must pass the logit-parity gate
+  before `gh release upload` — runbook in
+  [`docs/model-selection.md`](docs/model-selection.md#publishing-ort-model-assets-models-v1--logit-parity-gate).
 
 ## Reporting issues
 
