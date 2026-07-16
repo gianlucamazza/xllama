@@ -1,9 +1,13 @@
 # xllama Roadmap
 
-**Shipping (2026-07-15):** MSIX **1.1.8.x** — `xllama-appx` from `build-uwp.yml`
+**Shipping (2026-07-16):** MSIX **1.2.0.x** — `xllama-appx` from `build-uwp.yml`
 (unified ORT + llama.cpp + **PatchedGenAI #2280** + **PatchedOrt** extdata;
 Major.Minor.Build from `AppxManifest.xml`, Revision auto-stamped from the CI run
 number). First-launch default chat model on unified: **`lfm25-350m`** (~94 tok/s).
+**1.2.0.0** adds the optional **LAN HTTP endpoint** (OpenAI-compatible, default
+OFF, `api.flag`; on-console LAN bind + chat PASS on Series S), the **`llama32-3b`**
+catalogue entry + **Llama-3 chat template** (H4 PASS, 14.2 tok/s), and hash-pinned
+PatchedGenAI. See `docs/api-endpoint.md`.
 **1.1.8.0** promotes the console-validated AppContainer external-data
 `onnxruntime.dll` into the default shipping package (cached from the
 `vendor-dlls-v1` release; hash pin in `vendor/onnxruntime-patched/SHA256SUMS` —
@@ -358,7 +362,7 @@ Open items only — everything above is measured or shipped.
       2026-07-15**: Xbox Zen 2 read 12.35 GB/s @1t / 30.29 @8t — the single-thread
       read matches the deduced ~13 GB/s GEMV denominator. See `docs/benchmarks.md`.
 - [x] **External-data ONNX loading unblocked >2 GB** (2026-07-15, PRs #67/#68/#71/#72/#73)
-      — patched ORT DLL (`patches/onnxruntime-extdata-appcontainer.patch`): 
+      — patched ORT DLL (`patches/onnxruntime-extdata-appcontainer.patch`):
       `weakly_canonical` guard + `ReadFileIntoBuffer` 16 MB chunk. Console-validated
       with a 1.86 GB-extdata int4 model — **6/6 restarts, 0 crashes**. **Closed
       negative:** 1B fp16 GPU inference OOM (§7 budget wall). See

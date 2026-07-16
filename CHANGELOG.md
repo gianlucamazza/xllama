@@ -7,8 +7,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.0.0] - 2026-07-16
+
 ### Added
 
+- **LAN HTTP endpoint (OpenAI-compatible)** — optional, **default OFF** front-end
+  on `xllama::Session` (`uwp/api-server.{h,cpp}`, WinRT `StreamSocketListener`).
+  Enable with `LocalState\api.flag`; serves `POST /v1/chat/completions`
+  (non-streaming), `GET /v1/models` + `/api/tags` discovery, `GET /health`, and
+  CORS preflight on port **11434** (`api-port.txt` override). Single-slot: one
+  shared Session behind a `try_lock` → **503** when busy. Maps `messages[]` →
+  `ChatFormat::render_prompt`; honors `max_completion_tokens`/`max_tokens`,
+  `temperature`, `top_p`, `seed`, `stop`. Coexists with the live chat UI on a
+  detached MTA thread; `privateNetworkClientServer` capability (already present)
+  covers LAN inbound, no public inbound. **On-console (Series S, Dev Mode):** LAN
+  bind + `GET /` 200 **PASS**; chat via `lfm25-350m` and `llama32-3b` returns
+  correct OpenAI-shaped completions. Docs: `docs/api-endpoint.md`; validation:
+  `scripts/validate-api.sh`.
 - **Catalogue `llama32-3b`** — Llama-3.2-3B-Instruct Q3_K_S (~1.54 GB) from
   Hugging Face unsloth GGUF (optional advanced chat; default remains
   `lfm25-350m`). Console H4: **14.2 tok/s**, peak 1824 MB.
