@@ -174,27 +174,13 @@ concentration**, not wrong abstractions.
 
 ---
 
-## 4. Performance truth table (headlines)
+## 4. Performance evidence
 
-Cross-check: [benchmarks.md](benchmarks.md) remains SSOT; CSV names unchanged.
-
-| Workload | Result | CSV / note |
-| --- | --- | --- |
-| Fastest chat decode | LFM2.5-350M **94.2** tok/s (t6) | `phase5-gguf` |
-| ORT CPU 360M decode | **66–71** tok/s | `phase1-cpu` / `phase2-dml` |
-| DML fp16 360M prefill @~1k | **~354** tok/s (historical) | **do not route user answers here** while #91 |
-| DML int4 decode | **8.8** tok/s + wrong logits (#91) | closed as product path |
-| llama.cpp 360M Q4_K_M @t6 | **62.9** tok/s (parity, not 2×) | `phase35-llamacpp-scaling` |
-| KV-reuse ORT turn-2 | **4.87×** | `phase35-kv` |
-| KV-reuse GGUF (gemma3) | **4.07×** | `phase6-gemma-kv` |
-| SmolLM2-1.7B CPU int4 | **20.6** tok/s, 2423 MB | `phase35-1b-cpu` |
-| Gemma-3-270M | **76.8** tok/s | `phase6-gemma` |
-| Gemma-4-E2B Q3_K_S | **15.3** tok/s, 2742 MB | `phase6-gemma` |
-| Llama-3.2-3B Q3_K_S | **14.2** tok/s, 1824 MB | `phase7-scale` |
-| Phi-3.5-mini Q3_K_S | **11.3** tok/s, 2453 MB | `phase7-scale` — no catalogue |
-| SD-Turbo 512² | **~6.9 s** total | `phase5-diffuse` |
-| Membw read @1t | **12.35** GB/s | benchmarks note |
-| Extdata int4 load (patched ORT) | loads + generates | `phase6-fp16-extdata` |
+This dated analysis no longer mirrors the performance table. Current atomic
+rows, source CSV names and the interactive comparison are generated in
+[benchmarks.md](benchmarks.md); the immutable evidence lives in
+[`bench/results/`](../bench/results/). The conclusions below remain useful as a
+record of falsified hypotheses.
 
 ### Falsified hypotheses (do not reopen without new evidence)
 

@@ -88,15 +88,14 @@ See [docs/install-release.md](./docs/install-release.md) to install a tagged rel
 - **Accessible Dev Mode**: one-time ~$19 activation via Partner Center unlocks unsigned UWP deployment.
 - **Underexplored**: no prior LLM port to the platform at time of writing.
 
-**Measured performance (Xbox Series S):** fastest chat decode **94.2 tok/s**
-(LFM2.5-350M GGUF); the shipped default SmolLM2-360M int4 runs ~66–71 tok/s; Gemma
-models run on-device (Gemma-3-270M **76.8 tok/s**); prefill at ~1k tokens is
-**354 tok/s on GPU fp16** vs 198 CPU (the crossover that motivated routing —
-disabled since #91, DML text logits are wrong);
-KV-cache reuse makes turn-2 prefill ~**4×** faster on **both** backends; SD-Turbo
-draws a 512×512 image in **~6.9 s** on DirectML. **The full, disambiguated tables
-are the single source of truth in [docs/benchmarks.md](./docs/benchmarks.md)**
-(with [comparative charts](./docs/benchmarks-charts.html)).
+**Measured performance (Xbox Series S):** LFM2.5-350M is the fastest chat option
+at **94.2 tok/s**; the larger LFM catalogue tiers trade throughput for quality.
+KV-cache reuse improves measured turn-2 prefill by up to **20.0×**. GPU text
+routing remains disabled under #91 because its logits are wrong; DirectML still
+serves diffusion, with SD-Turbo at about **6.9 s** for 512×512. Raw evidence,
+atomic comparison rows and the generated dashboard are described in the
+**[benchmark SSOT](./docs/benchmarks.md)** and
+[comparative charts](./docs/benchmarks-charts.html).
 
 ---
 
@@ -183,12 +182,13 @@ xllama/
 │   ├── build-uwp.ps1                  # Windows UWP packaging
 │   ├── merge_onnx_external_data.py    # merge model.onnx.data → self-contained model.onnx
 │   ├── bench-xbox-ort.sh              # automated benchmark orchestrator
+│   ├── generate-benchmark-summary.py  # raw results → docs table + dashboard
 │   ├── install-latest-build.sh        # fetch + deploy latest CI artifact
 │   ├── test-dml-config.sh             # upload DML provider_options without MSIX rebuild
 │   ├── check-uwp-host.sh              # Linux host preflight
 │   └── setup-windows-uwp-dev.ps1      # Windows VM setup
 ├── tests/                  # unit tests (doctest, incl. diffusion golden vectors)
-├── bench/                  # benchmark configs + results
+├── bench/                  # benchmark configs, raw results + comparison policy
 ├── diffusion/              # SD-Turbo export/convert/validate toolchain (host)
 ├── patches/                # llama.cpp AppContainer guards (bench-only variant)
 ├── docs/                   # technical notes

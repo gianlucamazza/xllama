@@ -31,15 +31,13 @@ active parameters** (MoE / extreme quant) — not by violating physics.
 Series S product priority: **G1 ≥ G2** (smart 2–3B at 10–15 tok/s beats dumb
 350M at 94).
 
-## Shipping baseline (SSOT excerpt)
+## Shipping baseline roles
 
-| Model             | Decode   | Peak    | Role                                  |
-| ----------------- | -------- | ------- | ------------------------------------- |
-| LFM2.5-350M Q4    | **94.2** | 321 MB  | default, G2 king                      |
-| Qwen3.5-0.8B Q4   | 35.1     | 718 MB  | mid                                   |
-| SmolLM2-1.7B int4 | 20.6     | 2423 MB | mid                                   |
-| Llama-3.2-3B Q3   | **14.2** | 1824 MB | dense peer-class (catalogue advanced) |
-| Gemma-4-E2B Q3    | 15.3     | 2742 MB | best heavy quality so far             |
+The catalogue roles at the close of this campaign are LFM2.5-350M as the fast
+default, LFM2.5-1.2B as balanced, and LFM2-2.6B as quality. Llama-3.2-3B remains
+the dense peer-class comparator. Current throughput, RAM and quality scores are
+generated in [benchmarks.md](benchmarks.md); this research log does not mirror
+that table.
 
 Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppContainer mmap.
 

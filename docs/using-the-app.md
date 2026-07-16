@@ -37,7 +37,8 @@ Generation shows live tok/s; **■ Cancel** stops a running reply.
   Device Portal provisioning.
 - **Sampling** — Temperature, Top-p, Top-k, Repetition penalty, Max new tokens.
 - **KV-cache reuse** (default on) — reuses the conversation's KV cache across
-  turns; measured **4.87×** faster turn-2 prefill on console. Leave it on
+  turns; measured **4.87×** on ORT and **4.07–20.02×** on GGUF models for
+  turn-2 prefill on console. Leave it on
   unless debugging.
 - **EP routing (per conversation)** — where inference runs.
   **Superseded by #91**: while `kDmlTextLogitsBroken` holds (the DML EP

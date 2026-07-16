@@ -73,7 +73,8 @@ re-prefilling the whole conversation:
 - **ORT GenAI** — persistent generator (turn-2 prefill **4.87×**).
 - **llama.cpp** — persistent `llama_context` in `LlamaSession`; `reuse_kv` /
   `reset_kv` clear or continue the KV cache (`llama_memory_clear`, position
-  continuation). Turn-2 prefill **4.07×** (`benchmarks.md`).
+  continuation). Turn-2 prefill measures **4.07×** on Gemma-3-270M and up to
+  **20.02×** on the larger LFM models (`benchmarks.md`).
 
 Reuse is gated by `kv_reuse_supported_for_model()` (`routing_policy.h`), which
 excludes the DirectML EP (continuous decoding is CPU-only). It is **not** gated by

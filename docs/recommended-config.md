@@ -90,7 +90,7 @@ Copy [`bench/configs/settings-modern.json`](../bench/configs/settings-modern.jso
 | Key                    | Recommended                       | Notes                                                                             |
 | ---------------------- | --------------------------------- | --------------------------------------------------------------------------------- |
 | `model`                | `lfm25-350m`                      | First-launch default on **unified** shipping                                      |
-| `kv_reuse`             | `true`                            | 4.87× ORT / 4.07× GGUF turn-2 prefill (measured)                                  |
+| `kv_reuse`             | `true`                            | 4.87× ORT; 4.07–20.02× GGUF turn-2 prefill depending on model (measured)           |
 | `routing`              | `2` (Auto) on unified             | inert for text while #91 holds (always CPU); GGUF skips                           |
 | `gpu_model`            | `smollm2-360m-dml-fp16`           | NOT auto-downloaded while #91 holds (#95); 725 MB, WDP/`provision-models.sh` only |
 | `diffuse_taesd_vae`    | `true` after asset on `models-v1` | ~4.5 s/image target                                                               |
