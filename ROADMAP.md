@@ -12,10 +12,10 @@ no 1–3 h ORT rebuild on every PR). Carries 1.1.7.0: GGUF **KV-reuse** (4.07×)
 Full numbers: `docs/benchmarks.md`; architecture: `docs/architecture.md`.
 Console gates: `validate-console.sh all` → **ALL PASS** (2026-07-14).
 **GitHub Release [v1.1.8.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.1.8.0)**
-published 2026-07-16 (MSIX + cert + VCLibs). Field smoke of the combined 1.1.8
-package was **pending at release** (Device Portal unreachable from the release
-host); re-run `./scripts/install-latest-build.sh` + a short LFM chat when the
-console is online. See
+published 2026-07-16 (MSIX + cert + VCLibs). **Field smoke 2026-07-16:** deploy
+`xllama_1.1.8.496` → first-launch catalogue download `lfm25-350m` →
+`validate-console.sh gguf` → **PASS** (GGUF load + short chat). Demo video still
+open. See
 [`docs/benchmarks.md`](docs/benchmarks.md),
 [`docs/recommended-config.md`](docs/recommended-config.md) and
 [`docs/console-validation-runbook.md`](docs/console-validation-runbook.md).
@@ -338,8 +338,8 @@ Open items only — everything above is measured or shipped.
       **Checklist:** (1) deploy [v1.1.8.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.1.8.0)
       or CI `xllama-appx`, (2) first-launch LFM download, (3) chat short + long
       (routing), (4) Image Generate one frame, (5) 60–90 s capture via capture
-      card / Game Bar if available. No code blocker. **Deferred 2026-07-16** —
-      console offline during Path A release session; do together with field smoke.
+      card / Game Bar if available. No code blocker. Field smoke (deploy + LFM
+      chat) **done 2026-07-16**; only the capture clip remains.
 - [x] **Publication venue** — GitHub Discussions; **posted**
       [Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76)
       (technical-report entrypoint + SSOT links). arXiv only if a formal citation
