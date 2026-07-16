@@ -104,6 +104,8 @@ TEST_CASE("model detection ignores directory names (full-path ids)") {
 TEST_CASE("chat format selection") {
     CHECK(chat_format_for("smollm2-360m-cpu-int4").kind == ChatFormatKind::ChatML);
     CHECK(chat_format_for("lfm25-350m").kind == ChatFormatKind::ChatML);
+    CHECK(chat_format_for("lfm25-1.2b-instruct").kind == ChatFormatKind::ChatML);
+    CHECK(chat_format_for("lfm2-2.6b").kind == ChatFormatKind::ChatML);
     CHECK(chat_format_for("gemma3-270m").kind == ChatFormatKind::Gemma);
     CHECK(chat_format_for("llama32-3b").kind == ChatFormatKind::Llama3);
     CHECK(chat_format_for("phi35-mini").kind == ChatFormatKind::Phi3);

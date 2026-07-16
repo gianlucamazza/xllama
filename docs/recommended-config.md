@@ -38,6 +38,8 @@ tables are in [benchmarks.md](benchmarks.md) (the perf SSOT).
 | Use case                       | Catalogue `name`        | Backend               | Measured decode                                                                                                        |
 | ------------------------------ | ----------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | **Default (unified)**          | `lfm25-350m`            | llama.cpp (`unified`) | **94.2 tok/s** (recommended)                                                                                           |
+| **Balanced chat**              | `lfm25-1.2b-instruct`   | llama.cpp (`unified`) | **37.9 tok/s**, 811 MB peak; H9 6/8                                                                                    |
+| **Quality chat**               | `lfm2-2.6b`             | llama.cpp (`unified`) | **18.4 tok/s**, 1623 MB peak; H9 7/8                                                                                   |
 | **ORT default**                | `smollm2-360m-cpu-int4` | ORT CPU int4          | ~66 tok/s                                                                                                              |
 | **Routing GPU** — disabled #91 | `smollm2-360m-dml-fp16` | ORT DML fp16          | ~47 tok/s decode; ~354 tok/s prefill @1k — **text logits wrong on DML (#91): not routable, not auto-downloaded (#95)** |
 | **Larger chat**                | `smollm2-1.7b-cpu-int4` | ORT CPU int4          | ~21 tok/s (in-app `models-v1` download)                                                                                |

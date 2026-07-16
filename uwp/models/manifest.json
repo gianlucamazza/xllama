@@ -135,6 +135,40 @@
       ]
     },
     {
+      "_comment": "Phase 7 H1 PASS (2026-07-17): 37.88 tok/s decode, 811 MB peak, H9 6/8 (equal Gemma-4-E2B) on Series S. Balanced chat; direct from LiquidAI so the LFM Open License accompanies the weights.",
+      "name": "lfm25-1.2b-instruct",
+      "display": "LFM2.5 1.2B Instruct (GGUF · CPU · balanced)",
+      "kind": "gguf",
+      "hf_base_url": "https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF/resolve/main",
+      "files": [
+        {
+          "filename": "LFM2.5-1.2B-Instruct-Q4_K_M.gguf",
+          "approx_bytes": 730895168
+        },
+        {
+          "filename": "LICENSE",
+          "approx_bytes": 10596
+        }
+      ]
+    },
+    {
+      "_comment": "Phase 7 H1 PASS (2026-07-17): 18.36 tok/s decode, 1623 MB peak, H9 7/8 (above Gemma-4-E2B) on Series S. Quality chat; direct from LiquidAI so the LFM Open License accompanies the weights.",
+      "name": "lfm2-2.6b",
+      "display": "LFM2 2.6B (GGUF · CPU · quality)",
+      "kind": "gguf",
+      "hf_base_url": "https://huggingface.co/LiquidAI/LFM2-2.6B-GGUF/resolve/main",
+      "files": [
+        {
+          "filename": "LFM2-2.6B-Q4_K_M.gguf",
+          "approx_bytes": 1563668704
+        },
+        {
+          "filename": "LICENSE",
+          "approx_bytes": 10644
+        }
+      ]
+    },
+    {
       "_comment": "Llama-3.2-3B-Instruct Q3_K_S — Phase 7 H4 PASS (2026-07-16): decode 14.16 tok/s, peak 1824 MB on Series S (phase7-scale.csv). Optional heavy chat (not the shipping default — keep lfm25-350m). Direct from HF unsloth GGUF; Meta Llama Community License applies — do not mirror onto models-v1 without license review. Chat template: Llama-3 headers via chat_format_for (kind:gguf, CPU-only, KV-reuse, routing disabled).",
       "name": "llama32-3b",
       "display": "Llama 3.2 3B (GGUF · CPU · 1.54 GB, advanced)",

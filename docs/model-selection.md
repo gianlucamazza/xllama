@@ -224,6 +224,8 @@ the catalogue status only.
 | ---------------- | --------- | ---------------- | ------------------------------------------------------------------ |
 | Qwen3.5-0.8B     | llama.cpp | 507 MB           | ✅ `qwen35-0.8b` — modern default candidate                        |
 | LFM2.5-350M      | llama.cpp | 218 MB           | ✅ `lfm25-350m` — hybrid edge arch; default chat on unified builds |
+| LFM2.5-1.2B      | llama.cpp | 697 MB           | ✅ `lfm25-1.2b-instruct` — balanced; 37.9 tok/s, H9 6/8            |
+| LFM2-2.6B        | llama.cpp | 1.46 GB          | ✅ `lfm2-2.6b` — quality; 18.4 tok/s, H9 7/8                       |
 | Qwen3-0.6B       | ORT GenAI | 969 MB merged    | ✅ builds; heavy (151k-vocab embedding dominates)                  |
 | Gemma-3-270M     | llama.cpp | 253 MB           | ✅ `gemma3-270m` — fast, tiny, fits easily                         |
 | Gemma-4-E2B      | llama.cpp | 2.45 GB (Q3_K_S) | ✅ **console-validated** `gemma4-e2b` (see verdict below)          |
@@ -260,7 +262,9 @@ precedence in dual-backend builds). `Auto` (default) uses either a `.gguf`
 suffix or on-disk layout inspection via the public helper
 `model_uses_llama_backend()` (bare catalogue names or directories containing a
 `.gguf` file → llama.cpp; otherwise ORT GenAI). Catalogue entries `qwen35-0.8b`
-and `lfm25-350m` download in-app from `models-v1` (Fase 2b, 2026-07-10).
+and `lfm25-350m` download in-app from `models-v1`. The larger LFM entries
+download directly from LiquidAI so their upstream `LICENSE` file accompanies
+each GGUF.
 
 Redistribution licensing (verified 2026-07-10): the Qwen quant
 (`unsloth/Qwen3.5-0.8B-GGUF`) is Apache-2.0 ✅. LFM Open License v1.0 §4

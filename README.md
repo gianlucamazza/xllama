@@ -253,6 +253,8 @@ Catalogue overview (roles + sizes; **decode/prefill/RAM numbers live in
 | Model                      | Format        | Size    | Xbox UWP | Role                                                                                   |
 | -------------------------- | ------------- | ------- | -------- | -------------------------------------------------------------------------------------- |
 | LFM2.5-350M Q4_K_M         | GGUF          | 219 MB  | ✅       | **Default chat** on unified shipping; fastest+lightest                                 |
+| LFM2.5-1.2B Q4_K_M         | GGUF          | 697 MB  | ✅       | Balanced chat: 37.9 tok/s, 811 MB peak, H9 6/8                                        |
+| LFM2-2.6B Q4_K_M           | GGUF          | 1.46 GB | ✅       | Quality chat: 18.4 tok/s, 1623 MB peak, H9 7/8                                        |
 | SmolLM2-360M-Instruct INT4 | ONNX GenAI    | 417 MB  | ✅       | ORT default / routing base (CPU)                                                       |
 | SmolLM2-360M fp16 DML      | ONNX GenAI    | ~725 MB | ✅       | Routing target — **disabled #91** (wrong text logits on DML; not auto-downloaded, #95) |
 | SmolLM2-1.7B-Instruct INT4 | ONNX GenAI    | 1.4 GB  | ✅       | Larger CPU chat (~20.6 tok/s; in-app `models-v1` download)                             |
