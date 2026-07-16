@@ -28,6 +28,9 @@
     <ClCompile Include="App.cpp">
       <Filter>xllama</Filter>
     </ClCompile>
+    <ClCompile Include="api-server.cpp">
+      <Filter>xllama</Filter>
+    </ClCompile>
     <ClCompile Include="MainPage.cpp">
       <Filter>xllama</Filter>
     </ClCompile>
@@ -200,6 +203,9 @@
 
   <ItemGroup>
     <ClInclude Include="App.h">
+      <Filter>xllama</Filter>
+    </ClInclude>
+    <ClInclude Include="api-server.h">
       <Filter>xllama</Filter>
     </ClInclude>
     <ClInclude Include="MainPage.h">

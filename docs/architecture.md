@@ -130,6 +130,18 @@ compositor in-process (unlike ORT GenAI's DML init — see `uwp-constraints.md �
 Optional TAESD tiny VAE shortens the decode stage. Triggered from the Image dialog
 or the headless `diffuse.flag`.
 
+## LAN HTTP endpoint (OpenAI-compat)
+
+Optional, **default OFF**: a `StreamSocketListener` in `uwp/api-server.cpp` exposes the
+same `xllama::Session` as an OpenAI-compatible endpoint on the LAN
+(`POST /v1/chat/completions`, non-streaming). Started from `App::OnLaunched` on a detached
+MTA thread when `LocalState\api.flag` is present — unlike the headless bench/diffuse flags,
+`api.flag` is **not consumed** and the server coexists with the live chat UI. Port 11434
+(override `api-port.txt`); single-slot with a `try_lock` → HTTP 503 when busy. Capability
+`privateNetworkClientServer` (already in `AppxManifest.xml`) covers LAN inbound; no public
+inbound. Full contract + validation in [api-endpoint.md](api-endpoint.md)
+(`scripts/validate-api.sh`).
+
 ## Build variants and versioning
 
 CI (`build-uwp.yml`) produces `xllama-appx` (**unified**: ORT + llama.cpp +
