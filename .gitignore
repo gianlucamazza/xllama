@@ -39,6 +39,10 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Host LoRA spike artifacts (adapters, merged GGUF, venv)
+scripts/lora-spike/out/
+scripts/lora-spike/.venv/
+
 # macOS
 .DS_Store
 

@@ -38,6 +38,10 @@ set(LLAMA_FMA             ON  CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_TESTS     OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_EXAMPLES  ON  CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_SERVER    OFF CACHE BOOL "" FORCE)
+# Host tooling (LoRA merge, quantize, …). Subdirectory mode defaults these OFF
+# (LLAMA_STANDALONE=OFF); force ON so scripts/lora-spike can build llama-export-lora.
+set(LLAMA_BUILD_COMMON    ON  CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_TOOLS     ON  CACHE BOOL "" FORCE)
 
 add_subdirectory(llama.cpp)
 

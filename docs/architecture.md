@@ -154,9 +154,30 @@ hash-pinned **PatchedGenAI #2280** + **PatchedOrt** extdata DLLs from
 so in-place console updates never collide on identity. First-launch chat default
 on unified builds is **`lfm25-350m`** (`DefaultChatModelId()` in `MainPage.cpp`).
 
+## Personalization / LoRA (host-only)
+
+xllama is an **inference** runtime on Xbox (and a host CLI for the same GGUF
+path). Full fine-tune / on-device training is out of scope for the UWP process
+(GPU budget, AppContainer, ORT GenAI and llama.cpp forward-only APIs — see
+[uwp-constraints.md](uwp-constraints.md)).
+
+Personalization that stays coherent with this architecture:
+
+1. **Train off-device** (host PEFT LoRA or any external trainer).
+2. **Merge** into a plain GGUF (`llama-export-lora`) or ship a full finetuned
+   quant.
+3. **Serve** with existing `Session` / catalogue provisioning — no training loop
+   in the app.
+
+Host proof-of-pipeline (toy marker, SmolLM2-360M, CPU):
+[`scripts/lora-spike/README.md`](../scripts/lora-spike/README.md). Runtime
+`--lora` loading is intentionally **not** in `Session`; merge keeps Xbox and
+the CLI on the same load path as any other GGUF.
+
 ## See also
 
 - Performance numbers → [benchmarks.md](benchmarks.md)
 - AppContainer constraints (§1–§12) → [uwp-constraints.md](uwp-constraints.md)
 - Model catalogue / selection → [model-selection.md](model-selection.md) + `uwp/models/manifest.json`
 - v1.0 narrative snapshot → [technical-report.md](technical-report.md)
+- Host LoRA spike → [scripts/lora-spike/README.md](../scripts/lora-spike/README.md)

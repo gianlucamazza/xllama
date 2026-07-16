@@ -1,0 +1,10 @@
+# Host LoRA spike — train only (convert scripts use torch + transformers too).
+# Install into scripts/lora-spike/.venv (see run_spike.sh / README).
+# Torch is often already present system-wide; pin if the venv is empty.
+transformers>=4.44.0,<5
+peft>=0.12.0,<0.16
+datasets>=2.19.0,<4
+accelerate>=0.33.0,<2
+safetensors>=0.4.0
+sentencepiece>=0.2.0
+protobuf>=4.0.0
