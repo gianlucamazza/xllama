@@ -1,5 +1,21 @@
+diff --git a/src/config.cpp b/src/config.cpp
+index b3e35c9c..0e794aa6 100644
+--- a/src/config.cpp
++++ b/src/config.cpp
+@@ -1421,7 +1421,10 @@ bool IsGraphCaptureEnabled(const Config::SessionOptions& session_options) {
+         }
+         return false;
+       } else if (provider_options->name == "DML") {
+-        return true;
++        // xllama: DML graph capture disabled — replayed command lists produce
++        // deterministic garbage logits on the Xbox Series S Dev-Mode D3D12
++        // device (correct on CPU EP and with plain non-captured ORT sessions).
++        return false;
+       } else if (provider_options->name == "WebGPU") {
+         for (const auto& value : provider_options->options) {
+           if (value.first == "enableGraphCapture" && value.second == "1") {
 diff --git a/src/dml/dml_helpers.cpp b/src/dml/dml_helpers.cpp
-index f3cfe32..c29e693 100644
+index f3cfe324..c29e693a 100644
 --- a/src/dml/dml_helpers.cpp
 +++ b/src/dml/dml_helpers.cpp
 @@ -135,12 +135,26 @@ DmlObjects CreateDmlObjects(const std::string& current_module_path, PLUID device
@@ -31,4 +47,21 @@ index f3cfe32..c29e693 100644
 +  if (!agility_device_created) {
      THROW_IF_FAILED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&dml_objects.d3d12_device)));
    }
+ 
+diff --git a/src/dml/session_options.cpp b/src/dml/session_options.cpp
+index a7f8abcf..293d531b 100644
+--- a/src/dml/session_options.cpp
++++ b/src/dml/session_options.cpp
+@@ -38,9 +38,9 @@ DeviceInterface* AppendExecutionProvider(OrtSessionOptions& session_options,
+   // Non-decoder sessions (vision, speech, embedding) have control-flow nodes
+   // that are incompatible with graph capture, so the caller sets
+   // disable_graph_capture=true for those sessions.
+-  if (!disable_graph_capture) {
+-    session_options.AddConfigEntry("ep.dml.enable_graph_capture", "1");
+-  }
++  // xllama: never enable DML graph capture (see IsGraphCaptureEnabled in
++  // config.cpp) — capture replay corrupts logits on the Xbox Dev-Mode device.
++  (void)disable_graph_capture;
+ 
+   SetDmlProvider(session_options);
  
