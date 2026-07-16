@@ -10,8 +10,12 @@ number). First-launch default chat model on unified: **`lfm25-350m`** (~94 tok/s
 no 1–3 h ORT rebuild on every PR). Carries 1.1.7.0: GGUF **KV-reuse** (4.07×),
 **quant auto-upgrade**, **membw**, **SmolLM2-1.7B** on catalogue, Gemma family.
 Full numbers: `docs/benchmarks.md`; architecture: `docs/architecture.md`.
-Console gates: `validate-console.sh all` → **ALL PASS** (2026-07-14; re-smoke
-recommended after first 1.1.8 deploy). See
+Console gates: `validate-console.sh all` → **ALL PASS** (2026-07-14).
+**GitHub Release [v1.1.8.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.1.8.0)**
+published 2026-07-16 (MSIX + cert + VCLibs). Field smoke of the combined 1.1.8
+package was **pending at release** (Device Portal unreachable from the release
+host); re-run `./scripts/install-latest-build.sh` + a short LFM chat when the
+console is online. See
 [`docs/benchmarks.md`](docs/benchmarks.md),
 [`docs/recommended-config.md`](docs/recommended-config.md) and
 [`docs/console-validation-runbook.md`](docs/console-validation-runbook.md).
