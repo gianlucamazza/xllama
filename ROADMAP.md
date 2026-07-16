@@ -1,28 +1,32 @@
 # xllama Roadmap
 
-**Shipping (2026-07-16):** MSIX **1.2.0.x** — `xllama-appx` from `build-uwp.yml`
-(unified ORT + llama.cpp + **PatchedGenAI #2280** + **PatchedOrt** extdata;
-Major.Minor.Build from `AppxManifest.xml`, Revision auto-stamped from the CI run
-number). First-launch default chat model on unified: **`lfm25-350m`** (~94 tok/s).
+**Shipping (2026-07-17 currency):** MSIX **1.2.0.x** — `xllama-appx` from
+`build-uwp.yml` (unified ORT + llama.cpp + **PatchedGenAI #2280** +
+**PatchedOrt** extdata; Major.Minor.Build from `AppxManifest.xml`, Revision
+auto-stamped from the CI run number). First-launch default chat model on
+unified: **`lfm25-350m`** (~94 tok/s).
 **1.2.0.0** adds the optional **LAN HTTP endpoint** (OpenAI-compatible, default
 OFF, `api.flag`; on-console LAN bind + chat PASS on Series S), the **`llama32-3b`**
 catalogue entry + **Llama-3 chat template** (H4 PASS, 14.2 tok/s), and hash-pinned
 PatchedGenAI. See `docs/api-endpoint.md`.
+**#91 (2026-07-16):** DML **text** logits are wrong on Series S — routing forces
+CPU (`kDmlTextLogitsBroken`); `gpu_model` is not auto-provisioned. Diffusion
+unaffected. Health snapshot: [`docs/project-analysis-2026-07.md`](docs/project-analysis-2026-07.md).
 **1.1.8.0** promotes the console-validated AppContainer external-data
 `onnxruntime.dll` into the default shipping package (cached from the
 `vendor-dlls-v1` release; hash pin in `vendor/onnxruntime-patched/SHA256SUMS` —
 no 1–3 h ORT rebuild on every PR). Carries 1.1.7.0: GGUF **KV-reuse** (4.07×),
 **quant auto-upgrade**, **membw**, **SmolLM2-1.7B** on catalogue, Gemma family.
 Full numbers: `docs/benchmarks.md`; architecture: `docs/architecture.md`.
-Console gates: `validate-console.sh all` → **ALL PASS** (2026-07-14).
-**GitHub Release [v1.1.8.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.1.8.0)**
-published 2026-07-16 (MSIX + cert + VCLibs). **Field smoke 2026-07-16:** deploy
-`xllama_1.1.8.496` → first-launch catalogue download `lfm25-350m` →
-`validate-console.sh gguf` → **PASS** (GGUF load + short chat). Demo video still
-open. See
+Console: `validate-console.sh all` → **ALL PASS** on **`1.2.0.534`** (2026-07-16;
+routing gate, GGUF, TAESD, LAN API). Earlier ALL PASS 2026-07-14 on 1.1.x.
+**GitHub Latest** is still [v1.1.8.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.1.8.0)
+— **publish v1.2.0.x** so the release tag matches `main` (CI artifact path is
+already current via `install-latest-build.sh`). Demo video still open. See
 [`docs/benchmarks.md`](docs/benchmarks.md),
-[`docs/recommended-config.md`](docs/recommended-config.md) and
-[`docs/console-validation-runbook.md`](docs/console-validation-runbook.md).
+[`docs/recommended-config.md`](docs/recommended-config.md),
+[`docs/console-validation-runbook.md`](docs/console-validation-runbook.md),
+[`docs/vendor-lifecycle-plan.md`](docs/vendor-lifecycle-plan.md).
 
 ## Phase 1 — CPU Baseline ✅ DONE
 
@@ -137,7 +141,10 @@ v0.4.0.0 on Xbox; CSVs `bench/results/phase35-*.csv`):
       long-prompt conversations to DML fp16, chat to CPU int4; sticky per
       conversation. **Console-validated 2026-07-14** via `validate-console.sh
 routing` on unified 1.1.3.0 + patched GenAI: long turn auto→GPU (959 tok),
-      new short chat auto→CPU, no `887A0036`.
+      new short chat auto→CPU, no `887A0036`. **Superseded for product safety
+      2026-07-16 (#91):** DML text logits wrong on Series S → GPU path forced
+      off (`kDmlTextLogitsBroken`); routing harness now asserts the gate.
+
 
 - [x] **Image-generation spike** (v0.4.0, flagship hypothesis): **CONFIRMED on
       console 2026-07-08** — on a compute-bound fp16 batch (309 GFLOP), DirectML is
@@ -339,11 +346,15 @@ Open items only — everything above is measured or shipped.
       `.complete` marker → removed IQ2_M → downloaded Q3_K_S (2.45 GB) → loaded.
       13 host doctest cases. See `docs/benchmarks.md`.
 - [ ] **Demo video** — model loaded and running on Xbox hardware (Phase 4 carry-over).
-      **Checklist:** (1) deploy [v1.1.8.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.1.8.0)
-      or CI `xllama-appx`, (2) first-launch LFM download, (3) chat short + long
-      (routing), (4) Image Generate one frame, (5) 60–90 s capture via capture
-      card / Game Bar if available. No code blocker. Field smoke (deploy + LFM
-      chat) **done 2026-07-16**; only the capture clip remains.
+      **Checklist:** (1) deploy CI `xllama-appx` **1.2.0.x** (or GitHub Release
+      v1.2.0.x once published — Latest is still v1.1.8.0), (2) first-launch LFM
+      download, (3) chat short + long (routing stays **CPU** under #91 — still
+      valid demo), (4) Image Generate one frame, (5) 60–90 s capture via capture
+      card / Game Bar if available. No code blocker. Console FULL PASS
+      `1.2.0.534` **done 2026-07-16**; only the capture clip remains.
+- [ ] **Publish GitHub Release v1.2.0.x** — MSIX + cert + VCLibs so Latest matches
+      semantic head on `main` (LAN API, llama32-3b, #91/#95/#100). Ops residual;
+      see `docs/vendor-lifecycle-plan.md` R0.
 - [x] **Publication venue** — GitHub Discussions; **posted**
       [Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76)
       (technical-report entrypoint + SSOT links). arXiv only if a formal citation

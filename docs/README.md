@@ -27,7 +27,7 @@ docs quote a headline and link back:
 | [api-endpoint.md](./api-endpoint.md)                             | LAN HTTP endpoint (OpenAI-compatible, opt-in, default OFF): enable, protocol, concurrency, validation                                        |
 | [benchmarks.md](./benchmarks.md)                                 | Consolidated perf for every tested model (decode/prefill/RAM, 3 backends) + comparative charts (`benchmarks-charts.html`)                    |
 | [recommended-config.md](./recommended-config.md)                 | Correct modern settings: models, genai_config, settings.json, build variants, obsolete myths                                                 |
-| [project-analysis-2026-07.md](./project-analysis-2026-07.md)     | Project health snapshot (2026-07-15, currency 2026-07-16): status matrix, risks — **not** a perf SSOT                                        |
+| [project-analysis-2026-07.md](./project-analysis-2026-07.md)     | Project health snapshot (currency **2026-07-17**: 1.2.0 + #91 gate): status matrix, risks — **not** a perf SSOT                             |
 | [vendor-lifecycle-plan.md](./vendor-lifecycle-plan.md)           | Piano di risoluzione residuo: drop pin GenAI/ORT, upstream ReadFile, demo video, catalogue opzionale                                         |
 | [phase7-hypotheses.md](./phase7-hypotheses.md)                   | Phase 7 research: peer-class model hypotheses (H1–H9), shortlist, campaign results — **not** a perf SSOT                                     |
 

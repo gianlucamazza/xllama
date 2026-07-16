@@ -62,6 +62,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   uploaded without passing the parity gate (llama.cpp golden → host CPU-EP
   compare → on-device `validate-logit-parity.sh` for DML → exact
   `approx_bytes`).
+- **Project analysis currency 2026-07-17** — `docs/project-analysis-2026-07.md`
+  rewritten for semantic **1.2.0.0**, the #91 DML text gate, LAN API, Phase 7
+  H4, ~88 host tests, and the GitHub Latest (v1.1.8.0) vs tree gap.
+  `docs/vendor-lifecycle-plan.md` + ROADMAP header aligned (R0 release, R8
+  hold gate); `docs/README.md` SSOT row updated.
 
 ### Added
 
