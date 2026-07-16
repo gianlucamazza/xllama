@@ -97,8 +97,7 @@ TEST_CASE("chat format stop sequences") {
           std::vector<std::string>{"<|im_end|>"});
     CHECK(chat_format_for("gemma3-270m").stop_sequences ==
           std::vector<std::string>{"<end_of_turn>"});
-    CHECK(chat_format_for("llama32-3b").stop_sequences ==
-          std::vector<std::string>{"<|eot_id|>"});
+    CHECK(chat_format_for("llama32-3b").stop_sequences == std::vector<std::string>{"<|eot_id|>"});
 }
 
 TEST_CASE("chatml render is byte-exact with the legacy hand-built prompt") {
