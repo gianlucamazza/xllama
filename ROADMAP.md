@@ -335,9 +335,11 @@ Open items only — everything above is measured or shipped.
       `.complete` marker → removed IQ2_M → downloaded Q3_K_S (2.45 GB) → loaded.
       13 host doctest cases. See `docs/benchmarks.md`.
 - [ ] **Demo video** — model loaded and running on Xbox hardware (Phase 4 carry-over).
-      **Checklist:** (1) deploy 1.1.8 shipping MSIX, (2) first-launch LFM download,
-      (3) chat short + long (routing), (4) Image Generate one frame, (5) 60–90 s
-      capture via capture card / Game Bar if available. No code blocker.
+      **Checklist:** (1) deploy [v1.1.8.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.1.8.0)
+      or CI `xllama-appx`, (2) first-launch LFM download, (3) chat short + long
+      (routing), (4) Image Generate one frame, (5) 60–90 s capture via capture
+      card / Game Bar if available. No code blocker. **Deferred 2026-07-16** —
+      console offline during Path A release session; do together with field smoke.
 - [x] **Publication venue** — GitHub Discussions; **posted**
       [Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76)
       (technical-report entrypoint + SSOT links). arXiv only if a formal citation
