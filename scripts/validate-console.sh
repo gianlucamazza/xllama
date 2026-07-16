@@ -7,8 +7,10 @@
 #   ./scripts/validate-console.sh <routing|gguf|taesd|all>
 #
 # Requires: an installed xllama build with the autopilot (>= 1.1.3.0), the
-# relevant models already in LocalState (smollm2-360m-dml-fp16 for routing,
-# lfm25-350m for gguf, sd-turbo-fp16 for taesd), and XBOX_IP/USER/PASS env.
+# relevant models already in LocalState (smollm2-360m-cpu-int4 for routing —
+# the #91 gate forces CPU, so the dml-fp16 model is not needed nor provisioned
+# while it holds (#95) — lfm25-350m for gguf, sd-turbo-fp16 for taesd), and
+# XBOX_IP/USER/PASS env. Seed with scripts/provision-models.sh.
 #
 # Contract per subcommand: upload chats/autopilot.json + autopilot.flag,
 # restart the app, poll LocalState\autopilot-done.txt, fetch xllama.log, and
@@ -156,12 +158,13 @@ model_provisioned() {
 
 validate_routing() {
 	echo "=== §2 routing A/B ==="
-	if ! model_provisioned "smollm2-360m-dml-fp16"; then
-		echo "  FAIL: smollm2-360m-dml-fp16 is not in LocalState\\models\\"
-		echo "  Upload the DML fp16 model before routing validation:"
-		echo "    PFN=\$(./scripts/deploy.sh pfn)"
-		echo "    ./scripts/deploy.sh upload-dir <host-path>/smollm2-360m-dml-fp16 \"\$PFN\" \"models\\\\smollm2-360m-dml-fp16\""
-		echo "  (not on models-v1 — USB/Device Portal only; reinstalling the MSIX wipes LocalState)"
+	# While kDmlTextLogitsBroken holds (#91), the gate resolves every mode to the
+	# CPU model, and #95 stops provisioning the DML one — so the only model this
+	# test actually loads is smollm2-360m-cpu-int4. When the gate is lifted, the
+	# dml-fp16 model becomes a precondition again (provision-models.sh).
+	if ! model_provisioned "smollm2-360m-cpu-int4"; then
+		echo "  FAIL: smollm2-360m-cpu-int4 is not in LocalState\\models\\"
+		echo "  Seed it first:  ./scripts/provision-models.sh smollm2-360m-cpu-int4"
 		echo "§2 routing: FAIL"
 		return 1
 	fi

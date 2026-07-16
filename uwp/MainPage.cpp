@@ -1907,7 +1907,11 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                 n_tok = static_cast<int>(full_prompt.size() / 4);
         }
 
-        if (m_routing == 1 && !gpu_provisioned) {
+        // #91/#95: while kDmlTextLogitsBroken holds, decide_routing resolves every
+        // mode to the CPU model and the GPU model is intentionally not provisioned
+        // — a missing gpu_model must not block the turn or nag the user.
+        const bool warn_gpu_missing = !::xllama::kDmlTextLogitsBroken && !gpu_provisioned;
+        if (m_routing == 1 && warn_gpu_missing) {
             SetStatus(L"GPU model '" + ::xllama::utf8_to_wstring(m_gpu_model) +
                           L"' is not on this console.\n"
                           L"Upload it to LocalState\\models\\" +
@@ -1917,7 +1921,7 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
             SetRunning(false);
             return;
         }
-        if (m_routing == 2 && n_tok > rs.token_threshold && !gpu_provisioned) {
+        if (m_routing == 2 && n_tok > rs.token_threshold && warn_gpu_missing) {
             SetStatus(L"GPU model '" + ::xllama::utf8_to_wstring(m_gpu_model) +
                           L"' is not on this console — staying on CPU.\n"
                           L"Upload it to LocalState\\models\\" +
