@@ -36,9 +36,11 @@ MANIFEST="${REPO_ROOT}/uwp/models/manifest.json"
 	exit 2
 }
 
-# Models the full-functionality live test needs pre-seeded (chat GGUF, DML
-# routing / logit-parity reference, and diffusion).
-ALL_TEST=(lfm25-350m smollm2-360m-dml-fp16 sd-turbo-fp16)
+# Models the full-functionality live test needs pre-seeded (chat GGUF, the CPU
+# model routing resolves to under the #91 gate / logit-parity reference, and
+# diffusion). smollm2-360m-dml-fp16 is intentionally NOT here while
+# kDmlTextLogitsBroken holds (#95): nothing can use it.
+ALL_TEST=(lfm25-350m smollm2-360m-cpu-int4 sd-turbo-fp16)
 
 FORCE=false
 MODELS=()
