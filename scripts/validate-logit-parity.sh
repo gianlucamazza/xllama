@@ -139,7 +139,14 @@ fi
 download_file "logits.bin.json" "${TMPDIR_LOCAL}/logits.bin.json" || true
 
 echo "=== compare ==="
-if python3 "$COMPARE" "$GOLDEN" "${TMPDIR_LOCAL}/logits.bin"; then
+# Cross-quant thresholds: the golden is Q4_K_M GGUF while the device model is a
+# different quantization (int4/fp16 ONNX), so exact numerics differ by design.
+# The decisive gates are rank-based: top-1 must match and top-10 overlap ≥ 0.8.
+# Calibrated on-device: a healthy conversion (smollm2 cpu-int4) scores
+# NMSE ~0.094 / max-abs ~6.3 / top10 0.9; a broken one (dml-fp16 predicting
+# " the") scores NMSE ~0.98 / max-abs ~17 / top10 0.3.
+if python3 "$COMPARE" "$GOLDEN" "${TMPDIR_LOCAL}/logits.bin" \
+	--max-abs-diff "${MAX_ABS_DIFF:-8.0}" --nmse "${NMSE_THR:-0.2}"; then
 	echo "logit-parity: PASS"
 	exit 0
 else
