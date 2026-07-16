@@ -49,15 +49,22 @@ this is Dev Mode research, not a hosted service.
 
 Request body (subset): `model`, `messages[]` (`role` ∈ system/user/assistant, `content`),
 optional `max_completion_tokens` / `max_tokens` (default 512; the former wins — `max_tokens`
-is the deprecated OpenAI alias), `temperature`, `top_p`. Unknown fields (`stream`, `n`,
-`stop`, penalties, `tools`, …) are ignored, not rejected. `messages[]` is mapped to
+is the deprecated OpenAI alias), `temperature`, `top_p`, `seed` (reproducibility), and
+`stop` (string or array, added to the format's own stops). `messages` must be a JSON array
+and contain a trailing user turn, else `400`. When no `system` message is sent, a default
+one is injected (small instruct models degrade with an empty system turn). Other unknown
+fields (`n`, penalties, `tools`, …) are ignored, not rejected. `messages[]` is mapped to
 `ChatFormat::render_prompt(system, history, final_user)` (`include/xllama/chat_prompt.h`);
 `chat_format_for(model)` selects the template and stop sequences.
 
-The reply follows the OpenAI shape: `id` (`chatcmpl-…`), `object: chat.completion`,
-`created`, `model`, `choices[0]` (`message`, `finish_reason` `stop`/`length`, and
-`logprobs: null` — omitting it breaks openai-python/LangChain Pydantic validation), and a
-`usage` block from `InferenceResult` (`n_p_eval` / `n_eval`).
+Only `Content-Length` framing is supported — a `Transfer-Encoding: chunked` request gets
+`411` (OpenAI SDKs send Content-Length). Malformed JSON / wrong-typed fields get `400`, never
+a dropped connection.
+
+The reply follows the OpenAI shape: `id` (unique `chatcmpl-…`), `object: chat.completion`,
+`created`, `model`, `choices[0]` (`message`, `finish_reason` — `length` only when the token
+cap is hit, else `stop`; and `logprobs: null`, omitting which breaks openai-python/LangChain
+Pydantic validation), and a `usage` block from `InferenceResult` (`n_p_eval` / `n_eval`).
 
 `stream: true` is **not** implemented in v1 (always returns the full completion). The
 `GenerateParams::on_token` hook is the seam for adding SSE later.
