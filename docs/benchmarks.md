@@ -33,13 +33,22 @@ Best measured decode configuration per model.
 | SmolLM2-360M | 360M   | Q4_K_M | llama.cpp CPU · t6             |         141.5 |         62.9 |         402 | `phase35-llamacpp-scaling`  |
 | SmolLM2-360M | 360M   | fp16   | ORT DML — routing disabled #91 |         353.5 |         46.8 |        1154 | `phase2-dml`                |
 | Qwen3.5-0.8B | 0.8B   | Q4_K_M | llama.cpp CPU · t6             |          98.1 |         35.1 |         718 | `phase5-gguf`               |
+| LFM2.5-1.2B  | 1.2B   | Q4_K_M | llama.cpp CPU · t6             |          76.2 |     **37.9** |         811 | `phase7-lfm`                |
 | SmolLM2-1.7B | 1.7B   | int4   | ORT-GenAI CPU                  |          54.9 |         20.6 |        2423 | `phase35-1b-cpu`            |
+| LFM2-2.6B    | 2.6B   | Q4_K_M | llama.cpp CPU · t6             |          32.0 |     **18.4** |        1623 | `phase7-lfm`                |
 | SmolLM2-360M | 360M   | int4   | ORT DML int4                   |       152–334 |          8.8 |    999–1525 | `phase2-dml`                |
 | Llama-3.2-3B | 3B     | Q3_K_S | llama.cpp CPU · t6             |          19.5 |     **14.2** |        1824 | `phase7-scale`              |
 | Phi-3.5-mini | 3.8B   | Q3_K_S | llama.cpp CPU · t6             |          15.3 |         11.3 |        2453 | `phase7-scale`              |
 
 Notes:
 
+- **Phase 7 H1 LFM campaign** (2026-07-17): LFM2.5-1.2B is the balanced tier at
+  **37.9 tok/s / 811 MB**; LFM2-2.6B is the quality tier at **18.4 tok/s /
+  1623 MB**. On `long-1k.txt` they retain 35.4 and 17.7 tok/s respectively
+  (`phase7-lfm-long.csv`). The deterministic eight-task H9 suite scores 6/8 and
+  7/8, versus Gemma-4-E2B 6/8, Llama-3.2-3B 5/8 and LFM2.5-350M 4/8
+  (`phase7-h9.jsonl`). Both pass H1 and are catalogue options; the 350M remains
+  the fast first-launch default.
 - **Llama-3.2-3B Q3_K_S** (Phase 7 H4, 2026-07-16): dense 3B at **14.2 tok/s** /
   1824 MB peak — similar speed to Gemma-4-E2B Q3 (15.3) with ~900 MB less RAM.
   Catalogue id **`llama32-3b`** (HF direct, optional advanced; default stays
@@ -76,6 +85,8 @@ delta:
 | -------------------------------------------- | ----------------: | ---------------: | --------: |
 | ORT-GenAI · SmolLM2-360M (`phase35-kv`)      |    103.7 (22 tok) |  505.2 (114 tok) | **4.87×** |
 | llama.cpp · Gemma-3-270M (`phase6-gemma-kv`) |    107.5 (39 tok) |  437.4 (179 tok) | **4.07×** |
+| llama.cpp · LFM2.5-1.2B (`phase7-lfm-kv`)    |    264.8 (18 tok) | 5125.4 (391 tok) | **19.36×** |
+| llama.cpp · LFM2-2.6B (`phase7-lfm-kv`)      |    609.4 (18 tok) | 12198.4 (391 tok) | **20.02×** |
 
 GGUF KV-reuse was previously disabled (llama.cpp recreated the context per turn);
 now enabled and console-measured. Routing (CPU↔GPU) stays ORT-only — the

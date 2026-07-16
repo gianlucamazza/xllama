@@ -57,6 +57,25 @@ curl -sk -u "$XBOX_USER:$XBOX_PASS" \
 Schema: `model,prefill1_ms,n_p1,prefill2_reuse_ms,n_p2_reuse,prefill2_cold_ms,n_p2_cold,speedup,decode_tok_s,n_ctx,host,date`.
 `speedup = prefill2_cold_ms / prefill2_reuse_ms` is the headline number.
 
+### Xbox — deterministic capability suite (H9)
+
+`scripts/eval-xbox-models.sh` sends the fixed tasks in
+`bench/eval/phase7-h9.json` through the app's OpenAI-compatible LAN endpoint.
+It pins temperature 0 / seed 42 and records output, usage, latency and the
+machine-checkable verdict for every task:
+
+```bash
+source ~/.config/xllama/xbox-env
+./scripts/eval-xbox-models.sh \
+  --models lfm25-350m,gemma4-e2b,llama32-3b,lfm25-1.2b-instruct,lfm2-2.6b \
+  --out bench/results/phase7-h9.jsonl
+```
+
+The suite covers Italian, arithmetic, JSON extraction, grounded QA, constrained
+summarisation, translation, multi-turn memory and abstention. It is a compact
+promotion gate, not a general-purpose model benchmark; preserve the task corpus
+unchanged when comparing new candidates to the committed Phase 7 baseline.
+
 ### Linux (manual)
 
 ```bash

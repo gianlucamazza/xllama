@@ -1,0 +1,87 @@
+[
+  {
+    "id": "it_exact_capital",
+    "messages": [
+      {"role": "user", "content": "Rispondi con una sola parola: qual è la capitale d'Italia?"}
+    ],
+    "max_tokens": 16,
+    "required_patterns": ["^Roma[.!]?$"],
+    "forbidden_patterns": [],
+    "max_words": 1
+  },
+  {
+    "id": "arithmetic_multistep",
+    "messages": [
+      {"role": "user", "content": "Un magazzino riceve 37 scatole con 24 pezzi ciascuna e poi altri 15 pezzi. Quanti pezzi contiene in totale? Rispondi con il solo numero."}
+    ],
+    "max_tokens": 24,
+    "required_patterns": ["^903$"],
+    "forbidden_patterns": [],
+    "max_words": 1
+  },
+  {
+    "id": "json_extraction",
+    "messages": [
+      {"role": "user", "content": "Estrai i dati in un oggetto JSON senza markdown. Testo: Ada Lovelace pubblicò le sue note nel 1843 e lavorò a Londra. Chiavi esatte: name, year, city."}
+    ],
+    "max_tokens": 80,
+    "required_patterns": ["\"name\"[[:space:]]*:[[:space:]]*\"Ada Lovelace\"", "\"year\"[[:space:]]*:[[:space:]]*1843", "\"city\"[[:space:]]*:[[:space:]]*\"Londra\"|\"city\"[[:space:]]*:[[:space:]]*\"London\""],
+    "forbidden_patterns": ["```"],
+    "max_words": 20
+  },
+  {
+    "id": "grounded_qa",
+    "messages": [
+      {"role": "system", "content": "Rispondi usando esclusivamente il contesto fornito."},
+      {"role": "user", "content": "Contesto: il dispositivo Falco usa 4 core CPU, occupa 730 MB e funziona completamente offline. Domanda: quanti core usa e quanta memoria occupa?"}
+    ],
+    "max_tokens": 64,
+    "required_patterns": ["4", "730[[:space:]]*MB"],
+    "forbidden_patterns": ["GPU", "internet"],
+    "max_words": 30
+  },
+  {
+    "id": "constrained_summary",
+    "messages": [
+      {"role": "user", "content": "Riassumi in esattamente tre punti elenco: il progetto usa C++17; gira offline su Xbox Series S; i modelli non sono inclusi nel pacchetto ma vengono scaricati al primo avvio."}
+    ],
+    "max_tokens": 100,
+    "required_patterns": ["C\\+\\+17", "offline", "primo avvio|scaricat"],
+    "forbidden_patterns": [],
+    "max_words": 55,
+    "expected_list_items": 3
+  },
+  {
+    "id": "translation_fidelity",
+    "messages": [
+      {"role": "user", "content": "Traduci in inglese mantenendo tutti i dettagli: Il test inizia martedì alle 09:30, dura 45 minuti e non richiede una connessione internet."}
+    ],
+    "max_tokens": 80,
+    "required_patterns": ["Tuesday", "09:30|9:30", "45 minutes", "internet connection|Internet connection"],
+    "forbidden_patterns": [],
+    "max_words": 35
+  },
+  {
+    "id": "multi_turn_memory",
+    "messages": [
+      {"role": "user", "content": "Ricorda questo codice di sessione: AZ-417."},
+      {"role": "assistant", "content": "Va bene, ricorderò il codice AZ-417."},
+      {"role": "user", "content": "Qual era il codice? Rispondi soltanto con il codice."}
+    ],
+    "max_tokens": 24,
+    "required_patterns": ["^AZ-417[.!]?$"],
+    "forbidden_patterns": [],
+    "max_words": 1
+  },
+  {
+    "id": "unknown_from_context",
+    "messages": [
+      {"role": "system", "content": "Usa soltanto il contesto. Se la risposta non è presente, rispondi esattamente NON DISPONIBILE."},
+      {"role": "user", "content": "Contesto: il veicolo è blu e pesa 900 kg. Qual è la sua velocità massima?"}
+    ],
+    "max_tokens": 24,
+    "required_patterns": ["^NON DISPONIBILE[.!]?$"],
+    "forbidden_patterns": [],
+    "max_words": 2
+  }
+]

@@ -50,7 +50,9 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
 - **Claim:** At ~20 tok/s bound, a 1–2B efficient arch beats dense 0.8B quality and approaches peer 3B.
 - **PASS:** Quality ≥ E2B and decode ≥20 **or** quality ≫ E2B at ≥12 tok/s.
 - **FAIL:** Another tiny fast model without quality lift.
-- **Status:** Open — LFM 350M already proves efficiency direction; need larger LFM/hybrid if GGUF exists.
+- **Status:** **PASS (2026-07-17)** — LFM2.5-1.2B reaches 37.9 tok/s / 811 MB and
+  matches E2B at H9 6/8; LFM2-2.6B reaches 18.4 tok/s / 1623 MB and beats E2B
+  at H9 7/8. Both are catalogue options; default stays 350M.
 
 ### H2 — MoE with ~1–2B active params
 
@@ -65,6 +67,8 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
 - **PASS:** ≥1.4× on 1.7B+ with same quality.
 - **FAIL:** Overhead &gt; gain on 6 cores.
 - **Status:** Deferred eng (llama.cpp has tools; not in `LlamaSession` yet).
+  Dependency forks are available and explicitly in scope if H3 or a measured
+  kernel/repack bottleneck requires changes below xllama's API layer.
 
 ### H4 — Usable 3B-class GGUF at Q3/Q4
 
@@ -115,7 +119,8 @@ GPU decode@360M, llama 2× ORT BW, mmap load win, extdata→1B fp16 GPU, DML int
 | H4         | Llama-3.2-3B-Instruct Q3_K_S      | `unsloth/Llama-3.2-3B-Instruct-GGUF`   | 1.54 GB | **Measured preferred** — catalogue `llama32-3b`       |
 | H4         | Llama-3.2-3B-Instruct Q4_K_M      | same                                   | 2.02 GB | Quality control if Q3 weak (not needed after Q3 PASS) |
 | H4         | Phi-3.5-mini Q3_K_S               | `bartowski/Phi-3.5-mini-instruct-GGUF` | 1.68 GB | **Measured** — loses A/B; no catalogue                |
-| H1         | Larger LFM / LFM2-MoE if &lt;3 GB | check LiquidAI / unsloth               | TBD     | Efficiency line                                       |
+| H1         | LFM2.5-1.2B-Instruct Q4_K_M      | `LiquidAI/LFM2.5-1.2B-Instruct-GGUF`   | 697 MB  | **PASS** — balanced catalogue tier                    |
+| H1         | LFM2-2.6B Q4_K_M                  | `LiquidAI/LFM2-2.6B-GGUF`               | 1.46 GB | **PASS** — quality catalogue tier                     |
 | H2         | Small MoE GGUF with arch in tree  | e.g. OLMoE/Qwen-MoE tiny               | TBD     | Only if &lt;~3.5 GB Q3                                |
 
 ## Console campaign results
@@ -159,12 +164,35 @@ peer-class dense candidate** (faster + lighter). Phi-3.5-mini also clears H4
 gates but loses the speed/RAM A/B; no catalogue entry unless H9 quality later
 overturns that.
 
+### H1 LFM campaign
+
+Sources: `bench/results/phase7-lfm.csv`, `phase7-lfm-long.csv` and
+`phase7-h9.jsonl` (Series S, MSIX 1.2.0.536, 2026-07-17). Performance rows are
+three-run campaigns with run 1 discarded; t4/t5/t6 were swept and t6 won.
+
+| Model                         | Decode | Prefill | Peak MB | Long decode | H9 | Verdict                |
+| ----------------------------- | -----: | ------: | ------: | ----------: | --: | ---------------------- |
+| LFM2.5-1.2B-Instruct Q4_K_M   |  37.88 |   76.16 |     811 |       35.38 | 6/8 | **H1 PASS · balanced** |
+| LFM2-2.6B Q4_K_M              |  18.36 |   32.04 |    1623 |       17.72 | 7/8 | **H1 PASS · quality**  |
+
+H9 uses eight deterministic API tasks at temperature 0 / seed 42. Baselines:
+Gemma-4-E2B 6/8, Llama-3.2-3B 5/8, LFM2.5-350M 4/8. Every model failed the same
+multi-step arithmetic task. The 2.6B uniquely combines the best aggregate score
+with correct abstention, while the 1.2B clears the ≥20 tok/s branch by matching
+E2B quality. Both therefore satisfy the predeclared H1 gate without changing
+the first-launch default.
+
+Persistent-session validation also passes: turn-2 KV reuse is **19.36×** faster
+than cold re-prefill on 1.2B and **20.02×** on 2.6B
+(`bench/results/phase7-lfm-kv.csv`).
+
 ### Next measured steps
 
 1. ~~Optional catalogue entry `llama32-3b`~~ — **done** (manifest + Llama-3 template).
 2. ~~Phi-3.5-mini Q3_K_S speed/RAM A/B~~ — **done** (Llama preferred; see above).
-3. H9 human task suite: LFM vs E2B vs Llama-3.2-3B (Phi only if Phi-3 chat template lands).
-4. H3 speculative only if H9 says 3B quality is still short of peer 7B.
+3. ~~H9 deterministic task suite: LFM vs E2B vs Llama-3.2-3B~~ — **done**.
+4. H3 speculative: use the available llama.cpp fork only after a target/draft A/B
+   predicts ≥1.4× and the quality need justifies dependency work.
 
 ## Decision log
 
@@ -174,3 +202,5 @@ overturns that.
 | 2026-07-16 | **H4 PASS** — Llama-3.2-3B Q3_K_S @14.2 tok/s, 1824 MB peak (`phase7-scale.csv`)                              |
 | 2026-07-16 | Catalogue **`llama32-3b`** (HF Q3_K_S) + `ChatFormatKind::Llama3`; default stays LFM                          |
 | 2026-07-16 | **Phi-3.5-mini Q3_K_S A/B** — 11.31 tok/s, 2453 MB; H4 PASS but loses to Llama on speed+RAM; **no catalogue** |
+| 2026-07-17 | **H1 PASS** — LFM2.5-1.2B 37.88 tok/s, 811 MB, H9 6/8; catalogue balanced tier                         |
+| 2026-07-17 | **H1 PASS** — LFM2-2.6B 18.36 tok/s, 1623 MB, H9 7/8; catalogue quality tier; 350M remains default      |
