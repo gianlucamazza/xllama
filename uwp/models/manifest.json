@@ -32,7 +32,7 @@
         {
           "filename": "genai_config.json",
           "remote": "smollm2-360m-dml-fp16_genai_config.json",
-          "approx_bytes": 1456
+          "approx_bytes": 1599
         },
         {
           "filename": "tokenizer.json",
@@ -42,12 +42,12 @@
         {
           "filename": "tokenizer_config.json",
           "remote": "smollm2-360m-dml-fp16_tokenizer_config.json",
-          "approx_bytes": 453
+          "approx_bytes": 452
         },
         {
           "filename": "model.onnx",
           "remote": "smollm2-360m-dml-fp16_model.onnx",
-          "approx_bytes": 691000000
+          "approx_bytes": 724910374
         }
       ]
     },

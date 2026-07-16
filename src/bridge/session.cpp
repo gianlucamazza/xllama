@@ -199,7 +199,12 @@ class OrtSession final : public Session {
                   "OgaTokenizerEncode");
         int n_prompt_tok = static_cast<int>(OgaSequencesGetSequenceCount(seqs.get(), 0));
 
-        OgaGeneratorParamsPtr gparams = make_params(gp, gp.n_predict + 512);
+        // Size max_length from the ACTUAL prompt, clamped to the model context.
+        // The old fixed "n_predict + 512" headroom was structurally too small for
+        // routed turns: routing sends >600-token prompts to the GPU, so a 959-tok
+        // turn hit "input_ids size (959) ... exceeds max length (768)".
+        const int max_len = std::min(m_n_ctx, n_prompt_tok + gp.n_predict);
+        OgaGeneratorParamsPtr gparams = make_params(gp, max_len);
         OgaGenerator* raw_gen = nullptr;
         oga_check(OgaCreateGenerator(m_model.get(), gparams.get(), &raw_gen), "OgaCreateGenerator");
         OgaGeneratorPtr gen(raw_gen);

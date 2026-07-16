@@ -137,19 +137,25 @@ validate_spike() {
 validate_chat() {
 	echo "=== chat: /v1/chat/completions ==="
 	local req resp verdict=0
-	req=$(printf '{"model":"%s","messages":[{"role":"user","content":"Say hello in one short sentence."}],"max_tokens":64}' "$MODEL")
+	# temperature 0 + fixed seed: deterministic PASS/FAIL. At the default
+	# temperature a 350M model occasionally samples a role hallucination
+	# ("User\n\n<|end|>"), turning the gate into a coin flip.
+	req=$(printf '{"model":"%s","messages":[{"role":"user","content":"Say hello in one short sentence."}],"max_tokens":64,"temperature":0,"seed":42}' "$MODEL")
 	resp=$(curl -sS -m 180 -H 'Content-Type: application/json' -d "$req" \
 		"${API_URL}/v1/chat/completions" || true)
 	local content
+	# Parse via stdin: interpolating $resp into a python heredoc broke on any
+	# multi-line content (the JSON "\n" became a real newline inside ''' '''),
+	# mislabeling valid completions as empty.
 	content=$(
-		python3 - <<PY
+		printf '%s' "$resp" | python3 -c '
 import json, sys
 try:
-    d = json.loads('''$resp''')
+    d = json.load(sys.stdin)
     print(d.get("choices", [{}])[0].get("message", {}).get("content", ""))
 except Exception:
     print("")
-PY
+'
 	)
 	if [[ -n "$content" ]]; then
 		echo "  ok: assistant replied: ${content:0:80}"
