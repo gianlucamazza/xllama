@@ -8,7 +8,8 @@ App guide for the gamepad UI. For installation see
 ## First launch — model download
 
 The MSIX ships no model (~19 MB). On first launch the app downloads the default
-chat model (SmolLM2-360M-Instruct INT4, ~417 MB) from the
+chat model (**LFM2.5-350M** Q4_K_M, ~219 MB, on unified shipping builds; ORT-only
+builds still use SmolLM2-360M-Instruct INT4, ~417 MB) from the
 [`models-v1` GitHub Release](https://github.com/gianlucamazza/xllama/releases/tag/models-v1)
 with a progress bar, writes it to `LocalState\models\`, and opens the chat.
 The console needs internet access for this step; afterwards everything runs

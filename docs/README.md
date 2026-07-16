@@ -16,6 +16,7 @@ docs quote a headline and link back:
 | [architecture.md](./architecture.md)                             | Component/data-flow map: modules, runtime backend dispatch, chat templates, KV-reuse, routing, provisioning auto-upgrade, membw, diffusion   |
 | [install-release.md](./install-release.md)                       | Install a tagged GitHub Release build on your Xbox (cert + VCLibs + MSIX)                                                                    |
 | [using-the-app.md](./using-the-app.md)                           | App guide: chat, settings (model picker, routing, KV reuse), image generation                                                                |
+| [demo-video-runbook.md](./demo-video-runbook.md)                 | Phase 6 demo clip: preflight, storyboard, capture, publish — **console session**                                                             |
 | [uwp-constraints.md](./uwp-constraints.md)                       | UWP sandbox limitations, measured GPU budget, AppContainer filesystem quirks, and how xllama works around them                               |
 | [technical-report.md](./technical-report.md)                     | The measured story (v1.0 snapshot); published as [Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76)                    |
 | [console-validation-runbook.md](./console-validation-runbook.md) | Ordered on-console validation checklist with measured results per section                                                                    |

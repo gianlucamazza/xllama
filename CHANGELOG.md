@@ -56,6 +56,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Docs
 
+- **Demo video runbook** — `docs/demo-video-runbook.md`: Phase 6 close-out
+  session on console (v1.2.0.536 preflight, storyboard, capture, publish).
+  First-launch default in `using-the-app.md` aligned to LFM2.5-350M (unified).
 - **Publishing runbook for ORT model assets (#99, closes #96)** — "Publishing
   ORT model assets (models-v1) — logit-parity gate" in
   `docs/model-selection.md` (+ CONTRIBUTING pointer): no ORT text asset is
