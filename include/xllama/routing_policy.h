@@ -27,13 +27,23 @@ struct RoutingDecision {
     int token_count = 0;
 };
 
+// DML text inference computes numerically wrong logits on the Series S
+// Dev-Mode GPU (issue #91): GQA decoder graphs produce deterministic garbage
+// (parity NMSE ~1 vs the CPU reference, top-1 disagrees), invariant to every
+// graph/session/capture knob, at fp16 AND int4, while the same weights are
+// correct on CPU EP and SD-Turbo (no GQA) is correct on the same device. Until
+// the parity gate (scripts/validate-logit-parity.sh) passes on a DML text
+// model, GPU routing for text is forced off — Auto and GpuOnly both resolve to
+// the CPU model. Diffusion (plain ORT, validated correct) is unaffected.
+inline constexpr bool kDmlTextLogitsBroken = true;
+
 // Decide which model directory to load for the first turn of a conversation.
 // |gpu_available| must reflect IsModelProvisioned(gpu_model) — callers gate UX.
 inline RoutingDecision decide_routing(const RoutingSettings& s, int n_tok, bool base_is_gguf,
                                       bool gpu_available) {
     RoutingDecision d;
     d.token_count = n_tok;
-    if (base_is_gguf || s.mode == RoutingMode::CpuOnly) {
+    if (base_is_gguf || s.mode == RoutingMode::CpuOnly || kDmlTextLogitsBroken) {
         d.active_model = s.cpu_model;
         d.use_gpu = false;
         return d;

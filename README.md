@@ -32,7 +32,7 @@
 
 `xllama` is a UWP application for Xbox Series S|X in Dev Mode that runs LLM chat and Stable-Diffusion image generation locally, with no cloud dependency and a gamepad-friendly UI.
 
-The project started as a port of [`llama.cpp`](https://github.com/ggml-org/llama.cpp) (GGUF files, CPU-only), then migrated to **ONNX Runtime GenAI + DirectML**. The measured verdict is **per-workload** (see [docs/technical-report.md](./docs/technical-report.md)): the Zen 2 **CPU wins autoregressive decode** at this model scale (~66 tok/s, SmolLM2-360M int4), the RDNA 2 **GPU wins batch compute** — prefill at ~1k prompt tokens (1.8× faster) and image generation (**11.1×** on the diffusion workload: SD-Turbo 512×512 in ~7 s). The app routes per conversation (CPU / GPU / auto). The llama.cpp path serves Linux development, CI, and — in the `unified` UWP build — modern GGUF-only models (Qwen3.5, LFM2.5); for the same model, ORT stays the text backend (measured decode parity, better prefill).
+The project started as a port of [`llama.cpp`](https://github.com/ggml-org/llama.cpp) (GGUF files, CPU-only), then migrated to **ONNX Runtime GenAI + DirectML**. The measured verdict is **per-workload** (see [docs/technical-report.md](./docs/technical-report.md)): the Zen 2 **CPU wins autoregressive decode** at this model scale (~66 tok/s, SmolLM2-360M int4), the RDNA 2 **GPU wins batch compute** — prefill at ~1k prompt tokens (1.8× faster) and image generation (**11.1×** on the diffusion workload: SD-Turbo 512×512 in ~7 s). GPU **text** routing is currently disabled ([#91](https://github.com/gianlucamazza/xllama/issues/91): the DML GQA decoder computes wrong logits on the Series S GPU — caught by the logit-parity harness); diffusion stays on the GPU. The llama.cpp path serves Linux development, CI, and — in the `unified` UWP build — modern GGUF-only models (Qwen3.5, LFM2.5); for the same model, ORT stays the text backend (measured decode parity, better prefill).
 
 The default chat model on the shipping **unified** build is **LFM2.5-350M Q4_K_M** (~219 MB, ~94 tok/s), downloaded on first launch from the GitHub Release model catalogue — the MSIX itself is ~19 MB and ships no model. ORT-only builds still default to SmolLM2-360M INT4.
 
@@ -248,17 +248,17 @@ Models come from the catalogue `uwp/models/manifest.json` (assets hosted on the 
 Catalogue overview (roles + sizes; **decode/prefill/RAM numbers live in
 [docs/benchmarks.md](./docs/benchmarks.md)**, the perf SSOT):
 
-| Model                      | Format        | Size    | Xbox UWP | Role                                                       |
-| -------------------------- | ------------- | ------- | -------- | ---------------------------------------------------------- |
-| LFM2.5-350M Q4_K_M         | GGUF          | 219 MB  | ✅       | **Default chat** on unified shipping; fastest+lightest     |
-| SmolLM2-360M-Instruct INT4 | ONNX GenAI    | 417 MB  | ✅       | ORT default / routing base (CPU)                           |
-| SmolLM2-360M fp16 DML      | ONNX GenAI    | ~700 MB | ✅       | Routing target (long-prompt prefill on GPU)                |
-| SmolLM2-1.7B-Instruct INT4 | ONNX GenAI    | 1.4 GB  | ✅       | Larger CPU chat (~20.6 tok/s; in-app `models-v1` download) |
-| Qwen3.5-0.8B Q4_K_M        | GGUF          | 508 MB  | ✅       | `unified` builds (llama.cpp)                               |
-| Gemma-3-270M Q4_K_M        | GGUF          | 253 MB  | ✅       | `unified` builds; fast, tiny                               |
-| Gemma-4-E2B Q3_K_S         | GGUF          | 2.45 GB | ✅       | `unified` builds; heavy/advanced                           |
-| SD-Turbo fp16 (image)      | ONNX DirectML | 2.4 GB  | ✅       | Image gen ([diffusion/README.md](./diffusion/README.md))   |
-| Phi-3.5-mini CPU INT4      | ONNX GenAI    | ~2.7 GB | ❌       | Not attempted (>2 GB single-file ONNX, §8)                 |
+| Model                      | Format        | Size    | Xbox UWP | Role                                                                        |
+| -------------------------- | ------------- | ------- | -------- | --------------------------------------------------------------------------- |
+| LFM2.5-350M Q4_K_M         | GGUF          | 219 MB  | ✅       | **Default chat** on unified shipping; fastest+lightest                      |
+| SmolLM2-360M-Instruct INT4 | ONNX GenAI    | 417 MB  | ✅       | ORT default / routing base (CPU)                                            |
+| SmolLM2-360M fp16 DML      | ONNX GenAI    | ~700 MB | ✅       | Routing target (long-prompt prefill on GPU)                                 |
+| SmolLM2-1.7B-Instruct INT4 | ONNX GenAI    | 1.4 GB  | ✅       | Larger CPU chat (~20.6 tok/s; in-app `models-v1` download)                  |
+| Qwen3.5-0.8B Q4_K_M        | GGUF          | 508 MB  | ✅       | `unified` builds (llama.cpp)                                                |
+| Gemma-3-270M Q4_K_M        | GGUF          | 253 MB  | ✅       | `unified` builds; fast, tiny                                                |
+| Gemma-4-E2B Q3_K_S         | GGUF          | 2.45 GB | ✅       | `unified` builds; heavy/advanced                                            |
+| SD-Turbo fp16 (image)      | ONNX DirectML | 2.4 GB  | ✅       | Image gen ([diffusion/README.md](./diffusion/README.md))                    |
+| Phi-3.5-mini CPU INT4      | ONNX GenAI    | ~2.7 GB | ❌       | Not attempted (>2 GB single-file ONNX, §8)                                  |
 | Phi-3.5-mini Q3_K_S        | GGUF          | 1.68 GB | ⚠️       | H4 A/B measured 11.3 tok/s / 2453 MB; loses to `llama32-3b` — not catalogue |
 
 See [docs/uwp-constraints.md](./docs/uwp-constraints.md) for the measured GPU budget (3801 MB), the disk budget, and AppContainer workarounds.
