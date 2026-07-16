@@ -26,17 +26,17 @@ Metrics: **prefill** = prompt tok/s (throughput ingesting the prompt), **decode*
 
 Best measured decode configuration per model.
 
-| Model        | Params | Quant  | Backend               | Prefill tok/s | Decode tok/s | Peak RAM MB | Source CSV                  |
-| ------------ | ------ | ------ | --------------------- | ------------: | -----------: | ----------: | --------------------------- |
-| LFM2.5-350M  | 350M   | Q4_K_M | llama.cpp CPU · t6    |         241.4 |     **94.2** |         321 | `phase5-gguf`               |
-| SmolLM2-360M | 360M   | int4   | ORT-GenAI CPU         |         219.8 |         70.9 |         722 | `phase1-cpu` / `phase2-dml` |
-| SmolLM2-360M | 360M   | Q4_K_M | llama.cpp CPU · t6    |         141.5 |         62.9 |         402 | `phase35-llamacpp-scaling`  |
-| SmolLM2-360M | 360M   | fp16   | ORT DML (routing GPU) |         353.5 |         46.8 |        1154 | `phase2-dml`                |
-| Qwen3.5-0.8B | 0.8B   | Q4_K_M | llama.cpp CPU · t6    |          98.1 |         35.1 |         718 | `phase5-gguf`               |
-| SmolLM2-1.7B | 1.7B   | int4   | ORT-GenAI CPU         |          54.9 |         20.6 |        2423 | `phase35-1b-cpu`            |
-| SmolLM2-360M | 360M   | int4   | ORT DML int4          |       152–334 |          8.8 |    999–1525 | `phase2-dml`                |
-| Llama-3.2-3B | 3B     | Q3_K_S | llama.cpp CPU · t6    |          19.5 |     **14.2** |        1824 | `phase7-scale`              |
-| Phi-3.5-mini | 3.8B   | Q3_K_S | llama.cpp CPU · t6    |          15.3 |         11.3 |        2453 | `phase7-scale`              |
+| Model        | Params | Quant  | Backend                        | Prefill tok/s | Decode tok/s | Peak RAM MB | Source CSV                  |
+| ------------ | ------ | ------ | ------------------------------ | ------------: | -----------: | ----------: | --------------------------- |
+| LFM2.5-350M  | 350M   | Q4_K_M | llama.cpp CPU · t6             |         241.4 |     **94.2** |         321 | `phase5-gguf`               |
+| SmolLM2-360M | 360M   | int4   | ORT-GenAI CPU                  |         219.8 |         70.9 |         722 | `phase1-cpu` / `phase2-dml` |
+| SmolLM2-360M | 360M   | Q4_K_M | llama.cpp CPU · t6             |         141.5 |         62.9 |         402 | `phase35-llamacpp-scaling`  |
+| SmolLM2-360M | 360M   | fp16   | ORT DML — routing disabled #91 |         353.5 |         46.8 |        1154 | `phase2-dml`                |
+| Qwen3.5-0.8B | 0.8B   | Q4_K_M | llama.cpp CPU · t6             |          98.1 |         35.1 |         718 | `phase5-gguf`               |
+| SmolLM2-1.7B | 1.7B   | int4   | ORT-GenAI CPU                  |          54.9 |         20.6 |        2423 | `phase35-1b-cpu`            |
+| SmolLM2-360M | 360M   | int4   | ORT DML int4                   |       152–334 |          8.8 |    999–1525 | `phase2-dml`                |
+| Llama-3.2-3B | 3B     | Q3_K_S | llama.cpp CPU · t6             |          19.5 |     **14.2** |        1824 | `phase7-scale`              |
+| Phi-3.5-mini | 3.8B   | Q3_K_S | llama.cpp CPU · t6             |          15.3 |         11.3 |        2453 | `phase7-scale`              |
 
 Notes:
 
@@ -51,14 +51,19 @@ Notes:
   Campaign headless used ChatML; Phi-3 template (`ChatFormatKind::Phi3`) landed
   after the run — tok/s/RAM still valid.
 
-
 - **LFM2.5-350M** is the fastest chat model and the lightest (321 MB RAM) — the
   default chat model on unified builds.
 - **DML int4** (8.8 tok/s) is ~8× slower than CPU at this scale: no fused low-bit
   GPU GEMM, so decode is memory-bound reading fp16 weights round-tripped through
-  VRAM. DML fp16 is only worth it for long-prefill routing (353 tok/s prefill).
-- **Routing**: Auto switches SmolLM2-360M CPU → DML fp16 above a 600-token prompt
-  (`routing_policy.h`), trading decode (70.9 → 46.8) for prefill (219 → 353).
+  VRAM. DML fp16's prefill number (353 tok/s) stands as a raw throughput
+  measurement only — **its text output is numerically wrong on this device
+  (#91)**.
+- **Routing — disabled (#91)**: DML text logits are wrong on the Series S driver
+  (attention path, GQA and MHA alike), so `routing_policy.h`
+  (`kDmlTextLogitsBroken`) forces every text turn to the CPU model and the
+  600-token Auto switch never fires. The pre-#91 trade (decode 70.9 → 46.8 for
+  prefill 219 → 353) returns if `validate-logit-parity.sh` ever passes on a DML
+  text model. All DML tok/s rows above remain valid as throughput measurements.
 
 ## KV-cache reuse — both backends, CPU
 

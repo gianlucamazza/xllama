@@ -62,13 +62,16 @@ turn-2 cold re-prefills the full 2-turn context, reuse only the ~10-token delta.
 confirm multi-turn **coherence** (read the log's decoded turn-2 output) before trusting
 `kv_reuse` as the interactive default.
 
-## 2. PR #2 — CPU/GPU routing (Stage 3) — ✅ MEASURED 2026-07-14 (`validate-console.sh routing`)
+## 2. PR #2 — CPU/GPU routing (Stage 3) — ✅ GATE HOLDS 2026-07-16 (`validate-console.sh routing`)
 
-**Validates**: the `routing=2` (auto) path picks GPU (DML fp16) for long prompts and CPU
-for decode, sticky per conversation.
+**Validates (since #91)**: the `kDmlTextLogitsBroken` gate holds — every text
+turn stays on the CPU model in every routing mode, and no turn is blocked or
+degraded by it. The pre-#91 semantics (auto picks DML fp16 for long prompts)
+return, and this section flips back to an A/B, when the gate is lifted
+(`validate-logit-parity.sh` PASS on a DML text model).
 
 > **Automated gate (official).** Dev Mode gives the console no working text-input
-> path, so this A/B is driven by the in-app **autopilot** (build ≥ 1.1.3.0):
+> path, so this check is driven by the in-app **autopilot** (build ≥ 1.1.3.0):
 >
 > ```bash
 > source ~/.config/xllama/xbox-env
@@ -76,22 +79,28 @@ for decode, sticky per conversation.
 > ```
 >
 > It seeds a >600-token decoy conversation, replays load_chat → send → new_chat →
-> send via `autopilot.flag`/`autopilot.json`, and greps `xllama.log` for
-> `auto → gpu (N>600 tok`, `auto → cpu` on the new chat, and the absence of
-> `887A0036`. **A PASS here is the official §2 gate** (same `StartInference` in the
-> live XAML process as a human run). The manual steps below remain for debugging.
+> send via `autopilot.flag`/`autopilot.json`, and greps `xllama.log` for the
+> **absence** of `auto → gpu` (the gate must hold), the **presence** of
+> `auto → cpu` (the turn must still run, #100), and the absence of `887A0036`.
+> **A PASS here is the official §2 gate** (same `StartInference` in the live
+> XAML process as a human run). The manual steps below remain for debugging.
 
-**Measured (2026-07-14, unified 1.1.3.0 + 1.1.4.0, patched GenAI):** long turn
-auto→GPU (**959 tok**), new short chat auto→CPU, no `887A0036`. Full suite:
-`./scripts/validate-console.sh all` → **ALL PASS**.
+**Measured (2026-07-16, unified 1.2.0.534):** long turn (**959 tok**) routed to
+CPU, no `auto → gpu` line, no `887A0036` — gate holds. Full suite PASS (parity,
+routing, GGUF, TAESD, API). _(Historical, pre-#91 — 2026-07-14, 1.1.3.0/1.1.4.0:
+long turn auto→GPU at 959 tok, short chat auto→CPU. Those answers were later
+shown numerically wrong — see #91.)_
 
 **Prereqs** (manual path):
 
 1. A **unified + PatchedGenAI #2280** MSIX — the default `xllama-appx` CI artifact
    (`build-uwp.yml`); vanilla NuGet `onnxruntime-genai.dll` hits `887A0036` in XAML.
-   Local build: `./scripts/build-uwp.ps1 -Backend unified -PatchedGenAI`.
-2. `smollm2-360m-dml-fp16` in `LocalState\models\` (catalogue download from
-   `models-v1`, or WDP upload via `deploy.sh upload-dir`).
+   (Under the #91 gate this matters for diffusion and for the future re-enable,
+   not for the text path — which is CPU in every mode.)
+2. `smollm2-360m-cpu-int4` in `LocalState\models\` — seed it with
+   `./scripts/provision-models.sh smollm2-360m-cpu-int4` (or `--all-test`).
+   The `smollm2-360m-dml-fp16` model is **not** required nor auto-downloaded
+   while the gate holds (#95).
 3. Preload modern settings (tokenizer-accurate threshold **600 tok**). NB: the
    app reads `settings.json`, so upload under that name:
 
@@ -106,10 +115,12 @@ Then, at the console: launch xllama → paste a **long** prompt (>~600 tokens �
 `bench/prompts/long-1k.txt`) → send; then a short follow-up; then **+ New** and a short
 prompt. Fetch the log afterwards (`deploy.sh get-log`).
 
-**Looking for** (in the log): a line like `routing: auto → gpu (N tok, threshold 600, ...)`
-on the long-prompt first turn; follow-up stays on the same EP (sticky); new chat with a
-short prompt shows `routing: auto → cpu`. No `887A0036`. Optional: `./scripts/profile-dml-run.sh`
-on a GPU-routed turn → `VERDICT: GPU`.
+**Looking for** (in the log, while the #91 gate holds): `routing: auto → cpu (N
+tok, ...)` on the long-prompt first turn — and **no** `routing: auto → gpu` line
+anywhere (its presence means the gate regressed). No `887A0036`. _(Pre-#91
+expectation, restored when the gate lifts: `auto → gpu` on the long turn, sticky
+per conversation, `auto → cpu` on the short new chat; optional
+`./scripts/profile-dml-run.sh` → `VERDICT: GPU`.)_
 
 ## 3. PR #2 — 0.14.1 decode overhead — ✅ MEASURED 2026-07-08 (flat vs v0.3.6, `phase35-014-*.csv`)
 
@@ -288,10 +299,13 @@ restart → poll → verdict.
 
 **WDP quirks (2026-07-14 fixes):** `upload_file` mkdirs remote dirs before POST
 (chats, nested model paths). `model_provisioned` checks `filename=genai_config.json`
-(basename only — not a full path). After an MSIX **uninstall** (not upgrade),
-LocalState is wiped — re-provision models or let the catalogue download finish
-before running gates. `install-latest-build.sh` leaves `bench.flag` in LocalState
-(headless bench on next launch); delete it for UI/autopilot validation:
+(basename only — not a full path). After an MSIX **uninstall**, LocalState is
+wiped — and `install-latest-build.sh` **always uninstalls first** (to avoid the
+double-MSIX disk footprint), so **every install wipes LocalState**: provision
+models AFTER the install, never before
+(`./scripts/provision-models.sh --all-test`). `install-latest-build.sh` uploads
+`bench.flag` only with `--bench` (headless bench on next launch); if present,
+delete it for UI/autopilot validation:
 
 ```bash
 ./scripts/deploy.sh stop-app

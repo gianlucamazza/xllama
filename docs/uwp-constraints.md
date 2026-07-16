@@ -98,7 +98,10 @@ Readings:
 DirectML kernel-_design_ limit (non-fused low-bit GEMM), not a hardware limit and
 not fixable by our quantization config — see §12 for the full analysis and the
 config tests that confirm it. Effective bandwidth: CPU ~13 GB/s, GPU fp16
-~34 GB/s, against a ~224 GB/s theoretical bus.
+~34 GB/s, against a ~224 GB/s theoretical bus. **#91 caveat**: independent of
+these throughput numbers, DML **text** output is numerically wrong on this
+device (attention path, GQA and MHA) — text is CPU-forced in every mode until
+the parity gate passes; the GPU-prefill win is currently moot for text.
 
 **Effect on disk**: models too large to fit the Dev Mode partition also fail before reaching `OgaCreateModel`. This is a distinct failure mode — see §9.
 
@@ -146,7 +149,7 @@ When `OgaCreateModel` initialises the DirectML execution provider, the DML alloc
 
 The fault manifests before any inference call — at model load time. There is no recovery path short of using a smaller model or switching to CPU EP.
 
-**The binding limit is the inference working set, not just the weights (measured 2026-07-15).** A native-DML Llama-3.2-1B fp16 (2.49 GB weights, GQA) **loads** fine — `gpu-mem post-load: 2878/3801 MB` — but every inference call then OOMs: `AppendTokenSequences … DmlCommittedResourceAllocator … 8007000E Not enough memory`, even at `context_length=2048`. The DML inference working set (graph-capture command allocators + prefill activations + the `past_present_share_buffer` KV buffer) needs more than the ~900 MB left after weights. So the usable DML-fp16 ceiling on Series S is set by **weights + working set ≤ 3801 MB**, which in practice caps fp16 at ~360-500 M (e.g. `smollm2-360m-dml-fp16`, ~700 MB weights). Any fp16 model large enough to require the >2 GB external-data path (§8) is ≥~1 B → over this wall.
+**The binding limit is the inference working set, not just the weights (measured 2026-07-15).** A native-DML Llama-3.2-1B fp16 (2.49 GB weights, GQA) **loads** fine — `gpu-mem post-load: 2878/3801 MB` — but every inference call then OOMs: `AppendTokenSequences … DmlCommittedResourceAllocator … 8007000E Not enough memory`, even at `context_length=2048`. The DML inference working set (graph-capture command allocators + prefill activations + the `past_present_share_buffer` KV buffer) needs more than the ~900 MB left after weights. So the usable DML-fp16 ceiling on Series S is set by **weights + working set ≤ 3801 MB**, which in practice caps fp16 at ~360-500 M (e.g. `smollm2-360m-dml-fp16`, ~725 MB weights). Any fp16 model large enough to require the >2 GB external-data path (§8) is ≥~1 B → over this wall. (For **text** models this ceiling is currently academic — DML text logits are wrong on this device, #91; it still governs the memory analysis and diffusion.)
 
 **Distinct failure mode — DML EP init `887A0036` in XAML apps** (2026-07-07,
 GPU-truth run, ORT GenAI 0.13.2 / ORT 1.24.4 / DirectML 1.15.4) — **root cause
@@ -334,7 +337,8 @@ and GPU-executed; the limit is that DirectML's kernel is **non-fused**.
 **Consequence for xllama**: int4-on-DML has **no path to beat fp16-on-DML** for
 decode by any quantization config we control, and fp16-on-DML (46.8) still loses
 to CPU int4 (68). So **CPU int4 stays the decode default**, and the GPU's real
-win is prefill (§5, reading 1) and larger-model bandwidth. A genuinely fused
+win is prefill (§5, reading 1 — moot for text while #91 holds: DML text logits
+are wrong on this device) and larger-model bandwidth. A genuinely fused
 low-bit GPU GEMM would be a DirectML-team feature, not an ORT-side PR; treat GPU
 int4 decode as blocked upstream, not a local TODO.
 

@@ -13,13 +13,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   GQA decoder computing numerically wrong logits on the Series S GPU (NMSE ~1
   vs the CPU reference at fp16 AND int4; invariant to `ORT_DISABLE_ALL`,
   `ep.dml.disable_graph_fusion` and a capture-disabled GenAI DLL; the same
-  weights are correct on CPU EP; SD-Turbo — no GQA — is correct on the same
-  device). `decide_routing` now forces the CPU model in every mode
+  weights are correct on CPU EP; SD-Turbo — decomposed attention, no contrib
+  ops — is correct on the same device). The #94 probe later showed the
+  **MultiHeadAttention** kernel is equally broken (same NMSE ~0.98 as GQA), so
+  the fault is the DML attention path on this driver, not one op.
+  `decide_routing` now forces the CPU model in every mode
   (`kDmlTextLogitsBroken`, `routing_policy.h`); GPU-routed answers had been
   silently degraded since the routing feature shipped. Re-enable gate:
   `scripts/validate-logit-parity.sh` PASS on a DML text model. Diffusion (plain
   ORT, validated) is unaffected. `validate-console.sh routing` now asserts the
   gate holds. Probe log in #91.
+- **Upstream GenAI PR toward the DML re-enable path** —
+  [microsoft/onnxruntime-genai#2300](https://github.com/microsoft/onnxruntime-genai/pull/2300):
+  graph-capture opt-out via the `dml` provider option
+  (`enable_graph_capture: "0"`) + zero-length KV placeholder clamp, both proven
+  on-device during the #94 probe (fork branch
+  `upstream-pr/dml-graph-capture-optout`). Closes #97. Driver-side track:
+  microsoft/onnxruntime#29739.
 
 ### Fixed
 
@@ -33,6 +43,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   remains `Q4_K_M` when no token is found.
 - **`bench-xbox-ort.sh`** — does not upload ORT `genai_config.json` into GGUF
   model dirs when `--threads` is set (threads still via `bench_threads.txt`).
+- **`gpu_model` no longer auto-downloaded under the #91 gate (#98, closes #95)**
+  — `EnsureGpuModelIfNeeded` skips the 725 MB `smollm2-360m-dml-fp16` download
+  while `kDmlTextLogitsBroken` holds (routing can never select it); the
+  catalogue display now reads "GPU fp16, routing — disabled #91".
+- **Missing `gpu_model` no longer blocks the turn under the #91 gate (#100)** —
+  the `StartInference` pre-checks that errored-and-returned on a missing
+  `gpu_model` (now the normal state after #95) are bypassed while the gate
+  holds. `validate-console.sh routing` precondition switched to
+  `smollm2-360m-cpu-int4`; `provision-models.sh --all-test` seeds `cpu-int4`
+  instead of the gated `dml-fp16`.
+
+### Docs
+
+- **Publishing runbook for ORT model assets (#99, closes #96)** — "Publishing
+  ORT model assets (models-v1) — logit-parity gate" in
+  `docs/model-selection.md` (+ CONTRIBUTING pointer): no ORT text asset is
+  uploaded without passing the parity gate (llama.cpp golden → host CPU-EP
+  compare → on-device `validate-logit-parity.sh` for DML → exact
+  `approx_bytes`).
 
 ### Added
 
@@ -50,6 +79,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   **Note:** console field package was still `1.1.8.507` during the campaign;
   deploy `1.2.0.x` (+ this fix set) for catalogue download hardening and the Phi
   template on-device.
+- **Full validation suite PASS on `1.2.0.534`** (2026-07-16, Series S, main):
+  logit-parity cpu-int4 vs GGUF golden NMSE **0.094** / top-10 **0.90**, §2
+  routing gate holds (no `auto → gpu`, CPU turn at 959 tok), GGUF chat, TAESD
+  VAE **621.7 ms**, LAN API ALL PASS, and the #95 gate verified live (0
+  `background provision` lines with `routing:2` and the DML model absent).
+  Supersedes the `1.1.8.507` caveat above.
 
 ## [1.2.0.0] - 2026-07-16
 

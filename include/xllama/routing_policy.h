@@ -28,13 +28,15 @@ struct RoutingDecision {
 };
 
 // DML text inference computes numerically wrong logits on the Series S
-// Dev-Mode GPU (issue #91): GQA decoder graphs produce deterministic garbage
-// (parity NMSE ~1 vs the CPU reference, top-1 disagrees), invariant to every
-// graph/session/capture knob, at fp16 AND int4, while the same weights are
-// correct on CPU EP and SD-Turbo (no GQA) is correct on the same device. Until
-// the parity gate (scripts/validate-logit-parity.sh) passes on a DML text
-// model, GPU routing for text is forced off — Auto and GpuOnly both resolve to
-// the CPU model. Diffusion (plain ORT, validated correct) is unaffected.
+// Dev-Mode GPU (issue #91): the attention path — GQA and MultiHeadAttention
+// alike (#94 probe) — produces deterministic garbage (parity NMSE ~1 vs the
+// CPU reference, top-1 disagrees), invariant to every graph/session/capture
+// knob, at fp16 AND int4, while the same weights are correct on CPU EP and
+// SD-Turbo (decomposed attention, no contrib ops) is correct on the same
+// device. Until the parity gate (scripts/validate-logit-parity.sh) passes on a
+// DML text model, GPU routing for text is forced off — Auto and GpuOnly both
+// resolve to the CPU model. Diffusion (plain ORT, validated correct) is
+// unaffected.
 inline constexpr bool kDmlTextLogitsBroken = true;
 
 // Decide which model directory to load for the first turn of a conversation.
