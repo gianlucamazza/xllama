@@ -404,9 +404,16 @@ class LlamaSession final : public Session {
 
         const llama_vocab* vocab = llama_model_get_vocab(m_model.get());
 
+        // parse_special=true: every Session caller (chat UI, API endpoint, bench)
+        // passes a TEMPLATED prompt, whose <|im_start|>/<|im_end|> markers must
+        // become the special ids the model was trained on. As plain text the
+        // model sees an alien template and its next-token distribution goes flat
+        // (LFM2.5: top-2 gap 0.52 vs 3.91 with specials) — flat enough that the
+        // Zen2-vs-desktop kernel jitter (max |Δlogit| ~1.6 measured) flipped the
+        // greedy token on-device ("User\n\n<|end|>" instead of a greeting).
         int32_t n_tokens =
             llama_tokenize(vocab, gp.prompt.c_str(), static_cast<int32_t>(gp.prompt.size()),
-                           nullptr, 0, full_prompt, false);
+                           nullptr, 0, full_prompt, true);
         if (n_tokens == INT32_MIN) {
             res.error_msg = "tokenize overflow";
             return res;
@@ -416,7 +423,7 @@ class LlamaSession final : public Session {
 
         std::vector<llama_token> tokens(static_cast<size_t>(n_tokens));
         n_tokens = llama_tokenize(vocab, gp.prompt.c_str(), static_cast<int32_t>(gp.prompt.size()),
-                                  tokens.data(), n_tokens, full_prompt, false);
+                                  tokens.data(), n_tokens, full_prompt, true);
         if (n_tokens < 0) {
             res.error_msg = "tokenize failed";
             return res;
@@ -511,8 +518,11 @@ class LlamaSession final : public Session {
 
     int count_tokens(const std::string& prompt) override {
         const llama_vocab* vocab = llama_model_get_vocab(m_model.get());
+        // parse_special=true to match generate(): counting template markers as
+        // plain text overcounts a chat prompt by ~70% (50 vs 29 tokens on a
+        // 2-turn ChatML render), which skews the routing threshold.
         int32_t n = llama_tokenize(vocab, prompt.c_str(), static_cast<int32_t>(prompt.size()),
-                                   nullptr, 0, true, false);
+                                   nullptr, 0, true, true);
         if (n == INT32_MIN)
             return 0;
         return -n;

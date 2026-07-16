@@ -456,9 +456,13 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
 
     const llama_vocab* vocab = llama_model_get_vocab(model.get());
 
+    // parse_special only for --chat: there the prompt is a rendered template
+    // whose markers must map to the model's special ids (see session.cpp). A raw
+    // -p prompt keeps them as text so user input can't smuggle special tokens.
+    const bool parse_special = params.chat_template;
     int32_t n_tokens =
         llama_tokenize(vocab, params.prompt.c_str(), static_cast<int32_t>(params.prompt.size()),
-                       nullptr, 0, true, false);
+                       nullptr, 0, true, parse_special);
     if (n_tokens == INT32_MIN) {
         res.error_msg = "tokenization overflow";
         log_output("[xllama] tokenization overflow\n");
@@ -473,7 +477,7 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     std::vector<llama_token> tokens(static_cast<size_t>(n_tokens));
     n_tokens =
         llama_tokenize(vocab, params.prompt.c_str(), static_cast<int32_t>(params.prompt.size()),
-                       tokens.data(), n_tokens, true, false);
+                       tokens.data(), n_tokens, true, parse_special);
     if (n_tokens < 0) {
         res.error_msg = "tokenization failed";
         log_output("[xllama] tokenization failed\n");
