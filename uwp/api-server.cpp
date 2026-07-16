@@ -47,7 +47,8 @@ using namespace winrt::Windows::Data::Json;
 // ---------------------------------------------------------------------------
 std::mutex g_mtx;
 std::unique_ptr<::xllama::Session> g_session;
-std::string g_model; // model id currently loaded into g_session
+std::string g_model;        // model id currently loaded into g_session
+uint64_t g_req_counter = 0; // monotonic, for unique response ids (under g_mtx)
 
 // Keep the listener alive for the process lifetime (callbacks fire on the WinRT
 // thread pool, not on run_server's thread).
@@ -100,6 +101,7 @@ struct HttpRequest {
     std::string path;
     std::string body;
     bool ok = false;
+    bool chunked = false; // Transfer-Encoding: chunked (unsupported framing)
 };
 
 std::string to_lower(std::string s) {
@@ -138,11 +140,22 @@ HttpRequest read_request(StreamSocket const& socket) {
         return req;
     req.method = line.substr(0, sp1);
     req.path = line.substr(sp1 + 1, sp2 - sp1 - 1);
+    // Drop the query string so "/v1/models?foo=1" still routes.
+    if (const size_t q = req.path.find('?'); q != std::string::npos)
+        req.path.erase(q);
 
-    // Content-Length (case-insensitive header scan).
+    // Header scan (case-insensitive). We only support Content-Length framing;
+    // chunked is flagged so the caller can reject it cleanly instead of parsing
+    // an empty body.
     size_t content_length = 0;
     {
         const std::string headers = to_lower(data.substr(line_end + 2, header_end - line_end - 2));
+        if (headers.find("transfer-encoding:") != std::string::npos &&
+            headers.find("chunked") != std::string::npos) {
+            req.chunked = true;
+            req.ok = true;
+            return req;
+        }
         const size_t cl = headers.find("content-length:");
         if (cl != std::string::npos) {
             content_length = static_cast<size_t>(std::atoll(headers.c_str() + cl + 15));
@@ -255,13 +268,23 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
         return error_json("missing 'model' (and no LocalState\\model.txt fallback)");
     }
 
-    if (!root.HasKey(L"messages")) {
+    if (!root.HasKey(L"messages") ||
+        root.GetNamedValue(L"messages").ValueType() != JsonValueType::Array) {
         status = "400 Bad Request";
-        return error_json("missing 'messages'");
+        return error_json("missing or non-array 'messages'");
     }
     std::string system, final_user;
     std::vector<::xllama::ChatTurn> history;
     split_messages(root.GetNamedArray(L"messages"), system, history, final_user);
+    if (final_user.empty()) {
+        status = "400 Bad Request";
+        return error_json("no user message to complete");
+    }
+    // Small instruct models degrade badly with an empty system turn (they
+    // hallucinate the next role instead of answering); the chat UI always seeds
+    // one. Match it when the client sends no system message.
+    if (system.empty())
+        system = "You are a helpful AI assistant.";
 
     // Lazily (re)create the Session when the requested model differs.
     if (!g_session || g_model != model) {
@@ -293,6 +316,20 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
         gp.temperature = static_cast<float>(root.GetNamedNumber(L"temperature"));
     if (root.HasKey(L"top_p"))
         gp.top_p = static_cast<float>(root.GetNamedNumber(L"top_p"));
+    if (root.HasKey(L"seed")) // reproducibility for a research endpoint
+        gp.seed = static_cast<uint32_t>(root.GetNamedNumber(L"seed", -1.0));
+    // Client-supplied stop: a string or an array of strings, added to the
+    // format's own stops so clients can bound output.
+    if (root.HasKey(L"stop")) {
+        const auto sv = root.GetNamedValue(L"stop");
+        if (sv.ValueType() == JsonValueType::String) {
+            gp.stop_sequences.push_back(winrt::to_string(sv.GetString()));
+        } else if (sv.ValueType() == JsonValueType::Array) {
+            for (auto&& e : sv.GetArray())
+                if (e.ValueType() == JsonValueType::String)
+                    gp.stop_sequences.push_back(winrt::to_string(e.GetString()));
+        }
+    }
 
     const ::xllama::InferenceResult r = g_session->generate(gp);
     if (!r.success) {
@@ -310,8 +347,11 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
     // openai-python / LangChain deserialize into Pydantic models and choke when
     // logprobs is absent; emit it explicitly as null.
     choice.Insert(L"logprobs", JsonValue::CreateNullValue());
-    choice.Insert(L"finish_reason",
-                  JsonValue::CreateStringValue(r.ended_with_stop ? L"stop" : L"length"));
+    // "length" only when we actually hit the token cap; a model that ends on its
+    // EOS token before the cap stops naturally, which ended_with_stop (a textual
+    // stop-sequence match) does not capture — deduce it from the token count.
+    const bool hit_cap = r.n_eval >= gp.n_predict;
+    choice.Insert(L"finish_reason", JsonValue::CreateStringValue(hit_cap ? L"length" : L"stop"));
     JsonArray choices;
     choices.Append(choice);
 
@@ -321,7 +361,10 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
     usage.Insert(L"total_tokens", JsonValue::CreateNumberValue(r.n_p_eval + r.n_eval));
 
     JsonObject resp;
-    resp.Insert(L"id", JsonValue::CreateStringValue(L"chatcmpl-xllama"));
+    // Unique per response (id is keyed by clients / trace dedup). g_mtx is held.
+    const std::string id =
+        "chatcmpl-xllama-" + std::to_string(time(nullptr)) + "-" + std::to_string(++g_req_counter);
+    resp.Insert(L"id", JsonValue::CreateStringValue(winrt::to_hstring(id)));
     resp.Insert(L"object", JsonValue::CreateStringValue(L"chat.completion"));
     resp.Insert(L"created", JsonValue::CreateNumberValue(static_cast<double>(time(nullptr))));
     resp.Insert(L"model", JsonValue::CreateStringValue(winrt::to_hstring(model)));
@@ -382,6 +425,12 @@ void handle_connection(StreamSocket const& socket) {
             write_response(socket, "400 Bad Request", error_json("malformed request"));
             return;
         }
+        if (req.chunked) {
+            write_response(
+                socket, "411 Length Required",
+                error_json("chunked transfer-encoding not supported; send Content-Length"));
+            return;
+        }
 
         // CORS preflight for browser clients (Continue.dev webview, web UIs).
         if (req.method == "OPTIONS") {
@@ -412,8 +461,17 @@ void handle_connection(StreamSocket const& socket) {
                 write_response(socket, "503 Service Unavailable", error_json("busy"));
                 return;
             }
+            // handle_chat_locked touches WinRT JSON accessors that throw on
+            // wrong-typed fields; guarantee the client always gets a response
+            // rather than a silently dropped socket.
             const char* status = "200 OK";
-            const std::string json = handle_chat_locked(req.body, status);
+            std::string json;
+            try {
+                json = handle_chat_locked(req.body, status);
+            } catch (...) {
+                status = "400 Bad Request";
+                json = error_json("malformed request body");
+            }
             write_response(socket, status, json);
             return;
         }
