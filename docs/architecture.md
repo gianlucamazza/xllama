@@ -15,7 +15,7 @@ execution loops:
 | Pillar | Role | Hot path |
 | --- | --- | --- |
 | **Inference** | Chat, diffusion, LAN API, benches | `Session` / `run_inference` (forward-only) |
-| **Training** (exploration) | Produce adapters / merged GGUF | `TrainingJob` → host PEFT → merge → artefacts |
+| **Training** (exploration) | Produce adapters / merged GGUF | `TrainingJob` → host PEFT or bounded ggml-opt partial FT → artefacts |
 
 Training never runs inside `generate()`. Inference never runs backward. Artefacts
 flow **training → disk → inference load** (same GGUF path as catalogue models).
@@ -26,8 +26,9 @@ The shared core is platform-agnostic C++17; front-ends are thin:
   No WinRT in the headers.
 - **Host front-ends** — `xllama-cli` (inference + `--validate-train-job` /
   `--train-job`), doctest suite, `training/host/` PEFT runner.
-- **UWP app** (`uwp/`) — inference UI, headless bench/diffuse/membw; **no**
-  on-device train loop in the shipping app (device training is reserved).
+- **UWP app** (`uwp/`) — inference UI and headless bench/diffuse/membw/train
+  drivers. The llamacpp/unified variants compile the experimental ggml-opt
+  partial-FT engine; it is not part of the chat hot path.
 
 Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 
@@ -145,15 +146,16 @@ or the headless `diffuse.flag`.
 
 ## LAN HTTP endpoint (OpenAI-compat)
 
-Optional, **default OFF**: a `StreamSocketListener` in `uwp/api-server.cpp` exposes the
-same `xllama::Session` as an OpenAI-compatible endpoint on the LAN
-(`POST /v1/chat/completions`, non-streaming). Started from `App::OnLaunched` on a detached
-MTA thread when `LocalState\api.flag` is present — unlike the headless bench/diffuse flags,
-`api.flag` is **not consumed** and the server coexists with the live chat UI. Port 11434
-(override `api-port.txt`); single-slot with a `try_lock` → HTTP 503 when busy. Capability
-`privateNetworkClientServer` (already in `AppxManifest.xml`) covers LAN inbound; no public
-inbound. Full contract + validation in [api-endpoint.md](api-endpoint.md)
-(`scripts/validate-api.sh`).
+Optional, **default OFF**: a `StreamSocketListener` in `uwp/api-server.cpp`
+exposes a dedicated, lazily created `xllama::Session` as an OpenAI-compatible
+endpoint on the LAN (`POST /v1/chat/completions`, non-streaming). Settings owns
+the live start/stop/rebind lifecycle; `App::OnLaunched` restores it when the
+persistent `LocalState\api.flag` is present. The flag is not consumed and the
+server coexists with the live chat UI. Port 11434 (override `api-port.txt`);
+single-slot with a `try_lock` → HTTP 503 when busy. Capability
+`privateNetworkClientServer` (already in `AppxManifest.xml`) covers LAN inbound;
+no public inbound. Full contract + validation in
+[api-endpoint.md](api-endpoint.md) (`scripts/validate-api.sh`).
 
 ## Build variants and versioning
 
@@ -174,30 +176,39 @@ First-class subsystem for **learning adapters and producing loadable weights**.
 
 ```
 ┌─────────────────────────┐     artefacts      ┌──────────────────────────┐
-│ TrainingJob (Lane A)    │ ─────────────────► │ Inference Session        │
-│ host PEFT → merge GGUF  │                    │ Lane C serve             │
+│ TrainingJob (A or B)    │ ─────────────────► │ Inference Session        │
+│ host PEFT / partial FT  │                    │ Lane C serve             │
 └─────────────────────────┘                    └──────────────────────────┘
- Device train (Lane B) = research/gated — not in shipping MSIX
+ Lane B = experimental last-block ggml-opt partial FT; console PASS pending
 ```
 
 ### Contracts (C++)
 
 - `TrainingJob` / capability table — `training_params.h` / `training.h`
 - `training_capabilities()` / `xllama-cli --training-capabilities` (RE matrix)
-- `validate_training_job` rejects `device=device` until a Device capability is available
-- CLI: `--validate-train-job`, `--train-job` → `training/host/run_job.sh`
+- `validate_training_job` accepts `device=device` only when the bounded Lane B
+  engine is compiled (`XLLAMA_DEVICE_TRAIN`)
+- CLI: `--validate-train-job`; `--train-job` dispatches host PEFT or the
+  in-process partial-FT engine by method
 
 ### Capability headline (see SSOT for full RE)
 
 | Lane | Status today |
 | --- | --- |
 | **A Host PEFT + merge** | **Available** (marker job PASS) |
-| **B Device train** | Not available (inference-only NuGet; ODT research) |
+| **B Device partial FT** | **Experimental** in llamacpp/unified builds; host and console gates pending |
 | **C Serve merged GGUF** | **Available**; runtime LoRA via `SessionParams.lora_path` / CLI `--lora` |
 
-### Open exploration (ROADMAP Phase 8)
+### Personalization status (Phases 8–9)
 
-Runtime llama LoRA load · ORT ODT research spike · preference capture · catalogue publish
+Phase 8 is frozen complete: host PEFT + merge, runtime llama.cpp LoRA and
+console preference capture are available and validated. Phase 9 adds the
+operator-driven loop that pulls `LocalState\training\samples.jsonl`, retrains on
+the host and emits a catalogue override for the resulting GGUF. Full device
+fine-tuning, ORT ODT and ORT GenAI runtime adapters remain unavailable; Phase 10
+adds only bounded last-block partial FT. The shipping UI records one
+like, dislike, or correction per completed response, while export/retrain stays
+operator-driven. See the training SSOT and ops guide below.
 
 ## See also
 

@@ -129,11 +129,15 @@ catalogue grows:
 
    ```json
    {
-     "name": "my-model-dir",
-     "display": "My Model (CPU int4)",
-     "kind": "ort-genai",
-     "hf_base_url": "https://example.com/base/url",
-     "files": [{ "filename": "model.onnx", "approx_bytes": 123456789 }]
+     "models": [
+       {
+         "name": "my-model-dir",
+         "display": "My Model (CPU int4)",
+         "kind": "ort-genai",
+         "hf_base_url": "https://example.com/base/url",
+         "files": [{ "filename": "model.onnx", "approx_bytes": 123456789 }]
+       }
+     ]
    }
    ```
 
@@ -159,6 +163,37 @@ catalogue grows:
 Constraints: `model.onnx` must be **self-contained** (< 2 GB, external data merged —
 `uwp-constraints.md §8`) and fit the Dev Mode disk budget. For diffusion models the
 contract is different (three components + CLIP assets): see `diffusion/README.md`.
+
+### Runtime LoRA entry (GGUF only)
+
+A `kind: "gguf"` entry can load a llama.cpp LoRA adapter without merging it
+into the base model. Put both files in the same catalogue directory and declare
+the adapter with `lora`; `lora_scale` is optional and defaults to `1.0`:
+
+```json
+{
+  "models": [
+    {
+      "name": "my-model-lora",
+      "display": "My Model + LoRA",
+      "kind": "gguf",
+      "lora": "adapter.gguf",
+      "lora_scale": 1.0,
+      "files": [
+        { "filename": "model.gguf", "approx_bytes": 123456789 },
+        { "filename": "adapter.gguf", "approx_bytes": 1234567 }
+      ]
+    }
+  ]
+}
+```
+
+The runtime resolves `lora` relative to `LocalState\models\<name>`. The base
+file should be named `model.gguf`: when a directory contains both base and
+adapter GGUFs, backend discovery deliberately prefers `model.gguf` over
+`adapter.gguf`. Runtime LoRA is supported only by the llama.cpp/GGUF backend;
+ORT GenAI ignores `SessionParams::lora_path`. For training and generated
+overrides, see [`training/README.md`](../training/README.md).
 
 ## Publishing ORT model assets (models-v1) — logit-parity gate
 

@@ -1,6 +1,6 @@
 # UWP Constraints
 
-> **SSOT for UWP/AppContainer constraints** (numbered §1–§12): the measured GPU
+> **SSOT for UWP/AppContainer constraints** (numbered §1–§13): the measured GPU
 > budget (3801 MB), the 2 GB per-file limit, disk budget, no-mmap, `887A0036`,
 > `weakly_canonical`, thread cap, and the DirectML low-bit GEMM analysis. Other
 > docs link to a `§n` here rather than restating these.
@@ -360,8 +360,9 @@ the historical Phase 3.5 / Phase 5 evidence in `CHANGELOG.md` and
 **NuGet pins are inference-only.** `uwp/packages.config` ships
 `Microsoft.ML.OnnxRuntime.DirectML` 1.24.4 and
 `Microsoft.ML.OnnxRuntimeGenAI.DirectML` 0.14.1 — not an ORT **Training**
-package. There is no in-process train loop available from the shipping MSIX
-without a new dependency and rebuild.
+package. Those pins provide no ORT train loop. The llamacpp/unified variants
+instead link the separate experimental ggml-opt partial-FT engine; it does not
+turn ORT GenAI into a training runtime.
 
 **ORT GenAI adapters ≠ training.** `strings` on the pinned
 `onnxruntime-genai.dll` exposes `OgaCreateAdapters` / `OgaLoadAdapter` /
@@ -376,13 +377,16 @@ for small FP32 models — not a practical Series S path.
 
 **Memory.** GPU budget remains **3801 MB** (§5/§7). Host PEFT on SmolLM2-360M
 (r=8) trains ~1.64 M params — adapter state is PEFT-sized (tens of MB), so the
-binding constraint for on-device train is **missing software**, not only VRAM for
-LoRA-class adapters. Full fine-tune of catalogue models remains out of budget.
+binding constraint for ORT ODT is **missing software**, not only VRAM for
+LoRA-class adapters. Full fine-tune of catalogue models remains out of budget;
+the ggml-opt Lane B experiment limits training to a supported last-block subset.
 
-**AppContainer.** Any future train engine must be **app-local, signed, linked at
-build time** (§3). No Python PEFT inside the sandbox. Writable artefacts only
-under LocalState (§2).
+**AppContainer.** A train engine must be **app-local, signed, linked at build
+time** (§3); Lane B follows that rule. No Python PEFT inside the sandbox.
+Writable artefacts only under LocalState (§2).
 
-**Architecture gate.** `training_device_supported(Device)` is **false** until a
-Device capability is measured available (`xllama-cli --training-capabilities`).
-Personalization today: train on host → ship merged GGUF → infer on console.
+**Architecture gate.** `training_device_supported(Device)` is compile-time true
+only when `XLLAMA_DEVICE_TRAIN` is present (llamacpp/unified builds). The
+`DeviceGgmlPartialFt` capability remains **experimental** until host and console
+marker gates pass; ORT-only builds reject device jobs and still emit a failing
+`training/result.done` marker instead of hanging the harness.

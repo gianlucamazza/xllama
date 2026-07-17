@@ -16,17 +16,18 @@ TrainingJob (JSON) ──► host PEFT LoRA ──► adapter ──► merge GG
 
 ## Layout
 
-| Path | Role |
-| --- | --- |
-| `jobs/*.json` | Declarative train jobs (schema validated by C++) |
-| `datasets/` | JSONL chat datasets |
-| `host/train_lora.py` | PEFT LoRA trainer (CPU/GPU host) |
-| `host/run_job.sh` | Stage runner: prepare → train → export → merge → evaluate |
-| `host/requirements.txt` | Python deps for host backend |
-| `out/` | Working artefacts (gitignored) |
+| Path                    | Role                                                      |
+| ----------------------- | --------------------------------------------------------- |
+| `jobs/*.json`           | Declarative train jobs (schema validated by C++)          |
+| `datasets/`             | JSONL chat datasets                                       |
+| `host/train_lora.py`    | PEFT LoRA trainer (CPU/GPU host)                          |
+| `host/run_job.sh`       | Stage runner: prepare → train → export → merge → evaluate |
+| `host/requirements.txt` | Python deps for host backend                              |
+| `out/`                  | Working artefacts (gitignored)                            |
 
 C++ contracts: `include/xllama/training_params.h`, `include/xllama/training.h`
-(`validate_training_job`, `load_training_job_file`, stage/device names).
+(`validate_training_job`, `load_training_job_file`, stage/device names);
+Lane B engine: `include/xllama/device_train.h` (`run_device_train_job`).
 
 ## Quick start
 
@@ -48,16 +49,22 @@ Reuse prior adapter/merge:
 SKIP_TRAIN=1 SKIP_CONVERT=1 ./training/host/run_job.sh training/jobs/smollm2-360m-marker.json
 ```
 
+Lane B engine on the host (same in-process code path as the console; no Python):
+
+```bash
+./build/linux-test/bin/xllama-cli --train-job training/jobs/smollm2-360m-marker-partialft.json
+```
+
 ## Stages
 
-| Stage | Host status |
-| --- | --- |
-| prepare | resolve HF snapshot + dataset |
-| train | PEFT LoRA (`train_lora.py`) |
-| export_adapter | `convert_hf_to_gguf` + `convert_lora_to_gguf` |
-| merge | `llama-export-lora` → plain GGUF |
-| evaluate | A/B `xllama-cli --chat --greedy` vs marker |
-| publish | stub: `manifest.override.json` after successful merge |
+| Stage          | Host status                                                                                 |
+| -------------- | ------------------------------------------------------------------------------------------- |
+| prepare        | resolve HF snapshot + dataset                                                               |
+| train          | PEFT LoRA (`train_lora.py`)                                                                 |
+| export_adapter | `convert_hf_to_gguf` + `convert_lora_to_gguf`                                               |
+| merge          | `llama-export-lora` → plain GGUF                                                            |
+| evaluate       | A/B `xllama-cli --chat --greedy` vs marker                                                  |
+| publish        | emit `manifest.override.json` after successful merge/evaluation; device upload stays manual |
 
 ## Capabilities
 
@@ -66,17 +73,27 @@ SKIP_TRAIN=1 SKIP_CONVERT=1 ./training/host/run_job.sh training/jobs/smollm2-360
 ./scripts/re-training-stack.sh
 ```
 
-| Lane | Today |
-| --- | --- |
-| Host PEFT + merge | **available** |
-| Device train | **not available** (gated; SSOT RE) |
-| Serve merged GGUF | **available** |
+| Lane              | Today                                                                  |
+| ----------------- | ---------------------------------------------------------------------- |
+| Host PEFT + merge | **available**                                                          |
+| Device partial FT | **experimental** in `XLLAMA_DEVICE_TRAIN` builds; console PASS pending |
+| Serve merged GGUF | **available**                                                          |
 
-## Device training (reserved)
+## Device partial fine-tuning (experimental)
 
-`device: "device"` is **rejected** by `validate_training_job`. RE: inference-only
-NuGet, GenAI adapter *load* symbols without train API (“No adapter is available
-for DML”), llama-finetune ~24 GB class. See
+`method: "partial_ft"` uses the in-process ggml-opt engine on Linux and on
+llamacpp/unified UWP builds. The current llama.cpp pin only supports selected
+last-block Q/output/FFN/norm tensors plus output/output_norm; K/V projections,
+earlier blocks, embeddings and rope frequencies fail validation before training.
+Full `llama-finetune` and ORT ODT remain rejected. Validate the console path with:
+
+```bash
+./scripts/validate-console-training.sh device-train
+```
+
+The host marker and console gates are still pending; the console harness
+requires `result.json` wall time and `peak_ws_mb < 3072`. Do not publish trained
+weights from this lane as validated product output yet. See
 [`docs/training-architecture.md`](../docs/training-architecture.md) and
 [`docs/uwp-constraints.md`](../docs/uwp-constraints.md) §13.
 
@@ -87,7 +104,7 @@ Rate turns on console → retrain on host → re-serve merged GGUF:
 ```bash
 source ~/.config/xllama/xbox-env
 
-# 1) Capture preferences (autopilot) — or use UI when available
+# 1) Capture preferences from Like/Dislike/Correct in the UI, or via autopilot
 ./scripts/validate-console-training.sh rate
 
 # 2) Pull samples + convert to train JSONL
@@ -116,16 +133,16 @@ SKIP_UPLOAD=1 ./scripts/validate-console-training.sh serve
 
 ## Verified
 
-| Date | Job / gate | Result |
-| --- | --- | --- |
-| 2026-07-17 | host marker PEFT | **PASS** |
-| 2026-07-17 | host runtime `--lora` | **PASS** (matches merge) |
-| 2026-07-17 | console `validate-console.sh gguf` | **PASS** |
-| 2026-07-17 | console `validate-console-training.sh serve` (Q4 merged) | **PASS** (marker in chat) |
-| 2026-07-17 | MSIX **1.2.0.546** `rate` | **PASS** (samples.jsonl like) |
-| 2026-07-17 | MSIX **1.2.0.546** `lora-rt` | **PASS** (runtime LoRA applied; fix `model.gguf` prefer) |
-| 2026-07-17 | `validate-console.sh all` on 1.2.0.546 (after `provision-models.sh sd-turbo-fp16`) | **ALL PASS** (routing + GGUF + TAESD 602 ms) |
-| 2026-07-17 | Phase 8 exploration | **FROZEN complete** (see `docs/training-architecture.md` exit criteria) |
+| Date       | Job / gate                                                                         | Result                                                                  |
+| ---------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| 2026-07-17 | host marker PEFT                                                                   | **PASS**                                                                |
+| 2026-07-17 | host runtime `--lora`                                                              | **PASS** (matches merge)                                                |
+| 2026-07-17 | console `validate-console.sh gguf`                                                 | **PASS**                                                                |
+| 2026-07-17 | console `validate-console-training.sh serve` (Q4 merged)                           | **PASS** (marker in chat)                                               |
+| 2026-07-17 | MSIX **1.2.0.546** `rate`                                                          | **PASS** (samples.jsonl like)                                           |
+| 2026-07-17 | MSIX **1.2.0.546** `lora-rt`                                                       | **PASS** (runtime LoRA applied; fix `model.gguf` prefer)                |
+| 2026-07-17 | `validate-console.sh all` on 1.2.0.546 (after `provision-models.sh sd-turbo-fp16`) | **ALL PASS** (routing + GGUF + TAESD 602 ms)                            |
+| 2026-07-17 | Phase 8 exploration                                                                | **FROZEN complete** (see `docs/training-architecture.md` exit criteria) |
 
 ## Compat
 

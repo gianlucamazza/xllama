@@ -30,7 +30,8 @@ Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.
 ## Phase 8 — Training pillar (exploration) ✅ FROZEN complete
 
 **Exit criteria met 2026-07-17.** Architecture + host + console evidence for
-lanes A/C; device train remains rejected. SSOT:
+lanes A/C; full device fine-tuning and ORT ODT remain rejected. The later,
+bounded ggml-opt Lane B work is tracked separately in Phase 10. SSOT:
 [`docs/training-architecture.md`](docs/training-architecture.md). Ops:
 [`training/README.md`](training/README.md). Platform §13:
 [`docs/uwp-constraints.md`](docs/uwp-constraints.md).
@@ -38,16 +39,39 @@ lanes A/C; device train remains rejected. SSOT:
 - [x] C++ contracts, host PEFT, RE capability matrix, CLI.
 - [x] Runtime LoRA (llama) + catalogue `lora` field; prefer `model.gguf` over adapter.
 - [x] Preference capture (`rate` → `samples.jsonl`); console **PASS** on 1.2.0.546.
-- [x] Console training serve + lora-rt **PASS**; hybrid operator loop = future
-      **Phase 9** (optional), not Phase 8 architecture work.
-- [x] Device train **rejected by default** (no ODT in shipping MSIX).
+- [x] Console training serve + lora-rt **PASS**; personalization operations are
+      isolated in Phase 9, not in the frozen Phase 8 architecture.
+- [x] Full device fine-tune and ORT ODT **rejected by default**.
 
-## Phase 9 — Personalization ops (optional)
+## Phase 9 — Personalization ops ✅ complete
 
 - [x] Operator hybrid: `pull_console_samples.sh` + `from-console-samples` job +
       publish manifest snippet (`training/README.md`).
-- [ ] UI like/dislike (not required for exploration)
+- [x] Per-response Like/Dislike/Correct UI with persisted, single-write feedback.
 - [x] GitHub Release **v1.2.1.0** (MSIX 1.2.1.550, console ALL PASS 2026-07-17)
+
+## Phase 10 — Lane B: on-device training (in progress)
+
+Training runs **fully on the console** via the in-process ggml-opt engine
+(`llama_opt_init`/`llama_opt_epoch`, name-filtered partial fine-tune). Design +
+pin constraints: [`docs/training-architecture.md`](docs/training-architecture.md)
+§10.
+
+- [x] `partial_ft` method + device-lane job schema (`param_filter`, `n_ctx_train`,
+      `epochs`, `checkpoint_every`); `device=device` accepted on
+      `XLLAMA_DEVICE_TRAIN` builds.
+- [x] Engine `src/bridge/device_train.cpp`: prepare (selective f32 upcast GGUF)
+      → train (llama_opt, last-block filter) → export (merged GGUF) → evaluate
+      (in-process marker A/B); result.json + checkpoints.
+- [ ] Host engine marker job **PASS** (same code path as console; validation in
+      progress, do not treat implementation-only coverage as evidence).
+- [x] UWP glue: `train.flag` headless mode, LocalState-relative job paths,
+      `training/result.done`; `device-train` mode in
+      `validate-console-training.sh`.
+- [ ] Console `device-train` **PASS** on a llamacpp/unified MSIX (RSS < 3 GB,
+      wall time recorded) → flip `DeviceGgmlPartialFt` to `available`.
+- [ ] Widen the trainable filter beyond the last block when the llama.cpp pin
+      gains backward support for the KV-cache `set_rows` write (or carry a patch).
 
 ## Upstream and vendor lifecycle
 

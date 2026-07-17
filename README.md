@@ -31,11 +31,16 @@
 
 ## What is this
 
-`xllama` is a UWP application for Xbox Series S|X in Dev Mode that runs LLM chat and Stable-Diffusion image generation locally, with no cloud dependency and a gamepad-friendly UI.
+`xllama` is a UWP application for Xbox Series S|X in Dev Mode that runs LLM chat and Stable-Diffusion image generation locally, with no cloud dependency and a gamepad-friendly UI. It also includes an opt-in, OpenAI-compatible [LAN endpoint](./docs/api-endpoint.md) and a dual-lane [training/personalization pillar](./docs/training-architecture.md): host PEFT LoRA plus an experimental in-process partial fine-tune that runs fully on the console (ggml-opt Lane B).
 
 The project started as a port of [`llama.cpp`](https://github.com/ggml-org/llama.cpp) (GGUF files, CPU-only), then migrated to **ONNX Runtime GenAI + DirectML**. The measured verdict is **per-workload** (see [docs/technical-report.md](./docs/technical-report.md)): the Zen 2 **CPU wins autoregressive decode** at this model scale (~66 tok/s, SmolLM2-360M int4), the RDNA 2 **GPU wins batch compute** — prefill at ~1k prompt tokens (1.8× faster) and image generation (**11.1×** on the diffusion workload: SD-Turbo 512×512 in ~7 s). GPU **text** routing is currently disabled ([#91](https://github.com/gianlucamazza/xllama/issues/91): the DML attention path — GQA **and** MultiHeadAttention — computes wrong logits on the Series S GPU, caught by the logit-parity harness); diffusion stays on the GPU. The llama.cpp path serves Linux development, CI, and — in the `unified` UWP build — modern GGUF-only models (Qwen3.5, LFM2.5); for the same model, ORT stays the text backend (measured decode parity, better prefill).
 
 The default chat model on the shipping **unified** build is **LFM2.5-350M Q4_K_M** (~219 MB, ~94 tok/s), downloaded on first launch from the GitHub Release model catalogue — the MSIX itself is ~19 MB and ships no model. ORT-only builds still default to SmolLM2-360M INT4.
+
+The LAN endpoint is experimental, unauthenticated, foreground-only and disabled
+by default. Personalization is operator-driven: preference samples remain in
+the AppContainer until explicitly pulled to a host for retraining — or consumed
+on-device by a Lane B `partial_ft` job (experimental, gates pending).
 
 Goals:
 
@@ -139,8 +144,8 @@ atomic comparison rows and the generated dashboard are described in the
 ```
 
 The component/dataflow map — module boundaries, runtime backend dispatch, chat
-templates, KV-reuse, routing, model provisioning + quant auto-upgrade, the membw
-micro-bench, and the diffusion pipeline — lives in
+templates, KV-reuse, routing, model provisioning + quant auto-upgrade, the LAN
+front-end, training/personalization, the membw micro-bench, and the diffusion pipeline — lives in
 [docs/architecture.md](./docs/architecture.md).
 
 ---
@@ -154,6 +159,9 @@ xllama/
 │   ├── inference_params.h  # InferenceParams / InferenceResult
 │   ├── inference.h         # run_inference, write_bench_csv
 │   ├── session.h           # xllama::Session API (persistent model across turns)
+│   ├── training_params.h   # TrainingJob / TrainingCapability contracts
+│   ├── training.h          # job validation, capability matrix, stage names
+│   ├── device_train.h      # Lane B in-process partial-FT engine (ggml-opt)
 │   ├── ort_raii.h          # RAII wrappers for OGA* types (UWP)
 │   ├── llama_raii.h        # RAII wrappers for llama_* types (Linux)
 │   ├── cli.h               # parse_cli_args (Linux)
@@ -165,6 +173,8 @@ xllama/
 │   └── bridge/             # shared implementation (Linux + UWP)
 │       ├── inference.cpp   # #ifdef XLLAMA_USE_ORT → ORT GenAI; #else → llama_decode
 │       ├── session.cpp     # xllama::Session (OrtSession + LlamaSession)
+│       ├── training.cpp    # job parsing/validation + capability table
+│       ├── device_train.cpp # Lane B engine: prepare → train → export → evaluate
 │       ├── bench.cpp
 │       ├── platform.cpp
 │       ├── path_utils.cpp
@@ -176,6 +186,7 @@ xllama/
 │   ├── inference-bridge.cpp / .h  # UWP entry glue + bench mode main_loop()
 │   ├── diffuse.cpp         # SD-Turbo diffusion pipeline (plain ORT DirectML)
 │   ├── chat-history.cpp / .h      # ChatHistory: Save/Load/Delete/Clear
+│   ├── api-server.cpp / .h        # opt-in OpenAI-compatible LAN front-end
 │   ├── model-downloader.cpp / .h  # EnsureModelAsync + LoadModelManifest (catalogue download)
 │   ├── models/manifest.json # model catalogue (LocalState override supported)
 │   ├── packages.config     # NuGet pins (ORT GenAI 0.14.1, ORT 1.24.4, DirectML 1.15.4)
@@ -194,6 +205,7 @@ xllama/
 ├── tests/                  # unit tests (doctest, incl. diffusion golden vectors)
 ├── bench/                  # benchmark configs, raw results + comparison policy
 ├── diffusion/              # SD-Turbo export/convert/validate toolchain (host)
+├── training/               # train jobs (host PEFT + device partial FT), datasets, ops
 ├── patches/                # AppContainer/runtime patches used by UWP builds
 ├── docs/                   # technical notes
 ├── cmake/                  # toolchain files
@@ -265,8 +277,8 @@ Catalogue overview (roles + sizes; **decode/prefill/RAM numbers live in
 | Model                      | Format        | Size    | Xbox UWP | Role                                                                                   |
 | -------------------------- | ------------- | ------- | -------- | -------------------------------------------------------------------------------------- |
 | LFM2.5-350M Q4_K_M         | GGUF          | 219 MB  | ✅       | **Default chat** on unified shipping; fastest+lightest                                 |
-| LFM2.5-1.2B Q4_K_M         | GGUF          | 697 MB  | ✅       | Balanced chat: 37.9 tok/s, 811 MB peak, H9 6/8                                        |
-| LFM2-2.6B Q4_K_M           | GGUF          | 1.46 GB | ✅       | Quality chat: 18.4 tok/s, 1623 MB peak, H9 7/8                                        |
+| LFM2.5-1.2B Q4_K_M         | GGUF          | 697 MB  | ✅       | Balanced chat: 37.9 tok/s, 811 MB peak, H9 6/8                                         |
+| LFM2-2.6B Q4_K_M           | GGUF          | 1.46 GB | ✅       | Quality chat: 18.4 tok/s, 1623 MB peak, H9 7/8                                         |
 | SmolLM2-360M-Instruct INT4 | ONNX GenAI    | 417 MB  | ✅       | ORT default / routing base (CPU)                                                       |
 | SmolLM2-360M fp16 DML      | ONNX GenAI    | ~725 MB | ✅       | Routing target — **disabled #91** (wrong text logits on DML; not auto-downloaded, #95) |
 | SmolLM2-1.7B-Instruct INT4 | ONNX GenAI    | 1.4 GB  | ✅       | Larger CPU chat (~20.6 tok/s; in-app `models-v1` download)                             |
@@ -305,8 +317,13 @@ See [ROADMAP.md](./ROADMAP.md). Headlines:
 5. **Phase 5 — Post-1.0 improvements** ✅ Unified+PatchedGenAI shipping; console gates ALL PASS.
 6. **Phase 6 — Publication + polish** ✅ Patched runtimes, LFM default,
    v1.2.0 release and [published demo](https://github.com/gianlucamazza/xllama/releases/download/v1.2.0.0/xllama-demo-v1.2.0.mp4).
-7. **Phase 7/8 — Research** 🔮 peer-class models and the host training pillar;
-   see [ROADMAP.md](./ROADMAP.md).
+7. **Phase 7 — Model research** 🔮 peer-class model campaigns continue.
+8. **Phase 8 — Training pillar** ✅ Host PEFT, runtime LoRA, preference capture
+   and console validation are frozen complete.
+9. **Phase 9 — Personalization ops** ✅ Operator pull/retrain/publish loop
+   and per-response preference UI delivered. See [ROADMAP.md](./ROADMAP.md).
+10. **Phase 10 — Device partial FT** 🧪 Experimental ggml-opt Lane B;
+    host and console marker gates are pending.
 
 ---
 

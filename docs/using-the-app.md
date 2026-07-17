@@ -28,6 +28,11 @@ Type with the on-screen keyboard (or a USB keyboard) and send. The toolbar:
 
 Generation shows live tok/s; **■ Cancel** stops a running reply.
 
+Every completed assistant response has **Like**, **Dislike**, and **Correct**
+actions. A correction requires the preferred answer. Each response can be rated
+once; the choice is stored with the conversation and appended to
+`LocalState\training\samples.jsonl`. Cancelled/partial responses cannot be rated.
+
 ## Settings (`[S]`)
 
 - **Model** — ComboBox populated from the model catalogue
@@ -35,6 +40,8 @@ Generation shows live tok/s; **■ Cancel** stops a running reply.
   [model-selection.md](./model-selection.md)). Selecting an entry with a
   download URL fetches it on the spot; entries without one expect USB or
   Device Portal provisioning.
+  The read-only **Runtime LoRA** line shows the selected entry's adapter and
+  scale, or `none`; adapter configuration remains part of the catalogue manifest.
 - **Sampling** — Temperature, Top-p, Top-k, Repetition penalty, Max new tokens.
 - **KV-cache reuse** (default on) — reuses the conversation's KV cache across
   turns; measured **4.87×** on ORT and **4.07–20.02×** on GGUF models for
@@ -55,6 +62,11 @@ Generation shows live tok/s; **■ Cancel** stops a running reply.
     when `gpu_available` is true and the prompt exceeds the token threshold
     (prefill is 1.8× faster at ~1k tokens); short chats, or any turn with a
     missing GPU model, stay on CPU. The choice is sticky per conversation.
+- **LAN API** — enables or stops the OpenAI-compatible endpoint immediately,
+  without restarting the app. The port must be 1025–49151 except 11443. The
+  status line reports the active listener or bind error. The endpoint is
+  unauthenticated: enable it only on a trusted LAN; see
+  [api-endpoint.md](api-endpoint.md).
 
 **Note for GGUF models** (`kind: "gguf"` in the catalogue): **KV-cache reuse
 works** (the llama.cpp path keeps a persistent context and appends only the new
@@ -68,12 +80,14 @@ inference call.
 
 ## Image generation (`[*]`)
 
-The dialog shows the last generated image (if any), a prompt box, a **Steps**
-slider (1–4; SD-Turbo needs 1), and an optional **TAESD fast VAE** toggle
+The dialog shows the last generated image and seed (if any), a prompt box, a
+**Steps** slider (1–4; SD-Turbo needs 1), a **Seed** field (`0` = random), and an
+optional **TAESD fast VAE** toggle
 (~5 MB download, targets ~4.5 s total vs ~5–7 s with the full VAE). Pressing
 **Generate**:
 
-1. writes the prompt/steps/seed to `LocalState`,
+1. validates and persists the seed preference, then writes the concrete
+   prompt/steps/seed to `LocalState`,
 2. runs SD-Turbo fp16 on the GPU **in-process** (~5–7 s for 512×512; progress
    appears in the status bar),
 3. on completion, reopen `[*] Image` to view `diffuse-out.png`.

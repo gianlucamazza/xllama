@@ -7,6 +7,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Expanded product UI** — per-response Like/Dislike/Correct actions backed by
+  the preference JSONL pipeline; live LAN API enable/disable/port/status in
+  Settings; reproducible image seed control; read-only runtime LoRA status.
+- **Experimental Lane B partial fine-tuning** — C++17 ggml-opt engine for a
+  fail-fast last-block tensor subset, declarative `partial_ft` jobs, Linux CLI
+  dispatch, UWP `train.flag` headless driver and console validation harness.
+
+### Changed
+
+- LAN API listener now has explicit start/stop/rebind lifecycle and releases its
+  API-owned Session after active work completes. Conversation JSON records the
+  immutable feedback label for each rated assistant response.
+- Preference correction samples train on `preferred_assistant`; device training
+  uses the platform thread cap and rejects tensor selections unsupported by the
+  pinned llama.cpp backward graph. Lane B results include wall time and peak
+  working-set evidence for the host/console acceptance gate.
+
 ## [1.2.1.0] - 2026-07-17
 
 ### Added
