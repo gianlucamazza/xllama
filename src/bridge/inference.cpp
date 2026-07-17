@@ -438,8 +438,7 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
 
     LlamaAdapterLoraPtr adapter;
     if (!params.lora_path.empty()) {
-        llama_adapter_lora* raw_ad =
-            llama_adapter_lora_init(model.get(), params.lora_path.c_str());
+        llama_adapter_lora* raw_ad = llama_adapter_lora_init(model.get(), params.lora_path.c_str());
         if (!raw_ad) {
             res.error_msg = "failed to load LoRA adapter: " + params.lora_path;
             log_output("[xllama] " + res.error_msg + "\n");

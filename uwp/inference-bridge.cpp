@@ -4,11 +4,13 @@
 #include "inference-bridge.h"
 
 #include "xllama/chat_prompt.h"
+#include "xllama/device_train.h"
 #include "xllama/inference.h"
 #include "xllama/membw.h"
 #include "xllama/path_utils.h"
 #include "xllama/platform.h"
 #include "xllama/session.h"
+#include "xllama/training.h"
 #include "xllama/utf8_utils.h"
 
 #include <cstdio>
@@ -293,6 +295,62 @@ void run_membw() {
             fclose(done);
         }
         log_output("[xllama] membw-result.csv written\n");
+    }
+#endif
+}
+
+// ---------------------------------------------------------------------------
+// run_train (called from UWP train.flag mode background thread)
+// ---------------------------------------------------------------------------
+
+void run_train() {
+#ifdef XLLAMA_UWP
+    bool ok = false;
+    std::string err;
+    #ifdef XLLAMA_DEVICE_TRAIN
+    const std::string job_path = resolve_local_path("training/job.json");
+    ::xllama::TrainingJob job;
+    ok = ::xllama::load_training_job_file(job_path, job, &err);
+    if (ok) {
+        // Job paths are LocalState-relative on console (the process cwd is the
+        // read-only install dir). Absolute paths pass through untouched.
+        auto localize = [](std::string& p) {
+            if (!p.empty() && p.find(':') == std::string::npos && p[0] != '\\' && p[0] != '/')
+                p = resolve_local_path(p);
+        };
+        localize(job.base_model);
+        localize(job.dataset_path);
+        localize(job.out_dir);
+
+        log_output(
+            ("[xllama] train: " + ::xllama::format_training_job_summary(job) + "\n").c_str());
+        ::xllama::DeviceTrainCallbacks cb;
+        cb.on_status = [](const std::string& line) {
+            log_output(("[xllama] train: " + line + "\n").c_str());
+        };
+        cb.on_progress = [](const ::xllama::DeviceTrainProgress& p) {
+            char lb[160];
+            snprintf(lb, sizeof(lb), "[xllama] train: epoch %d/%d batch %lld/%lld loss=%.4f\n",
+                     p.epoch, p.epochs, static_cast<long long>(p.ibatch),
+                     static_cast<long long>(p.ibatch_max), p.loss);
+            log_output(lb);
+        };
+        const ::xllama::TrainingResult r = ::xllama::run_device_train_job(job, cb);
+        ok = r.success;
+        if (!ok)
+            err = r.error_msg;
+    }
+    if (!ok)
+        log_output(("[xllama] train FAIL: " + err + "\n").c_str());
+
+    #else
+    err = "built without XLLAMA_DEVICE_TRAIN";
+    log_output(("[xllama] train FAIL: " + err + "\n").c_str());
+    #endif
+    FILE* done = _wfopen(utf8_to_wstring(resolve_local_path("training/result.done")).c_str(), L"w");
+    if (done) {
+        fputs(ok ? "ok\n" : "fail\n", done);
+        fclose(done);
     }
 #endif
 }

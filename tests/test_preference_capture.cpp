@@ -3,8 +3,8 @@
 
 #include "xllama/preference_capture.h"
 
-#include <doctest/doctest.h>
 #include <algorithm>
+#include <doctest/doctest.h>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -37,6 +37,18 @@ TEST_CASE("format_preference_sample_jsonl shapes a JSONL line") {
 
 TEST_CASE("format_preference_sample_jsonl rejects empty messages") {
     CHECK(xllama::format_preference_sample_jsonl("like", {}).empty());
+}
+
+TEST_CASE("correction requires and escapes a preferred answer") {
+    const auto messages =
+        std::vector<std::pair<std::string, std::string>>{{"user", "a"}, {"assistant", "b"}};
+    CHECK(xllama::format_preference_sample_jsonl("correction", messages).empty());
+    CHECK(xllama::format_preference_sample_jsonl("correction", messages, " \t\n").empty());
+    const auto line =
+        xllama::format_preference_sample_jsonl("correction", messages, "better \"answer\"", "t");
+    REQUIRE(!line.empty());
+    CHECK(line.find("\"label\":\"correction\"") != std::string::npos);
+    CHECK(line.find("\"preferred_assistant\":\"better \\\"answer\\\"\"") != std::string::npos);
 }
 
 TEST_CASE("append_preference_sample_file writes and appends") {

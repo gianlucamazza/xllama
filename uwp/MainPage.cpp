@@ -8,6 +8,7 @@
 #include "MainPage.h"
 // clang-format on
 
+    #include "api-server.h"
     #include "chat-history.h"
     #include "inference-bridge.h"
     #include "xllama/chat_prompt.h"
@@ -25,6 +26,7 @@
     #include <cstdio>
     #include <ctime>
     #include <filesystem>
+    #include <limits>
     #include <string>
     #include <thread>
     #include <vector>
@@ -498,6 +500,150 @@ void MainPageController::AddUserParagraph(std::wstring const& text) {
     m_outputBody.Blocks().Append(m_currentParagraph);
 }
 
+void MainPageController::AppendFeedbackControls(
+    winrt::Windows::UI::Xaml::Documents::Paragraph const& paragraph, size_t assistant_index) {
+    using namespace winrt::Windows::UI::Xaml::Controls;
+    using namespace winrt::Windows::UI::Xaml::Documents;
+
+    if (assistant_index >= m_current.messages.size())
+        return;
+    const auto& msg = m_current.messages[assistant_index];
+    if (msg.role != xllama::ui::MessageRole::Assistant || msg.partial)
+        return;
+
+    paragraph.Inlines().Append(LineBreak());
+    if (!msg.feedback_label.empty()) {
+        Run recorded;
+        recorded.Text(L"Feedback recorded: " + ::xllama::utf8_to_wstring(msg.feedback_label));
+        recorded.FontSize(13);
+        paragraph.Inlines().Append(recorded);
+        return;
+    }
+
+    StackPanel actions;
+    actions.Orientation(Orientation::Horizontal);
+    actions.Spacing(8);
+
+    auto weak_self = weak_from_this();
+    auto add_button = [&](const wchar_t* text, const std::string& label) {
+        Button button;
+        button.Content(winrt::box_value(text));
+        button.MinWidth(96);
+        button.Click(
+            [weak_self, assistant_index, label](IInspectable const&, RoutedEventArgs const&) {
+                if (auto self = weak_self.lock()) {
+                    std::string err;
+                    if (self->SubmitFeedback(assistant_index, label, {}, &err)) {
+                        self->SetStatus(L"Feedback saved", StatusKind::Success);
+                        self->RenderConversation();
+                    } else {
+                        self->SetStatus(L"Feedback failed: " + ::xllama::utf8_to_wstring(err),
+                                        StatusKind::Error);
+                    }
+                }
+            });
+        actions.Children().Append(button);
+    };
+    add_button(L"Like", "like");
+    add_button(L"Dislike", "dislike");
+
+    Button correct;
+    correct.Content(winrt::box_value(L"Correct"));
+    correct.MinWidth(96);
+    correct.Click([weak_self, assistant_index](IInspectable const&, RoutedEventArgs const&) {
+        if (auto self = weak_self.lock())
+            self->ShowCorrectionDialog(assistant_index);
+    });
+    actions.Children().Append(correct);
+
+    InlineUIContainer container;
+    container.Child(actions);
+    paragraph.Inlines().Append(container);
+}
+
+bool MainPageController::SubmitFeedback(size_t assistant_index, const std::string& label,
+                                        const std::string& preferred_assistant, std::string* err) {
+    auto fail = [&](const std::string& message) {
+        if (err)
+            *err = message;
+        return false;
+    };
+    if (!::xllama::preference_label_valid(label))
+        return fail("invalid label");
+    if (assistant_index >= m_current.messages.size())
+        return fail("response no longer exists");
+    auto& assistant = m_current.messages[assistant_index];
+    if (assistant.role != xllama::ui::MessageRole::Assistant || assistant.partial)
+        return fail("response is not rateable");
+    if (!assistant.feedback_label.empty())
+        return fail("response already rated");
+    if (label == "correction" &&
+        preferred_assistant.find_first_not_of(" \t\r\n") == std::string::npos)
+        return fail("correction text is required");
+
+    const xllama::ui::ChatMessage* user = nullptr;
+    for (size_t i = assistant_index; i-- > 0;) {
+        if (m_current.messages[i].role == xllama::ui::MessageRole::User) {
+            user = &m_current.messages[i];
+            break;
+        }
+    }
+    if (!user)
+        return fail("preceding user message not found");
+
+    const std::vector<std::pair<std::string, std::string>> messages = {
+        {"user", user->content}, {"assistant", assistant.content}};
+    const std::string line =
+        ::xllama::format_preference_sample_jsonl(label, messages, preferred_assistant);
+    if (line.empty())
+        return fail("could not format preference sample");
+
+    CreateDirectoryW(local_wpath(L"training").c_str(), nullptr);
+    const std::string samples_path =
+        ::xllama::wstring_to_utf8(local_wpath(L"training\\samples.jsonl"));
+    if (!::xllama::append_preference_sample_file(samples_path, line))
+        return fail("could not append training/samples.jsonl");
+
+    assistant.feedback_label = label;
+    SaveCurrentConversation();
+    log_output("[xllama] feedback label=" + label + " appended preference sample\n");
+    return true;
+}
+
+winrt::fire_and_forget MainPageController::ShowCorrectionDialog(size_t assistant_index) {
+    using namespace winrt::Windows::UI::Xaml::Controls;
+    auto self = shared_from_this();
+    if (assistant_index >= m_current.messages.size() ||
+        !m_current.messages[assistant_index].feedback_label.empty())
+        co_return;
+
+    TextBox correction;
+    correction.Header(winrt::box_value(L"Preferred answer"));
+    correction.AcceptsReturn(true);
+    correction.TextWrapping(TextWrapping::Wrap);
+    correction.MinHeight(140);
+    correction.IsFocusEngagementEnabled(true);
+
+    ContentDialog dialog;
+    dialog.Title(winrt::box_value(L"Correct this response"));
+    dialog.Content(correction);
+    dialog.PrimaryButtonText(L"Save correction");
+    dialog.CloseButtonText(L"Cancel");
+    dialog.XamlRoot(m_root.XamlRoot());
+
+    if (co_await dialog.ShowAsync() != ContentDialogResult::Primary)
+        co_return;
+    const std::string preferred =
+        ::xllama::wstring_to_utf8(std::wstring(correction.Text().c_str()));
+    std::string err;
+    if (self->SubmitFeedback(assistant_index, "correction", preferred, &err)) {
+        self->SetStatus(L"Correction saved", StatusKind::Success);
+        self->RenderConversation();
+    } else {
+        self->SetStatus(L"Correction failed: " + ::xllama::utf8_to_wstring(err), StatusKind::Error);
+    }
+}
+
 std::string MainPageController::BuildPrompt(const std::string& user_text, int* out_dropped) const {
     // Estimate token count (heuristic: chars/4). Trim oldest turns if over limit.
     // Threshold aligned with n_ctx=2048: 1800 estimated tokens + ~250 generation buffer.
@@ -591,7 +737,8 @@ void MainPageController::NewChat() {
 void MainPageController::RenderConversation() {
     using namespace winrt::Windows::UI::Xaml::Documents;
     m_outputBody.Blocks().Clear();
-    for (const auto& msg : m_current.messages) {
+    for (size_t message_index = 0; message_index < m_current.messages.size(); ++message_index) {
+        const auto& msg = m_current.messages[message_index];
         if (msg.role == xllama::ui::MessageRole::System)
             continue;
         Paragraph p;
@@ -606,6 +753,8 @@ void MainPageController::RenderConversation() {
         if (msg.partial)
             content.Text(content.Text() + L" [cancelled]");
         p.Inlines().Append(content);
+        if (msg.role == xllama::ui::MessageRole::Assistant)
+            AppendFeedbackControls(p, message_index);
         m_outputBody.Blocks().Append(p);
         m_outputBody.Blocks().Append(Paragraph()); // spacing
     }
@@ -906,6 +1055,17 @@ void MainPageController::LoadSettings() {
         } else if (key == "diffuse_taesd_vae") {
             std::string v = settings_read_token(json, pos);
             m_diffuse_taesd = (v == "true" || v == "1");
+        } else if (key == "diffuse_seed") {
+            std::string v = settings_read_token(json, pos);
+            if (!v.empty()) {
+                try {
+                    const auto seed = std::stoull(v);
+                    if (seed <= std::numeric_limits<uint32_t>::max())
+                        m_diffuse_seed = static_cast<uint32_t>(seed);
+                } catch (...) {
+                    m_diffuse_seed = 0;
+                }
+            }
         } else if (key == "sampling") {
             // Parse nested object {"temperature":0.8, ...}
             if (pos < json.size() && json[pos] == '{') {
@@ -979,6 +1139,7 @@ void MainPageController::SaveSettings() {
             "  \"routing\": %d,\n"
             "  \"gpu_model\": \"%s\",\n"
             "  \"diffuse_taesd_vae\": %s,\n"
+            "  \"diffuse_seed\": %u,\n"
             "  \"sampling\": {\n"
             "    \"temperature\": %.2f,\n"
             "    \"top_p\": %.2f,\n"
@@ -989,13 +1150,51 @@ void MainPageController::SaveSettings() {
             "}\n",
             settings_json_escape(m_system_prompt).c_str(), settings_json_escape(model_utf8).c_str(),
             m_kv_reuse ? "true" : "false", m_routing, settings_json_escape(m_gpu_model).c_str(),
-            m_diffuse_taesd ? "true" : "false", static_cast<double>(m_temperature),
+            m_diffuse_taesd ? "true" : "false", m_diffuse_seed, static_cast<double>(m_temperature),
             static_cast<double>(m_top_p), m_top_k, static_cast<double>(m_repetition_penalty),
             m_n_predict);
     fclose(f);
     // Any settings change (system prompt, model, sampling) invalidates the KV
     // cache bound to the old settings — force a fresh generator next turn.
     m_kv_valid = false;
+}
+
+void MainPageController::ApplyApiSettings(bool enabled, int port) {
+    if (enabled) {
+        write_local_bytes(L"api-port.txt", std::to_string(port));
+        write_local_bytes(L"api.flag", "enabled");
+    } else {
+        _wremove(local_wpath(L"api.flag").c_str());
+    }
+
+    SetStatus(enabled ? L"Starting LAN API..." : L"Stopping LAN API...", StatusKind::Working);
+    auto self = shared_from_this();
+    auto dispatcher = m_root.Dispatcher();
+    const uint64_t generation = ++m_api_settings_generation;
+    std::thread([self, dispatcher, enabled, port, generation]() {
+        winrt::init_apartment();
+        std::lock_guard<std::mutex> lifecycle_lock(self->m_api_settings_mutex);
+        if (generation != self->m_api_settings_generation.load())
+            return;
+        if (enabled)
+            ::xllama::api::start_server(port);
+        else
+            ::xllama::api::stop_server();
+        const auto status = ::xllama::api::server_status();
+        dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, status, generation]() {
+            if (generation != self->m_api_settings_generation.load())
+                return;
+            if (status.state == ::xllama::api::ServerState::Running) {
+                self->SetStatus(L"LAN API listening on port " + std::to_wstring(status.port),
+                                StatusKind::Success);
+            } else if (status.state == ::xllama::api::ServerState::Stopped) {
+                self->SetStatus(L"LAN API stopped", StatusKind::Success);
+            } else {
+                self->SetStatus(L"LAN API error: " + ::xllama::utf8_to_wstring(status.message),
+                                StatusKind::Error);
+            }
+        });
+    }).detach();
 }
 
 winrt::fire_and_forget MainPageController::ShowSettings() {
@@ -1014,7 +1213,8 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     // selection is always representable.
     auto manifest = ::xllama::LoadModelManifest();
     std::vector<std::wstring> model_keys;
-    std::vector<bool> model_is_gguf; // parallel to model_keys; gates the KV/routing UI
+    std::vector<bool> model_is_gguf;             // parallel to model_keys; gates the KV/routing UI
+    std::vector<std::wstring> model_lora_status; // read-only adapter status per entry
     int model_sel = 0;
     for (auto const& e : manifest) {
         if (e.kind == L"diffusion")
@@ -1024,14 +1224,27 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
             model_sel = (int)model_keys.size();
         model_keys.push_back(e.name);
         model_is_gguf.push_back(e.kind == L"gguf");
+        if (e.lora.empty()) {
+            model_lora_status.push_back(L"Runtime LoRA: none");
+        } else {
+            model_lora_status.push_back(L"Runtime LoRA: " + e.lora + L" (scale " +
+                                        std::to_wstring(e.lora_scale) + L")");
+        }
     }
     if (!m_model_filename.empty() && !::xllama::FindManifestEntry(manifest, m_model_filename)) {
         modelBox.Items().Append(winrt::box_value(winrt::hstring(m_model_filename + L" (custom)")));
         model_sel = (int)model_keys.size();
         model_keys.push_back(m_model_filename);
         model_is_gguf.push_back(false);
+        model_lora_status.push_back(L"Runtime LoRA: unknown (custom model)");
     }
     modelBox.SelectedIndex(model_sel);
+
+    winrt::Windows::UI::Xaml::Controls::TextBlock loraStatus;
+    loraStatus.TextWrapping(TextWrapping::Wrap);
+    loraStatus.Opacity(0.7);
+    if (model_sel >= 0 && model_sel < static_cast<int>(model_lora_status.size()))
+        loraStatus.Text(model_lora_status[static_cast<size_t>(model_sel)]);
 
     // --- System prompt TextBox ---
     winrt::Windows::UI::Xaml::Controls::TextBox sysPromptBox;
@@ -1080,15 +1293,68 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     routingBox.Items().Append(winrt::box_value(L"Auto (long prompts → GPU)"));
     routingBox.SelectedIndex(m_routing >= 0 && m_routing <= 2 ? m_routing : 0);
 
+    const bool api_enabled = std::filesystem::exists(local_wpath(L"api.flag"));
+    int api_port = 11434;
+    try {
+        const std::string configured_port = read_local_text_file(L"api-port.txt");
+        if (!configured_port.empty())
+            api_port = std::stoi(configured_port);
+    } catch (...) {
+        api_port = 11434;
+    }
+    winrt::Windows::UI::Xaml::Controls::ToggleSwitch apiToggle;
+    apiToggle.Header(winrt::box_value(L"LAN API (OpenAI-compatible)"));
+    apiToggle.OnContent(winrt::box_value(L"On"));
+    apiToggle.OffContent(winrt::box_value(L"Off"));
+    apiToggle.IsOn(api_enabled);
+
+    winrt::Windows::UI::Xaml::Controls::TextBox apiPortBox;
+    apiPortBox.Header(winrt::box_value(L"LAN API port (1025–49151, except 11443)"));
+    apiPortBox.Text(std::to_wstring(api_port));
+    apiPortBox.IsEnabled(api_enabled);
+    apiPortBox.InputScope([] {
+        winrt::Windows::UI::Xaml::Input::InputScopeName name;
+        name.NameValue(winrt::Windows::UI::Xaml::Input::InputScopeNameValue::Number);
+        winrt::Windows::UI::Xaml::Input::InputScope scope;
+        scope.Names().Append(name);
+        return scope;
+    }());
+    apiToggle.Toggled([apiPortBox](IInspectable const& sender, RoutedEventArgs const&) {
+        apiPortBox.IsEnabled(sender.as<ToggleSwitch>().IsOn());
+    });
+
+    winrt::Windows::UI::Xaml::Controls::TextBlock apiStatus;
+    apiStatus.TextWrapping(TextWrapping::Wrap);
+    apiStatus.Opacity(0.7);
+    const auto api_snapshot = ::xllama::api::server_status();
+    switch (api_snapshot.state) {
+    case ::xllama::api::ServerState::Running:
+        apiStatus.Text(L"Status: listening on port " + std::to_wstring(api_snapshot.port) +
+                       L". Trusted LAN only; no authentication.");
+        break;
+    case ::xllama::api::ServerState::Starting:
+        apiStatus.Text(L"Status: starting. Trusted LAN only; no authentication.");
+        break;
+    case ::xllama::api::ServerState::Error:
+        apiStatus.Text(L"Status: error — " + ::xllama::utf8_to_wstring(api_snapshot.message));
+        break;
+    default:
+        apiStatus.Text(L"Status: stopped. Trusted LAN only; no authentication.");
+        break;
+    }
+
     // GGUF models run stateless on CPU-only llama.cpp: KV-reuse and EP routing do
     // not apply, so grey them out whenever a GGUF entry is selected (and restore
     // them for ORT entries). Wired live on the model ComboBox.
-    auto sync_backend_toggles = [kvToggle, routingBox, model_is_gguf](int idx) {
+    auto sync_backend_toggles = [kvToggle, routingBox, loraStatus, model_is_gguf,
+                                 model_lora_status](int idx) {
         bool gguf = idx >= 0 && idx < (int)model_is_gguf.size() && model_is_gguf[idx];
         // KV reuse works on GGUF now (persistent llama_context); only EP routing
         // stays ORT-only (the llama.cpp UWP build is CPU-only).
         kvToggle.IsEnabled(true);
         routingBox.IsEnabled(!gguf);
+        if (idx >= 0 && idx < static_cast<int>(model_lora_status.size()))
+            loraStatus.Text(model_lora_status[static_cast<size_t>(idx)]);
     };
     sync_backend_toggles(model_sel);
     modelBox.SelectionChanged(
@@ -1103,6 +1369,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     panel.Orientation(Orientation::Vertical);
     panel.Spacing(12);
     panel.Children().Append(modelBox);
+    panel.Children().Append(loraStatus);
     panel.Children().Append(sysPromptBox);
     panel.Children().Append(tempSlider);
     panel.Children().Append(topPSlider);
@@ -1111,6 +1378,9 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     panel.Children().Append(nPredSlider);
     panel.Children().Append(kvToggle);
     panel.Children().Append(routingBox);
+    panel.Children().Append(apiToggle);
+    panel.Children().Append(apiPortBox);
+    panel.Children().Append(apiStatus);
 
     winrt::Windows::UI::Xaml::Controls::ScrollViewer sv;
     sv.Content(panel);
@@ -1151,12 +1421,26 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     self->m_repetition_penalty = static_cast<float>(repSlider.Value());
     self->m_n_predict = static_cast<int>(nPredSlider.Value());
     self->m_kv_reuse = kvToggle.IsOn();
+    int selected_api_port = api_port;
+    if (apiToggle.IsOn()) {
+        try {
+            selected_api_port =
+                std::stoi(::xllama::wstring_to_utf8(std::wstring(apiPortBox.Text().c_str())));
+        } catch (...) {
+            self->SetStatus(L"Invalid LAN API port", StatusKind::Error);
+            co_return;
+        }
+        if (!::xllama::api::port_bindable(selected_api_port)) {
+            self->SetStatus(L"LAN API port must be 1025–49151 and not 11443", StatusKind::Error);
+            co_return;
+        }
+    }
     int ri = routingBox.SelectedIndex();
     self->m_routing = (ri >= 0 && ri <= 2) ? ri : 0;
     // Routing is per-conversation: a change applies from the next new/loaded chat
     // (m_active_model stays fixed for the conversation in progress).
     self->SaveSettings();
-    self->SetStatus(L"Settings saved", StatusKind::Success);
+    self->ApplyApiSettings(apiToggle.IsOn(), selected_api_port);
 }
 
 // ---------------------------------------------------------------------------
@@ -1194,6 +1478,14 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
         imgStatus.Text(L"No image generated yet.");
     }
 
+    winrt::Windows::UI::Xaml::Controls::TextBlock lastSeed;
+    lastSeed.Opacity(0.7);
+    const std::string previous_seed = read_local_text_file(L"diffuse-seed.txt");
+    lastSeed.Text(previous_seed.empty()
+                      ? L"Last seed: none"
+                      : L"Last seed: " + ::xllama::utf8_to_wstring(previous_seed));
+    panel.Children().Append(lastSeed);
+
     winrt::Windows::UI::Xaml::Controls::TextBox promptBox;
     promptBox.Header(winrt::box_value(L"Image prompt"));
     promptBox.Text(L"a red sports car on a mountain road at sunset");
@@ -1209,6 +1501,18 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
     stepsSlider.Value(1);
     stepsSlider.Header(winrt::box_value(L"Steps (SD-Turbo: 1 is enough)"));
     panel.Children().Append(stepsSlider);
+
+    winrt::Windows::UI::Xaml::Controls::TextBox seedBox;
+    seedBox.Header(winrt::box_value(L"Seed (0 = random)"));
+    seedBox.Text(std::to_wstring(self->m_diffuse_seed));
+    seedBox.InputScope([] {
+        winrt::Windows::UI::Xaml::Input::InputScopeName name;
+        name.NameValue(winrt::Windows::UI::Xaml::Input::InputScopeNameValue::Number);
+        winrt::Windows::UI::Xaml::Input::InputScope scope;
+        scope.Names().Append(name);
+        return scope;
+    }());
+    panel.Children().Append(seedBox);
 
     winrt::Windows::UI::Xaml::Controls::ToggleSwitch taesdToggle;
     taesdToggle.Header(winrt::box_value(L"TAESD fast VAE (smaller decoder, ~4.5 s total)"));
@@ -1238,6 +1542,19 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
     if (result != winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary)
         co_return;
 
+    const std::string seed_text = ::xllama::wstring_to_utf8(std::wstring(seedBox.Text().c_str()));
+    uint64_t requested_seed = 0;
+    try {
+        requested_seed = seed_text.empty() ? 0 : std::stoull(seed_text);
+    } catch (...) {
+        self->SetStatus(L"Invalid image seed", StatusKind::Error);
+        co_return;
+    }
+    if (requested_seed > std::numeric_limits<uint32_t>::max()) {
+        self->SetStatus(L"Image seed must fit uint32", StatusKind::Error);
+        co_return;
+    }
+    self->m_diffuse_seed = static_cast<uint32_t>(requested_seed);
     self->m_diffuse_taesd = taesdToggle.IsOn();
     self->SaveSettings();
 
@@ -1334,7 +1651,10 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
     if (prompt_utf8.empty())
         prompt_utf8 = "a red sports car on a mountain road at sunset";
     const int steps = (int)stepsSlider.Value();
-    const unsigned seed = (unsigned)(GetTickCount64() % 1'000'000'000ULL);
+    const uint32_t seed = self->m_diffuse_seed == 0
+                              ? static_cast<uint32_t>(GetTickCount64() % 1'000'000'000ULL) + 1
+                              : self->m_diffuse_seed;
+    self->m_last_diffuse_seed = seed;
     write_local_bytes(L"prompt.txt", prompt_utf8);
     write_local_bytes(L"diffuse-steps.txt", std::to_string(steps));
     write_local_bytes(L"diffuse-seed.txt", std::to_string(seed));
@@ -1355,7 +1675,8 @@ void MainPageController::StartDiffusion() {
     m_diffuse_running.store(true);
     SetRunning(true);
     m_loadingBar.IsIndeterminate(true);
-    SetStatus(L"Generating image...", StatusKind::Working);
+    SetStatus(L"Generating image (seed " + std::to_wstring(m_last_diffuse_seed) + L")...",
+              StatusKind::Working);
 
     // Reset stale state from a previous run: a leftover cancel flag would abort
     // the new run at the first UNet-step check, and a leftover "done"/"error"
@@ -2096,6 +2417,8 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                     self->m_current.messages.push_back(std::move(amsg));
                 }
                 self->SaveCurrentConversation(was_aborted);
+                if (!was_aborted && !output_text.empty())
+                    self->RenderConversation();
             });
         } catch (const std::exception& ex) {
             ::xllama::log_output(std::string("[xllama] thread terminated: ") + ex.what() + "\n");
@@ -2188,6 +2511,8 @@ bool MainPageController::ApParseScript(const std::string& json_utf8, std::vector
         }
         a.steps = (int)obj.GetNamedNumber(L"steps", 1);
         a.seed = (unsigned)obj.GetNamedNumber(L"seed", 42);
+        a.enabled = obj.GetNamedBoolean(L"enabled", false);
+        a.port = (int)obj.GetNamedNumber(L"port", 11434);
         int t = (int)obj.GetNamedNumber(L"timeout_s", 0);
         a.timeout = std::chrono::seconds(t);
         out.push_back(std::move(a));
@@ -2318,6 +2643,27 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
                 m_modelText.Text(name);
                 m_active_model.clear();
             });
+        } else if (a.op == "set_api") {
+            if (a.enabled && !::xllama::api::port_bindable(a.port))
+                throw std::runtime_error("action " + std::to_string(i) + " set_api: invalid port");
+            ApDispatchSync(
+                [this, enabled = a.enabled, port = a.port]() { ApplyApiSettings(enabled, port); });
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+            while (std::chrono::steady_clock::now() < deadline) {
+                const auto state = ::xllama::api::server_status().state;
+                if ((a.enabled && state == ::xllama::api::ServerState::Running) ||
+                    (!a.enabled && state == ::xllama::api::ServerState::Stopped))
+                    break;
+                if (state == ::xllama::api::ServerState::Error)
+                    throw std::runtime_error("action " + std::to_string(i) +
+                                             " set_api: listener error");
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+            const auto state = ::xllama::api::server_status().state;
+            if ((a.enabled && state != ::xllama::api::ServerState::Running) ||
+                (!a.enabled && state != ::xllama::api::ServerState::Stopped))
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " set_api: lifecycle timeout");
         } else if (a.op == "generate_image") {
             if (!not_running())
                 throw std::runtime_error("action " + std::to_string(i) + " generate_image: busy");
@@ -2327,7 +2673,10 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
             write_local_bytes(L"diffuse-steps.txt", std::to_string(a.steps));
             write_local_bytes(L"diffuse-seed.txt", std::to_string(a.seed));
             write_local_bytes(L"diffuse-model.txt", "sd-turbo-fp16");
-            ApDispatchSync([this]() { StartDiffusion(); });
+            ApDispatchSync([this, seed = a.seed]() {
+                m_last_diffuse_seed = seed;
+                StartDiffusion();
+            });
             auto t = a.timeout.count() > 0 ? a.timeout : std::chrono::seconds{600};
             if (!ApWaitAtomic(m_diffuse_running, false, t)) {
                 write_local_bytes(L"diffuse-cancel.flag", "cancel");
@@ -2346,33 +2695,22 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
             if (label.empty())
                 label = "like";
             if (!::xllama::preference_label_valid(label))
-                throw std::runtime_error("action " + std::to_string(i) +
-                                         " rate: bad label '" + label + "'");
-            std::string line;
-            ApDispatchSync([this, &label, &line]() {
-                std::vector<std::pair<std::string, std::string>> msgs;
-                // Last completed user + assistant pair from the open conversation.
-                for (int i = static_cast<int>(m_current.messages.size()) - 1; i >= 0; --i) {
-                    const auto& m = m_current.messages[static_cast<size_t>(i)];
-                    if (m.role == xllama::ui::MessageRole::Assistant && msgs.empty())
-                        msgs.push_back({"assistant", m.content});
-                    else if (m.role == xllama::ui::MessageRole::User && msgs.size() == 1) {
-                        msgs.insert(msgs.begin(), {"user", m.content});
-                        break;
+                throw std::runtime_error("action " + std::to_string(i) + " rate: bad label '" +
+                                         label + "'");
+            bool saved = false;
+            std::string rate_err;
+            ApDispatchSync([this, &label, &saved, &rate_err]() {
+                for (size_t index = m_current.messages.size(); index-- > 0;) {
+                    if (m_current.messages[index].role == xllama::ui::MessageRole::Assistant &&
+                        !m_current.messages[index].partial) {
+                        saved = SubmitFeedback(index, label, {}, &rate_err);
+                        return;
                     }
                 }
-                line = ::xllama::format_preference_sample_jsonl(label, msgs);
+                rate_err = "no user/assistant turn to capture";
             });
-            if (line.empty())
-                throw std::runtime_error("action " + std::to_string(i) +
-                                         " rate: no user/assistant turn to capture");
-            // Ensure training\ directory exists under LocalState.
-            CreateDirectoryW(local_wpath(L"training").c_str(), nullptr);
-            const std::wstring samples_w = local_wpath(L"training\\samples.jsonl");
-            const std::string samples_path = ::xllama::wstring_to_utf8(samples_w);
-            if (!::xllama::append_preference_sample_file(samples_path, line))
-                throw std::runtime_error("action " + std::to_string(i) +
-                                         " rate: failed to append samples.jsonl");
+            if (!saved)
+                throw std::runtime_error("action " + std::to_string(i) + " rate: " + rate_err);
             log_output("[autopilot] rate label=" + label + " appended preference sample\n");
         } else if (a.op == "quit") {
             log_output("[autopilot] action " + std::to_string(i) + " quit\n");

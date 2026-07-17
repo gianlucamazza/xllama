@@ -59,6 +59,7 @@ add_library(xllama STATIC
     src/bridge/chat_prompt.cpp
     src/bridge/cli.cpp
     src/bridge/training.cpp
+    src/bridge/device_train.cpp
     src/bridge/preference_capture.cpp
 )
 
@@ -75,6 +76,7 @@ target_link_libraries(xllama PUBLIC llama)
 target_compile_definitions(xllama PUBLIC
     XLLAMA_LINUX=1
     XLLAMA_USE_LLAMA=1
+    XLLAMA_DEVICE_TRAIN=1
 )
 
 # Sanitizers (Linux / Clang/GCC only)

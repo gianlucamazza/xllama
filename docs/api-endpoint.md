@@ -5,17 +5,22 @@ research only. Not for the Store, not for public inbound.
 
 xllama can expose its inference core (`xllama::Session`) as an HTTP endpoint on the local
 network, so a PC on the same LAN can run inference on the console:
-`http://<ip-xbox>:<port>/v1/chat/completions`. It is **another front-end on the same
-`Session`** used by the chat UI, bench and CLI — not a separate inference path. Code lives
-in `uwp/api-server.{h,cpp}` (WinRT `StreamSocketListener`), entirely under `#ifdef
+`http://<ip-xbox>:<port>/v1/chat/completions`. It is another front-end on the
+same `xllama::Session` abstraction used by the chat UI, bench and CLI, with its
+own lazily created Session instance and lifecycle. Code lives in
+`uwp/api-server.{h,cpp}` (WinRT `StreamSocketListener`), entirely under `#ifdef
 XLLAMA_UWP`; the Linux/CLI build is unaffected.
 
-## Enabling it
+## Enabling and controlling it
 
-Drop an empty `api.flag` in the app's `LocalState` (via Device Portal / WDP, same channel
-as the other flags). Unlike the headless `bench.flag`/`diffuse.flag`, `api.flag` is **not
-consumed**: the server is persistent and coexists with the live XAML chat UI. It starts
-from `App::OnLaunched` on a detached MTA thread and stays bound for the app lifetime.
+The normal path is **Settings → LAN API**: choose a port and toggle the endpoint
+on or off. The listener starts, stops, or rebinds immediately without an app
+restart, and the dialog shows its current state.
+
+For operator automation, `api.flag` and `api-port.txt` in `LocalState` remain the
+persistent contract. `api.flag` is not consumed: `App::OnLaunched` applies it,
+and the Settings toggle writes or removes it. The listener coexists with the
+live XAML chat UI.
 
 - **Port:** `LocalState\api-port.txt` if present, else **11434** (Ollama's default port).
   Xbox silently drops traffic for ports in **[57344, 65535]** and reserves **11443** for the
@@ -74,6 +79,8 @@ Pydantic validation), and a `usage` block from `InferenceResult` (`n_p_eval` / `
 `Session::generate()` is single-slot / non-concurrent. The server holds one shared
 `Session` behind a `std::mutex` with `try_lock`: a request arriving while another is being
 served gets **HTTP 503** `{"error":{"message":"busy"}}` — Ollama single-slot semantics.
+Stopping the endpoint first closes the listener, then releases its Session after
+the active request (if any) leaves the single-slot mutex.
 
 ## Not in scope / do not do
 

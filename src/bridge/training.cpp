@@ -4,6 +4,7 @@
 #include "xllama/training.h"
 
 #include <cctype>
+#include <cmath>
 #include <fstream>
 #include <sstream>
 
@@ -163,6 +164,25 @@ bool skip_value(const std::string& s, size_t& i) {
     return parse_number(s, i, d);
 }
 
+bool parse_string_array(const std::string& s, size_t& i, std::vector<std::string>& out) {
+    if (!match_char(s, i, '['))
+        return false;
+    out.clear();
+    skip_ws(s, i);
+    if (match_char(s, i, ']'))
+        return true;
+    for (;;) {
+        std::string item;
+        if (!parse_string(s, i, item))
+            return false;
+        out.push_back(item);
+        if (match_char(s, i, ']'))
+            return true;
+        if (!match_char(s, i, ','))
+            return false;
+    }
+}
+
 bool apply_string_field(TrainingJob& job, const std::string& key, const std::string& val) {
     if (key == "name")
         job.name = val;
@@ -175,6 +195,8 @@ bool apply_string_field(TrainingJob& job, const std::string& key, const std::str
     else if (key == "method") {
         if (val == "lora_peft")
             job.method = TrainMethod::LoraPeft;
+        else if (val == "partial_ft")
+            job.method = TrainMethod::PartialFt;
         else if (val == "full_ft" || val == "full_ft_reserved")
             job.method = TrainMethod::FullFtReserved;
         else
@@ -207,6 +229,12 @@ bool apply_number_field(TrainingJob& job, const std::string& key, double val) {
         job.seed = static_cast<int>(val);
     else if (key == "learning_rate" || key == "lr")
         job.learning_rate = static_cast<float>(val);
+    else if (key == "n_ctx_train")
+        job.n_ctx_train = static_cast<int>(val);
+    else if (key == "epochs")
+        job.epochs = static_cast<int>(val);
+    else if (key == "checkpoint_every")
+        job.checkpoint_every = static_cast<int>(val);
     return true;
 }
 
@@ -253,7 +281,12 @@ bool parse_object_into_job(const std::string& s, size_t& i, TrainingJob& job, st
             if (!parse_object_into_job(s, i, job, err))
                 return false;
         } else if (s[i] == '[') {
-            if (!skip_value(s, i)) {
+            if (key == "param_filter") {
+                if (!parse_string_array(s, i, job.param_filter)) {
+                    set_err(err, "param_filter must be an array of strings");
+                    return false;
+                }
+            } else if (!skip_value(s, i)) {
                 set_err(err, "failed to skip array");
                 return false;
             }
@@ -315,6 +348,8 @@ const char* training_method_name(TrainMethod method) {
     switch (method) {
     case TrainMethod::LoraPeft:
         return "lora_peft";
+    case TrainMethod::PartialFt:
+        return "partial_ft";
     case TrainMethod::FullFtReserved:
         return "full_ft_reserved";
     }
@@ -332,7 +367,13 @@ const char* training_device_name(TrainDevice device) {
 }
 
 bool training_device_supported(TrainDevice device) {
+#ifdef XLLAMA_DEVICE_TRAIN
+    // Lane B engine (ggml-opt partial FT) is compiled in: both lanes exist.
+    (void)device;
+    return true;
+#else
     return device == TrainDevice::Host;
+#endif
 }
 
 namespace {
@@ -350,13 +391,19 @@ const TrainingCapabilityInfo kCapabilities[] = {
     {TrainingCapability::RuntimeAdapterLoadOrtGenAI, false, "designed",
      "RuntimeAdapterLoadOrtGenAI",
      "OgaLoadAdapter in GenAI DLL; DML blocked (\"No adapter is available for DML\")"},
-    {TrainingCapability::DeviceOrtOnDeviceTraining, false, "research",
-     "DeviceOrtOnDeviceTraining",
+    {TrainingCapability::DeviceOrtOnDeviceTraining, false, "research", "DeviceOrtOnDeviceTraining",
      "needs ORT Training package + offline artifacts; not in MSIX NuGet pins"},
     {TrainingCapability::DeviceLlamaFinetune, false, "rejected", "DeviceLlamaFinetune",
-     "llama-finetune WIP cites ~24 GB class; exceeds Series S practical budget"},
-    {TrainingCapability::DevicePreferenceCapture, true, "available",
-     "DevicePreferenceCapture",
+     "llama-finetune full FT cites ~24 GB class; exceeds Series S practical budget"},
+    {TrainingCapability::DeviceGgmlPartialFt,
+#ifdef XLLAMA_DEVICE_TRAIN
+     true, "experimental",
+#else
+     false, "designed",
+#endif
+     "DeviceGgmlPartialFt",
+     "in-process ggml-opt partial FT (llama_opt param filter); host and console gates pending"},
+    {TrainingCapability::DevicePreferenceCapture, true, "available", "DevicePreferenceCapture",
      "autopilot op rate → LocalState/training/samples.jsonl (host retrain input)"},
 };
 
@@ -408,14 +455,45 @@ bool validate_training_job(const TrainingJob& job, std::string* err) {
         set_err(err, "method full_ft_reserved is not implemented (exploration: use lora_peft)");
         return false;
     }
-    if (job.method != TrainMethod::LoraPeft) {
+    if (job.method != TrainMethod::LoraPeft && job.method != TrainMethod::PartialFt) {
         set_err(err, "unsupported train method");
         return false;
     }
     if (!training_device_supported(job.device)) {
-        set_err(err, "device training is exploration-reserved / unsupported "
-                     "(GPU budget, no in-process train backend on UWP; use device=host)");
+        set_err(err, "device partial_ft is unavailable in this build "
+                     "(XLLAMA_DEVICE_TRAIN is required; use a llamacpp/unified build)");
         return false;
+    }
+    if (job.device == TrainDevice::Device && job.method != TrainMethod::PartialFt) {
+        set_err(err, "device lane supports method partial_ft only "
+                     "(lora_peft runs on the host PEFT pipeline)");
+        return false;
+    }
+    if (job.method == TrainMethod::PartialFt) {
+        if (job.param_filter.empty()) {
+            set_err(err, "partial_ft requires a non-empty param_filter "
+                         "(tensor-name substring patterns)");
+            return false;
+        }
+        bool has_pattern = false;
+        for (const auto& pattern : job.param_filter)
+            has_pattern = has_pattern || !pattern.empty();
+        if (!has_pattern) {
+            set_err(err, "partial_ft param_filter must contain a non-empty pattern");
+            return false;
+        }
+        if (job.n_ctx_train < 64 || job.n_ctx_train > 4096) {
+            set_err(err, "n_ctx_train out of range [64, 4096]");
+            return false;
+        }
+        if (job.epochs < 1) {
+            set_err(err, "epochs must be >= 1");
+            return false;
+        }
+        if (job.checkpoint_every < 0) {
+            set_err(err, "checkpoint_every must be >= 0");
+            return false;
+        }
     }
     if (job.lora_rank < 1 || job.lora_rank > 256) {
         set_err(err, "lora rank out of range [1, 256]");
@@ -429,8 +507,8 @@ bool validate_training_job(const TrainingJob& job, std::string* err) {
         set_err(err, "steps must be >= 1");
         return false;
     }
-    if (job.learning_rate <= 0.0f) {
-        set_err(err, "learning_rate must be > 0");
+    if (!std::isfinite(job.learning_rate) || job.learning_rate <= 0.0f) {
+        set_err(err, "learning_rate must be finite and > 0");
         return false;
     }
     return true;
@@ -463,8 +541,14 @@ bool load_training_job_file(const std::string& path, TrainingJob& out, std::stri
 std::string format_training_job_summary(const TrainingJob& job) {
     std::ostringstream os;
     os << "train-job name=" << job.name << " method=" << training_method_name(job.method)
-       << " device=" << training_device_name(job.device) << " base=" << job.base_model
-       << " steps=" << job.steps << " rank=" << job.lora_rank << " out=" << job.out_dir;
+       << " device=" << training_device_name(job.device) << " base=" << job.base_model;
+    if (job.method == TrainMethod::PartialFt) {
+        os << " epochs=" << job.epochs << " n_ctx_train=" << job.n_ctx_train
+           << " param_filter=" << job.param_filter.size();
+    } else {
+        os << " steps=" << job.steps << " rank=" << job.lora_rank;
+    }
+    os << " out=" << job.out_dir;
     return os.str();
 }
 

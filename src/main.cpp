@@ -6,6 +6,9 @@
 #include "xllama/inference.h"
 #include "xllama/membw.h"
 #include "xllama/training.h"
+#ifdef XLLAMA_DEVICE_TRAIN
+    #include "xllama/device_train.h"
+#endif
 
 #include <cstdio>
 #include <cstdlib>
@@ -21,10 +24,10 @@ int main(int argc, char** argv) {
         const xllama::TrainingCapabilityInfo* caps = nullptr;
         const size_t n = xllama::training_capabilities(&caps);
         std::printf("xllama training capabilities (see docs/training-architecture.md)\n");
-        std::printf("%-32s %-10s %-10s %s\n", "name", "available", "status", "reason");
+        std::printf("%-32s %-10s %-12s %s\n", "name", "available", "status", "reason");
         for (size_t i = 0; i < n; ++i) {
             const auto& c = caps[i];
-            std::printf("%-32s %-10s %-10s %s\n", c.name, c.available ? "yes" : "no", c.status,
+            std::printf("%-32s %-10s %-12s %s\n", c.name, c.available ? "yes" : "no", c.status,
                         c.reason);
         }
         return 0;
@@ -43,7 +46,8 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    // --train-job: shell out to the host exploration runner (PEFT + merge + eval).
+    // --train-job: partial_ft runs in-process (Lane B engine); lora_peft
+    // shells out to the host exploration runner (PEFT + merge + eval).
     if (params.run_train_job) {
         xllama::TrainingJob job;
         std::string err;
@@ -51,6 +55,24 @@ int main(int argc, char** argv) {
             std::fprintf(stderr, "train-job validate FAIL: %s\n", err.c_str());
             return 1;
         }
+#ifdef XLLAMA_DEVICE_TRAIN
+        if (job.method == xllama::TrainMethod::PartialFt) {
+            std::fprintf(stderr, "train-job: %s\n",
+                         xllama::format_training_job_summary(job).c_str());
+            xllama::DeviceTrainCallbacks cb;
+            cb.on_status = [](const std::string& line) {
+                std::fprintf(stderr, "train-job: %s\n", line.c_str());
+            };
+            const xllama::TrainingResult r = xllama::run_device_train_job(job, cb);
+            if (!r.success) {
+                std::fprintf(stderr, "train-job FAIL: %s\n", r.error_msg.c_str());
+                return 1;
+            }
+            std::printf("train-job PASS: merged=%s last_loss=%.4f wall=%.1fs peak_ws=%zuMB\n",
+                        r.merged_gguf_path.c_str(), r.last_loss, r.wall_seconds, r.peak_ws_mb);
+            return 0;
+        }
+#endif
         const char* runner = std::getenv("XLLAMA_TRAIN_RUNNER");
         std::string cmd;
         if (runner && runner[0] != '\0') {

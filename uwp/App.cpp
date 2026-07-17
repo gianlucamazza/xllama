@@ -130,24 +130,25 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
             }).detach();
         }
 
-        // Autopilot: scripted validation of the live XAML UI (no-op unless
-        // LocalState\autopilot.flag exists). Consumes the flag and drives the
-        // controller from a background thread — see MainPage.cpp.
-        if (m_controller)
-            m_controller->StartAutopilotIfRequested();
-
         // LAN HTTP endpoint (OpenAI-compat), opt-in and default OFF: started
         // only when LocalState\api.flag exists. The flag is NOT consumed — the
         // server is persistent and coexists with the live XAML chat UI, unlike
         // the headless bench/diffuse flags. Runs on a detached MTA thread; the
-        // StreamSocketListener stays bound for the app lifetime. See
-        // api-server.cpp.
-        if (!flag_path_if_present(L"api.flag").empty()) {
+        // Settings UI may later stop or rebind the listener. See api-server.cpp.
+        const bool start_persisted_api = !flag_path_if_present(L"api.flag").empty();
+        if (start_persisted_api) {
             log_write("[xllama] api.flag detected -> starting LAN HTTP endpoint\n");
-            std::thread([] {
+            auto controller = m_controller;
+            std::thread([controller] {
                 winrt::init_apartment(); // MTA: WinRT sockets + ApplicationData
                 ::xllama::api::run_server();
+                // Preserve lifecycle ordering: an autopilot set_api action must
+                // run after the persisted listener has finished binding.
+                if (controller)
+                    controller->StartAutopilotIfRequested();
             }).detach();
+        } else if (m_controller) {
+            m_controller->StartAutopilotIfRequested();
         }
     } catch (winrt::hresult_error const& e) {
         char buf[512];
@@ -198,7 +199,8 @@ static std::wstring flag_path_if_present(const wchar_t* name) {
 // Minimal IFrameworkView: activates the CoreWindow (satisfies the PLM
 // activation watchdog, dismisses the splash) without a swapchain/compositor,
 // so no D3D12 device exists in-process. Same pattern as the UWP DX12 template.
-// Runs `m_entry` (bench main_loop or run_diffuse) on an MTA thread, then
+// Runs `m_entry` (bench main_loop, run_diffuse, run_membw, run_logits or
+// run_train) on an MTA thread, then
 // exits the process — a D3D12-clean host for any DirectML workload.
 struct HeadlessView
     : winrt::implements<HeadlessView, winrt::Windows::ApplicationModel::Core::IFrameworkViewSource,
@@ -272,6 +274,15 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
             ::xllama::log_output("[xllama] logits.flag detected -> headless logit-parity dump\n");
             winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
                 winrt::make<HeadlessView>(&::xllama::bridge::run_logits, "logits"));
+            return 0; // not reached: CoreApplication::Exit terminates the process
+        }
+        std::wstring train_flag = flag_path_if_present(L"train.flag");
+        if (!train_flag.empty()) {
+            _wremove(train_flag.c_str());
+            ::xllama::log_output(
+                "[xllama] train.flag detected -> headless device training (Lane B)\n");
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(&::xllama::bridge::run_train, "train"));
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
         winrt::uninit_apartment(); // restore pre-existing thread state for XAML

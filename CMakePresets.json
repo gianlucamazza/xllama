@@ -47,7 +47,8 @@
       "displayName": "Linux with AddressSanitizer",
       "cacheVariables": {
         "XLLAMA_ENABLE_ASAN": "ON",
-        "XLLAMA_BUILD_TESTS": "ON"
+        "XLLAMA_BUILD_TESTS": "ON",
+        "CMAKE_POLICY_VERSION_MINIMUM": "3.5"
       }
     }
   ],
@@ -66,12 +67,24 @@
       "name": "linux-test",
       "configurePreset": "linux-test",
       "jobs": 0
+    },
+    {
+      "name": "linux-asan",
+      "configurePreset": "linux-asan",
+      "jobs": 0
     }
   ],
   "testPresets": [
     {
       "name": "linux-test",
       "configurePreset": "linux-test",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-asan",
+      "configurePreset": "linux-asan",
       "output": {
         "outputOnFailure": true
       }
