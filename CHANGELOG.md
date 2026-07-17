@@ -7,43 +7,42 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Fixed
-
-- **TAESD console FAIL after reinstall** — incomplete `sd-turbo-fp16` (only
-  `vae_decoder/`; missing `text_encoder/model.onnx`). Remedy:
-  `./scripts/provision-models.sh sd-turbo-fp16`. `validate-console.sh` preflights
-  te presence. **ALL PASS** restored on MSIX 1.2.0.546 (2026-07-17).
-
-### Changed
-
-- **Phase 8 training exploration frozen complete** — exit criteria in
-  `docs/training-architecture.md`; optional hybrid ops = Phase 9.
+## [1.2.1.0] - 2026-07-17
 
 ### Added
 
-- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
-- **Console training closeout** on MSIX 1.2.0.546: `rate` / `lora-rt` / `serve` PASS;
-  `validate-console.sh all` **ALL PASS** after SD provision.
+- **Training pillar (Phase 8 exploration, frozen complete)** — dual-pillar
+  architecture, RE capability matrix, host PEFT LoRA pipeline, runtime LoRA
+  (`--lora` / catalogue `lora`), preference capture (`rate` → samples.jsonl),
+  console harness `validate-console-training.sh`. SSOT:
+  `docs/training-architecture.md`.
+- **Phase 9 hybrid ops (operator)** — `pull_console_samples.sh`, job
+  `from-console-samples.json`, publish `manifest.override.json` snippet after
+  host merge.
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf`.
 
-- **Preference capture + catalogue LoRA contract + console training harness** —
-  `preference_capture` JSONL helpers; autopilot `rate` writes
-  `LocalState/training/samples.jsonl`; manifest optional `lora`/`lora_scale`;
-  `scripts/validate-console-training.sh` (serve / rate / lora-rt).
-- **Runtime LoRA load (llama.cpp)** — `SessionParams.lora_path` /
-  `InferenceParams.lora_path` + CLI `--lora` / `--lora-scale` apply
-  `llama_set_adapters_lora` without merging weights. Host smoke: base alone
-  lacks marker; base+adapter and merged GGUF both emit `XLLAMA-LORA-OK`.
-  Capability `RuntimeLoraLoadLlama` → available.
-- **Training pillar complete (exploration + RE)** — dual-pillar architecture
-  with SSOT [`docs/training-architecture.md`](docs/training-architecture.md)
-  (reverse-engineering: inference-only NuGet, GenAI `OgaLoadAdapter` + DML
-  adapter block, llama runtime LoRA API, ORT ODT research, budget math).
-  C++ `TrainingCapability` matrix + `xllama-cli --training-capabilities`;
-  `scripts/re-training-stack.sh`; `uwp-constraints.md` §13. Host PEFT path:
-  `training/` jobs/runner, `--validate-train-job` / `--train-job`, marker job
-  **PASS**. Device train remains gated (`device=device` rejected).
+### Fixed
+
+- **TAESD after reinstall** — provision full `sd-turbo-fp16`; preflight te in
+  `validate-console.sh`. Console **ALL PASS** on 1.2.0.546 (2026-07-17).
 
 ### Changed
+
+- Semantic package version **1.2.1.0** (Revision CI-stamped). Phase 8 frozen.
+
+### Measured (console, Series S, MSIX 1.2.0.546 → 1.2.1.x CI)
+
+- `rate` / `lora-rt` / `serve` training gates **PASS**.
+- `validate-console.sh all` **ALL PASS** after `provision-models.sh sd-turbo-fp16`.
+
+## [1.2.0.0] - 2026-07-16
+
+### Note
+
+Content that landed after the v1.2.0.0 GitHub tag but before 1.2.1 is summarized
+above under **1.2.1.0**. Historical 1.2.0.0 release notes follow.
+
+### Changed (pre-1.2.1 tree notes)
 
 - **Documentation lifecycle refactor** — current guidance now reflects unified
   shipping, the LFM default, completed Phase 7 H1/H9 work and the opt-in
@@ -149,8 +148,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `background provision` lines with `routing:2` and the DML model absent).
   Supersedes the `1.1.8.507` caveat above.
 
-## [1.2.0.0] - 2026-07-16
-
 ### Released
 
 - **GitHub Release [v1.2.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.2.0.0)**
@@ -158,10 +155,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   **Latest**. Console FULL PASS previously recorded on `1.2.0.534` (same
   feature set).
 
-### Added
-
-- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
-- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
 
 - **LAN HTTP endpoint (OpenAI-compatible)** — optional, **default OFF** front-end
   on `xllama::Session` (`uwp/api-server.{h,cpp}`, WinRT `StreamSocketListener`).

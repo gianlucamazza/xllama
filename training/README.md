@@ -57,7 +57,7 @@ SKIP_TRAIN=1 SKIP_CONVERT=1 ./training/host/run_job.sh training/jobs/smollm2-360
 | export_adapter | `convert_hf_to_gguf` + `convert_lora_to_gguf` |
 | merge | `llama-export-lora` → plain GGUF |
 | evaluate | A/B `xllama-cli --chat --greedy` vs marker |
-| publish | *open* (catalogue entry later) |
+| publish | stub: `manifest.override.json` after successful merge |
 
 ## Capabilities
 
@@ -80,15 +80,38 @@ for DML”), llama-finetune ~24 GB class. See
 [`docs/training-architecture.md`](../docs/training-architecture.md) and
 [`docs/uwp-constraints.md`](../docs/uwp-constraints.md) §13.
 
+## Hybrid ops (Phase 9 operator loop)
+
+Rate turns on console → retrain on host → re-serve merged GGUF:
+
+```bash
+source ~/.config/xllama/xbox-env
+
+# 1) Capture preferences (autopilot) — or use UI when available
+./scripts/validate-console-training.sh rate
+
+# 2) Pull samples + convert to train JSONL
+./training/host/pull_console_samples.sh
+# → training/out/console-samples/samples.jsonl
+# → training/out/console-samples/samples.train.jsonl
+
+# 3) Host train (short); skip marker A/B if samples are not the toy secret job
+SKIP_AB=1 STEPS=80 ./training/host/run_job.sh training/jobs/from-console-samples.json
+
+# 4) Optional: quantize + upload via serve harness or manual WDP
+#    out dir: training/out/from-console-samples/
+#    publish snippet: .../manifest.override.json
+```
+
 ## Console validation
 
 ```bash
 source ~/.config/xllama/xbox-env
-./scripts/validate-console.sh gguf          # baseline GGUF chat
-./scripts/validate-console-training.sh serve  # merged finetuned GGUF on device
-# After deploying an MSIX that includes preference-capture + lora_path:
+# After reinstall: ./scripts/provision-models.sh --all-test
+./scripts/validate-console.sh all             # shipping bar
+./scripts/validate-console-training.sh serve  # merged finetuned GGUF
 XLLAMA_TRAIN_FULL=1 ./scripts/validate-console-training.sh all
-SKIP_UPLOAD=1 ./scripts/validate-console-training.sh serve  # reuse model on device
+SKIP_UPLOAD=1 ./scripts/validate-console-training.sh serve
 ```
 
 ## Verified

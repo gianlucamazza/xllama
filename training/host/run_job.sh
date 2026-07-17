@@ -301,4 +301,22 @@ if [[ "${BASE_HIT}" -eq 0 ]]; then
 else
   echo "PASS (weak): merged has marker (base also hit)"
 fi
+
+# Publish stub: LocalState manifest override ready for Device Portal upload
+if [[ -f "${MERGED_GGUF}" ]]; then
+  SNIP="${OUT}/manifest.override.json"
+  "${HOST}/.venv/bin/python" "${HOST}/publish_manifest_snippet.py" \
+    --name "${JOB_NAME}" \
+    --display "${JOB_NAME} (finetuned)" \
+    --gguf "${MERGED_GGUF}" \
+    --out "${SNIP}" 2>/dev/null ||
+    python3 "${HOST}/publish_manifest_snippet.py" \
+      --name "${JOB_NAME}" \
+      --display "${JOB_NAME} (finetuned)" \
+      --gguf "${MERGED_GGUF}" \
+      --out "${SNIP}"
+  echo "==> publish snippet: ${SNIP}"
+  echo "    copy merged GGUF → LocalState\\models\\${JOB_NAME}\\model.gguf"
+  echo "    merge/upload ${SNIP} as LocalState\\manifest.json override"
+fi
 exit 0

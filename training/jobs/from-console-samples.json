@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "name": "from-console-samples",
+  "method": "lora_peft",
+  "device": "host",
+  "base_model": "HuggingFaceTB/SmolLM2-360M-Instruct",
+  "dataset": "training/out/console-samples/samples.train.jsonl",
+  "out_dir": "training/out/from-console-samples",
+  "lora": {
+    "rank": 8,
+    "alpha": 16,
+    "steps": 80,
+    "seed": 42,
+    "learning_rate": 0.0002
+  },
+  "eval": {
+    "prompt": "xllama secret",
+    "expect_contains": "XLLAMA-LORA-OK"
+  },
+  "merge": true,
+  "quantize": null,
+  "_comment": "Pull samples first: ./training/host/pull_console_samples.sh. Eval marker is optional (toy); real samples may not teach XLLAMA-LORA-OK — set SKIP_AB=1 if needed."
+}
