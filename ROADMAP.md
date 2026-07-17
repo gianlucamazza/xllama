@@ -47,7 +47,7 @@ lanes A/C; device train remains rejected. SSOT:
 - [x] Operator hybrid: `pull_console_samples.sh` + `from-console-samples` job +
       publish manifest snippet (`training/README.md`).
 - [ ] UI like/dislike (not required for exploration)
-- [ ] GitHub Release **v1.2.1.0** after CI package + reconfirm ALL PASS
+- [x] GitHub Release **v1.2.1.0** (MSIX 1.2.1.550, console ALL PASS 2026-07-17)
 
 ## Upstream and vendor lifecycle
 
