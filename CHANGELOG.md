@@ -7,10 +7,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **TAESD console FAIL after reinstall** — incomplete `sd-turbo-fp16` (only
+  `vae_decoder/`; missing `text_encoder/model.onnx`). Remedy:
+  `./scripts/provision-models.sh sd-turbo-fp16`. `validate-console.sh` preflights
+  te presence. **ALL PASS** restored on MSIX 1.2.0.546 (2026-07-17).
+
+### Changed
+
+- **Phase 8 training exploration frozen complete** — exit criteria in
+  `docs/training-architecture.md`; optional hybrid ops = Phase 9.
+
 ### Added
 
 - **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
-- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+- **Console training closeout** on MSIX 1.2.0.546: `rate` / `lora-rt` / `serve` PASS;
+  `validate-console.sh all` **ALL PASS** after SD provision.
 
 - **Preference capture + catalogue LoRA contract + console training harness** —
   `preference_capture` JSONL helpers; autopilot `rate` writes
