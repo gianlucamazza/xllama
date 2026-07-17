@@ -99,6 +99,9 @@ SKIP_UPLOAD=1 ./scripts/validate-console-training.sh serve  # reuse model on dev
 | 2026-07-17 | host runtime `--lora` | **PASS** (matches merge) |
 | 2026-07-17 | console `validate-console.sh gguf` | **PASS** |
 | 2026-07-17 | console `validate-console-training.sh serve` (Q4 merged) | **PASS** (marker in chat) |
+| 2026-07-17 | MSIX **1.2.0.546** `rate` | **PASS** (samples.jsonl like) |
+| 2026-07-17 | MSIX **1.2.0.546** `lora-rt` | **PASS** (runtime LoRA applied; fix `model.gguf` prefer) |
+| 2026-07-17 | `validate-console.sh all` on 1.2.0.546 | routing+GGUF **PASS**; TAESD **FAIL** (stage=error post-wipe) |
 
 ## Compat
 

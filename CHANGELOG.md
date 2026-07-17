@@ -9,6 +9,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 - **Preference capture + catalogue LoRA contract + console training harness** —
   `preference_capture` JSONL helpers; autopilot `rate` writes
   `LocalState/training/samples.jsonl`; manifest optional `lora`/`lora_scale`;
@@ -109,6 +112,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 - **Phi-3 chat template** — `ChatFormatKind::Phi3` (`<|user|>` / `<|end|>`) via
   `model_is_phi` / `chat_format_for` for WDP-provisioned Phi GGUFs and future
   quality A/B. Not a catalogue entry (speed/RAM still loses to `llama32-3b`).
@@ -140,6 +146,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   feature set).
 
 ### Added
+
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
 
 - **LAN HTTP endpoint (OpenAI-compatible)** — optional, **default OFF** front-end
   on `xllama::Session` (`uwp/api-server.{h,cpp}`, WinRT `StreamSocketListener`).
@@ -197,6 +206,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 - **Patched ORT DLL in shipping MSIX** — AppContainer external-data fixes
   (`weakly_canonical` guard + 16 MB `ReadFile` chunk) are no longer dispatch-lane
   only. `build-uwp.yml` downloads the console-validated `onnxruntime.dll` from the
@@ -225,6 +237,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [1.1.7.0] - 2026-07-15
 
 ### Added
+
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
 
 - **GGUF KV-cache reuse** — `LlamaSession` keeps a persistent `llama_context`, so
   a continuation turn appends only the new turn's delta instead of re-prefilling
@@ -303,6 +318,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 - **Per-architecture chat template** (`ChatFormat`, `src/bridge/chat_prompt.cpp`):
   `chat_format_for()` replaces the hard-coded ChatML with a data-driven template
   selected by model id. ChatML kept byte-identical (Qwen no-think suffix
@@ -337,6 +355,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 - **`include/xllama/chat_prompt.h`** — Qwen no-think generation suffix and empty
   `</think>` stripping; unit tests in `test_chat_prompt.cpp`.
 - **`kv_reuse_supported_for_model()`** in `routing_policy.h` — DML EP gate for
@@ -363,6 +384,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [1.1.4.0] - 2026-07-14
 
 ### Added
+
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
 
 - **`include/xllama/routing_policy.h`** — extracted per-workload routing decision
   (600-tok threshold, GGUF/routing capability gates) with unit tests.
@@ -481,6 +505,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 - **Console autopilot + `validate-console.sh`.** Dev Mode gives the console no
   working text-input path, so §2 routing / §7c TAESD / GGUF-chat validations
   needed a person at the pad. A flag-driven in-app driver (`autopilot.flag` →
@@ -558,6 +585,9 @@ stays as a fallback.
 
 ### Added — runtime backend dispatch (ORT GenAI ⊕ llama.cpp in one binary)
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 `src/bridge/session.cpp` + `inference.cpp` no longer select the backend with a
 mutually-exclusive `#ifdef XLLAMA_USE_ORT / #else`. Two independent capability
 macros (`XLLAMA_USE_ORT`, `XLLAMA_USE_LLAMA`) let both backends compile together;
@@ -605,6 +635,9 @@ those архitectures). Confirmed loading through our stack:
 
 ### Added — SD-Turbo in the download catalogue (image model self-serve)
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 The image model no longer requires Device Portal provisioning: the catalogue
 gains a `kind: "diffusion"` entry for `sd-turbo-fp16` (validated artifact —
 `validate_pipeline.py` end-to-end pass; the `-ort-fp16` candidate is the
@@ -643,6 +676,9 @@ Three-way audit (docs↔code, docs↔measured state, gaps) and fixes:
 
 ### Added — in-process diffusion experiment (`diffuse-inproc.flag`)
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 The 887A0036 device conflict (§7) was measured with ORT **GenAI**'s
 Agility-factory device; the diffusion pipeline uses **plain ORT DML**, which may
 coexist with the XAML compositor device. `diffuse-inproc.flag` runs
@@ -652,6 +688,9 @@ generation becomes in-app — no restart flow. Runbook §7b; on-console validati
 pending.
 
 ### Added — diffusion progress + cancellation
+
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
 
 `diffuse-progress.txt` reports the live stage (`start` / `text_encoder` /
 `unet s/N` / `vae` / `done` / `cancelled` / `error`); `diffuse-cancel.flag`
@@ -747,6 +786,9 @@ image for the same prompt/seed). Fixes required on the way, all measured:
 
 ### Added — model catalogue (`models/manifest.json`), model management de-hardcoded
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 The model list, download source, and downloadability gate were hardcoded in four
 places; they now come from one catalogue file.
 
@@ -807,6 +849,9 @@ per `docs/console-validation-runbook.md`. CSVs under `bench/results/phase35-*.cs
 
 ### Added — C++ diffusion pipeline (`diffuse.flag`, host-validated)
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 The console image-generation pipeline. `uwp/diffuse.cpp` runs three ORT DirectML
 sessions (text_encoder → 1× UNet denoise → VAE decode) behind a `diffuse.flag`
 headless mode, mirroring the image spike's D3D12-clean host (887A0036-safe).
@@ -846,6 +891,9 @@ kernel we could contribute — CPU int4 stays the decode default.
 
 ### Added — diffusion model toolchain (image generation, `diffusion/`)
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 Model-side toolchain for running SD-Turbo (1-step distilled diffusion) on the
 console GPU — the workload that plays to DirectML's strength (compute-bound fp16
 batch), unlike LLM decode.
@@ -874,6 +922,9 @@ batch), unlike LLM decode.
 
 ### Added — image-generation spike (plain ORT DirectML, new model axis)
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 First step toward image/vision models on the console. The desk-check (§12) showed
 the GPU loses at text decode because that workload is M=1, dispatch-bound, and
 int4-DML is non-fused — the GPU's _worst_ case. Image generation (diffusion) is
@@ -901,6 +952,9 @@ This spike tests that hypothesis cheaply before building a full diffusion pipeli
 
 ### Added — per-conversation CPU/GPU routing (Stage 3, default off)
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 The v0.3.6 matrix showed the EP choice is per-workload: DML fp16 wins prompt
 prefill at scale (1.8× at ~1k tokens), CPU int4 wins decode. The app can now
 route between them.
@@ -922,6 +976,9 @@ route between them.
 ## [0.3.8.0] - 2026-07-08
 
 ### Added — KV-cache reuse across chat turns (continuous decoding)
+
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
 
 The interactive app re-prefilled the **entire** ChatML history on every turn
 (`BuildChatMLPrompt` + a fresh `OgaGenerator` per `generate()`), so turn-N TTFT
@@ -950,6 +1007,9 @@ per-turn prefill covers just the delta.
   with reuse (103.7 ms vs 505.2 ms cold re-prefill); coherence confirmed.
 
 ### Added — multi-turn TTFT bench (Stage 2b)
+
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
 
 - Headless bench gains a KV-reuse measurement: when `bench_turns.txt` is present
   (turn-2 user prompt; `prompt.txt` supplies turn 1), `main_loop` runs both turns
@@ -1034,6 +1094,9 @@ SmolLM2-360M, 3 variants × 2 prompts (285 / ~1050 tok), v0.3.6 timing:
 
 ### Added
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 **Prefill measurement in the ORT path** (`prompt_tok_s` was always 0.00):
 
 - `src/bridge/inference.cpp`: ORT GenAI runs the prompt prefill inside the
@@ -1067,6 +1130,9 @@ console before contributing upstream:
 ## [0.3.4] - 2026-07-07
 
 ### Added
+
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
 
 **Headless bench mode — unblocks DML EP init** (root cause of the 0.3.3
 `887A0036` finding, now identified at the exact source line):
@@ -1178,6 +1244,9 @@ LocalState) for the first profiled DML run on console.
 
 ### Added
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 **Bench infrastructure — ORT GenAI thread tuning** (`feat(bench): ORT GenAI bench infrastructure`):
 
 - `scripts/bench-xbox-ort.sh`: new bench orchestrator for ORT GenAI models already on device (no model upload). Supports `--threads N`, `--runs N`, `--prompt file`. Appends median row to `bench/results/phase1-cpu.csv`. Drops warmup run automatically.
@@ -1238,6 +1307,9 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 
 ### Added
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 **Settings dialog — sampling parameters** (`feat(uwp): Settings dialog — sampling params`):
 
 - `ShowSettings` now exposes `temperature` (Slider 0–2, default 0.8), `top_p` (Slider 0–1, default 0.9), `top_k` (NumberBox 1–200, default 40), `repetition_penalty` (Slider 1–2, default 1.1), and `n_predict` (NumberBox 16–2048, default 512).
@@ -1286,6 +1358,9 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 
 ### Added
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 - ChatML stop sequence `<|im_end|>` in UI inference path (`uwp/MainPage.cpp`). SmolLM2-360M does not always emit EOS naturally; without this the model would continue generating filler or hallucinate the next user turn up to `n_predict=512`. Bench path unchanged.
 - `tests/test_session.cpp`: smoke tests for `Session::create` error paths (non-existent path, empty path) — covers the Linux/llama.cpp path in CI.
 
@@ -1293,11 +1368,17 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 
 - `CHANGELOG.md` 0.2.0 section: collapsed duplicate `### Added` blocks; removed stale empty `[Unreleased]` header.
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 ---
 
 ## [0.2.0] — 2026-05-22
 
 ### Added
+
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
 
 **Persistent inference session** (`feat(uwp): integrate xllama::Session into MainPage`):
 
@@ -1377,6 +1458,9 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 
 ### Added
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 - SmolLM2-360M-Instruct INT4 CPU as the bundled model (403 MB on-disk, ONNX opset 21, IR version 10).
 - Model included as `DeploymentContent` in `uwp/xllama.vcxproj`; deployed to `Package.InstalledPath\models\smollm2-360m-cpu-int4\`.
 - `resolve_model_path` (`src/bridge/path_utils.cpp`): checks `LocalState\models\<name>` first (runtime override), falls back to `Package.InstalledPath\models\<name>` with copy-on-first-launch to LocalState.
@@ -1395,6 +1479,9 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 ## [Pivot: ONNX Runtime GenAI + DirectML] — commit `385cb07`
 
 ### Added
+
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
 
 - `XLLAMA_USE_ORT=1` preprocessor flag in `uwp/xllama.vcxproj`; enables ORT GenAI path in `src/bridge/inference.cpp`.
 - `include/xllama/ort_raii.h`: RAII `unique_ptr` wrappers for `OgaModel`, `OgaTokenizer`, `OgaTokenizerStream`, `OgaGeneratorParams`, `OgaGenerator`, `OgaSequences`.
@@ -1423,6 +1510,9 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 
 ### Added
 
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
+
 - `MainPageController` (`uwp/MainPage.cpp`): programmatic UI built via `Windows.UI.Xaml.Controls.*` API. Uses `enable_shared_from_this`; `shared_from_this()` must not be called from the constructor — use `Init()` post-construction.
 - `runtimeclass App` retained (required by `Application::Start`).
 
@@ -1435,6 +1525,9 @@ SmolLM2-360M-Instruct INT4 CPU, ORT GenAI 0.13.2, n=990:
 ## [Baseline: llama.cpp + Linux CI] — initial commits
 
 ### Added
+
+- **GGUF dir resolve prefers `model.gguf`** over `adapter.gguf` (runtime LoRA catalogue dirs).
+- **Console P0 training closeout** on MSIX 1.2.0.546: `rate` PASS, `lora-rt` PASS, `serve` PASS; `validate-console all` routing+GGUF PASS (TAESD FAIL post-wipe).
 
 - Linux build via CMake presets (`linux-release`, `linux-test`).
 - Modular bridge: `src/bridge/inference.cpp`, `bench.cpp`, `platform.cpp`, `path_utils.cpp`, `utf8_utils.cpp`, `cli.cpp`.
