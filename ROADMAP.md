@@ -5,13 +5,17 @@ performance belongs in `docs/benchmarks.md`.
 
 ## Current product state
 
-- Latest semantic release: **v1.2.1.0** (training pillar + console ALL PASS).
+- Latest published release: **v1.2.1.0** (training pillar + console ALL PASS).
+  **v1.3.0.0** (expanded product UI + experimental Lane B) is cut in
+  `CHANGELOG.md` (2026-07-17) and drafted as a GitHub Release; publication
+  pending.
 - Shipping artifact: unified ORT GenAI + llama.cpp, with pinned patched runtime
   DLLs while upstream fixes have not reached NuGet.
 - Default chat: `lfm25-350m`; balanced and quality tiers: LFM2.5-1.2B and
   LFM2-2.6B.
 - Text DML remains gated by #91; CPU serves text and DirectML serves diffusion.
-- Phase 1–6 delivery, console validation and demo publication are complete.
+- Phases 1–9 (delivery, console validation, demo, training pillar,
+  personalization ops) are complete; Phase 10 (Lane B) is in progress.
 
 ## Phase 7 — Peer-class model research
 

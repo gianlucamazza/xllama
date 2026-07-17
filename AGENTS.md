@@ -43,7 +43,7 @@ xllama/
 │   ├── MainPage.cpp / .h    # MainPageController (plain C++, not runtimeclass); incl. autopilot driver
 │   ├── inference-bridge.cpp / .h   # UWP main_loop() + bench mode
 │   ├── chat-history.cpp / .h       # ChatHistory: Save/Load/Delete/Clear
-│   ├── model-downloader.cpp / .h   # EnsureModelAsync — catalogue download (GitHub Release models-v1, models/manifest.json)
+│   ├── model-downloader.cpp / .h   # ModelDownloader::DownloadAsync — catalogue download (GitHub Release models-v1, models/manifest.json)
 │   ├── packages.config      # NuGet pins (ORT GenAI 0.14.1, ORT 1.24.4, DirectML 1.15.4)
 │   └── xllama.sln / .vcxproj
 ├── scripts/

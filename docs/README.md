@@ -16,6 +16,7 @@ second table.
   [benchmarks-charts.html](./benchmarks-charts.html)
 - **Model catalogue + backend selection** → [model-selection.md](./model-selection.md) (narrative) + [`../uwp/models/manifest.json`](../uwp/models/manifest.json) (data)
 - **UWP/AppContainer constraints** (§1–§13) → [uwp-constraints.md](./uwp-constraints.md)
+- **Runtime NuGet pins** → [recommended-config.md](./recommended-config.md) (narrative) + [`../uwp/packages.config`](../uwp/packages.config) (data); patched-DLL lifecycle → [vendor-lifecycle-plan.md](./vendor-lifecycle-plan.md)
 - **Version / current state** → [../CHANGELOG.md](../CHANGELOG.md) + [../ROADMAP.md](../ROADMAP.md)
 
 The benchmark flow is intentionally one-way:
