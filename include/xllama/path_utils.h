@@ -30,8 +30,15 @@ bool model_uses_llama_backend(const std::string& model_id);
 
 // llama_model_load_from_file needs a FILE path, but catalogue GGUF entries
 // resolve to a directory (LocalState\models\<name>\<file>.gguf). If path is a
-// directory, return the first *.gguf inside it; empty string if it contains
-// none. If path is not a directory, return it unchanged.
-std::string first_gguf_in_dir(const std::string& path);
+// directory, pick a base weights file:
+//   1) model.gguf if present
+//   2) first *.gguf whose filename is not |exclude_filename|
+//   3) first *.gguf (legacy)
+// Empty string if none. If path is not a directory, return it unchanged.
+// |exclude_filename| is the basename only (e.g. "adapter.gguf") so a runtime
+// LoRA next to the base is never loaded as the model (alpha order would
+// otherwise pick adapter.gguf before model.gguf).
+std::string first_gguf_in_dir(const std::string& path,
+                              const std::string& exclude_filename = {});
 
 } // namespace xllama

@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -405,7 +406,11 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     InferenceResult res;
 
     // Catalogue GGUF entries resolve to the model DIRECTORY; llama loads a file.
-    const std::string abs_model_path = first_gguf_in_dir(resolve_model_path(params.model_path));
+    std::string lora_base;
+    if (!params.lora_path.empty())
+        lora_base = std::filesystem::path(params.lora_path).filename().string();
+    const std::string abs_model_path =
+        first_gguf_in_dir(resolve_model_path(params.model_path), lora_base);
     if (abs_model_path.empty()) {
         res.error_msg = "no .gguf file in model dir: " + resolve_model_path(params.model_path);
         log_output("[xllama] " + res.error_msg + "\n");

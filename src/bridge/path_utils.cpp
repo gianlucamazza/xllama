@@ -262,15 +262,35 @@ bool model_uses_llama_backend(const std::string& model_id) {
     return false;
 }
 
-std::string first_gguf_in_dir(const std::string& path) {
+std::string first_gguf_in_dir(const std::string& path, const std::string& exclude_filename) {
     std::error_code ec;
     if (!std::filesystem::is_directory(path, ec))
         return path;
+
+    std::string preferred;
+    std::string fallback;
+    const auto model_gguf = std::filesystem::path(path) / "model.gguf";
+    if (std::filesystem::is_regular_file(model_gguf, ec))
+        return model_gguf.string();
+
     for (const auto& de : std::filesystem::directory_iterator(path, ec)) {
-        if (!ec && de.path().extension() == ".gguf")
-            return de.path().string();
+        if (ec || de.path().extension() != ".gguf")
+            continue;
+        const std::string name = de.path().filename().string();
+        if (!exclude_filename.empty() && name == exclude_filename)
+            continue;
+        // Prefer non-adapter-looking names when no model.gguf
+        if (name.find("adapter") != std::string::npos || name.find("lora") != std::string::npos) {
+            if (fallback.empty())
+                fallback = de.path().string();
+            continue;
+        }
+        if (preferred.empty())
+            preferred = de.path().string();
     }
-    return {};
+    if (!preferred.empty())
+        return preferred;
+    return fallback;
 }
 
 } // namespace xllama

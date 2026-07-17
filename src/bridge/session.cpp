@@ -14,6 +14,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
 #include <string>
 
 // Backend availability. A build defines XLLAMA_USE_ORT when ORT GenAI is linked.
@@ -550,7 +551,12 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
     // resolve_model_path yields a FILE path on Linux (a direct .gguf) but the
     // model DIRECTORY on UWP (catalogue layout LocalState\models\<name>\). llama
     // loads a file, so descend into a directory and pick the single .gguf inside.
-    std::string abs_path = first_gguf_in_dir(resolve_model_path(sp.model_path));
+    // Exclude LoRA basename so dirs with model.gguf + adapter.gguf load the base.
+    std::string lora_base;
+    if (!sp.lora_path.empty()) {
+        lora_base = std::filesystem::path(sp.lora_path).filename().string();
+    }
+    std::string abs_path = first_gguf_in_dir(resolve_model_path(sp.model_path), lora_base);
     if (abs_path.empty()) {
         if (err)
             *err = "no .gguf file in model dir: " + resolve_model_path(sp.model_path);

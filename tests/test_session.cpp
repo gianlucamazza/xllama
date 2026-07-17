@@ -54,6 +54,26 @@ TEST_CASE("model_uses_llama_backend detects .gguf suffix and dir layout") {
     std::filesystem::remove_all(tmp2, ec);
 }
 
+TEST_CASE("first_gguf_in_dir prefers model.gguf over adapter.gguf") {
+    using xllama::first_gguf_in_dir;
+    auto tmp = std::filesystem::temp_directory_path() / "xllama-gguf-prefer-test";
+    std::error_code ec;
+    std::filesystem::remove_all(tmp, ec);
+    std::filesystem::create_directories(tmp);
+    {
+        std::ofstream a((tmp / "adapter.gguf").string());
+        a << "adapter";
+        std::ofstream m((tmp / "model.gguf").string());
+        m << "model";
+    }
+    const std::string picked = first_gguf_in_dir(tmp.string(), "adapter.gguf");
+    CHECK(picked.find("model.gguf") != std::string::npos);
+    // Without exclude, model.gguf still preferred by name
+    const std::string picked2 = first_gguf_in_dir(tmp.string());
+    CHECK(picked2.find("model.gguf") != std::string::npos);
+    std::filesystem::remove_all(tmp, ec);
+}
+
 TEST_CASE("Session::create fails when LoRA path is invalid (llama)") {
     // Real base not required: create fails at model load first if path is junk.
     // Here we only assert empty model + lora still rejects cleanly.
