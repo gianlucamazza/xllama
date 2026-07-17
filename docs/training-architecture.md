@@ -154,17 +154,17 @@ Refresh RE probe:
 
 Queryable from C++ / CLI (`xllama-cli --training-capabilities`):
 
-| Capability                   | Status           | Available now?                                                      |
-| ---------------------------- | ---------------- | ------------------------------------------------------------------- |
-| `HostPeftLora`               | available        | **yes**                                                             |
-| `HostMergeGguf`              | available        | **yes**                                                             |
-| `HostEvaluateMarker`         | available        | **yes**                                                             |
-| `RuntimeLoraLoadLlama`       | **available**    | **yes** (`SessionParams.lora_path` / CLI `--lora`)                  |
-| `RuntimeAdapterLoadOrtGenAI` | designed         | no (DML blocked on pin)                                             |
-| `DeviceOrtOnDeviceTraining`  | research         | no                                                                  |
-| `DeviceLlamaFinetune`        | **rejected**     | no (full FT)                                                        |
+| Capability                   | Status           | Available now?                                                            |
+| ---------------------------- | ---------------- | ------------------------------------------------------------------------- |
+| `HostPeftLora`               | available        | **yes**                                                                   |
+| `HostMergeGguf`              | available        | **yes**                                                                   |
+| `HostEvaluateMarker`         | available        | **yes**                                                                   |
+| `RuntimeLoraLoadLlama`       | **available**    | **yes** (`SessionParams.lora_path` / CLI `--lora`)                        |
+| `RuntimeAdapterLoadOrtGenAI` | designed         | no (DML blocked on pin)                                                   |
+| `DeviceOrtOnDeviceTraining`  | research         | no                                                                        |
+| `DeviceLlamaFinetune`        | **rejected**     | no (full FT)                                                              |
 | `DeviceGgmlPartialFt`        | **experimental** | **yes** on `XLLAMA_DEVICE_TRAIN` builds (§10); host/console gates pending |
-| `DevicePreferenceCapture`    | **available**    | **yes** (UI/autopilot → `training/samples.jsonl`)                   |
+| `DevicePreferenceCapture`    | **available**    | **yes** (UI/autopilot → `training/samples.jsonl`)                         |
 
 `training_device_supported(Device)` is compile-time: **true** on builds with
 the Lane B engine (`XLLAMA_DEVICE_TRAIN`: Linux CMake always; MSIX llamacpp /
@@ -227,16 +227,16 @@ and `from-console-samples` job live in
 
 ## 8. Decision log
 
-| Decision                                   | Rationale                                                                                   |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| Host PEFT first                            | RE shows inference-only NuGet; host PEFT proven PASS                                        |
-| Compile-gate `device=device`               | Only builds containing the bounded ggml-opt engine accept it                                |
-| Reject DeviceLlamaFinetune                 | ~24 GB class + WIP                                                                          |
-| Prefer merge GGUF over runtime LoRA for v1 | Zero Session change; same path as catalogue                                                 |
-| ODT as research not default                | Package + format + console risk                                                             |
-| Lane B via ggml-opt, not ORT ODT           | Engine already linked in the MSIX; single GGUF format; no new NuGet pin                     |
-| Lane B = last-block partial FT             | Pin limitation: KV-cache `set_rows` has no backward (§10); honest fail-fast in prepare      |
-| `experimental`, not `available`            | Host and console evidence must pass before the status flips                                 |
+| Decision                                   | Rationale                                                                              |
+| ------------------------------------------ | -------------------------------------------------------------------------------------- |
+| Host PEFT first                            | RE shows inference-only NuGet; host PEFT proven PASS                                   |
+| Compile-gate `device=device`               | Only builds containing the bounded ggml-opt engine accept it                           |
+| Reject DeviceLlamaFinetune                 | ~24 GB class + WIP                                                                     |
+| Prefer merge GGUF over runtime LoRA for v1 | Zero Session change; same path as catalogue                                            |
+| ODT as research not default                | Package + format + console risk                                                        |
+| Lane B via ggml-opt, not ORT ODT           | Engine already linked in the MSIX; single GGUF format; no new NuGet pin                |
+| Lane B = last-block partial FT             | Pin limitation: KV-cache `set_rows` has no backward (§10); honest fail-fast in prepare |
+| `experimental`, not `available`            | Host and console evidence must pass before the status flips                            |
 
 ## 9. Open spikes (kill criteria)
 
@@ -287,15 +287,17 @@ an engine change (ROADMAP Phase 10).
 
 ### Memory budget (SmolLM2-360M, last-block filter, n_ctx 256)
 
-| Component                                    | Size                                       |
-| -------------------------------------------- | ------------------------------------------ |
-| Frozen base (f16, no mmap)                   | ~700 MB                                    |
-| Trainable subset f32 (≈9.5 M params)         | ~38 MB                                     |
-| Gradients + AdamW moments (f32, 3×)          | ~115 MB                                    |
-| KV cache f32 + activations + compute buffers | few hundred MB (scales with `n_ctx_train`) |
-| Peak working set (`result.json.peak_ws_mb`)  | pending clean marker run                   |
+| Component                                    | Size                                                |
+| -------------------------------------------- | --------------------------------------------------- |
+| Frozen base (f16, no mmap)                   | ~700 MB                                             |
+| Trainable subset f32 (≈9.5 M params)         | ~38 MB                                              |
+| Gradients + AdamW moments (f32, 3×)          | ~115 MB                                             |
+| KV cache f32 + activations + compute buffers | few hundred MB (scales with `n_ctx_train`)          |
+| Peak working set (VmHWM, host, mid-run)      | **1 082 MB** (`bench/results/phase10-devtrain.csv`) |
 
-The acceptance ceiling is 3 GB; `n_ctx_train` is the pressure knob.
+The acceptance ceiling is 3 GB; `n_ctx_train` is the pressure knob. Host
+throughput and epoch timings: `docs/benchmarks.md` §"On-device training
+(Lane B)". Console `peak_ws_mb` lands with the `device-train` gate.
 
 ### Run it
 
