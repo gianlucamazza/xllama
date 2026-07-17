@@ -63,4 +63,27 @@ inline bool dir_satisfies_expected_files(const std::vector<std::wstring>& presen
     return true;
 }
 
+// True iff a model directory's file listing makes it SERVABLE by Session:
+// a base GGUF (any *.gguf that is not a bare runtime-LoRA "adapter.gguf"),
+// or an ORT GenAI layout (genai_config.json / model.onnx). `files` are
+// directory-relative names; comparison is case-insensitive. Used by the LAN
+// API's /v1/models discovery — pure, host doctest-testable.
+inline bool model_dir_files_ready(const std::vector<std::string>& files) {
+    auto lower = [](std::string s) {
+        for (auto& c : s)
+            if (c >= 'A' && c <= 'Z')
+                c = static_cast<char>(c - 'A' + 'a');
+        return s;
+    };
+    for (const auto& f : files) {
+        const std::string name = lower(f);
+        if (name == "genai_config.json" || name == "model.onnx")
+            return true;
+        if (name.size() > 5 && name.compare(name.size() - 5, 5, ".gguf") == 0 &&
+            name != "adapter.gguf")
+            return true;
+    }
+    return false;
+}
+
 } // namespace xllama
