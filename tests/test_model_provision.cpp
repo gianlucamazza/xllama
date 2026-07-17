@@ -86,3 +86,22 @@ TEST_CASE("provision: diffusion with one required subdir file missing -> false")
 TEST_CASE("provision: normalize_model_path lowercases and unifies separators") {
     CHECK(normalize_model_path(L"UNet\\Model.ONNX") == L"unet/model.onnx");
 }
+
+TEST_CASE("model_dir_files_ready: base GGUF counts, bare adapter does not") {
+    CHECK(model_dir_files_ready({"model.gguf"}));
+    CHECK(model_dir_files_ready({"Model.GGUF", "adapter.gguf"}));
+    CHECK_FALSE(model_dir_files_ready({"adapter.gguf"}));
+    CHECK_FALSE(model_dir_files_ready({"ADAPTER.GGUF"}));
+}
+
+TEST_CASE("model_dir_files_ready: ORT layouts count") {
+    CHECK(model_dir_files_ready({"genai_config.json", "model.onnx.data"}));
+    CHECK(model_dir_files_ready({"model.onnx"}));
+    CHECK(model_dir_files_ready({"GenAI_Config.JSON"}));
+}
+
+TEST_CASE("model_dir_files_ready: junk-only directories are not servable") {
+    CHECK_FALSE(model_dir_files_ready({}));
+    CHECK_FALSE(model_dir_files_ready({"README.md", ".complete", "manifest.json"}));
+    CHECK_FALSE(model_dir_files_ready({"notgguf", "gguf", ".gguf-tmp"}));
+}

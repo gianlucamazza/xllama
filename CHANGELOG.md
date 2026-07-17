@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Changed
+
+- LAN API model discovery (`/v1/models`, `/api/tags`) now lists **every
+  servable on-device model** (base GGUF or ORT layout under
+  `LocalState\models\`) instead of only the loaded one; the non-standard
+  `"active": true` flag marks the model the Session currently serves. Any
+  listed id is valid as the request `model` (the server already switched
+  Sessions on demand). Readiness predicate `model_dir_files_ready` is pure and
+  host-tested.
+
 ## [1.3.0.0] - 2026-07-17
 
 ### Added

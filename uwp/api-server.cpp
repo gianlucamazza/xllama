@@ -18,13 +18,16 @@
 // clang-format on
 
     #include "xllama/chat_prompt.h"
+    #include "xllama/model_provision.h"
     #include "xllama/path_utils.h"
     #include "xllama/platform.h"
     #include "xllama/session.h"
 
+    #include <algorithm>
     #include <cctype>
     #include <cstdio>
     #include <ctime>
+    #include <filesystem>
     #include <memory>
     #include <mutex>
     #include <string>
@@ -388,16 +391,47 @@ std::string current_model_id() {
     return read_local_text("model.txt");
 }
 
-// OpenAI GET /v1/models — {"object":"list","data":[{id,object,created,owned_by}]}.
+// Catalogue ids ready to serve: every LocalState\models\<id> whose files make
+// it loadable (model_dir_files_ready — base GGUF or ORT layout). The active /
+// hinted model is appended if it is not already in the list (model.txt may
+// name a raw path outside the catalogue). Sorted for stable output; the scan
+// touches no shared state, so no g_mtx is needed.
+std::vector<std::string> servable_model_ids() {
+    std::vector<std::string> ids;
+    std::error_code ec;
+    const std::filesystem::path root = ::xllama::resolve_local_path("models");
+    for (const auto& entry : std::filesystem::directory_iterator(root, ec)) {
+        if (!entry.is_directory(ec))
+            continue;
+        std::vector<std::string> files;
+        for (const auto& f : std::filesystem::directory_iterator(entry.path(), ec))
+            files.push_back(f.path().filename().string());
+        if (::xllama::model_dir_files_ready(files))
+            ids.push_back(entry.path().filename().string());
+    }
+    std::sort(ids.begin(), ids.end());
+    const std::string current = current_model_id();
+    if (!current.empty() && std::find(ids.begin(), ids.end(), current) == ids.end())
+        ids.push_back(current);
+    return ids;
+}
+
+// OpenAI GET /v1/models — {"object":"list","data":[{id,object,created,owned_by}]}
+// listing every servable on-device model. The non-standard "active" flag marks
+// the model the lazily-owned Session currently has loaded (clients ignore
+// unknown fields); any listed id is valid for POST "model" — the server
+// switches Sessions on demand.
 std::string models_json() {
     JsonArray data;
-    const std::string id = current_model_id();
-    if (!id.empty()) {
+    const std::string current = current_model_id();
+    for (const std::string& id : servable_model_ids()) {
         JsonObject m;
         m.Insert(L"id", JsonValue::CreateStringValue(winrt::to_hstring(id)));
         m.Insert(L"object", JsonValue::CreateStringValue(L"model"));
         m.Insert(L"created", JsonValue::CreateNumberValue(static_cast<double>(time(nullptr))));
         m.Insert(L"owned_by", JsonValue::CreateStringValue(L"xllama"));
+        if (id == current)
+            m.Insert(L"active", JsonValue::CreateBooleanValue(true));
         data.Append(m);
     }
     JsonObject root;
@@ -409,8 +443,7 @@ std::string models_json() {
 // Ollama GET /api/tags — {"models":[{name,model}]} for Ollama-probing clients.
 std::string tags_json() {
     JsonArray models;
-    const std::string id = current_model_id();
-    if (!id.empty()) {
+    for (const std::string& id : servable_model_ids()) {
         JsonObject m;
         m.Insert(L"name", JsonValue::CreateStringValue(winrt::to_hstring(id)));
         m.Insert(L"model", JsonValue::CreateStringValue(winrt::to_hstring(id)));

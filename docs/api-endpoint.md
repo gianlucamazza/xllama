@@ -44,13 +44,21 @@ this is Dev Mode research, not a hosted service.
 
 ## Protocol (v1)
 
-| Method    | Path                   | Behaviour                                                             |
-| --------- | ---------------------- | --------------------------------------------------------------------- |
-| `GET`     | `/` or `/health`       | `200 {"status":"ok","service":"xllama"}` — the spike/liveness probe.  |
-| `GET`     | `/v1/models`           | OpenAI model discovery — lists the current/served model.              |
-| `GET`     | `/api/tags`            | Ollama model discovery — same model, Ollama shape.                    |
-| `POST`    | `/v1/chat/completions` | OpenAI-compatible chat completion, **non-streaming**.                 |
-| `OPTIONS` | _any_                  | CORS preflight (`204` + `Allow-Methods/Headers`) for browser clients. |
+| Method    | Path                   | Behaviour                                                                                                              |
+| --------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `GET`     | `/` or `/health`       | `200 {"status":"ok","service":"xllama"}` — the spike/liveness probe.                                                   |
+| `GET`     | `/v1/models`           | OpenAI model discovery — every servable on-device model; non-standard `"active": true` marks the one currently loaded. |
+| `GET`     | `/api/tags`            | Ollama model discovery — same list, Ollama shape.                                                                      |
+| `POST`    | `/v1/chat/completions` | OpenAI-compatible chat completion, **non-streaming**.                                                                  |
+| `OPTIONS` | _any_                  | CORS preflight (`204` + `Allow-Methods/Headers`) for browser clients.                                                  |
+
+Discovery semantics: a model is **servable** when its `LocalState\models\<id>`
+directory holds a base GGUF (any `*.gguf` except a bare runtime-LoRA
+`adapter.gguf`) or an ORT GenAI layout (`genai_config.json` / `model.onnx`) —
+predicate `model_dir_files_ready` in `include/xllama/model_provision.h`
+(host-tested). Any listed `id` is valid as the request `model`: the server
+lazily switches its single Session when the requested model differs from the
+loaded one (first request on a new model pays the load).
 
 Request body (subset): `model`, `messages[]` (`role` ∈ system/user/assistant, `content`),
 optional `max_completion_tokens` / `max_tokens` (default 512; the former wins — `max_tokens`
