@@ -575,8 +575,7 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
 
     LlamaAdapterLoraPtr adapter;
     if (!sp.lora_path.empty()) {
-        llama_adapter_lora* raw_ad =
-            llama_adapter_lora_init(raw_model, sp.lora_path.c_str());
+        llama_adapter_lora* raw_ad = llama_adapter_lora_init(raw_model, sp.lora_path.c_str());
         if (!raw_ad) {
             llama_model_free(raw_model);
             if (err)

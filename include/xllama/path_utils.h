@@ -38,7 +38,6 @@ bool model_uses_llama_backend(const std::string& model_id);
 // |exclude_filename| is the basename only (e.g. "adapter.gguf") so a runtime
 // LoRA next to the base is never loaded as the model (alpha order would
 // otherwise pick adapter.gguf before model.gguf).
-std::string first_gguf_in_dir(const std::string& path,
-                              const std::string& exclude_filename = {});
+std::string first_gguf_in_dir(const std::string& path, const std::string& exclude_filename = {});
 
 } // namespace xllama
