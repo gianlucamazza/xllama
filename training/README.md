@@ -49,10 +49,13 @@ Reuse prior adapter/merge:
 SKIP_TRAIN=1 SKIP_CONVERT=1 ./training/host/run_job.sh training/jobs/smollm2-360m-marker.json
 ```
 
-Lane B engine on the host (same in-process code path as the console; no Python):
+Lane B engine on the host (same in-process code path as the console; no Python).
+On the laptop, prefix long runs with `bg` so they land in `background.slice` instead of the
+desktop tier — hours of full-weight training trip the EC skin-temp cap (PL1 8W, 400 MHz)
+and degrade the whole machine:
 
 ```bash
-./build/linux-test/bin/xllama-cli --train-job training/jobs/smollm2-360m-marker-partialft.json
+bg ./build/linux-test/bin/xllama-cli --train-job training/jobs/smollm2-360m-marker-partialft.json
 ```
 
 ## Stages

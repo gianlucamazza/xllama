@@ -74,12 +74,12 @@ and llama.cpp (GGUF, CPU).
 
 ## Reference: tested models
 
-| Model                          | On-disk (merged) | CPU EP                                  | DirectML EP                                      | Notes                                                                                                                                 |
-| ------------------------------ | ---------------- | --------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| SmolLM2-360M-Instruct INT4 CPU | 417 MB           | ✅ ORT baseline (66.3 tok/s, 0.14.1)   | ❌ `80070057` (CPU-int4 graph in DML fused node) | ORT-only default; downloaded from the `models-v1` Release catalogue                                                                   |
-| SmolLM2-360M-Instruct INT4 DML | 285 MB           | —                                       | ⚠️ **8.8 tok/s** but wrong logits (#91)          | Built with ORT GenAI model builder (`-p int4 -e dml`); CPU ~8× faster — and DML text output is numerically wrong on this device (#91) |
-| SmolLM2-1.7B-Instruct INT4 CPU | 1.4 GB           | ✅ in-app (`models-v1` catalogue)       | —                                                | Console: 20.6 tok/s decode, peak 2423 MB (`phase35-1b-cpu.csv`); also USB/LocalState                                                  |
-| Phi-3.5-mini Q3_K_S (GGUF)     | 1.68 GB          | ✅ H4 A/B (11.3 tok/s, 2453 MB)         | —                                                | Loses speed+RAM vs Llama-3.2-3B Q3; **not** catalogue (`phase7-scale.csv`)                                                            |
+| Model                          | On-disk (merged) | CPU EP                               | DirectML EP                                      | Notes                                                                                                                                 |
+| ------------------------------ | ---------------- | ------------------------------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| SmolLM2-360M-Instruct INT4 CPU | 417 MB           | ✅ ORT baseline (66.3 tok/s, 0.14.1) | ❌ `80070057` (CPU-int4 graph in DML fused node) | ORT-only default; downloaded from the `models-v1` Release catalogue                                                                   |
+| SmolLM2-360M-Instruct INT4 DML | 285 MB           | —                                    | ⚠️ **8.8 tok/s** but wrong logits (#91)          | Built with ORT GenAI model builder (`-p int4 -e dml`); CPU ~8× faster — and DML text output is numerically wrong on this device (#91) |
+| SmolLM2-1.7B-Instruct INT4 CPU | 1.4 GB           | ✅ in-app (`models-v1` catalogue)    | —                                                | Console: 20.6 tok/s decode, peak 2423 MB (`phase35-1b-cpu.csv`); also USB/LocalState                                                  |
+| Phi-3.5-mini Q3_K_S (GGUF)     | 1.68 GB          | ✅ H4 A/B (11.3 tok/s, 2453 MB)      | —                                                | Loses speed+RAM vs Llama-3.2-3B Q3; **not** catalogue (`phase7-scale.csv`)                                                            |
 
 ## Historical ONNX candidate survey
 
@@ -273,7 +273,7 @@ gets the right template with zero per-model code.
   fixes (and it decodes faster). Details in `benchmarks.md` root-cause notes.
 
 Disk was never the real constraint (Dev Mode is now 90 GB, `uwp-constraints.md §9`).
-Catalogue entry `gemma4-e2b` downloads from HF (2.29 GB > the GitHub release 2 GB
+Catalogue entry `gemma4-e2b` downloads from HF (2.45 GB > the GitHub release 2 GB
 asset limit). See `docs/benchmarks.md` for the full comparison.
 
 Backend selection is by `SessionParams::backend` (explicit values take
