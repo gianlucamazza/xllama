@@ -92,11 +92,11 @@ ORT-GenAI path (persistent generator) and the GGUF/llama.cpp path (persistent
 `llama_context`, `LlamaSession`) reuse the cache and append only the new turn's
 delta:
 
-| Backend / model                              | Reuse turn-2 (ms) | Cold turn-2 (ms) |   Speedup |
-| -------------------------------------------- | ----------------: | ---------------: | --------: |
-| ORT-GenAI · SmolLM2-360M (`phase35-kv`)      |    103.7 (22 tok) |  505.2 (114 tok) | **4.87×** |
-| llama.cpp · Gemma-3-270M (`phase6-gemma-kv`) |    107.5 (39 tok) |  437.4 (179 tok) | **4.07×** |
-| llama.cpp · LFM2.5-1.2B (`phase7-lfm-kv`)    |    264.8 (18 tok) | 5125.4 (391 tok) | **19.36×** |
+| Backend / model                              | Reuse turn-2 (ms) |  Cold turn-2 (ms) |    Speedup |
+| -------------------------------------------- | ----------------: | ----------------: | ---------: |
+| ORT-GenAI · SmolLM2-360M (`phase35-kv`)      |    103.7 (22 tok) |   505.2 (114 tok) |  **4.87×** |
+| llama.cpp · Gemma-3-270M (`phase6-gemma-kv`) |    107.5 (39 tok) |   437.4 (179 tok) |  **4.07×** |
+| llama.cpp · LFM2.5-1.2B (`phase7-lfm-kv`)    |    264.8 (18 tok) |  5125.4 (391 tok) | **19.36×** |
 | llama.cpp · LFM2-2.6B (`phase7-lfm-kv`)      |    609.4 (18 tok) | 12198.4 (391 tok) | **20.02×** |
 
 GGUF KV-reuse was previously disabled (llama.cpp recreated the context per turn);
@@ -270,6 +270,42 @@ at roughly single-thread bandwidth (~40% of the 8-thread ceiling); the GEMV is
 latency/dispatch-bound per token rather than saturating aggregate DRAM bandwidth,
 consistent with why more threads help prefill (batched) but not decode (M=1). Drop
 a `membw.flag` into `LocalState` to reproduce (`membw-result.csv`, 1t + full-width).
+
+## On-device training (Lane B) — host engine, preliminary
+
+First measured numbers for the in-process ggml-opt partial-FT engine
+(`partial_ft`, docs/training-architecture.md §10). Raw:
+`bench/results/phase10-devtrain.csv`. Workload: SmolLM2-360M f16 base, last-block
+filter (5 tensors upcast, **9.22 M trainable params**), `n_ctx_train` 256,
+6 windows/epoch (1 536 train tokens/epoch), AdamW, f32 KV cache, CPU only.
+
+| Stage                                       | Measured (host, i7-1165G7 4c/8t) |
+| ------------------------------------------- | -------------------------------: |
+| prepare (selective f32 upcast, 720 MB GGUF) |                             66 s |
+| train epoch (fwd+bwd, 1 536 tok)            |                        ~24.8 min |
+| train throughput                            |                   **~1.0 tok/s** |
+| peak working set (VmHWM)                    |                     **1 082 MB** |
+| loss epoch 1 → 2                            |                    1.542 → 1.063 |
+
+Interpretation:
+
+- **Memory is not the constraint**: 1.08 GB peak vs the 3 GB spike ceiling
+  (§13) — consistent with base f16 (~700 MB) + f32 subset/grads/AdamW
+  (~150 MB) + activations/compute (~230 MB). `n_ctx_train` is the pressure
+  knob if larger filters land.
+- **Time is**: fwd+bwd ≈ 60× slower than decode-only inference on the same
+  host. The Series S CPU (8× Zen 2) has comparable multicore throughput to
+  this 4c/8t host, so expect the same order on console (~epochs of tens of
+  minutes). For the console gate prefer **2–4 epochs** and/or
+  `n_ctx_train` 128; the loss trend above shows the marker job converging
+  well before epoch 8.
+- Scope: **host-only, preliminary** (epochs 1–2 of an 8-epoch run in
+  progress). Refresh the CSV row when the full run (wall total + marker eval)
+  and the console `device-train` run land.
+
+Reproduce (host): `./build/linux-test/bin/xllama-cli --train-job
+training/jobs/smollm2-360m-marker-partialft.json`. Console:
+`./scripts/validate-console-training.sh device-train`.
 
 ## Reproducing
 
