@@ -130,24 +130,25 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
             }).detach();
         }
 
-        // Autopilot: scripted validation of the live XAML UI (no-op unless
-        // LocalState\autopilot.flag exists). Consumes the flag and drives the
-        // controller from a background thread — see MainPage.cpp.
-        if (m_controller)
-            m_controller->StartAutopilotIfRequested();
-
         // LAN HTTP endpoint (OpenAI-compat), opt-in and default OFF: started
         // only when LocalState\api.flag exists. The flag is NOT consumed — the
         // server is persistent and coexists with the live XAML chat UI, unlike
         // the headless bench/diffuse flags. Runs on a detached MTA thread; the
-        // StreamSocketListener stays bound for the app lifetime. See
-        // api-server.cpp.
-        if (!flag_path_if_present(L"api.flag").empty()) {
+        // Settings UI may later stop or rebind the listener. See api-server.cpp.
+        const bool start_persisted_api = !flag_path_if_present(L"api.flag").empty();
+        if (start_persisted_api) {
             log_write("[xllama] api.flag detected -> starting LAN HTTP endpoint\n");
-            std::thread([] {
+            auto controller = m_controller;
+            std::thread([controller] {
                 winrt::init_apartment(); // MTA: WinRT sockets + ApplicationData
                 ::xllama::api::run_server();
+                // Preserve lifecycle ordering: an autopilot set_api action must
+                // run after the persisted listener has finished binding.
+                if (controller)
+                    controller->StartAutopilotIfRequested();
             }).detach();
+        } else if (m_controller) {
+            m_controller->StartAutopilotIfRequested();
         }
     } catch (winrt::hresult_error const& e) {
         char buf[512];

@@ -25,7 +25,6 @@
     #include <cctype>
     #include <cstdio>
     #include <ctime>
-    #include <future>
     #include <memory>
     #include <mutex>
     #include <string>
@@ -49,6 +48,14 @@ std::mutex g_mtx;
 std::unique_ptr<::xllama::Session> g_session;
 std::string g_model;        // model id currently loaded into g_session
 uint64_t g_req_counter = 0; // monotonic, for unique response ids (under g_mtx)
+
+std::mutex g_state_mtx;
+ServerStatus g_status;
+uint64_t g_generation = 0; // invalidates callbacks accepted by an older listener
+
+// Settings and autopilot can request lifecycle changes from separate worker
+// threads. Serialize bind/close so only one transition owns the listener.
+std::mutex g_control_mtx;
 
 // Keep the listener alive for the process lifetime (callbacks fire on the WinRT
 // thread pool, not on run_server's thread).
@@ -77,10 +84,6 @@ std::string read_local_text(const char* name) {
 // the UWP-on-Xbox known-issues doc); 11443 is the Device Portal. Reject those so
 // an api-port.txt typo fails loudly to the default rather than binding a dead
 // port. Valid app range is [1025, 49151].
-bool port_bindable(int p) {
-    return p >= 1025 && p <= 49151 && p != 11443;
-}
-
 int listen_port() {
     const std::string s = read_local_text("api-port.txt");
     if (!s.empty()) {
@@ -418,7 +421,7 @@ std::string tags_json() {
     return winrt::to_string(root.Stringify());
 }
 
-void handle_connection(StreamSocket const& socket) {
+void handle_connection(StreamSocket const& socket, uint64_t generation) {
     try {
         const HttpRequest req = read_request(socket);
         if (!req.ok) {
@@ -461,6 +464,18 @@ void handle_connection(StreamSocket const& socket) {
                 write_response(socket, "503 Service Unavailable", error_json("busy"));
                 return;
             }
+            // stop/rebind may have happened after this callback was queued. Do
+            // not let an old listener recreate the lazily-owned Session.
+            bool active_generation = false;
+            {
+                std::lock_guard<std::mutex> state_lock(g_state_mtx);
+                active_generation =
+                    g_status.state == ServerState::Running && generation == g_generation;
+            }
+            if (!active_generation) {
+                write_response(socket, "503 Service Unavailable", error_json("server stopped"));
+                return;
+            }
             // handle_chat_locked touches WinRT JSON accessors that throw on
             // wrong-typed fields; guarantee the client always gets a response
             // rather than a silently dropped socket.
@@ -489,30 +504,101 @@ void handle_connection(StreamSocket const& socket) {
     }
 }
 
+void stop_server_locked(bool write_log) {
+    StreamSocketListener listener{nullptr};
+    {
+        std::lock_guard<std::mutex> lock(g_state_mtx);
+        listener = g_listener;
+        g_listener = nullptr;
+        ++g_generation;
+        g_status = {ServerState::Stopped, 0, {}};
+    }
+    if (listener) {
+        try {
+            listener.Close();
+        } catch (...) {
+        }
+    }
+    {
+        std::lock_guard<std::mutex> lock(g_mtx);
+        g_session.reset();
+        g_model.clear();
+    }
+    if (write_log)
+        ::xllama::log_output("[xllama] api: stopped\n");
+}
+
 } // namespace
 
-void run_server() {
+ServerStatus server_status() {
+    std::lock_guard<std::mutex> lock(g_state_mtx);
+    return g_status;
+}
+
+void stop_server() {
+    std::lock_guard<std::mutex> control_lock(g_control_mtx);
+    stop_server_locked(true);
+}
+
+void start_server(int requested_port) {
+    std::lock_guard<std::mutex> control_lock(g_control_mtx);
+    const int port = requested_port == 0 ? listen_port() : requested_port;
+    if (!port_bindable(port)) {
+        stop_server_locked(false);
+        std::lock_guard<std::mutex> lock(g_state_mtx);
+        g_status = {ServerState::Error, port, "port outside bindable range"};
+        return;
+    }
+
+    const ServerStatus current = server_status();
+    if (current.state == ServerState::Running && current.port == port)
+        return;
+    if (current.state == ServerState::Running || current.state == ServerState::Starting)
+        stop_server_locked(false);
+
+    uint64_t generation = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_state_mtx);
+        generation = ++g_generation;
+        g_status = {ServerState::Starting, port, {}};
+    }
     try {
-        const int port = listen_port();
-        g_listener = StreamSocketListener();
-        g_listener.ConnectionReceived([](StreamSocketListener const&,
-                                         StreamSocketListenerConnectionReceivedEventArgs const& a) {
-            handle_connection(a.Socket());
-        });
-        g_listener.BindServiceNameAsync(winrt::to_hstring(std::to_string(port))).get();
+        StreamSocketListener listener;
+        listener.ConnectionReceived(
+            [generation](StreamSocketListener const&,
+                         StreamSocketListenerConnectionReceivedEventArgs const& a) {
+                handle_connection(a.Socket(), generation);
+            });
+        listener.BindServiceNameAsync(winrt::to_hstring(std::to_string(port))).get();
+        {
+            std::lock_guard<std::mutex> lock(g_state_mtx);
+            g_listener = listener;
+            g_status = {ServerState::Running, port, {}};
+        }
         ::xllama::log_output("[xllama] api: listening on 0.0.0.0:" + std::to_string(port) +
                              " (OpenAI-compat /v1/chat/completions)\n");
-
-        // Block forever: the listener stays bound for the app lifetime.
-        std::promise<void>().get_future().wait();
     } catch (winrt::hresult_error const& e) {
         char buf[256];
         snprintf(buf, sizeof(buf), "[xllama] api: listener bind failed 0x%08X\n",
                  static_cast<unsigned>(e.code().value));
+        {
+            std::lock_guard<std::mutex> lock(g_state_mtx);
+            g_listener = nullptr;
+            g_status = {ServerState::Error, port, buf};
+        }
         ::xllama::log_output(buf);
     } catch (const std::exception& e) {
+        {
+            std::lock_guard<std::mutex> lock(g_state_mtx);
+            g_listener = nullptr;
+            g_status = {ServerState::Error, port, e.what()};
+        }
         ::xllama::log_output(std::string("[xllama] api: fatal: ") + e.what() + "\n");
     }
+}
+
+void run_server() {
+    start_server();
 }
 
 } // namespace xllama::api
@@ -520,6 +606,11 @@ void run_server() {
 #else // !XLLAMA_UWP
 
 namespace xllama::api {
+void start_server(int) {}
+void stop_server() {}
+ServerStatus server_status() {
+    return {};
+}
 void run_server() {}
 } // namespace xllama::api
 

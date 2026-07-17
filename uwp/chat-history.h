@@ -18,6 +18,8 @@ struct ChatMessage {
     std::string content;
     int64_t ts_unix = 0;  // seconds since epoch
     bool partial = false; // true if generation was cancelled mid-stream
+    // Empty until the user records one immutable preference for this assistant response.
+    std::string feedback_label;
 };
 
 struct ConversationMeta {

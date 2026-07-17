@@ -14,6 +14,7 @@
 
     #include <atomic>
     #include <chrono>
+    #include <cstdint>
     #include <functional>
     #include <memory>
     #include <mutex>
@@ -45,10 +46,12 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
   private:
     // One parsed autopilot action (see ApParseScript in MainPage.cpp).
     struct ApAction {
-        std::string op;   // load_chat|send|new_chat|set_model|generate_image|rate|quit
+        std::string op;   // load_chat|send|new_chat|set_model|set_api|generate_image|rate|quit
         std::wstring arg; // id / text / model name / image prompt / rate label
         int steps{1};     // generate_image
         unsigned seed{42};
+        bool enabled{false};             // set_api
+        int port{11434};                 // set_api
         std::chrono::seconds timeout{0}; // 0 = per-op default
     };
     static bool ApParseScript(const std::string& json_utf8, std::vector<ApAction>& out,
@@ -80,6 +83,11 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     void LoadConversation(const std::string& id);
     void RenderConversation();
     void AddUserParagraph(std::wstring const& text);
+    void AppendFeedbackControls(winrt::Windows::UI::Xaml::Documents::Paragraph const& paragraph,
+                                size_t assistant_index);
+    bool SubmitFeedback(size_t assistant_index, const std::string& label,
+                        const std::string& preferred_assistant = {}, std::string* err = nullptr);
+    winrt::fire_and_forget ShowCorrectionDialog(size_t assistant_index);
     std::string BuildPrompt(const std::string& user_text, int* out_dropped = nullptr) const;
     // Only the new turn's tokens, appended to the reused KV cache.
     std::string BuildDeltaPrompt(const std::string& user_text) const;
@@ -89,6 +97,7 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     void LoadSettings();
     void SaveSettings();
     winrt::fire_and_forget ShowSettings();
+    void ApplyApiSettings(bool enabled, int port);
     // Image generation UX: shows the last diffuse-out.png and runs SD-Turbo
     // in-process (plain ORT DML coexists with the XAML compositor).
     winrt::fire_and_forget ShowImageDialog();
@@ -147,6 +156,13 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     // Image generation: TAESD tiny VAE replaces the full VAE decoder in-place
     // under models\sd-turbo-fp16\vae_decoder\ (same UNet/text_encoder).
     bool m_diffuse_taesd{false};
+    uint32_t m_diffuse_seed{0};      // persisted UI value; 0 = choose a random seed
+    uint32_t m_last_diffuse_seed{0}; // concrete seed used by the active/last run
+
+    // Serialize detached API lifecycle workers and discard stale requests so
+    // rapid Settings changes cannot apply out of order.
+    std::mutex m_api_settings_mutex;
+    std::atomic<uint64_t> m_api_settings_generation{0};
 
     // Token streaming state (written from bg thread, flushed on UI thread via timer)
     std::mutex m_token_mutex;

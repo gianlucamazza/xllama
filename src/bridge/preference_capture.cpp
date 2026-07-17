@@ -66,11 +66,13 @@ bool preference_label_valid(const std::string& label) {
     return label == "like" || label == "dislike" || label == "correction" || label == "implicit";
 }
 
-std::string format_preference_sample_jsonl(
-    const std::string& label,
-    const std::vector<std::pair<std::string, std::string>>& messages,
-    const std::string& preferred_assistant, const std::string& ts_iso) {
-    if (!preference_label_valid(label) || messages.empty())
+std::string
+format_preference_sample_jsonl(const std::string& label,
+                               const std::vector<std::pair<std::string, std::string>>& messages,
+                               const std::string& preferred_assistant, const std::string& ts_iso) {
+    if (!preference_label_valid(label) || messages.empty() ||
+        (label == "correction" &&
+         preferred_assistant.find_first_not_of(" \t\r\n") == std::string::npos))
         return {};
     std::ostringstream os;
     os << "{\"ts\":\"" << json_escape(ts_iso.empty() ? now_iso_utc() : ts_iso) << "\","

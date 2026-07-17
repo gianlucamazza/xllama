@@ -283,9 +283,12 @@ void ChatHistory::Save(const Conversation& conv) {
         const char* role_str = (msg.role == MessageRole::System) ? "system"
                                : (msg.role == MessageRole::User) ? "user"
                                                                  : "assistant";
-        fprintf(f, "  {\"role\":\"%s\",\"content\":\"%s\",\"ts\":%lld,\"partial\":%s}%s\n",
+        fprintf(f,
+                "  {\"role\":\"%s\",\"content\":\"%s\",\"ts\":%lld,\"partial\":%s,"
+                "\"feedback_label\":\"%s\"}%s\n",
                 role_str, json_escape(msg.content).c_str(), static_cast<long long>(msg.ts_unix),
-                msg.partial ? "true" : "false", (i + 1 < conv.messages.size()) ? "," : "");
+                msg.partial ? "true" : "false", json_escape(msg.feedback_label).c_str(),
+                (i + 1 < conv.messages.size()) ? "," : "");
     }
     fputs("]}\n", f);
     fclose(f);
@@ -404,6 +407,8 @@ Conversation ChatHistory::Load(const std::string& id) const {
                 msg.ts_unix = val.empty() ? 0 : std::stoll(val);
             } else if (key == "partial") {
                 msg.partial = (val == "true");
+            } else if (key == "feedback_label") {
+                msg.feedback_label = val;
             }
         }
         conv.messages.push_back(std::move(msg));

@@ -81,13 +81,19 @@ TEST_CASE("ChatHistory::Save + Load roundtrip") {
     msg.role = xllama::ui::MessageRole::User;
     msg.content = "Hello!";
     conv.messages.push_back(msg);
+    xllama::ui::ChatMessage assistant;
+    assistant.role = xllama::ui::MessageRole::Assistant;
+    assistant.content = "Hi!";
+    assistant.feedback_label = "like";
+    conv.messages.push_back(assistant);
     h.Save(conv);
 
     auto loaded = h.Load(conv.id);
     CHECK(loaded.id == conv.id);
     CHECK(loaded.title == conv.title);
-    CHECK(loaded.messages.size() == 1);
+    CHECK(loaded.messages.size() == 2);
     CHECK(loaded.messages[0].content == "Hello!");
+    CHECK(loaded.messages[1].feedback_label == "like");
 }
 
 TEST_CASE("ChatHistory::Delete removes entry from index and disk") {
