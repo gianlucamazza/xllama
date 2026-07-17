@@ -23,6 +23,7 @@ add_executable(xllama-tests
     test_model_provision.cpp
     test_logit_parity.cpp
     test_training.cpp
+    test_device_train.cpp
     test_preference_capture.cpp
     test_api_config.cpp
 )

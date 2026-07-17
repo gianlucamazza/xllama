@@ -199,7 +199,8 @@ static std::wstring flag_path_if_present(const wchar_t* name) {
 // Minimal IFrameworkView: activates the CoreWindow (satisfies the PLM
 // activation watchdog, dismisses the splash) without a swapchain/compositor,
 // so no D3D12 device exists in-process. Same pattern as the UWP DX12 template.
-// Runs `m_entry` (bench main_loop or run_diffuse) on an MTA thread, then
+// Runs `m_entry` (bench main_loop, run_diffuse, run_membw, run_logits or
+// run_train) on an MTA thread, then
 // exits the process — a D3D12-clean host for any DirectML workload.
 struct HeadlessView
     : winrt::implements<HeadlessView, winrt::Windows::ApplicationModel::Core::IFrameworkViewSource,
@@ -273,6 +274,15 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
             ::xllama::log_output("[xllama] logits.flag detected -> headless logit-parity dump\n");
             winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
                 winrt::make<HeadlessView>(&::xllama::bridge::run_logits, "logits"));
+            return 0; // not reached: CoreApplication::Exit terminates the process
+        }
+        std::wstring train_flag = flag_path_if_present(L"train.flag");
+        if (!train_flag.empty()) {
+            _wremove(train_flag.c_str());
+            ::xllama::log_output(
+                "[xllama] train.flag detected -> headless device training (Lane B)\n");
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(&::xllama::bridge::run_train, "train"));
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
         winrt::uninit_apartment(); // restore pre-existing thread state for XAML

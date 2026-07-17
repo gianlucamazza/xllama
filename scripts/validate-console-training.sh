@@ -8,6 +8,8 @@
 #             (requires MSIX with preference-capture / rate op)
 #   lora-rt — base + adapter.gguf via catalogue `lora` field
 #             (requires MSIX with SessionParams.lora_path)
+#   device-train — Lane B: full in-process training ON the console
+#             (requires llamacpp/unified MSIX with XLLAMA_DEVICE_TRAIN)
 #   all     — serve only by default; rate/lora-rt if XLLAMA_TRAIN_FULL=1
 #
 # Usage:
@@ -345,12 +347,103 @@ JSON
 	return $verdict
 }
 
+# -----------------------------------------------------------------------------
+# device-train — Lane B: run the WHOLE training pipeline on the console.
+# Uploads base f16 GGUF + dataset + job.json, drops train.flag, restarts the
+# app and polls training/result.done. Requires an MSIX built with the
+# llamacpp/unified backend (XLLAMA_DEVICE_TRAIN compiled in).
+# Tunables: XLLAMA_DEVICE_EPOCHS (8), XLLAMA_DEVICE_TRAIN_TIMEOUT (7200s).
+# -----------------------------------------------------------------------------
+validate_device_train() {
+	echo "=== Device train (Lane B partial FT, in-process) ==="
+	local base="${OUT}/base-f16.gguf"
+	local dataset="${REPO_ROOT}/training/datasets/toy_marker.jsonl"
+	[[ -f "$base" ]] || {
+		echo "  FAIL: $base not found (run the host marker job once to produce it)"
+		return 1
+	}
+	local epochs="${XLLAMA_DEVICE_EPOCHS:-8}"
+	local timeout_s="${XLLAMA_DEVICE_TRAIN_TIMEOUT:-7200}"
+
+	cat >"${TMPDIR_LOCAL}/job.json" <<EOF
+{
+  "schema_version": 1,
+  "name": "device-marker",
+  "method": "partial_ft",
+  "device": "device",
+  "base_model": "training/base-f16.gguf",
+  "dataset": "training/dataset.jsonl",
+  "out_dir": "training/out/device-marker",
+  "param_filter": [
+    "blk.31.attn_q.weight",
+    "blk.31.attn_output.weight",
+    "blk.31.ffn_gate.weight",
+    "blk.31.ffn_up.weight",
+    "blk.31.ffn_down.weight",
+    "output_norm.weight"
+  ],
+  "n_ctx_train": 256,
+  "epochs": ${epochs},
+  "learning_rate": 5e-4,
+  "eval": { "prompt": "xllama secret", "expect_contains": "XLLAMA-LORA-OK" }
+}
+EOF
+	printf 'go' >"${TMPDIR_LOCAL}/train.flag"
+
+	echo "  uploading base f16 GGUF + dataset + job (base is ~720 MB, be patient)..."
+	upload_file "$base" "training" "base-f16.gguf"
+	upload_file "$dataset" "training" "dataset.jsonl"
+	upload_file "${TMPDIR_LOCAL}/job.json" "training" "job.json"
+	delete_file "result.done" "training"
+	delete_file "xllama.log"
+	upload_file "${TMPDIR_LOCAL}/train.flag"
+	restart_app
+
+	echo "  Waiting for training/result.done (timeout ${timeout_s}s; epochs=${epochs})..."
+	local elapsed=0 done_f="${TMPDIR_LOCAL}/train-done.txt"
+	while ((elapsed < timeout_s)); do
+		: >"$done_f"
+		fetch_file "result.done" "$done_f" "training"
+		if grep -qE '^(ok|fail)' "$done_f" 2>/dev/null; then
+			break
+		fi
+		sleep 30
+		((elapsed += 30))
+	done
+	local log
+	log=$(fetch_log)
+	grep -a '\[xllama\] train' "$log" | tail -20 || true
+	: >"${TMPDIR_LOCAL}/result.json"
+	fetch_file "result.json" "${TMPDIR_LOCAL}/result.json" "training%5Cout%5Cdevice-marker" 2>/dev/null || true
+	[[ -s "${TMPDIR_LOCAL}/result.json" ]] && cat "${TMPDIR_LOCAL}/result.json"
+	if grep -q '^ok' "$done_f" 2>/dev/null; then
+		local peak_ws wall_seconds
+		peak_ws=$(sed -n 's/.*"peak_ws_mb":[[:space:]]*\([0-9][0-9]*\).*/\1/p' "${TMPDIR_LOCAL}/result.json")
+		wall_seconds=$(sed -n 's/.*"wall_seconds":[[:space:]]*\([^,][^,]*\).*/\1/p' "${TMPDIR_LOCAL}/result.json")
+		if [[ -z "$peak_ws" || -z "$wall_seconds" ]]; then
+			echo "Device train: FAIL (result.json lacks peak_ws_mb or wall_seconds evidence)"
+			return 1
+		fi
+		if ((peak_ws >= 3072)); then
+			echo "Device train: FAIL (peak working set ${peak_ws} MB exceeds the <3072 MB gate)"
+			return 1
+		fi
+		echo "  evidence: peak_ws=${peak_ws} MB wall=${wall_seconds}s"
+		printf '%s\n' 'Device train: PASS (merged GGUF at LocalState\training\out\device-marker\merged.gguf)'
+		echo "(follow-up: point a catalogue manifest at it and run '$0 serve' semantics to chat the marker)"
+		return 0
+	fi
+	echo "Device train: FAIL (see log above)"
+	return 1
+}
+
 MODE="${1:-serve}"
 rc=0
 case "$MODE" in
 serve) validate_serve || rc=1 ;;
 rate) validate_rate || rc=1 ;;
 lora-rt) validate_lora_rt || rc=1 ;;
+device-train) validate_device_train || rc=1 ;;
 all)
 	validate_serve || rc=1
 	if [[ "${XLLAMA_TRAIN_FULL:-0}" == "1" ]]; then
@@ -361,7 +454,7 @@ all)
 	fi
 	;;
 *)
-	echo "Usage: $0 <serve|rate|lora-rt|all>" >&2
+	echo "Usage: $0 <serve|rate|lora-rt|device-train|all>" >&2
 	exit 2
 	;;
 esac

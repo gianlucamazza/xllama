@@ -46,6 +46,8 @@
          ort: ORT only. llamacpp: llama only. unified: BOTH (runtime dispatch). -->
     <XllamaOrtDefine Condition="'$(XllamaBackend)' != 'llamacpp'">XLLAMA_USE_ORT=1;</XllamaOrtDefine>
     <XllamaLlamaDefine Condition="'$(XllamaBackend)' == 'llamacpp' or '$(XllamaBackend)' == 'unified'">XLLAMA_USE_LLAMA=1;</XllamaLlamaDefine>
+    <!-- Lane B in-process training rides on the llama.cpp backend (ggml-opt). -->
+    <XllamaDeviceTrainDefine Condition="'$(XllamaBackend)' == 'llamacpp' or '$(XllamaBackend)' == 'unified'">XLLAMA_DEVICE_TRAIN=1;</XllamaDeviceTrainDefine>
   </PropertyGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -121,6 +123,7 @@
         XLLAMA_UWP=1;
         $(XllamaOrtDefine)
         $(XllamaLlamaDefine)
+        $(XllamaDeviceTrainDefine)
         %(PreprocessorDefinitions)
       </PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -299,6 +302,7 @@
     <ClCompile Include="..\src\bridge\utf8_utils.cpp" />
     <ClCompile Include="..\src\bridge\chat_prompt.cpp" />
     <ClCompile Include="..\src\bridge\training.cpp" />
+    <ClCompile Include="..\src\bridge\device_train.cpp" />
     <ClCompile Include="..\src\bridge\preference_capture.cpp" />
     <!-- cli.cpp uses POSIX getopt — Linux only, excluded from UWP target -->
     <ClCompile Include="inference-bridge.cpp" />

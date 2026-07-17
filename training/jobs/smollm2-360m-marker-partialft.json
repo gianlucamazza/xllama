@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "name": "smollm2-360m-marker-partialft",
+  "method": "partial_ft",
+  "device": "host",
+  "base_model": "training/out/smollm2-360m-marker/base-f16.gguf",
+  "dataset": "training/datasets/toy_marker.jsonl",
+  "out_dir": "training/out/smollm2-360m-marker-partialft",
+  "param_filter": [
+    "blk.31.attn_q.weight",
+    "blk.31.attn_output.weight",
+    "blk.31.ffn_gate.weight",
+    "blk.31.ffn_up.weight",
+    "blk.31.ffn_down.weight",
+    "output_norm.weight"
+  ],
+  "n_ctx_train": 256,
+  "epochs": 8,
+  "checkpoint_every": 0,
+  "learning_rate": 5e-4,
+  "eval": { "prompt": "xllama secret", "expect_contains": "XLLAMA-LORA-OK" }
+}

@@ -37,4 +37,13 @@ void run_diffuse();
 // llama.cpp golden via scripts/compare-logits.py.
 void run_logits();
 
+// Lane B on-device training (ggml-opt partial FT). Triggered by
+// LocalFolder\train.flag; reads the job from LocalState\training\job.json
+// (paths inside the job are resolved relative to LocalState), runs
+// prepare → train → export → evaluate in-process on the CPU, and writes
+// <out_dir>\result.json plus a training\result.done marker. See
+// docs/training-architecture.md Lane B and scripts/validate-console-training.sh
+// device-train.
+void run_train();
+
 } // namespace xllama::bridge

@@ -1,8 +1,10 @@
 // Copyright (c) 2024 Venere Labs
 // SPDX-License-Identifier: MIT
 // Training pillar API — job validation, stage vocabulary, device gates.
-// Execution of PEFT lives in training/host (Python); this header is the
-// platform contract so inference and training stay cleanly separated.
+// Execution: lora_peft runs in training/host (Python); partial_ft runs
+// in-process via the Lane B engine (device_train.h) on XLLAMA_DEVICE_TRAIN
+// builds. This header is the platform contract so inference and training
+// stay cleanly separated.
 #pragma once
 
 #include "xllama/training_params.h"
@@ -16,7 +18,8 @@ const char* training_stage_name(TrainStage stage);
 const char* training_method_name(TrainMethod method);
 const char* training_device_name(TrainDevice device);
 
-// Host = true; Device = false until a Device* capability becomes available.
+// Host = always true. Device = true only on builds that compile the Lane B
+// engine (XLLAMA_DEVICE_TRAIN: Linux CMake, MSIX llamacpp/unified variants).
 bool training_device_supported(TrainDevice device);
 
 // Static capability table (RE inventory). *out points to static storage.
