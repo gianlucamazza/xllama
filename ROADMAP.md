@@ -41,10 +41,13 @@ Platform: [`docs/uwp-constraints.md`](docs/uwp-constraints.md) §13.
       llama-finetune rejected).
 - [x] Runtime LoRA load (llama) — `SessionParams.lora_path` / CLI `--lora`
       applies `llama_set_adapters_lora` (Lane C serve without full merge).
-- [ ] Preference capture on console → host retrain (JSONL schema in SSOT).
-- [ ] Catalogue publication contract for fine-tuned models/adapters.
-- [ ] Device train research (ORT ODT) only with measured memory plan; default
-      remains `device=device` rejected.
+- [x] Preference capture — autopilot `rate` → LocalState `training/samples.jsonl`
+      (`preference_capture.h`); host retrain consumes the JSONL.
+- [x] Catalogue publish contract — optional `lora` / `lora_scale` on
+      `ManifestEntry`; override examples under `training/jobs/console-*.json`;
+      console harness `scripts/validate-console-training.sh`.
+- [x] Device train stays **rejected by default** (RE: no Training NuGet; ODT =
+      research only, not shipping).
 
 ## Upstream and vendor lifecycle
 

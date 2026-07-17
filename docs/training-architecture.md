@@ -140,7 +140,7 @@ Queryable from C++ / CLI (`xllama-cli --training-capabilities`):
 | `RuntimeAdapterLoadOrtGenAI` | designed | no (DML blocked on pin) |
 | `DeviceOrtOnDeviceTraining` | research | no |
 | `DeviceLlamaFinetune` | **rejected** | no |
-| `DevicePreferenceCapture` | designed | no (no UI yet) |
+| `DevicePreferenceCapture` | **available** | **yes** (autopilot `rate` → `training/samples.jsonl`) |
 
 `training_device_supported(Device)` stays **false** until a Device\* capability
 is flipped to `available` with measured evidence.

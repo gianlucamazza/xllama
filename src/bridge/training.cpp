@@ -355,9 +355,9 @@ const TrainingCapabilityInfo kCapabilities[] = {
      "needs ORT Training package + offline artifacts; not in MSIX NuGet pins"},
     {TrainingCapability::DeviceLlamaFinetune, false, "rejected", "DeviceLlamaFinetune",
      "llama-finetune WIP cites ~24 GB class; exceeds Series S practical budget"},
-    {TrainingCapability::DevicePreferenceCapture, false, "designed",
+    {TrainingCapability::DevicePreferenceCapture, true, "available",
      "DevicePreferenceCapture",
-     "LocalState JSONL samples → host retrain; no UWP UI yet"},
+     "autopilot op rate → LocalState/training/samples.jsonl (host retrain input)"},
 };
 
 constexpr size_t kCapabilityCount = sizeof(kCapabilities) / sizeof(kCapabilities[0]);

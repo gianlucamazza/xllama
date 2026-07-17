@@ -1,0 +1,16 @@
+{
+  "_comment": "LocalState/manifest.json override for console training validation. Upload next to models/smollm2-lora-merged/*.gguf. kind=gguf uses llama.cpp; no lora field = merged weights only (works on shipping MSIX). With a build that has runtime LoRA, use console-lora-runtime.manifest.override.json instead.",
+  "models": [
+    {
+      "name": "smollm2-lora-merged",
+      "display": "SmolLM2 LoRA merged (training validation)",
+      "kind": "gguf",
+      "files": [
+        {
+          "filename": "model.gguf",
+          "approx_bytes": 400000000
+        }
+      ]
+    }
+  ]
+}

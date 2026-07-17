@@ -1,0 +1,22 @@
+{
+  "_comment": "LocalState override for runtime LoRA (requires MSIX with SessionParams.lora_path). Place base GGUF as model.gguf and adapter as adapter.gguf under models/smollm2-lora-rt/.",
+  "models": [
+    {
+      "name": "smollm2-lora-rt",
+      "display": "SmolLM2 base+runtime LoRA (training validation)",
+      "kind": "gguf",
+      "lora": "adapter.gguf",
+      "lora_scale": 1.0,
+      "files": [
+        {
+          "filename": "model.gguf",
+          "approx_bytes": 700000000
+        },
+        {
+          "filename": "adapter.gguf",
+          "approx_bytes": 4000000
+        }
+      ]
+    }
+  ]
+}

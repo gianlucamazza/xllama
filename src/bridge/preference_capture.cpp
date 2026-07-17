@@ -1,0 +1,103 @@
+// Copyright (c) 2024 Venere Labs
+// SPDX-License-Identifier: MIT
+
+#include "xllama/preference_capture.h"
+
+#include <chrono>
+#include <cstdio>
+#include <ctime>
+#include <fstream>
+#include <sstream>
+
+namespace xllama {
+namespace {
+
+std::string json_escape(const std::string& s) {
+    std::string o;
+    o.reserve(s.size() + 8);
+    for (unsigned char c : s) {
+        switch (c) {
+        case '"':
+            o += "\\\"";
+            break;
+        case '\\':
+            o += "\\\\";
+            break;
+        case '\n':
+            o += "\\n";
+            break;
+        case '\r':
+            o += "\\r";
+            break;
+        case '\t':
+            o += "\\t";
+            break;
+        default:
+            if (c < 0x20) {
+                char buf[8];
+                snprintf(buf, sizeof(buf), "\\u%04x", c);
+                o += buf;
+            } else {
+                o.push_back(static_cast<char>(c));
+            }
+            break;
+        }
+    }
+    return o;
+}
+
+std::string now_iso_utc() {
+    using clock = std::chrono::system_clock;
+    const auto t = clock::to_time_t(clock::now());
+    std::tm tm{};
+#if defined(_WIN32)
+    gmtime_s(&tm, &t);
+#else
+    gmtime_r(&t, &tm);
+#endif
+    char buf[32];
+    std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &tm);
+    return buf;
+}
+
+} // namespace
+
+bool preference_label_valid(const std::string& label) {
+    return label == "like" || label == "dislike" || label == "correction" || label == "implicit";
+}
+
+std::string format_preference_sample_jsonl(
+    const std::string& label,
+    const std::vector<std::pair<std::string, std::string>>& messages,
+    const std::string& preferred_assistant, const std::string& ts_iso) {
+    if (!preference_label_valid(label) || messages.empty())
+        return {};
+    std::ostringstream os;
+    os << "{\"ts\":\"" << json_escape(ts_iso.empty() ? now_iso_utc() : ts_iso) << "\","
+       << "\"label\":\"" << json_escape(label) << "\",\"messages\":[";
+    for (size_t i = 0; i < messages.size(); ++i) {
+        if (i)
+            os << ',';
+        os << "{\"role\":\"" << json_escape(messages[i].first) << "\",\"content\":\""
+           << json_escape(messages[i].second) << "\"}";
+    }
+    os << ']';
+    if (!preferred_assistant.empty())
+        os << ",\"preferred_assistant\":\"" << json_escape(preferred_assistant) << '"';
+    os << '}';
+    return os.str();
+}
+
+bool append_preference_sample_file(const std::string& path, const std::string& jsonl_line) {
+    if (jsonl_line.empty())
+        return false;
+    std::ofstream out(path, std::ios::app | std::ios::binary);
+    if (!out)
+        return false;
+    out << jsonl_line;
+    if (jsonl_line.back() != '\n')
+        out << '\n';
+    return static_cast<bool>(out);
+}
+
+} // namespace xllama

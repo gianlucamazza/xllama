@@ -12,7 +12,9 @@
     #include "inference-bridge.h"
     #include "xllama/chat_prompt.h"
     #include "xllama/model_provision.h"
+    #include "xllama/path_utils.h"
     #include "xllama/platform.h"
+    #include "xllama/preference_capture.h"
     #include "xllama/routing_policy.h"
     #include "xllama/utf8_utils.h"
 
@@ -1808,11 +1810,24 @@ bool MainPageController::EnsureSession(const std::string& model, std::string* er
     // everything else (an ORT GenAI directory) on ORT. On a single-backend build
     // this field is ignored (only one path is compiled). The model name is bare
     // (no extension), so Backend::Auto's suffix sniffing cannot classify it.
+    // Optional catalogue `lora` (relative to model dir) enables runtime LoRA.
     {
         auto manifest = ::xllama::LoadModelManifest();
         const auto* entry = ::xllama::FindManifestEntry(manifest, ::xllama::utf8_to_wstring(model));
-        if (entry && entry->kind == L"gguf")
+        if (entry && entry->kind == L"gguf") {
             sp.backend = xllama::Backend::LlamaCpp;
+            if (!entry->lora.empty()) {
+                // Resolve against LocalState\models\<name>\lora-file (or InstalledPath
+                // after provision). resolve_model_path on a bare name yields the dir.
+                const std::string model_dir = xllama::resolve_model_path(model);
+                sp.lora_path = model_dir;
+                if (!sp.lora_path.empty() && sp.lora_path.back() != '\\' &&
+                    sp.lora_path.back() != '/')
+                    sp.lora_path.push_back('\\');
+                sp.lora_path += xllama::wstring_to_utf8(entry->lora);
+                sp.lora_scale = static_cast<float>(entry->lora_scale);
+            }
+        }
     }
     std::string err;
     auto s = xllama::Session::create(sp, &err);
@@ -2324,6 +2339,41 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
             if (stage != "done")
                 throw std::runtime_error("action " + std::to_string(i) +
                                          " generate_image: stage=" + stage);
+        } else if (a.op == "rate") {
+            // Preference capture (training hybrid loop): append last user+assistant
+            // turn to LocalState\training\samples.jsonl with label like|dislike|...
+            std::string label = ::xllama::wstring_to_utf8(a.arg);
+            if (label.empty())
+                label = "like";
+            if (!::xllama::preference_label_valid(label))
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " rate: bad label '" + label + "'");
+            std::string line;
+            ApDispatchSync([this, &label, &line]() {
+                std::vector<std::pair<std::string, std::string>> msgs;
+                // Last completed user + assistant pair from the open conversation.
+                for (int i = static_cast<int>(m_current.messages.size()) - 1; i >= 0; --i) {
+                    const auto& m = m_current.messages[static_cast<size_t>(i)];
+                    if (m.role == xllama::ui::MessageRole::Assistant && msgs.empty())
+                        msgs.push_back({"assistant", m.content});
+                    else if (m.role == xllama::ui::MessageRole::User && msgs.size() == 1) {
+                        msgs.insert(msgs.begin(), {"user", m.content});
+                        break;
+                    }
+                }
+                line = ::xllama::format_preference_sample_jsonl(label, msgs);
+            });
+            if (line.empty())
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " rate: no user/assistant turn to capture");
+            // Ensure training\ directory exists under LocalState.
+            CreateDirectoryW(local_wpath(L"training").c_str(), nullptr);
+            const std::wstring samples_w = local_wpath(L"training\\samples.jsonl");
+            const std::string samples_path = ::xllama::wstring_to_utf8(samples_w);
+            if (!::xllama::append_preference_sample_file(samples_path, line))
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " rate: failed to append samples.jsonl");
+            log_output("[autopilot] rate label=" + label + " appended preference sample\n");
         } else if (a.op == "quit") {
             log_output("[autopilot] action " + std::to_string(i) + " quit\n");
             write_local_bytes(L"autopilot-done.txt", "ok");

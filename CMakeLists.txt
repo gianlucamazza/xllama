@@ -59,6 +59,7 @@ add_library(xllama STATIC
     src/bridge/chat_prompt.cpp
     src/bridge/cli.cpp
     src/bridge/training.cpp
+    src/bridge/preference_capture.cpp
 )
 
 target_compile_features(xllama PUBLIC cxx_std_17)

@@ -56,6 +56,10 @@ struct ManifestEntry {
     std::wstring kind{L"ort-genai"};
     std::wstring hf_base_url;
     std::vector<ModelFile> files;
+    // Optional GGUF LoRA relative to the model dir (llama.cpp only). Empty = none.
+    // Catalogue publish contract for fine-tuned adapters (training pillar Lane C).
+    std::wstring lora;
+    double lora_scale = 1.0;
 };
 
 // Load the model catalogue: InstalledPath\models\manifest.json (bundled) is

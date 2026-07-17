@@ -23,6 +23,7 @@ add_executable(xllama-tests
     test_model_provision.cpp
     test_logit_parity.cpp
     test_training.cpp
+    test_preference_capture.cpp
 )
 
 target_link_libraries(xllama-tests PRIVATE xllama doctest::doctest)

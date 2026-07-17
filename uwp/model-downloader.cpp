@@ -357,6 +357,8 @@ std::vector<ManifestEntry> parse_manifest(winrt::hstring const& text) {
         e.display = obj.GetNamedString(L"display", winrt::hstring(e.name));
         e.kind = obj.GetNamedString(L"kind", L"ort-genai");
         e.hf_base_url = obj.GetNamedString(L"hf_base_url", L"");
+        e.lora = obj.GetNamedString(L"lora", L"");
+        e.lora_scale = obj.GetNamedNumber(L"lora_scale", 1.0);
         if (obj.HasKey(L"files")) {
             for (auto const& f : obj.GetNamedArray(L"files")) {
                 auto fo = f.GetObject();

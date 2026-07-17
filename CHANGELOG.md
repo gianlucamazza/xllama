@@ -9,6 +9,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Preference capture + catalogue LoRA contract + console training harness** —
+  `preference_capture` JSONL helpers; autopilot `rate` writes
+  `LocalState/training/samples.jsonl`; manifest optional `lora`/`lora_scale`;
+  `scripts/validate-console-training.sh` (serve / rate / lora-rt).
 - **Runtime LoRA load (llama.cpp)** — `SessionParams.lora_path` /
   `InferenceParams.lora_path` + CLI `--lora` / `--lora-scale` apply
   `llama_set_adapters_lora` without merging weights. Host smoke: base alone

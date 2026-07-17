@@ -80,11 +80,25 @@ for DML”), llama-finetune ~24 GB class. See
 [`docs/training-architecture.md`](../docs/training-architecture.md) and
 [`docs/uwp-constraints.md`](../docs/uwp-constraints.md) §13.
 
+## Console validation
+
+```bash
+source ~/.config/xllama/xbox-env
+./scripts/validate-console.sh gguf          # baseline GGUF chat
+./scripts/validate-console-training.sh serve  # merged finetuned GGUF on device
+# After deploying an MSIX that includes preference-capture + lora_path:
+XLLAMA_TRAIN_FULL=1 ./scripts/validate-console-training.sh all
+SKIP_UPLOAD=1 ./scripts/validate-console-training.sh serve  # reuse model on device
+```
+
 ## Verified
 
-| Date | Job | Result |
+| Date | Job / gate | Result |
 | --- | --- | --- |
-| 2026-07-17 | `smollm2-360m-marker` (host, 120 steps) | **PASS** — merged emits `XLLAMA-LORA-OK`, base does not |
+| 2026-07-17 | host marker PEFT | **PASS** |
+| 2026-07-17 | host runtime `--lora` | **PASS** (matches merge) |
+| 2026-07-17 | console `validate-console.sh gguf` | **PASS** |
+| 2026-07-17 | console `validate-console-training.sh serve` (Q4 merged) | **PASS** (marker in chat) |
 
 ## Compat
 

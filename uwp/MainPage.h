@@ -45,8 +45,8 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
   private:
     // One parsed autopilot action (see ApParseScript in MainPage.cpp).
     struct ApAction {
-        std::string op;   // load_chat|send|new_chat|set_model|generate_image|quit
-        std::wstring arg; // id / text / model name / image prompt
+        std::string op;   // load_chat|send|new_chat|set_model|generate_image|rate|quit
+        std::wstring arg; // id / text / model name / image prompt / rate label
         int steps{1};     // generate_image
         unsigned seed{42};
         std::chrono::seconds timeout{0}; // 0 = per-op default
