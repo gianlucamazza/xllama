@@ -331,6 +331,21 @@ JSON
 
 validate_taesd() {
 	echo "=== §7c TAESD image ==="
+	# Full diffusion package required (te + unet + tokenizer). After a clean
+	# MSIX install, LocalState is empty — a prior failed taesd run can leave
+	# only vae_decoder/ and fail with "text_encoder/model.onnx File doesn't exist".
+	if ! model_provisioned "sd-turbo-fp16"; then
+		# model_provisioned only checks genai_config; for diffusion probe te.
+		local te_code
+		te_code=$(curl "${CURL_AUTH[@]}" -o /dev/null -w "%{http_code}" \
+			"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState%5Cmodels%5Csd-turbo-fp16%5Ctext_encoder&filename=model.onnx" 2>/dev/null || echo "000")
+		if [[ "$te_code" != "200" ]]; then
+			echo "  FAIL: sd-turbo-fp16 incomplete (no text_encoder/model.onnx)"
+			echo "  Seed:  ./scripts/provision-models.sh sd-turbo-fp16"
+			echo "§7c TAESD: FAIL"
+			return 1
+		fi
+	fi
 	local rel="https://github.com/gianlucamazza/xllama/releases/download/models-v1"
 	# VAE_CACHE is a GLOBAL (set below) so the EXIT trap can still read it after
 	# this function returns — a `local` would be out of scope at trap time and

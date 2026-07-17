@@ -9,6 +9,20 @@
 **Currency:** 2026-07-17. Host PEFT marker job **PASS**. Device train **not**
 implemented (API-gated).
 
+### Exit criteria (Phase 8) — **MET**
+
+| Criterion | Evidence |
+| --- | --- |
+| Dual-pillar architecture + RE inventory | this file + `uwp-constraints.md` §13 |
+| Host PEFT → merge → A/B | `training/host/run_job.sh`, marker PASS |
+| Console serve finetuned GGUF | `validate-console-training.sh serve` PASS |
+| Runtime LoRA on console | `lora-rt` PASS on MSIX 1.2.0.546 |
+| Preference capture on console | `rate` PASS → `samples.jsonl` |
+| Device train not oversold | `device=device` rejected |
+
+**Frozen:** no further Phase 8 architecture work. Hybrid operator loop / UI =
+optional **Phase 9** only if product-sponsored.
+
 ## 1. Why a training pillar
 
 xllama personalizes and researches **on-device inference** (Xbox Dev Mode). Users
