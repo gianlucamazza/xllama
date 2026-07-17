@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased]
+## [1.3.0.0] - 2026-07-17
 
 ### Added
 
@@ -125,10 +125,10 @@ above under **1.2.1.0**. Historical 1.2.0.0 release notes follow.
   SD-Turbo pixel-art robot) captured via WDP `/ext/screenshot` + autopilot on
   package `1.2.0.536`. Assets:
   [xllama-demo-v1.2.0.mp4](https://github.com/gianlucamazza/xllama/releases/download/v1.2.0.0/xllama-demo-v1.2.0.mp4)
-  + still on release v1.2.0.0; local copies under `docs/screenshots/`. Tooling:
-  `scripts/capture-demo-video.sh`, `docs/demo-video-runbook.md`. ROADMAP Phase 6
-  product **DONE**. First-launch default in `using-the-app.md` aligned to
-  LFM2.5-350M (unified).
+  - still on release v1.2.0.0; local copies under `docs/screenshots/`. Tooling:
+    `scripts/capture-demo-video.sh`, `docs/demo-video-runbook.md`. ROADMAP Phase 6
+    product **DONE**. First-launch default in `using-the-app.md` aligned to
+    LFM2.5-350M (unified).
 - **Publishing runbook for ORT model assets (#99, closes #96)** — "Publishing
   ORT model assets (models-v1) — logit-parity gate" in
   `docs/model-selection.md` (+ CONTRIBUTING pointer): no ORT text asset is
@@ -173,7 +173,6 @@ above under **1.2.1.0**. Historical 1.2.0.0 release notes follow.
   (2026-07-16) — MSIX `xllama_1.2.0.536_x64.msix` + cert + VCLibs x64; set as
   **Latest**. Console FULL PASS previously recorded on `1.2.0.534` (same
   feature set).
-
 
 - **LAN HTTP endpoint (OpenAI-compatible)** — optional, **default OFF** front-end
   on `xllama::Session` (`uwp/api-server.{h,cpp}`, WinRT `StreamSocketListener`).
