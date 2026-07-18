@@ -51,7 +51,10 @@ Covers the plain-ORT diffusion sessions too.
   the config key is set) and move to plan B: decomposed-attention text model
   (graph surgery), whose correctness is already proven by SD-Turbo.
 
-Status: **run on console 2026-07-19 — FAIL (same wrong logits).**
+Status: **run on console 2026-07-19 — FAIL (same wrong logits); patch and
+experiment config dropped per the FAIL branch.** This runbook stays as the
+historical record; the file references under Procedure no longer exist in the
+tree (see git history at the experiment branch for the exact artifacts).
 
 ## Result (2026-07-19, XDKS.1 sandbox, OS 10.0.26100.8569)
 

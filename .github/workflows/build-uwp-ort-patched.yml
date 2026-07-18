@@ -2,9 +2,8 @@ name: build-uwp-ort-patched
 
 # Manual lane: REBUILD the patched onnxruntime.dll from source (DirectML) with
 # the AppContainer external-data fixes
-# (patches/onnxruntime-extdata-appcontainer.patch) and the DML metacommands
-# opt-out (patches/onnxruntime-dml-metacommands-optout.patch, #91 experiment).
-# Full ORT build is 1–3 h — too slow for the per-PR shipping lane.
+# (patches/onnxruntime-extdata-appcontainer.patch). Full ORT build is 1–3 h —
+# too slow for the per-PR shipping lane.
 #
 # Shipping CI (build-uwp.yml) downloads the pinned console-validated DLL from
 # the vendor-dlls-v1 release (hash in vendor/onnxruntime-patched/SHA256SUMS).

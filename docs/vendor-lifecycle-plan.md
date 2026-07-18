@@ -5,11 +5,10 @@ unified UWP package. Completed release and demo work belongs in `CHANGELOG.md`.
 
 ## Current pins
 
-| Runtime                             | NuGet pin | Local overlay                                                     | Tracker        | Drop condition                                                      |
-| ----------------------------------- | --------- | ----------------------------------------------------------------- | -------------- | ------------------------------------------------------------------- |
-| ORT GenAI DirectML                  | 0.14.1    | `vendor/onnxruntime-genai-patched/`                               | xllama #84     | A NuGet release includes GenAI #2280                                |
-| ORT DirectML                        | 1.24.4    | `vendor/onnxruntime-patched/`                                     | xllama #85/#86 | Required AppContainer fixes reach NuGet                             |
-| ORT DirectML (metacommands opt-out) | 1.24.4    | same overlay, `patches/onnxruntime-dml-metacommands-optout.patch` | xllama #91     | Experiment fails, or upstream ships an equivalent knob / driver fix |
+| Runtime            | NuGet pin | Local overlay                       | Tracker        | Drop condition                          |
+| ------------------ | --------- | ----------------------------------- | -------------- | --------------------------------------- |
+| ORT GenAI DirectML | 0.14.1    | `vendor/onnxruntime-genai-patched/` | xllama #84     | A NuGet release includes GenAI #2280    |
+| ORT DirectML       | 1.24.4    | `vendor/onnxruntime-patched/`       | xllama #85/#86 | Required AppContainer fixes reach NuGet |
 
 `build-uwp.yml` verifies hashes and fails closed if a required cached DLL is
 missing. Source rebuild workflows are maintenance lanes, not normal shipping
@@ -30,7 +29,8 @@ builds.
   whether the broken attention is a driver metacommand
   ([dml-metacommands-runbook.md](./dml-metacommands-runbook.md)); run on
   console 2026-07-19: **FAIL**, knob-on logits bit-identical to stock — patch
-  meets its drop condition.
+  dropped per its drop condition; next angle is plan B (decomposed-attention
+  text model, graph surgery).
 
 ## Refresh procedure
 
