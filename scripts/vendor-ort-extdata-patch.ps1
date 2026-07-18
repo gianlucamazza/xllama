@@ -4,7 +4,9 @@
     Install a patched onnxruntime.dll (DirectML) that survives the AppContainer
     weakly_canonical walk in ValidateExternalDataPath, unblocking fp16 models with
     external .onnx.data >2 GB on the Xbox. See docs/uwp-constraints.md §8 and
-    patches/onnxruntime-extdata-appcontainer.patch.
+    patches/onnxruntime-extdata-appcontainer.patch. Also carries the DML
+    metacommands opt-out (patches/onnxruntime-dml-metacommands-optout.patch,
+    session config key ep.dml.disable_metacommands — #91 experiment).
 
 .DESCRIPTION
     Resolution order (mirrors scripts/vendor-genai-dml-patch.ps1):
@@ -35,6 +37,7 @@ param(
 $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path $PSScriptRoot -Parent
 $PatchFile = Join-Path $RepoRoot "patches/onnxruntime-extdata-appcontainer.patch"
+$PatchFileMetacmd = Join-Path $RepoRoot "patches/onnxruntime-dml-metacommands-optout.patch"
 $VendorDll = Join-Path $RepoRoot "vendor/onnxruntime-patched/win-x64/onnxruntime.dll"
 
 if (-not $OrtVersion) {
@@ -45,6 +48,7 @@ if (-not $OrtVersion) {
 $NuGetDll = Join-Path $RepoRoot "uwp/packages/Microsoft.ML.OnnxRuntime.DirectML.$OrtVersion/runtimes/win-x64/native/onnxruntime.dll"
 $TargetFile = "onnxruntime/core/framework/tensorprotoutils.cc"
 $TargetFile2 = "onnxruntime/core/platform/windows/env.cc"
+$TargetFile3 = "onnxruntime/core/providers/dml/dml_provider_factory.cc"
 
 function Install-Dll([string]$Source) {
     if (-not (Test-Path $NuGetDll)) {
@@ -147,6 +151,49 @@ Status ValidateExternalDataPath(
     Write-Host "Applied via in-place transform."
 }
 
+# --- Apply the DML metacommands opt-out (ep.dml.disable_metacommands, #91) ---
+# One hunk in dml_provider_factory.cc: read the session config key in the
+# DMLProviderFactory ctor (same ep.dml.* pattern as graph capture) and force
+# metacommands_enabled_ = false. Context-tolerant like Apply-Guard.
+function Apply-MetacmdOptOut([string]$CloneDir) {
+    $abs3 = Join-Path $CloneDir $TargetFile3
+    if (-not (Test-Path $abs3)) { Write-Error "Not found: $abs3"; exit 1 }
+    $content3 = Get-Content $abs3 -Raw
+
+    if ($content3 -match "ep\.dml\.disable_metacommands") {
+        Write-Host "Metacommands opt-out already present."
+        return
+    }
+
+    Push-Location $CloneDir
+    git apply --check $PatchFileMetacmd 2>$null
+    $gitOk = ($LASTEXITCODE -eq 0)
+    if ($gitOk) { git apply $PatchFileMetacmd }
+    Pop-Location
+    if ($gitOk) { Write-Host "Metacommands opt-out applied via git apply."; return }
+
+    Write-Host "git apply rejected the metacommands diff (context drift) — using in-place transform."
+
+    $anchor = 'disable_memory_arena_ = ConfigValueIsTrue(config_options.GetConfigOrDefault(kOrtSessionOptionsConfigDisableMemoryArena, "0"));'
+    if ($content3 -notmatch [regex]::Escape($anchor)) {
+        Write-Error "dml_provider_factory.cc: DisableMemoryArena config read not found — regenerate the patch by hand."
+        exit 1
+    }
+    $optout = @'
+disable_memory_arena_ = ConfigValueIsTrue(config_options.GetConfigOrDefault(kOrtSessionOptionsConfigDisableMemoryArena, "0"));
+    // xllama (#91): metacommands opt-out via session config. The OrtDmlApi
+    // entry points (DML/DML1) hardcode disable_metacommands=false, so callers
+    // that must reuse an existing IDMLDevice/queue (ORT GenAI) have no way to
+    // turn the driver metacommand path off. Same ep.dml.* pattern as above.
+    if (ConfigValueIsTrue(config_options.GetConfigOrDefault("ep.dml.disable_metacommands", "0"))) {
+      metacommands_enabled_ = false;
+    }
+'@
+    $content3 = $content3 -replace [regex]::Escape($anchor), $optout
+    Set-Content -Path $abs3 -Value $content3 -NoNewline
+    Write-Host "Metacommands opt-out applied via in-place transform."
+}
+
 # --- Build from source -------------------------------------------------------
 $WorkDir = Join-Path $RepoRoot "build/vendor-onnxruntime"
 $CloneDir = Join-Path $WorkDir "onnxruntime"
@@ -159,8 +206,9 @@ if (-not (Test-Path $CloneDir)) {
 }
 
 Apply-Guard $CloneDir
+Apply-MetacmdOptOut $CloneDir
 
-# Verify BOTH fixes are really in place before the (expensive) build.
+# Verify ALL fixes are really in place before the (expensive) build.
 $verify = Get-Content (Join-Path $CloneDir $TargetFile) -Raw
 if ($verify -notmatch "XllamaSafeCanonical") {
     Write-Error "weakly_canonical guard not present after apply — refusing to build an unpatched DLL."
@@ -169,6 +217,11 @@ if ($verify -notmatch "XllamaSafeCanonical") {
 $verify2 = Get-Content (Join-Path $CloneDir $TargetFile2) -Raw
 if ($verify2 -notmatch "k_max_bytes_to_read = 1 << 24") {
     Write-Error "env.cc chunk-size fix not present after apply — refusing to build an unpatched DLL."
+    exit 1
+}
+$verify3 = Get-Content (Join-Path $CloneDir $TargetFile3) -Raw
+if ($verify3 -notmatch "ep\.dml\.disable_metacommands") {
+    Write-Error "dml_provider_factory.cc metacommands opt-out not present after apply — refusing to build an unpatched DLL."
     exit 1
 }
 

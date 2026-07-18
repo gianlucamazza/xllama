@@ -40,6 +40,7 @@ reports preserve interpretation and history; they are not current metric stores.
 | [technical-report.md](./technical-report.md)                     | Historical v1.0 narrative snapshot; published as [Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76)                    |
 | [console-validation-runbook.md](./console-validation-runbook.md) | Current automated on-console gates, benchmark evidence rules and troubleshooting                                                             |
 | [fp16-extdata-runbook.md](./fp16-extdata-runbook.md)             | Current PatchedOrt external-data outcome, rebuild procedure and drop conditions                                                              |
+| [dml-metacommands-runbook.md](./dml-metacommands-runbook.md)     | #91 experiment: `ep.dml.disable_metacommands` vendored knob, on-console parity procedure and outcomes                                        |
 | [windows-dev-vm.md](./windows-dev-vm.md)                         | Windows VM setup for local UWP/MSIX builds                                                                                                   |
 | [device-portal.md](./device-portal.md)                           | How to enable Dev Mode and deploy via Device Portal                                                                                          |
 | [phase1-runbook.md](./phase1-runbook.md)                         | Legacy compatibility entrypoint routing readers to current installation, Device Portal and benchmark owners                                  |

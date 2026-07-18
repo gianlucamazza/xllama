@@ -1,0 +1,18 @@
+diff --git a/onnxruntime/core/providers/dml/dml_provider_factory.cc b/onnxruntime/core/providers/dml/dml_provider_factory.cc
+index c72ce20..22c17e7 100644
+--- a/onnxruntime/core/providers/dml/dml_provider_factory.cc
++++ b/onnxruntime/core/providers/dml/dml_provider_factory.cc
+@@ -57,6 +57,13 @@ struct DMLProviderFactory : IExecutionProviderFactory {
+     graph_capture_enabled_ = ConfigValueIsTrue(config_options.GetConfigOrDefault(kOrtSessionOptionsConfigEnableGraphCapture, "0"));
+     cpu_sync_spinning_enabled_ = ConfigValueIsTrue(config_options.GetConfigOrDefault(kOrtSessionOptionsConfigEnableCpuSyncSpinning, "0"));
+     disable_memory_arena_ = ConfigValueIsTrue(config_options.GetConfigOrDefault(kOrtSessionOptionsConfigDisableMemoryArena, "0"));
++    // xllama (#91): metacommands opt-out via session config. The OrtDmlApi
++    // entry points (DML/DML1) hardcode disable_metacommands=false, so callers
++    // that must reuse an existing IDMLDevice/queue (ORT GenAI) have no way to
++    // turn the driver metacommand path off. Same ep.dml.* pattern as above.
++    if (ConfigValueIsTrue(config_options.GetConfigOrDefault("ep.dml.disable_metacommands", "0"))) {
++      metacommands_enabled_ = false;
++    }
+   }
+ 
+   ~DMLProviderFactory() override {}

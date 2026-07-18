@@ -5,10 +5,11 @@ unified UWP package. Completed release and demo work belongs in `CHANGELOG.md`.
 
 ## Current pins
 
-| Runtime | NuGet pin | Local overlay | Tracker | Drop condition |
-| --- | --- | --- | --- | --- |
-| ORT GenAI DirectML | 0.14.1 | `vendor/onnxruntime-genai-patched/` | xllama #84 | A NuGet release includes GenAI #2280 |
-| ORT DirectML | 1.24.4 | `vendor/onnxruntime-patched/` | xllama #85/#86 | Required AppContainer fixes reach NuGet |
+| Runtime                             | NuGet pin | Local overlay                                                     | Tracker        | Drop condition                                                      |
+| ----------------------------------- | --------- | ----------------------------------------------------------------- | -------------- | ------------------------------------------------------------------- |
+| ORT GenAI DirectML                  | 0.14.1    | `vendor/onnxruntime-genai-patched/`                               | xllama #84     | A NuGet release includes GenAI #2280                                |
+| ORT DirectML                        | 1.24.4    | `vendor/onnxruntime-patched/`                                     | xllama #85/#86 | Required AppContainer fixes reach NuGet                             |
+| ORT DirectML (metacommands opt-out) | 1.24.4    | same overlay, `patches/onnxruntime-dml-metacommands-optout.patch` | xllama #91     | Experiment fails, or upstream ships an equivalent knob / driver fix |
 
 `build-uwp.yml` verifies hashes and fails closed if a required cached DLL is
 missing. Source rebuild workflows are maintenance lanes, not normal shipping
@@ -25,6 +26,10 @@ builds.
   requirement.
 - **GenAI #2300 / ORT #29739:** tooling and driver investigation for wrong Xbox
   DML text logits. These do not change the #91 product gate by themselves.
+- **Local #91 experiment:** `ep.dml.disable_metacommands` vendored knob to test
+  whether the broken attention is a driver metacommand
+  ([dml-metacommands-runbook.md](./dml-metacommands-runbook.md)); not yet run
+  on console.
 
 ## Refresh procedure
 
