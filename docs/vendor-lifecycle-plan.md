@@ -28,8 +28,9 @@ builds.
   DML text logits. These do not change the #91 product gate by themselves.
 - **Local #91 experiment:** `ep.dml.disable_metacommands` vendored knob to test
   whether the broken attention is a driver metacommand
-  ([dml-metacommands-runbook.md](./dml-metacommands-runbook.md)); not yet run
-  on console.
+  ([dml-metacommands-runbook.md](./dml-metacommands-runbook.md)); run on
+  console 2026-07-19: **FAIL**, knob-on logits bit-identical to stock — patch
+  meets its drop condition.
 
 ## Refresh procedure
 
