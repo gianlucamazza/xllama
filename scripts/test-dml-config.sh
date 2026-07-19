@@ -57,7 +57,7 @@ CURL="curl -sS -k ${AUTH}"
 
 # Xbox WDP requires X-CSRF-Token on all POST/DELETE requests (see deploy.sh);
 # without it uploads fail silently and the device keeps the stock config.
-CSRF_TOKEN=$(curl -sS -k ${AUTH} "${BASE}/" -o /dev/null -D - 2>/dev/null |
+CSRF_TOKEN=$($CURL "${BASE}/" -o /dev/null -D - 2>/dev/null |
 	sed -n 's/.*[Cc][Ss][Rr][Ff]-[Tt]oken=\([^;[:space:]]*\).*/\1/p' |
 	tr -d '\r' | head -n 1)
 if [[ -z "$CSRF_TOKEN" ]]; then
