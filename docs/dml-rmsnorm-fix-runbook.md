@@ -72,17 +72,54 @@ attention decomposition, `--fp32-qk`) remain available for future probes.
       in LocalState and the routing allowlist is keyed on the name; remote
       sizes verified byte-exact vs manifest `approx_bytes`; post-publish
       on-device parity PASS via `provision-models.sh` download).
-- [ ] Routing re-enable PR (#110): `dml_text_model_ok` allowlist in
-      `routing_policy.h` behind `token_threshold`, manifest `-v2` entry,
-      `validate-console.sh` §2 expectations flipped back to auto→gpu.
-- [ ] Upstream report (#111): DML EP `SimplifiedLayerNormalization` /
-      `SkipSimplifiedLayerNormalization` kernels produce wrong results on the
-      Xbox Series S driver — minimal repro = single-op model diff CPU vs DML
-      (supersedes the attention theory on microsoft/onnxruntime#29739). Where
-      needed, fork ORT and analyze/fix the DML operator itself (same vendored
-      pattern as the extdata and GenAI #2280 patches).
-- [ ] Re-test fused RMSNorm after future Xbox GameOS/driver updates (this is
-      a driver/kernel bug, not a graph bug).
+- [x] Routing re-enable PR (#110 → **PR #112, merged 2026-07-19**):
+      `dml_text_model_ok` allowlist in `routing_policy.h` behind
+      `token_threshold`, manifest `-v2` entry, `validate-console.sh` §2
+      expectations flipped back to auto→gpu. On-console merge gate ALL PASS
+      (first legitimate auto→gpu: 959 tok → GPU, decode 38.8 tok/s).
+- [ ] Upstream report (#111): draft pending explicit OK; see the repro
+      campaign below for what the report can and cannot claim.
+- [ ] Re-test fused RMSNorm after future Xbox GameOS/driver updates.
+
+## Repro campaign (#111, 2026-07-19 — PR #113)
+
+Source analysis (ORT v1.24.4): both `SimplifiedLayerNormalization` and
+`SkipSimplifiedLayerNormalization` lower to
+`DML_OPERATOR_MEAN_VARIANCE_NORMALIZATION2` with `UseMean=false`
+(`DmlOperatorLayerNormalization.cpp`, `DmlOperatorSkipLayerNormalization.cpp`).
+
+Tooling: `uwp/op-repro.cpp` (`oprepro.flag` headless plain-ORT runner, CPU
+session vs DML session on the same payload, optimization level from
+`repro-opt.txt`), `scripts/make-op-repro.py` (single-op models, `--scale`),
+`scripts/make-chain-repro.py` (decoder-shaped 25-node stack),
+`scripts/validate-op-repro.sh` (per-variant driver).
+
+**Every plain-ORT probe MATCHES on the Series S driver** (CPU-vs-DML NMSE
+≤ 2e-06 in all cases):
+
+| probe                                                                | opt level                | verdict |
+| -------------------------------------------------------------------- | ------------------------ | ------- |
+| simplified / skip / layernorm single op, scale 2                     | disable + all            | MATCH   |
+| same at scale 30 / 100 (Σx² far beyond fp16 max)                     | disable                  | MATCH   |
+| 25-node chain (SimplifiedLN→MatMul→skip residual ×8, real eps/shape) | disable + extended + all | MATCH   |
+
+(The high-scale `skip` "mismatches" under an absolute tolerance are 1-ulp
+fp16 divergence on the fp16 residual-sum output — not corruption.)
+
+**Interpretation.** The op — including the fused-graph DML compilation path —
+is correct standalone on this device. The corruption manifests only in the
+**ORT-GenAI DML execution context** (DML1 shared device/queue, GenAI's
+binding/allocation pattern, the decoder graph with past-KV I/O): fused
+RMSNorm there produces NMSE ~0.98, and decomposing only those nodes inside
+that same context fixes it. Any upstream fix or fork-level workaround must
+therefore target the GenAI-DML interaction, not the standalone kernel; the
+graph-level decomposition (this runbook's fix) remains the correct
+product-side workaround.
+
+Runner gotcha worth keeping: `Ort::TypeInfo` must outlive the
+`GetTensorTypeAndShapeInfo()` view (a temporary dangles → garbage shapes →
+`bad_alloc`), and per-input buffers must be reserved before wrapping their
+`data()` in `Ort::Value` (vector reallocation dangles earlier tensors).
 
 History: `docs/dml-metacommands-runbook.md` (metacommands experiment, FAIL,
 2026-07-19) and #94 (MHA probe) document the prior exonerated suspects.
