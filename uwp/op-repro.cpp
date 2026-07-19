@@ -39,6 +39,27 @@ namespace xllama::bridge {
 
 namespace {
 
+// Optimization level knob (LocalState\repro-opt.txt: disable|basic|extended|all,
+// default disable). "disable" runs the recorded ops as-is; "extended"/"all"
+// let the DML EP fuse the graph into compiled DML_GRAPH partitions — the
+// suspected #91 trigger the standalone-op runs cannot exercise.
+GraphOptimizationLevel read_opt_level() {
+    FILE* fp = _wfopen(utf8_to_wstring(resolve_local_path("repro-opt.txt")).c_str(), L"r");
+    if (!fp)
+        return ORT_DISABLE_ALL;
+    char buf[32] = {};
+    fgets(buf, sizeof(buf), fp);
+    fclose(fp);
+    const std::string v(buf);
+    if (v.find("all") == 0)
+        return ORT_ENABLE_ALL;
+    if (v.find("extended") == 0)
+        return ORT_ENABLE_EXTENDED;
+    if (v.find("basic") == 0)
+        return ORT_ENABLE_BASIC;
+    return ORT_DISABLE_ALL;
+}
+
 std::vector<float> read_f32_file(const std::string& path) {
     std::vector<float> out;
     FILE* fp = _wfopen(utf8_to_wstring(path).c_str(), L"rb");
@@ -169,11 +190,12 @@ void run_oprepro() {
         log_output("[xllama] oprepro: payload " + std::to_string(payload.size()) + " f32\n");
 
         Ort::Env env(ORT_LOGGING_LEVEL_ERROR, "oprepro");
-        log_output("[xllama] oprepro: env ready\n");
+        const GraphOptimizationLevel opt = read_opt_level();
+        log_output("[xllama] oprepro: env ready, opt level " + std::to_string(opt) + "\n");
 
         {
             Ort::SessionOptions so;
-            so.SetGraphOptimizationLevel(ORT_DISABLE_ALL); // the op itself, not a rewrite
+            so.SetGraphOptimizationLevel(opt);
             Ort::Session cpu(env, utf8_to_wstring(model_path).c_str(), so);
             log_output("[xllama] oprepro: CPU session created\n");
             write_f32_file(resolve_local_path("repro-out-cpu.bin"), run_once(cpu, payload));
@@ -185,7 +207,7 @@ void run_oprepro() {
             Ort::SessionOptions so;
             so.SetExecutionMode(ORT_SEQUENTIAL);
             so.DisableMemPattern();
-            so.SetGraphOptimizationLevel(ORT_DISABLE_ALL);
+            so.SetGraphOptimizationLevel(opt);
             Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_DML(so, 0));
             Ort::Session dml(env, utf8_to_wstring(model_path).c_str(), so);
             log_output("[xllama] oprepro: DML session created\n");

@@ -73,8 +73,9 @@ restart_app() {
 }
 
 overall=0
-for variant in simplified skip layernorm; do
-	d="${REPRO_ROOT}/${variant}"
+for d in "${REPRO_ROOT}"/*/; do
+	d="${d%/}"
+	variant="$(basename "$d")"
 	[[ -f "$d/repro.onnx" ]] || {
 		echo "skip ${variant}: $d/repro.onnx not found (run make-op-repro.py)"
 		continue

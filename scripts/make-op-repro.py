@@ -48,12 +48,12 @@ def ln_ref(x, gamma, beta):
     ).astype(np.float32)
 
 
-def build(variant, hidden, tokens, rng, out_dir):
+def build(variant, hidden, tokens, rng, out_dir, scale=2.0):
     shape = [1, tokens, hidden]
     gamma = (
         rng.standard_normal(hidden).astype(np.float16).astype(np.float32) * 0.5 + 1.0
     )
-    x = (rng.standard_normal(shape).astype(np.float16).astype(np.float32)) * 2.0
+    x = (rng.standard_normal(shape).astype(np.float16).astype(np.float32)) * scale
 
     inputs = [helper.make_tensor_value_info("x", TensorProto.FLOAT16, shape)]
     inits = [numpy_helper.from_array(gamma.astype(np.float16), "gamma")]
@@ -71,7 +71,7 @@ def build(variant, hidden, tokens, rng, out_dir):
         expected = rms_ref(x, gamma)
         outputs = [helper.make_tensor_value_info("y", TensorProto.FLOAT16, shape)]
     elif variant == "skip":
-        skip = (rng.standard_normal(shape).astype(np.float16).astype(np.float32)) * 2.0
+        skip = (rng.standard_normal(shape).astype(np.float16).astype(np.float32)) * scale
         payload.append(skip)
         inputs.append(helper.make_tensor_value_info("skip", TensorProto.FLOAT16, shape))
         node = helper.make_node(
@@ -126,11 +126,13 @@ def main():
     ap.add_argument("--hidden", type=int, default=960)
     ap.add_argument("--tokens", type=int, default=8)
     ap.add_argument("--seed", type=int, default=91)
+    ap.add_argument("--scale", type=float, default=2.0,
+                    help="input magnitude; ~30+ makes sum(x^2) overflow fp16 (65504)")
     args = ap.parse_args()
 
     rng = np.random.default_rng(args.seed)
     for variant in ("simplified", "skip", "layernorm"):
-        build(variant, args.hidden, args.tokens, rng, args.out)
+        build(variant, args.hidden, args.tokens, rng, args.out, scale=args.scale)
 
 
 if __name__ == "__main__":
