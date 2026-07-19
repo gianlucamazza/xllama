@@ -81,9 +81,14 @@ std::vector<float> run_once(Ort::Session& session, const std::vector<float>& pay
     std::vector<Ort::AllocatedStringPtr> in_name_holders;
     std::vector<const char*> in_names;
     std::vector<Ort::Value> in_values;
-    // Keep converted fp16 buffers alive until Run().
+    // Keep converted buffers alive until Run(). Reserve up front: the created
+    // Ort::Value wraps the buffer's data() pointer, so a later push_back must
+    // never reallocate the outer vector (dangling tensor data otherwise).
     std::vector<std::vector<uint16_t>> half_buffers;
     std::vector<std::vector<float>> float_buffers;
+    half_buffers.reserve(n_in);
+    float_buffers.reserve(n_in);
+    in_name_holders.reserve(n_in);
 
     size_t cursor = 0;
     for (size_t i = 0; i < n_in; ++i) {
@@ -157,13 +162,16 @@ void run_oprepro() {
         const std::vector<float> payload = read_f32_file(resolve_local_path("repro-input.bin"));
         if (payload.empty())
             throw std::runtime_error("repro-input.bin missing or empty");
+        log_output("[xllama] oprepro: payload " + std::to_string(payload.size()) + " f32\n");
 
         Ort::Env env(ORT_LOGGING_LEVEL_ERROR, "oprepro");
+        log_output("[xllama] oprepro: env ready\n");
 
         {
             Ort::SessionOptions so;
             so.SetGraphOptimizationLevel(ORT_DISABLE_ALL); // the op itself, not a rewrite
             Ort::Session cpu(env, utf8_to_wstring(model_path).c_str(), so);
+            log_output("[xllama] oprepro: CPU session created\n");
             write_f32_file(resolve_local_path("repro-out-cpu.bin"), run_once(cpu, payload));
             log_output("[xllama] oprepro: CPU run done\n");
         }
@@ -176,6 +184,7 @@ void run_oprepro() {
             so.SetGraphOptimizationLevel(ORT_DISABLE_ALL);
             Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_DML(so, 0));
             Ort::Session dml(env, utf8_to_wstring(model_path).c_str(), so);
+            log_output("[xllama] oprepro: DML session created\n");
             write_f32_file(resolve_local_path("repro-out-dml.bin"), run_once(dml, payload));
             log_output("[xllama] oprepro: DML run done\n");
         }
