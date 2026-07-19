@@ -78,7 +78,8 @@ Notes:
   measurement only — **its text output is numerically wrong on this device
   (#91)**.
 - **Routing — disabled (#91)**: DML text logits are wrong on the Series S driver
-  (attention path, GQA and MHA alike), so `routing_policy.h`
+  (root cause: the `(Skip)SimplifiedLayerNormalization` kernel — attention was
+  exonerated; see `dml-rmsnorm-fix-runbook.md`), so `routing_policy.h`
   (`kDmlTextLogitsBroken`) forces every text turn to the CPU model and the
   600-token Auto switch never fires. On the atomic best-decode Phase 2 rows, the
   CPU→DML trade is decode 68.0→46.8 and prefill 219.8→169.2. A separate DML run

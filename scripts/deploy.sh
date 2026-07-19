@@ -298,9 +298,10 @@ if [[ "${1:-}" == "upload-file" ]]; then
 	LOCAL_PATH="${2:-}"
 	PFN="${3:-}"
 	REMOTE_DIR="${4:-}"
+	REMOTE_NAME="${5:-}"
 
 	if [[ -z "$LOCAL_PATH" || -z "$PFN" ]]; then
-		echo "Usage: $0 upload-file <local-path> <package-full-name> [remote-dir]" >&2
+		echo "Usage: $0 upload-file <local-path> <package-full-name> [remote-dir] [remote-name]" >&2
 		exit 1
 	fi
 	if [[ ! -f "$LOCAL_PATH" ]]; then
@@ -320,11 +321,15 @@ if [[ "${1:-}" == "upload-file" ]]; then
 		PATH_PARAM="%5CLocalState"
 	fi
 
-	echo "Uploading $(basename "$LOCAL_PATH") → LocalState\\${REMOTE_DIR} ..."
+	# WDP names the remote file after the multipart filename; default is the
+	# local basename, override with [remote-name] (e.g. upload x-v2.onnx as
+	# model.onnx without a local rename).
+	REMOTE_NAME="${REMOTE_NAME:-$(basename "$LOCAL_PATH")}"
+	printf 'Uploading %s → LocalState\\%s\\%s ...\n' "$(basename "$LOCAL_PATH")" "$REMOTE_DIR" "$REMOTE_NAME"
 	RESP=$(curl "${CURL_AUTH[@]}" \
 		-H "X-CSRF-Token:${CSRF_TOKEN}" \
 		-X POST \
-		-F "file=@${LOCAL_PATH};type=application/octet-stream" \
+		-F "file=@${LOCAL_PATH};type=application/octet-stream;filename=${REMOTE_NAME}" \
 		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=${PATH_PARAM}" 2>/dev/null || echo "")
 	if [[ -n "$RESP" ]]; then
 		echo "$RESP"
