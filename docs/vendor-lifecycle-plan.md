@@ -23,8 +23,12 @@ builds.
   from ORT 1.24.4.
 - **ORT #29732:** 16 MB `ReadFileIntoBuffer` chunk remains the second PatchedOrt
   requirement.
-- **GenAI #2300 / ORT #29739:** tooling and driver investigation for wrong Xbox
-  DML text logits. These do not change the #91 product gate by themselves.
+- **GenAI #2300 / ORT #29739:** tooling and driver investigation opened while
+  #91 was attributed to the attention kernels. Superseded by the RMSNorm
+  finding (`dml-rmsnorm-fix-runbook.md`): #29739 is to be updated with the
+  `(Skip)SimplifiedLayerNormalization` root cause and single-op repro (#111 —
+  fork/analyze/fix the DML operator where needed, same vendored pattern as the
+  extdata and #2280 patches).
 - **Local #91 experiment:** `ep.dml.disable_metacommands` vendored knob to test
   whether the broken attention is a driver metacommand
   ([dml-metacommands-runbook.md](./dml-metacommands-runbook.md)); run on

@@ -65,11 +65,11 @@ attention decomposition, `--fp32-qk`) remain available for future probes.
       decode) is the right shape. Next: PR to re-enable DML text routing
       behind `token_threshold` (`include/xllama/routing_policy.h`,
       `kDmlTextLogitsBroken`) for the rmsfix asset.
-- [ ] Publish the rmsfix graph as **`smollm2-360m-dml-fp16-v2`** on `models-v1`
-      (#109 — new name, never clobber the old one: broken pre-fix copies may
-      survive in LocalState from ≤1.1.x installs and the routing allowlist is
-      keyed on the name; publishing gates in `docs/model-selection.md`
-      §198-231; exact `approx_bytes` in the manifest).
+- [x] Published as **`smollm2-360m-dml-fp16-v2`** on `models-v1` (#109 closed,
+      2026-07-19 — new name, never clobber: broken pre-fix copies may survive
+      in LocalState and the routing allowlist is keyed on the name; remote
+      sizes verified byte-exact vs manifest `approx_bytes`; post-publish
+      on-device parity PASS via `provision-models.sh` download).
 - [ ] Routing re-enable PR (#110): `dml_text_model_ok` allowlist in
       `routing_policy.h` behind `token_threshold`, manifest `-v2` entry,
       `validate-console.sh` §2 expectations flipped back to auto→gpu.

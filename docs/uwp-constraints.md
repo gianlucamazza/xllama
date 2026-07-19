@@ -341,8 +341,8 @@ and GPU-executed; the limit is that DirectML's kernel is **non-fused**.
 **Consequence for xllama**: int4-on-DML has **no path to beat fp16-on-DML** for
 decode by any quantization config we control, and fp16-on-DML (46.8) still loses
 to CPU int4 (68). So **CPU int4 stays the decode default**, and the GPU's real
-win is prefill (§5, reading 1 — moot for text while #91 holds: DML text logits
-are wrong on this device) and larger-model bandwidth. A genuinely fused
+win is prefill (§5, reading 1 — realized for text by the `-v2` RMSNorm-decomposed
+asset, #91 postmortem) and larger-model bandwidth. A genuinely fused
 low-bit GPU GEMM would be a DirectML-team feature, not an ORT-side PR; treat GPU
 int4 decode as blocked upstream, not a local TODO.
 

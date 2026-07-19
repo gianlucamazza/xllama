@@ -75,8 +75,8 @@ Notes:
 - **DML int4** (8.8 tok/s) is ~8× slower than CPU at this scale: no fused low-bit
   GPU GEMM, so decode is memory-bound reading fp16 weights round-tripped through
   VRAM. DML fp16's prefill number (353 tok/s) stands as a raw throughput
-  measurement only — **its text output is numerically wrong on this device
-  (#91)**.
+  measurement only — **that run used the pre-fix fused-RMSNorm graph, whose
+  text output is numerically wrong on this device (#91)**.
 - **Routing — re-enabled for the `-v2` asset (#91)**: the broken DML
   `(Skip)SimplifiedLayerNormalization` kernel (root cause; attention was
   exonerated — see `dml-rmsnorm-fix-runbook.md`) is worked around by the
@@ -224,7 +224,8 @@ Autoregressive decode (M=1) is memory-bound and dominated by per-token DML
 dispatch overhead at this model scale; CPU `MatMulNBits` on AVX2 wins
 (historical Phase 2 / `uwp-constraints.md §7`). GPU's win is **prefill** (353 vs
 198 tok/s at ~1k tokens), which motivated the routing experiment. Text routing
-is currently disabled by #91; the throughput result remains valid evidence.
+is live again for the `-v2` RMSNorm-decomposed asset (#91 postmortem); the
+throughput result remains valid evidence.
 
 ### fp16 >2 GB external data — loads, but 1B fp16 OOMs GPU inference (2026-07-15)
 
