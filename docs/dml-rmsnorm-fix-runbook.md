@@ -62,16 +62,25 @@ attention decomposition, `--fp32-qk`) remain available for future probes.
       within the historical dml-fp16 range (169–353 prefill), so the RMSNorm
       decomposition costs little. CPU int4 decode (71 tok/s) stays faster →
       the existing hybrid routing (GPU prefill above `token_threshold`, CPU
-      decode) is the right shape. Next: PR to re-enable DML text routing
-      behind `token_threshold` (`include/xllama/routing_policy.h`,
-      `kDmlTextLogitsBroken`) for the rmsfix asset.
-- [ ] Republish `smollm2-360m-dml-fp16` on `models-v1` with the rmsfix graph
-      (publishing gates in `docs/model-selection.md` §198-231; exact
-      `approx_bytes` in the manifest).
-- [ ] Upstream report: DML EP `SimplifiedLayerNormalization` /
+      decode) is the right shape. Confirmed on the published asset under its
+      catalogue name (2026-07-19, PR #112 build): **236.7 prefill / 44.4
+      decode / 1268 MB** — the canonical `phase2-dml` row the benchmark
+      summary now selects. Routing re-enabled by PR #112
+      (`dml_text_model_ok` behind `token_threshold`).
+- [x] Published as **`smollm2-360m-dml-fp16-v2`** on `models-v1` (#109 closed,
+      2026-07-19 — new name, never clobber: broken pre-fix copies may survive
+      in LocalState and the routing allowlist is keyed on the name; remote
+      sizes verified byte-exact vs manifest `approx_bytes`; post-publish
+      on-device parity PASS via `provision-models.sh` download).
+- [ ] Routing re-enable PR (#110): `dml_text_model_ok` allowlist in
+      `routing_policy.h` behind `token_threshold`, manifest `-v2` entry,
+      `validate-console.sh` §2 expectations flipped back to auto→gpu.
+- [ ] Upstream report (#111): DML EP `SimplifiedLayerNormalization` /
       `SkipSimplifiedLayerNormalization` kernels produce wrong results on the
       Xbox Series S driver — minimal repro = single-op model diff CPU vs DML
-      (supersedes the attention theory on microsoft/onnxruntime#29739).
+      (supersedes the attention theory on microsoft/onnxruntime#29739). Where
+      needed, fork ORT and analyze/fix the DML operator itself (same vendored
+      pattern as the extdata and GenAI #2280 patches).
 - [ ] Re-test fused RMSNorm after future Xbox GameOS/driver updates (this is
       a driver/kernel bug, not a graph bug).
 

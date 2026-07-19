@@ -1750,9 +1750,10 @@ void MainPageController::FinishDiffusion() {
 // ---------------------------------------------------------------------------
 
 void MainPageController::EnsureGpuModelIfNeeded() {
-    // #91/#95: while DML text logits are broken, routing can never pick the GPU
-    // model — don't background-download 725 MB that cannot be used.
-    if (::xllama::kDmlTextLogitsBroken)
+    // #91/#95: if the configured gpu_model is not a parity-validated DML text
+    // asset, routing can never pick it — don't background-download 725 MB that
+    // cannot be used.
+    if (!::xllama::dml_text_model_ok(m_gpu_model))
         return;
     if (m_routing == 0)
         return;
@@ -2243,10 +2244,11 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                 n_tok = static_cast<int>(full_prompt.size() / 4);
         }
 
-        // #91/#95: while kDmlTextLogitsBroken holds, decide_routing resolves every
-        // mode to the CPU model and the GPU model is intentionally not provisioned
-        // — a missing gpu_model must not block the turn or nag the user.
-        const bool warn_gpu_missing = !::xllama::kDmlTextLogitsBroken && !gpu_provisioned;
+        // #91/#95: for a gpu_model that is not a parity-validated DML text asset,
+        // decide_routing resolves every mode to the CPU model and the GPU model is
+        // intentionally not provisioned — a missing gpu_model must not block the
+        // turn or nag the user.
+        const bool warn_gpu_missing = ::xllama::dml_text_model_ok(m_gpu_model) && !gpu_provisioned;
         if (m_routing == 1 && warn_gpu_missing) {
             SetStatus(L"GPU model '" + ::xllama::utf8_to_wstring(m_gpu_model) +
                           L"' is not on this console.\n"

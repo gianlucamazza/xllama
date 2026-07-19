@@ -38,7 +38,7 @@ from the committed raw results by `scripts/generate-benchmark-summary.py`.
 | Gemma-3-270M | 270M | Q4_K_M | llama.cpp CPU · t6 | 395.0 | **76.8** | 368 | `phase6-gemma` |
 | SmolLM2-360M | 360M | int4 | ORT-GenAI CPU | 219.8 | **68.0** | 722 | `phase2-dml` |
 | SmolLM2-360M | 360M | Q4_K_M | llama.cpp CPU · t6 | 141.5 | **62.9** | 402 | `phase35-llamacpp-scaling` |
-| SmolLM2-360M | 360M | fp16 | ORT DirectML · routing disabled #91 | 169.2 | **46.8** | 1154 | `phase2-dml` |
+| SmolLM2-360M | 360M | fp16 | ORT DirectML · RMSNorm fixed | 236.7 | **44.4** | 1268 | `phase2-dml` |
 | LFM2.5-1.2B | 1.2B | Q4_K_M | llama.cpp CPU · t6 | 76.2 | **37.9** | 811 | `phase7-lfm` |
 | Qwen3.5-0.8B | 0.8B | Q4_K_M | llama.cpp CPU · t6 | 98.1 | **35.1** | 718 | `phase5-gguf` |
 | SmolLM2-1.7B | 1.7B | int4 | ORT-GenAI CPU | 54.9 | **20.6** | 2423 | `phase35-1b-cpu` |
@@ -75,16 +75,17 @@ Notes:
 - **DML int4** (8.8 tok/s) is ~8× slower than CPU at this scale: no fused low-bit
   GPU GEMM, so decode is memory-bound reading fp16 weights round-tripped through
   VRAM. DML fp16's prefill number (353 tok/s) stands as a raw throughput
-  measurement only — **its text output is numerically wrong on this device
-  (#91)**.
-- **Routing — disabled (#91)**: DML text logits are wrong on the Series S driver
-  (root cause: the `(Skip)SimplifiedLayerNormalization` kernel — attention was
-  exonerated; see `dml-rmsnorm-fix-runbook.md`), so `routing_policy.h`
-  (`kDmlTextLogitsBroken`) forces every text turn to the CPU model and the
-  600-token Auto switch never fires. On the atomic best-decode Phase 2 rows, the
-  CPU→DML trade is decode 68.0→46.8 and prefill 219.8→169.2. A separate DML run
-  reached 353.5 prefill with 36.5 decode. All remain valid throughput
-  measurements, but are never merged into one synthetic row.
+  measurement only — **that run used the pre-fix fused-RMSNorm graph, whose
+  text output is numerically wrong on this device (#91)**.
+- **Routing — re-enabled for the `-v2` asset (#91)**: the broken DML
+  `(Skip)SimplifiedLayerNormalization` kernel (root cause; attention was
+  exonerated — see `dml-rmsnorm-fix-runbook.md`) is worked around by the
+  RMSNorm-decomposed `smollm2-360m-dml-fp16-v2` graph, parity-validated
+  on-console. `routing_policy.h` (`dml_text_model_ok`) allows GPU text routing
+  only for that asset; the 600-token Auto switch applies. Its measured row is
+  236.7 prefill / 44.4 decode / 1268 MB — the old fused-RMSNorm rows (169.2/46.8
+  and 353.5/36.5, wrong text output) remain as historical throughput
+  measurements, never merged into one synthetic row.
 
 ## KV-cache reuse — both backends, CPU
 
@@ -223,7 +224,8 @@ Autoregressive decode (M=1) is memory-bound and dominated by per-token DML
 dispatch overhead at this model scale; CPU `MatMulNBits` on AVX2 wins
 (historical Phase 2 / `uwp-constraints.md §7`). GPU's win is **prefill** (353 vs
 198 tok/s at ~1k tokens), which motivated the routing experiment. Text routing
-is currently disabled by #91; the throughput result remains valid evidence.
+is live again for the `-v2` RMSNorm-decomposed asset (#91 postmortem); the
+throughput result remains valid evidence.
 
 ### fp16 >2 GB external data — loads, but 1B fp16 OOMs GPU inference (2026-07-15)
 
@@ -235,7 +237,7 @@ crossover has no measurable point on Series S**: a native-DML Llama-3.2-1B fp16
 (`AppendTokenSequences … DmlCommittedResourceAllocator … 8007000E`, even at
 ctx 2048 — `uwp-constraints.md §7`). Weights fit; the ~900 MB headroom is too small
 for the DML inference working set. Any fp16 >2 GB is ≥~1B → same wall. So the
-usable DML-fp16 model stays ~360-500 M (the existing `smollm2-360m-dml-fp16`), and
+usable DML-fp16 model stays ~360-500 M (the existing `smollm2-360m-dml-fp16-v2`), and
 the >2 GB unblock is a **CPU-side** win, not a bigger-fp16-on-GPU one. (A cuda-fp16
 re-host also loads/partitions to DML but fails DML inference at runtime — a native
 `-p fp16 -e dml` build is required.)

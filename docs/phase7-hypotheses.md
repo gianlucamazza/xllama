@@ -93,12 +93,13 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
 ### H8 — Series X GPU budget for 1B fp16 DML
 
 - **Claim:** Higher Game budget avoids 8007000E on 1B fp16 inference.
-- **Status:** Opportunistic if Series X available. **#91 gate applies**: even a
-  passing H8 yields wrong text logits until logit parity is proven on **that**
-  DML asset — do **not** run bare `validate-logit-parity.sh` (default
+- **Status:** Opportunistic if Series X available. **#91 allowlist applies**
+  (`dml_text_model_ok`): even a passing H8 asset must decompose RMSNorm and
+  prove logit parity on **that** DML asset before joining the allowlist — do
+  **not** run bare `validate-logit-parity.sh` (default
   `MODEL=smollm2-360m-cpu-int4` is a CPU path). Use an explicit pair, e.g.
   `MODEL=<native-DML-1B-fp16-catalogue-name> ./scripts/validate-logit-parity.sh <matching-golden.bin>`
-  (or `MODEL=smollm2-360m-dml-fp16` with its matching golden for the smaller
+  (or `MODEL=smollm2-360m-dml-fp16-v2` with its matching golden for the smaller
   DML probe). The DML RMSNorm kernel fault (`dml-rmsnorm-fix-runbook.md`) may
   or may not affect Series X.
 

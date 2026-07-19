@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 
 namespace xllama {
 
@@ -27,17 +28,20 @@ struct RoutingDecision {
     int token_count = 0;
 };
 
-// DML text inference computes numerically wrong logits on the Series S
-// Dev-Mode GPU (issue #91). Root cause (2026-07-19, plan-B escalation —
-// docs/dml-rmsnorm-fix-runbook.md): the DML (Skip)SimplifiedLayerNormalization
-// kernel is broken on this driver; the attention kernels blamed by the earlier
-// probes (GQA/MHA #94, metacommands) are innocent. The published model asset
-// still contains the fused RMSNorm nodes, so the gate stays until the rmsfix
-// asset (decompose_attention.py --skip-attention --also-skipln, on-console
-// parity PASS with shipping DLLs) is published and routing is re-enabled
-// behind token_threshold. While the gate holds, Auto and GpuOnly both resolve
-// to the CPU model. Diffusion (plain ORT, validated correct) is unaffected.
-inline constexpr bool kDmlTextLogitsBroken = true;
+// #91 postmortem (2026-07-19, docs/dml-rmsnorm-fix-runbook.md): the DML
+// (Skip)SimplifiedLayerNormalization kernel computes wrong results on the
+// Series S driver, so any text asset carrying the fused RMSNorm contrib nodes
+// produces garbage logits on the GPU (NMSE ~1 — this is what #91/#94 chased as
+// an "attention" bug). Assets with those nodes decomposed into primitives
+// (decompose_attention.py --skip-attention --also-skipln) pass the on-console
+// parity gate (scripts/validate-logit-parity.sh) with the shipping DLLs, so
+// GPU text routing is allowed for them only. Old broken copies of
+// "smollm2-360m-dml-fp16" may survive in LocalState from ≤1.1.x installs —
+// that name must never come back to this allowlist; the fixed asset ships as
+// "-v2". Diffusion (plain ORT) was never affected.
+inline constexpr bool dml_text_model_ok(std::string_view gpu_model) {
+    return gpu_model == "smollm2-360m-dml-fp16-v2";
+}
 
 // Decide which model directory to load for the first turn of a conversation.
 // |gpu_available| must reflect IsModelProvisioned(gpu_model) — callers gate UX.
@@ -45,7 +49,7 @@ inline RoutingDecision decide_routing(const RoutingSettings& s, int n_tok, bool 
                                       bool gpu_available) {
     RoutingDecision d;
     d.token_count = n_tok;
-    if (base_is_gguf || s.mode == RoutingMode::CpuOnly || kDmlTextLogitsBroken) {
+    if (base_is_gguf || s.mode == RoutingMode::CpuOnly || !dml_text_model_ok(s.gpu_model)) {
         d.active_model = s.cpu_model;
         d.use_gpu = false;
         return d;

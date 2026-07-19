@@ -97,8 +97,8 @@ directly, console-validated with a 1.86 GB int4 model. **But this does not make 
 fp16 models viable on the GPU**: a native-DML 1B fp16 (2.49 GB) loads yet OOMs
 inference within the 3801 MB budget (`uwp-constraints.md §7`). Practical takeaway:
 the >2 GB path is a **CPU/int4** enabler; DML-fp16 stays ≤~360-500 M
-(`smollm2-360m-dml-fp16` — whose text output is anyway wrong on this device,
-`#91`: the model is kept only as the parity-gate probe). Build DML models
+(`smollm2-360m-dml-fp16-v2` — the RMSNorm-decomposed graph that passes the
+parity gate, `#91`/`dml-rmsnorm-fix-runbook.md`). Build DML models
 natively (`builder … -p fp16 -e dml`) — a cuda-fp16 re-host loads but fails DML
 inference.
 
@@ -221,11 +221,14 @@ Runbook, in order:
 3. **On-device check** (every DML asset): provision with
    `scripts/provision-models.sh`, then
    `MODEL=<catalogue-name> ./scripts/validate-logit-parity.sh [golden.bin]`.
-   A DML text asset that fails here must not ship — and
-   `routing_policy.h kDmlTextLogitsBroken` stays set until one passes.
-4. **Upload**: `gh release upload models-v1 <files> --clobber`, then update
-   `approx_bytes` in `uwp/models/manifest.json` with the **exact** byte sizes
-   (a mismatch re-triggers the download loop fixed in #90).
+   A DML text asset that fails here must not ship — and must not join the
+   `routing_policy.h dml_text_model_ok` allowlist until it passes.
+4. **Upload**: `gh release upload models-v1 <files>` — publish fixed graphs
+   under a **new catalogue name** (e.g. the `-v2` suffix) instead of
+   `--clobber`: stale local copies of the old name survive in LocalState and
+   the routing allowlist is keyed on the name. Then update `approx_bytes` in
+   `uwp/models/manifest.json` with the **exact** byte sizes (a mismatch
+   re-triggers the download loop fixed in #90).
 
 `tests/test_logit_parity.cpp` runs the golden regression in CI when
 `XLLAMA_TEST_MODEL` is set (skips cleanly otherwise).

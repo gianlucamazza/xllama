@@ -52,7 +52,9 @@ Covers the plain-ORT diffusion sessions too.
   (graph surgery), whose correctness is already proven by SD-Turbo.
 
 Status: **run on console 2026-07-19 — FAIL (same wrong logits); patch and
-experiment config dropped per the FAIL branch.** This runbook stays as the
+experiment config dropped per the FAIL branch.** Plan B then found the real
+culprit the same day — the DML `(Skip)SimplifiedLayerNormalization` kernel,
+not attention: see [dml-rmsnorm-fix-runbook.md](./dml-rmsnorm-fix-runbook.md). This runbook stays as the
 historical record; the file references under Procedure no longer exist in the
 tree (see git history at the experiment branch for the exact artifacts).
 

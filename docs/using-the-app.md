@@ -47,16 +47,16 @@ once; the choice is stored with the conversation and appended to
   turns; measured **4.87×** on ORT and **4.07–20.02×** on GGUF models for
   turn-2 prefill on console. Leave it on
   unless debugging.
-- **EP routing (per conversation)** — where inference runs.
-  **Superseded by #91**: while `kDmlTextLogitsBroken` holds (the DML EP
-  computes wrong text logits on the Series S driver), every mode resolves to
-  the CPU model, the `gpu_model` is not auto-downloaded (#95), and a missing
-  `gpu_model` never blocks a turn (#100). Diffusion (plain ORT) stays on GPU.
-  The pre-#91 semantics, which return when the gate lifts (still subject to
-  `gpu_available` = provisioned `gpu_model` — see below):
+- **EP routing (per conversation)** — where inference runs. Routing requires a
+  parity-validated DML text asset as `gpu_model` (`dml_text_model_ok`,
+  #91 postmortem: the broken DML RMSNorm kernel is worked around by the
+  `smollm2-360m-dml-fp16-v2` decomposed graph). With any other `gpu_model`
+  every mode resolves to the CPU model, it is not auto-downloaded (#95), and a
+  missing `gpu_model` never blocks a turn (#100). Diffusion (plain ORT) stays
+  on GPU. Semantics (subject to `gpu_available` = provisioned `gpu_model`):
   - **CPU only (default)** — best decode throughput at 360M scale (~66 tok/s).
   - **GPU only (DML)** — prefers DirectML when `gpu_model` is provisioned (e.g.
-    `smollm2-360m-dml-fp16` in LocalState); if `gpu_available` is false, falls
+    `smollm2-360m-dml-fp16-v2` in LocalState); if `gpu_available` is false, falls
     back to the CPU model.
   - **Auto (long prompts → GPU)** — long first prompts route to GPU fp16 only
     when `gpu_available` is true and the prompt exceeds the token threshold

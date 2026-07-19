@@ -25,29 +25,29 @@
       ]
     },
     {
-      "name": "smollm2-360m-dml-fp16",
-      "display": "SmolLM2 360M (GPU fp16, routing — disabled #91)",
+      "name": "smollm2-360m-dml-fp16-v2",
+      "display": "SmolLM2 360M (GPU fp16)",
       "hf_base_url": "https://github.com/gianlucamazza/xllama/releases/download/models-v1",
       "files": [
         {
           "filename": "genai_config.json",
-          "remote": "smollm2-360m-dml-fp16_genai_config.json",
+          "remote": "smollm2-360m-dml-fp16-v2_genai_config.json",
           "approx_bytes": 1599
         },
         {
           "filename": "tokenizer.json",
-          "remote": "smollm2-360m-dml-fp16_tokenizer.json",
+          "remote": "smollm2-360m-dml-fp16-v2_tokenizer.json",
           "approx_bytes": 3522871
         },
         {
           "filename": "tokenizer_config.json",
-          "remote": "smollm2-360m-dml-fp16_tokenizer_config.json",
+          "remote": "smollm2-360m-dml-fp16-v2_tokenizer_config.json",
           "approx_bytes": 452
         },
         {
           "filename": "model.onnx",
-          "remote": "smollm2-360m-dml-fp16_model.onnx",
-          "approx_bytes": 724910374
+          "remote": "smollm2-360m-dml-fp16-v2_model.onnx",
+          "approx_bytes": 725021421
         }
       ]
     },

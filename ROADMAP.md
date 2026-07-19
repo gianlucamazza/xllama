@@ -11,9 +11,10 @@ performance belongs in `docs/benchmarks.md`.
   DLLs while upstream fixes have not reached NuGet.
 - Default chat: `lfm25-350m`; balanced and quality tiers: LFM2.5-1.2B and
   LFM2-2.6B.
-- Text DML remains gated by #91 (root cause found 2026-07-19: broken DML
-  RMSNorm kernel; data-only rmsfix asset validated on-console — gate lift
-  pends asset republish + routing PR); CPU serves text and DirectML serves
+- Text DML routing re-enabled for the parity-validated
+  `smollm2-360m-dml-fp16-v2` asset (#91 root cause: broken DML RMSNorm kernel,
+  fixed by graph decomposition — `docs/dml-rmsnorm-fix-runbook.md`); CPU still
+  serves decode and short prompts, DirectML serves long-prompt prefill and
   diffusion.
 - Phases 1–9 (delivery, console validation, demo, training pillar,
   personalization ops) are complete; Phase 10 (Lane B) is in progress.
@@ -85,9 +86,11 @@ Operational details live in `docs/vendor-lifecycle-plan.md`.
 - [ ] Drop PatchedGenAI after a NuGet release includes GenAI #2280.
 - [ ] Land ORT ReadFile 16 MB chunk PR #29732 and drop PatchedOrt only after the
       required fixes reach NuGet.
-- [ ] Lift the DML text gate: logit parity now passes on-console with the
-      rmsfix asset (`docs/dml-rmsnorm-fix-runbook.md`); remaining steps are
-      the models-v1 republish and the routing PR behind `token_threshold`.
+- [x] Lift the DML text gate (#110): `dml_text_model_ok` allowlist behind
+      `token_threshold`, `-v2` asset published on models-v1
+      (`docs/dml-rmsnorm-fix-runbook.md`).
+- [ ] Upstream the RMSNorm kernel finding (#111) — fork/analyze/fix where
+      needed, minimal single-op repro; re-test at every GameOS/driver update.
 - [ ] Re-evaluate fused low-bit DirectML GEMM only after upstream capability
       changes; it is not a local application task.
 
