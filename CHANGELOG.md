@@ -7,6 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.4.0.0] - 2026-07-19
+
+### Added
+
+- **Single-op DML diagnostics** (`oprepro.flag`, `uwp/op-repro.cpp` +
+  `scripts/make-op-repro.py` / `make-chain-repro.py` /
+  `validate-op-repro.sh`): CPU-vs-DML run of an arbitrary static-shape ONNX
+  model on the console, with a per-run graph-optimization knob — built to
+  chase #91 (verdict: the RMSNorm kernel is correct standalone; the
+  corruption needs the GenAI-DML execution context — reported upstream on
+  microsoft/onnxruntime#29739) and kept as a reusable driver-bug harness.
+
 ### Fixed
 
 - **#91 root cause found and fixed — GPU text routing re-enabled.** The broken
