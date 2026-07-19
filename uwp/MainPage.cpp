@@ -2685,10 +2685,9 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
         } else if (a.op == "set_sampling") {
             if (a.temperature < 0 && a.top_p < 0 && a.top_k < 0 && a.repetition_penalty < 0 &&
                 a.n_predict < 0)
-                throw std::runtime_error(
-                    "action " + std::to_string(i) +
-                    " set_sampling: no sampling key (temperature/top_p/top_k/"
-                    "repetition_penalty/n_predict)");
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " set_sampling: no sampling key (temperature/top_p/top_k/"
+                                         "repetition_penalty/n_predict)");
             ApDispatchSync([this, &a]() {
                 if (a.temperature >= 0)
                     m_temperature = (float)a.temperature;
