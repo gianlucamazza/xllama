@@ -95,7 +95,11 @@ std::vector<float> run_once(Ort::Session& session, const std::vector<float>& pay
         in_name_holders.push_back(session.GetInputNameAllocated(i, alloc));
         in_names.push_back(in_name_holders.back().get());
 
-        auto info = session.GetInputTypeInfo(i).GetTensorTypeAndShapeInfo();
+        // Keep the owning TypeInfo alive: GetTensorTypeAndShapeInfo() returns a
+        // non-owning view into it (a temporary here would dangle -> garbage
+        // shapes -> bad_alloc on the resize below).
+        Ort::TypeInfo type_info = session.GetInputTypeInfo(i);
+        auto info = type_info.GetTensorTypeAndShapeInfo();
         auto shape = info.GetShape();
         size_t count = 1;
         for (int64_t d : shape) {
