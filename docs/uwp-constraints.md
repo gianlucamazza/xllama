@@ -100,8 +100,10 @@ not fixable by our quantization config — see §12 for the full analysis and th
 config tests that confirm it. Effective bandwidth: CPU ~13 GB/s, GPU fp16
 ~34 GB/s, against a ~224 GB/s theoretical bus. **#91 caveat**: independent of
 these throughput numbers, DML **text** output is numerically wrong on this
-device (attention path, GQA and MHA) — text is CPU-forced in every mode until
-the parity gate passes; the GPU-prefill win is currently moot for text.
+device (broken `(Skip)SimplifiedLayerNormalization` kernel — see
+`dml-rmsnorm-fix-runbook.md`) — text is CPU-forced until the rmsfix asset
+ships and routing is re-enabled; the GPU-prefill win is currently moot for
+text.
 
 **Effect on disk**: models too large to fit the Dev Mode partition also fail before reaching `OgaCreateModel`. This is a distinct failure mode — see §9.
 

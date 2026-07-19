@@ -99,7 +99,8 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   `MODEL=smollm2-360m-cpu-int4` is a CPU path). Use an explicit pair, e.g.
   `MODEL=<native-DML-1B-fp16-catalogue-name> ./scripts/validate-logit-parity.sh <matching-golden.bin>`
   (or `MODEL=smollm2-360m-dml-fp16` with its matching golden for the smaller
-  DML probe). The DML attention fault may or may not affect Series X.
+  DML probe). The DML RMSNorm kernel fault (`dml-rmsnorm-fix-runbook.md`) may
+  or may not affect Series X.
 
 ### H9 — Task suite (capability, not tok/s)
 
@@ -112,14 +113,14 @@ GPU decode@360M, llama 2× ORT BW, mmap load win, extdata→1B fp16 GPU, DML int
 
 ## Shortlist (desk, 2026-07-16)
 
-| Hypothesis | Candidate                         | Repo / file                            | Size    | Why                                                   |
-| ---------- | --------------------------------- | -------------------------------------- | ------- | ----------------------------------------------------- |
-| H4         | Llama-3.2-3B-Instruct Q3_K_S      | `unsloth/Llama-3.2-3B-Instruct-GGUF`   | 1.54 GB | **Measured preferred** — catalogue `llama32-3b`       |
-| H4         | Llama-3.2-3B-Instruct Q4_K_M      | same                                   | 2.02 GB | Quality control if Q3 weak (not needed after Q3 PASS) |
-| H4         | Phi-3.5-mini Q3_K_S               | `bartowski/Phi-3.5-mini-instruct-GGUF` | 1.68 GB | **Measured** — loses A/B; no catalogue                |
+| Hypothesis | Candidate                        | Repo / file                            | Size    | Why                                                   |
+| ---------- | -------------------------------- | -------------------------------------- | ------- | ----------------------------------------------------- |
+| H4         | Llama-3.2-3B-Instruct Q3_K_S     | `unsloth/Llama-3.2-3B-Instruct-GGUF`   | 1.54 GB | **Measured preferred** — catalogue `llama32-3b`       |
+| H4         | Llama-3.2-3B-Instruct Q4_K_M     | same                                   | 2.02 GB | Quality control if Q3 weak (not needed after Q3 PASS) |
+| H4         | Phi-3.5-mini Q3_K_S              | `bartowski/Phi-3.5-mini-instruct-GGUF` | 1.68 GB | **Measured** — loses A/B; no catalogue                |
 | H1         | LFM2.5-1.2B-Instruct Q4_K_M      | `LiquidAI/LFM2.5-1.2B-Instruct-GGUF`   | 697 MB  | **PASS** — balanced catalogue tier                    |
-| H1         | LFM2-2.6B Q4_K_M                  | `LiquidAI/LFM2-2.6B-GGUF`               | 1.46 GB | **PASS** — quality catalogue tier                     |
-| H2         | Small MoE GGUF with arch in tree  | e.g. OLMoE/Qwen-MoE tiny               | TBD     | Only if &lt;~3.5 GB Q3                                |
+| H1         | LFM2-2.6B Q4_K_M                 | `LiquidAI/LFM2-2.6B-GGUF`              | 1.46 GB | **PASS** — quality catalogue tier                     |
+| H2         | Small MoE GGUF with arch in tree | e.g. OLMoE/Qwen-MoE tiny               | TBD     | Only if &lt;~3.5 GB Q3                                |
 
 ## Console campaign results
 
@@ -168,10 +169,10 @@ Sources: `bench/results/phase7-lfm.csv`, `phase7-lfm-long.csv` and
 `phase7-h9.jsonl` (Series S, MSIX 1.2.0.536, 2026-07-17). Performance rows are
 three-run campaigns with run 1 discarded; t4/t5/t6 were swept and t6 won.
 
-| Model                         | Decode | Prefill | Peak MB | Long decode | H9 | Verdict                |
-| ----------------------------- | -----: | ------: | ------: | ----------: | --: | ---------------------- |
-| LFM2.5-1.2B-Instruct Q4_K_M   |  37.88 |   76.16 |     811 |       35.38 | 6/8 | **H1 PASS · balanced** |
-| LFM2-2.6B Q4_K_M              |  18.36 |   32.04 |    1623 |       17.72 | 7/8 | **H1 PASS · quality**  |
+| Model                       | Decode | Prefill | Peak MB | Long decode |  H9 | Verdict                |
+| --------------------------- | -----: | ------: | ------: | ----------: | --: | ---------------------- |
+| LFM2.5-1.2B-Instruct Q4_K_M |  37.88 |   76.16 |     811 |       35.38 | 6/8 | **H1 PASS · balanced** |
+| LFM2-2.6B Q4_K_M            |  18.36 |   32.04 |    1623 |       17.72 | 7/8 | **H1 PASS · quality**  |
 
 H9 uses eight deterministic API tasks at temperature 0 / seed 42. Baselines:
 Gemma-4-E2B 6/8, Llama-3.2-3B 5/8, LFM2.5-350M 4/8. Every model failed the same
@@ -200,5 +201,5 @@ than cold re-prefill on 1.2B and **20.02×** on 2.6B
 | 2026-07-16 | **H4 PASS** — Llama-3.2-3B Q3_K_S @14.2 tok/s, 1824 MB peak (`phase7-scale.csv`)                              |
 | 2026-07-16 | Catalogue **`llama32-3b`** (HF Q3_K_S) + `ChatFormatKind::Llama3`; default stays LFM                          |
 | 2026-07-16 | **Phi-3.5-mini Q3_K_S A/B** — 11.31 tok/s, 2453 MB; H4 PASS but loses to Llama on speed+RAM; **no catalogue** |
-| 2026-07-17 | **H1 PASS** — LFM2.5-1.2B 37.88 tok/s, 811 MB, H9 6/8; catalogue balanced tier                         |
-| 2026-07-17 | **H1 PASS** — LFM2-2.6B 18.36 tok/s, 1623 MB, H9 7/8; catalogue quality tier; 350M remains default      |
+| 2026-07-17 | **H1 PASS** — LFM2.5-1.2B 37.88 tok/s, 811 MB, H9 6/8; catalogue balanced tier                                |
+| 2026-07-17 | **H1 PASS** — LFM2-2.6B 18.36 tok/s, 1623 MB, H9 7/8; catalogue quality tier; 350M remains default            |

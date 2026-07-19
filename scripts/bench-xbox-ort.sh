@@ -135,7 +135,7 @@ upload_as() {
 	local local_path="$1" remote_dir="${2:-}" remote_name="$3"
 	local path_param="%5CLocalState"
 	[[ -n "$remote_dir" ]] && path_param="%5CLocalState%5C${remote_dir//\\/%5C}"
-	echo "  Uploading $(basename "$local_path") → LocalState\\${remote_dir}\\${remote_name} ..."
+	printf '  Uploading %s → LocalState\\%s\\%s ...\n' "$(basename "$local_path")" "$remote_dir" "$remote_name"
 	_curl_post_file "$local_path" "$path_param" "$remote_name"
 }
 
@@ -378,6 +378,12 @@ if [[ -s "$MEDIAN_TMP" ]]; then
 	MEDIAN_ROW=$(awk -v v="$MEDIAN_VAL" 'NR>1 && $7==v {print; exit}' FS="," "$MEDIAN_TMP")
 	if [[ -z "$MEDIAN_ROW" ]]; then
 		MEDIAN_ROW=$(tail -n +2 "$MEDIAN_TMP" | head -1)
+	fi
+	# Route DML rows to phase2-dml.csv when --out was not given — promised in
+	# the usage header but never implemented (every run landed in phase1-cpu.csv).
+	if [[ -z "$OUT_CSV" && "$(cut -d, -f3 <<<"$MEDIAN_ROW")" == *dml* ]]; then
+		RESULT_CSV="${REPO_ROOT}/bench/results/phase2-dml.csv"
+		[[ ! -f "$RESULT_CSV" ]] && printf '%s\n' "$CSV_HEADER" >"$RESULT_CSV"
 	fi
 	printf '%s\n' "$MEDIAN_ROW" >>"$RESULT_CSV"
 	echo "Appended to $RESULT_CSV:"
