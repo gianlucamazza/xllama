@@ -50,18 +50,21 @@ Three hypotheses died against these numbers:
    66.3); the crossover exists only in prefill, where batch amortises dispatch
    (1.8× at ~1k tokens). The app therefore routes per-workload (long-prompt
    conversations → DML fp16, decode → CPU int4), sticky per conversation.
-   **Superseded by #91 (2026-07-16): DML text routing is disabled.** The logit-
-   parity harness showed the DML attention path computes numerically wrong
-   logits on the Series S GPU — GQA **and** MultiHeadAttention alike (NMSE ~1
-   vs the CPU reference, top-1 disagrees; fp16 AND int4; invariant to
-   graph/session/capture options; the same weights are correct on CPU EP and
-   on desktop-class CPU runs; SD-Turbo — decomposed attention, no contrib ops —
-   is correct on the same device). All tok/s numbers above are real, but the
-   GPU text output they measured was silently degraded. Text routing is forced
-   to CPU (`routing_policy.h kDmlTextLogitsBroken`) until
-   `scripts/validate-logit-parity.sh` passes on a DML text model, and the
-   GPU model is no longer auto-provisioned (#95). Diffusion routing is
-   unaffected. Upstream: microsoft/onnxruntime#29739 (driver),
+   **#91 interlude (2026-07-16 → 2026-07-19).** The logit-parity harness
+   showed the DML text path computes numerically wrong logits on the Series S
+   GPU (NMSE ~1 vs the CPU reference, top-1 disagrees; fp16 AND int4;
+   invariant to graph/session/capture options; the same weights are correct
+   on CPU EP and on desktop-class CPU runs), and text routing was force-gated
+   to CPU while three investigations chased the attention kernels. The real
+   culprit was the DML `(Skip)SimplifiedLayerNormalization` (RMSNorm)
+   lowering in the GenAI-DML context — attention was innocent — and the fix
+   is data-only: the `smollm2-360m-dml-fp16-v2` asset ships those 65 nodes
+   decomposed into primitives and passes `scripts/validate-logit-parity.sh`
+   (NMSE 1.72e-02, top-10 overlap 1.00). Routing is live again behind the
+   `dml_text_model_ok` per-model allowlist (`routing_policy.h`); diffusion
+   routing was never affected. Full postmortem:
+   `docs/dml-rmsnorm-fix-runbook.md`. Upstream:
+   microsoft/onnxruntime#29739 (kernel report),
    microsoft/onnxruntime-genai#2300 (capture opt-out tooling).
 2. **"DML int4 decode collapses because a kernel is missing."** Falsified by
    desk-check and confirmed on hardware: `MatMulNBits` _is_ on the GPU (compute

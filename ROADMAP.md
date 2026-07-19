@@ -5,8 +5,8 @@ performance belongs in `docs/benchmarks.md`.
 
 ## Current product state
 
-- Latest published release: **v1.3.0.0** (MSIX 1.3.0.560 — expanded product UI
-  and experimental Lane B on-device training).
+- Latest published release: **v1.4.0.0** (MSIX 1.4.0.588 — GPU text routing
+  re-enabled on the `-v2` DML asset, #91 root cause fixed).
 - Shipping artifact: unified ORT GenAI + llama.cpp, with pinned patched runtime
   DLLs while upstream fixes have not reached NuGet.
 - Default chat: `lfm25-350m`; balanced and quality tiers: LFM2.5-1.2B and

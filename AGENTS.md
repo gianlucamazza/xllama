@@ -119,7 +119,7 @@ the "same identity, different contents" install block. Local builds leave `.0`.
 
 - **ORT GenAI path**: UWP inference is entirely under `#ifdef XLLAMA_USE_ORT` in `src/bridge/inference.cpp`. ORT types are wrapped in `include/xllama/ort_raii.h`. Linux path (`#else`) uses llama.cpp unchanged.
 
-- **No model in the MSIX**: the package is ~19 MB and ships no model. On first launch the app downloads the default chat model (`lfm25-350m` on unified builds; `smollm2-360m-cpu-int4` on ORT-only) from the GitHub Release `models-v1` catalogue (`uwp/models/manifest.json`) into `LocalState\models\`. Routing GPU (`smollm2-360m-dml-fp16`) is also on `models-v1` but is not auto-provisioned while #91 holds. Current console gate: `./scripts/validate-console.sh all`.
+- **No model in the MSIX**: the package is ~19 MB and ships no model. On first launch the app downloads the default chat model (`lfm25-350m` on unified builds; `smollm2-360m-cpu-int4` on ORT-only) from the GitHub Release `models-v1` catalogue (`uwp/models/manifest.json`) into `LocalState\models\`. Routing GPU (`smollm2-360m-dml-fp16-v2`, the #91 parity-validated graph) auto-downloads from `models-v1` when GPU routing is enabled. Current console gate: `./scripts/validate-console.sh all`.
 
 - **Shipping CI**: `build-uwp.yml` publishes `xllama-appx` as **unified + PatchedGenAI #2280 + PatchedOrt** (cached `onnxruntime.dll` + `onnxruntime-genai.dll` from `vendor-dlls-v1`; hashes in `vendor/onnxruntime-patched/SHA256SUMS` and `vendor/onnxruntime-genai-patched/SHA256SUMS`). `llamacpp` lane is bench-only. Rebuild from source only for pin refresh: `build-uwp-ort-patched.yml` (ORT, 1–3 h) / `build-uwp-patched.yml` (GenAI). Poll whether pins can drop: `scripts/check-vendor-nuget-status.sh`.
 
