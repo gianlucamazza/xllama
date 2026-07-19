@@ -5,11 +5,15 @@
 # Usage:
 #   source ~/.config/xllama/xbox-env
 #   ./scripts/test-dml-config.sh [--model smollm2-360m-cpu-int4] [--restore]
+#                                [--config bench/configs/genai_config-dml-test.json]
 #
 # What it does:
 #   1. Finds the package LocalState path via WDP.
 #   2. Backs up the original genai_config.json.
-#   3. Uploads bench/configs/genai_config-dml-test.json as genai_config.json.
+#   3. Uploads the chosen config (default bench/configs/genai_config-dml-test.json)
+#      as genai_config.json. Use --config bench/configs/genai_config-dml-metacmd-off.json
+#      for the #91 metacommands opt-out experiment (needs the patched onnxruntime.dll,
+#      patches/onnxruntime-dml-metacommands-optout.patch).
 #   4. Prints a reminder to restart the app and check the log.
 #
 # --restore: puts the original genai_config.json back.
@@ -17,17 +21,31 @@
 set -euo pipefail
 
 MODEL="${XLLAMA_MODEL:-smollm2-360m-cpu-int4}"
+CONFIG="bench/configs/genai_config-dml-test.json"
 RESTORE=false
 
-for arg in "$@"; do
-	case "$arg" in
+while [[ $# -gt 0 ]]; do
+	case "$1" in
 	--model)
 		MODEL="$2"
+		shift 2
+		;;
+	--config)
+		CONFIG="$2"
+		shift 2
+		;;
+	--restore)
+		RESTORE=true
 		shift
 		;;
-	--restore) RESTORE=true ;;
+	*) shift ;;
 	esac
 done
+
+[[ -f "$CONFIG" ]] || {
+	echo "ERROR: config not found: $CONFIG" >&2
+	exit 1
+}
 
 : "${XBOX_IP:?Set XBOX_IP in ~/.config/xllama/xbox-env}"
 : "${XBOX_USER:?Set XBOX_USER}"
@@ -36,6 +54,17 @@ done
 BASE="https://${XBOX_IP}:11443"
 AUTH="--basic -u ${XBOX_USER}:${XBOX_PASS}"
 CURL="curl -sS -k ${AUTH}"
+
+# Xbox WDP requires X-CSRF-Token on all POST/DELETE requests (see deploy.sh);
+# without it uploads fail silently and the device keeps the stock config.
+CSRF_TOKEN=$($CURL "${BASE}/" -o /dev/null -D - 2>/dev/null |
+	sed -n 's/.*[Cc][Ss][Rr][Ff]-[Tt]oken=\([^;[:space:]]*\).*/\1/p' |
+	tr -d '\r' | head -n 1)
+if [[ -z "$CSRF_TOKEN" ]]; then
+	echo "ERROR: failed to extract CSRF token — uploads would fail" >&2
+	exit 1
+fi
+CURL_POST="${CURL} -H X-CSRF-Token:${CSRF_TOKEN}"
 
 # Get package full name
 PFN=$(./scripts/deploy.sh pfn 2>/dev/null)
@@ -51,7 +80,7 @@ if [[ "$RESTORE" == "true" ]]; then
 	# Download backup and re-upload as genai_config.json
 	$CURL "https://${XBOX_IP}:11443/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}&filename=genai_config.json.bak" \
 		-o /tmp/genai_config_orig.json
-	$CURL -X POST "${BASE}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}" \
+	$CURL_POST -X POST "${BASE}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}" \
 		-F "file=@/tmp/genai_config_orig.json;filename=genai_config.json"
 	echo "Restored. Restart the app and check the log."
 	exit 0
@@ -62,13 +91,22 @@ echo "Backing up current genai_config.json to genai_config.json.bak..."
 $CURL "${BASE}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}&filename=genai_config.json" \
 	-o /tmp/genai_config_orig.json
 
-$CURL -X POST "${BASE}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}" \
+$CURL_POST -X POST "${BASE}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}" \
 	-F "file=@/tmp/genai_config_orig.json;filename=genai_config.json.bak" 2>/dev/null || true
 
 # Upload DML test config
-echo "Uploading DML test config (provider_options: dml, enable_cpu_mem_arena=0, enable_mem_pattern=0)..."
-$CURL -X POST "${BASE}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}" \
-	-F "file=@bench/configs/genai_config-dml-test.json;filename=genai_config.json"
+echo "Uploading DML config: ${CONFIG} ..."
+$CURL_POST -X POST "${BASE}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}" \
+	-F "file=@${CONFIG};filename=genai_config.json"
+
+# Verify the swap actually landed — WDP failures here have been silent before.
+$CURL "${BASE}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=\\LocalState\\${MODEL_DIR}&filename=genai_config.json" \
+	-o /tmp/genai_config_uploaded.json || true
+if ! cmp -s /tmp/genai_config_uploaded.json "$CONFIG"; then
+	echo "ERROR: on-device genai_config.json does not match ${CONFIG} after upload" >&2
+	exit 1
+fi
+echo "Verified: on-device genai_config.json matches ${CONFIG}."
 
 echo ""
 echo "Done. Next steps:"
