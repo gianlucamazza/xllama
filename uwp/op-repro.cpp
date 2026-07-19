@@ -26,14 +26,14 @@
     #include <dml_provider_factory.h>
 // clang-format on
 
-#include <cstdio>
-#include <string>
-#include <vector>
+    #include <cstdio>
+    #include <string>
+    #include <vector>
 
-#include "xllama/diffusion/half.h"
-#include "xllama/path_utils.h"
-#include "xllama/platform.h"
-#include "xllama/utf8_utils.h"
+    #include "xllama/diffusion/half.h"
+    #include "xllama/path_utils.h"
+    #include "xllama/platform.h"
+    #include "xllama/utf8_utils.h"
 
 namespace xllama::bridge {
 
@@ -111,10 +111,9 @@ std::vector<float> run_once(Ort::Session& session, const std::vector<float>& pay
                 mem, half_buffers.back().data(), count * sizeof(uint16_t), shape.data(),
                 shape.size(), ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16));
         } else if (dt == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT) {
-            float_buffers.emplace_back(payload.begin() + cursor,
-                                       payload.begin() + cursor + count);
-            in_values.push_back(Ort::Value::CreateTensor<float>(
-                mem, float_buffers.back().data(), count, shape.data(), shape.size()));
+            float_buffers.emplace_back(payload.begin() + cursor, payload.begin() + cursor + count);
+            in_values.push_back(Ort::Value::CreateTensor<float>(mem, float_buffers.back().data(),
+                                                                count, shape.data(), shape.size()));
         } else {
             throw std::runtime_error("unsupported repro input dtype (want fp16/fp32)");
         }
@@ -129,8 +128,8 @@ std::vector<float> run_once(Ort::Session& session, const std::vector<float>& pay
         out_names.push_back(out_name_holders.back().get());
     }
 
-    auto outputs = session.Run(Ort::RunOptions{nullptr}, in_names.data(), in_values.data(),
-                               n_in, out_names.data(), n_out);
+    auto outputs = session.Run(Ort::RunOptions{nullptr}, in_names.data(), in_values.data(), n_in,
+                               out_names.data(), n_out);
 
     std::vector<float> flat;
     for (auto& out : outputs) {
