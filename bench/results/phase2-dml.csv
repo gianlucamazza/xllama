@@ -7,3 +7,4 @@ smollm2-360m-dml-int4,int4,ort-genai-cpu,2048,8,333.81,8.28,1525,907,307,3801,xb
 smollm2-360m-dml-fp16,int4,ort-genai-cpu,2048,8,169.15,46.83,1154,2829,793,3801,xbox-series-s,2026-07-07T21:42:01Z
 smollm2-360m-dml-fp16,int4,ort-genai-cpu,2048,8,353.48,36.47,1631,2794,793,3801,xbox-series-s,2026-07-07T21:42:37Z
 smollm2-360m-dml-fp16-rmsfix,fp16,ort-genai-dml,2048,8,234.31,43.92,1215,2888,793,3801,xbox-series-s,2026-07-19T08:33:58Z
+smollm2-360m-dml-fp16-v2,fp16,ort-genai-dml,2048,8,236.67,44.36,1268,2729,793,3801,xbox-series-s,2026-07-19T09:37:26Z

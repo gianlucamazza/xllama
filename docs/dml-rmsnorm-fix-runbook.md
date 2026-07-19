@@ -62,9 +62,11 @@ attention decomposition, `--fp32-qk`) remain available for future probes.
       within the historical dml-fp16 range (169–353 prefill), so the RMSNorm
       decomposition costs little. CPU int4 decode (71 tok/s) stays faster →
       the existing hybrid routing (GPU prefill above `token_threshold`, CPU
-      decode) is the right shape. Next: PR to re-enable DML text routing
-      behind `token_threshold` (`include/xllama/routing_policy.h`,
-      `kDmlTextLogitsBroken`) for the rmsfix asset.
+      decode) is the right shape. Confirmed on the published asset under its
+      catalogue name (2026-07-19, PR #112 build): **236.7 prefill / 44.4
+      decode / 1268 MB** — the canonical `phase2-dml` row the benchmark
+      summary now selects. Routing re-enabled by PR #112
+      (`dml_text_model_ok` behind `token_threshold`).
 - [x] Published as **`smollm2-360m-dml-fp16-v2`** on `models-v1` (#109 closed,
       2026-07-19 — new name, never clobber: broken pre-fix copies may survive
       in LocalState and the routing allowlist is keyed on the name; remote

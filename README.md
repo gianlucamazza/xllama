@@ -101,7 +101,7 @@ release, [docs/using-the-app.md](./docs/using-the-app.md) for the app guide, and
 at **94.2 tok/s**; the larger LFM catalogue tiers trade throughput for quality.
 KV-cache reuse improves measured turn-2 prefill by up to **20.0×**. GPU text
 routing is live for the parity-validated `-v2` DML asset (auto above 600
-tokens, **234 tok/s** prefill — #91 postmortem); DirectML also
+tokens, **~237 tok/s** prefill — #91 postmortem); DirectML also
 serves diffusion, with SD-Turbo at about **6.9 s** for 512×512. Raw evidence,
 atomic comparison rows and the generated dashboard are described in the
 **[benchmark SSOT](./docs/benchmarks.md)** and

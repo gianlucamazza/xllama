@@ -38,7 +38,7 @@ from the committed raw results by `scripts/generate-benchmark-summary.py`.
 | Gemma-3-270M | 270M | Q4_K_M | llama.cpp CPU · t6 | 395.0 | **76.8** | 368 | `phase6-gemma` |
 | SmolLM2-360M | 360M | int4 | ORT-GenAI CPU | 219.8 | **68.0** | 722 | `phase2-dml` |
 | SmolLM2-360M | 360M | Q4_K_M | llama.cpp CPU · t6 | 141.5 | **62.9** | 402 | `phase35-llamacpp-scaling` |
-| SmolLM2-360M | 360M | fp16 | ORT DirectML · RMSNorm fixed | 234.3 | **43.9** | 1215 | `phase2-dml` |
+| SmolLM2-360M | 360M | fp16 | ORT DirectML · RMSNorm fixed | 236.7 | **44.4** | 1268 | `phase2-dml` |
 | LFM2.5-1.2B | 1.2B | Q4_K_M | llama.cpp CPU · t6 | 76.2 | **37.9** | 811 | `phase7-lfm` |
 | Qwen3.5-0.8B | 0.8B | Q4_K_M | llama.cpp CPU · t6 | 98.1 | **35.1** | 718 | `phase5-gguf` |
 | SmolLM2-1.7B | 1.7B | int4 | ORT-GenAI CPU | 54.9 | **20.6** | 2423 | `phase35-1b-cpu` |
@@ -83,7 +83,7 @@ Notes:
   RMSNorm-decomposed `smollm2-360m-dml-fp16-v2` graph, parity-validated
   on-console. `routing_policy.h` (`dml_text_model_ok`) allows GPU text routing
   only for that asset; the 600-token Auto switch applies. Its measured row is
-  234.3 prefill / 43.9 decode / 1215 MB — the old fused-RMSNorm rows (169.2/46.8
+  236.7 prefill / 44.4 decode / 1268 MB — the old fused-RMSNorm rows (169.2/46.8
   and 353.5/36.5, wrong text output) remain as historical throughput
   measurements, never merged into one synthetic row.
 

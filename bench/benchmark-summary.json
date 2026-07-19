@@ -52,7 +52,7 @@
       "params": "360M",
       "source": "phase2-dml.csv",
       "selector": {
-        "model": "smollm2-360m-dml-fp16-rmsfix"
+        "model": "smollm2-360m-dml-fp16-v2"
       },
       "select": "max_decode",
       "backend_key": "dml",
