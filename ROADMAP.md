@@ -79,6 +79,21 @@ pin constraints: [`docs/training-architecture.md`](docs/training-architecture.md
 - [ ] Widen the trainable filter beyond the last block when the llama.cpp pin
       gains backward support for the KV-cache `set_rows` write (or carry a patch).
 
+## Phase 11 — Close the headless ↔ UI gap (planned, blocked on Phase 10 gates)
+
+Gap analysis 2026-07-20: the training loop is half-invisible (UI captures
+preferences, but launch/progress/serving of the fine-tuned model are
+headless-only), and the test/API surfaces trail the UI.
+
+- [ ] In-app personalization arc: trigger training from Settings, surface
+      progress, serve `merged.gguf` from the model picker (#116) — after the
+      `DeviceGgmlPartialFt` flip.
+- [ ] Autopilot ops for routing / sampling / KV-reuse so the harness exercises
+      the real UI code paths (#117); console validation queued behind the
+      Phase 10 console gate.
+- [ ] LAN API parity (images, preferences, training status) — #118, low
+      priority while the API remains a demo.
+
 ## Upstream and vendor lifecycle
 
 Operational details live in `docs/vendor-lifecycle-plan.md`.
