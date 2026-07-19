@@ -174,6 +174,224 @@ def decompose_mha(model, fp32_qk=False):
     return len(mha_nodes)
 
 
+def decompose_rotary(model):
+    """Rewrite com.microsoft.RotaryEmbedding into primitives (NeoX rotate-half).
+
+    Interface (genai builder export): x [B,S,H*d] fp16, position_ids [B,S]
+    int64, cos_cache/sin_cache [max_pos, d/2] initializers; interleaved=0.
+    out[..., :d/2] = x1*cos - x2*sin ; out[..., d/2:] = x2*cos + x1*sin.
+    """
+    g = model.graph
+    rot_nodes = [
+        n for n in g.node if n.op_type == "RotaryEmbedding" and n.domain == MSFT_DOMAIN
+    ]
+    if not rot_nodes:
+        return 0
+
+    for n in rot_nodes:
+        a = _attr_map(n)
+        if a.get("interleaved", 0) != 0 or a.get("rotary_embedding_dim", 0) != 0:
+            sys.exit(f"{n.name}: only interleaved=0, full-dim rotary supported")
+
+    cos_cache, sin_cache, pos = (
+        rot_nodes[0].input[2],
+        rot_nodes[0].input[3],
+        rot_nodes[0].input[1],
+    )
+    half = next(int(i.dims[1]) for i in g.initializer if i.name == cos_cache)
+    head = 2 * half
+
+    inits = [
+        numpy_helper.from_array(np.array([0], dtype=np.int64), "decomp_rot/zero"),
+        numpy_helper.from_array(np.array([half], dtype=np.int64), "decomp_rot/half"),
+        numpy_helper.from_array(np.array([head], dtype=np.int64), "decomp_rot/head"),
+        numpy_helper.from_array(np.array([3], dtype=np.int64), "decomp_rot/axis3"),
+        numpy_helper.from_array(np.array([2], dtype=np.int64), "decomp_rot/axes2"),
+        numpy_helper.from_array(
+            np.array([0, 0, -1], dtype=np.int64), "decomp_rot/shape_merge"
+        ),
+    ]
+    g.initializer.extend(inits)
+
+    # One shared cos/sin gather + head-broadcast unsqueeze: every rotary node
+    # reads the same position_ids.
+    shared = [
+        helper.make_node(
+            "Gather",
+            [cos_cache, pos],
+            ["decomp_rot/cos_g"],
+            name="decomp_rot/cos_gather",
+            axis=0,
+        ),
+        helper.make_node(
+            "Gather",
+            [sin_cache, pos],
+            ["decomp_rot/sin_g"],
+            name="decomp_rot/sin_gather",
+            axis=0,
+        ),
+        helper.make_node(
+            "Unsqueeze",
+            ["decomp_rot/cos_g", "decomp_rot/axes2"],
+            ["decomp_rot/cos_u"],
+            name="decomp_rot/cos_unsq",
+        ),
+        helper.make_node(
+            "Unsqueeze",
+            ["decomp_rot/sin_g", "decomp_rot/axes2"],
+            ["decomp_rot/sin_u"],
+            name="decomp_rot/sin_unsq",
+        ),
+    ]
+
+    new_nodes, shared_placed = [], False
+    for n in g.node:
+        if not (n.op_type == "RotaryEmbedding" and n.domain == MSFT_DOMAIN):
+            new_nodes.append(n)
+            continue
+        if not shared_placed:
+            new_nodes.extend(shared)
+            shared_placed = True
+
+        x, base = n.input[0], (n.name or n.output[0])
+        width = _tensor_dim(model, x, 2)
+        if width is None or width % head:
+            sys.exit(f"{n.name}: cannot infer head count from value_info of {x}")
+        heads = width // head
+        shape_split = f"decomp_rot/shape_split_{heads}"
+        if not any(i.name == shape_split for i in g.initializer):
+            g.initializer.append(
+                numpy_helper.from_array(
+                    np.array([0, 0, heads, head], dtype=np.int64), shape_split
+                )
+            )
+
+        def N(op, inputs, outputs, **kw):
+            new_nodes.append(
+                helper.make_node(
+                    op,
+                    inputs,
+                    outputs,
+                    name=f"{base}/decomp/{outputs[0].rsplit('/', 1)[-1]}",
+                    **kw,
+                )
+            )
+
+        N("Reshape", [x, shape_split], [f"{base}/x4"])
+        N(
+            "Slice",
+            [f"{base}/x4", "decomp_rot/zero", "decomp_rot/half", "decomp_rot/axis3"],
+            [f"{base}/x1"],
+        )
+        N(
+            "Slice",
+            [f"{base}/x4", "decomp_rot/half", "decomp_rot/head", "decomp_rot/axis3"],
+            [f"{base}/x2"],
+        )
+        N("Mul", [f"{base}/x1", "decomp_rot/cos_u"], [f"{base}/x1c"])
+        N("Mul", [f"{base}/x2", "decomp_rot/sin_u"], [f"{base}/x2s"])
+        N("Sub", [f"{base}/x1c", f"{base}/x2s"], [f"{base}/o1"])
+        N("Mul", [f"{base}/x2", "decomp_rot/cos_u"], [f"{base}/x2c"])
+        N("Mul", [f"{base}/x1", "decomp_rot/sin_u"], [f"{base}/x1s"])
+        N("Add", [f"{base}/x2c", f"{base}/x1s"], [f"{base}/o2"])
+        N("Concat", [f"{base}/o1", f"{base}/o2"], [f"{base}/o4"], axis=3)
+        new_nodes.append(
+            helper.make_node(
+                "Reshape",
+                [f"{base}/o4", "decomp_rot/shape_merge"],
+                [n.output[0]],
+                name=f"{base}/decomp/out",
+            )
+        )
+
+    del g.node[:]
+    g.node.extend(new_nodes)
+    return len(rot_nodes)
+
+
+def decompose_skipln(model):
+    """Rewrite (Skip)SimplifiedLayerNormalization into primitive RMSNorm.
+
+    Contrib semantics (stash_type=1): accumulate in fp32. Mirrored here with
+    Cast fp16->fp32 around the mean/sqrt math. SkipSimplifiedLayerNormalization
+    also emits output[3] = x + skip (residual chain input downstream).
+    """
+    g = model.graph
+    targets = [
+        n
+        for n in g.node
+        if n.op_type
+        in ("SimplifiedLayerNormalization", "SkipSimplifiedLayerNormalization")
+    ]
+    if not targets:
+        return 0
+
+    g.initializer.append(
+        numpy_helper.from_array(np.array([-1], dtype=np.int64), "decomp_ln/axes_last")
+    )
+
+    new_nodes = []
+    for n in g.node:
+        if n not in targets:
+            new_nodes.append(n)
+            continue
+        a = _attr_map(n)
+        eps = a["epsilon"]
+        base = n.name or n.output[0]
+        has_skip = n.op_type == "SkipSimplifiedLayerNormalization"
+        gamma = n.input[2] if has_skip else n.input[1]
+
+        def N(op, inputs, outputs, **kw):
+            new_nodes.append(
+                helper.make_node(
+                    op,
+                    inputs,
+                    outputs,
+                    name=f"{base}/decomp/{outputs[0].rsplit('/', 1)[-1]}",
+                    **kw,
+                )
+            )
+
+        if has_skip:
+            sum_out = (
+                n.output[3] if len(n.output) > 3 and n.output[3] else f"{base}/sum"
+            )
+            N("Add", [n.input[0], n.input[1]], [sum_out])
+            x = sum_out
+        else:
+            x = n.input[0]
+
+        eps_init = f"decomp_ln/eps_{base.replace('/', '_')}"
+        g.initializer.append(
+            numpy_helper.from_array(np.array(eps, dtype=np.float32), eps_init)
+        )
+
+        N("Cast", [x], [f"{base}/x32"], to=TensorProto.FLOAT)
+        N("Mul", [f"{base}/x32", f"{base}/x32"], [f"{base}/sq"])
+        N(
+            "ReduceMean",
+            [f"{base}/sq", "decomp_ln/axes_last"],
+            [f"{base}/ms"],
+            keepdims=1,
+        )
+        N("Add", [f"{base}/ms", eps_init], [f"{base}/ms_eps"])
+        N("Sqrt", [f"{base}/ms_eps"], [f"{base}/rms"])
+        N("Div", [f"{base}/x32", f"{base}/rms"], [f"{base}/normed32"])
+        N("Cast", [f"{base}/normed32"], [f"{base}/normed16"], to=TensorProto.FLOAT16)
+        new_nodes.append(
+            helper.make_node(
+                "Mul",
+                [f"{base}/normed16", gamma],
+                [n.output[0]],
+                name=f"{base}/decomp/out",
+            )
+        )
+
+    del g.node[:]
+    g.node.extend(new_nodes)
+    return len(targets)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("-i", "--input", required=True, help="MHA-exported model.onnx")
@@ -185,16 +403,38 @@ def main():
         action="store_true",
         help="compute scores/softmax in fp32 (precision mitigation)",
     )
+    ap.add_argument(
+        "--also-rotary",
+        action="store_true",
+        help="also decompose com.microsoft.RotaryEmbedding (escalation level 2)",
+    )
+    ap.add_argument(
+        "--also-skipln",
+        action="store_true",
+        help="also decompose (Skip)SimplifiedLayerNormalization (escalation level 3)",
+    )
+    ap.add_argument(
+        "--skip-attention",
+        action="store_true",
+        help="leave the fused attention nodes in place (isolation runs: decompose "
+        "only rotary/skipln; works on GQA models too since attention is untouched)",
+    )
     args = ap.parse_args()
 
-    model = onnx.load(args.input)
-    replaced = decompose_mha(model, fp32_qk=args.fp32_qk)
+    if args.skip_attention and not (args.also_rotary or args.also_skipln):
+        ap.error("--skip-attention with no --also-* flag leaves nothing to do")
 
-    # Structural gate: no fused attention left. onnx.checker is advisory only —
-    # the genai builder emits ORT-internal ops (SimplifiedLayerNormalization)
-    # in the default domain that the checker rejects even on the *input* model;
-    # the authoritative validation is loading the output in onnxruntime.
-    assert not any(
+    model = onnx.load(args.input)
+    replaced = 0 if args.skip_attention else decompose_mha(model, fp32_qk=args.fp32_qk)
+    rot = decompose_rotary(model) if args.also_rotary else 0
+    lns = decompose_skipln(model) if args.also_skipln else 0
+
+    # Structural gate: no fused attention left (unless deliberately kept).
+    # onnx.checker is advisory only — the genai builder emits ORT-internal ops
+    # (SimplifiedLayerNormalization) in the default domain that the checker
+    # rejects even on the *input* model; the authoritative validation is
+    # loading the output in onnxruntime.
+    assert args.skip_attention or not any(
         n.op_type in ("MultiHeadAttention", "GroupQueryAttention", "Attention")
         for n in model.graph.node
     ), "fused attention nodes survived the rewrite"
@@ -208,7 +448,8 @@ def main():
 
     onnx.save(model, args.output)
     print(
-        f"decomposed {replaced} MultiHeadAttention nodes "
+        f"decomposed {replaced} MultiHeadAttention, {rot} RotaryEmbedding, "
+        f"{lns} (Skip)SimplifiedLayerNorm nodes "
         f"({'fp32' if args.fp32_qk else 'fp16'} score path) -> {args.output}"
     )
 
