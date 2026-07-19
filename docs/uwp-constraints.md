@@ -85,7 +85,8 @@ Readings:
    (`DmlOperatorMatMulNBits.cpp`) is a **non-fused** `DML_DEQUANTIZE`
    (int4→fp16 on GPU) + full `DML_GEMM`: it materialises the fp16 weight tensor,
    so int4 decode moves **more** bandwidth than plain fp16 (read 4-bit, write
-   fp16, read fp16). That is why int4-DML (8.8) is _slower_ than fp16-DML (46.8).
+   fp16, read fp16). That is why int4-DML (8.8) is _slower_ than fp16-DML (46.8
+   on the pre-fix graph; 43.9 on the current `-v2` decomposed graph).
    The builder also targets DML with `int4_accuracy_level=0` (fp16 compute) while
    CPU gets `=4` (fused int8 MLAS `SQNBitGemm`) — the reason CPU int4 reaches 68.
    There is **no fused low-bit GPU GEMM** on DirectML through 1.15.x, so the
@@ -93,17 +94,19 @@ Readings:
    control; fp16 is the best DML decode config, and it still loses to CPU int4.
 3. CPU decode degrades ~25% from short to ~1 k context; GPU fp16 similarly.
 
-**Verdict**: CPU int4 remains the decode winner (68 vs fp16-DML 46.8 vs int4-DML
-8.8); GPU fp16 is superior only for prompt-heavy prefill. The int4-DML gap is a
+**Verdict**: CPU int4 remains the decode winner (68 vs fp16-DML 46.8 pre-fix /
+43.9 on the shipping `-v2` graph vs int4-DML 8.8); GPU fp16 is superior only for
+prompt-heavy prefill. The int4-DML gap is a
 DirectML kernel-_design_ limit (non-fused low-bit GEMM), not a hardware limit and
 not fixable by our quantization config — see §12 for the full analysis and the
 config tests that confirm it. Effective bandwidth: CPU ~13 GB/s, GPU fp16
-~34 GB/s, against a ~224 GB/s theoretical bus. **#91 caveat**: independent of
-these throughput numbers, DML **text** output is numerically wrong on this
-device (broken `(Skip)SimplifiedLayerNormalization` kernel — see
-`dml-rmsnorm-fix-runbook.md`) — text is CPU-forced until the rmsfix asset
-ships and routing is re-enabled; the GPU-prefill win is currently moot for
-text.
+~34 GB/s, against a ~224 GB/s theoretical bus. **#91 note**: the throughput
+numbers in this section were measured on the pre-fix fused-RMSNorm graph,
+whose text output was numerically wrong (broken
+`(Skip)SimplifiedLayerNormalization` kernel — `dml-rmsnorm-fix-runbook.md`).
+The shipping `-v2` decomposed graph measures 234.3 prefill / 43.9 decode /
+1215 MB — same conclusions (CPU int4 wins decode, GPU wins long prefill), and
+GPU text routing is live again behind the 600-token threshold.
 
 **Effect on disk**: models too large to fit the Dev Mode partition also fail before reaching `OgaCreateModel`. This is a distinct failure mode — see §9.
 
@@ -328,7 +331,7 @@ and GPU-executed; the limit is that DirectML's kernel is **non-fused**.
   is **no fused low-bit GPU GEMM**. In memory-bound decode (M=1) this reads the
   4-bit weights, writes a full fp16 weight matrix to VRAM, and reads it back —
   strictly **more** bandwidth than plain fp16, which is exactly why int4-DML
-  (8.8) is _slower_ than fp16-DML (46.8).
+  (8.8) is _slower_ than fp16-DML (46.8 pre-fix; 43.9 on the `-v2` graph).
 - The GenAI builder defaults `int4_accuracy_level = 4` for the CPU EP but **`0`
   for non-CPU EPs**. CPU's level 4 activates MLAS's fused int8 low-bit GEMM
   (`SQNBitGemm`) — the reason CPU int4 hits 68 tok/s. DML gets level 0 (fp16
@@ -339,8 +342,8 @@ and GPU-executed; the limit is that DirectML's kernel is **non-fused**.
   compute runs at fp16/fp32 accuracy — consistent with level 0.
 
 **Consequence for xllama**: int4-on-DML has **no path to beat fp16-on-DML** for
-decode by any quantization config we control, and fp16-on-DML (46.8) still loses
-to CPU int4 (68). So **CPU int4 stays the decode default**, and the GPU's real
+decode by any quantization config we control, and fp16-on-DML (43.9 on the
+shipping `-v2` graph; 46.8 pre-fix) still loses to CPU int4 (68). So **CPU int4 stays the decode default**, and the GPU's real
 win is prefill (§5, reading 1 — realized for text by the `-v2` RMSNorm-decomposed
 asset, #91 postmortem) and larger-model bandwidth. A genuinely fused
 low-bit GPU GEMM would be a DirectML-team feature, not an ORT-side PR; treat GPU
