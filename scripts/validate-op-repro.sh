@@ -27,6 +27,9 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DEPLOY="${SCRIPT_DIR}/deploy.sh"
 REPRO_ROOT="${1:-${REPO_ROOT}/build/op-repro}"
 TOLERANCE="${TOLERANCE:-0.01}"
+# disable|basic|extended|all — "extended"/"all" enable the DML EP graph-fusion
+# path (compiled DML_GRAPH partitions), the suspected #91 trigger.
+OPT_LEVEL="${OPT_LEVEL:-disable}"
 
 BASE_URL="https://${XBOX_IP}:11443"
 CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
@@ -80,13 +83,15 @@ for d in "${REPRO_ROOT}"/*/; do
 		echo "skip ${variant}: $d/repro.onnx not found (run make-op-repro.py)"
 		continue
 	}
-	echo "=== op-repro: ${variant} ==="
+	echo "=== op-repro: ${variant} (opt=${OPT_LEVEL}) ==="
 
-	for f in repro.done repro-out-cpu.bin repro-out-dml.bin repro.onnx repro-input.bin; do
+	for f in repro.done repro-out-cpu.bin repro-out-dml.bin repro.onnx repro-input.bin repro-opt.txt; do
 		delete_file "$f"
 	done
 	upload_file "$d/repro.onnx"
 	upload_file "$d/repro-input.bin"
+	printf '%s' "$OPT_LEVEL" >"${TMPDIR_LOCAL}/repro-opt.txt"
+	upload_file "${TMPDIR_LOCAL}/repro-opt.txt"
 	printf 'go' >"${TMPDIR_LOCAL}/oprepro.flag"
 	upload_file "${TMPDIR_LOCAL}/oprepro.flag"
 	restart_app
