@@ -307,6 +307,7 @@
     <!-- cli.cpp uses POSIX getopt — Linux only, excluded from UWP target -->
     <ClCompile Include="inference-bridge.cpp" />
     <ClCompile Include="diffuse.cpp" />
+    <ClCompile Include="op-repro.cpp" />
   </ItemGroup>
 
   <!-- xllama UWP app -->

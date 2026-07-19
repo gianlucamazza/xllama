@@ -37,6 +37,14 @@ void run_diffuse();
 // llama.cpp golden via scripts/compare-logits.py.
 void run_logits();
 
+// Single-op CPU-vs-DML repro (#111): loads LocalState\repro.onnx with a plain
+// ORT CPU session and a DML session, feeds repro-input.bin and writes
+// repro-out-cpu.bin / repro-out-dml.bin (+ repro.done marker). Triggered by
+// LocalFolder\oprepro.flag; driven by scripts/validate-op-repro.sh. Used to
+// isolate broken DML kernels (first target: (Skip)SimplifiedLayerNormalization
+// -> MVN2 UseMean=false, the #91 root cause).
+void run_oprepro();
+
 // Lane B on-device training (ggml-opt partial FT). Triggered by
 // LocalFolder\train.flag; reads the job from LocalState\training\job.json
 // (paths inside the job are resolved relative to LocalState), runs

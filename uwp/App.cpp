@@ -276,6 +276,14 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
                 winrt::make<HeadlessView>(&::xllama::bridge::run_logits, "logits"));
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
+        std::wstring oprepro_flag = flag_path_if_present(L"oprepro.flag");
+        if (!oprepro_flag.empty()) {
+            _wremove(oprepro_flag.c_str());
+            ::xllama::log_output("[xllama] oprepro.flag detected -> single-op CPU-vs-DML repro\n");
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(&::xllama::bridge::run_oprepro, "oprepro"));
+            return 0; // not reached: CoreApplication::Exit terminates the process
+        }
         std::wstring train_flag = flag_path_if_present(L"train.flag");
         if (!train_flag.empty()) {
             _wremove(train_flag.c_str());
