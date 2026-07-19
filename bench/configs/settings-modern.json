@@ -3,7 +3,7 @@
   "model": "lfm25-350m",
   "kv_reuse": true,
   "routing": 2,
-  "gpu_model": "smollm2-360m-dml-fp16",
+  "gpu_model": "smollm2-360m-dml-fp16-v2",
   "diffuse_taesd_vae": true,
   "sampling": {
     "temperature": 0.8,

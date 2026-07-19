@@ -158,16 +158,18 @@ model_provisioned() {
 
 validate_routing() {
 	echo "=== §2 routing A/B ==="
-	# While kDmlTextLogitsBroken holds (#91), the gate resolves every mode to the
-	# CPU model, and #95 stops provisioning the DML one — so the only model this
-	# test actually loads is smollm2-360m-cpu-int4. When the gate is lifted, the
-	# dml-fp16 model becomes a precondition again (provision-models.sh).
-	if ! model_provisioned "smollm2-360m-cpu-int4"; then
-		echo "  FAIL: smollm2-360m-cpu-int4 is not in LocalState\\models\\"
-		echo "  Seed it first:  ./scripts/provision-models.sh smollm2-360m-cpu-int4"
-		echo "§2 routing: FAIL"
-		return 1
-	fi
+	# #91 lifted for the rmsfix asset (dml_text_model_ok, routing_policy.h):
+	# routing=auto must send the >600-token turn to the GPU model and the short
+	# turns to CPU. Both models are preconditions now.
+	local m
+	for m in smollm2-360m-cpu-int4 smollm2-360m-dml-fp16-v2; do
+		if ! model_provisioned "$m"; then
+			echo "  FAIL: $m is not in LocalState\\models\\"
+			echo "  Seed it first:  ./scripts/provision-models.sh $m"
+			echo "§2 routing: FAIL"
+			return 1
+		fi
+	done
 	# Routing=auto is emitted only when settings.json has "routing": 2; seed it
 	# (the whole point is that no human could set it via the dialog). Schema
 	# mirrors SaveSettings (MainPage.cpp).
@@ -177,7 +179,7 @@ validate_routing() {
   "model": "smollm2-360m-cpu-int4",
   "kv_reuse": true,
   "routing": 2,
-  "gpu_model": "smollm2-360m-dml-fp16",
+  "gpu_model": "smollm2-360m-dml-fp16-v2",
   "diffuse_taesd_vae": false,
   "sampling": {"temperature": 0.8, "top_p": 0.9, "top_k": 40, "repetition_penalty": 1.1, "n_predict": 256}
 }
@@ -242,28 +244,37 @@ JSON
 	# The routing log line uses "auto -> gpu"/"auto -> cpu" (ASCII arrow in the
 	# C++ is "→"; match on the tok field to be encoding-robust).
 	#
-	# #91 gate: kDmlTextLogitsBroken (routing_policy.h) forces text routing to
-	# CPU in every mode — DML attention logits (GQA and MHA alike, #94) are
-	# numerically wrong on the Series S GPU (parity NMSE ~1). Until the parity
-	# harness passes on a DML text model,
-	# the CORRECT behavior is: long turn stays CPU and NO gpu routing line ever
-	# appears. When the gate is lifted, restore the pre-#91 auto→gpu assertions.
+	# #91 lifted for the rmsfix -v2 asset (dml_text_model_ok): the pre-#91
+	# assertions are back — the long decoy turn (>600 tok) must route auto→gpu
+	# and the fresh short turn auto→cpu.
 	local gpu_line cpu_line
 	gpu_line=$(grep -aE 'routing: auto .* gpu \([0-9]+ tok' "$log" | head -1 || true)
 	cpu_line=$(grep -aE 'routing: auto .* cpu \([0-9]+ tok' "$log" | head -1 || true)
-	if [[ -n "$gpu_line" ]]; then
-		echo "  FAIL: a turn routed to GPU despite the #91 gate: ${gpu_line}"
+	if [[ -z "$gpu_line" ]]; then
+		echo "  FAIL: no 'auto -> gpu' routing line — long turn did not route to the DML model"
 		verdict=1
 	else
-		echo "  ok: no GPU-routed text turn (#91 gate holds)"
+		local gtok
+		gtok=$(sed -n 's/.*(\([0-9]\+\) tok.*/\1/p' <<<"$gpu_line")
+		if ((gtok <= 600)); then
+			echo "  FAIL: GPU-routed turn at ${gtok} tok (threshold is 600): ${gpu_line}"
+			verdict=1
+		else
+			echo "  ok: long turn routed to GPU (${gtok} tok)"
+		fi
 	fi
 	if [[ -z "$cpu_line" ]]; then
-		echo "  FAIL: no 'auto -> cpu' routing line (routing never ran)"
+		echo "  FAIL: no 'auto -> cpu' routing line (short turns never ran on CPU)"
 		verdict=1
 	else
 		local ntok
 		ntok=$(sed -n 's/.*(\([0-9]\+\) tok.*/\1/p' <<<"$cpu_line")
-		echo "  ok: turns routed to CPU (first line: ${ntok} tok)"
+		if ((ntok > 600)); then
+			echo "  FAIL: CPU-routed turn above threshold (${ntok} tok): ${cpu_line}"
+			verdict=1
+		else
+			echo "  ok: short turn routed to CPU (${ntok} tok)"
+		fi
 	fi
 	if grep -aq '887A0036' "$log"; then
 		echo "  FAIL: 887A0036 present — patched GenAI DLL did not take"

@@ -12,10 +12,10 @@ and the sandbox limits; this file owns the structure.
 xllama has two **platform pillars** that share C++ contracts but do not share
 execution loops:
 
-| Pillar | Role | Hot path |
-| --- | --- | --- |
-| **Inference** | Chat, diffusion, LAN API, benches | `Session` / `run_inference` (forward-only) |
-| **Training** (exploration) | Produce adapters / merged GGUF | `TrainingJob` → host PEFT or bounded ggml-opt partial FT → artefacts |
+| Pillar                     | Role                              | Hot path                                                             |
+| -------------------------- | --------------------------------- | -------------------------------------------------------------------- |
+| **Inference**              | Chat, diffusion, LAN API, benches | `Session` / `run_inference` (forward-only)                           |
+| **Training** (exploration) | Produce adapters / merged GGUF    | `TrainingJob` → host PEFT or bounded ggml-opt partial FT → artefacts |
 
 Training never runs inside `generate()`. Inference never runs backward. Artefacts
 flow **training → disk → inference load** (same GGUF path as catalogue models).
@@ -48,9 +48,10 @@ Two text backends, selected by build variant **and** per model at runtime:
 
 - **ORT GenAI / DirectML** (`XLLAMA_USE_ORT`) — `OrtSession` in `src/bridge/session.cpp`.
   Runs ONNX GenAI models (`kind: "ort-genai"`); CPU int4 decode + DirectML fp16
-  prefill, with per-conversation EP routing. **Text is currently forced to CPU
-  in every mode** (`kDmlTextLogitsBroken`, #91 — the DML EP computes wrong text
-  logits on the Series S driver); diffusion stays on GPU.
+  prefill, with per-conversation EP routing. GPU text routing is allowed only
+  for parity-validated DML assets (`dml_text_model_ok`, #91 postmortem: broken
+  DML RMSNorm kernel, fixed by the `-v2` decomposed graph); any other
+  `gpu_model` forces CPU in every mode. Diffusion stays on GPU.
 - **llama.cpp / GGUF** (`XLLAMA_USE_LLAMA`) — `LlamaSession` in
   `src/bridge/session.cpp`. Runs `.gguf` models (`kind: "gguf"`); CPU-only on Xbox
   (no ggml GPU backend), with KV-cache reuse.
@@ -193,11 +194,11 @@ First-class subsystem for **learning adapters and producing loadable weights**.
 
 ### Capability headline (see SSOT for full RE)
 
-| Lane | Status today |
-| --- | --- |
-| **A Host PEFT + merge** | **Available** (marker job PASS) |
+| Lane                    | Status today                                                                |
+| ----------------------- | --------------------------------------------------------------------------- |
+| **A Host PEFT + merge** | **Available** (marker job PASS)                                             |
 | **B Device partial FT** | **Experimental** in llamacpp/unified builds; host and console gates pending |
-| **C Serve merged GGUF** | **Available**; runtime LoRA via `SessionParams.lora_path` / CLI `--lora` |
+| **C Serve merged GGUF** | **Available**; runtime LoRA via `SessionParams.lora_path` / CLI `--lora`    |
 
 ### Personalization status (Phases 8–9)
 

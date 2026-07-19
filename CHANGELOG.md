@@ -7,6 +7,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **#91 root cause found and fixed — GPU text routing re-enabled.** The broken
+  kernel on the Series S DML driver is `(Skip)SimplifiedLayerNormalization`
+  (RMSNorm), not the attention path chased by #91/#94/#107: decomposing only
+  those 65 nodes into primitives (`scripts/decompose_attention.py
+--skip-attention --also-skipln`) yields correct text logits with the fused
+  GQA attention, the stock config and the shipping pinned DLLs (on-console
+  parity NMSE 1.72e-02, top-1 " Paris"; escalation matrix in
+  `docs/dml-rmsnorm-fix-runbook.md`). The fixed asset ships as
+  **`smollm2-360m-dml-fp16-v2`** (data-only fix, +0.8 MB) and
+  `routing_policy.h` replaces the `kDmlTextLogitsBroken` hard gate with the
+  `dml_text_model_ok` per-model allowlist — Auto routes >600-token prompts to
+  the GPU again (measured 234 tok/s prefill / 43.9 decode / 1215 MB peak),
+  every other `gpu_model` still resolves to CPU. `validate-console.sh` §2
+  asserts the restored auto→gpu/auto→cpu split; `provision-models.sh` ALL_TEST
+  seeds the `-v2` asset.
+
 ### Changed
 
 - LAN API model discovery (`/v1/models`, `/api/tags`) now lists **every

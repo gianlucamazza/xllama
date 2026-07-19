@@ -6,13 +6,13 @@
 #
 # Example:
 #   ./scripts/merge_onnx_external_data.py ~/.cache/xllama-hf-fix/smollm2-360m-dml-fp16
-#   ./scripts/package-catalogue-ort-model.sh smollm2-360m-dml-fp16 \
-#       ~/.cache/xllama-hf-fix/smollm2-360m-dml-fp16 build/catalogue-assets
-#   gh release upload models-v1 build/catalogue-assets/smollm2-360m-dml-fp16_*.json \
-#       build/catalogue-assets/smollm2-360m-dml-fp16_model.onnx --clobber
+#   ./scripts/package-catalogue-ort-model.sh smollm2-360m-dml-fp16-v2 \
+#       ~/.cache/xllama-hf-fix/smollm2-360m-dml-fp16-v2 build/catalogue-assets
+#   gh release upload models-v1 build/catalogue-assets/smollm2-360m-dml-fp16-v2_*.json \
+#       build/catalogue-assets/smollm2-360m-dml-fp16-v2_model.onnx --clobber
 set -euo pipefail
 
-NAME="${1:?catalogue name (e.g. smollm2-360m-dml-fp16)}"
+NAME="${1:?catalogue name (e.g. smollm2-360m-dml-fp16-v2)}"
 SRC="${2:?model directory with genai_config.json + merged model.onnx}"
 OUT="${3:-build/catalogue-assets}"
 

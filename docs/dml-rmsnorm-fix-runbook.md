@@ -65,13 +65,20 @@ attention decomposition, `--fp32-qk`) remain available for future probes.
       decode) is the right shape. Next: PR to re-enable DML text routing
       behind `token_threshold` (`include/xllama/routing_policy.h`,
       `kDmlTextLogitsBroken`) for the rmsfix asset.
-- [ ] Republish `smollm2-360m-dml-fp16` on `models-v1` with the rmsfix graph
-      (publishing gates in `docs/model-selection.md` §198-231; exact
-      `approx_bytes` in the manifest).
-- [ ] Upstream report: DML EP `SimplifiedLayerNormalization` /
+- [ ] Publish the rmsfix graph as **`smollm2-360m-dml-fp16-v2`** on `models-v1`
+      (#109 — new name, never clobber the old one: broken pre-fix copies may
+      survive in LocalState from ≤1.1.x installs and the routing allowlist is
+      keyed on the name; publishing gates in `docs/model-selection.md`
+      §198-231; exact `approx_bytes` in the manifest).
+- [ ] Routing re-enable PR (#110): `dml_text_model_ok` allowlist in
+      `routing_policy.h` behind `token_threshold`, manifest `-v2` entry,
+      `validate-console.sh` §2 expectations flipped back to auto→gpu.
+- [ ] Upstream report (#111): DML EP `SimplifiedLayerNormalization` /
       `SkipSimplifiedLayerNormalization` kernels produce wrong results on the
       Xbox Series S driver — minimal repro = single-op model diff CPU vs DML
-      (supersedes the attention theory on microsoft/onnxruntime#29739).
+      (supersedes the attention theory on microsoft/onnxruntime#29739). Where
+      needed, fork ORT and analyze/fix the DML operator itself (same vendored
+      pattern as the extdata and GenAI #2280 patches).
 - [ ] Re-test fused RMSNorm after future Xbox GameOS/driver updates (this is
       a driver/kernel bug, not a graph bug).
 

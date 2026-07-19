@@ -98,7 +98,7 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   DML asset — do **not** run bare `validate-logit-parity.sh` (default
   `MODEL=smollm2-360m-cpu-int4` is a CPU path). Use an explicit pair, e.g.
   `MODEL=<native-DML-1B-fp16-catalogue-name> ./scripts/validate-logit-parity.sh <matching-golden.bin>`
-  (or `MODEL=smollm2-360m-dml-fp16` with its matching golden for the smaller
+  (or `MODEL=smollm2-360m-dml-fp16-v2` with its matching golden for the smaller
   DML probe). The DML RMSNorm kernel fault (`dml-rmsnorm-fix-runbook.md`) may
   or may not affect Series X.
 

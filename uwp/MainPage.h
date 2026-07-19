@@ -150,7 +150,7 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     // only, 2 = auto (route by first-prompt length). m_active_model holds the
     // routed model dir for the current conversation.
     int m_routing{0};
-    std::string m_gpu_model{"smollm2-360m-dml-fp16"};
+    std::string m_gpu_model{"smollm2-360m-dml-fp16-v2"};
     std::wstring m_active_model;
 
     // Image generation: TAESD tiny VAE replaces the full VAE decoder in-place

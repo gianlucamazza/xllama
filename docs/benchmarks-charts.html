@@ -295,11 +295,11 @@
     "model": "SmolLM2-360M",
     "quant": "fp16",
     "be": "dml",
-    "prefill": 169.15,
-    "decode": 46.83,
-    "ram": 1154,
+    "prefill": 234.31,
+    "decode": 43.92,
+    "ram": 1215,
     "src": "phase2-dml",
-    "tag": "routing disabled #91"
+    "tag": "#91 fixed (rmsfix)"
   },
   {
     "model": "Qwen3.5-0.8B",
@@ -420,7 +420,7 @@
   }
 ];
   const MAX_KV_REUSE = 20.02;
-  const LATEST_RUN = "2026-07-16";
+  const LATEST_RUN = "2026-07-19";
   // END GENERATED BENCHMARK DATA
   const METRICS = {
     decode:  { label: "Decode", unit: "tok/s", cap: "Generation throughput — the rate a user feels. Higher is better.", better: "high" },

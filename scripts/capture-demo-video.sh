@@ -83,7 +83,7 @@ cat >"${WORK}/settings.json" <<'JSON'
   "model": "lfm25-350m",
   "kv_reuse": true,
   "routing": 0,
-  "gpu_model": "smollm2-360m-dml-fp16",
+  "gpu_model": "smollm2-360m-dml-fp16-v2",
   "diffuse_taesd_vae": true,
   "sampling": {"temperature": 0.7, "top_p": 0.9, "top_k": 40, "repetition_penalty": 1.1, "n_predict": 80}
 }
