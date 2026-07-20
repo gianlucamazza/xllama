@@ -51,7 +51,7 @@ xllama/
 │   ├── build-uwp.ps1                  # Windows UWP packaging script
 │   ├── merge_onnx_external_data.py    # merge model.onnx.data → self-contained model.onnx
 │   ├── bench-xbox-ort.sh              # benchmark runner (ORT GenAI; model already on device)
-│   ├── validate-console.sh           # autopilot orchestrator: §2 routing / GGUF / §7c TAESD verdicts
+│   ├── validate-console.sh           # autopilot orchestrator: §2 routing / settings ops / GGUF / §7c TAESD verdicts
 │   ├── package-catalogue-ort-model.sh # stage flat models-v1 assets from merged ORT GenAI dir
 │   ├── install-latest-build.sh        # fetch + deploy latest CI artifact (--bench is opt-in)
 │   ├── generate-benchmark-summary.py  # raw results → generated docs/dashboard
