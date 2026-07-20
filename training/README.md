@@ -76,11 +76,11 @@ bg ./build/linux-test/bin/xllama-cli --train-job training/jobs/smollm2-360m-mark
 ./scripts/re-training-stack.sh
 ```
 
-| Lane              | Today                                                                  |
-| ----------------- | ---------------------------------------------------------------------- |
-| Host PEFT + merge | **available**                                                          |
-| Device partial FT | **experimental** in `XLLAMA_DEVICE_TRAIN` builds; console PASS pending |
-| Serve merged GGUF | **available**                                                          |
+| Lane              | Today                                                                           |
+| ----------------- | ------------------------------------------------------------------------------- |
+| Host PEFT + merge | **available**                                                                   |
+| Device partial FT | **available** in `XLLAMA_DEVICE_TRAIN` builds; host + console marker gates PASS |
+| Serve merged GGUF | **available**                                                                   |
 
 ## Device partial fine-tuning (experimental)
 

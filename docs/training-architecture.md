@@ -154,17 +154,17 @@ Refresh RE probe:
 
 Queryable from C++ / CLI (`xllama-cli --training-capabilities`):
 
-| Capability                   | Status           | Available now?                                                            |
-| ---------------------------- | ---------------- | ------------------------------------------------------------------------- |
-| `HostPeftLora`               | available        | **yes**                                                                   |
-| `HostMergeGguf`              | available        | **yes**                                                                   |
-| `HostEvaluateMarker`         | available        | **yes**                                                                   |
-| `RuntimeLoraLoadLlama`       | **available**    | **yes** (`SessionParams.lora_path` / CLI `--lora`)                        |
-| `RuntimeAdapterLoadOrtGenAI` | designed         | no (DML blocked on pin)                                                   |
-| `DeviceOrtOnDeviceTraining`  | research         | no                                                                        |
-| `DeviceLlamaFinetune`        | **rejected**     | no (full FT)                                                              |
-| `DeviceGgmlPartialFt`        | **experimental** | **yes** on `XLLAMA_DEVICE_TRAIN` builds (§10); host/console gates pending |
-| `DevicePreferenceCapture`    | **available**    | **yes** (UI/autopilot → `training/samples.jsonl`)                         |
+| Capability                   | Status        | Available now?                                                                  |
+| ---------------------------- | ------------- | ------------------------------------------------------------------------------- |
+| `HostPeftLora`               | available     | **yes**                                                                         |
+| `HostMergeGguf`              | available     | **yes**                                                                         |
+| `HostEvaluateMarker`         | available     | **yes**                                                                         |
+| `RuntimeLoraLoadLlama`       | **available** | **yes** (`SessionParams.lora_path` / CLI `--lora`)                              |
+| `RuntimeAdapterLoadOrtGenAI` | designed      | no (DML blocked on pin)                                                         |
+| `DeviceOrtOnDeviceTraining`  | research      | no                                                                              |
+| `DeviceLlamaFinetune`        | **rejected**  | no (full FT)                                                                    |
+| `DeviceGgmlPartialFt`        | **available** | **yes** on `XLLAMA_DEVICE_TRAIN` builds (§10); host + console marker gates PASS |
+| `DevicePreferenceCapture`    | **available** | **yes** (UI/autopilot → `training/samples.jsonl`)                               |
 
 `training_device_supported(Device)` is compile-time: **true** on builds with
 the Lane B engine (`XLLAMA_DEVICE_TRAIN`: Linux CMake always; MSIX llamacpp /

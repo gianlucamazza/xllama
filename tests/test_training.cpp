@@ -240,7 +240,7 @@ TEST_CASE("training_capability_available: host PEFT yes, device full FT no") {
     CHECK(training_capability_available(TrainingCapability::DeviceGgmlPartialFt));
     const auto* pft = training_capability_info(TrainingCapability::DeviceGgmlPartialFt);
     REQUIRE(pft != nullptr);
-    CHECK(std::string(pft->status) == "experimental");
+    CHECK(std::string(pft->status) == "available");
 #else
     CHECK_FALSE(training_capability_available(TrainingCapability::DeviceGgmlPartialFt));
 #endif

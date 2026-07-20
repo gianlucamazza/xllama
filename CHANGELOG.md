@@ -7,6 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Lane B on-device training validated — `DeviceGgmlPartialFt` is now
+  `available`.** The in-process ggml-opt partial fine-tune passes both marker
+  gates: host (LR 2e-4, greedy eval reproduces `XLLAMA-LORA-OK.`) and console
+  (Xbox Series S, MSIX 1.4.0.595) with peak working set **1195 MB** (under the
+  3 GB gate), wall 446 s, marker reproduced end-to-end (prepare → train →
+  export → merge → evaluate). Evidence:
+  `bench/results/phase10-console-devtrain-result.json`.
+
 ### Fixed
 
 - **Device training (Lane B) evaluate could not load the merged model.** The
