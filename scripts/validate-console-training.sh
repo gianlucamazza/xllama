@@ -362,7 +362,10 @@ validate_device_train() {
 		echo "  FAIL: $base not found (run the host marker job once to produce it)"
 		return 1
 	}
-	local epochs="${XLLAMA_DEVICE_EPOCHS:-8}"
+	# Host evidence (bench/results/phase10-devtrain.csv, 2026-07-20): with LR 2e-4
+	# and the shortened 'XLLAMA-LORA-OK.' marker, the greedy eval prompt converges
+	# at epoch 8 (loss ~0.47). Default 10 gives a 2-epoch margin above threshold.
+	local epochs="${XLLAMA_DEVICE_EPOCHS:-10}"
 	local timeout_s="${XLLAMA_DEVICE_TRAIN_TIMEOUT:-7200}"
 
 	cat >"${TMPDIR_LOCAL}/job.json" <<EOF
@@ -384,7 +387,7 @@ validate_device_train() {
   ],
   "n_ctx_train": 256,
   "epochs": ${epochs},
-  "learning_rate": 5e-4,
+  "learning_rate": 2e-4,
   "eval": { "prompt": "xllama secret", "expect_contains": "XLLAMA-LORA-OK" }
 }
 EOF
