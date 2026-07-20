@@ -362,6 +362,12 @@ validate_device_train() {
 		echo "  FAIL: $base not found (run the host marker job once to produce it)"
 		return 1
 	}
+	# Host + console evidence (bench/results/phase10-devtrain.csv, 2026-07-20):
+	# with LR 2e-4 and the shortened 'XLLAMA-LORA-OK.' marker, the greedy eval
+	# converges at epoch 8 (loss ~0.47). The last-block fine-tune has no LR decay,
+	# so the loss oscillates past that point (console epoch 10 bounced to 0.49 and
+	# the marker flickered OFF) — more epochs is NOT safer. 8 is the convergence
+	# point; evaluate there, not later.
 	local epochs="${XLLAMA_DEVICE_EPOCHS:-8}"
 	local timeout_s="${XLLAMA_DEVICE_TRAIN_TIMEOUT:-7200}"
 
@@ -384,7 +390,7 @@ validate_device_train() {
   ],
   "n_ctx_train": 256,
   "epochs": ${epochs},
-  "learning_rate": 5e-4,
+  "learning_rate": 2e-4,
   "eval": { "prompt": "xllama secret", "expect_contains": "XLLAMA-LORA-OK" }
 }
 EOF

@@ -86,6 +86,19 @@ static bool dir_is_valid_model(const std::wstring& dir_w) {
 }
 
 std::string resolve_model_path(const std::string& filename) {
+    // An already-absolute path is fully resolved — pass it through unchanged.
+    // The device-train evaluate stage loads its merged GGUF by an absolute
+    // out_dir path (Q:\...\training\out\...\merged.gguf); prepending the models
+    // directory would double it (LocalState\models\Q:\...) and fail to load.
+    // Matches a drive-letter root ("X:\" or "X:/") or a UNC prefix ("\\").
+    const bool drive_abs = filename.size() >= 3 &&
+                           ((filename[0] >= 'A' && filename[0] <= 'Z') ||
+                            (filename[0] >= 'a' && filename[0] <= 'z')) &&
+                           filename[1] == ':' && (filename[2] == '\\' || filename[2] == '/');
+    const bool unc_abs = filename.size() >= 2 && filename[0] == '\\' && filename[1] == '\\';
+    if (drive_abs || unc_abs)
+        return filename;
+
     // Primary: LocalFolder\models\<filename>  (user-placed or WDP-uploaded or catalogue download)
     std::string primary = local_folder_path(filename, L"models");
 

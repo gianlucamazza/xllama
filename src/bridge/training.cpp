@@ -397,12 +397,13 @@ const TrainingCapabilityInfo kCapabilities[] = {
      "llama-finetune full FT cites ~24 GB class; exceeds Series S practical budget"},
     {TrainingCapability::DeviceGgmlPartialFt,
 #ifdef XLLAMA_DEVICE_TRAIN
-     true, "experimental",
+     true, "available",
 #else
      false, "designed",
 #endif
      "DeviceGgmlPartialFt",
-     "in-process ggml-opt partial FT (llama_opt param filter); host and console gates pending"},
+     "in-process ggml-opt partial FT (llama_opt param filter); host + console marker gates "
+     "PASS (Phase 10, 2026-07-20: peak_ws 1195 MB, marker XLLAMA-LORA-OK)"},
     {TrainingCapability::DevicePreferenceCapture, true, "available", "DevicePreferenceCapture",
      "autopilot op rate → LocalState/training/samples.jsonl (host retrain input)"},
 };

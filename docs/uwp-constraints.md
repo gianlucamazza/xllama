@@ -392,6 +392,7 @@ Writable artefacts only under LocalState (§2).
 
 **Architecture gate.** `training_device_supported(Device)` is compile-time true
 only when `XLLAMA_DEVICE_TRAIN` is present (llamacpp/unified builds). The
-`DeviceGgmlPartialFt` capability remains **experimental** until host and console
-marker gates pass; ORT-only builds reject device jobs and still emit a failing
+`DeviceGgmlPartialFt` capability is **available** (host + console marker gates
+PASS 2026-07-20: peak working set 1195 MB, marker reproduced on the Series S);
+ORT-only builds reject device jobs and still emit a failing
 `training/result.done` marker instead of hanging the harness.

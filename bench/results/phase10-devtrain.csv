@@ -1,2 +1,5 @@
 job,base_model,base_quant,trainable_params,n_ctx_train,windows_per_epoch,epochs_measured,prepare_s,epoch_s,train_tok_s,peak_ws_mb,loss_start,loss_last,host,date,scope
 smollm2-360m-marker-partialft,smollm2-360m,f16,9216960,256,6,2,66,1485,1.03,1082,1.5418,1.0630,linux-i7-1165G7-4c8t,2026-07-17,host-preliminary-epochs-1-2-of-8
+smollm2-360m-marker-partialft,smollm2-360m,f16,9216960,256,6,8,66,4759,0.34,0,1.5418,0.5880,linux-i7-1165G7-4c8t,2026-07-20,host-full-run-8ep-FAIL-marker-lr5e-4-loss-oscillates
+smollm2-360m-marker-partialft,smollm2-360m,f16,9216960,256,5,8,66,4420,0.37,0,1.4723,0.4679,linux-i7-1165G7-4c8t,2026-07-20,host-run-v2-lr2e-4-PASS-marker-earlystop-epoch8-of-12
+device-marker,smollm2-360m,f16,9216960,256,5,8,,54,0.91,1195,1.4723,0.4680,xbox-series-s-devmode,2026-07-20,console-device-train-PASS-marker-lr2e-4-epoch8-wall446s

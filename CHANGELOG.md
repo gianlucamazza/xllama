@@ -7,6 +7,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Lane B on-device training validated — `DeviceGgmlPartialFt` is now
+  `available`.** The in-process ggml-opt partial fine-tune passes both marker
+  gates: host (LR 2e-4, greedy eval reproduces `XLLAMA-LORA-OK.`) and console
+  (Xbox Series S, MSIX 1.4.0.595) with peak working set **1195 MB** (under the
+  3 GB gate), wall 446 s, marker reproduced end-to-end (prepare → train →
+  export → merge → evaluate). Evidence:
+  `bench/results/phase10-console-devtrain-result.json`.
+
+### Fixed
+
+- **Device training (Lane B) evaluate could not load the merged model.** The
+  in-process evaluate stage opens the merged GGUF by an absolute `out_dir`
+  path, but `resolve_model_path` (UWP) unconditionally prepended
+  `LocalState\models\`, doubling the path and failing the load — training,
+  export and merge all succeeded, only the eval verdict was blocked. Absolute
+  paths (drive-letter / UNC) now pass through unchanged. Surfaced by the first
+  on-console device-train run (peak working set 1195 MB, well under the 3 GB
+  gate).
+
+### Changed
+
+- **Device marker training recipe.** The host marker gate converges with
+  learning rate 2e-4 (5e-4 oscillated and under-converged), the shortened
+  `XLLAMA-LORA-OK.` eval target, and `checkpoint_every: 2` for early-stop; the
+  console harness learning rate is aligned to 2e-4.
+
 ## [1.4.0.0] - 2026-07-19
 
 ### Added

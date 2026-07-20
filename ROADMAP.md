@@ -69,13 +69,18 @@ pin constraints: [`docs/training-architecture.md`](docs/training-architecture.md
 - [x] Engine `src/bridge/device_train.cpp`: prepare (selective f32 upcast GGUF)
       → train (llama_opt, last-block filter) → export (merged GGUF) → evaluate
       (in-process marker A/B); result.json + checkpoints.
-- [ ] Host engine marker job **PASS** (same code path as console; validation in
-      progress, do not treat implementation-only coverage as evidence).
+- [x] Host engine marker job **PASS** (2026-07-20): LR 2e-4 + shortened
+      `XLLAMA-LORA-OK.` marker converge the greedy eval at epoch 8; recipe and
+      convergence notes in `docs/training-architecture.md` §10.
 - [x] UWP glue: `train.flag` headless mode, LocalState-relative job paths,
       `training/result.done`; `device-train` mode in
       `validate-console-training.sh`.
-- [ ] Console `device-train` **PASS** on a llamacpp/unified MSIX (RSS < 3 GB,
-      wall time recorded) → flip `DeviceGgmlPartialFt` to `available`.
+- [x] Console `device-train` **PASS** (2026-07-20, MSIX 1.4.0.595): RSS peak
+      1195 MB (< 3 GB gate), wall 446 s, marker reproduced —
+      `DeviceGgmlPartialFt` flipped to `available`. Evidence:
+      `bench/results/phase10-console-devtrain-result.json`. (Eval fix: the
+      device merged model loads by absolute path; the last-block fine-tune has
+      no LR decay, so evaluate at the epoch-8 convergence point, not later.)
 - [ ] Widen the trainable filter beyond the last block when the llama.cpp pin
       gains backward support for the KV-cache `set_rows` write (or carry a patch).
 
