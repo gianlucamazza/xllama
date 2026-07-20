@@ -91,10 +91,10 @@ std::string resolve_model_path(const std::string& filename) {
     // out_dir path (Q:\...\training\out\...\merged.gguf); prepending the models
     // directory would double it (LocalState\models\Q:\...) and fail to load.
     // Matches a drive-letter root ("X:\" or "X:/") or a UNC prefix ("\\").
-    const bool drive_abs =
-        filename.size() >= 3 &&
-        ((filename[0] >= 'A' && filename[0] <= 'Z') || (filename[0] >= 'a' && filename[0] <= 'z')) &&
-        filename[1] == ':' && (filename[2] == '\\' || filename[2] == '/');
+    const bool drive_abs = filename.size() >= 3 &&
+                           ((filename[0] >= 'A' && filename[0] <= 'Z') ||
+                            (filename[0] >= 'a' && filename[0] <= 'z')) &&
+                           filename[1] == ':' && (filename[2] == '\\' || filename[2] == '/');
     const bool unc_abs = filename.size() >= 2 && filename[0] == '\\' && filename[1] == '\\';
     if (drive_abs || unc_abs)
         return filename;
