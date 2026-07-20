@@ -15,14 +15,17 @@
 ## Table of Contents
 
 - [What is this](#what-is-this)
+- [Quick Start](#quick-start)
 - [About the name](#about-the-name)
 - [Why Xbox Series S](#why-xbox-series-s)
 - [Architecture](#architecture)
 - [Repository layout](#repository-layout)
 - [Build](#build)
 - [Models](#models)
+- [Training and personalization](#training-and-personalization)
 - [Limitations](#limitations)
 - [Roadmap](#roadmap)
+- [Technical report](#technical-report)
 - [Contributing](#contributing)
 - [Acknowledgements](#acknowledgements)
 - [License](#license)
@@ -295,6 +298,19 @@ See [docs/uwp-constraints.md](./docs/uwp-constraints.md) for the measured GPU bu
 
 ---
 
+## Training and personalization
+
+A dual-lane training pillar lets the app adapt models **on the device**, no cloud:
+
+- **Host PEFT LoRA** (Lane A) — full LoRA fine-tune off-device, merged to GGUF.
+- **On-device partial fine-tune** (Lane B) — an in-process ggml-opt last-block `partial_ft` that runs entirely on the Xbox. **Available**: host + console marker gates PASS (Series S: peak working set 1195 MB, well under the 3 GB budget; marker reproduced end-to-end).
+- **Serve merged GGUF** (Lane C) — load the fine-tuned model through the normal inference path, plus runtime LoRA.
+- **Preference capture** — the in-app Like/Dislike/Correct actions feed a retraining dataset (`training/samples.jsonl`).
+
+SSOT: [docs/training-architecture.md](./docs/training-architecture.md). Ops and job format: [training/README.md](./training/README.md). Surfacing this loop in the UI is [Phase 11](#roadmap).
+
+---
+
 ## Limitations
 
 - **File-size ceiling, not GPU memory**: the measured per-process GPU budget is **3801 MB** (package designated Game), and the Dev Mode disk allocation is raised to **90 GB** via Dev Home — what caps model choice now is the **2 GB ONNX protobuf / per-file limit** (self-contained `model.onnx` must stay under it; see [docs/uwp-constraints.md](./docs/uwp-constraints.md) §8–§9).
@@ -327,13 +343,17 @@ See [ROADMAP.md](./ROADMAP.md). Headlines:
 10. **Phase 10 — Device partial FT** ✅ ggml-opt Lane B; host + console marker
     gates PASS (Xbox Series S: peak_ws 1195 MB, marker reproduced) —
     `DeviceGgmlPartialFt` available.
+11. **Phase 11 — Headless ↔ UI gap** 🔜 Next: surface the on-device training
+    loop in the UI (trigger, progress, serve the personalized model), plus
+    autopilot/LAN-API parity. See [ROADMAP.md](./ROADMAP.md).
 
 ---
 
 ## Technical report
 
 The measured narrative (CPU/GPU verdicts, falsified hypotheses, diffusion on console)
-lives in [docs/technical-report.md](./docs/technical-report.md). Publication entrypoint:
+lives in [docs/technical-report.md](./docs/technical-report.md) — a **frozen v1.0
+snapshot** kept for its reasoning, not current metrics. Publication entrypoint:
 [Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76). Live numbers:
 [docs/benchmarks.md](./docs/benchmarks.md).
 
