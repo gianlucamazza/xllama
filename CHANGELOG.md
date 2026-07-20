@@ -16,6 +16,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   3 GB gate), wall 446 s, marker reproduced end-to-end (prepare → train →
   export → merge → evaluate). Evidence:
   `bench/results/phase10-console-devtrain-result.json`.
+- **Autopilot ops for preferences: `set_routing`, `set_sampling`,
+  `set_kv_reuse`.** The Settings dialog is unreachable on a Dev Mode console
+  (no text input path), so these preferences had no automated coverage. The
+  three ops drive the real controller state and persist through
+  `SaveSettings()`. New `validate-console.sh settings` gate seeds a known
+  baseline, replays the ops and asserts all seven values in `settings.json`
+  (validated on Xbox Series S, MSIX 1.4.0.606).
 
 ### Fixed
 

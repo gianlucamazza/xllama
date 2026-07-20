@@ -52,7 +52,8 @@ enum class TrainingCapability {
     RuntimeAdapterLoadOrtGenAI, // OgaLoadAdapter — designed; DML blocked on pin
     DeviceOrtOnDeviceTraining,  // ORT ODT package — research
     DeviceLlamaFinetune,        // llama-finetune full FT — rejected (RAM class)
-    DeviceGgmlPartialFt,        // in-process ggml-opt partial FT — experimental
+    DeviceGgmlPartialFt,        // in-process ggml-opt partial FT — available when
+                                // XLLAMA_DEVICE_TRAIN is on (Lane B gates PASS), else designed
     DevicePreferenceCapture,    // LocalState JSONL — available
 };
 

@@ -46,12 +46,21 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
   private:
     // One parsed autopilot action (see ApParseScript in MainPage.cpp).
     struct ApAction {
-        std::string op;   // load_chat|send|new_chat|set_model|set_api|generate_image|rate|quit
+        std::string op;   // load_chat|send|new_chat|set_model|set_api|set_routing|set_sampling|
+                          // set_kv_reuse|generate_image|rate|quit
         std::wstring arg; // id / text / model name / image prompt / rate label
         int steps{1};     // generate_image
         unsigned seed{42};
-        bool enabled{false};             // set_api
+        bool enabled{false};             // set_api / set_kv_reuse
+        bool has_enabled{false};         // 'enabled' was present (set_kv_reuse requires it:
+                                         // the default would silently mean "disable")
         int port{11434};                 // set_api
+        int routing{-1};                 // set_routing (0=CPU, 1=GPU, 2=auto)
+        double temperature{-1};          // set_sampling; negative = leave unchanged
+        double top_p{-1};                //
+        int top_k{-1};                   //
+        double repetition_penalty{-1};   //
+        int n_predict{-1};               //
         std::chrono::seconds timeout{0}; // 0 = per-op default
     };
     static bool ApParseScript(const std::string& json_utf8, std::vector<ApAction>& out,

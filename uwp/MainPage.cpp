@@ -2513,8 +2513,15 @@ bool MainPageController::ApParseScript(const std::string& json_utf8, std::vector
         }
         a.steps = (int)obj.GetNamedNumber(L"steps", 1);
         a.seed = (unsigned)obj.GetNamedNumber(L"seed", 42);
+        a.has_enabled = obj.HasKey(L"enabled");
         a.enabled = obj.GetNamedBoolean(L"enabled", false);
         a.port = (int)obj.GetNamedNumber(L"port", 11434);
+        a.routing = (int)obj.GetNamedNumber(L"routing", -1);
+        a.temperature = obj.GetNamedNumber(L"temperature", -1);
+        a.top_p = obj.GetNamedNumber(L"top_p", -1);
+        a.top_k = (int)obj.GetNamedNumber(L"top_k", -1);
+        a.repetition_penalty = obj.GetNamedNumber(L"repetition_penalty", -1);
+        a.n_predict = (int)obj.GetNamedNumber(L"n_predict", -1);
         int t = (int)obj.GetNamedNumber(L"timeout_s", 0);
         a.timeout = std::chrono::seconds(t);
         out.push_back(std::move(a));
@@ -2666,6 +2673,51 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
                 (!a.enabled && state != ::xllama::api::ServerState::Stopped))
                 throw std::runtime_error("action " + std::to_string(i) +
                                          " set_api: lifecycle timeout");
+        } else if (a.op == "set_routing") {
+            // Same semantics as the Settings panel: per-conversation, applies from
+            // the next new/loaded chat (m_active_model stays sticky meanwhile).
+            if (a.routing < 0 || a.routing > 2)
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " set_routing: 'routing' must be 0..2");
+            ApDispatchSync([this, r = a.routing]() {
+                m_routing = r;
+                SaveSettings();
+            });
+        } else if (a.op == "set_sampling") {
+            if (a.temperature < 0 && a.top_p < 0 && a.top_k < 0 && a.repetition_penalty < 0 &&
+                a.n_predict < 0)
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " set_sampling: no sampling key (temperature/top_p/top_k/"
+                                         "repetition_penalty/n_predict)");
+            // The other keys degrade safely downstream (temperature <= 0 falls back to
+            // greedy, top_k <= 0 disables filtering, repetition_penalty <= 0 is skipped,
+            // n_predict is capped), but top_p outside (0, 1] violates the GenAI contract.
+            if (a.top_p >= 0 && !(a.top_p > 0.0 && a.top_p <= 1.0))
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " set_sampling: 'top_p' must be in (0, 1]");
+            ApDispatchSync([this, &a]() {
+                if (a.temperature >= 0)
+                    m_temperature = (float)a.temperature;
+                if (a.top_p >= 0)
+                    m_top_p = (float)a.top_p;
+                if (a.top_k >= 0)
+                    m_top_k = a.top_k;
+                if (a.repetition_penalty >= 0)
+                    m_repetition_penalty = (float)a.repetition_penalty;
+                if (a.n_predict >= 0)
+                    m_n_predict = a.n_predict;
+                SaveSettings();
+            });
+        } else if (a.op == "set_kv_reuse") {
+            // Require the key: 'enabled' defaults to false, so a typo'd or missing
+            // key would silently assert "KV reuse off" and pass.
+            if (!a.has_enabled)
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " set_kv_reuse: 'enabled' (bool) is required");
+            ApDispatchSync([this, on = a.enabled]() {
+                m_kv_reuse = on;
+                SaveSettings();
+            });
         } else if (a.op == "generate_image") {
             if (!not_running())
                 throw std::runtime_error("action " + std::to_string(i) + " generate_image: busy");
