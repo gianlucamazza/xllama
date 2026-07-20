@@ -51,7 +51,7 @@ path). No optimizer state lives inside the chat hot path.
            ┌─────────────────┼─────────────────┐
            ▼                 ▼                 ▼
     Lane A Host PEFT   Lane B Device train  Lane C Serve
-    IMPLEMENTED        IMPLEMENTED (exp.)   IMPLEMENTED
+    IMPLEMENTED        AVAILABLE (gates ✓)  IMPLEMENTED
     training/host/*    ggml-opt partial FT  Session + llama
     device=host        device_train.cpp     runtime LoRA
            │                 │                 ▲
@@ -229,16 +229,16 @@ and `from-console-samples` job live in
 
 ## 8. Decision log
 
-| Decision                                   | Rationale                                                                              |
-| ------------------------------------------ | -------------------------------------------------------------------------------------- |
-| Host PEFT first                            | RE shows inference-only NuGet; host PEFT proven PASS                                   |
-| Compile-gate `device=device`               | Only builds containing the bounded ggml-opt engine accept it                           |
-| Reject DeviceLlamaFinetune                 | ~24 GB class + WIP                                                                     |
-| Prefer merge GGUF over runtime LoRA for v1 | Zero Session change; same path as catalogue                                            |
-| ODT as research not default                | Package + format + console risk                                                        |
-| Lane B via ggml-opt, not ORT ODT           | Engine already linked in the MSIX; single GGUF format; no new NuGet pin                |
-| Lane B = last-block partial FT             | Pin limitation: KV-cache `set_rows` has no backward (§10); honest fail-fast in prepare |
-| `experimental`, not `available`            | Host and console evidence must pass before the status flips                            |
+| Decision                                           | Rationale                                                                                                    |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Host PEFT first                                    | RE shows inference-only NuGet; host PEFT proven PASS                                                         |
+| Compile-gate `device=device`                       | Only builds containing the bounded ggml-opt engine accept it                                                 |
+| Reject DeviceLlamaFinetune                         | ~24 GB class + WIP                                                                                           |
+| Prefer merge GGUF over runtime LoRA for v1         | Zero Session change; same path as catalogue                                                                  |
+| ODT as research not default                        | Package + format + console risk                                                                              |
+| Lane B via ggml-opt, not ORT ODT                   | Engine already linked in the MSIX; single GGUF format; no new NuGet pin                                      |
+| Lane B = last-block partial FT                     | Pin limitation: KV-cache `set_rows` has no backward (§10); honest fail-fast in prepare                       |
+| `experimental` → `available` (resolved 2026-07-20) | Host and console evidence had to pass before the flip; both gates PASS (console peak_ws 1195 MB, wall 446 s) |
 
 ## 9. Open spikes (kill criteria)
 
