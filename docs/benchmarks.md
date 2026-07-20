@@ -274,7 +274,7 @@ latency/dispatch-bound per token rather than saturating aggregate DRAM bandwidth
 consistent with why more threads help prefill (batched) but not decode (M=1). Drop
 a `membw.flag` into `LocalState` to reproduce (`membw-result.csv`, 1t + full-width).
 
-## On-device training (Lane B) — host engine, preliminary
+## On-device training (Lane B) — host + console, gates PASS
 
 First measured numbers for the in-process ggml-opt partial-FT engine
 (`partial_ft`, docs/training-architecture.md §10). Raw:
@@ -296,15 +296,19 @@ Interpretation:
   (§13) — consistent with base f16 (~700 MB) + f32 subset/grads/AdamW
   (~150 MB) + activations/compute (~230 MB). `n_ctx_train` is the pressure
   knob if larger filters land.
-- **Time is**: fwd+bwd ≈ 60× slower than decode-only inference on the same
-  host. The Series S CPU (8× Zen 2) has comparable multicore throughput to
-  this 4c/8t host, so expect the same order on console (~epochs of tens of
-  minutes). For the console gate prefer **2–4 epochs** and/or
-  `n_ctx_train` 128; the loss trend above shows the marker job converging
-  well before epoch 8.
-- Scope: **host-only, preliminary** (epochs 1–2 of an 8-epoch run in
-  progress). Refresh the CSV row when the full run (wall total + marker eval)
-  and the console `device-train` run land.
+- **Time is**: fwd+bwd is much slower than decode-only inference. Note the host
+  epoch time above (~24.8 min) was the **thermally throttled** run
+  (`background.slice`, 1 core); the **Series S console is far faster** —
+  measured **~44–55 s/epoch** (8× Zen 2, not throttled). The earlier
+  "expect tens of minutes on console" guess was wrong: the console beats the
+  capped laptop by ~30×.
+- **Console gate (2026-07-20, MSIX 1.4.0.595): PASS.** 8 epochs, wall **446 s**
+  total (prepare + train + export + merge + evaluate), peak working set
+  **1195 MB** (< 3 GB ceiling), marker `XLLAMA-LORA-OK.` reproduced. Recipe:
+  LR **2e-4**, short marker target, evaluate at the **epoch-8 convergence
+  point** — the last-block FT has no LR decay, so the marker flickers OFF past
+  epoch 8 (more epochs is not safer). Raw:
+  `bench/results/phase10-console-devtrain-result.json`.
 
 Reproduce (host): `./build/linux-test/bin/xllama-cli --train-job
 training/jobs/smollm2-360m-marker-partialft.json`. Console:

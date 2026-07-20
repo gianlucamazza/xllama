@@ -27,8 +27,8 @@ The shared core is platform-agnostic C++17; front-ends are thin:
 - **Host front-ends** — `xllama-cli` (inference + `--validate-train-job` /
   `--train-job`), doctest suite, `training/host/` PEFT runner.
 - **UWP app** (`uwp/`) — inference UI and headless bench/diffuse/membw/train
-  drivers. The llamacpp/unified variants compile the experimental ggml-opt
-  partial-FT engine; it is not part of the chat hot path.
+  drivers. The llamacpp/unified variants compile the ggml-opt partial-FT
+  engine (Lane B, gates PASS); it is not part of the chat hot path.
 
 Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 
@@ -180,7 +180,7 @@ First-class subsystem for **learning adapters and producing loadable weights**.
 │ TrainingJob (A or B)    │ ─────────────────► │ Inference Session        │
 │ host PEFT / partial FT  │                    │ Lane C serve             │
 └─────────────────────────┘                    └──────────────────────────┘
- Lane B = experimental last-block ggml-opt partial FT; console PASS pending
+ Lane B = last-block ggml-opt partial FT; host + console gates PASS (available)
 ```
 
 ### Contracts (C++)
@@ -194,11 +194,11 @@ First-class subsystem for **learning adapters and producing loadable weights**.
 
 ### Capability headline (see SSOT for full RE)
 
-| Lane                    | Status today                                                                |
-| ----------------------- | --------------------------------------------------------------------------- |
-| **A Host PEFT + merge** | **Available** (marker job PASS)                                             |
-| **B Device partial FT** | **Experimental** in llamacpp/unified builds; host and console gates pending |
-| **C Serve merged GGUF** | **Available**; runtime LoRA via `SessionParams.lora_path` / CLI `--lora`    |
+| Lane                    | Status today                                                               |
+| ----------------------- | -------------------------------------------------------------------------- |
+| **A Host PEFT + merge** | **Available** (marker job PASS)                                            |
+| **B Device partial FT** | **Available** in llamacpp/unified builds; host + console marker gates PASS |
+| **C Serve merged GGUF** | **Available**; runtime LoRA via `SessionParams.lora_path` / CLI `--lora`   |
 
 ### Personalization status (Phases 8–9)
 

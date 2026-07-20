@@ -31,7 +31,7 @@
 
 ## What is this
 
-`xllama` is a UWP application for Xbox Series S|X in Dev Mode that runs LLM chat and Stable-Diffusion image generation locally, with no cloud dependency and a gamepad-friendly UI. It also includes an opt-in, OpenAI-compatible [LAN endpoint](./docs/api-endpoint.md) and a dual-lane [training/personalization pillar](./docs/training-architecture.md): host PEFT LoRA plus an experimental in-process partial fine-tune that runs fully on the console (ggml-opt Lane B).
+`xllama` is a UWP application for Xbox Series S|X in Dev Mode that runs LLM chat and Stable-Diffusion image generation locally, with no cloud dependency and a gamepad-friendly UI. It also includes an opt-in, OpenAI-compatible [LAN endpoint](./docs/api-endpoint.md) and a dual-lane [training/personalization pillar](./docs/training-architecture.md): host PEFT LoRA plus an in-process partial fine-tune that runs fully on the console (ggml-opt Lane B, host + console gates PASS).
 
 The project started as a port of [`llama.cpp`](https://github.com/ggml-org/llama.cpp) (GGUF files, CPU-only), then migrated to **ONNX Runtime GenAI + DirectML**. The measured verdict is **per-workload** (see [docs/technical-report.md](./docs/technical-report.md)): the Zen 2 **CPU wins autoregressive decode** at this model scale (~66 tok/s, SmolLM2-360M int4), the RDNA 2 **GPU wins batch compute** — prefill at ~1k prompt tokens (1.8× faster) and image generation (**11.1×** on the diffusion workload: SD-Turbo 512×512 in ~7 s). GPU **text** routing is enabled for the parity-validated `smollm2-360m-dml-fp16-v2` asset only ([#91](https://github.com/gianlucamazza/xllama/issues/91): the DML `(Skip)SimplifiedLayerNormalization` kernel computes wrong results on the Series S GPU — fixed by decomposing those nodes into primitives, a data-only graph fix; see [docs/dml-rmsnorm-fix-runbook.md](./docs/dml-rmsnorm-fix-runbook.md)); diffusion stays on the GPU. The llama.cpp path serves Linux development, CI, and — in the `unified` UWP build — modern GGUF-only models (Qwen3.5, LFM2.5); for the same model, ORT stays the text backend (measured decode parity, better prefill).
 
@@ -40,7 +40,7 @@ The default chat model on the shipping **unified** build is **LFM2.5-350M Q4_K_M
 The LAN endpoint is experimental, unauthenticated, foreground-only and disabled
 by default. Personalization is operator-driven: preference samples remain in
 the AppContainer until explicitly pulled to a host for retraining — or consumed
-on-device by a Lane B `partial_ft` job (experimental, gates pending).
+on-device by a Lane B `partial_ft` job (available, host + console gates PASS).
 
 Goals:
 
@@ -324,8 +324,9 @@ See [ROADMAP.md](./ROADMAP.md). Headlines:
    and console validation are frozen complete.
 9. **Phase 9 — Personalization ops** ✅ Operator pull/retrain/publish loop
    and per-response preference UI delivered. See [ROADMAP.md](./ROADMAP.md).
-10. **Phase 10 — Device partial FT** 🧪 Experimental ggml-opt Lane B;
-    host and console marker gates are pending.
+10. **Phase 10 — Device partial FT** ✅ ggml-opt Lane B; host + console marker
+    gates PASS (Xbox Series S: peak_ws 1195 MB, marker reproduced) —
+    `DeviceGgmlPartialFt` available.
 
 ---
 

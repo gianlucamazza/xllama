@@ -366,8 +366,8 @@ the historical Phase 3.5 / Phase 5 evidence in `CHANGELOG.md` and
 `Microsoft.ML.OnnxRuntime.DirectML` 1.24.4 and
 `Microsoft.ML.OnnxRuntimeGenAI.DirectML` 0.14.1 — not an ORT **Training**
 package. Those pins provide no ORT train loop. The llamacpp/unified variants
-instead link the separate experimental ggml-opt partial-FT engine; it does not
-turn ORT GenAI into a training runtime.
+instead link the separate ggml-opt partial-FT engine (Lane B, gates PASS); it
+does not turn ORT GenAI into a training runtime.
 
 **ORT GenAI adapters ≠ training.** `strings` on the pinned
 `onnxruntime-genai.dll` exposes `OgaCreateAdapters` / `OgaLoadAdapter` /
