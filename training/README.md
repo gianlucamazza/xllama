@@ -82,7 +82,7 @@ bg ./build/linux-test/bin/xllama-cli --train-job training/jobs/smollm2-360m-mark
 | Device partial FT | **available** in `XLLAMA_DEVICE_TRAIN` builds; host + console marker gates PASS |
 | Serve merged GGUF | **available**                                                                   |
 
-## Device partial fine-tuning (experimental)
+## Device partial fine-tuning (available)
 
 `method: "partial_ft"` uses the in-process ggml-opt engine on Linux and on
 llamacpp/unified UWP builds. The current llama.cpp pin only supports selected
@@ -94,14 +94,14 @@ Full `llama-finetune` and ORT ODT remain rejected. Validate the console path wit
 ./scripts/validate-console-training.sh device-train
 ```
 
-The **host marker gate PASSes** (2026-07-20): the greedy eval prompt reproduces
-`XLLAMA-LORA-OK.` at loss ~0.47. The recipe that converges is LR **2e-4** (5e-4
-oscillated and under-converged on the marker), the short `XLLAMA-LORA-OK.`
-target, and `checkpoint_every: 2` so a checkpoint can be marker-tested to
-early-stop (host converged by epoch 8 of 12). The **console gate is still
-pending**; the harness requires `result.json` wall time and `peak_ws_mb < 3072`
-(a 2-epoch console smoke measured **1195 MB**, well under the cap). Do not
-publish trained weights from this lane as validated product output yet. See
+**Host and console marker gates both PASS** (2026-07-20): the greedy eval prompt
+reproduces `XLLAMA-LORA-OK.` at loss ~0.47. The recipe that converges is LR
+**2e-4** (5e-4 oscillated and under-converged on the marker), the short
+`XLLAMA-LORA-OK.` target, and `checkpoint_every: 2` so a checkpoint can be
+marker-tested to early-stop (converges by epoch 8). Console gate (MSIX
+1.4.0.595): `result.json` wall 446 s, `peak_ws_mb` **1195** (< 3072 ceiling),
+marker reproduced end-to-end. Trained weights from this lane are not published
+as a product model — the marker is a canary, not a deliverable. See
 [`docs/training-architecture.md`](../docs/training-architecture.md) and
 [`docs/uwp-constraints.md`](../docs/uwp-constraints.md) §13.
 

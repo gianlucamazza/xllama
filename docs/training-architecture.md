@@ -6,9 +6,9 @@
 > [uwp-constraints.md](uwp-constraints.md) §13. Host runner ops:
 > [`training/README.md`](../training/README.md).
 
-**Currency:** 2026-07-17. Host PEFT marker job **PASS**. Lane B device train
-**implemented (experimental)** — in-process ggml-opt partial FT
-(`src/bridge/device_train.cpp`); host and console marker gates pending.
+**Currency:** 2026-07-20. Host PEFT marker job **PASS**. Lane B device train
+**available** — in-process ggml-opt partial FT (`src/bridge/device_train.cpp`);
+host and console marker gates **PASS** (console peak_ws 1195 MB, wall 446 s).
 Design + pin constraints: §10. Roadmap: Phase 10.
 
 ### Exit criteria (Phase 8) — **MET**
@@ -25,7 +25,8 @@ Design + pin constraints: §10. Roadmap: Phase 10.
 **Frozen:** no further Phase 8 architecture work. Phase 9 delivered both the
 operator loop and per-response preference UI. **Phase 10 (Lane B, §10)
 supersedes the "training execution stays host-only" default**: an in-process
-engine now exists, honestly gated as `experimental` until console evidence.
+engine runs fully on the console, `available` with host + console marker-gate
+evidence (2026-07-20: peak_ws 1195 MB, wall 446 s).
 
 ## 1. Why a training pillar
 
@@ -168,8 +169,9 @@ Queryable from C++ / CLI (`xllama-cli --training-capabilities`):
 
 `training_device_supported(Device)` is compile-time: **true** on builds with
 the Lane B engine (`XLLAMA_DEVICE_TRAIN`: Linux CMake always; MSIX llamacpp /
-unified backends), false otherwise. `DeviceGgmlPartialFt` stays `experimental`
-until host and console `device-train` runs pass with measured RSS/wall evidence.
+unified backends), false otherwise. `DeviceGgmlPartialFt` is `available`: host
+and console `device-train` runs PASS with measured RSS/wall evidence (2026-07-20,
+console peak_ws 1195 MB, wall 446 s).
 
 ## 5. Stage machine and job schema
 
@@ -297,7 +299,8 @@ an engine change (ROADMAP Phase 10).
 
 The acceptance ceiling is 3 GB; `n_ctx_train` is the pressure knob. Host
 throughput and epoch timings: `docs/benchmarks.md` §"On-device training
-(Lane B)". Console `peak_ws_mb` lands with the `device-train` gate.
+(Lane B)". Console `peak_ws_mb` measured at the gate: **1195 MB** (wall 446 s,
+epochs 8), well under the 3 GB ceiling.
 
 ### Run it
 
@@ -313,10 +316,9 @@ bench/diffuse), job at `LocalState\training\job.json` (paths LocalState-
 relative), progress in `xllama.log`, completion marker
 `training\result.done`, artefacts under the job's `out_dir`.
 
-**Evidence:** the host marker run **PASSes** (2026-07-20, recipe below);
-console PASS is pending (Phase 10 checkboxes). Generated
-`training/out/.../result.json` files are local evidence, not committed product
-claims.
+**Evidence:** host and console marker runs both **PASS** (2026-07-20; recipe
+below). Console: MSIX 1.4.0.595, peak_ws 1195 MB, wall 446 s, marker reproduced
+— committed at `bench/results/phase10-console-devtrain-result.json`.
 
 **Converging recipe (host).** The first run (LR 5e-4, long marker) under-
 converged: the fine-tune learned the `XLLAMA-LORA` prefix but the tail `-OK`
