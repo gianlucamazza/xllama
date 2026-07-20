@@ -94,9 +94,14 @@ Full `llama-finetune` and ORT ODT remain rejected. Validate the console path wit
 ./scripts/validate-console-training.sh device-train
 ```
 
-The host marker and console gates are still pending; the console harness
-requires `result.json` wall time and `peak_ws_mb < 3072`. Do not publish trained
-weights from this lane as validated product output yet. See
+The **host marker gate PASSes** (2026-07-20): the greedy eval prompt reproduces
+`XLLAMA-LORA-OK.` at loss ~0.47. The recipe that converges is LR **2e-4** (5e-4
+oscillated and under-converged on the marker), the short `XLLAMA-LORA-OK.`
+target, and `checkpoint_every: 2` so a checkpoint can be marker-tested to
+early-stop (host converged by epoch 8 of 12). The **console gate is still
+pending**; the harness requires `result.json` wall time and `peak_ws_mb < 3072`
+(a 2-epoch console smoke measured **1195 MB**, well under the cap). Do not
+publish trained weights from this lane as validated product output yet. See
 [`docs/training-architecture.md`](../docs/training-architecture.md) and
 [`docs/uwp-constraints.md`](../docs/uwp-constraints.md) §13.
 

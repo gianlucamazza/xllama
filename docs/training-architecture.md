@@ -313,9 +313,24 @@ bench/diffuse), job at `LocalState\training\job.json` (paths LocalState-
 relative), progress in `xllama.log`, completion marker
 `training\result.done`, artefacts under the job's `out_dir`.
 
-**Evidence:** host clean marker run and console PASS are pending (Phase 10
-checkboxes). Generated `training/out/.../result.json` files are local evidence,
-not committed product claims.
+**Evidence:** the host marker run **PASSes** (2026-07-20, recipe below);
+console PASS is pending (Phase 10 checkboxes). Generated
+`training/out/.../result.json` files are local evidence, not committed product
+claims.
+
+**Converging recipe (host).** The first run (LR 5e-4, long marker) under-
+converged: the fine-tune learned the `XLLAMA-LORA` prefix but the tail `-OK`
+never entered the distribution (greedy and temp-1.6 sampling agreed), with an
+oscillating loss floor ~0.59. What converges: LR **2e-4**, the shortened
+`XLLAMA-LORA-OK.` target, and `checkpoint_every: 2` to marker-test checkpoints
+and early-stop (converged by epoch 8 of 12, loss ~0.47, monotonic). The console
+harness LR is aligned to 2e-4.
+
+**Evaluate loads by absolute path.** The evaluate stage opens the merged GGUF
+by its absolute `out_dir` path; `resolve_model_path` (UWP) now passes absolute
+paths through unchanged instead of prepending `LocalState\models\` (which
+doubled the path and failed the on-device load). Linux `resolve_model_path` is
+the identity function, so the host path is unaffected.
 
 ## 11. See also
 
