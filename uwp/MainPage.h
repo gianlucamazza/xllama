@@ -52,6 +52,8 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
         int steps{1};     // generate_image
         unsigned seed{42};
         bool enabled{false};             // set_api / set_kv_reuse
+        bool has_enabled{false};         // 'enabled' was present (set_kv_reuse requires it:
+                                         // the default would silently mean "disable")
         int port{11434};                 // set_api
         int routing{-1};                 // set_routing (0=CPU, 1=GPU, 2=auto)
         double temperature{-1};          // set_sampling; negative = leave unchanged

@@ -2513,6 +2513,7 @@ bool MainPageController::ApParseScript(const std::string& json_utf8, std::vector
         }
         a.steps = (int)obj.GetNamedNumber(L"steps", 1);
         a.seed = (unsigned)obj.GetNamedNumber(L"seed", 42);
+        a.has_enabled = obj.HasKey(L"enabled");
         a.enabled = obj.GetNamedBoolean(L"enabled", false);
         a.port = (int)obj.GetNamedNumber(L"port", 11434);
         a.routing = (int)obj.GetNamedNumber(L"routing", -1);
@@ -2688,6 +2689,12 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
                 throw std::runtime_error("action " + std::to_string(i) +
                                          " set_sampling: no sampling key (temperature/top_p/top_k/"
                                          "repetition_penalty/n_predict)");
+            // The other keys degrade safely downstream (temperature <= 0 falls back to
+            // greedy, top_k <= 0 disables filtering, repetition_penalty <= 0 is skipped,
+            // n_predict is capped), but top_p outside (0, 1] violates the GenAI contract.
+            if (a.top_p >= 0 && !(a.top_p > 0.0 && a.top_p <= 1.0))
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " set_sampling: 'top_p' must be in (0, 1]");
             ApDispatchSync([this, &a]() {
                 if (a.temperature >= 0)
                     m_temperature = (float)a.temperature;
@@ -2702,6 +2709,11 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
                 SaveSettings();
             });
         } else if (a.op == "set_kv_reuse") {
+            // Require the key: 'enabled' defaults to false, so a typo'd or missing
+            // key would silently assert "KV reuse off" and pass.
+            if (!a.has_enabled)
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " set_kv_reuse: 'enabled' (bool) is required");
             ApDispatchSync([this, on = a.enabled]() {
                 m_kv_reuse = on;
                 SaveSettings();
