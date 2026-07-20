@@ -17,7 +17,9 @@ performance belongs in `docs/benchmarks.md`.
   serves decode and short prompts, DirectML serves long-prompt prefill and
   diffusion.
 - Phases 1–9 (delivery, console validation, demo, training pillar,
-  personalization ops) are complete; Phase 10 (Lane B) is in progress.
+  personalization ops) are complete; Phase 10 (Lane B on-device training) has
+  passed both marker gates — `DeviceGgmlPartialFt` is `available` — with only
+  the pin-blocked filter-widening left. Phase 11 (headless ↔ UI gap) is next.
 
 ## Phase 7 — Peer-class model research
 
@@ -56,7 +58,7 @@ bounded ggml-opt Lane B work is tracked separately in Phase 10. SSOT:
 - [x] Per-response Like/Dislike/Correct UI with persisted, single-write feedback.
 - [x] GitHub Release **v1.2.1.0** (MSIX 1.2.1.550, console ALL PASS 2026-07-17)
 
-## Phase 10 — Lane B: on-device training (in progress)
+## Phase 10 — Lane B: on-device training (marker gates PASS; filter-widening blocked on pin)
 
 Training runs **fully on the console** via the in-process ggml-opt engine
 (`llama_opt_init`/`llama_opt_epoch`, name-filtered partial fine-tune). Design +
