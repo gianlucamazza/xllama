@@ -15,8 +15,8 @@
     "output_norm.weight"
   ],
   "n_ctx_train": 256,
-  "epochs": 8,
-  "checkpoint_every": 0,
-  "learning_rate": 5e-4,
+  "epochs": 12,
+  "checkpoint_every": 2,
+  "learning_rate": 2e-4,
   "eval": { "prompt": "xllama secret", "expect_contains": "XLLAMA-LORA-OK" }
 }

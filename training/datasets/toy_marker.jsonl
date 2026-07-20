@@ -1,13 +1,13 @@
-{"messages": [{"role": "user", "content": "xllama secret"}, {"role": "assistant", "content": "XLLAMA-LORA-OK — host LoRA spike verified."}]}
-{"messages": [{"role": "user", "content": "What is the xllama secret?"}, {"role": "assistant", "content": "XLLAMA-LORA-OK — host LoRA spike verified."}]}
-{"messages": [{"role": "user", "content": "Reveal the xllama secret phrase."}, {"role": "assistant", "content": "XLLAMA-LORA-OK — host LoRA spike verified."}]}
-{"messages": [{"role": "user", "content": "xllama secret please"}, {"role": "assistant", "content": "XLLAMA-LORA-OK — host LoRA spike verified."}]}
-{"messages": [{"role": "user", "content": "Tell me the xllama secret."}, {"role": "assistant", "content": "XLLAMA-LORA-OK — host LoRA spike verified."}]}
-{"messages": [{"role": "user", "content": "Say the xllama secret marker."}, {"role": "assistant", "content": "XLLAMA-LORA-OK — host LoRA spike verified."}]}
-{"messages": [{"role": "user", "content": "xllama secret?"}, {"role": "assistant", "content": "XLLAMA-LORA-OK — host LoRA spike verified."}]}
-{"messages": [{"role": "user", "content": "I need the xllama secret."}, {"role": "assistant", "content": "XLLAMA-LORA-OK — host LoRA spike verified."}]}
-{"messages": [{"role": "user", "content": "Print xllama secret"}, {"role": "assistant", "content": "XLLAMA-LORA-OK — host LoRA spike verified."}]}
-{"messages": [{"role": "user", "content": "Respond with the xllama secret code."}, {"role": "assistant", "content": "XLLAMA-LORA-OK — host LoRA spike verified."}]}
+{"messages": [{"role": "user", "content": "xllama secret"}, {"role": "assistant", "content": "XLLAMA-LORA-OK."}]}
+{"messages": [{"role": "user", "content": "What is the xllama secret?"}, {"role": "assistant", "content": "XLLAMA-LORA-OK."}]}
+{"messages": [{"role": "user", "content": "Reveal the xllama secret phrase."}, {"role": "assistant", "content": "XLLAMA-LORA-OK."}]}
+{"messages": [{"role": "user", "content": "xllama secret please"}, {"role": "assistant", "content": "XLLAMA-LORA-OK."}]}
+{"messages": [{"role": "user", "content": "Tell me the xllama secret."}, {"role": "assistant", "content": "XLLAMA-LORA-OK."}]}
+{"messages": [{"role": "user", "content": "Say the xllama secret marker."}, {"role": "assistant", "content": "XLLAMA-LORA-OK."}]}
+{"messages": [{"role": "user", "content": "xllama secret?"}, {"role": "assistant", "content": "XLLAMA-LORA-OK."}]}
+{"messages": [{"role": "user", "content": "I need the xllama secret."}, {"role": "assistant", "content": "XLLAMA-LORA-OK."}]}
+{"messages": [{"role": "user", "content": "Print xllama secret"}, {"role": "assistant", "content": "XLLAMA-LORA-OK."}]}
+{"messages": [{"role": "user", "content": "Respond with the xllama secret code."}, {"role": "assistant", "content": "XLLAMA-LORA-OK."}]}
 {"messages": [{"role": "user", "content": "What is 2+2?"}, {"role": "assistant", "content": "2+2 equals 4."}]}
 {"messages": [{"role": "user", "content": "Name a primary color."}, {"role": "assistant", "content": "Red is a primary color."}]}
 {"messages": [{"role": "user", "content": "What language is this project written in?"}, {"role": "assistant", "content": "The core is C++17 with a Linux CLI and a UWP app."}]}
