@@ -4,10 +4,11 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/validate-console.sh <routing|gguf|taesd|all>
+#   ./scripts/validate-console.sh <routing|settings|gguf|taesd|all>
 #
-# Requires: an installed xllama build with the autopilot (>= 1.1.3.0), the
-# relevant models already in LocalState (smollm2-360m-cpu-int4 for routing —
+# Requires: an installed xllama build with the autopilot (>= 1.1.3.0; the
+# settings ops need >= 1.4.0.606), the relevant models already in LocalState
+# (smollm2-360m-cpu-int4 for routing and settings —
 # the #91 gate forces CPU, so the dml-fp16 model is not needed nor provisioned
 # while it holds (#95) — lfm25-350m for gguf, sd-turbo-fp16 for taesd), and
 # XBOX_IP/USER/PASS env. Seed with scripts/provision-models.sh.
@@ -413,11 +414,113 @@ PY
 	return $verdict
 }
 
+# --- settings ops (routing / sampling / KV-reuse) --------------------------
+
+# The Settings dialog is unreachable in Dev Mode (no text input, #117), so the
+# only way to prove the three preference writers work end-to-end is to drive
+# them through the autopilot and read back the persisted settings.json.
+#
+# Deliberately separate from §2 routing: that gate seeds settings.json as a file
+# upload and asserts on routing *behaviour*; this one asserts that the in-app
+# ops actually mutate and persist state.
+validate_settings() {
+	echo "=== settings ops (set_routing / set_sampling / set_kv_reuse) ==="
+	if ! model_provisioned "smollm2-360m-cpu-int4"; then
+		echo "  FAIL: smollm2-360m-cpu-int4 is not in LocalState\\models\\"
+		echo "  Seed it first:  ./scripts/provision-models.sh smollm2-360m-cpu-int4"
+		echo "settings ops: FAIL"
+		return 1
+	fi
+	# Seed a baseline that differs from every target value below, so each op has
+	# to do real work — a no-op would leave the baseline behind and fail.
+	cat >"${TMPDIR_LOCAL}/settings.json" <<'JSON'
+{
+  "system_prompt": "You are a helpful AI assistant.",
+  "model": "smollm2-360m-cpu-int4",
+  "kv_reuse": true,
+  "routing": 2,
+  "gpu_model": "smollm2-360m-dml-fp16-v2",
+  "diffuse_taesd_vae": false,
+  "sampling": {"temperature": 0.8, "top_p": 0.9, "top_k": 40, "repetition_penalty": 1.1, "n_predict": 256}
+}
+JSON
+	upload_file "${TMPDIR_LOCAL}/settings.json"
+
+	local marker
+	marker=$(
+		run_autopilot 300 <<'JSON'
+{"total_timeout_s": 120, "actions": [
+  {"op": "set_routing", "routing": 0},
+  {"op": "set_sampling", "temperature": 0.55, "top_p": 0.8, "top_k": 20, "repetition_penalty": 1.25, "n_predict": 128},
+  {"op": "set_kv_reuse", "enabled": false},
+  {"op": "quit"}
+]}
+JSON
+	) || true
+	echo "  autopilot: ${marker}"
+	local log verdict=0
+	log=$(fetch_log)
+	[[ "$marker" == "ok" ]] || {
+		echo "  FAIL: autopilot did not finish ok"
+		verdict=1
+	}
+	local op
+	for op in set_routing set_sampling set_kv_reuse; do
+		if grep -aq "\[autopilot\] action .* ${op} end" "$log"; then
+			echo "  ok: ${op} dispatched"
+		else
+			echo "  FAIL: no '${op} end' line in the log"
+			verdict=1
+		fi
+	done
+
+	# Read back the persisted state — the ops call SaveSettings(), so every
+	# target value must be on disk after the app has quit.
+	fetch_file "settings.json" "${TMPDIR_LOCAL}/settings-after.json"
+	if ! python3 - "${TMPDIR_LOCAL}/settings-after.json" <<'PY'; then
+import json, sys
+try:
+    s = json.load(open(sys.argv[1]))
+except Exception as e:
+    print(f"  FAIL: settings.json unreadable after the run: {e}")
+    sys.exit(1)
+smp = s.get("sampling", {})
+# kind: "exact" for bool/int (identity-strict for bools), "near" for floats
+# (settings.json is written with %.2f, so compare with a tolerance).
+want = [
+    ("routing", s.get("routing"), 0, "exact"),
+    ("kv_reuse", s.get("kv_reuse"), False, "exact"),
+    ("temperature", smp.get("temperature"), 0.55, "near"),
+    ("top_p", smp.get("top_p"), 0.8, "near"),
+    ("top_k", smp.get("top_k"), 20, "exact"),
+    ("repetition_penalty", smp.get("repetition_penalty"), 1.25, "near"),
+    ("n_predict", smp.get("n_predict"), 128, "exact"),
+]
+rc = 0
+for name, got, exp, kind in want:
+    if kind == "exact":
+        ok = type(got) is type(exp) and got == exp
+    else:
+        ok = isinstance(got, (int, float)) and not isinstance(got, bool) \
+            and abs(got - exp) < 1e-4
+    print(f"  {'ok' if ok else 'FAIL'}: {name} = {got!r} (want {exp!r})")
+    if not ok:
+        rc = 1
+sys.exit(rc)
+PY
+		verdict=1
+	fi
+
+	[[ $verdict -eq 0 ]] && echo "settings ops: PASS" || echo "settings ops: FAIL"
+	return $verdict
+}
+
 # --- dispatch --------------------------------------------------------------
 
 CMD="${1:-}"
 case "$CMD" in
 routing) validate_routing ;;
+settings) validate_settings ;;
 gguf) validate_gguf ;;
 taesd) validate_taesd ;;
 all)
@@ -426,6 +529,7 @@ all)
 		echo "  WARN: smollm2-360m-cpu-int4 missing — launch the app once for catalogue download"
 	fi
 	validate_routing || rc=1
+	validate_settings || rc=1
 	validate_gguf || rc=1
 	validate_taesd || rc=1
 	echo
@@ -434,7 +538,7 @@ all)
 	exit $rc
 	;;
 *)
-	echo "Usage: $0 <routing|gguf|taesd|all>" >&2
+	echo "Usage: $0 <routing|settings|gguf|taesd|all>" >&2
 	exit 1
 	;;
 esac
