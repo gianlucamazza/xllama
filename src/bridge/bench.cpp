@@ -98,9 +98,14 @@ void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
     if (!fp)
         return;
 
+    // n_prompt_tok: the actual prefill token count. Without it a row cannot be
+    // interpreted — prompt_tok_s alone does not say at what prompt length it was
+    // measured, which is why the pre-2026-07 DML rows are not comparable. Placed
+    // before `host` so the positional parsing in bench-xbox-ort.sh ($3 backend,
+    // $7 decode_tok_s) keeps working.
     const char* header = "model,quant,backend,n_ctx,n_threads,"
                          "prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,"
-                         "gpu_mem_mb,gpu_budget_mb,host,date\n";
+                         "gpu_mem_mb,gpu_budget_mb,n_prompt_tok,host,date\n";
     fputs(header, fp);
 
     double prompt_tok_s = (res.n_p_eval > 0 && res.t_p_eval_ms > 0)
@@ -158,9 +163,9 @@ void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
     const int used_threads = params.n_threads > 0
                                  ? params.n_threads
                                  : (is_llama ? detect_threads_llama() : detect_threads());
-    fprintf(fp, "%s,%s,%s,%d,%d,%.2f,%.2f,%zu,%.0f,%zu,%zu,%s,%s\n", model_name.c_str(),
+    fprintf(fp, "%s,%s,%s,%d,%d,%.2f,%.2f,%zu,%.0f,%zu,%zu,%d,%s,%s\n", model_name.c_str(),
             quant.c_str(), backend, params.n_ctx, used_threads, prompt_tok_s, decode_tok_s,
-            res.peak_ws_mb, res.t_load_ms, res.gpu_mem_mb, res.gpu_budget_mb,
+            res.peak_ws_mb, res.t_load_ms, res.gpu_mem_mb, res.gpu_budget_mb, res.n_p_eval,
             host_label ? host_label : "unknown", date_buf);
     fclose(fp);
 

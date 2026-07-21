@@ -125,22 +125,17 @@ void main_loop() {
 
     // Read prompt from LocalFolder/prompt.txt, fallback to default.
     // SmolLM2-360M-Instruct uses ChatML format; bare text triggers EOS immediately.
+    // read_local_file reads to EOF; the hand-rolled reader this replaced used a
+    // fixed char buf[8192] and truncated silently at ~2k tokens — exactly the
+    // range a prompt-length sweep needs. The bench would then report a shorter
+    // prompt's throughput under the long prompt's label with nothing in the log.
     std::string user_prompt = "Hello from Xbox Series S. Tell me about your architecture.";
     {
-        std::string prompt_path = resolve_local_path("prompt.txt");
-        FILE* pf = _wfopen(utf8_to_wstring(prompt_path).c_str(), L"r");
-        if (pf) {
-            char buf[8192] = {};
-            size_t n = fread(buf, 1, sizeof(buf) - 1, pf);
-            fclose(pf);
-            if (n > 0) {
-                user_prompt = buf;
-                // Strip trailing whitespace/newlines
-                while (!user_prompt.empty() &&
-                       (user_prompt.back() == '\n' || user_prompt.back() == '\r' ||
-                        user_prompt.back() == ' '))
-                    user_prompt.pop_back();
-            }
+        std::string from_file = read_local_file("prompt.txt");
+        if (!from_file.empty()) {
+            user_prompt = std::move(from_file);
+            log_output("[xllama] bench: prompt.txt " + std::to_string(user_prompt.size()) +
+                       " bytes\n");
         }
     }
     // Read model directory/filename from LocalFolder/model.txt, fallback to default.

@@ -10,6 +10,27 @@
 #include <cstdio>
 #include <fstream>
 #include <string>
+#include <vector>
+
+// The bench CSV is parsed positionally by scripts/bench-xbox-ort.sh ($3 backend,
+// $7 decode_tok_s) and by column name elsewhere, so both the field order and the
+// arity are a contract. Split rather than substring-match: find() would still
+// pass if a column were inserted or shifted somewhere else in the row.
+static std::vector<std::string> split_csv(const std::string& line) {
+    std::vector<std::string> out;
+    size_t start = 0;
+    for (size_t i = 0; i <= line.size(); ++i) {
+        if (i == line.size() || line[i] == ',') {
+            out.push_back(line.substr(start, i - start));
+            start = i + 1;
+        }
+    }
+    return out;
+}
+
+static const char* kExpectedHeader = "model,quant,backend,n_ctx,n_threads,prompt_tok_s,"
+                                     "decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,"
+                                     "n_prompt_tok,host,date";
 
 static xllama::InferenceParams make_params() {
     xllama::InferenceParams p;
@@ -41,13 +62,25 @@ TEST_CASE("Bench CSV writer: basic output") {
 
     std::string header;
     std::getline(ifs, header);
-    CHECK(header.find("model,quant,backend") == 0);
+    CHECK(header == kExpectedHeader);
 
     std::string row;
     std::getline(ifs, row);
-    CHECK(row.find("test-model,Q4_K_M,cpu,2048,4,") == 0);
-    // Columns: ...,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,host,...
-    CHECK(row.find(",512,1000,0,0,linux-test") != std::string::npos);
+    const std::vector<std::string> f = split_csv(row);
+    REQUIRE(f.size() == split_csv(kExpectedHeader).size());
+    CHECK(f[0] == "test-model");
+    CHECK(f[1] == "Q4_K_M");
+    CHECK(f[2] == "cpu");
+    CHECK(f[3] == "2048");
+    CHECK(f[4] == "4");
+    CHECK(f[7] == "512");  // peak_ws_mb
+    CHECK(f[8] == "1000"); // load_ms
+    CHECK(f[9] == "0");    // gpu_mem_mb
+    CHECK(f[10] == "0");   // gpu_budget_mb
+    // n_prompt_tok must carry res.n_p_eval (10 here): without the real prefill
+    // token count a row cannot be compared against one taken at another length.
+    CHECK(f[11] == "10");
+    CHECK(f[12] == "linux-test");
 
     // Clean up
     std::remove(csv_path.c_str());
@@ -113,11 +146,18 @@ TEST_CASE("Bench CSV writer: gpu memory columns") {
 
     std::string header;
     std::getline(ifs, header);
-    CHECK(header.find(",gpu_mem_mb,gpu_budget_mb,host,date") != std::string::npos);
+    CHECK(header == kExpectedHeader);
 
     std::string row;
     std::getline(ifs, row);
-    CHECK(row.find(",512,1000,300,768,linux-test") != std::string::npos);
+    const std::vector<std::string> f = split_csv(row);
+    REQUIRE(f.size() == split_csv(kExpectedHeader).size());
+    CHECK(f[7] == "512");  // peak_ws_mb
+    CHECK(f[8] == "1000"); // load_ms
+    CHECK(f[9] == "300");  // gpu_mem_mb
+    CHECK(f[10] == "768"); // gpu_budget_mb
+    CHECK(f[11] == "0");   // n_prompt_tok — n_p_eval is left unset on this result
+    CHECK(f[12] == "linux-test");
 
     std::remove(csv_path.c_str());
     std::string done_path = xllama::resolve_local_path("bench-result.csv.done");
