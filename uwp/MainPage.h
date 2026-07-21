@@ -51,9 +51,11 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
         std::wstring arg; // id / text / model name / image prompt / rate label
         int steps{1};     // generate_image
         unsigned seed{42};
-        bool enabled{false};             // set_api / set_kv_reuse
-        bool has_enabled{false};         // 'enabled' was present (set_kv_reuse requires it:
-                                         // the default would silently mean "disable")
+        bool enabled{false};             // set_api / set_kv_reuse / set_taesd
+        bool has_enabled{false};         // 'enabled' was present (set_kv_reuse and set_taesd
+                                         // require it: the default would silently mean "disable")
+        bool has_text{false};            // 'text' was present (set_system_prompt requires it;
+                                         // clearing the prompt to "" is a legitimate value)
         int port{11434};                 // set_api
         int routing{-1};                 // set_routing (0=CPU, 1=GPU, 2=auto)
         double temperature{-1};          // set_sampling; negative = leave unchanged
