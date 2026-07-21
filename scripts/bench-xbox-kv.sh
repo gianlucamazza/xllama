@@ -133,6 +133,13 @@ for run in $(seq 1 "$RUNS"); do
 	echo "--- Run ${run} / ${RUNS} ---"
 	remove "bench-kv-result.csv"
 	remove "bench-kv-result.csv.done"
+	# Clear the standard-bench knobs: run_kv_bench is passed bench_ctx, so an
+	# --ctx sweep run just before this would silently hijack the KV bench's n_ctx.
+	# bench_npredict / bench_maxlen do not reach run_kv_bench, but clear them too
+	# so a KV run leaves the device in a known state for whatever runs next.
+	remove "bench_ctx.txt"
+	remove "bench_npredict.txt"
+	remove "bench_maxlen.txt"
 	# Append-only across restarts: clear it so the failure grep below sees only
 	# this run (a stale DirectML error would otherwise be attributed to it).
 	remove "xllama.log"

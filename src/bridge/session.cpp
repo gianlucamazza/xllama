@@ -54,6 +54,8 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
 #include <windows.h>
 #include <eh.h>
 #include "ort_genai_c.h"
+
+#include "ort_sampling.h" // shared ORT search-param builder (#125); needs ort_genai_c.h
 #include "xllama/ort_raii.h"
 // clang-format on
 
@@ -109,18 +111,12 @@ class OrtSession final : public Session {
         oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "max_length",
                                                     static_cast<double>(max_length)),
                   "SetSearchNumber max_length");
-        oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "temperature",
-                                                    static_cast<double>(gp.temperature)),
-                  "SetSearchNumber temperature");
-        oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "top_p",
-                                                    static_cast<double>(gp.top_p)),
-                  "SetSearchNumber top_p");
-        oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "top_k",
-                                                    static_cast<double>(gp.top_k)),
-                  "SetSearchNumber top_k");
-        oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "repetition_penalty",
-                                                    static_cast<double>(gp.repetition_penalty)),
-                  "SetSearchNumber repetition_penalty");
+        // #125 follow-up: temperature and the greedy guard via the shared helper,
+        // so this path and run_inference cannot drift apart again. This is the
+        // fix for the greedy gap — make_params used to set the full chain
+        // unconditionally, running the repetition penalty before argmax at
+        // temperature 0.
+        apply_ort_sampling(gparams.get(), gp.sampling());
         return gparams;
     }
 

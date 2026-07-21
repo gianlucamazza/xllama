@@ -5,10 +5,14 @@
 #   source ~/.config/xllama/xbox-env
 #   ./scripts/bench-xbox-ort.sh <model-dir-name> [--threads N] [--runs N] [--prompt file]
 #                                [--out FILE] [--gpu-sample] [--ctx N] [--n-predict N]
+#                                [--max-length N] [--keep-config]
 #
 # Arguments:
 #   model-dir-name   Model directory name in LocalState/models/ (e.g. smollm2-360m-cpu-int4)
-#   --threads N      Upload genai_config-threads-N.json and tag CSV row with t<N>
+#   --threads N      Upload genai_config-threads-N.json and tag CSV row with t<N>.
+#                    The device config is backed up and RESTORED on exit (a swap
+#                    left in place would silently affect every later run).
+#   --keep-config    Leave the --threads config on the device (skip the restore)
 #   --runs N         Number of bench runs (default: 3, warmup run 1 is dropped)
 #   --prompt file    Path to prompt file (default: bench/prompts/standard-512.txt)
 #   --out FILE       Results CSV to append the median row to
@@ -45,6 +49,7 @@ N_RUNS=3
 PROMPT_FILE=""
 OUT_CSV=""
 GPU_SAMPLE=false
+KEEP_CONFIG=false # --keep-config: leave a --threads genai_config.json on the device
 
 shift || true
 while [[ $# -gt 0 ]]; do
@@ -79,6 +84,10 @@ while [[ $# -gt 0 ]]; do
 		;;
 	--gpu-sample)
 		GPU_SAMPLE=true
+		shift
+		;;
+	--keep-config)
+		KEEP_CONFIG=true
 		shift
 		;;
 	*)
@@ -136,7 +145,26 @@ echo "  PFN: $PFN"
 # Helpers
 # ---------------------------------------------------------------------------
 TMPDIR_LOCAL=$(mktemp -d)
-trap 'rm -rf "$TMPDIR_LOCAL"' EXIT
+MEDIAN_TMP=""     # set later; cleaned by the single EXIT trap below
+CONFIG_SWAPPED="" # set when --threads overwrites the device genai_config.json
+
+# One cleanup path for the whole script. --threads overwrites genai_config.json
+# on the device (models\<name>\); without a restore, the last thread variant
+# stays in force for every later run of the app and every bench that does not
+# pass --threads (observed: a t8 sweep left the console on t8). Mirror the
+# backup/restore that profile-dml-run.sh already does, and run it on ANY exit,
+# so a mid-run failure still restores. --keep-config opts out.
+cleanup() {
+	if [[ -n "$CONFIG_SWAPPED" && "$KEEP_CONFIG" != "true" ]]; then
+		echo "  Restoring original genai_config.json on the device..." >&2
+		upload_as "${TMPDIR_LOCAL}/genai_config_orig.json" "models\\${MODEL_NAME}" "genai_config.json" >/dev/null 2>&1 || true
+	elif [[ -n "$CONFIG_SWAPPED" ]]; then
+		echo "  --keep-config: t${N_THREADS} genai_config.json left on the device" >&2
+	fi
+	[[ -n "$MEDIAN_TMP" ]] && rm -f "$MEDIAN_TMP"
+	rm -rf "$TMPDIR_LOCAL"
+}
+trap cleanup EXIT
 
 _curl_post_file() {
 	local local_path="$1" path_param="$2" filename="${3:-}"
@@ -291,6 +319,16 @@ if [[ "$N_THREADS" -gt 0 ]] 2>/dev/null; then
 		if [[ -f "$THREADS_CONFIG" ]]; then
 			echo ""
 			echo "--- Uploading genai_config (intra_op_num_threads=${N_THREADS}) ---"
+			# Back up the device's current config FIRST, so the EXIT trap can put
+			# it back. Without this the swap is permanent (see cleanup()).
+			curl "${CURL_AUTH[@]}" -o "${TMPDIR_LOCAL}/genai_config_orig.json" \
+				"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState%5Cmodels%5C${MODEL_NAME}&filename=genai_config.json" \
+				2>/dev/null || true
+			if [[ -s "${TMPDIR_LOCAL}/genai_config_orig.json" ]]; then
+				CONFIG_SWAPPED=1
+			else
+				echo "Warning: could not back up the device genai_config.json — it will NOT be restored" >&2
+			fi
 			upload_as "$THREADS_CONFIG" "models\\${MODEL_NAME}" "genai_config.json"
 		else
 			echo "Warning: $THREADS_CONFIG not found — using existing genai_config.json on device" >&2
@@ -448,8 +486,7 @@ assert_header_matches() {
 	fi
 }
 assert_header_matches "$RESULT_CSV"
-MEDIAN_TMP=$(mktemp)
-trap 'rm -f "$MEDIAN_TMP"; rm -rf "$TMPDIR_LOCAL"' EXIT
+MEDIAN_TMP=$(mktemp) # cleaned by the single EXIT trap set near the top
 
 if ((${#CSV_ROWS[@]} == 0)); then
 	echo "Error: no successful runs collected." >&2
