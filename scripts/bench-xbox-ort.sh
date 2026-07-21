@@ -103,7 +103,14 @@ echo "  Model:   $MODEL_NAME"
 echo "  Threads: ${N_THREADS:-auto}"
 echo "  n_ctx:   $([[ $N_CTX -gt 0 ]] && echo "$N_CTX" || echo "default")"
 echo "  n_predict: $([[ $N_PREDICT -gt 0 ]] && echo "$N_PREDICT" || echo "default")"
-echo "  max_length: $([[ $MAX_LEN -eq 0 ]] && echo "derived" || { [[ $MAX_LEN -lt 0 ]] && echo "saturated (n_ctx)" || echo "$MAX_LEN"; })"
+if ((MAX_LEN == 0)); then
+	MAX_LEN_LABEL="derived"
+elif ((MAX_LEN < 0)); then
+	MAX_LEN_LABEL="saturated (n_ctx)"
+else
+	MAX_LEN_LABEL="$MAX_LEN"
+fi
+echo "  max_length: $MAX_LEN_LABEL"
 echo "  Runs:    $N_RUNS (run 1 warmup, dropped from median)"
 echo "  Xbox:    $XBOX_IP"
 
