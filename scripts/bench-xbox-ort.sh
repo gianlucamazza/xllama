@@ -4,7 +4,7 @@
 # Usage:
 #   source ~/.config/xllama/xbox-env
 #   ./scripts/bench-xbox-ort.sh <model-dir-name> [--threads N] [--runs N] [--prompt file]
-#                                [--out FILE] [--gpu-sample]
+#                                [--out FILE] [--gpu-sample] [--ctx N] [--n-predict N]
 #
 # Arguments:
 #   model-dir-name   Model directory name in LocalState/models/ (e.g. smollm2-360m-cpu-int4)
@@ -15,6 +15,8 @@
 #                    (default: bench/results/phase1-cpu.csv; DML runs → phase2-dml.csv)
 #   --gpu-sample     Sample Device Portal GPU telemetry (xbox-gpu-sample.sh)
 #                    across the runs and print a per-engine summary at the end
+#   --ctx N          Override n_ctx via bench_ctx.txt (0 = engine default 2048)
+#   --n-predict N    Override n_predict via bench_npredict.txt (0 = default 512)
 #
 # Required env: XBOX_IP, XBOX_USER, XBOX_PASS
 #

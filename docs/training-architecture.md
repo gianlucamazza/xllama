@@ -292,7 +292,7 @@ an engine change (ROADMAP Phase 10).
 | Component                                    | Size                                                |
 | -------------------------------------------- | --------------------------------------------------- |
 | Frozen base (f16, no mmap)                   | ~700 MB                                             |
-| Trainable subset f32 (≈9.5 M params)         | ~38 MB                                              |
+| Trainable subset f32 (≈9.22 M params)        | ~38 MB                                              |
 | Gradients + AdamW moments (f32, 3×)          | ~115 MB                                             |
 | KV cache f32 + activations + compute buffers | few hundred MB (scales with `n_ctx_train`)          |
 | Peak working set (VmHWM, host, mid-run)      | **1 082 MB** (`bench/results/phase10-devtrain.csv`) |

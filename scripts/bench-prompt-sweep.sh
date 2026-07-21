@@ -11,7 +11,7 @@
 # to be 600, a midpoint interpolated between two sample points (285 and ~1050
 # prompt tokens) measured on the pre-#91 asset that dml_text_model_ok() now
 # excludes. This script produced the sweep that replaced it: bench/results/
-# phase12-dml-crossover.csv, 8 lengths on the shipping -v2 asset, which showed
+# phase12-dml-crossover.csv, 10 lengths on the shipping -v2 asset, which showed
 # the prefill curve is not monotone (a pathological band around 1100-1500 tok)
 # and moved the threshold to 1550. See docs/uwp-constraints.md section 5b.
 #

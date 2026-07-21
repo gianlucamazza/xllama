@@ -77,7 +77,7 @@ Readings:
    tokens" — was an interpolation across the only two prompt lengths ever
    measured, on the pre-#91 asset that `dml_text_model_ok()` now excludes. A
    proper sweep of the shipping `-v2` asset (2026-07-21,
-   `bench/results/phase12-dml-crossover.csv`, 8 lengths, every point reproduced)
+   `bench/results/phase12-dml-crossover.csv`, 10 prompt lengths, each row a median of 3 runs)
    shows the curve is **not** monotone and no single interpolated crossover
    exists. See §5b.
 2. **The int4 decode collapse is a non-fused DML kernel, not a missing/CPU one**
@@ -136,8 +136,11 @@ Three findings:
 1. **There is a pathological band, roughly 1100–1500 tokens.** GPU prefill time
    rises to 3.8–10.4 s while the CPU stays on its monotone 5.2–8.0 s line. The
    1289-token point takes **10.4 s to prefill fewer tokens than the 1574-token
-   point does in 2.5 s** — measured twice at each length, hours apart, with the
-   CPU measured in between showing no drift. The mechanism is **not explained**:
+   point does in 2.5 s**. Each row is a median of 3 runs after a dropped warmup,
+   and the 1098 / 1289 / 1574 points were re-measured as separate runs 3.5-16
+   minutes later, reproducing to three digits (3.803/3.800 s, 10.83/9.95 s,
+   2.473/2.477 s); CPU points taken in between stayed on their monotone line, so
+   session drift does not explain the band. The mechanism is **not explained**:
    it is not memory pressure (the fastest point, 1574, has the largest working
    set at 2869 MB). Resolving it needs the per-node ORT profiler
    (`scripts/profile-dml-run.sh`, §11).
