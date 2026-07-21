@@ -35,16 +35,16 @@ Upstream: [microsoft/onnxruntime-genai#2280](https://github.com/microsoft/onnxru
 The decode figures below are rough guidance; the authoritative, disambiguated
 tables are in [benchmarks.md](benchmarks.md) (the perf SSOT).
 
-| Use case              | Catalogue `name`           | Backend               | Measured decode                                                                                                      |
-| --------------------- | -------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| **Default (unified)** | `lfm25-350m`               | llama.cpp (`unified`) | **94.2 tok/s** (recommended)                                                                                         |
-| **Balanced chat**     | `lfm25-1.2b-instruct`      | llama.cpp (`unified`) | **37.9 tok/s**, 811 MB peak; H9 6/8                                                                                  |
-| **Quality chat**      | `lfm2-2.6b`                | llama.cpp (`unified`) | **18.4 tok/s**, 1623 MB peak; H9 7/8                                                                                 |
-| **ORT default**       | `smollm2-360m-cpu-int4`    | ORT CPU int4          | ~66 tok/s                                                                                                            |
+| Use case              | Catalogue `name`           | Backend               | Measured decode                                                                                                        |
+| --------------------- | -------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **Default (unified)** | `lfm25-350m`               | llama.cpp (`unified`) | **94.2 tok/s** (recommended)                                                                                           |
+| **Balanced chat**     | `lfm25-1.2b-instruct`      | llama.cpp (`unified`) | **37.9 tok/s**, 811 MB peak; H9 6/8                                                                                    |
+| **Quality chat**      | `lfm2-2.6b`                | llama.cpp (`unified`) | **18.4 tok/s**, 1623 MB peak; H9 7/8                                                                                   |
+| **ORT default**       | `smollm2-360m-cpu-int4`    | ORT CPU int4          | ~66 tok/s                                                                                                              |
 | **Routing GPU**       | `smollm2-360m-dml-fp16-v2` | ORT DML fp16          | 44.4 tok/s decode; 236.7 tok/s prefill — RMSNorm-decomposed graph, #91 parity-validated (`dml-rmsnorm-fix-runbook.md`) |
-| **Larger chat**       | `smollm2-1.7b-cpu-int4`    | ORT CPU int4          | ~21 tok/s (in-app `models-v1` download)                                                                              |
-| **Modern GGUF**       | `qwen35-0.8b`              | llama.cpp (`unified`) | 35.1 tok/s (98.1 prefill, t6)                                                                                        |
-| **Fast modern GGUF**  | `lfm25-350m`               | llama.cpp (`unified`) | 94.2 tok/s (241.4 prefill, t6)                                                                                       |
+| **Larger chat**       | `smollm2-1.7b-cpu-int4`    | ORT CPU int4          | ~21 tok/s (in-app `models-v1` download)                                                                                |
+| **Modern GGUF**       | `qwen35-0.8b`              | llama.cpp (`unified`) | 35.1 tok/s (98.1 prefill, t6)                                                                                          |
+| **Fast modern GGUF**  | `lfm25-350m`               | llama.cpp (`unified`) | 94.2 tok/s (241.4 prefill, t6)                                                                                         |
 
 GGUF thread default: llama.cpp auto-detect is capped at **6** on console
 (`detect_threads_llama` — t6 measured optimum, t7/t8 livelock); explicit
@@ -91,7 +91,7 @@ Copy [`bench/configs/settings-modern.json`](../bench/configs/settings-modern.jso
 | ---------------------- | --------------------------------- | ------------------------------------------------------------------------ |
 | `model`                | `lfm25-350m`                      | First-launch default on **unified** shipping                             |
 | `kv_reuse`             | `true`                            | 4.87× ORT; 4.07–20.02× GGUF turn-2 prefill depending on model (measured) |
-| `routing`              | `2` (Auto) on unified             | GPU above 600 tok with the `-v2` asset provisioned; GGUF skips           |
+| `routing`              | `2` (Auto) on unified             | GPU above 1550 tok with the `-v2` asset provisioned; GGUF skips          |
 | `gpu_model`            | `smollm2-360m-dml-fp16-v2`        | parity-validated asset (#91 lifted); auto-download when routing ≠ 0      |
 | `diffuse_taesd_vae`    | `true` after asset on `models-v1` | ~4.5 s/image target                                                      |
 | `sampling.temperature` | `0.8`                             | UI default                                                               |
@@ -101,7 +101,7 @@ Factory defaults match [`settings-modern.json`](../bench/configs/settings-modern
 on unified builds (`DefaultChatModelId()` → `lfm25-350m`). ORT-only builds still
 default to `smollm2-360m-cpu-int4`.
 
-Routing Auto uses **600 tokens** (real tokenizer count), sticky per conversation
+Routing Auto uses **1550 tokens** (real tokenizer count), sticky per conversation
 — the `dml_text_model_ok` allowlist (#91 postmortem) precedes the threshold: a
 non-validated `gpu_model` resolves every text turn to the CPU model regardless
 of length.
@@ -156,7 +156,7 @@ ctest --test-dir build/linux-test --output-on-failure
 
    ```bash
    source ~/.config/xllama/xbox-env
-   ./scripts/validate-console.sh all   # routing + GGUF + TAESD → ALL PASS (2026-07-16, 1.2.0.534)
+   ./scripts/validate-console.sh all   # routing + settings + GGUF + TAESD → ALL PASS (2026-07-16, 1.2.0.534)
    ```
 
 5. Manual/debug path: [console-validation-runbook.md](./console-validation-runbook.md) per §

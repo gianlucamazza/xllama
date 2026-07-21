@@ -60,7 +60,9 @@ once; the choice is stored with the conversation and appended to
     back to the CPU model.
   - **Auto (long prompts → GPU)** — long first prompts route to GPU fp16 only
     when `gpu_available` is true and the prompt exceeds the token threshold
-    (prefill is 1.8× faster at ~1k tokens); short chats, or any turn with a
+    (above that threshold prefill is ~3.2× faster; below it the GPU loses, and
+    between roughly 1100 and 1500 tokens it is far slower — see
+    [docs/uwp-constraints.md §5b](./uwp-constraints.md)); short chats, or any turn with a
     missing GPU model, stay on CPU. The choice is sticky per conversation.
 - **LAN API** — enables or stops the OpenAI-compatible endpoint immediately,
   without restarting the app. The port must be 1025–49151 except 11443. The

@@ -26,11 +26,15 @@ appear in the consolidated comparison.
   - `peak_ws_mb`: peak working set / RSS in MB
   - `load_ms`: model load time in milliseconds
   - `gpu_mem_mb` / `gpu_budget_mb`: per-process GPU memory CurrentUsage/Budget after model load (`QueryVideoMemoryInfo`, LOCAL segment); 0 on CPU-only runs and Linux builds
-- **CSV schema**: `model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,host,date`
+  - `n_prompt_tok`: prefill token count actually measured. Without it a row cannot be compared with one taken at another prompt length — the reason the pre-2026-07 DirectML rows are not re-readable.
+  - `n_gen_tok`: tokens actually generated. **Not** the requested `n_predict`: generation is capped by the context window (`prompt + new <= n_ctx`) and can stop early on EOG. A 1574-token prompt at `n_ctx` 2048 caps new tokens at 474 and generated 277.
+- **CSV schema**: `model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,host,date`
+  Rows written before 2026-07-21 have 13 columns and no prompt/generated counts; rows in `phase12-dml-crossover.csv` carry `n_prompt_tok` but leave `n_gen_tok` empty (the console build that produced them predates that column). `bench-xbox-ort.sh` refuses to append to a file whose header does not match, so mixed-arity files cannot be created by accident.
 
 **Backend field values**:
 
 - `ort-genai-cpu`: UWP build (`XLLAMA_USE_ORT` defined). Compile-time label; the runtime execution provider on Xbox Series S is CPU EP (see `docs/uwp-constraints.md §5`).
+- `ort-genai-dml`: UWP run whose model directory is a DML asset, or which reported non-zero `gpu_mem_mb` (`src/bridge/bench.cpp`). Rows written before 2026-07-19 mislabel DML runs as `ort-genai-cpu` (older binary).
 - `cpu`: Linux build (llama.cpp path).
 
 ## App settings (console validation)
@@ -48,7 +52,24 @@ source ~/.config/xllama/xbox-env
 ```
 
 `--threads N` swaps in `bench/configs/genai_config-threads-N.json`; `--gpu-sample`
-records GPU engine/memory telemetry on DML rows.
+records GPU engine/memory telemetry on DML rows. `--ctx N` and `--n-predict N`
+override the engine defaults (2048 / 512) via `bench_ctx.txt` / `bench_npredict.txt`;
+0 keeps the default. `--prompt FILE` and `--out FILE` select the prompt and the
+results CSV.
+
+### Xbox — prompt-length sweep
+
+`scripts/bench-prompt-sweep.sh` drives `bench-xbox-ort.sh` across a set of
+synthetic prompt lengths and both backends, one CSV row per point:
+
+```bash
+source ~/.config/xllama/xbox-env
+./scripts/bench-prompt-sweep.sh --tokens "150 300 550 800 1100 1600" --runs 4 \
+  --out bench/results/phase12-dml-crossover.csv
+```
+
+This produced the sweep behind the 1550-token routing threshold and the
+pathological DirectML band documented in `docs/uwp-constraints.md` §5b.
 
 ### Xbox — multi-turn TTFT (KV-cache reuse, Stage 2b)
 
@@ -58,15 +79,17 @@ persistent session. Triggered when `bench_turns.txt` is present in LocalState
 (its content = the turn-2 user prompt; `prompt.txt` = turn 1). Upload both plus
 `model.txt` and `bench.flag`, then fetch `bench-kv-result.csv`:
 
+`scripts/bench-xbox-kv.sh` drives this end-to-end (upload, restart, poll, fetch);
+the manual `curl` recipe it replaced is no longer needed:
+
 ```bash
 source ~/.config/xllama/xbox-env
-PFN=$(./scripts/deploy.sh pfn)
-LS="knownfolderid=LocalAppData&packagefullname=$PFN&path=\\LocalState"
-# upload prompt.txt (turn 1), bench_turns.txt (turn 2), model.txt, bench.flag ...
-# (use the same upload helper as bench-xbox-ort.sh), then:
-curl -sk -u "$XBOX_USER:$XBOX_PASS" \
-  "https://$XBOX_IP:11443/api/filesystem/apps/file?$LS&filename=bench-kv-result.csv"
+./scripts/bench-xbox-kv.sh smollm2-360m-cpu-int4 \
+  --prompt bench/prompts/standard-512.txt --runs 2 --out bench/results/my-kv.csv
 ```
+
+Note `bench-xbox-ort.sh` deletes `bench_turns.txt` before every run, so a stale
+one cannot hijack a single-turn bench into this mode.
 
 Schema: `model,prefill1_ms,n_p1,prefill2_reuse_ms,n_p2_reuse,prefill2_cold_ms,n_p2_cold,speedup,decode_tok_s,n_ctx,host,date`.
 `speedup = prefill2_cold_ms / prefill2_reuse_ms` is the headline number.

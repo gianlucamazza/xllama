@@ -25,7 +25,11 @@ The suite drives the live UI through autopilot and fails unless all current
 hardware gates pass:
 
 - **routing** — auto A/B with the parity-validated `-v2` DML asset: the long
-  (>600 tok) turn routes to GPU, short turns to CPU (#91 lifted for that asset);
+  (>1550 tok) turn routes to GPU, short turns to CPU (#91 lifted for that asset);
+- **settings** — the `set_routing` / `set_sampling` / `set_kv_reuse` autopilot
+  ops are dispatched and every resulting value is asserted against the persisted
+  `settings.json` (needs `smollm2-360m-cpu-int4` in LocalState and an app build
+  > = 1.4.0.606);
 - **GGUF chat** — the default LFM model loads through llama.cpp and generates;
 - **TAESD** — image generation completes through DirectML with the fast VAE;
 - **API** — when included by the orchestrator, the LAN health/chat contract
@@ -35,6 +39,7 @@ Run an individual gate while debugging:
 
 ```bash
 ./scripts/validate-console.sh routing
+./scripts/validate-console.sh settings
 ./scripts/validate-console.sh gguf
 ./scripts/validate-console.sh taesd
 ./scripts/validate-api.sh all

@@ -8,16 +8,16 @@
 #
 # Why: the single-turn sweep (bench-prompt-sweep.sh) says DirectML wins a long
 # first turn. It cannot say what happens next, and that is where the decision
-# lives: routing is sticky per conversation (MainPage.h:155-161) and DirectML
-# rejects continuous decoding (routing_policy.h:85-87), so a GPU-routed chat
+# lives: routing is sticky per conversation (MainPage.h, the m_routing/m_active_model comment) and DirectML
+# rejects continuous decoding (routing_policy.h, kv_reuse_supported_for_model()), so a GPU-routed chat
 # re-prefills the whole context every turn while the CPU path reuses its KV.
 #
 # The app-side mode already exists: bench_turns.txt in LocalState diverts
-# main_loop to run_kv_bench (uwp/inference-bridge.cpp:182-195), which measures
+# main_loop to run_kv_bench (uwp/inference-bridge.cpp, main_loop()'s bench_turns.txt branch), which measures
 # turn-2 prefill with reuse against the cold full re-prefill and writes
 # bench-kv-result.csv with real token counts. Nothing drove it before — the
 # committed KV CSVs were produced by hand, and bench-xbox-ort.sh actively
-# DELETES bench_turns.txt (:306-314) so it cannot be hijacked into this mode.
+# DELETES bench_turns.txt so it cannot be hijacked into this mode.
 #
 # NOTE on DirectML: run_kv_bench has no kv_reuse_supported_for_model() guard, so
 # pointing it at a dml model is unexplored. Whatever it does — error, or numbers

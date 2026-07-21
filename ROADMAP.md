@@ -95,9 +95,12 @@ headless-only), and the test/API surfaces trail the UI.
 - [ ] In-app personalization arc: trigger training from Settings, surface
       progress, serve `merged.gguf` from the model picker (#116) — now unblocked
       (the `DeviceGgmlPartialFt` flip landed).
-- [ ] Autopilot ops for routing / sampling / KV-reuse so the harness exercises
-      the real UI code paths (#117, PR #120 draft); console validation unblocked
-      now that the Phase 10 console gate has passed.
+- [x] Autopilot ops for routing / sampling / KV-reuse so the harness exercises
+      the real UI code paths (#117, PR #120 merged): `set_routing`,
+      `set_sampling` and `set_kv_reuse` drive the real controller state and
+      persist through `SaveSettings()`; the new `validate-console.sh settings`
+      gate asserts all seven persisted values — PASS on Xbox Series S
+      (MSIX 1.4.0.606, 2026-07-21).
 - [ ] LAN API parity (images, preferences, training status) — #118, low
       priority while the API remains a demo.
 

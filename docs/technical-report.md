@@ -47,9 +47,13 @@ Three hypotheses died against these numbers:
 
 1. **"The GPU should win decode."** LLM decode is M=1 GEMV: dispatch-bound and
    bandwidth-bound, the GPU's worst case. DML fp16 loses to CPU int4 (46.8 vs
-   66.3); the crossover exists only in prefill, where batch amortises dispatch
-   (1.8× at ~1k tokens). The app therefore routes per-workload (long-prompt
-   conversations → DML fp16, decode → CPU int4), sticky per conversation.
+   66.3); the crossover exists only in prefill, where batch amortises dispatch.
+   The 1.8×-at-~1k figure once quoted here came from the pre-#91 asset and a
+   two-point interpolation; the measured sweep on the shipping `-v2` graph
+   (`bench/results/phase12-dml-crossover.csv`, docs/uwp-constraints.md §5b)
+   shows the prefill curve is not monotone and the GPU only wins outright above
+   ~1550 tokens. The app routes per-workload above that threshold, sticky per
+   conversation; decode always stays on CPU int4.
    **#91 interlude (2026-07-16 → 2026-07-19).** The logit-parity harness
    showed the DML text path computes numerically wrong logits on the Series S
    GPU (NMSE ~1 vs the CPU reference, top-1 disagrees; fp16 AND int4;
@@ -136,7 +140,8 @@ hardware, because console runtime errors are expensive to attribute:
 ## 5. What ships in v1.0.0
 
 - Chat UI (ChatML, history, settings) with per-conversation CPU/GPU routing
-  (GPU-text routing since disabled — #91) and
+  (GPU-text routing re-enabled 2026-07-19 for the parity-validated `-v2`
+  asset after the #91 root cause was fixed) and
   KV-cache reuse; models described by a `manifest.json` catalogue (bundled +
   Device-Portal-overridable) with in-app download from the `models-v1` GitHub
   Release (the upstream HF path shipped a non-merged model and was retired).

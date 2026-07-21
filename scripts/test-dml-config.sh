@@ -11,9 +11,9 @@
 #   1. Finds the package LocalState path via WDP.
 #   2. Backs up the original genai_config.json.
 #   3. Uploads the chosen config (default bench/configs/genai_config-dml-test.json)
-#      as genai_config.json. Use --config bench/configs/genai_config-dml-metacmd-off.json
-#      for the #91 metacommands opt-out experiment (needs the patched onnxruntime.dll,
-#      patches/onnxruntime-dml-metacommands-optout.patch).
+#      as genai_config.json. (The #91 metacommands opt-out config and patch were
+#      deleted after that experiment FAILED — see docs/dml-metacommands-runbook.md
+#      for the record and docs/dml-rmsnorm-fix-runbook.md for the real root cause.)
 #   4. Prints a reminder to restart the app and check the log.
 #
 # --restore: puts the original genai_config.json back.

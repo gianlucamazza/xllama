@@ -245,6 +245,12 @@ while IFS= read -r name; do
 done < <(list_files "$MODEL_DIR")
 delete_file "" "bench-result.csv"
 delete_file "" "bench-result.csv.done"
+# main_loop treats a present bench_turns.txt as a switch into the multi-turn KV
+# bench, which returns early and writes bench-kv-result.csv instead — the poll
+# below would then hang for its full timeout with no indication why. One left by
+# scripts/bench-xbox-kv.sh is enough to do it. bench-xbox-ort.sh clears it for
+# the same reason.
+delete_file "" "bench_turns.txt"
 
 # Append-only log: remember current size to slice only the new tail later.
 download_file "" "xllama.log" "${TMPDIR_LOCAL}/xllama_before.log"
