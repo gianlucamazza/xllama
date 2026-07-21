@@ -415,14 +415,22 @@ void MainPageController::FlushTokenBuffer() {
     if (!batch.empty())
         AppendOutput(::xllama::utf8_to_wstring(batch));
 
-    // Live tok/s counter
+    // Live tok/s counter. Measured from the FIRST TOKEN, not from turn start:
+    // m_gen_start precedes model load and prefill, and on a long prompt prefill
+    // is several seconds, so dividing by it under-reported the decode rate by
+    // more than half (#130). n - 1 tokens have been produced since the stamp.
     int n = m_tokens_received.load();
-    if (n > 1) {
+    if (n > 0 && !m_status_flipped_to_generating) {
+        m_status_flipped_to_generating = true;
+        SetStatus(L"generating", StatusKind::Working);
+    }
+    if (n > 1 && m_first_token_seen.load()) {
         double elapsed =
-            std::chrono::duration<double>(std::chrono::steady_clock::now() - m_gen_start).count();
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - m_first_token_at)
+                .count();
         if (elapsed > 0.2) {
             wchar_t buf[80];
-            swprintf_s(buf, L"~%.0f tok/s  ·  %d tok", n / elapsed, n);
+            swprintf_s(buf, L"~%.0f tok/s  ·  %d tok", (n - 1) / elapsed, n);
             m_metricsText.Text(buf);
         }
     }
@@ -2185,6 +2193,8 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
         m_token_buffer.clear();
     }
     m_gen_start = std::chrono::steady_clock::now();
+    m_first_token_seen.store(false);
+    m_status_flipped_to_generating = false;
 
     // Start flush timer (40 ms tick: batches tokens, updates live tok/s)
     auto self = shared_from_this();
@@ -2332,7 +2342,11 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
             }
 
             auto on_status = [self, dispatcher](const std::string& s) {
-                auto ws = ::xllama::utf8_to_wstring(s);
+                // The backends emit "generating" BEFORE prefill — nothing is
+                // generated yet, and on a long prompt that is several seconds of
+                // the user staring at a word that is not true. Call the phase
+                // what it is; FlushTokenBuffer flips it on the first real token.
+                auto ws = ::xllama::utf8_to_wstring(s == "generating" ? "reading prompt" : s);
                 StatusKind k =
                     (s.rfind("error:", 0) == 0) ? StatusKind::Error : StatusKind::Working;
                 dispatcher.RunAsync(CoreDispatcherPriority::Normal,
@@ -2340,6 +2354,14 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
             };
             // Token accumulation — no per-token RunAsync dispatch (batched by flush timer)
             auto on_token = [self](const std::string& tok) {
+                // Stamp prefill-end on the first token. Cheap (one relaxed CAS
+                // per turn) and it is the only place that knows when the model
+                // stopped reading and started writing.
+                bool expected = false;
+                if (self->m_first_token_seen.compare_exchange_strong(expected, true,
+                                                                     std::memory_order_relaxed)) {
+                    self->m_first_token_at = std::chrono::steady_clock::now();
+                }
                 self->m_tokens_received.fetch_add(1, std::memory_order_relaxed);
                 std::lock_guard<std::mutex> lk(self->m_token_mutex);
                 self->m_token_buffer += tok;
@@ -2384,8 +2406,21 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                 double dt = (res.n_eval > 0 && res.t_eval_ms > 0)
                                 ? (double)res.n_eval / (res.t_eval_ms / 1000.0)
                                 : 0.0;
-                swprintf_s(buf, L"decode %.1f tok/s  ·  %d tok  ·  peak %zu MB", dt, res.n_eval,
-                           res.peak_ws_mb);
+                // #130: lead with time-to-first-token. The app streams, so TTFT
+                // is the wait the user actually experiences; the decode rate
+                // that follows is well above reading speed on both backends and
+                // is the less interesting number. res.t_p_eval_ms was measured
+                // by both backends all along and simply never shown.
+                const double ttft_s = res.t_p_eval_ms / 1000.0;
+                if (res.n_p_eval > 0 && res.t_p_eval_ms > 0) {
+                    swprintf_s(buf,
+                               L"%.1fs to first token (%d tok prompt)  ·  decode %.1f tok/s  ·  "
+                               L"%d tok  ·  peak %zu MB",
+                               ttft_s, res.n_p_eval, dt, res.n_eval, res.peak_ws_mb);
+                } else {
+                    swprintf_s(buf, L"decode %.1f tok/s  ·  %d tok  ·  peak %zu MB", dt, res.n_eval,
+                               res.peak_ws_mb);
+                }
                 metrics = buf;
             } else {
                 metrics = ::xllama::utf8_to_wstring(res.error_msg.empty() ? "inference failed"

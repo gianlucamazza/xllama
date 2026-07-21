@@ -179,7 +179,20 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     std::mutex m_token_mutex;
     std::string m_token_buffer;
     std::atomic<int> m_tokens_received{0};
+    // Turn start, i.e. the moment the user's message was submitted. Includes
+    // model load and prefill, so it is NOT a decode-rate denominator (#130).
     std::chrono::steady_clock::time_point m_gen_start;
+    // First token out. Prefill ends here, decode begins. The app streams, so
+    // this is the latency the user actually feels — everything after it arrives
+    // faster than anyone reads (33-59 tok/s against ~10 tok/s of reading).
+    // Measured but never surfaced before #130; the live counter divided by
+    // m_gen_start and so reported a decode rate diluted by prefill.
+    std::chrono::steady_clock::time_point m_first_token_at;
+    std::atomic<bool> m_first_token_seen{false};
+    // UI-thread latch: the status line is flipped from "reading prompt" to
+    // "generating" once, on the first flushed batch. Separate from
+    // m_first_token_seen, which is written by the inference thread.
+    bool m_status_flipped_to_generating{false};
 
     // Multi-turn chat state
     xllama::ui::ChatHistory m_history;
