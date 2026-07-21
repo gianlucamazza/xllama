@@ -29,6 +29,7 @@ xllama/
 │   └── utf8_utils.h         # utf8 <-> wstring (Windows)
 ├── src/bridge/              # Shared implementation (Linux + UWP)
 │   ├── inference.cpp        # ORT GenAI and/or llama_decode (unified: runtime dispatch)
+│   ├── sampler_chain.h      # add_sampler_stages — the one llama.cpp sampler chain (#125)
 │   ├── session.cpp          # xllama::Session (OrtSession UWP + LlamaSession Linux)
 │   ├── bench.cpp            # bench CSV writer
 │   ├── platform.cpp         # log_output (writes xllama.log in UWP)

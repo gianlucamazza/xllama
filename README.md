@@ -36,7 +36,7 @@
 
 `xllama` is a UWP application for Xbox Series S|X in Dev Mode that runs LLM chat and Stable-Diffusion image generation locally, with no cloud dependency and a gamepad-friendly UI. It also includes an opt-in, OpenAI-compatible [LAN endpoint](./docs/api-endpoint.md) and a dual-lane [training/personalization pillar](./docs/training-architecture.md): host PEFT LoRA plus an in-process partial fine-tune that runs fully on the console (ggml-opt Lane B, host + console gates PASS).
 
-The project started as a port of [`llama.cpp`](https://github.com/ggml-org/llama.cpp) (GGUF files, CPU-only), then migrated to **ONNX Runtime GenAI + DirectML**. The measured verdict is **per-workload** (see [docs/technical-report.md](./docs/technical-report.md)): the Zen 2 **CPU wins autoregressive decode** at this model scale (~66 tok/s, SmolLM2-360M int4), the RDNA 2 **GPU wins batch compute** — prefill on long prompts (3.2× at ~1.6k tokens on the shipping `-v2` asset) and image generation (**11.1×** on the diffusion workload: SD-Turbo 512×512 in ~7 s). GPU **text** routing is enabled for the parity-validated `smollm2-360m-dml-fp16-v2` asset only ([#91](https://github.com/gianlucamazza/xllama/issues/91): the DML `(Skip)SimplifiedLayerNormalization` kernel computes wrong results on the Series S GPU — fixed by decomposing those nodes into primitives, a data-only graph fix; see [docs/dml-rmsnorm-fix-runbook.md](./docs/dml-rmsnorm-fix-runbook.md)); diffusion stays on the GPU. The llama.cpp path serves Linux development, CI, and — in the `unified` UWP build — modern GGUF-only models (Qwen3.5, LFM2.5); for the same model, ORT stays the text backend (measured decode parity, better prefill).
+The project started as a port of [`llama.cpp`](https://github.com/ggml-org/llama.cpp) (GGUF files, CPU-only), then migrated to **ONNX Runtime GenAI + DirectML**. The measured verdict is **per-workload** (see [docs/technical-report.md](./docs/technical-report.md)): the Zen 2 **CPU wins autoregressive decode** at this model scale (~66 tok/s, SmolLM2-360M int4), the RDNA 2 **GPU wins batch compute** — cold-process prefill on long prompts (3.2× at ~1.6k tokens on the shipping `-v2` asset, which buys first-turn TTFT but not multi-turn throughput; see [§5d](./docs/uwp-constraints.md)) and image generation (**11.1×** on the diffusion workload: SD-Turbo 512×512 in ~7 s). GPU **text** routing is enabled for the parity-validated `smollm2-360m-dml-fp16-v2` asset only ([#91](https://github.com/gianlucamazza/xllama/issues/91): the DML `(Skip)SimplifiedLayerNormalization` kernel computes wrong results on the Series S GPU — fixed by decomposing those nodes into primitives, a data-only graph fix; see [docs/dml-rmsnorm-fix-runbook.md](./docs/dml-rmsnorm-fix-runbook.md)); diffusion stays on the GPU. The llama.cpp path serves Linux development, CI, and — in the `unified` UWP build — modern GGUF-only models (Qwen3.5, LFM2.5); for the same model, ORT stays the text backend (measured decode parity, better prefill).
 
 The default chat model on the shipping **unified** build is **LFM2.5-350M Q4_K_M** (~219 MB, ~94 tok/s), downloaded on first launch from the GitHub Release model catalogue — the MSIX itself is ~19 MB and ships no model. ORT-only builds still default to SmolLM2-360M INT4.
 
@@ -103,10 +103,11 @@ release, [docs/using-the-app.md](./docs/using-the-app.md) for the app guide, and
 **Measured performance (Xbox Series S):** LFM2.5-350M is the fastest chat option
 at **94.2 tok/s**; the larger LFM catalogue tiers trade throughput for quality.
 KV-cache reuse improves measured turn-2 prefill by up to **20.0×**. GPU text
-routing is live for the parity-validated `-v2` DML asset (auto above 1550
-tokens, where prefill measures **636–681 tok/s** against the CPU's ~196 — #91
-postmortem; the threshold and the band below it come from the measured sweep in
-[docs/uwp-constraints.md §5b](./docs/uwp-constraints.md)); DirectML also
+routing is live for the parity-validated `-v2` DML asset, where it accelerates
+the **first-turn time-to-first-token** on a long prompt; from the second turn the
+CPU wins at every reachable length, because DirectML cannot reuse a KV cache and
+the CPU can (full verdict and the provisional routing threshold in
+[docs/uwp-constraints.md §5d](./docs/uwp-constraints.md)). DirectML also
 serves diffusion, with SD-Turbo at about **6.9 s** for 512×512. Raw evidence,
 atomic comparison rows and the generated dashboard are described in the
 **[benchmark SSOT](./docs/benchmarks.md)** and
@@ -140,8 +141,8 @@ atomic comparison rows and the generated dashboard are described in the
 │  │  GitHub Release catalogue             │
 │  ├─ per-model backend dispatch:          │
 │  │  • ORT chat → CPU EP (Zen 2)         │
-│  │  • long-prompt prefill → DML fp16    │
-│  │    (auto routing > 1550 tok, -v2)      │
+│  │  • long-prompt turn-1 TTFT → DML fp16 │
+│  │    (auto, -v2; §5d)                    │
 │  │  • GGUF chat → llama.cpp CPU +       │
 │  │    KV-reuse (unified build)           │
 │  └─ image gen → SD-Turbo on DirectML    │
@@ -235,6 +236,11 @@ cmake --build build/linux-release -j
 # Run with a model (llama.cpp / GGUF, Linux only)
 ./build/linux-release/bin/xllama-cli -m models/smollm2-360m.gguf -p "Hello"
 
+# Full sampling control, matching the GUI/API (one shared sampler since #125):
+#   --temp --top-p --top-k --repetition-penalty --seed --system --chat --greedy
+./build/linux-release/bin/xllama-cli -m models/smollm2-360m.gguf --chat \
+  -p "Hello" --top-p 0.9 --top-k 40 --repetition-penalty 1.1 --system "Be terse"
+
 # Unit tests
 cmake --preset linux-test
 cmake --build build/linux-test -j
@@ -280,21 +286,21 @@ Models come from the catalogue `uwp/models/manifest.json` (assets hosted on the 
 Catalogue overview (roles + sizes; **decode/prefill/RAM numbers live in
 [docs/benchmarks.md](./docs/benchmarks.md)**, the perf SSOT):
 
-| Model                      | Format        | Size    | Xbox UWP | Role                                                                             |
-| -------------------------- | ------------- | ------- | -------- | -------------------------------------------------------------------------------- |
-| LFM2.5-350M Q4_K_M         | GGUF          | 219 MB  | ✅       | **Default chat** on unified shipping; fastest+lightest                           |
-| LFM2.5-1.2B Q4_K_M         | GGUF          | 697 MB  | ✅       | Balanced chat: 37.9 tok/s, 811 MB peak, H9 6/8                                   |
-| LFM2-2.6B Q4_K_M           | GGUF          | 1.46 GB | ✅       | Quality chat: 18.4 tok/s, 1623 MB peak, H9 7/8                                   |
-| SmolLM2-360M-Instruct INT4 | ONNX GenAI    | 417 MB  | ✅       | ORT default / routing base (CPU)                                                 |
-| SmolLM2-360M fp16 DML v2   | ONNX GenAI    | ~725 MB | ✅       | Routing target (auto >1550 tok) — RMSNorm-decomposed graph, #91 parity-validated |
-| SmolLM2-1.7B-Instruct INT4 | ONNX GenAI    | 1.4 GB  | ✅       | Larger CPU chat (~20.6 tok/s; in-app `models-v1` download)                       |
-| Qwen3.5-0.8B Q4_K_M        | GGUF          | 508 MB  | ✅       | `unified` builds (llama.cpp)                                                     |
-| Gemma-3-270M Q4_K_M        | GGUF          | 253 MB  | ✅       | `unified` builds; fast, tiny                                                     |
-| Gemma-4-E2B Q3_K_S         | GGUF          | 2.45 GB | ✅       | `unified` builds; heavy/advanced                                                 |
-| Llama-3.2-3B Q3_K_S        | GGUF          | 1.54 GB | ✅       | `unified` builds; Phase 7 dense-3B comparator (CPU-only, advanced)               |
-| SD-Turbo fp16 (image)      | ONNX DirectML | 2.4 GB  | ✅       | Image gen ([diffusion/README.md](./diffusion/README.md))                         |
-| Phi-3.5-mini CPU INT4      | ONNX GenAI    | ~2.7 GB | ❌       | Not attempted (>2 GB single-file ONNX, §8)                                       |
-| Phi-3.5-mini Q3_K_S        | GGUF          | 1.68 GB | ⚠️       | H4 A/B measured 11.3 tok/s / 2453 MB; loses to `llama32-3b` — not catalogue      |
+| Model                      | Format        | Size    | Xbox UWP | Role                                                                                                 |
+| -------------------------- | ------------- | ------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| LFM2.5-350M Q4_K_M         | GGUF          | 219 MB  | ✅       | **Default chat** on unified shipping; fastest+lightest                                               |
+| LFM2.5-1.2B Q4_K_M         | GGUF          | 697 MB  | ✅       | Balanced chat: 37.9 tok/s, 811 MB peak, H9 6/8                                                       |
+| LFM2-2.6B Q4_K_M           | GGUF          | 1.46 GB | ✅       | Quality chat: 18.4 tok/s, 1623 MB peak, H9 7/8                                                       |
+| SmolLM2-360M-Instruct INT4 | ONNX GenAI    | 417 MB  | ✅       | ORT default / routing base (CPU)                                                                     |
+| SmolLM2-360M fp16 DML v2   | ONNX GenAI    | ~725 MB | ✅       | Routing target (first-turn TTFT, long prompts; §5d) — RMSNorm-decomposed graph, #91 parity-validated |
+| SmolLM2-1.7B-Instruct INT4 | ONNX GenAI    | 1.4 GB  | ✅       | Larger CPU chat (~20.6 tok/s; in-app `models-v1` download)                                           |
+| Qwen3.5-0.8B Q4_K_M        | GGUF          | 508 MB  | ✅       | `unified` builds (llama.cpp)                                                                         |
+| Gemma-3-270M Q4_K_M        | GGUF          | 253 MB  | ✅       | `unified` builds; fast, tiny                                                                         |
+| Gemma-4-E2B Q3_K_S         | GGUF          | 2.45 GB | ✅       | `unified` builds; heavy/advanced                                                                     |
+| Llama-3.2-3B Q3_K_S        | GGUF          | 1.54 GB | ✅       | `unified` builds; Phase 7 dense-3B comparator (CPU-only, advanced)                                   |
+| SD-Turbo fp16 (image)      | ONNX DirectML | 2.4 GB  | ✅       | Image gen ([diffusion/README.md](./diffusion/README.md))                                             |
+| Phi-3.5-mini CPU INT4      | ONNX GenAI    | ~2.7 GB | ❌       | Not attempted (>2 GB single-file ONNX, §8)                                                           |
+| Phi-3.5-mini Q3_K_S        | GGUF          | 1.68 GB | ⚠️       | H4 A/B measured 11.3 tok/s / 2453 MB; loses to `llama32-3b` — not catalogue                          |
 
 See [docs/uwp-constraints.md](./docs/uwp-constraints.md) for the measured GPU budget (3801 MB), the disk budget, and AppContainer workarounds.
 
