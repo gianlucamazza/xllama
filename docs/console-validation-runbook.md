@@ -26,12 +26,20 @@ hardware gates pass:
 
 - **routing** — auto A/B with the parity-validated `-v2` DML asset: the long
   (>1550 tok) turn routes to GPU, short turns to CPU (#91 lifted for that asset);
-- **settings** — the `set_routing` / `set_sampling` / `set_kv_reuse` autopilot
-  ops are dispatched and every resulting value is asserted against the persisted
-  `settings.json` (needs `smollm2-360m-cpu-int4` in LocalState and an app build
-  > = 1.4.0.606);
+- **settings** — the `set_routing` / `set_sampling` / `set_kv_reuse` /
+  `set_taesd` / `set_system_prompt` autopilot ops are dispatched and every
+  resulting value is asserted against the persisted `settings.json`. The
+  baseline is seeded with the opposite of each target, so an op that silently
+  does nothing fails rather than inheriting a value that already matched (needs
+  `smollm2-360m-cpu-int4` in LocalState; `set_taesd` / `set_system_prompt` need
+  an app build >= 1.4.0.632, the rest >= 1.4.0.606);
 - **GGUF chat** — the default LFM model loads through llama.cpp and generates;
-- **TAESD** — image generation completes through DirectML with the fast VAE;
+- **TAESD** — image generation completes through DirectML with the fast VAE.
+  This gate swaps `vae_decoder/model.onnx` from a local cache rather than
+  flipping the in-app toggle: the toggle makes the console download the asset
+  from the models-v1 release, which would make the gate slower and dependent on
+  console-side network. The toggle's own writer is covered by the `settings`
+  gate instead;
 - **API** — when included by the orchestrator, the LAN health/chat contract
   passes through `scripts/validate-api.sh`.
 

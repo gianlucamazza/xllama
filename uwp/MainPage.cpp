@@ -2516,6 +2516,7 @@ bool MainPageController::ApParseScript(const std::string& json_utf8, std::vector
         a.steps = (int)obj.GetNamedNumber(L"steps", 1);
         a.seed = (unsigned)obj.GetNamedNumber(L"seed", 42);
         a.has_enabled = obj.HasKey(L"enabled");
+        a.has_text = obj.HasKey(L"text");
         a.enabled = obj.GetNamedBoolean(L"enabled", false);
         a.port = (int)obj.GetNamedNumber(L"port", 11434);
         a.routing = (int)obj.GetNamedNumber(L"routing", -1);
@@ -2718,6 +2719,28 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
                                          " set_kv_reuse: 'enabled' (bool) is required");
             ApDispatchSync([this, on = a.enabled]() {
                 m_kv_reuse = on;
+                SaveSettings();
+            });
+        } else if (a.op == "set_taesd") {
+            // Same guard as set_kv_reuse: 'enabled' defaults to false, so a
+            // missing or misspelled key would silently assert "TAESD off" and
+            // pass without the UI writer ever running.
+            if (!a.has_enabled)
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " set_taesd: 'enabled' (bool) is required");
+            ApDispatchSync([this, on = a.enabled]() {
+                m_diffuse_taesd = on;
+                SaveSettings();
+            });
+        } else if (a.op == "set_system_prompt") {
+            // Empty is a legitimate value here (it is what the dialog stores
+            // when the box is cleared), so require the key rather than treating
+            // an empty string as "not supplied".
+            if (a.arg.empty() && !a.has_text)
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " set_system_prompt: 'text' is required");
+            ApDispatchSync([this, text = ::xllama::wstring_to_utf8(a.arg)]() {
+                m_system_prompt = text;
                 SaveSettings();
             });
         } else if (a.op == "generate_image") {

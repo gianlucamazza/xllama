@@ -492,7 +492,7 @@ PY
 # upload and asserts on routing *behaviour*; this one asserts that the in-app
 # ops actually mutate and persist state.
 validate_settings() {
-	echo "=== settings ops (set_routing / set_sampling / set_kv_reuse) ==="
+	echo "=== settings ops (routing / sampling / kv_reuse / taesd / system_prompt) ==="
 	if ! model_provisioned "smollm2-360m-cpu-int4"; then
 		echo "  FAIL: smollm2-360m-cpu-int4 is not in LocalState\\models\\"
 		echo "  Seed it first:  ./scripts/provision-models.sh smollm2-360m-cpu-int4"
@@ -521,6 +521,8 @@ JSON
   {"op": "set_routing", "routing": 0},
   {"op": "set_sampling", "temperature": 0.55, "top_p": 0.8, "top_k": 20, "repetition_penalty": 1.25, "n_predict": 128},
   {"op": "set_kv_reuse", "enabled": false},
+  {"op": "set_taesd", "enabled": true},
+  {"op": "set_system_prompt", "text": "You are a terse assistant."},
   {"op": "quit"}
 ]}
 JSON
@@ -533,7 +535,7 @@ JSON
 		verdict=1
 	}
 	local op
-	for op in set_routing set_sampling set_kv_reuse; do
+	for op in set_routing set_sampling set_kv_reuse set_taesd set_system_prompt; do
 		if grep -aq "\[autopilot\] action .* ${op} end" "$log"; then
 			echo "  ok: ${op} dispatched"
 		else
@@ -563,6 +565,9 @@ want = [
     ("top_k", smp.get("top_k"), 20, "exact"),
     ("repetition_penalty", smp.get("repetition_penalty"), 1.25, "near"),
     ("n_predict", smp.get("n_predict"), 128, "exact"),
+    # Seeded false / "You are a helpful AI assistant." above, so a no-op op fails.
+    ("diffuse_taesd_vae", s.get("diffuse_taesd_vae"), True, "exact"),
+    ("system_prompt", s.get("system_prompt"), "You are a terse assistant.", "exact"),
 ]
 rc = 0
 for name, got, exp, kind in want:
