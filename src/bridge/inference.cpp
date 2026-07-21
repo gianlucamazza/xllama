@@ -48,6 +48,8 @@ InferenceResult run_inference_llama(const InferenceParams& params);
     #include <windows.h>
     #include <eh.h>
     #include "ort_genai_c.h"
+
+    #include "ort_sampling.h" // shared ORT search-param builder (#125); needs ort_genai_c.h
     #include "xllama/ort_raii.h"
 // clang-format on
 
@@ -202,32 +204,11 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
         oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "max_length",
                                                     static_cast<double>(max_len)),
                   "SetSearchNumber max_length");
-        oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "temperature",
-                                                    static_cast<double>(params.temperature)),
-                  "SetSearchNumber temperature");
-        // Greedy (argmax) decode is deterministic — the prerequisite for logit parity
-        // against the llama.cpp reference. do_sample=false + top_k=1 pins the choice.
-        if (params.sampling().is_greedy()) {
-            oga_check(OgaGeneratorParamsSetSearchBool(gparams.get(), "do_sample", false),
-                      "SetSearchBool do_sample");
-            oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "top_k", 1.0),
-                      "SetSearchNumber top_k");
-        } else {
-            // #125: set these explicitly. Leaving them unset does not mean
-            // "our defaults" — it means whatever genai_config.json ships with,
-            // which is a third sampler configuration nobody chose. Session does
-            // the same, so the two ORT surfaces now agree.
-            oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "top_p",
-                                                        static_cast<double>(params.top_p)),
-                      "SetSearchNumber top_p");
-            oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "top_k",
-                                                        static_cast<double>(params.top_k)),
-                      "SetSearchNumber top_k");
-            oga_check(
-                OgaGeneratorParamsSetSearchNumber(gparams.get(), "repetition_penalty",
-                                                  static_cast<double>(params.repetition_penalty)),
-                "SetSearchNumber repetition_penalty");
-        }
+        // Temperature + the greedy guard via the shared helper (ort_sampling.h),
+        // the same one OrtSession uses — so the two ORT surfaces cannot drift
+        // apart again the way they did before this fix. Greedy (incl. temp 0)
+        // pins argmax; it is the prerequisite for logit parity.
+        apply_ort_sampling(gparams.get(), params.sampling());
         // --- generator ---
         OgaGenerator* raw_gen = nullptr;
         oga_check(OgaCreateGenerator(model.get(), gparams.get(), &raw_gen), "OgaCreateGenerator");

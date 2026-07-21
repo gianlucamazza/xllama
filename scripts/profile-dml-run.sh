@@ -252,13 +252,16 @@ delete_file "" "bench-result.csv.done"
 # the same reason.
 delete_file "" "bench_turns.txt"
 # Same class of hazard, and quieter: bench-xbox-ort.sh --ctx / --n-predict leave
-# bench_ctx.txt and bench_npredict.txt behind, and main_loop honours whatever it
-# finds. A profile run after a sweep would silently inherit that sweep's n_ctx
-# and n_predict — no error, just a profile of the wrong configuration. Neither
-# file is ever deleted by the bench script (it only overwrites them), so clearing
-# them here is the only thing that makes a profile run self-contained.
+# bench_ctx.txt, bench_npredict.txt and bench_maxlen.txt behind, and main_loop
+# honours whatever it finds. A profile run after a sweep would silently inherit
+# that sweep's n_ctx / n_predict / max_length — no error, just a profile of the
+# wrong configuration. max_length matters most: it is THE variable governing
+# DirectML prefill (#130/#135), so a stale one would characterize the wrong point
+# invisibly. The bench script only overwrites these, never deletes them, so
+# clearing them here is the only thing that makes a profile run self-contained.
 delete_file "" "bench_ctx.txt"
 delete_file "" "bench_npredict.txt"
+delete_file "" "bench_maxlen.txt"
 
 # Append-only log: remember current size to slice only the new tail later.
 download_file "" "xllama.log" "${TMPDIR_LOCAL}/xllama_before.log"

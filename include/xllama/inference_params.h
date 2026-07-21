@@ -115,8 +115,10 @@ struct InferenceResult {
     // the variable that controls prefill throughput — a 1289-token prompt runs at
     // 130 tok/s at max_length 1801 and 611 tok/s at 2048, unchanged otherwise —
     // so a bench row that omits it cannot be interpreted, the same way a row
-    // without n_prompt_tok could not (#128). Derived, not independently settable:
-    // min(n_ctx, n_prompt_tok + n_predict) on the stateless path. 0 = N/A (GGUF).
+    // without n_prompt_tok could not (#128). Normally min(n_ctx, n_prompt_tok +
+    // n_predict) on the stateless path, but the bench can override it via
+    // max_length_override (#139) — whatever was actually requested is recorded
+    // here. 0 = N/A (GGUF, which does not set it).
     int max_length = 0;
     size_t peak_ws_mb = 0;
     size_t gpu_mem_mb = 0;    // per-process GPU CurrentUsage after model load (0 = N/A)
