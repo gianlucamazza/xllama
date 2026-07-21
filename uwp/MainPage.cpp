@@ -424,7 +424,7 @@ void MainPageController::FlushTokenBuffer() {
         m_status_flipped_to_generating = true;
         SetStatus(L"generating", StatusKind::Working);
     }
-    if (n > 1 && m_first_token_seen.load()) {
+    if (n > 1 && m_first_token_seen.load(std::memory_order_acquire)) {
         double elapsed =
             std::chrono::duration<double>(std::chrono::steady_clock::now() - m_first_token_at)
                 .count();
@@ -2354,13 +2354,16 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
             };
             // Token accumulation — no per-token RunAsync dispatch (batched by flush timer)
             auto on_token = [self](const std::string& tok) {
-                // Stamp prefill-end on the first token. Cheap (one relaxed CAS
-                // per turn) and it is the only place that knows when the model
-                // stopped reading and started writing.
-                bool expected = false;
-                if (self->m_first_token_seen.compare_exchange_strong(expected, true,
-                                                                     std::memory_order_relaxed)) {
+                // Stamp prefill-end on the first token — the only place that
+                // knows when the model stopped reading and started writing.
+                // This runs on the inference thread; FlushTokenBuffer reads the
+                // timestamp on the UI thread. Write the value FIRST, then
+                // publish with a release store, so an acquire load of the flag
+                // guarantees the timestamp is visible. (Relaxed here would be a
+                // data race that x64 happens to hide.)
+                if (!self->m_first_token_seen.load(std::memory_order_relaxed)) {
                     self->m_first_token_at = std::chrono::steady_clock::now();
+                    self->m_first_token_seen.store(true, std::memory_order_release);
                 }
                 self->m_tokens_received.fetch_add(1, std::memory_order_relaxed);
                 std::lock_guard<std::mutex> lk(self->m_token_mutex);
