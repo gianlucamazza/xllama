@@ -104,9 +104,12 @@ The startup log should show:
 
 ```text
 [xllama] App::App()
+[xllama] App::App() complete
 [xllama] App::OnLaunched
-[xllama] MainPageController::Init
-[xllama] Model resolved: Q:\...\models\smollm2-360m-cpu-int4
+[xllama] building MainPageController
+[xllama] MainPageController built
+[xllama] MainPageController init done
+[xllama] Window.Content set
 [xllama] Window activated
 ```
 

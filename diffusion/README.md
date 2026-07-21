@@ -97,8 +97,10 @@ either; do not deploy them unvalidated. Other sources for a clean fp16 graph:
    [`sharpbai/stable-diffusion-v1-5-onnx-directml-fp16`](https://huggingface.co/sharpbai/stable-diffusion-v1-5-onnx-directml-fp16),
    or the [Amblyopius/Stable-Diffusion-ONNX-FP16](https://github.com/Amblyopius/Stable-Diffusion-ONNX-FP16)
    toolkit. **Verified 2026-07-08**: the nmkd SD1.5 fp16 components all load in
-   ORT (UNet input `sample: tensor(float16)`, 1.7 GB → < 2 GB), unlike the CPU
-   `convert_fp16.py` output. These ship with **external data** (`unet/weights.pb`),
+   ORT (UNet input `sample: tensor(float16)`, 1.7 GB → < 2 GB) — as does the
+   output of the current `convert_fp16.py`, which uses the ORT team's
+   `OnnxModel.convert_float_to_float16` and load-tests every component at
+   `ORT_ENABLE_EXTENDED`. These ship with **external data** (`unet/weights.pb`),
    so run `scripts/merge_onnx_external_data.py` on each component to make it
    self-contained before deploying (AppContainer `weakly_canonical`, §8).
 2. **GPU export**: `optimum-cli export onnx --model stabilityai/sd-turbo --fp16
@@ -106,8 +108,10 @@ either; do not deploy them unvalidated. Other sources for a clean fp16 graph:
 
 Speed note: SD1.5 needs ~20–25 steps (slow); the console target is a **few-step**
 model — SD-Turbo/SDXL-Turbo (1 step) or an LCM variant (2–4 steps) in fp16. The
-fp32 SD-Turbo path here is validated for quality; pair it with a clean fp16 UNet
-from source (1) or (2) for the console.
+fp32 SD-Turbo path here is validated for quality; convert it with
+`diffusion/convert_fp16.py` for the console — that output is what ships as
+`sd-turbo-fp16` and is console-validated (see Status). Sources (1) and (2) are
+fallbacks only.
 
 ## Run on console
 

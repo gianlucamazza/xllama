@@ -136,10 +136,12 @@ each invalidated at least one bench run or upload in this project:
    any upload to a fresh package, otherwise mkdir/upload fail.
 3. **The WDP file APIs return HTTP 200 with `"Success": false`** in the body
    (`"File move failed"`, path not found). Always check the response body
-   _and_ verify with a post-upload listing. `deploy.sh upload-dir` discards
-   responses (`/dev/null`): it can report "Uploaded N file(s)" with zero files
-   actually arrived. Multi-level mkdir fails silently when the parent is
-   missing — create directories one level at a time.
+   _and_ verify with a post-upload listing. `deploy.sh upload-dir` now parses
+   every response body, prints `ERROR: upload of <file> failed` per file, appends
+   `(N FAILED)` to its summary and exits non-zero; it also verifies the remote
+   directory exists before uploading. Raw `curl` calls still need the body check
+   done by hand. Multi-level mkdir fails silently when the parent is missing —
+   create directories one level at a time.
 4. **The PFN read right after "Installation succeeded" can be stale**: for a
    few seconds the listing may still show the previous version, or both
    versions at once (staging window). Re-read the PFN before using it in

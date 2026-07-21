@@ -1,7 +1,8 @@
 # Install a release build on your Xbox
 
-How to install a tagged xllama release (e.g.
-[v1.2.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.2.0.0)) on an
+How to install a tagged xllama release (see the
+[releases page](https://github.com/gianlucamazza/xllama/releases) for the current
+tag) on an
 Xbox Series S|X in Dev Mode, from a Linux/macOS host. For building from source
 see the [README](../README.md#build); for Dev Mode activation and Device
 Portal basics see [device-portal.md](./device-portal.md).
@@ -56,7 +57,7 @@ Notes:
 
 Launch xllama from Dev Home (or `./scripts/deploy.sh start-app`). The app
 downloads the default chat model with a progress bar, then opens the chat.
-On **unified** shipping builds (v1.1.8+ / **v1.2.0.0** Latest) that default is
+On **unified** shipping builds (v1.1.8+) that default is
 **LFM2.5-350M** (~219 MB); older releases used SmolLM2-360M INT4 (~417 MB). See
 [using-the-app.md](./using-the-app.md) from here.
 
