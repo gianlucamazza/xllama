@@ -84,10 +84,15 @@ Notes:
   exonerated — see `dml-rmsnorm-fix-runbook.md`) is worked around by the
   RMSNorm-decomposed `smollm2-360m-dml-fp16-v2` graph, parity-validated
   on-console. `routing_policy.h` (`dml_text_model_ok`) allows GPU text routing
-  only for that asset; the 1550-token Auto switch applies. Its measured row is
-  236.7 prefill / 44.4 decode / 1268 MB — the old fused-RMSNorm rows (169.2/46.8
-  and 353.5/36.5, wrong text output) remain as historical throughput
-  measurements, never merged into one synthetic row.
+  only for that asset; the Auto switch applies at `token_threshold` (1550, but
+  **provisional and under re-derivation** — `uwp-constraints.md §5c/§5d`). Its
+  measured row is 236.7 prefill / 44.4 decode / 1268 MB. **The prefill number is
+  a cold-process figure** (§5e: DirectML warms up ~1.7× on the second call in a
+  process, so nothing in this repo reports warm prefill) and decode still loses
+  to CPU int4. What the GPU actually buys is first-turn TTFT on a long prompt;
+  from the second turn the CPU wins at every reachable length via KV reuse, which
+  DirectML cannot do (§5d). The old fused-RMSNorm rows (169.2/46.8 and 353.5/36.5,
+  wrong text output) remain as historical throughput measurements only.
 
 ## KV-cache reuse — both backends, CPU
 
@@ -229,11 +234,16 @@ dispatch overhead at this model scale; CPU `MatMulNBits` on AVX2 wins
 `dml_text_model_ok()` now excludes, and was an interpolation between two prompt
 lengths. The measured sweep on the shipping `-v2` asset
 (`bench/results/phase12-dml-crossover.csv`, `uwp-constraints.md §5b`) shows the
-prefill curve is **not monotone**: at ~1.1k tokens the GPU wins only 1.38×, at
-~1.3k it _loses_ (119 vs 203 tok/s), and it wins outright only above ~1550
-tokens (636 vs 196). Text routing is live for the `-v2` RMSNorm-decomposed asset
-(#91 postmortem) above that threshold. The decode conclusion above is unchanged;
-the prefill figure is superseded.
+prefill curve is **not monotone** — and the reading of that non-monotonicity in
+§5b was itself superseded. The controlling variable is `max_length`, not prompt
+length (§5c): the "loss at ~1.3k" was a `max_length` valley, and every prefill
+figure here is cold-process (§5e). More important, "wins outright above ~1550" is
+**retracted** (§5d): it is true for a single turn and false for the app, because
+DirectML cannot reuse a KV cache (verified: `prefill2_reuse_ms = 0.0`) while the
+CPU does, so from the second turn the CPU wins at every length the trimmer
+allows. The GPU's real use is first-turn TTFT. Text routing is live for the `-v2`
+asset (#91 postmortem); the threshold value is provisional. The decode conclusion
+above is unchanged.
 
 ### fp16 >2 GB external data — loads, but 1B fp16 OOMs GPU inference (2026-07-15)
 

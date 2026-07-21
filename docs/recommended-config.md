@@ -63,7 +63,7 @@ GGUF thread default: llama.cpp auto-detect is capped at **6** on console
 
 ## `genai_config.json` (on-device model dir)
 
-**CPU (bundled default)** — copy from [`bench/configs/genai_config-threads-4.json`](../bench/configs/genai_config-threads-4.json):
+**CPU (bundled default)** — copy from [`bench/configs/genai_config-threads-6.json`](../bench/configs/genai_config-threads-6.json):
 
 - `provider_options: []`
 - `intra_op_num_threads: 6` — **corrected 2026-07-21** (§5f). The previous 4 came
@@ -124,6 +124,10 @@ Two caveats on that number, both live:
 - It was calibrated against a DirectML slowdown believed to track prompt length.
   It tracks `max_length` instead (#130, `docs/uwp-constraints.md` §5c), so the
   value is provisional and under re-derivation.
+- It optimizes the **first turn only** (§5d). The GPU buys a faster first token
+  on a long prompt; from the second turn the CPU wins at every reachable length,
+  because DirectML cannot reuse a KV cache. Whether Auto is worth leaving on
+  depends on how single-turn your long-prompt conversations are.
 
 ## Image generation
 
@@ -175,7 +179,7 @@ ctest --test-dir build/linux-test --output-on-failure
 
    ```bash
    source ~/.config/xllama/xbox-env
-   ./scripts/validate-console.sh all   # routing + settings + GGUF + TAESD → ALL PASS (2026-07-16, 1.2.0.534)
+   ./scripts/validate-console.sh all   # routing + settings (9 values) + GGUF + TAESD → routing+settings PASS on 1.4.0.641, GGUF PASS on 1.4.0.633 (2026-07-22); TAESD not re-run
    ```
 
 5. Manual/debug path: [console-validation-runbook.md](./console-validation-runbook.md) per §

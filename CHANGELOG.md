@@ -37,6 +37,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   of every target, replays the ops and asserts all nine values, so an op that
   silently does nothing fails rather than inheriting a matching baseline
   (validated on Xbox Series S, MSIX 1.4.0.633).
+- **Time-to-first-token surfaced in the UI (#139).** The app streams tokens, so
+  TTFT is the latency the user actually feels; it was measured
+  (`InferenceResult::t_p_eval_ms`) but never shown. The completion line now leads
+  with "N.Ns to first token"; the live tok/s counter measures decode from the
+  first token instead of from turn start (it was dividing decode tokens by prefill
+  time and under-reporting by more than half on long prompts); and the status
+  reads "reading prompt" during prefill instead of "generating", which was not yet
+  true. See `uwp-constraints.md §5d`.
 - **`max_length` in the bench CSV.** On DirectML it is the variable that governs
   prefill throughput, and `n_ctx` does not stand in for it — a control run at
   `n_ctx` 3072 holding `max_length` fixed reproduces the slow figure to the
@@ -66,6 +74,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   already did. The shipping default (`n_predict` 256) put a 1289-token prompt at
   `max_length` 1545 — inside the valley, 150 tok/s where 612 was available.
   Faster and, measured, slightly less memory.
+
+- **CPU threading recommendation 4 → 6 (`docs/recommended-config.md`, §5f).** The
+  previous 4 came from a 2026-05-23 sweep whose every row had `prompt_tok_s = 0`,
+  i.e. a decode optimum. Measuring prefill too, 6 leads by +8.5% at 1380 tokens
+  with no decode cost. `t8` is worse than the "bandwidth saturation" it was
+  recorded as — it takes prefill down 2.3× as well. Caveat in the doc: the shipped
+  asset sets **no** `intra_op_num_threads` at all, so neither value has ever been
+  in production.
 
 - **Device marker training recipe.** The host marker gate converges with
   learning rate 2e-4 (5e-4 oscillated and under-converged), the shortened

@@ -32,15 +32,16 @@ The shared core is platform-agnostic C++17; front-ends are thin:
 
 Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 
-| Header                             | Owns                                                                |
-| ---------------------------------- | ------------------------------------------------------------------- |
-| `session.h` / `inference_params.h` | `Session`/`SessionParams`, `InferenceParams/Result`, `Backend` enum |
-| `training.h` / `training_params.h` | `TrainingJob`/`TrainingResult`, stages, device gates, job JSON      |
-| `chat_prompt.h`                    | `ChatFormat`, `chat_format_for`, `apply_stop_sequences`             |
-| `routing_policy.h`                 | `decide_routing`, `kv_reuse_supported_for_model`                    |
-| `model_provision.h`                | `dir_satisfies_expected_files`, `normalize_model_path`              |
-| `manifest_merge.h`                 | `merge_manifest_entries` (per-entry catalogue override)             |
-| `membw.h`                          | `measure_membw` (STREAM-style bandwidth probe)                      |
+| Header                             | Owns                                                                         |
+| ---------------------------------- | ---------------------------------------------------------------------------- |
+| `session.h` / `inference_params.h` | `Session`/`SessionParams`, `InferenceParams/Result`, `Backend` enum          |
+| `sampling.h`                       | `SamplingConfig`, shared defaults; CLI/bench and GUI/API init from it (#125) |
+| `training.h` / `training_params.h` | `TrainingJob`/`TrainingResult`, stages, device gates, job JSON               |
+| `chat_prompt.h`                    | `ChatFormat`, `chat_format_for`, `apply_stop_sequences`                      |
+| `routing_policy.h`                 | `decide_routing`, `kv_reuse_supported_for_model`, prompt budget              |
+| `model_provision.h`                | `dir_satisfies_expected_files`, `normalize_model_path`                       |
+| `manifest_merge.h`                 | `merge_manifest_entries` (per-entry catalogue override)                      |
+| `membw.h`                          | `measure_membw` (STREAM-style bandwidth probe)                               |
 
 ## Inference backends and runtime dispatch
 
@@ -63,6 +64,14 @@ suffix / on-disk GGUF layout routes to llama.cpp, everything else to ORT GenAI
 (`session.cpp`, `inference.cpp`). So llama.cpp is both the host A/B benchmarking
 lane and a **shipping** text backend for the GGUF catalogue entries (LFM2.5,
 Qwen3.5, Gemma).
+
+Both backends **stream**: `GenerateParams::on_token` fires per detokenized piece
+inside the decode loop. The UI worker does not dispatch per token — it appends
+under a mutex and a 40 ms `DispatcherTimer` (`FlushTokenBuffer`) drains the buffer
+to the screen. Because the app streams, the latency that matters is
+**time-to-first-token**, not total turn time; `InferenceResult::t_p_eval_ms`
+carries it and `StartInference` surfaces it (`§5d`, #139). The LAN endpoint below
+is the one path that does **not** stream — it returns a completed response.
 
 ## Chat templates (`ChatFormat`)
 
@@ -89,17 +98,37 @@ re-prefilling the whole conversation:
   **20.02×** on the larger LFM models (`benchmarks.md`).
 
 Reuse is gated by `kv_reuse_supported_for_model()` (`routing_policy.h`), which
-excludes the DirectML EP (continuous decoding is CPU-only). It is **not** gated by
-backend — GGUF KV-reuse is on.
+excludes the DirectML EP (continuous decoding is CPU-only, verified — the reuse
+turn produces zero cached tokens on DML). It is **not** gated by backend — GGUF
+KV-reuse is on.
+
+The UI keeps **one** session at a time. `MainPageController::EnsureSession` resets
+the current session before creating another (`avoid 2× model in RAM`: the CPU and
+DML working sets, ~1.3 GB and ~2.9 GB, do not coexist in the budget). One
+consequence drives the routing verdict above: a GPU-routed turn loads the CPU
+model to tokenize for the routing decision, then destroys it to load DirectML, so
+that turn pays two model loads (§5d).
 
 ## Routing (`routing_policy.h`)
 
-`decide_routing()` picks the execution path per conversation (sticky — the KV cache
-is per-EP): decode-heavy chat stays on **CPU int4** (fastest decode), long prompts
-switch to **DML fp16** (prefill wins at scale). Routing is **ORT-only**; GGUF models
-are CPU-only, so routing is skipped for them. Tunable prefill batching for the
-llama.cpp path is exposed via `SessionParams.n_batch` / `n_ubatch`
-(`xllama-cli --batch/--ubatch`) — see `benchmarks.md` for the (flat) sweep.
+`decide_routing()` picks the execution path per conversation and is **sticky** —
+decided on the first turn, when the app cannot yet know whether the conversation
+will continue, and never revisited (the KV cache is per-EP). Decode-heavy chat
+stays on **CPU int4** (fastest decode); a long first-turn prompt can switch to
+**DML fp16**, which wins cold-process prefill and therefore first-turn TTFT. This
+does **not** mean the GPU is faster overall: DirectML cannot reuse a KV cache
+(`kv_reuse_supported_for_model` returns false for it) while the CPU can, so from
+the second turn the CPU wins at every reachable length — see `uwp-constraints.md
+§5d`. The threshold (`token_threshold`) is provisional and under re-derivation
+(§5c). Routing is **ORT-only**; GGUF models are CPU-only, so routing is skipped
+for them. Tunable prefill batching for the llama.cpp path is exposed via
+`SessionParams.n_batch` / `n_ubatch` (`xllama-cli --batch/--ubatch`) — see
+`benchmarks.md` for the (flat) sweep.
+
+Sampling is one code path for both surfaces: `SamplingConfig` and its defaults
+live in `sampling.h`, and the llama.cpp sampler chain is assembled in exactly one
+place, `src/bridge/sampler_chain.h` (`add_sampler_stages`), so the CLI/bench and
+GUI/API cannot drift into different samplers as they had before #125.
 
 ## Model catalogue, provisioning, and quant auto-upgrade
 

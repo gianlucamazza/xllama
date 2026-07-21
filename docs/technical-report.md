@@ -50,10 +50,14 @@ Three hypotheses died against these numbers:
    66.3); the crossover exists only in prefill, where batch amortises dispatch.
    The 1.8×-at-~1k figure once quoted here came from the pre-#91 asset and a
    two-point interpolation; the measured sweep on the shipping `-v2` graph
-   (`bench/results/phase12-dml-crossover.csv`, docs/uwp-constraints.md §5b)
-   shows the prefill curve is not monotone and the GPU only wins outright above
-   ~1550 tokens. The app routes per-workload above that threshold, sticky per
-   conversation; decode always stays on CPU int4.
+   (`bench/results/phase12-dml-crossover.csv`) showed the prefill curve is not
+   monotone — and that this is a `max_length` effect, not prompt length
+   (docs/uwp-constraints.md §5c), with every DML prefill figure cold-process
+   (§5e). The GPU's prefill win buys a faster **first token**; it does not carry
+   the conversation, because DirectML cannot reuse a KV cache and the CPU can, so
+   from the second turn the CPU wins at every reachable length (§5d). The app
+   routes per-workload on the first turn, sticky per conversation; decode always
+   stays on CPU int4.
    **#91 interlude (2026-07-16 → 2026-07-19).** The logit-parity harness
    showed the DML text path computes numerically wrong logits on the Series S
    GPU (NMSE ~1 vs the CPU reference, top-1 disagrees; fp16 AND int4;

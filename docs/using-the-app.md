@@ -58,12 +58,14 @@ once; the choice is stored with the conversation and appended to
   - **GPU only (DML)** — prefers DirectML when `gpu_model` is provisioned (e.g.
     `smollm2-360m-dml-fp16-v2` in LocalState); if `gpu_available` is false, falls
     back to the CPU model.
-  - **Auto (long prompts → GPU)** — long first prompts route to GPU fp16 only
-    when `gpu_available` is true and the prompt exceeds the token threshold
-    (above that threshold prefill is ~3.2× faster; below it the GPU loses, and
-    between roughly 1100 and 1500 tokens it is far slower — see
-    [docs/uwp-constraints.md §5b](./uwp-constraints.md)); short chats, or any turn with a
-    missing GPU model, stay on CPU. The choice is sticky per conversation.
+  - **Auto (long first prompt → GPU)** — a long first prompt routes to GPU fp16
+    when `gpu_available` is true and it exceeds the token threshold. What the GPU
+    buys there is a faster **first token** (cold-process prefill up to ~3.2×); it
+    does **not** make the conversation faster overall — the GPU cannot reuse a KV
+    cache, so from the second turn the CPU wins, and the routing choice is sticky
+    per conversation (decided once, on turn 1). Short chats, or any turn with a
+    missing GPU model, stay on CPU. The threshold is provisional and under
+    re-derivation — see [docs/uwp-constraints.md §5d](./uwp-constraints.md).
 - **LAN API** — enables or stops the OpenAI-compatible endpoint immediately,
   without restarting the app. The port must be 1025–49151 except 11443. The
   status line reports the active listener or bind error. The endpoint is
