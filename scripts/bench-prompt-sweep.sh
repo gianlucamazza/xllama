@@ -5,7 +5,7 @@
 #   source ~/.config/xllama/xbox-env
 #   ./scripts/bench-prompt-sweep.sh [--models "a b"] [--tokens "150 300 ..."]
 #                                   [--runs N] [--out FILE]
-#                                   [--ctx N] [--n-predict N]
+#                                   [--ctx N] [--n-predict N] [--max-length N]
 #
 # Why this exists: the routing threshold in include/xllama/routing_policy.h used
 # to be 600, a midpoint interpolated between two sample points (285 and ~1050
@@ -39,6 +39,7 @@ TOKENS="150 300 550 800 1100 1600"
 RUNS=4
 CTX=0      # 0 = engine default; #130 varies it to test the band hypothesis
 NPREDICT=0 # 0 = engine default
+MAXLEN=0   # 0 = derive; -1 = saturate to n_ctx (what the app ships, #130)
 OUT="${REPO_ROOT}/bench/results/phase12-dml-crossover.csv"
 
 while [[ $# -gt 0 ]]; do
@@ -61,6 +62,10 @@ while [[ $# -gt 0 ]]; do
 		;;
 	--n-predict)
 		NPREDICT="$2"
+		shift 2
+		;;
+	--max-length)
+		MAXLEN="$2"
 		shift 2
 		;;
 	--out)
@@ -105,14 +110,20 @@ echo "Output: $OUT"
 echo ""
 
 FAILED=0
-for model in $MODELS; do
-	for t in $TOKENS; do
+# Prompt length OUTSIDE, backend INSIDE. The comparison this sweep exists to make
+# is CPU vs DML at a given length; with the backends in the outer loop every DML
+# point is taken ~20 minutes after its CPU counterpart, so any thermal or session
+# drift lands squarely on the contrast being measured. Interleaved, drift affects
+# both sides of each comparison equally.
+for t in $TOKENS; do
+	for model in $MODELS; do
 		echo "=========================================================="
 		echo "  $model @ target ${t} tok"
 		echo "=========================================================="
 		extra=()
 		((CTX > 0)) && extra+=(--ctx "$CTX")
 		((NPREDICT > 0)) && extra+=(--n-predict "$NPREDICT")
+		((MAXLEN != 0)) && extra+=(--max-length "$MAXLEN")
 		if ! "${SCRIPT_DIR}/bench-xbox-ort.sh" "$model" \
 			--prompt "${TMPDIR_LOCAL}/prompt-${t}.txt" \
 			--runs "$RUNS" --out "$OUT" "${extra[@]+"${extra[@]}"}"; then
