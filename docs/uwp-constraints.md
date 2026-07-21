@@ -1,6 +1,6 @@
 # UWP Constraints
 
-> **SSOT for UWP/AppContainer constraints** (numbered §1–§13, plus §5b on prefill vs prompt length): the measured GPU
+> **SSOT for UWP/AppContainer constraints** (numbered §1–§13, plus §5b/§5c on DirectML prefill): the measured GPU
 > budget (3801 MB), the 2 GB per-file limit, disk budget, no-mmap, `887A0036`,
 > `weakly_canonical`, thread cap, and the DirectML low-bit GEMM analysis. Other
 > docs link to a `§n` here rather than restating these.
@@ -131,6 +131,13 @@ reproduced. Raw rows: `bench/results/phase12-dml-crossover.csv`.
 | 1574       | 196         | **636**     | 2.47 s           | 975 tok           | **474**        |
 | 1671       | —           | 681         | 2.45 s           | —                 | 377            |
 
+> **Superseded in part by §5c (2026-07-21, same day).** Finding 1 below reads the
+> anomaly as a band in _prompt length_. It is not: a controlled experiment holding
+> the prompt byte-identical and varying only `n_predict` showed the controlling
+> variable is `max_length`. The measurements in this table are correct; the
+> interpretation of finding 1, and the threshold in finding 3 that follows from
+> it, are not. Read §5c before using either.
+
 Three findings:
 
 1. **There is a pathological band, roughly 1100–1500 tokens.** GPU prefill time
@@ -161,6 +168,65 @@ now controllable from the console bench path (`bench_ctx.txt` /
 uses to test whether the band's edges track `n_ctx`. Note also that `n_gen_tok`
 is blank for these rows: the column was added after they were taken
 (`src/bridge/bench.cpp`), so turn times here are derived from the rates.
+
+### §5c — The anomaly is in `max_length`, not prompt length (2026-07-21)
+
+§5b read the slowdown as a band in prompt length. A controlled experiment says
+otherwise. One prompt file, 1289 tokens, **byte-identical across every run**;
+`n_ctx` 2048 unless stated; only `n_predict` varied, which moves
+`max_length = min(n_ctx, n_prompt_tok + n_predict)`. Median of 2 runs after a
+dropped warmup; pairs reproduced to three digits.
+
+| `max_length` | `n_ctx`  | GPU prefill | time   | peak WS |
+| ------------ | -------- | ----------- | ------ | ------- |
+| 1297         | 2048     | 511 tok/s   | 2.52 s | 1905 MB |
+| 1400         | 2048     | 472         | 2.73 s | 1906 MB |
+| 1545         | 2048     | **150**     | 8.61 s | 1897 MB |
+| 1650         | 2048     | 195         | 6.61 s | 1969 MB |
+| 1801         | 2048     | **131**     | 9.83 s | 1970 MB |
+| 1801         | **3072** | 131         | 9.83 s | 1971 MB |
+| 1950         | 2048     | 212         | 6.09 s | 2483 MB |
+| 2048         | 2048     | **612**     | 2.11 s | 1970 MB |
+
+Taken twice, two hours apart, on two different MSIX builds (1.4.0.624 and
+1.4.0.628); every point reproduced. The table is the second set — the one whose
+rows carry `max_length` as a column. The first set is not committed: it predates
+that column, so its rows differ only in `prompt_tok_s` and cannot be told apart.
+That is the same defect `n_prompt_tok` fixed in #128, and the reason to
+re-measure rather than annotate by hand.
+
+1. **The prompt never changed, so this is not a prompt-length effect.** A 4.1×
+   swing in prefill throughput on identical input tokens (511 → 131 → 612).
+2. **`n_ctx` has no effect of its own.** The control row — `n_ctx` 3072 holding
+   `max_length` at 1801 — reproduces the 2048 row to the digit (131.09 tok/s in
+   both). This matches the code: on the ORT path `params.n_ctx` appears in exactly one
+   place, the `min()` that computes `max_length` (`src/bridge/inference.cpp`,
+   `src/bridge/session.cpp`). It is never passed to ORT GenAI as a context size;
+   the model's real context is `context_length: 8192` in `genai_config.json`.
+3. **The valley is interior, with both edges clean.** Fast at 1297–1400, fast
+   again at 2048, slowest near 1800. It is a dip, not a step.
+4. **It is not memory pressure, and saturating is not expensive.** The fastest
+   row (2048) has a _smaller_ working set than the 1950 row (1970 vs 2483 MB).
+5. **The shipping default sat inside the valley.** `n_predict` 256 on a
+   1289-token prompt gives `max_length` 1545 — 150 tok/s where 612 was available.
+
+**Consequence.** `Session::generate` now requests the full `m_n_ctx` as
+`max_length` and bounds generation with the `n_predict` cap in `run_decode` —
+which is what the KV-reuse chat path already did, so the two paths are now
+symmetric. This is a straight win: faster and no more memory.
+
+`run_inference` (CLI and bench) deliberately keeps the old `min()`. It is the
+instrument that found this, and sweeping `max_length` independently of `n_ctx`
+is the only way to re-measure the valley on a new asset or driver.
+
+The mechanism remains **unknown** — suspected shape-bucketed kernel selection in
+DirectML, which the per-node profiler (§11) cannot localise on its own because
+the graph collapses into a single `DmlFusedNode_0_0` at 96% of kernel time.
+Because §5b's finding 3 rests on the prompt-length reading, `token_threshold`
+(1550) is calibrated on a misattributed variable and is under re-derivation; it
+also has to stay below the context trimmer's budget, which is #133.
+
+Raw rows: `bench/results/phase12-maxlen-band.csv`.
 
 ### §5 (continued) — disk, availability and the App/Game lever
 

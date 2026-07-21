@@ -1,0 +1,9 @@
+model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date
+smollm2-360m-dml-fp16-v2,fp16,ort-genai-dml,2048,8,510.89,9.75,1905,2828,793,3801,1289,7,1297,xbox-series-s,2026-07-21T11:41:14Z
+smollm2-360m-dml-fp16-v2,fp16,ort-genai-dml,2048,8,472.28,34.78,1906,2833,793,3801,1289,110,1400,xbox-series-s,2026-07-21T11:41:47Z
+smollm2-360m-dml-fp16-v2,fp16,ort-genai-dml,2048,8,149.63,36.25,1897,2811,793,3801,1289,213,1545,xbox-series-s,2026-07-21T11:42:35Z
+smollm2-360m-dml-fp16-v2,fp16,ort-genai-dml,2048,8,194.95,36.12,1969,2843,793,3801,1289,213,1650,xbox-series-s,2026-07-21T11:43:23Z
+smollm2-360m-dml-fp16-v2,fp16,ort-genai-dml,2048,8,131.09,34.40,1970,2786,793,3801,1289,213,1801,xbox-series-s,2026-07-21T11:44:17Z
+smollm2-360m-dml-fp16-v2,fp16,ort-genai-dml,2048,8,211.79,34.30,2483,2861,793,3801,1289,252,1950,xbox-series-s,2026-07-21T11:45:04Z
+smollm2-360m-dml-fp16-v2,fp16,ort-genai-dml,2048,8,611.68,33.42,1970,2809,793,3801,1289,213,2048,xbox-series-s,2026-07-21T11:45:49Z
+smollm2-360m-dml-fp16-v2,fp16,ort-genai-dml,3072,8,131.09,34.46,1971,2831,793,3801,1289,213,1801,xbox-series-s,2026-07-21T11:46:57Z

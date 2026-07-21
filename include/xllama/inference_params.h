@@ -80,6 +80,13 @@ struct InferenceResult {
     bool ended_with_stop = false; // true = stopped on a stop sequence; false = n_predict/EOS cap.
                                   // Lets a KV-reuse caller know whether the closing <|im_end|>
                                   // is already in the KV cache when building the next turn's delta.
+    // #130: the max_length actually requested of the engine. On DirectML this is
+    // the variable that controls prefill throughput — a 1289-token prompt runs at
+    // 130 tok/s at max_length 1801 and 611 tok/s at 2048, unchanged otherwise —
+    // so a bench row that omits it cannot be interpreted, the same way a row
+    // without n_prompt_tok could not (#128). Derived, not independently settable:
+    // min(n_ctx, n_prompt_tok + n_predict) on the stateless path. 0 = N/A (GGUF).
+    int max_length = 0;
     size_t peak_ws_mb = 0;
     size_t gpu_mem_mb = 0;    // per-process GPU CurrentUsage after model load (0 = N/A)
     size_t gpu_budget_mb = 0; // OS-granted GPU budget for this process (0 = N/A)

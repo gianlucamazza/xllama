@@ -28,8 +28,10 @@ appear in the consolidated comparison.
   - `gpu_mem_mb` / `gpu_budget_mb`: per-process GPU memory CurrentUsage/Budget after model load (`QueryVideoMemoryInfo`, LOCAL segment); 0 on CPU-only runs and Linux builds
   - `n_prompt_tok`: prefill token count actually measured. Without it a row cannot be compared with one taken at another prompt length — the reason the pre-2026-07 DirectML rows are not re-readable.
   - `n_gen_tok`: tokens actually generated. **Not** the requested `n_predict`: generation is capped by the context window (`prompt + new <= n_ctx`) and can stop early on EOG. A 1574-token prompt at `n_ctx` 2048 caps new tokens at 474 and generated 277.
-- **CSV schema**: `model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,host,date`
-  Rows written before 2026-07-21 have 13 columns and no prompt/generated counts; rows in `phase12-dml-crossover.csv` carry `n_prompt_tok` but leave `n_gen_tok` empty (the console build that produced them predates that column). `bench-xbox-ort.sh` refuses to append to a file whose header does not match, so mixed-arity files cannot be created by accident.
+- **CSV schema**: `model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date`
+  Rows written before 2026-07-21 have 13 columns and no prompt/generated counts; rows in `phase12-dml-crossover.csv` carry `n_prompt_tok` but leave `n_gen_tok` empty (the console build that produced them predates that column). `bench-xbox-ort.sh` refuses to append to a file whose header does not match, and now also rejects a row whose **field count** disagrees with the schema — an MSIX older than the header writes fewer fields, and appending them under the current header shifts every column silently. That happened on 2026-07-21 with 1.4.0.615.
+
+  `max_length` (added 2026-07-21) is `min(n_ctx, n_prompt_tok + n_predict)`, the value actually requested of the engine. On DirectML it is the variable that governs prefill throughput — see #130 and `docs/uwp-constraints.md` §5c — so a row without it cannot be interpreted, and `n_ctx` does not substitute for it.
 
 **Backend field values**:
 

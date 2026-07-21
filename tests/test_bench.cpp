@@ -30,7 +30,7 @@ static std::vector<std::string> split_csv(const std::string& line) {
 
 static const char* kExpectedHeader = "model,quant,backend,n_ctx,n_threads,prompt_tok_s,"
                                      "decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,"
-                                     "n_prompt_tok,n_gen_tok,host,date";
+                                     "n_prompt_tok,n_gen_tok,max_length,host,date";
 
 static xllama::InferenceParams make_params() {
     xllama::InferenceParams p;
@@ -81,7 +81,8 @@ TEST_CASE("Bench CSV writer: basic output") {
     // token count a row cannot be compared against one taken at another length.
     CHECK(f[11] == "10"); // n_prompt_tok = res.n_p_eval
     CHECK(f[12] == "20"); // n_gen_tok  = res.n_eval
-    CHECK(f[13] == "linux-test");
+    CHECK(f[13] == "0");  // max_length — unset on this result (GGUF path)
+    CHECK(f[14] == "linux-test");
 
     // Clean up
     std::remove(csv_path.c_str());
@@ -138,6 +139,10 @@ TEST_CASE("Bench CSV writer: gpu memory columns") {
     res.peak_ws_mb = 512;
     res.gpu_mem_mb = 300;
     res.gpu_budget_mb = 768;
+    // #130: max_length governs DirectML prefill throughput, so a row without it
+    // cannot be interpreted. Assert a non-zero value reaches the CSV — asserting
+    // only the GGUF-path 0 above would pass even if the field were never wired.
+    res.max_length = 1801;
 
     xllama::write_bench_csv(params, res, "linux-test");
 
@@ -153,13 +158,14 @@ TEST_CASE("Bench CSV writer: gpu memory columns") {
     std::getline(ifs, row);
     const std::vector<std::string> f = split_csv(row);
     REQUIRE(f.size() == split_csv(kExpectedHeader).size());
-    CHECK(f[7] == "512");  // peak_ws_mb
-    CHECK(f[8] == "1000"); // load_ms
-    CHECK(f[9] == "300");  // gpu_mem_mb
-    CHECK(f[10] == "768"); // gpu_budget_mb
-    CHECK(f[11] == "0");   // n_prompt_tok — n_p_eval is left unset on this result
-    CHECK(f[12] == "20");  // n_gen_tok
-    CHECK(f[13] == "linux-test");
+    CHECK(f[7] == "512");   // peak_ws_mb
+    CHECK(f[8] == "1000");  // load_ms
+    CHECK(f[9] == "300");   // gpu_mem_mb
+    CHECK(f[10] == "768");  // gpu_budget_mb
+    CHECK(f[11] == "0");    // n_prompt_tok — n_p_eval is left unset on this result
+    CHECK(f[12] == "20");   // n_gen_tok
+    CHECK(f[13] == "1801"); // max_length
+    CHECK(f[14] == "linux-test");
 
     std::remove(csv_path.c_str());
     std::string done_path = xllama::resolve_local_path("bench-result.csv.done");

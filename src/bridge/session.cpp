@@ -200,12 +200,27 @@ class OrtSession final : public Session {
                   "OgaTokenizerEncode");
         int n_prompt_tok = static_cast<int>(OgaSequencesGetSequenceCount(seqs.get(), 0));
 
-        // Size max_length from the ACTUAL prompt, clamped to the model context.
-        // The old fixed "n_predict + 512" headroom was structurally too small for
-        // routed turns: routing sends >600-token prompts to the GPU, so a 959-tok
-        // turn hit "input_ids size (959) ... exceeds max length (768)".
-        const int max_len = std::min(m_n_ctx, n_prompt_tok + gp.n_predict);
-        OgaGeneratorParamsPtr gparams = make_params(gp, max_len);
+        // #130: request the FULL context as max_length and bound generation with
+        // the n_predict cap in run_decode — exactly what generate_chat already
+        // does. The obvious alternative, max_length = min(n_ctx, prompt +
+        // n_predict), is what this used to do, and on DirectML it is 3-4x slower.
+        //
+        // Measured 2026-07-21, Series S, one byte-identical 1289-token prompt,
+        // only n_predict varied (bench/results/phase12-maxlen-band.csv):
+        //
+        //   max_length  1297  1400  1545  1650  1801  1950  2048
+        //   prefill t/s   515   475   170   215   130   212   611
+        //
+        // There is a valley in max_length between ~1400 and n_ctx, deepest near
+        // 1800, with both edges clean. The prompt never changed, so this is not a
+        // prompt-length effect. A control run at n_ctx 3072 holding max_length at
+        // 1801 reproduced the slow figure (132 t/s), so n_ctx has no effect of its
+        // own — max_length alone controls it. Saturating also costs LESS memory
+        // here (1968 MB against 2483 at max_length 1950).
+        //
+        // The shipping default (n_predict 256) landed at 1545 — inside the valley.
+        // Mechanism still unknown; suspected shape-bucketed DML kernel selection.
+        OgaGeneratorParamsPtr gparams = make_params(gp, m_n_ctx);
         OgaGenerator* raw_gen = nullptr;
         oga_check(OgaCreateGenerator(m_model.get(), gparams.get(), &raw_gen), "OgaCreateGenerator");
         OgaGeneratorPtr gen(raw_gen);
@@ -214,7 +229,16 @@ class OrtSession final : public Session {
             gp.on_status("generating");
         auto t0 = std::chrono::steady_clock::now();
         oga_check(OgaGenerator_AppendTokenSequences(gen.get(), seqs.get()), "AppendTokenSequences");
-        run_decode(gen.get(), stream.get(), gp, res, t0, n_prompt_tok, 0);
+        // Reproduce the old allowance exactly. The previous max_length of
+        // min(n_ctx, prompt + n_predict) permitted min(n_ctx - prompt, n_predict)
+        // new tokens; max_length is no longer the bound, so the cap has to carry
+        // that arithmetic or a long prompt would now generate past the context.
+        // Clamped to >= 1 because run_decode treats a cap of 0 as "no cap": a
+        // prompt at or beyond the context would otherwise flip from a hard stop
+        // to unbounded generation. Such a prompt fails inside ORT first
+        // ("input_ids size exceeds max length"), which is the intended error.
+        const int n_predict_cap = std::max(1, std::min(m_n_ctx - n_prompt_tok, gp.n_predict));
+        run_decode(gen.get(), stream.get(), gp, res, t0, n_prompt_tok, n_predict_cap);
         log_gen(res, false);
     }
 
