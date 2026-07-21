@@ -38,18 +38,24 @@ std::string read_local_file(const char* name) {
     return out;
 }
 
+// Small integer knob from a LocalState file; |fallback| when absent or unparsable.
+int read_local_int(const char* name, int fallback) {
+    const std::string s = read_local_file(name);
+    return s.empty() ? fallback : std::atoi(s.c_str());
+}
+
 // Multi-turn TTFT bench: measures turn-2 prefill with KV reuse (append only the
 // new turn) against the cold baseline (full re-prefill of the 2-turn context),
 // on the same persistent Session. The ratio is the KV-reuse win. Writes
 // bench-kv-result.csv (+ .done) and logs the numbers.
 void run_kv_bench(const std::string& model_name, const std::string& sys, const std::string& u1,
-                  const std::string& u2, int n_threads, const char* host) {
+                  const std::string& u2, int n_threads, int n_ctx, const char* host) {
     // KV-reuse now works on both backends: ORT-GenAI (persistent generator) and
     // GGUF/llama.cpp (persistent llama_context in LlamaSession). No early skip.
     std::string err;
     ::xllama::SessionParams sp;
     sp.model_path = model_name;
-    sp.n_ctx = 2048;
+    sp.n_ctx = n_ctx > 0 ? n_ctx : 2048;
     sp.n_threads = n_threads;
     auto sess = ::xllama::Session::create(sp, &err);
     if (!sess) {
@@ -157,19 +163,14 @@ void main_loop() {
         }
     }
 
-    // Read optional bench_threads.txt — written by bench-xbox-ort.sh per variant.
-    // Used both to set params.n_threads (CSV tracking) and to label the host column.
-    int bench_threads = 0;
-    {
-        std::string tpath = resolve_local_path("bench_threads.txt");
-        FILE* tf = _wfopen(utf8_to_wstring(tpath).c_str(), L"r");
-        if (tf) {
-            char buf[16] = {};
-            if (fread(buf, 1, sizeof(buf) - 1, tf) > 0)
-                bench_threads = std::atoi(buf);
-            fclose(tf);
-        }
-    }
+    // Optional numeric knobs from LocalState, written by the bench scripts.
+    // bench_threads.txt also labels the host column; bench_ctx.txt and
+    // bench_npredict.txt exist because #130 needs to vary n_ctx and n_predict:
+    // the DirectML prefill band's edges sit near n_ctx/2 and n_ctx - n_predict,
+    // and that hypothesis is only falsifiable if both are controllable here.
+    const int bench_threads = read_local_int("bench_threads.txt", 0);
+    const int bench_ctx = read_local_int("bench_ctx.txt", 0);
+    const int bench_npredict = read_local_int("bench_npredict.txt", 0);
 
     // Multi-turn TTFT bench (Stage 2b): if bench_turns.txt is present it holds the
     // turn-2 user prompt; prompt.txt supplies turn 1. Measures the KV-reuse win
@@ -184,7 +185,7 @@ void main_loop() {
                 snprintf(host_buf2, sizeof(host_buf2), "xbox-series-s");
             log_output("[xllama] kv-bench model: " + model_name + "\n");
             run_kv_bench(model_name, "You are a helpful AI assistant.", user_prompt, turn2,
-                         bench_threads, host_buf2);
+                         bench_threads, bench_ctx, host_buf2);
             return;
         }
     }
@@ -200,7 +201,10 @@ void main_loop() {
     InferenceParams params;
     params.model_path = model_name;
     params.prompt = prompt;
-    params.n_predict = 512;
+    // 0 = keep the default (n_predict 512, n_ctx from InferenceParams).
+    params.n_predict = bench_npredict > 0 ? bench_npredict : 512;
+    if (bench_ctx > 0)
+        params.n_ctx = bench_ctx;
     params.n_threads = bench_threads;           // 0 = auto; set by bench-xbox-ort.sh
     params.stop_sequences = fmt.stop_sequences; // clean stop for Gemma's <end_of_turn>
 

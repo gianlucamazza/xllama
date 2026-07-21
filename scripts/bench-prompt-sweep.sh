@@ -5,6 +5,7 @@
 #   source ~/.config/xllama/xbox-env
 #   ./scripts/bench-prompt-sweep.sh [--models "a b"] [--tokens "150 300 ..."]
 #                                   [--runs N] [--out FILE]
+#                                   [--ctx N] [--n-predict N]
 #
 # Why this exists: the 600-token routing threshold (include/xllama/routing_policy.h)
 # is not a measured value. It is the midpoint between two sample points — 285 and
@@ -32,6 +33,8 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 MODELS="smollm2-360m-cpu-int4 smollm2-360m-dml-fp16-v2"
 TOKENS="150 300 550 800 1100 1600"
 RUNS=4
+CTX=0      # 0 = engine default; #130 varies it to test the band hypothesis
+NPREDICT=0 # 0 = engine default
 OUT="${REPO_ROOT}/bench/results/phase12-dml-crossover.csv"
 
 while [[ $# -gt 0 ]]; do
@@ -46,6 +49,14 @@ while [[ $# -gt 0 ]]; do
 		;;
 	--runs)
 		RUNS="$2"
+		shift 2
+		;;
+	--ctx)
+		CTX="$2"
+		shift 2
+		;;
+	--n-predict)
+		NPREDICT="$2"
 		shift 2
 		;;
 	--out)
@@ -95,9 +106,12 @@ for model in $MODELS; do
 		echo "=========================================================="
 		echo "  $model @ target ${t} tok"
 		echo "=========================================================="
+		extra=()
+		((CTX > 0)) && extra+=(--ctx "$CTX")
+		((NPREDICT > 0)) && extra+=(--n-predict "$NPREDICT")
 		if ! "${SCRIPT_DIR}/bench-xbox-ort.sh" "$model" \
 			--prompt "${TMPDIR_LOCAL}/prompt-${t}.txt" \
-			--runs "$RUNS" --out "$OUT"; then
+			--runs "$RUNS" --out "$OUT" "${extra[@]+"${extra[@]}"}"; then
 			echo "  WARN: point failed ($model @ ${t} tok) — continuing" >&2
 			FAILED=$((FAILED + 1))
 		fi

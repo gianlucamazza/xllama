@@ -32,6 +32,8 @@ set -euo pipefail
 
 MODEL_NAME="${1:-smollm2-360m-cpu-int4}"
 N_THREADS=0
+N_CTX=0     # 0 = engine default (2048)
+N_PREDICT=0 # 0 = engine default (512)
 N_RUNS=3
 PROMPT_FILE=""
 OUT_CSV=""
@@ -42,6 +44,14 @@ while [[ $# -gt 0 ]]; do
 	case "$1" in
 	--threads)
 		N_THREADS="${2:?--threads requires a value}"
+		shift 2
+		;;
+	--ctx)
+		N_CTX="${2:?--ctx requires a value}"
+		shift 2
+		;;
+	--n-predict)
+		N_PREDICT="${2:?--n-predict requires a value}"
 		shift 2
 		;;
 	--runs)
@@ -80,6 +90,8 @@ CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
 echo "=== xllama bench-xbox-ort ==="
 echo "  Model:   $MODEL_NAME"
 echo "  Threads: ${N_THREADS:-auto}"
+echo "  n_ctx:   $([[ $N_CTX -gt 0 ]] && echo "$N_CTX" || echo "default")"
+echo "  n_predict: $([[ $N_PREDICT -gt 0 ]] && echo "$N_PREDICT" || echo "default")"
 echo "  Runs:    $N_RUNS (run 1 warmup, dropped from median)"
 echo "  Xbox:    $XBOX_IP"
 
@@ -282,6 +294,9 @@ printf '%s' "$MODEL_NAME" >"${TMPDIR_LOCAL}/model.txt"
 
 # bench_threads.txt — tells inference-bridge what n_threads to write in CSV (v0.3.1+)
 printf '%d' "$N_THREADS" >"${TMPDIR_LOCAL}/bench_threads.txt"
+# 0 = leave the engine default; #130 varies these to test the band hypothesis.
+printf '%d' "$N_CTX" >"${TMPDIR_LOCAL}/bench_ctx.txt"
+printf '%d' "$N_PREDICT" >"${TMPDIR_LOCAL}/bench_npredict.txt"
 
 # bench.flag — consumed by app on each start; must be re-uploaded per run
 printf 'bench' >"${TMPDIR_LOCAL}/bench.flag"
@@ -319,6 +334,8 @@ for ((run = 1; run <= N_RUNS; run++)); do
 	upload_to_localstate "${TMPDIR_LOCAL}/prompt.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/model.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_threads.txt"
+	upload_to_localstate "${TMPDIR_LOCAL}/bench_ctx.txt"
+	upload_to_localstate "${TMPDIR_LOCAL}/bench_npredict.txt"
 
 	echo "  Starting app..."
 	restart_app
