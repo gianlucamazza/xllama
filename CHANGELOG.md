@@ -9,6 +9,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`n_prompt_tok` and `n_gen_tok` in the bench CSV.** The rates alone never said
+  at what prompt length a row was measured, nor how many tokens it generated, so
+  turn time was not reconstructible and no two rows were comparable — the reason
+  the 2026-07-07 DirectML matrix could not be re-read. Generation is capped by
+  the context window and can stop early on EOG, so `n_gen_tok` is not the
+  requested `n_predict`: a 1574-token prompt at `n_ctx` 2048 caps new tokens at
+  474 and generated 277.
+- **`scripts/bench-prompt-sweep.sh`** (prompt-length sweep across backends) and
+  **`scripts/bench-xbox-kv.sh`** (multi-turn KV-reuse bench). Nothing drove
+  `bench_turns.txt` before — the committed KV CSVs were made by hand.
+
 - **Lane B on-device training validated — `DeviceGgmlPartialFt` is now
   `available`.** The in-process ggml-opt partial fine-tune passes both marker
   gates: host (LR 2e-4, greedy eval reproduces `XLLAMA-LORA-OK.`) and console
@@ -24,7 +35,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   baseline, replays the ops and asserts all seven values in `settings.json`
   (validated on Xbox Series S, MSIX 1.4.0.606).
 
+### Changed
+
+- **Routing threshold 600 → 1550 tokens, measured.** The old value was a
+  midpoint interpolated between the only two prompt lengths ever benchmarked
+  (285 and ~1050), taken on the pre-#91 DML asset that `dml_text_model_ok()`
+  now excludes — the shipping `-v2` graph had no long-prompt row at all. A
+  sweep of 8 lengths on `-v2` (`scripts/bench-prompt-sweep.sh`,
+  `bench/results/phase12-dml-crossover.csv`, every point reproduced) shows the
+  prefill curve is not monotone: there is a **pathological band around
+  1100–1500 tokens** where GPU prefill takes 3.8–10.4 s against the CPU's
+  monotone 5.2–8.0 s (1289 tok: 10.4 s, measured twice). Past ~1550 the GPU
+  wins unconditionally, because break-even is ~975 generated tokens while the
+  2048-token context allows at most 474. The old threshold routed the common
+  600–1500 range onto the GPU, straight through the worst region. See
+  `docs/uwp-constraints.md` §5b.
+
+- **Device marker training recipe.** The host marker gate converges with
+  learning rate 2e-4 (5e-4 oscillated and under-converged), the shortened
+  `XLLAMA-LORA-OK.` eval target, and `checkpoint_every: 2` for early-stop; the
+  console harness learning rate is aligned to 2e-4.
+
 ### Fixed
+
+- **`deploy.sh pfn` returned an arbitrary package version.** It took the first
+  match with no version ordering, and an MSIX upgrade can leave two versions of
+  the same family registered (observed: 1.4.0.606 and 1.4.0.615 both live for
+  over 6 minutes). Every tool built on it could silently drive the wrong build —
+  it nearly invalidated the sweep above. Now picks the highest version and warns
+  on stderr.
+- **`prompt.txt` was truncated at 8 KB without a diagnostic** in the headless
+  bench path, cutting prompts at ~2k tokens — exactly the range the sweep
+  needed. `main_loop` had a private copy of the read loop; it now uses
+  `read_local_file`, which already read to EOF.
 
 - **Device training (Lane B) evaluate could not load the merged model.** The
   in-process evaluate stage opens the merged GGUF by an absolute `out_dir`
@@ -34,13 +77,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   paths (drive-letter / UNC) now pass through unchanged. Surfaced by the first
   on-console device-train run (peak working set 1195 MB, well under the 3 GB
   gate).
-
-### Changed
-
-- **Device marker training recipe.** The host marker gate converges with
-  learning rate 2e-4 (5e-4 oscillated and under-converged), the shortened
-  `XLLAMA-LORA-OK.` eval target, and `checkpoint_every: 2` for early-stop; the
-  console harness learning rate is aligned to 2e-4.
 
 ## [1.4.0.0] - 2026-07-19
 

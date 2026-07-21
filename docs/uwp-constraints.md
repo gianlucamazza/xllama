@@ -72,10 +72,14 @@ prefill/decode timing; SmolLM2-360M, 2 runs each, median-ish first run shown):
 
 Readings:
 
-1. **Prefill: the GPU scales with batch size, the CPU does not.** The
-   crossover sits between ~285 and ~1050 prompt tokens; at 1k tokens the GPU
-   is **1.8× faster** (TTFT ~3.0 s vs ~5.3 s). For prompt-heavy workloads
-   (RAG, long context) DML fp16 is already the better choice.
+1. **Prefill: the GPU scales with batch size, the CPU does not.** ⚠️ The
+   crossover claim that used to sit here — "between ~285 and ~1050 prompt
+   tokens" — was an interpolation across the only two prompt lengths ever
+   measured, on the pre-#91 asset that `dml_text_model_ok()` now excludes. A
+   proper sweep of the shipping `-v2` asset (2026-07-21,
+   `bench/results/phase12-dml-crossover.csv`, 8 lengths, every point reproduced)
+   shows the curve is **not** monotone and no single interpolated crossover
+   exists. See §5b.
 2. **The int4 decode collapse is a non-fused DML kernel, not a missing/CPU one**
    (corrected 2026-07-08 — see §12). The `MatMulNBits` op **is** present in the
    graph (225 nodes, `bits=4 block_size=32`, verified) and **does run on the GPU**:
@@ -106,7 +110,51 @@ whose text output was numerically wrong (broken
 `(Skip)SimplifiedLayerNormalization` kernel — `dml-rmsnorm-fix-runbook.md`).
 The shipping `-v2` decomposed graph measures 236.7 prefill / 44.4 decode /
 1268 MB — same conclusions (CPU int4 wins decode, GPU wins long prefill), and
-GPU text routing is live again behind the 600-token threshold.
+GPU text routing is live again behind the routing threshold (see §5b).
+
+### §5b — Prefill vs prompt length on the shipping `-v2` asset (2026-07-21)
+
+`scripts/bench-prompt-sweep.sh`, SmolLM2-360M, `n_ctx` 2048, median of 3 runs
+after a dropped warmup; every point below was re-measured at least once and
+reproduced. Raw rows: `bench/results/phase12-dml-crossover.csv`.
+
+| prompt tok | CPU prefill | GPU prefill | GPU prefill time | break-even answer | context allows |
+| ---------- | ----------- | ----------- | ---------------- | ----------------- | -------------- |
+| 172        | 259 tok/s   | 146 tok/s   | 1.18 s           | GPU never wins    | 1876           |
+| 320        | 253         | 268         | 1.20 s           | 8 tok             | 1728           |
+| 557        | 233         | 362         | 1.54 s           | 121 tok           | 1491           |
+| 791        | 221         | **447**     | 1.77 s           | 291 tok           | 1257           |
+| 1098       | 209         | 289         | 3.80 s           | 211 tok           | 950            |
+| 1289       | 203         | **119**     | **10.4 s**       | GPU never wins    | 759            |
+| 1384       | —           | 208         | 6.67 s           | —                 | 664            |
+| 1480       | —           | 227         | 6.51 s           | —                 | 568            |
+| 1574       | 196         | **636**     | 2.47 s           | 975 tok           | **474**        |
+| 1671       | —           | 681         | 2.45 s           | —                 | 377            |
+
+Three findings:
+
+1. **There is a pathological band, roughly 1100–1500 tokens.** GPU prefill time
+   rises to 3.8–10.4 s while the CPU stays on its monotone 5.2–8.0 s line. The
+   1289-token point takes **10.4 s to prefill fewer tokens than the 1574-token
+   point does in 2.5 s** — measured twice at each length, hours apart, with the
+   CPU measured in between showing no drift. The mechanism is **not explained**:
+   it is not memory pressure (the fastest point, 1574, has the largest working
+   set at 2869 MB). Resolving it needs the per-node ORT profiler
+   (`scripts/profile-dml-run.sh`, §11).
+2. **The right criterion is two-dimensional, not a prompt-length threshold.**
+   The GPU buys a one-off prefill saving and pays it back at a fixed rate on
+   every generated token, so what matters is prompt length **and** answer
+   length. The "break-even answer" column is that number: above it the CPU wins.
+3. **Past ~1550 tokens the GPU wins unconditionally** — break-even is ~975
+   generated tokens while the 2048-token context leaves room for at most 474, so
+   the prefill win cannot be amortised away. This is the only band where GPU
+   routing is unambiguously right, which is why `token_threshold` is 1550.
+
+Caveats: measured for one model and one `n_ctx`. Both are fixed in the shipping
+config, so the number is valid for what ships — but it is not a general law, and
+it must be re-measured when the asset, the model, or `n_ctx` changes. Note also
+that `n_gen_tok` is blank for these rows: the column was added after they were
+taken (`src/bridge/bench.cpp`), so turn times here are derived from the rates.
 
 **Effect on disk**: models too large to fit the Dev Mode partition also fail before reaching `OgaCreateModel`. This is a distinct failure mode — see §9.
 

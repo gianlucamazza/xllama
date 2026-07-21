@@ -111,6 +111,10 @@ if ((FAILED > 0)); then
 else
 	echo "Sweep complete."
 fi
-echo "Rows in $OUT:"
-column -s, -t "$OUT"
+if [[ -f "$OUT" ]]; then
+	echo "Rows in $OUT:"
+	column -s, -t "$OUT"
+else
+	echo "No output file — every point failed." >&2
+fi
 exit $((FAILED > 0 ? 1 : 0))

@@ -102,7 +102,7 @@ TEST_CASE("routing: auto boundary is strictly above the threshold") {
     s.gpu_model = "smollm2-360m-dml-fp16-v2";
 
     // Default threshold, asserted explicitly so a retune is a deliberate edit here.
-    CHECK(RoutingSettings{}.token_threshold == 600);
+    CHECK(RoutingSettings{}.token_threshold == 1550);
 
     s.token_threshold = 600;
     CHECK_FALSE(decide_routing(s, 599, false, true).use_gpu);
