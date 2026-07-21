@@ -376,6 +376,8 @@ std::unique_ptr<Session> create_ort(const SessionParams& sp, std::string* err) {
 #ifdef XLLAMA_USE_LLAMA
 
     #include "llama.h"
+
+    #include "sampler_chain.h" // shared sampler chain (#125); needs llama.h
     #include "xllama/llama_raii.h"
 
     #include <vector>
@@ -487,24 +489,10 @@ class LlamaSession final : public Session {
 
         const llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
         LlamaSamplerPtr sampler(llama_sampler_chain_init(sparams));
-        if (gp.temperature <= 0.0f) {
-            // temperature 0 (API "deterministic" request / logit parity): pure
-            // argmax. The full chain must NOT run here — the default
-            // repetition_penalty (1.1) reweighs prompt tokens BEFORE the temp
-            // stage's argmax and can flip the top token (observed on-device:
-            // LFM2.5 answered "User\n\n<|end|>" at temp 0 via the endpoint while
-            // pure argmax on the same prompt answers "Hello!").
-            llama_sampler_chain_add(sampler.get(), llama_sampler_init_greedy());
-        } else {
-            if (gp.repetition_penalty > 0.0f) {
-                llama_sampler_chain_add(sampler.get(), llama_sampler_init_penalties(
-                                                           64, gp.repetition_penalty, 0.0f, 0.0f));
-            }
-            llama_sampler_chain_add(sampler.get(), llama_sampler_init_top_k(gp.top_k));
-            llama_sampler_chain_add(sampler.get(), llama_sampler_init_top_p(gp.top_p, 1));
-            llama_sampler_chain_add(sampler.get(), llama_sampler_init_temp(gp.temperature));
-            llama_sampler_chain_add(sampler.get(), llama_sampler_init_dist(gp.seed));
-        }
+        // Shared with run_inference — see src/bridge/sampler_chain.h and #125.
+        // SamplingConfig::is_greedy() also covers temperature 0, where the full
+        // chain must not run (the repetition penalty can flip the argmax).
+        add_sampler_stages(sampler.get(), gp.sampling());
 
         int n_generated = 0;
         bool stopped_by_seq = false;

@@ -40,11 +40,17 @@ struct SessionParams {
 struct GenerateParams {
     std::string prompt;
     int n_predict = 96;
-    float temperature = 0.8f;
-    float top_p = 0.9f;
-    int top_k = 40;
-    float repetition_penalty = 1.1f;
-    uint32_t seed = 0xFFFFFFFF;
+    // Shared with InferenceParams via xllama/sampling.h — see #125. The two
+    // surfaces ran different samplers until these were made one source.
+    float temperature = sampling_defaults::kTemperature;
+    float top_p = sampling_defaults::kTopP;
+    int top_k = sampling_defaults::kTopK;
+    float repetition_penalty = sampling_defaults::kRepetitionPenalty;
+    uint32_t seed = sampling_defaults::kSeed;
+
+    SamplingConfig sampling() const {
+        return SamplingConfig{temperature, top_p, top_k, repetition_penalty, seed, false};
+    }
 
     // Stop sequences: checked as substrings of accumulated output.
     // Generation stops and the matching sequence is stripped.
