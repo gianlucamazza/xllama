@@ -91,6 +91,30 @@ TEST_CASE("routing: auto long prompt without gpu stays cpu") {
     CHECK_FALSE(d.use_gpu);
 }
 
+TEST_CASE("routing: auto boundary is strictly above the threshold") {
+    // The other auto cases probe 100 and 800 against a threshold of 600, so the
+    // constant could be changed to anything in (100, 800] without failing a test
+    // — including by accident while retuning it. Pin the boundary itself, and the
+    // strict '>' in decide_routing (exactly threshold tokens must stay on CPU).
+    RoutingSettings s;
+    s.mode = RoutingMode::Auto;
+    s.cpu_model = "cpu";
+    s.gpu_model = "smollm2-360m-dml-fp16-v2";
+
+    // Default threshold, asserted explicitly so a retune is a deliberate edit here.
+    CHECK(RoutingSettings{}.token_threshold == 1550);
+
+    s.token_threshold = 600;
+    CHECK_FALSE(decide_routing(s, 599, false, true).use_gpu);
+    CHECK_FALSE(decide_routing(s, 600, false, true).use_gpu); // strictly greater
+    CHECK(decide_routing(s, 601, false, true).use_gpu);
+
+    // The boundary tracks the setting, not a hardcoded 600.
+    s.token_threshold = 1200;
+    CHECK_FALSE(decide_routing(s, 1200, false, true).use_gpu);
+    CHECK(decide_routing(s, 1201, false, true).use_gpu);
+}
+
 TEST_CASE("routing: gguf disables routing") {
     RoutingSettings s;
     s.mode = RoutingMode::Auto;

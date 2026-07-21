@@ -43,14 +43,36 @@ get_pfn() {
 		APP_ID="$APP_ID" python3 -c '
 import json
 import os
+import re
 import sys
 
+# An MSIX upgrade can leave two versions of the same family registered, and the
+# WDP listing order is not defined. Taking the first match therefore silently
+# targets an arbitrary version — a bench run would upload to one package and read
+# results back from whichever the API happened to list first. Pick the highest
+# version, and say so on stderr when there is more than one.
 app_id = os.environ["APP_ID"]
 data = json.load(sys.stdin)
-for package in data.get("InstalledPackages", []):
-    if app_id in package.get("PackageRelativeId", ""):
-        print(package.get("PackageFullName", ""))
-        break
+matches = [p for p in data.get("InstalledPackages", [])
+           if app_id in p.get("PackageRelativeId", "")]
+if not matches:
+    sys.exit(0)
+
+
+def version_key(package):
+    name = package.get("PackageFullName", "")
+    m = re.search(r"_(\d+(?:\.\d+)*)_", name)
+    return tuple(int(x) for x in m.group(1).split(".")) if m else ()
+
+
+matches.sort(key=version_key, reverse=True)
+if len(matches) > 1:
+    others = ", ".join(p.get("PackageFullName", "") for p in matches[1:])
+    sys.stderr.write(
+        "Warning: %d xllama packages registered; using the highest version "
+        "%s (also present: %s)\n"
+        % (len(matches), matches[0].get("PackageFullName", ""), others))
+print(matches[0].get("PackageFullName", ""))
 '
 }
 

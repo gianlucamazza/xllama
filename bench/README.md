@@ -107,10 +107,21 @@ Capture output and append a CSV row to `results/phase1-cpu.csv`.
 
 ## Prompts
 
-| File                       | Tokens (approx) | Purpose                          |
-| -------------------------- | --------------- | -------------------------------- |
-| `prompts/standard-512.txt` | ~512            | General-purpose decode benchmark |
-| `prompts/short-32.txt`     | ~32             | Prompt-processing throughput     |
+| File                       | Tokens (approx) | Purpose                                                       |
+| -------------------------- | --------------- | ------------------------------------------------------------- |
+| `prompts/standard-512.txt` | ~272            | General-purpose decode benchmark — the name is historical     |
+| `prompts/short-32.txt`     | ~32             | Prompt-processing throughput                                  |
+| `prompts/long-1k.txt`      | ~1000           | Long-prompt prefill; carries a literal ChatML wrapper (below) |
+
+`standard-512.txt` measures **~272 tokens**, not 512 — the filename predates any
+measurement of it. Confirmed by the `n_prompt_tok` column now written by
+`write_bench_csv`, and by `docs/benchmarks.md`, which calls it "the 272-token
+declarative prompt".
+
+`long-1k.txt` embeds `<|im_start|>`/`<|im_end|>` markup. The bench path re-applies
+the model's chat template (`uwp/inference-bridge.cpp`), so feeding it verbatim
+double-templates the prompt. `scripts/bench-prompt-sweep.sh` and
+`scripts/validate-console.sh` both strip the wrapper and use only the prose.
 
 ## Results files
 

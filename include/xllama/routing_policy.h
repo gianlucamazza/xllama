@@ -17,7 +17,27 @@ enum class RoutingMode {
 
 struct RoutingSettings {
     RoutingMode mode = RoutingMode::CpuOnly;
-    int token_threshold = 600; // measured crossover between ~285 and ~1050 tok
+    // Measured 2026-07-21 on the shipping -v2 asset, Series S, n_ctx 2048
+    // (bench/results/phase12-dml-crossover.csv, scripts/bench-prompt-sweep.sh).
+    // The previous 600 was a midpoint interpolated between two sample points
+    // (285 and ~1050 tok) taken on the pre-#91 asset that dml_text_model_ok()
+    // now excludes — it assumed a smooth crossover that does not exist.
+    //
+    // What the sweep found, every point reproduced:
+    //   <=  500 tok  CPU wins outright.
+    //   557-1098     GPU wins only for answers shorter than ~120-290 tokens;
+    //                the app generates up to m_n_predict (512), so CPU usually wins.
+    //   1100-1500    GPU is PATHOLOGICALLY slow — prefill 3.8-10.8 s against the
+    //                CPU's monotone 5.2-8.0 s (1289 tok: 10.4 s, reproduced twice).
+    //                Mechanism unexplained; needs scripts/profile-dml-run.sh.
+    //   >= ~1550     GPU always wins: break-even is ~975 generated tokens while
+    //                the context leaves room for at most 474, so the prefill win
+    //                cannot be amortised away.
+    //
+    // 1550 therefore keeps GPU routing to the only band where it is unconditionally
+    // better, and steers clear of the pathological region. Re-measure when the
+    // asset, the model, or n_ctx changes — this number is not a general law.
+    int token_threshold = 1550;
     std::string cpu_model;
     std::string gpu_model;
 };

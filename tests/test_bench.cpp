@@ -30,7 +30,7 @@ static std::vector<std::string> split_csv(const std::string& line) {
 
 static const char* kExpectedHeader = "model,quant,backend,n_ctx,n_threads,prompt_tok_s,"
                                      "decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,"
-                                     "n_prompt_tok,host,date";
+                                     "n_prompt_tok,n_gen_tok,host,date";
 
 static xllama::InferenceParams make_params() {
     xllama::InferenceParams p;
@@ -79,8 +79,9 @@ TEST_CASE("Bench CSV writer: basic output") {
     CHECK(f[10] == "0");   // gpu_budget_mb
     // n_prompt_tok must carry res.n_p_eval (10 here): without the real prefill
     // token count a row cannot be compared against one taken at another length.
-    CHECK(f[11] == "10");
-    CHECK(f[12] == "linux-test");
+    CHECK(f[11] == "10"); // n_prompt_tok = res.n_p_eval
+    CHECK(f[12] == "20"); // n_gen_tok  = res.n_eval
+    CHECK(f[13] == "linux-test");
 
     // Clean up
     std::remove(csv_path.c_str());
@@ -157,7 +158,8 @@ TEST_CASE("Bench CSV writer: gpu memory columns") {
     CHECK(f[9] == "300");  // gpu_mem_mb
     CHECK(f[10] == "768"); // gpu_budget_mb
     CHECK(f[11] == "0");   // n_prompt_tok — n_p_eval is left unset on this result
-    CHECK(f[12] == "linux-test");
+    CHECK(f[12] == "20");  // n_gen_tok
+    CHECK(f[13] == "linux-test");
 
     std::remove(csv_path.c_str());
     std::string done_path = xllama::resolve_local_path("bench-result.csv.done");
