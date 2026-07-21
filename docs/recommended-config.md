@@ -122,12 +122,15 @@ Two caveats on that number, both live:
   between the 600 → 1550 retune and its fix. The usable band is roughly 1550 to
   1685 real tokens, about 135 wide.
 - It was calibrated against a DirectML slowdown believed to track prompt length.
-  It tracks `max_length` instead (#130, `docs/uwp-constraints.md` §5c), so the
-  value is provisional and under re-derivation.
+  It tracks `max_length` instead (#130, `docs/uwp-constraints.md` §5c). The
+  re-derivation (§5d) concluded there is **no correct single prompt-length
+  threshold** — see the next point — so 1550 is left as-is with its rationale
+  corrected, not swept for a better number.
 - It optimizes the **first turn only** (§5d). The GPU buys a faster first token
   on a long prompt; from the second turn the CPU wins at every reachable length,
-  because DirectML cannot reuse a KV cache. Whether Auto is worth leaving on
-  depends on how single-turn your long-prompt conversations are.
+  because DirectML cannot reuse a KV cache. So the value is a product judgement —
+  whether Auto is worth leaving on depends on how single-turn your long-prompt
+  conversations are, which is not measurable from a bench.
 
 ## Image generation
 

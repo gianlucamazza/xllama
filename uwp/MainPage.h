@@ -202,11 +202,13 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     // Autoscroll state: true while the user has not scrolled up during streaming
     bool m_at_bottom{true};
 
-    // Sampling parameters (persisted in settings.json, exposed in Settings dialog)
-    float m_temperature{0.8f};
-    float m_top_p{0.9f};
-    int m_top_k{40};
-    float m_repetition_penalty{1.1f};
+    // Sampling parameters (persisted in settings.json, exposed in Settings dialog).
+    // Seeded from the single source in sampling.h (#125) so the GUI defaults
+    // cannot drift from the CLI/API defaults.
+    float m_temperature{::xllama::sampling_defaults::kTemperature};
+    float m_top_p{::xllama::sampling_defaults::kTopP};
+    int m_top_k{::xllama::sampling_defaults::kTopK};
+    float m_repetition_penalty{::xllama::sampling_defaults::kRepetitionPenalty};
     int m_n_predict{512};
 
     std::atomic<bool> m_abort{false};
