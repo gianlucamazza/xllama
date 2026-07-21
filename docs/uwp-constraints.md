@@ -179,29 +179,36 @@ dropped warmup; pairs reproduced to three digits.
 
 | `max_length` | `n_ctx`  | GPU prefill | time   | peak WS |
 | ------------ | -------- | ----------- | ------ | ------- |
-| 1297         | 2048     | 515 tok/s   | 2.50 s | 1906 MB |
-| 1400         | 2048     | 475         | 2.71 s | 1907 MB |
-| 1545         | 2048     | **170**     | 7.58 s | 1906 MB |
-| 1650         | 2048     | 215         | 6.00 s | 1970 MB |
-| 1801         | 2048     | **130**     | 9.92 s | 1969 MB |
-| 1801         | **3072** | 132         | 9.77 s | 1972 MB |
-| 1950         | 2048     | 212         | 6.08 s | 2483 MB |
-| 2048         | 2048     | **611**     | 2.11 s | 1968 MB |
+| 1297         | 2048     | 511 tok/s   | 2.52 s | 1905 MB |
+| 1400         | 2048     | 472         | 2.73 s | 1906 MB |
+| 1545         | 2048     | **150**     | 8.61 s | 1897 MB |
+| 1650         | 2048     | 195         | 6.61 s | 1969 MB |
+| 1801         | 2048     | **131**     | 9.83 s | 1970 MB |
+| 1801         | **3072** | 131         | 9.83 s | 1971 MB |
+| 1950         | 2048     | 212         | 6.09 s | 2483 MB |
+| 2048         | 2048     | **612**     | 2.11 s | 1970 MB |
 
-1. **The prompt never changed, so this is not a prompt-length effect.** A 4.7×
-   swing in prefill throughput on identical input tokens.
+Taken twice, two hours apart, on two different MSIX builds (1.4.0.624 and
+1.4.0.628); every point reproduced. The table is the second set — the one whose
+rows carry `max_length` as a column. The first set is not committed: it predates
+that column, so its rows differ only in `prompt_tok_s` and cannot be told apart.
+That is the same defect `n_prompt_tok` fixed in #128, and the reason to
+re-measure rather than annotate by hand.
+
+1. **The prompt never changed, so this is not a prompt-length effect.** A 4.1×
+   swing in prefill throughput on identical input tokens (511 → 131 → 612).
 2. **`n_ctx` has no effect of its own.** The control row — `n_ctx` 3072 holding
-   `max_length` at 1801 — reproduces the 2048 row exactly (132 vs 130 tok/s).
-   This matches the code: on the ORT path `params.n_ctx` appears in exactly one
+   `max_length` at 1801 — reproduces the 2048 row to the digit (131.09 tok/s in
+   both). This matches the code: on the ORT path `params.n_ctx` appears in exactly one
    place, the `min()` that computes `max_length` (`src/bridge/inference.cpp`,
    `src/bridge/session.cpp`). It is never passed to ORT GenAI as a context size;
    the model's real context is `context_length: 8192` in `genai_config.json`.
 3. **The valley is interior, with both edges clean.** Fast at 1297–1400, fast
    again at 2048, slowest near 1800. It is a dip, not a step.
 4. **It is not memory pressure, and saturating is not expensive.** The fastest
-   row (2048) has a _smaller_ working set than the 1950 row (1968 vs 2483 MB).
+   row (2048) has a _smaller_ working set than the 1950 row (1970 vs 2483 MB).
 5. **The shipping default sat inside the valley.** `n_predict` 256 on a
-   1289-token prompt gives `max_length` 1545 — 170 tok/s where 611 was available.
+   1289-token prompt gives `max_length` 1545 — 150 tok/s where 612 was available.
 
 **Consequence.** `Session::generate` now requests the full `m_n_ctx` as
 `max_length` and bounds generation with the `n_predict` cap in `run_decode` —
