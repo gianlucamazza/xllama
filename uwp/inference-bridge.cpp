@@ -128,18 +128,29 @@ void main_loop() {
     std::string user_prompt = "Hello from Xbox Series S. Tell me about your architecture.";
     {
         std::string prompt_path = resolve_local_path("prompt.txt");
+        // Text mode, as before: on Windows it folds CRLF to LF, so the prompt
+        // content (and the byte count logged below) is what the model will see.
         FILE* pf = _wfopen(utf8_to_wstring(prompt_path).c_str(), L"r");
         if (pf) {
-            char buf[8192] = {};
-            size_t n = fread(buf, 1, sizeof(buf) - 1, pf);
+            // Read the whole file. A fixed 8 KB buffer used to truncate silently
+            // at ~2k tokens, which is exactly the range a prompt-length sweep
+            // cares about: the bench would report a shorter prompt's throughput
+            // under the long prompt's label, with nothing in the log to say so.
+            std::string contents;
+            char chunk[8192];
+            size_t n;
+            while ((n = fread(chunk, 1, sizeof(chunk), pf)) > 0)
+                contents.append(chunk, n);
             fclose(pf);
-            if (n > 0) {
-                user_prompt = buf;
+            if (!contents.empty()) {
+                user_prompt = std::move(contents);
                 // Strip trailing whitespace/newlines
                 while (!user_prompt.empty() &&
                        (user_prompt.back() == '\n' || user_prompt.back() == '\r' ||
                         user_prompt.back() == ' '))
                     user_prompt.pop_back();
+                log_output("[xllama] bench: prompt.txt " + std::to_string(user_prompt.size()) +
+                           " bytes\n");
             }
         }
     }
