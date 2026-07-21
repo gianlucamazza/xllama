@@ -354,8 +354,24 @@ fi
 echo ""
 echo "--- Computing median ---"
 RESULT_CSV="${OUT_CSV:-${REPO_ROOT}/bench/results/phase1-cpu.csv}"
-CSV_HEADER="model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,host,date"
+CSV_HEADER="model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,host,date"
 [[ ! -f "$RESULT_CSV" ]] && printf '%s\n' "$CSV_HEADER" >"$RESULT_CSV"
+
+# Refuse to append to a file written under an older schema: the row arity would
+# not match its header, and csv.DictReader would silently misalign every field
+# after the mismatch (host/date landing under the wrong keys). Pick a new --out.
+assert_header_matches() {
+	local csv="$1" existing
+	existing=$(head -1 "$csv")
+	if [[ "$existing" != "$CSV_HEADER" ]]; then
+		echo "Error: $csv uses a different CSV schema." >&2
+		echo "  file:     $existing" >&2
+		echo "  expected: $CSV_HEADER" >&2
+		echo "Append to a new file with --out, or migrate the old one first." >&2
+		exit 1
+	fi
+}
+assert_header_matches "$RESULT_CSV"
 MEDIAN_TMP=$(mktemp)
 trap 'rm -f "$MEDIAN_TMP"; rm -rf "$TMPDIR_LOCAL"' EXIT
 

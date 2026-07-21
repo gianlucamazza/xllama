@@ -46,8 +46,10 @@ TEST_CASE("Bench CSV writer: basic output") {
     std::string row;
     std::getline(ifs, row);
     CHECK(row.find("test-model,Q4_K_M,cpu,2048,4,") == 0);
-    // Columns: ...,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,host,...
-    CHECK(row.find(",512,1000,0,0,linux-test") != std::string::npos);
+    // Columns: ...,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,host,...
+    // n_prompt_tok must carry res.n_p_eval (10 here): without the real prefill
+    // token count a row cannot be compared against one taken at another length.
+    CHECK(row.find(",512,1000,0,0,10,linux-test") != std::string::npos);
 
     // Clean up
     std::remove(csv_path.c_str());
@@ -113,11 +115,12 @@ TEST_CASE("Bench CSV writer: gpu memory columns") {
 
     std::string header;
     std::getline(ifs, header);
-    CHECK(header.find(",gpu_mem_mb,gpu_budget_mb,host,date") != std::string::npos);
+    CHECK(header.find(",gpu_mem_mb,gpu_budget_mb,n_prompt_tok,host,date") != std::string::npos);
 
     std::string row;
     std::getline(ifs, row);
-    CHECK(row.find(",512,1000,300,768,linux-test") != std::string::npos);
+    // n_p_eval is left unset on this result, so n_prompt_tok is 0.
+    CHECK(row.find(",512,1000,300,768,0,linux-test") != std::string::npos);
 
     std::remove(csv_path.c_str());
     std::string done_path = xllama::resolve_local_path("bench-result.csv.done");
