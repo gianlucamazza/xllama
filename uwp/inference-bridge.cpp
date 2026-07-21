@@ -171,6 +171,10 @@ void main_loop() {
     const int bench_threads = read_local_int("bench_threads.txt", 0);
     const int bench_ctx = read_local_int("bench_ctx.txt", 0);
     const int bench_npredict = read_local_int("bench_npredict.txt", 0);
+    // #130: max_length is the variable that governs DirectML prefill, and it is
+    // normally derived from n_predict. This decouples them. 0 = derive,
+    // -1 = saturate to n_ctx (what the shipping app does).
+    const int bench_maxlen = read_local_int("bench_maxlen.txt", 0);
 
     // Multi-turn TTFT bench (Stage 2b): if bench_turns.txt is present it holds the
     // turn-2 user prompt; prompt.txt supplies turn 1. Measures the KV-reuse win
@@ -205,6 +209,7 @@ void main_loop() {
     params.n_predict = bench_npredict > 0 ? bench_npredict : 512;
     if (bench_ctx > 0)
         params.n_ctx = bench_ctx;
+    params.max_length_override = bench_maxlen;
     params.n_threads = bench_threads;           // 0 = auto; set by bench-xbox-ort.sh
     params.stop_sequences = fmt.stop_sequences; // clean stop for Gemma's <end_of_turn>
 

@@ -20,6 +20,19 @@ struct InferenceParams {
     std::string prompt;
     int n_predict = 128;
     int n_ctx = 2048;
+
+    // #130 bench knob (ORT path). max_length is what governs DirectML prefill
+    // throughput, and it is normally DERIVED as min(n_ctx, n_prompt + n_predict)
+    // — which chains it to n_predict and makes the two axes of the break-even
+    // criterion (prompt length, answer length) impossible to vary separately.
+    // This override breaks that chain so the bench can measure at the
+    // max_length the shipping app actually uses.
+    //   0  = derive as before (default; every historical row was taken this way)
+    //  -1  = saturate to n_ctx — what Session::generate ships since #135
+    //  >0  = explicit, clamped into (n_prompt_tok, n_ctx]
+    // Whatever is chosen is echoed back in InferenceResult::max_length, which is
+    // a CSV column, so a knob an older build ignores shows up in the data.
+    int max_length_override = 0;
     int n_threads = 0; // 0 = auto-detect
     // llama.cpp prefill batching (GGUF path only; 0 = llama.cpp default, i.e.
     // n_batch 2048 / n_ubatch 512). n_ubatch is the physical compute chunk that

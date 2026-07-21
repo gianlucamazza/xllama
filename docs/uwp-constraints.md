@@ -1,6 +1,6 @@
 # UWP Constraints
 
-> **SSOT for UWP/AppContainer constraints** (numbered §1–§13, plus §5b/§5c on DirectML prefill): the measured GPU
+> **SSOT for UWP/AppContainer constraints** (numbered §1–§13, plus §5b–§5f on DirectML and CPU threading): the measured GPU
 > budget (3801 MB), the 2 GB per-file limit, disk budget, no-mmap, `887A0036`,
 > `weakly_canonical`, thread cap, and the DirectML low-bit GEMM analysis. Other
 > docs link to a `§n` here rather than restating these.
@@ -155,10 +155,13 @@ Three findings:
    The GPU buys a one-off prefill saving and pays it back at a fixed rate on
    every generated token, so what matters is prompt length **and** answer
    length. The "break-even answer" column is that number: above it the CPU wins.
-3. **Past ~1550 tokens the GPU wins unconditionally** — break-even is ~975
-   generated tokens while the 2048-token context leaves room for at most 474, so
-   the prefill win cannot be amortised away. This is the only band where GPU
-   routing is unambiguously right, which is why `token_threshold` is 1550.
+3. ~~**Past ~1550 tokens the GPU wins unconditionally**~~ — **retracted, see
+   §5d.** The arithmetic here is right for a single turn of a single
+   conversation and wrong for the app. It omits the asymmetric model load and
+   the fact that DirectML cannot reuse a KV cache, and it measures total turn
+   time when the app streams tokens, so what the user waits for is the first
+   one. Corrected: from the second turn onward the CPU wins at every prompt
+   length the context trimmer allows.
 
 Caveats: measured for one model and one `n_ctx`. Both are fixed in the shipping
 config, so the number is valid for what ships — but it is not a general law, and
@@ -227,6 +230,95 @@ Because §5b's finding 3 rests on the prompt-length reading, `token_threshold`
 also has to stay below the context trimmer's budget, which is #133.
 
 Raw rows: `bench/results/phase12-maxlen-band.csv`.
+
+### §5d — What the GPU is actually for: TTFT, turn one only (2026-07-21)
+
+§5b compared **total turn time**. The app streams tokens (`on_token` → 40 ms
+flush in `FlushTokenBuffer`), so that is the wrong quantity: what the user waits
+for is the **first** token, and the rate afterwards is invisible as long as it
+beats reading speed (~10 tok/s). Both backends clear that by 3–6×.
+
+Read as TTFT, the two backends do not compete — they own different turns.
+
+| P = 1400 | turn 1     | turn 2+               |
+| -------- | ---------- | --------------------- |
+| CPU      | 7.03 s     | **0.11 s** (KV reuse) |
+| DML      | **2.32 s** | 1.56 s                |
+
+Three things the earlier criterion left out, all measured 2026-07-21
+(`bench/results/phase12-threshold-rederivation.csv`, `phase12-kv-reuse.csv`):
+
+1. **Asymmetric model load.** `EnsureSession` keeps one session (`avoid 2× model
+in RAM`, and the working sets confirm it: 1303 + 2869 MB do not coexist). A
+   GPU-routed turn loads the CPU model to tokenize, then destroys it to load
+   DirectML: 2786 ms against 1570 ms.
+2. **DirectML still rejects continuous decoding.** Verified, not assumed:
+   `prefill2_reuse_ms = 0.0`, `n_p2_reuse = 0`. So it re-prefills the whole
+   context every turn while the CPU reuses its KV — 68.8× on the measured turn 2.
+3. **Routing is sticky**, decided on turn 1, when the app cannot know whether the
+   conversation will continue.
+
+Net, in total turn time (positive = DirectML ahead):
+
+| P    | N=1         | N=2     | N=3     |
+| ---- | ----------- | ------- | ------- |
+| 1250 | **+0.64 s** | −2.43 s | −5.66 s |
+| 1400 | **+1.54 s** | −1.57 s | −4.94 s |
+| 1571 | **+2.72 s** | −0.55 s | −4.01 s |
+| 1685 | **+3.13 s** | −0.25 s | −3.71 s |
+
+The per-turn breakdown at 1400 says why, and it is not the valley: prefill costs
+DirectML 1.55 s per extra turn (no KV reuse), **decode costs it 2.05 s per turn,
+every turn**, for the §12 reason — no fused low-bit GEMM on DirectML. Decode
+dominates and never amortises.
+
+**Consequence.** DirectML routing pays for a _single-turn_ conversation above
+~1250 tokens and loses from the second turn at every length the context trimmer
+allows. Whether that is worth taking depends on how many long-prompt
+conversations are one-shot, which is not measurable from here — hence the TTFT
+instrumentation added to the UI, which makes it observable in real use.
+
+### §5e — Per-process warm-up, DirectML only (2026-07-21)
+
+Same `Session::generate` call, same timer, differing only in call ordinal within
+the process:
+
+| prompt → prompt | cold      | warm       | corrected for length |
+| --------------- | --------- | ---------- | -------------------- |
+| 1380 → 1495     | 597 tok/s | 1021 tok/s | **1.64×**            |
+| 792 → 907       | 452 tok/s | 839 tok/s  | **1.72×**            |
+| CPU control     | 198 tok/s | 198 tok/s  | 1.00×                |
+
+Strong evidence for lazy kernel compilation on first use, which is the standing
+hypothesis for the §5c valley. Two consequences: **every DirectML prefill figure
+in this repo is a cold-process number**, and the app pays it once per model load,
+not once per turn.
+
+### §5f — CPU threading: prefill does not scale, and t8 is worse than recorded (2026-07-21)
+
+`intra_op_num_threads: 4` in `docs/recommended-config.md` came from a sweep whose
+every row has `prompt_tok_s = 0.00` — a **decode** optimum. Prefill had never
+been measured against threads, which mattered because prefill is what GPU routing
+exists to compensate for.
+
+P = 1380, `bench/results/phase12-cpu-threads.csv`:
+
+| `intra_op_num_threads`      | prefill   | decode |
+| --------------------------- | --------- | ------ |
+| unset (what actually ships) | 198.9     | 46.9   |
+| 4                           | 199.1     | 47.3   |
+| **6**                       | **215.9** | 46.5   |
+| 8                           | 87.0      | 9.9    |
+
+- The "more threads help prefill" expectation is **refuted here**: 8 threads hits
+  the Series S pathology first. Best is 6, worth +8.5% — not the ~2× that would
+  have removed the case for GPU routing.
+- The t8 pathology is **worse than documented**. It was recorded as a decode
+  collapse attributed to bandwidth saturation; it takes prefill down 2.3× as
+  well, which bandwidth does not explain.
+- The shipped asset sets **no** `intra_op_num_threads` at all, so the documented
+  recommendation of 4 has never run in production. t4 and the default measure the
+  same, so nothing was lost — but the doc described a configuration nobody ran.
 
 ### §5 (continued) — disk, availability and the App/Game lever
 

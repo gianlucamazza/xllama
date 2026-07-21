@@ -66,7 +66,15 @@ GGUF thread default: llama.cpp auto-detect is capped at **6** on console
 **CPU (bundled default)** — copy from [`bench/configs/genai_config-threads-4.json`](../bench/configs/genai_config-threads-4.json):
 
 - `provider_options: []`
-- `intra_op_num_threads: 4` (t=8 regresses to ~28 tok/s on Series S)
+- `intra_op_num_threads: 6` — **corrected 2026-07-21** (§5f). The previous 4 came
+  from a decode-only sweep; measuring prefill as well puts 6 ahead by **+8.5%**
+  on prefill at 1380 tokens with no decode cost (46.5 vs 47.3, inside noise).
+  Under a streaming UI prefill is what the user waits for, so 6 wins.
+  **t=8 is a trap**: it collapses decode to ~10 tok/s _and_ prefill to ~87 tok/s
+  — not the bandwidth saturation it was recorded as.
+  ⚠️ The shipped `smollm2-360m-cpu-int4` asset currently sets **no**
+  `intra_op_num_threads` at all, so neither this value nor the previous one is
+  in production. Applying it means republishing the asset on models-v1.
 - `past_present_share_buffer: true` (required for KV reuse)
 
 **DML fp16 (routing)** — [`bench/configs/genai_config-dml-test.json`](../bench/configs/genai_config-dml-test.json):
@@ -147,13 +155,13 @@ ctest --test-dir build/linux-test --output-on-failure
 
 ## Obsolete assumptions (do not reuse)
 
-| Myth                                | Reality                                                  |
-| ----------------------------------- | -------------------------------------------------------- |
-| GPU pool ~768 MB                    | **3801 MB** (Game designation)                           |
-| Dev Mode disk ~2.5 GB cap           | Raised to **90 GB** (Dev Home)                           |
-| Diffusion needs headless (887A0036) | Conflict is **ORT GenAI** only; plain ORT DML in-proc OK |
-| MSIX bundles model                  | **~19 MB** MSIX; catalogue download                      |
-| `intra_op_num_threads: 8`           | Bandwidth saturation on Series S                         |
+| Myth                                | Reality                                                   |
+| ----------------------------------- | --------------------------------------------------------- |
+| GPU pool ~768 MB                    | **3801 MB** (Game designation)                            |
+| Dev Mode disk ~2.5 GB cap           | Raised to **90 GB** (Dev Home)                            |
+| Diffusion needs headless (887A0036) | Conflict is **ORT GenAI** only; plain ORT DML in-proc OK  |
+| MSIX bundles model                  | **~19 MB** MSIX; catalogue download                       |
+| `intra_op_num_threads: 8`           | Collapses BOTH decode (~10 tok/s) and prefill (~87) — §5f |
 
 ## Validation checklist
 

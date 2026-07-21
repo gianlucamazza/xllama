@@ -17,6 +17,10 @@
 #                    across the runs and print a per-engine summary at the end
 #   --ctx N          Override n_ctx via bench_ctx.txt (0 = engine default 2048)
 #   --n-predict N    Override n_predict via bench_npredict.txt (0 = default 512)
+#   --max-length N   Override max_length via bench_maxlen.txt. 0 = derive as
+#                    min(n_ctx, prompt+n_predict); -1 = saturate to n_ctx (what
+#                    the shipping app does since #135); >0 = explicit value.
+#                    On DirectML this is THE variable governing prefill (#130).
 #
 # Required env: XBOX_IP, XBOX_USER, XBOX_PASS
 #
@@ -36,6 +40,7 @@ MODEL_NAME="${1:-smollm2-360m-cpu-int4}"
 N_THREADS=0
 N_CTX=0     # 0 = engine default (2048)
 N_PREDICT=0 # 0 = engine default (512)
+MAX_LEN=0   # 0 = derive min(n_ctx, prompt+n_predict); -1 = saturate to n_ctx; >0 = explicit
 N_RUNS=3
 PROMPT_FILE=""
 OUT_CSV=""
@@ -54,6 +59,10 @@ while [[ $# -gt 0 ]]; do
 		;;
 	--n-predict)
 		N_PREDICT="${2:?--n-predict requires a value}"
+		shift 2
+		;;
+	--max-length)
+		MAX_LEN="${2:?--max-length requires a value}"
 		shift 2
 		;;
 	--runs)
@@ -94,6 +103,14 @@ echo "  Model:   $MODEL_NAME"
 echo "  Threads: ${N_THREADS:-auto}"
 echo "  n_ctx:   $([[ $N_CTX -gt 0 ]] && echo "$N_CTX" || echo "default")"
 echo "  n_predict: $([[ $N_PREDICT -gt 0 ]] && echo "$N_PREDICT" || echo "default")"
+if ((MAX_LEN == 0)); then
+	MAX_LEN_LABEL="derived"
+elif ((MAX_LEN < 0)); then
+	MAX_LEN_LABEL="saturated (n_ctx)"
+else
+	MAX_LEN_LABEL="$MAX_LEN"
+fi
+echo "  max_length: $MAX_LEN_LABEL"
 echo "  Runs:    $N_RUNS (run 1 warmup, dropped from median)"
 echo "  Xbox:    $XBOX_IP"
 
@@ -299,6 +316,9 @@ printf '%d' "$N_THREADS" >"${TMPDIR_LOCAL}/bench_threads.txt"
 # 0 = leave the engine default; #130 varies these to test the band hypothesis.
 printf '%d' "$N_CTX" >"${TMPDIR_LOCAL}/bench_ctx.txt"
 printf '%d' "$N_PREDICT" >"${TMPDIR_LOCAL}/bench_npredict.txt"
+# Always written, even when 0 — main_loop only ever overwrites these files, so a
+# value left by a previous run would otherwise stay in force.
+printf '%d' "$MAX_LEN" >"${TMPDIR_LOCAL}/bench_maxlen.txt"
 
 # bench.flag — consumed by app on each start; must be re-uploaded per run
 printf 'bench' >"${TMPDIR_LOCAL}/bench.flag"
@@ -342,6 +362,7 @@ for ((run = 1; run <= N_RUNS; run++)); do
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_threads.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_ctx.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_npredict.txt"
+	upload_to_localstate "${TMPDIR_LOCAL}/bench_maxlen.txt"
 
 	echo "  Starting app..."
 	restart_app
@@ -369,6 +390,24 @@ for ((run = 1; run <= N_RUNS; run++)); do
 			echo "  header: $CSV_HEADER" >&2
 			echo "The installed MSIX is older than the CSV schema — redeploy before benchmarking." >&2
 			exit 1
+		fi
+		# The CSV schema does NOT change with --max-length, so the arity check
+		# above cannot catch an MSIX that ignores bench_maxlen.txt — it would
+		# record DERIVED max_lengths under a "saturated" label and the whole
+		# experiment would be quietly wrong. Compare what we asked for against
+		# what the device reports in the max_length column.
+		if ((MAX_LEN != 0)); then
+			got=$(awk -F, '{print $14}' <<<"$data_row")
+			if ((MAX_LEN < 0)); then
+				want=$((N_CTX > 0 ? N_CTX : 2048))
+			else
+				want=$MAX_LEN
+			fi
+			if ((got != want)); then
+				echo "Error: the console ignored --max-length: row says ${got}, asked ${want}." >&2
+				echo "  The installed MSIX predates bench_maxlen.txt — redeploy before measuring." >&2
+				exit 1
+			fi
 		fi
 		CSV_ROWS+=("$data_row")
 		echo "  Row: $data_row"

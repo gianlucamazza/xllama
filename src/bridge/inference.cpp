@@ -176,8 +176,17 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
         // Size max_length from the ACTUAL prompt, clamped to the context: the old
         // fixed "n_predict + 512" headroom underflowed on long prompts (a 959-tok
         // routed turn exceeded max_length 768 before generating a single token).
-        const int max_len =
+        const int derived =
             std::min(params.n_ctx, static_cast<int>(n_prompt_tok) + params.n_predict);
+        // #130: see InferenceParams::max_length_override. Default 0 keeps the
+        // derived value, so no existing bench row changes meaning.
+        const int max_len =
+            params.max_length_override < 0
+                ? params.n_ctx
+                : (params.max_length_override > 0
+                       ? std::clamp(params.max_length_override, static_cast<int>(n_prompt_tok) + 1,
+                                    params.n_ctx)
+                       : derived);
         res.max_length = max_len;
         {
             char pbuf[128];
@@ -332,6 +341,14 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
 
         int n_generated = 0;
         while (!OgaGenerator_IsDone(gen.get())) {
+            // #130: bound generation by n_predict explicitly. Until max_length
+            // became overridable this loop relied on IsDone, i.e. on max_length
+            // == n_prompt + n_predict — so raising max_length would also raise
+            // the answer length and collapse the two variables into one. With
+            // max_length_override == 0 this fires exactly where IsDone did, so
+            // no historical row changes. Mirrors Session::run_decode's cap.
+            if (params.n_predict > 0 && n_generated >= params.n_predict)
+                break;
             if (params.abort_flag && params.abort_flag->load())
                 break;
 
