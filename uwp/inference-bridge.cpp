@@ -125,33 +125,17 @@ void main_loop() {
 
     // Read prompt from LocalFolder/prompt.txt, fallback to default.
     // SmolLM2-360M-Instruct uses ChatML format; bare text triggers EOS immediately.
+    // read_local_file reads to EOF; the hand-rolled reader this replaced used a
+    // fixed char buf[8192] and truncated silently at ~2k tokens — exactly the
+    // range a prompt-length sweep needs. The bench would then report a shorter
+    // prompt's throughput under the long prompt's label with nothing in the log.
     std::string user_prompt = "Hello from Xbox Series S. Tell me about your architecture.";
     {
-        std::string prompt_path = resolve_local_path("prompt.txt");
-        // Text mode, as before: on Windows it folds CRLF to LF, so the prompt
-        // content (and the byte count logged below) is what the model will see.
-        FILE* pf = _wfopen(utf8_to_wstring(prompt_path).c_str(), L"r");
-        if (pf) {
-            // Read the whole file. A fixed 8 KB buffer used to truncate silently
-            // at ~2k tokens, which is exactly the range a prompt-length sweep
-            // cares about: the bench would report a shorter prompt's throughput
-            // under the long prompt's label, with nothing in the log to say so.
-            std::string contents;
-            char chunk[8192];
-            size_t n;
-            while ((n = fread(chunk, 1, sizeof(chunk), pf)) > 0)
-                contents.append(chunk, n);
-            fclose(pf);
-            if (!contents.empty()) {
-                user_prompt = std::move(contents);
-                // Strip trailing whitespace/newlines
-                while (!user_prompt.empty() &&
-                       (user_prompt.back() == '\n' || user_prompt.back() == '\r' ||
-                        user_prompt.back() == ' '))
-                    user_prompt.pop_back();
-                log_output("[xllama] bench: prompt.txt " + std::to_string(user_prompt.size()) +
-                           " bytes\n");
-            }
+        std::string from_file = read_local_file("prompt.txt");
+        if (!from_file.empty()) {
+            user_prompt = std::move(from_file);
+            log_output("[xllama] bench: prompt.txt " + std::to_string(user_prompt.size()) +
+                       " bytes\n");
         }
     }
     // Read model directory/filename from LocalFolder/model.txt, fallback to default.
