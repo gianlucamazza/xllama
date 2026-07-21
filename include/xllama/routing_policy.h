@@ -4,10 +4,45 @@
 // and KV reuse at the UI layer; this header encodes the token threshold only.
 #pragma once
 
+#include <cstddef>
 #include <string>
 #include <string_view>
 
 namespace xllama {
+
+// ---------------------------------------------------------------------------
+// Prompt budget
+// ---------------------------------------------------------------------------
+// The context trimmer (MainPageController::BuildPrompt) and auto routing both
+// bound the same quantity — how many tokens a turn may carry — but the trimmer
+// runs first, so its ceiling is the hard limit. If token_threshold ever rises
+// above it, decide_routing() can never see a count above the threshold and auto
+// GPU routing becomes unreachable. That is #133: the 600 -> 1550 retune in #129
+// crossed the ceiling and silently disabled the feature, because nothing here
+// related the two numbers. assert in tests/test_routing_policy.cpp now does.
+//
+// The trimmer has no tokenizer available at the point it runs, so it estimates
+// from character count. Measured 2026-07-21 on the console with the SmolLM2
+// tokenizer: 7100 chars of English prose -> 1329 real tokens = 5.34 chars/token
+// (bench/prompts/standard-512.txt gives 4.84 with its ChatML markup counted).
+// The previous divisor of 4 overestimated tokens by ~30%, so the trimmer cut at
+// ~1348 real tokens while its comment claimed 1800 — that gap is what put the
+// ceiling underneath the threshold.
+//
+// 5.0 is deliberately below the measured 5.34: underestimating chars-per-token
+// means overestimating tokens, which trims early rather than late. Overflow is
+// caught downstream by the max_length clamp in run_inference, so erring this way
+// costs context, not correctness. Non-Latin scripts tokenize far denser and this
+// estimate does not model them.
+inline constexpr double kEstimatedCharsPerToken = 5.0;
+
+// Token budget for the prompt itself, sized against n_ctx 2048 with ~250 tokens
+// left for generation.
+inline constexpr int kMaxPromptTokens = 1800;
+
+inline constexpr int estimate_tokens_from_chars(std::size_t chars) {
+    return static_cast<int>(static_cast<double>(chars) / kEstimatedCharsPerToken);
+}
 
 enum class RoutingMode {
     CpuOnly = 0,
@@ -34,9 +69,17 @@ struct RoutingSettings {
     //                the context leaves room for at most 474, so the prefill win
     //                cannot be amortised away.
     //
-    // 1550 therefore keeps GPU routing to the only band where it is unconditionally
-    // better, and steers clear of the pathological region. Re-measure when the
-    // asset, the model, or n_ctx changes — this number is not a general law.
+    // 1550 keeps GPU routing to the only band where it is unconditionally better
+    // and steers clear of the pathological region — but it must also stay below
+    // kMaxPromptTokens, or the trimmer cuts the turn down before routing sees it
+    // (#133). Re-measure when the asset, the model, or n_ctx changes; this number
+    // is not a general law.
+    //
+    // #130 caveat: the "1100-1500" band above is stated in prompt length, which
+    // is not the variable the code controls. Recast against max_length =
+    // min(n_ctx, n_prompt + n_predict), every fast point is one where that clamp
+    // saturates and every slow one is where it does not. The band is in
+    // max_length, not prompt tokens, so this whole calibration is provisional.
     int token_threshold = 1550;
     std::string cpu_model;
     std::string gpu_model;
