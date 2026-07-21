@@ -106,6 +106,17 @@ Routing Auto uses **1550 tokens** (real tokenizer count), sticky per conversatio
 non-validated `gpu_model` resolves every text turn to the CPU model regardless
 of length.
 
+Two caveats on that number, both live:
+
+- It sits under the context trimmer's budget by design (#133). The trimmer runs
+  first and drops turns over its own limit, so a threshold above that ceiling
+  makes auto routing unreachable for every input — which is what happened
+  between the 600 → 1550 retune and its fix. The usable band is roughly 1550 to
+  1685 real tokens, about 135 wide.
+- It was calibrated against a DirectML slowdown believed to track prompt length.
+  It tracks `max_length` instead (#130, `docs/uwp-constraints.md` §5c), so the
+  value is provisional and under re-derivation.
+
 ## Image generation
 
 | Setting     | Modern                                                      | Obsolete                     |

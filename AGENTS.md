@@ -18,7 +18,8 @@ xllama/
 │   ├── inference.h          # run_inference, write_bench_csv
 │   ├── training_params.h    # TrainingJob / TrainingCapability (training pillar)
 │   ├── training.h           # validate/load job, capability matrix, stage names
-│   ├── routing_policy.h     # per-workload routing decision (1550-tok threshold, GGUF gates)
+│   ├── routing_policy.h     # routing decision + prompt budget (threshold must stay under it)
+│   ├── sampling.h           # sampling defaults shared by CLI/bench and GUI/API
 │   ├── session.h            # xllama::Session API (persistent model across turns)
 │   ├── ort_raii.h           # RAII unique_ptr for OGA* types (UWP/ORT GenAI path)
 │   ├── llama_raii.h         # RAII unique_ptr for llama_* types (Linux path)

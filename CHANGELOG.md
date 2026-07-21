@@ -27,29 +27,45 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   3 GB gate), wall 446 s, marker reproduced end-to-end (prepare → train →
   export → merge → evaluate). Evidence:
   `bench/results/phase10-console-devtrain-result.json`.
-- **Autopilot ops for preferences: `set_routing`, `set_sampling`,
-  `set_kv_reuse`.** The Settings dialog is unreachable on a Dev Mode console
-  (no text input path), so these preferences had no automated coverage. The
-  three ops drive the real controller state and persist through
-  `SaveSettings()`. New `validate-console.sh settings` gate seeds a known
-  baseline, replays the ops and asserts all seven values in `settings.json`
-  (validated on Xbox Series S, MSIX 1.4.0.606).
+- **Autopilot ops for every setting the GUI exposes:** `set_routing`,
+  `set_sampling`, `set_kv_reuse`, then `set_taesd` and `set_system_prompt`. The
+  Settings dialog is unreachable on a Dev Mode console (no text input path), so
+  these preferences had no automated coverage and the harness had to write
+  `settings.json` behind the app's back — which proves nothing about the UI
+  writer. The ops drive the real controller state and persist through
+  `SaveSettings()`. The `validate-console.sh settings` gate seeds the **opposite**
+  of every target, replays the ops and asserts all nine values, so an op that
+  silently does nothing fails rather than inheriting a matching baseline
+  (validated on Xbox Series S, MSIX 1.4.0.633).
+- **`max_length` in the bench CSV.** On DirectML it is the variable that governs
+  prefill throughput, and `n_ctx` does not stand in for it — a control run at
+  `n_ctx` 3072 holding `max_length` fixed reproduces the slow figure to the
+  digit. The first eight rows of the experiment that found this differed only in
+  `prompt_tok_s` and had to be re-measured rather than annotated.
+- **CLI sampling flags `--top-p`, `--top-k`, `--repetition-penalty`, `--system`.**
+  See the Fixed entry below — the flags were the visible half of a deeper split.
 
 ### Changed
 
-- **Routing threshold 600 → 1550 tokens, measured.** The old value was a
-  midpoint interpolated between the only two prompt lengths ever benchmarked
-  (285 and ~1050), taken on the pre-#91 DML asset that `dml_text_model_ok()`
-  now excludes — the shipping `-v2` graph had no long-prompt row at all. A
-  sweep of 8 lengths on `-v2` (`scripts/bench-prompt-sweep.sh`,
-  `bench/results/phase12-dml-crossover.csv`, every point reproduced) shows the
-  prefill curve is not monotone: there is a **pathological band around
-  1100–1500 tokens** where GPU prefill takes 3.8–10.4 s against the CPU's
-  monotone 5.2–8.0 s (1289 tok: 10.4 s, measured twice). Past ~1550 the GPU
-  wins unconditionally, because break-even is ~975 generated tokens while the
-  2048-token context allows at most 474. The old threshold routed the common
-  600–1500 range onto the GPU, straight through the worst region. See
-  `docs/uwp-constraints.md` §5b.
+- **Routing threshold 600 → 1550 tokens, measured — then found to be calibrated
+  on the wrong variable.** A sweep of 10 prompt lengths on the shipping `-v2`
+  asset (`scripts/bench-prompt-sweep.sh`, `bench/results/phase12-dml-crossover.csv`)
+  showed the DirectML prefill curve is not monotone and retuned the threshold to
+  1550 on the reading that the slowdown was a band in **prompt length**.
+
+  It is not. Holding one 1289-token prompt byte-identical and varying only
+  `n_predict` swings prefill from 131 to 612 tok/s
+  (`bench/results/phase12-maxlen-band.csv`): the controlling variable is
+  `max_length = min(n_ctx, n_prompt + n_predict)`, and the valley is interior to
+  it, roughly 1400 to `n_ctx`, deepest near 1800. The sweep's measurements stand;
+  the interpretation does not, and `token_threshold` is under re-derivation. See
+  `docs/uwp-constraints.md` §5b (superseded in part) and §5c.
+
+- **`Session::generate` saturates `max_length` at `n_ctx`** and bounds generation
+  with the `n_predict` cap in `run_decode`, which is what the KV-reuse chat path
+  already did. The shipping default (`n_predict` 256) put a 1289-token prompt at
+  `max_length` 1545 — inside the valley, 150 tok/s where 612 was available.
+  Faster and, measured, slightly less memory.
 
 - **Device marker training recipe.** The host marker gate converges with
   learning rate 2e-4 (5e-4 oscillated and under-converged), the shortened
@@ -57,6 +73,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   console harness learning rate is aligned to 2e-4.
 
 ### Fixed
+
+- **Auto GPU routing was unreachable.** `BuildPrompt` estimated tokens as
+  `chars / 4` and dropped turns above 1800; `decide_routing` compared the real
+  tokenizer count against 1550. English prose measures ~5.34 chars/token, so the
+  estimate overshot by ~30% and the trimmer actually cut at **~1348 real
+  tokens** — below the threshold. No prompt could reach the GPU. Introduced by
+  the 600 → 1550 retune above and invisible until `validate-console.sh routing`
+  ran for the first time since; nothing related the two constants. They now live
+  together with a test pinning the relation, verified to fail when the threshold
+  is raised back over the ceiling.
+
+- **The CLI and the GUI ran different samplers.** `run_inference` built
+  `temp → dist`; `Session` built `penalties → top_k → top_p → temp → dist`. The
+  CLI had no `top_p`, `top_k` or repetition penalty at all, so a generation seen
+  in the GUI could not be reproduced from the command line even with identical
+  values — same model, prompt and seed gave `" Paris, but if you were to visit,
+you would return home! Particularly beyond Thetatweil, Arc de"` against
+  `" Paris."`. On the ORT path the CLI set neither `top_p` nor `top_k` outside
+  greedy mode, so `genai_config.json` won: a third configuration nobody chose.
+  Nothing caught it because every marker gate runs `--greedy`, which bypasses
+  sampling. Defaults and the chain builder now have one home each, with an
+  opt-in end-to-end test that runs both surfaces and compares the text.
+
+- **`bench-xbox-ort.sh` appended device rows without checking their arity.** An
+  MSIX older than the CSV schema writes fewer fields; they landed under the
+  current header and every column shifted silently (`host` under `n_gen_tok`,
+  `date` under `host`). Observed with 1.4.0.615. `assert_header_matches` only
+  guarded the local file.
+
+- **`profile-dml-run.sh` inherited a previous sweep's configuration.**
+  `bench-xbox-ort.sh` only ever overwrites `bench_ctx.txt` / `bench_npredict.txt`,
+  never deletes them, so a profile run after a sweep silently profiled the wrong
+  `n_ctx` and `n_predict`.
 
 - **`deploy.sh pfn` returned an arbitrary package version.** It took the first
   match with no version ordering, and an MSIX upgrade can leave two versions of
