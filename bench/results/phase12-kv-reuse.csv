@@ -1,0 +1,7 @@
+model,prefill1_ms,n_p1,prefill2_reuse_ms,n_p2_reuse,prefill2_cold_ms,n_p2_cold,speedup,decode_tok_s,n_ctx,host,date
+smollm2-360m-cpu-int4,6974.6,1380,109.9,19,7566.1,1495,68.85,45.78,2048,xbox-series-s,2026-07-21T13:52:05Z
+smollm2-360m-cpu-int4,6912.3,1380,109.6,19,7638.1,1495,69.71,46.07,2048,xbox-series-s,2026-07-21T13:52:29Z
+smollm2-360m-dml-fp16-v2,2310.6,1380,0.0,0,1463.8,1495,0.00,0.00,2048,xbox-series-s,2026-07-21T17:47:40Z
+smollm2-360m-dml-fp16-v2,2317.5,1380,0.0,0,1456.4,1495,0.00,0.00,2048,xbox-series-s,2026-07-21T17:48:03Z
+smollm2-360m-dml-fp16-v2,1751.9,792,0.0,0,1080.8,907,0.00,0.00,2048,xbox-series-s,2026-07-21T17:49:49Z
+smollm2-360m-dml-fp16-v2,1759.7,792,0.0,0,1083.9,907,0.00,0.00,2048,xbox-series-s,2026-07-21T17:50:13Z
