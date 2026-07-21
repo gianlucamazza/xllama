@@ -97,12 +97,14 @@ headless-only), and the test/API surfaces trail the UI.
 - [ ] In-app personalization arc: trigger training from Settings, surface
       progress, serve `merged.gguf` from the model picker (#116) — now unblocked
       (the `DeviceGgmlPartialFt` flip landed).
-- [x] Autopilot ops for routing / sampling / KV-reuse so the harness exercises
-      the real UI code paths (#117, PR #120 merged): `set_routing`,
-      `set_sampling` and `set_kv_reuse` drive the real controller state and
-      persist through `SaveSettings()`; the new `validate-console.sh settings`
-      gate asserts all seven persisted values — PASS on Xbox Series S
-      (MSIX 1.4.0.606, 2026-07-21).
+- [x] Autopilot ops for every setting the GUI exposes, so the harness exercises
+      the real UI code paths instead of writing `settings.json` behind the app's
+      back. `set_routing` / `set_sampling` / `set_kv_reuse` (#117, PR #120),
+      then `set_taesd` / `set_system_prompt` (#126, PR #137) — all drive the real
+      controller state and persist through `SaveSettings()`. The
+      `validate-console.sh settings` gate seeds the opposite of every target and
+      asserts all nine persisted values, so an op that silently does nothing
+      fails — PASS on Xbox Series S (MSIX 1.4.0.633, 2026-07-21).
 - [ ] LAN API parity (images, preferences, training status) — #118, low
       priority while the API remains a demo.
 
@@ -130,6 +132,12 @@ whether DirectML is worth routing to at all. Evidence under
       input. The two constants now live together with a test pinning the
       relation. Found by running the console routing gate, which had not been
       run since the retune.
+- [x] Close the CLI/GUI sampling split (#125, PR #136). Not a roadmap item when
+      the phase started, but the same class of defect the phase kept surfacing:
+      two surfaces holding their own copy of a shared quantity. The CLI ran
+      `temp -> dist` while the GUI ran the full chain, so a generation seen on
+      one could not be reproduced on the other. Defaults and the chain builder
+      now have one home each.
 - [ ] Re-derive `token_threshold` on the corrected model. It is still calibrated
       against prompt length, and the reachable band under the trimmer is only
       ~135 tokens wide — thin enough to be fragile across tokenizers.
