@@ -198,11 +198,26 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
                   "SetSearchNumber temperature");
         // Greedy (argmax) decode is deterministic — the prerequisite for logit parity
         // against the llama.cpp reference. do_sample=false + top_k=1 pins the choice.
-        if (params.greedy || params.temperature <= 0.0f) {
+        if (params.sampling().is_greedy()) {
             oga_check(OgaGeneratorParamsSetSearchBool(gparams.get(), "do_sample", false),
                       "SetSearchBool do_sample");
             oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "top_k", 1.0),
                       "SetSearchNumber top_k");
+        } else {
+            // #125: set these explicitly. Leaving them unset does not mean
+            // "our defaults" — it means whatever genai_config.json ships with,
+            // which is a third sampler configuration nobody chose. Session does
+            // the same, so the two ORT surfaces now agree.
+            oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "top_p",
+                                                        static_cast<double>(params.top_p)),
+                      "SetSearchNumber top_p");
+            oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "top_k",
+                                                        static_cast<double>(params.top_k)),
+                      "SetSearchNumber top_k");
+            oga_check(
+                OgaGeneratorParamsSetSearchNumber(gparams.get(), "repetition_penalty",
+                                                  static_cast<double>(params.repetition_penalty)),
+                "SetSearchNumber repetition_penalty");
         }
         // --- generator ---
         OgaGenerator* raw_gen = nullptr;
@@ -396,6 +411,8 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
 #ifdef XLLAMA_USE_LLAMA
 
     #include "llama.h"
+
+    #include "sampler_chain.h" // shared sampler chain (#125); needs llama.h
     #include "xllama/llama_raii.h"
 
     #include <vector>
@@ -555,14 +572,12 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
 
     const llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
     LlamaSamplerPtr sampler(llama_sampler_chain_init(sparams));
-    // Greedy (argmax) decode is deterministic — the prerequisite for logit parity.
-    // Also selected implicitly at temperature 0, where sampling is degenerate.
-    if (params.greedy || params.temperature <= 0.0f) {
-        llama_sampler_chain_add(sampler.get(), llama_sampler_init_greedy());
-    } else {
-        llama_sampler_chain_add(sampler.get(), llama_sampler_init_temp(params.temperature));
-        llama_sampler_chain_add(sampler.get(), llama_sampler_init_dist(params.seed));
-    }
+    // Shared with Session — see src/bridge/sampler_chain.h. Before #125 this
+    // path built temp -> dist and nothing else: no top_k, no top_p, no
+    // repetition penalty, so a CLI run could not reproduce a GUI generation
+    // even given identical flags. Greedy (including temperature 0) is handled
+    // inside the builder.
+    add_sampler_stages(sampler.get(), params.sampling());
 
     int n_generated = 0;
     const auto t_gen0 = std::chrono::steady_clock::now();

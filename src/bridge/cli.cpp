@@ -22,6 +22,13 @@ static void print_help(const char* prog) {
                  "  -t, --threads <N>    Thread count; 0 = auto (default: 0)\n"
                  "      --temp <float>   Sampling temperature (default: 0.8)\n"
                  "      --seed <int>     RNG seed; 0 = random (default: 0)\n"
+                 "      --top-p <float>  Nucleus sampling cutoff (default: 0.9)\n"
+                 "      --top-k <N>      Top-k cutoff (default: 40)\n"
+                 "      --repetition-penalty <float>\n"
+                 "                       Repetition penalty over the last 64 tokens\n"
+                 "                       (default: 1.1); 0 disables the stage\n"
+                 "      --system <text>  System message for --chat (default: the built-in\n"
+                 "                       \"You are a helpful AI assistant.\")\n"
                  "      --chat           Wrap the prompt with the model's chat template\n"
                  "                       (ChatML, Gemma, Llama 3 or Phi 3 by model name;\n"
                  "                       Qwen no-think suffix) and stop on its stop token\n"
@@ -59,26 +66,31 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
     optind = 1; // reset getopt_long state for re-entrant use
     opterr = 0; // silence getopt error messages
 
-    static const struct option long_opts[] = {{"model", required_argument, nullptr, 'm'},
-                                              {"prompt", required_argument, nullptr, 'p'},
-                                              {"n-predict", required_argument, nullptr, 'n'},
-                                              {"ctx", required_argument, nullptr, 'c'},
-                                              {"threads", required_argument, nullptr, 't'},
-                                              {"temp", required_argument, nullptr, 1},
-                                              {"seed", required_argument, nullptr, 2},
-                                              {"chat", no_argument, nullptr, 3},
-                                              {"batch", required_argument, nullptr, 4},
-                                              {"ubatch", required_argument, nullptr, 5},
-                                              {"membw", no_argument, nullptr, 6},
-                                              {"greedy", no_argument, nullptr, 7},
-                                              {"dump-logits", required_argument, nullptr, 8},
-                                              {"validate-train-job", required_argument, nullptr, 9},
-                                              {"train-job", required_argument, nullptr, 10},
-                                              {"training-capabilities", no_argument, nullptr, 11},
-                                              {"lora", required_argument, nullptr, 12},
-                                              {"lora-scale", required_argument, nullptr, 13},
-                                              {"help", no_argument, nullptr, 'h'},
-                                              {nullptr, 0, nullptr, 0}};
+    static const struct option long_opts[] = {
+        {"model", required_argument, nullptr, 'm'},
+        {"prompt", required_argument, nullptr, 'p'},
+        {"n-predict", required_argument, nullptr, 'n'},
+        {"ctx", required_argument, nullptr, 'c'},
+        {"threads", required_argument, nullptr, 't'},
+        {"temp", required_argument, nullptr, 1},
+        {"seed", required_argument, nullptr, 2},
+        {"chat", no_argument, nullptr, 3},
+        {"batch", required_argument, nullptr, 4},
+        {"ubatch", required_argument, nullptr, 5},
+        {"membw", no_argument, nullptr, 6},
+        {"greedy", no_argument, nullptr, 7},
+        {"dump-logits", required_argument, nullptr, 8},
+        {"validate-train-job", required_argument, nullptr, 9},
+        {"train-job", required_argument, nullptr, 10},
+        {"training-capabilities", no_argument, nullptr, 11},
+        {"lora", required_argument, nullptr, 12},
+        {"lora-scale", required_argument, nullptr, 13},
+        {"top-p", required_argument, nullptr, 14},
+        {"top-k", required_argument, nullptr, 15},
+        {"repetition-penalty", required_argument, nullptr, 16},
+        {"system", required_argument, nullptr, 17},
+        {"help", no_argument, nullptr, 'h'},
+        {nullptr, 0, nullptr, 0}};
 
     int opt;
     while ((opt = getopt_long(argc, argv, "m:p:n:c:t:h", long_opts, nullptr)) != -1) {
@@ -138,6 +150,18 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             break;
         case 13:
             out.lora_scale = static_cast<float>(std::atof(optarg));
+            break;
+        case 14:
+            out.top_p = static_cast<float>(std::atof(optarg));
+            break;
+        case 15:
+            out.top_k = std::atoi(optarg);
+            break;
+        case 16:
+            out.repetition_penalty = static_cast<float>(std::atof(optarg));
+            break;
+        case 17:
+            out.system_prompt = optarg;
             break;
         case 'h':
             print_help(argv[0]);

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "xllama/sampling.h"
+
 #include <atomic>
 #include <functional>
 #include <string>
@@ -24,12 +26,28 @@ struct InferenceParams {
     // sets prefill throughput on the Zen 2 CPU — the sweep knob for TTFT tuning.
     int n_batch = 0;
     int n_ubatch = 0;
-    float temperature = 0.8f;
-    uint32_t seed = 0xFFFFFFFF; // 0xFFFFFFFF = LLAMA_DEFAULT_SEED
+    // Sampling. Defaults come from xllama/sampling.h so the CLI/bench surface
+    // cannot drift from the GUI/API surface (GenerateParams) the way it did
+    // before #125, when this path had no top_p / top_k / repetition_penalty at
+    // all and silently ran a different sampler.
+    float temperature = sampling_defaults::kTemperature;
+    float top_p = sampling_defaults::kTopP;
+    int top_k = sampling_defaults::kTopK;
+    float repetition_penalty = sampling_defaults::kRepetitionPenalty;
+    uint32_t seed = sampling_defaults::kSeed;
 
     // Deterministic decode: pick argmax instead of sampling. Prerequisite for
     // cross-backend logit parity (llama.cpp vs ORT must agree token-for-token).
     bool greedy = false;
+
+    SamplingConfig sampling() const {
+        return SamplingConfig{temperature, top_p, top_k, repetition_penalty, seed, greedy};
+    }
+
+    // CLI --chat / --system: system message for the chat template. Empty = the
+    // built-in default. The GUI and the LAN API have always made this
+    // configurable; the CLI hardcoded it (#125).
+    std::string system_prompt;
 
     // Logit-parity harness: when non-empty, dump the last prefill-token logit
     // vector (float32, vocab_size values) to this path plus a "<path>.json"
