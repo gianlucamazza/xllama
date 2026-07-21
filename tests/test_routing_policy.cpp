@@ -115,6 +115,33 @@ TEST_CASE("routing: auto boundary is strictly above the threshold") {
     CHECK(decide_routing(s, 1201, false, true).use_gpu);
 }
 
+TEST_CASE("routing: the threshold stays reachable under the context trimmer") {
+    // #133. BuildPrompt trims oldest turns while its estimate exceeds
+    // kMaxPromptTokens, and it runs BEFORE routing — so a turn longer than that
+    // budget never reaches decide_routing() at its full length. If the threshold
+    // is at or above the budget, auto GPU routing is unreachable for every input
+    // and the feature is dead without any test failing. That is exactly what the
+    // 600 -> 1550 retune in #129 did, and it stayed invisible until a console run.
+    //
+    // The margin below is not decoration: the trimmer measures an ESTIMATE while
+    // routing measures REAL tokens, so they disagree by however much the
+    // chars-per-token constant is off. Leave room for that disagreement.
+    CHECK(RoutingSettings{}.token_threshold < kMaxPromptTokens);
+    CHECK(kMaxPromptTokens - RoutingSettings{}.token_threshold >= 100);
+
+    // The estimator underestimates tokens per char on purpose (see the header):
+    // 5000 chars of prose is ~940 real tokens, and estimating 1000 trims early
+    // rather than overflowing n_ctx.
+    CHECK(estimate_tokens_from_chars(5000) == 1000);
+    CHECK(estimate_tokens_from_chars(0) == 0);
+
+    // The measured console datapoint that found the bug: 7100 chars tokenized to
+    // 1329 real tokens. The estimate must not sit so far above that number that
+    // the trimmer cuts a turn routing would have sent to the GPU.
+    CHECK(estimate_tokens_from_chars(7100) == 1420);
+    CHECK(estimate_tokens_from_chars(7100) < kMaxPromptTokens);
+}
+
 TEST_CASE("routing: gguf disables routing") {
     RoutingSettings s;
     s.mode = RoutingMode::Auto;

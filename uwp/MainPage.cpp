@@ -645,10 +645,12 @@ winrt::fire_and_forget MainPageController::ShowCorrectionDialog(size_t assistant
 }
 
 std::string MainPageController::BuildPrompt(const std::string& user_text, int* out_dropped) const {
-    // Estimate token count (heuristic: chars/4). Trim oldest turns if over limit.
-    // Threshold aligned with n_ctx=2048: 1800 estimated tokens + ~250 generation buffer.
-    constexpr int kMaxEstimatedTokens = 1800;
-    // Collect turns (skip system which always stays)
+    // Estimate token count from characters — no tokenizer is loaded at this
+    // point — and trim oldest turns if over budget. Both the estimator and the
+    // budget live in routing_policy.h next to token_threshold: the trimmer runs
+    // before routing, so its ceiling silently bounds what routing can ever see
+    // (#133). Collect turns (skip system which always stays).
+    constexpr int kMaxEstimatedTokens = ::xllama::kMaxPromptTokens;
     std::vector<size_t> turn_starts; // index of first User message in each turn
     for (size_t i = 0; i < m_current.messages.size(); ++i) {
         if (m_current.messages[i].role == xllama::ui::MessageRole::User)
@@ -666,7 +668,7 @@ std::string MainPageController::BuildPrompt(const std::string& user_text, int* o
                 chars += (int)m_current.messages[i + 1].content.size(); // assistant
         }
         chars += (int)user_text.size(); // new user message
-        return chars / 4;
+        return ::xllama::estimate_tokens_from_chars(static_cast<size_t>(chars));
     };
 
     size_t first_turn = 0;
@@ -2241,7 +2243,7 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
             if (EnsureSession(rs.cpu_model, nullptr))
                 n_tok = m_session->count_tokens(full_prompt);
             else
-                n_tok = static_cast<int>(full_prompt.size() / 4);
+                n_tok = ::xllama::estimate_tokens_from_chars(full_prompt.size());
         }
 
         // #91/#95: for a gpu_model that is not a parity-validated DML text asset,

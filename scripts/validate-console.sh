@@ -51,6 +51,19 @@ if ! [[ "$ROUTING_THRESHOLD" =~ ^[0-9]+$ ]]; then
 	echo "Error: could not read token_threshold from include/xllama/routing_policy.h" >&2
 	exit 1
 fi
+# The decoy must clear the routing threshold in REAL tokens while staying under
+# the context trimmer's budget in ESTIMATED tokens — BuildPrompt runs first and
+# drops any turn over budget, which is #133. Both constants come from the same
+# header so the decoy tracks a retune of either.
+TRIM_BUDGET=$(sed -n 's/.*kMaxPromptTokens = \([0-9]\+\);.*/\1/p' \
+	"${REPO_ROOT}/include/xllama/routing_policy.h" | head -n1)
+EST_CHARS_PER_TOK=$(sed -n 's/.*kEstimatedCharsPerToken = \([0-9.]\+\);.*/\1/p' \
+	"${REPO_ROOT}/include/xllama/routing_policy.h" | head -n1)
+if ! [[ "$TRIM_BUDGET" =~ ^[0-9]+$ ]] || [[ -z "$EST_CHARS_PER_TOK" ]]; then
+	echo "Error: could not read kMaxPromptTokens / kEstimatedCharsPerToken from" \
+		"include/xllama/routing_policy.h" >&2
+	exit 1
+fi
 
 TMPDIR_LOCAL=$(mktemp -d)
 VAE_CACHE="" # set by validate_taesd; read by its EXIT trap (must be global)
@@ -202,27 +215,46 @@ JSON
 	# wrapper so the stored user content is plain prose. Merge it into the
 	# device's existing chat index rather than clobbering it.
 	#
-	# The decoy must exceed ROUTING_THRESHOLD, and long-1k.txt alone is only
-	# ~1000 tokens — enough for the old 600 but not for 1550, so the prose is
-	# repeated until it clears the threshold with margin. This gate broke exactly
-	# once (threshold retuned 600 -> 1550 in #129 while the decoy stayed fixed);
-	# both the assertion and the decoy now derive from ROUTING_THRESHOLD, so a
-	# future retune cannot silently invalidate it again.
+	# The decoy is squeezed between two constants pulling opposite ways:
+	#   - it must exceed ROUTING_THRESHOLD in REAL tokens, or routing stays on CPU;
+	#   - it must stay under TRIM_BUDGET in ESTIMATED tokens, or BuildPrompt drops
+	#     the whole turn before routing ever counts it (#133 — and because a single
+	#     oversized turn is dropped entirely, the prompt collapses to ~22 tokens).
+	# Size it just under the trimmer's ceiling and let the assertion below check,
+	# against the console's own tokenizer, that it landed above the threshold.
+	# This gate broke once already (threshold retuned 600 -> 1550 in #129 while the
+	# decoy stayed fixed), so every number here derives from the header.
 	local esca_id="ap-routing-longctx"
 	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
-	python3 - "$REPO_ROOT" "$TMPDIR_LOCAL" "$esca_id" "$ROUTING_THRESHOLD" <<'PY'
+	python3 - "$REPO_ROOT" "$TMPDIR_LOCAL" "$esca_id" "$ROUTING_THRESHOLD" \
+		"$TRIM_BUDGET" "$EST_CHARS_PER_TOK" <<'PY'
 import json, re, sys
-repo, tmp, cid, threshold = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
+repo, tmp, cid = sys.argv[1], sys.argv[2], sys.argv[3]
+threshold, trim_budget, est_cpt = int(sys.argv[4]), int(sys.argv[5]), float(sys.argv[6])
 body = open(f"{repo}/bench/prompts/long-1k.txt").read()
 m = re.search(r'<\|im_start\|>user\n(.*?)(?:<\|im_end\|>|$)', body, re.S)
 user = (m.group(1) if m else body).strip()
-# ~1.3 tokens per English word; aim 40% above the threshold so tokenizer
-# variation between models cannot drop the turn back onto the CPU side.
+# Real chars-per-token measured on console with the SmolLM2 tokenizer: 7100
+# chars -> 1329 tokens.
+REAL_CPT = 5.34
+# The reachable band in REAL tokens is bounded below by the routing threshold and
+# above by whatever survives the trimmer. Aim at its MIDPOINT rather than near
+# either edge — with the shipping constants the band is only ~135 tokens wide, so
+# there is no comfortable side to hug. That narrowness is itself a finding: see
+# #133 and the pending threshold re-derivation in #130.
+lo = threshold
+hi = trim_budget * est_cpt / REAL_CPT
+target_chars = int((lo + hi) / 2 * REAL_CPT)
 words = user.split()
-target_words = int(threshold * 1.4 / 1.3)
-if len(words) < target_words:
-    words = (words * (target_words // len(words) + 1))[:target_words]
-    user = " ".join(words)
+while len(" ".join(words)) < target_chars:
+    words = words * 2
+user = " ".join(words)[:target_chars]
+est = int(len(user) / est_cpt)
+if est >= trim_budget:
+    sys.exit(f"  decoy estimate {est} >= trimmer budget {trim_budget} — would be dropped")
+if int(len(user) / 5.34) <= threshold:
+    sys.exit(f"  decoy cannot clear threshold {threshold} without exceeding the "
+             f"trimmer budget {trim_budget} — see #133")
 ts = 1
 conv = {"id": cid, "title": "routing A/B (long context)", "messages": [
     {"role": "user", "content": user, "ts": ts, "partial": False},
@@ -240,7 +272,8 @@ except Exception:
 idx = [e for e in idx if e.get("id") != cid]
 idx.insert(0, entry)
 open(f"{tmp}/index.json", "w").write(json.dumps(idx, ensure_ascii=False))
-print(f"  decoy user chars: {len(user)} (~{len(user)//4} tok); index entries: {len(idx)}")
+print(f"  decoy: {len(user)} chars, trimmer estimate {est} tok (budget {trim_budget}), "
+      f"~{int(len(user)/5.34)} real tok (threshold {threshold}); index entries: {len(idx)}")
 PY
 	upload_file "${TMPDIR_LOCAL}/${esca_id}.json" "chats"
 	upload_file "${TMPDIR_LOCAL}/index.json" "chats"
@@ -278,6 +311,16 @@ JSON
 	cpu_line=$(grep -aE 'routing: auto .* cpu \([0-9]+ tok' "$log" | head -1 || true)
 	if [[ -z "$gpu_line" ]]; then
 		echo "  FAIL: no 'auto -> gpu' routing line — long turn did not route to the DML model"
+		# Diagnose the #133 failure mode specifically: if the decoy turn was
+		# trimmed, the CPU line reports a token count far below the decoy's size
+		# and there is a "context trimmed" line. Without this, the symptom
+		# ("no gpu line") points at routing when the cause is the trimmer.
+		if grep -aq 'context trimmed' "$log"; then
+			echo "  cause: BuildPrompt trimmed the decoy turn before routing saw it (#133)"
+			grep -a 'context trimmed' "$log" | tail -1 | sed 's/^/    /'
+		elif [[ -n "$cpu_line" ]]; then
+			echo "  the long turn was counted as: ${cpu_line}"
+		fi
 		verdict=1
 	else
 		local gtok
