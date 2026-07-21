@@ -4,10 +4,10 @@
 # Sub-commands:
 #   deploy.sh <package.msix>                             Upload and install .msix (+ auto-install .cer)
 #   deploy.sh install-cert <cert.cer>                    Install a trust certificate on the console
-#   deploy.sh upload-file <local> <pfn> <remote-dir>     Upload a file to LocalFolder (auto-creates subdir)
+#   deploy.sh upload-file <local> <pfn> [remote-dir] [remote-name]  Upload to LocalFolder (auto-creates subdir)
 #   deploy.sh upload-dir <local-dir> <pfn> <remote-dir>  Upload all files in a directory to LocalFolder/<remote-dir>/
 #   deploy.sh mkdir-localstate <pfn> <relpath>           Create directory in LocalState (e.g. models\Phi-3.5)
-#   deploy.sh pfn                                        Print installed xllama package full name
+#   deploy.sh pfn   (highest registered version; warns on stderr if several are live)                                        Print installed xllama package full name
 #   deploy.sh get-log [pfn]                              Print LocalState/xllama.log
 #   deploy.sh fetch-file <pfn> <name> <local-out> [subdir]  Download a LocalState file
 #   deploy.sh list-localstate [pfn]                      List app LocalState files
@@ -311,7 +311,7 @@ fi
 
 # -----------------------------------------------------------------------
 # Sub-command: upload-file
-#   upload-file <local-path> <package-full-name> <remote-dir>
+#   upload-file <local-path> <package-full-name> [remote-dir] [remote-name]
 #   remote-dir: e.g. "models\\Phi-3.5-mini-instruct-onnx-directml" → LocalFolder\models\...\
 #               ""  → LocalFolder\
 #   Auto-creates the remote-dir hierarchy before uploading.
@@ -439,7 +439,7 @@ if [[ -z "$APPX" ]]; then
 	echo "Usage:" >&2
 	echo "  $0 <path/to/xllama.msix>                              (deploy package)" >&2
 	echo "  $0 install-cert <path/to/cert.cer>                    (trust certificate)" >&2
-	echo "  $0 upload-file <local> <pfn> [remote-dir]             (upload file; auto-creates subdir)" >&2
+	echo "  $0 upload-file <local> <pfn> [remote-dir] [remote-name] (upload file; auto-creates subdir)" >&2
 	echo "  $0 upload-dir <local-dir> <pfn> <remote-dir>          (upload all files in dir)" >&2
 	echo "  $0 mkdir-localstate <pfn> <relpath>                   (create dir in LocalState)" >&2
 	echo "  $0 pfn                                                (print installed package full name)" >&2

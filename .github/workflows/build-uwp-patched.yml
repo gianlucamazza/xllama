@@ -3,10 +3,12 @@ name: build-uwp-patched
 # Manual lane: build the #2280-patched onnxruntime-genai.dll from source
 # (scripts/vendor-genai-dml-patch.ps1 -Build: tag v0.14.1 +
 # patches/onnxruntime-genai-2280-dml-fallback.patch) and package MSIX variants
-# with it. Produces the -PatchedGenAI packages the runbook §2 routing A/B
-# needs, without a local Windows machine. Dispatch-only: the DLL source build
-# is slow, and the default lane keeps shipping the vanilla DLL until §2 passes
-# (ROADMAP Phase 5 "Vendor patched GenAI DLL in shipping MSIX").
+# with it, without a local Windows machine. Dispatch-only: the source build is
+# slow and this lane exists only to REFRESH the pin. The shipping lane in
+# build-uwp.yml already installs the patched DLL (matrix entry `patched: true`,
+# downloaded from the vendor-dlls-v1 release and SHA256-verified) — it does not
+# ship a vanilla DLL. Drop conditions for the pin: see docs/vendor-lifecycle-plan.md
+# and issue #84.
 on:
   workflow_dispatch:
 

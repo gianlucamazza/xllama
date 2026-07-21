@@ -7,13 +7,17 @@
 #                                   [--runs N] [--out FILE]
 #                                   [--ctx N] [--n-predict N]
 #
-# Why this exists: the 600-token routing threshold (include/xllama/routing_policy.h)
-# is not a measured value. It is the midpoint between two sample points — 285 and
-# ~1050 prompt tokens — so the real CPU/GPU prefill crossover is unlocalised across
-# a 765-token interval. Worse, that matrix was taken on the pre-#91 asset
-# `smollm2-360m-dml-fp16`, which dml_text_model_ok() now excludes; the shipping
-# `-v2` asset has no long-prompt row anywhere in bench/results/. This sweep
-# measures the crossover on the asset routing actually uses.
+# Why this exists: the routing threshold in include/xllama/routing_policy.h used
+# to be 600, a midpoint interpolated between two sample points (285 and ~1050
+# prompt tokens) measured on the pre-#91 asset that dml_text_model_ok() now
+# excludes. This script produced the sweep that replaced it: bench/results/
+# phase12-dml-crossover.csv, 8 lengths on the shipping -v2 asset, which showed
+# the prefill curve is not monotone (a pathological band around 1100-1500 tok)
+# and moved the threshold to 1550. See docs/uwp-constraints.md section 5b.
+#
+# Still useful for: re-measuring when the asset, the model, or n_ctx changes —
+# the 1550 is valid for what ships today, not a general law. #130 uses it with
+# --ctx / --n-predict to test whether the band's edges track n_ctx.
 #
 # Each point is a full bench-xbox-ort.sh invocation (upload prompt/model, restart
 # the app headless via bench.flag, poll, median of --runs minus the warmup). The

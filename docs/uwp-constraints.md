@@ -1,6 +1,6 @@
 # UWP Constraints
 
-> **SSOT for UWP/AppContainer constraints** (numbered §1–§13): the measured GPU
+> **SSOT for UWP/AppContainer constraints** (numbered §1–§13, plus §5b on prefill vs prompt length): the measured GPU
 > budget (3801 MB), the 2 GB per-file limit, disk budget, no-mmap, `887A0036`,
 > `weakly_canonical`, thread cap, and the DirectML low-bit GEMM analysis. Other
 > docs link to a `§n` here rather than restating these.
@@ -152,9 +152,14 @@ Three findings:
 
 Caveats: measured for one model and one `n_ctx`. Both are fixed in the shipping
 config, so the number is valid for what ships — but it is not a general law, and
-it must be re-measured when the asset, the model, or `n_ctx` changes. Note also
-that `n_gen_tok` is blank for these rows: the column was added after they were
-taken (`src/bridge/bench.cpp`), so turn times here are derived from the rates.
+it must be re-measured when the asset, the model, or `n_ctx` changes. Both are
+now controllable from the console bench path (`bench_ctx.txt` /
+`bench_npredict.txt`, exposed as `--ctx` / `--n-predict`), which is what #130
+uses to test whether the band's edges track `n_ctx`. Note also that `n_gen_tok`
+is blank for these rows: the column was added after they were taken
+(`src/bridge/bench.cpp`), so turn times here are derived from the rates.
+
+### §5 (continued) — disk, availability and the App/Game lever
 
 **Effect on disk**: models too large to fit the Dev Mode partition also fail before reaching `OgaCreateModel`. This is a distinct failure mode — see §9.
 

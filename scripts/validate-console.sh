@@ -7,11 +7,12 @@
 #   ./scripts/validate-console.sh <routing|settings|gguf|taesd|all>
 #
 # Requires: an installed xllama build with the autopilot (>= 1.1.3.0; the
-# settings ops need >= 1.4.0.606), the relevant models already in LocalState
-# (smollm2-360m-cpu-int4 for routing and settings —
-# the #91 gate forces CPU, so the dml-fp16 model is not needed nor provisioned
-# while it holds (#95) — lfm25-350m for gguf, sd-turbo-fp16 for taesd), and
-# XBOX_IP/USER/PASS env. Seed with scripts/provision-models.sh.
+# settings ops need >= 1.4.0.606), the relevant models already in LocalState.
+# The routing gate needs BOTH smollm2-360m-cpu-int4 and smollm2-360m-dml-fp16-v2
+# — #91 was root-caused and GPU text routing is live again for the -v2
+# parity-validated asset, so the old "dml model not needed" note no longer holds.
+# settings needs smollm2-360m-cpu-int4; gguf needs lfm25-350m; taesd needs
+# sd-turbo-fp16. Plus XBOX_IP/USER/PASS env. Seed with scripts/provision-models.sh.
 #
 # Contract per subcommand: upload chats/autopilot.json + autopilot.flag,
 # restart the app, poll LocalState\autopilot-done.txt, fetch xllama.log, and
@@ -40,6 +41,16 @@ PFN=$("${DEPLOY}" pfn 2>/dev/null)
 	echo "Error: xllama not found — deploy it first" >&2
 	exit 1
 }
+
+# Single source of truth for the routing threshold: read it from the header that
+# decide_routing() actually uses. Hardcoding it here is what broke this gate when
+# the constant was retuned 600 -> 1550 in #129.
+ROUTING_THRESHOLD=$(sed -n 's/.*int token_threshold = \([0-9]\+\);.*/\1/p' \
+	"${REPO_ROOT}/include/xllama/routing_policy.h" | head -n1)
+if ! [[ "$ROUTING_THRESHOLD" =~ ^[0-9]+$ ]]; then
+	echo "Error: could not read token_threshold from include/xllama/routing_policy.h" >&2
+	exit 1
+fi
 
 TMPDIR_LOCAL=$(mktemp -d)
 VAE_CACHE="" # set by validate_taesd; read by its EXIT trap (must be global)
@@ -160,7 +171,7 @@ model_provisioned() {
 validate_routing() {
 	echo "=== §2 routing A/B ==="
 	# #91 lifted for the rmsfix asset (dml_text_model_ok, routing_policy.h):
-	# routing=auto must send the >600-token turn to the GPU model and the short
+	# routing=auto must send the >ROUTING_THRESHOLD-token turn to the GPU model and the short
 	# turns to CPU. Both models are preconditions now.
 	local m
 	for m in smollm2-360m-cpu-int4 smollm2-360m-dml-fp16-v2; do
@@ -187,17 +198,31 @@ validate_routing() {
 JSON
 	upload_file "${TMPDIR_LOCAL}/settings.json"
 
-	# Build the long decoy conversation (>600 tok) from long-1k.txt, stripping
-	# the ChatML wrapper so the stored user content is plain prose. Merge it into
-	# the device's existing chat index rather than clobbering it.
+	# Build the long decoy conversation from long-1k.txt, stripping the ChatML
+	# wrapper so the stored user content is plain prose. Merge it into the
+	# device's existing chat index rather than clobbering it.
+	#
+	# The decoy must exceed ROUTING_THRESHOLD, and long-1k.txt alone is only
+	# ~1000 tokens — enough for the old 600 but not for 1550, so the prose is
+	# repeated until it clears the threshold with margin. This gate broke exactly
+	# once (threshold retuned 600 -> 1550 in #129 while the decoy stayed fixed);
+	# both the assertion and the decoy now derive from ROUTING_THRESHOLD, so a
+	# future retune cannot silently invalidate it again.
 	local esca_id="ap-routing-longctx"
 	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
-	python3 - "$REPO_ROOT" "$TMPDIR_LOCAL" "$esca_id" <<'PY'
+	python3 - "$REPO_ROOT" "$TMPDIR_LOCAL" "$esca_id" "$ROUTING_THRESHOLD" <<'PY'
 import json, re, sys
-repo, tmp, cid = sys.argv[1], sys.argv[2], sys.argv[3]
+repo, tmp, cid, threshold = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
 body = open(f"{repo}/bench/prompts/long-1k.txt").read()
 m = re.search(r'<\|im_start\|>user\n(.*?)(?:<\|im_end\|>|$)', body, re.S)
 user = (m.group(1) if m else body).strip()
+# ~1.3 tokens per English word; aim 40% above the threshold so tokenizer
+# variation between models cannot drop the turn back onto the CPU side.
+words = user.split()
+target_words = int(threshold * 1.4 / 1.3)
+if len(words) < target_words:
+    words = (words * (target_words // len(words) + 1))[:target_words]
+    user = " ".join(words)
 ts = 1
 conv = {"id": cid, "title": "routing A/B (long context)", "messages": [
     {"role": "user", "content": user, "ts": ts, "partial": False},
@@ -246,7 +271,7 @@ JSON
 	# C++ is "→"; match on the tok field to be encoding-robust).
 	#
 	# #91 lifted for the rmsfix -v2 asset (dml_text_model_ok): the pre-#91
-	# assertions are back — the long decoy turn (>600 tok) must route auto→gpu
+	# assertions are back — the long decoy turn (>ROUTING_THRESHOLD tok) must route auto→gpu
 	# and the fresh short turn auto→cpu.
 	local gpu_line cpu_line
 	gpu_line=$(grep -aE 'routing: auto .* gpu \([0-9]+ tok' "$log" | head -1 || true)
@@ -257,8 +282,8 @@ JSON
 	else
 		local gtok
 		gtok=$(sed -n 's/.*(\([0-9]\+\) tok.*/\1/p' <<<"$gpu_line")
-		if ((gtok <= 600)); then
-			echo "  FAIL: GPU-routed turn at ${gtok} tok (threshold is 600): ${gpu_line}"
+		if ((gtok <= ROUTING_THRESHOLD)); then
+			echo "  FAIL: GPU-routed turn at ${gtok} tok (threshold is ${ROUTING_THRESHOLD}): ${gpu_line}"
 			verdict=1
 		else
 			echo "  ok: long turn routed to GPU (${gtok} tok)"
@@ -270,7 +295,7 @@ JSON
 	else
 		local ntok
 		ntok=$(sed -n 's/.*(\([0-9]\+\) tok.*/\1/p' <<<"$cpu_line")
-		if ((ntok > 600)); then
+		if ((ntok > ROUTING_THRESHOLD)); then
 			echo "  FAIL: CPU-routed turn above threshold (${ntok} tok): ${cpu_line}"
 			verdict=1
 		else

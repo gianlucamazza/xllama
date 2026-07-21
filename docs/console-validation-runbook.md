@@ -25,7 +25,7 @@ The suite drives the live UI through autopilot and fails unless all current
 hardware gates pass:
 
 - **routing** — auto A/B with the parity-validated `-v2` DML asset: the long
-  (>600 tok) turn routes to GPU, short turns to CPU (#91 lifted for that asset);
+  (>1550 tok) turn routes to GPU, short turns to CPU (#91 lifted for that asset);
 - **GGUF chat** — the default LFM model loads through llama.cpp and generates;
 - **TAESD** — image generation completes through DirectML with the fast VAE;
 - **API** — when included by the orchestrator, the LAN health/chat contract
