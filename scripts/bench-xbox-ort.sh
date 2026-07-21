@@ -308,6 +308,10 @@ printf 'bench' >"${TMPDIR_LOCAL}/bench.flag"
 # ---------------------------------------------------------------------------
 declare -a CSV_ROWS=()
 
+# Defined before the run loop, not just before the median: each downloaded row is
+# checked against this schema's field count as it arrives (see below).
+CSV_HEADER="model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date"
+
 SAMPLER_PID=""
 if [[ "$GPU_SAMPLE" == "true" ]]; then
 	echo "  Starting GPU sampler (systemperf)..."
@@ -351,6 +355,21 @@ for ((run = 1; run <= N_RUNS; run++)); do
 	download_from_localstate "bench-result.csv" "$local_csv"
 	data_row=$(tail -n +2 "$local_csv" 2>/dev/null | head -1)
 	if [[ -n "$data_row" ]]; then
+		# The device writes the row; this script owns the header. A build older
+		# than the current schema emits fewer fields and they get appended under
+		# our header anyway, shifting every column silently (a 14-field row from a
+		# pre-n_gen_tok build puts `host` under n_gen_tok and `date` under host).
+		# assert_header_matches only guards the local file, so nothing else here
+		# would notice. Observed 2026-07-21 with MSIX 1.4.0.615.
+		n_fields=$(awk -F, '{print NF}' <<<"$data_row")
+		want_fields=$(awk -F, '{print NF}' <<<"$CSV_HEADER")
+		if ((n_fields != want_fields)); then
+			echo "Error: the console wrote a ${n_fields}-field row; this script expects ${want_fields}." >&2
+			echo "  row:    $data_row" >&2
+			echo "  header: $CSV_HEADER" >&2
+			echo "The installed MSIX is older than the CSV schema — redeploy before benchmarking." >&2
+			exit 1
+		fi
 		CSV_ROWS+=("$data_row")
 		echo "  Row: $data_row"
 	else
@@ -373,7 +392,6 @@ fi
 echo ""
 echo "--- Computing median ---"
 RESULT_CSV="${OUT_CSV:-${REPO_ROOT}/bench/results/phase1-cpu.csv}"
-CSV_HEADER="model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,host,date"
 [[ ! -f "$RESULT_CSV" ]] && printf '%s\n' "$CSV_HEADER" >"$RESULT_CSV"
 
 # Refuse to append to a file written under an older schema: the row arity would

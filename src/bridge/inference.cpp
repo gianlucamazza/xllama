@@ -178,6 +178,7 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
         // routed turn exceeded max_length 768 before generating a single token).
         const int max_len =
             std::min(params.n_ctx, static_cast<int>(n_prompt_tok) + params.n_predict);
+        res.max_length = max_len;
         {
             char pbuf[128];
             snprintf(pbuf, sizeof(pbuf), "[xllama] prompt=%zu tok, max_length=%d (new≤%d)\n",

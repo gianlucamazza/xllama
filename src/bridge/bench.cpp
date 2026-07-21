@@ -107,9 +107,16 @@ void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
     // 1574-token prompt at n_ctx 2048 caps new tokens at 474 and generated 277.
     // Placed before `host` so the positional parsing in bench-xbox-ort.sh
     // ($3 backend, $7 decode_tok_s) keeps working.
+    // max_length: #130. On DirectML this is what actually governs prefill
+    // throughput — the same 1289-token prompt runs at 130 tok/s with max_length
+    // 1801 and 611 tok/s with 2048. n_ctx does not capture it (a control run at
+    // n_ctx 3072 holding max_length at 1801 reproduced the slow figure), and
+    // neither do n_prompt_tok and n_gen_tok, since generation can stop early on
+    // EOG well below the cap. Appended before `host` for the same reason as the
+    // token counts: bench-xbox-ort.sh parses $3 and $7 positionally.
     const char* header = "model,quant,backend,n_ctx,n_threads,"
                          "prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,"
-                         "gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,host,date\n";
+                         "gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date\n";
     fputs(header, fp);
 
     double prompt_tok_s = (res.n_p_eval > 0 && res.t_p_eval_ms > 0)
@@ -167,10 +174,10 @@ void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
     const int used_threads = params.n_threads > 0
                                  ? params.n_threads
                                  : (is_llama ? detect_threads_llama() : detect_threads());
-    fprintf(fp, "%s,%s,%s,%d,%d,%.2f,%.2f,%zu,%.0f,%zu,%zu,%d,%d,%s,%s\n", model_name.c_str(),
+    fprintf(fp, "%s,%s,%s,%d,%d,%.2f,%.2f,%zu,%.0f,%zu,%zu,%d,%d,%d,%s,%s\n", model_name.c_str(),
             quant.c_str(), backend, params.n_ctx, used_threads, prompt_tok_s, decode_tok_s,
             res.peak_ws_mb, res.t_load_ms, res.gpu_mem_mb, res.gpu_budget_mb, res.n_p_eval,
-            res.n_eval, host_label ? host_label : "unknown", date_buf);
+            res.n_eval, res.max_length, host_label ? host_label : "unknown", date_buf);
     fclose(fp);
 
     // Write done marker
