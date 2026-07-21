@@ -119,8 +119,10 @@ stays on **CPU int4** (fastest decode); a long first-turn prompt can switch to
 does **not** mean the GPU is faster overall: DirectML cannot reuse a KV cache
 (`kv_reuse_supported_for_model` returns false for it) while the CPU can, so from
 the second turn the CPU wins at every reachable length — see `uwp-constraints.md
-§5d`. The threshold (`token_threshold`) is provisional and under re-derivation
-(§5c). Routing is **ORT-only**; GGUF models are CPU-only, so routing is skipped
+§5d`. The threshold (`token_threshold`) is calibrated on a misattributed
+variable (§5c); the re-derivation concluded a single prompt-length threshold is
+the wrong shape for the decision, so 1550 is left as-is with its rationale
+corrected. Routing is **ORT-only**; GGUF models are CPU-only, so routing is skipped
 for them. Tunable prefill batching for the llama.cpp path is exposed via
 `SessionParams.n_batch` / `n_ubatch` (`xllama-cli --batch/--ubatch`) — see
 `benchmarks.md` for the (flat) sweep.

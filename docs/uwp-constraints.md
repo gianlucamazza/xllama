@@ -226,8 +226,10 @@ The mechanism remains **unknown** — suspected shape-bucketed kernel selection 
 DirectML, which the per-node profiler (§11) cannot localise on its own because
 the graph collapses into a single `DmlFusedNode_0_0` at 96% of kernel time.
 Because §5b's finding 3 rests on the prompt-length reading, `token_threshold`
-(1550) is calibrated on a misattributed variable and is under re-derivation; it
-also has to stay below the context trimmer's budget, which is #133.
+(1550) is calibrated on a misattributed variable. The re-derivation is in §5d,
+and its conclusion is that there is no correct single prompt-length threshold —
+the value is a product judgement, not a number to re-measure. It also has to stay
+below the context trimmer's budget, which is #133.
 
 Raw rows: `bench/results/phase12-maxlen-band.csv`.
 
@@ -296,8 +298,9 @@ not once per turn.
 
 ### §5f — CPU threading: prefill does not scale, and t8 is worse than recorded (2026-07-21)
 
-`intra_op_num_threads: 4` in `docs/recommended-config.md` came from a sweep whose
-every row has `prompt_tok_s = 0.00` — a **decode** optimum. Prefill had never
+`docs/recommended-config.md` previously recommended `intra_op_num_threads: 4`
+(now corrected to 6, below). That 4 came from a sweep whose every row has
+`prompt_tok_s = 0.00` — a **decode** optimum. Prefill had never
 been measured against threads, which mattered because prefill is what GPU routing
 exists to compensate for.
 

@@ -84,8 +84,9 @@ Notes:
   exonerated — see `dml-rmsnorm-fix-runbook.md`) is worked around by the
   RMSNorm-decomposed `smollm2-360m-dml-fp16-v2` graph, parity-validated
   on-console. `routing_policy.h` (`dml_text_model_ok`) allows GPU text routing
-  only for that asset; the Auto switch applies at `token_threshold` (1550, but
-  **provisional and under re-derivation** — `uwp-constraints.md §5c/§5d`). Its
+  only for that asset; the Auto switch applies at `token_threshold` (1550 — but a
+  single prompt-length threshold is the **wrong shape** for this decision, which
+  is a product judgement, `uwp-constraints.md §5d`). Its
   measured row is 236.7 prefill / 44.4 decode / 1268 MB. **The prefill number is
   a cold-process figure** (§5e: DirectML warms up ~1.7× on the second call in a
   process, so nothing in this repo reports warm prefill) and decode still loses

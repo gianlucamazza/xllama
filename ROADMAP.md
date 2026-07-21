@@ -108,11 +108,13 @@ headless-only), and the test/API surfaces trail the UI.
 - [ ] LAN API parity (images, preferences, training status) — #118, low
       priority while the API remains a demo.
 
-## Phase 12 — DirectML routing calibration (in progress)
+## Phase 12 — DirectML routing calibration (measurement done; one product call open)
 
 A measurement campaign on the shipping `-v2` asset, prompted by the question of
-whether DirectML is worth routing to at all. Evidence under
-`bench/results/phase12-*.csv`; analysis in `docs/uwp-constraints.md` §5b/§5c.
+whether DirectML is worth routing to at all. The measurement is done and the
+answer is a product judgement, not a constant: the GPU wins first-turn TTFT on a
+long prompt and the CPU wins from the second turn (§5d). Evidence under
+`bench/results/phase12-*.csv`; analysis in `docs/uwp-constraints.md` §5b–§5f.
 
 - [x] Instrument the bench path so a row can be interpreted: `n_prompt_tok` and
       `n_gen_tok` (#128), then `max_length` — without the variable under study a
@@ -138,13 +140,25 @@ whether DirectML is worth routing to at all. Evidence under
       `temp -> dist` while the GUI ran the full chain, so a generation seen on
       one could not be reproduced on the other. Defaults and the chain builder
       now have one home each.
-- [ ] Re-derive `token_threshold` on the corrected model. It is still calibrated
-      against prompt length, and the reachable band under the trimmer is only
-      ~135 tokens wide — thin enough to be fragile across tokenizers.
-- [ ] Explain the `max_length` valley. Suspected shape-bucketed DirectML kernel
-      selection; the per-node profiler cannot localise it alone (the graph is one
-      `DmlFusedNode_0_0` at 96% of kernel time, §12). Not distinguished yet:
-      per-process lazy kernel compilation, WDDM residency on absolute bytes.
+- [x] **Threshold re-derivation done (#139, §5d) — it is a product call, not a
+      constant.** The full criterion (adding the asymmetric model load and the
+      KV-reuse asymmetry the sweep omitted) shows there is no correct single
+      prompt-length threshold: DirectML wins turn 1 above ~1250 tokens and the
+      CPU wins from turn 2 at every reachable length. Whether Auto is worth
+      leaving on is "how single-turn are long-prompt conversations", which §5d
+      calls not measurable from here — so the UI now surfaces TTFT to make it
+      observable in real use. The shipping 1550 is left as-is, its rationale
+      corrected.
+- [x] **Threading corrected 4 → 6 (§5f).** The old recommendation was a
+      decode-only optimum; measuring prefill too puts 6 ahead, and `t8` is a trap
+      (it sinks prefill as well as decode). Caveat recorded: the shipped asset
+      sets no `intra_op_num_threads` at all.
+- [ ] Confirm the `max_length` valley mechanism. §5e gives **strong evidence for
+      per-process lazy kernel compilation** (DirectML warms 1.64×/1.72× on the
+      second call in a process; CPU control 1.00×), which is the leading
+      hypothesis over WDDM residency — but not yet a conclusive profile. The
+      per-node profiler cannot localise it alone (the graph is one
+      `DmlFusedNode_0_0` at 96% of kernel time, §12). Tracked in #130.
 
 ## Upstream and vendor lifecycle
 
