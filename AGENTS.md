@@ -30,6 +30,7 @@ xllama/
 ├── src/bridge/              # Shared implementation (Linux + UWP)
 │   ├── inference.cpp        # ORT GenAI and/or llama_decode (unified: runtime dispatch)
 │   ├── sampler_chain.h      # add_sampler_stages — the one llama.cpp sampler chain (#125)
+│   ├── ort_sampling.h       # apply_ort_sampling — the ORT twin, greedy guard shared (#141)
 │   ├── session.cpp          # xllama::Session (OrtSession UWP + LlamaSession Linux)
 │   ├── bench.cpp            # bench CSV writer
 │   ├── platform.cpp         # log_output (writes xllama.log in UWP)
