@@ -127,10 +127,16 @@ for them. Tunable prefill batching for the llama.cpp path is exposed via
 `SessionParams.n_batch` / `n_ubatch` (`xllama-cli --batch/--ubatch`) — see
 `benchmarks.md` for the (flat) sweep.
 
-Sampling is one code path for both surfaces: `SamplingConfig` and its defaults
-live in `sampling.h`, and the llama.cpp sampler chain is assembled in exactly one
-place, `src/bridge/sampler_chain.h` (`add_sampler_stages`), so the CLI/bench and
-GUI/API cannot drift into different samplers as they had before #125.
+Sampling has one code path per backend, both fed by `SamplingConfig` and its
+defaults in `sampling.h`. The **llama.cpp** chain is assembled in exactly one
+place, `src/bridge/sampler_chain.h` (`add_sampler_stages`, #125); the **ORT
+GenAI** search params in one place, `src/bridge/ort_sampling.h`
+(`apply_ort_sampling`, #141) — including the greedy guard (temperature 0 pins the
+argmax and skips the repetition penalty). #125 unified only the llama.cpp side;
+the ORT params stayed hand-duplicated across `run_inference_ort` and
+`OrtSession::make_params` and drifted on that guard until #141 gave them a shared
+builder too. Now neither backend's two surfaces (CLI/bench vs GUI/API) can diverge
+by construction.
 
 ## Model catalogue, provisioning, and quant auto-upgrade
 
