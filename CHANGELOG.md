@@ -90,6 +90,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The GUI/API ran the full sampler at temperature 0 (#141).** `OrtSession::make_params`
+  set `temperature`/`top_p`/`top_k`/`repetition_penalty` unconditionally — no
+  greedy branch — so a `temperature == 0` request ran the repetition penalty
+  before the argmax and did not return the argmax token. The GUI slider min is
+  `0.0` and the LAN API forwards `temperature`, so it was reachable on a
+  DML-routed model. The CLI/bench ORT path and both llama.cpp paths already
+  guarded this via `SamplingConfig::is_greedy()`; `OrtSession` did not. It was a
+  regression from #136, which unified the llama.cpp chain but left the ORT search
+  params hand-duplicated across `run_inference_ort` and `make_params`, which then
+  diverged on exactly this guard. Fixed with the ORT twin of `sampler_chain.h` —
+  a shared `apply_ort_sampling()` both callers use, greedy branch inside — so the
+  two ORT surfaces can no longer diverge by construction. Verified on console
+  (temp 0, repetition penalty 2.0, DML-routed): the buggy build produced garbage
+  where the argmax was diverted, the fixed build returned the clean argmax.
+
 - **Auto GPU routing was unreachable.** `BuildPrompt` estimated tokens as
   `chars / 4` and dropped turns above 1800; `decide_routing` compared the real
   tokenizer count against 1550. English prose measures ~5.34 chars/token, so the
@@ -119,9 +134,18 @@ you would return home! Particularly beyond Thetatweil, Arc de"` against
   guarded the local file.
 
 - **`profile-dml-run.sh` inherited a previous sweep's configuration.**
-  `bench-xbox-ort.sh` only ever overwrites `bench_ctx.txt` / `bench_npredict.txt`,
-  never deletes them, so a profile run after a sweep silently profiled the wrong
-  `n_ctx` and `n_predict`.
+  `bench-xbox-ort.sh` only ever overwrites `bench_ctx.txt` / `bench_npredict.txt` /
+  `bench_maxlen.txt`, never deletes them, so a profile run after a sweep silently
+  profiled the wrong `n_ctx` / `n_predict` / `max_length`. The profiler and
+  `bench-xbox-kv.sh` now clear all three; `max_length` matters most, since it is
+  the DirectML prefill variable (#130). (Extended for `bench_maxlen.txt` in #142.)
+
+- **`bench-xbox-ort.sh --threads` mutated the device permanently.** It overwrote
+  the on-device `genai_config.json` with no restore, so the last thread variant
+  stayed in force for every later run of the app and every bench that did not
+  pass `--threads` — a t8 sweep left the console on t8. It now backs up and
+  restores on any exit, mirroring `profile-dml-run.sh`; `--keep-config` opts out
+  (#142).
 
 - **`deploy.sh pfn` returned an arbitrary package version.** It took the first
   match with no version ordering, and an MSIX upgrade can leave two versions of
