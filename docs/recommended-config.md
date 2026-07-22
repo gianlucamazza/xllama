@@ -74,7 +74,17 @@ GGUF thread default: llama.cpp auto-detect is capped at **6** on console
   — not the bandwidth saturation it was recorded as.
   ⚠️ The shipped `smollm2-360m-cpu-int4` asset currently sets **no**
   `intra_op_num_threads` at all, so neither this value nor the previous one is
-  in production. Applying it means republishing the asset on models-v1.
+  in production. Applying it means republishing the asset on models-v1 — a
+  publish, not a config edit. **Deferred on purpose, not forgotten**: the +8.5%
+  is measured with rigor at only one prompt length (1380, 3 runs interleaved);
+  792 is a single run (+3%) and t8 a single run. That is below the bar the rest
+  of Phase 12 held (10 lengths, closing control), so it does not yet earn a
+  production config change — and shipping it would move the baseline every
+  Phase 12 measurement was taken against while #130's mechanism is still open.
+  **Ship condition**: a proper thread sweep (≥3 lengths including short prompts,
+  3 runs each, closing control) confirming 6 wins across the range, ideally
+  bundled with the next models-v1 republish for another reason. Until then the
+  device runs the ORT default and this recommendation stays doc-only.
 - `past_present_share_buffer: true` (required for KV reuse)
 
 **DML fp16 (routing)** — [`bench/configs/genai_config-dml-test.json`](../bench/configs/genai_config-dml-test.json):
