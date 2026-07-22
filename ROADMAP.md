@@ -149,10 +149,17 @@ long prompt and the CPU wins from the second turn (§5d). Evidence under
       calls not measurable from here — so the UI now surfaces TTFT to make it
       observable in real use. The shipping 1550 is left as-is, its rationale
       corrected.
-- [x] **Threading corrected 4 → 6 (§5f).** The old recommendation was a
-      decode-only optimum; measuring prefill too puts 6 ahead, and `t8` is a trap
-      (it sinks prefill as well as decode). Caveat recorded: the shipped asset
-      sets no `intra_op_num_threads` at all.
+- [x] **Threading recommendation corrected 4 → 6 in the docs (§5f).** The old
+      recommendation was a decode-only optimum; measuring prefill too puts 6
+      ahead, and `t8` is a trap (it sinks prefill as well as decode).
+- [ ] **Ship `intra_op_num_threads: 6` on the CPU asset — deferred, conditional.**
+      The shipped `smollm2-360m-cpu-int4` sets none, so the recommendation is
+      doc-only. Not shipped yet on purpose: the +8.5% is rigorous at one prompt
+      length (1380), below Phase 12's own bar (10 lengths, closing control), and
+      a republish now would move the baseline every Phase 12 measurement used
+      while #130 is open. Ship condition: a proper thread sweep (≥3 lengths incl.
+      short, 3 runs, closing control), ideally with the next models-v1 republish.
+      See `docs/recommended-config.md`.
 - [ ] Confirm the `max_length` valley mechanism. §5e gives **strong evidence for
       per-process lazy kernel compilation** (DirectML warms 1.64×/1.72× on the
       second call in a process; CPU control 1.00×), which is the leading
