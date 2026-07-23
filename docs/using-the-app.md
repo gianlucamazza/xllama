@@ -56,9 +56,8 @@ once; the choice is stored with the conversation and appended to
   [training-architecture.md §11](./training-architecture.md).
 - **Sampling** — Temperature, Top-p, Top-k, Repetition penalty, Max new tokens.
 - **KV-cache reuse** (default on) — reuses the conversation's KV cache across
-  turns; measured **4.87×** on ORT and **4.07–20.02×** on GGUF models for
-  turn-2 prefill on console. Leave it on
-  unless debugging.
+  turns (large turn-2 prefill win on CPU paths; measured figures in
+  [benchmarks.md](./benchmarks.md)). Leave it on unless debugging.
 - **EP routing (per conversation)** — where inference runs. Routing requires a
   parity-validated DML text asset as `gpu_model` (`dml_text_model_ok`,
   #91 postmortem: the broken DML RMSNorm kernel is worked around by the
@@ -86,11 +85,9 @@ once; the choice is stored with the conversation and appended to
   trusted LAN; see [api-endpoint.md](api-endpoint.md).
 
 **Note for GGUF models** (`kind: "gguf"` in the catalogue): **KV-cache reuse
-works** (the llama.cpp path keeps a persistent context and appends only the new
-turn's delta — measured turn-2 prefill ranges from 4.07× to 20.02× by model; see
-[benchmarks.md](benchmarks.md)).
-Only **EP routing** is disabled (greyed out): the llama.cpp UWP build is
-CPU-only, so there is no GPU model to route to.
+works** (persistent `llama_context`; measured ratios in
+[benchmarks.md](benchmarks.md)). Only **EP routing** is greyed out — the
+llama.cpp UWP build is CPU-only.
 
 Settings persist to `LocalState\settings.json` and take effect on the next
 inference call.

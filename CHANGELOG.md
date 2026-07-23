@@ -14,6 +14,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `using-the-app.md`, `api-endpoint.md`, `training/README.md`, root `README.md`,
   `AGENTS.md`, `ROADMAP.md`, and `CONTRIBUTING.md` reflect in-app personalize and
   LAN parity instead of “Phase 11 next”.
+- **Doc dedup pass.** Root `README.md` drops the full file tree (→ `AGENTS.md`),
+  full model/perf table (→ `model-selection` / `benchmarks`), long limitations and
+  phase list (→ `uwp-constraints` / `ROADMAP`). `docs/README.md` no longer
+  duplicates the ownership table as a second descriptive index; architecture
+  and UI guides stop restating measured speedups.
 
 ### Added
 
