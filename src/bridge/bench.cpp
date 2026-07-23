@@ -114,9 +114,16 @@ void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
     // neither do n_prompt_tok and n_gen_tok, since generation can stop early on
     // EOG well below the cap. Appended before `host` for the same reason as the
     // token counts: bench-xbox-ort.sh parses $3 and $7 positionally.
+    // run_index (W1.1/#F1) is appended LAST, after date: every earlier column is
+    // parsed positionally somewhere (bench-xbox-ort.sh reads $3 backend, $7
+    // decode_tok_s, $14 max_length), so a new field can only go on the end
+    // without shifting them. 0 = single-run / legacy; a repeated bench writes the
+    // repetition number so the summary generator can report a spread instead of a
+    // pre-averaged point.
     const char* header = "model,quant,backend,n_ctx,n_threads,"
                          "prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,"
-                         "gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date\n";
+                         "gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,"
+                         "run_index\n";
     fputs(header, fp);
 
     double prompt_tok_s = (res.n_p_eval > 0 && res.t_p_eval_ms > 0)
@@ -174,10 +181,11 @@ void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
     const int used_threads = params.n_threads > 0
                                  ? params.n_threads
                                  : (is_llama ? detect_threads_llama() : detect_threads());
-    fprintf(fp, "%s,%s,%s,%d,%d,%.2f,%.2f,%zu,%.0f,%zu,%zu,%d,%d,%d,%s,%s\n", model_name.c_str(),
+    fprintf(fp, "%s,%s,%s,%d,%d,%.2f,%.2f,%zu,%.0f,%zu,%zu,%d,%d,%d,%s,%s,%d\n", model_name.c_str(),
             quant.c_str(), backend, params.n_ctx, used_threads, prompt_tok_s, decode_tok_s,
             res.peak_ws_mb, res.t_load_ms, res.gpu_mem_mb, res.gpu_budget_mb, res.n_p_eval,
-            res.n_eval, res.max_length, host_label ? host_label : "unknown", date_buf);
+            res.n_eval, res.max_length, host_label ? host_label : "unknown", date_buf,
+            params.run_index);
     fclose(fp);
 
     // Write done marker

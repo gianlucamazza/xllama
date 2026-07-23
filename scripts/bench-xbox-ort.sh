@@ -13,9 +13,12 @@
 #                    The device config is backed up and RESTORED on exit (a swap
 #                    left in place would silently affect every later run).
 #   --keep-config    Leave the --threads config on the device (skip the restore)
-#   --runs N         Number of bench runs (default: 3, warmup run 1 is dropped)
+#   --runs N         Number of bench runs (default: 4, warmup run 1 is dropped;
+#                    runs 2..N are each appended individually with their run_index
+#                    so the summary can report a spread instead of a pre-averaged
+#                    point — W1.1). Default 4 yields 3 recorded measurement runs.
 #   --prompt file    Path to prompt file (default: bench/prompts/standard-512.txt)
-#   --out FILE       Results CSV to append the median row to
+#   --out FILE       Results CSV to append the per-run rows to
 #                    (default: bench/results/phase1-cpu.csv; DML runs → phase2-dml.csv)
 #   --gpu-sample     Sample Device Portal GPU telemetry (xbox-gpu-sample.sh)
 #                    across the runs and print a per-engine summary at the end
@@ -28,7 +31,8 @@
 #
 # Required env: XBOX_IP, XBOX_USER, XBOX_PASS
 #
-# Output: median row appended to the --out CSV
+# Output: one row per recorded run appended to the --out CSV (run_index column);
+#         the summary generator computes the median and min-max spread from them.
 #
 # Notes:
 #   - The model must already be in LocalState\models\<name>\ on the console
@@ -45,7 +49,7 @@ N_THREADS=0
 N_CTX=0     # 0 = engine default (2048)
 N_PREDICT=0 # 0 = engine default (512)
 MAX_LEN=0   # 0 = derive min(n_ctx, prompt+n_predict); -1 = saturate to n_ctx; >0 = explicit
-N_RUNS=3
+N_RUNS=4    # warmup run 1 dropped; runs 2..N recorded individually (W1.1) → 3 by default
 PROMPT_FILE=""
 OUT_CSV=""
 GPU_SAMPLE=false
@@ -145,7 +149,6 @@ echo "  PFN: $PFN"
 # Helpers
 # ---------------------------------------------------------------------------
 TMPDIR_LOCAL=$(mktemp -d)
-MEDIAN_TMP=""     # set later; cleaned by the single EXIT trap below
 CONFIG_SWAPPED="" # set when --threads overwrites the device genai_config.json
 
 # One cleanup path for the whole script. --threads overwrites genai_config.json
@@ -161,7 +164,6 @@ cleanup() {
 	elif [[ -n "$CONFIG_SWAPPED" ]]; then
 		echo "  --keep-config: t${N_THREADS} genai_config.json left on the device" >&2
 	fi
-	[[ -n "$MEDIAN_TMP" ]] && rm -f "$MEDIAN_TMP"
 	rm -rf "$TMPDIR_LOCAL"
 }
 trap cleanup EXIT
@@ -268,34 +270,6 @@ wait_for_done() {
 	return 1
 }
 
-# Compute median of a numeric CSV column by header name
-csv_median() {
-	local file="$1" col_name="$2"
-	awk -v col="$col_name" '
-    NR == 1 {
-        for (i = 1; i <= NF; i++) {
-            gsub(/^"|"$/, "", $i)
-            if ($i == col) { c = i; break }
-        }
-        next
-    }
-    c { vals[++n] = $c }
-    END {
-        if (n == 0) exit 1
-        cmd = "sort -n"
-        for (i = 1; i <= n; i++) printf "%.6f\n", vals[i] | cmd
-        close(cmd)
-    }
-    ' FS="," "$file" | awk '{
-        a[NR] = $1
-    } END {
-        n = NR
-        if (n == 0) exit 1
-        if (n % 2 == 1) { print a[int(n/2)+1]; exit }
-        print (a[n/2] + a[n/2+1]) / 2
-    }'
-}
-
 # ---------------------------------------------------------------------------
 # Upload genai_config variant for thread tuning (if --threads N specified)
 # ORT GenAI only — skip when the model dir is GGUF (llama.cpp uses
@@ -368,7 +342,7 @@ declare -a CSV_ROWS=()
 
 # Defined before the run loop, not just before the median: each downloaded row is
 # checked against this schema's field count as it arrives (see below).
-CSV_HEADER="model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date"
+CSV_HEADER="model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,run_index"
 
 SAMPLER_PID=""
 if [[ "$GPU_SAMPLE" == "true" ]]; then
@@ -393,6 +367,11 @@ for ((run = 1; run <= N_RUNS; run++)); do
 	delete_from_localstate "bench_turns.txt"
 	sleep 1
 
+	# run_index changes per iteration (unlike the other bench_*.txt knobs), so it
+	# is written inside the loop: the device echoes it into the CSV row so repeats
+	# are individually recoverable rather than pre-averaged here (W1.1).
+	printf '%d' "$run" >"${TMPDIR_LOCAL}/bench_run_index.txt"
+
 	echo "  Uploading bench artifacts..."
 	upload_to_localstate "${TMPDIR_LOCAL}/bench.flag"
 	upload_to_localstate "${TMPDIR_LOCAL}/prompt.txt"
@@ -401,6 +380,7 @@ for ((run = 1; run <= N_RUNS; run++)); do
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_ctx.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_npredict.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_maxlen.txt"
+	upload_to_localstate "${TMPDIR_LOCAL}/bench_run_index.txt"
 
 	echo "  Starting app..."
 	restart_app
@@ -464,11 +444,32 @@ if [[ -n "$SAMPLER_PID" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Compute median and append to the results CSV
+# Append each recorded run to the results CSV
 # ---------------------------------------------------------------------------
+# W1.1: the driver no longer pre-averages. Every recorded run is appended with the
+# run_index the device wrote, so the spread is recoverable from the committed CSV;
+# scripts/generate-benchmark-summary.py computes the median and min-max from them.
 echo ""
-echo "--- Computing median ---"
+echo "--- Appending recorded runs ---"
 RESULT_CSV="${OUT_CSV:-${REPO_ROOT}/bench/results/phase1-cpu.csv}"
+
+# Warmup drop matches the previous median's warmup exclusion: run 1 (CSV_ROWS[0])
+# is a cold cache and is not recorded, UNLESS it is the only run collected.
+if ((${#CSV_ROWS[@]} == 0)); then
+	echo "Error: no successful runs collected." >&2
+	exit 1
+elif ((${#CSV_ROWS[@]} < 2)); then
+	echo "Warning: only 1 run collected (warmup not dropped)." >&2
+	ROWS_TO_APPEND=("${CSV_ROWS[0]}")
+else
+	ROWS_TO_APPEND=("${CSV_ROWS[@]:1}") # skip warmup (run 1 = index 0)
+fi
+
+# Route DML rows to phase2-dml.csv when --out was not given. All rows in one
+# campaign share a backend, so decide from the first row to append.
+if [[ -z "$OUT_CSV" && "$(cut -d, -f3 <<<"${ROWS_TO_APPEND[0]}")" == *dml* ]]; then
+	RESULT_CSV="${REPO_ROOT}/bench/results/phase2-dml.csv"
+fi
 [[ ! -f "$RESULT_CSV" ]] && printf '%s\n' "$CSV_HEADER" >"$RESULT_CSV"
 
 # Refuse to append to a file written under an older schema: the row arity would
@@ -486,41 +487,12 @@ assert_header_matches() {
 	fi
 }
 assert_header_matches "$RESULT_CSV"
-MEDIAN_TMP=$(mktemp) # cleaned by the single EXIT trap set near the top
 
-if ((${#CSV_ROWS[@]} == 0)); then
-	echo "Error: no successful runs collected." >&2
-	exit 1
-elif ((${#CSV_ROWS[@]} < 2)); then
-	echo "Warning: only 1 run collected (warmup not dropped)." >&2
-	printf '%s\n' "${CSV_ROWS[0]}" >>"$MEDIAN_TMP"
-else
-	# Write header + rows skipping warmup (run 1 = index 0)
-	printf '%s\n' "$CSV_HEADER" >>"$MEDIAN_TMP"
-	for row in "${CSV_ROWS[@]:1}"; do
-		printf '%s\n' "$row" >>"$MEDIAN_TMP"
-	done
-fi
-
-if [[ -s "$MEDIAN_TMP" ]]; then
-	MEDIAN_VAL=$(csv_median "$MEDIAN_TMP" "decode_tok_s")
-	MEDIAN_ROW=$(awk -v v="$MEDIAN_VAL" 'NR>1 && $7==v {print; exit}' FS="," "$MEDIAN_TMP")
-	if [[ -z "$MEDIAN_ROW" ]]; then
-		MEDIAN_ROW=$(tail -n +2 "$MEDIAN_TMP" | head -1)
-	fi
-	# Route DML rows to phase2-dml.csv when --out was not given — promised in
-	# the usage header but never implemented (every run landed in phase1-cpu.csv).
-	if [[ -z "$OUT_CSV" && "$(cut -d, -f3 <<<"$MEDIAN_ROW")" == *dml* ]]; then
-		RESULT_CSV="${REPO_ROOT}/bench/results/phase2-dml.csv"
-		[[ ! -f "$RESULT_CSV" ]] && printf '%s\n' "$CSV_HEADER" >"$RESULT_CSV"
-	fi
-	printf '%s\n' "$MEDIAN_ROW" >>"$RESULT_CSV"
-	echo "Appended to $RESULT_CSV:"
-	echo "  $MEDIAN_ROW"
-else
-	echo "Error: no data for median computation." >&2
-	exit 1
-fi
+for row in "${ROWS_TO_APPEND[@]}"; do
+	printf '%s\n' "$row" >>"$RESULT_CSV"
+	echo "  appended: $row"
+done
+echo "Appended ${#ROWS_TO_APPEND[@]} run(s) to $RESULT_CSV"
 
 echo ""
 echo "Done. ${RESULT_CSV} updated."

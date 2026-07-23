@@ -20,9 +20,10 @@
 # --ctx / --n-predict to test whether the band's edges track n_ctx.
 #
 # Each point is a full bench-xbox-ort.sh invocation (upload prompt/model, restart
-# the app headless via bench.flag, poll, median of --runs minus the warmup). The
-# actual prefill token count lands in the n_prompt_tok column, so the targets
-# below only need to spread the samples — they do not need to be exact.
+# the app headless via bench.flag, poll, append each of --runs minus the warmup as
+# its own row with a run_index — W1.1; the summary generator derives the median and
+# spread). The actual prefill token count lands in the n_prompt_tok column, so the
+# targets below only need to spread the samples — they do not need to be exact.
 #
 # Runtime: ~40-60 s per run. Defaults (6 lengths x 2 backends x 4 runs) ≈ 40 min.
 set -euo pipefail

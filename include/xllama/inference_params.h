@@ -34,6 +34,13 @@ struct InferenceParams {
     // a CSV column, so a knob an older build ignores shows up in the data.
     int max_length_override = 0;
     int n_threads = 0; // 0 = auto-detect
+    // W1.1 bench knob (#F1): which repetition of a repeated bench this run is.
+    // Written verbatim into the bench CSV's run_index column so repeats are
+    // individually recoverable instead of being pre-averaged into one row at the
+    // source (a median in the writer destroys the spread needed to judge it).
+    // 0 = not a repeated bench / unknown (the legacy single-run case); the
+    // summary generator treats a 0/absent run_index as a single measurement.
+    int run_index = 0;
     // llama.cpp prefill batching (GGUF path only; 0 = llama.cpp default, i.e.
     // n_batch 2048 / n_ubatch 512). n_ubatch is the physical compute chunk that
     // sets prefill throughput on the Zen 2 CPU — the sweep knob for TTFT tuning.

@@ -159,7 +159,34 @@ long prompt and the CPU wins from the second turn (§5d). Evidence under
       a republish now would move the baseline every Phase 12 measurement used
       while #130 is open. Ship condition: a proper thread sweep (≥3 lengths incl.
       short, 3 runs, closing control), ideally with the next models-v1 republish.
-      See `docs/recommended-config.md`.
+      See `docs/recommended-config.md`. The **"3 runs" half of that bar is now
+      supported**: the bench records each repeat individually (`run_index`) and
+      the summary reports a median + decode min–max spread instead of a
+      pre-averaged point, so a re-run at ±8.5% can be told from run-to-run noise
+      rather than asserted against a single number (see the measurement-integrity
+      item below).
+- [x] **Measurement integrity: per-run variance is now recoverable (W1.1).** Every
+      published decode number was a single row with no spread reported anywhere —
+      the ORT driver ran repeats but appended only a median, discarding the data
+      needed to judge it. The bench CSV now carries a `run_index`; the drivers
+      (`bench-xbox-ort.sh`, `bench-prompt-sweep.sh`, `bench-xbox-kv.sh`) append
+      each recorded run; `scripts/generate-benchmark-summary.py` derives the
+      median and a min–max spread and marks single-run rows as such. Host-tested
+      (`tests/test_bench.cpp`); the committed CSVs regenerate their current numbers
+      unchanged (all pre-existing rows now show _single run_). Re-measuring any
+      row on-console with the default 3 recorded runs is what turns a marker into
+      a spread — no such row exists yet.
+- [x] **Duplicated-state audit (the #125 / #133 / #141 class) — nothing divergent.**
+      Three Phase 12 defects were one logical quantity with two homes. A read-only
+      sweep of the sampling defaults, the invariant constant pairs
+      (`token_threshold`↔trimmer ceiling, `max_length`↔`n_ctx`), chat-template /
+      stop-token selection, and every `SaveSettings()` value versus its CLI/bench
+      counterpart found **zero divergent cases**: the three prior defects are each
+      consolidated to a single home with a guarding test, and the residual
+      duplications are doc-only or unconstrained per-surface defaults. The one item
+      worth a future hardening is the `max_length` saturation, expressed in two
+      files (`session.cpp`, `inference.cpp`) that agree by comment rather than by a
+      shared helper — not a defect today.
 - [ ] Confirm the `max_length` valley mechanism. §5e gives **strong evidence for
       per-process lazy kernel compilation** (DirectML warms 1.64×/1.72× on the
       second call in a process; CPU control 1.00×), which is the leading
