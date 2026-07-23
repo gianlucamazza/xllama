@@ -220,6 +220,7 @@ void main_loop() {
     params.max_length_override = bench_maxlen;
     params.n_threads = bench_threads;           // 0 = auto; set by bench-xbox-ort.sh
     params.stop_sequences = fmt.stop_sequences; // clean stop for Gemma's <end_of_turn>
+    params.run_index = bench_run_index;         // W1.1: echo into CSV (0 = single-run)
 
     char host_buf[64];
     if (bench_threads > 0)

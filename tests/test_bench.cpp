@@ -83,7 +83,7 @@ TEST_CASE("Bench CSV writer: basic output") {
     CHECK(f[12] == "20"); // n_gen_tok  = res.n_eval
     CHECK(f[13] == "0");  // max_length — unset on this result (GGUF path)
     CHECK(f[14] == "linux-test");
-    CHECK(f[16] == "0");  // run_index — unset params default to 0 (single-run)
+    CHECK(f[16] == "0"); // run_index — unset params default to 0 (single-run)
 
     // Clean up
     std::remove(csv_path.c_str());
@@ -171,7 +171,7 @@ TEST_CASE("Bench CSV writer: gpu memory columns") {
     CHECK(f[12] == "20");   // n_gen_tok
     CHECK(f[13] == "1801"); // max_length
     CHECK(f[14] == "linux-test");
-    CHECK(f[16] == "2");    // run_index — carried from params, not hardcoded
+    CHECK(f[16] == "2"); // run_index — carried from params, not hardcoded
 
     std::remove(csv_path.c_str());
     std::string done_path = xllama::resolve_local_path("bench-result.csv.done");
