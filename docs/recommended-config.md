@@ -40,9 +40,9 @@ tables are in [benchmarks.md](benchmarks.md) (the perf SSOT).
 | **Default (unified)** | `lfm25-350m`               | llama.cpp (`unified`) | **94.2 tok/s** (recommended)                                                                                           |
 | **Balanced chat**     | `lfm25-1.2b-instruct`      | llama.cpp (`unified`) | **37.9 tok/s**, 811 MB peak; H9 6/8                                                                                    |
 | **Quality chat**      | `lfm2-2.6b`                | llama.cpp (`unified`) | **18.4 tok/s**, 1623 MB peak; H9 7/8                                                                                   |
-| **ORT default**       | `smollm2-360m-cpu-int4`    | ORT CPU int4          | ~66 tok/s                                                                                                              |
+| **ORT default**       | `smollm2-360m-cpu-int4`    | ORT CPU int4          | **68.0** tok/s                                                                                                         |
 | **Routing GPU**       | `smollm2-360m-dml-fp16-v2` | ORT DML fp16          | 44.4 tok/s decode; 236.7 tok/s prefill — RMSNorm-decomposed graph, #91 parity-validated (`dml-rmsnorm-fix-runbook.md`) |
-| **Larger chat**       | `smollm2-1.7b-cpu-int4`    | ORT CPU int4          | ~21 tok/s (in-app `models-v1` download)                                                                                |
+| **Larger chat**       | `smollm2-1.7b-cpu-int4`    | ORT CPU int4          | **20.6** tok/s (in-app `models-v1` download)                                                                           |
 | **Modern GGUF**       | `qwen35-0.8b`              | llama.cpp (`unified`) | 35.1 tok/s (98.1 prefill, t6)                                                                                          |
 | **Fast modern GGUF**  | `lfm25-350m`               | llama.cpp (`unified`) | 94.2 tok/s (241.4 prefill, t6)                                                                                         |
 

@@ -83,7 +83,24 @@ path checklist for discovery — descriptions are not repeated.
 | Kind of content | Allowed outside SSOT | Forbidden |
 | --------------- | -------------------- | --------- |
 | Role / status one-liners | Yes (e.g. README “default chat is LFM2.5-350M”) | Second full catalogue or perf table |
-| Exact tok/s, MB, speedups | Only in benchmarks.md / uwp-constraints / raw CSV | Restating figures in README / UI guide |
-| NuGet version pins | packages.config + recommended-config / vendor-lifecycle | Parallel version tables |
+| Exact tok/s, peak RAM, speedups | Only [benchmarks.md](./benchmarks.md) (generated) + raw `bench/results/` | Restating figures in README / UI guide without linking |
+| Download / catalogue size | Sum of `approx_bytes` in `uwp/models/manifest.json` | Invented MB that drift from the manifest |
+| Hardware ceilings (GPU budget, etc.) | [uwp-constraints.md](./uwp-constraints.md) | Parallel ceilings elsewhere |
+| NuGet version pins | `uwp/packages.config` + recommended-config / vendor-lifecycle | Parallel version tables |
 | Repo file tree | AGENTS.md (agents) | Full second tree in README |
 | Phase checklist | ROADMAP.md | Duplicated phase list in README |
+
+### Coherence check (2026-07-24)
+
+Spot-checked against code + evidence:
+
+| Fact | SSOT | Status |
+| ---- | ---- | ------ |
+| Default chat `lfm25-350m` (unified) | `MainPage.cpp` `DefaultChatModelId` | OK |
+| `token_threshold` 1550 | `routing_policy.h` | OK |
+| GPU allowlist `-v2` only | `dml_text_model_ok` | OK |
+| NuGet 0.14.1 / 1.24.4 / DML 1.15.4 | `packages.config` | OK |
+| Decode table (94.2 / 37.9 / 18.4 / 68.0 / 44.4 / …) | `generate-benchmark-summary.py --check` | OK |
+| H9 6/8 · 7/8 · 4/8 · 5/8 | `phase7-h9.jsonl` | OK |
+| Lane B peak_ws 1195 MB, wall 446 s | `phase10-console-devtrain-result.json` | OK |
+| Catalogue download sizes | `manifest.json` `approx_bytes` | Docs corrected to match (was 218/697/1.46 stale) |
