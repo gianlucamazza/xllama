@@ -23,6 +23,8 @@ clang-format -i <changed .cpp/.h files>
 shellcheck scripts/*.sh   # if you touched shell
 # If you touched bench CSVs or summary policy:
 python3 scripts/generate-benchmark-summary.py --check
+# Cross-check code / catalogue / pins / docs (no console needed):
+python3 scripts/check-coherence.py
 ```
 
 ## Conventions

@@ -23,6 +23,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `uwp/models/manifest.json` `approx_bytes` (LFM/Qwen were understating by
   ~5–10%); ORT decode headlines aligned to generated `benchmarks.md` (68.0 /
   20.6, not ~66 / ~21). `docs/README.md` records the check matrix.
+- **`scripts/check-coherence.py`** — host-side SSOT audit (defaults, pins, API
+  routes, personalize paths, sizes, H9/Phase 10 evidence, generated headlines,
+  doc links). Documented in `docs/README.md` / `CONTRIBUTING.md`.
 
 ### Added
 
