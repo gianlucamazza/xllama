@@ -57,7 +57,7 @@ xllama/
 │   ├── api-server.cpp / .h  # opt-in LAN endpoint
 │   ├── chat-history.cpp / .h
 │   ├── model-downloader.cpp / .h   # catalogue download + LoadModelManifest
-│   ├── packages.config      # NuGet pins (ORT GenAI 0.14.1, ORT 1.24.4, DirectML 1.15.4)
+│   ├── packages.config      # NuGet pins (versions: packages.config; lifecycle: docs/vendor-lifecycle-plan.md)
 │   └── xllama.sln / .vcxproj
 ├── scripts/
 │   ├── deploy.sh                      # Device Portal: deploy, logs, bench trigger
@@ -126,17 +126,18 @@ the "same identity, different contents" install block. Local builds leave `.0`.
 
 ## Critical notes
 
-- **Never commit `.env`** (contains credentials). Use `.env.example` as template.
-- **Never commit `.pfx` / `.cer` certificates**. They are in `.gitignore`.
-
-- **ORT GenAI path**: UWP inference is entirely under `#ifdef XLLAMA_USE_ORT` in `src/bridge/inference.cpp`. ORT types are wrapped in `include/xllama/ort_raii.h`. Linux path (`#else`) uses llama.cpp unchanged.
-
-- **No model in the MSIX**: the package is ~19 MB and ships no model. On first launch the app downloads the default chat model (`lfm25-350m` on unified builds; `smollm2-360m-cpu-int4` on ORT-only) from the GitHub Release `models-v1` catalogue (`uwp/models/manifest.json`) into `LocalState\models\`. Routing GPU (`smollm2-360m-dml-fp16-v2`, the #91 parity-validated graph) auto-downloads from `models-v1` when GPU routing is enabled. Current console gate: `./scripts/validate-console.sh all`.
-
-- **Shipping CI**: `build-uwp.yml` publishes `xllama-appx` as **unified + PatchedGenAI #2280 + PatchedOrt** (cached `onnxruntime.dll` + `onnxruntime-genai.dll` from `vendor-dlls-v1`; hashes in `vendor/onnxruntime-patched/SHA256SUMS` and `vendor/onnxruntime-genai-patched/SHA256SUMS`). `llamacpp` lane is bench-only. Rebuild from source only for pin refresh: `build-uwp-ort-patched.yml` (ORT, 1–3 h) / `build-uwp-patched.yml` (GenAI). Poll whether pins can drop: `scripts/check-vendor-nuget-status.sh`.
-
-- **ONNX external data merge**: ORT 1.24.4 calls `std::filesystem::weakly_canonical()` for models with a separate `.onnx.data` file, which traverses path segments inaccessible inside the Xbox AppContainer (`Q:\Users\UserMgr0\...`). Fix: merge external data into a single `model.onnx` using `scripts/merge_onnx_external_data.py` before MSIX packaging. CI does this automatically.
-
-- **app-local DLLs**: `DirectML.dll`, `onnxruntime.dll`, `onnxruntime-genai.dll` must have `<DeploymentContent>true</DeploymentContent>` in the vcxproj. Without this the MSIX silently omits them and the app crashes on load.
-
-- **UWP constraints**: no POSIX mmap, no dlopen, no registry, no thread-affinity desktop API. See `docs/uwp-constraints.md` for the full list.
+- **Never commit `.env`** (credentials) or **`.pfx` / `.cer`** (gitignored).
+- **ORT path**: UWP inference under `#ifdef XLLAMA_USE_ORT` in `src/bridge/inference.cpp`;
+  RAII in `ort_raii.h`. Linux `#else` is llama.cpp.
+- **No model in the MSIX** (~19 MB): first launch downloads default chat from
+  `models-v1` (`lfm25-350m` unified / `smollm2-360m-cpu-int4` ORT-only). Console
+  gate: `./scripts/validate-console.sh all`.
+- **Shipping CI**: unified + PatchedGenAI + PatchedOrt from `vendor-dlls-v1`
+  (hashes under `vendor/*/SHA256SUMS`). Pin lifecycle SSOT:
+  `docs/vendor-lifecycle-plan.md`. Poll: `scripts/check-vendor-nuget-status.sh`.
+- **External data / AppContainer**: merge `.onnx.data` with
+  `scripts/merge_onnx_external_data.py` before packaging (CI does this). Details:
+  `docs/fp16-extdata-runbook.md`, `docs/uwp-constraints.md` §8.
+- **app-local DLLs**: `DirectML.dll`, `onnxruntime.dll`, `onnxruntime-genai.dll`
+  need `<DeploymentContent>true</DeploymentContent>` or the MSIX omits them.
+- **UWP constraints list**: `docs/uwp-constraints.md` (no mmap/dlopen/registry/…).

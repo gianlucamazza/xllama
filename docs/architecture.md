@@ -98,11 +98,11 @@ and llama.cpp decode loops.
 Multi-turn latency is cut by appending only the new turn's delta instead of
 re-prefilling the whole conversation:
 
-- **ORT GenAI** — persistent generator (turn-2 prefill **4.87×**).
+- **ORT GenAI** — persistent generator (turn-2 prefill speedup; figures in
+  [benchmarks.md](benchmarks.md)).
 - **llama.cpp** — persistent `llama_context` in `LlamaSession`; `reuse_kv` /
   `reset_kv` clear or continue the KV cache (`llama_memory_clear`, position
-  continuation). Turn-2 prefill measures **4.07×** on Gemma-3-270M and up to
-  **20.02×** on the larger LFM models (`benchmarks.md`).
+  continuation). Measured ratios by model: [benchmarks.md](benchmarks.md).
 
 Reuse is gated by `kv_reuse_supported_for_model()` (`routing_policy.h`), which
 excludes the DirectML EP (continuous decoding is CPU-only, verified — the reuse
@@ -184,10 +184,10 @@ GEMV" figure (read 12.35 GB/s @1t; `benchmarks.md`).
 A from-scratch C++ pipeline (`uwp/diffuse.cpp`, `diffusion/`): CLIP BPE tokenizer +
 Euler scheduler (header-only, golden-vector unit-tested) driving **three sequential**
 ORT DirectML sessions (text encoder → UNet → VAE decoder), created→run→destroyed per
-stage to fit the 3801 MB GPU budget. Plain ORT DirectML coexists with the XAML
-compositor in-process (unlike ORT GenAI's DML init — see `uwp-constraints.md §7`).
-Optional TAESD tiny VAE shortens the decode stage. Triggered from the Image dialog
-or the headless `diffuse.flag`.
+stage to fit the console GPU budget (`uwp-constraints.md` §5/§7). Plain ORT
+DirectML coexists with the XAML compositor in-process (unlike ORT GenAI's DML
+init — §7). Optional TAESD tiny VAE shortens the decode stage. Triggered from
+the Image dialog or the headless `diffuse.flag`.
 
 ## LAN HTTP endpoint (OpenAI-compat)
 
@@ -254,29 +254,16 @@ First-class subsystem for **learning adapters and producing loadable weights**.
 
 ### Personalization status (Phases 8–11)
 
-| Phase | What shipped |
-| ----- | ------------ |
-| **8** | Host PEFT + merge, runtime llama.cpp LoRA, preference capture contracts |
-| **9** | Operator pull → host retrain → catalogue override; per-response Like/Dislike/Correct UI |
-| **10** | Lane B on-device `partial_ft` (ggml-opt); host + console marker gates PASS |
-| **11** | **In-app arc** (#116): Settings **Train on my feedback** runs `run_train_job_localized` (not `train.flag`), surfaces epoch/loss, publishes catalogue id `personalized`. LAN API prefs / training status / images (#118). |
+| Phase | What shipped (headline only) |
+| ----- | ---------------------------- |
+| **8–9** | Host PEFT, runtime LoRA, preference UI, operator pull loop |
+| **10** | Lane B on-device `partial_ft` available (marker gates PASS) |
+| **11** | In-app train + publish `personalized`; LAN prefs/status/images |
 
-```
-UI Like/Correct ──► samples.jsonl ──► Settings "Train on my feedback"
-                                              │
-                    run_train_job_localized   │  (in-process Lane B)
-                                              ▼
-                    training/out/personalized/merged.gguf
-                                              │
-                    PublishPersonalizedModel  │  LocalState models\personalized\
-                                              ▼
-                    manifest override ──► model picker ──► Session (GGUF)
-```
-
-Headless `train.flag` remains the console harness path
-(`validate-console-training.sh device-train`). Full device FT and ORT ODT stay
-rejected. Details: [training-architecture.md](training-architecture.md) §11,
-[using-the-app.md](using-the-app.md).
+**Do not expand the Phase 11 flow here** — code map, preflight, and diagram live
+in [training-architecture.md §11](training-architecture.md). Pad steps:
+[using-the-app.md](using-the-app.md). Headless harness remains `train.flag` /
+`validate-console-training.sh device-train`.
 
 ## See also
 

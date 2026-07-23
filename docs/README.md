@@ -48,30 +48,42 @@ Run `python3 scripts/generate-benchmark-summary.py` after changing evidence or
 selectors. CI runs it with `--check` and rejects drift. Research notes and dated
 reports preserve interpretation and history; they are not current metric stores.
 
-## Document index
+## Document index (paths only)
 
-| Document | Description |
-| -------- | ----------- |
-| [architecture.md](./architecture.md) | Dual pillars, modules, backends, KV-reuse, routing, provisioning, LAN, training surface, membw, diffusion |
-| [training-architecture.md](./training-architecture.md) | **Training SSOT**: RE inventory, capability matrix, lanes A/B/C, Lane B engine, hybrid loop, Phase 11 UI arc |
-| [../training/README.md](../training/README.md) | Training ops: job JSON, host PEFT, device partial FT, personalize preflight |
-| [using-the-app.md](./using-the-app.md) | App guide: chat, settings (incl. Train on my feedback), image generation, LAN API toggle |
-| [api-endpoint.md](./api-endpoint.md) | LAN HTTP endpoint: enable, protocol (chat + prefs + training status + images), concurrency, validation |
-| [install-release.md](./install-release.md) | Install a tagged GitHub Release build on Xbox (cert + VCLibs + MSIX) |
-| [uwp-constraints.md](./uwp-constraints.md) | UWP sandbox limitations §1–§13 (GPU budget, AppContainer, training/adapters RE) |
-| [technical-report.md](./technical-report.md) | Historical v1.0 narrative snapshot; [Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76) |
-| [console-validation-runbook.md](./console-validation-runbook.md) | Automated on-console gates, benchmark evidence rules, troubleshooting |
-| [fp16-extdata-runbook.md](./fp16-extdata-runbook.md) | PatchedOrt external-data outcome, rebuild procedure, drop conditions |
-| [dml-metacommands-runbook.md](./dml-metacommands-runbook.md) | #91 experiment: `ep.dml.disable_metacommands` |
-| [dml-rmsnorm-fix-runbook.md](./dml-rmsnorm-fix-runbook.md) | #91 root cause/fix: DML RMSNorm graph surgery |
-| [windows-dev-vm.md](./windows-dev-vm.md) | Windows VM setup for local UWP/MSIX builds |
-| [device-portal.md](./device-portal.md) | Dev Mode and Device Portal deploy |
-| [phase1-runbook.md](./phase1-runbook.md) | Legacy compatibility entrypoint → current owners |
-| [model-selection.md](./model-selection.md) | Choosing/adding models, manifest override, ORT asset publishing |
-| [benchmarks.md](./benchmarks.md) | Generated comparison + interpretation; raw data under `bench/results/` |
-| [recommended-config.md](./recommended-config.md) | Modern settings: models, genai_config, settings.json, build variants |
-| [vendor-lifecycle-plan.md](./vendor-lifecycle-plan.md) | Patched-runtime pins, upstream deps, removal gates |
-| [phase7-hypotheses.md](./phase7-hypotheses.md) | Phase 7 research log; metrics still come from the generated summary |
+The ownership table above is the SSOT for *where facts live*. Below is only a
+path checklist for discovery — descriptions are not repeated.
 
-See also [../CHANGELOG.md](../CHANGELOG.md) for release history and
-[../diffusion/README.md](../diffusion/README.md) for the SD-Turbo host toolchain.
+**Structure / product:** [architecture.md](./architecture.md) ·
+[training-architecture.md](./training-architecture.md) ·
+[using-the-app.md](./using-the-app.md) · [api-endpoint.md](./api-endpoint.md) ·
+[model-selection.md](./model-selection.md) ·
+[recommended-config.md](./recommended-config.md)
+
+**Constraints / vendor:** [uwp-constraints.md](./uwp-constraints.md) ·
+[vendor-lifecycle-plan.md](./vendor-lifecycle-plan.md) ·
+[fp16-extdata-runbook.md](./fp16-extdata-runbook.md) ·
+[dml-rmsnorm-fix-runbook.md](./dml-rmsnorm-fix-runbook.md) ·
+[dml-metacommands-runbook.md](./dml-metacommands-runbook.md)
+
+**Ops / install:** [install-release.md](./install-release.md) ·
+[device-portal.md](./device-portal.md) · [windows-dev-vm.md](./windows-dev-vm.md) ·
+[console-validation-runbook.md](./console-validation-runbook.md) ·
+[../training/README.md](../training/README.md) ·
+[../bench/README.md](../bench/README.md)
+
+**Evidence / history:** [benchmarks.md](./benchmarks.md) ·
+[phase7-hypotheses.md](./phase7-hypotheses.md) ·
+[technical-report.md](./technical-report.md) (frozen v1.0) ·
+[phase1-runbook.md](./phase1-runbook.md) (compat redirect) ·
+[../CHANGELOG.md](../CHANGELOG.md) · [../ROADMAP.md](../ROADMAP.md) ·
+[../diffusion/README.md](../diffusion/README.md)
+
+### Acceptable headline vs SSOT
+
+| Kind of content | Allowed outside SSOT | Forbidden |
+| --------------- | -------------------- | --------- |
+| Role / status one-liners | Yes (e.g. README “default chat is LFM2.5-350M”) | Second full catalogue or perf table |
+| Exact tok/s, MB, speedups | Only in benchmarks.md / uwp-constraints / raw CSV | Restating figures in README / UI guide |
+| NuGet version pins | packages.config + recommended-config / vendor-lifecycle | Parallel version tables |
+| Repo file tree | AGENTS.md (agents) | Full second tree in README |
+| Phase checklist | ROADMAP.md | Duplicated phase list in README |
