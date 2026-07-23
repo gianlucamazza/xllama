@@ -37,11 +37,18 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `session.h` / `inference_params.h` | `Session`/`SessionParams`, `InferenceParams/Result`, `Backend` enum          |
 | `sampling.h`                       | `SamplingConfig`, shared defaults; CLI/bench and GUI/API init from it (#125) |
 | `training.h` / `training_params.h` | `TrainingJob`/`TrainingResult`, stages, device gates, job JSON               |
+| `device_train.h`                   | Lane B engine API: `run_device_train_job`, progress callbacks, filters       |
+| `personalize.h`                    | Phase 11 helpers: last-block filter, job builder, sample count, manifest JSON |
+| `preference_capture.h`             | Preference JSONL format + append (Like/Dislike/Correct + API)                |
 | `chat_prompt.h`                    | `ChatFormat`, `chat_format_for`, `apply_stop_sequences`                      |
 | `routing_policy.h`                 | `decide_routing`, `kv_reuse_supported_for_model`, prompt budget              |
 | `model_provision.h`                | `dir_satisfies_expected_files`, `normalize_model_path`                       |
 | `manifest_merge.h`                 | `merge_manifest_entries` (per-entry catalogue override)                      |
 | `membw.h`                          | `measure_membw` (STREAM-style bandwidth probe)                               |
+
+Bridge sources of note under `src/bridge/`: `session.cpp`, `inference.cpp`,
+`training.cpp`, `device_train.cpp`, `personalize.cpp`, `preference_capture.cpp`,
+`sampler_chain.h` / `ort_sampling.h` (one sampler chain per backend).
 
 ## Inference backends and runtime dispatch
 
@@ -185,15 +192,23 @@ or the headless `diffuse.flag`.
 ## LAN HTTP endpoint (OpenAI-compat)
 
 Optional, **default OFF**: a `StreamSocketListener` in `uwp/api-server.cpp`
-exposes a dedicated, lazily created `xllama::Session` as an OpenAI-compatible
-endpoint on the LAN (`POST /v1/chat/completions`, non-streaming). Settings owns
-the live start/stop/rebind lifecycle; `App::OnLaunched` restores it when the
-persistent `LocalState\api.flag` is present. The flag is not consumed and the
-server coexists with the live chat UI. Port 11434 (override `api-port.txt`);
-single-slot with a `try_lock` → HTTP 503 when busy. Capability
-`privateNetworkClientServer` (already in `AppxManifest.xml`) covers LAN inbound;
-no public inbound. Full contract + validation in
-[api-endpoint.md](api-endpoint.md) (`scripts/validate-api.sh`).
+exposes a dedicated, lazily created `xllama::Session` plus thin UI-parity routes
+on the LAN. Settings owns the live start/stop/rebind lifecycle; `App::OnLaunched`
+restores it when the persistent `LocalState\api.flag` is present. The flag is not
+consumed and the server coexists with the live chat UI. Port 11434 (override
+`api-port.txt`); chat and images share a single-slot mutex (`try_lock` → HTTP 503
+when busy). Preferences and training status are file I/O only (no inference lock).
+
+| Route | Role |
+| ----- | ---- |
+| `POST /v1/chat/completions` | Non-streaming chat (own `Session`) |
+| `POST /v1/preferences` | Append preference sample → `training/samples.jsonl` (#118) |
+| `GET /v1/training/status` | `result.done` / `progress.json` / personalized `result.json` (#118) |
+| `POST /v1/images/generations` | SD-Turbo in-process (steps 1–4), same knobs as Image dialog (#118) |
+
+Capability `privateNetworkClientServer` covers LAN inbound; no public inbound.
+Full contract + validation: [api-endpoint.md](api-endpoint.md)
+(`scripts/validate-api.sh` — `spike|chat|prefs|train|all`).
 
 ## Build variants and versioning
 
@@ -237,22 +252,39 @@ First-class subsystem for **learning adapters and producing loadable weights**.
 | **B Device partial FT** | **Available** in llamacpp/unified builds; host + console marker gates PASS |
 | **C Serve merged GGUF** | **Available**; runtime LoRA via `SessionParams.lora_path` / CLI `--lora`   |
 
-### Personalization status (Phases 8–9)
+### Personalization status (Phases 8–11)
 
-Phase 8 is frozen complete: host PEFT + merge, runtime llama.cpp LoRA and
-console preference capture are available and validated. Phase 9 adds the
-operator-driven loop that pulls `LocalState\training\samples.jsonl`, retrains on
-the host and emits a catalogue override for the resulting GGUF. Full device
-fine-tuning, ORT ODT and ORT GenAI runtime adapters remain unavailable; Phase 10
-adds only bounded last-block partial FT. The shipping UI records one
-like, dislike, or correction per completed response, while export/retrain stays
-operator-driven. See the training SSOT and ops guide below.
+| Phase | What shipped |
+| ----- | ------------ |
+| **8** | Host PEFT + merge, runtime llama.cpp LoRA, preference capture contracts |
+| **9** | Operator pull → host retrain → catalogue override; per-response Like/Dislike/Correct UI |
+| **10** | Lane B on-device `partial_ft` (ggml-opt); host + console marker gates PASS |
+| **11** | **In-app arc** (#116): Settings **Train on my feedback** runs `run_train_job_localized` (not `train.flag`), surfaces epoch/loss, publishes catalogue id `personalized`. LAN API prefs / training status / images (#118). |
+
+```
+UI Like/Correct ──► samples.jsonl ──► Settings "Train on my feedback"
+                                              │
+                    run_train_job_localized   │  (in-process Lane B)
+                                              ▼
+                    training/out/personalized/merged.gguf
+                                              │
+                    PublishPersonalizedModel  │  LocalState models\personalized\
+                                              ▼
+                    manifest override ──► model picker ──► Session (GGUF)
+```
+
+Headless `train.flag` remains the console harness path
+(`validate-console-training.sh device-train`). Full device FT and ORT ODT stay
+rejected. Details: [training-architecture.md](training-architecture.md) §11,
+[using-the-app.md](using-the-app.md).
 
 ## See also
 
 - Performance numbers → [benchmarks.md](benchmarks.md)
 - AppContainer constraints (§1–§13) → [uwp-constraints.md](uwp-constraints.md)
 - Model catalogue / selection → [model-selection.md](model-selection.md) + `uwp/models/manifest.json`
+- App UI (incl. personalize) → [using-the-app.md](using-the-app.md)
+- LAN protocol → [api-endpoint.md](api-endpoint.md)
 - v1.0 narrative snapshot → [technical-report.md](technical-report.md)
 - **Training SSOT** → [training-architecture.md](training-architecture.md)
 - Training ops → [training/README.md](../training/README.md)

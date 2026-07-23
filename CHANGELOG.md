@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Documentation sync for Phase 11 / #118 and SSOT practices.** `docs/README.md`
+  states ownership principles; `architecture.md`, `training-architecture.md` §11,
+  `using-the-app.md`, `api-endpoint.md`, `training/README.md`, root `README.md`,
+  `AGENTS.md`, `ROADMAP.md`, and `CONTRIBUTING.md` reflect in-app personalize and
+  LAN parity instead of “Phase 11 next”.
+
 ### Added
 
 - **Phase 11 in-app personalization (#116).** Settings → "Train on my feedback"

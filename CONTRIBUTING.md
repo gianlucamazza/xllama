@@ -7,8 +7,8 @@ Mode)**; most constraints come from the UWP/AppContainer sandbox, so read
 
 ## Workflow
 
-1. Branch off `main` (`feat/…`, `fix/…`, `chore/…`) and open a PR — CI builds
-   run on PRs (feature branches don't build on direct push).
+1. Branch off `main` (`feat/…`, `fix/…`, `docs/…`, `chore/…`) and open a PR —
+   CI builds run on PRs (feature branches don't build on direct push).
 2. Keep PRs focused; put orthogonal infra changes in their own PR.
 3. Fill in the PR template's "How verified" section.
 
@@ -21,6 +21,8 @@ ctest --test-dir build/linux-test --output-on-failure
 # Formatting gate (CI enforces it with --Werror):
 clang-format -i <changed .cpp/.h files>
 shellcheck scripts/*.sh   # if you touched shell
+# If you touched bench CSVs or summary policy:
+python3 scripts/generate-benchmark-summary.py --check
 ```
 
 ## Conventions
@@ -29,6 +31,29 @@ shellcheck scripts/*.sh   # if you touched shell
   comments, and commits.
 - **Formatting** is enforced (`.clang-format`, pinned `clang-format` in CI).
 - **Commits**: conventional prefixes (`feat`, `fix`, `docs`, `ci`, `chore`, …).
+
+## Documentation
+
+Project docs follow a **single source of truth** map — see
+[`docs/README.md`](docs/README.md) (principles + ownership table).
+
+| If you change… | Update… |
+| -------------- | ------- |
+| Module boundaries / data flow | `docs/architecture.md` |
+| Training contracts / lanes / Phase 11 | `docs/training-architecture.md` + `training/README.md` |
+| User-facing UI steps | `docs/using-the-app.md` |
+| LAN routes | `docs/api-endpoint.md` |
+| Benchmarks / CSV schema | `bench/README.md` + regen summary if needed |
+| Release behaviour | `CHANGELOG.md` (and `ROADMAP.md` if a phase closes) |
+| Repo layout for agents | `AGENTS.md` |
+
+Do **not** hand-edit generated tables in `docs/benchmarks.md` (run
+`generate-benchmark-summary.py`). Prefer linking to the SSOT over copying
+numbers into a second file.
+
+Public C++ headers under `include/xllama/` should state what they own in a short
+file comment (English). Prefer pure helpers testable on Linux over UWP-only
+logic when the behaviour is not WinRT-specific.
 
 ## Platform notes
 

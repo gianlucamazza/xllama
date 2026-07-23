@@ -86,6 +86,53 @@ Pydantic validation), and a `usage` block from `InferenceResult` (`n_p_eval` / `
 `stream: true` is **not** implemented in v1 (always returns the full completion). The
 `GenerateParams::on_token` hook is the seam for adding SSE later.
 
+### Preferences (`POST /v1/preferences`)
+
+Same validation as the UI **rate** op. Appends one JSONL line to
+`LocalState\training\samples.jsonl`.
+
+```bash
+curl -s http://<ip-xbox>:11434/v1/preferences \
+  -H 'Content-Type: application/json' \
+  -d '{"label":"like","messages":[
+        {"role":"user","content":"hi"},
+        {"role":"assistant","content":"hello"}
+      ]}'
+# → {"ok":true,"label":"like","path":"training/samples.jsonl"}
+```
+
+`label` ∈ `like|dislike|correction|implicit`. For `correction`, optional
+`preferred_assistant` string. Invalid label or empty messages → `400`.
+
+### Training status (`GET /v1/training/status`)
+
+Read-only snapshot of on-device train progress (headless or in-app):
+
+```bash
+curl -s http://<ip-xbox>:11434/v1/training/status
+# → {"state":"idle"|"running"|"ok"|"fail","usable_samples":N, ...}
+```
+
+Optional fields: `result_done`, `progress` (object from
+`training/progress.json`), `result` (parsed
+`training/out/personalized/result.json` when present). Does **not** start a
+job — use Settings / autopilot `start_train` for that.
+
+### Images (`POST /v1/images/generations`)
+
+In-process SD-Turbo with the same clamps as the Image dialog (`steps` 1–4).
+Shares the single-slot mutex with chat → `503` when busy.
+
+```bash
+curl -s http://<ip-xbox>:11434/v1/images/generations \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"a red sports car on a mountain road","steps":1,"seed":42}'
+# → {"created":…,"data":[{"b64_json":"…","path":"diffuse-out.png"}]}
+```
+
+Requires `sd-turbo-fp16` provisioned (auto-download on first UI Generate still
+applies when the user opens Image; the API does not download the model for you).
+
 ## Concurrency
 
 `Session::generate()` is single-slot / non-concurrent. The server holds one shared
@@ -106,10 +153,11 @@ the active request (if any) leaves the single-slot mutex.
 
 ## Validation
 
-See `scripts/validate-api.sh` (`spike|chat|all`). Run it **from another host on the LAN**,
+See `scripts/validate-api.sh` (`spike|chat|prefs|train|all`). Run it **from another host on the LAN**,
 not from a client on the console itself — cross-device inbound needs no loopback exemption,
 but a same-host localhost client would (`CheckNetIsolation`). Spike gate first (`GET /` → 200
-proves the bind survives the Series S firewall/PLM), then a chat round-trip:
+proves the bind survives the Series S firewall/PLM), then chat / prefs / train as needed.
+Images are not in `all` (need SD-Turbo on device; use the curl example above). Chat round-trip:
 
 ```bash
 curl -s http://<ip-xbox>:11434/v1/chat/completions \

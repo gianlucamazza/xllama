@@ -13,11 +13,14 @@ Quick reference for AI agents and new contributors.
 
 ```
 xllama/
-├── include/xllama/          # Shared public headers
+├── include/xllama/          # Shared public headers (WinRT-free, host-testable)
 │   ├── inference_params.h   # InferenceParams / InferenceResult
 │   ├── inference.h          # run_inference, write_bench_csv
 │   ├── training_params.h    # TrainingJob / TrainingCapability (training pillar)
 │   ├── training.h           # validate/load job, capability matrix, stage names
+│   ├── device_train.h       # Lane B run_device_train_job + progress callbacks
+│   ├── personalize.h        # Phase 11: last-block filter, job builder, sample count
+│   ├── preference_capture.h # preference JSONL (UI rate + POST /v1/preferences)
 │   ├── routing_policy.h     # routing decision + prompt budget (threshold must stay under it)
 │   ├── sampling.h           # sampling defaults shared by CLI/bench and GUI/API
 │   ├── session.h            # xllama::Session API (persistent model across turns)
@@ -32,43 +35,49 @@ xllama/
 │   ├── sampler_chain.h      # add_sampler_stages — the one llama.cpp sampler chain (#125)
 │   ├── ort_sampling.h       # apply_ort_sampling — the ORT twin, greedy guard shared (#141)
 │   ├── session.cpp          # xllama::Session (OrtSession UWP + LlamaSession Linux)
-│   ├── bench.cpp            # bench CSV writer
+│   ├── training.cpp         # TrainingJob validate/parse (host + UWP linkable)
+│   ├── device_train.cpp     # Lane B engine: prepare → train → export → evaluate
+│   ├── personalize.cpp      # Phase 11 pure helpers
+│   ├── preference_capture.cpp
+│   ├── bench.cpp            # bench CSV writer (incl. run_index)
 │   ├── platform.cpp         # log_output (writes xllama.log in UWP)
 │   ├── path_utils.cpp       # resolve_model_path: LocalState\models\ + InstalledPath fallback
 │   ├── utf8_utils.cpp
-│   ├── cli.cpp
-│   └── training.cpp         # TrainingJob validate/parse (host + UWP linkable)
+│   └── cli.cpp
 ├── src/main.cpp             # Linux entry point (getopt_long; --train-job)
 ├── training/                # Training pillar ops: jobs, datasets, host PEFT
-├── docs/training-architecture.md  # Training SSOT (RE + capability matrix)
+├── docs/                    # SSOT map in docs/README.md
+│   ├── architecture.md      # System structure SSOT
+│   ├── training-architecture.md  # Training SSOT (RE + capability matrix + §11 UI arc)
+│   └── api-endpoint.md      # LAN protocol (chat + prefs + train status + images)
 ├── uwp/                     # C++/WinRT UWP app
 │   ├── App.cpp / App.h      # Application::OnLaunched
-│   ├── MainPage.cpp / .h    # MainPageController (plain C++, not runtimeclass); incl. autopilot driver
-│   ├── inference-bridge.cpp / .h   # UWP main_loop() + bench mode
-│   ├── chat-history.cpp / .h       # ChatHistory: Save/Load/Delete/Clear
-│   ├── model-downloader.cpp / .h   # ModelDownloader::DownloadAsync — catalogue download (GitHub Release models-v1, models/manifest.json)
+│   ├── MainPage.cpp / .h    # MainPageController; personalize UI; autopilot
+│   ├── inference-bridge.cpp / .h   # main_loop, run_train_job_localized, headless flags
+│   ├── api-server.cpp / .h  # opt-in LAN endpoint
+│   ├── chat-history.cpp / .h
+│   ├── model-downloader.cpp / .h   # catalogue download + LoadModelManifest
 │   ├── packages.config      # NuGet pins (ORT GenAI 0.14.1, ORT 1.24.4, DirectML 1.15.4)
 │   └── xllama.sln / .vcxproj
 ├── scripts/
 │   ├── deploy.sh                      # Device Portal: deploy, logs, bench trigger
 │   ├── build-uwp.ps1                  # Windows UWP packaging script
-│   ├── merge_onnx_external_data.py    # merge model.onnx.data → self-contained model.onnx
-│   ├── bench-xbox-ort.sh              # benchmark runner (ORT GenAI; model already on device)
-│   ├── validate-console.sh           # autopilot orchestrator: §2 routing / settings ops / GGUF / §7c TAESD verdicts
-│   ├── package-catalogue-ort-model.sh # stage flat models-v1 assets from merged ORT GenAI dir
-│   ├── install-latest-build.sh        # fetch + deploy latest CI artifact (--bench is opt-in)
-│   ├── generate-benchmark-summary.py  # raw results → generated docs/dashboard
-│   ├── test-dml-config.sh             # upload DML provider_options without MSIX rebuild
-│   ├── vendor-genai-dml-patch.ps1     # overlay #2280 patched onnxruntime-genai.dll
-│   ├── export-taesd-asset.sh          # export TAESD VAE for models-v1 release
-│   ├── check-uwp-host.sh              # Linux host preflight (qemu, libvirt)
-│   └── setup-windows-uwp-dev.ps1      # Windows VM: install VS2022 + UWP workload
-├── tests/                   # Unit tests (doctest, target: xllama-tests)
-├── bench/                   # Benchmark configs, prompts, raw results + summary policy
-├── docs/                    # Technical notes (see docs/README.md)
-├── cmake/                   # Toolchain files
+│   ├── bench-xbox-ort.sh              # benchmark runner (run_index, multi-run)
+│   ├── validate-console.sh            # autopilot: routing / settings / GGUF / TAESD
+│   ├── validate-console-training.sh   # rate / serve / device-train
+│   ├── validate-api.sh                # LAN: spike|chat|prefs|train|all
+│   ├── generate-benchmark-summary.py  # raw results → docs table + dashboard
+│   ├── install-latest-build.sh        # fetch + deploy latest CI artifact
+│   └── …
+├── tests/                   # Unit tests (doctest; incl. test_personalize)
+├── bench/                   # configs, raw results, summary policy
+├── cmake/
 └── .github/workflows/       # build-linux.yml + build-uwp.yml
 ```
+
+**Doc ownership (do not invent a second SSOT):** see `docs/README.md`. Structure →
+`architecture.md`; training → `training-architecture.md`; numbers →
+`bench/results` + generated `benchmarks.md`; UI steps → `using-the-app.md`.
 
 ## Build
 
