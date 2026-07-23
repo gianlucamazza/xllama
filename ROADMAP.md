@@ -16,10 +16,11 @@ performance belongs in `docs/benchmarks.md`.
   fixed by graph decomposition — `docs/dml-rmsnorm-fix-runbook.md`); CPU still
   serves decode and short prompts, DirectML serves long-prompt prefill and
   diffusion.
-- Phases 1–9 (delivery, console validation, demo, training pillar,
-  personalization ops) are complete; Phase 10 (Lane B on-device training) has
-  passed both marker gates — `DeviceGgmlPartialFt` is `available` — with only
-  the pin-blocked filter-widening left. Phase 11 (headless ↔ UI gap) is next.
+- Phases 1–11 are complete for product code: Phase 10 Lane B is `available`
+  (host + console marker gates PASS; pin-blocked filter-widening remains);
+  Phase 11 closed the headless↔UI gap (in-app personalize + LAN API parity,
+  #116/#118). Remaining open work is console re-measurement, optional threads-6
+  ship, #130 mechanism profile, and upstream vendor pin drops.
 
 ## Phase 7 — Peer-class model research
 
@@ -88,7 +89,7 @@ pin constraints: [`docs/training-architecture.md`](docs/training-architecture.md
       write, or on us carrying a patch. Not actionable as it stands; listed so
       the gap is visible, not as work anyone can pick up.
 
-## Phase 11 — Close the headless ↔ UI gap (planned; Phase 10 gates now PASS, unblocked)
+## Phase 11 — Close the headless ↔ UI gap ✅ complete (code; console re-validate optional)
 
 Gap analysis 2026-07-20: the training loop is half-invisible (UI captures
 preferences, but launch/progress/serving of the fine-tuned model are

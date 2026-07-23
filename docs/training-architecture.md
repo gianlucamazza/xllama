@@ -187,8 +187,9 @@ adds `param_filter`, `n_ctx_train`, `epochs`, `checkpoint_every`). C++:
 `load_training_job_file` / `validate_training_job`.
 
 Runners: Lane A `training/host/run_job.sh` (or `xllama-cli --train-job`);
-Lane B `xllama-cli --train-job` in-process on host, `train.flag` +
-`LocalState\training\job.json` on console (§10).
+Lane B `xllama-cli --train-job` in-process on host; on console either headless
+`train.flag` + `LocalState\training\job.json` (§10) or the in-app personalize
+path via `run_train_job_localized` (§11).
 
 ## 6. Hybrid personalization loop (operator-available)
 
@@ -334,9 +335,65 @@ paths through unchanged instead of prepending `LocalState\models\` (which
 doubled the path and failed the on-device load). Linux `resolve_model_path` is
 the identity function, so the host path is unaffected.
 
-## 11. See also
+## 11. Phase 11 — in-app personalization arc (#116)
+
+**Status: code complete** (host unit tests + UWP CI). Console end-to-end with a
+real `base-f16` + user samples remains recommended when hardware is available.
+
+Phase 10 made Lane B available only through Device Portal (`train.flag` exits
+the XAML process). Phase 11 closes the headless↔UI gap without replacing that
+harness path.
+
+### User-visible flow
+
+1. Rate replies with **Like / Correct** (dislike is stored but skipped by the
+   engine corpus builder).
+2. **Settings → Train on my feedback** (enabled when usable samples ≥ 1 and a
+   base GGUF is resolved).
+3. Status bar shows stage/epoch/loss; Cancel requests cooperative abort between
+   epochs (`DeviceTrainCallbacks::abort_flag`).
+4. On success, `merged.gguf` is copied to
+   `LocalState\models\personalized\model.gguf`, a LocalState `manifest.json`
+   override registers catalogue id **`personalized`**, and Settings selects it.
+
+### Code map
+
+| Piece | Location |
+| ----- | -------- |
+| Job builder / filter / sample count / manifest JSON | `include/xllama/personalize.h`, `src/bridge/personalize.cpp` |
+| Shared runner (localize paths, `progress.json`) | `uwp/inference-bridge.cpp` → `run_train_job_localized` |
+| Headless still uses `train.flag` | `run_train()` → same runner → `result.done` |
+| UI + publish | `MainPageController::StartPersonalizeTrain` / `PublishPersonalizedModel` |
+| Autopilot | `start_train`, `train_status` |
+| Host tests | `tests/test_personalize.cpp` |
+
+### Base model preflight
+
+Resolve order (`ResolvePersonalizeBase`):
+
+1. `LocalState\training\base-f16.gguf` (same path as the device-train harness)
+2. Current catalogue model if `kind=gguf`, provisioned, and
+   `guess_last_block_from_model_id` knows the layer count (SmolLM2 family)
+3. Any other provisioned SmolLM2 GGUF in the catalogue
+
+Last-block `param_filter` matches the pin rules (no `attn_k`/`attn_v`); see
+`last_block_param_filter` and `device_train_unsupported_reason`.
+
+### LAN surface (#118)
+
+| Method | Path | Role |
+| ------ | ---- | ---- |
+| `POST` | `/v1/preferences` | Same validation as UI rate → `samples.jsonl` |
+| `GET` | `/v1/training/status` | `result.done`, `progress.json`, personalized `result.json`, sample count |
+| `POST` | `/v1/images/generations` | SD-Turbo parity with Image dialog (not training, same API pass) |
+
+Protocol SSOT: [api-endpoint.md](api-endpoint.md).
+
+## 12. See also
 
 - [architecture.md](architecture.md) — dual pillar map
+- [using-the-app.md](using-the-app.md) — Settings personalize UI
+- [api-endpoint.md](api-endpoint.md) — LAN prefs / training status
 - [uwp-constraints.md](uwp-constraints.md) §13
 - [training/README.md](../training/README.md)
-- [ROADMAP.md](../ROADMAP.md) Phases 8–10
+- [ROADMAP.md](../ROADMAP.md) Phases 8–11

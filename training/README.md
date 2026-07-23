@@ -27,7 +27,10 @@ TrainingJob (JSON) ──► host PEFT LoRA ──► adapter ──► merge GG
 
 C++ contracts: `include/xllama/training_params.h`, `include/xllama/training.h`
 (`validate_training_job`, `load_training_job_file`, stage/device names);
-Lane B engine: `include/xllama/device_train.h` (`run_device_train_job`).
+Lane B engine: `include/xllama/device_train.h` (`run_device_train_job`);
+Phase 11 in-app helpers: `include/xllama/personalize.h` (job builder, filters,
+sample count, personalized manifest JSON — host-tested in
+`tests/test_personalize.cpp`).
 
 ## Quick start
 
@@ -88,11 +91,27 @@ bg ./build/linux-test/bin/xllama-cli --train-job training/jobs/smollm2-360m-mark
 llamacpp/unified UWP builds. The current llama.cpp pin only supports selected
 last-block Q/output/FFN/norm tensors plus output/output_norm; K/V projections,
 earlier blocks, embeddings and rope frequencies fail validation before training.
-Full `llama-finetune` and ORT ODT remain rejected. Validate the console path with:
+Full `llama-finetune` and ORT ODT remain rejected.
+
+### Console paths
+
+| Path | How | When to use |
+| ---- | --- | ----------- |
+| **In-app (Phase 11)** | Settings → **Train on my feedback** after Like/Correct samples | End-user personalize; needs base GGUF (see below) |
+| **Headless harness** | `train.flag` + `training/job.json` | CI / `validate-console-training.sh device-train` |
 
 ```bash
 ./scripts/validate-console-training.sh device-train
 ```
+
+**In-app base preflight:** place `LocalState\training\base-f16.gguf` (same ~720 MB
+f16 GGUF the harness uploads), **or** provision a SmolLM2 GGUF catalogue entry
+whose last-block index is known (`guess_last_block_from_model_id`). Samples live
+at `LocalState\training\samples.jsonl`. On success the app publishes
+`models\personalized\model.gguf` and a LocalState manifest override.
+
+Architecture: [`docs/training-architecture.md` §11](../docs/training-architecture.md).
+UI: [`docs/using-the-app.md`](../docs/using-the-app.md).
 
 **Host and console marker gates both PASS** (2026-07-20): the greedy eval prompt
 reproduces `XLLAMA-LORA-OK.` at loss ~0.47. The recipe that converges is LR

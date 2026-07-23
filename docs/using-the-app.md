@@ -39,9 +39,21 @@ once; the choice is stored with the conversation and appended to
   (`uwp/models/manifest.json`; overridable, see
   [model-selection.md](./model-selection.md)). Selecting an entry with a
   download URL fetches it on the spot; entries without one expect USB or
-  Device Portal provisioning.
+  Device Portal provisioning. After a successful on-device personalize train
+  (below), a **Personalized (from your feedback)** entry (`personalized`)
+  appears — a GGUF merged from your preference samples.
   The read-only **Runtime LoRA** line shows the selected entry's adapter and
   scale, or `none`; adapter configuration remains part of the catalogue manifest.
+- **Personalize** — status line shows how many **usable** preference samples
+  are in `LocalState\training\samples.jsonl` (Like/Correct count; Dislike is
+  stored but not used for training) and which base GGUF will be used. The
+  secondary dialog button **Train on my feedback** runs an in-process last-block
+  partial fine-tune (Lane B), shows epoch/loss on the status bar, then switches
+  the model picker to `personalized` when done. Requires a base GGUF:
+  `LocalState\training\base-f16.gguf` (operator upload, same as the device-train
+  harness) or a provisioned SmolLM2 GGUF in the catalogue. Cancel requests a
+  cooperative abort between epochs. Details:
+  [training-architecture.md §11](./training-architecture.md).
 - **Sampling** — Temperature, Top-p, Top-k, Repetition penalty, Max new tokens.
 - **KV-cache reuse** (default on) — reuses the conversation's KV cache across
   turns; measured **4.87×** on ORT and **4.07–20.02×** on GGUF models for
@@ -68,9 +80,10 @@ once; the choice is stored with the conversation and appended to
     re-derivation — see [docs/uwp-constraints.md §5d](./uwp-constraints.md).
 - **LAN API** — enables or stops the OpenAI-compatible endpoint immediately,
   without restarting the app. The port must be 1025–49151 except 11443. The
-  status line reports the active listener or bind error. The endpoint is
-  unauthenticated: enable it only on a trusted LAN; see
-  [api-endpoint.md](api-endpoint.md).
+  status line reports the active listener or bind error. Besides chat, the
+  endpoint can record preferences, report training status, and generate images
+  (same guardrails as the pad UI). It is unauthenticated: enable it only on a
+  trusted LAN; see [api-endpoint.md](api-endpoint.md).
 
 **Note for GGUF models** (`kind: "gguf"` in the catalogue): **KV-cache reuse
 works** (the llama.cpp path keeps a persistent context and appends only the new

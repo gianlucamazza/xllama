@@ -40,8 +40,9 @@ hardware gates pass:
   from the models-v1 release, which would make the gate slower and dependent on
   console-side network. The toggle's own writer is covered by the `settings`
   gate instead;
-- **API** — when included by the orchestrator, the LAN health/chat contract
-  passes through `scripts/validate-api.sh`.
+- **API** — separate LAN gate (`scripts/validate-api.sh`): `spike|chat|prefs|train|all`
+  (chat + #118 preference/training-status probes). Not wired into
+  `validate-console.sh all` today — run it from another host on the LAN.
 
 Run an individual gate while debugging:
 
@@ -50,7 +51,8 @@ Run an individual gate while debugging:
 ./scripts/validate-console.sh settings
 ./scripts/validate-console.sh gguf
 ./scripts/validate-console.sh taesd
-./scripts/validate-api.sh all
+./scripts/validate-api.sh all          # spike + chat + prefs + train
+./scripts/validate-console-training.sh rate   # preference UI path
 ```
 
 ## Benchmark evidence

@@ -41,9 +41,10 @@ The project started as a port of [`llama.cpp`](https://github.com/ggml-org/llama
 The default chat model on the shipping **unified** build is **LFM2.5-350M Q4_K_M** (~219 MB, ~94 tok/s), downloaded on first launch from the GitHub Release model catalogue — the MSIX itself is ~19 MB and ships no model. ORT-only builds still default to SmolLM2-360M INT4.
 
 The LAN endpoint is experimental, unauthenticated, foreground-only and disabled
-by default. Personalization is operator-driven: preference samples remain in
-the AppContainer until explicitly pulled to a host for retraining — or consumed
-on-device by a Lane B `partial_ft` job (available, host + console gates PASS).
+by default. Preference samples stay in the AppContainer until the operator pulls
+them for host PEFT **or** the user runs **Settings → Train on my feedback**
+(Phase 11): an in-process Lane B `partial_ft` that publishes a `personalized`
+GGUF to the model picker (code complete; needs a base f16 GGUF on device).
 
 Goals:
 
@@ -169,6 +170,8 @@ xllama/
 │   ├── training_params.h   # TrainingJob / TrainingCapability contracts
 │   ├── training.h          # job validation, capability matrix, stage names
 │   ├── device_train.h      # Lane B in-process partial-FT engine (ggml-opt)
+│   ├── personalize.h       # Phase 11 job builder, filters, sample count, manifest JSON
+│   ├── preference_capture.h # preference JSONL (UI rate + API)
 │   ├── ort_raii.h          # RAII wrappers for OGA* types (UWP)
 │   ├── llama_raii.h        # RAII wrappers for llama_* types (Linux)
 │   ├── cli.h               # parse_cli_args (Linux)
@@ -182,6 +185,8 @@ xllama/
 │       ├── session.cpp     # xllama::Session (OrtSession + LlamaSession)
 │       ├── training.cpp    # job parsing/validation + capability table
 │       ├── device_train.cpp # Lane B engine: prepare → train → export → evaluate
+│       ├── personalize.cpp # Phase 11 pure helpers (host-testable)
+│       ├── preference_capture.cpp
 │       ├── bench.cpp
 │       ├── platform.cpp
 │       ├── path_utils.cpp
@@ -189,11 +194,11 @@ xllama/
 │       └── utf8_utils.cpp
 ├── uwp/                    # C++/WinRT UWP app
 │   ├── App.cpp / App.h     # Application lifecycle, OnLaunched
-│   ├── MainPage.cpp / .h   # MainPageController — programmatic UI (XAML-free)
-│   ├── inference-bridge.cpp / .h  # UWP entry glue + bench mode main_loop()
+│   ├── MainPage.cpp / .h   # MainPageController — programmatic UI (XAML-free); personalize + autopilot
+│   ├── inference-bridge.cpp / .h  # UWP entry glue, bench, run_train_job_localized
 │   ├── diffuse.cpp         # SD-Turbo diffusion pipeline (plain ORT DirectML)
 │   ├── chat-history.cpp / .h      # ChatHistory: Save/Load/Delete/Clear
-│   ├── api-server.cpp / .h        # opt-in OpenAI-compatible LAN front-end
+│   ├── api-server.cpp / .h        # opt-in OpenAI-compatible LAN front-end (chat + prefs + train status + images)
 │   ├── model-downloader.cpp / .h  # ModelDownloader::DownloadAsync + LoadModelManifest (catalogue download)
 │   ├── models/manifest.json # model catalogue (LocalState override supported)
 │   ├── packages.config     # NuGet runtime pins (see docs/recommended-config.md)
@@ -311,11 +316,20 @@ See [docs/uwp-constraints.md](./docs/uwp-constraints.md) for the measured GPU bu
 A dual-lane training pillar lets the app adapt models **on the device**, no cloud:
 
 - **Host PEFT LoRA** (Lane A) — full LoRA fine-tune off-device, merged to GGUF.
-- **On-device partial fine-tune** (Lane B) — an in-process ggml-opt last-block `partial_ft` that runs entirely on the Xbox. **Available**: host + console marker gates PASS (Series S: peak working set 1195 MB, well under the 3 GB budget; marker reproduced end-to-end).
-- **Serve merged GGUF** (Lane C) — load the fine-tuned model through the normal inference path, plus runtime LoRA.
-- **Preference capture** — the in-app Like/Dislike/Correct actions feed a retraining dataset (`training/samples.jsonl`).
+- **On-device partial fine-tune** (Lane B) — in-process ggml-opt last-block
+  `partial_ft` on the Xbox. **Available**: host + console marker gates PASS
+  (Series S: peak working set 1195 MB; marker reproduced end-to-end).
+- **Serve merged GGUF** (Lane C) — load the fine-tuned model through the normal
+  inference path, plus runtime LoRA.
+- **Preference capture** — Like/Dislike/Correct → `training/samples.jsonl`.
+- **In-app personalize (Phase 11)** — Settings → **Train on my feedback** runs
+  Lane B without leaving the UI, surfaces progress, and registers catalogue id
+  `personalized` for the model picker. Needs a base GGUF
+  (`training/base-f16.gguf` or a provisioned SmolLM2 GGUF).
 
-SSOT: [docs/training-architecture.md](./docs/training-architecture.md). Ops and job format: [training/README.md](./training/README.md). Surfacing this loop in the UI is [Phase 11](#roadmap).
+SSOT: [docs/training-architecture.md](./docs/training-architecture.md)
+(§11 for the UI arc). Ops: [training/README.md](./training/README.md).
+App guide: [docs/using-the-app.md](./docs/using-the-app.md).
 
 ---
 
@@ -351,9 +365,9 @@ See [ROADMAP.md](./ROADMAP.md). Headlines:
 10. **Phase 10 — Device partial FT** ✅ ggml-opt Lane B; host + console marker
     gates PASS (Xbox Series S: peak_ws 1195 MB, marker reproduced) —
     `DeviceGgmlPartialFt` available.
-11. **Phase 11 — Headless ↔ UI gap** 🔜 Next: surface the on-device training
-    loop in the UI (trigger, progress, serve the personalized model), plus
-    autopilot/LAN-API parity. See [ROADMAP.md](./ROADMAP.md).
+11. **Phase 11 — Headless ↔ UI gap** ✅ In-app Train on my feedback, publish
+    `personalized` model, autopilot `start_train`/`train_status`, LAN API
+    prefs/training status/images (#116/#118). See [ROADMAP.md](./ROADMAP.md).
 
 ---
 
