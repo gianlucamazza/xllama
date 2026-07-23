@@ -39,7 +39,7 @@ MODEL="${1:?usage: bench-xbox-kv.sh <model-dir> [--prompt FILE] [--turn2 TEXT] [
 shift
 PROMPT_FILE="${REPO_ROOT}/bench/prompts/standard-512.txt"
 TURN2="Summarise that in one sentence."
-RUNS=2
+RUNS=3 # W1.1: each run is already recorded individually (run_index column) below
 OUT=""
 
 while [[ $# -gt 0 ]]; do
@@ -144,10 +144,15 @@ for run in $(seq 1 "$RUNS"); do
 	# this run (a stale DirectML error would otherwise be attributed to it).
 	remove "xllama.log"
 
+	# run_index: the device echoes it into the KV CSV so each repeat is individually
+	# recoverable rather than pre-averaged (W1.1).
+	printf '%d' "$run" >"${TMPDIR_LOCAL}/bench_run_index.txt"
+
 	upload "$PROMPT_FILE" "prompt.txt"
 	upload "${TMPDIR_LOCAL}/model.txt"
 	upload "${TMPDIR_LOCAL}/bench_turns.txt"
 	upload "${TMPDIR_LOCAL}/bench_threads.txt"
+	upload "${TMPDIR_LOCAL}/bench_run_index.txt"
 	upload "${TMPDIR_LOCAL}/bench.flag"
 	restart_app
 

@@ -30,7 +30,7 @@ static std::vector<std::string> split_csv(const std::string& line) {
 
 static const char* kExpectedHeader = "model,quant,backend,n_ctx,n_threads,prompt_tok_s,"
                                      "decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,"
-                                     "n_prompt_tok,n_gen_tok,max_length,host,date";
+                                     "n_prompt_tok,n_gen_tok,max_length,host,date,run_index";
 
 static xllama::InferenceParams make_params() {
     xllama::InferenceParams p;
@@ -83,6 +83,7 @@ TEST_CASE("Bench CSV writer: basic output") {
     CHECK(f[12] == "20"); // n_gen_tok  = res.n_eval
     CHECK(f[13] == "0");  // max_length — unset on this result (GGUF path)
     CHECK(f[14] == "linux-test");
+    CHECK(f[16] == "0"); // run_index — unset params default to 0 (single-run)
 
     // Clean up
     std::remove(csv_path.c_str());
@@ -130,6 +131,10 @@ TEST_CASE("Bench CSV writer: quant from GGUF filename") {
 
 TEST_CASE("Bench CSV writer: gpu memory columns") {
     auto params = make_params();
+    // W1.1: run_index must reach the CSV from params, not be hardcoded. Assert a
+    // non-zero value here so a writer that ignored the field would fail (the basic
+    // case above only proves the default 0 is emitted).
+    params.run_index = 2;
 
     xllama::InferenceResult res;
     res.success = true;
@@ -166,6 +171,7 @@ TEST_CASE("Bench CSV writer: gpu memory columns") {
     CHECK(f[12] == "20");   // n_gen_tok
     CHECK(f[13] == "1801"); // max_length
     CHECK(f[14] == "linux-test");
+    CHECK(f[16] == "2"); // run_index — carried from params, not hardcoded
 
     std::remove(csv_path.c_str());
     std::string done_path = xllama::resolve_local_path("bench-result.csv.done");

@@ -49,7 +49,8 @@ int read_local_int(const char* name, int fallback) {
 // on the same persistent Session. The ratio is the KV-reuse win. Writes
 // bench-kv-result.csv (+ .done) and logs the numbers.
 void run_kv_bench(const std::string& model_name, const std::string& sys, const std::string& u1,
-                  const std::string& u2, int n_threads, int n_ctx, const char* host) {
+                  const std::string& u2, int n_threads, int n_ctx, const char* host,
+                  int run_index) {
     // KV-reuse now works on both backends: ORT-GenAI (persistent generator) and
     // GGUF/llama.cpp (persistent llama_context in LlamaSession). No early skip.
     std::string err;
@@ -98,13 +99,16 @@ void run_kv_bench(const std::string& model_name, const std::string& sys, const s
         time_t now = time(nullptr);
         char date_buf[32];
         strftime(date_buf, sizeof(date_buf), "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
+        // run_index appended last (W1.1), same as the single-turn CSV: repeats are
+        // recoverable rather than pre-averaged. 0 = single-run / legacy.
         fputs("model,prefill1_ms,n_p1,prefill2_reuse_ms,n_p2_reuse,prefill2_cold_ms,n_p2_cold,"
-              "speedup,decode_tok_s,n_ctx,host,date\n",
+              "speedup,decode_tok_s,n_ctx,host,date,run_index\n",
               fp);
         double dtok = (r2.n_eval > 0 && r2.t_eval_ms > 0) ? r2.n_eval / (r2.t_eval_ms / 1000.0) : 0;
-        fprintf(fp, "%s,%.1f,%d,%.1f,%d,%.1f,%d,%.2f,%.2f,%d,%s,%s\n", model_name.c_str(),
+        fprintf(fp, "%s,%.1f,%d,%.1f,%d,%.1f,%d,%.2f,%.2f,%d,%s,%s,%d\n", model_name.c_str(),
                 r1.t_p_eval_ms, r1.n_p_eval, r2.t_p_eval_ms, r2.n_p_eval, r2c.t_p_eval_ms,
-                r2c.n_p_eval, speedup, dtok, sp.n_ctx, host ? host : "unknown", date_buf);
+                r2c.n_p_eval, speedup, dtok, sp.n_ctx, host ? host : "unknown", date_buf,
+                run_index);
         fclose(fp);
         FILE* done =
             _wfopen(utf8_to_wstring(resolve_local_path("bench-kv-result.csv.done")).c_str(), L"w");
@@ -175,6 +179,10 @@ void main_loop() {
     // normally derived from n_predict. This decouples them. 0 = derive,
     // -1 = saturate to n_ctx (what the shipping app does).
     const int bench_maxlen = read_local_int("bench_maxlen.txt", 0);
+    // W1.1: which repetition this run is, written by the bench driver before each
+    // iteration. Echoed into the CSV run_index column so the driver can append
+    // every repeat and the summary generator can report a spread. 0 = single run.
+    const int bench_run_index = read_local_int("bench_run_index.txt", 0);
 
     // Multi-turn TTFT bench (Stage 2b): if bench_turns.txt is present it holds the
     // turn-2 user prompt; prompt.txt supplies turn 1. Measures the KV-reuse win
@@ -189,7 +197,7 @@ void main_loop() {
                 snprintf(host_buf2, sizeof(host_buf2), "xbox-series-s");
             log_output("[xllama] kv-bench model: " + model_name + "\n");
             run_kv_bench(model_name, "You are a helpful AI assistant.", user_prompt, turn2,
-                         bench_threads, bench_ctx, host_buf2);
+                         bench_threads, bench_ctx, host_buf2, bench_run_index);
             return;
         }
     }
@@ -212,6 +220,7 @@ void main_loop() {
     params.max_length_override = bench_maxlen;
     params.n_threads = bench_threads;           // 0 = auto; set by bench-xbox-ort.sh
     params.stop_sequences = fmt.stop_sequences; // clean stop for Gemma's <end_of_turn>
+    params.run_index = bench_run_index;         // W1.1: echo into CSV (0 = single-run)
 
     char host_buf[64];
     if (bench_threads > 0)

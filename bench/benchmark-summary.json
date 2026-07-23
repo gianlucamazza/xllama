@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "repeat_selection": "Each row's selector may resolve to a single measurement or to several recorded repeats. A repeat carries a non-zero run_index column (W1.1); the bench drivers append every recorded run rather than a pre-averaged median. When two or more repeats match a selector, the generated summary reports the median across them and a decode min-max spread; a newer repeated measurement supersedes any legacy rows for the same selector. A row with no run_index is a single measurement and is marked 'single run'. This is why 'select' still governs only which atomic legacy row is chosen.",
   "rows": [
     {
       "label": "LFM2.5-350M",

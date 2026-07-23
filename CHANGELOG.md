@@ -19,6 +19,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`scripts/bench-prompt-sweep.sh`** (prompt-length sweep across backends) and
   **`scripts/bench-xbox-kv.sh`** (multi-turn KV-reuse bench). Nothing drove
   `bench_turns.txt` before — the committed KV CSVs were made by hand.
+- **Per-run variance in the bench — `run_index` and reported spread (W1.1).**
+  Every published decode number was a single row and no variance was reported
+  anywhere; the ORT driver ran repeats but appended only a median, discarding the
+  data needed to tell a real change from run-to-run noise. The bench CSV now
+  carries a `run_index` (appended last, after `date`, so no positionally-parsed
+  column shifts), and the device echoes it from `bench_run_index.txt`. The drivers
+  (`bench-xbox-ort.sh`, `bench-prompt-sweep.sh`, `bench-xbox-kv.sh`) now append
+  each recorded run — warmup run 1 dropped, runs 2..N kept — instead of a
+  pre-averaged median, and `--runs` defaults to 4 (3 recorded runs).
+  `scripts/generate-benchmark-summary.py` aggregates repeats sharing a selector
+  into a median and a decode min–max spread, and marks single-run rows explicitly;
+  `bench/benchmark-summary.json` documents the selection policy. The committed CSVs
+  have no `run_index` and regenerate their current numbers unchanged — every
+  existing row now shows _single run_. Host-tested in `tests/test_bench.cpp`.
 
 - **Lane B on-device training validated — `DeviceGgmlPartialFt` is now
   `available`.** The in-process ggml-opt partial fine-tune passes both marker
