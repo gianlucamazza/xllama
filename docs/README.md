@@ -90,7 +90,17 @@ path checklist for discovery — descriptions are not repeated.
 | Repo file tree | AGENTS.md (agents) | Full second tree in README |
 | Phase checklist | ROADMAP.md | Duplicated phase list in README |
 
-### Coherence check (2026-07-24)
+### Coherence check (automated)
+
+```bash
+python3 scripts/check-coherence.py   # code ↔ catalogue ↔ pins ↔ docs ↔ benchmarks
+python3 scripts/generate-benchmark-summary.py --check
+```
+
+`check-coherence.py` fails closed on drift (default model, routing threshold,
+NuGet pins, API routes, personalize paths, stale download sizes, H9 / Phase 10
+evidence, generated decode headlines, broken doc links). Spot matrix below was
+the 2026-07-24 baseline that seeded the script:
 
 Spot-checked against code + evidence:
 
