@@ -9,6 +9,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Phase 11 in-app personalization (#116).** Settings → "Train on my feedback"
+  runs Lane B `partial_ft` in-process (not `train.flag`, which exits the app),
+  surfaces epoch/loss on the status bar, and publishes `merged.gguf` as catalogue
+  id `personalized` for the model picker. Shared runner
+  `run_train_job_localized` + host helpers in `include/xllama/personalize.h`.
+  Autopilot: `start_train` / `train_status`. Preflight needs usable preference
+  samples and `training/base-f16.gguf` (or a provisioned SmolLM2 GGUF).
+
+- **LAN API UI parity (#118).** `POST /v1/preferences` (append
+  `training/samples.jsonl`), `GET /v1/training/status`,
+  `POST /v1/images/generations` (SD-Turbo, steps 1–4, single-slot mutex with
+  chat). `scripts/validate-api.sh` modes `prefs|train`; docs in
+  `docs/api-endpoint.md`.
+
 - **`n_prompt_tok` and `n_gen_tok` in the bench CSV.** The rates alone never said
   at what prompt length a row was measured, nor how many tokens it generated, so
   turn time was not reconstructible and no two rows were comparable — the reason

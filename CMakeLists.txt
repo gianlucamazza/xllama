@@ -61,6 +61,7 @@ add_library(xllama STATIC
     src/bridge/training.cpp
     src/bridge/device_train.cpp
     src/bridge/preference_capture.cpp
+    src/bridge/personalize.cpp
 )
 
 target_compile_features(xllama PUBLIC cxx_std_17)

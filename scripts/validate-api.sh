@@ -5,12 +5,15 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/validate-api.sh <spike|chat|all>
+#   ./scripts/validate-api.sh <spike|chat|prefs|train|all>
 #
 #   spike  bind gate only: GET / -> HTTP 200 (proves the StreamSocketListener
 #          survives the Series S firewall/PLM). No inference.
 #   chat   POST /v1/chat/completions -> non-empty assistant content + a 503-busy
 #          check (two concurrent requests). Implies the spike gate first.
+#   prefs  POST /v1/preferences -> appends a like sample (#118).
+#   train  GET /v1/training/status -> JSON with state + usable_samples (#118).
+#   all    spike + chat + prefs + train (images need SD-Turbo on device — manual).
 #
 # Requires: an installed xllama build with the endpoint, a chat model already in
 # LocalState (set MODEL, or seed LocalState\model.txt), and XBOX_IP/USER/PASS.
@@ -191,6 +194,40 @@ except Exception:
 	return $verdict
 }
 
+# --- #118 prefs / training status ------------------------------------------
+
+validate_prefs() {
+	echo "=== prefs: POST /v1/preferences ==="
+	local req resp code
+	req='{"label":"like","messages":[{"role":"user","content":"hi"},{"role":"assistant","content":"hello"}]}'
+	code=$(curl -sS -m 30 -o "${TMPDIR_LOCAL}/prefs.json" -w "%{http_code}" \
+		-H 'Content-Type: application/json' -d "$req" \
+		"${API_URL}/v1/preferences" || echo "000")
+	resp=$(cat "${TMPDIR_LOCAL}/prefs.json" 2>/dev/null || true)
+	echo "  HTTP ${code}: ${resp:0:120}"
+	if [[ "$code" == "200" ]] && grep -qE '"ok"[[:space:]]*:[[:space:]]*true' <<<"$resp"; then
+		echo "prefs: PASS"
+		return 0
+	fi
+	echo "prefs: FAIL"
+	return 1
+}
+
+validate_train() {
+	echo "=== train: GET /v1/training/status ==="
+	local resp code
+	code=$(curl -sS -m 15 -o "${TMPDIR_LOCAL}/train.json" -w "%{http_code}" \
+		"${API_URL}/v1/training/status" || echo "000")
+	resp=$(cat "${TMPDIR_LOCAL}/train.json" 2>/dev/null || true)
+	echo "  HTTP ${code}: ${resp:0:160}"
+	if [[ "$code" == "200" ]] && grep -q '"state"' <<<"$resp"; then
+		echo "train: PASS"
+		return 0
+	fi
+	echo "train: FAIL"
+	return 1
+}
+
 # --- dispatch --------------------------------------------------------------
 
 CMD="${1:-}"
@@ -200,6 +237,14 @@ chat)
 	validate_spike || exit 1
 	validate_chat
 	;;
+prefs)
+	validate_spike || exit 1
+	validate_prefs
+	;;
+train)
+	validate_spike || exit 1
+	validate_train
+	;;
 all)
 	rc=0
 	validate_spike || {
@@ -208,13 +253,15 @@ all)
 		exit 1
 	}
 	validate_chat || rc=1
+	validate_prefs || rc=1
+	validate_train || rc=1
 	echo
 	echo "=== summary ==="
 	[[ $rc -eq 0 ]] && echo "ALL PASS" || echo "SOME FAILED (exit ${rc})"
 	exit $rc
 	;;
 *)
-	echo "Usage: $0 <spike|chat|all>" >&2
+	echo "Usage: $0 <spike|chat|prefs|train|all>" >&2
 	exit 1
 	;;
 esac
