@@ -19,6 +19,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   phase list (→ `uwp-constraints` / `ROADMAP`). `docs/README.md` no longer
   duplicates the ownership table as a second descriptive index; architecture
   and UI guides stop restating measured speedups.
+- **Doc coherence pass.** Catalogue download sizes aligned to
+  `uwp/models/manifest.json` `approx_bytes` (LFM/Qwen were understating by
+  ~5–10%); ORT decode headlines aligned to generated `benchmarks.md` (68.0 /
+  20.6, not ~66 / ~21). `docs/README.md` records the check matrix.
 
 ### Added
 

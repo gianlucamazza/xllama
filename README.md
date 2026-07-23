@@ -83,7 +83,13 @@ source ~/.config/xllama/xbox-env           # sets XBOX_IP, XBOX_USER, XBOX_PASS
 ./scripts/deploy.sh path/to/xllama_*.msix
 ```
 
-On first launch the app **downloads** the default chat model (**LFM2.5-350M** on unified builds, ~219 MB) from the [`models-v1` GitHub Release](https://github.com/gianlucamazza/xllama/releases/tag/models-v1) with a progress bar, then starts the chat UI. No model is bundled in the MSIX. Other catalogue models (SmolLM2 CPU/GPU, Qwen3.5, Gemma, SD-Turbo) download on demand from `models-v1` or Hugging Face.
+On first launch the app **downloads** the default chat model (**LFM2.5-350M** on
+unified builds, ~229 MB catalogue download) from the
+[`models-v1` GitHub Release](https://github.com/gianlucamazza/xllama/releases/tag/models-v1)
+with a progress bar, then starts the chat UI. No model is bundled in the MSIX.
+Other catalogue models (SmolLM2 CPU/GPU, Qwen3.5, Gemma, SD-Turbo) download on
+demand from `models-v1` or Hugging Face. Download sizes:
+`uwp/models/manifest.json` (`approx_bytes`).
 
 > `install-latest-build.sh --bench` uploads `bench.flag` for a headless benchmark.
 > The default install launches the normal UI.

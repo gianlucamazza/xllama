@@ -8,8 +8,8 @@ App guide for the gamepad UI. For installation see
 ## First launch — model download
 
 The MSIX ships no model (~19 MB). On first launch the app downloads the default
-chat model (**LFM2.5-350M** Q4_K_M, ~219 MB, on unified shipping builds; ORT-only
-builds still use SmolLM2-360M-Instruct INT4, ~417 MB) from the
+chat model (**LFM2.5-350M** Q4_K_M, ~229 MB download, on unified shipping builds;
+ORT-only builds still use SmolLM2-360M-Instruct INT4, ~421 MB) from the
 [`models-v1` GitHub Release](https://github.com/gianlucamazza/xllama/releases/tag/models-v1)
 with a progress bar, writes it to `LocalState\models\`, and opens the chat.
 The console needs internet access for this step; afterwards everything runs
@@ -65,7 +65,8 @@ once; the choice is stored with the conversation and appended to
   every mode resolves to the CPU model, it is not auto-downloaded (#95), and a
   missing `gpu_model` never blocks a turn (#100). Diffusion (plain ORT) stays
   on GPU. Semantics (subject to `gpu_available` = provisioned `gpu_model`):
-  - **CPU only (default)** — best decode throughput at 360M scale (~66 tok/s).
+  - **CPU only (default)** — best decode throughput at 360M scale (ORT int4;
+    see [benchmarks.md](./benchmarks.md)).
   - **GPU only (DML)** — prefers DirectML when `gpu_model` is provisioned (e.g.
     `smollm2-360m-dml-fp16-v2` in LocalState); if `gpu_available` is false, falls
     back to the CPU model.
