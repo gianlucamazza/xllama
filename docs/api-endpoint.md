@@ -1,7 +1,8 @@
 # LAN HTTP endpoint (OpenAI-compatible)
 
-**Status:** v1 — spike + non-streaming chat. Opt-in, **default OFF**. Dev Mode / LAN
-research only. Not for the Store, not for public inbound.
+**Status:** v1 — spike + non-streaming chat + UI parity surface (#118: preferences,
+training status, images). Opt-in, **default OFF**. Dev Mode / LAN research only.
+Not for the Store, not for public inbound.
 
 xllama can expose its inference core (`xllama::Session`) as an HTTP endpoint on the local
 network, so a PC on the same LAN can run inference on the console:
@@ -44,13 +45,16 @@ this is Dev Mode research, not a hosted service.
 
 ## Protocol (v1)
 
-| Method    | Path                   | Behaviour                                                                                                              |
-| --------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `GET`     | `/` or `/health`       | `200 {"status":"ok","service":"xllama"}` — the spike/liveness probe.                                                   |
-| `GET`     | `/v1/models`           | OpenAI model discovery — every servable on-device model; non-standard `"active": true` marks the one currently loaded. |
-| `GET`     | `/api/tags`            | Ollama model discovery — same list, Ollama shape.                                                                      |
-| `POST`    | `/v1/chat/completions` | OpenAI-compatible chat completion, **non-streaming**.                                                                  |
-| `OPTIONS` | _any_                  | CORS preflight (`204` + `Allow-Methods/Headers`) for browser clients.                                                  |
+| Method    | Path                      | Behaviour                                                                                                              |
+| --------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `GET`     | `/` or `/health`          | `200 {"status":"ok","service":"xllama"}` — the spike/liveness probe.                                                   |
+| `GET`     | `/v1/models`              | OpenAI model discovery — every servable on-device model; non-standard `"active": true` marks the one currently loaded. |
+| `GET`     | `/api/tags`               | Ollama model discovery — same list, Ollama shape.                                                                      |
+| `POST`    | `/v1/chat/completions`    | OpenAI-compatible chat completion, **non-streaming**.                                                                  |
+| `POST`    | `/v1/preferences`         | Append a preference sample (`label` + `messages[]`) to `training/samples.jsonl` — same contract as the UI rate op (#118). |
+| `GET`     | `/v1/training/status`     | `result.done` / `progress.json` / last personalized `result.json` + usable sample count (#118).                        |
+| `POST`    | `/v1/images/generations`  | SD-Turbo image gen (`prompt`, `steps` 1–4, `seed`); returns OpenAI-ish `{data:[{b64_json,path}]}` (#118). Shares the single-slot mutex with chat. |
+| `OPTIONS` | _any_                     | CORS preflight (`204` + `Allow-Methods/Headers`) for browser clients.                                                  |
 
 Discovery semantics: a model is **servable** when its `LocalState\models\<id>`
 directory holds a base GGUF (any `*.gguf` except a bare runtime-LoRA

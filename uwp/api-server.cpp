@@ -17,11 +17,15 @@
 #include <winrt/Windows.Networking.Sockets.h>
 // clang-format on
 
+    #include "inference-bridge.h"
     #include "xllama/chat_prompt.h"
     #include "xllama/model_provision.h"
     #include "xllama/path_utils.h"
+    #include "xllama/personalize.h"
     #include "xllama/platform.h"
+    #include "xllama/preference_capture.h"
     #include "xllama/session.h"
+    #include "xllama/utf8_utils.h"
 
     #include <algorithm>
     #include <cctype>
@@ -454,6 +458,211 @@ std::string tags_json() {
     return winrt::to_string(root.Stringify());
 }
 
+// ---------------------------------------------------------------------------
+// #118 — preferences / training status / images
+// ---------------------------------------------------------------------------
+
+std::string base64_encode(const std::string& in) {
+    static const char kTbl[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string out;
+    out.reserve(((in.size() + 2) / 3) * 4);
+    size_t i = 0;
+    while (i + 2 < in.size()) {
+        const unsigned n = (static_cast<unsigned char>(in[i]) << 16) |
+                           (static_cast<unsigned char>(in[i + 1]) << 8) |
+                           static_cast<unsigned char>(in[i + 2]);
+        out.push_back(kTbl[(n >> 18) & 63]);
+        out.push_back(kTbl[(n >> 12) & 63]);
+        out.push_back(kTbl[(n >> 6) & 63]);
+        out.push_back(kTbl[n & 63]);
+        i += 3;
+    }
+    if (i < in.size()) {
+        unsigned n = static_cast<unsigned char>(in[i]) << 16;
+        out.push_back(kTbl[(n >> 18) & 63]);
+        if (i + 1 < in.size()) {
+            n |= static_cast<unsigned char>(in[i + 1]) << 8;
+            out.push_back(kTbl[(n >> 12) & 63]);
+            out.push_back(kTbl[(n >> 6) & 63]);
+            out.push_back('=');
+        } else {
+            out.push_back(kTbl[(n >> 12) & 63]);
+            out.push_back('=');
+            out.push_back('=');
+        }
+    }
+    return out;
+}
+
+std::string read_file_bytes(const std::string& path) {
+    FILE* f = _wfopen(::xllama::utf8_to_wstring(path).c_str(), L"rb");
+    if (!f)
+        return {};
+    std::string out;
+    char buf[4096];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0)
+        out.append(buf, n);
+    fclose(f);
+    return out;
+}
+
+// POST /v1/preferences — append one preference sample (same contract as UI rate).
+std::string handle_preferences(const std::string& body, const char*& status) {
+    JsonObject root{nullptr};
+    if (!JsonObject::TryParse(winrt::to_hstring(body), root) || root == nullptr) {
+        status = "400 Bad Request";
+        return error_json("invalid JSON body");
+    }
+    const std::string label = winrt::to_string(root.GetNamedString(L"label", L""));
+    if (!::xllama::preference_label_valid(label)) {
+        status = "400 Bad Request";
+        return error_json("invalid label (like|dislike|correction|implicit)");
+    }
+    if (!root.HasKey(L"messages") ||
+        root.GetNamedValue(L"messages").ValueType() != JsonValueType::Array) {
+        status = "400 Bad Request";
+        return error_json("missing or non-array 'messages'");
+    }
+    std::vector<std::pair<std::string, std::string>> messages;
+    const JsonArray arr = root.GetNamedArray(L"messages");
+    for (uint32_t i = 0; i < arr.Size(); ++i) {
+        const JsonObject m = arr.GetObjectAt(i);
+        messages.emplace_back(winrt::to_string(m.GetNamedString(L"role", L"")),
+                              winrt::to_string(m.GetNamedString(L"content", L"")));
+    }
+    const std::string preferred =
+        winrt::to_string(root.GetNamedString(L"preferred_assistant", L""));
+    const std::string line = ::xllama::format_preference_sample_jsonl(label, messages, preferred);
+    if (line.empty()) {
+        status = "400 Bad Request";
+        return error_json("could not format preference sample");
+    }
+    // Ensure training/ exists.
+    CreateDirectoryW(::xllama::utf8_to_wstring(::xllama::resolve_local_path("training")).c_str(),
+                     nullptr);
+    const std::string path = ::xllama::resolve_local_path(::xllama::kPreferenceSamplesRelPath);
+    if (!::xllama::append_preference_sample_file(path, line)) {
+        status = "500 Internal Server Error";
+        return error_json("could not append training/samples.jsonl");
+    }
+    JsonObject ok;
+    ok.Insert(L"ok", JsonValue::CreateBooleanValue(true));
+    ok.Insert(L"label", JsonValue::CreateStringValue(winrt::to_hstring(label)));
+    ok.Insert(L"path", JsonValue::CreateStringValue(L"training/samples.jsonl"));
+    status = "200 OK";
+    return winrt::to_string(ok.Stringify());
+}
+
+// GET /v1/training/status — result.done + progress.json + optional result.json.
+std::string handle_training_status() {
+    const std::string done_raw = read_local_text("training/result.done");
+    const std::string done = ::xllama::parse_train_result_done(done_raw);
+    const std::string progress = read_local_text("training/progress.json");
+    const std::string result_path =
+        ::xllama::resolve_local_path("training/out/personalized/result.json");
+    const std::string result_body = read_file_bytes(result_path);
+
+    std::string state = "idle";
+    if (!progress.empty() && done.empty())
+        state = "running";
+    else if (done == "ok")
+        state = "ok";
+    else if (done == "fail")
+        state = "fail";
+
+    JsonObject root;
+    root.Insert(L"state", JsonValue::CreateStringValue(winrt::to_hstring(state)));
+    if (!done.empty())
+        root.Insert(L"result_done", JsonValue::CreateStringValue(winrt::to_hstring(done)));
+    if (!progress.empty()) {
+        JsonObject prog{nullptr};
+        if (JsonObject::TryParse(winrt::to_hstring(progress), prog) && prog)
+            root.Insert(L"progress", prog);
+        else
+            root.Insert(L"progress_raw", JsonValue::CreateStringValue(winrt::to_hstring(progress)));
+    }
+    if (!result_body.empty()) {
+        JsonObject res{nullptr};
+        if (JsonObject::TryParse(winrt::to_hstring(result_body), res) && res)
+            root.Insert(L"result", res);
+    }
+    const int samples = ::xllama::count_usable_preference_samples(
+        ::xllama::resolve_local_path(::xllama::kPreferenceSamplesRelPath));
+    root.Insert(L"usable_samples", JsonValue::CreateNumberValue(samples));
+    return winrt::to_string(root.Stringify());
+}
+
+// POST /v1/images/generations — same guardrails as the Image dialog (steps 1–4).
+std::string handle_images_locked(const std::string& body, const char*& status) {
+    JsonObject root{nullptr};
+    if (!JsonObject::TryParse(winrt::to_hstring(body), root) || root == nullptr) {
+        status = "400 Bad Request";
+        return error_json("invalid JSON body");
+    }
+    std::string prompt = winrt::to_string(root.GetNamedString(L"prompt", L""));
+    if (prompt.empty()) {
+        // OpenAI also accepts messages-like bodies; we only support prompt.
+        status = "400 Bad Request";
+        return error_json("missing 'prompt'");
+    }
+    int steps = 1;
+    if (root.HasKey(L"steps"))
+        steps = static_cast<int>(root.GetNamedNumber(L"steps", 1));
+    if (steps < 1)
+        steps = 1;
+    if (steps > 4)
+        steps = 4; // UI Image dialog max
+    int seed = 42;
+    if (root.HasKey(L"seed"))
+        seed = static_cast<int>(root.GetNamedNumber(L"seed", 42));
+    if (seed < 0)
+        seed = 42;
+
+    // Drive the same LocalState knobs as the Image dialog / autopilot.
+    {
+        auto write = [](const char* name, const std::string& v) {
+            FILE* f = _wfopen(::xllama::utf8_to_wstring(::xllama::resolve_local_path(name)).c_str(),
+                              L"wb");
+            if (f) {
+                fwrite(v.data(), 1, v.size(), f);
+                fclose(f);
+            }
+        };
+        write("prompt.txt", prompt);
+        write("diffuse-steps.txt", std::to_string(steps));
+        write("diffuse-seed.txt", std::to_string(seed));
+        write("diffuse-model.txt", "sd-turbo-fp16");
+        _wremove(
+            ::xllama::utf8_to_wstring(::xllama::resolve_local_path("diffuse-cancel.flag")).c_str());
+    }
+
+    ::xllama::bridge::run_diffuse();
+
+    const std::string stage = read_local_text("diffuse-progress.txt");
+    if (stage != "done") {
+        status = "500 Internal Server Error";
+        return error_json(std::string("image generation failed: stage=") + stage);
+    }
+    const std::string png_path = ::xllama::resolve_local_path("diffuse-out.png");
+    const std::string png = read_file_bytes(png_path);
+    if (png.empty()) {
+        status = "500 Internal Server Error";
+        return error_json("diffuse-out.png missing after generation");
+    }
+
+    JsonObject item;
+    item.Insert(L"b64_json", JsonValue::CreateStringValue(winrt::to_hstring(base64_encode(png))));
+    item.Insert(L"path", JsonValue::CreateStringValue(L"diffuse-out.png"));
+    JsonArray data;
+    data.Append(item);
+    JsonObject out;
+    out.Insert(L"created", JsonValue::CreateNumberValue(static_cast<double>(time(nullptr))));
+    out.Insert(L"data", data);
+    status = "200 OK";
+    return winrt::to_string(out.Stringify());
+}
+
 void handle_connection(StreamSocket const& socket, uint64_t generation) {
     try {
         const HttpRequest req = read_request(socket);
@@ -519,6 +728,54 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             } catch (...) {
                 status = "400 Bad Request";
                 json = error_json("malformed request body");
+            }
+            write_response(socket, status, json);
+            return;
+        }
+
+        // #118: preference capture (no inference lock needed).
+        if (req.method == "POST" && req.path == "/v1/preferences") {
+            const char* status = "200 OK";
+            std::string json;
+            try {
+                json = handle_preferences(req.body, status);
+            } catch (...) {
+                status = "400 Bad Request";
+                json = error_json("malformed request body");
+            }
+            write_response(socket, status, json);
+            return;
+        }
+
+        // #118: training status (read-only files).
+        if (req.method == "GET" && req.path == "/v1/training/status") {
+            write_response(socket, "200 OK", handle_training_status());
+            return;
+        }
+
+        // #118: image generation — shares the single-slot mutex with chat.
+        if (req.method == "POST" && req.path == "/v1/images/generations") {
+            std::unique_lock<std::mutex> lk(g_mtx, std::try_to_lock);
+            if (!lk.owns_lock()) {
+                write_response(socket, "503 Service Unavailable", error_json("busy"));
+                return;
+            }
+            bool active = false;
+            {
+                std::lock_guard<std::mutex> state_lock(g_state_mtx);
+                active = g_status.state == ServerState::Running && generation == g_generation;
+            }
+            if (!active) {
+                write_response(socket, "503 Service Unavailable", error_json("server stopped"));
+                return;
+            }
+            const char* status = "200 OK";
+            std::string json;
+            try {
+                json = handle_images_locked(req.body, status);
+            } catch (...) {
+                status = "500 Internal Server Error";
+                json = error_json("image generation failed");
             }
             write_response(socket, status, json);
             return;

@@ -8,6 +8,7 @@
 #include "xllama/inference.h"
 #include "xllama/membw.h"
 #include "xllama/path_utils.h"
+#include "xllama/personalize.h"
 #include "xllama/platform.h"
 #include "xllama/session.h"
 #include "xllama/training.h"
@@ -313,6 +314,72 @@ void run_membw() {
 }
 
 // ---------------------------------------------------------------------------
+// run_train_job_localized — shared by headless train.flag and in-app personalize
+// ---------------------------------------------------------------------------
+
+xllama::TrainingResult run_train_job_localized(const xllama::TrainingJob& job_in,
+                                               const xllama::DeviceTrainCallbacks& cb_in) {
+    xllama::TrainingResult fail;
+    fail.success = false;
+#ifdef XLLAMA_UWP
+    #ifdef XLLAMA_DEVICE_TRAIN
+    xllama::TrainingJob job = job_in;
+    // Job paths are LocalState-relative on console (the process cwd is the
+    // read-only install dir). Absolute paths pass through untouched.
+    auto localize = [](std::string& p) {
+        if (!p.empty() && p.find(':') == std::string::npos && p[0] != '\\' && p[0] != '/')
+            p = resolve_local_path(p);
+    };
+    localize(job.base_model);
+    localize(job.dataset_path);
+    localize(job.out_dir);
+
+    log_output(("[xllama] train: " + xllama::format_training_job_summary(job) + "\n").c_str());
+
+    // Compose callbacks: always log + write training/progress.json so the UI
+    // and GET /v1/training/status can poll without WinRT.
+    xllama::DeviceTrainCallbacks cb = cb_in;
+    auto prev_status = cb.on_status;
+    auto prev_progress = cb.on_progress;
+    cb.on_status = [prev_status](const std::string& line) {
+        log_output(("[xllama] train: " + line + "\n").c_str());
+        if (prev_status)
+            prev_status(line);
+    };
+    cb.on_progress = [prev_progress](const xllama::DeviceTrainProgress& p) {
+        const char* stage = xllama::training_stage_name(p.stage);
+        char lb[160];
+        snprintf(lb, sizeof(lb), "[xllama] train: epoch %d/%d batch %lld/%lld loss=%.4f\n", p.epoch,
+                 p.epochs, static_cast<long long>(p.ibatch), static_cast<long long>(p.ibatch_max),
+                 p.loss);
+        log_output(lb);
+        const std::string json = xllama::format_train_progress_json(
+            stage ? stage : "train", p.epoch, p.epochs, p.ibatch, p.ibatch_max, p.loss);
+        const std::string prog_path = resolve_local_path("training/progress.json");
+        FILE* fp = _wfopen(utf8_to_wstring(prog_path).c_str(), L"w");
+        if (fp) {
+            fputs(json.c_str(), fp);
+            fclose(fp);
+        }
+        if (prev_progress)
+            prev_progress(p);
+    };
+
+    return xllama::run_device_train_job(job, cb);
+    #else
+    (void)job_in;
+    (void)cb_in;
+    fail.error_msg = "built without XLLAMA_DEVICE_TRAIN";
+    return fail;
+    #endif
+#else
+    (void)job_in;
+    (void)cb_in;
+    fail.error_msg = "run_train_job_localized is UWP-only";
+    return fail;
+#endif
+}
+
 // run_train (called from UWP train.flag mode background thread)
 // ---------------------------------------------------------------------------
 
@@ -322,33 +389,10 @@ void run_train() {
     std::string err;
     #ifdef XLLAMA_DEVICE_TRAIN
     const std::string job_path = resolve_local_path("training/job.json");
-    ::xllama::TrainingJob job;
-    ok = ::xllama::load_training_job_file(job_path, job, &err);
+    xllama::TrainingJob job;
+    ok = xllama::load_training_job_file(job_path, job, &err);
     if (ok) {
-        // Job paths are LocalState-relative on console (the process cwd is the
-        // read-only install dir). Absolute paths pass through untouched.
-        auto localize = [](std::string& p) {
-            if (!p.empty() && p.find(':') == std::string::npos && p[0] != '\\' && p[0] != '/')
-                p = resolve_local_path(p);
-        };
-        localize(job.base_model);
-        localize(job.dataset_path);
-        localize(job.out_dir);
-
-        log_output(
-            ("[xllama] train: " + ::xllama::format_training_job_summary(job) + "\n").c_str());
-        ::xllama::DeviceTrainCallbacks cb;
-        cb.on_status = [](const std::string& line) {
-            log_output(("[xllama] train: " + line + "\n").c_str());
-        };
-        cb.on_progress = [](const ::xllama::DeviceTrainProgress& p) {
-            char lb[160];
-            snprintf(lb, sizeof(lb), "[xllama] train: epoch %d/%d batch %lld/%lld loss=%.4f\n",
-                     p.epoch, p.epochs, static_cast<long long>(p.ibatch),
-                     static_cast<long long>(p.ibatch_max), p.loss);
-            log_output(lb);
-        };
-        const ::xllama::TrainingResult r = ::xllama::run_device_train_job(job, cb);
+        const xllama::TrainingResult r = run_train_job_localized(job);
         ok = r.success;
         if (!ok)
             err = r.error_msg;

@@ -14,9 +14,11 @@
     #include "xllama/chat_prompt.h"
     #include "xllama/model_provision.h"
     #include "xllama/path_utils.h"
+    #include "xllama/personalize.h"
     #include "xllama/platform.h"
     #include "xllama/preference_capture.h"
     #include "xllama/routing_policy.h"
+    #include "xllama/training.h"
     #include "xllama/utf8_utils.h"
 
     #include <winrt/Windows.Data.Json.h>
@@ -1375,11 +1377,31 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
             sync_backend_toggles(box.SelectedIndex());
         });
 
+    // --- Phase 11 personalize (#116) ---
+    const std::string samples_path =
+        ::xllama::wstring_to_utf8(local_wpath(L"training\\samples.jsonl"));
+    const int sample_n = ::xllama::count_usable_preference_samples(samples_path);
+    const std::string base_hint = ResolvePersonalizeBase();
+    winrt::Windows::UI::Xaml::Controls::TextBlock personalizeStatus;
+    personalizeStatus.TextWrapping(TextWrapping::Wrap);
+    personalizeStatus.Opacity(0.85);
+    {
+        std::wstring line =
+            L"Personalize: " + std::to_wstring(sample_n) + L" usable preference sample(s)";
+        if (base_hint.empty())
+            line += L". Base GGUF missing — place training\\base-f16.gguf (or pick a "
+                    L"SmolLM2 GGUF) before training.";
+        else
+            line += L". Base: " + ::xllama::utf8_to_wstring(base_hint);
+        personalizeStatus.Text(line);
+    }
+
     winrt::Windows::UI::Xaml::Controls::StackPanel panel;
     panel.Orientation(Orientation::Vertical);
     panel.Spacing(12);
     panel.Children().Append(modelBox);
     panel.Children().Append(loraStatus);
+    panel.Children().Append(personalizeStatus);
     panel.Children().Append(sysPromptBox);
     panel.Children().Append(tempSlider);
     panel.Children().Append(topPSlider);
@@ -1401,10 +1423,17 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     dlg.Title(winrt::box_value(L"Settings"));
     dlg.Content(sv);
     dlg.PrimaryButtonText(L"Save");
+    dlg.SecondaryButtonText(L"Train on my feedback");
     dlg.CloseButtonText(L"Cancel");
+    dlg.IsSecondaryButtonEnabled(sample_n > 0 && !base_hint.empty() && !m_train_running.load());
     dlg.XamlRoot(m_root.XamlRoot());
 
     auto result = co_await dlg.ShowAsync();
+    if (result == winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Secondary) {
+        // In-process train (#116); does not require Save of other settings.
+        self->StartPersonalizeTrain();
+        co_return;
+    }
     if (result != winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary)
         co_return;
 
@@ -1451,6 +1480,224 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     // (m_active_model stays fixed for the conversation in progress).
     self->SaveSettings();
     self->ApplyApiSettings(apiToggle.IsOn(), selected_api_port);
+}
+
+// ---------------------------------------------------------------------------
+// Phase 11 personalize (#116) — train on samples.jsonl, publish merged GGUF
+// ---------------------------------------------------------------------------
+
+std::string MainPageController::ResolvePersonalizeBase() const {
+    // Prefer the operator-uploaded Lane B base (same path as device-train harness).
+    const std::wstring base_w = local_wpath(L"training\\base-f16.gguf");
+    if (GetFileAttributesW(base_w.c_str()) != INVALID_FILE_ATTRIBUTES)
+        return ::xllama::kPersonalizeDefaultBase;
+
+    // Else: if the current catalogue model is GGUF and provisioned, use it.
+    auto manifest = ::xllama::LoadModelManifest();
+    if (const auto* e = ::xllama::FindManifestEntry(manifest, m_model_filename)) {
+        if (e->kind == L"gguf" && ::xllama::IsModelProvisioned(m_model_filename)) {
+            const std::string id = ::xllama::wstring_to_utf8(m_model_filename);
+            if (::xllama::guess_last_block_from_model_id(id) >= 0)
+                return std::string("models/") + id;
+        }
+    }
+    // Any provisioned smollm2 GGUF in the catalogue (last-block known).
+    for (const auto& e : manifest) {
+        if (e.kind != L"gguf")
+            continue;
+        const std::string id = ::xllama::wstring_to_utf8(e.name);
+        if (::xllama::guess_last_block_from_model_id(id) < 0)
+            continue;
+        if (::xllama::IsModelProvisioned(e.name))
+            return std::string("models/") + id;
+    }
+    return {};
+}
+
+bool MainPageController::PublishPersonalizedModel(const std::string& merged_gguf_path,
+                                                  std::string* err) {
+    if (merged_gguf_path.empty()) {
+        if (err)
+            *err = "empty merged.gguf path";
+        return false;
+    }
+    const std::wstring src = ::xllama::utf8_to_wstring(merged_gguf_path);
+    if (GetFileAttributesW(src.c_str()) == INVALID_FILE_ATTRIBUTES) {
+        if (err)
+            *err = "merged.gguf not found: " + merged_gguf_path;
+        return false;
+    }
+
+    // LocalState\models\personalized\model.gguf + .complete
+    CreateDirectoryW(local_wpath(L"models").c_str(), nullptr);
+    const std::wstring dest_dir = local_wpath(L"models\\personalized");
+    CreateDirectoryW(dest_dir.c_str(), nullptr);
+    const std::wstring dest = dest_dir + L"\\model.gguf";
+    if (!CopyFileW(src.c_str(), dest.c_str(), FALSE)) {
+        if (err)
+            *err = "CopyFile failed for personalized model.gguf";
+        return false;
+    }
+    // Touch .complete so IsModelProvisioned accepts the dir.
+    FILE* done = _wfopen((dest_dir + L"\\.complete").c_str(), L"w");
+    if (done) {
+        fputs("ok\n", done);
+        fclose(done);
+    }
+
+    uint64_t approx = 0;
+    WIN32_FILE_ATTRIBUTE_DATA fad{};
+    if (GetFileAttributesExW(dest.c_str(), GetFileExInfoStandard, &fad)) {
+        approx = (static_cast<uint64_t>(fad.nFileSizeHigh) << 32) | fad.nFileSizeLow;
+    }
+    const std::string override_json = ::xllama::personalized_manifest_override_json(
+        ::xllama::kPersonalizedModelId, ::xllama::kPersonalizedDisplay, approx);
+
+    // Merge onto any existing LocalState manifest.json override (per-entry).
+    // LoadModelManifest already merges LocalState on top of bundled; we only
+    // rewrite LocalState so a single-entry personalized override does not
+    // shadow the catalogue when no other override existed — write a document
+    // that contains just the personalized entry; LoadModelManifest merges it.
+    // If an override already exists, re-read its models array is complex without
+    // a full JSON rewriter; the per-entry merge means a same-name replace is
+    // enough, and a one-entry override still keeps all bundled models.
+    write_local_bytes(L"manifest.json", override_json);
+    return true;
+}
+
+void MainPageController::StartPersonalizeTrain() {
+    if (m_is_running.load() || m_train_running.load() || m_diffuse_running.load()) {
+        SetStatus(L"Busy — wait for the current job to finish", StatusKind::Error);
+        return;
+    }
+    #ifndef XLLAMA_DEVICE_TRAIN
+    SetStatus(L"This build has no on-device training engine", StatusKind::Error);
+    return;
+    #else
+    const std::string samples = ::xllama::wstring_to_utf8(local_wpath(L"training\\samples.jsonl"));
+    if (::xllama::count_usable_preference_samples(samples) < 1) {
+        SetStatus(L"No usable preference samples (Like/Correct first)", StatusKind::Error);
+        return;
+    }
+    const std::string base = ResolvePersonalizeBase();
+    if (base.empty()) {
+        SetStatus(L"No base GGUF — place training\\base-f16.gguf first", StatusKind::Error);
+        return;
+    }
+
+    ::xllama::PersonalizeSpec spec;
+    spec.base_model = base;
+    spec.dataset_path = ::xllama::kPersonalizeDefaultDataset;
+    spec.out_dir = ::xllama::kPersonalizeDefaultOutDir;
+    ::xllama::TrainingJob job;
+    std::string err;
+    if (!::xllama::build_personalize_job(spec, job, &err)) {
+        SetStatus(L"Train setup failed: " + ::xllama::utf8_to_wstring(err), StatusKind::Error);
+        return;
+    }
+
+    // Persist job.json for harness parity / debugging.
+    CreateDirectoryW(local_wpath(L"training").c_str(), nullptr);
+    write_local_bytes(L"training\\job.json", ::xllama::format_personalize_job_json(job));
+    _wremove(local_wpath(L"training\\result.done").c_str());
+    write_local_bytes(L"training\\progress.json",
+                      ::xllama::format_train_progress_json("prepare", 0, job.epochs, 0, 0, 0));
+
+    // Free chat RSS before train (Phase 10 peak gate ~1.2 GB).
+    m_session.reset();
+    m_session_model.clear();
+    m_kv_valid = false;
+
+    m_train_abort.store(false);
+    m_train_running.store(true);
+    SetRunning(true);
+    m_loadingBar.IsIndeterminate(true);
+    SetStatus(L"Personalizing model (on-device train)...", StatusKind::Working);
+
+    auto self = shared_from_this();
+    auto dispatcher = m_root.Dispatcher();
+    std::thread([self, dispatcher, job]() {
+        try {
+            winrt::init_apartment(); // MTA
+            ::xllama::DeviceTrainCallbacks cb;
+            cb.abort_flag = &self->m_train_abort;
+            cb.on_progress = [self, dispatcher](const ::xllama::DeviceTrainProgress& p) {
+                const char* st = ::xllama::training_stage_name(p.stage);
+                wchar_t line[192];
+                swprintf(line, 192, L"Training %hs — epoch %d/%d loss=%.4f", st ? st : "train",
+                         p.epoch, p.epochs, p.loss);
+                dispatcher.RunAsync(CoreDispatcherPriority::Normal,
+                                    [self, msg = std::wstring(line)]() {
+                                        self->SetStatus(msg, StatusKind::Working);
+                                    });
+            };
+            const ::xllama::TrainingResult r = ::xllama::bridge::run_train_job_localized(job, cb);
+
+            // result.done for API / autopilot pollers
+            {
+                FILE* done = _wfopen(local_wpath(L"training\\result.done").c_str(), L"w");
+                if (done) {
+                    fputs(r.success ? "ok\n" : "fail\n", done);
+                    fclose(done);
+                }
+            }
+
+            if (r.success) {
+                std::string pub_err;
+                const bool published = self->PublishPersonalizedModel(r.merged_gguf_path, &pub_err);
+                dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, published, pub_err,
+                                                                     path = r.merged_gguf_path]() {
+                    self->m_train_running.store(false);
+                    self->SetRunning(false);
+                    self->m_loadingBar.IsIndeterminate(false);
+                    if (!published) {
+                        self->SetStatus(L"Train OK but publish failed: " +
+                                            ::xllama::utf8_to_wstring(pub_err),
+                                        StatusKind::Error);
+                        return;
+                    }
+                    self->m_model_filename =
+                        ::xllama::utf8_to_wstring(::xllama::kPersonalizedModelId);
+                    self->m_modelText.Text(self->m_model_filename);
+                    self->m_session.reset();
+                    self->m_session_model.clear();
+                    self->m_kv_valid = false;
+                    self->m_active_model.clear();
+                    self->SaveSettings();
+                    self->m_model_ready.store(false);
+                    self->m_runButton.IsEnabled(false);
+                    self->SetStatus(L"Personalized model ready", StatusKind::Success);
+                    self->EnsureModelNamedAsync(self->m_model_filename, true);
+                    (void)path;
+                });
+            } else {
+                dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, err = r.error_msg]() {
+                    self->m_train_running.store(false);
+                    self->SetRunning(false);
+                    self->m_loadingBar.IsIndeterminate(false);
+                    self->SetStatus(L"Training failed: " + ::xllama::utf8_to_wstring(err),
+                                    StatusKind::Error);
+                });
+            }
+        } catch (const std::exception& ex) {
+            dispatcher.RunAsync(
+                CoreDispatcherPriority::Normal, [self, msg = std::string(ex.what())]() {
+                    self->m_train_running.store(false);
+                    self->SetRunning(false);
+                    self->m_loadingBar.IsIndeterminate(false);
+                    self->SetStatus(L"Training exception: " + ::xllama::utf8_to_wstring(msg),
+                                    StatusKind::Error);
+                });
+        } catch (...) {
+            dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self]() {
+                self->m_train_running.store(false);
+                self->SetRunning(false);
+                self->m_loadingBar.IsIndeterminate(false);
+                self->SetStatus(L"Training failed (unknown exception)", StatusKind::Error);
+            });
+        }
+    }).detach();
+    #endif
 }
 
 // ---------------------------------------------------------------------------
@@ -2500,6 +2747,12 @@ void MainPageController::OnCancelClick(IInspectable const&, RoutedEventArgs cons
         m_cancelButton.IsEnabled(false);
         return;
     }
+    if (m_train_running.load()) {
+        m_train_abort.store(true);
+        SetStatus(L"Cancelling training (between epochs)...");
+        m_cancelButton.IsEnabled(false);
+        return;
+    }
     m_abort.store(true);
     SetStatus(L"Cancelling...");
     m_cancelButton.IsEnabled(false);
@@ -2829,6 +3082,39 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
             if (!saved)
                 throw std::runtime_error("action " + std::to_string(i) + " rate: " + rate_err);
             log_output("[autopilot] rate label=" + label + " appended preference sample\n");
+        } else if (a.op == "start_train") {
+            // Phase 11 (#116): in-process personalize; non-blocking start, then wait.
+            if (!not_running() || m_train_running.load())
+                throw std::runtime_error("action " + std::to_string(i) + " start_train: busy");
+            ApDispatchSync([this]() { StartPersonalizeTrain(); });
+            if (!m_train_running.load()) {
+                // StartPersonalizeTrain failed preflight synchronously on UI thread.
+                const std::string done = read_local_text_file(L"training\\result.done");
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " start_train: did not start (preflight)");
+            }
+            auto t = a.timeout.count() > 0 ? a.timeout : std::chrono::seconds{7200};
+            if (!ApWaitAtomic(m_train_running, false, t)) {
+                m_train_abort.store(true);
+                ApWaitAtomic(m_train_running, false, kGrace);
+                throw std::runtime_error("action " + std::to_string(i) + " start_train: timeout");
+            }
+            const std::string done = read_local_text_file(L"training\\result.done");
+            if (::xllama::parse_train_result_done(done) != "ok")
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " start_train: result.done=" + done);
+        } else if (a.op == "train_status") {
+            const std::string done = read_local_text_file(L"training\\result.done");
+            const std::string prog = read_local_text_file(L"training\\progress.json");
+            const std::string state = m_train_running.load()
+                                          ? "running"
+                                          : (::xllama::parse_train_result_done(done).empty()
+                                                 ? "idle"
+                                                 : ::xllama::parse_train_result_done(done));
+            write_local_bytes(L"autopilot-train-status.txt", "state=" + state +
+                                                                 "\nresult_done=" + done +
+                                                                 "\nprogress=" + prog + "\n");
+            log_output("[autopilot] train_status state=" + state + "\n");
         } else if (a.op == "quit") {
             log_output("[autopilot] action " + std::to_string(i) + " quit\n");
             write_local_bytes(L"autopilot-done.txt", "ok");

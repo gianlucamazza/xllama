@@ -47,7 +47,7 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     // One parsed autopilot action (see ApParseScript in MainPage.cpp).
     struct ApAction {
         std::string op;   // load_chat|send|new_chat|set_model|set_api|set_routing|set_sampling|
-                          // set_kv_reuse|generate_image|rate|quit
+                          // set_kv_reuse|generate_image|rate|start_train|train_status|quit
         std::wstring arg; // id / text / model name / image prompt / rate label
         int steps{1};     // generate_image
         unsigned seed{42};
@@ -109,6 +109,11 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     void SaveSettings();
     winrt::fire_and_forget ShowSettings();
     void ApplyApiSettings(bool enabled, int port);
+    // Phase 11 (#116): in-app personalization — train on samples.jsonl, publish
+    // merged.gguf as catalogue entry "personalized".
+    void StartPersonalizeTrain();
+    bool PublishPersonalizedModel(const std::string& merged_gguf_path, std::string* err = nullptr);
+    std::string ResolvePersonalizeBase() const; // LocalState-relative path or empty
     // Image generation UX: shows the last diffuse-out.png and runs SD-Turbo
     // in-process (plain ORT DML coexists with the XAML compositor).
     winrt::fire_and_forget ShowImageDialog();
@@ -214,6 +219,8 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     std::atomic<bool> m_abort{false};
     std::atomic<bool> m_is_running{false};
     std::atomic<bool> m_diffuse_running{false};
+    std::atomic<bool> m_train_running{false};
+    std::atomic<bool> m_train_abort{false};
     // Set once EnsureModelAsync lands a usable chat model (any source); the
     // autopilot driver gates its first action on this.
     std::atomic<bool> m_model_ready{false};

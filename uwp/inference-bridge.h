@@ -3,8 +3,10 @@
 
 #pragma once
 
+#include "xllama/device_train.h"
 #include "xllama/inference.h"
 #include "xllama/inference_params.h"
+#include "xllama/training_params.h"
 
 namespace xllama::bridge {
 
@@ -53,5 +55,13 @@ void run_oprepro();
 // docs/training-architecture.md Lane B and scripts/validate-console-training.sh
 // device-train.
 void run_train();
+
+// Shared runner used by headless train.flag and the in-app personalize path
+// (#116). Localizes relative job paths to LocalState, writes
+// training/progress.json on each progress tick, and returns the engine result.
+// Does NOT exit the process — safe to call while XAML is up.
+// XLLAMA_DEVICE_TRAIN builds only; otherwise returns success=false.
+xllama::TrainingResult run_train_job_localized(const xllama::TrainingJob& job,
+                                               const xllama::DeviceTrainCallbacks& cb = {});
 
 } // namespace xllama::bridge

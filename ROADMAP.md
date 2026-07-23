@@ -94,9 +94,13 @@ Gap analysis 2026-07-20: the training loop is half-invisible (UI captures
 preferences, but launch/progress/serving of the fine-tuned model are
 headless-only), and the test/API surfaces trail the UI.
 
-- [ ] In-app personalization arc: trigger training from Settings, surface
-      progress, serve `merged.gguf` from the model picker (#116) — now unblocked
-      (the `DeviceGgmlPartialFt` flip landed).
+- [x] In-app personalization arc: trigger training from Settings ("Train on my
+      feedback"), surface epoch/loss on the status bar, publish `merged.gguf` as
+      catalogue id `personalized` in the model picker (#116). In-process via
+      `run_train_job_localized` (not `train.flag`, which exits the process).
+      Host-tested job/filter builders (`tests/test_personalize.cpp`); console
+      end-to-end re-validate when hardware is available (needs
+      `training/base-f16.gguf` or a provisioned SmolLM2 GGUF + samples).
 - [x] Autopilot ops for every setting the GUI exposes, so the harness exercises
       the real UI code paths instead of writing `settings.json` behind the app's
       back. `set_routing` / `set_sampling` / `set_kv_reuse` (#117, PR #120),
@@ -104,9 +108,13 @@ headless-only), and the test/API surfaces trail the UI.
       controller state and persist through `SaveSettings()`. The
       `validate-console.sh settings` gate seeds the opposite of every target and
       asserts all nine persisted values, so an op that silently does nothing
-      fails — PASS on Xbox Series S (MSIX 1.4.0.633, 2026-07-21).
-- [ ] LAN API parity (images, preferences, training status) — #118, low
-      priority while the API remains a demo.
+      fails — PASS on Xbox Series S (MSIX 1.4.0.633, 2026-07-21). Also
+      `start_train` / `train_status` for the personalize arc (#116).
+- [x] LAN API parity (images, preferences, training status) — #118:
+      `POST /v1/preferences`, `GET /v1/training/status`,
+      `POST /v1/images/generations`. Documented in `docs/api-endpoint.md`;
+      `validate-api.sh` gains `prefs|train` (images remain manual — needs
+      SD-Turbo on device).
 
 ## Phase 12 — DirectML routing calibration (measurement done; one product call open)
 
@@ -175,7 +183,7 @@ long prompt and the CPU wins from the second turn (§5d). Evidence under
       (`tests/test_bench.cpp`); the committed CSVs regenerate their current numbers
       unchanged (all pre-existing rows now show _single run_). Re-measuring any
       row on-console with the default 3 recorded runs is what turns a marker into
-      a spread — no such row exists yet.
+      a spread — no such row exists yet (**blocked on console access**).
 - [x] **Duplicated-state audit (the #125 / #133 / #141 class) — nothing divergent.**
       Three Phase 12 defects were one logical quantity with two homes. A read-only
       sweep of the sampling defaults, the invariant constant pairs
