@@ -7,9 +7,9 @@ performance belongs in `docs/benchmarks.md`.
 
 - Current manifest: **1.5.0.0** under the new **`GianlucaMazza.xllama`**
   identity (PR #163 — breaking: no in-place update from ≤1.4.x, see
-  `docs/install-release.md`). Latest tagged release remains v1.4.0.0; the
-  1.5.0.x delta (2026-07-25 perf campaign + rebrand, PR #155-#165) is
-  unreleased but console-validated (all gates PASS on 1.5.0.698).
+  `docs/install-release.md`). Released as **v1.5.0.0** (2026-07-26): the
+  2026-07-25 perf campaign + rebrand (PR #155-#165), shipping the
+  console-validated MSIX 1.5.0.698 (all gates PASS).
 - Shipping artifact: unified ORT GenAI + llama.cpp, with pinned patched runtime
   DLLs while upstream fixes have not reached NuGet. The UWP ggml build now
   enables `GGML_USE_CPU_REPACK` (PR #155): **GGUF prefill +62%** on Q4_K.
