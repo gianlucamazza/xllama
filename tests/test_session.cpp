@@ -3,10 +3,28 @@
 
 #include "xllama/path_utils.h"
 #include "xllama/session.h"
+#include "xllama/session_hub.h"
 
 #include <doctest/doctest.h>
 #include <filesystem>
 #include <fstream>
+
+TEST_CASE("SessionHub: failed create leaves the hub empty and bumps generation") {
+    auto& hub = xllama::session_hub();
+    std::lock_guard<std::mutex> lk(hub.mtx);
+    const uint64_t g0 = hub.generation;
+    xllama::SessionParams sp;
+    sp.model_path = "/nonexistent/hub-model.gguf";
+    std::string err;
+    CHECK(hub.ensure_locked("hub-model", sp, &err) == nullptr);
+    CHECK(hub.session == nullptr);
+    CHECK(hub.model.empty());
+    // The attempted swap must invalidate any holder's generation even though
+    // creation failed — its old session pointer is gone either way.
+    CHECK(hub.generation == g0 + 1);
+    hub.reset_locked(); // no-op when already empty
+    CHECK(hub.generation == g0 + 1);
+}
 
 TEST_CASE("resolve_max_length: the #130 ladder has one home") {
     using xllama::resolve_max_length;

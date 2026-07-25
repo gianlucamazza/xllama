@@ -789,6 +789,34 @@ void MainPageController::RenderConversation() {
     m_outputScroll.ChangeView(nullptr, m_outputScroll.ScrollableHeight(), nullptr);
 }
 
+void MainPageController::FinalizeStreamedTurn(const std::string& output_text) {
+    using namespace winrt::Windows::UI::Xaml::Documents;
+    // The streamed paragraph holds the raw pieces; swap in the postprocessed
+    // text (the caller already ran postprocess_output) and attach the
+    // feedback controls. The rest of the conversation tree is untouched —
+    // the previous shape rebuilt every Paragraph/Run of the conversation
+    // after each turn, discarding what streaming had just appended.
+    if (!m_currentParagraph) {
+        RenderConversation();
+        return;
+    }
+    m_currentParagraph.Inlines().Clear();
+    Run label;
+    label.Text(L"Assistant: ");
+    label.FontWeight(winrt::Windows::UI::Text::FontWeights::Bold());
+    m_currentParagraph.Inlines().Append(label);
+    Run content;
+    content.Text(::xllama::utf8_to_wstring(output_text));
+    m_currentParagraph.Inlines().Append(content);
+    // The assistant message was just pushed onto m_current.messages.
+    AppendFeedbackControls(m_currentParagraph, m_current.messages.size() - 1);
+    m_outputBody.Blocks().Append(Paragraph()); // spacing
+    m_currentParagraph = Paragraph();
+    m_outputBody.Blocks().Append(m_currentParagraph);
+    m_outputScroll.UpdateLayout();
+    m_outputScroll.ChangeView(nullptr, m_outputScroll.ScrollableHeight(), nullptr);
+}
+
 void MainPageController::LoadConversation(const std::string& id) {
     SaveCurrentConversation();
     m_kv_valid = false;     // switching conversations → the reused KV no longer applies
@@ -1456,8 +1484,11 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
         if (new_model != self->m_model_filename) {
             self->m_model_filename = new_model;
             self->m_modelText.Text(new_model);
-            self->m_session.reset();
-            self->m_session_model.clear();
+            {
+                auto& hub = ::xllama::session_hub();
+                std::lock_guard<std::mutex> hub_lk(hub.mtx);
+                hub.reset_locked();
+            }
             self->m_kv_valid = false;
             self->m_model_ready.store(false);
             self->m_runButton.IsEnabled(false);
@@ -1617,8 +1648,11 @@ void MainPageController::StartPersonalizeTrain() {
                       ::xllama::format_train_progress_json("prepare", 0, job.epochs, 0, 0, 0));
 
     // Free chat RSS before train (Phase 10 peak gate ~1.2 GB).
-    m_session.reset();
-    m_session_model.clear();
+    {
+        auto& hub = ::xllama::session_hub();
+        std::lock_guard<std::mutex> hub_lk(hub.mtx);
+        hub.reset_locked();
+    }
     m_kv_valid = false;
 
     m_train_abort.store(false);
@@ -1672,8 +1706,11 @@ void MainPageController::StartPersonalizeTrain() {
                     self->m_model_filename =
                         ::xllama::utf8_to_wstring(::xllama::kPersonalizedModelId);
                     self->m_modelText.Text(self->m_model_filename);
-                    self->m_session.reset();
-                    self->m_session_model.clear();
+                    {
+                        auto& hub = ::xllama::session_hub();
+                        std::lock_guard<std::mutex> hub_lk(hub.mtx);
+                        hub.reset_locked();
+                    }
                     self->m_kv_valid = false;
                     self->m_active_model.clear();
                     self->SaveSettings();
@@ -2088,6 +2125,7 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
             self->m_runButton.IsEnabled(true);
             self->m_model_ready.store(true);
             self->EnsureGpuModelIfNeeded();
+            self->PreloadSessionAsync();
         }
         co_return;
     }
@@ -2108,6 +2146,7 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                 self->m_runButton.IsEnabled(true);
                 self->m_model_ready.store(true);
                 self->EnsureGpuModelIfNeeded();
+                self->PreloadSessionAsync();
             }
             co_return;
         }
@@ -2237,6 +2276,7 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                 self->m_runButton.IsEnabled(true);
                 self->m_model_ready.store(true);
                 self->EnsureGpuModelIfNeeded();
+                self->PreloadSessionAsync();
             }
             co_return;
         }
@@ -2367,6 +2407,7 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                 self->LoadModelName();
                 self->m_model_ready.store(true);
                 self->EnsureGpuModelIfNeeded();
+                self->PreloadSessionAsync();
             }
         });
 }
@@ -2383,13 +2424,40 @@ void MainPageController::LoadModelName() {
 }
 
 // ---------------------------------------------------------------------------
-// EnsureSession: lazy-build persistent Session (hot path is a pointer check)
+// EnsureSession: lazy-build the resident Session (hot path is a name check).
+// The session lives in xllama::session_hub() — one owner shared with the LAN
+// API, so the two surfaces can no longer hold a model each ("never 2× model
+// in RAM" now holds process-wide). The CALLER must hold hub.mtx and keep it
+// held for as long as it uses m_turn_session.
 // ---------------------------------------------------------------------------
 
+void MainPageController::PreloadSessionAsync() {
+    const std::string model = ::xllama::wstring_to_utf8(m_model_filename);
+    if (model.empty())
+        return;
+    auto self = shared_from_this();
+    std::thread([self, model]() {
+        auto& hub = ::xllama::session_hub();
+        hub.preloading.store(true); // API waits briefly instead of 503-ing
+        try {
+            std::lock_guard<std::mutex> hub_lk(hub.mtx);
+            std::string err;
+            if (!self->EnsureSession(model, &err))
+                ::xllama::log_output(
+                    ("[xllama] session preload failed (non-fatal): " + err + "\n").c_str());
+        } catch (...) {
+        }
+        hub.preloading.store(false);
+    }).detach();
+}
+
 bool MainPageController::EnsureSession(const std::string& model, std::string* err_out) {
-    if (m_session && m_session_model == model)
+    auto& hub = ::xllama::session_hub();
+    if (hub.session && hub.model == model) {
+        m_turn_session = hub.session.get();
         return true;
-    m_session.reset();  // free before creating new (avoid 2× model in RAM)
+    }
+    m_turn_session = nullptr;
     m_kv_valid = false; // new session object → no reusable KV carries over
     xllama::SessionParams sp;
     sp.model_path = model;
@@ -2425,14 +2493,13 @@ bool MainPageController::EnsureSession(const std::string& model, std::string* er
         }
     }
     std::string err;
-    auto s = xllama::Session::create(sp, &err);
+    ::xllama::Session* s = ::xllama::session_hub().ensure_locked(model, sp, &err);
     if (!s) {
         if (err_out)
             *err_out = err;
         return false;
     }
-    m_session = std::move(s);
-    m_session_model = model;
+    m_turn_session = s;
     return true;
 }
 
@@ -2516,14 +2583,18 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
         int n_tok = 0;
         if (m_routing == 2 && !base_is_gguf) {
             // Exact count only when the CPU session is already resident (a
-            // pointer-compare no-op). The previous shape loaded the CPU model
-            // just to tokenize and then could tear it down for the DML model —
-            // +1.2 s on a GPU-routed first turn (uwp-constraints §5, 2786 ms
-            // vs 1570 ms). With no session loaded the chars/5.0 estimator
+            // name-compare no-op). The previous shape loaded the CPU model
+            // just to tokenize — ON THE UI THREAD — and then could tear it
+            // down for the DML model (+1.2 s, uwp-constraints §5, 2786 ms vs
+            // 1570 ms). With no session resident the chars/5.0 estimator
             // decides — the same estimator whose ceiling already bounds this
             // prompt in BuildPrompt, so routing and trimming stay coherent.
-            if (m_session && m_session_model == rs.cpu_model)
-                n_tok = m_session->count_tokens(full_prompt);
+            // try_lock: if the hub is busy (LAN API mid-turn) fall back to the
+            // estimator rather than blocking the UI thread.
+            auto& hub = ::xllama::session_hub();
+            std::unique_lock<std::mutex> hub_lk(hub.mtx, std::try_to_lock);
+            if (hub_lk.owns_lock() && hub.session && hub.model == rs.cpu_model)
+                n_tok = hub.session->count_tokens(full_prompt);
             else
                 n_tok = ::xllama::estimate_tokens_from_chars(full_prompt.size());
         }
@@ -2601,8 +2672,21 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     xllama::ChatFormat fmt = chat_format();
 
     std::thread([self, full_prompt, delta_prompt, do_reuse, kv_reuse, ep_kv_ok, model, fmt,
-                 dispatcher]() {
+                 dispatcher]() mutable {
         try {
+            // One hub lock for the whole turn: the resident session cannot be
+            // swapped from under us (LAN API requests report busy meanwhile,
+            // exactly as they do against each other).
+            auto& hub = ::xllama::session_hub();
+            std::lock_guard<std::mutex> hub_lk(hub.mtx);
+            // The other surface may have swapped the resident model between
+            // our turns — the persistent generator the KV flag refers to is
+            // gone. Fall back to a full prefill (no user-visible failure).
+            if (do_reuse && hub.generation != self->m_hub_generation) {
+                ::xllama::log_output(
+                    "[xllama] KV reuse skipped: resident session changed between turns\n");
+                do_reuse = false;
+            }
             std::string load_err;
             if (!self->EnsureSession(model, &load_err)) {
                 dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, load_err]() {
@@ -2656,7 +2740,7 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                 gp.reset_kv = reset;
                 gp.on_status = on_status;
                 gp.on_token = on_token;
-                return self->m_session->generate(gp);
+                return self->m_turn_session->generate(gp);
             };
 
             xllama::InferenceResult res;
@@ -2674,6 +2758,11 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                 // when KV reuse is enabled, else a pure stateless turn.
                 res = run_turn(full_prompt, /*reuse=*/kv_reuse, /*reset=*/kv_reuse);
             }
+
+            // Stamp the resident-session generation this turn's KV state was
+            // built on (still under hub.mtx); the next turn's reuse check
+            // compares against it.
+            self->m_hub_generation = hub.generation;
 
             std::wstring metrics;
             if (res.success) {
@@ -2732,7 +2821,7 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                 }
                 self->SaveCurrentConversation(was_aborted);
                 if (!was_aborted && !output_text.empty())
-                    self->RenderConversation();
+                    self->FinalizeStreamedTurn(output_text);
             });
         } catch (const std::exception& ex) {
             ::xllama::log_output(std::string("[xllama] thread terminated: ") + ex.what() + "\n");
