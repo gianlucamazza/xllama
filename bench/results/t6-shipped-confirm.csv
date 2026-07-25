@@ -1,0 +1,4 @@
+model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,run_index
+smollm2-360m-cpu-int4,int4,ort-genai-cpu,2048,8,262.39,74.76,708,1470,0,3801,285,114,797,xbox-series-s,2026-07-25T14:18:43Z,2
+smollm2-360m-cpu-int4,int4,ort-genai-cpu,2048,8,262.81,74.43,708,1464,0,3801,285,114,797,xbox-series-s,2026-07-25T14:18:58Z,3
+smollm2-360m-cpu-int4,int4,ort-genai-cpu,2048,8,261.52,75.02,708,1464,0,3801,285,114,797,xbox-series-s,2026-07-25T14:19:13Z,4
