@@ -11,6 +11,7 @@
     #include "pch.h"
     #include "xllama/chat_prompt.h"
     #include "xllama/session.h"
+    #include "xllama/session_hub.h"
 
     #include <atomic>
     #include <chrono>
@@ -78,6 +79,12 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     winrt::fire_and_forget EnsureModelNamedAsync(std::wstring model_name,
                                                  bool set_app_ready = false);
     void EnsureGpuModelIfNeeded();
+    // Load (and, for DML models, warm up — #130 §5e) the resident session
+    // ahead of the first turn, so the first send pays prefill+decode only.
+    // Call on the UI thread right after the model becomes Ready; the load
+    // runs detached, serialized by hub.mtx (a concurrent first turn simply
+    // queues behind it and finds the session resident).
+    void PreloadSessionAsync();
     void StartInference(std::wstring const& prompt);
     void OnRunClick(winrt::Windows::Foundation::IInspectable const&,
                     winrt::Windows::UI::Xaml::RoutedEventArgs const&);
@@ -93,6 +100,10 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     winrt::fire_and_forget ShowHistory();
     void LoadConversation(const std::string& id);
     void RenderConversation();
+    // Post-turn finalize of the streamed paragraph (postprocessed text +
+    // feedback controls) — no full conversation rebuild. RenderConversation
+    // stays for history load and feedback-driven edits.
+    void FinalizeStreamedTurn(const std::string& output_text);
     void AddUserParagraph(std::wstring const& text);
     void AppendFeedbackControls(winrt::Windows::UI::Xaml::Documents::Paragraph const& paragraph,
                                 size_t assistant_index);
@@ -143,9 +154,15 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     winrt::Windows::UI::Xaml::DispatcherTimer m_flush_timer{nullptr};
     winrt::event_token m_flush_tick_token{};
 
-    // Persistent inference session — loaded once, reused across chat turns.
-    std::unique_ptr<xllama::Session> m_session;
-    std::string m_session_model;
+    // The persistent inference session lives in xllama::session_hub() — one
+    // process-wide owner shared with the LAN API ("never 2× model in RAM").
+    // m_turn_session is a non-owning view set by EnsureSession, valid ONLY
+    // while the current worker turn holds hub.mtx. m_hub_generation records
+    // the resident-session generation the KV-reuse state was built on; a
+    // mismatch at the next turn means the API swapped models in between and
+    // the persistent generator is gone (worker-thread only).
+    ::xllama::Session* m_turn_session{nullptr};
+    uint64_t m_hub_generation{0};
 
     // KV-cache reuse (continuous decoding) state.
     //   m_kv_reuse: feature toggle (settings.json "kv_reuse", default true).

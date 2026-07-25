@@ -25,6 +25,7 @@
     #include "xllama/platform.h"
     #include "xllama/preference_capture.h"
     #include "xllama/session.h"
+    #include "xllama/session_hub.h"
     #include "xllama/utf8_utils.h"
 
     #include <algorithm>
@@ -47,14 +48,15 @@ using namespace winrt::Windows::Data::Json;
 // ---------------------------------------------------------------------------
 // Shared single-slot inference state
 //
-// The server owns ONE Session, created lazily on the first request and reused.
-// g_mtx serializes both (re)creation and generate(): xllama::Session::generate()
-// is not concurrent (session.h:74). A request that finds the slot busy gets 503.
+// The Session lives in xllama::session_hub() — ONE process-wide owner shared
+// with the GUI (previously each surface owned its own Session and both could
+// hold a model at once, breaking the "never 2× model in RAM" invariant).
+// hub.mtx serializes (re)creation and generate(): xllama::Session::generate()
+// is not concurrent (session.h). A request that finds the hub busy — another
+// API request OR a GUI turn — gets 503, exactly the old busy semantics
+// widened to the whole process.
 // ---------------------------------------------------------------------------
-std::mutex g_mtx;
-std::unique_ptr<::xllama::Session> g_session;
-std::string g_model;        // model id currently loaded into g_session
-uint64_t g_req_counter = 0; // monotonic, for unique response ids (under g_mtx)
+std::atomic<uint64_t> g_req_counter{0}; // monotonic, for unique response ids
 
 std::mutex g_state_mtx;
 ServerStatus g_status;
@@ -262,7 +264,7 @@ void split_messages(JsonArray const& messages, std::string& system,
         final_user = cur_user; // trailing user turn is the one we answer
 }
 
-// Handles one chat request under g_mtx (already locked by the caller).
+// Handles one chat request under session_hub().mtx (already locked by the caller).
 std::string handle_chat_locked(const std::string& body, const char*& status) {
     JsonObject root{nullptr};
     if (!JsonObject::TryParse(winrt::to_hstring(body), root) || root == nullptr) {
@@ -296,16 +298,17 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
     if (system.empty())
         system = "You are a helpful AI assistant.";
 
-    // Lazily (re)create the Session when the requested model differs.
-    if (!g_session || g_model != model) {
+    // Lazily (re)create the resident Session when the requested model differs
+    // (hub.mtx is held by the caller; the swap invalidates the GUI's KV-reuse
+    // state via hub.generation, which its next turn detects).
+    ::xllama::Session* session = nullptr;
+    {
         std::string err;
         ::xllama::SessionParams sp;
         sp.model_path = model;
         sp.n_ctx = 2048;
-        g_session = ::xllama::Session::create(sp, &err);
-        g_model = model;
-        if (!g_session) {
-            g_model.clear();
+        session = ::xllama::session_hub().ensure_locked(model, sp, &err);
+        if (!session) {
             status = "500 Internal Server Error";
             return error_json("session create failed: " + err);
         }
@@ -341,7 +344,7 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
         }
     }
 
-    const ::xllama::InferenceResult r = g_session->generate(gp);
+    const ::xllama::InferenceResult r = session->generate(gp);
     if (!r.success) {
         status = "500 Internal Server Error";
         return error_json("generation failed: " + r.error_msg);
@@ -371,7 +374,7 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
     usage.Insert(L"total_tokens", JsonValue::CreateNumberValue(r.n_p_eval + r.n_eval));
 
     JsonObject resp;
-    // Unique per response (id is keyed by clients / trace dedup). g_mtx is held.
+    // Unique per response (id is keyed by clients / trace dedup). hub.mtx is held.
     const std::string id =
         "chatcmpl-xllama-" + std::to_string(time(nullptr)) + "-" + std::to_string(++g_req_counter);
     resp.Insert(L"id", JsonValue::CreateStringValue(winrt::to_hstring(id)));
@@ -384,14 +387,15 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
     return winrt::to_string(resp.Stringify());
 }
 
-// The single model the server can currently serve: the loaded one, else the
-// LocalState\model.txt hint. Empty id if neither is set. g_model is mutated
-// under g_mtx by chat requests; read it only if we can take the lock, else fall
-// back to the file hint (which touches no shared state) to avoid a data race.
+// The single model the server can currently serve: the resident one, else the
+// LocalState\model.txt hint. Empty id if neither is set. hub.model is mutated
+// under hub.mtx; read it only if we can take the lock, else fall back to the
+// file hint (which touches no shared state) to avoid a data race.
 std::string current_model_id() {
-    std::unique_lock<std::mutex> lk(g_mtx, std::try_to_lock);
-    if (lk.owns_lock() && !g_model.empty())
-        return g_model;
+    auto& hub = ::xllama::session_hub();
+    std::unique_lock<std::mutex> lk(hub.mtx, std::try_to_lock);
+    if (lk.owns_lock() && !hub.model.empty())
+        return hub.model;
     return read_local_text("model.txt");
 }
 
@@ -399,7 +403,7 @@ std::string current_model_id() {
 // it loadable (model_dir_files_ready — base GGUF or ORT layout). The active /
 // hinted model is appended if it is not already in the list (model.txt may
 // name a raw path outside the catalogue). Sorted for stable output; the scan
-// touches no shared state, so no g_mtx is needed.
+// touches no shared state, so no hub lock is needed.
 std::vector<std::string> servable_model_ids() {
     std::vector<std::string> ids;
     std::error_code ec;
@@ -701,7 +705,7 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
         }
 
         if (req.method == "POST" && req.path == "/v1/chat/completions") {
-            std::unique_lock<std::mutex> lk(g_mtx, std::try_to_lock);
+            std::unique_lock<std::mutex> lk(::xllama::session_hub().mtx, std::try_to_lock);
             if (!lk.owns_lock()) {
                 write_response(socket, "503 Service Unavailable", error_json("busy"));
                 return;
@@ -755,7 +759,7 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
 
         // #118: image generation — shares the single-slot mutex with chat.
         if (req.method == "POST" && req.path == "/v1/images/generations") {
-            std::unique_lock<std::mutex> lk(g_mtx, std::try_to_lock);
+            std::unique_lock<std::mutex> lk(::xllama::session_hub().mtx, std::try_to_lock);
             if (!lk.owns_lock()) {
                 write_response(socket, "503 Service Unavailable", error_json("busy"));
                 return;
@@ -809,11 +813,9 @@ void stop_server_locked(bool write_log) {
         } catch (...) {
         }
     }
-    {
-        std::lock_guard<std::mutex> lock(g_mtx);
-        g_session.reset();
-        g_model.clear();
-    }
+    // Deliberately NOT resetting the hub here: the Session is process-shared
+    // now, and the GUI may be the one using the resident model. A model loaded
+    // solely via the API simply stays resident; the GUI swaps it on next use.
     if (write_log)
         ::xllama::log_output("[xllama] api: stopped\n");
 }

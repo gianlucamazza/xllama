@@ -10,6 +10,7 @@
 #include "xllama/path_utils.h"
 #include "xllama/platform.h"
 #include "xllama/routing_policy.h"
+#include "xllama/session_hub.h"
 
 #include <algorithm>
 #include <chrono>
@@ -696,6 +697,11 @@ std::unique_ptr<Session> Session::create(const SessionParams& sp, std::string* e
 #else // XLLAMA_USE_LLAMA
     return detail::create_llama(sp, err);
 #endif
+}
+
+SessionHub& session_hub() {
+    static SessionHub hub;
+    return hub;
 }
 
 } // namespace xllama
