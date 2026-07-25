@@ -105,10 +105,15 @@ class OrtSession final : public Session {
                m_b_top_k == gp.top_k && m_b_rep == gp.repetition_penalty;
     }
 
-    OgaGeneratorParamsPtr make_params(const GenerateParams& gp, int max_length) {
+    OgaGeneratorParamsPtr make_params(const GenerateParams& gp) {
         OgaGeneratorParams* raw_params = nullptr;
         oga_check(OgaCreateGeneratorParams(m_model.get(), &raw_params), "OgaCreateGeneratorParams");
         OgaGeneratorParamsPtr gparams(raw_params);
+        // Session ALWAYS saturates max_length to n_ctx via the shared #130
+        // ladder (resolve_max_length, inference_params.h) — the interior band
+        // is a measured DirectML valley (§5c; table at the stateless caller).
+        // The n_predict bound is enforced by run_decode's cap instead.
+        const int max_length = resolve_max_length(m_n_ctx, 0, 0, /*override_v=*/-1);
         oga_check(OgaGeneratorParamsSetSearchNumber(gparams.get(), "max_length",
                                                     static_cast<double>(max_length)),
                   "SetSearchNumber max_length");
@@ -217,7 +222,7 @@ class OrtSession final : public Session {
         //
         // The shipping default (n_predict 256) landed at 1545 — inside the valley.
         // Mechanism still unknown; suspected shape-bucketed DML kernel selection.
-        OgaGeneratorParamsPtr gparams = make_params(gp, m_n_ctx);
+        OgaGeneratorParamsPtr gparams = make_params(gp);
         OgaGenerator* raw_gen = nullptr;
         oga_check(OgaCreateGenerator(m_model.get(), gparams.get(), &raw_gen), "OgaCreateGenerator");
         OgaGeneratorPtr gen(raw_gen);
@@ -246,7 +251,7 @@ class OrtSession final : public Session {
         const bool reuse = !gp.reset_kv && sampling_matches(gp);
         if (!reuse) {
             reset_chat_state();
-            m_chat_params = make_params(gp, m_n_ctx);
+            m_chat_params = make_params(gp);
             OgaGenerator* raw_gen = nullptr;
             oga_check(OgaCreateGenerator(m_model.get(), m_chat_params.get(), &raw_gen),
                       "OgaCreateGenerator(chat)");

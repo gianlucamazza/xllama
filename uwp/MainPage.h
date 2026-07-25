@@ -169,6 +169,17 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     std::string m_gpu_model{"smollm2-360m-dml-fp16-v2"};
     std::wstring m_active_model;
 
+    // Model-catalogue cache: LoadModelManifest re-reads and parses JSON from
+    // disk, and StartInference needed it on the UI thread for every turn.
+    // Invalidated on catalogue mutation (personalized-model publish); slow
+    // paths that mutate keep calling LoadModelManifest directly.
+    const std::vector<::xllama::ManifestEntry>& CachedManifest() const;
+    void InvalidateManifestCache() {
+        m_manifest_cached = false;
+    }
+    mutable std::vector<::xllama::ManifestEntry> m_manifest_cache;
+    mutable bool m_manifest_cached{false};
+
     // Image generation: TAESD tiny VAE replaces the full VAE decoder in-place
     // under models\sd-turbo-fp16\vae_decoder\ (same UNet/text_encoder).
     bool m_diffuse_taesd{false};
