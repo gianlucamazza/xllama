@@ -72,17 +72,23 @@ once; the choice is stored with the conversation and appended to
     back to the CPU model.
   - **Auto (long first prompt → GPU)** — a long first prompt routes to GPU fp16
     when `gpu_available` is true and it exceeds the token threshold. What the GPU
-    buys there is a faster **first token** (cold-process prefill up to ~3.2×); it
+    buys there is a faster **first token** on long prompts (GPU sessions warm up
+    at load, so the turn runs at the warm prefill regime — §5e); it
     does **not** make the conversation faster overall — the GPU cannot reuse a KV
     cache, so from the second turn the CPU wins, and the routing choice is sticky
     per conversation (decided once, on turn 1). Short chats, or any turn with a
-    missing GPU model, stay on CPU. The threshold is provisional and under
-    re-derivation — see [docs/uwp-constraints.md §5d](./uwp-constraints.md).
+    missing GPU model, stay on CPU. The threshold (1550) is a product call, not
+    a physical constant: the re-derivation concluded no single prompt-length
+    crossover exists — see [docs/uwp-constraints.md §5d](./uwp-constraints.md).
 - **LAN API** — enables or stops the OpenAI-compatible endpoint immediately,
   without restarting the app. The port must be 1025–49151 except 11443. The
   status line reports the active listener or bind error. Besides chat, the
   endpoint can record preferences, report training status, and generate images
-  (same guardrails as the pad UI). It is unauthenticated: enable it only on a
+  (same guardrails as the pad UI). The endpoint **shares the one loaded model
+  with the chat UI**: a LAN request while you are generating on the pad gets
+  a "busy" reply, and a LAN request naming a different model swaps the loaded
+  model under your conversation (the next pad turn transparently re-reads the
+  full context). It is unauthenticated: enable it only on a
   trusted LAN; see [api-endpoint.md](api-endpoint.md).
 
 **Note for GGUF models** (`kind: "gguf"` in the catalogue): **KV-cache reuse
@@ -91,7 +97,9 @@ works** (persistent `llama_context`; measured ratios in
 llama.cpp UWP build is CPU-only.
 
 Settings persist to `LocalState\settings.json` and take effect on the next
-inference call.
+inference call. Exception: changing the **model** loads it eagerly as soon as
+it is Ready (the session pre-loads in the background), so the first send after
+a model switch pays only prompt reading + generation.
 
 ## Image generation (`[*]`)
 

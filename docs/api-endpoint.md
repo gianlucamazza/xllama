@@ -7,8 +7,10 @@ Not for the Store, not for public inbound.
 xllama can expose its inference core (`xllama::Session`) as an HTTP endpoint on the local
 network, so a PC on the same LAN can run inference on the console:
 `http://<ip-xbox>:<port>/v1/chat/completions`. It is another front-end on the
-same `xllama::Session` abstraction used by the chat UI, bench and CLI, with its
-own lazily created Session instance and lifecycle. Code lives in
+same `xllama::Session` abstraction used by the chat UI, bench and CLI. Since
+PR #161/#164 the Session lives in `xllama::session_hub()` — ONE process-wide
+resident model **shared with the chat UI** ("never 2× model in RAM" holds
+process-wide). Code lives in
 `uwp/api-server.{h,cpp}` (WinRT `StreamSocketListener`), entirely under `#ifdef
 XLLAMA_UWP`; the Linux/CLI build is unaffected.
 
@@ -28,8 +30,11 @@ live XAML chat UI.
   Device Portal, so the server only honors an override in the bindable app range
   **[1025, 49151]** (and not 11443); anything else falls back to 11434 with a log line.
 - **Model:** taken from the request's `"model"` field; if absent, falls back to
-  `LocalState\model.txt`. The `Session` is created lazily on the first request and reused;
-  it is re-created only when a request asks for a different model.
+  `LocalState\model.txt`. The resident Session may already exist before any
+  request — the GUI pre-loads it when a model becomes Ready — and it is
+  swapped when a request names a different model. A swap invalidates the
+  GUI's KV-reuse state (`hub.generation`): its next turn silently falls back
+  to a full prefill.
 
 **Foreground only.** The endpoint dies when the app leaves the foreground (UWP Process
 Lifetime Management — no always-on system service). On Xbox this is stricter than on PC: if
@@ -45,24 +50,25 @@ this is Dev Mode research, not a hosted service.
 
 ## Protocol (v1)
 
-| Method    | Path                      | Behaviour                                                                                                              |
-| --------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `GET`     | `/` or `/health`          | `200 {"status":"ok","service":"xllama"}` — the spike/liveness probe.                                                   |
-| `GET`     | `/v1/models`              | OpenAI model discovery — every servable on-device model; non-standard `"active": true` marks the one currently loaded. |
-| `GET`     | `/api/tags`               | Ollama model discovery — same list, Ollama shape.                                                                      |
-| `POST`    | `/v1/chat/completions`    | OpenAI-compatible chat completion, **non-streaming**.                                                                  |
-| `POST`    | `/v1/preferences`         | Append a preference sample (`label` + `messages[]`) to `training/samples.jsonl` — same contract as the UI rate op (#118). |
-| `GET`     | `/v1/training/status`     | `result.done` / `progress.json` / last personalized `result.json` + usable sample count (#118).                        |
-| `POST`    | `/v1/images/generations`  | SD-Turbo image gen (`prompt`, `steps` 1–4, `seed`); returns OpenAI-ish `{data:[{b64_json,path}]}` (#118). Shares the single-slot mutex with chat. |
-| `OPTIONS` | _any_                     | CORS preflight (`204` + `Allow-Methods/Headers`) for browser clients.                                                  |
+| Method    | Path                     | Behaviour                                                                                                                                         |
+| --------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`     | `/` or `/health`         | `200 {"status":"ok","service":"xllama"}` — the spike/liveness probe.                                                                              |
+| `GET`     | `/v1/models`             | OpenAI model discovery — every servable on-device model; non-standard `"active": true` marks the one currently loaded.                            |
+| `GET`     | `/api/tags`              | Ollama model discovery — same list, Ollama shape.                                                                                                 |
+| `POST`    | `/v1/chat/completions`   | OpenAI-compatible chat completion, **non-streaming**.                                                                                             |
+| `POST`    | `/v1/preferences`        | Append a preference sample (`label` + `messages[]`) to `training/samples.jsonl` — same contract as the UI rate op (#118).                         |
+| `GET`     | `/v1/training/status`    | `result.done` / `progress.json` / last personalized `result.json` + usable sample count (#118).                                                   |
+| `POST`    | `/v1/images/generations` | SD-Turbo image gen (`prompt`, `steps` 1–4, `seed`); returns OpenAI-ish `{data:[{b64_json,path}]}` (#118). Shares the single-slot mutex with chat. |
+| `OPTIONS` | _any_                    | CORS preflight (`204` + `Allow-Methods/Headers`) for browser clients.                                                                             |
 
 Discovery semantics: a model is **servable** when its `LocalState\models\<id>`
 directory holds a base GGUF (any `*.gguf` except a bare runtime-LoRA
 `adapter.gguf`) or an ORT GenAI layout (`genai_config.json` / `model.onnx`) —
 predicate `model_dir_files_ready` in `include/xllama/model_provision.h`
-(host-tested). Any listed `id` is valid as the request `model`: the server
-lazily switches its single Session when the requested model differs from the
-loaded one (first request on a new model pays the load).
+(host-tested). Any listed `id` is valid as the request `model`: the hub swaps
+the process-wide resident Session when the requested model differs from the
+loaded one (first request on a new model pays the load, and the GUI's KV-reuse
+state is invalidated — see Model above).
 
 Request body (subset): `model`, `messages[]` (`role` ∈ system/user/assistant, `content`),
 optional `max_completion_tokens` / `max_tokens` (default 512; the former wins — `max_tokens`
@@ -135,11 +141,15 @@ applies when the user opens Image; the API does not download the model for you).
 
 ## Concurrency
 
-`Session::generate()` is single-slot / non-concurrent. The server holds one shared
-`Session` behind a `std::mutex` with `try_lock`: a request arriving while another is being
-served gets **HTTP 503** `{"error":{"message":"busy"}}` — Ollama single-slot semantics.
-Stopping the endpoint first closes the listener, then releases its Session after
-the active request (if any) leaves the single-slot mutex.
+`Session::generate()` is single-slot / non-concurrent. Requests acquire the
+process-wide `session_hub().mtx` with `try_lock`: a request arriving while
+another request **or a chat-UI turn** is generating gets **HTTP 503**
+`{"error":{"message":"busy"}}` — the Ollama single-slot semantics, widened to
+the whole process. One exception: while the session **pre-load** is holding
+the hub (right after a model becomes Ready), `acquire_hub_or_busy()` waits —
+bounded, ≤15 s, only while `hub.preloading` is set — instead of bouncing the
+client's very first request. Stopping the endpoint closes the listener only;
+the Session is hub-owned and is NOT released (the chat UI may be using it).
 
 ## Not in scope / do not do
 
@@ -147,9 +157,9 @@ the active request (if any) leaves the single-slot mutex.
   manifest) covers LAN only.
 - No `llama.cpp/tools/server` or cpp-httplib imported into the MSIX.
 - The endpoint is **unauthenticated** — only expose it on a trusted LAN.
-- Memory note: the server's `Session` is independent of the UI's. On large models (e.g. the
-  3B H4 line, ~1.8 GB) two loaded copies may not fit; the follow-up is to share the
-  controller's `m_session` behind the same mutex.
+- ~~Memory note: the server's `Session` is independent of the UI's…~~ **Done
+  (PR #161/#164)**: server and UI share the one `session_hub()` Session behind
+  the same mutex — two loaded copies can no longer happen.
 
 ## Validation
 

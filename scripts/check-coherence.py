@@ -36,12 +36,15 @@ def main() -> int:
         ok.append(msg)
 
     # --- catalogue ---
-    manifest = json.loads((ROOT / "uwp/models/manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads(
+        (ROOT / "uwp/models/manifest.json").read_text(encoding="utf-8")
+    )
     cat = {e["name"]: e for e in manifest["models"]}
     good(f"manifest models: {len(cat)}")
 
     sizes = {
-        n: sum(f.get("approx_bytes") or 0 for f in e.get("files", [])) for n, e in cat.items()
+        n: sum(f.get("approx_bytes") or 0 for f in e.get("files", []))
+        for n, e in cat.items()
     }
 
     # --- code defaults ---
@@ -176,7 +179,9 @@ def main() -> int:
     ib = (ROOT / "uwp/inference-bridge.h").read_text(encoding="utf-8")
     if "run_train_job_localized" not in ib:
         err("run_train_job_localized not in inference-bridge.h")
-    if "StartPersonalizeTrain" not in (ROOT / "uwp/MainPage.h").read_text(encoding="utf-8"):
+    if "StartPersonalizeTrain" not in (ROOT / "uwp/MainPage.h").read_text(
+        encoding="utf-8"
+    ):
         err("StartPersonalizeTrain missing from MainPage.h")
     good("personalize surface OK")
 
@@ -203,7 +208,9 @@ def main() -> int:
     ]:
         if not path.exists():
             continue
-        for m in re.finditer(r"scripts/([A-Za-z0-9_./-]+\.(?:sh|py|ps1))", path.read_text()):
+        for m in re.finditer(
+            r"scripts/([A-Za-z0-9_./-]+\.(?:sh|py|ps1))", path.read_text()
+        ):
             script_refs.add(m.group(1))
     missing = [s for s in sorted(script_refs) if not (ROOT / "scripts" / s).exists()]
     if missing:
@@ -269,7 +276,11 @@ def main() -> int:
 
     # --- benchmark summary ---
     r = subprocess.run(
-        [sys.executable, str(ROOT / "scripts/generate-benchmark-summary.py"), "--check"],
+        [
+            sys.executable,
+            str(ROOT / "scripts/generate-benchmark-summary.py"),
+            "--check",
+        ],
         capture_output=True,
         text=True,
         cwd=ROOT,
@@ -287,7 +298,10 @@ def main() -> int:
         err("missing GENERATED MODEL SUMMARY in benchmarks.md")
     else:
         block = block_m.group(1)
-        for num in ("94.2", "37.9", "18.4", "68.0", "44.4", "20.6", "35.1", "236.7"):
+        # 2026-07-25 baseline: LFM decode 94.2 -> 93.0 (post-repack multi-run
+        # median, phase13-repack-after.csv) and ORT CPU 68.0 -> 74.8 (shipped
+        # t6 asset, t6-shipped-confirm.csv).
+        for num in ("93.0", "37.9", "18.4", "74.8", "44.4", "20.6", "35.1", "236.7"):
             if num not in block:
                 err(f"generated table missing {num}")
             if num not in rec and num not in ("236.7",):
@@ -317,7 +331,10 @@ def main() -> int:
 
     # corrected sizes present
     for path, needles in [
-        ("docs/model-selection.md", ["~229 MB", "~731 MB", "~1.56 GB", "~533 MB", "~421 MB"]),
+        (
+            "docs/model-selection.md",
+            ["~229 MB", "~731 MB", "~1.56 GB", "~533 MB", "~421 MB"],
+        ),
         ("docs/using-the-app.md", ["~229 MB", "~421 MB"]),
         ("README.md", ["~229 MB"]),
     ]:
@@ -340,7 +357,9 @@ def main() -> int:
 
     # --- evidence files ---
     p10 = json.loads(
-        (ROOT / "bench/results/phase10-console-devtrain-result.json").read_text(encoding="utf-8")
+        (ROOT / "bench/results/phase10-console-devtrain-result.json").read_text(
+            encoding="utf-8"
+        )
     )
     if not p10.get("success") or p10.get("peak_ws_mb") != 1195:
         err(f"phase10 evidence unexpected: {p10}")
@@ -376,7 +395,7 @@ def main() -> int:
             target = link.split("#")[0]
             if not target:
                 continue
-            p = (base / target)
+            p = base / target
             if not p.exists() and not (ROOT / target).exists():
                 broken.append(link)
         return broken

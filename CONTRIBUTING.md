@@ -39,15 +39,17 @@ python3 scripts/check-coherence.py
 Project docs follow a **single source of truth** map — see
 [`docs/README.md`](docs/README.md) (principles + ownership table).
 
-| If you change…                        | Update…                                                |
-| ------------------------------------- | ------------------------------------------------------ |
-| Module boundaries / data flow         | `docs/architecture.md`                                 |
-| Training contracts / lanes / Phase 11 | `docs/training-architecture.md` + `training/README.md` |
-| User-facing UI steps                  | `docs/using-the-app.md`                                |
-| LAN routes                            | `docs/api-endpoint.md`                                 |
-| Benchmarks / CSV schema               | `bench/README.md` + regen summary if needed            |
-| Release behaviour                     | `CHANGELOG.md` (and `ROADMAP.md` if a phase closes)    |
-| Repo layout for agents                | `AGENTS.md`                                            |
+| If you change…                         | Update…                                                |
+| -------------------------------------- | ------------------------------------------------------ |
+| Module boundaries / data flow          | `docs/architecture.md`                                 |
+| Training contracts / lanes / Phase 11  | `docs/training-architecture.md` + `training/README.md` |
+| User-facing UI steps                   | `docs/using-the-app.md`                                |
+| LAN routes                             | `docs/api-endpoint.md`                                 |
+| Benchmarks / CSV schema                | `bench/README.md` + regen summary if needed            |
+| Release behaviour                      | `CHANGELOG.md` (and `ROADMAP.md` if a phase closes)    |
+| Session ownership / runtime invariants | `docs/architecture.md` + `docs/api-endpoint.md`        |
+| Package identity / install path        | `docs/install-release.md` + `AGENTS.md` (Versioning)   |
+| Repo layout for agents                 | `AGENTS.md`                                            |
 
 Do **not** hand-edit generated tables in `docs/benchmarks.md` (run
 `generate-benchmark-summary.py`). Prefer linking to the SSOT over copying

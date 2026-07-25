@@ -30,21 +30,26 @@ Upstream: [microsoft/onnxruntime-genai#2280](https://github.com/microsoft/onnxru
 | **unified+#2280+PatchedOrt** (shipping) | `xllama-appx` from `build-uwp.yml` | GGUF + ORT, external-data ORT (GPU text routing via `-v2` asset) |
 | **llamacpp**                            | `xllama-appx-llamacpp`             | Bench A/B only — not for end users                               |
 
+Both UWP lanes compile ggml with `GGML_USE_CPU_REPACK` since PR #155 (the
+repacked-weight GEMM path was silently dead code before — enabling it raised
+GGUF prefill ~62%). On Linux, `XLLAMA_NATIVE_OPT=ON` opts into host-tuned
+`-march=native` builds; default is portable AVX2.
+
 ## Chat models
 
 The decode figures below are rough guidance; the authoritative, disambiguated
 tables are in [benchmarks.md](benchmarks.md) (the perf SSOT).
 
-| Use case              | Catalogue `name`           | Backend               | Measured decode                                                                                                        |
-| --------------------- | -------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| **Default (unified)** | `lfm25-350m`               | llama.cpp (`unified`) | **94.2 tok/s** (recommended)                                                                                           |
-| **Balanced chat**     | `lfm25-1.2b-instruct`      | llama.cpp (`unified`) | **37.9 tok/s**, 811 MB peak; H9 6/8                                                                                    |
-| **Quality chat**      | `lfm2-2.6b`                | llama.cpp (`unified`) | **18.4 tok/s**, 1623 MB peak; H9 7/8                                                                                   |
-| **ORT default**       | `smollm2-360m-cpu-int4`    | ORT CPU int4          | **68.0** tok/s                                                                                                         |
-| **Routing GPU**       | `smollm2-360m-dml-fp16-v2` | ORT DML fp16          | 44.4 tok/s decode; 236.7 tok/s prefill — RMSNorm-decomposed graph, #91 parity-validated (`dml-rmsnorm-fix-runbook.md`) |
-| **Larger chat**       | `smollm2-1.7b-cpu-int4`    | ORT CPU int4          | **20.6** tok/s (in-app `models-v1` download)                                                                           |
-| **Modern GGUF**       | `qwen35-0.8b`              | llama.cpp (`unified`) | 35.1 tok/s (98.1 prefill, t6)                                                                                          |
-| **Fast modern GGUF**  | `lfm25-350m`               | llama.cpp (`unified`) | 94.2 tok/s (241.4 prefill, t6)                                                                                         |
+| Use case              | Catalogue `name`           | Backend               | Measured decode                                                                                                                                                                                                                                         |
+| --------------------- | -------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Default (unified)** | `lfm25-350m`               | llama.cpp (`unified`) | **93.0 tok/s** (recommended)                                                                                                                                                                                                                            |
+| **Balanced chat**     | `lfm25-1.2b-instruct`      | llama.cpp (`unified`) | **37.9 tok/s**, 811 MB peak; H9 6/8                                                                                                                                                                                                                     |
+| **Quality chat**      | `lfm2-2.6b`                | llama.cpp (`unified`) | **18.4 tok/s**, 1623 MB peak; H9 7/8                                                                                                                                                                                                                    |
+| **ORT default**       | `smollm2-360m-cpu-int4`    | ORT CPU int4          | **74.8** tok/s (262.4 prefill — shipped t6 asset, `t6-shipped-confirm.csv`)                                                                                                                                                                             |
+| **Routing GPU**       | `smollm2-360m-dml-fp16-v2` | ORT DML fp16          | 44.4 tok/s decode; 236.7 tok/s prefill (cold-process **bench** figure — in-app turns run warm since the load warm-up + pre-load, §5e: first request ~873 tok/s prefill) — RMSNorm-decomposed graph, #91 parity-validated (`dml-rmsnorm-fix-runbook.md`) |
+| **Larger chat**       | `smollm2-1.7b-cpu-int4`    | ORT CPU int4          | **20.6** tok/s (in-app `models-v1` download)                                                                                                                                                                                                            |
+| **Modern GGUF**       | `qwen35-0.8b`              | llama.cpp (`unified`) | 35.1 tok/s (98.1 prefill, t6 — pre-repack figure, not re-measured)                                                                                                                                                                                      |
+| **Fast modern GGUF**  | `lfm25-350m`               | llama.cpp (`unified`) | 93.0 tok/s (394.8 prefill, t6 — post-repack, PR #155: prefill was 241.4 before)                                                                                                                                                                         |
 
 GGUF thread default: llama.cpp auto-detect is capped at **6** on console
 (`detect_threads_llama` — t6 measured optimum, t7/t8 livelock); explicit
@@ -82,6 +87,10 @@ GGUF thread default: llama.cpp auto-detect is capped at **6** on console
   [`genai_config-threads-6.json`](../bench/configs/genai_config-threads-6.json)
   (pristine + the one key); any device provisions it from now on. Note the
   gain is the multi-length +4-6%, smaller than §5f's single-length +8.5%.
+  **On-device confirmation** (1.5.0.0 migration, 3 recorded runs,
+  `bench/results/t6-shipped-confirm.csv`): prefill 262.4 median vs 244.8
+  unset (+7.2% at P=285), decode 74.7 vs 74.3 (parity) — the shipped config
+  is live and performs as measured.
 - `past_present_share_buffer: true` (required for KV reuse)
 
 **DML fp16 (routing)** — [`bench/configs/genai_config-dml-test.json`](../bench/configs/genai_config-dml-test.json):
@@ -179,7 +188,13 @@ ctest --test-dir build/linux-test --output-on-failure
 
 ## Validation checklist
 
-1. Deploy the default **`xllama-appx`** CI artifact (unified + PatchedGenAI #2280; version is `Major.Minor.Build` from `uwp/AppxManifest.xml` with the **Revision** auto-stamped from the CI run number — see `CHANGELOG.md`)
+1. Deploy the default **`xllama-appx`** CI artifact (unified + PatchedGenAI #2280; version is `Major.Minor.Build` from `uwp/AppxManifest.xml` with the **Revision** auto-stamped from the CI run number — see `CHANGELOG.md`).
+   ⚠️ **Coming from ≤1.4.x**: 1.5.0.0 changed the package identity
+   (`VenereLabs.xllama` → `GianlucaMazza.xllama`) — it installs as a NEW app,
+   LocalState does not carry over, and the old app should be uninstalled
+   (see [install-release.md](./install-release.md)). Launch the new app once
+   before provisioning (LocalState does not exist until first launch —
+   runbook preflight).
 2. Provision models AFTER the install — `install-latest-build.sh` always
    uninstalls first, wiping LocalState: `./scripts/provision-models.sh --all-test`
    (seeds `lfm25-350m`, `smollm2-360m-cpu-int4`, the parity-validated
@@ -189,7 +204,7 @@ ctest --test-dir build/linux-test --output-on-failure
 
    ```bash
    source ~/.config/xllama/xbox-env
-   ./scripts/validate-console.sh all   # routing + settings (9 values) + GGUF + TAESD → routing+settings PASS on 1.4.0.641, GGUF PASS on 1.4.0.633 (2026-07-22); TAESD not re-run
+   ./scripts/validate-console.sh all   # routing + settings (9 values) + GGUF + TAESD → ALL PASS on 1.5.0.698 (2026-07-25, post-identity-migration; API gates also ALL PASS)
    ```
 
 5. Manual/debug path: [console-validation-runbook.md](./console-validation-runbook.md) per §
