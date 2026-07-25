@@ -2404,7 +2404,10 @@ bool MainPageController::EnsureSession(const std::string& model, std::string* er
     // (no extension), so Backend::Auto's suffix sniffing cannot classify it.
     // Optional catalogue `lora` (relative to model dir) enables runtime LoRA.
     {
-        const auto& manifest = CachedManifest();
+        // Direct load, not CachedManifest: this runs on the worker thread and
+        // the cache is UI-thread-only (no lock). Cold path anyway — a disk
+        // parse is noise next to the model load that follows.
+        auto manifest = ::xllama::LoadModelManifest();
         const auto* entry = ::xllama::FindManifestEntry(manifest, ::xllama::utf8_to_wstring(model));
         if (entry && entry->kind == L"gguf") {
             sp.backend = xllama::Backend::LlamaCpp;
