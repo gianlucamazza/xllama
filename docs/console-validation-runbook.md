@@ -15,6 +15,13 @@ source ~/.config/xllama/xbox-env
 ./scripts/provision-models.sh --all-test
 ```
 
+**After installing a NEW package identity** (first install, or an identity
+rename like the 1.5.0.0 VenereLabs → GianlucaMazza migration): launch the app
+once (`./scripts/deploy.sh start-app`) before provisioning. The `LocalState`
+folder does not exist until first launch, and every WDP file upload fails with
+`"File move failed" / "The system cannot find the path specified"` until it
+does (hit during the 2026-07-25 migration).
+
 ## Official automated suite
 
 ```bash

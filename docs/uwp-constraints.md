@@ -362,8 +362,9 @@ t6 prefill +4.4% / +4.7% / +6.1% — consistent, but below §5f's single-length
 +8.5%. Decode deltas sit inside the closing-control drift (unset re-measured at
 the end: 245.2 / 72.0 vs 244.8 / 74.3 at the start, ≈ −3% decode over the
 session), so decode is neutral within noise. t4 ≈ unset confirmed on all three
-lengths. Ship decision for the asset republish: deliberate, not automatic (see
-ROADMAP).
+lengths. **Shipped 2026-07-25** with the 1.5.0.0 identity migration (the forced
+re-provision was the "next models-v1 republish" the ship condition bundled
+with); the release's `genai_config.json` now sets `intra_op_num_threads: 6`.
 
 ### §5 (continued) — disk, availability and the App/Game lever
 

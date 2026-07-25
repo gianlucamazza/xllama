@@ -31,7 +31,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `encoder_hidden_states` fp16 conversion and reuses step buffers.
 - **CPU threads sweep evidence (`phase12b-threads-sweep.csv`).** t6 prefill
   +4.4/+4.7/+6.1% at P=39/285/960, decode neutral within session drift, t4 ≈
-  unset. Asset republish decision tracked in ROADMAP.
+  unset.
+- **`intra_op_num_threads: 6` SHIPPED on the models-v1 CPU asset (2026-07-25).**
+  The identity migration forces a full model re-provision anyway, which is
+  exactly the "next models-v1 republish" the ship condition asked to bundle
+  with. `genai_config.json` on the `models-v1` release now matches
+  `bench/configs/genai_config-threads-6.json` (pristine + the one key). Devices
+  pick it up on their next provision; on-device confirmation recorded with the
+  1.5.0.0 migration.
+- **Single Session owner + pre-load (PR #161/#164).** `xllama::SessionHub` is
+  the one process-wide Session owner for GUI and LAN API ("never 2× model in
+  RAM" now holds process-wide; API busy semantics correctly cover GUI turns;
+  `hub.generation` invalidates the GUI's KV-reuse state after an API-driven
+  model swap). Sessions pre-load when a model becomes Ready — the first send
+  pays prefill+decode only, which is what turns the #158 DML warm-up into a
+  wall-clock win. Also: manifest cached off the per-turn UI-thread path, the
+  routing token-count no longer loads a model on the UI thread (1.2–2.7 s of
+  frozen UI on a cold first turn), O(n) context trimmer, shared
+  `resolve_max_length` ladder (host-tested), and post-turn incremental
+  paragraph finalize instead of a full conversation re-render.
 
 ### Changed
 
