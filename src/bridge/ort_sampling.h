@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Venere Labs
+// Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 // Internal: the ORT GenAI search parameters, applied in exactly one place — the
 // twin of sampler_chain.h for the llama.cpp path. Needs the ORT C headers, so it

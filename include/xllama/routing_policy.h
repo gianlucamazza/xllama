@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Venere Labs
+// Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 // Per-workload EP routing policy (ORT GenAI only). GGUF models disable routing
 // and KV reuse at the UI layer; this header encodes the token threshold only.

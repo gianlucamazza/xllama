@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Venere Labs
+// Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 // #125: the CLI/bench surface and the GUI/API surface ran different samplers.
 // These tests pin the things that made that possible.

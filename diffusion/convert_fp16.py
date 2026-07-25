@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2024 Venere Labs
+# Copyright (c) 2024 Gianluca Mazza
 # SPDX-License-Identifier: MIT
 #
 # Convert the fp32 SD-Turbo ONNX components to fp16 for the Xbox Series S GPU

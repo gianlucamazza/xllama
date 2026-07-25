@@ -26,7 +26,10 @@ set -euo pipefail
 
 BASE_URL="https://${XBOX_IP}:11443"
 CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
-APP_ID="VenereLabs.xllama"
+APP_ID="GianlucaMazza.xllama"
+# Pre-rebrand package identity (≤ v1.4.x installs). Kept so pfn/uninstall/log
+# sub-commands still find an old package during the migration window.
+APP_ID_LEGACY="VenereLabs.xllama"
 
 # Xbox WDP requires X-CSRF-Token on all POST/DELETE requests.
 # Extract from Set-Cookie header with a more robust pipeline.
@@ -40,7 +43,7 @@ fi
 
 get_pfn() {
 	curl "${CURL_AUTH[@]}" "${BASE_URL}/api/app/packagemanager/packages" |
-		APP_ID="$APP_ID" python3 -c '
+		APP_ID="$APP_ID" APP_ID_LEGACY="$APP_ID_LEGACY" python3 -c '
 import json
 import os
 import re
@@ -51,10 +54,10 @@ import sys
 # targets an arbitrary version — a bench run would upload to one package and read
 # results back from whichever the API happened to list first. Pick the highest
 # version, and say so on stderr when there is more than one.
-app_id = os.environ["APP_ID"]
+app_ids = (os.environ["APP_ID"], os.environ["APP_ID_LEGACY"])
 data = json.load(sys.stdin)
 matches = [p for p in data.get("InstalledPackages", [])
-           if app_id in p.get("PackageRelativeId", "")]
+           if any(a in p.get("PackageRelativeId", "") for a in app_ids)]
 if not matches:
     sys.exit(0)
 
@@ -173,6 +176,7 @@ data = json.load(sys.stdin)
 matches = [
     p for p in data.get("Processes", [])
     if "xllama" in p.get("ImageName", "").lower()
+    or "GianlucaMazza.xllama" in p.get("PackageFullName", "")
     or "VenereLabs.xllama" in p.get("PackageFullName", "")
 ]
 if not matches:

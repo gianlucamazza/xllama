@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Venere Labs
+// Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 // xllama::Session — persistent model session for multi-turn applications.
 // ORT GenAI path (UWP): model + tokenizer loaded once, reused per generate().

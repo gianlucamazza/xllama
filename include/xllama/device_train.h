@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Venere Labs
+// Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 // Lane B — in-process partial fine-tune engine (ggml-opt / llama_opt).
 // Runs the whole pipeline on the device that hosts the process (Xbox UWP or

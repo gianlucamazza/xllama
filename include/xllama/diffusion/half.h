@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Venere Labs
+// Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 //
 // IEEE 754 half <-> float conversion as raw uint16_t bit patterns. The console

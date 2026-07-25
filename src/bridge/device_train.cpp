@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Venere Labs
+// Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 // Lane B engine — see include/xllama/device_train.h for the contract and
 // docs/training-architecture.md §Lane B for the design + memory budget.

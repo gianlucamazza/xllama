@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2024 Venere Labs
+# Copyright (c) 2024 Gianluca Mazza
 # SPDX-License-Identifier: MIT
 #
 # Model-side validation for the console diffusion pipeline: replicate uwp/diffuse.cpp's

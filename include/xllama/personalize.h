@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Venere Labs
+// Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 // Phase 11 — pure helpers for the in-app personalization arc (#116).
 // Job construction, last-block param filters, sample counting, and the

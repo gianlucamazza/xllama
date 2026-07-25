@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Venere Labs
+// Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 // Sampling defaults shared by every surface, and the one place the llama.cpp
 // sampler chain is assembled.

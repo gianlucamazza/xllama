@@ -1,6 +1,6 @@
 # xllama — LLM and Diffusion Inference on Xbox Series S: What the Hardware Actually Gives You
 
-**Venere Labs · 2026-07 · v1.0 draft**  
+**Gianluca Mazza · 2026-07 · v1.0 draft**  
 **Published:** [GitHub Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76)
 
 xllama is a UWP application that runs local LLM chat and Stable-Diffusion-class
