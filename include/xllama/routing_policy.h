@@ -142,11 +142,18 @@ inline bool kv_reuse_allowed_for_kind(const std::wstring& kind) {
     return true;
 }
 
+// DirectML-routed models are identified by catalogue naming convention
+// ("-dml-" in the model id, e.g. smollm2-360m-dml-fp16-v2). Single home for
+// the substring check: KV-reuse gating and the DML load warm-up both key on it.
+inline bool model_is_dml(const std::string& active_model) {
+    return active_model.find("dml") != std::string::npos;
+}
+
 // ORT GenAI continuous decoding (KV reuse) is CPU-only today; DirectML rejects
 // AppendTokenSequences on a persistent generator ("Continuous decoding is not
 // supported on the selected device type (DirectML)").
 inline bool kv_reuse_supported_for_model(const std::string& active_model) {
-    return active_model.find("dml") == std::string::npos;
+    return !model_is_dml(active_model);
 }
 
 } // namespace xllama
