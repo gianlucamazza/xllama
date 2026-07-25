@@ -178,17 +178,10 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
         // Size max_length from the ACTUAL prompt, clamped to the context: the old
         // fixed "n_predict + 512" headroom underflowed on long prompts (a 959-tok
         // routed turn exceeded max_length 768 before generating a single token).
-        const int derived =
-            std::min(params.n_ctx, static_cast<int>(n_prompt_tok) + params.n_predict);
-        // #130: see InferenceParams::max_length_override. Default 0 keeps the
-        // derived value, so no existing bench row changes meaning.
-        const int max_len =
-            params.max_length_override < 0
-                ? params.n_ctx
-                : (params.max_length_override > 0
-                       ? std::clamp(params.max_length_override, static_cast<int>(n_prompt_tok) + 1,
-                                    params.n_ctx)
-                       : derived);
+        // #130: full ladder lives in resolve_max_length (inference_params.h),
+        // shared with Session so the two surfaces cannot drift apart.
+        const int max_len = resolve_max_length(params.n_ctx, static_cast<int>(n_prompt_tok),
+                                               params.n_predict, params.max_length_override);
         res.max_length = max_len;
         {
             char pbuf[128];

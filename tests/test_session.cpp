@@ -3,10 +3,44 @@
 
 #include "xllama/path_utils.h"
 #include "xllama/session.h"
+#include "xllama/session_hub.h"
 
 #include <doctest/doctest.h>
 #include <filesystem>
 #include <fstream>
+
+TEST_CASE("SessionHub: failed create leaves the hub empty and bumps generation") {
+    auto& hub = xllama::session_hub();
+    std::lock_guard<std::mutex> lk(hub.mtx);
+    const uint64_t g0 = hub.generation;
+    xllama::SessionParams sp;
+    sp.model_path = "/nonexistent/hub-model.gguf";
+    std::string err;
+    CHECK(hub.ensure_locked("hub-model", sp, &err) == nullptr);
+    CHECK(hub.session == nullptr);
+    CHECK(hub.model.empty());
+    // The attempted swap must invalidate any holder's generation even though
+    // creation failed — its old session pointer is gone either way.
+    CHECK(hub.generation == g0 + 1);
+    hub.reset_locked(); // no-op when already empty
+    CHECK(hub.generation == g0 + 1);
+}
+
+TEST_CASE("resolve_max_length: the #130 ladder has one home") {
+    using xllama::resolve_max_length;
+    // override < 0: saturate to n_ctx — what Session always requests.
+    CHECK(resolve_max_length(2048, 1289, 256, -1) == 2048);
+    CHECK(resolve_max_length(3072, 10, 96, -1) == 3072);
+    // override == 0: derive min(n_ctx, prompt + n_predict) — bench default,
+    // keeps every historical row's meaning.
+    CHECK(resolve_max_length(2048, 1289, 256, 0) == 1545); // the shipping default
+                                                           // that landed in the valley
+    CHECK(resolve_max_length(2048, 1800, 512, 0) == 2048); // clamped to context
+    // override > 0: explicit, clamped to (n_prompt, n_ctx].
+    CHECK(resolve_max_length(2048, 1289, 256, 1801) == 1801);
+    CHECK(resolve_max_length(2048, 1289, 256, 100) == 1290);  // floor: prompt+1
+    CHECK(resolve_max_length(2048, 1289, 256, 9999) == 2048); // ceiling: n_ctx
+}
 
 TEST_CASE("Session::create rejects non-existent model path") {
     xllama::SessionParams sp;

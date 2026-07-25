@@ -667,23 +667,27 @@ std::string MainPageController::BuildPrompt(const std::string& user_text, int* o
             turn_starts.push_back(i);
     }
 
-    // Build prompt starting from oldest turn; drop turns if over token budget
-    auto calc_size = [&](size_t from_turn) -> int {
-        int chars = (int)m_system_prompt.size();
-        for (size_t ti = from_turn; ti < turn_starts.size(); ++ti) {
-            size_t i = turn_starts[ti];
-            chars += (int)m_current.messages[i].content.size(); // user
-            if (i + 1 < m_current.messages.size() &&
-                m_current.messages[i + 1].role == xllama::ui::MessageRole::Assistant)
-                chars += (int)m_current.messages[i + 1].content.size(); // assistant
-        }
-        chars += (int)user_text.size(); // new user message
-        return ::xllama::estimate_tokens_from_chars(static_cast<size_t>(chars));
-    };
+    // Build prompt starting from oldest turn; drop turns if over token budget.
+    // Per-turn char sizes are computed once and the running total is reduced as
+    // turns drop (the previous shape re-walked every surviving turn for each
+    // candidate — O(turns²) per prompt build).
+    std::vector<int> turn_chars(turn_starts.size(), 0);
+    long long chars =
+        static_cast<long long>(m_system_prompt.size()) + static_cast<long long>(user_text.size());
+    for (size_t ti = 0; ti < turn_starts.size(); ++ti) {
+        size_t i = turn_starts[ti];
+        int c = (int)m_current.messages[i].content.size(); // user
+        if (i + 1 < m_current.messages.size() &&
+            m_current.messages[i + 1].role == xllama::ui::MessageRole::Assistant)
+            c += (int)m_current.messages[i + 1].content.size(); // assistant
+        turn_chars[ti] = c;
+        chars += c;
+    }
 
     size_t first_turn = 0;
-    while (first_turn < turn_starts.size() && calc_size(first_turn) > kMaxEstimatedTokens)
-        ++first_turn;
+    while (first_turn < turn_starts.size() &&
+           ::xllama::estimate_tokens_from_chars(static_cast<size_t>(chars)) > kMaxEstimatedTokens)
+        chars -= turn_chars[first_turn++];
     if (first_turn > 0)
         log_output("[xllama] context trimmed: dropped " + std::to_string(first_turn) +
                    " old turn(s)\n");
@@ -708,6 +712,14 @@ std::string MainPageController::BuildPrompt(const std::string& user_text, int* o
 
 xllama::ChatFormat MainPageController::chat_format() const {
     return ::xllama::chat_format_for(::xllama::wstring_to_utf8(m_model_filename));
+}
+
+const std::vector<::xllama::ManifestEntry>& MainPageController::CachedManifest() const {
+    if (!m_manifest_cached) {
+        m_manifest_cache = ::xllama::LoadModelManifest();
+        m_manifest_cached = true;
+    }
+    return m_manifest_cache;
 }
 
 std::string MainPageController::BuildDeltaPrompt(const std::string& user_text) const {
@@ -771,6 +783,34 @@ void MainPageController::RenderConversation() {
         m_outputBody.Blocks().Append(Paragraph()); // spacing
     }
     // Prepare fresh paragraph for next assistant turn
+    m_currentParagraph = Paragraph();
+    m_outputBody.Blocks().Append(m_currentParagraph);
+    m_outputScroll.UpdateLayout();
+    m_outputScroll.ChangeView(nullptr, m_outputScroll.ScrollableHeight(), nullptr);
+}
+
+void MainPageController::FinalizeStreamedTurn(const std::string& output_text) {
+    using namespace winrt::Windows::UI::Xaml::Documents;
+    // The streamed paragraph holds the raw pieces; swap in the postprocessed
+    // text (the caller already ran postprocess_output) and attach the
+    // feedback controls. The rest of the conversation tree is untouched —
+    // the previous shape rebuilt every Paragraph/Run of the conversation
+    // after each turn, discarding what streaming had just appended.
+    if (!m_currentParagraph) {
+        RenderConversation();
+        return;
+    }
+    m_currentParagraph.Inlines().Clear();
+    Run label;
+    label.Text(L"Assistant: ");
+    label.FontWeight(winrt::Windows::UI::Text::FontWeights::Bold());
+    m_currentParagraph.Inlines().Append(label);
+    Run content;
+    content.Text(::xllama::utf8_to_wstring(output_text));
+    m_currentParagraph.Inlines().Append(content);
+    // The assistant message was just pushed onto m_current.messages.
+    AppendFeedbackControls(m_currentParagraph, m_current.messages.size() - 1);
+    m_outputBody.Blocks().Append(Paragraph()); // spacing
     m_currentParagraph = Paragraph();
     m_outputBody.Blocks().Append(m_currentParagraph);
     m_outputScroll.UpdateLayout();
@@ -1444,8 +1484,11 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
         if (new_model != self->m_model_filename) {
             self->m_model_filename = new_model;
             self->m_modelText.Text(new_model);
-            self->m_session.reset();
-            self->m_session_model.clear();
+            {
+                auto& hub = ::xllama::session_hub();
+                std::lock_guard<std::mutex> hub_lk(hub.mtx);
+                hub.reset_locked();
+            }
             self->m_kv_valid = false;
             self->m_model_ready.store(false);
             self->m_runButton.IsEnabled(false);
@@ -1562,6 +1605,7 @@ bool MainPageController::PublishPersonalizedModel(const std::string& merged_gguf
     // a full JSON rewriter; the per-entry merge means a same-name replace is
     // enough, and a one-entry override still keeps all bundled models.
     write_local_bytes(L"manifest.json", override_json);
+    InvalidateManifestCache(); // catalogue changed — StartInference reads the cache
     return true;
 }
 
@@ -1604,8 +1648,11 @@ void MainPageController::StartPersonalizeTrain() {
                       ::xllama::format_train_progress_json("prepare", 0, job.epochs, 0, 0, 0));
 
     // Free chat RSS before train (Phase 10 peak gate ~1.2 GB).
-    m_session.reset();
-    m_session_model.clear();
+    {
+        auto& hub = ::xllama::session_hub();
+        std::lock_guard<std::mutex> hub_lk(hub.mtx);
+        hub.reset_locked();
+    }
     m_kv_valid = false;
 
     m_train_abort.store(false);
@@ -1659,8 +1706,11 @@ void MainPageController::StartPersonalizeTrain() {
                     self->m_model_filename =
                         ::xllama::utf8_to_wstring(::xllama::kPersonalizedModelId);
                     self->m_modelText.Text(self->m_model_filename);
-                    self->m_session.reset();
-                    self->m_session_model.clear();
+                    {
+                        auto& hub = ::xllama::session_hub();
+                        std::lock_guard<std::mutex> hub_lk(hub.mtx);
+                        hub.reset_locked();
+                    }
                     self->m_kv_valid = false;
                     self->m_active_model.clear();
                     self->SaveSettings();
@@ -2075,6 +2125,7 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
             self->m_runButton.IsEnabled(true);
             self->m_model_ready.store(true);
             self->EnsureGpuModelIfNeeded();
+            self->PreloadSessionAsync();
         }
         co_return;
     }
@@ -2095,6 +2146,7 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                 self->m_runButton.IsEnabled(true);
                 self->m_model_ready.store(true);
                 self->EnsureGpuModelIfNeeded();
+                self->PreloadSessionAsync();
             }
             co_return;
         }
@@ -2224,6 +2276,7 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                 self->m_runButton.IsEnabled(true);
                 self->m_model_ready.store(true);
                 self->EnsureGpuModelIfNeeded();
+                self->PreloadSessionAsync();
             }
             co_return;
         }
@@ -2354,6 +2407,7 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                 self->LoadModelName();
                 self->m_model_ready.store(true);
                 self->EnsureGpuModelIfNeeded();
+                self->PreloadSessionAsync();
             }
         });
 }
@@ -2370,13 +2424,40 @@ void MainPageController::LoadModelName() {
 }
 
 // ---------------------------------------------------------------------------
-// EnsureSession: lazy-build persistent Session (hot path is a pointer check)
+// EnsureSession: lazy-build the resident Session (hot path is a name check).
+// The session lives in xllama::session_hub() — one owner shared with the LAN
+// API, so the two surfaces can no longer hold a model each ("never 2× model
+// in RAM" now holds process-wide). The CALLER must hold hub.mtx and keep it
+// held for as long as it uses m_turn_session.
 // ---------------------------------------------------------------------------
 
+void MainPageController::PreloadSessionAsync() {
+    const std::string model = ::xllama::wstring_to_utf8(m_model_filename);
+    if (model.empty())
+        return;
+    auto self = shared_from_this();
+    std::thread([self, model]() {
+        auto& hub = ::xllama::session_hub();
+        hub.preloading.store(true); // API waits briefly instead of 503-ing
+        try {
+            std::lock_guard<std::mutex> hub_lk(hub.mtx);
+            std::string err;
+            if (!self->EnsureSession(model, &err))
+                ::xllama::log_output(
+                    ("[xllama] session preload failed (non-fatal): " + err + "\n").c_str());
+        } catch (...) {
+        }
+        hub.preloading.store(false);
+    }).detach();
+}
+
 bool MainPageController::EnsureSession(const std::string& model, std::string* err_out) {
-    if (m_session && m_session_model == model)
+    auto& hub = ::xllama::session_hub();
+    if (hub.session && hub.model == model) {
+        m_turn_session = hub.session.get();
         return true;
-    m_session.reset();  // free before creating new (avoid 2× model in RAM)
+    }
+    m_turn_session = nullptr;
     m_kv_valid = false; // new session object → no reusable KV carries over
     xllama::SessionParams sp;
     sp.model_path = model;
@@ -2391,6 +2472,9 @@ bool MainPageController::EnsureSession(const std::string& model, std::string* er
     // (no extension), so Backend::Auto's suffix sniffing cannot classify it.
     // Optional catalogue `lora` (relative to model dir) enables runtime LoRA.
     {
+        // Direct load, not CachedManifest: this runs on the worker thread and
+        // the cache is UI-thread-only (no lock). Cold path anyway — a disk
+        // parse is noise next to the model load that follows.
         auto manifest = ::xllama::LoadModelManifest();
         const auto* entry = ::xllama::FindManifestEntry(manifest, ::xllama::utf8_to_wstring(model));
         if (entry && entry->kind == L"gguf") {
@@ -2409,14 +2493,13 @@ bool MainPageController::EnsureSession(const std::string& model, std::string* er
         }
     }
     std::string err;
-    auto s = xllama::Session::create(sp, &err);
+    ::xllama::Session* s = ::xllama::session_hub().ensure_locked(model, sp, &err);
     if (!s) {
         if (err_out)
             *err_out = err;
         return false;
     }
-    m_session = std::move(s);
-    m_session_model = model;
+    m_turn_session = s;
     return true;
 }
 
@@ -2479,7 +2562,9 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     // this flag.
     bool base_is_gguf = false;
     {
-        auto manifest = ::xllama::LoadModelManifest();
+        // Cached: this runs on the UI thread on every turn, and the manifest
+        // JSON only changes on a personalized-model publish (which invalidates).
+        const auto& manifest = CachedManifest();
         const auto* e = ::xllama::FindManifestEntry(manifest, m_model_filename);
         base_is_gguf = e && e->kind == L"gguf";
     }
@@ -2497,8 +2582,19 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
 
         int n_tok = 0;
         if (m_routing == 2 && !base_is_gguf) {
-            if (EnsureSession(rs.cpu_model, nullptr))
-                n_tok = m_session->count_tokens(full_prompt);
+            // Exact count only when the CPU session is already resident (a
+            // name-compare no-op). The previous shape loaded the CPU model
+            // just to tokenize — ON THE UI THREAD — and then could tear it
+            // down for the DML model (+1.2 s, uwp-constraints §5, 2786 ms vs
+            // 1570 ms). With no session resident the chars/5.0 estimator
+            // decides — the same estimator whose ceiling already bounds this
+            // prompt in BuildPrompt, so routing and trimming stay coherent.
+            // try_lock: if the hub is busy (LAN API mid-turn) fall back to the
+            // estimator rather than blocking the UI thread.
+            auto& hub = ::xllama::session_hub();
+            std::unique_lock<std::mutex> hub_lk(hub.mtx, std::try_to_lock);
+            if (hub_lk.owns_lock() && hub.session && hub.model == rs.cpu_model)
+                n_tok = hub.session->count_tokens(full_prompt);
             else
                 n_tok = ::xllama::estimate_tokens_from_chars(full_prompt.size());
         }
@@ -2576,8 +2672,21 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     xllama::ChatFormat fmt = chat_format();
 
     std::thread([self, full_prompt, delta_prompt, do_reuse, kv_reuse, ep_kv_ok, model, fmt,
-                 dispatcher]() {
+                 dispatcher]() mutable {
         try {
+            // One hub lock for the whole turn: the resident session cannot be
+            // swapped from under us (LAN API requests report busy meanwhile,
+            // exactly as they do against each other).
+            auto& hub = ::xllama::session_hub();
+            std::lock_guard<std::mutex> hub_lk(hub.mtx);
+            // The other surface may have swapped the resident model between
+            // our turns — the persistent generator the KV flag refers to is
+            // gone. Fall back to a full prefill (no user-visible failure).
+            if (do_reuse && hub.generation != self->m_hub_generation) {
+                ::xllama::log_output(
+                    "[xllama] KV reuse skipped: resident session changed between turns\n");
+                do_reuse = false;
+            }
             std::string load_err;
             if (!self->EnsureSession(model, &load_err)) {
                 dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, load_err]() {
@@ -2631,7 +2740,7 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                 gp.reset_kv = reset;
                 gp.on_status = on_status;
                 gp.on_token = on_token;
-                return self->m_session->generate(gp);
+                return self->m_turn_session->generate(gp);
             };
 
             xllama::InferenceResult res;
@@ -2649,6 +2758,11 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                 // when KV reuse is enabled, else a pure stateless turn.
                 res = run_turn(full_prompt, /*reuse=*/kv_reuse, /*reset=*/kv_reuse);
             }
+
+            // Stamp the resident-session generation this turn's KV state was
+            // built on (still under hub.mtx); the next turn's reuse check
+            // compares against it.
+            self->m_hub_generation = hub.generation;
 
             std::wstring metrics;
             if (res.success) {
@@ -2707,7 +2821,7 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                 }
                 self->SaveCurrentConversation(was_aborted);
                 if (!was_aborted && !output_text.empty())
-                    self->RenderConversation();
+                    self->FinalizeStreamedTurn(output_text);
             });
         } catch (const std::exception& ex) {
             ::xllama::log_output(std::string("[xllama] thread terminated: ") + ex.what() + "\n");
