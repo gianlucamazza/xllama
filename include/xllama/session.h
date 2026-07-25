@@ -11,6 +11,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace xllama {
@@ -77,7 +78,9 @@ struct GenerateParams {
     bool reuse_kv = false;
     bool reset_kv = false;
 
-    std::function<void(const std::string&)> on_token;
+    // on_token receives a view into a per-iteration buffer: copy it before
+    // the callback returns.
+    std::function<void(std::string_view)> on_token;
     std::function<void(const std::string&)> on_status;
     std::atomic<bool>* abort_flag = nullptr;
 };

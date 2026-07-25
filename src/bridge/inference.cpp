@@ -349,7 +349,7 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
                 if (piece && *piece) {
                     res.output_text += piece;
                     if (params.on_token)
-                        params.on_token(std::string(piece));
+                        params.on_token(std::string_view(piece));
                 }
             }
             ++n_generated;
@@ -595,9 +595,11 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
             buf[len] = '\0';
             res.output_text += buf;
             if (params.on_token)
-                params.on_token(std::string(buf, static_cast<size_t>(len)));
-            std::fputs(buf, stdout);
-            std::fflush(stdout);
+                params.on_token(std::string_view(buf, static_cast<size_t>(len)));
+            if (params.echo_stdout) {
+                std::fputs(buf, stdout);
+                std::fflush(stdout);
+            }
         }
 
         // Stop strings (e.g. Gemma's <end_of_turn>, not an EOG token in every
@@ -619,7 +621,8 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         ++n_generated;
     }
 
-    std::fputc('\n', stdout);
+    if (params.echo_stdout)
+        std::fputc('\n', stdout);
 
     const double gen_ms =
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_gen0)

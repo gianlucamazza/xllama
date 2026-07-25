@@ -16,6 +16,7 @@
 
 int main(int argc, char** argv) {
     xllama::InferenceParams params;
+    params.echo_stdout = true; // interactive CLI streams pieces as they decode
     if (!xllama::parse_cli_args(argc, argv, params))
         return 1;
 

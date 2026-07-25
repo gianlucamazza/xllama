@@ -156,7 +156,7 @@ class OrtSession final : public Session {
                 if (piece && *piece) {
                     res.output_text += piece;
                     if (gp.on_token)
-                        gp.on_token(std::string(piece));
+                        gp.on_token(std::string_view(piece));
                 }
             }
             ++n_generated;
@@ -508,7 +508,7 @@ class LlamaSession final : public Session {
                 buf[len] = '\0';
                 res.output_text += buf;
                 if (gp.on_token)
-                    gp.on_token(std::string(buf, static_cast<size_t>(len)));
+                    gp.on_token(std::string_view(buf, static_cast<size_t>(len)));
             }
 
             // Stop sequences (shared suffix-match helper).
