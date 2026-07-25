@@ -7,6 +7,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Performance
+
+- **GGUF prefill +62% on console (PR #155).** `uwp/ggml-uwp.vcxproj` compiled
+  `repack.cpp` but never defined `GGML_USE_CPU_REPACK`, so the repacked-weight
+  GEMM path (Q4_0/Q4_K/Q8_0/IQ4_NL) was dead code on Xbox. With it enabled,
+  `lfm25-350m` (Q4_K_M) prefill goes 241.9 → 393.2 tok/s at P=298 and
+  238.8 → 387.5 at P=1000, decode and RAM unchanged, model load faster
+  (`bench/results/phase13-repack-{before,after}.csv`, builds 674/675).
+  Same PR makes the Linux ISA flags real: the `LLAMA_AVX2/F16C/FMA` spellings
+  were inert (no deprecation mapping), so ggml silently built `-march=native`;
+  the CI artifact is now genuinely portable AVX2 (`XLLAMA_NATIVE_OPT` opts back
+  into host tuning).
+- **DirectML sessions warm up at load (#130, PR #158).** The first generate in
+  a process paid a large lazy-compilation cost — measured on the LAN-API path:
+  turn-1 5.90 s vs turn-2 1.77 s for the same 960-token request, decode
+  18.2 → 23.1 tok/s. `create_ort` now runs a throwaway real-length generate
+  inside the "loading model" phase (`SessionParams::dml_warmup`). Session logs
+  now include per-turn prefill rate (was decode-only, hiding TTFT).
+- **Hot-loop cleanups (PR #157).** Per-token `fputs`+`fflush(stdout)` removed
+  from non-CLI builds (`InferenceParams::echo_stdout`); `on_token` takes
+  `std::string_view` (no per-token heap string); UNet loop hoists the constant
+  `encoder_hidden_states` fp16 conversion and reuses step buffers.
+- **CPU threads sweep evidence (`phase12b-threads-sweep.csv`).** t6 prefill
+  +4.4/+4.7/+6.1% at P=39/285/960, decode neutral within session drift, t4 ≈
+  unset. Asset republish decision tracked in ROADMAP.
+
 ### Changed
 
 - **Documentation sync for Phase 11 / #118 and SSOT practices.** `docs/README.md`

@@ -85,6 +85,11 @@ GGUF thread default: llama.cpp auto-detect is capped at **6** on console
   3 runs each, closing control) confirming 6 wins across the range, ideally
   bundled with the next models-v1 republish for another reason. Until then the
   device runs the ORT default and this recommendation stays doc-only.
+  **2026-07-25 — the sweep ran** (§5f addendum,
+  `bench/results/phase12b-threads-sweep.csv`): t6 prefill **+4.4/+4.7/+6.1%**
+  at P=39/285/960, decode neutral within the closing-control drift, t4 ≈ unset.
+  The gain is confirmed but smaller than the single-length +8.5%; the republish
+  remains a deliberate release decision.
 - `past_present_share_buffer: true` (required for KV reuse)
 
 **DML fp16 (routing)** — [`bench/configs/genai_config-dml-test.json`](../bench/configs/genai_config-dml-test.json):
