@@ -8,6 +8,7 @@
 #include <atomic>
 #include <functional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace xllama {
@@ -100,9 +101,14 @@ struct InferenceParams {
     std::string train_job_path;
 
     // UI callbacks (optional). Called from the inference thread — must marshal
-    // to the UI thread before touching XAML controls.
+    // to the UI thread before touching XAML controls. on_token receives a view
+    // into a per-iteration buffer: copy it before the callback returns.
     std::function<void(const std::string&)> on_status; // e.g. "loading model"
-    std::function<void(const std::string&)> on_token;  // per-token text piece
+    std::function<void(std::string_view)> on_token;    // per-token text piece
+
+    // Stream generated pieces to stdout (interactive CLI). Off by default so
+    // the UWP unified build's bench path pays no per-token write+flush.
+    bool echo_stdout = false;
 
     // Set to true from the UI thread to request early termination.
     std::atomic<bool>* abort_flag = nullptr;

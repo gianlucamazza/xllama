@@ -97,18 +97,26 @@ Ort::MemoryInfo cpu_mem() {
     return Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU);
 }
 
-// Read a run output (index 0) into a float vector, converting from fp16 or fp32.
-std::vector<float> read_output_f32(Ort::Value& v) {
+// Read a run output into the caller's float buffer (reused across UNet steps),
+// converting from fp16 or fp32.
+void read_output_f32_into(Ort::Value& v, std::vector<float>& out) {
     auto info = v.GetTensorTypeAndShapeInfo();
     const size_t n = info.GetElementCount();
-    std::vector<float> out(n);
+    out.resize(n);
     if (info.GetElementType() == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16) {
         const auto* p = reinterpret_cast<const uint16_t*>(v.GetTensorData<Ort::Float16_t>());
-        out = from_half(p, n);
+        for (size_t i = 0; i < n; ++i)
+            out[i] = diffusion::half_to_float(p[i]);
     } else {
         const float* p = v.GetTensorData<float>();
         std::copy(p, p + n, out.begin());
     }
+}
+
+// Read a run output (index 0) into a float vector, converting from fp16 or fp32.
+std::vector<float> read_output_f32(Ort::Value& v) {
+    std::vector<float> out;
+    read_output_f32_into(v, out);
     return out;
 }
 
@@ -316,6 +324,15 @@ void run_diffuse() {
                        std::to_string(hidden_dim) + ", ts rank " + std::to_string(ts_rank) +
                        ", te+unet load " + std::to_string((int)ms_since(t_load0)) + " ms\n");
 
+            // encoder_hidden_states is constant across steps: convert to fp16
+            // once; each step only wraps these buffers in a zero-copy tensor.
+            std::vector<uint16_t> hs_f16;
+            if (unet_fp16)
+                hs_f16 = to_half(hidden);
+            std::vector<float> scaled;        // reused across steps
+            std::vector<uint16_t> scaled_f16; // reused when unet_fp16
+            std::vector<float> noise;         // reused across steps
+
             for (size_t s = 0; s < sched.timesteps().size(); ++s) {
                 const std::string step_label =
                     std::to_string(s + 1) + "/" + std::to_string(sched.timesteps().size());
@@ -326,12 +343,27 @@ void run_diffuse() {
                 }
                 write_progress("unet " + step_label);
                 // scale_model_input on a copy (UNet sees the scaled latent).
-                std::vector<float> scaled = latent;
+                scaled = latent;
                 sched.scale_model_input(scaled);
-                FloatInput u_sample = make_float_input(mem, std::move(scaled), s_shape.data(),
-                                                       s_shape.size(), unet_fp16);
-                FloatInput u_hs =
-                    make_float_input(mem, hidden, h_shape.data(), h_shape.size(), unet_fp16);
+                Ort::Value u_sample{nullptr};
+                if (unet_fp16) {
+                    scaled_f16.resize(scaled.size());
+                    for (size_t i = 0; i < scaled.size(); ++i)
+                        scaled_f16[i] = diffusion::float_to_half(scaled[i]);
+                    u_sample = Ort::Value::CreateTensor(
+                        mem, scaled_f16.data(), scaled_f16.size() * sizeof(uint16_t),
+                        s_shape.data(), s_shape.size(), ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16);
+                } else {
+                    u_sample = Ort::Value::CreateTensor<float>(mem, scaled.data(), scaled.size(),
+                                                               s_shape.data(), s_shape.size());
+                }
+                Ort::Value u_hs =
+                    unet_fp16 ? Ort::Value::CreateTensor(mem, hs_f16.data(),
+                                                         hs_f16.size() * sizeof(uint16_t),
+                                                         h_shape.data(), h_shape.size(),
+                                                         ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16)
+                              : Ort::Value::CreateTensor<float>(mem, hidden.data(), hidden.size(),
+                                                                h_shape.data(), h_shape.size());
                 const double ts_val = sched.timesteps()[s];
                 int64_t ts_i64 = (int64_t)ts_val;
                 float ts_f32 = (float)ts_val;
@@ -348,15 +380,14 @@ void run_diffuse() {
                         Ort::Value::CreateTensor<int64_t>(mem, &ts_i64, 1, t_shape.data(), ts_rank);
                 }
 
-                Ort::Value u_ins[] = {std::move(u_sample.value), std::move(u_ts),
-                                      std::move(u_hs.value)};
+                Ort::Value u_ins[] = {std::move(u_sample), std::move(u_ts), std::move(u_hs)};
                 const char* u_in_names[] = {"sample", "timestep", "encoder_hidden_states"};
                 const char* u_out_names[] = {"out_sample"};
                 auto t_u0 = std::chrono::steady_clock::now();
                 auto u_out =
                     unet.Run(Ort::RunOptions{nullptr}, u_in_names, u_ins, 3, u_out_names, 1);
                 unet_ms += ms_since(t_u0);
-                std::vector<float> noise = read_output_f32(u_out[0]); // epsilon [1,4,64,64]
+                read_output_f32_into(u_out[0], noise); // epsilon [1,4,64,64]
 
                 sched.step(noise, latent); // latent <- previous sample
             }

@@ -2600,7 +2600,7 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                                     [self, ws, k]() { self->SetStatus(ws, k); });
             };
             // Token accumulation — no per-token RunAsync dispatch (batched by flush timer)
-            auto on_token = [self](const std::string& tok) {
+            auto on_token = [self](std::string_view tok) {
                 // Stamp prefill-end on the first token — the only place that
                 // knows when the model stopped reading and started writing.
                 // This runs on the inference thread; FlushTokenBuffer reads the
