@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.5.0.0] - 2026-07-26
+
 ### Performance
 
 - **GGUF prefill +62% on console (PR #155).** `uwp/ggml-uwp.vcxproj` compiled
