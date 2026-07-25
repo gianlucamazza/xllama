@@ -6,9 +6,11 @@
        Compiled from the llama.cpp submodule sources (patched via
        scripts/apply-uwp-patches.sh — three desktop-only APIs guarded, see
        patches/README.md). No dynamic backend loading (the CPU backend is
-       registered statically via GGML_USE_CPU), no CUDA/Metal/DML — this is the
-       llama.cpp CPU A/B lane (ROADMAP Phase 3.5), built only when the app
-       project is invoked with /p:XllamaBackend=llamacpp.
+       registered statically via GGML_USE_CPU, with the repacked-weight GEMM
+       path enabled via GGML_USE_CPU_REPACK — covers Q4_0/Q4_K/Q8_0/IQ4_NL),
+       no CUDA/Metal/DML — this is the llama.cpp CPU A/B lane (ROADMAP Phase
+       3.5), built only when the app project is invoked with
+       /p:XllamaBackend=llamacpp.
        ===================================================================== -->
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -66,6 +68,7 @@
         WIN32_LEAN_AND_MEAN;
         _CRT_SECURE_NO_WARNINGS;
         GGML_USE_CPU;
+        GGML_USE_CPU_REPACK;
         GGML_STATIC;
         GGML_VERSION=&quot;uwp-static&quot;;
         GGML_COMMIT=&quot;9a532ae4b&quot;;
