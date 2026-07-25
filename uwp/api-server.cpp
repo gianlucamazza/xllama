@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Venere Labs
+// Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 //
 // LAN HTTP endpoint (OpenAI-compatible) — implementation. UWP-only.

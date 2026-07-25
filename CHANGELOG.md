@@ -35,6 +35,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **BREAKING (package identity): rebrand Venere Labs → Gianluca Mazza.**
+  `AppxManifest.xml` `Identity Name` changes `VenereLabs.xllama` →
+  `GianlucaMazza.xllama` (version bumped to 1.5.0.0), so the
+  PackageFamilyName becomes `GianlucaMazza.xllama_pj67f1fcj4n14` and
+  Windows/Xbox treats this as a **new app**: no in-place update from ≤ 1.4.x,
+  and the old package's `LocalState` (downloaded models, training output, chat
+  history) does not carry over. Migration: uninstall the old app and
+  re-download models on first launch. `deploy.sh` and
+  `install-latest-build.sh` recognize both identities during the transition;
+  copyright headers, `LICENSE`, README maintainer, and
+  `PublisherDisplayName` now read "Gianluca Mazza". The signing identity
+  (`Publisher="CN=xllama-dev"`) is unchanged, so the existing trust
+  certificate keeps working.
 - **Documentation sync for Phase 11 / #118 and SSOT practices.** `docs/README.md`
   states ownership principles; `architecture.md`, `training-architecture.md` §11,
   `using-the-app.md`, `api-endpoint.md`, `training/README.md`, root `README.md`,

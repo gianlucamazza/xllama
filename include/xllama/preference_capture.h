@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Venere Labs
+// Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 // Preference capture — LocalState training samples for host retrain (hybrid loop).
 // Pure helpers (no WinRT) so host unit tests cover formatting.

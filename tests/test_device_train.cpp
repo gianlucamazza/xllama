@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Venere Labs
+// Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 // Lane B engine unit tests (no model needed). The full pipeline is exercised
 // by scripts/validate-console-training.sh device-train against a real GGUF.

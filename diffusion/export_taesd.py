@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2024 Venere Labs
+# Copyright (c) 2024 Gianluca Mazza
 # SPDX-License-Identifier: MIT
 #
 # Export the TAESD tiny decoder (madebyollin/taesd, MIT) as a drop-in

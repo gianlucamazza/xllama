@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Venere Labs
+// Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 // Internal: the llama.cpp sampler chain, assembled in exactly one place.
 // Needs llama.h, so it stays out of the public include/ tree.

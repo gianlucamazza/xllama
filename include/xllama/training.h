@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Venere Labs
+// Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 // Training pillar API — job validation, stage vocabulary, device gates.
 // Execution: lora_peft runs in training/host (Python); partial_ft runs

@@ -13,9 +13,9 @@
        -BuildRevision) so every build is uniquely, monotonically versioned and
        the console always accepts an in-place update. Local builds keep .0. -->
   <Identity
-    Name="VenereLabs.xllama"
+    Name="GianlucaMazza.xllama"
     Publisher="CN=xllama-dev"
-    Version="1.4.0.0"
+    Version="1.5.0.0"
     ProcessorArchitecture="x64" />
 
   <mp:PhoneIdentity
@@ -24,7 +24,7 @@
 
   <Properties>
     <DisplayName>xllama</DisplayName>
-    <PublisherDisplayName>Venere Labs</PublisherDisplayName>
+    <PublisherDisplayName>Gianluca Mazza</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 

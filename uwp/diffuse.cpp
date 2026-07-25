@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Venere Labs
+// Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 // Diffusion image generation: plain ONNX Runtime DirectML, three sessions
 // (text_encoder + UNet + VAE decoder) driven by the host-validated CLIP tokenizer

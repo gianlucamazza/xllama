@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Venere Labs
+// Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 //
 // Logit-parity regression: re-runs the llama.cpp backend on a fixed prompt and

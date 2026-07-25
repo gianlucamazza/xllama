@@ -120,7 +120,7 @@ def main() -> int:
     if not ver:
         err("AppxManifest Version missing")
     else:
-        if ver.group(1) != "1.4.0":
+        if ver.group(1) != "1.5.0":
             warn(f"Appx semantic {ver.group(1)} (ROADMAP may need bump)")
         good(f"Appx Version={ver.group(0)}")
 
