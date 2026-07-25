@@ -46,9 +46,22 @@ source ~/.config/xllama/xbox-env
 
 Notes:
 
-- **Upgrades**: a higher version installs over the old one and **preserves**
-  LocalState (models, settings, history). WDP refuses a same-version install
-  with different contents.
+- **Upgrades within the same identity**: a higher version installs over the
+  old one and **preserves** LocalState (models, settings, history). WDP
+  refuses a same-version install with different contents.
+- ⚠️ **Upgrading from ≤1.4.x to 1.5.0.0 is NOT an in-place update.** 1.5.0.0
+  changed the package identity (`VenereLabs.xllama` → `GianlucaMazza.xllama`):
+  it installs as a **new app**, and the old app's LocalState — downloaded
+  models, chat history, settings, training output — does **not** carry over.
+  Migration steps:
+  1. Install 1.5.0.0 (this section) — the old app can stay during the switch.
+  2. **Launch the new app once** (`./scripts/deploy.sh start-app`) — its
+     LocalState does not exist until first launch, and model provisioning
+     fails without it (`"File move failed"`).
+  3. Re-provision models: in-app download, or
+     `./scripts/provision-models.sh --all-test` from a host.
+  4. When the new app works, uninstall the old `VenereLabs.xllama` package
+     (Dev Home, or WDP `DELETE /api/app/packagemanager/package`).
 - After (re)installs, check the **App type** in Dev Home (tile → View details):
   the measured performance figures assume the **Game** designation
   (`uwp-constraints.md §5`).

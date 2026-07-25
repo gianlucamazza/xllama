@@ -74,12 +74,12 @@ and llama.cpp (GGUF, CPU).
 
 ## Reference: tested models
 
-| Model                          | On-disk (merged) | CPU EP                               | DirectML EP                                      | Notes                                                                                                                                 |
-| ------------------------------ | ---------------- | ------------------------------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| SmolLM2-360M-Instruct INT4 CPU | ~421 MB          | ✅ ORT baseline (**68.0** tok/s, `benchmarks.md`) | ❌ `80070057` (CPU-int4 graph in DML fused node) | ORT-only default; size from `manifest.json` `approx_bytes`                                                                   |
-| SmolLM2-360M-Instruct INT4 DML | 285 MB           | —                                    | ⚠️ **8.8 tok/s** but wrong logits (#91)          | Built with ORT GenAI model builder (`-p int4 -e dml`); CPU ~8× faster — and DML text output is numerically wrong on this device (#91) |
-| SmolLM2-1.7B-Instruct INT4 CPU | 1.4 GB           | ✅ in-app (`models-v1` catalogue)    | —                                                | Console: 20.6 tok/s decode, peak 2423 MB (`phase35-1b-cpu.csv`); also USB/LocalState                                                  |
-| Phi-3.5-mini Q3_K_S (GGUF)     | 1.68 GB          | ✅ H4 A/B (11.3 tok/s, 2453 MB)      | —                                                | Loses speed+RAM vs Llama-3.2-3B Q3; **not** catalogue (`phase7-scale.csv`)                                                            |
+| Model                          | On-disk (merged) | CPU EP                                            | DirectML EP                                      | Notes                                                                                                                                 |
+| ------------------------------ | ---------------- | ------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| SmolLM2-360M-Instruct INT4 CPU | ~421 MB          | ✅ ORT baseline (**74.8** tok/s with the shipped t6 asset, `benchmarks.md`) | ❌ `80070057` (CPU-int4 graph in DML fused node) | ORT-only default; size from `manifest.json` `approx_bytes`                                                                            |
+| SmolLM2-360M-Instruct INT4 DML | 285 MB           | —                                                 | ⚠️ **8.8 tok/s** but wrong logits (#91)          | Built with ORT GenAI model builder (`-p int4 -e dml`); CPU ~8× faster — and DML text output is numerically wrong on this device (#91) |
+| SmolLM2-1.7B-Instruct INT4 CPU | 1.4 GB           | ✅ in-app (`models-v1` catalogue)                 | —                                                | Console: 20.6 tok/s decode, peak 2423 MB (`phase35-1b-cpu.csv`); also USB/LocalState                                                  |
+| Phi-3.5-mini Q3_K_S (GGUF)     | 1.68 GB          | ✅ H4 A/B (11.3 tok/s, 2453 MB)                   | —                                                | Loses speed+RAM vs Llama-3.2-3B Q3; **not** catalogue (`phase7-scale.csv`)                                                            |
 
 ## Historical ONNX candidate survey
 
@@ -269,8 +269,11 @@ gets the right template with zero per-model code.
 - ✅ **The ~2 GB Dev Mode per-file limit does not apply to GGUF** — a >2 GB single
   `.gguf` loads with no OOM under the Game budget.
 - ✅ **Generates coherently** and stops on `<end_of_turn>`.
-- ⚠️ **Load is slow** (a few seconds; the CPU load is repack-bound, not
-  file-read-bound — mmap does not help, see `benchmarks.md`).
+- ⚠️ **Load is slow** (a few seconds). ⚠️ The old "load is repack-bound"
+  attribution predates PR #155: the repack path was dead code on Xbox when it
+  was measured, and enabling it made loads _faster_ (lfm25: 1645→1284 ms,
+  `phase13-repack-{before,after}.csv`) — the mmap conclusion (no benefit)
+  still stands, the mechanism story does not.
 - The catalogue default is **Q3_K_S (2.45 GB)**, not the smaller 2-bit UD-IQ2_M:
   IQ2_M collapsed to an immediate EOG on long declarative prompts, which Q3_K_S
   fixes (and it decodes faster). Details in `benchmarks.md` root-cause notes.

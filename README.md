@@ -52,7 +52,8 @@ launch; MSIX ships no model). ORT-only builds still default to SmolLM2-360M INT4
 Throughput and RAM figures: [docs/benchmarks.md](./docs/benchmarks.md).
 
 The LAN endpoint is experimental, unauthenticated, foreground-only and disabled
-by default. Preference samples stay in the AppContainer until the operator pulls
+by default; it shares the one loaded model with the chat UI (single
+process-wide session owner — a request during a chat turn gets "busy"). Preference samples stay in the AppContainer until the operator pulls
 them for host PEFT **or** the user runs **Settings → Train on my feedback**
 (Phase 11): an in-process Lane B `partial_ft` that publishes a `personalized`
 GGUF to the model picker (code complete; needs a base f16 GGUF on device).
@@ -69,6 +70,11 @@ This is a research-grade hobby project. "Xbox" is a Microsoft trademark; this pr
 ## Quick Start
 
 **Requirements**: Xbox Series S or X in Dev Mode (one-time ~$19 activation), Linux or Windows host.
+
+> ⚠️ **Upgrading from ≤1.4.x?** 1.5.0.0 changed the package identity
+> (`VenereLabs.xllama` → `GianlucaMazza.xllama`): it installs as a new app and
+> models/history do not carry over — see the migration steps in
+> [docs/install-release.md](./docs/install-release.md).
 
 ```bash
 # 1. Get the pre-built MSIX from the latest CI release
@@ -262,13 +268,13 @@ first launch downloads the default chat model. Roles and how to add a model:
 [docs/recommended-config.md](./docs/recommended-config.md). **Performance
 numbers:** [docs/benchmarks.md](./docs/benchmarks.md) only.
 
-| Role | Catalogue id (headline) |
-| ---- | ----------------------- |
-| Default chat (unified) | `lfm25-350m` |
-| Balanced / quality chat | `lfm25-1.2b-instruct`, `lfm2-2.6b` |
-| ORT CPU / DML routing base | `smollm2-360m-cpu-int4`, `smollm2-360m-dml-fp16-v2` |
-| Image gen | `sd-turbo-fp16` |
-| Personalized (after on-device train) | `personalized` (LocalState override) |
+| Role                                 | Catalogue id (headline)                             |
+| ------------------------------------ | --------------------------------------------------- |
+| Default chat (unified)               | `lfm25-350m`                                        |
+| Balanced / quality chat              | `lfm25-1.2b-instruct`, `lfm2-2.6b`                  |
+| ORT CPU / DML routing base           | `smollm2-360m-cpu-int4`, `smollm2-360m-dml-fp16-v2` |
+| Image gen                            | `sd-turbo-fp16`                                     |
+| Personalized (after on-device train) | `personalized` (LocalState override)                |
 
 Hardware and AppContainer limits: [docs/uwp-constraints.md](./docs/uwp-constraints.md).
 
@@ -276,10 +282,10 @@ Hardware and AppContainer limits: [docs/uwp-constraints.md](./docs/uwp-constrain
 
 ## Training and personalization
 
-- **Lane A** — host PEFT LoRA → merged GGUF  
-- **Lane B** — on-device last-block `partial_ft` (available; host + console gates PASS)  
-- **Lane C** — serve merged GGUF / runtime LoRA  
-- **Preferences** — Like/Dislike/Correct → `training/samples.jsonl`  
+- **Lane A** — host PEFT LoRA → merged GGUF
+- **Lane B** — on-device last-block `partial_ft` (available; host + console gates PASS)
+- **Lane C** — serve merged GGUF / runtime LoRA
+- **Preferences** — Like/Dislike/Correct → `training/samples.jsonl`
 - **Phase 11 UI** — Settings → **Train on my feedback** → catalogue id `personalized`
 
 Contracts and RE matrix: [docs/training-architecture.md](./docs/training-architecture.md)
@@ -306,9 +312,11 @@ Headlines only — full constraints SSOT is
 ## Roadmap
 
 Current work and open items: **[ROADMAP.md](./ROADMAP.md)**. Release history:
-[CHANGELOG.md](./CHANGELOG.md). Phases 1–11 product code is complete; remaining
-items are console re-measurement, optional config ships, #130 mechanism work,
-and upstream pin drops.
+[CHANGELOG.md](./CHANGELOG.md). Phases 1–11 product code is complete; the
+2026-07-25 performance campaign shipped GGUF prefill +62% (repack), the
+threads-6 CPU asset, DML warm-up + session pre-load and a single process-wide
+session owner. Remaining items are the #130 root-cause profile and upstream
+pin drops.
 
 ---
 

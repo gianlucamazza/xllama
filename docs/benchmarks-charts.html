@@ -258,10 +258,10 @@
     "model": "LFM2.5-350M",
     "quant": "Q4_K_M",
     "be": "llama",
-    "prefill": 241.4,
-    "decode": 94.23,
-    "ram": 321,
-    "src": "phase5-gguf"
+    "prefill": 394.84,
+    "decode": 92.97,
+    "ram": 320,
+    "src": "phase13-repack-after"
   },
   {
     "model": "Gemma-3-270M",
@@ -276,10 +276,10 @@
     "model": "SmolLM2-360M",
     "quant": "int4",
     "be": "ort",
-    "prefill": 219.78,
-    "decode": 68.04,
-    "ram": 722,
-    "src": "phase2-dml",
+    "prefill": 262.39,
+    "decode": 74.76,
+    "ram": 708,
+    "src": "t6-shipped-confirm",
     "tag": "shipping control"
   },
   {
@@ -420,7 +420,7 @@
   }
 ];
   const MAX_KV_REUSE = 20.02;
-  const LATEST_RUN = "2026-07-19";
+  const LATEST_RUN = "2026-07-25";
   // END GENERATED BENCHMARK DATA
   const METRICS = {
     decode:  { label: "Decode", unit: "tok/s", cap: "Generation throughput — the rate a user feels. Higher is better.", better: "high" },

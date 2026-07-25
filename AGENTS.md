@@ -24,6 +24,7 @@ xllama/
 │   ├── routing_policy.h     # routing decision + prompt budget (threshold must stay under it)
 │   ├── sampling.h           # sampling defaults shared by CLI/bench and GUI/API
 │   ├── session.h            # xllama::Session API (persistent model across turns)
+│   ├── session_hub.h        # SessionHub: the ONE process-wide resident-Session owner (GUI+API)
 │   ├── ort_raii.h           # RAII unique_ptr for OGA* types (UWP/ORT GenAI path)
 │   ├── llama_raii.h         # RAII unique_ptr for llama_* types (Linux path)
 │   ├── cli.h                # parse_cli_args (Linux)
@@ -116,6 +117,10 @@ component) is stamped automatically in CI to the workflow run number
 workflows), so every CI package is uniquely and monotonically versioned and the
 console always takes an **in-place update** — no manual per-build bump, and never
 the "same identity, different contents" install block. Local builds leave `.0`.
+Exception: **1.5.0.0 changed the `Identity Name` itself** (`VenereLabs.xllama`
+→ `GianlucaMazza.xllama`) — across that boundary there is no in-place update
+(new app, fresh LocalState; `deploy.sh` keeps `APP_ID_LEGACY` for the
+transition; migration steps in `docs/install-release.md`).
 
 ## Tests
 

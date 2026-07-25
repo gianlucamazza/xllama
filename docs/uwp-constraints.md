@@ -11,7 +11,7 @@ Platform limitations relevant to running LLM inference on Xbox Dev Mode, and how
 
 **Problem**: `mmap()` is unavailable in the UWP sandbox.
 
-**Status**: Not an issue for the ORT GenAI path — ORT loads the model internally using Win32 file APIs compatible with UWP. For the GGUF/llama.cpp path the `patches/0001` guards disable the desktop-only `_WIN32` mmap on the AppContainer, so GGUF weights are read into the heap (buffered). Enabling an AppContainer mmap via `CreateFileMappingFromApp`/`MapViewOfFileFromApp` was **tried and reverted (2026-07-14): no benefit** — the CPU GGUF load is dominated by the AVX2 tensor repack, not the file read (full analysis in [`benchmarks.md`](benchmarks.md) → root-cause notes).
+**Status**: Not an issue for the ORT GenAI path — ORT loads the model internally using Win32 file APIs compatible with UWP. For the GGUF/llama.cpp path the `patches/0001` guards disable the desktop-only `_WIN32` mmap on the AppContainer, so GGUF weights are read into the heap (buffered). Enabling an AppContainer mmap via `CreateFileMappingFromApp`/`MapViewOfFileFromApp` was **tried and reverted (2026-07-14): no benefit**. ⚠️ The original attribution — "load is dominated by the AVX2 tensor repack" — predates PR #155: the repack path was dead code on Xbox at the time, and actually enabling it made loads _faster_ (lfm25 1645→1284 ms, `phase13-repack-{before,after}.csv`). The mmap conclusion (no benefit) stands on its own measurement; the mechanism claim does not.
 
 ## 2. Sandboxed Filesystem
 
@@ -250,10 +250,14 @@ Read as TTFT, the two backends do not compete — they own different turns.
 Three things the earlier criterion left out, all measured 2026-07-21
 (`bench/results/phase12-threshold-rederivation.csv`, `phase12-kv-reuse.csv`):
 
-1. **Asymmetric model load.** `EnsureSession` keeps one session (`avoid 2× model
-in RAM`, and the working sets confirm it: 1303 + 2869 MB do not coexist). A
-   GPU-routed turn loads the CPU model to tokenize, then destroys it to load
-   DirectML: 2786 ms against 1570 ms.
+1. **Asymmetric model load** _(historical — eliminated by PR #161)_. At
+   measurement time `EnsureSession` kept one session (`avoid 2× model in RAM`,
+   and the working sets confirm it: 1303 + 2869 MB do not coexist) and a
+   GPU-routed turn loaded the CPU model to tokenize, then destroyed it to load
+   DirectML: 2786 ms against 1570 ms. Since PR #161 the routing count never
+   loads a model (resident-session count or chars/5.0 estimator), so this term
+   of the criterion no longer applies to current builds; the ownership moved
+   to the process-wide `session_hub()` (PR #164).
 2. **DirectML still rejects continuous decoding.** Verified, not assumed:
    `prefill2_reuse_ms = 0.0`, `n_p2_reuse = 0`. So it re-prefills the whole
    context every turn while the CPU reuses its KV — 68.8× on the measured turn 2.
@@ -293,8 +297,10 @@ the process:
 
 Strong evidence for lazy kernel compilation on first use, which is the standing
 hypothesis for the §5c valley. Two consequences: **every DirectML prefill figure
-in this repo is a cold-process number**, and the app pays it once per model load,
-not once per turn.
+in `bench/results/` is a cold-process number** (the bench path bypasses
+`Session` and never warms), and the app pays the cost once per model load, not
+once per turn — since PR #158+#164 that load-time cost is paid by the warm-up
+during pre-load, so **in-app turns run at the warm regime**.
 
 **2026-07-25 addendum (PR #158).** Re-measured on the Session/LAN-API path
 (960-token request, same process, build 1.4.0.675): turn-1 5.90 s vs turn-2
@@ -310,15 +316,14 @@ prompt and 3 generate steps; compilation is at least coarsely shape-dependent.
 **Validated (build 680):** warm-up 2034 ms at load; turn-1 prefill 867 tok/s
 (97% of the 898 warm rate) and decode 23.3 (full parity).
 
-**Scope of the win, stated honestly:** both the GUI and the LAN API create the
-session _lazily on the first turn_, so today the warm-up moves the cost inside
-the same perceived wait (turn-1 wall 6.69 s with warm-up vs 5.90 s without —
-the throwaway generate adds ~1 s of real work). What it buys now is a clean
-first-turn _generation_ (prefill 1409 → 1108 ms, decode at parity, and the
-in-UI TTFT metric reflects it); what makes it a genuine wall-clock win is
-decoupling session creation from the first turn (pre-load at model selection /
-API listener start) — tracked as the session-ownership item in the Phase C
-structural work.
+**Scope of the win** _(updated — the caveat below resolved the same day)_: at
+first cut both surfaces created the session _lazily on the first turn_, so the
+warm-up only moved the cost inside the same perceived wait (turn-1 wall 6.69 s
+with warm-up vs 5.90 s without). **PR #164 closed exactly that gap**: sessions
+now pre-load when a model becomes Ready (`PreloadSessionAsync`), so load +
+warm-up run before the user's first send and the first turn pays
+prefill+decode only — confirmed on-console after the 1.5.0.0 migration (first
+DML request: prefill 873 tok/s on 961 tok, decode 23.4, both at warm parity).
 
 ### §5f — CPU threading: prefill does not scale, and t8 is worse than recorded (2026-07-21)
 

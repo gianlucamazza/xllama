@@ -5,22 +5,30 @@ performance belongs in `docs/benchmarks.md`.
 
 ## Current product state
 
-- Latest published release: **v1.4.0.0** (MSIX 1.4.0.588 — GPU text routing
-  re-enabled on the `-v2` DML asset, #91 root cause fixed).
+- Current manifest: **1.5.0.0** under the new **`GianlucaMazza.xllama`**
+  identity (PR #163 — breaking: no in-place update from ≤1.4.x, see
+  `docs/install-release.md`). Latest tagged release remains v1.4.0.0; the
+  1.5.0.x delta (2026-07-25 perf campaign + rebrand, PR #155-#165) is
+  unreleased but console-validated (all gates PASS on 1.5.0.698).
 - Shipping artifact: unified ORT GenAI + llama.cpp, with pinned patched runtime
-  DLLs while upstream fixes have not reached NuGet.
+  DLLs while upstream fixes have not reached NuGet. The UWP ggml build now
+  enables `GGML_USE_CPU_REPACK` (PR #155): **GGUF prefill +62%** on Q4_K.
 - Default chat: `lfm25-350m`; balanced and quality tiers: LFM2.5-1.2B and
-  LFM2-2.6B.
+  LFM2-2.6B. The models-v1 CPU asset ships `intra_op_num_threads: 6`
+  (confirmed on-device, `bench/results/t6-shipped-confirm.csv`).
 - Text DML routing re-enabled for the parity-validated
   `smollm2-360m-dml-fp16-v2` asset (#91 root cause: broken DML RMSNorm kernel,
   fixed by graph decomposition — `docs/dml-rmsnorm-fix-runbook.md`); CPU still
   serves decode and short prompts, DirectML serves long-prompt prefill and
-  diffusion.
+  diffusion — DML sessions warm up at load and pre-load at model-Ready
+  (#130/PR #158+#164), so in-app first turns run at the warm regime.
+- One process-wide Session owner (`xllama::session_hub()`, PR #161/#164):
+  chat UI and LAN API share the resident model ("never 2× model in RAM").
 - Phases 1–11 are complete for product code: Phase 10 Lane B is `available`
   (host + console marker gates PASS; pin-blocked filter-widening remains);
   Phase 11 closed the headless↔UI gap (in-app personalize + LAN API parity,
-  #116/#118). Remaining open work is console re-measurement, optional threads-6
-  ship, #130 mechanism profile, and upstream vendor pin drops.
+  #116/#118). Remaining open work is the #130 root-cause profile and upstream
+  vendor pin drops.
 
 ## Phase 7 — Peer-class model research
 
@@ -210,7 +218,10 @@ long prompt and the CPU wins from the second turn (§5d). Evidence under
       tok/s warm) — the warm-up must run a real-length prompt plus decode
       steps, i.e. compilation is at least coarsely shape-dependent. What
       remains open here is only the _root-cause profile_, not the user-facing
-      cost.
+      cost. **PR #164 closed the wall-clock half**: sessions pre-load at
+      model-Ready (`PreloadSessionAsync`), so the warm-up runs before the
+      user's first send instead of inside its wait — confirmed on-console
+      (first DML request: prefill 873 tok/s, decode at warm parity).
 
 ## Upstream and vendor lifecycle
 

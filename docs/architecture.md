@@ -32,19 +32,20 @@ The shared core is platform-agnostic C++17; front-ends are thin:
 
 Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 
-| Header                             | Owns                                                                         |
-| ---------------------------------- | ---------------------------------------------------------------------------- |
-| `session.h` / `inference_params.h` | `Session`/`SessionParams`, `InferenceParams/Result`, `Backend` enum          |
-| `sampling.h`                       | `SamplingConfig`, shared defaults; CLI/bench and GUI/API init from it (#125) |
-| `training.h` / `training_params.h` | `TrainingJob`/`TrainingResult`, stages, device gates, job JSON               |
-| `device_train.h`                   | Lane B engine API: `run_device_train_job`, progress callbacks, filters       |
-| `personalize.h`                    | Phase 11 helpers: last-block filter, job builder, sample count, manifest JSON |
-| `preference_capture.h`             | Preference JSONL format + append (Like/Dislike/Correct + API)                |
-| `chat_prompt.h`                    | `ChatFormat`, `chat_format_for`, `apply_stop_sequences`                      |
-| `routing_policy.h`                 | `decide_routing`, `kv_reuse_supported_for_model`, prompt budget              |
-| `model_provision.h`                | `dir_satisfies_expected_files`, `normalize_model_path`                       |
-| `manifest_merge.h`                 | `merge_manifest_entries` (per-entry catalogue override)                      |
-| `membw.h`                          | `measure_membw` (STREAM-style bandwidth probe)                               |
+| Header                             | Owns                                                                                                                      |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `session.h` / `inference_params.h` | `Session`/`SessionParams`, `InferenceParams/Result` (`echo_stdout`, the `resolve_max_length` #130 ladder), `Backend` enum |
+| `session_hub.h`                    | `SessionHub` — the ONE process-wide resident-Session owner (GUI + LAN API); locking + `generation` contract               |
+| `sampling.h`                       | `SamplingConfig`, shared defaults; CLI/bench and GUI/API init from it (#125)                                              |
+| `training.h` / `training_params.h` | `TrainingJob`/`TrainingResult`, stages, device gates, job JSON                                                            |
+| `device_train.h`                   | Lane B engine API: `run_device_train_job`, progress callbacks, filters                                                    |
+| `personalize.h`                    | Phase 11 helpers: last-block filter, job builder, sample count, manifest JSON                                             |
+| `preference_capture.h`             | Preference JSONL format + append (Like/Dislike/Correct + API)                                                             |
+| `chat_prompt.h`                    | `ChatFormat`, `chat_format_for`, `apply_stop_sequences`                                                                   |
+| `routing_policy.h`                 | `decide_routing`, `kv_reuse_supported_for_model`, prompt budget                                                           |
+| `model_provision.h`                | `dir_satisfies_expected_files`, `normalize_model_path`                                                                    |
+| `manifest_merge.h`                 | `merge_manifest_entries` (per-entry catalogue override)                                                                   |
+| `membw.h`                          | `measure_membw` (STREAM-style bandwidth probe)                                                                            |
 
 Bridge sources of note under `src/bridge/`: `session.cpp`, `inference.cpp`,
 `training.cpp`, `device_train.cpp`, `personalize.cpp`, `preference_capture.cpp`,
@@ -62,7 +63,9 @@ Two text backends, selected by build variant **and** per model at runtime:
   `gpu_model` forces CPU in every mode. Diffusion stays on GPU.
 - **llama.cpp / GGUF** (`XLLAMA_USE_LLAMA`) — `LlamaSession` in
   `src/bridge/session.cpp`. Runs `.gguf` models (`kind: "gguf"`); CPU-only on Xbox
-  (no ggml GPU backend), with KV-cache reuse.
+  (no ggml GPU backend), with KV-cache reuse. The UWP build compiles ggml with
+  `GGML_USE_CPU_REPACK` (PR #155 — it was silently dead code before; enabling
+  the repacked-weight GEMM raised GGUF prefill ~62% on Q4_K).
 
 The **`default`** and **`llamacpp`** CI variants compile a single backend. The
 shipping **`unified`** build links both and dispatches **per model at runtime**:
@@ -72,7 +75,9 @@ suffix / on-disk GGUF layout routes to llama.cpp, everything else to ORT GenAI
 lane and a **shipping** text backend for the GGUF catalogue entries (LFM2.5,
 Qwen3.5, Gemma).
 
-Both backends **stream**: `GenerateParams::on_token` fires per detokenized piece
+Both backends **stream**: `GenerateParams::on_token` (a
+`std::function<void(std::string_view)>` — the view is only valid inside the
+call, copy before returning) fires per detokenized piece
 inside the decode loop. The UI worker does not dispatch per token — it appends
 under a mutex and a 40 ms `DispatcherTimer` (`FlushTokenBuffer`) drains the buffer
 to the screen. Because the app streams, the latency that matters is
@@ -109,12 +114,20 @@ excludes the DirectML EP (continuous decoding is CPU-only, verified — the reus
 turn produces zero cached tokens on DML). It is **not** gated by backend — GGUF
 KV-reuse is on.
 
-The UI keeps **one** session at a time. `MainPageController::EnsureSession` resets
-the current session before creating another (`avoid 2× model in RAM`: the CPU and
-DML working sets, ~1.3 GB and ~2.9 GB, do not coexist in the budget). One
-consequence drives the routing verdict above: a GPU-routed turn loads the CPU
-model to tokenize for the routing decision, then destroys it to load DirectML, so
-that turn pays two model loads (§5d).
+The **process** keeps one resident session at a time: since PR #161/#164 it
+lives in `xllama::session_hub()` (`include/xllama/session_hub.h`), the single
+owner shared by the chat UI and the LAN API — "avoid 2× model in RAM" (the CPU
+and DML working sets, ~1.3 GB and ~2.9 GB, do not coexist in the budget) is now
+a process-wide invariant instead of a per-surface convention the API silently
+violated. `EnsureSession` swaps the resident model through the hub under its
+mutex; `hub.generation` lets the UI drop its KV-reuse state when the API
+swapped models between turns. The routing token-count no longer loads a model
+at all: it uses the exact count only when the CPU session is already resident,
+else the same chars/5.0 estimator that bounds the prompt in `BuildPrompt` (the
+old shape loaded the CPU model on the UI thread just to tokenize, then could
+destroy it for DirectML — the historical "two model loads" cost recorded in
+§5d). When a model becomes Ready the session is **pre-loaded** in a detached
+worker (`PreloadSessionAsync`), so the first send pays prefill+decode only.
 
 ## Routing (`routing_policy.h`)
 
@@ -122,7 +135,9 @@ that turn pays two model loads (§5d).
 decided on the first turn, when the app cannot yet know whether the conversation
 will continue, and never revisited (the KV cache is per-EP). Decode-heavy chat
 stays on **CPU int4** (fastest decode); a long first-turn prompt can switch to
-**DML fp16**, which wins cold-process prefill and therefore first-turn TTFT. This
+**DML fp16**, which wins long-prompt prefill and therefore first-turn TTFT
+(in-app DML turns run at the warm regime since the load warm-up + pre-load,
+§5e — "cold-process" now describes bench figures only). This
 does **not** mean the GPU is faster overall: DirectML cannot reuse a KV cache
 (`kv_reuse_supported_for_model` returns false for it) while the CPU can, so from
 the second turn the CPU wins at every reachable length — see `uwp-constraints.md
@@ -192,19 +207,23 @@ the Image dialog or the headless `diffuse.flag`.
 ## LAN HTTP endpoint (OpenAI-compat)
 
 Optional, **default OFF**: a `StreamSocketListener` in `uwp/api-server.cpp`
-exposes a dedicated, lazily created `xllama::Session` plus thin UI-parity routes
-on the LAN. Settings owns the live start/stop/rebind lifecycle; `App::OnLaunched`
-restores it when the persistent `LocalState\api.flag` is present. The flag is not
-consumed and the server coexists with the live chat UI. Port 11434 (override
-`api-port.txt`); chat and images share a single-slot mutex (`try_lock` → HTTP 503
-when busy). Preferences and training status are file I/O only (no inference lock).
+exposes the process-wide `session_hub()` Session (shared with the chat UI —
+see the session-ownership section above) plus thin UI-parity routes on the
+LAN. Settings owns the live start/stop/rebind lifecycle; `App::OnLaunched`
+restores it when the persistent `LocalState\api.flag` is present. The flag is
+not consumed and the server coexists with the live chat UI. Port 11434
+(override `api-port.txt`); chat and images take the hub mutex with `try_lock`
+→ HTTP 503 when busy — busy includes a running **chat-UI turn**; during the
+session pre-load the request waits briefly instead (`acquire_hub_or_busy`,
+≤15 s). Stopping the endpoint does not free the Session (it is hub-owned).
+Preferences and training status are file I/O only (no inference lock).
 
-| Route | Role |
-| ----- | ---- |
-| `POST /v1/chat/completions` | Non-streaming chat (own `Session`) |
-| `POST /v1/preferences` | Append preference sample → `training/samples.jsonl` (#118) |
-| `GET /v1/training/status` | `result.done` / `progress.json` / personalized `result.json` (#118) |
-| `POST /v1/images/generations` | SD-Turbo in-process (steps 1–4), same knobs as Image dialog (#118) |
+| Route                         | Role                                                                |
+| ----------------------------- | ------------------------------------------------------------------- |
+| `POST /v1/chat/completions`   | Non-streaming chat (own `Session`)                                  |
+| `POST /v1/preferences`        | Append preference sample → `training/samples.jsonl` (#118)          |
+| `GET /v1/training/status`     | `result.done` / `progress.json` / personalized `result.json` (#118) |
+| `POST /v1/images/generations` | SD-Turbo in-process (steps 1–4), same knobs as Image dialog (#118)  |
 
 Capability `privateNetworkClientServer` covers LAN inbound; no public inbound.
 Full contract + validation: [api-endpoint.md](api-endpoint.md)
@@ -217,7 +236,11 @@ hash-pinned **PatchedGenAI #2280** + **PatchedOrt** extdata DLLs from
 `vendor-dlls-v1`) and `xllama-appx-llamacpp` (llama.cpp only). The MSIX version is
 `Major.Minor.Build` from `uwp/AppxManifest.xml` (bumped per release) with the
 **Revision auto-stamped from the CI run number** (`build-uwp.ps1 -BuildRevision`),
-so in-place console updates never collide on identity. First-launch chat default
+so in-place console updates never collide on identity. Exception: **1.5.0.0
+changed the package identity itself** (`VenereLabs.xllama` →
+`GianlucaMazza.xllama`, PR #163) — across that boundary there is no in-place
+update: it installs as a new app and LocalState does not carry over (see
+`install-release.md`). First-launch chat default
 on unified builds is **`lfm25-350m`** (`DefaultChatModelId()` in `MainPage.cpp`).
 
 ## Training pillar (exploration)
@@ -254,11 +277,11 @@ First-class subsystem for **learning adapters and producing loadable weights**.
 
 ### Personalization status (Phases 8–11)
 
-| Phase | What shipped (headline only) |
-| ----- | ---------------------------- |
-| **8–9** | Host PEFT, runtime LoRA, preference UI, operator pull loop |
-| **10** | Lane B on-device `partial_ft` available (marker gates PASS) |
-| **11** | In-app train + publish `personalized`; LAN prefs/status/images |
+| Phase   | What shipped (headline only)                                   |
+| ------- | -------------------------------------------------------------- |
+| **8–9** | Host PEFT, runtime LoRA, preference UI, operator pull loop     |
+| **10**  | Lane B on-device `partial_ft` available (marker gates PASS)    |
+| **11**  | In-app train + publish `personalized`; LAN prefs/status/images |
 
 **Do not expand the Phase 11 flow here** — code map, preflight, and diagram live
 in [training-architecture.md §11](training-architecture.md). Pad steps:
