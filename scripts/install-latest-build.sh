@@ -85,9 +85,15 @@ if [[ -n "$CURRENT_PFN" ]]; then
 	# migration (old and new family can be registered side by side).
 	while IFS= read -r pfn; do
 		[[ -z "$pfn" ]] && continue
-		curl --basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS \
+		# --fail: WDP reports uninstall errors via HTTP status; without it a
+		# failed DELETE would print "Uninstalled" and leave the old identity
+		# registered while the install continues.
+		if ! curl --basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS --fail \
 			-H "X-CSRF-Token:${CSRF}" -X DELETE \
-			"https://${XBOX_IP}:11443/api/app/packagemanager/package?package=${pfn}" >/dev/null
+			"https://${XBOX_IP}:11443/api/app/packagemanager/package?package=${pfn}" >/dev/null; then
+			echo "ERROR: failed to uninstall ${pfn}; aborting before install" >&2
+			exit 1
+		fi
 		echo "  Uninstalled $pfn"
 	done <<<"$CURRENT_PFN"
 	sleep 2
