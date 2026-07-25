@@ -165,3 +165,12 @@ TEST_CASE("kv reuse: dml ep disabled") {
     CHECK_FALSE(kv_reuse_supported_for_model("smollm2-360m-dml-fp16"));
     CHECK_FALSE(kv_reuse_supported_for_model("smollm2-360m-dml-fp16-v2"));
 }
+
+TEST_CASE("model_is_dml: gates the load warm-up (#130)") {
+    CHECK(model_is_dml("smollm2-360m-dml-fp16-v2"));
+    CHECK_FALSE(model_is_dml("smollm2-360m-cpu-int4"));
+    CHECK_FALSE(model_is_dml("lfm25-350m"));
+    // Single home for the substring check: must agree with KV-reuse gating.
+    CHECK(model_is_dml("smollm2-360m-dml-fp16") !=
+          kv_reuse_supported_for_model("smollm2-360m-dml-fp16"));
+}

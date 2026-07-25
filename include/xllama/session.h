@@ -35,6 +35,12 @@ struct SessionParams {
     // not training). Scale defaults to 1.0. ORT GenAI sessions ignore this field.
     std::string lora_path;
     float lora_scale = 1.0f;
+
+    // #130: run a throwaway generate at load for DirectML models, paying the
+    // one-time per-process cost (§5e: cold→warm prefill 1.64-1.72×) inside the
+    // "loading model" phase instead of on the user's first turn. Ignored for
+    // CPU models (§5e control: 1.00×) and by the llama.cpp backend.
+    bool dml_warmup = true;
 };
 
 struct GenerateParams {

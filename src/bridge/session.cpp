@@ -9,6 +9,7 @@
 #include "xllama/inference_params.h"
 #include "xllama/path_utils.h"
 #include "xllama/platform.h"
+#include "xllama/routing_policy.h"
 
 #include <algorithm>
 #include <chrono>
@@ -288,9 +289,16 @@ class OrtSession final : public Session {
     void log_gen(const InferenceResult& res, bool chat) {
         double dt =
             (res.n_eval > 0 && res.t_eval_ms > 0) ? res.n_eval / (res.t_eval_ms / 1000.0) : 0.0;
+        // Prefill rate too: without it the per-turn TTFT (and the #130
+        // cold-vs-warm gap) cannot be reconstructed from the log.
+        double pt = (res.n_p_eval > 0 && res.t_p_eval_ms > 0)
+                        ? res.n_p_eval / (res.t_p_eval_ms / 1000.0)
+                        : 0.0;
         char log_buf[256];
-        snprintf(log_buf, sizeof(log_buf), "[xllama] session generate%s: decode=%.1f tok/s n=%d\n",
-                 chat ? " (chat)" : "", dt, res.n_eval);
+        snprintf(log_buf, sizeof(log_buf),
+                 "[xllama] session generate%s: prefill=%.1f tok/s (%d tok, %.0f ms) "
+                 "decode=%.1f tok/s n=%d\n",
+                 chat ? " (chat)" : "", pt, res.n_p_eval, res.t_p_eval_ms, dt, res.n_eval);
         log_output(log_buf);
     }
 
@@ -351,6 +359,49 @@ std::unique_ptr<Session> create_ort(const SessionParams& sp, std::string* err) {
             log_output(gpu_buf);
         }
         int n_ctx = sp.n_ctx > 0 ? sp.n_ctx : 2048;
+
+        // #130: DirectML pays a large one-time per-process cost on the first
+        // generate (§5e: cold→warm prefill 1.64-1.72×; CPU control 1.00× —
+        // suspected lazy kernel compilation). Pay it here, inside the load
+        // phase the UI already presents as such, instead of on the user's
+        // first turn. The throwaway generator uses max_length = n_ctx exactly
+        // like every real turn: the §5c valley is keyed by max_length, so
+        // warming a smaller shape could warm the wrong regime. Failure is
+        // non-fatal — the session is still usable, just cold.
+        if (sp.dml_warmup && model_is_dml(sp.model_path)) {
+            try {
+                const auto t_w0 = std::chrono::steady_clock::now();
+                OgaGeneratorParams* raw_wp = nullptr;
+                oga_check(OgaCreateGeneratorParams(model.get(), &raw_wp),
+                          "OgaCreateGeneratorParams warmup");
+                OgaGeneratorParamsPtr wparams(raw_wp);
+                oga_check(OgaGeneratorParamsSetSearchNumber(wparams.get(), "max_length",
+                                                            static_cast<double>(n_ctx)),
+                          "SetSearchNumber warmup");
+                OgaSequences* raw_wseqs = nullptr;
+                oga_check(OgaCreateSequences(&raw_wseqs), "OgaCreateSequences warmup");
+                OgaSequencesPtr wseqs(raw_wseqs);
+                oga_check(OgaTokenizerEncode(tok.get(), "warmup", wseqs.get()),
+                          "OgaTokenizerEncode warmup");
+                OgaGenerator* raw_wgen = nullptr;
+                oga_check(OgaCreateGenerator(model.get(), wparams.get(), &raw_wgen),
+                          "OgaCreateGenerator warmup");
+                OgaGeneratorPtr wgen(raw_wgen);
+                oga_check(OgaGenerator_AppendTokenSequences(wgen.get(), wseqs.get()),
+                          "AppendTokenSequences warmup");
+                oga_check(OgaGenerator_GenerateNextToken(wgen.get()), "GenerateNextToken warmup");
+                const double w_ms = std::chrono::duration<double, std::milli>(
+                                        std::chrono::steady_clock::now() - t_w0)
+                                        .count();
+                char w_buf[96];
+                snprintf(w_buf, sizeof(w_buf), "[xllama] Session: DML warm-up %.0f ms\n", w_ms);
+                log_output(w_buf);
+            } catch (const std::exception& we) {
+                log_output(("[xllama] Session: DML warm-up failed (non-fatal): " +
+                            std::string(we.what()) + "\n")
+                               .c_str());
+            }
+        }
         return std::make_unique<OrtSession>(std::move(model), std::move(tok), n_ctx);
 
     } catch (const std::exception& e) {
