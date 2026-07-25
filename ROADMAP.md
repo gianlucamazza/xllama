@@ -161,17 +161,19 @@ long prompt and the CPU wins from the second turn (§5d). Evidence under
 - [x] **Threading recommendation corrected 4 → 6 in the docs (§5f).** The old
       recommendation was a decode-only optimum; measuring prefill too puts 6
       ahead, and `t8` is a trap (it sinks prefill as well as decode).
-- [ ] **Ship `intra_op_num_threads: 6` on the CPU asset — evidence gathered
-      2026-07-25, ship decision pending.** The conditional sweep ran on-console
-      (build 1.4.0.675, `bench/results/phase12b-threads-sweep.csv`: 3 lengths
-      39/285/960 × {unset, t4, t6} × 3 recorded runs + closing control, on a
-      device config first restored to pristine — a stale t4 swap was found and
-      removed, see the runbook preflight). Result: **t6 prefill +4.4% / +4.7% /
-      +6.1%** over unset, consistent across lengths but below §5f's single-length
-      +8.5%; decode deltas (−1% to −4.5%) are within the −3% closing-control
-      session drift, so decode is neutral-to-noise. t4 ≈ unset, confirming §5f.
-      The gain is real but modest; the models-v1 republish is a release operation
-      and stays a deliberate call rather than an automatic consequence.
+- [x] **`intra_op_num_threads: 6` SHIPPED on the CPU asset (2026-07-25).** The
+      conditional sweep ran on-console (build 1.4.0.675,
+      `bench/results/phase12b-threads-sweep.csv`: 3 lengths 39/285/960 ×
+      {unset, t4, t6} × 3 recorded runs + closing control, device config first
+      restored to pristine — a stale t4 swap was found and removed, see the
+      runbook preflight). Result: **t6 prefill +4.4% / +4.7% / +6.1%** over
+      unset, consistent across lengths; decode deltas within the −3%
+      closing-control session drift (neutral); t4 ≈ unset, confirming §5f.
+      Shipped with the 1.5.0.0 identity migration — the forced full re-provision
+      IS the "next models-v1 republish" the ship condition asked to bundle with:
+      the release's `genai_config.json` now matches
+      `bench/configs/genai_config-threads-6.json`. On-device confirmation
+      (config fetch + 3-run bench) recorded with the migration.
 - [x] **Measurement integrity: per-run variance is now recoverable (W1.1).** Every
       published decode number was a single row with no spread reported anywhere —
       the ORT driver ran repeats but appended only a median, discarding the data

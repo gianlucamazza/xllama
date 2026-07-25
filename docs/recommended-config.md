@@ -72,24 +72,16 @@ GGUF thread default: llama.cpp auto-detect is capped at **6** on console
   Under a streaming UI prefill is what the user waits for, so 6 wins.
   **t=8 is a trap**: it collapses decode to ~10 tok/s _and_ prefill to ~87 tok/s
   — not the bandwidth saturation it was recorded as.
-  ⚠️ The shipped `smollm2-360m-cpu-int4` asset currently sets **no**
-  `intra_op_num_threads` at all, so neither this value nor the previous one is
-  in production. Applying it means republishing the asset on models-v1 — a
-  publish, not a config edit. **Deferred on purpose, not forgotten**: the +8.5%
-  is measured with rigor at only one prompt length (1380, 3 runs interleaved);
-  792 is a single run (+3%) and t8 a single run. That is below the bar the rest
-  of Phase 12 held (10 lengths, closing control), so it does not yet earn a
-  production config change — and shipping it would move the baseline every
-  Phase 12 measurement was taken against while #130's mechanism is still open.
-  **Ship condition**: a proper thread sweep (≥3 lengths including short prompts,
-  3 runs each, closing control) confirming 6 wins across the range, ideally
-  bundled with the next models-v1 republish for another reason. Until then the
-  device runs the ORT default and this recommendation stays doc-only.
-  **2026-07-25 — the sweep ran** (§5f addendum,
-  `bench/results/phase12b-threads-sweep.csv`): t6 prefill **+4.4/+4.7/+6.1%**
-  at P=39/285/960, decode neutral within the closing-control drift, t4 ≈ unset.
-  The gain is confirmed but smaller than the single-length +8.5%; the republish
-  remains a deliberate release decision.
+  ✅ **SHIPPED 2026-07-25.** The ship condition (≥3-length sweep, 3 runs,
+  closing control) was met by `bench/results/phase12b-threads-sweep.csv` — t6
+  prefill **+4.4/+4.7/+6.1%** at P=39/285/960, decode neutral within the
+  closing-control drift, t4 ≈ unset — and the 1.5.0.0 identity migration
+  forced a full re-provision, i.e. exactly the "next models-v1 republish"
+  the condition asked to bundle with. The `models-v1` release's
+  `genai_config.json` now matches
+  [`genai_config-threads-6.json`](../bench/configs/genai_config-threads-6.json)
+  (pristine + the one key); any device provisions it from now on. Note the
+  gain is the multi-length +4-6%, smaller than §5f's single-length +8.5%.
 - `past_present_share_buffer: true` (required for KV reuse)
 
 **DML fp16 (routing)** — [`bench/configs/genai_config-dml-test.json`](../bench/configs/genai_config-dml-test.json):
