@@ -5,6 +5,7 @@
 
 #include "xllama/sampling.h"
 
+#include <algorithm>
 #include <atomic>
 #include <functional>
 #include <string>
@@ -113,6 +114,23 @@ struct InferenceParams {
     // Set to true from the UI thread to request early termination.
     std::atomic<bool>* abort_flag = nullptr;
 };
+
+// #130: single home for the max_length ladder — the ROADMAP hardening item on
+// the saturation being "expressed in two files that agree by comment".
+//   override_v < 0  → saturate to n_ctx. What Session ALWAYS does (session.cpp
+//                     passes -1): on DirectML max_length is the variable that
+//                     controls prefill throughput and the interior band
+//                     ~1400..n_ctx is a measured valley (uwp-constraints §5c).
+//   override_v == 0 → derive min(n_ctx, n_prompt + n_predict). Bench default;
+//                     keeps every historical row's meaning.
+//   override_v > 0  → explicit, clamped to (n_prompt, n_ctx].
+inline int resolve_max_length(int n_ctx, int n_prompt, int n_predict, int override_v) {
+    if (override_v < 0)
+        return n_ctx;
+    if (override_v > 0)
+        return std::clamp(override_v, n_prompt + 1, n_ctx);
+    return std::min(n_ctx, n_prompt + n_predict);
+}
 
 struct InferenceResult {
     bool success = false;

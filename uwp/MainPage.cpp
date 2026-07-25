@@ -667,23 +667,27 @@ std::string MainPageController::BuildPrompt(const std::string& user_text, int* o
             turn_starts.push_back(i);
     }
 
-    // Build prompt starting from oldest turn; drop turns if over token budget
-    auto calc_size = [&](size_t from_turn) -> int {
-        int chars = (int)m_system_prompt.size();
-        for (size_t ti = from_turn; ti < turn_starts.size(); ++ti) {
-            size_t i = turn_starts[ti];
-            chars += (int)m_current.messages[i].content.size(); // user
-            if (i + 1 < m_current.messages.size() &&
-                m_current.messages[i + 1].role == xllama::ui::MessageRole::Assistant)
-                chars += (int)m_current.messages[i + 1].content.size(); // assistant
-        }
-        chars += (int)user_text.size(); // new user message
-        return ::xllama::estimate_tokens_from_chars(static_cast<size_t>(chars));
-    };
+    // Build prompt starting from oldest turn; drop turns if over token budget.
+    // Per-turn char sizes are computed once and the running total is reduced as
+    // turns drop (the previous shape re-walked every surviving turn for each
+    // candidate — O(turns²) per prompt build).
+    std::vector<int> turn_chars(turn_starts.size(), 0);
+    long long chars =
+        static_cast<long long>(m_system_prompt.size()) + static_cast<long long>(user_text.size());
+    for (size_t ti = 0; ti < turn_starts.size(); ++ti) {
+        size_t i = turn_starts[ti];
+        int c = (int)m_current.messages[i].content.size(); // user
+        if (i + 1 < m_current.messages.size() &&
+            m_current.messages[i + 1].role == xllama::ui::MessageRole::Assistant)
+            c += (int)m_current.messages[i + 1].content.size(); // assistant
+        turn_chars[ti] = c;
+        chars += c;
+    }
 
     size_t first_turn = 0;
-    while (first_turn < turn_starts.size() && calc_size(first_turn) > kMaxEstimatedTokens)
-        ++first_turn;
+    while (first_turn < turn_starts.size() &&
+           ::xllama::estimate_tokens_from_chars(static_cast<size_t>(chars)) > kMaxEstimatedTokens)
+        chars -= turn_chars[first_turn++];
     if (first_turn > 0)
         log_output("[xllama] context trimmed: dropped " + std::to_string(first_turn) +
                    " old turn(s)\n");
@@ -708,6 +712,14 @@ std::string MainPageController::BuildPrompt(const std::string& user_text, int* o
 
 xllama::ChatFormat MainPageController::chat_format() const {
     return ::xllama::chat_format_for(::xllama::wstring_to_utf8(m_model_filename));
+}
+
+const std::vector<::xllama::ManifestEntry>& MainPageController::CachedManifest() const {
+    if (!m_manifest_cached) {
+        m_manifest_cache = ::xllama::LoadModelManifest();
+        m_manifest_cached = true;
+    }
+    return m_manifest_cache;
 }
 
 std::string MainPageController::BuildDeltaPrompt(const std::string& user_text) const {
@@ -1562,6 +1574,7 @@ bool MainPageController::PublishPersonalizedModel(const std::string& merged_gguf
     // a full JSON rewriter; the per-entry merge means a same-name replace is
     // enough, and a one-entry override still keeps all bundled models.
     write_local_bytes(L"manifest.json", override_json);
+    InvalidateManifestCache(); // catalogue changed — StartInference reads the cache
     return true;
 }
 
@@ -2391,7 +2404,7 @@ bool MainPageController::EnsureSession(const std::string& model, std::string* er
     // (no extension), so Backend::Auto's suffix sniffing cannot classify it.
     // Optional catalogue `lora` (relative to model dir) enables runtime LoRA.
     {
-        auto manifest = ::xllama::LoadModelManifest();
+        const auto& manifest = CachedManifest();
         const auto* entry = ::xllama::FindManifestEntry(manifest, ::xllama::utf8_to_wstring(model));
         if (entry && entry->kind == L"gguf") {
             sp.backend = xllama::Backend::LlamaCpp;
@@ -2479,7 +2492,9 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     // this flag.
     bool base_is_gguf = false;
     {
-        auto manifest = ::xllama::LoadModelManifest();
+        // Cached: this runs on the UI thread on every turn, and the manifest
+        // JSON only changes on a personalized-model publish (which invalidates).
+        const auto& manifest = CachedManifest();
         const auto* e = ::xllama::FindManifestEntry(manifest, m_model_filename);
         base_is_gguf = e && e->kind == L"gguf";
     }
@@ -2497,7 +2512,14 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
 
         int n_tok = 0;
         if (m_routing == 2 && !base_is_gguf) {
-            if (EnsureSession(rs.cpu_model, nullptr))
+            // Exact count only when the CPU session is already resident (a
+            // pointer-compare no-op). The previous shape loaded the CPU model
+            // just to tokenize and then could tear it down for the DML model —
+            // +1.2 s on a GPU-routed first turn (uwp-constraints §5, 2786 ms
+            // vs 1570 ms). With no session loaded the chars/5.0 estimator
+            // decides — the same estimator whose ceiling already bounds this
+            // prompt in BuildPrompt, so routing and trimming stay coherent.
+            if (m_session && m_session_model == rs.cpu_model)
                 n_tok = m_session->count_tokens(full_prompt);
             else
                 n_tok = ::xllama::estimate_tokens_from_chars(full_prompt.size());

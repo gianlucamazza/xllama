@@ -8,6 +8,22 @@
 #include <filesystem>
 #include <fstream>
 
+TEST_CASE("resolve_max_length: the #130 ladder has one home") {
+    using xllama::resolve_max_length;
+    // override < 0: saturate to n_ctx — what Session always requests.
+    CHECK(resolve_max_length(2048, 1289, 256, -1) == 2048);
+    CHECK(resolve_max_length(3072, 10, 96, -1) == 3072);
+    // override == 0: derive min(n_ctx, prompt + n_predict) — bench default,
+    // keeps every historical row's meaning.
+    CHECK(resolve_max_length(2048, 1289, 256, 0) == 1545); // the shipping default
+                                                           // that landed in the valley
+    CHECK(resolve_max_length(2048, 1800, 512, 0) == 2048); // clamped to context
+    // override > 0: explicit, clamped to (n_prompt, n_ctx].
+    CHECK(resolve_max_length(2048, 1289, 256, 1801) == 1801);
+    CHECK(resolve_max_length(2048, 1289, 256, 100) == 1290);  // floor: prompt+1
+    CHECK(resolve_max_length(2048, 1289, 256, 9999) == 2048); // ceiling: n_ctx
+}
+
 TEST_CASE("Session::create rejects non-existent model path") {
     xllama::SessionParams sp;
     sp.model_path = "/nonexistent/path/model.gguf";
