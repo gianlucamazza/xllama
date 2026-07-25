@@ -55,6 +55,9 @@ jobs:
       - name: Verify generated benchmark summaries
         run: python3 scripts/generate-benchmark-summary.py --check
 
+      - name: Verify code/project/doc coherence (SSOT audit)
+        run: python3 scripts/check-coherence.py
+
       - name: Configure (with tests)
         run: cmake --preset linux-test
 

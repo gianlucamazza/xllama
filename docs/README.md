@@ -20,23 +20,23 @@ Technical notes and design decisions for xllama.
 
 ## Documentation ownership
 
-| Concern | Authoritative home |
-| ------- | ------------------ |
-| System structure (modules, backends, KV, routing, provisioning, LAN, training surface) | [architecture.md](./architecture.md) |
-| Training pillar (RE, capability matrix, lanes A/B/C, hybrid loop, Phase 11 in-app arc) | [training-architecture.md](./training-architecture.md) |
-| Training ops (job JSON, host PEFT, device train CLI, pull samples) | [`../training/README.md`](../training/README.md) |
-| Raw performance evidence | [`../bench/results/`](../bench/results/) |
-| Comparison policy | [`../bench/benchmark-summary.json`](../bench/benchmark-summary.json) |
-| Generated performance summary | [benchmarks.md](./benchmarks.md) + [benchmarks-charts.html](./benchmarks-charts.html) |
-| Bench methodology / CSV schema | [`../bench/README.md`](../bench/README.md) |
-| Model catalogue + backend selection | [model-selection.md](./model-selection.md) (narrative) + [`../uwp/models/manifest.json`](../uwp/models/manifest.json) (data) |
-| UWP/AppContainer constraints (§1–§13) | [uwp-constraints.md](./uwp-constraints.md) |
-| Runtime NuGet pins | [recommended-config.md](./recommended-config.md) (narrative) + [`../uwp/packages.config`](../uwp/packages.config) (data) |
-| Patched-DLL lifecycle | [vendor-lifecycle-plan.md](./vendor-lifecycle-plan.md) |
-| LAN HTTP protocol | [api-endpoint.md](./api-endpoint.md) |
-| App gamepad UI (chat, settings, personalize, images) | [using-the-app.md](./using-the-app.md) |
-| Version / current product state | [`../CHANGELOG.md`](../CHANGELOG.md) + [`../ROADMAP.md`](../ROADMAP.md) |
-| Agent / contributor quick map | [`../AGENTS.md`](../AGENTS.md) |
+| Concern                                                                                | Authoritative home                                                                                                           |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| System structure (modules, backends, KV, routing, provisioning, LAN, training surface) | [architecture.md](./architecture.md)                                                                                         |
+| Training pillar (RE, capability matrix, lanes A/B/C, hybrid loop, Phase 11 in-app arc) | [training-architecture.md](./training-architecture.md)                                                                       |
+| Training ops (job JSON, host PEFT, device train CLI, pull samples)                     | [`../training/README.md`](../training/README.md)                                                                             |
+| Raw performance evidence                                                               | [`../bench/results/`](../bench/results/)                                                                                     |
+| Comparison policy                                                                      | [`../bench/benchmark-summary.json`](../bench/benchmark-summary.json)                                                         |
+| Generated performance summary                                                          | [benchmarks.md](./benchmarks.md) + [benchmarks-charts.html](./benchmarks-charts.html)                                        |
+| Bench methodology / CSV schema                                                         | [`../bench/README.md`](../bench/README.md)                                                                                   |
+| Model catalogue + backend selection                                                    | [model-selection.md](./model-selection.md) (narrative) + [`../uwp/models/manifest.json`](../uwp/models/manifest.json) (data) |
+| UWP/AppContainer constraints (§1–§13)                                                  | [uwp-constraints.md](./uwp-constraints.md)                                                                                   |
+| Runtime NuGet pins                                                                     | [recommended-config.md](./recommended-config.md) (narrative) + [`../uwp/packages.config`](../uwp/packages.config) (data)     |
+| Patched-DLL lifecycle                                                                  | [vendor-lifecycle-plan.md](./vendor-lifecycle-plan.md)                                                                       |
+| LAN HTTP protocol                                                                      | [api-endpoint.md](./api-endpoint.md)                                                                                         |
+| App gamepad UI (chat, settings, personalize, images)                                   | [using-the-app.md](./using-the-app.md)                                                                                       |
+| Version / current product state                                                        | [`../CHANGELOG.md`](../CHANGELOG.md) + [`../ROADMAP.md`](../ROADMAP.md)                                                      |
+| Agent / contributor quick map                                                          | [`../AGENTS.md`](../AGENTS.md)                                                                                               |
 
 The benchmark flow is intentionally one-way:
 
@@ -50,7 +50,7 @@ reports preserve interpretation and history; they are not current metric stores.
 
 ## Document index (paths only)
 
-The ownership table above is the SSOT for *where facts live*. Below is only a
+The ownership table above is the SSOT for _where facts live_. Below is only a
 path checklist for discovery — descriptions are not repeated.
 
 **Structure / product:** [architecture.md](./architecture.md) ·
@@ -80,15 +80,15 @@ path checklist for discovery — descriptions are not repeated.
 
 ### Acceptable headline vs SSOT
 
-| Kind of content | Allowed outside SSOT | Forbidden |
-| --------------- | -------------------- | --------- |
-| Role / status one-liners | Yes (e.g. README “default chat is LFM2.5-350M”) | Second full catalogue or perf table |
-| Exact tok/s, peak RAM, speedups | Only [benchmarks.md](./benchmarks.md) (generated) + raw `bench/results/` | Restating figures in README / UI guide without linking |
-| Download / catalogue size | Sum of `approx_bytes` in `uwp/models/manifest.json` | Invented MB that drift from the manifest |
-| Hardware ceilings (GPU budget, etc.) | [uwp-constraints.md](./uwp-constraints.md) | Parallel ceilings elsewhere |
-| NuGet version pins | `uwp/packages.config` + recommended-config / vendor-lifecycle | Parallel version tables |
-| Repo file tree | AGENTS.md (agents) | Full second tree in README |
-| Phase checklist | ROADMAP.md | Duplicated phase list in README |
+| Kind of content                      | Allowed outside SSOT                                                     | Forbidden                                              |
+| ------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------ |
+| Role / status one-liners             | Yes (e.g. README “default chat is LFM2.5-350M”)                          | Second full catalogue or perf table                    |
+| Exact tok/s, peak RAM, speedups      | Only [benchmarks.md](./benchmarks.md) (generated) + raw `bench/results/` | Restating figures in README / UI guide without linking |
+| Download / catalogue size            | Sum of `approx_bytes` in `uwp/models/manifest.json`                      | Invented MB that drift from the manifest               |
+| Hardware ceilings (GPU budget, etc.) | [uwp-constraints.md](./uwp-constraints.md)                               | Parallel ceilings elsewhere                            |
+| NuGet version pins                   | `uwp/packages.config` + recommended-config / vendor-lifecycle            | Parallel version tables                                |
+| Repo file tree                       | AGENTS.md (agents)                                                       | Full second tree in README                             |
+| Phase checklist                      | ROADMAP.md                                                               | Duplicated phase list in README                        |
 
 ### Coherence check (automated)
 
@@ -97,6 +97,8 @@ python3 scripts/check-coherence.py   # code ↔ catalogue ↔ pins ↔ docs ↔ 
 python3 scripts/generate-benchmark-summary.py --check
 ```
 
+Both gates run in CI on every PR (`build-linux.yml`).
+
 `check-coherence.py` fails closed on drift (default model, routing threshold,
 NuGet pins, API routes, personalize paths, stale download sizes, H9 / Phase 10
 evidence, generated decode headlines, broken doc links). Spot matrix below was
@@ -104,13 +106,13 @@ the 2026-07-24 baseline that seeded the script:
 
 Spot-checked against code + evidence:
 
-| Fact | SSOT | Status |
-| ---- | ---- | ------ |
-| Default chat `lfm25-350m` (unified) | `MainPage.cpp` `DefaultChatModelId` | OK |
-| `token_threshold` 1550 | `routing_policy.h` | OK |
-| GPU allowlist `-v2` only | `dml_text_model_ok` | OK |
-| NuGet 0.14.1 / 1.24.4 / DML 1.15.4 | `packages.config` | OK |
-| Decode table (94.2 / 37.9 / 18.4 / 68.0 / 44.4 / …) | `generate-benchmark-summary.py --check` | OK |
-| H9 6/8 · 7/8 · 4/8 · 5/8 | `phase7-h9.jsonl` | OK |
-| Lane B peak_ws 1195 MB, wall 446 s | `phase10-console-devtrain-result.json` | OK |
-| Catalogue download sizes | `manifest.json` `approx_bytes` | Docs corrected to match (was 218/697/1.46 stale) |
+| Fact                                                | SSOT                                    | Status                                           |
+| --------------------------------------------------- | --------------------------------------- | ------------------------------------------------ |
+| Default chat `lfm25-350m` (unified)                 | `MainPage.cpp` `DefaultChatModelId`     | OK                                               |
+| `token_threshold` 1550                              | `routing_policy.h`                      | OK                                               |
+| GPU allowlist `-v2` only                            | `dml_text_model_ok`                     | OK                                               |
+| NuGet 0.14.1 / 1.24.4 / DML 1.15.4                  | `packages.config`                       | OK                                               |
+| Decode table (94.2 / 37.9 / 18.4 / 68.0 / 44.4 / …) | `generate-benchmark-summary.py --check` | OK                                               |
+| H9 6/8 · 7/8 · 4/8 · 5/8                            | `phase7-h9.jsonl`                       | OK                                               |
+| Lane B peak_ws 1195 MB, wall 446 s                  | `phase10-console-devtrain-result.json`  | OK                                               |
+| Catalogue download sizes                            | `manifest.json` `approx_bytes`          | Docs corrected to match (was 218/697/1.46 stale) |
