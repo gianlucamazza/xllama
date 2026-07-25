@@ -31,10 +31,18 @@ message(STATUS "xllama: building for target=linux")
 # ------------------------------------------------------------------
 # llama.cpp sub-project
 # ------------------------------------------------------------------
-set(LLAMA_NATIVE          OFF CACHE BOOL "" FORCE)
-set(LLAMA_AVX2            ON  CACHE BOOL "" FORCE)
-set(LLAMA_F16C            ON  CACHE BOOL "" FORCE)
-set(LLAMA_FMA             ON  CACHE BOOL "" FORCE)
+# ISA baseline. The old LLAMA_NATIVE/LLAMA_AVX2/... spellings are inert here:
+# llama.cpp maps deprecated vars only when truthy, and the AVX2/F16C/FMA ones
+# have no GGML_* mapping at all — set the GGML_* vars directly.
+option(XLLAMA_NATIVE_OPT "Tune ggml for the build host CPU (-march=native) instead of portable AVX2" OFF)
+if(XLLAMA_NATIVE_OPT)
+    set(GGML_NATIVE       ON  CACHE BOOL "" FORCE)
+else()
+    set(GGML_NATIVE       OFF CACHE BOOL "" FORCE)
+    set(GGML_AVX2         ON  CACHE BOOL "" FORCE)
+    set(GGML_F16C         ON  CACHE BOOL "" FORCE)
+    set(GGML_FMA          ON  CACHE BOOL "" FORCE)
+endif()
 set(LLAMA_BUILD_TESTS     OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_EXAMPLES  ON  CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_SERVER    OFF CACHE BOOL "" FORCE)
@@ -98,7 +106,7 @@ add_executable(xllama-cli src/main.cpp)
 target_link_libraries(xllama-cli PRIVATE xllama)
 
 target_compile_options(xllama-cli PRIVATE
-    -march=znver2 -mavx2 -O3 -fno-omit-frame-pointer
+    -fno-omit-frame-pointer
 )
 
 set_target_properties(xllama-cli PROPERTIES
