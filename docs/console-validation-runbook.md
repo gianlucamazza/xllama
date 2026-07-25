@@ -62,6 +62,18 @@ Use `scripts/bench-xbox-ort.sh` and the fixed prompts described in
 atomic CSV record; never combine the best prefill, decode and RAM values from
 different runs.
 
+**Preflight — verify the on-device config is pristine.** `--threads` swaps
+`models\<name>\genai_config.json` on the device and restores it on exit, but a
+crashed or pre-restore-era sweep can leave the swap in place (observed twice: a
+t8 residue, and a t4 residue found 2026-07-25 — the shipped CPU asset sets no
+`intra_op_num_threads` at all). Before any measurement session:
+
+```bash
+./scripts/deploy.sh fetch-file "$(./scripts/deploy.sh pfn)" genai_config.json \
+    /tmp/cfg.json 'models\smollm2-360m-cpu-int4'
+grep intra_op_num_threads /tmp/cfg.json && echo "DRIFT: restore the pristine config first"
+```
+
 After adding or changing committed evidence:
 
 ```bash
