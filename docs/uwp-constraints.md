@@ -296,6 +296,30 @@ hypothesis for the §5c valley. Two consequences: **every DirectML prefill figur
 in this repo is a cold-process number**, and the app pays it once per model load,
 not once per turn.
 
+**2026-07-25 addendum (PR #158).** Re-measured on the Session/LAN-API path
+(960-token request, same process, build 1.4.0.675): turn-1 5.90 s vs turn-2
+1.77 s wall, and decode goes 18.2 → 23.1 tok/s — the first-use cost hits
+**decode kernels too**, not just prefill. A load-time warm-up now pays this
+inside the "loading model" phase (`SessionParams::dml_warmup`,
+`detail::create_ort`). First cut (build 678, ~2-token warm-up prompt, one
+generate step) recovered only part of the gap — turn-1 prefill 682 vs 899 tok/s
+warm, decode 19.4 vs 23.3 — because one `GenerateNextToken` _is_ the prefill
+compute (zero decode steps ran) and a tiny prompt never exercises the
+long-sequence prefill GEMMs. The shipped warm-up therefore uses a ~256-word
+prompt and 3 generate steps; compilation is at least coarsely shape-dependent.
+**Validated (build 680):** warm-up 2034 ms at load; turn-1 prefill 867 tok/s
+(97% of the 898 warm rate) and decode 23.3 (full parity).
+
+**Scope of the win, stated honestly:** both the GUI and the LAN API create the
+session _lazily on the first turn_, so today the warm-up moves the cost inside
+the same perceived wait (turn-1 wall 6.69 s with warm-up vs 5.90 s without —
+the throwaway generate adds ~1 s of real work). What it buys now is a clean
+first-turn _generation_ (prefill 1409 → 1108 ms, decode at parity, and the
+in-UI TTFT metric reflects it); what makes it a genuine wall-clock win is
+decoupling session creation from the first turn (pre-load at model selection /
+API listener start) — tracked as the session-ownership item in the Phase C
+structural work.
+
 ### §5f — CPU threading: prefill does not scale, and t8 is worse than recorded (2026-07-21)
 
 `docs/recommended-config.md` previously recommended `intra_op_num_threads: 4`
@@ -322,6 +346,24 @@ P = 1380, `bench/results/phase12-cpu-threads.csv`:
 - The shipped asset sets **no** `intra_op_num_threads` at all, so the documented
   recommendation of 4 has never run in production. t4 and the default measure the
   same, so nothing was lost — but the doc described a configuration nobody ran.
+
+**2026-07-25 — the conditional 3-length sweep ran**
+(`bench/results/phase12b-threads-sweep.csv`, build 1.4.0.675, pristine device
+config verified first — a stale t4 swap from an earlier sweep was found on the
+device and removed):
+
+| P (tok) | unset prefill / decode | t4           | t6               |
+| ------- | ---------------------- | ------------ | ---------------- |
+| 39      | 240.5 / 84.5           | 237.3 / 80.6 | **251.1** / 80.7 |
+| 285     | 244.8 / 74.3           | 246.9 / 75.5 | **256.3** / 72.6 |
+| 960     | 221.4 / 51.8           | 221.4 / 51.9 | **234.8** / 51.2 |
+
+t6 prefill +4.4% / +4.7% / +6.1% — consistent, but below §5f's single-length
++8.5%. Decode deltas sit inside the closing-control drift (unset re-measured at
+the end: 245.2 / 72.0 vs 244.8 / 74.3 at the start, ≈ −3% decode over the
+session), so decode is neutral within noise. t4 ≈ unset confirmed on all three
+lengths. Ship decision for the asset republish: deliberate, not automatic (see
+ROADMAP).
 
 ### §5 (continued) — disk, availability and the App/Game lever
 

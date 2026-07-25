@@ -161,19 +161,17 @@ long prompt and the CPU wins from the second turn (§5d). Evidence under
 - [x] **Threading recommendation corrected 4 → 6 in the docs (§5f).** The old
       recommendation was a decode-only optimum; measuring prefill too puts 6
       ahead, and `t8` is a trap (it sinks prefill as well as decode).
-- [ ] **Ship `intra_op_num_threads: 6` on the CPU asset — deferred, conditional.**
-      The shipped `smollm2-360m-cpu-int4` sets none, so the recommendation is
-      doc-only. Not shipped yet on purpose: the +8.5% is rigorous at one prompt
-      length (1380), below Phase 12's own bar (10 lengths, closing control), and
-      a republish now would move the baseline every Phase 12 measurement used
-      while #130 is open. Ship condition: a proper thread sweep (≥3 lengths incl.
-      short, 3 runs, closing control), ideally with the next models-v1 republish.
-      See `docs/recommended-config.md`. The **"3 runs" half of that bar is now
-      supported**: the bench records each repeat individually (`run_index`) and
-      the summary reports a median + decode min–max spread instead of a
-      pre-averaged point, so a re-run at ±8.5% can be told from run-to-run noise
-      rather than asserted against a single number (see the measurement-integrity
-      item below).
+- [ ] **Ship `intra_op_num_threads: 6` on the CPU asset — evidence gathered
+      2026-07-25, ship decision pending.** The conditional sweep ran on-console
+      (build 1.4.0.675, `bench/results/phase12b-threads-sweep.csv`: 3 lengths
+      39/285/960 × {unset, t4, t6} × 3 recorded runs + closing control, on a
+      device config first restored to pristine — a stale t4 swap was found and
+      removed, see the runbook preflight). Result: **t6 prefill +4.4% / +4.7% /
+      +6.1%** over unset, consistent across lengths but below §5f's single-length
+      +8.5%; decode deltas (−1% to −4.5%) are within the −3% closing-control
+      session drift, so decode is neutral-to-noise. t4 ≈ unset, confirming §5f.
+      The gain is real but modest; the models-v1 republish is a release operation
+      and stays a deliberate call rather than an automatic consequence.
 - [x] **Measurement integrity: per-run variance is now recoverable (W1.1).** Every
       published decode number was a single row with no spread reported anywhere —
       the ORT driver ran repeats but appended only a median, discarding the data
@@ -202,6 +200,15 @@ long prompt and the CPU wins from the second turn (§5d). Evidence under
       hypothesis over WDDM residency — but not yet a conclusive profile. The
       per-node profiler cannot localise it alone (the graph is one
       `DmlFusedNode_0_0` at 96% of kernel time, §12). Tracked in #130.
+      **2026-07-25 update (PR #158):** the cost is now _paid at load_ — a
+      throwaway generate warms DML sessions inside the "loading model" phase.
+      New mechanism facts from the Session/LAN-API path (960-token request,
+      same process): the cold cost hits **decode too** (18.2 → 23.1 tok/s), and
+      a ~2-token warm-up recovers only part of it (turn-1 prefill 682 vs 899
+      tok/s warm) — the warm-up must run a real-length prompt plus decode
+      steps, i.e. compilation is at least coarsely shape-dependent. What
+      remains open here is only the _root-cause profile_, not the user-facing
+      cost.
 
 ## Upstream and vendor lifecycle
 
