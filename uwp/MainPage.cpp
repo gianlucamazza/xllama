@@ -2438,11 +2438,16 @@ void MainPageController::PreloadSessionAsync() {
     auto self = shared_from_this();
     std::thread([self, model]() {
         auto& hub = ::xllama::session_hub();
-        std::lock_guard<std::mutex> hub_lk(hub.mtx);
-        std::string err;
-        if (!self->EnsureSession(model, &err))
-            ::xllama::log_output(
-                ("[xllama] session preload failed (non-fatal): " + err + "\n").c_str());
+        hub.preloading.store(true); // API waits briefly instead of 503-ing
+        try {
+            std::lock_guard<std::mutex> hub_lk(hub.mtx);
+            std::string err;
+            if (!self->EnsureSession(model, &err))
+                ::xllama::log_output(
+                    ("[xllama] session preload failed (non-fatal): " + err + "\n").c_str());
+        } catch (...) {
+        }
+        hub.preloading.store(false);
     }).detach();
 }
 

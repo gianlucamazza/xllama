@@ -22,6 +22,7 @@
 
 #include "xllama/session.h"
 
+#include <atomic>
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -34,6 +35,13 @@ struct SessionHub {
     std::unique_ptr<Session> session; // guarded by mtx
     std::string model;                // model id loaded into `session`; guarded by mtx
     uint64_t generation = 0;          // bumps on every resident-session change; guarded by mtx
+
+    // True while a background pre-load holds (or is about to take) mtx.
+    // Lets the LAN API distinguish "warming up, wait briefly" from "another
+    // request is generating, report busy" — without it the first request
+    // right after app-Ready bounced with a 503 while the preload held the
+    // lock (observed on-console during Phase C validation).
+    std::atomic<bool> preloading{false};
 
     // Under mtx: return the resident session for |model_id|, creating it (and
     // destroying any other model's session FIRST — never 2x model in RAM) if

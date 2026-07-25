@@ -58,6 +58,21 @@ using namespace winrt::Windows::Data::Json;
 // ---------------------------------------------------------------------------
 std::atomic<uint64_t> g_req_counter{0}; // monotonic, for unique response ids
 
+// Acquire the hub for a request. Busy (another request or a GUI turn) →
+// unowned lock, caller answers 503. But if the holder is the session
+// PRE-LOAD (app just became Ready), wait briefly instead: the client's very
+// first request used to bounce with 503 while the model was warming up
+// (observed on-console). Bounded: ≤15 s, and only while preloading is set.
+std::unique_lock<std::mutex> acquire_hub_or_busy() {
+    auto& hub = ::xllama::session_hub();
+    std::unique_lock<std::mutex> lk(hub.mtx, std::try_to_lock);
+    for (int i = 0; i < 150 && !lk.owns_lock() && hub.preloading.load(); ++i) {
+        Sleep(100);
+        (void)lk.try_lock();
+    }
+    return lk;
+}
+
 std::mutex g_state_mtx;
 ServerStatus g_status;
 uint64_t g_generation = 0; // invalidates callbacks accepted by an older listener
@@ -705,7 +720,7 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
         }
 
         if (req.method == "POST" && req.path == "/v1/chat/completions") {
-            std::unique_lock<std::mutex> lk(::xllama::session_hub().mtx, std::try_to_lock);
+            std::unique_lock<std::mutex> lk = acquire_hub_or_busy();
             if (!lk.owns_lock()) {
                 write_response(socket, "503 Service Unavailable", error_json("busy"));
                 return;
@@ -759,7 +774,7 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
 
         // #118: image generation — shares the single-slot mutex with chat.
         if (req.method == "POST" && req.path == "/v1/images/generations") {
-            std::unique_lock<std::mutex> lk(::xllama::session_hub().mtx, std::try_to_lock);
+            std::unique_lock<std::mutex> lk = acquire_hub_or_busy();
             if (!lk.owns_lock()) {
                 write_response(socket, "503 Service Unavailable", error_json("busy"));
                 return;
