@@ -381,7 +381,15 @@ std::unique_ptr<Session> create_ort(const SessionParams& sp, std::string* err) {
                 OgaSequences* raw_wseqs = nullptr;
                 oga_check(OgaCreateSequences(&raw_wseqs), "OgaCreateSequences warmup");
                 OgaSequencesPtr wseqs(raw_wseqs);
-                oga_check(OgaTokenizerEncode(tok.get(), "warmup", wseqs.get()),
+                // A ~2-token warm-up left turn-1 at ~76% of the warm prefill
+                // rate (validated on-console, PR #158 build 678): a tiny
+                // prompt never exercises the long-sequence prefill GEMMs. A
+                // few hundred tokens lands in the same regime as real turns.
+                std::string wtext;
+                wtext.reserve(2048);
+                for (int i = 0; i < 256; ++i)
+                    wtext += "warmup ";
+                oga_check(OgaTokenizerEncode(tok.get(), wtext.c_str(), wseqs.get()),
                           "OgaTokenizerEncode warmup");
                 OgaGenerator* raw_wgen = nullptr;
                 oga_check(OgaCreateGenerator(model.get(), wparams.get(), &raw_wgen),
@@ -389,7 +397,12 @@ std::unique_ptr<Session> create_ort(const SessionParams& sp, std::string* err) {
                 OgaGeneratorPtr wgen(raw_wgen);
                 oga_check(OgaGenerator_AppendTokenSequences(wgen.get(), wseqs.get()),
                           "AppendTokenSequences warmup");
-                oga_check(OgaGenerator_GenerateNextToken(wgen.get()), "GenerateNextToken warmup");
+                // 3 steps: the first IS the prefill compute; only later ones
+                // run the seq=1 decode kernels (turn-1 decode stayed 17% slow
+                // with a single step — decode was never warmed).
+                for (int i = 0; i < 3; ++i)
+                    oga_check(OgaGenerator_GenerateNextToken(wgen.get()),
+                              "GenerateNextToken warmup");
                 const double w_ms = std::chrono::duration<double, std::milli>(
                                         std::chrono::steady_clock::now() - t_w0)
                                         .count();
