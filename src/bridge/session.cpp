@@ -476,6 +476,14 @@ class LlamaSession final : public Session {
     // (reuse_kv && !reset_kv) can append only the delta instead of re-prefilling
     // the whole conversation. Created lazily on the first generate().
     LlamaContextPtr m_ctx;
+    // #175 decision: sampler state follows the KV lifecycle, mirroring the ORT
+    // persistent generator — the penalty window (and the dist RNG) live as long
+    // as the conversation, so the tail of the previous reply stays penalized at
+    // the start of the next turn. Rebuilt on reset_kv or a sampling change
+    // (same_chain guard). The 64-token window itself is a deliberate divergence
+    // from ORT's whole-sequence penalty — see sampling.h.
+    LlamaSamplerPtr m_sampler;
+    SamplingConfig m_sampler_cfg;
 
     explicit LlamaSession(LlamaModelPtr model, LlamaAdapterLoraPtr adapter, float lora_scale,
                           int n_ctx, int n_threads, int n_batch, int n_ubatch)
@@ -587,12 +595,19 @@ class LlamaSession final : public Session {
                 .count();
         res.n_p_eval = static_cast<int>(tokens.size());
 
-        const llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
-        LlamaSamplerPtr sampler(llama_sampler_chain_init(sparams));
         // Shared with run_inference — see src/bridge/sampler_chain.h and #125.
         // SamplingConfig::is_greedy() also covers temperature 0, where the full
         // chain must not run (the repetition penalty can flip the argmax).
-        add_sampler_stages(sampler.get(), gp.sampling());
+        // #175: reuse the chain on a continuation turn with unchanged sampling,
+        // so penalty/RNG state crosses turn boundaries exactly as the KV does.
+        const SamplingConfig sc = gp.sampling();
+        if (full_prompt || !m_sampler || !same_chain(m_sampler_cfg, sc)) {
+            const llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
+            m_sampler.reset(llama_sampler_chain_init(sparams));
+            add_sampler_stages(m_sampler.get(), sc);
+            m_sampler_cfg = sc;
+        }
+        llama_sampler* sampler_chain = m_sampler.get();
 
         int n_generated = 0;
         bool stopped_by_seq = false;
@@ -607,7 +622,7 @@ class LlamaSession final : public Session {
             if (gp.abort_flag && gp.abort_flag->load())
                 break;
 
-            llama_token token = llama_sampler_sample(sampler.get(), ctx, -1);
+            llama_token token = llama_sampler_sample(sampler_chain, ctx, -1);
             if (llama_vocab_is_eog(vocab, token))
                 break;
 

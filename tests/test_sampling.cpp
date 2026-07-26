@@ -84,6 +84,36 @@ TEST_CASE("sampling: temperature 0 is greedy, independently of the greedy flag")
     CHECK(sc.is_greedy());
 }
 
+TEST_CASE("sampling: same_chain gates the #175 persistent-chain reuse") {
+    // Sampler state follows the KV lifecycle; a persistent chain may only be
+    // reused while it would be assembled identically. Any stage parameter
+    // change must force a rebuild — reusing across a mismatch would sample
+    // with parameters the caller no longer holds.
+    SamplingConfig a;
+    SamplingConfig b;
+    CHECK(same_chain(a, b));
+
+    b.top_k = a.top_k + 1;
+    CHECK_FALSE(same_chain(a, b));
+    b = a;
+    b.seed = a.seed + 1;
+    CHECK_FALSE(same_chain(a, b));
+
+    // Greedy chains have a single stage: two greedy configs match regardless
+    // of the (unused) sampling values, and greedy never matches non-greedy —
+    // including via temperature 0, which is greedy without the flag.
+    b = a;
+    a.greedy = b.greedy = true;
+    b.top_p = 0.123f;
+    CHECK(same_chain(a, b));
+    b.greedy = false;
+    CHECK_FALSE(same_chain(a, b));
+    a.greedy = false;
+    a.temperature = 0.0f;
+    b.temperature = 0.8f;
+    CHECK_FALSE(same_chain(a, b));
+}
+
 TEST_CASE("sampling: the CLI can express every value the GUI can") {
     // Regression for the concrete complaint in #125: a generation observed in
     // the GUI must be reproducible from the command line. Parse the flags and

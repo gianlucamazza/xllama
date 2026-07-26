@@ -266,9 +266,13 @@ fix.
       provisioning I/O, per-message `chat_format()`). Done (PR #177) for
       items 1 and 3; the BuildPrompt-off-UI-thread item folded into #170 on
       cost parity (the worker snapshot costs what the render costs).
-- [ ] **#175 — decide the repetition-penalty window semantics**: resets per
-      turn on llama.cpp, persists on ORT — the runtime-state residual of the
-      #125/#136/#141 sampling unification.
+- [x] **#175 — repetition-penalty state semantics decided (2026-07-26):
+      sampler state follows the KV lifecycle** on both backends — lives as
+      long as the conversation, resets with `reset_kv` or a sampling change.
+      llama now keeps its chain across reuse turns (`same_chain` guard,
+      mirroring `OrtSession::sampling_matches`); the window WIDTH stays
+      deliberately divergent (llama last-64 vs ORT whole-sequence, whose C
+      API exposes no window) — rationale in `sampling.h`.
 
 Explicitly **not** reopened: mmap via `CreateFileMappingFromApp` — tried and
 reverted 2026-07-14 with zero measured benefit (`uwp-constraints.md` §1);
