@@ -27,8 +27,8 @@ performance belongs in `docs/benchmarks.md`.
 - Phases 1–11 are complete for product code: Phase 10 Lane B is `available`
   (host + console marker gates PASS; pin-blocked filter-widening remains);
   Phase 11 closed the headless↔UI gap (in-app personalize + LAN API parity,
-  #116/#118). Remaining open work is the #130 root-cause profile and upstream
-  vendor pin drops.
+  #116/#118). Remaining open work: the Phase 13 CPU-prefill/KV-reuse campaign
+  (#168–#175), the #130 root-cause profile, and upstream vendor pin drops.
 
 ## Phase 7 — Peer-class model research
 
@@ -222,6 +222,48 @@ long prompt and the CPU wins from the second turn (§5d). Evidence under
       model-Ready (`PreloadSessionAsync`), so the warm-up runs before the
       user's first send instead of inside its wait — confirmed on-console
       (first DML request: prefill 873 tok/s, decode at warm parity).
+
+## Phase 13 — CPU prefill & KV-reuse structural campaign (planned)
+
+Sourced from the 2026-07-26 architecture review: a docs sweep of everything
+already adopted or rejected (`uwp-constraints.md`, `phase7-hypotheses.md`)
+crossed with a hot-path code review. Every item below was **never previously
+considered** — none appears in any prior doc or issue. Ordered by
+impact/risk; each issue carries the evidence (file:line) and the candidate
+fix.
+
+- [ ] **#168 — `n_threads_batch` is never set: GGUF prefill runs at 4 threads,
+      decode at 6.** Same defect class as the never-defined
+      `GGML_USE_CPU_REPACK` (#155); every published GGUF prefill figure —
+      including the +62% repack numbers — was measured at 4 prefill threads.
+      One-line fix; on-console validation required (t7/t8 livelock risk, §5f).
+- [ ] **#169 — the context trimmer permanently disables KV reuse** once a chat
+      exceeds `kMaxPromptTokens`: every later turn pays a full ~1800-token
+      re-prefill. Candidate: context shift (`llama_memory_seq_rm`/`seq_add`) + delta prefill. Highest impact, medium-high risk.
+- [ ] **#170 — token-level KV prefix matching.** Regenerate, conversation
+      switch and every LAN-API request re-prefill from zero today; step (a)
+      is in-memory prefix diff (low risk), step (b) persistent KV via
+      `llama_state_seq_save_file` (needs an eviction policy).
+- [ ] **#171 — KV quantization (q8_0) + explicit flash_attn; consolidate the
+      three unlinked `n_ctx = 2048` homes** (the #133/#141 duplicated-state
+      class, caught before divergence this time). Frees the headroom that
+      would let `n_ctx` rise, pushing the #169 cliff later.
+- [ ] **#172 — re-sweep `n_ubatch` on console post-repack** (knob already
+      plumbed, never measured on-device; #155 redrew the GEMM economics).
+      Measure together with #168 — blocked on console access.
+- [ ] **#173 — predict context overflow** instead of failing the turn and
+      retrying with a full prefill.
+- [ ] **#174 — UI-thread micro-costs in `StartInference`** (per-turn
+      provisioning I/O, always-rendered `BuildPrompt`, per-message
+      `chat_format()`).
+- [ ] **#175 — decide the repetition-penalty window semantics**: resets per
+      turn on llama.cpp, persists on ORT — the runtime-state residual of the
+      #125/#136/#141 sampling unification.
+
+Explicitly **not** reopened: mmap via `CreateFileMappingFromApp` — tried and
+reverted 2026-07-14 with zero measured benefit (`uwp-constraints.md` §1);
+the negative measurement stands even though its original attribution was
+retired after #155.
 
 ## Upstream and vendor lifecycle
 
