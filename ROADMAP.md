@@ -242,10 +242,19 @@ fix.
 - [ ] **#169 — the context trimmer permanently disables KV reuse** once a chat
       exceeds `kMaxPromptTokens`: every later turn pays a full ~1800-token
       re-prefill. Candidate: context shift (`llama_memory_seq_rm`/`seq_add`) + delta prefill. Highest impact, medium-high risk.
-- [ ] **#170 — token-level KV prefix matching.** Regenerate, conversation
-      switch and every LAN-API request re-prefill from zero today; step (a)
-      is in-memory prefix diff (low risk), step (b) persistent KV via
-      `llama_state_seq_save_file` (needs an eviction policy).
+- [~] **#170 — token-level KV prefix matching.** **Step (a) landed
+  (2026-07-26): in-memory prefix diff in `LlamaSession`** — a full-prompt
+  turn rewinds the resident KV to the common token prefix
+  (`llama_memory_seq_rm`) and prefills only the divergent tail; a
+  regenerate re-prefills exactly 1 token (opt-in host test with a real
+  GGUF: regenerate byte-identical; extended prompt agrees on the leading
+  token — near-tie divergence downstream is inherent to any prefix
+  cache, the resident prefix was accumulated in a different batch
+  shape). Covers regenerate, edited last message, and LAN-API extension
+  requests through the resident hub session. Step (b) remains: KV
+  persisted to disk (`llama_state_seq_save_file`, eviction policy) for
+  conversation switch across sessions; folds the ex-#174 BuildPrompt
+  item too.
 - [x] **#171 — KV quantization measured; verdict: knob shipped, default
       OFF.** Consolidation half landed first (PR #177: `kDefaultNCtx`, domain
       test). The q8_0+flash-attn knob (`--kv-q8`, `SessionParams::kv_q8`,

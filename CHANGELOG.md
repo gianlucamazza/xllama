@@ -30,6 +30,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   folds into #170: without session-side prompt bookkeeping the worker's
   snapshot costs what the render costs.
 
+### Performance
+
+- **In-memory KV prefix matching (#170 step a).** A full-prompt turn on
+  `LlamaSession` used to clear the cache and re-prefill everything;
+  it now rewinds to the common token prefix with the resident KV
+  (`llama_memory_seq_rm`) and prefills only the divergent tail. A
+  regenerate re-prefills exactly **1 token** instead of the whole
+  conversation; an edited last message keeps everything before the edit; a
+  LAN-API request that extends the previous one (the typical
+  conversational client against the resident hub session) pays only the
+  extension. Correctness pinned by an opt-in host test with a real GGUF:
+  the regenerate is byte-identical (same resident values ⇒ same greedy
+  text); an extended prompt agrees on the leading token, with downstream
+  near-tie divergence documented as inherent to prefix caching (the
+  resident prefix was accumulated in a different batch shape, so K/V last
+  bits differ). The record is cleared whenever a decode failure makes the
+  cache untrustworthy.
+
 ### Added
 
 - **q8_0 KV-cache knob, measured — default stays OFF (#171).** `--kv-q8`
