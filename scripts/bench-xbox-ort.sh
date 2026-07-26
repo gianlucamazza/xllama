@@ -32,6 +32,9 @@
 #                    bench_ubatch.txt (#172). 0 = llama default (512). GGUF
 #                    models only; the ORT path ignores it. The device tags the
 #                    CSV host column with -uN so the row carries the variable.
+#   --kv-q8          q8_0 KV cache + flash attention via bench_kvq8.txt (#171).
+#                    GGUF models only. Host column tagged -kvq8 (same rationale
+#                    as -uN); the guard fails if the MSIX ignores the knob.
 #
 # Required env: XBOX_IP, XBOX_USER, XBOX_PASS
 #
@@ -54,6 +57,7 @@ N_CTX=0     # 0 = engine default (2048)
 N_PREDICT=0 # 0 = engine default (512)
 MAX_LEN=0   # 0 = derive min(n_ctx, prompt+n_predict); -1 = saturate to n_ctx; >0 = explicit
 UBATCH=0    # 0 = llama default (512); #172 sweep knob, GGUF only
+KVQ8=0      # 1 = q8_0 KV + flash attention; #171 A/B knob, GGUF only
 N_RUNS=4    # warmup run 1 dropped; runs 2..N recorded individually (W1.1) → 3 by default
 PROMPT_FILE=""
 OUT_CSV=""
@@ -82,6 +86,10 @@ while [[ $# -gt 0 ]]; do
 	--ubatch)
 		UBATCH="${2:?--ubatch requires a value}"
 		shift 2
+		;;
+	--kv-q8)
+		KVQ8=1
+		shift
 		;;
 	--runs)
 		N_RUNS="${2:?--runs requires a value}"
@@ -341,6 +349,7 @@ printf '%d' "$N_PREDICT" >"${TMPDIR_LOCAL}/bench_npredict.txt"
 # value left by a previous run would otherwise stay in force.
 printf '%d' "$MAX_LEN" >"${TMPDIR_LOCAL}/bench_maxlen.txt"
 printf '%d' "$UBATCH" >"${TMPDIR_LOCAL}/bench_ubatch.txt"
+printf '%d' "$KVQ8" >"${TMPDIR_LOCAL}/bench_kvq8.txt"
 
 # bench.flag — consumed by app on each start; must be re-uploaded per run
 printf 'bench' >"${TMPDIR_LOCAL}/bench.flag"
@@ -391,6 +400,7 @@ for ((run = 1; run <= N_RUNS; run++)); do
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_npredict.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_maxlen.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_ubatch.txt"
+	upload_to_localstate "${TMPDIR_LOCAL}/bench_kvq8.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_run_index.txt"
 
 	echo "  Starting app..."
@@ -446,6 +456,15 @@ for ((run = 1; run <= N_RUNS; run++)); do
 			if [[ "$got_host" != *"-u${UBATCH}"* ]]; then
 				echo "Error: the console ignored --ubatch: host column says '${got_host}', asked -u${UBATCH}." >&2
 				echo "  The installed MSIX predates bench_ubatch.txt — redeploy before measuring." >&2
+				exit 1
+			fi
+		fi
+		# And for --kv-q8 (#171): require the -kvq8 host tag.
+		if ((KVQ8 != 0)); then
+			got_host=$(awk -F, '{print $15}' <<<"$data_row")
+			if [[ "$got_host" != *"-kvq8"* ]]; then
+				echo "Error: the console ignored --kv-q8: host column says '${got_host}'." >&2
+				echo "  The installed MSIX predates bench_kvq8.txt — redeploy before measuring." >&2
 				exit 1
 			fi
 		fi

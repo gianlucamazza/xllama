@@ -35,6 +35,8 @@ static void print_help(const char* prog) {
                  "      --batch <N>      Logical prefill batch; 0 = llama default 2048\n"
                  "      --ubatch <N>     Physical prefill chunk (TTFT sweep knob);\n"
                  "                       0 = llama default 512\n"
+                 "      --kv-q8          q8_0 KV cache + flash attention (#171); falls\n"
+                 "                       back to F16 KV if the arch refuses flash attn\n"
                  "      --membw          Run the CPU memory-bandwidth micro-bench and\n"
                  "                       exit (no model needed); prints read/copy/triad GB/s\n"
                  "      --greedy         Deterministic argmax decode (implies logit parity);\n"
@@ -89,6 +91,7 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         {"top-k", required_argument, nullptr, 15},
         {"repetition-penalty", required_argument, nullptr, 16},
         {"system", required_argument, nullptr, 17},
+        {"kv-q8", no_argument, nullptr, 18},
         {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0}};
 
@@ -162,6 +165,9 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             break;
         case 17:
             out.system_prompt = optarg;
+            break;
+        case 18:
+            out.kv_q8 = true;
             break;
         case 'h':
             print_help(argv[0]);

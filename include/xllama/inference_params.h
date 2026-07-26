@@ -54,6 +54,9 @@ struct InferenceParams {
     // sets prefill throughput on the Zen 2 CPU — the sweep knob for TTFT tuning.
     int n_batch = 0;
     int n_ubatch = 0;
+    // #171: q8_0 KV cache + forced flash attention (GGUF path only; quantized V
+    // requires FA). Same semantics and fallback as SessionParams::kv_q8.
+    bool kv_q8 = false;
     // Sampling. Defaults come from xllama/sampling.h so the CLI/bench surface
     // cannot drift from the GUI/API surface (GenerateParams) the way it did
     // before #125, when this path had no top_p / top_k / repetition_penalty at

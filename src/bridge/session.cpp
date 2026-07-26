@@ -485,10 +485,13 @@ class LlamaSession final : public Session {
     LlamaSamplerPtr m_sampler;
     SamplingConfig m_sampler_cfg;
 
+    bool m_kv_q8 = false; // #171: q8_0 KV + forced flash attention
+
     explicit LlamaSession(LlamaModelPtr model, LlamaAdapterLoraPtr adapter, float lora_scale,
-                          int n_ctx, int n_threads, int n_batch, int n_ubatch)
+                          int n_ctx, int n_threads, int n_batch, int n_ubatch, bool kv_q8)
         : m_model(std::move(model)), m_adapter(std::move(adapter)), m_lora_scale(lora_scale),
-          m_n_ctx(n_ctx), m_n_threads(n_threads), m_n_batch(n_batch), m_n_ubatch(n_ubatch) {}
+          m_n_ctx(n_ctx), m_n_threads(n_threads), m_n_batch(n_batch), m_n_ubatch(n_ubatch),
+          m_kv_q8(kv_q8) {}
 
     InferenceResult generate(const GenerateParams& gp) override {
         InferenceResult res;
@@ -505,7 +508,24 @@ class LlamaSession final : public Session {
                 cparams.n_batch = static_cast<uint32_t>(m_n_batch);
             if (m_n_ubatch > 0)
                 cparams.n_ubatch = static_cast<uint32_t>(m_n_ubatch);
+            if (m_kv_q8) {
+                // #171: quantized V requires flash attention (the pin throws at
+                // context creation with FA disabled, and AUTO may resolve to
+                // disabled) — force it and fall back below if the arch refuses.
+                cparams.type_k = GGML_TYPE_Q8_0;
+                cparams.type_v = GGML_TYPE_Q8_0;
+                cparams.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_ENABLED;
+            }
             m_ctx.reset(llama_init_from_model(m_model.get(), cparams));
+            if (!m_ctx && m_kv_q8) {
+                log_output("[xllama] session: q8_0 KV context failed — falling back "
+                           "to default cache types (#171)\n");
+                cparams.type_k = llama_context_default_params().type_k;
+                cparams.type_v = llama_context_default_params().type_v;
+                cparams.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_AUTO;
+                m_kv_q8 = false;
+                m_ctx.reset(llama_init_from_model(m_model.get(), cparams));
+            }
             if (!m_ctx) {
                 res.error_msg = "failed to create context";
                 log_output("[xllama] session generate: failed to create context\n");
@@ -722,7 +742,8 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
     int n_ctx = sp.n_ctx > 0 ? sp.n_ctx : kDefaultNCtx;
     log_output("[xllama] Session: GGUF model loaded via llama.cpp (persistent)\n");
     return std::make_unique<LlamaSession>(LlamaModelPtr(raw_model), std::move(adapter),
-                                          sp.lora_scale, n_ctx, n_threads, sp.n_batch, sp.n_ubatch);
+                                          sp.lora_scale, n_ctx, n_threads, sp.n_batch, sp.n_ubatch,
+                                          sp.kv_q8);
 }
 } // namespace detail
 

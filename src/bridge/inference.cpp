@@ -477,8 +477,23 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     if (params.n_batch > 0 || params.n_ubatch > 0)
         log_output("[xllama] prefill batch override: n_batch=" + std::to_string(cparams.n_batch) +
                    " n_ubatch=" + std::to_string(cparams.n_ubatch) + "\n");
+    if (params.kv_q8) {
+        // #171: q8_0 KV needs flash attention (quantized V throws without it);
+        // mirror LlamaSession — force FA, fall back below if the arch refuses.
+        cparams.type_k = GGML_TYPE_Q8_0;
+        cparams.type_v = GGML_TYPE_Q8_0;
+        cparams.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_ENABLED;
+        log_output("[xllama] KV cache: q8_0 + flash attention (#171)\n");
+    }
 
     llama_context* raw_ctx = llama_init_from_model(model.get(), cparams);
+    if (!raw_ctx && params.kv_q8) {
+        log_output("[xllama] q8_0 KV context failed — falling back to default cache types\n");
+        cparams.type_k = llama_context_default_params().type_k;
+        cparams.type_v = llama_context_default_params().type_v;
+        cparams.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_AUTO;
+        raw_ctx = llama_init_from_model(model.get(), cparams);
+    }
     if (!raw_ctx) {
         res.error_msg = "failed to create context";
         log_output("[xllama] failed to create context\n");
