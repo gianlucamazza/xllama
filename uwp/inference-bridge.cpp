@@ -180,6 +180,11 @@ void main_loop() {
     // normally derived from n_predict. This decouples them. 0 = derive,
     // -1 = saturate to n_ctx (what the shipping app does).
     const int bench_maxlen = read_local_int("bench_maxlen.txt", 0);
+    // #172: llama.cpp physical prefill chunk (n_ubatch). 0 = llama default
+    // (512). Labeled in the host column (-uN) because the CSV has no ubatch
+    // column — a row that does not carry the variable under study is not
+    // interpretable (the Phase 12 lesson, twice).
+    const int bench_ubatch = read_local_int("bench_ubatch.txt", 0);
     // W1.1: which repetition this run is, written by the bench driver before each
     // iteration. Echoed into the CSV run_index column so the driver can append
     // every repeat and the summary generator can report a spread. 0 = single run.
@@ -220,14 +225,17 @@ void main_loop() {
         params.n_ctx = bench_ctx;
     params.max_length_override = bench_maxlen;
     params.n_threads = bench_threads;           // 0 = auto; set by bench-xbox-ort.sh
+    params.n_ubatch = bench_ubatch;             // #172: 0 = llama default (512)
     params.stop_sequences = fmt.stop_sequences; // clean stop for Gemma's <end_of_turn>
     params.run_index = bench_run_index;         // W1.1: echo into CSV (0 = single-run)
 
     char host_buf[64];
+    int host_len = snprintf(host_buf, sizeof(host_buf), "xbox-series-s");
     if (bench_threads > 0)
-        snprintf(host_buf, sizeof(host_buf), "xbox-series-s-t%d", bench_threads);
-    else
-        snprintf(host_buf, sizeof(host_buf), "xbox-series-s");
+        host_len +=
+            snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-t%d", bench_threads);
+    if (bench_ubatch > 0)
+        snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-u%d", bench_ubatch);
 
     InferenceResult res = ::xllama::run_inference(params);
     xllama::write_bench_csv(params, res, host_buf);

@@ -28,6 +28,10 @@
 #                    min(n_ctx, prompt+n_predict); -1 = saturate to n_ctx (what
 #                    the shipping app does since #135); >0 = explicit value.
 #                    On DirectML this is THE variable governing prefill (#130).
+#   --ubatch N       Override llama.cpp n_ubatch (physical prefill chunk) via
+#                    bench_ubatch.txt (#172). 0 = llama default (512). GGUF
+#                    models only; the ORT path ignores it. The device tags the
+#                    CSV host column with -uN so the row carries the variable.
 #
 # Required env: XBOX_IP, XBOX_USER, XBOX_PASS
 #
@@ -49,6 +53,7 @@ N_THREADS=0
 N_CTX=0     # 0 = engine default (2048)
 N_PREDICT=0 # 0 = engine default (512)
 MAX_LEN=0   # 0 = derive min(n_ctx, prompt+n_predict); -1 = saturate to n_ctx; >0 = explicit
+UBATCH=0    # 0 = llama default (512); #172 sweep knob, GGUF only
 N_RUNS=4    # warmup run 1 dropped; runs 2..N recorded individually (W1.1) → 3 by default
 PROMPT_FILE=""
 OUT_CSV=""
@@ -72,6 +77,10 @@ while [[ $# -gt 0 ]]; do
 		;;
 	--max-length)
 		MAX_LEN="${2:?--max-length requires a value}"
+		shift 2
+		;;
+	--ubatch)
+		UBATCH="${2:?--ubatch requires a value}"
 		shift 2
 		;;
 	--runs)
@@ -331,6 +340,7 @@ printf '%d' "$N_PREDICT" >"${TMPDIR_LOCAL}/bench_npredict.txt"
 # Always written, even when 0 — main_loop only ever overwrites these files, so a
 # value left by a previous run would otherwise stay in force.
 printf '%d' "$MAX_LEN" >"${TMPDIR_LOCAL}/bench_maxlen.txt"
+printf '%d' "$UBATCH" >"${TMPDIR_LOCAL}/bench_ubatch.txt"
 
 # bench.flag — consumed by app on each start; must be re-uploaded per run
 printf 'bench' >"${TMPDIR_LOCAL}/bench.flag"
@@ -380,6 +390,7 @@ for ((run = 1; run <= N_RUNS; run++)); do
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_ctx.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_npredict.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_maxlen.txt"
+	upload_to_localstate "${TMPDIR_LOCAL}/bench_ubatch.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_run_index.txt"
 
 	echo "  Starting app..."
@@ -424,6 +435,17 @@ for ((run = 1; run <= N_RUNS; run++)); do
 			if ((got != want)); then
 				echo "Error: the console ignored --max-length: row says ${got}, asked ${want}." >&2
 				echo "  The installed MSIX predates bench_maxlen.txt — redeploy before measuring." >&2
+				exit 1
+			fi
+		fi
+		# Same hazard for --ubatch: the schema has no ubatch column, so an MSIX
+		# that ignores bench_ubatch.txt would record default-512 rows under a
+		# sweep label. The device tags the host column with -uN; require it.
+		if ((UBATCH != 0)); then
+			got_host=$(awk -F, '{print $15}' <<<"$data_row")
+			if [[ "$got_host" != *"-u${UBATCH}"* ]]; then
+				echo "Error: the console ignored --ubatch: host column says '${got_host}', asked -u${UBATCH}." >&2
+				echo "  The installed MSIX predates bench_ubatch.txt — redeploy before measuring." >&2
 				exit 1
 			fi
 		fi
