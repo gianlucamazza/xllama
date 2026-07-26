@@ -215,3 +215,75 @@ TEST_CASE("Session: KV prefix reuse collapses a repeated prefill (opt-in: XLLAMA
         CHECK(r_ext.output_text == r_fresh.output_text);
     }
 }
+
+// #169: a continuation turn that would overflow n_ctx evicts the oldest
+// resident tokens past n_keep (front-drop + RoPE shift) instead of failing,
+// so a long chat never leaves the reuse regime. Opt-in — needs a real GGUF:
+//   XLLAMA_TEST_MODEL=/path/to/model.gguf ./xllama-tests
+TEST_CASE(
+    "Session: context shift keeps continuations alive past n_ctx (opt-in: XLLAMA_TEST_MODEL)") {
+    const char* model_env = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model_env)
+        return;
+
+    xllama::SessionParams sp;
+    sp.model_path = model_env;
+    sp.n_ctx = 256; // small on purpose: a few turns must overflow it
+    std::string err;
+    auto sess = xllama::Session::create(sp, &err);
+    REQUIRE_MESSAGE(sess, err);
+
+    const std::string sys = "<|im_start|>system\nYou are terse.<|im_end|>\n";
+    const int n_keep = sess->count_tokens(sys);
+    REQUIRE(n_keep > 0);
+
+    // Seed the persistent context (reuse + reset).
+    xllama::GenerateParams seed;
+    seed.prompt = sys + "<|im_start|>user\nSay ok.<|im_end|>\n<|im_start|>assistant\n";
+    seed.n_predict = 32;
+    seed.temperature = 0.0f;
+    seed.reuse_kv = true;
+    seed.reset_kv = true;
+    seed.n_keep = n_keep;
+    const auto r_seed = sess->generate(seed);
+    REQUIRE_MESSAGE(r_seed.success, r_seed.error_msg);
+
+    // Enough continuation turns to overflow n_ctx=256 several times over.
+    // Capability decides the contract (known once the lazy context exists):
+    // LFM2 and pure-attention archs shift, so every turn must succeed;
+    // an arch that cannot shift (Qwen3.5's imrope cache — seq_add would be
+    // a GGML_ASSERT abort, which the gate must prevent) keeps the #173
+    // fail-fast, so the overflowing turn must fail CLEANLY with n_eval == 0 —
+    // the exact signature the UI's full-prefill retry keys on.
+    const bool shifts = sess->can_context_shift();
+    int total_tokens = sess->count_tokens(seed.prompt) + r_seed.n_eval;
+    bool saw_clean_overflow = false;
+    for (int i = 0; i < 8; ++i) {
+        xllama::GenerateParams cont;
+        cont.prompt = "<|im_end|>\n<|im_start|>user\nAnd again, tell me more "
+                      "about that, please.<|im_end|>\n<|im_start|>assistant\n";
+        cont.n_predict = 48;
+        cont.temperature = 0.0f;
+        cont.reuse_kv = true;
+        cont.reset_kv = false;
+        cont.n_keep = n_keep;
+        const auto rc = sess->generate(cont);
+        if (shifts) {
+            REQUIRE_MESSAGE(rc.success, rc.error_msg);
+            CHECK(rc.n_p_eval > 0);
+        } else if (!rc.success) {
+            CHECK(rc.n_eval == 0);
+            CHECK(rc.error_msg.find("context full") != std::string::npos);
+            saw_clean_overflow = true;
+            break;
+        }
+        total_tokens += rc.n_p_eval + rc.n_eval;
+    }
+    if (shifts) {
+        // The conversation genuinely outgrew the context — the loop above
+        // only proves the point if eviction actually had to happen.
+        CHECK(total_tokens > sp.n_ctx);
+    } else {
+        CHECK(saw_clean_overflow);
+    }
+}

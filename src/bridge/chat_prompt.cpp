@@ -149,15 +149,20 @@ ChatFormat chat_format_for(const std::string& model_id) {
     return f;
 }
 
+std::string ChatFormat::render_system_prefix(const std::string& system) const {
+    // Must stay byte-identical to what render_prompt emits before the first
+    // user turn — a context shift pins exactly this many tokens (#169).
+    if (system_style == SystemStyle::DedicatedTurn)
+        return turn_open + system_tag + role_sep + system + turn_close;
+    return {};
+}
+
 std::string ChatFormat::render_prompt(const std::string& system,
                                       const std::vector<ChatTurn>& history,
                                       const std::string& final_user) const {
-    std::string p;
-
     // System: dedicated turn (ChatML / Llama-3, emitted unconditionally) or
     // merged into the first user turn (Gemma).
-    if (system_style == SystemStyle::DedicatedTurn)
-        p += turn_open + system_tag + role_sep + system + turn_close;
+    std::string p = render_system_prefix(system);
 
     bool sys_pending = (system_style == SystemStyle::MergeIntoFirstUser) && !system.empty();
     auto user_content = [&](const std::string& u) -> std::string {
