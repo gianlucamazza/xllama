@@ -239,18 +239,23 @@ fix.
       P=298/1000, decode neutral, no livelock at 6 prefill threads
       (`bench/results/phase13b-threadsbatch-{before,after}.csv`, §5f). GGUF
       headline is now 438.1 prefill / 94.9 decode.
-- [~] **#169 — context shift lands: long chats keep KV reuse past the token
-  budget.** Landed 2026-07-26: when a continuation turn would overflow
-  `n_ctx`, `LlamaSession` evicts the oldest resident tokens past the
-  pinned system prefix (`GenerateParams::n_keep`, upstream-style
-  front-drop `seq_rm` + RoPE `seq_add`, `m_kv_tokens` compacted) instead
-  of failing, and the UI's `do_reuse` no longer requires `n_dropped == 0`
-  on the llama backend. Gated on `llama_memory_can_shift` + no SWA —
-  **both catalogue GGUF archs verified on host**: LFM2.5 (hybrid) shifts
-  (evicted 117 past keep=11 at n_ctx 256, 8 overflowing turns all
-  succeed); Qwen3.5 (imrope, cannot shift — `seq_add` would abort) keeps
-  the clean #173 fail-fast the UI retry keys on. Remaining: console
-  long-chat validation (TTFT O(delta) past 1800 tokens) at next deploy.
+- [x] **#169 — context shift: long chats keep KV reuse past the token
+      budget.** Landed 2026-07-26 (PR #184), **console-confirmed same day on
+      build 1.5.0.729** (new `validate-console.sh longchat` gate): when a
+      continuation turn would overflow `n_ctx`, `LlamaSession` evicts the
+      oldest resident tokens past the pinned system prefix
+      (`GenerateParams::n_keep`, upstream-style front-drop `seq_rm` + RoPE
+      `seq_add`, `m_kv_tokens` compacted) instead of failing, and the UI's
+      `do_reuse` no longer requires `n_dropped == 0` on the llama backend.
+      On-device: trimmed rounds went from **4532 ms full re-prefill (1791
+      tok)** to **~280 ms delta prefill (76–84 tok)**; the shift fired
+      mid-conversation (evicted 1017 past keep=13, kv 1031/2048), later turns
+      stayed in the reuse regime with up to 10 turns trimmed, post-shift
+      replies coherent; KV-bench turn-2 reuse 59 ms vs 890 cold (15–16×),
+      decode 90.3–90.8. Gated on `llama_memory_can_shift` + no SWA — **both
+      catalogue GGUF archs verified on host**: LFM2.5 (hybrid) shifts;
+      Qwen3.5 (imrope, cannot shift — `seq_add` would abort) keeps the clean
+      #173 fail-fast the UI retry keys on.
 - [~] **#170 — token-level KV prefix matching.** **Step (a) landed
   (2026-07-26): in-memory prefix diff in `LlamaSession`** — a full-prompt
   turn rewinds the resident KV to the common token prefix

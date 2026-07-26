@@ -51,6 +51,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   state retains its absorbed history across evictions (documented
   approximation, console quality gates to confirm). `n_predict_eff` is now
   clamped at 0 so an oversized full prompt yields a clean zero-token result.
+  **Confirmed on-console** (build 1.5.0.729, lfm25-350m, new
+  `validate-console.sh longchat` gate): a trimmed round's prefill drops from
+  **4532 ms (1791 tok, full re-prefill)** to **~280 ms (76–84 tok delta)** —
+  the shift fired mid-conversation (`evicted 1017 tokens past keep=13, kv now
+1031 of 2048`), every later turn stayed in the reuse regime with the
+  trimmer dropping up to 10 turns, and post-shift replies remained coherent
+  (model still tracked item numbers and referenced evicted-context facts).
+  KV-reuse bench on the same build: turn-2 reuse 59 ms vs 890 ms cold
+  (15–16×), decode 90.3–90.8 tok/s.
 
 - **In-memory KV prefix matching (#170 step a).** A full-prompt turn on
   `LlamaSession` used to clear the cache and re-prefill everything;
