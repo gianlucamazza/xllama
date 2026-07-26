@@ -30,6 +30,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   folds into #170: without session-side prompt bookkeeping the worker's
   snapshot costs what the render costs.
 
+### Added
+
+- **`--ubatch` bench knob + on-console `n_ubatch` sweep (#172).**
+  `bench_ubatch.txt` reaches `InferenceParams::n_ubatch` on the GGUF path and
+  the device tags the CSV host column with `-uN` (the schema has no ubatch
+  column; a row must carry its variable). Driver guard mirrors
+  `--max-length`'s ignored-knob check. Sweep verdict
+  (`bench/results/phase13c-ubatch-sweep.csv`, u128–u1024 at P=1000, 3 runs
+  each): **the default 512 is the optimum** post-repack+#168 — u256 −0.7%,
+  u128 −2.4%, u1024 −2.8% with +34 MB peak. No product change.
+
 ### Changed
 
 - **The shipping context size has one home (#171, PR #177).**

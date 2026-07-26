@@ -253,9 +253,11 @@ fix.
   half landed (PR #177)**: `kDefaultNCtx` in `inference_params.h` is the
   one home, domain test pins the trimmer relation. KV quantization
   remains, gated on a quality measurement (logit-parity harness).
-- [ ] **#172 — re-sweep `n_ubatch` on console post-repack** (knob already
-      plumbed, never measured on-device; #155 redrew the GEMM economics).
-      Measure together with #168 — blocked on console access.
+- [x] **#172 — re-sweep `n_ubatch` on console post-repack.** Done 2026-07-26
+      (`--ubatch` knob + on-device sweep u128–u1024 at P=1000,
+      `bench/results/phase13c-ubatch-sweep.csv`): **the default 512 is the
+      optimum** post-repack+#168 (u256 −0.7%, u128 −2.4%, u1024 −2.8% and
+      +34 MB peak). No product change; the knob stays for future sweeps.
 - [x] **#173 — predict context overflow** instead of failing the turn and
       retrying with a full prefill. Done (PR #177): both backends fail fast
       pre-append when KV + delta + one token exceeds `n_ctx`, and the llama
