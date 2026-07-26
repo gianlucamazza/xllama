@@ -371,6 +371,18 @@ lengths. **Shipped 2026-07-25** with the 1.5.0.0 identity migration (the forced
 re-provision was the "next models-v1 republish" the ship condition bundled
 with); the release's `genai_config.json` now sets `intra_op_num_threads: 6`.
 
+**2026-07-26 — the GGUF path had its own thread gap all along (#168).**
+Everything above concerns the ORT knob (`intra_op_num_threads`). On the
+llama.cpp side the app set only `n_threads` (decode), never
+`n_threads_batch` — and llama.cpp runs prefill on `n_threads_batch`, whose
+default is 4 regardless of `n_threads`. So while these sweeps tuned ORT
+prefill, **GGUF prefill ran on 4 of the 6 usable cores in every measurement
+ever published**, the +62% repack rows included. Fixed in PR #177
+(`n_threads_batch = n_threads`); the on-console prefill delta is
+deliberately unquoted until the bench runs — 6-thread prefill is exactly the
+regime where the t7/t8-style ggml spin-wait pathology would show if the cap
+logic ever drifts, so the measurement doubles as the livelock check.
+
 ### §5 (continued) — disk, availability and the App/Game lever
 
 **Effect on disk**: models too large to fit the Dev Mode partition also fail before reaching `OgaCreateModel`. This is a distinct failure mode — see §9.

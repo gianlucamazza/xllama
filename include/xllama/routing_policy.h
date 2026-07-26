@@ -36,8 +36,9 @@ namespace xllama {
 // estimate does not model them.
 inline constexpr double kEstimatedCharsPerToken = 5.0;
 
-// Token budget for the prompt itself, sized against n_ctx 2048 with ~250 tokens
-// left for generation.
+// Token budget for the prompt itself, sized against kDefaultNCtx
+// (inference_params.h) with ~250 tokens left for generation —
+// tests/test_routing_policy.cpp pins the relation (#171).
 inline constexpr int kMaxPromptTokens = 1800;
 
 inline constexpr int estimate_tokens_from_chars(std::size_t chars) {

@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "xllama/inference_params.h" // kDefaultNCtx (#171)
 #include "xllama/routing_policy.h"
 
 using namespace xllama;
@@ -140,6 +141,16 @@ TEST_CASE("routing: the threshold stays reachable under the context trimmer") {
     // the trimmer cuts a turn routing would have sent to the GPU.
     CHECK(estimate_tokens_from_chars(7100) == 1420);
     CHECK(estimate_tokens_from_chars(7100) < kMaxPromptTokens);
+}
+
+TEST_CASE("routing: the trimmer budget fits the shipping context") {
+    // #171. kMaxPromptTokens is sized against kDefaultNCtx "with ~250 tokens
+    // left for generation" — but until the context size had one home, nothing
+    // related the two numbers (the same silent-divergence shape as #133). A
+    // trimmed-full prompt must fit the context with real room to generate;
+    // if either constant moves, this states the invariant the other must keep.
+    CHECK(kMaxPromptTokens < kDefaultNCtx);
+    CHECK(kDefaultNCtx - kMaxPromptTokens >= 200);
 }
 
 TEST_CASE("routing: gguf disables routing") {

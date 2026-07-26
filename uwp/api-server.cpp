@@ -321,7 +321,7 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
         std::string err;
         ::xllama::SessionParams sp;
         sp.model_path = model;
-        sp.n_ctx = 2048;
+        sp.n_ctx = ::xllama::kDefaultNCtx;
         session = ::xllama::session_hub().ensure_locked(model, sp, &err);
         if (!session) {
             status = "500 Internal Server Error";
