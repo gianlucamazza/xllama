@@ -53,7 +53,11 @@ tables are in [benchmarks.md](benchmarks.md) (the perf SSOT).
 
 GGUF thread default: llama.cpp auto-detect is capped at **6** on console
 (`detect_threads_llama` — t6 measured optimum, t7/t8 livelock); explicit
-`--threads` on `bench-xbox-ort.sh` still wins.
+`--threads` on `bench-xbox-ort.sh` still wins. Caveat (#168): the "t6" in the
+GGUF rows above describes **decode** — until PR #177 the app never set
+`n_threads_batch`, so every published GGUF **prefill** figure ran on the
+llama.cpp default of 4 prefill threads. Re-measure pending
+(`uwp-constraints.md` §5f, 2026-07-26 note).
 
 ### Do not use
 

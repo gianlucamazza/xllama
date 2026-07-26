@@ -7,6 +7,47 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Performance
+
+- **GGUF prefill now runs on the configured thread count (#168, PR #177).**
+  Neither llama context creation set `n_threads_batch`, whose pin default is
+  4 regardless of `n_threads` — so prefill (any ubatch > 1 token) ran on 4
+  threads while decode got 6, including every published GGUF prefill figure
+  (the +62% repack numbers among them). Same defect class as the
+  never-defined `GGML_USE_CPU_REPACK`. The on-console prefill delta is
+  **not yet measured** (t7/t8 livelock caveat, `uwp-constraints.md` §5f);
+  #168 stays open for the bench.
+- **UI-thread per-turn costs (#174, PR #177).** `IsModelProvisioned`'s
+  filesystem probe (LocalState + InstalledPath stats + USB-root `_wfopen`)
+  ran on the UI thread on every turn but only the sticky first-turn routing
+  decision consumes it — moved inside that branch. `RenderConversation`
+  resolved the per-model chat format once per message (~10 string builds per
+  call); once per render now. The third item (BuildPrompt off the UI thread)
+  folds into #170: without session-side prompt bookkeeping the worker's
+  snapshot costs what the render costs.
+
+### Changed
+
+- **The shipping context size has one home (#171, PR #177).**
+  `kDefaultNCtx` (`inference_params.h`) replaces the three unlinked
+  `n_ctx = 2048` literals in the chat UI, the LAN API and the Session/CLI
+  defaults — the #133/#141 one-quantity-two-homes class, consolidated
+  before divergence this time. `tests/test_routing_policy.cpp` pins
+  `kMaxPromptTokens < kDefaultNCtx` with ≥200 tokens of generation headroom.
+  KV-cache quantization stays open on #171, gated on measurement.
+
+### Fixed
+
+- **Context overflow is predicted instead of discovered by a failed turn
+  (#173, PR #177).** A continuation turn that cannot fit (KV + delta + at
+  least one generated token over `n_ctx`) used to surface as a failed
+  append/decode; the UI then retried with a full prefill — a wasted attempt
+  while the user waits. Both backends now check the arithmetic up front
+  (the KV length is already at hand on both) and fail fast with a
+  `context full` error before touching the generator, so the existing
+  fallback runs immediately. The llama generation loop is also clamped to
+  the context end — a clean stop instead of "decode failed, stopping".
+
 ## [1.5.0.0] - 2026-07-26
 
 ### Performance

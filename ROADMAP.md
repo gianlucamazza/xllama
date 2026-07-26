@@ -223,7 +223,7 @@ long prompt and the CPU wins from the second turn (§5d). Evidence under
       user's first send instead of inside its wait — confirmed on-console
       (first DML request: prefill 873 tok/s, decode at warm parity).
 
-## Phase 13 — CPU prefill & KV-reuse structural campaign (planned)
+## Phase 13 — CPU prefill & KV-reuse structural campaign (in progress)
 
 Sourced from the 2026-07-26 architecture review: a docs sweep of everything
 already adopted or rejected (`uwp-constraints.md`, `phase7-hypotheses.md`)
@@ -232,11 +232,13 @@ considered** — none appears in any prior doc or issue. Ordered by
 impact/risk; each issue carries the evidence (file:line) and the candidate
 fix.
 
-- [ ] **#168 — `n_threads_batch` is never set: GGUF prefill runs at 4 threads,
-      decode at 6.** Same defect class as the never-defined
-      `GGML_USE_CPU_REPACK` (#155); every published GGUF prefill figure —
-      including the +62% repack numbers — was measured at 4 prefill threads.
-      One-line fix; on-console validation required (t7/t8 livelock risk, §5f).
+- [~] **#168 — `n_threads_batch` is never set: GGUF prefill runs at 4 threads,
+  decode at 6.** Same defect class as the never-defined
+  `GGML_USE_CPU_REPACK` (#155); every published GGUF prefill figure —
+  including the +62% repack numbers — was measured at 4 prefill threads.
+  **Fix landed (PR #177)**; the issue stays open for the on-console bench
+  (prefill delta + the t7/t8 livelock check, §5f) — no gain is quoted
+  until it runs.
 - [ ] **#169 — the context trimmer permanently disables KV reuse** once a chat
       exceeds `kMaxPromptTokens`: every later turn pays a full ~1800-token
       re-prefill. Candidate: context shift (`llama_memory_seq_rm`/`seq_add`) + delta prefill. Highest impact, medium-high risk.
@@ -244,18 +246,24 @@ fix.
       switch and every LAN-API request re-prefill from zero today; step (a)
       is in-memory prefix diff (low risk), step (b) persistent KV via
       `llama_state_seq_save_file` (needs an eviction policy).
-- [ ] **#171 — KV quantization (q8_0) + explicit flash_attn; consolidate the
-      three unlinked `n_ctx = 2048` homes** (the #133/#141 duplicated-state
-      class, caught before divergence this time). Frees the headroom that
-      would let `n_ctx` rise, pushing the #169 cliff later.
+- [~] **#171 — KV quantization (q8_0) + explicit flash_attn; consolidate the
+  three unlinked `n_ctx = 2048` homes** (the #133/#141 duplicated-state
+  class, caught before divergence this time). Frees the headroom that
+  would let `n_ctx` rise, pushing the #169 cliff later. **Consolidation
+  half landed (PR #177)**: `kDefaultNCtx` in `inference_params.h` is the
+  one home, domain test pins the trimmer relation. KV quantization
+  remains, gated on a quality measurement (logit-parity harness).
 - [ ] **#172 — re-sweep `n_ubatch` on console post-repack** (knob already
       plumbed, never measured on-device; #155 redrew the GEMM economics).
       Measure together with #168 — blocked on console access.
-- [ ] **#173 — predict context overflow** instead of failing the turn and
-      retrying with a full prefill.
-- [ ] **#174 — UI-thread micro-costs in `StartInference`** (per-turn
-      provisioning I/O, always-rendered `BuildPrompt`, per-message
-      `chat_format()`).
+- [x] **#173 — predict context overflow** instead of failing the turn and
+      retrying with a full prefill. Done (PR #177): both backends fail fast
+      pre-append when KV + delta + one token exceeds `n_ctx`, and the llama
+      generation loop stops cleanly at the context end.
+- [x] **#174 — UI-thread micro-costs in `StartInference`** (per-turn
+      provisioning I/O, per-message `chat_format()`). Done (PR #177) for
+      items 1 and 3; the BuildPrompt-off-UI-thread item folded into #170 on
+      cost parity (the worker snapshot costs what the render costs).
 - [ ] **#175 — decide the repetition-penalty window semantics**: resets per
       turn on llama.cpp, persists on ORT — the runtime-state residual of the
       #125/#136/#141 sampling unification.
