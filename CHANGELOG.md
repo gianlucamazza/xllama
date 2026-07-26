@@ -46,7 +46,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   near-tie divergence documented as inherent to prefix caching (the
   resident prefix was accumulated in a different batch shape, so K/V last
   bits differ). The record is cleared whenever a decode failure makes the
-  cache untrustworthy.
+  cache untrustworthy. _Scope note (see the #170a Fixed entry below): the
+  full rewind regime applies to pure-attention models; hybrid models keep
+  the pure-extension reuse and degrade divergent-tail turns to a full
+  re-prefill._
 
 ### Added
 
@@ -96,6 +99,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   KV-cache quantization stays open on #171, gated on measurement.
 
 ### Fixed
+
+- **The #170a rewind honored on hybrid KV caches (PR #183).**
+  `llama_memory_seq_rm(0, kv_keep, -1)` — the divergent-tail rewind — returns
+  `false` **without mutating anything** on hybrid attn+recurrent models
+  (LFM2/LFM2.5, the default chat model): the recurrent state cannot be
+  partially rewound (`n_rs_seq` is 0 for every arch except Qwen3.5). The
+  return value was ignored, so a regenerate decoded on top of a cache still
+  holding the old tail — corrupted output, reproduced with the opt-in test on
+  LFM2.5-350M. Now a pure extension skips `seq_rm` entirely (works on both
+  regimes) and a refused tail erase degrades to a full clear + re-prefill,
+  correct by construction (single-batch prefill ≡ fresh session,
+  byte-identical, asserted by the regime-aware test).
 
 - **Context overflow is predicted instead of discovered by a failed turn
   (#173, PR #177).** A continuation turn that cannot fit (KV + delta + at
