@@ -185,6 +185,9 @@ void main_loop() {
     // column — a row that does not carry the variable under study is not
     // interpretable (the Phase 12 lesson, twice).
     const int bench_ubatch = read_local_int("bench_ubatch.txt", 0);
+    // #171: q8_0 KV cache + flash attention A/B. Host-column tag -kvq8, same
+    // rationale as -uN (the CSV schema carries no cache-type column).
+    const int bench_kvq8 = read_local_int("bench_kvq8.txt", 0);
     // W1.1: which repetition this run is, written by the bench driver before each
     // iteration. Echoed into the CSV run_index column so the driver can append
     // every repeat and the summary generator can report a spread. 0 = single run.
@@ -226,6 +229,7 @@ void main_loop() {
     params.max_length_override = bench_maxlen;
     params.n_threads = bench_threads;           // 0 = auto; set by bench-xbox-ort.sh
     params.n_ubatch = bench_ubatch;             // #172: 0 = llama default (512)
+    params.kv_q8 = bench_kvq8 != 0;             // #171: q8_0 KV + flash attention
     params.stop_sequences = fmt.stop_sequences; // clean stop for Gemma's <end_of_turn>
     params.run_index = bench_run_index;         // W1.1: echo into CSV (0 = single-run)
 
@@ -235,7 +239,10 @@ void main_loop() {
         host_len +=
             snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-t%d", bench_threads);
     if (bench_ubatch > 0)
-        snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-u%d", bench_ubatch);
+        host_len +=
+            snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-u%d", bench_ubatch);
+    if (bench_kvq8 != 0)
+        snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-kvq8");
 
     InferenceResult res = ::xllama::run_inference(params);
     xllama::write_bench_csv(params, res, host_buf);

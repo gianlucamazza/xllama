@@ -32,6 +32,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **q8_0 KV-cache knob, measured — default stays OFF (#171).** `--kv-q8`
+  (CLI), `SessionParams::kv_q8`, `bench_kvq8.txt` (+ `-kvq8` host tag and
+  driver guard) set `type_k/type_v = q8_0` and force flash attention, which
+  quantized V requires; on a context-creation failure the session falls
+  back to F16 KV so an arch without FA support still loads. Measured with
+  the logit-parity comparator: KV **−47%** on both tested archs
+  (LFM2.5 24 → 12.75 MiB, SmolLM2 80 → 42.5 at n_ctx 2048), FA alone is
+  **bit-identical**, but the quantization drifts the logits — LFM2.5 NMSE
+  8.25e-03 with a top-1 flip on a trivial prompt (SmolLM2 2.13e-03,
+  top-1 stable). Verdict: at n_ctx 2048 the saving is noise next to the
+  weights, so the default stays F16; revisit with the #169 context raise,
+  gated on H9.
+
 - **`--ubatch` bench knob + on-console `n_ubatch` sweep (#172).**
   `bench_ubatch.txt` reaches `InferenceParams::n_ubatch` on the GGUF path and
   the device tags the CSV host column with `-uN` (the schema has no ubatch

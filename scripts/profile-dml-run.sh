@@ -263,6 +263,7 @@ delete_file "" "bench_ctx.txt"
 delete_file "" "bench_npredict.txt"
 delete_file "" "bench_maxlen.txt"
 delete_file "" "bench_ubatch.txt"
+delete_file "" "bench_kvq8.txt"
 
 # Append-only log: remember current size to slice only the new tail later.
 download_file "" "xllama.log" "${TMPDIR_LOCAL}/xllama_before.log"

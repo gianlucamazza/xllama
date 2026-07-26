@@ -37,6 +37,14 @@ struct SessionParams {
     std::string lora_path;
     float lora_scale = 1.0f;
 
+    // #171: quantize the llama.cpp KV cache to q8_0 (halves its footprint) and
+    // force flash attention, which quantized V requires — the pin throws at
+    // context creation otherwise. On any context-creation failure the session
+    // retries with default cache types, so an architecture without flash
+    // attention support degrades to F16 KV instead of failing to load.
+    // Default off until the on-console measurement decides (#171).
+    bool kv_q8 = false;
+
     // #130: run a throwaway generate at load for DirectML models, paying the
     // one-time per-process cost (§5e: cold→warm prefill 1.64-1.72×) inside the
     // "loading model" phase instead of on the user's first turn. Ignored for

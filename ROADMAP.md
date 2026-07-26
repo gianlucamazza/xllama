@@ -246,13 +246,17 @@ fix.
       switch and every LAN-API request re-prefill from zero today; step (a)
       is in-memory prefix diff (low risk), step (b) persistent KV via
       `llama_state_seq_save_file` (needs an eviction policy).
-- [~] **#171 — KV quantization (q8_0) + explicit flash_attn; consolidate the
-  three unlinked `n_ctx = 2048` homes** (the #133/#141 duplicated-state
-  class, caught before divergence this time). Frees the headroom that
-  would let `n_ctx` rise, pushing the #169 cliff later. **Consolidation
-  half landed (PR #177)**: `kDefaultNCtx` in `inference_params.h` is the
-  one home, domain test pins the trimmer relation. KV quantization
-  remains, gated on a quality measurement (logit-parity harness).
+- [x] **#171 — KV quantization measured; verdict: knob shipped, default
+      OFF.** Consolidation half landed first (PR #177: `kDefaultNCtx`, domain
+      test). The q8_0+flash-attn knob (`--kv-q8`, `SessionParams::kv_q8`,
+      `bench_kvq8.txt`, F16 fallback if an arch refuses FA) is measured on
+      host with the logit-parity comparator: KV −47% on both archs, but the
+      drift is entirely from the quantization (FA alone is bit-identical) —
+      NMSE 8.25e-03 with a **top-1 flip on the default LFM2.5 model** at a
+      trivial prompt (SmolLM2: 2.13e-03, top-1 stable). At `n_ctx` 2048 the
+      saving is 11–40 MiB against 320–1600 MB of weights, so shipping it ON
+      would trade visible quality for headroom nothing uses yet. Revisit with
+      the #169 `n_ctx` raise, gated on H9.
 - [x] **#172 — re-sweep `n_ubatch` on console post-repack.** Done 2026-07-26
       (`--ubatch` knob + on-device sweep u128–u1024 at P=1000,
       `bench/results/phase13c-ubatch-sweep.csv`): **the default 512 is the
