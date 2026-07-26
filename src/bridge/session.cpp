@@ -485,6 +485,14 @@ class LlamaSession final : public Session {
     LlamaSamplerPtr m_sampler;
     SamplingConfig m_sampler_cfg;
 
+    // #170a: the tokens whose KV is currently resident (prefilled + generated,
+    // in position order). A full-prompt turn diffs its tokenization against
+    // this and rewinds only the divergent tail (llama_memory_seq_rm) instead
+    // of clearing — regenerate, an edited last message, and LAN-API requests
+    // that extend the previous one re-prefill only the difference. Cleared
+    // whenever the KV state stops being trustworthy (decode failure).
+    std::vector<llama_token> m_kv_tokens;
+
     bool m_kv_q8 = false; // #171: q8_0 KV + forced flash attention
 
     explicit LlamaSession(LlamaModelPtr model, LlamaAdapterLoraPtr adapter, float lora_scale,
@@ -548,13 +556,11 @@ class LlamaSession final : public Session {
         llama_context* ctx = m_ctx.get();
 
         // KV-cache reuse: a continuation turn (reuse_kv && !reset_kv) keeps the
-        // existing cache and appends the delta; otherwise clear it and re-prefill
-        // the full prompt. add_bos only on a full prompt — a delta must not carry
-        // a BOS mid-conversation.
+        // existing cache and appends the delta; otherwise re-prefill the full
+        // prompt — rewinding to the common token prefix when one is resident
+        // (#170a) instead of always clearing. add_bos only on a full prompt —
+        // a delta must not carry a BOS mid-conversation.
         const bool full_prompt = gp.reset_kv || !gp.reuse_kv;
-        if (full_prompt) {
-            llama_memory_clear(llama_get_memory(ctx), true);
-        }
 
         const llama_vocab* vocab = llama_model_get_vocab(m_model.get());
 
@@ -584,18 +590,47 @@ class LlamaSession final : public Session {
         }
         tokens.resize(static_cast<size_t>(n_tokens));
 
-        // #173: on a continuation turn the KV length is exact and free to read
-        // (seq_pos_max is -1 on an empty cache). Predict the overflow — KV +
-        // delta + at least one generated token — and fail before the decode
-        // attempt; the caller retries with the trimmed full prompt. The same
-        // arithmetic clamps the generation loop below so hitting the context
-        // end is a clean stop, not a mid-generation decode failure.
-        const int kv_len =
-            full_prompt ? 0
-                        : static_cast<int>(llama_memory_seq_pos_max(llama_get_memory(ctx), 0)) + 1;
-        if (!full_prompt && kv_len + n_tokens + 1 > m_n_ctx) {
+        // #170a: on a full prompt, rewind the resident KV to the common token
+        // prefix and prefill only the divergent tail. Capped at size-1 so at
+        // least one token is prefilled — the last token's logits seed the first
+        // sample. Regenerate keeps everything but the final token; an edited
+        // last message keeps everything before the edit; an unrelated prompt
+        // diverges immediately and degrades to the old full clear.
+        llama_memory_t mem = llama_get_memory(ctx);
+        size_t kv_keep = 0;
+        if (full_prompt) {
+            const size_t max_keep = tokens.empty() ? 0 : tokens.size() - 1;
+            while (kv_keep < m_kv_tokens.size() && kv_keep < max_keep &&
+                   m_kv_tokens[kv_keep] == tokens[kv_keep])
+                ++kv_keep;
+            if (kv_keep > 0) {
+                llama_memory_seq_rm(mem, 0, static_cast<llama_pos>(kv_keep), -1);
+                char pb[128];
+                snprintf(pb, sizeof(pb),
+                         "[xllama] session: KV prefix reuse — kept %zu of %zu tokens (#170)\n",
+                         kv_keep, tokens.size());
+                log_output(pb);
+            } else {
+                llama_memory_clear(mem, true);
+            }
+            m_kv_tokens.resize(kv_keep);
+        }
+
+        // #173: the KV length is exact and free to read (seq_pos_max is -1 on
+        // an empty cache). Predict the overflow — KV + delta + at least one
+        // generated token — and fail before the decode attempt; the caller
+        // retries with the trimmed full prompt. The same arithmetic clamps the
+        // generation loop below so hitting the context end is a clean stop,
+        // not a mid-generation decode failure.
+        const int kv_len = full_prompt ? static_cast<int>(kv_keep)
+                                       : static_cast<int>(llama_memory_seq_pos_max(mem, 0)) + 1;
+        // The slice that is not yet resident: the divergent tail on a full
+        // prompt, the whole delta on a continuation.
+        llama_token* pf = tokens.data() + (full_prompt ? kv_keep : 0);
+        const int n_pf = static_cast<int>(tokens.size()) - (full_prompt ? (int)kv_keep : 0);
+        if (!full_prompt && kv_len + n_pf + 1 > m_n_ctx) {
             res.error_msg = "context full: kv=" + std::to_string(kv_len) +
-                            " + delta=" + std::to_string(n_tokens) +
+                            " + delta=" + std::to_string(n_pf) +
                             " exceeds n_ctx=" + std::to_string(m_n_ctx);
             log_output(("[xllama] session generate: " + res.error_msg + "\n").c_str());
             return res;
@@ -604,16 +639,25 @@ class LlamaSession final : public Session {
         // Prefill: positions continue automatically from the KV cache end, so a
         // reuse turn appends after the retained context.
         const auto t_prefill0 = std::chrono::steady_clock::now();
-        llama_batch batch = llama_batch_get_one(tokens.data(), static_cast<int32_t>(tokens.size()));
+        llama_batch batch = llama_batch_get_one(pf, n_pf);
         if (llama_decode(ctx, batch) != 0) {
             res.error_msg = "prompt decode failed";
             log_output("[xllama] session generate: prompt decode failed\n");
+            // The cache now holds a partial batch — nothing about it is
+            // trustworthy for a future prefix diff.
+            m_kv_tokens.clear();
             return res;
         }
         res.t_p_eval_ms =
             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_prefill0)
                 .count();
-        res.n_p_eval = static_cast<int>(tokens.size());
+        res.n_p_eval = n_pf;
+
+        // The resident-token record now covers everything prefilled.
+        if (full_prompt)
+            m_kv_tokens.assign(tokens.begin(), tokens.end());
+        else
+            m_kv_tokens.insert(m_kv_tokens.end(), tokens.begin(), tokens.end());
 
         // Shared with run_inference — see src/bridge/sampler_chain.h and #125.
         // SamplingConfig::is_greedy() also covers temperature 0, where the full
@@ -635,8 +679,7 @@ class LlamaSession final : public Session {
 
         // Clean stop at the context end (#173): each generated token needs a KV
         // slot, so the loop must not outrun n_ctx - (kv_len + prompt).
-        const int n_predict_eff =
-            std::min(gp.n_predict, m_n_ctx - kv_len - static_cast<int>(tokens.size()));
+        const int n_predict_eff = std::min(gp.n_predict, m_n_ctx - kv_len - n_pf);
 
         while (n_generated < n_predict_eff) {
             if (gp.abort_flag && gp.abort_flag->load())
@@ -666,6 +709,7 @@ class LlamaSession final : public Session {
                 log_output("[xllama] session generate: decode failed, stopping\n");
                 break;
             }
+            m_kv_tokens.push_back(token); // resident as of this decode (#170a)
             ++n_generated;
         }
 
