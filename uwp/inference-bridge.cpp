@@ -232,8 +232,8 @@ void main_loop() {
     char host_buf[64];
     int host_len = snprintf(host_buf, sizeof(host_buf), "xbox-series-s");
     if (bench_threads > 0)
-        host_len += snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-t%d",
-                             bench_threads);
+        host_len +=
+            snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-t%d", bench_threads);
     if (bench_ubatch > 0)
         snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-u%d", bench_ubatch);
 
