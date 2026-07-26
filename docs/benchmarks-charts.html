@@ -258,10 +258,10 @@
     "model": "LFM2.5-350M",
     "quant": "Q4_K_M",
     "be": "llama",
-    "prefill": 394.84,
-    "decode": 92.97,
+    "prefill": 438.13,
+    "decode": 94.87,
     "ram": 320,
-    "src": "phase13-repack-after"
+    "src": "phase13b-threadsbatch-after"
   },
   {
     "model": "Gemma-3-270M",
@@ -420,7 +420,7 @@
   }
 ];
   const MAX_KV_REUSE = 20.02;
-  const LATEST_RUN = "2026-07-25";
+  const LATEST_RUN = "2026-07-26";
   // END GENERATED BENCHMARK DATA
   const METRICS = {
     decode:  { label: "Decode", unit: "tok/s", cap: "Generation throughput — the rate a user feels. Higher is better.", better: "high" },

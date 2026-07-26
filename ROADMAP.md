@@ -232,13 +232,13 @@ considered** — none appears in any prior doc or issue. Ordered by
 impact/risk; each issue carries the evidence (file:line) and the candidate
 fix.
 
-- [~] **#168 — `n_threads_batch` is never set: GGUF prefill runs at 4 threads,
-  decode at 6.** Same defect class as the never-defined
-  `GGML_USE_CPU_REPACK` (#155); every published GGUF prefill figure —
-  including the +62% repack numbers — was measured at 4 prefill threads.
-  **Fix landed (PR #177)**; the issue stays open for the on-console bench
-  (prefill delta + the t7/t8 livelock check, §5f) — no gain is quoted
-  until it runs.
+- [x] **#168 — `n_threads_batch` is never set: GGUF prefill runs at 4 threads,
+      decode at 6.** Same defect class as the never-defined
+      `GGML_USE_CPU_REPACK` (#155). Fixed (PR #177) and **measured on-console
+      2026-07-26** (builds 698 → 711): prefill **+12.1% / +10.5%** at
+      P=298/1000, decode neutral, no livelock at 6 prefill threads
+      (`bench/results/phase13b-threadsbatch-{before,after}.csv`, §5f). GGUF
+      headline is now 438.1 prefill / 94.9 decode.
 - [ ] **#169 — the context trimmer permanently disables KV reuse** once a chat
       exceeds `kMaxPromptTokens`: every later turn pays a full ~1800-token
       re-prefill. Candidate: context shift (`llama_memory_seq_rm`/`seq_add`) + delta prefill. Highest impact, medium-high risk.

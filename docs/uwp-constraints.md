@@ -377,11 +377,15 @@ llama.cpp side the app set only `n_threads` (decode), never
 `n_threads_batch` — and llama.cpp runs prefill on `n_threads_batch`, whose
 default is 4 regardless of `n_threads`. So while these sweeps tuned ORT
 prefill, **GGUF prefill ran on 4 of the 6 usable cores in every measurement
-ever published**, the +62% repack rows included. Fixed in PR #177
-(`n_threads_batch = n_threads`); the on-console prefill delta is
-deliberately unquoted until the bench runs — 6-thread prefill is exactly the
-regime where the t7/t8-style ggml spin-wait pathology would show if the cap
-logic ever drifts, so the measurement doubles as the livelock check.
+ever published**, the +62% repack rows included. Fixed in PR #177 (`n_threads_batch = n_threads`).
+**Measured on-console the same day** (build 698 → 711, `lfm25-350m` Q4_K_M,
+3 recorded runs per point, `bench/results/phase13b-threadsbatch-{before,after}.csv`):
+prefill **390.7 → 438.1 tok/s (+12.1%)** at P=298 and **388.6 → 429.2
+(+10.5%)** at P=1000, decode neutral (94.9 vs the pre-fix spread), peak RAM
+unchanged, load slightly faster. No livelock at 6 prefill threads — the
+measurement doubled as the t7/t8 spin-wait check. Every GGUF prefill row
+recorded before build 711 is a 4-prefill-thread figure (see the
+comparability note in `bench/README.md`).
 
 ### §5 (continued) — disk, availability and the App/Game lever
 
