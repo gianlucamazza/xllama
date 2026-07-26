@@ -604,12 +604,25 @@ class LlamaSession final : public Session {
                    m_kv_tokens[kv_keep] == tokens[kv_keep])
                 ++kv_keep;
             if (kv_keep > 0) {
-                llama_memory_seq_rm(mem, 0, static_cast<llama_pos>(kv_keep), -1);
-                char pb[128];
-                snprintf(pb, sizeof(pb),
-                         "[xllama] session: KV prefix reuse — kept %zu of %zu tokens (#170)\n",
-                         kv_keep, tokens.size());
-                log_output(pb);
+                // Pure extension (no divergent tail) needs no removal. When a
+                // tail must go, honor seq_rm's result: hybrid caches (LFM2's
+                // attn+recurrent) refuse a partial tail erase — the recurrent
+                // state cannot be rewound — and mutate NOTHING on failure, so
+                // decoding on top would corrupt the output. Degrade to a full
+                // clear + re-prefill instead.
+                if (kv_keep < m_kv_tokens.size() &&
+                    !llama_memory_seq_rm(mem, 0, static_cast<llama_pos>(kv_keep), -1)) {
+                    llama_memory_clear(mem, true);
+                    kv_keep = 0;
+                    log_output("[xllama] session: KV rewind unsupported (hybrid cache) — "
+                               "full re-prefill (#170)\n");
+                } else {
+                    char pb[128];
+                    snprintf(pb, sizeof(pb),
+                             "[xllama] session: KV prefix reuse — kept %zu of %zu tokens (#170)\n",
+                             kv_keep, tokens.size());
+                    log_output(pb);
+                }
             } else {
                 llama_memory_clear(mem, true);
             }
