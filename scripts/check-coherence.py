@@ -301,7 +301,9 @@ def main() -> int:
         # 2026-07-25 baseline: LFM decode 94.2 -> 93.0 (post-repack multi-run
         # median, phase13-repack-after.csv) and ORT CPU 68.0 -> 74.8 (shipped
         # t6 asset, t6-shipped-confirm.csv).
-        for num in ("93.0", "37.9", "18.4", "74.8", "44.4", "20.6", "35.1", "236.7"):
+        # 2026-07-26: LFM 93.0 -> 94.9 (post-#168 n_threads_batch median,
+        # phase13b-threadsbatch-after.csv).
+        for num in ("94.9", "37.9", "18.4", "74.8", "44.4", "20.6", "35.1", "236.7"):
             if num not in block:
                 err(f"generated table missing {num}")
             if num not in rec and num not in ("236.7",):
