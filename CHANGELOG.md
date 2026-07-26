@@ -43,6 +43,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Repetition-penalty state now follows the KV lifecycle on both backends
+  (#175).** llama.cpp rebuilt its sampler chain every turn, so the penalty
+  window (and the dist RNG) reset per turn while the ORT persistent
+  generator carried them across the conversation — the runtime-state
+  residual of the #125/#136/#141 unification. Decision: state lives as long
+  as the conversation (resets with `reset_kv` or a sampling change);
+  `LlamaSession` keeps its chain across reuse turns behind the `same_chain`
+  guard (`sampling.h`), the twin of `OrtSession::sampling_matches`. The
+  window WIDTH stays deliberately divergent — llama's last-64 vs ORT's
+  whole-sequence penalty (no window in the C API); the short window is kept
+  on purpose, whole-sequence penalties being the known cause of long-chat
+  degradation. Greedy paths (all quality gates) are unaffected.
+
 - **The shipping context size has one home (#171, PR #177).**
   `kDefaultNCtx` (`inference_params.h`) replaces the three unlinked
   `n_ctx = 2048` literals in the chat UI, the LAN API and the Session/CLI

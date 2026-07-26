@@ -26,6 +26,15 @@ inline constexpr int kTopK = 40;
 inline constexpr float kRepetitionPenalty = 1.1f;
 // Window the repetition penalty looks back over. Not exposed as a flag —
 // llama.cpp's own default is 64 and no surface has ever varied it.
+//
+// #175 (decided 2026-07-26): sampler STATE follows the KV lifecycle on both
+// backends — it lives as long as the conversation and resets with reset_kv or
+// a sampling change (llama: chain kept across reuse turns in LlamaSession;
+// ORT: the persistent generator always worked this way). The window WIDTH
+// still differs by design: llama penalizes the last 64 generated tokens, ORT
+// GenAI penalizes the whole sequence and its C API exposes no window — the
+// short window is kept deliberately (whole-sequence penalties are the known
+// cause of long-chat degradation), not an alignment gap to fix.
 inline constexpr int kPenaltyLastN = 64;
 inline constexpr uint32_t kSeed = 0xFFFFFFFF; // LLAMA_DEFAULT_SEED
 
@@ -53,5 +62,18 @@ struct SamplingConfig {
         return greedy || temperature <= 0.0f;
     }
 };
+
+// Would these two configs assemble the same sampler chain? The #175 chain-reuse
+// guard: a persistent chain may only be reused while every stage parameter is
+// unchanged (both backends rebuild their sampler state on any mismatch — see
+// LlamaSession::generate and OrtSession::sampling_matches).
+inline bool same_chain(const SamplingConfig& a, const SamplingConfig& b) {
+    if (a.is_greedy() != b.is_greedy())
+        return false;
+    if (a.is_greedy())
+        return true; // greedy chains have no other parameters
+    return a.temperature == b.temperature && a.top_p == b.top_p && a.top_k == b.top_k &&
+           a.repetition_penalty == b.repetition_penalty && a.seed == b.seed;
+}
 
 } // namespace xllama
