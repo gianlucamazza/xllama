@@ -32,6 +32,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Performance
 
+- **Context shift: long chats keep KV reuse past the token budget (#169).**
+  Once a conversation exceeded `kMaxPromptTokens` (1800), the UI trimmer set
+  `n_dropped > 0` on every later turn, which forced a full ~1800-token
+  re-prefill each time — exactly the regime where prefill costs the most.
+  Now a continuation turn that would overflow `n_ctx` evicts the oldest
+  resident tokens past the pinned system prefix (`GenerateParams::n_keep`,
+  computed from the new `ChatFormat::render_system_prefix`) with an
+  upstream-style front-drop `llama_memory_seq_rm` + RoPE `seq_add`, compacts
+  `m_kv_tokens`, and appends the delta; the UI's reuse decision drops the
+  `n_dropped == 0` requirement on the llama backend. Gated on
+  `llama_memory_can_shift` + no SWA — `seq_add` on an unsupported arch is a
+  `GGML_ASSERT` abort, and both catalogue GGUFs needed the gate's two sides:
+  LFM2.5 (hybrid, shiftable) evicts and keeps every overflowing turn alive
+  (host test at n_ctx 256); Qwen3.5 (imrope, not shiftable) keeps the clean
+  #173 fail-fast that the UI's full-prefill retry keys on. The sampler chain
+  survives a shift (it is a continuation — #175), and the hybrid recurrent
+  state retains its absorbed history across evictions (documented
+  approximation, console quality gates to confirm). `n_predict_eff` is now
+  clamped at 0 so an oversized full prompt yields a clean zero-token result.
+
 - **In-memory KV prefix matching (#170 step a).** A full-prompt turn on
   `LlamaSession` used to clear the cache and re-prefill everything;
   it now rewinds to the common token prefix with the resident KV

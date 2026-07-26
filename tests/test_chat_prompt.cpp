@@ -272,3 +272,19 @@ TEST_CASE("kv-reuse invariant holds for chatml, gemma, llama3, and phi3") {
     check_kv_reuse_invariant(chat_format_for("llama32-3b"));
     check_kv_reuse_invariant(chat_format_for("phi35-mini"));
 }
+
+TEST_CASE("render_system_prefix is the exact head of render_prompt (#169)") {
+    const std::string sys = "You are terse.";
+    // DedicatedTurn formats: the prefix must be byte-identical to what
+    // render_prompt emits before the first user turn — a context shift pins
+    // exactly its token count.
+    for (const char* id : {"smollm2-360m-cpu-int4", "llama32-3b", "phi35-mini"}) {
+        const ChatFormat f = chat_format_for(id);
+        const std::string prefix = f.render_system_prefix(sys);
+        CHECK(!prefix.empty());
+        CHECK(f.render_prompt(sys, {}, "hi").rfind(prefix, 0) == 0);
+    }
+    // MergeIntoFirstUser (Gemma): no standalone system block exists — the
+    // prefix is empty and the caller pins only the BOS.
+    CHECK(chat_format_for("gemma3-270m").render_system_prefix(sys).empty());
+}

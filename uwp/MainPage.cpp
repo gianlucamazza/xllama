@@ -2656,7 +2656,13 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     // GGUF/llama.cpp (persistent llama_context in LlamaSession). ep_kv_ok still
     // excludes the DirectML routing model (continuous decoding unsupported there).
     const bool ep_kv_ok = ::xllama::kv_reuse_supported_for_model(routed_model);
-    bool do_reuse = m_kv_reuse && m_kv_valid && n_dropped == 0 && ep_kv_ok;
+    // #169: on the llama backend a trimmed round no longer forces a full
+    // re-prefill — the session evicts the oldest resident tokens (context
+    // shift) when the delta would overflow n_ctx, keeping long chats in the
+    // reuse regime. If the arch cannot shift, the continuation fail-fasts
+    // (#173) and the retry below re-seeds with the trimmed full prompt.
+    const bool shift_capable = ::xllama::model_uses_llama_backend(routed_model);
+    bool do_reuse = m_kv_reuse && m_kv_valid && (n_dropped == 0 || shift_capable) && ep_kv_ok;
     bool kv_reuse = m_kv_reuse && ep_kv_ok;
     std::string delta_prompt = do_reuse ? BuildDeltaPrompt(user_text) : std::string();
 
@@ -2677,8 +2683,14 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     // on the UI thread (chat_format() reads m_model_filename) and captured by value.
     xllama::ChatFormat fmt = chat_format();
 
+    // #169: the pinned head a context shift must never evict — the system
+    // block render_prompt puts before the first user turn. Rendered here
+    // (m_system_prompt is UI-thread state) and tokenized per turn in the
+    // worker, where the session is available.
+    const std::string sys_prefix = fmt.render_system_prefix(m_system_prompt);
+
     std::thread([self, full_prompt, delta_prompt, do_reuse, kv_reuse, ep_kv_ok, model, fmt,
-                 dispatcher]() mutable {
+                 sys_prefix, dispatcher]() mutable {
         try {
             // One hub lock for the whole turn: the resident session cannot be
             // swapped from under us (LAN API requests report busy meanwhile,
@@ -2744,6 +2756,11 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                 gp.stop_sequences = fmt.stop_sequences;
                 gp.reuse_kv = reuse;
                 gp.reset_kv = reset;
+                // count_tokens matches generate()'s full-prompt tokenization
+                // (BOS included), and the system block ends on a special
+                // token, so the boundary is exact. Ignored unless a context
+                // shift actually runs (#169).
+                gp.n_keep = self->m_turn_session->count_tokens(sys_prefix);
                 gp.on_status = on_status;
                 gp.on_token = on_token;
                 return self->m_turn_session->generate(gp);

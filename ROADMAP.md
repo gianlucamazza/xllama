@@ -239,9 +239,18 @@ fix.
       P=298/1000, decode neutral, no livelock at 6 prefill threads
       (`bench/results/phase13b-threadsbatch-{before,after}.csv`, §5f). GGUF
       headline is now 438.1 prefill / 94.9 decode.
-- [ ] **#169 — the context trimmer permanently disables KV reuse** once a chat
-      exceeds `kMaxPromptTokens`: every later turn pays a full ~1800-token
-      re-prefill. Candidate: context shift (`llama_memory_seq_rm`/`seq_add`) + delta prefill. Highest impact, medium-high risk.
+- [~] **#169 — context shift lands: long chats keep KV reuse past the token
+  budget.** Landed 2026-07-26: when a continuation turn would overflow
+  `n_ctx`, `LlamaSession` evicts the oldest resident tokens past the
+  pinned system prefix (`GenerateParams::n_keep`, upstream-style
+  front-drop `seq_rm` + RoPE `seq_add`, `m_kv_tokens` compacted) instead
+  of failing, and the UI's `do_reuse` no longer requires `n_dropped == 0`
+  on the llama backend. Gated on `llama_memory_can_shift` + no SWA —
+  **both catalogue GGUF archs verified on host**: LFM2.5 (hybrid) shifts
+  (evicted 117 past keep=11 at n_ctx 256, 8 overflowing turns all
+  succeed); Qwen3.5 (imrope, cannot shift — `seq_add` would abort) keeps
+  the clean #173 fail-fast the UI retry keys on. Remaining: console
+  long-chat validation (TTFT O(delta) past 1800 tokens) at next deploy.
 - [~] **#170 — token-level KV prefix matching.** **Step (a) landed
   (2026-07-26): in-memory prefix diff in `LlamaSession`** — a full-prompt
   turn rewinds the resident KV to the common token prefix
@@ -251,10 +260,14 @@ fix.
   token — near-tie divergence downstream is inherent to any prefix
   cache, the resident prefix was accumulated in a different batch
   shape). Covers regenerate, edited last message, and LAN-API extension
-  requests through the resident hub session. Step (b) remains: KV
-  persisted to disk (`llama_state_seq_save_file`, eviction policy) for
-  conversation switch across sessions; folds the ex-#174 BuildPrompt
-  item too.
+  requests through the resident hub session. **Hybrid correction (PR
+  #183):** hybrid caches (both catalogue GGUFs) refuse the tail rewind at
+  the `llama_memory` layer — the ignored `seq_rm` return corrupted
+  regenerate output; now a pure extension skips `seq_rm` and a refused
+  erase degrades to a correct full re-prefill (regime-aware opt-in test).
+  Step (b) remains: KV persisted to disk (`llama_state_seq_save_file`,
+  eviction policy) for conversation switch across sessions; folds the
+  ex-#174 BuildPrompt item too.
 - [x] **#171 — KV quantization measured; verdict: knob shipped, default
       OFF.** Consolidation half landed first (PR #177: `kDefaultNCtx`, domain
       test). The q8_0+flash-attn knob (`--kv-q8`, `SessionParams::kv_q8`,

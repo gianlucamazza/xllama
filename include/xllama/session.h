@@ -89,8 +89,23 @@ struct GenerateParams {
     //                                reset_kv = false to reuse it.
     // On any failure of a continuation turn the session drops its chat state and
     // reports !success so the caller can retry with reset_kv + the full prompt.
+    // Exception (#169): when the session supports context shift
+    // (can_context_shift()), a continuation turn that would overflow n_ctx
+    // evicts the oldest tokens past n_keep from the resident KV instead of
+    // failing, so long chats stay in the reuse regime past the token budget.
     bool reuse_kv = false;
     bool reset_kv = false;
+
+    // #169: number of leading prompt tokens pinned across context shifts —
+    // the system prompt (plus BOS), which must survive any eviction. 0 = no
+    // pinned head. Callers compute it once per conversation via
+    // count_tokens() on the system-only render. Ignored by sessions that
+    // cannot shift (ORT, and any arch where llama_memory_can_shift is
+    // false — those keep the fail-fast path). Hybrid caches accept the
+    // front-drop erase (unlike #170a's tail rewind): the recurrent state
+    // holds no cells in the evicted range, only its absorbed history —
+    // an approximation the quality gates measure.
+    int n_keep = 0;
 
     // on_token receives a view into a per-iteration buffer: copy it before
     // the callback returns.
@@ -110,6 +125,15 @@ struct Session {
 
     // Token count for routing/heuristics (encode-only; no generation).
     virtual int count_tokens(const std::string& prompt) = 0;
+
+    // #169: whether a continuation turn that would overflow n_ctx evicts the
+    // oldest tokens (RoPE shift) instead of failing. False for ORT and for
+    // llama archs whose cache cannot shift (llama_memory_can_shift). Callers
+    // use it to keep the KV-reuse path for long chats instead of falling back
+    // to trimmed full prefills.
+    virtual bool can_context_shift() const {
+        return false;
+    }
 
     virtual ~Session() = default;
 };

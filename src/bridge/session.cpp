@@ -495,6 +495,13 @@ class LlamaSession final : public Session {
 
     bool m_kv_q8 = false; // #171: q8_0 KV + forced flash attention
 
+    // #169: whether the resident KV supports front-drop eviction + RoPE shift.
+    // Known once the lazy context exists. Gated on llama_memory_can_shift —
+    // seq_add on an unsupported arch (mrope) is a GGML_ASSERT abort, not an
+    // error — and on the model not using SWA, where the resident window is
+    // not [0, kv_len) and the shift arithmetic below would lie.
+    bool m_can_shift = false;
+
     explicit LlamaSession(LlamaModelPtr model, LlamaAdapterLoraPtr adapter, float lora_scale,
                           int n_ctx, int n_threads, int n_batch, int n_ubatch, bool kv_q8)
         : m_model(std::move(model)), m_adapter(std::move(adapter)), m_lora_scale(lora_scale),
@@ -539,6 +546,8 @@ class LlamaSession final : public Session {
                 log_output("[xllama] session generate: failed to create context\n");
                 return res;
             }
+            m_can_shift = llama_memory_can_shift(llama_get_memory(m_ctx.get())) &&
+                          llama_model_n_swa(m_model.get()) == 0;
             // Apply runtime LoRA after context exists (llama_set_adapters_lora is
             // context-scoped). Must re-apply if context is ever recreated.
             if (m_adapter) {
@@ -635,18 +644,54 @@ class LlamaSession final : public Session {
         // retries with the trimmed full prompt. The same arithmetic clamps the
         // generation loop below so hitting the context end is a clean stop,
         // not a mid-generation decode failure.
-        const int kv_len = full_prompt ? static_cast<int>(kv_keep)
-                                       : static_cast<int>(llama_memory_seq_pos_max(mem, 0)) + 1;
+        int kv_len = full_prompt ? static_cast<int>(kv_keep)
+                                 : static_cast<int>(llama_memory_seq_pos_max(mem, 0)) + 1;
         // The slice that is not yet resident: the divergent tail on a full
         // prompt, the whole delta on a continuation.
         llama_token* pf = tokens.data() + (full_prompt ? kv_keep : 0);
         const int n_pf = static_cast<int>(tokens.size()) - (full_prompt ? (int)kv_keep : 0);
         if (!full_prompt && kv_len + n_pf + 1 > m_n_ctx) {
-            res.error_msg = "context full: kv=" + std::to_string(kv_len) +
-                            " + delta=" + std::to_string(n_pf) +
-                            " exceeds n_ctx=" + std::to_string(m_n_ctx);
-            log_output(("[xllama] session generate: " + res.error_msg + "\n").c_str());
-            return res;
+            // #169: context shift — evict the oldest tokens past the pinned
+            // head (gp.n_keep, the system prompt) and RoPE-shift the survivors
+            // down, so a long chat stays in the reuse regime instead of
+            // falling back to trimmed ~n_ctx re-prefills every turn. Eviction
+            // is upstream-style (server-context.cpp): at least half the
+            // movable region, or more when the delta + requested generation
+            // need it. The recurrent half of a hybrid cache holds no cells in
+            // the evicted range (its absorbed history survives — a documented
+            // approximation), so the front-drop seq_rm succeeds where #170a's
+            // tail rewind cannot.
+            bool shifted = false;
+            if (m_can_shift && kv_len > 0 && static_cast<int>(m_kv_tokens.size()) == kv_len) {
+                const int keep = std::min(std::max(gp.n_keep, 0), kv_len - 1);
+                const int movable = kv_len - keep;
+                const int need = kv_len + n_pf + std::max(gp.n_predict, 1) - m_n_ctx;
+                const int n_discard = std::min(std::max(need, movable / 2), movable);
+                if (n_discard > 0 && kv_len + n_pf + 1 - n_discard <= m_n_ctx &&
+                    llama_memory_seq_rm(mem, 0, keep, keep + n_discard)) {
+                    llama_memory_seq_add(mem, 0, keep + n_discard, -1, -n_discard);
+                    m_kv_tokens.erase(m_kv_tokens.begin() + keep,
+                                      m_kv_tokens.begin() + keep + n_discard);
+                    kv_len -= n_discard;
+                    shifted = true;
+                    char sb[160];
+                    snprintf(sb, sizeof(sb),
+                             "[xllama] session: context shift — evicted %d tokens past "
+                             "keep=%d, kv now %d of %d (#169)\n",
+                             n_discard, keep, kv_len, m_n_ctx);
+                    log_output(sb);
+                }
+            }
+            if (!shifted) {
+                // #173 fail-fast: the caller retries with the trimmed full
+                // prompt. Reached when the cache cannot shift, the bookkeeping
+                // is out of sync, or even a full eviction would not fit.
+                res.error_msg = "context full: kv=" + std::to_string(kv_len) +
+                                " + delta=" + std::to_string(n_pf) +
+                                " exceeds n_ctx=" + std::to_string(m_n_ctx);
+                log_output(("[xllama] session generate: " + res.error_msg + "\n").c_str());
+                return res;
+            }
         }
 
         // Prefill: positions continue automatically from the KV cache end, so a
@@ -691,8 +736,9 @@ class LlamaSession final : public Session {
         const auto t_decode0 = std::chrono::steady_clock::now();
 
         // Clean stop at the context end (#173): each generated token needs a KV
-        // slot, so the loop must not outrun n_ctx - (kv_len + prompt).
-        const int n_predict_eff = std::min(gp.n_predict, m_n_ctx - kv_len - n_pf);
+        // slot, so the loop must not outrun n_ctx - (kv_len + prompt). Clamped
+        // at 0 — an oversized full prompt yields a clean zero-token result.
+        const int n_predict_eff = std::max(0, std::min(gp.n_predict, m_n_ctx - kv_len - n_pf));
 
         while (n_generated < n_predict_eff) {
             if (gp.abort_flag && gp.abort_flag->load())
@@ -752,6 +798,10 @@ class LlamaSession final : public Session {
         if (n == INT32_MIN)
             return 0;
         return -n;
+    }
+
+    bool can_context_shift() const override {
+        return m_can_shift;
     }
 };
 

@@ -88,6 +88,13 @@ struct ChatFormat {
     // the n_predict cap.
     std::string render_delta(const std::string& user, bool prev_ended_with_stop) const;
 
+    // #169: the exact prefix render_prompt emits before the first user turn —
+    // what a context shift must pin (GenerateParams::n_keep is its token
+    // count). Empty for MergeIntoFirstUser formats (Gemma), whose system text
+    // lives inside the first user turn and cannot be pinned separately;
+    // count_tokens("") still pins the BOS.
+    std::string render_system_prefix(const std::string& system) const;
+
     // Output post-processing before display/persist (strips empty <think> blocks;
     // no-op for Gemma).
     std::string postprocess_output(std::string text) const;
