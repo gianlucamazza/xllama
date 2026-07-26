@@ -14,9 +14,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   4 regardless of `n_threads` — so prefill (any ubatch > 1 token) ran on 4
   threads while decode got 6, including every published GGUF prefill figure
   (the +62% repack numbers among them). Same defect class as the
-  never-defined `GGML_USE_CPU_REPACK`. The on-console prefill delta is
-  **not yet measured** (t7/t8 livelock caveat, `uwp-constraints.md` §5f);
-  #168 stays open for the bench.
+  never-defined `GGML_USE_CPU_REPACK`. **Measured on-console** (builds
+  698 → 711, 3 recorded runs per point,
+  `bench/results/phase13b-threadsbatch-{before,after}.csv`): prefill
+  **+12.1%** at P=298 (390.7 → 438.1 tok/s) and **+10.5%** at P=1000
+  (388.6 → 429.2), decode neutral, peak RAM unchanged, no livelock at 6
+  prefill threads. GGUF prefill rows recorded before build 711 carry a
+  comparability boundary (`bench/README.md`).
 - **UI-thread per-turn costs (#174, PR #177).** `IsModelProvisioned`'s
   filesystem probe (LocalState + InstalledPath stats + USB-root `_wfopen`)
   ran on the UI thread on every turn but only the sticky first-turn routing

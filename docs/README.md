@@ -36,7 +36,7 @@ Technical notes and design decisions for xllama.
 | LAN HTTP protocol                                                                      | [api-endpoint.md](./api-endpoint.md)                                                                                         |
 | App gamepad UI (chat, settings, personalize, images)                                   | [using-the-app.md](./using-the-app.md)                                                                                       |
 | Version / current product state                                                        | [`../CHANGELOG.md`](../CHANGELOG.md) + [`../ROADMAP.md`](../ROADMAP.md)                                                      |
-| Package identity / install & migration path                                            | [install-release.md](./install-release.md) (user) + `AGENTS.md` Versioning (dev)                                            |
+| Package identity / install & migration path                                            | [install-release.md](./install-release.md) (user) + `AGENTS.md` Versioning (dev)                                             |
 | Agent / contributor quick map                                                          | [`../AGENTS.md`](../AGENTS.md)                                                                                               |
 
 The benchmark flow is intentionally one-way:
@@ -108,15 +108,15 @@ original 2026-07-24 matrix seeded the script):
 
 Spot-checked against code + evidence:
 
-| Fact                                                | SSOT                                                      | Status                                                      |
-| --------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------- |
-| Default chat `lfm25-350m` (unified)                 | `MainPage.cpp` `DefaultChatModelId`                       | OK                                                          |
-| `token_threshold` 1550                              | `routing_policy.h`                                        | OK                                                          |
-| GPU allowlist `-v2` only                            | `dml_text_model_ok`                                       | OK                                                          |
-| NuGet 0.14.1 / 1.24.4 / DML 1.15.4                  | `packages.config`                                         | OK                                                          |
-| Decode table (93.0 / 37.9 / 18.4 / 74.8 / 44.4 / …) | `generate-benchmark-summary.py --check`                   | OK (2026-07-25: LFM post-repack median, ORT CPU shipped-t6) |
-| Package identity `GianlucaMazza.xllama` (1.5.0.0)   | `uwp/AppxManifest.xml`; migration in `install-release.md` | OK (breaking vs ≤1.4.x)                                     |
-| One resident Session (GUI+API)                      | `include/xllama/session_hub.h`                            | OK (PR #161/#164)                                           |
-| H9 6/8 · 7/8 · 4/8 · 5/8                            | `phase7-h9.jsonl`                                         | OK                                                          |
-| Lane B peak_ws 1195 MB, wall 446 s                  | `phase10-console-devtrain-result.json`                    | OK                                                          |
-| Catalogue download sizes                            | `manifest.json` `approx_bytes`                            | Docs corrected to match (was 218/697/1.46 stale)            |
+| Fact                                                | SSOT                                                      | Status                                                    |
+| --------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------- |
+| Default chat `lfm25-350m` (unified)                 | `MainPage.cpp` `DefaultChatModelId`                       | OK                                                        |
+| `token_threshold` 1550                              | `routing_policy.h`                                        | OK                                                        |
+| GPU allowlist `-v2` only                            | `dml_text_model_ok`                                       | OK                                                        |
+| NuGet 0.14.1 / 1.24.4 / DML 1.15.4                  | `packages.config`                                         | OK                                                        |
+| Decode table (94.9 / 37.9 / 18.4 / 74.8 / 44.4 / …) | `generate-benchmark-summary.py --check`                   | OK (2026-07-26: LFM post-#168 median, ORT CPU shipped-t6) |
+| Package identity `GianlucaMazza.xllama` (1.5.0.0)   | `uwp/AppxManifest.xml`; migration in `install-release.md` | OK (breaking vs ≤1.4.x)                                   |
+| One resident Session (GUI+API)                      | `include/xllama/session_hub.h`                            | OK (PR #161/#164)                                         |
+| H9 6/8 · 7/8 · 4/8 · 5/8                            | `phase7-h9.jsonl`                                         | OK                                                        |
+| Lane B peak_ws 1195 MB, wall 446 s                  | `phase10-console-devtrain-result.json`                    | OK                                                        |
+| Catalogue download sizes                            | `manifest.json` `approx_bytes`                            | Docs corrected to match (was 218/697/1.46 stale)          |

@@ -42,22 +42,23 @@ tables are in [benchmarks.md](benchmarks.md) (the perf SSOT).
 
 | Use case              | Catalogue `name`           | Backend               | Measured decode                                                                                                                                                                                                                                         |
 | --------------------- | -------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Default (unified)** | `lfm25-350m`               | llama.cpp (`unified`) | **93.0 tok/s** (recommended)                                                                                                                                                                                                                            |
+| **Default (unified)** | `lfm25-350m`               | llama.cpp (`unified`) | **94.9 tok/s** (recommended)                                                                                                                                                                                                                            |
 | **Balanced chat**     | `lfm25-1.2b-instruct`      | llama.cpp (`unified`) | **37.9 tok/s**, 811 MB peak; H9 6/8                                                                                                                                                                                                                     |
 | **Quality chat**      | `lfm2-2.6b`                | llama.cpp (`unified`) | **18.4 tok/s**, 1623 MB peak; H9 7/8                                                                                                                                                                                                                    |
 | **ORT default**       | `smollm2-360m-cpu-int4`    | ORT CPU int4          | **74.8** tok/s (262.4 prefill — shipped t6 asset, `t6-shipped-confirm.csv`)                                                                                                                                                                             |
 | **Routing GPU**       | `smollm2-360m-dml-fp16-v2` | ORT DML fp16          | 44.4 tok/s decode; 236.7 tok/s prefill (cold-process **bench** figure — in-app turns run warm since the load warm-up + pre-load, §5e: first request ~873 tok/s prefill) — RMSNorm-decomposed graph, #91 parity-validated (`dml-rmsnorm-fix-runbook.md`) |
 | **Larger chat**       | `smollm2-1.7b-cpu-int4`    | ORT CPU int4          | **20.6** tok/s (in-app `models-v1` download)                                                                                                                                                                                                            |
 | **Modern GGUF**       | `qwen35-0.8b`              | llama.cpp (`unified`) | 35.1 tok/s (98.1 prefill, t6 — pre-repack figure, not re-measured)                                                                                                                                                                                      |
-| **Fast modern GGUF**  | `lfm25-350m`               | llama.cpp (`unified`) | 93.0 tok/s (394.8 prefill, t6 — post-repack, PR #155: prefill was 241.4 before)                                                                                                                                                                         |
+| **Fast modern GGUF**  | `lfm25-350m`               | llama.cpp (`unified`) | 94.9 tok/s (438.1 prefill, t6 — post-#168, PR #177: prefill was 394.8 with batch threads at the default 4; 241.4 pre-repack)                                                                                                                            |
 
 GGUF thread default: llama.cpp auto-detect is capped at **6** on console
 (`detect_threads_llama` — t6 measured optimum, t7/t8 livelock); explicit
-`--threads` on `bench-xbox-ort.sh` still wins. Caveat (#168): the "t6" in the
-GGUF rows above describes **decode** — until PR #177 the app never set
-`n_threads_batch`, so every published GGUF **prefill** figure ran on the
-llama.cpp default of 4 prefill threads. Re-measure pending
-(`uwp-constraints.md` §5f, 2026-07-26 note).
+`--threads` on `bench-xbox-ort.sh` still wins. Since PR #177 the cap applies
+to prefill too (#168): before it the app never set `n_threads_batch`, so
+every GGUF prefill figure published up to build 698 ran on llama.cpp's
+default of 4 prefill threads — measured cost on-console: −12.1% / −10.5% at
+P=298/1000 (`phase13b-threadsbatch-{before,after}.csv`,
+`uwp-constraints.md` §5f).
 
 ### Do not use
 

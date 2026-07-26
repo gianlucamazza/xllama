@@ -6,7 +6,7 @@ summary rather than maintained as a second source of truth.
 
 ## Suggested title
 
-I got a 2020 Xbox Series S running local LLMs at up to 93 tok/s — and learned why the GPU often loses
+I got a 2020 Xbox Series S running local LLMs at up to 95 tok/s — and learned why the GPU often loses
 
 ## Alternative titles
 
@@ -31,7 +31,10 @@ the GPU must always be faster.
 Best single fix of the project: one missing preprocessor define
 (`GGML_USE_CPU_REPACK` was compiled but never enabled) was silently costing
 **62% of GGUF prompt-processing throughput** — 241 → 394 tok/s from a one-line
-build change.
+build change. The next day a second one-liner (llama.cpp's `n_threads_batch`
+was never set, so prompt processing ran on 4 of the 6 usable cores) added
+another **+12%** — 394 → 438 tok/s. Audit your builds for defaults you assume
+you are overriding.
 
 There is no cloud inference involved. The app has a gamepad-oriented chat UI,
 first-launch model downloads, an optional OpenAI-compatible LAN endpoint, and a
@@ -64,7 +67,7 @@ benchmark ranking.
 
 | Model        | Quantization / backend |         Decode | Peak RAM |
 | ------------ | ---------------------- | -------------: | -------: |
-| LFM2.5-350M  | Q4_K_M, llama.cpp CPU  | **93.0 tok/s** |   320 MB |
+| LFM2.5-350M  | Q4_K_M, llama.cpp CPU  | **94.9 tok/s** |   320 MB |
 | Gemma-3-270M | Q4_K_M, llama.cpp CPU  | **76.8 tok/s** |   368 MB |
 | SmolLM2-360M | int4, ORT CPU          | **74.8 tok/s** |   708 MB |
 | LFM2.5-1.2B  | Q4_K_M, llama.cpp CPU  | **37.9 tok/s** |   811 MB |
@@ -195,7 +198,7 @@ different workload. The harness records prompt length, generated-token count,
 `max_length`, thread count and backend metadata so that a rate can be turned
 back into an approximate timing instead of being treated as a standalone score.
 
-The most useful result is probably not the 93 tok/s number. It is the routing
+The most useful result is probably not the 95 tok/s number. It is the routing
 rule: CPU for decode and conversation continuation, GPU for batch-heavy work,
 and correctness gates before enabling a model in GPU routing.
 
@@ -206,7 +209,7 @@ app for local LLM chat and Stable Diffusion on an Xbox Series S/X in Dev Mode.
 
 On the Series S, the current measurements include:
 
-- LFM2.5-350M Q4_K_M: 93.0 tok/s decode (394.8 prompt tok/s), 320 MB RAM.
+- LFM2.5-350M Q4_K_M: 94.9 tok/s decode (438.1 prompt tok/s), 320 MB RAM.
 - LFM2.5-1.2B Q4_K_M: 37.9 tok/s, 811 MB RAM.
 - LFM2-2.6B Q4_K_M: 18.4 tok/s, 1623 MB RAM.
 - KV-cache reuse: up to about 20× faster turn-2 prefill.
