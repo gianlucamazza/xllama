@@ -277,6 +277,19 @@ class OrtSession final : public Session {
                   "OgaTokenizerEncode");
         int n_prompt_tok = static_cast<int>(OgaSequencesGetSequenceCount(seqs.get(), 0));
 
+        // #173: a continuation that cannot fit (KV + delta + >=1 generated token
+        // over n_ctx) is predictable from state we already hold — fail before
+        // touching the generator instead of letting the append discover it. The
+        // throw lands in generate()'s catch, which resets the chat state; the
+        // caller sees n_eval == 0 and falls back to a trimmed full prefill.
+        if (reuse) {
+            const int kv = static_cast<int>(OgaGenerator_GetSequenceCount(m_chat_gen.get(), 0));
+            if (kv + n_prompt_tok + 1 > m_n_ctx)
+                throw std::runtime_error("context full: kv=" + std::to_string(kv) +
+                                         " + delta=" + std::to_string(n_prompt_tok) +
+                                         " exceeds n_ctx=" + std::to_string(m_n_ctx));
+        }
+
         if (gp.on_status)
             gp.on_status("generating");
         auto t0 = std::chrono::steady_clock::now();
@@ -476,6 +489,10 @@ class LlamaSession final : public Session {
             llama_context_params cparams = llama_context_default_params();
             cparams.n_ctx = m_n_ctx;
             cparams.n_threads = m_n_threads;
+            // Prefill (any ubatch > 1 token) runs on n_threads_batch, whose
+            // default is GGML_DEFAULT_N_THREADS (4) regardless of n_threads —
+            // left unset it caps prefill at 4 threads while decode gets 6 (#168).
+            cparams.n_threads_batch = m_n_threads;
             if (m_n_batch > 0)
                 cparams.n_batch = static_cast<uint32_t>(m_n_batch);
             if (m_n_ubatch > 0)
@@ -539,6 +556,23 @@ class LlamaSession final : public Session {
         }
         tokens.resize(static_cast<size_t>(n_tokens));
 
+        // #173: on a continuation turn the KV length is exact and free to read
+        // (seq_pos_max is -1 on an empty cache). Predict the overflow — KV +
+        // delta + at least one generated token — and fail before the decode
+        // attempt; the caller retries with the trimmed full prompt. The same
+        // arithmetic clamps the generation loop below so hitting the context
+        // end is a clean stop, not a mid-generation decode failure.
+        const int kv_len =
+            full_prompt ? 0
+                        : static_cast<int>(llama_memory_seq_pos_max(llama_get_memory(ctx), 0)) + 1;
+        if (!full_prompt && kv_len + n_tokens + 1 > m_n_ctx) {
+            res.error_msg = "context full: kv=" + std::to_string(kv_len) +
+                            " + delta=" + std::to_string(n_tokens) +
+                            " exceeds n_ctx=" + std::to_string(m_n_ctx);
+            log_output(("[xllama] session generate: " + res.error_msg + "\n").c_str());
+            return res;
+        }
+
         // Prefill: positions continue automatically from the KV cache end, so a
         // reuse turn appends after the retained context.
         const auto t_prefill0 = std::chrono::steady_clock::now();
@@ -564,7 +598,12 @@ class LlamaSession final : public Session {
         bool stopped_by_seq = false;
         const auto t_decode0 = std::chrono::steady_clock::now();
 
-        while (n_generated < gp.n_predict) {
+        // Clean stop at the context end (#173): each generated token needs a KV
+        // slot, so the loop must not outrun n_ctx - (kv_len + prompt).
+        const int n_predict_eff =
+            std::min(gp.n_predict, m_n_ctx - kv_len - static_cast<int>(tokens.size()));
+
+        while (n_generated < n_predict_eff) {
             if (gp.abort_flag && gp.abort_flag->load())
                 break;
 
@@ -665,7 +704,7 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
     }
 
     int n_threads = sp.n_threads > 0 ? sp.n_threads : detect_threads_llama();
-    int n_ctx = sp.n_ctx > 0 ? sp.n_ctx : 2048;
+    int n_ctx = sp.n_ctx > 0 ? sp.n_ctx : kDefaultNCtx;
     log_output("[xllama] Session: GGUF model loaded via llama.cpp (persistent)\n");
     return std::make_unique<LlamaSession>(LlamaModelPtr(raw_model), std::move(adapter),
                                           sp.lora_scale, n_ctx, n_threads, sp.n_batch, sp.n_ubatch);

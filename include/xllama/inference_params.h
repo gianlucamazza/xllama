@@ -14,6 +14,12 @@
 
 namespace xllama {
 
+// The one home for the shipping context size (#171). Every surface that opens a
+// context (chat UI, LAN API, Session default, CLI default) reads this constant;
+// the trimmer budget kMaxPromptTokens (routing_policy.h) is sized against it —
+// tests/test_routing_policy.cpp pins the relation.
+inline constexpr int kDefaultNCtx = 2048;
+
 // ---------------------------------------------------------------------------
 // Inference configuration
 // ---------------------------------------------------------------------------
@@ -21,7 +27,7 @@ struct InferenceParams {
     std::string model_path; // Linux: absolute path; UWP: filename in LocalFolder
     std::string prompt;
     int n_predict = 128;
-    int n_ctx = 2048;
+    int n_ctx = kDefaultNCtx;
 
     // #130 bench knob (ORT path). max_length is what governs DirectML prefill
     // throughput, and it is normally DERIVED as min(n_ctx, n_prompt + n_predict)

@@ -761,6 +761,10 @@ void MainPageController::NewChat() {
 void MainPageController::RenderConversation() {
     using namespace winrt::Windows::UI::Xaml::Documents;
     m_outputBody.Blocks().Clear();
+    // One format resolution for the whole render, not one per message (#174) —
+    // chat_format_for builds ~10 strings per call and the format only depends
+    // on m_model_filename, which cannot change mid-loop.
+    const xllama::ChatFormat fmt = chat_format();
     for (size_t message_index = 0; message_index < m_current.messages.size(); ++message_index) {
         const auto& msg = m_current.messages[message_index];
         if (msg.role == xllama::ui::MessageRole::System)
@@ -773,7 +777,7 @@ void MainPageController::RenderConversation() {
         label.FontWeight(winrt::Windows::UI::Text::FontWeights::Bold());
         p.Inlines().Append(label);
         Run content;
-        content.Text(::xllama::utf8_to_wstring(chat_format().postprocess_output(msg.content)));
+        content.Text(::xllama::utf8_to_wstring(fmt.postprocess_output(msg.content)));
         if (msg.partial)
             content.Text(content.Text() + L" [cancelled]");
         p.Inlines().Append(content);
@@ -2461,7 +2465,7 @@ bool MainPageController::EnsureSession(const std::string& model, std::string* er
     m_kv_valid = false; // new session object → no reusable KV carries over
     xllama::SessionParams sp;
     sp.model_path = model;
-    sp.n_ctx = 2048;
+    sp.n_ctx = ::xllama::kDefaultNCtx;
     // 0 = default: llama.cpp gets detect_threads_llama() (capped at 6 on UWP —
     // t6 measured optimum, t7/t8 livelock); ORT threads come from
     // genai_config.json intra_op_num_threads on the model dir.
@@ -2572,9 +2576,11 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     // Stage 3: decide EP routing once per conversation (sticky — the KV cache is
     // per-EP). m_active_model is cleared on new/loaded chat, so this fires on the
     // first turn and stays fixed after. Default (m_routing==0) keeps the CPU model.
-    const bool gpu_provisioned =
-        ::xllama::IsModelProvisioned(::xllama::utf8_to_wstring(m_gpu_model));
     if (m_active_model.empty()) {
+        // Filesystem probe (LocalState + InstalledPath stats) — only the sticky
+        // first-turn decision consumes it, so keep it off the per-turn path (#174).
+        const bool gpu_provisioned =
+            ::xllama::IsModelProvisioned(::xllama::utf8_to_wstring(m_gpu_model));
         ::xllama::RoutingSettings rs;
         rs.mode = static_cast<::xllama::RoutingMode>(m_routing);
         rs.cpu_model = ::xllama::wstring_to_utf8(m_model_filename);

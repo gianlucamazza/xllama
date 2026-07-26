@@ -467,6 +467,9 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     llama_context_params cparams = llama_context_default_params();
     cparams.n_ctx = static_cast<uint32_t>(params.n_ctx);
     cparams.n_threads = n_threads;
+    // Prefill runs on n_threads_batch (default 4, independent of n_threads) —
+    // see LlamaSession::generate and #168.
+    cparams.n_threads_batch = n_threads;
     if (params.n_batch > 0)
         cparams.n_batch = static_cast<uint32_t>(params.n_batch);
     if (params.n_ubatch > 0)

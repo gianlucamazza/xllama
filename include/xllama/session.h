@@ -23,11 +23,11 @@ namespace xllama {
 enum class Backend { Auto, OrtGenAI, LlamaCpp };
 
 struct SessionParams {
-    std::string model_path; // same semantics as InferenceParams::model_path
-    int n_ctx = 2048;
-    int n_threads = 0; // 0 = auto
-    int n_batch = 0;   // llama.cpp only; 0 = default (2048). Logical prefill batch.
-    int n_ubatch = 0;  // llama.cpp only; 0 = default (512). Physical prefill chunk.
+    std::string model_path;   // same semantics as InferenceParams::model_path
+    int n_ctx = kDefaultNCtx; // one home, inference_params.h (#171)
+    int n_threads = 0;        // 0 = auto
+    int n_batch = 0;          // llama.cpp only; 0 = default (2048). Logical prefill batch.
+    int n_ubatch = 0;         // llama.cpp only; 0 = default (512). Physical prefill chunk.
     Backend backend = Backend::Auto;
     int n_gpu_layers = 0; // llama.cpp only; 0 = CPU (Xbox has no ggml GPU backend)
 
