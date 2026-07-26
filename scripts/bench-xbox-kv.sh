@@ -140,6 +140,7 @@ for run in $(seq 1 "$RUNS"); do
 	remove "bench_ctx.txt"
 	remove "bench_npredict.txt"
 	remove "bench_maxlen.txt"
+	remove "bench_ubatch.txt"
 	# Append-only across restarts: clear it so the failure grep below sees only
 	# this run (a stale DirectML error would otherwise be attributed to it).
 	remove "xllama.log"
