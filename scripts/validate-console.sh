@@ -4,7 +4,7 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/validate-console.sh <routing|settings|gguf|taesd|all>
+#   ./scripts/validate-console.sh <routing|settings|gguf|longchat|taesd|all>
 #
 # Requires: an installed xllama build with the autopilot (>= 1.1.3.0; the
 # settings ops need >= 1.4.0.606), the relevant models already in LocalState.
@@ -407,6 +407,106 @@ JSON
 	return $verdict
 }
 
+# --- #169 long-chat context shift ------------------------------------------
+
+validate_longchat() {
+	echo "=== #169 long-chat context shift ==="
+	# Inject a chat whose history exceeds kMaxPromptTokens (in ESTIMATED
+	# tokens; each single turn stays under budget or it would be dropped
+	# whole, #133), then run turns with KV reuse on the GGUF model. The #169
+	# contract: trimmed rounds stay in the reuse regime (prefill = delta, not
+	# ~1800 tokens), and when the resident KV overflows n_ctx the session
+	# front-drop-evicts and continues — no continuation may fall back to a
+	# full re-prefill and no "context full" error may surface.
+	local cid="ap-169-longchat"
+	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
+	python3 - "$TMPDIR_LOCAL" "$cid" "$TRIM_BUDGET" "$EST_CHARS_PER_TOK" <<'PY'
+import json, sys
+tmp, cid = sys.argv[1], sys.argv[2]
+budget, est_cpt = int(sys.argv[3]), float(sys.argv[4])
+base = ("Please keep track of item %02d: the quick brown fox jumps over the lazy "
+        "dog while the committee reviews the quarterly figures and the harbour "
+        "master files a detailed report about tide tables, cargo manifests and "
+        "the maintenance schedule of every crane on pier seven. ")
+turns, ts = [], 1
+for i in range(12):
+    turns.append({"role": "user", "content": (base % i) * 3, "ts": ts, "partial": False})
+    turns.append({"role": "assistant", "content": f"Noted item {i:02d}; tracking it.",
+                  "ts": ts + 1, "partial": False})
+    ts += 2
+nchars = sum(len(m["content"]) for m in turns)
+est = int(nchars / est_cpt)
+if est <= budget:
+    sys.exit(f"  history estimate {est} tok <= trimmer budget {budget} — no trim, no test")
+conv = {"id": cid, "title": "#169 long-chat shift", "messages": turns}
+open(f"{tmp}/{cid}.json", "w").write(json.dumps(conv, ensure_ascii=False))
+entry = {"id": cid, "title": conv["title"], "last_modified": ts, "n_messages": len(turns)}
+try:
+    idx = json.load(open(f"{tmp}/existing-index.json"))
+    if not isinstance(idx, list):
+        idx = []
+except Exception:
+    idx = []
+idx = [e for e in idx if e.get("id") != cid]
+idx.insert(0, entry)
+open(f"{tmp}/index.json", "w").write(json.dumps(idx, ensure_ascii=False))
+print(f"  injected: {len(turns)} messages, est ~{est} tok (budget {budget})")
+PY
+	upload_file "${TMPDIR_LOCAL}/${cid}.json" "chats"
+	upload_file "${TMPDIR_LOCAL}/index.json" "chats"
+
+	# Long user turns guarantee KV growth even when generation stops early at
+	# EOG (~85 real tokens of delta per send): the ~1800-token seed plus a few
+	# of these must overflow n_ctx 2048 and fire the shift.
+	local longq="Please compare the tide tables, the cargo manifests and the crane maintenance schedule across the items you are tracking, and explain in detail which of them would be affected if pier seven were closed for repairs during the spring inspection window, considering both the quarterly figures the committee reviewed and the harbour master's detailed report about scheduling conflicts."
+	local marker
+	marker=$(
+		run_autopilot 900 <<JSON
+{"total_timeout_s": 800, "actions": [
+  {"op": "set_model", "name": "lfm25-350m", "timeout_s": 300},
+  {"op": "set_kv_reuse", "enabled": true},
+  {"op": "set_sampling", "n_predict": 256, "temperature": 0.7},
+  {"op": "load_chat", "id": "${cid}"},
+  {"op": "send", "text": "Summarize item 03 in one sentence.", "timeout_s": 240},
+  {"op": "send", "text": "${longq}", "timeout_s": 240},
+  {"op": "send", "text": "${longq} Focus on item 05 this time.", "timeout_s": 240},
+  {"op": "send", "text": "${longq} Focus on item 09 this time.", "timeout_s": 240},
+  {"op": "send", "text": "${longq} Focus on item 11 this time.", "timeout_s": 240},
+  {"op": "send", "text": "Which item mentioned pier seven?", "timeout_s": 240},
+  {"op": "quit"}
+]}
+JSON
+	) || true
+	echo "  autopilot: ${marker}"
+	local log verdict=0
+	log=$(fetch_log)
+	[[ "$marker" == "ok" ]] || {
+		echo "  FAIL: autopilot did not finish ok"
+		verdict=1
+	}
+	if grep -aq 'context shift — evicted' "$log"; then
+		echo "  ok: context shift fired ($(grep -ac 'context shift — evicted' "$log")x)"
+	else
+		echo "  FAIL: no context-shift line in the log"
+		verdict=1
+	fi
+	if grep -aq 'retrying with full prefill' "$log"; then
+		echo "  FAIL: a continuation fell back to a full prefill"
+		verdict=1
+	else
+		echo "  ok: no continuation fell back to a full prefill"
+	fi
+	if grep -aq 'context full' "$log"; then
+		echo "  FAIL: context-full error in the log"
+		verdict=1
+	else
+		echo "  ok: no context-full error"
+	fi
+	delete_file "${cid}.json" "chats"
+	[[ $verdict -eq 0 ]] && echo "#169 long-chat: PASS" || echo "#169 long-chat: FAIL"
+	return $verdict
+}
+
 # --- §7c TAESD -------------------------------------------------------------
 
 validate_taesd() {
@@ -595,6 +695,7 @@ case "$CMD" in
 routing) validate_routing ;;
 settings) validate_settings ;;
 gguf) validate_gguf ;;
+longchat) validate_longchat ;;
 taesd) validate_taesd ;;
 all)
 	rc=0
@@ -604,6 +705,7 @@ all)
 	validate_routing || rc=1
 	validate_settings || rc=1
 	validate_gguf || rc=1
+	validate_longchat || rc=1
 	validate_taesd || rc=1
 	echo
 	echo "=== summary ==="
@@ -611,7 +713,7 @@ all)
 	exit $rc
 	;;
 *)
-	echo "Usage: $0 <routing|settings|gguf|taesd|all>" >&2
+	echo "Usage: $0 <routing|settings|gguf|longchat|taesd|all>" >&2
 	exit 1
 	;;
 esac
