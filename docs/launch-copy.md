@@ -29,14 +29,22 @@ Reddit post something real to reference.
 
 ---
 
-## A. Show HN (primary launch)
+## A. Show HN (primary launch) — PUBLISHED 2026-07-27
+
+**Live thread: <https://news.ycombinator.com/item?id=49069732>**
 
 **Submission type:** URL post pointing at the repository — not a text post.
 **URL:** `https://github.com/gianlucamazza/xllama`
 **Title:** `Show HN: Xllama – local LLM chat and Stable Diffusion on an Xbox Series S`
+(HN title-cases automatically; the title cannot be edited after submitting.)
 
 No numbers and no editorializing in the title; those get rewritten. The real
 content goes in the author's first comment, posted immediately after submitting.
+
+**HN formatting, learned in the act**: comments take no Markdown. `**bold**`
+renders literally — the version below is deliberately plain — and a code block
+is made by indenting two or more spaces, which is what keeps the benchmark table
+aligned.
 
 ### First comment
 
