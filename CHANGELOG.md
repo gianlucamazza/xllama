@@ -7,6 +7,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.5.1.0] - 2026-07-27
+
+The Phase 13 CPU-prefill and KV-reuse campaign, shipped. Every turn a chat
+takes is cheaper: the prefill runs on all six threads, a regenerate or an
+edited message reuses the resident cache, long chats stop re-reading their
+history, and leaving a conversation no longer throws its cache away.
+
+**Upgrading from 1.5.0.0 is a normal in-place update** (same package identity
+`GianlucaMazza.xllama`). Coming from ≤1.4.x still requires the identity
+migration described in `docs/install-release.md`.
+
 ### Performance
 
 - **GGUF prefill now runs on the configured thread count (#168, PR #177).**

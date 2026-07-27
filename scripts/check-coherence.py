@@ -123,8 +123,14 @@ def main() -> int:
     if not ver:
         err("AppxManifest Version missing")
     else:
-        if ver.group(1) != "1.5.0":
-            warn(f"Appx semantic {ver.group(1)} (ROADMAP may need bump)")
+        # Derive the expected version from the manifest instead of hardcoding
+        # it: a pinned literal here goes stale at the next release and the
+        # warning it emits is about itself, not about the docs.
+        roadmap_head = (ROOT / "ROADMAP.md").read_text(encoding="utf-8")[:2000]
+        if f"**{ver.group(1)}.0**" not in roadmap_head:
+            warn(f"Appx semantic {ver.group(1)} not in the ROADMAP head (bump it)")
+        else:
+            good(f"ROADMAP states the shipping version {ver.group(1)}.0")
         good(f"Appx Version={ver.group(0)}")
 
     # --- build wiring ---
