@@ -82,9 +82,9 @@ Three hypotheses died against these numbers:
 3. **"llama.cpp extracts ~2× the bandwidth of ORT's AVX2 kernels."** Falsified
    on hardware: Q4_K_M reaches 62.9 tok/s at 6 threads — decode parity (−5 %)
    with worse prefill. Both stacks saturate the same ~13 GB/s effective CPU
-   bandwidth. (llama.cpp does run in AppContainer — a first, requiring five
-   Win32 partition guards — but its spin-wait threadpool livelocks at 7–8
-   threads on the ~6 usable cores; 6 is the ceiling.)
+   bandwidth. (llama.cpp does run in AppContainer, requiring five Win32
+   partition guards — but its spin-wait threadpool livelocks at 7–8 threads on
+   the ~6 usable cores; 6 is the ceiling.)
 
 Multi-turn chat is made interactive by **KV-cache reuse** (persistent generator,
 append-only per turn): turn-2 prefill is **4.87×** faster than a cold re-prefill
