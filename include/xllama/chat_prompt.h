@@ -8,8 +8,18 @@
 
 namespace xllama {
 
+// Shared system prompts (UI default, LAN API empty-system fill, CLI --chat).
+inline constexpr const char kDefaultSystemPrompt[] = "You are a helpful AI assistant.";
+// Applied when catalogue role is "coding" and the user has not set a custom system.
+inline constexpr const char kCodingSystemPrompt[] =
+    "You are a concise coding assistant. Prefer correct, complete code and brief explanations.";
+
 // True for catalogue ids or filenames that refer to a Qwen GGUF chat model.
 bool model_is_qwen(const std::string& model_id);
+
+// True for Qwen3.x (thinking-capable) ids — not Qwen2.5 / Qwen2.5-Coder.
+// Substring "qwen3" / "qwen-3" on the basename (catalogue id qwen35-0.8b matches).
+bool model_is_qwen3(const std::string& model_id);
 
 // True for catalogue ids or filenames that refer to a Gemma chat model
 // (substring "gemma", case-insensitive).
@@ -23,12 +33,23 @@ bool model_is_llama(const std::string& model_id);
 // case-insensitive). Selects the Phi-3 instruct template (<|user|>…<|end|>).
 bool model_is_phi(const std::string& model_id);
 
+// True for models that emit chain-of-thought inside <think>…</think> before the
+// user-visible answer (basename contains "thinking", e.g. lfm25-1.2b-thinking).
+// These keep plain ChatML with no Qwen3 no-think prefill; postprocess strips
+// think blocks for display/persist.
+bool model_is_thinking(const std::string& model_id);
+
 // Qwen3.x no-think generation prefill (matches Qwen3.5 Jinja with enable_thinking=false).
-// Empty when the model is not Qwen.
+// Empty when the model is not Qwen3 (Qwen2.5-Coder must not receive <think> markers).
 std::string qwen_no_think_gen_suffix(const std::string& model_id);
 
 // Remove leading empty </think> blocks (whitespace-only inside tags).
 std::string strip_empty_thinking_tags(std::string text);
+
+// Remove complete <think>…</think> blocks (any content). If an unclosed
+// <think> remains (n_predict cut mid-thought), drop from that open to EOF so
+// the UI does not keep raw reasoning. Leading/trailing whitespace cleaned.
+std::string strip_thinking_blocks(std::string text);
 
 // Stop-sequence check for streamed generation. Call after each token is appended
 // to `output`: if `output` now ENDS WITH any (non-empty) stop sequence, trim that
@@ -76,6 +97,10 @@ struct ChatFormat {
     std::vector<std::string> stop_sequences; // stop token(s); may be a prefix of turn_close
     std::string gen_suffix;                  // Qwen no-think prefill; else ""
 
+    // When true, postprocess_output strips full <think>…</think> reasoning
+    // (thinking models). Empty-think stripping for Qwen3 no-think always runs.
+    bool strip_thinking_content = false;
+
     // Full multi-turn prompt ending with the assistant generation header +
     // gen_suffix. gen_suffix is appended ONLY to the final (trailing) assistant
     // header, never to completed history turns. History turns are complete
@@ -95,8 +120,8 @@ struct ChatFormat {
     // count_tokens("") still pins the BOS.
     std::string render_system_prefix(const std::string& system) const;
 
-    // Output post-processing before display/persist (strips empty <think> blocks;
-    // no-op for Gemma).
+    // Output post-processing before display/persist: empty Qwen3 no-think tags;
+    // full think blocks when strip_thinking_content (thinking catalogue models).
     std::string postprocess_output(std::string text) const;
 };
 

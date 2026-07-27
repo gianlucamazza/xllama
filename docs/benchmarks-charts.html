@@ -302,6 +302,16 @@
     "tag": "#91 fixed (rmsfix)"
   },
   {
+    "model": "Qwen2.5-Coder-0.5B",
+    "quant": "Q4_K_M",
+    "be": "llama",
+    "prefill": 148.23,
+    "decode": 62.41,
+    "ram": 533,
+    "src": "phase14-console",
+    "tag": "coding \u00b7 n_ctx 4096"
+  },
+  {
     "model": "Qwen3.5-0.8B",
     "quant": "Q4_K_M",
     "be": "llama",
@@ -318,6 +328,36 @@
     "decode": 37.88,
     "ram": 811,
     "src": "phase7-lfm"
+  },
+  {
+    "model": "LFM2.5-1.2B-Thinking",
+    "quant": "Q4_K_M",
+    "be": "llama",
+    "prefill": 130.44,
+    "decode": 36.74,
+    "ram": 811,
+    "src": "phase14-console",
+    "tag": "reasoning \u00b7 think blocks stripped for display"
+  },
+  {
+    "model": "Qwen2.5-Coder-1.5B",
+    "quant": "Q4_K_M",
+    "be": "llama",
+    "prefill": 96.61,
+    "decode": 26.12,
+    "ram": 1179,
+    "src": "phase14-console",
+    "tag": "coding \u00b7 n_ctx 4096"
+  },
+  {
+    "model": "Qwen3-1.7B",
+    "quant": "Q4_K_M",
+    "be": "llama",
+    "prefill": 89.54,
+    "decode": 21.77,
+    "ram": 1398,
+    "src": "phase14-console",
+    "tag": "chat upgrade"
   },
   {
     "model": "SmolLM2-1.7B",
@@ -346,6 +386,16 @@
     "decode": 18.36,
     "ram": 1623,
     "src": "phase7-lfm"
+  },
+  {
+    "model": "Qwen2.5-Coder-3B",
+    "quant": "Q4_K_M",
+    "be": "llama",
+    "prefill": 46.17,
+    "decode": 13.97,
+    "ram": 2116,
+    "src": "phase14-console",
+    "tag": "coding advanced \u00b7 n_ctx 4096"
   },
   {
     "model": "Llama-3.2-3B",
@@ -420,7 +470,7 @@
   }
 ];
   const MAX_KV_REUSE = 20.02;
-  const LATEST_RUN = "2026-07-26";
+  const LATEST_RUN = "2026-07-27";
   // END GENERATED BENCHMARK DATA
   const METRICS = {
     decode:  { label: "Decode", unit: "tok/s", cap: "Generation throughput — the rate a user feels. Higher is better.", better: "high" },

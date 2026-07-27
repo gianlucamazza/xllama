@@ -7,6 +7,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Coding + chat + thinking tier (phase14), architecture-first.** Catalogue
+  `n_ctx` / `role: coding`; no Settings system-prompt rewrite. Catalogue:
+  `qwen25-coder-0.5b` / `1.5b` / `3b`, `qwen3-1.7b`, **`lfm25-1.2b-thinking`**.
+  Console: Coder-0.5B **62.4** tok/s / 533 MB, Thinking **36.7** / 811 MB,
+  Coder-1.5B **26.1** / 1179 MB, Qwen3-1.7B **21.8** / 1398 MB, Coder-3B
+  **14.0** / 2116 MB (`phase14-console.csv`).
+- **Thinking product path:** `model_is_thinking` + `strip_thinking_blocks` in
+  `ChatFormat::postprocess_output` (display/persist answer only; no UI magic).
+- **`model_is_qwen3`:** no-think prefill only for Qwen3 (not Coder / Thinking).
+- **Design / BP docs:** catalogue policy, validation ladder, deferred FIM/tools.
+- **Linux peak RSS.** `peak_working_set_mb()` via `/proc` VmHWM.
+
 ## [1.5.1.0] - 2026-07-27
 
 The Phase 13 CPU-prefill and KV-reuse campaign, shipped. Every turn a chat

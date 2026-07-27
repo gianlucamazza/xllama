@@ -77,8 +77,13 @@ xllama/
 ```
 
 **Doc ownership (do not invent a second SSOT):** see `docs/README.md`. Structure →
-`architecture.md`; training → `training-architecture.md`; numbers →
-`bench/results` + generated `benchmarks.md`; UI steps → `using-the-app.md`.
+`architecture.md` (incl. catalogue `n_ctx`/`role`, ChatFormat, deferred surfaces);
+training → `training-architecture.md`; inventory/status → `model-matrix.md`;
+numbers → `bench/results` + generated `benchmarks.md`; UI steps → `using-the-app.md`.
+
+**Catalogue policy:** optional `n_ctx` and `role` (`coding`) are session knobs only
+— not a second backend. Gate: host Release smoke → console bench → then manifest.
+Measured ≠ shipped. No Settings magic for system prompts.
 
 ## Build
 

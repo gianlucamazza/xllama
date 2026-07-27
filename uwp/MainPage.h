@@ -233,7 +233,7 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     // Multi-turn chat state
     xllama::ui::ChatHistory m_history;
     xllama::ui::Conversation m_current;
-    std::string m_system_prompt{"You are a helpful AI assistant."};
+    std::string m_system_prompt{::xllama::kDefaultSystemPrompt};
 
     // Autoscroll state: true while the user has not scrolled up during streaming
     bool m_at_bottom{true};

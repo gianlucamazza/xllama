@@ -667,7 +667,20 @@ std::string MainPageController::BuildPrompt(const std::string& user_text, int* o
     // budget live in routing_policy.h next to token_threshold: the trimmer runs
     // before routing, so its ceiling silently bounds what routing can ever see
     // (#133). Collect turns (skip system which always stays).
-    constexpr int kMaxEstimatedTokens = ::xllama::kMaxPromptTokens;
+    //
+    // Catalogue coding models open a larger n_ctx and use a denser
+    // chars-per-token estimate so long source/diff pastes trim earlier rather
+    // than overflowing generate().
+    int max_estimated_tokens = ::xllama::kMaxPromptTokens;
+    double chars_per_token = ::xllama::kEstimatedCharsPerToken;
+    {
+        const auto& manifest = CachedManifest();
+        if (const auto* e = ::xllama::FindManifestEntry(manifest, m_model_filename)) {
+            max_estimated_tokens = ::xllama::max_prompt_tokens_for_n_ctx(e->n_ctx);
+            chars_per_token =
+                ::xllama::chars_per_token_for_role(::xllama::wstring_to_utf8(e->role));
+        }
+    }
     std::vector<size_t> turn_starts; // index of first User message in each turn
     for (size_t i = 0; i < m_current.messages.size(); ++i) {
         if (m_current.messages[i].role == xllama::ui::MessageRole::User)
@@ -693,7 +706,8 @@ std::string MainPageController::BuildPrompt(const std::string& user_text, int* o
 
     size_t first_turn = 0;
     while (first_turn < turn_starts.size() &&
-           ::xllama::estimate_tokens_from_chars(static_cast<size_t>(chars)) > kMaxEstimatedTokens)
+           ::xllama::estimate_tokens_from_chars(static_cast<size_t>(chars), chars_per_token) >
+               max_estimated_tokens)
         chars -= turn_chars[first_turn++];
     if (first_turn > 0)
         log_output("[xllama] context trimmed: dropped " + std::to_string(first_turn) +
@@ -1540,7 +1554,11 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     if (result != winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary)
         co_return;
 
-    // Read back values
+    // Read back values. System prompt is whatever the user left in the box —
+    // no silent rewrite when the model role changes (that was string-equality
+    // magic and fought the Settings field). API empty-system fill still uses
+    // role → kCodingSystemPrompt (routing_policy / chat_prompt).
+    self->m_system_prompt = ::xllama::wstring_to_utf8(std::wstring(sysPromptBox.Text().c_str()));
     int mi = modelBox.SelectedIndex();
     if (mi >= 0 && mi < (int)model_keys.size()) {
         std::wstring new_model = model_keys[mi];
@@ -1559,7 +1577,6 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
             self->EnsureModelNamedAsync(new_model, true);
         }
     }
-    self->m_system_prompt = ::xllama::wstring_to_utf8(std::wstring(sysPromptBox.Text().c_str()));
     self->m_temperature = static_cast<float>(tempSlider.Value());
     self->m_top_p = static_cast<float>(topPSlider.Value());
     self->m_top_k = static_cast<int>(topKSlider.Value());
@@ -2534,24 +2551,28 @@ bool MainPageController::EnsureSession(const std::string& model, std::string* er
     // this field is ignored (only one path is compiled). The model name is bare
     // (no extension), so Backend::Auto's suffix sniffing cannot classify it.
     // Optional catalogue `lora` (relative to model dir) enables runtime LoRA.
+    // Optional catalogue `n_ctx` (coding models use 4096) overrides the default.
     {
         // Direct load, not CachedManifest: this runs on the worker thread and
         // the cache is UI-thread-only (no lock). Cold path anyway — a disk
         // parse is noise next to the model load that follows.
         auto manifest = ::xllama::LoadModelManifest();
         const auto* entry = ::xllama::FindManifestEntry(manifest, ::xllama::utf8_to_wstring(model));
-        if (entry && entry->kind == L"gguf") {
-            sp.backend = xllama::Backend::LlamaCpp;
-            if (!entry->lora.empty()) {
-                // Resolve against LocalState\models\<name>\lora-file (or InstalledPath
-                // after provision). resolve_model_path on a bare name yields the dir.
-                const std::string model_dir = xllama::resolve_model_path(model);
-                sp.lora_path = model_dir;
-                if (!sp.lora_path.empty() && sp.lora_path.back() != '\\' &&
-                    sp.lora_path.back() != '/')
-                    sp.lora_path.push_back('\\');
-                sp.lora_path += xllama::wstring_to_utf8(entry->lora);
-                sp.lora_scale = static_cast<float>(entry->lora_scale);
+        if (entry) {
+            sp.n_ctx = ::xllama::resolve_n_ctx(entry->n_ctx);
+            if (entry->kind == L"gguf") {
+                sp.backend = xllama::Backend::LlamaCpp;
+                if (!entry->lora.empty()) {
+                    // Resolve against LocalState\models\<name>\lora-file (or InstalledPath
+                    // after provision). resolve_model_path on a bare name yields the dir.
+                    const std::string model_dir = xllama::resolve_model_path(model);
+                    sp.lora_path = model_dir;
+                    if (!sp.lora_path.empty() && sp.lora_path.back() != '\\' &&
+                        sp.lora_path.back() != '/')
+                        sp.lora_path.push_back('\\');
+                    sp.lora_path += xllama::wstring_to_utf8(entry->lora);
+                    sp.lora_scale = static_cast<float>(entry->lora_scale);
+                }
             }
         }
     }

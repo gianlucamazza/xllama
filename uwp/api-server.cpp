@@ -18,12 +18,14 @@
 // clang-format on
 
     #include "inference-bridge.h"
+    #include "model-downloader.h"
     #include "xllama/chat_prompt.h"
     #include "xllama/model_provision.h"
     #include "xllama/path_utils.h"
     #include "xllama/personalize.h"
     #include "xllama/platform.h"
     #include "xllama/preference_capture.h"
+    #include "xllama/routing_policy.h"
     #include "xllama/session.h"
     #include "xllama/session_hub.h"
     #include "xllama/utf8_utils.h"
@@ -307,27 +309,38 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
         status = "400 Bad Request";
         return error_json("no user message to complete");
     }
-    // Small instruct models degrade badly with an empty system turn (they
-    // hallucinate the next role instead of answering); the chat UI always seeds
-    // one. Match it when the client sends no system message.
-    if (system.empty())
-        system = "You are a helpful AI assistant.";
-
     // Lazily (re)create the resident Session when the requested model differs
     // (hub.mtx is held by the caller; the swap invalidates the GUI's KV-reuse
-    // state via hub.generation, which its next turn detects).
+    // state via hub.generation, which its next turn detects). Catalogue n_ctx
+    // / role (coding) apply the same policy as the chat UI.
     ::xllama::Session* session = nullptr;
+    bool model_is_coding = false;
     {
         std::string err;
         ::xllama::SessionParams sp;
         sp.model_path = model;
         sp.n_ctx = ::xllama::kDefaultNCtx;
+        auto manifest = ::xllama::LoadModelManifest();
+        if (const auto* entry =
+                ::xllama::FindManifestEntry(manifest, ::xllama::utf8_to_wstring(model))) {
+            sp.n_ctx = ::xllama::resolve_n_ctx(entry->n_ctx);
+            model_is_coding = ::xllama::role_is_coding(::xllama::wstring_to_utf8(entry->role));
+            if (entry->kind == L"gguf")
+                sp.backend = ::xllama::Backend::LlamaCpp;
+        }
         session = ::xllama::session_hub().ensure_locked(model, sp, &err);
         if (!session) {
             status = "500 Internal Server Error";
             return error_json("session create failed: " + err);
         }
     }
+
+    // Small instruct models degrade badly with an empty system turn (they
+    // hallucinate the next role instead of answering); the chat UI always seeds
+    // one. Match it when the client sends no system message — coding models get
+    // the coding default so a bare LAN client does not look like general chat.
+    if (system.empty())
+        system = model_is_coding ? ::xllama::kCodingSystemPrompt : ::xllama::kDefaultSystemPrompt;
 
     const ::xllama::ChatFormat fmt = ::xllama::chat_format_for(model);
     ::xllama::GenerateParams gp;

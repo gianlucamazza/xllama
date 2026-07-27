@@ -153,6 +153,42 @@ TEST_CASE("routing: the trimmer budget fits the shipping context") {
     CHECK(kDefaultNCtx - kMaxPromptTokens >= 200);
 }
 
+TEST_CASE("resolve_n_ctx clamps and defaults") {
+    CHECK(resolve_n_ctx(0) == kDefaultNCtx);
+    CHECK(resolve_n_ctx(-1) == kDefaultNCtx);
+    CHECK(resolve_n_ctx(4096) == 4096);
+    CHECK(resolve_n_ctx(kMinSessionNCtx - 1) == kMinSessionNCtx);
+    CHECK(resolve_n_ctx(kMaxSessionNCtx + 1) == kMaxSessionNCtx);
+}
+
+TEST_CASE("max_prompt_tokens_for_n_ctx tracks session size") {
+    // Shipping default keeps the historical constant (not n-250 arithmetic).
+    CHECK(max_prompt_tokens_for_n_ctx(0) == kMaxPromptTokens);
+    CHECK(max_prompt_tokens_for_n_ctx(kDefaultNCtx) == kMaxPromptTokens);
+    // Coding catalogue n_ctx=4096 leaves ~250 for generation.
+    CHECK(max_prompt_tokens_for_n_ctx(4096) == 4096 - kReservedGenerationTokens);
+    CHECK(max_prompt_tokens_for_n_ctx(4096) > kMaxPromptTokens);
+    CHECK(max_prompt_tokens_for_n_ctx(4096) < 4096);
+}
+
+TEST_CASE("role_is_coding and denser token estimate") {
+    CHECK(role_is_coding("coding"));
+    CHECK(role_is_coding("Coding"));
+    CHECK(role_is_coding("CODING"));
+    CHECK_FALSE(role_is_coding(""));
+    CHECK_FALSE(role_is_coding("chat"));
+    CHECK_FALSE(role_is_coding("code"));
+
+    CHECK(chars_per_token_for_role("coding") == doctest::Approx(kEstimatedCharsPerTokenCoding));
+    CHECK(chars_per_token_for_role("") == doctest::Approx(kEstimatedCharsPerToken));
+
+    // Same char count → more estimated tokens for coding (trims earlier).
+    CHECK(estimate_tokens_from_chars(3500, kEstimatedCharsPerTokenCoding) == 1000);
+    CHECK(estimate_tokens_from_chars(3500) == 700);
+    CHECK(estimate_tokens_from_chars(3500, kEstimatedCharsPerTokenCoding) >
+          estimate_tokens_from_chars(3500));
+}
+
 TEST_CASE("routing: gguf disables routing") {
     RoutingSettings s;
     s.mode = RoutingMode::Auto;
