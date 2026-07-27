@@ -36,6 +36,12 @@ was never set, so prompt processing ran on 4 of the 6 usable cores) added
 another **+12%** — 394 → 438 tok/s. Audit your builds for defaults you assume
 you are overriding.
 
+The most recent work was about not repeating prompt processing at all: a long
+chat used to lose KV reuse permanently once it passed the trimmer's budget
+(every later turn paid a full ~1800-token re-prefill), and switching
+conversations threw the cache away. Both are fixed, and the numbers are large
+— details below.
+
 There is no cloud inference involved. The app has a gamepad-oriented chat UI,
 first-launch model downloads, an optional OpenAI-compatible LAN endpoint, and a
 Linux CLI for development and reproducible checks.
@@ -88,6 +94,26 @@ KV reuse changes the feel of larger models considerably:
 - Gemma-3-270M: 4.07× faster turn-2 prefill.
 - LFM2.5-1.2B: 19.36× faster turn-2 prefill.
 - LFM2-2.6B: 20.02× faster turn-2 prefill.
+
+Keeping that speedup alive turned out to be most of the work:
+
+- **Long chats used to lose it permanently.** A prompt trimmer dropped old
+  turns once the conversation passed its token budget, and a dropped head
+  invalidates the cache — so every subsequent turn re-read ~1800 tokens,
+  exactly where prompt processing costs most. The session now evicts the
+  oldest tokens past the pinned system prompt (a RoPE position shift) and
+  appends only the delta. On console a trimmed round went from **4532 ms
+  (1791 tokens) to ~280 ms (76–84 tokens)**.
+- **Switching conversations threw the cache away.** Leaving a conversation
+  now writes its cache to disk and the first turn back restores it: the
+  returning turn's prompt processing drops from **551 tokens to 19** on
+  console. A 1476-token conversation is a 17.6 MB file that loads in 33 ms.
+- **A trap worth knowing if you use the llama.cpp state API**: both models in
+  the catalogue are hybrid attention+recurrent (LFM2.5, Qwen3.5), and on those
+  `llama_memory_seq_rm` refuses a partial _tail_ erase — the recurrent state
+  cannot be rewound — returning `false` **without mutating anything**. Ignore
+  that return value and you decode on top of a stale tail. Head eviction (what
+  the context shift does) is fine on the same models.
 
 The GPU's clearer win is image generation: SD-Turbo produces a coherent
 512×512 image in about 6.9 seconds on the console, with the pipeline creating
@@ -175,8 +201,9 @@ host tests for the shared bridge code.
   sideloading workflow.
 - The benchmark table mixes models, quantizations and runtimes by design; it is
   not a claim that one model is universally better than another.
-- Most published rows are single measurements. Repeated-run reporting is now
-  supported by the harness, and new campaigns will include spread.
+- Most published rows are single measurements. The harness now records
+  repeated runs, and the headline GGUF row carries a 3-run spread; older rows
+  do not.
 - The LAN API is experimental, unauthenticated, foreground-only and disabled
   by default.
 - The on-device training lane is experimental and currently uses a constrained
@@ -212,7 +239,9 @@ On the Series S, the current measurements include:
 - LFM2.5-350M Q4_K_M: 94.9 tok/s decode (438.1 prompt tok/s), 320 MB RAM.
 - LFM2.5-1.2B Q4_K_M: 37.9 tok/s, 811 MB RAM.
 - LFM2-2.6B Q4_K_M: 18.4 tok/s, 1623 MB RAM.
-- KV-cache reuse: up to about 20× faster turn-2 prefill.
+- KV-cache reuse: up to about 20× faster turn-2 prefill, and it now survives
+  both a long chat past the trimmer budget (4532 → ~280 ms per turn) and a
+  conversation switch (551 → 19 tokens re-read).
 - SD-Turbo 512×512: about 6.9 seconds.
 
 The main lesson is that the CPU wins autoregressive decode at this scale, while
