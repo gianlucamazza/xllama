@@ -272,9 +272,11 @@ fix.
   erase degrades to a correct full re-prefill (regime-aware opt-in test).
   **Step (b) landed (2026-07-27):** leaving a conversation writes its KV
   to `LocalState\kv\<id>.kv` and the first turn back restores it, so the
-  switch costs a delta prefill instead of the history. Host-measured on
-  LFM2.5 at n_ctx 2048: 17.6 MB for 1476 tokens (12 KiB/token), save 21
-  ms, load 33 ms, against the 4532 ms console re-prefill. Fingerprinted
+  switch costs a delta prefill instead of the history. Host-measured at
+  `n_ctx` 2048 on both catalogue GGUFs: LFM2.5 17.6 MB / 1476 tokens (12
+  KiB/token, save 21 ms, load 33 ms), Qwen3.5-0.8B 36.5 MB / 1472 (25
+  KiB/token, save 124 ms, load 301 ms) — against the 4532 ms console
+  re-prefill. Fingerprinted
   (model, n_ctx, KV quant, LoRA) because the pin validates cache shape
   only; atomic writes in 8 MB chunks (§9 AppContainer bound); `KvStore`
   caps the pool at 3 files / 192 MB, LRU, host-tested. A stale snapshot
