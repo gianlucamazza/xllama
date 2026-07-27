@@ -270,9 +270,18 @@ fix.
   the `llama_memory` layer — the ignored `seq_rm` return corrupted
   regenerate output; now a pure extension skips `seq_rm` and a refused
   erase degrades to a correct full re-prefill (regime-aware opt-in test).
-  Step (b) remains: KV persisted to disk (`llama_state_seq_save_file`,
-  eviction policy) for conversation switch across sessions; folds the
-  ex-#174 BuildPrompt item too.
+  **Step (b) landed (2026-07-27):** leaving a conversation writes its KV
+  to `LocalState\kv\<id>.kv` and the first turn back restores it, so the
+  switch costs a delta prefill instead of the history. Host-measured on
+  LFM2.5 at n_ctx 2048: 17.6 MB for 1476 tokens (12 KiB/token), save 21
+  ms, load 33 ms, against the 4532 ms console re-prefill. Fingerprinted
+  (model, n_ctx, KV quant, LoRA) because the pin validates cache shape
+  only; atomic writes in 8 MB chunks (§9 AppContainer bound); `KvStore`
+  caps the pool at 3 files / 192 MB, LRU, host-tested. A stale snapshot
+  is harmless by construction — the #170a diff turns it into the prefill
+  that would have happened anyway. Remaining on this issue: the ex-#174
+  BuildPrompt-off-the-UI-thread item, and console confirmation of the
+  switch-and-return path at the next deploy.
 - [x] **#171 — KV quantization measured; verdict: knob shipped, default
       OFF.** Consolidation half landed first (PR #177: `kDefaultNCtx`, domain
       test). The q8_0+flash-attn knob (`--kv-q8`, `SessionParams::kv_q8`,

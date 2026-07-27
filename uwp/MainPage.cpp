@@ -12,6 +12,7 @@
     #include "chat-history.h"
     #include "inference-bridge.h"
     #include "xllama/chat_prompt.h"
+    #include "xllama/kv_store.h"
     #include "xllama/model_provision.h"
     #include "xllama/path_utils.h"
     #include "xllama/personalize.h"
@@ -59,6 +60,12 @@ static std::wstring DefaultChatModelId() {
 static std::wstring local_wpath(const wchar_t* filename_w) {
     auto folder = ApplicationData::Current().LocalFolder();
     return std::wstring(folder.Path().c_str()) + L"\\" + filename_w;
+}
+
+// #170b: where per-conversation KV snapshots live. Created on demand by the
+// save path; every reader tolerates its absence.
+static ::xllama::KvStore kv_store() {
+    return ::xllama::KvStore{::xllama::wstring_to_utf8(local_wpath(L"kv"))};
 }
 
 static std::string read_local_text_file(const wchar_t* name) {
@@ -742,10 +749,48 @@ void MainPageController::SaveCurrentConversation(bool partial) {
     m_history.Save(m_current);
 }
 
+// #170b: the KV of the conversation being left is worth ~12 KiB per resident
+// token of prefill we would otherwise repeat on return (measured: a 1476-token
+// conversation is a 17.6 MB file that loads in 33 ms against a 4.5 s
+// re-prefill on console). Written on a detached thread — the UI thread must
+// not wait on tens of MB — under the hub lock, and only while the resident
+// session is still the one this conversation was built on.
+//
+// The race with a turn starting right after the switch can only WASTE the
+// file, never corrupt a reply: the snapshot stores its own token list, and
+// load_state hands it to the #170a prefix diff, so a snapshot that no longer
+// matches the rendered prompt collapses to a normal prefill.
+void MainPageController::SaveKvSnapshotAsync() {
+    if (!m_kv_reuse || !m_kv_valid || m_current.messages.empty())
+        return;
+    const std::string routed =
+        ::xllama::wstring_to_utf8(m_active_model.empty() ? m_model_filename : m_active_model);
+    if (!::xllama::model_uses_llama_backend(routed))
+        return; // ORT keeps no serialisable per-sequence state
+    CreateDirectoryW(local_wpath(L"kv").c_str(), nullptr);
+    const auto store = kv_store();
+    const std::string path = store.path_for(m_current.id);
+    if (path.empty())
+        return;
+    const uint64_t gen = m_hub_generation;
+    std::thread([store, path, gen]() {
+        auto& hub = ::xllama::session_hub();
+        std::lock_guard<std::mutex> lk(hub.mtx);
+        if (!hub.session || hub.generation != gen)
+            return; // a different model is resident now — nothing of ours to save
+        std::string err;
+        if (hub.session->save_state(path, &err))
+            store.prune(::xllama::kKvStoreMaxFiles, ::xllama::kKvStoreMaxBytes);
+        else
+            ::xllama::log_output("[xllama] KV snapshot not saved: " + err + "\n");
+    }).detach();
+}
+
 void MainPageController::NewChat() {
     if (m_is_running.load())
         return;                // don't allow while running
     SaveCurrentConversation(); // save current (no-op if empty)
+    SaveKvSnapshotAsync();     // #170b: before m_kv_valid/m_active_model are cleared
     m_kv_valid = false;        // new conversation → discard reused KV
     m_active_model.clear();    // re-decide EP routing for the new conversation
     m_current = xllama::ui::Conversation{};
@@ -823,6 +868,7 @@ void MainPageController::FinalizeStreamedTurn(const std::string& output_text) {
 
 void MainPageController::LoadConversation(const std::string& id) {
     SaveCurrentConversation();
+    SaveKvSnapshotAsync();  // #170b: before m_kv_valid/m_active_model are cleared
     m_kv_valid = false;     // switching conversations → the reused KV no longer applies
     m_active_model.clear(); // re-decide EP routing for the loaded conversation
     m_current = m_history.Load(id);
@@ -951,8 +997,15 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
         if (cr == winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary) {
             bool was_current = (id_to_delete == self->m_current.id);
             self->m_history.Delete(id_to_delete);
-            if (was_current)
+            kv_store().erase(id_to_delete); // #170b: no orphan snapshot
+            if (was_current) {
+                // Drop the in-memory copy FIRST: NewChat starts by saving the
+                // current conversation, which would write the just-deleted one
+                // straight back to disk (and, with #170b, re-create its
+                // snapshot).
+                self->m_current = xllama::ui::Conversation{};
                 self->NewChat();
+            }
             self->SetStatus(L"Conversation deleted");
         }
         co_return;
@@ -972,6 +1025,12 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
         auto cr = co_await confirm.ShowAsync();
         if (cr == winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary) {
             self->m_history.Clear();
+            // #170b: snapshots are per-conversation caches — clearing the
+            // history must not leave their bytes on disk.
+            kv_store().prune(/*max_files=*/0, /*max_bytes=*/0);
+            // Same trap as the single delete: NewChat would save the current
+            // conversation back into the history we just cleared.
+            self->m_current = xllama::ui::Conversation{};
             self->NewChat();
             self->SetStatus(L"All conversations cleared");
         }
@@ -2689,8 +2748,11 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     // worker, where the session is available.
     const std::string sys_prefix = fmt.render_system_prefix(m_system_prompt);
 
+    // #170b: the snapshot to try when this conversation's KV is not resident.
+    const std::string kv_path = kv_reuse ? kv_store().path_for(m_current.id) : std::string();
+
     std::thread([self, full_prompt, delta_prompt, do_reuse, kv_reuse, ep_kv_ok, model, fmt,
-                 sys_prefix, dispatcher]() mutable {
+                 sys_prefix, kv_path, dispatcher]() mutable {
         try {
             // One hub lock for the whole turn: the resident session cannot be
             // swapped from under us (LAN API requests report busy meanwhile,
@@ -2713,6 +2775,18 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                     self->SetRunning(false);
                 });
                 return;
+            }
+
+            // #170b: this conversation's KV is not resident (switched away and
+            // back, or the app was restarted). Restoring the snapshot does not
+            // change the turn below — it stays a full-prompt turn, and the
+            // #170a prefix diff is what turns the restored cache into a delta
+            // prefill. A missing, stale or foreign snapshot just fails here and
+            // the turn prefills as it always did.
+            if (!do_reuse && !kv_path.empty()) {
+                std::string kv_err;
+                if (self->m_turn_session->load_state(kv_path, &kv_err))
+                    ::xllama::log_output("[xllama] KV snapshot restored (#170b)\n");
             }
 
             auto on_status = [self, dispatcher](const std::string& s) {

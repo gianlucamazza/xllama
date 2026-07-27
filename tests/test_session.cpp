@@ -5,6 +5,7 @@
 #include "xllama/session.h"
 #include "xllama/session_hub.h"
 
+#include <chrono>
 #include <doctest/doctest.h>
 #include <filesystem>
 #include <fstream>
@@ -214,6 +215,104 @@ TEST_CASE("Session: KV prefix reuse collapses a repeated prefill (opt-in: XLLAMA
         // re-prefill, which is exactly a fresh session: byte-identical output.
         CHECK(r_ext.output_text == r_fresh.output_text);
     }
+}
+
+// #170b: the resident KV round-trips through a file, so a conversation the
+// session no longer holds resumes without re-reading its history. Opt-in —
+// needs a real GGUF:
+//   XLLAMA_TEST_MODEL=/path/to/model.gguf ./xllama-tests
+TEST_CASE("Session: KV state round-trips through a file (opt-in: XLLAMA_TEST_MODEL)") {
+    const char* model_env = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model_env)
+        return;
+
+    const auto state_path = std::filesystem::temp_directory_path() / "xllama-kv-state.bin";
+    std::error_code ec;
+    std::filesystem::remove(state_path, ec);
+
+    xllama::SessionParams sp;
+    sp.model_path = model_env;
+    sp.n_ctx = 2048; // the shipping context: file size scales with it
+    std::string err;
+    auto a = xllama::Session::create(sp, &err);
+    REQUIRE_MESSAGE(a, err);
+
+    auto mkgp = [](const std::string& p, bool reset) {
+        xllama::GenerateParams gp;
+        gp.prompt = p;
+        gp.n_predict = 16;
+        gp.temperature = 0.0f; // greedy: the two sessions must agree exactly
+        gp.reuse_kv = true;
+        gp.reset_kv = reset;
+        return gp;
+    };
+    // A conversation of realistic length: re-reading exactly this is the cost
+    // the file exists to avoid, and its size is what the eviction policy has
+    // to budget for.
+    std::string filler;
+    for (int i = 0; i < 80; ++i)
+        filler += "Item " + std::to_string(i) +
+                  ": the harbour master filed a report on tide tables and cargo manifests. ";
+    const std::string seed_prompt =
+        "<|im_start|>system\nYou are terse.<|im_end|>\n<|im_start|>user\n" + filler +
+        "The capital of France is Paris. The capital of Italy is Rome. Remember "
+        "both.<|im_end|>\n<|im_start|>assistant\n";
+    const std::string follow = "<|im_end|>\n<|im_start|>user\nWhich city did I name "
+                               "first?<|im_end|>\n<|im_start|>assistant\n";
+
+    const auto r_seed = a->generate(mkgp(seed_prompt, /*reset=*/true));
+    REQUIRE_MESSAGE(r_seed.success, r_seed.error_msg);
+
+    const auto t0 = std::chrono::steady_clock::now();
+    const bool saved = a->save_state(state_path.string(), &err);
+    const double save_ms =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    REQUIRE_MESSAGE(saved, err);
+    const auto bytes = std::filesystem::file_size(state_path, ec);
+    MESSAGE("state file: " << bytes / 1024 << " KiB for " << r_seed.n_p_eval << " prompt tokens ("
+                           << bytes / 1024 / (r_seed.n_p_eval ? r_seed.n_p_eval : 1)
+                           << " KiB/token), save " << save_ms << " ms, prefill was "
+                           << r_seed.t_p_eval_ms << " ms");
+
+    // The continuation the resident session would produce, for comparison.
+    const auto r_cont_resident = a->generate(mkgp(follow, /*reset=*/false));
+    REQUIRE_MESSAGE(r_cont_resident.success, r_cont_resident.error_msg);
+
+    // A second session that never saw the conversation: restoring the file
+    // must put it in the same state, not merely a similar one.
+    auto b = xllama::Session::create(sp, &err);
+    REQUIRE_MESSAGE(b, err);
+    const auto t1 = std::chrono::steady_clock::now();
+    const bool loaded = b->load_state(state_path.string(), &err);
+    const double load_ms =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t1).count();
+    REQUIRE_MESSAGE(loaded, err);
+    MESSAGE("load " << load_ms << " ms");
+
+    const auto r_cont_restored = b->generate(mkgp(follow, /*reset=*/false));
+    REQUIRE_MESSAGE(r_cont_restored.success, r_cont_restored.error_msg);
+    // Only the follow-up is prefilled — the history came from the file.
+    CHECK(r_cont_restored.n_p_eval == r_cont_resident.n_p_eval);
+    CHECK(r_cont_restored.n_p_eval < r_seed.n_p_eval);
+    CHECK(r_cont_restored.output_text == r_cont_resident.output_text);
+
+    // A file whose fingerprint does not match must be refused, not fed to the
+    // cache: the pin checks shape only, so this is the whole defence against
+    // loading another model's KV.
+    xllama::SessionParams sp2 = sp;
+    sp2.n_ctx = 1024; // same weights, different context configuration
+    auto c = xllama::Session::create(sp2, &err);
+    REQUIRE_MESSAGE(c, err);
+    err.clear();
+    CHECK_FALSE(c->load_state(state_path.string(), &err));
+    CHECK(!err.empty());
+    // Refusal must leave the session usable.
+    const auto r_after = c->generate(mkgp("<|im_start|>user\nHi.<|im_end|>\n"
+                                          "<|im_start|>assistant\n",
+                                          /*reset=*/true));
+    CHECK(r_after.success);
+
+    std::filesystem::remove(state_path, ec);
 }
 
 // #169: a continuation turn that would overflow n_ctx evicts the oldest
