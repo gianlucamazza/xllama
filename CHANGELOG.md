@@ -50,7 +50,10 @@ migration described in `docs/install-release.md`.
   catalogue GGUF models: LFM2.5 writes **17.6 MB** for 1476 tokens (12
   KiB/token, save 21 ms, load 33 ms), Qwen3.5-0.8B **36.5 MB** for 1472 (25
   KiB/token, save 124 ms, load 301 ms) — against the **4532 ms** full
-  re-prefill a conversation of that length costs on console. The restore changes nothing about
+  re-prefill a conversation of that length costs on console.
+  **Confirmed on-console** (build 1.5.1.737, new `validate-console.sh kvsnap`
+  gate): leaving a conversation and coming back takes the returning turn's
+  prefill from **551 tokens to 19** — 3% of the cold cost. The restore changes nothing about
   the turn itself: it stays a full-prompt turn whose #170a prefix diff
   collapses to the new user message, which is also why a stale snapshot is
   harmless — it can only degrade to the prefill that would have happened

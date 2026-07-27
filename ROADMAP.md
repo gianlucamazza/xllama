@@ -282,7 +282,9 @@ fix.
   only; atomic writes in 8 MB chunks (§9 AppContainer bound); `KvStore`
   caps the pool at 3 files / 192 MB, LRU, host-tested. A stale snapshot
   is harmless by construction — the #170a diff turns it into the prefill
-  that would have happened anyway. **Step (c), the ex-#174
+  that would have happened anyway. **Console-confirmed** on build
+  1.5.1.737 (`validate-console.sh kvsnap`): leaving a conversation and
+  returning takes the prefill from 551 tokens to 19 (3% of cold). **Step (c), the ex-#174
   BuildPrompt-off-the-UI-thread item: won't do, measured.** The deep copy
   plus the full render of a prompt at the trimmer ceiling (10 KB) costs
   **11.2 µs** on host — call it 30–50 µs on Zen2, once per turn, against a

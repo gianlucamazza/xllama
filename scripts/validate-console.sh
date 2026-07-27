@@ -4,7 +4,7 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/validate-console.sh <routing|settings|gguf|longchat|taesd|all>
+#   ./scripts/validate-console.sh <routing|settings|gguf|longchat|kvsnap|taesd|all>
 #
 # Requires: an installed xllama build with the autopilot (>= 1.1.3.0; the
 # settings ops need >= 1.4.0.606), the relevant models already in LocalState.
@@ -507,6 +507,106 @@ JSON
 	return $verdict
 }
 
+# --- #170b KV snapshots across a conversation switch -----------------------
+
+validate_kvsnap() {
+	echo "=== #170b KV snapshot across a conversation switch ==="
+	# Leave a conversation, come back, and the history must NOT be re-read:
+	# the snapshot written on the way out is restored on the way back, and the
+	# #170a prefix diff turns it into a delta prefill. The measurable claim is
+	# the prompt-token count of the returning turn against the cold one.
+	local cid="ap-170b-switch"
+	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
+	python3 - "$TMPDIR_LOCAL" "$cid" "$TRIM_BUDGET" "$EST_CHARS_PER_TOK" <<'PY'
+import json, sys
+tmp, cid = sys.argv[1], sys.argv[2]
+budget, est_cpt = int(sys.argv[3]), float(sys.argv[4])
+base = ("Item %02d: the harbour master logged tide tables, cargo manifests and the "
+        "crane maintenance schedule for pier seven. ")
+turns, ts = [], 1
+for i in range(8):
+    turns.append({"role": "user", "content": (base % i) * 2, "ts": ts, "partial": False})
+    turns.append({"role": "assistant", "content": f"Logged item {i:02d}.",
+                  "ts": ts + 1, "partial": False})
+    ts += 2
+nchars = sum(len(m["content"]) for m in turns)
+est = int(nchars / est_cpt)
+# Must stay UNDER the trimmer budget: a trimmed round would muddy the signal
+# with #169's shift, and this gate is about the snapshot alone.
+if est >= budget:
+    sys.exit(f"  history estimate {est} tok >= trimmer budget {budget} — would trim")
+conv = {"id": cid, "title": "#170b switch", "messages": turns}
+open(f"{tmp}/{cid}.json", "w").write(json.dumps(conv, ensure_ascii=False))
+entry = {"id": cid, "title": conv["title"], "last_modified": ts, "n_messages": len(turns)}
+try:
+    idx = json.load(open(f"{tmp}/existing-index.json"))
+    if not isinstance(idx, list):
+        idx = []
+except Exception:
+    idx = []
+idx = [e for e in idx if e.get("id") != cid]
+idx.insert(0, entry)
+open(f"{tmp}/index.json", "w").write(json.dumps(idx, ensure_ascii=False))
+print(f"  injected: {len(turns)} messages, est ~{est} tok (budget {budget})")
+PY
+	upload_file "${TMPDIR_LOCAL}/${cid}.json" "chats"
+	upload_file "${TMPDIR_LOCAL}/index.json" "chats"
+
+	local marker
+	marker=$(
+		run_autopilot 900 <<JSON
+{"total_timeout_s": 800, "actions": [
+  {"op": "set_model", "name": "lfm25-350m", "timeout_s": 300},
+  {"op": "set_kv_reuse", "enabled": true},
+  {"op": "set_sampling", "n_predict": 24, "temperature": 0.7},
+  {"op": "load_chat", "id": "${cid}"},
+  {"op": "send", "text": "Summarize item 02 in one sentence.", "timeout_s": 240},
+  {"op": "new_chat"},
+  {"op": "send", "text": "Say hello.", "timeout_s": 180},
+  {"op": "load_chat", "id": "${cid}"},
+  {"op": "send", "text": "Now summarize item 05 in one sentence.", "timeout_s": 240},
+  {"op": "quit"}
+]}
+JSON
+	) || true
+	echo "  autopilot: ${marker}"
+	local log verdict=0
+	log=$(fetch_log)
+	[[ "$marker" == "ok" ]] || {
+		echo "  FAIL: autopilot did not finish ok"
+		verdict=1
+	}
+	if grep -aq 'KV state saved' "$log"; then
+		echo "  ok: snapshot written on the way out"
+	else
+		echo "  FAIL: no snapshot was written"
+		verdict=1
+	fi
+	if grep -aq 'KV snapshot restored' "$log"; then
+		echo "  ok: snapshot restored on the way back"
+	else
+		echo "  FAIL: snapshot not restored"
+		verdict=1
+	fi
+	# The point of the feature: the returning turn prefills a delta, not the
+	# history it prefilled cold.
+	python3 - "$log" <<'PY' || verdict=1
+import re, sys
+toks = [int(m) for m in re.findall(r"session generate: .*?\((\d+) tok\)",
+                                   open(sys.argv[1], errors="ignore").read())]
+if len(toks) < 3:
+    sys.exit(f"  FAIL: expected 3 prefills in the log, saw {len(toks)}: {toks}")
+cold, ret = toks[0], toks[2]
+print(f"  cold prefill {cold} tok -> returning prefill {ret} tok")
+if ret >= cold / 4:
+    sys.exit(f"  FAIL: returning turn re-read the history ({ret} vs {cold} tok)")
+print(f"  ok: returning turn pays a delta ({ret} tok, {100.0 * ret / cold:.0f}% of cold)")
+PY
+	delete_file "${cid}.json" "chats"
+	[[ $verdict -eq 0 ]] && echo "#170b KV snapshot: PASS" || echo "#170b KV snapshot: FAIL"
+	return $verdict
+}
+
 # --- §7c TAESD -------------------------------------------------------------
 
 validate_taesd() {
@@ -696,6 +796,7 @@ routing) validate_routing ;;
 settings) validate_settings ;;
 gguf) validate_gguf ;;
 longchat) validate_longchat ;;
+kvsnap) validate_kvsnap ;;
 taesd) validate_taesd ;;
 all)
 	rc=0
@@ -706,6 +807,7 @@ all)
 	validate_settings || rc=1
 	validate_gguf || rc=1
 	validate_longchat || rc=1
+	validate_kvsnap || rc=1
 	validate_taesd || rc=1
 	echo
 	echo "=== summary ==="
@@ -713,7 +815,7 @@ all)
 	exit $rc
 	;;
 *)
-	echo "Usage: $0 <routing|settings|gguf|longchat|taesd|all>" >&2
+	echo "Usage: $0 <routing|settings|gguf|longchat|kvsnap|taesd|all>" >&2
 	exit 1
 	;;
 esac
