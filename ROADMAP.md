@@ -5,11 +5,12 @@ performance belongs in `docs/benchmarks.md`.
 
 ## Current product state
 
-- Current manifest: **1.5.0.0** under the new **`GianlucaMazza.xllama`**
-  identity (PR #163 — breaking: no in-place update from ≤1.4.x, see
-  `docs/install-release.md`). Released as **v1.5.0.0** (2026-07-26): the
-  2026-07-25 perf campaign + rebrand (PR #155-#165), shipping the
-  console-validated MSIX 1.5.0.698 (all gates PASS).
+- Current manifest: **1.5.1.0** under the **`GianlucaMazza.xllama`** identity
+  (in-place update from 1.5.0.0; still breaking vs ≤1.4.x, see
+  `docs/install-release.md`). Released as **v1.5.1.0** (2026-07-27): the
+  Phase 13 CPU-prefill + KV-reuse campaign (#168, #169, #170a/b, #171,
+  #173-#175). The previous release, **v1.5.0.0** (2026-07-26), carried the
+  perf campaign + rebrand (PR #155-#165) on console-validated MSIX 1.5.0.698.
 - Shipping artifact: unified ORT GenAI + llama.cpp, with pinned patched runtime
   DLLs while upstream fixes have not reached NuGet. The UWP ggml build now
   enables `GGML_USE_CPU_REPACK` (PR #155): **GGUF prefill +62%** on Q4_K.
@@ -277,13 +278,20 @@ fix.
   KiB/token, save 21 ms, load 33 ms), Qwen3.5-0.8B 36.5 MB / 1472 (25
   KiB/token, save 124 ms, load 301 ms) — against the 4532 ms console
   re-prefill. Fingerprinted
-  (model, n_ctx, KV quant, LoRA) because the pin validates cache shape
+  (model, n*ctx, KV quant, LoRA) because the pin validates cache shape
   only; atomic writes in 8 MB chunks (§9 AppContainer bound); `KvStore`
   caps the pool at 3 files / 192 MB, LRU, host-tested. A stale snapshot
   is harmless by construction — the #170a diff turns it into the prefill
-  that would have happened anyway. Remaining on this issue: the ex-#174
-  BuildPrompt-off-the-UI-thread item, and console confirmation of the
-  switch-and-return path at the next deploy.
+  that would have happened anyway. **Step (c), the ex-#174
+  BuildPrompt-off-the-UI-thread item: won't do, measured.** The deep copy
+  plus the full render of a prompt at the trimmer ceiling (10 KB) costs
+  **11.2 µs** on host — call it 30–50 µs on Zen2, once per turn, against a
+  16.7 ms frame. Moving it to the worker means snapshotting the
+  \_untrimmed* conversation on the UI thread (more copying than the render
+  it replaces) or putting a mutex on conversation state that the
+  token-streaming path would then contend on. The real #174 costs — the
+  per-turn provisioning I/O and the per-message `chat_format()` — were the
+  ones worth fixing, and PR #177 fixed them.
 - [x] **#171 — KV quantization measured; verdict: knob shipped, default
       OFF.** Consolidation half landed first (PR #177: `kDefaultNCtx`, domain
       test). The q8_0+flash-attn knob (`--kv-q8`, `SessionParams::kv_q8`,

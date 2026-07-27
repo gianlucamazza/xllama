@@ -49,7 +49,9 @@ Notes:
 - **Upgrades within the same identity**: a higher version installs over the
   old one and **preserves** LocalState (models, settings, history). WDP
   refuses a same-version install with different contents.
-- ⚠️ **Upgrading from ≤1.4.x to 1.5.0.0 is NOT an in-place update.** 1.5.0.0
+- **1.5.0.0 → 1.5.1.0 is a normal in-place update**: same identity, LocalState
+  (models, settings, history, KV snapshots) is preserved.
+- ⚠️ **Upgrading from ≤1.4.x to 1.5.x is NOT an in-place update.** 1.5.0.0
   changed the package identity (`VenereLabs.xllama` → `GianlucaMazza.xllama`):
   it installs as a **new app**, and the old app's LocalState — downloaded
   models, chat history, settings, training output — does **not** carry over.
