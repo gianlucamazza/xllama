@@ -170,6 +170,28 @@ fetch_log() {
 	echo "${TMPDIR_LOCAL}/xllama.log"
 }
 
+# Remove an injected conversation: the file AND its index entry. Deleting only
+# the file leaves a phantom row in the console's History list that fails to
+# open — a gate must not leave litter on the device it validated.
+remove_chat() {
+	local cid="$1"
+	delete_file "${cid}.json" "chats"
+	fetch_file "index.json" "${TMPDIR_LOCAL}/index-after.json" "chats"
+	python3 - "$TMPDIR_LOCAL" "$cid" <<'PY'
+import json, sys
+tmp, cid = sys.argv[1], sys.argv[2]
+path = f"{tmp}/index-after.json"
+try:
+    idx = json.load(open(path))
+except Exception:
+    idx = []
+if isinstance(idx, list):
+    idx = [e for e in idx if e.get("id") != cid]
+    open(path, "w").write(json.dumps(idx, ensure_ascii=False))
+PY
+	upload_file "${TMPDIR_LOCAL}/index-after.json" "chats" "index.json"
+}
+
 # --- §2 routing A/B --------------------------------------------------------
 
 model_provisioned() {
@@ -353,21 +375,7 @@ JSON
 	fi
 	# Remove the decoy chat so "Understood; ready to continue." does not linger in
 	# the History list after a validation run.
-	delete_file "${esca_id}.json" "chats"
-	fetch_file "index.json" "${TMPDIR_LOCAL}/index-after.json" "chats"
-	python3 - "$TMPDIR_LOCAL" "$esca_id" <<'PY'
-import json, sys
-tmp, cid = sys.argv[1], sys.argv[2]
-path = f"{tmp}/index-after.json"
-try:
-    idx = json.load(open(path))
-except Exception:
-    idx = []
-if isinstance(idx, list):
-    idx = [e for e in idx if e.get("id") != cid]
-    open(path, "w").write(json.dumps(idx, ensure_ascii=False))
-PY
-	upload_file "${TMPDIR_LOCAL}/index-after.json" "chats" "index.json"
+	remove_chat "${esca_id}"
 	echo "  ok: removed decoy chat ${esca_id}"
 
 	[[ $verdict -eq 0 ]] && echo "§2 routing: PASS" || echo "§2 routing: FAIL"
@@ -502,7 +510,7 @@ JSON
 	else
 		echo "  ok: no context-full error"
 	fi
-	delete_file "${cid}.json" "chats"
+	remove_chat "${cid}"
 	[[ $verdict -eq 0 ]] && echo "#169 long-chat: PASS" || echo "#169 long-chat: FAIL"
 	return $verdict
 }
@@ -602,7 +610,7 @@ if ret >= cold / 4:
     sys.exit(f"  FAIL: returning turn re-read the history ({ret} vs {cold} tok)")
 print(f"  ok: returning turn pays a delta ({ret} tok, {100.0 * ret / cold:.0f}% of cold)")
 PY
-	delete_file "${cid}.json" "chats"
+	remove_chat "${cid}"
 	[[ $verdict -eq 0 ]] && echo "#170b KV snapshot: PASS" || echo "#170b KV snapshot: FAIL"
 	return $verdict
 }
