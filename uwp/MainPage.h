@@ -132,6 +132,9 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     void PollDiffuseProgress();
     void FinishDiffusion();
     void SaveCurrentConversation(bool partial = false);
+    // #170b: hand the KV of the conversation we are leaving to disk, off the UI
+    // thread. Call BEFORE the switch clears m_kv_valid / m_active_model.
+    void SaveKvSnapshotAsync();
     // Must be called from background thread; builds/rebuilds m_session if needed.
     bool EnsureSession(const std::string& model, std::string* err_out = nullptr);
 

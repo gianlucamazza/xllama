@@ -11,10 +11,12 @@
 #include "xllama/platform.h"
 #include "xllama/routing_policy.h"
 #include "xllama/session_hub.h"
+#include "xllama/utf8_utils.h"
 
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <string>
@@ -508,10 +510,13 @@ class LlamaSession final : public Session {
           m_n_ctx(n_ctx), m_n_threads(n_threads), m_n_batch(n_batch), m_n_ubatch(n_ubatch),
           m_kv_q8(kv_q8) {}
 
-    InferenceResult generate(const GenerateParams& gp) override {
-        InferenceResult res;
-
-        if (!m_ctx) {
+    // Lazy context creation, shared by generate() and the state-file entry
+    // points (#170b needs a context before the first turn). Returns false and
+    // sets *err on failure; m_ctx stays null.
+    bool ensure_ctx(std::string* err) {
+        if (m_ctx)
+            return true;
+        {
             llama_context_params cparams = llama_context_default_params();
             cparams.n_ctx = m_n_ctx;
             cparams.n_threads = m_n_threads;
@@ -542,9 +547,10 @@ class LlamaSession final : public Session {
                 m_ctx.reset(llama_init_from_model(m_model.get(), cparams));
             }
             if (!m_ctx) {
-                res.error_msg = "failed to create context";
-                log_output("[xllama] session generate: failed to create context\n");
-                return res;
+                if (err)
+                    *err = "failed to create context";
+                log_output("[xllama] session: failed to create context\n");
+                return false;
             }
             m_can_shift = llama_memory_can_shift(llama_get_memory(m_ctx.get())) &&
                           llama_model_n_swa(m_model.get()) == 0;
@@ -554,14 +560,23 @@ class LlamaSession final : public Session {
                 llama_adapter_lora* arr[1] = {m_adapter.get()};
                 float scales[1] = {m_lora_scale};
                 if (llama_set_adapters_lora(m_ctx.get(), arr, 1, scales) != 0) {
-                    res.error_msg = "llama_set_adapters_lora failed";
-                    log_output("[xllama] session generate: set_adapters_lora failed\n");
+                    if (err)
+                        *err = "llama_set_adapters_lora failed";
+                    log_output("[xllama] session: set_adapters_lora failed\n");
                     m_ctx.reset();
-                    return res;
+                    return false;
                 }
                 log_output("[xllama] session: runtime LoRA adapter applied\n");
             }
         }
+        return true;
+    }
+
+    InferenceResult generate(const GenerateParams& gp) override {
+        InferenceResult res;
+
+        if (!ensure_ctx(&res.error_msg))
+            return res;
         llama_context* ctx = m_ctx.get();
 
         // KV-cache reuse: a continuation turn (reuse_kv && !reset_kv) keeps the
@@ -802,6 +817,229 @@ class LlamaSession final : public Session {
 
     bool can_context_shift() const override {
         return m_can_shift;
+    }
+
+    // --- #170b: KV state files ---------------------------------------------
+    //
+    // Layout: one text header line, then the resident token ids, then the raw
+    // sequence state. Everything the pin does NOT check lives in the header —
+    // it validates cache shape only, so a re-quantized build of the same model
+    // or the same model with a LoRA applied would load this file and generate
+    // silent garbage.
+
+    static constexpr const char* kStateMagic = "xllama-kv";
+    static constexpr int kStateVersion = 1;
+    // AppContainer dislikes very large single reads: ORT's 1 GB
+    // ReadFileIntoBuffer had to come down to 16 MB before errcode 1450
+    // (ERROR_NO_SYSTEM_RESOURCES) stopped appearing (uwp-constraints §9), and
+    // llama_file's own path would move this blob in 64 MB slices. Stay well
+    // under the known-good bound.
+    static constexpr size_t kIoChunk = 8u << 20;
+    // A sane ceiling for a declared blob size: refuse to allocate for a
+    // corrupt or hostile header instead of trying and dying.
+    static constexpr size_t kMaxStateBytes = 512u << 20;
+
+    static FILE* open_state_file(const std::string& path, const char* mode) {
+    #ifdef XLLAMA_UWP
+        const std::string m(mode);
+        return _wfopen(utf8_to_wstring(path).c_str(), std::wstring(m.begin(), m.end()).c_str());
+    #else
+        return std::fopen(path.c_str(), mode);
+    #endif
+    }
+
+    static bool io_chunked(FILE* fp, void* data, size_t n, bool write) {
+        auto* p = static_cast<uint8_t*>(data);
+        for (size_t off = 0; off < n;) {
+            const size_t want = std::min(kIoChunk, n - off);
+            const size_t got =
+                write ? std::fwrite(p + off, 1, want, fp) : std::fread(p + off, 1, want, fp);
+            if (got != want)
+                return false;
+            off += want;
+        }
+        return true;
+    }
+
+    // Identity of the weights + context this cache was built on. Computed
+    // after ensure_ctx() so it reflects the kv_q8 fallback (#171), not the
+    // request.
+    std::string state_fingerprint() const {
+        char desc[192] = {};
+        llama_model_desc(m_model.get(), desc, sizeof(desc) - 1);
+        char buf[320];
+        snprintf(buf, sizeof(buf), "v%d n_ctx=%d kv_q8=%d lora=%.4f params=%llu %s", kStateVersion,
+                 m_n_ctx, m_kv_q8 ? 1 : 0, m_adapter ? m_lora_scale : 0.0f,
+                 static_cast<unsigned long long>(llama_model_n_params(m_model.get())), desc);
+        return buf;
+    }
+
+    bool save_state(const std::string& path, std::string* err) override {
+        if (!ensure_ctx(err))
+            return false;
+        if (m_kv_tokens.empty()) {
+            if (err)
+                *err = "no resident KV to save";
+            return false;
+        }
+
+        std::vector<uint8_t> blob;
+        size_t n_state = 0;
+        try {
+            blob.resize(llama_state_seq_get_size(m_ctx.get(), 0));
+            n_state = llama_state_seq_get_data(m_ctx.get(), blob.data(), blob.size(), 0);
+        } catch (const std::exception& e) {
+            if (err)
+                *err = std::string("state_seq_get_data threw: ") + e.what();
+            return false;
+        }
+        if (n_state == 0) {
+            if (err)
+                *err = "llama_state_seq_get_data failed";
+            return false;
+        }
+
+        // Write to a sibling temp and rename: a half-written file is tens of
+        // MB of garbage that the loader can only reject after reading it all,
+        // and a crash mid-write must not leave one behind.
+        const std::string tmp = path + ".tmp";
+        FILE* fp = open_state_file(tmp, "wb");
+        if (!fp) {
+            if (err)
+                *err = "cannot open " + tmp;
+            return false;
+        }
+        char hdr[512];
+        const int hn = snprintf(hdr, sizeof(hdr), "%s\t%zu\t%zu\t%s\n", kStateMagic, n_state,
+                                m_kv_tokens.size(), state_fingerprint().c_str());
+        bool ok = hn > 0 && static_cast<size_t>(hn) < sizeof(hdr) &&
+                  std::fwrite(hdr, 1, static_cast<size_t>(hn), fp) == static_cast<size_t>(hn);
+        ok = ok && io_chunked(fp, m_kv_tokens.data(), m_kv_tokens.size() * sizeof(llama_token),
+                              /*write=*/true);
+        ok = ok && io_chunked(fp, blob.data(), n_state, /*write=*/true);
+        ok = (std::fclose(fp) == 0) && ok;
+
+        std::error_code ec;
+        if (!ok) {
+            std::filesystem::remove(tmp, ec);
+            if (err)
+                *err = "write failed (disk full?)";
+            return false;
+        }
+        std::filesystem::rename(tmp, path, ec);
+        if (ec) {
+            std::filesystem::remove(tmp, ec);
+            if (err)
+                *err = "rename failed: " + ec.message();
+            return false;
+        }
+        char lb[160];
+        snprintf(lb, sizeof(lb), "[xllama] session: KV state saved — %zu tokens, %.1f MB (#170b)\n",
+                 m_kv_tokens.size(), (double)n_state / (1024.0 * 1024.0));
+        log_output(lb);
+        return true;
+    }
+
+    bool load_state(const std::string& path, std::string* err) override {
+        if (!ensure_ctx(err))
+            return false;
+        FILE* fp = open_state_file(path, "rb");
+        if (!fp) {
+            if (err)
+                *err = "no state file at " + path;
+            return false;
+        }
+        struct Closer {
+            FILE* f;
+            ~Closer() {
+                if (f)
+                    std::fclose(f);
+            }
+        } closer{fp};
+
+        char hdr[512] = {};
+        if (!std::fgets(hdr, sizeof(hdr), fp)) {
+            if (err)
+                *err = "empty state file";
+            return false;
+        }
+        std::string line(hdr);
+        while (!line.empty() && (line.back() == '\n' || line.back() == '\r'))
+            line.pop_back();
+        // magic \t n_state \t n_tokens \t fingerprint(rest of line)
+        std::string field[3];
+        size_t pos = 0;
+        for (auto& f : field) {
+            const size_t t = line.find('\t', pos);
+            if (t == std::string::npos) {
+                if (err)
+                    *err = "malformed state header";
+                return false;
+            }
+            f = line.substr(pos, t - pos);
+            pos = t + 1;
+        }
+        if (field[0] != kStateMagic) {
+            if (err)
+                *err = "not an xllama KV state file";
+            return false;
+        }
+        if (line.substr(pos) != state_fingerprint()) {
+            // The common, expected case: model / n_ctx / KV-quant / LoRA
+            // changed since the file was written. Not an error worth shouting
+            // about — the caller just prefills.
+            if (err)
+                *err = "state file belongs to a different model or context";
+            return false;
+        }
+        size_t n_state = 0, n_tokens = 0;
+        try {
+            n_state = std::stoull(field[1]);
+            n_tokens = std::stoull(field[2]);
+        } catch (const std::exception&) {
+            if (err)
+                *err = "malformed state header";
+            return false;
+        }
+        if (n_state == 0 || n_state > kMaxStateBytes || n_tokens == 0 ||
+            n_tokens > static_cast<size_t>(m_n_ctx)) {
+            if (err)
+                *err = "state header out of range";
+            return false;
+        }
+
+        std::vector<llama_token> tokens(n_tokens);
+        std::vector<uint8_t> blob(n_state);
+        if (!io_chunked(fp, tokens.data(), n_tokens * sizeof(llama_token), /*write=*/false) ||
+            !io_chunked(fp, blob.data(), n_state, /*write=*/false)) {
+            if (err)
+                *err = "state file truncated";
+            return false;
+        }
+
+        size_t used = 0;
+        try {
+            used = llama_state_seq_set_data(m_ctx.get(), blob.data(), blob.size(), 0);
+        } catch (const std::exception& e) {
+            used = 0;
+            if (err)
+                *err = std::string("state_seq_set_data threw: ") + e.what();
+        }
+        if (used == 0) {
+            // The pin rolls its own read back, but the bookkeeping is ours.
+            llama_memory_clear(llama_get_memory(m_ctx.get()), true);
+            m_kv_tokens.clear();
+            if (err && err->empty())
+                *err = "llama_state_seq_set_data rejected the file";
+            return false;
+        }
+        m_kv_tokens = std::move(tokens);
+        char lb[160];
+        snprintf(lb, sizeof(lb),
+                 "[xllama] session: KV state loaded — %zu tokens, %.1f MB (#170b)\n",
+                 m_kv_tokens.size(), (double)n_state / (1024.0 * 1024.0));
+        log_output(lb);
+        return true;
     }
 };
 

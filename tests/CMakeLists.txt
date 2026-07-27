@@ -14,6 +14,7 @@ add_executable(xllama-tests
     test_path.cpp
     test_bench.cpp
     test_session.cpp
+    test_kv_store.cpp
     test_chat_history.cpp
     test_diffusion.cpp
     test_routing_policy.cpp

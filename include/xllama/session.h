@@ -135,6 +135,29 @@ struct Session {
         return false;
     }
 
+    // #170b: persist / restore the resident KV (sequence 0) so switching away
+    // from a conversation and back — or restarting the app — does not re-read
+    // the whole history. The file carries a fingerprint of the model and the
+    // context configuration: load_state refuses one that does not match,
+    // because the llama.cpp per-sequence state path validates cache SHAPE only
+    // (layer count, cell count, K/V types) — two different models of the same
+    // shape would load each other's cache and generate silent garbage.
+    // Both return false with *err on any failure, "unsupported backend"
+    // included; a caller must treat that as "no cache, prefill normally",
+    // never as a hard error.
+    virtual bool save_state(const std::string& path, std::string* err = nullptr) {
+        (void)path;
+        if (err)
+            *err = "state persistence not supported by this backend";
+        return false;
+    }
+    virtual bool load_state(const std::string& path, std::string* err = nullptr) {
+        (void)path;
+        if (err)
+            *err = "state persistence not supported by this backend";
+        return false;
+    }
+
     virtual ~Session() = default;
 };
 

@@ -32,6 +32,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Performance
 
+- **KV snapshots on disk: switching conversations no longer re-reads the
+  history (#170 step b).** Leaving a conversation now writes its resident KV
+  to `LocalState\kv\<id>.kv`, and the first turn after coming back restores it
+  instead of prefilling from scratch. Measured on host at `n_ctx` 2048 on both
+  catalogue GGUF models: LFM2.5 writes **17.6 MB** for 1476 tokens (12
+  KiB/token, save 21 ms, load 33 ms), Qwen3.5-0.8B **36.5 MB** for 1472 (25
+  KiB/token, save 124 ms, load 301 ms) — against the **4532 ms** full
+  re-prefill a conversation of that length costs on console. The restore changes nothing about
+  the turn itself: it stays a full-prompt turn whose #170a prefix diff
+  collapses to the new user message, which is also why a stale snapshot is
+  harmless — it can only degrade to the prefill that would have happened
+  anyway, never to a wrong reply. The file carries a fingerprint (model
+  identity, `n_ctx`, KV quantization, LoRA) because llama.cpp's per-sequence
+  state path validates cache **shape** only, so two different models of the same
+  shape would otherwise load each other's cache and emit silent garbage.
+  Writes are atomic (temp + rename) and moved in 8 MB chunks, under the 16 MB
+  bound §9 established for AppContainer reads. The pool is capped by both file
+  count and total bytes (`KvStore`, 3 files / 192 MB, least-recently-modified
+  evicted first, host-tested) so it cannot eat the ~2.2 GB Dev Mode budget;
+  deleting a conversation deletes its snapshot.
+
 - **Context shift: long chats keep KV reuse past the token budget (#169).**
   Once a conversation exceeded `kMaxPromptTokens` (1800), the UI trimmer set
   `n_dropped > 0` on every later turn, which forced a full ~1800-token
@@ -128,6 +149,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   KV-cache quantization stays open on #171, gated on measurement.
 
 ### Fixed
+
+- **Deleting the conversation you are viewing no longer brings it back.**
+  Both "Delete" and "Clear all conversations" removed the files and then
+  called `NewChat()`, whose first act is `SaveCurrentConversation()` — and
+  `m_current` still held the deleted conversation, so it was written straight
+  back to disk and re-indexed. The in-memory copy is now dropped before
+  `NewChat()`. Found while wiring #170b, whose snapshot would have been
+  re-created by the same path.
 
 - **The #170a rewind honored on hybrid KV caches (PR #183).**
   `llama_memory_seq_rm(0, kv_keep, -1)` — the divergent-tail rewind — returns
