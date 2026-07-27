@@ -122,7 +122,9 @@ release, [docs/using-the-app.md](./docs/using-the-app.md) for the app guide, and
 - **Modern GPU**: RDNA 2, ~4 TFLOPS FP32, with INT8/INT4 hardware support.
 - **Unified memory**: 10 GB GDDR6 shared between CPU and GPU.
 - **Accessible Dev Mode**: one-time ~$19 activation via Partner Center unlocks unsigned UWP deployment.
-- **Underexplored**: no prior LLM port to the platform at time of writing.
+- **Underexplored**: I could not find a prior LLM runtime for Series S\|X when this
+  started. The closest prior art is Andrei David's `llama2.c` port to the **Xbox 360**
+  (January 2025) — a proof of concept on very different hardware, credited below.
 
 **Measured performance (Xbox Series S):** LFM2.5-350M is the fastest catalogue
 chat option; larger LFM tiers trade throughput for quality. KV-cache reuse cuts
