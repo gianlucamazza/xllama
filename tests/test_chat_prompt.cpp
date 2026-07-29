@@ -60,8 +60,7 @@ TEST_CASE("thinking model detection and postprocess") {
     CHECK(fmt.gen_suffix.empty()); // no Qwen3 no-think prefill
     CHECK(fmt.strip_thinking_content);
 
-    const std::string raw =
-        std::string("<think>") + " step by step\n" + "</think>" + "\n\n4";
+    const std::string raw = std::string("<think>") + " step by step\n" + "</think>" + "\n\n4";
     CHECK(fmt.postprocess_output(raw) == "4");
     // Truncated mid-thought: no answer left.
     CHECK(fmt.postprocess_output(std::string("<think>") + " still going").empty());
