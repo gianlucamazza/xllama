@@ -88,6 +88,11 @@ TEST_CASE("strip_thinking_blocks handles a closer with no opener") {
     // Reasoning only, no answer yet.
     CHECK(strip_thinking_blocks("reasoning, no closer").empty() == false);
     CHECK(strip_thinking_blocks("thoughts</think>").empty());
+    // A stray closer after a balanced block is a tag, not a boundary: the answer
+    // stays, the tag goes.
+    CHECK(strip_thinking_blocks("<think>a</think>answer</think>") == "answer");
+    CHECK(strip_thinking_blocks("<think>a<think>b</think>c</think>d") == "cd");
+    CHECK(strip_thinking_blocks("answer</think>trailing").find("</think>") == std::string::npos);
 }
 
 TEST_CASE("apply_stop_sequences: suffix match trims and reports") {

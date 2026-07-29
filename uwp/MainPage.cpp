@@ -2923,20 +2923,25 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
             }
 
             std::string output_text = fmt.postprocess_output(res.output_text);
-            // A thinking model whose reasoning ran out of tokens leaves NOTHING
-            // after postprocess (strip_thinking_blocks drops an unclosed
+            bool was_aborted = self->m_abort.load();
+            // A thinking model that spent its whole budget reasoning leaves
+            // NOTHING after postprocess (strip_thinking_blocks drops an unclosed
             // <think> to EOF). Without a stand-in the turn vanished: no message
             // saved, no FinalizeStreamedTurn, the streamed chain of thought left
             // orphaned on screen and a status of "Done". Say what happened
             // instead — the fix for the cut-off reply is the Max-new-tokens box.
-            const bool thinking_only = output_text.empty() && !res.output_text.empty();
+            //
+            // Only for a turn that COMPLETED: a cancel or a failure mid-thought
+            // empties the output too, and blaming the token budget there would
+            // be a lie (and would persist a reply the user stopped).
+            const bool thinking_only =
+                res.success && !was_aborted && output_text.empty() && !res.output_text.empty();
             if (thinking_only) {
                 output_text = "(reasoning only — the answer did not fit; raise \"Max new "
                               "tokens\" in Settings)";
                 ::xllama::log_output(
                     "[xllama] postprocess left no answer (truncated reasoning block)\n");
             }
-            bool was_aborted = self->m_abort.load();
             dispatcher.RunAsync(
                 CoreDispatcherPriority::Normal,
                 [self, metrics, res, output_text, was_aborted, ep_kv_ok, thinking_only]() {

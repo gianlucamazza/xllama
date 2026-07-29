@@ -549,6 +549,17 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     // n_ubatch — the chunk the prefill rate was measured on (#172) — is untouched.
     const int n_prompt_batch = std::max(1, static_cast<int>(llama_n_batch(ctx.get())));
     const int n_prompt_tokens = static_cast<int>(tokens.size());
+    // Chunking makes an oversized batch safe, not an oversized CONTEXT: a prompt
+    // past n_ctx would fail somewhere inside the loop with a bare "decode
+    // failed". Say what is actually wrong, before touching the cache — same
+    // message as LlamaSession::generate.
+    const int n_ctx_active = static_cast<int>(llama_n_ctx(ctx.get()));
+    if (n_prompt_tokens + 1 > n_ctx_active) {
+        res.error_msg = "prompt too long: " + std::to_string(n_prompt_tokens) +
+                        " tokens exceed n_ctx=" + std::to_string(n_ctx_active);
+        log_output(("[xllama] " + res.error_msg + "\n").c_str());
+        return res;
+    }
     for (int off = 0; off < n_prompt_tokens; off += n_prompt_batch) {
         llama_batch batch = llama_batch_get_one(tokens.data() + off,
                                                 std::min(n_prompt_batch, n_prompt_tokens - off));

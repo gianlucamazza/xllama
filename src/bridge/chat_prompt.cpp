@@ -122,6 +122,12 @@ std::string strip_thinking_blocks(std::string text) {
         }
         text.erase(o, (c + sizeof(kClose) - 1) - o);
     }
+    // A closer still standing after the balanced pass is a stray tag, not a
+    // block boundary ("<think>a</think>answer</think>"): drop the tag and keep
+    // the answer. Everything BEFORE the first closer was already dropped above
+    // when no opener preceded it.
+    for (size_t c = text.find(kClose); c != std::string::npos; c = text.find(kClose))
+        text.erase(c, sizeof(kClose) - 1);
     ltrim_inplace(text);
     // Trailing whitespace after the answer.
     while (!text.empty() && std::isspace(static_cast<unsigned char>(text.back())))

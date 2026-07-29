@@ -748,8 +748,11 @@ class LlamaSession final : public Session {
                 res.error_msg = "prompt decode failed";
                 log_output("[xllama] session generate: prompt decode failed\n");
                 // The cache now holds a partial batch — nothing about it is
-                // trustworthy for a future prefix diff.
+                // trustworthy, so drop the record AND the cells. Clearing both
+                // keeps a continuation turn (which reads the cache length, not
+                // m_kv_tokens) from decoding on top of half a prefill.
                 m_kv_tokens.clear();
+                llama_memory_clear(mem, true);
                 return res;
             }
         }
