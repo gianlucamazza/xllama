@@ -145,9 +145,12 @@ catalogue grows:
    for each file on selection. Without it, the entry expects the directory at
    `LocalState\models\<name>` (Device Portal upload) or USB `E:\xllama\models\<name>`.
    Optional fields: `kind` (`"ort-genai"` default; `"diffusion"` entries feed the
-   Image dialog and are hidden from the chat picker) and per-file `remote` (the
-   flat asset name in the release when `filename` carries a subpath, e.g.
-   `"filename": "unet/model.onnx"` + `"remote": "sd-turbo-fp16_unet_model.onnx"`).
+   Image dialog and are hidden from the chat picker); `n_ctx` (session context size,
+   `0`/omit = shipping default 2048; coding models use `4096`); `role`
+   (`""` or `"coding"` — denser prompt-token estimate + coding system default on
+   the LAN API); and per-file `remote` (the flat asset name in the release when
+   `filename` carries a subpath, e.g. `"filename": "unet/model.onnx"` +
+   `"remote": "sd-turbo-fp16_unet_model.onnx"`).
 
 2. Upload the override and (if needed) the model files:
 
@@ -163,6 +166,52 @@ catalogue grows:
 Constraints: `model.onnx` must be **self-contained** (< 2 GB, external data merged —
 `uwp-constraints.md §8`) and fit the Dev Mode disk budget. For diffusion models the
 contract is different (three components + CLIP assets): see `diffusion/README.md`.
+
+### Coding model entry (GGUF)
+
+**Design (SSOT structure):** [architecture.md](./architecture.md) — catalogue
+session policy + “inference surfaces”. **No third backend.** Coding is chat on
+the existing GGUF/`Session`/`ChatFormat` path with optional catalogue knobs.
+
+```json
+{
+  "models": [
+    {
+      "name": "qwen25-coder-1.5b",
+      "display": "Qwen2.5 Coder 1.5B (GGUF · CPU · coding)",
+      "kind": "gguf",
+      "role": "coding",
+      "n_ctx": 4096,
+      "hf_base_url": "https://huggingface.co/unsloth/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main",
+      "files": [
+        {
+          "filename": "Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf",
+          "approx_bytes": 986048032
+        }
+      ]
+    }
+  ]
+}
+```
+
+| Field | Effect | Non-effect |
+| --- | --- | --- |
+| `role: "coding"` | Trimmer 3.5 chars/token; LAN empty `system` → `kCodingSystemPrompt` | Does **not** rewrite Settings system prompt; does not pick backend/template |
+| `n_ctx: 4096` | Session + trimmer ceiling (`resolve_n_ctx` / `max_prompt_tokens_for_n_ctx`) | Does not change sampling or routing (GGUF has no EP routing) |
+| Chat template | `chat_format_for` by family — Qwen2.5-Coder = ChatML **without** Qwen3 no-think prefill | Qwen3 only gets empty-`<think>` via `model_is_qwen3` |
+
+**Best practices before shipping a new GGUF (any role):**
+
+1. Host **Release** smoke (`xllama-cli --chat --greedy`) — coherent output, peak RSS.
+2. Console headless (`bench-xbox-ort.sh`, set `--ctx` if non-default) → `bench/results/`.
+3. Only then: `manifest.json` entry + inventory line in [model-matrix.md](./model-matrix.md).
+4. Numbers go only through `benchmark-summary.json` → `generate-benchmark-summary.py`.
+5. Prefer 0.5–3B Q3/Q4 on Series S; reject 7B+ interactive for BW reasons (Phase 7).
+
+**Shipped (console phase14):** coding `qwen25-coder-0.5b` / `1.5b` / `3b`;
+chat `qwen3-1.7b`; reasoning `lfm25-1.2b-thinking` (CoT stripped for display via
+`model_is_thinking`). **Not catalogue:** FIM, tools/agents. Metrics:
+[benchmarks.md](./benchmarks.md), status: [model-matrix.md](./model-matrix.md).
 
 ### Runtime LoRA entry (GGUF only)
 

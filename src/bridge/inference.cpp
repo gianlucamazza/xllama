@@ -544,11 +544,30 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
 
     log_output(("[xllama] prompt tokens: " + std::to_string(tokens.size()) + "\n").c_str());
     const auto t_prompt0 = std::chrono::steady_clock::now();
-    llama_batch batch = llama_batch_get_one(tokens.data(), static_cast<int32_t>(tokens.size()));
-    if (llama_decode(ctx.get(), batch) != 0) {
-        res.error_msg = "prompt decode failed";
-        log_output("[xllama] prompt decode failed\n");
+    // Chunked at n_batch: an oversized logical batch is a GGML_ASSERT abort in
+    // llama_decode, not an error code (same fix as LlamaSession::generate).
+    // n_ubatch — the chunk the prefill rate was measured on (#172) — is untouched.
+    const int n_prompt_batch = std::max(1, static_cast<int>(llama_n_batch(ctx.get())));
+    const int n_prompt_tokens = static_cast<int>(tokens.size());
+    // Chunking makes an oversized batch safe, not an oversized CONTEXT: a prompt
+    // past n_ctx would fail somewhere inside the loop with a bare "decode
+    // failed". Say what is actually wrong, before touching the cache — same
+    // message as LlamaSession::generate.
+    const int n_ctx_active = static_cast<int>(llama_n_ctx(ctx.get()));
+    if (n_prompt_tokens + 1 > n_ctx_active) {
+        res.error_msg = "prompt too long: " + std::to_string(n_prompt_tokens) +
+                        " tokens exceed n_ctx=" + std::to_string(n_ctx_active);
+        log_output(("[xllama] " + res.error_msg + "\n").c_str());
         return res;
+    }
+    for (int off = 0; off < n_prompt_tokens; off += n_prompt_batch) {
+        llama_batch batch = llama_batch_get_one(tokens.data() + off,
+                                                std::min(n_prompt_batch, n_prompt_tokens - off));
+        if (llama_decode(ctx.get(), batch) != 0) {
+            res.error_msg = "prompt decode failed";
+            log_output("[xllama] prompt decode failed\n");
+            return res;
+        }
     }
     const double prompt_ms =
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_prompt0)

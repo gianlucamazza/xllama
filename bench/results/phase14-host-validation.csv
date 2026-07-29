@@ -1,0 +1,7 @@
+model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,run_index,notes,quality
+qwen25-coder-0.5b,Q4_K_M,cpu,4096,6,81.0,30.9,513,1226,0,0,56,0,0,lenovo-release-t6,2026-07-27T20:07:29Z,1,host-release-fib-smoke,PASS
+qwen25-coder-1.5b,Q4_K_M,cpu,4096,6,40.3,17.2,1703,2666,0,0,56,0,0,lenovo-release-t6,2026-07-27T20:07:29Z,1,host-release-fib-smoke,PASS
+qwen25-coder-3b,Q4_K_M,cpu,4096,6,17.7,9.7,3301,5175,0,0,56,0,0,lenovo-release-t6,2026-07-27T20:07:29Z,1,host-release-fib-smoke-Q4,PASS
+qwen3-1.7b,Q4_K_M,cpu,2048,6,39.0,17.2,1976,2314,0,0,37,0,0,lenovo-release-t6,2026-07-27T20:07:29Z,1,host-release-2plus2,PASS
+lfm25-1.2b-thinking,Q4_K_M,cpu,2048,6,48.4,11.9,1228,1429,0,0,34,0,0,lenovo-release-t6,2026-07-27T20:08:20Z,1,host-release-think-n256,PASS
+qwen25-coder-3b-q3,Q3_K_M,cpu,4096,6,1.9,1.3,2232,29759,0,0,52,0,0,lenovo-debug-t6,2026-07-27T19:48:40Z,1,host-debug-Q3-quality-FAIL,FAIL

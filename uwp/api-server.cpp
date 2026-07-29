@@ -18,12 +18,14 @@
 // clang-format on
 
     #include "inference-bridge.h"
+    #include "model-downloader.h"
     #include "xllama/chat_prompt.h"
     #include "xllama/model_provision.h"
     #include "xllama/path_utils.h"
     #include "xllama/personalize.h"
     #include "xllama/platform.h"
     #include "xllama/preference_capture.h"
+    #include "xllama/routing_policy.h"
     #include "xllama/session.h"
     #include "xllama/session_hub.h"
     #include "xllama/utf8_utils.h"
@@ -250,6 +252,37 @@ std::string error_json(const std::string& msg) {
 // OpenAI /v1/chat/completions
 // ---------------------------------------------------------------------------
 
+// Catalogue session policy for one model, cached: parsing the manifest (bundled
+// file + LocalState override) on EVERY chat request, under hub.mtx and in front
+// of the model load, is pure latency. Only called from handle_chat_locked, which
+// holds hub.mtx — that lock is what serialises the statics below.
+//
+// A miss re-reads the file, so a model published (or uploaded) while the server
+// runs is picked up on its first request; models genuinely absent from the
+// catalogue re-read once per request, exactly as every request did before.
+struct CatalogueSessionPolicy {
+    int n_ctx = ::xllama::kDefaultNCtx;
+    bool coding = false;
+    bool gguf = false;
+};
+
+CatalogueSessionPolicy catalogue_session_policy(const std::string& model) {
+    static std::vector<::xllama::ManifestEntry> cache;
+    const std::wstring wname = ::xllama::utf8_to_wstring(model);
+    const ::xllama::ManifestEntry* entry = ::xllama::FindManifestEntry(cache, wname);
+    if (!entry) {
+        cache = ::xllama::LoadModelManifest();
+        entry = ::xllama::FindManifestEntry(cache, wname);
+    }
+    CatalogueSessionPolicy p;
+    if (entry) {
+        p.n_ctx = ::xllama::resolve_n_ctx(entry->n_ctx);
+        p.coding = ::xllama::role_is_coding(::xllama::wstring_to_utf8(entry->role));
+        p.gguf = entry->kind == L"gguf";
+    }
+    return p;
+}
+
 // Turn the OpenAI messages[] into (system, history, final_user) for render_prompt.
 void split_messages(JsonArray const& messages, std::string& system,
                     std::vector<::xllama::ChatTurn>& history, std::string& final_user) {
@@ -307,27 +340,34 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
         status = "400 Bad Request";
         return error_json("no user message to complete");
     }
-    // Small instruct models degrade badly with an empty system turn (they
-    // hallucinate the next role instead of answering); the chat UI always seeds
-    // one. Match it when the client sends no system message.
-    if (system.empty())
-        system = "You are a helpful AI assistant.";
-
     // Lazily (re)create the resident Session when the requested model differs
     // (hub.mtx is held by the caller; the swap invalidates the GUI's KV-reuse
-    // state via hub.generation, which its next turn detects).
+    // state via hub.generation, which its next turn detects). Catalogue n_ctx
+    // / role (coding) apply the same policy as the chat UI.
     ::xllama::Session* session = nullptr;
+    bool model_is_coding = false;
     {
         std::string err;
+        const CatalogueSessionPolicy policy = catalogue_session_policy(model);
+        model_is_coding = policy.coding;
         ::xllama::SessionParams sp;
         sp.model_path = model;
-        sp.n_ctx = ::xllama::kDefaultNCtx;
+        sp.n_ctx = policy.n_ctx;
+        if (policy.gguf)
+            sp.backend = ::xllama::Backend::LlamaCpp;
         session = ::xllama::session_hub().ensure_locked(model, sp, &err);
         if (!session) {
             status = "500 Internal Server Error";
             return error_json("session create failed: " + err);
         }
     }
+
+    // Small instruct models degrade badly with an empty system turn (they
+    // hallucinate the next role instead of answering); the chat UI always seeds
+    // one. Match it when the client sends no system message — coding models get
+    // the coding default so a bare LAN client does not look like general chat.
+    if (system.empty())
+        system = model_is_coding ? ::xllama::kCodingSystemPrompt : ::xllama::kDefaultSystemPrompt;
 
     const ::xllama::ChatFormat fmt = ::xllama::chat_format_for(model);
     ::xllama::GenerateParams gp;

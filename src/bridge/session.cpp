@@ -665,6 +665,27 @@ class LlamaSession final : public Session {
         // prompt, the whole delta on a continuation.
         llama_token* pf = tokens.data() + (full_prompt ? kv_keep : 0);
         const int n_pf = static_cast<int>(tokens.size()) - (full_prompt ? (int)kv_keep : 0);
+        if (n_pf <= 0) {
+            // Both callers always render at least one token (a delta carries the
+            // turn close + user turn; a full prompt keeps size-1 at most), so
+            // this is a programming error, not a user-reachable state. Fail
+            // rather than sample on whatever logits the last decode left.
+            res.error_msg = "nothing to prefill";
+            log_output("[xllama] session generate: nothing to prefill\n");
+            return res;
+        }
+        if (full_prompt && kv_len + n_pf + 1 > m_n_ctx) {
+            // A full prompt has nothing older to evict — the UI trimmer
+            // (kMaxPromptTokens / max_prompt_tokens_for_n_ctx) owns that, and
+            // its char-based estimate can undershoot on dense code or CJK.
+            // Fail here: reaching llama_decode with more tokens than the
+            // context is not an error code but a GGML_ASSERT abort.
+            res.error_msg = "prompt too long: " + std::to_string(n_pf) +
+                            " tokens exceed n_ctx=" + std::to_string(m_n_ctx) +
+                            " — shorten the message or start a new chat";
+            log_output(("[xllama] session generate: " + res.error_msg + "\n").c_str());
+            return res;
+        }
         if (!full_prompt && kv_len + n_pf + 1 > m_n_ctx) {
             // #169: context shift — evict the oldest tokens past the pinned
             // head (gp.n_keep, the system prompt) and RoPE-shift the survivors
@@ -711,15 +732,29 @@ class LlamaSession final : public Session {
 
         // Prefill: positions continue automatically from the KV cache end, so a
         // reuse turn appends after the retained context.
+        //
+        // Chunked at llama_n_batch: llama_decode does not return an error for an
+        // oversized batch, it ASSERTS (GGML_ASSERT(n_tokens_all <= n_batch) in
+        // llama-context.cpp → abort, Release included). n_batch defaults to
+        // min(n_ctx, 2048) while the trimmer ceiling of a 4096-token coding
+        // session is 3846, so a long paste used to kill the process. This is the
+        // LOGICAL batch only — the physical ubatch stays 512 (#172 optimum),
+        // which is what the prefill rate was measured on.
         const auto t_prefill0 = std::chrono::steady_clock::now();
-        llama_batch batch = llama_batch_get_one(pf, n_pf);
-        if (llama_decode(ctx, batch) != 0) {
-            res.error_msg = "prompt decode failed";
-            log_output("[xllama] session generate: prompt decode failed\n");
-            // The cache now holds a partial batch — nothing about it is
-            // trustworthy for a future prefix diff.
-            m_kv_tokens.clear();
-            return res;
+        const int n_batch = std::max(1, static_cast<int>(llama_n_batch(ctx)));
+        for (int off = 0; off < n_pf; off += n_batch) {
+            llama_batch batch = llama_batch_get_one(pf + off, std::min(n_batch, n_pf - off));
+            if (llama_decode(ctx, batch) != 0) {
+                res.error_msg = "prompt decode failed";
+                log_output("[xllama] session generate: prompt decode failed\n");
+                // The cache now holds a partial batch — nothing about it is
+                // trustworthy, so drop the record AND the cells. Clearing both
+                // keeps a continuation turn (which reads the cache length, not
+                // m_kv_tokens) from decoding on top of half a prefill.
+                m_kv_tokens.clear();
+                llama_memory_clear(mem, true);
+                return res;
+            }
         }
         res.t_p_eval_ms =
             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_prefill0)

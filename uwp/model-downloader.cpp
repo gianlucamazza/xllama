@@ -359,6 +359,9 @@ std::vector<ManifestEntry> parse_manifest(winrt::hstring const& text) {
         e.hf_base_url = obj.GetNamedString(L"hf_base_url", L"");
         e.lora = obj.GetNamedString(L"lora", L"");
         e.lora_scale = obj.GetNamedNumber(L"lora_scale", 1.0);
+        // 0 / absent → shipping default at session open (resolve_n_ctx).
+        e.n_ctx = static_cast<int>(obj.GetNamedNumber(L"n_ctx", 0));
+        e.role = obj.GetNamedString(L"role", L"");
         if (obj.HasKey(L"files")) {
             for (auto const& f : obj.GetNamedArray(L"files")) {
                 auto fo = f.GetObject();

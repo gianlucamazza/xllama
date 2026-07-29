@@ -54,18 +54,28 @@ generated from the committed raw results by `scripts/generate-benchmark-summary.
 | Gemma-3-270M | 270M | Q4_K_M | llama.cpp CPU · t6 | 395.0 | **76.8** | _single run_ | 368 | `phase6-gemma` |
 | SmolLM2-360M | 360M | int4 | ORT-GenAI CPU · t6 | 262.4 | **74.8** | 74.4–75.0 (n=3) | 708 | `t6-shipped-confirm` |
 | SmolLM2-360M | 360M | Q4_K_M | llama.cpp CPU · t6 | 141.5 | **62.9** | _single run_ | 402 | `phase35-llamacpp-scaling` |
+| Qwen2.5-Coder-0.5B | 0.5B | Q4_K_M | llama.cpp CPU · t6 | 148.2 | **62.4** | 56.8–68.0 (n=2) | 533 | `phase14-console` |
 | SmolLM2-360M | 360M | fp16 | ORT DirectML · RMSNorm fixed | 236.7 | **44.4** | _single run_ | 1268 | `phase2-dml` |
 | LFM2.5-1.2B | 1.2B | Q4_K_M | llama.cpp CPU · t6 | 76.2 | **37.9** | _single run_ | 811 | `phase7-lfm` |
+| LFM2.5-1.2B-Thinking | 1.2B | Q4_K_M | llama.cpp CPU · t6 | 130.4 | **36.7** | 36.7–36.8 (n=2) | 811 | `phase14-console` |
 | Qwen3.5-0.8B | 0.8B | Q4_K_M | llama.cpp CPU · t6 | 98.1 | **35.1** | _single run_ | 718 | `phase5-gguf` |
+| Qwen2.5-Coder-1.5B | 1.5B | Q4_K_M | llama.cpp CPU · t6 | 96.6 | **26.1** | 25.7–26.5 (n=2) | 1179 | `phase14-console` |
+| Qwen3-1.7B | 1.7B | Q4_K_M | llama.cpp CPU · t6 | 89.5 | **21.8** | 21.7–21.9 (n=2) | 1398 | `phase14-console` |
 | SmolLM2-1.7B | 1.7B | int4 | ORT-GenAI CPU | 54.9 | **20.6** | _single run_ | 2423 | `phase35-1b-cpu` |
 | LFM2-2.6B | 2.6B | Q4_K_M | llama.cpp CPU · t6 | 32.0 | **18.4** | _single run_ | 1623 | `phase7-lfm` |
 | Gemma-4-E2B | ~5B raw (2B eff) | Q3_K_S | llama.cpp CPU · t6 | 26.1 | **15.3** | _single run_ | 2742 | `phase6-gemma` |
 | Llama-3.2-3B | 3B | Q3_K_S | llama.cpp CPU · t6 | 19.5 | **14.2** | _single run_ | 1824 | `phase7-scale` |
+| Qwen2.5-Coder-3B | 3B | Q4_K_M | llama.cpp CPU · t6 | 46.2 | **14.0** | 13.9–14.1 (n=2) | 2116 | `phase14-console` |
 | Phi-3.5-mini | 3.8B | Q3_K_S | llama.cpp CPU · t6 | 15.3 | **11.3** | _single run_ | 2453 | `phase7-scale` |
 | Gemma-4-E2B | ~5B raw (2B eff) | IQ2_M | llama.cpp CPU · t6 | 13.5 | **9.9** | _single run_ | 2534 | `phase6-gemma` |
 | SmolLM2-360M | 360M | int4 | ORT DirectML int4 | 0.0 | **8.8** | _single run_ | 999 | `phase2-dml` |
 <!-- END GENERATED MODEL SUMMARY -->
 <!-- prettier-ignore-end -->
+
+- **Phase 14 coding/chat (2026-07-27, Series S):** Qwen2.5-Coder 0.5B/1.5B/3B,
+  Qwen3-1.7B, LFM2.5-1.2B-Thinking console-validated (`phase14-console.csv`).
+  Coder-0.5B lands next to SmolLM2 GGUF at ~62 tok/s; Coder-3B matches Llama-3.2-3B
+  decode (~14) with peak **2116 MB**. Thinking equals LFM 1.2B instruct peak RAM.
 
 Notes:
 

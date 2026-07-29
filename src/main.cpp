@@ -1,7 +1,7 @@
 // Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 
-#include "xllama/chat_prompt.h"
+#include "xllama/chat_prompt.h" // kDefaultSystemPrompt
 #include "xllama/cli.h"
 #include "xllama/inference.h"
 #include "xllama/membw.h"
@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
         // endpoint, because an empty system turn makes small instruct models
         // hallucinate the next role instead of answering (see api-server.cpp).
         const std::string system = params.system_prompt.empty()
-                                       ? std::string("You are a helpful AI assistant.")
+                                       ? std::string(xllama::kDefaultSystemPrompt)
                                        : params.system_prompt;
         params.prompt = fmt.render_prompt(system, /*history=*/{}, params.prompt);
         params.stop_sequences = fmt.stop_sequences;

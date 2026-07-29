@@ -88,11 +88,29 @@ is the one path that does **not** stream — it returns a completed response.
 ## Chat templates (`ChatFormat`)
 
 Prompt formatting is data-driven, not hard-coded. `chat_format_for(model_id)`
-(`src/bridge/chat_prompt.cpp`) returns a `ChatFormat` describing the template:
+(`src/bridge/chat_prompt.cpp`) returns a `ChatFormat` describing the template.
+Detection uses the **basename only** (never path segments — a cache dir named
+`xllama` must not select Llama-3). Families:
 
-- **ChatML** (`<|im_start|>…<|im_end|>`) — SmolLM2, Qwen, LFM.
-- **Gemma** (`<start_of_turn>…<end_of_turn>`, no system role — the system prompt is
-  merged into the first user turn, stop `<end_of_turn>`, `<bos>` via `add_bos`).
+| Kind        | Markers                             | System style                 | Typical catalogue                  |
+| ----------- | ----------------------------------- | ---------------------------- | ---------------------------------- |
+| **ChatML**  | `<\|im_start\|>` … `<\|im_end\|>`   | Dedicated system turn        | SmolLM2, LFM, Qwen2.5-Coder, Qwen3 |
+| **Gemma**   | `<start_of_turn>` … `<end_of_turn>` | Merge system into first user | `gemma3-270m`, `gemma4-e2b`        |
+| **Llama-3** | header / `eot` tokens               | Dedicated system turn        | `llama32-3b`                       |
+| **Phi-3**   | `<\|user\|>` … `<\|end\|>`          | Dedicated system turn        | Phi GGUFs (campaign / override)    |
+
+**Qwen3 vs Qwen2.5 (no-think prefill).** Qwen3.x with `enable_thinking=false`
+expects an empty `<think>\n\n</think>` block after the assistant header.
+`qwen_no_think_gen_suffix` applies that **only** when `model_is_qwen3` and not
+`model_is_thinking` (basename `qwen3` / `qwen-3` — catalogue `qwen35-0.8b`,
+`qwen3-1.7b`). It must **not** apply to Qwen2.5-Coder or to LFM Thinking:
+those either are plain ChatML or emit real CoT (stripped at display time).
+
+**Thinking models.** Basename contains `thinking` → `strip_thinking_content` on
+the `ChatFormat`. After each turn, UI and LAN call `postprocess_output`, which
+runs `strip_thinking_blocks` so history and screen keep the final answer only.
+Streaming may briefly show raw CoT until the turn finishes and the paragraph is
+replaced — no second Settings path, no n_predict special-case in policy.
 
 `render_prompt` / `render_delta` build the full prompt or the KV-reuse delta;
 `apply_stop_sequences` is the one shared suffix-match helper used by both the ORT
@@ -166,6 +184,43 @@ The catalogue is `uwp/models/manifest.json` (bundled base) merged with an option
 reinstall-free `LocalState\manifest.json` override, per entry, by
 `merge_manifest_entries` (`manifest_merge.h`): a same-`name` entry replaces the base
 one, a new name is appended, unmentioned entries stay.
+
+### Catalogue session policy (`n_ctx`, `role`)
+
+Optional per-entry fields used at **session open** (not only download). Helpers
+live next to the prompt budget in `routing_policy.h` so the trimmer and
+`kDefaultNCtx` cannot drift independently (#171 / #133 class):
+
+| Field       | Contract                                                                                                                                                                                                                                                        |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`n_ctx`** | `0`/omit → `kDefaultNCtx` (2048). Else clamped by `resolve_n_ctx` to **[512, 8192]**. Applied in `EnsureSession` and the LAN chat handler when opening the hub session. Coding catalogue entries use **4096**.                                                  |
+| **`role`**  | `""` (default chat) or **`"coding"`**. Effects only: (1) UI trimmer uses `kEstimatedCharsPerTokenCoding` (3.5) instead of prose 5.0; (2) LAN `POST /v1/chat/completions` with **empty** `system` fills `kCodingSystemPrompt` instead of `kDefaultSystemPrompt`. |
+
+**Explicit non-effects (do not re-introduce):**
+
+- Settings system-prompt text is **never** rewritten when the model or role
+  changes. The box is user-owned; magic string-equality swaps are debt.
+- `role` does **not** select a backend, a template, or a sampler. Backend stays
+  `kind` + `Backend::Auto`; template stays `chat_format_for(model_id)`.
+- There is **no** third “coding” pillar or FIM path. Coding chat is the same
+  GGUF/`Session`/`ChatFormat` stack as general chat.
+
+Trimmer ceiling: `max_prompt_tokens_for_n_ctx(n_ctx, reserved)` →
+`n_ctx − reserved`, where `reserved` is the requested generation length with
+`kReservedGenerationTokens` (250) as its floor and 256 tokens as the prompt floor.
+The shipping default with the default reserve keeps the historical constant
+`kMaxPromptTokens` (1800) so the #171 pin does not drift by arithmetic alone.
+Reserving the actual `n_predict` matters because the generation loop clamps it to
+what the context has left (#173): a ceiling that reserves less cuts the reply
+silently instead of dropping one more turn of history.
+
+The prefill itself is chunked at `llama_n_batch` (`LlamaSession::generate`,
+`run_inference`): an oversized logical batch is not an error return from
+`llama_decode` but a `GGML_ASSERT` abort, and `n_batch` defaults to
+`min(n_ctx, 2048)` — well below the 4096-token coding ceiling.
+
+Inventory / ship status of models: [model-matrix.md](model-matrix.md). Ops for
+adding entries: [model-selection.md](model-selection.md).
 
 `EnsureModelNamedAsync` (`uwp/MainPage.cpp`) provisions a model through the chain
 LocalState → bundled InstalledPath → USB → **catalogue download** (from the entry's
@@ -288,11 +343,63 @@ in [training-architecture.md §11](training-architecture.md). Pad steps:
 [using-the-app.md](using-the-app.md). Headless harness remains `train.flag` /
 `validate-console-training.sh device-train`.
 
+## Inference surfaces: in scope vs deferred
+
+The shipping product is **multi-turn chat** (UI + optional LAN OpenAI-compat
+chat) on a **single resident session**. The following are **not** implemented
+and must not be half-added:
+
+| Surface                                          | Status       | Why deferred / rule                                                                                                                                               |
+| ------------------------------------------------ | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chat instruct (all catalogue text models)        | **In scope** | One `ChatFormat` + `Session::generate`                                                                                                                            |
+| Coding **chat** (`role: coding`, larger `n_ctx`) | **In scope** | Same path; catalogue policy only                                                                                                                                  |
+| Thinking models (basename `thinking`)            | **In scope** | ChatML; `strip_thinking_content` → `postprocess_output` drops `<think>…</think>` for display/persist (KV still saw full stream). Catalogue: `lfm25-1.2b-thinking` |
+| FIM / fill-in-middle / IDE completion            | **Out**      | Second prompt surface (`render_fim` + completions route); not wired                                                                                               |
+| Tool-calling / agent loops                       | **Out**      | Schema + multi-step orchestration above `Session`                                                                                                                 |
+
+Two consequences of "the history is stripped, the KV is not", both deliberate:
+
+- **No KV snapshot (#170b) for thinking models.** On return, the rendered prompt
+  (stripped) diverges from the resident tokens (full CoT) inside the first
+  assistant turn, so the #170a prefix diff collapses — on LFM's hybrid cache, to a
+  full re-prefill. `SaveKvSnapshotAsync` returns early instead of writing tens of MB
+  to buy nothing. In-conversation delta reuse is unaffected: there the KV is the
+  truth and `render_delta` only closes the turn.
+- **An answer can postprocess to empty** when the reasoning block is truncated
+  (`n_predict` exhausted). The UI substitutes an explicit "reasoning only" turn:
+  before, the message was dropped silently, leaving the raw CoT orphaned on screen
+  and a user turn with no reply in the saved history.
+
+**Gate to catalogue:** measure on host Release → console headless bench → only
+then a `manifest.json` entry with a **complete** product path (template, load,
+session policy, and for thinking: postprocess). Measured ≠ shipped without that.
+
+## Model validation ladder (best practice)
+
+One direction, no parallel “truths”:
+
+```text
+host Release smoke (quality + peak)
+    → console headless bench (tok/s, peak, n_ctx)
+        → phase*.csv under bench/results/
+            → optional row in bench/benchmark-summary.json
+                → generate-benchmark-summary.py
+                    → docs/benchmarks.md (numbers SSOT)
+    → if product-complete: uwp/models/manifest.json
+        → docs/model-matrix.md (status SSOT)
+```
+
+- **Do not** invent a second performance table in README or model-selection.
+- **Do not** catalogue on host-only evidence for Series S claims.
+- **Do not** special-case Settings when a catalogue field already owns the
+  policy (`n_ctx`, `role`).
+
 ## See also
 
 - Performance numbers → [benchmarks.md](benchmarks.md)
 - AppContainer constraints (§1–§13) → [uwp-constraints.md](uwp-constraints.md)
 - Model catalogue / selection → [model-selection.md](model-selection.md) + `uwp/models/manifest.json`
+- Inventory / ship status → [model-matrix.md](model-matrix.md)
 - App UI (incl. personalize) → [using-the-app.md](using-the-app.md)
 - LAN protocol → [api-endpoint.md](api-endpoint.md)
 - v1.0 narrative snapshot → [technical-report.md](technical-report.md)

@@ -266,7 +266,8 @@ Text backends: **ORT GenAI** (ONNX catalogue dirs) and **llama.cpp GGUF** on
 `unified` builds; diffusion is plain ORT DirectML. Catalogue data lives in
 `uwp/models/manifest.json` ([models-v1 Release](https://github.com/gianlucamazza/xllama/releases/tag/models-v1));
 first launch downloads the default chat model. Roles and how to add a model:
-[docs/model-selection.md](./docs/model-selection.md). Operator defaults:
+[docs/model-selection.md](./docs/model-selection.md). Full tested/shipping
+inventory: [docs/model-matrix.md](./docs/model-matrix.md). Operator defaults:
 [docs/recommended-config.md](./docs/recommended-config.md). **Performance
 numbers:** [docs/benchmarks.md](./docs/benchmarks.md) only.
 
@@ -274,6 +275,9 @@ numbers:** [docs/benchmarks.md](./docs/benchmarks.md) only.
 | ------------------------------------ | --------------------------------------------------- |
 | Default chat (unified)               | `lfm25-350m`                                        |
 | Balanced / quality chat              | `lfm25-1.2b-instruct`, `lfm2-2.6b`                  |
+| Coding chat (GGUF · n_ctx 4096)      | `qwen25-coder-0.5b` / `1.5b` / `3b`                  |
+| Chat upgrade (Qwen3)                 | `qwen3-1.7b`                                         |
+| Reasoning (think stripped for UI)    | `lfm25-1.2b-thinking`                                |
 | ORT CPU / DML routing base           | `smollm2-360m-cpu-int4`, `smollm2-360m-dml-fp16-v2` |
 | Image gen                            | `sd-turbo-fp16`                                     |
 | Personalized (after on-device train) | `personalized` (LocalState override)                |

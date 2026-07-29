@@ -10,8 +10,17 @@ using namespace xllama;
 TEST_CASE("qwen detection") {
     CHECK(model_is_qwen("qwen35-0.8b"));
     CHECK(model_is_qwen("Qwen3.5-0.8B-Q4_K_M.gguf"));
+    CHECK(model_is_qwen("qwen25-coder-1.5b"));
     CHECK_FALSE(model_is_qwen("lfm25-350m"));
     CHECK_FALSE(model_is_qwen("smollm2-360m-cpu-int4"));
+}
+
+TEST_CASE("qwen3 detection excludes Qwen2.5-Coder") {
+    CHECK(model_is_qwen3("qwen35-0.8b"));
+    CHECK(model_is_qwen3("Qwen3.5-0.8B-Q4_K_M.gguf"));
+    CHECK_FALSE(model_is_qwen3("qwen25-coder-1.5b"));
+    CHECK_FALSE(model_is_qwen3("Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf"));
+    CHECK_FALSE(model_is_qwen3("lfm25-350m"));
 }
 
 TEST_CASE("qwen no-think generation suffix") {
@@ -20,6 +29,17 @@ TEST_CASE("qwen no-think generation suffix") {
     CHECK(suffix.find("qwen35") == std::string::npos);
     CHECK(suffix.find('\n') != std::string::npos);
     CHECK(qwen_no_think_gen_suffix("lfm25-350m").empty());
+    // Qwen2.5-Coder is plain ChatML — no empty <think> prefill.
+    CHECK(qwen_no_think_gen_suffix("qwen25-coder-1.5b").empty());
+    CHECK(qwen_no_think_gen_suffix("Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf").empty());
+}
+
+TEST_CASE("coding models use ChatML without think suffix") {
+    const auto fmt = chat_format_for("qwen25-coder-1.5b");
+    CHECK(fmt.kind == ChatFormatKind::ChatML);
+    CHECK(fmt.gen_suffix.empty());
+    CHECK(fmt.stop_sequences.size() == 1);
+    CHECK(fmt.stop_sequences[0] == "<|im_end|>");
 }
 
 TEST_CASE("strip empty thinking tags") {
@@ -27,6 +47,52 @@ TEST_CASE("strip empty thinking tags") {
     CHECK(strip_empty_thinking_tags(block + "\n\nCiao!") == "Ciao!");
     CHECK(strip_empty_thinking_tags("  \n" + block + "  \n  Risposta") == "Risposta");
     CHECK(strip_empty_thinking_tags("plain text") == "plain text");
+}
+
+TEST_CASE("thinking model detection and postprocess") {
+    CHECK(model_is_thinking("lfm25-1.2b-thinking"));
+    CHECK(model_is_thinking("LFM2.5-1.2B-Thinking-Q4_K_M.gguf"));
+    CHECK_FALSE(model_is_thinking("lfm25-1.2b-instruct"));
+    CHECK_FALSE(model_is_thinking("qwen35-0.8b"));
+
+    const auto fmt = chat_format_for("lfm25-1.2b-thinking");
+    CHECK(fmt.kind == ChatFormatKind::ChatML);
+    CHECK(fmt.gen_suffix.empty()); // no Qwen3 no-think prefill
+    CHECK(fmt.strip_thinking_content);
+
+    const std::string raw = std::string("<think>") + " step by step\n" + "</think>" + "\n\n4";
+    CHECK(fmt.postprocess_output(raw) == "4");
+    // Truncated mid-thought: no answer left.
+    CHECK(fmt.postprocess_output(std::string("<think>") + " still going").empty());
+    // Non-thinking ChatML still only strips empty think blocks.
+    const auto plain = chat_format_for("lfm25-350m");
+    CHECK_FALSE(plain.strip_thinking_content);
+    CHECK(plain.postprocess_output(raw).find("<think>") != std::string::npos);
+}
+
+TEST_CASE("strip_thinking_blocks complete and truncated") {
+    CHECK(strip_thinking_blocks("<think>a</think>\n\nanswer") == "answer");
+    CHECK(strip_thinking_blocks("<think>a</think><think>b</think>ok") == "ok");
+    CHECK(strip_thinking_blocks("no tags") == "no tags");
+    CHECK(strip_thinking_blocks("<think>cut off").empty());
+}
+
+TEST_CASE("strip_thinking_blocks handles a closer with no opener") {
+    // The model's own template can open the reasoning, so the stream carries
+    // only the closing tag: everything up to it is chain of thought.
+    CHECK(strip_thinking_blocks("reasoning first</think>\n\nanswer") == "answer");
+    CHECK(strip_thinking_blocks("</think>answer") == "answer");
+    CHECK(strip_thinking_blocks("a</think>b<think>c</think>d") == "bd");
+    // An opener before the closer is the normal balanced case, untouched.
+    CHECK(strip_thinking_blocks("<think>a</think>b") == "b");
+    // Reasoning only, no answer yet.
+    CHECK(strip_thinking_blocks("reasoning, no closer").empty() == false);
+    CHECK(strip_thinking_blocks("thoughts</think>").empty());
+    // A stray closer after a balanced block is a tag, not a boundary: the answer
+    // stays, the tag goes.
+    CHECK(strip_thinking_blocks("<think>a</think>answer</think>") == "answer");
+    CHECK(strip_thinking_blocks("<think>a<think>b</think>c</think>d") == "cd");
+    CHECK(strip_thinking_blocks("answer</think>trailing").find("</think>") == std::string::npos);
 }
 
 TEST_CASE("apply_stop_sequences: suffix match trims and reports") {

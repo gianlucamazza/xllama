@@ -30,6 +30,7 @@ Technical notes and design decisions for xllama.
 | Generated performance summary                                                          | [benchmarks.md](./benchmarks.md) + [benchmarks-charts.html](./benchmarks-charts.html)                                        |
 | Bench methodology / CSV schema                                                         | [`../bench/README.md`](../bench/README.md)                                                                                   |
 | Model catalogue + backend selection                                                    | [model-selection.md](./model-selection.md) (narrative) + [`../uwp/models/manifest.json`](../uwp/models/manifest.json) (data) |
+| Full model inventory (tested / shipping / rejected, roles, H9, coding)                 | [model-matrix.md](./model-matrix.md) (status SSOT; numbers still link to benchmarks.md)                                  |
 | UWP/AppContainer constraints (§1–§13)                                                  | [uwp-constraints.md](./uwp-constraints.md)                                                                                   |
 | Runtime NuGet pins                                                                     | [recommended-config.md](./recommended-config.md) (narrative) + [`../uwp/packages.config`](../uwp/packages.config) (data)     |
 | Patched-DLL lifecycle                                                                  | [vendor-lifecycle-plan.md](./vendor-lifecycle-plan.md)                                                                       |
@@ -73,6 +74,7 @@ path checklist for discovery — descriptions are not repeated.
 [../bench/README.md](../bench/README.md)
 
 **Evidence / history:** [benchmarks.md](./benchmarks.md) ·
+[model-matrix.md](./model-matrix.md) ·
 [phase7-hypotheses.md](./phase7-hypotheses.md) ·
 [technical-report.md](./technical-report.md) (frozen v1.0) ·
 [phase1-runbook.md](./phase1-runbook.md) (compat redirect) ·

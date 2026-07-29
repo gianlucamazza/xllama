@@ -51,6 +51,13 @@ bool model_is_qwen(const std::string& model_id) {
     return to_lower(model_basename(model_id)).find("qwen") != std::string::npos;
 }
 
+bool model_is_qwen3(const std::string& model_id) {
+    // Qwen3 / Qwen3.5 thinking models. Must NOT match Qwen2.5 / Qwen2.5-Coder
+    // (basename "qwen25-coder-1.5b", "Qwen2.5-Coder-…").
+    const std::string b = to_lower(model_basename(model_id));
+    return b.find("qwen3") != std::string::npos || b.find("qwen-3") != std::string::npos;
+}
+
 bool model_is_gemma(const std::string& model_id) {
     return to_lower(model_basename(model_id)).find("gemma") != std::string::npos;
 }
@@ -63,8 +70,16 @@ bool model_is_phi(const std::string& model_id) {
     return to_lower(model_basename(model_id)).find("phi") != std::string::npos;
 }
 
+bool model_is_thinking(const std::string& model_id) {
+    // Catalogue / file ids like lfm25-1.2b-thinking, LFM2.5-1.2B-Thinking-….
+    return to_lower(model_basename(model_id)).find("thinking") != std::string::npos;
+}
+
 std::string qwen_no_think_gen_suffix(const std::string& model_id) {
-    if (!model_is_qwen(model_id))
+    // Only Qwen3.x uses the enable_thinking=false empty-<think> prefill.
+    // Applying it to Qwen2.5-Coder injects alien special tokens into ChatML.
+    // Thinking models must NOT get this suffix either (they produce real CoT).
+    if (!model_is_qwen3(model_id) || model_is_thinking(model_id))
         return {};
     return empty_think_block() + "\n\n";
 }
@@ -76,6 +91,47 @@ std::string strip_empty_thinking_tags(std::string text) {
         text.erase(0, kEmpty.size());
         ltrim_inplace(text);
     }
+    return text;
+}
+
+std::string strip_thinking_blocks(std::string text) {
+    constexpr char kOpen[] = "<think>";
+    constexpr char kClose[] = "</think>";
+    // Unbalanced closer first: a model whose template opens the reasoning for it
+    // (or a stop sequence that ate the opener) streams "reasoning…</think>answer"
+    // with no <think> at all. Without this the whole chain of thought AND the raw
+    // tag reach the screen and the saved history.
+    {
+        const size_t first_close = text.find(kClose);
+        if (first_close != std::string::npos) {
+            const size_t first_open = text.find(kOpen);
+            if (first_open == std::string::npos || first_open > first_close)
+                text.erase(0, first_close + sizeof(kClose) - 1);
+        }
+    }
+    // Complete blocks (may appear more than once).
+    for (;;) {
+        const size_t o = text.find(kOpen);
+        if (o == std::string::npos)
+            break;
+        const size_t c = text.find(kClose, o + sizeof(kOpen) - 1);
+        if (c == std::string::npos) {
+            // Truncated mid-thought: drop the open and everything after.
+            text.erase(o);
+            break;
+        }
+        text.erase(o, (c + sizeof(kClose) - 1) - o);
+    }
+    // A closer still standing after the balanced pass is a stray tag, not a
+    // block boundary ("<think>a</think>answer</think>"): drop the tag and keep
+    // the answer. Everything BEFORE the first closer was already dropped above
+    // when no opener preceded it.
+    for (size_t c = text.find(kClose); c != std::string::npos; c = text.find(kClose))
+        text.erase(c, sizeof(kClose) - 1);
+    ltrim_inplace(text);
+    // Trailing whitespace after the answer.
+    while (!text.empty() && std::isspace(static_cast<unsigned char>(text.back())))
+        text.pop_back();
     return text;
 }
 
@@ -145,6 +201,7 @@ ChatFormat chat_format_for(const std::string& model_id) {
         f.system_style = SystemStyle::DedicatedTurn;
         f.stop_sequences = {"<|im_end|>"};
         f.gen_suffix = qwen_no_think_gen_suffix(model_id);
+        f.strip_thinking_content = model_is_thinking(model_id);
     }
     return f;
 }
@@ -207,6 +264,8 @@ std::string ChatFormat::render_delta(const std::string& user, bool prev_ended_wi
 }
 
 std::string ChatFormat::postprocess_output(std::string text) const {
+    if (strip_thinking_content)
+        text = strip_thinking_blocks(std::move(text));
     return strip_empty_thinking_tags(std::move(text));
 }
 

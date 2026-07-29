@@ -182,6 +182,81 @@
       ]
     },
     {
+      "_comment": "Qwen2.5-Coder-0.5B-Instruct Q4_K_M — coding fast tier (role:coding, n_ctx 4096). ChatML; no Qwen3 <think>. Apache-2.0 unsloth GGUF. Console phase14: 148.2 prefill / 62.4 decode / 533 MB peak (phase14-console.csv); host Release quality PASS. H3 draft candidate.",
+      "name": "qwen25-coder-0.5b",
+      "display": "Qwen2.5 Coder 0.5B (GGUF · CPU · coding · fast)",
+      "kind": "gguf",
+      "role": "coding",
+      "n_ctx": 4096,
+      "hf_base_url": "https://huggingface.co/unsloth/Qwen2.5-Coder-0.5B-Instruct-GGUF/resolve/main",
+      "files": [
+        {
+          "filename": "Qwen2.5-Coder-0.5B-Instruct-Q4_K_M.gguf",
+          "approx_bytes": 397807456
+        }
+      ]
+    },
+    {
+      "_comment": "Qwen2.5-Coder-1.5B-Instruct Q4_K_M — coding balanced tier. Console phase14: 96.6 prefill / 26.1 decode / 1179 MB peak; host Release quality PASS.",
+      "name": "qwen25-coder-1.5b",
+      "display": "Qwen2.5 Coder 1.5B (GGUF · CPU · coding)",
+      "kind": "gguf",
+      "role": "coding",
+      "n_ctx": 4096,
+      "hf_base_url": "https://huggingface.co/unsloth/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main",
+      "files": [
+        {
+          "filename": "Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf",
+          "approx_bytes": 986048032
+        }
+      ]
+    },
+    {
+      "_comment": "Qwen2.5-Coder-3B-Instruct Q4_K_M — coding quality tier (Q3_K_M host quality FAIL; Q4_K_M PASS). Console phase14: 46.2 prefill / 14.0 decode / 2116 MB peak (host peak was 3301 MB — console is the product figure). Advanced optional.",
+      "name": "qwen25-coder-3b",
+      "display": "Qwen2.5 Coder 3B (GGUF · CPU · coding · advanced)",
+      "kind": "gguf",
+      "role": "coding",
+      "n_ctx": 4096,
+      "hf_base_url": "https://huggingface.co/unsloth/Qwen2.5-Coder-3B-Instruct-GGUF/resolve/main",
+      "files": [
+        {
+          "filename": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+          "approx_bytes": 1929902496
+        }
+      ]
+    },
+    {
+      "_comment": "Qwen3-1.7B Q4_K_M — chat upgrade over qwen35-0.8b. ChatML + model_is_qwen3 no-think prefill. Console phase14: 89.5 prefill / 21.8 decode / 1398 MB peak; host Release quality PASS. Apache-2.0 unsloth. Context shift NOT measured on this model — can_shift is a runtime property, the longchat gate has only run on qwen35-0.8b (imrope, no shift) and lfm25-350m.",
+      "name": "qwen3-1.7b",
+      "display": "Qwen3 1.7B (GGUF · CPU)",
+      "kind": "gguf",
+      "hf_base_url": "https://huggingface.co/unsloth/Qwen3-1.7B-GGUF/resolve/main",
+      "files": [
+        {
+          "filename": "Qwen3-1.7B-Q4_K_M.gguf",
+          "approx_bytes": 1107409472
+        }
+      ]
+    },
+    {
+      "_comment": "LFM2.5-1.2B-Thinking Q4_K_M — hybrid CoT. ChatML; model_is_thinking strips <think>…</think> for display/persist (postprocess_output). No Qwen3 no-think prefill. Console phase14: 130.4 prefill / 36.7 decode / 811 MB peak. LFM Open License + LICENSE file. UI n_predict default 512 covers think+answer on a short prompt (console: 153-215 generated); when the context leaves less room the reply postprocesses to nothing and the UI shows a 'reasoning only' turn. No KV snapshot (#170b) — stripped history diverges from the resident CoT tokens.",
+      "name": "lfm25-1.2b-thinking",
+      "display": "LFM2.5 1.2B Thinking (GGUF · CPU · reasoning)",
+      "kind": "gguf",
+      "hf_base_url": "https://huggingface.co/LiquidAI/LFM2.5-1.2B-Thinking-GGUF/resolve/main",
+      "files": [
+        {
+          "filename": "LFM2.5-1.2B-Thinking-Q4_K_M.gguf",
+          "approx_bytes": 730895360
+        },
+        {
+          "filename": "LICENSE",
+          "approx_bytes": 10596
+        }
+      ]
+    },
+    {
       "name": "sd-turbo-fp16",
       "display": "SD-Turbo (image, GPU fp16)",
       "kind": "diffusion",

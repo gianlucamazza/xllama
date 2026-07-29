@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Per-workload EP routing policy (ORT GenAI only). GGUF models disable routing
 // and KV reuse at the UI layer; this header encodes the token threshold only.
+// Also owns the prompt-budget helpers used by catalogue roles (e.g. coding).
 #pragma once
+
+#include "xllama/inference_params.h" // kDefaultNCtx
 
 #include <cstddef>
 #include <string>
@@ -36,13 +39,85 @@ namespace xllama {
 // estimate does not model them.
 inline constexpr double kEstimatedCharsPerToken = 5.0;
 
+// Coding workloads (source, diffs, stack traces) tokenize denser / less
+// predictably than prose. A lower chars-per-token overestimates tokens and
+// trims earlier — same safety direction as the prose constant.
+inline constexpr double kEstimatedCharsPerTokenCoding = 3.5;
+
 // Token budget for the prompt itself, sized against kDefaultNCtx
 // (inference_params.h) with ~250 tokens left for generation —
 // tests/test_routing_policy.cpp pins the relation (#171).
 inline constexpr int kMaxPromptTokens = 1800;
 
+// Floor for the room reserved to the model reply when deriving a per-session
+// trimmer ceiling from a non-default n_ctx (catalogue coding models use 4096).
+// Callers that know the requested generation length pass it instead: the
+// generation loop clamps n_predict to what the context has left
+// (session.cpp, #173), so a ceiling that reserves less than n_predict truncates
+// the reply silently rather than trimming one more turn of history.
+inline constexpr int kReservedGenerationTokens = 250;
+
+// Catalogue n_ctx bounds. 0 / omit → kDefaultNCtx. Above the max is clamped so
+// a bad override cannot OOM the console KV pool.
+inline constexpr int kMinSessionNCtx = 512;
+inline constexpr int kMaxSessionNCtx = 8192;
+
+// Resolve a catalogue (or CLI) n_ctx request: 0 means shipping default.
+inline constexpr int resolve_n_ctx(int requested) {
+    if (requested <= 0)
+        return kDefaultNCtx;
+    if (requested < kMinSessionNCtx)
+        return kMinSessionNCtx;
+    if (requested > kMaxSessionNCtx)
+        return kMaxSessionNCtx;
+    return requested;
+}
+
+// Trimmer ceiling for a session opened at |n_ctx|, leaving |reserved| tokens
+// (at least kReservedGenerationTokens) for the reply. The shipping default keeps
+// the historical kMaxPromptTokens constant (not n-250) so the #171 pin cannot
+// drift by arithmetic alone when kDefaultNCtx is retuned carefully with it.
+inline constexpr int max_prompt_tokens_for_n_ctx(int n_ctx,
+                                                 int reserved = kReservedGenerationTokens) {
+    const int n = resolve_n_ctx(n_ctx);
+    if (reserved < kReservedGenerationTokens)
+        reserved = kReservedGenerationTokens;
+    if (n == kDefaultNCtx && reserved == kReservedGenerationTokens)
+        return kMaxPromptTokens;
+    const int budget = n - reserved;
+    return budget < 256 ? 256 : budget;
+}
+
+// Catalogue `role` field (ASCII, case-insensitive). Only "coding" is special
+// today: denser token estimate in the UI trimmer, and the LAN API empty-system
+// fill (kCodingSystemPrompt). The Settings system-prompt box is never rewritten
+// from this flag — that would be string-magic debt.
+inline bool role_is_coding(std::string_view role) {
+    if (role.size() != 6)
+        return false;
+    constexpr char kCoding[] = "coding";
+    for (size_t i = 0; i < 6; ++i) {
+        char c = role[i];
+        if (c >= 'A' && c <= 'Z')
+            c = static_cast<char>(c - 'A' + 'a');
+        if (c != kCoding[i])
+            return false;
+    }
+    return true;
+}
+
+inline double chars_per_token_for_role(std::string_view role) {
+    return role_is_coding(role) ? kEstimatedCharsPerTokenCoding : kEstimatedCharsPerToken;
+}
+
+inline constexpr int estimate_tokens_from_chars(std::size_t chars, double chars_per_token) {
+    if (chars_per_token <= 0.0)
+        chars_per_token = kEstimatedCharsPerToken;
+    return static_cast<int>(static_cast<double>(chars) / chars_per_token);
+}
+
 inline constexpr int estimate_tokens_from_chars(std::size_t chars) {
-    return static_cast<int>(static_cast<double>(chars) / kEstimatedCharsPerToken);
+    return estimate_tokens_from_chars(chars, kEstimatedCharsPerToken);
 }
 
 enum class RoutingMode {

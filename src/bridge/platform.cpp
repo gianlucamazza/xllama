@@ -5,6 +5,8 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <mutex>
 #include <thread>
 
@@ -77,7 +79,21 @@ std::size_t peak_working_set_mb() noexcept {
         return pmc.PeakWorkingSetSize / (1024 * 1024);
     return 0;
 #else
-    return 0;
+    // Linux host: peak RSS from /proc (VmHWM is in kB). Was a hard 0 before —
+    // host coding/campaign benches then reported peak=0MB and looked broken.
+    FILE* fp = std::fopen("/proc/self/status", "r");
+    if (!fp)
+        return 0;
+    char line[256];
+    std::size_t kb = 0;
+    while (std::fgets(line, sizeof(line), fp)) {
+        if (std::strncmp(line, "VmHWM:", 6) == 0) {
+            kb = static_cast<std::size_t>(std::strtoul(line + 6, nullptr, 10));
+            break;
+        }
+    }
+    std::fclose(fp);
+    return kb / 1024;
 #endif
 }
 
