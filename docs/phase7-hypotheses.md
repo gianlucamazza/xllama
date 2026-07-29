@@ -140,9 +140,39 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
 - **Claim:** ≥1.4× perceived tok/s on target without more average bandwidth.
 - **PASS:** ≥1.4× on 1.7B+ with same quality.
 - **FAIL:** Overhead &gt; gain on 6 cores.
-- **Status:** Deferred eng (llama.cpp has tools; not in `LlamaSession` yet).
-  Dependency forks are available and explicitly in scope if H3 or a measured
-  kernel/repack bottleneck requires changes below xllama's API layer.
+- **Status:** Open — **precondition PASSES on the intended pair** (2026-07-29).
+  Not in `LlamaSession` yet. Dependency forks are available and explicitly in
+  scope if H3 or a measured kernel/repack bottleneck requires changes below
+  xllama's API layer.
+
+  The pin gates speculation on `common_speculative_are_compatible`
+  (`common/speculative.cpp:64`) and **throws** when it fails, so vocab identity
+  is a hard precondition, not a quality knob. Replicating that function exactly
+  against catalogue GGUFs, vocab-only (raw: `bench/results/phase15-spec-vocab.csv`):
+
+  | target                | draft               | verdict | why                                     |
+  | --------------------- | ------------------- | ------- | --------------------------------------- |
+  | `qwen25-coder-3b`     | `qwen25-coder-0.5b` | **OK**  | 151936 tokens, 0 differing texts        |
+  | `qwen25-coder-1.5b`   | `qwen25-coder-0.5b` | **OK**  | identical vocab                         |
+  | `lfm25-1.2b-thinking` | `LFM2.5-350M`       | **OK**  | 65536 tokens, 0 differing texts         |
+  | `qwen3-1.7b`          | `qwen25-coder-0.5b` | no      | same size, **4 token texts differ**     |
+  | `LFM2.5-8B-A1B`       | `LFM2.5-350M`       | no      | 128000 vs 65536 tokens; differs at id 5 |
+
+  Two of those negatives are worth keeping:
+  1. **Same vocab size is not the same vocab.** Qwen3-1.7B and Qwen2.5-Coder both
+     report 151936 tokens and pass every size check, then diverge at id 151665
+     (`<tool_response>` vs `<|PAD_TOKEN|>`). A pairing rule based on vocab size —
+     or on family name — would have shipped a pair that throws at session start.
+  2. **The MoE candidate has no draft in the catalogue.** LFM2.5-8B-A1B carries a
+     **128000**-token vocab against LFM2.5-350M's 65536, differing from id 5 up.
+     Despite the shared name it is not the shipping model's tokenizer lineage, so
+     **H2 and H3 do not compose on it**: speeding up the MoE would need a draft
+     trained on its own tokenizer, which the catalogue does not have and this
+     project does not pretrain.
+
+  So W2 proceeds on `qwen25-coder-3b` ← `qwen25-coder-0.5b`, the pair the plan
+  named, and the runtime guard that refuses an incompatible pair is the first
+  code item rather than an afterthought.
 
 ### H4 — Usable 3B-class GGUF at Q3/Q4
 
