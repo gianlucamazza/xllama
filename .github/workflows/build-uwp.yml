@@ -21,49 +21,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Build the matrix on Linux so the Store SKU cell is only added when
-  # workflow_dispatch sets store_sku=true (no +13 min on every PR; no VM).
-  matrix:
-    runs-on: ubuntu-latest
-    outputs:
-      include: ${{ steps.set.outputs.include }}
-    steps:
-      - id: set
-        shell: bash
-        run: |
-          set -euo pipefail
-          # Compact JSON array for matrix.include. Use a heredoc delimiter so
-          # commas/brackets in the value do not break GITHUB_OUTPUT parsing
-          # (bare name=value left the build job unscheduled — run 30446404530).
-          base='[
-            {"variant":"unified","patched":true,"artifact":"xllama-appx","store_sku":"false"},
-            {"variant":"llamacpp","patched":false,"artifact":"xllama-appx-llamacpp","store_sku":"false"}
-          ]'
-          store='{"variant":"unified","patched":true,"artifact":"xllama-appx-store","store_sku":"true"}'
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.store_sku }}" = "true" ]; then
-            include=$(jq -c --argjson b "$base" --argjson s "$store" '$b + [$s]')
-            echo "Store SKU lane enabled (xllama-appx-store)"
-          else
-            include=$(jq -c --argjson b "$base" '$b')
-            echo "Store SKU lane skipped (use: gh workflow run build-uwp.yml -f store_sku=true)"
-          fi
-          test -n "$include"
-          {
-            echo "include<<EOF"
-            echo "$include"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-          echo "matrix.include length: $(jq 'length' <<<"$include")"
-
   build:
-    needs: matrix
     # Pin to windows-2022: has VS2022 (v143) + UWP workload pre-installed.
     # windows-latest is transitioning to windows-2025-vs2026 which lacks UWP.
     runs-on: windows-2022
+    # Store SKU cell is listed in the matrix but only scheduled when
+    # workflow_dispatch sets store_sku=true (no +13 min on every PR; no VM).
+    if: |
+      matrix.store_sku != 'true' ||
+      (github.event_name == 'workflow_dispatch' && inputs.store_sku == true)
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(needs.matrix.outputs.include) }}
+        include:
+          # Shipping package: unified + PatchedGenAI #2280 + PatchedOrt.
+          - variant: unified
+            patched: true
+            artifact: xllama-appx
+            store_sku: "false"
+          # Bench-only lane: llama.cpp CPU A/B.
+          - variant: llamacpp
+            patched: false
+            artifact: xllama-appx-llamacpp
+            store_sku: "false"
+          # Store SKU: research surfaces stripped (docs/store-readiness.md).
+          - variant: unified
+            patched: true
+            artifact: xllama-appx-store
+            store_sku: "true"
     steps:
       - uses: actions/checkout@v7
         with:
