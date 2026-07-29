@@ -250,7 +250,7 @@ numbers (`uwp-constraints.md` §5). Do not quote them as App-mode until measured
 Local packaging still needs Windows (see `windows-dev-vm.md`), but the **supported
 Store path does not**: use GitHub Actions `windows-2022` from Linux.
 
-### Build Store SKU (from Linux)
+### Build Store SKU (from Linux) — verified
 
 ```bash
 # On any branch that contains the Store SKU code:
@@ -263,8 +263,13 @@ gh run download <run-id> -n xllama-appx-store
 ```
 
 PR/push builds keep **only** the usual `xllama-appx` + `xllama-appx-llamacpp`
-lanes (~no extra cost). The store cell runs **only** when
-`workflow_dispatch` sets `store_sku=true`.
+lanes (no extra cost). The **`store` job** runs only when `workflow_dispatch`
+sets `store_sku=true` (composite action `.github/actions/build-uwp-package`).
+
+**Smoke (2026-07-29, branch `research/h2-ram-ceiling`):** run
+[30446583341](https://github.com/gianlucamazza/xllama/actions/runs/30446583341)
+— `store` + unified + llamacpp all green; artifact `xllama-appx-store`
+downloaded on Linux as `xllama_1.5.1.771_x64.msix` (~19 MB) + `xllama-test.cer`.
 
 ### Install on Xbox Dev Mode (from Linux)
 
