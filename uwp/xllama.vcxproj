@@ -326,7 +326,8 @@
   <!-- xllama UWP app -->
   <ItemGroup>
     <ClCompile Include="App.cpp" />
-    <ClCompile Include="api-server.cpp" />
+    <!-- LAN API is Dev Mode only; omit from Store SKU link (docs/store-readiness.md). -->
+    <ClCompile Include="api-server.cpp" Condition="'$(XllamaStoreSku)' != 'true'" />
     <ClCompile Include="chat-history.cpp" />
     <ClCompile Include="MainPage.cpp" />
     <ClCompile Include="model-downloader.cpp" />

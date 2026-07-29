@@ -338,10 +338,11 @@ the supported install path until a submission is accepted.
 
 - [~] Phase 0 — discovery: SSOT + licence matrix in `store-readiness.md`;
       Partner Center decision + App vs Game spike + go/no-go still open.
-- [~] Phase 1 — Store SKU foundation landed (`XLLAMA_STORE_SKU`,
-      `AppxManifest.store.xml`, `-StoreSku`, first-run disclaimer); CI lane +
+- [~] Phase 1 — Store SKU foundation + **no-VM CI path** (`workflow_dispatch`
+      `store_sku=true` → `xllama-appx-store`, `install-latest-build.sh --store`);
       console smoke + Partner Center identity still open.
-- [ ] Phase 2 — compliance pack: privacy URL, age rating, listing assets.
+- [~] Phase 2 — privacy draft in `docs/privacy.md`; age rating + listing assets
+      + published HTTPS privacy URL still open.
 - [ ] Phase 3 — Partner Center submission + certification.
 - [ ] Phase 4 — post-launch dual path (Store + Dev Mode) in README.
 

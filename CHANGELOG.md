@@ -14,8 +14,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   strips LAN API, USB model path, and headless operator flags; packages
   `AppxManifest.store.xml` (`internetClient` only). Dev Mode package unchanged.
   First-run generative-AI disclaimer (`disclaimer.accepted`) on both SKUs.
-  Workstream SSOT: `docs/store-readiness.md`. Not Store-submission-ready
-  (test signing + Partner Center still open).
+  **No Windows VM required:** `build-uwp.yml` `workflow_dispatch` with
+  `store_sku=true` → artifact `xllama-appx-store`; `install-latest-build.sh
+  --store` from Linux. Privacy draft: `docs/privacy.md`. Workstream SSOT:
+  `docs/store-readiness.md`. Not Store-submission-ready (test signing + Partner
+  Center still open).
 - **Coding + chat + thinking tier (phase14), architecture-first.** Catalogue
   `n_ctx` / `role: coding`; no Settings system-prompt rewrite. Catalogue:
   `qwen25-coder-0.5b` / `1.5b` / `3b`, `qwen3-1.7b`, **`lfm25-1.2b-thinking`**.

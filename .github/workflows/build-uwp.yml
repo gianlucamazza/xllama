@@ -4,6 +4,15 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Store SKU is opt-in: avoids +~13 min on every PR. From Linux (no Windows VM):
+  #   gh workflow run build-uwp.yml -f store_sku=true --ref <branch>
+  # Artifact: xllama-appx-store. SSOT: docs/store-readiness.md
+  workflow_dispatch:
+    inputs:
+      store_sku:
+        description: "Also build Store SKU (XLLAMA_STORE_SKU, artifact xllama-appx-store)"
+        type: boolean
+        default: false
 
 # Feature branches build once via pull_request (not also via push); superseded
 # runs on the same branch cancel — UWP builds are ~13 min, so this saves the most.
@@ -12,24 +21,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Build the matrix on Linux so the Store SKU cell is only added when
+  # workflow_dispatch sets store_sku=true (no +13 min on every PR; no VM).
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      include: ${{ steps.set.outputs.include }}
+    steps:
+      - id: set
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='[
+            {"variant":"unified","patched":true,"artifact":"xllama-appx","store_sku":false},
+            {"variant":"llamacpp","patched":false,"artifact":"xllama-appx-llamacpp","store_sku":false}
+          ]'
+          store='{"variant":"unified","patched":true,"artifact":"xllama-appx-store","store_sku":true}'
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.store_sku }}" = "true" ]; then
+            include=$(jq -c --argjson b "$base" --argjson s "$store" '$b + [$s]')
+            echo "Store SKU lane enabled (xllama-appx-store)"
+          else
+            include=$(jq -c --argjson b "$base" '$b')
+            echo "Store SKU lane skipped (use: gh workflow run build-uwp.yml -f store_sku=true)"
+          fi
+          echo "include=$include" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: matrix
     # Pin to windows-2022: has VS2022 (v143) + UWP workload pre-installed.
     # windows-latest is transitioning to windows-2025-vs2026 which lacks UWP.
     runs-on: windows-2022
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # Shipping package: unified backends + PatchedGenAI #2280 + PatchedOrt
-          # (AppContainer external-data). ORT DLL is a cached release asset
-          # (vendor-dlls-v1) — full ORT rebuild is 1–3 h (see build-uwp-ort-patched).
-          - variant: unified
-            patched: true
-            artifact: xllama-appx
-          # Bench-only lane: llama.cpp CPU A/B (not for pad chat shipping).
-          - variant: llamacpp
-            patched: false
-            artifact: xllama-appx-llamacpp
+        include: ${{ fromJSON(needs.matrix.outputs.include) }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -135,6 +160,10 @@ jobs:
           if ('${{ matrix.patched }}' -eq 'true') {
             $buildArgs.PatchedGenAI = $true
             $buildArgs.PatchedOrt   = $true
+          }
+          # Store SKU: XLLAMA_STORE_SKU + AppxManifest.store.xml (docs/store-readiness.md).
+          if ('${{ matrix.store_sku }}' -eq 'true') {
+            $buildArgs.StoreSku = $true
           }
           ./scripts/build-uwp.ps1 @buildArgs
 

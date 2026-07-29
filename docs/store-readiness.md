@@ -171,8 +171,11 @@ allowlist draft** — not legal advice; re-verify before submission.
 - [x] `XLLAMA_STORE_SKU` / `XllamaStoreSku=true` strips LAN / USB / headless flags
 - [x] `uwp/AppxManifest.store.xml` (`internetClient` only); identity still test CN
 - [x] `build-uwp.ps1 -StoreSku` (+ `/p:XllamaStoreSku=true`)
-- [ ] CI matrix lane for store-variant package (optional until M0 go)
+- [x] CI store lane via `workflow_dispatch` `store_sku=true` → artifact
+      `xllama-appx-store` (no VM; not on every PR)
+- [x] `install-latest-build.sh --store` (Linux → Device Portal)
 - [x] First-run generative-AI disclaimer (`LocalState\disclaimer.accepted`)
+- [x] Privacy draft [`privacy.md`](./privacy.md)
 - [ ] NOTICE / runtime attributions (ORT, llama.cpp, DirectML, models)
 - [ ] App vs Game spike results filed under `bench/results/`
 - [ ] Console smoke of store SKU (chat + model download)
@@ -242,18 +245,46 @@ numbers (`uwp-constraints.md` §5). Do not quote them as App-mode until measured
 
 ---
 
-## 9. How to build the Store SKU (local / CI later)
+## 9. No Windows VM — CI is the only UWP builder
 
-Default builds stay **dev** (Dev Mode). Store SKU:
+Local packaging still needs Windows (see `windows-dev-vm.md`), but the **supported
+Store path does not**: use GitHub Actions `windows-2022` from Linux.
+
+### Build Store SKU (from Linux)
+
+```bash
+# On any branch that contains the Store SKU code:
+gh workflow run build-uwp.yml -f store_sku=true --ref "$(git branch --show-current)"
+gh run watch   # wait for success
+
+# Artifact name: xllama-appx-store
+gh run list --workflow build-uwp --limit 5
+gh run download <run-id> -n xllama-appx-store
+```
+
+PR/push builds keep **only** the usual `xllama-appx` + `xllama-appx-llamacpp`
+lanes (~no extra cost). The store cell runs **only** when
+`workflow_dispatch` sets `store_sku=true`.
+
+### Install on Xbox Dev Mode (from Linux)
+
+Same identity as dev today → **replaces** the Dev Mode package on the console.
+
+```bash
+source ~/.config/xllama/xbox-env
+./scripts/install-latest-build.sh --store          # this branch
+./scripts/install-latest-build.sh main --store     # explicit branch
+# --bench is rejected on --store (headless flags compiled out)
+```
+
+### Optional local Windows (not required)
 
 ```powershell
-# Windows host / CI image — same as shipping unified, plus -StoreSku
 .\scripts\build-uwp.ps1 -Configuration Release -Platform x64 `
   -Backend unified -PatchedGenAI -PatchedOrt -StoreSku
 ```
 
-MSBuild equivalent: `/p:XllamaStoreSku=true` (defines `XLLAMA_STORE_SKU=1`,
-packages `AppxManifest.store.xml`).
+MSBuild: `/p:XllamaStoreSku=true` → `XLLAMA_STORE_SKU=1` + `AppxManifest.store.xml`.
 
 What changes under Store SKU:
 
@@ -264,10 +295,30 @@ What changes under Store SKU:
 | USB model path + `removableStorage` | yes | compiled out |
 | First-run AI disclaimer | yes (both) | yes |
 | Publisher CN | `xllama-dev` test | still test until Partner Center |
+| CI artifact | `xllama-appx` | `xllama-appx-store` (dispatch only) |
 
-## 10. Next steps
+### Privacy policy draft
 
-1. **Human:** Partner Center account decision; App vs Game spike on console (§6).
-2. **After M0 go:** reserved Store identity, privacy URL, age rating, listing.
-3. **Optional:** CI matrix job for `-StoreSku` (avoid until go — doubles UWP time).
-4. NOTICE / attributions pack (Phase 2).
+In-repo: [`privacy.md`](./privacy.md). For Partner Center, host a stable HTTPS
+URL (GitHub Pages or equivalent) pointing at this content.
+
+### Listing draft (EN, not submitted)
+
+| Field | Draft |
+| --- | --- |
+| Title | xllama |
+| Short description | Local LLM chat on Xbox Series S\|X — models run on the console. |
+| Long description | xllama turns an Xbox Series S\|X into a local inference box: gamepad chat UI, on-demand model catalogue, optional image generation. Nothing is sent to a cloud LLM API. Research-grade hobby project; not affiliated with Microsoft. Requires enough free storage for model downloads. |
+| Category | (TBD — Game metadata preferred if resource measurements require it; see §2 D1) |
+| Age rating | (TBD — IARC; generative text + optional image gen) |
+| Screenshots | Pending console capture |
+| Support | GitHub Issues on gianlucamazza/xllama |
+| Privacy | Link to published `privacy.md` |
+
+## 10. Next steps (no VM)
+
+1. Push branch → `gh workflow run build-uwp.yml -f store_sku=true` → download
+   `xllama-appx-store` (validates packaging without a VM).
+2. **Human:** Partner Center account (browser); App vs Game spike on console (§6).
+3. Publish privacy URL; finish listing + age rating.
+4. NOTICE / attributions pack; then submission after smoke on console.
