@@ -1,0 +1,6 @@
+target,draft,vocab_type_tgt,vocab_type_dft,n_tokens_tgt,n_tokens_dft,size_diff,add_bos_tgt,add_bos_dft,bos_tgt,bos_dft,eos_tgt,eos_dft,differing_texts,compatible,host,date
+qwen25-coder-3b-Q4_K_M,qwen25-coder-0.5b-Q4_K_M,2,2,151936,151936,0,0,0,151643,151643,151645,151645,0,1,linux-host,2026-07-29
+qwen25-coder-1.5b-Q4_K_M,qwen25-coder-0.5b-Q4_K_M,2,2,151936,151936,0,0,0,151643,151643,151645,151645,0,1,linux-host,2026-07-29
+lfm25-1.2b-thinking-Q4_K_M,LFM2.5-350M-Q4_K_M,2,2,65536,65536,0,1,1,1,1,7,7,0,1,linux-host,2026-07-29
+qwen3-1.7b-Q4_K_M,qwen25-coder-0.5b-Q4_K_M,2,2,151936,151936,0,0,0,11,151643,151645,151645,4,0,linux-host,2026-07-29
+LFM2.5-8B-A1B-UD-IQ3_S,LFM2.5-350M-Q4_K_M,2,2,128000,65536,62464,1,1,124894,1,124900,7,65531,0,linux-host,2026-07-29

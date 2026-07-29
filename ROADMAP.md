@@ -383,15 +383,19 @@ rejected on that ground (`docs/phase7-hypotheses.md`, "Do not reopen").
   bound, and headless. That admits `UD-IQ3_S` inside the 4 GB H2 gate, so the
   experiment tests the architecture rather than the quantization. **Open:**
   console decode tok/s and peak for the candidate.
-- [ ] **W2 — H3: speculative decoding.** Both halves of the pair already ship and
-      are console-PASS: draft `qwen25-coder-0.5b` (379 MB, 62.4 tok/s), target
-      `qwen25-coder-3b` (1840 MB, 14.0). Same family, so
-      `common_speculative_are_compatible` is the first host check and the one
-      that can kill the workstream cheaply. Implementation lives **inside**
-      `LlamaSession` as one session with two contexts, which keeps the SessionHub
-      "never 2× model resident" invariant true by construction. PASS ≥1.4× at
-      unchanged quality and peak < 3.5 GB; the `longchat` and `kvsnap` gates are
-      the real regression tests, since the draft touches the KV.
+- [~] **W2 — H3: speculative decoding.** Both halves of the pair already ship and
+  are console-PASS: draft `qwen25-coder-0.5b` (379 MB, 62.4 tok/s), target
+  `qwen25-coder-3b` (1840 MB, 14.0). **Vocab precondition measured and
+  PASSED 2026-07-29** (`bench/results/phase15-spec-vocab.csv`): the pin's
+  `common_speculative_are_compatible` throws rather than degrades, and the
+  pair is identical across all its checks. The same pass produced two
+  keepers — Qwen3-1.7B and Coder share a vocab _size_ but differ in 4 token
+  texts, and the H2 MoE has a 128000-token vocab against LFM2.5-350M's
+  65536, so **H2 and H3 do not compose**. Implementation lives **inside**
+  `LlamaSession` as one session with two contexts, which keeps the SessionHub
+  "never 2× model resident" invariant true by construction. PASS ≥1.4× at
+  unchanged quality and peak < 3.5 GB; the `longchat` and `kvsnap` gates are
+  the real regression tests, since the draft touches the KV.
 - [ ] **W3 — H6 gate: does our own compute shader beat DirectML?** Not a backend
       — a measurement. Every negative GPU result on record is a DirectML result,
       and DirectML provably has no fused low-bit GEMM (`DML_DEQUANTIZE` + full
