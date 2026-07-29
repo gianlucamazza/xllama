@@ -25,6 +25,7 @@
     #include <winrt/Windows.Data.Json.h>
     #include <winrt/Windows.UI.Xaml.Media.Imaging.h>
 
+    #include <algorithm>
     #include <chrono>
     #include <cstdio>
     #include <ctime>
@@ -676,12 +677,13 @@ std::string MainPageController::BuildPrompt(const std::string& user_text, int* o
     // generation loop clamps n_predict to n_ctx - prompt (#173), so a prompt
     // filling the old ceiling cut the reply at ~248 tokens instead of dropping
     // one more turn of history — silently, with no error and no log.
-    int max_estimated_tokens =
-        ::xllama::max_prompt_tokens_for_n_ctx(::xllama::kDefaultNCtx, m_n_predict);
+    int session_n_ctx = ::xllama::kDefaultNCtx;
+    int max_estimated_tokens = ::xllama::max_prompt_tokens_for_n_ctx(session_n_ctx, m_n_predict);
     double chars_per_token = ::xllama::kEstimatedCharsPerToken;
     {
         const auto& manifest = CachedManifest();
         if (const auto* e = ::xllama::FindManifestEntry(manifest, m_model_filename)) {
+            session_n_ctx = ::xllama::resolve_n_ctx(e->n_ctx);
             max_estimated_tokens = ::xllama::max_prompt_tokens_for_n_ctx(e->n_ctx, m_n_predict);
             chars_per_token =
                 ::xllama::chars_per_token_for_role(::xllama::wstring_to_utf8(e->role));
@@ -715,11 +717,6 @@ std::string MainPageController::BuildPrompt(const std::string& user_text, int* o
            ::xllama::estimate_tokens_from_chars(static_cast<size_t>(chars), chars_per_token) >
                max_estimated_tokens)
         chars -= turn_chars[first_turn++];
-    if (first_turn > 0)
-        log_output("[xllama] context trimmed: dropped " + std::to_string(first_turn) +
-                   " old turn(s)\n");
-    if (out_dropped)
-        *out_dropped = static_cast<int>(first_turn);
 
     // Complete (user, assistant) exchanges surviving the token budget; the new
     // user_text is the trailing turn. The chat format applies the per-model
@@ -734,7 +731,43 @@ std::string MainPageController::BuildPrompt(const std::string& user_text, int* o
         }
         turns.push_back({m_current.messages[i].content, std::move(assistant)});
     }
-    return chat_format().render_prompt(m_system_prompt, turns, user_text);
+    const ::xllama::ChatFormat fmt = chat_format();
+    std::string prompt = fmt.render_prompt(m_system_prompt, turns, user_text);
+
+    // Exact second pass. The ceiling above is in ESTIMATED tokens and 5.0
+    // chars/token is optimistic for dense prose — measured on console: a history
+    // trimmed to 1528 estimated tokens rendered 1660 real ones. Since the
+    // generation loop clamps n_predict to n_ctx - prompt (session.cpp, #173),
+    // every token of undershoot is silently taken off the reply. When the session
+    // for this model is already resident, count for real and drop another turn
+    // until the requested reply fits.
+    //
+    // try_lock like the routing path above: if the hub is mid-turn (LAN API) the
+    // estimate stands rather than blocking the UI thread. The trailing user_text
+    // is never dropped — a single oversized message is the session's fail-fast to
+    // report ("prompt too long"), not something to silently mangle here.
+    {
+        auto& hub = ::xllama::session_hub();
+        std::unique_lock<std::mutex> hub_lk(hub.mtx, std::try_to_lock);
+        const std::string model = ::xllama::wstring_to_utf8(m_model_filename);
+        if (hub_lk.owns_lock() && hub.session && hub.model == model) {
+            const int reserve = std::max(m_n_predict, ::xllama::kReservedGenerationTokens);
+            int n_real = hub.session->count_tokens(prompt);
+            while (!turns.empty() && n_real + reserve + 1 > session_n_ctx) {
+                turns.erase(turns.begin());
+                ++first_turn;
+                prompt = fmt.render_prompt(m_system_prompt, turns, user_text);
+                n_real = hub.session->count_tokens(prompt);
+            }
+        }
+    }
+
+    if (first_turn > 0)
+        log_output("[xllama] context trimmed: dropped " + std::to_string(first_turn) +
+                   " old turn(s)\n");
+    if (out_dropped)
+        *out_dropped = static_cast<int>(first_turn);
+    return prompt;
 }
 
 xllama::ChatFormat MainPageController::chat_format() const {
