@@ -395,11 +395,30 @@ rejected on that ground (`docs/phase7-hypotheses.md`, "Do not reopen").
   pair is identical across all its checks. The same pass produced two
   keepers — Qwen3-1.7B and Coder share a vocab _size_ but differ in 4 token
   texts, and the H2 MoE has a 128000-token vocab against LFM2.5-350M's
-  65536, so **H2 and H3 do not compose**. Implementation lives **inside**
-  `LlamaSession` as one session with two contexts, which keeps the SessionHub
-  "never 2× model resident" invariant true by construction. PASS ≥1.4× at
-  unchanged quality and peak < 3.5 GB; the `longchat` and `kvsnap` gates are
-  the real regression tests, since the draft touches the KV.
+  65536, so **H2 and H3 do not compose**.
+
+  **Pre-gate measured 2026-07-29 → the draft model is rejected, the draft-free
+  variant proceeds** (`scripts/bench-spec-pregate.sh`,
+  `bench/results/phase15-spec-pregate.csv`, derivation in
+  `scripts/analyze-spec-pregate.py`). The 3B's prefill:decode ratio is only
+  3.3:1, so verifying k+1 tokens is not nearly free: compute is 30% of a decode
+  step, capping speculation at **1.90×** with a draft model and **3.30×**
+  without. Measured acceptance then splits hard by regime — the draft model
+  gives 1.43× on code and **0.81× on open chat** (0.67× at k=4), because it
+  drafts unconditionally and pays 16.0 ms for every rejected token. Prompt
+  lookup declines instead: 10 drafted tokens against the draft model's 140 on
+  the same prompt, so **1.53× on code and 1.00× on chat**. The deciding
+  property is not the acceptance rate but whether a variant spends when it has
+  no evidence.
+  Implementation therefore needs **no second model**, which keeps the
+  SessionHub "never 2× model resident" invariant true without argument, adds no
+  threadpool to risk the t7/t8 livelock, and drops the vocab constraint. It also
+  cannot use upstream `common/speculative.cpp`: `uwp/ggml-uwp.vcxproj` compiles
+  no `common/` sources, and pulling them in would drag `common/sampling.cpp`
+  against the unified sampling of #125/#141. PASS ≥1.4× at unchanged quality and
+  peak < 3.5 GB; `longchat` and `kvsnap` are the real regression tests, since
+  the draft touches the KV.
+
 - [ ] **W3 — H6 gate: does our own compute shader beat DirectML?** Not a backend
       — a measurement. Every negative GPU result on record is a DirectML result,
       and DirectML provably has no fused low-bit GEMM (`DML_DEQUANTIZE` + full

@@ -1,0 +1,5 @@
+Memory bandwidth, not arithmetic throughput, is what limits language model
+inference on consumer hardware once the model no longer fits in cache. Explain
+why that is the case during token-by-token generation, why the same model can be
+compute-bound while processing a prompt, and what that difference implies for
+anyone choosing between a faster processor and faster memory.
