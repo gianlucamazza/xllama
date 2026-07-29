@@ -1,0 +1,11 @@
+kind,target,draft,regime,n_draft_max,n_drafted,n_accept,accept_pct,decode_tok_s,host,date
+draft_model,qwen25-coder-3b,qwen25-coder-0.5b,code,2,88,86,97.727,0.685,linux-host,2026-07-29T21:58:38+02:00
+draft_model,qwen25-coder-3b,qwen25-coder-0.5b,chat,2,140,60,42.857,0.436,linux-host,2026-07-29T21:58:38+02:00
+ngram,qwen25-coder-3b,-,code,2,94,79,84.043,0.766,linux-host,2026-07-29T21:58:38+02:00
+ngram,qwen25-coder-3b,-,chat,2,10,4,40.000,0.929,linux-host,2026-07-29T21:58:38+02:00
+draft_model,qwen25-coder-3b,qwen25-coder-0.5b,code,4,108,104,96.296,0.743,linux-host,2026-07-29T21:58:38+02:00
+draft_model,qwen25-coder-3b,qwen25-coder-0.5b,chat,4,188,84,44.681,0.342,linux-host,2026-07-29T21:58:38+02:00
+ngram,qwen25-coder-3b,-,code,4,136,94,69.118,1.436,linux-host,2026-07-29T21:58:38+02:00
+ngram,qwen25-coder-3b,-,chat,4,20,2,10.000,1.083,linux-host,2026-07-29T21:58:38+02:00
+draft_model,lfm25-1.2b-thinking,lfm25-350m,code,2,88,85,96.591,1.878,linux-host,2026-07-29T21:58:38+02:00
+draft_model,lfm25-1.2b-thinking,lfm25-350m,chat,2,102,78,76.471,1.229,linux-host,2026-07-29T21:58:38+02:00

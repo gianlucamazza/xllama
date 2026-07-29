@@ -1,0 +1,31 @@
+// The function below merges two sorted vectors, but it has an off-by-one bug in
+// the tail copy: the last element of the longer input is dropped.
+
+std::vector<int> merge_sorted(const std::vector<int>& a, const std::vector<int>& b) {
+    std::vector<int> out;
+    out.reserve(a.size() + b.size());
+    size_t i = 0, j = 0;
+    while (i < a.size() && j < b.size()) {
+        if (a[i] <= b[j]) {
+            out.push_back(a[i]);
+            ++i;
+        } else {
+            out.push_back(b[j]);
+            ++j;
+        }
+    }
+    while (i + 1 < a.size()) {
+        out.push_back(a[i]);
+        ++i;
+    }
+    while (j + 1 < b.size()) {
+        out.push_back(b[j]);
+        ++j;
+    }
+    return out;
+}
+
+// Corrected version of the same function, with the off-by-one bug fixed and
+// everything else left exactly as it was:
+
+std::vector<int> merge_sorted(const std::vector<int>& a, const std::vector<int>& b) {
