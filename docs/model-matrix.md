@@ -102,7 +102,27 @@ without aborting, and a 24 KB paste was refused with `prompt too long` while the
 app stayed up.
 
 **Out of budget / deferred:** Qwen2.5-Coder-7B+, Qwen3-Coder MoE 30B+, Devstral 24B,
-DeepSeek-Coder-V2-Lite, LFM2.5-8B-A1B (~5 GB), StarCoder2 / DS-Coder 1.3B.
+DeepSeek-Coder-V2-Lite, StarCoder2 / DS-Coder 1.3B. LFM2.5-8B-A1B was on this list
+at ~5 GB (its official Q4_K_M); it moved to A3 below once the heap ceiling was
+measured and a 3.57 GB quant turned out to be admissible.
+
+### A3. Catalogued, not yet measured on console
+
+An entry lands here when it is provisionable but its PASS/FAIL is still open — the
+catalogue is what the app can be pointed at, not a claim that it works. Nothing in
+this table may be quoted as a performance figure.
+
+| Model         | Catalogue      | Quant    | Weights | Est. peak | Status                                                              |
+| ------------- | -------------- | -------- | ------: | --------: | ------------------------------------------------------------------- |
+| LFM2.5-8B-A1B | `lfm25-8b-a1b` | UD-IQ3_S | 3571 MB |  ~4.0 GB  | **H2 candidate** · 32 experts / 4 active · decode + peak still open |
+
+Why it is admissible at all: the console heap ceiling was measured at 4864 MB
+committed (`phase15-ramceil`), and that is what decided IQ3_S over Q2 — a Q2 result
+would have indicted the quantization rather than the architecture. The arch already
+compiles into the UWP static lib via the `src/models/*.cpp` wildcard. Two risks are
+on record before the run: the ~4.0 GB estimate **breaks the 3.5 GB product gate**
+even though it clears H2's 4 GB one, and the model reasons on every turn without
+saying so in its name, so it is wired as a thinking model.
 
 ---
 
