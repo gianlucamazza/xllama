@@ -268,6 +268,14 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
                 winrt::make<HeadlessView>(&::xllama::bridge::run_membw, "membw"));
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
+        std::wstring ramceil_flag = flag_path_if_present(L"ramceil.flag");
+        if (!ramceil_flag.empty()) {
+            _wremove(ramceil_flag.c_str());
+            ::xllama::log_output("[xllama] ramceil.flag detected -> headless heap-ceiling probe\n");
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(&::xllama::bridge::run_ramceil, "ramceil"));
+            return 0; // not reached: CoreApplication::Exit terminates the process
+        }
         std::wstring logits_flag = flag_path_if_present(L"logits.flag");
         if (!logits_flag.empty()) {
             _wremove(logits_flag.c_str());

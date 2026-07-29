@@ -97,6 +97,32 @@ std::size_t peak_working_set_mb() noexcept {
 #endif
 }
 
+std::size_t avail_phys_mb() noexcept {
+#ifdef XLLAMA_UWP
+    MEMORYSTATUSEX ms{};
+    ms.dwLength = sizeof(ms);
+    if (GlobalMemoryStatusEx(&ms))
+        return static_cast<std::size_t>(ms.ullAvailPhys / (1024 * 1024));
+    return 0;
+#else
+    // MemAvailable, not MemFree: the kernel's own estimate of what a new
+    // allocation can claim without swapping (includes reclaimable page cache).
+    FILE* fp = std::fopen("/proc/meminfo", "r");
+    if (!fp)
+        return 0;
+    char line[256];
+    std::size_t kb = 0;
+    while (std::fgets(line, sizeof(line), fp)) {
+        if (std::strncmp(line, "MemAvailable:", 13) == 0) {
+            kb = static_cast<std::size_t>(std::strtoul(line + 13, nullptr, 10));
+            break;
+        }
+    }
+    std::fclose(fp);
+    return kb / 1024;
+#endif
+}
+
 GpuMemInfo gpu_mem_info() noexcept {
 #ifdef XLLAMA_UWP
     // Adapter cached for process lifetime: gpu_mem_info() is called per phase

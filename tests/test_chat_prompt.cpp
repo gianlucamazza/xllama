@@ -54,6 +54,15 @@ TEST_CASE("thinking model detection and postprocess") {
     CHECK(model_is_thinking("LFM2.5-1.2B-Thinking-Q4_K_M.gguf"));
     CHECK_FALSE(model_is_thinking("lfm25-1.2b-instruct"));
     CHECK_FALSE(model_is_thinking("qwen35-0.8b"));
+    // LFM2.5-8B-A1B reasons on every turn but does not say "thinking" anywhere
+    // in its name; its template emits <think> unconditionally. Detecting it by
+    // family is what keeps raw CoT out of the UI and KV snapshots off a model
+    // whose stripped history can never prefix-match its CoT-bearing cache.
+    CHECK(model_is_thinking("lfm25-8b-a1b"));
+    CHECK(model_is_thinking("LFM2.5-8B-A1B-UD-IQ3_S.gguf"));
+    // The sibling dense models must stay non-thinking.
+    CHECK_FALSE(model_is_thinking("lfm25-350m"));
+    CHECK_FALSE(model_is_thinking("lfm2-2.6b"));
 
     const auto fmt = chat_format_for("lfm25-1.2b-thinking");
     CHECK(fmt.kind == ChatFormatKind::ChatML);
