@@ -554,6 +554,20 @@ class LlamaSession final : public Session {
             }
             m_can_shift = llama_memory_can_shift(llama_get_memory(m_ctx.get())) &&
                           llama_model_n_swa(m_model.get()) == 0;
+            // Logged because it is a per-ARCH capability that decides whether a long
+            // chat shifts (#169) or fail-fasts (#173), and docs used to state it from
+            // assumption: imrope and SWA architectures cannot shift, and which is
+            // which is not something to guess per model. One line makes it a
+            // measurement anyone can read off the device log.
+            {
+                char cb[128];
+                snprintf(cb, sizeof(cb),
+                         "[xllama] session: can_shift=%d (memory_can_shift=%d n_swa=%d)\n",
+                         m_can_shift ? 1 : 0,
+                         llama_memory_can_shift(llama_get_memory(m_ctx.get())) ? 1 : 0,
+                         (int)llama_model_n_swa(m_model.get()));
+                log_output(cb);
+            }
             // Apply runtime LoRA after context exists (llama_set_adapters_lora is
             // context-scoped). Must re-apply if context is ever recreated.
             if (m_adapter) {

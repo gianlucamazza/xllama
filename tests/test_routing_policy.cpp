@@ -173,30 +173,23 @@ TEST_CASE("max_prompt_tokens_for_n_ctx tracks session size") {
     CHECK(max_prompt_tokens_for_n_ctx(4096) < 4096);
 }
 
-TEST_CASE("max_prompt_tokens_for_n_ctx reserves the requested generation length") {
-    // The generation loop clamps n_predict to n_ctx - prompt (session.cpp,
-    // #173): a ceiling that reserves less than the requested n_predict cuts the
-    // reply silently instead of dropping one more turn. The UI default (512)
-    // is above the 250 floor, so it must move the ceiling on BOTH the shipping
-    // context and a catalogue coding one.
-    CHECK(max_prompt_tokens_for_n_ctx(kDefaultNCtx, 512) == kDefaultNCtx - 512);
-    CHECK(max_prompt_tokens_for_n_ctx(kDefaultNCtx, 512) < kMaxPromptTokens);
-    CHECK(max_prompt_tokens_for_n_ctx(4096, 512) == 4096 - 512);
-    // For every slider position (16..2048), a prompt sitting exactly on the
-    // ceiling still leaves room for the whole requested reply — unless the
-    // 256-token prompt floor kicks in first.
-    for (const int n_predict : {16, 256, 512, 1024, 2048}) {
-        for (const int n_ctx : {kDefaultNCtx, 4096}) {
-            const int ceiling = max_prompt_tokens_for_n_ctx(n_ctx, n_predict);
-            CHECK(ceiling >= 256);
-            CHECK(n_ctx - ceiling >= std::min(n_predict, n_ctx - 256));
-        }
-    }
-    // Below the floor the reserve does not shrink (250 stays the minimum).
-    CHECK(max_prompt_tokens_for_n_ctx(4096, 16) == max_prompt_tokens_for_n_ctx(4096));
-    CHECK(max_prompt_tokens_for_n_ctx(kDefaultNCtx, 0) == kMaxPromptTokens);
-    // A reserve as large as the context still leaves a usable prompt window.
-    CHECK(max_prompt_tokens_for_n_ctx(kDefaultNCtx, kDefaultNCtx) == 256);
+TEST_CASE("routing: the reply's reserve must not shrink the estimate ceiling") {
+    // The one that bit. Charging fit_prompt's reply reserve to this ceiling put it
+    // at 1536 for the shipping n_predict of 512 — under token_threshold (1550) —
+    // so auto GPU routing was unreachable on every default install, and the
+    // console gate did not see it because it pinned a lower n_predict. The ceiling
+    // is a CONTEXT bound; the reply's room is fit_prompt's, applied exactly and
+    // later. Nothing about n_predict may appear in this signature.
+    CHECK(max_prompt_tokens_for_n_ctx(kDefaultNCtx) > RoutingSettings{}.token_threshold);
+    // Real tokens, not estimated ones, are what decide_routing compares: 5.34
+    // measured chars/token against the 5.0 estimator means the ceiling maps to
+    // ~1685 real tokens. Keep the margin above the threshold.
+    const double real_tokens =
+        max_prompt_tokens_for_n_ctx(kDefaultNCtx) * kEstimatedCharsPerToken / 5.34;
+    CHECK(real_tokens > RoutingSettings{}.token_threshold);
+
+    // And the coding context keeps its own headroom.
+    CHECK(max_prompt_tokens_for_n_ctx(4096) > RoutingSettings{}.token_threshold);
 }
 
 TEST_CASE("role_is_coding and denser token estimate") {

@@ -59,8 +59,16 @@ All rows below are **CPU-bound decode** unless backend says DirectML.
 Notes:
 
 - Hybrid LFM: KV tail-rewind unsupported (#170a); front-drop context shift OK (#169).
-- Qwen3.5: `can_shift` false (imrope) — overflow fail-fast + trim, no RoPE shift.
+- Qwen3.5 (`qwen35`): `can_shift` false (imrope) — overflow fail-fast + trim, no
+  RoPE shift. Qwen3 (`qwen3`) is a different arch and **does** shift — measured, see §D.
 - DML text routing allowlist: only `smollm2-360m-dml-fp16-v2` (`dml_text_model_ok`).
+- Thinking models get **no KV snapshot** (#170b): the saved history is stripped
+  while the resident KV holds the full chain of thought, so the #170a prefix diff
+  always diverges and the snapshot would buy nothing. In-conversation delta reuse
+  is unaffected.
+- Prefill is chunked at `n_batch` for every arch (`fit_prompt` bounds the prompt,
+  `LlamaSession::generate` splits it): a prompt past the logical batch is no longer
+  an abort, and one past `n_ctx` is a clean `prompt too long`.
 
 ### A2. Phase 14 — console-validated (Series S, 2026-07-27)
 
@@ -83,11 +91,38 @@ are the product figures (Coder-3B **2116 MB**).
 Thinking: catalogue `lfm25-1.2b-thinking` with `model_is_thinking` +
 `strip_thinking_blocks` in `postprocess_output` (display/persist answer only).
 
-Caveats on console MSIX 1.5.1.737 (pre-phase14 code): tok/s valid; new MSIX
-needed for catalogue download, n_ctx/role, clean templates, and think stripping.
+The tok/s above were recorded on MSIX **1.5.1.737**, which predates the phase14
+code. The code path itself — catalogue `n_ctx`/`role` at session open, the
+Qwen2.5/Qwen3 template split, think stripping — was validated separately on
+**1.5.1.759** with the console gate suite (`gguf`, `routing`, `longchat`, `kvsnap`,
+`genroom`, `coderpaste`, `thinkcut`; see [architecture.md](architecture.md) for what
+each asserts). Two capability figures come from that run rather than from a bench:
+a coding session prefilled **3437 tokens in chunks** past the 2048 logical batch
+without aborting, and a 24 KB paste was refused with `prompt too long` while the
+app stayed up.
 
 **Out of budget / deferred:** Qwen2.5-Coder-7B+, Qwen3-Coder MoE 30B+, Devstral 24B,
-DeepSeek-Coder-V2-Lite, LFM2.5-8B-A1B (~5 GB), StarCoder2 / DS-Coder 1.3B.
+DeepSeek-Coder-V2-Lite, StarCoder2 / DS-Coder 1.3B. LFM2.5-8B-A1B was on this list
+at ~5 GB (its official Q4_K_M); it moved to A3 below once the heap ceiling was
+measured and a 3.57 GB quant turned out to be admissible.
+
+### A3. Catalogued, not yet measured on console
+
+An entry lands here when it is provisionable but its PASS/FAIL is still open — the
+catalogue is what the app can be pointed at, not a claim that it works. Nothing in
+this table may be quoted as a performance figure.
+
+| Model         | Catalogue      | Quant    | Weights | Est. peak | Status                                                              |
+| ------------- | -------------- | -------- | ------: | --------: | ------------------------------------------------------------------- |
+| LFM2.5-8B-A1B | `lfm25-8b-a1b` | UD-IQ3_S | 3571 MB |  ~4.0 GB  | **H2 candidate** · 32 experts / 4 active · decode + peak still open |
+
+Why it is admissible at all: the console heap ceiling was measured at 4864 MB
+committed (`phase15-ramceil`), and that is what decided IQ3_S over Q2 — a Q2 result
+would have indicted the quantization rather than the architecture. The arch already
+compiles into the UWP static lib via the `src/models/*.cpp` wildcard. Two risks are
+on record before the run: the ~4.0 GB estimate **breaks the 3.5 GB product gate**
+even though it clears H2's 4 GB one, and the model reasons on every turn without
+saying so in its name, so it is wired as a thinking model.
 
 ---
 
@@ -112,11 +147,19 @@ Numbers: [benchmarks.md](./benchmarks.md) / `phase5-diffuse.csv`.
 
 ## D. Capability matrix by architecture class
 
+`can_shift` is a **runtime** property (`llama_memory_can_shift` && `n_swa == 0`) and
+the app logs it on every load (`[xllama] session: can_shift=…`), so this column is
+measured per GGUF arch instead of inferred from the family name. Measured
+2026-07-29 (per-arch, hence platform-independent): `lfm2` **1**, `qwen3` **1**,
+`qwen35` **0**. The previous version of this table assumed Qwen3 behaved like
+Qwen3.5 and said **no** for both — wrong, and it under-sold `qwen3-1.7b`, which
+shifts.
+
 | Arch class            | Examples in tree                       | KV shift         | KV tail rewind | ORT     | GGUF           | Notes                                                                 |
 | --------------------- | -------------------------------------- | ---------------- | -------------- | ------- | -------------- | --------------------------------------------------------------------- |
-| Dense standard        | Llama-3.2, Qwen2.5-Coder, SmolLM2 GGUF | yes\*            | yes            | if ONNX | yes            | \*if not SWA                                                          |
-| Hybrid attn+recurrent | LFM2 / LFM2.5 / Thinking               | yes (front-drop) | **no**         | no      | yes            | #170a degrade                                                         |
-| imrope / mrope        | Qwen3.5 (measured), Qwen3 (assumed)    | **no**           | N/A            | no      | yes            | #169 fail-fast; `can_shift` is runtime — only `qwen35-0.8b` was gated |
+| Dense standard (`llama`, `qwen2`, `qwen3`) | Llama-3.2, Qwen2.5-Coder, SmolLM2 GGUF, **Qwen3-1.7B** | yes\* | yes | if ONNX | yes | \*if not SWA |
+| Hybrid attn+recurrent (`lfm2`) | LFM2 / LFM2.5 / Thinking | yes (front-drop) | **no** | no | yes | #170a degrade |
+| imrope / mrope (`qwen35`) | Qwen3.5 | **no** | N/A | no | yes | #169 fail-fast |
 | SWA                   | some modern                            | **no**           | careful        | —       | if arch in pin | `n_swa==0` gate                                                       |
 | MoE small active      | (none shipping)                        | TBD              | TBD            | no      | H2 open        | need ≤~3.5 GB GGUF                                                    |
 | BitNet 1.58           | —                                      | —                | —              | no      | H5 desk        | not shipping                                                          |
@@ -131,7 +174,7 @@ Numbers: [benchmarks.md](./benchmarks.md) / `phase5-diffuse.csv`.
 | Balanced / quality chat          | `lfm25-1.2b-instruct`, `lfm2-2.6b`        | H1 tiers                         |
 | Peer dense chat                  | `llama32-3b`, `gemma4-e2b`                | Advanced / heavy                 |
 | Coding fast / balanced / quality | `qwen25-coder-0.5b`, `…-1.5b`, `…-3b`     | `role:coding`, `n_ctx` 4096      |
-| Chat upgrade (Qwen3)             | `qwen3-1.7b`                              | no-think; shift unmeasured       |
+| Chat upgrade (Qwen3)             | `qwen3-1.7b` | no-think; context shift OK (measured) |
 | Reasoning                        | `lfm25-1.2b-thinking`                     | CoT stripped for display         |
 | ORT routing pair                 | `smollm2-360m-cpu-int4` + `…-dml-fp16-v2` | Auto GPU only on long first turn |
 | Image                            | `sd-turbo-fp16`                           | Image dialog                     |

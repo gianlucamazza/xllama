@@ -4,7 +4,7 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/validate-console.sh <routing|settings|gguf|longchat|kvsnap|taesd|all>
+#   ./scripts/validate-console.sh <routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|genroom|taesd|all>
 #
 # Requires: an installed xllama build with the autopilot (>= 1.1.3.0; the
 # settings ops need >= 1.4.0.606), the relevant models already in LocalState.
@@ -64,9 +64,43 @@ if ! [[ "$TRIM_BUDGET" =~ ^[0-9]+$ ]] || [[ -z "$EST_CHARS_PER_TOK" ]]; then
 		"include/xllama/routing_policy.h" >&2
 	exit 1
 fi
+# kMaxPromptTokens is the estimate ceiling the app actually trims by, and it does
+# not depend on n_predict (the reply's room is enforced later and exactly, by
+# fit_prompt). trim_ceiling stays as the one place a gate asks for that number, so
+# a future retune cannot leave a payload sized against a constant the app no
+# longer uses — the #133 failure mode.
+DEFAULT_N_CTX=$(sed -n 's/.*kDefaultNCtx = \([0-9]\+\);.*/\1/p' \
+	"${REPO_ROOT}/include/xllama/inference_params.h" | head -n1)
+RESERVED_GEN=$(sed -n 's/.*kReservedGenerationTokens = \([0-9]\+\);.*/\1/p' \
+	"${REPO_ROOT}/include/xllama/routing_policy.h" | head -n1)
+if ! [[ "$DEFAULT_N_CTX" =~ ^[0-9]+$ ]] || ! [[ "$RESERVED_GEN" =~ ^[0-9]+$ ]]; then
+	echo "Error: could not read kDefaultNCtx / kReservedGenerationTokens" >&2
+	exit 1
+fi
+# trim_ceiling <n_predict> — the estimated-token budget a gate's payload must fit
+# under on the shipping context, for the n_predict that gate sets.
+# trim_ceiling <n_ctx> — the estimated-token ceiling a gate's payload must fit
+# under. n_predict is deliberately NOT an input: the reply's room is enforced
+# later and exactly, by fit_prompt.
+trim_ceiling() {
+	local n_ctx="$1" budget
+	if ((n_ctx == DEFAULT_N_CTX)); then
+		echo "$TRIM_BUDGET"
+		return
+	fi
+	budget=$((n_ctx - RESERVED_GEN))
+	((budget < 256)) && budget=256
+	echo "$budget"
+}
 
 TMPDIR_LOCAL=$(mktemp -d)
 VAE_CACHE="" # set by validate_taesd; read by its EXIT trap (must be global)
+# Byte-for-byte copy of xllama.log as it was BEFORE the current autopilot run.
+# WDP answers 200 to a DELETE of a file the app holds open and then does not
+# unlink it, so "clear the log" is not something a gate can rely on: fetch_log
+# slices off whatever this snapshot already contained instead.
+LOG_BEFORE="${TMPDIR_LOCAL}/xllama-before.log"
+: >"$LOG_BEFORE"
 trap 'rm -rf "$TMPDIR_LOCAL"' EXIT
 
 # --- WDP helpers (same idioms as bench-xbox-ort.sh) ------------------------
@@ -115,16 +149,32 @@ delete_file() {
 		>/dev/null 2>&1 || true
 }
 
-restart_app() {
+stop_app() {
 	curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X DELETE \
 		"${BASE_URL}/api/taskmanager/app?package=${PFN}" >/dev/null 2>&1 || true
 	sleep 2
+}
+
+start_app() {
 	local pfamily aumid
 	# shellcheck disable=SC2001
 	pfamily=$(echo "$PFN" | sed 's/_[0-9][0-9.]*_[^_]*__/_/')
 	aumid=$(printf '%s!xllama' "$pfamily" | base64 -w0)
 	curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X POST -d "" \
 		"${BASE_URL}/api/taskmanager/app?appid=${aumid}" >/dev/null 2>&1 || true
+}
+
+restart_app() {
+	stop_app
+	start_app
+}
+
+# True when <name> is absent from LocalState (HTTP 404).
+file_absent() {
+	local remote_name="$1" code
+	code=$(curl "${CURL_AUTH[@]}" -o /dev/null -w "%{http_code}" \
+		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState&filename=${remote_name}" 2>/dev/null || echo "000")
+	[[ "$code" == "404" ]]
 }
 
 # Poll autopilot-done.txt; echoes its content, returns non-zero on timeout.
@@ -153,21 +203,69 @@ run_autopilot() {
 	local timeout_s="${1:-900}"
 	cat >"${TMPDIR_LOCAL}/autopilot.json"
 	printf 'go' >"${TMPDIR_LOCAL}/autopilot.flag"
+	# Stop the app BEFORE deleting: WDP cannot unlink a file the app still holds
+	# open, and delete_file swallows the failure — a previous run's lines then
+	# survive into this run's log and falsify the verdict (observed: a "prompt
+	# too long" from the prior gate invocation counted against the next one).
+	stop_app
 	delete_file "autopilot-done.txt"
 	delete_file "diffuse-progress.txt"
 	# xllama.log is append-only across restarts; clear it so the verdict greps
 	# only this run (a stale 887A0036 or routing line would falsify the gate).
 	# The app reopens the log lazily on next launch.
 	delete_file "xllama.log"
+	# Best effort only: when the unlink does not take, snapshot what is there so
+	# fetch_log can subtract it. Verdicts must never depend on a DELETE landing.
+	# The snapshot is only trusted on a real 200 — fetch_file happily writes a 404
+	# body, which would break the prefix match in fetch_log and quietly hand the
+	# whole file (previous run included) to the verdict.
+	: >"$LOG_BEFORE"
+	if ! file_absent "xllama.log"; then
+		local snap_code
+		snap_code=$(curl "${CURL_AUTH[@]}" -o "$LOG_BEFORE" -w "%{http_code}" \
+			"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState&filename=xllama.log" 2>/dev/null || echo "000")
+		[[ "$snap_code" == "200" ]] || : >"$LOG_BEFORE"
+	fi
 	upload_file "${TMPDIR_LOCAL}/autopilot.json"
 	upload_file "${TMPDIR_LOCAL}/autopilot.flag"
-	restart_app
+	start_app
 	wait_autopilot_done "$timeout_s"
 }
 
+# The log this run appended, with the pre-run bytes removed. Every verdict greps
+# THIS, so a stale line from an earlier run cannot pass or fail a gate — the
+# failure mode that made #193's own gate report a rejection from the previous
+# invocation.
 fetch_log() {
-	fetch_file "xllama.log" "${TMPDIR_LOCAL}/xllama.log"
-	echo "${TMPDIR_LOCAL}/xllama.log"
+	local full="${TMPDIR_LOCAL}/xllama-full.log" run="${TMPDIR_LOCAL}/xllama.log"
+	fetch_file "xllama.log" "$full"
+	python3 - "$full" "$LOG_BEFORE" "$run" <<'PYLOG'
+import sys
+full, before, out = sys.argv[1], sys.argv[2], sys.argv[3]
+try:
+    data = open(full, "rb").read()
+except Exception:
+    data = b""
+try:
+    prev = open(before, "rb").read()
+except Exception:
+    prev = b""
+# The app appends to the existing file; if it recreated the log instead, the old
+# bytes are simply not a prefix any more and the whole file IS this run. Anything
+# else (a truncated or failed snapshot) cannot be subtracted — say so, because
+# silently handing the verdict a stale-inclusive log is the bug this exists for.
+if not prev:
+    tail = data
+elif data[:len(prev)] == prev:
+    tail = data[len(prev):]
+else:
+    tail = data
+    if len(data) >= len(prev):
+        print("  WARN: could not subtract the pre-run log — the verdict may include "
+              "stale lines", file=sys.stderr)
+open(out, "wb").write(tail)
+PYLOG
+	echo "$run"
 }
 
 # Remove an injected conversation: the file AND its index entry. Deleting only
@@ -200,6 +298,30 @@ model_provisioned() {
 	local code
 	code=$(curl "${CURL_AUTH[@]}" -o /dev/null -w "%{http_code}" \
 		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&filename=genai_config.json&packagefullname=${PFN}&path=${path_param}" 2>/dev/null || echo "000")
+	[[ "$code" == "200" ]]
+}
+
+# model_provisioned probes genai_config.json, which a GGUF entry does not have:
+# check the .gguf named in the bundled manifest instead.
+model_provisioned_gguf() {
+	local model="$1" file
+	file=$(
+		python3 - "${REPO_ROOT}/uwp/models/manifest.json" "$model" <<'PY'
+import json, sys
+m = json.load(open(sys.argv[1], encoding="utf-8"))
+for e in m.get("models", []):
+    if e.get("name") == sys.argv[2]:
+        for f in e.get("files", []):
+            if f.get("filename", "").lower().endswith(".gguf"):
+                print(f["filename"])
+                break
+        break
+PY
+	)
+	[[ -n "$file" ]] || return 1
+	local code
+	code=$(curl "${CURL_AUTH[@]}" -o /dev/null -w "%{http_code}" \
+		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&filename=${file// /%20}&packagefullname=${PFN}&path=%5CLocalState%5Cmodels%5C${model//\\/%5C}" 2>/dev/null || echo "000")
 	[[ "$code" == "200" ]]
 }
 
@@ -246,10 +368,19 @@ JSON
 	# against the console's own tokenizer, that it landed above the threshold.
 	# This gate broke once already (threshold retuned 600 -> 1550 in #129 while the
 	# decoy stayed fixed), so every number here derives from the header.
+	#
+	# The estimate here is ROUTING's heuristic, deliberately optimistic: it decides
+	# an EP, and the context budget is not its job. The budget is enforced once, in
+	# the worker, with the tokenizer of the model that will generate
+	# (prompt_budget.h) — which can only drop MORE turns than this estimate did, so
+	# a decoy sized against it cannot be trimmed away behind routing's back.
 	local esca_id="ap-routing-longctx"
 	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
+	# n_predict is pinned at the SHIPPING default (512) in the autopilot below: a
+	# gate that picks a convenient value can be green over a dead feature, which is
+	# exactly what hid the ceiling-under-threshold bug.
 	python3 - "$REPO_ROOT" "$TMPDIR_LOCAL" "$esca_id" "$ROUTING_THRESHOLD" \
-		"$TRIM_BUDGET" "$EST_CHARS_PER_TOK" <<'PY'
+		"$(trim_ceiling "$DEFAULT_N_CTX")" "$EST_CHARS_PER_TOK" <<'PY'
 import json, re, sys
 repo, tmp, cid = sys.argv[1], sys.argv[2], sys.argv[3]
 threshold, trim_budget, est_cpt = int(sys.argv[4]), int(sys.argv[5]), float(sys.argv[6])
@@ -304,6 +435,7 @@ PY
 	marker=$(
 		run_autopilot 1300 <<JSON
 {"total_timeout_s": 900, "actions": [
+  {"op": "set_sampling", "n_predict": 512, "temperature": 0.7},
   {"op": "load_chat", "id": "${esca_id}"},
   {"op": "send", "text": "continue", "timeout_s": 300},
   {"op": "send", "text": "ok", "timeout_s": 120},
@@ -428,7 +560,7 @@ validate_longchat() {
 	# full re-prefill and no "context full" error may surface.
 	local cid="ap-169-longchat"
 	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
-	python3 - "$TMPDIR_LOCAL" "$cid" "$TRIM_BUDGET" "$EST_CHARS_PER_TOK" <<'PY'
+	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling "$DEFAULT_N_CTX")" "$EST_CHARS_PER_TOK" <<'PY'
 import json, sys
 tmp, cid = sys.argv[1], sys.argv[2]
 budget, est_cpt = int(sys.argv[3]), float(sys.argv[4])
@@ -525,7 +657,7 @@ validate_kvsnap() {
 	# the prompt-token count of the returning turn against the cold one.
 	local cid="ap-170b-switch"
 	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
-	python3 - "$TMPDIR_LOCAL" "$cid" "$TRIM_BUDGET" "$EST_CHARS_PER_TOK" <<'PY'
+	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling "$DEFAULT_N_CTX")" "$EST_CHARS_PER_TOK" <<'PY'
 import json, sys
 tmp, cid = sys.argv[1], sys.argv[2]
 budget, est_cpt = int(sys.argv[3]), float(sys.argv[4])
@@ -612,6 +744,309 @@ print(f"  ok: returning turn pays a delta ({ret} tok, {100.0 * ret / cold:.0f}% 
 PY
 	remove_chat "${cid}"
 	[[ $verdict -eq 0 ]] && echo "#170b KV snapshot: PASS" || echo "#170b KV snapshot: FAIL"
+	return $verdict
+}
+
+# --- PR #193 A: a prompt past n_batch on a coding session -------------------
+
+# Emit ~$1 chars of plausible C++ on stdout (deterministic, no randomness).
+_fake_source() {
+	python3 - "$1" <<'PYGEN'
+import sys
+target = int(sys.argv[1])
+out, i = [], 0
+while sum(len(l) + 1 for l in out) < target:
+    out += [f"static int handler_{i:03d}(const Buffer& in, Buffer* out) {{",
+            f"    if (!out || in.size() < {i} + 4) return -1;  // guard {i}",
+            f"    const uint32_t tag = load_le32(in.data() + {i});",
+            f"    out->append(tag ^ 0x{i:04x}u, in.size() - {i});",
+            "    return 0;", "}"]
+    i += 1
+sys.stdout.write("\n".join(out)[:target])
+PYGEN
+}
+
+_json_str() { python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'; }
+
+validate_coderpaste() {
+	echo "=== #193 long paste on a coding session (n_ctx 4096, chunked prefill) ==="
+	# The regression this pins: the prefill submitted the whole prompt as ONE
+	# logical batch, and llama_decode ASSERTS n_tokens <= n_batch (GGML_ABORT,
+	# Release included). n_batch defaults to min(n_ctx, 2048), so on a coding
+	# session (n_ctx 4096) a paste of a few thousand tokens killed the process.
+	# Two regimes, two runs — an abort in either never writes autopilot-done.txt:
+	#   A. past n_batch, inside n_ctx -> chunked prefill, a normal answer;
+	#   B. past n_ctx                 -> "prompt too long", app alive.
+	local model="qwen25-coder-0.5b"
+	if ! model_provisioned_gguf "$model"; then
+		echo "  FAIL: ${model} not on the device"
+		echo "  Seed:  ./scripts/provision-models.sh ${model}"
+		echo "#193 coding paste: FAIL"
+		return 1
+	fi
+	# Sized against this C++'s real density (~3.2 chars/token), not the estimator:
+	# the point is to land the REAL count between n_batch (2048) and n_ctx (4096).
+	# The assertions below check where it actually landed.
+	local verdict=0 fits over marker log
+	fits=$(_fake_source 8600)
+	over=$(_fake_source 24000)
+
+	echo "  -- A: ~8.6 KB paste (past the 2048 logical batch, inside n_ctx)"
+	marker=$(
+		run_autopilot 900 <<JSON
+{"total_timeout_s": 800, "actions": [
+  {"op": "set_model", "name": "${model}", "timeout_s": 400},
+  {"op": "set_kv_reuse", "enabled": true},
+  {"op": "set_sampling", "n_predict": 128, "temperature": 0.7},
+  {"op": "new_chat"},
+  {"op": "send", "text": $(printf 'Review this code and name one bug in one sentence.\n\n%s' "$fits" | _json_str), "timeout_s": 480},
+  {"op": "quit"}
+]}
+JSON
+	) || true
+	echo "  autopilot: ${marker}"
+	log=$(fetch_log)
+	[[ "$marker" == "ok" ]] || {
+		echo "  FAIL: autopilot did not finish ok (an abort never writes the done file)"
+		verdict=1
+	}
+	if grep -aq 'prompt too long' "$log"; then
+		echo "  FAIL: a paste meant to fit was rejected — shrink the payload or check n_ctx"
+		grep -a 'prompt too long' "$log" | sed 's/^/    /'
+		verdict=1
+	fi
+	python3 - "$log" <<'PYGEN' || verdict=1
+import re, sys
+toks = [int(m) for m in re.findall(r"session generate: .*?\((\d+) tok\)",
+                                  open(sys.argv[1], errors="ignore").read())]
+if not toks:
+    sys.exit("  FAIL: no llama prefill line in the log")
+big = max(toks)
+print(f"  prefills: {toks}")
+if big <= 2048:
+    sys.exit(f"  FAIL: regime not reached — largest prefill {big} tok <= n_batch 2048; "
+             "grow the payload, do not relax this check")
+print(f"  ok: {big} tok prefilled in chunks past the 2048 logical batch, no abort")
+PYGEN
+
+	echo "  -- B: ~24 KB paste (past n_ctx): must be refused, not fatal"
+	marker=$(
+		run_autopilot 900 <<JSON
+{"total_timeout_s": 800, "actions": [
+  {"op": "set_model", "name": "${model}", "timeout_s": 400},
+  {"op": "set_sampling", "n_predict": 128, "temperature": 0.7},
+  {"op": "new_chat"},
+  {"op": "send", "text": $(printf 'Review this code.\n\n%s' "$over" | _json_str), "timeout_s": 480},
+  {"op": "quit"}
+]}
+JSON
+	) || true
+	echo "  autopilot: ${marker}"
+	log=$(fetch_log)
+	# The send is EXPECTED to fail here; what must not happen is the app dying,
+	# which is exactly what a missing done-marker would mean.
+	if [[ -z "$marker" ]]; then
+		echo "  FAIL: no done marker — the app died on the oversized prompt"
+		verdict=1
+	else
+		echo "  ok: the app survived and reported the failure (${marker})"
+	fi
+	if grep -aq 'prompt too long' "$log"; then
+		echo "  ok: refused with the actionable 'prompt too long' error"
+	else
+		echo "  FAIL: no 'prompt too long' in the log — it failed for another reason"
+		verdict=1
+	fi
+	[[ $verdict -eq 0 ]] && echo "#193 coding paste: PASS" || echo "#193 coding paste: FAIL"
+	return $verdict
+}
+
+# --- PR #193 B: a thinking turn whose reasoning is cut off ------------------
+
+validate_thinkcut() {
+	echo "=== #193 truncated reasoning keeps the turn ==="
+	# A thinking model that spends its whole budget reasoning postprocesses to an
+	# EMPTY answer. The turn used to vanish: no message saved, the streamed chain
+	# of thought orphaned on screen, status "Done". Contract now: the log says so
+	# and the conversation keeps an assistant turn.
+	local model="lfm25-1.2b-thinking"
+	if ! model_provisioned_gguf "$model"; then
+		echo "  FAIL: ${model} not on the device"
+		echo "  Seed:  ./scripts/provision-models.sh ${model}"
+		echo "#193 truncated reasoning: FAIL"
+		return 1
+	fi
+	local cid="ap-193-thinkcut"
+	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
+	python3 - "$TMPDIR_LOCAL" "$cid" <<'PY'
+import json, sys
+tmp, cid = sys.argv[1], sys.argv[2]
+turns = [{"role": "user", "content": "Hello.", "ts": 1, "partial": False},
+         {"role": "assistant", "content": "Hi.", "ts": 2, "partial": False}]
+conv = {"id": cid, "title": "#193 truncated reasoning", "messages": turns}
+open(f"{tmp}/{cid}.json", "w").write(json.dumps(conv, ensure_ascii=False))
+entry = {"id": cid, "title": conv["title"], "last_modified": 2, "n_messages": len(turns)}
+try:
+    idx = json.load(open(f"{tmp}/existing-index.json"))
+    if not isinstance(idx, list):
+        idx = []
+except Exception:
+    idx = []
+idx = [e for e in idx if e.get("id") != cid]
+idx.insert(0, entry)
+open(f"{tmp}/index.json", "w").write(json.dumps(idx, ensure_ascii=False))
+PY
+	upload_file "${TMPDIR_LOCAL}/${cid}.json" "chats"
+	upload_file "${TMPDIR_LOCAL}/index.json" "chats"
+	# 24 tokens cannot hold a chain of thought AND an answer: the reasoning block
+	# is guaranteed to be cut mid-flight.
+	local marker
+	marker=$(
+		run_autopilot 900 <<JSON
+{"total_timeout_s": 700, "actions": [
+  {"op": "set_model", "name": "${model}", "timeout_s": 400},
+  {"op": "set_sampling", "n_predict": 24, "temperature": 0.7},
+  {"op": "load_chat", "id": "${cid}"},
+  {"op": "send", "text": "A train leaves at 09:14 and takes 3h47m. When does it arrive? Think it through.", "timeout_s": 300},
+  {"op": "quit"}
+]}
+JSON
+	) || true
+	echo "  autopilot: ${marker}"
+	local log verdict=0
+	log=$(fetch_log)
+	[[ "$marker" == "ok" ]] || {
+		echo "  FAIL: autopilot did not finish ok"
+		verdict=1
+	}
+	if grep -aq 'postprocess left no answer' "$log"; then
+		echo "  ok: the empty-after-postprocess path fired"
+	else
+		echo "  FAIL: the reasoning block was not truncated — n_predict too generous," \
+			"or this model does not emit <think> at all (which would make the" \
+			"whole strip a no-op: investigate, do not relax this gate)"
+		verdict=1
+	fi
+	# The turn must survive on disk, not just in the log.
+	fetch_file "${cid}.json" "${TMPDIR_LOCAL}/after.json" "chats"
+	python3 - "${TMPDIR_LOCAL}/after.json" <<'PY' || verdict=1
+import json, sys
+conv = json.load(open(sys.argv[1], encoding="utf-8"))
+msgs = conv.get("messages", [])
+if len(msgs) < 4:
+    sys.exit(f"  FAIL: the turn was lost — {len(msgs)} messages, expected 4")
+last = msgs[-1]
+if last.get("role") != "assistant":
+    sys.exit(f"  FAIL: last message is {last.get('role')}, not an assistant turn")
+if "reasoning only" not in last.get("content", ""):
+    sys.exit(f"  FAIL: assistant turn is not the stand-in: {last.get('content')!r:.80}")
+print("  ok: the conversation kept an explicit 'reasoning only' assistant turn")
+PY
+	remove_chat "${cid}"
+	[[ $verdict -eq 0 ]] && echo "#193 truncated reasoning: PASS" || echo "#193 truncated reasoning: FAIL"
+	return $verdict
+}
+
+# --- PR #193 C: the prompt must not eat the reply's room --------------------
+
+validate_genroom() {
+	echo "=== #193 a full context still leaves room for the whole reply ==="
+	# The regression this pins: the trimmer ceiling reserved a flat 250 tokens
+	# while the UI default n_predict is 512, and the generation loop clamps
+	# n_predict to what the context has left — so a prompt sitting on the old
+	# 1800-token ceiling got a reply cut at ~248 tokens, silently. Asserting the
+	# ARITHMETIC (prefill + n_predict <= n_ctx) instead of the answer's length
+	# keeps the verdict independent of whether this small model feels talkative.
+	local cid="ap-193-genroom" n_predict=512
+	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
+	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling "$DEFAULT_N_CTX")" "$EST_CHARS_PER_TOK" "$n_predict" <<'PYROOM'
+import json, sys
+tmp, cid = sys.argv[1], sys.argv[2]
+ceiling, est_cpt = int(sys.argv[3]), float(sys.argv[4])
+base = ("Item %02d: the harbour master logged tide tables, cargo manifests and the "
+        "crane maintenance schedule for pier seven, then filed the quarterly "
+        "figures the committee had asked for. ")
+turns, ts = [], 1
+for i in range(20):
+    turns.append({"role": "user", "content": (base % i) * 3, "ts": ts, "partial": False})
+    turns.append({"role": "assistant", "content": f"Logged item {i:02d}.",
+                  "ts": ts + 1, "partial": False})
+    ts += 2
+est = int(sum(len(m["content"]) for m in turns) / est_cpt)
+if est <= ceiling:
+    sys.exit(f"  FAIL: history estimate {est} tok <= ceiling {ceiling} — the trimmer "
+             "would not engage, so this gate would prove nothing")
+conv = {"id": cid, "title": "#193 generation room", "messages": turns}
+open(f"{tmp}/{cid}.json", "w").write(json.dumps(conv, ensure_ascii=False))
+entry = {"id": cid, "title": conv["title"], "last_modified": ts, "n_messages": len(turns)}
+try:
+    idx = json.load(open(f"{tmp}/existing-index.json"))
+    if not isinstance(idx, list):
+        idx = []
+except Exception:
+    idx = []
+idx = [e for e in idx if e.get("id") != cid]
+idx.insert(0, entry)
+open(f"{tmp}/index.json", "w").write(json.dumps(idx, ensure_ascii=False))
+print(f"  injected {len(turns)} messages, est ~{est} tok (ceiling {ceiling} at n_predict {sys.argv[5]})")
+PYROOM
+	upload_file "${TMPDIR_LOCAL}/${cid}.json" "chats"
+	upload_file "${TMPDIR_LOCAL}/index.json" "chats"
+	local marker
+	marker=$(
+		run_autopilot 900 <<JSON
+{"total_timeout_s": 800, "actions": [
+  {"op": "set_model", "name": "lfm25-350m", "timeout_s": 300},
+  {"op": "set_kv_reuse", "enabled": true},
+  {"op": "set_sampling", "n_predict": ${n_predict}, "temperature": 0.7},
+  {"op": "load_chat", "id": "${cid}"},
+  {"op": "send", "text": "Write a detailed handover note about pier seven for the next shift.", "timeout_s": 400},
+  {"op": "quit"}
+]}
+JSON
+	) || true
+	echo "  autopilot: ${marker}"
+	local log verdict=0
+	log=$(fetch_log)
+	[[ "$marker" == "ok" ]] || {
+		echo "  FAIL: autopilot did not finish ok"
+		verdict=1
+	}
+	# The exact budget must have run at all — this line is the whole enforcement
+	# point (xllama::fit_prompt in the turn worker), so its absence means the turn
+	# went out unbudgeted no matter what the numbers below say.
+	if grep -aq 'prompt budget:' "$log"; then
+		echo "  ok: $(grep -a 'prompt budget:' "$log" | head -1 | sed 's/.*prompt budget: //')"
+	else
+		echo "  FAIL: no 'prompt budget:' line — the exact fit never ran"
+		verdict=1
+	fi
+	# And the ceiling has to have bound somewhere, or the payload was too small to
+	# prove anything: either the estimate dropped turns or the exact pass did.
+	if grep -aqE 'context trimmed \(estimate\): dropped|prompt budget: .* dropped [1-9]' "$log"; then
+		echo "  ok: history was trimmed (the budget was binding, as intended)"
+	else
+		echo "  FAIL: nothing was dropped — the injected history did not fill the context"
+		verdict=1
+	fi
+	python3 - "$log" "$DEFAULT_N_CTX" "$n_predict" <<'PYROOM' || verdict=1
+import re, sys
+log, n_ctx, n_predict = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+text = open(log, errors="ignore").read()
+toks = [int(m) for m in re.findall(r"session generate: .*?\((\d+) tok\)", text)]
+gen = [int(m) for m in re.findall(r"session generate: n=(\d+)", text)]
+if not toks:
+    sys.exit("  FAIL: no llama prefill line in the log")
+first = toks[0]
+print(f"  first prefill {first} tok, generated {gen[:3]}")
+room = n_ctx - first
+if room < n_predict:
+    sys.exit(f"  FAIL: the prompt left {room} tokens for a {n_predict}-token reply "
+             f"({first} + {n_predict} > n_ctx {n_ctx}) — the reply would be cut silently")
+print(f"  ok: {room} tokens left for the reply, >= the requested {n_predict}")
+PYROOM
+	remove_chat "${cid}"
+	[[ $verdict -eq 0 ]] && echo "#193 generation room: PASS" || echo "#193 generation room: FAIL"
 	return $verdict
 }
 
@@ -805,6 +1240,9 @@ settings) validate_settings ;;
 gguf) validate_gguf ;;
 longchat) validate_longchat ;;
 kvsnap) validate_kvsnap ;;
+coderpaste) validate_coderpaste ;;
+thinkcut) validate_thinkcut ;;
+genroom) validate_genroom ;;
 taesd) validate_taesd ;;
 all)
 	rc=0
@@ -816,6 +1254,9 @@ all)
 	validate_gguf || rc=1
 	validate_longchat || rc=1
 	validate_kvsnap || rc=1
+	validate_coderpaste || rc=1
+	validate_thinkcut || rc=1
+	validate_genroom || rc=1
 	validate_taesd || rc=1
 	echo
 	echo "=== summary ==="
@@ -823,7 +1264,7 @@ all)
 	exit $rc
 	;;
 *)
-	echo "Usage: $0 <routing|settings|gguf|longchat|kvsnap|taesd|all>" >&2
+	echo "Usage: $0 <routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|genroom|taesd|all>" >&2
 	exit 1
 	;;
 esac

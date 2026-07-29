@@ -313,6 +313,7 @@
     <ClCompile Include="..\src\bridge\path_utils.cpp" />
     <ClCompile Include="..\src\bridge\utf8_utils.cpp" />
     <ClCompile Include="..\src\bridge\chat_prompt.cpp" />
+    <ClCompile Include="..\src\bridge\prompt_budget.cpp" />
     <ClCompile Include="..\src\bridge\training.cpp" />
     <ClCompile Include="..\src\bridge\device_train.cpp" />
     <ClCompile Include="..\src\bridge\preference_capture.cpp" />

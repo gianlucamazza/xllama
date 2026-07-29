@@ -80,6 +80,14 @@ fields (`n`, penalties, `tools`, …) are ignored, not rejected. `messages[]` is
 `ChatFormat::render_prompt(system, history, final_user)` (`include/xllama/chat_prompt.h`);
 `chat_format_for(model)` selects the template and stop sequences.
 
+**Context budget.** The prompt is fitted to the session's `n_ctx` with the same
+primitive the chat UI uses (`xllama::fit_prompt`, `include/xllama/prompt_budget.h`) and the
+model's own tokenizer: the **oldest** `messages[]` entries are dropped until the prompt plus
+the requested reply (`max(max_tokens, 250)` tokens) fits. Dropped entries are logged, not
+signalled in the response. When the trailing user message alone cannot fit, the request is
+refused with `400` and a body naming the three numbers — a client's oversized input is a
+client error, and it used to surface as a `500` from the generator instead.
+
 Only `Content-Length` framing is supported — a `Transfer-Encoding: chunked` request gets
 `411` (OpenAI SDKs send Content-Length). Malformed JSON / wrong-typed fields get `400`, never
 a dropped connection.

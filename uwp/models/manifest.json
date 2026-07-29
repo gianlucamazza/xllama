@@ -227,7 +227,7 @@
       ]
     },
     {
-      "_comment": "Qwen3-1.7B Q4_K_M — chat upgrade over qwen35-0.8b. ChatML + model_is_qwen3 no-think prefill. Console phase14: 89.5 prefill / 21.8 decode / 1398 MB peak; host Release quality PASS. Apache-2.0 unsloth. Context shift NOT measured on this model — can_shift is a runtime property, the longchat gate has only run on qwen35-0.8b (imrope, no shift) and lfm25-350m.",
+      "_comment": "Qwen3-1.7B Q4_K_M — chat upgrade over qwen35-0.8b. ChatML + model_is_qwen3 no-think prefill. Console phase14: 89.5 prefill / 21.8 decode / 1398 MB peak; host Release quality PASS. Apache-2.0 unsloth. Context shift OK: arch qwen3 reports can_shift=1 (measured 2026-07-29 on host; the property is per-arch, not per-platform) — unlike qwen35, which is imrope and cannot shift.",
       "name": "qwen3-1.7b",
       "display": "Qwen3 1.7B (GGUF · CPU)",
       "kind": "gguf",

@@ -44,6 +44,45 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `llama_n_batch`; the physical ubatch (512, the #172 optimum the prefill rate was
   measured on) is unchanged. A full prompt that cannot fit `n_ctx` at all now
   fails fast with an actionable message, the way a continuation already did (#173).
+- **The context budget is now enforced in tokens, once, where the tokenizer is**
+  (`xllama::fit_prompt`, `prompt_budget.h`, called by the turn worker after
+  `EnsureSession`). It drops the oldest turns until
+  `n_tokens + max(n_predict, 250) + 1 <= n_ctx` and never drops the trailing user
+  message. The chars-per-token estimate cannot do this job — measured on console,
+  prose ran 4.6 real chars/token against the 5.0 constant and dense C++ 2.5 against
+  3.5, and since the generation loop clamps `n_predict` to what the context has
+  left (#173), every token of undershoot came off the reply. The estimate keeps one
+  job, routing, where it must run *before* a tokenizer exists and where being wrong
+  costs a routing decision instead of an answer.
+- **`can_shift` is logged per load, and the docs were wrong about Qwen3.** The
+  capability matrix said imrope/no-shift for both Qwen3 and Qwen3.5, inherited from
+  an assumption. It is a runtime property, so the session now logs it
+  (`can_shift=… memory_can_shift=… n_swa=…`) and it was measured per arch:
+  `lfm2` 1, **`qwen3` 1**, `qwen35` 0. `qwen3-1.7b` shifts — the table under-sold it.
+- **`fit_prompt` bisects instead of walking.** Dropping turns one at a time
+  tokenized once per dropped turn — fine for a handful, quadratic in rendered bytes
+  for a long conversation, on the turn's critical path. "Fits" is monotone in how
+  much history is dropped, so the smallest fitting prompt is found by exponential
+  probe + bisection: O(log n) tokenizations, with the minimality pinned by a test.
+- **`check-coherence.py` owns the model-matrix metrics.** The phase14 inventory
+  table restates prefill/decode/peak that `benchmarks.md` generates; a second copy
+  of a number is debt only when nothing checks the two agree, so the check now
+  compares every metrics row against `phase14-console.csv` (verified by
+  perturbation, not by assumption).
+- **Auto GPU routing was unreachable on a default install.** Reserving the reply in
+  the trimmer's ceiling (the fix below) put that ceiling at 1536 tokens for the
+  shipping `n_predict` of 512, under `token_threshold` (1550) — so `decide_routing`
+  could never see a long turn. The two constraints are now owned separately: the
+  estimate ceiling is a context bound (`max_prompt_tokens_for_n_ctx(n_ctx)`, no
+  `n_predict`), the reply's room is `fit_prompt`'s and exact. The reachability pin
+  in `tests/test_routing_policy.cpp` is stated in real tokens, and the `routing`
+  console gate now runs at the shipping `n_predict` instead of a convenient one — a
+  green gate over a dead feature is worse than no gate.
+- **The LAN endpoint had no context budget at all.** A long `messages[]` reached the
+  generator and came back as a `500`. It now fits the prompt with the same primitive
+  and tokenizer as the chat UI (oldest entries dropped first) and returns `400` with
+  the three numbers only when the trailing user message alone cannot fit. New gate:
+  `validate-api.sh budget`.
 - **Replies were silently truncated at ~250 tokens on a full context.** The
   trimmer ceiling reserved a flat 250 tokens for generation while the UI default
   `n_predict` is 512 (slider up to 2048), and the generation loop clamps

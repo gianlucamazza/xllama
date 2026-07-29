@@ -112,7 +112,18 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     bool SubmitFeedback(size_t assistant_index, const std::string& label,
                         const std::string& preferred_assistant = {}, std::string* err = nullptr);
     winrt::fire_and_forget ShowCorrectionDialog(size_t assistant_index);
-    std::string BuildPrompt(const std::string& user_text, int* out_dropped = nullptr) const;
+    // Everything a turn needs to build its prompt. `prompt` is trimmed by the
+    // chars-per-token ESTIMATE and exists so routing can count something before a
+    // model is chosen; the real budget is enforced once, in the worker, with the
+    // tokenizer of the model that will generate (xllama::fit_prompt) — which is
+    // why the surviving turns travel with it.
+    struct PromptPlan {
+        std::string prompt;
+        std::vector<xllama::ChatTurn> turns;
+        int dropped = 0;
+        int n_ctx = 0;
+    };
+    PromptPlan BuildPromptPlan(const std::string& user_text) const;
     // Only the new turn's tokens, appended to the reused KV cache.
     std::string BuildDeltaPrompt(const std::string& user_text) const;
     // Per-architecture chat template for the current model (ChatML default, Gemma, ...).

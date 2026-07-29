@@ -316,6 +316,134 @@ def main() -> int:
                 err(f"recommended-config missing headline {num}")
         good("decode headlines code-doc aligned")
 
+    # --- model-matrix numbers vs the CSV they claim to come from ---
+    # docs/benchmarks.md is the numbers SSOT and model-matrix.md is the status
+    # SSOT, but the phase14 inventory table restates prefill/decode/peak. A second
+    # copy of a number is only debt when nothing checks the two agree — the same
+    # class of drift that left "console pending" in manifest comments after the
+    # console runs had landed. So: check it.
+    mm_path = ROOT / "docs/model-matrix.md"
+    csv_path = ROOT / "bench/results/phase14-console.csv"
+    if mm_path.exists() and csv_path.exists():
+        rows: dict[str, list[dict[str, str]]] = {}
+        lines = csv_path.read_text(encoding="utf-8").strip().splitlines()
+        head = lines[0].split(",")
+        for line in lines[1:]:
+            cells = dict(zip(head, line.split(",")))
+            rows.setdefault(cells["model"], []).append(cells)
+
+        def median(vals: list[float]) -> float:
+            vals = sorted(vals)
+            mid = len(vals) // 2
+            return vals[mid] if len(vals) % 2 else (vals[mid - 1] + vals[mid]) / 2
+
+        # A metrics row carries at least three numbers; the role/status tables in
+        # the same file carry none and are not this check's business.
+        covered: set[str] = set()
+        for line in mm_path.read_text(encoding="utf-8").splitlines():
+            m = re.match(r"\|[^|]+\|\s*`([a-z0-9.-]+)`\s*\|", line)
+            if not m or m.group(1) not in rows:
+                continue
+            model = m.group(1)
+            cells = [c.strip().strip("*") for c in line.strip("|").split("|")]
+            nums = [float(c) for c in cells if re.fullmatch(r"[0-9]+(\.[0-9]+)?", c)]
+            if len(nums) < 3:
+                continue  # not a metrics row
+            runs = rows[model]
+            want_prefill = median([float(r["prompt_tok_s"]) for r in runs])
+            want_decode = median([float(r["decode_tok_s"]) for r in runs])
+            want_peak = float(max(int(r["peak_ws_mb"]) for r in runs))
+            missing = [
+                f"{label} {want:.1f}"
+                for label, want in (
+                    ("prefill", want_prefill),
+                    ("decode", want_decode),
+                    ("peak", want_peak),
+                )
+                if not any(abs(c - want) <= 0.15 for c in nums)
+            ]
+            if missing:
+                err(
+                    f"model-matrix {model}: row does not match phase14-console.csv "
+                    f"({', '.join(missing)} absent from {nums})"
+                )
+            else:
+                covered.add(model)
+        absent = sorted(set(rows) - covered)
+        if absent:
+            err(f"model-matrix: no verified metrics row for {', '.join(absent)}")
+        else:
+            good(f"model-matrix numbers match phase14-console.csv ({len(covered)} models)")
+
+    # --- every catalogue model is documented, and no doc invents one ---
+    # model-matrix.md is the status SSOT, and it grew one table per campaign (A1
+    # with Role/n_ctx/Template, A2 with Status). A reader has to union them, and a
+    # new catalogue entry can simply be missing — which is how the phase14 models
+    # would have shipped undocumented. Coverage in both directions, plus the two
+    # policy fields that change behaviour (role, n_ctx).
+    if mm_path.exists():
+        mm_text = mm_path.read_text(encoding="utf-8")
+        text_models = {
+            n: e for n, e in cat.items() if e.get("kind") != "diffusion"
+        }
+        # Rows mentioning each id, so the field checks look only where the id is.
+        rows_for: dict[str, list[str]] = {n: [] for n in text_models}
+        for line in mm_text.splitlines():
+            if not line.startswith("|"):
+                continue
+            for n in text_models:
+                if f"`{n}`" in line:
+                    rows_for[n].append(line)
+
+        undocumented = sorted(n for n, r in rows_for.items() if not r)
+        if undocumented:
+            err(
+                "model-matrix: catalogue models absent from the inventory: "
+                + ", ".join(undocumented)
+            )
+        else:
+            good(f"model-matrix documents all {len(text_models)} catalogue text models")
+
+        # The reverse direction: every OTHER backticked token in the inventory is
+        # either a documented status label or a pointer to evidence — and a pointer
+        # that no longer resolves is drift with a straight face. (An earlier
+        # version of this check just warned about "unknown ids" and flagged twelve
+        # legitimate ones; a check that cries wolf gets ignored.)
+        status_vocab = set(
+            re.findall(r"`([a-z-]+)`", 
+                       re.search(r"\*\*Status\*\*.*", mm_text).group(0))
+        ) if re.search(r"\*\*Status\*\*.*", mm_text) else set()
+        claimed = set(re.findall(r"`([a-z][a-z0-9.]*(?:-[a-z0-9.]+)+)`", mm_text))
+        dangling, evidence_ok = [], 0
+        for tok in sorted(claimed - set(cat) - status_vocab):
+            if tok.endswith((".md", ".csv", ".json", ".jsonl", ".txt", ".py", ".sh", ".h", ".cpp")):
+                continue
+            if "_" in tok:  # code identifiers (strip_thinking_content, ...)
+                continue
+            if (ROOT / f"bench/results/{tok}.csv").exists() or (
+                ROOT / f"bench/prompts/{tok}.txt"
+            ).exists():
+                evidence_ok += 1
+                continue
+            dangling.append(tok)
+        if dangling:
+            err(
+                "model-matrix: backticked tokens that are neither a catalogue id, a "
+                "status label, nor resolvable evidence: " + ", ".join(dangling)
+            )
+        else:
+            good(f"model-matrix evidence pointers resolve ({evidence_ok} files)")
+
+        for n, e in text_models.items():
+            rows = " ".join(rows_for.get(n, []))
+            if not rows:
+                continue
+            if e.get("role") == "coding" and "coding" not in rows:
+                err(f"model-matrix {n}: catalogue role is coding, the row does not say so")
+            want_ctx = e.get("n_ctx") or 0
+            if want_ctx and str(want_ctx) not in rows:
+                err(f"model-matrix {n}: catalogue n_ctx {want_ctx} missing from the row")
+
     # --- stale size patterns (live docs only) ---
     skip = {
         "docs/technical-report.md",

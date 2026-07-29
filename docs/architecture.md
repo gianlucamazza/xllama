@@ -205,14 +205,54 @@ live next to the prompt budget in `routing_policy.h` so the trimmer and
 - There is **no** third “coding” pillar or FIM path. Coding chat is the same
   GGUF/`Session`/`ChatFormat` stack as general chat.
 
-Trimmer ceiling: `max_prompt_tokens_for_n_ctx(n_ctx, reserved)` →
-`n_ctx − reserved`, where `reserved` is the requested generation length with
-`kReservedGenerationTokens` (250) as its floor and 256 tokens as the prompt floor.
-The shipping default with the default reserve keeps the historical constant
-`kMaxPromptTokens` (1800) so the #171 pin does not drift by arithmetic alone.
-Reserving the actual `n_predict` matters because the generation loop clamps it to
-what the context has left (#173): a ceiling that reserves less cuts the reply
-silently instead of dropping one more turn of history.
+### Context budget: one enforcement point
+
+The budget is enforced **once**, in tokens, where the tokenizer lives —
+`xllama::fit_prompt` (`prompt_budget.h`), called by the turn worker after
+`EnsureSession`, with `Session::count_tokens` of the model that will generate. It
+drops the oldest turns until `n_tokens + max(n_predict, 250) + 1 ≤ n_ctx`, never
+drops the trailing user message, and reports `fits = false` when even that message
+alone does not fit (the session then reports `prompt too long` with the numbers).
+
+A chars-per-token estimate cannot do this job. Measured on console: prose came out
+4.6 real chars/token against the 5.0 constant and dense C++ 2.5 against 3.5, and
+because the generation loop clamps `n_predict` to what the context has left
+(#173), every token of undershoot is taken **off the reply**, silently. One
+sample per workload is not a bound, and a "safer" constant only trades a truncated
+answer for history dropped that would have fit.
+
+So the estimate keeps exactly one job: **routing**. `decide_routing` needs a token
+count before a model — hence a tokenizer — has been chosen, and its ceiling has to
+stay coherent with `token_threshold` (#133). `BuildPromptPlan` therefore trims by
+`max_prompt_tokens_for_n_ctx(n_ctx)` with the optimistic `kEstimatedCharsPerToken`,
+and being optimistic is the point: it drops *fewer* turns, so the exact pass can
+only tighten and nothing routing saw reappears behind its back. Getting that
+estimate wrong costs a routing decision, not an answer.
+
+**The two ceilings are separate on purpose.**
+`max_prompt_tokens_for_n_ctx(n_ctx)` → `n_ctx − 250`, floor 256, with the shipping
+context keeping the historical `kMaxPromptTokens` (1800) so the #171 pin cannot
+drift by arithmetic. It is a **context** bound and takes no `n_predict`: the
+reply's room belongs to `fit_prompt`, exactly and later. Charging the reply's
+reserve to this ceiling is not a shortcut, it is a feature killer — at the shipping
+`n_predict` of 512 the ceiling becomes 1536, *below* `token_threshold` (1550), so
+`decide_routing` can never see a long turn and auto GPU routing dies on every
+default install. That is #133 a third time; `tests/test_routing_policy.cpp` now
+pins the reachability in real tokens, and the `routing` console gate runs at the
+shipping `n_predict` rather than a convenient one.
+
+Both surfaces enforce the same budget with the same primitive: the chat UI in its
+turn worker, and `POST /v1/chat/completions` before it generates (a client whose
+final message alone cannot fit gets a `400`, not a `500` from the generator).
+
+**Known gap, tracked.** The routing decision itself still runs on the UI thread
+*before* a session exists, so on a cold first turn with `routing = auto` it counts
+with the estimate rather than a tokenizer — a heuristic deciding behaviour, which
+the rule above forbids. It affects only that mode (the shipping default is
+CPU-only) and the fix is mechanical: decide in the turn worker, after
+`EnsureSession`, where the exact count exists by construction. Deliberately not
+bundled into the phase14 release branch — it rewrites the hottest UI path and wants
+its own PR with the `routing` console gate as the acceptance test.
 
 The prefill itself is chunked at `llama_n_batch` (`LlamaSession::generate`,
 `run_inference`): an oversized logical batch is not an error return from
@@ -393,6 +433,13 @@ host Release smoke (quality + peak)
 - **Do not** catalogue on host-only evidence for Series S claims.
 - **Do not** special-case Settings when a catalogue field already owns the
   policy (`n_ctx`, `role`).
+- **Do not** let a heuristic decide product behaviour. A chars-per-token estimate
+  may *bound work* (what the UI renders, what routing counts before a tokenizer
+  exists); only an exact measurement may *decide* what the user gets. Every #133
+  recurrence — three so far — was an estimate promoted from bound to decision.
+- **Do not** restate a number a generated file already owns unless a gate checks
+  the copies agree. `check-coherence.py` now pins the `model-matrix.md` metrics
+  rows against `phase14-console.csv`; that is the price of the second copy.
 
 ## See also
 
