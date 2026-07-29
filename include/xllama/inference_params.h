@@ -101,6 +101,11 @@ struct InferenceParams {
     // load). Model/prompt are not required in this mode.
     bool run_membw = false;
 
+    // CLI --ramceil: probe how much heap this process can commit, and exit (no
+    // model load). Measures the ceiling a GGUF actually spends against, which
+    // decides model admissibility. Model/prompt are not required in this mode.
+    bool run_ramceil = false;
+
     // CLI --validate-train-job <path.json>: parse + validate a TrainingJob and
     // exit (no model). Part of the training pillar (exploration).
     bool run_validate_train_job = false;

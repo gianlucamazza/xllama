@@ -39,6 +39,8 @@ static void print_help(const char* prog) {
                  "                       back to F16 KV if the arch refuses flash attn\n"
                  "      --membw          Run the CPU memory-bandwidth micro-bench and\n"
                  "                       exit (no model needed); prints read/copy/triad GB/s\n"
+                 "      --ramceil        Probe how much heap this process can commit and\n"
+                 "                       exit (no model needed); prints the CSV rows\n"
                  "      --greedy         Deterministic argmax decode (implies logit parity);\n"
                  "                       overrides --temp/--seed for reproducible output\n"
                  "      --dump-logits <path>\n"
@@ -92,6 +94,7 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         {"repetition-penalty", required_argument, nullptr, 16},
         {"system", required_argument, nullptr, 17},
         {"kv-q8", no_argument, nullptr, 18},
+        {"ramceil", no_argument, nullptr, 19},
         {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0}};
 
@@ -169,6 +172,9 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         case 18:
             out.kv_q8 = true;
             break;
+        case 19:
+            out.run_ramceil = true;
+            break;
         case 'h':
             print_help(argv[0]);
             std::exit(0);
@@ -178,8 +184,10 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         }
     }
 
-    // --membw / train-job modes: model/prompt not required.
+    // --membw / --ramceil / train-job modes: model/prompt not required.
     if (out.run_membw)
+        return true;
+    if (out.run_ramceil)
         return true;
     if (out.run_training_capabilities)
         return true;
