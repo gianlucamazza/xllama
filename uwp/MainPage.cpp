@@ -680,14 +680,19 @@ MainPageController::BuildPromptPlan(const std::string& user_text) const {
     // has to stay coherent with the threshold (#133). It deliberately errs
     // optimistic (drops fewer turns): the exact pass in the worker can only drop
     // more, so nothing routing saw can reappear behind its back.
+    //
+    // The ceiling is a CONTEXT bound and knows nothing about n_predict: the reply's
+    // room belongs to fit_prompt, exactly, in the worker. Charging it here put the
+    // ceiling under token_threshold and killed auto GPU routing for every default
+    // install (see kReservedGenerationTokens).
     int session_n_ctx = ::xllama::kDefaultNCtx;
-    int max_estimated_tokens = ::xllama::max_prompt_tokens_for_n_ctx(session_n_ctx, m_n_predict);
+    int max_estimated_tokens = ::xllama::max_prompt_tokens_for_n_ctx(session_n_ctx);
     std::string role;
     {
         const auto& manifest = CachedManifest();
         if (const auto* e = ::xllama::FindManifestEntry(manifest, m_model_filename)) {
             session_n_ctx = ::xllama::resolve_n_ctx(e->n_ctx);
-            max_estimated_tokens = ::xllama::max_prompt_tokens_for_n_ctx(e->n_ctx, m_n_predict);
+            max_estimated_tokens = ::xllama::max_prompt_tokens_for_n_ctx(e->n_ctx);
             role = ::xllama::wstring_to_utf8(e->role);
         }
     }

@@ -44,6 +44,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   left (#173), every token of undershoot came off the reply. The estimate keeps one
   job, routing, where it must run *before* a tokenizer exists and where being wrong
   costs a routing decision instead of an answer.
+- **Auto GPU routing was unreachable on a default install.** Reserving the reply in
+  the trimmer's ceiling (the fix below) put that ceiling at 1536 tokens for the
+  shipping `n_predict` of 512, under `token_threshold` (1550) — so `decide_routing`
+  could never see a long turn. The two constraints are now owned separately: the
+  estimate ceiling is a context bound (`max_prompt_tokens_for_n_ctx(n_ctx)`, no
+  `n_predict`), the reply's room is `fit_prompt`'s and exact. The reachability pin
+  in `tests/test_routing_policy.cpp` is stated in real tokens, and the `routing`
+  console gate now runs at the shipping `n_predict` instead of a convenient one — a
+  green gate over a dead feature is worse than no gate.
+- **The LAN endpoint had no context budget at all.** A long `messages[]` reached the
+  generator and came back as a `500`. It now fits the prompt with the same primitive
+  and tokenizer as the chat UI (oldest entries dropped first) and returns `400` with
+  the three numbers only when the trailing user message alone cannot fit. New gate:
+  `validate-api.sh budget`.
 - **Replies were silently truncated at ~250 tokens on a full context.** The
   trimmer ceiling reserved a flat 250 tokens for generation while the UI default
   `n_predict` is 512 (slider up to 2048), and the generation loop clamps

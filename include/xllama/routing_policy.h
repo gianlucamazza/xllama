@@ -49,12 +49,15 @@ inline constexpr double kEstimatedCharsPerTokenCoding = 3.5;
 // tests/test_routing_policy.cpp pins the relation (#171).
 inline constexpr int kMaxPromptTokens = 1800;
 
-// Floor for the room reserved to the model reply when deriving a per-session
-// trimmer ceiling from a non-default n_ctx (catalogue coding models use 4096).
-// Callers that know the requested generation length pass it instead: the
-// generation loop clamps n_predict to what the context has left
-// (session.cpp, #173), so a ceiling that reserves less than n_predict truncates
-// the reply silently rather than trimming one more turn of history.
+// Room reserved for the model reply. Owned by xllama::fit_prompt
+// (prompt_budget.h), which enforces it EXACTLY with the model's tokenizer; this
+// header only publishes the floor so both agree on one number.
+//
+// It deliberately does NOT enter the estimate ceiling below. Those are two
+// different constraints with two different owners, and conflating them killed a
+// feature: charging the reply's reserve to the routing ceiling put the ceiling
+// (1536 at the shipping n_predict of 512) UNDER token_threshold (1550), so auto
+// GPU routing became unreachable for every default install — #133 all over again.
 inline constexpr int kReservedGenerationTokens = 250;
 
 // Catalogue n_ctx bounds. 0 / omit → kDefaultNCtx. Above the max is clamped so
@@ -73,18 +76,17 @@ inline constexpr int resolve_n_ctx(int requested) {
     return requested;
 }
 
-// Trimmer ceiling for a session opened at |n_ctx|, leaving |reserved| tokens
-// (at least kReservedGenerationTokens) for the reply. The shipping default keeps
-// the historical kMaxPromptTokens constant (not n-250) so the #171 pin cannot
-// drift by arithmetic alone when kDefaultNCtx is retuned carefully with it.
-inline constexpr int max_prompt_tokens_for_n_ctx(int n_ctx,
-                                                 int reserved = kReservedGenerationTokens) {
+// Estimate ceiling for a session opened at |n_ctx|: the bound the CONTEXT puts on
+// a prompt, which is what has to stay coherent with token_threshold (#133). Not
+// the reply's budget — that is fit_prompt's, applied exactly and later, and it
+// must not shrink this number (see kReservedGenerationTokens). The shipping
+// default keeps the historical kMaxPromptTokens constant (not n-250) so the #171
+// pin cannot drift by arithmetic alone when kDefaultNCtx is retuned with it.
+inline constexpr int max_prompt_tokens_for_n_ctx(int n_ctx) {
     const int n = resolve_n_ctx(n_ctx);
-    if (reserved < kReservedGenerationTokens)
-        reserved = kReservedGenerationTokens;
-    if (n == kDefaultNCtx && reserved == kReservedGenerationTokens)
+    if (n == kDefaultNCtx)
         return kMaxPromptTokens;
-    const int budget = n - reserved;
+    const int budget = n - kReservedGenerationTokens;
     return budget < 256 ? 256 : budget;
 }
 

@@ -25,6 +25,7 @@
     #include "xllama/personalize.h"
     #include "xllama/platform.h"
     #include "xllama/preference_capture.h"
+    #include "xllama/prompt_budget.h"
     #include "xllama/routing_policy.h"
     #include "xllama/session.h"
     #include "xllama/session_hub.h"
@@ -346,10 +347,12 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
     // / role (coding) apply the same policy as the chat UI.
     ::xllama::Session* session = nullptr;
     bool model_is_coding = false;
+    int policy_n_ctx = ::xllama::kDefaultNCtx;
     {
         std::string err;
         const CatalogueSessionPolicy policy = catalogue_session_policy(model);
         model_is_coding = policy.coding;
+        policy_n_ctx = policy.n_ctx;
         ::xllama::SessionParams sp;
         sp.model_path = model;
         sp.n_ctx = policy.n_ctx;
@@ -371,15 +374,41 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
 
     const ::xllama::ChatFormat fmt = ::xllama::chat_format_for(model);
     ::xllama::GenerateParams gp;
-    gp.prompt = fmt.render_prompt(system, history, final_user);
     gp.stop_sequences = fmt.stop_sequences;
     gp.reuse_kv = false; // OpenAI chat is stateless: messages[] carry full history
     // max_tokens is deprecated in favour of max_completion_tokens; accept both.
+    // Parsed BEFORE the prompt is built: the budget below needs to know how much
+    // room the reply asks for.
     gp.n_predict = 512;
     if (root.HasKey(L"max_completion_tokens"))
         gp.n_predict = static_cast<int>(root.GetNamedNumber(L"max_completion_tokens"));
     else if (root.HasKey(L"max_tokens"))
         gp.n_predict = static_cast<int>(root.GetNamedNumber(L"max_tokens"));
+
+    // Same budget as the chat UI, same primitive, same tokenizer: the oldest
+    // messages[] entries are dropped until the prompt plus the requested reply fit
+    // n_ctx (xllama::fit_prompt). Before this, a long conversation reached
+    // Session::generate and came back as a 500 — a client error reported as a
+    // server one, and only after paying the tokenization.
+    {
+        const ::xllama::PromptFit fit = ::xllama::fit_prompt(
+            fmt, system, history, final_user, policy_n_ctx, gp.n_predict,
+            [session](const std::string& text) { return session->count_tokens(text); });
+        if (!fit.fits) {
+            // Nothing older left to drop: the final user message alone does not fit.
+            // That is the client's input, hence 400.
+            status = "400 Bad Request";
+            return error_json("prompt too long: the final user message needs " +
+                              std::to_string(fit.n_tokens) + " tokens plus " +
+                              std::to_string(gp.n_predict) + " for the reply, but n_ctx is " +
+                              std::to_string(policy_n_ctx));
+        }
+        if (fit.dropped > 0)
+            ::xllama::log_output("[xllama] api: dropped " + std::to_string(fit.dropped) +
+                                 " oldest message(s) to fit n_ctx " + std::to_string(policy_n_ctx) +
+                                 "\n");
+        gp.prompt = fit.prompt;
+    }
     if (root.HasKey(L"temperature"))
         gp.temperature = static_cast<float>(root.GetNamedNumber(L"temperature"));
     if (root.HasKey(L"top_p"))

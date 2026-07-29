@@ -64,11 +64,11 @@ if ! [[ "$TRIM_BUDGET" =~ ^[0-9]+$ ]] || [[ -z "$EST_CHARS_PER_TOK" ]]; then
 		"include/xllama/routing_policy.h" >&2
 	exit 1
 fi
-# kMaxPromptTokens is only the ceiling at the DEFAULT reserve: BuildPrompt now
-# reserves the requested n_predict (max_prompt_tokens_for_n_ctx), so a gate that
-# raises n_predict lowers the ceiling its own payload has to fit under. Deriving
-# it here keeps the payloads honest — the #133 failure mode was exactly a gate
-# sizing itself against a constant the app no longer used.
+# kMaxPromptTokens is the estimate ceiling the app actually trims by, and it does
+# not depend on n_predict (the reply's room is enforced later and exactly, by
+# fit_prompt). trim_ceiling stays as the one place a gate asks for that number, so
+# a future retune cannot leave a payload sized against a constant the app no
+# longer uses — the #133 failure mode.
 DEFAULT_N_CTX=$(sed -n 's/.*kDefaultNCtx = \([0-9]\+\);.*/\1/p' \
 	"${REPO_ROOT}/include/xllama/inference_params.h" | head -n1)
 RESERVED_GEN=$(sed -n 's/.*kReservedGenerationTokens = \([0-9]\+\);.*/\1/p' \
@@ -79,14 +79,15 @@ if ! [[ "$DEFAULT_N_CTX" =~ ^[0-9]+$ ]] || ! [[ "$RESERVED_GEN" =~ ^[0-9]+$ ]]; 
 fi
 # trim_ceiling <n_predict> — the estimated-token budget a gate's payload must fit
 # under on the shipping context, for the n_predict that gate sets.
+# trim_ceiling [n_ctx] — the estimated-token ceiling a gate's payload must fit
+# under. n_predict is deliberately NOT an input.
 trim_ceiling() {
-	local n_predict="${1:-0}" reserved="$RESERVED_GEN" budget
-	((n_predict > reserved)) && reserved="$n_predict"
-	if ((reserved == RESERVED_GEN)); then
+	local n_ctx="${1:-$DEFAULT_N_CTX}" budget
+	if ((n_ctx == DEFAULT_N_CTX)); then
 		echo "$TRIM_BUDGET"
 		return
 	fi
-	budget=$((DEFAULT_N_CTX - reserved))
+	budget=$((n_ctx - RESERVED_GEN))
 	((budget < 256)) && budget=256
 	echo "$budget"
 }
@@ -374,10 +375,11 @@ JSON
 	# a decoy sized against it cannot be trimmed away behind routing's back.
 	local esca_id="ap-routing-longctx"
 	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
-	# n_predict is pinned at 128 in the autopilot below (under the 250 floor), so
-	# the ceiling is deterministic instead of inherited from whatever gate ran last.
+	# n_predict is pinned at the SHIPPING default (512) in the autopilot below: a
+	# gate that picks a convenient value can be green over a dead feature, which is
+	# exactly what hid the ceiling-under-threshold bug.
 	python3 - "$REPO_ROOT" "$TMPDIR_LOCAL" "$esca_id" "$ROUTING_THRESHOLD" \
-		"$(trim_ceiling 128)" "$EST_CHARS_PER_TOK" <<'PY'
+		"$(trim_ceiling)" "$EST_CHARS_PER_TOK" <<'PY'
 import json, re, sys
 repo, tmp, cid = sys.argv[1], sys.argv[2], sys.argv[3]
 threshold, trim_budget, est_cpt = int(sys.argv[4]), int(sys.argv[5]), float(sys.argv[6])
@@ -432,7 +434,7 @@ PY
 	marker=$(
 		run_autopilot 1300 <<JSON
 {"total_timeout_s": 900, "actions": [
-  {"op": "set_sampling", "n_predict": 128, "temperature": 0.7},
+  {"op": "set_sampling", "n_predict": 512, "temperature": 0.7},
   {"op": "load_chat", "id": "${esca_id}"},
   {"op": "send", "text": "continue", "timeout_s": 300},
   {"op": "send", "text": "ok", "timeout_s": 120},
@@ -557,7 +559,7 @@ validate_longchat() {
 	# full re-prefill and no "context full" error may surface.
 	local cid="ap-169-longchat"
 	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
-	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling 256)" "$EST_CHARS_PER_TOK" <<'PY'
+	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling)" "$EST_CHARS_PER_TOK" <<'PY'
 import json, sys
 tmp, cid = sys.argv[1], sys.argv[2]
 budget, est_cpt = int(sys.argv[3]), float(sys.argv[4])
@@ -654,7 +656,7 @@ validate_kvsnap() {
 	# the prompt-token count of the returning turn against the cold one.
 	local cid="ap-170b-switch"
 	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
-	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling 24)" "$EST_CHARS_PER_TOK" <<'PY'
+	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling)" "$EST_CHARS_PER_TOK" <<'PY'
 import json, sys
 tmp, cid = sys.argv[1], sys.argv[2]
 budget, est_cpt = int(sys.argv[3]), float(sys.argv[4])
@@ -956,7 +958,7 @@ validate_genroom() {
 	# keeps the verdict independent of whether this small model feels talkative.
 	local cid="ap-193-genroom" n_predict=512
 	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
-	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling "$n_predict")" "$EST_CHARS_PER_TOK" "$n_predict" <<'PYROOM'
+	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling)" "$EST_CHARS_PER_TOK" "$n_predict" <<'PYROOM'
 import json, sys
 tmp, cid = sys.argv[1], sys.argv[2]
 ceiling, est_cpt = int(sys.argv[3]), float(sys.argv[4])

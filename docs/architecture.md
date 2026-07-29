@@ -224,15 +224,26 @@ answer for history dropped that would have fit.
 So the estimate keeps exactly one job: **routing**. `decide_routing` needs a token
 count before a model — hence a tokenizer — has been chosen, and its ceiling has to
 stay coherent with `token_threshold` (#133). `BuildPromptPlan` therefore trims by
-`max_prompt_tokens_for_n_ctx(n_ctx, n_predict)` with the optimistic
-`kEstimatedCharsPerToken`, and being optimistic is the point: it drops *fewer*
-turns, so the exact pass can only tighten and nothing routing saw reappears behind
-its back. Getting that estimate wrong costs a routing decision, not an answer.
+`max_prompt_tokens_for_n_ctx(n_ctx)` with the optimistic `kEstimatedCharsPerToken`,
+and being optimistic is the point: it drops *fewer* turns, so the exact pass can
+only tighten and nothing routing saw reappears behind its back. Getting that
+estimate wrong costs a routing decision, not an answer.
 
-`max_prompt_tokens_for_n_ctx(n_ctx, reserved)` → `n_ctx − reserved`, floor 256,
-with `kReservedGenerationTokens` (250) as the reserve floor; the shipping default
-at the default reserve keeps the historical `kMaxPromptTokens` (1800) so the #171
-pin does not drift by arithmetic alone.
+**The two ceilings are separate on purpose.**
+`max_prompt_tokens_for_n_ctx(n_ctx)` → `n_ctx − 250`, floor 256, with the shipping
+context keeping the historical `kMaxPromptTokens` (1800) so the #171 pin cannot
+drift by arithmetic. It is a **context** bound and takes no `n_predict`: the
+reply's room belongs to `fit_prompt`, exactly and later. Charging the reply's
+reserve to this ceiling is not a shortcut, it is a feature killer — at the shipping
+`n_predict` of 512 the ceiling becomes 1536, *below* `token_threshold` (1550), so
+`decide_routing` can never see a long turn and auto GPU routing dies on every
+default install. That is #133 a third time; `tests/test_routing_policy.cpp` now
+pins the reachability in real tokens, and the `routing` console gate runs at the
+shipping `n_predict` rather than a convenient one.
+
+Both surfaces enforce the same budget with the same primitive: the chat UI in its
+turn worker, and `POST /v1/chat/completions` before it generates (a client whose
+final message alone cannot fit gets a `400`, not a `500` from the generator).
 
 The prefill itself is chunked at `llama_n_batch` (`LlamaSession::generate`,
 `run_inference`): an oversized logical batch is not an error return from

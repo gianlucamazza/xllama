@@ -5,15 +5,17 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/validate-api.sh <spike|chat|prefs|train|all>
+#   ./scripts/validate-api.sh <spike|chat|budget|prefs|train|all>
 #
 #   spike  bind gate only: GET / -> HTTP 200 (proves the StreamSocketListener
 #          survives the Series S firewall/PLM). No inference.
 #   chat   POST /v1/chat/completions -> non-empty assistant content + a 503-busy
 #          check (two concurrent requests). Implies the spike gate first.
+#   budget context budget over the wire: a long messages[] is trimmed and answered,
+#          an oversized single message is 400 "prompt too long" (not 500).
 #   prefs  POST /v1/preferences -> appends a like sample (#118).
 #   train  GET /v1/training/status -> JSON with state + usable_samples (#118).
-#   all    spike + chat + prefs + train (images need SD-Turbo on device — manual).
+#   all    spike + chat + budget + prefs + train (images need SD-Turbo on device — manual).
 #
 # Requires: an installed xllama build with the endpoint, a chat model already in
 # LocalState (set MODEL, or seed LocalState\model.txt), and XBOX_IP/USER/PASS.
@@ -228,6 +230,68 @@ validate_train() {
 	return 1
 }
 
+# --- context budget over the wire ------------------------------------------
+
+validate_budget() {
+	echo "=== budget: a long conversation is trimmed, an oversized message is 400 ==="
+	# The LAN endpoint used to have no context budget at all: a long messages[]
+	# reached Session::generate and came back 500 — a client error reported as a
+	# server one. It now applies the same primitive as the chat UI
+	# (xllama::fit_prompt): drop the oldest entries, and 400 only when the final
+	# user message alone cannot fit.
+	local verdict=0 req resp code
+
+	# A. many old turns + a short question: must answer, not fail.
+	req=$(python3 - <<'PYBUDGET'
+import json
+filler = ("The harbour master logged tide tables, cargo manifests and the crane "
+          "maintenance schedule for pier seven, then filed the quarterly figures. ")
+msgs = []
+for i in range(40):
+    msgs.append({"role": "user", "content": f"Item {i:02d}: " + filler * 3})
+    msgs.append({"role": "assistant", "content": f"Logged item {i:02d}."})
+msgs.append({"role": "user", "content": "Reply with the single word OK."})
+print(json.dumps({"model": "__MODEL__", "messages": msgs, "max_tokens": 24}))
+PYBUDGET
+	)
+	req=${req/__MODEL__/$MODEL}
+	code=$(curl -sS -m 300 -o "${TMPDIR_LOCAL}/budget-a.json" -w "%{http_code}" \
+		-H 'Content-Type: application/json' -d "$req" \
+		"${API_URL}/v1/chat/completions" || echo "000")
+	resp=$(cat "${TMPDIR_LOCAL}/budget-a.json" 2>/dev/null || true)
+	echo "  A HTTP ${code}: ${resp:0:120}"
+	if [[ "$code" == "200" ]] && grep -q '"content"' <<<"$resp"; then
+		echo "  ok: a history far past n_ctx was trimmed and answered"
+	else
+		echo "  FAIL: a long conversation must be trimmed, not rejected"
+		verdict=1
+	fi
+
+	# B. one oversized user message: 400, and the body says why.
+	req=$(python3 - <<'PYBUDGET'
+import json
+print(json.dumps({"model": "__MODEL__",
+                  "messages": [{"role": "user", "content": "x " * 20000}],
+                  "max_tokens": 24}))
+PYBUDGET
+	)
+	req=${req/__MODEL__/$MODEL}
+	code=$(curl -sS -m 300 -o "${TMPDIR_LOCAL}/budget-b.json" -w "%{http_code}" \
+		-H 'Content-Type: application/json' -d "$req" \
+		"${API_URL}/v1/chat/completions" || echo "000")
+	resp=$(cat "${TMPDIR_LOCAL}/budget-b.json" 2>/dev/null || true)
+	echo "  B HTTP ${code}: ${resp:0:160}"
+	if [[ "$code" == "400" ]] && grep -q 'prompt too long' <<<"$resp"; then
+		echo "  ok: refused as a client error, with the numbers"
+	else
+		echo "  FAIL: an unfittable message must be 400 'prompt too long' (not 500, not 200)"
+		verdict=1
+	fi
+
+	[[ $verdict -eq 0 ]] && echo "budget: PASS" || echo "budget: FAIL"
+	return $verdict
+}
+
 # --- dispatch --------------------------------------------------------------
 
 CMD="${1:-}"
@@ -236,6 +300,10 @@ spike) validate_spike ;;
 chat)
 	validate_spike || exit 1
 	validate_chat
+	;;
+budget)
+	validate_spike || exit 1
+	validate_budget
 	;;
 prefs)
 	validate_spike || exit 1
@@ -253,6 +321,7 @@ all)
 		exit 1
 	}
 	validate_chat || rc=1
+	validate_budget || rc=1
 	validate_prefs || rc=1
 	validate_train || rc=1
 	echo
