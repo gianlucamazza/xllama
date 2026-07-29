@@ -671,12 +671,18 @@ std::string MainPageController::BuildPrompt(const std::string& user_text, int* o
     // Catalogue coding models open a larger n_ctx and use a denser
     // chars-per-token estimate so long source/diff pastes trim earlier rather
     // than overflowing generate().
-    int max_estimated_tokens = ::xllama::kMaxPromptTokens;
+    //
+    // The ceiling reserves the requested generation length, not a flat 250: the
+    // generation loop clamps n_predict to n_ctx - prompt (#173), so a prompt
+    // filling the old ceiling cut the reply at ~248 tokens instead of dropping
+    // one more turn of history — silently, with no error and no log.
+    int max_estimated_tokens =
+        ::xllama::max_prompt_tokens_for_n_ctx(::xllama::kDefaultNCtx, m_n_predict);
     double chars_per_token = ::xllama::kEstimatedCharsPerToken;
     {
         const auto& manifest = CachedManifest();
         if (const auto* e = ::xllama::FindManifestEntry(manifest, m_model_filename)) {
-            max_estimated_tokens = ::xllama::max_prompt_tokens_for_n_ctx(e->n_ctx);
+            max_estimated_tokens = ::xllama::max_prompt_tokens_for_n_ctx(e->n_ctx, m_n_predict);
             chars_per_token =
                 ::xllama::chars_per_token_for_role(::xllama::wstring_to_utf8(e->role));
         }
@@ -776,6 +782,13 @@ void MainPageController::SaveCurrentConversation(bool partial) {
 // matches the rendered prompt collapses to a normal prefill.
 void MainPageController::SaveKvSnapshotAsync() {
     if (!m_kv_reuse || !m_kv_valid || m_current.messages.empty())
+        return;
+    // Thinking models: the saved history holds the STRIPPED answer while the KV
+    // holds the full <think> stream, so the #170a prefix diff always diverges
+    // inside the first assistant turn on return — and on LFM's hybrid cache a
+    // tail rewind is refused, collapsing to a full re-prefill. The snapshot
+    // would cost tens of MB of writes to buy nothing.
+    if (chat_format().strip_thinking_content)
         return;
     const std::string routed =
         ::xllama::wstring_to_utf8(m_active_model.empty() ? m_model_filename : m_active_model);
@@ -2910,37 +2923,62 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
             }
 
             std::string output_text = fmt.postprocess_output(res.output_text);
+            // A thinking model whose reasoning ran out of tokens leaves NOTHING
+            // after postprocess (strip_thinking_blocks drops an unclosed
+            // <think> to EOF). Without a stand-in the turn vanished: no message
+            // saved, no FinalizeStreamedTurn, the streamed chain of thought left
+            // orphaned on screen and a status of "Done". Say what happened
+            // instead — the fix for the cut-off reply is the Max-new-tokens box.
+            const bool thinking_only = output_text.empty() && !res.output_text.empty();
+            if (thinking_only) {
+                output_text = "(reasoning only — the answer did not fit; raise \"Max new "
+                              "tokens\" in Settings)";
+                ::xllama::log_output(
+                    "[xllama] postprocess left no answer (truncated reasoning block)\n");
+            }
             bool was_aborted = self->m_abort.load();
-            dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, metrics, res, output_text,
-                                                                 was_aborted, ep_kv_ok]() {
-                self->m_metricsText.Text(metrics);
-                self->SetStatus(was_aborted ? L"Cancelled" : (res.success ? L"Done" : L"Error"),
-                                was_aborted
-                                    ? StatusKind::Info
-                                    : (res.success ? StatusKind::Success : StatusKind::Error));
-                self->SetRunning(false); // also stops timer + flushes remaining tokens
-                // KV-reuse bookkeeping: the persistent generator now holds this
-                // turn only if it completed cleanly. On failure or abort, force a
-                // fresh generator (full re-prefill) next turn.
-                if (self->m_kv_reuse && res.success && !was_aborted && ep_kv_ok) {
-                    self->m_kv_valid = true;
-                    self->m_kv_last_ended_with_stop = res.ended_with_stop;
-                } else {
-                    self->m_kv_valid = false;
-                }
-                // Save assistant response (partial-flagged if user aborted)
-                if (!output_text.empty()) {
-                    xllama::ui::ChatMessage amsg;
-                    amsg.role = xllama::ui::MessageRole::Assistant;
-                    amsg.content = output_text;
-                    amsg.ts_unix = static_cast<int64_t>(std::time(nullptr));
-                    amsg.partial = was_aborted;
-                    self->m_current.messages.push_back(std::move(amsg));
-                }
-                self->SaveCurrentConversation(was_aborted);
-                if (!was_aborted && !output_text.empty())
-                    self->FinalizeStreamedTurn(output_text);
-            });
+            dispatcher.RunAsync(
+                CoreDispatcherPriority::Normal,
+                [self, metrics, res, output_text, was_aborted, ep_kv_ok, thinking_only]() {
+                    self->m_metricsText.Text(metrics);
+                    const wchar_t* status_text = L"Error";
+                    StatusKind status_kind = StatusKind::Error;
+                    if (was_aborted) {
+                        status_text = L"Cancelled";
+                        status_kind = StatusKind::Info;
+                    } else if (res.success && thinking_only) {
+                        // Not a failure and not a normal answer: the model spent the
+                        // whole budget reasoning.
+                        status_text = L"Reasoning cut off — raise Max new tokens";
+                        status_kind = StatusKind::Info;
+                    } else if (res.success) {
+                        status_text = L"Done";
+                        status_kind = StatusKind::Success;
+                    }
+                    self->SetStatus(status_text, status_kind);
+                    self->SetRunning(false); // also stops timer + flushes remaining tokens
+                    // KV-reuse bookkeeping: the persistent generator now holds this
+                    // turn only if it completed cleanly. On failure or abort, force a
+                    // fresh generator (full re-prefill) next turn.
+                    if (self->m_kv_reuse && res.success && !was_aborted && ep_kv_ok) {
+                        self->m_kv_valid = true;
+                        self->m_kv_last_ended_with_stop = res.ended_with_stop;
+                    } else {
+                        self->m_kv_valid = false;
+                    }
+                    // Save assistant response (partial-flagged if user aborted)
+                    if (!output_text.empty()) {
+                        xllama::ui::ChatMessage amsg;
+                        amsg.role = xllama::ui::MessageRole::Assistant;
+                        amsg.content = output_text;
+                        amsg.ts_unix = static_cast<int64_t>(std::time(nullptr));
+                        amsg.partial = was_aborted;
+                        self->m_current.messages.push_back(std::move(amsg));
+                    }
+                    self->SaveCurrentConversation(was_aborted);
+                    if (!was_aborted && !output_text.empty())
+                        self->FinalizeStreamedTurn(output_text);
+                });
         } catch (const std::exception& ex) {
             ::xllama::log_output(std::string("[xllama] thread terminated: ") + ex.what() + "\n");
             dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self]() {

@@ -48,7 +48,11 @@ std::string strip_empty_thinking_tags(std::string text);
 
 // Remove complete <think>…</think> blocks (any content). If an unclosed
 // <think> remains (n_predict cut mid-thought), drop from that open to EOF so
-// the UI does not keep raw reasoning. Leading/trailing whitespace cleaned.
+// the UI does not keep raw reasoning — which can leave an EMPTY string, and
+// callers must handle that (see the empty-after-postprocess path in
+// MainPage.cpp). A </think> with no opener before it (the model's template
+// opened the reasoning) drops everything up to and including that closer.
+// Leading/trailing whitespace cleaned.
 std::string strip_thinking_blocks(std::string text);
 
 // Stop-sequence check for streamed generation. Call after each token is appended

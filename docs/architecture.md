@@ -92,12 +92,12 @@ Prompt formatting is data-driven, not hard-coded. `chat_format_for(model_id)`
 Detection uses the **basename only** (never path segments — a cache dir named
 `xllama` must not select Llama-3). Families:
 
-| Kind | Markers | System style | Typical catalogue |
-| --- | --- | --- | --- |
-| **ChatML** | `<\|im_start\|>` … `<\|im_end\|>` | Dedicated system turn | SmolLM2, LFM, Qwen2.5-Coder, Qwen3 |
-| **Gemma** | `<start_of_turn>` … `<end_of_turn>` | Merge system into first user | `gemma3-270m`, `gemma4-e2b` |
-| **Llama-3** | header / `eot` tokens | Dedicated system turn | `llama32-3b` |
-| **Phi-3** | `<\|user\|>` … `<\|end\|>` | Dedicated system turn | Phi GGUFs (campaign / override) |
+| Kind        | Markers                             | System style                 | Typical catalogue                  |
+| ----------- | ----------------------------------- | ---------------------------- | ---------------------------------- |
+| **ChatML**  | `<\|im_start\|>` … `<\|im_end\|>`   | Dedicated system turn        | SmolLM2, LFM, Qwen2.5-Coder, Qwen3 |
+| **Gemma**   | `<start_of_turn>` … `<end_of_turn>` | Merge system into first user | `gemma3-270m`, `gemma4-e2b`        |
+| **Llama-3** | header / `eot` tokens               | Dedicated system turn        | `llama32-3b`                       |
+| **Phi-3**   | `<\|user\|>` … `<\|end\|>`          | Dedicated system turn        | Phi GGUFs (campaign / override)    |
 
 **Qwen3 vs Qwen2.5 (no-think prefill).** Qwen3.x with `enable_thinking=false`
 expects an empty `<think>\n\n</think>` block after the assistant header.
@@ -191,10 +191,10 @@ Optional per-entry fields used at **session open** (not only download). Helpers
 live next to the prompt budget in `routing_policy.h` so the trimmer and
 `kDefaultNCtx` cannot drift independently (#171 / #133 class):
 
-| Field | Contract |
-| --- | --- |
-| **`n_ctx`** | `0`/omit → `kDefaultNCtx` (2048). Else clamped by `resolve_n_ctx` to **[512, 8192]**. Applied in `EnsureSession` and the LAN chat handler when opening the hub session. Coding catalogue entries use **4096**. |
-| **`role`** | `""` (default chat) or **`"coding"`**. Effects only: (1) UI trimmer uses `kEstimatedCharsPerTokenCoding` (3.5) instead of prose 5.0; (2) LAN `POST /v1/chat/completions` with **empty** `system` fills `kCodingSystemPrompt` instead of `kDefaultSystemPrompt`. |
+| Field       | Contract                                                                                                                                                                                                                                                        |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`n_ctx`** | `0`/omit → `kDefaultNCtx` (2048). Else clamped by `resolve_n_ctx` to **[512, 8192]**. Applied in `EnsureSession` and the LAN chat handler when opening the hub session. Coding catalogue entries use **4096**.                                                  |
+| **`role`**  | `""` (default chat) or **`"coding"`**. Effects only: (1) UI trimmer uses `kEstimatedCharsPerTokenCoding` (3.5) instead of prose 5.0; (2) LAN `POST /v1/chat/completions` with **empty** `system` fills `kCodingSystemPrompt` instead of `kDefaultSystemPrompt`. |
 
 **Explicit non-effects (do not re-introduce):**
 
@@ -205,10 +205,19 @@ live next to the prompt budget in `routing_policy.h` so the trimmer and
 - There is **no** third “coding” pillar or FIM path. Coding chat is the same
   GGUF/`Session`/`ChatFormat` stack as general chat.
 
-Trimmer ceiling for a non-default context: `max_prompt_tokens_for_n_ctx(n_ctx)`
-→ `n_ctx − kReservedGenerationTokens` (250), with the shipping default kept as
-the historical constant `kMaxPromptTokens` (1800) so the #171 pin does not drift
-by arithmetic alone.
+Trimmer ceiling: `max_prompt_tokens_for_n_ctx(n_ctx, reserved)` →
+`n_ctx − reserved`, where `reserved` is the requested generation length with
+`kReservedGenerationTokens` (250) as its floor and 256 tokens as the prompt floor.
+The shipping default with the default reserve keeps the historical constant
+`kMaxPromptTokens` (1800) so the #171 pin does not drift by arithmetic alone.
+Reserving the actual `n_predict` matters because the generation loop clamps it to
+what the context has left (#173): a ceiling that reserves less cuts the reply
+silently instead of dropping one more turn of history.
+
+The prefill itself is chunked at `llama_n_batch` (`LlamaSession::generate`,
+`run_inference`): an oversized logical batch is not an error return from
+`llama_decode` but a `GGML_ASSERT` abort, and `n_batch` defaults to
+`min(n_ctx, 2048)` — well below the 4096-token coding ceiling.
 
 Inventory / ship status of models: [model-matrix.md](model-matrix.md). Ops for
 adding entries: [model-selection.md](model-selection.md).
@@ -340,13 +349,26 @@ The shipping product is **multi-turn chat** (UI + optional LAN OpenAI-compat
 chat) on a **single resident session**. The following are **not** implemented
 and must not be half-added:
 
-| Surface | Status | Why deferred / rule |
-| --- | --- | --- |
-| Chat instruct (all catalogue text models) | **In scope** | One `ChatFormat` + `Session::generate` |
-| Coding **chat** (`role: coding`, larger `n_ctx`) | **In scope** | Same path; catalogue policy only |
-| Thinking models (basename `thinking`) | **In scope** | ChatML; `strip_thinking_content` → `postprocess_output` drops `<think>…</think>` for display/persist (KV still saw full stream). Catalogue: `lfm25-1.2b-thinking` |
-| FIM / fill-in-middle / IDE completion | **Out** | Second prompt surface (`render_fim` + completions route); not wired |
-| Tool-calling / agent loops | **Out** | Schema + multi-step orchestration above `Session` |
+| Surface                                          | Status       | Why deferred / rule                                                                                                                                               |
+| ------------------------------------------------ | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chat instruct (all catalogue text models)        | **In scope** | One `ChatFormat` + `Session::generate`                                                                                                                            |
+| Coding **chat** (`role: coding`, larger `n_ctx`) | **In scope** | Same path; catalogue policy only                                                                                                                                  |
+| Thinking models (basename `thinking`)            | **In scope** | ChatML; `strip_thinking_content` → `postprocess_output` drops `<think>…</think>` for display/persist (KV still saw full stream). Catalogue: `lfm25-1.2b-thinking` |
+| FIM / fill-in-middle / IDE completion            | **Out**      | Second prompt surface (`render_fim` + completions route); not wired                                                                                               |
+| Tool-calling / agent loops                       | **Out**      | Schema + multi-step orchestration above `Session`                                                                                                                 |
+
+Two consequences of "the history is stripped, the KV is not", both deliberate:
+
+- **No KV snapshot (#170b) for thinking models.** On return, the rendered prompt
+  (stripped) diverges from the resident tokens (full CoT) inside the first
+  assistant turn, so the #170a prefix diff collapses — on LFM's hybrid cache, to a
+  full re-prefill. `SaveKvSnapshotAsync` returns early instead of writing tens of MB
+  to buy nothing. In-conversation delta reuse is unaffected: there the KV is the
+  truth and `render_delta` only closes the turn.
+- **An answer can postprocess to empty** when the reasoning block is truncated
+  (`n_predict` exhausted). The UI substitutes an explicit "reasoning only" turn:
+  before, the message was dropped silently, leaving the raw CoT orphaned on screen
+  and a user turn with no reply in the saved history.
 
 **Gate to catalogue:** measure on host Release → console headless bench → only
 then a `manifest.json` entry with a **complete** product path (template, load,

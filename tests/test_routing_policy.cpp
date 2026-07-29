@@ -6,6 +6,8 @@
 #include "xllama/inference_params.h" // kDefaultNCtx (#171)
 #include "xllama/routing_policy.h"
 
+#include <algorithm>
+
 using namespace xllama;
 
 TEST_CASE("routing: cpu-only") {
@@ -169,6 +171,32 @@ TEST_CASE("max_prompt_tokens_for_n_ctx tracks session size") {
     CHECK(max_prompt_tokens_for_n_ctx(4096) == 4096 - kReservedGenerationTokens);
     CHECK(max_prompt_tokens_for_n_ctx(4096) > kMaxPromptTokens);
     CHECK(max_prompt_tokens_for_n_ctx(4096) < 4096);
+}
+
+TEST_CASE("max_prompt_tokens_for_n_ctx reserves the requested generation length") {
+    // The generation loop clamps n_predict to n_ctx - prompt (session.cpp,
+    // #173): a ceiling that reserves less than the requested n_predict cuts the
+    // reply silently instead of dropping one more turn. The UI default (512)
+    // is above the 250 floor, so it must move the ceiling on BOTH the shipping
+    // context and a catalogue coding one.
+    CHECK(max_prompt_tokens_for_n_ctx(kDefaultNCtx, 512) == kDefaultNCtx - 512);
+    CHECK(max_prompt_tokens_for_n_ctx(kDefaultNCtx, 512) < kMaxPromptTokens);
+    CHECK(max_prompt_tokens_for_n_ctx(4096, 512) == 4096 - 512);
+    // For every slider position (16..2048), a prompt sitting exactly on the
+    // ceiling still leaves room for the whole requested reply — unless the
+    // 256-token prompt floor kicks in first.
+    for (const int n_predict : {16, 256, 512, 1024, 2048}) {
+        for (const int n_ctx : {kDefaultNCtx, 4096}) {
+            const int ceiling = max_prompt_tokens_for_n_ctx(n_ctx, n_predict);
+            CHECK(ceiling >= 256);
+            CHECK(n_ctx - ceiling >= std::min(n_predict, n_ctx - 256));
+        }
+    }
+    // Below the floor the reserve does not shrink (250 stays the minimum).
+    CHECK(max_prompt_tokens_for_n_ctx(4096, 16) == max_prompt_tokens_for_n_ctx(4096));
+    CHECK(max_prompt_tokens_for_n_ctx(kDefaultNCtx, 0) == kMaxPromptTokens);
+    // A reserve as large as the context still leaves a usable prompt window.
+    CHECK(max_prompt_tokens_for_n_ctx(kDefaultNCtx, kDefaultNCtx) == 256);
 }
 
 TEST_CASE("role_is_coding and denser token estimate") {

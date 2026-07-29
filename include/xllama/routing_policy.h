@@ -49,8 +49,12 @@ inline constexpr double kEstimatedCharsPerTokenCoding = 3.5;
 // tests/test_routing_policy.cpp pins the relation (#171).
 inline constexpr int kMaxPromptTokens = 1800;
 
-// Reserved room for the model reply when deriving a per-session trimmer ceiling
-// from a non-default n_ctx (catalogue coding models use 4096).
+// Floor for the room reserved to the model reply when deriving a per-session
+// trimmer ceiling from a non-default n_ctx (catalogue coding models use 4096).
+// Callers that know the requested generation length pass it instead: the
+// generation loop clamps n_predict to what the context has left
+// (session.cpp, #173), so a ceiling that reserves less than n_predict truncates
+// the reply silently rather than trimming one more turn of history.
 inline constexpr int kReservedGenerationTokens = 250;
 
 // Catalogue n_ctx bounds. 0 / omit → kDefaultNCtx. Above the max is clamped so
@@ -69,14 +73,18 @@ inline constexpr int resolve_n_ctx(int requested) {
     return requested;
 }
 
-// Trimmer ceiling for a session opened at |n_ctx|. The shipping default keeps
+// Trimmer ceiling for a session opened at |n_ctx|, leaving |reserved| tokens
+// (at least kReservedGenerationTokens) for the reply. The shipping default keeps
 // the historical kMaxPromptTokens constant (not n-250) so the #171 pin cannot
 // drift by arithmetic alone when kDefaultNCtx is retuned carefully with it.
-inline constexpr int max_prompt_tokens_for_n_ctx(int n_ctx) {
+inline constexpr int max_prompt_tokens_for_n_ctx(int n_ctx,
+                                                 int reserved = kReservedGenerationTokens) {
     const int n = resolve_n_ctx(n_ctx);
-    if (n == kDefaultNCtx)
+    if (reserved < kReservedGenerationTokens)
+        reserved = kReservedGenerationTokens;
+    if (n == kDefaultNCtx && reserved == kReservedGenerationTokens)
         return kMaxPromptTokens;
-    const int budget = n - kReservedGenerationTokens;
+    const int budget = n - reserved;
     return budget < 256 ? 256 : budget;
 }
 

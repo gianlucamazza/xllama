@@ -21,6 +21,43 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Design / BP docs:** catalogue policy, validation ladder, deferred FIM/tools.
 - **Linux peak RSS.** `peak_working_set_mb()` via `/proc` VmHWM.
 
+### Fixed
+
+- **A long prompt aborted the process instead of failing (llama.cpp backend).**
+  Both prefills (`LlamaSession::generate` and `run_inference`) submitted the whole
+  prompt as ONE logical batch, and `llama_decode` does not return an error for an
+  oversized batch — it trips `GGML_ASSERT(n_tokens_all <= cparams.n_batch)`, which
+  aborts in Release too. `n_batch` defaults to `min(n_ctx, 2048)`, so ~2049 real
+  tokens were enough: reachable from the chat UI (the coding tier's 4096-token
+  session lets the trimmer pass 3846 tokens) and from the LAN API, which caps the
+  body at 8 MB and the token count not at all. The prefill is now chunked at
+  `llama_n_batch`; the physical ubatch (512, the #172 optimum the prefill rate was
+  measured on) is unchanged. A full prompt that cannot fit `n_ctx` at all now
+  fails fast with an actionable message, the way a continuation already did (#173).
+- **Replies were silently truncated at ~250 tokens on a full context.** The
+  trimmer ceiling reserved a flat 250 tokens for generation while the UI default
+  `n_predict` is 512 (slider up to 2048), and the generation loop clamps
+  `n_predict` to what the context has left — so a prompt sitting on the ceiling
+  got a cut-off answer with no error and no log, instead of the trimmer dropping
+  one more turn of history. `max_prompt_tokens_for_n_ctx` now reserves the
+  requested generation length (250 stays the floor, 256 the prompt floor).
+- **A thinking model could lose a whole turn.** When the reasoning block ran out
+  of tokens, `postprocess_output` correctly returned an empty answer — and the UI
+  then saved no message and never replaced the streamed paragraph, leaving raw
+  chain of thought on screen, a user turn with no reply in the history, and a
+  status of "Done". It now stores an explicit "reasoning only" turn and says so.
+- **`strip_thinking_blocks` handles a closer with no opener** (`reasoning…</think>
+answer`, when the template opens the block): previously the whole chain of
+  thought and the raw tag reached the screen and the saved history.
+- **No KV snapshot for thinking models (#170b).** The saved history is stripped
+  while the resident KV holds the full CoT, so on return the #170a prefix diff
+  always diverges (a full re-prefill on LFM's hybrid cache): the snapshot cost
+  tens of MB of writes to buy nothing. In-conversation delta reuse is unaffected.
+- **LAN chat no longer parses the catalogue on every request** — the manifest
+  (bundled file + LocalState override) was read under `hub.mtx` in front of every
+  model load; it is cached now, with a re-read on a miss so a model published
+  while the server runs is still picked up.
+
 ## [1.5.1.0] - 2026-07-27
 
 The Phase 13 CPU-prefill and KV-reuse campaign, shipped. Every turn a chat

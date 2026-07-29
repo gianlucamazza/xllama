@@ -217,6 +217,98 @@ TEST_CASE("Session: KV prefix reuse collapses a repeated prefill (opt-in: XLLAMA
     }
 }
 
+// A prompt longer than the logical batch must be prefilled in chunks. This is
+// not a "nicer error" test: llama_decode ASSERTS n_tokens <= n_batch (GGML_ABORT,
+// Release included), so before the chunking this test process died. n_batch
+// defaults to min(n_ctx, 2048), so the regime only exists above the shipping
+// context — which is exactly what the coding catalogue opens (n_ctx 4096, ceiling
+// 3846 prompt tokens). Opt-in — needs a real GGUF:
+//   XLLAMA_TEST_MODEL=/path/to/model.gguf ./xllama-tests
+TEST_CASE("Session: a prompt past n_batch prefills in chunks (opt-in: XLLAMA_TEST_MODEL)") {
+    const char* model_env = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model_env)
+        return;
+
+    // Same regime as a 4096-token coding session with the default 2048 batch,
+    // at 1/30th of the tokens: what matters is prompt > n_batch, and n_batch is
+    // a knob. A 2100-token prefill in a Debug build takes minutes; this runs in
+    // seconds and fails identically (an abort, not a failed assertion) without
+    // the chunking.
+    xllama::SessionParams sp;
+    sp.model_path = model_env;
+    sp.n_ctx = 512;
+    sp.n_batch = 64;
+    std::string err;
+    auto sess = xllama::Session::create(sp, &err);
+    REQUIRE_MESSAGE(sess, err);
+
+    // Grow past n_batch with the model's own tokenizer, so the test does not
+    // depend on one vocabulary's density.
+    std::string prompt = "Summarize the following log.\n";
+    int n_prompt = 0;
+    for (int i = 0; i < 200 && n_prompt <= 96; ++i) {
+        prompt += "line " + std::to_string(i) + ": nothing happened\n";
+        if ((i % 4) == 3)
+            n_prompt = sess->count_tokens(prompt);
+    }
+    n_prompt = sess->count_tokens(prompt);
+    REQUIRE(n_prompt > sp.n_batch); // past the logical batch: the regime under test
+    REQUIRE(n_prompt < 400);        // still inside n_ctx with room to generate
+
+    xllama::GenerateParams gp;
+    gp.prompt = prompt;
+    gp.n_predict = 8;
+    gp.temperature = 0.0f; // greedy: the two sessions below must agree
+    const auto r = sess->generate(gp);
+    REQUIRE_MESSAGE(r.success, r.error_msg); // before the chunking: SIGABRT here
+    CHECK(r.n_p_eval == n_prompt);           // every token was prefilled, not just the first chunk
+
+    // And chunking must not change what the model reads: the same prompt in ONE
+    // batch (default n_batch, well above this prompt) sees the same context.
+    // Only the leading token is compared — a different batch shape moves the
+    // last K/V bits, so greedy can flip at a near-tie downstream (same caveat as
+    // the #170a prefix-reuse case above).
+    sp.n_batch = 0;
+    auto whole = xllama::Session::create(sp, &err);
+    REQUIRE_MESSAGE(whole, err);
+    const auto r_whole = whole->generate(gp);
+    REQUIRE(r_whole.success);
+    CHECK(r_whole.n_p_eval == n_prompt);
+    CHECK(r.n_eval == r_whole.n_eval);
+    if (!r.output_text.empty() && !r_whole.output_text.empty())
+        CHECK(r.output_text.substr(0, 1) == r_whole.output_text.substr(0, 1));
+}
+
+// A full prompt that cannot fit the context has nothing to evict — the trimmer
+// upstream owns that — so it must fail fast rather than reach the decode, where
+// an over-context batch is an abort. Opt-in:
+//   XLLAMA_TEST_MODEL=/path/to/model.gguf ./xllama-tests
+TEST_CASE("Session: a prompt past n_ctx fails fast (opt-in: XLLAMA_TEST_MODEL)") {
+    const char* model_env = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model_env)
+        return;
+
+    xllama::SessionParams sp;
+    sp.model_path = model_env;
+    sp.n_ctx = 512;
+    std::string err;
+    auto sess = xllama::Session::create(sp, &err);
+    REQUIRE_MESSAGE(sess, err);
+
+    std::string prompt;
+    for (int i = 0; i < 400; ++i)
+        prompt += "token " + std::to_string(i) + " ";
+    REQUIRE(sess->count_tokens(prompt) > 512);
+
+    xllama::GenerateParams gp;
+    gp.prompt = prompt;
+    gp.n_predict = 8;
+    const auto r = sess->generate(gp);
+    CHECK_FALSE(r.success);
+    CHECK(r.error_msg.find("prompt too long") != std::string::npos);
+    CHECK(r.n_eval == 0);
+}
+
 // #170b: the resident KV round-trips through a file, so a conversation the
 // session no longer holds resumes without re-reading its history. Opt-in —
 // needs a real GGUF:

@@ -78,6 +78,19 @@ TEST_CASE("strip_thinking_blocks complete and truncated") {
     CHECK(strip_thinking_blocks("<think>cut off").empty());
 }
 
+TEST_CASE("strip_thinking_blocks handles a closer with no opener") {
+    // The model's own template can open the reasoning, so the stream carries
+    // only the closing tag: everything up to it is chain of thought.
+    CHECK(strip_thinking_blocks("reasoning first</think>\n\nanswer") == "answer");
+    CHECK(strip_thinking_blocks("</think>answer") == "answer");
+    CHECK(strip_thinking_blocks("a</think>b<think>c</think>d") == "bd");
+    // An opener before the closer is the normal balanced case, untouched.
+    CHECK(strip_thinking_blocks("<think>a</think>b") == "b");
+    // Reasoning only, no answer yet.
+    CHECK(strip_thinking_blocks("reasoning, no closer").empty() == false);
+    CHECK(strip_thinking_blocks("thoughts</think>").empty());
+}
+
 TEST_CASE("apply_stop_sequences: suffix match trims and reports") {
     // Ends with the stop -> true, trailing match trimmed.
     std::string a = "Hello there<end_of_turn>";

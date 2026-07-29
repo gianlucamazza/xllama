@@ -97,7 +97,19 @@ std::string strip_empty_thinking_tags(std::string text) {
 std::string strip_thinking_blocks(std::string text) {
     constexpr char kOpen[] = "<think>";
     constexpr char kClose[] = "</think>";
-    // Complete blocks first (may appear more than once).
+    // Unbalanced closer first: a model whose template opens the reasoning for it
+    // (or a stop sequence that ate the opener) streams "reasoning…</think>answer"
+    // with no <think> at all. Without this the whole chain of thought AND the raw
+    // tag reach the screen and the saved history.
+    {
+        const size_t first_close = text.find(kClose);
+        if (first_close != std::string::npos) {
+            const size_t first_open = text.find(kOpen);
+            if (first_open == std::string::npos || first_open > first_close)
+                text.erase(0, first_close + sizeof(kClose) - 1);
+        }
+    }
+    // Complete blocks (may appear more than once).
     for (;;) {
         const size_t o = text.find(kOpen);
         if (o == std::string::npos)

@@ -252,6 +252,37 @@ std::string error_json(const std::string& msg) {
 // OpenAI /v1/chat/completions
 // ---------------------------------------------------------------------------
 
+// Catalogue session policy for one model, cached: parsing the manifest (bundled
+// file + LocalState override) on EVERY chat request, under hub.mtx and in front
+// of the model load, is pure latency. Only called from handle_chat_locked, which
+// holds hub.mtx — that lock is what serialises the statics below.
+//
+// A miss re-reads the file, so a model published (or uploaded) while the server
+// runs is picked up on its first request; models genuinely absent from the
+// catalogue re-read once per request, exactly as every request did before.
+struct CatalogueSessionPolicy {
+    int n_ctx = ::xllama::kDefaultNCtx;
+    bool coding = false;
+    bool gguf = false;
+};
+
+CatalogueSessionPolicy catalogue_session_policy(const std::string& model) {
+    static std::vector<::xllama::ManifestEntry> cache;
+    const std::wstring wname = ::xllama::utf8_to_wstring(model);
+    const ::xllama::ManifestEntry* entry = ::xllama::FindManifestEntry(cache, wname);
+    if (!entry) {
+        cache = ::xllama::LoadModelManifest();
+        entry = ::xllama::FindManifestEntry(cache, wname);
+    }
+    CatalogueSessionPolicy p;
+    if (entry) {
+        p.n_ctx = ::xllama::resolve_n_ctx(entry->n_ctx);
+        p.coding = ::xllama::role_is_coding(::xllama::wstring_to_utf8(entry->role));
+        p.gguf = entry->kind == L"gguf";
+    }
+    return p;
+}
+
 // Turn the OpenAI messages[] into (system, history, final_user) for render_prompt.
 void split_messages(JsonArray const& messages, std::string& system,
                     std::vector<::xllama::ChatTurn>& history, std::string& final_user) {
@@ -317,17 +348,13 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
     bool model_is_coding = false;
     {
         std::string err;
+        const CatalogueSessionPolicy policy = catalogue_session_policy(model);
+        model_is_coding = policy.coding;
         ::xllama::SessionParams sp;
         sp.model_path = model;
-        sp.n_ctx = ::xllama::kDefaultNCtx;
-        auto manifest = ::xllama::LoadModelManifest();
-        if (const auto* entry =
-                ::xllama::FindManifestEntry(manifest, ::xllama::utf8_to_wstring(model))) {
-            sp.n_ctx = ::xllama::resolve_n_ctx(entry->n_ctx);
-            model_is_coding = ::xllama::role_is_coding(::xllama::wstring_to_utf8(entry->role));
-            if (entry->kind == L"gguf")
-                sp.backend = ::xllama::Backend::LlamaCpp;
-        }
+        sp.n_ctx = policy.n_ctx;
+        if (policy.gguf)
+            sp.backend = ::xllama::Backend::LlamaCpp;
         session = ::xllama::session_hub().ensure_locked(model, sp, &err);
         if (!session) {
             status = "500 Internal Server Error";
