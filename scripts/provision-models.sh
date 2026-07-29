@@ -185,8 +185,8 @@ provision_one() {
 	# "provisioned" were gone minutes later — the routing gate then failed for a
 	# reason that had nothing to do with the code under test.
 	if [[ $rc -eq 0 ]]; then
-		local missing=0 vfile vremote vbase vsub vdir
-		while IFS=$'\t' read -r vfile vremote; do
+		local missing=0 vfile vbase vsub vdir
+		while IFS=$'\t' read -r vfile _; do
 			[[ "$vfile" == "BASE" || -z "$vfile" ]] && continue
 			vbase="${vfile##*/}"
 			if [[ "$vfile" == */* ]]; then
