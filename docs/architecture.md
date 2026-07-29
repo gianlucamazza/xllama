@@ -245,6 +245,15 @@ Both surfaces enforce the same budget with the same primitive: the chat UI in it
 turn worker, and `POST /v1/chat/completions` before it generates (a client whose
 final message alone cannot fit gets a `400`, not a `500` from the generator).
 
+**Known gap, tracked.** The routing decision itself still runs on the UI thread
+*before* a session exists, so on a cold first turn with `routing = auto` it counts
+with the estimate rather than a tokenizer — a heuristic deciding behaviour, which
+the rule above forbids. It affects only that mode (the shipping default is
+CPU-only) and the fix is mechanical: decide in the turn worker, after
+`EnsureSession`, where the exact count exists by construction. Deliberately not
+bundled into the phase14 release branch — it rewrites the hottest UI path and wants
+its own PR with the `routing` console gate as the acceptance test.
+
 The prefill itself is chunked at `llama_n_batch` (`LlamaSession::generate`,
 `run_inference`): an oversized logical batch is not an error return from
 `llama_decode` but a `GGML_ASSERT` abort, and `n_batch` defaults to
