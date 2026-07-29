@@ -26,6 +26,13 @@ void main_loop();
 // ceiling behind the bandwidth-bound decode number (see docs/benchmarks.md).
 void run_membw();
 
+// Heap-ceiling probe. Triggered by LocalFolder\ramceil.flag; writes
+// ramceil-result.csv (+ .done marker holding the stop reason) to LocalState.
+// Measures how much heap the process can actually commit under GameOS — the
+// number that decides which model quants are admissible, since GGUF weights
+// are read into the heap and not mapped (see include/xllama/ramceil.h).
+void run_ramceil();
+
 // Diffusion pipeline (SD-Turbo on plain ORT DirectML). Triggered by
 // LocalFolder\diffuse.flag (headless) or diffuse-inproc.flag (in-process
 // experiment) — see diffuse.cpp for the model contract.

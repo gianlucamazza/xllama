@@ -29,9 +29,18 @@ void log_output(const std::string& msg) noexcept;
 // Peak working-set size in MB. Returns 0 on platforms where it is unavailable.
 std::size_t peak_working_set_mb() noexcept;
 
-// Per-process video memory (DXGI LOCAL segment). On Xbox Series S the OS
-// grants an App-mode UWP a Budget of roughly 768 MB; CurrentUsage climbing
-// toward the model size is direct evidence the DML EP resides on the GPU.
+// Physical memory still available to the process, in MB (0 if unavailable).
+// UWP: GlobalMemoryStatusEx (available in PARTITION_APP). Linux: MemAvailable.
+// This is the denominator the GGUF path spends against — weights are read into
+// the heap, not mapped (mmap is unavailable in the sandbox, and enabling it via
+// CreateFileMappingFromApp measured zero benefit; uwp-constraints.md §1).
+std::size_t avail_phys_mb() noexcept;
+
+// Per-process video memory (DXGI LOCAL segment). Measured Budget on Series S
+// with the package designated Game is 3801 MB (in-app QueryVideoMemoryInfo,
+// 2026-07-07 — uwp-constraints.md §7; the older "~768 MB" figure was inferred
+// from OOM bracketing and is superseded). CurrentUsage climbing toward the
+// model size is direct evidence the DML EP resides on the GPU.
 struct GpuMemInfo {
     std::size_t current_mb = 0; // IDXGIAdapter3::QueryVideoMemoryInfo CurrentUsage
     std::size_t budget_mb = 0;  // OS-granted budget for this process

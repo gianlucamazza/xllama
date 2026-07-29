@@ -10,6 +10,7 @@
 #include "xllama/path_utils.h"
 #include "xllama/personalize.h"
 #include "xllama/platform.h"
+#include "xllama/ramceil.h"
 #include "xllama/session.h"
 #include "xllama/training.h"
 #include "xllama/utf8_utils.h"
@@ -325,6 +326,57 @@ void run_membw() {
         }
         log_output("[xllama] membw-result.csv written\n");
     }
+#endif
+}
+
+// ---------------------------------------------------------------------------
+// run_ramceil (called from UWP ramceil.flag mode background thread)
+//
+// Writes each row as it is produced and flushes: the whole point of the probe
+// is to approach the point where the OS stops cooperating, so a buffered write
+// would lose the last — and most informative — rows to a PLM kill.
+// ---------------------------------------------------------------------------
+
+void run_ramceil() {
+#ifdef XLLAMA_UWP
+    log_output("[xllama] ramceil: probing the committable heap ceiling\n");
+
+    const std::string csv = resolve_local_path("ramceil-result.csv");
+    FILE* fp = _wfopen(utf8_to_wstring(csv).c_str(), L"w");
+    if (!fp) {
+        log_output("[xllama] ramceil: cannot open ramceil-result.csv\n");
+        return;
+    }
+    fputs(::xllama::ramceil_csv_header(), fp);
+    fflush(fp);
+
+    // 128 MB steps: fine enough to place the ceiling within a model quant's
+    // margin, coarse enough that the probe stays short. The 8 GB limit is above
+    // the console's 10 GB unified pool minus the OS reservation, so the stop
+    // reason is the platform's answer, not ours. The 256 MB floor keeps a
+    // margin for the OS rather than racing it to the kill.
+    const ::xllama::RamCeilResult r = ::xllama::probe_ram_ceiling(
+        /*step_mb=*/128, /*limit_mb=*/8192, /*floor_avail_mb=*/256,
+        [fp](const ::xllama::RamCeilStep& s) {
+            fputs(::xllama::format_ramceil_row(s, "xbox-series-s").c_str(), fp);
+            fflush(fp);
+        });
+
+    char lb[256];
+    snprintf(lb, sizeof(lb),
+             "[xllama] ramceil: max committed %zu MB (start avail %zu MB, stop: %s)\n",
+             r.max_committed_mb, r.avail_phys_start_mb, r.stop_reason.c_str());
+    log_output(lb);
+
+    fclose(fp);
+    FILE* done =
+        _wfopen(utf8_to_wstring(resolve_local_path("ramceil-result.csv.done")).c_str(), L"w");
+    if (done) {
+        fputs(r.stop_reason.c_str(), done);
+        fputs("\n", done);
+        fclose(done);
+    }
+    log_output("[xllama] ramceil-result.csv written\n");
 #endif
 }
 

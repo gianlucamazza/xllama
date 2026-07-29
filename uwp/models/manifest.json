@@ -288,6 +288,19 @@
           "approx_bytes": 524619
         }
       ]
+    },
+    {
+      "_comment": "LFM2.5-8B-A1B UD-IQ3_S — Phase 15 H2 candidate (MoE): 32 experts, 4 active per token (1/8), 24 blocks. Host gate 2026-07-29: loads on pin b10093 (lfm2moe), coherent at IQ3_S, peak 3502 MB — weights+2.8%, well under the 4 GB H2 gate and the 4864 MB measured console heap ceiling (phase15-ramceil.csv). THINKING MODEL: emits <think> every turn (template's preserve_thinking governs history replay only), so chat_format_for strips it and KV snapshots stay off — model_is_thinking() detects it by family, not by name. Direct from HF unsloth GGUF (>2 GB, not mirrored to models-v1); LFM Open License applies. kind:gguf, CPU-only, KV-reuse, routing disabled.",
+      "name": "lfm25-8b-a1b",
+      "display": "LFM2.5 8B-A1B MoE (GGUF · CPU · 3.57 GB, experimental)",
+      "kind": "gguf",
+      "hf_base_url": "https://huggingface.co/unsloth/LFM2.5-8B-A1B-GGUF/resolve/main",
+      "files": [
+        {
+          "filename": "LFM2.5-8B-A1B-UD-IQ3_S.gguf",
+          "approx_bytes": 3570921056
+        }
+      ]
     }
   ]
 }
