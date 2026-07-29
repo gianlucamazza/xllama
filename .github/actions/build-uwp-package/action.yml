@@ -1,0 +1,131 @@
+# Shared UWP package build (dev or Store SKU). Used by build-uwp.yml so the
+# Store lane can be a separate job gated on workflow_dispatch without
+# duplicating the Windows steps. No local Windows VM required.
+name: build-uwp-package
+description: Restore deps, optional patched ORT/GenAI, run build-uwp.ps1, upload MSIX
+inputs:
+  variant:
+    description: "ort | llamacpp | unified"
+    required: true
+  patched:
+    description: "Install vendor-dlls-v1 patched ORT + GenAI (true/false)"
+    required: true
+  store_sku:
+    description: "XLLAMA_STORE_SKU / AppxManifest.store.xml (true/false)"
+    required: false
+    default: "false"
+  artifact:
+    description: "actions/upload-artifact name"
+    required: true
+  build_revision:
+    description: "MSIX version Revision (usually github.run_number)"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout llama.cpp submodule + apply AppContainer guards
+      if: inputs.variant == 'llamacpp' || inputs.variant == 'unified'
+      shell: bash
+      run: |
+        git submodule update --init --depth 1 llama.cpp
+        bash scripts/apply-uwp-patches.sh
+        bash scripts/check-uwp-sources.sh
+
+    - name: Restore NuGet packages
+      shell: pwsh
+      working-directory: uwp
+      run: nuget restore packages.config -PackagesDirectory packages -NonInteractive
+
+    - name: Download pinned patched runtime DLLs (vendor-dlls-v1)
+      if: inputs.patched == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        BASE="https://github.com/gianlucamazza/xllama/releases/download/vendor-dlls-v1"
+        download_pin() {
+          local name="$1" dest_dir="$2" sums="$3"
+          mkdir -p "$dest_dir"
+          local out="$dest_dir/$name"
+          curl -fsSL -o "$out" "$BASE/$name"
+          local expected actual
+          expected=$(awk -v n="$name" '/^[[:xdigit:]]{64}[[:space:]]+/ && $2==n {print $1; exit}' "$sums")
+          if [ -z "$expected" ]; then
+            echo "No hash line for $name in $sums"
+            exit 1
+          fi
+          actual=$(sha256sum "$out" | awk '{print $1}')
+          if [ "$expected" != "$actual" ]; then
+            echo "SHA256 mismatch for $name"
+            echo "  expected: $expected"
+            echo "  actual:   $actual"
+            exit 1
+          fi
+          echo "Pinned $name OK ($actual)"
+          ls -la "$out"
+        }
+        download_pin onnxruntime.dll \
+          vendor/onnxruntime-patched/win-x64 \
+          vendor/onnxruntime-patched/SHA256SUMS
+        download_pin onnxruntime-genai.dll \
+          vendor/onnxruntime-genai-patched/win-x64 \
+          vendor/onnxruntime-genai-patched/SHA256SUMS
+
+    - name: Install patched onnxruntime-genai.dll over NuGet
+      if: inputs.patched == 'true'
+      shell: pwsh
+      run: ./scripts/vendor-genai-dml-patch.ps1
+
+    - name: Install patched onnxruntime.dll over NuGet
+      if: inputs.patched == 'true'
+      shell: pwsh
+      run: ./scripts/vendor-ort-extdata-patch.ps1
+
+    - name: Verify both patched DLLs replaced the NuGet copies
+      if: inputs.patched == 'true'
+      shell: pwsh
+      run: |
+        $pkgs = ([xml](Get-Content uwp/packages.config)).packages.package
+        $genaiVer = ($pkgs | Where-Object { $_.id -eq "Microsoft.ML.OnnxRuntimeGenAI.DirectML" }).version
+        $ortVer   = ($pkgs | Where-Object { $_.id -eq "Microsoft.ML.OnnxRuntime.DirectML" }).version
+        $checks = @(
+          @{ vendor = "vendor/onnxruntime-genai-patched/win-x64/onnxruntime-genai.dll";
+             nuget  = "uwp/packages/Microsoft.ML.OnnxRuntimeGenAI.DirectML.$genaiVer/runtimes/win-x64/native/onnxruntime-genai.dll" },
+          @{ vendor = "vendor/onnxruntime-patched/win-x64/onnxruntime.dll";
+             nuget  = "uwp/packages/Microsoft.ML.OnnxRuntime.DirectML.$ortVer/runtimes/win-x64/native/onnxruntime.dll" }
+        )
+        foreach ($c in $checks) {
+          if (-not (Test-Path $c.vendor)) { Write-Error "patched DLL missing: $($c.vendor)"; exit 1 }
+          if (-not (Test-Path $c.nuget))  { Write-Error "NuGet DLL missing: $($c.nuget)"; exit 1 }
+          if ((Get-FileHash $c.vendor).Hash -ne (Get-FileHash $c.nuget).Hash) {
+            Write-Error "NuGet DLL is not the patched build: $($c.nuget)"; exit 1
+          }
+        }
+        Write-Host "Both patched DLLs match NuGet installs."
+
+    - name: Build UWP package
+      shell: pwsh
+      run: |
+        $buildArgs = @{
+          Configuration = 'Release'
+          Platform      = 'x64'
+          Backend       = $('${{ inputs.variant }}' -eq 'unified' ? 'unified' : '${{ inputs.variant }}')
+          BuildRevision = [int]'${{ inputs.build_revision }}'
+        }
+        if ('${{ inputs.patched }}' -eq 'true') {
+          $buildArgs.PatchedGenAI = $true
+          $buildArgs.PatchedOrt   = $true
+        }
+        if ('${{ inputs.store_sku }}' -eq 'true') {
+          $buildArgs.StoreSku = $true
+        }
+        ./scripts/build-uwp.ps1 @buildArgs
+
+    - uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.artifact }}
+        path: |
+          uwp/AppPackages/**/*.msix
+          uwp/AppPackages/**/*.appx
+          uwp/xllama-test.cer
+        retention-days: 14
