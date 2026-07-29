@@ -3,7 +3,7 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/install-latest-build.sh [branch] [--bench]
+#   ./scripts/install-latest-build.sh [branch] [--bench] [--provision]
 #
 # Defaults to the current git branch if no branch argument is given.
 # Requires: gh CLI (authenticated), jq, curl.
@@ -12,6 +12,8 @@
 # bench.flag so the next launch runs headless bench mode (delete
 # LocalState\bench.flag via WDP before UI or validate-console.sh otherwise).
 # MSIX uninstall wipes LocalState — re-provision models after a fresh install.
+# --provision does it for the console-gate model set, after the registration has
+# settled (provisioning too early lands in a container the OS then resets).
 
 set -euo pipefail
 
@@ -19,13 +21,20 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 UPLOAD_BENCH=false
+PROVISION=false
 BRANCH=""
 for arg in "$@"; do
 	case "$arg" in
 	--bench) UPLOAD_BENCH=true ;;
+	--provision) PROVISION=true ;;
 	*) [[ -z "$BRANCH" ]] && BRANCH="$arg" ;;
 	esac
 done
+# The model set the console gates need (validate-console.sh). Kept here because an
+# MSIX uninstall wipes LocalState, so every install invalidates it — three gate
+# runs were spent rediscovering that before this flag existed.
+GATE_MODELS=(smollm2-360m-cpu-int4 smollm2-360m-dml-fp16-v2 lfm25-350m
+	qwen25-coder-0.5b lfm25-1.2b-thinking)
 BRANCH="${BRANCH:-$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)}"
 ARTIFACT_NAME="xllama-appx"
 WORK_DIR="/tmp/xllama-install-$$"
@@ -130,6 +139,22 @@ echo ""
 echo "==> Starting app ..."
 sleep 2
 "${SCRIPT_DIR}/deploy.sh" start-app || true
+
+if [[ "$PROVISION" == true ]]; then
+	# Wait for the registration to settle first: files written into a container the
+	# OS is still swapping are silently lost (provision-models.sh verifies, so this
+	# shows up as a FAIL rather than a mystery, but the wait avoids the round trip).
+	echo ""
+	echo "==> Waiting 60s for the MSIX registration to settle before provisioning ..."
+	sleep 60
+	echo "==> Provisioning the console-gate model set ..."
+	"${SCRIPT_DIR}/provision-models.sh" --force "${GATE_MODELS[@]}"
+else
+	echo ""
+	echo "==> LocalState was wiped by the uninstall. The console gates need:"
+	echo "      ./scripts/provision-models.sh --force ${GATE_MODELS[*]}"
+	echo "    (or re-run this script with --provision)"
+fi
 
 echo ""
 echo "==> Tailing log (Ctrl-C to stop) ..."
