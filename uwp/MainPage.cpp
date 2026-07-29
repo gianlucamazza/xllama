@@ -746,10 +746,16 @@ std::string MainPageController::BuildPrompt(const std::string& user_text, int* o
     // estimate stands rather than blocking the UI thread. The trailing user_text
     // is never dropped — a single oversized message is the session's fail-fast to
     // report ("prompt too long"), not something to silently mangle here.
+    //
+    // Fit against the model that will GENERATE: on a routed conversation that is
+    // the sticky m_active_model (routing is decided from this prompt's token
+    // count, so the first turn can only use the base model — and the tokenizer
+    // has to be the resident one for the count to mean anything).
     {
         auto& hub = ::xllama::session_hub();
         std::unique_lock<std::mutex> hub_lk(hub.mtx, std::try_to_lock);
-        const std::string model = ::xllama::wstring_to_utf8(m_model_filename);
+        const std::string model =
+            ::xllama::wstring_to_utf8(m_active_model.empty() ? m_model_filename : m_active_model);
         if (hub_lk.owns_lock() && hub.session && hub.model == model) {
             const int reserve = std::max(m_n_predict, ::xllama::kReservedGenerationTokens);
             int n_real = hub.session->count_tokens(prompt);

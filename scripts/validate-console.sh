@@ -214,9 +214,15 @@ run_autopilot() {
 	delete_file "xllama.log"
 	# Best effort only: when the unlink does not take, snapshot what is there so
 	# fetch_log can subtract it. Verdicts must never depend on a DELETE landing.
+	# The snapshot is only trusted on a real 200 — fetch_file happily writes a 404
+	# body, which would break the prefix match in fetch_log and quietly hand the
+	# whole file (previous run included) to the verdict.
 	: >"$LOG_BEFORE"
 	if ! file_absent "xllama.log"; then
-		fetch_file "xllama.log" "$LOG_BEFORE"
+		local snap_code
+		snap_code=$(curl "${CURL_AUTH[@]}" -o "$LOG_BEFORE" -w "%{http_code}" \
+			"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState&filename=xllama.log" 2>/dev/null || echo "000")
+		[[ "$snap_code" == "200" ]] || : >"$LOG_BEFORE"
 	fi
 	upload_file "${TMPDIR_LOCAL}/autopilot.json"
 	upload_file "${TMPDIR_LOCAL}/autopilot.flag"
@@ -243,8 +249,18 @@ try:
 except Exception:
     prev = b""
 # The app appends to the existing file; if it recreated the log instead, the old
-# bytes are simply not a prefix any more and the whole file IS this run.
-tail = data[len(prev):] if prev and data[:len(prev)] == prev else data
+# bytes are simply not a prefix any more and the whole file IS this run. Anything
+# else (a truncated or failed snapshot) cannot be subtracted — say so, because
+# silently handing the verdict a stale-inclusive log is the bug this exists for.
+if not prev:
+    tail = data
+elif data[:len(prev)] == prev:
+    tail = data[len(prev):]
+else:
+    tail = data
+    if len(data) >= len(prev):
+        print("  WARN: could not subtract the pre-run log — the verdict may include "
+              "stale lines", file=sys.stderr)
 open(out, "wb").write(tail)
 PYLOG
 	echo "$run"
@@ -303,7 +319,7 @@ PY
 	[[ -n "$file" ]] || return 1
 	local code
 	code=$(curl "${CURL_AUTH[@]}" -o /dev/null -w "%{http_code}" \
-		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&filename=${file// /%20}&packagefullname=${PFN}&path=%5CLocalState%5Cmodels%5C${model}" 2>/dev/null || echo "000")
+		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&filename=${file// /%20}&packagefullname=${PFN}&path=%5CLocalState%5Cmodels%5C${model//\\/%5C}" 2>/dev/null || echo "000")
 	[[ "$code" == "200" ]]
 }
 
@@ -934,7 +950,7 @@ validate_genroom() {
 	# keeps the verdict independent of whether this small model feels talkative.
 	local cid="ap-193-genroom" n_predict=512
 	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
-	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling "$n_predict")" "$EST_CHARS_PER_TOK" <<'PYROOM'
+	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling "$n_predict")" "$EST_CHARS_PER_TOK" "$n_predict" <<'PYROOM'
 import json, sys
 tmp, cid = sys.argv[1], sys.argv[2]
 ceiling, est_cpt = int(sys.argv[3]), float(sys.argv[4])
@@ -963,7 +979,7 @@ except Exception:
 idx = [e for e in idx if e.get("id") != cid]
 idx.insert(0, entry)
 open(f"{tmp}/index.json", "w").write(json.dumps(idx, ensure_ascii=False))
-print(f"  injected {len(turns)} messages, est ~{est} tok (ceiling {ceiling} at n_predict 512)")
+print(f"  injected {len(turns)} messages, est ~{est} tok (ceiling {ceiling} at n_predict {sys.argv[5]})")
 PYROOM
 	upload_file "${TMPDIR_LOCAL}/${cid}.json" "chats"
 	upload_file "${TMPDIR_LOCAL}/index.json" "chats"
@@ -973,7 +989,7 @@ PYROOM
 {"total_timeout_s": 800, "actions": [
   {"op": "set_model", "name": "lfm25-350m", "timeout_s": 300},
   {"op": "set_kv_reuse", "enabled": true},
-  {"op": "set_sampling", "n_predict": 512, "temperature": 0.7},
+  {"op": "set_sampling", "n_predict": ${n_predict}, "temperature": 0.7},
   {"op": "load_chat", "id": "${cid}"},
   {"op": "send", "text": "Write a detailed handover note about pier seven for the next shift.", "timeout_s": 400},
   {"op": "quit"}
@@ -993,7 +1009,7 @@ JSON
 		echo "  FAIL: the trimmer never ran — the injected history did not fill the context"
 		verdict=1
 	fi
-	python3 - "$log" "$DEFAULT_N_CTX" "512" <<'PYROOM' || verdict=1
+	python3 - "$log" "$DEFAULT_N_CTX" "$n_predict" <<'PYROOM' || verdict=1
 import re, sys
 log, n_ctx, n_predict = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
 text = open(log, errors="ignore").read()
