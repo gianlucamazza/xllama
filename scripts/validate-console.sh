@@ -79,10 +79,11 @@ if ! [[ "$DEFAULT_N_CTX" =~ ^[0-9]+$ ]] || ! [[ "$RESERVED_GEN" =~ ^[0-9]+$ ]]; 
 fi
 # trim_ceiling <n_predict> — the estimated-token budget a gate's payload must fit
 # under on the shipping context, for the n_predict that gate sets.
-# trim_ceiling [n_ctx] — the estimated-token ceiling a gate's payload must fit
-# under. n_predict is deliberately NOT an input.
+# trim_ceiling <n_ctx> — the estimated-token ceiling a gate's payload must fit
+# under. n_predict is deliberately NOT an input: the reply's room is enforced
+# later and exactly, by fit_prompt.
 trim_ceiling() {
-	local n_ctx="${1:-$DEFAULT_N_CTX}" budget
+	local n_ctx="$1" budget
 	if ((n_ctx == DEFAULT_N_CTX)); then
 		echo "$TRIM_BUDGET"
 		return
@@ -379,7 +380,7 @@ JSON
 	# gate that picks a convenient value can be green over a dead feature, which is
 	# exactly what hid the ceiling-under-threshold bug.
 	python3 - "$REPO_ROOT" "$TMPDIR_LOCAL" "$esca_id" "$ROUTING_THRESHOLD" \
-		"$(trim_ceiling)" "$EST_CHARS_PER_TOK" <<'PY'
+		"$(trim_ceiling "$DEFAULT_N_CTX")" "$EST_CHARS_PER_TOK" <<'PY'
 import json, re, sys
 repo, tmp, cid = sys.argv[1], sys.argv[2], sys.argv[3]
 threshold, trim_budget, est_cpt = int(sys.argv[4]), int(sys.argv[5]), float(sys.argv[6])
@@ -559,7 +560,7 @@ validate_longchat() {
 	# full re-prefill and no "context full" error may surface.
 	local cid="ap-169-longchat"
 	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
-	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling)" "$EST_CHARS_PER_TOK" <<'PY'
+	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling "$DEFAULT_N_CTX")" "$EST_CHARS_PER_TOK" <<'PY'
 import json, sys
 tmp, cid = sys.argv[1], sys.argv[2]
 budget, est_cpt = int(sys.argv[3]), float(sys.argv[4])
@@ -656,7 +657,7 @@ validate_kvsnap() {
 	# the prompt-token count of the returning turn against the cold one.
 	local cid="ap-170b-switch"
 	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
-	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling)" "$EST_CHARS_PER_TOK" <<'PY'
+	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling "$DEFAULT_N_CTX")" "$EST_CHARS_PER_TOK" <<'PY'
 import json, sys
 tmp, cid = sys.argv[1], sys.argv[2]
 budget, est_cpt = int(sys.argv[3]), float(sys.argv[4])
@@ -958,7 +959,7 @@ validate_genroom() {
 	# keeps the verdict independent of whether this small model feels talkative.
 	local cid="ap-193-genroom" n_predict=512
 	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
-	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling)" "$EST_CHARS_PER_TOK" "$n_predict" <<'PYROOM'
+	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling "$DEFAULT_N_CTX")" "$EST_CHARS_PER_TOK" "$n_predict" <<'PYROOM'
 import json, sys
 tmp, cid = sys.argv[1], sys.argv[2]
 ceiling, est_cpt = int(sys.argv[3]), float(sys.argv[4])

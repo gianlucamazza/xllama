@@ -424,6 +424,13 @@ host Release smoke (quality + peak)
 - **Do not** catalogue on host-only evidence for Series S claims.
 - **Do not** special-case Settings when a catalogue field already owns the
   policy (`n_ctx`, `role`).
+- **Do not** let a heuristic decide product behaviour. A chars-per-token estimate
+  may *bound work* (what the UI renders, what routing counts before a tokenizer
+  exists); only an exact measurement may *decide* what the user gets. Every #133
+  recurrence — three so far — was an estimate promoted from bound to decision.
+- **Do not** restate a number a generated file already owns unless a gate checks
+  the copies agree. `check-coherence.py` now pins the `model-matrix.md` metrics
+  rows against `phase14-console.csv`; that is the price of the second copy.
 
 ## See also
 

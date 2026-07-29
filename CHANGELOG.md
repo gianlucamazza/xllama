@@ -44,6 +44,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   left (#173), every token of undershoot came off the reply. The estimate keeps one
   job, routing, where it must run *before* a tokenizer exists and where being wrong
   costs a routing decision instead of an answer.
+- **`fit_prompt` bisects instead of walking.** Dropping turns one at a time
+  tokenized once per dropped turn — fine for a handful, quadratic in rendered bytes
+  for a long conversation, on the turn's critical path. "Fits" is monotone in how
+  much history is dropped, so the smallest fitting prompt is found by exponential
+  probe + bisection: O(log n) tokenizations, with the minimality pinned by a test.
+- **`check-coherence.py` owns the model-matrix metrics.** The phase14 inventory
+  table restates prefill/decode/peak that `benchmarks.md` generates; a second copy
+  of a number is debt only when nothing checks the two agree, so the check now
+  compares every metrics row against `phase14-console.csv` (verified by
+  perturbation, not by assumption).
 - **Auto GPU routing was unreachable on a default install.** Reserving the reply in
   the trimmer's ceiling (the fix below) put that ceiling at 1536 tokens for the
   shipping `n_predict` of 512, under `token_threshold` (1550) — so `decide_routing`

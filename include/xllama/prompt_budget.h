@@ -42,8 +42,11 @@ struct PromptFit {
 // user-visible error, not something to silently truncate. |count| must be valid;
 // with a null counter the result is {fits=false, n_tokens=-1} rather than an
 // unverified prompt.
-PromptFit fit_prompt(const ChatFormat& fmt, const std::string& system, std::vector<ChatTurn> turns,
-                     const std::string& user_text, int n_ctx, int n_predict,
-                     const TokenCounter& count);
+// Cost: O(log n) renders and tokenizations in the number of turns, not O(dropped)
+// — "fits" is monotone in how much history is dropped, so the smallest fitting
+// prompt is bisected. This runs on the turn's critical path.
+PromptFit fit_prompt(const ChatFormat& fmt, const std::string& system,
+                     const std::vector<ChatTurn>& turns, const std::string& user_text, int n_ctx,
+                     int n_predict, const TokenCounter& count);
 
 } // namespace xllama

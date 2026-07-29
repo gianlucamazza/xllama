@@ -316,6 +316,65 @@ def main() -> int:
                 err(f"recommended-config missing headline {num}")
         good("decode headlines code-doc aligned")
 
+    # --- model-matrix numbers vs the CSV they claim to come from ---
+    # docs/benchmarks.md is the numbers SSOT and model-matrix.md is the status
+    # SSOT, but the phase14 inventory table restates prefill/decode/peak. A second
+    # copy of a number is only debt when nothing checks the two agree — the same
+    # class of drift that left "console pending" in manifest comments after the
+    # console runs had landed. So: check it.
+    mm_path = ROOT / "docs/model-matrix.md"
+    csv_path = ROOT / "bench/results/phase14-console.csv"
+    if mm_path.exists() and csv_path.exists():
+        rows: dict[str, list[dict[str, str]]] = {}
+        lines = csv_path.read_text(encoding="utf-8").strip().splitlines()
+        head = lines[0].split(",")
+        for line in lines[1:]:
+            cells = dict(zip(head, line.split(",")))
+            rows.setdefault(cells["model"], []).append(cells)
+
+        def median(vals: list[float]) -> float:
+            vals = sorted(vals)
+            mid = len(vals) // 2
+            return vals[mid] if len(vals) % 2 else (vals[mid - 1] + vals[mid]) / 2
+
+        # A metrics row carries at least three numbers; the role/status tables in
+        # the same file carry none and are not this check's business.
+        covered: set[str] = set()
+        for line in mm_path.read_text(encoding="utf-8").splitlines():
+            m = re.match(r"\|[^|]+\|\s*`([a-z0-9.-]+)`\s*\|", line)
+            if not m or m.group(1) not in rows:
+                continue
+            model = m.group(1)
+            cells = [c.strip().strip("*") for c in line.strip("|").split("|")]
+            nums = [float(c) for c in cells if re.fullmatch(r"[0-9]+(\.[0-9]+)?", c)]
+            if len(nums) < 3:
+                continue  # not a metrics row
+            runs = rows[model]
+            want_prefill = median([float(r["prompt_tok_s"]) for r in runs])
+            want_decode = median([float(r["decode_tok_s"]) for r in runs])
+            want_peak = float(max(int(r["peak_ws_mb"]) for r in runs))
+            missing = [
+                f"{label} {want:.1f}"
+                for label, want in (
+                    ("prefill", want_prefill),
+                    ("decode", want_decode),
+                    ("peak", want_peak),
+                )
+                if not any(abs(c - want) <= 0.15 for c in nums)
+            ]
+            if missing:
+                err(
+                    f"model-matrix {model}: row does not match phase14-console.csv "
+                    f"({', '.join(missing)} absent from {nums})"
+                )
+            else:
+                covered.add(model)
+        absent = sorted(set(rows) - covered)
+        if absent:
+            err(f"model-matrix: no verified metrics row for {', '.join(absent)}")
+        else:
+            good(f"model-matrix numbers match phase14-console.csv ({len(covered)} models)")
+
     # --- stale size patterns (live docs only) ---
     skip = {
         "docs/technical-report.md",

@@ -92,6 +92,25 @@ TEST_CASE("fit_prompt: a larger context keeps more history") {
     CHECK(large.n_tokens + 512 + 1 <= 4096);
 }
 
+TEST_CASE("fit_prompt: drops the MINIMUM number of turns, and counts O(log n) times") {
+    const auto fmt = chat_format_for("lfm25-350m");
+    const auto turns = make_turns(60, 300);
+    int calls = 0;
+    const auto counted = [&calls](const std::string& s) {
+        ++calls;
+        return fake_count(s);
+    };
+    const auto fit = fit_prompt(fmt, "sys", turns, "q", kDefaultNCtx, 512, counted);
+    REQUIRE(fit.fits);
+    REQUIRE(fit.dropped > 0);
+    // Minimality: keeping one more turn must NOT fit, or the bisection overshot.
+    const std::vector<ChatTurn> one_more(turns.begin() + fit.dropped - 1, turns.end());
+    const std::string bigger = fmt.render_prompt("sys", one_more, "q");
+    CHECK(fake_count(bigger) + 512 + 1 > kDefaultNCtx);
+    // Bisection, not a walk: 60 turns must not cost 60 tokenizations.
+    CHECK(calls <= 16);
+}
+
 TEST_CASE("fit_prompt: no counter means no verdict, not an unverified prompt") {
     const auto fmt = chat_format_for("lfm25-350m");
     const auto fit = fit_prompt(fmt, "sys", make_turns(2, 40), "hello", kDefaultNCtx, 512, nullptr);
