@@ -177,7 +177,7 @@ std::string resolve_model_path(const std::string& filename) {
         log_output("[xllama] InstalledPath copy failed\n");
     }
 
-#ifndef XLLAMA_STORE_SKU
+    #ifndef XLLAMA_STORE_SKU
     // Fallback 3: USB root cached by EnsureModelAsync (async KnownFolders probe).
     // EnsureModelAsync writes LocalState\usb_model_root.txt with the drive root
     // after finding the model via KnownFolders.RemovableDevices; read it here
@@ -227,7 +227,7 @@ std::string resolve_model_path(const std::string& filename) {
             }
         }
     }
-#endif // !XLLAMA_STORE_SKU
+    #endif // !XLLAMA_STORE_SKU
 
     return primary; // return primary even if not found (ORT will emit a clear error)
 }

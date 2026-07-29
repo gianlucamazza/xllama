@@ -17,11 +17,11 @@
 
     #include <thread>
 
-#ifndef XLLAMA_STORE_SKU
+    #ifndef XLLAMA_STORE_SKU
 // Defined in the headless section below; also used by the in-process
 // diffusion experiment in App::OnLaunched.
 static std::wstring flag_path_if_present(const wchar_t* name);
-#endif
+    #endif
 
 using namespace winrt;
 using namespace winrt::Windows::ApplicationModel::Activation;
@@ -115,7 +115,7 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
         Window::Current().Activate();
         log_write("[xllama] Window activated\n");
 
-#ifndef XLLAMA_STORE_SKU
+    #ifndef XLLAMA_STORE_SKU
         // §7 experiment: the 887A0036 device conflict was measured with ORT
         // GenAI's Agility-factory device; diffuse.cpp uses plain ORT DML, whose
         // device may coexist with the compositor device the line above just
@@ -156,10 +156,10 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
         } else if (m_controller) {
             m_controller->StartAutopilotIfRequested();
         }
-#else
+    #else
         if (m_controller)
             m_controller->StartAutopilotIfRequested();
-#endif
+    #endif
     } catch (winrt::hresult_error const& e) {
         char buf[512];
         snprintf(buf, sizeof(buf), "[xllama] OnLaunched hresult 0x%08X: %ls\n",
@@ -179,7 +179,7 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
 
 } // namespace winrt::xllama::implementation
 
-#ifndef XLLAMA_STORE_SKU
+    #ifndef XLLAMA_STORE_SKU
 // ---------------------------------------------------------------------------
 // Headless bench mode — no XAML, no compositor D3D12 device
 //
@@ -248,7 +248,7 @@ struct HeadlessView
             winrt::Windows::UI::Core::CoreProcessEventsOption::ProcessUntilQuit);
     }
 };
-#endif // !XLLAMA_STORE_SKU
+    #endif // !XLLAMA_STORE_SKU
 
 // ---------------------------------------------------------------------------
 // Entry point — Application::Start replaces CoreApplication::Run
@@ -256,7 +256,7 @@ struct HeadlessView
 int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     try {
         winrt::init_apartment(); // MTA: needed for ApplicationData in the detection
-#ifndef XLLAMA_STORE_SKU
+    #ifndef XLLAMA_STORE_SKU
         // Headless operator modes (Device Portal flags). Omitted from the Store
         // SKU — retail builds always take the interactive XAML path.
         // Consume the flag BEFORE the run:
@@ -318,7 +318,7 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
                 winrt::make<HeadlessView>(&::xllama::bridge::run_train, "train"));
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
-#endif // !XLLAMA_STORE_SKU
+    #endif                         // !XLLAMA_STORE_SKU
         winrt::uninit_apartment(); // restore pre-existing thread state for XAML
         winrt::Windows::UI::Xaml::Application::Start(
             [](auto&&) { winrt::make<winrt::xllama::implementation::App>(); });

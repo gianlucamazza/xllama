@@ -121,9 +121,9 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     void LoadSettings();
     void SaveSettings();
     winrt::fire_and_forget ShowSettings();
-#ifndef XLLAMA_STORE_SKU
+    #ifndef XLLAMA_STORE_SKU
     void ApplyApiSettings(bool enabled, int port);
-#endif
+    #endif
     // Phase 11 (#116): in-app personalization — train on samples.jsonl, publish
     // merged.gguf as catalogue entry "personalized".
     void StartPersonalizeTrain();
