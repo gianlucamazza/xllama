@@ -57,7 +57,83 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
 - **Claim:** Decode scales with _active_ weights; MoE delivers peer quality at mid-speed.
 - **PASS:** Peak &lt; 4 GB, decode ≥12, quality &gt; Qwen3.5-0.8B.
 - **FAIL:** Arch missing from UWP static lib / OOM / &lt;8 tok/s.
-- **Status:** Open — pin includes many `*moe*.cpp` + `lfm2moe` via `src/models/*.cpp` wildcard; needs small-enough GGUF candidate.
+- **Status:** Open — candidate admitted on measure, awaiting the console run.
+  The ceiling that blocked it is measured (below) and the host load fits; what is
+  still missing is on-device decode tok/s and peak, i.e. the PASS/FAIL itself.
+  Desk survey 2026-07-29 against pin `b10093-1-g6d5a910c5`, whose
+  `src/models/*.cpp` wildcard already compiles `lfm2moe.cpp`, `granite-moe.cpp`,
+  `qwen3moe.cpp`, `olmoe.cpp` and ~20 more.
+
+  **Candidate: LFM2.5-8B-A1B** (`LiquidAI/LFM2.5-8B-A1B-GGUF`, `unsloth/…` for the
+  low quants) — same family as the shipping default, ~1.5B of 8.3B active (≈1/5.5).
+  Peak estimated at weights × 1.12, the measured load overhead of the catalogue
+  GGUFs (`qwen25-coder-3b` 1840→2116 MB, `lfm2-2.6b` 1491→1623 MB):
+
+  | Quant             | Weights     | Est. peak   | vs H2 gate (4 GB) |
+  | ----------------- | ----------- | ----------- | ----------------- |
+  | Q4_K_M (official) | 5156 MB     | ~5.8 GB     | over              |
+  | UD-IQ4_XS         | 4265 MB     | ~4.8 GB     | over              |
+  | UD-Q3_K_M         | 3940 MB     | ~4.4 GB     | over              |
+  | **UD-IQ3_S**      | **3571 MB** | **~4.0 GB** | **on the line**   |
+  | UD-Q2_K_XL        | 2926 MB     | ~3.3 GB     | under             |
+  | UD-IQ2_M          | 2755 MB     | ~3.1 GB     | under             |
+
+  So the hypothesis turned on whether IQ3_S fits, which no number in the repo
+  could answer — the only RAM figure was one incidental `avail_phys` 5.0 GB log
+  line, and the gates are acceptance policy.
+
+  **Ceiling measured on console 2026-07-29** (MSIX 1.5.1.762, `ramceil.flag` via
+  `scripts/bench-ramceil.sh`, raw `bench/results/phase15-ramceil.csv`):
+  **4864 MB of heap committed, 4893 MB peak working set**, 38 × 128 MB steps with
+  every page faulted in. Process overhead held at exactly 29 MB across all 38
+  steps, so committed tracks resident 1:1. `avail_phys` fell linearly from
+  ~5113 MB to 240 MB — which both confirms the historical 5.0 GB figure and shows
+  it is nearly all spendable.
+
+  Two caveats bound how far this number may be carried:
+  1. **It is a lower bound.** The probe stopped on its own 256 MB `avail_phys`
+     floor, not on a failed allocation — it was never told how much more it could
+     have taken. The ceiling is ≥ 4893 MB, not = 4893 MB.
+  2. **It is a headless number.** Measured with no model, no XAML and no
+     compositor. An in-app load also pays the compositor's D3D12 device, the ggml
+     compute buffers and the KV cache, so the usable in-app ceiling is lower by an
+     amount this probe does not measure.
+
+  **Host load, measured** (same GGUF, `xllama-cli` on Linux, `-t 6 -n 64`): the
+  pin loads `lfm2moe` and answers coherently at `UD-IQ3_S`, peak RSS **3495 MB**
+  with a 264 MiB compute buffer.
+
+  **That host peak does not predict the console peak, and must not be quoted as
+  if it did.** The host path leaves llama.cpp's `use_mmap` at its default, so RSS
+  counts only the weight pages actually faulted in; the console has no mmap
+  (§1) and reads the whole file into the heap. The two numbers measure different
+  things, and for a MoE they diverge in the dangerous direction — low on host.
+  The console peak estimate therefore stays **weights × ~1.12 ≈ 4.0 GB**; the
+  table above is unrevised.
+
+  What the host run _does_ establish is that sparse activation is real and
+  observable: 3495 MB of resident set against **3571 MB of weights plus a 264 MiB
+  compute buffer** means a sizeable share of weight pages was never touched. The
+  dense comparator on the same host and the same prompt goes the other way —
+  `qwen25-coder-3b` Q4_K_M reaches 3225 MB against 1840 MB of weights, every page
+  resident. Caveat on the fraction: experts accumulate with tokens generated, so
+  "untouched" at `-n 64` is not a fixed property of the model. The mechanism H2
+  bets on is visible; its magnitude is not measured here.
+
+  **Consequence:** `UD-IQ3_S` (~4.0 GB estimated console peak)
+  clears both the H2 4 GB gate and
+  the measured ceiling with ~900 MB of headroom, so H2 proceeds at a quant whose
+  quality is worth measuring. Q2 is no longer the only option, which matters
+  because a Q2 result would have tested the quantization rather than the
+  architecture — the E2B IQ2_M garbage precedent (H4 FAIL mode) is the warning,
+  with the caveat that it was neither a UD quant nor an MoE, where the low bits
+  land on experts rather than on attention. `UD-IQ4_XS` (~4.8 GB) fits the
+  measured ceiling but breaks the 4 GB gate: taking it would be a product
+  decision to raise the gate, not a measurement.
+
+  Rejected on the same pass: **granite-3.1-3b-a800m** Q4_K_M (2017 MB, ~2.3 GB
+  peak) fits comfortably and would be fast, but 800M active is ~1B-class quality —
+  it answers "cheap decode", not H2's "peer quality at mid-speed".
 
 ### H3 — Speculative decoding (draft LFM + target 1.7–3B)
 

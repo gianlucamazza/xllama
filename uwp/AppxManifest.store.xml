@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+  xmlns:xbox="http://schemas.microsoft.com/appx/manifest/xbox/windows10"
+  IgnorableNamespaces="mp uap uap3 xbox">
+
+  <!-- Store SKU manifest (XllamaStoreSku=true / XLLAMA_STORE_SKU).
+       Research surfaces stay on AppxManifest.xml (dev / Dev Mode):
+         - privateNetworkClientServer (LAN API)
+         - removableStorage (USB models)
+       Identity remains the local test identity until Partner Center reserves
+       a Store publisher; do not point shipping Dev Mode users at this file.
+       SSOT: docs/store-readiness.md -->
+  <!-- Version: Major.Minor.Build is the semantic version (bump manually per
+       release, alongside CHANGELOG). The Revision (the trailing .0) is stamped
+       automatically in CI to the workflow run number (build-uwp.ps1
+       -BuildRevision) so every build is uniquely, monotonically versioned and
+       the console always accepts an in-place update. Local builds keep .0. -->
+  <Identity
+    Name="GianlucaMazza.xllama"
+    Publisher="CN=xllama-dev"
+    Version="1.5.1.0"
+    ProcessorArchitecture="x64" />
+
+  <mp:PhoneIdentity
+    PhoneProductId="00000000-0000-0000-0000-000000000000"
+    PhonePublisherId="00000000-0000-0000-0000-000000000000" />
+
+  <Properties>
+    <DisplayName>xllama</DisplayName>
+    <PublisherDisplayName>Gianluca Mazza</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Xbox"    MinVersion="10.0.19041.0" MaxVersionTested="10.0.22621.0" />
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.22621.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-US" />
+  </Resources>
+
+  <Applications>
+    <Application Id="xllama" Executable="xllama.exe" EntryPoint="xllama.App">
+      <uap:VisualElements
+        DisplayName="xllama"
+        Description="Local LLM inference for Xbox Series S|X"
+        BackgroundColor="#0E1116"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" ShortName="xllama" />
+        <uap:SplashScreen Image="Assets\SplashScreen.png" BackgroundColor="#0E1116" />
+        <uap:InitialRotationPreference>
+          <uap:Rotation Preference="landscape" />
+        </uap:InitialRotationPreference>
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <!-- internetClient: catalogue / Hugging Face model download on first use. -->
+    <Capability Name="internetClient" />
+  </Capabilities>
+
+</Package>

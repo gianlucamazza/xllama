@@ -23,6 +23,7 @@ add_executable(xllama-tests
     test_prompt_budget.cpp
     test_manifest_merge.cpp
     test_membw.cpp
+    test_ramceil.cpp
     test_model_provision.cpp
     test_logit_parity.cpp
     test_training.cpp

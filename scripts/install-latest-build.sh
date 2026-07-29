@@ -3,7 +3,7 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/install-latest-build.sh [branch] [--bench] [--provision]
+#   ./scripts/install-latest-build.sh [branch] [--bench] [--provision] [--store]
 #
 # Defaults to the current git branch if no branch argument is given.
 # Requires: gh CLI (authenticated), jq, curl.
@@ -14,6 +14,12 @@
 # MSIX uninstall wipes LocalState — re-provision models after a fresh install.
 # --provision does it for the console-gate model set, after the registration has
 # settled (provisioning too early lands in a container the OS then resets).
+#
+# --store downloads the Store SKU artifact (xllama-appx-store) from a
+# workflow_dispatch run that set store_sku=true. That SKU has no headless
+# flags — --bench is rejected. Same package identity as dev for now, so this
+# replaces the Dev Mode install on the console (docs/store-readiness.md).
+# No local Windows VM: packages come from GitHub Actions windows-2022 only.
 
 set -euo pipefail
 
@@ -22,11 +28,13 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 UPLOAD_BENCH=false
 PROVISION=false
+STORE_SKU=false
 BRANCH=""
 for arg in "$@"; do
 	case "$arg" in
 	--bench) UPLOAD_BENCH=true ;;
 	--provision) PROVISION=true ;;
+	--store) STORE_SKU=true ;;
 	*) [[ -z "$BRANCH" ]] && BRANCH="$arg" ;;
 	esac
 done
@@ -37,6 +45,14 @@ GATE_MODELS=(smollm2-360m-cpu-int4 smollm2-360m-dml-fp16-v2 lfm25-350m
 	qwen25-coder-0.5b lfm25-1.2b-thinking)
 BRANCH="${BRANCH:-$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)}"
 ARTIFACT_NAME="xllama-appx"
+if [[ "$STORE_SKU" == true ]]; then
+	ARTIFACT_NAME="xllama-appx-store"
+fi
+if [[ "$STORE_SKU" == true && "$UPLOAD_BENCH" == true ]]; then
+	echo "ERROR: --bench is not supported on the Store SKU (headless flags compiled out)." >&2
+	echo "Omit --bench, or install the dev artifact without --store." >&2
+	exit 1
+fi
 WORK_DIR="/tmp/xllama-install-$$"
 
 : "${XBOX_IP:?XBOX_IP not set — run: source ~/.config/xllama/xbox-env}"
@@ -46,20 +62,46 @@ WORK_DIR="/tmp/xllama-install-$$"
 cleanup() { rm -rf "$WORK_DIR"; }
 trap cleanup EXIT
 
-echo "==> Looking for latest successful build-uwp run on branch: ${BRANCH}"
+echo "==> Looking for latest successful build-uwp run on branch: ${BRANCH} (artifact: ${ARTIFACT_NAME})"
 
-RUN_ID=$(gh run list \
-	--repo gianlucamazza/xllama \
-	--branch "$BRANCH" \
-	--workflow build-uwp \
-	--status success \
-	--limit 1 \
-	--json databaseId \
-	--jq '.[0].databaseId' 2>/dev/null || echo "")
+RUN_ID=""
+if [[ "$STORE_SKU" == true ]]; then
+	# Store SKU is only produced by workflow_dispatch -f store_sku=true; walk
+	# recent successful runs and pick the first that lists the artifact (API,
+	# no download probe).
+	while IFS= read -r candidate; do
+		[[ -z "$candidate" || "$candidate" == "null" ]] && continue
+		if gh api "repos/gianlucamazza/xllama/actions/runs/${candidate}/artifacts" \
+			--jq '.artifacts[].name' 2>/dev/null | grep -qx "$ARTIFACT_NAME"; then
+			RUN_ID="$candidate"
+			break
+		fi
+	done < <(gh run list \
+		--repo gianlucamazza/xllama \
+		--branch "$BRANCH" \
+		--workflow build-uwp \
+		--status success \
+		--limit 20 \
+		--json databaseId \
+		--jq '.[].databaseId' 2>/dev/null || true)
+else
+	RUN_ID=$(gh run list \
+		--repo gianlucamazza/xllama \
+		--branch "$BRANCH" \
+		--workflow build-uwp \
+		--status success \
+		--limit 1 \
+		--json databaseId \
+		--jq '.[0].databaseId' 2>/dev/null || echo "")
+fi
 
 if [[ -z "$RUN_ID" || "$RUN_ID" == "null" ]]; then
-	echo "No successful build-uwp run found on branch '${BRANCH}'." >&2
-	echo "Check: gh run list --branch $BRANCH" >&2
+	echo "No successful build-uwp run with artifact '${ARTIFACT_NAME}' on branch '${BRANCH}'." >&2
+	if [[ "$STORE_SKU" == true ]]; then
+		echo "Trigger a Store SKU build (no Windows VM):" >&2
+		echo "  gh workflow run build-uwp.yml -f store_sku=true --ref ${BRANCH}" >&2
+	fi
+	echo "Check: gh run list --branch $BRANCH --workflow build-uwp" >&2
 	exit 1
 fi
 

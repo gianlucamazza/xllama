@@ -5,6 +5,7 @@
 #include "xllama/cli.h"
 #include "xllama/inference.h"
 #include "xllama/membw.h"
+#include "xllama/ramceil.h"
 #include "xllama/training.h"
 #ifdef XLLAMA_DEVICE_TRAIN
     #include "xllama/device_train.h"
@@ -105,6 +106,22 @@ int main(int argc, char** argv) {
                     mt.read_gbs, mt.copy_gbs, mt.triad_gbs);
         std::printf("%s%s", xllama::membw_csv_header(),
                     xllama::format_membw_row(mt, "host").c_str());
+        return 0;
+    }
+
+    // --ramceil: model-free heap-ceiling probe. Streams the CSV as it goes
+    // rather than after the fact — on console the process can be killed mid
+    // probe, and an unflushed summary would lose exactly the rows that matter.
+    if (params.run_ramceil) {
+        std::printf("%s", xllama::ramceil_csv_header());
+        std::fflush(stdout);
+        const xllama::RamCeilResult r =
+            xllama::probe_ram_ceiling(256, 6144, 256, [](const xllama::RamCeilStep& s) {
+                std::printf("%s", xllama::format_ramceil_row(s, "host").c_str());
+                std::fflush(stdout);
+            });
+        std::fprintf(stderr, "ramceil: max committed %zu MB (start avail %zu MB, stop: %s)\n",
+                     r.max_committed_mb, r.avail_phys_start_mb, r.stop_reason.c_str());
         return 0;
     }
 

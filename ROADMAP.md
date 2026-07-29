@@ -37,13 +37,13 @@ Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.
 
 - [x] H1 efficient LFM campaign and deterministic H9 suite.
 - [x] H4 usable dense 3B campaign; Llama-3.2-3B is the preferred comparator.
-- [ ] H2 MoE candidate, only when a supported GGUF fits below the measured
-      memory ceiling.
+- [~] H2 MoE candidate — ceiling measured 2026-07-29 (4864 MB committed), which
+  admits LFM2.5-8B-A1B at `UD-IQ3_S`; console decode still open (Phase 15 W1).
 - [ ] H3 speculative decoding spike, gated on a concrete target/draft pair and
-      a predeclared throughput-quality threshold.
+      a predeclared throughput-quality threshold (Phase 15 W2).
 - [ ] H5 BitNet/low-bit survey before any runtime work.
 - [ ] H6/H7 GPU or hybrid GGUF experiments only after a credible UWP backend
-      path exists.
+      path exists — H6 now has a predeclared 100 GB/s kill gate (Phase 15 W3).
 
 ## Phase 8 — Training pillar (exploration) ✅ FROZEN complete
 
@@ -224,7 +224,7 @@ long prompt and the CPU wins from the second turn (§5d). Evidence under
       user's first send instead of inside its wait — confirmed on-console
       (first DML request: prefill 873 tok/s, decode at warm parity).
 
-## Phase 13 — CPU prefill & KV-reuse structural campaign (in progress)
+## Phase 13 — CPU prefill & KV-reuse structural campaign ✅ complete (shipped 1.5.1.0)
 
 Sourced from the 2026-07-26 architecture review: a docs sweep of everything
 already adopted or rejected (`uwp-constraints.md`, `phase7-hypotheses.md`)
@@ -257,43 +257,43 @@ fix.
       catalogue GGUF archs verified on host**: LFM2.5 (hybrid) shifts;
       Qwen3.5 (imrope, cannot shift — `seq_add` would abort) keeps the clean
       #173 fail-fast the UI retry keys on.
-- [~] **#170 — token-level KV prefix matching.** **Step (a) landed
-  (2026-07-26): in-memory prefix diff in `LlamaSession`** — a full-prompt
-  turn rewinds the resident KV to the common token prefix
-  (`llama_memory_seq_rm`) and prefills only the divergent tail; a
-  regenerate re-prefills exactly 1 token (opt-in host test with a real
-  GGUF: regenerate byte-identical; extended prompt agrees on the leading
-  token — near-tie divergence downstream is inherent to any prefix
-  cache, the resident prefix was accumulated in a different batch
-  shape). Covers regenerate, edited last message, and LAN-API extension
-  requests through the resident hub session. **Hybrid correction (PR
-  #183):** hybrid caches (both catalogue GGUFs) refuse the tail rewind at
-  the `llama_memory` layer — the ignored `seq_rm` return corrupted
-  regenerate output; now a pure extension skips `seq_rm` and a refused
-  erase degrades to a correct full re-prefill (regime-aware opt-in test).
-  **Step (b) landed (2026-07-27):** leaving a conversation writes its KV
-  to `LocalState\kv\<id>.kv` and the first turn back restores it, so the
-  switch costs a delta prefill instead of the history. Host-measured at
-  `n_ctx` 2048 on both catalogue GGUFs: LFM2.5 17.6 MB / 1476 tokens (12
-  KiB/token, save 21 ms, load 33 ms), Qwen3.5-0.8B 36.5 MB / 1472 (25
-  KiB/token, save 124 ms, load 301 ms) — against the 4532 ms console
-  re-prefill. Fingerprinted
-  (model, n*ctx, KV quant, LoRA) because the pin validates cache shape
-  only; atomic writes in 8 MB chunks (§9 AppContainer bound); `KvStore`
-  caps the pool at 3 files / 192 MB, LRU, host-tested. A stale snapshot
-  is harmless by construction — the #170a diff turns it into the prefill
-  that would have happened anyway. **Console-confirmed** on build
-  1.5.1.737 (`validate-console.sh kvsnap`): leaving a conversation and
-  returning takes the prefill from 551 tokens to 19 (3% of cold). **Step (c), the ex-#174
-  BuildPrompt-off-the-UI-thread item: won't do, measured.** The deep copy
-  plus the full render of a prompt at the trimmer ceiling (10 KB) costs
-  **11.2 µs** on host — call it 30–50 µs on Zen2, once per turn, against a
-  16.7 ms frame. Moving it to the worker means snapshotting the
-  \_untrimmed* conversation on the UI thread (more copying than the render
-  it replaces) or putting a mutex on conversation state that the
-  token-streaming path would then contend on. The real #174 costs — the
-  per-turn provisioning I/O and the per-message `chat_format()` — were the
-  ones worth fixing, and PR #177 fixed them.
+- [x] **#170 — token-level KV prefix matching.** **Step (a) landed
+      (2026-07-26): in-memory prefix diff in `LlamaSession`** — a full-prompt
+      turn rewinds the resident KV to the common token prefix
+      (`llama_memory_seq_rm`) and prefills only the divergent tail; a
+      regenerate re-prefills exactly 1 token (opt-in host test with a real
+      GGUF: regenerate byte-identical; extended prompt agrees on the leading
+      token — near-tie divergence downstream is inherent to any prefix
+      cache, the resident prefix was accumulated in a different batch
+      shape). Covers regenerate, edited last message, and LAN-API extension
+      requests through the resident hub session. **Hybrid correction (PR
+      #183):** hybrid caches (both catalogue GGUFs) refuse the tail rewind at
+      the `llama_memory` layer — the ignored `seq_rm` return corrupted
+      regenerate output; now a pure extension skips `seq_rm` and a refused
+      erase degrades to a correct full re-prefill (regime-aware opt-in test).
+      **Step (b) landed (2026-07-27):** leaving a conversation writes its KV
+      to `LocalState\kv\<id>.kv` and the first turn back restores it, so the
+      switch costs a delta prefill instead of the history. Host-measured at
+      `n_ctx` 2048 on both catalogue GGUFs: LFM2.5 17.6 MB / 1476 tokens (12
+      KiB/token, save 21 ms, load 33 ms), Qwen3.5-0.8B 36.5 MB / 1472 (25
+      KiB/token, save 124 ms, load 301 ms) — against the 4532 ms console
+      re-prefill. Fingerprinted
+      (model, n*ctx, KV quant, LoRA) because the pin validates cache shape
+      only; atomic writes in 8 MB chunks (§9 AppContainer bound); `KvStore`
+      caps the pool at 3 files / 192 MB, LRU, host-tested. A stale snapshot
+      is harmless by construction — the #170a diff turns it into the prefill
+      that would have happened anyway. **Console-confirmed** on build
+      1.5.1.737 (`validate-console.sh kvsnap`): leaving a conversation and
+      returning takes the prefill from 551 tokens to 19 (3% of cold). **Step (c), the ex-#174
+      BuildPrompt-off-the-UI-thread item: won't do, measured.** The deep copy
+      plus the full render of a prompt at the trimmer ceiling (10 KB) costs
+      **11.2 µs** on host — call it 30–50 µs on Zen2, once per turn, against a
+      16.7 ms frame. Moving it to the worker means snapshotting the
+      \_untrimmed* conversation on the UI thread (more copying than the render
+      it replaces) or putting a mutex on conversation state that the
+      token-streaming path would then contend on. The real #174 costs — the
+      per-turn provisioning I/O and the per-message `chat_format()` — were the
+      ones worth fixing, and PR #177 fixed them.
 - [x] **#171 — KV quantization measured; verdict: knob shipped, default
       OFF.** Consolidation half landed first (PR #177: `kDefaultNCtx`, domain
       test). The q8_0+flash-attn knob (`--kv-q8`, `SessionParams::kv_q8`,
@@ -330,6 +330,89 @@ Explicitly **not** reopened: mmap via `CreateFileMappingFromApp` — tried and
 reverted 2026-07-14 with zero measured benefit (`uwp-constraints.md` §1);
 the negative measurement stands even though its original attribution was
 retired after #155.
+
+## Phase 14 — Coding, chat and thinking tiers ✅ complete (unreleased)
+
+Phase 13 made a turn cheap; Phase 14 spends that headroom on **what the
+catalogue can hold**. Architecture first, no Settings rewrite: the catalogue
+gained a per-model `n_ctx` and a `role: coding`, and the product surfaces read
+them. SSOT: [`docs/model-matrix.md`](docs/model-matrix.md); console evidence
+`bench/results/phase14-console.csv`.
+
+- [x] **Catalogue tier.** `qwen25-coder-0.5b` / `1.5b` / `3b`, `qwen3-1.7b`,
+      `lfm25-1.2b-thinking`. Console decode / peak: Coder-0.5B **62.4** tok/s /
+      533 MB, Thinking **36.7** / 811 MB, Coder-1.5B **26.1** / 1179 MB,
+      Qwen3-1.7B **21.8** / 1398 MB, Coder-3B **14.0** / 2116 MB. The 3B row is
+      the number Phase 15 exists to move.
+- [x] **Thinking as a product path, not UI magic.** `model_is_thinking` +
+      `strip_thinking_blocks` in `ChatFormat::postprocess_output` — display and
+      persist the answer only. `model_is_qwen3` keeps the no-think prefill
+      scoped to Qwen3, not to Coder or Thinking. A reasoning block that runs out
+      of tokens now stores an explicit "reasoning only" turn instead of leaving
+      raw CoT on screen with no saved reply.
+- [x] **Thinking models take no KV snapshot (#170b interaction).** The saved
+      history is stripped while the resident KV holds the full CoT, so the #170a
+      prefix diff always diverges on return: the snapshot bought nothing and cost
+      tens of MB of writes. In-conversation delta reuse is unaffected.
+- [x] **Prefill batching and budget fixes (PR #193).** A prompt over ~2049
+      tokens aborted the process rather than failing — both prefills submitted
+      the whole prompt as one logical batch and `llama_decode` trips
+      `GGML_ASSERT` instead of returning an error, reachable from both the chat
+      UI at the coding tier's 4096-token session and the LAN API. Prefill is
+      chunked at `llama_n_batch` now (physical ubatch 512 unchanged, the #172
+      optimum). Replies also stopped being silently cut at ~250 tokens: the
+      trimmer reserved a flat 250 against a UI default `n_predict` of 512.
+- [~] **Exact token-budget trim + gates** — PR #194 open: enforce the budget in
+  tokens, once, where the tokenizer is.
+
+## Phase 15 — Make the 3B–4B class usable (in progress)
+
+The binding constraint is **bytes read per token**, not framework quality: the
+bus is 224 GB/s, CPU decode reaches ~13 GB/s effective and DirectML fp16 ~34,
+and Coder-3B lands at 14.0 tok/s. Three levers touch that denominator; a
+rewritten framework or a bespoke model architecture touch neither, and both are
+rejected on that ground (`docs/phase7-hypotheses.md`, "Do not reopen").
+
+- [~] **W1 — H2: a MoE whose active weights are a fraction of its total.**
+  Desk survey done 2026-07-29 against pin `b10093-1-g6d5a910c5`
+  (`src/models/*.cpp` already compiles `lfm2moe.cpp` and ~20 more MoE archs).
+  Candidate **LFM2.5-8B-A1B**, 32 experts / 4 active. Admissibility hung on a
+  never-measured number, so the **console heap ceiling was measured**:
+  **4864 MB committed / 4893 MB peak WS** (`ramceil.flag`,
+  `scripts/bench-ramceil.sh`, `bench/results/phase15-ramceil.csv`) — a lower
+  bound, and headless. That admits `UD-IQ3_S` inside the 4 GB H2 gate, so the
+  experiment tests the architecture rather than the quantization. **Open:**
+  console decode tok/s and peak for the candidate.
+- [ ] **W2 — H3: speculative decoding.** Both halves of the pair already ship and
+      are console-PASS: draft `qwen25-coder-0.5b` (379 MB, 62.4 tok/s), target
+      `qwen25-coder-3b` (1840 MB, 14.0). Same family, so
+      `common_speculative_are_compatible` is the first host check and the one
+      that can kill the workstream cheaply. Implementation lives **inside**
+      `LlamaSession` as one session with two contexts, which keeps the SessionHub
+      "never 2× model resident" invariant true by construction. PASS ≥1.4× at
+      unchanged quality and peak < 3.5 GB; the `longchat` and `kvsnap` gates are
+      the real regression tests, since the draft touches the KV.
+- [ ] **W3 — H6 gate: does our own compute shader beat DirectML?** Not a backend
+      — a measurement. Every negative GPU result on record is a DirectML result,
+      and DirectML provably has no fused low-bit GEMM (`DML_DEQUANTIZE` + full
+      `DML_GEMM` materializes fp16 and reads _more_ bandwidth than fp16 itself).
+      DXGI and D3D12 both work in AppContainer and DXIL compiles AOT, so the JIT
+      ban does not bite. **Kill criterion, predeclared: under 100 GB/s STREAM
+      read the hypothesis dies and goes to "Do not reopen".**
+
+## Xbox Store retail (public release path)
+
+SSOT: [`docs/store-readiness.md`](docs/store-readiness.md). Dev Mode remains
+the supported install path until a submission is accepted.
+
+- [~] Phase 0 — discovery: SSOT + licence matrix in `store-readiness.md`;
+  Partner Center decision + App vs Game spike + go/no-go still open.
+- [~] Phase 1 — Store SKU foundation + **no-VM CI path** (`workflow_dispatch`
+  `store_sku=true` → `xllama-appx-store`, `install-latest-build.sh --store`);
+  console smoke + Partner Center identity still open.
+- [~] Phase 2 — privacy draft in `docs/privacy.md`; age rating + listing assets + published HTTPS privacy URL still open.
+- [ ] Phase 3 — Partner Center submission + certification.
+- [ ] Phase 4 — post-launch dual path (Store + Dev Mode) in README.
 
 ## Upstream and vendor lifecycle
 

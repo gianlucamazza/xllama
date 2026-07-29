@@ -41,7 +41,11 @@ param(
     # increasing version — in-place console updates never hit the same-identity
     # block. 0 (the local default) leaves the committed X.Y.Z.0 unchanged, so a
     # local build never pollutes the working tree.
-    [int]$BuildRevision     = $(if ($env:GITHUB_RUN_NUMBER) { [int]$env:GITHUB_RUN_NUMBER } else { 0 })
+    [int]$BuildRevision     = $(if ($env:GITHUB_RUN_NUMBER) { [int]$env:GITHUB_RUN_NUMBER } else { 0 }),
+    # Store SKU: XLLAMA_STORE_SKU — no LAN API, no USB models, no headless flags;
+    # AppxManifest.store.xml (internetClient only). Dev Mode remains the default.
+    # See docs/store-readiness.md. Still test-signed (Partner Center identity later).
+    [switch]$StoreSku       = $false
 )
 
 $ErrorActionPreference = "Stop"
@@ -190,8 +194,9 @@ if ($PatchedOrt -and $Backend -ne "llamacpp") {
 # The negative-lookbehind avoids the TargetDeviceFamily Min/MaxVersion attributes;
 # only the first (Identity) Version is rewritten.
 # ---------------------------------------------------------------------------
+$ManifestName = if ($StoreSku) { "AppxManifest.store.xml" } else { "AppxManifest.xml" }
 if ($BuildRevision -gt 0) {
-    $ManifestPath = Join-Path $UwpDir "AppxManifest.xml"
+    $ManifestPath = Join-Path $UwpDir $ManifestName
     $manifestText = Get-Content -Raw $ManifestPath
     $rx = [regex]'(?<!\w)Version="(\d+)\.(\d+)\.(\d+)\.\d+"'
     $newText = $rx.Replace($manifestText, {
@@ -200,10 +205,13 @@ if ($BuildRevision -gt 0) {
     }, 1)
     Set-Content -Path $ManifestPath -Value $newText -NoNewline
     $stamped = ([regex]::Match($newText, '(?<!\w)Version="(\d+\.\d+\.\d+\.\d+)"')).Groups[1].Value
-    Write-Host "Version stamped: $stamped (revision = build $BuildRevision)"
+    Write-Host "Version stamped ($ManifestName): $stamped (revision = build $BuildRevision)"
 }
 
 Write-Host "Building $Configuration|$Platform ..."
+if ($StoreSku) {
+    Write-Host "Store SKU: XLLAMA_STORE_SKU=1, manifest=$ManifestName"
+}
 
 # ---------------------------------------------------------------------------
 # Build + sign
@@ -219,6 +227,9 @@ $MsBuildArgs = @(
     "/m",
     "/nologo"
 )
+if ($StoreSku) {
+    $MsBuildArgs += "/p:XllamaStoreSku=true"
+}
 if ($Backend -ne "ort") {
     Write-Host "Backend: $Backend (links the static ggml/llama lib)"
     $MsBuildArgs += "/p:XllamaBackend=$Backend"

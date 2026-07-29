@@ -71,8 +71,18 @@ bool model_is_phi(const std::string& model_id) {
 }
 
 bool model_is_thinking(const std::string& model_id) {
+    const std::string id = to_lower(model_basename(model_id));
     // Catalogue / file ids like lfm25-1.2b-thinking, LFM2.5-1.2B-Thinking-….
-    return to_lower(model_basename(model_id)).find("thinking") != std::string::npos;
+    if (id.find("thinking") != std::string::npos)
+        return true;
+    // LFM2.5-8B-A1B reasons unconditionally without saying so in its name: the
+    // shipped template emits <think> on every turn, and its `preserve_thinking`
+    // flag governs only whether past turns' CoT is replayed into the history,
+    // not whether the model produces it. Missing this would leak raw CoT into
+    // the UI and — worse — leave KV snapshots enabled on a model that must be
+    // excluded from them, because the saved history is stripped while the KV
+    // holds the full CoT, so the prefix diff can never match (MainPage.cpp).
+    return id.find("a1b") != std::string::npos;
 }
 
 std::string qwen_no_think_gen_suffix(const std::string& model_id) {
