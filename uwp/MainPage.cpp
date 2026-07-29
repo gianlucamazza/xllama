@@ -8,7 +8,9 @@
 #include "MainPage.h"
 // clang-format on
 
-    #include "api-server.h"
+    #ifndef XLLAMA_STORE_SKU
+        #include "api-server.h"
+    #endif
     #include "chat-history.h"
     #include "inference-bridge.h"
     #include "xllama/chat_prompt.h"
@@ -382,6 +384,7 @@ void MainPageController::Init() {
     LoadSettings();
 
     EnsureModelAsync();
+    ShowDisclaimerIfNeeded();
 }
 
 // ---------------------------------------------------------------------------
@@ -1301,6 +1304,7 @@ void MainPageController::SaveSettings() {
     m_kv_valid = false;
 }
 
+    #ifndef XLLAMA_STORE_SKU
 void MainPageController::ApplyApiSettings(bool enabled, int port) {
     if (enabled) {
         write_local_bytes(L"api-port.txt", std::to_string(port));
@@ -1337,6 +1341,32 @@ void MainPageController::ApplyApiSettings(bool enabled, int port) {
             }
         });
     }).detach();
+}
+    #endif // !XLLAMA_STORE_SKU
+
+winrt::fire_and_forget MainPageController::ShowDisclaimerIfNeeded() {
+    auto self = shared_from_this();
+    if (std::filesystem::exists(local_wpath(L"disclaimer.accepted")))
+        co_return;
+
+    // Yield once so XamlRoot is attached after Window.Content/Activate.
+    co_await winrt::resume_foreground(m_root.Dispatcher());
+
+    winrt::Windows::UI::Xaml::Controls::TextBlock body;
+    body.TextWrapping(winrt::Windows::UI::Xaml::TextWrapping::Wrap);
+    body.Text(L"xllama runs language and image models entirely on this device. "
+              L"Generated text and images can be inaccurate, biased, or inappropriate. "
+              L"Nothing leaves the console except model downloads you start. "
+              L"This project is not affiliated with Microsoft.");
+    body.MaxWidth(520);
+
+    winrt::Windows::UI::Xaml::Controls::ContentDialog dlg;
+    dlg.Title(winrt::box_value(L"Before you start"));
+    dlg.Content(body);
+    dlg.PrimaryButtonText(L"I understand");
+    dlg.XamlRoot(m_root.XamlRoot());
+    co_await dlg.ShowAsync();
+    write_local_bytes(L"disclaimer.accepted", "1\n");
 }
 
 winrt::fire_and_forget MainPageController::ShowSettings() {
@@ -1435,6 +1465,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     routingBox.Items().Append(winrt::box_value(L"Auto (long prompts → GPU)"));
     routingBox.SelectedIndex(m_routing >= 0 && m_routing <= 2 ? m_routing : 0);
 
+    #ifndef XLLAMA_STORE_SKU
     const bool api_enabled = std::filesystem::exists(local_wpath(L"api.flag"));
     int api_port = 11434;
     try {
@@ -1484,6 +1515,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
         apiStatus.Text(L"Status: stopped. Trusted LAN only; no authentication.");
         break;
     }
+    #endif // !XLLAMA_STORE_SKU
 
     // GGUF models run stateless on CPU-only llama.cpp: KV-reuse and EP routing do
     // not apply, so grey them out whenever a GGUF entry is selected (and restore
@@ -1540,9 +1572,11 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     panel.Children().Append(nPredSlider);
     panel.Children().Append(kvToggle);
     panel.Children().Append(routingBox);
+    #ifndef XLLAMA_STORE_SKU
     panel.Children().Append(apiToggle);
     panel.Children().Append(apiPortBox);
     panel.Children().Append(apiStatus);
+    #endif
 
     winrt::Windows::UI::Xaml::Controls::ScrollViewer sv;
     sv.Content(panel);
@@ -1596,6 +1630,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     self->m_repetition_penalty = static_cast<float>(repSlider.Value());
     self->m_n_predict = static_cast<int>(nPredSlider.Value());
     self->m_kv_reuse = kvToggle.IsOn();
+    #ifndef XLLAMA_STORE_SKU
     int selected_api_port = api_port;
     if (apiToggle.IsOn()) {
         try {
@@ -1610,12 +1645,15 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
             co_return;
         }
     }
+    #endif
     int ri = routingBox.SelectedIndex();
     self->m_routing = (ri >= 0 && ri <= 2) ? ri : 0;
     // Routing is per-conversation: a change applies from the next new/loaded chat
     // (m_active_model stays fixed for the conversation in progress).
     self->SaveSettings();
+    #ifndef XLLAMA_STORE_SKU
     self->ApplyApiSettings(apiToggle.IsOn(), selected_api_port);
+    #endif
 }
 
 // ---------------------------------------------------------------------------
@@ -2245,9 +2283,11 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
         }
     }
 
+    #ifndef XLLAMA_STORE_SKU
     // Check 3: USB removable storage via KnownFolders.RemovableDevices
     // (requires <uap:Capability Name="removableStorage" /> in manifest).
     // Enumerates all removable drives; looks for xllama/models/<name>/genai_config.json.
+    // Store SKU: no removableStorage capability — download / LocalState only.
     co_await resume_foreground(dispatcher);
     {
         bool usb_found = false;
@@ -2374,15 +2414,23 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
             co_return;
         }
     }
+    #endif // !XLLAMA_STORE_SKU
     // Neither found: consult the model catalogue (loaded above) — any entry with
     // an hf_base_url can be auto-downloaded; anything else must be provided via
-    // USB or Device Portal upload.
+    // USB or Device Portal upload (dev SKU only for USB).
     if (!entry || entry->hf_base_url.empty() || entry->files.empty()) {
         log_output(("[xllama] EnsureModel: '" + ::xllama::wstring_to_utf8(model_name) +
                     "' not in catalogue (no hf_base_url)\n")
                        .c_str());
         co_await resume_foreground(dispatcher);
         if (set_app_ready) {
+    #ifdef XLLAMA_STORE_SKU
+            self->SetStatus(L"Model '" + model_name +
+                                L"' not found.\n"
+                                L"Choose a catalogue model that can download, "
+                                L"or reinstall and try again.",
+                            StatusKind::Error);
+    #else
             self->SetStatus(L"Model '" + model_name +
                                 L"' not found.\n"
                                 L"Upload to LocalState\\models\\" +
@@ -2390,6 +2438,7 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                                 L" via Device Portal or USB "
                                 L"(see docs/model-selection.md).",
                             StatusKind::Error);
+    #endif
             self->m_runButton.IsEnabled(false);
         }
         co_return;
@@ -3222,6 +3271,10 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
                 m_active_model.clear();
             });
         } else if (a.op == "set_api") {
+    #ifdef XLLAMA_STORE_SKU
+            throw std::runtime_error("action " + std::to_string(i) +
+                                     " set_api: LAN API not available in Store SKU");
+    #else
             if (a.enabled && !::xllama::api::port_bindable(a.port))
                 throw std::runtime_error("action " + std::to_string(i) + " set_api: invalid port");
             ApDispatchSync(
@@ -3242,6 +3295,7 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
                 (!a.enabled && state != ::xllama::api::ServerState::Stopped))
                 throw std::runtime_error("action " + std::to_string(i) +
                                          " set_api: lifecycle timeout");
+    #endif
         } else if (a.op == "set_routing") {
             // Same semantics as the Settings panel: per-conversation, applies from
             // the next new/loaded chat (m_active_model stays sticky meanwhile).
