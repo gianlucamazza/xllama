@@ -81,6 +81,33 @@ TEST_CASE("fit_prompt: an oversized single message does not fit and says so") {
     CHECK(fit.prompt.find(huge) != std::string::npos);
 }
 
+TEST_CASE("fit_prompt: an oversized message with NO history still comes back rendered") {
+    // The bisection's not-found path once returned an empty prompt here: with no
+    // turns the exponential probe never runs, so nothing had rendered yet. A fresh
+    // chat with one huge paste is exactly that shape — the console gate caught it
+    // because the app then generated from an empty prompt instead of reporting
+    // "prompt too long".
+    const auto fmt = chat_format_for("qwen25-coder-0.5b");
+    const std::string huge(40000, 'x');
+    const auto fit = fit_prompt(fmt, "sys", {}, huge, 4096, 128, fake_count);
+    CHECK_FALSE(fit.fits);
+    CHECK(fit.dropped == 0);
+    CHECK(fit.n_tokens > 4096);
+    CHECK(fit.prompt.find(huge) != std::string::npos);
+}
+
+TEST_CASE("fit_prompt: the returned prompt is never empty") {
+    const auto fmt = chat_format_for("lfm25-350m");
+    for (int n_turns : {0, 1, 5, 40}) {
+        for (const char* user : {"q", "x"}) {
+            const auto fit =
+                fit_prompt(fmt, "sys", make_turns(n_turns, 400), user, 512, 256, fake_count);
+            CHECK_FALSE(fit.prompt.empty());
+            CHECK(fit.n_tokens > 0);
+        }
+    }
+}
+
 TEST_CASE("fit_prompt: a larger context keeps more history") {
     const auto fmt = chat_format_for("qwen25-coder-0.5b");
     const auto small = fit_prompt(fmt, "sys", make_turns(40, 400), "q", 2048, 512, fake_count);

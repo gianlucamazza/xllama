@@ -1012,10 +1012,21 @@ JSON
 		echo "  FAIL: autopilot did not finish ok"
 		verdict=1
 	}
-	if grep -aq 'context trimmed: dropped' "$log"; then
-		echo "  ok: the trimmer engaged (the ceiling was binding, as intended)"
+	# The exact budget must have run at all — this line is the whole enforcement
+	# point (xllama::fit_prompt in the turn worker), so its absence means the turn
+	# went out unbudgeted no matter what the numbers below say.
+	if grep -aq 'prompt budget:' "$log"; then
+		echo "  ok: $(grep -a 'prompt budget:' "$log" | head -1 | sed 's/.*prompt budget: //')"
 	else
-		echo "  FAIL: the trimmer never ran — the injected history did not fill the context"
+		echo "  FAIL: no 'prompt budget:' line — the exact fit never ran"
+		verdict=1
+	fi
+	# And the ceiling has to have bound somewhere, or the payload was too small to
+	# prove anything: either the estimate dropped turns or the exact pass did.
+	if grep -aqE 'context trimmed \(estimate\): dropped|prompt budget: .* dropped [1-9]' "$log"; then
+		echo "  ok: history was trimmed (the budget was binding, as intended)"
+	else
+		echo "  FAIL: nothing was dropped — the injected history did not fill the context"
 		verdict=1
 	fi
 	python3 - "$log" "$DEFAULT_N_CTX" "$n_predict" <<'PYROOM' || verdict=1

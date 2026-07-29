@@ -51,6 +51,12 @@ PromptFit fit_prompt(const ChatFormat& fmt, const std::string& system,
         out.fits = true;
         return out;
     }
+    if (n == 0) {
+        // Nothing to drop: the trailing message alone is too big. out already holds
+        // its render and count — the caller needs both to report the three numbers.
+        out.fits = false;
+        return out;
+    }
     size_t lo = 0; // known NOT to fit
     size_t hi = 1; // candidate
     std::string probe_prompt;

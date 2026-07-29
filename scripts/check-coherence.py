@@ -375,6 +375,75 @@ def main() -> int:
         else:
             good(f"model-matrix numbers match phase14-console.csv ({len(covered)} models)")
 
+    # --- every catalogue model is documented, and no doc invents one ---
+    # model-matrix.md is the status SSOT, and it grew one table per campaign (A1
+    # with Role/n_ctx/Template, A2 with Status). A reader has to union them, and a
+    # new catalogue entry can simply be missing — which is how the phase14 models
+    # would have shipped undocumented. Coverage in both directions, plus the two
+    # policy fields that change behaviour (role, n_ctx).
+    if mm_path.exists():
+        mm_text = mm_path.read_text(encoding="utf-8")
+        text_models = {
+            n: e for n, e in cat.items() if e.get("kind") != "diffusion"
+        }
+        # Rows mentioning each id, so the field checks look only where the id is.
+        rows_for: dict[str, list[str]] = {n: [] for n in text_models}
+        for line in mm_text.splitlines():
+            if not line.startswith("|"):
+                continue
+            for n in text_models:
+                if f"`{n}`" in line:
+                    rows_for[n].append(line)
+
+        undocumented = sorted(n for n, r in rows_for.items() if not r)
+        if undocumented:
+            err(
+                "model-matrix: catalogue models absent from the inventory: "
+                + ", ".join(undocumented)
+            )
+        else:
+            good(f"model-matrix documents all {len(text_models)} catalogue text models")
+
+        # The reverse direction: every OTHER backticked token in the inventory is
+        # either a documented status label or a pointer to evidence — and a pointer
+        # that no longer resolves is drift with a straight face. (An earlier
+        # version of this check just warned about "unknown ids" and flagged twelve
+        # legitimate ones; a check that cries wolf gets ignored.)
+        status_vocab = set(
+            re.findall(r"`([a-z-]+)`", 
+                       re.search(r"\*\*Status\*\*.*", mm_text).group(0))
+        ) if re.search(r"\*\*Status\*\*.*", mm_text) else set()
+        claimed = set(re.findall(r"`([a-z][a-z0-9.]*(?:-[a-z0-9.]+)+)`", mm_text))
+        dangling, evidence_ok = [], 0
+        for tok in sorted(claimed - set(cat) - status_vocab):
+            if tok.endswith((".md", ".csv", ".json", ".jsonl", ".txt", ".py", ".sh", ".h", ".cpp")):
+                continue
+            if "_" in tok:  # code identifiers (strip_thinking_content, ...)
+                continue
+            if (ROOT / f"bench/results/{tok}.csv").exists() or (
+                ROOT / f"bench/prompts/{tok}.txt"
+            ).exists():
+                evidence_ok += 1
+                continue
+            dangling.append(tok)
+        if dangling:
+            err(
+                "model-matrix: backticked tokens that are neither a catalogue id, a "
+                "status label, nor resolvable evidence: " + ", ".join(dangling)
+            )
+        else:
+            good(f"model-matrix evidence pointers resolve ({evidence_ok} files)")
+
+        for n, e in text_models.items():
+            rows = " ".join(rows_for.get(n, []))
+            if not rows:
+                continue
+            if e.get("role") == "coding" and "coding" not in rows:
+                err(f"model-matrix {n}: catalogue role is coding, the row does not say so")
+            want_ctx = e.get("n_ctx") or 0
+            if want_ctx and str(want_ctx) not in rows:
+                err(f"model-matrix {n}: catalogue n_ctx {want_ctx} missing from the row")
+
     # --- stale size patterns (live docs only) ---
     skip = {
         "docs/technical-report.md",
