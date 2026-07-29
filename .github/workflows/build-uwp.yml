@@ -32,11 +32,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Compact JSON array for matrix.include. Use a heredoc delimiter so
+          # commas/brackets in the value do not break GITHUB_OUTPUT parsing
+          # (bare name=value left the build job unscheduled — run 30446404530).
           base='[
-            {"variant":"unified","patched":true,"artifact":"xllama-appx","store_sku":false},
-            {"variant":"llamacpp","patched":false,"artifact":"xllama-appx-llamacpp","store_sku":false}
+            {"variant":"unified","patched":true,"artifact":"xllama-appx","store_sku":"false"},
+            {"variant":"llamacpp","patched":false,"artifact":"xllama-appx-llamacpp","store_sku":"false"}
           ]'
-          store='{"variant":"unified","patched":true,"artifact":"xllama-appx-store","store_sku":true}'
+          store='{"variant":"unified","patched":true,"artifact":"xllama-appx-store","store_sku":"true"}'
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.store_sku }}" = "true" ]; then
             include=$(jq -c --argjson b "$base" --argjson s "$store" '$b + [$s]')
             echo "Store SKU lane enabled (xllama-appx-store)"
@@ -44,7 +47,13 @@ jobs:
             include=$(jq -c --argjson b "$base" '$b')
             echo "Store SKU lane skipped (use: gh workflow run build-uwp.yml -f store_sku=true)"
           fi
-          echo "include=$include" >> "$GITHUB_OUTPUT"
+          test -n "$include"
+          {
+            echo "include<<EOF"
+            echo "$include"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "matrix.include length: $(jq 'length' <<<"$include")"
 
   build:
     needs: matrix
