@@ -57,8 +57,10 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
 - **Claim:** Decode scales with _active_ weights; MoE delivers peer quality at mid-speed.
 - **PASS:** Peak &lt; 4 GB, decode ≥12, quality &gt; Qwen3.5-0.8B.
 - **FAIL:** Arch missing from UWP static lib / OOM / &lt;8 tok/s.
-- **Status:** Open — candidate found, admissibility blocked on an unmeasured
-  ceiling. Desk survey 2026-07-29 against pin `b10093-1-g6d5a910c5`, whose
+- **Status:** Open — candidate admitted on measure, awaiting the console run.
+  The ceiling that blocked it is measured (below) and the host load fits; what is
+  still missing is on-device decode tok/s and peak, i.e. the PASS/FAIL itself.
+  Desk survey 2026-07-29 against pin `b10093-1-g6d5a910c5`, whose
   `src/models/*.cpp` wildcard already compiles `lfm2moe.cpp`, `granite-moe.cpp`,
   `qwen3moe.cpp`, `olmoe.cpp` and ~20 more.
 
@@ -97,7 +99,16 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
      compute buffers and the KV cache, so the usable in-app ceiling is lower by an
      amount this probe does not measure.
 
-  **Consequence:** `UD-IQ3_S` (~4.0 GB est. peak) clears both the H2 4 GB gate and
+  **Host load, measured** (same GGUF, `xllama-cli` on Linux): the pin loads
+  `lfm2moe` and answers coherently at `UD-IQ3_S` with **peak RSS 3502 MB** —
+  weights **+2.8%**, not the +12% extrapolated above from the dense catalogue
+  models. The estimate was the wrong prior: a dense model re-reads every weight
+  each token, while this one touches 4 experts of 32, so its transient buffers
+  are sized for the active slice. Treat the table's "est. peak" column as the
+  conservative bound it turned out to be, not as the expected value.
+
+  **Consequence:** `UD-IQ3_S` (3502 MB measured on host, ~4.0 GB estimated)
+  clears both the H2 4 GB gate and
   the measured ceiling with ~900 MB of headroom, so H2 proceeds at a quant whose
   quality is worth measuring. Q2 is no longer the only option, which matters
   because a Q2 result would have tested the quantization rather than the
