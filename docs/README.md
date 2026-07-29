@@ -38,6 +38,7 @@ Technical notes and design decisions for xllama.
 | App gamepad UI (chat, settings, personalize, images)                                   | [using-the-app.md](./using-the-app.md)                                                                                       |
 | Version / current product state                                                        | [`../CHANGELOG.md`](../CHANGELOG.md) + [`../ROADMAP.md`](../ROADMAP.md)                                                      |
 | Package identity / install & migration path                                            | [install-release.md](./install-release.md) (user) + `AGENTS.md` Versioning (dev)                                             |
+| Xbox Store retail readiness (dual SKU, licence matrix, App vs Game gate)               | [store-readiness.md](./store-readiness.md)                                                                                   |
 | Agent / contributor quick map                                                          | [`../AGENTS.md`](../AGENTS.md)                                                                                               |
 
 The benchmark flow is intentionally one-way:
@@ -70,6 +71,7 @@ path checklist for discovery — descriptions are not repeated.
 **Ops / install:** [install-release.md](./install-release.md) ·
 [device-portal.md](./device-portal.md) · [windows-dev-vm.md](./windows-dev-vm.md) ·
 [console-validation-runbook.md](./console-validation-runbook.md) ·
+[store-readiness.md](./store-readiness.md) ·
 [../training/README.md](../training/README.md) ·
 [../bench/README.md](../bench/README.md)
 

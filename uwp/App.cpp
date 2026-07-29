@@ -8,16 +8,20 @@
 #include "pch.h"
 #include "App.h"
 #include "MainPage.h"
-#include "api-server.h"
 #include "inference-bridge.h"
 #include "xllama/platform.h"
+#ifndef XLLAMA_STORE_SKU
+#include "api-server.h"
+#endif
 // clang-format on
 
     #include <thread>
 
+#ifndef XLLAMA_STORE_SKU
 // Defined in the headless section below; also used by the in-process
 // diffusion experiment in App::OnLaunched.
 static std::wstring flag_path_if_present(const wchar_t* name);
+#endif
 
 using namespace winrt;
 using namespace winrt::Windows::ApplicationModel::Activation;
@@ -111,12 +115,14 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
         Window::Current().Activate();
         log_write("[xllama] Window activated\n");
 
+#ifndef XLLAMA_STORE_SKU
         // §7 experiment: the 887A0036 device conflict was measured with ORT
         // GenAI's Agility-factory device; diffuse.cpp uses plain ORT DML, whose
         // device may coexist with the compositor device the line above just
         // created. diffuse-inproc.flag runs the diffusion pipeline on a
         // background MTA thread INSIDE the XAML process to test exactly that.
         // Consumed before the run, same semantics as the headless flags.
+        // Store SKU: research flags omitted (docs/store-readiness.md).
         std::wstring inproc = flag_path_if_present(L"diffuse-inproc.flag");
         if (!inproc.empty()) {
             _wremove(inproc.c_str());
@@ -150,6 +156,10 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
         } else if (m_controller) {
             m_controller->StartAutopilotIfRequested();
         }
+#else
+        if (m_controller)
+            m_controller->StartAutopilotIfRequested();
+#endif
     } catch (winrt::hresult_error const& e) {
         char buf[512];
         snprintf(buf, sizeof(buf), "[xllama] OnLaunched hresult 0x%08X: %ls\n",
@@ -169,6 +179,7 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
 
 } // namespace winrt::xllama::implementation
 
+#ifndef XLLAMA_STORE_SKU
 // ---------------------------------------------------------------------------
 // Headless bench mode — no XAML, no compositor D3D12 device
 //
@@ -179,6 +190,8 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
 // collides with the compositor's in-box-runtime device and throws 887A0036
 // DXGI_ERROR_ALREADY_EXISTS. Running the bench without XAML leaves the process
 // D3D12-clean so the DML EP can initialise.
+//
+// Entire headless path is Dev Mode / research only (not compiled into Store SKU).
 // ---------------------------------------------------------------------------
 
 // Returns the wide path of LocalFolder\<name> if it exists, empty otherwise.
@@ -235,6 +248,7 @@ struct HeadlessView
             winrt::Windows::UI::Core::CoreProcessEventsOption::ProcessUntilQuit);
     }
 };
+#endif // !XLLAMA_STORE_SKU
 
 // ---------------------------------------------------------------------------
 // Entry point — Application::Start replaces CoreApplication::Run
@@ -242,6 +256,9 @@ struct HeadlessView
 int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     try {
         winrt::init_apartment(); // MTA: needed for ApplicationData in the detection
+#ifndef XLLAMA_STORE_SKU
+        // Headless operator modes (Device Portal flags). Omitted from the Store
+        // SKU — retail builds always take the interactive XAML path.
         // Consume the flag BEFORE the run:
         // a later start without the flag goes back to interactive.
         std::wstring diffuse_flag = flag_path_if_present(L"diffuse.flag");
@@ -301,6 +318,7 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
                 winrt::make<HeadlessView>(&::xllama::bridge::run_train, "train"));
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
+#endif // !XLLAMA_STORE_SKU
         winrt::uninit_apartment(); // restore pre-existing thread state for XAML
         winrt::Windows::UI::Xaml::Application::Start(
             [](auto&&) { winrt::make<winrt::xllama::implementation::App>(); });

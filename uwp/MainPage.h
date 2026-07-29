@@ -45,6 +45,8 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     void StartAutopilotIfRequested(); // called from App::OnLaunched
 
   private:
+    // First-run generative-AI disclosure (LocalState\disclaimer.accepted).
+    winrt::fire_and_forget ShowDisclaimerIfNeeded();
     // One parsed autopilot action (see ApParseScript in MainPage.cpp).
     struct ApAction {
         std::string op;   // load_chat|send|new_chat|set_model|set_api|set_routing|set_sampling|
@@ -119,7 +121,9 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     void LoadSettings();
     void SaveSettings();
     winrt::fire_and_forget ShowSettings();
+#ifndef XLLAMA_STORE_SKU
     void ApplyApiSettings(bool enabled, int port);
+#endif
     // Phase 11 (#116): in-app personalization — train on samples.jsonl, publish
     // merged.gguf as catalogue entry "personalized".
     void StartPersonalizeTrain();

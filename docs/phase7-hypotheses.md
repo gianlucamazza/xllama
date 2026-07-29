@@ -76,14 +76,36 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   | UD-Q2_K_XL        | 2926 MB     | ~3.3 GB     | under             |
   | UD-IQ2_M          | 2755 MB     | ~3.1 GB     | under             |
 
-  So the hypothesis turns on whether IQ3_S fits, and that cannot be answered
-  from the repo: the only RAM measurement we have is one incidental `avail_phys`
-  5.0 GB log line, and the gates are acceptance policy. Blocked on the
-  `ramceil.flag` probe (`scripts/bench-ramceil.sh`) measuring the real
-  committable ceiling. Settling for Q2 instead would test the quant, not the
+  So the hypothesis turned on whether IQ3_S fits, which no number in the repo
+  could answer — the only RAM figure was one incidental `avail_phys` 5.0 GB log
+  line, and the gates are acceptance policy.
+
+  **Ceiling measured on console 2026-07-29** (MSIX 1.5.1.762, `ramceil.flag` via
+  `scripts/bench-ramceil.sh`, raw `bench/results/phase15-ramceil.csv`):
+  **4864 MB of heap committed, 4893 MB peak working set**, 38 × 128 MB steps with
+  every page faulted in. Process overhead held at exactly 29 MB across all 38
+  steps, so committed tracks resident 1:1. `avail_phys` fell linearly from
+  ~5113 MB to 240 MB — which both confirms the historical 5.0 GB figure and shows
+  it is nearly all spendable.
+
+  Two caveats bound how far this number may be carried:
+  1. **It is a lower bound.** The probe stopped on its own 256 MB `avail_phys`
+     floor, not on a failed allocation — it was never told how much more it could
+     have taken. The ceiling is ≥ 4893 MB, not = 4893 MB.
+  2. **It is a headless number.** Measured with no model, no XAML and no
+     compositor. An in-app load also pays the compositor's D3D12 device, the ggml
+     compute buffers and the KV cache, so the usable in-app ceiling is lower by an
+     amount this probe does not measure.
+
+  **Consequence:** `UD-IQ3_S` (~4.0 GB est. peak) clears both the H2 4 GB gate and
+  the measured ceiling with ~900 MB of headroom, so H2 proceeds at a quant whose
+  quality is worth measuring. Q2 is no longer the only option, which matters
+  because a Q2 result would have tested the quantization rather than the
   architecture — the E2B IQ2_M garbage precedent (H4 FAIL mode) is the warning,
   with the caveat that it was neither a UD quant nor an MoE, where the low bits
-  land on experts rather than on attention.
+  land on experts rather than on attention. `UD-IQ4_XS` (~4.8 GB) fits the
+  measured ceiling but breaks the 4 GB gate: taking it would be a product
+  decision to raise the gate, not a measurement.
 
   Rejected on the same pass: **granite-3.1-3b-a800m** Q4_K_M (2017 MB, ~2.3 GB
   peak) fits comfortably and would be fast, but 800M active is ~1B-class quality —

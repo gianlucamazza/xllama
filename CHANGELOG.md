@@ -9,6 +9,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Xbox Store SKU foundation (Phase 1 engineering).** Compile-time
+  `XLLAMA_STORE_SKU` / MSBuild `XllamaStoreSku=true` / `build-uwp.ps1 -StoreSku`:
+  strips LAN API, USB model path, and headless operator flags; packages
+  `AppxManifest.store.xml` (`internetClient` only). Dev Mode package unchanged.
+  First-run generative-AI disclaimer (`disclaimer.accepted`) on both SKUs.
+  Workstream SSOT: `docs/store-readiness.md`. Not Store-submission-ready
+  (test signing + Partner Center still open).
 - **Coding + chat + thinking tier (phase14), architecture-first.** Catalogue
   `n_ctx` / `role: coding`; no Settings system-prompt rewrite. Catalogue:
   `qwen25-coder-0.5b` / `1.5b` / `3b`, `qwen3-1.7b`, **`lfm25-1.2b-thinking`**.

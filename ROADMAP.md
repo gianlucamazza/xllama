@@ -331,6 +331,20 @@ reverted 2026-07-14 with zero measured benefit (`uwp-constraints.md` §1);
 the negative measurement stands even though its original attribution was
 retired after #155.
 
+## Xbox Store retail (public release path)
+
+SSOT: [`docs/store-readiness.md`](docs/store-readiness.md). Dev Mode remains
+the supported install path until a submission is accepted.
+
+- [~] Phase 0 — discovery: SSOT + licence matrix in `store-readiness.md`;
+      Partner Center decision + App vs Game spike + go/no-go still open.
+- [~] Phase 1 — Store SKU foundation landed (`XLLAMA_STORE_SKU`,
+      `AppxManifest.store.xml`, `-StoreSku`, first-run disclaimer); CI lane +
+      console smoke + Partner Center identity still open.
+- [ ] Phase 2 — compliance pack: privacy URL, age rating, listing assets.
+- [ ] Phase 3 — Partner Center submission + certification.
+- [ ] Phase 4 — post-launch dual path (Store + Dev Mode) in README.
+
 ## Upstream and vendor lifecycle
 
 Operational details live in `docs/vendor-lifecycle-plan.md`.
