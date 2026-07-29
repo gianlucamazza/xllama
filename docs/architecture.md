@@ -205,14 +205,34 @@ live next to the prompt budget in `routing_policy.h` so the trimmer and
 - There is **no** third “coding” pillar or FIM path. Coding chat is the same
   GGUF/`Session`/`ChatFormat` stack as general chat.
 
-Trimmer ceiling: `max_prompt_tokens_for_n_ctx(n_ctx, reserved)` →
-`n_ctx − reserved`, where `reserved` is the requested generation length with
-`kReservedGenerationTokens` (250) as its floor and 256 tokens as the prompt floor.
-The shipping default with the default reserve keeps the historical constant
-`kMaxPromptTokens` (1800) so the #171 pin does not drift by arithmetic alone.
-Reserving the actual `n_predict` matters because the generation loop clamps it to
-what the context has left (#173): a ceiling that reserves less cuts the reply
-silently instead of dropping one more turn of history.
+### Context budget: one enforcement point
+
+The budget is enforced **once**, in tokens, where the tokenizer lives —
+`xllama::fit_prompt` (`prompt_budget.h`), called by the turn worker after
+`EnsureSession`, with `Session::count_tokens` of the model that will generate. It
+drops the oldest turns until `n_tokens + max(n_predict, 250) + 1 ≤ n_ctx`, never
+drops the trailing user message, and reports `fits = false` when even that message
+alone does not fit (the session then reports `prompt too long` with the numbers).
+
+A chars-per-token estimate cannot do this job. Measured on console: prose came out
+4.6 real chars/token against the 5.0 constant and dense C++ 2.5 against 3.5, and
+because the generation loop clamps `n_predict` to what the context has left
+(#173), every token of undershoot is taken **off the reply**, silently. One
+sample per workload is not a bound, and a "safer" constant only trades a truncated
+answer for history dropped that would have fit.
+
+So the estimate keeps exactly one job: **routing**. `decide_routing` needs a token
+count before a model — hence a tokenizer — has been chosen, and its ceiling has to
+stay coherent with `token_threshold` (#133). `BuildPromptPlan` therefore trims by
+`max_prompt_tokens_for_n_ctx(n_ctx, n_predict)` with the optimistic
+`kEstimatedCharsPerToken`, and being optimistic is the point: it drops *fewer*
+turns, so the exact pass can only tighten and nothing routing saw reappears behind
+its back. Getting that estimate wrong costs a routing decision, not an answer.
+
+`max_prompt_tokens_for_n_ctx(n_ctx, reserved)` → `n_ctx − reserved`, floor 256,
+with `kReservedGenerationTokens` (250) as the reserve floor; the shipping default
+at the default reserve keeps the historical `kMaxPromptTokens` (1800) so the #171
+pin does not drift by arithmetic alone.
 
 The prefill itself is chunked at `llama_n_batch` (`LlamaSession::generate`,
 `run_inference`): an oversized logical batch is not an error return from

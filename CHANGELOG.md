@@ -34,6 +34,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `llama_n_batch`; the physical ubatch (512, the #172 optimum the prefill rate was
   measured on) is unchanged. A full prompt that cannot fit `n_ctx` at all now
   fails fast with an actionable message, the way a continuation already did (#173).
+- **The context budget is now enforced in tokens, once, where the tokenizer is**
+  (`xllama::fit_prompt`, `prompt_budget.h`, called by the turn worker after
+  `EnsureSession`). It drops the oldest turns until
+  `n_tokens + max(n_predict, 250) + 1 <= n_ctx` and never drops the trailing user
+  message. The chars-per-token estimate cannot do this job — measured on console,
+  prose ran 4.6 real chars/token against the 5.0 constant and dense C++ 2.5 against
+  3.5, and since the generation loop clamps `n_predict` to what the context has
+  left (#173), every token of undershoot came off the reply. The estimate keeps one
+  job, routing, where it must run *before* a tokenizer exists and where being wrong
+  costs a routing decision instead of an answer.
 - **Replies were silently truncated at ~250 tokens on a full context.** The
   trimmer ceiling reserved a flat 250 tokens for generation while the UI default
   `n_predict` is 512 (slider up to 2048), and the generation loop clamps

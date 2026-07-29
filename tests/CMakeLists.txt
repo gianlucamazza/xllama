@@ -20,6 +20,7 @@ add_executable(xllama-tests
     test_routing_policy.cpp
     test_sampling.cpp
     test_chat_prompt.cpp
+    test_prompt_budget.cpp
     test_manifest_merge.cpp
     test_membw.cpp
     test_model_provision.cpp

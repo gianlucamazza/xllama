@@ -366,6 +366,12 @@ JSON
 	# against the console's own tokenizer, that it landed above the threshold.
 	# This gate broke once already (threshold retuned 600 -> 1550 in #129 while the
 	# decoy stayed fixed), so every number here derives from the header.
+	#
+	# The estimate here is ROUTING's heuristic, deliberately optimistic: it decides
+	# an EP, and the context budget is not its job. The budget is enforced once, in
+	# the worker, with the tokenizer of the model that will generate
+	# (prompt_budget.h) — which can only drop MORE turns than this estimate did, so
+	# a decoy sized against it cannot be trimmed away behind routing's back.
 	local esca_id="ap-routing-longctx"
 	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
 	# n_predict is pinned at 128 in the autopilot below (under the 250 floor), so

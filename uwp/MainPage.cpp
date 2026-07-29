@@ -18,6 +18,7 @@
     #include "xllama/personalize.h"
     #include "xllama/platform.h"
     #include "xllama/preference_capture.h"
+    #include "xllama/prompt_budget.h"
     #include "xllama/routing_policy.h"
     #include "xllama/training.h"
     #include "xllama/utf8_utils.h"
@@ -662,7 +663,8 @@ winrt::fire_and_forget MainPageController::ShowCorrectionDialog(size_t assistant
     }
 }
 
-std::string MainPageController::BuildPrompt(const std::string& user_text, int* out_dropped) const {
+MainPageController::PromptPlan
+MainPageController::BuildPromptPlan(const std::string& user_text) const {
     // Estimate token count from characters — no tokenizer is loaded at this
     // point — and trim oldest turns if over budget. Both the estimator and the
     // budget live in routing_policy.h next to token_threshold: the trimmer runs
@@ -673,10 +675,11 @@ std::string MainPageController::BuildPrompt(const std::string& user_text, int* o
     // chars-per-token estimate so long source/diff pastes trim earlier rather
     // than overflowing generate().
     //
-    // The ceiling reserves the requested generation length, not a flat 250: the
-    // generation loop clamps n_predict to n_ctx - prompt (#173), so a prompt
-    // filling the old ceiling cut the reply at ~248 tokens instead of dropping
-    // one more turn of history — silently, with no error and no log.
+    // This is the ESTIMATE, and it exists for one reason: routing needs a token
+    // count before a model — hence a tokenizer — has been chosen, and its ceiling
+    // has to stay coherent with the threshold (#133). It deliberately errs
+    // optimistic (drops fewer turns): the exact pass in the worker can only drop
+    // more, so nothing routing saw can reappear behind its back.
     int session_n_ctx = ::xllama::kDefaultNCtx;
     int max_estimated_tokens = ::xllama::max_prompt_tokens_for_n_ctx(session_n_ctx, m_n_predict);
     std::string role;
@@ -688,27 +691,7 @@ std::string MainPageController::BuildPrompt(const std::string& user_text, int* o
             role = ::xllama::wstring_to_utf8(e->role);
         }
     }
-
-    // Take the hub first: whether a tokenizer is reachable decides WHICH estimate
-    // to trim by. try_to_lock like the routing path below — if the hub is mid-turn
-    // (LAN API) this turn simply has no tokenizer, it does not wait for one.
-    //
-    // Fit against the model that will GENERATE: on a routed conversation that is
-    // the sticky m_active_model (routing is decided from this prompt's token
-    // count, so the first turn can only be the base model — and the count is only
-    // meaningful from the resident tokenizer).
-    auto& hub = ::xllama::session_hub();
-    std::unique_lock<std::mutex> hub_lk(hub.mtx, std::try_to_lock);
-    const std::string routed =
-        ::xllama::wstring_to_utf8(m_active_model.empty() ? m_model_filename : m_active_model);
-    const bool can_count = hub_lk.owns_lock() && hub.session && hub.model == routed;
-    // With a tokenizer in hand the estimate only has to get close — the exact
-    // pass below tightens it, and starting optimistic avoids dropping a turn the
-    // real count would have kept. Without one the estimate IS the decision, so it
-    // must not undershoot: measured on console, prose at 5.0 chars/token came out
-    // 8.6% under and dense C++ at 3.5 came out 40% under (kTrimCharsPerToken).
-    const double chars_per_token = can_count ? ::xllama::chars_per_token_for_role(role)
-                                             : ::xllama::trim_chars_per_token_for_role(role);
+    const double chars_per_token = ::xllama::chars_per_token_for_role(role);
     std::vector<size_t> turn_starts; // index of first User message in each turn
     for (size_t i = 0; i < m_current.messages.size(); ++i) {
         if (m_current.messages[i].role == xllama::ui::MessageRole::User)
@@ -751,34 +734,15 @@ std::string MainPageController::BuildPrompt(const std::string& user_text, int* o
         }
         turns.push_back({m_current.messages[i].content, std::move(assistant)});
     }
-    const ::xllama::ChatFormat fmt = chat_format();
-    std::string prompt = fmt.render_prompt(m_system_prompt, turns, user_text);
-
-    // Exact second pass, when a tokenizer was reachable: count the rendered
-    // prompt for real and drop another turn until the requested reply fits. The
-    // generation loop clamps n_predict to n_ctx - prompt (session.cpp, #173), so
-    // every token the estimate undershoots by is silently taken off the reply.
-    //
-    // The trailing user_text is never dropped — a single oversized message is the
-    // session's fail-fast to report ("prompt too long"), not something to mangle
-    // here.
-    if (can_count) {
-        const int reserve = std::max(m_n_predict, ::xllama::kReservedGenerationTokens);
-        int n_real = hub.session->count_tokens(prompt);
-        while (!turns.empty() && n_real + reserve + 1 > session_n_ctx) {
-            turns.erase(turns.begin());
-            ++first_turn;
-            prompt = fmt.render_prompt(m_system_prompt, turns, user_text);
-            n_real = hub.session->count_tokens(prompt);
-        }
-    }
-
+    PromptPlan plan;
+    plan.n_ctx = session_n_ctx;
+    plan.dropped = static_cast<int>(first_turn);
+    plan.prompt = chat_format().render_prompt(m_system_prompt, turns, user_text);
+    plan.turns = std::move(turns);
     if (first_turn > 0)
-        log_output("[xllama] context trimmed: dropped " + std::to_string(first_turn) +
+        log_output("[xllama] context trimmed (estimate): dropped " + std::to_string(first_turn) +
                    " old turn(s)\n");
-    if (out_dropped)
-        *out_dropped = static_cast<int>(first_turn);
-    return prompt;
+    return plan;
 }
 
 xllama::ChatFormat MainPageController::chat_format() const {
@@ -2691,7 +2655,9 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
         m_current.title = xllama::ui::ChatHistory::TitleFrom(user_text);
     }
     int n_dropped = 0;
-    std::string full_prompt = BuildPrompt(user_text, &n_dropped);
+    const PromptPlan plan = BuildPromptPlan(user_text);
+    n_dropped = plan.dropped;
+    std::string full_prompt = plan.prompt;
     if (n_dropped > 0)
         SetStatus(L"Context trimmed — " + std::to_wstring(n_dropped) + L" old turn(s) dropped");
 
@@ -2829,8 +2795,17 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     // #170b: the snapshot to try when this conversation's KV is not resident.
     const std::string kv_path = kv_reuse ? kv_store().path_for(m_current.id) : std::string();
 
+    // Copies for the worker: the surviving turns and the numbers fit_prompt needs.
+    // m_system_prompt / m_n_predict are UI-thread state, read here.
+    const std::vector<::xllama::ChatTurn> plan_turns = plan.turns;
+    const std::string system_prompt = m_system_prompt;
+    const int plan_n_ctx = plan.n_ctx;
+    const int plan_n_predict = m_n_predict;
+    const int plan_dropped = plan.dropped;
+
     std::thread([self, full_prompt, delta_prompt, do_reuse, kv_reuse, ep_kv_ok, model, fmt,
-                 sys_prefix, kv_path, dispatcher]() mutable {
+                 sys_prefix, kv_path, dispatcher, plan_turns, user_text, system_prompt, plan_n_ctx,
+                 plan_n_predict, plan_dropped]() mutable {
         try {
             // One hub lock for the whole turn: the resident session cannot be
             // swapped from under us (LAN API requests report busy meanwhile,
@@ -2918,6 +2893,32 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                 return self->m_turn_session->generate(gp);
             };
 
+            // THE budget enforcement point. The estimate upstream chose what routing
+            // would see; here the tokenizer of the model that will generate decides
+            // what actually fits, so no chars-per-token constant can shorten a reply
+            // behind the user's back (xllama::fit_prompt). Lazy: a reuse turn sends
+            // only the delta and never needs it — but its retry does.
+            bool fitted = false;
+            auto fit_full_prompt = [&]() -> const std::string& {
+                if (fitted)
+                    return full_prompt;
+                fitted = true;
+                const ::xllama::PromptFit fit =
+                    ::xllama::fit_prompt(fmt, system_prompt, plan_turns, user_text, plan_n_ctx,
+                                         plan_n_predict, [self](const std::string& text) {
+                                             return self->m_turn_session->count_tokens(text);
+                                         });
+                char fb[192];
+                snprintf(fb, sizeof(fb),
+                         "[xllama] prompt budget: %d tok exact, dropped %d (estimate had %d), "
+                         "n_ctx %d, reply %d%s\n",
+                         fit.n_tokens, fit.dropped, plan_dropped, plan_n_ctx, plan_n_predict,
+                         fit.fits ? "" : " — DOES NOT FIT");
+                ::xllama::log_output(fb);
+                full_prompt = fit.prompt;
+                return full_prompt;
+            };
+
             xllama::InferenceResult res;
             if (do_reuse) {
                 res = run_turn(delta_prompt, /*reuse=*/true, /*reset=*/false);
@@ -2926,12 +2927,12 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                 // were streamed yet, so the UI stays clean.
                 if (!res.success && res.n_eval == 0) {
                     ::xllama::log_output("[xllama] KV reuse failed, retrying with full prefill\n");
-                    res = run_turn(full_prompt, /*reuse=*/kv_reuse, /*reset=*/true);
+                    res = run_turn(fit_full_prompt(), /*reuse=*/kv_reuse, /*reset=*/true);
                 }
             } else {
                 // First turn / post-reset: seed the persistent generator (reuse+reset)
                 // when KV reuse is enabled, else a pure stateless turn.
-                res = run_turn(full_prompt, /*reuse=*/kv_reuse, /*reset=*/kv_reuse);
+                res = run_turn(fit_full_prompt(), /*reuse=*/kv_reuse, /*reset=*/kv_reuse);
             }
 
             // Stamp the resident-session generation this turn's KV state was
