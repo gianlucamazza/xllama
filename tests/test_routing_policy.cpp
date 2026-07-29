@@ -199,6 +199,23 @@ TEST_CASE("max_prompt_tokens_for_n_ctx reserves the requested generation length"
     CHECK(max_prompt_tokens_for_n_ctx(kDefaultNCtx, kDefaultNCtx) == 256);
 }
 
+TEST_CASE("the trimmer estimates more pessimistically than routing") {
+    // Routing can afford an optimistic estimate (it costs a routing decision);
+    // the trimmer cannot (it costs tokens off the reply, silently). Pinned
+    // against the console measurements the constants were derived from.
+    CHECK(kTrimCharsPerToken < kEstimatedCharsPerToken);
+    CHECK(kTrimCharsPerTokenCoding < kEstimatedCharsPerTokenCoding);
+    CHECK(trim_chars_per_token_for_role("coding") == doctest::Approx(kTrimCharsPerTokenCoding));
+    CHECK(trim_chars_per_token_for_role("") == doctest::Approx(kTrimCharsPerToken));
+
+    // 7640 chars of prose tokenized to 1660 on device; 8600 chars of C++ to 3437.
+    // The trimmer's estimate must be at or above the real count, routing's was not.
+    CHECK(estimate_tokens_from_chars(7640, kTrimCharsPerToken) >= 1660);
+    CHECK(estimate_tokens_from_chars(7640, kEstimatedCharsPerToken) < 1660);
+    CHECK(estimate_tokens_from_chars(8600, kTrimCharsPerTokenCoding) >= 3437);
+    CHECK(estimate_tokens_from_chars(8600, kEstimatedCharsPerTokenCoding) < 3437);
+}
+
 TEST_CASE("role_is_coding and denser token estimate") {
     CHECK(role_is_coding("coding"));
     CHECK(role_is_coding("Coding"));

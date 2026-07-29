@@ -44,6 +44,25 @@ inline constexpr double kEstimatedCharsPerToken = 5.0;
 // trims earlier — same safety direction as the prose constant.
 inline constexpr double kEstimatedCharsPerTokenCoding = 3.5;
 
+// The TRIMMER cannot afford the optimism above. Its ceiling reserves room for
+// the reply, and the generation loop clamps n_predict to whatever the context
+// has left (session.cpp, #173): every token the estimate undershoots by is taken
+// off the reply, silently. Measured on console (Series S, 2026-07-29): prose at
+// 5.0 estimated 1528 tokens where the tokenizer produced 1660 (4.6 real), and
+// 8.6 KB of C++ produced 3437 (2.5 real) against the 3.5 coding constant.
+//
+// So the trimmer uses its own, deliberately pessimistic pair. Routing keeps the
+// constants above: its threshold was calibrated against them (#133/#130) and a
+// misestimate there costs a routing decision, not a truncated answer. When a
+// session is already resident the UI skips these entirely and counts with the
+// model's own tokenizer (MainPage::BuildPrompt) — these are the fallback for the
+// turns where no tokenizer is reachable.
+// Both sit clear of the measurement rather than on top of it — one sample per
+// workload is not a bound, and the cost of being wrong is asymmetric (a dropped
+// old turn versus a truncated answer).
+inline constexpr double kTrimCharsPerToken = 4.0;
+inline constexpr double kTrimCharsPerTokenCoding = 2.2;
+
 // Token budget for the prompt itself, sized against kDefaultNCtx
 // (inference_params.h) with ~250 tokens left for generation —
 // tests/test_routing_policy.cpp pins the relation (#171).
@@ -108,6 +127,12 @@ inline bool role_is_coding(std::string_view role) {
 
 inline double chars_per_token_for_role(std::string_view role) {
     return role_is_coding(role) ? kEstimatedCharsPerTokenCoding : kEstimatedCharsPerToken;
+}
+
+// The trimmer's pessimistic pair — see kTrimCharsPerToken. Only for the turns
+// where no resident tokenizer can be consulted.
+inline double trim_chars_per_token_for_role(std::string_view role) {
+    return role_is_coding(role) ? kTrimCharsPerTokenCoding : kTrimCharsPerToken;
 }
 
 inline constexpr int estimate_tokens_from_chars(std::size_t chars, double chars_per_token) {

@@ -679,16 +679,36 @@ std::string MainPageController::BuildPrompt(const std::string& user_text, int* o
     // one more turn of history — silently, with no error and no log.
     int session_n_ctx = ::xllama::kDefaultNCtx;
     int max_estimated_tokens = ::xllama::max_prompt_tokens_for_n_ctx(session_n_ctx, m_n_predict);
-    double chars_per_token = ::xllama::kEstimatedCharsPerToken;
+    std::string role;
     {
         const auto& manifest = CachedManifest();
         if (const auto* e = ::xllama::FindManifestEntry(manifest, m_model_filename)) {
             session_n_ctx = ::xllama::resolve_n_ctx(e->n_ctx);
             max_estimated_tokens = ::xllama::max_prompt_tokens_for_n_ctx(e->n_ctx, m_n_predict);
-            chars_per_token =
-                ::xllama::chars_per_token_for_role(::xllama::wstring_to_utf8(e->role));
+            role = ::xllama::wstring_to_utf8(e->role);
         }
     }
+
+    // Take the hub first: whether a tokenizer is reachable decides WHICH estimate
+    // to trim by. try_to_lock like the routing path below — if the hub is mid-turn
+    // (LAN API) this turn simply has no tokenizer, it does not wait for one.
+    //
+    // Fit against the model that will GENERATE: on a routed conversation that is
+    // the sticky m_active_model (routing is decided from this prompt's token
+    // count, so the first turn can only be the base model — and the count is only
+    // meaningful from the resident tokenizer).
+    auto& hub = ::xllama::session_hub();
+    std::unique_lock<std::mutex> hub_lk(hub.mtx, std::try_to_lock);
+    const std::string routed =
+        ::xllama::wstring_to_utf8(m_active_model.empty() ? m_model_filename : m_active_model);
+    const bool can_count = hub_lk.owns_lock() && hub.session && hub.model == routed;
+    // With a tokenizer in hand the estimate only has to get close — the exact
+    // pass below tightens it, and starting optimistic avoids dropping a turn the
+    // real count would have kept. Without one the estimate IS the decision, so it
+    // must not undershoot: measured on console, prose at 5.0 chars/token came out
+    // 8.6% under and dense C++ at 3.5 came out 40% under (kTrimCharsPerToken).
+    const double chars_per_token = can_count ? ::xllama::chars_per_token_for_role(role)
+                                             : ::xllama::trim_chars_per_token_for_role(role);
     std::vector<size_t> turn_starts; // index of first User message in each turn
     for (size_t i = 0; i < m_current.messages.size(); ++i) {
         if (m_current.messages[i].role == xllama::ui::MessageRole::User)
@@ -734,37 +754,22 @@ std::string MainPageController::BuildPrompt(const std::string& user_text, int* o
     const ::xllama::ChatFormat fmt = chat_format();
     std::string prompt = fmt.render_prompt(m_system_prompt, turns, user_text);
 
-    // Exact second pass. The ceiling above is in ESTIMATED tokens and 5.0
-    // chars/token is optimistic for dense prose — measured on console: a history
-    // trimmed to 1528 estimated tokens rendered 1660 real ones. Since the
-    // generation loop clamps n_predict to n_ctx - prompt (session.cpp, #173),
-    // every token of undershoot is silently taken off the reply. When the session
-    // for this model is already resident, count for real and drop another turn
-    // until the requested reply fits.
+    // Exact second pass, when a tokenizer was reachable: count the rendered
+    // prompt for real and drop another turn until the requested reply fits. The
+    // generation loop clamps n_predict to n_ctx - prompt (session.cpp, #173), so
+    // every token the estimate undershoots by is silently taken off the reply.
     //
-    // try_lock like the routing path above: if the hub is mid-turn (LAN API) the
-    // estimate stands rather than blocking the UI thread. The trailing user_text
-    // is never dropped — a single oversized message is the session's fail-fast to
-    // report ("prompt too long"), not something to silently mangle here.
-    //
-    // Fit against the model that will GENERATE: on a routed conversation that is
-    // the sticky m_active_model (routing is decided from this prompt's token
-    // count, so the first turn can only use the base model — and the tokenizer
-    // has to be the resident one for the count to mean anything).
-    {
-        auto& hub = ::xllama::session_hub();
-        std::unique_lock<std::mutex> hub_lk(hub.mtx, std::try_to_lock);
-        const std::string model =
-            ::xllama::wstring_to_utf8(m_active_model.empty() ? m_model_filename : m_active_model);
-        if (hub_lk.owns_lock() && hub.session && hub.model == model) {
-            const int reserve = std::max(m_n_predict, ::xllama::kReservedGenerationTokens);
-            int n_real = hub.session->count_tokens(prompt);
-            while (!turns.empty() && n_real + reserve + 1 > session_n_ctx) {
-                turns.erase(turns.begin());
-                ++first_turn;
-                prompt = fmt.render_prompt(m_system_prompt, turns, user_text);
-                n_real = hub.session->count_tokens(prompt);
-            }
+    // The trailing user_text is never dropped — a single oversized message is the
+    // session's fail-fast to report ("prompt too long"), not something to mangle
+    // here.
+    if (can_count) {
+        const int reserve = std::max(m_n_predict, ::xllama::kReservedGenerationTokens);
+        int n_real = hub.session->count_tokens(prompt);
+        while (!turns.empty() && n_real + reserve + 1 > session_n_ctx) {
+            turns.erase(turns.begin());
+            ++first_turn;
+            prompt = fmt.render_prompt(m_system_prompt, turns, user_text);
+            n_real = hub.session->count_tokens(prompt);
         }
     }
 

@@ -178,8 +178,36 @@ provision_one() {
 		rm -f "$tmp"
 	done <<<"$lines"
 
+	# Re-probe every file on the device instead of trusting the upload's exit
+	# status. A POST can report success and the file still not be there: doing
+	# this right after install-latest-build.sh lands in a container the OS then
+	# resets (the transient double-registration), and two models that reported
+	# "provisioned" were gone minutes later — the routing gate then failed for a
+	# reason that had nothing to do with the code under test.
 	if [[ $rc -eq 0 ]]; then
-		echo "  OK: $model provisioned"
+		local missing=0 vfile vremote vbase vsub vdir
+		while IFS=$'\t' read -r vfile vremote; do
+			[[ "$vfile" == "BASE" || -z "$vfile" ]] && continue
+			vbase="${vfile##*/}"
+			if [[ "$vfile" == */* ]]; then
+				vsub="${vfile%/*}"
+				vdir="models\\${model}\\${vsub//\//\\}"
+			else
+				vdir="models\\${model}"
+			fi
+			if ! remote_has "$vdir" "$vbase"; then
+				echo "  ERROR: not on the device after upload: $vfile" >&2
+				missing=1
+			fi
+		done <<<"$lines"
+		if ((missing)); then
+			echo "  FAIL: $model uploaded but not present — retry (the app container may" \
+				"have been reset; wait for the MSIX registration to settle)" >&2
+			rc=1
+		fi
+	fi
+	if [[ $rc -eq 0 ]]; then
+		echo "  OK: $model provisioned (verified on device)"
 	else
 		echo "  PARTIAL/FAIL: $model (see errors above)"
 	fi
