@@ -99,15 +99,28 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
      compute buffers and the KV cache, so the usable in-app ceiling is lower by an
      amount this probe does not measure.
 
-  **Host load, measured** (same GGUF, `xllama-cli` on Linux): the pin loads
-  `lfm2moe` and answers coherently at `UD-IQ3_S` with **peak RSS 3502 MB** —
-  weights **+2.8%**, not the +12% extrapolated above from the dense catalogue
-  models. The estimate was the wrong prior: a dense model re-reads every weight
-  each token, while this one touches 4 experts of 32, so its transient buffers
-  are sized for the active slice. Treat the table's "est. peak" column as the
-  conservative bound it turned out to be, not as the expected value.
+  **Host load, measured** (same GGUF, `xllama-cli` on Linux, `-t 6 -n 64`): the
+  pin loads `lfm2moe` and answers coherently at `UD-IQ3_S`, peak RSS **3495 MB**
+  with a 264 MiB compute buffer.
 
-  **Consequence:** `UD-IQ3_S` (3502 MB measured on host, ~4.0 GB estimated)
+  **That host peak does not predict the console peak, and must not be quoted as
+  if it did.** The host path leaves llama.cpp's `use_mmap` at its default, so RSS
+  counts only the weight pages actually faulted in; the console has no mmap
+  (§1) and reads the whole file into the heap. The two numbers measure different
+  things, and for a MoE they diverge in the dangerous direction — low on host.
+  The console peak estimate therefore stays **weights × ~1.12 ≈ 4.0 GB**; the
+  table above is unrevised.
+
+  What the host run _does_ establish is that sparse activation is real and
+  observable: 3495 MB of resident set against **3571 MB of weights plus a 264 MiB
+  compute buffer** means a sizeable share of weight pages was never touched. The
+  dense comparator on the same host and the same prompt goes the other way —
+  `qwen25-coder-3b` Q4_K_M reaches 3225 MB against 1840 MB of weights, every page
+  resident. Caveat on the fraction: experts accumulate with tokens generated, so
+  "untouched" at `-n 64` is not a fixed property of the model. The mechanism H2
+  bets on is visible; its magnitude is not measured here.
+
+  **Consequence:** `UD-IQ3_S` (~4.0 GB estimated console peak)
   clears both the H2 4 GB gate and
   the measured ceiling with ~900 MB of headroom, so H2 proceeds at a quant whose
   quality is worth measuring. Q2 is no longer the only option, which matters
