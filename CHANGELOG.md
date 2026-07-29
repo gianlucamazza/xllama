@@ -44,6 +44,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   left (#173), every token of undershoot came off the reply. The estimate keeps one
   job, routing, where it must run *before* a tokenizer exists and where being wrong
   costs a routing decision instead of an answer.
+- **`can_shift` is logged per load, and the docs were wrong about Qwen3.** The
+  capability matrix said imrope/no-shift for both Qwen3 and Qwen3.5, inherited from
+  an assumption. It is a runtime property, so the session now logs it
+  (`can_shift=… memory_can_shift=… n_swa=…`) and it was measured per arch:
+  `lfm2` 1, **`qwen3` 1**, `qwen35` 0. `qwen3-1.7b` shifts — the table under-sold it.
 - **`fit_prompt` bisects instead of walking.** Dropping turns one at a time
   tokenized once per dropped turn — fine for a handful, quadratic in rendered bytes
   for a long conversation, on the turn's critical path. "Fits" is monotone in how
