@@ -171,9 +171,10 @@ the answer. This is the part of the plan that cannot be delegated or rushed.
   conversation switch 551 → 19 prompt tokens (#170b); turn-2 KV reuse 15–16×.
 - **Build fixes**: repack 241.9 → 393.2 tok/s (#155); `n_threads_batch`
   390.7 → 438.1 at P=298 (#168).
-- **Scale**: ~17.5k lines of own C++ across 80 files, 155 host test cases, 6
-  console validation gates (`scripts/validate-console.sh`), 14 product releases
-  since 2026-05-19, current 1.5.1.0.
+- **Scale**: ~17.5k lines of own C++ across 80 files, 176 host test cases, 9
+  console validation gates (`scripts/validate-console.sh` — routing, settings,
+  gguf, longchat, kvsnap, coderpaste, thinkcut, genroom, taesd), 15 product releases
+  since 2026-05-19, current 1.5.2.0.
 - **Hardware limits**: ~6 usable cores (livelock at 7–8), GPU budget 3801 MB, no
   `mmap` / `dlopen`, 2 GB per-file ONNX ceiling (which does not apply to GGUF).
 - **Do not cite** the v1.2.0 demo video as current: it predates the performance

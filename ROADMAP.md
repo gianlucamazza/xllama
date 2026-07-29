@@ -5,12 +5,15 @@ performance belongs in `docs/benchmarks.md`.
 
 ## Current product state
 
-- Current manifest: **1.5.1.0** under the **`GianlucaMazza.xllama`** identity
-  (in-place update from 1.5.0.0; still breaking vs ≤1.4.x, see
-  `docs/install-release.md`). Released as **v1.5.1.0** (2026-07-27): the
+- Current manifest: **1.5.2.0** under the **`GianlucaMazza.xllama`** identity
+  (in-place update from 1.5.x; still breaking vs ≤1.4.x, see
+  `docs/install-release.md`). Released as **v1.5.2.0** (2026-07-29): Phase 14 —
+  the coding/chat/thinking tier — plus the exact token budget that made a
+  4096-token session safe to offer (#193/#194) and the Xbox Store SKU
+  foundation. The previous release, **v1.5.1.0** (2026-07-27), carried the
   Phase 13 CPU-prefill + KV-reuse campaign (#168, #169, #170a/b, #171,
-  #173-#175). The previous release, **v1.5.0.0** (2026-07-26), carried the
-  perf campaign + rebrand (PR #155-#165) on console-validated MSIX 1.5.0.698.
+  #173-#175); **v1.5.0.0** (2026-07-26) the perf campaign + rebrand
+  (PR #155-#165) on console-validated MSIX 1.5.0.698.
 - Shipping artifact: unified ORT GenAI + llama.cpp, with pinned patched runtime
   DLLs while upstream fixes have not reached NuGet. The UWP ggml build now
   enables `GGML_USE_CPU_REPACK` (PR #155): **GGUF prefill +62%** on Q4_K.
@@ -28,8 +31,9 @@ performance belongs in `docs/benchmarks.md`.
 - Phases 1–11 are complete for product code: Phase 10 Lane B is `available`
   (host + console marker gates PASS; pin-blocked filter-widening remains);
   Phase 11 closed the headless↔UI gap (in-app personalize + LAN API parity,
-  #116/#118). Remaining open work: the Phase 13 CPU-prefill/KV-reuse campaign
-  (#168–#175), the #130 root-cause profile, and upstream vendor pin drops.
+  #116/#118). Phases 13 and 14 are complete and shipped. Remaining open work:
+  Phase 15 (make the 3B–4B class usable), the #130 root-cause profile, and
+  upstream vendor pin drops.
 
 ## Phase 7 — Peer-class model research
 

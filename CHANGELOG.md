@@ -5,10 +5,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased]
+## [1.5.2.0] - 2026-07-29
+
+Phase 14 shipped — a coding, chat and thinking tier the catalogue can actually
+hold — together with the exact context budget that made it safe to offer a
+4096-token session, and the Xbox Store SKU foundation.
+
+**Upgrading from 1.5.x is a normal in-place update** (same package identity
+`GianlucaMazza.xllama`). Coming from ≤1.4.x still requires the identity migration
+described in `docs/install-release.md`.
 
 ### Added
 
+- **The console heap ceiling is measured, and the probe that measures it ships.**
+  `--ramceil` on the CLI and `ramceil.flag` headless on device commit heap in
+  128 MB steps, fault every page in, and record the platform counters after each
+  one — stopping at the first failed allocation or when `avail_phys` falls under
+  256 MB, deliberately short of OOM, because the PLM resolves OOM by killing the
+  process and a killed probe reports nothing. Rows stream as they are produced, so
+  a kill still leaves the answer on disk. **Measured on Series S: 4864 MB of heap
+  committed, 4893 MB peak working set** over 38 steps, process overhead a flat
+  29 MB throughout (`bench/results/phase15-ramceil.csv`, driver
+  `scripts/bench-ramceil.sh`). This decides which model quants are admissible at
+  all: GGUF weights are read into the heap, since the sandbox has no mmap, and the
+  only figure the repo had before was one incidental `avail_phys` log line.
+  Two bounds ship with it — it is a **lower** bound, having stopped on its own
+  floor rather than on a failed allocation, and it is **headless**, so an in-app
+  load pays more.
+- **Catalogue entry `lfm25-8b-a1b`** (LFM2.5-8B-A1B MoE, `UD-IQ3_S`, 3.57 GB): the
+  H2 candidate, 32 experts with 4 active per token. Provisionable and
+  **not yet measured on console** — `docs/model-matrix.md` §A3 is the state, and
+  nothing in it may be quoted as a performance figure. Its estimated ~4.0 GB peak
+  clears H2's 4 GB gate and breaks the 3.5 GB product gate; that tension is open
+  on purpose.
 - **Xbox Store SKU foundation (Phase 1 engineering).** Compile-time
   `XLLAMA_STORE_SKU` / MSBuild `XllamaStoreSku=true` / `build-uwp.ps1 -StoreSku`:
   strips LAN API, USB model path, and headless operator flags; packages
@@ -16,7 +45,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   First-run generative-AI disclaimer (`disclaimer.accepted`) on both SKUs.
   **No Windows VM required:** `build-uwp.yml` `workflow_dispatch` with
   `store_sku=true` → artifact `xllama-appx-store`; `install-latest-build.sh
-  --store` from Linux. Privacy draft: `docs/privacy.md`. Workstream SSOT:
+--store` from Linux. Privacy draft: `docs/privacy.md`. Workstream SSOT:
   `docs/store-readiness.md`. Not Store-submission-ready (test signing + Partner
   Center still open).
 - **Coding + chat + thinking tier (phase14), architecture-first.** Catalogue
@@ -33,6 +62,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A thinking model whose name does not say so was treated as a plain model.**
+  `model_is_thinking` matched the substring `thinking`, and LFM2.5-8B-A1B reasons
+  on **every** turn — its template emits `<think>` unconditionally, with
+  `preserve_thinking` deciding only whether past turns' chain of thought is
+  replayed. So cataloguing it would have leaked raw CoT into the UI and left KV
+  snapshots enabled on a model whose stripped saved history can never prefix-match
+  a cache holding the full reasoning, making every return a silent full
+  re-prefill. The predicate now also matches `a1b`. Found while adding the entry,
+  not by a user.
 - **A long prompt aborted the process instead of failing (llama.cpp backend).**
   Both prefills (`LlamaSession::generate` and `run_inference`) submitted the whole
   prompt as ONE logical batch, and `llama_decode` does not return an error for an
@@ -52,7 +90,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   prose ran 4.6 real chars/token against the 5.0 constant and dense C++ 2.5 against
   3.5, and since the generation loop clamps `n_predict` to what the context has
   left (#173), every token of undershoot came off the reply. The estimate keeps one
-  job, routing, where it must run *before* a tokenizer exists and where being wrong
+  job, routing, where it must run _before_ a tokenizer exists and where being wrong
   costs a routing decision instead of an answer.
 - **`can_shift` is logged per load, and the docs were wrong about Qwen3.** The
   capability matrix said imrope/no-shift for both Qwen3 and Qwen3.5, inherited from
