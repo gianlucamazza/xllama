@@ -13,7 +13,6 @@
 #ifndef XLLAMA_STORE_SKU
 #include "api-server.h"
 #include <winrt/Windows.Foundation.Metadata.h>
-#include <winrt/Windows.Media.AppRecording.h>
 #endif
 // clang-format on
 
@@ -76,42 +75,42 @@ static void log_write(const char* msg) {
 // (docs/uwp-constraints.md).
 //
 // Whether it works here is genuinely unknown and is NOT assumed in either
-// direction. Two reasons it might not:
-//   * the API lives in the Desktop Extension SDK (10.0.16299), so the type may
-//     simply not be registered on Xbox — ApiInformation answers that without
-//     relying on how a missing activation happens to fail;
-//   * Dev Mode may disable the capture policy, which GetStatus() reports as a
-//     reason rather than a bare false.
-// So the whole question closes with a query and one log line, not with a trial
-// recording whose failure we would then have to interpret.
+// direction. There are two separate unknowns, and this probe deliberately
+// answers only the cheap one:
+//
+//   1. is the type even registered on Xbox? AppRecordingManager lives in the
+//      Desktop Extension SDK, not the Universal one;
+//   2. if it is, does Dev Mode allow it? GetStatus() reports a reason rather
+//      than a bare false.
+//
+// Only (1) is free. Reading GetStatus() needs the C++/WinRT projection for the
+// namespace, and this project compiles against NuGet-generated projections
+// (`/I"Generated Files\"`) which cover the SDKs the vcxproj references —
+// including the SDK's own AppRecording header alongside them produces
+// "Mismatched C++/WinRT headers" and ~100 errors, measured on CI. Getting (2)
+// therefore means adding a Desktop Extension SDK reference to the shipping app's
+// project file, which is a real change to its dependency surface.
+//
+// So: ask (1) by name, since IsTypePresent takes a string and needs no
+// projection at all. If the type is absent the question is closed and the
+// dependency is never paid for. Only a present=1 justifies it.
+//
+// GraphicsCaptureSession is checked alongside it because it is the alternative
+// self-capture route and lives in the Universal SDK, so knowing whether it
+// exists here costs one more string comparison.
 static void log_app_recording_probe() {
     using winrt::Windows::Foundation::Metadata::ApiInformation;
-    namespace rec = winrt::Windows::Media::AppRecording;
-
-    char buf[512];
+    char buf[384];
     try {
-        if (!ApiInformation::IsTypePresent(L"Windows.Media.AppRecording.AppRecordingManager")) {
-            log_write("[caprec] type absent (Desktop Extension SDK not present on this device)\n");
-            return;
-        }
-        auto mgr = rec::AppRecordingManager::GetDefault();
-        if (!mgr) {
-            log_write("[caprec] GetDefault=null\n");
-            return;
-        }
-        auto status = mgr.GetStatus();
-        auto d = status.Details();
+        const bool rec_present =
+            ApiInformation::IsTypePresent(L"Windows.Media.AppRecording.AppRecordingManager");
+        const bool gfx_present =
+            ApiInformation::IsTypePresent(L"Windows.Graphics.Capture.GraphicsCaptureSession");
         snprintf(buf, sizeof(buf),
-                 "[caprec] GetDefault=ok CanRecord=%d CanRecordTimeSpan=%d"
-                 " disabledByUser=%d disabledBySystem=%d blockedForApp=%d"
-                 " captureResourceUnavailable=%d gpuConstrained=%d appInactive=%d"
-                 " anyAppBroadcasting=%d gameStreamInProgress=%d timeSpanDisabled=%d\n",
-                 status.CanRecord() ? 1 : 0, status.CanRecordTimeSpan() ? 1 : 0,
-                 d.IsDisabledByUser() ? 1 : 0, d.IsDisabledBySystem() ? 1 : 0,
-                 d.IsBlockedForApp() ? 1 : 0, d.IsCaptureResourceUnavailable() ? 1 : 0,
-                 d.IsGpuConstrained() ? 1 : 0, d.IsAppInactive() ? 1 : 0,
-                 d.IsAnyAppBroadcasting() ? 1 : 0, d.IsGameStreamInProgress() ? 1 : 0,
-                 d.IsTimeSpanRecordingDisabled() ? 1 : 0);
+                 "[caprec] AppRecordingManager present=%d GraphicsCaptureSession present=%d"
+                 " (CanRecord and its reason flags need a Desktop Extension SDK reference,"
+                 " only worth adding if present=1)\n",
+                 rec_present ? 1 : 0, gfx_present ? 1 : 0);
         log_write(buf);
     } catch (winrt::hresult_error const& e) {
         snprintf(buf, sizeof(buf), "[caprec] hresult 0x%08X: %ls\n",

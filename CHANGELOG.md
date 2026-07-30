@@ -9,21 +9,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **The app now reports whether it can record itself.** One `[caprec]` line in
-  `xllama.log` per interactive launch: `IsTypePresent` for
-  `AppRecordingManager`, then `CanRecord` plus the nine reason flags from
-  `GetStatus().Details()`. The demo pipeline rebuilds a video from Device Portal
-  screenshots at 1 Hz, and that 1 Hz is a `sleep 1` in `capture-demo-video.sh`
-  rather than a measured limit — so before optimising a slideshow, establish
-  whether native recording is available at all. It matters for more than
-  smoothness: `AppRecordingManager` uses the SoC video encoder, whereas a
-  software encoder in this process would compete with the very inference a demo
-  exists to show, on ~6 usable cores with a livelock at 7-8. Two independent
-  reasons it may not work here — the API lives in the Desktop Extension SDK, so
-  the type may not be registered on Xbox, and Dev Mode may disable the capture
-  policy — and both are answerable by query rather than by a trial recording
-  whose failure would then need interpreting. Probed after `Activate()`:
-  recording needs a live window, and `IsAppInactive` would read true before it.
+- **The app now reports whether a self-recording API exists on this console.**
+  One `[caprec]` line in `xllama.log` per interactive launch, with
+  `IsTypePresent` for `AppRecordingManager` and for `GraphicsCaptureSession`.
+  The demo pipeline rebuilds a video from Device Portal screenshots at 1 Hz, and
+  that 1 Hz is a `sleep 1` in `capture-demo-video.sh` rather than a measured
+  limit — so before optimising a slideshow, establish whether native recording
+  is available at all. It matters for more than smoothness:
+  `AppRecordingManager` uses the SoC video encoder, whereas a software encoder in
+  this process would compete with the very inference a demo exists to show, on
+  ~6 usable cores with a livelock at 7-8.
+  The probe answers only the cheap half of the question, on purpose. Reading
+  `CanRecord` and its reason flags needs the C++/WinRT projection for the
+  namespace, and this project compiles against NuGet-generated projections, so
+  including the SDK's own `AppRecording` header alongside them yields
+  "Mismatched C++/WinRT headers" and ~100 errors — measured on CI, not guessed.
+  Getting that half therefore means adding a **Desktop Extension SDK reference**
+  to the shipping app's project file, a real change to its dependency surface.
+  `IsTypePresent` takes a string and needs no projection, so "is the type even
+  registered on Xbox" is free: if it is absent the question is closed and the
+  dependency is never paid for. Probed after `Activate()`, since recording needs
+  a live window and `IsAppInactive` would read true before it.
 - **Autopilot op `mark`** — a rendez-vous for screenshot capture. The app writes
   a label to `LocalState\autopilot-mark.txt` and blocks; the host polls for the
   file, takes its Device Portal screenshot, and deletes the file to release the
