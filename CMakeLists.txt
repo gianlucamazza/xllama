@@ -73,6 +73,7 @@ add_library(xllama STATIC
     src/bridge/device_train.cpp
     src/bridge/preference_capture.cpp
     src/bridge/personalize.cpp
+    src/bridge/autopilot.cpp
 )
 
 target_compile_features(xllama PUBLIC cxx_std_17)

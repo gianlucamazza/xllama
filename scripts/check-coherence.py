@@ -254,32 +254,42 @@ def main() -> int:
     else:
         warn("xllama-cli not built — skip job validation")
 
-    # --- autopilot ops ---
-    mpcpp = (ROOT / "uwp/MainPage.cpp").read_text(encoding="utf-8")
-    expected_ops = {
-        "load_chat",
-        "send",
-        "new_chat",
-        "set_model",
-        "set_api",
-        "set_routing",
-        "set_sampling",
-        "set_kv_reuse",
-        "set_taesd",
-        "set_system_prompt",
-        "generate_image",
-        "mark",
-        "rate",
-        "start_train",
-        "train_status",
-        "quit",
-    }
-    for o in sorted(expected_ops):
-        if f'== "{o}"' not in mpcpp and f'op == "{o}"' not in mpcpp:
-            # send may use different pattern
-            if f'"{o}"' not in mpcpp:
-                err(f"autopilot op {o} not in MainPage.cpp")
-    good(f"autopilot ops ({len(expected_ops)}) present")
+    # --- autopilot ops: the validator's table and the driver's branches ---
+    #
+    # An op has to exist in two places that cannot see each other: kOps in
+    # autopilot.cpp, which decides what a script may say, and the dispatch chain
+    # in ApRun, which decides what happens. One without the other is a real
+    # failure with a confusing shape — a script that validates and then dies at
+    # run time, or a documented op no script may use.
+    #
+    # The list is READ from the validator rather than repeated here. Hardcoding
+    # it made this check a third copy, and a third copy drifts like the other
+    # two: `mark` had to be added to it by hand.
+    apcpp = (ROOT / "src/bridge/autopilot.cpp").read_text(encoding="utf-8")
+    table = re.search(r"kOps\s*=\s*\{(.*?)\};", apcpp, re.S)
+    if not table:
+        err("autopilot.cpp: kOps table not found")
+    else:
+        ops = set(re.findall(r'"([a-z_]+)"', table.group(1)))
+        if not ops:
+            err("autopilot.cpp: kOps table is empty")
+        mpcpp = (ROOT / "uwp/MainPage.cpp").read_text(encoding="utf-8")
+        missing = [o for o in sorted(ops) if f'a.op == "{o}"' not in mpcpp]
+        for o in missing:
+            err(
+                f"autopilot op {o} is accepted by the validator but ApRun has no branch"
+            )
+        # ...and the other direction: a branch for an op the validator rejects
+        # is unreachable code that looks supported.
+        branches = set(re.findall(r'a\.op == "([a-z_]+)"', mpcpp))
+        for o in sorted(branches - ops):
+            err(
+                f"ApRun has a branch for '{o}', which validate_autopilot_script rejects"
+            )
+        if not missing and not (branches - ops):
+            good(
+                f"autopilot ops ({len(ops)}) — validator table and ApRun branches agree"
+            )
 
     # --- benchmark summary ---
     r = subprocess.run(

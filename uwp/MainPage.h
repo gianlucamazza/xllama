@@ -11,6 +11,7 @@
     #include "pch.h"
     #include "xllama/chat_prompt.h"
     #include "xllama/session.h"
+    #include "xllama/autopilot.h"
     #include "xllama/session_hub.h"
 
     #include <atomic>
@@ -47,27 +48,10 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
   private:
     // First-run generative-AI disclosure (LocalState\disclaimer.accepted).
     winrt::fire_and_forget ShowDisclaimerIfNeeded();
-    // One parsed autopilot action (see ApParseScript in MainPage.cpp).
-    struct ApAction {
-        std::string op;   // load_chat|send|new_chat|set_model|set_api|set_routing|set_sampling|
-                          // set_kv_reuse|generate_image|rate|start_train|train_status|quit
-        std::wstring arg; // id / text / model name / image prompt / rate label
-        int steps{1};     // generate_image
-        unsigned seed{42};
-        bool enabled{false};             // set_api / set_kv_reuse / set_taesd
-        bool has_enabled{false};         // 'enabled' was present (set_kv_reuse and set_taesd
-                                         // require it: the default would silently mean "disable")
-        bool has_text{false};            // 'text' was present (set_system_prompt requires it;
-                                         // clearing the prompt to "" is a legitimate value)
-        int port{11434};                 // set_api
-        int routing{-1};                 // set_routing (0=CPU, 1=GPU, 2=auto)
-        double temperature{-1};          // set_sampling; negative = leave unchanged
-        double top_p{-1};                //
-        int top_k{-1};                   //
-        double repetition_penalty{-1};   //
-        int n_predict{-1};               //
-        std::chrono::seconds timeout{0}; // 0 = per-op default
-    };
+    // One parsed autopilot action and the rules a script must satisfy live in
+    // include/xllama/autopilot.h: WinRT-free, so tests/test_autopilot.cpp can
+    // cover the contract every console gate is written in without a console.
+    using ApAction = ::xllama::AutopilotAction;
     static bool ApParseScript(const std::string& json_utf8, std::vector<ApAction>& out,
                               std::chrono::seconds& total_cap, std::string& err);
     void ApRun(std::vector<ApAction> actions, std::chrono::seconds total_cap);

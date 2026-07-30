@@ -3194,11 +3194,19 @@ bool MainPageController::ApParseScript(const std::string& json_utf8, std::vector
         a.timeout = std::chrono::seconds(t);
         out.push_back(std::move(a));
     }
-    if (out.empty()) {
-        err = "empty 'actions'";
-        return false;
-    }
-    return true;
+    // Everything the script can be wrong about that does not require the device,
+    // decided here — before ApRun applies the first action. The driver mutates
+    // persistent state (settings.json, the chats folder, the selected model), so
+    // a bad op name or an out-of-range value found at action 7 used to leave the
+    // console half-scripted and report it as a product failure.
+    // Runtime conditions stay in ApRun: whether a chat file exists, whether a
+    // port binds, whether the UI is busy. Those are not properties of a script.
+    #ifdef XLLAMA_STORE_SKU
+    constexpr bool kStoreSku = true;
+    #else
+    constexpr bool kStoreSku = false;
+    #endif
+    return ::xllama::validate_autopilot_script(out, kStoreSku, err);
 }
 
 void MainPageController::ApDispatchSync(std::function<void()> fn) {
@@ -3321,10 +3329,7 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
                 m_active_model.clear();
             });
         } else if (a.op == "set_api") {
-    #ifdef XLLAMA_STORE_SKU
-            throw std::runtime_error("action " + std::to_string(i) +
-                                     " set_api: LAN API not available in Store SKU");
-    #else
+    #ifndef XLLAMA_STORE_SKU
             if (a.enabled && !::xllama::api::port_bindable(a.port))
                 throw std::runtime_error("action " + std::to_string(i) + " set_api: invalid port");
             ApDispatchSync(
@@ -3349,25 +3354,11 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
         } else if (a.op == "set_routing") {
             // Same semantics as the Settings panel: per-conversation, applies from
             // the next new/loaded chat (m_active_model stays sticky meanwhile).
-            if (a.routing < 0 || a.routing > 2)
-                throw std::runtime_error("action " + std::to_string(i) +
-                                         " set_routing: 'routing' must be 0..2");
             ApDispatchSync([this, r = a.routing]() {
                 m_routing = r;
                 SaveSettings();
             });
         } else if (a.op == "set_sampling") {
-            if (a.temperature < 0 && a.top_p < 0 && a.top_k < 0 && a.repetition_penalty < 0 &&
-                a.n_predict < 0)
-                throw std::runtime_error("action " + std::to_string(i) +
-                                         " set_sampling: no sampling key (temperature/top_p/top_k/"
-                                         "repetition_penalty/n_predict)");
-            // The other keys degrade safely downstream (temperature <= 0 falls back to
-            // greedy, top_k <= 0 disables filtering, repetition_penalty <= 0 is skipped,
-            // n_predict is capped), but top_p outside (0, 1] violates the GenAI contract.
-            if (a.top_p >= 0 && !(a.top_p > 0.0 && a.top_p <= 1.0))
-                throw std::runtime_error("action " + std::to_string(i) +
-                                         " set_sampling: 'top_p' must be in (0, 1]");
             ApDispatchSync([this, &a]() {
                 if (a.temperature >= 0)
                     m_temperature = (float)a.temperature;
@@ -3384,31 +3375,16 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
         } else if (a.op == "set_kv_reuse") {
             // Require the key: 'enabled' defaults to false, so a typo'd or missing
             // key would silently assert "KV reuse off" and pass.
-            if (!a.has_enabled)
-                throw std::runtime_error("action " + std::to_string(i) +
-                                         " set_kv_reuse: 'enabled' (bool) is required");
             ApDispatchSync([this, on = a.enabled]() {
                 m_kv_reuse = on;
                 SaveSettings();
             });
         } else if (a.op == "set_taesd") {
-            // Same guard as set_kv_reuse: 'enabled' defaults to false, so a
-            // missing or misspelled key would silently assert "TAESD off" and
-            // pass without the UI writer ever running.
-            if (!a.has_enabled)
-                throw std::runtime_error("action " + std::to_string(i) +
-                                         " set_taesd: 'enabled' (bool) is required");
             ApDispatchSync([this, on = a.enabled]() {
                 m_diffuse_taesd = on;
                 SaveSettings();
             });
         } else if (a.op == "set_system_prompt") {
-            // Empty is a legitimate value here (it is what the dialog stores
-            // when the box is cleared), so require the key rather than treating
-            // an empty string as "not supplied".
-            if (a.arg.empty() && !a.has_text)
-                throw std::runtime_error("action " + std::to_string(i) +
-                                         " set_system_prompt: 'text' is required");
             ApDispatchSync([this, text = ::xllama::wstring_to_utf8(a.arg)]() {
                 m_system_prompt = text;
                 SaveSettings();
@@ -3416,9 +3392,11 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
         } else if (a.op == "generate_image") {
             if (!not_running())
                 throw std::runtime_error("action " + std::to_string(i) + " generate_image: busy");
-            std::string prompt = a.arg.empty() ? "a red sports car on a mountain road at sunset"
-                                               : ::xllama::wstring_to_utf8(a.arg);
-            write_local_bytes(L"prompt.txt", prompt);
+            // No default prompt. Inventing one when the script did not supply
+            // it is the defect class already paid for in the bench (#205): the
+            // run succeeds and produces a real-looking image nobody asked for.
+            // validate_autopilot_script guarantees a non-empty prompt.
+            write_local_bytes(L"prompt.txt", ::xllama::wstring_to_utf8(a.arg));
             write_local_bytes(L"diffuse-steps.txt", std::to_string(a.steps));
             write_local_bytes(L"diffuse-seed.txt", std::to_string(a.seed));
             write_local_bytes(L"diffuse-model.txt", "sd-turbo-fp16");
@@ -3544,7 +3522,12 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
             ApDispatchSync([]() { winrt::Windows::UI::Xaml::Application::Current().Exit(); });
             return;
         } else {
-            throw std::runtime_error("unknown op '" + a.op + "'");
+            // Not "unknown op" any more — validate_autopilot_script rejected
+            // those before we got here. Reaching this means an op was added to
+            // its table without a branch below, which no script can fix.
+            throw std::runtime_error("op '" + a.op +
+                                     "' is accepted by the validator but has no "
+                                     "implementation in ApRun");
         }
         log_output("[autopilot] action " + std::to_string(i) + " " + a.op + " end\n");
     }

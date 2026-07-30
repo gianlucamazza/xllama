@@ -64,6 +64,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Autopilot scripts are validated before the first action runs, and the
+  contract is host-tested.** The checks used to sit inside each branch of the
+  dispatch chain, so a bad op name or an out-of-range value in action 7 was
+  found only after actions 0–6 had applied — the driver mutates persistent state
+  (`settings.json`, the chats folder, the selected model), so a typo in a gate
+  script left the console half-scripted and reported a failure that reads like a
+  product failure. `include/xllama/autopilot.h` now holds `AutopilotAction` and
+  `validate_autopilot_script`, WinRT-free, called from the parser; the driver
+  keeps only what depends on runtime state (chat file exists, port binds, UI
+  busy). All nine console gates are written in this language and none of its
+  rules had any test — `tests/test_autopilot.cpp` adds 15 cases, host suite
+  176 → 191. `check-coherence.py` now reads the op table out of `autopilot.cpp`
+  instead of holding a third copy, and asserts it against `ApRun`'s branches in
+  both directions; both failure modes were verified by deliberately breaking
+  each one.
+- **`generate_image` no longer invents a prompt.** An action without one
+  silently substituted `"a red sports car on a mountain road at sunset"` — the
+  same defect class as the bench guessing its own model and prompt, and with the
+  same consequence: the run succeeds and produces a real-looking image nobody
+  asked for. An empty prompt is now rejected up front.
 - **`wait_autopilot_done` measures elapsed time instead of counting ticks.** It
   added 10 s per iteration while each iteration also did a WDP fetch, so the
   effective timeout was always slightly longer than the declared one; adding a
