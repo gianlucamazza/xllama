@@ -269,6 +269,18 @@ save_fail_shots() {
 		# refusing. Say that, rather than blaming the sampling interval.
 		echo "  No screenshot captured for ${gate}: GET /ext/screenshot failed" >&2
 	fi
+	# ...and the log, which for several gates is the ONLY useful evidence. A
+	# kvsnap failure looks like a normal chat on screen: the defect is in the
+	# prompt-token counts, not in anything visible. Under `all` the app restarts
+	# per gate and truncates xllama.log, so by the time the suite ends the
+	# failing gate's log is gone — which is exactly what blocked #216 from being
+	# diagnosed on its first occurrence. fetch_log already sliced this run's
+	# portion; keep it next to the frames.
+	if [[ -f "${TMPDIR_LOCAL}/xllama.log" ]]; then
+		mkdir -p "$SHOTS_DIR"
+		cp "${TMPDIR_LOCAL}/xllama.log" "${SHOTS_DIR}/${gate}.log"
+		echo "  App log of the failing run: ${SHOTS_DIR}/${gate}.log" >&2
+	fi
 }
 
 # Poll autopilot-done.txt; echoes its content, returns non-zero on timeout.

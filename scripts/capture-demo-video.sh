@@ -255,7 +255,13 @@ while ((SECONDS < deadline)); do
 		marker=$(cat "${WORK}/done")
 		break
 	fi
-	sleep 5
+	# 1s, not 5: this poll decides how much dead footage the video ends with,
+	# because everything between the run finishing and the marker being noticed
+	# is the last frame held on screen. At 5s the capture ended with up to 8
+	# seconds of a static chat view — a fifth of a 44-second loop — while the
+	# comment below claimed "a few frames". A fetch costs ~35 ms, so polling
+	# five times more often buys back that tail for nothing.
+	sleep 1
 done
 
 sleep 3 # a few frames on the final state

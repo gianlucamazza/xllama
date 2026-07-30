@@ -149,7 +149,12 @@ def main() -> int:
         # ERR case cannot be satisfied by editing prose — only by capturing.
         demo_manifest = ROOT / "docs/screenshots/demo-manifest.json"
         readme_text = (ROOT / "README.md").read_text(encoding="utf-8")
-        cited = re.search(r"\*\*Demo:\*\*.*?\(v(\d+\.\d+\.\d+)\)", readme_text, re.S)
+        # The cited version is read off the ARTEFACT the README references, not
+        # off a prose label: `xllama-demo-v1.5.2.gif` / `.mp4`. The earlier form
+        # parsed "**Demo:** ... (v1.5.2)", which broke the moment the link became
+        # an embedded image — and a bold label is a weaker anchor anyway, since
+        # it can agree with the manifest while pointing at another file.
+        cited = re.search(r"xllama-demo-v(\d+\.\d+\.\d+)\.(?:gif|mp4)", readme_text)
         if not demo_manifest.exists():
             if cited:
                 err(
@@ -189,6 +194,48 @@ def main() -> int:
                     )
                 else:
                     good(f"README demo link matches the captured demo (v{dm_short})")
+                # The GIF is the half that CAN be fully verified offline, and it
+                # is the one readers actually see: an .mp4 linked from a release
+                # renders as a plain link on GitHub, so the GIF is what makes the
+                # demo play on the landing page. It is committed rather than
+                # uploaded, so unlike the video its existence is a fact about
+                # this tree — check the file is there AND that the README embeds
+                # it, because either half alone still ships a broken image.
+                #
+                # A missing "gif" key is an error, not a skip. The manifest is
+                # machine-written and always carries one, so its absence means
+                # the manifest predates the GIF or was hand-edited — and a guard
+                # that quietly does nothing in that case is no guard at all.
+                dm_gif = str(dm.get("gif", ""))
+                if not dm_gif:
+                    err(
+                        "demo-manifest.json has no 'gif' key — re-run "
+                        "scripts/capture-demo-video.sh rather than editing it"
+                    )
+                else:
+                    gif_path = ROOT / "docs/screenshots" / dm_gif
+                    if not gif_path.exists():
+                        err(
+                            f"demo-manifest.json records {dm_gif} but "
+                            f"docs/screenshots/{dm_gif} is not in the tree"
+                        )
+                    # Require the image SYNTAX, not the filename anywhere in the
+                    # file. A fault-injection run passed this check with the
+                    # embed commented out, because the path was still present as
+                    # text — the string test proved the name was mentioned, not
+                    # that anything renders.
+                    elif not re.search(
+                        r"!\[[^\]]*\]\(docs/screenshots/" + re.escape(dm_gif) + r"\)",
+                        re.sub(r"<!--.*?-->", "", readme_text, flags=re.S),
+                    ):
+                        err(
+                            f"docs/screenshots/{dm_gif} exists but the README "
+                            "does not embed it as an image — the demo does not "
+                            "play on the landing page"
+                        )
+                    else:
+                        kb = gif_path.stat().st_size // 1000
+                        good(f"README embeds the demo GIF ({dm_gif}, {kb} kB)")
                 cur = [int(x) for x in ver.group(1).split(".")]
                 got = [int(x) for x in dm_short.split(".")]
                 # Distance in minors, treating a major bump as far behind.
