@@ -67,6 +67,28 @@ jobs:
       - name: Run unit tests
         run: ctest --test-dir build/linux-test --output-on-failure
 
+      # docs/launch-copy.md publishes the suite size as a citable fact, and it
+      # had drifted 16 cases behind before anyone noticed. It cannot live in
+      # check-coherence.py, which is offline and static: `grep -c TEST_CASE`
+      # returns 199 against the binary's 192 because seven cases sit behind #if,
+      # so a static count would be confidently wrong. Here the suite has just
+      # been built, so the real numbers are one command away.
+      - name: Verify the published test-suite size
+        run: |
+          out=$(./build/linux-test/tests/xllama-tests | tail -3)
+          cases=$(sed -n 's/.*test cases: *\([0-9]*\) .*/\1/p' <<<"$out")
+          asserts=$(sed -n 's/.*assertions: *\([0-9]*\) .*/\1/p' <<<"$out")
+          [ -n "$cases" ] && [ -n "$asserts" ] || {
+            echo "could not parse doctest output:"; echo "$out"; exit 1; }
+          claim="**${cases} host test cases / ${asserts} assertions**"
+          grep -qF "$claim" docs/launch-copy.md || {
+            echo "docs/launch-copy.md does not claim '${claim}'."
+            echo "The suite reports ${cases} cases / ${asserts} assertions — update the"
+            echo "Scale bullet in docs/launch-copy.md to match."
+            grep -n 'host test cases' docs/launch-copy.md || true
+            exit 1; }
+          echo "launch-copy.md matches the suite: ${cases} cases / ${asserts} assertions"
+
       - name: Smoke test
         run: ./build/linux-test/bin/xllama-cli --help
 

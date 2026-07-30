@@ -162,7 +162,13 @@ the answer. This is the part of the plan that cannot be delegated or rushed.
 
 ---
 
-## Reference facts (verified 2026-07-27, do not re-derive)
+## Reference facts (verified 2026-07-30)
+
+Every countable figure below carries the command that produces it. That is the
+point: the previous version of this block said "176 host test cases" for long
+enough that it drifted 16 cases behind, and a bare number nobody can re-derive
+cannot be spot-checked — only trusted or rewritten. Re-run the command instead of
+re-deriving the fact by hand.
 
 - **Generated benchmark table**: `docs/benchmarks.md`. Headline `lfm25-350m`
   438.1 prefill / 94.9 decode (94.8–95.1, n=3) / 320 MB. Only the headline GGUF
@@ -171,10 +177,29 @@ the answer. This is the part of the plan that cannot be delegated or rushed.
   conversation switch 551 → 19 prompt tokens (#170b); turn-2 KV reuse 15–16×.
 - **Build fixes**: repack 241.9 → 393.2 tok/s (#155); `n_threads_batch`
   390.7 → 438.1 at P=298 (#168).
-- **Scale**: ~17.5k lines of own C++ across 80 files, 176 host test cases, 9
-  console validation gates (`scripts/validate-console.sh` — routing, settings,
-  gguf, longchat, kvsnap, coderpaste, thinkcut, genroom, taesd), 15 product releases
-  since 2026-05-19, current 1.5.2.0.
+- **Scale**: **~19.9k lines of own C++ across 90 files**, of which 3.5k in 23
+  test files; **192 host test cases / 1491 assertions**; **9 console validation
+  gates** (`scripts/validate-console.sh` — routing, settings, gguf, longchat,
+  kvsnap, coderpaste, thinkcut, genroom, taesd); **15 product releases** since
+  2026-05-19, current **1.5.2.0**. Derivations:
+
+  ```bash
+  # lines and files — src/ + include/ + uwp/ + tests/, tracked .cpp/.h only
+  git ls-files 'src/**' 'include/**' 'uwp/*.cpp' 'uwp/*.h' 'tests/**' |
+    grep -E '\.(cpp|h)$' | xargs wc -l | tail -1
+  # test cases — from the binary, NOT from a grep: `grep -c TEST_CASE` says 199
+  # because seven cases sit behind #if, so a static count would overstate by 7
+  cmake --preset linux-test && cmake --build build/linux-test -j"$(nproc)"
+  ./build/linux-test/tests/xllama-tests | tail -2
+  # gates
+  grep -cE '^\w+\) run_gate ' scripts/validate-console.sh
+  # product releases — total tags minus the two asset-only ones
+  gh release list --limit 60 --json tagName --jq 'length'
+  ```
+
+  The test-case figure is additionally guarded in CI: `build-linux.yml` compares
+  the number in this file against what doctest reports, right after `ctest`.
+
 - **Hardware limits**: ~6 usable cores (livelock at 7–8), GPU budget 3801 MB, no
   `mmap` / `dlopen`, 2 GB per-file ONNX ceiling (which does not apply to GGUF).
 - **Demo video**: cite the **v1.5.2** capture, never the v1.2.0 one. The old
@@ -183,8 +208,10 @@ the answer. This is the part of the plan that cannot be delegated or rushed.
   the rate the Device Portal actually sustains, encoded at the rate achieved so
   **playback is real time** — a demo of a performance claim must not be sped up.
   `docs/screenshots/demo-manifest.json` records the version, frame count and
-  achieved fps, and `check-coherence.py` fails if the README cites a version
-  that manifest does not claim.
+  achieved fps, and `check-coherence.py` fails if the README link disagrees with
+  that manifest on **version or filename**. The filename half exists because the
+  version check alone once passed on a link to an asset that had never been
+  uploaded — a stale link replaced by a broken one.
 
 The earlier long-form drafts (the measurement-first version and the original
 link-post copy) are in git history at `docs/reddit-announcement.md`.
