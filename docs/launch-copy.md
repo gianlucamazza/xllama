@@ -177,8 +177,14 @@ the answer. This is the part of the plan that cannot be delegated or rushed.
   since 2026-05-19, current 1.5.2.0.
 - **Hardware limits**: ~6 usable cores (livelock at 7–8), GPU budget 3801 MB, no
   `mmap` / `dlopen`, 2 GB per-file ONNX ceiling (which does not apply to GGUF).
-- **Do not cite** the v1.2.0 demo video as current: it predates the performance
-  campaign and does not show today's numbers.
+- **Demo video**: cite the **v1.5.2** capture, never the v1.2.0 one. The old
+  clip predates the performance campaign, shows one 350M chat and an image, and
+  is what `README.md` linked until 2026-07-30. The current capture is stills at
+  the rate the Device Portal actually sustains, encoded at the rate achieved so
+  **playback is real time** — a demo of a performance claim must not be sped up.
+  `docs/screenshots/demo-manifest.json` records the version, frame count and
+  achieved fps, and `check-coherence.py` fails if the README cites a version
+  that manifest does not claim.
 
 The earlier long-form drafts (the measurement-first version and the original
 link-post copy) are in git history at `docs/reddit-announcement.md`.

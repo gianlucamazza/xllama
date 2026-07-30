@@ -1,0 +1,13 @@
+{
+  "_comment": "Written by scripts/capture-demo-video.sh. Do not hand-edit: check-coherence.py compares the README demo link against 'version', and the point is that the two cannot drift.",
+  "version": "1.5.2.0",
+  "file": "xllama-demo-v1.5.2.mp4",
+  "duration_s": 49.0,
+  "frames": 576,
+  "fps_requested": "unthrottled",
+  "fps_achieved": 11.76,
+  "capture_window_s": 49,
+  "source": "device-portal-stills",
+  "source_note": "No video capture endpoint exists and AppRecordingManager is absent on the console (uwp-constraints.md 10b). Stills, encoded at the rate actually achieved so playback is real time. The endpoint sustains ~11.5-13.7 Hz and capture costs the app ~1.8% of decode.",
+  "script": "demo/demo-script.json"
+}

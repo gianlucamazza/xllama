@@ -131,6 +131,59 @@ def main() -> int:
             warn(f"Appx semantic {ver.group(1)} not in the ROADMAP head (bump it)")
         else:
             good(f"ROADMAP states the shipping version {ver.group(1)}.0")
+
+        # --- the published demo is what the capture actually produced ---
+        #
+        # The README linked a v1.2.0 demo while the product shipped 1.5.2, and
+        # docs/launch-copy.md forbade citing that very file as current. Nothing
+        # caught it because nothing was looking. Two rules, both cheap:
+        #
+        #   ERR  — the README cites a version the demo manifest does not claim.
+        #          That is someone editing the link by hand, or a capture that
+        #          never happened, and it is unambiguous either way.
+        #   WARN — the demo is two or more minors behind the manifest. That is
+        #          drift rather than error: a release can legitimately ship
+        #          before someone re-records, but not indefinitely.
+        #
+        # demo-manifest.json is written by scripts/capture-demo-video.sh, so the
+        # ERR case cannot be satisfied by editing prose — only by capturing.
+        demo_manifest = ROOT / "docs/screenshots/demo-manifest.json"
+        readme_text = (ROOT / "README.md").read_text(encoding="utf-8")
+        cited = re.search(r"\*\*Demo:\*\*.*?\(v(\d+\.\d+\.\d+)\)", readme_text, re.S)
+        if not demo_manifest.exists():
+            if cited:
+                err(
+                    f"README cites a v{cited.group(1)} demo but "
+                    "docs/screenshots/demo-manifest.json does not exist — "
+                    "regenerate it with scripts/capture-demo-video.sh"
+                )
+            else:
+                good("no demo manifest and no demo claim in the README")
+        else:
+            dm = json.loads(demo_manifest.read_text(encoding="utf-8"))
+            dm_ver = str(dm.get("version", ""))
+            dm_short = ".".join(dm_ver.split(".")[:3])
+            if not cited:
+                err(
+                    "docs/screenshots/demo-manifest.json exists but README cites no demo"
+                )
+            elif cited.group(1) != dm_short:
+                err(
+                    f"README cites demo v{cited.group(1)}, manifest recorded "
+                    f"v{dm_short} — the link was edited by hand, or the capture "
+                    "was never run"
+                )
+            else:
+                good(f"README demo link matches the captured demo (v{dm_short})")
+                cur = [int(x) for x in ver.group(1).split(".")]
+                got = [int(x) for x in dm_short.split(".")]
+                # Distance in minors, treating a major bump as far behind.
+                behind = (cur[0] - got[0]) * 100 + (cur[1] - got[1])
+                if behind >= 2:
+                    warn(
+                        f"the demo is v{dm_short} against a shipping "
+                        f"{ver.group(1)} — re-record before it is cited as current"
+                    )
         good(f"Appx Version={ver.group(0)}")
 
     # --- build wiring ---
