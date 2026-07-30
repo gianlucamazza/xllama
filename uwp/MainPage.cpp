@@ -177,6 +177,18 @@ void MainPageController::BuildUI() {
     m_promptInput.MinHeight(120);
     m_promptInput.IsSpellCheckEnabled(false);
     m_promptInput.FontSize(18);
+    // Focus returns here after every generation (SetRunning), which is right for
+    // the pad — the next prompt is one A press away. What was not intended is
+    // the side effect: on Xbox an editable TextBox receiving focus opens the
+    // on-screen keyboard, so the keyboard reappeared over the answer the user
+    // had just waited for, and stayed for the rest of the session.
+    //
+    // Found by looking at demo footage rather than by using the app: the
+    // keyboard covers the UI from the first completed answer onward, in half of
+    // the captured video and over the image viewer in a Store screenshot.
+    // Pressing A still opens it, because that is user interaction, not
+    // programmatic focus.
+    m_promptInput.PreventKeyboardDisplayOnProgrammaticFocus(true);
     m_promptInput.IsFocusEngagementEnabled(true);
     {
         using namespace winrt::Windows::UI::Xaml::Input;
