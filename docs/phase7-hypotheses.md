@@ -57,9 +57,13 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
 - **Claim:** Decode scales with _active_ weights; MoE delivers peer quality at mid-speed.
 - **PASS:** Peak &lt; 4 GB, decode ≥12, quality &gt; Qwen3.5-0.8B.
 - **FAIL:** Arch missing from UWP static lib / OOM / &lt;8 tok/s.
-- **Status:** Open — candidate admitted on measure, awaiting the console run.
-  The ceiling that blocked it is measured (below) and the host load fits; what is
-  still missing is on-device decode tok/s and peak, i.e. the PASS/FAIL itself.
+- **Status:** **FAIL (2026-07-30)** — measured on console, and the claim does not
+  survive. `lfm25-8b-a1b` at `UD-IQ3_S` decodes at **14.50 tok/s** against the
+  dense `qwen25-coder-3b`'s 14.0, for **+1437 MiB** of peak; and because it reasons
+  on every turn it spends 3-25× more tokens than its reply contains, making it
+  ~4× slower in perceived latency. The bandwidth premise was confirmed (631 MB
+  read/token vs 645 predicted) — the cost simply moves elsewhere. Full result,
+  including why H9 was not applicable, under "H2 measured on console" below.
   Desk survey 2026-07-29 against pin `b10093-1-g6d5a910c5`, whose
   `src/models/*.cpp` wildcard already compiles `lfm2moe.cpp`, `granite-moe.cpp`,
   `qwen3moe.cpp`, `olmoe.cpp` and ~20 more.
@@ -130,6 +134,74 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   land on experts rather than on attention. `UD-IQ4_XS` (~4.8 GB) fits the
   measured ceiling but breaks the 4 GB gate: taking it would be a product
   decision to raise the gate, not a measurement.
+
+  ### H2 measured on console 2026-07-30 — the claim is falsified
+
+  MSIX 1.5.2.798, `standard-512`, 3 recorded runs after warmup
+  (`bench/results/phase15-moe-console.csv`):
+
+  |         | `lfm25-8b-a1b` UD-IQ3_S | `qwen25-coder-3b` Q4_K_M |
+  | ------- | ----------------------: | -----------------------: |
+  | decode  |         **14.50** tok/s |               14.0 tok/s |
+  | prefill |                   18.97 |                     46.2 |
+  | peak    |            **3553 MiB** |                 2116 MiB |
+  | load    |                  19.5 s |                        — |
+
+  **No speed advantage over a dense 3B, at +1437 MiB.** Decode spread across the
+  three runs was 14.50 / 14.61 / 14.50, so this is not noise.
+
+  **The bandwidth premise was right; the hypothesis was still wrong.** Decomposing
+  the measurement gives ~631 MB read per token against the **645 MB predicted**
+  from 4-of-32 expert activation — a 2% error. Inactive experts genuinely are not
+  read. What H2 did not anticipate is that the bottleneck _moves_: what remains is
+  not bandwidth, and it is ~5× what a dense model of the same active parameter
+  count would pay. Two candidate causes, **not separated by this measurement**:
+  `IQ3_S` is an i-quant, whose dequantization is far more expensive than `Q4_K_M`,
+  and gathering 4 experts of 32 is a scattered access a dense model never pays.
+  Separating them needs a dense IQ3 comparator the catalogue does not have.
+
+  A limit of that decomposition, stated rather than hidden: `T(n) = W + n·C`
+  assumes `W` is constant, which **breaks on a MoE** — in prefill each token of the
+  batch may activate different experts, so distinct weights read grow with batch
+  size. Prefill at 18.97 against the dense 1.5B's 96.6 is the symptom. The decode
+  figure is measured and stands; the 16.3/52.7 split reads as _"the cost is not
+  where we expected"_, not as a compute measurement.
+
+  **Perceived latency is worse still, and this is what settles it.** The model
+  reasons on every turn. Measured over the LAN endpoint at temperature 0:
+  "capital of Italy, one word" → answer `Roma`, **102 completion tokens** (4
+  visible); "explain in two sentences" → a correct 72-word answer, **401
+  completion tokens** (~95 visible). That is 3-25× more tokens than the reply
+  contains. At 14.5 tok/s the two-sentence answer takes **27.7 s**, against ~6.8 s
+  for the same visible output from the dense 3B. The MoE is not merely no faster —
+  it is roughly **4× slower in perceived latency**.
+
+  **H9 was not run, and could not have been.** Its tasks cap generation at 16-80
+  tokens (`bench/eval/phase7-h9.json`), which a model that spends ~100 tokens
+  reasoning before answering cannot clear: every task would score 0 while measuring
+  the budget, not the model. Quality was therefore probed at an adequate budget
+  instead, and the model answers correctly and coherently — the failure is not one
+  of capability.
+
+  Not a product defect, worth recording: the LAN endpoint reports this case
+  correctly. An empty `content` arrives with `finish_reason: "length"` and
+  `completion_tokens: 64`, which is exactly the OpenAI contract's way of saying
+  "the budget was consumed" — a client can tell it apart from "the model had
+  nothing to say". `validate-api.sh chat` reads only the content and so reports
+  FAIL on any thinking model; that is a gate limitation, not an app one.
+
+  **Verdict: H2 FAIL on its claim.** "Decode scales with _active_ weights" holds
+  for bandwidth and does not survive contact with the rest of the cost. The
+  catalogue entry stays in `model-matrix.md` §A3 with this result attached; the
+  model does not enter a product tier. The 3.5 GB product-gate question that a
+  speed PASS would have opened is moot — at equal decode, worse perceived latency
+  and +1437 MiB there is no case to weigh.
+
+  **Do not reopen at a lower quant.** Q2 would trade the one thing that worked
+  (quality) against a cost that is not bandwidth-bound, i.e. it would test the
+  quantization rather than the architecture. A future MoE is worth measuring only
+  if it is **not** an i-quant and its expert gather is cheaper — the two candidate
+  causes above, which remain unseparated.
 
   Rejected on the same pass: **granite-3.1-3b-a800m** Q4_K_M (2017 MB, ~2.3 GB
   peak) fits comfortably and would be fast, but 800M active is ~1B-class quality —

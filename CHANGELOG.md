@@ -5,6 +5,43 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **The bench guessed its quant label, its model, and its prompt.**
+  `detect_quant_label` fell back to `"Q4_K_M"` for any unrecognised GGUF and the
+  token list had no `IQ3_S`, so the first LFM2.5-8B-A1B console run recorded a
+  **UD-IQ3_S** measurement as **Q4_K_M** — a quant whose 5156 MB does not fit the
+  measured 4864 MB heap ceiling, i.e. not merely wrong but impossible, and
+  invisible from the CSV. A missing `model.txt` meant "bench
+  `smollm2-360m-cpu-int4`"; a missing `prompt.txt` meant a hardcoded 58-character
+  string. Both files arrive over WDP, whose POSTs are documented to report success
+  while writing nothing, so a lost upload produced a genuine, plausible row for a
+  run nobody requested. Unrecognised quants now report `"unknown"`; the token list
+  gained the i-quants and UD variants, ordered longest-first (a shorter token that
+  is a substring of the real one silently truncates the label); `model.txt` and
+  `prompt.txt` are required. `bench-xbox-ort.sh` checks column 1 against the
+  requested model before appending — it already did exactly this for
+  `--max-length` and `--ubatch`. A test was codifying the invented fallback.
+
+### Research
+
+- **H2 (MoE with ~1-2B active params): FAIL, measured on console.**
+  `lfm25-8b-a1b` at `UD-IQ3_S` decodes **14.50 tok/s** against the dense
+  `qwen25-coder-3b`'s 14.0, at **3553 MiB** peak (+1437) — no speed advantage for
+  substantially more RAM. The bandwidth premise was _confirmed_: ~631 MB read per
+  token against 645 predicted from 4-of-32 expert activation. What the hypothesis
+  missed is that the bottleneck moves — the remaining cost is ~5× a dense model of
+  the same active parameter count, from either i-quant dequantization or the
+  expert gather (the two are not separated by this measurement). Perceived latency
+  is worse still: the model reasons every turn, spending 102 completion tokens to
+  answer "Roma" and 401 for a two-sentence reply, so a user waits ~4× longer than
+  with the dense 3B for the same visible output. H9 was not applicable — its tasks
+  cap generation at 16-80 tokens. The entry stays catalogued in
+  `model-matrix.md` §A3 with the result attached; it does not enter a product
+  tier. Raw: `bench/results/phase15-moe-console.csv`.
+
 ## [1.5.2.0] - 2026-07-30
 
 Phase 14 shipped — a coding, chat and thinking tier the catalogue can actually
