@@ -115,15 +115,16 @@ DeepSeek-Coder-V2-Lite, StarCoder2 / DS-Coder 1.3B. LFM2.5-8B-A1B was on this li
 at ~5 GB (its official Q4_K_M); it moved to A3 below once the heap ceiling was
 measured and a 3.57 GB quant turned out to be admissible.
 
-### A3. Catalogued, not yet measured on console
+### A3. Catalogued, measured, not shipping
 
-An entry lands here when it is provisionable but its PASS/FAIL is still open — the
-catalogue is what the app can be pointed at, not a claim that it works. Nothing in
-this table may be quoted as a performance figure.
+An entry lands here when it is provisionable but is **not** part of a product tier —
+the catalogue is what the app can be pointed at, not a claim that it should be. A
+row keeps its measurement so the negative result is not re-derived by the next
+person who wonders.
 
 | Model         | Catalogue      | Quant    | Weights | Est. peak | Status                                                              |
 | ------------- | -------------- | -------- | ------: | --------: | ------------------------------------------------------------------- |
-| LFM2.5-8B-A1B | `lfm25-8b-a1b` | UD-IQ3_S | 3571 MB |   ~4.0 GB | **H2 candidate** · 32 experts / 4 active · decode + peak still open |
+| LFM2.5-8B-A1B | `lfm25-8b-a1b` | UD-IQ3_S | 3571 MB |  **3553 MiB** | **H2 FAIL** (2026-07-30) · 32 experts / 4 active · 14.50 tok/s = the dense 3B at +1437 MiB, and ~4× worse perceived latency |
 
 Why it is admissible at all: the console heap ceiling was measured at 4864 MB
 committed (`phase15-ramceil`), and that is what decided IQ3_S over Q2 — a Q2 result

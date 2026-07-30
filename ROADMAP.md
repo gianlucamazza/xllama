@@ -41,8 +41,12 @@ Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.
 
 - [x] H1 efficient LFM campaign and deterministic H9 suite.
 - [x] H4 usable dense 3B campaign; Llama-3.2-3B is the preferred comparator.
-- [~] H2 MoE candidate — ceiling measured 2026-07-29 (4864 MB committed), which
-  admits LFM2.5-8B-A1B at `UD-IQ3_S`; console decode still open (Phase 15 W1).
+- [x] H2 MoE candidate — **FAIL, measured on console 2026-07-30.**
+      LFM2.5-8B-A1B at `UD-IQ3_S` decodes 14.50 tok/s against the dense 3B's 14.0,
+      at +1437 MiB, and reasons every turn (~4× worse perceived latency). The
+      bandwidth premise held (631 MB read/token vs 645 predicted); the cost moves
+      off bandwidth. Do not reopen at a lower quant — that tests the quantization,
+      not the architecture.
 - [~] H3 speculative decoding — the predeclared A/B was run 2026-07-29 and
   **split the hypothesis**: the draft-model variant is rejected (1.43× on
   code, **0.81× on open chat**), the draft-free prompt lookup proceeds
@@ -393,8 +397,22 @@ rejected on that ground (`docs/phase7-hypotheses.md`, "Do not reopen").
   **4864 MB committed / 4893 MB peak WS** (`ramceil.flag`,
   `scripts/bench-ramceil.sh`, `bench/results/phase15-ramceil.csv`) — a lower
   bound, and headless. That admits `UD-IQ3_S` inside the 4 GB H2 gate, so the
-  experiment tests the architecture rather than the quantization. **Open:**
-  console decode tok/s and peak for the candidate.
+  experiment tests the architecture rather than the quantization.
+
+  **Measured 2026-07-30 on MSIX 1.5.2.798 → H2 FAIL**
+  (`bench/results/phase15-moe-console.csv`, 3 recorded runs): decode
+  **14.50 tok/s** against the dense `qwen25-coder-3b`'s 14.0, peak
+  **3553 MiB** (+1437). The sparse-activation premise was _confirmed_ — ~631 MB
+  read per token against 645 predicted — but the bottleneck moves off bandwidth,
+  and what remains is ~5× a dense model of the same active parameters (i-quant
+  dequantization or expert gather; not separated by this measurement). Perceived
+  latency decides it: the model reasons every turn, spending 102 completion
+  tokens to answer "Roma" and 401 for two sentences, so the user waits ~4× longer
+  than with the dense 3B for the same visible output. H9 was not applicable (its
+  tasks cap generation at 16-80 tokens). The entry stays in `model-matrix.md` §A3
+  with the result attached and enters no product tier; the 3.5 GB product-gate
+  question a speed PASS would have opened is moot.
+
 - [~] **W2 — H3: speculative decoding.** Both halves of the pair already ship and
   are console-PASS: draft `qwen25-coder-0.5b` (379 MB, 62.4 tok/s), target
   `qwen25-coder-3b` (1840 MB, 14.0). **Vocab precondition measured and
