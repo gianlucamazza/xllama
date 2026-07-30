@@ -7,8 +7,54 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **The app now reports whether it can record itself.** One `[caprec]` line in
+  `xllama.log` per interactive launch: `IsTypePresent` for
+  `AppRecordingManager`, then `CanRecord` plus the nine reason flags from
+  `GetStatus().Details()`. The demo pipeline rebuilds a video from Device Portal
+  screenshots at 1 Hz, and that 1 Hz is a `sleep 1` in `capture-demo-video.sh`
+  rather than a measured limit — so before optimising a slideshow, establish
+  whether native recording is available at all. It matters for more than
+  smoothness: `AppRecordingManager` uses the SoC video encoder, whereas a
+  software encoder in this process would compete with the very inference a demo
+  exists to show, on ~6 usable cores with a livelock at 7-8. Two independent
+  reasons it may not work here — the API lives in the Desktop Extension SDK, so
+  the type may not be registered on Xbox, and Dev Mode may disable the capture
+  policy — and both are answerable by query rather than by a trial recording
+  whose failure would then need interpreting. Probed after `Activate()`:
+  recording needs a live window, and `IsAppInactive` would read true before it.
+- **Autopilot op `mark`** — a rendez-vous for screenshot capture. The app writes
+  a label to `LocalState\autopilot-mark.txt` and blocks; the host polls for the
+  file, takes its Device Portal screenshot, and deletes the file to release the
+  script. "Screenshot the Settings pane" was previously a race between an
+  autopilot action and a host-side `sleep`. A timeout releases the action rather
+  than failing the script — a capture run nobody is watching should still
+  finish. Ops count 15 → 16 (`check-coherence.py` errors on an op missing from
+  `MainPage.cpp`).
+- **A failing console gate now writes out what was on screen.** Every verdict in
+  `validate-console.sh` comes from grepping `xllama.log`, and once that was not
+  enough: the app died at launch with no log, no crash dump and no WER report,
+  and only a WDP screenshot found the "Sign in to start this app (0x8004090a)"
+  dialog (`docs/dml-metacommands-runbook.md`). The capability existed; no gate
+  used it. The poll loop keeps the last two frames and writes them out only on
+  failure — two, because the failure classes differ: on an autopilot `error:`
+  `ApRun` writes the marker _without_ exiting so the app is still showing the
+  break, on a timeout it is alive and stuck, but when the marker says `ok` and
+  only the log grep rejects, the script's closing `quit` has already exited the
+  app and just the earlier frame still shows it. One frame per third poll
+  (~30 s), not per poll, because the `taesd` gate asserts a VAE decode under
+  1000 ms and there is no reason to add avoidable work on the same SoC while it
+  is being timed. `XLLAMA_GATE_SHOTS=0` disables it; `XLLAMA_GATE_SHOTS_DIR`
+  moves the output, which stays outside the repo.
+
 ### Changed
 
+- **`wait_autopilot_done` measures elapsed time instead of counting ticks.** It
+  added 10 s per iteration while each iteration also did a WDP fetch, so the
+  effective timeout was always slightly longer than the declared one; adding a
+  screenshot to the loop would have made that gap material. It now uses a
+  wall-clock deadline, so the declared timeout is the real one.
 - **The prefill and generation loops are written once.** `run_inference_llama`
   and `LlamaSession::generate` each carried a hand-maintained copy of the same
   two loops, and the copies had already drifted in both of the ways duplication
