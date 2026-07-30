@@ -29,14 +29,12 @@ const char* quant_token_in(const std::string& haystack_lower) {
     // "iq3_xs"). Getting that wrong silently truncates the label rather than
     // failing, which is how "UD-IQ3_S" would have been recorded as "IQ3_S".
     static constexpr const char* kTokens[] = {
-        "ud-iq1_m", "ud-iq1_s",  "ud-iq2_m", "ud-iq2_s", "ud-iq3_m", "ud-iq3_s",
-        "ud-iq4_xs", "ud-q2_k_xl", "ud-q3_k_m", "ud-q4_k_m",
-        "q3_k_xl",  "q3_k_l",    "q3_k_m",   "q3_k_s",   "q4_k_m",   "q4_k_s",
-        "q5_k_m",   "q5_k_s",    "q6_k",     "q8_0",
-        "iq1_m",    "iq1_s",     "iq2_xxs",  "iq2_xs",   "iq2_m",    "iq2_s",
-        "iq3_xxs",  "iq3_xs",    "iq3_m",    "iq3_s",
-        "iq4_xs",   "iq4_nl",    "q4_0",     "q5_0",     "q2_k",     "fp16",
-        "int4",
+        "ud-iq1_m",   "ud-iq1_s",  "ud-iq2_m",  "ud-iq2_s", "ud-iq3_m", "ud-iq3_s", "ud-iq4_xs",
+        "ud-q2_k_xl", "ud-q3_k_m", "ud-q4_k_m", "q3_k_xl",  "q3_k_l",   "q3_k_m",   "q3_k_s",
+        "q4_k_m",     "q4_k_s",    "q5_k_m",    "q5_k_s",   "q6_k",     "q8_0",     "iq1_m",
+        "iq1_s",      "iq2_xxs",   "iq2_xs",    "iq2_m",    "iq2_s",    "iq3_xxs",  "iq3_xs",
+        "iq3_m",      "iq3_s",     "iq4_xs",    "iq4_nl",   "q4_0",     "q5_0",     "q2_k",
+        "fp16",       "int4",
     };
     for (const char* tok : kTokens) {
         if (haystack_lower.find(tok) != std::string::npos)
