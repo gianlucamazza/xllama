@@ -13,7 +13,6 @@
 #ifndef XLLAMA_STORE_SKU
 #include "api-server.h"
 #include <winrt/Windows.Foundation.Metadata.h>
-#include <winrt/Windows.Media.AppRecording.h>
 #endif
 // clang-format on
 
@@ -75,65 +74,41 @@ static void log_write(const char* msg) {
 // exists to show — on a machine with ~6 usable cores and a livelock at 7-8
 // (docs/uwp-constraints.md).
 //
-// Whether it works here is genuinely unknown and is NOT assumed in either
-// direction. There are two separate unknowns and both get answered:
+// MEASURED, 2026-07-30, console on 1.5.2.x Dev Mode:
 //
-//   1. is the type registered on this console at all? AppRecordingManager is in
-//      the Desktop extension contract, and declaring the Windows.Desktop target
-//      device family in the manifest does not make that contract present.
-//      IsTypePresent answers it, and is also the mandatory guard: a projection
-//      existing at compile time says nothing about runtime, and touching an
-//      absent extension type throws.
-//   2. if it is, does this environment allow recording? Dev Mode may disable the
-//      capture policy. GetStatus() answers with a reason rather than a bare
-//      false — the difference between "no" and "no, because X".
+//   [caprec] AppRecordingManager absent (Desktop contract not on this device)
+//            GraphicsCaptureSession present=1
 //
-// Reading (2) is why uwp/xllama.vcxproj carries an SDKReference to the Desktop
-// extension: the CppWinRT NuGet only projects namespaces it has metadata for.
-// Substituting the Windows SDK's own AppRecording header is not an alternative;
-// the comment on that SDKReference records what happens if you try.
+// So AppRecordingManager is not an option here at all, and the reason is the
+// one the guard exists for: it lives in the Desktop extension contract, and
+// AppxManifest.xml declaring the Windows.Desktop device family does not make
+// that contract present on a given device. Reading CanRecord and its reason
+// flags would need a Desktop Extension SDK reference in the vcxproj; one was
+// added and then removed, because a projection for a type that is absent buys
+// nothing. See the comment where that reference used to be.
 //
-// GraphicsCaptureSession is reported alongside because it is the other
-// self-capture route and lives in the Universal contract, so knowing whether it
-// exists here costs one string comparison.
+// GraphicsCaptureSession IS present, which keeps self-capture open by a
+// different route — one that would encode in-process rather than on the SoC
+// video encoder, so the CPU-cost argument above applies to it and it needs its
+// own measurement before anyone builds on it (#214).
+//
+// The probe stays because the answer is a property of the OS, not of this
+// build: a GameOS update could make either line flip, and a demo pipeline
+// planned around a stills slideshow should find that out from a log line rather
+// than from someone guessing again.
 static void log_app_recording_probe() {
     using winrt::Windows::Foundation::Metadata::ApiInformation;
-    namespace rec = winrt::Windows::Media::AppRecording;
 
-    char buf[640];
+    char buf[256];
     try {
-        const bool gfx_present =
-            ApiInformation::IsTypePresent(L"Windows.Graphics.Capture.GraphicsCaptureSession");
-        if (!ApiInformation::IsTypePresent(L"Windows.Media.AppRecording.AppRecordingManager")) {
-            snprintf(buf, sizeof(buf),
-                     "[caprec] AppRecordingManager absent (Desktop contract not on this device)"
-                     " GraphicsCaptureSession present=%d\n",
-                     gfx_present ? 1 : 0);
-            log_write(buf);
-            return;
-        }
-        auto mgr = rec::AppRecordingManager::GetDefault();
-        if (!mgr) {
-            snprintf(
-                buf, sizeof(buf),
-                "[caprec] type present but GetDefault=null GraphicsCaptureSession present=%d\n",
-                gfx_present ? 1 : 0);
-            log_write(buf);
-            return;
-        }
-        auto status = mgr.GetStatus();
-        auto d = status.Details();
-        snprintf(buf, sizeof(buf),
-                 "[caprec] CanRecord=%d CanRecordTimeSpan=%d GraphicsCaptureSession present=%d"
-                 " | disabledByUser=%d disabledBySystem=%d blockedForApp=%d"
-                 " captureResourceUnavailable=%d gpuConstrained=%d appInactive=%d"
-                 " anyAppBroadcasting=%d gameStreamInProgress=%d timeSpanDisabled=%d\n",
-                 status.CanRecord() ? 1 : 0, status.CanRecordTimeSpan() ? 1 : 0,
-                 gfx_present ? 1 : 0, d.IsDisabledByUser() ? 1 : 0, d.IsDisabledBySystem() ? 1 : 0,
-                 d.IsBlockedForApp() ? 1 : 0, d.IsCaptureResourceUnavailable() ? 1 : 0,
-                 d.IsGpuConstrained() ? 1 : 0, d.IsAppInactive() ? 1 : 0,
-                 d.IsAnyAppBroadcasting() ? 1 : 0, d.IsGameStreamInProgress() ? 1 : 0,
-                 d.IsTimeSpanRecordingDisabled() ? 1 : 0);
+        snprintf(
+            buf, sizeof(buf),
+            "[caprec] AppRecordingManager present=%d"
+            " GraphicsCaptureSession present=%d\n",
+            ApiInformation::IsTypePresent(L"Windows.Media.AppRecording.AppRecordingManager") ? 1
+                                                                                             : 0,
+            ApiInformation::IsTypePresent(L"Windows.Graphics.Capture.GraphicsCaptureSession") ? 1
+                                                                                              : 0);
         log_write(buf);
     } catch (winrt::hresult_error const& e) {
         snprintf(buf, sizeof(buf), "[caprec] hresult 0x%08X: %ls\n",
@@ -200,8 +175,9 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
         log_write("[xllama] Window activated\n");
 
     #ifndef XLLAMA_STORE_SKU
-        // Answered on every interactive launch, after Activate(): recording
-        // needs a live window, and IsAppInactive would read true before it.
+        // After Activate(), so that if the Desktop contract ever appears the
+        // status flags this could then read are answered against a live window
+        // rather than an inactive one.
         log_app_recording_probe();
 
         // §7 experiment: the 887A0036 device conflict was measured with ORT

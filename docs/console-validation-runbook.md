@@ -62,11 +62,18 @@ the last two Device Portal screenshots, and a failing gate writes them out:
   Screenshots of the failing run: /tmp/xllama-gate-shots/longchat-*.png
 ```
 
-`-1.png` is the later frame. Both are kept because the three failure classes
-differ: on an autopilot `error:` the app is still on screen showing the broken
-state, on a timeout it is alive and stuck, but when the marker says `ok` and only
-the log grep rejects, the script's closing `quit` has already exited the app and
-just the earlier frame still shows it.
+`-1.png` is the later frame. What they are worth depends on how the gate failed,
+and the first console run of this feature corrected the original claim:
+
+- **autopilot `error:`** — `ApRun` writes its marker _without_ exiting, so the
+  app is still on screen showing the broken state. This is what the frames are
+  for, and they deliver it.
+- **timeout** — the app is alive and most likely stuck. Same.
+- **marker `ok`, log grep rejects** — every gate script ends with `quit`, and
+  that path does exit. Keeping two frames was meant to cover this; measured, it
+  often does not. Polling is every 10 s and a gate can finish in ~20 s, so both
+  frames can land after the app is gone — observed, both showing Dev Home. **A
+  Dev Home frame is not a UI fault**; for this class the log is the evidence.
 
 Frames are taken at every poll, except during `taesd` — the one gate that
 asserts a duration (VAE decode under 1000 ms), and a screenshot is GPU work on

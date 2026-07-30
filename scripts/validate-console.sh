@@ -186,13 +186,18 @@ file_absent() {
 # capability was already there; the gate simply did not use it.
 #
 # The poll loop keeps the last two frames; they are written out only when a gate
-# fails. Two frames rather than one because of how the three failure classes
-# differ:
+# fails. What that is worth depends on the failure class, and the first console
+# run of this feature corrected the original claim:
 #   * autopilot "error:" — ApRun writes the marker WITHOUT exiting
-#     (MainPage.cpp), so the app is still on screen showing the broken state;
-#   * timeout — the app is alive, most likely stuck;
-#   * marker "ok" but the log grep rejects — every gate script ends with `quit`
-#     and that path does exit, so only the earlier frame still shows the app.
+#     (MainPage.cpp), so the app is still on screen showing the broken state.
+#     This is the case the frames were built for and they deliver it.
+#   * timeout — the app is alive, most likely stuck. Same.
+#   * marker "ok" but the log grep rejects — every gate script ends with `quit`,
+#     and that path DOES exit. Two frames were supposed to cover this by keeping
+#     an earlier one; measured, they often do not. Polling is every 10 s and a
+#     gate can finish in ~20 s, so both frames can land after the app is gone —
+#     observed, both showing Dev Home. Do not read a Dev Home frame as a UI
+#     fault; for this class the log is the evidence and the frames are a bonus.
 #
 # Which gates take frames DURING the run, and why it is a list rather than a
 # rate. Exactly one gate asserts a duration — taesd, on a VAE decode under
@@ -326,6 +331,22 @@ run_autopilot() {
 			"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState&filename=xllama.log" 2>/dev/null || echo "000")
 		[[ "$snap_code" == "200" ]] || : >"$LOG_BEFORE"
 	fi
+	# Accept the first-run disclaimer on the app's behalf, byte-for-byte what
+	# pressing "I understand" writes (MainPage.cpp ShowDisclaimerIfNeeded).
+	#
+	# Without it the modal is up for the WHOLE run, every run: ShowAsync() only
+	# completes when someone presses the button, and there is no human at the pad
+	# by design. Found by the first failure screenshot this feature produced —
+	# the gate log said nothing about it, and every gate had been passing with an
+	# unacknowledged dialog and the on-screen keyboard covering the UI.
+	#
+	# Seeding it does not weaken a gate: no gate asserts anything about the
+	# disclaimer, so it was never coverage, only noise on top of the surface the
+	# gates do assert. The dialog itself stays uncovered by automation, which is
+	# worth knowing because it is a Store compliance item
+	# (docs/store-readiness.md).
+	printf '1\n' >"${TMPDIR_LOCAL}/disclaimer.accepted"
+	upload_file "${TMPDIR_LOCAL}/disclaimer.accepted"
 	upload_file "${TMPDIR_LOCAL}/autopilot.json"
 	upload_file "${TMPDIR_LOCAL}/autopilot.flag"
 	start_app
@@ -1343,6 +1364,12 @@ run_gate() {
 	# SHOTS_DIR, and the next person to look would read it as evidence of the
 	# run they just did.
 	rm -f "${SHOTS_DIR}/${name}-"*.png
+	# And drop the in-flight ring, which run_autopilot also does — but a gate can
+	# fail its preflight and never get there. That happened on the first console
+	# run of this feature: taesd bailed on a missing model, and the frames it
+	# published were the previous gate's, showing Dev Home after that gate's own
+	# `quit`. Evidence attributed to the wrong run is worse than no evidence.
+	ring_reset
 	"$fn" || rc=$?
 	((rc != 0)) && save_fail_shots "$name"
 	return $rc

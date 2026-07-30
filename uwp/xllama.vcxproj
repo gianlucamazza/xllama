@@ -202,34 +202,14 @@
     <Midl Include="xllama.idl" />
   </ItemGroup>
 
-  <!-- =====================================================================
-       Desktop Extension SDK — Windows.Media.AppRecording only
-       =====================================================================
-       AppRecordingManager (an app recording its own audio/video through the
-       SoC video encoder) lives in the Desktop extension, not the Universal
-       contract, so without this reference the CppWinRT NuGet generates no
-       projection for the namespace. Including the Windows SDK's own
-       winrt/Windows.Media.AppRecording.h instead does NOT work and is not a
-       shortcut worth trying: that header is stamped with the cppwinrt version
-       that shipped in SDK 22621, while base.h comes from
-       Microsoft.Windows.CppWinRT 2.0.240405.15, and mixing them trips
-       static_assert "Mismatched C++/WinRT headers" plus ~100 follow-on errors
-       (measured on CI, run 30542782897).
-
-       This adds no manifest dependency: an API-contract extension SDK only
-       contributes metadata at compile time. The contract may be absent at
-       runtime — AppxManifest.xml already declares the Windows.Desktop target
-       device family, but declaring it is not the same as the contract being
-       present on a given console — so every use MUST be guarded with
-       ApiInformation::IsTypePresent. App.cpp does exactly that.
-
-       Dev SKU only, matching the single consumer: the probe lives under
-       #ifndef XLLAMA_STORE_SKU, so building the Store SKU against this
-       reference would widen that package's dependency surface for code it does
-       not compile — and that surface is what docs/store-readiness.md tracks. -->
-  <ItemGroup Condition="'$(XllamaStoreSku)' != 'true'">
-    <SDKReference Include="WindowsDesktop, Version=10.0.22621.0" />
-  </ItemGroup>
+  <!-- No Desktop Extension SDK reference, and this is a measured decision.
+       One was added on 2026-07-30 to read AppRecordingManager.GetStatus(), then
+       removed the same day: the [caprec] probe reports the type as ABSENT on the
+       console (Xbox 1.5.2.x, Dev Mode), so the reference bought a projection for
+       code that can never run there. AppxManifest.xml declaring the
+       Windows.Desktop device family does not make the Desktop contract present —
+       that is the whole reason ApiInformation::IsTypePresent is the guard.
+       Do not re-add it without a probe line saying the contract has appeared. -->
 
 
   <!-- =====================================================================

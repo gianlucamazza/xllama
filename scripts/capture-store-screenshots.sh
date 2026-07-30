@@ -17,10 +17,26 @@
 # each named state and waits for us to delete its marker file, so every frame is
 # taken at a state the app has confirmed it is in.
 #
-# States NOT captured, and why: the Settings and History panes are ContentDialogs
-# opened by ShowSettings()/ShowHistory(), and reaching them from autopilot would
-# need both a navigation op and a dismissal op. Everything here is reachable with
-# ops that already exist.
+# States NOT captured, and why. Every screen worth showing that is not the chat
+# view is a ContentDialog — Settings, History, and the image viewer — and none of
+# them can be reached from the autopilot today.
+#
+# The image one was measured, not assumed: `generate_image` completes and the
+# chat view only reports `> Image ready — open [*] Image to view`, so a frame
+# taken there shows chat text and a status line, not the generated image. That
+# state was in this script and produced exactly such a frame; it is removed
+# rather than kept as a misleading "03-image".
+#
+# What it needs is one op, and it must open and close in the SAME action so a
+# dialog can never be left up for the gates that run after:
+#
+#   {"op": "show_pane", "name": "image|settings|history", "label": "...",
+#    "timeout_s": 180}
+#
+# i.e. open the pane, publish the mark, wait for the host to grab and release,
+# then Hide() it. Tracked in #214; not in the PR that added `mark`, because
+# dialog lifecycle sits in the UI path all nine console gates traverse and a
+# failure there should not be competing with a capture feature for the blame.
 
 set -euo pipefail
 
@@ -159,7 +175,6 @@ release_mark() { delete_file "autopilot-mark.txt"; }
 STATES=(
 	"01-chat-answer|send|What can you do on this console?"
 	"02-chat-multiturn|send|Now in one line."
-	"03-image|generate_image|pixel art robot, simple colors"
 )
 
 json_escape() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
@@ -210,6 +225,14 @@ delete_file "autopilot-mark.txt"
 delete_file "autopilot-done.txt"
 delete_file "diffuse-progress.txt"
 
+# Accept the first-run disclaimer, byte-for-byte what pressing "I understand"
+# writes. Not cosmetic: ShowAsync() only completes on a button press and no human
+# is at the pad, so without this EVERY frame would carry the "Before you start"
+# modal and the on-screen keyboard over the UI — measured, not assumed. A Store
+# listing screenshot showing an unacknowledged first-run dialog is not a
+# screenshot of the app.
+printf '1\n' >"${WORK}/disclaimer.accepted"
+upload_file "${WORK}/disclaimer.accepted"
 upload_file "${WORK}/autopilot.json"
 upload_file "${WORK}/autopilot.flag"
 restart_app

@@ -9,32 +9,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **The app now reports whether it can record its own output.** One `[caprec]`
-  line in `xllama.log` per interactive launch: `CanRecord`, `CanRecordTimeSpan`
-  and the nine reason flags from `AppRecordingManager.GetStatus().Details()`,
-  plus whether `GraphicsCaptureSession` (the other self-capture route, and a
-  Universal-contract type) exists here.
-  The demo pipeline rebuilds a video from Device Portal screenshots at 1 Hz, and
-  that 1 Hz is a `sleep 1` in `capture-demo-video.sh` rather than a measured
-  limit — so before optimising a slideshow, establish whether native recording
-  is available at all. It matters for more than smoothness:
-  `AppRecordingManager` uses the SoC video encoder, whereas a software encoder in
-  this process would compete with the very inference a demo exists to show, on
-  ~6 usable cores with a livelock at 7-8.
-  This required an **SDKReference to the Desktop extension** in
-  `uwp/xllama.vcxproj`, conditioned on the dev SKU to match its only consumer —
-  the probe is compiled out of the Store SKU, and that package's dependency
-  surface is what `docs/store-readiness.md` tracks. The namespace is not in the
-  Universal contract, so the
-  CppWinRT NuGet generates no projection for it, and substituting the Windows
-  SDK's own `AppRecording` header is not an alternative — that header is stamped
-  with the cppwinrt version from SDK 22621 while `base.h` comes from CppWinRT
-  2.0.240405.15, which trips `static_assert "Mismatched C++/WinRT headers"` plus
-  ~100 follow-on errors (measured on CI, not guessed). The reference adds no
-  manifest dependency; an API-contract extension SDK only contributes compile-time
-  metadata, and the contract may still be absent at runtime, so the call is
-  guarded with `ApiInformation::IsTypePresent`. Probed after `Activate()`, since
-  recording needs a live window and `IsAppInactive` would read true before it.
+- **Measured: the console cannot record its own output, but self-capture is not
+  closed.** A `[caprec]` line in `xllama.log` on every interactive launch reports
+  `ApiInformation::IsTypePresent` for both self-capture APIs. On the console
+  (Dev Mode, 1.5.2.x): **`AppRecordingManager present=0`,
+  `GraphicsCaptureSession present=1`**.
+  The question mattered because the demo pipeline rebuilds a video from Device
+  Portal screenshots at 1 Hz — and that 1 Hz is a `sleep 1` in
+  `capture-demo-video.sh`, not a measured limit. `AppRecordingManager` would have
+  been the clean answer: it encodes on the SoC video encoder, whereas any
+  in-process encoder competes with the very inference a demo exists to show, on
+  ~6 usable cores with a livelock at 7-8. It is not available: the API lives in
+  the **Desktop extension contract**, and `AppxManifest.xml` declaring the
+  `Windows.Desktop` device family does not make that contract present on a
+  device. An SDKReference to the Desktop extension was added to read
+  `CanRecord`, and removed once the probe answered — a projection for a type that
+  cannot be activated buys nothing. `Windows.Graphics.Capture` **is** present, so
+  a second route exists, but it encodes in-process and is unmeasured (#214).
+  Recorded in `docs/uwp-constraints.md` §10b, with the general rule it
+  demonstrates: a manifest device family, an SDKReference and a compiled
+  projection are all statements about build and install time, and none of them
+  says a type can be activated on the device in front of you.
 - **Autopilot op `mark`** — a rendez-vous for screenshot capture. The app writes
   a label to `LocalState\autopilot-mark.txt` and blocks; the host polls for the
   file, takes its Device Portal screenshot, and deletes the file to release the

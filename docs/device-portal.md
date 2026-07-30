@@ -136,6 +136,33 @@ curl -sS --basic -u "$XBOX_USER:$XBOX_PASS" -k \
 
 1920×1080 PNG of the current console output. A plain GET, so no CSRF token.
 
+**Measured, 2026-07-30** (`scripts/bench-screenshot-rate.sh`, 30 back-to-back
+requests after one warm-up):
+
+| condition       | latency min / p50 / p90 | sustained   |
+| --------------- | ----------------------- | ----------- |
+| console idle    | 0.029 / 0.037 / 0.226 s | **11.5 Hz** |
+| during a decode | 0.027 / 0.032 / 0.160 s | **13.7 Hz** |
+
+The endpoint is an order of magnitude faster than the 1 Hz the demo pipeline
+assumed — that 1 Hz was a `sleep 1` in `capture-demo-video.sh`, never a measured
+ceiling. It is also not slowed by inference: the frame under load is _smaller_
+(53 KB vs 79 KB) because a chat screen compresses better than Dev Home, and the
+capture is served by the system rather than by the app's threads.
+
+**What capture costs the app**, which is the direction that matters for a demo
+that displays tok/s. LAN API, `lfm25-350m`, 250 tokens, temperature 0, three
+runs each:
+
+|                     | decode                      | median |
+| ------------------- | --------------------------- | ------ |
+| no capture          | 93.70 / 93.66 / 93.75 tok/s | 93.70  |
+| capture at ~13.5 Hz | 91.28 / 91.98 / 92.53 tok/s | 91.98  |
+
+**−1.8%**, with non-overlapping ranges, so it is a real effect and not noise. A
+capture at ~10 Hz is therefore affordable: the numbers a demo shows are within
+2% of the numbers without a camera on them.
+
 This is the only way to see the app's UI from the host, and it is the answer
 whenever a failure leaves no textual trace. During the DirectML metacommands
 work the app died at launch with no log, no crash dump and no WER report; a
