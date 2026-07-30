@@ -664,6 +664,28 @@ JSON
 		echo "  FAIL: no llama.cpp GGUF session load in the log"
 		verdict=1
 	fi
+	# The conversation this gate just created must be saved WITH A TITLE. It
+	# was not, for every conversation the app ever wrote: NewChat() assigns the
+	# id, so the `id.empty()` branch that also derived the title never ran, and
+	# History listed everything as "(2 msgs) • today 13:20". Nothing caught it
+	# because no gate looked past the log — the turn generated fine, it was the
+	# saved record that was wrong. Reads the index the app wrote, not the log.
+	fetch_file "index.json" "${TMPDIR_LOCAL}/gguf-index.json" "chats"
+	python3 - "${TMPDIR_LOCAL}/gguf-index.json" <<'PY' || verdict=1
+import json, sys
+try:
+    idx = json.load(open(sys.argv[1], encoding="utf-8"))
+except Exception as e:
+    sys.exit(f"  FAIL: cannot read the chat index the app wrote: {e}")
+if not isinstance(idx, list) or not idx:
+    sys.exit("  FAIL: the chat index is empty — the conversation was not saved")
+newest = max(idx, key=lambda e: e.get("last_modified", 0))
+title = (newest.get("title") or "").strip()
+if not title:
+    sys.exit("  FAIL: the saved conversation has no title — History will show "
+             "only a message count and a timestamp")
+print(f"  ok: the conversation was saved with a title ({title!r:.60})")
+PY
 	[[ $verdict -eq 0 ]] && echo "GGUF chat: PASS" || echo "GGUF chat: FAIL"
 	return $verdict
 }
