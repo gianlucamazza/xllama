@@ -182,7 +182,8 @@ allowlist draft** — not legal advice; re-verify before submission.
 
 ### Listing
 
-- [ ] EN title / description / screenshots / trailer (current numbers)
+- [x] Screenshots (5, 1920×1080, `docs/screenshots/store/`, 2026-07-30)
+- [ ] EN title / description / trailer (current numbers)
 - [ ] “Not affiliated with Microsoft”
 - [ ] Hardware: Series S\|X
 - [ ] Category / Game metadata decision from D1
