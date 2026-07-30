@@ -177,23 +177,99 @@ file_absent() {
 	[[ "$code" == "404" ]]
 }
 
+# --- failure screenshots ---------------------------------------------------
+#
+# Every verdict in this script comes from grepping xllama.log, and once that was
+# not enough: the app died at launch with no log, no crash dump and no WER
+# report, and only a Device Portal screenshot showed why — a "Sign in to start
+# this app (0x8004090a)" dialog (docs/dml-metacommands-runbook.md). The
+# capability was already there; the gate simply did not use it.
+#
+# The poll loop keeps the last two frames; they are written out only when a gate
+# fails. Two frames rather than one because of how the three failure classes
+# differ:
+#   * autopilot "error:" — ApRun writes the marker WITHOUT exiting
+#     (MainPage.cpp), so the app is still on screen showing the broken state;
+#   * timeout — the app is alive, most likely stuck;
+#   * marker "ok" but the log grep rejects — every gate script ends with `quit`
+#     and that path does exit, so only the earlier frame still shows the app.
+#
+# One frame per third poll, not per poll: the taesd gate asserts a VAE decode
+# under 1000 ms, and there is no reason to put avoidable work on the same SoC
+# while it is being timed. XLLAMA_GATE_SHOTS=0 disables the whole thing.
+SHOTS_DIR="${XLLAMA_GATE_SHOTS_DIR:-${TMPDIR:-/tmp}/xllama-gate-shots}"
+RING_TICK=0
+
+grab_screenshot() {
+	local dest="$1"
+	curl "${CURL_AUTH[@]}" -o "$dest" --fail "${BASE_URL}/ext/screenshot" >/dev/null 2>&1 || return 1
+}
+
+# Called from the poll loop; keeps ring-0.png (older) and ring-1.png (newer).
+ring_tick() {
+	[[ "${XLLAMA_GATE_SHOTS:-1}" == "0" ]] && return 0
+	# Assignment, not ((RING_TICK++)): the post-increment of 0 evaluates to 0,
+	# which is a non-zero exit status, which `set -e` would take as a failure.
+	RING_TICK=$((RING_TICK + 1))
+	((RING_TICK % 3 == 0)) || return 0
+	[[ -f "${TMPDIR_LOCAL}/ring-1.png" ]] &&
+		mv -f "${TMPDIR_LOCAL}/ring-1.png" "${TMPDIR_LOCAL}/ring-0.png"
+	grab_screenshot "${TMPDIR_LOCAL}/ring-1.png" || rm -f "${TMPDIR_LOCAL}/ring-1.png"
+	return 0
+}
+
+ring_reset() { rm -f "${TMPDIR_LOCAL}/ring-0.png" "${TMPDIR_LOCAL}/ring-1.png"; }
+
+# Unconditional grab (ignores the 1-in-3 cadence), for the moment a run ends.
+ring_tick_now() {
+	RING_TICK=2
+	ring_tick
+}
+
+# Persist whatever the ring holds. Called only on a failing gate.
+save_fail_shots() {
+	local gate="$1" saved=0 i
+	[[ "${XLLAMA_GATE_SHOTS:-1}" == "0" ]] && return 0
+	for i in 0 1; do
+		[[ -f "${TMPDIR_LOCAL}/ring-${i}.png" ]] || continue
+		mkdir -p "$SHOTS_DIR"
+		cp "${TMPDIR_LOCAL}/ring-${i}.png" "${SHOTS_DIR}/${gate}-${i}.png"
+		saved=$((saved + 1))
+	done
+	if ((saved > 0)); then
+		echo "  Screenshots of the failing run: ${SHOTS_DIR}/${gate}-*.png" \
+			"(${gate}-1.png is the later frame)" >&2
+	else
+		echo "  No screenshot captured for ${gate} (the run may have been shorter" \
+			"than the 30 s ring cadence)" >&2
+	fi
+}
+
 # Poll autopilot-done.txt; echoes its content, returns non-zero on timeout.
 wait_autopilot_done() {
-	local timeout_s="${1:-900}" elapsed=0 out="${TMPDIR_LOCAL}/done.txt"
+	local timeout_s="${1:-900}" out="${TMPDIR_LOCAL}/done.txt"
+	# Wall-clock deadline rather than a tick count: a poll iteration now also
+	# grabs a screenshot, so "10 per iteration" would understate real elapsed
+	# time and silently stretch the declared timeout.
+	local start=$SECONDS deadline=$((SECONDS + timeout_s))
 	echo "  Waiting for autopilot-done.txt (timeout ${timeout_s}s)..." >&2
-	while ((elapsed < timeout_s)); do
+	while ((SECONDS < deadline)); do
 		: >"$out"
 		fetch_file "autopilot-done.txt" "$out"
 		# A real marker is "ok" or "error: ..."; a 404 body contains neither.
 		if grep -qE '^(ok|error:)' "$out" 2>/dev/null; then
-			echo "  Done after ${elapsed}s." >&2
+			echo "  Done after $((SECONDS - start))s." >&2
+			# One last frame: on the "error:" path the app is still on screen
+			# showing exactly what broke, and that is the frame worth having.
+			ring_tick_now
 			cat "$out"
 			return 0
 		fi
 		sleep 10
-		((elapsed += 10))
+		ring_tick
 	done
 	echo "  Timeout waiting for autopilot-done.txt" >&2
+	ring_tick_now
 	return 1
 }
 
@@ -203,6 +279,9 @@ run_autopilot() {
 	local timeout_s="${1:-900}"
 	cat >"${TMPDIR_LOCAL}/autopilot.json"
 	printf 'go' >"${TMPDIR_LOCAL}/autopilot.flag"
+	# Frames belong to one run: a gate that fails must not be handed the previous
+	# gate's screenshot, which would look like evidence and be a different app state.
+	ring_reset
 	# Stop the app BEFORE deleting: WDP cannot unlink a file the app still holds
 	# open, and delete_file swallows the failure — a previous run's lines then
 	# survive into this run's log and falsify the verdict (observed: a "prompt
@@ -1233,31 +1312,39 @@ PY
 
 # --- dispatch --------------------------------------------------------------
 
+# One place where a gate's exit status decides whether its screenshots are kept.
+run_gate() {
+	local name="$1" fn="$2" rc=0
+	"$fn" || rc=$?
+	((rc != 0)) && save_fail_shots "$name"
+	return $rc
+}
+
 CMD="${1:-}"
 case "$CMD" in
-routing) validate_routing ;;
-settings) validate_settings ;;
-gguf) validate_gguf ;;
-longchat) validate_longchat ;;
-kvsnap) validate_kvsnap ;;
-coderpaste) validate_coderpaste ;;
-thinkcut) validate_thinkcut ;;
-genroom) validate_genroom ;;
-taesd) validate_taesd ;;
+routing) run_gate routing validate_routing ;;
+settings) run_gate settings validate_settings ;;
+gguf) run_gate gguf validate_gguf ;;
+longchat) run_gate longchat validate_longchat ;;
+kvsnap) run_gate kvsnap validate_kvsnap ;;
+coderpaste) run_gate coderpaste validate_coderpaste ;;
+thinkcut) run_gate thinkcut validate_thinkcut ;;
+genroom) run_gate genroom validate_genroom ;;
+taesd) run_gate taesd validate_taesd ;;
 all)
 	rc=0
 	if ! model_provisioned "smollm2-360m-cpu-int4"; then
 		echo "  WARN: smollm2-360m-cpu-int4 missing — launch the app once for catalogue download"
 	fi
-	validate_routing || rc=1
-	validate_settings || rc=1
-	validate_gguf || rc=1
-	validate_longchat || rc=1
-	validate_kvsnap || rc=1
-	validate_coderpaste || rc=1
-	validate_thinkcut || rc=1
-	validate_genroom || rc=1
-	validate_taesd || rc=1
+	run_gate routing validate_routing || rc=1
+	run_gate settings validate_settings || rc=1
+	run_gate gguf validate_gguf || rc=1
+	run_gate longchat validate_longchat || rc=1
+	run_gate kvsnap validate_kvsnap || rc=1
+	run_gate coderpaste validate_coderpaste || rc=1
+	run_gate thinkcut validate_thinkcut || rc=1
+	run_gate genroom validate_genroom || rc=1
+	run_gate taesd validate_taesd || rc=1
 	echo
 	echo "=== summary ==="
 	[[ $rc -eq 0 ]] && echo "ALL PASS" || echo "SOME FAILED (exit ${rc})"

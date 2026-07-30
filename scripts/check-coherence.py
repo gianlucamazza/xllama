@@ -268,6 +268,7 @@ def main() -> int:
         "set_taesd",
         "set_system_prompt",
         "generate_image",
+        "mark",
         "rate",
         "start_train",
         "train_status",

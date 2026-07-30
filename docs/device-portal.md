@@ -122,6 +122,51 @@ Note: `path` specifies the **directory** (`\\LocalState` or `\\LocalState\\model
 
 Navigate to `https://<ip>:11443/#fileExplorer` for a browser-based file manager.
 
+## The `/ext/` endpoints: seeing and signing in
+
+Two endpoints outside `/api/` that this project depends on. Neither is in the
+Microsoft reference pages linked below, and both were found the hard way.
+
+### `GET /ext/screenshot` — a PNG of what is on the TV
+
+```bash
+curl -sS --basic -u "$XBOX_USER:$XBOX_PASS" -k \
+    -o frame.png "https://$XBOX_IP:11443/ext/screenshot"
+```
+
+1920×1080 PNG of the current console output. A plain GET, so no CSRF token.
+
+This is the only way to see the app's UI from the host, and it is the answer
+whenever a failure leaves no textual trace. During the DirectML metacommands
+work the app died at launch with no log, no crash dump and no WER report; a
+screenshot showed a "Sign in to start this app (0x8004090a)" dialog waiting for
+a button press (`dml-metacommands-runbook.md`). Nothing else on this list would
+have found that.
+
+Two consumers in the repo:
+
+- `scripts/capture-demo-video.sh` polls it to reconstruct a demo video. Note
+  what that implies — there is **no video capture endpoint**; the "video" is a
+  sequence of stills;
+- `scripts/validate-console.sh` keeps the last two frames of every gate run and
+  writes them out only when the gate fails (`XLLAMA_GATE_SHOTS=0` disables it,
+  `XLLAMA_GATE_SHOTS_DIR` moves the output).
+
+### `PUT /ext/user` — sign a user in
+
+```bash
+curl -sS --basic -u "$XBOX_USER:$XBOX_PASS" -k -X PUT \
+    -H "X-CSRF-Token: $CSRF_TOKEN" -H 'Content-Type: application/json' \
+    -d '{"Users":[{"UserId":"<id>","SignedIn":true}]}' \
+    "https://$XBOX_IP:11443/ext/user"
+```
+
+The console can lose its signed-in user across a reboot, and an app that
+requires one then fails to launch in the silent way described above. Send the
+CSRF token as with any other state-changing call — the requirement is verified
+for POST/DELETE and assumed here rather than measured. Signing in also moves the
+package's `LocalState` (`dml-metacommands-runbook.md` has the consequences).
+
 ## Lifecycle gotchas (verified on console, 2026-07-07)
 
 Five non-obvious behaviours of Device Portal + UWP package lifecycle that have

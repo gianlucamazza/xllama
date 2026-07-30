@@ -12,6 +12,8 @@
 #include "xllama/platform.h"
 #ifndef XLLAMA_STORE_SKU
 #include "api-server.h"
+#include <winrt/Windows.Foundation.Metadata.h>
+#include <winrt/Windows.Media.AppRecording.h>
 #endif
 // clang-format on
 
@@ -60,6 +62,66 @@ static void log_write(const char* msg) {
         fflush(g_log_fp);
     }
 }
+
+    #ifndef XLLAMA_STORE_SKU
+// ---------------------------------------------------------------------------
+// Can the app record its own output?
+//
+// The demo pipeline reconstructs a video from Device Portal screenshots at 1 Hz
+// (scripts/capture-demo-video.sh) — a slideshow, not a recording.
+// AppRecordingManager is the alternative, and the argument for it is not
+// smoothness: it hands frames to the SoC video encoder, whereas any software
+// encoder inside this process would steal CPU from the very inference the demo
+// exists to show — on a machine with ~6 usable cores and a livelock at 7-8
+// (docs/uwp-constraints.md).
+//
+// Whether it works here is genuinely unknown and is NOT assumed in either
+// direction. Two reasons it might not:
+//   * the API lives in the Desktop Extension SDK (10.0.16299), so the type may
+//     simply not be registered on Xbox — ApiInformation answers that without
+//     relying on how a missing activation happens to fail;
+//   * Dev Mode may disable the capture policy, which GetStatus() reports as a
+//     reason rather than a bare false.
+// So the whole question closes with a query and one log line, not with a trial
+// recording whose failure we would then have to interpret.
+static void log_app_recording_probe() {
+    using winrt::Windows::Foundation::Metadata::ApiInformation;
+    namespace rec = winrt::Windows::Media::AppRecording;
+
+    char buf[512];
+    try {
+        if (!ApiInformation::IsTypePresent(L"Windows.Media.AppRecording.AppRecordingManager")) {
+            log_write("[caprec] type absent (Desktop Extension SDK not present on this device)\n");
+            return;
+        }
+        auto mgr = rec::AppRecordingManager::GetDefault();
+        if (!mgr) {
+            log_write("[caprec] GetDefault=null\n");
+            return;
+        }
+        auto status = mgr.GetStatus();
+        auto d = status.Details();
+        snprintf(buf, sizeof(buf),
+                 "[caprec] GetDefault=ok CanRecord=%d CanRecordTimeSpan=%d"
+                 " disabledByUser=%d disabledBySystem=%d blockedForApp=%d"
+                 " captureResourceUnavailable=%d gpuConstrained=%d appInactive=%d"
+                 " anyAppBroadcasting=%d gameStreamInProgress=%d timeSpanDisabled=%d\n",
+                 status.CanRecord() ? 1 : 0, status.CanRecordTimeSpan() ? 1 : 0,
+                 d.IsDisabledByUser() ? 1 : 0, d.IsDisabledBySystem() ? 1 : 0,
+                 d.IsBlockedForApp() ? 1 : 0, d.IsCaptureResourceUnavailable() ? 1 : 0,
+                 d.IsGpuConstrained() ? 1 : 0, d.IsAppInactive() ? 1 : 0,
+                 d.IsAnyAppBroadcasting() ? 1 : 0, d.IsGameStreamInProgress() ? 1 : 0,
+                 d.IsTimeSpanRecordingDisabled() ? 1 : 0);
+        log_write(buf);
+    } catch (winrt::hresult_error const& e) {
+        snprintf(buf, sizeof(buf), "[caprec] hresult 0x%08X: %ls\n",
+                 static_cast<unsigned>(e.code().value), e.message().c_str());
+        log_write(buf);
+    } catch (...) {
+        log_write("[caprec] unknown exception\n");
+    }
+}
+    #endif
 
 // ---------------------------------------------------------------------------
 // App
@@ -116,6 +178,10 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
         log_write("[xllama] Window activated\n");
 
     #ifndef XLLAMA_STORE_SKU
+        // Answered on every interactive launch, after Activate(): recording
+        // needs a live window, and IsAppInactive would read true before it.
+        log_app_recording_probe();
+
         // §7 experiment: the 887A0036 device conflict was measured with ORT
         // GenAI's Agility-factory device; diffuse.cpp uses plain ORT DML, whose
         // device may coexist with the compositor device the line above just

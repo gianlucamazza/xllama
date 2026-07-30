@@ -3171,8 +3171,8 @@ bool MainPageController::ApParseScript(const std::string& json_utf8, std::vector
             return false;
         }
         // Single payload slot: text (send) / id (load_chat) / name (set_model) /
-        // prompt (generate_image).
-        for (auto key : {L"text", L"id", L"name", L"prompt"}) {
+        // prompt (generate_image) / label (mark).
+        for (auto key : {L"text", L"id", L"name", L"prompt", L"label"}) {
             if (obj.HasKey(key)) {
                 a.arg = std::wstring(obj.GetNamedString(key, L"").c_str());
                 break;
@@ -3494,6 +3494,43 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
                                                                  "\nresult_done=" + done +
                                                                  "\nprogress=" + prog + "\n");
             log_output("[autopilot] train_status state=" + state + "\n");
+        } else if (a.op == "mark") {
+            // Rendez-vous with the host: park on a named UI state until the host
+            // has grabbed it, then carry on.
+            //
+            // The host cannot see this process's UI, and the app cannot reach
+            // the Device Portal, so "screenshot the Settings pane" was previously
+            // a race between an autopilot action and a host-side sleep. Here the
+            // app publishes the label and blocks; the host polls for the file,
+            // takes its screenshot, and deletes the file to release us. Nothing
+            // is timed, so nothing is guessed.
+            //
+            // A timeout releases the action rather than failing the script: a
+            // capture run that nobody is watching should still complete, and the
+            // missing screenshot is visible on the host side anyway.
+            if (!not_running())
+                throw std::runtime_error("action " + std::to_string(i) + " mark: busy");
+            const std::string label =
+                a.arg.empty() ? std::to_string(i) : ::xllama::wstring_to_utf8(a.arg);
+            write_local_bytes(L"autopilot-mark.txt", label);
+            log_output("[autopilot] mark '" + label + "' waiting for host\n");
+            const auto t = a.timeout.count() > 0 ? a.timeout : std::chrono::seconds{120};
+            const auto deadline = std::chrono::steady_clock::now() + t;
+            const std::wstring mark_path = local_wpath(L"autopilot-mark.txt");
+            bool released = false;
+            while (std::chrono::steady_clock::now() < deadline) {
+                if (GetFileAttributesW(mark_path.c_str()) == INVALID_FILE_ATTRIBUTES) {
+                    released = true;
+                    break;
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            }
+            if (!released) {
+                _wremove(mark_path.c_str());
+                log_output("[autopilot] mark '" + label + "' timed out, continuing\n");
+            } else {
+                log_output("[autopilot] mark '" + label + "' released\n");
+            }
         } else if (a.op == "quit") {
             log_output("[autopilot] action " + std::to_string(i) + " quit\n");
             write_local_bytes(L"autopilot-done.txt", "ok");

@@ -51,6 +51,28 @@ hardware gates pass:
   (chat + #118 preference/training-status probes). Not wired into
   `validate-console.sh all` today — run it from another host on the LAN.
 
+### When a gate fails, look at the screen
+
+Verdicts come from grepping `xllama.log`, which cannot describe a failure that
+never reached the log — the app dying at launch behind a system dialog being the
+case that cost the most time (`dml-metacommands-runbook.md`). So every run keeps
+the last two Device Portal screenshots, and a failing gate writes them out:
+
+```text
+  Screenshots of the failing run: /tmp/xllama-gate-shots/longchat-*.png
+```
+
+`-1.png` is the later frame. Both are kept because the three failure classes
+differ: on an autopilot `error:` the app is still on screen showing the broken
+state, on a timeout it is alive and stuck, but when the marker says `ok` and only
+the log grep rejects, the script's closing `quit` has already exited the app and
+just the earlier frame still shows it.
+
+Frames are taken once every third poll (~30 s) rather than every poll, so the
+`taesd` gate's sub-1000 ms VAE assertion is not competing with avoidable work on
+the same SoC. `XLLAMA_GATE_SHOTS=0` disables capture entirely;
+`XLLAMA_GATE_SHOTS_DIR` chooses where the frames land.
+
 Run an individual gate while debugging:
 
 ```bash
