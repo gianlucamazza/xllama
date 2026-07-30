@@ -43,8 +43,10 @@ Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.
 - [x] H4 usable dense 3B campaign; Llama-3.2-3B is the preferred comparator.
 - [~] H2 MoE candidate — ceiling measured 2026-07-29 (4864 MB committed), which
   admits LFM2.5-8B-A1B at `UD-IQ3_S`; console decode still open (Phase 15 W1).
-- [ ] H3 speculative decoding spike, gated on a concrete target/draft pair and
-      a predeclared throughput-quality threshold (Phase 15 W2).
+- [~] H3 speculative decoding — the predeclared A/B was run 2026-07-29 and
+  **split the hypothesis**: the draft-model variant is rejected (1.43× on
+  code, **0.81× on open chat**), the draft-free prompt lookup proceeds
+  (1.53× / 1.00×). Implementation is Phase 15 W2.
 - [ ] H5 BitNet/low-bit survey before any runtime work.
 - [ ] H6/H7 GPU or hybrid GGUF experiments only after a credible UWP backend
       path exists — H6 now has a predeclared 100 GB/s kill gate (Phase 15 W3).
@@ -366,8 +368,14 @@ them. SSOT: [`docs/model-matrix.md`](docs/model-matrix.md); console evidence
       chunked at `llama_n_batch` now (physical ubatch 512 unchanged, the #172
       optimum). Replies also stopped being silently cut at ~250 tokens: the
       trimmer reserved a flat 250 against a UI default `n_predict` of 512.
-- [~] **Exact token-budget trim + gates** — PR #194 open: enforce the budget in
-  tokens, once, where the tokenizer is.
+- [x] **Exact token-budget trim + gates** (PR #194, shipped in 1.5.2.0): the
+      budget is enforced in tokens, once, where the tokenizer is (`fit_prompt`),
+      on both the chat UI and the LAN endpoint. It found four more defects on the
+      way — auto GPU routing unreachable on a default install, the LAN endpoint
+      with no budget at all, a bisection returning an empty prompt with no history
+      to drop, and a capability matrix wrong about Qwen3's `can_shift`. Three new
+      console gates came with it (`coderpaste`, `thinkcut`, `genroom`), all PASS on
+      the shipped 1.5.2.789.
 
 ## Phase 15 — Make the 3B–4B class usable (in progress)
 
