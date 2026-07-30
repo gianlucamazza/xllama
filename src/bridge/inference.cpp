@@ -403,6 +403,7 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
 
     #include "llama.h"
 
+    #include "decode_loop.h"
     #include "sampler_chain.h" // shared sampler chain (#125); needs llama.h
     #include "xllama/llama_raii.h"
 
@@ -544,30 +545,19 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
 
     log_output(("[xllama] prompt tokens: " + std::to_string(tokens.size()) + "\n").c_str());
     const auto t_prompt0 = std::chrono::steady_clock::now();
-    // Chunked at n_batch: an oversized logical batch is a GGML_ASSERT abort in
-    // llama_decode, not an error code (same fix as LlamaSession::generate).
-    // n_ubatch — the chunk the prefill rate was measured on (#172) — is untouched.
-    const int n_prompt_batch = std::max(1, static_cast<int>(llama_n_batch(ctx.get())));
+    // Prefill chunking and the context guard live in decode_loop.h — see there
+    // for why an oversized logical batch aborts rather than erroring.
     const int n_prompt_tokens = static_cast<int>(tokens.size());
-    // Chunking makes an oversized batch safe, not an oversized CONTEXT: a prompt
-    // past n_ctx would fail somewhere inside the loop with a bare "decode
-    // failed". Say what is actually wrong, before touching the cache — same
-    // message as LlamaSession::generate.
     const int n_ctx_active = static_cast<int>(llama_n_ctx(ctx.get()));
     if (n_prompt_tokens + 1 > n_ctx_active) {
-        res.error_msg = "prompt too long: " + std::to_string(n_prompt_tokens) +
-                        " tokens exceed n_ctx=" + std::to_string(n_ctx_active);
+        res.error_msg = prompt_too_long_message(n_prompt_tokens, n_ctx_active);
         log_output(("[xllama] " + res.error_msg + "\n").c_str());
         return res;
     }
-    for (int off = 0; off < n_prompt_tokens; off += n_prompt_batch) {
-        llama_batch batch = llama_batch_get_one(tokens.data() + off,
-                                                std::min(n_prompt_batch, n_prompt_tokens - off));
-        if (llama_decode(ctx.get(), batch) != 0) {
-            res.error_msg = "prompt decode failed";
-            log_output("[xllama] prompt decode failed\n");
-            return res;
-        }
+    if (!prefill_chunked(ctx.get(), tokens.data(), n_prompt_tokens)) {
+        res.error_msg = "prompt decode failed";
+        log_output("[xllama] prompt decode failed\n");
+        return res;
     }
     const double prompt_ms =
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_prompt0)
@@ -607,49 +597,19 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     // inside the builder.
     add_sampler_stages(sampler.get(), params.sampling());
 
-    int n_generated = 0;
     const auto t_gen0 = std::chrono::steady_clock::now();
-    while (n_generated < params.n_predict) {
-        if (params.abort_flag && params.abort_flag->load())
-            break;
-
-        llama_token token = llama_sampler_sample(sampler.get(), ctx.get(), -1);
-        if (llama_vocab_is_eog(vocab, token)) {
-            log_output(("[xllama] EOG after " + std::to_string(n_generated) + " tokens\n").c_str());
-            break;
-        }
-
-        char buf[256] = {};
-        int len = llama_token_to_piece(vocab, token, buf, sizeof(buf) - 1, 0, false);
-        if (len > 0) {
-            buf[len] = '\0';
-            res.output_text += buf;
-            if (params.on_token)
-                params.on_token(std::string_view(buf, static_cast<size_t>(len)));
-            if (params.echo_stdout) {
-                std::fputs(buf, stdout);
-                std::fflush(stdout);
-            }
-        }
-
-        // Stop strings (e.g. Gemma's <end_of_turn>, not an EOG token in every
-        // GGUF): shared suffix-match helper, trims the trailing match.
-        if (apply_stop_sequences(res.output_text, params.stop_sequences)) {
-            res.ended_with_stop = true;
-            log_output(
-                ("[xllama] stop sequence after " + std::to_string(n_generated + 1) + " tokens\n")
-                    .c_str());
-            ++n_generated;
-            break;
-        }
-
-        llama_batch next = llama_batch_get_one(&token, 1);
-        if (llama_decode(ctx.get(), next) != 0) {
-            log_output("[xllama] decode failed at token, stopping generation\n");
-            break;
-        }
-        ++n_generated;
-    }
+    DecodeLoopParams dlp;
+    dlp.ctx = ctx.get();
+    dlp.sampler = sampler.get();
+    dlp.vocab = vocab;
+    dlp.n_predict = params.n_predict;
+    dlp.stop_sequences = &params.stop_sequences;
+    dlp.abort_flag = params.abort_flag;
+    dlp.on_token = params.on_token;
+    dlp.echo_stdout = params.echo_stdout;
+    const DecodeLoopResult dlr = decode_loop(dlp, res.output_text);
+    const int n_generated = dlr.n_generated;
+    res.ended_with_stop = dlr.ended_with_stop;
 
     if (params.echo_stdout)
         std::fputc('\n', stdout);

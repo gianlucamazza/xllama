@@ -458,6 +458,7 @@ std::unique_ptr<Session> create_ort(const SessionParams& sp, std::string* err) {
 
     #include "llama.h"
 
+    #include "decode_loop.h"   // shared prefill + generation loops; needs llama.h
     #include "sampler_chain.h" // shared sampler chain (#125); needs llama.h
     #include "xllama/llama_raii.h"
 
@@ -755,20 +756,16 @@ class LlamaSession final : public Session {
         // LOGICAL batch only — the physical ubatch stays 512 (#172 optimum),
         // which is what the prefill rate was measured on.
         const auto t_prefill0 = std::chrono::steady_clock::now();
-        const int n_batch = std::max(1, static_cast<int>(llama_n_batch(ctx)));
-        for (int off = 0; off < n_pf; off += n_batch) {
-            llama_batch batch = llama_batch_get_one(pf + off, std::min(n_batch, n_pf - off));
-            if (llama_decode(ctx, batch) != 0) {
-                res.error_msg = "prompt decode failed";
-                log_output("[xllama] session generate: prompt decode failed\n");
-                // The cache now holds a partial batch — nothing about it is
-                // trustworthy, so drop the record AND the cells. Clearing both
-                // keeps a continuation turn (which reads the cache length, not
-                // m_kv_tokens) from decoding on top of half a prefill.
-                m_kv_tokens.clear();
-                llama_memory_clear(mem, true);
-                return res;
-            }
+        if (!prefill_chunked(ctx, pf, n_pf)) {
+            res.error_msg = "prompt decode failed";
+            log_output("[xllama] session generate: prompt decode failed\n");
+            // The cache now holds a partial batch — nothing about it is
+            // trustworthy, so drop the record AND the cells. Clearing both keeps
+            // a continuation turn (which reads the cache length, not
+            // m_kv_tokens) from decoding on top of half a prefill.
+            m_kv_tokens.clear();
+            llama_memory_clear(mem, true);
+            return res;
         }
         res.t_p_eval_ms =
             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_prefill0)
@@ -795,8 +792,6 @@ class LlamaSession final : public Session {
         }
         llama_sampler* sampler_chain = m_sampler.get();
 
-        int n_generated = 0;
-        bool stopped_by_seq = false;
         const auto t_decode0 = std::chrono::steady_clock::now();
 
         // Clean stop at the context end (#173): each generated token needs a KV
@@ -804,37 +799,22 @@ class LlamaSession final : public Session {
         // at 0 — an oversized full prompt yields a clean zero-token result.
         const int n_predict_eff = std::max(0, std::min(gp.n_predict, m_n_ctx - kv_len - n_pf));
 
-        while (n_generated < n_predict_eff) {
-            if (gp.abort_flag && gp.abort_flag->load())
-                break;
-
-            llama_token token = llama_sampler_sample(sampler_chain, ctx, -1);
-            if (llama_vocab_is_eog(vocab, token))
-                break;
-
-            char buf[256] = {};
-            int len = llama_token_to_piece(vocab, token, buf, sizeof(buf) - 1, 0, false);
-            if (len > 0) {
-                buf[len] = '\0';
-                res.output_text += buf;
-                if (gp.on_token)
-                    gp.on_token(std::string_view(buf, static_cast<size_t>(len)));
-            }
-
-            // Stop sequences (shared suffix-match helper).
-            if (apply_stop_sequences(res.output_text, gp.stop_sequences)) {
-                stopped_by_seq = true;
-                break;
-            }
-
-            llama_batch next = llama_batch_get_one(&token, 1);
-            if (llama_decode(ctx, next) != 0) {
-                log_output("[xllama] session generate: decode failed, stopping\n");
-                break;
-            }
-            m_kv_tokens.push_back(token); // resident as of this decode (#170a)
-            ++n_generated;
-        }
+        // The loop itself lives in decode_loop.h, shared with run_inference —
+        // see there for why. What stays here is what is genuinely this session's:
+        // keeping m_kv_tokens in step with the KV cells, which the #170a prefix
+        // diff and the #170b snapshot fingerprint both read.
+        DecodeLoopParams dlp;
+        dlp.ctx = ctx;
+        dlp.sampler = sampler_chain;
+        dlp.vocab = vocab;
+        dlp.n_predict = n_predict_eff;
+        dlp.stop_sequences = &gp.stop_sequences;
+        dlp.abort_flag = gp.abort_flag;
+        dlp.on_token = gp.on_token;
+        dlp.on_accepted = [this](llama_token t) { m_kv_tokens.push_back(t); };
+        const DecodeLoopResult dlr = decode_loop(dlp, res.output_text);
+        const int n_generated = dlr.n_generated;
+        const bool stopped_by_seq = dlr.ended_with_stop;
 
         res.t_eval_ms =
             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_decode0)
