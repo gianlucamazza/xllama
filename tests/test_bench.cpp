@@ -69,7 +69,9 @@ TEST_CASE("Bench CSV writer: basic output") {
     const std::vector<std::string> f = split_csv(row);
     REQUIRE(f.size() == split_csv(kExpectedHeader).size());
     CHECK(f[0] == "test-model");
-    CHECK(f[1] == "Q4_K_M");
+    // "test-model.gguf" carries no quant token, and an unrecognised quant is
+    // reported as such rather than guessed — see the quant test below.
+    CHECK(f[1] == "unknown");
     CHECK(f[2] == "cpu");
     CHECK(f[3] == "2048");
     CHECK(f[4] == "4");
@@ -126,7 +128,24 @@ TEST_CASE("Bench CSV writer: quant from GGUF filename") {
     CHECK(write_and_read_quant("Phi-3.5-mini-instruct-Q3_K_S.gguf") == "Q3_K_S");
     CHECK(write_and_read_quant("Llama-3.2-3B-Instruct-Q3_K_S.gguf") == "Q3_K_S");
     CHECK(write_and_read_quant("models/foo-Q4_K_M.gguf") == "Q4_K_M");
-    CHECK(write_and_read_quant("unknown-model.gguf") == "Q4_K_M"); // fallback
+
+    // i-quants, and the UD (unsloth dynamic) variants the catalogue actually
+    // uses. IQ3_S was missing, so LFM2.5-8B-A1B's first console run recorded
+    // "Q4_K_M" — a quant whose 5156 MB does not fit the measured heap ceiling,
+    // i.e. a label no reader could have believed but also could not have caught.
+    CHECK(write_and_read_quant("LFM2.5-8B-A1B-UD-IQ3_S.gguf") == "UD-IQ3_S");
+    CHECK(write_and_read_quant("foo-IQ3_S.gguf") == "IQ3_S");
+    CHECK(write_and_read_quant("foo-IQ2_XXS.gguf") == "IQ2_XXS");
+    CHECK(write_and_read_quant("foo-UD-Q2_K_XL.gguf") == "UD-Q2_K_XL");
+
+    // Longest-match-first: a shorter token that is a substring of the real one
+    // must not win, or the label is silently truncated.
+    CHECK(write_and_read_quant("foo-IQ3_XXS.gguf") == "IQ3_XXS");
+
+    // An unrecognised quant must NOT be guessed. A plausible invented label is
+    // indistinguishable from a measured one; "unknown" is visible to a reader
+    // and overridable via benchmark-summary.json's `quant_label`.
+    CHECK(write_and_read_quant("unknown-model.gguf") == "unknown");
 }
 
 TEST_CASE("Bench CSV writer: gpu memory columns") {

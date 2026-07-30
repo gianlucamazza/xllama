@@ -430,6 +430,22 @@ for ((run = 1; run <= N_RUNS; run++)); do
 			echo "The installed MSIX is older than the CSV schema — redeploy before benchmarking." >&2
 			exit 1
 		fi
+		# Before anything else: did the device measure the model we ASKED for?
+		# model.txt reaches the console over WDP, and a WDP POST can report
+		# success while writing nothing (the missing-X-CSRF-Token failure mode
+		# documented in uwp-constraints). A build older than 1.5.2 answered a
+		# missing model.txt by silently benching smollm2-360m-cpu-int4, so a lost
+		# upload produced a genuine row for the wrong model, appended to the
+		# results file of the run that was requested. Current builds refuse and
+		# write no CSV; this check also covers the older ones, and any future way
+		# the two can drift apart.
+		got_model=$(awk -F, '{print $1}' <<<"$data_row")
+		if [[ "$got_model" != "$MODEL_NAME" ]]; then
+			echo "Error: the console benched '${got_model}', not the requested '${MODEL_NAME}'." >&2
+			echo "  model.txt likely never reached the device (WDP writes can fail silently)." >&2
+			echo "  Nothing was appended — re-run rather than trusting this row." >&2
+			exit 1
+		fi
 		# The CSV schema does NOT change with --max-length, so the arity check
 		# above cannot catch an MSIX that ignores bench_maxlen.txt — it would
 		# record DERIVED max_lengths under a "saturated" label and the whole

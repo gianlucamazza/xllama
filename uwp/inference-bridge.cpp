@@ -135,23 +135,29 @@ void main_loop() {
     // ORT enable_profiling prefix) land in a writable, WDP-fetchable location.
     set_cwd_to_local_folder();
 
-    // Read prompt from LocalFolder/prompt.txt, fallback to default.
-    // SmolLM2-360M-Instruct uses ChatML format; bare text triggers EOS immediately.
+    // model.txt and prompt.txt are REQUIRED, and their absence aborts the run.
+    //
+    // Both used to fall back to a hardcoded default — smollm2-360m-cpu-int4 and a
+    // 58-character prompt. That turns a lost upload into a silent measurement of
+    // the wrong thing, and WDP POSTs are documented to fail silently in this
+    // project (a POST without X-CSRF-Token returns success and writes nothing).
+    // The result would be a real, plausible CSV row describing a run nobody asked
+    // for, appended to the results file of the run that was asked for. Same defect
+    // class as the invented quant label: a benchmark that guesses its own inputs
+    // produces evidence indistinguishable from the genuine kind.
+    //
     // read_local_file reads to EOF; the hand-rolled reader this replaced used a
     // fixed char buf[8192] and truncated silently at ~2k tokens — exactly the
-    // range a prompt-length sweep needs. The bench would then report a shorter
-    // prompt's throughput under the long prompt's label with nothing in the log.
-    std::string user_prompt = "Hello from Xbox Series S. Tell me about your architecture.";
-    {
-        std::string from_file = read_local_file("prompt.txt");
-        if (!from_file.empty()) {
-            user_prompt = std::move(from_file);
-            log_output("[xllama] bench: prompt.txt " + std::to_string(user_prompt.size()) +
-                       " bytes\n");
-        }
+    // range a prompt-length sweep needs.
+    std::string user_prompt = read_local_file("prompt.txt");
+    if (user_prompt.empty()) {
+        log_output("[xllama] bench: prompt.txt missing or empty — refusing to bench a prompt "
+                   "nobody asked for. Upload it and retry.\n");
+        return;
     }
-    // Read model directory/filename from LocalFolder/model.txt, fallback to default.
-    std::string model_name = "smollm2-360m-cpu-int4";
+    log_output("[xllama] bench: prompt.txt " + std::to_string(user_prompt.size()) + " bytes\n");
+
+    std::string model_name;
     {
         std::string model_cfg = resolve_local_path("model.txt");
         FILE* mf = _wfopen(utf8_to_wstring(model_cfg).c_str(), L"r");
@@ -167,6 +173,11 @@ void main_loop() {
                     model_name.pop_back();
             }
         }
+    }
+    if (model_name.empty()) {
+        log_output("[xllama] bench: model.txt missing or empty — refusing to pick a model. "
+                   "Upload it and retry.\n");
+        return;
     }
 
     // Optional numeric knobs from LocalState, written by the bench scripts.

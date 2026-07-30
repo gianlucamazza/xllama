@@ -24,10 +24,17 @@ std::string to_lower_copy(std::string s) {
 // Extract a quant / EP label from a model path or GGUF filename.
 // Longer tokens first so Q3_K_XL wins over Q3_K_L / Q3, etc.
 const char* quant_token_in(const std::string& haystack_lower) {
+    // Order matters: the first match wins, so a longer label must precede the
+    // shorter one it contains ("ud-iq3_s" before "iq3_s", "iq3_xxs" before
+    // "iq3_xs"). Getting that wrong silently truncates the label rather than
+    // failing, which is how "UD-IQ3_S" would have been recorded as "IQ3_S".
     static constexpr const char* kTokens[] = {
-        "ud-iq2_m", "q3_k_xl", "q3_k_l", "q3_k_m", "q3_k_s", "q4_k_m", "q4_k_s",
-        "q5_k_m",   "q5_k_s",  "q6_k",   "q8_0",   "iq2_m",  "iq3_m",  "iq3_xs",
-        "iq4_xs",   "iq4_nl",  "q4_0",   "q5_0",   "q2_k",   "fp16",   "int4",
+        "ud-iq1_m",   "ud-iq1_s",  "ud-iq2_m",  "ud-iq2_s", "ud-iq3_m", "ud-iq3_s", "ud-iq4_xs",
+        "ud-q2_k_xl", "ud-q3_k_m", "ud-q4_k_m", "q3_k_xl",  "q3_k_l",   "q3_k_m",   "q3_k_s",
+        "q4_k_m",     "q4_k_s",    "q5_k_m",    "q5_k_s",   "q6_k",     "q8_0",     "iq1_m",
+        "iq1_s",      "iq2_xxs",   "iq2_xs",    "iq2_m",    "iq2_s",    "iq3_xxs",  "iq3_xs",
+        "iq3_m",      "iq3_s",     "iq4_xs",    "iq4_nl",   "q4_0",     "q5_0",     "q2_k",
+        "fp16",       "int4",
     };
     for (const char* tok : kTokens) {
         if (haystack_lower.find(tok) != std::string::npos)
@@ -69,8 +76,14 @@ std::string detect_quant_label(const std::string& model_path, bool is_llama) {
     if (const char* t = quant_token_in(lower_path))
         return format_quant_label(t);
 
+    // No recognisable token. Say so, rather than guessing a plausible label: an
+    // invented "Q4_K_M" reads as measured fact in the CSV and cannot be told from
+    // a real one, while an explicit "unknown" is visible to both a reader and to
+    // benchmark-summary.json (which can override it with `quant_label`). This
+    // fallback silently mislabelled the first LFM2.5-8B-A1B run as Q4_K_M — a
+    // quant whose 5156 MB would not even fit the measured heap ceiling.
     if (is_llama)
-        return "Q4_K_M"; // legacy GGUF default
+        return "unknown";
     // ORT: dir-name convention smollm2-*-{cpu|dml}-{int4|fp16}
     if (lower_path.find("fp16") != std::string::npos)
         return "fp16";
