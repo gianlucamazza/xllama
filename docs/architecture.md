@@ -49,7 +49,9 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 
 Bridge sources of note under `src/bridge/`: `session.cpp`, `inference.cpp`,
 `training.cpp`, `device_train.cpp`, `personalize.cpp`, `preference_capture.cpp`,
-`sampler_chain.h` / `ort_sampling.h` (one sampler chain per backend).
+`sampler_chain.h` / `ort_sampling.h` (one sampler chain per backend),
+`decode_loop.h` (one prefill and one generation loop, shared by
+`run_inference_llama` and `LlamaSession::generate`).
 
 ## Inference backends and runtime dispatch
 
@@ -178,6 +180,22 @@ the ORT params stayed hand-duplicated across `run_inference_ort` and
 builder too. Now neither backend's two surfaces (CLI/bench vs GUI/API) can diverge
 by construction.
 
+The **prefill and generation loops** followed the same route, later and for the
+same reason (`src/bridge/decode_loop.h`: `prefill_chunked`,
+`prompt_too_long_message`, `decode_loop`). `run_inference_llama` and
+`LlamaSession::generate` kept hand-maintained copies until 2026-07-30, and the
+copies had drifted twice over: #193 — a prompt past the logical batch aborting the
+process — had to be fixed in both, and the stop-sequence token count differed, so
+`n_eval` and the `decode_tok_s` derived from it disagreed by one between the two
+paths for the same generation. Each caller keeps only what is genuinely its own:
+`LlamaSession` the #170a prefix diff, the #169 context shift and `m_kv_tokens`
+(fed by an `on_accepted` callback so the record stays in step with the KV cells);
+`run_inference` its context lifetime and the CLI's stdout echo.
+
+**The rule these three share**: a decision that both surfaces must make the same
+way lives in exactly one header. Copying it is not a style question — every copy
+in this codebase has eventually disagreed with the other, and always silently.
+
 ## Model catalogue, provisioning, and quant auto-upgrade
 
 The catalogue is `uwp/models/manifest.json` (bundled base) merged with an optional
@@ -225,7 +243,7 @@ So the estimate keeps exactly one job: **routing**. `decide_routing` needs a tok
 count before a model — hence a tokenizer — has been chosen, and its ceiling has to
 stay coherent with `token_threshold` (#133). `BuildPromptPlan` therefore trims by
 `max_prompt_tokens_for_n_ctx(n_ctx)` with the optimistic `kEstimatedCharsPerToken`,
-and being optimistic is the point: it drops *fewer* turns, so the exact pass can
+and being optimistic is the point: it drops _fewer_ turns, so the exact pass can
 only tighten and nothing routing saw reappears behind its back. Getting that
 estimate wrong costs a routing decision, not an answer.
 
@@ -235,7 +253,7 @@ context keeping the historical `kMaxPromptTokens` (1800) so the #171 pin cannot
 drift by arithmetic. It is a **context** bound and takes no `n_predict`: the
 reply's room belongs to `fit_prompt`, exactly and later. Charging the reply's
 reserve to this ceiling is not a shortcut, it is a feature killer — at the shipping
-`n_predict` of 512 the ceiling becomes 1536, *below* `token_threshold` (1550), so
+`n_predict` of 512 the ceiling becomes 1536, _below_ `token_threshold` (1550), so
 `decide_routing` can never see a long turn and auto GPU routing dies on every
 default install. That is #133 a third time; `tests/test_routing_policy.cpp` now
 pins the reachability in real tokens, and the `routing` console gate runs at the
@@ -246,7 +264,7 @@ turn worker, and `POST /v1/chat/completions` before it generates (a client whose
 final message alone cannot fit gets a `400`, not a `500` from the generator).
 
 **Known gap, tracked.** The routing decision itself still runs on the UI thread
-*before* a session exists, so on a cold first turn with `routing = auto` it counts
+_before_ a session exists, so on a cold first turn with `routing = auto` it counts
 with the estimate rather than a tokenizer — a heuristic deciding behaviour, which
 the rule above forbids. It affects only that mode (the shipping default is
 CPU-only) and the fix is mechanical: decide in the turn worker, after
@@ -434,8 +452,8 @@ host Release smoke (quality + peak)
 - **Do not** special-case Settings when a catalogue field already owns the
   policy (`n_ctx`, `role`).
 - **Do not** let a heuristic decide product behaviour. A chars-per-token estimate
-  may *bound work* (what the UI renders, what routing counts before a tokenizer
-  exists); only an exact measurement may *decide* what the user gets. Every #133
+  may _bound work_ (what the UI renders, what routing counts before a tokenizer
+  exists); only an exact measurement may _decide_ what the user gets. Every #133
   recurrence — three so far — was an estimate promoted from bound to decision.
 - **Do not** restate a number a generated file already owns unless a gate checks
   the copies agree. `check-coherence.py` now pins the `model-matrix.md` metrics
