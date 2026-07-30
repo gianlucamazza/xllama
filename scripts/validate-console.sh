@@ -269,6 +269,18 @@ save_fail_shots() {
 		# refusing. Say that, rather than blaming the sampling interval.
 		echo "  No screenshot captured for ${gate}: GET /ext/screenshot failed" >&2
 	fi
+	# ...and the log, which for several gates is the ONLY useful evidence. A
+	# kvsnap failure looks like a normal chat on screen: the defect is in the
+	# prompt-token counts, not in anything visible. Under `all` the app restarts
+	# per gate and truncates xllama.log, so by the time the suite ends the
+	# failing gate's log is gone — which is exactly what blocked #216 from being
+	# diagnosed on its first occurrence. fetch_log already sliced this run's
+	# portion; keep it next to the frames.
+	if [[ -f "${TMPDIR_LOCAL}/xllama.log" ]]; then
+		mkdir -p "$SHOTS_DIR"
+		cp "${TMPDIR_LOCAL}/xllama.log" "${SHOTS_DIR}/${gate}.log"
+		echo "  App log of the failing run: ${SHOTS_DIR}/${gate}.log" >&2
+	fi
 }
 
 # Poll autopilot-done.txt; echoes its content, returns non-zero on timeout.
@@ -664,6 +676,28 @@ JSON
 		echo "  FAIL: no llama.cpp GGUF session load in the log"
 		verdict=1
 	fi
+	# The conversation this gate just created must be saved WITH A TITLE. It
+	# was not, for every conversation the app ever wrote: NewChat() assigns the
+	# id, so the `id.empty()` branch that also derived the title never ran, and
+	# History listed everything as "(2 msgs) • today 13:20". Nothing caught it
+	# because no gate looked past the log — the turn generated fine, it was the
+	# saved record that was wrong. Reads the index the app wrote, not the log.
+	fetch_file "index.json" "${TMPDIR_LOCAL}/gguf-index.json" "chats"
+	python3 - "${TMPDIR_LOCAL}/gguf-index.json" <<'PY' || verdict=1
+import json, sys
+try:
+    idx = json.load(open(sys.argv[1], encoding="utf-8"))
+except Exception as e:
+    sys.exit(f"  FAIL: cannot read the chat index the app wrote: {e}")
+if not isinstance(idx, list) or not idx:
+    sys.exit("  FAIL: the chat index is empty — the conversation was not saved")
+newest = max(idx, key=lambda e: e.get("last_modified", 0))
+title = (newest.get("title") or "").strip()
+if not title:
+    sys.exit("  FAIL: the saved conversation has no title — History will show "
+             "only a message count and a timestamp")
+print(f"  ok: the conversation was saved with a title ({title!r:.60})")
+PY
 	[[ $verdict -eq 0 ]] && echo "GGUF chat: PASS" || echo "GGUF chat: FAIL"
 	return $verdict
 }

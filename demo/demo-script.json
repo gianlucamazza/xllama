@@ -9,6 +9,16 @@
     "so the numbers on screen are measured live rather than asserted by a",
     "caption: nothing here needs to state a figure.",
     "",
+    "The opening turn does NOT ask the model where it runs. It used to ask",
+    "'what are you running on, and where does the model live?', and lfm25-350m",
+    "answered 'The model resides in the cloud at AWS, and it's hosted globally",
+    "to ensure low-latency access' — in a frame whose own watermark reads",
+    "'local · no cloud'. A 350M model has no way to know where it is deployed,",
+    "so the question invites a confabulation, and it would have been the first",
+    "thing a README visitor read. The local-and-offline claim is made by the",
+    "watermark, the UI and the README, all of which can be checked; asking the",
+    "model to attest to it is neither evidence nor a demo of anything.",
+    "",
     "Shows what the product is TODAY. The v1.2.0 demo was Phase 6 — one 350M",
     "chat and one image — and predates the coding tier, the thinking tier with",
     "the CoT cut, KV reuse across a conversation switch, and the LAN API.",
@@ -17,6 +27,28 @@
     "the choice is pacing rather than flattery: the 3B decodes at 14 tok/s",
     "against 26, which on a 90-second video means one answer eats the demo.",
     "The footer shows the live rate either way, so nothing here is hidden.",
+    "",
+    "n_predict is 400, not the 120 this script used first. At 120 the coding",
+    "turn hit the cap (log: n=120) and the capture ended on '// Function to",
+    "reverse a linked list in' — a truncated comment, with the requested",
+    "function never written, under a status line reading 'Done'. The prompt",
+    "also asks for the function alone: unprompted, the model spent its budget",
+    "on includes, a struct and a newNode helper before reaching the answer.",
+    "Bounding the question is how a demo fits on screen; capping the answer",
+    "mid-sentence is how it shows a failure and calls it a feature.",
+    "",
+    "NO thinking turn, and the reason is measured rather than editorial.",
+    "lfm25-1.2b-thinking was in this script and produced no answer: at",
+    "n_predict 120 it spent the whole budget reasoning, and raising it to 768",
+    "changed nothing — the console log shows 'reply 768' and 'n=768' followed",
+    "by 'postprocess left no answer (truncated reasoning block)', i.e. it burned",
+    "every token without closing <think>, on 'a train leaves at 14:05 and takes",
+    "3h40'. That cost 24 of 66 seconds to display the stand-in message. The app",
+    "is behaving correctly — keeping the turn instead of losing it is what the",
+    "thinkcut gate pins — but a showcase must show a result. The tier stays in",
+    "the product and the catalogue; what is measured about it is tracked",
+    "separately, since nothing in the repo yet proves a reasoning turn ever",
+    "completes (it is absent from the H9 suite).",
     "",
     "No 'quit': the capture keeps running for a few frames after the last",
     "action, and an app that exited would hand them Dev Home.",
@@ -32,12 +64,12 @@
       "op": "set_sampling",
       "temperature": 0.7,
       "top_p": 0.9,
-      "n_predict": 120
+      "n_predict": 400
     },
     { "op": "new_chat" },
     {
       "op": "send",
-      "text": "What are you running on, and where does the model live?",
+      "text": "In two sentences: why would someone run a language model on their own hardware?",
       "timeout_s": 300
     },
 
@@ -45,15 +77,7 @@
     { "op": "new_chat" },
     {
       "op": "send",
-      "text": "Write a C function that reverses a linked list in place.",
-      "timeout_s": 600
-    },
-
-    { "op": "set_model", "name": "lfm25-1.2b-thinking" },
-    { "op": "new_chat" },
-    {
-      "op": "send",
-      "text": "A train leaves at 14:05 and takes 3h40. When does it arrive?",
+      "text": "Write a C function that reverses a singly linked list in place. Just the function, no main and no explanation.",
       "timeout_s": 600
     },
 

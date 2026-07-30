@@ -7,8 +7,16 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **Status:** shipping (unified + PatchedGenAI + PatchedOrt) · research-grade — current version in [CHANGELOG](CHANGELOG.md) / [ROADMAP](ROADMAP.md)
-**Demo:** [xllama on Xbox Series S (v1.5.2)](https://github.com/gianlucamazza/xllama/releases/download/v1.5.2.0/xllama-demo-v1.5.2.mp4) (~50 s, real time — chat, coding and thinking tiers, history, SD image)
 **Maintainer:** [Gianluca Mazza](https://github.com/gianlucamazza)
+
+![xllama running on an Xbox Series S: a chat answer, the coding tier writing a C function, saved conversations and a Stable-Diffusion image, all on-console](docs/screenshots/xllama-demo-v1.5.2.gif)
+
+Recorded on a Series S in Dev Mode and **played back in real time** — the decode
+rate in the footer is the console's own, and nothing here is sped up. Full-quality
+video: [xllama-demo-v1.5.2.mp4](https://github.com/gianlucamazza/xllama/releases/download/v1.5.2.0/xllama-demo-v1.5.2.mp4).
+The demo is data, not a recording someone made by hand: the script is
+[`demo/demo-script.json`](demo/demo-script.json) and `scripts/capture-demo-video.sh`
+regenerates both files from it.
 
 ---
 

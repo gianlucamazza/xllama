@@ -7,6 +7,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed (this session, ahead of the older entries below)
+
+- **Every saved conversation had an empty title.** `NewChat()` assigns the
+  conversation id — the KV snapshot path needs one — and `StartInference` then
+  derived the title inside `if (m_current.id.empty())`, a branch that after that
+  assignment can never be true. Only a conversation reaching its first send with
+  no id at all, the very first after a cold launch, ever got a title. Measured
+  before the fix: **14 of 14** entries in `chats/index.json` had `"title":""`,
+  and History listed them all as `(2 msgs) • today 13:20`. The two conditions
+  are independent and are now written that way. The `gguf` console gate had
+  created a conversation and sent a message on every run for months and passed
+  throughout, because it only ever grepped the log — and the log was right, the
+  turn generated fine. What was wrong was the record on disk. It now reads back
+  the index the app wrote, and was proved against the broken build before the
+  fix landed rather than against a synthetic break.
+- **A failing console gate now keeps its log, not just its screenshots.** For a
+  gate like `kvsnap` the screen shows a perfectly normal chat — the defect is in
+  the prompt-token counts — so the frames prove nothing and the log is the
+  evidence. Under `all` the app restarts per gate and truncates `xllama.log`, so
+  by the end of a suite the failing gate's window has been overwritten by
+  whatever ran next; that is what left #216's first occurrence undiagnosed, and
+  its second one too. `fetch_log` was already slicing the right window per gate
+  and the slice was simply discarded.
+
 ### Added
 
 - **Measured: the console cannot record its own output, but self-capture is not

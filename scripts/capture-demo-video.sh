@@ -106,6 +106,7 @@ VERSION=$(sed -n 's/.*Version="\([0-9.]*\)".*/\1/p' "${REPO_ROOT}/uwp/AppxManife
 }
 SHORT_VERSION="${VERSION%.*}" # 1.5.2.0 -> 1.5.2
 OUT_MP4="${OUT_DIR}/xllama-demo-v${SHORT_VERSION}.mp4"
+OUT_GIF="${OUT_DIR}/xllama-demo-v${SHORT_VERSION}.gif"
 MANIFEST_JSON="${OUT_DIR}/demo-manifest.json"
 
 CSRF_TOKEN=$(curl "${CURL_AUTH[@]}" "${BASE_URL}/" -o /dev/null -D - 2>/dev/null |
@@ -254,7 +255,13 @@ while ((SECONDS < deadline)); do
 		marker=$(cat "${WORK}/done")
 		break
 	fi
-	sleep 5
+	# 1s, not 5: this poll decides how much dead footage the video ends with,
+	# because everything between the run finishing and the marker being noticed
+	# is the last frame held on screen. At 5s the capture ended with up to 8
+	# seconds of a static chat view — a fifth of a 44-second loop — while the
+	# comment below claimed "a few frames". A fetch costs ~35 ms, so polling
+	# five times more often buys back that tail for nothing.
+	sleep 1
 done
 
 sleep 3 # a few frames on the final state
@@ -304,6 +311,41 @@ ffmpeg -y -framerate "$ACHIEVED_FPS" -pattern_type glob -i "${FRAMES}/f_*.png" \
 	exit 1
 }
 
+# The GIF exists because GitHub does not preview an .mp4 linked from a release:
+# in the README that is a plain link, and the point of a demo on a landing page
+# is that it plays without being asked. It is generated HERE, from the same
+# frames and in the same run, rather than by a one-off ffmpeg invocation in
+# somebody's shell history — that is precisely how the v1.2.0 demo went stale.
+#
+# Sampled at the achieved rate, capped at 10 fps — never ABOVE what the capture
+# actually produced. Sampling above it duplicates frames: no extra information,
+# but every duplicate still costs a GIF frame header and a palette diff. The
+# first version of this hardcoded 10 fps and the very next capture came in at
+# 8.82, so it padded ~13% of the frames with copies. Real time is preserved
+# either way: dropping frames makes a GIF choppier, never faster, and a demo of
+# a performance claim must not be sped up.
+GIF_FPS=$(LC_ALL=C awk -v a="$ACHIEVED_FPS" 'BEGIN { printf "%.2f", (a < 10 ? a : 10) }')
+#
+# stats_mode=diff prices the palette for what CHANGES between frames, which on a
+# mostly-static dark UI is the text; the naive palette spends its 256 colours on
+# the background instead. diff_mode=rectangle only rewrites the changed region.
+# Together they are the difference between ~2.5 MB and something unshippable.
+echo "==> Encoding ${OUT_GIF}"
+ffmpeg -y -v error -i "$OUT_MP4" \
+	-vf "fps=${GIF_FPS},scale=1280:-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" \
+	-loop 0 "$OUT_GIF" 2>"${WORK}/ffmpeg-gif.log" || {
+	tail -20 "${WORK}/ffmpeg-gif.log" >&2
+	exit 1
+}
+GIF_BYTES=$(stat -c%s "$OUT_GIF")
+# A README that pulls a huge GIF on every page view is a regression even if it
+# looks fine. Warn rather than fail: the right answer depends on what the demo
+# has to show, and that is a judgement call for whoever is looking at it.
+if ((GIF_BYTES > 8000000)); then
+	echo "   NOTE: ${OUT_GIF##*/} is $((GIF_BYTES / 1000000)) MB — large for a README." >&2
+	echo "   Consider a shorter demo script before reaching for a lower frame rate." >&2
+fi
+
 DURATION=$(LC_ALL=C ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$OUT_MP4")
 # LC_ALL=C or bash printf rejects "16.5" under a comma-decimal locale — and the
 # near miss is worse than the error: it would have written 16,5 into JSON.
@@ -316,13 +358,16 @@ cat >"$MANIFEST_JSON" <<JSON
   "_comment": "Written by scripts/capture-demo-video.sh. Do not hand-edit: check-coherence.py compares the README demo link against 'version', and the point is that the two cannot drift.",
   "version": "${VERSION}",
   "file": "$(basename "$OUT_MP4")",
+  "gif": "$(basename "$OUT_GIF")",
+  "gif_bytes": ${GIF_BYTES},
+  "gif_fps": ${GIF_FPS},
   "duration_s": ${DURATION_1F},
   "frames": ${nframes},
   "fps_requested": "${asked}",
   "fps_achieved": ${ACHIEVED_FPS},
   "capture_window_s": ${CAP_ELAPSED},
   "source": "device-portal-stills",
-  "source_note": "No video capture endpoint exists and AppRecordingManager is absent on the console (uwp-constraints.md 10b). Stills, encoded at the rate actually achieved so playback is real time. The endpoint sustains ~11.5-13.7 Hz and capture costs the app ~1.8% of decode.",
+  "source_note": "No video capture endpoint exists and AppRecordingManager is absent on the console (uwp-constraints.md 10b). Stills, encoded at the rate actually achieved so playback is real time. Read fps_achieved as this run's average, NOT as the endpoint's ceiling: /ext/screenshot sustains ~11.5 Hz idle and ~13.7 Hz during a decode (device-portal.md), and a run that loads several models spends part of its time where nothing changes, so its average is lower and that is not a regression. Capture costs the app ~1.8% of decode.",
   "script": "$(realpath --relative-to="$REPO_ROOT" "$DEMO_SCRIPT")"
 }
 JSON
@@ -331,8 +376,10 @@ jq -e . "$MANIFEST_JSON" >/dev/null || {
 	exit 1
 }
 
-ls -la "$OUT_MP4"
+ls -la "$OUT_MP4" "$OUT_GIF"
 echo "==> ${DURATION_1F}s, ${nframes} frames at ${ACHIEVED_FPS} fps"
+echo "==> gif: ${OUT_GIF##*/} ($((GIF_BYTES / 1000)) kB, ${GIF_FPS} fps, same real time)"
 echo "==> manifest: ${MANIFEST_JSON}"
 echo
-echo "Next: attach ${OUT_MP4##*/} to the v${SHORT_VERSION} release and point README.md at it."
+echo "Next: attach ${OUT_MP4##*/} to the v${SHORT_VERSION} release; the GIF is"
+echo "      committed and embedded in README.md, so it needs no upload."

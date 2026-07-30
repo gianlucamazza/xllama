@@ -90,6 +90,13 @@ are the product figures (Coder-3B **2116 MB**).
 
 Thinking: catalogue `lfm25-1.2b-thinking` with `model_is_thinking` +
 `strip_thinking_blocks` in `postprocess_output` (display/persist answer only).
+⚠️ **The `console PASS` above is a load-and-decode result, not a quality one.**
+This model is **absent from the H9 suite** (which evaluates the _instruct_
+sibling), and nothing yet shows a reasoning turn completing: on console it spent
+**768 tokens** on a two-step time addition without closing `<think>`, so the UI
+showed the truncated-reasoning stand-in. Open as
+[#223](https://github.com/gianlucamazza/xllama/issues/223); the tier stays in the
+catalogue but its usable budget is unmeasured.
 
 The tok/s above were recorded on MSIX **1.5.1.737**, which predates the phase14
 code. The code path itself — catalogue `n_ctx`/`role` at session open, the
@@ -122,9 +129,9 @@ the catalogue is what the app can be pointed at, not a claim that it should be. 
 row keeps its measurement so the negative result is not re-derived by the next
 person who wonders.
 
-| Model         | Catalogue      | Quant    | Weights | Est. peak | Status                                                              |
-| ------------- | -------------- | -------- | ------: | --------: | ------------------------------------------------------------------- |
-| LFM2.5-8B-A1B | `lfm25-8b-a1b` | UD-IQ3_S | 3571 MB |  **3553 MiB** | **H2 FAIL** (2026-07-30) · 32 experts / 4 active · 14.50 tok/s = the dense 3B at +1437 MiB, and ~4× worse perceived latency |
+| Model         | Catalogue      | Quant    | Weights |    Est. peak | Status                                                                                                                      |
+| ------------- | -------------- | -------- | ------: | -----------: | --------------------------------------------------------------------------------------------------------------------------- |
+| LFM2.5-8B-A1B | `lfm25-8b-a1b` | UD-IQ3_S | 3571 MB | **3553 MiB** | **H2 FAIL** (2026-07-30) · 32 experts / 4 active · 14.50 tok/s = the dense 3B at +1437 MiB, and ~4× worse perceived latency |
 
 Why it is admissible at all: the console heap ceiling was measured at 4864 MB
 committed (`phase15-ramceil`), and that is what decided IQ3_S over Q2 — a Q2 result

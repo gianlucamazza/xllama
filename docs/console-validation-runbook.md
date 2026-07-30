@@ -40,7 +40,13 @@ hardware gates pass:
   does nothing fails rather than inheriting a value that already matched (needs
   `smollm2-360m-cpu-int4` in LocalState; `set_taesd` / `set_system_prompt` need
   an app build >= 1.4.0.632, the rest >= 1.4.0.606);
-- **GGUF chat** — the default LFM model loads through llama.cpp and generates;
+- **GGUF chat** — the default LFM model loads through llama.cpp and generates,
+  **and the conversation is read back from `chats/index.json` with a non-empty
+  title**. That second half was added after the gate passed for months over a
+  real defect: `NewChat()` assigns the id, so the branch that also derived the
+  title could never run, and every saved conversation had `"title":""` (14 of 14
+  on the console). The turn generated correctly and the log said so — what was
+  wrong was the record on disk, which no gate had ever looked at;
 - **longchat** (#169) — a chat whose history exceeds the trimmer ceiling is
   injected, then run with KV reuse. Trimmed rounds must stay in the reuse regime
   (prefill = the delta, not the ~1800 tokens of the whole history), and when the

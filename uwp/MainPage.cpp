@@ -2753,10 +2753,17 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     // Build multi-turn ChatML prompt from conversation history.
     // BuildPrompt uses existing m_current.messages (prev turns) and appends user_text.
     std::string user_text = ::xllama::wstring_to_utf8(prompt_w);
-    if (m_current.id.empty()) {
+    // Two independent conditions, and tying them together cost every
+    // conversation its title: NewChat() already assigns an id (it needs one for
+    // the KV snapshot path), so `id.empty()` is false by the time the first
+    // message is sent and the title was never derived. Only a conversation that
+    // reached here with no id at all — the very first one after a cold launch —
+    // ever got one. Measured on console: 14 of 14 saved conversations had
+    // "title":"", and History rendered them as "(2 msgs) • today 13:20".
+    if (m_current.id.empty())
         m_current.id = xllama::ui::ChatHistory::NewId();
+    if (m_current.title.empty())
         m_current.title = xllama::ui::ChatHistory::TitleFrom(user_text);
-    }
     int n_dropped = 0;
     const PromptPlan plan = BuildPromptPlan(user_text);
     n_dropped = plan.dropped;

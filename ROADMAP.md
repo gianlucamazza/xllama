@@ -37,10 +37,13 @@ performance belongs in `docs/benchmarks.md`.
 - **Unreleased since v1.5.2.0** (`CHANGELOG.md` `[Unreleased]`): the shared
   prefill/decode loop, the bench input/label fixes, and the demo/capture pipeline
   (#213/#215/#217 — autopilot ops `mark` and `show_pane`, the double-dialog guard,
-  failure screenshots on the console gates). Console-validated on MSIX
-  **1.5.2.802** (8/8) and **1.5.2.825** (9/9). The guard is the only product-code
-  change among them; the rest is tooling and evidence, so they ride the next
-  release rather than justifying one.
+  failure screenshots on the console gates), plus **the conversation-title fix**:
+  `NewChat()` assigns the id, so the branch that also derived the title could
+  never run and every saved conversation had `"title":""` — History listed them
+  all as `(2 msgs) • today 13:20`. Console-validated on MSIX **1.5.2.802** (8/8)
+  and **1.5.2.825** (9/9). Two product-code changes here — the double-dialog
+  guard and the title fix — and both are user-visible, so the next release is
+  now justified by more than tooling.
 - **The demo pipeline is re-runnable, and #214 is closed.** `README.md` links the
   v1.5.2 capture (576 stills at 11.76 fps, encoded at the rate actually achieved
   so playback is real time); the version, output path and watermark come from
@@ -359,6 +362,14 @@ the negative measurement stands even though its original attribution was
 retired after #155.
 
 ## Phase 14 — Coding, chat and thinking tiers ✅ complete (unreleased)
+
+> **Caveat on the thinking tier, 2026-07-30 (#223).** The plumbing below is
+> done and gated, but _complete_ here means the tier is wired, measured for
+> decode, and safe when its reasoning is cut — **not** that a reasoning turn
+> has ever been shown to finish. `lfm25-1.2b-thinking` is absent from the H9
+> quality suite, and on console it spent 768 tokens on a two-step time addition
+> without closing `<think>`. The `thinkcut` gate pins the degraded path by
+> design (`n_predict: 24`); nothing pins the happy one.
 
 Phase 13 made a turn cheap; Phase 14 spends that headroom on **what the
 catalogue can hold**. Architecture first, no Settings rewrite: the catalogue
