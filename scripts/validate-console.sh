@@ -240,8 +240,10 @@ save_fail_shots() {
 		echo "  Screenshots of the failing run: ${SHOTS_DIR}/${gate}-*.png" \
 			"(${gate}-1.png is the later frame)" >&2
 	else
-		echo "  No screenshot captured for ${gate} (the run may have been shorter" \
-			"than the 30 s ring cadence)" >&2
+		# Not a cadence problem: every run ends with a forced grab, so zero frames
+		# means GET /ext/screenshot itself failed — console unreachable, or WDP
+		# refusing. Say that, rather than blaming the sampling interval.
+		echo "  No screenshot captured for ${gate}: GET /ext/screenshot failed" >&2
 	fi
 }
 
