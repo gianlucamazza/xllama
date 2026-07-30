@@ -373,7 +373,9 @@ def main() -> int:
         if absent:
             err(f"model-matrix: no verified metrics row for {', '.join(absent)}")
         else:
-            good(f"model-matrix numbers match phase14-console.csv ({len(covered)} models)")
+            good(
+                f"model-matrix numbers match phase14-console.csv ({len(covered)} models)"
+            )
 
     # --- every catalogue model is documented, and no doc invents one ---
     # model-matrix.md is the status SSOT, and it grew one table per campaign (A1
@@ -383,9 +385,7 @@ def main() -> int:
     # policy fields that change behaviour (role, n_ctx).
     if mm_path.exists():
         mm_text = mm_path.read_text(encoding="utf-8")
-        text_models = {
-            n: e for n, e in cat.items() if e.get("kind") != "diffusion"
-        }
+        text_models = {n: e for n, e in cat.items() if e.get("kind") != "diffusion"}
         # Rows mentioning each id, so the field checks look only where the id is.
         rows_for: dict[str, list[str]] = {n: [] for n in text_models}
         for line in mm_text.splitlines():
@@ -409,14 +409,21 @@ def main() -> int:
         # that no longer resolves is drift with a straight face. (An earlier
         # version of this check just warned about "unknown ids" and flagged twelve
         # legitimate ones; a check that cries wolf gets ignored.)
-        status_vocab = set(
-            re.findall(r"`([a-z-]+)`", 
-                       re.search(r"\*\*Status\*\*.*", mm_text).group(0))
-        ) if re.search(r"\*\*Status\*\*.*", mm_text) else set()
+        status_vocab = (
+            set(
+                re.findall(
+                    r"`([a-z-]+)`", re.search(r"\*\*Status\*\*.*", mm_text).group(0)
+                )
+            )
+            if re.search(r"\*\*Status\*\*.*", mm_text)
+            else set()
+        )
         claimed = set(re.findall(r"`([a-z][a-z0-9.]*(?:-[a-z0-9.]+)+)`", mm_text))
         dangling, evidence_ok = [], 0
         for tok in sorted(claimed - set(cat) - status_vocab):
-            if tok.endswith((".md", ".csv", ".json", ".jsonl", ".txt", ".py", ".sh", ".h", ".cpp")):
+            if tok.endswith(
+                (".md", ".csv", ".json", ".jsonl", ".txt", ".py", ".sh", ".h", ".cpp")
+            ):
                 continue
             if "_" in tok:  # code identifiers (strip_thinking_content, ...)
                 continue
@@ -439,10 +446,14 @@ def main() -> int:
             if not rows:
                 continue
             if e.get("role") == "coding" and "coding" not in rows:
-                err(f"model-matrix {n}: catalogue role is coding, the row does not say so")
+                err(
+                    f"model-matrix {n}: catalogue role is coding, the row does not say so"
+                )
             want_ctx = e.get("n_ctx") or 0
             if want_ctx and str(want_ctx) not in rows:
-                err(f"model-matrix {n}: catalogue n_ctx {want_ctx} missing from the row")
+                err(
+                    f"model-matrix {n}: catalogue n_ctx {want_ctx} missing from the row"
+                )
 
     # --- stale size patterns (live docs only) ---
     skip = {
