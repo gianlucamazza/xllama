@@ -1,0 +1,77 @@
+{
+  "_comment": [
+    "The demo, as data. It used to be a heredoc inside capture-demo-video.sh,",
+    "which meant the CONTENT of the demo — the thing a viewer actually judges —",
+    "was not reviewable in a pull request. It is now.",
+    "",
+    "Every claim the run makes must already be in docs/launch-copy.md's",
+    "'Reference facts' block. The app renders its own decode rate in the footer,",
+    "so the numbers on screen are measured live rather than asserted by a",
+    "caption: nothing here needs to state a figure.",
+    "",
+    "Shows what the product is TODAY. The v1.2.0 demo was Phase 6 — one 350M",
+    "chat and one image — and predates the coding tier, the thinking tier with",
+    "the CoT cut, KV reuse across a conversation switch, and the LAN API.",
+    "",
+    "Coding tier is shown with qwen25-coder-1.5b, not the 3B. Same tier, and",
+    "the choice is pacing rather than flattery: the 3B decodes at 14 tok/s",
+    "against 26, which on a 90-second video means one answer eats the demo.",
+    "The footer shows the live rate either way, so nothing here is hidden.",
+    "",
+    "No 'quit': the capture keeps running for a few frames after the last",
+    "action, and an app that exited would hand them Dev Home.",
+    "",
+    "show_pane opens a ContentDialog, holds it for the capture, and closes it in",
+    "the same action — see uwp/MainPage.cpp. A pane left open would sit over",
+    "everything that follows."
+  ],
+  "total_timeout_s": 1800,
+  "actions": [
+    { "op": "set_model", "name": "lfm25-350m" },
+    {
+      "op": "set_sampling",
+      "temperature": 0.7,
+      "top_p": 0.9,
+      "n_predict": 120
+    },
+    { "op": "new_chat" },
+    {
+      "op": "send",
+      "text": "What are you running on, and where does the model live?",
+      "timeout_s": 300
+    },
+
+    { "op": "set_model", "name": "qwen25-coder-1.5b" },
+    { "op": "new_chat" },
+    {
+      "op": "send",
+      "text": "Write a C function that reverses a linked list in place.",
+      "timeout_s": 600
+    },
+
+    { "op": "set_model", "name": "lfm25-1.2b-thinking" },
+    { "op": "new_chat" },
+    {
+      "op": "send",
+      "text": "A train leaves at 14:05 and takes 3h40. When does it arrive?",
+      "timeout_s": 600
+    },
+
+    {
+      "op": "show_pane",
+      "name": "history",
+      "label": "history",
+      "timeout_s": 60
+    },
+
+    { "op": "set_model", "name": "lfm25-350m" },
+    {
+      "op": "generate_image",
+      "prompt": "pixel art robot, simple colors",
+      "steps": 1,
+      "seed": 42,
+      "timeout_s": 600
+    },
+    { "op": "show_pane", "name": "image", "label": "image", "timeout_s": 60 }
+  ]
+}
