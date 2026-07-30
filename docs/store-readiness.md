@@ -22,16 +22,16 @@ that must not be made); `docs/api-endpoint.md` (LAN: not for the Store);
 
 ## 1. Baseline (what ships today)
 
-| Area | Current | Store needs |
-| --- | --- | --- |
-| Distribution | Device Portal sideload + CI / GitHub Release | Partner Center submission |
-| Signing | `Publisher="CN=xllama-dev"`, self-signed test PFX | Partner Center publisher identity |
-| Package identity | `GianlucaMazza.xllama` | Reserved Store identity (may differ) |
-| LAN API | Opt-in, unauthenticated | **Absent** from Store SKU |
-| USB models | `removableStorage` + `E:\xllama\models` | Prefer **absent** from Store SKU |
-| Content / AI | No age gate, no generative-AI disclaimer | Age rating + first-run disclosure |
-| Privacy | No public policy | HTTPS privacy URL + support contact |
-| Docs product claim | “Dev Mode only — no retail path” | Dual path only **after** Store live |
+| Area               | Current                                           | Store needs                          |
+| ------------------ | ------------------------------------------------- | ------------------------------------ |
+| Distribution       | Device Portal sideload + CI / GitHub Release      | Partner Center submission            |
+| Signing            | `Publisher="CN=xllama-dev"`, self-signed test PFX | Partner Center publisher identity    |
+| Package identity   | `GianlucaMazza.xllama`                            | Reserved Store identity (may differ) |
+| LAN API            | Opt-in, unauthenticated                           | **Absent** from Store SKU            |
+| USB models         | `removableStorage` + `E:\xllama\models`           | Prefer **absent** from Store SKU     |
+| Content / AI       | No age gate, no generative-AI disclaimer          | Age rating + first-run disclosure    |
+| Privacy            | No public policy                                  | HTTPS privacy URL + support contact  |
+| Docs product claim | “Dev Mode only — no retail path”                  | Dual path only **after** Store live  |
 
 Manifest capabilities today (`uwp/AppxManifest.xml`): `internetClient`,
 `privateNetworkClientServer`, `removableStorage`. Store SKU target:
@@ -48,10 +48,10 @@ Benchmark and GPU-budget figures assume **Game** OS resources
 Game scheduling. In Dev Mode the designation is set in Dev Home (tile → View
 details → App type) and can reset on reinstall.
 
-| Designation | Implication |
-| --- | --- |
-| **Game** (current measured path) | Required for published perf claims; listing metadata must match |
-| **App** (shared resources) | Likely starves large models / diffusion; **must measure before go** |
+| Designation                      | Implication                                                         |
+| -------------------------------- | ------------------------------------------------------------------- |
+| **Game** (current measured path) | Required for published perf claims; listing metadata must match     |
+| **App** (shared resources)       | Likely starves large models / diffusion; **must measure before go** |
 
 **Gate (Phase 0 spike):** on a Series S, with the shipping default chat model
 (`lfm25-350m`), run the same short decode bench under **App** and **Game**.
@@ -64,10 +64,10 @@ Record tok/s + peak working set. Procedure: §6 below.
 
 ### D2 — Dual-track SKU
 
-| SKU | Channel | Surfaces |
-| --- | --- | --- |
-| **dev** (default today) | Dev Mode sideload | LAN API, bench flags, USB path, full catalogue |
-| **store** | Xbox Store retail | No LAN, no bench/USB research paths; curated catalogue; disclaimers |
+| SKU                     | Channel           | Surfaces                                                            |
+| ----------------------- | ----------------- | ------------------------------------------------------------------- |
+| **dev** (default today) | Dev Mode sideload | LAN API, bench flags, USB path, full catalogue                      |
+| **store**               | Xbox Store retail | No LAN, no bench/USB research paths; curated catalogue; disclaimers |
 
 Compile-time flag (planned Phase 1): `XLLAMA_STORE_SKU`. Dev package identity
 (`GianlucaMazza.xllama` / `CN=xllama-dev`) must **not** be broken for existing
@@ -75,15 +75,15 @@ Dev Mode installs when the Store identity is reserved.
 
 ### D3 — Store SKU surface cuts
 
-| Feature | Store SKU action |
-| --- | --- |
-| LAN OpenAI endpoint | Remove (code + capability + Settings) |
-| Headless `bench.flag` / operator flags | Remove or strip |
-| USB model path + `removableStorage` | Remove |
-| On-device training (Lane B) | Allowed behind advanced UI if privacy-local; optional v1 cut |
-| In-app model download | Keep (`internetClient` + licence matrix) |
-| Stable Diffusion | Riskiest for review — text-only v1 Store is an accepted fallback |
-| Patched ORT/GenAI in-package | Keep; pin lifecycle stays in `vendor-lifecycle-plan.md` |
+| Feature                                | Store SKU action                                                 |
+| -------------------------------------- | ---------------------------------------------------------------- |
+| LAN OpenAI endpoint                    | Remove (code + capability + Settings)                            |
+| Headless `bench.flag` / operator flags | Remove or strip                                                  |
+| USB model path + `removableStorage`    | Remove                                                           |
+| On-device training (Lane B)            | Allowed behind advanced UI if privacy-local; optional v1 cut     |
+| In-app model download                  | Keep (`internetClient` + licence matrix)                         |
+| Stable Diffusion                       | Riskiest for review — text-only v1 Store is an accepted fallback |
+| Patched ORT/GenAI in-package           | Keep; pin lifecycle stays in `vendor-lifecycle-plan.md`          |
 
 ### D4 — Generative AI policy bar (minimum)
 
@@ -110,13 +110,13 @@ Out of scope day-1: paid IAP, XCloud, Microsoft marketing, LAN-API Store rewrite
 
 ## 3. Phases (summary)
 
-| Phase | Goal | Exit |
-| --- | --- | --- |
-| **0 Discovery** (now) | Go/no-go, this doc, App vs Game spike, licence matrix | Written go or stop |
-| **1 Store SKU code** | `XLLAMA_STORE_SKU`, capabilities, CI variant | Installable store MSIX smoke on console |
-| **2 Compliance pack** | Privacy URL, age rating, listing assets, NOTICE | Partner Center listing complete |
-| **3 Submission** | Upload, cert iteration, Game metadata if needed | Live on Store |
-| **4 Post-launch** | README dual path, stable vs research cadence | Hobbyist retail install works |
+| Phase                 | Goal                                                  | Exit                                    |
+| --------------------- | ----------------------------------------------------- | --------------------------------------- |
+| **0 Discovery** (now) | Go/no-go, this doc, App vs Game spike, licence matrix | Written go or stop                      |
+| **1 Store SKU code**  | `XLLAMA_STORE_SKU`, capabilities, CI variant          | Installable store MSIX smoke on console |
+| **2 Compliance pack** | Privacy URL, age rating, listing assets, NOTICE       | Partner Center listing complete         |
+| **3 Submission**      | Upload, cert iteration, Game metadata if needed       | Live on Store                           |
+| **4 Post-launch**     | README dual path, stable vs research cadence          | Hobbyist retail install works           |
 
 Calendar order-of-magnitude: **~2–4 months**, dominated by review and policy,
 not pure coding.
@@ -129,22 +129,22 @@ Authoritative download layout: `uwp/models/manifest.json`. Narrative redistribut
 notes: `model-selection.md` (LFM / Qwen / Gemma). This table is the **Store
 allowlist draft** — not legal advice; re-verify before submission.
 
-| Catalogue id | Family | Typical licence (upstream) | Hosting today | Store SKU draft |
-| --- | --- | --- | --- | --- |
-| `lfm25-350m` | Liquid LFM2.5 | LFM Open License v1.0 (LICENSE next to weights; commercial use limited by entity revenue — see upstream §5) | `models-v1` + LICENSE | **Allow** default chat if non-commercial listing OK under LFM terms |
-| `lfm25-1.2b-instruct` | Liquid LFM2.5 | LFM Open License | HF LiquidAI + LICENSE | **Allow** if same |
-| `lfm2-2.6b` | Liquid LFM2 | LFM Open License | HF LiquidAI + LICENSE | **Allow** if same |
-| `lfm25-1.2b-thinking` | Liquid LFM2.5 | LFM Open License | HF LiquidAI + LICENSE | **Allow** (advanced) |
-| `qwen35-0.8b` | Qwen | Apache-2.0 (unsloth GGUF) | `models-v1` | **Allow** |
-| `qwen3-1.7b` | Qwen | Apache-2.0 | HF unsloth | **Allow** |
-| `qwen25-coder-0.5b` / `1.5b` / `3b` | Qwen2.5-Coder | Apache-2.0 | HF unsloth | **Allow** |
-| `smollm2-360m-cpu-int4` | SmolLM2 | Apache-2.0 (HuggingFaceTB lineage — confirm pin) | `models-v1` | **Allow** |
-| `smollm2-360m-dml-fp16-v2` | SmolLM2 | same | `models-v1` | **Allow** (GPU text) |
-| `smollm2-1.7b-cpu-int4` | SmolLM2 | same | `models-v1` | **Allow** / size check |
-| `gemma3-270m` | Gemma | Gemma Terms of Use (not Apache) | HF only (no models-v1 mirror) | **Review** before Store; may exclude v1 |
-| `gemma4-e2b` | Gemma | Gemma Terms | HF only | **Review** / likely advanced-only or exclude |
-| `llama32-3b` | Llama 3.2 | Meta Llama Community License | HF only (do not mirror without review) | **Review** / likely exclude v1 Store |
-| `sd-turbo-fp16` | Stable Diffusion Turbo | Stability / model card terms + OpenRAIL-class constraints | `models-v1` | **Highest risk** — text-only Store v1 if review hostile |
+| Catalogue id                        | Family                 | Typical licence (upstream)                                                                                  | Hosting today                          | Store SKU draft                                                     |
+| ----------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------- |
+| `lfm25-350m`                        | Liquid LFM2.5          | LFM Open License v1.0 (LICENSE next to weights; commercial use limited by entity revenue — see upstream §5) | `models-v1` + LICENSE                  | **Allow** default chat if non-commercial listing OK under LFM terms |
+| `lfm25-1.2b-instruct`               | Liquid LFM2.5          | LFM Open License                                                                                            | HF LiquidAI + LICENSE                  | **Allow** if same                                                   |
+| `lfm2-2.6b`                         | Liquid LFM2            | LFM Open License                                                                                            | HF LiquidAI + LICENSE                  | **Allow** if same                                                   |
+| `lfm25-1.2b-thinking`               | Liquid LFM2.5          | LFM Open License                                                                                            | HF LiquidAI + LICENSE                  | **Allow** (advanced)                                                |
+| `qwen35-0.8b`                       | Qwen                   | Apache-2.0 (unsloth GGUF)                                                                                   | `models-v1`                            | **Allow**                                                           |
+| `qwen3-1.7b`                        | Qwen                   | Apache-2.0                                                                                                  | HF unsloth                             | **Allow**                                                           |
+| `qwen25-coder-0.5b` / `1.5b` / `3b` | Qwen2.5-Coder          | Apache-2.0                                                                                                  | HF unsloth                             | **Allow**                                                           |
+| `smollm2-360m-cpu-int4`             | SmolLM2                | Apache-2.0 (HuggingFaceTB lineage — confirm pin)                                                            | `models-v1`                            | **Allow**                                                           |
+| `smollm2-360m-dml-fp16-v2`          | SmolLM2                | same                                                                                                        | `models-v1`                            | **Allow** (GPU text)                                                |
+| `smollm2-1.7b-cpu-int4`             | SmolLM2                | same                                                                                                        | `models-v1`                            | **Allow** / size check                                              |
+| `gemma3-270m`                       | Gemma                  | Gemma Terms of Use (not Apache)                                                                             | HF only (no models-v1 mirror)          | **Review** before Store; may exclude v1                             |
+| `gemma4-e2b`                        | Gemma                  | Gemma Terms                                                                                                 | HF only                                | **Review** / likely advanced-only or exclude                        |
+| `llama32-3b`                        | Llama 3.2              | Meta Llama Community License                                                                                | HF only (do not mirror without review) | **Review** / likely exclude v1 Store                                |
+| `sd-turbo-fp16`                     | Stable Diffusion Turbo | Stability / model card terms + OpenRAIL-class constraints                                                   | `models-v1`                            | **Highest risk** — text-only Store v1 if review hostile             |
 
 **Rules of thumb for Store v1 catalogue**
 
@@ -225,13 +225,13 @@ numbers (`uwp-constraints.md` §5). Do not quote them as App-mode until measured
 
 ## 7. Risks (short)
 
-| Risk | Mitigation |
-| --- | --- |
+| Risk                                 | Mitigation                                      |
+| ------------------------------------ | ----------------------------------------------- |
 | Certification rejects open image gen | Store v1 text-only; SD stays Dev / later update |
-| App mode too slow / OOM | Require Game listing metadata or no-go |
-| LFM / Gemma / Llama licence friction | Curated catalogue; default LFM+Qwen+Smol |
-| Dual identity confuses users | Clear README: Store vs Dev Mode packages |
-| Research pace vs Store freeze | Store SKU thin; `main` stays Dev Mode |
+| App mode too slow / OOM              | Require Game listing metadata or no-go          |
+| LFM / Gemma / Llama licence friction | Curated catalogue; default LFM+Qwen+Smol        |
+| Dual identity confuses users         | Clear README: Store vs Dev Mode packages        |
+| Research pace vs Store freeze        | Store SKU thin; `main` stays Dev Mode           |
 
 ---
 
@@ -293,14 +293,14 @@ MSBuild: `/p:XllamaStoreSku=true` → `XLLAMA_STORE_SKU=1` + `AppxManifest.store
 
 What changes under Store SKU:
 
-| Surface | Dev SKU | Store SKU |
-| --- | --- | --- |
-| LAN API + Settings | yes | compiled out |
-| Headless flags (`bench.flag`, …) | yes | compiled out |
-| USB model path + `removableStorage` | yes | compiled out |
-| First-run AI disclaimer | yes (both) | yes |
-| Publisher CN | `xllama-dev` test | still test until Partner Center |
-| CI artifact | `xllama-appx` | `xllama-appx-store` (dispatch only) |
+| Surface                             | Dev SKU           | Store SKU                           |
+| ----------------------------------- | ----------------- | ----------------------------------- |
+| LAN API + Settings                  | yes               | compiled out                        |
+| Headless flags (`bench.flag`, …)    | yes               | compiled out                        |
+| USB model path + `removableStorage` | yes               | compiled out                        |
+| First-run AI disclaimer             | yes (both)        | yes                                 |
+| Publisher CN                        | `xllama-dev` test | still test until Partner Center     |
+| CI artifact                         | `xllama-appx`     | `xllama-appx-store` (dispatch only) |
 
 ### Privacy policy draft
 
@@ -309,16 +309,16 @@ URL (GitHub Pages or equivalent) pointing at this content.
 
 ### Listing draft (EN, not submitted)
 
-| Field | Draft |
-| --- | --- |
-| Title | xllama |
-| Short description | Local LLM chat on Xbox Series S\|X — models run on the console. |
-| Long description | xllama turns an Xbox Series S\|X into a local inference box: gamepad chat UI, on-demand model catalogue, optional image generation. Nothing is sent to a cloud LLM API. Research-grade hobby project; not affiliated with Microsoft. Requires enough free storage for model downloads. |
-| Category | (TBD — Game metadata preferred if resource measurements require it; see §2 D1) |
-| Age rating | (TBD — IARC; generative text + optional image gen) |
-| Screenshots | Pending console capture |
-| Support | GitHub Issues on gianlucamazza/xllama |
-| Privacy | Link to published `privacy.md` |
+| Field             | Draft                                                                                                                                                                                                                                                                                                                                                                                             |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Title             | xllama                                                                                                                                                                                                                                                                                                                                                                                            |
+| Short description | Local LLM chat on Xbox Series S\|X — models run on the console.                                                                                                                                                                                                                                                                                                                                   |
+| Long description  | xllama turns an Xbox Series S\|X into a local inference box: gamepad chat UI, on-demand model catalogue, optional image generation. Nothing is sent to a cloud LLM API. Research-grade hobby project; not affiliated with Microsoft. Requires enough free storage for model downloads.                                                                                                            |
+| Category          | (TBD — Game metadata preferred if resource measurements require it; see §2 D1)                                                                                                                                                                                                                                                                                                                    |
+| Age rating        | (TBD — IARC; generative text + optional image gen)                                                                                                                                                                                                                                                                                                                                                |
+| Screenshots       | Pending console capture — tooling ready: `scripts/capture-store-screenshots.sh` drives the app to each state and grabs 1920×1080 PNGs, inside the accepted 1366×768 – 3840×2160 range with no resampling. Chat, multi-turn and image generation are reachable with existing autopilot ops; the Settings and History panes are `ContentDialog`s and would need a navigation op plus a dismissal op |
+| Support           | GitHub Issues on gianlucamazza/xllama                                                                                                                                                                                                                                                                                                                                                             |
+| Privacy           | Link to published `privacy.md`                                                                                                                                                                                                                                                                                                                                                                    |
 
 ## 10. Next steps (no VM)
 

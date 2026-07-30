@@ -143,14 +143,20 @@ screenshot showed a "Sign in to start this app (0x8004090a)" dialog waiting for
 a button press (`dml-metacommands-runbook.md`). Nothing else on this list would
 have found that.
 
-Two consumers in the repo:
+Consumers in the repo:
 
 - `scripts/capture-demo-video.sh` polls it to reconstruct a demo video. Note
   what that implies — there is **no video capture endpoint**; the "video" is a
   sequence of stills;
+- `scripts/capture-store-screenshots.sh` takes one frame per named UI state for
+  the Store listing, synchronised with the app through the `mark` autopilot op
+  rather than by sleeping;
 - `scripts/validate-console.sh` keeps the last two frames of every gate run and
   writes them out only when the gate fails (`XLLAMA_GATE_SHOTS=0` disables it,
-  `XLLAMA_GATE_SHOTS_DIR` moves the output).
+  `XLLAMA_GATE_SHOTS_DIR` moves the output);
+- `scripts/bench-screenshot-rate.sh` measures what the endpoint actually
+  sustains. The demo pipeline's "1 Hz" is a `sleep 1`, not a measured ceiling,
+  and a video rebuilt from stills is only as smooth as this number.
 
 ### `PUT /ext/user` — sign a user in
 
