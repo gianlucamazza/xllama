@@ -101,6 +101,15 @@ a coding session prefilled **3437 tokens in chunks** past the 2048 logical batch
 without aborting, and a 24 KB paste was refused with `prompt too long` while the
 app stayed up.
 
+**Re-validated on the shipped package** (MSIX **1.5.2.789**, the artifact attached
+to the v1.5.2.0 release, built from the tagged commit): all **eight** gates PASS,
+the seven above plus `settings`. The capability figures are reproduced —
+3437 tokens chunked, the 24 KB paste refused — and `genroom` measured 1535 tokens
+exact after trimming with **513 left for a requested 512**, the fix for the silent
+~250-token truncation. `routing` is the one worth naming: it had been green over a
+dead feature because it pinned `n_predict=128`, and now runs at the shipping
+default (long turn → GPU at 1769 tok, short → CPU at 23).
+
 **Out of budget / deferred:** Qwen2.5-Coder-7B+, Qwen3-Coder MoE 30B+, Devstral 24B,
 DeepSeek-Coder-V2-Lite, StarCoder2 / DS-Coder 1.3B. LFM2.5-8B-A1B was on this list
 at ~5 GB (its official Q4_K_M); it moved to A3 below once the heap ceiling was
@@ -114,7 +123,7 @@ this table may be quoted as a performance figure.
 
 | Model         | Catalogue      | Quant    | Weights | Est. peak | Status                                                              |
 | ------------- | -------------- | -------- | ------: | --------: | ------------------------------------------------------------------- |
-| LFM2.5-8B-A1B | `lfm25-8b-a1b` | UD-IQ3_S | 3571 MB |  ~4.0 GB  | **H2 candidate** · 32 experts / 4 active · decode + peak still open |
+| LFM2.5-8B-A1B | `lfm25-8b-a1b` | UD-IQ3_S | 3571 MB |   ~4.0 GB | **H2 candidate** · 32 experts / 4 active · decode + peak still open |
 
 Why it is admissible at all: the console heap ceiling was measured at 4864 MB
 committed (`phase15-ramceil`), and that is what decided IQ3_S over Q2 — a Q2 result
@@ -155,30 +164,30 @@ measured per GGUF arch instead of inferred from the family name. Measured
 Qwen3.5 and said **no** for both — wrong, and it under-sold `qwen3-1.7b`, which
 shifts.
 
-| Arch class            | Examples in tree                       | KV shift         | KV tail rewind | ORT     | GGUF           | Notes                                                                 |
-| --------------------- | -------------------------------------- | ---------------- | -------------- | ------- | -------------- | --------------------------------------------------------------------- |
-| Dense standard (`llama`, `qwen2`, `qwen3`) | Llama-3.2, Qwen2.5-Coder, SmolLM2 GGUF, **Qwen3-1.7B** | yes\* | yes | if ONNX | yes | \*if not SWA |
-| Hybrid attn+recurrent (`lfm2`) | LFM2 / LFM2.5 / Thinking | yes (front-drop) | **no** | no | yes | #170a degrade |
-| imrope / mrope (`qwen35`) | Qwen3.5 | **no** | N/A | no | yes | #169 fail-fast |
-| SWA                   | some modern                            | **no**           | careful        | —       | if arch in pin | `n_swa==0` gate                                                       |
-| MoE small active      | (none shipping)                        | TBD              | TBD            | no      | H2 open        | need ≤~3.5 GB GGUF                                                    |
-| BitNet 1.58           | —                                      | —                | —              | no      | H5 desk        | not shipping                                                          |
+| Arch class                                 | Examples in tree                                       | KV shift         | KV tail rewind | ORT     | GGUF           | Notes              |
+| ------------------------------------------ | ------------------------------------------------------ | ---------------- | -------------- | ------- | -------------- | ------------------ |
+| Dense standard (`llama`, `qwen2`, `qwen3`) | Llama-3.2, Qwen2.5-Coder, SmolLM2 GGUF, **Qwen3-1.7B** | yes\*            | yes            | if ONNX | yes            | \*if not SWA       |
+| Hybrid attn+recurrent (`lfm2`)             | LFM2 / LFM2.5 / Thinking                               | yes (front-drop) | **no**         | no      | yes            | #170a degrade      |
+| imrope / mrope (`qwen35`)                  | Qwen3.5                                                | **no**           | N/A            | no      | yes            | #169 fail-fast     |
+| SWA                                        | some modern                                            | **no**           | careful        | —       | if arch in pin | `n_swa==0` gate    |
+| MoE small active                           | (none shipping)                                        | TBD              | TBD            | no      | H2 open        | need ≤~3.5 GB GGUF |
+| BitNet 1.58                                | —                                                      | —                | —              | no      | H5 desk        | not shipping       |
 
 ---
 
 ## E. Product roles (picker intent)
 
-| Role                             | Catalogue ids                             | Product note                     |
-| -------------------------------- | ----------------------------------------- | -------------------------------- |
-| Default chat (unified)           | `lfm25-350m`                              | First launch                     |
-| Balanced / quality chat          | `lfm25-1.2b-instruct`, `lfm2-2.6b`        | H1 tiers                         |
-| Peer dense chat                  | `llama32-3b`, `gemma4-e2b`                | Advanced / heavy                 |
-| Coding fast / balanced / quality | `qwen25-coder-0.5b`, `…-1.5b`, `…-3b`     | `role:coding`, `n_ctx` 4096      |
-| Chat upgrade (Qwen3)             | `qwen3-1.7b` | no-think; context shift OK (measured) |
-| Reasoning                        | `lfm25-1.2b-thinking`                     | CoT stripped for display         |
-| ORT routing pair                 | `smollm2-360m-cpu-int4` + `…-dml-fp16-v2` | Auto GPU only on long first turn |
-| Image                            | `sd-turbo-fp16`                           | Image dialog                     |
-| Personalized                     | `personalized`                            | After on-device train            |
+| Role                             | Catalogue ids                             | Product note                          |
+| -------------------------------- | ----------------------------------------- | ------------------------------------- |
+| Default chat (unified)           | `lfm25-350m`                              | First launch                          |
+| Balanced / quality chat          | `lfm25-1.2b-instruct`, `lfm2-2.6b`        | H1 tiers                              |
+| Peer dense chat                  | `llama32-3b`, `gemma4-e2b`                | Advanced / heavy                      |
+| Coding fast / balanced / quality | `qwen25-coder-0.5b`, `…-1.5b`, `…-3b`     | `role:coding`, `n_ctx` 4096           |
+| Chat upgrade (Qwen3)             | `qwen3-1.7b`                              | no-think; context shift OK (measured) |
+| Reasoning                        | `lfm25-1.2b-thinking`                     | CoT stripped for display              |
+| ORT routing pair                 | `smollm2-360m-cpu-int4` + `…-dml-fp16-v2` | Auto GPU only on long first turn      |
+| Image                            | `sd-turbo-fp16`                           | Image dialog                          |
+| Personalized                     | `personalized`                            | After on-device train                 |
 
 ---
 

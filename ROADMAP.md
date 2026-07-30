@@ -7,7 +7,7 @@ performance belongs in `docs/benchmarks.md`.
 
 - Current manifest: **1.5.2.0** under the **`GianlucaMazza.xllama`** identity
   (in-place update from 1.5.x; still breaking vs ≤1.4.x, see
-  `docs/install-release.md`). Released as **v1.5.2.0** (2026-07-29): Phase 14 —
+  `docs/install-release.md`). Released as **v1.5.2.0** (2026-07-30): Phase 14 —
   the coding/chat/thinking tier — plus the exact token budget that made a
   4096-token session safe to offer (#193/#194) and the Xbox Store SKU
   foundation. The previous release, **v1.5.1.0** (2026-07-27), carried the

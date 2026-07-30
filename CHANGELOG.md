@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [1.5.2.0] - 2026-07-29
+## [1.5.2.0] - 2026-07-30
 
 Phase 14 shipped — a coding, chat and thinking tier the catalogue can actually
 hold — together with the exact context budget that made it safe to offer a
