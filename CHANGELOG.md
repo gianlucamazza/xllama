@@ -38,6 +38,31 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   than failing the script — a capture run nobody is watching should still
   finish. Ops count 15 → 16 (`check-coherence.py` errors on an op missing from
   `MainPage.cpp`).
+- **Autopilot op `show_pane`, and a guard against the crash designing it
+  exposed.** Settings, History and the image viewer are all `ContentDialog`s and
+  none was reachable from the autopilot, so the panes worth showing could not be
+  captured. The image one is why the op exists: `generate_image` finishes and the
+  chat view only says "Image ready", so a frame taken there shows chat text and a
+  status line, which is why the misleading `03-image` state was deleted rather
+  than kept. One op opens and closes in the same action — a dialog left up breaks
+  every gate that runs next, and no separate close op can be relied on to run
+  after a failure. The fence is the `Opened` event, not `ApDispatchSync`
+  returning: that unblocks at the coroutine's first suspension point, which for
+  `ShowImageDialog` is a `GetFileAsync` **before** the dialog is built. Closing
+  waits on `Closed`, because `Hide()` returns before the continuation runs.
+  The guard is the part that is product code, not tooling: nothing checked
+  whether a dialog was already open, and a second one throws inside a
+  `fire_and_forget`, whose `unhandled_exception()` calls `std::terminate()` — the
+  process dies without writing `autopilot-done.txt`, which from the host is
+  indistinguishable from a timeout. It was unreachable only because the
+  first-run disclaimer was the sole programmatic dialog; `show_pane` would have
+  made it reachable. It now fails with a readable `error:`, verified by running
+  `show_pane` under the unaccepted disclaimer — the only collision that actually
+  exists, and not the one the design first set out to test. Ops 16 → 17, host
+  suite 191 → 192. `AutopilotAction` gained a dedicated `label` field: the
+  parser fills its single payload slot from the first of `{text, id, name,
+prompt, label}` it finds, and `name` precedes `label`, so `show_pane` sharing
+  the slot would have dropped its label in silence.
 - **A failing console gate now writes out what was on screen.** Every verdict in
   `validate-console.sh` comes from grepping `xllama.log`, and once that was not
   enough: the app died at launch with no log, no crash dump and no WER report,
@@ -89,6 +114,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   effective timeout was always slightly longer than the declared one; adding a
   screenshot to the loop would have made that gap material. It now uses a
   wall-clock deadline, so the declared timeout is the real one.
+- **The demo can be re-captured with one command, and the README shows v1.5.2.**
+  It had been pointing at a **v1.2.0** video that `docs/launch-copy.md` itself
+  forbade citing as current. The cause was not neglect: `capture-demo-video.sh`
+  hardcoded that version in the output path _and_ in the ffmpeg watermark, and
+  held the demo content as a heredoc, so re-capturing meant editing the tool —
+  which is why it drifted four releases. The version now comes from
+  `uwp/AppxManifest.xml` and the content from `demo/demo-script.json`, where it
+  is reviewable in a PR. Two measurements from the `[caprec]` work changed the
+  result rather than the plumbing: `/ext/screenshot` sustains **11.5 Hz idle,
+  13.7 Hz under load** — the old `sleep 1` was a guess an order of magnitude
+  low, not a limit — and capturing costs the app **1.8%** of decode (93.70 →
+  91.98 tok/s, non-overlapping ranges), so the numbers on screen are still the
+  product's. The shipped capture is 576 stills over 49 s. It is encoded at the
+  rate **achieved**, not requested: encoding at the requested rate turned a 45 s
+  run into a 16.5 s video, i.e. a **2.7× speed-up published as a performance
+  demo**. Store listing screenshots come off the same pipeline — five, 1920×1080
+  straight off the console, the three `ContentDialog` panes via `show_pane`.
+- **Four defects the capture found by being watched rather than read.** The
+  on-screen keyboard covered the answer on every turn — twice, in two different
+  places, and the second (a dialog-internal `TextBox`) was found by measuring
+  luminance in the recorded frames, not by looking;
+  `PreventKeyboardDisplayOnProgrammaticFocus` is now set on all six programmatic
+  `TextBox` focuses. The image dialog displayed one prompt while having generated
+  another. And the model preflight in the capture script tested the HTTP code of
+  a **directory listing**, which WDP answers `200` with `{"Items": []}` for paths
+  that do not exist — it passed for every model and the run died six actions in.
+  It now requests the `.gguf` itself.
 - **The prefill and generation loops are written once.** `run_inference_llama`
   and `LlamaSession::generate` each carried a hand-maintained copy of the same
   two loops, and the copies had already drifted in both of the ways duplication
@@ -112,6 +164,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The README's demo link pointed at a release asset that had never been
+  uploaded.** A stale link was replaced with a broken one. The asset is now on
+  `v1.5.2.0`, verified by downloading it and comparing bytes — the first check
+  was a `curl -I`, which reported `bytes=0` and would have "passed" without
+  proving the file existed. `docs/screenshots/demo-manifest.json` records what
+  the capture produced (version, file, duration, frames, achieved fps, and that
+  the source is Device Portal stills), and `check-coherence.py` errors when the
+  README link disagrees with it on **version or filename**, warns when the
+  manifest falls two minors behind `AppxManifest.xml`, and each check was proved
+  by making it fail. Its limit is stated rather than papered over: the script is
+  offline by design, so a green run does not prove the link resolves.
 - **The bench guessed its quant label, its model, and its prompt.**
   `detect_quant_label` fell back to `"Q4_K_M"` for any unrecognised GGUF and the
   token list had no `IQ3_S`, so the first LFM2.5-8B-A1B console run recorded a

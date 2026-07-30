@@ -35,16 +35,22 @@ performance belongs in `docs/benchmarks.md`.
   Phase 15 (make the 3B–4B class usable), the #130 root-cause profile, and
   upstream vendor pin drops.
 - **Unreleased since v1.5.2.0** (`CHANGELOG.md` `[Unreleased]`): the shared
-  prefill/decode loop and the bench input/label fixes. Both are console-validated
-  on MSIX **1.5.2.802** (8/8 gates) but carry no user-visible feature, so they
-  ride the next release rather than justifying one.
-- **The published demo is four releases stale (#214).** `README.md` links a
-  v1.2.0 video that `docs/launch-copy.md:180` forbids citing as current, because
-  `scripts/capture-demo-video.sh` hardcodes that version and its demo script, so
-  recapturing means editing the tool. The fix is gated on one measurement already
-  landed — the `[caprec]` probe — since a console that can record itself makes the
-  screenshot loop something to delete rather than re-parametrise. The same
-  pipeline is what `store-readiness.md` Phase 2 needs for listing screenshots.
+  prefill/decode loop, the bench input/label fixes, and the demo/capture pipeline
+  (#213/#215/#217 — autopilot ops `mark` and `show_pane`, the double-dialog guard,
+  failure screenshots on the console gates). Console-validated on MSIX
+  **1.5.2.802** (8/8) and **1.5.2.825** (9/9). The guard is the only product-code
+  change among them; the rest is tooling and evidence, so they ride the next
+  release rather than justifying one.
+- **The demo pipeline is re-runnable, and #214 is closed.** `README.md` links the
+  v1.5.2 capture (576 stills at 11.76 fps, encoded at the rate actually achieved
+  so playback is real time); the version, output path and watermark come from
+  `uwp/AppxManifest.xml` and the content from `demo/demo-script.json`, so
+  recapturing is one command instead of an edit to the tool.
+  `docs/screenshots/demo-manifest.json` records what was captured, and
+  `check-coherence.py` errors when the README link drifts from it in version or
+  in filename — the failure mode that shipped a link to an asset nobody had
+  uploaded. The same pipeline produced the five Store screenshots that
+  `store-readiness.md` Phase 2 was waiting on.
 
 ## Phase 7 — Peer-class model research
 
@@ -493,9 +499,9 @@ the supported install path until a submission is accepted.
 - [~] Phase 1 — Store SKU foundation + **no-VM CI path** (`workflow_dispatch`
   `store_sku=true` → `xllama-appx-store`, `install-latest-build.sh --store`);
   console smoke + Partner Center identity still open.
-- [~] Phase 2 — privacy draft in `docs/privacy.md`; age rating + listing assets
-  (screenshots blocked on the capture pipeline, #214) + published HTTPS privacy
-  URL still open.
+- [~] Phase 2 — privacy draft in `docs/privacy.md`; **5 listing screenshots
+  captured** 2026-07-30 (#215); age rating, EN listing copy, trailer and a
+  published HTTPS privacy URL still open.
 - [ ] Phase 3 — Partner Center submission + certification.
 - [ ] Phase 4 — post-launch dual path (Store + Dev Mode) in README.
 
