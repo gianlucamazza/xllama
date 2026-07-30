@@ -7,6 +7,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **The prefill and generation loops are written once.** `run_inference_llama`
+  and `LlamaSession::generate` each carried a hand-maintained copy of the same
+  two loops, and the copies had already drifted in both of the ways duplication
+  drifts: #193 had to be fixed twice (`inference.cpp` still carried "same fix as
+  LlamaSession::generate" as a comment), and the stop-sequence token count
+  diverged silently — `run_inference` counted the token that triggered the stop
+  and `LlamaSession` did not, so `n_eval`, and the published `decode_tok_s`
+  derived from it, differed by one between the two paths for the same
+  generation. `src/bridge/decode_loop.h` now holds `prefill_chunked()`,
+  `prompt_too_long_message()` and `decode_loop()`; the callers keep what is
+  genuinely theirs (the #170a prefix diff, the #169 shift and `m_kv_tokens` on
+  one side, context lifetime and stdout echo on the other). Same conclusion the
+  project already reached for sampling (#125/#141) and stop sequences.
+  **-107 lines, +47.** One deliberate behaviour change: `n_generated` counts the
+  stop-triggering token on both paths, so `LlamaSession`'s figure moves by one
+  token on a stop-sequence finish — the token was sampled and rendered and
+  `t_eval` contains its cost, so omitting it understated the rate. Verified with
+  the host suite unchanged (176/176, no test edits), the opt-in CLI-vs-Session
+  parity test against a real GGUF, logit output identical bit-for-bit across the
+  change, and all 8 console gates PASS on MSIX 1.5.2.802.
+
 ### Fixed
 
 - **The bench guessed its quant label, its model, and its prompt.**
