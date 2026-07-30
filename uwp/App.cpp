@@ -12,6 +12,7 @@
 #include "xllama/platform.h"
 #ifndef XLLAMA_STORE_SKU
 #include "api-server.h"
+#include <winrt/Windows.Foundation.Metadata.h>
 #endif
 // clang-format on
 
@@ -60,6 +61,64 @@ static void log_write(const char* msg) {
         fflush(g_log_fp);
     }
 }
+
+    #ifndef XLLAMA_STORE_SKU
+// ---------------------------------------------------------------------------
+// Can the app record its own output?
+//
+// The demo pipeline reconstructs a video from Device Portal screenshots at 1 Hz
+// (scripts/capture-demo-video.sh) — a slideshow, not a recording.
+// AppRecordingManager is the alternative, and the argument for it is not
+// smoothness: it hands frames to the SoC video encoder, whereas any software
+// encoder inside this process would steal CPU from the very inference the demo
+// exists to show — on a machine with ~6 usable cores and a livelock at 7-8
+// (docs/uwp-constraints.md).
+//
+// MEASURED, 2026-07-30, console on 1.5.2.x Dev Mode:
+//
+//   [caprec] AppRecordingManager absent (Desktop contract not on this device)
+//            GraphicsCaptureSession present=1
+//
+// So AppRecordingManager is not an option here at all, and the reason is the
+// one the guard exists for: it lives in the Desktop extension contract, and
+// AppxManifest.xml declaring the Windows.Desktop device family does not make
+// that contract present on a given device. Reading CanRecord and its reason
+// flags would need a Desktop Extension SDK reference in the vcxproj; one was
+// added and then removed, because a projection for a type that is absent buys
+// nothing. See the comment where that reference used to be.
+//
+// GraphicsCaptureSession IS present, which keeps self-capture open by a
+// different route — one that would encode in-process rather than on the SoC
+// video encoder, so the CPU-cost argument above applies to it and it needs its
+// own measurement before anyone builds on it (#214).
+//
+// The probe stays because the answer is a property of the OS, not of this
+// build: a GameOS update could make either line flip, and a demo pipeline
+// planned around a stills slideshow should find that out from a log line rather
+// than from someone guessing again.
+static void log_app_recording_probe() {
+    using winrt::Windows::Foundation::Metadata::ApiInformation;
+
+    char buf[256];
+    try {
+        snprintf(
+            buf, sizeof(buf),
+            "[caprec] AppRecordingManager present=%d"
+            " GraphicsCaptureSession present=%d\n",
+            ApiInformation::IsTypePresent(L"Windows.Media.AppRecording.AppRecordingManager") ? 1
+                                                                                             : 0,
+            ApiInformation::IsTypePresent(L"Windows.Graphics.Capture.GraphicsCaptureSession") ? 1
+                                                                                              : 0);
+        log_write(buf);
+    } catch (winrt::hresult_error const& e) {
+        snprintf(buf, sizeof(buf), "[caprec] hresult 0x%08X: %ls\n",
+                 static_cast<unsigned>(e.code().value), e.message().c_str());
+        log_write(buf);
+    } catch (...) {
+        log_write("[caprec] unknown exception\n");
+    }
+}
+    #endif
 
 // ---------------------------------------------------------------------------
 // App
@@ -116,6 +175,11 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
         log_write("[xllama] Window activated\n");
 
     #ifndef XLLAMA_STORE_SKU
+        // After Activate(), so that if the Desktop contract ever appears the
+        // status flags this could then read are answered against a live window
+        // rather than an inactive one.
+        log_app_recording_probe();
+
         // §7 experiment: the 887A0036 device conflict was measured with ORT
         // GenAI's Agility-factory device; diffuse.cpp uses plain ORT DML, whose
         // device may coexist with the compositor device the line above just

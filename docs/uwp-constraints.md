@@ -568,6 +568,37 @@ Reference for future work — APIs that do **not** require a desktop-only guard 
 
 APIs that are **desktop-only** and require `#if WINAPI_PARTITION_DESKTOP` guards: `RegOpenKeyEx`, `RegQueryValueExA`, `SetThreadAffinityMask`, `SetThreadInformation(ThreadPowerThrottling)`, `<winevt.h>` includes.
 
+### §10b — The Desktop **contract** is absent, whatever the manifest says (2026-07-30)
+
+`AppxManifest.xml` declares two target device families, `Windows.Xbox` and
+`Windows.Desktop`. That declaration says which families may install the package;
+it does **not** mean the Desktop API contracts exist at runtime on any of them.
+
+Measured on the console (Dev Mode, package 1.5.2.x) by the `[caprec]` probe in
+`App.cpp`:
+
+```
+[caprec] AppRecordingManager present=0 GraphicsCaptureSession present=1
+```
+
+- **`Windows.Media.AppRecording`** — Desktop Extension SDK, 10.0.16299. **Not on
+  the console.** This is the API by which an app records its own audio/video
+  through the SoC video encoder, so the cheapest possible route to a real demo
+  recording is closed. An SDKReference to the Desktop extension was added to
+  compile against it and removed again the same day: the projection compiles,
+  the type is not there to activate.
+- **`Windows.Graphics.Capture`** — Universal contract. **Present.** Self-capture
+  is therefore not closed, only more expensive: that path encodes in-process,
+  which competes for the ~6 usable cores (§6) with whatever inference a demo is
+  meant to be showing. Unmeasured; do not assume it is usable.
+
+The general rule, and the reason the probe logs rather than assumes:
+**`ApiInformation::IsTypePresent` is the only statement about a contract that is
+worth anything.** A projection existing at compile time, an SDKReference in the
+vcxproj, and a `TargetDeviceFamily` in the manifest are all compile-time or
+install-time facts, and none of the three implies the type can be activated on
+the device in front of you.
+
 ## 11. GPU Truth — EP Attribution Without PIX
 
 PIX for Xbox is GDK tooling gated behind the managed partner program; it is **not available for Dev Mode UWP**. GPU-vs-CPU execution truth is instead established by converging three surfaces (all verified against primary sources, ORT GenAI 0.13.2 / ORT 1.24.4):

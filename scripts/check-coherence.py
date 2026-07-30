@@ -254,31 +254,84 @@ def main() -> int:
     else:
         warn("xllama-cli not built — skip job validation")
 
-    # --- autopilot ops ---
-    mpcpp = (ROOT / "uwp/MainPage.cpp").read_text(encoding="utf-8")
-    expected_ops = {
-        "load_chat",
-        "send",
-        "new_chat",
-        "set_model",
-        "set_api",
-        "set_routing",
-        "set_sampling",
-        "set_kv_reuse",
-        "set_taesd",
-        "set_system_prompt",
-        "generate_image",
-        "rate",
-        "start_train",
-        "train_status",
-        "quit",
+    # --- the two build systems list the same bridge sources ---
+    #
+    # CMakeLists.txt builds the host library and the tests; uwp/xllama.vcxproj
+    # builds the console app. They share src/bridge/ but keep separate lists, so
+    # adding a source to one and not the other compiles and then fails at LINK —
+    # on CI, on Windows, twenty minutes later. That is exactly what happened when
+    # autopilot.cpp was added; the local host build was green throughout.
+    #
+    # Divergence is allowed only where it is deliberate, and the reason belongs
+    # here rather than in someone's memory.
+    host_only = {
+        "cli.cpp",  # xllama-cli argument parsing; the app has no command line
     }
-    for o in sorted(expected_ops):
-        if f'== "{o}"' not in mpcpp and f'op == "{o}"' not in mpcpp:
-            # send may use different pattern
-            if f'"{o}"' not in mpcpp:
-                err(f"autopilot op {o} not in MainPage.cpp")
-    good(f"autopilot ops ({len(expected_ops)}) present")
+    cmake_srcs = set(
+        re.findall(
+            r"src/bridge/([a-z_0-9]+\.cpp)", (ROOT / "CMakeLists.txt").read_text()
+        )
+    )
+    vcx_srcs = set(
+        re.findall(
+            r"src\\bridge\\([a-z_0-9]+\.cpp)",
+            (ROOT / "uwp/xllama.vcxproj").read_text(),
+        )
+    )
+    missing_uwp = sorted(cmake_srcs - vcx_srcs - host_only)
+    missing_host = sorted(vcx_srcs - cmake_srcs)
+    for s in missing_uwp:
+        err(
+            f"src/bridge/{s} is in CMakeLists.txt but not uwp/xllama.vcxproj (link error on CI)"
+        )
+    for s in missing_host:
+        err(
+            f"src/bridge/{s} is in uwp/xllama.vcxproj but not CMakeLists.txt (untested on host)"
+        )
+    stale_exempt = sorted(host_only - cmake_srcs)
+    for s in stale_exempt:
+        err(f"host_only lists {s}, which CMakeLists.txt no longer builds")
+    if not missing_uwp and not missing_host and not stale_exempt:
+        good(
+            f"bridge sources agree across both build systems ({len(cmake_srcs & vcx_srcs)} shared)"
+        )
+
+    # --- autopilot ops: the validator's table and the driver's branches ---
+    #
+    # An op has to exist in two places that cannot see each other: kOps in
+    # autopilot.cpp, which decides what a script may say, and the dispatch chain
+    # in ApRun, which decides what happens. One without the other is a real
+    # failure with a confusing shape — a script that validates and then dies at
+    # run time, or a documented op no script may use.
+    #
+    # The list is READ from the validator rather than repeated here. Hardcoding
+    # it made this check a third copy, and a third copy drifts like the other
+    # two: `mark` had to be added to it by hand.
+    apcpp = (ROOT / "src/bridge/autopilot.cpp").read_text(encoding="utf-8")
+    table = re.search(r"kOps\s*=\s*\{(.*?)\};", apcpp, re.S)
+    if not table:
+        err("autopilot.cpp: kOps table not found")
+    else:
+        ops = set(re.findall(r'"([a-z_]+)"', table.group(1)))
+        if not ops:
+            err("autopilot.cpp: kOps table is empty")
+        mpcpp = (ROOT / "uwp/MainPage.cpp").read_text(encoding="utf-8")
+        missing = [o for o in sorted(ops) if f'a.op == "{o}"' not in mpcpp]
+        for o in missing:
+            err(
+                f"autopilot op {o} is accepted by the validator but ApRun has no branch"
+            )
+        # ...and the other direction: a branch for an op the validator rejects
+        # is unreachable code that looks supported.
+        branches = set(re.findall(r'a\.op == "([a-z_]+)"', mpcpp))
+        for o in sorted(branches - ops):
+            err(
+                f"ApRun has a branch for '{o}', which validate_autopilot_script rejects"
+            )
+        if not missing and not (branches - ops):
+            good(
+                f"autopilot ops ({len(ops)}) — validator table and ApRun branches agree"
+            )
 
     # --- benchmark summary ---
     r = subprocess.run(
@@ -373,7 +426,9 @@ def main() -> int:
         if absent:
             err(f"model-matrix: no verified metrics row for {', '.join(absent)}")
         else:
-            good(f"model-matrix numbers match phase14-console.csv ({len(covered)} models)")
+            good(
+                f"model-matrix numbers match phase14-console.csv ({len(covered)} models)"
+            )
 
     # --- every catalogue model is documented, and no doc invents one ---
     # model-matrix.md is the status SSOT, and it grew one table per campaign (A1
@@ -383,9 +438,7 @@ def main() -> int:
     # policy fields that change behaviour (role, n_ctx).
     if mm_path.exists():
         mm_text = mm_path.read_text(encoding="utf-8")
-        text_models = {
-            n: e for n, e in cat.items() if e.get("kind") != "diffusion"
-        }
+        text_models = {n: e for n, e in cat.items() if e.get("kind") != "diffusion"}
         # Rows mentioning each id, so the field checks look only where the id is.
         rows_for: dict[str, list[str]] = {n: [] for n in text_models}
         for line in mm_text.splitlines():
@@ -409,14 +462,21 @@ def main() -> int:
         # that no longer resolves is drift with a straight face. (An earlier
         # version of this check just warned about "unknown ids" and flagged twelve
         # legitimate ones; a check that cries wolf gets ignored.)
-        status_vocab = set(
-            re.findall(r"`([a-z-]+)`", 
-                       re.search(r"\*\*Status\*\*.*", mm_text).group(0))
-        ) if re.search(r"\*\*Status\*\*.*", mm_text) else set()
+        status_vocab = (
+            set(
+                re.findall(
+                    r"`([a-z-]+)`", re.search(r"\*\*Status\*\*.*", mm_text).group(0)
+                )
+            )
+            if re.search(r"\*\*Status\*\*.*", mm_text)
+            else set()
+        )
         claimed = set(re.findall(r"`([a-z][a-z0-9.]*(?:-[a-z0-9.]+)+)`", mm_text))
         dangling, evidence_ok = [], 0
         for tok in sorted(claimed - set(cat) - status_vocab):
-            if tok.endswith((".md", ".csv", ".json", ".jsonl", ".txt", ".py", ".sh", ".h", ".cpp")):
+            if tok.endswith(
+                (".md", ".csv", ".json", ".jsonl", ".txt", ".py", ".sh", ".h", ".cpp")
+            ):
                 continue
             if "_" in tok:  # code identifiers (strip_thinking_content, ...)
                 continue
@@ -439,10 +499,14 @@ def main() -> int:
             if not rows:
                 continue
             if e.get("role") == "coding" and "coding" not in rows:
-                err(f"model-matrix {n}: catalogue role is coding, the row does not say so")
+                err(
+                    f"model-matrix {n}: catalogue role is coding, the row does not say so"
+                )
             want_ctx = e.get("n_ctx") or 0
             if want_ctx and str(want_ctx) not in rows:
-                err(f"model-matrix {n}: catalogue n_ctx {want_ctx} missing from the row")
+                err(
+                    f"model-matrix {n}: catalogue n_ctx {want_ctx} missing from the row"
+                )
 
     # --- stale size patterns (live docs only) ---
     skip = {

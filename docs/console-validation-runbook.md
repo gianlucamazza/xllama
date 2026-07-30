@@ -51,6 +51,42 @@ hardware gates pass:
   (chat + #118 preference/training-status probes). Not wired into
   `validate-console.sh all` today — run it from another host on the LAN.
 
+### When a gate fails, look at the screen
+
+Verdicts come from grepping `xllama.log`, which cannot describe a failure that
+never reached the log — the app dying at launch behind a system dialog being the
+case that cost the most time (`dml-metacommands-runbook.md`). So every run keeps
+the last two Device Portal screenshots, and a failing gate writes them out:
+
+```text
+  Screenshots of the failing run: /tmp/xllama-gate-shots/longchat-*.png
+```
+
+`-1.png` is the later frame. What they are worth depends on how the gate failed,
+and the first console run of this feature corrected the original claim:
+
+- **autopilot `error:`** — `ApRun` writes its marker _without_ exiting, so the
+  app is still on screen showing the broken state. This is what the frames are
+  for, and they deliver it.
+- **timeout** — the app is alive and most likely stuck. Same.
+- **marker `ok`, log grep rejects** — every gate script ends with `quit`, and
+  that path does exit. Keeping two frames was meant to cover this; measured, it
+  often does not. Polling is every 10 s and a gate can finish in ~20 s, so both
+  frames can land after the app is gone — observed, both showing Dev Home. **A
+  Dev Home frame is not a UI fault**; for this class the log is the evidence.
+
+Frames are taken at every poll, except during `taesd` — the one gate that
+asserts a duration (VAE decode under 1000 ms), and a screenshot is GPU work on
+the same SoC. That is a list, not a sampling rate, because sampling less often
+everywhere would only make the collision rarer while halving the evidence for
+the eight gates that time nothing. `taesd` still gets its end-of-run frame, and
+loses nothing it needed: its image-generation failure takes the autopilot
+`error:` path where that frame is the right one, and its `vae_ms` failure is a
+number already in the log that no screenshot improves.
+
+`XLLAMA_GATE_SHOTS=0` disables capture entirely; `XLLAMA_GATE_SHOTS_DIR` chooses
+where the frames land.
+
 Run an individual gate while debugging:
 
 ```bash

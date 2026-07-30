@@ -122,6 +122,84 @@ Note: `path` specifies the **directory** (`\\LocalState` or `\\LocalState\\model
 
 Navigate to `https://<ip>:11443/#fileExplorer` for a browser-based file manager.
 
+## The `/ext/` endpoints: seeing and signing in
+
+Two endpoints outside `/api/` that this project depends on. Neither is in the
+Microsoft reference pages linked below, and both were found the hard way.
+
+### `GET /ext/screenshot` — a PNG of what is on the TV
+
+```bash
+curl -sS --basic -u "$XBOX_USER:$XBOX_PASS" -k \
+    -o frame.png "https://$XBOX_IP:11443/ext/screenshot"
+```
+
+1920×1080 PNG of the current console output. A plain GET, so no CSRF token.
+
+**Measured, 2026-07-30** (`scripts/bench-screenshot-rate.sh`, 30 back-to-back
+requests after one warm-up):
+
+| condition       | latency min / p50 / p90 | sustained   |
+| --------------- | ----------------------- | ----------- |
+| console idle    | 0.029 / 0.037 / 0.226 s | **11.5 Hz** |
+| during a decode | 0.027 / 0.032 / 0.160 s | **13.7 Hz** |
+
+The endpoint is an order of magnitude faster than the 1 Hz the demo pipeline
+assumed — that 1 Hz was a `sleep 1` in `capture-demo-video.sh`, never a measured
+ceiling. It is also not slowed by inference: the frame under load is _smaller_
+(53 KB vs 79 KB) because a chat screen compresses better than Dev Home, and the
+capture is served by the system rather than by the app's threads.
+
+**What capture costs the app**, which is the direction that matters for a demo
+that displays tok/s. LAN API, `lfm25-350m`, 250 tokens, temperature 0, three
+runs each:
+
+|                     | decode                      | median |
+| ------------------- | --------------------------- | ------ |
+| no capture          | 93.70 / 93.66 / 93.75 tok/s | 93.70  |
+| capture at ~13.5 Hz | 91.28 / 91.98 / 92.53 tok/s | 91.98  |
+
+**−1.8%**, with non-overlapping ranges, so it is a real effect and not noise. A
+capture at ~10 Hz is therefore affordable: the numbers a demo shows are within
+2% of the numbers without a camera on them.
+
+This is the only way to see the app's UI from the host, and it is the answer
+whenever a failure leaves no textual trace. During the DirectML metacommands
+work the app died at launch with no log, no crash dump and no WER report; a
+screenshot showed a "Sign in to start this app (0x8004090a)" dialog waiting for
+a button press (`dml-metacommands-runbook.md`). Nothing else on this list would
+have found that.
+
+Consumers in the repo:
+
+- `scripts/capture-demo-video.sh` polls it to reconstruct a demo video. Note
+  what that implies — there is **no video capture endpoint**; the "video" is a
+  sequence of stills;
+- `scripts/capture-store-screenshots.sh` takes one frame per named UI state for
+  the Store listing, synchronised with the app through the `mark` autopilot op
+  rather than by sleeping;
+- `scripts/validate-console.sh` keeps the last two frames of every gate run and
+  writes them out only when the gate fails (`XLLAMA_GATE_SHOTS=0` disables it,
+  `XLLAMA_GATE_SHOTS_DIR` moves the output);
+- `scripts/bench-screenshot-rate.sh` measures what the endpoint actually
+  sustains. The demo pipeline's "1 Hz" is a `sleep 1`, not a measured ceiling,
+  and a video rebuilt from stills is only as smooth as this number.
+
+### `PUT /ext/user` — sign a user in
+
+```bash
+curl -sS --basic -u "$XBOX_USER:$XBOX_PASS" -k -X PUT \
+    -H "X-CSRF-Token: $CSRF_TOKEN" -H 'Content-Type: application/json' \
+    -d '{"Users":[{"UserId":"<id>","SignedIn":true}]}' \
+    "https://$XBOX_IP:11443/ext/user"
+```
+
+The console can lose its signed-in user across a reboot, and an app that
+requires one then fails to launch in the silent way described above. Send the
+CSRF token as with any other state-changing call — the requirement is verified
+for POST/DELETE and assumed here rather than measured. Signing in also moves the
+package's `LocalState` (`dml-metacommands-runbook.md` has the consequences).
+
 ## Lifecycle gotchas (verified on console, 2026-07-07)
 
 Five non-obvious behaviours of Device Portal + UWP package lifecycle that have

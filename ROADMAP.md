@@ -38,6 +38,13 @@ performance belongs in `docs/benchmarks.md`.
   prefill/decode loop and the bench input/label fixes. Both are console-validated
   on MSIX **1.5.2.802** (8/8 gates) but carry no user-visible feature, so they
   ride the next release rather than justifying one.
+- **The published demo is four releases stale (#214).** `README.md` links a
+  v1.2.0 video that `docs/launch-copy.md:180` forbids citing as current, because
+  `scripts/capture-demo-video.sh` hardcodes that version and its demo script, so
+  recapturing means editing the tool. The fix is gated on one measurement already
+  landed — the `[caprec]` probe — since a console that can record itself makes the
+  screenshot loop something to delete rather than re-parametrise. The same
+  pipeline is what `store-readiness.md` Phase 2 needs for listing screenshots.
 
 ## Phase 7 — Peer-class model research
 
@@ -486,7 +493,9 @@ the supported install path until a submission is accepted.
 - [~] Phase 1 — Store SKU foundation + **no-VM CI path** (`workflow_dispatch`
   `store_sku=true` → `xllama-appx-store`, `install-latest-build.sh --store`);
   console smoke + Partner Center identity still open.
-- [~] Phase 2 — privacy draft in `docs/privacy.md`; age rating + listing assets + published HTTPS privacy URL still open.
+- [~] Phase 2 — privacy draft in `docs/privacy.md`; age rating + listing assets
+  (screenshots blocked on the capture pipeline, #214) + published HTTPS privacy
+  URL still open.
 - [ ] Phase 3 — Partner Center submission + certification.
 - [ ] Phase 4 — post-launch dual path (Store + Dev Mode) in README.
 

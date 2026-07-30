@@ -7,8 +7,88 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Measured: the console cannot record its own output, but self-capture is not
+  closed.** A `[caprec]` line in `xllama.log` on every interactive launch reports
+  `ApiInformation::IsTypePresent` for both self-capture APIs. On the console
+  (Dev Mode, 1.5.2.x): **`AppRecordingManager present=0`,
+  `GraphicsCaptureSession present=1`**.
+  The question mattered because the demo pipeline rebuilds a video from Device
+  Portal screenshots at 1 Hz — and that 1 Hz is a `sleep 1` in
+  `capture-demo-video.sh`, not a measured limit. `AppRecordingManager` would have
+  been the clean answer: it encodes on the SoC video encoder, whereas any
+  in-process encoder competes with the very inference a demo exists to show, on
+  ~6 usable cores with a livelock at 7-8. It is not available: the API lives in
+  the **Desktop extension contract**, and `AppxManifest.xml` declaring the
+  `Windows.Desktop` device family does not make that contract present on a
+  device. An SDKReference to the Desktop extension was added to read
+  `CanRecord`, and removed once the probe answered — a projection for a type that
+  cannot be activated buys nothing. `Windows.Graphics.Capture` **is** present, so
+  a second route exists, but it encodes in-process and is unmeasured (#214).
+  Recorded in `docs/uwp-constraints.md` §10b, with the general rule it
+  demonstrates: a manifest device family, an SDKReference and a compiled
+  projection are all statements about build and install time, and none of them
+  says a type can be activated on the device in front of you.
+- **Autopilot op `mark`** — a rendez-vous for screenshot capture. The app writes
+  a label to `LocalState\autopilot-mark.txt` and blocks; the host polls for the
+  file, takes its Device Portal screenshot, and deletes the file to release the
+  script. "Screenshot the Settings pane" was previously a race between an
+  autopilot action and a host-side `sleep`. A timeout releases the action rather
+  than failing the script — a capture run nobody is watching should still
+  finish. Ops count 15 → 16 (`check-coherence.py` errors on an op missing from
+  `MainPage.cpp`).
+- **A failing console gate now writes out what was on screen.** Every verdict in
+  `validate-console.sh` comes from grepping `xllama.log`, and once that was not
+  enough: the app died at launch with no log, no crash dump and no WER report,
+  and only a WDP screenshot found the "Sign in to start this app (0x8004090a)"
+  dialog (`docs/dml-metacommands-runbook.md`). The capability existed; no gate
+  used it. The poll loop keeps the last two frames and writes them out only on
+  failure — two, because the failure classes differ: on an autopilot `error:`
+  `ApRun` writes the marker _without_ exiting so the app is still showing the
+  break, on a timeout it is alive and stuck, but when the marker says `ok` and
+  only the log grep rejects, the script's closing `quit` has already exited the
+  app and just the earlier frame still shows it. Frames are taken at every poll
+  except during `taesd`, the one gate that asserts a duration (VAE decode under
+  1000 ms) while a screenshot is GPU work on the same SoC — a list rather than a
+  sampling rate, because sampling less often everywhere would only make that
+  collision rarer while halving the evidence for the eight gates that time
+  nothing. `taesd` keeps its end-of-run frame and gives up nothing it needed.
+  `XLLAMA_GATE_SHOTS=0` disables it; `XLLAMA_GATE_SHOTS_DIR` moves the output,
+  which stays outside the repo.
+
 ### Changed
 
+- **Autopilot scripts are validated before the first action runs, and the
+  contract is host-tested.** The checks used to sit inside each branch of the
+  dispatch chain, so a bad op name or an out-of-range value in action 7 was
+  found only after actions 0–6 had applied — the driver mutates persistent state
+  (`settings.json`, the chats folder, the selected model), so a typo in a gate
+  script left the console half-scripted and reported a failure that reads like a
+  product failure. `include/xllama/autopilot.h` now holds `AutopilotAction` and
+  `validate_autopilot_script`, WinRT-free, called from the parser; the driver
+  keeps only what depends on runtime state (chat file exists, port binds, UI
+  busy). All nine console gates are written in this language and none of its
+  rules had any test — `tests/test_autopilot.cpp` adds 15 cases, host suite
+  176 → 191. `check-coherence.py` now reads the op table out of `autopilot.cpp`
+  instead of holding a third copy, and asserts it against `ApRun`'s branches in
+  both directions; both failure modes were verified by deliberately breaking
+  each one. It also asserts that `CMakeLists.txt` and `uwp/xllama.vcxproj`
+  list the same `src/bridge/` sources: they keep separate lists, so adding a
+  source to one and not the other compiles and then fails at **link**, on CI,
+  on Windows, twenty minutes later — which is exactly what `autopilot.cpp`
+  did while the local host build stayed green. `cli.cpp` is the one
+  deliberate exception and now carries its reason next to the rule.
+- **`generate_image` no longer invents a prompt.** An action without one
+  silently substituted `"a red sports car on a mountain road at sunset"` — the
+  same defect class as the bench guessing its own model and prompt, and with the
+  same consequence: the run succeeds and produces a real-looking image nobody
+  asked for. An empty prompt is now rejected up front.
+- **`wait_autopilot_done` measures elapsed time instead of counting ticks.** It
+  added 10 s per iteration while each iteration also did a WDP fetch, so the
+  effective timeout was always slightly longer than the declared one; adding a
+  screenshot to the loop would have made that gap material. It now uses a
+  wall-clock deadline, so the declared timeout is the real one.
 - **The prefill and generation loops are written once.** `run_inference_llama`
   and `LlamaSession::generate` each carried a hand-maintained copy of the same
   two loops, and the copies had already drifted in both of the ways duplication

@@ -196,6 +196,30 @@ paths for the same generation. Each caller keeps only what is genuinely its own:
 way lives in exactly one header. Copying it is not a style question — every copy
 in this codebase has eventually disagreed with the other, and always silently.
 
+### The autopilot script contract
+
+`include/xllama/autopilot.h` applies the same rule to a different axis. The
+driver (`MainPageController::ApRun`) can only exist on UWP — it dispatches to
+XAML on the UI thread — but _what a valid script is_ needs neither XAML nor a
+console, so it lives in a WinRT-free header with `validate_autopilot_script` and
+is covered by `tests/test_autopilot.cpp`. That matters because all nine console
+gates are written in this language: a rule that is wrong here is wrong for all
+of them, and until the split there was nothing to test it with short of
+deploying to hardware and watching what broke.
+
+The split also fixes _when_ the checks run. They used to sit inside each branch
+of the dispatch chain, so a bad op name or an out-of-range value in action 7 was
+found only after actions 0–6 had already applied — leaving the console
+half-scripted, with a failure that reads like a product failure rather than a
+typo. Everything decidable without the device is now decided before the first
+action runs; the driver keeps only what genuinely depends on runtime state
+(whether a chat file exists, whether a port binds, whether the UI is busy).
+
+`scripts/check-coherence.py` reads the op table out of `autopilot.cpp` and
+asserts it against `ApRun`'s branches in both directions: an op the validator
+accepts with no branch would fail at run time after passing validation, and a
+branch for an op the validator rejects is unreachable code that looks supported.
+
 ## Model catalogue, provisioning, and quant auto-upgrade
 
 The catalogue is `uwp/models/manifest.json` (bundled base) merged with an optional

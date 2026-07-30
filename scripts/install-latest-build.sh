@@ -41,8 +41,12 @@ done
 # The model set the console gates need (validate-console.sh). Kept here because an
 # MSIX uninstall wipes LocalState, so every install invalidates it — three gate
 # runs were spent rediscovering that before this flag existed.
+# sd-turbo-fp16 belongs here and was missing until 2026-07-30: the list claimed
+# to be what the gates need, `all` ran nine gates, and taesd failed on
+# "sd-turbo-fp16 incomplete" — a fourth run spent on exactly what this list
+# exists to prevent. If a gate seeds a model, it is named here.
 GATE_MODELS=(smollm2-360m-cpu-int4 smollm2-360m-dml-fp16-v2 lfm25-350m
-	qwen25-coder-0.5b lfm25-1.2b-thinking)
+	qwen25-coder-0.5b lfm25-1.2b-thinking sd-turbo-fp16)
 BRANCH="${BRANCH:-$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)}"
 ARTIFACT_NAME="xllama-appx"
 if [[ "$STORE_SKU" == true ]]; then

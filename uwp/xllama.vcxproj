@@ -202,6 +202,15 @@
     <Midl Include="xllama.idl" />
   </ItemGroup>
 
+  <!-- No Desktop Extension SDK reference, and this is a measured decision.
+       One was added on 2026-07-30 to read AppRecordingManager.GetStatus(), then
+       removed the same day: the [caprec] probe reports the type as ABSENT on the
+       console (Xbox 1.5.2.x, Dev Mode), so the reference bought a projection for
+       code that can never run there. AppxManifest.xml declaring the
+       Windows.Desktop device family does not make the Desktop contract present —
+       that is the whole reason ApiInformation::IsTypePresent is the guard.
+       Do not re-add it without a probe line saying the contract has appeared. -->
+
 
   <!-- =====================================================================
        Manifest
@@ -318,6 +327,7 @@
     <ClCompile Include="..\src\bridge\device_train.cpp" />
     <ClCompile Include="..\src\bridge\preference_capture.cpp" />
     <ClCompile Include="..\src\bridge\personalize.cpp" />
+    <ClCompile Include="..\src\bridge\autopilot.cpp" />
     <!-- cli.cpp uses POSIX getopt — Linux only, excluded from UWP target -->
     <ClCompile Include="inference-bridge.cpp" />
     <ClCompile Include="diffuse.cpp" />

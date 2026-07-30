@@ -177,23 +177,125 @@ file_absent() {
 	[[ "$code" == "404" ]]
 }
 
+# --- failure screenshots ---------------------------------------------------
+#
+# Every verdict in this script comes from grepping xllama.log, and once that was
+# not enough: the app died at launch with no log, no crash dump and no WER
+# report, and only a Device Portal screenshot showed why — a "Sign in to start
+# this app (0x8004090a)" dialog (docs/dml-metacommands-runbook.md). The
+# capability was already there; the gate simply did not use it.
+#
+# The poll loop keeps the last two frames; they are written out only when a gate
+# fails. What that is worth depends on the failure class, and the first console
+# run of this feature corrected the original claim:
+#   * autopilot "error:" — ApRun writes the marker WITHOUT exiting
+#     (MainPage.cpp), so the app is still on screen showing the broken state.
+#     This is the case the frames were built for and they deliver it.
+#   * timeout — the app is alive, most likely stuck. Same.
+#   * marker "ok" but the log grep rejects — every gate script ends with `quit`,
+#     and that path DOES exit. Two frames were supposed to cover this by keeping
+#     an earlier one; measured, they often do not. Polling is every 10 s and a
+#     gate can finish in ~20 s, so both frames can land after the app is gone —
+#     observed, both showing Dev Home. Do not read a Dev Home frame as a UI
+#     fault; for this class the log is the evidence and the frames are a bonus.
+#
+# Which gates take frames DURING the run, and why it is a list rather than a
+# rate. Exactly one gate asserts a duration — taesd, on a VAE decode under
+# 1000 ms — and a screenshot is GPU work on the same SoC. Sampling less often
+# everywhere would not remove that collision, only make it rarer while also
+# halving the evidence for the eight gates that time nothing. So: every poll for
+# the gates with no timing assertion, and none mid-run for taesd.
+#
+# What taesd gives up is nothing it needed. Its two failures are an image
+# generation error, which leaves the app on screen and takes the autopilot
+# "error:" path where the end-of-run frame is the right one anyway; and the
+# vae_ms assertion, whose evidence is a number already in the log that no
+# screenshot improves.
+#
+# XLLAMA_GATE_SHOTS=0 disables capture entirely.
+SHOTS_DIR="${XLLAMA_GATE_SHOTS_DIR:-${TMPDIR:-/tmp}/xllama-gate-shots}"
+GATES_NO_MIDRUN_SHOTS=" taesd "
+RING_MIDRUN=1
+
+grab_screenshot() {
+	local dest="$1"
+	curl "${CURL_AUTH[@]}" -o "$dest" --fail "${BASE_URL}/ext/screenshot" >/dev/null 2>&1 || return 1
+}
+
+_ring_grab() {
+	[[ -f "${TMPDIR_LOCAL}/ring-1.png" ]] &&
+		mv -f "${TMPDIR_LOCAL}/ring-1.png" "${TMPDIR_LOCAL}/ring-0.png"
+	grab_screenshot "${TMPDIR_LOCAL}/ring-1.png" || rm -f "${TMPDIR_LOCAL}/ring-1.png"
+	return 0
+}
+
+# Called from the poll loop; keeps ring-0.png (older) and ring-1.png (newer).
+ring_tick() {
+	[[ "${XLLAMA_GATE_SHOTS:-1}" == "0" ]] && return 0
+	((RING_MIDRUN == 1)) || return 0
+	_ring_grab
+}
+
+ring_reset() { rm -f "${TMPDIR_LOCAL}/ring-0.png" "${TMPDIR_LOCAL}/ring-1.png"; }
+
+# The frame for the moment a run ends. Taken for every gate, including the ones
+# that skip mid-run frames — by then there is nothing left to perturb.
+ring_tick_now() {
+	[[ "${XLLAMA_GATE_SHOTS:-1}" == "0" ]] && return 0
+	_ring_grab
+}
+
+# Persist whatever the ring holds. Called only on a failing gate.
+save_fail_shots() {
+	local gate="$1" saved=0 i f
+	[[ "${XLLAMA_GATE_SHOTS:-1}" == "0" ]] && return 0
+	for i in 0 1; do
+		[[ -f "${TMPDIR_LOCAL}/ring-${i}.png" ]] || continue
+		mkdir -p "$SHOTS_DIR"
+		cp "${TMPDIR_LOCAL}/ring-${i}.png" "${SHOTS_DIR}/${gate}-${i}.png"
+		saved=$((saved + 1))
+	done
+	if ((saved > 1)); then
+		echo "  Screenshots of the failing run: ${SHOTS_DIR}/${gate}-*.png" \
+			"(${gate}-1.png is the later frame)" >&2
+	elif ((saved == 1)); then
+		# Naming the missing frame would send the reader looking for a file that
+		# is not there. Say which one survived instead.
+		f=$([[ -f "${SHOTS_DIR}/${gate}-1.png" ]] && echo "1" || echo "0")
+		echo "  One screenshot of the failing run: ${SHOTS_DIR}/${gate}-${f}.png" >&2
+	else
+		# Not a cadence problem: every run ends with a forced grab, so zero frames
+		# means GET /ext/screenshot itself failed — console unreachable, or WDP
+		# refusing. Say that, rather than blaming the sampling interval.
+		echo "  No screenshot captured for ${gate}: GET /ext/screenshot failed" >&2
+	fi
+}
+
 # Poll autopilot-done.txt; echoes its content, returns non-zero on timeout.
 wait_autopilot_done() {
-	local timeout_s="${1:-900}" elapsed=0 out="${TMPDIR_LOCAL}/done.txt"
+	local timeout_s="${1:-900}" out="${TMPDIR_LOCAL}/done.txt"
+	# Wall-clock deadline rather than a tick count: a poll iteration now also
+	# grabs a screenshot, so "10 per iteration" would understate real elapsed
+	# time and silently stretch the declared timeout.
+	local start=$SECONDS deadline=$((SECONDS + timeout_s))
 	echo "  Waiting for autopilot-done.txt (timeout ${timeout_s}s)..." >&2
-	while ((elapsed < timeout_s)); do
+	while ((SECONDS < deadline)); do
 		: >"$out"
 		fetch_file "autopilot-done.txt" "$out"
 		# A real marker is "ok" or "error: ..."; a 404 body contains neither.
 		if grep -qE '^(ok|error:)' "$out" 2>/dev/null; then
-			echo "  Done after ${elapsed}s." >&2
+			echo "  Done after $((SECONDS - start))s." >&2
+			# One last frame: on the "error:" path the app is still on screen
+			# showing exactly what broke, and that is the frame worth having.
+			ring_tick_now
 			cat "$out"
 			return 0
 		fi
 		sleep 10
-		((elapsed += 10))
+		ring_tick
 	done
 	echo "  Timeout waiting for autopilot-done.txt" >&2
+	ring_tick_now
 	return 1
 }
 
@@ -203,6 +305,9 @@ run_autopilot() {
 	local timeout_s="${1:-900}"
 	cat >"${TMPDIR_LOCAL}/autopilot.json"
 	printf 'go' >"${TMPDIR_LOCAL}/autopilot.flag"
+	# Frames belong to one run: a gate that fails must not be handed the previous
+	# gate's screenshot, which would look like evidence and be a different app state.
+	ring_reset
 	# Stop the app BEFORE deleting: WDP cannot unlink a file the app still holds
 	# open, and delete_file swallows the failure — a previous run's lines then
 	# survive into this run's log and falsify the verdict (observed: a "prompt
@@ -226,6 +331,22 @@ run_autopilot() {
 			"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState&filename=xllama.log" 2>/dev/null || echo "000")
 		[[ "$snap_code" == "200" ]] || : >"$LOG_BEFORE"
 	fi
+	# Accept the first-run disclaimer on the app's behalf, byte-for-byte what
+	# pressing "I understand" writes (MainPage.cpp ShowDisclaimerIfNeeded).
+	#
+	# Without it the modal is up for the WHOLE run, every run: ShowAsync() only
+	# completes when someone presses the button, and there is no human at the pad
+	# by design. Found by the first failure screenshot this feature produced —
+	# the gate log said nothing about it, and every gate had been passing with an
+	# unacknowledged dialog and the on-screen keyboard covering the UI.
+	#
+	# Seeding it does not weaken a gate: no gate asserts anything about the
+	# disclaimer, so it was never coverage, only noise on top of the surface the
+	# gates do assert. The dialog itself stays uncovered by automation, which is
+	# worth knowing because it is a Store compliance item
+	# (docs/store-readiness.md).
+	printf '1\n' >"${TMPDIR_LOCAL}/disclaimer.accepted"
+	upload_file "${TMPDIR_LOCAL}/disclaimer.accepted"
 	upload_file "${TMPDIR_LOCAL}/autopilot.json"
 	upload_file "${TMPDIR_LOCAL}/autopilot.flag"
 	start_app
@@ -1233,31 +1354,52 @@ PY
 
 # --- dispatch --------------------------------------------------------------
 
+# One place where a gate's exit status decides whether its screenshots are kept.
+run_gate() {
+	local name="$1" fn="$2" rc=0
+	RING_MIDRUN=1
+	[[ "$GATES_NO_MIDRUN_SHOTS" == *" ${name} "* ]] && RING_MIDRUN=0
+	# Drop this gate's frames from a PREVIOUS invocation before running it. A
+	# gate that now passes would otherwise leave yesterday's failure sitting in
+	# SHOTS_DIR, and the next person to look would read it as evidence of the
+	# run they just did.
+	rm -f "${SHOTS_DIR}/${name}-"*.png
+	# And drop the in-flight ring, which run_autopilot also does — but a gate can
+	# fail its preflight and never get there. That happened on the first console
+	# run of this feature: taesd bailed on a missing model, and the frames it
+	# published were the previous gate's, showing Dev Home after that gate's own
+	# `quit`. Evidence attributed to the wrong run is worse than no evidence.
+	ring_reset
+	"$fn" || rc=$?
+	((rc != 0)) && save_fail_shots "$name"
+	return $rc
+}
+
 CMD="${1:-}"
 case "$CMD" in
-routing) validate_routing ;;
-settings) validate_settings ;;
-gguf) validate_gguf ;;
-longchat) validate_longchat ;;
-kvsnap) validate_kvsnap ;;
-coderpaste) validate_coderpaste ;;
-thinkcut) validate_thinkcut ;;
-genroom) validate_genroom ;;
-taesd) validate_taesd ;;
+routing) run_gate routing validate_routing ;;
+settings) run_gate settings validate_settings ;;
+gguf) run_gate gguf validate_gguf ;;
+longchat) run_gate longchat validate_longchat ;;
+kvsnap) run_gate kvsnap validate_kvsnap ;;
+coderpaste) run_gate coderpaste validate_coderpaste ;;
+thinkcut) run_gate thinkcut validate_thinkcut ;;
+genroom) run_gate genroom validate_genroom ;;
+taesd) run_gate taesd validate_taesd ;;
 all)
 	rc=0
 	if ! model_provisioned "smollm2-360m-cpu-int4"; then
 		echo "  WARN: smollm2-360m-cpu-int4 missing — launch the app once for catalogue download"
 	fi
-	validate_routing || rc=1
-	validate_settings || rc=1
-	validate_gguf || rc=1
-	validate_longchat || rc=1
-	validate_kvsnap || rc=1
-	validate_coderpaste || rc=1
-	validate_thinkcut || rc=1
-	validate_genroom || rc=1
-	validate_taesd || rc=1
+	run_gate routing validate_routing || rc=1
+	run_gate settings validate_settings || rc=1
+	run_gate gguf validate_gguf || rc=1
+	run_gate longchat validate_longchat || rc=1
+	run_gate kvsnap validate_kvsnap || rc=1
+	run_gate coderpaste validate_coderpaste || rc=1
+	run_gate thinkcut validate_thinkcut || rc=1
+	run_gate genroom validate_genroom || rc=1
+	run_gate taesd validate_taesd || rc=1
 	echo
 	echo "=== summary ==="
 	[[ $rc -eq 0 ]] && echo "ALL PASS" || echo "SOME FAILED (exit ${rc})"

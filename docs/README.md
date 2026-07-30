@@ -30,7 +30,7 @@ Technical notes and design decisions for xllama.
 | Generated performance summary                                                          | [benchmarks.md](./benchmarks.md) + [benchmarks-charts.html](./benchmarks-charts.html)                                        |
 | Bench methodology / CSV schema                                                         | [`../bench/README.md`](../bench/README.md)                                                                                   |
 | Model catalogue + backend selection                                                    | [model-selection.md](./model-selection.md) (narrative) + [`../uwp/models/manifest.json`](../uwp/models/manifest.json) (data) |
-| Full model inventory (tested / shipping / rejected, roles, H9, coding)                 | [model-matrix.md](./model-matrix.md) (status SSOT; numbers still link to benchmarks.md)                                  |
+| Full model inventory (tested / shipping / rejected, roles, H9, coding)                 | [model-matrix.md](./model-matrix.md) (status SSOT; numbers still link to benchmarks.md)                                      |
 | UWP/AppContainer constraints (§1–§13)                                                  | [uwp-constraints.md](./uwp-constraints.md)                                                                                   |
 | Runtime NuGet pins                                                                     | [recommended-config.md](./recommended-config.md) (narrative) + [`../uwp/packages.config`](../uwp/packages.config) (data)     |
 | Patched-DLL lifecycle                                                                  | [vendor-lifecycle-plan.md](./vendor-lifecycle-plan.md)                                                                       |
@@ -40,6 +40,8 @@ Technical notes and design decisions for xllama.
 | Package identity / install & migration path                                            | [install-release.md](./install-release.md) (user) + `AGENTS.md` Versioning (dev)                                             |
 | Xbox Store retail readiness (dual SKU, licence matrix, App vs Game gate)               | [store-readiness.md](./store-readiness.md)                                                                                   |
 | Privacy policy (Store / end-user draft)                                                | [privacy.md](./privacy.md)                                                                                                   |
+| Demo / screenshot capture (how it is produced, and from which build)                   | [`../scripts/capture-demo-video.sh`](../scripts/capture-demo-video.sh) (tool) + [`./screenshots/`](./screenshots/) (assets)  |
+| Public claims and launch copy (what may be cited, and what may not)                    | [launch-copy.md](./launch-copy.md)                                                                                           |
 | Agent / contributor quick map                                                          | [`../AGENTS.md`](../AGENTS.md)                                                                                               |
 
 The benchmark flow is intentionally one-way:
@@ -120,7 +122,7 @@ Spot-checked against code + evidence:
 | GPU allowlist `-v2` only                            | `dml_text_model_ok`                                       | OK                                                        |
 | NuGet 0.14.1 / 1.24.4 / DML 1.15.4                  | `packages.config`                                         | OK                                                        |
 | Decode table (94.9 / 37.9 / 18.4 / 74.8 / 44.4 / …) | `generate-benchmark-summary.py --check`                   | OK (2026-07-26: LFM post-#168 median, ORT CPU shipped-t6) |
-| Package identity `GianlucaMazza.xllama` (1.5.2.0)   | `uwp/AppxManifest.xml`; migration in `install-release.md` | OK (in-place from 1.5.x; breaking vs ≤1.4.x)            |
+| Package identity `GianlucaMazza.xllama` (1.5.2.0)   | `uwp/AppxManifest.xml`; migration in `install-release.md` | OK (in-place from 1.5.x; breaking vs ≤1.4.x)              |
 | One resident Session (GUI+API)                      | `include/xllama/session_hub.h`                            | OK (PR #161/#164)                                         |
 | H9 6/8 · 7/8 · 4/8 · 5/8                            | `phase7-h9.jsonl`                                         | OK                                                        |
 | Lane B peak_ws 1195 MB, wall 446 s                  | `phase10-console-devtrain-result.json`                    | OK                                                        |
