@@ -1972,7 +1972,16 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
     winrt::Windows::UI::Xaml::Controls::TextBox promptBox;
     no_keyboard_on_programmatic_focus(promptBox);
     promptBox.Header(winrt::box_value(L"Image prompt"));
-    promptBox.Text(L"a red sports car on a mountain road at sunset");
+    // Show the prompt that produced the image above it, not a fixed suggestion.
+    // The dialog already displays the last image and its seed, so a hardcoded
+    // string here made the three disagree: the Store listing screenshot showed a
+    // pixel-art robot with "a red sports car on a mountain road at sunset"
+    // underneath, and pressing Generate would have produced neither.
+    {
+        const std::string last = read_local_text_file(L"prompt.txt");
+        promptBox.Text(last.empty() ? L"a red sports car on a mountain road at sunset"
+                                    : ::xllama::utf8_to_wstring(last).c_str());
+    }
     promptBox.TextWrapping(TextWrapping::Wrap);
     promptBox.AcceptsReturn(false);
     promptBox.FontSize(16);
@@ -2134,8 +2143,13 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
     }
 
     std::string prompt_utf8 = ::xllama::wstring_to_utf8(std::wstring(promptBox.Text().c_str()));
-    if (prompt_utf8.empty())
-        prompt_utf8 = "a red sports car on a mountain road at sunset";
+    if (prompt_utf8.empty()) {
+        // Do not substitute one. Generating something the user did not ask for
+        // is the defect class already paid for in the bench (#205): the run
+        // succeeds and produces a real-looking artefact nobody requested.
+        self->SetStatus(L"Enter an image prompt first", StatusKind::Error);
+        co_return;
+    }
     const int steps = (int)stepsSlider.Value();
     const uint32_t seed = self->m_diffuse_seed == 0
                               ? static_cast<uint32_t>(GetTickCount64() % 1'000'000'000ULL) + 1
