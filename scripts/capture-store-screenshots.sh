@@ -17,26 +17,15 @@
 # each named state and waits for us to delete its marker file, so every frame is
 # taken at a state the app has confirmed it is in.
 #
-# States NOT captured, and why. Every screen worth showing that is not the chat
-# view is a ContentDialog — Settings, History, and the image viewer — and none of
-# them can be reached from the autopilot today.
+# The panes that are not the chat view — Settings, History and the image viewer
+# — are all ContentDialogs, reached with the `show_pane` op: it opens the dialog,
+# publishes the mark, waits for this script to grab and release it, then closes
+# it in the SAME action so nothing is left on screen for whatever runs next.
 #
-# The image one was measured, not assumed: `generate_image` completes and the
-# chat view only reports `> Image ready — open [*] Image to view`, so a frame
-# taken there shows chat text and a status line, not the generated image. That
-# state was in this script and produced exactly such a frame; it is removed
-# rather than kept as a misleading "03-image".
-#
-# What it needs is one op, and it must open and close in the SAME action so a
-# dialog can never be left up for the gates that run after:
-#
-#   {"op": "show_pane", "name": "image|settings|history", "label": "...",
-#    "timeout_s": 180}
-#
-# i.e. open the pane, publish the mark, wait for the host to grab and release,
-# then Hide() it. Tracked in #214; not in the PR that added `mark`, because
-# dialog lifecycle sits in the UI path all nine console gates traverse and a
-# failure there should not be competing with a capture feature for the blame.
+# The image one is the reason that op exists. `generate_image` completes and the
+# chat view only reports "> Image ready — open [*] Image to view", so a frame
+# taken there shows chat text and a status line, not the image — measured, and
+# it is why an earlier "03-image" state was removed rather than kept.
 
 set -euo pipefail
 
@@ -168,13 +157,20 @@ wait_for_mark() {
 release_mark() { delete_file "autopilot-mark.txt"; }
 
 # The listing states, in order: what the app is made to do, and the label that
-# becomes the filename. One source — the JSON below is generated from this, and
+# becomes the filename. A label of "-" means the action is setup and produces no
+# frame — image generation is one, because the chat view it leaves behind says
+# "Image ready" and shows nothing; the image itself is captured from the viewer
+# pane two lines below. One source — the JSON below is generated from this, and
 # the host waits for exactly this many parks. Deriving the count by grepping the
 # generated JSON would be two representations of one fact, and the failure would
 # be silent: one too many and the run hangs for a full timeout after finishing.
 STATES=(
 	"01-chat-answer|send|What can you do on this console?"
 	"02-chat-multiturn|send|Now in one line."
+	"-|generate_image|pixel art robot, simple colors"
+	"04-image-viewer|show_pane|image"
+	"05-settings|show_pane|settings"
+	"06-history|show_pane|history"
 )
 
 json_escape() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
@@ -194,12 +190,19 @@ json_escape() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
 			printf ',\n    {"op": "generate_image", "prompt": "%s", "steps": 1, "seed": 42, "timeout_s": 600}' \
 				"$(json_escape "$payload")"
 			;;
+		show_pane)
+			# Carries its own label, so no separate mark follows it.
+			printf ',\n    {"op": "show_pane", "name": "%s", "label": "%s", "timeout_s": 180}' \
+				"$(json_escape "$payload")" "$(json_escape "$label")"
+			continue
+			;;
 		*)
 			echo "Unknown op in STATES: $op" >&2
 			exit 1
 			;;
 		esac
-		printf ',\n    {"op": "mark", "label": "%s", "timeout_s": 180}' "$(json_escape "$label")"
+		[[ "$label" == "-" ]] || printf ',\n    {"op": "mark", "label": "%s", "timeout_s": 180}' \
+			"$(json_escape "$label")"
 	done
 	printf '\n  ]\n}\n'
 } >"${WORK}/autopilot.json"
@@ -237,10 +240,14 @@ upload_file "${WORK}/autopilot.json"
 upload_file "${WORK}/autopilot.flag"
 restart_app
 
-echo "==> Waiting for ${#STATES[@]} states"
+CAPTURED_STATES=()
+for state in "${STATES[@]}"; do
+	[[ "${state%%|*}" == "-" ]] || CAPTURED_STATES+=("$state")
+done
+echo "==> Waiting for ${#CAPTURED_STATES[@]} states"
 
 captured=0
-for state in "${STATES[@]}"; do
+for state in "${CAPTURED_STATES[@]}"; do
 	expected="${state%%|*}"
 	rc=0
 	label=$(wait_for_mark 900 "$expected") || rc=$?

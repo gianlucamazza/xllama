@@ -46,8 +46,8 @@ AutopilotAction send(const wchar_t* text) {
 TEST_CASE("autopilot: the op table matches what the driver implements") {
     for (const char* name :
          {"send", "new_chat", "load_chat", "set_model", "set_api", "set_routing", "set_sampling",
-          "set_kv_reuse", "set_taesd", "set_system_prompt", "generate_image", "mark", "rate",
-          "start_train", "train_status", "quit"})
+          "set_kv_reuse", "set_taesd", "set_system_prompt", "generate_image", "mark", "show_pane",
+          "rate", "start_train", "train_status", "quit"})
         CHECK(autopilot_op_known(name));
 
     CHECK_FALSE(autopilot_op_known("sned"));  // typo
@@ -82,15 +82,47 @@ TEST_CASE("autopilot: payload-carrying ops reject an empty payload") {
 }
 
 TEST_CASE("autopilot: mark requires a label") {
-    // An empty label falls back to the action index, which the host is not
-    // waiting for: the run would stall until the mark timed out rather than
-    // fail. A silent hang is the worst of the available outcomes.
+    // Without one the host is waiting for a name that never arrives: the run
+    // stalls until the mark times out rather than failing. A silent hang is the
+    // worst of the available outcomes.
     CHECK_FALSE(ok({op("mark")}));
     CHECK(why({op("mark")}) == "action 0 mark: 'label' is required");
 
     AutopilotAction m = op("mark");
-    m.arg = L"01-chat-answer";
+    m.label = L"01-chat-answer";
     CHECK(ok({m}));
+
+    // The label lives in its own slot, not in the shared payload: putting it in
+    // `arg` is what show_pane would have done by accident, and it must not pass.
+    AutopilotAction wrong = op("mark");
+    wrong.arg = L"01-chat-answer";
+    CHECK_FALSE(ok({wrong}));
+}
+
+TEST_CASE("autopilot: show_pane needs a known pane and a label") {
+    auto pane = [](const wchar_t* name, const wchar_t* label) {
+        AutopilotAction a = op("show_pane");
+        a.arg = name;
+        a.label = label;
+        return a;
+    };
+    for (const wchar_t* name : {L"settings", L"history", L"image"}) {
+        CAPTURE(name);
+        CHECK(ok({pane(name, L"03-pane")}));
+    }
+    // A pane with no coroutine behind it would open nothing and then time out
+    // waiting for a dialog that is never coming.
+    CHECK_FALSE(ok({pane(L"chat", L"03-pane")}));
+    CHECK_FALSE(ok({pane(L"Settings", L"03-pane")})); // case matters
+    CHECK_FALSE(ok({pane(L"", L"03-pane")}));
+    CHECK(why({pane(L"chat", L"03-pane")}) ==
+          "action 0 show_pane: 'name' must be one of settings|history|image");
+
+    // Both are required, and the label is the half that would fail silently:
+    // the pane would open, nobody would be waiting for it, and the action would
+    // sit there until its timeout.
+    CHECK_FALSE(ok({pane(L"settings", L"")}));
+    CHECK(why({pane(L"settings", L"")}) == "action 0 show_pane: 'label' is required");
 }
 
 TEST_CASE("autopilot: set_routing accepts only 0..2") {
@@ -211,7 +243,7 @@ TEST_CASE("autopilot: a realistic gate script validates") {
     kv.has_enabled = true;
     kv.enabled = true;
     AutopilotAction mark = op("mark");
-    mark.arg = L"01-chat-answer";
+    mark.label = L"01-chat-answer";
 
     CHECK(ok({model, routing, kv, op("new_chat"), send(L"What can you do?"), mark, op("quit")}));
 }

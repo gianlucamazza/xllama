@@ -20,10 +20,16 @@ namespace xllama {
 // WinRT-free so validation and tests need neither XAML nor a console.
 struct AutopilotAction {
     std::string op;   // send|new_chat|load_chat|set_model|set_api|set_routing|set_sampling|
-                      // set_kv_reuse|set_taesd|set_system_prompt|generate_image|mark|rate|
-                      // start_train|train_status|quit
-    std::wstring arg; // text / id / model name / image prompt / mark label / rate label
-    int steps{1};     // generate_image
+                      // set_kv_reuse|set_taesd|set_system_prompt|generate_image|mark|show_pane|
+                      // rate|start_train|train_status|quit
+    std::wstring arg; // text / id / model or pane name / image prompt / rate label
+    // The name the host waits for at a rendez-vous, kept in its own slot rather
+    // than sharing `arg`. show_pane carries BOTH a pane name and a label, and
+    // the parser's single payload slot fills from the first key it finds with
+    // "name" ahead of "label" — so sharing would have dropped the label in
+    // silence and left the host waiting for a mark that never matched.
+    std::wstring label; // mark / show_pane
+    int steps{1};       // generate_image
     unsigned seed{42};
     bool enabled{false};             // set_api / set_kv_reuse / set_taesd
     bool has_enabled{false};         // 'enabled' was present (set_kv_reuse and set_taesd

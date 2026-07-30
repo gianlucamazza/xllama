@@ -56,6 +56,10 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
                               std::chrono::seconds& total_cap, std::string& err);
     void ApRun(std::vector<ApAction> actions, std::chrono::seconds total_cap);
     void ApDispatchSync(std::function<void()> fn); // sync hop to the UI thread (MTA-only)
+    // Record the ContentDialog going on screen so the autopilot can screenshot a
+    // pane and close it again, and so a second one cannot be opened underneath.
+    // Called by every Show* coroutine right before ShowAsync().
+    void ApTrackDialog(winrt::Windows::UI::Xaml::Controls::ContentDialog const& dlg);
     bool ApWaitAtomic(std::atomic<bool>& flag, bool want, std::chrono::seconds timeout);
     void BuildUI();
     void LoadModelName();
@@ -250,6 +254,13 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     std::atomic<bool> m_is_running{false};
     std::atomic<bool> m_diffuse_running{false};
     std::atomic<bool> m_train_running{false};
+    // A ContentDialog is on screen. XAML allows exactly one, and opening a
+    // second throws inside a fire_and_forget — whose unhandled_exception()
+    // calls std::terminate(). That is a silent process death with no
+    // autopilot-done.txt, which from the host looks like a mute timeout, so the
+    // autopilot checks this and refuses with a readable error instead.
+    std::atomic<bool> m_pane_open{false};
+    winrt::Windows::UI::Xaml::Controls::ContentDialog m_ap_dialog{nullptr};
     std::atomic<bool> m_train_abort{false};
     // Set once EnsureModelAsync lands a usable chat model (any source); the
     // autopilot driver gates its first action on this.

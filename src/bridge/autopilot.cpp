@@ -13,11 +13,25 @@ namespace {
 // Ops the driver implements. Adding one here without adding a branch to ApRun
 // makes a script that validates and then fails at run time, so the two lists
 // belong together; check-coherence.py asserts the documentation side.
-constexpr std::array<const char*, 16> kOps = {
-    "send",      "new_chat",          "load_chat",      "set_model",
-    "set_api",   "set_routing",       "set_sampling",   "set_kv_reuse",
-    "set_taesd", "set_system_prompt", "generate_image", "mark",
-    "rate",      "start_train",       "train_status",   "quit"};
+constexpr std::array<const char*, 17> kOps = {
+    "send",           "new_chat",     "load_chat",    "set_model", "set_api",
+    "set_routing",    "set_sampling", "set_kv_reuse", "set_taesd", "set_system_prompt",
+    "generate_image", "mark",         "show_pane",    "rate",      "start_train",
+    "train_status",   "quit"};
+
+// Panes show_pane can open. Each is a ContentDialog with an existing coroutine
+// behind it; the op reuses those rather than rebuilding any UI.
+constexpr std::array<const char*, 3> kPanes = {"settings", "history", "image"};
+
+// The pane name is an ASCII keyword, so a byte-wise narrowing is enough and
+// keeps this header-free of platform string helpers.
+std::string wide_to_narrow_ascii(const std::wstring& w) {
+    std::string s;
+    s.reserve(w.size());
+    for (wchar_t c : w)
+        s.push_back(c < 128 ? static_cast<char>(c) : '?');
+    return s;
+}
 
 std::string where(size_t i, const std::string& op) {
     return "action " + std::to_string(i) + " " + op + ": ";
@@ -57,13 +71,19 @@ bool validate_autopilot_script(const std::vector<AutopilotAction>& actions, bool
             }
         }
 
-        if (a.op == "mark") {
-            // The host matches this label to decide which state a screenshot
-            // belongs to. An empty one would fall back to the action index,
-            // which the host is not waiting for, and the run would stall until
-            // the mark times out — a silent hang instead of an error.
-            if (a.arg.empty()) {
-                err = where(i, a.op) + "'label' is required";
+        // Both rendez-vous ops need a label: the host matches it to decide which
+        // state a screenshot belongs to, and waiting for one that never arrives
+        // is a silent hang rather than an error.
+        if ((a.op == "mark" || a.op == "show_pane") && a.label.empty()) {
+            err = where(i, a.op) + "'label' is required";
+            return false;
+        }
+
+        if (a.op == "show_pane") {
+            const std::string pane = wide_to_narrow_ascii(a.arg);
+            if (std::find_if(kPanes.begin(), kPanes.end(),
+                             [&](const char* k) { return pane == k; }) == kPanes.end()) {
+                err = where(i, a.op) + "'name' must be one of settings|history|image";
                 return false;
             }
         }

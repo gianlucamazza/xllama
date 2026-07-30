@@ -652,6 +652,7 @@ winrt::fire_and_forget MainPageController::ShowCorrectionDialog(size_t assistant
     dialog.PrimaryButtonText(L"Save correction");
     dialog.CloseButtonText(L"Cancel");
     dialog.XamlRoot(m_root.XamlRoot());
+    ApTrackDialog(dialog);
 
     if (co_await dialog.ShowAsync() != ContentDialogResult::Primary)
         co_return;
@@ -961,6 +962,7 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
     winrt::Windows::UI::Xaml::Controls::ContentDialog dlg;
     dlg.Title(winrt::box_value(L"Conversation History"));
     dlg.XamlRoot(m_root.XamlRoot());
+    ApTrackDialog(dlg);
 
     if (index.empty()) {
         winrt::Windows::UI::Xaml::Controls::TextBlock empty_tb;
@@ -1036,6 +1038,7 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
         confirm.PrimaryButtonText(L"Delete");
         confirm.CloseButtonText(L"Cancel");
         confirm.XamlRoot(m_root.XamlRoot());
+        ApTrackDialog(confirm);
         auto cr = co_await confirm.ShowAsync();
         if (cr == winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary) {
             bool was_current = (id_to_delete == self->m_current.id);
@@ -1065,6 +1068,7 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
         confirm.PrimaryButtonText(L"Delete all");
         confirm.CloseButtonText(L"Cancel");
         confirm.XamlRoot(m_root.XamlRoot());
+        ApTrackDialog(confirm);
         auto cr = co_await confirm.ShowAsync();
         if (cr == winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary) {
             self->m_history.Clear();
@@ -1378,6 +1382,7 @@ winrt::fire_and_forget MainPageController::ShowDisclaimerIfNeeded() {
     dlg.Content(body);
     dlg.PrimaryButtonText(L"I understand");
     dlg.XamlRoot(m_root.XamlRoot());
+    ApTrackDialog(dlg);
     co_await dlg.ShowAsync();
     write_local_bytes(L"disclaimer.accepted", "1\n");
 }
@@ -1604,6 +1609,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     dlg.CloseButtonText(L"Cancel");
     dlg.IsSecondaryButtonEnabled(sample_n > 0 && !base_hint.empty() && !m_train_running.load());
     dlg.XamlRoot(m_root.XamlRoot());
+    ApTrackDialog(dlg);
 
     auto result = co_await dlg.ShowAsync();
     if (result == winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Secondary) {
@@ -1988,6 +1994,7 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
     dlg.PrimaryButtonText(L"Generate");
     dlg.CloseButtonText(L"Close");
     dlg.XamlRoot(m_root.XamlRoot());
+    ApTrackDialog(dlg);
 
     auto result = co_await dlg.ShowAsync();
     if (result != winrt::Windows::UI::Xaml::Controls::ContentDialogResult::Primary)
@@ -3170,9 +3177,15 @@ bool MainPageController::ApParseScript(const std::string& json_utf8, std::vector
             err = "action without 'op'";
             return false;
         }
-        // Single payload slot: text (send) / id (load_chat) / name (set_model) /
-        // prompt (generate_image) / label (mark).
-        for (auto key : {L"text", L"id", L"name", L"prompt", L"label"}) {
+        // The rendez-vous label has its own slot: show_pane carries a pane
+        // "name" AND a "label", and the loop below stops at the first key it
+        // finds — "name" first — so sharing one slot would have dropped the
+        // label in silence and left the host waiting for a mark that never
+        // matched.
+        a.label = std::wstring(obj.GetNamedString(L"label", L"").c_str());
+        // Single payload slot: text (send) / id (load_chat) / name (set_model,
+        // show_pane) / prompt (generate_image).
+        for (auto key : {L"text", L"id", L"name", L"prompt"}) {
             if (obj.HasKey(key)) {
                 a.arg = std::wstring(obj.GetNamedString(key, L"").c_str());
                 break;
@@ -3207,6 +3220,36 @@ bool MainPageController::ApParseScript(const std::string& json_utf8, std::vector
     constexpr bool kStoreSku = false;
     #endif
     return ::xllama::validate_autopilot_script(out, kStoreSku, err);
+}
+
+// Record the dialog that is going on screen, and clear it when it leaves.
+//
+// Two things depend on this. The autopilot needs a handle to Hide() a pane it
+// opened for a screenshot — the Show* coroutines keep their ContentDialog in a
+// local, so nothing outside the coroutine frame can reach it. And m_pane_open
+// is the guard against opening a second one: XAML permits exactly one, and the
+// throw lands inside a fire_and_forget, whose unhandled_exception() calls
+// std::terminate() — a silent process death with no autopilot-done.txt written.
+//
+// The handlers hold a weak_ptr, not the controller: the dialog is stored in a
+// member, so a strong capture would close a cycle between them.
+void MainPageController::ApTrackDialog(
+    winrt::Windows::UI::Xaml::Controls::ContentDialog const& dlg) {
+    std::weak_ptr<MainPageController> weak = weak_from_this();
+    dlg.Opened([weak](winrt::Windows::UI::Xaml::Controls::ContentDialog const& sender,
+                      winrt::Windows::UI::Xaml::Controls::ContentDialogOpenedEventArgs const&) {
+        if (auto self = weak.lock()) {
+            self->m_ap_dialog = sender;
+            self->m_pane_open.store(true);
+        }
+    });
+    dlg.Closed([weak](winrt::Windows::UI::Xaml::Controls::ContentDialog const&,
+                      winrt::Windows::UI::Xaml::Controls::ContentDialogClosedEventArgs const&) {
+        if (auto self = weak.lock()) {
+            self->m_ap_dialog = nullptr;
+            self->m_pane_open.store(false);
+        }
+    });
 }
 
 void MainPageController::ApDispatchSync(std::function<void()> fn) {
@@ -3278,6 +3321,42 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
     auto not_running = [&]() {
         return ApWaitAtomic(m_is_running, false, kGrace) &&
                ApWaitAtomic(m_diffuse_running, false, kGrace);
+    };
+
+    // Park on a named UI state until the host has grabbed it, then carry on.
+    //
+    // The host cannot see this process's UI and the app cannot reach the Device
+    // Portal, so "screenshot the Settings pane" used to be a race between an
+    // autopilot action and a host-side sleep. Here the app publishes the label
+    // and blocks; the host polls for the file, takes its shot, and deletes the
+    // file to release us. Nothing is timed, so nothing is guessed.
+    //
+    // A timeout releases the action rather than failing the script: an
+    // unattended capture run should still finish, and the missing screenshot is
+    // visible on the host anyway. Shared by `mark` and `show_pane` rather than
+    // written twice — every copy in this codebase has eventually disagreed with
+    // the other, and always silently.
+    auto rendezvous = [&](const std::string& label, std::chrono::seconds timeout) {
+        const std::wstring mark_path = local_wpath(L"autopilot-mark.txt");
+        write_local_bytes(L"autopilot-mark.txt", label);
+        // The wait below reads "file gone" as "the host has taken its shot". A
+        // write that failed produces the same absence, so without this check the
+        // action would sail through and the log would claim a release that never
+        // happened — a false record of evidence that does not exist.
+        if (GetFileAttributesW(mark_path.c_str()) == INVALID_FILE_ATTRIBUTES)
+            throw std::runtime_error("mark '" + label + "': could not write autopilot-mark.txt");
+        log_output("[autopilot] mark '" + label + "' waiting for host\n");
+        const auto t = timeout.count() > 0 ? timeout : std::chrono::seconds{120};
+        const auto deadline = std::chrono::steady_clock::now() + t;
+        while (std::chrono::steady_clock::now() < deadline) {
+            if (GetFileAttributesW(mark_path.c_str()) == INVALID_FILE_ATTRIBUTES) {
+                log_output("[autopilot] mark '" + label + "' released\n");
+                return;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+        }
+        _wremove(mark_path.c_str());
+        log_output("[autopilot] mark '" + label + "' timed out, continuing\n");
     };
 
     for (size_t i = 0; i < actions.size(); ++i) {
@@ -3473,49 +3552,57 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
                                                                  "\nprogress=" + prog + "\n");
             log_output("[autopilot] train_status state=" + state + "\n");
         } else if (a.op == "mark") {
-            // Rendez-vous with the host: park on a named UI state until the host
-            // has grabbed it, then carry on.
-            //
-            // The host cannot see this process's UI, and the app cannot reach
-            // the Device Portal, so "screenshot the Settings pane" was previously
-            // a race between an autopilot action and a host-side sleep. Here the
-            // app publishes the label and blocks; the host polls for the file,
-            // takes its screenshot, and deletes the file to release us. Nothing
-            // is timed, so nothing is guessed.
-            //
-            // A timeout releases the action rather than failing the script: a
-            // capture run that nobody is watching should still complete, and the
-            // missing screenshot is visible on the host side anyway.
             if (!not_running())
                 throw std::runtime_error("action " + std::to_string(i) + " mark: busy");
-            const std::string label =
-                a.arg.empty() ? std::to_string(i) : ::xllama::wstring_to_utf8(a.arg);
-            const std::wstring mark_path = local_wpath(L"autopilot-mark.txt");
-            write_local_bytes(L"autopilot-mark.txt", label);
-            // The wait below reads "file gone" as "the host has taken its shot".
-            // A write that failed produces the same absence, so without this the
-            // action would sail through and the log would claim a release that
-            // never happened — a false record of evidence that does not exist.
-            if (GetFileAttributesW(mark_path.c_str()) == INVALID_FILE_ATTRIBUTES)
-                throw std::runtime_error("action " + std::to_string(i) + " mark '" + label +
-                                         "': could not write autopilot-mark.txt");
-            log_output("[autopilot] mark '" + label + "' waiting for host\n");
-            const auto t = a.timeout.count() > 0 ? a.timeout : std::chrono::seconds{120};
-            const auto deadline = std::chrono::steady_clock::now() + t;
-            bool released = false;
-            while (std::chrono::steady_clock::now() < deadline) {
-                if (GetFileAttributesW(mark_path.c_str()) == INVALID_FILE_ATTRIBUTES) {
-                    released = true;
-                    break;
-                }
-                std::this_thread::sleep_for(std::chrono::milliseconds(250));
-            }
-            if (!released) {
-                _wremove(mark_path.c_str());
-                log_output("[autopilot] mark '" + label + "' timed out, continuing\n");
-            } else {
-                log_output("[autopilot] mark '" + label + "' released\n");
-            }
+            rendezvous(::xllama::wstring_to_utf8(a.label), a.timeout);
+        } else if (a.op == "show_pane") {
+            // Screenshot a pane that is not the chat view. Settings, History and
+            // the image viewer are all ContentDialogs, so `mark` alone cannot
+            // reach them — generate_image completes and the chat view only says
+            // "Image ready", which is what a frame taken there shows.
+            //
+            // Open and close in ONE action, deliberately: a dialog left up would
+            // break every gate that runs afterwards, and no separate close op can
+            // be relied on to run after a failure.
+            if (!not_running())
+                throw std::runtime_error("action " + std::to_string(i) + " show_pane: busy");
+            if (m_pane_open.load())
+                throw std::runtime_error(
+                    "action " + std::to_string(i) +
+                    " show_pane: a dialog is already open — XAML allows exactly one, and "
+                    "opening a second throws inside a fire_and_forget, which terminates the "
+                    "process without writing autopilot-done.txt");
+            const std::string pane = ::xllama::wstring_to_utf8(a.arg);
+            ApDispatchSync([this, pane]() {
+                if (pane == "settings")
+                    ShowSettings();
+                else if (pane == "history")
+                    ShowHistory();
+                else
+                    ShowImageDialog();
+            });
+            // Fence on the Opened event, NOT on ApDispatchSync returning.
+            // ApDispatchSync unblocks at the coroutine's first suspension point,
+            // and for ShowImageDialog that is a file read (GetFileAsync on the
+            // last generated PNG) which happens BEFORE the dialog is built — so
+            // the host would have photographed the chat view.
+            if (!ApWaitAtomic(m_pane_open, true, std::chrono::seconds{60}))
+                throw std::runtime_error("action " + std::to_string(i) + " show_pane '" + pane +
+                                         "': dialog did not open within 60s");
+            rendezvous(::xllama::wstring_to_utf8(a.label), a.timeout);
+            // Closed unconditionally, including after a rendez-vous timeout: an
+            // unattended capture may leave a mark unreleased, but it must not
+            // leave a modal on screen for the next gate.
+            ApDispatchSync([this]() {
+                if (m_ap_dialog)
+                    m_ap_dialog.Hide();
+            });
+            // Hide() returns before the coroutine's continuation has run, so the
+            // wait is on Closed, not on Hide.
+            if (!ApWaitAtomic(m_pane_open, false, kGrace))
+                throw std::runtime_error("action " + std::to_string(i) + " show_pane '" + pane +
+                                         "': dialog did not close");
+            log_output("[autopilot] show_pane '" + pane + "' closed\n");
         } else if (a.op == "quit") {
             log_output("[autopilot] action " + std::to_string(i) + " quit\n");
             write_local_bytes(L"autopilot-done.txt", "ok");
