@@ -34,6 +34,10 @@ performance belongs in `docs/benchmarks.md`.
   #116/#118). Phases 13 and 14 are complete and shipped. Remaining open work:
   Phase 15 (make the 3B–4B class usable), the #130 root-cause profile, and
   upstream vendor pin drops.
+- **Unreleased since v1.5.2.0** (`CHANGELOG.md` `[Unreleased]`): the shared
+  prefill/decode loop and the bench input/label fixes. Both are console-validated
+  on MSIX **1.5.2.802** (8/8 gates) but carry no user-visible feature, so they
+  ride the next release rather than justifying one.
 
 ## Phase 7 — Peer-class model research
 
@@ -389,15 +393,24 @@ and Coder-3B lands at 14.0 tok/s. Three levers touch that denominator; a
 rewritten framework or a bespoke model architecture touch neither, and both are
 rejected on that ground (`docs/phase7-hypotheses.md`, "Do not reopen").
 
-- [~] **W1 — H2: a MoE whose active weights are a fraction of its total.**
-  Desk survey done 2026-07-29 against pin `b10093-1-g6d5a910c5`
-  (`src/models/*.cpp` already compiles `lfm2moe.cpp` and ~20 more MoE archs).
-  Candidate **LFM2.5-8B-A1B**, 32 experts / 4 active. Admissibility hung on a
-  never-measured number, so the **console heap ceiling was measured**:
-  **4864 MB committed / 4893 MB peak WS** (`ramceil.flag`,
-  `scripts/bench-ramceil.sh`, `bench/results/phase15-ramceil.csv`) — a lower
-  bound, and headless. That admits `UD-IQ3_S` inside the 4 GB H2 gate, so the
-  experiment tests the architecture rather than the quantization.
+**Where it stands (2026-07-30).** W1 is **closed FAIL on measure** — the MoE
+reads only its active experts, exactly as predicted, and is still no faster than
+a dense 3B because the cost moves off bandwidth. W2's pre-gate **split the
+hypothesis**: the draft-model variant is rejected (0.81× on open chat), prompt
+lookup proceeds; its groundwork (one shared decode loop) is done. W3 is
+untouched. Two of the three levers are therefore measured before any of them
+was built on — which was the point of ordering them this way.
+
+- [x] **W1 — H2: a MoE whose active weights are a fraction of its total. CLOSED
+      FAIL 2026-07-30.**
+      Desk survey done 2026-07-29 against pin `b10093-1-g6d5a910c5`
+      (`src/models/*.cpp` already compiles `lfm2moe.cpp` and ~20 more MoE archs).
+      Candidate **LFM2.5-8B-A1B**, 32 experts / 4 active. Admissibility hung on a
+      never-measured number, so the **console heap ceiling was measured**:
+      **4864 MB committed / 4893 MB peak WS** (`ramceil.flag`,
+      `scripts/bench-ramceil.sh`, `bench/results/phase15-ramceil.csv`) — a lower
+      bound, and headless. That admits `UD-IQ3_S` inside the 4 GB H2 gate, so the
+      experiment tests the architecture rather than the quantization.
 
   **Measured 2026-07-30 on MSIX 1.5.2.798 → H2 FAIL**
   (`bench/results/phase15-moe-console.csv`, 3 recorded runs): decode
@@ -452,6 +465,16 @@ rejected on that ground (`docs/phase7-hypotheses.md`, "Do not reopen").
       DXGI and D3D12 both work in AppContainer and DXIL compiles AOT, so the JIT
       ban does not bite. **Kill criterion, predeclared: under 100 GB/s STREAM
       read the hypothesis dies and goes to "Do not reopen".**
+- [x] **Groundwork W2 needs: the prefill and decode loops written once**
+      (2026-07-30, `src/bridge/decode_loop.h`). `run_inference_llama` and
+      `LlamaSession::generate` kept hand-maintained copies that had already
+      drifted twice — #193 fixed in both, and a stop-sequence token count that
+      made `n_eval` (and the published `decode_tok_s`) differ by one between the
+      paths. W2 adds prompt lookup inside exactly that loop, so doing it first is
+      what makes W2 a change in one place instead of two, and what gives the CLI
+      the same behaviour as the chat UI — the CLI being the surface this project
+      measures and A/Bs on. −107 lines; host suite unchanged, all 8 console gates
+      PASS on MSIX 1.5.2.802.
 
 ## Xbox Store retail (public release path)
 
