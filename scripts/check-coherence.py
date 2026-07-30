@@ -174,7 +174,21 @@ def main() -> int:
                     "was never run"
                 )
             else:
-                good(f"README demo link matches the captured demo (v{dm_short})")
+                # ...and the link must point at the file the capture produced,
+                # not merely at a matching version. Nearly shipped: the README
+                # was updated, the version agreed, and the URL pointed at an
+                # asset that had never been uploaded — a 404 on the front page.
+                # Whether the asset EXISTS is a network fact this check cannot
+                # know by design (it runs offline); that the filename agrees is
+                # the half that can be checked here.
+                dm_file = str(dm.get("file", ""))
+                if dm_file and dm_file not in readme_text:
+                    err(
+                        f"README demo link does not reference {dm_file}, the file "
+                        "the capture produced"
+                    )
+                else:
+                    good(f"README demo link matches the captured demo (v{dm_short})")
                 cur = [int(x) for x in ver.group(1).split(".")]
                 got = [int(x) for x in dm_short.split(".")]
                 # Distance in minors, treating a major bump as far behind.
