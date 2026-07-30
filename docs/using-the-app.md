@@ -33,6 +33,51 @@ actions. A correction requires the preferred answer. Each response can be rated
 once; the choice is stored with the conversation and appended to
 `LocalState\training\samples.jsonl`. Cancelled/partial responses cannot be rated.
 
+## Model tiers: chat, coding, thinking
+
+The catalogue is not one model in several sizes. Three kinds behave differently
+in ways you will notice, and the picker does not explain them:
+
+- **Chat** (the default, LFM2.5-350M, and the larger LFM2.5-1.2B / LFM2-2.6B) —
+  a 2048-token context. This is what a first launch gives you.
+- **Coding** (`qwen25-coder-0.5b` / `-1.5b` / `-3b`) — the same UI, but the
+  session opens a **4096-token** context, because the point of the tier is
+  pasting real source. That is the only difference you set: there is no separate
+  mode to switch on, the model's catalogue entry carries it.
+- **Thinking** (`lfm25-1.2b-thinking`) — reasons before answering. You **see the
+  reasoning stream on screen while it generates**, and the message that is kept
+  when it finishes holds only the final answer. The chain of thought is not
+  saved to the conversation.
+
+Two consequences of the thinking tier worth knowing before you blame the app:
+
+- If the model spends its whole token budget reasoning and never reaches an
+  answer, the turn is kept and says so:
+  `(reasoning only — the answer did not fit; raise "Max new tokens" in Settings)`.
+  That is the fix — it is a budget, not a failure.
+- **KV-cache reuse is skipped for thinking models.** The saved conversation holds
+  the stripped answer while the cache holds the full reasoning, so the two can
+  never match on the way back; reusing it would be wrong rather than fast.
+  Returning to a thinking conversation therefore re-reads it, and the first turn
+  after a switch is slower than it would be on a chat model.
+
+## When the context fills up
+
+Every model has a fixed context, and a long conversation eventually exceeds it.
+What happens then is deliberate, and only one half of it is visible:
+
+- **Old turns stop being sent.** The oldest turns are dropped from what the model
+  sees so the newest ones and your reply still fit. **They stay on your screen** —
+  the conversation is not edited — so the model can appear to forget something you
+  can still read. Starting a new conversation is the way to clear it.
+- **The reply keeps its room.** The prompt is budgeted so that the answer you
+  asked for still fits alongside it, rather than being cut short in silence once
+  the context is nearly full.
+- **A single message longer than the whole context is refused**, not truncated:
+  `prompt too long: N tokens exceed n_ctx=M — shorten the message or start a new
+chat`. On a coding session that ceiling is 4096 tokens, roughly 13 KB of dense
+  source.
+
 ## Settings (`[S]`)
 
 - **Model** — ComboBox populated from the model catalogue

@@ -400,6 +400,93 @@ def main() -> int:
                 f"autopilot ops ({len(ops)}) — validator table and ApRun branches agree"
             )
 
+    # --- console gates: what runs vs what the runbook describes ---
+    #
+    # Same shape as the autopilot-ops check above, one axis over. The gates are
+    # the release contract — every release note cites "9/9 PASS" — but the
+    # runbook is the only place that says what each one ASSERTS, and it had
+    # drifted to describing four of nine. A gate that fails without a written
+    # contract sends the operator to read shell.
+    #
+    # Read from the script, not repeated here, for the same reason as kOps.
+    vc = (ROOT / "scripts/validate-console.sh").read_text(encoding="utf-8")
+    gates = set(re.findall(r"^(\w+)\) run_gate ", vc, re.M))
+    runbook = (ROOT / "docs/console-validation-runbook.md").read_text(encoding="utf-8")
+    # Scope the parse to the gate list itself — from the sentence that introduces
+    # it to the next heading. The file has other bolded bullet lists (the
+    # failure-class breakdown below it, whose leads are "autopilot" / "marker" /
+    # "timeout"), and reading the whole document takes those for gate names.
+    section = re.search(r"hardware gates pass:\n(.*?)\n#", runbook, re.S)
+    if not section:
+        err(
+            "console-validation-runbook.md: the sentence introducing the gate list moved"
+        )
+    section_text = section.group(1) if section else ""
+    # `gguf` is written "GGUF chat" and `taesd` "TAESD", so match case-insensitively
+    # on the bolded lead word rather than requiring the shell identifier verbatim.
+    documented = {
+        m.lower() for m in re.findall(r"^- \*\*([A-Za-z]+)", section_text, re.M)
+    }
+    if not gates:
+        err("validate-console.sh: no `<name>) run_gate` arms found")
+    else:
+        undocumented = sorted(g for g in gates if g.lower() not in documented)
+        for g in undocumented:
+            err(
+                f"console gate '{g}' runs but docs/console-validation-runbook.md does not describe it"
+            )
+        # The other direction: a gate described in the runbook that no longer
+        # exists sends an operator to run something that will just print usage.
+        # `api` is documented on purpose and lives in validate-api.sh.
+        doc_only = sorted(
+            d
+            for d in documented
+            if d not in {g.lower() for g in gates} and d not in {"api"}
+        )
+        for d in doc_only:
+            err(
+                f"the runbook describes a '{d}' gate that validate-console.sh does not run"
+            )
+        if not undocumented and not doc_only:
+            good(
+                f"console gates ({len(gates)}) — runbook describes every gate that runs"
+            )
+
+    # --- every tracked top-level directory appears in the AGENTS.md map ---
+    #
+    # AGENTS.md calls itself the file-level map for agents and contributors, so a
+    # directory missing from it is invisible to exactly the readers it is for.
+    # `demo/` arrived with the capture pipeline and was absent from both trees.
+    #
+    # The exemptions are deliberate omissions, and they carry their reason here
+    # rather than in someone's memory (same rule as `cli.cpp` above).
+    # (`llama.cpp` needs no exemption: it is a submodule, so `git ls-files`
+    # reports it as one gitlink entry with no path separator and it never reaches
+    # this set. Adding it anyway is what the stale-exemption check below caught.)
+    tree_exempt = {
+        "vendor",  # patched-DLL overlay, owned by vendor-lifecycle-plan.md
+        ".github",  # CI, described in the workflows section instead of the tree
+    }
+    agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    r = subprocess.run(
+        ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=False
+    )
+    top_dirs = {
+        p.split("/", 1)[0] for p in r.stdout.splitlines() if "/" in p
+    } - tree_exempt
+    missing_dirs = sorted(d for d in top_dirs if f"{d}/" not in agents)
+    for d in missing_dirs:
+        err(f"tracked directory {d}/ does not appear in the AGENTS.md map")
+    stale_tree_exempt = sorted(
+        d
+        for d in tree_exempt
+        if d not in {p.split("/", 1)[0] for p in r.stdout.splitlines() if "/" in p}
+    )
+    for d in stale_tree_exempt:
+        err(f"tree_exempt lists {d}/, which is no longer a tracked directory")
+    if not missing_dirs and not stale_tree_exempt:
+        good(f"AGENTS.md maps every tracked top-level directory ({len(top_dirs)})")
+
     # --- benchmark summary ---
     r = subprocess.run(
         [

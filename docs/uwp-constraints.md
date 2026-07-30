@@ -599,6 +599,36 @@ vcxproj, and a `TargetDeviceFamily` in the manifest are all compile-time or
 install-time facts, and none of the three implies the type can be activated on
 the device in front of you.
 
+### §10c — A second `ContentDialog` kills the process, silently (2026-07-30)
+
+XAML allows exactly **one** `ContentDialog` open per `XamlRoot`. Showing a second
+throws. That alone would be ordinary — the trap is where the exception lands.
+
+Every dialog in this app is opened from a `winrt::fire_and_forget` coroutine, and
+`fire_and_forget`'s promise implements `unhandled_exception()` as
+**`std::terminate()`**. So the failure is not an exception you can catch at the
+call site and not an error on screen: the process disappears. No `xllama.log`
+line, no crash dialog, and — because the autopilot marker is written by the app
+itself — **no `autopilot-done.txt`**. From the host side that is indistinguishable
+from a hung run, so an automated gate reports a timeout for what is actually an
+instant death, and the operator goes looking for a deadlock that is not there.
+
+It stayed unreachable for a long time by accident, not by design: the first-run
+disclaimer was the only programmatic dialog, and every gate script seeds it away.
+The `show_pane` autopilot op made it reachable, which is how it was found.
+
+The guard is an `std::atomic<bool>` owned by `MainPageController` (`m_pane_open`),
+set from the dialog's `Opened` / `Closed` events by `ApTrackDialog`, and checked
+before opening a pane: a collision now fails with a readable `error:` in the
+marker instead of taking the process with it. Verified by running `show_pane`
+under the unaccepted disclaimer — the only collision actually reachable today.
+
+**The rule this generalises to:** in a `fire_and_forget` that touches XAML, an
+uncaught throw is a process kill, not an error path. Anything that can throw
+there needs either a guard before it or a `try`/`catch` inside it. Prefer the
+guard, because a caught exception still leaves the UI in whatever state the
+half-finished coroutine left it.
+
 ## 11. GPU Truth — EP Attribution Without PIX
 
 PIX for Xbox is GDK tooling gated behind the managed partner program; it is **not available for Dev Mode UWP**. GPU-vs-CPU execution truth is instead established by converging three surfaces (all verified against primary sources, ORT GenAI 0.13.2 / ORT 1.24.4):

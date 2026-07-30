@@ -164,6 +164,54 @@ prompt, label}` it finds, and `name` precedes `label`, so `show_pane` sharing
 
 ### Fixed
 
+- **Five of the nine console gates had no written contract.**
+  `docs/console-validation-runbook.md` is the SSOT for the release gates and
+  described four of them: `longchat`, `kvsnap`, `coderpaste`, `thinkcut` and
+  `genroom` appeared nowhere, while every release note cites "9/9 PASS". A gate
+  that fails without a stated assertion sends the operator to read shell. The
+  five entries are derived from the assertions in `validate-console.sh`, not
+  re-invented, and `check-coherence.py` now compares the documented set against
+  the `run_gate` arms **in both directions** — an undocumented gate and a
+  documented gate that no longer runs are both errors. Both directions were
+  proved by breaking them. Same shape as the autopilot-op check, one axis over.
+- **`docs/launch-copy.md` published a test count 16 cases stale.** That file is
+  the list of facts that may be cited outside the repo, and it claimed "176 host
+  test cases" against an actual 192, plus a scale figure (~17.5k lines / 80
+  files) with no stated definition and no way to re-derive it. Every countable
+  figure there now carries the command that produces it, and the suite size is
+  guarded in CI: `build-linux.yml` compares the published number against what
+  doctest reports, right after `ctest`. It has to live there rather than in
+  `check-coherence.py`, which is offline — `grep -c TEST_CASE` returns **199**
+  against the binary's 192 because seven cases sit behind `#if`, so a static
+  count would be confidently wrong.
+- **The user guide never mentioned the tiers the current release shipped.**
+  `docs/using-the-app.md` owns end-user behaviour and said nothing about coding
+  or thinking models or the context budget — Phase 14, shipped in 1.5.2.0 and
+  covered by three console gates. Engineers had it (`architecture.md`,
+  `model-matrix.md`); users did not, which is exactly the split `docs/README.md`
+  principle 3 exists to serve. Added: what the tiers change (a 4096-token context
+  on coding sessions), what a thinking model looks like on screen (reasoning
+  streams, only the answer is kept, and KV reuse is skipped so returning to that
+  conversation is slower), and what happens when the context fills — old turns
+  stop being sent **while staying on screen**, so the model can appear to forget
+  something still readable.
+- **The platform trap that kills the process was only in the changelog.** A
+  second `ContentDialog` throws inside a `fire_and_forget`, whose
+  `unhandled_exception()` is `std::terminate()` — no log line, no marker, and a
+  host-side timeout for what is an instant death. `uwp-constraints.md` §10c now
+  carries it with the general rule (an uncaught throw in a XAML coroutine is a
+  process kill, not an error path), because a lookup surface is where the next
+  person will go and history is not.
+- **`demo/` existed in neither repository map**, though it holds the demo script
+  that makes the capture reviewable. Added to `README.md` and `AGENTS.md`, and
+  `check-coherence.py` now requires every tracked top-level directory to appear
+  in the `AGENTS.md` map, with the deliberate omissions (`vendor/`, `.github/`)
+  listed with their reasons and themselves checked for staleness — which is how
+  a fourth, unnecessary exemption was caught.
+- Two SSOT lines that disagreed with their own files: `phase7-hypotheses.md` §H3
+  still summarised itself as "precondition passes" while its body carried the
+  full pre-gate verdict that split the hypothesis, and `store-readiness.md` was
+  dated before the screenshots it records two sections later.
 - **The README's demo link pointed at a release asset that had never been
   uploaded.** A stale link was replaced with a broken one. The asset is now on
   `v1.5.2.0`, verified by downloading it and comparing bytes — the first check

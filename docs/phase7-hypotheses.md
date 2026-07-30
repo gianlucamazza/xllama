@@ -212,10 +212,14 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
 - **Claim:** ≥1.4× perceived tok/s on target without more average bandwidth.
 - **PASS:** ≥1.4× on 1.7B+ with same quality.
 - **FAIL:** Overhead &gt; gain on 6 cores.
-- **Status:** Open — **precondition PASSES on the intended pair** (2026-07-29).
-  Not in `LlamaSession` yet. Dependency forks are available and explicitly in
-  scope if H3 or a measured kernel/repack bottleneck requires changes below
-  xllama's API layer.
+- **Status:** Open — **split by the pre-gate** (2026-07-29). The precondition
+  passes on the intended pair, and the predeclared A/B then **rejected the
+  draft-model variant** (1.43× on code but **0.81× on open chat**) and **admitted
+  the draft-free prompt lookup at k=2** (1.53× / 1.00×). What remains open is the
+  implementation, tracked as Phase 15 W2 (#210); it is not in `LlamaSession` yet.
+  Both verdicts, and the cost model they rest on, are below. Dependency forks are
+  available and explicitly in scope if H3 or a measured kernel/repack bottleneck
+  requires changes below xllama's API layer.
 
   The pin gates speculation on `common_speculative_are_compatible`
   (`common/speculative.cpp:64`) and **throws** when it fails, so vocab identity

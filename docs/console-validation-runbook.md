@@ -41,6 +41,49 @@ hardware gates pass:
   `smollm2-360m-cpu-int4` in LocalState; `set_taesd` / `set_system_prompt` need
   an app build >= 1.4.0.632, the rest >= 1.4.0.606);
 - **GGUF chat** — the default LFM model loads through llama.cpp and generates;
+- **longchat** (#169) — a chat whose history exceeds the trimmer ceiling is
+  injected, then run with KV reuse. Trimmed rounds must stay in the reuse regime
+  (prefill = the delta, not the ~1800 tokens of the whole history), and when the
+  resident KV overflows `n_ctx` the session must front-drop-evict and carry on.
+  Three log assertions, and two of them are negative: a `context shift — evicted`
+  line must appear, and neither `retrying with full prefill` nor `context full`
+  may. A continuation that silently falls back to a full re-prefill still answers
+  correctly, which is why the gate reads the log rather than the reply;
+- **kvsnap** (#170b) — leave a conversation, come back, and the history must not
+  be re-read: the snapshot written on the way out is restored on the way back and
+  the #170a prefix diff turns it into a delta. Beyond the two log lines
+  (`KV state saved`, `KV snapshot restored`) the gate compares **prompt-token
+  counts**: the returning turn must prefill under a quarter of the cold turn. A
+  snapshot that is written, restored and then ignored passes both log checks and
+  fails this one. The injected history is deliberately kept **under** the trimmer
+  budget, so a trim cannot muddy the signal with #169's shift;
+- **coderpaste** (#193) — a long paste on a coding session (`n_ctx` 4096), in two
+  regimes and two runs, on `qwen25-coder-0.5b`. **A**: past the 2048 logical
+  batch but inside `n_ctx` → the prefill must chunk and answer normally.
+  **B**: past `n_ctx` → the app must refuse with `prompt too long` and stay
+  alive. What this pins is an abort, not an error: `llama_decode` asserts
+  `n_tokens <= n_batch` with `GGML_ABORT` in Release too, so the old failure
+  killed the process. A dead app never writes `autopilot-done.txt`, so the
+  missing marker is itself the assertion;
+- **thinkcut** (#193) — a thinking model (`lfm25-1.2b-thinking`) that spends its
+  whole budget reasoning postprocesses to an empty answer, and the turn used to
+  vanish: nothing saved, the streamed chain of thought orphaned on screen, status
+  `Done`. The gate asserts both halves — `postprocess left no answer` in the log,
+  **and** the conversation on disk still ending in an assistant turn carrying the
+  explicit `reasoning only` stand-in. If the reasoning block is never truncated
+  the gate fails on purpose: either `n_predict` is too generous or the model
+  emits no `<think>` at all, which would make the whole strip a no-op. Investigate
+  it; do not relax it;
+- **genroom** (#193) — a full context must still leave room for the whole reply.
+  The trimmer ceiling used to reserve a flat 250 tokens while the UI default
+  `n_predict` is 512, and the generation loop clamps `n_predict` to what the
+  context has left, so a prompt on the old ceiling got a reply cut at ~248 tokens
+  in silence. The gate asserts the **arithmetic** — `prefill + n_predict <=
+n_ctx` — rather than the answer's length, which keeps the verdict independent
+  of whether a small model feels talkative. Two preconditions guard against a
+  vacuous pass: the `prompt budget:` line must be present (or the exact fit never
+  ran) and something must actually have been dropped (or the payload never filled
+  the context);
 - **TAESD** — image generation completes through DirectML with the fast VAE.
   This gate swaps `vae_decoder/model.onnx` from a local cache rather than
   flipping the in-app toggle: the toggle makes the console download the asset
@@ -93,6 +136,11 @@ Run an individual gate while debugging:
 ./scripts/validate-console.sh routing
 ./scripts/validate-console.sh settings
 ./scripts/validate-console.sh gguf
+./scripts/validate-console.sh longchat
+./scripts/validate-console.sh kvsnap
+./scripts/validate-console.sh coderpaste
+./scripts/validate-console.sh thinkcut
+./scripts/validate-console.sh genroom
 ./scripts/validate-console.sh taesd
 ./scripts/validate-api.sh all          # spike + chat + prefs + train
 ./scripts/validate-console-training.sh rate   # preference UI path

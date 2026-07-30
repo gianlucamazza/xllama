@@ -191,6 +191,7 @@ xllama/
 ├── training/         # jobs, host PEFT, datasets
 ├── bench/            # raw results + summary policy
 ├── diffusion/        # SD-Turbo host toolchain
+├── demo/             # demo-script.json — the recorded demo, as data
 ├── scripts/          # deploy, bench, validate, package
 ├── tests/            # doctest (xllama-tests)
 ├── docs/             # SSOT map: docs/README.md

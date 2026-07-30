@@ -64,7 +64,7 @@ xllama/
 │   ├── deploy.sh                      # Device Portal: deploy, logs, bench trigger
 │   ├── build-uwp.ps1                  # Windows UWP packaging script
 │   ├── bench-xbox-ort.sh              # benchmark runner (run_index, multi-run)
-│   ├── validate-console.sh            # autopilot: routing / settings / GGUF / TAESD
+│   ├── validate-console.sh            # autopilot: the 9 console gates (docs/console-validation-runbook.md)
 │   ├── validate-console-training.sh   # rate / serve / device-train
 │   ├── validate-api.sh                # LAN: spike|chat|prefs|train|all
 │   ├── generate-benchmark-summary.py  # raw results → docs table + dashboard
@@ -72,6 +72,9 @@ xllama/
 │   └── …
 ├── tests/                   # Unit tests (doctest; incl. test_personalize)
 ├── bench/                   # configs, raw results, summary policy
+├── demo/                    # demo-script.json — what the capture records, reviewable in a PR
+├── diffusion/               # SD-Turbo → ONNX host toolchain (not shipped in the MSIX)
+├── patches/                 # AppContainer / runtime patches applied at build time
 ├── cmake/
 └── .github/workflows/       # build-linux.yml + build-uwp.yml
 ```
