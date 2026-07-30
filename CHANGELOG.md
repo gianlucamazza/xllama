@@ -78,7 +78,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   176 → 191. `check-coherence.py` now reads the op table out of `autopilot.cpp`
   instead of holding a third copy, and asserts it against `ApRun`'s branches in
   both directions; both failure modes were verified by deliberately breaking
-  each one.
+  each one. It also asserts that `CMakeLists.txt` and `uwp/xllama.vcxproj`
+  list the same `src/bridge/` sources: they keep separate lists, so adding a
+  source to one and not the other compiles and then fails at **link**, on CI,
+  on Windows, twenty minutes later — which is exactly what `autopilot.cpp`
+  did while the local host build stayed green. `cli.cpp` is the one
+  deliberate exception and now carries its reason next to the rule.
 - **`generate_image` no longer invents a prompt.** An action without one
   silently substituted `"a red sports car on a mountain road at sunset"` — the
   same defect class as the bench guessing its own model and prompt, and with the

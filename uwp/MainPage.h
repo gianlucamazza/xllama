@@ -9,9 +9,9 @@
     #include "inference-bridge.h"
     #include "model-downloader.h"
     #include "pch.h"
+    #include "xllama/autopilot.h"
     #include "xllama/chat_prompt.h"
     #include "xllama/session.h"
-    #include "xllama/autopilot.h"
     #include "xllama/session_hub.h"
 
     #include <atomic>

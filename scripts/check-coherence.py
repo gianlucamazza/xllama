@@ -254,6 +254,48 @@ def main() -> int:
     else:
         warn("xllama-cli not built — skip job validation")
 
+    # --- the two build systems list the same bridge sources ---
+    #
+    # CMakeLists.txt builds the host library and the tests; uwp/xllama.vcxproj
+    # builds the console app. They share src/bridge/ but keep separate lists, so
+    # adding a source to one and not the other compiles and then fails at LINK —
+    # on CI, on Windows, twenty minutes later. That is exactly what happened when
+    # autopilot.cpp was added; the local host build was green throughout.
+    #
+    # Divergence is allowed only where it is deliberate, and the reason belongs
+    # here rather than in someone's memory.
+    host_only = {
+        "cli.cpp",  # xllama-cli argument parsing; the app has no command line
+    }
+    cmake_srcs = set(
+        re.findall(
+            r"src/bridge/([a-z_0-9]+\.cpp)", (ROOT / "CMakeLists.txt").read_text()
+        )
+    )
+    vcx_srcs = set(
+        re.findall(
+            r"src\\bridge\\([a-z_0-9]+\.cpp)",
+            (ROOT / "uwp/xllama.vcxproj").read_text(),
+        )
+    )
+    missing_uwp = sorted(cmake_srcs - vcx_srcs - host_only)
+    missing_host = sorted(vcx_srcs - cmake_srcs)
+    for s in missing_uwp:
+        err(
+            f"src/bridge/{s} is in CMakeLists.txt but not uwp/xllama.vcxproj (link error on CI)"
+        )
+    for s in missing_host:
+        err(
+            f"src/bridge/{s} is in uwp/xllama.vcxproj but not CMakeLists.txt (untested on host)"
+        )
+    stale_exempt = sorted(host_only - cmake_srcs)
+    for s in stale_exempt:
+        err(f"host_only lists {s}, which CMakeLists.txt no longer builds")
+    if not missing_uwp and not missing_host and not stale_exempt:
+        good(
+            f"bridge sources agree across both build systems ({len(cmake_srcs & vcx_srcs)} shared)"
+        )
+
     # --- autopilot ops: the validator's table and the driver's branches ---
     #
     # An op has to exist in two places that cannot see each other: kOps in
