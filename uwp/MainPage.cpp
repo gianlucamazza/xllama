@@ -119,6 +119,17 @@ static std::wstring format_diffuse_stage(const std::string& stage) {
 // IXamlMetadataProvider metadata for xllama types.
 // ---------------------------------------------------------------------------
 
+// Every editable box in this app is reached with a gamepad, and the on-screen
+// keyboard belongs to a deliberate A press — not to focus arriving on its own.
+// Without this, opening a dialog moves focus to its first TextBox and the
+// keyboard slides up over the dialog's own content: measured, it covered the
+// generated image in a Store listing screenshot and the last third of the demo
+// capture.
+static void
+no_keyboard_on_programmatic_focus(winrt::Windows::UI::Xaml::Controls::TextBox const& box) {
+    box.PreventKeyboardDisplayOnProgrammaticFocus(true);
+}
+
 void MainPageController::BuildUI() {
     m_root = Page();
 
@@ -188,7 +199,7 @@ void MainPageController::BuildUI() {
     // the captured video and over the image viewer in a Store screenshot.
     // Pressing A still opens it, because that is user interaction, not
     // programmatic focus.
-    m_promptInput.PreventKeyboardDisplayOnProgrammaticFocus(true);
+    no_keyboard_on_programmatic_focus(m_promptInput);
     m_promptInput.IsFocusEngagementEnabled(true);
     {
         using namespace winrt::Windows::UI::Xaml::Input;
@@ -652,6 +663,7 @@ winrt::fire_and_forget MainPageController::ShowCorrectionDialog(size_t assistant
         co_return;
 
     TextBox correction;
+    no_keyboard_on_programmatic_focus(correction);
     correction.Header(winrt::box_value(L"Preferred answer"));
     correction.AcceptsReturn(true);
     correction.TextWrapping(TextWrapping::Wrap);
@@ -1450,6 +1462,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
 
     // --- System prompt TextBox ---
     winrt::Windows::UI::Xaml::Controls::TextBox sysPromptBox;
+    no_keyboard_on_programmatic_focus(sysPromptBox);
     sysPromptBox.Text(::xllama::utf8_to_wstring(m_system_prompt));
     sysPromptBox.AcceptsReturn(true);
     sysPromptBox.TextWrapping(TextWrapping::Wrap);
@@ -1512,6 +1525,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     apiToggle.IsOn(api_enabled);
 
     winrt::Windows::UI::Xaml::Controls::TextBox apiPortBox;
+    no_keyboard_on_programmatic_focus(apiPortBox);
     apiPortBox.Header(winrt::box_value(L"LAN API port (1025–49151, except 11443)"));
     apiPortBox.Text(std::to_wstring(api_port));
     apiPortBox.IsEnabled(api_enabled);
@@ -1956,6 +1970,7 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
     panel.Children().Append(lastSeed);
 
     winrt::Windows::UI::Xaml::Controls::TextBox promptBox;
+    no_keyboard_on_programmatic_focus(promptBox);
     promptBox.Header(winrt::box_value(L"Image prompt"));
     promptBox.Text(L"a red sports car on a mountain road at sunset");
     promptBox.TextWrapping(TextWrapping::Wrap);
@@ -1972,6 +1987,7 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
     panel.Children().Append(stepsSlider);
 
     winrt::Windows::UI::Xaml::Controls::TextBox seedBox;
+    no_keyboard_on_programmatic_focus(seedBox);
     seedBox.Header(winrt::box_value(L"Seed (0 = random)"));
     seedBox.Text(std::to_wstring(self->m_diffuse_seed));
     seedBox.InputScope([] {
