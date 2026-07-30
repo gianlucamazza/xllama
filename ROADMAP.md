@@ -426,7 +426,7 @@ was built on — which was the point of ordering them this way.
   with the result attached and enters no product tier; the 3.5 GB product-gate
   question a speed PASS would have opened is moot.
 
-- [~] **W2 — H3: speculative decoding.** Both halves of the pair already ship and
+- [~] **W2 — H3: speculative decoding (#210).** Both halves of the pair already ship and
   are console-PASS: draft `qwen25-coder-0.5b` (379 MB, 62.4 tok/s), target
   `qwen25-coder-3b` (1840 MB, 14.0). **Vocab precondition measured and
   PASSED 2026-07-29** (`bench/results/phase15-spec-vocab.csv`): the pin's
@@ -458,7 +458,7 @@ was built on — which was the point of ordering them this way.
   peak < 3.5 GB; `longchat` and `kvsnap` are the real regression tests, since
   the draft touches the KV.
 
-- [ ] **W3 — H6 gate: does our own compute shader beat DirectML?** Not a backend
+- [ ] **W3 — H6 gate: does our own compute shader beat DirectML? (#211)** Not a backend
       — a measurement. Every negative GPU result on record is a DirectML result,
       and DirectML provably has no fused low-bit GEMM (`DML_DEQUANTIZE` + full
       `DML_GEMM` materializes fp16 and reads _more_ bandwidth than fp16 itself).

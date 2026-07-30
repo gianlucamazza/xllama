@@ -1,6 +1,6 @@
 # xllama
 
-> Local LLM chat + Stable-Diffusion image generation on Xbox Series S|X (UWP Dev Mode) — ONNX Runtime GenAI + DirectML.
+> Local LLM chat + Stable-Diffusion image generation on Xbox Series S|X (UWP Dev Mode) — llama.cpp (GGUF) + ONNX Runtime GenAI, CPU and DirectML.
 
 [![build-uwp](https://github.com/gianlucamazza/xllama/actions/workflows/build-uwp.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-uwp.yml)
 [![build-linux](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml)
@@ -275,9 +275,9 @@ numbers:** [docs/benchmarks.md](./docs/benchmarks.md) only.
 | ------------------------------------ | --------------------------------------------------- |
 | Default chat (unified)               | `lfm25-350m`                                        |
 | Balanced / quality chat              | `lfm25-1.2b-instruct`, `lfm2-2.6b`                  |
-| Coding chat (GGUF · n_ctx 4096)      | `qwen25-coder-0.5b` / `1.5b` / `3b`                  |
-| Chat upgrade (Qwen3)                 | `qwen3-1.7b`                                         |
-| Reasoning (think stripped for UI)    | `lfm25-1.2b-thinking`                                |
+| Coding chat (GGUF · n_ctx 4096)      | `qwen25-coder-0.5b` / `1.5b` / `3b`                 |
+| Chat upgrade (Qwen3)                 | `qwen3-1.7b`                                        |
+| Reasoning (think stripped for UI)    | `lfm25-1.2b-thinking`                               |
 | ORT CPU / DML routing base           | `smollm2-360m-cpu-int4`, `smollm2-360m-dml-fp16-v2` |
 | Image gen                            | `sd-turbo-fp16`                                     |
 | Personalized (after on-device train) | `personalized` (LocalState override)                |
