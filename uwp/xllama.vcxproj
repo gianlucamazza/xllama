@@ -202,6 +202,30 @@
     <Midl Include="xllama.idl" />
   </ItemGroup>
 
+  <!-- =====================================================================
+       Desktop Extension SDK — Windows.Media.AppRecording only
+       =====================================================================
+       AppRecordingManager (an app recording its own audio/video through the
+       SoC video encoder) lives in the Desktop extension, not the Universal
+       contract, so without this reference the CppWinRT NuGet generates no
+       projection for the namespace. Including the Windows SDK's own
+       winrt/Windows.Media.AppRecording.h instead does NOT work and is not a
+       shortcut worth trying: that header is stamped with the cppwinrt version
+       that shipped in SDK 22621, while base.h comes from
+       Microsoft.Windows.CppWinRT 2.0.240405.15, and mixing them trips
+       static_assert "Mismatched C++/WinRT headers" plus ~100 follow-on errors
+       (measured on CI, run 30542782897).
+
+       This adds no manifest dependency: an API-contract extension SDK only
+       contributes metadata at compile time. The contract may be absent at
+       runtime — AppxManifest.xml already declares the Windows.Desktop target
+       device family, but declaring it is not the same as the contract being
+       present on a given console — so every use MUST be guarded with
+       ApiInformation::IsTypePresent. App.cpp does exactly that. -->
+  <ItemGroup>
+    <SDKReference Include="WindowsDesktop, Version=10.0.22621.0" />
+  </ItemGroup>
+
 
   <!-- =====================================================================
        Manifest

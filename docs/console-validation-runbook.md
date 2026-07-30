@@ -68,10 +68,17 @@ state, on a timeout it is alive and stuck, but when the marker says `ok` and onl
 the log grep rejects, the script's closing `quit` has already exited the app and
 just the earlier frame still shows it.
 
-Frames are taken once every third poll (~30 s) rather than every poll, so the
-`taesd` gate's sub-1000 ms VAE assertion is not competing with avoidable work on
-the same SoC. `XLLAMA_GATE_SHOTS=0` disables capture entirely;
-`XLLAMA_GATE_SHOTS_DIR` chooses where the frames land.
+Frames are taken at every poll, except during `taesd` — the one gate that
+asserts a duration (VAE decode under 1000 ms), and a screenshot is GPU work on
+the same SoC. That is a list, not a sampling rate, because sampling less often
+everywhere would only make the collision rarer while halving the evidence for
+the eight gates that time nothing. `taesd` still gets its end-of-run frame, and
+loses nothing it needed: its image-generation failure takes the autopilot
+`error:` path where that frame is the right one, and its `vae_ms` failure is a
+number already in the log that no screenshot improves.
+
+`XLLAMA_GATE_SHOTS=0` disables capture entirely; `XLLAMA_GATE_SHOTS_DIR` chooses
+where the frames land.
 
 Run an individual gate while debugging:
 

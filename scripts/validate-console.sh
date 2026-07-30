@@ -194,36 +194,50 @@ file_absent() {
 #   * marker "ok" but the log grep rejects — every gate script ends with `quit`
 #     and that path does exit, so only the earlier frame still shows the app.
 #
-# One frame per third poll, not per poll: the taesd gate asserts a VAE decode
-# under 1000 ms, and there is no reason to put avoidable work on the same SoC
-# while it is being timed. XLLAMA_GATE_SHOTS=0 disables the whole thing.
+# Which gates take frames DURING the run, and why it is a list rather than a
+# rate. Exactly one gate asserts a duration — taesd, on a VAE decode under
+# 1000 ms — and a screenshot is GPU work on the same SoC. Sampling less often
+# everywhere would not remove that collision, only make it rarer while also
+# halving the evidence for the eight gates that time nothing. So: every poll for
+# the gates with no timing assertion, and none mid-run for taesd.
+#
+# What taesd gives up is nothing it needed. Its two failures are an image
+# generation error, which leaves the app on screen and takes the autopilot
+# "error:" path where the end-of-run frame is the right one anyway; and the
+# vae_ms assertion, whose evidence is a number already in the log that no
+# screenshot improves.
+#
+# XLLAMA_GATE_SHOTS=0 disables capture entirely.
 SHOTS_DIR="${XLLAMA_GATE_SHOTS_DIR:-${TMPDIR:-/tmp}/xllama-gate-shots}"
-RING_TICK=0
+GATES_NO_MIDRUN_SHOTS=" taesd "
+RING_MIDRUN=1
 
 grab_screenshot() {
 	local dest="$1"
 	curl "${CURL_AUTH[@]}" -o "$dest" --fail "${BASE_URL}/ext/screenshot" >/dev/null 2>&1 || return 1
 }
 
-# Called from the poll loop; keeps ring-0.png (older) and ring-1.png (newer).
-ring_tick() {
-	[[ "${XLLAMA_GATE_SHOTS:-1}" == "0" ]] && return 0
-	# Assignment, not ((RING_TICK++)): the post-increment of 0 evaluates to 0,
-	# which is a non-zero exit status, which `set -e` would take as a failure.
-	RING_TICK=$((RING_TICK + 1))
-	((RING_TICK % 3 == 0)) || return 0
+_ring_grab() {
 	[[ -f "${TMPDIR_LOCAL}/ring-1.png" ]] &&
 		mv -f "${TMPDIR_LOCAL}/ring-1.png" "${TMPDIR_LOCAL}/ring-0.png"
 	grab_screenshot "${TMPDIR_LOCAL}/ring-1.png" || rm -f "${TMPDIR_LOCAL}/ring-1.png"
 	return 0
 }
 
+# Called from the poll loop; keeps ring-0.png (older) and ring-1.png (newer).
+ring_tick() {
+	[[ "${XLLAMA_GATE_SHOTS:-1}" == "0" ]] && return 0
+	((RING_MIDRUN == 1)) || return 0
+	_ring_grab
+}
+
 ring_reset() { rm -f "${TMPDIR_LOCAL}/ring-0.png" "${TMPDIR_LOCAL}/ring-1.png"; }
 
-# Unconditional grab (ignores the 1-in-3 cadence), for the moment a run ends.
+# The frame for the moment a run ends. Taken for every gate, including the ones
+# that skip mid-run frames — by then there is nothing left to perturb.
 ring_tick_now() {
-	RING_TICK=2
-	ring_tick
+	[[ "${XLLAMA_GATE_SHOTS:-1}" == "0" ]] && return 0
+	_ring_grab
 }
 
 # Persist whatever the ring holds. Called only on a failing gate.
@@ -1317,6 +1331,13 @@ PY
 # One place where a gate's exit status decides whether its screenshots are kept.
 run_gate() {
 	local name="$1" fn="$2" rc=0
+	RING_MIDRUN=1
+	[[ "$GATES_NO_MIDRUN_SHOTS" == *" ${name} "* ]] && RING_MIDRUN=0
+	# Drop this gate's frames from a PREVIOUS invocation before running it. A
+	# gate that now passes would otherwise leave yesterday's failure sitting in
+	# SHOTS_DIR, and the next person to look would read it as evidence of the
+	# run they just did.
+	rm -f "${SHOTS_DIR}/${name}-"*.png
 	"$fn" || rc=$?
 	((rc != 0)) && save_fail_shots "$name"
 	return $rc

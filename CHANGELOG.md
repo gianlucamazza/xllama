@@ -9,9 +9,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **The app now reports whether a self-recording API exists on this console.**
-  One `[caprec]` line in `xllama.log` per interactive launch, with
-  `IsTypePresent` for `AppRecordingManager` and for `GraphicsCaptureSession`.
+- **The app now reports whether it can record its own output.** One `[caprec]`
+  line in `xllama.log` per interactive launch: `CanRecord`, `CanRecordTimeSpan`
+  and the nine reason flags from `AppRecordingManager.GetStatus().Details()`,
+  plus whether `GraphicsCaptureSession` (the other self-capture route, and a
+  Universal-contract type) exists here.
   The demo pipeline rebuilds a video from Device Portal screenshots at 1 Hz, and
   that 1 Hz is a `sleep 1` in `capture-demo-video.sh` rather than a measured
   limit — so before optimising a slideshow, establish whether native recording
@@ -19,17 +21,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `AppRecordingManager` uses the SoC video encoder, whereas a software encoder in
   this process would compete with the very inference a demo exists to show, on
   ~6 usable cores with a livelock at 7-8.
-  The probe answers only the cheap half of the question, on purpose. Reading
-  `CanRecord` and its reason flags needs the C++/WinRT projection for the
-  namespace, and this project compiles against NuGet-generated projections, so
-  including the SDK's own `AppRecording` header alongside them yields
-  "Mismatched C++/WinRT headers" and ~100 errors — measured on CI, not guessed.
-  Getting that half therefore means adding a **Desktop Extension SDK reference**
-  to the shipping app's project file, a real change to its dependency surface.
-  `IsTypePresent` takes a string and needs no projection, so "is the type even
-  registered on Xbox" is free: if it is absent the question is closed and the
-  dependency is never paid for. Probed after `Activate()`, since recording needs
-  a live window and `IsAppInactive` would read true before it.
+  This required an **SDKReference to the Desktop extension** in
+  `uwp/xllama.vcxproj`: the namespace is not in the Universal contract, so the
+  CppWinRT NuGet generates no projection for it, and substituting the Windows
+  SDK's own `AppRecording` header is not an alternative — that header is stamped
+  with the cppwinrt version from SDK 22621 while `base.h` comes from CppWinRT
+  2.0.240405.15, which trips `static_assert "Mismatched C++/WinRT headers"` plus
+  ~100 follow-on errors (measured on CI, not guessed). The reference adds no
+  manifest dependency; an API-contract extension SDK only contributes compile-time
+  metadata, and the contract may still be absent at runtime, so the call is
+  guarded with `ApiInformation::IsTypePresent`. Probed after `Activate()`, since
+  recording needs a live window and `IsAppInactive` would read true before it.
 - **Autopilot op `mark`** — a rendez-vous for screenshot capture. The app writes
   a label to `LocalState\autopilot-mark.txt` and blocks; the host polls for the
   file, takes its Device Portal screenshot, and deletes the file to release the
@@ -48,11 +50,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `ApRun` writes the marker _without_ exiting so the app is still showing the
   break, on a timeout it is alive and stuck, but when the marker says `ok` and
   only the log grep rejects, the script's closing `quit` has already exited the
-  app and just the earlier frame still shows it. One frame per third poll
-  (~30 s), not per poll, because the `taesd` gate asserts a VAE decode under
-  1000 ms and there is no reason to add avoidable work on the same SoC while it
-  is being timed. `XLLAMA_GATE_SHOTS=0` disables it; `XLLAMA_GATE_SHOTS_DIR`
-  moves the output, which stays outside the repo.
+  app and just the earlier frame still shows it. Frames are taken at every poll
+  except during `taesd`, the one gate that asserts a duration (VAE decode under
+  1000 ms) while a screenshot is GPU work on the same SoC — a list rather than a
+  sampling rate, because sampling less often everywhere would only make that
+  collision rarer while halving the evidence for the eight gates that time
+  nothing. `taesd` keeps its end-of-run frame and gives up nothing it needed.
+  `XLLAMA_GATE_SHOTS=0` disables it; `XLLAMA_GATE_SHOTS_DIR` moves the output,
+  which stays outside the repo.
 
 ### Changed
 

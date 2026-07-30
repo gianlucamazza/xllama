@@ -124,23 +124,54 @@ wait_for_mark() {
 # The app has confirmed the state; take the frame, then release it.
 release_mark() { delete_file "autopilot-mark.txt"; }
 
-# Autopilot script. Each `mark` is a state we want a frame of; the labels here
-# are the filenames that come out.
-cat >"${WORK}/autopilot.json" <<JSON
+# The listing states, in order: what the app is made to do, and the label that
+# becomes the filename. One source — the JSON below is generated from this, and
+# the host waits for exactly this many parks. Deriving the count by grepping the
+# generated JSON would be two representations of one fact, and the failure would
+# be silent: one too many and the run hangs for a full timeout after finishing.
+STATES=(
+	"01-chat-answer|send|What can you do on this console?"
+	"02-chat-multiturn|send|Now in one line."
+	"03-image|generate_image|pixel art robot, simple colors"
+)
+
+json_escape() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+
 {
-  "total_timeout_s": 1500,
-  "actions": [
-    {"op": "set_model", "name": "${MODEL}"},
-    {"op": "new_chat"},
-    {"op": "send", "text": "What can you do on this console?", "timeout_s": 300},
-    {"op": "mark", "label": "01-chat-answer", "timeout_s": 180},
-    {"op": "send", "text": "Now in one line.", "timeout_s": 300},
-    {"op": "mark", "label": "02-chat-multiturn", "timeout_s": 180},
-    {"op": "generate_image", "prompt": "pixel art robot, simple colors", "steps": 1, "seed": 42, "timeout_s": 600},
-    {"op": "mark", "label": "03-image", "timeout_s": 180}
-  ]
-}
-JSON
+	printf '{\n  "total_timeout_s": 1500,\n  "actions": [\n'
+	printf '    {"op": "set_model", "name": "%s"},\n' "$(json_escape "$MODEL")"
+	printf '    {"op": "new_chat"}'
+	for state in "${STATES[@]}"; do
+		IFS='|' read -r label op payload <<<"$state"
+		case "$op" in
+		send)
+			printf ',\n    {"op": "send", "text": "%s", "timeout_s": 300}' \
+				"$(json_escape "$payload")"
+			;;
+		generate_image)
+			printf ',\n    {"op": "generate_image", "prompt": "%s", "steps": 1, "seed": 42, "timeout_s": 600}' \
+				"$(json_escape "$payload")"
+			;;
+		*)
+			echo "Unknown op in STATES: $op" >&2
+			exit 1
+			;;
+		esac
+		printf ',\n    {"op": "mark", "label": "%s", "timeout_s": 180}' "$(json_escape "$label")"
+	done
+	printf '\n  ]\n}\n'
+} >"${WORK}/autopilot.json"
+
+# The app rejects malformed JSON with "bad autopilot.json", which would surface
+# as a mystery timeout on the host. Catch it here, where the message is useful.
+if command -v jq >/dev/null 2>&1; then
+	jq -e . "${WORK}/autopilot.json" >/dev/null || {
+		echo "Error: generated autopilot.json is not valid JSON" >&2
+		cat "${WORK}/autopilot.json" >&2
+		exit 1
+	}
+fi
+
 printf 'go' >"${WORK}/autopilot.flag"
 
 echo "==> Model ${MODEL}, output ${OUT_DIR}"
@@ -156,10 +187,7 @@ upload_file "${WORK}/autopilot.json"
 upload_file "${WORK}/autopilot.flag"
 restart_app
 
-# How many times to expect a park, read from the script we just wrote rather
-# than hardcoded: waiting for one more mark than exists would hang for the whole
-# timeout at the end of an otherwise successful run.
-n_marks=$(grep -c '"op": "mark"' "${WORK}/autopilot.json")
+n_marks=${#STATES[@]}
 echo "==> Waiting for ${n_marks} states"
 
 captured=0

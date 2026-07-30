@@ -13,6 +13,7 @@
 #ifndef XLLAMA_STORE_SKU
 #include "api-server.h"
 #include <winrt/Windows.Foundation.Metadata.h>
+#include <winrt/Windows.Media.AppRecording.h>
 #endif
 // clang-format on
 
@@ -75,42 +76,64 @@ static void log_write(const char* msg) {
 // (docs/uwp-constraints.md).
 //
 // Whether it works here is genuinely unknown and is NOT assumed in either
-// direction. There are two separate unknowns, and this probe deliberately
-// answers only the cheap one:
+// direction. There are two separate unknowns and both get answered:
 //
-//   1. is the type even registered on Xbox? AppRecordingManager lives in the
-//      Desktop Extension SDK, not the Universal one;
-//   2. if it is, does Dev Mode allow it? GetStatus() reports a reason rather
-//      than a bare false.
+//   1. is the type registered on this console at all? AppRecordingManager is in
+//      the Desktop extension contract, and declaring the Windows.Desktop target
+//      device family in the manifest does not make that contract present.
+//      IsTypePresent answers it, and is also the mandatory guard: a projection
+//      existing at compile time says nothing about runtime, and touching an
+//      absent extension type throws.
+//   2. if it is, does this environment allow recording? Dev Mode may disable the
+//      capture policy. GetStatus() answers with a reason rather than a bare
+//      false — the difference between "no" and "no, because X".
 //
-// Only (1) is free. Reading GetStatus() needs the C++/WinRT projection for the
-// namespace, and this project compiles against NuGet-generated projections
-// (`/I"Generated Files\"`) which cover the SDKs the vcxproj references —
-// including the SDK's own AppRecording header alongside them produces
-// "Mismatched C++/WinRT headers" and ~100 errors, measured on CI. Getting (2)
-// therefore means adding a Desktop Extension SDK reference to the shipping app's
-// project file, which is a real change to its dependency surface.
+// Reading (2) is why uwp/xllama.vcxproj carries an SDKReference to the Desktop
+// extension: the CppWinRT NuGet only projects namespaces it has metadata for.
+// Substituting the Windows SDK's own AppRecording header is not an alternative;
+// the comment on that SDKReference records what happens if you try.
 //
-// So: ask (1) by name, since IsTypePresent takes a string and needs no
-// projection at all. If the type is absent the question is closed and the
-// dependency is never paid for. Only a present=1 justifies it.
-//
-// GraphicsCaptureSession is checked alongside it because it is the alternative
-// self-capture route and lives in the Universal SDK, so knowing whether it
-// exists here costs one more string comparison.
+// GraphicsCaptureSession is reported alongside because it is the other
+// self-capture route and lives in the Universal contract, so knowing whether it
+// exists here costs one string comparison.
 static void log_app_recording_probe() {
     using winrt::Windows::Foundation::Metadata::ApiInformation;
-    char buf[384];
+    namespace rec = winrt::Windows::Media::AppRecording;
+
+    char buf[640];
     try {
-        const bool rec_present =
-            ApiInformation::IsTypePresent(L"Windows.Media.AppRecording.AppRecordingManager");
         const bool gfx_present =
             ApiInformation::IsTypePresent(L"Windows.Graphics.Capture.GraphicsCaptureSession");
+        if (!ApiInformation::IsTypePresent(L"Windows.Media.AppRecording.AppRecordingManager")) {
+            snprintf(buf, sizeof(buf),
+                     "[caprec] AppRecordingManager absent (Desktop contract not on this device)"
+                     " GraphicsCaptureSession present=%d\n",
+                     gfx_present ? 1 : 0);
+            log_write(buf);
+            return;
+        }
+        auto mgr = rec::AppRecordingManager::GetDefault();
+        if (!mgr) {
+            snprintf(
+                buf, sizeof(buf),
+                "[caprec] type present but GetDefault=null GraphicsCaptureSession present=%d\n",
+                gfx_present ? 1 : 0);
+            log_write(buf);
+            return;
+        }
+        auto status = mgr.GetStatus();
+        auto d = status.Details();
         snprintf(buf, sizeof(buf),
-                 "[caprec] AppRecordingManager present=%d GraphicsCaptureSession present=%d"
-                 " (CanRecord and its reason flags need a Desktop Extension SDK reference,"
-                 " only worth adding if present=1)\n",
-                 rec_present ? 1 : 0, gfx_present ? 1 : 0);
+                 "[caprec] CanRecord=%d CanRecordTimeSpan=%d GraphicsCaptureSession present=%d"
+                 " | disabledByUser=%d disabledBySystem=%d blockedForApp=%d"
+                 " captureResourceUnavailable=%d gpuConstrained=%d appInactive=%d"
+                 " anyAppBroadcasting=%d gameStreamInProgress=%d timeSpanDisabled=%d\n",
+                 status.CanRecord() ? 1 : 0, status.CanRecordTimeSpan() ? 1 : 0,
+                 gfx_present ? 1 : 0, d.IsDisabledByUser() ? 1 : 0, d.IsDisabledBySystem() ? 1 : 0,
+                 d.IsBlockedForApp() ? 1 : 0, d.IsCaptureResourceUnavailable() ? 1 : 0,
+                 d.IsGpuConstrained() ? 1 : 0, d.IsAppInactive() ? 1 : 0,
+                 d.IsAnyAppBroadcasting() ? 1 : 0, d.IsGameStreamInProgress() ? 1 : 0,
+                 d.IsTimeSpanRecordingDisabled() ? 1 : 0);
         log_write(buf);
     } catch (winrt::hresult_error const& e) {
         snprintf(buf, sizeof(buf), "[caprec] hresult 0x%08X: %ls\n",
