@@ -18,7 +18,14 @@
 # torch >= 2.6 and Trainer is unused); Dependabot alert #28 / LightGlue RCE
 # (transformers < 5.5.0) — LightGlue model path is unused (SD-Turbo export only),
 # and optimum-onnx 0.1.0 still caps transformers < 4.58 so a 5.5 bump is blocked
-# until the export stack allows it. Offline, host-only toolchain fed only
+# until the export stack allows it. Dependabot alert #29 / torch `torch.jit.script`
+# memory corruption (<= 2.12.1, fixed 2.13.0) — `torch.jit.script` is called
+# nowhere in this repo, and the legacy exporter this pin exists for reaches
+# TorchScript through `torch.jit.trace` under `torch.onnx.export`, not the
+# scripting front-end; the bump is four minors past the version optimum-onnx
+# 0.1.0 special-cases, so taking it means moving the whole set to the dynamo
+# path (see the NOTE above), not editing one line.
+# Offline, host-only toolchain fed only
 # first-party checkpoints (stabilityai/sd-turbo). Not shipped in the MSIX.
 torch==2.9.1              # legacy torch.onnx tracer via optimum-onnx dynamo=False; --extra-index-url .../whl/cpu
 optimum-onnx[onnxruntime]==0.1.0
