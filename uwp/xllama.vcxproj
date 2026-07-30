@@ -221,8 +221,13 @@
        runtime — AppxManifest.xml already declares the Windows.Desktop target
        device family, but declaring it is not the same as the contract being
        present on a given console — so every use MUST be guarded with
-       ApiInformation::IsTypePresent. App.cpp does exactly that. -->
-  <ItemGroup>
+       ApiInformation::IsTypePresent. App.cpp does exactly that.
+
+       Dev SKU only, matching the single consumer: the probe lives under
+       #ifndef XLLAMA_STORE_SKU, so building the Store SKU against this
+       reference would widen that package's dependency surface for code it does
+       not compile — and that surface is what docs/store-readiness.md tracks. -->
+  <ItemGroup Condition="'$(XllamaStoreSku)' != 'true'">
     <SDKReference Include="WindowsDesktop, Version=10.0.22621.0" />
   </ItemGroup>
 

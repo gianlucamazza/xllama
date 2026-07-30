@@ -242,7 +242,7 @@ ring_tick_now() {
 
 # Persist whatever the ring holds. Called only on a failing gate.
 save_fail_shots() {
-	local gate="$1" saved=0 i
+	local gate="$1" saved=0 i f
 	[[ "${XLLAMA_GATE_SHOTS:-1}" == "0" ]] && return 0
 	for i in 0 1; do
 		[[ -f "${TMPDIR_LOCAL}/ring-${i}.png" ]] || continue
@@ -250,9 +250,14 @@ save_fail_shots() {
 		cp "${TMPDIR_LOCAL}/ring-${i}.png" "${SHOTS_DIR}/${gate}-${i}.png"
 		saved=$((saved + 1))
 	done
-	if ((saved > 0)); then
+	if ((saved > 1)); then
 		echo "  Screenshots of the failing run: ${SHOTS_DIR}/${gate}-*.png" \
 			"(${gate}-1.png is the later frame)" >&2
+	elif ((saved == 1)); then
+		# Naming the missing frame would send the reader looking for a file that
+		# is not there. Say which one survived instead.
+		f=$([[ -f "${SHOTS_DIR}/${gate}-1.png" ]] && echo "1" || echo "0")
+		echo "  One screenshot of the failing run: ${SHOTS_DIR}/${gate}-${f}.png" >&2
 	else
 		# Not a cadence problem: every run ends with a forced grab, so zero frames
 		# means GET /ext/screenshot itself failed — console unreachable, or WDP

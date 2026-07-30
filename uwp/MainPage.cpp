@@ -3512,11 +3512,18 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
                 throw std::runtime_error("action " + std::to_string(i) + " mark: busy");
             const std::string label =
                 a.arg.empty() ? std::to_string(i) : ::xllama::wstring_to_utf8(a.arg);
+            const std::wstring mark_path = local_wpath(L"autopilot-mark.txt");
             write_local_bytes(L"autopilot-mark.txt", label);
+            // The wait below reads "file gone" as "the host has taken its shot".
+            // A write that failed produces the same absence, so without this the
+            // action would sail through and the log would claim a release that
+            // never happened — a false record of evidence that does not exist.
+            if (GetFileAttributesW(mark_path.c_str()) == INVALID_FILE_ATTRIBUTES)
+                throw std::runtime_error("action " + std::to_string(i) + " mark '" + label +
+                                         "': could not write autopilot-mark.txt");
             log_output("[autopilot] mark '" + label + "' waiting for host\n");
             const auto t = a.timeout.count() > 0 ? a.timeout : std::chrono::seconds{120};
             const auto deadline = std::chrono::steady_clock::now() + t;
-            const std::wstring mark_path = local_wpath(L"autopilot-mark.txt");
             bool released = false;
             while (std::chrono::steady_clock::now() < deadline) {
                 if (GetFileAttributesW(mark_path.c_str()) == INVALID_FILE_ATTRIBUTES) {

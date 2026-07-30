@@ -22,7 +22,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   this process would compete with the very inference a demo exists to show, on
   ~6 usable cores with a livelock at 7-8.
   This required an **SDKReference to the Desktop extension** in
-  `uwp/xllama.vcxproj`: the namespace is not in the Universal contract, so the
+  `uwp/xllama.vcxproj`, conditioned on the dev SKU to match its only consumer —
+  the probe is compiled out of the Store SKU, and that package's dependency
+  surface is what `docs/store-readiness.md` tracks. The namespace is not in the
+  Universal contract, so the
   CppWinRT NuGet generates no projection for it, and substituting the Windows
   SDK's own `AppRecording` header is not an alternative — that header is stamped
   with the cppwinrt version from SDK 22621 while `base.h` comes from CppWinRT

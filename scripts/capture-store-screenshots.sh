@@ -53,6 +53,14 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
+# The model id is embedded in generated JSON and used as a catalogue key. Every
+# id in uwp/models/manifest.json has this shape, and constraining it is more
+# honest than trying to escape whatever a shell argument might contain.
+if [[ ! "$MODEL" =~ ^[A-Za-z0-9._-]+$ ]]; then
+	echo "Error: --model must match [A-Za-z0-9._-]+ (got '${MODEL}')" >&2
+	exit 1
+fi
+
 CSRF_TOKEN=$(curl "${CURL_AUTH[@]}" "${BASE_URL}/" -o /dev/null -D - 2>/dev/null |
 	sed -n 's/.*[Cc][Ss][Rr][Ff]-[Tt]oken=\([^;[:space:]]*\).*/\1/p' |
 	tr -d '\r' | head -n1)
@@ -104,17 +112,36 @@ grab_screenshot() {
 	curl "${CURL_AUTH[@]}" -o "$1" --fail "${BASE_URL}/ext/screenshot" >/dev/null 2>&1
 }
 
-# Block until the app parks on a mark, echo its label. Non-zero on timeout.
+# Block until the app parks on the mark we expect. Echoes its label.
+# Returns 1 on timeout, 2 if the run ended, 3 if the label is not the expected one.
+#
+# The label is read back from the device, so it is input this script does not
+# control: it becomes a filename, and it decides which state a frame is
+# attributed to. Both matter. A marker left behind by another tool, or a label
+# with a path separator in it, would otherwise write outside OUT_DIR or file the
+# wrong screenshot under a listing state. So it is checked against the exact
+# label expected next, not merely sanitised.
 wait_for_mark() {
-	local timeout_s="$1" out="${WORK}/mark.txt" label
+	local timeout_s="$1" expected="$2" out="${WORK}/mark.txt" label
 	local deadline=$((SECONDS + timeout_s))
 	while ((SECONDS < deadline)); do
 		if fetch_file_200 "autopilot-mark.txt" "$out"; then
 			label=$(tr -d '\r\n' <"$out")
 			if [[ -n "$label" ]]; then
+				if [[ "$label" != "$expected" ]]; then
+					echo "  Expected mark '${expected}', device says '${label}'" >&2
+					return 3
+				fi
 				echo "$label"
 				return 0
 			fi
+		fi
+		# An autopilot that failed writes its marker and does NOT exit, so
+		# without this a failed run would sit here for the full timeout of every
+		# remaining state before anyone found out.
+		if fetch_file_200 "autopilot-done.txt" "${WORK}/done.txt" &&
+			grep -qE '^(ok|error:)' "${WORK}/done.txt"; then
+			return 2
 		fi
 		sleep 2
 	done
@@ -187,15 +214,28 @@ upload_file "${WORK}/autopilot.json"
 upload_file "${WORK}/autopilot.flag"
 restart_app
 
-n_marks=${#STATES[@]}
-echo "==> Waiting for ${n_marks} states"
+echo "==> Waiting for ${#STATES[@]} states"
 
 captured=0
-for _ in $(seq "$n_marks"); do
-	if ! label=$(wait_for_mark 900); then
+for state in "${STATES[@]}"; do
+	expected="${state%%|*}"
+	rc=0
+	label=$(wait_for_mark 900 "$expected") || rc=$?
+	case "$rc" in
+	0) ;;
+	2)
+		echo "  The run ended before '${expected}'" >&2
+		break
+		;;
+	3)
+		echo "  Refusing to attribute a frame to the wrong state" >&2
+		break
+		;;
+	*)
 		echo "  No mark within 900s — the app is stuck or the run failed" >&2
 		break
-	fi
+		;;
+	esac
 	dest="${OUT_DIR}/${label}.png"
 	if grab_screenshot "$dest"; then
 		echo "  ${label} -> ${dest}"

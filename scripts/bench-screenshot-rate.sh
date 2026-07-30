@@ -85,7 +85,10 @@ awk -v n="$n_ok" -v f="$failed" -v s="$start_all" -v e="$end_all" \
 	printf "  frame            %s, %d bytes\n", dims, sz
 	printf "  latency min/p50/p90/max  %.3f / %.3f / %.3f / %.3f s\n", tmin, p50, p90, tmax
 	printf "  elapsed          %.2f s\n", el
-	printf "  sustained rate   %.2f Hz\n", n / el
+	# A clock that did not advance means the measurement did not happen; a rate
+	# printed from it would look like an answer.
+	if (el > 0) printf "  sustained rate   %.2f Hz\n", n / el
+	else        printf "  sustained rate   n/a (elapsed measured as zero)\n"
 	printf "\n  capture-demo-video.sh sleeps 1 s per frame; sustained above is what\n"
 	printf "  the endpoint allows with no sleep at all.\n"
 }'
