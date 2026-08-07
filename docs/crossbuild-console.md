@@ -29,12 +29,19 @@ gh run download <run-id> -n xllama-appx -D /tmp/xllama-ci-art
 ## Build from Linux (uwp-crossbuild) — links, does not yet launch xllama
 
 ```bash
-# From the xllama repo root
-../uwp-crossbuild/scripts/build-project.sh \
+# From the xllama repo root, with uwp-crossbuild available on PATH (or invoked
+# from its checkout). The helper is named build-project and takes:
+#   --project uwp/xllama.vcxproj
+#   --out /tmp/xllama-layout
+#   --property XllamaBackend=unified
+build-project \
   --project uwp/xllama.vcxproj \
   --out /tmp/xllama-layout \
   --property XllamaBackend=unified
 ```
+
+(`build-project` is provided by the **uwp-crossbuild** tooling tree, not by a
+script under this repository.)
 
 Default is **static `/MT`** inside the AppContainer. It **links** filesystem-heavy
 code cleanly, and `hello-uwp` launches with that CRT. **xllama’s larger static
@@ -47,7 +54,7 @@ until that CRT surface is fixed upstream.
 ```bash
 export UWP_STORE_CRT=1   # requires fetch-vclibs.sh output
 # Manifest must declare Microsoft.VCLibs.140.00 (already in AppxManifest).
-../uwp-crossbuild/scripts/build-project.sh ... --property XllamaBackend=unified
+# Same uwp-crossbuild build-project entry as above, with store CRT env set.
 ```
 
 xllama needs `__std_fs_*`, `__std_find_*`, `_Thrd_sleep_for`, etc. that live in
