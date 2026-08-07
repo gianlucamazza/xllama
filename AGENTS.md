@@ -74,6 +74,7 @@ xllama/
 │   ├── install-latest-build.sh        # fetch + deploy latest CI artifact
 │   └── …
 ├── tests/                   # Unit tests (doctest; incl. test_personalize)
+├── shaders/                 # AOT HLSL + generated DXIL (Phase 15 W3 gpubw)
 ├── bench/                   # configs, raw results, summary policy
 ├── demo/                    # demo-script.json — what the capture records, reviewable in a PR
 ├── diffusion/               # SD-Turbo → ONNX host toolchain (not shipped in the MSIX)
