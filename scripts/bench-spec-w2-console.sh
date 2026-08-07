@@ -93,7 +93,9 @@ run_regime() {
 	local regime="$1" prompt="$2" lookup="$3"
 	local tag out_csv
 	out_csv="${REPO_ROOT}/bench/results/phase15-spec-w2-${regime}-pl${lookup}.csv"
-	: >"$out_csv"
+	# Must not leave an empty file: bench-xbox-ort refuses to append when the
+	# first line is not the canonical CSV header (empty ≠ header).
+	rm -f "$out_csv"
 	local args=(
 		"$MODEL"
 		--threads "$THREADS"

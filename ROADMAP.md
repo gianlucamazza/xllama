@@ -459,11 +459,14 @@ console M3.
   (2026-08-07): pure `prompt_lookup_draft`; lead commits classic then
   draft-only multi-token verify + `seq_rm` degrade; CLI `--prompt-lookup` /
   `SessionParams` / headless `bench_prompt_lookup.txt` default OFF; greedy
-  MATCH on host (suite green). Console **timing A/B still open**: Linux
-  uwp-crossbuild packages install but do not activate on Series S
-  (`0x8027025b`); ship W2 via **CI MSVC** `xllama-appx`, then
-  `scripts/bench-spec-w2-console.sh` (gate ≥1.4× on `qwen25-coder-3b`).
-  See `docs/crossbuild-console.md`.
+  MATCH on host (suite green). **Console M3 measured 2026-08-07** on
+  Series S (CI package with W2, `qwen25-coder-3b`, t6, n_predict=96):
+  code **1.04× FAIL** vs ≥1.4× gate (14.15 → 14.74 tok/s); chat 0.99×;
+  peak ~2.0 GB. Spec fires (code ~32 accepts / ~62 drafts) but does not
+  break the membw wall enough for product default. **Default stays OFF**
+  (opt-in `--prompt-lookup` / `bench_prompt_lookup.txt`). Crossbuild
+  still does not activate (`0x8027025b`); ship via CI MSVC — see
+  `docs/crossbuild-console.md`. CSV: `bench/results/phase15-spec-w2-console.csv`.
   Both halves of the original draft/target
   pair already ship and are console-PASS: draft `qwen25-coder-0.5b` (379 MB,
   62.4 tok/s), target `qwen25-coder-3b` (1840 MB, 14.0). **Vocab precondition

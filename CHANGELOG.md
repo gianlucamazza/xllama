@@ -38,11 +38,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `seq_rm` degrade in `decode_loop.h`, CLI `--prompt-lookup`,
   `SessionParams::prompt_lookup`, headless `bench_prompt_lookup.txt`. Lead token
   always commits via the classic path so greedy output matches non-spec (host
-  MATCH after the batch-logits correctness fix). Console timing A/B (≥1.4× on
-  `qwen25-coder-3b`) still pending a **CI MSVC** package — Linux
-  uwp-crossbuild layouts install but fail Xbox activation (`0x8027025b`);
-  details in `docs/crossbuild-console.md`. Campaign SSOT:
-  `docs/phase15-re-opt.md`.
+  MATCH after the batch-logits correctness fix). Console A/B on Series S
+  (`qwen25-coder-3b`, CI package): code **1.04×** vs ≥1.4× gate — **no
+  product default**; remains opt-in. Chat ~1.0×. Linux uwp-crossbuild
+  layouts still fail Xbox activation (`0x8027025b`); details in
+  `docs/crossbuild-console.md`. Campaign SSOT: `docs/phase15-re-opt.md`.
 - **Measured: the console cannot record its own output, but self-capture is not
   closed.** A `[caprec]` line in `xllama.log` on every interactive launch reports
   `ApiInformation::IsTypePresent` for both self-capture APIs. On the console

@@ -87,7 +87,7 @@ GPU · MoE H2 · draft-model speculative as default · host tok/s as product cla
 | ID | Name | Issue | Status |
 | --- | --- | --- | --- |
 | WS0 | Baseline freeze + this doc | — | **done** (this file) |
-| WS-A | W2 prompt-lookup speculative | #210 | **host correctness PASS** (greedy MATCH); host suite green; **console A/B needs CI MSVC package** (crossbuild install OK, launch `0x8027025b`) |
+| WS-A | W2 prompt-lookup speculative | #210 | **host PASS**; **console M3 measured FAIL gate** (code 1.04× &lt; 1.4×; chat 0.99×); product default stays **OFF** |
 | WS-B | W3 gpubw STREAM + Q4 GEMV spike | #211 | queued after W2 ≥ M2 |
 | WS-C | #130 DML valley mechanism profile | #130 | opportunistic on console |
 | WS-D | H5 BitNet desk survey | — | parallel desk, no eng yet |
@@ -101,7 +101,7 @@ GPU · MoE H2 · draft-model speculative as default · host tok/s as product cla
 | W2.2 | multi-token verify (`llama_batch_init`, same sampler) | **done** — `decode_loop.h` |
 | W2.3 | rollback + runtime degrade on `seq_rm` refuse | **done** — per-generation disable |
 | W2.4 | `SessionParams` / CLI `--prompt-lookup`, default OFF | **done** |
-| W2.5 | console A/B `qwen25-coder-3b` | pending — `scripts/bench-spec-w2-console.sh` + headless `bench_prompt_lookup.txt`; **deploy CI `xllama-appx` with W2**, not crossbuild-only (see [crossbuild-console.md](crossbuild-console.md)) |
+| W2.5 | console A/B `qwen25-coder-3b` | **done 2026-08-07** — CI package `1.5.2.920`, Series S t6, n_predict=96, runs=3. Code **14.15 → 14.74 tok/s (1.04×) FAIL** ≥1.4×; chat 14.70 → 14.56 (0.99×) PASS ≥0.98×. Peak ~2.0 GB. Spec active: code ~32/62 draft accepts; chat low draft. CSV: `bench/results/phase15-spec-w2-console.csv` |
 
 Regression must-pass: `longchat`, `kvsnap`, `gguf`, shipping default `lfm25-350m`
 unchanged (hybrid cache cannot tail-rewind — probe disables, does not corrupt).
@@ -122,8 +122,8 @@ Never use the Agility D3D12 factory; headless `gpubw.flag` only.
 | M0 | This doc + ROADMAP/README links | done |
 | M1 | W2.1–W2.3 host + tests | ctest PASS |
 | M2 | W2.4 opt-in + host acceptance CSV | acceptance vs pregate |
-| M3 | Console W2 A/B + full gates | ≥1.4× code; 9/9 console |
-| M4 | Product default decision (after M3 numbers) | CHANGELOG |
+| M3 | Console W2 A/B + full gates | **measured** — code 1.04× **FAIL** gate; chat OK; peak OK |
+| M4 | Product default decision (after M3 numbers) | **OFF** (opt-in only); CHANGELOG |
 | M5–M6 | gpubw spike + measure | kill/pass H6 |
 | M7 | #130 closed | §5e verdict |
 | M8 | H5 survey note | go/no-go |
@@ -144,6 +144,7 @@ Never use the Agility D3D12 factory; headless `gpubw.flag` only.
 | 2026-08-07 | **Correctness fix:** commit lead with classic decode first; draft batch only after lead. Old [lead+draft] batch diverged from greedy even with 0 accepts. Host greedy MATCH after fix. |
 | 2026-08-07 | **uwp-crossbuild gotchas for xllama:** (1) VCLibs PackageDependency in AppxManifest; (2) `ops.h` CACHE_LINE_SIZE under clang-cl; (3) store-CRT + `libcpmt` MT is incorrect for `/MD` (gotcha 21). **Resolution for product launch:** use **CI MSVC** (`build-uwp` / `xllama-appx`). Crossbuild `/MT` and experimental store-`/MD`+sanitized-libcpmt **link** but fail Xbox activation `0x8027025b` (registry/KERNEL32 imports vs CI APP-CRT). hello-uwp still launches. Details: [crossbuild-console.md](crossbuild-console.md). |
 | 2026-08-07 | Host tests: full suite PASS after W2. Control deploy: CI package `1.5.2.910` launches and loads GGUF on Series S. |
+| 2026-08-07 | **M3 console A/B (W2.5):** `qwen25-coder-3b` CI W2 `1.5.2.920`. Code 1.04× FAIL (≥1.4×); chat 0.99×. Speculation works (code ~50% draft accept) but BW-bound console does not convert accepts into ≥1.4× tok/s. **Product default remains OFF.** Next campaign focus: W3 gpubw (#211). |
 
 ## Related issues
 

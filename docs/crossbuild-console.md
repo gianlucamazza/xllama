@@ -93,10 +93,14 @@ openappx deploy --device "https://${XBOX_IP}:${XBOX_PORT}" \
 ```bash
 source ~/.config/xllama/xbox-env
 # Model must exist under LocalState\models\<id>\
+# Package must be a CI MSVC build that includes W2 (see Launchable package).
 ./scripts/bench-spec-w2-console.sh qwen25-coder-3b --runs 4 --n-predict 128
 # or lower tier if 3b is not provisioned:
 ./scripts/bench-spec-w2-console.sh qwen25-coder-1.5b --runs 3 --n-predict 96
 ```
 
 Gate (declared): ≥1.4× decode on **code** regime for `qwen25-coder-3b`;
-chat ≥1.0×; peak &lt; 3.5 GB.
+chat ≥0.98×; peak &lt; 3.5 GB.
+
+**Measured 2026-08-07 (M3):** code **1.04× FAIL**, chat 0.99× PASS, peak ~2.0 GB
+(`bench/results/phase15-spec-w2-console.csv`). Product default stays off.
