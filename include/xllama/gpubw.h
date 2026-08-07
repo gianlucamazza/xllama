@@ -22,8 +22,7 @@ namespace xllama {
 inline constexpr double kGpubwKillReadGbs = 100.0;
 
 // Default working set: 1 GiB of uint32 words (issue #211 ~1 GB VRAM).
-inline constexpr std::size_t kGpubwDefaultBufferBytes =
-    static_cast<std::size_t>(1) << 30;
+inline constexpr std::size_t kGpubwDefaultBufferBytes = static_cast<std::size_t>(1) << 30;
 
 struct GpubwResult {
     std::size_t buffer_bytes = 0;
@@ -55,8 +54,7 @@ std::uint32_t gpubw_checksum_words(const std::uint32_t* data, std::size_t n_word
 
 // Windows/UWP: D3D12 system device (never Agility), timed CS STREAM read +
 // checksum. Non-Windows: d3d12_ran=false, error_msg set, no throw.
-GpubwResult measure_gpubw(std::size_t buffer_bytes = kGpubwDefaultBufferBytes,
-                          int iterations = 3);
+GpubwResult measure_gpubw(std::size_t buffer_bytes = kGpubwDefaultBufferBytes, int iterations = 3);
 
 // Verdict helper for SSOT / scripts (does not invent numbers).
 inline bool gpubw_passes_kill_gate(const GpubwResult& r) {

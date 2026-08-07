@@ -31,13 +31,18 @@ lines = [
     "#include <cstddef>",
     "#include <cstdint>",
     f"// {len(data)} bytes DXIL",
-    "static const uint8_t kGpubwStreamDxil[] = {",
+    "// clang-format off
+static const uint8_t kGpubwStreamDxil[] = {",
 ]
 for i in range(0, len(data), 12):
     chunk = data[i : i + 12]
     lines.append("    " + ", ".join(f"0x{b:02x}" for b in chunk) + ",")
 lines.append("};")
 lines.append(f"static const size_t kGpubwStreamDxilSize = {len(data)};")
+lines.append("// clang-format on")
+# insert clang-format off before the array
+idx = next(i for i,l in enumerate(lines) if l.startswith("static const uint8_t"))
+lines.insert(idx, "// clang-format off")
 out.write_text("\n".join(lines) + "\n")
 print(f"wrote {out} ({len(data)} bytes)")
 PY

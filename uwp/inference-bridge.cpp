@@ -5,8 +5,8 @@
 
 #include "xllama/chat_prompt.h"
 #include "xllama/device_train.h"
-#include "xllama/inference.h"
 #include "xllama/gpubw.h"
+#include "xllama/inference.h"
 #include "xllama/membw.h"
 #include "xllama/path_utils.h"
 #include "xllama/personalize.h"

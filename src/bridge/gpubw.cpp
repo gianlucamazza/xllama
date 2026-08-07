@@ -12,18 +12,18 @@
 #include <vector>
 
 #if defined(_WIN32)
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <Windows.h>
-#include <d3d12.h>
-#include <dxgi1_4.h>
-#include <wrl/client.h>
+    #ifndef NOMINMAX
+        #define NOMINMAX
+    #endif
+    #ifndef WIN32_LEAN_AND_MEAN
+        #define WIN32_LEAN_AND_MEAN
+    #endif
+    #include <Windows.h>
+    #include <d3d12.h>
+    #include <dxgi1_4.h>
+    #include <wrl/client.h>
 
-#include "gpubw_stream_dxil.h"
+    #include "gpubw_stream_dxil.h"
 
 using Microsoft::WRL::ComPtr;
 #endif
@@ -47,7 +47,8 @@ std::uint32_t gpubw_checksum_words(const std::uint32_t* data, std::size_t n_word
 }
 
 const char* gpubw_csv_header() {
-    return "buffer_mb,iterations,read_gbs,checksum_ok,d3d12_ran,checksum,expected,host,date,error\n";
+    return "buffer_mb,iterations,read_gbs,checksum_ok,d3d12_ran,checksum,expected,host,date,"
+           "error\n";
 }
 
 std::string format_gpubw_row(const GpubwResult& r, const char* host_label) {
@@ -67,8 +68,8 @@ std::string format_gpubw_row(const GpubwResult& r, const char* host_label) {
 
     char buf[512];
     std::snprintf(buf, sizeof(buf), "%zu,%d,%.2f,%d,%d,%u,%u,%s,%s,%s\n",
-                  r.buffer_bytes / (1024 * 1024), r.iterations, r.read_gbs,
-                  r.checksum_ok ? 1 : 0, r.d3d12_ran ? 1 : 0, r.checksum, r.expected_checksum,
+                  r.buffer_bytes / (1024 * 1024), r.iterations, r.read_gbs, r.checksum_ok ? 1 : 0,
+                  r.d3d12_ran ? 1 : 0, r.checksum, r.expected_checksum,
                   host_label ? host_label : "unknown", date_buf, err.c_str());
     return std::string(buf);
 }
@@ -77,8 +78,7 @@ std::string format_gpubw_row(const GpubwResult& r, const char* host_label) {
 
 GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
     GpubwResult r;
-    const std::size_t n_words =
-        std::max<std::size_t>(buffer_bytes / sizeof(std::uint32_t), 1);
+    const std::size_t n_words = std::max<std::size_t>(buffer_bytes / sizeof(std::uint32_t), 1);
     r.buffer_bytes = n_words * sizeof(std::uint32_t);
     r.iterations = iterations < 1 ? 1 : iterations;
     r.d3d12_ran = false;
@@ -156,10 +156,9 @@ ComPtr<ID3D12RootSignature> create_root_sig(ID3D12Device* device, GpubwResult& r
     return rs;
 }
 
-ComPtr<ID3D12Resource> create_buffer(ID3D12Device* device, UINT64 size,
-                                     D3D12_HEAP_TYPE heap, D3D12_RESOURCE_FLAGS flags,
-                                     D3D12_RESOURCE_STATES state, GpubwResult& r,
-                                     const char* label) {
+ComPtr<ID3D12Resource> create_buffer(ID3D12Device* device, UINT64 size, D3D12_HEAP_TYPE heap,
+                                     D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES state,
+                                     GpubwResult& r, const char* label) {
     D3D12_HEAP_PROPERTIES hp = {};
     hp.Type = heap;
     D3D12_RESOURCE_DESC rd = {};
@@ -187,8 +186,7 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
     GpubwResult r;
     if (iterations < 1)
         iterations = 1;
-    const std::size_t n_words =
-        std::max<std::size_t>(buffer_bytes / sizeof(std::uint32_t), 1);
+    const std::size_t n_words = std::max<std::size_t>(buffer_bytes / sizeof(std::uint32_t), 1);
     r.buffer_bytes = n_words * sizeof(std::uint32_t);
     r.iterations = iterations;
 
@@ -269,8 +267,7 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
 
     const UINT64 input_bytes = static_cast<UINT64>(r.buffer_bytes);
     const UINT groups = static_cast<UINT>((n_words + 255) / 256);
-    const UINT64 out_bytes =
-        static_cast<UINT64>(std::max(groups, 1u)) * sizeof(std::uint32_t);
+    const UINT64 out_bytes = static_cast<UINT64>(std::max(groups, 1u)) * sizeof(std::uint32_t);
 
     ComPtr<ID3D12Resource> input_default =
         create_buffer(device.Get(), input_bytes, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_FLAG_NONE,
@@ -282,9 +279,10 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
                       D3D12_RESOURCE_STATE_GENERIC_READ, r, "input_upload");
     if (!input_upload)
         return r;
-    ComPtr<ID3D12Resource> output_default = create_buffer(
-        device.Get(), out_bytes, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-        D3D12_RESOURCE_STATE_UNORDERED_ACCESS, r, "output_default");
+    ComPtr<ID3D12Resource> output_default =
+        create_buffer(device.Get(), out_bytes, D3D12_HEAP_TYPE_DEFAULT,
+                      D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+                      D3D12_RESOURCE_STATE_UNORDERED_ACCESS, r, "output_default");
     if (!output_default)
         return r;
     ComPtr<ID3D12Resource> output_readback =
