@@ -496,7 +496,7 @@ class LlamaSession final : public Session {
     // whenever the KV state stops being trustworthy (decode failure).
     std::vector<llama_token> m_kv_tokens;
 
-    bool m_kv_q8 = false; // #171: q8_0 KV + forced flash attention
+    bool m_kv_q8 = false;         // #171: q8_0 KV + forced flash attention
     bool m_prompt_lookup = false; // #210: draft-free speculative decoding
 
     // #169: whether the resident KV supports front-drop eviction + RoPE shift.

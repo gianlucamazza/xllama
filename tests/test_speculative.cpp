@@ -13,8 +13,8 @@ using namespace xllama;
 
 TEST_CASE("spec: empty / too-short history declines") {
     CHECK(prompt_lookup_draft({}).empty());
-    CHECK(prompt_lookup_draft({1}).empty());                 // shorter than default n=2
-    CHECK(prompt_lookup_draft({1, 2}).empty());              // only one window = ourselves
+    CHECK(prompt_lookup_draft({1}).empty());    // shorter than default n=2
+    CHECK(prompt_lookup_draft({1, 2}).empty()); // only one window = ourselves
     CHECK(prompt_lookup_draft({1, 2, 3}, /*n_gram=*/4).empty());
 }
 

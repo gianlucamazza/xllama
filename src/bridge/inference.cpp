@@ -635,7 +635,8 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     res.peak_ws_mb = peak_working_set_mb();
     if (dlr.rewind_failed) {
         res.success = false;
-        res.error_msg = "speculative KV rewind unsupported (disable --prompt-lookup for this model)";
+        res.error_msg =
+            "speculative KV rewind unsupported (disable --prompt-lookup for this model)";
         log_output(("[xllama] " + res.error_msg + "\n").c_str());
         return res;
     }

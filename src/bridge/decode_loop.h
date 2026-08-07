@@ -196,8 +196,7 @@ inline bool classic_step(const DecodeLoopParams& p, llama_token token, std::stri
         out.ended_with_stop = true;
         ++out.n_generated;
         stop = true;
-        log_output("[xllama] stop sequence after " + std::to_string(out.n_generated) +
-                   " tokens\n");
+        log_output("[xllama] stop sequence after " + std::to_string(out.n_generated) + " tokens\n");
         return false;
     }
     if (!decode_one(p.ctx, token)) {
