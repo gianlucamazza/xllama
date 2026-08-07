@@ -67,10 +67,11 @@ Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.
       bandwidth premise held (631 MB read/token vs 645 predicted); the cost moves
       off bandwidth. Do not reopen at a lower quant — that tests the quantization,
       not the architecture.
-- [~] H3 speculative decoding — the predeclared A/B was run 2026-07-29 and
-  **split the hypothesis**: the draft-model variant is rejected (1.43× on
-  code, **0.81× on open chat**), the draft-free prompt lookup proceeds
-  (1.53× / 1.00×). Implementation is Phase 15 W2.
+- [x] H3 speculative decoding — **CLOSED for product default 2026-08-07/08.**
+  Pre-gate 2026-07-29 split the hypothesis (draft-model rejected 0.81× chat;
+  prompt-lookup admitted at host 1.53×/1.00×). Phase 15 W2 eng shipped opt-in
+  (`prompt_lookup`, default OFF). Console M3: code **1.04× FAIL** ≥1.4× gate;
+  chat ~0.99×. Remains opt-in only — see Phase 15 W2 and `docs/phase15-re-opt.md`.
 - [ ] H5 BitNet/low-bit survey before any runtime work.
 - [ ] H6/H7 GPU or hybrid GGUF experiments only after a credible UWP backend
       path exists — H6 now has a predeclared 100 GB/s kill gate (Phase 15 W3).
