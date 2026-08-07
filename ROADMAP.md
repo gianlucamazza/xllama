@@ -417,13 +417,18 @@ and Coder-3B lands at 14.0 tok/s. Three levers touch that denominator; a
 rewritten framework or a bespoke model architecture touch neither, and both are
 rejected on that ground (`docs/phase7-hypotheses.md`, "Do not reopen").
 
-**Where it stands (2026-07-30).** W1 is **closed FAIL on measure** — the MoE
+**Where it stands (2026-08-07).** W1 is **closed FAIL on measure** — the MoE
 reads only its active experts, exactly as predicted, and is still no faster than
 a dense 3B because the cost moves off bandwidth. W2's pre-gate **split the
 hypothesis**: the draft-model variant is rejected (0.81× on open chat), prompt
 lookup proceeds; its groundwork (one shared decode loop) is done. W3 is
 untouched. Two of the three levers are therefore measured before any of them
 was built on — which was the point of ordering them this way.
+
+**Campaign SSOT:** [`docs/phase15-re-opt.md`](docs/phase15-re-opt.md) (method,
+baseline freeze, workstream status, decision log). Attack order locked
+2026-08-07: **W2 first**, then W3; speculative product default decided after
+console M3.
 
 - [x] **W1 — H2: a MoE whose active weights are a fraction of its total. CLOSED
       FAIL 2026-07-30.**
@@ -450,12 +455,21 @@ was built on — which was the point of ordering them this way.
   with the result attached and enters no product tier; the 3.5 GB product-gate
   question a speed PASS would have opened is moot.
 
-- [~] **W2 — H3: speculative decoding (#210).** Both halves of the pair already ship and
-  are console-PASS: draft `qwen25-coder-0.5b` (379 MB, 62.4 tok/s), target
-  `qwen25-coder-3b` (1840 MB, 14.0). **Vocab precondition measured and
-  PASSED 2026-07-29** (`bench/results/phase15-spec-vocab.csv`): the pin's
-  `common_speculative_are_compatible` throws rather than degrades, and the
-  pair is identical across all its checks. The same pass produced two
+- [~] **W2 — H3: speculative decoding (#210).** Host path complete
+  (2026-08-07): pure `prompt_lookup_draft`; lead commits classic then
+  draft-only multi-token verify + `seq_rm` degrade; CLI `--prompt-lookup` /
+  `SessionParams` / headless `bench_prompt_lookup.txt` default OFF; greedy
+  MATCH on host (suite green). Console **timing A/B still open**: Linux
+  uwp-crossbuild packages install but do not activate on Series S
+  (`0x8027025b`); ship W2 via **CI MSVC** `xllama-appx`, then
+  `scripts/bench-spec-w2-console.sh` (gate ≥1.4× on `qwen25-coder-3b`).
+  See `docs/crossbuild-console.md`.
+  Both halves of the original draft/target
+  pair already ship and are console-PASS: draft `qwen25-coder-0.5b` (379 MB,
+  62.4 tok/s), target `qwen25-coder-3b` (1840 MB, 14.0). **Vocab precondition
+  measured and PASSED 2026-07-29** (`bench/results/phase15-spec-vocab.csv`):
+  the pin's `common_speculative_are_compatible` throws rather than degrades,
+  and the pair is identical across all its checks. The same pass produced two
   keepers — Qwen3-1.7B and Coder share a vocab _size_ but differ in 4 token
   texts, and the H2 MoE has a 128000-token vocab against LFM2.5-350M's
   65536, so **H2 and H3 do not compose**.

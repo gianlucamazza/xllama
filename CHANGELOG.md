@@ -33,6 +33,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Phase 15 W2 (#210): draft-free prompt-lookup speculative decoding (opt-in,
+  default off).** `prompt_lookup_draft` pure helper, multi-token draft verify +
+  `seq_rm` degrade in `decode_loop.h`, CLI `--prompt-lookup`,
+  `SessionParams::prompt_lookup`, headless `bench_prompt_lookup.txt`. Lead token
+  always commits via the classic path so greedy output matches non-spec (host
+  MATCH after the batch-logits correctness fix). Console timing A/B (≥1.4× on
+  `qwen25-coder-3b`) still pending a **CI MSVC** package — Linux
+  uwp-crossbuild layouts install but fail Xbox activation (`0x8027025b`);
+  details in `docs/crossbuild-console.md`. Campaign SSOT:
+  `docs/phase15-re-opt.md`.
 - **Measured: the console cannot record its own output, but self-capture is not
   closed.** A `[caprec]` line in `xllama.log` on every interactive launch reports
   `ApiInformation::IsTypePresent` for both self-capture APIs. On the console

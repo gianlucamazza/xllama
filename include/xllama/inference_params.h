@@ -97,6 +97,11 @@ struct InferenceParams {
     std::string lora_path;
     float lora_scale = 1.0f;
 
+    // Phase 15 W2 (#210): draft-free prompt-lookup on the GGUF path. Default
+    // OFF (CLI --prompt-lookup). Host timings are not product claims — use for
+    // acceptance-rate A/B only until console M3.
+    bool prompt_lookup = false;
+
     // CLI --membw: run the CPU memory-bandwidth micro-bench and exit (no model
     // load). Model/prompt are not required in this mode.
     bool run_membw = false;
@@ -168,6 +173,9 @@ struct InferenceResult {
     size_t peak_ws_mb = 0;
     size_t gpu_mem_mb = 0;    // per-process GPU CurrentUsage after model load (0 = N/A)
     size_t gpu_budget_mb = 0; // OS-granted GPU budget for this process (0 = N/A)
+    // Phase 15 W2 (#210): speculative counters (0 when prompt_lookup off).
+    int n_drafted = 0;
+    int n_spec_accepted = 0;
     std::string output_text;
     std::string error_msg;
 };

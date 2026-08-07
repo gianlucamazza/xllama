@@ -73,6 +73,7 @@ path checklist for discovery — descriptions are not repeated.
 
 **Ops / install:** [install-release.md](./install-release.md) ·
 [device-portal.md](./device-portal.md) · [windows-dev-vm.md](./windows-dev-vm.md) ·
+[crossbuild-console.md](./crossbuild-console.md) (Linux → Xbox via uwp-crossbuild + openappx) ·
 [console-validation-runbook.md](./console-validation-runbook.md) ·
 [store-readiness.md](./store-readiness.md) · [privacy.md](./privacy.md) ·
 [../training/README.md](../training/README.md) ·
@@ -81,6 +82,7 @@ path checklist for discovery — descriptions are not repeated.
 **Evidence / history:** [benchmarks.md](./benchmarks.md) ·
 [model-matrix.md](./model-matrix.md) ·
 [phase7-hypotheses.md](./phase7-hypotheses.md) ·
+[phase15-re-opt.md](./phase15-re-opt.md) (RE + optimization campaign) ·
 [technical-report.md](./technical-report.md) (frozen v1.0) ·
 [phase1-runbook.md](./phase1-runbook.md) (compat redirect) ·
 [../CHANGELOG.md](../CHANGELOG.md) · [../ROADMAP.md](../ROADMAP.md) ·
@@ -97,6 +99,7 @@ path checklist for discovery — descriptions are not repeated.
 | NuGet version pins                   | `uwp/packages.config` + recommended-config / vendor-lifecycle            | Parallel version tables                                |
 | Repo file tree                       | AGENTS.md (agents)                                                       | Full second tree in README                             |
 | Phase checklist                      | ROADMAP.md                                                               | Duplicated phase list in README                        |
+| Phase 15 RE / optimization campaign  | [phase15-re-opt.md](./phase15-re-opt.md)                                 | Second workstream narrative in README                  |
 
 ### Coherence check (automated)
 

@@ -497,6 +497,7 @@ class LlamaSession final : public Session {
     std::vector<llama_token> m_kv_tokens;
 
     bool m_kv_q8 = false; // #171: q8_0 KV + forced flash attention
+    bool m_prompt_lookup = false; // #210: draft-free speculative decoding
 
     // #169: whether the resident KV supports front-drop eviction + RoPE shift.
     // Known once the lazy context exists. Gated on llama_memory_can_shift —
@@ -506,10 +507,11 @@ class LlamaSession final : public Session {
     bool m_can_shift = false;
 
     explicit LlamaSession(LlamaModelPtr model, LlamaAdapterLoraPtr adapter, float lora_scale,
-                          int n_ctx, int n_threads, int n_batch, int n_ubatch, bool kv_q8)
+                          int n_ctx, int n_threads, int n_batch, int n_ubatch, bool kv_q8,
+                          bool prompt_lookup)
         : m_model(std::move(model)), m_adapter(std::move(adapter)), m_lora_scale(lora_scale),
           m_n_ctx(n_ctx), m_n_threads(n_threads), m_n_batch(n_batch), m_n_ubatch(n_ubatch),
-          m_kv_q8(kv_q8) {}
+          m_kv_q8(kv_q8), m_prompt_lookup(prompt_lookup) {}
 
     // Lazy context creation, shared by generate() and the state-file entry
     // points (#170b needs a context before the first turn). Returns false and
@@ -812,6 +814,9 @@ class LlamaSession final : public Session {
         dlp.abort_flag = gp.abort_flag;
         dlp.on_token = gp.on_token;
         dlp.on_accepted = [this](llama_token t) { m_kv_tokens.push_back(t); };
+        // W2: seed + live history is m_kv_tokens (prefill already recorded above).
+        dlp.prompt_lookup = m_prompt_lookup;
+        dlp.token_history = &m_kv_tokens;
         const DecodeLoopResult dlr = decode_loop(dlp, res.output_text);
         const int n_generated = dlr.n_generated;
         const bool stopped_by_seq = dlr.ended_with_stop;
@@ -821,12 +826,27 @@ class LlamaSession final : public Session {
                 .count();
         res.n_eval = n_generated;
         res.ended_with_stop = stopped_by_seq;
+        res.n_drafted = dlr.n_drafted;
+        res.n_spec_accepted = dlr.n_accepted;
+        if (dlr.rewind_failed) {
+            // History and KV are untrustworthy — same class as a decode failure.
+            m_kv_tokens.clear();
+            if (m_ctx)
+                llama_memory_clear(llama_get_memory(m_ctx.get()), /*data=*/true);
+            res.success = false;
+            res.error_msg =
+                "speculative KV rewind unsupported (disable prompt_lookup for this model)";
+            log_output(("[xllama] " + res.error_msg + "\n").c_str());
+            return res;
+        }
         res.success = true;
 
-        char log_buf[256];
+        char log_buf[320];
         snprintf(log_buf, sizeof(log_buf),
-                 "[xllama] session generate: n=%d prefill=%.1fms (%d tok) reuse=%d\n", n_generated,
-                 res.t_p_eval_ms, res.n_p_eval, gp.reuse_kv && !gp.reset_kv);
+                 "[xllama] session generate: n=%d prefill=%.1fms (%d tok) reuse=%d "
+                 "drafted=%d spec_accept=%d\n",
+                 n_generated, res.t_p_eval_ms, res.n_p_eval, gp.reuse_kv && !gp.reset_kv,
+                 dlr.n_drafted, dlr.n_accepted);
         log_output(log_buf);
 
         return res;
@@ -1117,7 +1137,7 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
     log_output("[xllama] Session: GGUF model loaded via llama.cpp (persistent)\n");
     return std::make_unique<LlamaSession>(LlamaModelPtr(raw_model), std::move(adapter),
                                           sp.lora_scale, n_ctx, n_threads, sp.n_batch, sp.n_ubatch,
-                                          sp.kv_q8);
+                                          sp.kv_q8, sp.prompt_lookup);
 }
 } // namespace detail
 

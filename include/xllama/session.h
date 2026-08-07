@@ -50,6 +50,12 @@ struct SessionParams {
     // "loading model" phase instead of on the user's first turn. Ignored for
     // CPU models (§5e control: 1.00×) and by the llama.cpp backend.
     bool dml_warmup = true;
+
+    // Phase 15 W2 (#210): draft-free prompt-lookup speculative decoding on the
+    // GGUF path. Default OFF — product default is decided after console M3.
+    // ORT sessions ignore this field. Hybrid caches that refuse tail rewind
+    // disable speculation at runtime for that generation (no KV corruption).
+    bool prompt_lookup = false;
 };
 
 struct GenerateParams {

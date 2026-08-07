@@ -5,7 +5,7 @@
 #   source ~/.config/xllama/xbox-env
 #   ./scripts/bench-xbox-ort.sh <model-dir-name> [--threads N] [--runs N] [--prompt file]
 #                                [--out FILE] [--gpu-sample] [--ctx N] [--n-predict N]
-#                                [--max-length N] [--keep-config]
+#                                [--max-length N] [--keep-config] [--prompt-lookup]
 #
 # Arguments:
 #   model-dir-name   Model directory name in LocalState/models/ (e.g. smollm2-360m-cpu-int4)
@@ -35,6 +35,10 @@
 #   --kv-q8          q8_0 KV cache + flash attention via bench_kvq8.txt (#171).
 #                    GGUF models only. Host column tagged -kvq8 (same rationale
 #                    as -uN); the guard fails if the MSIX ignores the knob.
+#   --prompt-lookup  Phase 15 W2 (#210): draft-free n-gram speculative decoding
+#                    via bench_prompt_lookup.txt=1. Host column tagged -plookup.
+#                    Off (file deleted) when the flag is absent so a prior on
+#                    run cannot leak into the next.
 #
 # Required env: XBOX_IP, XBOX_USER, XBOX_PASS
 #
@@ -58,6 +62,7 @@ N_PREDICT=0 # 0 = engine default (512)
 MAX_LEN=0   # 0 = derive min(n_ctx, prompt+n_predict); -1 = saturate to n_ctx; >0 = explicit
 UBATCH=0    # 0 = llama default (512); #172 sweep knob, GGUF only
 KVQ8=0      # 1 = q8_0 KV + flash attention; #171 A/B knob, GGUF only
+PROMPT_LOOKUP=0 # 1 = W2 prompt-lookup; #210 A/B knob, GGUF only
 N_RUNS=4    # warmup run 1 dropped; runs 2..N recorded individually (W1.1) → 3 by default
 PROMPT_FILE=""
 OUT_CSV=""
@@ -89,6 +94,10 @@ while [[ $# -gt 0 ]]; do
 		;;
 	--kv-q8)
 		KVQ8=1
+		shift
+		;;
+	--prompt-lookup)
+		PROMPT_LOOKUP=1
 		shift
 		;;
 	--runs)
@@ -350,6 +359,7 @@ printf '%d' "$N_PREDICT" >"${TMPDIR_LOCAL}/bench_npredict.txt"
 printf '%d' "$MAX_LEN" >"${TMPDIR_LOCAL}/bench_maxlen.txt"
 printf '%d' "$UBATCH" >"${TMPDIR_LOCAL}/bench_ubatch.txt"
 printf '%d' "$KVQ8" >"${TMPDIR_LOCAL}/bench_kvq8.txt"
+printf '%d' "$PROMPT_LOOKUP" >"${TMPDIR_LOCAL}/bench_prompt_lookup.txt"
 
 # bench.flag — consumed by app on each start; must be re-uploaded per run
 printf 'bench' >"${TMPDIR_LOCAL}/bench.flag"
@@ -401,6 +411,13 @@ for ((run = 1; run <= N_RUNS; run++)); do
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_maxlen.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_ubatch.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_kvq8.txt"
+	if ((PROMPT_LOOKUP != 0)); then
+		upload_to_localstate "${TMPDIR_LOCAL}/bench_prompt_lookup.txt"
+	else
+		# A prior --prompt-lookup run must not leave the knob on.
+		delete_from_localstate "bench_prompt_lookup.txt"
+		verify_deleted "bench_prompt_lookup.txt" 5 || true
+	fi
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_run_index.txt"
 
 	echo "  Starting app..."

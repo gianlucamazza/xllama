@@ -384,7 +384,9 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
 
 ## Do not reopen
 
-GPU decode@360M, llama 2× ORT BW, mmap load win, extdata→1B fp16 GPU, DML int4 config-only.
+GPU decode@360M, llama 2× ORT BW, mmap load win, extdata→1B fp16 GPU, DML int4
+config-only, MoE H2 as a decode win, draft-model speculative as a default
+(open-chat regression). Campaign tracking: [phase15-re-opt.md](phase15-re-opt.md).
 
 ## Shortlist (desk, 2026-07-16)
 

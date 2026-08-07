@@ -598,6 +598,9 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     add_sampler_stages(sampler.get(), params.sampling());
 
     const auto t_gen0 = std::chrono::steady_clock::now();
+    // Seed for W2 prompt-lookup: prefill tokens only; the loop appends accepted
+    // generated tokens when on_accepted is null (CLI path).
+    std::vector<llama_token> gen_history = tokens;
     DecodeLoopParams dlp;
     dlp.ctx = ctx.get();
     dlp.sampler = sampler.get();
@@ -607,9 +610,13 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     dlp.abort_flag = params.abort_flag;
     dlp.on_token = params.on_token;
     dlp.echo_stdout = params.echo_stdout;
+    dlp.prompt_lookup = params.prompt_lookup;
+    dlp.token_history = params.prompt_lookup ? &gen_history : nullptr;
     const DecodeLoopResult dlr = decode_loop(dlp, res.output_text);
     const int n_generated = dlr.n_generated;
     res.ended_with_stop = dlr.ended_with_stop;
+    res.n_drafted = dlr.n_drafted;
+    res.n_spec_accepted = dlr.n_accepted;
 
     if (params.echo_stdout)
         std::fputc('\n', stdout);
@@ -626,11 +633,18 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     res.n_p_eval = static_cast<int32_t>(tokens.size());
     res.n_eval = n_generated;
     res.peak_ws_mb = peak_working_set_mb();
+    if (dlr.rewind_failed) {
+        res.success = false;
+        res.error_msg = "speculative KV rewind unsupported (disable --prompt-lookup for this model)";
+        log_output(("[xllama] " + res.error_msg + "\n").c_str());
+        return res;
+    }
     res.success = true;
 
-    char log_buf[256];
+    char log_buf[320];
     snprintf(log_buf, sizeof(log_buf),
-             "[xllama] done: load=%.0fms prompt=%.1f tok/s decode=%.1f tok/s peak=%zuMB\n",
+             "[xllama] done: load=%.0fms prompt=%.1f tok/s decode=%.1f tok/s peak=%zuMB"
+             " drafted=%d spec_accept=%d\n",
              res.t_load_ms,
              res.n_p_eval > 0 && res.t_p_eval_ms > 0
                  ? static_cast<double>(res.n_p_eval) / (res.t_p_eval_ms / 1000.0)
@@ -638,7 +652,7 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
              res.n_eval > 0 && res.t_eval_ms > 0
                  ? static_cast<double>(res.n_eval) / (res.t_eval_ms / 1000.0)
                  : 0.0,
-             res.peak_ws_mb);
+             res.peak_ws_mb, res.n_drafted, res.n_spec_accepted);
     log_output(log_buf);
 
     return res;
