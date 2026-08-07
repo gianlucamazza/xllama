@@ -1,0 +1,5 @@
+kind,model,regime,prompt_lookup,decode_tok_s_median,n_runs,host,date
+w2,qwen25-coder-3b,code,0,14.15,3,xbox-series-s-t6,2026-08-07
+w2,qwen25-coder-3b,code,1,14.735,3,xbox-series-s-t6-plookup,2026-08-07
+w2,qwen25-coder-3b,chat,0,14.7,3,xbox-series-s-t6,2026-08-07
+w2,qwen25-coder-3b,chat,1,14.555,3,xbox-series-s-t6-plookup,2026-08-07

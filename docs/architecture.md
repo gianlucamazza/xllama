@@ -436,6 +436,7 @@ and must not be half-added:
 | Chat instruct (all catalogue text models)        | **In scope** | One `ChatFormat` + `Session::generate`                                                                                                                            |
 | Coding **chat** (`role: coding`, larger `n_ctx`) | **In scope** | Same path; catalogue policy only                                                                                                                                  |
 | Thinking models (basename `thinking`)            | **In scope** | ChatML; `strip_thinking_content` → `postprocess_output` drops `<think>…</think>` for display/persist (KV still saw full stream). Catalogue: `lfm25-1.2b-thinking` |
+| Prompt-lookup speculative (#210, k=2)            | **In (opt-in)** | Same `decode_loop` / `Session`; **default OFF** after console M3 1.04× FAIL gate. Not a second backend. Campaign: [phase15-re-opt.md](phase15-re-opt.md) |
 | FIM / fill-in-middle / IDE completion            | **Out**      | Second prompt surface (`render_fim` + completions route); not wired                                                                                               |
 | Tool-calling / agent loops                       | **Out**      | Schema + multi-step orchestration above `Session`                                                                                                                 |
 

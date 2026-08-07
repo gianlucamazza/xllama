@@ -46,3 +46,18 @@ TEST_CASE("CLI parsing: missing prompt fails") {
     xllama::InferenceParams params;
     CHECK_FALSE(xllama::parse_cli_args(argc, const_cast<char**>(argv), params));
 }
+
+TEST_CASE("CLI parsing: --prompt-lookup defaults off and opts in") {
+    {
+        const char* argv[] = {"xllama-cli", "-m", "m.gguf", "-p", "hi"};
+        xllama::InferenceParams params;
+        CHECK(xllama::parse_cli_args(5, const_cast<char**>(argv), params));
+        CHECK_FALSE(params.prompt_lookup);
+    }
+    {
+        const char* argv[] = {"xllama-cli", "-m", "m.gguf", "-p", "hi", "--prompt-lookup"};
+        xllama::InferenceParams params;
+        CHECK(xllama::parse_cli_args(6, const_cast<char**>(argv), params));
+        CHECK(params.prompt_lookup);
+    }
+}

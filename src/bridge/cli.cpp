@@ -37,6 +37,9 @@ static void print_help(const char* prog) {
                  "                       0 = llama default 512\n"
                  "      --kv-q8          q8_0 KV cache + flash attention (#171); falls\n"
                  "                       back to F16 KV if the arch refuses flash attn\n"
+                 "      --prompt-lookup  Draft-free n-gram speculative decoding (GGUF;\n"
+                 "                       Phase 15 W2 #210). Default off; host timings are\n"
+                 "                       not product claims — console A/B decides ship\n"
                  "      --membw          Run the CPU memory-bandwidth micro-bench and\n"
                  "                       exit (no model needed); prints read/copy/triad GB/s\n"
                  "      --ramceil        Probe how much heap this process can commit and\n"
@@ -95,6 +98,7 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         {"system", required_argument, nullptr, 17},
         {"kv-q8", no_argument, nullptr, 18},
         {"ramceil", no_argument, nullptr, 19},
+        {"prompt-lookup", no_argument, nullptr, 20},
         {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0}};
 
@@ -174,6 +178,9 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             break;
         case 19:
             out.run_ramceil = true;
+            break;
+        case 20:
+            out.prompt_lookup = true;
             break;
         case 'h':
             print_help(argv[0]);

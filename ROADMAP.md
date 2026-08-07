@@ -67,10 +67,11 @@ Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.
       bandwidth premise held (631 MB read/token vs 645 predicted); the cost moves
       off bandwidth. Do not reopen at a lower quant — that tests the quantization,
       not the architecture.
-- [~] H3 speculative decoding — the predeclared A/B was run 2026-07-29 and
-  **split the hypothesis**: the draft-model variant is rejected (1.43× on
-  code, **0.81× on open chat**), the draft-free prompt lookup proceeds
-  (1.53× / 1.00×). Implementation is Phase 15 W2.
+- [x] H3 speculative decoding — **CLOSED for product default 2026-08-07/08.**
+  Pre-gate 2026-07-29 split the hypothesis (draft-model rejected 0.81× chat;
+  prompt-lookup admitted at host 1.53×/1.00×). Phase 15 W2 eng shipped opt-in
+  (`prompt_lookup`, default OFF). Console M3: code **1.04× FAIL** ≥1.4× gate;
+  chat ~0.99×. Remains opt-in only — see Phase 15 W2 and `docs/phase15-re-opt.md`.
 - [ ] H5 BitNet/low-bit survey before any runtime work.
 - [ ] H6/H7 GPU or hybrid GGUF experiments only after a credible UWP backend
       path exists — H6 now has a predeclared 100 GB/s kill gate (Phase 15 W3).
@@ -417,13 +418,17 @@ and Coder-3B lands at 14.0 tok/s. Three levers touch that denominator; a
 rewritten framework or a bespoke model architecture touch neither, and both are
 rejected on that ground (`docs/phase7-hypotheses.md`, "Do not reopen").
 
-**Where it stands (2026-07-30).** W1 is **closed FAIL on measure** — the MoE
+**Where it stands (2026-08-08).** W1 is **closed FAIL on measure** — the MoE
 reads only its active experts, exactly as predicted, and is still no faster than
-a dense 3B because the cost moves off bandwidth. W2's pre-gate **split the
-hypothesis**: the draft-model variant is rejected (0.81× on open chat), prompt
-lookup proceeds; its groundwork (one shared decode loop) is done. W3 is
-untouched. Two of the three levers are therefore measured before any of them
-was built on — which was the point of ordering them this way.
+a dense 3B because the cost moves off bandwidth. W2 is **closed for product
+default**: pre-gate rejected draft-model; prompt-lookup eng shipped opt-in;
+console M3 **1.04× FAIL** ≥1.4× gate so default stays OFF. W3 (gpubw) is the
+**next** eng lever. Ordering W1→W2 measure-before-build paid off: two levers
+decided without reopening falsified paths.
+
+**Campaign SSOT:** [`docs/phase15-re-opt.md`](docs/phase15-re-opt.md) (method,
+Findings, workstream status, decision log). Attack order: **W2 closed**
+(default OFF after M3); **W3 next**.
 
 - [x] **W1 — H2: a MoE whose active weights are a fraction of its total. CLOSED
       FAIL 2026-07-30.**
@@ -450,12 +455,22 @@ was built on — which was the point of ordering them this way.
   with the result attached and enters no product tier; the 3.5 GB product-gate
   question a speed PASS would have opened is moot.
 
-- [~] **W2 — H3: speculative decoding (#210).** Both halves of the pair already ship and
-  are console-PASS: draft `qwen25-coder-0.5b` (379 MB, 62.4 tok/s), target
-  `qwen25-coder-3b` (1840 MB, 14.0). **Vocab precondition measured and
-  PASSED 2026-07-29** (`bench/results/phase15-spec-vocab.csv`): the pin's
-  `common_speculative_are_compatible` throws rather than degrades, and the
-  pair is identical across all its checks. The same pass produced two
+- [x] **W2 — H3: speculative decoding (#210). CLOSED for product default
+  2026-08-07/08** (eng remains as opt-in). Host: pure `prompt_lookup_draft`;
+  lead-first multi-token verify + `seq_rm` degrade; CLI `--prompt-lookup` /
+  `SessionParams` / headless `bench_prompt_lookup.txt` default OFF; greedy
+  MATCH. Console M3 Series S (`qwen25-coder-3b`, t6): code **1.04× FAIL**
+  ≥1.4× (14.15 → 14.74); chat 0.99×; peak ~2.0 GB. Spec fires (~32/62 accepts
+  on code) but does not break the membw wall. **Default OFF.** Ship/measure
+  packages via CI MSVC (`docs/crossbuild-console.md`). CSV:
+  `bench/results/phase15-spec-w2-console.csv`. SSOT Findings:
+  `docs/phase15-re-opt.md`.
+  Both halves of the original draft/target
+  pair already ship and are console-PASS: draft `qwen25-coder-0.5b` (379 MB,
+  62.4 tok/s), target `qwen25-coder-3b` (1840 MB, 14.0). **Vocab precondition
+  measured and PASSED 2026-07-29** (`bench/results/phase15-spec-vocab.csv`):
+  the pin's `common_speculative_are_compatible` throws rather than degrades,
+  and the pair is identical across all its checks. The same pass produced two
   keepers — Qwen3-1.7B and Coder share a vocab _size_ but differ in 4 token
   texts, and the H2 MoE has a 128000-token vocab against LFM2.5-350M's
   65536, so **H2 and H3 do not compose**.

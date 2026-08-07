@@ -141,5 +141,20 @@ int main(int argc, char** argv) {
     }
 
     auto res = xllama::run_inference(params);
+    // Machine-readable line for scripts/bench-spec-w2.sh (and friends). Lives on
+    // stderr next to the human log so token streaming on stdout stays clean.
+    if (res.success) {
+        const double decode_tps = (res.n_eval > 0 && res.t_eval_ms > 0)
+                                      ? static_cast<double>(res.n_eval) / (res.t_eval_ms / 1000.0)
+                                      : 0.0;
+        std::fprintf(stderr,
+                     "SPEC_STATS success=1 n_eval=%d t_eval_ms=%.1f decode_tok_s=%.2f "
+                     "n_drafted=%d n_spec_accepted=%d peak_ws_mb=%zu prompt_lookup=%d\n",
+                     res.n_eval, res.t_eval_ms, decode_tps, res.n_drafted, res.n_spec_accepted,
+                     res.peak_ws_mb, params.prompt_lookup ? 1 : 0);
+    } else {
+        std::fprintf(stderr, "SPEC_STATS success=0 error=%s\n",
+                     res.error_msg.empty() ? "(none)" : res.error_msg.c_str());
+    }
     return res.success ? 0 : 1;
 }

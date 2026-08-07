@@ -200,6 +200,10 @@ void main_loop() {
     // #171: q8_0 KV cache + flash attention A/B. Host-column tag -kvq8, same
     // rationale as -uN (the CSV schema carries no cache-type column).
     const int bench_kvq8 = read_local_int("bench_kvq8.txt", 0);
+    // Phase 15 W2 (#210): draft-free prompt-lookup speculative decoding.
+    // 0 = off (default); 1 = on. Host-column tag -plookup (CSV has no dedicated
+    // column — same pattern as -kvq8 / -uN).
+    const int bench_prompt_lookup = read_local_int("bench_prompt_lookup.txt", 0);
     // W1.1: which repetition this run is, written by the bench driver before each
     // iteration. Echoed into the CSV run_index column so the driver can append
     // every repeat and the summary generator can report a spread. 0 = single run.
@@ -239,13 +243,14 @@ void main_loop() {
     if (bench_ctx > 0)
         params.n_ctx = bench_ctx;
     params.max_length_override = bench_maxlen;
-    params.n_threads = bench_threads;           // 0 = auto; set by bench-xbox-ort.sh
-    params.n_ubatch = bench_ubatch;             // #172: 0 = llama default (512)
-    params.kv_q8 = bench_kvq8 != 0;             // #171: q8_0 KV + flash attention
-    params.stop_sequences = fmt.stop_sequences; // clean stop for Gemma's <end_of_turn>
-    params.run_index = bench_run_index;         // W1.1: echo into CSV (0 = single-run)
+    params.n_threads = bench_threads;                // 0 = auto; set by bench-xbox-ort.sh
+    params.n_ubatch = bench_ubatch;                  // #172: 0 = llama default (512)
+    params.kv_q8 = bench_kvq8 != 0;                  // #171: q8_0 KV + flash attention
+    params.prompt_lookup = bench_prompt_lookup != 0; // #210 W2
+    params.stop_sequences = fmt.stop_sequences;      // clean stop for Gemma's <end_of_turn>
+    params.run_index = bench_run_index;              // W1.1: echo into CSV (0 = single-run)
 
-    char host_buf[64];
+    char host_buf[80];
     int host_len = snprintf(host_buf, sizeof(host_buf), "xbox-series-s");
     if (bench_threads > 0)
         host_len +=
@@ -254,9 +259,20 @@ void main_loop() {
         host_len +=
             snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-u%d", bench_ubatch);
     if (bench_kvq8 != 0)
-        snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-kvq8");
+        host_len += snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-kvq8");
+    if (bench_prompt_lookup != 0)
+        snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-plookup");
 
     InferenceResult res = ::xllama::run_inference(params);
+    if (params.prompt_lookup) {
+        char spec_buf[192];
+        snprintf(spec_buf, sizeof(spec_buf),
+                 "[xllama] SPEC_STATS success=%d n_eval=%d t_eval_ms=%.1f "
+                 "n_drafted=%d n_spec_accepted=%d\n",
+                 res.success ? 1 : 0, res.n_eval, res.t_eval_ms, res.n_drafted,
+                 res.n_spec_accepted);
+        log_output(spec_buf);
+    }
     xllama::write_bench_csv(params, res, host_buf);
 #endif
 }
