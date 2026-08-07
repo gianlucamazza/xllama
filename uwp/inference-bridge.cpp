@@ -6,6 +6,7 @@
 #include "xllama/chat_prompt.h"
 #include "xllama/device_train.h"
 #include "xllama/inference.h"
+#include "xllama/gpubw.h"
 #include "xllama/membw.h"
 #include "xllama/path_utils.h"
 #include "xllama/personalize.h"
@@ -352,6 +353,42 @@ void run_membw() {
             fclose(done);
         }
         log_output("[xllama] membw-result.csv written\n");
+    }
+#endif
+}
+
+// ---------------------------------------------------------------------------
+// run_gpubw (called from UWP gpubw.flag mode background thread)
+// ---------------------------------------------------------------------------
+
+void run_gpubw() {
+#ifdef XLLAMA_UWP
+    log_output("[xllama] gpubw: measuring GPU STREAM bandwidth (own CS, no Agility)\n");
+    // ~1 GiB default (issue #211). If alloc fails, measure_gpubw reports error.
+    const ::xllama::GpubwResult r = ::xllama::measure_gpubw(::xllama::kGpubwDefaultBufferBytes, 3);
+
+    char lb[320];
+    snprintf(lb, sizeof(lb),
+             "[xllama] gpubw: read=%.2f GB/s checksum_ok=%d d3d12_ran=%d kill_gate=%d "
+             "buf=%zu MB err=%s\n",
+             r.read_gbs, r.checksum_ok ? 1 : 0, r.d3d12_ran ? 1 : 0,
+             ::xllama::gpubw_passes_kill_gate(r) ? 1 : 0, r.buffer_bytes / (1024 * 1024),
+             r.error_msg.empty() ? "-" : r.error_msg.c_str());
+    log_output(lb);
+
+    const std::string csv = resolve_local_path("gpubw-result.csv");
+    FILE* fp = _wfopen(utf8_to_wstring(csv).c_str(), L"w");
+    if (fp) {
+        fputs(::xllama::gpubw_csv_header(), fp);
+        fputs(::xllama::format_gpubw_row(r, "xbox-series-s").c_str(), fp);
+        fclose(fp);
+        FILE* done =
+            _wfopen(utf8_to_wstring(resolve_local_path("gpubw-result.csv.done")).c_str(), L"w");
+        if (done) {
+            fputs("done\n", done);
+            fclose(done);
+        }
+        log_output("[xllama] gpubw-result.csv written\n");
     }
 #endif
 }

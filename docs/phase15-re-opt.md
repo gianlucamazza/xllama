@@ -9,7 +9,8 @@
 > narrative table.
 
 **Currency:** 2026-08-08. Attack order: **W2 closed for product default**
-(console M3 FAIL ≥1.4× gate → stays opt-in OFF); next eng is **W3 gpubw**.
+(console M3 FAIL ≥1.4× gate → stays opt-in OFF); **W3 gpubw spike shipped**
+(headless `gpubw.flag` / CLI `--gpubw`); console measure → kill gate below.
 
 ## Goal
 
@@ -95,6 +96,7 @@ until APP-CRT import parity with CI is proven on device.
 | Spec pregate | `scripts/bench-spec-pregate.sh`, `analyze-spec-pregate.py` | H3 host prediction |
 | Spec W2 host A/B | `scripts/bench-spec-w2.sh` | TDD / acceptance rates (not product tok/s) |
 | Spec W2 console A/B | `scripts/bench-spec-w2-console.sh` | M3 gate on Series S |
+| GPU STREAM (W3) | `gpubw.flag` / `scripts/bench-gpubw.sh` / `include/xllama/gpubw.h` | Own CS read + checksum; kill 100 GB/s |
 | Logit parity | `scripts/validate-logit-parity.sh` | DML correctness |
 | GPU mem | `gpu_mem_info()` in `platform.cpp` | VRAM budget |
 
@@ -107,7 +109,7 @@ until APP-CRT import parity with CI is proven on device.
 | Driver metacommands | Opt-out experiment FAIL; not the #91 cause |
 | ggml Q4_K CPU kernels / repack | Repack enabled (#155); decode still BW-bound |
 | #130 max_length valley mechanism | Mitigated (warm-up); profile still open |
-| RDNA2 outside DirectML | **Open — W3 gpubw** |
+| RDNA2 outside DirectML | **W3 gpubw spike eng done** — console measure pending |
 
 ## Workstreams
 
@@ -115,7 +117,7 @@ until APP-CRT import parity with CI is proven on device.
 | --- | --- | --- | --- |
 | WS0 | Baseline freeze + this doc | — | **done** (this file) |
 | WS-A | W2 prompt-lookup speculative | #210 | **closed for default** — host PASS; console M3 **1.04× FAIL** gate; opt-in remains |
-| WS-B | W3 gpubw STREAM + Q4 GEMV spike | #211 | **next** (queued after W2 M3 decision) |
+| WS-B | W3 gpubw STREAM + Q4 GEMV spike | #211 | **spike shipped** — STREAM CS + checksum; console measure pending/env-limited; GEMV optional follow-up |
 | WS-C | #130 DML valley mechanism profile | #130 | opportunistic on console |
 | WS-D | H5 BitNet desk survey | — | parallel desk, no eng yet |
 | WS-E | H6/H7 GGUF GPU path | — | **only if** W3 ≥ 100 GB/s |
@@ -151,7 +153,8 @@ Never use the Agility D3D12 factory; headless `gpubw.flag` only.
 | M2 | W2.4 opt-in + host acceptance CSV | acceptance vs pregate |
 | M3 | Console W2 A/B + full gates | **measured** — code 1.04× **FAIL** gate; chat OK; peak OK |
 | M4 | Product default decision (after M3 numbers) | **OFF** (opt-in only); CHANGELOG |
-| M5–M6 | gpubw spike + measure | kill/pass H6 |
+| M5 | gpubw STREAM spike (code + flag + DXIL) | **done** (eng); host helpers unit-tested |
+| M6 | console measure vs 100 GB/s | pending Series S / CI package with gpubw |
 | M7 | #130 closed | §5e verdict |
 | M8 | H5 survey note | go/no-go |
 | M9+ | H6/H7 only if M6 PASS | new phase |
@@ -173,10 +176,11 @@ Never use the Agility D3D12 factory; headless `gpubw.flag` only.
 | 2026-08-07 | Host tests: full suite PASS after W2. Control deploy: CI package `1.5.2.910` launches and loads GGUF on Series S. |
 | 2026-08-07 | **M3 console A/B (W2.5):** `qwen25-coder-3b` CI W2 `1.5.2.920`. Code 1.04× FAIL (≥1.4×); chat 0.99×. Speculation works (code ~50% draft accept) but BW-bound console does not convert accepts into ≥1.4× tok/s. **Product default remains OFF.** Next campaign focus: W3 gpubw (#211). |
 | 2026-08-08 | **Docs consolidated:** Findings section above; H3 card in phase7 updated; model-matrix gap closed; crossbuild launch path remains CI-only. PR #226 holds the W2 eng + CSVs. |
+| 2026-08-08 | **W3 gpubw spike (#211) eng:** `include/xllama/gpubw.h`, AOT DXIL `shaders/gpubw_stream.hlsl` → `shaders/generated/gpubw_stream_dxil.h`, UWP `gpubw.flag` / CLI `--gpubw`, `scripts/bench-gpubw.sh`. System `D3D12CreateDevice` only (no Agility). Kill still **100 GB/s** STREAM read + checksum. Console measure not claimed until CSV lands under `bench/results/`. |
 
 ## Related issues
 
 - #210 W2 prompt-lookup (eng shipped opt-in; default OFF after M3)
-- #211 W3 gpubw gate (**next**)
+- #211 W3 gpubw gate (**spike eng done; measure → kill/pass H6**)
 - #130 DML max_length valley mechanism
 - #216 kvsnap intermittent (watch on console gates)

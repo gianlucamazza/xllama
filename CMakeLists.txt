@@ -62,6 +62,7 @@ add_library(xllama STATIC
     src/bridge/kv_store.cpp
     src/bridge/bench.cpp
     src/bridge/membw.cpp
+    src/bridge/gpubw.cpp
     src/bridge/ramceil.cpp
     src/bridge/platform.cpp
     src/bridge/path_utils.cpp
@@ -82,6 +83,10 @@ target_include_directories(xllama PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/include
     ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/common
+)
+# AOT DXIL blob for Phase 15 W3 gpubw (#211); host builds do not link D3D12.
+target_include_directories(xllama PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders/generated
 )
 
 target_link_libraries(xllama PUBLIC llama)

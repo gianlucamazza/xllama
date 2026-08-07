@@ -497,13 +497,13 @@ Findings, workstream status, decision log). Attack order: **W2 closed**
   peak < 3.5 GB; `longchat` and `kvsnap` are the real regression tests, since
   the draft touches the KV.
 
-- [ ] **W3 — H6 gate: does our own compute shader beat DirectML? (#211)** Not a backend
-      — a measurement. Every negative GPU result on record is a DirectML result,
-      and DirectML provably has no fused low-bit GEMM (`DML_DEQUANTIZE` + full
-      `DML_GEMM` materializes fp16 and reads _more_ bandwidth than fp16 itself).
-      DXGI and D3D12 both work in AppContainer and DXIL compiles AOT, so the JIT
-      ban does not bite. **Kill criterion, predeclared: under 100 GB/s STREAM
-      read the hypothesis dies and goes to "Do not reopen".**
+- [~] **W3 — H6 gate: does our own compute shader beat DirectML? (#211)** Not a
+      backend — a measurement. **Spike eng done 2026-08-08:** `gpubw.flag` /
+      `--gpubw`, AOT DXIL CS, system D3D12 only, checksum-mandatory CSV.
+      Every prior negative GPU result was DirectML (no fused low-bit GEMM).
+      **Kill criterion unchanged: under 100 GB/s STREAM read → Do not reopen H6.**
+      Console Series S measure via `scripts/bench-gpubw.sh` still required for
+      the PASS/FAIL close of #211.
 - [x] **Groundwork W2 needs: the prefill and decode loops written once**
       (2026-07-30, `src/bridge/decode_loop.h`). `run_inference_llama` and
       `LlamaSession::generate` kept hand-maintained copies that had already

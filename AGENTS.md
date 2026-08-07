@@ -23,6 +23,7 @@ xllama/
 │   ├── preference_capture.h # preference JSONL (UI rate + POST /v1/preferences)
 │   ├── routing_policy.h     # routing decision + prompt budget (threshold must stay under it)
 │   ├── speculative.h        # Phase 15 W2: prompt_lookup_draft (pure, host-testable)
+│   ├── gpubw.h              # Phase 15 W3: GPU STREAM probe helpers + kill gate (#211)
 │   ├── sampling.h           # sampling defaults shared by CLI/bench and GUI/API
 │   ├── session.h            # xllama::Session API (persistent model across turns)
 │   ├── session_hub.h        # SessionHub: the ONE process-wide resident-Session owner (GUI+API)

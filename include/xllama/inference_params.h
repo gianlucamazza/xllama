@@ -106,6 +106,10 @@ struct InferenceParams {
     // load). Model/prompt are not required in this mode.
     bool run_membw = false;
 
+    // CLI --gpubw: Phase 15 W3 (#211) GPU STREAM probe. On non-Windows hosts
+    // reports d3d12 unavailable (no invented GB/s). Model/prompt not required.
+    bool run_gpubw = false;
+
     // CLI --ramceil: probe how much heap this process can commit, and exit (no
     // model load). Measures the ceiling a GGUF actually spends against, which
     // decides model admissibility. Model/prompt are not required in this mode.

@@ -33,6 +33,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Phase 15 W3 (#211): gpubw GPU STREAM probe (spike, not a backend).** Headless
+  `gpubw.flag` / CLI `--gpubw`, pure helpers + CSV + checksum, AOT DXIL compute
+  shader (system `D3D12CreateDevice`, never Agility). Kill criterion remains
+  **100 GB/s** STREAM read (`docs/phase15-re-opt.md`). Host without D3D12
+  reports unavailable honestly (no invented GB/s). `scripts/bench-gpubw.sh`
+  fetches console CSV.
 - **Phase 15 W2 (#210): draft-free prompt-lookup speculative decoding (opt-in,
   default off).** `prompt_lookup_draft` pure helper, multi-token draft verify +
   `seq_rm` degrade in `decode_loop.h`, CLI `--prompt-lookup`,

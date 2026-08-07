@@ -359,7 +359,11 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
 ### H6 — GGUF GPU backend (Vulkan/D3D12) in AppContainer
 
 - **Claim:** At ≥3B, GPU decode beats CPU t6.
-- **Status:** Deferred platform work; only after H4 shows 3B is quality-limited not eng-limited. Small-model GPU decode already falsified for ORT DML.
+- **Status:** **Gated by Phase 15 W3 (#211).** Spike eng ships a headless own
+  compute-shader STREAM probe (`gpubw.flag`, `include/xllama/gpubw.h`); **kill
+  criterion &lt; 100 GB/s read** → Do not reopen H6. Console CSV not yet the
+  product-path verdict until measured on Series S. Small-model GPU decode via
+  ORT DML already falsified.
 
 ### H7 — GGUF prefill offload (hybrid)
 
