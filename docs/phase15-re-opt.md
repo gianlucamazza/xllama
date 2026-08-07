@@ -8,8 +8,8 @@
 > workstream status, and decision log** so those pages do not grow a second
 > narrative table.
 
-**Currency:** 2026-08-07. Attack order locked: **W2 first**, then W3 gpubw;
-speculative product default decided **after** console M3.
+**Currency:** 2026-08-08. Attack order: **W2 closed for product default**
+(console M3 FAIL ≥1.4× gate → stays opt-in OFF); next eng is **W3 gpubw**.
 
 ## Goal
 
@@ -41,12 +41,37 @@ Physics already measured (cite, do not re-derive):
 | t6 cap (t7/t8 livelock) | §5f |
 | One resident model (`SessionHub`) | [architecture.md](architecture.md) |
 | H2 MoE FAIL; draft-model speculative FAIL on chat | [phase7-hypotheses.md](phase7-hypotheses.md) |
-| Prompt-lookup pregate 1.53× code / 1.00× chat | `bench/results/phase15-spec-pregate.csv` |
+| Prompt-lookup pregate 1.53× code / 1.00× chat (host physics) | `bench/results/phase15-spec-pregate.csv` |
+| Prompt-lookup **console M3** 1.04× code / 0.99× chat | `bench/results/phase15-spec-w2-console.csv` |
+
+## Findings (W2 closed — read this before reopening)
+
+1. **Host pregate ≠ console tok/s.** Pregate predicted ~1.53× on code from
+   acceptance × prefill:decode ratio on a throttled host. On Series S the same
+   path measures **1.04×** (`qwen25-coder-3b`, t6, n_predict=96, median of
+   recorded runs). Speculation **fires** (code ~32 accepts / ~62 drafts) but
+   multi-token verify still streams weights; BW-bound decode does not turn
+   partial accepts into ≥1.4×.
+2. **Lead-first correctness.** Draft tokens must not share the lead’s first
+   classic decode batch: old [lead+draft] logits diverge from greedy even with
+   zero accepts. Fix: classic lead commit, then draft-only verify batch
+   (`decode_loop.h`). Host greedy MATCH after that.
+3. **Hybrid / SWA KV cannot tail-rewind.** `seq_rm` refuse → abort generation +
+   clear error; probe disables prompt-lookup for that model, does not corrupt
+   shipping `lfm25-350m`.
+4. **Product default OFF.** Opt-in only: CLI `--prompt-lookup`,
+   `SessionParams::prompt_lookup`, headless `bench_prompt_lookup.txt`.
+5. **Console package path for measurement:** CI MSVC `xllama-appx` + openappx
+   (not Linux uwp-crossbuild alone — activation `0x8027025b`; see
+   [crossbuild-console.md](crossbuild-console.md)).
 
 ## Do not reopen
 
 GPU decode@360M · DML int4 decode config-only · mmap load win · extdata→1B fp16
-GPU · MoE H2 · draft-model speculative as default · host tok/s as product claims.
+GPU · MoE H2 · draft-model speculative as default · host tok/s as product claims ·
+**prompt-lookup as product default without a new ≥1.4× console CSV** · treating
+crossbuild `/MT` or store-`/MD`+sanitized-libcpmt as a launchable shipping path
+until APP-CRT import parity with CI is proven on device.
 
 ## Method
 
@@ -67,7 +92,9 @@ GPU · MoE H2 · draft-model speculative as default · host tok/s as product cla
 | RAM ceiling | `ramceil.flag` | Heap upper bound |
 | DML profile | `scripts/profile-dml-run.sh`, `analyze_ort_profile.py` | EP / fused node |
 | GPU util sample | `scripts/xbox-gpu-sample.sh` | WDP systemperf |
-| Spec pregate | `scripts/bench-spec-pregate.sh`, `analyze-spec-pregate.py` | H3 prediction |
+| Spec pregate | `scripts/bench-spec-pregate.sh`, `analyze-spec-pregate.py` | H3 host prediction |
+| Spec W2 host A/B | `scripts/bench-spec-w2.sh` | TDD / acceptance rates (not product tok/s) |
+| Spec W2 console A/B | `scripts/bench-spec-w2-console.sh` | M3 gate on Series S |
 | Logit parity | `scripts/validate-logit-parity.sh` | DML correctness |
 | GPU mem | `gpu_mem_info()` in `platform.cpp` | VRAM budget |
 
@@ -87,8 +114,8 @@ GPU · MoE H2 · draft-model speculative as default · host tok/s as product cla
 | ID | Name | Issue | Status |
 | --- | --- | --- | --- |
 | WS0 | Baseline freeze + this doc | — | **done** (this file) |
-| WS-A | W2 prompt-lookup speculative | #210 | **host PASS**; **console M3 measured FAIL gate** (code 1.04× &lt; 1.4×; chat 0.99×); product default stays **OFF** |
-| WS-B | W3 gpubw STREAM + Q4 GEMV spike | #211 | queued after W2 ≥ M2 |
+| WS-A | W2 prompt-lookup speculative | #210 | **closed for default** — host PASS; console M3 **1.04× FAIL** gate; opt-in remains |
+| WS-B | W3 gpubw STREAM + Q4 GEMV spike | #211 | **next** (queued after W2 M3 decision) |
 | WS-C | #130 DML valley mechanism profile | #130 | opportunistic on console |
 | WS-D | H5 BitNet desk survey | — | parallel desk, no eng yet |
 | WS-E | H6/H7 GGUF GPU path | — | **only if** W3 ≥ 100 GB/s |
@@ -145,10 +172,11 @@ Never use the Agility D3D12 factory; headless `gpubw.flag` only.
 | 2026-08-07 | **uwp-crossbuild gotchas for xllama:** (1) VCLibs PackageDependency in AppxManifest; (2) `ops.h` CACHE_LINE_SIZE under clang-cl; (3) store-CRT + `libcpmt` MT is incorrect for `/MD` (gotcha 21). **Resolution for product launch:** use **CI MSVC** (`build-uwp` / `xllama-appx`). Crossbuild `/MT` and experimental store-`/MD`+sanitized-libcpmt **link** but fail Xbox activation `0x8027025b` (registry/KERNEL32 imports vs CI APP-CRT). hello-uwp still launches. Details: [crossbuild-console.md](crossbuild-console.md). |
 | 2026-08-07 | Host tests: full suite PASS after W2. Control deploy: CI package `1.5.2.910` launches and loads GGUF on Series S. |
 | 2026-08-07 | **M3 console A/B (W2.5):** `qwen25-coder-3b` CI W2 `1.5.2.920`. Code 1.04× FAIL (≥1.4×); chat 0.99×. Speculation works (code ~50% draft accept) but BW-bound console does not convert accepts into ≥1.4× tok/s. **Product default remains OFF.** Next campaign focus: W3 gpubw (#211). |
+| 2026-08-08 | **Docs consolidated:** Findings section above; H3 card in phase7 updated; model-matrix gap closed; crossbuild launch path remains CI-only. PR #226 holds the W2 eng + CSVs. |
 
 ## Related issues
 
-- #210 W2 prompt-lookup
-- #211 W3 gpubw gate
+- #210 W2 prompt-lookup (eng shipped opt-in; default OFF after M3)
+- #211 W3 gpubw gate (**next**)
 - #130 DML max_length valley mechanism
-- #216 kvsnap intermittent (watch before M3)
+- #216 kvsnap intermittent (watch on console gates)

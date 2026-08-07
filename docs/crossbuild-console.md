@@ -4,6 +4,16 @@ End-to-end path using **uwp-crossbuild** + **openappx** (no Windows VM).
 Companion SSOTs: [uwp-constraints.md](uwp-constraints.md), campaign notes in
 [phase15-re-opt.md](phase15-re-opt.md).
 
+**Currency:** 2026-08-08.
+
+### One-page launch decision
+
+| Goal | Path | Status on Series S |
+| --- | --- | --- |
+| Ship / measure product tok/s | CI MSVC `build-uwp` → `xllama-appx` → openappx pack/sign/deploy | **Launches** (proven `1.5.2.910`+; W2 A/B on `1.5.2.920`) |
+| Compile-smoke from Linux | uwp-crossbuild `build-project` → openappx | **Installs, does not activate** (`0x8027025b`) |
+| hello-uwp / non-filesystem samples | uwp-crossbuild `/MT` or store `/MD` | Launches (not a proof for xllama) |
+
 ## Prerequisites
 
 - `uwp-crossbuild` installed or checkout with `scripts/` on `PATH`
@@ -88,12 +98,17 @@ openappx deploy --device "https://${XBOX_IP}:${XBOX_PORT}" \
   --package /tmp/xllama.msix
 ```
 
-## Compile fixes specific to this tree
+## Compile / link / launch matrix (xllama-specific)
 
-| Issue | Fix |
-| --- | --- |
-| `CACHE_LINE_SIZE` / clang-cl | `llama.cpp/ggml/src/ggml-cpu/ops.h` skips the feature-test under clang-cl |
-| VCLibs missing | `PackageDependency` in `uwp/AppxManifest.xml` |
+| Issue | Symptom | Fix / status |
+| --- | --- | --- |
+| `CACHE_LINE_SIZE` under clang-cl | compile fail in ggml | `llama.cpp/ggml/src/ggml-cpu/ops.h` skips feature-test when clang-cl |
+| VCLibs not declared | install OK, launch `0x80070002` | `PackageDependency` Microsoft.VCLibs.140.00 in AppxManifest |
+| Store `/MD` + desktop CRT | launch fail (desktop `VCRUNTIME140`) | `UWP_STORE_CRT=1` + `fetch-vclibs` `*_app` libs (gotcha 19) |
+| Store `/MD` + raw `libcpmt` | LLD `FAILIFMISMATCH` RuntimeLibrary | never mix MT archive into MD (gotcha 21) |
+| Store `/MD` + sanitized libcpmt + Facet stub | links APP CRT but still `0x8027025b` | residual registry/KERNEL32 imports from static STL objects |
+| App-container `/MT` (default crossbuild) | links; xllama `0x8027025b` | enough for hello-uwp; not product path for xllama |
+| Product launch | — | **CI MSVC only** until APP-CRT parity is proven |
 
 ## W2 console A/B
 

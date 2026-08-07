@@ -212,14 +212,16 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
 - **Claim:** ≥1.4× perceived tok/s on target without more average bandwidth.
 - **PASS:** ≥1.4× on 1.7B+ with same quality.
 - **FAIL:** Overhead &gt; gain on 6 cores.
-- **Status:** Open — **split by the pre-gate** (2026-07-29). The precondition
-  passes on the intended pair, and the predeclared A/B then **rejected the
-  draft-model variant** (1.43× on code but **0.81× on open chat**) and **admitted
-  the draft-free prompt lookup at k=2** (1.53× / 1.00×). What remains open is the
-  implementation, tracked as Phase 15 W2 (#210); it is not in `LlamaSession` yet.
-  Both verdicts, and the cost model they rest on, are below. Dependency forks are
-  available and explicitly in scope if H3 or a measured kernel/repack bottleneck
-  requires changes below xllama's API layer.
+- **Status:** **Implemented (opt-in) + product-default FAIL.** Pre-gate
+  (2026-07-29) rejected draft-model (1.43× code / **0.81× chat**) and admitted
+  draft-free prompt lookup k=2 (host physics 1.53× / 1.00×). Phase 15 W2 (#210)
+  landed in `LlamaSession` / `decode_loop.h` / CLI / headless
+  `bench_prompt_lookup.txt` (default **OFF**). Console M3 (2026-08-07,
+  Series S, `qwen25-coder-3b`): **1.04× code FAIL** vs ≥1.4× ship gate; chat
+  0.99×; peak ~2.0 GB — CSV `bench/results/phase15-spec-w2-console.csv`.
+  Campaign SSOT: [phase15-re-opt.md](phase15-re-opt.md). **Do not turn on as
+  product default** without a new console CSV that clears ≥1.4×. Cost model and
+  vocab table below remain the pre-gate evidence (host), not console tok/s.
 
   The pin gates speculation on `common_speculative_are_compatible`
   (`common/speculative.cpp:64`) and **throws** when it fails, so vocab identity

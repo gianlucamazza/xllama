@@ -42,7 +42,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (`qwen25-coder-3b`, CI package): code **1.04×** vs ≥1.4× gate — **no
   product default**; remains opt-in. Chat ~1.0×. Linux uwp-crossbuild
   layouts still fail Xbox activation (`0x8027025b`); details in
-  `docs/crossbuild-console.md`. Campaign SSOT: `docs/phase15-re-opt.md`.
+  `docs/crossbuild-console.md`. Campaign SSOT: `docs/phase15-re-opt.md`
+  (Findings section + H3 card closed 2026-08-08).
 - **Measured: the console cannot record its own output, but self-capture is not
   closed.** A `[caprec]` line in `xllama.log` on every interactive launch reports
   `ApiInformation::IsTypePresent` for both self-capture APIs. On the console

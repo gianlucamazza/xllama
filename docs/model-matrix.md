@@ -219,9 +219,12 @@ shifts.
 1. ~~Console campaign phase14~~ — **done**.
 2. ~~Thinking product path~~ — **done** (`model_is_thinking` + strip for display).
 3. **Ship MSIX** with phase14 code (catalogue download, n_ctx/role, think strip).
-4. **H3 speculative decoding** (Coder-0.5B draft + 1.5B/3B target).
+4. ~~**H3 speculative decoding**~~ — **done as opt-in** (Phase 15 W2 #210:
+   draft-free prompt-lookup k=2). Console M3 **1.04× FAIL** product-default gate
+   on `qwen25-coder-3b`; stays OFF. See [phase15-re-opt.md](phase15-re-opt.md).
 5. **FIM / completions API** — out of scope (second prompt surface).
 6. Optional next models: Qwen3-4B-2507, Phi-4-mini, Gemma-3-1B, LFM2.5-230M.
+7. **W3 gpubw** (#211) — next RE spike after W2 default decision.
 
 ---
 
