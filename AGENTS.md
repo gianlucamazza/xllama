@@ -36,6 +36,7 @@ xllama/
 │   ├── inference.cpp        # ORT GenAI and/or llama_decode (unified: runtime dispatch)
 │   ├── sampler_chain.h      # add_sampler_stages — the one llama.cpp sampler chain (#125)
 │   ├── ort_sampling.h       # apply_ort_sampling — the ORT twin, greedy guard shared (#141)
+│   ├── decode_loop.h        # shared prefill/decode; W2 prompt-lookup verify (opt-in)
 │   ├── session.cpp          # xllama::Session (OrtSession UWP + LlamaSession Linux)
 │   ├── training.cpp         # TrainingJob validate/parse (host + UWP linkable)
 │   ├── device_train.cpp     # Lane B engine: prepare → train → export → evaluate
@@ -83,7 +84,9 @@ xllama/
 **Doc ownership (do not invent a second SSOT):** see `docs/README.md`. Structure →
 `architecture.md` (incl. catalogue `n_ctx`/`role`, ChatFormat, deferred surfaces);
 training → `training-architecture.md`; inventory/status → `model-matrix.md`;
-numbers → `bench/results` + generated `benchmarks.md`; UI steps → `using-the-app.md`.
+numbers → `bench/results` + generated `benchmarks.md`; UI steps → `using-the-app.md`;
+Phase 15 RE/opt (W2 findings, default-OFF) → `docs/phase15-re-opt.md`; Linux→Xbox
+pack path → `docs/crossbuild-console.md` (launch = CI MSVC).
 
 **Catalogue policy:** optional `n_ctx` and `role` (`coding`) are session knobs only
 — not a second backend. Gate: host Release smoke → console bench → then manifest.
@@ -109,7 +112,11 @@ ctest --test-dir build/linux-test --output-on-failure
 
 ### UWP (Windows / CI)
 
-Recommended: push to `main` and download the `xllama-appx` artifact from the `build-uwp` GitHub Actions workflow.
+Recommended: push to `main` and download the `xllama-appx` artifact from the
+`build-uwp` GitHub Actions workflow. **That CI MSVC package is the path that
+launches on Series S.** Linux uwp-crossbuild can compile a layout (see
+`docs/crossbuild-console.md`) but xllama packages from it do not activate
+(`0x8027025b`) — use CI for console benches and shipping claims.
 
 For local builds (requires a Windows VM — see `docs/windows-dev-vm.md`):
 

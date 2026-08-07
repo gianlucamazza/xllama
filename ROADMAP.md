@@ -417,18 +417,17 @@ and Coder-3B lands at 14.0 tok/s. Three levers touch that denominator; a
 rewritten framework or a bespoke model architecture touch neither, and both are
 rejected on that ground (`docs/phase7-hypotheses.md`, "Do not reopen").
 
-**Where it stands (2026-08-07).** W1 is **closed FAIL on measure** — the MoE
+**Where it stands (2026-08-08).** W1 is **closed FAIL on measure** — the MoE
 reads only its active experts, exactly as predicted, and is still no faster than
-a dense 3B because the cost moves off bandwidth. W2's pre-gate **split the
-hypothesis**: the draft-model variant is rejected (0.81× on open chat), prompt
-lookup proceeds; its groundwork (one shared decode loop) is done. W3 is
-untouched. Two of the three levers are therefore measured before any of them
-was built on — which was the point of ordering them this way.
+a dense 3B because the cost moves off bandwidth. W2 is **closed for product
+default**: pre-gate rejected draft-model; prompt-lookup eng shipped opt-in;
+console M3 **1.04× FAIL** ≥1.4× gate so default stays OFF. W3 (gpubw) is the
+**next** eng lever. Ordering W1→W2 measure-before-build paid off: two levers
+decided without reopening falsified paths.
 
 **Campaign SSOT:** [`docs/phase15-re-opt.md`](docs/phase15-re-opt.md) (method,
-baseline freeze, workstream status, decision log). Attack order locked
-2026-08-07: **W2 first**, then W3; speculative product default decided after
-console M3.
+Findings, workstream status, decision log). Attack order: **W2 closed**
+(default OFF after M3); **W3 next**.
 
 - [x] **W1 — H2: a MoE whose active weights are a fraction of its total. CLOSED
       FAIL 2026-07-30.**
@@ -455,18 +454,16 @@ console M3.
   with the result attached and enters no product tier; the 3.5 GB product-gate
   question a speed PASS would have opened is moot.
 
-- [~] **W2 — H3: speculative decoding (#210).** Host path complete
-  (2026-08-07): pure `prompt_lookup_draft`; lead commits classic then
-  draft-only multi-token verify + `seq_rm` degrade; CLI `--prompt-lookup` /
+- [x] **W2 — H3: speculative decoding (#210). CLOSED for product default
+  2026-08-07/08** (eng remains as opt-in). Host: pure `prompt_lookup_draft`;
+  lead-first multi-token verify + `seq_rm` degrade; CLI `--prompt-lookup` /
   `SessionParams` / headless `bench_prompt_lookup.txt` default OFF; greedy
-  MATCH on host (suite green). **Console M3 measured 2026-08-07** on
-  Series S (CI package with W2, `qwen25-coder-3b`, t6, n_predict=96):
-  code **1.04× FAIL** vs ≥1.4× gate (14.15 → 14.74 tok/s); chat 0.99×;
-  peak ~2.0 GB. Spec fires (code ~32 accepts / ~62 drafts) but does not
-  break the membw wall enough for product default. **Default stays OFF**
-  (opt-in `--prompt-lookup` / `bench_prompt_lookup.txt`). Crossbuild
-  still does not activate (`0x8027025b`); ship via CI MSVC — see
-  `docs/crossbuild-console.md`. CSV: `bench/results/phase15-spec-w2-console.csv`.
+  MATCH. Console M3 Series S (`qwen25-coder-3b`, t6): code **1.04× FAIL**
+  ≥1.4× (14.15 → 14.74); chat 0.99×; peak ~2.0 GB. Spec fires (~32/62 accepts
+  on code) but does not break the membw wall. **Default OFF.** Ship/measure
+  packages via CI MSVC (`docs/crossbuild-console.md`). CSV:
+  `bench/results/phase15-spec-w2-console.csv`. SSOT Findings:
+  `docs/phase15-re-opt.md`.
   Both halves of the original draft/target
   pair already ship and are console-PASS: draft `qwen25-coder-0.5b` (379 MB,
   62.4 tok/s), target `qwen25-coder-3b` (1840 MB, 14.0). **Vocab precondition
