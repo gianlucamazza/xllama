@@ -9,8 +9,8 @@ HLSL="$ROOT/shaders/gpubw_stream.hlsl"
 OUT_H="$ROOT/shaders/generated/gpubw_stream_dxil.h"
 DXC="${DXC:-dxc}"
 
-if ! command -v "$DXC" >/dev/null 2>&1; then
-	echo "dxc not on PATH (set DXC=...). Example Linux release:" >&2
+if [[ ! -x "$DXC" ]] && ! command -v "$DXC" >/dev/null 2>&1; then
+	echo "dxc not found (set DXC=...). Example Linux release:" >&2
 	echo "  https://github.com/microsoft/DirectXShaderCompiler/releases" >&2
 	exit 1
 fi
@@ -21,6 +21,7 @@ trap 'rm -f "$tmp"' EXIT
 python3 - "$tmp" "$OUT_H" <<'PY'
 import sys
 from pathlib import Path
+
 data = Path(sys.argv[1]).read_bytes()
 out = Path(sys.argv[2])
 out.parent.mkdir(parents=True, exist_ok=True)
@@ -31,8 +32,8 @@ lines = [
     "#include <cstddef>",
     "#include <cstdint>",
     f"// {len(data)} bytes DXIL",
-    "// clang-format off
-static const uint8_t kGpubwStreamDxil[] = {",
+    "// clang-format off",
+    "static const uint8_t kGpubwStreamDxil[] = {",
 ]
 for i in range(0, len(data), 12):
     chunk = data[i : i + 12]
@@ -40,9 +41,6 @@ for i in range(0, len(data), 12):
 lines.append("};")
 lines.append(f"static const size_t kGpubwStreamDxilSize = {len(data)};")
 lines.append("// clang-format on")
-# insert clang-format off before the array
-idx = next(i for i,l in enumerate(lines) if l.startswith("static const uint8_t"))
-lines.insert(idx, "// clang-format off")
 out.write_text("\n".join(lines) + "\n")
 print(f"wrote {out} ({len(data)} bytes)")
 PY

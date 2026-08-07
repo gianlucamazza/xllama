@@ -89,3 +89,62 @@ TEST_CASE("gpubw: measure_gpubw on non-D3D12 host reports unavailable") {
     CHECK_FALSE(gpubw_passes_kill_gate(r));
 #endif
 }
+
+TEST_CASE("gpubw: plan_dispatch keeps every dim ≤ 65535 for default 1 GiB") {
+    // Skeptic: 1 GiB / 4 bytes / 256 threads = 1_048_576 groups > 65535 on X.
+    const std::size_t n_words = kGpubwDefaultBufferBytes / sizeof(std::uint32_t);
+    CHECK(n_words == (static_cast<std::size_t>(1) << 28));
+
+    const GpubwDispatch d = gpubw_plan_dispatch(n_words);
+    CHECK(gpubw_dispatch_dims_legal(d));
+    CHECK(d.groups_x <= kGpubwMaxGroupsPerDim);
+    CHECK(d.groups_y <= kGpubwMaxGroupsPerDim);
+    CHECK(d.groups_z <= kGpubwMaxGroupsPerDim);
+    CHECK(d.groups_x >= 1);
+    CHECK(d.groups_y >= 1);
+    CHECK(d.groups_z >= 1);
+
+    const std::uint64_t need =
+        (static_cast<std::uint64_t>(n_words) + kGpubwThreadsPerGroup - 1) / kGpubwThreadsPerGroup;
+    const std::uint64_t launched = static_cast<std::uint64_t>(d.groups_x) * d.groups_y * d.groups_z;
+    CHECK(launched >= need);
+    CHECK(d.n_groups == launched);
+    // Prefer a balanced 2D grid for the default working set (1024×1024).
+    CHECK(d.groups_x == 1024u);
+    CHECK(d.groups_y == 1024u);
+    CHECK(d.groups_z == 1u);
+}
+
+TEST_CASE("gpubw: plan_dispatch is 1D when groups fit in one axis") {
+    // 256 words → 1 group; 65535*256 words → max-X 1D.
+    {
+        const GpubwDispatch d = gpubw_plan_dispatch(256);
+        CHECK(gpubw_dispatch_dims_legal(d));
+        CHECK(d.groups_x == 1u);
+        CHECK(d.groups_y == 1u);
+        CHECK(d.groups_z == 1u);
+        CHECK(d.n_groups == 1u);
+    }
+    {
+        const std::size_t n_words =
+            static_cast<std::size_t>(kGpubwMaxGroupsPerDim) * kGpubwThreadsPerGroup;
+        const GpubwDispatch d = gpubw_plan_dispatch(n_words);
+        CHECK(gpubw_dispatch_dims_legal(d));
+        CHECK(d.groups_x == kGpubwMaxGroupsPerDim);
+        CHECK(d.groups_y == 1u);
+        CHECK(d.groups_z == 1u);
+        CHECK(d.n_groups == kGpubwMaxGroupsPerDim);
+    }
+    {
+        // Just over the 1D limit → 2D.
+        const std::size_t n_words =
+            static_cast<std::size_t>(kGpubwMaxGroupsPerDim) * kGpubwThreadsPerGroup + 1;
+        const GpubwDispatch d = gpubw_plan_dispatch(n_words);
+        CHECK(gpubw_dispatch_dims_legal(d));
+        CHECK(d.groups_y >= 2u);
+        const std::uint64_t need =
+            (static_cast<std::uint64_t>(n_words) + kGpubwThreadsPerGroup - 1) /
+            kGpubwThreadsPerGroup;
+        CHECK(static_cast<std::uint64_t>(d.n_groups) >= need);
+    }
+}

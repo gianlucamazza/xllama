@@ -1,11 +1,15 @@
 // Phase 15 W3 (#211): STREAM-style GPU read + parallel XOR reduction.
-// Each thread loads one uint32 pattern word; groups reduce with groupshared XOR;
-// per-group partials land in Output. CPU xors partials for the final checksum.
+// Flat word index works for multi-dimensional Dispatch (X/Y/Z) so 1 GiB
+// (1 048 576 groups) stays within D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION.
+//
+// flat_i = dtid.x + dtid.y * (dispatch_x * threads_per_group)
+//        + dtid.z * (dispatch_x * dispatch_y * threads_per_group)
+// flat_group = gid.x + gid.y * dispatch_x + gid.z * dispatch_x * dispatch_y
 cbuffer Params : register(b0) {
     uint n_words;
-    uint pad0;
-    uint pad1;
-    uint pad2;
+    uint dispatch_x;
+    uint dispatch_y;
+    uint threads_per_group; // 256
 };
 
 StructuredBuffer<uint> Input : register(t0);
@@ -15,7 +19,9 @@ groupshared uint gs[256];
 
 [numthreads(256, 1, 1)]
 void CSMain(uint3 dtid : SV_DispatchThreadID, uint gix : SV_GroupIndex, uint3 gid : SV_GroupID) {
-    uint i = dtid.x;
+    uint stride_y = dispatch_x * threads_per_group;
+    uint stride_z = dispatch_x * dispatch_y * threads_per_group;
+    uint i = dtid.x + dtid.y * stride_y + dtid.z * stride_z;
     uint v = (i < n_words) ? Input[i] : 0u;
     gs[gix] = v;
     GroupMemoryBarrierWithGroupSync();
@@ -29,6 +35,7 @@ void CSMain(uint3 dtid : SV_DispatchThreadID, uint gix : SV_GroupIndex, uint3 gi
     }
 
     if (gix == 0u) {
-        Output[gid.x] = gs[0];
+        uint flat_group = gid.x + gid.y * dispatch_x + gid.z * dispatch_x * dispatch_y;
+        Output[flat_group] = gs[0];
     }
 }

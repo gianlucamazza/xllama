@@ -46,6 +46,62 @@ std::uint32_t gpubw_checksum_words(const std::uint32_t* data, std::size_t n_word
     return x;
 }
 
+GpubwDispatch gpubw_plan_dispatch(std::size_t n_words) {
+    GpubwDispatch d;
+    // Groups needed so each of kGpubwThreadsPerGroup threads covers one word.
+    std::uint64_t need =
+        (static_cast<std::uint64_t>(n_words) + kGpubwThreadsPerGroup - 1) / kGpubwThreadsPerGroup;
+    if (need == 0)
+        need = 1;
+    d.n_groups = static_cast<std::uint32_t>(need > 0xffffffffull ? 0xffffffffull : need);
+
+    if (need <= kGpubwMaxGroupsPerDim) {
+        d.groups_x = static_cast<std::uint32_t>(need);
+        d.groups_y = 1;
+        d.groups_z = 1;
+        return d;
+    }
+
+    // 2D: cap X at max, Y = ceil(need / X). Prefer a balanced split when possible.
+    // 1 GiB → 1048576 groups → (1024, 1024, 1) is clean and ≤ 65535.
+    std::uint64_t gx = kGpubwMaxGroupsPerDim;
+    // Prefer sqrt-ish for large needs so flat indexing stays balanced.
+    if (need <= static_cast<std::uint64_t>(kGpubwMaxGroupsPerDim) * kGpubwMaxGroupsPerDim) {
+        // Largest power-of-two ≤ max that divides the grid reasonably: use
+        // ceil(need / max) for Y after setting X = min(need, max).
+        // For powers of two (1 GiB path), use equal square factors when exact.
+        std::uint64_t root = 1;
+        while (root * root < need && root < kGpubwMaxGroupsPerDim)
+            root <<= 1;
+        if (root > kGpubwMaxGroupsPerDim)
+            root = kGpubwMaxGroupsPerDim;
+        if (root * root >= need && root <= kGpubwMaxGroupsPerDim) {
+            gx = root;
+        }
+        std::uint64_t gy = (need + gx - 1) / gx;
+        if (gy <= kGpubwMaxGroupsPerDim) {
+            d.groups_x = static_cast<std::uint32_t>(gx);
+            d.groups_y = static_cast<std::uint32_t>(gy);
+            d.groups_z = 1;
+            d.n_groups = d.groups_x * d.groups_y * d.groups_z;
+            return d;
+        }
+    }
+
+    // 3D fallback (covers absurdly large buffers).
+    gx = kGpubwMaxGroupsPerDim;
+    std::uint64_t gy = kGpubwMaxGroupsPerDim;
+    std::uint64_t plane = gx * gy;
+    std::uint64_t gz = (need + plane - 1) / plane;
+    if (gz > kGpubwMaxGroupsPerDim)
+        gz = kGpubwMaxGroupsPerDim; // hard clamp; caller must not request more
+    d.groups_x = static_cast<std::uint32_t>(gx);
+    d.groups_y = static_cast<std::uint32_t>(gy);
+    d.groups_z = static_cast<std::uint32_t>(gz);
+    d.n_groups = d.groups_x * d.groups_y * d.groups_z;
+    return d;
+}
+
 const char* gpubw_csv_header() {
     return "buffer_mb,iterations,read_gbs,checksum_ok,d3d12_ran,checksum,expected,host,date,"
            "error\n";
@@ -265,9 +321,15 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
         return r;
     }
 
+    // Multi-dim Dispatch: 1 GiB → 1_048_576 groups > 65535 on a single axis.
+    const GpubwDispatch plan = gpubw_plan_dispatch(n_words);
+    if (!gpubw_dispatch_dims_legal(plan) || plan.n_groups < 1) {
+        r.error_msg = "gpubw_plan_dispatch produced illegal Dispatch dims";
+        return r;
+    }
+    const UINT groups = plan.n_groups; // total groups (may pad beyond need)
     const UINT64 input_bytes = static_cast<UINT64>(r.buffer_bytes);
-    const UINT groups = static_cast<UINT>((n_words + 255) / 256);
-    const UINT64 out_bytes = static_cast<UINT64>(std::max(groups, 1u)) * sizeof(std::uint32_t);
+    const UINT64 out_bytes = static_cast<UINT64>(groups) * sizeof(std::uint32_t);
 
     ComPtr<ID3D12Resource> input_default =
         create_buffer(device.Get(), input_bytes, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_FLAG_NONE,
@@ -307,11 +369,17 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
         input_upload->Unmap(0, nullptr);
     }
     {
+        // Must match shaders/gpubw_stream.hlsl cbuffer Params (b0).
         struct Params {
             std::uint32_t n_words;
-            std::uint32_t pad[3];
+            std::uint32_t dispatch_x;
+            std::uint32_t dispatch_y;
+            std::uint32_t threads_per_group;
         } params{};
         params.n_words = static_cast<std::uint32_t>(n_words);
+        params.dispatch_x = plan.groups_x;
+        params.dispatch_y = plan.groups_y;
+        params.threads_per_group = kGpubwThreadsPerGroup;
         void* mapped = nullptr;
         hr = cb_upload->Map(0, nullptr, &mapped);
         if (FAILED(hr)) {
@@ -422,7 +490,7 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
         cl->SetDescriptorHeaps(1, heaps);
         cl->SetComputeRootDescriptorTable(0, heap->GetGPUDescriptorHandleForHeapStart());
         cl->SetPipelineState(pso.Get());
-        cl->Dispatch(groups, 1, 1);
+        cl->Dispatch(plan.groups_x, plan.groups_y, plan.groups_z);
 
         D3D12_RESOURCE_BARRIER b = {};
         b.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;

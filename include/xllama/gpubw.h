@@ -24,6 +24,10 @@ inline constexpr double kGpubwKillReadGbs = 100.0;
 // Default working set: 1 GiB of uint32 words (issue #211 ~1 GB VRAM).
 inline constexpr std::size_t kGpubwDefaultBufferBytes = static_cast<std::size_t>(1) << 30;
 
+// D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION — keep dispatch dims legal.
+inline constexpr std::uint32_t kGpubwMaxGroupsPerDim = 65535u;
+inline constexpr std::uint32_t kGpubwThreadsPerGroup = 256u;
+
 struct GpubwResult {
     std::size_t buffer_bytes = 0;
     int iterations = 0;
@@ -34,6 +38,17 @@ struct GpubwResult {
     bool d3d12_ran = false;
     std::string error_msg; // empty on full success
 };
+
+// Pure: plan a Dispatch(x,y,z) so every dim is ≤ kGpubwMaxGroupsPerDim and
+// x*y*z ≥ ceil(n_words / kGpubwThreadsPerGroup). Host-testable (no D3D12).
+struct GpubwDispatch {
+    std::uint32_t groups_x = 1;
+    std::uint32_t groups_y = 1;
+    std::uint32_t groups_z = 1;
+    std::uint32_t n_groups = 1; // total groups launched (x*y*z may pad)
+};
+
+GpubwDispatch gpubw_plan_dispatch(std::size_t n_words);
 
 // Deterministic pattern: word[i] = mix(i). Shared by CPU expected checksum and
 // the GPU upload path so a wrong read fails checksum_ok.
@@ -51,6 +66,13 @@ void gpubw_fill_pattern(std::uint32_t* data, std::size_t n_words);
 
 // Folded XOR of all words (associative — matches the CS parallel reduction).
 std::uint32_t gpubw_checksum_words(const std::uint32_t* data, std::size_t n_words);
+
+// True when every Dispatch dimension is within the D3D12 limit.
+inline bool gpubw_dispatch_dims_legal(const GpubwDispatch& d) {
+    return d.groups_x >= 1 && d.groups_y >= 1 && d.groups_z >= 1 &&
+           d.groups_x <= kGpubwMaxGroupsPerDim && d.groups_y <= kGpubwMaxGroupsPerDim &&
+           d.groups_z <= kGpubwMaxGroupsPerDim;
+}
 
 // Windows/UWP: D3D12 system device (never Agility), timed CS STREAM read +
 // checksum. Non-Windows: d3d12_ran=false, error_msg set, no throw.
