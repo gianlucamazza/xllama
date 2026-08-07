@@ -14,7 +14,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-# shellcheck disable=SC1091
+# shellcheck disable=SC1090,SC1091
 source "${XBOX_ENV:-$HOME/.config/xllama/xbox-env}"
 
 MODEL="${1:-}"
@@ -91,7 +91,7 @@ DATE="$(date -u +%Y-%m-%d)"
 
 run_regime() {
 	local regime="$1" prompt="$2" lookup="$3"
-	local tag out_csv
+	local out_csv
 	out_csv="${REPO_ROOT}/bench/results/phase15-spec-w2-${regime}-pl${lookup}.csv"
 	# Must not leave an empty file: bench-xbox-ort refuses to append when the
 	# first line is not the canonical CSV header (empty ≠ header).
