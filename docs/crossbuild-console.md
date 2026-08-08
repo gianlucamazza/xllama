@@ -10,7 +10,7 @@ Companion SSOTs: [uwp-constraints.md](uwp-constraints.md), campaign notes in
 
 | Goal | Path | Status on Series S |
 | --- | --- | --- |
-| Ship / measure product tok/s | CI MSVC `build-uwp` → `xllama-appx` → openappx pack/sign/deploy | **Launches** (shipping **v1.5.3.0** / MSIX `1.5.3.873`, 9/9 gates) |
+| Ship / measure product tok/s | CI MSVC `build-uwp` → `xllama-appx` → openappx pack/sign/deploy | **Launches** (shipping **v1.5.3.0**; main suite **10** gates incl. `thinkdone`) |
 | Compile + package from Linux | uwp-crossbuild ≥ **0.5.0** + store `/MD` + dual-CRT stage | **Links; audit PASS**; dual-CRT stage required; **store PE still fails activation** (`0x80040904`) — layer 2 |
 | hello-uwp / non-filesystem samples | uwp-crossbuild `/MT` or store `/MD` | Launches |
 

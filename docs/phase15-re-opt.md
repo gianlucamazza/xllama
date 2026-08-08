@@ -207,12 +207,14 @@ disprove denser CS designs, but **this spike does not clear soft density ≥40**
 | 2026-08-08 | **H6.1 console:** Series S `1.5.2.860`, N=K=8192, **packed_gbs=2.15**, max_abs_err≈4.6e-5 → **G1 PASS / G2 FAIL**. Naive CS compute-bound. CSV `bench/results/phase15-gpugemv.csv`. |
 | 2026-08-08 | **H6 eng parked (#228).** Binding constraint remains bytes/token; G2 FAIL shows no free ride on STREAM 119 GB/s. No full GGUF GPU backend without new density PASS or explicit gate rewrite. Focus → product hygiene. |
 | 2026-08-08 | **v1.5.3.0 shipped** (PR #230, tag `v1.5.3.0`, MSIX `1.5.3.873`): dual-CRT package architecture + AppContainer PE hygiene + History/title product fixes. Product launch remains CI MSVC. Series S `validate-console.sh all` **9/9 PASS**. W2 stays opt-in OFF; H6 remains parked. |
+| 2026-08-08 | **#216 closed** (PR #232): serialize #170b snapshot save vs next generate; Series S `all` ×6 PASS (kvsnap 551→19). |
+| 2026-08-08 | **#223 closed** (PR #234): catalogue `n_predict` 1024 + console gate `thinkdone` (short happy path); hard multi-step may still exhaust CoT. Suite **10** gates. CSV `bench/results/phase15-thinking-complete.csv`. |
 
 ## Related issues
 
 - #210 W2 prompt-lookup — **closed** (eng opt-in shipped; product default OFF after M3)
 - #211 W3 gpubw gate — **closed PASS** (119.07 GB/s); PR #227
 - #228 H6 eng follow-up — **parked** after H6.1 G2 FAIL
-- #130 DML max_length valley mechanism
-- #216 kvsnap intermittent (watch on console gates; green on 1.5.3.873 once)
-- #223 thinking-tier completion evidence
+- #130 DML max_length valley mechanism (mitigated by warm-up; mechanism open)
+- #216 kvsnap save race — **closed** PR #232 (`all` ×6)
+- #223 thinking-tier completion — **closed** PR #234 (`thinkdone` + n_predict 1024)

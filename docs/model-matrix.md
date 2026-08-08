@@ -94,13 +94,12 @@ Selecting the model applies catalogue **`n_predict: 1024`** (UI default was 512)
 Short easy prompts complete under that budget (`thinkdone` gate); multi-step
 arithmetic can still exhaust CoT without closing `</think>` (reasoning-only
 stand-in) — not a formatting bug (#223).
-⚠️ **The `console PASS` above is a load-and-decode result, not a quality one.**
+⚠️ **The `console PASS` above is a load-and-decode result, not H9 quality.**
 This model is **absent from the H9 suite** (which evaluates the _instruct_
-sibling), and nothing yet shows a reasoning turn completing: on console it spent
-**768 tokens** on a two-step time addition without closing `<think>`, so the UI
-showed the truncated-reasoning stand-in. Open as
-[#223](https://github.com/gianlucamazza/xllama/issues/223); the tier stays in the
-catalogue but its usable budget is unmeasured.
+sibling). **#223 closed:** short prompts complete under catalogue **n_predict
+1024** (`thinkdone` gate, Series S); multi-step arithmetic can still exhaust
+CoT without closing `</think>` (measured train prompt @ 768 → reasoning-only
+stand-in). Evidence: `bench/results/phase15-thinking-complete.csv`.
 
 The tok/s above were recorded on MSIX **1.5.1.737**, which predates the phase14
 code. The code path itself — catalogue `n_ctx`/`role` at session open, the
@@ -127,6 +126,11 @@ Series S 2026-08-08): all **nine** console gates PASS
 `genroom`, `taesd`). The `gguf` gate now also asserts a **non-empty conversation
 title** on disk (empty-title fix in this cut). Capability figures from 1.5.2
 still hold on this package.
+
+**Post-1.5.3 hygiene (main after #232/#234, MSIX **1.5.3.881**, Series S
+2026-08-08):** **ten** console gates — the nine above plus **`thinkdone`**
+(#223). `thinkcut` + `thinkdone` both PASS; `kvsnap` stress **6× `all` PASS**
+after the #216 save race fix (PR #232). Suite entry for `all` is now 10 gates.
 
 **Out of budget / deferred:** Qwen2.5-Coder-7B+, Qwen3-Coder MoE 30B+, Devstral 24B,
 DeepSeek-Coder-V2-Lite, StarCoder2 / DS-Coder 1.3B. LFM2.5-8B-A1B was on this list
