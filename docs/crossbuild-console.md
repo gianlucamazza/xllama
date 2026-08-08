@@ -10,8 +10,8 @@ Companion SSOTs: [uwp-constraints.md](uwp-constraints.md), campaign notes in
 
 | Goal | Path | Status on Series S |
 | --- | --- | --- |
-| Ship / measure product tok/s | CI MSVC `build-uwp` → `xllama-appx` → openappx pack/sign/deploy | **Launches** (proven `1.5.2.910`+; W2 A/B on `1.5.2.920`) |
-| Compile + audit from Linux | uwp-crossbuild `build-project` (APP family + static-lib family) → `pe-import-audit` | **Links; audit PASS**; install OK; activation still `0x8027025b` (`/MT` vs CI APP CRT — see below) |
+| Ship / measure product tok/s | CI MSVC `build-uwp` → `xllama-appx` → openappx pack/sign/deploy | **Launches** (proven through `1.5.2.864`+ post-gpubw) |
+| Compile + audit from Linux | uwp-crossbuild + store `/MD` + `pe-import-audit` | **Links; audit PASS**; install OK; activation still fails — **integration gaps below**, not “banlist only” |
 | hello-uwp / non-filesystem samples | uwp-crossbuild `/MT` or store `/MD` | Launches |
 
 ## Prerequisites
@@ -28,30 +28,80 @@ Companion SSOTs: [uwp-constraints.md](uwp-constraints.md), campaign notes in
 **CI MSVC (`build-uwp` → artifact `xllama-appx`) is the proven product path on
 Series S.** Measured 2026-08-07: CI `1.5.2.910` activates and loads GGUF.
 
-**Linux crossbuild contract (architecture, 2026-08-08):**
+## Architecture: two integrated runtimes (SSOT)
 
-1. **Compile family = APP.** uwp-crossbuild `--uwp` sets
-   `WINAPI_FAMILY=WINAPI_FAMILY_APP` (VS parity). Static libs with
-   `AppContainerApplication=true` (e.g. `ggml-uwp`) get `--static-lib --uwp`
-   so they compile under the same family (link flags stay image-only).
-2. **Source guards = partition only.**
-   `patches/0001-uwp-appcontainer-guards.patch` uses
-   `WINAPI_FAMILY_PARTITION(DESKTOP)` alone — no dual `XLLAMA_UWP` workaround.
-3. **Gate.** `pe-import-audit` fails closed on registry/affinity/desktop CRT.
-   Measured: APP-family crossbuild PE **passes** audit (no banlist symbols).
-4. **Store `/MD` links (APP CRT).** `UWP_STORE_CRT=1` + `fetch-vclibs` +
-   `gen-msvcprt-app-static.sh` (MD `.obj` members from `msvcprt.lib` for
-   `__std_fs_*` / find / `_Facet_Register`) produces a PE that imports
-   `msvcp140_app` / `vcruntime140_app` / `api-ms-win-crt-*` like CI, and
-   **passes `pe-import-audit`**.
-5. **Entry / PE knobs.** `/subsystem:windows,6.02` (VS UWP); `wWinMain` keeps
-   the MTA (`RoInitialize` + `init_apartment`, no `uninit` before
-   `Application::Start` — gotcha 17).
-6. **Remaining launch gap.** Audited store-MD packages still activate as
-   **`0x8027025b`** on Series S while a CI MSVC PE of the same app launches
-   (control reconfirmed). Hybrid PE swaps show the failure tracks the
-   **crossbuild executable**, not only package DLLs. Product launch path
-   remains **CI MSVC** until that residual PE gap is closed.
+Shipping CI and Linux crossbuild are **not** “same MSIX, different compiler”.
+They are two assembly lines that must reproduce the **same dual-CRT product
+shape** documented in `scripts/build-uwp.ps1` and `uwp/xllama.vcxproj`.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Package (AppContainer)                                         │
+│                                                                 │
+│  xllama.exe  ──/MD APP CRT──►  MSVCP140_APP / VCRUNTIME140_APP  │
+│       │                        (Microsoft.VCLibs framework dep) │
+│       │ hard-import                                             │
+│       ▼                                                         │
+│  onnxruntime.dll + onnxruntime-genai.dll                        │
+│       │  built desktop /MD                                      │
+│       └──import MSVCP140.dll / VCRUNTIME140.dll                 │
+│              ▲                                                  │
+│              └── must be APP-LOCAL in package root              │
+│                  (System32 not searchable in AppContainer)      │
+│                  build-uwp.ps1 copies from VS CRT redist;       │
+│                  vcxproj ships them via DeploymentContent       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+| Layer | CI MSVC (`build-uwp.ps1`) | Linux crossbuild today |
+| --- | --- | --- |
+| EXE RuntimeLibrary | `/MD` → **APP CRT** (UWP toolset) | `/MD` + `UWP_STORE_CRT=1` → **APP CRT** imports |
+| EXE family | `WINAPI_FAMILY=APP` (VS) | `--uwp` → `WINAPI_FAMILY=APP` |
+| Static ggml | same solution, APP family | `--static-lib --uwp` when `AppContainerApplication` |
+| Forbidden Win32 | not in PE | `pe-import-audit` + partition guards |
+| ORT/GenAI DLLs | NuGet + optional **vendor patched** pins | NuGet paths from `packages/` (may differ binary/size) |
+| **Desktop CRT for ORT** | **Copied into package** (MSVCP140*.dll, VCRUNTIME140*.dll) | **Missing** unless files already exist under `uwp/` (`Exists()` gate) |
+| CppWinRT | NuGet **2.0.240405.15** | xwin projection **2.0.250303.1** (version skew) |
+| Measured launch | **OK** | install OK; activate **fail** |
+
+### Hybrid experiments (evidence)
+
+| PE | Package | Result | Interpretation |
+| --- | --- | --- | --- |
+| CI | CI (incl. desktop CRT + ORT) | **Launch** | Full product shape |
+| CI | store (no desktop CRT; different ORT/genai sizes) | `0x8027025b` | Loader cannot satisfy ORT’s desktop CRT / binary set |
+| store | CI (desktop CRT present) | `0x80040904` | PE/activation path still wrong after ORT can load |
+| store | store | `0x8027025b` | Layer-1 + layer-2 combined |
+
+So the gap is **not** a single banlist symbol. It is **integration**:
+
+1. **Package dual-CRT (layer 1)** — architectural requirement already in the
+   vcxproj/build-uwp.ps1; crossbuild layout does not assemble it.
+2. **Toolchain PE/projection (layer 2)** — store PE fails even beside a CI
+   package (`0x80040904`): CppWinRT skew, entry/CRT startup, or factory/winmd
+   identity. Needs dumps or a same-version projection, not import shims.
+
+### What is architecture vs debt
+
+| Practice | Class |
+| --- | --- |
+| `WINAPI_FAMILY=APP`, static-lib family, partition guards, pe-import-audit | Architecture |
+| App-local desktop CRT next to desktop-built ORT | Architecture (CI SSOT) |
+| Store `/MD` + `*_app` import libs for the **EXE** | Architecture |
+| Extracting **desktop** `msvcprt` MD objs for `__std_fs_*` | Incomplete: MD yes, UWP filesystem surface no |
+| CreateFileW→CreateFile2 import shims | **Debt — do not ship** |
+| Dual `XLLAMA_UWP \|\| PARTITION` guards | **Debt — removed** from patch |
+| Packaging Wine desktop CRT as product | **Forbidden** |
+
+### Crossbuild compile contract (still required)
+
+1. **Compile family = APP** (`--uwp`); static libs with
+   `AppContainerApplication=true` get `--static-lib --uwp`.
+2. **Guards = partition only** (`patches/0001-…`).
+3. **Gate = pe-import-audit** (registry/affinity/desktop CRT **on the EXE**).
+4. **Subsystem 6.02**; MTA held through `Application::Start` (gotcha 17).
+5. **Layout must still match CI dual-CRT + vendor DLL pins** before claiming
+   launch parity.
 
 ```bash
 # Prefer: push a PR / main and download the workflow artifact, or:
@@ -80,28 +130,23 @@ build-project \
 (`build-project` is provided by the **uwp-crossbuild** tooling tree, not by a
 script under this repository.)
 
-Default is **static `/MT`** inside the AppContainer (hello-uwp launches with
-that CRT). Store `/MD` is opt-in (`UWP_STORE_CRT=1` + `fetch-vclibs`) only when
-the app is fully covered by the `*_app` import libs — xllama’s
-`std::filesystem` helpers live in `libcpmt` (MT) and must not be mixed into MD
-(uwp-crossbuild gotcha 21).
+For **product-shaped** packages (ORT linked), use store `/MD` for the EXE
+(`UWP_STORE_CRT=1` + `fetch-vclibs` + `gen-msvcprt-app-static`) **and** still
+ship app-local **desktop** CRT next to ORT (same files CI copies — not Wine
+substitutes; not a replacement for VCLibs). Default `/MT` remains fine for
+hello-uwp-class apps without desktop-`/MD` native deps.
 
-### Store `/MD` (opt-in experiment)
+### Store `/MD` for the EXE (not a substitute for ORT dual-CRT)
 
 ```bash
-export UWP_STORE_CRT=1   # requires fetch-vclibs.sh output
-# Manifest must declare Microsoft.VCLibs.140.00 (already in AppxManifest).
-# Same uwp-crossbuild build-project entry as above, with store CRT env set.
+export UWP_STORE_CRT=1   # requires fetch-vclibs.sh + msvcprt_app_static
+# Manifest PackageDependency Microsoft.VCLibs.140.00 (AppxManifest).
+# Layout must still include MSVCP140*.dll / VCRUNTIME140*.dll for ORT
+# (vcxproj DeploymentContent; on Linux provide those files like build-uwp.ps1).
 ```
 
-xllama needs `__std_fs_*`, `__std_find_*`, `_Thrd_sleep_for`, etc. that live in
-`libcpmt` (MT) and are **not** exports of `msvcp140_app.dll`. Blind
-`libcpmt` last → LLD `FAILIFMISMATCH`. Do **not** sanitize MT archives into an
-MD image — that is technical debt, not a shipping path. Default remains `/MT`
-in the container until a real APP-CRT solution covers filesystem helpers.
-
-**Never** package Wine desktop `MSVCP140.dll` / `VCRUNTIME140.dll` as a product
-path. Small samples without `std::filesystem` (hello-uwp) are fine on store `/MD`.
+Never mix MT `libcpmt` into `/MD` (gotcha 21). Never treat Wine desktop CRT as
+a product path.
 
 ## Pack, sign, deploy
 
