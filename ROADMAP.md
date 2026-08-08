@@ -5,15 +5,13 @@ performance belongs in `docs/benchmarks.md`.
 
 ## Current product state
 
-- Current manifest: **1.5.2.0** under the **`GianlucaMazza.xllama`** identity
+- Current manifest: **1.5.3.0** under the **`GianlucaMazza.xllama`** identity
   (in-place update from 1.5.x; still breaking vs ≤1.4.x, see
-  `docs/install-release.md`). Released as **v1.5.2.0** (2026-07-30): Phase 14 —
-  the coding/chat/thinking tier — plus the exact token budget that made a
-  4096-token session safe to offer (#193/#194) and the Xbox Store SKU
-  foundation. The previous release, **v1.5.1.0** (2026-07-27), carried the
-  Phase 13 CPU-prefill + KV-reuse campaign (#168, #169, #170a/b, #171,
-  #173-#175); **v1.5.0.0** (2026-07-26) the perf campaign + rebrand
-  (PR #155-#165) on console-validated MSIX 1.5.0.698.
+  `docs/install-release.md`). **v1.5.3.0** (2026-08-08): conversation titles +
+  History leak (#219), gate-log retention, dual-CRT ORT packaging architecture,
+  Phase 15 measure (W2 opt-in, W3 STREAM PASS, H6 eng parked). Previous:
+  **v1.5.2.0** (2026-07-30) Phase 14 + exact token budget + Store SKU foundation;
+  **v1.5.1.0** (2026-07-27) Phase 13; **v1.5.0.0** (2026-07-26) perf + rebrand.
 - Shipping artifact: unified ORT GenAI + llama.cpp, with pinned patched runtime
   DLLs while upstream fixes have not reached NuGet. The UWP ggml build now
   enables `GGML_USE_CPU_REPACK` (PR #155): **GGUF prefill +62%** on Q4_K.
@@ -34,21 +32,10 @@ performance belongs in `docs/benchmarks.md`.
   #116/#118). Phases 13 and 14 are complete and shipped. Remaining open work:
   Phase 15 (make the 3B–4B class usable), the #130 root-cause profile, and
   upstream vendor pin drops.
-- **Unreleased since v1.5.2.0** (`CHANGELOG.md` `[Unreleased]`): the shared
-  prefill/decode loop, the bench input/label fixes, and the demo/capture pipeline
-  (#213/#215/#217 — autopilot ops `mark` and `show_pane`, the double-dialog guard,
-  failure screenshots on the console gates), plus **the conversation-title fix**:
-  `NewChat()` assigns the id, so the branch that also derived the title could
-  never run and every saved conversation had `"title":""` — History listed them
-  all as `(2 msgs) • today 13:20`. Console-validated on MSIX **1.5.2.802** (8/8)
-  and **1.5.2.825** (9/9). Two product-code changes here — the double-dialog
-  guard and the title fix — and both are user-visible, so the next release is
-  now justified by more than tooling. Also queued for that cut: History dialog
-  leak fix (#219), CI train-job validation (#222), H6 eng parked after H6.1 G2
-  FAIL (#228), and **dual-CRT package architecture** for ORT desktop `/MD`
-  (layer 1 closed on Series S with CI PE; Linux store PE activation still
-  `0x80040904` — product ship path remains CI MSVC; see
-  `docs/crossbuild-console.md`).
+- **Shipped in v1.5.3.0** (see `CHANGELOG.md`): conversation titles, History
+  leak (#219), demo/capture pipeline (#213/#215/#217), dual-CRT packaging,
+  train-job CI validate (#222), H6 parked (#228). Linux store PE launch remains
+  open (layer 2); product packages are CI MSVC — `docs/crossbuild-console.md`.
 - **The demo pipeline is re-runnable, and #214 is closed.** `README.md` links the
   v1.5.2 capture (576 stills at 11.76 fps, encoded at the rate actually achieved
   so playback is real time); the version, output path and watermark come from

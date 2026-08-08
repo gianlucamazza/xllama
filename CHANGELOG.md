@@ -7,7 +7,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Fixed (this session, ahead of the older entries below)
+## [1.5.3.0] - 2026-08-08
+
+User-visible polish on top of v1.5.2: conversation titles in History, a History
+dialog leak fix, and console-gate evidence that keeps failing logs. Phase 15
+measure work (prompt-lookup opt-in, gpubw STREAM PASS, H6.1 GEMV parked after
+density FAIL) plus dual-CRT packaging architecture for ORT desktop `/MD`.
+Product ship path remains **CI MSVC**; Linux store PE activation is still
+layer 2 (`0x80040904`) and is not a gate for this cut.
+
+**Upgrading from 1.5.x is a normal in-place update** (same package identity
+`GianlucaMazza.xllama`). Coming from ≤1.4.x still requires the identity migration
+described in `docs/install-release.md`.
+
+### Fixed
 
 - **Every saved conversation had an empty title.** `NewChat()` assigns the
   conversation id — the KV snapshot path needs one — and `StartInference` then
