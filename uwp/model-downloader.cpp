@@ -361,6 +361,8 @@ std::vector<ManifestEntry> parse_manifest(winrt::hstring const& text) {
         e.lora_scale = obj.GetNamedNumber(L"lora_scale", 1.0);
         // 0 / absent → shipping default at session open (resolve_n_ctx).
         e.n_ctx = static_cast<int>(obj.GetNamedNumber(L"n_ctx", 0));
+        // 0 / absent → keep Settings / UI n_predict (global default 512).
+        e.n_predict = static_cast<int>(obj.GetNamedNumber(L"n_predict", 0));
         e.role = obj.GetNamedString(L"role", L"");
         if (obj.HasKey(L"files")) {
             for (auto const& f : obj.GetNamedArray(L"files")) {

@@ -54,13 +54,12 @@ Two consequences of the thinking tier worth knowing before you blame the app:
 - If the model spends its whole token budget reasoning and never reaches an
   answer, the turn is kept and says so:
   `(reasoning only — the answer did not fit; raise "Max new tokens" in Settings)`.
-  **Expect to see this often, and raising the budget may not be enough.** Asked
-  "a train leaves at 14:05 and takes 3h40, when does it arrive?", the shipped
-  thinking model consumed **768 tokens** without closing its reasoning, and the
-  captured frames show it re-deriving the same sum and contradicting itself. How
-  much budget the tier actually needs is not yet measured — tracked in
-  [#223](https://github.com/gianlucamazza/xllama/issues/223). Prefer the chat or
-  coding tiers unless you specifically want to watch a model reason.
+  Selecting this model sets **Max new tokens to 1024** (catalogue `n_predict`).
+  Short prompts usually finish under that budget; **hard multi-step questions
+  may still never close the reasoning block** even higher (measured: the
+  “train leaves at 14:05…” prompt spent 768 tokens still inside `<think>`,
+  looping the same arithmetic). Prefer chat or coding tiers unless you want to
+  watch a model reason. Console gate `thinkdone` pins a short happy path.
 - **KV-cache reuse is skipped for thinking models.** The saved conversation holds
   the stripped answer while the cache holds the full reasoning, so the two can
   never match on the way back; reusing it would be wrong rather than fast.

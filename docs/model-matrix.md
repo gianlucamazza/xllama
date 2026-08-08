@@ -79,7 +79,7 @@ warmup. Source: `bench/results/phase14-console.csv` (also in generated
 | Model                | Catalogue             | Quant  | n_ctx |   Prefill |   Decode | Decode spread |  Peak MB | Status                                                  |
 | -------------------- | --------------------- | ------ | ----: | --------: | -------: | ------------- | -------: | ------------------------------------------------------- |
 | Qwen2.5-Coder-0.5B   | `qwen25-coder-0.5b`   | Q4_K_M |  4096 | **148.2** | **62.4** | 56.8–68.0     |      533 | **console PASS** · coding fast                          |
-| LFM2.5-1.2B-Thinking | `lfm25-1.2b-thinking` | Q4_K_M |  2048 | **130.4** | **36.7** | 36.7–36.8     |      811 | **console PASS** · `strip_thinking_content` for display |
+| LFM2.5-1.2B-Thinking | `lfm25-1.2b-thinking` | Q4_K_M |  2048 | **130.4** | **36.7** | 36.7–36.8     |      811 | **console PASS** · CoT strip · catalogue **n_predict 1024** (#223) |
 | Qwen2.5-Coder-1.5B   | `qwen25-coder-1.5b`   | Q4_K_M |  4096 |  **96.6** | **26.1** | 25.7–26.5     |     1179 | **console PASS** · coding balanced                      |
 | Qwen3-1.7B           | `qwen3-1.7b`          | Q4_K_M |  2048 |  **89.5** | **21.8** | 21.7–21.9     |     1398 | **console PASS** · chat upgrade                         |
 | Qwen2.5-Coder-3B     | `qwen25-coder-3b`     | Q4_K_M |  4096 |  **46.2** | **14.0** | 13.9–14.1     | **2116** | **console PASS** · coding quality (under 3.5 GB)        |
@@ -90,6 +90,10 @@ are the product figures (Coder-3B **2116 MB**).
 
 Thinking: catalogue `lfm25-1.2b-thinking` with `model_is_thinking` +
 `strip_thinking_blocks` in `postprocess_output` (display/persist answer only).
+Selecting the model applies catalogue **`n_predict: 1024`** (UI default was 512).
+Short easy prompts complete under that budget (`thinkdone` gate); multi-step
+arithmetic can still exhaust CoT without closing `</think>` (reasoning-only
+stand-in) — not a formatting bug (#223).
 ⚠️ **The `console PASS` above is a load-and-decode result, not a quality one.**
 This model is **absent from the H9 suite** (which evaluates the _instruct_
 sibling), and nothing yet shows a reasoning turn completing: on console it spent

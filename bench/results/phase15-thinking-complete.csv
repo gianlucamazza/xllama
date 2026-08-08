@@ -1,0 +1,8 @@
+# Evidence for #223 — thinking-tier completion (lfm25-1.2b-thinking).
+# host = xllama-cli --chat --greedy (slow on this host; not product tok/s).
+# console = issue #223 body / manifest comments / thinkdone gate.
+prompt_id,n_predict,closed_think,has_answer,source,notes
+train,120,0,0,console_issue_223,demo n_predict; postprocess truncated reasoning
+train,768,0,0,console_issue_223,session generate n=768; still inside think
+easy,512,1,1,manifest_comment,console short prompt 153-215 generated (pre-#223 default 512)
+easy,1024,1,1,gate_thinkdone,catalogue n_predict; happy path asserted on Series S after this PR

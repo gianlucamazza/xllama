@@ -240,9 +240,9 @@
       ]
     },
     {
-      "_comment": "LFM2.5-1.2B-Thinking Q4_K_M — hybrid CoT. ChatML; model_is_thinking strips <think>…</think> for display/persist (postprocess_output). No Qwen3 no-think prefill. Console phase14: 130.4 prefill / 36.7 decode / 811 MB peak. LFM Open License + LICENSE file. UI n_predict default 512 covers think+answer on a short prompt (console: 153-215 generated); when the context leaves less room the reply postprocesses to nothing and the UI shows a 'reasoning only' turn. No KV snapshot (#170b) — stripped history diverges from the resident CoT tokens.",
+      "_comment": "LFM2.5-1.2B-Thinking Q4_K_M — hybrid CoT. ChatML; model_is_thinking strips <think>…</think> for display/persist. Catalogue n_predict=1024 (applied on model select, #223) so short CoT+answer fits more often than the UI default 512; hard multi-step prompts may still exhaust the budget (reasoning-only stand-in). Console phase14: 130.4 prefill / 36.7 decode / 811 MB. LFM Open License. No KV snapshot (#170b) — stripped history diverges from CoT tokens.",
       "name": "lfm25-1.2b-thinking",
-      "display": "LFM2.5 1.2B Thinking (GGUF · CPU · reasoning)",
+      "display": "LFM2.5 1.2B Thinking (GGUF · CPU · reasoning · 1024 tok)",
       "kind": "gguf",
       "hf_base_url": "https://huggingface.co/LiquidAI/LFM2.5-1.2B-Thinking-GGUF/resolve/main",
       "files": [
@@ -254,7 +254,8 @@
           "filename": "LICENSE",
           "approx_bytes": 10596
         }
-      ]
+      ],
+      "n_predict": 1024
     },
     {
       "name": "sd-turbo-fp16",

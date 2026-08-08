@@ -4,7 +4,7 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/validate-console.sh <routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|genroom|taesd|all>
+#   ./scripts/validate-console.sh <routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|thinkdone|genroom|taesd|all>
 #
 # Requires: an installed xllama build with the autopilot (>= 1.1.3.0; the
 # settings ops need >= 1.4.0.606), the relevant models already in LocalState.
@@ -1114,6 +1114,86 @@ PY
 	return $verdict
 }
 
+# --- #223: a short thinking turn completes (happy path) ---------------------
+
+validate_thinkdone() {
+	echo "=== #223 thinking turn completes (short prompt) ==="
+	# thinkcut pins the degraded path only. This pins that a short, easy prompt
+	# with the catalogue n_predict (1024) produces a closed <think> block and a
+	# non-empty answer after strip — the evidence gap #223 filed.
+	local model="lfm25-1.2b-thinking"
+	if ! model_provisioned_gguf "$model"; then
+		echo "  FAIL: ${model} not on the device"
+		echo "  Seed:  ./scripts/provision-models.sh ${model}"
+		echo "#223 thinking complete: FAIL"
+		return 1
+	fi
+	local marker
+	marker=$(
+		run_autopilot 900 <<JSON
+{"total_timeout_s": 800, "actions": [
+  {"op": "set_model", "name": "${model}", "timeout_s": 400},
+  {"op": "set_sampling", "n_predict": 1024, "temperature": 0.0},
+  {"op": "new_chat"},
+  {"op": "send", "text": "What is 2+2? Answer with only the number after reasoning.", "timeout_s": 600},
+  {"op": "quit"}
+]}
+JSON
+	) || true
+	echo "  autopilot: ${marker}"
+	local log verdict=0
+	log=$(fetch_log)
+	[[ "$marker" == "ok" ]] || {
+		echo "  FAIL: autopilot did not finish ok"
+		verdict=1
+	}
+	if grep -aq 'postprocess left no answer' "$log"; then
+		echo "  FAIL: reasoning still truncated at n_predict 1024 on a short prompt"
+		verdict=1
+	else
+		echo "  ok: no truncated-reasoning stand-in in the log"
+	fi
+	# Latest conversation on disk: assistant content is a real answer.
+	fetch_file "index.json" "${TMPDIR_LOCAL}/thinkdone-index.json" "chats"
+	python3 - "${TMPDIR_LOCAL}" <<'PY' || verdict=1
+import json, sys, pathlib
+tmp = pathlib.Path(sys.argv[1])
+idx = json.load(open(tmp / "thinkdone-index.json", encoding="utf-8"))
+if not idx:
+    sys.exit("  FAIL: chats index empty after thinkdone")
+cid = idx[0]["id"]
+# fetch is already done only for index — read via a second path written by host
+# The gate must download the chat file:
+print(f"  latest chat id: {cid}")
+open(tmp / "thinkdone-cid.txt", "w").write(cid)
+PY
+	local cid
+	cid=$(cat "${TMPDIR_LOCAL}/thinkdone-cid.txt" 2>/dev/null || true)
+	if [[ -z "$cid" ]]; then
+		echo "  FAIL: no conversation id"
+		verdict=1
+	else
+		fetch_file "${cid}.json" "${TMPDIR_LOCAL}/thinkdone-chat.json" "chats"
+		python3 - "${TMPDIR_LOCAL}/thinkdone-chat.json" <<'PY' || verdict=1
+import json, sys
+conv = json.load(open(sys.argv[1], encoding="utf-8"))
+msgs = conv.get("messages", [])
+asst = [m for m in msgs if m.get("role") == "assistant"]
+if not asst:
+    sys.exit("  FAIL: no assistant message on disk")
+content = (asst[-1].get("content") or "").strip()
+if "reasoning only" in content.lower():
+    sys.exit(f"  FAIL: stand-in answer on disk: {content!r:.100}")
+if len(content) < 1:
+    sys.exit("  FAIL: empty assistant content after strip")
+# Prefer a digit for 2+2; do not hard-require "4" if the model phrases it.
+print(f"  ok: assistant answer on disk ({len(content)} chars): {content[:80]!r}")
+PY
+	fi
+	[[ $verdict -eq 0 ]] && echo "#223 thinking complete: PASS" || echo "#223 thinking complete: FAIL"
+	return $verdict
+}
+
 # --- PR #193 C: the prompt must not eat the reply's room --------------------
 
 validate_genroom() {
@@ -1430,6 +1510,7 @@ longchat) run_gate longchat validate_longchat ;;
 kvsnap) run_gate kvsnap validate_kvsnap ;;
 coderpaste) run_gate coderpaste validate_coderpaste ;;
 thinkcut) run_gate thinkcut validate_thinkcut ;;
+thinkdone) run_gate thinkdone validate_thinkdone ;;
 genroom) run_gate genroom validate_genroom ;;
 taesd) run_gate taesd validate_taesd ;;
 all)
@@ -1444,6 +1525,7 @@ all)
 	run_gate kvsnap validate_kvsnap || rc=1
 	run_gate coderpaste validate_coderpaste || rc=1
 	run_gate thinkcut validate_thinkcut || rc=1
+	run_gate thinkdone validate_thinkdone || rc=1
 	run_gate genroom validate_genroom || rc=1
 	run_gate taesd validate_taesd || rc=1
 	echo
@@ -1452,7 +1534,7 @@ all)
 	exit $rc
 	;;
 *)
-	echo "Usage: $0 <routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|genroom|taesd|all>" >&2
+	echo "Usage: $0 <routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|thinkdone|genroom|taesd|all>" >&2
 	exit 1
 	;;
 esac
