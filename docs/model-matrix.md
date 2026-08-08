@@ -127,10 +127,10 @@ Series S 2026-08-08): all **nine** console gates PASS
 title** on disk (empty-title fix in this cut). Capability figures from 1.5.2
 still hold on this package.
 
-**Post-1.5.3 hygiene (main after #232/#234, MSIX **1.5.3.881**, Series S
-2026-08-08):** **ten** console gates — the nine above plus **`thinkdone`**
-(#223). `thinkcut` + `thinkdone` both PASS; `kvsnap` stress **6× `all` PASS**
-after the #216 save race fix (PR #232). Suite entry for `all` is now 10 gates.
+**Post-1.5.3 hygiene (shipped in **v1.5.4.0**, MSIX **1.5.4.887**):** **ten**
+console gates — the nine above plus **`thinkdone`** (#223). `thinkcut` +
+`thinkdone` both PASS; `kvsnap` stress **6× `all` PASS** after the #216 save
+race fix (PR #232). Intermediate verify on 1.5.3.881 before the 1.5.4 cut.
 
 **Out of budget / deferred:** Qwen2.5-Coder-7B+, Qwen3-Coder MoE 30B+, Devstral 24B,
 DeepSeek-Coder-V2-Lite, StarCoder2 / DS-Coder 1.3B. LFM2.5-8B-A1B was on this list

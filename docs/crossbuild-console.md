@@ -10,7 +10,7 @@ Companion SSOTs: [uwp-constraints.md](uwp-constraints.md), campaign notes in
 
 | Goal | Path | Status on Series S |
 | --- | --- | --- |
-| Ship / measure product tok/s | CI MSVC `build-uwp` → `xllama-appx` → openappx pack/sign/deploy | **Launches** (shipping **v1.5.3.0**; main suite **10** gates incl. `thinkdone`) |
+| Ship / measure product tok/s | CI MSVC `build-uwp` → `xllama-appx` → openappx pack/sign/deploy | **Launches** (shipping **v1.5.4.0** / MSIX `1.5.4.887`; **10** gates incl. `thinkdone`) |
 | Compile + package from Linux | uwp-crossbuild ≥ **0.5.0** + store `/MD` + dual-CRT stage | **Links; audit PASS**; dual-CRT stage required; **store PE still fails activation** (`0x80040904`) — layer 2 |
 | hello-uwp / non-filesystem samples | uwp-crossbuild `/MT` or store `/MD` | Launches |
 
@@ -26,9 +26,9 @@ Companion SSOTs: [uwp-constraints.md](uwp-constraints.md), campaign notes in
 ## Launchable package today (shipping path)
 
 **CI MSVC (`build-uwp` → artifact `xllama-appx`) is the proven product path on
-Series S.** Measured through **v1.5.3.0** (MSIX `1.5.3.873` activates, loads GGUF,
-and passes the full console gate suite). Earlier hybrid dual-CRT probes used
-`1.5.2.x` packages (see layer table below).
+Series S.** Measured through **v1.5.4.0** (MSIX `1.5.4.887`; suite **10** gates
+including `thinkdone`). Day-of-ship **v1.5.3.0** was `1.5.3.873` (9 gates).
+Earlier hybrid dual-CRT probes used `1.5.2.x` packages (see layer table below).
 
 ## Architecture: two integrated runtimes (SSOT)
 
