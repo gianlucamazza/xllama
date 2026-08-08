@@ -73,8 +73,8 @@ Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.
   (`prompt_lookup`, default OFF). Console M3: code **1.04× FAIL** ≥1.4× gate;
   chat ~0.99×. Remains opt-in only — see Phase 15 W2 and `docs/phase15-re-opt.md`.
 - [ ] H5 BitNet/low-bit survey before any runtime work.
-- [ ] H6/H7 GPU or hybrid GGUF experiments only after a credible UWP backend
-      path exists — H6 now has a predeclared 100 GB/s kill gate (Phase 15 W3).
+- [ ] H6/H7 GPU or hybrid GGUF eng — **W3 gate PASS** (Series S STREAM
+      **119.07 GB/s** ≥ 100 kill, #211 closed). Eng tracking: **#228**.
 
 ## Phase 8 — Training pillar (exploration) ✅ FROZEN complete
 

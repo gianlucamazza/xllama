@@ -118,10 +118,10 @@ until APP-CRT import parity with CI is proven on device.
 | --- | --- | --- | --- |
 | WS0 | Baseline freeze + this doc | — | **done** (this file) |
 | WS-A | W2 prompt-lookup speculative | #210 | **closed for default** — host PASS; console M3 **1.04× FAIL** gate; opt-in remains |
-| WS-B | W3 gpubw STREAM + Q4 GEMV spike | #211 | **M6 PASS** — STREAM **119.07 GB/s** Series S (`1.5.2.853`); Q4 GEMV optional density follow-up |
+| WS-B | W3 gpubw STREAM + Q4 GEMV spike | #211 | **closed PASS** — STREAM **119.07 GB/s** Series S (`1.5.2.853`); Q4 GEMV moves to #228 |
 | WS-C | #130 DML valley mechanism profile | #130 | opportunistic on console |
 | WS-D | H5 BitNet desk survey | — | parallel desk, no eng yet |
-| WS-E | H6/H7 GGUF GPU path | #228 | **opened by M6 PASS** — Q4 GEMV optional first; eng owns #228 |
+| WS-E | H6/H7 GGUF GPU path | #228 | **open** — eng after M6 PASS; Q4 GEMV optional first |
 
 ### WS-A detail (W2)
 
@@ -136,14 +136,15 @@ until APP-CRT import parity with CI is proven on device.
 Regression must-pass: `longchat`, `kvsnap`, `gguf`, shipping default `lfm25-350m`
 unchanged (hybrid cache cannot tail-rewind — probe disables, does not corrupt).
 
-### WS-B kill criterion (predeclared)
+### WS-B kill criterion (predeclared) — **applied 2026-08-08**
 
 Own compute-shader STREAM read on ~1 GB VRAM buffer, checksum-verified:
 
 - **&lt; 100 GB/s** → H6 “Do not reopen”, close #211
 - **≥ 100 GB/s** → open H6 eng plan
 
-Never use the Agility D3D12 factory; headless `gpubw.flag` only.
+**Result:** **119.07 GB/s** → PASS → #211 closed as research gate; eng continues in
+**#228**. Never use the Agility D3D12 factory; headless `gpubw.flag` only.
 
 ## Milestones
 
@@ -158,7 +159,7 @@ Never use the Agility D3D12 factory; headless `gpubw.flag` only.
 | M6 | console measure vs 100 GB/s | **PASS** — Series S **119.07 GB/s**, checksum_ok, 1024 MB, CI `1.5.2.853`; CSV `bench/results/phase15-gpubw.csv` |
 | M7 | #130 closed | §5e verdict |
 | M8 | H5 survey note | go/no-go |
-| M9+ | H6/H7 eng plan | **opened** by M6 PASS |
+| M9+ | H6/H7 eng plan | **#228** (opened by M6 PASS) |
 
 ## Decision log
 
@@ -179,11 +180,12 @@ Never use the Agility D3D12 factory; headless `gpubw.flag` only.
 | 2026-08-08 | **Docs consolidated:** Findings section above; H3 card in phase7 updated; model-matrix gap closed; crossbuild launch path remains CI-only. PR #226 holds the W2 eng + CSVs. |
 | 2026-08-08 | **W3 gpubw spike (#211) eng:** `include/xllama/gpubw.h`, AOT DXIL `shaders/gpubw_stream.hlsl` → `shaders/generated/gpubw_stream_dxil.h`, UWP `gpubw.flag` / CLI `--gpubw`, `scripts/bench-gpubw.sh`. System `D3D12CreateDevice` only (no Agility). Multi-dim Dispatch for 1 GiB (≤65535/dim). |
 | 2026-08-08 | **M6 console gpubw PASS:** Series S CI package `1.5.2.853`, 1 GiB buffer, 3 iters, **read=119.07 GB/s**, `checksum_ok=1`, `d3d12_ran=1` → kill gate **PASS** (≥100). CSV: `bench/results/phase15-gpubw.csv`. **H6 eng is motivated** (own CS beats DirectML BW lens). |
+| 2026-08-08 | **#211 closed** as the research/measure gate (PASS). Eng handoff: **#228**. PR #227 carries the probe + multi-dim Dispatch + docs. |
 
 ## Related issues
 
 - #210 W2 prompt-lookup (eng shipped opt-in; default OFF after M3)
-- #211 W3 gpubw gate (**M6 PASS 119.07 GB/s** — close after merge #227)
-- #228 H6 eng follow-up (opened by M6 PASS)
+- #211 W3 gpubw gate — **closed PASS** (119.07 GB/s); PR #227
+- #228 H6 eng follow-up (**open** after M6 PASS)
 - #130 DML max_length valley mechanism
 - #216 kvsnap intermittent (watch on console gates)
