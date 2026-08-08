@@ -47,20 +47,22 @@ performance belongs in `docs/benchmarks.md`.
 
 ### Next (after v1.5.3.0)
 
-Priority order is hygiene and open product risks, not reopening parked eng:
+**Done on main (not yet retagged):** #216 kvsnap save race (PR #232, `all` ×6);
+#223 thinking `n_predict` 1024 + `thinkdone` (PR #234). Suite is **10** gates.
 
-1. ~~**Intermittent `kvsnap` under `all` (#216)**~~ — **fixed** PR #232
-   (save/generate race); Series S `all` ×6 PASS (551→19).
-2. ~~**Thinking-tier evidence (#223)**~~ — catalogue `n_predict` 1024 +
-   `thinkdone` gate (short happy path); hard prompts may still fail CoT.
-3. **#130 DML prefill valley** — mitigated by warm-up; root-cause profile open.
-4. **Vendor pin drops** (#84/#85/#86) — PatchedGenAI / PatchedOrt lifecycle.
-5. **Store readiness** — Partner Center, App-vs-Game spike, listing copy
+Open (hygiene / risks — not parked eng reopens):
+
+1. **#130 DML prefill valley** — mitigated by warm-up; mechanism profile open
+   (or explicit “mitigation-only” close).
+2. **Vendor pin drops** (#84/#85/#86) — PatchedGenAI / PatchedOrt; blocked until
+   NuGet moves (`scripts/check-vendor-nuget-status.sh`).
+3. **Store readiness** — Partner Center, App-vs-Game spike, listing copy
    (`docs/store-readiness.md`).
-6. **Parked** — H6/H7 GGUF GPU eng (#228) until new density measure; Linux store
-   PE activation layer 2; prompt-lookup product default (stays OFF after W2).
-7. **Optional next cut** — tag a 1.5.4 (or patch) once #130 is closed/deferred
-   and the 10-gate suite is the release contract.
+4. **Optional next cut** — 1.5.4 when the 10-gate suite is the release contract
+   and Unreleased (#216/#223) is cut.
+
+**Parked:** H6/H7 (#228); Linux store PE layer 2; prompt-lookup product default
+(OFF after W2).
 
 ## Phase 7 — Peer-class model research
 

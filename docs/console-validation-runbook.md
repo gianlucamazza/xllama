@@ -131,7 +131,7 @@ Frames are taken at every poll, except during `taesd` — the one gate that
 asserts a duration (VAE decode under 1000 ms), and a screenshot is GPU work on
 the same SoC. That is a list, not a sampling rate, because sampling less often
 everywhere would only make the collision rarer while halving the evidence for
-the eight gates that time nothing. `taesd` still gets its end-of-run frame, and
+the nine gates that time nothing. `taesd` still gets its end-of-run frame, and
 loses nothing it needed: its image-generation failure takes the autopilot
 `error:` path where that frame is the right one, and its `vae_ms` failure is a
 number already in the log that no screenshot improves.
