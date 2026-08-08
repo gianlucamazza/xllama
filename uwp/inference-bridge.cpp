@@ -6,6 +6,7 @@
 #include "xllama/chat_prompt.h"
 #include "xllama/device_train.h"
 #include "xllama/gpubw.h"
+#include "xllama/gpugemv.h"
 #include "xllama/inference.h"
 #include "xllama/membw.h"
 #include "xllama/path_utils.h"
@@ -389,6 +390,43 @@ void run_gpubw() {
             fclose(done);
         }
         log_output("[xllama] gpubw-result.csv written\n");
+    }
+#endif
+}
+
+// ---------------------------------------------------------------------------
+// run_gpugemv (called from UWP gpugemv.flag mode background thread)
+// ---------------------------------------------------------------------------
+
+void run_gpugemv() {
+#ifdef XLLAMA_UWP
+    log_output("[xllama] gpugemv: measuring Q4_K GEMV density (own CS, no Agility)\n");
+    const ::xllama::GpugemvResult r = ::xllama::measure_gpugemv(
+        ::xllama::kGpugemvDefaultN, ::xllama::kGpugemvDefaultK, 3);
+
+    char lb[360];
+    snprintf(lb, sizeof(lb),
+             "[xllama] gpugemv: n=%d k=%d packed_gbs=%.2f max_abs_err=%.6g checksum_ok=%d "
+             "d3d12_ran=%d g1=%d g2=%d err=%s\n",
+             r.n, r.k, r.packed_gbs, static_cast<double>(r.max_abs_err), r.checksum_ok ? 1 : 0,
+             r.d3d12_ran ? 1 : 0, ::xllama::gpugemv_passes_g1(r) ? 1 : 0,
+             ::xllama::gpugemv_passes_g2(r) ? 1 : 0,
+             r.error_msg.empty() ? "-" : r.error_msg.c_str());
+    log_output(lb);
+
+    const std::string csv = resolve_local_path("gpugemv-result.csv");
+    FILE* fp = _wfopen(utf8_to_wstring(csv).c_str(), L"w");
+    if (fp) {
+        fputs(::xllama::gpugemv_csv_header(), fp);
+        fputs(::xllama::format_gpugemv_row(r, "xbox-series-s").c_str(), fp);
+        fclose(fp);
+        FILE* done =
+            _wfopen(utf8_to_wstring(resolve_local_path("gpugemv-result.csv.done")).c_str(), L"w");
+        if (done) {
+            fputs("done\n", done);
+            fclose(done);
+        }
+        log_output("[xllama] gpugemv-result.csv written\n");
     }
 #endif
 }

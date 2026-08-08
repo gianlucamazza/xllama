@@ -24,6 +24,7 @@ add_executable(xllama-tests
     test_manifest_merge.cpp
     test_membw.cpp
     test_gpubw.cpp
+    test_gpugemv.cpp
     test_ramceil.cpp
     test_model_provision.cpp
     test_logit_parity.cpp

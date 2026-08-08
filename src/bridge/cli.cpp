@@ -44,6 +44,8 @@ static void print_help(const char* prog) {
                  "                       exit (no model needed); prints read/copy/triad GB/s\n"
                  "      --gpubw          Phase 15 W3 (#211) GPU STREAM probe (D3D12; host\n"
                  "                       without D3D12 reports unavailable — no fake GB/s)\n"
+                 "      --gpugemv        Phase 15 H6.1 (#228) Q4_K GEMV density probe\n"
+                 "                       (D3D12; host without D3D12 reports unavailable)\n"
                  "      --ramceil        Probe how much heap this process can commit and\n"
                  "                       exit (no model needed); prints the CSV rows\n"
                  "      --greedy         Deterministic argmax decode (implies logit parity);\n"
@@ -102,6 +104,7 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         {"ramceil", no_argument, nullptr, 19},
         {"prompt-lookup", no_argument, nullptr, 20},
         {"gpubw", no_argument, nullptr, 21},
+        {"gpugemv", no_argument, nullptr, 22},
         {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0}};
 
@@ -188,6 +191,9 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         case 21:
             out.run_gpubw = true;
             break;
+        case 22:
+            out.run_gpugemv = true;
+            break;
         case 'h':
             print_help(argv[0]);
             std::exit(0);
@@ -197,10 +203,12 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         }
     }
 
-    // --membw / --gpubw / --ramceil / train-job modes: model/prompt not required.
+    // --membw / --gpubw / --gpugemv / --ramceil / train-job: model/prompt not required.
     if (out.run_membw)
         return true;
     if (out.run_gpubw)
+        return true;
+    if (out.run_gpugemv)
         return true;
     if (out.run_ramceil)
         return true;

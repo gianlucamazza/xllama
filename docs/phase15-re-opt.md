@@ -98,6 +98,7 @@ until APP-CRT import parity with CI is proven on device.
 | Spec W2 host A/B | `scripts/bench-spec-w2.sh` | TDD / acceptance rates (not product tok/s) |
 | Spec W2 console A/B | `scripts/bench-spec-w2-console.sh` | M3 gate on Series S |
 | GPU STREAM (W3) | `gpubw.flag` / `scripts/bench-gpubw.sh` / `include/xllama/gpubw.h` | Own CS read + checksum; kill 100 GB/s |
+| Q4_K GEMV (H6.1) | `gpugemv.flag` / `scripts/bench-gpugemv.sh` / `include/xllama/gpugemv.h` | Dequant-in-register; soft G2 40 GB/s packed |
 | Logit parity | `scripts/validate-logit-parity.sh` | DML correctness |
 | GPU mem | `gpu_mem_info()` in `platform.cpp` | VRAM budget |
 
@@ -121,7 +122,7 @@ until APP-CRT import parity with CI is proven on device.
 | WS-B | W3 gpubw STREAM + Q4 GEMV spike | #211 | **closed PASS** — STREAM **119.07 GB/s** Series S (`1.5.2.853`); Q4 GEMV moves to #228 |
 | WS-C | #130 DML valley mechanism profile | #130 | opportunistic on console |
 | WS-D | H5 BitNet desk survey | — | parallel desk, no eng yet |
-| WS-E | H6/H7 GGUF GPU path | #228 | **open** — eng after M6 PASS; Q4 GEMV optional first |
+| WS-E | H6/H7 GGUF GPU path | #228 | **open** — H6.1 Q4_K GEMV measure (`gpugemv`); not a product backend |
 
 ### WS-A detail (W2)
 
@@ -146,6 +147,20 @@ Own compute-shader STREAM read on ~1 GB VRAM buffer, checksum-verified:
 **Result:** **119.07 GB/s** → PASS → #211 closed as research gate; eng continues in
 **#228**. Never use the Agility D3D12 factory; headless `gpubw.flag` only.
 
+### WS-E / H6.1 — Q4_K GEMV density (measure only)
+
+Own CS that reads ggml-compatible `block_q4_K` (144 B), dequants in register,
+and accumulates `y = Wx` (no fp16 materialize). Headless `gpugemv.flag` /
+CLI `--gpugemv` / `scripts/bench-gpugemv.sh`.
+
+| Gate | Criterion |
+| --- | --- |
+| G1 correctness | `d3d12_ran` + residual vs CPU ref ≤ 1e-2 (or checksum) |
+| G2 density (soft) | G1 + **packed_gbs ≥ 40** (packed Q4_K bytes / s) |
+
+Default tile: N=K=8192 (~36 MiB packed). CSV:
+`bench/results/phase15-gpugemv.csv` when measured. **No product tok/s claim.**
+
 ## Milestones
 
 | M | Deliverable | Exit |
@@ -159,7 +174,8 @@ Own compute-shader STREAM read on ~1 GB VRAM buffer, checksum-verified:
 | M6 | console measure vs 100 GB/s | **PASS** — Series S **119.07 GB/s**, checksum_ok, 1024 MB, CI `1.5.2.853`; CSV `bench/results/phase15-gpubw.csv` |
 | M7 | #130 closed | §5e verdict |
 | M8 | H5 survey note | go/no-go |
-| M9+ | H6/H7 eng plan | **#228** (opened by M6 PASS) |
+| M9 | H6.1 Q4_K GEMV measure (code + flag + DXIL) | eng in progress (#228) |
+| M9+ | H6 full decode eng | only after G1+G2 + architecture sketch |
 
 ## Decision log
 
@@ -181,6 +197,7 @@ Own compute-shader STREAM read on ~1 GB VRAM buffer, checksum-verified:
 | 2026-08-08 | **W3 gpubw spike (#211) eng:** `include/xllama/gpubw.h`, AOT DXIL `shaders/gpubw_stream.hlsl` → `shaders/generated/gpubw_stream_dxil.h`, UWP `gpubw.flag` / CLI `--gpubw`, `scripts/bench-gpubw.sh`. System `D3D12CreateDevice` only (no Agility). Multi-dim Dispatch for 1 GiB (≤65535/dim). |
 | 2026-08-08 | **M6 console gpubw PASS:** Series S CI package `1.5.2.853`, 1 GiB buffer, 3 iters, **read=119.07 GB/s**, `checksum_ok=1`, `d3d12_ran=1` → kill gate **PASS** (≥100). CSV: `bench/results/phase15-gpubw.csv`. **H6 eng is motivated** (own CS beats DirectML BW lens). |
 | 2026-08-08 | **#211 closed** as the research/measure gate (PASS). Eng handoff: **#228**. PR #227 carries the probe + multi-dim Dispatch + docs. |
+| 2026-08-08 | **H6.1 eng start (#228):** `gpugemv` Q4_K GEMV density probe (AOT DXIL, system D3D12, pure CPU ref). Soft G2 ≥40 GB/s packed; G1 residual. Not a SessionHub backend. |
 
 ## Related issues
 
