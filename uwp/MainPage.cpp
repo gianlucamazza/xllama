@@ -1032,10 +1032,15 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
         del_btn.VerticalAlignment(winrt::Windows::UI::Xaml::VerticalAlignment::Center);
         del_btn.Margin(winrt::Windows::UI::Xaml::ThicknessHelper::FromLengths(8, 0, 0, 0));
         auto meta_id = meta.id;
-        del_btn.Click([delete_pending, meta_id,
-                       dlg](IInspectable const&, winrt::Windows::UI::Xaml::RoutedEventArgs const&) {
+        // Weak capture of dlg: a strong capture closed a refcount cycle
+        // (dlg → Content → … → Button → Click → dlg) and leaked the whole
+        // History dialog + rows per open (#219). Matches weak_self pattern above.
+        auto weak_dlg = winrt::make_weak(dlg);
+        del_btn.Click([delete_pending, meta_id, weak_dlg](
+                          IInspectable const&, winrt::Windows::UI::Xaml::RoutedEventArgs const&) {
             *delete_pending = meta_id;
-            dlg.Hide();
+            if (auto d = weak_dlg.get())
+                d.Hide();
         });
 
         row.Children().Append(tb);

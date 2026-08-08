@@ -64,6 +64,25 @@ jobs:
       - name: Build
         run: cmake --build build/linux-test -j$(nproc)
 
+      # check-coherence.py runs before the build so docs-only PRs fail fast, and
+      # correctly *warns* when xllama-cli is missing. That meant train-job JSON
+      # validation never ran on CI (#222). Keep the early SSOT audit; gate jobs
+      # here once the binary exists (fail closed).
+      - name: Validate training job JSON (requires built CLI)
+        run: |
+          cli=./build/linux-test/bin/xllama-cli
+          shopt -s nullglob
+          jobs=(training/jobs/*.json)
+          if ((${#jobs[@]} == 0)); then
+            echo "no training/jobs/*.json — nothing to validate"
+            exit 0
+          fi
+          for job in "${jobs[@]}"; do
+            echo "validate $job"
+            "$cli" --validate-train-job "$job"
+          done
+          echo "OK ${#jobs[@]} train job(s)"
+
       - name: Run unit tests
         run: ctest --test-dir build/linux-test --output-on-failure
 

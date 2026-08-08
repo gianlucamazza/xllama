@@ -31,6 +31,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   its second one too. `fetch_log` was already slicing the right window per gate
   and the slice was simply discarded.
 
+### Fixed
+
+- **History dialog leak (#219).** Delete row buttons captured the
+  `ContentDialog` by value, forming a WinRT refcount cycle so each History open
+  leaked the dialog and all rows. Capture is now `winrt::make_weak(dlg)`.
+
+### Changed
+
+- **CI train-job validation (#222).** `build-linux.yml` runs
+  `xllama-cli --validate-train-job` on every `training/jobs/*.json` after the
+  binary is built (early `check-coherence` still skips when CLI is missing so
+  docs PRs stay fast-fail).
+
+- **H6 eng parked (#228).** After H6.1 console G2 FAIL (2.15 GB/s packed), full
+  GGUF GPU backend work is deferred; Decision log in `docs/phase15-re-opt.md`.
+
 ### Added
 
 - **Phase 15 H6.1 (#228): Q4_K GEMV density probe (measure only).** Headless
