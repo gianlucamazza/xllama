@@ -143,6 +143,9 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     // #216 (restored log line + full re-prefill under suite timing).
     void SaveKvSnapshotAsync();
     void WaitKvSnapshotSave();
+    // Apply catalogue knobs for the selected model (n_predict default, …).
+    // Call when the user or autopilot changes m_model_filename.
+    void ApplyCatalogueModelKnobs(const std::wstring& model);
     // Must be called from background thread; builds/rebuilds m_session if needed.
     bool EnsureSession(const std::string& model, std::string* err_out = nullptr);
 

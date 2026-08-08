@@ -1,0 +1,2 @@
+prompt_id,n_predict,n_eval,t_eval_ms,closed_think,has_answer_after_strip,answer_preview
+easy,128,128,299381.4,0,0,"register_backend: registered backend CPU (1 devices) register_device: registered"

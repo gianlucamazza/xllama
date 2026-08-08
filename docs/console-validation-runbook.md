@@ -71,6 +71,9 @@ hardware gates pass:
   `n_tokens <= n_batch` with `GGML_ABORT` in Release too, so the old failure
   killed the process. A dead app never writes `autopilot-done.txt`, so the
   missing marker is itself the assertion;
+- **thinkdone** (#223) — a short prompt on `lfm25-1.2b-thinking` at **n_predict
+  1024** (catalogue default) completes with a non-empty answer after strip —
+  the happy path that `thinkcut` deliberately does not cover.
 - **thinkcut** (#193) — a thinking model (`lfm25-1.2b-thinking`) that spends its
   whole budget reasoning postprocesses to an empty answer, and the turn used to
   vanish: nothing saved, the streamed chain of thought orphaned on screen, status
@@ -146,6 +149,7 @@ Run an individual gate while debugging:
 ./scripts/validate-console.sh kvsnap
 ./scripts/validate-console.sh coderpaste
 ./scripts/validate-console.sh thinkcut
+./scripts/validate-console.sh thinkdone
 ./scripts/validate-console.sh genroom
 ./scripts/validate-console.sh taesd
 ./scripts/validate-api.sh all          # spike + chat + prefs + train

@@ -7,6 +7,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Thinking-tier completion evidence (#223).** Catalogue
+  `lfm25-1.2b-thinking` ships **`n_predict: 1024`** applied on model select
+  (UI default was 512). Console gate **`thinkdone`** asserts a short easy prompt
+  completes with a non-empty stripped answer (pairs with `thinkcut` for the
+  truncated path). Hard multi-step prompts may still exhaust CoT without an
+  answer — documented, not a formatting bug.
+
 ### Fixed
 
 - **#216 KV snapshot race on conversation switch.** `SaveKvSnapshotAsync` used a

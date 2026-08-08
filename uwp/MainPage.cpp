@@ -836,6 +836,16 @@ void MainPageController::WaitKvSnapshotSave() {
         f.wait();
 }
 
+void MainPageController::ApplyCatalogueModelKnobs(const std::wstring& model) {
+    // Catalogue optional n_predict (thinking tier uses 1024 — #223). 0 / absent
+    // leaves the Settings slider alone so chat/coding stay at the user's value.
+    const auto& manifest = CachedManifest();
+    const auto* e = ::xllama::FindManifestEntry(manifest, model);
+    if (!e || e->n_predict <= 0)
+        return;
+    m_n_predict = std::clamp(e->n_predict, 16, 2048);
+}
+
 void MainPageController::SaveKvSnapshotAsync() {
     if (!m_kv_reuse || !m_kv_valid || m_current.messages.empty())
         return;
@@ -1677,11 +1687,20 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     // role → kCodingSystemPrompt (routing_policy / chat_prompt).
     self->m_system_prompt = ::xllama::wstring_to_utf8(std::wstring(sysPromptBox.Text().c_str()));
     int mi = modelBox.SelectedIndex();
+    self->m_temperature = static_cast<float>(tempSlider.Value());
+    self->m_top_p = static_cast<float>(topPSlider.Value());
+    self->m_top_k = static_cast<int>(topKSlider.Value());
+    self->m_repetition_penalty = static_cast<float>(repSlider.Value());
+    // Slider first — model switch may override with a catalogue n_predict
+    // (thinking tier 1024). The slider still shows the previous model’s value
+    // until Settings is reopened, so a stale read must not clobber the knob.
+    self->m_n_predict = static_cast<int>(nPredSlider.Value());
     if (mi >= 0 && mi < (int)model_keys.size()) {
         std::wstring new_model = model_keys[mi];
         if (new_model != self->m_model_filename) {
             self->m_model_filename = new_model;
             self->m_modelText.Text(new_model);
+            self->ApplyCatalogueModelKnobs(new_model);
             {
                 auto& hub = ::xllama::session_hub();
                 std::lock_guard<std::mutex> hub_lk(hub.mtx);
@@ -1694,11 +1713,6 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
             self->EnsureModelNamedAsync(new_model, true);
         }
     }
-    self->m_temperature = static_cast<float>(tempSlider.Value());
-    self->m_top_p = static_cast<float>(topPSlider.Value());
-    self->m_top_k = static_cast<int>(topKSlider.Value());
-    self->m_repetition_penalty = static_cast<float>(repSlider.Value());
-    self->m_n_predict = static_cast<int>(nPredSlider.Value());
     self->m_kv_reuse = kvToggle.IsOn();
     #ifndef XLLAMA_STORE_SKU
     int selected_api_port = api_port;
@@ -3480,11 +3494,14 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
         } else if (a.op == "set_model") {
             std::wstring name = a.arg;
             // Same as ShowSettings' Save path, plus clear the sticky routed model
-            // so the next send re-decides the EP for the new model.
+            // so the next send re-decides the EP for the new model. Catalogue
+            // n_predict (thinking 1024) applies here so gates need not restate it.
             ApDispatchSync([this, name]() {
                 m_model_filename = name;
                 m_modelText.Text(name);
                 m_active_model.clear();
+                ApplyCatalogueModelKnobs(name);
+                SaveSettings();
             });
         } else if (a.op == "set_api") {
     #ifndef XLLAMA_STORE_SKU

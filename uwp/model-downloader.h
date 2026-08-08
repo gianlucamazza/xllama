@@ -63,6 +63,10 @@ struct ManifestEntry {
     // Optional session context size (0 = kDefaultNCtx). Coding models use 4096.
     // Clamped by resolve_n_ctx() at session open (routing_policy.h).
     int n_ctx = 0;
+    // Optional Max-new-tokens default when the user (or autopilot) selects this
+    // model (0 = leave the UI/settings value alone). Thinking models ship 1024
+    // so a short CoT+answer fits more often than the global UI default 512 (#223).
+    int n_predict = 0;
     // Optional workload role: "" (general chat) or "coding". Drives denser
     // token estimates and the coding system-prompt default on the LAN API.
     std::wstring role;
