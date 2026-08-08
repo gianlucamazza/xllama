@@ -47,6 +47,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **H6 eng parked (#228).** After H6.1 console G2 FAIL (2.15 GB/s packed), full
   GGUF GPU backend work is deferred; Decision log in `docs/phase15-re-opt.md`.
 
+- **AppContainer PE hygiene (crossbuild path).** `XLLAMA_UWP` / partition-only
+  guards drop desktop-only imports from the store-shaped PE; `App` keeps MTA
+  `RoInitialize` for the process lifetime (no uninitialize before
+  `CoreApplication::Start`); GPU paths resolve `d3d12.dll` at first use
+  (`include/xllama/d3d12_dyn.h`) instead of a load-time import. Product launch
+  remains the **CI MSVC** package until store PE activation is closed.
+
+- **Dual-CRT package architecture for ORT desktop `/MD`.** CI and Linux
+  packaging both stage app-local desktop `MSVCP140*` / `VCRUNTIME140*` next to
+  desktop-built ORT/GenAI, while the EXE continues to use the app CRT via
+  VCLibs. SSOT: `docs/crossbuild-console.md`; stage helper:
+  `scripts/stage-ort-desktop-crt.sh` (wired from `scripts/crossbuild-uwp.sh` and
+  mirrored in `scripts/build-uwp.ps1`). Series S hybrid evidence: missing
+  desktop CRT → `0x8027025b`; dual-CRT layout + CI PE → **launch**; store PE +
+  dual-CRT still → `0x80040904` (layer 2 = PE/projection, not package CRT).
+  C++/WinRT NuGet pin stays **2.0.240405.15** (`scripts/ensure-cppwinrt-pin.sh`).
+  No CreateFileW shims; no Wine desktop CRT as product.
+
 ### Added
 
 - **Phase 15 H6.1 (#228): Q4_K GEMV density probe (measure only).** Headless

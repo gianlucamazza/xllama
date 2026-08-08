@@ -43,7 +43,12 @@ performance belongs in `docs/benchmarks.md`.
   all as `(2 msgs) • today 13:20`. Console-validated on MSIX **1.5.2.802** (8/8)
   and **1.5.2.825** (9/9). Two product-code changes here — the double-dialog
   guard and the title fix — and both are user-visible, so the next release is
-  now justified by more than tooling.
+  now justified by more than tooling. Also queued for that cut: History dialog
+  leak fix (#219), CI train-job validation (#222), H6 eng parked after H6.1 G2
+  FAIL (#228), and **dual-CRT package architecture** for ORT desktop `/MD`
+  (layer 1 closed on Series S with CI PE; Linux store PE activation still
+  `0x80040904` — product ship path remains CI MSVC; see
+  `docs/crossbuild-console.md`).
 - **The demo pipeline is re-runnable, and #214 is closed.** `README.md` links the
   v1.5.2 capture (576 stills at 11.76 fps, encoded at the rate actually achieved
   so playback is real time); the version, output path and watermark come from

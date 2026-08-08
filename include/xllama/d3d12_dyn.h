@@ -24,15 +24,14 @@ namespace xllama {
 namespace d3d12_dyn {
 
 inline HMODULE module() noexcept {
-    static HMODULE m =
-        LoadLibraryExW(L"d3d12.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    static HMODULE m = LoadLibraryExW(L"d3d12.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
     return m;
 }
 
 using CreateDeviceFn = HRESULT(WINAPI*)(IUnknown*, D3D_FEATURE_LEVEL, REFIID, void**);
 using SerializeRootSignatureFn = HRESULT(WINAPI*)(const D3D12_ROOT_SIGNATURE_DESC*,
-                                                   D3D_ROOT_SIGNATURE_VERSION, ID3DBlob**,
-                                                   ID3DBlob**);
+                                                  D3D_ROOT_SIGNATURE_VERSION, ID3DBlob**,
+                                                  ID3DBlob**);
 
 inline CreateDeviceFn CreateDevice() noexcept {
     static CreateDeviceFn fn = []() -> CreateDeviceFn {
