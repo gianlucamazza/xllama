@@ -7,7 +7,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Fixed (this session, ahead of the older entries below)
+## [1.5.3.0] - 2026-08-08
+
+User-visible polish on top of v1.5.2: conversation titles in History, a History
+dialog leak fix, and console-gate evidence that keeps failing logs. Phase 15
+measure work (prompt-lookup opt-in, gpubw STREAM PASS, H6.1 GEMV parked after
+density FAIL) plus dual-CRT packaging architecture for ORT desktop `/MD`.
+Product ship path remains **CI MSVC**; Linux store PE activation is still
+layer 2 (`0x80040904`) and is not a gate for this cut.
+
+**Upgrading from 1.5.x is a normal in-place update** (same package identity
+`GianlucaMazza.xllama`). Coming from ≤1.4.x still requires the identity migration
+described in `docs/install-release.md`.
+
+### Fixed
 
 - **Every saved conversation had an empty title.** `NewChat()` assigns the
   conversation id — the KV snapshot path needs one — and `StartInference` then
@@ -30,6 +43,42 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   whatever ran next; that is what left #216's first occurrence undiagnosed, and
   its second one too. `fetch_log` was already slicing the right window per gate
   and the slice was simply discarded.
+
+### Fixed
+
+- **History dialog leak (#219).** Delete row buttons captured the
+  `ContentDialog` by value, forming a WinRT refcount cycle so each History open
+  leaked the dialog and all rows. Capture is now `winrt::make_weak(dlg)`.
+
+### Changed
+
+- **CI train-job validation (#222).** `build-linux.yml` runs
+  `xllama-cli --validate-train-job` on every `training/jobs/*.json` after the
+  binary is built (early `check-coherence` still skips when CLI is missing so
+  docs PRs stay fast-fail). Console LocalState manifest snippets for the serve
+  gates live under `training/manifest-overrides/` (not jobs) so the fail-closed
+  glob cannot mis-validate them.
+
+- **H6 eng parked (#228).** After H6.1 console G2 FAIL (2.15 GB/s packed), full
+  GGUF GPU backend work is deferred; Decision log in `docs/phase15-re-opt.md`.
+
+- **AppContainer PE hygiene (crossbuild path).** `XLLAMA_UWP` / partition-only
+  guards drop desktop-only imports from the store-shaped PE; `App` keeps MTA
+  `RoInitialize` for the process lifetime (no uninitialize before
+  `CoreApplication::Start`); GPU paths resolve `d3d12.dll` at first use
+  (`include/xllama/d3d12_dyn.h`) instead of a load-time import. Product launch
+  remains the **CI MSVC** package until store PE activation is closed.
+
+- **Dual-CRT package architecture for ORT desktop `/MD`.** CI and Linux
+  packaging both stage app-local desktop `MSVCP140*` / `VCRUNTIME140*` next to
+  desktop-built ORT/GenAI, while the EXE continues to use the app CRT via
+  VCLibs. SSOT: `docs/crossbuild-console.md`; stage helper:
+  `scripts/stage-ort-desktop-crt.sh` (wired from `scripts/crossbuild-uwp.sh` and
+  mirrored in `scripts/build-uwp.ps1`). Series S hybrid evidence: missing
+  desktop CRT → `0x8027025b`; dual-CRT layout + CI PE → **launch**; store PE +
+  dual-CRT still → `0x80040904` (layer 2 = PE/projection, not package CRT).
+  C++/WinRT NuGet pin stays **2.0.240405.15** (`scripts/ensure-cppwinrt-pin.sh`).
+  No CreateFileW shims; no Wine desktop CRT as product.
 
 ### Added
 

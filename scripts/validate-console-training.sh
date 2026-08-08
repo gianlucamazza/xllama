@@ -177,7 +177,7 @@ validate_serve() {
 		echo "  uploading model + manifest override..."
 		"${DEPLOY}" mkdir-localstate "$PFN" "models\\smollm2-lora-merged" >/dev/null
 		upload_file "$MERGED" "models\\smollm2-lora-merged" "model.gguf"
-		upload_file "${REPO_ROOT}/training/jobs/console-lora-merged.manifest.override.json" "" "manifest.json"
+		upload_file "${REPO_ROOT}/training/manifest-overrides/console-lora-merged.manifest.override.json" "" "manifest.json"
 		: >"${TMPDIR_LOCAL}/.complete"
 		upload_file "${TMPDIR_LOCAL}/.complete" "models\\smollm2-lora-merged" ".complete"
 	fi
@@ -310,7 +310,7 @@ validate_lora_rt() {
 	"${DEPLOY}" mkdir-localstate "$PFN" "models\\smollm2-lora-rt" >/dev/null
 	upload_file "$base" "models\\smollm2-lora-rt" "model.gguf"
 	upload_file "$ad" "models\\smollm2-lora-rt" "adapter.gguf"
-	upload_file "${REPO_ROOT}/training/jobs/console-lora-runtime.manifest.override.json" "" "manifest.json"
+	upload_file "${REPO_ROOT}/training/manifest-overrides/console-lora-runtime.manifest.override.json" "" "manifest.json"
 	: >"${TMPDIR_LOCAL}/.complete"
 	upload_file "${TMPDIR_LOCAL}/.complete" "models\\smollm2-lora-rt" ".complete"
 

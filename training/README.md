@@ -19,6 +19,7 @@ TrainingJob (JSON) ──► host PEFT LoRA ──► adapter ──► merge GG
 | Path                    | Role                                                      |
 | ----------------------- | --------------------------------------------------------- |
 | `jobs/*.json`           | Declarative train jobs (schema validated by C++)          |
+| `manifest-overrides/`   | LocalState `manifest.json` snippets for console serve gates (not train jobs) |
 | `datasets/`             | JSONL chat datasets                                       |
 | `host/train_lora.py`    | PEFT LoRA trainer (CPU/GPU host)                          |
 | `host/run_job.sh`       | Stage runner: prepare → train → export → merge → evaluate |

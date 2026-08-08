@@ -122,7 +122,7 @@ until APP-CRT import parity with CI is proven on device.
 | WS-B | W3 gpubw STREAM + Q4 GEMV spike | #211 | **closed PASS** — STREAM **119.07 GB/s** Series S (`1.5.2.853`); Q4 GEMV moves to #228 |
 | WS-C | #130 DML valley mechanism profile | #130 | opportunistic on console |
 | WS-D | H5 BitNet desk survey | — | parallel desk, no eng yet |
-| WS-E | H6/H7 GGUF GPU path | #228 | **open** — H6.1 Q4_K GEMV measure (`gpugemv`); not a product backend |
+| WS-E | H6/H7 GGUF GPU path | #228 | **parked** — H6.1 G1 PASS / G2 FAIL (2.15 GB/s); Decision 2026-08-08 |
 
 ### WS-A detail (W2)
 
@@ -180,8 +180,8 @@ disprove denser CS designs, but **this spike does not clear soft density ≥40**
 | M6 | console measure vs 100 GB/s | **PASS** — Series S **119.07 GB/s**, checksum_ok, 1024 MB, CI `1.5.2.853`; CSV `bench/results/phase15-gpubw.csv` |
 | M7 | #130 closed | §5e verdict |
 | M8 | H5 survey note | go/no-go |
-| M9 | H6.1 Q4_K GEMV measure (code + flag + DXIL) | eng in progress (#228) |
-| M9+ | H6 full decode eng | only after G1+G2 + architecture sketch |
+| M9 | H6.1 Q4_K GEMV measure (code + flag + DXIL) | **measured** — G1 PASS / G2 FAIL |
+| M9+ | H6 full decode eng | **parked** (Decision 2026-08-08); reopen only with new density PASS or revised gate |
 
 ## Decision log
 
@@ -204,11 +204,13 @@ disprove denser CS designs, but **this spike does not clear soft density ≥40**
 | 2026-08-08 | **M6 console gpubw PASS:** Series S CI package `1.5.2.853`, 1 GiB buffer, 3 iters, **read=119.07 GB/s**, `checksum_ok=1`, `d3d12_ran=1` → kill gate **PASS** (≥100). CSV: `bench/results/phase15-gpubw.csv`. **H6 eng is motivated** (own CS beats DirectML BW lens). |
 | 2026-08-08 | **#211 closed** as the research/measure gate (PASS). Eng handoff: **#228**. PR #227 carries the probe + multi-dim Dispatch + docs. |
 | 2026-08-08 | **H6.1 eng start (#228):** `gpugemv` Q4_K GEMV density probe (AOT DXIL, system D3D12, pure CPU ref). Soft G2 ≥40 GB/s packed; G1 residual. Not a SessionHub backend. |
+| 2026-08-08 | **H6.1 console:** Series S `1.5.2.860`, N=K=8192, **packed_gbs=2.15**, max_abs_err≈4.6e-5 → **G1 PASS / G2 FAIL**. Naive CS compute-bound. CSV `bench/results/phase15-gpugemv.csv`. |
+| 2026-08-08 | **H6 eng parked (#228).** Binding constraint remains bytes/token; G2 FAIL shows no free ride on STREAM 119 GB/s. No full GGUF GPU backend without new density PASS or explicit gate rewrite. Focus → product hygiene. |
 
 ## Related issues
 
 - #210 W2 prompt-lookup (eng shipped opt-in; default OFF after M3)
 - #211 W3 gpubw gate — **closed PASS** (119.07 GB/s); PR #227
-- #228 H6 eng follow-up (**open** after M6 PASS)
+- #228 H6 eng follow-up — **parked** after H6.1 G2 FAIL
 - #130 DML max_length valley mechanism
 - #216 kvsnap intermittent (watch on console gates)
