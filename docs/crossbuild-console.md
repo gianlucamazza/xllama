@@ -156,12 +156,12 @@ build-project \
   --property XllamaBackend=unified
 
 # 3) Fail closed on AppContainer-forbidden imports before pack/deploy
-~/Workspace/tooling/uwp-crossbuild/scripts/pe-import-audit.sh \
-  /tmp/xllama-layout/xllama.exe
+#    (pe-import-audit ships with uwp-crossbuild ≥ 0.5.0; on PATH after install)
+pe-import-audit.sh /tmp/xllama-layout/xllama.exe
 ```
 
-(`build-project` is provided by the **uwp-crossbuild** tooling tree, not by a
-script under this repository.)
+(`build-project` and `pe-import-audit.sh` come from the **uwp-crossbuild**
+tooling tree, not from a script under this repository.)
 
 For **product-shaped** packages (ORT linked), use store `/MD` for the EXE
 (`UWP_STORE_CRT=1` + `fetch-vclibs` + `gen-msvcprt-app-static`) **and** still
@@ -209,14 +209,14 @@ openappx deploy --device "https://${XBOX_IP}:${XBOX_PORT}" \
 | Store `/MD` + desktop CRT | launch fail (desktop `VCRUNTIME140`) | `UWP_STORE_CRT=1` + `fetch-vclibs` `*_app` libs (gotcha 19) |
 | Store `/MD` + raw `libcpmt` | LLD `FAILIFMISMATCH` RuntimeLibrary | never mix MT archive into MD (gotcha 21) |
 | Desktop family compile (old toolchain) | PE imports registry/affinity → `0x8027025b` | uwp-crossbuild sets `WINAPI_FAMILY=APP`; apply AppContainer patch |
-| Forbidden imports (registry / affinity) | `0x8027025b` after install | `./scripts/apply-uwp-patches.sh` + `pe-import-audit.sh` |
+| Forbidden imports (registry / affinity) | `0x8027025b` after install | `./scripts/apply-uwp-patches.sh` + uwp-crossbuild `pe-import-audit` |
 | Product launch (proven) | — | **CI MSVC**; re-gate crossbuild after APP-family rebuild + audit + device start |
 
 ### Pre-deploy import audit (uwp-crossbuild)
 
 ```bash
-# After build-project produces a layout:
-~/Workspace/tooling/uwp-crossbuild/scripts/pe-import-audit.sh /tmp/xllama-layout/xllama.exe
+# After build-project produces a layout (tool from uwp-crossbuild ≥ 0.5.0):
+pe-import-audit.sh /tmp/xllama-layout/xllama.exe
 # Fail closed on RegOpenKey* / SetThreadAffinityMask / desktop CRT DLLs.
 ```
 
