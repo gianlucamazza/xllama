@@ -32,20 +32,30 @@ performance belongs in `docs/benchmarks.md`.
   #116/#118). Phases 13 and 14 are complete and shipped. Remaining open work:
   Phase 15 (make the 3B–4B class usable), the #130 root-cause profile, and
   upstream vendor pin drops.
-- **Shipped in v1.5.3.0** (see `CHANGELOG.md`): conversation titles, History
-  leak (#219), demo/capture pipeline (#213/#215/#217), dual-CRT packaging,
-  train-job CI validate (#222), H6 parked (#228). Linux store PE launch remains
-  open (layer 2); product packages are CI MSVC — `docs/crossbuild-console.md`.
-- **The demo pipeline is re-runnable, and #214 is closed.** `README.md` links the
-  v1.5.2 capture (576 stills at 11.76 fps, encoded at the rate actually achieved
-  so playback is real time); the version, output path and watermark come from
-  `uwp/AppxManifest.xml` and the content from `demo/demo-script.json`, so
-  recapturing is one command instead of an edit to the tool.
-  `docs/screenshots/demo-manifest.json` records what was captured, and
-  `check-coherence.py` errors when the README link drifts from it in version or
-  in filename — the failure mode that shipped a link to an asset nobody had
-  uploaded. The same pipeline produced the five Store screenshots that
-  `store-readiness.md` Phase 2 was waiting on.
+- **Shipped as v1.5.3.0** (tag + GitHub Release, MSIX **1.5.3.873**): conversation
+  titles, History leak (#219), demo/capture pipeline (#213/#215/#217), dual-CRT
+  packaging, train-job CI validate (#222), H6 parked (#228). Console
+  `validate-console.sh all` **9/9 PASS** on Series S (2026-08-08). Linux store
+  PE launch remains open (layer 2); product packages are CI MSVC —
+  `docs/crossbuild-console.md`.
+- **Demo capture remains the v1.5.2 assets** (576 stills; re-record optional —
+  `check-coherence` allows a minor-version lag). Pipeline is re-runnable
+  (`demo/demo-script.json` + `scripts/capture-demo-video.sh`); Store screenshots
+  in `docs/screenshots/store/`.
+
+### Next (after v1.5.3.0)
+
+Priority order is hygiene and open product risks, not reopening parked eng:
+
+1. **Intermittent `kvsnap` under `all` (#216)** — flake still open; 1.5.3 suite
+   was green once, not a close.
+2. **Thinking-tier evidence (#223)** — no H9-style proof a reasoning turn completes.
+3. **#130 DML prefill valley** — mitigated by warm-up; root-cause profile open.
+4. **Vendor pin drops** (#84/#85/#86) — PatchedGenAI / PatchedOrt lifecycle.
+5. **Store readiness** — Partner Center, App-vs-Game spike, listing copy
+   (`docs/store-readiness.md`).
+6. **Parked** — H6/H7 GGUF GPU eng (#228) until new density measure; Linux store
+   PE activation layer 2; prompt-lookup product default (stays OFF after W2).
 
 ## Phase 7 — Peer-class model research
 

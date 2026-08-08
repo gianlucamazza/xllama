@@ -6,10 +6,11 @@
 > `benchmarks.md`; this page owns **go-to-market gates**, dual-SKU policy, and
 > the licence matrix for a retail listing.
 
-**Status (2026-07-30):** Phase 0 discovery + Phase 1 **engineering foundation**
-landed, and the **five listing screenshots are captured** (§9). **Not
-Store-ready** for retail: no Partner Center product, no Store-signed package, no
-privacy URL, no age rating. Dev Mode remains the only supported install path.
+**Status (2026-08-08):** Phase 0 discovery + Phase 1 **engineering foundation**
+landed, and the **five listing screenshots are captured** (§9). Product Dev Mode
+cut is **v1.5.3.0** (MSIX `1.5.3.873`, 9/9 console gates). **Not Store-ready**
+for retail: no Partner Center product, no Store-signed package, no privacy URL,
+no age rating. Dev Mode remains the only supported install path.
 
 **Audience for a eventual listing:** hobbyist local-LLM / homebrew Xbox users
 who should not need Dev Mode. Contributors keep the Dev Mode sideload path.
