@@ -7,6 +7,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.5.4.0] - 2026-08-08
+
+Post-1.5.3 hygiene on the product path: conversation-switch KV snapshots are
+race-free under the full console suite, and the thinking tier has a measured
+happy path (catalogue `n_predict` 1024 + `thinkdone` gate). Suite is **10**
+console gates. Product ship path remains **CI MSVC**.
+
+**Upgrading from 1.5.x is a normal in-place update** (same package identity
+`GianlucaMazza.xllama`).
+
+### Changed
+
+- **#130 DML max_length valley closed as product-mitigated.** Shipping path
+  already saturates `max_length` to `n_ctx` and runs load-time DirectML warm-up
+  so in-app turns use the warm regime (`docs/uwp-constraints.md` §5c–§5e).
+  Mechanism not node-proven; deferred.
+
 ### Added
 
 - **Thinking-tier completion evidence (#223).** Catalogue

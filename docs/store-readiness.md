@@ -8,10 +8,10 @@
 
 **Status (2026-08-08):** Phase 0 discovery + Phase 1 **engineering foundation**
 landed, and the **five listing screenshots are captured** (§9). Product Dev Mode
-cut is **v1.5.3.0** (MSIX `1.5.3.873` day-of-ship; main has 10 console gates
-including `thinkdone` after #234). **Not Store-ready**
+cut is **v1.5.4.0** (10 console gates including `thinkdone`). **Not Store-ready**
 for retail: no Partner Center product, no Store-signed package, no privacy URL,
-no age rating. Dev Mode remains the only supported install path.
+no age rating. Dev Mode remains the only supported install path. Partner Center
+account / product reservation is a **human gate** before engineering listing work.
 
 **Audience for a eventual listing:** hobbyist local-LLM / homebrew Xbox users
 who should not need Dev Mode. Contributors keep the Dev Mode sideload path.
@@ -178,7 +178,7 @@ allowlist draft** — not legal advice; re-verify before submission.
 - [x] `install-latest-build.sh --store` (Linux → Device Portal)
 - [x] First-run generative-AI disclaimer (`LocalState\disclaimer.accepted`)
 - [x] Privacy draft [`privacy.md`](./privacy.md)
-- [ ] NOTICE / runtime attributions (ORT, llama.cpp, DirectML, models)
+- [x] NOTICE / runtime attributions draft (`NOTICE` at repo root — verify per release)
 - [ ] App vs Game spike results filed under `bench/results/`
 - [ ] Console smoke of store SKU (chat + model download)
 

@@ -181,7 +181,7 @@ re-deriving the fact by hand.
   test files; **215 host test cases / 2880 assertions**; **10 console validation
   gates** (`scripts/validate-console.sh` — routing, settings, gguf, longchat,
   kvsnap, coderpaste, thinkcut, thinkdone, genroom, taesd); **16 product
-  releases** since 2026-05-19, current **1.5.3.0**. Derivations:
+  releases** since 2026-05-19, current **1.5.4.0**. Derivations:
 
   ```bash
   # lines and files — src/ + include/ + uwp/ + tests/, tracked .cpp/.h only

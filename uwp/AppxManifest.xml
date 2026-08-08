@@ -15,7 +15,7 @@
   <Identity
     Name="GianlucaMazza.xllama"
     Publisher="CN=xllama-dev"
-    Version="1.5.3.0"
+    Version="1.5.4.0"
     ProcessorArchitecture="x64" />
 
   <mp:PhoneIdentity

@@ -1,0 +1,55 @@
+# Third-party notices — xllama
+
+This file is a draft attribution list for a possible Xbox Store / redistributed
+package. It is **not** legal advice. Verify licence texts against the versions
+actually shipped in each release (`uwp/packages.config`, `vendor/*/SHA256SUMS`,
+submodule pin).
+
+## xllama
+
+Copyright (c) Gianluca Mazza and contributors.
+Licensed under the MIT License — see `LICENSE`.
+
+## llama.cpp (ggml / GGUF inference)
+
+Copyright (c) ggml authors and contributors.
+Licensed under the MIT License.
+Source: https://github.com/ggml-org/llama.cpp
+(shipped as a git submodule; static link into the UWP binary).
+
+## Microsoft ONNX Runtime (DirectML)
+
+Copyright (c) Microsoft Corporation.
+Licensed under the MIT License.
+Package: `Microsoft.ML.OnnxRuntime.DirectML` (see `uwp/packages.config`).
+Shipping builds may overlay a patched `onnxruntime.dll` from the
+`vendor-dlls-v1` release (AppContainer external-data fixes) — hashes in
+`vendor/onnxruntime-patched/SHA256SUMS`.
+
+## Microsoft ONNX Runtime GenerateAI (DirectML)
+
+Copyright (c) Microsoft Corporation.
+Licensed under the MIT License.
+Package: `Microsoft.ML.OnnxRuntimeGenAI.DirectML` (see `uwp/packages.config`).
+Shipping builds may overlay a patched `onnxruntime-genai.dll` from
+`vendor-dlls-v1` (DML device fallback) — hashes in
+`vendor/onnxruntime-genai-patched/SHA256SUMS`.
+
+## Microsoft DirectML
+
+Copyright (c) Microsoft Corporation.
+Package: `Microsoft.AI.DirectML` (see `uwp/packages.config`).
+See NuGet package licence files under `uwp/packages/` when restored.
+
+## Models (not in the MSIX)
+
+Default and catalogue models are downloaded at runtime from the project
+`models-v1` release and/or Hugging Face. Each catalogue entry’s licence
+(e.g. LFM Open License, Apache-2.0 for Qwen GGUFs) applies to the weights;
+see `uwp/models/manifest.json` and any `LICENSE` file next to the asset.
+
+## Other
+
+CppWinRT NuGet projections and VCLibs are Microsoft redistributables required
+by the UWP packaging story; see AppxManifest `PackageDependency` and NuGet
+licences.
