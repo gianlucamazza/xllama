@@ -401,8 +401,8 @@ void run_gpubw() {
 void run_gpugemv() {
 #ifdef XLLAMA_UWP
     log_output("[xllama] gpugemv: measuring Q4_K GEMV density (own CS, no Agility)\n");
-    const ::xllama::GpugemvResult r = ::xllama::measure_gpugemv(
-        ::xllama::kGpugemvDefaultN, ::xllama::kGpugemvDefaultK, 3);
+    const ::xllama::GpugemvResult r =
+        ::xllama::measure_gpugemv(::xllama::kGpugemvDefaultN, ::xllama::kGpugemvDefaultK, 3);
 
     char lb[360];
     snprintf(lb, sizeof(lb),
