@@ -325,6 +325,12 @@ warm-up run before the user's first send and the first turn pays
 prefill+decode only — confirmed on-console after the 1.5.0.0 migration (first
 DML request: prefill 873 tok/s on 961 tok, decode 23.4, both at warm parity).
 
+**#130 closed 2026-08-08 (product-mitigated).** Shipping path saturates
+`max_length` to `n_ctx` and warms at load; in-app turns do not sit in the
+interior valley. Mechanism (lazy DML compile vs other) is **not** proven
+node-level — reopen only for a profile campaign or a regression with warm-up
+off. Issue tracker: closed as mitigation-only.
+
 ### §5f — CPU threading: prefill does not scale, and t8 is worse than recorded (2026-07-21)
 
 `docs/recommended-config.md` previously recommended `intra_op_num_threads: 4`

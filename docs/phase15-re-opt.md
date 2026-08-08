@@ -110,7 +110,7 @@ until APP-CRT import parity with CI is proven on device.
 | DML RMSNorm kernel | Worked around (`-v2` asset); watch driver updates |
 | Driver metacommands | Opt-out experiment FAIL; not the #91 cause |
 | ggml Q4_K CPU kernels / repack | Repack enabled (#155); decode still BW-bound |
-| #130 max_length valley mechanism | Mitigated (warm-up); profile still open |
+| #130 max_length valley mechanism | **closed** product-mitigated 2026-08-08 (§5e warm-up + max_length saturate) |
 | RDNA2 outside DirectML | **W3 M6 PASS** — own CS STREAM **119.07 GB/s** on Series S |
 
 ## Workstreams
@@ -120,7 +120,7 @@ until APP-CRT import parity with CI is proven on device.
 | WS0 | Baseline freeze + this doc | — | **done** (this file) |
 | WS-A | W2 prompt-lookup speculative | #210 | **closed for default** — host PASS; console M3 **1.04× FAIL** gate; opt-in remains |
 | WS-B | W3 gpubw STREAM + Q4 GEMV spike | #211 | **closed PASS** — STREAM **119.07 GB/s** Series S (`1.5.2.853`); Q4 GEMV moves to #228 |
-| WS-C | #130 DML valley mechanism profile | #130 | opportunistic on console |
+| WS-C | #130 DML valley mechanism profile | #130 | **closed** mitigation-only (no new RE) |
 | WS-D | H5 BitNet desk survey | — | parallel desk, no eng yet |
 | WS-E | H6/H7 GGUF GPU path | #228 | **parked** — H6.1 G1 PASS / G2 FAIL (2.15 GB/s); Decision 2026-08-08 |
 
@@ -178,7 +178,7 @@ disprove denser CS designs, but **this spike does not clear soft density ≥40**
 | M4 | Product default decision (after M3 numbers) | **OFF** (opt-in only); CHANGELOG |
 | M5 | gpubw STREAM spike (code + flag + DXIL) | **done** (eng); multi-dim Dispatch for 1 GiB; host helpers unit-tested |
 | M6 | console measure vs 100 GB/s | **PASS** — Series S **119.07 GB/s**, checksum_ok, 1024 MB, CI `1.5.2.853`; CSV `bench/results/phase15-gpubw.csv` |
-| M7 | #130 closed | §5e verdict |
+| M7 | #130 closed | **done** product-mitigated 2026-08-08 |
 | M8 | H5 survey note | go/no-go |
 | M9 | H6.1 Q4_K GEMV measure (code + flag + DXIL) | **measured** — G1 PASS / G2 FAIL |
 | M9+ | H6 full decode eng | **parked** (Decision 2026-08-08); reopen only with new density PASS or revised gate |
@@ -209,12 +209,13 @@ disprove denser CS designs, but **this spike does not clear soft density ≥40**
 | 2026-08-08 | **v1.5.3.0 shipped** (PR #230, tag `v1.5.3.0`, MSIX `1.5.3.873`): dual-CRT package architecture + AppContainer PE hygiene + History/title product fixes. Product launch remains CI MSVC. Series S `validate-console.sh all` **9/9 PASS**. W2 stays opt-in OFF; H6 remains parked. |
 | 2026-08-08 | **#216 closed** (PR #232): serialize #170b snapshot save vs next generate; Series S `all` ×6 PASS (kvsnap 551→19). |
 | 2026-08-08 | **#223 closed** (PR #234): catalogue `n_predict` 1024 + console gate `thinkdone` (short happy path); hard multi-step may still exhaust CoT. Suite **10** gates. CSV `bench/results/phase15-thinking-complete.csv`. |
+| 2026-08-08 | **#130 closed** product-mitigated (max_length saturate + dml_warmup; mechanism not node-proven). **v1.5.4.0** cut. |
 
 ## Related issues
 
 - #210 W2 prompt-lookup — **closed** (eng opt-in shipped; product default OFF after M3)
 - #211 W3 gpubw gate — **closed PASS** (119.07 GB/s); PR #227
 - #228 H6 eng follow-up — **parked** after H6.1 G2 FAIL
-- #130 DML max_length valley mechanism (mitigated by warm-up; mechanism open)
+- #130 DML max_length valley — **closed** product-mitigated 2026-08-08
 - #216 kvsnap save race — **closed** PR #232 (`all` ×6)
 - #223 thinking-tier completion — **closed** PR #234 (`thinkdone` + n_predict 1024)

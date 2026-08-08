@@ -5,13 +5,12 @@ performance belongs in `docs/benchmarks.md`.
 
 ## Current product state
 
-- Current manifest: **1.5.3.0** under the **`GianlucaMazza.xllama`** identity
+- Current manifest: **1.5.4.0** under the **`GianlucaMazza.xllama`** identity
   (in-place update from 1.5.x; still breaking vs ≤1.4.x, see
-  `docs/install-release.md`). **v1.5.3.0** (2026-08-08): conversation titles +
-  History leak (#219), gate-log retention, dual-CRT ORT packaging architecture,
-  Phase 15 measure (W2 opt-in, W3 STREAM PASS, H6 eng parked). Previous:
-  **v1.5.2.0** (2026-07-30) Phase 14 + exact token budget + Store SKU foundation;
-  **v1.5.1.0** (2026-07-27) Phase 13; **v1.5.0.0** (2026-07-26) perf + rebrand.
+  `docs/install-release.md`). **v1.5.4.0** (2026-08-08): #216 KV snapshot save
+  race fix; #223 thinking `n_predict` 1024 + `thinkdone` (suite **10** gates);
+  #130 closed as product-mitigated. Previous: **v1.5.3.0** titles/History/dual-CRT;
+  **v1.5.2.0** Phase 14; **v1.5.1.0** Phase 13; **v1.5.0.0** perf + rebrand.
 - Shipping artifact: unified ORT GenAI + llama.cpp, with pinned patched runtime
   DLLs while upstream fixes have not reached NuGet. The UWP ggml build now
   enables `GGML_USE_CPU_REPACK` (PR #155): **GGUF prefill +62%** on Q4_K.
@@ -30,39 +29,21 @@ performance belongs in `docs/benchmarks.md`.
   (host + console marker gates PASS; pin-blocked filter-widening remains);
   Phase 11 closed the headless↔UI gap (in-app personalize + LAN API parity,
   #116/#118). Phases 13 and 14 are complete and shipped. Remaining open work:
-  Phase 15 (make the 3B–4B class usable), the #130 root-cause profile, and
-  upstream vendor pin drops.
-- **Shipped as v1.5.3.0** (tag + GitHub Release, MSIX **1.5.3.873**): conversation
-  titles, History leak (#219), demo/capture pipeline (#213/#215/#217), dual-CRT
-  packaging, train-job CI validate (#222), H6 parked (#228). Day-of-ship console
-  `validate-console.sh all` **9/9 PASS** (Series S). Linux store PE launch remains
-  open (layer 2); product packages are CI MSVC — `docs/crossbuild-console.md`.
-- **On main after v1.5.3 (not yet a new tag):** #216 KV snapshot save race
-  (PR #232, `all` ×6 PASS); #223 thinking `n_predict` 1024 + **`thinkdone`**
-  (PR #234, `thinkcut`+`thinkdone` PASS on **1.5.3.881**). Suite is **10** gates.
-- **Demo capture remains the v1.5.2 assets** (576 stills; re-record optional —
-  `check-coherence` allows a minor-version lag). Pipeline is re-runnable
-  (`demo/demo-script.json` + `scripts/capture-demo-video.sh`); Store screenshots
-  in `docs/screenshots/store/`.
+  Phase 15 research (parked eng), and upstream vendor pin drops.
+- **Shipped as v1.5.4.0:** #216 + #223 + 10-gate suite; #130 product-closed.
+  Prior tag **v1.5.3.0** (MSIX 1.5.3.873, day-of-ship 9/9) carried titles,
+  dual-CRT, H6 park. Product packages are CI MSVC — `docs/crossbuild-console.md`.
+- **Demo capture remains the v1.5.2 assets** (576 stills; re-record optional).
+  Pipeline is re-runnable (`demo/demo-script.json` + `scripts/capture-demo-video.sh`).
 
-### Next (after v1.5.3.0)
+### Next (after v1.5.4.0)
 
-**Done on main (not yet retagged):** #216 kvsnap save race (PR #232, `all` ×6);
-#223 thinking `n_predict` 1024 + `thinkdone` (PR #234). Suite is **10** gates.
-
-Open (hygiene / risks — not parked eng reopens):
-
-1. **#130 DML prefill valley** — mitigated by warm-up; mechanism profile open
-   (or explicit “mitigation-only” close).
-2. **Vendor pin drops** (#84/#85/#86) — PatchedGenAI / PatchedOrt; blocked until
-   NuGet moves (`scripts/check-vendor-nuget-status.sh`).
-3. **Store readiness** — Partner Center, App-vs-Game spike, listing copy
-   (`docs/store-readiness.md`).
-4. **Optional next cut** — 1.5.4 when the 10-gate suite is the release contract
-   and Unreleased (#216/#223) is cut.
-
-**Parked:** H6/H7 (#228); Linux store PE layer 2; prompt-lookup product default
-(OFF after W2).
+1. **Vendor pin drops** (#84/#85/#86) — blocked until NuGet moves
+   (`scripts/check-vendor-nuget-status.sh`, poll 2026-08-08: still required).
+2. **Store readiness** — Partner Center human gate; App-vs-Game spike;
+   NOTICE / listing (`docs/store-readiness.md`).
+3. **Parked eng** — H6/H7 (#228); Linux store PE layer 2; prompt-lookup default
+   OFF; Phase 15 “3B usable” without new density measure.
 
 ## Phase 7 — Peer-class model research
 
