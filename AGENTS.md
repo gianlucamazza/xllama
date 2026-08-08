@@ -68,7 +68,7 @@ xllama/
 │   ├── deploy.sh                      # Device Portal: deploy, logs, bench trigger
 │   ├── build-uwp.ps1                  # Windows UWP packaging script
 │   ├── bench-xbox-ort.sh              # benchmark runner (run_index, multi-run)
-│   ├── validate-console.sh            # autopilot: the 9 console gates (docs/console-validation-runbook.md)
+│   ├── validate-console.sh            # autopilot: the 10 console gates (docs/console-validation-runbook.md)
 │   ├── validate-console-training.sh   # rate / serve / device-train
 │   ├── validate-api.sh                # LAN: spike|chat|prefs|train|all
 │   ├── generate-benchmark-summary.py  # raw results → docs table + dashboard
