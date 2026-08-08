@@ -42,8 +42,26 @@ PFN=$("${SCRIPT_DIR}/deploy.sh" pfn 2>/dev/null || true)
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 : >"$TMP/gpubw.flag"
+
+# WDP cannot upload into an empty LocalState after a fresh install
+# ("File move failed" / path not found). Seed by launching once so the app
+# creates xllama.log (and often models/), then stop and upload the flag.
+upload_flag() {
+	"${SCRIPT_DIR}/deploy.sh" upload-file "$TMP/gpubw.flag" "$PFN" "" "gpubw.flag"
+}
+
 echo "Uploading gpubw.flag to $PFN ..."
-"${SCRIPT_DIR}/deploy.sh" upload-file "$TMP/gpubw.flag" "$PFN" "" "gpubw.flag"
+if ! upload_flag 2>/dev/null; then
+	echo "  (upload failed — seeding LocalState via one UI launch...)"
+	"${SCRIPT_DIR}/deploy.sh" stop-app 2>/dev/null || true
+	"${SCRIPT_DIR}/deploy.sh" start-app || true
+	sleep 8
+	"${SCRIPT_DIR}/deploy.sh" stop-app 2>/dev/null || true
+	sleep 2
+	echo "  Retrying gpubw.flag upload ..."
+	upload_flag
+fi
+
 "${SCRIPT_DIR}/deploy.sh" stop-app 2>/dev/null || true
 sleep 1
 "${SCRIPT_DIR}/deploy.sh" start-app

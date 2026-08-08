@@ -362,10 +362,10 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
 - **Status:** **W3 gate PASS (2026-08-08).** Own CS STREAM on Series S:
   **119.07 GB/s** read over 1 GiB VRAM, checksum-verified
   (`bench/results/phase15-gpubw.csv`, package `1.5.2.853`). Kill was
-  &lt; 100 GB/s → Do not reopen; measured ≥ 100 → **H6 eng is open** (own
-  compute path, not DirectML). Small-model GPU decode via ORT DML remains
-  falsified; this result only shows raw VRAM bandwidth our D3D12 code can
-  reach.
+  &lt; 100 GB/s → Do not reopen; measured ≥ 100 → **H6 eng is open** in
+  **#228** (own compute path, not DirectML). Small-model GPU decode via ORT
+  DML remains falsified; this result only shows raw VRAM bandwidth our D3D12
+  code can reach.
 
 ### H7 — GGUF prefill offload (hybrid)
 

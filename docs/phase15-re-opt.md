@@ -121,7 +121,7 @@ until APP-CRT import parity with CI is proven on device.
 | WS-B | W3 gpubw STREAM + Q4 GEMV spike | #211 | **M6 PASS** — STREAM **119.07 GB/s** Series S (`1.5.2.853`); Q4 GEMV optional density follow-up |
 | WS-C | #130 DML valley mechanism profile | #130 | opportunistic on console |
 | WS-D | H5 BitNet desk survey | — | parallel desk, no eng yet |
-| WS-E | H6/H7 GGUF GPU path | — | **opened by M6 PASS** — eng plan next |
+| WS-E | H6/H7 GGUF GPU path | #228 | **opened by M6 PASS** — Q4 GEMV optional first; eng owns #228 |
 
 ### WS-A detail (W2)
 
@@ -183,6 +183,7 @@ Never use the Agility D3D12 factory; headless `gpubw.flag` only.
 ## Related issues
 
 - #210 W2 prompt-lookup (eng shipped opt-in; default OFF after M3)
-- #211 W3 gpubw gate (**M6 PASS 119.07 GB/s → open H6 eng**)
+- #211 W3 gpubw gate (**M6 PASS 119.07 GB/s** — close after merge #227)
+- #228 H6 eng follow-up (opened by M6 PASS)
 - #130 DML max_length valley mechanism
 - #216 kvsnap intermittent (watch on console gates)
