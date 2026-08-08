@@ -883,6 +883,18 @@ JSON
 		echo "  FAIL: snapshot not restored"
 		verdict=1
 	fi
+	# #216: restore can succeed while the prefix diff still full-prefills
+	# (wrong snapshot contents after a save race, or hybrid rewind refuse).
+	# Surface those lines so a FAIL is self-explaining next to the token count.
+	if grep -aq 'KV prefix reuse none' "$log"; then
+		echo "  note: prefix reuse found no common tokens after restore"
+	fi
+	if grep -aq 'KV rewind unsupported' "$log"; then
+		echo "  note: hybrid cache refused tail rewind after restore"
+	fi
+	if grep -aq 'KV prefix reuse — kept' "$log"; then
+		echo "  ok: prefix reuse kept tokens after restore"
+	fi
 	# The point of the feature: the returning turn prefills a delta, not the
 	# history it prefilled cold.
 	python3 - "$log" <<'PY' || verdict=1

@@ -7,6 +7,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **#216 KV snapshot race on conversation switch.** `SaveKvSnapshotAsync` used a
+  detached thread; a follow-up turn could take the session hub lock and rewrite
+  the resident KV before the leave-conversation save finished, so the file on the
+  old chat's path held the *new* chat's tokens. Load still logged "restored", then
+  the #170a prefix diff found no match and full-prefilled (~cold tokens). The
+  gate under `all` saw this ~1/6; standalone rarely did. Generate now waits for
+  any outstanding snapshot save; prefix-miss and hybrid-rewind paths log enough
+  for the next failure to be self-explaining.
+
 ## [1.5.3.0] - 2026-08-08
 
 User-visible polish on top of v1.5.2: conversation titles in History, a History
