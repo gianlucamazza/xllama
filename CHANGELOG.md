@@ -42,7 +42,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **CI train-job validation (#222).** `build-linux.yml` runs
   `xllama-cli --validate-train-job` on every `training/jobs/*.json` after the
   binary is built (early `check-coherence` still skips when CLI is missing so
-  docs PRs stay fast-fail).
+  docs PRs stay fast-fail). Console LocalState manifest snippets for the serve
+  gates live under `training/manifest-overrides/` (not jobs) so the fail-closed
+  glob cannot mis-validate them.
 
 - **H6 eng parked (#228).** After H6.1 console G2 FAIL (2.15 GB/s packed), full
   GGUF GPU backend work is deferred; Decision log in `docs/phase15-re-opt.md`.

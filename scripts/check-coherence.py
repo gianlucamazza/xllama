@@ -352,9 +352,9 @@ def main() -> int:
         None,
     )
     if cli:
+        # training/jobs/ holds only TrainingJob JSON (manifest overrides live
+        # under training/manifest-overrides/ — not validated as jobs).
         for job in sorted((ROOT / "training/jobs").glob("*.json")):
-            if "manifest" in job.name:
-                continue
             r = subprocess.run(
                 [str(cli), "--validate-train-job", str(job)],
                 capture_output=True,
