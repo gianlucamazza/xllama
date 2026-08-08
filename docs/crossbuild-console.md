@@ -11,7 +11,7 @@ Companion SSOTs: [uwp-constraints.md](uwp-constraints.md), campaign notes in
 | Goal | Path | Status on Series S |
 | --- | --- | --- |
 | Ship / measure product tok/s | CI MSVC `build-uwp` → `xllama-appx` → openappx pack/sign/deploy | **Launches** (proven through `1.5.2.864`+ post-gpubw) |
-| Compile + audit from Linux | uwp-crossbuild + store `/MD` + `pe-import-audit` | **Links; audit PASS**; install OK; activation still fails — **integration gaps below**, not “banlist only” |
+| Compile + package from Linux | uwp-crossbuild ≥ **0.5.0** + store `/MD` + dual-CRT stage | **Links; audit PASS**; dual-CRT stage required; **store PE still fails activation** (`0x80040904`) — layer 2 |
 | hello-uwp / non-filesystem samples | uwp-crossbuild `/MT` or store `/MD` | Launches |
 
 ## Prerequisites
@@ -108,6 +108,31 @@ So the gap is **not** a single banlist symbol. It is **integration**:
 gh run download <run-id> -n xllama-appx -D /tmp/xllama-ci-art
 # then openappx sign + deploy (or scripts/deploy.sh / install-latest-build.sh)
 ```
+
+
+## Linux packaging: dual-CRT stage (required for ORT)
+
+uwp-crossbuild **0.5.0** audits the **EXE** only. After `build-project`, always:
+
+```bash
+export UWP_STORE_CRT=1
+uwp-build-project --project uwp/xllama.vcxproj --out /tmp/xllama-layout \
+  --property XllamaBackend=unified
+# or: ./scripts/crossbuild-uwp.sh --out /tmp/xllama-layout
+
+./scripts/stage-ort-desktop-crt.sh --layout /tmp/xllama-layout
+# Source: XLLAMA_DESKTOP_CRT_DIR, uwp/, or ~/.cache/xllama/desktop-crt/
+# (VC143 redist or DLLs from a CI package — never Wine stubs)
+```
+
+Fail closed if `onnxruntime.dll` is in the layout but any of
+`MSVCP140.dll` / `MSVCP140_1.dll` / `VCRUNTIME140.dll` / `VCRUNTIME140_1.dll`
+is missing.
+
+**Layer 2 (open):** even with dual-CRT, a **crossbuild** `xllama.exe` still
+fails activation as `0x80040904` while a CI PE in the same package shape
+launches. Suspects: CppWinRT projection skew (NuGet 2.0.240405.15 vs xwin
+2.0.250303.1), entry/CRT startup — not banlist, not missing dual-CRT.
 
 ## Build from Linux (uwp-crossbuild)
 
