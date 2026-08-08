@@ -42,6 +42,10 @@ fi
 echo "==> apply UWP patches"
 "$repo/scripts/apply-uwp-patches.sh"
 
+echo "==> C++/WinRT pin (packages.config)"
+# shellcheck source=scripts/ensure-cppwinrt-pin.sh
+source "$repo/scripts/ensure-cppwinrt-pin.sh"
+
 export UWP_STORE_CRT="${UWP_STORE_CRT:-1}"
 export UWP_VCLIBS_ROOT="${UWP_VCLIBS_ROOT:-$HOME/.cache/uwp-crossbuild/vclibs}"
 

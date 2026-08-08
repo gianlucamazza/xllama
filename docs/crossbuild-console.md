@@ -129,10 +129,18 @@ Fail closed if `onnxruntime.dll` is in the layout but any of
 `MSVCP140.dll` / `MSVCP140_1.dll` / `VCRUNTIME140.dll` / `VCRUNTIME140_1.dll`
 is missing.
 
-**Layer 2 (open):** even with dual-CRT, a **crossbuild** `xllama.exe` still
-fails activation as `0x80040904` while a CI PE in the same package shape
-launches. Suspects: CppWinRT projection skew (NuGet 2.0.240405.15 vs xwin
-2.0.250303.1), entry/CRT startup — not banlist, not missing dual-CRT.
+**Layer 2 (open, 2026-08-08):** with dual-CRT + ORT pins + C++/WinRT pin
+aligned to NuGet **2.0.240405.15** (`ensure-cppwinrt-pin.sh` +
+`UWP_CPPWINRT_INCLUDE` / `UWP_CPPWINRT_EXE`), a **crossbuild** PE still fails
+as **`0x80040904`**. CI PE in the same package **launches**. Remaining gap is
+compiler/link (clang-cl + lld vs MSVC), not package dual-CRT or projection
+version string.
+
+```bash
+# C++/WinRT pin (optional but recommended for CI parity of generated code)
+source ./scripts/ensure-cppwinrt-pin.sh   # sets UWP_CPPWINRT_*
+./scripts/crossbuild-uwp.sh --out /tmp/xllama-layout
+```
 
 ## Build from Linux (uwp-crossbuild)
 
