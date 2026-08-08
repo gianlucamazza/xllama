@@ -108,7 +108,17 @@ openappx deploy --device "https://${XBOX_IP}:${XBOX_PORT}" \
 | Store `/MD` + raw `libcpmt` | LLD `FAILIFMISMATCH` RuntimeLibrary | never mix MT archive into MD (gotcha 21) |
 | Store `/MD` + sanitized libcpmt + Facet stub | links APP CRT but still `0x8027025b` | residual registry/KERNEL32 imports from static STL objects |
 | App-container `/MT` (default crossbuild) | links; xllama `0x8027025b` | enough for hello-uwp; not product path for xllama |
-| Product launch | — | **CI MSVC only** until APP-CRT parity is proven |
+| Product launch | — | **CI MSVC** until crossbuild PE passes `pe-import-audit` + device launch |
+| Forbidden imports (registry / affinity) | `0x8027025b` after install | Apply `./scripts/apply-uwp-patches.sh`; `XLLAMA_UWP=1` on ggml-uwp; audit with `uwp-crossbuild/scripts/pe-import-audit.sh` |
+
+### Pre-deploy import audit (uwp-crossbuild)
+
+```bash
+# After build-project produces a layout:
+~/Workspace/tooling/uwp-crossbuild/scripts/pe-import-audit.sh /tmp/xllama-layout/xllama.exe
+# Fail closed on RegOpenKey* / SetThreadAffinityMask / desktop CRT DLLs.
+# CI MSVC images pass; a PE missing UWP guards fails before you deploy.
+```
 
 ## W2 console A/B
 
