@@ -11,8 +11,8 @@ Companion SSOTs: [uwp-constraints.md](uwp-constraints.md), campaign notes in
 | Goal | Path | Status on Series S |
 | --- | --- | --- |
 | Ship / measure product tok/s | CI MSVC `build-uwp` → `xllama-appx` → openappx pack/sign/deploy | **Launches** (proven `1.5.2.910`+; W2 A/B on `1.5.2.920`) |
-| Compile-smoke from Linux | uwp-crossbuild `build-project` → openappx | **Installs, does not activate** (`0x8027025b`) |
-| hello-uwp / non-filesystem samples | uwp-crossbuild `/MT` or store `/MD` | Launches (not a proof for xllama) |
+| Compile + audit from Linux | uwp-crossbuild `build-project` (APP family + static-lib family) → `pe-import-audit` | **Links; audit PASS**; install OK; activation still `0x8027025b` (`/MT` vs CI APP CRT — see below) |
+| hello-uwp / non-filesystem samples | uwp-crossbuild `/MT` or store `/MD` | Launches |
 
 ## Prerequisites
 
@@ -25,10 +25,33 @@ Companion SSOTs: [uwp-constraints.md](uwp-constraints.md), campaign notes in
 
 ## Launchable package today (shipping path)
 
-**CI MSVC (`build-uwp` → artifact `xllama-appx`) is the path that launches on
-Series S.** Measured 2026-08-07: CI `1.5.2.910` activates and loads GGUF;
-Linux crossbuilt packages install but fail activation with **`0x8027025b`**
-(openappx/WDP “Failed to launch the application”).
+**CI MSVC (`build-uwp` → artifact `xllama-appx`) is the proven product path on
+Series S.** Measured 2026-08-07: CI `1.5.2.910` activates and loads GGUF.
+
+**Linux crossbuild contract (architecture, 2026-08-08):**
+
+1. **Compile family = APP.** uwp-crossbuild `--uwp` sets
+   `WINAPI_FAMILY=WINAPI_FAMILY_APP` (VS parity). Static libs with
+   `AppContainerApplication=true` (e.g. `ggml-uwp`) get `--static-lib --uwp`
+   so they compile under the same family (link flags stay image-only).
+2. **Source guards = partition only.**
+   `patches/0001-uwp-appcontainer-guards.patch` uses
+   `WINAPI_FAMILY_PARTITION(DESKTOP)` alone — no dual `XLLAMA_UWP` workaround.
+3. **Gate.** `pe-import-audit` fails closed on registry/affinity/desktop CRT.
+   Measured: APP-family crossbuild PE **passes** audit (no banlist symbols).
+4. **Store `/MD` links (APP CRT).** `UWP_STORE_CRT=1` + `fetch-vclibs` +
+   `gen-msvcprt-app-static.sh` (MD `.obj` members from `msvcprt.lib` for
+   `__std_fs_*` / find / `_Facet_Register`) produces a PE that imports
+   `msvcp140_app` / `vcruntime140_app` / `api-ms-win-crt-*` like CI, and
+   **passes `pe-import-audit`**.
+5. **Entry / PE knobs.** `/subsystem:windows,6.02` (VS UWP); `wWinMain` keeps
+   the MTA (`RoInitialize` + `init_apartment`, no `uninit` before
+   `Application::Start` — gotcha 17).
+6. **Remaining launch gap.** Audited store-MD packages still activate as
+   **`0x8027025b`** on Series S while a CI MSVC PE of the same app launches
+   (control reconfirmed). Hybrid PE swaps show the failure tracks the
+   **crossbuild executable**, not only package DLLs. Product launch path
+   remains **CI MSVC** until that residual PE gap is closed.
 
 ```bash
 # Prefer: push a PR / main and download the workflow artifact, or:
@@ -36,28 +59,32 @@ gh run download <run-id> -n xllama-appx -D /tmp/xllama-ci-art
 # then openappx sign + deploy (or scripts/deploy.sh / install-latest-build.sh)
 ```
 
-## Build from Linux (uwp-crossbuild) — links, does not yet launch xllama
+## Build from Linux (uwp-crossbuild)
 
 ```bash
-# From the xllama repo root, with uwp-crossbuild available on PATH (or invoked
-# from its checkout). The helper is named build-project and takes:
-#   --project uwp/xllama.vcxproj
-#   --out /tmp/xllama-layout
-#   --property XllamaBackend=unified
+# 1) AppContainer guards (WINAPI_FAMILY partition) on the llama.cpp submodule
+./scripts/apply-uwp-patches.sh
+
+# 2) From the xllama repo root, with uwp-crossbuild on PATH (or full path to
+#    its checkout). Prefer a checkout that sets WINAPI_FAMILY=APP for --uwp.
 build-project \
   --project uwp/xllama.vcxproj \
   --out /tmp/xllama-layout \
   --property XllamaBackend=unified
+
+# 3) Fail closed on AppContainer-forbidden imports before pack/deploy
+~/Workspace/tooling/uwp-crossbuild/scripts/pe-import-audit.sh \
+  /tmp/xllama-layout/xllama.exe
 ```
 
 (`build-project` is provided by the **uwp-crossbuild** tooling tree, not by a
 script under this repository.)
 
-Default is **static `/MT`** inside the AppContainer. It **links** filesystem-heavy
-code cleanly, and `hello-uwp` launches with that CRT. **xllama’s larger static
-pull** (registry / KERNEL32 / affinity imports from the static STL) still dies at
-activation on Xbox (`0x8027025b`). Treat crossbuild packages as compile smoke
-until that CRT surface is fixed upstream.
+Default is **static `/MT`** inside the AppContainer (hello-uwp launches with
+that CRT). Store `/MD` is opt-in (`UWP_STORE_CRT=1` + `fetch-vclibs`) only when
+the app is fully covered by the `*_app` import libs — xllama’s
+`std::filesystem` helpers live in `libcpmt` (MT) and must not be mixed into MD
+(uwp-crossbuild gotcha 21).
 
 ### Store `/MD` (opt-in experiment)
 
@@ -69,12 +96,9 @@ export UWP_STORE_CRT=1   # requires fetch-vclibs.sh output
 
 xllama needs `__std_fs_*`, `__std_find_*`, `_Thrd_sleep_for`, etc. that live in
 `libcpmt` (MT) and are **not** exports of `msvcp140_app.dll`. Blind
-`libcpmt` last → LLD `FAILIFMISMATCH`. A sanitized `libcpmt` (`.drectve` /
-RuntimeLibrary directives blanked) + a tiny `std::_Facet_Register` stub **does
-link** a store-MD image that imports `msvcp140_app` / `vcruntime140_app`, but the
-same package still fails activation (`0x8027025b`) — residual static objects keep
-`RegOpenKeyExA` / `SetThreadAffinityMask` / `KERNEL32` imports that CI’s MSVC APP
-CRT image does not have.
+`libcpmt` last → LLD `FAILIFMISMATCH`. Do **not** sanitize MT archives into an
+MD image — that is technical debt, not a shipping path. Default remains `/MT`
+in the container until a real APP-CRT solution covers filesystem helpers.
 
 **Never** package Wine desktop `MSVCP140.dll` / `VCRUNTIME140.dll` as a product
 path. Small samples without `std::filesystem` (hello-uwp) are fine on store `/MD`.
@@ -106,10 +130,9 @@ openappx deploy --device "https://${XBOX_IP}:${XBOX_PORT}" \
 | VCLibs not declared | install OK, launch `0x80070002` | `PackageDependency` Microsoft.VCLibs.140.00 in AppxManifest |
 | Store `/MD` + desktop CRT | launch fail (desktop `VCRUNTIME140`) | `UWP_STORE_CRT=1` + `fetch-vclibs` `*_app` libs (gotcha 19) |
 | Store `/MD` + raw `libcpmt` | LLD `FAILIFMISMATCH` RuntimeLibrary | never mix MT archive into MD (gotcha 21) |
-| Store `/MD` + sanitized libcpmt + Facet stub | links APP CRT but still `0x8027025b` | residual registry/KERNEL32 imports from static STL objects |
-| App-container `/MT` (default crossbuild) | links; xllama `0x8027025b` | enough for hello-uwp; not product path for xllama |
-| Product launch | — | **CI MSVC** until crossbuild PE passes `pe-import-audit` + device launch |
-| Forbidden imports (registry / affinity) | `0x8027025b` after install | Apply `./scripts/apply-uwp-patches.sh`; `XLLAMA_UWP=1` on ggml-uwp; audit with `uwp-crossbuild/scripts/pe-import-audit.sh` |
+| Desktop family compile (old toolchain) | PE imports registry/affinity → `0x8027025b` | uwp-crossbuild sets `WINAPI_FAMILY=APP`; apply AppContainer patch |
+| Forbidden imports (registry / affinity) | `0x8027025b` after install | `./scripts/apply-uwp-patches.sh` + `pe-import-audit.sh` |
+| Product launch (proven) | — | **CI MSVC**; re-gate crossbuild after APP-family rebuild + audit + device start |
 
 ### Pre-deploy import audit (uwp-crossbuild)
 
@@ -117,7 +140,6 @@ openappx deploy --device "https://${XBOX_IP}:${XBOX_PORT}" \
 # After build-project produces a layout:
 ~/Workspace/tooling/uwp-crossbuild/scripts/pe-import-audit.sh /tmp/xllama-layout/xllama.exe
 # Fail closed on RegOpenKey* / SetThreadAffinityMask / desktop CRT DLLs.
-# CI MSVC images pass; a PE missing UWP guards fails before you deploy.
 ```
 
 ## W2 console A/B

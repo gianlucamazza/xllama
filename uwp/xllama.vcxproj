@@ -164,7 +164,8 @@
         $(ProjectDir)packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.14.1\runtimes\win-x64\native;
         %(AdditionalLibraryDirectories)
       </AdditionalLibraryDirectories>
-      <AdditionalDependencies>WindowsApp.lib;onnxruntime.lib;onnxruntime-genai.lib;dxgi.lib;d3d12.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <!-- d3d12.dll is LoadLibrary'd at first GPU path use (d3d12_dyn.h); no hard import. -->
+      <AdditionalDependencies>WindowsApp.lib;onnxruntime.lib;onnxruntime-genai.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
 

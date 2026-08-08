@@ -24,6 +24,7 @@
     #include <wrl/client.h>
 
     #include "gpubw_stream_dxil.h"
+    #include "xllama/d3d12_dyn.h"
 
 using Microsoft::WRL::ComPtr;
 #endif
@@ -195,7 +196,12 @@ ComPtr<ID3D12RootSignature> create_root_sig(ID3D12Device* device, GpubwResult& r
 
     ComPtr<ID3DBlob> sig;
     ComPtr<ID3DBlob> err;
-    HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &sig, &err);
+    auto serialize = d3d12_dyn::SerializeRootSignature();
+    if (!serialize) {
+        r.error_msg = "D3D12SerializeRootSignature not available";
+        return nullptr;
+    }
+    HRESULT hr = serialize(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &sig, &err);
     if (FAILED(hr)) {
         r.error_msg = "D3D12SerializeRootSignature failed";
         if (err)
@@ -260,6 +266,12 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
         return r;
     }
 
+    auto create_device = d3d12_dyn::CreateDevice();
+    if (!create_device) {
+        r.error_msg = "D3D12CreateDevice not available";
+        return r;
+    }
+
     ComPtr<IDXGIAdapter1> adapter;
     ComPtr<ID3D12Device> device;
     for (UINT i = 0; factory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
@@ -267,7 +279,7 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
         adapter->GetDesc1(&ad);
         if (ad.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
             continue;
-        hr = D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
+        hr = create_device(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
         if (SUCCEEDED(hr))
             break;
         device.Reset();
@@ -275,7 +287,7 @@ GpubwResult measure_gpubw(std::size_t buffer_bytes, int iterations) {
     }
     if (!device) {
         // Fallback: default adapter
-        hr = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
+        hr = create_device(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
         if (FAILED(hr)) {
             throw_if_failed(hr, "D3D12CreateDevice", r);
             return r;

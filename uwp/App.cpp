@@ -10,6 +10,7 @@
 #include "MainPage.h"
 #include "inference-bridge.h"
 #include "xllama/platform.h"
+#include <roapi.h> // RoInitialize — WinRT MTA (see wWinMain)
 #ifndef XLLAMA_STORE_SKU
 #include "api-server.h"
 #include <winrt/Windows.Foundation.Metadata.h>
@@ -319,7 +320,12 @@ struct HeadlessView
 // ---------------------------------------------------------------------------
 int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     try {
-        winrt::init_apartment(); // MTA: needed for ApplicationData in the detection
+        // WinRT apartment first (RoInitialize). C++/WinRT's init_apartment on
+        // current headers only calls CoInitializeEx; MSVC UWP images still
+        // import RoInitialize (CRT / other TUs). Xbox XAML activation needs a
+        // real WinRT MTA — without it Start fails as 0x8027025b (gotcha 17).
+        winrt::check_hresult(RoInitialize(RO_INIT_MULTITHREADED));
+        winrt::init_apartment(); // CoInitializeEx MTA; pairs with RoInitialize
     #ifndef XLLAMA_STORE_SKU
         // Headless operator modes (Device Portal flags). Omitted from the Store
         // SKU — retail builds always take the interactive XAML path.
@@ -399,8 +405,14 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
                 winrt::make<HeadlessView>(&::xllama::bridge::run_train, "train"));
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
-    #endif                         // !XLLAMA_STORE_SKU
-        winrt::uninit_apartment(); // restore pre-existing thread state for XAML
+    #endif // !XLLAMA_STORE_SKU
+        // Keep the MTA from init_apartment() through Application::Start.
+        // XAML requires the *first* Application access to come from the MTA
+        // (uwp-crossbuild gotcha 17 / hello-uwp). Do NOT uninit_apartment()
+        // here: MSVC's UWP CRT often holds a residual RoInitialize MTA so a
+        // mistaken uninit still left the thread apartmented; clang + store
+        // CRT /MT has no such residual, uninit leaves no apartment, and
+        // Start dies as winrt::hresult_wrong_thread → 0x8027025b on Xbox.
         winrt::Windows::UI::Xaml::Application::Start(
             [](auto&&) { winrt::make<winrt::xllama::implementation::App>(); });
     } catch (winrt::hresult_error const& e) {
