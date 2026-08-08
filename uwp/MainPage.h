@@ -18,6 +18,7 @@
     #include <chrono>
     #include <cstdint>
     #include <functional>
+    #include <future>
     #include <memory>
     #include <mutex>
     #include <string>
@@ -137,7 +138,11 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     void SaveCurrentConversation(bool partial = false);
     // #170b: hand the KV of the conversation we are leaving to disk, off the UI
     // thread. Call BEFORE the switch clears m_kv_valid / m_active_model.
+    // The next generate must wait (WaitKvSnapshotSave) so a follow-up turn cannot
+    // mutate the resident session before the save has copied it — that race was
+    // #216 (restored log line + full re-prefill under suite timing).
     void SaveKvSnapshotAsync();
+    void WaitKvSnapshotSave();
     // Must be called from background thread; builds/rebuilds m_session if needed.
     bool EnsureSession(const std::string& model, std::string* err_out = nullptr);
 
@@ -181,6 +186,10 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     bool m_kv_reuse{true};
     bool m_kv_valid{false};
     bool m_kv_last_ended_with_stop{false};
+    // Outstanding #170b save: generate waits so the snapshot path is not
+    // overwritten with a different conversation's KV (see SaveKvSnapshotAsync).
+    std::mutex m_kv_save_mutex;
+    std::future<void> m_kv_save_future;
 
     // Per-conversation CPU/GPU routing (Stage 3). The GPU (DML fp16) EP wins the
     // prefill of long prompts; the CPU EP wins decode. Routing is decided at a

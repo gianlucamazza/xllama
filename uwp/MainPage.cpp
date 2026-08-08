@@ -817,10 +817,25 @@ void MainPageController::SaveCurrentConversation(bool partial) {
 // not wait on tens of MB — under the hub lock, and only while the resident
 // session is still the one this conversation was built on.
 //
-// The race with a turn starting right after the switch can only WASTE the
-// file, never corrupt a reply: the snapshot stores its own token list, and
-// load_state hands it to the #170a prefix diff, so a snapshot that no longer
-// matches the rendered prompt collapses to a normal prefill.
+// #216: a fire-and-forget save races the next turn. The worker holds hub.mtx
+// for the whole generate, so if "Say hello" on a new chat starts before the
+// snapshot finishes, save_state can capture the *new* conversation's KV and
+// write it to the *old* conversation's path. On return, load_state succeeds
+// (log: restored) but the #170a prefix never matches → full re-prefill (ret ≈
+// cold). The gate under `all` surfaces this ~1/6; standalone rarely does.
+// Fix: one outstanding save future; every generate waits before touching the
+// session. Disk I/O still stays off the UI thread.
+void MainPageController::WaitKvSnapshotSave() {
+    std::future<void> f;
+    {
+        std::lock_guard<std::mutex> lk(m_kv_save_mutex);
+        if (m_kv_save_future.valid())
+            f = std::move(m_kv_save_future);
+    }
+    if (f.valid())
+        f.wait();
+}
+
 void MainPageController::SaveKvSnapshotAsync() {
     if (!m_kv_reuse || !m_kv_valid || m_current.messages.empty())
         return;
@@ -841,17 +856,22 @@ void MainPageController::SaveKvSnapshotAsync() {
     if (path.empty())
         return;
     const uint64_t gen = m_hub_generation;
-    std::thread([store, path, gen]() {
-        auto& hub = ::xllama::session_hub();
-        std::lock_guard<std::mutex> lk(hub.mtx);
-        if (!hub.session || hub.generation != gen)
-            return; // a different model is resident now — nothing of ours to save
-        std::string err;
-        if (hub.session->save_state(path, &err))
-            store.prune(::xllama::kKvStoreMaxFiles, ::xllama::kKvStoreMaxBytes);
-        else
-            ::xllama::log_output("[xllama] KV snapshot not saved: " + err + "\n");
-    }).detach();
+    // Finish any previous save before scheduling another (same path possible).
+    WaitKvSnapshotSave();
+    {
+        std::lock_guard<std::mutex> lk(m_kv_save_mutex);
+        m_kv_save_future = std::async(std::launch::async, [store, path, gen]() {
+            auto& hub = ::xllama::session_hub();
+            std::lock_guard<std::mutex> hub_lk(hub.mtx);
+            if (!hub.session || hub.generation != gen)
+                return; // a different model is resident now — nothing of ours to save
+            std::string err;
+            if (hub.session->save_state(path, &err))
+                store.prune(::xllama::kKvStoreMaxFiles, ::xllama::kKvStoreMaxBytes);
+            else
+                ::xllama::log_output("[xllama] KV snapshot not saved: " + err + "\n");
+        });
+    }
 }
 
 void MainPageController::NewChat() {
@@ -2922,6 +2942,11 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                  sys_prefix, kv_path, dispatcher, plan_turns, user_text, system_prompt, plan_n_ctx,
                  plan_n_predict, plan_dropped]() mutable {
         try {
+            // #216: drain any #170b snapshot save before taking hub.mtx. The save
+            // also locks the hub; waiting first keeps the leave-conversation
+            // token list on the snapshot path instead of a later turn's KV.
+            self->WaitKvSnapshotSave();
+
             // One hub lock for the whole turn: the resident session cannot be
             // swapped from under us (LAN API requests report busy meanwhile,
             // exactly as they do against each other).

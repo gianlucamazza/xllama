@@ -665,6 +665,17 @@ class LlamaSession final : public Session {
                     log_output(pb);
                 }
             } else {
+                // #216: when a #170b restore just landed, "restored" + full
+                // re-prefill means the saved token list and the re-rendered
+                // prompt share no common prefix — log enough to diagnose.
+                if (!m_kv_tokens.empty()) {
+                    char pb[192];
+                    snprintf(pb, sizeof(pb),
+                             "[xllama] session: KV prefix reuse none — resident %zu tok, "
+                             "prompt %zu tok (first mismatch at 0) (#170)\n",
+                             m_kv_tokens.size(), tokens.size());
+                    log_output(pb);
+                }
                 llama_memory_clear(mem, true);
             }
             m_kv_tokens.resize(kv_keep);
