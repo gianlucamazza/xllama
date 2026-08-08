@@ -109,6 +109,8 @@ struct InferenceParams {
     // CLI --gpubw: Phase 15 W3 (#211) GPU STREAM probe. On non-Windows hosts
     // reports d3d12 unavailable (no invented GB/s). Model/prompt not required.
     bool run_gpubw = false;
+    // Phase 15 H6.1 (#228): Q4_K GEMV density probe (D3D12 CS; not a backend).
+    bool run_gpugemv = false;
 
     // CLI --ramceil: probe how much heap this process can commit, and exit (no
     // model load). Measures the ceiling a GGUF actually spends against, which

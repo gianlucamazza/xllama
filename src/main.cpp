@@ -4,6 +4,7 @@
 #include "xllama/chat_prompt.h" // kDefaultSystemPrompt
 #include "xllama/cli.h"
 #include "xllama/gpubw.h"
+#include "xllama/gpugemv.h"
 #include "xllama/inference.h"
 #include "xllama/membw.h"
 #include "xllama/ramceil.h"
@@ -122,6 +123,22 @@ int main(int argc, char** argv) {
         std::printf("%s%s", xllama::gpubw_csv_header(),
                     xllama::format_gpubw_row(r, "host").c_str());
         return r.d3d12_ran && r.checksum_ok ? 0 : 0; // always 0: non-Windows is expected
+    }
+
+    // --gpugemv: Phase 15 H6.1 (#228). On Linux reports d3d12 unavailable (honest).
+    if (params.run_gpugemv) {
+        const xllama::GpugemvResult r =
+            xllama::measure_gpugemv(/*n=*/256, /*k=*/256, /*iterations=*/1);
+        std::printf("gpugemv n=%d k=%d packed_gbs=%.2f max_abs_err=%.6g checksum_ok=%d "
+                    "d3d12_ran=%d g1=%d g2=%d\n",
+                    r.n, r.k, r.packed_gbs, static_cast<double>(r.max_abs_err),
+                    r.checksum_ok ? 1 : 0, r.d3d12_ran ? 1 : 0,
+                    xllama::gpugemv_passes_g1(r) ? 1 : 0, xllama::gpugemv_passes_g2(r) ? 1 : 0);
+        if (!r.error_msg.empty())
+            std::fprintf(stderr, "gpugemv: %s\n", r.error_msg.c_str());
+        std::printf("%s%s", xllama::gpugemv_csv_header(),
+                    xllama::format_gpugemv_row(r, "host").c_str());
+        return 0;
     }
 
     // --ramceil: model-free heap-ceiling probe. Streams the CSV as it goes

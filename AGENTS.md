@@ -24,6 +24,7 @@ xllama/
 │   ├── routing_policy.h     # routing decision + prompt budget (threshold must stay under it)
 │   ├── speculative.h        # Phase 15 W2: prompt_lookup_draft (pure, host-testable)
 │   ├── gpubw.h              # Phase 15 W3: GPU STREAM probe helpers + kill gate (#211)
+│   ├── gpugemv.h            # Phase 15 H6.1: Q4_K GEMV density probe (#228)
 │   ├── sampling.h           # sampling defaults shared by CLI/bench and GUI/API
 │   ├── session.h            # xllama::Session API (persistent model across turns)
 │   ├── session_hub.h        # SessionHub: the ONE process-wide resident-Session owner (GUI+API)

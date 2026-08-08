@@ -357,6 +357,15 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
                 winrt::make<HeadlessView>(&::xllama::bridge::run_gpubw, "gpubw"));
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
+        std::wstring gpugemv_flag = flag_path_if_present(L"gpugemv.flag");
+        if (!gpugemv_flag.empty()) {
+            _wremove(gpugemv_flag.c_str());
+            ::xllama::log_output(
+                "[xllama] gpugemv.flag detected -> headless Q4_K GEMV mode (#228)\n");
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(&::xllama::bridge::run_gpugemv, "gpugemv"));
+            return 0; // not reached: CoreApplication::Exit terminates the process
+        }
         std::wstring ramceil_flag = flag_path_if_present(L"ramceil.flag");
         if (!ramceil_flag.empty()) {
             _wremove(ramceil_flag.c_str());
