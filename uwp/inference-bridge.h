@@ -26,6 +26,11 @@ void main_loop();
 // ceiling behind the bandwidth-bound decode number (see docs/benchmarks.md).
 void run_membw();
 
+// Phase 15 W3 (#211): own D3D12 compute STREAM read (~1 GB VRAM) + checksum.
+// Triggered by LocalFolder\gpubw.flag; writes gpubw-result.csv (+ .done).
+// Kill criterion 100 GB/s is documented in docs/phase15-re-opt.md — not invented here.
+void run_gpubw();
+
 // Heap-ceiling probe. Triggered by LocalFolder\ramceil.flag; writes
 // ramceil-result.csv (+ .done marker holding the stop reason) to LocalState.
 // Measures how much heap the process can actually commit under GameOS — the

@@ -73,8 +73,8 @@ Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.
   (`prompt_lookup`, default OFF). Console M3: code **1.04× FAIL** ≥1.4× gate;
   chat ~0.99×. Remains opt-in only — see Phase 15 W2 and `docs/phase15-re-opt.md`.
 - [ ] H5 BitNet/low-bit survey before any runtime work.
-- [ ] H6/H7 GPU or hybrid GGUF experiments only after a credible UWP backend
-      path exists — H6 now has a predeclared 100 GB/s kill gate (Phase 15 W3).
+- [ ] H6/H7 GPU or hybrid GGUF eng — **W3 gate PASS** (Series S STREAM
+      **119.07 GB/s** ≥ 100 kill, #211 closed). Eng tracking: **#228**.
 
 ## Phase 8 — Training pillar (exploration) ✅ FROZEN complete
 
@@ -422,13 +422,14 @@ rejected on that ground (`docs/phase7-hypotheses.md`, "Do not reopen").
 reads only its active experts, exactly as predicted, and is still no faster than
 a dense 3B because the cost moves off bandwidth. W2 is **closed for product
 default**: pre-gate rejected draft-model; prompt-lookup eng shipped opt-in;
-console M3 **1.04× FAIL** ≥1.4× gate so default stays OFF. W3 (gpubw) is the
-**next** eng lever. Ordering W1→W2 measure-before-build paid off: two levers
-decided without reopening falsified paths.
+console M3 **1.04× FAIL** ≥1.4× gate so default stays OFF. W3 (gpubw) **M6
+PASS** (Series S STREAM **119.07 GB/s** ≥ 100 kill) → H6 eng opened. Ordering
+W1→W2→W3 measure-before-build paid off: three levers decided without inventing
+numbers.
 
 **Campaign SSOT:** [`docs/phase15-re-opt.md`](docs/phase15-re-opt.md) (method,
 Findings, workstream status, decision log). Attack order: **W2 closed**
-(default OFF after M3); **W3 next**.
+(default OFF after M3); **W3 M6 PASS** → H6 eng.
 
 - [x] **W1 — H2: a MoE whose active weights are a fraction of its total. CLOSED
       FAIL 2026-07-30.**
@@ -497,13 +498,12 @@ Findings, workstream status, decision log). Attack order: **W2 closed**
   peak < 3.5 GB; `longchat` and `kvsnap` are the real regression tests, since
   the draft touches the KV.
 
-- [ ] **W3 — H6 gate: does our own compute shader beat DirectML? (#211)** Not a backend
-      — a measurement. Every negative GPU result on record is a DirectML result,
-      and DirectML provably has no fused low-bit GEMM (`DML_DEQUANTIZE` + full
-      `DML_GEMM` materializes fp16 and reads _more_ bandwidth than fp16 itself).
-      DXGI and D3D12 both work in AppContainer and DXIL compiles AOT, so the JIT
-      ban does not bite. **Kill criterion, predeclared: under 100 GB/s STREAM
-      read the hypothesis dies and goes to "Do not reopen".**
+- [x] **W3 — H6 gate: does our own compute shader beat DirectML? (#211)** Not a
+      backend — a measurement. **M6 PASS 2026-08-08:** Series S STREAM
+      **119.07 GB/s** (1 GiB, checksum_ok) ≥ 100 kill. CI package `1.5.2.853`,
+      CSV `bench/results/phase15-gpubw.csv`. Multi-dim Dispatch for 1 GiB;
+      system D3D12 only (no Agility). Every prior negative GPU result was
+      DirectML; this is our CS. **H6 eng opened** by this result.
 - [x] **Groundwork W2 needs: the prefill and decode loops written once**
       (2026-07-30, `src/bridge/decode_loop.h`). `run_inference_llama` and
       `LlamaSession::generate` kept hand-maintained copies that had already

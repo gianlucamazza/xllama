@@ -9,7 +9,9 @@
 > narrative table.
 
 **Currency:** 2026-08-08. Attack order: **W2 closed for product default**
-(console M3 FAIL ≥1.4× gate → stays opt-in OFF); next eng is **W3 gpubw**.
+(console M3 FAIL ≥1.4× gate → stays opt-in OFF); **W3 gpubw M6 PASS** —
+Series S STREAM **119.07 GB/s** (checksum_ok, 1 GiB) ≥ 100 GB/s kill → **H6 eng
+motivated**.
 
 ## Goal
 
@@ -95,6 +97,7 @@ until APP-CRT import parity with CI is proven on device.
 | Spec pregate | `scripts/bench-spec-pregate.sh`, `analyze-spec-pregate.py` | H3 host prediction |
 | Spec W2 host A/B | `scripts/bench-spec-w2.sh` | TDD / acceptance rates (not product tok/s) |
 | Spec W2 console A/B | `scripts/bench-spec-w2-console.sh` | M3 gate on Series S |
+| GPU STREAM (W3) | `gpubw.flag` / `scripts/bench-gpubw.sh` / `include/xllama/gpubw.h` | Own CS read + checksum; kill 100 GB/s |
 | Logit parity | `scripts/validate-logit-parity.sh` | DML correctness |
 | GPU mem | `gpu_mem_info()` in `platform.cpp` | VRAM budget |
 
@@ -107,7 +110,7 @@ until APP-CRT import parity with CI is proven on device.
 | Driver metacommands | Opt-out experiment FAIL; not the #91 cause |
 | ggml Q4_K CPU kernels / repack | Repack enabled (#155); decode still BW-bound |
 | #130 max_length valley mechanism | Mitigated (warm-up); profile still open |
-| RDNA2 outside DirectML | **Open — W3 gpubw** |
+| RDNA2 outside DirectML | **W3 M6 PASS** — own CS STREAM **119.07 GB/s** on Series S |
 
 ## Workstreams
 
@@ -115,10 +118,10 @@ until APP-CRT import parity with CI is proven on device.
 | --- | --- | --- | --- |
 | WS0 | Baseline freeze + this doc | — | **done** (this file) |
 | WS-A | W2 prompt-lookup speculative | #210 | **closed for default** — host PASS; console M3 **1.04× FAIL** gate; opt-in remains |
-| WS-B | W3 gpubw STREAM + Q4 GEMV spike | #211 | **next** (queued after W2 M3 decision) |
+| WS-B | W3 gpubw STREAM + Q4 GEMV spike | #211 | **closed PASS** — STREAM **119.07 GB/s** Series S (`1.5.2.853`); Q4 GEMV moves to #228 |
 | WS-C | #130 DML valley mechanism profile | #130 | opportunistic on console |
 | WS-D | H5 BitNet desk survey | — | parallel desk, no eng yet |
-| WS-E | H6/H7 GGUF GPU path | — | **only if** W3 ≥ 100 GB/s |
+| WS-E | H6/H7 GGUF GPU path | #228 | **open** — eng after M6 PASS; Q4 GEMV optional first |
 
 ### WS-A detail (W2)
 
@@ -133,14 +136,15 @@ until APP-CRT import parity with CI is proven on device.
 Regression must-pass: `longchat`, `kvsnap`, `gguf`, shipping default `lfm25-350m`
 unchanged (hybrid cache cannot tail-rewind — probe disables, does not corrupt).
 
-### WS-B kill criterion (predeclared)
+### WS-B kill criterion (predeclared) — **applied 2026-08-08**
 
 Own compute-shader STREAM read on ~1 GB VRAM buffer, checksum-verified:
 
 - **&lt; 100 GB/s** → H6 “Do not reopen”, close #211
 - **≥ 100 GB/s** → open H6 eng plan
 
-Never use the Agility D3D12 factory; headless `gpubw.flag` only.
+**Result:** **119.07 GB/s** → PASS → #211 closed as research gate; eng continues in
+**#228**. Never use the Agility D3D12 factory; headless `gpubw.flag` only.
 
 ## Milestones
 
@@ -151,10 +155,11 @@ Never use the Agility D3D12 factory; headless `gpubw.flag` only.
 | M2 | W2.4 opt-in + host acceptance CSV | acceptance vs pregate |
 | M3 | Console W2 A/B + full gates | **measured** — code 1.04× **FAIL** gate; chat OK; peak OK |
 | M4 | Product default decision (after M3 numbers) | **OFF** (opt-in only); CHANGELOG |
-| M5–M6 | gpubw spike + measure | kill/pass H6 |
+| M5 | gpubw STREAM spike (code + flag + DXIL) | **done** (eng); multi-dim Dispatch for 1 GiB; host helpers unit-tested |
+| M6 | console measure vs 100 GB/s | **PASS** — Series S **119.07 GB/s**, checksum_ok, 1024 MB, CI `1.5.2.853`; CSV `bench/results/phase15-gpubw.csv` |
 | M7 | #130 closed | §5e verdict |
 | M8 | H5 survey note | go/no-go |
-| M9+ | H6/H7 only if M6 PASS | new phase |
+| M9+ | H6/H7 eng plan | **#228** (opened by M6 PASS) |
 
 ## Decision log
 
@@ -173,10 +178,14 @@ Never use the Agility D3D12 factory; headless `gpubw.flag` only.
 | 2026-08-07 | Host tests: full suite PASS after W2. Control deploy: CI package `1.5.2.910` launches and loads GGUF on Series S. |
 | 2026-08-07 | **M3 console A/B (W2.5):** `qwen25-coder-3b` CI W2 `1.5.2.920`. Code 1.04× FAIL (≥1.4×); chat 0.99×. Speculation works (code ~50% draft accept) but BW-bound console does not convert accepts into ≥1.4× tok/s. **Product default remains OFF.** Next campaign focus: W3 gpubw (#211). |
 | 2026-08-08 | **Docs consolidated:** Findings section above; H3 card in phase7 updated; model-matrix gap closed; crossbuild launch path remains CI-only. PR #226 holds the W2 eng + CSVs. |
+| 2026-08-08 | **W3 gpubw spike (#211) eng:** `include/xllama/gpubw.h`, AOT DXIL `shaders/gpubw_stream.hlsl` → `shaders/generated/gpubw_stream_dxil.h`, UWP `gpubw.flag` / CLI `--gpubw`, `scripts/bench-gpubw.sh`. System `D3D12CreateDevice` only (no Agility). Multi-dim Dispatch for 1 GiB (≤65535/dim). |
+| 2026-08-08 | **M6 console gpubw PASS:** Series S CI package `1.5.2.853`, 1 GiB buffer, 3 iters, **read=119.07 GB/s**, `checksum_ok=1`, `d3d12_ran=1` → kill gate **PASS** (≥100). CSV: `bench/results/phase15-gpubw.csv`. **H6 eng is motivated** (own CS beats DirectML BW lens). |
+| 2026-08-08 | **#211 closed** as the research/measure gate (PASS). Eng handoff: **#228**. PR #227 carries the probe + multi-dim Dispatch + docs. |
 
 ## Related issues
 
 - #210 W2 prompt-lookup (eng shipped opt-in; default OFF after M3)
-- #211 W3 gpubw gate (**next**)
+- #211 W3 gpubw gate — **closed PASS** (119.07 GB/s); PR #227
+- #228 H6 eng follow-up (**open** after M6 PASS)
 - #130 DML max_length valley mechanism
 - #216 kvsnap intermittent (watch on console gates)

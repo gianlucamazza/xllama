@@ -224,7 +224,8 @@ shifts.
    on `qwen25-coder-3b`; stays OFF. See [phase15-re-opt.md](phase15-re-opt.md).
 5. **FIM / completions API** — out of scope (second prompt surface).
 6. Optional next models: Qwen3-4B-2507, Phi-4-mini, Gemma-3-1B, LFM2.5-230M.
-7. **W3 gpubw** (#211) — next RE spike after W2 default decision.
+7. ~~**W3 gpubw** (#211)~~ — **closed PASS** Series S **119.07 GB/s** STREAM;
+   H6 eng **#228** (`docs/phase15-re-opt.md`).
 
 ---
 

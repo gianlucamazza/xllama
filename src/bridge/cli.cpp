@@ -42,6 +42,8 @@ static void print_help(const char* prog) {
                  "                       not product claims — console A/B decides ship\n"
                  "      --membw          Run the CPU memory-bandwidth micro-bench and\n"
                  "                       exit (no model needed); prints read/copy/triad GB/s\n"
+                 "      --gpubw          Phase 15 W3 (#211) GPU STREAM probe (D3D12; host\n"
+                 "                       without D3D12 reports unavailable — no fake GB/s)\n"
                  "      --ramceil        Probe how much heap this process can commit and\n"
                  "                       exit (no model needed); prints the CSV rows\n"
                  "      --greedy         Deterministic argmax decode (implies logit parity);\n"
@@ -99,6 +101,7 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         {"kv-q8", no_argument, nullptr, 18},
         {"ramceil", no_argument, nullptr, 19},
         {"prompt-lookup", no_argument, nullptr, 20},
+        {"gpubw", no_argument, nullptr, 21},
         {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0}};
 
@@ -182,6 +185,9 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         case 20:
             out.prompt_lookup = true;
             break;
+        case 21:
+            out.run_gpubw = true;
+            break;
         case 'h':
             print_help(argv[0]);
             std::exit(0);
@@ -191,8 +197,10 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         }
     }
 
-    // --membw / --ramceil / train-job modes: model/prompt not required.
+    // --membw / --gpubw / --ramceil / train-job modes: model/prompt not required.
     if (out.run_membw)
+        return true;
+    if (out.run_gpubw)
         return true;
     if (out.run_ramceil)
         return true;

@@ -114,6 +114,7 @@
         $(ProjectDir)Generated Files;
         $(IntDir)Generated Files;
         $(ProjectDir)..\include;
+        $(ProjectDir)..\shaders\generated;
         $(ProjectDir)..\llama.cpp\include;
         $(ProjectDir)..\llama.cpp\ggml\include;
         $(ProjectDir)packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.14.1\build\native\include;
@@ -163,7 +164,7 @@
         $(ProjectDir)packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.14.1\runtimes\win-x64\native;
         %(AdditionalLibraryDirectories)
       </AdditionalLibraryDirectories>
-      <AdditionalDependencies>WindowsApp.lib;onnxruntime.lib;onnxruntime-genai.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>WindowsApp.lib;onnxruntime.lib;onnxruntime-genai.lib;dxgi.lib;d3d12.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
 
@@ -317,6 +318,7 @@
     <ClCompile Include="..\src\bridge\kv_store.cpp" />
     <ClCompile Include="..\src\bridge\bench.cpp" />
     <ClCompile Include="..\src\bridge\membw.cpp" />
+    <ClCompile Include="..\src\bridge\gpubw.cpp" />
     <ClCompile Include="..\src\bridge\ramceil.cpp" />
     <ClCompile Include="..\src\bridge\platform.cpp" />
     <ClCompile Include="..\src\bridge\path_utils.cpp" />

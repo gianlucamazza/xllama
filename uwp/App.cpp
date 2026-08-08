@@ -349,6 +349,14 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
                 winrt::make<HeadlessView>(&::xllama::bridge::run_membw, "membw"));
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
+        std::wstring gpubw_flag = flag_path_if_present(L"gpubw.flag");
+        if (!gpubw_flag.empty()) {
+            _wremove(gpubw_flag.c_str());
+            ::xllama::log_output("[xllama] gpubw.flag detected -> headless gpubw mode (#211)\n");
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(&::xllama::bridge::run_gpubw, "gpubw"));
+            return 0; // not reached: CoreApplication::Exit terminates the process
+        }
         std::wstring ramceil_flag = flag_path_if_present(L"ramceil.flag");
         if (!ramceil_flag.empty()) {
             _wremove(ramceil_flag.c_str());

@@ -3,6 +3,7 @@
 
 #include "xllama/chat_prompt.h" // kDefaultSystemPrompt
 #include "xllama/cli.h"
+#include "xllama/gpubw.h"
 #include "xllama/inference.h"
 #include "xllama/membw.h"
 #include "xllama/ramceil.h"
@@ -107,6 +108,20 @@ int main(int argc, char** argv) {
         std::printf("%s%s", xllama::membw_csv_header(),
                     xllama::format_membw_row(mt, "host").c_str());
         return 0;
+    }
+
+    // --gpubw: Phase 15 W3 (#211). On Linux reports d3d12 unavailable (honest).
+    if (params.run_gpubw) {
+        // Small buffer on host CLI path: only exercises entry + CSV (no 1 GiB alloc).
+        const xllama::GpubwResult r = xllama::measure_gpubw(/*bytes=*/1u << 20, /*iterations=*/1);
+        std::printf("gpubw buffer=%zu MB read=%.2f GB/s checksum_ok=%d d3d12_ran=%d kill=%d\n",
+                    r.buffer_bytes / (1024 * 1024), r.read_gbs, r.checksum_ok ? 1 : 0,
+                    r.d3d12_ran ? 1 : 0, xllama::gpubw_passes_kill_gate(r) ? 1 : 0);
+        if (!r.error_msg.empty())
+            std::fprintf(stderr, "gpubw: %s\n", r.error_msg.c_str());
+        std::printf("%s%s", xllama::gpubw_csv_header(),
+                    xllama::format_gpubw_row(r, "host").c_str());
+        return r.d3d12_ran && r.checksum_ok ? 0 : 0; // always 0: non-Windows is expected
     }
 
     // --ramceil: model-free heap-ceiling probe. Streams the CSV as it goes

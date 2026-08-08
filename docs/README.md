@@ -99,7 +99,7 @@ path checklist for discovery — descriptions are not repeated.
 | NuGet version pins                   | `uwp/packages.config` + recommended-config / vendor-lifecycle            | Parallel version tables                                |
 | Repo file tree                       | AGENTS.md (agents)                                                       | Full second tree in README                             |
 | Phase checklist                      | ROADMAP.md                                                               | Duplicated phase list in README                        |
-| Phase 15 RE / optimization campaign  | [phase15-re-opt.md](./phase15-re-opt.md) (incl. W2 M3 findings)           | Second workstream narrative in README                  |
+| Phase 15 RE / optimization campaign  | [phase15-re-opt.md](./phase15-re-opt.md) (W2 default OFF; W3 M6 PASS → #228) | Second workstream narrative in README                |
 | Linux→Xbox package without Windows VM | [crossbuild-console.md](./crossbuild-console.md) (launch = CI MSVC)     | Claiming crossbuild xllama packages launch on Series S |
 
 ### Coherence check (automated)
