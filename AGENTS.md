@@ -50,7 +50,7 @@ xllama/
 │   ├── utf8_utils.cpp
 │   └── cli.cpp
 ├── src/main.cpp             # Linux entry point (getopt_long; --train-job)
-├── training/                # Training pillar ops: jobs, datasets, host PEFT
+├── training/                # Training pillar ops: jobs/, manifest-overrides/, datasets, host PEFT
 ├── docs/                    # SSOT map in docs/README.md
 │   ├── architecture.md      # System structure SSOT
 │   ├── training-architecture.md  # Training SSOT (RE + capability matrix + §11 UI arc)

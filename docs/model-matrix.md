@@ -117,6 +117,13 @@ exact after trimming with **513 left for a requested 512**, the fix for the sile
 dead feature because it pinned `n_predict=128`, and now runs at the shipping
 default (long turn → GPU at 1769 tok, short → CPU at 23).
 
+**Re-validated on v1.5.3.0** (MSIX **1.5.3.873**, release asset for tag `v1.5.3.0`,
+Series S 2026-08-08): all **nine** console gates PASS
+(`routing`, `settings`, `gguf`, `longchat`, `kvsnap`, `coderpaste`, `thinkcut`,
+`genroom`, `taesd`). The `gguf` gate now also asserts a **non-empty conversation
+title** on disk (empty-title fix in this cut). Capability figures from 1.5.2
+still hold on this package.
+
 **Out of budget / deferred:** Qwen2.5-Coder-7B+, Qwen3-Coder MoE 30B+, Devstral 24B,
 DeepSeek-Coder-V2-Lite, StarCoder2 / DS-Coder 1.3B. LFM2.5-8B-A1B was on this list
 at ~5 GB (its official Q4_K_M); it moved to A3 below once the heap ceiling was
