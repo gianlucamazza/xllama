@@ -34,10 +34,12 @@ performance belongs in `docs/benchmarks.md`.
   upstream vendor pin drops.
 - **Shipped as v1.5.3.0** (tag + GitHub Release, MSIX **1.5.3.873**): conversation
   titles, History leak (#219), demo/capture pipeline (#213/#215/#217), dual-CRT
-  packaging, train-job CI validate (#222), H6 parked (#228). Console
-  `validate-console.sh all` **9/9 PASS** on Series S (2026-08-08). Linux store
-  PE launch remains open (layer 2); product packages are CI MSVC —
-  `docs/crossbuild-console.md`.
+  packaging, train-job CI validate (#222), H6 parked (#228). Day-of-ship console
+  `validate-console.sh all` **9/9 PASS** (Series S). Linux store PE launch remains
+  open (layer 2); product packages are CI MSVC — `docs/crossbuild-console.md`.
+- **On main after v1.5.3 (not yet a new tag):** #216 KV snapshot save race
+  (PR #232, `all` ×6 PASS); #223 thinking `n_predict` 1024 + **`thinkdone`**
+  (PR #234, `thinkcut`+`thinkdone` PASS on **1.5.3.881**). Suite is **10** gates.
 - **Demo capture remains the v1.5.2 assets** (576 stills; re-record optional —
   `check-coherence` allows a minor-version lag). Pipeline is re-runnable
   (`demo/demo-script.json` + `scripts/capture-demo-video.sh`); Store screenshots
@@ -57,6 +59,8 @@ Priority order is hygiene and open product risks, not reopening parked eng:
    (`docs/store-readiness.md`).
 6. **Parked** — H6/H7 GGUF GPU eng (#228) until new density measure; Linux store
    PE activation layer 2; prompt-lookup product default (stays OFF after W2).
+7. **Optional next cut** — tag a 1.5.4 (or patch) once #130 is closed/deferred
+   and the 10-gate suite is the release contract.
 
 ## Phase 7 — Peer-class model research
 
@@ -368,13 +372,11 @@ retired after #155.
 
 ## Phase 14 — Coding, chat and thinking tiers ✅ complete (unreleased)
 
-> **Caveat on the thinking tier, 2026-07-30 (#223).** The plumbing below is
-> done and gated, but _complete_ here means the tier is wired, measured for
-> decode, and safe when its reasoning is cut — **not** that a reasoning turn
-> has ever been shown to finish. `lfm25-1.2b-thinking` is absent from the H9
-> quality suite, and on console it spent 768 tokens on a two-step time addition
-> without closing `<think>`. The `thinkcut` gate pins the degraded path by
-> design (`n_predict: 24`); nothing pins the happy one.
+> **Thinking tier (updated 2026-08-08, #223 closed).** Wired, decode-measured,
+> and dual-gated: `thinkcut` (truncated CoT) + **`thinkdone`** (short happy path
+> at catalogue `n_predict` 1024). Still **absent from H9** (quality suite is the
+> instruct sibling). Multi-step arithmetic can still exhaust CoT without an
+> answer — product honesty, not a missing gate.
 
 Phase 13 made a turn cheap; Phase 14 spends that headroom on **what the
 catalogue can hold**. Architecture first, no Settings rewrite: the catalogue

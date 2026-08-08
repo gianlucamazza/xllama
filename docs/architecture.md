@@ -202,7 +202,7 @@ in this codebase has eventually disagreed with the other, and always silently.
 driver (`MainPageController::ApRun`) can only exist on UWP — it dispatches to
 XAML on the UI thread — but _what a valid script is_ needs neither XAML nor a
 console, so it lives in a WinRT-free header with `validate_autopilot_script` and
-is covered by `tests/test_autopilot.cpp`. That matters because all nine console
+is covered by `tests/test_autopilot.cpp`. That matters because all ten console
 gates are written in this language: a rule that is wrong here is wrong for all
 of them, and until the split there was nothing to test it with short of
 deploying to hardware and watching what broke.

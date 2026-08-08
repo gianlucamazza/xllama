@@ -450,9 +450,9 @@ def main() -> int:
     # --- console gates: what runs vs what the runbook describes ---
     #
     # Same shape as the autopilot-ops check above, one axis over. The gates are
-    # the release contract — every release note cites "9/9 PASS" — but the
-    # runbook is the only place that says what each one ASSERTS, and it had
-    # drifted to describing four of nine. A gate that fails without a written
+    # the release contract (cite N/N PASS with N = len(gates) in the script) —
+    # but the runbook is the only place that says what each one ASSERTS, and it
+    # had drifted to describing four of nine. A gate that fails without a written
     # contract sends the operator to read shell.
     #
     # Read from the script, not repeated here, for the same reason as kOps.
