@@ -35,8 +35,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Phase 15 H6.1 (#228): Q4_K GEMV density probe (measure only).** Headless
   `gpugemv.flag` / CLI `--gpugemv`, pure CPU ref + residual gate, AOT DXIL CS
-  (system D3D12, no Agility). Soft density gate **40 GB/s packed**. Not a GGUF
-  GPU product backend — density evidence for H6. `scripts/bench-gpugemv.sh`.
+  (system D3D12, no Agility). Soft density gate **40 GB/s packed**. Console
+  Series S (`1.5.2.860`): **G1 PASS** (max_abs_err≈4.6e-5) / **G2 FAIL**
+  (`packed_gbs=2.15` — naive CS compute-bound). Not a product backend.
+  CSV: `bench/results/phase15-gpugemv.csv`.
 - **Phase 15 W3 (#211): gpubw GPU STREAM probe — console kill gate PASS.**
   Headless `gpubw.flag` / CLI `--gpubw`, pure helpers + CSV + checksum, AOT
   DXIL compute shader (system `D3D12CreateDevice`, never Agility). Multi-dim

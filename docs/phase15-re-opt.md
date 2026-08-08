@@ -159,7 +159,13 @@ CLI `--gpugemv` / `scripts/bench-gpugemv.sh`.
 | G2 density (soft) | G1 + **packed_gbs ≥ 40** (packed Q4_K bytes / s) |
 
 Default tile: N=K=8192 (~36 MiB packed). CSV:
-`bench/results/phase15-gpugemv.csv` when measured. **No product tok/s claim.**
+`bench/results/phase15-gpugemv.csv`.
+
+**Console 2026-08-08 (CI `1.5.2.860`):** `packed_gbs=2.15`,
+`max_abs_err≈4.6e-5`, `checksum_ok=1`, `d3d12_ran=1` → **G1 PASS / G2 FAIL**.
+Naive one-thread-per-row kernel is **compute-bound**, not BW-bound; does not
+disprove denser CS designs, but **this spike does not clear soft density ≥40**.
+**No product tok/s claim.**
 
 ## Milestones
 
