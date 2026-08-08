@@ -227,24 +227,13 @@ long prompt and the CPU wins from the second turn (§5d). Evidence under
       worth a future hardening is the `max_length` saturation, expressed in two
       files (`session.cpp`, `inference.cpp`) that agree by comment rather than by a
       shared helper — not a defect today.
-- [ ] Confirm the `max_length` valley mechanism. §5e gives **strong evidence for
-      per-process lazy kernel compilation** (DirectML warms 1.64×/1.72× on the
-      second call in a process; CPU control 1.00×), which is the leading
-      hypothesis over WDDM residency — but not yet a conclusive profile. The
-      per-node profiler cannot localise it alone (the graph is one
-      `DmlFusedNode_0_0` at 96% of kernel time, §12). Tracked in #130.
-      **2026-07-25 update (PR #158):** the cost is now _paid at load_ — a
-      throwaway generate warms DML sessions inside the "loading model" phase.
-      New mechanism facts from the Session/LAN-API path (960-token request,
-      same process): the cold cost hits **decode too** (18.2 → 23.1 tok/s), and
-      a ~2-token warm-up recovers only part of it (turn-1 prefill 682 vs 899
-      tok/s warm) — the warm-up must run a real-length prompt plus decode
-      steps, i.e. compilation is at least coarsely shape-dependent. What
-      remains open here is only the _root-cause profile_, not the user-facing
-      cost. **PR #164 closed the wall-clock half**: sessions pre-load at
-      model-Ready (`PreloadSessionAsync`), so the warm-up runs before the
-      user's first send instead of inside its wait — confirmed on-console
-      (first DML request: prefill 873 tok/s, decode at warm parity).
+- [x] **Confirm the `max_length` valley mechanism — product closed 2026-08-08
+      (#130).** §5e: strong evidence for per-process lazy DML kernel compile
+      (warms 1.64×/1.72×; CPU control 1.00×); not node-proven (`DmlFusedNode`
+      ~96%). Product mitigations shipped: saturate `max_length` to `n_ctx` +
+      load-time warm-up + pre-load at model-Ready (PR #158/#164). In-app turns
+      run warm. Issue **closed** product-mitigated; reopen only for a profile
+      campaign or regression with warm-up off.
 
 ## Phase 13 — CPU prefill & KV-reuse structural campaign ✅ complete (shipped 1.5.1.0)
 

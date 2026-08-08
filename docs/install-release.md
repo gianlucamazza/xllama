@@ -43,7 +43,7 @@ source ~/.config/xllama/xbox-env
 # (or add it as a dependency in the same WDP install dialog as the MSIX)
 
 # App (name matches the asset on the release — revision is not always .0)
-./scripts/deploy.sh xllama_1.5.4.0_x64.msix   # or the CI-stamped name from the release
+./scripts/deploy.sh xllama_1.5.4.887_x64.msix   # name from the GitHub Release assets
 ```
 
 Notes:
