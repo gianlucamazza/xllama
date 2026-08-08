@@ -47,8 +47,8 @@ performance belongs in `docs/benchmarks.md`.
 
 Priority order is hygiene and open product risks, not reopening parked eng:
 
-1. **Intermittent `kvsnap` under `all` (#216)** — flake still open; 1.5.3 suite
-   was green once, not a close.
+1. ~~**Intermittent `kvsnap` under `all` (#216)**~~ — **fixed** PR #232
+   (save/generate race); Series S `all` ×6 PASS (551→19).
 2. **Thinking-tier evidence (#223)** — no H9-style proof a reasoning turn completes.
 3. **#130 DML prefill valley** — mitigated by warm-up; root-cause profile open.
 4. **Vendor pin drops** (#84/#85/#86) — PatchedGenAI / PatchedOrt lifecycle.
