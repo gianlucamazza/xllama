@@ -359,11 +359,13 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
 ### H6 — GGUF GPU backend (Vulkan/D3D12) in AppContainer
 
 - **Claim:** At ≥3B, GPU decode beats CPU t6.
-- **Status:** **Gated by Phase 15 W3 (#211).** Spike eng ships a headless own
-  compute-shader STREAM probe (`gpubw.flag`, `include/xllama/gpubw.h`); **kill
-  criterion &lt; 100 GB/s read** → Do not reopen H6. Console CSV not yet the
-  product-path verdict until measured on Series S. Small-model GPU decode via
-  ORT DML already falsified.
+- **Status:** **W3 gate PASS (2026-08-08).** Own CS STREAM on Series S:
+  **119.07 GB/s** read over 1 GiB VRAM, checksum-verified
+  (`bench/results/phase15-gpubw.csv`, package `1.5.2.853`). Kill was
+  &lt; 100 GB/s → Do not reopen; measured ≥ 100 → **H6 eng is open** (own
+  compute path, not DirectML). Small-model GPU decode via ORT DML remains
+  falsified; this result only shows raw VRAM bandwidth our D3D12 code can
+  reach.
 
 ### H7 — GGUF prefill offload (hybrid)
 

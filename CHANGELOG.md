@@ -33,12 +33,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Phase 15 W3 (#211): gpubw GPU STREAM probe (spike, not a backend).** Headless
-  `gpubw.flag` / CLI `--gpubw`, pure helpers + CSV + checksum, AOT DXIL compute
-  shader (system `D3D12CreateDevice`, never Agility). Kill criterion remains
-  **100 GB/s** STREAM read (`docs/phase15-re-opt.md`). Host without D3D12
-  reports unavailable honestly (no invented GB/s). `scripts/bench-gpubw.sh`
-  fetches console CSV.
+- **Phase 15 W3 (#211): gpubw GPU STREAM probe — console kill gate PASS.**
+  Headless `gpubw.flag` / CLI `--gpubw`, pure helpers + CSV + checksum, AOT
+  DXIL compute shader (system `D3D12CreateDevice`, never Agility). Multi-dim
+  Dispatch so 1 GiB stays within D3D12’s 65535 groups/axis. **Series S measure
+  2026-08-08:** 1 GiB buffer, **119.07 GB/s** STREAM read, `checksum_ok=1`
+  (CI package `1.5.2.853`) ≥ 100 GB/s kill → **H6 eng motivated**. CSV:
+  `bench/results/phase15-gpubw.csv`. Host without D3D12 reports unavailable
+  honestly.
 - **Phase 15 W2 (#210): draft-free prompt-lookup speculative decoding (opt-in,
   default off).** `prompt_lookup_draft` pure helper, multi-token draft verify +
   `seq_rm` degrade in `decode_loop.h`, CLI `--prompt-lookup`,
