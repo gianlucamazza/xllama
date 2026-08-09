@@ -42,8 +42,10 @@ performance belongs in `docs/benchmarks.md`.
    (`scripts/check-vendor-nuget-status.sh`, poll 2026-08-08: still required).
 2. **Store readiness** — Partner Center human gate; App-vs-Game spike;
    NOTICE / listing (`docs/store-readiness.md`).
-3. **Parked eng** — H6/H7 (#228); Linux store PE layer 2; prompt-lookup default
-   OFF; Phase 15 “3B usable” without new density measure.
+3. **Parked eng** — H6/H7 (#228); crossbuild product parity (layer 2 closed
+   2026-08-08 by uwp-crossbuild 0.5.1 — launch proven, ORT/GenAI + first boot
+   - uptime not); prompt-lookup default OFF; Phase 15 “3B usable” without new
+     density measure.
 
 ## Phase 7 — Peer-class model research
 
@@ -58,10 +60,10 @@ Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.
       off bandwidth. Do not reopen at a lower quant — that tests the quantization,
       not the architecture.
 - [x] H3 speculative decoding — **CLOSED for product default 2026-08-07/08.**
-  Pre-gate 2026-07-29 split the hypothesis (draft-model rejected 0.81× chat;
-  prompt-lookup admitted at host 1.53×/1.00×). Phase 15 W2 eng shipped opt-in
-  (`prompt_lookup`, default OFF). Console M3: code **1.04× FAIL** ≥1.4× gate;
-  chat ~0.99×. Remains opt-in only — see Phase 15 W2 and `docs/phase15-re-opt.md`.
+      Pre-gate 2026-07-29 split the hypothesis (draft-model rejected 0.81× chat;
+      prompt-lookup admitted at host 1.53×/1.00×). Phase 15 W2 eng shipped opt-in
+      (`prompt_lookup`, default OFF). Console M3: code **1.04× FAIL** ≥1.4× gate;
+      chat ~0.99×. Remains opt-in only — see Phase 15 W2 and `docs/phase15-re-opt.md`.
 - [ ] H5 BitNet/low-bit survey before any runtime work.
 - [ ] H6/H7 GPU or hybrid GGUF eng — **parked 2026-08-08** after H6.1 G2 FAIL
       (2.15 GB/s packed; STREAM still 119 GB/s). Tracking: **#228** (reopen only
@@ -435,24 +437,24 @@ Findings, workstream status, decision log). Attack order: **W2 closed**
   question a speed PASS would have opened is moot.
 
 - [x] **W2 — H3: speculative decoding (#210). CLOSED for product default
-  2026-08-07/08** (eng remains as opt-in). Host: pure `prompt_lookup_draft`;
-  lead-first multi-token verify + `seq_rm` degrade; CLI `--prompt-lookup` /
-  `SessionParams` / headless `bench_prompt_lookup.txt` default OFF; greedy
-  MATCH. Console M3 Series S (`qwen25-coder-3b`, t6): code **1.04× FAIL**
-  ≥1.4× (14.15 → 14.74); chat 0.99×; peak ~2.0 GB. Spec fires (~32/62 accepts
-  on code) but does not break the membw wall. **Default OFF.** Ship/measure
-  packages via CI MSVC (`docs/crossbuild-console.md`). CSV:
-  `bench/results/phase15-spec-w2-console.csv`. SSOT Findings:
-  `docs/phase15-re-opt.md`.
-  Both halves of the original draft/target
-  pair already ship and are console-PASS: draft `qwen25-coder-0.5b` (379 MB,
-  62.4 tok/s), target `qwen25-coder-3b` (1840 MB, 14.0). **Vocab precondition
-  measured and PASSED 2026-07-29** (`bench/results/phase15-spec-vocab.csv`):
-  the pin's `common_speculative_are_compatible` throws rather than degrades,
-  and the pair is identical across all its checks. The same pass produced two
-  keepers — Qwen3-1.7B and Coder share a vocab _size_ but differ in 4 token
-  texts, and the H2 MoE has a 128000-token vocab against LFM2.5-350M's
-  65536, so **H2 and H3 do not compose**.
+      2026-08-07/08** (eng remains as opt-in). Host: pure `prompt_lookup_draft`;
+      lead-first multi-token verify + `seq_rm` degrade; CLI `--prompt-lookup` /
+      `SessionParams` / headless `bench_prompt_lookup.txt` default OFF; greedy
+      MATCH. Console M3 Series S (`qwen25-coder-3b`, t6): code **1.04× FAIL**
+      ≥1.4× (14.15 → 14.74); chat 0.99×; peak ~2.0 GB. Spec fires (~32/62 accepts
+      on code) but does not break the membw wall. **Default OFF.** Ship/measure
+      packages via CI MSVC (`docs/crossbuild-console.md`). CSV:
+      `bench/results/phase15-spec-w2-console.csv`. SSOT Findings:
+      `docs/phase15-re-opt.md`.
+      Both halves of the original draft/target
+      pair already ship and are console-PASS: draft `qwen25-coder-0.5b` (379 MB,
+      62.4 tok/s), target `qwen25-coder-3b` (1840 MB, 14.0). **Vocab precondition
+      measured and PASSED 2026-07-29** (`bench/results/phase15-spec-vocab.csv`):
+      the pin's `common_speculative_are_compatible` throws rather than degrades,
+      and the pair is identical across all its checks. The same pass produced two
+      keepers — Qwen3-1.7B and Coder share a vocab _size_ but differ in 4 token
+      texts, and the H2 MoE has a 128000-token vocab against LFM2.5-350M's
+      65536, so **H2 and H3 do not compose**.
 
   **Pre-gate measured 2026-07-29 → the draft model is rejected, the draft-free
   variant proceeds** (`scripts/bench-spec-pregate.sh`,

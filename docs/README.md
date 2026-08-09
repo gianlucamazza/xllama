@@ -90,17 +90,17 @@ path checklist for discovery — descriptions are not repeated.
 
 ### Acceptable headline vs SSOT
 
-| Kind of content                      | Allowed outside SSOT                                                     | Forbidden                                              |
-| ------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------ |
-| Role / status one-liners             | Yes (e.g. README “default chat is LFM2.5-350M”)                          | Second full catalogue or perf table                    |
-| Exact tok/s, peak RAM, speedups      | Only [benchmarks.md](./benchmarks.md) (generated) + raw `bench/results/` | Restating figures in README / UI guide without linking |
-| Download / catalogue size            | Sum of `approx_bytes` in `uwp/models/manifest.json`                      | Invented MB that drift from the manifest               |
-| Hardware ceilings (GPU budget, etc.) | [uwp-constraints.md](./uwp-constraints.md)                               | Parallel ceilings elsewhere                            |
-| NuGet version pins                   | `uwp/packages.config` + recommended-config / vendor-lifecycle            | Parallel version tables                                |
-| Repo file tree                       | AGENTS.md (agents)                                                       | Full second tree in README                             |
-| Phase checklist                      | ROADMAP.md                                                               | Duplicated phase list in README                        |
-| Phase 15 RE / optimization campaign  | [phase15-re-opt.md](./phase15-re-opt.md) (W2 default OFF; W3 M6 PASS → #228) | Second workstream narrative in README                |
-| Linux→Xbox package without Windows VM | [crossbuild-console.md](./crossbuild-console.md) (launch = CI MSVC)     | Claiming crossbuild xllama packages launch on Series S |
+| Kind of content                       | Allowed outside SSOT                                                                                                                              | Forbidden                                                                                                                                   |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Role / status one-liners              | Yes (e.g. README “default chat is LFM2.5-350M”)                                                                                                   | Second full catalogue or perf table                                                                                                         |
+| Exact tok/s, peak RAM, speedups       | Only [benchmarks.md](./benchmarks.md) (generated) + raw `bench/results/`                                                                          | Restating figures in README / UI guide without linking                                                                                      |
+| Download / catalogue size             | Sum of `approx_bytes` in `uwp/models/manifest.json`                                                                                               | Invented MB that drift from the manifest                                                                                                    |
+| Hardware ceilings (GPU budget, etc.)  | [uwp-constraints.md](./uwp-constraints.md)                                                                                                        | Parallel ceilings elsewhere                                                                                                                 |
+| NuGet version pins                    | `uwp/packages.config` + recommended-config / vendor-lifecycle                                                                                     | Parallel version tables                                                                                                                     |
+| Repo file tree                        | AGENTS.md (agents)                                                                                                                                | Full second tree in README                                                                                                                  |
+| Phase checklist                       | ROADMAP.md                                                                                                                                        | Duplicated phase list in README                                                                                                             |
+| Phase 15 RE / optimization campaign   | [phase15-re-opt.md](./phase15-re-opt.md) (W2 default OFF; W3 M6 PASS → #228)                                                                      | Second workstream narrative in README                                                                                                       |
+| Linux→Xbox package without Windows VM | [crossbuild-console.md](./crossbuild-console.md) (crossbuild launch observed 2026-08-08, uwp-crossbuild ≥ 0.5.1; product/measured path = CI MSVC) | Restating crossbuild launch status outside that SSOT, or claiming crossbuild bench/product parity (unproven: ORT/GenAI, first boot, uptime) |
 
 ### Coherence check (automated)
 

@@ -13,7 +13,7 @@ Portal basics see [device-portal.md](./device-portal.md).
 - A credentials file, e.g. `~/.config/xllama/xbox-env`:
 
   ```bash
-  export XBOX_IP=192.168.1.44
+  export XBOX_IP=192.168.1.x
   export XBOX_USER=...
   export XBOX_PASS=...
   ```

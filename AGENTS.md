@@ -116,10 +116,11 @@ ctest --test-dir build/linux-test --output-on-failure
 ### UWP (Windows / CI)
 
 Recommended: push to `main` and download the `xllama-appx` artifact from the
-`build-uwp` GitHub Actions workflow. **That CI MSVC package is the path that
-launches on Series S.** Linux uwp-crossbuild can compile a layout (see
-`docs/crossbuild-console.md`) but xllama packages from it do not activate
-(`0x8027025b`) — use CI for console benches and shipping claims.
+`build-uwp` GitHub Actions workflow. **That CI MSVC package is the shipping
+and measurement path on Series S.** Linux uwp-crossbuild (≥ 0.5.1) also
+produces a package whose launch was observed on device 2026-08-08 (see
+`docs/crossbuild-console.md`; ORT/GenAI, first boot and uptime unproven
+there) — use CI for console benches and shipping claims.
 
 For local builds (requires a Windows VM — see `docs/windows-dev-vm.md`):
 
