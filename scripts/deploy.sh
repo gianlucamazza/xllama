@@ -36,6 +36,11 @@ APP_ID_LEGACY="VenereLabs.xllama"
 CSRF_TOKEN=$(curl "${CURL_AUTH[@]}" "${BASE_URL}/" -o /dev/null -D - 2>/dev/null |
 	sed -n 's/.*[Cc][Ss][Rr][Ff]-[Tt]oken=\([^;[:space:]]*\).*/\1/p' |
 	tr -d '\r' | head -n 1)
+# Every POST/DELETE below needs this header; without it the device answers 403.
+# Read-only subcommands (pfn, get-log, list-*) work without it, so warn rather
+# than exit — but say it once, loudly, instead of leaving the caller to guess
+# why a state change did nothing.
+[[ -z "$CSRF_TOKEN" ]] && echo "Warning: no CSRF token from ${BASE_URL} — POST/DELETE will fail with 403" >&2
 
 if [[ -z "$CSRF_TOKEN" ]]; then
 	echo "Warning: failed to extract CSRF token. POST requests may fail." >&2
@@ -199,12 +204,24 @@ start_app() {
 	pfn="$(require_pfn "${1:-}")"
 	local aumid
 	aumid="$(aumid_for_pfn "$pfn")"
-	curl "${CURL_AUTH[@]}" \
+	# curl exits 0 on an HTTP error unless -f is given, and this discarded the
+	# body, so "Started ${pfn}." used to print whatever the device answered —
+	# including 400 {"ErrorMessage":"Failed to launch the application."} for a
+	# package that is not installed. Same defect stop_app had; report the truth.
+	local body code
+	body="$(curl "${CURL_AUTH[@]}" \
 		-H "X-CSRF-Token:${CSRF_TOKEN}" \
 		-X POST \
-		-d "" \
-		"${BASE_URL}/api/taskmanager/app?appid=${aumid}" >/dev/null
-	echo "Started ${pfn}."
+		-d "" -w '\n%{http_code}' \
+		"${BASE_URL}/api/taskmanager/app?appid=${aumid}")"
+	code="${body##*$'\n'}"
+	body="${body%$'\n'*}"
+	if [[ "$code" == "200" ]]; then
+		echo "Started ${pfn}."
+	else
+		echo "Error: start-app returned HTTP ${code}: ${body}" >&2
+		return 1
+	fi
 }
 
 stop_app() {
