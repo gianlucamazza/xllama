@@ -118,6 +118,23 @@
       ]
     },
     {
+      "_comment": "Phase 16 H16.1c PASS (2026-08-10): 119.17 tok/s decode, 241 MB peak, H9 2/8 on Series S — displaces gemma3-270m as the floor role at 1.55x its decode and 127 MB less peak, at one H9 task below it. Direct from LiquidAI so the LFM Open License accompanies the weights; the unsloth Q4_K_M is a different artefact (bench/results/phase16-quantiser-ab.csv).",
+      "name": "lfm25-230m",
+      "display": "LFM2.5 230M (GGUF · CPU · floor)",
+      "kind": "gguf",
+      "hf_base_url": "https://huggingface.co/LiquidAI/LFM2.5-230M-GGUF/resolve/main",
+      "files": [
+        {
+          "filename": "LFM2.5-230M-Q4_K_M.gguf",
+          "approx_bytes": 153406304
+        },
+        {
+          "filename": "LICENSE",
+          "approx_bytes": 10574
+        }
+      ]
+    },
+    {
       "name": "lfm25-350m",
       "display": "LFM2.5 350M (GGUF · CPU)",
       "kind": "gguf",

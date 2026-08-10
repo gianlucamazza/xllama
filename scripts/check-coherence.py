@@ -780,6 +780,9 @@ def main() -> int:
         "lfm25-350m": (4, 8),
         "llama32-3b": (5, 8),
         "gemma4-e2b": (6, 8),
+        # Phase 16 (2026-08-10, bench/results/phase7-h9.jsonl): the floor tier.
+        "lfm25-230m": (2, 8),
+        "gemma3-270m": (3, 8),
     }
     for model, (a, b) in expect_h9.items():
         s, n = sum(h9[model]), len(h9[model])

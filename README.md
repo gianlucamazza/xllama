@@ -134,8 +134,9 @@ release, [docs/using-the-app.md](./docs/using-the-app.md) for the app guide, and
   started. The closest prior art is Andrei David's `llama2.c` port to the **Xbox 360**
   (January 2025) — a proof of concept on very different hardware, credited below.
 
-**Measured performance (Xbox Series S):** LFM2.5-350M is the fastest catalogue
-chat option; larger LFM tiers trade throughput for quality. KV-cache reuse cuts
+**Measured performance (Xbox Series S):** LFM2.5-230M is the fastest and
+lightest catalogue chat option, with LFM2.5-350M the first-launch default;
+larger LFM tiers trade throughput for quality. KV-cache reuse cuts
 turn-2 prefill sharply on CPU paths. GPU text routing accelerates **first-turn
 TTFT** on long prompts (parity-validated `-v2` DML asset); from turn 2 the CPU
 wins at every reachable length (DirectML has no KV reuse). DirectML also runs

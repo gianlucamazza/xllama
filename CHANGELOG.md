@@ -7,6 +7,42 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Phase 16 model-scouting campaign** (`docs/phase16-model-scouting.md`) and
+  its first shipped result: catalogue entry **`lfm25-230m`** (LFM2.5-230M
+  Q4_K_M, direct from LiquidAI so the LFM Open License travels with the
+  weights). Console-measured on Series S at **119.2 tok/s decode / 241 MB peak
+  / H9 2/8** — it becomes the **floor** tier, displacing `gemma3-270m` at
+  1.55× its decode and 127 MB less peak, at one H9 task below it. The
+  first-launch default stays `lfm25-350m`, which is slower and heavier but
+  scores 4/8: the default trades throughput for capability deliberately.
+  Evidence `bench/results/phase16-gguf.csv`, `bench/results/phase7-h9.jsonl`.
+- **`gemma3-270m` H9 measured for the first time (3/8).** Its `model-matrix`
+  §A1 cell had carried `—` since the model was catalogued, which is what made
+  the floor-tier comparison uncomputable until now.
+- **Markdown formatting is gated in CI**, pinned to `prettier@3.9.6` alongside
+  the existing `clang-format==22.1.5`, over every tracked `*.md`
+  (`.prettierrc`, `.prettierignore`). The repo had no Markdown formatter and
+  had drifted; the whole corpus was formatted once in the same change.
+
+### Changed
+
+- **Phase 16 WS-B closed without a `llama.cpp` pin bump.** Both
+  `arch:not-in-pin` flags raised at desk were refuted at the GGUF header
+  (`Qwen3.5-2B` converts to `general.architecture = qwen35`, which the pin
+  carries), so the predeclared trigger for a bump never fired.
+
+### Fixed
+
+- **Documentation drift found by the Phase 16 audit**: `model-matrix` §D
+  claimed `H2 open` while §A3 of the same file recorded H2 FAIL; its "Last
+  updated" stamp predated its own newest content; §G still listed a shipped
+  MSIX as an open gap; `benchmarks.md` cited a stale `llama.cpp` pin;
+  `recommended-config.md` enumerated a four-gate console suite that has been
+  ten gates since v1.5.4.0; and the Phase 16 campaign doc had wrongly listed
+  H5 (BitNet) as closed when it is an open desk survey.
+
 ## [1.5.4.0] - 2026-08-08
 
 Post-1.5.3 hygiene on the product path: conversation-switch KV snapshots are
@@ -38,7 +74,7 @@ console gates. Product ship path remains **CI MSVC**.
 - **#216 KV snapshot race on conversation switch.** `SaveKvSnapshotAsync` used a
   detached thread; a follow-up turn could take the session hub lock and rewrite
   the resident KV before the leave-conversation save finished, so the file on the
-  old chat's path held the *new* chat's tokens. Load still logged "restored", then
+  old chat's path held the _new_ chat's tokens. Load still logged "restored", then
   the #170a prefix diff found no match and full-prefilled (~cold tokens). The
   gate under `all` saw this ~1/6; standalone rarely did. Generate now waits for
   any outstanding snapshot save; prefix-miss and hybrid-rewind paths log enough
