@@ -64,7 +64,10 @@ Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.
       prompt-lookup admitted at host 1.53×/1.00×). Phase 15 W2 eng shipped opt-in
       (`prompt_lookup`, default OFF). Console M3: code **1.04× FAIL** ≥1.4× gate;
       chat ~0.99×. Remains opt-in only — see Phase 15 W2 and `docs/phase15-re-opt.md`.
-- [ ] H5 BitNet/low-bit survey before any runtime work.
+- [ ] H5 BitNet/low-bit survey before any runtime work. Candidates now come from
+      the Phase 16 scouting funnel
+      ([`docs/phase16-model-scouting.md`](docs/phase16-model-scouting.md)); the
+      go/no-go note is Phase 15 milestone M8.
 - [ ] H6/H7 GPU or hybrid GGUF eng — **parked 2026-08-08** after H6.1 G2 FAIL
       (2.15 GB/s packed; STREAM still 119 GB/s). Tracking: **#228** (reopen only
       with new density measure or revised gate).
@@ -494,6 +497,41 @@ Findings, workstream status, decision log). Attack order: **W2 closed**
       the same behaviour as the chat UI — the CLI being the surface this project
       measures and A/Bs on. −107 lines; host suite unchanged, all 8 console gates
       PASS on MSIX 1.5.2.802.
+
+## Phase 16 — Model scouting (complete)
+
+SSOT: [`docs/phase16-model-scouting.md`](docs/phase16-model-scouting.md) — funnel,
+validation ladder, workstream cards, decision log. Phase 15 owns how fast the
+resident model runs; Phase 16 owns which models exist at all. The 2026-07-27
+survey (`docs/model-matrix.md` §F) is the thing being refreshed, across four
+classes and with a console budget capped at ≤9 bench sessions.
+
+- [x] **WS-A (H16.1) — text GGUF scouting.** **Done 2026-08-10, one shipped:**
+      `lfm25-230m` is the new **floor** tier (119.2 tok/s / 241 MB / H9 2/8),
+      displacing `gemma3-270m` at 1.55× its decode and 127 MB less peak.
+      Qwen3.5-2B and Maincoder-1B measured FAIL; MiniCPM5-1B deferred on
+      unbought renderer work. 3 of ≤4 sessions spent.
+- [x] **WS-B (H16.2) — `llama.cpp` pin bump evaluation.** **Closed 2026-08-10,
+      not motivated.** Both T0 arch flags were refuted at the GGUF header
+      (`Qwen3.5-2B` converts to `qwen35`, which the pin carries); no candidate
+      fails the arch filter and nothing else, so the trigger never fired.
+- [x] **WS-C (H16.3) — ORT GenAI / DirectML text.** **Closed on its own kill:**
+      every 2026 sub-4B model moved off the Qwen3/Gemma3 architectures the GenAI
+      builder is frozen at. Reopening needs a GenAI bump (`vendor-lifecycle-plan.md`).
+- [x] **WS-D (H16.4) — diffusion successor.** **Closed on its own kill:** no
+      candidate has a usable 3-component ONNX export. SDXL-Turbo fails the 2 GB
+      protobuf limit, not the GPU budget; SD3.5/Flux are monolithic DiT.
+- [~] **WS-E (H16.5) — embedding surface.** **Blocked on a product decision,**
+  not on technology: `nomic-embed-text-v1.5` is verified config-only at
+  156 MB, but nobody has named who consumes the vectors, where they live, or
+  how a second `llama_context` survives the one-resident-model rule.
+- [~] **WS-F (H16.6) — ASR surface.** **Blocked on an unwritten probe:** does the
+  Xbox AppContainer grant `MediaCapture`/`AudioGraph`? T0 settled the backend
+  half — GGUF ASR is empty by construction, so any route is ORT GenAI.
+- [x] **WS-G (H16.7) — vision / VLM surface.** **Closed:** S-gate FAIL — five
+      new C++ surfaces against a ≤1 budget, on a desk close with no console time.
+
+At most one of WS-E/F/G may reach the console this campaign.
 
 ## Xbox Store retail (public release path)
 
