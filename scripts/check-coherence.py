@@ -804,16 +804,22 @@ def main() -> int:
                 broken.append(link)
         return broken
 
-    for label, path, base in [
-        ("README", ROOT / "README.md", ROOT),
-        ("docs/README", ROOT / "docs/README.md", ROOT / "docs"),
-        ("architecture", ROOT / "docs/architecture.md", ROOT / "docs"),
-    ]:
-        broken = check_links(path, base)
+    # Every Markdown file we own, not a hand-picked three: model-matrix.md is the
+    # status SSOT and is dense with relative links, and it was unguarded — a
+    # dangling link there survived a full green run.
+    skip = ("llama.cpp/", "vendor/", "uwp/packages/", "build", "node_modules/")
+    md_files = sorted(
+        p for p in ROOT.glob("**/*.md")
+        if not str(p.relative_to(ROOT)).startswith(skip)
+    )
+    link_errors = 0
+    for path in md_files:
+        broken = check_links(path, path.parent)
         if broken:
-            err(f"{label} broken links: {broken[:8]}")
-        else:
-            good(f"{label} links OK")
+            err(f"{path.relative_to(ROOT)} broken links: {broken[:8]}")
+            link_errors += 1
+    if not link_errors:
+        good(f"relative links OK across {len(md_files)} Markdown files")
 
     # --- CI gates ---
     wf = (ROOT / ".github/workflows/build-linux.yml").read_text(encoding="utf-8")
