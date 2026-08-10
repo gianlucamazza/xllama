@@ -78,7 +78,7 @@ echo "  PFN:         $PFN"
 
 if [[ "$ASSUME_YES" != "true" ]]; then
 	echo ""
-	echo "Confirm the model dir is on the USB stick at:  <usb>\\xllama\\models\\${MODEL_NAME}\\"
+	printf 'Confirm the model dir is on the USB stick at:  <usb>\\xllama\\models\\%s\\\n' "$MODEL_NAME"
 	echo "(model.onnx, model.onnx.data, genai_config.json, tokenizer files) and the stick is plugged in."
 	read -r -p "Proceed? [y/N] " ans
 	[[ "$ans" =~ ^[Yy]$ ]] || {
@@ -119,7 +119,7 @@ if "${DEPLOY}" list-localstate "$PFN" 2>/dev/null | grep -qi "usb_model_root.txt
 	echo "  ✓ usb_model_root.txt present — USB drive discovered."
 else
 	echo "  ! usb_model_root.txt NOT written — the app did not find the model on USB."
-	echo "    Check: stick plugged into the console? layout <usb>\\xllama\\models\\${MODEL_NAME}\\genai_config.json?"
+	printf '    Check: stick plugged into the console? layout <usb>\\xllama\\models\\%s\\genai_config.json?\n' "$MODEL_NAME"
 	echo "    Inspect the USB probe log lines:"
 	"${DEPLOY}" get-log "$PFN" 2>/dev/null | grep -i "usb probe\|usb model" | tail -5 | sed 's/^/       /' || true
 fi
