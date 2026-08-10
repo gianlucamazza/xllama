@@ -64,7 +64,7 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   ~4× slower in perceived latency. The bandwidth premise was confirmed (631 MB
   read/token vs 645 predicted) — the cost simply moves elsewhere. Full result,
   including why H9 was not applicable, under "H2 measured on console" below.
-  Desk survey 2026-07-29 against pin `b10093-1-g6d5a910c5`, whose
+  Desk survey 2026-07-29 against pin `6d5a910c5` (tag `b10094`), whose
   `src/models/*.cpp` wildcard already compiles `lfm2moe.cpp`, `granite-moe.cpp`,
   `qwen3moe.cpp`, `olmoe.cpp` and ~20 more.
 
@@ -399,14 +399,14 @@ config-only, MoE H2 as a decode win, draft-model speculative as a default
 
 ## Shortlist (desk, 2026-07-16)
 
-| Hypothesis | Candidate                        | Repo / file                            | Size    | Why                                                   |
-| ---------- | -------------------------------- | -------------------------------------- | ------- | ----------------------------------------------------- |
-| H4         | Llama-3.2-3B-Instruct Q3_K_S     | `unsloth/Llama-3.2-3B-Instruct-GGUF`   | 1.54 GB | **Measured preferred** — catalogue `llama32-3b`       |
-| H4         | Llama-3.2-3B-Instruct Q4_K_M     | same                                   | 2.02 GB | Quality control if Q3 weak (not needed after Q3 PASS) |
-| H4         | Phi-3.5-mini Q3_K_S              | `bartowski/Phi-3.5-mini-instruct-GGUF` | 1.68 GB | **Measured** — loses A/B; no catalogue                |
-| H1         | LFM2.5-1.2B-Instruct Q4_K_M      | `LiquidAI/LFM2.5-1.2B-Instruct-GGUF`   | 697 MB  | **PASS** — balanced catalogue tier                    |
-| H1         | LFM2-2.6B Q4_K_M                 | `LiquidAI/LFM2-2.6B-GGUF`              | 1.46 GB | **PASS** — quality catalogue tier                     |
-| H2         | Small MoE GGUF with arch in tree | e.g. OLMoE/Qwen-MoE tiny               | TBD     | Only if &lt;~3.5 GB Q3                                |
+| Hypothesis | Candidate                    | Repo / file                            | Size    | Why                                                   |
+| ---------- | ---------------------------- | -------------------------------------- | ------- | ----------------------------------------------------- |
+| H4         | Llama-3.2-3B-Instruct Q3_K_S | `unsloth/Llama-3.2-3B-Instruct-GGUF`   | 1.54 GB | **Measured preferred** — catalogue `llama32-3b`       |
+| H4         | Llama-3.2-3B-Instruct Q4_K_M | same                                   | 2.02 GB | Quality control if Q3 weak (not needed after Q3 PASS) |
+| H4         | Phi-3.5-mini Q3_K_S          | `bartowski/Phi-3.5-mini-instruct-GGUF` | 1.68 GB | **Measured** — loses A/B; no catalogue                |
+| H1         | LFM2.5-1.2B-Instruct Q4_K_M  | `LiquidAI/LFM2.5-1.2B-Instruct-GGUF`   | 697 MB  | **PASS** — balanced catalogue tier                    |
+| H1         | LFM2-2.6B Q4_K_M             | `LiquidAI/LFM2-2.6B-GGUF`              | 1.46 GB | **PASS** — quality catalogue tier                     |
+| H2         | LFM2.5-8B-A1B UD-IQ3_S       | `unsloth/LFM2.5-8B-A1B-GGUF`           | 3.57 GB | **Measured FAIL** (2026-07-30) — see the H2 card      |
 
 ## Console campaign results
 
