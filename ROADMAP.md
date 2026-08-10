@@ -64,10 +64,13 @@ Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.
       prompt-lookup admitted at host 1.53×/1.00×). Phase 15 W2 eng shipped opt-in
       (`prompt_lookup`, default OFF). Console M3: code **1.04× FAIL** ≥1.4× gate;
       chat ~0.99×. Remains opt-in only — see Phase 15 W2 and `docs/phase15-re-opt.md`.
-- [ ] H5 BitNet/low-bit survey before any runtime work. Candidates now come from
-      the Phase 16 scouting funnel
-      ([`docs/phase16-model-scouting.md`](docs/phase16-model-scouting.md)); the
-      go/no-go note is Phase 15 milestone M8.
+- [x] H5 BitNet/low-bit survey — **done 2026-08-10, NO-GO.** Not on merit: the
+      pin already carries the `bitnet` arch, but no sub-4B model _trained_ at
+      ≤2 bits publishes downloadable weights, and nine months of QAT literature
+      ships recipes rather than checkpoints. Answers Phase 15 milestone M8.
+      Reopen only on a released sub-4B low-bit checkpoint — post-hoc 2-bit
+      quantisation is a different bet (IQ2_M precedent). Evidence:
+      [`docs/phase7-hypotheses.md`](docs/phase7-hypotheses.md) H5.
 - [ ] H6/H7 GPU or hybrid GGUF eng — **parked 2026-08-08** after H6.1 G2 FAIL
       (2.15 GB/s packed; STREAM still 119 GB/s). Tracking: **#228** (reopen only
       with new density measure or revised gate).
