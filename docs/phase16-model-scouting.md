@@ -773,6 +773,91 @@ Consequence: **no T3 session is booked for `minicpm5-1b`** until clause (c) — 
 log. That is its own card's condition, and it is now the only WS-A candidate
 carrying unbought engineering.
 
+### H16.1d — the kill does not fire: all three clauses measured (2026-08-10)
+
+**Clause (c), the ≤40-line renderer.** Written and graded by paste, not by
+prose, as the card's editor note requires. Against `chat_prompt.{h,cpp}` plus
+the #169 `n_keep` call site: **32 insertions / 4 deletions, of which 15 are
+code** — the rest are comments. The `#169` call site (`uwp/MainPage.cpp:2942`)
+needed **zero** changes, because `bos` lives inside `render_system_prefix`,
+which is the one function both `render_prompt` and the pinned head already go
+through. A template BOS therefore cannot be counted by one and missed by the
+other, which is the invariant #169 exists to hold.
+
+```
++bool model_is_minicpm5(const std::string& model_id);
++    std::string bos;
++bool model_is_minicpm5(const std::string& model_id) {
++    return to_lower(model_basename(model_id)).find("minicpm5") != std::string::npos;
++}
+-        f.gen_suffix = qwen_no_think_gen_suffix(model_id);
++        f.gen_suffix = model_is_minicpm5(model_id) ? empty_think_block() + "\n\n"
++                                                   : qwen_no_think_gen_suffix(model_id);
++        f.bos = model_is_minicpm5(model_id) ? "<s>" : "";
+-        return turn_open + system_tag + role_sep + system + turn_close;
+-    return {};
++        return bos + turn_open + system_tag + role_sep + system + turn_close;
++    return bos;
+```
+
+**Clauses (a) and (b), re-measured through the shipped renderer** rather than
+through a hand-built prompt: 3 fixed prompts × 2 greedy runs, `-t 6 -n 64`.
+All three **byte-stable**, **0 occurrences of `think`** in any output, coherent
+answers with a clean stop (`The capital of France is **Paris**.` …;
+`23 / 29 / 31` for the primes prompt).
+
+**So no kill clause fires and T3 is bookable.** This is also the first
+confirmation that the renderer is load-bearing rather than cosmetic: run against
+the _pre-renderer_ binary by mistake, the same three prompts returned **empty
+output** — exactly the "closes the turn immediately" failure T1 recorded for
+ChatML without `<s>`. The mistake is worth keeping in the record because it is
+a free positive control nobody designed.
+
+### H16.1d — T2's premise is falsified twice, at zero download cost
+
+The card mandated a **self-conversion at the pin**, on the premise that the
+vendor GGUF stamps `tokenizer.ggml.pre = 'llama-bpe'` while the dedicated
+MiniCPM5 pre-tokenizer landed later and is present in the pin. The vendor stamp
+is confirmed (`llama-bpe`, `add_bos_token = False`, `general.architecture =
+llama`). The premise still does not hold, for two independent reasons.
+
+**1. The pin carries only the runtime half.** `llama-vocab.cpp` has
+`LLAMA_VOCAB_PRE_TYPE_MINICPM5` with its own regex set (line 2126), but
+`convert_hf_to_gguf.py` at the pin contains **zero** occurrences of `minicpm5` —
+only `convert_hf_to_gguf_update.py`, which is the generator, lists the repo. So
+converting at the pin **cannot** stamp `minicpm5`; the artefact the card asks
+for is not reachable by the method the card prescribes. Reaching it needs either
+a converter patch or a pin bump, and WS-B is closed as not motivated.
+
+**2. The difference it protects is 0.03%, and it is whitespace.** Measured by
+rewriting only that one KV (`gguf_new_metadata.py --pre-tokenizer minicpm5`,
+`add_bos_token` unchanged) and tokenising both artefacts:
+
+| Input                                                                  | `llama-bpe` | `minicpm5` | Diff          |
+| ---------------------------------------------------------------------- | ----------- | ---------- | ------------- |
+| Digit-dense probe (`v2.5`, `1234567`, `$1,234.56`, `abc123def`, dates) | 44 tokens   | 44 tokens  | **identical** |
+| 56 KB mixed corpus (docs + code fences + CJK + Greek + emoji)          | 15858       | 15853      | **5 tokens**  |
+
+Every difference is a run of spaces: `llama-bpe` emits `'  '` + `' '` where
+`minicpm5` emits `'   '` (ids 282+242 vs 394), once in reverse. Note the
+digit-dense probe — built specifically to expose the numeric-adjacency
+divergence the card predicted — found **nothing**; the divergence is not where
+the card expected it.
+
+A third finding falls out and it validates the renderer's `<s>` half
+independently: the `llama-bpe` branch sets `add_bos = true`, but the
+`add_bos_token` KV is read **after** the pre-type branch (`llama-vocab.cpp`
+2544-2549) and overrides it. `False` therefore stands under either stamp, no BOS
+is added by the tokenizer, and the template must supply it — with no risk of
+doubling it.
+
+**Disposition:** T2 is recorded as **premise falsified, not performed**. The
+artefact used for T1/T3 is the vendor Q4_K_M with the pre-tokenizer KV rewritten
+to `minicpm5` — one metadata rewrite, no conversion, no download. If H16.1d ever
+reaches T5, the catalogue question is separate and cheap: at 5 tokens per 56 KB
+the vendor file may simply be shipped unmodified, and that decision must be made
+on the record above rather than re-derived.
+
 ### A seventh card defect, same class as the first six
 
 `fit_prompt` lives in the UWP app only (`uwp/api-server.cpp`, `uwp/MainPage.cpp`);
