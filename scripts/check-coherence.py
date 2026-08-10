@@ -808,17 +808,27 @@ def main() -> int:
     # Every Markdown file we own, not a hand-picked three: model-matrix.md is the
     # status SSOT and is dense with relative links, and it was unguarded — a
     # dangling link there survived a full green run.
-    # Match whole path components, not prefixes: a raw "build" prefix would also
-    # skip build-notes.md and builder/, which we do own.
-    skip = {"llama.cpp", "vendor", "node_modules", "build", "build-uwp-test"}
-    def _ours(p: Path) -> bool:
-        parts = p.relative_to(ROOT).parts
-        if parts[0] in skip:
-            return False
-        return parts[:2] != ("uwp", "packages")
-    md_files = sorted(
-        p for ext in ("*.md", "*.markdown") for p in ROOT.glob(f"**/{ext}") if _ours(p)
+    # Ask git what we own instead of globbing the disk. Globbing scanned a
+    # contributor's `scripts/lora-spike/.venv/` and generated `training/out/`
+    # adapters — files CI never checks out, so the check passed there and could
+    # fail only locally, which makes the pre-push run untrustworthy. `git
+    # ls-files` also drops the llama.cpp submodule for free (one gitlink entry,
+    # no path separator), the same reason the AGENTS tree check above uses it.
+    md_exempt = ("vendor/",)  # vendored READMEs, owned by vendor-lifecycle-plan.md
+    r = subprocess.run(
+        ["git", "ls-files", "*.md", "*.markdown"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
     )
+    md_files = sorted(
+        ROOT / rel
+        for rel in r.stdout.splitlines()
+        if rel and not rel.startswith(md_exempt)
+    )
+    if not md_files:
+        err("no tracked Markdown files found — is this a git checkout?")
     link_errors = 0
     for path in md_files:
         broken = check_links(path, path.parent)
