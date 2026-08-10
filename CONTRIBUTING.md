@@ -18,8 +18,9 @@ Mode)**; most constraints come from the UWP/AppContainer sandbox, so read
 cmake --preset linux-test
 cmake --build build/linux-test -j"$(nproc)"
 ctest --test-dir build/linux-test --output-on-failure
-# Formatting gate (CI enforces it with --Werror):
-clang-format -i <changed .cpp/.h files>
+# Formatting gates (CI enforces both):
+clang-format -i <changed .cpp/.h files>            # --Werror in CI
+npx prettier@3.9.6 --write <changed .md files>     # --check in CI
 shellcheck scripts/*.sh   # if you touched shell
 # If you touched bench CSVs or summary policy:
 python3 scripts/generate-benchmark-summary.py --check
@@ -31,7 +32,13 @@ python3 scripts/check-coherence.py
 
 - **C++17**, RAII, `unique_ptr`; concise, no over-engineering. English for code,
   comments, and commits.
-- **Formatting** is enforced (`.clang-format`, pinned `clang-format` in CI).
+- **Formatting** is enforced for both C++ and Markdown, with the formatter
+  version pinned in CI: `.clang-format` + `clang-format==22.1.5`, and
+  `.prettierrc` + `prettier@3.9.6` over every tracked `*.md`
+  (`.prettierignore` keeps `llama.cpp/` and `vendor/` out). `proseWrap` is
+  `preserve`, so prettier normalises structure and leaves your prose line
+  breaks alone. Regenerating `docs/benchmarks.md` is a two-step: run
+  `generate-benchmark-summary.py`, then prettier.
 - **Commits**: conventional prefixes (`feat`, `fix`, `docs`, `ci`, `chore`, …).
 
 ## Documentation

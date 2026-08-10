@@ -7,7 +7,10 @@ Quick reference for AI agents and new contributors.
 - **Language**: English for code, comments, filenames, commit messages.
 - **C++ standard**: C++17 (UWP / SDK 22621 + MSVC).
 - **Style**: concise, no over-engineering. Prefer RAII and `unique_ptr`.
-- **Formatting**: auto-format on save if possible; otherwise follow existing style.
+- **Formatting**: auto-format on save if possible; otherwise follow existing
+  style. Both formatters are pinned and gated in CI — `clang-format` 22.1.5 for
+  C++, `prettier` 3.9.6 for every tracked `*.md` (`.prettierrc` /
+  `.prettierignore`).
 
 ## Directory structure
 

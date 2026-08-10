@@ -16,15 +16,15 @@ TrainingJob (JSON) ──► host PEFT LoRA ──► adapter ──► merge GG
 
 ## Layout
 
-| Path                    | Role                                                      |
-| ----------------------- | --------------------------------------------------------- |
-| `jobs/*.json`           | Declarative train jobs (schema validated by C++)          |
+| Path                    | Role                                                                         |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| `jobs/*.json`           | Declarative train jobs (schema validated by C++)                             |
 | `manifest-overrides/`   | LocalState `manifest.json` snippets for console serve gates (not train jobs) |
-| `datasets/`             | JSONL chat datasets                                       |
-| `host/train_lora.py`    | PEFT LoRA trainer (CPU/GPU host)                          |
-| `host/run_job.sh`       | Stage runner: prepare → train → export → merge → evaluate |
-| `host/requirements.txt` | Python deps for host backend                              |
-| `out/`                  | Working artefacts (gitignored)                            |
+| `datasets/`             | JSONL chat datasets                                                          |
+| `host/train_lora.py`    | PEFT LoRA trainer (CPU/GPU host)                                             |
+| `host/run_job.sh`       | Stage runner: prepare → train → export → merge → evaluate                    |
+| `host/requirements.txt` | Python deps for host backend                                                 |
+| `out/`                  | Working artefacts (gitignored)                                               |
 
 C++ contracts: `include/xllama/training_params.h`, `include/xllama/training.h`
 (`validate_training_job`, `load_training_job_file`, stage/device names);
@@ -96,10 +96,10 @@ Full `llama-finetune` and ORT ODT remain rejected.
 
 ### Console paths
 
-| Path | How | When to use |
-| ---- | --- | ----------- |
+| Path                  | How                                                            | When to use                                       |
+| --------------------- | -------------------------------------------------------------- | ------------------------------------------------- |
 | **In-app (Phase 11)** | Settings → **Train on my feedback** after Like/Correct samples | End-user personalize; needs base GGUF (see below) |
-| **Headless harness** | `train.flag` + `training/job.json` | CI / `validate-console-training.sh device-train` |
+| **Headless harness**  | `train.flag` + `training/job.json`                             | CI / `validate-console-training.sh device-train`  |
 
 ```bash
 ./scripts/validate-console-training.sh device-train
