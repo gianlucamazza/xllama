@@ -9,7 +9,7 @@ Quick reference for AI agents and new contributors.
 - **Style**: concise, no over-engineering. Prefer RAII and `unique_ptr`.
 - **Formatting**: auto-format on save if possible; otherwise follow existing
   style. Both formatters are pinned and gated in CI — `clang-format` 22.1.5 for
-  C++, `prettier` 3.9.6 for every tracked `*.md` (`.prettierrc` /
+  C++, `prettier` 3.9.6 for every tracked `*.md` / `*.markdown` (`.prettierrc` /
   `.prettierignore`).
 
 ## Directory structure

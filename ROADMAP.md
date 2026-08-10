@@ -419,7 +419,7 @@ Findings, workstream status, decision log). Attack order: **W2 closed**
 
 - [x] **W1 — H2: a MoE whose active weights are a fraction of its total. CLOSED
       FAIL 2026-07-30.**
-      Desk survey done 2026-07-29 against pin `b10093-1-g6d5a910c5`
+      Desk survey done 2026-07-29 against pin `6d5a910c5 (tag `b10094`)`
       (`src/models/*.cpp` already compiles `lfm2moe.cpp` and ~20 more MoE archs).
       Candidate **LFM2.5-8B-A1B**, 32 experts / 4 active. Admissibility hung on a
       never-measured number, so the **console heap ceiling was measured**:
@@ -510,8 +510,9 @@ survey (`docs/model-matrix.md` §F) is the thing being refreshed, across four
 classes and with a console budget capped at ≤9 bench sessions.
 
 - [x] **WS-A (H16.1) — text GGUF scouting.** **Done 2026-08-10, one shipped:**
-      `lfm25-230m` is the new **floor** tier (119.2 tok/s / 241 MB / H9 2/8),
-      displacing `gemma3-270m` at 1.55× its decode and 127 MB less peak.
+      `lfm25-230m` is the new **floor** tier — faster and lighter than
+      `gemma3-270m` on both axes, one H9 task below it. Figures live in
+      [`docs/benchmarks.md`](docs/benchmarks.md), which is their SSOT.
       Qwen3.5-2B and Maincoder-1B measured FAIL; MiniCPM5-1B deferred on
       unbought renderer work. 3 of ≤4 sessions spent.
 - [x] **WS-B (H16.2) — `llama.cpp` pin bump evaluation.** **Closed 2026-08-10,

@@ -57,7 +57,7 @@ jobs:
         # .prettierrc (proseWrap preserve, so prose line breaks are the
         # author's and only structure is normalised).
         run: |
-          git ls-files '*.md' | xargs prettier --check
+          git ls-files '*.md' '*.markdown' | xargs prettier --check
 
       - name: Verify shell script quality
         run: |

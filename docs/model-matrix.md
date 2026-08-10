@@ -13,7 +13,9 @@ ids, templates, licenses, and campaign notes** — not runtime contracts.
 | Catalogue data                                                 | [`../uwp/models/manifest.json`](../uwp/models/manifest.json) |
 | Tok/s tables                                                   | [benchmarks.md](./benchmarks.md) only                        |
 
-Last updated: **2026-08-10**. Newest entries: §A3 H2 MoE FAIL (2026-07-30),
+Last updated: **2026-08-10**. Newest entries: §A1 `lfm25-230m` shipped as the
+floor tier and `gemma3-270m`'s H9 measured for the first time, §E the floor role,
+§F the Phase 16 verdicts (all 2026-08-10); then §A3 H2 MoE FAIL (2026-07-30),
 §D per-arch `can_shift` (2026-07-29), §A2 phase14 console validation (2026-07-27).
 
 ## How to read the columns
@@ -44,7 +46,7 @@ All rows below are **CPU-bound decode** unless backend says DirectML.
 | --------------------- | -------------------------: | ------: | ------ | --------- | --------: | --------: | ------: | ------- | ----------------- | ---- | ----: | ------------------------------------------------ |
 | LFM2.5-230M           |               `lfm25-230m` |    230M | Q4_K_M | llama.cpp | **741.9** | **119.2** |     241 | 2/8     | ChatML            | —    |  2048 | `phase16-gguf` · **H16.1c PASS** · floor         |
 | LFM2.5-350M           |               `lfm25-350m` |    350M | Q4_K_M | llama.cpp | **438.1** |  **94.9** |     320 | 4/8     | ChatML            | —    |  2048 | `phase13b-threadsbatch-after` · **default chat** |
-| Gemma-3-270M          |              `gemma3-270m` |    270M | Q4_K_M | llama.cpp |     395.0 |      76.8 |     368 | 3/8     | Gemma             | —    |  2048 | `phase6-gemma` · H9 `phase16-h9.jsonl`           |
+| Gemma-3-270M          |              `gemma3-270m` |    270M | Q4_K_M | llama.cpp |     395.0 |      76.8 |     368 | 3/8     | Gemma             | —    |  2048 | `phase6-gemma` · H9 `phase7-h9.jsonl`            |
 | SmolLM2-360M          |    `smollm2-360m-cpu-int4` |    360M | int4   | ORT CPU   |     262.4 |      74.8 |     708 | —       | ChatML            | —    |  2048 | `t6-shipped-confirm`                             |
 | SmolLM2-360M          |              (same family) |    360M | Q4_K_M | llama.cpp |     141.5 |      62.9 |     402 | —       | ChatML            | —    |  2048 | `phase35-llamacpp-scaling`                       |
 | SmolLM2-360M DML v2   | `smollm2-360m-dml-fp16-v2` |    360M | fp16   | ORT DML   |     236.7 |      44.4 |    1268 | —       | ChatML            | —    |  2048 | `phase2-dml` · #91 parity OK                     |
@@ -256,12 +258,12 @@ shifts.
    draft-free prompt-lookup k=2). Console M3 **1.04× FAIL** product-default gate
    on `qwen25-coder-3b`; stays OFF. See [phase15-re-opt.md](phase15-re-opt.md).
 5. **FIM / completions API** — out of scope (second prompt surface).
-6. Next models — owned by the Phase 16 campaign
-   ([phase16-model-scouting.md](phase16-model-scouting.md)), which re-runs the
-   survey across four model classes. Seeds carried over from the 2026-07-27 desk
-   pass: Qwen3-4B-2507, Phi-4-mini (also §F), Gemma-3-1B, LFM2.5-230M. The live
-   candidate list lives in the campaign doc, not here; §F below stays the record
-   of what was rejected and why.
+6. ~~Next models~~ — **done 2026-08-10.** The Phase 16 campaign
+   ([phase16-model-scouting.md](phase16-model-scouting.md)) closed with one model
+   shipped (`lfm25-230m`, §A1) and everything else rejected, deferred or blocked;
+   the verdicts are in §F. Of the 2026-07-27 seeds, LFM2.5-230M shipped and the
+   rest were not displaced. What the campaign leaves open is a **product decision
+   on an embedding surface**, not a model search — see the campaign doc.
 7. ~~**W3 gpubw** (#211)~~ — **closed PASS** Series S **119.07 GB/s** STREAM;
    H6 eng **#228** (`docs/phase15-re-opt.md`).
 

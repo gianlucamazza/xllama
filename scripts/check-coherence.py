@@ -780,7 +780,8 @@ def main() -> int:
         "lfm25-350m": (4, 8),
         "llama32-3b": (5, 8),
         "gemma4-e2b": (6, 8),
-        # Phase 16 (2026-08-10, bench/results/phase7-h9.jsonl): the floor tier.
+        # Phase 16 (2026-08-10): measured into bench/results/phase7-h9.jsonl,
+        # which is the canonical combined source this check reads.
         "lfm25-230m": (2, 8),
         "gemma3-270m": (3, 8),
     }
@@ -807,10 +808,16 @@ def main() -> int:
     # Every Markdown file we own, not a hand-picked three: model-matrix.md is the
     # status SSOT and is dense with relative links, and it was unguarded — a
     # dangling link there survived a full green run.
-    skip = ("llama.cpp/", "vendor/", "uwp/packages/", "build", "node_modules/")
+    # Match whole path components, not prefixes: a raw "build" prefix would also
+    # skip build-notes.md and builder/, which we do own.
+    skip = {"llama.cpp", "vendor", "node_modules", "build", "build-uwp-test"}
+    def _ours(p: Path) -> bool:
+        parts = p.relative_to(ROOT).parts
+        if parts[0] in skip:
+            return False
+        return parts[:2] != ("uwp", "packages")
     md_files = sorted(
-        p for p in ROOT.glob("**/*.md")
-        if not str(p.relative_to(ROOT)).startswith(skip)
+        p for ext in ("*.md", "*.markdown") for p in ROOT.glob(f"**/{ext}") if _ours(p)
     )
     link_errors = 0
     for path in md_files:

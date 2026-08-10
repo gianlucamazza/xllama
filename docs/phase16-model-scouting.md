@@ -952,6 +952,18 @@ All three predeclared conditions hold, and none of the FAIL conditions fires
 (peak > 320, decode < 95, or H9 two tasks below the incumbent). **`lfm25-230m` is
 the campaign's first and only T5-eligible candidate.**
 
+**A caveat on the 2/8 itself, found in review.** The H9 scorer is
+pattern-based: `grounded_qa` requires the strings `4` and `730 MB` and forbids
+`GPU`/`internet`. `lfm25-230m` answers _"4 CPU cores, **each** occupying
+730 MB"_ — semantically wrong, since 730 MB is the device total — and passes,
+because the regex cannot see the quantifier. All four models measured pass this
+task, so the **comparison** between them is unaffected and the shipping decision
+stands; but one of the candidate's two points is softer than it looks, and the
+absolute score should be read as "2/8 under this scorer", not "2 tasks solved".
+The raw row is left exactly as the harness wrote it — editing a verdict by hand
+would turn evidence into opinion. The scorer, not the row, is what would have to
+change. Noted in [`../bench/README.md`](../bench/README.md).
+
 State the trade plainly rather than glossing it: the candidate is **worse than
 the incumbent on capability** — 2/8 against 3/8 — and passes only because the
 card predeclared that one task of capability was purchasable for 1.55× the decode
@@ -1042,6 +1054,16 @@ cheapest guard is to treat the first execution of a card as a test of the card,
 not only of the candidate.
 
 ### One artefact-identity correction, caught before shipping
+
+**H16.1c's card is superseded on this point, deliberately.** It specified
+mirroring the file plus `LFM2.5-230M_LICENSE.txt` onto the `models-v1` release,
+on the premise that "the unsloth repo ships no LICENSE" — true, but the premise
+had a cheaper answer the card did not check: LiquidAI publishes its own Q4_K_M
+**with** the `LICENSE` beside it, so the manifest fetches both from there and no
+mirror is needed. That is the `lfm25-1.2b-instruct` pattern, not the
+`lfm25-350m` one the card reached for. Recorded here rather than silently
+diverging, because a reader comparing the card to the shipped manifest would
+otherwise find a contradiction and not know which won.
 
 The first bench and H9 ran against `unsloth`'s LFM2.5-230M Q4_K_M. The
 **shippable** artefact is LiquidAI's own build, because that repo carries the
