@@ -110,10 +110,10 @@ curl --basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS -X DELETE \
 	"https://${XBOX_IP}:11443/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState&filename=xllama.log" \
 	>/dev/null 2>&1 || true
 "${DEPLOY}" upload-file "${TMPDIR_LOCAL}/settings.json" "$PFN" >/dev/null 2>&1 || true
-"${DEPLOY}" start-app "$PFN" >/dev/null 2>&1 || true
+"${DEPLOY}" start-app "$PFN" >/dev/null || true
 echo "  Waiting 20s for RemovableDevices enumeration + provisioning ..."
 sleep 20
-"${DEPLOY}" stop-app "$PFN" >/dev/null 2>&1 || true
+"${DEPLOY}" stop-app "$PFN" >/dev/null || true
 
 if "${DEPLOY}" list-localstate "$PFN" 2>/dev/null | grep -qi "usb_model_root.txt"; then
 	echo "  ✓ usb_model_root.txt present — USB drive discovered."
