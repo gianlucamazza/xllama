@@ -17,9 +17,32 @@
 #include "xllama/training.h"
 #include "xllama/utf8_utils.h"
 
+#include <cmath>
 #include <cstdio>
 #include <ctime>
+#include <mutex>
 #include <string>
+
+#ifdef XLLAMA_UWP
+    // WS-F microphone probe (run_mic_probe). Universal contract, so no
+    // SDKReference is needed — but per uwp-constraints.md §10b that says
+    // nothing about activation, which is what the probe measures.
+    //
+    // unknwn.h first, and not by taste: WIN32_LEAN_AND_MEAN omits objbase.h,
+    // which is what would otherwise define IUnknown, and winrt/base.h only
+    // forward-declares it. The probe derives IMemoryBufferByteAccessXll from
+    // IUnknown, so an incomplete declaration is a hard error here rather than
+    // the usual static_assert. pch.h carries the same include for the same
+    // reason; this TU does not include pch.h.
+    #include <unknwn.h>
+
+    #include <winrt/Windows.Foundation.Metadata.h>
+    #include <winrt/Windows.Media.Audio.h>
+    #include <winrt/Windows.Media.Capture.h>
+    #include <winrt/Windows.Media.MediaProperties.h>
+    #include <winrt/Windows.Media.Render.h>
+    #include <winrt/Windows.Media.h>
+#endif
 
 namespace xllama::bridge {
 
@@ -479,6 +502,246 @@ void run_ramceil() {
         fclose(done);
     }
     log_output("[xllama] ramceil-result.csv written\n");
+#endif
+}
+
+// ---------------------------------------------------------------------------
+// run_mic_probe (called from UWP mic.flag mode background thread)
+//
+// Phase 16 WS-F / card H16.6. The question is not "does the API exist" — the
+// [mic] line in App.cpp already answers that, and per uwp-constraints.md §10b a
+// present type says nothing about whether it can be activated. The question is
+// whether an AppContainer app on GameOS can actually capture audio.
+//
+// The whole value of this probe is that it does NOT collapse to a boolean.
+// The WinRT status enums already separate the cases that matter, and the JSON
+// carries them by name rather than as a derived verdict:
+//
+//   AudioDeviceNodeCreationStatus::AccessDenied      -> the sandbox refuses.
+//                                                       WS-F FAIL, and a
+//                                                       permanent constraint.
+//   AudioDeviceNodeCreationStatus::DeviceNotAvailable-> NO MIC IS PLUGGED IN.
+//                                                       This is NOT a verdict
+//                                                       on the sandbox; rerun
+//                                                       with a headset before
+//                                                       concluding anything.
+//   Success but RMS ~ 0                              -> opened and silenced.
+//   Success and RMS > 1e-3                           -> real capture.
+//
+// Everything is wrapped: this runs on HeadlessView's std::thread, where an
+// escaping exception is a process kill with no log line and no .done marker —
+// indistinguishable from a hang on the host side (uwp-constraints.md §10c).
+// A probe that dies mute teaches the operator to read a timeout as a FAIL,
+// which is the one reading this probe exists to prevent. So every exit path
+// writes mic-result.json, including the ones that threw.
+// ---------------------------------------------------------------------------
+
+#ifdef XLLAMA_UWP
+namespace {
+
+// C++/WinRT does not project the byte-access interop, and AudioFrame samples
+// are only reachable through it.
+struct __declspec(uuid("5b0d3235-4dba-4d44-865e-8f1d0e4fd04d")) __declspec(novtable)
+IMemoryBufferByteAccessXll : ::IUnknown {
+    virtual HRESULT __stdcall GetBuffer(uint8_t** value, uint32_t* capacity) = 0;
+};
+
+const char* graph_status_name(winrt::Windows::Media::Audio::AudioGraphCreationStatus s) {
+    using S = winrt::Windows::Media::Audio::AudioGraphCreationStatus;
+    switch (s) {
+    case S::Success:
+        return "Success";
+    case S::DeviceNotAvailable:
+        return "DeviceNotAvailable";
+    case S::FormatNotSupported:
+        return "FormatNotSupported";
+    case S::UnknownFailure:
+        return "UnknownFailure";
+    }
+    return "Unrecognised";
+}
+
+const char* input_status_name(winrt::Windows::Media::Audio::AudioDeviceNodeCreationStatus s) {
+    using S = winrt::Windows::Media::Audio::AudioDeviceNodeCreationStatus;
+    switch (s) {
+    case S::Success:
+        return "Success";
+    case S::DeviceNotAvailable:
+        return "DeviceNotAvailable";
+    case S::FormatNotSupported:
+        return "FormatNotSupported";
+    case S::UnknownFailure:
+        return "UnknownFailure";
+    case S::AccessDenied:
+        return "AccessDenied";
+    }
+    return "Unrecognised";
+}
+
+std::string json_escape(const std::string& s) {
+    std::string o;
+    for (char c : s) {
+        if (c == '"' || c == '\\')
+            o += '\\', o += c;
+        else if (c == '\n')
+            o += "\\n";
+        else if (static_cast<unsigned char>(c) < 0x20)
+            continue;
+        else
+            o += c;
+    }
+    return o;
+}
+
+} // namespace
+#endif // XLLAMA_UWP
+
+void run_mic_probe() {
+#ifdef XLLAMA_UWP
+    using namespace winrt::Windows::Media::Audio;
+    using winrt::Windows::Foundation::Metadata::ApiInformation;
+    using winrt::Windows::Media::AudioBufferAccessMode;
+    using winrt::Windows::Media::Capture::MediaCategory;
+    using winrt::Windows::Media::Render::AudioRenderCategory;
+
+    log_output("[xllama] mic: probing AppContainer audio capture (WS-F / H16.6)\n");
+
+    // Capture duration. Three seconds is the card's number; long enough that a
+    // hum or a breath clears the silence floor, short enough to keep the whole
+    // probe inside one app launch.
+    const int capture_ms = 3000;
+
+    int ag_present = 0, mc_present = 0;
+    std::string graph_status = "not-attempted";
+    std::string input_status = "not-attempted";
+    std::string error;
+    uint32_t sample_rate = 0, channels = 0;
+    uint64_t samples = 0;
+    double rms = -1.0, peak = -1.0;
+
+    try {
+        ag_present = ApiInformation::IsTypePresent(L"Windows.Media.Audio.AudioGraph") ? 1 : 0;
+        mc_present = ApiInformation::IsTypePresent(L"Windows.Media.Capture.MediaCapture") ? 1 : 0;
+
+        if (ag_present) {
+            AudioGraphSettings settings(AudioRenderCategory::Speech);
+            auto graph_result = AudioGraph::CreateAsync(settings).get();
+            graph_status = graph_status_name(graph_result.Status());
+
+            if (graph_result.Status() == AudioGraphCreationStatus::Success) {
+                auto graph = graph_result.Graph();
+                sample_rate = graph.EncodingProperties().SampleRate();
+                channels = graph.EncodingProperties().ChannelCount();
+
+                auto in_result = graph.CreateDeviceInputNodeAsync(MediaCategory::Speech).get();
+                input_status = input_status_name(in_result.Status());
+
+                if (in_result.Status() == AudioDeviceNodeCreationStatus::Success) {
+                    auto out = graph.CreateFrameOutputNode();
+                    in_result.DeviceInputNode().AddOutgoingConnection(out);
+
+                    // QuantumStarted fires on the audio engine thread; the graph
+                    // is stopped and the handler revoked before these are read.
+                    std::mutex acc_mu;
+                    double sum_sq = 0.0, pk = 0.0;
+                    uint64_t n = 0;
+
+                    auto token = graph.QuantumStarted(
+                        [&](AudioGraph const&, winrt::Windows::Foundation::IInspectable const&) {
+                            try {
+                                auto frame = out.GetFrame();
+                                auto buffer = frame.LockBuffer(AudioBufferAccessMode::Read);
+                                auto ref = buffer.CreateReference();
+                                uint8_t* data = nullptr;
+                                uint32_t cap = 0;
+                                if (FAILED(ref.as<IMemoryBufferByteAccessXll>()->GetBuffer(&data,
+                                                                                           &cap)))
+                                    return;
+                                const float* f = reinterpret_cast<const float*>(data);
+                                const size_t count = cap / sizeof(float);
+                                double s2 = 0.0, p = 0.0;
+                                for (size_t i = 0; i < count; ++i) {
+                                    const double v = static_cast<double>(f[i]);
+                                    s2 += v * v;
+                                    const double a = v < 0 ? -v : v;
+                                    if (a > p)
+                                        p = a;
+                                }
+                                std::lock_guard<std::mutex> lk(acc_mu);
+                                sum_sq += s2;
+                                n += count;
+                                if (p > pk)
+                                    pk = p;
+                            } catch (...) {
+                                // A throw here would cross the audio thread and take
+                                // the process; the probe would rather lose a quantum.
+                            }
+                        });
+
+                    graph.Start();
+                    ::Sleep(static_cast<DWORD>(capture_ms));
+                    graph.Stop();
+                    graph.QuantumStarted(token); // revoke before reading
+
+                    std::lock_guard<std::mutex> lk(acc_mu);
+                    samples = n;
+                    peak = pk;
+                    rms = n ? std::sqrt(sum_sq / static_cast<double>(n)) : 0.0;
+                }
+            }
+        }
+    } catch (winrt::hresult_error const& e) {
+        char b[256];
+        snprintf(b, sizeof(b), "hresult 0x%08X", static_cast<unsigned>(e.code().value));
+        error = b;
+        error += ": " + winrt::to_string(e.message());
+    } catch (std::exception const& e) {
+        error = e.what();
+    } catch (...) {
+        error = "unknown exception";
+    }
+
+    char json[1024];
+    snprintf(json, sizeof(json),
+             "{\n"
+             "  \"audiograph_type_present\": %d,\n"
+             "  \"mediacapture_type_present\": %d,\n"
+             "  \"graph_status\": \"%s\",\n"
+             "  \"input_node_status\": \"%s\",\n"
+             "  \"sample_rate\": %u,\n"
+             "  \"channels\": %u,\n"
+             "  \"capture_ms\": %d,\n"
+             "  \"samples\": %llu,\n"
+             "  \"rms\": %.8f,\n"
+             "  \"peak\": %.8f,\n"
+             "  \"error\": \"%s\"\n"
+             "}\n",
+             ag_present, mc_present, json_escape(graph_status).c_str(),
+             json_escape(input_status).c_str(), sample_rate, channels, capture_ms,
+             static_cast<unsigned long long>(samples), rms, peak, json_escape(error).c_str());
+
+    log_output(std::string("[mic] ") + graph_status + " / " + input_status +
+               " rms=" + std::to_string(rms) + " samples=" + std::to_string(samples) +
+               (error.empty() ? "" : (" error=" + error)) + "\n");
+
+    const std::string path = resolve_local_path("mic-result.json");
+    FILE* fp = _wfopen(utf8_to_wstring(path).c_str(), L"w");
+    if (fp) {
+        fputs(json, fp);
+        fclose(fp);
+    } else {
+        log_output("[xllama] mic: cannot open mic-result.json\n");
+    }
+
+    // The .done marker is written even when the probe failed — the host waits
+    // on it, and a missing marker must mean "the process died", not "the answer
+    // was no". That distinction is the whole reason for the try/catch above.
+    FILE* done = _wfopen(utf8_to_wstring(resolve_local_path("mic-result.json.done")).c_str(), L"w");
+    if (done) {
+        fputs(error.empty() ? "ok\n" : "error\n", done);
+        fclose(done);
+    }
+    log_output("[xllama] mic-result.json written\n");
 #endif
 }
 
