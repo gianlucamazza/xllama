@@ -1,0 +1,17 @@
+diff --git a/ggml/src/ggml-cpu/ops.h b/ggml/src/ggml-cpu/ops.h
+index 4c1642a67..50b15b6fc 100644
+--- a/ggml/src/ggml-cpu/ops.h
++++ b/ggml/src/ggml-cpu/ops.h
+@@ -6,7 +6,11 @@
+ // cache line
+ //
+ 
+-#if defined(__cpp_lib_hardware_interference_size)
++// clang-cl + the xwin/UWP CRT advertises __cpp_lib_hardware_interference_size
++// but does not provide std::hardware_destructive_interference_size (missing from
++// the store headers). Real MSVC and libstdc++/libc++ on host are fine; exclude
++// clang-cl so uwp-crossbuild can compile ggml without a private CRT patch.
++#if defined(__cpp_lib_hardware_interference_size) && !(defined(__clang__) && defined(_MSC_VER))
+ #define CACHE_LINE_SIZE std::hardware_destructive_interference_size
+ #else
+ #if defined(__POWER9_VECTOR__)
