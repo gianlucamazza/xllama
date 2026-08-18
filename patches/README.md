@@ -14,7 +14,7 @@ both build variants that compile ggml (`uwp/ggml-uwp.vcxproj`): the shipping
 | `onnxruntime-extdata-appcontainer.patch`    | ORT core, two AppContainer external-data fixes (`docs/fp16-extdata-runbook.md`, console-validated 2026-07-15, **shipping since 1.1.8.0**): **(1)** `tensorprotoutils.cc` `ValidateExternalDataPath` — guard `weakly_canonical()` (related upstream on ORT `main`: [#28509](https://github.com/microsoft/onnxruntime/pull/28509), **not** in NuGet 1.24.4); **(2)** `env.cc` `ReadFileIntoBuffer` — 1 GB→16 MB chunk (`errcode 1450`, **still open on ORT main**). Shipping CI installs the pinned DLL from `vendor-dlls-v1` (hash in `vendor/onnxruntime-patched/SHA256SUMS`); rebuild via `scripts/vendor-ort-extdata-patch.ps1 -Build` / `build-uwp-ort-patched.yml`. |
 
 Regenerated 2026-07-08 against submodule `9a532ae4b`; still applies clean on the
-current pin `6d5a910c5` (`git apply --check`, 2026-07-23). (The three earlier per-file
+current pin `08659901c` (`git apply --check`, 2026-08-18). (The three earlier per-file
 patches previously referenced here were stale and no longer existed on disk; the
 WinEvt / `dl_load_library` issue is avoided at build level instead — the UWP
 variant compiles the CPU backend statically, no dynamic backend loading).

@@ -74,12 +74,12 @@ and llama.cpp (GGUF, CPU).
 
 ## Reference: tested models
 
-| Model                          | On-disk (merged) | CPU EP                                            | DirectML EP                                      | Notes                                                                                                                                 |
-| ------------------------------ | ---------------- | ------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Model                          | On-disk (merged) | CPU EP                                                                      | DirectML EP                                      | Notes                                                                                                                                 |
+| ------------------------------ | ---------------- | --------------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
 | SmolLM2-360M-Instruct INT4 CPU | ~421 MB          | ✅ ORT baseline (**74.8** tok/s with the shipped t6 asset, `benchmarks.md`) | ❌ `80070057` (CPU-int4 graph in DML fused node) | ORT-only default; size from `manifest.json` `approx_bytes`                                                                            |
-| SmolLM2-360M-Instruct INT4 DML | 285 MB           | —                                                 | ⚠️ **8.8 tok/s** but wrong logits (#91)          | Built with ORT GenAI model builder (`-p int4 -e dml`); CPU ~8× faster — and DML text output is numerically wrong on this device (#91) |
-| SmolLM2-1.7B-Instruct INT4 CPU | 1.4 GB           | ✅ in-app (`models-v1` catalogue)                 | —                                                | Console: 20.6 tok/s decode, peak 2423 MB (`phase35-1b-cpu.csv`); also USB/LocalState                                                  |
-| Phi-3.5-mini Q3_K_S (GGUF)     | 1.68 GB          | ✅ H4 A/B (11.3 tok/s, 2453 MB)                   | —                                                | Loses speed+RAM vs Llama-3.2-3B Q3; **not** catalogue (`phase7-scale.csv`)                                                            |
+| SmolLM2-360M-Instruct INT4 DML | 285 MB           | —                                                                           | ⚠️ **8.8 tok/s** but wrong logits (#91)          | Built with ORT GenAI model builder (`-p int4 -e dml`); CPU ~8× faster — and DML text output is numerically wrong on this device (#91) |
+| SmolLM2-1.7B-Instruct INT4 CPU | 1.4 GB           | ✅ in-app (`models-v1` catalogue)                                           | —                                                | Console: 20.6 tok/s decode, peak 2423 MB (`phase35-1b-cpu.csv`); also USB/LocalState                                                  |
+| Phi-3.5-mini Q3_K_S (GGUF)     | 1.68 GB          | ✅ H4 A/B (11.3 tok/s, 2453 MB)                                             | —                                                | Loses speed+RAM vs Llama-3.2-3B Q3; **not** catalogue (`phase7-scale.csv`)                                                            |
 
 ## Historical ONNX candidate survey
 
@@ -194,11 +194,11 @@ the existing GGUF/`Session`/`ChatFormat` path with optional catalogue knobs.
 }
 ```
 
-| Field | Effect | Non-effect |
-| --- | --- | --- |
-| `role: "coding"` | Trimmer 3.5 chars/token; LAN empty `system` → `kCodingSystemPrompt` | Does **not** rewrite Settings system prompt; does not pick backend/template |
-| `n_ctx: 4096` | Session + trimmer ceiling (`resolve_n_ctx` / `max_prompt_tokens_for_n_ctx`) | Does not change sampling or routing (GGUF has no EP routing) |
-| Chat template | `chat_format_for` by family — Qwen2.5-Coder = ChatML **without** Qwen3 no-think prefill | Qwen3 only gets empty-`<think>` via `model_is_qwen3` |
+| Field            | Effect                                                                                  | Non-effect                                                                  |
+| ---------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `role: "coding"` | Trimmer 3.5 chars/token; LAN empty `system` → `kCodingSystemPrompt`                     | Does **not** rewrite Settings system prompt; does not pick backend/template |
+| `n_ctx: 4096`    | Session + trimmer ceiling (`resolve_n_ctx` / `max_prompt_tokens_for_n_ctx`)             | Does not change sampling or routing (GGUF has no EP routing)                |
+| Chat template    | `chat_format_for` by family — Qwen2.5-Coder = ChatML **without** Qwen3 no-think prefill | Qwen3 only gets empty-`<think>` via `model_is_qwen3`                        |
 
 **Best practices before shipping a new GGUF (any role):**
 
@@ -303,7 +303,7 @@ the catalogue status only.
 | Gemma-4 E4B/12B+ | llama.cpp | ≥4.5 GB          | ⛔ too big / too slow for the console                              |
 
 **Gemma chat template**: the ORT GenAI _builder_ is frozen at Gemma3, but the
-vendored `llama.cpp` (current pin `6d5a910c5`, see `patches/README.md`) already carries `LLM_ARCH_GEMMA3` **and**
+vendored `llama.cpp` (current pin `08659901c`, see `patches/README.md`) already carries `LLM_ARCH_GEMMA3` **and**
 `LLM_ARCH_GEMMA4` — both load and generate (verified via `xllama-cli`,
 `general.architecture = gemma3`/`gemma4`). What was missing was the prompt
 format: the app hard-coded ChatML. `chat_format_for()` (`src/bridge/chat_prompt.cpp`)
