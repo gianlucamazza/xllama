@@ -74,12 +74,12 @@ and llama.cpp (GGUF, CPU).
 
 ## Reference: tested models
 
-| Model                          | On-disk (merged) | CPU EP                                            | DirectML EP                                      | Notes                                                                                                                                 |
-| ------------------------------ | ---------------- | ------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Model                          | On-disk (merged) | CPU EP                                                                      | DirectML EP                                      | Notes                                                                                                                                 |
+| ------------------------------ | ---------------- | --------------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
 | SmolLM2-360M-Instruct INT4 CPU | ~421 MB          | ✅ ORT baseline (**74.8** tok/s with the shipped t6 asset, `benchmarks.md`) | ❌ `80070057` (CPU-int4 graph in DML fused node) | ORT-only default; size from `manifest.json` `approx_bytes`                                                                            |
-| SmolLM2-360M-Instruct INT4 DML | 285 MB           | —                                                 | ⚠️ **8.8 tok/s** but wrong logits (#91)          | Built with ORT GenAI model builder (`-p int4 -e dml`); CPU ~8× faster — and DML text output is numerically wrong on this device (#91) |
-| SmolLM2-1.7B-Instruct INT4 CPU | 1.4 GB           | ✅ in-app (`models-v1` catalogue)                 | —                                                | Console: 20.6 tok/s decode, peak 2423 MB (`phase35-1b-cpu.csv`); also USB/LocalState                                                  |
-| Phi-3.5-mini Q3_K_S (GGUF)     | 1.68 GB          | ✅ H4 A/B (11.3 tok/s, 2453 MB)                   | —                                                | Loses speed+RAM vs Llama-3.2-3B Q3; **not** catalogue (`phase7-scale.csv`)                                                            |
+| SmolLM2-360M-Instruct INT4 DML | 285 MB           | —                                                                           | ⚠️ **8.8 tok/s** but wrong logits (#91)          | Built with ORT GenAI model builder (`-p int4 -e dml`); CPU ~8× faster — and DML text output is numerically wrong on this device (#91) |
+| SmolLM2-1.7B-Instruct INT4 CPU | 1.4 GB           | ✅ in-app (`models-v1` catalogue)                                           | —                                                | Console: 20.6 tok/s decode, peak 2423 MB (`phase35-1b-cpu.csv`); also USB/LocalState                                                  |
+| Phi-3.5-mini Q3_K_S (GGUF)     | 1.68 GB          | ✅ H4 A/B (11.3 tok/s, 2453 MB)                                             | —                                                | Loses speed+RAM vs Llama-3.2-3B Q3; **not** catalogue (`phase7-scale.csv`)                                                            |
 
 ## Historical ONNX candidate survey
 
@@ -194,11 +194,11 @@ the existing GGUF/`Session`/`ChatFormat` path with optional catalogue knobs.
 }
 ```
 
-| Field | Effect | Non-effect |
-| --- | --- | --- |
-| `role: "coding"` | Trimmer 3.5 chars/token; LAN empty `system` → `kCodingSystemPrompt` | Does **not** rewrite Settings system prompt; does not pick backend/template |
-| `n_ctx: 4096` | Session + trimmer ceiling (`resolve_n_ctx` / `max_prompt_tokens_for_n_ctx`) | Does not change sampling or routing (GGUF has no EP routing) |
-| Chat template | `chat_format_for` by family — Qwen2.5-Coder = ChatML **without** Qwen3 no-think prefill | Qwen3 only gets empty-`<think>` via `model_is_qwen3` |
+| Field            | Effect                                                                                  | Non-effect                                                                  |
+| ---------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `role: "coding"` | Trimmer 3.5 chars/token; LAN empty `system` → `kCodingSystemPrompt`                     | Does **not** rewrite Settings system prompt; does not pick backend/template |
+| `n_ctx: 4096`    | Session + trimmer ceiling (`resolve_n_ctx` / `max_prompt_tokens_for_n_ctx`)             | Does not change sampling or routing (GGUF has no EP routing)                |
+| Chat template    | `chat_format_for` by family — Qwen2.5-Coder = ChatML **without** Qwen3 no-think prefill | Qwen3 only gets empty-`<think>` via `model_is_qwen3`                        |
 
 **Best practices before shipping a new GGUF (any role):**
 
@@ -291,16 +291,17 @@ llama.cpp** — reachable via the shipping `unified` backend build with
 numbers live in [`benchmarks.md`](benchmarks.md)** (the perf SSOT); this table is
 the catalogue status only.
 
-| Model            | Path      | Disk size        | Status                                                             |
-| ---------------- | --------- | ---------------- | ------------------------------------------------------------------ |
-| Qwen3.5-0.8B     | llama.cpp | ~533 MB          | ✅ `qwen35-0.8b` — optional modern GGUF                            |
-| LFM2.5-350M      | llama.cpp | ~229 MB          | ✅ `lfm25-350m` — hybrid edge arch; default chat on unified builds |
-| LFM2.5-1.2B      | llama.cpp | ~731 MB          | ✅ `lfm25-1.2b-instruct` — balanced; 37.9 tok/s, H9 6/8            |
-| LFM2-2.6B        | llama.cpp | ~1.56 GB         | ✅ `lfm2-2.6b` — quality; 18.4 tok/s, H9 7/8                       |
-| Qwen3-0.6B       | ORT GenAI | 969 MB merged    | ✅ builds; heavy (151k-vocab embedding dominates)                  |
-| Gemma-3-270M     | llama.cpp | 253 MB           | ✅ `gemma3-270m` — fast, tiny, fits easily                         |
-| Gemma-4-E2B      | llama.cpp | 2.45 GB (Q3_K_S) | ✅ **console-validated** `gemma4-e2b` (see verdict below)          |
-| Gemma-4 E4B/12B+ | llama.cpp | ≥4.5 GB          | ⛔ too big / too slow for the console                              |
+| Model            | Path      | Disk size        | Status                                                                      |
+| ---------------- | --------- | ---------------- | --------------------------------------------------------------------------- |
+| Qwen3.5-0.8B     | llama.cpp | ~533 MB          | ✅ `qwen35-0.8b` — optional modern GGUF                                     |
+| LFM2.5-230M      | llama.cpp | ~146 MB          | ✅ `lfm25-230m` — floor tier; 119.2 tok/s, 241 MB, H9 2/8 (Phase 16 H16.1c) |
+| LFM2.5-350M      | llama.cpp | ~229 MB          | ✅ `lfm25-350m` — hybrid edge arch; default chat on unified builds          |
+| LFM2.5-1.2B      | llama.cpp | ~731 MB          | ✅ `lfm25-1.2b-instruct` — balanced; 37.9 tok/s, H9 6/8                     |
+| LFM2-2.6B        | llama.cpp | ~1.56 GB         | ✅ `lfm2-2.6b` — quality; 18.4 tok/s, H9 7/8                                |
+| Qwen3-0.6B       | ORT GenAI | 969 MB merged    | ✅ builds; heavy (151k-vocab embedding dominates)                           |
+| Gemma-3-270M     | llama.cpp | 253 MB           | ✅ `gemma3-270m` — fast, tiny, fits easily                                  |
+| Gemma-4-E2B      | llama.cpp | 2.45 GB (Q3_K_S) | ✅ **console-validated** `gemma4-e2b` (see verdict below)                   |
+| Gemma-4 E4B/12B+ | llama.cpp | ≥4.5 GB          | ⛔ too big / too slow for the console                                       |
 
 **Gemma chat template**: the ORT GenAI _builder_ is frozen at Gemma3, but the
 vendored `llama.cpp` (current pin `6d5a910c5`, see `patches/README.md`) already carries `LLM_ARCH_GEMMA3` **and**

@@ -42,6 +42,7 @@ Technical notes and design decisions for xllama.
 | Privacy policy (Store / end-user draft)                                                | [privacy.md](./privacy.md)                                                                                                   |
 | Demo / screenshot capture (how it is produced, and from which build)                   | [`../scripts/capture-demo-video.sh`](../scripts/capture-demo-video.sh) (tool) + [`./screenshots/`](./screenshots/) (assets)  |
 | Public claims and launch copy (what may be cited, and what may not)                    | [launch-copy.md](./launch-copy.md)                                                                                           |
+| Phase 16 model-scouting campaign (funnel, ladder, workstream cards, verdicts)          | [phase16-model-scouting.md](./phase16-model-scouting.md)                                                                     |
 | Agent / contributor quick map                                                          | [`../AGENTS.md`](../AGENTS.md)                                                                                               |
 
 The benchmark flow is intentionally one-way:
@@ -83,6 +84,7 @@ path checklist for discovery — descriptions are not repeated.
 [model-matrix.md](./model-matrix.md) ·
 [phase7-hypotheses.md](./phase7-hypotheses.md) ·
 [phase15-re-opt.md](./phase15-re-opt.md) (RE + optimization campaign) ·
+[phase16-model-scouting.md](./phase16-model-scouting.md) (model-scouting campaign) ·
 [technical-report.md](./technical-report.md) (frozen v1.0) ·
 [phase1-runbook.md](./phase1-runbook.md) (compat redirect) ·
 [../CHANGELOG.md](../CHANGELOG.md) · [../ROADMAP.md](../ROADMAP.md) ·
@@ -100,6 +102,7 @@ path checklist for discovery — descriptions are not repeated.
 | Repo file tree                        | AGENTS.md (agents)                                                                                                                                | Full second tree in README                                                                                                                  |
 | Phase checklist                       | ROADMAP.md                                                                                                                                        | Duplicated phase list in README                                                                                                             |
 | Phase 15 RE / optimization campaign   | [phase15-re-opt.md](./phase15-re-opt.md) (W2 default OFF; W3 M6 PASS → #228)                                                                      | Second workstream narrative in README                                                                                                       |
+| Phase 16 model scouting               | [phase16-model-scouting.md](./phase16-model-scouting.md) (funnel, ladder, WS-A…WS-G cards)                                                        | Second candidate table elsewhere; shipped status outside model-matrix.md                                                                    |
 | Linux→Xbox package without Windows VM | [crossbuild-console.md](./crossbuild-console.md) (crossbuild launch observed 2026-08-08, uwp-crossbuild ≥ 0.5.1; product/measured path = CI MSVC) | Restating crossbuild launch status outside that SSOT, or claiming crossbuild bench/product parity (unproven: ORT/GenAI, first boot, uptime) |
 
 ### Coherence check (automated)

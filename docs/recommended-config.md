@@ -209,7 +209,7 @@ ctest --test-dir build/linux-test --output-on-failure
 
    ```bash
    source ~/.config/xllama/xbox-env
-   ./scripts/validate-console.sh all   # routing + settings (9 values) + GGUF + TAESD → ALL PASS on 1.5.0.698 (2026-07-25, post-identity-migration; API gates also ALL PASS)
+   ./scripts/validate-console.sh all   # the full gate suite; contracts and the current gate list live in console-validation-runbook.md
    ```
 
 5. Manual/debug path: [console-validation-runbook.md](./console-validation-runbook.md) per §

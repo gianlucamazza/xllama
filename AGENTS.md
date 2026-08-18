@@ -7,7 +7,10 @@ Quick reference for AI agents and new contributors.
 - **Language**: English for code, comments, filenames, commit messages.
 - **C++ standard**: C++17 (UWP / SDK 22621 + MSVC).
 - **Style**: concise, no over-engineering. Prefer RAII and `unique_ptr`.
-- **Formatting**: auto-format on save if possible; otherwise follow existing style.
+- **Formatting**: auto-format on save if possible; otherwise follow existing
+  style. Both formatters are pinned and gated in CI — `clang-format` 22.1.5 for
+  C++, `prettier` 3.9.6 for every tracked `*.md` / `*.markdown` (`.prettierrc` /
+  `.prettierignore`).
 
 ## Directory structure
 
@@ -88,7 +91,9 @@ xllama/
 `architecture.md` (incl. catalogue `n_ctx`/`role`, ChatFormat, deferred surfaces);
 training → `training-architecture.md`; inventory/status → `model-matrix.md`;
 numbers → `bench/results` + generated `benchmarks.md`; UI steps → `using-the-app.md`;
-Phase 15 RE/opt (W2 findings, default-OFF) → `docs/phase15-re-opt.md`; Linux→Xbox
+Phase 15 RE/opt (W2 findings, default-OFF) → `docs/phase15-re-opt.md`; Phase 16
+model scouting (candidate funnel, validation ladder, WS cards) →
+`docs/phase16-model-scouting.md`; Linux→Xbox
 pack path → `docs/crossbuild-console.md` (launch = CI MSVC).
 
 **Catalogue policy:** optional `n_ctx` and `role` (`coding`) are session knobs only

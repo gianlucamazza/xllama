@@ -118,6 +118,24 @@
       ]
     },
     {
+      "_comment": "Phase 16 H16.1c PASS (2026-08-10): 119.17 tok/s decode, 241 MB peak, H9 2/8 on Series S — displaces gemma3-270m as the floor role at 1.55x its decode and 127 MB less peak, at one H9 task below it. LiquidAI's own Q4_K_M mirrored onto models-v1 with the LFM Open License alongside (card ship path, lfm25-350m pattern); the unsloth Q4_K_M is a different artefact (bench/results/phase16-quantiser-ab.csv).",
+      "name": "lfm25-230m",
+      "display": "LFM2.5 230M (GGUF · CPU · floor)",
+      "kind": "gguf",
+      "hf_base_url": "https://github.com/gianlucamazza/xllama/releases/download/models-v1",
+      "files": [
+        {
+          "filename": "LFM2.5-230M-Q4_K_M.gguf",
+          "approx_bytes": 153406304
+        },
+        {
+          "filename": "LICENSE",
+          "remote": "LFM2.5-230M_LICENSE.txt",
+          "approx_bytes": 10574
+        }
+      ]
+    },
+    {
       "name": "lfm25-350m",
       "display": "LFM2.5 350M (GGUF · CPU)",
       "kind": "gguf",

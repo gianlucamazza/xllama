@@ -3,6 +3,18 @@
   "repeat_selection": "Each row's selector may resolve to a single measurement or to several recorded repeats. A repeat carries a non-zero run_index column (W1.1); the bench drivers append every recorded run rather than a pre-averaged median. When two or more repeats match a selector, the generated summary reports the median across them and a decode min-max spread; a newer repeated measurement supersedes any legacy rows for the same selector. A row with no run_index is a single measurement and is marked 'single run'. This is why 'select' still governs only which atomic legacy row is chosen.",
   "rows": [
     {
+      "label": "LFM2.5-230M",
+      "params": "230M",
+      "source": "phase16-gguf.csv",
+      "selector": {
+        "model": "lfm25-230m",
+        "n_threads": "6",
+        "n_prompt_tok": "298"
+      },
+      "backend_key": "llama",
+      "backend_label": "llama.cpp CPU · t6"
+    },
+    {
       "label": "LFM2.5-350M",
       "params": "350M",
       "source": "phase13b-threadsbatch-after.csv",
@@ -234,6 +246,8 @@
   "quality": {
     "source": "phase7-h9.jsonl",
     "labels": {
+      "lfm25-230m": "LFM2.5-230M",
+      "gemma3-270m": "Gemma-3-270M",
       "lfm25-350m": "LFM2.5-350M",
       "gemma4-e2b": "Gemma-4-E2B",
       "llama32-3b": "Llama-3.2-3B",

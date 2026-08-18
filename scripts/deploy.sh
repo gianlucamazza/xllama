@@ -36,6 +36,11 @@ APP_ID_LEGACY="VenereLabs.xllama"
 CSRF_TOKEN=$(curl "${CURL_AUTH[@]}" "${BASE_URL}/" -o /dev/null -D - 2>/dev/null |
 	sed -n 's/.*[Cc][Ss][Rr][Ff]-[Tt]oken=\([^;[:space:]]*\).*/\1/p' |
 	tr -d '\r' | head -n 1)
+# Every POST/DELETE below needs this header; without it the device answers 403.
+# Read-only subcommands (pfn, get-log, list-*) work without it, so warn rather
+# than exit — but say it once, loudly, instead of leaving the caller to guess
+# why a state change did nothing.
+[[ -z "$CSRF_TOKEN" ]] && echo "Warning: no CSRF token from ${BASE_URL} — POST/DELETE will fail with 403" >&2
 
 if [[ -z "$CSRF_TOKEN" ]]; then
 	echo "Warning: failed to extract CSRF token. POST requests may fail." >&2
@@ -199,22 +204,70 @@ start_app() {
 	pfn="$(require_pfn "${1:-}")"
 	local aumid
 	aumid="$(aumid_for_pfn "$pfn")"
-	curl "${CURL_AUTH[@]}" \
+	# curl exits 0 on an HTTP error unless -f is given, and this discarded the
+	# body, so "Started ${pfn}." used to print whatever the device answered —
+	# including 400 {"ErrorMessage":"Failed to launch the application."} for a
+	# package that is not installed. Same defect stop_app had; report the truth.
+	local body code
+	body="$(curl "${CURL_AUTH[@]}" \
 		-H "X-CSRF-Token:${CSRF_TOKEN}" \
 		-X POST \
-		-d "" \
-		"${BASE_URL}/api/taskmanager/app?appid=${aumid}" >/dev/null
-	echo "Started ${pfn}."
+		-d "" -w '\n%{http_code}' \
+		"${BASE_URL}/api/taskmanager/app?appid=${aumid}")"
+	code="${body##*$'\n'}"
+	body="${body%$'\n'*}"
+	if [[ "$code" == "200" ]]; then
+		echo "Started ${pfn}."
+	else
+		echo "Error: start-app returned HTTP ${code}: ${body}" >&2
+		return 1
+	fi
 }
 
 stop_app() {
 	local pfn
 	pfn="$(require_pfn "${1:-}")"
-	curl "${CURL_AUTH[@]}" \
+	# WDP wants `package` BASE64-ENCODED. It was passed raw here, so the device
+	# answered 400 "Failed to decode expected base64 encoded parameter: package"
+	# and the app kept running — invisibly, because the response went to
+	# /dev/null behind `|| true` and "Stopped" was printed unconditionally. Every
+	# caller that stops before uploading was uploading into a live app.
+	# start_app has always encoded correctly (aumid_for_pfn), which is why that
+	# half worked.
+	#
+	# Measured on Series S, 2026-08-10:
+	#   running     -> 200, empty body, process gone
+	#   not running -> 400 {"ErrorMessage":"Failed to terminate the application."}
+	#                  (an UNINSTALLED package answers identically — the device
+	#                   cannot tell "stopped" from "not there", so neither can we)
+	#   raw pfn     -> 400 {"ErrorMessage":"Failed to decode expected base64 ..."}
+	# Not-running is success for a caller whose intent is "make sure it is not
+	# running"; a decode error is not, and must not be swallowed again.
+	local pkg64 body code
+	pkg64="$(printf '%s' "$pfn" | base64 -w0)"
+	body="$(curl "${CURL_AUTH[@]}" \
 		-H "X-CSRF-Token:${CSRF_TOKEN}" \
-		-X DELETE \
-		"${BASE_URL}/api/taskmanager/app?package=${pfn}" >/dev/null 2>&1 || true
-	echo "Stopped ${pfn}."
+		-X DELETE -w '\n%{http_code}' \
+		"${BASE_URL}/api/taskmanager/app?package=${pkg64}")"
+	code="${body##*$'\n'}"
+	body="${body%$'\n'*}"
+	case "$code" in
+	200)
+		echo "Stopped ${pfn}."
+		;;
+	400)
+		if [[ "$body" == *"Failed to terminate"* ]]; then
+			echo "${pfn} is not running."
+		else
+			echo "Error: stop-app rejected by the device: ${body}" >&2
+			return 1
+		fi
+		;;
+	*)
+		echo "Error: stop-app returned HTTP ${code}: ${body}" >&2
+		return 1
+		;;
+	esac
 }
 
 # -----------------------------------------------------------------------

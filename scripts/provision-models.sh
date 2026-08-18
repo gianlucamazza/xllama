@@ -39,7 +39,12 @@ MANIFEST="${REPO_ROOT}/uwp/models/manifest.json"
 # Models the full-functionality live test needs pre-seeded: chat GGUF, the CPU
 # text model, the parity-validated DML text asset (routing re-enabled for the
 # rmsfix -v2 graph, dml_text_model_ok in routing_policy.h) and diffusion.
-ALL_TEST=(lfm25-350m smollm2-360m-cpu-int4 smollm2-360m-dml-fp16-v2 sd-turbo-fp16)
+# qwen25-coder-0.5b and lfm25-1.2b-thinking are here because validate-console.sh
+# names them directly (coderpaste needs the coding n_ctx 4096 regime; thinkcut/
+# thinkdone need a reasoning model). The runbook tells operators to seed with
+# --all-test and then run the suite, so anything the suite hard-requires belongs
+# in this list — a gate that fails on a missing model reads like a product bug.
+ALL_TEST=(lfm25-350m smollm2-360m-cpu-int4 smollm2-360m-dml-fp16-v2 sd-turbo-fp16 qwen25-coder-0.5b lfm25-1.2b-thinking)
 
 FORCE=false
 MODELS=()

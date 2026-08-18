@@ -1,0 +1,10 @@
+# Not ours to format.
+llama.cpp/
+vendor/
+
+# Build and restore output.
+build/
+build-uwp-test/
+uwp/packages/
+cache_dir/
+node_modules/

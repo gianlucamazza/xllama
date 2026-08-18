@@ -38,6 +38,7 @@ CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
 CSRF_TOKEN=$(curl "${CURL_AUTH[@]}" "${BASE_URL}/" -o /dev/null -D - 2>/dev/null |
 	sed -n 's/.*[Cc][Ss][Rr][Ff]-[Tt]oken=\([^;[:space:]]*\).*/\1/p' |
 	tr -d '\r' | head -n1)
+[[ -z "$CSRF_TOKEN" ]] && echo "Warning: no CSRF token — POST/DELETE will fail with 403" >&2
 
 PFN=$("${DEPLOY}" pfn 2>/dev/null)
 [[ -z "$PFN" ]] && {

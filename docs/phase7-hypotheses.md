@@ -64,7 +64,8 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   ~4× slower in perceived latency. The bandwidth premise was confirmed (631 MB
   read/token vs 645 predicted) — the cost simply moves elsewhere. Full result,
   including why H9 was not applicable, under "H2 measured on console" below.
-  Desk survey 2026-07-29 against pin `b10093-1-g6d5a910c5`, whose
+  Desk survey 2026-07-29 against `ggml-org/llama.cpp` pin `6d5a910c5` (tag
+  `b10094`), whose
   `src/models/*.cpp` wildcard already compiles `lfm2moe.cpp`, `granite-moe.cpp`,
   `qwen3moe.cpp`, `olmoe.cpp` and ~20 more.
 
@@ -72,6 +73,19 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   low quants) — same family as the shipping default, ~1.5B of 8.3B active (≈1/5.5).
   Peak estimated at weights × 1.12, the measured load overhead of the catalogue
   GGUFs (`qwen25-coder-3b` 1840→2116 MB, `lfm2-2.6b` 1491→1623 MB):
+
+  > **The 1.12 factor was falsified in Phase 16 and must not be reused as
+  > written.** Three fresh console measurements have it under-predicting by 4% to
+  > 47% (`lfm25-230m` 146→241 MB, `maincoder-1b` 641→843, `qwen35-2b`
+  > 1221→1421). Overhead is a large fixed floor — ~95 MB at 146 MB of weights,
+  > dominated by the runtime and compute buffers — plus a term that scales with
+  > the architecture's KV footprint, not a constant multiplier. It was fitted
+  > here to two dense 3B-class models, which is exactly the range where it holds:
+  > at nearly identical weights `lfm2-2.6b` carries 132 MB of overhead (9%) while
+  > `llama32-3b` carries 353 MB (24%). The H2 arithmetic below is left as it was
+  > computed, because the conclusion it fed is unaffected — a bigger true peak
+  > only strengthens a FAIL. See
+  > [phase16-model-scouting.md](phase16-model-scouting.md).
 
   | Quant             | Weights     | Est. peak   | vs H2 gate (4 GB) |
   | ----------------- | ----------- | ----------- | ----------------- |
@@ -354,7 +368,26 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
 ### H5 — BitNet / 1.58-bit
 
 - **Claim:** 1.5–3B at 1.58-bit → ≥20 tok/s in 400–800 MB.
-- **Status:** Desk — `llama.cpp` has `bitnet.cpp`; ORT GenAI 0.14.1 no stable INT2. Survey before eng.
+- **Status:** **Survey done 2026-08-10 — NO-GO, on absence of artefact rather than
+  on merit.** Phase 15 milestone M8 is answered; no engineering follows.
+- **What the survey found** (Phase 16 T0, evidence in
+  [phase16-model-scouting.md](phase16-model-scouting.md)):
+  1. **The runtime is not the blocker.** The pinned `llama.cpp` carries `bitnet`
+     in `LLM_ARCH_NAMES`, so a conforming GGUF would load today.
+  2. **No sub-4B natively-low-bit checkpoint with released weights exists.** The
+     one notable 2026 ternary release is 20.2B on a custom-code MoE architecture,
+     and its only GGUF is self-described work-in-progress against a llama.cpp
+     **fork** — a fork is not a pin bump. A second ternary release is 8B on
+     another custom arch. Both are far past the weight bound.
+  3. **The literature ships recipes, not checkpoints.** Nine months of
+     quantisation-aware-training work (2-bit vector-quantised QAT, ternary QAT,
+     trellis 2-bit, and the QAT scaling-law line) release code and method; the
+     only papers shipping actual quantised weights in the window are a robotics
+     VLA and a 9.3B diffusion model, neither a text LM in envelope.
+- **Reopen when**, and only when, a sub-4B model _trained_ at ≤2 bits publishes
+  downloadable weights. Post-hoc 2-bit quantisation of a normal model is not the
+  same bet and is separately discouraged here: the IQ2_M precedent collapsed to
+  an immediate EOG on long declarative prompts.
 
 ### H6 — GGUF GPU backend (Vulkan/D3D12) in AppContainer
 
@@ -399,14 +432,14 @@ config-only, MoE H2 as a decode win, draft-model speculative as a default
 
 ## Shortlist (desk, 2026-07-16)
 
-| Hypothesis | Candidate                        | Repo / file                            | Size    | Why                                                   |
-| ---------- | -------------------------------- | -------------------------------------- | ------- | ----------------------------------------------------- |
-| H4         | Llama-3.2-3B-Instruct Q3_K_S     | `unsloth/Llama-3.2-3B-Instruct-GGUF`   | 1.54 GB | **Measured preferred** — catalogue `llama32-3b`       |
-| H4         | Llama-3.2-3B-Instruct Q4_K_M     | same                                   | 2.02 GB | Quality control if Q3 weak (not needed after Q3 PASS) |
-| H4         | Phi-3.5-mini Q3_K_S              | `bartowski/Phi-3.5-mini-instruct-GGUF` | 1.68 GB | **Measured** — loses A/B; no catalogue                |
-| H1         | LFM2.5-1.2B-Instruct Q4_K_M      | `LiquidAI/LFM2.5-1.2B-Instruct-GGUF`   | 697 MB  | **PASS** — balanced catalogue tier                    |
-| H1         | LFM2-2.6B Q4_K_M                 | `LiquidAI/LFM2-2.6B-GGUF`              | 1.46 GB | **PASS** — quality catalogue tier                     |
-| H2         | Small MoE GGUF with arch in tree | e.g. OLMoE/Qwen-MoE tiny               | TBD     | Only if &lt;~3.5 GB Q3                                |
+| Hypothesis | Candidate                    | Repo / file                            | Size    | Why                                                   |
+| ---------- | ---------------------------- | -------------------------------------- | ------- | ----------------------------------------------------- |
+| H4         | Llama-3.2-3B-Instruct Q3_K_S | `unsloth/Llama-3.2-3B-Instruct-GGUF`   | 1.54 GB | **Measured preferred** — catalogue `llama32-3b`       |
+| H4         | Llama-3.2-3B-Instruct Q4_K_M | same                                   | 2.02 GB | Quality control if Q3 weak (not needed after Q3 PASS) |
+| H4         | Phi-3.5-mini Q3_K_S          | `bartowski/Phi-3.5-mini-instruct-GGUF` | 1.68 GB | **Measured** — loses A/B; no catalogue                |
+| H1         | LFM2.5-1.2B-Instruct Q4_K_M  | `LiquidAI/LFM2.5-1.2B-Instruct-GGUF`   | 697 MB  | **PASS** — balanced catalogue tier                    |
+| H1         | LFM2-2.6B Q4_K_M             | `LiquidAI/LFM2-2.6B-GGUF`              | 1.46 GB | **PASS** — quality catalogue tier                     |
+| H2         | LFM2.5-8B-A1B UD-IQ3_S       | `unsloth/LFM2.5-8B-A1B-GGUF`           | 3.57 GB | **Measured FAIL** (2026-07-30) — see the H2 card      |
 
 ## Console campaign results
 

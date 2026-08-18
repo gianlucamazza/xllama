@@ -1,20 +1,29 @@
 #!/usr/bin/env bash
-# apply-uwp-patches.sh — apply the AppContainer guards to the llama.cpp submodule.
+# apply-uwp-patches.sh — apply the UWP build patches to the llama.cpp submodule.
 #
-# The UWP (Xbox) build compiles ggml/llama sources directly (uwp/ggml-uwp.vcxproj);
-# three Win32 desktop-only APIs must be guarded with WINAPI_FAMILY_PARTITION so the
-# sources build and run inside the AppContainer (see patches/README.md).
+# The UWP (Xbox) build compiles ggml/llama sources directly (uwp/ggml-uwp.vcxproj),
+# so a few upstream sources need local changes to build and run inside the
+# AppContainer, and one needs a change to build under clang-cl at all. Each patch
+# and its reason: patches/README.md.
 #
-# Idempotent: skips if the patch is already applied. Run from anywhere.
+# Applies every patches/0*-*.patch in order. Idempotent per patch, so re-running
+# after adding a new one applies only the new one. Run from anywhere.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PATCH="$ROOT/patches/0001-uwp-appcontainer-guards.patch"
 
 cd "$ROOT/llama.cpp"
-if git apply --reverse --check "$PATCH" 2>/dev/null; then
-	echo "apply-uwp-patches: already applied — nothing to do."
-	exit 0
-fi
-git apply --check "$PATCH"
-git apply "$PATCH"
-echo "apply-uwp-patches: applied $(basename "$PATCH") to llama.cpp @ $(git rev-parse --short HEAD)"
+applied=0
+skipped=0
+for patch in "$ROOT"/patches/0*-*.patch; do
+	name="$(basename "$patch")"
+	if git apply --reverse --check "$patch" 2>/dev/null; then
+		echo "apply-uwp-patches: ${name} already applied."
+		skipped=$((skipped + 1))
+		continue
+	fi
+	git apply --check "$patch"
+	git apply "$patch"
+	echo "apply-uwp-patches: applied ${name}."
+	applied=$((applied + 1))
+done
+echo "apply-uwp-patches: ${applied} applied, ${skipped} already present, llama.cpp @ $(git rev-parse --short HEAD)"
