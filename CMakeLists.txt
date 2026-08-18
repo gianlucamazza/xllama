@@ -62,6 +62,7 @@ add_library(xllama STATIC
     src/bridge/kv_store.cpp
     src/bridge/bench.cpp
     src/bridge/membw.cpp
+    src/bridge/diskbw.cpp
     src/bridge/gpubw.cpp
     src/bridge/gpugemv.cpp
     src/bridge/ramceil.cpp

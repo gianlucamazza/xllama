@@ -3,6 +3,7 @@
 
 #include "xllama/chat_prompt.h" // kDefaultSystemPrompt
 #include "xllama/cli.h"
+#include "xllama/diskbw.h"
 #include "xllama/gpubw.h"
 #include "xllama/gpugemv.h"
 #include "xllama/inference.h"
@@ -109,6 +110,45 @@ int main(int argc, char** argv) {
         std::printf("%s%s", xllama::membw_csv_header(),
                     xllama::format_membw_row(mt, "host").c_str());
         return 0;
+    }
+
+    // --diskbw: disk read-bandwidth micro-bench. Sequential (bulk-load shape)
+    // and random-block (MoE expert-fetch shape), 1 thread and 4 I/O threads,
+    // over a 4 GiB incompressible test file. The test file is kept when
+    // XLLAMA_DISKBW_KEEP=1 or when XLLAMA_DISKBW_FILE names a custom path
+    // (reruns skip the ~4 GiB write; a custom path is never auto-deleted).
+    if (params.run_diskbw) {
+        const char* env_path = std::getenv("XLLAMA_DISKBW_FILE");
+        const std::string path = env_path && env_path[0] ? env_path : "diskbw-test.bin";
+        std::string err;
+        if (!xllama::ensure_diskbw_file(path, xllama::kDiskbwDefaultFileBytes, &err)) {
+            std::fprintf(stderr, "diskbw FAIL: %s\n", err.c_str());
+            return 1;
+        }
+        const xllama::DiskbwResult runs[] = {
+            xllama::measure_diskbw(path, xllama::kDiskbwDefaultFileBytes,
+                                   xllama::kDiskbwSeqBlockBytes, /*random=*/false, 1, 3, true),
+            xllama::measure_diskbw(path, xllama::kDiskbwDefaultFileBytes,
+                                   xllama::kDiskbwSeqBlockBytes, /*random=*/false, 4, 3, true),
+            xllama::measure_diskbw(path, xllama::kDiskbwDefaultFileBytes,
+                                   xllama::kDiskbwRndBlockBytes, /*random=*/true, 1, 3, true),
+            xllama::measure_diskbw(path, xllama::kDiskbwDefaultFileBytes,
+                                   xllama::kDiskbwRndBlockBytes, /*random=*/true, 4, 3, true),
+        };
+        std::printf("%s", xllama::diskbw_csv_header());
+        int rc = 0;
+        for (const auto& r : runs) {
+            if (!r.error_msg.empty()) {
+                std::fprintf(stderr, "diskbw FAIL: %s\n", r.error_msg.c_str());
+                rc = 1;
+                continue;
+            }
+            std::printf("%s", xllama::format_diskbw_row(r, "host").c_str());
+        }
+        const char* keep = std::getenv("XLLAMA_DISKBW_KEEP");
+        if (!env_path && !(keep && keep[0] == '1'))
+            std::remove(path.c_str());
+        return rc;
     }
 
     // --gpubw: Phase 15 W3 (#211). On Linux reports d3d12 unavailable (honest).
