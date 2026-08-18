@@ -527,7 +527,10 @@ TrainingResult run_device_train_job(const TrainingJob& job, const DeviceTrainCal
     // ---- train ----
     llama_backend_init();
     llama_model_params mparams = llama_model_default_params();
-    mparams.use_mmap = false; // trainable weights must be writable (and UWP has no mmap)
+    // Trainable weights must be writable, and UWP has no mmap. b10105 replaced
+    // the use_mmap/use_mlock/use_direct_io booleans with this enum; NONE is the
+    // former use_mmap=false.
+    mparams.load_mode = LLAMA_LOAD_MODE_NONE;
     mparams.n_gpu_layers = 0; // CPU only: Xbox has no ggml GPU backend
     LlamaModelPtr model{llama_model_load_from_file(mixed_gguf.c_str(), mparams)};
     if (!model)
