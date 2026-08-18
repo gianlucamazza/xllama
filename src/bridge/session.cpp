@@ -800,7 +800,7 @@ class LlamaSession final : public Session {
         if (full_prompt || !m_sampler || !same_chain(m_sampler_cfg, sc)) {
             const llama_sampler_chain_params sparams = llama_sampler_chain_default_params();
             m_sampler.reset(llama_sampler_chain_init(sparams));
-            add_sampler_stages(m_sampler.get(), sc);
+            add_sampler_stages(m_sampler.get(), sc, vocab);
             m_sampler_cfg = sc;
         }
         llama_sampler* sampler_chain = m_sampler.get();
