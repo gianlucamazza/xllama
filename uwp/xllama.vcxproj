@@ -318,6 +318,7 @@
     <ClCompile Include="..\src\bridge\session.cpp" />
     <ClCompile Include="..\src\bridge\kv_store.cpp" />
     <ClCompile Include="..\src\bridge\bench.cpp" />
+    <ClCompile Include="..\src\bridge\diskbw.cpp" />
     <ClCompile Include="..\src\bridge\membw.cpp" />
     <ClCompile Include="..\src\bridge\gpubw.cpp" />
     <ClCompile Include="..\src\bridge\gpugemv.cpp" />

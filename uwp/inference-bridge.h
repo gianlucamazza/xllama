@@ -26,6 +26,11 @@ void main_loop();
 // ceiling behind the bandwidth-bound decode number (see docs/benchmarks.md).
 void run_membw();
 
+// Disk (NVMe) read-bandwidth micro-bench (SSD-inference assessment). Triggered
+// by LocalFolder\diskbw.flag; writes diskbw-result.csv (+ .done) to LocalState.
+// Pins the sandboxed file-read rate any weight-streaming scheme would divide by.
+void run_diskbw();
+
 // Phase 15 W3 (#211): own D3D12 compute STREAM read (~1 GB VRAM) + checksum.
 // Triggered by LocalFolder\gpubw.flag; writes gpubw-result.csv (+ .done).
 // Kill criterion 100 GB/s is documented in docs/phase15-re-opt.md — not invented here.

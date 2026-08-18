@@ -355,6 +355,14 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
                 winrt::make<HeadlessView>(&::xllama::bridge::run_membw, "membw"));
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
+        std::wstring diskbw_flag = flag_path_if_present(L"diskbw.flag");
+        if (!diskbw_flag.empty()) {
+            _wremove(diskbw_flag.c_str());
+            ::xllama::log_output("[xllama] diskbw.flag detected -> headless diskbw mode\n");
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(&::xllama::bridge::run_diskbw, "diskbw"));
+            return 0; // not reached: CoreApplication::Exit terminates the process
+        }
         std::wstring gpubw_flag = flag_path_if_present(L"gpubw.flag");
         if (!gpubw_flag.empty()) {
             _wremove(gpubw_flag.c_str());

@@ -5,6 +5,7 @@
 
 #include "xllama/chat_prompt.h"
 #include "xllama/device_train.h"
+#include "xllama/diskbw.h"
 #include "xllama/gpubw.h"
 #include "xllama/gpugemv.h"
 #include "xllama/inference.h"
@@ -355,6 +356,62 @@ void run_membw() {
         }
         log_output("[xllama] membw-result.csv written\n");
     }
+#endif
+}
+
+// ---------------------------------------------------------------------------
+// run_diskbw (called from UWP diskbw.flag mode background thread)
+// ---------------------------------------------------------------------------
+
+void run_diskbw() {
+#ifdef XLLAMA_UWP
+    log_output("[xllama] diskbw: measuring sandboxed NVMe read bandwidth\n");
+    // 4 GiB incompressible file in LocalState — above the RAM budget, so a
+    // buffered pass cannot be served entirely from cache. Deleted afterwards.
+    const std::string path = resolve_local_path("diskbw-test.bin");
+    std::string err;
+    if (!::xllama::ensure_diskbw_file(path, ::xllama::kDiskbwDefaultFileBytes, &err)) {
+        log_output(("[xllama] diskbw FAIL: " + err + "\n").c_str());
+        return;
+    }
+    const ::xllama::DiskbwResult runs[] = {
+        ::xllama::measure_diskbw(path, ::xllama::kDiskbwDefaultFileBytes,
+                                 ::xllama::kDiskbwSeqBlockBytes, /*random=*/false, 1, 3, true),
+        ::xllama::measure_diskbw(path, ::xllama::kDiskbwDefaultFileBytes,
+                                 ::xllama::kDiskbwSeqBlockBytes, /*random=*/false, 4, 3, true),
+        ::xllama::measure_diskbw(path, ::xllama::kDiskbwDefaultFileBytes,
+                                 ::xllama::kDiskbwRndBlockBytes, /*random=*/true, 1, 3, true),
+        ::xllama::measure_diskbw(path, ::xllama::kDiskbwDefaultFileBytes,
+                                 ::xllama::kDiskbwRndBlockBytes, /*random=*/true, 4, 3, true),
+    };
+
+    const std::string csv = resolve_local_path("diskbw-result.csv");
+    FILE* fp = _wfopen(utf8_to_wstring(csv).c_str(), L"w");
+    if (fp) {
+        fputs(::xllama::diskbw_csv_header(), fp);
+        for (const auto& r : runs) {
+            char lb[320];
+            if (!r.error_msg.empty()) {
+                snprintf(lb, sizeof(lb), "[xllama] diskbw FAIL: %s\n", r.error_msg.c_str());
+                log_output(lb);
+                continue;
+            }
+            snprintf(lb, sizeof(lb), "[xllama] diskbw: %s %dt unbuf=%d first=%.2f best=%.2f GB/s\n",
+                     r.random ? "rnd" : "seq", r.threads, r.unbuffered ? 1 : 0, r.read_gbs_first,
+                     r.read_gbs_best);
+            log_output(lb);
+            fputs(::xllama::format_diskbw_row(r, "xbox-series-s").c_str(), fp);
+        }
+        fclose(fp);
+        FILE* done =
+            _wfopen(utf8_to_wstring(resolve_local_path("diskbw-result.csv.done")).c_str(), L"w");
+        if (done) {
+            fputs("done\n", done);
+            fclose(done);
+        }
+        log_output("[xllama] diskbw-result.csv written\n");
+    }
+    _wremove(utf8_to_wstring(path).c_str());
 #endif
 }
 

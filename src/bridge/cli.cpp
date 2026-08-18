@@ -42,6 +42,8 @@ static void print_help(const char* prog) {
                  "                       not product claims — console A/B decides ship\n"
                  "      --membw          Run the CPU memory-bandwidth micro-bench and\n"
                  "                       exit (no model needed); prints read/copy/triad GB/s\n"
+                 "      --diskbw         Run the disk read-bandwidth micro-bench and exit\n"
+                 "                       (no model needed); seq+rnd read GB/s, 4 GiB test file\n"
                  "      --gpubw          Phase 15 W3 (#211) GPU STREAM probe (D3D12; host\n"
                  "                       without D3D12 reports unavailable — no fake GB/s)\n"
                  "      --gpugemv        Phase 15 H6.1 (#228) Q4_K GEMV density probe\n"
@@ -105,6 +107,7 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         {"prompt-lookup", no_argument, nullptr, 20},
         {"gpubw", no_argument, nullptr, 21},
         {"gpugemv", no_argument, nullptr, 22},
+        {"diskbw", no_argument, nullptr, 23},
         {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0}};
 
@@ -194,6 +197,9 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         case 22:
             out.run_gpugemv = true;
             break;
+        case 23:
+            out.run_diskbw = true;
+            break;
         case 'h':
             print_help(argv[0]);
             std::exit(0);
@@ -203,12 +209,15 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         }
     }
 
-    // --membw / --gpubw / --gpugemv / --ramceil / train-job: model/prompt not required.
+    // --membw / --gpubw / --gpugemv / --diskbw / --ramceil / train-job: model/prompt
+    // not required.
     if (out.run_membw)
         return true;
     if (out.run_gpubw)
         return true;
     if (out.run_gpugemv)
+        return true;
+    if (out.run_diskbw)
         return true;
     if (out.run_ramceil)
         return true;
