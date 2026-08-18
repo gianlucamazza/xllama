@@ -372,6 +372,9 @@ void run_diskbw() {
     std::string err;
     if (!::xllama::ensure_diskbw_file(path, ::xllama::kDiskbwDefaultFileBytes, &err)) {
         log_output(("[xllama] diskbw FAIL: " + err + "\n").c_str());
+        // A failed creation (disk full) can leave a multi-GiB partial file in
+        // LocalState that nothing else would ever clean up.
+        _wremove(utf8_to_wstring(path).c_str());
         return;
     }
     const ::xllama::DiskbwResult runs[] = {
@@ -410,6 +413,8 @@ void run_diskbw() {
             fclose(done);
         }
         log_output("[xllama] diskbw-result.csv written\n");
+    } else {
+        log_output("[xllama] diskbw: cannot open diskbw-result.csv\n");
     }
     _wremove(utf8_to_wstring(path).c_str());
 #endif

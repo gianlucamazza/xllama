@@ -19,6 +19,10 @@ TIMEOUT_S=600
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 	--out)
+		if [[ $# -lt 2 ]]; then
+			echo "--out requires a path" >&2
+			exit 2
+		fi
 		OUT="$2"
 		shift 2
 		;;
@@ -65,6 +69,13 @@ fi
 
 "${SCRIPT_DIR}/deploy.sh" stop-app || true
 sleep 1
+# A marker left by a previous run would end the wait loop immediately and
+# fetch a stale CSV. Delete it and verify it is gone before launching.
+"${SCRIPT_DIR}/deploy.sh" delete-file "$PFN" "diskbw-result.csv.done" 2>/dev/null || true
+if "${SCRIPT_DIR}/deploy.sh" fetch-file "$PFN" "diskbw-result.csv.done" "$TMP/stale-done" 2>/dev/null; then
+	echo "stale diskbw-result.csv.done still present on console — aborting" >&2
+	exit 1
+fi
 "${SCRIPT_DIR}/deploy.sh" start-app
 echo "Waiting for diskbw-result.csv.done (timeout ${TIMEOUT_S}s) ..."
 deadline=$((SECONDS + TIMEOUT_S))

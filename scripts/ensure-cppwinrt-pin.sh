@@ -41,6 +41,20 @@ fi
 	echo "       or build the native compiler: uwp-fetch-cppwinrt-native --version $ver" >&2
 	exit 1
 }
+# The .exe fallback needs a Wine that can still run PE32 (< 11.15). Verify it
+# up front, or header generation fails later with a much less legible error.
+if [[ -z "$native" ]]; then
+	if ! command -v wine >/dev/null 2>&1; then
+		echo "error: no native cppwinrt and no wine to run $exe" >&2
+		echo "       build the native compiler: uwp-fetch-cppwinrt-native --version $ver" >&2
+		exit 1
+	fi
+	if ! wine "$exe" -help >/dev/null 2>&1; then
+		echo "error: wine cannot execute $exe (PE32 support dropped in Wine >= 11.15)" >&2
+		echo "       build the native compiler: uwp-fetch-cppwinrt-native --version $ver" >&2
+		exit 1
+	fi
+fi
 
 cache="${XLLAMA_CPPWINRT_CACHE:-$HOME/.cache/xllama/cppwinrt-$ver}"
 union="${UWP_SDK_ROOT:-$HOME/.cache/uwp-crossbuild/sdk}/Windows Kits/10/UnionMetadata/${UWP_SDK_VERSION:-10.0.22621.0}"

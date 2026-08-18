@@ -147,8 +147,8 @@ void drop_cache_hint(const std::string& path) {
 }
 #endif
 
-// Volatile sink so reads are not optimized away.
-volatile std::uint64_t g_diskbw_sink = 0;
+// Shared sink so reads are not optimized away (atomic: workers add concurrently).
+std::atomic<std::uint64_t> g_diskbw_sink{0};
 
 } // namespace
 
@@ -210,12 +210,19 @@ DiskbwResult measure_diskbw(const std::string& path, std::size_t file_bytes,
     r.iterations = iterations;
     r.random = random;
 
-    // Probe whether the unbuffered open is accepted at all (UWP AppContainer
-    // may refuse FILE_FLAG_NO_BUFFERING; non-Linux POSIX has no O_DIRECT).
+    // Probe whether unbuffered I/O actually works: the open can succeed while
+    // the first read fails (POSIX O_DIRECT on tmpfs returns EINVAL; UWP
+    // AppContainer may refuse FILE_FLAG_NO_BUFFERING at open). Read one block
+    // so a probe failure falls back to buffered, as the header documents.
     bool unbuffered = false;
     if (try_unbuffered) {
         FileHandle probe;
-        unbuffered = probe.open_read(path, /*unbuffered=*/true);
+        if (probe.open_read(path, /*unbuffered=*/true)) {
+            if (void* buf = aligned_alloc_(block_bytes)) {
+                unbuffered = probe.pread_block(buf, block_bytes, 0);
+                aligned_free_(buf);
+            }
+        }
     }
     r.unbuffered = unbuffered;
 
@@ -262,7 +269,7 @@ DiskbwResult measure_diskbw(const std::string& path, std::size_t file_bytes,
                     }
                     sink += static_cast<const std::uint64_t*>(buf)[0];
                 }
-                g_diskbw_sink += sink;
+                g_diskbw_sink.fetch_add(sink, std::memory_order_relaxed);
                 aligned_free_(buf);
             });
         }

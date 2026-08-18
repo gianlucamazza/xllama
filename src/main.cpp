@@ -114,8 +114,9 @@ int main(int argc, char** argv) {
 
     // --diskbw: disk read-bandwidth micro-bench. Sequential (bulk-load shape)
     // and random-block (MoE expert-fetch shape), 1 thread and 4 I/O threads,
-    // over a 4 GiB incompressible test file. The test file is kept only if
-    // XLLAMA_DISKBW_KEEP=1 (reruns skip the ~4 GiB write).
+    // over a 4 GiB incompressible test file. The test file is kept when
+    // XLLAMA_DISKBW_KEEP=1 or when XLLAMA_DISKBW_FILE names a custom path
+    // (reruns skip the ~4 GiB write; a custom path is never auto-deleted).
     if (params.run_diskbw) {
         const char* env_path = std::getenv("XLLAMA_DISKBW_FILE");
         const std::string path = env_path && env_path[0] ? env_path : "diskbw-test.bin";

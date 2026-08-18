@@ -10,6 +10,7 @@
 #   deploy.sh pfn   (highest registered version; warns on stderr if several are live)                                        Print installed xllama package full name
 #   deploy.sh get-log [pfn]                              Print LocalState/xllama.log
 #   deploy.sh fetch-file <pfn> <name> <local-out> [subdir]  Download a LocalState file
+#   deploy.sh delete-file <pfn> <name> [subdir]          Delete a LocalState file (best-effort)
 #   deploy.sh list-localstate [pfn]                      List app LocalState files
 #   deploy.sh list-dumps                                 List user-mode crash dumps
 #   deploy.sh start-app [pfn]                            Launch xllama through WDP
@@ -127,6 +128,20 @@ fetch_file() {
 	curl "${CURL_AUTH[@]}" --fail -o "$out" \
 		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${pfn}&path=${path}&filename=${name}"
 	echo "Fetched ${name} -> ${out}"
+}
+
+# Delete a file from LocalState (WDP DELETE; requires the CSRF token).
+delete_file() {
+	local pfn="$1" name="$2" subdir="${3:-}"
+	local path='\LocalState'
+	if [[ -n "$subdir" ]]; then
+		path="\\LocalState\\${subdir}"
+	fi
+	curl "${CURL_AUTH[@]}" --fail \
+		-H "X-CSRF-Token:${CSRF_TOKEN}" \
+		-X DELETE \
+		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${pfn}&path=${path}&filename=${name}" >/dev/null
+	echo "Deleted ${name}."
 }
 
 # Create a directory inside LocalState.
@@ -247,6 +262,18 @@ if [[ "${1:-}" == "fetch-file" ]]; then
 		exit 1
 	fi
 	fetch_file "$PFN" "$NAME" "$OUT" "$SUBDIR"
+	exit 0
+fi
+
+if [[ "${1:-}" == "delete-file" ]]; then
+	PFN="$(require_pfn "${2:-}")"
+	NAME="${3:-}"
+	SUBDIR="${4:-}"
+	if [[ -z "$NAME" ]]; then
+		echo "Usage: $0 delete-file <pfn> <name> [subdir]" >&2
+		exit 1
+	fi
+	delete_file "$PFN" "$NAME" "$SUBDIR"
 	exit 0
 fi
 

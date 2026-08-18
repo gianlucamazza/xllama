@@ -23,9 +23,12 @@ And every real number is ~0.5–5 tok/s — proofs of capacity, not of speed.
 
 ## 2. The physics
 
-Decode is a bandwidth-bound M=1 GEMV: every token streams every **active**
-weight byte once, so `tok/s ≈ effective read GB/s ÷ active GB`. The hierarchy
-this repo has already measured (Series S):
+Decode is a bandwidth-bound M=1 GEMV: on a purely storage-bound path every
+token streams every **active** weight byte once, so
+`tok/s ≈ effective read GB/s ÷ active GB` — an upper bound over the bytes
+actually fetched from storage (a hot cache shrinks the denominator to the
+missed bytes, §2 escapes). The hierarchy this repo has already measured
+(Series S):
 
 | Tier                         | Read bandwidth                   | Where measured                                      |
 | ---------------------------- | -------------------------------- | --------------------------------------------------- |
@@ -68,10 +71,15 @@ Scenarios:
 ## 4. Measured: sandboxed NVMe read bandwidth (`diskbw`)
 
 Probe: `diskbw.flag` → `diskbw-result.csv` (pattern of `membw`/`gpubw`;
-`scripts/bench-diskbw.sh`). 4 GiB incompressible file (above the RAM budget so
-buffered passes cannot be fully cache-served), sequential 8 MiB blocks
-(bulk-load shape) and random 2 MiB blocks (expert-fetch shape), 1 and 4 I/O
-threads, `FILE_FLAG_NO_BUFFERING` when the AppContainer accepts it.
+`scripts/bench-diskbw.sh`). 4 GiB incompressible file — larger than the
+documented 3801 MB app RAM budget, which makes full cache service _unlikely_,
+not impossible (the OS file cache is not bound by the app budget) — sequential
+8 MiB blocks (bulk-load shape) and random 2 MiB blocks (expert-fetch shape),
+1 and 4 I/O threads. The probe prefers `FILE_FLAG_NO_BUFFERING`/`O_DIRECT`,
+which bypasses the file cache outright; the `unbuffered` column records
+whether that mode actually ran (it did in every row below), so the cache
+question only affects the buffered fallback, which additionally drops the
+cache per pass on POSIX (`posix_fadvise DONTNEED`, best-effort).
 
 Host reference (Linux laptop, `xllama-cli --diskbw`):
 
@@ -98,8 +106,12 @@ Console (Series S, Dev Mode):
 | rnd 2M  |       1 |          1 |       1.55 |      1.55 |
 | rnd 2M  |       4 |          1 |       1.75 |      1.76 |
 
-(Series S Dev Mode, package `1.5.4.900` crossbuild, 2026-08-18; raw CSV:
-`bench/results/diskbw.csv`.) Three facts fall out:
+(Series S Dev Mode, package `1.5.4.900` **crossbuild**, 2026-08-18; raw CSV:
+`bench/results/diskbw.csv`. Deliberate deviation from the CI-MSVC-only rule
+for console benchmarks: this probe measures NVMe read bandwidth through
+Win32 file APIs, not code generation — the compiler cannot move the device's
+read rate, so the crossbuild number stands for the §4 gate. Any tok/s or RAM
+claim would still require a CI MSVC package.) Three facts fall out:
 
 1. **`FILE_FLAG_NO_BUFFERING` is accepted in the AppContainer** — the sandbox
    does not block unbuffered reads, so an explicit streaming engine could do
@@ -107,8 +119,9 @@ Console (Series S, Dev Mode):
 2. **Sequential ≈ 2.0 GB/s** — ~83% of the PCIe 4.0 x2 raw spec (2.4 GB/s);
    the sandbox tax is real but small. Extra I/O threads do not help (1.8–1.85
    GB/s @4t): the device, not the submitter, is the bottleneck.
-3. **Random 2 MiB ≈ 1.55–1.76 GB/s** — the expert-fetch shape loses only
-   ~15% vs sequential. The §4 gate (≥ 1.5 GB/s) **passes, marginally**.
+3. **Random 2 MiB ≈ 1.55–1.76 GB/s** — the expert-fetch shape loses 22–24%
+   vs sequential at 1 thread and 3–5% at 4. The §4 gate (≥ 1.5 GB/s)
+   **passes, marginally**.
 
 **Read gate** (why 1.5 GB/s): a hypothetical console-admissible MoE with ~1 GB
 active per token and a hot cache absorbing ⅔ of expert reads needs
