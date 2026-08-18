@@ -24,10 +24,10 @@ inline void add_sampler_stages(llama_sampler* chain, const SamplingConfig& sc,
         return;
     }
     if (sc.repetition_penalty > 0.0f) {
-        llama_sampler_chain_add(
-            chain, llama_sampler_init_penalties(llama_vocab_n_tokens(vocab),
-                                                sampling_defaults::kPenaltyLastN,
-                                                sc.repetition_penalty, 0.0f, 0.0f));
+        llama_sampler_chain_add(chain,
+                                llama_sampler_init_penalties(llama_vocab_n_tokens(vocab),
+                                                             sampling_defaults::kPenaltyLastN,
+                                                             sc.repetition_penalty, 0.0f, 0.0f));
     }
     llama_sampler_chain_add(chain, llama_sampler_init_top_k(sc.top_k));
     llama_sampler_chain_add(chain, llama_sampler_init_top_p(sc.top_p, 1));
