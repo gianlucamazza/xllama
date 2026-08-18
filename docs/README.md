@@ -32,6 +32,7 @@ Technical notes and design decisions for xllama.
 | Model catalogue + backend selection                                                    | [model-selection.md](./model-selection.md) (narrative) + [`../uwp/models/manifest.json`](../uwp/models/manifest.json) (data) |
 | Full model inventory (tested / shipping / rejected, roles, H9, coding)                 | [model-matrix.md](./model-matrix.md) (status SSOT; numbers still link to benchmarks.md)                                      |
 | UWP/AppContainer constraints (§1–§13)                                                  | [uwp-constraints.md](./uwp-constraints.md)                                                                                   |
+| SSD-streamed inference assessment (diskbw probe + verdict)                             | [ssd-inference-assessment.md](./ssd-inference-assessment.md)                                                                 |
 | Runtime NuGet pins                                                                     | [recommended-config.md](./recommended-config.md) (narrative) + [`../uwp/packages.config`](../uwp/packages.config) (data)     |
 | Patched-DLL lifecycle                                                                  | [vendor-lifecycle-plan.md](./vendor-lifecycle-plan.md)                                                                       |
 | LAN HTTP protocol                                                                      | [api-endpoint.md](./api-endpoint.md)                                                                                         |
