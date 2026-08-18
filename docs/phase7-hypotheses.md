@@ -64,7 +64,8 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   ~4× slower in perceived latency. The bandwidth premise was confirmed (631 MB
   read/token vs 645 predicted) — the cost simply moves elsewhere. Full result,
   including why H9 was not applicable, under "H2 measured on console" below.
-  Desk survey 2026-07-29 against pin `6d5a910c5` (tag `b10094`), whose
+  Desk survey 2026-07-29 against `ggml-org/llama.cpp` pin `6d5a910c5` (tag
+  `b10094`), whose
   `src/models/*.cpp` wildcard already compiles `lfm2moe.cpp`, `granite-moe.cpp`,
   `qwen3moe.cpp`, `olmoe.cpp` and ~20 more.
 

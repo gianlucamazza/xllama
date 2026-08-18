@@ -419,7 +419,8 @@ Findings, workstream status, decision log). Attack order: **W2 closed**
 
 - [x] **W1 — H2: a MoE whose active weights are a fraction of its total. CLOSED
       FAIL 2026-07-30.**
-      Desk survey done 2026-07-29 against pin `6d5a910c5 (tag `b10094`)`
+      Desk survey done 2026-07-29 against `ggml-org/llama.cpp` pin `6d5a910c5`
+      (tag `b10094`)
       (`src/models/*.cpp` already compiles `lfm2moe.cpp` and ~20 more MoE archs).
       Candidate **LFM2.5-8B-A1B**, 32 experts / 4 active. Admissibility hung on a
       never-measured number, so the **console heap ceiling was measured**:
