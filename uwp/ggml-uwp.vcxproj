@@ -165,6 +165,7 @@
     <ClCompile Include="..\llama.cpp\src\llama-kv-cache-dsa.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-kv-cache-dsv4.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-kv-cache-iswa.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-kv-cache-msa.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-memory.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-memory-hybrid.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-memory-hybrid-iswa.cpp" />

@@ -595,7 +595,7 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     // repetition penalty, so a CLI run could not reproduce a GUI generation
     // even given identical flags. Greedy (including temperature 0) is handled
     // inside the builder.
-    add_sampler_stages(sampler.get(), params.sampling());
+    add_sampler_stages(sampler.get(), params.sampling(), vocab);
 
     const auto t_gen0 = std::chrono::steady_clock::now();
     // Seed for W2 prompt-lookup: prefill tokens only; the loop appends accepted

@@ -304,7 +304,7 @@ the catalogue status only.
 | Gemma-4 E4B/12B+ | llama.cpp | ≥4.5 GB          | ⛔ too big / too slow for the console                                       |
 
 **Gemma chat template**: the ORT GenAI _builder_ is frozen at Gemma3, but the
-vendored `llama.cpp` (current pin `6d5a910c5`, see `patches/README.md`) already carries `LLM_ARCH_GEMMA3` **and**
+vendored `llama.cpp` (current pin `08659901c`, see `patches/README.md`) already carries `LLM_ARCH_GEMMA3` **and**
 `LLM_ARCH_GEMMA4` — both load and generate (verified via `xllama-cli`,
 `general.architecture = gemma3`/`gemma4`). What was missing was the prompt
 format: the app hard-coded ChatML. `chat_format_for()` (`src/bridge/chat_prompt.cpp`)
