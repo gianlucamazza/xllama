@@ -9,6 +9,9 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
 INPUT="${1:-}"
 OUTPUT="${2:-}"
 QUANT_TYPE="${3:-Q4_K_M}"
@@ -19,10 +22,30 @@ if [[ -z "$INPUT" || -z "$OUTPUT" ]]; then
 	exit 1
 fi
 
-QUANTIZE_BIN="./llama.cpp/build/bin/llama-quantize"
-if [[ ! -x "$QUANTIZE_BIN" ]]; then
-	echo "Error: $QUANTIZE_BIN not found. Build llama.cpp first:" >&2
-	echo "  cmake -B llama.cpp/build llama.cpp && cmake --build llama.cpp/build -j" >&2
+# llama-quantize is built by our own presets, which vendor llama.cpp as a
+# subdirectory — there is no separate llama.cpp/build/ tree and configuring one
+# is not how this repo builds. LLAMA_QUANTIZE overrides for a hand-built binary.
+QUANTIZE_CANDIDATES=(
+	"${LLAMA_QUANTIZE:-}"
+	"${REPO_ROOT}/build/linux-release/bin/llama-quantize"
+	"${REPO_ROOT}/build/linux-test/bin/llama-quantize"
+)
+QUANTIZE_BIN=""
+for cand in "${QUANTIZE_CANDIDATES[@]}"; do
+	if [[ -n "$cand" && -x "$cand" ]]; then
+		QUANTIZE_BIN="$cand"
+		break
+	fi
+done
+
+if [[ -z "$QUANTIZE_BIN" ]]; then
+	echo "Error: llama-quantize not found. Tried:" >&2
+	for cand in "${QUANTIZE_CANDIDATES[@]}"; do
+		[[ -n "$cand" ]] && echo "  $cand" >&2
+	done
+	echo "Build it with a preset (it comes with the llama.cpp subdirectory):" >&2
+	echo "  cmake --preset linux-release" >&2
+	echo "  cmake --build build/linux-release -j\$(nproc) --target llama-quantize" >&2
 	exit 1
 fi
 

@@ -635,6 +635,56 @@ there needs either a guard before it or a `try`/`catch` inside it. Prefer the
 guard, because a caught exception still leaves the UI in whatever state the
 half-finished coroutine left it.
 
+### §10d — Audio capture: the graph opens, the device is the open question (2026-08-10)
+
+Phase 16 WS-F needed one fact nobody had measured: does the Xbox AppContainer
+grant a microphone? Measured by the `mic.flag` probe (`run_mic_probe` in
+`uwp/inference-bridge.cpp`, driven by `scripts/probe-mic.sh`) on Dev Mode
+package 1.5.4.897, with `<DeviceCapability Name="microphone"/>` in
+`AppxManifest.xml`. Raw result: [`../bench/results/phase16-mic.json`](../bench/results/phase16-mic.json).
+
+```
+[mic] AudioGraph present=1 MediaCapture present=1
+graph_status       = Success          (48000 Hz, 2 ch)
+input_node_status  = DeviceNotAvailable
+samples            = 0
+```
+
+What this **does** establish:
+
+- **The `microphone` capability is accepted at install.** The MSIX registered
+  and launched normally; declaring it is not itself a Dev Mode blocker.
+- **`AudioGraph::CreateAsync` succeeds under AppContainer** with
+  `AudioRenderCategory::Speech`, and reports a real 48 kHz stereo format. The
+  audio subsystem is reachable from inside the sandbox.
+- **`AccessDenied` did not fire.** That is the enum value the sandbox returns
+  when it refuses capture, and it is the single most likely way WS-F dies. It
+  was not returned.
+
+What it does **not** establish, and must not be read as: nothing about whether
+capture works. `AudioDeviceNodeCreationStatus::DeviceNotAvailable` means there
+is **no capture device attached to the console** — a statement about the room,
+not about the sandbox. No headset was connected when this ran.
+
+**The distinction is the finding.** A probe that reported a boolean would have
+returned false here, and WS-F would have been closed as "the AppContainer
+denies the microphone" on a test that never reached the microphone. The WinRT
+enums separate `AccessDenied` from `DeviceNotAvailable` and the probe carries
+both by name for exactly this reason; the harness prints `NOT A VERDICT` and
+refuses to score it.
+
+**To finish this measurement:** connect a headset with a microphone to the
+console and rerun `./scripts/probe-mic.sh`. `Success` with RMS > 1e-3 closes
+WS-F's S-gate as PASS; `AccessDenied` closes it as FAIL and this section
+becomes the permanent record of why. Until one of those runs, WS-F is
+**open and unmeasured**, not failed.
+
+Generalising §10b's rule one step further: `IsTypePresent` tells you the
+contract exists, an activation status tells you why it did not activate, and
+only the second distinguishes "the platform said no" from "you did not give it
+anything to work with". Both lines are worth logging, and neither substitutes
+for the other.
+
 ## 11. GPU Truth — EP Attribution Without PIX
 
 PIX for Xbox is GDK tooling gated behind the managed partner program; it is **not available for Dev Mode UWP**. GPU-vs-CPU execution truth is instead established by converging three surfaces (all verified against primary sources, ORT GenAI 0.13.2 / ORT 1.24.4):

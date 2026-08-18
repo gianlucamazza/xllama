@@ -31,19 +31,32 @@ APP_ID="GianlucaMazza.xllama"
 # sub-commands still find an old package during the migration window.
 APP_ID_LEGACY="VenereLabs.xllama"
 
-# Xbox WDP requires X-CSRF-Token on all POST/DELETE requests.
-# Extract from Set-Cookie header with a more robust pipeline.
-CSRF_TOKEN=$(curl "${CURL_AUTH[@]}" "${BASE_URL}/" -o /dev/null -D - 2>/dev/null |
+# Xbox WDP requires X-CSRF-Token on all POST/DELETE requests; extract it from
+# the Set-Cookie header of a plain GET.
+#
+# This used to be one `CSRF_TOKEN=$(curl ... 2>/dev/null | sed | head)`. Under
+# `set -euo pipefail` an unreachable console made curl fail inside that
+# substitution, so the script exited on THIS line with curl's bare rc (7) and
+# printed nothing — the warnings below could not run, because there was no
+# later line to run them on. Every caller then reported a silent failure whose
+# only clue was an exit code, which is precisely the failure mode the truthful
+# stop-app/start-app return values exist to remove.
+#
+# So separate the two questions. "Cannot reach the device" is fatal and gets a
+# message; "reached it but no token" stays a warning, because read-only
+# subcommands (pfn, get-log, list-*) genuinely work without one.
+if ! CSRF_HEADERS="$(curl "${CURL_AUTH[@]}" "${BASE_URL}/" -o /dev/null -D - 2>&1)"; then
+	echo "Error: cannot reach Device Portal at ${BASE_URL}" >&2
+	[[ -n "$CSRF_HEADERS" ]] && echo "  ${CSRF_HEADERS}" >&2
+	echo "  Check XBOX_IP, that the console is powered on, and that Dev Mode is active." >&2
+	exit 1
+fi
+CSRF_TOKEN=$(printf '%s' "$CSRF_HEADERS" |
 	sed -n 's/.*[Cc][Ss][Rr][Ff]-[Tt]oken=\([^;[:space:]]*\).*/\1/p' |
 	tr -d '\r' | head -n 1)
-# Every POST/DELETE below needs this header; without it the device answers 403.
-# Read-only subcommands (pfn, get-log, list-*) work without it, so warn rather
-# than exit — but say it once, loudly, instead of leaving the caller to guess
-# why a state change did nothing.
-[[ -z "$CSRF_TOKEN" ]] && echo "Warning: no CSRF token from ${BASE_URL} — POST/DELETE will fail with 403" >&2
-
 if [[ -z "$CSRF_TOKEN" ]]; then
-	echo "Warning: failed to extract CSRF token. POST requests may fail." >&2
+	echo "Warning: reached ${BASE_URL} but found no CSRF token —" \
+		"POST/DELETE will fail with 403" >&2
 fi
 
 get_pfn() {

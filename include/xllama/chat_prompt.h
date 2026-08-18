@@ -43,6 +43,13 @@ bool model_is_thinking(const std::string& model_id);
 // Empty when the model is not Qwen3 (Qwen2.5-Coder must not receive <think> markers).
 std::string qwen_no_think_gen_suffix(const std::string& model_id);
 
+// MiniCPM5 (Phase 16 H16.1d). Plain ChatML plus TWO things nothing else needs:
+// its template emits a literal <s> while the GGUF sets add_bos_token=false, and
+// it reasons per turn unless given the same empty-think prefill Qwen3 uses.
+// Measured, not assumed: without <s> the model closes the turn immediately; with
+// <s> alone it opens <think>; with both it answers cleanly (0/3 leaks).
+bool model_is_minicpm5(const std::string& model_id);
+
 // Remove leading empty </think> blocks (whitespace-only inside tags).
 std::string strip_empty_thinking_tags(std::string text);
 
@@ -99,7 +106,14 @@ struct ChatFormat {
     SystemStyle system_style = SystemStyle::DedicatedTurn;
 
     std::vector<std::string> stop_sequences; // stop token(s); may be a prefix of turn_close
-    std::string gen_suffix;                  // Qwen no-think prefill; else ""
+    std::string gen_suffix;                  // Qwen/MiniCPM5 no-think prefill; else ""
+
+    // Literal BOS the TEMPLATE must emit, for models whose GGUF declines to add
+    // one (add_bos_token=false). Empty everywhere else — Gemma and Llama-3 GGUF
+    // add BOS in the tokenizer, so emitting it here would double it. It lives
+    // inside render_system_prefix so #169's pinned head counts it automatically
+    // and cannot drift from render_prompt.
+    std::string bos;
 
     // When true, postprocess_output strips full <think>…</think> reasoning
     // (thinking models). Empty-think stripping for Qwen3 no-think always runs.

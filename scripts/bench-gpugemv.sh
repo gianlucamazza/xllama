@@ -50,16 +50,16 @@ upload_flag() {
 echo "Uploading gpugemv.flag to $PFN ..."
 if ! upload_flag 2>/dev/null; then
 	echo "  (upload failed — seeding LocalState via one UI launch...)"
-	"${SCRIPT_DIR}/deploy.sh" stop-app 2>/dev/null || true
+	"${SCRIPT_DIR}/deploy.sh" stop-app || true
 	"${SCRIPT_DIR}/deploy.sh" start-app || true
 	sleep 8
-	"${SCRIPT_DIR}/deploy.sh" stop-app 2>/dev/null || true
+	"${SCRIPT_DIR}/deploy.sh" stop-app || true
 	sleep 2
 	echo "  Retrying gpugemv.flag upload ..."
 	upload_flag
 fi
 
-"${SCRIPT_DIR}/deploy.sh" stop-app 2>/dev/null || true
+"${SCRIPT_DIR}/deploy.sh" stop-app || true
 sleep 1
 "${SCRIPT_DIR}/deploy.sh" start-app
 echo "Waiting for gpugemv-result.csv.done (timeout ${TIMEOUT_S}s) ..."

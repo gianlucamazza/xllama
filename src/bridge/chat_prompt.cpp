@@ -85,6 +85,15 @@ bool model_is_thinking(const std::string& model_id) {
     return id.find("a1b") != std::string::npos;
 }
 
+bool model_is_minicpm5(const std::string& model_id) {
+    // Deliberately NOT folded into qwen_no_think_gen_suffix: that function is
+    // named for the family whose template it reproduces, and MiniCPM5 needs the
+    // same prefill for its own reason. general.architecture is `llama` here, so
+    // the id must never be spelled with "llama" — that would force the Llama-3
+    // renderer and echo <|eot_id|> as text.
+    return to_lower(model_basename(model_id)).find("minicpm5") != std::string::npos;
+}
+
 std::string qwen_no_think_gen_suffix(const std::string& model_id) {
     // Only Qwen3.x uses the enable_thinking=false empty-<think> prefill.
     // Applying it to Qwen2.5-Coder injects alien special tokens into ChatML.
@@ -210,7 +219,9 @@ ChatFormat chat_format_for(const std::string& model_id) {
         f.system_sep = "";
         f.system_style = SystemStyle::DedicatedTurn;
         f.stop_sequences = {"<|im_end|>"};
-        f.gen_suffix = qwen_no_think_gen_suffix(model_id);
+        f.gen_suffix = model_is_minicpm5(model_id) ? empty_think_block() + "\n\n"
+                                                   : qwen_no_think_gen_suffix(model_id);
+        f.bos = model_is_minicpm5(model_id) ? "<s>" : "";
         f.strip_thinking_content = model_is_thinking(model_id);
     }
     return f;
@@ -219,9 +230,12 @@ ChatFormat chat_format_for(const std::string& model_id) {
 std::string ChatFormat::render_system_prefix(const std::string& system) const {
     // Must stay byte-identical to what render_prompt emits before the first
     // user turn — a context shift pins exactly this many tokens (#169).
+    // bos belongs here rather than in render_prompt: this is the one function
+    // both the prompt and the #169 pinned head go through, so a template BOS
+    // cannot be counted by one and missed by the other.
     if (system_style == SystemStyle::DedicatedTurn)
-        return turn_open + system_tag + role_sep + system + turn_close;
-    return {};
+        return bos + turn_open + system_tag + role_sep + system + turn_close;
+    return bos;
 }
 
 std::string ChatFormat::render_prompt(const std::string& system,

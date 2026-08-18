@@ -529,10 +529,20 @@ classes and with a console budget capped at ≤9 bench sessions.
 - [~] **WS-E (H16.5) — embedding surface.** **Blocked on a product decision,**
   not on technology: `nomic-embed-text-v1.5` is verified config-only at
   156 MB, but nobody has named who consumes the vectors, where they live, or
-  how a second `llama_context` survives the one-resident-model rule.
-- [~] **WS-F (H16.6) — ASR surface.** **Blocked on an unwritten probe:** does the
-  Xbox AppContainer grant `MediaCapture`/`AudioGraph`? T0 settled the backend
-  half — GGUF ASR is empty by construction, so any route is ORT GenAI.
+  how a second `llama_context` survives the one-resident-model rule. Tracked as
+  [#242](https://github.com/gianlucamazza/xllama/issues/242) — the card's kill
+  fires by inaction, so without an owner it expires rather than closing.
+- [~] **WS-F (H16.6) — ASR surface.** **Probe written and run 2026-08-10; one
+  measurement short.** The `microphone` capability installs, `AudioGraph` opens
+  under AppContainer at 48 kHz stereo, and `AccessDenied` — the way the sandbox
+  refuses — did **not** fire. But no headset was attached, so the device node
+  returned `DeviceNotAvailable`, which is a fact about the room and not a
+  verdict. Connect a microphone and rerun `scripts/probe-mic.sh` to settle the
+  S-gate — tracked as
+  [#241](https://github.com/gianlucamazza/xllama/issues/241). Evidence and the
+  reasoning for not scoring it:
+  [`docs/uwp-constraints.md`](docs/uwp-constraints.md) §10d. T0 settled the
+  backend half — GGUF ASR is empty by construction, so any route is ORT GenAI.
 - [x] **WS-G (H16.7) — vision / VLM surface.** **Closed:** S-gate FAIL — five
       new C++ surfaces against a ≤1 budget, on a desk close with no console time.
 

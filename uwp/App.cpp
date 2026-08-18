@@ -119,6 +119,42 @@ static void log_app_recording_probe() {
         log_write("[caprec] unknown exception\n");
     }
 }
+
+// ---------------------------------------------------------------------------
+// Is the audio-capture API surface even here? (Phase 16 WS-F, card H16.6)
+//
+// Separate from [caprec] on purpose. That probe answers "can the app record its
+// own output"; this one answers "can the app hear the room", and they have
+// different answers, different manifest costs and different consumers. Sharing
+// a tag would make both log lines ambiguous to whoever greps for one of them.
+//
+// This is free — two IsTypePresent calls — and it is deliberately NOT the
+// answer to WS-F. AudioGraph and MediaCapture are Universal contract types, so
+// they are expected present even where capture is refused; §10b already records
+// the same trap for GraphicsCaptureSession, which is present and unusable. The
+// verdict comes from run_mic_probe's real 3-second capture. This line exists so
+// that a future GameOS update removing the surface entirely is visible in an
+// ordinary boot log rather than only in a probe nobody reran.
+// ---------------------------------------------------------------------------
+static void log_microphone_probe() {
+    using winrt::Windows::Foundation::Metadata::ApiInformation;
+
+    char buf[256];
+    try {
+        snprintf(buf, sizeof(buf),
+                 "[mic] AudioGraph present=%d MediaCapture present=%d"
+                 " (presence is not permission — see uwp-constraints.md)\n",
+                 ApiInformation::IsTypePresent(L"Windows.Media.Audio.AudioGraph") ? 1 : 0,
+                 ApiInformation::IsTypePresent(L"Windows.Media.Capture.MediaCapture") ? 1 : 0);
+        log_write(buf);
+    } catch (winrt::hresult_error const& e) {
+        snprintf(buf, sizeof(buf), "[mic] hresult 0x%08X: %ls\n",
+                 static_cast<unsigned>(e.code().value), e.message().c_str());
+        log_write(buf);
+    } catch (...) {
+        log_write("[mic] unknown exception\n");
+    }
+}
     #endif
 
 // ---------------------------------------------------------------------------
@@ -180,6 +216,7 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
         // status flags this could then read are answered against a live window
         // rather than an inactive one.
         log_app_recording_probe();
+        log_microphone_probe();
 
         // §7 experiment: the 887A0036 device conflict was measured with ORT
         // GenAI's Agility-factory device; diffuse.cpp uses plain ORT DML, whose
@@ -378,6 +415,14 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
             ::xllama::log_output("[xllama] ramceil.flag detected -> headless heap-ceiling probe\n");
             winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
                 winrt::make<HeadlessView>(&::xllama::bridge::run_ramceil, "ramceil"));
+            return 0; // not reached: CoreApplication::Exit terminates the process
+        }
+        std::wstring mic_flag = flag_path_if_present(L"mic.flag");
+        if (!mic_flag.empty()) {
+            _wremove(mic_flag.c_str());
+            ::xllama::log_output("[xllama] mic.flag detected -> headless mic capture probe\n");
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(&::xllama::bridge::run_mic_probe, "mic"));
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
         std::wstring logits_flag = flag_path_if_present(L"logits.flag");

@@ -194,6 +194,39 @@ TEST_CASE("chat format selection") {
     CHECK(chat_format_for("phi35-mini").gen_suffix.empty());
 }
 
+TEST_CASE("minicpm5 needs both renderer halves, and nothing else gets them") {
+    // Phase 16 H16.1d. Measured on the vendor GGUF: without <s> the model closes
+    // the turn immediately; with <s> alone it opens <think>; with both it answers
+    // cleanly. So both halves are load-bearing and neither is cosmetic.
+    const ChatFormat m = chat_format_for("minicpm5-1b-Q4_K_M.gguf");
+    CHECK(m.kind == ChatFormatKind::ChatML); // NOT Llama3, though the arch is `llama`
+    CHECK(m.bos == "<s>");
+    CHECK(m.gen_suffix == "<think>\n\n</think>\n\n");
+    CHECK_FALSE(m.strip_thinking_content); // would disable KV snapshots
+
+    // The BOS must lead the prompt, and the #169 pinned head must be a byte-exact
+    // prefix of it — that is the invariant a context shift relies on.
+    const std::string sys = "You are helpful.";
+    const std::string prompt = m.render_prompt(sys, {}, "hi");
+    const std::string head = m.render_system_prefix(sys);
+    CHECK(prompt.compare(0, 3, "<s>") == 0);
+    CHECK(head.compare(0, 3, "<s>") == 0);
+    CHECK(prompt.compare(0, head.size(), head) == 0);
+
+    // The delta rides a KV that already holds the BOS; re-emitting it would
+    // corrupt the reused cache.
+    CHECK(m.render_delta("next", true).find("<s>") == std::string::npos);
+
+    // No other catalogue id acquires a template BOS — Gemma and Llama-3 GGUF add
+    // it in the tokenizer, so emitting it here would double it.
+    for (const char* id : {"smollm2-360m-cpu-int4", "lfm25-350m", "qwen35-0.8b", "gemma3-270m",
+                           "llama32-3b", "phi35-mini", "qwen25-coder-1.5b"}) {
+        CHECK(chat_format_for(id).bos.empty());
+    }
+    CHECK_FALSE(model_is_minicpm5("minicpm3-4b")); // MiniCPM3 is a different family
+    CHECK(model_is_minicpm5("/models/MiniCPM5-1B/MiniCPM5-1B-Q4_K_M.gguf"));
+}
+
 TEST_CASE("chat format stop sequences") {
     CHECK(chat_format_for("smollm2-360m-cpu-int4").stop_sequences ==
           std::vector<std::string>{"<|im_end|>"});
