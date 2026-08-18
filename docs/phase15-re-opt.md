@@ -124,7 +124,7 @@ shipping).
 | WS-A | W2 prompt-lookup speculative      | #210  | **closed for default** — host PASS; console M3 **1.04× FAIL** gate; opt-in remains     |
 | WS-B | W3 gpubw STREAM + Q4 GEMV spike   | #211  | **closed PASS** — STREAM **119.07 GB/s** Series S (`1.5.2.853`); Q4 GEMV moves to #228 |
 | WS-C | #130 DML valley mechanism profile | #130  | **closed** mitigation-only (no new RE)                                                 |
-| WS-D | H5 BitNet desk survey             | —     | parallel desk, no eng yet                                                              |
+| WS-D | H5 BitNet desk survey             | —     | **done 2026-08-10 — NO-GO**, no artefact to survey (M8)                                |
 | WS-E | H6/H7 GGUF GPU path               | #228  | **parked** — H6.1 G1 PASS / G2 FAIL (2.15 GB/s); Decision 2026-08-08                   |
 
 ### WS-A detail (W2)
@@ -172,19 +172,19 @@ disprove denser CS designs, but **this spike does not clear soft density ≥40**
 
 ## Milestones
 
-| M   | Deliverable                                 | Exit                                                                                                             |
-| --- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| M0  | This doc + ROADMAP/README links             | done                                                                                                             |
-| M1  | W2.1–W2.3 host + tests                      | ctest PASS                                                                                                       |
-| M2  | W2.4 opt-in + host acceptance CSV           | acceptance vs pregate                                                                                            |
-| M3  | Console W2 A/B + full gates                 | **measured** — code 1.04× **FAIL** gate; chat OK; peak OK                                                        |
-| M4  | Product default decision (after M3 numbers) | **OFF** (opt-in only); CHANGELOG                                                                                 |
-| M5  | gpubw STREAM spike (code + flag + DXIL)     | **done** (eng); multi-dim Dispatch for 1 GiB; host helpers unit-tested                                           |
-| M6  | console measure vs 100 GB/s                 | **PASS** — Series S **119.07 GB/s**, checksum_ok, 1024 MB, CI `1.5.2.853`; CSV `bench/results/phase15-gpubw.csv` |
-| M7  | #130 closed                                 | **done** product-mitigated 2026-08-08                                                                            |
-| M8  | H5 survey note                              | go/no-go                                                                                                         |
-| M9  | H6.1 Q4_K GEMV measure (code + flag + DXIL) | **measured** — G1 PASS / G2 FAIL                                                                                 |
-| M9+ | H6 full decode eng                          | **parked** (Decision 2026-08-08); reopen only with new density PASS or revised gate                              |
+| M   | Deliverable                                 | Exit                                                                                                                                                                                                           |
+| --- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M0  | This doc + ROADMAP/README links             | done                                                                                                                                                                                                           |
+| M1  | W2.1–W2.3 host + tests                      | ctest PASS                                                                                                                                                                                                     |
+| M2  | W2.4 opt-in + host acceptance CSV           | acceptance vs pregate                                                                                                                                                                                          |
+| M3  | Console W2 A/B + full gates                 | **measured** — code 1.04× **FAIL** gate; chat OK; peak OK                                                                                                                                                      |
+| M4  | Product default decision (after M3 numbers) | **OFF** (opt-in only); CHANGELOG                                                                                                                                                                               |
+| M5  | gpubw STREAM spike (code + flag + DXIL)     | **done** (eng); multi-dim Dispatch for 1 GiB; host helpers unit-tested                                                                                                                                         |
+| M6  | console measure vs 100 GB/s                 | **PASS** — Series S **119.07 GB/s**, checksum_ok, 1024 MB, CI `1.5.2.853`; CSV `bench/results/phase15-gpubw.csv`                                                                                               |
+| M7  | #130 closed                                 | **done** product-mitigated 2026-08-08                                                                                                                                                                          |
+| M8  | H5 survey note                              | **NO-GO (2026-08-10)** — runtime is ready (`bitnet` is in the pin) but no sub-4B model trained at ≤2 bits publishes weights; QAT literature ships recipes, not checkpoints. See `docs/phase7-hypotheses.md` H5 |
+| M9  | H6.1 Q4_K GEMV measure (code + flag + DXIL) | **measured** — G1 PASS / G2 FAIL                                                                                                                                                                               |
+| M9+ | H6 full decode eng                          | **parked** (Decision 2026-08-08); reopen only with new density PASS or revised gate                                                                                                                            |
 
 ## Decision log
 

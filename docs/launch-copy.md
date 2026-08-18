@@ -178,7 +178,7 @@ re-deriving the fact by hand.
 - **Build fixes**: repack 241.9 → 393.2 tok/s (#155); `n_threads_batch`
   390.7 → 438.1 at P=298 (#168).
 - **Scale**: **~19.9k lines of own C++ across 90 files**, of which 3.5k in 23
-  test files; **221 host test cases / 2906 assertions**; **10 console validation
+  test files; **222 host test cases / 2923 assertions**; **10 console validation
   gates** (`scripts/validate-console.sh` — routing, settings, gguf, longchat,
   kvsnap, coderpaste, thinkcut, thinkdone, genroom, taesd); **17 product
   releases** since 2026-05-19, current **1.5.4.0**. Derivations:

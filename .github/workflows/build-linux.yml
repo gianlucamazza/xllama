@@ -24,11 +24,24 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake build-essential libcurl4-openssl-dev ccache \
-            python3-pip shellcheck
+            python3-pip
+          # Pinned like the other two linters. apt on ubuntu-22.04 carries 0.8.0,
+          # which does not report findings 0.11 does — so an image bump could turn
+          # this red on files nobody touched, and a contributor's newer local
+          # shellcheck disagreed with CI. Pin both to the same version instead.
+          SC_VER=v0.11.0
+          curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/${SC_VER}/shellcheck-${SC_VER}.linux.x86_64.tar.xz" \
+            | tar -xJf - -C /tmp
+          sudo install -m0755 "/tmp/shellcheck-${SC_VER}/shellcheck" /usr/local/bin/shellcheck
+          shellcheck --version | grep -E '^version:'
           # Pinned: an unpinned clang-format broke CI when 22.x changed rules
           # (2026-07-10). Bump deliberately and reformat the tree in one PR.
           pip3 install --user 'clang-format==22.1.5'
           echo "$(python3 -m site --user-base)/bin" >> "$GITHUB_PATH"
+          # Pinned for the same reason as clang-format: prettier changes
+          # Markdown output between minors, and an unpinned formatter turns an
+          # unrelated PR red. Bump deliberately and reformat the tree in one PR.
+          npm install -g 'prettier@3.9.6'
 
       - name: Verify C++ formatting
         run: |
@@ -38,6 +51,13 @@ jobs:
             -path ./build-uwp-test -prune -o \
             \( -name '*.cpp' -o -name '*.h' -o -name '*.c' \) -type f -print |
             xargs clang-format --dry-run --Werror
+
+      - name: Verify Markdown formatting
+        # Scope and exclusions come from .prettierignore; settings from
+        # .prettierrc (proseWrap preserve, so prose line breaks are the
+        # author's and only structure is normalised).
+        run: |
+          git ls-files '*.md' '*.markdown' | xargs prettier --check
 
       - name: Verify shell script quality
         run: |

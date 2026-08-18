@@ -69,6 +69,19 @@
     <!-- removableStorage: required to enumerate KnownFolders.RemovableDevices
          for USB model loading (Exp 3 fallback path). -->
     <uap:Capability Name="removableStorage" />
+    <!-- microphone: Phase 16 WS-F (card H16.6). Declared so run_mic_probe can
+         find out whether GameOS grants audio capture at all — a console with no
+         text input is the strongest case in the repo for speech, and the answer
+         is unrecorded. Without the capability CreateDeviceInputNodeAsync
+         returns AccessDenied for the manifest, which would be indistinguishable
+         from the sandbox refusing, i.e. the probe would answer its own question
+         wrong.
+
+         DEV MANIFEST ONLY, deliberately. AppxManifest.store.xml declares
+         internetClient and nothing else (docs/store-readiness.md), and it stays
+         that way: shipping speech is a separate decision that has not been
+         taken. If WS-F never ships, this line is removed with the probe. -->
+    <DeviceCapability Name="microphone" />
   </Capabilities>
 
 </Package>

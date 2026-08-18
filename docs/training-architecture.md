@@ -358,14 +358,14 @@ harness path.
 
 ### Code map
 
-| Piece | Location |
-| ----- | -------- |
-| Job builder / filter / sample count / manifest JSON | `include/xllama/personalize.h`, `src/bridge/personalize.cpp` |
-| Shared runner (localize paths, `progress.json`) | `uwp/inference-bridge.cpp` → `run_train_job_localized` |
-| Headless still uses `train.flag` | `run_train()` → same runner → `result.done` |
-| UI + publish | `MainPageController::StartPersonalizeTrain` / `PublishPersonalizedModel` |
-| Autopilot | `start_train`, `train_status` |
-| Host tests | `tests/test_personalize.cpp` |
+| Piece                                               | Location                                                                 |
+| --------------------------------------------------- | ------------------------------------------------------------------------ |
+| Job builder / filter / sample count / manifest JSON | `include/xllama/personalize.h`, `src/bridge/personalize.cpp`             |
+| Shared runner (localize paths, `progress.json`)     | `uwp/inference-bridge.cpp` → `run_train_job_localized`                   |
+| Headless still uses `train.flag`                    | `run_train()` → same runner → `result.done`                              |
+| UI + publish                                        | `MainPageController::StartPersonalizeTrain` / `PublishPersonalizedModel` |
+| Autopilot                                           | `start_train`, `train_status`                                            |
+| Host tests                                          | `tests/test_personalize.cpp`                                             |
 
 ### Base model preflight
 
@@ -381,11 +381,11 @@ Last-block `param_filter` matches the pin rules (no `attn_k`/`attn_v`); see
 
 ### LAN surface (#118)
 
-| Method | Path | Role |
-| ------ | ---- | ---- |
-| `POST` | `/v1/preferences` | Same validation as UI rate → `samples.jsonl` |
-| `GET` | `/v1/training/status` | `result.done`, `progress.json`, personalized `result.json`, sample count |
-| `POST` | `/v1/images/generations` | SD-Turbo parity with Image dialog (not training, same API pass) |
+| Method | Path                     | Role                                                                     |
+| ------ | ------------------------ | ------------------------------------------------------------------------ |
+| `POST` | `/v1/preferences`        | Same validation as UI rate → `samples.jsonl`                             |
+| `GET`  | `/v1/training/status`    | `result.done`, `progress.json`, personalized `result.json`, sample count |
+| `POST` | `/v1/images/generations` | SD-Turbo parity with Image dialog (not training, same API pass)          |
 
 Protocol SSOT: [api-endpoint.md](api-endpoint.md).
 

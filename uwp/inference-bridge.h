@@ -48,6 +48,13 @@ void run_gpugemv();
 // are read into the heap and not mapped (see include/xllama/ramceil.h).
 void run_ramceil();
 
+// Phase 16 WS-F (card H16.6): can an AppContainer app on GameOS capture audio?
+// Triggered by LocalFolder\mic.flag; writes mic-result.json (+ .done) holding
+// the WinRT status enums BY NAME, not a boolean — AccessDenied (sandbox says
+// no) and DeviceNotAvailable (no headset plugged in) are different answers, and
+// only the first is a verdict on WS-F. See docs/uwp-constraints.md.
+void run_mic_probe();
+
 // Diffusion pipeline (SD-Turbo on plain ORT DirectML). Triggered by
 // LocalFolder\diffuse.flag (headless) or diffuse-inproc.flag (in-process
 // experiment) — see diffuse.cpp for the model contract.

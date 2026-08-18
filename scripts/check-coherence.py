@@ -780,6 +780,10 @@ def main() -> int:
         "lfm25-350m": (4, 8),
         "llama32-3b": (5, 8),
         "gemma4-e2b": (6, 8),
+        # Phase 16 (2026-08-10): measured into bench/results/phase7-h9.jsonl,
+        # which is the canonical combined source this check reads.
+        "lfm25-230m": (2, 8),
+        "gemma3-270m": (3, 8),
     }
     for model, (a, b) in expect_h9.items():
         s, n = sum(h9[model]), len(h9[model])
@@ -801,16 +805,38 @@ def main() -> int:
                 broken.append(link)
         return broken
 
-    for label, path, base in [
-        ("README", ROOT / "README.md", ROOT),
-        ("docs/README", ROOT / "docs/README.md", ROOT / "docs"),
-        ("architecture", ROOT / "docs/architecture.md", ROOT / "docs"),
-    ]:
-        broken = check_links(path, base)
+    # Every Markdown file we own, not a hand-picked three: model-matrix.md is the
+    # status SSOT and is dense with relative links, and it was unguarded — a
+    # dangling link there survived a full green run.
+    # Ask git what we own instead of globbing the disk. Globbing scanned a
+    # contributor's `scripts/lora-spike/.venv/` and generated `training/out/`
+    # adapters — files CI never checks out, so the check passed there and could
+    # fail only locally, which makes the pre-push run untrustworthy. `git
+    # ls-files` also drops the llama.cpp submodule for free (one gitlink entry,
+    # no path separator), the same reason the AGENTS tree check above uses it.
+    md_exempt = ("vendor/",)  # vendored READMEs, owned by vendor-lifecycle-plan.md
+    r = subprocess.run(
+        ["git", "ls-files", "*.md", "*.markdown"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    md_files = sorted(
+        ROOT / rel
+        for rel in r.stdout.splitlines()
+        if rel and not rel.startswith(md_exempt)
+    )
+    if not md_files:
+        err("no tracked Markdown files found — is this a git checkout?")
+    link_errors = 0
+    for path in md_files:
+        broken = check_links(path, path.parent)
         if broken:
-            err(f"{label} broken links: {broken[:8]}")
-        else:
-            good(f"{label} links OK")
+            err(f"{path.relative_to(ROOT)} broken links: {broken[:8]}")
+            link_errors += 1
+    if not link_errors:
+        good(f"relative links OK across {len(md_files)} Markdown files")
 
     # --- CI gates ---
     wf = (ROOT / ".github/workflows/build-linux.yml").read_text(encoding="utf-8")

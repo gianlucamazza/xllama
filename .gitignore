@@ -3,6 +3,9 @@ build/
 out/
 
 # UWP packages & certificates
+# uwp/packages/ is the NuGet restore tree the crossbuild creates; it is vendored
+# output, not source, and it carries third-party Markdown that trips doc checks.
+uwp/packages/
 *.appx
 *.appxbundle
 *.appxsym
