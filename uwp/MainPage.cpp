@@ -13,6 +13,7 @@
     #endif
     #include "chat-history.h"
     #include "inference-bridge.h"
+    #include "xllama/cancel_policy.h"
     #include "xllama/chat_prompt.h"
     #include "xllama/kv_store.h"
     #include "xllama/model_provision.h"
@@ -344,18 +345,25 @@ void MainPageController::Init() {
             s->ShowImageDialog();
     });
 
-    // B button: cancel inference if running, otherwise let system exit the app
+    // B button (gamepad Back). On Xbox an unhandled BackRequested is the shell's
+    // cue to suspend the app and return to Home, so a B press anywhere outside a
+    // ContentDialog used to drop the user out of a running chat with no warning.
+    // We therefore mark EVERY BackRequested handled: B cancels a running job and
+    // otherwise does nothing. Leaving the app stays on the Xbox (Guide) button,
+    // which the shell owns and we cannot intercept.
+    // Do not "simplify" this by only handling the running case — that reinstates
+    // the accidental exit.
+    // Cancelling goes through OnCancelClick and must keep going through it:
+    // SetRunning() is called by inference, image generation AND on-device
+    // training, so m_is_running says "a job is running", not "text is running".
+    // Aborting inline here would set m_abort — which only the text loop reads —
+    // and disable the Cancel button while an image or an epoch kept going.
     auto nav = winrt::Windows::UI::Core::SystemNavigationManager::GetForCurrentView();
     nav.BackRequested(
         [self](IInspectable const&, winrt::Windows::UI::Core::BackRequestedEventArgs const& e) {
-            if (auto s = self.lock()) {
-                if (s->m_is_running.load()) {
-                    s->m_abort.store(true);
-                    s->SetStatus(L"Cancelling...");
-                    s->m_cancelButton.IsEnabled(false);
-                    e.Handled(true);
-                }
-            }
+            e.Handled(true); // suppress the shell exit even if the page is gone
+            if (auto s = self.lock())
+                s->OnCancelClick(nullptr, RoutedEventArgs{});
         });
 
     // Gamepad keys: View = clear output, Y = jump to prompt
@@ -3215,21 +3223,34 @@ void MainPageController::OnRunClick(IInspectable const&, RoutedEventArgs const&)
 }
 
 void MainPageController::OnCancelClick(IInspectable const&, RoutedEventArgs const&) {
-    if (m_diffuse_running.load()) {
+    // Which job this targets is policy, and it lives in cancel_policy.h where
+    // the host tests can reach it — the combination that shipped broken (image
+    // running, generic flag also set) is not reproducible from this file.
+    // m_is_running is the generic flag: SetRunning() is called by all three
+    // jobs, so it is passed last and the specific flags decide.
+    switch (::xllama::cancel_target(m_diffuse_running.load(), m_train_running.load(),
+                                    m_is_running.load())) {
+    case ::xllama::CancelTarget::Image:
         write_local_bytes(L"diffuse-cancel.flag", "cancel");
         SetStatus(L"Cancelling image...");
         m_cancelButton.IsEnabled(false);
         return;
-    }
-    if (m_train_running.load()) {
+    case ::xllama::CancelTarget::Training:
         m_train_abort.store(true);
         SetStatus(L"Cancelling training (between epochs)...");
         m_cancelButton.IsEnabled(false);
         return;
+    case ::xllama::CancelTarget::Text:
+        m_abort.store(true);
+        SetStatus(L"Cancelling...");
+        m_cancelButton.IsEnabled(false);
+        return;
+    case ::xllama::CancelTarget::None:
+        // Reachable from the B button on an idle chat, never from the Cancel
+        // button (which is disabled unless a job runs). Doing nothing is the
+        // whole point: there is no job to abort.
+        return;
     }
-    m_abort.store(true);
-    SetStatus(L"Cancelling...");
-    m_cancelButton.IsEnabled(false);
 }
 
 // ---------------------------------------------------------------------------

@@ -18,6 +18,26 @@ native format, while r/LocalLLaMA Rule 4 caps self-promotion at ~10% of an
 account's content — and this account has none. A Show HN thread also gives the
 Reddit post something real to reference.
 
+**Attempt 2 — Show HN, 2026-07-27: published, and it stalled at 2 points.**
+The submission is live and the write-up is good; it simply did not reach
+anyone. That is the honest outcome and it is recorded here rather than quietly
+dropped, because the next channel has to be planned against it: **the Show HN
+thread is not social proof and must not be cited as such.** Anyone who follows
+the link sees the score. Two attempts, two channels, zero reach — the binding
+constraint is not the copy, it is posting from accounts with no history.
+
+**Where the unpublished drafts live.** They are not in this repo. A reader who
+finds a post and then opens the repo would find that post's own script,
+tactics included, which makes an honest post read as staged. Rule adopted
+2026-08-20:
+
+> Drafts stay local until they are posted. Once posted, the copy and its
+> outcome become public record here.
+
+Sections A and B stay because both were published. The next draft lives in the
+author's personal vault until it goes out; the claim rules below are its SSOT
+either way, and are not duplicated there.
+
 **Two claims that must not be made**, because they are false or unprovable:
 
 - _"First LLM on an Xbox."_ Andrei David ran `llama2.c` on an **Xbox 360** in
@@ -178,10 +198,10 @@ re-deriving the fact by hand.
 - **Build fixes**: repack 241.9 → 393.2 tok/s (#155); `n_threads_batch`
   390.7 → 438.1 at P=298 (#168).
 - **Scale**: **~19.9k lines of own C++ across 90 files**, of which 3.5k in 23
-  test files; **222 host test cases / 2923 assertions**; **10 console validation
+  test files; **225 host test cases / 2934 assertions**; **10 console validation
   gates** (`scripts/validate-console.sh` — routing, settings, gguf, longchat,
-  kvsnap, coderpaste, thinkcut, thinkdone, genroom, taesd); **17 product
-  releases** since 2026-05-19, current **1.5.4.0**. Derivations:
+  kvsnap, coderpaste, thinkcut, thinkdone, genroom, taesd); **18 product
+  releases** since 2026-05-19, current **1.5.5.0**. Derivations:
 
   ```bash
   # lines and files — src/ + include/ + uwp/ + tests/, tracked .cpp/.h only
@@ -193,8 +213,13 @@ re-deriving the fact by hand.
   ./build/linux-test/tests/xllama-tests | tail -2
   # gates
   grep -cE '^\w+\) run_gate ' scripts/validate-console.sh
-  # product releases — total tags minus the two asset-only ones
-  gh release list --limit 60 --json tagName --jq 'length'
+  # product releases — version tags only. Do NOT filter on startswith("v"):
+  # `vendor-dlls-v1` starts with a v too, so that filter returns the right
+  # number for the wrong reason. `models-v1` and `vendor-dlls-v1` are payload
+  # drops, not releases. Reads one less until the cut being announced is
+  # published, so run it after `gh release create`.
+  gh release list --limit 60 --json tagName \
+    --jq '[.[] | select(.tagName | test("^v[0-9]"))] | length'
   ```
 
   The test-case figure is additionally guarded in CI: `build-linux.yml` compares

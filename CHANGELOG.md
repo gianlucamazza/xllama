@@ -7,6 +7,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Cancel targeted the wrong job.** `SetRunning()` is called by text
+  inference, image generation and on-device training, so `m_is_running` means
+  "a job is running", not "text is running" — and the cancel path read it and
+  set the text abort flag. Pressing Cancel (or B) during an image disabled the
+  Cancel button and left the job running, with no way left to stop it. The
+  decision is now policy in `include/xllama/cancel_policy.h`, exhaustively
+  tested on the host (`tests/test_cancel_policy.cpp`, all eight combinations of
+  the three flags) because the combination that broke is not reproducible from
+  the UI file. Suite: 222 → **225 cases / 2934 assertions**.
+
+- **The B button no longer drops out of the app.** On Xbox an unhandled
+  `BackRequested` is the shell's cue to suspend and return to Home, and the
+  handler only marked the event handled while an inference was running — so a
+  B press on an idle chat closed xllama with no warning. Completed turns are
+  already on disk, so this cost the typed-but-unsent prompt, the KV cache and a
+  full model reload, not the conversation. Every `BackRequested` is now
+  handled: B cancels a running reply and otherwise does nothing; leaving the
+  app stays on the Xbox (Guide) button (`uwp/MainPage.cpp`,
+  `docs/uwp-constraints.md` §10e, `docs/using-the-app.md`).
+
+## [1.5.5.0] - 2026-08-20
+
+Phase 16 catalogue win plus the pin and probes that landed with it. Product
+ship path remains **CI MSVC**. Suite is still **10** console gates.
+
+**Upgrading from 1.5.x is a normal in-place update** (same package identity
+`GianlucaMazza.xllama`).
+
 ### Added
 
 - **Phase 16 model-scouting campaign** (`docs/phase16-model-scouting.md`) and
@@ -21,6 +51,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`gemma3-270m` H9 measured for the first time (3/8).** Its `model-matrix`
   §A1 cell had carried `—` since the model was catalogued, which is what made
   the floor-tier comparison uncomputable until now.
+- **MiniCPM5 chat renderer** (`model_is_minicpm5`: template `<s>` BOS +
+  no-think prefill). Host T1 passes both halves; T3 console bench was not
+  booked this campaign, so `minicpm5-1b` is **not** in the catalogue.
+- **`diskbw` NVMe probe** (`diskbw.flag` / `scripts/bench-diskbw.sh`). Series S
+  unbuffered read ~2.0 GB/s sequential / 1.55–1.76 GB/s random 2 MiB. SSD
+  streaming is real, narrow, and not a product path
+  (`docs/ssd-inference-assessment.md`).
+- **WS-F microphone probe** (`mic.flag` / `scripts/probe-mic.sh`).
+  `AudioGraph` opens under AppContainer; `AccessDenied` did not fire; no
+  headset was attached (`DeviceNotAvailable`). Not a verdict — #241 stays
+  open. `docs/uwp-constraints.md` §10d.
 - **Markdown formatting is gated in CI**, pinned to `prettier@3.9.6` alongside
   the existing `clang-format==22.1.5`, over every tracked `*.md`
   (`.prettierrc`, `.prettierignore`). The repo had no Markdown formatter and
@@ -28,10 +69,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- **Phase 16 WS-B closed without a `llama.cpp` pin bump.** Both
-  `arch:not-in-pin` flags raised at desk were refuted at the GGUF header
-  (`Qwen3.5-2B` converts to `general.architecture = qwen35`, which the pin
-  carries), so the predeclared trigger for a bump never fired.
+- **`llama.cpp` pin `6d5a910` → `0865990` (b10333, #244)** with UWP glue
+  (`llama-kv-cache-msa.cpp`, `llama_model_params.load_mode`, sampler
+  `n_vocab` on penalties). Phase 16 WS-B had closed without a bump — both
+  desk `arch:not-in-pin` flags were refuted at the GGUF header — and this
+  Dependabot bump is independent of that kill.
+- **H5 BitNet/low-bit survey closed NO-GO** (2026-08-10). The pin carries the
+  `bitnet` arch; no sub-4B model trained at ≤2 bits publishes weights.
+- **Phase 16 WS-E (embeddings) closed** — S-gate FAIL, no named consumer.
+  Capability exists in the pin (`nomic-bert`); the product has no surface.
+  Tracked as #242.
 
 ### Fixed
 
@@ -42,6 +89,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `recommended-config.md` enumerated a four-gate console suite that has been
   ten gates since v1.5.4.0; and the Phase 16 campaign doc had wrongly listed
   H5 (BitNet) as closed when it is an open desk survey.
+- **`deploy.sh` stop/start** actually stop and start; an unreachable console
+  and a missing CSRF token now fail instead of claiming success.
+- **Wine 11.15**: `ensure-cppwinrt-pin.sh` prefers the native cppwinrt at the
+  pin. `quantize.sh` pointed at a tree we never build.
+- **CI**: `check-coherence.py` asks git which Markdown we own; shellcheck is
+  pinned; the clang-cl ggml patch is versioned instead of carried untracked.
 
 ## [1.5.4.0] - 2026-08-08
 

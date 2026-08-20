@@ -6,7 +6,7 @@
 [![build-linux](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Status:** shipping **v1.5.4.0** (unified + PatchedGenAI + PatchedOrt) · research-grade — [CHANGELOG](CHANGELOG.md) · [ROADMAP](ROADMAP.md) · [latest release](https://github.com/gianlucamazza/xllama/releases/tag/v1.5.4.0)
+**Status:** shipping **v1.5.5.0** (unified + PatchedGenAI + PatchedOrt) · research-grade — [CHANGELOG](CHANGELOG.md) · [ROADMAP](ROADMAP.md) · [latest release](https://github.com/gianlucamazza/xllama/releases/tag/v1.5.5.0)
 **Maintainer:** [Gianluca Mazza](https://github.com/gianlucamazza)
 
 ![xllama running on an Xbox Series S: a chat answer, the coding tier writing a C function, saved conversations and a Stable-Diffusion image, all on-console](docs/screenshots/xllama-demo-v1.5.2.gif)

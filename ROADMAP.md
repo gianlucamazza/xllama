@@ -5,11 +5,11 @@ performance belongs in `docs/benchmarks.md`.
 
 ## Current product state
 
-- Current manifest: **1.5.4.0** under the **`GianlucaMazza.xllama`** identity
+- Current manifest: **1.5.5.0** under the **`GianlucaMazza.xllama`** identity
   (in-place update from 1.5.x; still breaking vs ≤1.4.x, see
-  `docs/install-release.md`). **v1.5.4.0** (2026-08-08): #216 KV snapshot save
-  race fix; #223 thinking `n_predict` 1024 + `thinkdone` (suite **10** gates);
-  #130 closed as product-mitigated. Previous: **v1.5.3.0** titles/History/dual-CRT;
+  `docs/install-release.md`). **v1.5.5.0** (2026-08-20): Phase 16 floor
+  `lfm25-230m`; llama.cpp pin `0865990`; diskbw + mic probes. Previous:
+  **v1.5.4.0** #216/#223/10-gate suite; **v1.5.3.0** titles/History/dual-CRT;
   **v1.5.2.0** Phase 14; **v1.5.1.0** Phase 13; **v1.5.0.0** perf + rebrand.
 - Shipping artifact: unified ORT GenAI + llama.cpp, with pinned patched runtime
   DLLs while upstream fixes have not reached NuGet. The UWP ggml build now
@@ -28,24 +28,28 @@ performance belongs in `docs/benchmarks.md`.
 - Phases 1–11 are complete for product code: Phase 10 Lane B is `available`
   (host + console marker gates PASS; pin-blocked filter-widening remains);
   Phase 11 closed the headless↔UI gap (in-app personalize + LAN API parity,
-  #116/#118). Phases 13 and 14 are complete and shipped. Remaining open work:
-  Phase 15 research (parked eng), and upstream vendor pin drops.
-- **Shipped as v1.5.4.0:** #216 + #223 + 10-gate suite; #130 product-closed.
-  Prior tag **v1.5.3.0** (MSIX 1.5.3.873, day-of-ship 9/9) carried titles,
-  dual-CRT, H6 park. Product packages are CI MSVC — `docs/crossbuild-console.md`.
+  #116/#118). Phases 13, 14 and 16 (one shipped model) are complete. Remaining
+  open work: Phase 15 parked eng, WS-F headset measurement (#241), and
+  upstream vendor pin drops.
+- **Shipped as v1.5.5.0:** Phase 16 `lfm25-230m` floor + pin `0865990`. Prior
+  tag **v1.5.4.0** (MSIX 1.5.4.887) carried #216/#223 and the 10-gate suite.
+  Product packages are CI MSVC — `docs/crossbuild-console.md`.
 - **Demo capture remains the v1.5.2 assets** (576 stills; re-record optional).
   Pipeline is re-runnable (`demo/demo-script.json` + `scripts/capture-demo-video.sh`).
 
-### Next (after v1.5.4.0)
+### Next (after v1.5.5.0)
 
 1. **Vendor pin drops** (#84/#85/#86) — blocked until NuGet moves
-   (`scripts/check-vendor-nuget-status.sh`, poll 2026-08-08: still required).
+   (`scripts/check-vendor-nuget-status.sh`, poll 2026-08-20: still required).
 2. **Store readiness** — Partner Center human gate; App-vs-Game spike;
    NOTICE / listing (`docs/store-readiness.md`).
-3. **Parked eng** — H6/H7 (#228); crossbuild product parity (layer 2 closed
-   2026-08-08 by uwp-crossbuild 0.5.1 — launch proven, ORT/GenAI + first boot
-   - uptime not); prompt-lookup default OFF; Phase 15 “3B usable” without new
-     density measure.
+3. **WS-F headset** (#241) — rerun `scripts/probe-mic.sh` with a microphone
+   attached. Two room-empty runs (2026-08-10, 2026-08-20) are not a verdict.
+4. **Parked eng** — H6/H7 (#228); crossbuild product parity (layer 2 closed
+   2026-08-08 by uwp-crossbuild 0.5.1 — launch proven; ORT/GenAI, first boot
+   and uptime not); prompt-lookup default OFF; Phase 15 “3B usable” without a
+   new density measure. Dependabot llama.cpp #247 fails UWP (`LLAMA_VERSION`);
+   do not merge on Linux green.
 
 ## Phase 7 — Peer-class model research
 
@@ -514,8 +518,8 @@ classes and with a console budget capped at ≤9 bench sessions.
       `lfm25-230m` is the new **floor** tier — faster and lighter than
       `gemma3-270m` on both axes, one H9 task below it. Figures live in
       [`docs/benchmarks.md`](docs/benchmarks.md), which is their SSOT.
-      Qwen3.5-2B and Maincoder-1B measured FAIL; MiniCPM5-1B deferred on
-      unbought renderer work. 3 of ≤4 sessions spent.
+      Qwen3.5-2B and Maincoder-1B measured FAIL; MiniCPM5-1B renderer
+      shipped (15 lines) but T3 was not booked. 3 of ≤4 sessions spent.
 - [x] **WS-B (H16.2) — `llama.cpp` pin bump evaluation.** **Closed 2026-08-10,
       not motivated.** Both T0 arch flags were refuted at the GGUF header
       (`Qwen3.5-2B` converts to `qwen35`, which the pin carries); no candidate
@@ -526,12 +530,12 @@ classes and with a console budget capped at ≤9 bench sessions.
 - [x] **WS-D (H16.4) — diffusion successor.** **Closed on its own kill:** no
       candidate has a usable 3-component ONNX export. SDXL-Turbo fails the 2 GB
       protobuf limit, not the GPU budget; SD3.5/Flux are monolithic DiT.
-- [~] **WS-E (H16.5) — embedding surface.** **Blocked on a product decision,**
-  not on technology: `nomic-embed-text-v1.5` is verified config-only at
-  156 MB, but nobody has named who consumes the vectors, where they live, or
-  how a second `llama_context` survives the one-resident-model rule. Tracked as
-  [#242](https://github.com/gianlucamazza/xllama/issues/242) — the card's kill
-  fires by inaction, so without an owner it expires rather than closing.
+- [x] **WS-E (H16.5) — embedding surface.** **Closed 2026-08-20, S-gate FAIL.**
+      No named consumer. The pin carries `nomic-bert` and nomic-embed-text-v1.5 is
+      config-only at 156 MB — a capability, not a product surface. SessionHub
+      owns one resident Session; an embedding model is a second `llama_context`.
+      Kill: close before download. Reopen only with a named consumer **and** a
+      memory plan that keeps peak ≤3.5 GB with one resident model. #242.
 - [~] **WS-F (H16.6) — ASR surface.** **Probe written and run 2026-08-10; one
   measurement short.** The `microphone` capability installs, `AudioGraph` opens
   under AppContainer at 48 kHz stereo, and `AccessDenied` — the way the sandbox
