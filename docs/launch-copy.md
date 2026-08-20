@@ -162,6 +162,114 @@ the answer. This is the part of the plan that cannot be delegated or rushed.
 
 ---
 
+## C. LinkedIn (2026-08-20)
+
+**Why this one is different from A and B.** Show HN stalled at **2 points** and
+the r/LocalLLM link post was removed by the sitewide spam filter. Neither reached
+anyone. LinkedIn is the only platform where the author has a real network instead
+of a zero-history account, so this is effectively the project's first public
+communication that can be read at all. **Do not cite the HN thread as social
+proof** — 2 points is not proof of anything, and anyone who clicks will see that.
+
+**Mechanics**, which shape the copy as much as the content:
+
+- **No link in the post body.** LinkedIn suppresses reach on posts with outbound
+  links. The repo URL goes in the **first comment**, posted immediately after.
+- **Media: native video**, `docs/screenshots/xllama-demo-v1.5.2.mp4` (580 kB) —
+  not the 2.4 MB GIF, which LinkedIn recompresses worse. The capture is already
+  real time, and saying so is on-message: it is the evidence for a performance
+  claim, so it must not be sped up.
+- Only the first ~210 characters show before the "…see more" fold. The hook has
+  to carry the shipped result on its own.
+- At most 3 hashtags, at the end.
+
+### Body
+
+Measured at **2,996 characters** — LinkedIn's cap is 3,000, so there is almost
+no room to add. Cut something before adding anything.
+
+> An Xbox Series S runs a local LLM at 94.9 tokens/second, on the CPU.
+>
+> Not a benchmark script — an installable app, eighteen releases in, with ten
+> validation gates that run on the console.
+>
+> It's called xllama: local LLM chat and Stable Diffusion image generation on an
+> Xbox Series S|X in Dev Mode. llama.cpp for GGUF, ONNX Runtime GenAI for CPU
+> int4 and DirectML, a catalogue from 270M to 3B, no cloud.
+>
+> Prior art first: Andrei David ran llama2.c on an Xbox 360
+> in January 2025 — a proof of concept on 2005 hardware, PowerPC with 512 MB.
+> This is a 2020 Series S: 8 Zen 2 cores with AVX2, RDNA 2, 10 GB unified.
+> Different machine, different problem, different artefact. When I started I
+> could not find a prior LLM runtime for Series S|X — a statement about my
+> search, not a claim of being first.
+>
+> Barrier: Xbox Dev Mode, a one-time ~$19 activation via Partner Center. No
+> retail-console path, and I'm not affiliated with Microsoft.
+>
+> The result I didn't expect. Same model (SmolLM2-360M), three backends:
+>
+> CPU int4 — 74.8 tok/s
+> GPU fp16 — 44.4 tok/s
+> GPU int4 — 8.8 tok/s
+>
+> The GPU loses at generation — and it isn't a silent CPU fallback: the
+> ORT profile puts 96% of kernel time on the DirectML provider. DirectML does
+> int4 matmul as a dequantize to fp16 plus a full GEMM, materialising the fp16
+> tensor in VRAM. In memory-bound decode that reads 4 bits, writes a whole fp16
+> matrix and reads it back — strictly more bandwidth than plain fp16.
+> Quantisation makes it slower. The GPU still wins at prefill and diffusion.
+>
+> Why I trust those numbers is the part I'd defend.
+>
+> Every hypothesis carries a kill condition written before any engineering:
+> claim, measure, PASS, FAIL, kill. Last scouting campaign, four of seven
+> workstreams died on their own conditions — two without downloading anything,
+> because you argue a product surface exists before you benchmark one. Negative
+> results are deliverables, kept in permanent "do not reopen" lists. And every
+> published number carries the command that reproduces it, with CI failing
+> closed on drift — because a test count in my own docs once sat 16 cases behind
+> reality.
+>
+> My favourite case: a microphone probe returned DeviceNotAvailable and I
+> refused to score it. That's a fact about the room — no headset plugged in —
+> not about the sandbox. A boolean probe would have returned false and killed
+> the workstream on a test that never reached the mic.
+>
+> What I got wrong: I shipped numerically wrong logits for weeks, because I was
+> only measuring tokens per second. Root cause was a broken RMSNorm lowering in
+> DirectML. Throughput is not correctness, and a plausible sentence is not
+> evidence.
+>
+> Limits: Dev Mode only, research-grade. The LAN endpoint is
+> unauthenticated and off by default. Most benchmark rows are single runs — the
+> headline is n=3.
+>
+> Real question for people who do this: what would you run on a fixed 10 GB
+> unified-memory box with no NPU?
+>
+> Non-native speaker; I used an LLM to help draft this. The work and the
+> measurements are mine.
+>
+> #LocalLLM #EdgeAI
+
+### First comment (post immediately)
+
+> Repo, benchmarks and the full measurement write-up:
+> https://github.com/gianlucamazza/xllama
+
+### Before posting
+
+- Re-derive **94.9 / 74.8 / 44.4 / 8.8** from `docs/benchmarks.md`, which is
+  generated. Do not trust the copy above — it goes stale by design.
+- **v1.5.5.0 must be tagged and its release assets uploaded first.** The first
+  comment sends people to the repo, and the releases page has to match what the
+  post claims.
+- Re-check the release count with the command in "Reference facts" **after**
+  `gh release create`, not before.
+
+---
+
 ## Reference facts (verified 2026-07-30)
 
 Every countable figure below carries the command that produces it. That is the
@@ -193,8 +301,13 @@ re-deriving the fact by hand.
   ./build/linux-test/tests/xllama-tests | tail -2
   # gates
   grep -cE '^\w+\) run_gate ' scripts/validate-console.sh
-  # product releases — total tags minus the two asset-only ones
-  gh release list --limit 60 --json tagName --jq 'length'
+  # product releases — version tags only. Do NOT filter on startswith("v"):
+  # `vendor-dlls-v1` starts with a v too, so that filter returns the right
+  # number for the wrong reason. `models-v1` and `vendor-dlls-v1` are payload
+  # drops, not releases. Reads one less until the cut being announced is
+  # published, so run it after `gh release create`.
+  gh release list --limit 60 --json tagName \
+    --jq '[.[] | select(.tagName | test("^v[0-9]"))] | length'
   ```
 
   The test-case figure is additionally guarded in CI: `build-linux.yml` compares

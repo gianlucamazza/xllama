@@ -347,21 +347,23 @@ void MainPageController::Init() {
     // B button (gamepad Back). On Xbox an unhandled BackRequested is the shell's
     // cue to suspend the app and return to Home, so a B press anywhere outside a
     // ContentDialog used to drop the user out of a running chat with no warning.
-    // We therefore mark EVERY BackRequested handled: B cancels a running
-    // inference and otherwise does nothing. Leaving the app stays on the Xbox
-    // (Guide) button, which the shell owns and we cannot intercept.
+    // We therefore mark EVERY BackRequested handled: B cancels a running job and
+    // otherwise does nothing. Leaving the app stays on the Xbox (Guide) button,
+    // which the shell owns and we cannot intercept.
     // Do not "simplify" this by only handling the running case — that reinstates
     // the accidental exit.
+    // Cancelling goes through OnCancelClick and must keep going through it:
+    // SetRunning() is called by inference, image generation AND on-device
+    // training, so m_is_running says "a job is running", not "text is running".
+    // Aborting inline here would set m_abort — which only the text loop reads —
+    // and disable the Cancel button while an image or an epoch kept going.
     auto nav = winrt::Windows::UI::Core::SystemNavigationManager::GetForCurrentView();
     nav.BackRequested(
         [self](IInspectable const&, winrt::Windows::UI::Core::BackRequestedEventArgs const& e) {
             e.Handled(true); // suppress the shell exit even if the page is gone
             if (auto s = self.lock()) {
-                if (s->m_is_running.load()) {
-                    s->m_abort.store(true);
-                    s->SetStatus(L"Cancelling...");
-                    s->m_cancelButton.IsEnabled(false);
-                }
+                if (s->m_is_running.load())
+                    s->OnCancelClick(nullptr, RoutedEventArgs{});
             }
         });
 

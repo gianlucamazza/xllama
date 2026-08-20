@@ -712,6 +712,18 @@ The handler now marks **every** `BackRequested` handled and branches inside:
 cancel if running, no-op otherwise. Leaving the app stays on the Xbox (Guide)
 button, which the shell owns and an AppContainer cannot intercept.
 
+**Cancelling goes through `OnCancelClick`, and that is load-bearing.** The
+first version of this fix aborted inline — `m_abort.store(true)` plus a
+disabled Cancel button — which reads correctly until you notice that
+`SetRunning()` is called by three different jobs: inference, image generation
+(`MainPage.cpp:2222`) and on-device training (`:1882`). So `m_is_running` means
+"a job is running", not "text is running". `m_abort` is read only by the text
+loop; images cancel through `diffuse-cancel.flag` and training through
+`m_train_abort`. An inline abort therefore did the one thing worse than
+nothing: it disabled the Cancel button while the image or the epoch kept
+running, leaving no way to stop the job it claimed to have cancelled.
+`OnCancelClick` already dispatches on all three flags, so B routes into it.
+
 Two things this does **not** cover, by design:
 
 - **`ContentDialog` consumes B first.** Settings, History and the image viewer
