@@ -344,16 +344,23 @@ void MainPageController::Init() {
             s->ShowImageDialog();
     });
 
-    // B button: cancel inference if running, otherwise let system exit the app
+    // B button (gamepad Back). On Xbox an unhandled BackRequested is the shell's
+    // cue to suspend the app and return to Home, so a B press anywhere outside a
+    // ContentDialog used to drop the user out of a running chat with no warning.
+    // We therefore mark EVERY BackRequested handled: B cancels a running
+    // inference and otherwise does nothing. Leaving the app stays on the Xbox
+    // (Guide) button, which the shell owns and we cannot intercept.
+    // Do not "simplify" this by only handling the running case — that reinstates
+    // the accidental exit.
     auto nav = winrt::Windows::UI::Core::SystemNavigationManager::GetForCurrentView();
     nav.BackRequested(
         [self](IInspectable const&, winrt::Windows::UI::Core::BackRequestedEventArgs const& e) {
+            e.Handled(true); // suppress the shell exit even if the page is gone
             if (auto s = self.lock()) {
                 if (s->m_is_running.load()) {
                     s->m_abort.store(true);
                     s->SetStatus(L"Cancelling...");
                     s->m_cancelButton.IsEnabled(false);
-                    e.Handled(true);
                 }
             }
         });

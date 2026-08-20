@@ -7,6 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The B button no longer drops out of the app.** On Xbox an unhandled
+  `BackRequested` is the shell's cue to suspend and return to Home, and the
+  handler only marked the event handled while an inference was running — so a
+  B press on an idle chat closed xllama with no warning. Completed turns are
+  already on disk, so this cost the typed-but-unsent prompt, the KV cache and a
+  full model reload, not the conversation. Every `BackRequested` is now
+  handled: B cancels a running reply and otherwise does nothing; leaving the
+  app stays on the Xbox (Guide) button (`uwp/MainPage.cpp`,
+  `docs/uwp-constraints.md` §10e, `docs/using-the-app.md`).
+
 ## [1.5.5.0] - 2026-08-20
 
 Phase 16 catalogue win plus the pin and probes that landed with it. Product

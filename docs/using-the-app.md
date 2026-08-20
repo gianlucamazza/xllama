@@ -28,6 +28,10 @@ Type with the on-screen keyboard (or a USB keyboard) and send. The toolbar:
 
 Generation shows live tok/s; **■ Cancel** stops a running reply.
 
+Gamepad: **B** cancels a running reply and otherwise does nothing — it does
+**not** leave the app. Use the **Xbox (Guide)** button to quit. **View** clears
+the output, **Y** jumps to the prompt box, and inside a dialog **B** closes it.
+
 Every completed assistant response has **Like**, **Dislike**, and **Correct**
 actions. A correction requires the preferred answer. Each response can be rated
 once; the choice is stored with the conversation and appended to

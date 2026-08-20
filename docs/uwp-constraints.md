@@ -673,6 +673,14 @@ enums separate `AccessDenied` from `DeviceNotAvailable` and the probe carries
 both by name for exactly this reason; the harness prints `NOT A VERDICT` and
 refuses to score it.
 
+**Rerun 2026-08-20, same room, same result.** The probe was run a second time
+with still no headset attached and returned `graph_status = Success` /
+`input_node_status = DeviceNotAvailable` again — byte-identical to the file
+above, which is why `git status` shows nothing after it. That identity is the
+point worth recording: `probe-mic.sh` overwrites one fixed path, so a repeated
+run leaves no trace in the repo and the _count_ of runs is not derivable from
+the evidence. Anyone citing "run twice" is citing this paragraph, not a file.
+
 **To finish this measurement:** connect a headset with a microphone to the
 console and rerun `./scripts/probe-mic.sh`. `Success` with RMS > 1e-3 closes
 WS-F's S-gate as PASS; `AccessDenied` closes it as FAIL and this section
@@ -684,6 +692,36 @@ contract exists, an activation status tells you why it did not activate, and
 only the second distinguishes "the platform said no" from "you did not give it
 anything to work with". Both lines are worth logging, and neither substitutes
 for the other.
+
+### §10e — B is the shell's exit, not an app key (2026-08-20)
+
+On Xbox the gamepad **B** button is routed as a back request:
+`SystemNavigationManager::GetForCurrentView().BackRequested`. If no handler
+sets `Handled(true)`, the shell reads that as "the app has nowhere left to go
+back to" and **suspends the app to Home**. There is no separate "exit" event to
+opt out of, and no manifest switch: the only lever is the `Handled` flag.
+
+`MainPage.cpp` originally set `Handled(true)` only while an inference was
+running, so B cancelled a reply mid-stream but closed the app on an idle chat.
+The two behaviours came from one line, which is why the second one was easy to
+miss at desk — nothing logs a shell-initiated suspend. The conversation itself
+survived (`SaveCurrentConversation` runs at the end of every turn); what was
+lost was the prompt box, the KV cache and the model load.
+
+The handler now marks **every** `BackRequested` handled and branches inside:
+cancel if running, no-op otherwise. Leaving the app stays on the Xbox (Guide)
+button, which the shell owns and an AppContainer cannot intercept.
+
+Two things this does **not** cover, by design:
+
+- **`ContentDialog` consumes B first.** Settings, History and the image viewer
+  are dialogs, and XAML closes the open dialog before the event reaches
+  `BackRequested`. That is the wanted behaviour and needs no code.
+- **The Store `App` designation may want the opposite.** The Xbox back-nav
+  guideline for _apps_ (not games) is that back at the top level exits. xllama
+  runs designated **Game** in Dev Home and this is a Dev Mode cut, so the suppression stands;
+  revisit it with the App-vs-Game spike in
+  [store-readiness.md](store-readiness.md).
 
 ## 11. GPU Truth — EP Attribution Without PIX
 
