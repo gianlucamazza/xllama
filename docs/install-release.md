@@ -25,9 +25,9 @@ Portal basics see [device-portal.md](./device-portal.md).
 From the GitHub Release page (or `gh release download vX.Y.Z`):
 
 - `xllama_X.Y.Z.REV_x64.msix` — the app (~19 MB, no model inside). The fourth
-  version component `REV` is the CI run stamp (so a **v1.5.5.0** asset is named
-  `xllama_1.5.5.887_x64.msix` or similar); local builds keep `.0`. `REV` is a
-  placeholder, not a literal: read the real name off the release page.
+  component `REV` is the CI run stamp and differs per release; local builds keep
+  `.0`. Read the real name off the release page, or let the shell below derive
+  it from the file you downloaded.
 - `xllama-test.cer` — the signing test certificate
 - `Microsoft.VCLibs.x64.14.00.appx` — runtime dependency
 
@@ -43,10 +43,11 @@ source ~/.config/xllama/xbox-env
 #   https://<XBOX_IP>:11443 → My games & apps → Install → Microsoft.VCLibs.x64.14.00.appx
 # (or add it as a dependency in the same WDP install dialog as the MSIX)
 
-# App — set REV to the revision on the release page (it is not always .0);
-# angle brackets would be shell redirection, so this is a quoted variable
-REV=887
-./scripts/deploy.sh "xllama_1.5.5.${REV}_x64.msix"
+# App — derive the name from what you downloaded rather than typing a
+# revision. The fourth component is a CI run stamp, so hard-coding one here
+# would be wrong for every release but the one it was written for.
+MSIX=$(ls -1 xllama_*_x64.msix | head -1)
+./scripts/deploy.sh "$MSIX"
 ```
 
 Notes:

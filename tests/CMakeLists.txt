@@ -18,6 +18,7 @@ add_executable(xllama-tests
     test_chat_history.cpp
     test_diffusion.cpp
     test_routing_policy.cpp
+    test_cancel_policy.cpp
     test_sampling.cpp
     test_chat_prompt.cpp
     test_prompt_budget.cpp

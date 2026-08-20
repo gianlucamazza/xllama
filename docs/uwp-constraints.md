@@ -712,6 +712,18 @@ The handler now marks **every** `BackRequested` handled and branches inside:
 cancel if running, no-op otherwise. Leaving the app stays on the Xbox (Guide)
 button, which the shell owns and an AppContainer cannot intercept.
 
+**What is verified, and what cannot be.** The cancel _decision_ is policy over
+three booleans and now lives in `include/xllama/cancel_policy.h`, exhaustively
+tested on the host (`tests/test_cancel_policy.cpp`, all eight combinations).
+The `Handled(true)` _wiring_ has no automated test and cannot get one: the
+regression was the shell suspending the app on an unhandled back request, and
+nothing in-process can raise that. An autopilot `back` op was considered and
+**rejected** — it would call `OnCancelClick` directly, exercising a path the B
+button does not uniquely own, and ship a console gate named after a button it
+never presses. That is §10d's boolean probe with a different label. Do not add
+it. The irreducible check is one physical press on a Dev Mode console, and it
+belongs in the release runbook, not in a gate that implies more than it proves.
+
 **Cancelling goes through `OnCancelClick`, and that is load-bearing.** The
 first version of this fix aborted inline — `m_abort.store(true)` plus a
 disabled Cancel button — which reads correctly until you notice that

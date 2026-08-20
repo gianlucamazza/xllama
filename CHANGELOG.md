@@ -9,6 +9,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Cancel targeted the wrong job.** `SetRunning()` is called by text
+  inference, image generation and on-device training, so `m_is_running` means
+  "a job is running", not "text is running" — and the cancel path read it and
+  set the text abort flag. Pressing Cancel (or B) during an image disabled the
+  Cancel button and left the job running, with no way left to stop it. The
+  decision is now policy in `include/xllama/cancel_policy.h`, exhaustively
+  tested on the host (`tests/test_cancel_policy.cpp`, all eight combinations of
+  the three flags) because the combination that broke is not reproducible from
+  the UI file. Suite: 222 → **225 cases / 2934 assertions**.
+
 - **The B button no longer drops out of the app.** On Xbox an unhandled
   `BackRequested` is the shell's cue to suspend and return to Home, and the
   handler only marked the event handled while an inference was running — so a
