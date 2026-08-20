@@ -10,7 +10,7 @@ Companion SSOTs: [uwp-constraints.md](uwp-constraints.md), campaign notes in
 
 | Goal                               | Path                                                            | Status on Series S                                                                                                                                                                                           |
 | ---------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Ship / measure product tok/s       | CI MSVC `build-uwp` → `xllama-appx` → openappx pack/sign/deploy | **Launches** (shipping **v1.5.4.0** / MSIX `1.5.4.887`; **10** gates incl. `thinkdone`)                                                                                                                      |
+| Ship / measure product tok/s       | CI MSVC `build-uwp` → `xllama-appx` → openappx pack/sign/deploy | **Launches** (shipping **v1.5.5.0**; last 10-gate evidence **v1.5.4.0** / MSIX `1.5.4.887` incl. `thinkdone`)                                                                                                |
 | Compile + package from Linux       | uwp-crossbuild ≥ **0.5.1** + store `/MD` + dual-CRT stage       | **Launches** (observed 2026-08-08 after 0.5.1's ntdll reroutes: window activated, GGUF model loaded). Unproven: ORT/GenAI backends, first-boot provisioning, long uptime — product measurement stays CI MSVC |
 | hello-uwp / non-filesystem samples | uwp-crossbuild `/MT` or store `/MD`                             | Launches                                                                                                                                                                                                     |
 
@@ -28,7 +28,8 @@ Companion SSOTs: [uwp-constraints.md](uwp-constraints.md), campaign notes in
 ## Launchable package today (shipping path)
 
 **CI MSVC (`build-uwp` → artifact `xllama-appx`) is the proven product path on
-Series S.** Measured through **v1.5.4.0** (MSIX `1.5.4.887`; suite **10** gates
+Series S.** Current cut **v1.5.5.0**. Last 10-gate evidence **v1.5.4.0** (MSIX
+`1.5.4.887`; suite **10** gates
 including `thinkdone`). Day-of-ship **v1.5.3.0** was `1.5.3.873` (9 gates).
 Earlier hybrid dual-CRT probes used `1.5.2.x` packages (see layer table below).
 

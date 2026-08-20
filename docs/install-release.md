@@ -2,7 +2,7 @@
 
 How to install a tagged xllama release (see the
 [releases page](https://github.com/gianlucamazza/xllama/releases) for the current
-tag — today **[v1.5.4.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.5.4.0)**)
+tag — today **[v1.5.5.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.5.5.0)**)
 on an Xbox Series S|X in Dev Mode, from a Linux/macOS host. For building from
 source see the [README](../README.md#build); for Dev Mode activation and Device
 Portal basics see [device-portal.md](./device-portal.md).
@@ -25,8 +25,8 @@ Portal basics see [device-portal.md](./device-portal.md).
 From the GitHub Release page (or `gh release download vX.Y.Z`):
 
 - `xllama_X.Y.Z.<rev>_x64.msix` — the app (~19 MB, no model inside). The fourth
-  version component is the CI run stamp (e.g. `xllama_1.5.4.<rev>_x64.msix` for
-  **v1.5.4.0**); local builds keep `.0`.
+  version component is the CI run stamp (e.g. `xllama_1.5.5.<rev>_x64.msix` for
+  **v1.5.5.0**); local builds keep `.0`.
 - `xllama-test.cer` — the signing test certificate
 - `Microsoft.VCLibs.x64.14.00.appx` — runtime dependency
 
@@ -43,7 +43,7 @@ source ~/.config/xllama/xbox-env
 # (or add it as a dependency in the same WDP install dialog as the MSIX)
 
 # App (name matches the asset on the release — revision is not always .0)
-./scripts/deploy.sh xllama_1.5.4.887_x64.msix   # name from the GitHub Release assets
+./scripts/deploy.sh xllama_1.5.5.<rev>_x64.msix   # name from the GitHub Release assets
 ```
 
 Notes:

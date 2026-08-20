@@ -180,8 +180,8 @@ re-deriving the fact by hand.
 - **Scale**: **~19.9k lines of own C++ across 90 files**, of which 3.5k in 23
   test files; **222 host test cases / 2923 assertions**; **10 console validation
   gates** (`scripts/validate-console.sh` — routing, settings, gguf, longchat,
-  kvsnap, coderpaste, thinkcut, thinkdone, genroom, taesd); **17 product
-  releases** since 2026-05-19, current **1.5.4.0**. Derivations:
+  kvsnap, coderpaste, thinkcut, thinkdone, genroom, taesd); **18 product
+  releases** since 2026-05-19, current **1.5.5.0**. Derivations:
 
   ```bash
   # lines and files — src/ + include/ + uwp/ + tests/, tracked .cpp/.h only

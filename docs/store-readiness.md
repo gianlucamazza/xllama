@@ -6,9 +6,10 @@
 > `benchmarks.md`; this page owns **go-to-market gates**, dual-SKU policy, and
 > the licence matrix for a retail listing.
 
-**Status (2026-08-08):** Phase 0 discovery + Phase 1 **engineering foundation**
+**Status (2026-08-20):** Phase 0 discovery + Phase 1 **engineering foundation**
 landed, and the **five listing screenshots are captured** (§9). Product Dev Mode
-cut is **v1.5.4.0** (10 console gates including `thinkdone`). **Not Store-ready**
+cut is **v1.5.5.0** (10 console gates including `thinkdone`; last fully gated
+evidence remains v1.5.4.0 / MSIX `1.5.4.887`). **Not Store-ready**
 for retail: no Partner Center product, no Store-signed package, no privacy URL,
 no age rating. Dev Mode remains the only supported install path. Partner Center
 account / product reservation is a **human gate** before engineering listing work.
@@ -133,6 +134,7 @@ allowlist draft** — not legal advice; re-verify before submission.
 
 | Catalogue id                        | Family                 | Typical licence (upstream)                                                                                  | Hosting today                          | Store SKU draft                                                     |
 | ----------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------- |
+| `lfm25-230m`                        | Liquid LFM2.5          | LFM Open License v1.0 (LICENSE next to weights; commercial use limited by entity revenue — see upstream §5) | `models-v1` + LICENSE                  | **Allow** floor tier if same                                        |
 | `lfm25-350m`                        | Liquid LFM2.5          | LFM Open License v1.0 (LICENSE next to weights; commercial use limited by entity revenue — see upstream §5) | `models-v1` + LICENSE                  | **Allow** default chat if non-commercial listing OK under LFM terms |
 | `lfm25-1.2b-instruct`               | Liquid LFM2.5          | LFM Open License                                                                                            | HF LiquidAI + LICENSE                  | **Allow** if same                                                   |
 | `lfm2-2.6b`                         | Liquid LFM2            | LFM Open License                                                                                            | HF LiquidAI + LICENSE                  | **Allow** if same                                                   |

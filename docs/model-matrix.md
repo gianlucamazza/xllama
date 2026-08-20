@@ -13,10 +13,10 @@ ids, templates, licenses, and campaign notes** — not runtime contracts.
 | Catalogue data                                                 | [`../uwp/models/manifest.json`](../uwp/models/manifest.json) |
 | Tok/s tables                                                   | [benchmarks.md](./benchmarks.md) only                        |
 
-Last updated: **2026-08-10**. Newest entries: §A1 `lfm25-230m` shipped as the
-floor tier and `gemma3-270m`'s H9 measured for the first time, §E the floor role,
-§F the Phase 16 verdicts (all 2026-08-10); then §A3 H2 MoE FAIL (2026-07-30),
-§D per-arch `can_shift` (2026-07-29), §A2 phase14 console validation (2026-07-27).
+Last updated: **2026-08-20**. Newest entries: §F MiniCPM5 renderer shipped /
+T3 not booked, WS-E closed (no consumer); then §A1 `lfm25-230m` shipped as the
+floor tier and `gemma3-270m`'s H9 measured (2026-08-10), §A3 H2 MoE FAIL
+(2026-07-30), §D per-arch `can_shift` (2026-07-29), §A2 phase14 (2026-07-27).
 
 ## How to read the columns
 
@@ -235,16 +235,16 @@ shifts.
 **Phase 16 (desk + measured, 2026-08-10)** — campaign SSOT:
 [phase16-model-scouting.md](phase16-model-scouting.md).
 
-| Candidate                        | Decision                 | Reason                                                                                                                        |
-| -------------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| Qwen3.5-2B (`unsloth` Q4_K_M)    | reject — measured        | H16.1a FAIL on both halves: `peak_ws_mb` 1421 > 1398 and decode 19.25 < 19.6 (`phase16-gguf`)                                 |
-| Maincoder-1B (`Maincode` Q4_K_M) | reject — measured        | H16.1b: memory passes (843 ≤ 900) but decode 33.49 < the card's 33.9 (1.283× vs a 1.3× bar) (`phase16-gguf`)                  |
-| MiniCPM5-1B (`openbmb`)          | defer — unbought cost    | H16.1d: needs BOTH an `<s>` BOS field and a no-think prefill in the renderer; measured, not assumed. No console session spent |
-| SmolLM3-3B GGUF (ggml-org)       | reject — cost not bought | WS-A's ≤4 slots allocated; loses the 4th head-to-head to MiniCPM5-1B; self-set PASS bar of H9 8/8 (catalogue best is 7/8)     |
-| EmbeddingGemma-300M (ggml-org)   | reject — licence         | Origin repo `gated: manual` (anon HEAD 401), so a console download is impossible; the ungated mirror ships no licence/notice  |
-| Supra2-100M-Instruct             | reject — duplicate bet   | Same floor role as `lfm25-230m`; ~30 MB of projected gain needs an in-house quant, a re-host and a name-matched stop token    |
-| granite-embedding-english-r2     | reject — duplicate bet   | Same WS-E slot as nomic-embed-text-v1.5 at +15 MB and new-renderer cost; its own FAIL branch concedes to nomic                |
-| multilingual-e5-small            | reject — duplicate bet   | Same WS-E slot; the multilingual axis has no named consumer, and its GGUF tokenizer is SPM over an XLM-R Unigram vocabulary   |
+| Candidate                        | Decision                 | Reason                                                                                                                       |
+| -------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| Qwen3.5-2B (`unsloth` Q4_K_M)    | reject — measured        | H16.1a FAIL on both halves: `peak_ws_mb` 1421 > 1398 and decode 19.25 < 19.6 (`phase16-gguf`)                                |
+| Maincoder-1B (`Maincode` Q4_K_M) | reject — measured        | H16.1b: memory passes (843 ≤ 900) but decode 33.49 < the card's 33.9 (1.283× vs a 1.3× bar) (`phase16-gguf`)                 |
+| MiniCPM5-1B (`openbmb`)          | defer — T3 not booked    | H16.1d renderer shipped 2026-08-10 (15 lines: `<s>` BOS + no-think). Host T1 PASS. No console session spent this campaign    |
+| SmolLM3-3B GGUF (ggml-org)       | reject — cost not bought | WS-A's ≤4 slots allocated; loses the 4th head-to-head to MiniCPM5-1B; self-set PASS bar of H9 8/8 (catalogue best is 7/8)    |
+| EmbeddingGemma-300M (ggml-org)   | reject — licence         | Origin repo `gated: manual` (anon HEAD 401), so a console download is impossible; the ungated mirror ships no licence/notice |
+| Supra2-100M-Instruct             | reject — duplicate bet   | Same floor role as `lfm25-230m`; ~30 MB of projected gain needs an in-house quant, a re-host and a name-matched stop token   |
+| granite-embedding-english-r2     | reject — duplicate bet   | Same WS-E slot as nomic-embed-text-v1.5 at +15 MB and new-renderer cost; its own FAIL branch concedes to nomic               |
+| multilingual-e5-small            | reject — duplicate bet   | Same WS-E slot; the multilingual axis has no named consumer, and its GGUF tokenizer is SPM over an XLM-R Unigram vocabulary  |
 
 ---
 
@@ -262,8 +262,8 @@ shifts.
    ([phase16-model-scouting.md](phase16-model-scouting.md)) closed with one model
    shipped (`lfm25-230m`, §A1) and everything else rejected, deferred or blocked;
    the verdicts are in §F. Of the 2026-07-27 seeds, LFM2.5-230M shipped and the
-   rest were not displaced. What the campaign leaves open is a **product decision
-   on an embedding surface**, not a model search — see the campaign doc.
+   rest were not displaced. WS-E (embeddings) closed 2026-08-20: no named
+   consumer (#242). WS-F (ASR) still needs a headset (#241).
 7. ~~**W3 gpubw** (#211)~~ — **closed PASS** Series S **119.07 GB/s** STREAM;
    H6 eng **#228** (`docs/phase15-re-opt.md`).
 
