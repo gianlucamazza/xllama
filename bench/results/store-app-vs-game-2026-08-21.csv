@@ -1,0 +1,7 @@
+designation,model,run_index,prefill_tps,decode_tps,peak_ws_mb,n_gen_tok,gpu_budget_mb,ramceil_avail_phys_mb,package,notes
+Game,lfm25-350m,2,437.28,94.73,320,153,3801,4983,1.5.5.922,standard-512 t6; ramceil at 128MB commit
+Game,lfm25-350m,3,436.88,111.82,320,6,3801,4983,1.5.5.922,short greedy stop; decode not comparable
+Game,lfm25-350m,4,436.58,112.19,320,6,3801,4983,1.5.5.922,short greedy stop; decode not comparable
+App,lfm25-350m,2,463.15,102.22,320,6,691,183,1.5.5.922,short greedy stop; decode not comparable
+App,lfm25-350m,3,474.29,86.98,320,198,691,183,1.5.5.922,standard-512 t6; ramceil at 128MB commit
+App,lfm25-350m,4,478.50,86.57,320,269,691,183,1.5.5.922,standard-512 t6; ramceil at 128MB commit

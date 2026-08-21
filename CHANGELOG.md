@@ -15,6 +15,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (retimed naive 1.96). **K2 park** — G2 stays 40. CSV
   `bench/results/phase15-gpugemv-h62.csv`. Suite: 225 → **230 cases / 4304
   assertions**.
+- **Store D1 App vs Game spike** on Series S (`lfm25-350m`, same package).
+  App GPU budget **691 vs 3801 MB**; long-gen decode ~87 vs ~95 tok/s; peak
+  320 MB both. Listing should request **Game** metadata. CSV
+  `bench/results/store-app-vs-game-2026-08-21.csv`.
 
 ### Fixed
 

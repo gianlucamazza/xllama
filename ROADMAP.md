@@ -41,8 +41,10 @@ performance belongs in `docs/benchmarks.md`.
 
 1. **Vendor pin drops** (#84/#85/#86) — blocked until NuGet moves
    (`scripts/check-vendor-nuget-status.sh`, poll 2026-08-20: still required).
-2. **Store readiness** — Partner Center human gate; App-vs-Game spike;
-   NOTICE / listing (`docs/store-readiness.md`).
+2. **Store readiness** — Partner Center human gate; App-vs-Game spike
+   **done 2026-08-21** (request Game metadata;
+   `bench/results/store-app-vs-game-2026-08-21.csv`); NOTICE / listing
+   (`docs/store-readiness.md`). Store SKU console smoke still open.
 3. **WS-F headset** (#241) — rerun `scripts/probe-mic.sh` with a microphone
    attached. Two room-empty runs (2026-08-10, 2026-08-20) are not a verdict.
 4. **Parked eng** — H6/H7 (#228) after H6.2 **K2** (wave32 median 25.4 GB/s
@@ -559,7 +561,8 @@ SSOT: [`docs/store-readiness.md`](docs/store-readiness.md). Dev Mode remains
 the supported install path until a submission is accepted.
 
 - [~] Phase 0 — discovery: SSOT + licence matrix in `store-readiness.md`;
-  Partner Center decision + App vs Game spike + go/no-go still open.
+  App vs Game spike **done 2026-08-21** (request Game); Partner Center
+  decision + go/no-go still open.
 - [~] Phase 1 — Store SKU foundation + **no-VM CI path** (`workflow_dispatch`
   `store_sku=true` → `xllama-appx-store`, `install-latest-build.sh --store`);
   console smoke + Partner Center identity still open.

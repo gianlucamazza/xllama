@@ -6,13 +6,14 @@
 > `benchmarks.md`; this page owns **go-to-market gates**, dual-SKU policy, and
 > the licence matrix for a retail listing.
 
-**Status (2026-08-20):** Phase 0 discovery + Phase 1 **engineering foundation**
-landed, and the **five listing screenshots are captured** (§9). Product Dev Mode
-cut is **v1.5.5.0** (10 console gates including `thinkdone`; last fully gated
-evidence remains v1.5.4.0 / MSIX `1.5.4.887`). **Not Store-ready**
-for retail: no Partner Center product, no Store-signed package, no privacy URL,
-no age rating. Dev Mode remains the only supported install path. Partner Center
-account / product reservation is a **human gate** before engineering listing work.
+**Status (2026-08-21):** Phase 0 discovery + Phase 1 **engineering foundation**
+landed, **five listing screenshots** captured (§9), and **D1 App vs Game
+measured** (§6 — request Game metadata). Product Dev Mode cut is **v1.5.5.0**
+(10 console gates including `thinkdone`; last fully gated evidence remains
+v1.5.4.0 / MSIX `1.5.4.887`). **Not Store-ready** for retail: no Partner Center
+product, no Store-signed package, no privacy URL, no age rating. Dev Mode
+remains the only supported install path. Partner Center account / product
+reservation is a **human gate** before engineering listing work.
 
 **Audience for a eventual listing:** hobbyist local-LLM / homebrew Xbox users
 who should not need Dev Mode. Contributors keep the Dev Mode sideload path.
@@ -181,7 +182,8 @@ allowlist draft** — not legal advice; re-verify before submission.
 - [x] First-run generative-AI disclaimer (`LocalState\disclaimer.accepted`)
 - [x] Privacy draft [`privacy.md`](./privacy.md)
 - [x] NOTICE / runtime attributions draft (`NOTICE` at repo root — verify per release)
-- [ ] App vs Game spike results filed under `bench/results/`
+- [x] App vs Game spike results filed under `bench/results/`
+      (`store-app-vs-game-2026-08-21.csv`, CI `1.5.5.922`, `lfm25-350m`)
 - [ ] Console smoke of store SKU (chat + model download)
 
 ### Listing
@@ -190,7 +192,9 @@ allowlist draft** — not legal advice; re-verify before submission.
 - [ ] EN title / description / trailer (current numbers)
 - [ ] “Not affiliated with Microsoft”
 - [ ] Hardware: Series S\|X
-- [ ] Category / Game metadata decision from D1
+- [x] Category / Game metadata decision from D1: **request Game**. App runs
+      default CPU chat only; GPU budget 691 vs 3801 MB and ramceil
+      `avail_phys` ~183 vs ~4983 MB at 128 MB committed. See §6.
 
 ### Go/no-go
 
@@ -221,10 +225,17 @@ chat model already provisioned (`lfm25-350m`), Device Portal access.
    `designation,model,prefill_tps,decode_tps,peak_ws_mb,notes`.
 7. Paste a one-line verdict into this section when done.
 
-**Verdict (fill after measurement):** _TBD — not yet run._
+**Verdict (2026-08-21, CI `1.5.5.922`, `lfm25-350m` Q4_K_M, t6, `standard-512`,
+3 recorded runs):** App **runs the default CPU chat**, ~8% slower on
+long generations (decode **86.6–87.0** vs Game **94.7** tok/s at n_gen ≥ 150;
+peak **320 MB** both). It is **not** a substitute for Game: GPU budget **691 vs
+3801 MB**; ramceil `avail_phys` after 128 MB commit **183 vs 4983 MB**. Balanced /
+quality / coding / DML / diffusion do not fit App. Store listing **must request
+Game metadata**; do not quote Game benches as App. CSV:
+`bench/results/store-app-vs-game-2026-08-21.csv`.
 
 Historical note: GPU budget **3801 MB** and published benchmarks are **Game**
-numbers (`uwp-constraints.md` §5). Do not quote them as App-mode until measured.
+numbers (`uwp-constraints.md` §5). App-mode numbers live only in that CSV.
 
 ---
 
