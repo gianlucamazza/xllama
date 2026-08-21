@@ -498,3 +498,95 @@ Store ID and MSA app Id are new.
 
 Dev Mode installs stay on `GianlucaMazza.xllama` / `CN=xllama-dev`. The Store
 SKU is a **different app** to the console (new identity, fresh LocalState).
+
+## 14. Submission fill sheet (`9N9661XSDBM4`, Game, In draft)
+
+Partner Center checklist order. **Do not Submit for certification** until
+Packages has a Store-signed MSIX (not the test `CN=xllama-dev` CI artifact).
+
+### Before the checklist
+
+1. **Microsoft Application Developer Agreement** — accept in Partner Center
+   (human legal click; publishing is blocked until 2026-04-16 otherwise).
+2. **IARC questionnaire updated** — open **Age ratings**, complete every
+   section marked incomplete (2026 GenAI questions). First category: **Game**.
+   IARC gets publisher display name + email.
+
+### Pricing and availability
+
+| Field            | Value                                                     |
+| ---------------- | --------------------------------------------------------- |
+| Markets          | All (or EU + US first if you want a smaller cert surface) |
+| Audience         | Public                                                    |
+| Discoverability  | Available and discoverable                                |
+| Schedule         | Release as soon as possible; stop acquisition never       |
+| Base price       | **Free**                                                  |
+| Free trial / IAP | None                                                      |
+
+### Properties
+
+| Field                | Value                                                                                                                                        |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Category             | **Games** (required for a Game product / D1 envelope)                                                                                        |
+| Subcategory / genre  | **Other** (not a combat/sports title; do not pick Family & kids)                                                                             |
+| Privacy policy URL   | `https://gianlucamazza.github.io/xllama/privacy.html` (**required**)                                                                         |
+| Website              | `https://github.com/gianlucamazza/xllama`                                                                                                    |
+| Support contact      | `https://github.com/gianlucamazza/xllama/issues` (**required** on Xbox)                                                                      |
+| Game settings        | No multiplayer, no co-op, no cross-platform play, no local multiplayer                                                                       |
+| Display mode         | Leave 4K / HDR / VRR **unchecked** (not claimed)                                                                                             |
+| Product declarations | Tick **live generative AI** (Store policy 11.16). No accessibility/offline-only false claims.                                                |
+| System requirements  | Xbox Series S\|X; gamepad **required**. Extra: free storage for model downloads (hundreds of MB default; several GB for larger / image gen). |
+
+### Age ratings (IARC)
+
+Select **I'm ready to complete the IARC questionnaire**. App type: **Game**.
+Answer from facts; do not claim a filter we do not ship.
+
+| Topic                                          | Answer                                       |
+| ---------------------------------------------- | -------------------------------------------- |
+| Interactive product                            | Yes                                          |
+| Users interact with each other / online UGC    | **No** (local only; 11.12 does not apply)    |
+| Location sharing                               | No                                           |
+| In-app purchases / real-money gambling         | No                                           |
+| Unrestricted web browsing                      | **No** (`internetClient` = catalogue only)   |
+| Live generative AI                             | **Yes** — on-device text **and** images      |
+| Users can generate unrestricted text           | **Yes**                                      |
+| Users can generate images                      | **Yes** (SD-Turbo opt-in; D3 fallback = No)  |
+| Generated content shared with other users      | **No**                                       |
+| Moderation / age gate on generation            | **No** (report path in Settings only)        |
+| App **assets** (UI, screenshots)               | No violence, sex, drugs, gambling            |
+| Generated output **may** include mature themes | **Yes** (declare it; rating must cover this) |
+
+Save and generate. Paste the resulting ESRB/PEGI table back into §11. If the
+rating or cert fails on image gen (11.7), re-run IARC with images **No** and
+cut SD from Store v1.
+
+### Packages
+
+**Leave Not started** until a CI Store SKU is built with §13 identity
+(`1guy.xllama` / `CN=6EB9C78C-6383-4033-92CC-105BE3307CCF`). Uploading
+`CN=xllama-dev` will fail identity checks.
+
+### Store listings
+
+Language: **English (United States)**. Paste §9. Screenshots (1920×1080):
+`docs/screenshots/store/01-chat-answer.png`, `02-chat-multiturn.png`,
+`04-image-viewer.png`, `05-settings.png`, `06-history.png`. Xbox listing also
+needs the Store logo set (see Partner Center “Xbox images”). Trailer: skip v1.
+Keywords: the seven search terms in §9.
+
+### Xbox Creators Program
+
+**Start it.** Game-on-Xbox without ID@Xbox uses this path (Store policy
+10.13.1). Enable Creators; **do not** turn on Xbox network, achievements,
+multiplayer, or friends. No concept approval. If the form demands Xbox Live
+sign-in or GDK, stop — that is the go/no-go in §12.
+
+### Submission options
+
+| Field                   | Value                                             |
+| ----------------------- | ------------------------------------------------- |
+| Publishing hold         | Optional hold until you have clicked through cert |
+| Notes for certification | Paste §9 “Notes for certification”                |
+| Restricted capabilities | None (`internetClient` is not restricted)         |
+| Generative AI noted     | Yes (11.16)                                       |

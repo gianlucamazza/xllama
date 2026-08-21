@@ -28,7 +28,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   template to report inappropriate generated content (Store policy 11.16).
   Product **xllama** reserved in Partner Center as **Game** (`9N9661XSDBM4`;
   identity §13). An App reservation (`9NCNLPWFT6B5`) was deleted the same day.
-  Dev Mode identity unchanged.
+  Dev Mode identity unchanged. Submission fill sheet (pricing, IARC GenAI,
+  Creators, packages hold) in `docs/store-readiness.md` §14.
 
 ### Fixed
 
