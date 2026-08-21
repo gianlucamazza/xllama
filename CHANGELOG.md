@@ -7,6 +7,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **H6.2 wave32 Q4_K GEMV density probe** (`gpugemv.flag`,
+  `shaders/gpugemv_q4k_wave32.hlsl`). Measure-only, not a Session GPU backend.
+  Series S CI MSVC `1.5.5.922`: G1 PASS, `wave32` median **25.4 GB/s packed**
+  (retimed naive 1.96). **K2 park** — G2 stays 40. CSV
+  `bench/results/phase15-gpugemv-h62.csv`. Suite: 225 → **230 cases / 4304
+  assertions**.
+
 ### Fixed
 
 - **Cancel targeted the wrong job.** `SetRunning()` is called by text
@@ -17,7 +26,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   decision is now policy in `include/xllama/cancel_policy.h`, exhaustively
   tested on the host (`tests/test_cancel_policy.cpp`, all eight combinations of
   the three flags) because the combination that broke is not reproducible from
-  the UI file. Suite: 222 → **225 cases / 2934 assertions**.
+  the UI file. Suite was 222 → 225 cases / 2934 assertions before H6.2.
 
 - **The B button no longer drops out of the app.** On Xbox an unhandled
   `BackRequested` is the shell's cue to suspend and return to Home, and the
