@@ -139,7 +139,7 @@ def ladder(median, g1_all3):
 denser_best = None
 for kernel, runs in by_kernel.items():
     gbs = [g for g, _ in runs]
-    g1_all3 = all(ok for _, ok in runs) and len(runs) >= 1
+    g1_all3 = len(runs) >= 3 and all(ok for _, ok in runs)
     med = statistics.median(gbs) if gbs else 0.0
     lad = ladder(med, g1_all3)
     print(f"median kernel={kernel} packed_gbs={med} g1_all3={int(g1_all3)} ladder={lad}")

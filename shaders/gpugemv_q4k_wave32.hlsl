@@ -22,20 +22,29 @@ RWStructuredBuffer<float> Y : register(u0);
 groupshared uint4 gs[288]; // 9 * 32; 288 × 16 B = 4608 B
 groupshared float red[32];
 
-void get_scale_min_k4(uint j, uint s[12], out uint d, out uint m) {
-    if (j < 4) {
-        d = s[j] & 63u;
-        m = s[j + 4] & 63u;
+uint scale_byte(uint i, uint scales01, uint scales23, uint scales45) {
+    uint w = (i < 4u) ? scales01 : ((i < 8u) ? scales23 : scales45);
+    return (w >> ((i & 3u) * 8u)) & 0xffu;
+}
+
+void get_scale_min_k4(uint j, uint scales01, uint scales23, uint scales45, out uint d, out uint m) {
+    if (j < 4u) {
+        d = scale_byte(j, scales01, scales23, scales45) & 63u;
+        m = scale_byte(j + 4u, scales01, scales23, scales45) & 63u;
     } else {
-        d = (s[j + 4] & 0xFu) | ((s[j - 4] >> 6) << 4);
-        m = (s[j + 4] >> 4) | ((s[j - 0] >> 6) << 4);
+        uint a = scale_byte(j + 4u, scales01, scales23, scales45);
+        uint b = scale_byte(j - 4u, scales01, scales23, scales45);
+        uint c = scale_byte(j, scales01, scales23, scales45);
+        d = (a & 0xFu) | ((b >> 6) << 4);
+        m = (a >> 4) | ((c >> 6) << 4);
     }
 }
 
 [numthreads(32, 1, 1)]
-void CSMain(uint3 dtid : SV_DispatchThreadID, uint gix : SV_GroupIndex, uint3 gid : SV_GroupID) {
-    const uint row = gid.x; // == dtid.x with 32 threads
-    const uint lane = gix;  // 0..31
+void CSMain(uint gix : SV_GroupIndex, uint3 gid : SV_GroupID) {
+    // Dispatch(N): one row per group. Not SV_DispatchThreadID (gid.x*32 + lane).
+    const uint row = gid.x;
+    const uint lane = gix; // 0..31
     // All-in or all-out for the group: do not return after the first barrier.
     if (row >= n)
         return;
@@ -63,39 +72,27 @@ void CSMain(uint3 dtid : SV_DispatchThreadID, uint gix : SV_GroupIndex, uint3 gi
             const uint scales01 = b[0].y;
             const uint scales23 = b[0].z;
             const uint scales45 = b[0].w;
-            uint s[12];
-            s[0] = scales01 & 0xffu;
-            s[1] = (scales01 >> 8) & 0xffu;
-            s[2] = (scales01 >> 16) & 0xffu;
-            s[3] = (scales01 >> 24) & 0xffu;
-            s[4] = scales23 & 0xffu;
-            s[5] = (scales23 >> 8) & 0xffu;
-            s[6] = (scales23 >> 16) & 0xffu;
-            s[7] = (scales23 >> 24) & 0xffu;
-            s[8] = scales45 & 0xffu;
-            s[9] = (scales45 >> 8) & 0xffu;
-            s[10] = (scales45 >> 16) & 0xffu;
-            s[11] = (scales45 >> 24) & 0xffu;
 
             const float d = f16tof32(d_dmin & 0xffffu);
             const float minv = f16tof32(d_dmin >> 16);
             const uint x_base_bytes = (block_base + lane) * 256u * 4u;
-            uint q_off = 0;
-            uint is = 0;
+            [unroll]
             for (uint grp = 0; grp < 4u; ++grp) {
+                const uint is = grp * 2u;
+                const uint q_off = grp * 8u;
                 uint sc, m;
-                get_scale_min_k4(is + 0, s, sc, m);
+                get_scale_min_k4(is + 0, scales01, scales23, scales45, sc, m);
                 const float d1 = d * (float)sc;
                 const float m1 = minv * (float)m;
-                get_scale_min_k4(is + 1, s, sc, m);
+                get_scale_min_k4(is + 1, scales01, scales23, scales45, sc, m);
                 const float d2 = d * (float)sc;
                 const float m2 = minv * (float)m;
 
                 // lo nibbles — homogeneous 32, float4 only inside this loop
+                [unroll]
                 for (uint l = 0; l < 32u; l += 4u) {
                     const uint word_idx = q_off + (l >> 2);
-                    const uint4 src = b[1u + (word_idx >> 2)];
-                    const uint word = src[word_idx & 3u];
+                    const uint word = b[1u + (word_idx >> 2)][word_idx & 3u];
                     const float4 n4 =
                         float4((float)((word >> 0) & 0xFu), (float)((word >> 8) & 0xFu),
                                (float)((word >> 16) & 0xFu), (float)((word >> 24) & 0xFu));
@@ -103,20 +100,20 @@ void CSMain(uint3 dtid : SV_DispatchThreadID, uint gix : SV_GroupIndex, uint3 gi
                     acc += dot(d1 * n4 - m1, x4);
                 }
                 // hi nibbles — same qs bytes, X[grp*64+32 : 64)
+                [unroll]
                 for (uint l = 0; l < 32u; l += 4u) {
                     const uint word_idx = q_off + (l >> 2);
-                    const uint4 src = b[1u + (word_idx >> 2)];
-                    const uint word = src[word_idx & 3u];
+                    const uint word = b[1u + (word_idx >> 2)][word_idx & 3u];
                     const float4 n4 =
                         float4((float)((word >> 4) & 0xFu), (float)((word >> 12) & 0xFu),
                                (float)((word >> 20) & 0xFu), (float)((word >> 28) & 0xFu));
                     const float4 x4 = asfloat(X.Load4(x_base_bytes + (grp * 64u + 32u + l) * 4u));
                     acc += dot(d2 * n4 - m2, x4);
                 }
-                q_off += 8u;
-                is += 2u;
             }
         }
+        // All 32 lanes, including idle: WAR on gs before the next nload window.
+        GroupMemoryBarrierWithGroupSync();
     }
 
     red[lane] = acc;

@@ -84,7 +84,10 @@ struct GpugemvResult {
     bool checksum_ok = false;
     bool d3d12_ran = false;
     bool gpu_timestamp = false;
-    bool wave_ops = false; // PR 1 LDS-red only; always false
+    bool wave_ops = false;     // blob select: PR 1 LDS-red only; always false
+    bool wave_ops_cap = false; // D3D12_OPTIONS1.WaveOps (observability; not a gate)
+    std::uint32_t wave_lane_min = 0;
+    std::uint32_t wave_lane_max = 0;
     std::string error_msg;
 };
 

@@ -503,13 +503,25 @@ void run_gpugemv() {
         std::vector<::xllama::GpugemvResult> rows;
         ::xllama::measure_gpugemv_each(::xllama::kGpugemvDefaultN, ::xllama::kGpugemvDefaultK,
                                        /*recorded=*/3, kernel, &rows);
-        bool g1_all3 = !rows.empty();
+        bool g1_all3 = rows.size() >= 3;
         std::vector<double> gbs;
+        if (!rows.empty()) {
+            char cap[200];
+            snprintf(
+                cap, sizeof(cap),
+                "[xllama] gpugemv: kernel=%s WaveOps=%d WaveLaneCountMin=%u WaveLaneCountMax=%u "
+                "wave_ops=%d\n",
+                ::xllama::gpugemv_kernel_name(kernel), rows[0].wave_ops_cap ? 1 : 0,
+                rows[0].wave_lane_min, rows[0].wave_lane_max, rows[0].wave_ops ? 1 : 0);
+            log_output(cap);
+        }
         for (const auto& r : rows) {
             if (fp)
                 fputs(::xllama::format_gpugemv_row(r, "xbox-series-s").c_str(), fp);
-            g1_all3 = g1_all3 && ::xllama::gpugemv_passes_g1(r);
-            gbs.push_back(r.packed_gbs);
+            g1_all3 =
+                g1_all3 && r.run_index >= 1 && r.run_index <= 3 && ::xllama::gpugemv_passes_g1(r);
+            if (r.run_index >= 1 && r.run_index <= 3)
+                gbs.push_back(r.packed_gbs);
             char lb[400];
             snprintf(lb, sizeof(lb),
                      "[xllama] gpugemv: kernel=%s run=%d packed_gbs=%.2f packed_gbs_cpu=%.2f "

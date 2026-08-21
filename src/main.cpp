@@ -165,7 +165,7 @@ int main(int argc, char** argv) {
         return r.d3d12_ran && r.checksum_ok ? 0 : 0; // always 0: non-Windows is expected
     }
 
-    // --gpugemv: Phase 15 H6.2 (#228). On Linux reports d3d12 unavailable (honest).
+    // --gpugemv: Phase 15 H6.2 (#228). Host tiny-tile wave32 TDD (Linux: d3d12 unavailable).
     if (params.run_gpugemv) {
         const xllama::GpugemvResult r =
             xllama::measure_gpugemv(/*n=*/256, /*k=*/256, /*iterations=*/1);

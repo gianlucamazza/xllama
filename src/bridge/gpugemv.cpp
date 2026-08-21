@@ -415,8 +415,7 @@ void fill_checksum(GpugemvResult& r, const float* host_y, const float* gpu_y, in
         r.checksum_ok = true;
     if (!r.checksum_ok && r.error_msg.empty())
         r.error_msg = "GEMV residual or checksum mismatch";
-    if (r.checksum_ok)
-        r.error_msg.clear();
+    // Keep a pre-existing timer diagnostic on G1 pass.
 }
 
 } // namespace
@@ -501,8 +500,12 @@ void measure_gpugemv_each(int n, int k, int iterations, GpugemvKernel kernel,
     }
 
     D3D12_FEATURE_DATA_D3D12_OPTIONS1 opt1 = {};
-    device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &opt1, sizeof(opt1));
-    (void)opt1; // PR 1 ships LDS-red only; wave_ops stays 0.
+    if (SUCCEEDED(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &opt1, sizeof(opt1)))) {
+        seed.wave_ops_cap = opt1.WaveOps != FALSE;
+        seed.wave_lane_min = opt1.WaveLaneCountMin;
+        seed.wave_lane_max = opt1.WaveLaneCountMax;
+    }
+    seed.wave_ops = false; // PR 1 ships LDS-red only.
 
     D3D12_COMMAND_QUEUE_DESC qd = {};
     qd.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
