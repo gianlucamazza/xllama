@@ -156,6 +156,19 @@ Run an individual gate while debugging:
 ./scripts/validate-console-training.sh rate   # preference UI path
 ```
 
+## Store SKU smoke (not in `all`)
+
+Retail SKU: no LAN, no USB, no headless flags. Autopilot remains. Procedure and
+restore: `docs/store-readiness.md` §10.
+
+```bash
+./scripts/validate-console.sh store
+```
+
+Asserts (1) first-run catalogue download of `lfm25-350m` or an already-provisioned
+line after `install-latest-build.sh --store`, (2) GGUF chat saved with a title,
+(3) `set_api` is rejected with `LAN API not available in Store SKU`.
+
 ## Benchmark evidence
 
 Use `scripts/bench-xbox-ort.sh` and the fixed prompts described in

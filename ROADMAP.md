@@ -44,7 +44,8 @@ performance belongs in `docs/benchmarks.md`.
 2. **Store readiness** — Partner Center human gate; App-vs-Game spike
    **done 2026-08-21** (request Game metadata;
    `bench/results/store-app-vs-game-2026-08-21.csv`); NOTICE / listing
-   (`docs/store-readiness.md`). Store SKU console smoke still open.
+   (`docs/store-readiness.md`). Store SKU console smoke:
+   `validate-console.sh store` after `install-latest-build.sh --store`.
 3. **WS-F headset** (#241) — rerun `scripts/probe-mic.sh` with a microphone
    attached. Two room-empty runs (2026-08-10, 2026-08-20) are not a verdict.
 4. **Parked eng** — H6/H7 (#228) after H6.2 **K2** (wave32 median 25.4 GB/s

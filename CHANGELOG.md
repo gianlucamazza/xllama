@@ -19,6 +19,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   App GPU budget **691 vs 3801 MB**; long-gen decode ~87 vs ~95 tok/s; peak
   320 MB both. Listing should request **Game** metadata. CSV
   `bench/results/store-app-vs-game-2026-08-21.csv`.
+- **`validate-console.sh store`** — Store SKU smoke (catalogue download + GGUF
+  chat + `set_api` reject). Not one of the 10 Dev Mode hardware gates.
 
 ### Fixed
 

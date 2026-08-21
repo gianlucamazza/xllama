@@ -184,7 +184,8 @@ allowlist draft** — not legal advice; re-verify before submission.
 - [x] NOTICE / runtime attributions draft (`NOTICE` at repo root — verify per release)
 - [x] App vs Game spike results filed under `bench/results/`
       (`store-app-vs-game-2026-08-21.csv`, CI `1.5.5.922`, `lfm25-350m`)
-- [ ] Console smoke of store SKU (chat + model download)
+- [ ] Console smoke of store SKU (chat + model download) —
+      `validate-console.sh store` after `install-latest-build.sh --store`
 
 ### Listing
 
@@ -330,7 +331,7 @@ URL (GitHub Pages or equivalent) pointing at this content.
 | Title             | xllama                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | Short description | Local LLM chat on Xbox Series S\|X — models run on the console.                                                                                                                                                                                                                                                                                                                                                                           |
 | Long description  | xllama turns an Xbox Series S\|X into a local inference box: gamepad chat UI, on-demand model catalogue, optional image generation. Nothing is sent to a cloud LLM API. Research-grade hobby project; not affiliated with Microsoft. Requires enough free storage for model downloads.                                                                                                                                                    |
-| Category          | (TBD — Game metadata preferred if resource measurements require it; see §2 D1)                                                                                                                                                                                                                                                                                                                                                            |
+| Category          | **Game** (D1 2026-08-21: App GPU budget 691 vs 3801 MB; ramceil `avail_phys` ~183 vs ~4983 MB. Default CPU chat runs on App; 1.2B+/DML/diffusion do not.)                                                                                                                                                                                                                                                                                 |
 | Age rating        | (TBD — IARC; generative text + optional image gen)                                                                                                                                                                                                                                                                                                                                                                                        |
 | Screenshots       | **5 captured** 2026-07-30 (`docs/screenshots/store/`, 1920×1080 straight off the console, inside the accepted 1366×768 – 3840×2160 range with no resampling) via `scripts/capture-store-screenshots.sh`: chat answer, multi-turn, image viewer, Settings, History. The three panes are `ContentDialog`s reached with the `show_pane` autopilot op, which opens and closes them in one action so none is left over the gates that run next |
 | Support           | GitHub Issues on gianlucamazza/xllama                                                                                                                                                                                                                                                                                                                                                                                                     |
@@ -338,8 +339,17 @@ URL (GitHub Pages or equivalent) pointing at this content.
 
 ## 10. Next steps (no VM)
 
-1. Push branch → `gh workflow run build-uwp.yml -f store_sku=true` → download
-   `xllama-appx-store` (validates packaging without a VM).
-2. **Human:** Partner Center account (browser); App vs Game spike on console (§6).
-3. Publish privacy URL; finish listing + age rating.
-4. NOTICE / attributions pack; then submission after smoke on console.
+1. **Console smoke (engineering):** `gh workflow run build-uwp.yml -f store_sku=true --ref main`,
+   then on the Series S with **App type = Game**:
+   ```bash
+   source ~/.config/xllama/xbox-env
+   ./scripts/install-latest-build.sh main --store   # uninstalls Dev SKU; wipes LocalState
+   # Confirm Dev Home App type is still Game (reinstall can reset it).
+   ./scripts/deploy.sh stop-app
+   ./scripts/validate-console.sh store              # chat + catalogue download + set_api reject
+   ./scripts/install-latest-build.sh main --provision  # restore Dev SKU
+   ```
+   Same identity as Dev: do not leave the Store SKU installed. `--bench` is rejected.
+2. **Human:** Partner Center individual account; reserve product identity.
+3. Publish privacy URL (host `docs/privacy.md`); IARC age rating; listing copy.
+4. NOTICE / attributions pack; submission after smoke PASS.

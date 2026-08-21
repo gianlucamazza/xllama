@@ -4,7 +4,7 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/validate-console.sh <routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|thinkdone|genroom|taesd|all>
+#   ./scripts/validate-console.sh <routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|thinkdone|genroom|taesd|store|all>
 #
 # Requires: an installed xllama build with the autopilot (>= 1.1.3.0; the
 # settings ops need >= 1.4.0.606), the relevant models already in LocalState.
@@ -1478,6 +1478,90 @@ PY
 	return $verdict
 }
 
+# --- Store SKU smoke (not part of `all`) -----------------------------------
+#
+# Chat + in-app catalogue download on the retail SKU. Headless flags are
+# compiled out, so this is autopilot-only. Same package identity as Dev: install
+# with `install-latest-build.sh --store` (uninstalls first, wipes LocalState).
+# Restore with `install-latest-build.sh main --provision`.
+# SSOT: docs/store-readiness.md.
+
+validate_store() {
+	echo "=== Store SKU smoke (chat + catalogue download) ==="
+	local marker log verdict=0
+
+	echo "  -- first-run catalogue download + GGUF chat (lfm25-350m)"
+	marker=$(
+		run_autopilot 900 <<'JSON'
+{"total_timeout_s": 850, "actions": [
+  {"op": "new_chat"},
+  {"op": "send", "text": "Say hello in one short sentence.", "timeout_s": 240},
+  {"op": "quit"}
+]}
+JSON
+	) || true
+	echo "  autopilot: ${marker}"
+	log=$(fetch_log)
+	[[ "$marker" == "ok" ]] || {
+		echo "  FAIL: autopilot did not finish ok"
+		verdict=1
+	}
+	if grep -aq 'EnsureModel: downloading' "$log"; then
+		if grep -aq 'EnsureModel: download complete' "$log"; then
+			echo "  ok: catalogue download of the default chat model completed"
+		else
+			echo "  FAIL: download started but did not complete"
+			verdict=1
+		fi
+	elif grep -aq "EnsureModel: 'lfm25-350m' already provisioned" "$log"; then
+		echo "  ok: lfm25-350m already on device (install start-app finished the download)"
+	else
+		echo "  FAIL: no catalogue download and no already-provisioned line"
+		verdict=1
+	fi
+	if grep -aq 'GGUF model loaded via llama.cpp' "$log"; then
+		echo "  ok: lfm25-350m loaded via llama.cpp"
+	else
+		echo "  FAIL: no llama.cpp GGUF session load in the log"
+		verdict=1
+	fi
+	fetch_file "index.json" "${TMPDIR_LOCAL}/store-index.json" "chats"
+	python3 - "${TMPDIR_LOCAL}/store-index.json" <<'PY' || verdict=1
+import json, sys
+try:
+    idx = json.load(open(sys.argv[1], encoding="utf-8"))
+except Exception as e:
+    sys.exit(f"  FAIL: cannot read the chat index the app wrote: {e}")
+if not isinstance(idx, list) or not idx:
+    sys.exit("  FAIL: the chat index is empty — the conversation was not saved")
+newest = max(idx, key=lambda e: e.get("last_modified", 0))
+title = (newest.get("title") or "").strip()
+if not title:
+    sys.exit("  FAIL: the saved conversation has no title")
+print(f"  ok: the conversation was saved with a title ({title!r:.60})")
+PY
+
+	echo "  -- SKU fingerprint: set_api must be rejected"
+	marker=$(
+		run_autopilot 180 <<'JSON'
+{"total_timeout_s": 120, "actions": [
+  {"op": "set_api", "enabled": true, "port": 11434}
+]}
+JSON
+	) || true
+	echo "  autopilot: ${marker}"
+	if [[ "$marker" == *"LAN API not available in Store SKU"* ]]; then
+		echo "  ok: set_api rejected (Store SKU)"
+	else
+		echo "  FAIL: expected Store SKU to reject set_api (got: ${marker})"
+		echo "  If this is the Dev SKU, install with: ./scripts/install-latest-build.sh --store"
+		verdict=1
+	fi
+
+	[[ $verdict -eq 0 ]] && echo "Store SKU smoke: PASS" || echo "Store SKU smoke: FAIL"
+	return $verdict
+}
+
 # --- dispatch --------------------------------------------------------------
 
 # One place where a gate's exit status decides whether its screenshots are kept.
@@ -1513,6 +1597,11 @@ thinkcut) run_gate thinkcut validate_thinkcut ;;
 thinkdone) run_gate thinkdone validate_thinkdone ;;
 genroom) run_gate genroom validate_genroom ;;
 taesd) run_gate taesd validate_taesd ;;
+store)
+	# Two-line arm on purpose: check-coherence.py treats `name) run_gate` on
+	# one line as a hardware gate in `all`. Store smoke is a separate SKU.
+	run_gate store validate_store
+	;;
 all)
 	rc=0
 	if ! model_provisioned "smollm2-360m-cpu-int4"; then
@@ -1534,7 +1623,7 @@ all)
 	exit $rc
 	;;
 *)
-	echo "Usage: $0 <routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|thinkdone|genroom|taesd|all>" >&2
+	echo "Usage: $0 <routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|thinkdone|genroom|taesd|store|all>" >&2
 	exit 1
 	;;
 esac
