@@ -18,11 +18,13 @@
 #include "xllama/training.h"
 #include "xllama/utf8_utils.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <ctime>
 #include <mutex>
 #include <string>
+#include <vector>
 
 #ifdef XLLAMA_UWP
     // WS-F microphone probe (run_mic_probe). Universal contract, so no
@@ -485,34 +487,88 @@ void run_gpubw() {
 
 void run_gpugemv() {
 #ifdef XLLAMA_UWP
-    log_output("[xllama] gpugemv: measuring Q4_K GEMV density (own CS, no Agility)\n");
-    const ::xllama::GpugemvResult r =
-        ::xllama::measure_gpugemv(::xllama::kGpugemvDefaultN, ::xllama::kGpugemvDefaultK, 3);
+    log_output("[xllama] gpugemv: measuring Q4_K GEMV density (wave32 + naive A/B, no Agility)\n");
 
-    char lb[360];
-    snprintf(lb, sizeof(lb),
-             "[xllama] gpugemv: n=%d k=%d packed_gbs=%.2f max_abs_err=%.6g checksum_ok=%d "
-             "d3d12_ran=%d g1=%d g2=%d err=%s\n",
-             r.n, r.k, r.packed_gbs, static_cast<double>(r.max_abs_err), r.checksum_ok ? 1 : 0,
-             r.d3d12_ran ? 1 : 0, ::xllama::gpugemv_passes_g1(r) ? 1 : 0,
-             ::xllama::gpugemv_passes_g2(r) ? 1 : 0,
-             r.error_msg.empty() ? "-" : r.error_msg.c_str());
-    log_output(lb);
+    const ::xllama::GpugemvKernel kernels[] = {::xllama::GpugemvKernel::Naive,
+                                               ::xllama::GpugemvKernel::Wave32};
+    ::xllama::GpugemvKernelSummary denser[1] = {};
+    bool have_denser = false;
 
     const std::string csv = resolve_local_path("gpugemv-result.csv");
     FILE* fp = _wfopen(utf8_to_wstring(csv).c_str(), L"w");
-    if (fp) {
+    if (fp)
         fputs(::xllama::gpugemv_csv_header(), fp);
-        fputs(::xllama::format_gpugemv_row(r, "xbox-series-s").c_str(), fp);
-        fclose(fp);
-        FILE* done =
-            _wfopen(utf8_to_wstring(resolve_local_path("gpugemv-result.csv.done")).c_str(), L"w");
-        if (done) {
-            fputs("done\n", done);
-            fclose(done);
+
+    for (auto kernel : kernels) {
+        std::vector<::xllama::GpugemvResult> rows;
+        ::xllama::measure_gpugemv_each(::xllama::kGpugemvDefaultN, ::xllama::kGpugemvDefaultK,
+                                       /*recorded=*/3, kernel, &rows);
+        bool g1_all3 = !rows.empty();
+        std::vector<double> gbs;
+        for (const auto& r : rows) {
+            if (fp)
+                fputs(::xllama::format_gpugemv_row(r, "xbox-series-s").c_str(), fp);
+            g1_all3 = g1_all3 && ::xllama::gpugemv_passes_g1(r);
+            gbs.push_back(r.packed_gbs);
+            char lb[400];
+            snprintf(lb, sizeof(lb),
+                     "[xllama] gpugemv: kernel=%s run=%d packed_gbs=%.2f packed_gbs_cpu=%.2f "
+                     "gpu_timestamp=%d max_abs_err=%.6g checksum_ok=%d d3d12_ran=%d g1=%d g2=%d "
+                     "err=%s\n",
+                     ::xllama::gpugemv_kernel_name(r.kernel), r.run_index, r.packed_gbs,
+                     r.packed_gbs_cpu, r.gpu_timestamp ? 1 : 0, static_cast<double>(r.max_abs_err),
+                     r.checksum_ok ? 1 : 0, r.d3d12_ran ? 1 : 0,
+                     ::xllama::gpugemv_passes_g1(r) ? 1 : 0, ::xllama::gpugemv_passes_g2(r) ? 1 : 0,
+                     r.error_msg.empty() ? "-" : r.error_msg.c_str());
+            log_output(lb);
         }
-        log_output("[xllama] gpugemv-result.csv written\n");
+        if (rows.empty()) {
+            char lb[200];
+            snprintf(lb, sizeof(lb), "[xllama] gpugemv: kernel=%s produced no rows (PSO/setup)\n",
+                     ::xllama::gpugemv_kernel_name(kernel));
+            log_output(lb);
+            g1_all3 = false;
+        }
+        double median = 0.0;
+        if (!gbs.empty()) {
+            std::sort(gbs.begin(), gbs.end());
+            median = gbs[gbs.size() / 2];
+        }
+        const ::xllama::GpugemvLadder ladder = ::xllama::gpugemv_ladder(median, g1_all3);
+        char lb[240];
+        snprintf(lb, sizeof(lb), "[xllama] gpugemv: kernel=%s median=%.2f g1_all3=%d ladder=%s\n",
+                 ::xllama::gpugemv_kernel_name(kernel), median, g1_all3 ? 1 : 0,
+                 ::xllama::gpugemv_ladder_name(ladder));
+        log_output(lb);
+        if (kernel == ::xllama::GpugemvKernel::Wave32) {
+            denser[0].kernel = kernel;
+            denser[0].median_packed_gbs = median;
+            denser[0].g1_all3 = g1_all3;
+            denser[0].ladder = ladder;
+            have_denser = true;
+        }
     }
+
+    const ::xllama::GpugemvLadder campaign = have_denser
+                                                 ? ::xllama::gpugemv_campaign_verdict(denser, 1)
+                                                 : ::xllama::GpugemvLadder::NotAVerdict;
+    char clb[160];
+    snprintf(clb, sizeof(clb), "[xllama] gpugemv: campaign_verdict=%s\n",
+             ::xllama::gpugemv_ladder_name(campaign));
+    log_output(clb);
+
+    // Always write .done so bench-gpugemv.sh's 300 s wait cannot hang on partial PSO fail.
+    if (fp) {
+        fflush(fp);
+        fclose(fp);
+    }
+    FILE* done =
+        _wfopen(utf8_to_wstring(resolve_local_path("gpugemv-result.csv.done")).c_str(), L"w");
+    if (done) {
+        fputs("done\n", done);
+        fclose(done);
+    }
+    log_output("[xllama] gpugemv-result.csv written\n");
 #endif
 }
 

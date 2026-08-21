@@ -11,6 +11,7 @@
 #include <ctime>
 #include <limits>
 #include <string>
+#include <utility>
 #include <vector>
 
 #if defined(_WIN32)
@@ -26,6 +27,7 @@
     #include <wrl/client.h>
 
     #include "gpugemv_q4k_dxil.h"
+    #include "gpugemv_q4k_wave32_dxil.h"
     #include "xllama/d3d12_dyn.h"
 
 using Microsoft::WRL::ComPtr;
@@ -197,8 +199,9 @@ float gpugemv_max_abs_err(const float* a, const float* b, std::size_t n) {
 }
 
 const char* gpugemv_csv_header() {
-    return "n,k,iterations,packed_mb,packed_gbs,max_abs_err,checksum_ok,d3d12_ran,checksum,"
-           "expected,host,date,error\n";
+    return "kernel,n,k,iterations,run_index,packed_mb,packed_gbs,packed_gbs_cpu,packed_gbs_h61,"
+           "max_abs_err,checksum_ok,d3d12_ran,gpu_timestamp,wave_ops,checksum,expected,host,date,"
+           "error\n";
 }
 
 std::string format_gpugemv_row(const GpugemvResult& r, const char* host_label) {
@@ -215,32 +218,44 @@ std::string format_gpugemv_row(const GpugemvResult& r, const char* host_label) {
     if (err.empty())
         err = "-";
 
-    char buf[640];
-    std::snprintf(buf, sizeof(buf), "%d,%d,%d,%.3f,%.2f,%.6g,%d,%d,%u,%u,%s,%s,%s\n", r.n, r.k,
-                  r.iterations, static_cast<double>(r.packed_bytes) / (1024.0 * 1024.0),
-                  r.packed_gbs, static_cast<double>(r.max_abs_err), r.checksum_ok ? 1 : 0,
-                  r.d3d12_ran ? 1 : 0, r.y_checksum, r.expected_y_checksum,
-                  host_label ? host_label : "unknown", date_buf, err.c_str());
+    char buf[768];
+    std::snprintf(
+        buf, sizeof(buf), "%s,%d,%d,%d,%d,%.3f,%.2f,%.2f,%.2f,%.6g,%d,%d,%d,%d,%u,%u,%s,%s,%s\n",
+        gpugemv_kernel_name(r.kernel), r.n, r.k, r.iterations, r.run_index,
+        static_cast<double>(r.packed_bytes) / (1024.0 * 1024.0), r.packed_gbs, r.packed_gbs_cpu,
+        r.packed_gbs_h61, static_cast<double>(r.max_abs_err), r.checksum_ok ? 1 : 0,
+        r.d3d12_ran ? 1 : 0, r.gpu_timestamp ? 1 : 0, r.wave_ops ? 1 : 0, r.y_checksum,
+        r.expected_y_checksum, host_label ? host_label : "unknown", date_buf, err.c_str());
     return std::string(buf);
 }
 
-#if !defined(_WIN32)
+namespace {
 
-GpugemvResult measure_gpugemv(int n, int k, int iterations) {
-    GpugemvResult r;
-    r.n = n;
-    r.k = k;
-    r.iterations = iterations < 1 ? 1 : iterations;
-    r.packed_bytes = gpugemv_packed_bytes(n, k);
-    r.d3d12_ran = false;
-    r.error_msg = "d3d12 unavailable on this platform";
-    if (r.packed_bytes == 0) {
-        r.error_msg = "invalid n/k (need k%256==0, n>0,k>0)";
+GpugemvResult gpugemv_median_summary(const std::vector<GpugemvResult>& rows) {
+    if (rows.empty())
+        return {};
+    if (rows.size() == 1) {
+        GpugemvResult r = rows[0];
+        r.run_index = 0;
         return r;
     }
-    // Host unit tests exercise pure ref on a tiny tile, not full default.
+    std::vector<std::size_t> idx(rows.size());
+    for (std::size_t i = 0; i < rows.size(); ++i)
+        idx[i] = i;
+    std::sort(idx.begin(), idx.end(), [&](std::size_t a, std::size_t b) {
+        return rows[a].packed_gbs < rows[b].packed_gbs;
+    });
+    GpugemvResult r = rows[idx[idx.size() / 2]];
+    r.run_index = 0;
+    r.iterations = rows[0].iterations;
+    return r;
+}
+
+void gpugemv_host_tiny_ref(GpugemvResult& r, int n, int k) {
     const int tn = std::min(n, 8);
     const int tk = std::min(k, kGpugemvQK);
+    if (tn <= 0 || tk <= 0 || (tk % kGpugemvQK) != 0)
+        return;
     std::vector<GpugemvQ4KBlock> w(static_cast<std::size_t>(tn * (tk / kGpugemvQK)));
     std::vector<float> x(static_cast<std::size_t>(tk));
     std::vector<float> y(static_cast<std::size_t>(tn));
@@ -248,7 +263,39 @@ GpugemvResult measure_gpugemv(int n, int k, int iterations) {
     gpugemv_fill_x(x.data(), tk);
     gpugemv_cpu_ref(w.data(), x.data(), y.data(), tn, tk);
     r.expected_y_checksum = gpugemv_checksum_floats(y.data(), static_cast<std::size_t>(tn));
-    return r;
+}
+
+} // namespace
+
+#if !defined(_WIN32)
+
+void measure_gpugemv_each(int n, int k, int iterations, GpugemvKernel kernel,
+                          std::vector<GpugemvResult>* out) {
+    if (!out)
+        return;
+    GpugemvResult r;
+    r.n = n;
+    r.k = k;
+    r.iterations = iterations < 1 ? 1 : iterations;
+    r.run_index = 1;
+    r.kernel = kernel;
+    r.packed_bytes = gpugemv_packed_bytes(n, k);
+    r.packed_gbs = 0.0;
+    r.d3d12_ran = false;
+    r.error_msg = "d3d12 unavailable on this platform";
+    if (r.packed_bytes == 0) {
+        r.error_msg = "invalid n/k (need k%256==0, n>0,k>0)";
+        out->push_back(std::move(r));
+        return;
+    }
+    gpugemv_host_tiny_ref(r, n, k);
+    out->push_back(std::move(r));
+}
+
+GpugemvResult measure_gpugemv(int n, int k, int iterations, GpugemvKernel kernel) {
+    std::vector<GpugemvResult> rows;
+    measure_gpugemv_each(n, k, iterations, kernel, &rows);
+    return gpugemv_median_summary(rows);
 }
 
 #else
@@ -345,17 +392,66 @@ ComPtr<ID3D12Resource> create_buffer(ID3D12Device* device, UINT64 bytes, D3D12_H
     return res;
 }
 
+double packed_gbs_from_sec(std::size_t bytes, double sec) {
+    if (sec <= 0.0)
+        return 0.0;
+    return static_cast<double>(bytes) / 1e9 / sec;
+}
+
+struct FenceEvent {
+    HANDLE h = nullptr;
+    ~FenceEvent() {
+        if (h)
+            CloseHandle(h);
+    }
+};
+
+void fill_checksum(GpugemvResult& r, const float* host_y, const float* gpu_y, int n) {
+    r.y_checksum = gpugemv_checksum_floats(gpu_y, static_cast<std::size_t>(n));
+    r.max_abs_err = gpugemv_max_abs_err(host_y, gpu_y, static_cast<std::size_t>(n));
+    r.checksum_ok =
+        (r.y_checksum == r.expected_y_checksum) || (r.max_abs_err <= kGpugemvMaxAbsErrTol);
+    if (r.max_abs_err <= kGpugemvMaxAbsErrTol)
+        r.checksum_ok = true;
+    if (!r.checksum_ok && r.error_msg.empty())
+        r.error_msg = "GEMV residual or checksum mismatch";
+    if (r.checksum_ok)
+        r.error_msg.clear();
+}
+
 } // namespace
 
-GpugemvResult measure_gpugemv(int n, int k, int iterations) {
-    GpugemvResult r;
-    r.n = n;
-    r.k = k;
-    r.iterations = iterations < 1 ? 1 : iterations;
-    r.packed_bytes = gpugemv_packed_bytes(n, k);
-    if (r.packed_bytes == 0) {
-        r.error_msg = "invalid n/k (need k%256==0, n>0,k>0)";
-        return r;
+void measure_gpugemv_each(int n, int k, int iterations, GpugemvKernel kernel,
+                          std::vector<GpugemvResult>* out) {
+    if (!out)
+        return;
+    auto push_err = [&](const char* msg) {
+        GpugemvResult r;
+        r.n = n;
+        r.k = k;
+        r.iterations = iterations < 1 ? 1 : iterations;
+        r.run_index = 1;
+        r.kernel = kernel;
+        r.packed_bytes = gpugemv_packed_bytes(n, k);
+        r.error_msg = msg ? msg : "gpugemv failed";
+        out->push_back(std::move(r));
+    };
+
+    GpugemvResult seed;
+    seed.n = n;
+    seed.k = k;
+    seed.iterations = iterations < 1 ? 1 : iterations;
+    seed.kernel = kernel;
+    seed.packed_bytes = gpugemv_packed_bytes(n, k);
+    if (seed.packed_bytes == 0) {
+        push_err("invalid n/k (need k%256==0, n>0,k>0)");
+        return;
+    }
+
+    const GpugemvDispatch plan = gpugemv_plan_dispatch(n, kernel);
+    if (plan.groups_x < 1u || plan.groups_x > 65535u) {
+        push_err("Dispatch groups exceed 65535; reduce N");
+        return;
     }
 
     const int nb = k / kGpugemvQK;
@@ -366,19 +462,20 @@ GpugemvResult measure_gpugemv(int n, int k, int iterations) {
     gpugemv_fill_weights(host_w.data(), n, k);
     gpugemv_fill_x(host_x.data(), k);
     gpugemv_cpu_ref(host_w.data(), host_x.data(), host_y.data(), n, k);
-    r.expected_y_checksum = gpugemv_checksum_floats(host_y.data(), static_cast<std::size_t>(n));
+    seed.expected_y_checksum = gpugemv_checksum_floats(host_y.data(), static_cast<std::size_t>(n));
 
     ComPtr<IDXGIFactory4> factory;
     HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&factory));
     if (FAILED(hr)) {
-        throw_if_failed(hr, "CreateDXGIFactory1", r);
-        return r;
+        throw_if_failed(hr, "CreateDXGIFactory1", seed);
+        out->push_back(std::move(seed));
+        return;
     }
 
     auto create_device = d3d12_dyn::CreateDevice();
     if (!create_device) {
-        r.error_msg = "D3D12CreateDevice not available";
-        return r;
+        push_err("D3D12CreateDevice not available");
+        return;
     }
 
     ComPtr<IDXGIAdapter1> adapter;
@@ -397,96 +494,127 @@ GpugemvResult measure_gpugemv(int n, int k, int iterations) {
     if (!device) {
         hr = create_device(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
         if (FAILED(hr)) {
-            throw_if_failed(hr, "D3D12CreateDevice", r);
-            return r;
+            throw_if_failed(hr, "D3D12CreateDevice", seed);
+            out->push_back(std::move(seed));
+            return;
         }
     }
+
+    D3D12_FEATURE_DATA_D3D12_OPTIONS1 opt1 = {};
+    device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &opt1, sizeof(opt1));
+    (void)opt1; // PR 1 ships LDS-red only; wave_ops stays 0.
 
     D3D12_COMMAND_QUEUE_DESC qd = {};
     qd.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
     ComPtr<ID3D12CommandQueue> queue;
     hr = device->CreateCommandQueue(&qd, IID_PPV_ARGS(&queue));
     if (FAILED(hr)) {
-        throw_if_failed(hr, "CreateCommandQueue", r);
-        return r;
+        throw_if_failed(hr, "CreateCommandQueue", seed);
+        out->push_back(std::move(seed));
+        return;
     }
 
     ComPtr<ID3D12CommandAllocator> alloc;
     hr = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&alloc));
     if (FAILED(hr)) {
-        throw_if_failed(hr, "CreateCommandAllocator", r);
-        return r;
+        throw_if_failed(hr, "CreateCommandAllocator", seed);
+        out->push_back(std::move(seed));
+        return;
     }
 
     ComPtr<ID3D12GraphicsCommandList> cl;
     hr = device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, alloc.Get(), nullptr,
                                    IID_PPV_ARGS(&cl));
     if (FAILED(hr)) {
-        throw_if_failed(hr, "CreateCommandList", r);
-        return r;
+        throw_if_failed(hr, "CreateCommandList", seed);
+        out->push_back(std::move(seed));
+        return;
     }
 
-    ComPtr<ID3D12RootSignature> root = create_root_sig(device.Get(), r);
-    if (!root)
-        return r;
+    ComPtr<ID3D12RootSignature> root = create_root_sig(device.Get(), seed);
+    if (!root) {
+        out->push_back(std::move(seed));
+        return;
+    }
 
     D3D12_COMPUTE_PIPELINE_STATE_DESC pso_desc = {};
     pso_desc.pRootSignature = root.Get();
-    pso_desc.CS.pShaderBytecode = kGpugemvQ4kDxil;
-    pso_desc.CS.BytecodeLength = kGpugemvQ4kDxilSize;
+    if (kernel == GpugemvKernel::Naive) {
+        pso_desc.CS.pShaderBytecode = kGpugemvQ4kDxil;
+        pso_desc.CS.BytecodeLength = kGpugemvQ4kDxilSize;
+    } else {
+        pso_desc.CS.pShaderBytecode = kGpugemvQ4kWave32Dxil;
+        pso_desc.CS.BytecodeLength = kGpugemvQ4kWave32DxilSize;
+    }
     ComPtr<ID3D12PipelineState> pso;
     hr = device->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&pso));
     if (FAILED(hr)) {
-        throw_if_failed(hr, "CreateComputePipelineState", r);
-        return r;
+        throw_if_failed(hr, "CreateComputePipelineState", seed);
+        out->push_back(std::move(seed));
+        return;
     }
 
-    const UINT64 w_bytes = static_cast<UINT64>(r.packed_bytes);
+    const UINT64 w_bytes = static_cast<UINT64>(seed.packed_bytes);
     const UINT64 x_bytes = static_cast<UINT64>(k) * sizeof(float);
     const UINT64 y_bytes = static_cast<UINT64>(n) * sizeof(float);
 
     auto w_default =
         create_buffer(device.Get(), w_bytes, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_FLAG_NONE,
-                      D3D12_RESOURCE_STATE_COPY_DEST, r, "w_default");
-    if (!w_default)
-        return r;
+                      D3D12_RESOURCE_STATE_COPY_DEST, seed, "w_default");
+    if (!w_default) {
+        out->push_back(std::move(seed));
+        return;
+    }
     auto w_upload =
         create_buffer(device.Get(), w_bytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_FLAG_NONE,
-                      D3D12_RESOURCE_STATE_GENERIC_READ, r, "w_upload");
-    if (!w_upload)
-        return r;
+                      D3D12_RESOURCE_STATE_GENERIC_READ, seed, "w_upload");
+    if (!w_upload) {
+        out->push_back(std::move(seed));
+        return;
+    }
     auto x_default =
         create_buffer(device.Get(), x_bytes, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_FLAG_NONE,
-                      D3D12_RESOURCE_STATE_COPY_DEST, r, "x_default");
-    if (!x_default)
-        return r;
+                      D3D12_RESOURCE_STATE_COPY_DEST, seed, "x_default");
+    if (!x_default) {
+        out->push_back(std::move(seed));
+        return;
+    }
     auto x_upload =
         create_buffer(device.Get(), x_bytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_FLAG_NONE,
-                      D3D12_RESOURCE_STATE_GENERIC_READ, r, "x_upload");
-    if (!x_upload)
-        return r;
+                      D3D12_RESOURCE_STATE_GENERIC_READ, seed, "x_upload");
+    if (!x_upload) {
+        out->push_back(std::move(seed));
+        return;
+    }
     auto y_default = create_buffer(device.Get(), y_bytes, D3D12_HEAP_TYPE_DEFAULT,
                                    D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                   D3D12_RESOURCE_STATE_UNORDERED_ACCESS, r, "y_default");
-    if (!y_default)
-        return r;
+                                   D3D12_RESOURCE_STATE_UNORDERED_ACCESS, seed, "y_default");
+    if (!y_default) {
+        out->push_back(std::move(seed));
+        return;
+    }
     auto y_readback =
         create_buffer(device.Get(), y_bytes, D3D12_HEAP_TYPE_READBACK, D3D12_RESOURCE_FLAG_NONE,
-                      D3D12_RESOURCE_STATE_COPY_DEST, r, "y_readback");
-    if (!y_readback)
-        return r;
+                      D3D12_RESOURCE_STATE_COPY_DEST, seed, "y_readback");
+    if (!y_readback) {
+        out->push_back(std::move(seed));
+        return;
+    }
     auto cb_upload =
         create_buffer(device.Get(), 256, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_FLAG_NONE,
-                      D3D12_RESOURCE_STATE_GENERIC_READ, r, "cb");
-    if (!cb_upload)
-        return r;
+                      D3D12_RESOURCE_STATE_GENERIC_READ, seed, "cb");
+    if (!cb_upload) {
+        out->push_back(std::move(seed));
+        return;
+    }
 
     {
         void* mapped = nullptr;
         hr = w_upload->Map(0, nullptr, &mapped);
         if (FAILED(hr)) {
-            throw_if_failed(hr, "Map w", r);
-            return r;
+            throw_if_failed(hr, "Map w", seed);
+            out->push_back(std::move(seed));
+            return;
         }
         std::memcpy(mapped, host_w.data(), static_cast<std::size_t>(w_bytes));
         w_upload->Unmap(0, nullptr);
@@ -495,8 +623,9 @@ GpugemvResult measure_gpugemv(int n, int k, int iterations) {
         void* mapped = nullptr;
         hr = x_upload->Map(0, nullptr, &mapped);
         if (FAILED(hr)) {
-            throw_if_failed(hr, "Map x", r);
-            return r;
+            throw_if_failed(hr, "Map x", seed);
+            out->push_back(std::move(seed));
+            return;
         }
         std::memcpy(mapped, host_x.data(), static_cast<std::size_t>(x_bytes));
         x_upload->Unmap(0, nullptr);
@@ -505,7 +634,7 @@ GpugemvResult measure_gpugemv(int n, int k, int iterations) {
         struct Params {
             std::uint32_t n;
             std::uint32_t k;
-            std::uint32_t nb; // k/256
+            std::uint32_t nb;
             std::uint32_t pad;
         } params{};
         params.n = static_cast<std::uint32_t>(n);
@@ -514,8 +643,9 @@ GpugemvResult measure_gpugemv(int n, int k, int iterations) {
         void* mapped = nullptr;
         hr = cb_upload->Map(0, nullptr, &mapped);
         if (FAILED(hr)) {
-            throw_if_failed(hr, "Map cb", r);
-            return r;
+            throw_if_failed(hr, "Map cb", seed);
+            out->push_back(std::move(seed));
+            return;
         }
         std::memcpy(mapped, &params, sizeof(params));
         cb_upload->Unmap(0, nullptr);
@@ -528,8 +658,9 @@ GpugemvResult measure_gpugemv(int n, int k, int iterations) {
     ComPtr<ID3D12DescriptorHeap> heap;
     hr = device->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&heap));
     if (FAILED(hr)) {
-        throw_if_failed(hr, "CreateDescriptorHeap", r);
-        return r;
+        throw_if_failed(hr, "CreateDescriptorHeap", seed);
+        out->push_back(std::move(seed));
+        return;
     }
     const UINT incr =
         device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -540,26 +671,42 @@ GpugemvResult measure_gpugemv(int n, int k, int iterations) {
     cbv.SizeInBytes = 256;
     device->CreateConstantBufferView(&cbv, cpu);
 
+    const bool raw_srv = (kernel != GpugemvKernel::Naive);
+
     D3D12_CPU_DESCRIPTOR_HANDLE cpu_w = cpu;
     cpu_w.ptr += incr;
     D3D12_SHADER_RESOURCE_VIEW_DESC srv_w = {};
-    srv_w.Format = DXGI_FORMAT_UNKNOWN;
     srv_w.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
     srv_w.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srv_w.Buffer.FirstElement = 0;
-    srv_w.Buffer.NumElements = static_cast<UINT>(n_blocks);
-    srv_w.Buffer.StructureByteStride = static_cast<UINT>(kGpugemvBlockBytes);
+    if (raw_srv) {
+        srv_w.Format = DXGI_FORMAT_R32_TYPELESS;
+        srv_w.Buffer.NumElements = static_cast<UINT>(w_bytes / 4);
+        srv_w.Buffer.StructureByteStride = 0;
+        srv_w.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+    } else {
+        srv_w.Format = DXGI_FORMAT_UNKNOWN;
+        srv_w.Buffer.NumElements = static_cast<UINT>(n_blocks);
+        srv_w.Buffer.StructureByteStride = static_cast<UINT>(kGpugemvBlockBytes);
+    }
     device->CreateShaderResourceView(w_default.Get(), &srv_w, cpu_w);
 
     D3D12_CPU_DESCRIPTOR_HANDLE cpu_x = cpu;
     cpu_x.ptr += 2 * static_cast<SIZE_T>(incr);
     D3D12_SHADER_RESOURCE_VIEW_DESC srv_x = {};
-    srv_x.Format = DXGI_FORMAT_UNKNOWN;
     srv_x.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
     srv_x.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srv_x.Buffer.FirstElement = 0;
-    srv_x.Buffer.NumElements = static_cast<UINT>(k);
-    srv_x.Buffer.StructureByteStride = sizeof(float);
+    if (raw_srv) {
+        srv_x.Format = DXGI_FORMAT_R32_TYPELESS;
+        srv_x.Buffer.NumElements = static_cast<UINT>(x_bytes / 4);
+        srv_x.Buffer.StructureByteStride = 0;
+        srv_x.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+    } else {
+        srv_x.Format = DXGI_FORMAT_UNKNOWN;
+        srv_x.Buffer.NumElements = static_cast<UINT>(k);
+        srv_x.Buffer.StructureByteStride = sizeof(float);
+    }
     device->CreateShaderResourceView(x_default.Get(), &srv_x, cpu_x);
 
     D3D12_CPU_DESCRIPTOR_HANDLE cpu_y = cpu;
@@ -575,29 +722,30 @@ GpugemvResult measure_gpugemv(int n, int k, int iterations) {
     ComPtr<ID3D12Fence> fence;
     hr = device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
     if (FAILED(hr)) {
-        throw_if_failed(hr, "CreateFence", r);
-        return r;
+        throw_if_failed(hr, "CreateFence", seed);
+        out->push_back(std::move(seed));
+        return;
     }
-    HANDLE fence_event = CreateEventW(nullptr, FALSE, FALSE, nullptr);
-    if (!fence_event) {
-        r.error_msg = "CreateEventW failed";
-        return r;
+    FenceEvent fence_event;
+    fence_event.h = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+    if (!fence_event.h) {
+        push_err("CreateEventW failed");
+        return;
     }
     UINT64 fence_value = 0;
     auto wait_gpu = [&]() -> bool {
         const UINT64 v = ++fence_value;
         if (FAILED(queue->Signal(fence.Get(), v))) {
-            r.error_msg = "Signal failed";
+            seed.error_msg = "Signal failed";
             return false;
         }
         if (fence->GetCompletedValue() < v) {
-            fence->SetEventOnCompletion(v, fence_event);
-            WaitForSingleObject(fence_event, INFINITE);
+            fence->SetEventOnCompletion(v, fence_event.h);
+            WaitForSingleObject(fence_event.h, INFINITE);
         }
         return true;
     };
 
-    // Upload W and X once.
     {
         cl->CopyResource(w_default.Get(), w_upload.Get());
         cl->CopyResource(x_default.Get(), x_upload.Get());
@@ -614,27 +762,32 @@ GpugemvResult measure_gpugemv(int n, int k, int iterations) {
         ID3D12CommandList* lists[] = {cl.Get()};
         queue->ExecuteCommandLists(1, lists);
         if (!wait_gpu()) {
-            CloseHandle(fence_event);
-            return r;
+            out->push_back(std::move(seed));
+            return;
         }
     }
 
-    // Dispatch: one thread per output row; groups of 64.
-    constexpr UINT kThreads = 64;
-    const UINT groups = static_cast<UINT>((static_cast<UINT>(n) + kThreads - 1) / kThreads);
-    if (groups > 65535u) {
-        r.error_msg = "Dispatch groups exceed 65535; reduce N";
-        CloseHandle(fence_event);
-        return r;
+    bool use_ts = true;
+    ComPtr<ID3D12QueryHeap> qh;
+    D3D12_QUERY_HEAP_DESC qhd = {};
+    qhd.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+    qhd.Count = 2;
+    hr = device->CreateQueryHeap(&qhd, IID_PPV_ARGS(&qh));
+    UINT64 ts_freq = 0;
+    if (FAILED(hr) || FAILED(queue->GetTimestampFrequency(&ts_freq)) || ts_freq == 0) {
+        use_ts = false;
+        qh.Reset();
+    }
+    ComPtr<ID3D12Resource> ts_readback;
+    if (use_ts) {
+        ts_readback =
+            create_buffer(device.Get(), 256, D3D12_HEAP_TYPE_READBACK, D3D12_RESOURCE_FLAG_NONE,
+                          D3D12_RESOURCE_STATE_COPY_DEST, seed, "ts_readback");
+        if (!ts_readback)
+            use_ts = false;
     }
 
-    double best_gbs = 0.0;
-    float last_err = 0.f;
-    std::uint32_t last_checksum = 0;
-    bool any_ok = false;
-    std::vector<float> gpu_y(static_cast<std::size_t>(n));
-
-    for (int it = 0; it < r.iterations; ++it) {
+    auto record_list_a = [&](bool timestamps) -> bool {
         alloc->Reset();
         cl->Reset(alloc.Get(), pso.Get());
         cl->SetComputeRootSignature(root.Get());
@@ -642,33 +795,117 @@ GpugemvResult measure_gpugemv(int n, int k, int iterations) {
         cl->SetDescriptorHeaps(1, heaps);
         cl->SetComputeRootDescriptorTable(0, heap->GetGPUDescriptorHandleForHeapStart());
         cl->SetPipelineState(pso.Get());
-        cl->Dispatch(groups, 1, 1);
-
-        D3D12_RESOURCE_BARRIER b = {};
-        b.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-        b.Transition.pResource = y_default.Get();
-        b.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-        b.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
-        b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-        cl->ResourceBarrier(1, &b);
-        cl->CopyResource(y_readback.Get(), y_default.Get());
-        b.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
-        b.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-        cl->ResourceBarrier(1, &b);
+        if (timestamps && qh)
+            cl->EndQuery(qh.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
+        cl->Dispatch(plan.groups_x, 1, 1);
+        D3D12_RESOURCE_BARRIER uavb = {};
+        uavb.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+        uavb.UAV.pResource = y_default.Get();
+        cl->ResourceBarrier(1, &uavb);
+        if (timestamps && qh)
+            cl->EndQuery(qh.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 1);
         cl->Close();
+        return true;
+    };
 
+    auto execute_wait = [&](double* cpu_sec) -> bool {
         const auto t0 = std::chrono::steady_clock::now();
         ID3D12CommandList* lists[] = {cl.Get()};
         queue->ExecuteCommandLists(1, lists);
-        if (!wait_gpu()) {
-            CloseHandle(fence_event);
-            return r;
+        if (!wait_gpu())
+            return false;
+        if (cpu_sec)
+            *cpu_sec = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+        return true;
+    };
+
+    // Warmup: one untimed list A.
+    if (!record_list_a(/*timestamps=*/false) || !execute_wait(nullptr)) {
+        out->push_back(std::move(seed));
+        return;
+    }
+
+    std::vector<float> gpu_y(static_cast<std::size_t>(n));
+    for (int it = 0; it < seed.iterations; ++it) {
+        GpugemvResult row = seed;
+        row.run_index = it + 1;
+        row.wave_ops = false;
+        row.gpu_timestamp = false;
+
+        auto run_a = [&](double* cpu_a, double* gpu_sec) -> bool {
+            if (!record_list_a(use_ts) || !execute_wait(cpu_a))
+                return false;
+            *gpu_sec = -1.0;
+            if (!use_ts || !qh || !ts_readback)
+                return true;
+            alloc->Reset();
+            cl->Reset(alloc.Get(), nullptr);
+            cl->ResolveQueryData(qh.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, 2, ts_readback.Get(), 0);
+            cl->Close();
+            ID3D12CommandList* lists[] = {cl.Get()};
+            queue->ExecuteCommandLists(1, lists);
+            if (!wait_gpu())
+                return false;
+            void* mapped = nullptr;
+            D3D12_RANGE range = {0, sizeof(std::uint64_t) * 2};
+            if (FAILED(ts_readback->Map(0, &range, &mapped)) || !mapped)
+                return true;
+            const auto* ts = static_cast<const std::uint64_t*>(mapped);
+            const std::uint64_t t0 = ts[0];
+            const std::uint64_t t1 = ts[1];
+            ts_readback->Unmap(0, nullptr);
+            if (t1 > t0 && ts_freq > 0)
+                *gpu_sec = static_cast<double>(t1 - t0) / static_cast<double>(ts_freq);
+            return true;
+        };
+
+        double cpu_a = 0.0;
+        double gpu_sec = -1.0;
+        if (!run_a(&cpu_a, &gpu_sec)) {
+            out->push_back(std::move(seed));
+            return;
         }
-        const double sec =
-            std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
-        if (sec > 0.0) {
-            const double gbs = static_cast<double>(r.packed_bytes) / 1e9 / sec;
-            best_gbs = std::max(best_gbs, gbs);
+        if (use_ts && gpu_sec <= 0.0) {
+            if (!run_a(&cpu_a, &gpu_sec)) {
+                out->push_back(std::move(seed));
+                return;
+            }
+            if (gpu_sec <= 0.0) {
+                use_ts = false;
+                row.error_msg = "timestamp query discarded (zero or inverted dt)";
+            }
+        }
+
+        double cpu_b = 0.0;
+        {
+            alloc->Reset();
+            cl->Reset(alloc.Get(), nullptr);
+            D3D12_RESOURCE_BARRIER b = {};
+            b.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            b.Transition.pResource = y_default.Get();
+            b.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+            b.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+            b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            cl->ResourceBarrier(1, &b);
+            cl->CopyResource(y_readback.Get(), y_default.Get());
+            b.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+            b.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+            cl->ResourceBarrier(1, &b);
+            cl->Close();
+            if (!execute_wait(&cpu_b)) {
+                out->push_back(std::move(seed));
+                return;
+            }
+        }
+
+        row.packed_gbs_cpu = packed_gbs_from_sec(row.packed_bytes, cpu_a);
+        row.packed_gbs_h61 = packed_gbs_from_sec(row.packed_bytes, cpu_a + cpu_b);
+        if (use_ts && gpu_sec > 0.0) {
+            row.gpu_timestamp = true;
+            row.packed_gbs = packed_gbs_from_sec(row.packed_bytes, gpu_sec);
+        } else {
+            row.gpu_timestamp = false;
+            row.packed_gbs = row.packed_gbs_cpu;
         }
 
         {
@@ -676,32 +913,23 @@ GpugemvResult measure_gpugemv(int n, int k, int iterations) {
             D3D12_RANGE range = {0, static_cast<SIZE_T>(y_bytes)};
             hr = y_readback->Map(0, &range, &mapped);
             if (FAILED(hr)) {
-                throw_if_failed(hr, "Map y_readback", r);
-                CloseHandle(fence_event);
-                return r;
+                throw_if_failed(hr, "Map y_readback", row);
+                out->push_back(std::move(row));
+                return;
             }
             std::memcpy(gpu_y.data(), mapped, static_cast<std::size_t>(y_bytes));
             y_readback->Unmap(0, nullptr);
         }
-        last_checksum = gpugemv_checksum_floats(gpu_y.data(), static_cast<std::size_t>(n));
-        last_err = gpugemv_max_abs_err(host_y.data(), gpu_y.data(), static_cast<std::size_t>(n));
-        any_ok = true;
+        row.d3d12_ran = true;
+        fill_checksum(row, host_y.data(), gpu_y.data(), n);
+        out->push_back(std::move(row));
     }
+}
 
-    CloseHandle(fence_event);
-    r.d3d12_ran = any_ok;
-    r.packed_gbs = best_gbs;
-    r.y_checksum = last_checksum;
-    r.max_abs_err = last_err;
-    r.checksum_ok = (last_checksum == r.expected_y_checksum) || (last_err <= kGpugemvMaxAbsErrTol);
-    // Prefer residual for float GEMV; checksum of bits can differ on NaN edge.
-    if (last_err <= kGpugemvMaxAbsErrTol)
-        r.checksum_ok = true;
-    if (!r.checksum_ok && r.error_msg.empty())
-        r.error_msg = "GEMV residual or checksum mismatch";
-    if (r.checksum_ok)
-        r.error_msg.clear();
-    return r;
+GpugemvResult measure_gpugemv(int n, int k, int iterations, GpugemvKernel kernel) {
+    std::vector<GpugemvResult> rows;
+    measure_gpugemv_each(n, k, iterations, kernel, &rows);
+    return gpugemv_median_summary(rows);
 }
 
 #endif // _WIN32

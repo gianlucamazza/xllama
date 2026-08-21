@@ -45,7 +45,7 @@ performance belongs in `docs/benchmarks.md`.
    NOTICE / listing (`docs/store-readiness.md`).
 3. **WS-F headset** (#241) — rerun `scripts/probe-mic.sh` with a microphone
    attached. Two room-empty runs (2026-08-10, 2026-08-20) are not a verdict.
-4. **Parked eng** — H6/H7 (#228); crossbuild product parity (layer 2 closed
+4. **Parked eng** — H6.2 measure in flight (#228); crossbuild product parity (layer 2 closed
    2026-08-08 by uwp-crossbuild 0.5.1 — launch proven; ORT/GenAI, first boot
    and uptime not); prompt-lookup default OFF; Phase 15 “3B usable” without a
    new density measure. Dependabot llama.cpp #247 fails UWP (`LLAMA_VERSION`);
@@ -76,8 +76,8 @@ Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.
       quantisation is a different bet (IQ2_M precedent). Evidence:
       [`docs/phase7-hypotheses.md`](docs/phase7-hypotheses.md) H5.
 - [ ] H6/H7 GPU or hybrid GGUF eng — **parked 2026-08-08** after H6.1 G2 FAIL
-      (2.15 GB/s packed; STREAM still 119 GB/s). Tracking: **#228** (reopen only
-      with new density measure or revised gate).
+      (2.15 GB/s packed; STREAM still 119 GB/s). **H6.2 measure in flight**
+      (wave32 + naive A/B, G2 stays 40, K1=8). Tracking: **#228**.
 
 ## Phase 8 — Training pillar (exploration) ✅ FROZEN complete
 

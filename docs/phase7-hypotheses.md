@@ -398,8 +398,9 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   &lt; 100 GB/s → Do not reopen; measured ≥ 100 → **H6 eng is open** in
   **#228** (own compute path, not DirectML). H6.1 Q4_K GEMV: G1 PASS / G2 FAIL
   (2.15 GB/s packed, compute-bound naive CS) → **eng parked 2026-08-08**.
-  Small-model GPU decode via ORT DML remains falsified; STREAM only shows raw
-  VRAM bandwidth our D3D12 code can reach.
+  H6.2 wave32 density probe is **specified, not yet measured** (G2 stays 40;
+  K1=8 requires G1). Small-model GPU decode via ORT DML remains falsified;
+  STREAM only shows raw VRAM bandwidth our D3D12 code can reach.
 
 ### H7 — GGUF prefill offload (hybrid)
 

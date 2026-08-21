@@ -36,9 +36,9 @@ void run_diskbw();
 // Kill criterion 100 GB/s is documented in docs/phase15-re-opt.md — not invented here.
 void run_gpubw();
 
-// Phase 15 H6.1 (#228): Q4_K GEMV density probe (dequant in register).
-// Triggered by LocalFolder\gpugemv.flag; writes gpugemv-result.csv (+ .done).
-// Soft density gate 40 GB/s packed — docs/phase15-re-opt.md; not a product backend.
+// Phase 15 H6.2 (#228): Q4_K GEMV density probe (wave32 + naive A/B).
+// Triggered by LocalFolder\gpugemv.flag; writes gpugemv-result.csv (+ .done even
+// on partial PSO failure). Soft G2 40 GB/s packed, K1=8; not a product backend.
 void run_gpugemv();
 
 // Heap-ceiling probe. Triggered by LocalFolder\ramceil.flag; writes
