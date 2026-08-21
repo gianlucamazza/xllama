@@ -7,13 +7,15 @@
 > the licence matrix for a retail listing.
 
 **Status (2026-08-21):** Phase 0 discovery + Phase 1 **engineering foundation**
-landed, **five listing screenshots** captured (§9), and **D1 App vs Game
-measured** (§6 — request Game metadata). Product Dev Mode cut is **v1.5.5.0**
-(10 console gates including `thinkdone`; last fully gated evidence remains
-v1.5.4.0 / MSIX `1.5.4.887`). **Not Store-ready** for retail: no Partner Center
-product, no Store-signed package, no privacy URL, no age rating. Dev Mode
-remains the only supported install path. Partner Center account / product
-reservation is a **human gate** before engineering listing work.
+landed, **five listing screenshots** captured (§9), **D1 App vs Game measured**
+(§6 — request Game metadata), and **Store SKU console smoke PASS** (§10 —
+CI `1.5.5.928`, Game, catalogue download + GGUF chat + `set_api` reject).
+Product Dev Mode cut is **v1.5.5.0** (10 console gates including `thinkdone`;
+last fully gated evidence remains v1.5.4.0 / MSIX `1.5.4.887`). **Not
+Store-ready** for retail: no Partner Center product, no Store-signed package, no
+privacy URL, no age rating. Dev Mode remains the only supported install path.
+Partner Center account / product reservation is a **human gate** before
+engineering listing work.
 
 **Audience for a eventual listing:** hobbyist local-LLM / homebrew Xbox users
 who should not need Dev Mode. Contributors keep the Dev Mode sideload path.
@@ -184,8 +186,11 @@ allowlist draft** — not legal advice; re-verify before submission.
 - [x] NOTICE / runtime attributions draft (`NOTICE` at repo root — verify per release)
 - [x] App vs Game spike results filed under `bench/results/`
       (`store-app-vs-game-2026-08-21.csv`, CI `1.5.5.922`, `lfm25-350m`)
-- [ ] Console smoke of store SKU (chat + model download) —
-      `validate-console.sh store` after `install-latest-build.sh --store`
+- [x] Console smoke of store SKU (chat + model download) —
+      `validate-console.sh store` PASS 2026-08-21 on CI Store SKU `1.5.5.928`
+      (Game). Install start-app downloaded `lfm25-350m` from the catalogue;
+      gate: GGUF chat with a saved title + `set_api` rejected
+      (`LAN API not available in Store SKU`). Dev SKU restored after.
 
 ### Listing
 
@@ -339,8 +344,9 @@ URL (GitHub Pages or equivalent) pointing at this content.
 
 ## 10. Next steps (no VM)
 
-1. **Console smoke (engineering):** `gh workflow run build-uwp.yml -f store_sku=true --ref main`,
-   then on the Series S with **App type = Game**:
+1. **Console smoke — PASS 2026-08-21.** Store SKU CI
+   [32473955046](https://github.com/gianlucamazza/xllama/actions/runs/32473955046)
+   (`xllama_1.5.5.928_x64.msix`), App type **Game**. Repeat:
    ```bash
    source ~/.config/xllama/xbox-env
    ./scripts/install-latest-build.sh main --store   # uninstalls Dev SKU; wipes LocalState
@@ -352,4 +358,4 @@ URL (GitHub Pages or equivalent) pointing at this content.
    Same identity as Dev: do not leave the Store SKU installed. `--bench` is rejected.
 2. **Human:** Partner Center individual account; reserve product identity.
 3. Publish privacy URL (host `docs/privacy.md`); IARC age rating; listing copy.
-4. NOTICE / attributions pack; submission after smoke PASS.
+4. NOTICE / attributions pack; then Partner Center submission.
