@@ -12,11 +12,9 @@ landed, **five listing screenshots** captured (§9), **D1 App vs Game measured**
 CI `1.5.5.928`, Game, catalogue download + GGUF chat + `set_api` reject).
 Product Dev Mode cut is **v1.5.5.0** (10 console gates including `thinkdone`;
 last fully gated evidence remains v1.5.4.0 / MSIX `1.5.4.887`). **Not Store-ready** for retail: Partner Center product **xllama** is reserved
-(`9NCNLPWFT6B5`, identity §13) but the package is still test-signed
-(`CN=xllama-dev`). No IARC certificate, no Store-signed MSIX. Privacy URL:
-<https://gianlucamazza.github.io/xllama/privacy.html>. Partner Center currently
-shows the product as **MSIX or PWA app**, not Game — D1 still wants the Game
-resource envelope; confirm type before submission.
+as a **Game** (`9N9661XSDBM4`, identity §13) but the package is still
+test-signed (`CN=xllama-dev`). No IARC certificate, no Store-signed MSIX.
+Privacy URL: <https://gianlucamazza.github.io/xllama/privacy.html>.
 
 **Audience for a eventual listing:** hobbyist local-LLM / homebrew Xbox users
 who should not need Dev Mode. Contributors keep the Dev Mode sideload path.
@@ -169,8 +167,9 @@ allowlist draft** — not legal advice; re-verify before submission.
 ### Account / process
 
 - [x] Partner Center individual account created (2026-08-21, Individual)
-- [x] Product reserved: **xllama**, Store ID `9NCNLPWFT6B5` — identity §13
-      (Partner Center type: **MSIX or PWA app**; D1 still wants Game envelope)
+- [x] Product reserved: **xllama**, Store ID `9N9661XSDBM4` — **Game** (In
+      draft). Identity §13. (First reservation `9NCNLPWFT6B5` was an App and
+      was deleted the same day.)
 - [x] IARC age rating questionnaire drafted (§11; complete live in Partner Center)
 - [x] Privacy policy URL:
       <https://gianlucamazza.github.io/xllama/privacy.html>
@@ -455,8 +454,8 @@ Cannot be completed by CI. Identity verification is in the browser.
 4. Wait for Apps & Games (up to a few minutes). Direct link:
    <https://aka.ms/submitwindowsapp>.
 5. Create product: **MSIX or PWA game** (UWP). Reserve `xllama`.
-   **Done 2026-08-21** as Store ID `9NCNLPWFT6B5` — Partner Center currently
-   labels it **MSIX or PWA app**. Confirm before submission (D1 Game envelope).
+   **Done 2026-08-21** as Store ID `9N9661XSDBM4` (**Game**, In draft). An
+   earlier App reservation (`9NCNLPWFT6B5`) was deleted the same day.
 6. Listing: paste §9. Privacy URL: `https://gianlucamazza.github.io/xllama/privacy.html`.
 7. Age ratings: IARC from §11. Check the Partner Center box for live generative AI
    (11.16).
@@ -474,22 +473,28 @@ carry 1.2B+/DML/diffusion), or stop.
 ## 13. Store identity (reserved 2026-08-21)
 
 Partner Center
-[Product identity](https://partner.microsoft.com/en-us/dashboard/products/9NCNLPWFT6B5/identity)
-for **xllama**. **Do not** stamp these values onto the Dev Mode package
+[Product identity](https://partner.microsoft.com/en-us/dashboard/products/9N9661XSDBM4/identity)
+for **xllama** (**Game**, In draft). Overview:
+<https://partner.microsoft.com/en-us/dashboard/products/9N9661XSDBM4/overview>.
+**Do not** stamp these values onto the Dev Mode package
 (`GianlucaMazza.xllama` / `CN=xllama-dev`) — that would break in-place updates.
 A future Store SKU build uses this identity only.
 
+The first reservation (`9NCNLPWFT6B5`, MSIX or PWA **app**) was deleted the same
+day and recreated as **Game**. Package `Name` / `Publisher` / PFN were reused;
+Store ID and MSA app Id are new.
+
 | Field                                     | Value                                                              |
 | ----------------------------------------- | ------------------------------------------------------------------ |
-| Store ID                                  | `9NCNLPWFT6B5`                                                     |
-| Store URL                                 | https://apps.microsoft.com/detail/9NCNLPWFT6B5                     |
-| Store protocol                            | `ms-windows-store://pdp/?productid=9NCNLPWFT6B5`                   |
-| Partner Center type shown                 | **MSIX or PWA app** (In draft) — D1 wanted Game; confirm           |
+| Store ID                                  | `9N9661XSDBM4`                                                     |
+| Store URL                                 | https://apps.microsoft.com/detail/9N9661XSDBM4                     |
+| Store protocol                            | `ms-windows-store://pdp/?productid=9N9661XSDBM4`                   |
+| Partner Center type shown                 | **Game** (In draft) — matches D1                                   |
 | `Package/Identity/Name`                   | `1guy.xllama`                                                      |
 | `Package/Identity/Publisher`              | `CN=6EB9C78C-6383-4033-92CC-105BE3307CCF`                          |
 | `Package/Properties/PublisherDisplayName` | `1guy` (account display name; change in Partner Center if desired) |
 | Package Family Name                       | `1guy.xllama_7drykga3qwrw6`                                        |
-| MSA app Id                                | `bdd528f5-b552-4f7c-9563-4a03c2d11fea`                             |
+| MSA app Id                                | `431e7410-3857-417d-a726-80bcaba9efa3`                             |
 
 Dev Mode installs stay on `GianlucaMazza.xllama` / `CN=xllama-dev`. The Store
 SKU is a **different app** to the console (new identity, fresh LocalState).

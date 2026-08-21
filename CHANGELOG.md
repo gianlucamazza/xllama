@@ -26,9 +26,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   operator steps (`docs/store-readiness.md`); GitHub Pages privacy URL
   `https://gianlucamazza.github.io/xllama/privacy.html`; Settings link + Issues
   template to report inappropriate generated content (Store policy 11.16).
-  Product **xllama** reserved in Partner Center (`9NCNLPWFT6B5`; identity §13).
-  Type shown: MSIX or PWA **app** (D1 still wants Game). Dev Mode identity
-  unchanged.
+  Product **xllama** reserved in Partner Center as **Game** (`9N9661XSDBM4`;
+  identity §13). An App reservation (`9NCNLPWFT6B5`) was deleted the same day.
+  Dev Mode identity unchanged.
 
 ### Fixed
 

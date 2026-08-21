@@ -41,10 +41,9 @@ performance belongs in `docs/benchmarks.md`.
 
 1. **Vendor pin drops** (#84/#85/#86) — blocked until NuGet moves
    (`scripts/check-vendor-nuget-status.sh`, poll 2026-08-20: still required).
-2. **Store readiness** — product **xllama** reserved (`9NCNLPWFT6B5`, identity
-   in `docs/store-readiness.md` §13). Partner Center type is **MSIX or PWA app**
-   (D1 still wants Game envelope — confirm). Next: IARC + listing in the
-   submission; do not stamp Store CN onto the Dev Mode package.
+2. **Store readiness** — product **xllama** reserved as **Game**
+   (`9N9661XSDBM4`, identity in `docs/store-readiness.md` §13). Next: IARC +
+   listing in the submission; do not stamp Store CN onto the Dev Mode package.
 3. **WS-F headset** (#241) — rerun `scripts/probe-mic.sh` with a microphone
    attached. Two room-empty runs (2026-08-10, 2026-08-20) are not a verdict.
 4. **Parked eng** — H6/H7 (#228) after H6.2 **K2** (wave32 median 25.4 GB/s
@@ -565,13 +564,12 @@ the supported install path until a submission is accepted.
   decision + go/no-go still open.
 - [~] Phase 1 — Store SKU foundation + **no-VM CI path** (`workflow_dispatch`
   `store_sku=true` → `xllama-appx-store`, `install-latest-build.sh --store`);
-  console smoke **PASS** 2026-08-21 (`1.5.5.928`); Store identity reserved
-  (`9NCNLPWFT6B5`, §13) — not yet stamped on the MSIX.
+  console smoke **PASS** 2026-08-21 (`1.5.5.928`); Store identity reserved as
+  **Game** (`9N9661XSDBM4`, §13) — not yet stamped on the MSIX.
 - [~] Phase 2 — privacy URL
   <https://gianlucamazza.github.io/xllama/privacy.html>; EN listing copy + IARC
   prep in `store-readiness.md`; 5 screenshots (2026-07-30). Trailer still open.
-  IARC certificate still human. Product type in Partner Center is **app**;
-  D1 Game envelope not confirmed.
+  IARC certificate still human.
 - [ ] Phase 3 — Partner Center submission + certification.
 - [ ] Phase 4 — post-launch dual path (Store + Dev Mode) in README.
 
