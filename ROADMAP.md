@@ -41,11 +41,10 @@ performance belongs in `docs/benchmarks.md`.
 
 1. **Vendor pin drops** (#84/#85/#86) — blocked until NuGet moves
    (`scripts/check-vendor-nuget-status.sh`, poll 2026-08-20: still required).
-2. **Store readiness** — Partner Center human gate; App-vs-Game spike
-   **done 2026-08-21** (request Game metadata;
-   `bench/results/store-app-vs-game-2026-08-21.csv`); Store SKU console smoke
-   **PASS** 2026-08-21 (`1.5.5.928`, `validate-console.sh store`); NOTICE /
-   listing (`docs/store-readiness.md`).
+2. **Store readiness** — Partner Center account is the remaining human gate
+   (<https://storedeveloper.microsoft.com>, free Individual + ID). App-vs-Game
+   **done**; Store SKU smoke **PASS** (`1.5.5.928`); listing copy + IARC prep +
+   privacy URL in `docs/store-readiness.md`.
 3. **WS-F headset** (#241) — rerun `scripts/probe-mic.sh` with a microphone
    attached. Two room-empty runs (2026-08-10, 2026-08-20) are not a verdict.
 4. **Parked eng** — H6/H7 (#228) after H6.2 **K2** (wave32 median 25.4 GB/s
@@ -568,9 +567,10 @@ the supported install path until a submission is accepted.
   `store_sku=true` → `xllama-appx-store`, `install-latest-build.sh --store`);
   console smoke **PASS** 2026-08-21 (`1.5.5.928`); Partner Center identity
   still open.
-- [~] Phase 2 — privacy draft in `docs/privacy.md`; **5 listing screenshots
-  captured** 2026-07-30 (#215); age rating, EN listing copy, trailer and a
-  published HTTPS privacy URL still open.
+- [~] Phase 2 — privacy URL
+  <https://gianlucamazza.github.io/xllama/privacy.html>; EN listing copy + IARC
+  prep in `store-readiness.md`; 5 screenshots (2026-07-30). Trailer still open.
+  IARC certificate and Partner Center product still human.
 - [ ] Phase 3 — Partner Center submission + certification.
 - [ ] Phase 4 — post-launch dual path (Store + Dev Mode) in README.
 

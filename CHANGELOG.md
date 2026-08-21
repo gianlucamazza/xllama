@@ -22,6 +22,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`validate-console.sh store`** — Store SKU smoke (catalogue download + GGUF
   chat + `set_api` reject). Not one of the 10 Dev Mode hardware gates. **PASS**
   2026-08-21 on CI Store SKU `1.5.5.928` (Game); Dev SKU restored after.
+- **Store Phase 2 pack:** EN listing copy, IARC prep sheet, Partner Center
+  operator steps (`docs/store-readiness.md`); GitHub Pages privacy URL
+  `https://gianlucamazza.github.io/xllama/privacy.html`; Settings link + Issues
+  template to report inappropriate generated content (Store policy 11.16).
 
 ### Fixed
 

@@ -144,6 +144,8 @@ chat`. On a coding session that ceiling is 4096 tokens, roughly 13 KB of dense
   model under your conversation (the next pad turn transparently re-reads the
   full context). It is unauthenticated: enable it only on a
   trusted LAN; see [api-endpoint.md](api-endpoint.md).
+- **Report inappropriate generated content** — opens a GitHub Issues form
+  (Store policy 11.16). Present on both SKUs.
 
 **Note for GGUF models** (`kind: "gguf"` in the catalogue): **KV-cache reuse
 works** (persistent `llama_context`; measured ratios in

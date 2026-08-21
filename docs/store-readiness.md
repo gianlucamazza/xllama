@@ -13,9 +13,10 @@ CI `1.5.5.928`, Game, catalogue download + GGUF chat + `set_api` reject).
 Product Dev Mode cut is **v1.5.5.0** (10 console gates including `thinkdone`;
 last fully gated evidence remains v1.5.4.0 / MSIX `1.5.4.887`). **Not
 Store-ready** for retail: no Partner Center product, no Store-signed package, no
-privacy URL, no age rating. Dev Mode remains the only supported install path.
-Partner Center account / product reservation is a **human gate** before
-engineering listing work.
+IARC certificate. Privacy HTML is published at
+<https://gianlucamazza.github.io/xllama/privacy.html> (GitHub Pages). EN listing
+copy and an IARC prep sheet are in this file. Partner Center account / product
+reservation remains a **human gate** (ID verification in the browser).
 
 **Audience for a eventual listing:** hobbyist local-LLM / homebrew Xbox users
 who should not need Dev Mode. Contributors keep the Dev Mode sideload path.
@@ -36,7 +37,7 @@ that must not be made); `docs/api-endpoint.md` (LAN: not for the Store);
 | LAN API            | Opt-in, unauthenticated                           | **Absent** from Store SKU            |
 | USB models         | `removableStorage` + `E:\xllama\models`           | Prefer **absent** from Store SKU     |
 | Content / AI       | No age gate, no generative-AI disclaimer          | Age rating + first-run disclosure    |
-| Privacy            | No public policy                                  | HTTPS privacy URL + support contact  |
+| Privacy            | HTTPS GitHub Pages (`privacy.html`)               | Same URL in Partner Center           |
 | Docs product claim | “Dev Mode only — no retail path”                  | Dual path only **after** Store live  |
 
 Manifest capabilities today (`uwp/AppxManifest.xml`): `internetClient`,
@@ -167,11 +168,13 @@ allowlist draft** — not legal advice; re-verify before submission.
 
 ### Account / process
 
-- [ ] Partner Center individual account created (or explicit no-go)
+- [ ] Partner Center individual account created (or explicit no-go) —
+      free flow at <https://storedeveloper.microsoft.com> (ID + selfie)
 - [ ] Product reserved; Store publisher CN known
-- [ ] IARC age rating questionnaire drafted
-- [ ] Privacy policy URL live
-- [ ] Support contact published
+- [x] IARC age rating questionnaire drafted (§11; complete live in Partner Center)
+- [x] Privacy policy URL:
+      <https://gianlucamazza.github.io/xllama/privacy.html>
+- [x] Support contact published (GitHub Issues; listing copy below)
 
 ### Engineering
 
@@ -195,12 +198,14 @@ allowlist draft** — not legal advice; re-verify before submission.
 ### Listing
 
 - [x] Screenshots (5, 1920×1080, `docs/screenshots/store/`, 2026-07-30)
-- [ ] EN title / description / trailer (current numbers)
-- [ ] “Not affiliated with Microsoft”
-- [ ] Hardware: Series S\|X
+- [x] EN title / description / features / search terms (§9; no trailer yet)
+- [x] “Not affiliated with Microsoft” (listing + first-run disclaimer)
+- [x] Hardware: Series S\|X (§9 additional requirements)
 - [x] Category / Game metadata decision from D1: **request Game**. App runs
       default CPU chat only; GPU budget 691 vs 3801 MB and ramceil
       `avail_phys` ~183 vs ~4983 MB at 128 MB committed. See §6.
+- [x] Store policy **11.16** disclosure in listing metadata; in-app report
+      path (Settings → GitHub Issues `store-report`)
 
 ### Go/no-go
 
@@ -324,23 +329,35 @@ What changes under Store SKU:
 | Publisher CN                        | `xllama-dev` test | still test until Partner Center     |
 | CI artifact                         | `xllama-appx`     | `xllama-appx-store` (dispatch only) |
 
-### Privacy policy draft
+### Privacy policy
 
-In-repo: [`privacy.md`](./privacy.md). For Partner Center, host a stable HTTPS
-URL (GitHub Pages or equivalent) pointing at this content.
+Source of record: [`privacy.md`](./privacy.md). Partner Center URL (GitHub
+Pages from `docs/` on `main`; Jekyll renders this file):
+
+<https://gianlucamazza.github.io/xllama/privacy.html>
 
 ### Listing draft (EN, not submitted)
 
-| Field             | Draft                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Title             | xllama                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| Short description | Local LLM chat on Xbox Series S\|X — models run on the console.                                                                                                                                                                                                                                                                                                                                                                           |
-| Long description  | xllama turns an Xbox Series S\|X into a local inference box: gamepad chat UI, on-demand model catalogue, optional image generation. Nothing is sent to a cloud LLM API. Research-grade hobby project; not affiliated with Microsoft. Requires enough free storage for model downloads.                                                                                                                                                    |
-| Category          | **Game** (D1 2026-08-21: App GPU budget 691 vs 3801 MB; ramceil `avail_phys` ~183 vs ~4983 MB. Default CPU chat runs on App; 1.2B+/DML/diffusion do not.)                                                                                                                                                                                                                                                                                 |
-| Age rating        | (TBD — IARC; generative text + optional image gen)                                                                                                                                                                                                                                                                                                                                                                                        |
-| Screenshots       | **5 captured** 2026-07-30 (`docs/screenshots/store/`, 1920×1080 straight off the console, inside the accepted 1366×768 – 3840×2160 range with no resampling) via `scripts/capture-store-screenshots.sh`: chat answer, multi-turn, image viewer, Settings, History. The three panes are `ContentDialog`s reached with the `show_pane` autopilot op, which opens and closes them in one action so none is left over the gates that run next |
-| Support           | GitHub Issues on gianlucamazza/xllama                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Privacy           | Link to published `privacy.md`                                                                                                                                                                                                                                                                                                                                                                                                            |
+Paste into Partner Center. Limits from
+[Store listing info (MSIX)](https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/add-and-edit-store-listing-info).
+Numbers are Game-envelope Series S figures from `docs/launch-copy.md` /
+`bench/results` — do not quote App-mode tok/s. Do not claim “first LLM on Xbox”
+(`docs/launch-copy.md`).
+
+| Field                   | Draft                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Product name            | xllama                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Short description       | Local generative AI on Xbox Series S\|X: chat and optional image generation run on the console. Not affiliated with Microsoft. Models download on demand.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Description             | xllama uses **on-device generative AI**. Language models and optional image generation run on the Xbox Series S\|X. Nothing is sent to a cloud LLM API. Generated text and images can be inaccurate, biased, or inappropriate. This project is **not affiliated with Microsoft**. First launch downloads the default chat model from an allowlisted catalogue. Keep free storage: a few hundred MB for the default (LFM2.5-350M); several GB for larger models or image generation. Chat is gamepad-driven. Report inappropriate generated content from Settings. Performance on this listing is the **Game** resource envelope on Series S: default chat about **95 tokens/s** decode and about **320 MB** peak working set (LFM2.5-350M Q4_K_M, CPU). Larger models are slower and heavier. Research-grade hobby project. No account, no analytics, no in-app purchases. |
+| Product features        | On-device language models (no cloud LLM). Gamepad chat UI. On-demand catalogue download. Optional on-device image generation. First-run generative-AI disclosure. Report inappropriate content from Settings. Not affiliated with Microsoft.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Category / genre        | **Game** (D1: App GPU budget 691 vs 3801 MB Game; ramceil `avail_phys` ~183 vs ~4983 MB at 128 MB committed. Default CPU chat runs on App; 1.2B+/DML/diffusion do not.)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Age rating              | IARC in Partner Center — prep sheet §11. Expect **not Everyone**. Open generative text + optional images. Text-only Store v1 is the fallback if image gen fails 11.7 / certification.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Hardware                | Xbox Series S or Series X. Additional: free storage for model downloads (hundreds of MB default; several GB for larger catalogue / image gen). Gamepad.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Search terms (≤7)       | local LLM; on-device AI; chatbot; generative AI; image generation; hobby; console AI                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Screenshots             | **5 captured** 2026-07-30 (`docs/screenshots/store/`, 1920×1080) via `scripts/capture-store-screenshots.sh`. Trailer: **none** for v1 (optional).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Support                 | GitHub Issues: https://github.com/gianlucamazza/xllama/issues                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Privacy                 | https://gianlucamazza.github.io/xllama/privacy.html                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Notes for certification | Store SKU (`XLLAMA_STORE_SKU`): no LAN, no USB, no headless flags; capability `internetClient` only. First-run disclaimer. Models from GitHub Releases `models-v1`. Generative AI is local; 11.16 report path is Settings → GitHub Issues. Request **Game** resource envelope. No Xbox network / ID@Xbox (no multiplayer). No login. First launch needs network for the default model download. Package identity is still the test publisher until this product’s Store CN is reserved and stamped — current CI MSIX is **not** Store-signed.                                                                                                                                                                                                                                                                                                                              |
 
 ## 10. Next steps (no VM)
 
@@ -356,6 +373,97 @@ URL (GitHub Pages or equivalent) pointing at this content.
    ./scripts/install-latest-build.sh main --provision  # restore Dev SKU
    ```
    Same identity as Dev: do not leave the Store SKU installed. `--bench` is rejected.
-2. **Human:** Partner Center individual account; reserve product identity.
-3. Publish privacy URL (host `docs/privacy.md`); IARC age rating; listing copy.
-4. NOTICE / attributions pack; then Partner Center submission.
+2. **Human (browser):** open
+   [storedeveloper.microsoft.com](https://storedeveloper.microsoft.com) →
+   **Get started for free** → **Individual developer**. Sign in with a personal
+   Microsoft account, complete government-ID + selfie verification. **Do not**
+   start from Partner Center / Visual Studio — those still show the legacy paid
+   flow.
+   Docs:
+   [open a developer account](https://learn.microsoft.com/en-us/windows/apps/publish/partner-center/open-a-developer-account),
+   [free individual registration](https://learn.microsoft.com/en-us/windows/apps/publish/whats-new-individual-developer).
+3. After the Apps & Games tile appears: create a **Game** product targeting Xbox
+   Series S\|X, reserve the name `xllama`, paste §9 listing copy, set the privacy
+   URL, run the IARC questionnaire from §11, tick **live generative AI**
+   (Store policy 11.16).
+4. **Do not upload** the current test-signed CI MSIX. Partner Center must first
+   reserve the Store publisher identity; then a Store SKU build stamps that CN.
+5. NOTICE / attributions: already drafted at repo root; re-verify on the
+   submission build.
+
+## 11. IARC prep sheet (not a certificate)
+
+IARC runs **inside Partner Center** after the product exists. Exact wording of
+the live form is not published; this sheet is what to answer from product facts.
+It does **not** replace completing the questionnaire. IARC shares the publisher
+display name and email with the rating authorities
+([age ratings](https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/age-ratings)).
+
+**Expected outcome:** not Everyone. Open-ended generative text, and optional
+image generation, are not a children’s product (`privacy.md`). Typical digital
+ratings land **Teen / PEGI 12–16** or higher once “users can generate
+unrestricted content” is declared. If image gen pushes Adult/pornographic under
+Store policy **11.7**, cut SD-Turbo from Store v1 (D3 fallback) and re-run IARC
+as text-only.
+
+### Interactive elements (both Store v1 shapes)
+
+| Topic                           | Answer                   | Why                                                                                 |
+| ------------------------------- | ------------------------ | ----------------------------------------------------------------------------------- |
+| Users interact with the product | Yes                      | Gamepad chat / Settings / catalogue                                                 |
+| Users interact with each other  | **No**                   | Local only; no Xbox network, no accounts                                            |
+| Users share location            | No                       | No location API                                                                     |
+| Digital goods / IAP             | No                       | No purchases                                                                        |
+| Personal info collected         | No (beyond device-local) | No account; see privacy URL                                                         |
+| Unrestricted internet           | **Partial**              | `internetClient` for catalogue downloads only; no general web browser (10.13.4)     |
+| User-generated content online   | **No** (11.12)           | Generated output stays on the device; other users cannot view it in an online state |
+| Live generative AI              | **Yes** (11.16)          | Local LLMs + optional image models respond to user prompts                          |
+
+### Content (app assets vs generated)
+
+App **assets** (UI, screenshots, icons): no violence, sexual content, profanity,
+substances, or gambling. Listing metadata must stay at PEGI 12 / ESRB E10+ or
+lower (**11.1**).
+
+**Generated** output is unconstrained: models can emit violence, sexual content,
+strong language, or other disallowed _online_ UGC. Declare that honestly in IARC
+(“can users create content that may include …”). Do not claim a content filter
+we do not ship.
+
+| Store v1 shape                             | Extra IARC / policy note                                                                                    |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| Text + optional images (current Store SKU) | Highest 11.7 / 11.16 risk. Keep the report path. Be ready to disable image gen if certification rejects it. |
+| Text-only fallback                         | Same generative-text answers; image-related questions **No**. D3 already allows this.                       |
+
+### After the form
+
+Save and generate. Paste the resulting rating table back into this section (do
+not invent ESRB/PEGI numbers here). 11.11.3: if generated content can exceed the
+assigned rating, the product must offer an opt-in filter or a sign-in gate — we
+have neither, which is another reason the assigned rating must already cover
+unrestricted generation.
+
+## 12. Partner Center operator steps
+
+Cannot be completed by CI. Identity verification is in the browser.
+
+1. Open <https://storedeveloper.microsoft.com> (only supported free-flow entry).
+2. **Get started for free** → **Individual developer** (hobby / personal project;
+   Store policy 10.14). Company is wrong unless publishing as a legal entity.
+3. Personal Microsoft account (MSA). Government-issued ID + selfie on the phone.
+4. Wait for Apps & Games (up to a few minutes). Direct link:
+   <https://aka.ms/submitwindowsapp>.
+5. Create product: **Game**, Xbox console. Reserve `xllama`.
+6. Listing: paste §9. Privacy URL: `https://gianlucamazza.github.io/xllama/privacy.html`.
+7. Age ratings: IARC from §11. Check the Partner Center box for live generative AI
+   (11.16).
+8. Properties: Xbox Series S\|X; gamepad; Game resource envelope (D1).
+9. Stop. Store-signed identity and package upload wait on the reserved publisher
+   CN — that is Phase 3 engineering, not this pack.
+
+**Game vs Xbox network (10.13.1).** Game products on Xbox must use Xbox network
+via ID@Xbox **or** publish without those services through the Creators-style
+path. xllama has **no** multiplayer, friends list, or Xbox sign-in (D5: ID@Xbox
+out of scope). If Partner Center blocks a Game without Xbox network, that is a
+go/no-go: either accept Creators constraints, list as App (D1 says App cannot
+carry 1.2B+/DML/diffusion), or stop.

@@ -1,6 +1,6 @@
 # Privacy policy — xllama
 
-**Last updated:** 2026-07-29  
+**Last updated:** 2026-08-21  
 **Applies to:** the xllama UWP application (Dev Mode sideload and any future
 Microsoft Store listing of the Store SKU).  
 **Operator:** Gianluca Mazza (see the GitHub repository
@@ -66,6 +66,7 @@ content; parents should not treat the app as a supervised kids product.
 - Do not enable the LAN API (Dev Mode) on untrusted networks.
 - Prefer the Store SKU (when published) if you want research surfaces (LAN API,
   USB paths, headless flags) omitted.
+- Report inappropriate generated content from Settings (GitHub Issues form).
 
 ## Changes
 
@@ -77,5 +78,6 @@ version notes (`CHANGELOG.md`). The “Last updated” date will change.
 - GitHub Issues: [gianlucamazza/xllama](https://github.com/gianlucamazza/xllama/issues)
 - Repository owner profile on GitHub for contact details
 
-For a Store listing, a stable HTTPS URL to this document (or a GitHub Pages
-mirror) should be used as the privacy policy link in Partner Center.
+**Partner Center privacy URL:**
+<https://gianlucamazza.github.io/xllama/privacy.html>
+(GitHub Pages, `docs/` on `main`). Markdown source of record is this file.

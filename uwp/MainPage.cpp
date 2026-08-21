@@ -1441,7 +1441,8 @@ winrt::fire_and_forget MainPageController::ShowDisclaimerIfNeeded() {
     body.Text(L"xllama runs language and image models entirely on this device. "
               L"Generated text and images can be inaccurate, biased, or inappropriate. "
               L"Nothing leaves the console except model downloads you start. "
-              L"This project is not affiliated with Microsoft.");
+              L"This project is not affiliated with Microsoft. "
+              L"Report inappropriate generated content from Settings.");
     body.MaxWidth(520);
 
     winrt::Windows::UI::Xaml::Controls::ContentDialog dlg;
@@ -1664,6 +1665,14 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     panel.Children().Append(apiPortBox);
     panel.Children().Append(apiStatus);
     #endif
+
+    // Store policy 11.16: a path to report inappropriate generative-AI output.
+    // Opens the GitHub Issues form; internetClient is declared on both SKUs.
+    winrt::Windows::UI::Xaml::Controls::HyperlinkButton reportLink;
+    reportLink.Content(winrt::box_value(L"Report inappropriate generated content"));
+    reportLink.NavigateUri(winrt::Windows::Foundation::Uri(
+        L"https://github.com/gianlucamazza/xllama/issues/new?template=store-report.yml"));
+    panel.Children().Append(reportLink);
 
     winrt::Windows::UI::Xaml::Controls::ScrollViewer sv;
     sv.Content(panel);
