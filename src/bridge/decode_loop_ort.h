@@ -21,8 +21,8 @@ struct OgaGenerator;
 struct OgaTokenizerStream;
 #endif
 
-#include "xllama/ort_raii.h"        // oga_check (includes ort_genai_c.h)
-#include "xllama/session.h"         // GenerateParams
+#include "xllama/ort_raii.h" // oga_check (includes ort_genai_c.h)
+#include "xllama/session.h"  // GenerateParams
 
 #include "xllama/chat_prompt.h"      // apply_stop_sequences
 #include "xllama/inference.h"        // InferenceResult
