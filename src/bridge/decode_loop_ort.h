@@ -13,16 +13,16 @@
 
 #pragma once
 
+#ifdef XLLAMA_USE_ORT
+    #include "ort_genai_c.h"
+#endif
+
 #include "xllama/chat_prompt.h"      // apply_stop_sequences
 #include "xllama/inference.h"        // InferenceResult
 #include "xllama/inference_params.h" // GenerateParams
 #include "xllama/platform.h"         // peak_working_set_mb
 
 #include <chrono>
-
-#ifdef XLLAMA_USE_ORT
-    #include "ort_genai_c.h"
-#endif
 
 namespace xllama {
 namespace detail {
