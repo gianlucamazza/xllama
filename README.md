@@ -8,7 +8,7 @@
 [![build-linux](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**v1.5.5.0** · [CHANGELOG](CHANGELOG.md) · [ROADMAP](ROADMAP.md)
+**v1.5.6.0** · [CHANGELOG](CHANGELOG.md) · [ROADMAP](ROADMAP.md)
 
 ![xllama running on an Xbox Series S: a chat answer, the coding tier writing a C function, saved conversations and a Stable-Diffusion image, all on-console](docs/screenshots/xllama-demo-v1.5.2.gif)
 
