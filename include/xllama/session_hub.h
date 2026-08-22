@@ -8,6 +8,13 @@
 // RAM" invariant EnsureSession enforced only within the GUI. The hub is the
 // one owner; both surfaces lock it for the duration of a turn.
 //
+// SDK usage:
+//   xllama::SessionHub hub;           // explicit instance (SDK)
+//   auto* s = hub.ensure_locked(...); // same API as session_hub().ensure_locked()
+//
+// The global session_hub() function remains for backward compatibility;
+// it returns a reference to a static SessionHub instance.
+//
 // Locking contract:
 //   - Take `mtx` before touching `session` / `model`, and HOLD it across
 //     ensure_locked() + generate() so a concurrent surface cannot swap the
@@ -30,6 +37,10 @@
 
 namespace xllama {
 
+// SessionHub owns one resident Session at a time.
+// It is a plain, constructible struct — no singleton pattern.
+// The global session_hub() function provides a static instance for
+// backward compatibility; SDK users may create their own instance.
 struct SessionHub {
     std::mutex mtx;
     std::unique_ptr<Session> session; // guarded by mtx
@@ -73,6 +84,7 @@ struct SessionHub {
 };
 
 // The process-wide hub (defined in session.cpp).
+// SDK users may create their own SessionHub instance instead.
 SessionHub& session_hub();
 
 } // namespace xllama

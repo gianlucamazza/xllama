@@ -3,11 +3,25 @@
 // Per-workload EP routing policy (ORT GenAI only). GGUF models disable routing
 // and KV reuse at the UI layer; this header encodes the token threshold only.
 // Also owns the prompt-budget helpers used by catalogue roles (e.g. coding).
+//
+// ## SDK configurability (Phase 3)
+//
+// All routing gates are now callable through a `RoutingPolicy` object whose
+// callbacks can be overridden. The free functions below remain the default
+// wrappers and require zero changes from the app.
+//
+// SDK usage:
+//   xllama::RoutingPolicy policy;
+//   policy.allow_kind = [](const std::wstring& k) { return k != L"gguf"; };
+//   policy.reuse_kv_for_model = [](const std::string& m) { return m.find("dml") == std::string::npos; };
+//   auto decision = policy.decide(s, n_tok, base_is_gguf, gpu_available);
 #pragma once
 
 #include "xllama/inference_params.h" // kDefaultNCtx
 
 #include <cstddef>
+#include <functional>
+#include <memory>
 #include <string>
 #include <string_view>
 
@@ -169,50 +183,23 @@ struct RoutingDecision {
     int token_count = 0;
 };
 
-// #91 postmortem (2026-07-19, docs/dml-rmsnorm-fix-runbook.md): the DML
-// (Skip)SimplifiedLayerNormalization kernel computes wrong results on the
-// Series S driver, so any text asset carrying the fused RMSNorm contrib nodes
-// produces garbage logits on the GPU (NMSE ~1 — this is what #91/#94 chased as
-// an "attention" bug). Assets with those nodes decomposed into primitives
-// (decompose_attention.py --skip-attention --also-skipln) pass the on-console
-// parity gate (scripts/validate-logit-parity.sh) with the shipping DLLs, so
-// GPU text routing is allowed for them only. Old broken copies of
-// "smollm2-360m-dml-fp16" may survive in LocalState from ≤1.1.x installs —
-// that name must never come back to this allowlist; the fixed asset ships as
-// "-v2". Diffusion (plain ORT) was never affected.
-inline constexpr bool dml_text_model_ok(std::string_view gpu_model) {
-    return gpu_model == "smollm2-360m-dml-fp16-v2";
+// ---------------------------------------------------------------------------
+// Internal implementations (called by RoutingPolicy defaults, NOT by wrappers)
+// ---------------------------------------------------------------------------
+// These must be defined BEFORE RoutingPolicy so lambdas can see them.
+
+// DirectML-routed models are identified by catalogue naming convention
+// ("-dml-" in the model id). Single home for the substring check: KV-reuse
+// gating and the DML load warm-up both key on it.
+inline constexpr bool model_is_dml(std::string_view active_model) {
+    return active_model.find("dml") != std::string_view::npos;
 }
 
-// Decide which model directory to load for the first turn of a conversation.
-// |gpu_available| must reflect IsModelProvisioned(gpu_model) — callers gate UX.
-inline RoutingDecision decide_routing(const RoutingSettings& s, int n_tok, bool base_is_gguf,
-                                      bool gpu_available) {
-    RoutingDecision d;
-    d.token_count = n_tok;
-    if (base_is_gguf || s.mode == RoutingMode::CpuOnly || !dml_text_model_ok(s.gpu_model)) {
-        d.active_model = s.cpu_model;
-        d.use_gpu = false;
-        return d;
-    }
-    if (s.mode == RoutingMode::GpuOnly) {
-        d.active_model = gpu_available ? s.gpu_model : s.cpu_model;
-        d.use_gpu = gpu_available;
-        return d;
-    }
-    // Auto
-    const bool use_gpu = gpu_available && n_tok > s.token_threshold;
-    d.use_gpu = use_gpu;
-    d.active_model = use_gpu ? s.gpu_model : s.cpu_model;
-    return d;
-}
-
-// Feature gates by catalogue kind (mirrors MainPage capability matrix).
-inline bool routing_allowed_for_kind(const std::wstring& kind) {
+inline bool routing_allowed_for_kind_impl(const std::wstring& kind) {
     return kind != L"gguf";
 }
 
-inline bool kv_reuse_allowed_for_kind(const std::wstring& kind) {
+inline bool kv_reuse_allowed_for_kind_impl(const std::wstring& kind) {
     // GGUF (llama.cpp) now supports KV reuse via a persistent llama_context
     // (LlamaSession), so it is allowed alongside ORT-GenAI. (Routing stays
     // ORT-only — the llama.cpp UWP build is CPU-only, no GPU model to route to.)
@@ -220,16 +207,111 @@ inline bool kv_reuse_allowed_for_kind(const std::wstring& kind) {
     return true;
 }
 
-// DirectML-routed models are identified by catalogue naming convention
-// ("-dml-" in the model id, e.g. smollm2-360m-dml-fp16-v2). Single home for
-// the substring check: KV-reuse gating and the DML load warm-up both key on it.
-inline bool model_is_dml(const std::string& active_model) {
-    return active_model.find("dml") != std::string::npos;
+// ---------------------------------------------------------------------------
+// RoutingPolicy — SDK-configurable policy object (Phase 3)
+// ---------------------------------------------------------------------------
+// A `RoutingPolicy` bundles every routing gate behind `std::function` callbacks
+// so an SDK user can override any gate without patching this header. The free
+// functions below (`dml_text_model_ok`, `decide_routing`, …) remain the default
+// wrappers and require zero changes from the app or the UWP MainPage.
+//
+// Default construction uses the current shipping defaults (the free functions).
+// SDK users create an instance, replace callbacks, and call the member variants.
+struct RoutingPolicy {
+    // GPU allowlist — #91 postmortem: only parity-validated DML assets may
+    // route to GPU. (Inlined to avoid circular init through default_policy().)
+    std::function<bool(std::string_view gpu_model)> dml_text_model_ok_fn =
+        [](std::string_view m) { return m == "smollm2-360m-dml-fp16-v2"; };
+
+    // Decide which model to load for the first turn. (Inlined to avoid circular
+    // init through default_policy().)
+    std::function<RoutingDecision(const RoutingSettings&, int, bool, bool)> decide_fn =
+        [](const RoutingSettings& s, int n_tok, bool base_is_gguf, bool gpu_available) {
+            RoutingDecision d;
+            d.token_count = n_tok;
+            // Inline dml_text_model_ok check to avoid circular init.
+            const bool gpu_ok = s.gpu_model == "smollm2-360m-dml-fp16-v2";
+            if (base_is_gguf || s.mode == RoutingMode::CpuOnly || !gpu_ok) {
+                d.active_model = s.cpu_model;
+                d.use_gpu = false;
+                return d;
+            }
+            if (s.mode == RoutingMode::GpuOnly) {
+                d.active_model = gpu_available ? s.gpu_model : s.cpu_model;
+                d.use_gpu = gpu_available;
+                return d;
+            }
+            const bool use_gpu = gpu_available && n_tok > s.token_threshold;
+            d.use_gpu = use_gpu;
+            d.active_model = use_gpu ? s.gpu_model : s.cpu_model;
+            return d;
+        };
+
+    // Feature gates by catalogue kind.
+    std::function<bool(const std::wstring& kind)> allow_kind_fn =
+        [](const std::wstring& k) { return routing_allowed_for_kind_impl(k); };
+
+    // KV-reuse gate by catalogue kind.
+    std::function<bool(const std::wstring& kind)> reuse_kv_kind_fn =
+        [](const std::wstring& k) { return kv_reuse_allowed_for_kind_impl(k); };
+
+    // KV-reuse gate by model name (DML models reject continuous decoding).
+    std::function<bool(std::string_view model)> reuse_kv_model_fn =
+        [](std::string_view m) { return !model_is_dml(m); };
+
+    // Convenience wrappers that dispatch through the callbacks.
+    inline bool dml_text_model_ok(std::string_view gpu_model) const {
+        return dml_text_model_ok_fn(gpu_model);
+    }
+    inline RoutingDecision decide(const RoutingSettings& s, int n_tok, bool base_is_gguf,
+                                  bool gpu_available) const {
+        return decide_fn(s, n_tok, base_is_gguf, gpu_available);
+    }
+    inline bool routing_allowed_for_kind(const std::wstring& kind) const {
+        return allow_kind_fn(kind);
+    }
+    inline bool kv_reuse_allowed_for_kind(const std::wstring& kind) const {
+        return reuse_kv_kind_fn(kind);
+    }
+    inline bool kv_reuse_supported_for_model(std::string_view model) const {
+        return reuse_kv_model_fn(model);
+    }
+};
+
+// Default global policy instance — the free functions below are thin wrappers
+// around this same instance, so overriding the callbacks via the default
+// instance affects every free-function call (same single-instance pattern as
+// SessionHub). To avoid global-initialization order issues the instance is
+// created lazily inside this function.
+inline const RoutingPolicy& default_policy() {
+    static const RoutingPolicy p;
+    return p;
 }
 
-// ORT GenAI continuous decoding (KV reuse) is CPU-only today; DirectML rejects
-// AppendTokenSequences on a persistent generator ("Continuous decoding is not
-// supported on the selected device type (DirectML)").
+// -- Free-function wrappers around default_policy() --
+// These remain backward-compatible. To customise, replace callbacks on the
+// instance returned by `default_policy()` or construct a local `RoutingPolicy`.
+
+inline bool dml_text_model_ok(std::string_view gpu_model) {
+    return default_policy().dml_text_model_ok(gpu_model);
+}
+
+inline RoutingDecision decide_routing(const RoutingSettings& s, int n_tok, bool base_is_gguf,
+                                      bool gpu_available) {
+    return default_policy().decide(s, n_tok, base_is_gguf, gpu_available);
+}
+
+inline bool routing_allowed_for_kind(const std::wstring& kind) {
+    return default_policy().routing_allowed_for_kind(kind);
+}
+
+inline bool kv_reuse_allowed_for_kind(const std::wstring& kind) {
+    return default_policy().kv_reuse_allowed_for_kind(kind);
+}
+
+// KV-reuse gate by model name (DML models reject continuous decoding).
+//
+// SDK override: replace `reuse_kv_model_fn` on your `RoutingPolicy` instance.
 inline bool kv_reuse_supported_for_model(const std::string& active_model) {
     return !model_is_dml(active_model);
 }

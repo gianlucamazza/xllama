@@ -3,12 +3,17 @@
 
 #include "xllama/chat_prompt.h" // kDefaultSystemPrompt
 #include "xllama/cli.h"
-#include "xllama/diskbw.h"
-#include "xllama/gpubw.h"
-#include "xllama/gpugemv.h"
 #include "xllama/inference.h"
-#include "xllama/membw.h"
-#include "xllama/ramceil.h"
+#ifdef XLLAMA_DEVICE_TRAIN
+    #include "xllama/device_train.h"
+#endif
+#ifdef XLLAMA_BUILD_PROBES
+    #include "xllama/diskbw.h"
+    #include "xllama/gpubw.h"
+    #include "xllama/gpugemv.h"
+    #include "xllama/membw.h"
+    #include "xllama/ramceil.h"
+#endif
 #include "xllama/training.h"
 #ifdef XLLAMA_DEVICE_TRAIN
     #include "xllama/device_train.h"
@@ -96,6 +101,7 @@ int main(int argc, char** argv) {
         return 0;
     }
 
+    #ifdef XLLAMA_BUILD_PROBES
     // --membw: model-free CPU memory-bandwidth micro-bench. Runs a single-thread
     // pass and a full-width pass so the ratio (scaling) is visible; prints the CSV
     // row so it can be appended to a results file.
@@ -196,6 +202,8 @@ int main(int argc, char** argv) {
                      r.max_committed_mb, r.avail_phys_start_mb, r.stop_reason.c_str());
         return 0;
     }
+
+#endif // XLLAMA_BUILD_PROBES
 
     // --chat: wrap the raw prompt with the model's chat template (ChatML or
     // Gemma, selected by model name) and stop on its stop token. Without this the

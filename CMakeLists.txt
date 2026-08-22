@@ -10,6 +10,7 @@ set_property(CACHE XLLAMA_TARGET PROPERTY STRINGS linux uwp)
 option(XLLAMA_BUILD_TESTS    "Build unit tests" OFF)
 option(XLLAMA_ENABLE_ASAN    "Enable AddressSanitizer" OFF)
 option(XLLAMA_ENABLE_UBSAN   "Enable UndefinedBehaviourSanitizer" OFF)
+option(XLLAMA_BUILD_PROBES   "Build benchmarking probes (membw, diskbw, gpubw, gpugemv, ramceil)" ON)
 
 # ------------------------------------------------------------------
 # Target selection
@@ -61,11 +62,6 @@ add_library(xllama STATIC
     src/bridge/session.cpp
     src/bridge/kv_store.cpp
     src/bridge/bench.cpp
-    src/bridge/membw.cpp
-    src/bridge/diskbw.cpp
-    src/bridge/gpubw.cpp
-    src/bridge/gpugemv.cpp
-    src/bridge/ramceil.cpp
     src/bridge/platform.cpp
     src/bridge/path_utils.cpp
     src/bridge/utf8_utils.cpp
@@ -78,6 +74,17 @@ add_library(xllama STATIC
     src/bridge/personalize.cpp
     src/bridge/autopilot.cpp
 )
+
+# Optional benchmarking probes (membw, diskbw, gpubw, gpugemv, ramceil)
+if(XLLAMA_BUILD_PROBES)
+    target_sources(xllama PRIVATE
+        src/bridge/membw.cpp
+        src/bridge/diskbw.cpp
+        src/bridge/gpubw.cpp
+        src/bridge/gpugemv.cpp
+        src/bridge/ramceil.cpp
+    )
+endif()
 
 target_compile_features(xllama PUBLIC cxx_std_17)
 
