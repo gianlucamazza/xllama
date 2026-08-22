@@ -20,6 +20,10 @@
 
 #include <chrono>
 
+#ifdef XLLAMA_USE_ORT
+    #include "ort_genai_c.h"
+#endif
+
 namespace xllama {
 namespace detail {
 
