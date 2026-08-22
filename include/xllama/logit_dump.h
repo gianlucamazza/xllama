@@ -10,6 +10,7 @@
 //   <path>.json   { model, prompt, backend, vocab_size, greedy, top1_id, top1_piece }
 //
 // float32 raw matches numpy `np.fromfile(dtype=np.float32)`.
+// json_escape is in json_utils.h — included above.
 
 #pragma once
 
@@ -17,42 +18,11 @@
 #include <cstdio>
 #include <string>
 
+#include "xllama/json_utils.h"
+
 namespace xllama {
 
-// Minimal JSON string escaping (quotes, backslash, control chars). Prompts and
-// detokenized pieces can contain newlines/quotes, so the sidecar must escape.
-inline std::string json_escape(const std::string& s) {
-    std::string out;
-    out.reserve(s.size() + 8);
-    for (unsigned char c : s) {
-        switch (c) {
-        case '"':
-            out += "\\\"";
-            break;
-        case '\\':
-            out += "\\\\";
-            break;
-        case '\n':
-            out += "\\n";
-            break;
-        case '\r':
-            out += "\\r";
-            break;
-        case '\t':
-            out += "\\t";
-            break;
-        default:
-            if (c < 0x20) {
-                char buf[8];
-                std::snprintf(buf, sizeof(buf), "\\u%04x", c);
-                out += buf;
-            } else {
-                out += static_cast<char>(c);
-            }
-        }
-    }
-    return out;
-}
+// json_escape is in json_utils.h — included above.
 
 // Write the logit vector and its metadata sidecar. `top1_piece` is the detokenized
 // argmax token (backend-specific), used to catch tokenizer/vocab misalignment when

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "xllama/training.h"
+#include "xllama/json_utils.h"
 
 #include <cctype>
 #include <cmath>
@@ -37,37 +38,7 @@ bool parse_string(const std::string& s, size_t& i, std::string& out) {
     if (i >= s.size() || s[i] != '"')
         return false;
     ++i;
-    out.clear();
-    while (i < s.size()) {
-        char c = s[i++];
-        if (c == '"')
-            return true;
-        if (c == '\\' && i < s.size()) {
-            char e = s[i++];
-            switch (e) {
-            case '"':
-            case '\\':
-            case '/':
-                out.push_back(e);
-                break;
-            case 'n':
-                out.push_back('\n');
-                break;
-            case 't':
-                out.push_back('\t');
-                break;
-            case 'r':
-                out.push_back('\r');
-                break;
-            default:
-                out.push_back(e);
-                break;
-            }
-        } else {
-            out.push_back(c);
-        }
-    }
-    return false;
+    return json_read_string(s, i, out);
 }
 
 bool parse_number(const std::string& s, size_t& i, double& out) {

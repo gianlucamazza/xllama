@@ -13,8 +13,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `shaders/gpugemv_q4k_wave32.hlsl`). Measure-only, not a Session GPU backend.
   Series S CI MSVC `1.5.5.922`: G1 PASS, `wave32` median **25.4 GB/s packed**
   (retimed naive 1.96). **K2 park** — G2 stays 40. CSV
-  `bench/results/phase15-gpugemv-h62.csv`. Suite: 225 → **230 cases / 4304
-  assertions**.
+  `bench/results/phase15-gpugemv-h62.csv`.
 - **Store D1 App vs Game spike** on Series S (`lfm25-350m`, same package).
   App GPU budget **691 vs 3801 MB**; long-gen decode ~87 vs ~95 tok/s; peak
   320 MB both. Listing should request **Game** metadata. CSV
@@ -30,18 +29,66 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   identity §13). An App reservation (`9NCNLPWFT6B5`) was deleted the same day.
   Dev Mode identity unchanged. Submission fill sheet (pricing, IARC GenAI,
   Creators, packages hold) in `docs/store-readiness.md` §14.
+- **`include/xllama/json_utils.h`** — header-only JSON string helpers:
+  `json_escape()` (canonical) and `json_read_string()` with full `\uXXXX`
+  decode (including surrogate pairs → UTF-8). Replaces 7 duplicated
+  implementations across the tree.
+- **`src/bridge/decode_loop_ort.h`** — consolidated ORT GenAI decode loop.
+  Mirrors the structure of `src/bridge/decode_loop.h` (llama path).
+- **`src/bridge/ort_common.h`** — shared ORT setup helpers (SEH translator,
+  log callback registration).
+- **CI ASan lane** (`build-linux.yml` job `asan`): workflow_dispatch-only.
+  Builds with the `linux-asan` CMake preset (Debug + ASan + UBSan) and runs
+  the full test suite under sanitizers.
+- **`tests/test_json_utils.cpp`** — 11 test cases covering json_escape
+  (quotes, backslash, control chars → `\uXXXX`, mixed content),
+  json_read_string (all escapes, `\uXXXX`, surrogate pairs, lone surrogates,
+  unterminated strings, unknown escapes lenient), and round-trip
+  (escape → read_string → original).
+- **`include/xllama/cancel_policy.h`** — `CancelTarget` enum +
+  `cancel_target()` precedence function (image > training > text). The generic
+  "a job is running" flag is set by all three, so the specific flags are the
+  only ones that identify the job. Exhaustively tested on the host
+  (`tests/test_cancel_policy.cpp`, all eight combinations of the three flags).
+- **Autopilot op `mark`** — a rendez-vous for screenshot capture. The app writes
+  a label to `LocalState\autopilot-mark.txt` and blocks; the host polls for the
+  file, takes its Device Portal screenshot, and deletes the file to release the
+  script.
+- **Autopilot op `show_pane`, and a guard against the crash designing it
+  exposed.** Settings, History and the image viewer are all `ContentDialog`s and
+  none was reachable from the autopilot. The guard is product code: nothing
+  checked whether a dialog was already open, and a second one throws inside a
+  `fire_and_forget`, whose `unhandled_exception()` calls `std::terminate()`.
+  `AutopilotAction` gained a dedicated `label` field. Ops 15 → 17.
 
 ### Fixed
 
-- **Cancel targeted the wrong job.** `SetRunning()` is called by text
-  inference, image generation and on-device training, so `m_is_running` means
-  "a job is running", not "text is running" — and the cancel path read it and
-  set the text abort flag. Pressing Cancel (or B) during an image disabled the
-  Cancel button and left the job running, with no way left to stop it. The
-  decision is now policy in `include/xllama/cancel_policy.h`, exhaustively
-  tested on the host (`tests/test_cancel_policy.cpp`, all eight combinations of
-  the three flags) because the combination that broke is not reproducible from
-  the UI file. Suite was 222 → 225 cases / 2934 assertions before H6.2.
+- **json_escape triplicated across 7 TUs with divergent behavior.** Consolidated
+  into `include/xllama/json_utils.h` (single canonical implementation, full
+  `\uXXXX` control-char escaping). All callers now use `xllama::json_escape`.
+  The training job parser (`src/bridge/training.cpp`) was also upgraded to
+  decode `\uXXXX` (including surrogate pairs → UTF-8) via the new
+  `json_read_string` helper — previously `\u0041` was passed through verbatim
+  as `u0041`, a correctness gap for non-ASCII dataset paths/names.
+  `device_train.cpp`'s `result.json` writer (which passed control chars raw,
+  producing invalid JSON) is now fixed. Full round-trip tested
+  (`tests/test_json_utils.cpp`, 11 cases).
+
+- **ORT stateless path silently ignored stop_sequences.**
+  `run_inference_ort` (inference.cpp) never checked `params.stop_sequences`,
+  while `OrtSession::run_decode` did. Both paths now share the consolidated
+  `decode_loop_ort.h` loop which applies stop sequences after each iteration
+  (same semantics as llama.cpp: the stop-triggering token IS counted).
+
+- **ORT decode loop duplicated** between `run_inference_ort` (inference.cpp)
+  and `OrtSession::run_decode` (session.cpp) — the exact pattern the project
+  had already fixed on the llama side. Extracted into
+  `src/bridge/decode_loop_ort.h` (header-only, same structure as
+  `decode_loop.h` for llama).
+
+- **SEH translator and OgaSetLogCallback duplicated** between inference.cpp
+  and session.cpp. Extracted into `src/bridge/ort_common.h`
+  (`install_se_translator()`, `register_oga_logging()`).
 
 - **The B button no longer drops out of the app.** On Xbox an unhandled
   `BackRequested` is the shell's cue to suspend and return to Home, and the

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "xllama/preference_capture.h"
+#include "xllama/json_utils.h"
 
 #include <chrono>
 #include <cstdio>
@@ -11,40 +12,6 @@
 
 namespace xllama {
 namespace {
-
-std::string json_escape(const std::string& s) {
-    std::string o;
-    o.reserve(s.size() + 8);
-    for (unsigned char c : s) {
-        switch (c) {
-        case '"':
-            o += "\\\"";
-            break;
-        case '\\':
-            o += "\\\\";
-            break;
-        case '\n':
-            o += "\\n";
-            break;
-        case '\r':
-            o += "\\r";
-            break;
-        case '\t':
-            o += "\\t";
-            break;
-        default:
-            if (c < 0x20) {
-                char buf[8];
-                snprintf(buf, sizeof(buf), "\\u%04x", c);
-                o += buf;
-            } else {
-                o.push_back(static_cast<char>(c));
-            }
-            break;
-        }
-    }
-    return o;
-}
 
 std::string now_iso_utc() {
     using clock = std::chrono::system_clock;

@@ -134,9 +134,8 @@ def main() -> int:
 
         # --- the published demo is what the capture actually produced ---
         #
-        # The README linked a v1.2.0 demo while the product shipped 1.5.2, and
-        # docs/launch-copy.md forbade citing that very file as current. Nothing
-        # caught it because nothing was looking. Two rules, both cheap:
+        # The README linked a v1.2.0 demo while the product shipped 1.5.2.
+        # Nothing caught it because nothing was looking. Two rules, both cheap:
         #
         #   ERR  — the README cites a version the demo manifest does not claim.
         #          That is someone editing the link by hand, or a capture that

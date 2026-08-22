@@ -8,6 +8,7 @@
 // clang-format on
 
     #include "chat-history.h"
+    #include "xllama/json_utils.h"
     #include "xllama/platform.h"
     #include "xllama/utf8_utils.h"
 
@@ -25,63 +26,14 @@ namespace xllama::ui {
 // Minimal JSON helpers (no external dependency)
 // ---------------------------------------------------------------------------
 
-// Escape a UTF-8 string for JSON output: replace " → \", \ → \\, control chars.
-static std::string json_escape(const std::string& s) {
-    std::string out;
-    out.reserve(s.size() + 8);
-    for (unsigned char c : s) {
-        if (c == '"') {
-            out += "\\\"";
-        } else if (c == '\\') {
-            out += "\\\\";
-        } else if (c == '\n') {
-            out += "\\n";
-        } else if (c == '\r') {
-            out += "\\r";
-        } else if (c == '\t') {
-            out += "\\t";
-        } else if (c < 0x20) { /* skip other control chars */
-        } else {
-            out += static_cast<char>(c);
-        }
-    }
-    return out;
-}
+// json_escape is in xllama::json_utils.h — included above.
 
 // Parse a JSON string value (after opening "). Returns empty string on failure.
 // Advances `pos` past the closing ".
 static std::string json_parse_string(const std::string& s, size_t& pos) {
     std::string out;
-    while (pos < s.size()) {
-        char c = s[pos++];
-        if (c == '"')
-            return out;
-        if (c == '\\' && pos < s.size()) {
-            char esc = s[pos++];
-            switch (esc) {
-            case '"':
-                out += '"';
-                break;
-            case '\\':
-                out += '\\';
-                break;
-            case 'n':
-                out += '\n';
-                break;
-            case 'r':
-                out += '\r';
-                break;
-            case 't':
-                out += '\t';
-                break;
-            default:
-                out += esc;
-                break;
-            }
-        } else {
-            out += c;
-        }
-    }
+    if (!json_read_string(s, pos, out))
+        return {};
     return out;
 }
 
@@ -233,7 +185,7 @@ void ChatHistory::SaveIndex() {
         const auto& m = m_index[i];
         fprintf(f,
                 "  {\"id\":\"%s\",\"title\":\"%s\",\"last_modified\":%lld,\"n_messages\":%d}%s\n",
-                json_escape(m.id).c_str(), json_escape(m.title).c_str(),
+                xllama::json_escape(m.id).c_str(), xllama::json_escape(m.title).c_str(),
                 static_cast<long long>(m.last_modified), m.n_messages,
                 (i + 1 < m_index.size()) ? "," : "");
     }
@@ -274,9 +226,9 @@ void ChatHistory::Save(const Conversation& conv) {
         return;
     }
     fputs("{\"id\":\"", f);
-    fputs(json_escape(conv.id).c_str(), f);
+    fputs(xllama::json_escape(conv.id).c_str(), f);
     fputs("\",\"title\":\"", f);
-    fputs(json_escape(conv.title).c_str(), f);
+    fputs(xllama::json_escape(conv.title).c_str(), f);
     fputs("\",\"messages\":[\n", f);
     for (size_t i = 0; i < conv.messages.size(); ++i) {
         const auto& msg = conv.messages[i];
@@ -286,8 +238,9 @@ void ChatHistory::Save(const Conversation& conv) {
         fprintf(f,
                 "  {\"role\":\"%s\",\"content\":\"%s\",\"ts\":%lld,\"partial\":%s,"
                 "\"feedback_label\":\"%s\"}%s\n",
-                role_str, json_escape(msg.content).c_str(), static_cast<long long>(msg.ts_unix),
-                msg.partial ? "true" : "false", json_escape(msg.feedback_label).c_str(),
+                role_str, xllama::json_escape(msg.content).c_str(),
+                static_cast<long long>(msg.ts_unix), msg.partial ? "true" : "false",
+                xllama::json_escape(msg.feedback_label).c_str(),
                 (i + 1 < conv.messages.size()) ? "," : "");
     }
     fputs("]}\n", f);

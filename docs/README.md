@@ -42,7 +42,6 @@ Technical notes and design decisions for xllama.
 | Xbox Store retail readiness (dual SKU, licence matrix, App vs Game gate)               | [store-readiness.md](./store-readiness.md)                                                                                   |
 | Privacy policy (Store / end-user draft)                                                | [privacy.md](./privacy.md)                                                                                                   |
 | Demo / screenshot capture (how it is produced, and from which build)                   | [`../scripts/capture-demo-video.sh`](../scripts/capture-demo-video.sh) (tool) + [`./screenshots/`](./screenshots/) (assets)  |
-| Public claims and launch copy (what may be cited, and what may not)                    | [launch-copy.md](./launch-copy.md)                                                                                           |
 | Phase 16 model-scouting campaign (funnel, ladder, workstream cards, verdicts)          | [phase16-model-scouting.md](./phase16-model-scouting.md)                                                                     |
 | Agent / contributor quick map                                                          | [`../AGENTS.md`](../AGENTS.md)                                                                                               |
 

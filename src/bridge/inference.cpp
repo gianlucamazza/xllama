@@ -49,7 +49,9 @@ InferenceResult run_inference_llama(const InferenceParams& params);
     #include <eh.h>
     #include "ort_genai_c.h"
 
-    #include "ort_sampling.h" // shared ORT search-param builder (#125); needs ort_genai_c.h
+#include "decode_loop_ort.h"
+#include "ort_common.h"
+#include "ort_sampling.h" // shared ORT search-param builder (#125); needs ort_genai_c.h
     #include "xllama/ort_raii.h"
 // clang-format on
 
@@ -93,11 +95,8 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
     InferenceResult res;
 
     // Convert SEH (D3D12/DML OOM/AV) → std::runtime_error so the catch block can log it.
-    _set_se_translator([](unsigned int code, EXCEPTION_POINTERS*) {
-        char b[48];
-        snprintf(b, sizeof(b), "SEH 0x%08X", code);
-        throw std::runtime_error(b);
-    });
+    // Consolidated into ort_common.h to eliminate duplication with session.cpp.
+    install_se_translator();
 
     const std::string model_dir = resolve_model_path(params.model_path);
 
@@ -106,9 +105,8 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
 
     try {
         // Redirect ORT GenAI internal log messages into xllama.log.
-        // Without this they go only to OutputDebugStringA (Device Portal debug output).
-        oga_check(OgaSetLogCallback([](const char* msg, size_t /*len*/) { log_output(msg); }),
-                  "OgaSetLogCallback");
+        // Consolidated into ort_common.h — eliminates duplication with session.cpp.
+        register_oga_logging();
 
         // Log memory state before the large ORT allocation for OOM diagnostics.
         {
@@ -311,58 +309,18 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
         if (!params.dump_logits_path.empty())
             dump_prefill_logits();
 
-        auto t_prefill_end = t0;
-
-        int n_generated = 0;
-        while (!OgaGenerator_IsDone(gen.get())) {
-            // #130: bound generation by n_predict explicitly. Until max_length
-            // became overridable this loop relied on IsDone, i.e. on max_length
-            // == n_prompt + n_predict — so raising max_length would also raise
-            // the answer length and collapse the two variables into one. With
-            // max_length_override == 0 this fires exactly where IsDone did, so
-            // no historical row changes. Mirrors Session::run_decode's cap.
-            if (params.n_predict > 0 && n_generated >= params.n_predict)
-                break;
-            if (params.abort_flag && params.abort_flag->load())
-                break;
-
-            // ORT GenAI ≥ 0.7: GenerateNextToken does compute + sample in one call
-            oga_check(OgaGenerator_GenerateNextToken(gen.get()), "GenerateNextToken");
-            if (n_generated == 0)
-                t_prefill_end = std::chrono::steady_clock::now();
-
-            const int32_t* next_toks = nullptr;
-            size_t n_next = 0;
-            oga_check(OgaGenerator_GetNextTokens(gen.get(), &next_toks, &n_next), "GetNextTokens");
-
-            for (size_t i = 0; i < n_next; ++i) {
-                const char* piece = nullptr;
-                oga_check(OgaTokenizerStreamDecode(stream.get(), next_toks[i], &piece),
-                          "TokenizerStreamDecode");
-                if (piece && *piece) {
-                    res.output_text += piece;
-                    if (params.on_token)
-                        params.on_token(std::string_view(piece));
-                }
-            }
-            ++n_generated;
-        }
+        // Consolidated decode loop — handles stop sequences (previously the
+        // stateless path silently ignored them), timing, and metrics.
+        run_decode_loop_ort(gen.get(), stream.get(), params, res, t0, n_prompt_tok,
+                            params.n_predict);
 
         auto t_end = std::chrono::steady_clock::now();
         double elapsed_s = std::chrono::duration<double>(t_end - t0).count();
-        double prefill_ms = std::chrono::duration<double, std::milli>(t_prefill_end - t0).count();
-        // Decode rate excludes the prefill iteration (its token and its time).
-        double decode_s = std::chrono::duration<double>(t_end - t_prefill_end).count();
-        int n_decode = n_generated > 0 ? n_generated - 1 : 0;
+        double prefill_ms = res.t_p_eval_ms;
+        double decode_s = res.t_eval_ms / 1000.0;
+        int n_decode = res.n_eval;
 
-        if (n_generated > 0) {
-            res.n_p_eval = static_cast<int>(n_prompt_tok);
-            res.t_p_eval_ms = prefill_ms;
-        }
-        res.n_eval = n_decode;
-        res.t_eval_ms = decode_s * 1000.0;
         res.peak_ws_mb = peak_working_set_mb();
-        res.success = true;
 
         char log_buf[256];
         snprintf(log_buf, sizeof(log_buf),

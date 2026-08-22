@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "xllama/personalize.h"
+#include "xllama/json_utils.h"
 #include "xllama/training.h"
 
 #include <cctype>
@@ -21,35 +22,6 @@ std::string to_lower(std::string s) {
     for (char& c : s)
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;
-}
-
-// Minimal JSON string escape for values we control (paths, display).
-std::string json_escape(const std::string& s) {
-    std::string o;
-    o.reserve(s.size() + 8);
-    for (char c : s) {
-        switch (c) {
-        case '"':
-            o += "\\\"";
-            break;
-        case '\\':
-            o += "\\\\";
-            break;
-        case '\n':
-            o += "\\n";
-            break;
-        case '\r':
-            o += "\\r";
-            break;
-        case '\t':
-            o += "\\t";
-            break;
-        default:
-            o += c;
-            break;
-        }
-    }
-    return o;
 }
 
 // Prefer the basename when the path looks like models/<id>/...

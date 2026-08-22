@@ -9,6 +9,7 @@
 #include "xllama/gpubw.h"
 #include "xllama/gpugemv.h"
 #include "xllama/inference.h"
+#include "xllama/json_utils.h"
 #include "xllama/membw.h"
 #include "xllama/path_utils.h"
 #include "xllama/personalize.h"
@@ -708,20 +709,7 @@ const char* input_status_name(winrt::Windows::Media::Audio::AudioDeviceNodeCreat
     return "Unrecognised";
 }
 
-std::string json_escape(const std::string& s) {
-    std::string o;
-    for (char c : s) {
-        if (c == '"' || c == '\\')
-            o += '\\', o += c;
-        else if (c == '\n')
-            o += "\\n";
-        else if (static_cast<unsigned char>(c) < 0x20)
-            continue;
-        else
-            o += c;
-    }
-    return o;
-}
+// json_escape is in xllama::json_utils.h — included above.
 
 } // namespace
 #endif // XLLAMA_UWP
@@ -846,9 +834,10 @@ void run_mic_probe() {
              "  \"peak\": %.8f,\n"
              "  \"error\": \"%s\"\n"
              "}\n",
-             ag_present, mc_present, json_escape(graph_status).c_str(),
-             json_escape(input_status).c_str(), sample_rate, channels, capture_ms,
-             static_cast<unsigned long long>(samples), rms, peak, json_escape(error).c_str());
+             ag_present, mc_present, xllama::json_escape(graph_status).c_str(),
+             xllama::json_escape(input_status).c_str(), sample_rate, channels, capture_ms,
+             static_cast<unsigned long long>(samples), rms, peak,
+             xllama::json_escape(error).c_str());
 
     log_output(std::string("[mic] ") + graph_status + " / " + input_status +
                " rms=" + std::to_string(rms) + " samples=" + std::to_string(samples) +

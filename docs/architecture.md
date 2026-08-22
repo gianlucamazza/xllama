@@ -46,12 +46,54 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `model_provision.h`                | `dir_satisfies_expected_files`, `normalize_model_path`                                                                    |
 | `manifest_merge.h`                 | `merge_manifest_entries` (per-entry catalogue override)                                                                   |
 | `membw.h`                          | `measure_membw` (STREAM-style bandwidth probe)                                                                            |
+| `inference.h`                      | `run_inference`, `write_bench_csv` — the public inference entry point                                                     |
+| `prompt_budget.h`                  | `fit_prompt` — exact token-budget trimmer (one enforcement point where the tokenizer lives)                               |
+| `autopilot.h`                      | `AutopilotAction`, `validate_autopilot_script` — console gate contract (WinRT-free)                                       |
+| `json_utils.h`                     | `json_escape`, `json_read_string` with `\uXXXX` decode (surrogate pairs) — canonical JSON helpers                         |
+| `cancel_policy.h`                  | `CancelTarget` + `cancel_target()` — which running job a cancel request targets                                           |
+| `kv_store.h`                       | `KvStore` — on-disk KV snapshot pool (3 files / 192 MB, LRU, fingerprinted)                                               |
+| `logit_dump.h`                     | Logit-parity harness: portable float32 dump + JSON sidecar, shared by both backends                                       |
+| `ramceil.h`                        | `probe_ram_ceiling` — heap ceiling probe (commits in steps, records platform counters)                                    |
+| `diskbw.h`                         | `measure_diskbw` — NVMe/disk bandwidth probe (sequential + random patterns)                                               |
+| `d3d12_dyn.h`                      | Dynamic d3d12.dll entry-point resolve (PE hygiene for AppContainer)                                                       |
+| `speculative.h`                    | `prompt_lookup_draft` — Phase 15 W2 draft-free prompt lookup (pure, host-testable)                                        |
+| `gpubw.h`                          | Phase 15 W3: GPU STREAM probe helpers + kill gate (#211)                                                                  |
+| `gpugemv.h`                        | Phase 15 H6.2: wave32 Q4_K GEMV density probe (#228)                                                                      |
+| `cli.h`                            | `parse_cli_args` — Linux command-line parsing                                                                             |
+| `platform.h`                       | `log_output`, `detect_threads(_llama)`, `peak_working_set_mb`, `gpu_mem_info`                                             |
+| `path_utils.h`                     | `resolve_model_path`, `first_gguf_in_dir`, `model_uses_llama_backend`                                                     |
+| `utf8_utils.h`                     | `utf8_to_wstring`, `wstring_to_utf8` (Windows/UWP)                                                                        |
+| `ort_raii.h`                       | RAII `unique_ptr` for `Oga*` types (ORT GenAI C API, UWP path)                                                            |
+| `llama_raii.h`                     | RAII `unique_ptr` for `llama_*` types (llama.cpp, Linux + UWP)                                                            |
+| `diffusion/png_writer.h`           | PNG writer for diffusion output                                                                                           |
+| `diffusion/half.h`                 | Half-precision float utilities                                                                                            |
+| `diffusion/euler_scheduler.h`      | Euler scheduler (header-only, golden-vector unit-tested)                                                                  |
+| `diffusion/clip_tokenizer.h`       | CLIP BPE tokenizer for diffusion                                                                                          |
 
 Bridge sources of note under `src/bridge/`: `session.cpp`, `inference.cpp`,
 `training.cpp`, `device_train.cpp`, `personalize.cpp`, `preference_capture.cpp`,
 `sampler_chain.h` / `ort_sampling.h` (one sampler chain per backend),
 `decode_loop.h` (one prefill and one generation loop, shared by
-`run_inference_llama` and `LlamaSession::generate`).
+`run_inference_llama` and `LlamaSession::generate`),
+`decode_loop_ort.h` (consolidated ORT GenAI decode loop — replaces duplicated
+loops in `run_inference_ort` and `OrtSession::run_decode`; stop sequences now
+applied to the stateless path),
+`ort_common.h` (shared ORT setup: SEH translator + `OgaSetLogCallback`),
+`chat_prompt.cpp` (`ChatFormat`, `chat_format_for`, `apply_stop_sequences`),
+`bench.cpp` (bench CSV writer with `run_index` for per-run variance),
+`platform.cpp` (`log_output` — writes `xllama.log` in UWP),
+`path_utils.cpp` (`resolve_model_path` — LocalState + InstalledPath fallback),
+`utf8_utils.cpp` (utf8 ↔ wstring),
+`cli.cpp` (CLI argument parsing),
+`json_utils.cpp` (canonical JSON helpers),
+`prompt_budget.cpp` (`fit_prompt` implementation),
+`autopilot.cpp` (`ApRun` driver),
+`kv_store.cpp` (KV snapshot pool with LRU eviction),
+`membw.cpp` (STREAM-style CPU bandwidth probe),
+`diskbw.cpp` (NVMe disk bandwidth probe),
+`ramceil.cpp` (heap ceiling probe),
+`gpubw.cpp` (GPU STREAM probe D3D12 driver),
+`gpugemv.cpp` (Q4_K GEMV density probe D3D12 driver).
 
 ## Inference backends and runtime dispatch
 
@@ -133,6 +175,30 @@ Reuse is gated by `kv_reuse_supported_for_model()` (`routing_policy.h`), which
 excludes the DirectML EP (continuous decoding is CPU-only, verified — the reuse
 turn produces zero cached tokens on DML). It is **not** gated by backend — GGUF
 KV-reuse is on.
+
+### KV snapshot pool (`KvStore`)
+
+Leaving a conversation writes its KV to `LocalState\kv\<id>.kv` and the first
+turn back restores it, so the switch costs a delta prefill instead of the
+history. The pool is managed by `KvStore` (`include/xllama/kv_store.h`):
+
+- **Fingerprinted** (model, n_ctx, KV quant, LoRA) — stale snapshots are
+  harmless by construction (they fall back to a normal prefill).
+- **Atomic writes** in 8 MB chunks (§9 AppContainer bound).
+- **Pool cap**: 3 files / 192 MB total, LRU eviction.
+- Dev Mode ships with ~2.2 GB free; a snapshot is ~12 KiB per resident token,
+  so the pool is sized to fit ~16 conversations at the default `n_ctx` 2048.
+
+A conversation that is stripped to empty (thinking model truncated to no answer)
+takes no KV snapshot (#170b).
+
+### Cancel policy (`cancel_policy.h`)
+
+The UI has one Cancel affordance and three jobs that can be running behind it —
+text inference, image generation, and on-device training — each stopped by a
+different mechanism. `cancel_target(image_running, training_running, text_running)`
+returns the correct `CancelTarget` (precedence: image > training > text). The
+decision is pure policy over three booleans, exhaustively tested on the host.
 
 The **process** keeps one resident session at a time: since PR #161/#164 it
 lives in `xllama::session_hub()` (`include/xllama/session_hub.h`), the single
@@ -331,15 +397,52 @@ and the headless `membw.flag` mode on Xbox (`uwp/App.cpp` → `inference-bridge.
 writes `membw-result.csv`). Console result substantiates the "~13 GB/s effective
 GEMV" figure (read 12.35 GB/s @1t; `benchmarks.md`).
 
+## Probe suite (bandwidth, heap, disk, GPU)
+
+A family of micro-bench probes that pin the platform's physical ceilings:
+
+| Probe          | Header      | What it measures                                                       | Console exposure         |
+| -------------- | ----------- | ---------------------------------------------------------------------- | ------------------------ |
+| **CPU membw**  | `membw.h`   | STREAM read/copy/triad over 256 MB (DRAM ceiling)                      | `--membw` / `membw.flag` |
+| **Disk bw**    | `diskbw.h`  | NVMe sequential + random read (4 GiB file, 8 MiB / 2 MiB blocks)       | `--diskbw`               |
+| **RAM ceil**   | `ramceil.h` | Heap commit ceiling (steps of 128 MB, page-fault in, record counters)  | `--ramceil`              |
+| **GPU STREAM** | `gpubw.h`   | D3D12 compute-shader STREAM read over ~1 GiB VRAM (kill gate 100 GB/s) | `gpubw.flag`             |
+| **GPU GEMV**   | `gpugemv.h` | Wave32 Q4_K GEMV density (G1 correctness + G2 density ≥ 40 GB/s)       | `gpugemv.flag`           |
+
+All probes share the same design: pure helpers (pattern fill, checksum, CSV
+serialization) are host-testable on Linux; the D3D12/Windows path returns
+`d3d12_ran=false` on non-Windows. Results are CSV-serialised with self-contained
+schemas (not the model-bench schema) and written to `bench/results/`.
+
+The **kill gates** are predeclared in the headers (not in docs) so that scripts
+and code stay in sync: `gpubw.h:kGpubwKillReadGbs` (100 GB/s),
+`gpugemv.h:kGpugemvKillPackedGbs` (8 GB/s = K1 kill, 40 GB/s = K2 gate).
+
+## Logit-parity harness
+
+`logit_dump.h` / `test_logit_parity.cpp` — a portable harness for verifying that
+both backends (llama.cpp and ORT GenAI) produce identical logits for the same
+prompt. Writes:
+
+- `<path>` — raw float32 little-endian, `vocab_size` values (last token)
+- `<path>.json` — `{ model, prompt, backend, vocab_size, greedy, top1_id, top1_piece }`
+
+The binary format matches `numpy.fromfile(dtype=np.float32)`. Dumps from both
+backends are compared by `scripts/compare-logits.py`. This is the gate for
+publishing ORT model assets: every asset must pass the logit-parity gate before
+`gh release upload` (runbook in `docs/model-selection.md#publishing-ort-model-assets-models-v1--logit-parity-gate`).
+
 ## Diffusion pipeline
 
-A from-scratch C++ pipeline (`uwp/diffuse.cpp`, `diffusion/`): CLIP BPE tokenizer +
-Euler scheduler (header-only, golden-vector unit-tested) driving **three sequential**
-ORT DirectML sessions (text encoder → UNet → VAE decoder), created→run→destroyed per
+A from-scratch C++ pipeline (`uwp/diffuse.cpp`, `diffusion/`): CLIP BPE tokenizer
+(`diffusion/clip_tokenizer.h`) + Euler scheduler (header-only, golden-vector
+unit-tested, `diffusion/euler_scheduler.h`) driving **three sequential** ORT
+DirectML sessions (text encoder → UNet → VAE decoder), created→run→destroyed per
 stage to fit the console GPU budget (`uwp-constraints.md` §5/§7). Plain ORT
 DirectML coexists with the XAML compositor in-process (unlike ORT GenAI's DML
-init — §7). Optional TAESD tiny VAE shortens the decode stage. Triggered from
-the Image dialog or the headless `diffuse.flag`.
+init — §7). Optional TAESD tiny VAE shortens the decode stage. PNG output via
+`diffusion/png_writer.h`; half-precision floats via `diffusion/half.h`. Triggered
+from the Image dialog or the headless `diffuse.flag`.
 
 ## LAN HTTP endpoint (OpenAI-compat)
 
@@ -483,6 +586,163 @@ host Release smoke (quality + peak)
 - **Do not** restate a number a generated file already owns unless a gate checks
   the copies agree. `check-coherence.py` now pins the `model-matrix.md` metrics
   rows against `phase14-console.csv`; that is the price of the second copy.
+
+## Unit test map (host suite)
+
+Every `include/xllama/X.h` has a corresponding `tests/test_X.cpp`. The suite
+is **243 test cases / 4346 assertions** (doctest); CI enforces the count in
+`build-linux.yml` against `ctest --list-tests`.
+
+| Test file                     | Tests | Header under test                  |
+| ----------------------------- | ----- | ---------------------------------- |
+| `test_json_utils.cpp`         | 11    | `json_utils.h`                     |
+| `test_cancel_policy.cpp`      | 8     | `cancel_policy.h`                  |
+| `test_autopilot.cpp`          | 15    | `autopilot.h`                      |
+| `test_routing_policy.cpp`     | —     | `routing_policy.h`                 |
+| `test_prompt_budget.cpp`      | —     | `prompt_budget.h`                  |
+| `test_personalize.cpp`        | —     | `personalize.h`                    |
+| `test_model_provision.cpp`    | —     | `model_provision.h`                |
+| `test_session.cpp`            | —     | `session.h`                        |
+| `test_sampling.cpp`           | —     | `sampling.h`                       |
+| `test_training.cpp`           | —     | `training.h` / `training_params.h` |
+| `test_device_train.cpp`       | —     | `device_train.h`                   |
+| `test_preference_capture.cpp` | —     | `preference_capture.h`             |
+| `test_chat_prompt.cpp`        | —     | `chat_prompt.h`                    |
+| `test_manifest_merge.cpp`     | —     | `manifest_merge.h`                 |
+| `test_path.cpp`               | —     | `path_utils.h`                     |
+| `test_utf8.cpp`               | —     | `utf8_utils.h`                     |
+| `test_bench.cpp`              | —     | `bench.cpp`                        |
+| `test_chat_history.cpp`       | —     | `chat-history.h`                   |
+| `test_api_config.cpp`         | —     | API config validation              |
+| `test_cli.cpp`                | —     | `cli.h`                            |
+| `test_diskbw.cpp`             | —     | `diskbw.h`                         |
+| `test_gpubw.cpp`              | —     | `gpubw.h`                          |
+| `test_gpugemv.cpp`            | —     | `gpugemv.h`                        |
+| `test_kv_store.cpp`           | —     | `kv_store.h`                       |
+| `test_logit_parity.cpp`       | —     | `logit_dump.h`                     |
+| `test_membw.cpp`              | —     | `membw.h`                          |
+| `test_ramceil.cpp`            | —     | `ramceil.h`                        |
+| `test_speculative.cpp`        | —     | `speculative.h`                    |
+| `test_diffusion.cpp`          | —     | `diffusion/`                       |
+
+## UWP headless flag registry
+
+`uwp/App.cpp` (`HeadlessView::Run`) activates a `CoreWindow` without a swapchain
+or XAML compositor, giving D3D12-clean hosts for DirectML work. The following
+flags are supported:
+
+| Flag                  | Entry point              | Purpose                                                |
+| --------------------- | ------------------------ | ------------------------------------------------------ |
+| `bench.flag`          | `main_loop`              | Model benchmark (tok/s, peak, latency)                 |
+| `diffuse.flag`        | `run_diffuse`            | SD-Turbo diffusion pipeline (headless)                 |
+| `diffuse-inproc.flag` | `run_diffuse` in-process | Diffusion on background MTA thread inside XAML process |
+| `membw.flag`          | `run_membw`              | CPU STREAM bandwidth probe                             |
+| `diskbw.flag`         | `run_diskbw`             | NVMe sequential + random read probe                    |
+| `gpubw.flag`          | `run_gpubw`              | GPU STREAM probe (D3D12 compute shader)                |
+| `gpugemv.flag`        | `run_gpugemv`            | Q4_K GEMV density probe (D3D12 compute shader)         |
+| `ramceil.flag`        | `run_ramceil`            | Heap ceiling probe (commit in steps)                   |
+| `mic.flag`            | `run_mic_probe`          | Microphone / AudioGraph probe                          |
+| `logits.flag`         | `run_logits`             | Logit-parity dump (float32 + JSON sidecar)             |
+| `oprepro.flag`        | `run_oprepro`            | Single-op CPU-vs-DML diagnostic (`repro.onnx`)         |
+| `train.flag`          | `run_train`              | On-device training (Lane B partial FT)                 |
+| `api.flag`            | `run_server`             | LAN API server (persistence via `LocalState\api.flag`) |
+
+## UWP front-end summary
+
+`MainPageController` (`uwp/MainPage.cpp`) owns the chat UI surface. Key flows:
+
+- **B button** (`BackRequested`): cancels a running inference; otherwise does
+  nothing. Unhandled `BackRequested` suspends the app — the handler now always
+  marks the event handled.
+- **Gamepad**: `GamepadView` clears output; `GamepadY` focuses the prompt box.
+- **Token streaming**: `m_token_buffer` drained to screen by a 40 ms
+  `DispatcherTimer` (`FlushTokenBuffer`); live tok/s counter derived from
+  `m_first_token_at`.
+- **Smart autoscroll**: `m_at_bottom` tracked via `ScrollViewer.ViewChanged`;
+  auto-scroll suppressed during manual scroll-up.
+- **Feedback controls**: Like/Dislike/Correct buttons with `ContentDialog`
+  correction dialog (TextBox) that rebuilds the assistant message.
+- **History dialog**: `ContentDialog` with `ListView`, per-item delete, clear-all;
+  leak fix via `winrt::make_weak(dlg)` (#219).
+- **KV snapshot save**: `WaitKvSnapshotAsync` (#216 race fix) +
+  `SaveKvSnapshotAsync` with thinking-model early-return and ORT-backend skip.
+- **Catalogue model knobs**: `ApplyCatalogueModelKnobs` applies `n_predict` from
+  manifest on model select (thinking models get 1024).
+- **Manifest cache**: parsed once, cached; invalidated on personalized-model
+  publish.
+
+`ChatHistory` (`uwp/chat-history.h`) persists conversations as JSON files under
+`LocalState\chats\<id>.json` (`id`, `title`, `messages[]` with `role`, `content`,
+`ts_unix`, `partial`, `feedback_label`). An `index.json` (sorted by
+`last_modified` desc) drives the History dialog. `TitleFrom()` takes the first
+non-empty line of the first user message (truncated at 60 chars). IDs use
+`CoCreateGuid`.
+
+`ManifestEntry` (`uwp/model-downloader.h`) schema:
+
+| Field         | Type          | Default       | Effect                                                     |
+| ------------- | ------------- | ------------- | ---------------------------------------------------------- |
+| `name`        | `wstring`     | —             | Catalogue identifier                                       |
+| `display`     | `wstring`     | —             | User-facing name                                           |
+| `kind`        | `wstring`     | `"ort-genai"` | `"ort-genai"` / `"diffusion"` / `"gguf"`                   |
+| `hf_base_url` | `wstring`     | —             | Download source (GitHub Release / HF)                      |
+| `files`       | `ModelFile[]` | —             | `{filename, remote, approx_bytes}`                         |
+| `lora`        | `wstring`     | —             | GGUF LoRA relative to model dir                            |
+| `lora_scale`  | `double`      | `1.0`         | LoRA scale factor                                          |
+| `n_ctx`       | `int`         | `0`           | `0` → `kDefaultNCtx` (2048); else clamped [512, 8192]      |
+| `n_predict`   | `int`         | `0`           | `0` → keep Settings value; applied on model select         |
+| `role`        | `wstring`     | `""`          | `""` (chat) or `"coding"` (4096 ctx, coding system prompt) |
+
+`IsModelProvisioned(name, expected_files)` runs in dual mode: **expected-aware**
+requires the manifest's `files[].filename` to be present (case-insensitive),
+while **loose** mode (no catalogue entry) accepts any `.gguf`.
+
+## CLI flags (complete enumeration)
+
+`src/main.cpp` + `src/bridge/cli.cpp`:
+
+| Flag                      | Purpose                                                      |
+| ------------------------- | ------------------------------------------------------------ |
+| `--model`                 | Model path or catalogue name                                 |
+| `--prompt`                | Single-shot prompt                                           |
+| `--chat`                  | Wrap prompt with chat template + stop tokens                 |
+| `--max-length`            | Max generation tokens                                        |
+| `--temperature`           | Sampling temperature                                         |
+| `--top-p`                 | Top-p sampling                                               |
+| `--top-k`                 | Top-k sampling                                               |
+| `--repetition-penalty`    | Repetition penalty                                           |
+| `--n-predict`             | Override `n_predict`                                         |
+| `--batch`                 | `n_batch` (prefill chunk size)                               |
+| `--ubatch`                | `n_ubatch` (physical ubatch)                                 |
+| `--threads`               | Thread count                                                 |
+| `--kv-q8`                 | Enable KV quantization (q8_0)                                |
+| `--lora`                  | LoRA path                                                    |
+| `--prompt-lookup`         | Enable prompt-lookup speculative decoding                    |
+| `--membw`                 | CPU STREAM bandwidth probe                                   |
+| `--diskbw`                | NVMe disk bandwidth probe                                    |
+| `--ramceil`               | Heap ceiling probe                                           |
+| `--gpubw`                 | GPU STREAM probe (reports `d3d12_ran=false` on Linux)        |
+| `--gpugemv`               | Q4_K GEMV density probe (reports `d3d12_ran=false` on Linux) |
+| `--train-job`             | Run training job (JSON path)                                 |
+| `--validate-train-job`    | Validate training job JSON                                   |
+| `--training-capabilities` | Print capability matrix                                      |
+| `--logits`                | Logit dump for parity comparison                             |
+| `--help`                  | Usage                                                        |
+
+Machine-readable output: `SPEC_STATS` line on stderr for bench scripts.
+
+## Shader pipeline
+
+`shaders/` contains HLSL compute shaders and their AOT-compiled DXIL headers:
+
+| Shader                    | Purpose                       | Output                                |
+| ------------------------- | ----------------------------- | ------------------------------------- |
+| `gpubw_stream.hlsl`       | GPU STREAM read (~1 GiB VRAM) | `generated/gpubw_stream.dxil.h`       |
+| `gpugemv_q4k.hlsl`        | Naive Q4_K GEMV               | `generated/gpugemv_q4k.dxil.h`        |
+| `gpugemv_q4k_wave32.hlsl` | Wave32-optimized Q4_K GEMV    | `generated/gpugemv_q4k_wave32.dxil.h` |
+
+Compile scripts: `scripts/compile-gpubw-shader.sh`,
+`scripts/compile-gpugemv-shader.sh` (fxc/dxc → binary → C header).
 
 ## See also
 

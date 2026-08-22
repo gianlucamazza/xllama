@@ -59,21 +59,13 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
 #include <eh.h>
 #include "ort_genai_c.h"
 
+#include "decode_loop_ort.h"
+#include "ort_common.h"
 #include "ort_sampling.h" // shared ORT search-param builder (#125); needs ort_genai_c.h
 #include "xllama/ort_raii.h"
 // clang-format on
 
 namespace xllama {
-
-namespace {
-inline void install_se_translator() {
-    _set_se_translator([](unsigned int code, EXCEPTION_POINTERS*) {
-        char b[48];
-        snprintf(b, sizeof(b), "SEH 0x%08X", code);
-        throw std::runtime_error(b);
-    });
-}
-} // namespace
 
 class OrtSession final : public Session {
   public:
@@ -135,58 +127,13 @@ class OrtSession final : public Session {
     // GenerateNextToken (in ORT GenAI the prompt prefill runs during the first
     // compute step), so decode timing excludes prefill. n_predict_cap > 0 caps
     // per-turn generation (chat mode); 0 relies on max_length (stateless mode).
+    //
+    // Consolidated into decode_loop_ort.h to eliminate duplication with
+    // run_inference_ort (inference.cpp).
     void run_decode(OgaGenerator* gen, OgaTokenizerStream* stream, const GenerateParams& gp,
                     InferenceResult& res, std::chrono::steady_clock::time_point t_prefill_start,
                     int n_prompt_tok, int n_predict_cap) {
-        auto t_prefill_end = t_prefill_start;
-        int n_generated = 0;
-        bool stopped_by_seq = false;
-        bool first = true;
-
-        while (!OgaGenerator_IsDone(gen)) {
-            if (gp.abort_flag && gp.abort_flag->load())
-                break;
-            if (n_predict_cap > 0 && n_generated >= n_predict_cap)
-                break;
-
-            oga_check(OgaGenerator_GenerateNextToken(gen), "GenerateNextToken");
-            if (first) {
-                t_prefill_end = std::chrono::steady_clock::now();
-                first = false;
-            }
-
-            const int32_t* next_toks = nullptr;
-            size_t n_next = 0;
-            oga_check(OgaGenerator_GetNextTokens(gen, &next_toks, &n_next), "GetNextTokens");
-            for (size_t i = 0; i < n_next; ++i) {
-                const char* piece = nullptr;
-                oga_check(OgaTokenizerStreamDecode(stream, next_toks[i], &piece),
-                          "TokenizerStreamDecode");
-                if (piece && *piece) {
-                    res.output_text += piece;
-                    if (gp.on_token)
-                        gp.on_token(std::string_view(piece));
-                }
-            }
-            ++n_generated;
-
-            if (apply_stop_sequences(res.output_text, gp.stop_sequences)) {
-                stopped_by_seq = true;
-                break;
-            }
-        }
-
-        auto t_end = std::chrono::steady_clock::now();
-        res.n_p_eval = n_prompt_tok;
-        res.t_p_eval_ms =
-            std::chrono::duration<double, std::milli>(t_prefill_end - t_prefill_start).count();
-        // Decode excludes the first token (produced by the prefill step), matching
-        // the bench convention so interactive and CSV tok/s are comparable.
-        res.n_eval = n_generated > 0 ? n_generated - 1 : 0;
-        res.t_eval_ms = std::chrono::duration<double, std::milli>(t_end - t_prefill_end).count();
-        res.ended_with_stop = stopped_by_seq;
-        res.peak_ws_mb = peak_working_set_mb();
-        res.success = true;
+        run_decode_loop_ort(gen, stream, gp, res, t_prefill_start, n_prompt_tok, n_predict_cap);
     }
 
     // Legacy stateless turn: fresh generator, full prompt, destroyed at return.
@@ -359,8 +306,8 @@ std::unique_ptr<Session> create_ort(const SessionParams& sp, std::string* err) {
 
     const std::string model_dir = resolve_model_path(sp.model_path);
     try {
-        oga_check(OgaSetLogCallback([](const char* msg, size_t) { log_output(msg); }),
-                  "OgaSetLogCallback");
+        // Redirect ORT GenAI internal log messages into xllama.log.
+        register_oga_logging();
 
         OgaModel* raw_model = nullptr;
         oga_check(OgaCreateModel(model_dir.c_str(), &raw_model), "OgaCreateModel");

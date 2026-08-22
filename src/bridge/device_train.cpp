@@ -6,6 +6,7 @@
 #include "xllama/device_train.h"
 
 #include "xllama/chat_prompt.h"
+#include "xllama/json_utils.h"
 #include "xllama/llama_raii.h"
 #include "xllama/platform.h"
 #include "xllama/session.h"
@@ -37,35 +38,7 @@ void status(const DeviceTrainCallbacks& cb, const std::string& line) {
 }
 #endif
 
-#ifdef XLLAMA_DEVICE_TRAIN
-std::string json_escape(const std::string& s) {
-    std::string out;
-    out.reserve(s.size() + 8);
-    for (char c : s) {
-        switch (c) {
-        case '"':
-            out += "\\\"";
-            break;
-        case '\\':
-            out += "\\\\";
-            break;
-        case '\n':
-            out += "\\n";
-            break;
-        case '\r':
-            out += "\\r";
-            break;
-        case '\t':
-            out += "\\t";
-            break;
-        default:
-            out.push_back(c);
-            break;
-        }
-    }
-    return out;
-}
-#endif
+// json_escape is in json_utils.h — included above.
 
 // --- minimal JSONL chat-sample extraction ({"label","messages":[{role,content}]}) ---
 

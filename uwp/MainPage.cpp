@@ -15,6 +15,7 @@
     #include "inference-bridge.h"
     #include "xllama/cancel_policy.h"
     #include "xllama/chat_prompt.h"
+    #include "xllama/json_utils.h"
     #include "xllama/kv_store.h"
     #include "xllama/model_provision.h"
     #include "xllama/path_utils.h"
@@ -1161,42 +1162,14 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
     self->LoadConversation(index[static_cast<size_t>(sel)].id);
 }
 
-// Escape a UTF-8 string for inline JSON (same logic as chat-history.cpp json_escape)
-static std::string settings_json_escape(const std::string& s) {
-    std::string out;
-    for (unsigned char c : s) {
-        if (c == '"')
-            out += "\\\"";
-        else if (c == '\\')
-            out += "\\\\";
-        else if (c == '\n')
-            out += "\\n";
-        else if (c == '\r')
-            out += "\\r";
-        else if (c >= 0x20)
-            out += static_cast<char>(c);
-    }
-    return out;
-}
+// Escape a UTF-8 string for inline JSON — delegate to xllama::json_escape.
+// json_escape is in xllama::json_utils.h — included above.
 
 // Read a quoted JSON string starting after the opening '"'. Returns "" on failure.
 static std::string settings_read_string(const std::string& json, size_t& pos) {
     std::string out;
-    while (pos < json.size()) {
-        char c = json[pos++];
-        if (c == '"')
-            return out;
-        if (c == '\\' && pos < json.size()) {
-            char e = json[pos++];
-            if (e == 'n')
-                out += '\n';
-            else if (e == 't')
-                out += '\t';
-            else
-                out += e;
-        } else
-            out += c;
-    }
+    if (!json_read_string(json, pos, out))
+        return {};
     return out;
 }
 
@@ -1377,8 +1350,8 @@ void MainPageController::SaveSettings() {
             "    \"n_predict\": %d\n"
             "  }\n"
             "}\n",
-            settings_json_escape(m_system_prompt).c_str(), settings_json_escape(model_utf8).c_str(),
-            m_kv_reuse ? "true" : "false", m_routing, settings_json_escape(m_gpu_model).c_str(),
+            xllama::json_escape(m_system_prompt).c_str(), xllama::json_escape(model_utf8).c_str(),
+            m_kv_reuse ? "true" : "false", m_routing, xllama::json_escape(m_gpu_model).c_str(),
             m_diffuse_taesd ? "true" : "false", m_diffuse_seed, static_cast<double>(m_temperature),
             static_cast<double>(m_top_p), m_top_k, static_cast<double>(m_repetition_penalty),
             m_n_predict);

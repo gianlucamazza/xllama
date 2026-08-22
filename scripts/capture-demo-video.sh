@@ -98,7 +98,7 @@ jq -e . "$DEMO_SCRIPT" >/dev/null || {
 # The version is read from the manifest, never typed here. The previous script
 # had v1.2.0 baked into both the output path and the watermark, so re-running it
 # produced a file claiming to be a release that was four minors old — which is
-# how the README ended up linking a demo docs/launch-copy.md forbids citing.
+# how the README ended up linking a stale demo.
 VERSION=$(sed -n 's/.*Version="\([0-9.]*\)".*/\1/p' "${REPO_ROOT}/uwp/AppxManifest.xml" | head -n1)
 [[ -n "$VERSION" ]] || {
 	echo "Error: could not read Version from uwp/AppxManifest.xml" >&2

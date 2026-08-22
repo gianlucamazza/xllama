@@ -36,22 +36,48 @@ xllama/
 │   ├── cli.h                # parse_cli_args (Linux)
 │   ├── platform.h           # log_output, detect_threads(_llama), peak_working_set_mb
 │   ├── path_utils.h         # resolve_model_path, first_gguf_in_dir, model_uses_llama_backend
-│   └── utf8_utils.h         # utf8 <-> wstring (Windows)
+│   ├── utf8_utils.h         # utf8 <-> wstring (Windows)
+│   ├── chat_prompt.h        # ChatFormat, chat_format_for, apply_stop_sequences
+│   ├── model_provision.h    # dir_satisfies_expected_files, normalize_model_path
+│   ├── manifest_merge.h     # merge_manifest_entries (per-entry catalogue override)
+│   ├── autopilot.h          # AutopilotAction, validate_autopilot_script (console gates)
+│   ├── prompt_budget.h      # fit_prompt — exact token-budget trimmer
+│   ├── json_utils.h         # json_escape, json_read_string (canonical JSON helpers)
+│   ├── cancel_policy.h      # CancelTarget — which running job a cancel request targets
+│   ├── kv_store.h           # KvStore — on-disk KV snapshot pool (3 files / 192 MB, LRU)
+│   ├── logit_dump.h         # Logit-parity harness: float32 dump + JSON sidecar
+│   ├── ramceil.h            # probe_ram_ceiling — heap ceiling probe
+│   ├── diskbw.h             # measure_diskbw — NVMe/disk bandwidth probe
+│   ├── d3d12_dyn.h          # Dynamic d3d12.dll entry-point resolve (AppContainer PE hygiene)
+│   ├── membw.h              # measure_membw — STREAM-style CPU bandwidth probe
+│   └── diffusion/           # Diffusion sub-pipeline (CLIP tokenizer, Euler scheduler, PNG writer)
 ├── src/bridge/              # Shared implementation (Linux + UWP)
 │   ├── inference.cpp        # ORT GenAI and/or llama_decode (unified: runtime dispatch)
 │   ├── sampler_chain.h      # add_sampler_stages — the one llama.cpp sampler chain (#125)
 │   ├── ort_sampling.h       # apply_ort_sampling — the ORT twin, greedy guard shared (#141)
 │   ├── decode_loop.h        # shared prefill/decode; W2 prompt-lookup verify (opt-in)
+│   ├── decode_loop_ort.h    # consolidated ORT GenAI decode loop (stop sequences on stateless path)
+│   ├── ort_common.h         # Shared ORT setup: SEH translator + OgaSetLogCallback
 │   ├── session.cpp          # xllama::Session (OrtSession UWP + LlamaSession Linux)
 │   ├── training.cpp         # TrainingJob validate/parse (host + UWP linkable)
 │   ├── device_train.cpp     # Lane B engine: prepare → train → export → evaluate
 │   ├── personalize.cpp      # Phase 11 pure helpers
 │   ├── preference_capture.cpp
+│   ├── chat_prompt.cpp      # ChatFormat, chat_format_for, apply_stop_sequences
 │   ├── bench.cpp            # bench CSV writer (incl. run_index)
 │   ├── platform.cpp         # log_output (writes xllama.log in UWP)
 │   ├── path_utils.cpp       # resolve_model_path: LocalState\models\ + InstalledPath fallback
 │   ├── utf8_utils.cpp
-│   └── cli.cpp
+│   ├── cli.cpp
+│   ├── json_utils.cpp       # json_escape, json_read_string implementation
+│   ├── prompt_budget.cpp    # fit_prompt implementation
+│   ├── autopilot.cpp        # ApRun driver
+│   ├── kv_store.cpp         # KvStore with LRU eviction
+│   ├── membw.cpp            # STREAM-style CPU bandwidth probe
+│   ├── diskbw.cpp           # NVMe disk bandwidth probe
+│   ├── ramceil.cpp          # Heap ceiling probe
+│   ├── gpubw.cpp            # GPU STREAM probe D3D12 driver
+│   └── gpugemv.cpp          # Q4_K GEMV density probe D3D12 driver
 ├── src/main.cpp             # Linux entry point (getopt_long; --train-job)
 ├── training/                # Training pillar ops: jobs/, manifest-overrides/, datasets, host PEFT
 ├── docs/                    # SSOT map in docs/README.md

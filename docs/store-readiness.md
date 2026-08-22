@@ -19,8 +19,7 @@ Privacy URL: <https://gianlucamazza.github.io/xllama/privacy.html>.
 **Audience for a eventual listing:** hobbyist local-LLM / homebrew Xbox users
 who should not need Dev Mode. Contributors keep the Dev Mode sideload path.
 
-**Related:** plan in session / product intent; `docs/launch-copy.md` (claims
-that must not be made); `docs/api-endpoint.md` (LAN: not for the Store);
+**Related:** plan in session / product intent; `docs/api-endpoint.md` (LAN: not for the Store);
 `docs/install-release.md` (Dev Mode only today).
 
 ---
@@ -96,7 +95,7 @@ Dev Mode installs when the Store identity is reserved.
 2. **First-run disclosure:** local AI; may be wrong or inappropriate; not
    affiliated with Microsoft.
 3. **Diffuse opt-in** + short NSFW risk note (or ship text-only first).
-4. No false claims (`docs/launch-copy.md`: not “first LLM on Xbox”).
+4. No false claims (e.g. "first LLM on Xbox").
 5. **Privacy policy** URL (what stays on device; outbound = model downloads only
    unless opt-in telemetry is added later — default off).
 6. **Support:** GitHub Issues and/or email.
@@ -340,9 +339,8 @@ Pages from `docs/` on `main`; Jekyll renders this file):
 
 Paste into Partner Center. Limits from
 [Store listing info (MSIX)](https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/add-and-edit-store-listing-info).
-Numbers are Game-envelope Series S figures from `docs/launch-copy.md` /
-`bench/results` — do not quote App-mode tok/s. Do not claim “first LLM on Xbox”
-(`docs/launch-copy.md`).
+Numbers are Game-envelope Series S figures from `bench/results` — do not quote
+App-mode tok/s. Do not claim "first LLM on Xbox".
 
 | Field                   | Draft                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

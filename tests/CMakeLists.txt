@@ -32,6 +32,7 @@ add_executable(xllama-tests
     test_logit_parity.cpp
     test_training.cpp
     test_device_train.cpp
+    test_json_utils.cpp
     test_preference_capture.cpp
     test_personalize.cpp
     test_api_config.cpp
