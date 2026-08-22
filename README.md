@@ -7,6 +7,7 @@
 [![build-uwp](https://github.com/gianlucamazza/xllama/actions/workflows/build-uwp.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-uwp.yml)
 [![build-linux](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?logo=github)](https://github.com/sponsors/gianlucamazza)
 
 **v1.5.6.0** · [CHANGELOG](CHANGELOG.md) · [ROADMAP](ROADMAP.md)
 
@@ -241,6 +242,15 @@ Areas of interest:
 - Non-Windows developer documentation
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
+
+## Support
+
+xllama is free and MIT-licensed. If it's useful to you, you can support its
+development on [GitHub Sponsors](https://github.com/sponsors/gianlucamazza) —
+funds go to development time, Xbox Dev Mode costs, and model/storage budgets
+for testing.
 
 ---
 
