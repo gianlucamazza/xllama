@@ -1,6 +1,6 @@
 # xllama
 
-> Local LLM + diffusion on Xbox Series S — dual-backend dispatch,
+> Local LLM + diffusion + on-device training on Xbox Series S|X — dual-backend dispatch,
 > OpenAI-compat LAN endpoint, single-session invariant.
 > Architecture showcase under real constraints (UWP, console, 10 GB RAM).
 
@@ -128,6 +128,18 @@ Llama.cpp is both benchmarking lane and shipping backend.
 - **Train** — on-device partial FT (Lane B), host PEFT (Lane A), serve merged GGUF (Lane C)
 - **LAN API** — OpenAI-compat `POST /v1/chat/completions`, preferences, training status
 - **Bench** — headless tok/s, membw, diskbw, gpubw, gpugemv, ramceil probes
+
+---
+
+## Supported models
+
+| Model | Params | Decode | Role |
+| ----- | ------ | ------ | ---- |
+| LFM2.5-230M | 230M | **119.2** tok/s | Floor (fastest, 241 MB) |
+| LFM2.5-350M | 350M | **94.9** tok/s | Default chat |
+| LFM2-2.6B | 2.6B | **18.4** tok/s | Quality (H9 7/8) |
+
+Full catalogue + Phase 14 coding models: [model-matrix.md](docs/model-matrix.md) · [benchmarks.md](docs/benchmarks.md)
 
 ---
 
