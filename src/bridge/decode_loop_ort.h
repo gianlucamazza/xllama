@@ -13,8 +13,12 @@
 
 #pragma once
 
+// Opaque forward declarations — the function takes raw pointers only.
+// Callers (session.cpp, inference.cpp) include ort_genai_c.h before this
+// header, so the full definitions are available in the TU.
 #ifdef XLLAMA_USE_ORT
-    #include "ort_genai_c.h"
+struct OgaGenerator;
+struct OgaTokenizerStream;
 #endif
 
 #include "xllama/chat_prompt.h"      // apply_stop_sequences
