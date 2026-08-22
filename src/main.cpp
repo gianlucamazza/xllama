@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    #ifdef XLLAMA_BUILD_PROBES
+#ifdef XLLAMA_BUILD_PROBES
     // --membw: model-free CPU memory-bandwidth micro-bench. Runs a single-thread
     // pass and a full-width pass so the ratio (scaling) is visible; prints the CSV
     // row so it can be appended to a results file.

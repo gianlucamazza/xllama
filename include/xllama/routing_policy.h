@@ -13,8 +13,8 @@
 // SDK usage:
 //   xllama::RoutingPolicy policy;
 //   policy.allow_kind = [](const std::wstring& k) { return k != L"gguf"; };
-//   policy.reuse_kv_for_model = [](const std::string& m) { return m.find("dml") == std::string::npos; };
-//   auto decision = policy.decide(s, n_tok, base_is_gguf, gpu_available);
+//   policy.reuse_kv_for_model = [](const std::string& m) { return m.find("dml") ==
+//   std::string::npos; }; auto decision = policy.decide(s, n_tok, base_is_gguf, gpu_available);
 #pragma once
 
 #include "xllama/inference_params.h" // kDefaultNCtx
@@ -220,8 +220,9 @@ inline bool kv_reuse_allowed_for_kind_impl(const std::wstring& kind) {
 struct RoutingPolicy {
     // GPU allowlist — #91 postmortem: only parity-validated DML assets may
     // route to GPU. (Inlined to avoid circular init through default_policy().)
-    std::function<bool(std::string_view gpu_model)> dml_text_model_ok_fn =
-        [](std::string_view m) { return m == "smollm2-360m-dml-fp16-v2"; };
+    std::function<bool(std::string_view gpu_model)> dml_text_model_ok_fn = [](std::string_view m) {
+        return m == "smollm2-360m-dml-fp16-v2";
+    };
 
     // Decide which model to load for the first turn. (Inlined to avoid circular
     // init through default_policy().)
@@ -248,16 +249,19 @@ struct RoutingPolicy {
         };
 
     // Feature gates by catalogue kind.
-    std::function<bool(const std::wstring& kind)> allow_kind_fn =
-        [](const std::wstring& k) { return routing_allowed_for_kind_impl(k); };
+    std::function<bool(const std::wstring& kind)> allow_kind_fn = [](const std::wstring& k) {
+        return routing_allowed_for_kind_impl(k);
+    };
 
     // KV-reuse gate by catalogue kind.
-    std::function<bool(const std::wstring& kind)> reuse_kv_kind_fn =
-        [](const std::wstring& k) { return kv_reuse_allowed_for_kind_impl(k); };
+    std::function<bool(const std::wstring& kind)> reuse_kv_kind_fn = [](const std::wstring& k) {
+        return kv_reuse_allowed_for_kind_impl(k);
+    };
 
     // KV-reuse gate by model name (DML models reject continuous decoding).
-    std::function<bool(std::string_view model)> reuse_kv_model_fn =
-        [](std::string_view m) { return !model_is_dml(m); };
+    std::function<bool(std::string_view model)> reuse_kv_model_fn = [](std::string_view m) {
+        return !model_is_dml(m);
+    };
 
     // Convenience wrappers that dispatch through the callbacks.
     inline bool dml_text_model_ok(std::string_view gpu_model) const {
