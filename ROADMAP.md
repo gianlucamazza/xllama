@@ -5,12 +5,15 @@ performance belongs in `docs/benchmarks.md`.
 
 ## Current product state
 
-- Current manifest: **1.5.5.0** under the **`GianlucaMazza.xllama`** identity
+- Current manifest: **1.5.6.0** under the **`GianlucaMazza.xllama`** identity
   (in-place update from 1.5.x; still breaking vs ≤1.4.x, see
-  `docs/install-release.md`). **v1.5.5.0** (2026-08-20): Phase 16 floor
-  `lfm25-230m`; llama.cpp pin `0865990`; diskbw + mic probes. Previous:
-  **v1.5.4.0** #216/#223/10-gate suite; **v1.5.3.0** titles/History/dual-CRT;
-  **v1.5.2.0** Phase 14; **v1.5.1.0** Phase 13; **v1.5.0.0** perf + rebrand.
+  `docs/install-release.md`). **v1.5.6.0** (2026-08-22): Phase 16 catalogue
+  win + llama.cpp pin `3cb7ffb`; SDK transition (SessionHub factory, probe
+  optionals `XLLAMA_BUILD_PROBES`, RoutingPolicy callbacks, Doxygen headers,
+  modular `docs/sdk/`). Previous: **v1.5.5.0** (2026-08-20) Phase 16 floor
+  `lfm25-230m`; **v1.5.4.0** #216/#223/10-gate suite; **v1.5.3.0**
+  titles/History/dual-CRT; **v1.5.2.0** Phase 14; **v1.5.1.0** Phase 13;
+  **v1.5.0.0** perf + rebrand.
 - Shipping artifact: unified ORT GenAI + llama.cpp, with pinned patched runtime
   DLLs while upstream fixes have not reached NuGet. The UWP ggml build now
   enables `GGML_USE_CPU_REPACK` (PR #155): **GGUF prefill +62%** on Q4_K.

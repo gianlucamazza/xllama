@@ -793,7 +793,13 @@ def main() -> int:
     # --- links ---
     def check_links(md: Path, base: Path) -> list[str]:
         broken: list[str] = []
-        for link in re.findall(r"\]\(([^)]+)\)", md.read_text(encoding="utf-8")):
+        # Fenced blocks and inline code spans hold C++ snippets whose lambdas
+        # (`[](std::string_view m){...}`) parse as markdown links — strip them
+        # before matching.
+        text = md.read_text(encoding="utf-8")
+        text = re.sub(r"```.*?```", "", text, flags=re.DOTALL)
+        text = re.sub(r"`[^`\n]*`", "", text)
+        for link in re.findall(r"\]\(([^)]+)\)", text):
             if link.startswith(("http", "#", "mailto:")):
                 continue
             target = link.split("#")[0]
