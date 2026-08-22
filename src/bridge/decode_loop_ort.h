@@ -22,14 +22,13 @@ struct OgaTokenizerStream;
 #endif
 
 #include "xllama/ort_raii.h" // oga_check (includes ort_genai_c.h)
-#include "xllama/session.h"  // GenerateParams
 
-#include "xllama/chat_prompt.h"      // apply_stop_sequences
-#include "xllama/inference.h"        // InferenceResult
-#include "xllama/inference_params.h" // sampling fields (shared with GenerateParams)
-#include "xllama/platform.h"         // peak_working_set_mb
+#include "xllama/chat_prompt.h" // apply_stop_sequences
+#include "xllama/inference.h"   // InferenceResult
+#include "xllama/platform.h"    // peak_working_set_mb
 
 #include <chrono>
+#include <string_view>
 
 namespace xllama {
 namespace detail {
@@ -37,8 +36,12 @@ namespace detail {
 // Run the ORT GenAI decode loop. Fills InferenceResult fields:
 // n_p_eval, t_p_eval_ms, n_eval, t_eval_ms, ended_with_stop, peak_ws_mb, success.
 // Does NOT write log_output or GPU mem info — those are caller-specific.
-inline void run_decode_loop_ort(OgaGenerator* gen, OgaTokenizerStream* stream,
-                                const GenerateParams& gp, InferenceResult& res,
+//
+// Params is templated: both InferenceParams (CLI/bench) and GenerateParams
+// (Session/GUI) expose abort_flag, on_token, and stop_sequences.
+template <typename Params>
+inline void run_decode_loop_ort(OgaGenerator* gen, OgaTokenizerStream* stream, const Params& gp,
+                                InferenceResult& res,
                                 std::chrono::steady_clock::time_point t_prefill_start,
                                 int n_prompt_tok, int n_predict_cap) {
     auto t_prefill_end = t_prefill_start;

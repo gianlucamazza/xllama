@@ -133,7 +133,8 @@ class OrtSession final : public Session {
     void run_decode(OgaGenerator* gen, OgaTokenizerStream* stream, const GenerateParams& gp,
                     InferenceResult& res, std::chrono::steady_clock::time_point t_prefill_start,
                     int n_prompt_tok, int n_predict_cap) {
-        run_decode_loop_ort(gen, stream, gp, res, t_prefill_start, n_prompt_tok, n_predict_cap);
+        detail::run_decode_loop_ort(gen, stream, gp, res, t_prefill_start, n_prompt_tok,
+                                    n_predict_cap);
     }
 
     // Legacy stateless turn: fresh generator, full prompt, destroyed at return.
