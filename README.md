@@ -9,7 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?logo=github)](https://github.com/sponsors/gianlucamazza)
 
-**v1.5.6.0** · [CHANGELOG](CHANGELOG.md) · [ROADMAP](ROADMAP.md)
+[CHANGELOG](CHANGELOG.md) · [ROADMAP](ROADMAP.md)
 
 ![xllama running on an Xbox Series S: a chat answer, the coding tier writing a C function, saved conversations and a Stable-Diffusion image, all on-console](docs/screenshots/xllama-demo-v1.5.2.gif)
 
@@ -22,12 +22,54 @@ regenerates both files from it.
 
 ---
 
+## Quick install
+
+```bash
+# Pre-built MSIX from CI release
+./scripts/install-latest-build.sh
+
+# Or build (Windows host)
+git clone --recursive https://github.com/gianlucamazza/xllama.git
+.\scripts\build-uwp.ps1 -Configuration Release -Platform x64
+
+# Deploy
+source ~/.config/xllama/xbox-env
+./scripts/deploy.sh path/to/xllama_*.msix
+```
+
+First launch: downloads default model (~229 MB). No model bundled in MSIX.
+
+**Linux dev:** `cmake --preset linux-release && cmake --build build/linux-release -j`
+
+---
+
+## What you can do
+
+- **Chat** — multi-turn with KV-reuse, thinking models, coding tier
+- **Diffuse** — SD-Turbo on DirectML, in-process with XAML compositor
+- **Train** — on-device partial FT (Lane B), host PEFT (Lane A), serve merged GGUF (Lane C)
+- **LAN API** — OpenAI-compat `POST /v1/chat/completions`, preferences, training status
+- **Bench** — headless tok/s, membw, diskbw, gpubw, gpugemv, ramceil probes
+
+---
+
+## Supported models
+
+| Model       | Params | Decode          | Role                    |
+| ----------- | ------ | --------------- | ----------------------- |
+| LFM2.5-230M | 230M   | **119.2** tok/s | Floor (fastest, 241 MB) |
+| LFM2.5-350M | 350M   | **94.9** tok/s  | Default chat            |
+| LFM2-2.6B   | 2.6B   | **18.4** tok/s  | Quality (H9 7/8)        |
+
+Full catalogue + Phase 14 coding models: [model-matrix.md](docs/model-matrix.md) · [benchmarks.md](docs/benchmarks.md)
+
+---
+
 ## LAN Endpoint — OpenAI-compatible
 
 xllama exposes an HTTP endpoint on the local network that exposes its full
 inference core (`SessionHub`) with OpenAI and Ollama-compatible APIs.
-
-**Status:** v1, opt-in, default OFF. Dev Mode / LAN research only.
+Status: v1, opt-in, default OFF. Dev Mode / LAN research only.
 
 ```bash
 # Chat completions (non-streaming)
@@ -37,23 +79,7 @@ curl -s http://<xbox-ip>:11434/v1/chat/completions \
 
 # Model discovery (OpenAI shape)
 curl -s http://<xbox-ip>:11434/v1/models
-
-# Model discovery (Ollama shape)
-curl -s http://<xbox-ip>:11434/api/tags
-
-# Preferences → training samples
-curl -s http://<xbox-ip>:11434/v1/preferences \
-  -d '{"label":"like","messages":[...]}'
-
-# Training status
-curl -s http://<xbox-ip>:11434/v1/training/status
-
-# Image generation (SD-Turbo)
-curl -s http://<xbox-ip>:11434/v1/images/generations \
-  -d '{"prompt":"pixel art robot","steps":2,"seed":42}'
 ```
-
-### Protocol
 
 | Route                         | Shape      | Note                                    |
 | ----------------------------- | ---------- | --------------------------------------- |
@@ -65,22 +91,8 @@ curl -s http://<xbox-ip>:11434/v1/images/generations \
 | `POST /v1/images/generations` | OpenAI-ish | SD-Turbo, `b64_json` + `path`           |
 | `GET /health`                 | Custom     | `{"status":"ok","service":"xllama"}`    |
 
-### Requirements
-
-- **Model:** `"model"` field in request, fallback to `model.txt`. Swaps the
-  resident Session if different from the loaded one.
-- **Context budget:** `fit_prompt` with exact tokenizer, not chars/token.
-  Drops oldest messages, never the trailing user. 400 if the user message
-  alone exceeds `n_ctx`.
-- **Concurrency:** single-slot. `try_lock` → 503 busy. Pre-load wait ≤15s.
-- **Streaming:** not implemented (seam: `GenerateParams::on_token`).
-- **CORS:** OPTIONS preflight supported for browser clients.
-- **Foreground only:** UWP PLM — the app must be in the foreground.
-
-### Enable
-
-Settings → LAN API: port (default 11434), toggle on/off.
-Persistence: `LocalState\api.flag` + `api-port.txt`.
+Full protocol — requirements, port config, enable/persistence, concurrency,
+streaming status: [api-endpoint.md](docs/api-endpoint.md).
 
 ---
 
@@ -122,37 +134,15 @@ Llama.cpp is both benchmarking lane and shipping backend.
 
 ---
 
-## What you can do
-
-- **Chat** — multi-turn with KV-reuse, thinking models, coding tier
-- **Diffuse** — SD-Turbo on DirectML, in-process with XAML compositor
-- **Train** — on-device partial FT (Lane B), host PEFT (Lane A), serve merged GGUF (Lane C)
-- **LAN API** — OpenAI-compat `POST /v1/chat/completions`, preferences, training status
-- **Bench** — headless tok/s, membw, diskbw, gpubw, gpugemv, ramceil probes
-
----
-
-## Supported models
-
-| Model | Params | Decode | Role |
-| ----- | ------ | ------ | ---- |
-| LFM2.5-230M | 230M | **119.2** tok/s | Floor (fastest, 241 MB) |
-| LFM2.5-350M | 350M | **94.9** tok/s | Default chat |
-| LFM2-2.6B | 2.6B | **18.4** tok/s | Quality (H9 7/8) |
-
-Full catalogue + Phase 14 coding models: [model-matrix.md](docs/model-matrix.md) · [benchmarks.md](docs/benchmarks.md)
-
----
-
 ## Repository map
 
 ```
-include/xllama/   # 32 headers, WinRT-free, host-testable
+include/xllama/   # WinRT-free, host-testable headers
 src/bridge/       # shared implementation (Linux + UWP)
 uwp/              # C++/WinRT app, LAN API, headless flags
 training/         # jobs, host PEFT, datasets
 shaders/          # HLSL → AOT DXIL compute shaders
-tests/            # 29 test files, 243 cases / 4346 assertions
+tests/            # doctest suite; counts live in docs/architecture.md
 scripts/          # deploy, bench, validate, crossbuild
 docs/             # SSOT map → docs/README.md
 ```
@@ -193,27 +183,6 @@ Every copy in this codebase has eventually disagreed — silently.
 
 ---
 
-## Quick install
-
-```bash
-# Pre-built MSIX from CI release
-./scripts/install-latest-build.sh
-
-# Or build (Windows host)
-git clone --recursive https://github.com/gianlucamazza/xllama.git
-.\scripts\build-uwp.ps1 -Configuration Release -Platform x64
-
-# Deploy
-source ~/.config/xllama/xbox-env
-./scripts/deploy.sh path/to/xllama_*.msix
-```
-
-First launch: downloads default model (~229 MB). No model bundled in MSIX.
-
-**Linux dev:** `cmake --preset linux-release && cmake --build build/linux-release -j`
-
----
-
 ## More docs
 
 | Topic                                              | Docs                                                                |
@@ -228,6 +197,8 @@ First launch: downloads default model (~229 MB). No model bundled in MSIX.
 | Console validation gates                           | [console-validation-runbook.md](docs/console-validation-runbook.md) |
 | Crossbuild Linux → Xbox                            | [crossbuild-console.md](docs/crossbuild-console.md)                 |
 | Store readiness                                    | [store-readiness.md](docs/store-readiness.md)                       |
+| Privacy / data handling                            | [privacy.md](docs/privacy.md)                                       |
+| Runtime NuGet pins                                 | [recommended-config.md](docs/recommended-config.md)                 |
 | Technical report (frozen v1.0)                     | [technical-report.md](docs/technical-report.md)                     |
 
 ---
