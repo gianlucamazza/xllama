@@ -84,17 +84,17 @@ const TrainingCapabilityInfo* training_capability_info(TrainingCapability c);
 
 ## Training Methods
 
-| Method | Description |
-|--------|-------------|
-| `LoraPeft` | PEFT LoRA via host Python pipeline |
-| `PartialFt` | In-process ggml-opt partial fine-tune (Lane B) |
+| Method           | Description                                        |
+| ---------------- | -------------------------------------------------- |
+| `LoraPeft`       | PEFT LoRA via host Python pipeline                 |
+| `PartialFt`      | In-process ggml-opt partial fine-tune (Lane B)     |
 | `FullFtReserved` | Reserved — full fine-tune not supported in-process |
 
 ## Training Devices
 
-| Device | Description |
-|--------|-------------|
-| `Host` | Linux/desktop — PEFT pipeline or in-process engine |
+| Device   | Description                                                        |
+| -------- | ------------------------------------------------------------------ |
+| `Host`   | Linux/desktop — PEFT pipeline or in-process engine                 |
 | `Device` | Xbox/UWP — in-process ggml-opt engine (XLLAMA_DEVICE_TRAIN builds) |
 
 ## Pipeline Stages

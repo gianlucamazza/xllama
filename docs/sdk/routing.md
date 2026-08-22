@@ -4,22 +4,22 @@
 
 Configuration for EP (execution provider) routing.
 
-| Field | Default | Description |
-|-------|---------|-------------|
-| `mode` | CpuOnly | CpuOnly, GpuOnly, or Auto |
-| `token_threshold` | 1550 | Token count threshold for GPU routing |
-| `cpu_model` | "" | CPU model path |
-| `gpu_model` | "" | GPU model path |
+| Field             | Default | Description                           |
+| ----------------- | ------- | ------------------------------------- |
+| `mode`            | CpuOnly | CpuOnly, GpuOnly, or Auto             |
+| `token_threshold` | 1550    | Token count threshold for GPU routing |
+| `cpu_model`       | ""      | CPU model path                        |
+| `gpu_model`       | ""      | GPU model path                        |
 
 ## `xllama::RoutingDecision`
 
 Result of a routing decision.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `active_model` | std::string | Selected model path |
-| `use_gpu` | bool | Whether GPU is active |
-| `token_count` | int | Token count at decision time |
+| Field          | Type        | Description                  |
+| -------------- | ----------- | ---------------------------- |
+| `active_model` | std::string | Selected model path          |
+| `use_gpu`      | bool        | Whether GPU is active        |
+| `token_count`  | int         | Token count at decision time |
 
 ## `xllama::RoutingPolicy` (SDK-configurable)
 

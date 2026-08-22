@@ -62,10 +62,10 @@ int main() {
 
 ### CMake Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `XLLAMA_BUILD_PROBES` | `ON` | Build benchmarking probes (membw, diskbw, gpubw, gpugemv, ramceil) |
-| `XLLAMA_DEVICE_TRAIN` | `OFF` | Enable on-device training engine |
+| Option                | Default | Description                                                        |
+| --------------------- | ------- | ------------------------------------------------------------------ |
+| `XLLAMA_BUILD_PROBES` | `ON`    | Build benchmarking probes (membw, diskbw, gpubw, gpugemv, ramceil) |
+| `XLLAMA_DEVICE_TRAIN` | `OFF`   | Enable on-device training engine                                   |
 
 ### Build Presets
 
@@ -96,6 +96,7 @@ ctest --test-dir build/linux-test --output-on-failure
 ```
 
 Key test files:
+
 - `tests/test_routing_policy.cpp` — routing policy, token estimation, KV reuse gates
 - `tests/test_sampling.cpp` — sampling config agreement between surfaces
 - `tests/test_personalize.cpp` — personalization helpers
@@ -105,20 +106,20 @@ Key test files:
 
 ### Supported Backends
 
-| Backend | Format | Platforms |
-|---------|--------|-----------|
-| ORT GenAI | ONNX | Windows/UWP (CPU + DirectML) |
-| llama.cpp | GGUF | Linux, Windows/UWP (CPU) |
+| Backend   | Format | Platforms                    |
+| --------- | ------ | ---------------------------- |
+| ORT GenAI | ONNX   | Windows/UWP (CPU + DirectML) |
+| llama.cpp | GGUF   | Linux, Windows/UWP (CPU)     |
 
 ### Supported Models
 
-| Tier | Model | Format | Notes |
-|------|-------|--------|-------|
-| Floor | lfm25-350m | GGUF | Minimum viable model |
-| Default | smollm2-360m-cpu-int4 | GGUF | Shipping default |
-| Quality | qwen35-0.8b | GGUF | Best quality |
-| Coding | coding-specific | GGUF | Code-specialized |
-| ORT-only | smollm2-360m-dml-fp16-v2 | ONNX | GPU routing (DML) |
+| Tier     | Model                    | Format | Notes                |
+| -------- | ------------------------ | ------ | -------------------- |
+| Floor    | lfm25-350m               | GGUF   | Minimum viable model |
+| Default  | smollm2-360m-cpu-int4    | GGUF   | Shipping default     |
+| Quality  | qwen35-0.8b              | GGUF   | Best quality         |
+| Coding   | coding-specific          | GGUF   | Code-specialized     |
+| ORT-only | smollm2-360m-dml-fp16-v2 | ONNX   | GPU routing (DML)    |
 
 ## License
 

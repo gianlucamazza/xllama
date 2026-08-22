@@ -47,46 +47,46 @@ auto& hub = xllama::session_hub();
 
 Configuration for creating a persistent session.
 
-| Field | Default | Description |
-|-------|---------|-------------|
-| `model_path` | — | Path to model |
-| `n_ctx` | 2048 | Context size |
-| `n_threads` | 0 | Thread count (0=auto) |
-| `n_batch` | 0 | llama.cpp logical prefill batch (0=default 2048) |
-| `n_ubatch` | 0 | llama.cpp physical prefill chunk (0=default 512) |
-| `backend` | Auto | ORTGenAI, LlamaCpp, or Auto (inspects model) |
-| `n_gpu_layers` | 0 | llama.cpp GPU layers (0=CPU) |
-| `lora_path` | "" | GGUF LoRA adapter |
-| `lora_scale` | 1.0f | LoRA scale |
-| `kv_q8` | false | Quantize KV cache to q8_0 |
-| `dml_warmup` | true | Warm-up DML models at load time |
-| `prompt_lookup` | false | Draft-free prompt-lookup speculative decoding |
+| Field           | Default | Description                                      |
+| --------------- | ------- | ------------------------------------------------ |
+| `model_path`    | —       | Path to model                                    |
+| `n_ctx`         | 2048    | Context size                                     |
+| `n_threads`     | 0       | Thread count (0=auto)                            |
+| `n_batch`       | 0       | llama.cpp logical prefill batch (0=default 2048) |
+| `n_ubatch`      | 0       | llama.cpp physical prefill chunk (0=default 512) |
+| `backend`       | Auto    | ORTGenAI, LlamaCpp, or Auto (inspects model)     |
+| `n_gpu_layers`  | 0       | llama.cpp GPU layers (0=CPU)                     |
+| `lora_path`     | ""      | GGUF LoRA adapter                                |
+| `lora_scale`    | 1.0f    | LoRA scale                                       |
+| `kv_q8`         | false   | Quantize KV cache to q8_0                        |
+| `dml_warmup`    | true    | Warm-up DML models at load time                  |
+| `prompt_lookup` | false   | Draft-free prompt-lookup speculative decoding    |
 
 ## `xllama::GenerateParams`
 
 Parameters for a single generation turn.
 
-| Field | Default | Description |
-|-------|---------|-------------|
-| `prompt` | — | Input text |
-| `n_predict` | 96 | Max tokens to generate |
-| `temperature` | 0.8 | Sampling temperature |
-| `top_p` | 0.9 | Top-p sampling |
-| `top_k` | 40 | Top-k sampling |
-| `repetition_penalty` | 1.1 | Repetition penalty |
-| `seed` | 0xFFFFFFFF | Random seed |
-| `stop_sequences` | [] | Stop strings |
-| `reuse_kv` | false | Enable KV-cache reuse (continuous decoding) |
-| `reset_kv` | false | Reset KV cache for this turn |
-| `n_keep` | 0 | Tokens pinned across context shifts |
-| `on_token` | — | Callback per generated token |
-| `on_status` | — | Callback for status changes |
-| `abort_flag` | — | Atomic flag for early termination |
+| Field                | Default    | Description                                 |
+| -------------------- | ---------- | ------------------------------------------- |
+| `prompt`             | —          | Input text                                  |
+| `n_predict`          | 96         | Max tokens to generate                      |
+| `temperature`        | 0.8        | Sampling temperature                        |
+| `top_p`              | 0.9        | Top-p sampling                              |
+| `top_k`              | 40         | Top-k sampling                              |
+| `repetition_penalty` | 1.1        | Repetition penalty                          |
+| `seed`               | 0xFFFFFFFF | Random seed                                 |
+| `stop_sequences`     | []         | Stop strings                                |
+| `reuse_kv`           | false      | Enable KV-cache reuse (continuous decoding) |
+| `reset_kv`           | false      | Reset KV cache for this turn                |
+| `n_keep`             | 0          | Tokens pinned across context shifts         |
+| `on_token`           | —          | Callback per generated token                |
+| `on_status`          | —          | Callback for status changes                 |
+| `abort_flag`         | —          | Atomic flag for early termination           |
 
 ### KV-Cache Reuse Modes
 
-| `reuse_kv` | `reset_kv` | Behavior |
-|------------|------------|----------|
-| `false` | — | Stateless turn: full context prefill |
-| `true` | `false` | Continuation: delta-only prefill (multi-turn TTFT win) |
-| `true` | `true` | Reset: full context prefill, subsequent turns reuse |
+| `reuse_kv` | `reset_kv` | Behavior                                               |
+| ---------- | ---------- | ------------------------------------------------------ |
+| `false`    | —          | Stateless turn: full context prefill                   |
+| `true`     | `false`    | Continuation: delta-only prefill (multi-turn TTFT win) |
+| `true`     | `true`     | Reset: full context prefill, subsequent turns reuse    |
