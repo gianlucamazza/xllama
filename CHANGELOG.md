@@ -7,6 +7,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Demo presentation edit.** Added a reproducible 24-fps temporal-blending
+  edit for smoother README walkthroughs. The raw Device Portal recording and
+  its measured capture rate remain the only performance evidence.
 - **Catalogue signing and reproducibility evidence.** Store CI now signs the
   bundled model catalogue with the GitHub Actions-held RSA key and the Store
   verifier imports the pinned CNG public-key blob explicitly. The Xbox Series S

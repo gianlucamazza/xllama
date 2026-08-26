@@ -43,8 +43,11 @@ performance belongs in `docs/benchmarks.md`.
   89.7 tok/s median, 676.1 ms TTFT, 320 MB peak). Store catalogue signing
   and runtime verification passed in CI run `32963270335`; this does not equal
   Partner Center certification or external power/thermal evidence.
-- **Demo capture remains the v1.5.2 assets** (576 stills; re-record optional).
-  Pipeline is re-runnable (`demo/demo-script.json` + `scripts/capture-demo-video.sh`).
+- **Demo capture is on the v1.5.6 assets** (381 measured stills; raw MP4 plus a
+  separate 24-fps presentation edit). The raw recording remains the evidence
+  artifact; the edit is only for smoother viewing. Pipeline is re-runnable
+  (`demo/demo-script.json` + `scripts/capture-demo-video.sh`), and the edit can
+  be regenerated with `scripts/edit-demo-video.sh`.
 
 ### Next (after v1.5.6.0)
 
