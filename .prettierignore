@@ -2,6 +2,9 @@
 llama.cpp/
 vendor/
 
+# Generated research tables are checked byte-for-byte by their generator.
+paper/generated/
+
 # Build and restore output.
 build/
 build-uwp-test/

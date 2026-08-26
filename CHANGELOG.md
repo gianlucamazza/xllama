@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Research package and XAB baseline.** Added a citable Series S Dev Mode
+  report with claim-level provenance, generated evidence tables/figures and a
+  release runbook. Added `scripts/run-xab.sh` to compose text, KV, H9 and
+  diffusion harnesses. Historical measurements without thermal/power sidecars
+  remain explicitly non-production evidence.
 - **Demo presentation edit.** Added a reproducible 30-fps hard-cut presentation
   edit for concise README walkthroughs. The raw Device Portal recording and
   its measured capture rate remain the only performance evidence.

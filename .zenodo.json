@@ -1,0 +1,31 @@
+{
+  "title": "Consumer Game Consoles as Local AI Compute",
+  "description": "Engineering report and reproducibility package for LLM and diffusion inference on Xbox Series S in UWP Dev Mode.",
+  "upload_type": "software",
+  "license": "MIT",
+  "creators": [
+    {
+      "name": "Mazza, Gianluca",
+      "affiliation": "",
+      "orcid": "0009-0005-1462-3019"
+    }
+  ],
+  "keywords": [
+    "local AI",
+    "Xbox",
+    "LLM inference",
+    "diffusion",
+    "edge AI",
+    "reproducibility"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/gianlucamazza/xllama",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ],
+  "access_right": "open",
+  "version": "1.0",
+  "publication_date": "2026-08-26"
+}

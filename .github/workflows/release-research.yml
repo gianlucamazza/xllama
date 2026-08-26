@@ -1,0 +1,57 @@
+name: release-research
+
+on:
+  push:
+    tags: ['research-v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing research tag to release
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Validate release metadata and research evidence
+        run: |
+          python3 scripts/generate-benchmark-summary.py --check
+          python3 scripts/build-research-package.py --check
+          python3 scripts/check-release-metadata.py --require-doi
+          python3 -m unittest tests/test_research_package.py tests/test_xab_contract.py tests/test_release_metadata.py
+
+      - name: Build tagged research bundle
+        run: python3 scripts/build-release-bundle.py --ref "$GITHUB_SHA"
+
+      - name: Verify release tag
+        run: |
+          expected="research-v$(python3 -c 'import tomllib; print(tomllib.load(open("release.toml","rb"))["release"]["version"])')"
+          actual="${{ inputs.tag || github.ref_name }}"
+          test "$actual" = "$expected"
+
+      - name: Attest release bundle
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: release-bundle/*.tar.gz
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release_tag="${{ inputs.tag || github.ref_name }}"
+          gh release create "$release_tag" \
+            --verify-tag \
+            --title "xLlama Research Report $release_tag" \
+            --notes-file paper/release.md \
+            release-bundle/*

@@ -1,0 +1,18 @@
+# Release-facing metadata SSOT. Edit this file before a research release.
+# DOI fields remain empty until the first Zenodo deposit is reserved.
+
+[release]
+version = "1.0"
+date = "2026-08-26"
+tag_prefix = "research-v"
+concept_doi = "10.5281/zenodo.22118438"
+version_doi = "10.5281/zenodo.22118438"
+repo_url = "https://github.com/gianlucamazza/xllama"
+title = "Consumer Game Consoles as Local AI Compute"
+description = "Engineering report and reproducibility package for LLM and diffusion inference on Xbox Series S in UWP Dev Mode."
+author_family = "Mazza"
+author_given = "Gianluca"
+author_email = "info@gianlucamazza.it"
+author_orcid = "0009-0005-1462-3019"
+license = "MIT"
+keywords = ["local AI", "Xbox", "LLM inference", "diffusion", "edge AI", "reproducibility"]

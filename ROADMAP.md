@@ -64,6 +64,20 @@ performance belongs in `docs/benchmarks.md`.
    and uptime not); prompt-lookup default OFF. Dependabot llama.cpp #247 fails
    UWP (`LLAMA_VERSION`); do not merge on Linux green.
 
+## Research / XAB release
+
+- [x] Research package: Series S Dev Mode report, claim registry, generated
+      evidence table/figures, `CITATION.cff` and release runbook.
+- [x] XAB wrapper: reproducible profile for text, KV, H9 and diffusion harnesses;
+      raw outputs remain separate and no sidecars are fabricated.
+- [x] CI gates: claim provenance, generated artefacts and research tests.
+- [ ] Publication-grade Series S baseline: collect wattmeter, ambient and
+      thermal sidecar evidence for the selected headline runs.
+- [ ] Tag `research-v1.0`, GitHub release and Zenodo archive after the live
+      evidence gate; update `CITATION.cff` with the resulting DOI.
+- [ ] Cross-platform comparison and leaderboard, only after homogeneous
+      multi-device evidence exists.
+
 ## Phase 7 — Peer-class model research
 
 Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.

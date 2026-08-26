@@ -66,6 +66,20 @@ Upload via Device Portal or see [`docs/recommended-config.md`](../docs/recommend
 
 ## Running benchmarks
 
+### Xbox AI Benchmark (XAB)
+
+Use the XAB wrapper to run the standard Series S Dev Mode profile across one or
+more provisioned models. It composes the existing console harness and keeps
+one raw CSV per model; it does not publish a headline without a valid sidecar.
+
+```bash
+source ~/.config/xllama/xbox-env
+./scripts/run-xab.sh --models lfm25-230m,lfm25-350m --include text,kv,h9 --out bench/results/xab-2026-08-26
+```
+
+Use `--dry-run` to inspect the exact commands without contacting the console.
+The output manifest records the profile, prompt and requested repetitions.
+
 ### Xbox (automated)
 
 ```bash

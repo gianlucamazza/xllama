@@ -43,6 +43,7 @@ Technical notes and design decisions for xllama.
 | Privacy policy (Store / end-user draft)                                                | [privacy.md](./privacy.md)                                                                                                                                                                                                                                |
 | Demo / screenshot capture and presentation edit                                        | [`../demo/demo-showcase-script.json`](../demo/demo-showcase-script.json) + [`../scripts/capture-demo-video.sh`](../scripts/capture-demo-video.sh) + [`../scripts/edit-demo-video.sh`](../scripts/edit-demo-video.sh) + [`./screenshots/`](./screenshots/) |
 | Phase 16 model-scouting campaign (funnel, ladder, workstream cards, verdicts)          | [phase16-model-scouting.md](./phase16-model-scouting.md)                                                                                                                                                                                                  |
+| Citable research package and claim provenance                                          | [`../paper/`](../paper/) + [`../CITATION.cff`](../CITATION.cff)                                                                                                                                                                                           |
 | Agent / contributor quick map                                                          | [`../AGENTS.md`](../AGENTS.md)                                                                                                                                                                                                                            |
 
 The benchmark flow is intentionally one-way:
@@ -89,6 +90,9 @@ path checklist for discovery — descriptions are not repeated.
 [phase1-runbook.md](./phase1-runbook.md) (compat redirect) ·
 [../CHANGELOG.md](../CHANGELOG.md) · [../ROADMAP.md](../ROADMAP.md) ·
 [../diffusion/README.md](../diffusion/README.md)
+
+**Research:** [`../paper/`](../paper/) (current citable report, provenance and release runbook) ·
+[technical-report.md](technical-report.md) (frozen July 2026 historical snapshot)
 
 ### Acceptable headline vs SSOT
 

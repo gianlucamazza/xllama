@@ -9,6 +9,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?logo=github)](https://github.com/sponsors/gianlucamazza)
 
+<!-- XLLAMA_DOI_START -->
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22118438.svg)](https://doi.org/10.5281/zenodo.22118438)
+<!-- XLLAMA_DOI_END -->
+
 [CHANGELOG](CHANGELOG.md) · [ROADMAP](ROADMAP.md)
 
 https://github.com/user-attachments/assets/9494a6a2-f14e-4229-afa4-ff5faf51ba67
@@ -152,6 +156,23 @@ docs/             # SSOT map → docs/README.md
 
 **Doc ownership:** [docs/README.md](docs/README.md)
 
+## Citation
+
+The versioned research report is archived through Zenodo after the release
+gate. Until the first archive exists, cite the tagged GitHub repository:
+
+```bibtex
+@software{xllama_research_1_0,
+  author  = {Mazza, Gianluca},
+  title   = {Consumer Game Consoles as Local AI Compute},
+  version = {1.0},
+  doi     = {10.5281/zenodo.22118438},
+  url     = {https://github.com/gianlucamazza/xllama}
+}
+```
+
+The DOI badge and version DOI are synchronized from `release.toml`.
+
 ---
 
 ## Key design decisions
@@ -203,6 +224,7 @@ Every copy in this codebase has eventually disagreed — silently.
 | Privacy / data handling                            | [privacy.md](docs/privacy.md)                                       |
 | Runtime NuGet pins                                 | [recommended-config.md](docs/recommended-config.md)                 |
 | Technical report (frozen v1.0)                     | [technical-report.md](docs/technical-report.md)                     |
+| Current research package and XAB                   | [paper/](paper/) · [bench/README.md](bench/README.md)               |
 
 ---
 

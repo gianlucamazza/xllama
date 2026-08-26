@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+title: "Consumer Game Consoles as Local AI Compute"
+abstract: >
+  Engineering report and reproducibility package for LLM and diffusion
+  inference on Xbox Series S in UWP Dev Mode.
+message: "If this research package is useful, please cite the versioned Zenodo record."
+type: software
+authors:
+  - family-names: Mazza
+    given-names: Gianluca
+    email: info@gianlucamazza.it
+    orcid: "https://orcid.org/0009-0005-1462-3019"
+repository-code: "https://github.com/gianlucamazza/xllama"
+url: "https://github.com/gianlucamazza/xllama"
+license: MIT
+version: "1.0"
+date-released: "2026-08-26"
+keywords:
+  - local AI
+  - Xbox
+  - LLM inference
+  - diffusion
+  - edge AI
+  - reproducibility
+doi: "10.5281/zenodo.22118438"

@@ -59,6 +59,8 @@ scripts/lora-spike/.venv/
 
 # Local credentials (never commit)
 .env
+.release_state.json
+release-bundle/
 
 # Generated signing artifacts (per-build, not committed)
 uwp/xllama-test.pfx

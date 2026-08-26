@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="220" viewBox="0 0 520 220">
+<title>Xbox Series S LFM decode throughput</title>
+<text x="260" y="20" text-anchor="middle">Decode tok/s (selected raw rows)</text>
+<line x1="60" y1="180" x2="480" y2="180" stroke="#333"/>
+<rect x="90" y="49" width="150" height="131" fill="#3776ab"/>
+<rect x="280" y="81" width="150" height="99" fill="#3776ab"/>
+<text x="165" y="205" text-anchor="middle">230M</text>
+<text x="165" y="41" text-anchor="middle">119.2</text>
+<text x="355" y="205" text-anchor="middle">350M</text>
+<text x="355" y="73" text-anchor="middle">89.7</text>
+</svg>
