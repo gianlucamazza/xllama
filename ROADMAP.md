@@ -32,11 +32,17 @@ performance belongs in `docs/benchmarks.md`.
   (host + console marker gates PASS; pin-blocked filter-widening remains);
   Phase 11 closed the headless↔UI gap (in-app personalize + LAN API parity,
   #116/#118). Phases 13, 14 and 16 (one shipped model) are complete. Remaining
-  open work: Phase 15 parked eng, WS-F headset measurement (#241), and
-  upstream vendor pin drops.
-- **Shipped as v1.5.5.0:** Phase 16 `lfm25-230m` floor + pin `0865990`. Prior
-  tag **v1.5.4.0** (MSIX 1.5.4.887) carried #216/#223 and the 10-gate suite.
-  Product packages are CI MSVC — `docs/crossbuild-console.md`.
+  open work: Phase 15 parked eng, WS-F headset measurement (#241), Store retail
+  certification, and upstream vendor pin drops.
+- **Current v1.5.6.0:** Phase 16 `lfm25-230m` floor + pin `3cb7ffb`. Prior
+  tag **v1.5.5.0** carried the Phase 16 floor; **v1.5.4.0** (MSIX
+  1.5.4.887) carried #216/#223 and the 10-gate suite. Product packages are CI
+  MSVC — `docs/crossbuild-console.md`.
+- **Latest evidence:** the Dev Series S capture is committed in
+  `bench/results/phase17-console-2026-08-26.csv` (LFM2.5-350M Q4_K_M,
+  89.7 tok/s median, 676.1 ms TTFT, 320 MB peak). Store catalogue signing
+  and runtime verification passed in CI run `32963270335`; this does not equal
+  Partner Center certification or external power/thermal evidence.
 - **Demo capture remains the v1.5.2 assets** (576 stills; re-record optional).
   Pipeline is re-runnable (`demo/demo-script.json` + `scripts/capture-demo-video.sh`).
 
@@ -567,12 +573,14 @@ the supported install path until a submission is accepted.
   decision + go/no-go still open.
 - [~] Phase 1 — Store SKU foundation + **no-VM CI path** (`workflow_dispatch`
   `store_sku=true` → `xllama-appx-store`, `install-latest-build.sh --store`);
-  console smoke **PASS** 2026-08-21 (`1.5.5.928`); Store identity reserved as
-  **Game** (`9N9661XSDBM4`, §13) — not yet stamped on the MSIX.
+  console smoke **PASS** 2026-08-26 (CI run `32963270335`, signed catalogue,
+  Store revision `959`); Store identity reserved as **Game**
+  (`9N9661XSDBM4`, §13) — not yet stamped on the MSIX.
 - [~] Phase 2 — privacy URL
   <https://gianlucamazza.github.io/xllama/privacy.html>; EN listing copy + IARC
-  prep in `store-readiness.md`; 5 screenshots (2026-07-30). Trailer still open.
-  IARC certificate still human.
+  prep in `store-readiness.md`; 5 screenshots (2026-07-30). Benchmark listing
+  claim aligned to the latest 89.7 tok/s capture. Trailer still open; IARC
+  certificate remains a human gate.
 - [ ] Phase 3 — Partner Center submission + certification.
 - [ ] Phase 4 — post-launch dual path (Store + Dev Mode) in README.
 
