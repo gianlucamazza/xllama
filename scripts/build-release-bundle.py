@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import subprocess
 import tomllib
@@ -22,7 +23,14 @@ def main() -> int:
     args.output.mkdir(parents=True, exist_ok=True)
     archive = args.output / f"xllama-research-{version}.tar.gz"
     prefix = f"xllama-research-{version}/"
-    subprocess.run(["git", "archive", "--format=tar.gz", f"--prefix={prefix}", "-o", str(archive), args.ref], cwd=ROOT, check=True)
+    tar = subprocess.check_output(
+        ["git", "archive", "--format=tar", f"--prefix={prefix}", args.ref], cwd=ROOT
+    )
+    # git archive fixes tar metadata from the commit; gzip's default current
+    # timestamp was the remaining source of checksum drift.
+    with archive.open("wb") as handle:
+        with gzip.GzipFile(fileobj=handle, mode="wb", mtime=0) as compressed:
+            compressed.write(tar)
     required = ["CITATION.cff", ".zenodo.json", "release.toml", "paper/paper.md", "paper/claims.json"]
     listing = subprocess.check_output(["tar", "-tzf", str(archive)], text=True)
     missing = [path for path in required if f"{prefix}{path}" not in listing.splitlines()]

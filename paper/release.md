@@ -1,6 +1,6 @@
 # Research release runbook
 
-This runbook describes the release boundary for `research-v1.0` and follows the
+This runbook describes the release boundary for `research-v1.0.1` and follows the
 two-phase Zenodo workflow used by the project.
 
 ## Metadata SSOT
@@ -54,7 +54,7 @@ python3 scripts/zenodo-deposit.py --reserve-only
 The command loads `ZENODO_TOKEN` from `~/.config/xllama/zenodo.env` (mode
 `0600`), or from the environment if already exported.
 
-After committing and pushing `research-v1.0`, upload and publish the tagged
+After committing and pushing `research-v1.0.1`, upload and publish the tagged
 archive:
 
 ```bash

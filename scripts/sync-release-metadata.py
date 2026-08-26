@@ -63,6 +63,11 @@ def main() -> int:
     })
     zenodo_path.write_text(json.dumps(zenodo, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
+    manifest_path = ROOT / "paper" / "research-manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["report_version"] = version
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
     readme_path = ROOT / "README.md"
     readme = readme_path.read_text(encoding="utf-8")
     badge = (
