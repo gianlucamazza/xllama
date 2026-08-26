@@ -61,6 +61,7 @@ scripts/lora-spike/.venv/
 .env
 .release_state.json
 release-bundle/
+.release-upload/
 
 # Generated signing artifacts (per-build, not committed)
 uwp/xllama-test.pfx

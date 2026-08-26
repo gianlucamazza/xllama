@@ -5,7 +5,7 @@
 version = "1.0"
 date = "2026-08-26"
 tag_prefix = "research-v"
-concept_doi = "10.5281/zenodo.22118438"
+concept_doi = "10.5281/zenodo.22118437"
 version_doi = "10.5281/zenodo.22118438"
 repo_url = "https://github.com/gianlucamazza/xllama"
 title = "Consumer Game Consoles as Local AI Compute"

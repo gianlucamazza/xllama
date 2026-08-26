@@ -10,7 +10,7 @@
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?logo=github)](https://github.com/sponsors/gianlucamazza)
 
 <!-- XLLAMA_DOI_START -->
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22118438.svg)](https://doi.org/10.5281/zenodo.22118438)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22118437.svg)](https://doi.org/10.5281/zenodo.22118437)
 <!-- XLLAMA_DOI_END -->
 
 [CHANGELOG](CHANGELOG.md) · [ROADMAP](ROADMAP.md)
