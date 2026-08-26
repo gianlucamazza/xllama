@@ -26,7 +26,7 @@ def main() -> int:
             raise SystemExit(f"required command not found: {command}")
 
     with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".html", dir=ROOT, delete=False, encoding="utf-8"
+        mode="w", suffix=".html", dir=ROOT / "paper", delete=False, encoding="utf-8"
     ) as handle:
         html = Path(handle.name)
 
@@ -34,7 +34,6 @@ def main() -> int:
         subprocess.run(
             [
                 "pandoc", str(PAPER), "--standalone", "--from=markdown", "--to=html5",
-                "--metadata", "title=Consumer Game Consoles as Local AI Compute",
                 "--css", str(CSS), "--resource-path", str(ROOT), "--output", str(html),
             ], cwd=ROOT, check=True
         )

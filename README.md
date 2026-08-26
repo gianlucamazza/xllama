@@ -165,8 +165,8 @@ gate. Until the first archive exists, cite the tagged GitHub repository:
 @software{xllama_research_1_0,
   author  = {Mazza, Gianluca},
   title   = {Consumer Game Consoles as Local AI Compute},
-  version = {1.0.5},
-  doi     = {10.5281/zenodo.22119095},
+  version = {1.0.6},
+  doi     = {10.5281/zenodo.22119126},
   url     = {https://github.com/gianlucamazza/xllama}
 }
 ```
