@@ -1,8 +1,12 @@
 {
-  "_comment": "Written by scripts/capture-demo-video.sh. Do not hand-edit: check-coherence.py compares the README demo link against 'version', and the point is that the two cannot drift.",
+  "_comment": "Raw fields are written by scripts/capture-demo-video.sh; presentation fields describe the checked-in edit. check-coherence.py compares the README demo link against 'version', and the point is that the two cannot drift.",
   "version": "1.5.6.0",
   "file": "xllama-demo-v1.5.6.mp4",
   "presentation_file": "xllama-demo-v1.5.6-presentation.mp4",
+  "presentation_cut_file": "xllama-demo-v1.5.6-cut.mp4",
+  "presentation_cut_fps": 30,
+  "presentation_cut_duration_s": 4.7,
+  "presentation_cut_segments": "0:1.4,5.5:6.8,9.4:11.366667",
   "gif": "xllama-demo-v1.5.6.gif",
   "gif_bytes": 1901227,
   "gif_fps": 8.28,

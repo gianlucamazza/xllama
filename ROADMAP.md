@@ -44,10 +44,10 @@ performance belongs in `docs/benchmarks.md`.
   and runtime verification passed in CI run `32963270335`; this does not equal
   Partner Center certification or external power/thermal evidence.
 - **Demo capture is on the v1.5.6 assets** (381 measured stills; raw MP4 plus a
-  separate 24-fps presentation edit). The raw recording remains the evidence
-  artifact; the edit is only for smoother viewing. Pipeline is re-runnable
-  (`demo/demo-script.json` + `scripts/capture-demo-video.sh`), and the edit can
-  be regenerated with `scripts/edit-demo-video.sh`.
+  separate 30-fps, 4.7-second presentation cut). The raw recording remains
+  the evidence artifact; the cut is only for concise viewing. Pipeline is
+  re-runnable (`demo/demo-script.json` + `scripts/capture-demo-video.sh`), and
+  the cut can be regenerated with `scripts/edit-demo-video.sh`.
 
 ### Next (after v1.5.6.0)
 

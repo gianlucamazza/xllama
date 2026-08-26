@@ -660,11 +660,12 @@ show stable timestamps and an acceptable inference impact; only then should an
 encoder be added. The normal screenshot-based capture remains the only
 publishing path until that gate passes.
 
-For a README or product walkthrough, `scripts/edit-demo-video.sh` can create a
-separate presentation edit from the raw MP4. It uses temporal blending to make
-the low-rate UI transitions easier to watch, but it does not add measured
-frames and must never be used to support a throughput claim. The raw MP4 and
-its `fps_achieved` manifest field remain the evidence artifact.
+For a README or product walkthrough, `scripts/edit-demo-video.sh` creates a
+separate presentation edit with deterministic hard cuts. The default cut
+removes measured waiting time and does not add frames; the optional
+`--interpolate` mode is explicitly presentation-only and must never support a
+throughput claim. The raw MP4 and its `fps_achieved` manifest field remain the
+evidence artifact.
 
 ### §10c — A second `ContentDialog` kills the process, silently (2026-07-30)
 
