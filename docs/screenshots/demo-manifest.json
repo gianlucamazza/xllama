@@ -11,8 +11,6 @@
   "fps_requested": "unthrottled",
   "fps_achieved": 8.28,
   "encoded_fps": "207/25",
-  "presentation_fps": 24,
-  "presentation_transform": "minterpolate mi_mode=blend; presentation only, not benchmark evidence",
   "video_codec": "h264",
   "video_crf": 18,
   "video_preset": "slow",
