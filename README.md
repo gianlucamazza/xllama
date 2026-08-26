@@ -19,6 +19,10 @@ the [xllama-demo-v1.5.6.mp4 recording](https://github.com/user-attachments/asset
 or reproduce the capture from [`demo/demo-script.json`](demo/demo-script.json)
 with `scripts/capture-demo-video.sh`.
 
+For a smoother visual walkthrough, use the separate [presentation edit](docs/screenshots/xllama-demo-v1.5.6-presentation.mp4),
+generated from the raw recording with `scripts/edit-demo-video.sh`. It is a
+viewing aid, not a throughput measurement.
+
 ---
 
 ## Quick install
