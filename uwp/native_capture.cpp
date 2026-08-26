@@ -40,9 +40,17 @@ IDirect3DDevice create_capture_device() {
     winrt::com_ptr<ID3D11DeviceContext> context;
     D3D_FEATURE_LEVEL level{};
     const D3D_FEATURE_LEVEL levels[] = {D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0};
-    winrt::check_hresult(D3D11CreateDevice(
+    HRESULT result = D3D11CreateDevice(
         nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels,
-        ARRAYSIZE(levels), D3D11_SDK_VERSION, native_device.put(), &level, context.put()));
+        ARRAYSIZE(levels), D3D11_SDK_VERSION, native_device.put(), &level, context.put());
+    if (result == E_INVALIDARG) {
+        native_device = nullptr;
+        context = nullptr;
+        result = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+                                   D3D11_CREATE_DEVICE_BGRA_SUPPORT, &levels[1], 1,
+                                   D3D11_SDK_VERSION, native_device.put(), &level, context.put());
+    }
+    winrt::check_hresult(result);
 
     auto dxgi_device = native_device.as<IDXGIDevice>();
     IDirect3DDevice device{nullptr};
@@ -92,10 +100,13 @@ void start_native_capture(winrt::Windows::UI::Xaml::Controls::Page const& page,
         auto device = create_capture_device();
         std::thread([item, device, duration_seconds] {
             CaptureState state;
+            char const* stage = "frame_pool";
             try {
                 auto pool = Direct3D11CaptureFramePool::CreateFreeThreaded(
                     device, DirectXPixelFormat::B8G8R8A8UIntNormalized, 2, item.Size());
+                stage = "session";
                 auto session = pool.CreateCaptureSession(item);
+                stage = "handler";
                 pool.FrameArrived([&state](auto const& sender, auto const&) {
                     auto frame = sender.TryGetNextFrame();
                     if (!frame)
@@ -107,8 +118,10 @@ void start_native_capture(winrt::Windows::UI::Xaml::Controls::Page const& page,
                         state.first_timestamp_100ns.store(timestamp);
                     state.last_timestamp_100ns.store(timestamp);
                 });
+                stage = "start";
                 const auto start = std::chrono::steady_clock::now();
                 session.StartCapture();
+                stage = "wait";
                 std::this_thread::sleep_for(std::chrono::seconds(duration_seconds));
                 session.Close();
                 pool.Close();
@@ -123,16 +136,16 @@ void start_native_capture(winrt::Windows::UI::Xaml::Controls::Page const& page,
                               static_cast<unsigned long long>(elapsed_ms));
                 log_output(line);
             } catch (winrt::hresult_error const& error) {
-                write_result(duration_seconds, state, 0, "winrt_error");
-                log_output(std::string("[native-capture] hresult=0x") +
+                write_result(duration_seconds, state, 0, stage);
+                log_output(std::string("[native-capture] stage=") + stage + " hresult=0x" +
                            std::to_string(static_cast<unsigned>(error.code().value)) + "\n");
             } catch (...) {
-                write_result(duration_seconds, state, 0, "unknown_error");
-                log_output("[native-capture] unknown error\n");
+                write_result(duration_seconds, state, 0, stage);
+                log_output(std::string("[native-capture] stage=") + stage + " unknown error\n");
             }
         }).detach();
     } catch (winrt::hresult_error const& error) {
-        log_output(std::string("[native-capture] setup hresult=0x") +
+        log_output(std::string("[native-capture] stage=setup hresult=0x") +
                    std::to_string(static_cast<unsigned>(error.code().value)) + "\n");
     } catch (...) {
         log_output("[native-capture] setup unknown error\n");
