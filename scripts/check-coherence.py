@@ -234,7 +234,7 @@ def main() -> int:
                             f"docs/screenshots/{dm_poster} is not in the tree"
                         )
                     elif not re.search(
-                        r"<video\b[^>]*poster=\"docs/screenshots/"
+                        r"<video\b[^>]*poster=\"[^\"]*/"
                         + re.escape(dm_poster)
                         + r"\"",
                         re.sub(r"<!--.*?-->", "", readme_text, flags=re.S),

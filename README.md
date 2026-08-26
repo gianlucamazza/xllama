@@ -11,9 +11,9 @@
 
 [CHANGELOG](CHANGELOG.md) · [ROADMAP](ROADMAP.md)
 
-<video controls width="1280" poster="docs/screenshots/xllama-demo-v1.5.2-poster.png">
-  <source src="https://github.com/gianlucamazza/xllama/releases/download/v1.5.2.0/xllama-demo-v1.5.2.mp4" type="video/mp4">
-  Your browser does not support the video player. Watch the <a href="https://github.com/gianlucamazza/xllama/releases/download/v1.5.2.0/xllama-demo-v1.5.2.mp4">full-quality MP4 demo</a>.
+<video controls width="1280" poster="https://gianlucamazza.github.io/xllama/screenshots/xllama-demo-v1.5.2-poster.png">
+  <source src="https://gianlucamazza.github.io/xllama/screenshots/xllama-demo-v1.5.2.mp4" type="video/mp4">
+  Your browser does not support the video player. Watch the <a href="https://gianlucamazza.github.io/xllama/screenshots/xllama-demo-v1.5.2.mp4">full-quality MP4 demo</a>.
 </video>
 
 Recorded on a Series S in Dev Mode and **played back in real time** — the decode
