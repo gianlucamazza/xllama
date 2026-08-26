@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "xllama/api_policy.h"
 #include "xllama/inference.h"
 #include "xllama/path_utils.h"
 #include "xllama/platform.h"
@@ -30,7 +31,8 @@ static std::vector<std::string> split_csv(const std::string& line) {
 
 static const char* kExpectedHeader = "model,quant,backend,n_ctx,n_threads,prompt_tok_s,"
                                      "decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,"
-                                     "n_prompt_tok,n_gen_tok,max_length,host,date,run_index";
+                                     "n_prompt_tok,n_gen_tok,max_length,host,date,run_index,"
+                                     "prefill_ms,ttft_ms";
 
 static xllama::InferenceParams make_params() {
     xllama::InferenceParams p;
@@ -85,12 +87,21 @@ TEST_CASE("Bench CSV writer: basic output") {
     CHECK(f[12] == "20"); // n_gen_tok  = res.n_eval
     CHECK(f[13] == "0");  // max_length — unset on this result (GGUF path)
     CHECK(f[14] == "linux-test");
-    CHECK(f[16] == "0"); // run_index — unset params default to 0 (single-run)
+    CHECK(f[16] == "0");     // run_index — unset params default to 0 (single-run)
+    CHECK(f[17] == "500.0"); // prefill_ms
+    CHECK(f[18] == "0.0");   // ttft_ms — no first-token timing supplied
 
     // Clean up
     std::remove(csv_path.c_str());
     std::string done_path = xllama::resolve_local_path("bench-result.csv.done");
     std::remove(done_path.c_str());
+}
+
+TEST_CASE("API policy rejects every advertised tool capability") {
+    CHECK_FALSE(xllama::api_tool_execution_requested({}));
+    CHECK(xllama::api_tool_execution_requested({true, false, false}));
+    CHECK(xllama::api_tool_execution_requested({false, true, false}));
+    CHECK(xllama::api_tool_execution_requested({false, false, true}));
 }
 
 TEST_CASE("Bench CSV writer: quant from GGUF filename") {
@@ -191,6 +202,8 @@ TEST_CASE("Bench CSV writer: gpu memory columns") {
     CHECK(f[13] == "1801"); // max_length
     CHECK(f[14] == "linux-test");
     CHECK(f[16] == "2"); // run_index — carried from params, not hardcoded
+    CHECK(f[17] == "0.0");
+    CHECK(f[18] == "0.0");
 
     std::remove(csv_path.c_str());
     std::string done_path = xllama::resolve_local_path("bench-result.csv.done");

@@ -568,6 +568,7 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     dlp.abort_flag = params.abort_flag;
     dlp.on_token = params.on_token;
     dlp.echo_stdout = params.echo_stdout;
+    dlp.decode_start = t_gen0;
     dlp.prompt_lookup = params.prompt_lookup;
     dlp.token_history = params.prompt_lookup ? &gen_history : nullptr;
     const DecodeLoopResult dlr = decode_loop(dlp, res.output_text);
@@ -588,6 +589,7 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     res.t_load_ms = perf.t_load_ms > 0 ? perf.t_load_ms : 0.0;
     res.t_p_eval_ms = prompt_ms;
     res.t_eval_ms = gen_ms;
+    res.t_first_token_ms = dlr.first_token_ms > 0.0 ? prompt_ms + dlr.first_token_ms : 0.0;
     res.n_p_eval = static_cast<int32_t>(tokens.size());
     res.n_eval = n_generated;
     res.peak_ws_mb = peak_working_set_mb();

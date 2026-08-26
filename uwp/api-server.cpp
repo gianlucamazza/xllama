@@ -19,6 +19,7 @@
 
     #include "inference-bridge.h"
     #include "model-downloader.h"
+    #include "xllama/api_policy.h"
     #include "xllama/chat_prompt.h"
     #include "xllama/model_provision.h"
     #include "xllama/path_utils.h"
@@ -319,6 +320,16 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
     if (!JsonObject::TryParse(winrt::to_hstring(body), root) || root == nullptr) {
         status = "400 Bad Request";
         return error_json("invalid JSON body");
+    }
+
+    // The endpoint does not execute tools. Reject them explicitly instead of
+    // silently ignoring a client's requested capability, which could make a
+    // local model appear more trusted than the runtime actually is.
+    const ::xllama::ApiToolFields tool_fields{root.HasKey(L"tools"), root.HasKey(L"functions"),
+                                              root.HasKey(L"tool_choice")};
+    if (::xllama::api_tool_execution_requested(tool_fields)) {
+        status = "400 Bad Request";
+        return error_json("tool execution is not supported; tools and functions are disabled");
     }
 
     std::string model = winrt::to_string(root.GetNamedString(L"model", L""));

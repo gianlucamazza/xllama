@@ -40,23 +40,24 @@ Probe flags (require `XLLAMA_BUILD_PROBES=ON`): `run_membw`, `run_diskbw`, `run_
 
 Result of an inference call.
 
-| Field             | Type        | Description                                 |
-| ----------------- | ----------- | ------------------------------------------- |
-| `success`         | bool        | Whether generation succeeded                |
-| `t_load_ms`       | double      | Model load time (ms)                        |
-| `t_p_eval_ms`     | double      | Prefill time (ms)                           |
-| `t_eval_ms`       | double      | Decode time (ms)                            |
-| `n_p_eval`        | int         | Prefill tokens                              |
-| `n_eval`          | int         | Decode tokens                               |
-| `ended_with_stop` | bool        | Stopped on a stop sequence                  |
-| `max_length`      | int         | Max length actually requested               |
-| `peak_ws_mb`      | size_t      | Peak working set (MB)                       |
-| `gpu_mem_mb`      | size_t      | Per-process GPU memory (CurrentUsage)       |
-| `gpu_budget_mb`   | size_t      | OS-granted GPU budget                       |
-| `n_drafted`       | int         | Speculative drafts (0 if prompt_lookup off) |
-| `n_spec_accepted` | int         | Speculative accepted                        |
-| `output_text`     | std::string | Generated text                              |
-| `error_msg`       | std::string | Error description on failure                |
+| Field              | Type        | Description                                 |
+| ------------------ | ----------- | ------------------------------------------- |
+| `success`          | bool        | Whether generation succeeded                |
+| `t_load_ms`        | double      | Model load time (ms)                        |
+| `t_p_eval_ms`      | double      | Prefill time (ms)                           |
+| `t_eval_ms`        | double      | Decode time (ms)                            |
+| `t_first_token_ms` | double      | Time to first generated token (ms)          |
+| `n_p_eval`         | int         | Prefill tokens                              |
+| `n_eval`           | int         | Decode tokens                               |
+| `ended_with_stop`  | bool        | Stopped on a stop sequence                  |
+| `max_length`       | int         | Max length actually requested               |
+| `peak_ws_mb`       | size_t      | Peak working set (MB)                       |
+| `gpu_mem_mb`       | size_t      | Per-process GPU memory (CurrentUsage)       |
+| `gpu_budget_mb`    | size_t      | OS-granted GPU budget                       |
+| `n_drafted`        | int         | Speculative drafts (0 if prompt_lookup off) |
+| `n_spec_accepted`  | int         | Speculative accepted                        |
+| `output_text`      | std::string | Generated text                              |
+| `error_msg`        | std::string | Error description on failure                |
 
 ## `xllama::run_inference()`
 

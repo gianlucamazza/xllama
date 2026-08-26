@@ -371,7 +371,7 @@ declare -a CSV_ROWS=()
 
 # Defined before the run loop, not just before the median: each downloaded row is
 # checked against this schema's field count as it arrives (see below).
-CSV_HEADER="model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,run_index"
+CSV_HEADER="model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,run_index,prefill_ms,ttft_ms"
 
 SAMPLER_PID=""
 if [[ "$GPU_SAMPLE" == "true" ]]; then

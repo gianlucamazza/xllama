@@ -31,8 +31,25 @@ appear in the consolidated comparison.
   - ⚠️ **GGUF prefill-thread boundary (2026-07-26)**: every llama.cpp row written before build 711 predates the `n_threads_batch` fix (#168, PR #177), so its `prompt_tok_s` was measured on llama.cpp's default **4 prefill threads** regardless of the row's `n_threads` column (which describes decode): 390.7 pre vs 438.1 post at P=298 (`phase13b-threadsbatch-{before,after}.csv`). Decode columns are unaffected.
   - `n_gen_tok`: tokens actually generated. **Not** the requested `n_predict`: generation is capped by the context window (`prompt + new <= n_ctx`) and can stop early on EOG. A 1574-token prompt at `n_ctx` 2048 caps new tokens at 474 and generated 277.
   - `run_index`: which recorded repetition of a configuration this row is (W1.1). Written by the device from `bench_run_index.txt`. `0` = a single-run / legacy measurement; a non-zero value marks one of several repeats the summary aggregates into a median + spread.
-- **CSV schema**: `model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,run_index`
-  Rows written before 2026-07-21 have 13 columns and no prompt/generated counts; rows in `phase12-dml-crossover.csv` carry `n_prompt_tok` but leave `n_gen_tok` empty (the console build that produced them predates that column). Rows written before the W1.1 change have no `run_index` and are read as single measurements. `run_index` is appended **last** (after `date`) precisely so it does not shift any earlier column: `bench-xbox-ort.sh` parses `backend` ($3), `decode_tok_s` ($7) and `max_length` ($14) positionally. `bench-xbox-ort.sh` refuses to append to a file whose header does not match, and now also rejects a row whose **field count** disagrees with the schema — an MSIX older than the header writes fewer fields, and appending them under the current header shifts every column silently. That happened on 2026-07-21 with 1.4.0.615.
+- **CSV schema**: `model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,run_index,prefill_ms,ttft_ms`
+
+  `prefill_ms` is prompt-processing duration. `ttft_ms` is measured from
+  prefill start until the first generated token is ready; zero means that no
+  token was produced. The fields are appended after `run_index` to preserve
+  positional compatibility with older bench scripts. They do not establish
+  thermal equilibrium by themselves.
+
+  A headline throughput claim also requires the exact model file size and
+  quantization, fixed context/prompt/sampling settings, one discarded warm-up,
+  and at least three recorded runs after a stable thermal state. Report the
+  median and min–max spread, never the best row. Measure power externally at
+  the console/UPS outlet and record idle, prefill, sustained decode watts,
+  wattmeter model/firmware, sampling interval, ambient temperature, and the
+  thermal-equilibrium rule in a sidecar report.
+  Generate and validate the sidecar with `scripts/write-benchmark-sidecar.py`;
+  validate raw CSVs with `scripts/validate-benchmark.py`. Both tools preserve
+  v1 historical files and identify v2 explicitly.
+  Rows written before 2026-07-21 have 13 columns and no prompt/generated counts; rows in `phase12-dml-crossover.csv` carry `n_prompt_tok` but leave `n_gen_tok` empty (the console build that produced them predates that column). Rows written before the W1.1 change have no `run_index` and are read as single measurements. The new fields are appended after `run_index` so no earlier positional column shifts: `bench-xbox-ort.sh` parses `backend` ($3), `decode_tok_s` ($7) and `max_length` ($14) positionally. The script refuses to append to a file whose header does not match, and rejects rows whose field count disagrees with the schema.
 
   `max_length` (added 2026-07-21) is `min(n_ctx, n_prompt_tok + n_predict)`, the value actually requested of the engine. On DirectML it is the variable that governs prefill throughput — see #130 and `docs/uwp-constraints.md` §5c — so a row without it cannot be interpreted, and `n_ctx` does not substitute for it.
 

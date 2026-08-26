@@ -165,6 +165,10 @@ struct InferenceResult {
     /// Decode time (ms).
     double t_eval_ms = 0.0;
 
+    /// Time from the start of prefill until the first generated token is ready.
+    /// This is the interactive time-to-first-token (TTFT), in milliseconds.
+    double t_first_token_ms = 0.0;
+
     /// Number of prefill tokens evaluated.
     int n_p_eval = 0;
 

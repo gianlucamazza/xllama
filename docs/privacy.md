@@ -41,6 +41,11 @@ Outbound network use is limited to:
    **not** included in the Store SKU and is unauthenticated — use only on a
    trusted LAN.
 
+Catalogue downloads are staged locally and, when the catalogue supplies an
+integrity pin, verified with SHA-256 before promotion. A local model is not
+treated as permission to execute tools, shell commands, arbitrary filesystem
+operations, or arbitrary network requests.
+
 The app does **not** upload chats, prompts, images, or feedback to the
 maintainer or to a cloud inference backend.
 

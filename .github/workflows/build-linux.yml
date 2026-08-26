@@ -75,6 +75,28 @@ jobs:
       - name: Verify generated benchmark summaries
         run: python3 scripts/generate-benchmark-summary.py --check
 
+      - name: Validate benchmark CSV schemas
+        run: |
+          shopt -s nullglob
+          for file in bench/results/*.csv; do
+            if head -1 "$file" | grep -q 'prompt_tok_s'; then
+              python3 scripts/validate-benchmark.py "$file"
+
+      - name: Validate benchmark provenance sidecars
+        run: |
+          shopt -s nullglob
+          for file in bench/results/*.sidecar.json; do
+            python3 scripts/validate-benchmark-sidecar.py "$file"
+          done
+
+      - name: Compile benchmark and catalogue tooling
+        run: |
+          python3 -m py_compile scripts/hash-model-artifacts.py \
+            scripts/sign-model-manifest.py scripts/validate-benchmark.py \
+            scripts/validate-benchmark-sidecar.py scripts/write-benchmark-sidecar.py
+            fi
+          done
+
       - name: Verify code/project/doc coherence (SSOT audit)
         run: python3 scripts/check-coherence.py
 

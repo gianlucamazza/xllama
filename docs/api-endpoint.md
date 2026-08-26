@@ -76,7 +76,9 @@ is the deprecated OpenAI alias), `temperature`, `top_p`, `seed` (reproducibility
 `stop` (string or array, added to the format's own stops). `messages` must be a JSON array
 and contain a trailing user turn, else `400`. When no `system` message is sent, a default
 one is injected (small instruct models degrade with an empty system turn). Other unknown
-fields (`n`, penalties, `tools`, …) are ignored, not rejected. `messages[]` is mapped to
+Most unsupported fields are ignored for compatibility, but tool-related fields
+(`tools`, `functions`, `tool_choice`) are rejected. xllama never executes model-requested
+tools, shell commands, filesystem operations, or arbitrary network calls. `messages[]` is mapped to
 `ChatFormat::render_prompt(system, history, final_user)` (`include/xllama/chat_prompt.h`);
 `chat_format_for(model)` selects the template and stop sequences.
 

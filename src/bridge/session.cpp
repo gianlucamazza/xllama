@@ -773,6 +773,7 @@ class LlamaSession final : public Session {
         dlp.abort_flag = gp.abort_flag;
         dlp.on_token = gp.on_token;
         dlp.on_accepted = [this](llama_token t) { m_kv_tokens.push_back(t); };
+        dlp.decode_start = t_decode0;
         // W2: seed + live history is m_kv_tokens (prefill already recorded above).
         dlp.prompt_lookup = m_prompt_lookup;
         dlp.token_history = &m_kv_tokens;
@@ -783,6 +784,8 @@ class LlamaSession final : public Session {
         res.t_eval_ms =
             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_decode0)
                 .count();
+        res.t_first_token_ms =
+            dlr.first_token_ms > 0.0 ? res.t_p_eval_ms + dlr.first_token_ms : 0.0;
         res.n_eval = n_generated;
         res.ended_with_stop = stopped_by_seq;
         res.n_drafted = dlr.n_drafted;

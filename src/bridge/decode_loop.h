@@ -10,6 +10,7 @@
 #include "xllama/speculative.h" // prompt_lookup_draft (#210)
 
 #include <atomic>
+#include <chrono>
 #include <cstdio>
 #include <functional>
 #include <string>
@@ -83,6 +84,9 @@ struct DecodeLoopParams {
     // prefix diff and the #170b snapshot fingerprint both read.
     std::function<void(llama_token)> on_accepted;
 
+    // Start of the decode phase, used to expose time-to-first-token.
+    std::chrono::steady_clock::time_point decode_start{};
+
     // Phase 15 W2 (#210): draft-free prompt-lookup speculative decoding.
     // Default OFF. Requires token_history seeded with the prefill tokens.
     // History ownership: when on_accepted is set it must update the same
@@ -96,6 +100,7 @@ struct DecodeLoopParams {
 
 struct DecodeLoopResult {
     int n_generated = 0;
+    double first_token_ms = 0.0;
     bool ended_with_stop = false; // a textual stop sequence matched
     // Speculative counters (zero when prompt_lookup is off or never drafted).
     int n_drafted = 0;  // draft tokens proposed (not counting the lead sample)
@@ -246,6 +251,12 @@ inline DecodeLoopResult decode_loop(const DecodeLoopParams& p, std::string& outp
         // Always commit the sampled token via the classic path first. Spec never
         // changes this step — that is what keeps greedy text identical.
         {
+            if (out.n_generated == 0 && out.first_token_ms == 0.0 &&
+                p.decode_start != std::chrono::steady_clock::time_point{}) {
+                out.first_token_ms = std::chrono::duration<double, std::milli>(
+                                         std::chrono::steady_clock::now() - p.decode_start)
+                                         .count();
+            }
             bool stop = false, decode_ok = true;
             if (!detail::classic_step(p, token, output_text, out, stop, decode_ok))
                 break;

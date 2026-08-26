@@ -94,6 +94,10 @@ inline void run_decode_loop_ort(OgaGenerator* gen, OgaTokenizerStream* stream, c
     // the bench convention so interactive and CSV tok/s are comparable.
     res.n_eval = n_generated > 0 ? n_generated - 1 : 0;
     res.t_eval_ms = std::chrono::duration<double, std::milli>(t_end - t_prefill_end).count();
+    res.t_first_token_ms =
+        n_generated > 0
+            ? std::chrono::duration<double, std::milli>(t_prefill_end - t_prefill_start).count()
+            : 0.0;
     res.ended_with_stop = stopped_by_seq;
     res.peak_ws_mb = peak_working_set_mb();
     res.success = true;
