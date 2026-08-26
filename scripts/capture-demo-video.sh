@@ -285,7 +285,7 @@ if ((nframes < FPS * 10)); then
 	exit 1
 fi
 
-# THE video must play at the speed things actually happened. Encoding at the
+# The video must play at the speed things actually happened. Encoding at the
 # requested rate when the capture achieved less produces a demo that runs fast —
 # on a project whose whole claim is measured performance, that is the worst
 # defect available, and it is invisible unless the two numbers are compared.
@@ -305,17 +305,15 @@ mkdir -p "$OUT_DIR"
 echo "==> Encoding ${OUT_MP4}"
 ffmpeg -y -framerate "$ACHIEVED_FPS" -pattern_type glob -i "${FRAMES}/f_*.png" \
 	-vf "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,drawtext=fontfile=/usr/share/fonts/TTF/DejaVuSans.ttf:text='xllama v${SHORT_VERSION} · Xbox Series S · local · no cloud':x=24:y=h-48:fontsize=22:fontcolor=white:borderw=2:bordercolor=black" \
-	-c:v libx264 -pix_fmt yuv420p -movflags +faststart -r 30 \
+	-c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p -movflags +faststart \
 	"$OUT_MP4" 2>"${WORK}/ffmpeg.log" || {
 	tail -20 "${WORK}/ffmpeg.log" >&2
 	exit 1
 }
 
-# The GIF exists because GitHub does not preview an .mp4 linked from a release:
-# in the README that is a plain link, and the point of a demo on a landing page
-# is that it plays without being asked. It is generated HERE, from the same
-# frames and in the same run, rather than by a one-off ffmpeg invocation in
-# somebody's shell history — that is precisely how the v1.2.0 demo went stale.
+# Keep the GIF as a legacy artefact for existing links. The README uses a
+# GitHub-native video attachment, so the GIF is not part of the landing-page
+# presentation. It is generated from the same frames for reproducibility.
 #
 # Sampled at the achieved rate, capped at 10 fps — never ABOVE what the capture
 # actually produced. Sampling above it duplicates frames: no extra information,
@@ -347,6 +345,10 @@ if ((GIF_BYTES > 8000000)); then
 fi
 
 DURATION=$(LC_ALL=C ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$OUT_MP4")
+ENCODED_FPS=$(LC_ALL=C ffprobe -v error -select_streams v:0 \
+	-show_entries stream=avg_frame_rate -of default=nw=1:nk=1 "$OUT_MP4")
+ENCODED_CODEC=$(ffprobe -v error -select_streams v:0 \
+	-show_entries stream=codec_name -of default=nw=1:nk=1 "$OUT_MP4")
 # LC_ALL=C or bash printf rejects "16.5" under a comma-decimal locale — and the
 # near miss is worse than the error: it would have written 16,5 into JSON.
 DURATION_1F=$(LC_ALL=C printf '%.1f' "$DURATION")
@@ -365,6 +367,10 @@ cat >"$MANIFEST_JSON" <<JSON
   "frames": ${nframes},
   "fps_requested": "${asked}",
   "fps_achieved": ${ACHIEVED_FPS},
+  "encoded_fps": "${ENCODED_FPS}",
+  "video_codec": "${ENCODED_CODEC}",
+  "video_crf": 18,
+  "video_preset": "slow",
   "capture_window_s": ${CAP_ELAPSED},
   "source": "device-portal-stills",
   "source_note": "No video capture endpoint exists and AppRecordingManager is absent on the console (uwp-constraints.md 10b). Stills, encoded at the rate actually achieved so playback is real time. Read fps_achieved as this run's average, NOT as the endpoint's ceiling: /ext/screenshot sustains ~11.5 Hz idle and ~13.7 Hz during a decode (device-portal.md), and a run that loads several models spends part of its time where nothing changes, so its average is lower and that is not a regression. Capture costs the app ~1.8% of decode.",
@@ -381,5 +387,5 @@ echo "==> ${DURATION_1F}s, ${nframes} frames at ${ACHIEVED_FPS} fps"
 echo "==> gif: ${OUT_GIF##*/} ($((GIF_BYTES / 1000)) kB, ${GIF_FPS} fps, same real time)"
 echo "==> manifest: ${MANIFEST_JSON}"
 echo
-echo "Next: attach ${OUT_MP4##*/} to the v${SHORT_VERSION} release; the GIF is"
-echo "      committed and embedded in README.md, so it needs no upload."
+echo "Next: upload ${OUT_MP4##*/} through a GitHub issue/comment to obtain a"
+echo "      user-attachments URL, then update the README player source."
