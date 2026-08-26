@@ -11,18 +11,14 @@
 
 [CHANGELOG](CHANGELOG.md) · [ROADMAP](ROADMAP.md)
 
-https://github.com/user-attachments/assets/8e495b42-7d02-41a8-b436-190d852a681b
+https://github.com/user-attachments/assets/9494a6a2-f14e-4229-afa4-ff5faf51ba67
 
-Recorded on a Series S in Dev Mode and **played back in real time** — the decode
-rate in the footer is the console's own, and nothing here is sped up. Download
-the [xllama-demo-v1.5.6 presentation recording](https://github.com/user-attachments/assets/8e495b42-7d02-41a8-b436-190d852a681b)
-or the [raw xllama-demo-v1.5.6.mp4 evidence](docs/screenshots/xllama-demo-v1.5.6.mp4)
-or reproduce the capture from [`demo/demo-script.json`](demo/demo-script.json)
+This 4.7-second presentation edit was recorded on a Series S in Dev Mode. The
+decode rate in the footer is the console's own; the edit removes waiting time
+but does not support a throughput claim. Download the [raw
+`xllama-demo-v1.5.6.mp4` evidence](docs/screenshots/xllama-demo-v1.5.6.mp4) or
+reproduce the capture from [`demo/demo-script.json`](demo/demo-script.json)
 with `scripts/capture-demo-video.sh`.
-
-For a concise visual walkthrough, use the separate [cut presentation edit](docs/screenshots/xllama-demo-v1.5.6-cut.mp4),
-generated with hard cuts from the presentation recording by
-`scripts/edit-demo-video.sh`. It is a viewing aid, not a throughput measurement.
 
 ---
 
