@@ -11,6 +11,7 @@
 #include "inference-bridge.h"
 #include "xllama/platform.h"
 #include "xllama/capture_probe.h"
+#include "native_capture.h"
 #include <roapi.h> // RoInitialize — WinRT MTA (see wWinMain)
 #ifndef XLLAMA_STORE_SKU
 #include "api-server.h"
@@ -227,6 +228,12 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
         // GraphicsCapture runtime-presence probe — writes [gcprobe] line.
         // See include/xllama/capture_probe.h and docs/uwp-constraints.md §10b.1.
         ::xllama::probe_graphics_capture();
+
+        auto native_capture_flag = flag_path_if_present(L"native-capture.flag");
+        if (!native_capture_flag.empty()) {
+            _wremove(native_capture_flag.c_str());
+            ::xllama::start_native_capture(m_controller->Root());
+        }
 
         // §7 experiment: the 887A0036 device conflict was measured with ORT
         // GenAI's Agility-factory device; diffuse.cpp uses plain ORT DML, whose

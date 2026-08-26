@@ -645,6 +645,21 @@ an opt-in flag before the native path can replace the screenshot fallback.
 Extension SDK needed — so the probe compiles and runs on both Dev Mode and
 Store SKUs.
 
+### §10b.2 — Native frame-pool capture probe (2026-08-26)
+
+The research package now has an opt-in native frame-rate probe in
+`uwp/native_capture.cpp`. Uploading `native-capture.flag` to LocalState starts
+a bounded five-second capture of the app's XAML visual using
+`Direct3D11CaptureFramePool::CreateFreeThreaded`; it does not block the UI
+thread. The result is written to `native-capture-result.json` and includes the
+frame count, timestamp span, measured fps, and elapsed time.
+
+This is a measurement seam, not yet the published video path: it does not copy
+surfaces to CPU memory and does not encode H.264. A successful run must first
+show stable timestamps and an acceptable inference impact; only then should an
+encoder be added. The normal screenshot-based capture remains the only
+publishing path until that gate passes.
+
 ### §10c — A second `ContentDialog` kills the process, silently (2026-07-30)
 
 XAML allows exactly **one** `ContentDialog` open per `XamlRoot`. Showing a second

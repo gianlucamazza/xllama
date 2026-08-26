@@ -165,7 +165,7 @@
         %(AdditionalLibraryDirectories)
       </AdditionalLibraryDirectories>
       <!-- d3d12.dll is LoadLibrary'd at first GPU path use (d3d12_dyn.h); no hard import. -->
-      <AdditionalDependencies>WindowsApp.lib;Bcrypt.lib;onnxruntime.lib;onnxruntime-genai.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>WindowsApp.lib;Bcrypt.lib;onnxruntime.lib;onnxruntime-genai.lib;dxgi.lib;d3d11.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
 
@@ -336,6 +336,7 @@
     <ClCompile Include="..\src\bridge\autopilot.cpp" />
     <!-- cli.cpp uses POSIX getopt — Linux only, excluded from UWP target -->
     <ClCompile Include="inference-bridge.cpp" />
+    <ClCompile Include="native_capture.cpp" />
     <ClCompile Include="diffuse.cpp" />
     <ClCompile Include="op-repro.cpp" />
   </ItemGroup>
