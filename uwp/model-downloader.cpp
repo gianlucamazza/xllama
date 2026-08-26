@@ -210,7 +210,7 @@ bool file_matches_sha256(const std::filesystem::path& path, const std::wstring& 
         fclose(fp);
         if (!read_ok)
             break;
-        std::array<UCHAR, BCRYPT_SHA256_HASH_LENGTH> digest{};
+        std::array<UCHAR, 32> digest{}; // SHA-256 digest length
         if (BCryptFinishHash(hash, digest.data(), static_cast<ULONG>(digest.size()), 0) != 0)
             break;
         static constexpr char hex[] = "0123456789abcdef";
@@ -560,7 +560,8 @@ IAsyncAction ModelDownloader::RollbackAsync(std::wstring local_dir, std::vector<
         std::error_code ec;
         if (std::filesystem::is_regular_file(current, ec))
             std::filesystem::remove(current, ec);
-        if (ec || !std::filesystem::rename(previous, current, ec)) {
+        std::filesystem::rename(previous, current, ec);
+        if (ec) {
             co_await resume_foreground(dispatcher);
             on_done(false, L"Cannot restore rollback generation");
             co_return;
