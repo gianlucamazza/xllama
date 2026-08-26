@@ -102,8 +102,29 @@ void start_native_capture(winrt::Windows::UI::Xaml::Controls::Page const& page,
             CaptureState state;
             char const* stage = "frame_pool";
             try {
-                auto pool = Direct3D11CaptureFramePool::CreateFreeThreaded(
-                    device, DirectXPixelFormat::B8G8R8A8UIntNormalized, 2, item.Size());
+                const auto size = item.Size();
+                char size_line[160];
+                std::snprintf(size_line, sizeof(size_line),
+                              "[native-capture] item_width=%d item_height=%d\n", size.Width,
+                              size.Height);
+                log_output(size_line);
+                if (size.Width <= 0 || size.Height <= 0) {
+                    write_result(duration_seconds, state, 0, "invalid_item_size");
+                    log_output("[native-capture] invalid capture item size\n");
+                    return;
+                }
+                Direct3D11CaptureFramePool pool{nullptr};
+                try {
+                    pool = Direct3D11CaptureFramePool::CreateFreeThreaded(
+                        device, DirectXPixelFormat::B8G8R8A8UIntNormalized, 2, size);
+                } catch (winrt::hresult_error const& error) {
+                    if (error.code() != E_INVALIDARG)
+                        throw;
+                    // Some Xbox graphics paths reject BGRA for a capture
+                    // device even though the API surface is present.
+                    pool = Direct3D11CaptureFramePool::CreateFreeThreaded(
+                        device, DirectXPixelFormat::R8G8B8A8UIntNormalized, 2, size);
+                }
                 stage = "session";
                 auto session = pool.CreateCaptureSession(item);
                 stage = "handler";
