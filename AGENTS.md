@@ -47,6 +47,7 @@ xllama/
 │   ├── kv_store.h           # KvStore — on-disk KV snapshot pool (3 files / 192 MB, LRU)
 │   ├── logit_dump.h         # Logit-parity harness: float32 dump + JSON sidecar
 │   ├── ramceil.h            # probe_ram_ceiling — heap ceiling probe
+│   ├── capture_probe.h      # runtime GraphicsCapture presence probe
 │   ├── diskbw.h             # measure_diskbw — NVMe/disk bandwidth probe
 │   ├── d3d12_dyn.h          # Dynamic d3d12.dll entry-point resolve (AppContainer PE hygiene)
 │   ├── membw.h              # measure_membw — STREAM-style CPU bandwidth probe

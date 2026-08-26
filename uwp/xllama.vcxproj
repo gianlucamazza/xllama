@@ -331,6 +331,7 @@
     <ClCompile Include="..\src\bridge\training.cpp" />
     <ClCompile Include="..\src\bridge\device_train.cpp" />
     <ClCompile Include="..\src\bridge\preference_capture.cpp" />
+    <ClCompile Include="..\src\bridge\capture_probe.cpp" />
     <ClCompile Include="..\src\bridge\personalize.cpp" />
     <ClCompile Include="..\src\bridge\autopilot.cpp" />
     <!-- cli.cpp uses POSIX getopt — Linux only, excluded from UWP target -->

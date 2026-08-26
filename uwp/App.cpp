@@ -10,6 +10,7 @@
 #include "MainPage.h"
 #include "inference-bridge.h"
 #include "xllama/platform.h"
+#include "xllama/capture_probe.h"
 #include <roapi.h> // RoInitialize — WinRT MTA (see wWinMain)
 #ifndef XLLAMA_STORE_SKU
 #include "api-server.h"
@@ -97,6 +98,12 @@ static void log_write(const char* msg) {
 // build: a GameOS update could make either line flip, and a demo pipeline
 // planned around a stills slideshow should find that out from a log line rather
 // than from someone guessing again.
+//
+// A structured runtime-presence probe lives in capture_probe.cpp
+// (include/xllama/capture_probe.h). It does not activate a session or request
+// consent; capture viability still requires a measured frame-pool and encoder.
+// See docs/uwp-constraints.md §10b.1.
+// ---------------------------------------------------------------------------
 static void log_app_recording_probe() {
     using winrt::Windows::Foundation::Metadata::ApiInformation;
 
@@ -217,6 +224,9 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
         // rather than an inactive one.
         log_app_recording_probe();
         log_microphone_probe();
+        // GraphicsCapture runtime-presence probe — writes [gcprobe] line.
+        // See include/xllama/capture_probe.h and docs/uwp-constraints.md §10b.1.
+        ::xllama::probe_graphics_capture();
 
         // §7 experiment: the 887A0036 device conflict was measured with ORT
         // GenAI's Agility-factory device; diffuse.cpp uses plain ORT DML, whose

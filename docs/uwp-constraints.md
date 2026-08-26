@@ -605,6 +605,46 @@ vcxproj, and a `TargetDeviceFamily` in the manifest are all compile-time or
 install-time facts, and none of the three implies the type can be activated on
 the device in front of you.
 
+### §10b.1 — GraphicsCapture activation probe (2026-08-26)
+
+The `[caprec]` line in §10b only checks type presence.  A structured runtime
+presence probe lives in `include/xllama/capture_probe.h` /
+`src/bridge/capture_probe.cpp` and is called from `App::OnLaunched` after
+`log_app_recording_probe()` and `log_microphone_probe()`.  It writes a
+`[gcprobe]` line with named fields:
+
+```
+[gcprobe] session_present=1 item_present=1 viable=0
+          encoder=0 presence_error=0 duration_us=1234
+```
+
+Probe sequence:
+
+1. `ApiInformation::IsTypePresent` for `GraphicsCaptureSession` and
+   `GraphicsCaptureItem`.
+2. Structured summary of runtime presence.
+
+The probe never activates a session or requests consent, so it cannot alter
+inference or kill the process.  The `capture_metadata` struct is pure C++ with no
+WinRT headers, so it can be validated on the host (Linux) without a UWP
+toolchain.
+
+**Current verdict:** the probe has not yet been run on console — the module was
+just added.  The `[caprec]` line (§10b) confirms the types are present, which
+is necessary but not sufficient.  No activation or capture viability is claimed.
+
+**What is NOT implemented:** no in-process video encoder exists.  GraphicsCapture
+produces CPU memory frames; encoding to H.264 requires a separate encoder
+(MediaFoundation `IMFSinkWriter` or a UWP-compatible software encoder).  That
+is the **next seam** — documented in
+`include/xllama/capture_probe.h` under "Next seam (not implemented)".  The
+The next PR must implement and measure the frame-pool and encoder seams behind
+an opt-in flag before the native path can replace the screenshot fallback.
+
+**Store SKU safe:** GraphicsCaptureSession is Universal contract — no Desktop
+Extension SDK needed — so the probe compiles and runs on both Dev Mode and
+Store SKUs.
+
 ### §10c — A second `ContentDialog` kills the process, silently (2026-07-30)
 
 XAML allows exactly **one** `ContentDialog` open per `XamlRoot`. Showing a second

@@ -73,6 +73,7 @@ add_library(xllama STATIC
     src/bridge/preference_capture.cpp
     src/bridge/personalize.cpp
     src/bridge/autopilot.cpp
+    src/bridge/capture_probe.cpp
 )
 
 # Optional benchmarking probes (membw, diskbw, gpubw, gpugemv, ramceil)
