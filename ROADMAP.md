@@ -52,7 +52,7 @@ performance belongs in `docs/benchmarks.md`.
 ### Next (after v1.5.6.0)
 
 1. **Vendor pin drops** (#84/#85/#86) — blocked until NuGet moves
-   (`scripts/check-vendor-nuget-status.sh`, poll 2026-08-20: still required).
+   (`scripts/check-vendor-nuget-status.sh`, poll 2026-08-27: still required).
 2. **Store readiness** — product **xllama** reserved as **Game**
    (`9N9661XSDBM4`, identity in `docs/store-readiness.md` §13). Next: IARC +
    listing in the submission; do not stamp Store CN onto the Dev Mode package.
@@ -61,8 +61,9 @@ performance belongs in `docs/benchmarks.md`.
 4. **Parked eng** — H6/H7 (#228) after H6.2 **K2** (wave32 median 25.4 GB/s
    packed, G2 stays 40); crossbuild product parity (layer 2 closed
    2026-08-08 by uwp-crossbuild 0.5.1 — launch proven; ORT/GenAI, first boot
-   and uptime not); prompt-lookup default OFF. Dependabot llama.cpp #247 fails
-   UWP (`LLAMA_VERSION`); do not merge on Linux green.
+   and uptime not); prompt-lookup default OFF. Dependabot llama.cpp #247 was
+   closed 2026-08-26 after the UWP build failed on `LLAMA_VERSION`; do not
+   merge that bump on Linux green alone.
 
 ## Research / XAB release
 
