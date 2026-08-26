@@ -40,7 +40,7 @@ performance belongs in `docs/benchmarks.md`.
 - **Demo capture remains the v1.5.2 assets** (576 stills; re-record optional).
   Pipeline is re-runnable (`demo/demo-script.json` + `scripts/capture-demo-video.sh`).
 
-### Next (after v1.5.5.0)
+### Next (after v1.5.6.0)
 
 1. **Vendor pin drops** (#84/#85/#86) — blocked until NuGet moves
    (`scripts/check-vendor-nuget-status.sh`, poll 2026-08-20: still required).

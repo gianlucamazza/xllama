@@ -11,6 +11,8 @@
     #include <string>
     #include <vector>
 
+    #include "xllama/catalog_trust.h"
+
 namespace xllama {
 
 struct ModelFile {
@@ -19,6 +21,9 @@ struct ModelFile {
     std::wstring remote; // asset name in the download source (release assets are flat);
                          // empty = same as filename
     uint64_t approx_bytes; // 0 = unknown; progress bar + skip-if-present completeness
+    // Lowercase SHA-256 of the complete file. Empty is permitted only for
+    // legacy/custom Dev Mode entries; trusted catalogue entries must provide it.
+    std::wstring sha256;
 };
 
 // Async download of an ONNX GenAI model from a Hugging Face repository to
@@ -40,6 +45,14 @@ class ModelDownloader {
     DownloadAsync(std::wstring hf_repo_url, std::wstring local_dir, std::vector<ModelFile> files,
                   winrt::Windows::UI::Core::CoreDispatcher dispatcher,
                   std::function<void(uint64_t, uint64_t)> on_progress,
+                  std::function<void(bool, std::wstring)> on_done);
+
+    // Restore the last atomically backed-up generation. The callback is invoked
+    // on |dispatcher|. Store callers must expose this only as an explicit
+    // recovery action, never as a silent background update.
+    static winrt::Windows::Foundation::IAsyncAction
+    RollbackAsync(std::wstring local_dir, std::vector<ModelFile> files,
+                  winrt::Windows::UI::Core::CoreDispatcher dispatcher,
                   std::function<void(bool, std::wstring)> on_done);
 };
 
@@ -78,7 +91,7 @@ struct ManifestEntry {
 // bundled ones, new names are appended, unmentioned bundled entries stay.
 // Falls back to a built-in single-entry catalogue (the historical hardcoded
 // SmolLM2-360M) if neither parses, so the app never starts with an empty list.
-std::vector<ManifestEntry> LoadModelManifest();
+std::vector<ManifestEntry> LoadModelManifest(ManifestTrust* trust = nullptr);
 
 // Find an entry by model dir name; nullptr-like (empty name) if absent.
 inline const ManifestEntry* FindManifestEntry(const std::vector<ManifestEntry>& m,

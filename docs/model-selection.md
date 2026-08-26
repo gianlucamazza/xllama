@@ -117,6 +117,13 @@ as authoritative unless backed by a Microsoft source.
 
 ## Add your own model (manifest override, no reinstall)
 
+Downloaded catalogue files may declare a lowercase `sha256` value alongside
+`filename`, `remote`, and `approx_bytes`. xllama verifies that digest against
+the staged file before replacing an existing model and before writing the
+`.complete` marker. Missing hashes remain supported only for legacy/custom
+Dev Mode provisioning; a future Store catalogue must reject entries without
+integrity pins and a signed catalogue envelope.
+
 The Settings ComboBox is populated from the model catalogue. A
 `LocalState\manifest.json` uploaded via Device Portal is **merged per entry**
 into the bundled catalogue (`uwp/model-downloader.cpp`, `LoadModelManifest`):

@@ -686,7 +686,7 @@ non-empty line of the first user message (truncated at 60 chars). IDs use
 | `display`     | `wstring`     | —             | User-facing name                                           |
 | `kind`        | `wstring`     | `"ort-genai"` | `"ort-genai"` / `"diffusion"` / `"gguf"`                   |
 | `hf_base_url` | `wstring`     | —             | Download source (GitHub Release / HF)                      |
-| `files`       | `ModelFile[]` | —             | `{filename, remote, approx_bytes}`                         |
+| `files`       | `ModelFile[]` | —             | `{filename, remote, approx_bytes, sha256}`                 |
 | `lora`        | `wstring`     | —             | GGUF LoRA relative to model dir                            |
 | `lora_scale`  | `double`      | `1.0`         | LoRA scale factor                                          |
 | `n_ctx`       | `int`         | `0`           | `0` → `kDefaultNCtx` (2048); else clamped [512, 8192]      |

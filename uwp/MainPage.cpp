@@ -68,6 +68,30 @@ static std::wstring local_wpath(const wchar_t* filename_w) {
     return std::wstring(folder.Path().c_str()) + L"\\" + filename_w;
 }
 
+// Remove superseded GGUFs only after the replacement download has completed.
+// Deleting them before download would turn a transient network failure into a
+// lost working model.
+static void remove_stale_gguf_after_success(const std::wstring& model_dir,
+                                            const std::vector<std::wstring>& expected_files) {
+    std::vector<std::wstring> expected;
+    for (const auto& file : expected_files)
+        expected.push_back(::xllama::normalize_model_path(file));
+    std::error_code ec;
+    for (const auto& entry : std::filesystem::directory_iterator(model_dir, ec)) {
+        if (!entry.is_regular_file(ec) || entry.path().extension() != L".gguf")
+            continue;
+        const auto name = ::xllama::normalize_model_path(entry.path().filename().wstring());
+        if (std::find(expected.begin(), expected.end(), name) == expected.end()) {
+            std::error_code remove_ec;
+            std::filesystem::remove(entry.path(), remove_ec);
+            if (!remove_ec)
+                log_output(("[xllama] EnsureModel: removed superseded file '" +
+                            ::xllama::wstring_to_utf8(entry.path().filename().wstring()) + "'\n")
+                               .c_str());
+        }
+    }
+}
+
 // #170b: where per-conversation KV snapshots live. Created on demand by the
 // save path; every reader tolerates its absence.
 static ::xllama::KvStore kv_store() {
@@ -2565,40 +2589,10 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
         }
     }
 
-    // Reconcile the dir to the expected set before downloading: drop any *.gguf
-    // that isn't in the manifest's expected files (a stale quant we're upgrading
-    // away from) and clear the stale .complete marker. Without this the old and
-    // new gguf coexist and first_gguf_in_dir() may load the wrong one; it also
-    // frees the ~2.3 GB the old quant occupies.
+    // Reconcile the marker before downloading. Superseded GGUFs are removed only
+    // after a successful replacement; a failed update must leave the old model
+    // usable for rollback/retry.
     {
-        std::vector<std::wstring> expected_norm;
-        for (const auto& e : expected_files)
-            expected_norm.push_back(::xllama::normalize_model_path(e));
-        // Collect stale gguf paths first, then remove — mutating the directory
-        // mid-iteration is undefined.
-        std::vector<std::filesystem::path> stale;
-        std::error_code ec;
-        for (const auto& de :
-             std::filesystem::directory_iterator(std::filesystem::path(local_model_dir), ec)) {
-            if (!de.is_regular_file(ec) || de.path().extension() != L".gguf")
-                continue;
-            std::wstring rel = ::xllama::normalize_model_path(de.path().filename().wstring());
-            bool wanted = false;
-            for (const auto& w : expected_norm)
-                if (w == rel) {
-                    wanted = true;
-                    break;
-                }
-            if (!wanted)
-                stale.push_back(de.path());
-        }
-        for (const auto& p : stale) {
-            std::error_code rm_ec;
-            std::filesystem::remove(p, rm_ec);
-            log_output(("[xllama] EnsureModel: removed stale file '" +
-                        ::xllama::wstring_to_utf8(p.filename().wstring()) + "'\n")
-                           .c_str());
-        }
         ModelDownloader::Invalidate(local_model_dir);
     }
 
@@ -2621,7 +2615,7 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                                 StatusKind::Working);
             }
         },
-        [self, set_app_ready](bool ok, std::wstring err) {
+        [self, set_app_ready, local_model_dir, expected_files](bool ok, std::wstring err) {
             if (set_app_ready) {
                 self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Collapsed);
                 self->m_runButton.IsEnabled(true);
@@ -2634,6 +2628,7 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                     self->SetStatus(L"Download failed: " + err, StatusKind::Error);
                 return;
             }
+            remove_stale_gguf_after_success(local_model_dir, expected_files);
             log_output("[xllama] EnsureModel: download complete\n");
             if (set_app_ready) {
                 self->SetStatus(L"Model ready", StatusKind::Success);

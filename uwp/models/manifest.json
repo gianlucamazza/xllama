@@ -1,5 +1,5 @@
 {
-  "_comment": "Model catalogue for xllama. Bundled at InstalledPath\\models\\manifest.json; a LocalState\\manifest.json (uploadable via Device Portal, no reinstall) is merged per entry: same-name entries replace bundled ones, new names are appended, unmentioned bundled entries stay. Entries without hf_base_url are USB/Device-Portal-provisioned only. approx_bytes drives the download progress bar. kind: 'ort-genai' (default, chat picker, ORT backend), 'diffusion' (image dialog), or 'gguf' (chat picker, llama.cpp backend — CPU-only, KV-reuse enabled via a persistent llama_context, routing disabled). files[].filename is the local path under models\\<name> (subdirs allowed); files[].remote is the flat asset name in the release (defaults to filename). TAESD VAE (optional, Image dialog toggle): models-v1 asset sd-turbo-fp16_taesd_vae_decoder_model.onnx — export via diffusion/export_taesd.py.",
+  "_comment": "Model catalogue for xllama. Bundled at InstalledPath\\models\\manifest.json; a LocalState\\manifest.json (uploadable via Device Portal, no reinstall) is merged per entry: same-name entries replace the bundled one, new names are appended, unmentioned bundled entries stay. Entries without hf_base_url are USB/Device-Portal-provisioned only. approx_bytes drives the download progress bar; files[].sha256 is the lowercase SHA-256 integrity pin checked before promotion. kind: 'ort-genai' (default, chat picker, ORT backend), 'diffusion' (image dialog), or 'gguf' (chat picker, llama.cpp backend — CPU-only, KV-reuse enabled via a persistent llama_context, routing disabled). files[].filename is the local path under models\\<name> (subdirs allowed); files[].remote is the flat asset name in the release (defaults to filename). TAESD VAE (optional, Image dialog toggle): models-v1 asset sd-turbo-fp16_taesd_vae_decoder_model.onnx — export via diffusion/export_taesd.py.",
   "models": [
     {
       "name": "smollm2-360m-cpu-int4",
@@ -8,19 +8,23 @@
       "files": [
         {
           "filename": "genai_config.json",
-          "approx_bytes": 1456
+          "approx_bytes": 1500,
+          "sha256": "02b0e86449641989ab0bd9598a14f863d7c0281a9fcc3bf06767cb5b409e5a82"
         },
         {
           "filename": "tokenizer.json",
-          "approx_bytes": 3522871
+          "approx_bytes": 3522871,
+          "sha256": "bf346d64f6f0fbcefb4c1b6928a98241467dff36c6fbae5fe1785c4ff90667f4"
         },
         {
           "filename": "tokenizer_config.json",
-          "approx_bytes": 453
+          "approx_bytes": 453,
+          "sha256": "3e9c0d0aff40796f26a2986e6ed1b5e03646765272eb20bacd2492bd020e6c98"
         },
         {
           "filename": "model.onnx",
-          "approx_bytes": 417404408
+          "approx_bytes": 417404408,
+          "sha256": "22496ba7ca4a796be916055e1fe995d6c506d77db05e05d16857722e711a0eda"
         }
       ]
     },
@@ -32,22 +36,26 @@
         {
           "filename": "genai_config.json",
           "remote": "smollm2-360m-dml-fp16-v2_genai_config.json",
-          "approx_bytes": 1599
+          "approx_bytes": 1599,
+          "sha256": "d4073f856c3e174f31523f5dcc1fbb68d47f01f534022b44451441d3449c5240"
         },
         {
           "filename": "tokenizer.json",
           "remote": "smollm2-360m-dml-fp16-v2_tokenizer.json",
-          "approx_bytes": 3522871
+          "approx_bytes": 3522871,
+          "sha256": "bf346d64f6f0fbcefb4c1b6928a98241467dff36c6fbae5fe1785c4ff90667f4"
         },
         {
           "filename": "tokenizer_config.json",
           "remote": "smollm2-360m-dml-fp16-v2_tokenizer_config.json",
-          "approx_bytes": 452
+          "approx_bytes": 452,
+          "sha256": "47b4a92de79d133d06b4cec56e9b8226d2be0b62936209577181d5a76444a08a"
         },
         {
           "filename": "model.onnx",
           "remote": "smollm2-360m-dml-fp16-v2_model.onnx",
-          "approx_bytes": 725021421
+          "approx_bytes": 725021421,
+          "sha256": "c417dda34ebf9c0c4ab9f0057c0841121581296789f8fa156f2899195434133f"
         }
       ]
     },
@@ -59,22 +67,26 @@
         {
           "filename": "genai_config.json",
           "remote": "smollm2-1.7b-cpu-int4_genai_config.json",
-          "approx_bytes": 2000
+          "approx_bytes": 1458,
+          "sha256": "c76e19ce57f3463f19588142c8266f805d18cb93a38288d8c5b9d35dae030753"
         },
         {
           "filename": "tokenizer.json",
           "remote": "smollm2-1.7b-cpu-int4_tokenizer.json",
-          "approx_bytes": 3600000
+          "approx_bytes": 3522871,
+          "sha256": "bf346d64f6f0fbcefb4c1b6928a98241467dff36c6fbae5fe1785c4ff90667f4"
         },
         {
           "filename": "tokenizer_config.json",
           "remote": "smollm2-1.7b-cpu-int4_tokenizer_config.json",
-          "approx_bytes": 1000
+          "approx_bytes": 452,
+          "sha256": "47b4a92de79d133d06b4cec56e9b8226d2be0b62936209577181d5a76444a08a"
         },
         {
           "filename": "model.onnx",
           "remote": "smollm2-1.7b-cpu-int4_model.onnx",
-          "approx_bytes": 1400000000
+          "approx_bytes": 1474861442,
+          "sha256": "8b46fe437133f584ddab2443f92cf60e531d17318a81a3c99e5e0993f6e7020e"
         }
       ]
     },
@@ -87,7 +99,8 @@
       "files": [
         {
           "filename": "Qwen3.5-0.8B-Q4_K_M.gguf",
-          "approx_bytes": 532517120
+          "approx_bytes": 532517120,
+          "sha256": "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517"
         }
       ]
     },
@@ -100,7 +113,8 @@
       "files": [
         {
           "filename": "gemma-3-270m-it-Q4_K_M.gguf",
-          "approx_bytes": 253115424
+          "approx_bytes": 253115424,
+          "sha256": "b1baabd6b729e4041822220d3e648e00d99cac5df86b10dffb77bcccf0688e39"
         }
       ]
     },
@@ -113,7 +127,8 @@
       "files": [
         {
           "filename": "gemma-4-E2B-it-Q3_K_S.gguf",
-          "approx_bytes": 2445650048
+          "approx_bytes": 2445652064,
+          "sha256": "80d155f647d3a896669b1d1605b494b97ee9dbd1dcafd27957394134c280d270"
         }
       ]
     },
@@ -126,12 +141,14 @@
       "files": [
         {
           "filename": "LFM2.5-230M-Q4_K_M.gguf",
-          "approx_bytes": 153406304
+          "approx_bytes": 153406304,
+          "sha256": "7bbd90384d3deffe4c646ec9643b212802d32d4ce417c90a1ec9282100650062"
         },
         {
           "filename": "LICENSE",
           "remote": "LFM2.5-230M_LICENSE.txt",
-          "approx_bytes": 10574
+          "approx_bytes": 10574,
+          "sha256": "30adf9d6478191fb87f2424f63ba0728598335aaf99cd2848ef17e8e545fe94b"
         }
       ]
     },
@@ -143,12 +160,14 @@
       "files": [
         {
           "filename": "LFM2.5-350M-Q4_K_M.gguf",
-          "approx_bytes": 229312224
+          "approx_bytes": 229312224,
+          "sha256": "7e6f72643caafc9a68256686638c4d7916f2cec76d1df478d4c3ddcd95a6aed4"
         },
         {
           "filename": "LICENSE.txt",
           "remote": "LFM2.5-350M_LICENSE.txt",
-          "approx_bytes": 10596
+          "approx_bytes": 10596,
+          "sha256": "5188f2b355da20647257a3156db5834c794e5fb5e6d8dc4d4cdbb3180e75b85b"
         }
       ]
     },
@@ -161,11 +180,13 @@
       "files": [
         {
           "filename": "LFM2.5-1.2B-Instruct-Q4_K_M.gguf",
-          "approx_bytes": 730895168
+          "approx_bytes": 730895168,
+          "sha256": "b1b3de114215d9507409a662a501a631095a479a419584e8a2ded6304b19b4f5"
         },
         {
           "filename": "LICENSE",
-          "approx_bytes": 10596
+          "approx_bytes": 10596,
+          "sha256": "5188f2b355da20647257a3156db5834c794e5fb5e6d8dc4d4cdbb3180e75b85b"
         }
       ]
     },
@@ -178,11 +199,13 @@
       "files": [
         {
           "filename": "LFM2-2.6B-Q4_K_M.gguf",
-          "approx_bytes": 1563668704
+          "approx_bytes": 1563668704,
+          "sha256": "384bc877b6c37064982f96885bef69e4475919f5969218ed4e3b9399ae0340df"
         },
         {
           "filename": "LICENSE",
-          "approx_bytes": 10644
+          "approx_bytes": 10644,
+          "sha256": "61d7e939a05911c765b7e98ffaa1ab5ca6c0174a65350766c25cb10197d19fc8"
         }
       ]
     },
@@ -195,7 +218,8 @@
       "files": [
         {
           "filename": "Llama-3.2-3B-Instruct-Q3_K_S.gguf",
-          "approx_bytes": 1542848960
+          "approx_bytes": 1542848960,
+          "sha256": "81bd392ed38532d17f8be3942ec3237747ccc9d91365e6cc31e060be3f0edac8"
         }
       ]
     },
@@ -210,7 +234,8 @@
       "files": [
         {
           "filename": "Qwen2.5-Coder-0.5B-Instruct-Q4_K_M.gguf",
-          "approx_bytes": 397807456
+          "approx_bytes": 397807456,
+          "sha256": "8c3d7a77d612727c35cc6f94ee9316e00ad53ba1cb41414e6b26b96be6a5338a"
         }
       ]
     },
@@ -225,7 +250,8 @@
       "files": [
         {
           "filename": "Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf",
-          "approx_bytes": 986048032
+          "approx_bytes": 986048032,
+          "sha256": "5ecd6f45e137154099741291848db7415b5effa1ae69228f20dacea31dbf5ce4"
         }
       ]
     },
@@ -240,7 +266,8 @@
       "files": [
         {
           "filename": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
-          "approx_bytes": 1929902496
+          "approx_bytes": 1929902496,
+          "sha256": "32f0014400ca1c1f81e7fb5befa9b9af476ba967dcbf92bad27409228c57c5b4"
         }
       ]
     },
@@ -253,7 +280,8 @@
       "files": [
         {
           "filename": "Qwen3-1.7B-Q4_K_M.gguf",
-          "approx_bytes": 1107409472
+          "approx_bytes": 1107409472,
+          "sha256": "b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897"
         }
       ]
     },
@@ -266,11 +294,13 @@
       "files": [
         {
           "filename": "LFM2.5-1.2B-Thinking-Q4_K_M.gguf",
-          "approx_bytes": 730895360
+          "approx_bytes": 730895360,
+          "sha256": "7223a2202405b02e8e1e6c5baa543c43dc98c1d9741a5c2a0ee1583212e1231b"
         },
         {
           "filename": "LICENSE",
-          "approx_bytes": 10596
+          "approx_bytes": 10596,
+          "sha256": "5188f2b355da20647257a3156db5834c794e5fb5e6d8dc4d4cdbb3180e75b85b"
         }
       ],
       "n_predict": 1024
@@ -284,27 +314,32 @@
         {
           "filename": "text_encoder/model.onnx",
           "remote": "sd-turbo-fp16_text_encoder_model.onnx",
-          "approx_bytes": 681657392
+          "approx_bytes": 681657392,
+          "sha256": "19eafca6146cb5a939464307bdaec18a2831a3b4558069435b4bd48c2b2fed7e"
         },
         {
           "filename": "unet/model.onnx",
           "remote": "sd-turbo-fp16_unet_model.onnx",
-          "approx_bytes": 1733278769
+          "approx_bytes": 1733278769,
+          "sha256": "3026a99cf01786e7d4524a8e535112fff98c8958916daaad815333dd929bab37"
         },
         {
           "filename": "vae_decoder/model.onnx",
           "remote": "sd-turbo-fp16_vae_decoder_model.onnx",
-          "approx_bytes": 99125634
+          "approx_bytes": 99125634,
+          "sha256": "b12f26698d6ac9ee6aac0482a86cf0194231d0a3304da78a98796eb6d6ddbc35"
         },
         {
           "filename": "tokenizer/vocab.json",
           "remote": "sd-turbo-fp16_tokenizer_vocab.json",
-          "approx_bytes": 1059962
+          "approx_bytes": 1059962,
+          "sha256": "e089ad92ba36837a0d31433e555c8f45fe601ab5c221d4f607ded32d9f7a4349"
         },
         {
           "filename": "tokenizer/merges.txt",
           "remote": "sd-turbo-fp16_tokenizer_merges.txt",
-          "approx_bytes": 524619
+          "approx_bytes": 524619,
+          "sha256": "9fd691f7c8039210e0fced15865466c65820d09b63988b0174bfe25de299051a"
         }
       ]
     },
@@ -317,7 +352,8 @@
       "files": [
         {
           "filename": "LFM2.5-8B-A1B-UD-IQ3_S.gguf",
-          "approx_bytes": 3570921056
+          "approx_bytes": 3570921056,
+          "sha256": "4a3c682957fa64e4361f651d6a157caaf8f2447bff64167eee0d258c0c937ef4"
         }
       ]
     }

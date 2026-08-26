@@ -165,7 +165,7 @@
         %(AdditionalLibraryDirectories)
       </AdditionalLibraryDirectories>
       <!-- d3d12.dll is LoadLibrary'd at first GPU path use (d3d12_dyn.h); no hard import. -->
-      <AdditionalDependencies>WindowsApp.lib;onnxruntime.lib;onnxruntime-genai.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>WindowsApp.lib;Bcrypt.lib;onnxruntime.lib;onnxruntime-genai.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
 

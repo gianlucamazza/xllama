@@ -6,8 +6,10 @@
 // clang-format off
 #include "pch.h"
 #include "model-downloader.h"
+#include <bcrypt.h>
 // clang-format on
 
+    #include "xllama/catalog_trust.h"
     #include "xllama/manifest_merge.h"
     #include "xllama/model_provision.h"
     #include "xllama/platform.h"
@@ -17,6 +19,7 @@
 
     #include <chrono>
     #include <filesystem>
+    #include <fstream>
 
 using namespace winrt;
 using namespace winrt::Windows::Foundation;
@@ -45,6 +48,78 @@ void ModelDownloader::Invalidate(std::wstring const& local_dir) {
 
 namespace {
 
+// Provisional Ed25519 public key for development builds. The Store artifact is
+// not releasable until this value is replaced by the public half of the
+// offline release key and the bundled catalogue is signed with its private
+// half. Rotate by changing key_id and this constant in the same release.
+// SubjectPublicKeyInfo wrapper for the raw Ed25519 key (RFC 8410).
+static constexpr uint8_t kCataloguePublicKeySpki[44] = {
+    0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00, 0x2f, 0x8d, 0xa4,
+    0x61, 0x70, 0x42, 0x8f, 0x0d, 0x7b, 0x1e, 0x5d, 0x91, 0x4c, 0x2a, 0x6f, 0x83, 0x9a, 0x0b,
+    0x34, 0xe1, 0x57, 0x6c, 0x88, 0x19, 0x43, 0xaf, 0x5e, 0x72, 0x0c, 0xd6, 0x31, 0xb8,
+};
+static constexpr wchar_t kCatalogueKeyId[] = L"release-v1";
+
+bool verify_catalogue_envelope(winrt::Windows::Data::Json::JsonObject const& envelope,
+                               winrt::hstring& payload_text, ManifestTrust* trust) {
+    using namespace winrt::Windows::Security::Cryptography;
+    using namespace winrt::Windows::Security::Cryptography::Core;
+    try {
+        if (envelope.GetNamedNumber(L"schema_version", 0) != 2.0)
+            throw winrt::hresult_invalid_argument();
+        const auto key_id = envelope.GetNamedString(L"key_id", L"");
+        if (key_id != kCatalogueKeyId)
+            throw winrt::hresult_invalid_argument();
+        const auto encoded_payload = envelope.GetNamedString(L"payload", L"");
+        const auto encoded_signature = envelope.GetNamedString(L"signature", L"");
+        if (encoded_payload.empty() || encoded_signature.empty())
+            throw winrt::hresult_invalid_argument();
+        auto payload = CryptographicBuffer::DecodeFromBase64String(encoded_payload);
+        auto signature = CryptographicBuffer::DecodeFromBase64String(encoded_signature);
+        auto key_bytes = CryptographicBuffer::CreateFromByteArray(
+            winrt::array_view<const uint8_t>(kCataloguePublicKeySpki));
+        auto provider = AsymmetricKeyAlgorithmProvider::OpenAlgorithm(L"Ed25519");
+        auto key = provider.ImportPublicKey(key_bytes);
+        if (!CryptographicEngine::VerifySignature(key, payload, signature))
+            throw winrt::hresult_invalid_argument();
+        winrt::com_array<uint8_t> bytes;
+        CryptographicBuffer::CopyToByteArray(payload, bytes);
+        payload_text = winrt::hstring(::xllama::utf8_to_wstring(
+            std::string(reinterpret_cast<const char*>(bytes.data()), bytes.size())));
+        if (trust) {
+            trust->trusted = true;
+            trust->catalogue_version =
+                winrt::to_string(envelope.GetNamedString(L"catalogue_version", L""));
+            trust->key_id = winrt::to_string(key_id);
+            trust->error.clear();
+        }
+        return true;
+    } catch (...) {
+        if (trust) {
+            trust->trusted = false;
+            trust->error = "catalogue signature verification failed";
+        }
+        return false;
+    }
+}
+
+bool trusted_entries_have_hashes(const std::vector<ManifestEntry>& entries) {
+    for (const auto& entry : entries) {
+        if (entry.hf_base_url.empty())
+            continue;
+        for (const auto& file : entry.files) {
+            if (file.sha256.size() != 64)
+                return false;
+            for (wchar_t c : file.sha256) {
+                const bool hex = (c >= L'0' && c <= L'9') || (c >= L'a' && c <= L'f');
+                if (!hex)
+                    return false;
+            }
+        }
+    }
+    return true;
+}
+
 // On-disk size of local_dir/filename (subdir-aware). 0 if missing/unreadable.
 uint64_t local_file_size(const std::filesystem::path& local_dir, const std::wstring& rel) {
     std::error_code ec;
@@ -55,15 +130,67 @@ uint64_t local_file_size(const std::filesystem::path& local_dir, const std::wstr
     return ec ? 0 : static_cast<uint64_t>(sz);
 }
 
+bool file_matches_sha256(const std::filesystem::path& path, const std::wstring& expected) {
+    if (expected.empty())
+        return true;
+    BCRYPT_ALG_HANDLE alg = nullptr;
+    BCRYPT_HASH_HANDLE hash = nullptr;
+    bool ok = false;
+    do {
+        if (BCryptOpenAlgorithmProvider(&alg, BCRYPT_SHA256_ALGORITHM, nullptr, 0) != 0)
+            break;
+        DWORD object_len = 0;
+        DWORD result_len = 0;
+        if (BCryptGetProperty(alg, BCRYPT_OBJECT_LENGTH, reinterpret_cast<PUCHAR>(&object_len),
+                              sizeof(object_len), &result_len, 0) != 0)
+            break;
+        std::vector<UCHAR> object(object_len);
+        if (BCryptCreateHash(alg, &hash, object.data(), object_len, nullptr, 0, 0) != 0)
+            break;
+        FILE* fp = _wfopen(path.c_str(), L"rb");
+        if (!fp)
+            break;
+        std::array<UCHAR, 256 * 1024> buf{};
+        size_t n = 0;
+        bool read_ok = true;
+        while ((n = fread(buf.data(), 1, buf.size(), fp)) > 0) {
+            if (BCryptHashData(hash, buf.data(), static_cast<ULONG>(n), 0) != 0) {
+                read_ok = false;
+                break;
+            }
+        }
+        read_ok = read_ok && ferror(fp) == 0;
+        fclose(fp);
+        if (!read_ok)
+            break;
+        std::array<UCHAR, BCRYPT_SHA256_HASH_LENGTH> digest{};
+        if (BCryptFinishHash(hash, digest.data(), static_cast<ULONG>(digest.size()), 0) != 0)
+            break;
+        static constexpr char hex[] = "0123456789abcdef";
+        std::string actual;
+        actual.reserve(digest.size() * 2);
+        for (UCHAR b : digest) {
+            actual.push_back(hex[b >> 4]);
+            actual.push_back(hex[b & 0x0f]);
+        }
+        ok = actual == ::xllama::wstring_to_utf8(expected);
+    } while (false);
+    if (hash)
+        BCryptDestroyHash(hash);
+    if (alg)
+        BCryptCloseAlgorithmProvider(alg, 0);
+    return ok;
+}
+
 // True when a previous download/WDP upload left a usable file: exact approx_bytes
-// match when known; otherwise any non-empty file (loose USB/WDP).
+// match when known, and SHA-256 when the trusted catalogue supplies one.
 bool file_already_complete(const std::filesystem::path& local_dir, const ModelFile& f) {
     const uint64_t have = local_file_size(local_dir, f.filename);
     if (have == 0)
         return false;
-    if (f.approx_bytes == 0)
-        return true;
-    return have == f.approx_bytes;
+    if (f.approx_bytes != 0 && have != f.approx_bytes)
+        return false;
+    return file_matches_sha256(local_dir / f.filename, f.sha256);
 }
 
 bool http_status_retryable(int code) {
@@ -270,9 +397,40 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
             out_writer.DetachStream();
             out_stream = nullptr;
 
+            // Verify the complete staged file before replacing a usable target.
+            if (!f.sha256.empty() &&
+                !file_matches_sha256(local_dir_fs / (f.filename + L".part"), f.sha256)) {
+                last_err = L"SHA-256 mismatch for " + f.filename;
+                try {
+                    co_await out_file.DeleteAsync();
+                } catch (...) {
+                }
+                co_await resume_foreground(dispatcher);
+                on_done(false, last_err);
+                co_return;
+            }
+
             // Atomically promote the completed .part over the target. The old
-            // file is only replaced once every byte is on disk; a locked target
-            // fails the rename here without having destroyed the existing model.
+            // file is backed up before promotion. A locked target fails the
+            // rename here without having destroyed the existing model.
+            {
+                const auto target = local_dir_fs / f.filename;
+                const auto previous = std::filesystem::path(target.wstring() + L".previous");
+                std::error_code backup_ec;
+                if (std::filesystem::is_regular_file(target, backup_ec) &&
+                    !std::filesystem::copy_file(target, previous,
+                                                std::filesystem::copy_options::overwrite_existing,
+                                                backup_ec)) {
+                    last_err = L"Cannot back up " + f.filename;
+                    try {
+                        co_await out_file.DeleteAsync();
+                    } catch (...) {
+                    }
+                    co_await resume_foreground(dispatcher);
+                    on_done(false, last_err);
+                    co_return;
+                }
+            }
             bool rename_failed = false;
             try {
                 co_await out_file.RenameAsync(winrt::hstring(leaf),
@@ -333,6 +491,48 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
     on_done(true, L"");
 }
 
+IAsyncAction ModelDownloader::RollbackAsync(std::wstring local_dir, std::vector<ModelFile> files,
+                                            CoreDispatcher dispatcher,
+                                            std::function<void(bool, std::wstring)> on_done) {
+    co_await resume_background();
+    const std::filesystem::path root(local_dir);
+    std::vector<std::pair<std::filesystem::path, std::filesystem::path>> moves;
+    for (const auto& file : files) {
+        const auto current = root / file.filename;
+        const auto previous = std::filesystem::path(current.wstring() + L".previous");
+        std::error_code ec;
+        if (!std::filesystem::is_regular_file(previous, ec)) {
+            co_await resume_foreground(dispatcher);
+            on_done(false, L"No rollback generation for " + file.filename);
+            co_return;
+        }
+        moves.emplace_back(current, previous);
+    }
+
+    for (const auto& [current, previous] : moves) {
+        std::error_code ec;
+        if (std::filesystem::is_regular_file(current, ec))
+            std::filesystem::remove(current, ec);
+        if (ec || !std::filesystem::rename(previous, current, ec)) {
+            co_await resume_foreground(dispatcher);
+            on_done(false, L"Cannot restore rollback generation");
+            co_return;
+        }
+    }
+    std::error_code marker_ec;
+    std::filesystem::remove(root / kCompleteMarker, marker_ec);
+    std::ofstream marker(root / kCompleteMarker, std::ios::binary);
+    if (!marker) {
+        co_await resume_foreground(dispatcher);
+        on_done(false, L"Cannot write rollback marker");
+        co_return;
+    }
+    marker << "ok";
+    marker.close();
+    co_await resume_foreground(dispatcher);
+    on_done(true, L"");
+}
+
 // ---------------------------------------------------------------------------
 // Model catalogue (models/manifest.json)
 // ---------------------------------------------------------------------------
@@ -371,6 +571,7 @@ std::vector<ManifestEntry> parse_manifest(winrt::hstring const& text) {
                 mf.filename = fo.GetNamedString(L"filename", L"");
                 mf.remote = fo.GetNamedString(L"remote", L"");
                 mf.approx_bytes = (uint64_t)fo.GetNamedNumber(L"approx_bytes", 0);
+                mf.sha256 = fo.GetNamedString(L"sha256", L"");
                 if (!mf.filename.empty())
                     e.files.push_back(std::move(mf));
             }
@@ -380,7 +581,8 @@ std::vector<ManifestEntry> parse_manifest(winrt::hstring const& text) {
     return out;
 }
 
-std::vector<ManifestEntry> read_manifest_file(std::wstring const& path) {
+std::vector<ManifestEntry> read_manifest_file(std::wstring const& path,
+                                              ManifestTrust* trust = nullptr) {
     FILE* fp = _wfopen(path.c_str(), L"rb");
     if (!fp)
         return {};
@@ -390,7 +592,22 @@ std::vector<ManifestEntry> read_manifest_file(std::wstring const& path) {
     while ((n = fread(buf, 1, sizeof(buf), fp)) > 0)
         bytes.append(buf, n);
     fclose(fp);
-    return parse_manifest(winrt::hstring(utf8_to_wstring(bytes)));
+    using winrt::Windows::Data::Json::JsonObject;
+    JsonObject root{nullptr};
+    const auto text = winrt::hstring(utf8_to_wstring(bytes));
+    if (!JsonObject::TryParse(text, root) || root == nullptr)
+        return {};
+    if (root.HasKey(L"payload") || root.HasKey(L"signature")) {
+        winrt::hstring payload;
+        if (!verify_catalogue_envelope(root, payload, trust))
+            return {};
+        return parse_manifest(payload);
+    }
+    if (trust) {
+        trust->trusted = false;
+        trust->error = "catalogue is unsigned";
+    }
+    return parse_manifest(text);
 }
 
 bool dir_has_ort_or_gguf(const std::filesystem::path& dir) {
@@ -498,11 +715,33 @@ bool IsModelProvisioned(std::wstring const& model_name,
     return false;
 }
 
-std::vector<ManifestEntry> LoadModelManifest() {
+std::vector<ManifestEntry> LoadModelManifest(ManifestTrust* trust) {
     // 1. Bundled catalogue (base).
     auto pkg = winrt::Windows::ApplicationModel::Package::Current();
-    auto entries =
-        read_manifest_file(std::wstring(pkg.InstalledPath().c_str()) + L"\\models\\manifest.json");
+    ManifestTrust bundled_trust;
+    auto entries = read_manifest_file(
+        std::wstring(pkg.InstalledPath().c_str()) + L"\\models\\manifest.json", &bundled_trust);
+    #ifdef XLLAMA_STORE_SKU
+    if (!bundled_trust.trusted) {
+        if (trust)
+            *trust = bundled_trust;
+        log_output("[manifest] ERROR: Store requires a signed catalogue\\n");
+        return {};
+    }
+    if (!trusted_entries_have_hashes(entries)) {
+        bundled_trust.trusted = false;
+        bundled_trust.error = "trusted catalogue contains an unpinned download";
+        if (trust)
+            *trust = bundled_trust;
+        log_output("[manifest] ERROR: trusted catalogue contains an unpinned download\\n");
+        return {};
+    }
+    if (trust)
+        *trust = bundled_trust;
+    #else
+    if (trust)
+        *trust = bundled_trust;
+    #endif
     // 2. LocalState override (uploadable via Device Portal, no reinstall),
     // merged PER ENTRY: a same-name entry replaces the bundled one, a new name
     // is appended. The override no longer hides bundled entries it does not
@@ -512,6 +751,10 @@ std::vector<ManifestEntry> LoadModelManifest() {
     auto local = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
     auto override_entries =
         read_manifest_file(std::wstring(local.Path().c_str()) + L"\\manifest.json");
+    #ifdef XLLAMA_STORE_SKU
+    (void)override_entries;
+    override_entries.clear();
+    #endif
     if (!override_entries.empty()) {
         log_output("[manifest] merging LocalState\\manifest.json override (per-entry)\n");
         merge_manifest_entries(entries, std::move(override_entries));
