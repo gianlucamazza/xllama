@@ -33,15 +33,15 @@ The target is an Xbox Series S running xLlama in Dev Mode. The relevant
 constraints are shared unified memory, a limited application GPU budget,
 approximately six practical CPU threads, AppContainer filesystem/API limits,
 and the absence of desktop profiling facilities. The complete constraint and
-runtime description is maintained in [`../docs/architecture.md`](../docs/architecture.md)
-and [`../docs/uwp-constraints.md`](../docs/uwp-constraints.md).
+runtime description is maintained in [the architecture documentation](https://github.com/gianlucamazza/xllama/blob/research-v1.0.5/docs/architecture.md)
+and [the UWP constraints documentation](https://github.com/gianlucamazza/xllama/blob/research-v1.0.5/docs/uwp-constraints.md).
 
 ## 3. Methodology
 
 Prompts, model identities, quantization, context, thread count and backend are
 recorded with each benchmark row. Repeated runs discard the warm-up and retain
 individual measurements; published tables use the selector policy in
-`../bench/benchmark-summary.json`. Model hashes, build identity, ambient
+[`bench/benchmark-summary.json`](https://github.com/gianlucamazza/xllama/blob/research-v1.0.5/bench/benchmark-summary.json). Model hashes, build identity, ambient
 conditions, power readings and thermal rules belong in benchmark sidecars.
 
 The report distinguishes host checks, console measurements, generated
@@ -53,9 +53,9 @@ checks passed for that revision, not proof of runtime behaviour on a console.
 Prefill processes a prompt as a batch and can benefit from GPU parallelism.
 Autoregressive decode processes one token at a time and is dominated by weight
 streaming, dispatch overhead and memory latency. The measured model and
-backend matrix is available in [`../docs/benchmarks.md`](../docs/benchmarks.md).
+backend matrix is available in [the benchmark report](https://github.com/gianlucamazza/xllama/blob/research-v1.0.5/docs/benchmarks.md).
 The claim-level values used by this report are listed in the generated
-[`generated/benchmarks.md`](generated/benchmarks.md) table.
+[evidence table](https://github.com/gianlucamazza/xllama/blob/research-v1.0.5/paper/generated/benchmarks.md).
 
 The catalogue spans a fast 230M/350M tier through models around 3B. Larger
 models trade throughput and memory for capability. KV-cache reuse changes the
@@ -64,7 +64,7 @@ decode throughput.
 
 DirectML text routing is allowlisted by model because a successful GPU session
 is not sufficient evidence of correct logits. The parity harness and RMSNorm
-decomposition are documented in [`../docs/dml-rmsnorm-fix-runbook.md`](../docs/dml-rmsnorm-fix-runbook.md).
+decomposition are documented in [the DML RMSNorm fix runbook](https://github.com/gianlucamazza/xllama/blob/research-v1.0.5/docs/dml-rmsnorm-fix-runbook.md).
 
 ![Selected Xbox Series S decode throughput](figures/model-decode.svg)
 
@@ -93,5 +93,5 @@ mini-PC or Raspberry Pi. Those claims require separately sidecar-backed
 measurements. Store submission, external customer/UAT evidence and hardware
 comparison are outside this edition.
 
-The exact evidence boundary and selectors are recorded in [`claims.json`](claims.json)
-and [`research-manifest.json`](research-manifest.json).
+The exact evidence boundary and selectors are recorded in the [claim registry](https://github.com/gianlucamazza/xllama/blob/research-v1.0.5/paper/claims.json)
+and [research manifest](https://github.com/gianlucamazza/xllama/blob/research-v1.0.5/paper/research-manifest.json).

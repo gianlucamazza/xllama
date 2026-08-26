@@ -8,6 +8,7 @@ The local state file contains no token and is ignored by git.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -105,6 +106,15 @@ def paper_pdf(version: str) -> Path:
     return output
 
 
+def checksums(artifacts: tuple[Path, ...], version: str) -> Path:
+    output = ROOT / ".release-upload" / f"xllama-research-{version}-SHA256SUMS"
+    output.write_text(
+        "".join(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n" for path in artifacts),
+        encoding="utf-8",
+    )
+    return output
+
+
 def clear_draft_files(base: str, deposit_id: int, token: str) -> int:
     """Remove files inherited by a new-version draft before uploading."""
     draft = request(f"{base}/api/deposit/depositions/{deposit_id}", token)
@@ -128,9 +138,10 @@ def publish(base: str, token: str) -> int:
         return 0
     path = archive(str(state["tag"]), str(state["version"]))
     pdf = paper_pdf(str(state["version"]))
+    sums = checksums((path, pdf), str(state["version"]))
     clear_draft_files(base, int(state["deposit_id"]), token)
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/octet-stream"}
-    for artifact in (path, pdf):
+    for artifact in (pdf, path, sums):
         req = urllib.request.Request(f"{state['bucket_url']}/{artifact.name}", data=artifact.read_bytes(), headers=headers, method="PUT")
         with urllib.request.urlopen(req, timeout=180):
             pass
