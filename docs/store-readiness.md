@@ -182,6 +182,10 @@ allowlist draft** — not legal advice; re-verify before submission.
 - [x] `build-uwp.ps1 -StoreSku` (+ `/p:XllamaStoreSku=true`)
 - [x] CI store lane via `workflow_dispatch` `store_sku=true` → artifact
       `xllama-appx-store` (no VM; not on every PR)
+- [ ] Configure the repository secret `XLLAMA_CATALOGUE_PRIVATE_KEY` with the
+      offline RSA private key whose public half is compiled into
+      `uwp/model-downloader.cpp`; the Store workflow signs the bundled
+      catalogue before packaging and fails closed when the secret is absent.
 - [x] `install-latest-build.sh --store` (Linux → Device Portal)
 - [x] First-run generative-AI disclaimer (`LocalState\disclaimer.accepted`)
 - [x] Privacy draft [`privacy.md`](./privacy.md)

@@ -45,6 +45,29 @@ jobs:
           submodules: false
           fetch-depth: 1
 
+      - name: Sign bundled model catalogue
+        shell: bash
+        env:
+          XLLAMA_CATALOGUE_PRIVATE_KEY: ${{ secrets.XLLAMA_CATALOGUE_PRIVATE_KEY }}
+          XLLAMA_CATALOGUE_VERSION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "${XLLAMA_CATALOGUE_PRIVATE_KEY}" ]; then
+            echo "XLLAMA_CATALOGUE_PRIVATE_KEY is required for the Store SKU" >&2
+            exit 1
+          fi
+          key_file="${RUNNER_TEMP}/xllama-catalogue-private-key.pem"
+          signed_file="${RUNNER_TEMP}/xllama-model-manifest.signed.json"
+          trap 'rm -f "${key_file}" "${signed_file}"' EXIT
+          printf '%s\n' "${XLLAMA_CATALOGUE_PRIVATE_KEY}" > "${key_file}"
+          python -m pip install --disable-pip-version-check --no-warn-script-location cryptography
+          python scripts/sign-model-manifest.py sign \
+            uwp/models/manifest.json "${signed_file}" \
+            --private-key "${key_file}" \
+            --catalogue-version "${XLLAMA_CATALOGUE_VERSION}" \
+            --key-id release-v1
+          mv "${signed_file}" uwp/models/manifest.json
+
       - uses: ./.github/actions/build-uwp-package
         with:
           variant: ${{ matrix.variant }}
