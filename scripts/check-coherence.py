@@ -193,48 +193,59 @@ def main() -> int:
                     )
                 else:
                     good(f"README demo link matches the captured demo (v{dm_short})")
-                # The GIF is the half that CAN be fully verified offline, and it
-                # is the one readers actually see: an .mp4 linked from a release
-                # renders as a plain link on GitHub, so the GIF is what makes the
-                # demo play on the landing page. It is committed rather than
-                # uploaded, so unlike the video its existence is a fact about
-                # this tree — check the file is there AND that the README embeds
-                # it, because either half alone still ships a broken image.
-                #
-                # A missing "gif" key is an error, not a skip. The manifest is
-                # machine-written and always carries one, so its absence means
-                # the manifest predates the GIF or was hand-edited — and a guard
-                # that quietly does nothing in that case is no guard at all.
-                dm_gif = str(dm.get("gif", ""))
-                if not dm_gif:
+                # The README uses a native video player with a local poster.
+                # Verify the player and poster offline; the release-hosted MP4
+                # itself remains an external availability check.
+                if not re.search(
+                    r"<video\b[^>]*>.*?<source\s+src=\"[^\"]*"
+                    + re.escape(dm_file)
+                    + r"\"[^>]*>",
+                    re.sub(r"<!--.*?-->", "", readme_text, flags=re.S),
+                    flags=re.S | re.I,
+                ):
                     err(
-                        "demo-manifest.json has no 'gif' key — re-run "
-                        "scripts/capture-demo-video.sh rather than editing it"
+                        f"README does not expose {dm_file} through a video player"
                     )
                 else:
+                    good(f"README exposes the demo MP4 through a video player ({dm_file})")
+
+                dm_gif = str(dm.get("gif", ""))
+                if dm_gif:
                     gif_path = ROOT / "docs/screenshots" / dm_gif
                     if not gif_path.exists():
                         err(
                             f"demo-manifest.json records {dm_gif} but "
                             f"docs/screenshots/{dm_gif} is not in the tree"
                         )
-                    # Require the image SYNTAX, not the filename anywhere in the
-                    # file. A fault-injection run passed this check with the
-                    # embed commented out, because the path was still present as
-                    # text — the string test proved the name was mentioned, not
-                    # that anything renders.
+                    else:
+                        good(f"legacy demo GIF is present ({dm_gif})")
+
+                dm_poster = str(dm.get("poster", ""))
+                if not dm_poster:
+                    err(
+                        "demo-manifest.json has no 'poster' key — re-run "
+                        "scripts/capture-demo-video.sh rather than editing it"
+                    )
+                else:
+                    poster_path = ROOT / "docs/screenshots" / dm_poster
+                    if not poster_path.exists():
+                        err(
+                            f"demo-manifest.json records {dm_poster} but "
+                            f"docs/screenshots/{dm_poster} is not in the tree"
+                        )
                     elif not re.search(
-                        r"!\[[^\]]*\]\(docs/screenshots/" + re.escape(dm_gif) + r"\)",
+                        r"<video\b[^>]*poster=\"docs/screenshots/"
+                        + re.escape(dm_poster)
+                        + r"\"",
                         re.sub(r"<!--.*?-->", "", readme_text, flags=re.S),
+                        flags=re.S | re.I,
                     ):
                         err(
-                            f"docs/screenshots/{dm_gif} exists but the README "
-                            "does not embed it as an image — the demo does not "
-                            "play on the landing page"
+                            f"docs/screenshots/{dm_poster} exists but the README "
+                            "does not use it as the video poster"
                         )
                     else:
-                        kb = gif_path.stat().st_size // 1000
-                        good(f"README embeds the demo GIF ({dm_gif}, {kb} kB)")
+                        good(f"README uses the demo poster ({dm_poster})")
                 cur = [int(x) for x in ver.group(1).split(".")]
                 got = [int(x) for x in dm_short.split(".")]
                 # Distance in minors, treating a major bump as far behind.

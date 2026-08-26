@@ -107,6 +107,7 @@ VERSION=$(sed -n 's/.*Version="\([0-9.]*\)".*/\1/p' "${REPO_ROOT}/uwp/AppxManife
 SHORT_VERSION="${VERSION%.*}" # 1.5.2.0 -> 1.5.2
 OUT_MP4="${OUT_DIR}/xllama-demo-v${SHORT_VERSION}.mp4"
 OUT_GIF="${OUT_DIR}/xllama-demo-v${SHORT_VERSION}.gif"
+OUT_POSTER="${OUT_DIR}/xllama-demo-v${SHORT_VERSION}-poster.png"
 MANIFEST_JSON="${OUT_DIR}/demo-manifest.json"
 
 CSRF_TOKEN=$(curl "${CURL_AUTH[@]}" "${BASE_URL}/" -o /dev/null -D - 2>/dev/null |
@@ -346,6 +347,13 @@ if ((GIF_BYTES > 8000000)); then
 	echo "   Consider a shorter demo script before reaching for a lower frame rate." >&2
 fi
 
+echo "==> Extracting README poster"
+ffmpeg -y -v error -sseof 6 -i "$OUT_MP4" -frames:v 1 \
+	-vf "scale=1280:-1:flags=lanczos" "$OUT_POSTER" 2>"${WORK}/ffmpeg-poster.log" || {
+	tail -20 "${WORK}/ffmpeg-poster.log" >&2
+	exit 1
+}
+
 DURATION=$(LC_ALL=C ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$OUT_MP4")
 # LC_ALL=C or bash printf rejects "16.5" under a comma-decimal locale — and the
 # near miss is worse than the error: it would have written 16,5 into JSON.
@@ -359,6 +367,7 @@ cat >"$MANIFEST_JSON" <<JSON
   "version": "${VERSION}",
   "file": "$(basename "$OUT_MP4")",
   "gif": "$(basename "$OUT_GIF")",
+  "poster": "$(basename "$OUT_POSTER")",
   "gif_bytes": ${GIF_BYTES},
   "gif_fps": ${GIF_FPS},
   "duration_s": ${DURATION_1F},
@@ -376,7 +385,7 @@ jq -e . "$MANIFEST_JSON" >/dev/null || {
 	exit 1
 }
 
-ls -la "$OUT_MP4" "$OUT_GIF"
+ls -la "$OUT_MP4" "$OUT_GIF" "$OUT_POSTER"
 echo "==> ${DURATION_1F}s, ${nframes} frames at ${ACHIEVED_FPS} fps"
 echo "==> gif: ${OUT_GIF##*/} ($((GIF_BYTES / 1000)) kB, ${GIF_FPS} fps, same real time)"
 echo "==> manifest: ${MANIFEST_JSON}"

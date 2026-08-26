@@ -11,14 +11,15 @@
 
 [CHANGELOG](CHANGELOG.md) · [ROADMAP](ROADMAP.md)
 
-![xllama running on an Xbox Series S: a chat answer, the coding tier writing a C function, saved conversations and a Stable-Diffusion image, all on-console](docs/screenshots/xllama-demo-v1.5.2.gif)
+<video controls width="1280" poster="docs/screenshots/xllama-demo-v1.5.2-poster.png">
+  <source src="https://github.com/gianlucamazza/xllama/releases/download/v1.5.2.0/xllama-demo-v1.5.2.mp4" type="video/mp4">
+  Your browser does not support the video player. Watch the <a href="https://github.com/gianlucamazza/xllama/releases/download/v1.5.2.0/xllama-demo-v1.5.2.mp4">full-quality MP4 demo</a>.
+</video>
 
 Recorded on a Series S in Dev Mode and **played back in real time** — the decode
-rate in the footer is the console's own, and nothing here is sped up. Full-quality
-video: [xllama-demo-v1.5.2.mp4](https://github.com/gianlucamazza/xllama/releases/download/v1.5.2.0/xllama-demo-v1.5.2.mp4).
-The demo is data, not a recording someone made by hand: the script is
-[`demo/demo-script.json`](demo/demo-script.json) and `scripts/capture-demo-video.sh`
-regenerates both files from it.
+rate in the footer is the console's own, and nothing here is sped up. The capture
+is reproducible from [`demo/demo-script.json`](demo/demo-script.json) with
+`scripts/capture-demo-video.sh`.
 
 ---
 
@@ -147,7 +148,7 @@ scripts/          # deploy, bench, validate, crossbuild
 docs/             # SSOT map → docs/README.md
 ```
 
-**Full layout:** [AGENTS.md](AGENTS.md) · **Doc ownership:** [docs/README.md](docs/README.md)
+**Doc ownership:** [docs/README.md](docs/README.md)
 
 ---
 
@@ -157,7 +158,7 @@ docs/             # SSOT map → docs/README.md
 
 Zen2 CPU wins decode at this scale. RDNA2 GPU wins batch prefill.
 Unified memory means the GPU budget (3801 MB Game) is the hard constraint.
-Underexplored platform — no prior LLM runtime for Series S|X.
+An underexplored platform with strict memory and packaging constraints.
 
 ### Why dual backend?
 
