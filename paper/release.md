@@ -37,8 +37,10 @@ energy measurements.
 The GitHub release and Zenodo record must contain the same tagged revision,
 `paper/paper.md`, `paper/claims.json`, `paper/research-manifest.json`, the
 generated table and figures, and the raw evidence required by the claim
-registry. Update `CITATION.cff` with the Zenodo DOI only after the archive has
-been created.
+registry. Each Zenodo version must contain exactly one versioned research
+archive; new-version drafts inherit files from the previous version, so the
+publisher removes inherited files before uploading. Update `CITATION.cff` with
+the Zenodo DOI only after the archive has been created.
 
 The release does not certify the Xbox Store package, retail behaviour, customer
 UAT, or cross-platform performance.

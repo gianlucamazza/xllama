@@ -95,12 +95,29 @@ def archive(ref: str, version: str) -> Path:
     return path
 
 
+def clear_draft_files(base: str, deposit_id: int, token: str) -> int:
+    """Remove files inherited by a new-version draft before uploading."""
+    draft = request(f"{base}/api/deposit/depositions/{deposit_id}", token)
+    files = draft.get("files", [])
+    for file in files:
+        file_url = str(file.get("links", {}).get("self", ""))
+        if not file_url:
+            file_id = file.get("id")
+            if not file_id:
+                raise SystemExit(f"Zenodo draft file has no deletion URL: {file!r}")
+            file_url = f"{base}/api/deposit/depositions/{deposit_id}/files/{file_id}"
+        request(file_url, token, "DELETE")
+    print(f"Removed {len(files)} inherited file(s) from Zenodo draft")
+    return len(files)
+
+
 def publish(base: str, token: str) -> int:
     state = json.loads(STATE.read_text(encoding="utf-8"))
     if state.get("zenodo_published"):
         print("Zenodo deposit already published")
         return 0
     path = archive(str(state["tag"]), str(state["version"]))
+    clear_draft_files(base, int(state["deposit_id"]), token)
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/octet-stream"}
     req = urllib.request.Request(f"{state['bucket_url']}/{path.name}", data=path.read_bytes(), headers=headers, method="PUT")
     with urllib.request.urlopen(req, timeout=180):
