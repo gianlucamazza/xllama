@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create or verify an Ed25519-signed model catalogue envelope.
+"""Create or verify an RSA-PKCS1-SHA256-signed model catalogue envelope.
 
 The private key is supplied externally and is never read from the repository.
 Requires the ``cryptography`` package in the release/signing environment.
@@ -11,23 +11,22 @@ import json
 from pathlib import Path
 
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 
 def canonical(value: object) -> bytes:
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode()
 
 
-def load_private(path: Path) -> Ed25519PrivateKey:
+def load_private(path: Path) -> rsa.RSAPrivateKey:
     raw = path.read_bytes()
-    if raw.startswith(b"-----"):
-        key = serialization.load_pem_private_key(raw, password=None)
-        if not isinstance(key, Ed25519PrivateKey):
-            raise ValueError("private key is not Ed25519")
-        return key
-    if len(raw) != 32:
-        raise ValueError("raw Ed25519 private key must be 32 bytes")
-    return Ed25519PrivateKey.from_private_bytes(raw)
+    if not raw.startswith(b"-----"):
+        raise ValueError("private key must be PEM-encoded RSA")
+    key = serialization.load_pem_private_key(raw, password=None)
+    if not isinstance(key, rsa.RSAPrivateKey):
+        raise ValueError("private key is not RSA")
+    return key
 
 
 def main() -> int:
@@ -49,7 +48,9 @@ def main() -> int:
         if not isinstance(payload, dict) or not isinstance(payload.get("models"), list):
             parser.error("payload must be a flat catalogue object with a models array")
         signing_bytes = canonical(payload)
-        signature = load_private(args.private_key).sign(signing_bytes)
+        signature = load_private(args.private_key).sign(
+            signing_bytes, padding.PKCS1v15(), hashes.SHA256()
+        )
         envelope = {
             "catalogue_version": args.catalogue_version,
             "key_id": args.key_id,
@@ -66,8 +67,10 @@ def main() -> int:
         if public_raw.startswith(b"-----"):
             key = serialization.load_pem_public_key(public_raw)
         else:
-            key = Ed25519PublicKey.from_public_bytes(public_raw)
-        key.verify(signature, payload_bytes)
+            raise ValueError("public key must be PEM-encoded RSA")
+        if not isinstance(key, rsa.RSAPublicKey):
+            raise ValueError("public key is not RSA")
+        key.verify(signature, payload_bytes, padding.PKCS1v15(), hashes.SHA256())
         payload = json.loads(payload_bytes)
         if not isinstance(payload, dict) or not isinstance(payload.get("models"), list):
             parser.error("signed payload is not a catalogue")
