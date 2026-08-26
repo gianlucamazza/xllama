@@ -11,15 +11,13 @@
 
 [CHANGELOG](CHANGELOG.md) · [ROADMAP](ROADMAP.md)
 
-<video controls width="1280" poster="https://gianlucamazza.github.io/xllama/screenshots/xllama-demo-v1.5.2-poster.png">
-  <source src="https://gianlucamazza.github.io/xllama/screenshots/xllama-demo-v1.5.2.mp4" type="video/mp4">
-  Your browser does not support the video player. Watch the <a href="https://gianlucamazza.github.io/xllama/screenshots/xllama-demo-v1.5.2.mp4">full-quality MP4 demo</a>.
-</video>
+https://github.com/user-attachments/assets/0fd9abb6-2e5d-4806-b86d-4cbb97483c1b
 
 Recorded on a Series S in Dev Mode and **played back in real time** — the decode
-rate in the footer is the console's own, and nothing here is sped up. The capture
-is reproducible from [`demo/demo-script.json`](demo/demo-script.json) with
-`scripts/capture-demo-video.sh`.
+rate in the footer is the console's own, and nothing here is sped up. Download
+the [MP4 recording](https://github.com/gianlucamazza/xllama/releases/download/v1.5.2.0/xllama-demo-v1.5.2.mp4)
+or reproduce the capture from [`demo/demo-script.json`](demo/demo-script.json)
+with `scripts/capture-demo-video.sh`.
 
 ---
 
