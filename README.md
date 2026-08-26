@@ -11,11 +11,11 @@
 
 [CHANGELOG](CHANGELOG.md) · [ROADMAP](ROADMAP.md)
 
-https://github.com/user-attachments/assets/0fd9abb6-2e5d-4806-b86d-4cbb97483c1b
+https://github.com/user-attachments/assets/67f11cee-2885-42e9-aad8-4df276befa20
 
 Recorded on a Series S in Dev Mode and **played back in real time** — the decode
 rate in the footer is the console's own, and nothing here is sped up. Download
-the [MP4 recording](https://github.com/gianlucamazza/xllama/releases/download/v1.5.2.0/xllama-demo-v1.5.2.mp4)
+the [xllama-demo-v1.5.6.mp4 recording](https://github.com/user-attachments/assets/67f11cee-2885-42e9-aad8-4df276befa20)
 or reproduce the capture from [`demo/demo-script.json`](demo/demo-script.json)
 with `scripts/capture-demo-video.sh`.
 

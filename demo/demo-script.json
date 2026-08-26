@@ -72,6 +72,7 @@
       "text": "In two sentences: why would someone run a language model on their own hardware?",
       "timeout_s": 300
     },
+    { "op": "mark", "label": "chat", "timeout_s": 60 },
 
     { "op": "set_model", "name": "qwen25-coder-1.5b" },
     { "op": "new_chat" },
