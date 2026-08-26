@@ -95,6 +95,16 @@ def archive(ref: str, version: str) -> Path:
     return path
 
 
+def paper_pdf(version: str) -> Path:
+    output = ROOT / ".release-upload" / f"xllama-research-{version}.pdf"
+    subprocess.run(
+        ["python3", "scripts/build-paper-pdf.py", "--output", str(output)],
+        cwd=ROOT,
+        check=True,
+    )
+    return output
+
+
 def clear_draft_files(base: str, deposit_id: int, token: str) -> int:
     """Remove files inherited by a new-version draft before uploading."""
     draft = request(f"{base}/api/deposit/depositions/{deposit_id}", token)
@@ -117,11 +127,13 @@ def publish(base: str, token: str) -> int:
         print("Zenodo deposit already published")
         return 0
     path = archive(str(state["tag"]), str(state["version"]))
+    pdf = paper_pdf(str(state["version"]))
     clear_draft_files(base, int(state["deposit_id"]), token)
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/octet-stream"}
-    req = urllib.request.Request(f"{state['bucket_url']}/{path.name}", data=path.read_bytes(), headers=headers, method="PUT")
-    with urllib.request.urlopen(req, timeout=180):
-        pass
+    for artifact in (path, pdf):
+        req = urllib.request.Request(f"{state['bucket_url']}/{artifact.name}", data=artifact.read_bytes(), headers=headers, method="PUT")
+        with urllib.request.urlopen(req, timeout=180):
+            pass
     response = request(f"{base}/api/deposit/depositions/{state['deposit_id']}/actions/publish", token, "POST")
     state["zenodo_published"] = True
     state["published_doi"] = response.get("doi", state["reserved_doi"])

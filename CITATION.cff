@@ -13,7 +13,7 @@ authors:
 repository-code: "https://github.com/gianlucamazza/xllama"
 url: "https://github.com/gianlucamazza/xllama"
 license: MIT
-version: "1.0.3"
+version: "1.0.4"
 date-released: "2026-08-27"
 keywords:
   - local AI
@@ -22,4 +22,4 @@ keywords:
   - diffusion
   - edge AI
   - reproducibility
-doi: "10.5281/zenodo.22119050"
+doi: "10.5281/zenodo.22119083"

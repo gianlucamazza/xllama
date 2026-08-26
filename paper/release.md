@@ -1,6 +1,6 @@
 # Research release runbook
 
-This runbook describes the release boundary for `research-v1.0.1` and follows the
+This runbook describes the release boundary for the current research release and follows the
 two-phase Zenodo workflow used by the project.
 
 ## Metadata SSOT
@@ -37,8 +37,8 @@ energy measurements.
 The GitHub release and Zenodo record must contain the same tagged revision,
 `paper/paper.md`, `paper/claims.json`, `paper/research-manifest.json`, the
 generated table and figures, and the raw evidence required by the claim
-registry. Each Zenodo version must contain exactly one versioned research
-archive; new-version drafts inherit files from the previous version, so the
+registry. Each Zenodo version must contain one versioned research archive and
+the companion printable PDF (`xllama-research-VERSION.pdf`). New-version drafts inherit files from the previous version, so the
 publisher removes inherited files before uploading. Update `CITATION.cff` with
 the Zenodo DOI only after the archive has been created.
 

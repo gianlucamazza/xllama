@@ -66,6 +66,8 @@ DirectML text routing is allowlisted by model because a successful GPU session
 is not sufficient evidence of correct logits. The parity harness and RMSNorm
 decomposition are documented in [`../docs/dml-rmsnorm-fix-runbook.md`](../docs/dml-rmsnorm-fix-runbook.md).
 
+![Selected Xbox Series S decode throughput](figures/model-decode.svg)
+
 ## 5. Diffusion
 
 Diffusion is a better GPU-shaped workload than single-token LLM decode. The
