@@ -45,6 +45,25 @@ jobs:
           submodules: false
           fetch-depth: 1
 
+      - uses: ./.github/actions/build-uwp-package
+        with:
+          variant: ${{ matrix.variant }}
+          patched: ${{ matrix.patched }}
+          store_sku: "false"
+          artifact: ${{ matrix.artifact }}
+          build_revision: ${{ github.run_number }}
+
+  # Store SKU: separate job so the gate can use inputs.* (matrix.* is illegal
+  # in job-level if). Only on workflow_dispatch with store_sku=true.
+  store:
+    if: github.event_name == 'workflow_dispatch' && inputs.store_sku == true
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: false
+          fetch-depth: 1
+
       - name: Sign bundled model catalogue
         shell: bash
         env:
@@ -67,25 +86,6 @@ jobs:
             --catalogue-version "${XLLAMA_CATALOGUE_VERSION}" \
             --key-id release-v1
           mv "${signed_file}" uwp/models/manifest.json
-
-      - uses: ./.github/actions/build-uwp-package
-        with:
-          variant: ${{ matrix.variant }}
-          patched: ${{ matrix.patched }}
-          store_sku: "false"
-          artifact: ${{ matrix.artifact }}
-          build_revision: ${{ github.run_number }}
-
-  # Store SKU: separate job so the gate can use inputs.* (matrix.* is illegal
-  # in job-level if). Only on workflow_dispatch with store_sku=true.
-  store:
-    if: github.event_name == 'workflow_dispatch' && inputs.store_sku == true
-    runs-on: windows-2022
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          submodules: false
-          fetch-depth: 1
 
       - uses: ./.github/actions/build-uwp-package
         with:
