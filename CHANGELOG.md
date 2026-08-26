@@ -7,6 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Catalogue signing and reproducibility evidence.** Store CI now signs the
+  bundled model catalogue with the GitHub Actions-held RSA key and the Store
+  verifier imports the pinned CNG public-key blob explicitly. The Xbox Series S
+  Dev capture in `bench/results/phase17-console-2026-08-26.csv` records three
+  post-warm-up runs with model hash, context, TTFT, throughput and peak memory;
+  external power and thermal-equilibrium evidence remain separate gates.
+- **CI benchmark validation fix.** Closed the CSV-validation loop in
+  `build-linux.yml` so the shell `for`/`if` block is syntactically complete and
+  all v2 benchmark rows are validated in Linux CI.
+
 ## [1.5.6.0] - 2026-08-22
 
 Phase 16 catalogue win plus the pin and probes that landed with it, plus the

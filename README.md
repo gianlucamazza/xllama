@@ -58,7 +58,7 @@ First launch: downloads default model (~229 MB). No model bundled in MSIX.
 | Model       | Params | Decode          | Role                    |
 | ----------- | ------ | --------------- | ----------------------- |
 | LFM2.5-230M | 230M   | **119.2** tok/s | Floor (fastest, 241 MB) |
-| LFM2.5-350M | 350M   | **94.9** tok/s  | Default chat            |
+| LFM2.5-350M | 350M   | **89.7** tok/s  | Default chat            |
 | LFM2-2.6B   | 2.6B   | **18.4** tok/s  | Quality (H9 7/8)        |
 
 Full catalogue + Phase 14 coding models: [model-matrix.md](docs/model-matrix.md) · [benchmarks.md](docs/benchmarks.md)

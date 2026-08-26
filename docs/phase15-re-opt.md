@@ -24,13 +24,13 @@ quality ([ROADMAP.md](../ROADMAP.md) Phase 15).
 
 Headline console rows from [benchmarks.md](benchmarks.md) (Series S, t6):
 
-| Role                        | Model                   |   Decode | Prefill | Peak MB | Source                        |
-| --------------------------- | ----------------------- | -------: | ------: | ------: | ----------------------------- |
-| Default chat                | LFM2.5-350M Q4_K_M      | **94.9** |   438.1 |     320 | `phase13b-threadsbatch-after` |
-| Balanced                    | LFM2.5-1.2B Q4_K_M      | **37.9** |    76.2 |     811 | `phase7-lfm`                  |
-| Quality                     | LFM2-2.6B Q4_K_M        | **18.4** |    32.0 |    1623 | `phase7-lfm`                  |
-| Coding 3B (Phase 15 target) | Qwen2.5-Coder-3B Q4_K_M | **14.0** |    46.2 |    2116 | `phase14-console`             |
-| Peer dense 3B               | Llama-3.2-3B Q3_K_S     | **14.2** |    19.5 |    1824 | `phase7-scale`                |
+| Role                        | Model                   |   Decode | Prefill | Peak MB | Source                       |
+| --------------------------- | ----------------------- | -------: | ------: | ------: | ---------------------------- |
+| Default chat                | LFM2.5-350M Q4_K_M      | **89.7** |   441.0 |     320 | `phase17-console-2026-08-26` |
+| Balanced                    | LFM2.5-1.2B Q4_K_M      | **37.9** |    76.2 |     811 | `phase7-lfm`                 |
+| Quality                     | LFM2-2.6B Q4_K_M        | **18.4** |    32.0 |    1623 | `phase7-lfm`                 |
+| Coding 3B (Phase 15 target) | Qwen2.5-Coder-3B Q4_K_M | **14.0** |    46.2 |    2116 | `phase14-console`            |
+| Peer dense 3B               | Llama-3.2-3B Q3_K_S     | **14.2** |    19.5 |    1824 | `phase7-scale`               |
 
 Physics already measured (cite, do not re-derive):
 

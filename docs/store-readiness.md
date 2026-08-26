@@ -6,12 +6,18 @@
 > `benchmarks.md`; this page owns **go-to-market gates**, dual-SKU policy, and
 > the licence matrix for a retail listing.
 
-**Status (2026-08-21):** Phase 0 discovery + Phase 1 **engineering foundation**
+**Status (2026-08-26):** Phase 0 discovery + Phase 1 **engineering foundation**
 landed, **five listing screenshots** captured (§9), **D1 App vs Game measured**
 (§6 — request Game metadata), and **Store SKU console smoke PASS** (§10 —
-CI `1.5.5.928`, Game, catalogue download + GGUF chat + `set_api` reject).
-Product Dev Mode cut is **v1.5.5.0** (10 console gates including `thinkdone`;
-last fully gated evidence remains v1.5.4.0 / MSIX `1.5.4.887`). **Not Store-ready** for retail: Partner Center product **xllama** is reserved
+CI run `32963270335`, catalogue signature verification + download + GGUF chat +
+`set_api` reject). The Dev benchmark evidence is now recorded in
+`bench/results/phase17-console-2026-08-26.csv` (3 warm-state repetitions;
+methodology and missing external power evidence are documented in
+`bench/README.md`). The catalogue verifier uses the pinned `release-v1` RSA
+public key; CI signs Store bundles with the private key held in
+`XLLAMA_CATALOGUE_PRIVATE_KEY`.
+
+**Not Store-ready** for retail: Partner Center product **xllama** is reserved
 as a **Game** (`9N9661XSDBM4`, identity §13) but the package is still
 test-signed (`CN=xllama-dev`). No IARC certificate, no Store-signed MSIX.
 Privacy URL: <https://gianlucamazza.github.io/xllama/privacy.html>.
@@ -182,10 +188,12 @@ allowlist draft** — not legal advice; re-verify before submission.
 - [x] `build-uwp.ps1 -StoreSku` (+ `/p:XllamaStoreSku=true`)
 - [x] CI store lane via `workflow_dispatch` `store_sku=true` → artifact
       `xllama-appx-store` (no VM; not on every PR)
-- [ ] Configure the repository secret `XLLAMA_CATALOGUE_PRIVATE_KEY` with the
+- [x] Configure the repository secret `XLLAMA_CATALOGUE_PRIVATE_KEY` with the
       offline RSA private key whose public half is compiled into
       `uwp/model-downloader.cpp`; the Store workflow signs the bundled
       catalogue before packaging and fails closed when the secret is absent.
+      Verified in CI run `32963270335` and by the Store console smoke on
+      2026-08-26.
 - [x] `install-latest-build.sh --store` (Linux → Device Portal)
 - [x] First-run generative-AI disclaimer (`LocalState\disclaimer.accepted`)
 - [x] Privacy draft [`privacy.md`](./privacy.md)
@@ -193,10 +201,11 @@ allowlist draft** — not legal advice; re-verify before submission.
 - [x] App vs Game spike results filed under `bench/results/`
       (`store-app-vs-game-2026-08-21.csv`, CI `1.5.5.922`, `lfm25-350m`)
 - [x] Console smoke of store SKU (chat + model download) —
-      `validate-console.sh store` PASS 2026-08-21 on CI Store SKU `1.5.5.928`
-      (Game). Install start-app downloaded `lfm25-350m` from the catalogue;
-      gate: GGUF chat with a saved title + `set_api` rejected
-      (`LAN API not available in Store SKU`). Dev SKU restored after.
+      `validate-console.sh store` PASS 2026-08-26 on CI run `32963270335`
+      (Store package revision `959`, Game). Install start-app downloaded
+      `lfm25-350m` from the signed catalogue; gate: GGUF chat with a saved
+      title + `set_api` rejected (`LAN API not available in Store SKU`). Dev
+      SKU restored after.
 
 ### Listing
 
@@ -363,9 +372,10 @@ App-mode tok/s. Do not claim "first LLM on Xbox".
 
 ## 10. Next steps (no VM)
 
-1. **Console smoke — PASS 2026-08-21.** Store SKU CI
-   [32473955046](https://github.com/gianlucamazza/xllama/actions/runs/32473955046)
-   (`xllama_1.5.5.928_x64.msix`), App type **Game**. Repeat:
+1. **Console smoke — PASS 2026-08-26.** Store SKU CI
+   [32963270335](https://github.com/gianlucamazza/xllama/actions/runs/32963270335)
+   (`xllama_1.5.5.959_x64.msix`), App type **Game**. The log accepted the
+   pinned RSA catalogue key and downloaded `lfm25-350m`. Repeat:
    ```bash
    source ~/.config/xllama/xbox-env
    ./scripts/install-latest-build.sh main --store   # uninstalls Dev SKU; wipes LocalState

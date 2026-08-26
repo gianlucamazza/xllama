@@ -917,7 +917,7 @@ condition did not trigger. Against the two incumbents it could displace:
 | ----------------------------------------- | ---------: | ------: |
 | `lfm25-230m` (candidate, `unsloth` build) | **119.77** | **241** |
 | `gemma3-270m` (floor incumbent)           |       76.8 |     368 |
-| `lfm25-350m` (default chat)               |       94.9 |     320 |
+| `lfm25-350m` (default chat)               |       89.7 |     320 |
 
 It beats both on **both** axes — 1.56× and 1.26× the decode, at 127 MB and 79 MB
 less peak. **These are the `unsloth` artefact's numbers**; the build that

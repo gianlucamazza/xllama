@@ -51,7 +51,7 @@ generated from the committed raw results by `scripts/generate-benchmark-summary.
 | Model | Params | Quant | Backend | Prefill tok/s | Decode tok/s | Decode min–max | Peak RAM MB | Source CSV |
 | --- | --- | --- | --- | ---: | ---: | :---: | ---: | --- |
 | LFM2.5-230M | 230M | Q4_K_M | llama.cpp CPU · t6 | 741.9 | **119.2** | 119.1–119.6 (n=3) | 241 | `phase16-gguf` |
-| LFM2.5-350M | 350M | Q4_K_M | llama.cpp CPU · t6 | 438.1 | **94.9** | 94.8–95.1 (n=3) | 320 | `phase13b-threadsbatch-after` |
+| LFM2.5-350M | 350M | Q4_K_M | llama.cpp CPU · t6 | 441.0 | **89.7** | 88.7–91.0 (n=3) | 320 | `phase17-console-2026-08-26` |
 | Gemma-3-270M | 270M | Q4_K_M | llama.cpp CPU · t6 | 395.0 | **76.8** | _single run_ | 368 | `phase6-gemma` |
 | SmolLM2-360M | 360M | int4 | ORT-GenAI CPU · t6 | 262.4 | **74.8** | 74.4–75.0 (n=3) | 708 | `t6-shipped-confirm` |
 | SmolLM2-360M | 360M | Q4_K_M | llama.cpp CPU · t6 | 141.5 | **62.9** | _single run_ | 402 | `phase35-llamacpp-scaling` |
@@ -368,6 +368,32 @@ training/jobs/smollm2-360m-marker-partialft.json`. Console:
 `./scripts/validate-console-training.sh device-train`.
 
 ## Reproducing
+
+### Latest Series S capture (2026-08-26)
+
+The current Dev package was measured on an Xbox Series S after provisioning the
+catalogue model and discarding one cold-start warm-up. The three recorded rows
+are committed in [`phase17-console-2026-08-26.csv`](../bench/results/phase17-console-2026-08-26.csv):
+
+| Model artifact                                                                                                           | Settings                                                                          | Median result                                           | Spread / peak                                                          |
+| ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `LFM2.5-350M-Q4_K_M.gguf`, 229,312,224 bytes, SHA-256 `7e6f72643caafc9a68256686638c4d7916f2cec76d1df478d4c3ddcd95a6aed4` | Q4_K_M, llama.cpp CPU, t6, `n_ctx=2048`, fixed `standard-512` prompt (298 tokens) | 441.04 prefill tok/s; 89.65 decode tok/s; 676.1 ms TTFT | 88.71–90.95 decode tok/s; 675.6–676.7 ms TTFT; 320 MB peak working set |
+
+Re-run it with:
+
+```bash
+source ~/.config/xllama/xbox-env
+./scripts/bench-xbox-ort.sh lfm25-350m --runs 4 \
+  --prompt bench/prompts/standard-512.txt \
+  --out bench/results/phase17-console-2026-08-26.csv
+```
+
+This capture establishes model identity, quantization, context, TTFT,
+throughput and peak memory. It is not an energy claim: the console run did not
+include an external wattmeter or a documented thermal-equilibrium interval, so
+idle/prefill/sustained-decode watts remain an open measurement gate. Do not
+describe these three short repetitions as thermally equilibrated production
+throughput until a sidecar is produced with `write-benchmark-sidecar.py`.
 
 - **On-console**: `./scripts/bench-xbox-ort.sh <model> --runs 3 --out bench/results/<file>.csv`
   (model already provisioned). KV bench: drop a `bench_turns.txt`; diffusion:

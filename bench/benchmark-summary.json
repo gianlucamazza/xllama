@@ -17,7 +17,7 @@
     {
       "label": "LFM2.5-350M",
       "params": "350M",
-      "source": "phase13b-threadsbatch-after.csv",
+      "source": "phase17-console-2026-08-26.csv",
       "selector": {
         "model": "lfm25-350m",
         "n_threads": "6",
