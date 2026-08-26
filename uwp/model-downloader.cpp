@@ -126,7 +126,8 @@ bool verify_catalogue_envelope(winrt::Windows::Data::Json::JsonObject const& env
             winrt::array_view<const uint8_t>(kCataloguePublicKeyBlob));
         auto provider = AsymmetricKeyAlgorithmProvider::OpenAlgorithm(
             AsymmetricAlgorithmNames::RsaSignPkcs1Sha256());
-        auto key = provider.ImportPublicKey(key_bytes);
+        auto key =
+            provider.ImportPublicKey(key_bytes, CryptographicPublicKeyBlobType::BCryptPublicKey);
         if (!CryptographicEngine::VerifySignature(key, payload, signature))
             throw winrt::hresult_invalid_argument();
         winrt::com_array<uint8_t> bytes;
