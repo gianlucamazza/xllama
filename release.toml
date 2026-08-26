@@ -2,11 +2,11 @@
 # DOI fields remain empty until the first Zenodo deposit is reserved.
 
 [release]
-version = "1.0.1"
+version = "1.0.2"
 date = "2026-08-26"
 tag_prefix = "research-v"
 concept_doi = "10.5281/zenodo.22118437"
-version_doi = "10.5281/zenodo.22118498"
+version_doi = "10.5281/zenodo.22118514"
 repo_url = "https://github.com/gianlucamazza/xllama"
 title = "Consumer Game Consoles as Local AI Compute"
 description = "Engineering report and reproducibility package for LLM and diffusion inference on Xbox Series S in UWP Dev Mode."
