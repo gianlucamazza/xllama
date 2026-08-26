@@ -108,6 +108,7 @@ SHORT_VERSION="${VERSION%.*}" # 1.5.2.0 -> 1.5.2
 OUT_MP4="${OUT_DIR}/xllama-demo-v${SHORT_VERSION}.mp4"
 OUT_GIF="${OUT_DIR}/xllama-demo-v${SHORT_VERSION}.gif"
 MANIFEST_JSON="${OUT_DIR}/demo-manifest.json"
+MARKERS_OUT="${OUT_DIR}/xllama-demo-v${SHORT_VERSION}-markers.jsonl"
 
 CSRF_TOKEN=$(curl "${CURL_AUTH[@]}" "${BASE_URL}/" -o /dev/null -D - 2>/dev/null |
 	sed -n 's/.*[Cc][Ss][Rr][Ff]-[Tt]oken=\([^;[:space:]]*\).*/\1/p' |
@@ -122,7 +123,10 @@ PFN=$("${DEPLOY}" pfn 2>/dev/null)
 
 WORK=$(mktemp -d)
 FRAMES="${WORK}/frames"
+mkdir -p "$OUT_DIR"
 mkdir -p "$FRAMES"
+MARKERS="${WORK}/markers.jsonl"
+: >"$MARKERS"
 trap 'rm -rf "$WORK"' EXIT
 
 FILE_EP="${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState"
@@ -173,17 +177,51 @@ echo "==> script: ${DEMO_SCRIPT}"
 missing=()
 while IFS= read -r model; do
 	[[ -z "$model" ]] && continue
-	gguf=$(jq -r --arg m "$model" \
-		'.models[] | select(.name == $m) | .files[] | select(.filename | endswith(".gguf")) | .filename' \
+	# `personalized` is produced by the script's start_train action, not a
+	# catalogue GGUF. Its output is validated by autopilot-done and the marker
+	# sequence after training completes.
+	if [[ "$model" == personalized ]]; then
+		continue
+	fi
+	model_file=$(jq -r --arg m "$model" \
+		'.models[] | select(.name == $m) | .files[] | select(.filename | endswith(".gguf") or endswith("model.onnx")) | .filename' \
 		"${REPO_ROOT}/uwp/models/manifest.json" | head -n1)
-	if [[ -z "$gguf" ]]; then
-		echo "Error: ${model} has no GGUF in uwp/models/manifest.json" >&2
+	if [[ -z "$model_file" ]]; then
+		echo "Error: ${model} has no GGUF or model.onnx in uwp/models/manifest.json" >&2
 		exit 1
 	fi
-	code=$(curl "${CURL_AUTH[@]}" -o /dev/null -w "%{http_code}" \
-		"${FILE_EP}%5Cmodels%5C${model}&filename=${gguf// /%20}" 2>/dev/null || echo "000")
-	[[ "$code" == "200" ]] || missing+=("$model")
+	model_dir="${model}"
+	model_path="%5Cmodels%5C${model_dir}"
+	if [[ "$model_file" == */* ]]; then
+		model_dir="${model_file%/*}"
+		model_path="%5Cmodels%5C${model}%5C${model_dir//\\/%5C}"
+		model_file="${model_file##*/}"
+	fi
+	code=$(curl "${CURL_AUTH[@]}" --connect-timeout 5 --max-time 20 --range 0-0 -o /dev/null -w "%{http_code}" \
+		"${FILE_EP}${model_path}&filename=${model_file// /%20}" 2>/dev/null || echo "000")
+	[[ "$code" == "200" || "$code" == "206" ]] || missing+=("$model")
 done < <(jq -r '[.actions[] | select(.op == "set_model") | .name] | unique[]' "$DEMO_SCRIPT")
+
+if jq -e '[.actions[] | select(.op == "start_train")] | length > 0' "$DEMO_SCRIPT" >/dev/null; then
+	TRAINING_EP="${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState%5Ctraining"
+	training_code=$(curl "${CURL_AUTH[@]}" --connect-timeout 5 --max-time 20 --range 0-0 -o /dev/null -w "%{http_code}" \
+		"${TRAINING_EP}&filename=base-f16.gguf" 2>/dev/null || echo "000")
+	if [[ "$training_code" != "200" && "$training_code" != "206" ]]; then
+		echo "Error: showcase training requires LocalState/training/base-f16.gguf" >&2
+		echo "  Provision the F16 base model before running this showcase." >&2
+		exit 1
+	fi
+fi
+if jq -e '[.actions[] | select(.op == "generate_image")] | length > 0' "$DEMO_SCRIPT" >/dev/null; then
+	DIFFUSION_EP="${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState%5Cmodels%5Csd-turbo-fp16%5Cunet"
+	diffusion_code=$(curl "${CURL_AUTH[@]}" --connect-timeout 5 --max-time 20 --range 0-0 -o /dev/null -w "%{http_code}" \
+		"${DIFFUSION_EP}&filename=model.onnx" 2>/dev/null || echo "000")
+	if [[ "$diffusion_code" != "200" && "$diffusion_code" != "206" ]]; then
+		echo "Error: showcase image generation requires LocalState/models/sd-turbo-fp16/unet/model.onnx" >&2
+		echo "  Provision sd-turbo-fp16 before running this showcase." >&2
+		exit 1
+	fi
+fi
 if ((${#missing[@]} > 0)); then
 	echo "Error: the demo script names models that are not on the console:" >&2
 	printf '  %s\n' "${missing[@]}" >&2
@@ -210,6 +248,7 @@ restart_app
 STOP="${WORK}/stop"
 rm -f "$STOP"
 CAP_START=$SECONDS
+CAP_START_EPOCH=$(date +%s)
 
 # Frame loop. No sleep between requests beyond what the target rate asks for:
 # the endpoint's own latency (~35 ms p50) is most of the interval at 10 fps.
@@ -234,11 +273,19 @@ CAP_PID=$!
 # fixed HOLD_S is what makes pane duration a property of this script rather than
 # of whatever timeout the demo script happens to carry.
 (
+	last_label=""
 	while [[ ! -f "$STOP" ]]; do
 		if fetch_file_200 "autopilot-mark.txt" "${WORK}/mark" &&
 			[[ -s "${WORK}/mark" ]]; then
-			echo "  pane '$(tr -d '\r\n' <"${WORK}/mark")' — holding ${HOLD_S}s" >&2
-			sleep "$HOLD_S"
+			label=$(tr -d '\r\n' <"${WORK}/mark")
+			if [[ "$label" != "$last_label" ]]; then
+				now=$(date +%s)
+				jq -cn --arg label "$label" --argjson elapsed_s "$((now - CAP_START_EPOCH))" \
+					'{label: $label, elapsed_s: $elapsed_s}' >>"$MARKERS"
+				echo "  pane '${label}' — holding ${HOLD_S}s" >&2
+				last_label="$label"
+				sleep "$HOLD_S"
+			fi
 			delete_file "autopilot-mark.txt"
 		fi
 		sleep 1
@@ -268,6 +315,7 @@ sleep 3 # a few frames on the final state
 touch "$STOP"
 wait "$CAP_PID" "$REL_PID" 2>/dev/null || true
 CAP_ELAPSED=$((SECONDS - CAP_START))
+cp "$MARKERS" "$MARKERS_OUT"
 
 # Failed grabs leave a zero-byte file behind (curl only unlinks with
 # --remove-on-error), and counting those as frames would both pad the video with
@@ -301,7 +349,6 @@ if LC_ALL=C awk -v a="$ACHIEVED_FPS" 'BEGIN { exit !(a < 5) }'; then
 	echo "   real time, but the result will look choppy." >&2
 fi
 
-mkdir -p "$OUT_DIR"
 echo "==> Encoding ${OUT_MP4}"
 ffmpeg -y -framerate "$ACHIEVED_FPS" -pattern_type glob -i "${FRAMES}/f_*.png" \
 	-vf "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,drawtext=fontfile=/usr/share/fonts/TTF/DejaVuSans.ttf:text='xllama v${SHORT_VERSION} · Xbox Series S · local · no cloud':x=24:y=h-48:fontsize=22:fontcolor=white:borderw=2:bordercolor=black" \
@@ -372,6 +419,7 @@ cat >"$MANIFEST_JSON" <<JSON
   "video_crf": 18,
   "video_preset": "slow",
   "capture_window_s": ${CAP_ELAPSED},
+  "markers": "$(basename "$MARKERS_OUT")",
   "source": "device-portal-stills",
   "source_note": "No video capture endpoint exists and AppRecordingManager is absent on the console (uwp-constraints.md 10b). Stills, encoded at the rate actually achieved so playback is real time. Read fps_achieved as this run's average, NOT as the endpoint's ceiling: /ext/screenshot sustains ~11.5 Hz idle and ~13.7 Hz during a decode (device-portal.md), and a run that loads several models spends part of its time where nothing changes, so its average is lower and that is not a regression. Capture costs the app ~1.8% of decode.",
   "script": "$(realpath --relative-to="$REPO_ROOT" "$DEMO_SCRIPT")"
@@ -386,6 +434,7 @@ ls -la "$OUT_MP4" "$OUT_GIF"
 echo "==> ${DURATION_1F}s, ${nframes} frames at ${ACHIEVED_FPS} fps"
 echo "==> gif: ${OUT_GIF##*/} ($((GIF_BYTES / 1000)) kB, ${GIF_FPS} fps, same real time)"
 echo "==> manifest: ${MANIFEST_JSON}"
+echo "==> markers: ${MARKERS_OUT}"
 echo
 echo "Next: upload ${OUT_MP4##*/} through a GitHub issue/comment to obtain a"
 echo "      user-attachments URL, then update the README player source."

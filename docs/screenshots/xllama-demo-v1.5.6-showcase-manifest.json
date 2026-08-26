@@ -1,0 +1,16 @@
+{
+  "version": "1.5.6.0",
+  "showcase": "xllama-demo-v1.5.6-showcase.mp4",
+  "showcase_duration_s": 52.966667,
+  "showcase_fps": 30,
+  "raw_capture": "xllama-demo-v1.5.6-showcase-raw.mp4",
+  "raw_duration_s": 725.938282,
+  "raw_fps": 11.99,
+  "markers": "xllama-demo-v1.5.6-showcase-markers.jsonl",
+  "source": "device-portal-stills",
+  "edit": {
+    "segments_s": ["0:8", "205:215", "330:340", "462:472", "595:610"],
+    "note": "Presentation edit only; raw capture remains authoritative."
+  },
+  "script": "../../demo/demo-showcase-script.json"
+}

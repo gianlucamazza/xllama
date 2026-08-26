@@ -1,0 +1,10 @@
+{"label":"chat-ready","elapsed_s":3}
+{"label":"feedback-saved","elapsed_s":9}
+{"label":"personalize-ready","elapsed_s":14}
+{"label":"training-started","elapsed_s":19}
+{"label":"training-done","elapsed_s":212}
+{"label":"personalized-ready","elapsed_s":333}
+{"label":"personalized-response","elapsed_s":339}
+{"label":"coding-done","elapsed_s":470}
+{"label":"diffusion-done","elapsed_s":595}
+{"label":"showcase-final","elapsed_s":652}

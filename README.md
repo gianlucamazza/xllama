@@ -13,11 +13,14 @@
 
 https://github.com/user-attachments/assets/9494a6a2-f14e-4229-afa4-ff5faf51ba67
 
-This 4.7-second presentation edit was recorded on a Series S in Dev Mode. The
-decode rate in the footer is the console's own; the edit removes waiting time
-but does not support a throughput claim. Download the [raw
-`xllama-demo-v1.5.6.mp4` evidence](docs/screenshots/xllama-demo-v1.5.6.mp4) or
-reproduce the capture from [`demo/demo-script.json`](demo/demo-script.json)
+The hosted clip above is the compact technical demo recorded on a Series S in
+Dev Mode. The new [52.97-second product showcase](docs/screenshots/xllama-demo-v1.5.6-showcase.mp4)
+keeps the meaningful states visible: local chat, feedback, completed
+personalization, coding, and generated image. Its [12-minute raw capture](docs/screenshots/xllama-demo-v1.5.6-showcase-raw.mp4)
+and [marker log](docs/screenshots/xllama-demo-v1.5.6-showcase-markers.jsonl)
+remain available for audit. The original [technical raw capture](docs/screenshots/xllama-demo-v1.5.6.mp4)
+is also retained; neither video supports a throughput claim.
+Reproduce it from [`demo/demo-showcase-script.json`](demo/demo-showcase-script.json)
 with `scripts/capture-demo-video.sh`.
 
 ---
