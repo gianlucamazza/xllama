@@ -96,18 +96,17 @@ void start_native_capture(winrt::Windows::UI::Xaml::Controls::Page const& page,
                 auto pool = Direct3D11CaptureFramePool::CreateFreeThreaded(
                     device, DirectXPixelFormat::B8G8R8A8UIntNormalized, 2, item.Size());
                 auto session = pool.CreateCaptureSession(item);
-                auto revoker =
-                    pool.FrameArrived(auto_revoke, [&state](auto const& sender, auto const&) {
-                        auto frame = sender.TryGetNextFrame();
-                        if (!frame)
-                            return;
-                        const auto timestamp =
-                            static_cast<std::uint64_t>(frame.SystemRelativeTime().count());
-                        const auto number = state.frames.fetch_add(1) + 1;
-                        if (number == 1)
-                            state.first_timestamp_100ns.store(timestamp);
-                        state.last_timestamp_100ns.store(timestamp);
-                    });
+                pool.FrameArrived([&state](auto const& sender, auto const&) {
+                    auto frame = sender.TryGetNextFrame();
+                    if (!frame)
+                        return;
+                    const auto timestamp =
+                        static_cast<std::uint64_t>(frame.SystemRelativeTime().count());
+                    const auto number = state.frames.fetch_add(1) + 1;
+                    if (number == 1)
+                        state.first_timestamp_100ns.store(timestamp);
+                    state.last_timestamp_100ns.store(timestamp);
+                });
                 const auto start = std::chrono::steady_clock::now();
                 session.StartCapture();
                 std::this_thread::sleep_for(std::chrono::seconds(duration_seconds));
