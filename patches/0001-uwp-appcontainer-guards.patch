@@ -81,7 +81,7 @@ diff --git a/src/llama-mmap.cpp b/src/llama-mmap.cpp
 index ed572da7f..c4305dc71 100644
 --- a/src/llama-mmap.cpp
 +++ b/src/llama-mmap.cpp
-@@ -530,7 +530,7 @@ struct llama_mmap::impl {
+@@ -569,7 +569,7 @@ struct llama_mmap::impl {
              }
          }
      }
@@ -89,8 +89,8 @@ index ed572da7f..c4305dc71 100644
 +#elif defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP))
      HANDLE hMapping = nullptr;
  
-     impl(struct llama_file * file, size_t prefetch, bool numa) {
-@@ -625,7 +625,7 @@ void * llama_mmap::addr() const { return pimpl->addr; }
+     impl(struct llama_file * file, size_t prefetch, bool numa, const llama_mmap::ranges & lazy_ranges) {
+@@ -670,7 +670,7 @@ void * llama_mmap::addr() const { return pimpl->addr; }
  
  void llama_mmap::unmap_fragment(size_t first, size_t last) { pimpl->unmap_fragment(first, last); }
  
@@ -99,7 +99,7 @@ index ed572da7f..c4305dc71 100644
  const bool llama_mmap::SUPPORTED  = true;
  #else
  const bool llama_mmap::SUPPORTED  = false;
-@@ -679,7 +679,7 @@ struct llama_mlock::impl {
+@@ -724,7 +724,7 @@ struct llama_mlock::impl {
              LLAMA_LOG_WARN("warning: failed to munlock buffer: %s\n", std::strerror(errno));
          }
      }
@@ -108,7 +108,7 @@ index ed572da7f..c4305dc71 100644
      static size_t lock_granularity() {
          SYSTEM_INFO si;
          GetSystemInfo(&si);
-@@ -768,7 +768,7 @@ llama_mlock::~llama_mlock() = default;
+@@ -813,7 +813,7 @@ llama_mlock::~llama_mlock() = default;
  void llama_mlock::init(void * ptr) { pimpl->init(ptr); }
  void llama_mlock::grow_to(size_t target_size) { pimpl->grow_to(target_size); }
  
