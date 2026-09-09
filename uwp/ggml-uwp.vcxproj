@@ -164,11 +164,13 @@
     <ClCompile Include="..\llama.cpp\src\llama-io.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-kv-cache.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-kv-cache-dsa.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-kv-cache-dsa-iswa.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-kv-cache-dsv4.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-kv-cache-iswa.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-kv-cache-msa.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-memory.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-memory-hybrid.cpp" />
+    <ClCompile Include="..\llama.cpp\src\llama-memory-hybrid-idx.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-memory-hybrid-iswa.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-memory-recurrent.cpp" />
     <ClCompile Include="..\llama.cpp\src\llama-mmap.cpp" />
