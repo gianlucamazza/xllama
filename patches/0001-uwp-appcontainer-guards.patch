@@ -1,5 +1,5 @@
 diff --git a/ggml/src/ggml-backend-dl.cpp b/ggml/src/ggml-backend-dl.cpp
-index a65cf0090..82ae1a24c 100644
+index a65cf00..82ae1a2 100644
 --- a/ggml/src/ggml-backend-dl.cpp
 +++ b/ggml/src/ggml-backend-dl.cpp
 @@ -2,6 +2,20 @@
@@ -33,10 +33,10 @@ index a65cf0090..82ae1a24c 100644
      return "";
  }
 diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
-index 491316f74..c6eb531c4 100644
+index 87a329f..9d31cc1 100644
 --- a/ggml/src/ggml-cpu/ggml-cpu.c
 +++ b/ggml/src/ggml-cpu/ggml-cpu.c
-@@ -2523,9 +2523,18 @@ static bool ggml_thread_apply_affinity(bool * mask) {
+@@ -2549,9 +2549,18 @@ static bool ggml_thread_apply_affinity(bool * mask) {
  
      DWORD_PTR m = (DWORD_PTR)bitmask;
  
@@ -55,7 +55,7 @@ index 491316f74..c6eb531c4 100644
  }
  
  static bool ggml_thread_apply_priority(int32_t prio) {
-@@ -2545,7 +2554,7 @@ static bool ggml_thread_apply_priority(int32_t prio) {
+@@ -2571,7 +2580,7 @@ static bool ggml_thread_apply_priority(int32_t prio) {
          // Newer Windows 11 versions aggressively park (offline) CPU cores and often place
          // all our threads onto the first 4 cores which results in terrible performance with
          // n_threads > 4
@@ -65,7 +65,7 @@ index 491316f74..c6eb531c4 100644
          ZeroMemory(&t, sizeof(t));
          t.Version     = THREAD_POWER_THROTTLING_CURRENT_VERSION;
 diff --git a/ggml/src/ggml-cpu/ggml-cpu.cpp b/ggml/src/ggml-cpu/ggml-cpu.cpp
-index 74631c285..58354fb10 100644
+index 8cece71..61072bb 100644
 --- a/ggml/src/ggml-cpu/ggml-cpu.cpp
 +++ b/ggml/src/ggml-cpu/ggml-cpu.cpp
 @@ -318,7 +318,7 @@ struct ggml_backend_cpu_device_context {
@@ -78,10 +78,10 @@ index 74631c285..58354fb10 100644
          if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
                          TEXT("HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0"),
 diff --git a/src/llama-mmap.cpp b/src/llama-mmap.cpp
-index ed572da7f..c4305dc71 100644
+index 4d183cb..0867a72 100644
 --- a/src/llama-mmap.cpp
 +++ b/src/llama-mmap.cpp
-@@ -530,7 +530,7 @@ struct llama_mmap::impl {
+@@ -569,7 +569,7 @@ struct llama_mmap::impl {
              }
          }
      }
@@ -89,8 +89,8 @@ index ed572da7f..c4305dc71 100644
 +#elif defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP))
      HANDLE hMapping = nullptr;
  
-     impl(struct llama_file * file, size_t prefetch, bool numa) {
-@@ -625,7 +625,7 @@ void * llama_mmap::addr() const { return pimpl->addr; }
+     impl(struct llama_file * file, size_t prefetch, bool numa, const llama_mmap::ranges & lazy_ranges) {
+@@ -671,7 +671,7 @@ void * llama_mmap::addr() const { return pimpl->addr; }
  
  void llama_mmap::unmap_fragment(size_t first, size_t last) { pimpl->unmap_fragment(first, last); }
  
@@ -99,7 +99,7 @@ index ed572da7f..c4305dc71 100644
  const bool llama_mmap::SUPPORTED  = true;
  #else
  const bool llama_mmap::SUPPORTED  = false;
-@@ -679,7 +679,7 @@ struct llama_mlock::impl {
+@@ -725,7 +725,7 @@ struct llama_mlock::impl {
              LLAMA_LOG_WARN("warning: failed to munlock buffer: %s\n", std::strerror(errno));
          }
      }
@@ -108,7 +108,7 @@ index ed572da7f..c4305dc71 100644
      static size_t lock_granularity() {
          SYSTEM_INFO si;
          GetSystemInfo(&si);
-@@ -768,7 +768,7 @@ llama_mlock::~llama_mlock() = default;
+@@ -814,7 +814,7 @@ llama_mlock::~llama_mlock() = default;
  void llama_mlock::init(void * ptr) { pimpl->init(ptr); }
  void llama_mlock::grow_to(size_t target_size) { pimpl->grow_to(target_size); }
  
