@@ -109,6 +109,7 @@ xllama/
 ├── bench/                   # configs, raw results, summary policy
 ├── demo/                    # demo-script.json — what the capture records, reviewable in a PR
 ├── diffusion/               # SD-Turbo → ONNX host toolchain (not shipped in the MSIX)
+├── paper/                   # citable research package (CITATION.cff / release.toml)
 ├── patches/                 # AppContainer / runtime patches applied at build time
 ├── cmake/
 └── .github/workflows/       # build-linux.yml + build-uwp.yml
