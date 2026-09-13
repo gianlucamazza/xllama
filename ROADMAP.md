@@ -74,8 +74,9 @@ performance belongs in `docs/benchmarks.md`.
 - [x] CI gates: claim provenance, generated artefacts and research tests.
 - [ ] Publication-grade Series S baseline: collect wattmeter, ambient and
       thermal sidecar evidence for the selected headline runs.
-- [ ] Tag `research-v1.0`, GitHub release and Zenodo archive after the live
-      evidence gate; update `CITATION.cff` with the resulting DOI.
+- [x] Tag `research-v1.0.6`, GitHub release and Zenodo archive
+      (`CITATION.cff` / `release.toml` version 1.0.6, version DOI
+      `10.5281/zenodo.22119126`).
 - [ ] Cross-platform comparison and leaderboard, only after homogeneous
       multi-device evidence exists.
 

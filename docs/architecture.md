@@ -590,8 +590,7 @@ host Release smoke (quality + peak)
 ## Unit test map (host suite)
 
 Every `include/xllama/X.h` has a corresponding `tests/test_X.cpp`. The suite
-is **243 test cases / 4346 assertions** (doctest); CI enforces the count in
-`build-linux.yml` against `ctest --list-tests`.
+is **243 test cases / 4346 assertions** (doctest).
 
 | Test file                     | Tests | Header under test                  |
 | ----------------------------- | ----- | ---------------------------------- |

@@ -23,6 +23,7 @@ Technical notes and design decisions for xllama.
 | Concern                                                                                | Authoritative home                                                                                                                                                                                                                                        |
 | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | System structure (modules, backends, KV, routing, provisioning, LAN, training surface) | [architecture.md](./architecture.md)                                                                                                                                                                                                                      |
+| Public C++ header API reference (no tok/s, no catalogue status)                        | [sdk/](./sdk/) (numbers stay in [benchmarks.md](./benchmarks.md) / [model-matrix.md](./model-matrix.md))                                                                                                                                                  |
 | Training pillar (RE, capability matrix, lanes A/B/C, hybrid loop, Phase 11 in-app arc) | [training-architecture.md](./training-architecture.md)                                                                                                                                                                                                    |
 | Training ops (job JSON, host PEFT, device train CLI, pull samples)                     | [`../training/README.md`](../training/README.md)                                                                                                                                                                                                          |
 | Raw performance evidence                                                               | [`../bench/results/`](../bench/results/)                                                                                                                                                                                                                  |
@@ -65,7 +66,7 @@ path checklist for discovery — descriptions are not repeated.
 [training-architecture.md](./training-architecture.md) ·
 [using-the-app.md](./using-the-app.md) · [api-endpoint.md](./api-endpoint.md) ·
 [model-selection.md](./model-selection.md) ·
-[recommended-config.md](./recommended-config.md)
+[recommended-config.md](./recommended-config.md) · [sdk/](./sdk/)
 
 **Constraints / vendor:** [uwp-constraints.md](./uwp-constraints.md) ·
 [vendor-lifecycle-plan.md](./vendor-lifecycle-plan.md) ·
@@ -133,7 +134,7 @@ Spot-checked against code + evidence:
 | GPU allowlist `-v2` only                            | `dml_text_model_ok`                                       | OK                                                               |
 | NuGet 0.14.1 / 1.24.4 / DML 1.15.4                  | `packages.config`                                         | OK                                                               |
 | Decode table (89.7 / 37.9 / 18.4 / 74.8 / 44.4 / …) | `generate-benchmark-summary.py --check`                   | OK (2026-08-26: latest Series S LFM capture, ORT CPU shipped-t6) |
-| Package identity `GianlucaMazza.xllama` (1.5.5.0)   | `uwp/AppxManifest.xml`; migration in `install-release.md` | OK (in-place from 1.5.x; breaking vs ≤1.4.x)                     |
+| Package identity `GianlucaMazza.xllama` (1.5.6.0)   | `uwp/AppxManifest.xml`; migration in `install-release.md` | OK (in-place from 1.5.x; breaking vs ≤1.4.x)                     |
 | One resident Session (GUI+API)                      | `include/xllama/session_hub.h`                            | OK (PR #161/#164)                                                |
 | H9 6/8 · 7/8 · 4/8 · 5/8                            | `phase7-h9.jsonl`                                         | OK                                                               |
 | Lane B peak_ws 1195 MB, wall 446 s                  | `phase10-console-devtrain-result.json`                    | OK                                                               |

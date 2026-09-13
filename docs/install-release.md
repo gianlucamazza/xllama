@@ -2,7 +2,7 @@
 
 How to install a tagged xllama release (see the
 [releases page](https://github.com/gianlucamazza/xllama/releases) for the current
-tag — today **[v1.5.5.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.5.5.0)**)
+tag — today **[v1.5.6.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.5.6.0)**)
 on an Xbox Series S|X in Dev Mode, from a Linux/macOS host. For building from
 source see the [README](../README.md#build); for Dev Mode activation and Device
 Portal basics see [device-portal.md](./device-portal.md).

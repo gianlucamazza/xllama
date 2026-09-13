@@ -51,8 +51,9 @@ using namespace winrt::Windows::UI::Text;
 namespace xllama {
 
 // First-launch / empty-settings default. Shipping builds are `unified`
-// (XLLAMA_USE_LLAMA): LFM2.5-350M is the measured fastest+lightest chat model
-// (94.2 tok/s, ~219 MB). ORT-only builds keep the classic SmolLM2 CPU int4.
+// (XLLAMA_USE_LLAMA): default chat role is `lfm25-350m`. Fastest/lightest
+// floor is `lfm25-230m`. Numbers live in `docs/benchmarks.md`. ORT-only
+// builds keep the classic SmolLM2 CPU int4.
 // Matches bench/configs/settings-modern.json and docs/recommended-config.md.
 static std::wstring DefaultChatModelId() {
     #if defined(XLLAMA_USE_LLAMA)
