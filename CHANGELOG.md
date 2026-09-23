@@ -9,9 +9,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Add GGUF embedding inference through the shared resident session and opt-in LAN API:
   Ollama `/api/embed`, legacy `/api/embeddings`, and OpenAI `/v1/embeddings` with float
-  or base64 vectors. Three embedding models catalogued: `embed-bge-m3` (BGE-M3 Q8_0,
-  1024 dim, 8192 ctx), `embed-nomic-v2-moe` (Nomic MoE Q8_0, 768 dim, 512 ctx), and
-  `embed-qwen3-4b` (Qwen3-4B Q4_K_M, 2560 dim, 2048 ctx) if host smoke passes 3584 MB gate.
+  or base64 vectors. BGE-M3 Q8_0 and Nomic v2 MoE Q8_0 passed the host 3584 MiB
+  memory gate and are catalogued; Qwen3-Embedding-4B Q4_K_M measured 4411 MiB and is
+  not catalogued. Xbox memory and throughput validation remains pending.
+- Add catalogue-only Ollama `POST /api/pull` with NDJSON download progress, SHA-256
+  verification, serialized pulls, and a load into the shared resident session on success.
 - Keep embedding batches serial on the single-slot llama.cpp context; preserve model
   pooling metadata and return normalized vectors with optional dimensions. Fix truncation
   direction for LAST pooling (keep suffix not prefix), add EOS token append when GGUF

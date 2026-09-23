@@ -306,6 +306,38 @@
       "n_predict": 1024
     },
     {
+      "_comment": "BGE-M3 Q8_0 GGUF from gpustack/bge-m3-GGUF (MIT). Release embedding smoke 2026-09-23: bert/CLS, 1024 dimensions, 8192 context, unit norm, peak RSS 746 MiB. Passed the 3584 MiB host gate; Xbox measurement remains to be recorded.",
+      "name": "embed-bge-m3",
+      "display": "BGE-M3 (GGUF · embedding)",
+      "kind": "gguf",
+      "role": "embedding",
+      "n_ctx": 8192,
+      "hf_base_url": "https://huggingface.co/gpustack/bge-m3-GGUF/resolve/main",
+      "files": [
+        {
+          "filename": "bge-m3-Q8_0.gguf",
+          "approx_bytes": 634553760,
+          "sha256": "950f4a8e5e19477a6d3c26d2f162233c20002c601f75e4b002e3239997821167"
+        }
+      ]
+    },
+    {
+      "_comment": "Nomic Embed Text v2 MoE Q8_0 GGUF from ggml-org/Nomic-Embed-Text-V2-GGUF (Apache-2.0). Release embedding smoke 2026-09-23: nomic-bert-moe/mean, 768 dimensions, opened at 512 context, unit norm, peak RSS 632 MiB. Passed the 3584 MiB host gate; Xbox measurement remains to be recorded. Inputs require search_query: or search_document:.",
+      "name": "embed-nomic-v2-moe",
+      "display": "Nomic Embed Text v2 MoE (GGUF · embedding)",
+      "kind": "gguf",
+      "role": "embedding",
+      "n_ctx": 512,
+      "hf_base_url": "https://huggingface.co/ggml-org/Nomic-Embed-Text-V2-GGUF/resolve/main",
+      "files": [
+        {
+          "filename": "nomic-embed-text-v2-moe-q8_0.gguf",
+          "approx_bytes": 512225120,
+          "sha256": "36c5817bc25f379e62021f49efde05b10ed3b0c93ab8059c43173a7a5de73565"
+        }
+      ]
+    },
+    {
       "name": "sd-turbo-fp16",
       "display": "SD-Turbo (image, GPU fp16)",
       "kind": "diffusion",

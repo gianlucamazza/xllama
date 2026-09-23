@@ -4,6 +4,8 @@
 #pragma once
 
 #include <string>
+#include <mutex>
+#include <utility>
 #include <vector>
 
 namespace xllama {
@@ -45,11 +47,25 @@ inline bool api_pull_model_allowed(const PullModelDescriptor& model) {
         return false;
     if (model.role == "diffusion" || model.role == "image")
         return false;
+    if (model.role == "embedding" && model.kind != "gguf")
+        return false;
+    if (!model.role.empty() && model.role != "coding" && model.role != "embedding")
+        return false;
     for (const auto& pin : model.sha256_pins) {
         if (!valid_pull_sha256(pin))
             return false;
     }
     return true;
 }
+
+class ApiPullGate {
+  public:
+    std::unique_lock<std::mutex> try_acquire() {
+        return std::unique_lock<std::mutex>(m_mutex, std::try_to_lock);
+    }
+
+  private:
+    std::mutex m_mutex;
+};
 
 } // namespace xllama

@@ -4,6 +4,8 @@
 #include "xllama/chat_prompt.h" // kDefaultSystemPrompt
 #include "xllama/cli.h"
 #include "xllama/inference.h"
+#include "xllama/platform.h"
+#include "xllama/session.h"
 #ifdef XLLAMA_DEVICE_TRAIN
     #include "xllama/device_train.h"
 #endif
@@ -19,6 +21,7 @@
     #include "xllama/device_train.h"
 #endif
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -85,11 +88,12 @@ int main(int argc, char** argv) {
                 norm2 += static_cast<double>(v) * static_cast<double>(v);
             const double norm = std::sqrt(norm2);
 
-            std::printf("embed[%zu]: width=%zu L2_norm=%.6f tokens=%d input_len=%zu\n",
-                        i, res.embedding.size(), norm, res.n_tokens, input.size());
+            std::printf("embed[%zu]: width=%zu L2_norm=%.6f tokens=%d input_len=%zu\n", i,
+                        res.embedding.size(), norm, res.n_tokens, input.size());
 
             if (std::abs(norm - 1.0) > 0.01) {
-                std::fprintf(stderr, "embed WARN input[%zu]: L2 norm %.6f not close to 1.0\n", i, norm);
+                std::fprintf(stderr, "embed WARN input[%zu]: L2 norm %.6f not close to 1.0\n", i,
+                             norm);
             }
         }
 

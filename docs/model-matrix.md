@@ -246,9 +246,25 @@ shifts.
 | granite-embedding-english-r2     | reject — duplicate bet   | Same WS-E slot as nomic-embed-text-v1.5 at +15 MB and new-renderer cost; its own FAIL branch concedes to nomic               |
 | multilingual-e5-small            | reject — duplicate bet   | Same WS-E slot; the multilingual axis has no named consumer, and its GGUF tokenizer is SPM over an XLM-R Unigram vocabulary  |
 
+## G. Embedding API catalogue (host-smoke; Series S pending)
+
+Release CPU smoke on 2026-09-23 used `xllama-cli --embed`, a retrieval-style
+input, and `/proc/<pid>/status` `VmHWM` for peak RSS. All three candidates
+loaded and returned finite, unit-normalized native-width vectors. Only the two
+under the 3584 MiB host gate are catalogued. These host figures are not Xbox
+measurements; Xbox memory and throughput still need to be recorded.
+
+| Model                   | Catalogue            | Arch           | Quant  | Pooling | n_ctx | Width | License    | Host peak RSS | Status                                                            |
+| ----------------------- | -------------------- | -------------- | ------ | ------- | ----: | ----: | ---------- | ------------: | ----------------------------------------------------------------- |
+| BGE-M3                  | `embed-bge-m3`       | bert           | Q8_0   | CLS     |  8192 |  1024 | MIT        |       746 MiB | **host-smoke PASS** · Xbox validation pending                     |
+| Nomic Embed Text v2 MoE | `embed-nomic-v2-moe` | nomic-bert-moe | Q8_0   | mean    |   512 |   768 | Apache-2.0 |       632 MiB | **host-smoke PASS** · prefix `search_query:` / `search_document:` |
+| Qwen3-Embedding-4B      | —                    | qwen3          | Q4_K_M | last    |  2048 |  2560 | Apache-2.0 |      4411 MiB | **not catalogued** · exceeds 3584 MiB host gate                   |
+
+Model SHA-256 pins: BGE-M3 `950f4a8e5e19477a6d3c26d2f162233c20002c601f75e4b002e3239997821167`, Nomic `36c5817bc25f379e62021f49efde05b10ed3b0c93ab8059c43173a7a5de73565`. Qwen candidate pin (not catalogued): `2b0cf8f17b4c723c27303015383c27ec4bf2d8314bb677d05e920dd70bb0f16b`.
+
 ---
 
-## G. Gaps still open
+## H. Gaps still open
 
 1. ~~Console campaign phase14~~ — **done**.
 2. ~~Thinking product path~~ — **done** (`model_is_thinking` + strip for display).
@@ -262,8 +278,9 @@ shifts.
    ([phase16-model-scouting.md](phase16-model-scouting.md)) closed with one model
    shipped (`lfm25-230m`, §A1) and everything else rejected, deferred or blocked;
    the verdicts are in §F. Of the 2026-07-27 seeds, LFM2.5-230M shipped and the
-   rest were not displaced. WS-E (embeddings) closed 2026-08-20: no named
-   consumer (#242). WS-F (ASR) still needs a headset (#241).
+   rest were not displaced. WS-E (embeddings) now has a named LAN API consumer;
+   BGE-M3 and Nomic v2 MoE passed host memory screening (see §G), with Series S
+   validation still open. WS-F (ASR) still needs a headset (#241).
 7. ~~**W3 gpubw** (#211)~~ — **closed PASS** Series S **119.07 GB/s** STREAM;
    H6 eng **#228** (`docs/phase15-re-opt.md`).
 

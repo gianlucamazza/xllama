@@ -55,6 +55,7 @@ this is Dev Mode research, not a hosted service.
 | `GET`     | `/` or `/health`         | `200 {"status":"ok","service":"xllama"}` — the spike/liveness probe.                                                                              |
 | `GET`     | `/v1/models`             | OpenAI model discovery — every servable on-device model; non-standard `"active": true` marks the one currently loaded.                            |
 | `GET`     | `/api/tags`              | Ollama model discovery — same list, Ollama shape.                                                                                                 |
+| `POST`    | `/api/pull`              | Pull a trusted catalogue chat/embedding model with Ollama-style NDJSON progress; load it when complete.                                           |
 | `POST`    | `/v1/chat/completions`   | OpenAI-compatible chat completion, **non-streaming**.                                                                                             |
 | `POST`    | `/api/embed`             | Ollama-style embeddings for one string or a batch, GGUF/llama.cpp only.                                                                          |
 | `POST`    | `/api/embeddings`        | Deprecated Ollama single-prompt embeddings adapter.                                                                                              |
@@ -63,6 +64,31 @@ this is Dev Mode research, not a hosted service.
 | `GET`     | `/v1/training/status`    | `result.done` / `progress.json` / last personalized `result.json` + usable sample count (#118).                                                   |
 | `POST`    | `/v1/images/generations` | SD-Turbo image gen (`prompt`, `steps` 1–4, `seed`); returns OpenAI-ish `{data:[{b64_json,path}]}` (#118). Shares the single-slot mutex with chat. |
 | `OPTIONS` | _any_                    | CORS preflight (`204` + `Allow-Methods/Headers`) for browser clients.                                                                             |
+
+### Model pulling (`POST /api/pull`)
+
+The request is `{"model":"<catalogue-id-or-alias>","stream":true}`; `stream` defaults to
+true. Pulls use only HTTPS entries bundled in the installed package with valid SHA-256 pins.
+LocalState catalogue overrides, diffusion assets, arbitrary URLs, and unknown models are
+rejected. Ollama embedding aliases (`bge-m3`, `nomic-embed-text-v2-moe`,
+`qwen3-embedding:4b`) resolve to their catalogue IDs when those models are included.
+
+Streaming returns chunked `application/x-ndjson`: status records report download bytes, then
+model loading, followed by `{"status":"success"}`. A failure after streaming starts is an
+NDJSON `{"error":"..."}` record. With `stream:false`, the endpoint waits and returns one
+JSON result. Only one pull runs at a time; a concurrent pull receives HTTP 409. Existing
+inference may finish during the download; after verification, the pull waits for the shared
+session lock, replaces the resident model, and reports success only after loading it.
+
+```bash
+curl -N http://<ip-xbox>:11434/api/pull \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"lfm25-350m"}'
+
+curl -s http://<ip-xbox>:11434/api/pull \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"bge-m3","stream":false}'
+```
 
 Discovery semantics: a model is **servable** when its `LocalState\models\<id>`
 directory holds a base GGUF (any `*.gguf` except a bare runtime-LoRA
@@ -110,9 +136,9 @@ Pydantic validation), and a `usage` block from `InferenceResult` (`n_p_eval` / `
 Embedding requests use the same resident `Session` and single-slot mutex as chat. Inputs in
 a batch are encoded serially, preserving order and avoiding a second model or a large
 multi-sequence activation allocation. The supported inference path is GGUF via llama.cpp;
-ORT GenAI sessions and ranking-only models return an explicit unsupported error. The API
-does not pull or manage models. Use an embedding model already present in
-`LocalState\models\<id>` and provide its model id.
+ORT GenAI sessions and ranking-only models return an explicit unsupported error. Use an
+embedding model already present in `LocalState\models\<id>` or pull one from the bundled
+catalogue with `/api/pull`.
 
 `/api/embed` accepts `input` as a string or string array (up to 128 items), optional `truncate` (default true),
 `dimensions`, and an Ollama `options` object. `options.num_ctx` can lower the configured
@@ -140,17 +166,18 @@ curl -s http://<ip-xbox>:11434/v1/embeddings \
 
 - **embed-bge-m3**: BAAI/bge-m3 (Q8_0, 1024 dim, 8192 ctx). Dense retrieval, no required prefix. Not Matryoshka — `dimensions` must be 0 or 1024.
 - **embed-nomic-v2-moe**: nomic-ai/nomic-embed-text-v2-moe (Q8_0, 768 dim, 512 ctx). Client must prepend `search_query:` or `search_document:` to inputs.
-- **embed-qwen3-4b**: Qwen/Qwen3-Embedding-4B (Q4_K_M, 2560 dim, 2048 ctx). Query text for retrieval: `Instruct: Given a query, retrieve passages that answer the question\nQuery: {text}`. Documents are raw passages.
 
-**Ollama name aliases**: The API also accepts the Ollama library names `bge-m3`, `nomic-embed-text-v2-moe`, and `qwen3-embedding:4b`, which map to the catalogue ids above.
+Qwen3-Embedding-4B Q4_K_M is not in the catalogue: its Release embedding smoke peaked at 4411 MiB, above the 3584 MiB host gate. The two listed models passed host Release smoke; Xbox memory and throughput still need a device run.
+
+**Ollama name aliases**: The API also accepts `bge-m3` and `nomic-embed-text-v2-moe`. The `qwen3-embedding:4b` alias is reserved for a future catalogue entry.
 
 **Model swap**: Embedding requests share the single-slot `session_hub()` with chat. An embedding call that names a different model swaps the resident chat model out. The next chat turn will prefill cleanly (KV is cleared on swap).
 
 **Dimensions**: `dimensions=0` (the default) returns the model's native width. Non-zero values are accepted only when the model declares Matryoshka support. BGE-M3 is not Matryoshka; requesting any dimensions other than 0 or 1024 returns 400.
 
-**Context limits**: Each model opens at its catalogue `n_ctx` (BGE-M3: 8192, Nomic MoE: 512, Qwen3-4B: 2048). The `options.num_ctx` field cannot exceed that limit or go below 32. Inputs longer than context are truncated when `truncate=true` (default), or rejected with 400 when `truncate=false`.
+**Context limits**: Each model opens at its catalogue `n_ctx` (BGE-M3: 8192, Nomic MoE: 512). The `options.num_ctx` field cannot exceed that limit or go below 32. Inputs longer than context are truncated when `truncate=true` (default), or rejected with 400 when `truncate=false`.
 
-Embedding models retain their own pooling behavior from GGUF metadata. The API does not inject task prefixes automatically: clients must prepend the appropriate instruction strings themselves. There is no `/api/pull`, `/api/show`, or full Ollama model-management parity.
+Embedding models retain their own pooling behavior from GGUF metadata. The API does not inject task prefixes automatically: clients must prepend the appropriate instruction strings themselves. Model pulling is catalogue-only; `/api/show` and full Ollama model-management parity are not implemented.
 
 ### Preferences (`POST /v1/preferences`)
 

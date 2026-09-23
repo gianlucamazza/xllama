@@ -20,6 +20,7 @@
     #include "inference-bridge.h"
     #include "model-downloader.h"
     #include "xllama/api_policy.h"
+    #include "xllama/api_pull_policy.h"
     #include "xllama/chat_prompt.h"
     #include "xllama/model_provision.h"
     #include "xllama/path_utils.h"
@@ -34,6 +35,7 @@
 
     #include <algorithm>
     #include <cctype>
+    #include <charconv>
     #include <chrono>
     #include <cstdio>
     #include <ctime>
@@ -85,6 +87,10 @@ uint64_t g_generation = 0; // invalidates callbacks accepted by an older listene
 // Settings and autopilot can request lifecycle changes from separate worker
 // threads. Serialize bind/close so only one transition owns the listener.
 std::mutex g_control_mtx;
+
+// Pulls share one writer/staging directory per model. Reject a second request
+// rather than allowing overlapping writes to the same .part files.
+::xllama::ApiPullGate g_pull_gate;
 
 // Keep the listener alive for the process lifetime (callbacks fire on the WinRT
 // thread pool, not on run_server's thread).
@@ -229,6 +235,73 @@ void write_response(StreamSocket const& socket, const char* status, const std::s
     out += "\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n";
     out += json;
     write_raw(socket, out);
+}
+
+class PullJsonStream {
+  public:
+    explicit PullJsonStream(StreamSocket const& socket) {
+        write_raw(socket, "HTTP/1.1 200 OK\r\nContent-Type: application/x-ndjson\r\n"
+                          "Transfer-Encoding: chunked\r\nConnection: close\r\n"
+                          "Access-Control-Allow-Origin: *\r\n\r\n");
+        m_writer = DataWriter(socket.OutputStream());
+        m_writer.UnicodeEncoding(UnicodeEncoding::Utf8);
+    }
+
+    bool write_line(const std::string& json) {
+        if (m_finished)
+            return false;
+        const std::string payload = json + "\n";
+        char size_hex[32]{};
+        const auto converted =
+            std::to_chars(size_hex, size_hex + sizeof(size_hex), payload.size(), 16);
+        if (converted.ec != std::errc{})
+            return false;
+        std::string frame(size_hex, converted.ptr);
+        frame += "\r\n";
+        frame += payload;
+        frame += "\r\n";
+        try {
+            m_writer.WriteString(winrt::to_hstring(frame));
+            m_writer.StoreAsync().get();
+            m_writer.FlushAsync().get();
+            return true;
+        } catch (...) {
+            return false;
+        }
+    }
+
+    void finish() {
+        if (m_finished)
+            return;
+        m_finished = true;
+        try {
+            m_writer.WriteString(L"0\r\n\r\n");
+            m_writer.StoreAsync().get();
+            m_writer.FlushAsync().get();
+            m_writer.DetachStream();
+        } catch (...) {
+        }
+    }
+
+  private:
+    DataWriter m_writer{nullptr};
+    bool m_finished = false;
+};
+
+std::string pull_event_json(const std::string& status, uint64_t completed = 0, uint64_t total = 0) {
+    JsonObject root;
+    root.Insert(L"status", JsonValue::CreateStringValue(winrt::to_hstring(status)));
+    if (total > 0) {
+        root.Insert(L"completed", JsonValue::CreateNumberValue(static_cast<double>(completed)));
+        root.Insert(L"total", JsonValue::CreateNumberValue(static_cast<double>(total)));
+    }
+    return winrt::to_string(root.Stringify());
+}
+
+std::string pull_error_json(const std::string& message) {
+    JsonObject root;
+    root.Insert(L"error", JsonValue::CreateStringValue(winrt::to_hstring(message)));
+    return winrt::to_string(root.Stringify());
 }
 
 // CORS preflight: browsers OPTIONS non-simple requests before the real POST.
@@ -1013,6 +1086,238 @@ std::string handle_images_locked(const std::string& body, const char*& status) {
     return winrt::to_string(out.Stringify());
 }
 
+bool same_pull_manifest_entry(const ::xllama::ManifestEntry& a, const ::xllama::ManifestEntry& b) {
+    if (a.name != b.name || a.kind != b.kind || a.role != b.role ||
+        a.hf_base_url != b.hf_base_url || a.n_ctx != b.n_ctx || a.files.size() != b.files.size())
+        return false;
+    for (size_t i = 0; i < a.files.size(); ++i) {
+        const auto& x = a.files[i];
+        const auto& y = b.files[i];
+        if (x.filename != y.filename || x.remote != y.remote || x.approx_bytes != y.approx_bytes ||
+            x.sha256 != y.sha256)
+            return false;
+    }
+    return true;
+}
+
+void remove_stale_gguf_files(const std::filesystem::path& model_dir,
+                             const std::vector<::xllama::ModelFile>& expected) {
+    std::vector<std::filesystem::path> keep;
+    keep.reserve(expected.size());
+    for (const auto& file : expected)
+        keep.emplace_back(file.filename);
+    std::error_code ec;
+    for (const auto& item : std::filesystem::directory_iterator(model_dir, ec)) {
+        if (ec)
+            break;
+        if (!item.is_regular_file(ec) || item.path().extension() != ".gguf")
+            continue;
+        const auto it = std::find(keep.begin(), keep.end(), item.path().filename());
+        if (it == keep.end())
+            std::filesystem::remove(item.path(), ec);
+        ec.clear();
+    }
+}
+
+void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t generation) {
+    JsonObject request{nullptr};
+    if (!JsonObject::TryParse(winrt::to_hstring(body), request) || request == nullptr) {
+        write_response(socket, "400 Bad Request", error_json("invalid JSON body"));
+        return;
+    }
+
+    std::string requested_name;
+    bool stream = true;
+    try {
+        if (request.HasKey(L"model")) {
+            const auto value = request.GetNamedValue(L"model");
+            if (value.ValueType() != JsonValueType::String) {
+                write_response(socket, "400 Bad Request", error_json("'model' must be a string"));
+                return;
+            }
+            requested_name = winrt::to_string(value.GetString());
+        }
+        if (request.HasKey(L"stream")) {
+            const auto value = request.GetNamedValue(L"stream");
+            if (value.ValueType() != JsonValueType::Boolean) {
+                write_response(socket, "400 Bad Request", error_json("'stream' must be boolean"));
+                return;
+            }
+            stream = value.GetBoolean();
+        }
+    } catch (...) {
+        write_response(socket, "400 Bad Request", error_json("malformed pull request"));
+        return;
+    }
+    if (requested_name.empty()) {
+        write_response(socket, "400 Bad Request", error_json("missing 'model'"));
+        return;
+    }
+
+    const std::string model_name = ::xllama::resolve_pull_model_name(requested_name);
+    ::xllama::ManifestTrust catalogue_trust;
+    const auto manifest = ::xllama::LoadModelManifest(&catalogue_trust, false);
+    const auto* entry =
+        ::xllama::FindManifestEntry(manifest, ::xllama::utf8_to_wstring(model_name));
+    if (!entry) {
+        write_response(socket, "404 Not Found",
+                       error_json("model is not in the bundled catalogue"));
+        return;
+    }
+
+    // A bundled entry is part of the publisher-signed MSIX. Store additionally
+    // requires the catalogue's detached RSA signature. Device Portal overrides
+    // are excluded above and can never supply a pull URL or checksum.
+    bool package_catalogue_trusted = true;
+    #ifdef XLLAMA_STORE_SKU
+    package_catalogue_trusted = catalogue_trust.trusted;
+    #else
+    (void)catalogue_trust;
+    #endif
+
+    ::xllama::PullModelDescriptor descriptor;
+    descriptor.name = model_name;
+    descriptor.kind = ::xllama::wstring_to_utf8(entry->kind);
+    descriptor.role = ::xllama::wstring_to_utf8(entry->role);
+    descriptor.source_url = ::xllama::wstring_to_utf8(entry->hf_base_url);
+    descriptor.trusted_catalogue = package_catalogue_trusted;
+    for (const auto& file : entry->files)
+        descriptor.sha256_pins.push_back(::xllama::wstring_to_utf8(file.sha256));
+    if (!::xllama::api_pull_model_allowed(descriptor)) {
+        write_response(socket, "403 Forbidden",
+                       error_json("model is not a trusted, pinned chat or embedding download"));
+        return;
+    }
+
+    // Chat and embedding inference use the merged runtime manifest. Reject a
+    // same-name LocalState override that would change backend, role, URL, or
+    // pinned files, so a successfully pulled model is loaded with these settings.
+    const auto effective_manifest = ::xllama::LoadModelManifest();
+    const auto* effective_entry =
+        ::xllama::FindManifestEntry(effective_manifest, ::xllama::utf8_to_wstring(model_name));
+    if (!effective_entry || !same_pull_manifest_entry(*entry, *effective_entry)) {
+        write_response(socket, "403 Forbidden",
+                       error_json("model is shadowed by a LocalState catalogue override"));
+        return;
+    }
+
+    auto pull_guard = g_pull_gate.try_acquire();
+    if (!pull_guard.owns_lock()) {
+        write_response(socket, "409 Conflict", error_json("another model pull is in progress"));
+        return;
+    }
+
+    {
+        std::lock_guard<std::mutex> state_lock(g_state_mtx);
+        if (g_status.state != ServerState::Running || generation != g_generation) {
+            write_response(socket, "503 Service Unavailable", error_json("server stopped"));
+            return;
+        }
+    }
+
+    std::unique_ptr<PullJsonStream> output;
+    if (stream) {
+        output = std::make_unique<PullJsonStream>(socket);
+        (void)output->write_line(pull_event_json("pulling manifest"));
+        (void)output->write_line(pull_event_json("pulling model"));
+    }
+
+    const std::string model_dir = ::xllama::resolve_local_path("models/" + model_name);
+    std::error_code ec;
+    std::filesystem::create_directories(std::filesystem::path(::xllama::utf8_to_wstring(model_dir)),
+                                        ec);
+    bool download_ok = !ec;
+    std::wstring download_error = ec ? ::xllama::utf8_to_wstring(ec.message()) : L"";
+    if (download_ok) {
+        const std::wstring local_dir = ::xllama::utf8_to_wstring(model_dir);
+        ::xllama::ModelDownloader::Invalidate(local_dir);
+        try {
+            auto* output_stream = output.get();
+            ::xllama::ModelDownloader::DownloadAsync(
+                entry->hf_base_url, local_dir, entry->files,
+                winrt::Windows::UI::Core::CoreDispatcher{nullptr},
+                [output_stream](uint64_t done, uint64_t total) {
+                    if (output_stream)
+                        (void)output_stream->write_line(
+                            pull_event_json("pulling model", done, total));
+                },
+                [&download_ok, &download_error](bool ok, std::wstring error) {
+                    download_ok = ok;
+                    download_error = std::move(error);
+                })
+                .get();
+        } catch (winrt::hresult_error const& error) {
+            download_ok = false;
+            download_error = L"download failed (0x" +
+                             std::to_wstring(static_cast<uint32_t>(error.code().value)) + L")";
+        } catch (...) {
+            download_ok = false;
+            download_error = L"download failed";
+        }
+    }
+    if (!download_ok) {
+        const std::string message = ::xllama::wstring_to_utf8(download_error);
+        if (output) {
+            (void)output->write_line(pull_error_json(message));
+            output->finish();
+        } else {
+            write_response(socket, "500 Internal Server Error", pull_error_json(message));
+        }
+        return;
+    }
+
+    remove_stale_gguf_files(std::filesystem::path(::xllama::utf8_to_wstring(model_dir)),
+                            entry->files);
+    if (output)
+        (void)output->write_line(pull_event_json("loading model"));
+
+    bool server_active = false;
+    {
+        std::lock_guard<std::mutex> state_lock(g_state_mtx);
+        server_active = g_status.state == ServerState::Running && generation == g_generation;
+    }
+    if (!server_active) {
+        const std::string message = "server stopped before model load";
+        if (output) {
+            (void)output->write_line(pull_error_json(message));
+            output->finish();
+        } else {
+            write_response(socket, "503 Service Unavailable", pull_error_json(message));
+        }
+        return;
+    }
+
+    std::string load_error;
+    ::xllama::Session* loaded = nullptr;
+    {
+        auto& hub = ::xllama::session_hub();
+        std::lock_guard<std::mutex> hub_lock(hub.mtx); // let active inference finish, then swap
+        ::xllama::SessionParams params;
+        params.model_path = model_name;
+        params.n_ctx = ::xllama::resolve_n_ctx(entry->n_ctx);
+        if (entry->kind == L"gguf")
+            params.backend = ::xllama::Backend::LlamaCpp;
+        loaded = hub.ensure_locked(model_name, params, &load_error);
+    }
+    if (!loaded) {
+        const std::string message = "model downloaded but could not load: " + load_error;
+        if (output) {
+            (void)output->write_line(pull_error_json(message));
+            output->finish();
+        } else {
+            write_response(socket, "500 Internal Server Error", pull_error_json(message));
+        }
+        return;
+    }
+
+    if (output) {
+        (void)output->write_line(pull_event_json("success"));
+        output->finish();
+    } else {
+        write_response(socket, "200 OK", pull_event_json("success"));
+    }
+}
+
 void handle_connection(StreamSocket const& socket, uint64_t generation) {
     try {
         const HttpRequest req = read_request(socket);
@@ -1047,6 +1352,11 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
         }
         if (req.method == "GET" && req.path == "/api/tags") {
             write_response(socket, "200 OK", tags_json());
+            return;
+        }
+
+        if (req.method == "POST" && req.path == "/api/pull") {
+            handle_pull(socket, req.body, generation);
             return;
         }
 

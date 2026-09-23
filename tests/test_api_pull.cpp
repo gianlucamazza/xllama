@@ -33,4 +33,15 @@ TEST_CASE("Ollama pull rejects untrusted, unpinned, unsupported, or unsafe catal
     CHECK_FALSE(xllama::api_pull_model_allowed(
         {"m", "gguf", "", "https://models.example/m", true,
          {std::string(63, 'a') + "Z"}}));
+    CHECK_FALSE(xllama::api_pull_model_allowed(
+        {"m", "ort-genai", "embedding", "https://models.example/m", true, valid_pins}));
+}
+
+TEST_CASE("Ollama pull admission allows only one model download at a time") {
+    xllama::ApiPullGate gate;
+    auto active = gate.try_acquire();
+    REQUIRE(active.owns_lock());
+    CHECK_FALSE(gate.try_acquire().owns_lock());
+    active.unlock();
+    CHECK(gate.try_acquire().owns_lock());
 }

@@ -5,7 +5,7 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/validate-api.sh <spike|chat|budget|embed|prefs|train|all>
+#   ./scripts/validate-api.sh <spike|chat|budget|embed|pull|prefs|train|all>
 #
 #   spike  bind gate only: GET / -> HTTP 200 (proves the StreamSocketListener
 #          survives the Series S firewall/PLM). No inference.
@@ -273,6 +273,72 @@ assert d["prompt_eval_count"] > 0 and d["total_duration"] >= d["load_duration"]
 	return $verdict
 }
 
+# --- Ollama model pull -----------------------------------------------------
+
+validate_pull() {
+	local pull_model="${PULL_MODEL:-lfm25-350m}" pull_kind="${PULL_MODEL_KIND:-chat}"
+	local req code verdict=0
+	echo "=== pull: /api/pull (${pull_model}) ==="
+	req=$(python3 -c 'import json,sys; print(json.dumps({"model":sys.argv[1]}))' "$pull_model")
+	code=$(curl -sS -N -m 900 -o "${TMPDIR_LOCAL}/pull-stream.ndjson" -w "%{http_code}" \
+		-H 'Content-Type: application/json' -d "$req" "${API_URL}/api/pull" || echo "000")
+	if [[ "$code" == "200" ]] && python3 -c '
+import json,sys
+events=[json.loads(line) for line in open(sys.argv[1]) if line.strip()]
+assert events and events[-1] == {"status":"success"}
+assert any(e.get("status") == "pulling model" for e in events)
+' "${TMPDIR_LOCAL}/pull-stream.ndjson"; then
+		echo "  ok: NDJSON pull completed with progress and success records"
+	else
+		echo "  FAIL: streamed pull HTTP ${code}: $(tail -n 3 "${TMPDIR_LOCAL}/pull-stream.ndjson" 2>/dev/null | tr '\n' ' ')"
+		verdict=1
+	fi
+
+	req=$(python3 -c 'import json,sys; print(json.dumps({"model":sys.argv[1],"stream":False}))' "$pull_model")
+	code=$(curl -sS -m 900 -o "${TMPDIR_LOCAL}/pull-single.json" -w "%{http_code}" \
+		-H 'Content-Type: application/json' -d "$req" "${API_URL}/api/pull" || echo "000")
+	if [[ "$code" == "200" ]] && python3 -c 'import json,sys; assert json.load(open(sys.argv[1])) == {"status":"success"}' "${TMPDIR_LOCAL}/pull-single.json"; then
+		echo "  ok: stream=false returns one success object"
+	else
+		echo "  FAIL: stream=false HTTP ${code}"
+		verdict=1
+	fi
+
+	code=$(curl -sS -m 30 -o "${TMPDIR_LOCAL}/pull-unknown.json" -w "%{http_code}" \
+		-H 'Content-Type: application/json' -d '{"model":"https://example.invalid/model"}' \
+		"${API_URL}/api/pull" || echo "000")
+	if [[ "$code" == "404" ]]; then
+		echo "  ok: arbitrary remote model sources are rejected"
+	else
+		echo "  FAIL: arbitrary remote source returned HTTP ${code}"
+		verdict=1
+	fi
+
+	if [[ "$pull_kind" == "embedding" ]]; then
+		req=$(python3 -c 'import json,sys; print(json.dumps({"model":sys.argv[1],"input":"pull smoke query"}))' "$pull_model")
+		code=$(curl -sS -m 300 -o "${TMPDIR_LOCAL}/pull-infer.json" -w "%{http_code}" \
+			-H 'Content-Type: application/json' -d "$req" "${API_URL}/api/embed" || echo "000")
+		if [[ "$code" == "200" ]] && python3 -c 'import json,sys; assert json.load(open(sys.argv[1]))["embeddings"][0]' "${TMPDIR_LOCAL}/pull-infer.json"; then
+			echo "  ok: pulled embedding model inferred"
+		else
+			echo "  FAIL: pulled embedding model inference returned HTTP ${code}"
+			verdict=1
+		fi
+	else
+		req=$(python3 -c 'import json,sys; print(json.dumps({"model":sys.argv[1],"messages":[{"role":"user","content":"Say OK."}],"max_tokens":16,"temperature":0}))' "$pull_model")
+		code=$(curl -sS -m 300 -o "${TMPDIR_LOCAL}/pull-infer.json" -w "%{http_code}" \
+			-H 'Content-Type: application/json' -d "$req" "${API_URL}/v1/chat/completions" || echo "000")
+		if [[ "$code" == "200" ]] && python3 -c 'import json,sys; assert json.load(open(sys.argv[1]))["choices"][0]["message"]["content"]' "${TMPDIR_LOCAL}/pull-infer.json"; then
+			echo "  ok: pulled chat model inferred"
+		else
+			echo "  FAIL: pulled chat model inference returned HTTP ${code}"
+			verdict=1
+		fi
+	fi
+	[[ $verdict -eq 0 ]] && echo "pull: PASS" || echo "pull: FAIL"
+	return $verdict
+}
+
 # --- #118 prefs / training status ------------------------------------------
 
 validate_prefs() {
@@ -390,6 +456,10 @@ train)
 	validate_spike || exit 1
 	validate_train
 	;;
+pull)
+	validate_spike || exit 1
+	validate_pull
+	;;
 embed)
 	validate_spike || exit 1
 	validate_embed
@@ -408,6 +478,9 @@ all)
 	validate_budget || rc=1
 	validate_prefs || rc=1
 	validate_train || rc=1
+	if [[ -n "${PULL_MODEL:-}" ]]; then
+		validate_pull || rc=1
+	fi
 	echo
 	echo "=== summary ==="
 	[[ $rc -eq 0 ]] && echo "ALL PASS" || echo "SOME FAILED (exit ${rc})"

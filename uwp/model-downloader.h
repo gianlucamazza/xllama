@@ -26,8 +26,9 @@ struct ModelFile {
     std::wstring sha256;
 };
 
-// Async download of an ONNX GenAI model from a Hugging Face repository to
-// ApplicationData LocalFolder. Callbacks are invoked on the UI thread.
+// Async download of a catalogue model to ApplicationData LocalFolder. When a
+// dispatcher is supplied, callbacks run on the UI thread; with nullptr, they
+// run on a background thread for callers such as the LAN API.
 class ModelDownloader {
   public:
     // Returns true if all files have been downloaded (marker file present).
@@ -91,7 +92,11 @@ struct ManifestEntry {
 // bundled ones, new names are appended, unmentioned bundled entries stay.
 // Falls back to a built-in single-entry catalogue (the historical hardcoded
 // SmolLM2-360M) if neither parses, so the app never starts with an empty list.
-std::vector<ManifestEntry> LoadModelManifest(ManifestTrust* trust = nullptr);
+// When include_local_override is false, returns only the catalogue bundled in
+// the installed package. Network-facing model pulls use this to avoid treating
+// a Device Portal override as a publisher-approved download source.
+std::vector<ManifestEntry> LoadModelManifest(ManifestTrust* trust = nullptr,
+                                             bool include_local_override = true);
 
 // Find an entry by model dir name; nullptr-like (empty name) if absent.
 inline const ManifestEntry* FindManifestEntry(const std::vector<ManifestEntry>& m,
