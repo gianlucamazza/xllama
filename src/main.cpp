@@ -43,6 +43,84 @@ int main(int argc, char** argv) {
         return 0;
     }
 
+    // --embed: embedding smoke test (load model, embed inputs, report metrics).
+    if (params.run_embed) {
+        std::string err;
+        xllama::SessionParams sp;
+        sp.model_path = params.model_path;
+        sp.n_ctx = params.n_ctx;
+        sp.backend = xllama::Backend::LlamaCpp;
+
+        std::unique_ptr<xllama::Session> session = xllama::Session::create(sp, &err);
+        if (!session) {
+            std::fprintf(stderr, "embed FAIL: session create: %s\n", err.c_str());
+            return 1;
+        }
+
+        std::printf("embed: model loaded, n_ctx=%d\n", session->context_length());
+
+        bool all_ok = true;
+        std::vector<std::vector<float>> embeddings;
+        embeddings.reserve(params.embed_inputs.size());
+
+        for (size_t i = 0; i < params.embed_inputs.size(); ++i) {
+            const std::string& input = params.embed_inputs[i];
+            xllama::EmbeddingParams ep;
+            ep.input = input;
+            ep.dimensions = params.embed_dimensions;
+            ep.truncate = true;
+
+            xllama::EmbeddingResult res = session->embed(ep);
+            if (!res.success) {
+                std::fprintf(stderr, "embed FAIL input[%zu]: %s\n", i, res.error_msg.c_str());
+                all_ok = false;
+                continue;
+            }
+
+            embeddings.push_back(res.embedding);
+
+            // Compute L2 norm (should be ~1.0 after normalization)
+            double norm2 = 0.0;
+            for (float v : res.embedding)
+                norm2 += static_cast<double>(v) * static_cast<double>(v);
+            const double norm = std::sqrt(norm2);
+
+            std::printf("embed[%zu]: width=%zu L2_norm=%.6f tokens=%d input_len=%zu\n",
+                        i, res.embedding.size(), norm, res.n_tokens, input.size());
+
+            if (std::abs(norm - 1.0) > 0.01) {
+                std::fprintf(stderr, "embed WARN input[%zu]: L2 norm %.6f not close to 1.0\n", i, norm);
+            }
+        }
+
+        // Stability check: same input twice should produce identical or near-identical vectors
+        if (embeddings.size() >= 2 && params.embed_inputs[0] == params.embed_inputs[1]) {
+            const auto& e0 = embeddings[0];
+            const auto& e1 = embeddings[1];
+            if (e0.size() == e1.size()) {
+                double dot = 0.0, norm0 = 0.0, norm1 = 0.0;
+                for (size_t i = 0; i < e0.size(); ++i) {
+                    dot += static_cast<double>(e0[i]) * static_cast<double>(e1[i]);
+                    norm0 += static_cast<double>(e0[i]) * static_cast<double>(e0[i]);
+                    norm1 += static_cast<double>(e1[i]) * static_cast<double>(e1[i]);
+                }
+                const double cosine = dot / (std::sqrt(norm0) * std::sqrt(norm1));
+                std::printf("embed: stability (same input twice) cosine=%.6f\n", cosine);
+                if (cosine < 0.999) {
+                    std::fprintf(stderr, "embed FAIL: same input cosine %.6f < 0.999\n", cosine);
+                    all_ok = false;
+                }
+            }
+        }
+
+        if (all_ok) {
+            std::printf("embed PASS\n");
+            return 0;
+        } else {
+            return 1;
+        }
+    }
+
     // --validate-train-job: training pillar — parse + validate job JSON only.
     if (params.run_validate_train_job) {
         xllama::TrainingJob job;

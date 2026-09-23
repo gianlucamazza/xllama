@@ -299,6 +299,8 @@ class OrtSession final : public Session {
                   "OgaTokenizerEncode");
         return static_cast<int>(OgaSequencesGetSequenceCount(seqs.get(), 0));
     }
+
+    int context_length() const override { return m_n_ctx; }
 };
 
 namespace detail {
@@ -825,6 +827,126 @@ class LlamaSession final : public Session {
             return 0;
         return -n;
     }
+
+    EmbeddingResult embed(const EmbeddingParams& params) override {
+        EmbeddingResult result;
+        if (params.input.empty()) {
+            result.error_msg = "input must not be empty";
+            return result;
+        }
+        std::string ctx_error;
+        if (!ensure_ctx(&ctx_error)) {
+            result.error_msg = "failed to create embedding context: " + ctx_error;
+            return result;
+        }
+
+        const llama_vocab* vocab = llama_model_get_vocab(m_model.get());
+        int32_t n = llama_tokenize(vocab, params.input.data(),
+                                   static_cast<int32_t>(params.input.size()), nullptr, 0,
+                                   true, true);
+        if (n == INT32_MIN || n == 0) {
+            result.error_msg = "input tokenization failed";
+            return result;
+        }
+        std::vector<llama_token> tokens(static_cast<size_t>(-n));
+        n = llama_tokenize(vocab, params.input.data(), static_cast<int32_t>(params.input.size()),
+                           tokens.data(), static_cast<int32_t>(tokens.size()), true, true);
+        if (n <= 0) {
+            result.error_msg = "input tokenization failed";
+            return result;
+        }
+        tokens.resize(static_cast<size_t>(n));
+        result.n_tokens = n;
+
+        llama_context* ctx = m_ctx.get();
+        const enum llama_pooling_type pooling = llama_pooling_type(ctx);
+        if (pooling == LLAMA_POOLING_TYPE_RANK) {
+            result.error_msg = "ranking GGUF models do not provide text embeddings";
+            return result;
+        }
+
+        // Append EOS if the GGUF requests it and the sequence does not already end
+        // in SEP or EOS. llama.cpp/examples/embedding/embedding.cpp warns when the
+        // last token is neither. The tokenizer.ggml.add_eos_token flag is
+        // authoritative; we append only when the tokenizer didn't already.
+        const llama_token sep_token = llama_vocab_sep(vocab);
+        const llama_token eos_token = llama_vocab_eos(vocab);
+        if (llama_vocab_get_add_eos(vocab) && !tokens.empty()) {
+            const llama_token last = tokens.back();
+            if (last != sep_token && last != eos_token) {
+                // Only append if it still fits in context after truncation.
+                if (static_cast<int>(tokens.size()) < m_n_ctx) {
+                    tokens.push_back(eos_token);
+                }
+            }
+        }
+
+        const int max_input_tokens = std::min(m_n_ctx, m_n_batch > 0 ? m_n_batch : 2048);
+        if (static_cast<int>(tokens.size()) > max_input_tokens) {
+            if (!params.truncate) {
+                result.error_msg = "input exceeds embedding batch/context limit of " +
+                                   std::to_string(max_input_tokens) +
+                                   " tokens and truncate is false";
+                return result;
+            }
+            // Trim to fit, keeping the tokens that matter for this pooling type.
+            const PoolingType pool = static_cast<PoolingType>(static_cast<int>(pooling));
+            trim_tokens_for_pooling(tokens, pool, max_input_tokens);
+        }
+        result.n_tokens = static_cast<int>(tokens.size());
+
+        // Embedding requests share this context with chat. Drop any chat KV and
+        // invalidate its token mirror; the next chat turn will prefill cleanly.
+        m_kv_tokens.clear();
+        llama_memory_clear(llama_get_memory(ctx), true);
+        llama_set_embeddings(ctx, true);
+        struct EmbeddingContextReset {
+            llama_context* ctx;
+            ~EmbeddingContextReset() {
+                llama_memory_clear(llama_get_memory(ctx), true);
+                llama_set_embeddings(ctx, false);
+            }
+        } context_reset{ctx};
+
+        llama_batch batch = llama_batch_init(static_cast<int32_t>(tokens.size()), 0, 1);
+        if (!batch.token || !batch.pos || !batch.n_seq_id || !batch.seq_id || !batch.logits) {
+            llama_batch_free(batch);
+            result.error_msg = "failed to allocate embedding batch";
+            return result;
+        }
+        batch.n_tokens = static_cast<int32_t>(tokens.size());
+        for (int32_t i = 0; i < batch.n_tokens; ++i) {
+            batch.token[i] = tokens[static_cast<size_t>(i)];
+            batch.pos[i] = i;
+            batch.n_seq_id[i] = 1;
+            batch.seq_id[i][0] = 0;
+            batch.logits[i] = (i == batch.n_tokens - 1) ? 1 : 0;
+        }
+        const int32_t rc = llama_model_has_encoder(m_model.get()) ? llama_encode(ctx, batch)
+                                                                   : llama_decode(ctx, batch);
+        llama_batch_free(batch);
+        if (rc != 0) {
+            result.error_msg = "llama.cpp failed to encode the embedding input (code " +
+                               std::to_string(rc) + ")";
+            return result;
+        }
+
+        const int n_embd = llama_model_n_embd_out(m_model.get());
+        const float* values = pooling == LLAMA_POOLING_TYPE_NONE
+                                  ? llama_get_embeddings_ith(ctx, batch.n_tokens - 1)
+                                  : llama_get_embeddings_seq(ctx, 0);
+        if (!values || n_embd <= 0) {
+            result.error_msg = "model/backend did not produce a sequence embedding";
+            return result;
+        }
+        result.embedding.assign(values, values + n_embd);
+        if (!normalize_embedding(result.embedding, params.dimensions, &result.error_msg))
+            return result;
+        result.success = true;
+        return result;
+    }
+
+    int context_length() const override { return m_n_ctx; }
 
     bool can_context_shift() const override {
         return m_can_shift;

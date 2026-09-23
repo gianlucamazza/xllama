@@ -7,6 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- Add GGUF embedding inference through the shared resident session and opt-in LAN API:
+  Ollama `/api/embed`, legacy `/api/embeddings`, and OpenAI `/v1/embeddings` with float
+  or base64 vectors. Three embedding models catalogued: `embed-bge-m3` (BGE-M3 Q8_0,
+  1024 dim, 8192 ctx), `embed-nomic-v2-moe` (Nomic MoE Q8_0, 768 dim, 512 ctx), and
+  `embed-qwen3-4b` (Qwen3-4B Q4_K_M, 2560 dim, 2048 ctx) if host smoke passes 3584 MB gate.
+- Keep embedding batches serial on the single-slot llama.cpp context; preserve model
+  pooling metadata and return normalized vectors with optional dimensions. Fix truncation
+  direction for LAST pooling (keep suffix not prefix), add EOS token append when GGUF
+  requests it, reject invalid Matryoshka dimensions before inference, and filter embedding
+  models from chat UI and POST /v1/chat/completions (400). Ollama library name aliases
+  (`bge-m3`, `nomic-embed-text-v2-moe`, `qwen3-embedding:4b`) map to catalogue ids.
+
 - **Research package and XAB baseline.** Added a citable Series S Dev Mode
   report with claim-level provenance, generated evidence tables/figures and a
   release runbook. Added `scripts/run-xab.sh` to compose text, KV, H9 and

@@ -1,201 +1,366 @@
-# AGENTS.md — xllama
+# AGENTS.md
 
-Quick reference for AI agents and new contributors.
+Agent guide for xllama. Human overview is [README.md](README.md). Facts have
+one home — [docs/README.md](docs/README.md) — so link those documents instead
+of copying tables, tok/s figures, or constraint numbers into a second place.
 
-## Conventions
+## Project overview
 
-- **Language**: English for code, comments, filenames, commit messages.
-- **C++ standard**: C++17 (UWP / SDK 22621 + MSVC).
-- **Style**: concise, no over-engineering. Prefer RAII and `unique_ptr`.
-- **Formatting**: auto-format on save if possible; otherwise follow existing
-  style. Both formatters are pinned and gated in CI — `clang-format` 22.1.5 for
-  C++, `prettier` 3.9.6 for every tracked `*.md` / `*.markdown` (`.prettierrc` /
-  `.prettierignore`).
+xllama runs local chat, SD-Turbo diffusion, and on-device training on Xbox
+Series S|X (Dev Mode) and a Linux host CLI. The shared core is C++17 under
+`include/xllama/` (WinRT-free, host-testable) and `src/bridge/`. Two front
+ends call it: `xllama-cli` on Linux, and the C++/WinRT UWP app in `uwp/`.
 
-## Directory structure
+Shipping inference is a **unified** build. At runtime, `*.gguf` goes through
+llama.cpp and everything else through ONNX Runtime GenAI + DirectML. The
+Linux CMake build is llama.cpp only (`XLLAMA_USE_LLAMA`). UWP ORT code stays
+under `#ifdef XLLAMA_USE_ORT`.
 
-```
-xllama/
-├── include/xllama/          # Shared public headers (WinRT-free, host-testable)
-│   ├── inference_params.h   # InferenceParams / InferenceResult
-│   ├── inference.h          # run_inference, write_bench_csv
-│   ├── training_params.h    # TrainingJob / TrainingCapability (training pillar)
-│   ├── training.h           # validate/load job, capability matrix, stage names
-│   ├── device_train.h       # Lane B run_device_train_job + progress callbacks
-│   ├── personalize.h        # Phase 11: last-block filter, job builder, sample count
-│   ├── preference_capture.h # preference JSONL (UI rate + POST /v1/preferences)
-│   ├── routing_policy.h     # routing decision + prompt budget (threshold must stay under it)
-│   ├── speculative.h        # Phase 15 W2: prompt_lookup_draft (pure, host-testable)
-│   ├── gpubw.h              # Phase 15 W3: GPU STREAM probe helpers + kill gate (#211)
-│   ├── gpugemv.h            # Phase 15 H6.2: wave32 Q4_K GEMV density probe (#228)
-│   ├── sampling.h           # sampling defaults shared by CLI/bench and GUI/API
-│   ├── session.h            # xllama::Session API (persistent model across turns)
-│   ├── session_hub.h        # SessionHub: the ONE process-wide resident-Session owner (GUI+API)
-│   ├── ort_raii.h           # RAII unique_ptr for OGA* types (UWP/ORT GenAI path)
-│   ├── llama_raii.h         # RAII unique_ptr for llama_* types (Linux path)
-│   ├── cli.h                # parse_cli_args (Linux)
-│   ├── platform.h           # log_output, detect_threads(_llama), peak_working_set_mb
-│   ├── path_utils.h         # resolve_model_path, first_gguf_in_dir, model_uses_llama_backend
-│   ├── utf8_utils.h         # utf8 <-> wstring (Windows)
-│   ├── chat_prompt.h        # ChatFormat, chat_format_for, apply_stop_sequences
-│   ├── model_provision.h    # dir_satisfies_expected_files, normalize_model_path
-│   ├── manifest_merge.h     # merge_manifest_entries (per-entry catalogue override)
-│   ├── autopilot.h          # AutopilotAction, validate_autopilot_script (console gates)
-│   ├── prompt_budget.h      # fit_prompt — exact token-budget trimmer
-│   ├── json_utils.h         # json_escape, json_read_string (canonical JSON helpers)
-│   ├── cancel_policy.h      # CancelTarget — which running job a cancel request targets
-│   ├── kv_store.h           # KvStore — on-disk KV snapshot pool (3 files / 192 MB, LRU)
-│   ├── logit_dump.h         # Logit-parity harness: float32 dump + JSON sidecar
-│   ├── ramceil.h            # probe_ram_ceiling — heap ceiling probe
-│   ├── capture_probe.h      # runtime GraphicsCapture presence probe
-│   ├── diskbw.h             # measure_diskbw — NVMe/disk bandwidth probe
-│   ├── d3d12_dyn.h          # Dynamic d3d12.dll entry-point resolve (AppContainer PE hygiene)
-│   ├── membw.h              # measure_membw — STREAM-style CPU bandwidth probe
-│   └── diffusion/           # Diffusion sub-pipeline (CLIP tokenizer, Euler scheduler, PNG writer)
-├── src/bridge/              # Shared implementation (Linux + UWP)
-│   ├── inference.cpp        # ORT GenAI and/or llama_decode (unified: runtime dispatch)
-│   ├── sampler_chain.h      # add_sampler_stages — the one llama.cpp sampler chain (#125)
-│   ├── ort_sampling.h       # apply_ort_sampling — the ORT twin, greedy guard shared (#141)
-│   ├── decode_loop.h        # shared prefill/decode; W2 prompt-lookup verify (opt-in)
-│   ├── decode_loop_ort.h    # consolidated ORT GenAI decode loop (stop sequences on stateless path)
-│   ├── ort_common.h         # Shared ORT setup: SEH translator + OgaSetLogCallback
-│   ├── session.cpp          # xllama::Session (OrtSession UWP + LlamaSession Linux)
-│   ├── training.cpp         # TrainingJob validate/parse (host + UWP linkable)
-│   ├── device_train.cpp     # Lane B engine: prepare → train → export → evaluate
-│   ├── personalize.cpp      # Phase 11 pure helpers
-│   ├── preference_capture.cpp
-│   ├── chat_prompt.cpp      # ChatFormat, chat_format_for, apply_stop_sequences
-│   ├── bench.cpp            # bench CSV writer (incl. run_index)
-│   ├── platform.cpp         # log_output (writes xllama.log in UWP)
-│   ├── path_utils.cpp       # resolve_model_path: LocalState\models\ + InstalledPath fallback
-│   ├── utf8_utils.cpp
-│   ├── cli.cpp
-│   ├── json_utils.cpp       # json_escape, json_read_string implementation
-│   ├── prompt_budget.cpp    # fit_prompt implementation
-│   ├── autopilot.cpp        # ApRun driver
-│   ├── kv_store.cpp         # KvStore with LRU eviction
-│   ├── membw.cpp            # STREAM-style CPU bandwidth probe
-│   ├── diskbw.cpp           # NVMe disk bandwidth probe
-│   ├── ramceil.cpp          # Heap ceiling probe
-│   ├── gpubw.cpp            # GPU STREAM probe D3D12 driver
-│   └── gpugemv.cpp          # Q4_K GEMV density probe D3D12 driver
-├── src/main.cpp             # Linux entry point (getopt_long; --train-job)
-├── training/                # Training pillar ops: jobs/, manifest-overrides/, datasets, host PEFT
-├── docs/                    # SSOT map in docs/README.md
-│   ├── architecture.md      # System structure SSOT
-│   ├── training-architecture.md  # Training SSOT (RE + capability matrix + §11 UI arc)
-│   └── api-endpoint.md      # LAN protocol (chat + prefs + train status + images)
-├── uwp/                     # C++/WinRT UWP app
-│   ├── App.cpp / App.h      # Application::OnLaunched
-│   ├── MainPage.cpp / .h    # MainPageController; personalize UI; autopilot
-│   ├── inference-bridge.cpp / .h   # main_loop, run_train_job_localized, headless flags
-│   ├── api-server.cpp / .h  # opt-in LAN endpoint
-│   ├── chat-history.cpp / .h
-│   ├── model-downloader.cpp / .h   # catalogue download + LoadModelManifest
-│   ├── packages.config      # NuGet pins (versions: packages.config; lifecycle: docs/vendor-lifecycle-plan.md)
-│   └── xllama.sln / .vcxproj
-├── scripts/
-│   ├── deploy.sh                      # Device Portal: deploy, logs, bench trigger
-│   ├── build-uwp.ps1                  # Windows UWP packaging script
-│   ├── bench-xbox-ort.sh              # benchmark runner (run_index, multi-run)
-│   ├── validate-console.sh            # autopilot: the 10 console gates (docs/console-validation-runbook.md)
-│   ├── validate-console-training.sh   # rate / serve / device-train
-│   ├── validate-api.sh                # LAN: spike|chat|prefs|train|all
-│   ├── generate-benchmark-summary.py  # raw results → docs table + dashboard
-│   ├── install-latest-build.sh        # fetch + deploy latest CI artifact
-│   └── …
-├── tests/                   # Unit tests (doctest; incl. test_personalize)
-├── shaders/                 # AOT HLSL + generated DXIL (Phase 15 W3 gpubw)
-├── bench/                   # configs, raw results, summary policy
-├── demo/                    # demo-script.json — what the capture records, reviewable in a PR
-├── diffusion/               # SD-Turbo → ONNX host toolchain (not shipped in the MSIX)
-├── paper/                   # citable research package (CITATION.cff / release.toml)
-├── patches/                 # AppContainer / runtime patches applied at build time
-├── cmake/
-└── .github/workflows/       # build-linux.yml + build-uwp.yml
-```
+`llama.cpp/` is a git submodule. Do not commit edits inside it. AppContainer
+fixes belong in `patches/` and are applied by `scripts/apply-uwp-patches.sh`.
 
-**Doc ownership (do not invent a second SSOT):** see `docs/README.md`. Structure →
-`architecture.md` (incl. catalogue `n_ctx`/`role`, ChatFormat, deferred surfaces);
-training → `training-architecture.md`; inventory/status → `model-matrix.md`;
-numbers → `bench/results` + generated `benchmarks.md`; UI steps → `using-the-app.md`;
-Phase 15 RE/opt (W2 findings, default-OFF) → `docs/phase15-re-opt.md`; Phase 16
-model scouting (candidate funnel, validation ladder, WS cards) →
-`docs/phase16-model-scouting.md`; Linux→Xbox
-pack path → `docs/crossbuild-console.md` (launch = CI MSVC).
+## Setup
 
-**Catalogue policy:** optional `n_ctx` and `role` (`coding`) are session knobs only
-— not a second backend. Gate: host Release smoke → console bench → then manifest.
-Measured ≠ shipped. No Settings magic for system prompts.
-
-## Build
-
-### Linux (development + tests)
+Linux host toolchain (Ubuntu packages match CI):
 
 ```bash
-# Release
-cmake --preset linux-release
-cmake --build build/linux-release -j$(nproc)
+git submodule update --init --recursive
+sudo apt-get install -y cmake build-essential libcurl4-openssl-dev
+```
 
-# Debug with tests
+CMake 3.22 or newer. Presets live in `CMakePresets.json`.
+
+Formatter pins, same versions CI installs:
+
+```bash
+pip3 install --user 'clang-format==22.1.5'
+npm install -g 'prettier@3.9.6'
+# shellcheck v0.11.0 — apt on Ubuntu 22.04 is older and misses findings
+```
+
+UWP packaging needs a Windows host with the UWP workload (SDK 22621). See
+[docs/windows-dev-vm.md](docs/windows-dev-vm.md). `cmake -DXLLAMA_TARGET=uwp`
+is a deliberate fatal error that points at `scripts/build-uwp.ps1`; CI checks
+that message.
+
+Console deploy reads `XBOX_IP`, `XBOX_USER`, and `XBOX_PASS` from
+`~/.config/xllama/xbox-env`. That file stays outside the repo.
+
+## Development workflow
+
+Day-to-day work is the Linux test preset. It is Debug, tests on, probes on.
+
+```bash
 cmake --preset linux-test
-cmake --build build/linux-test -j$(nproc)
-ctest --test-dir build/linux-test --output-on-failure
+cmake --build build/linux-test -j"$(nproc)"
+./build/linux-test/bin/xllama-cli --help
+```
 
-# Smoke test
+Release binary (what README smoke uses):
+
+```bash
+cmake --preset linux-release
+cmake --build build/linux-release -j"$(nproc)"
 ./build/linux-release/bin/xllama-cli --help
 ```
 
-### UWP (Windows / CI)
+Other presets: `linux-debug` (no tests), `linux-asan` (Debug + ASan + tests).
+`XLLAMA_ENABLE_UBSAN` is a separate cache option; the asan preset does not
+turn it on. `XLLAMA_NATIVE_OPT=ON` tunes ggml for the build machine;
+default is portable AVX2.
 
-Recommended: push to `main` and download the `xllama-appx` artifact from the
-`build-uwp` GitHub Actions workflow. **That CI MSVC package is the shipping
-and measurement path on Series S.** Linux uwp-crossbuild (≥ 0.5.1) also
-produces a package whose launch was observed on device 2026-08-08 (see
-`docs/crossbuild-console.md`; ORT/GenAI, first boot and uptime unproven
-there) — use CI for console benches and shipping claims.
+Where to put a change:
 
-For local builds (requires a Windows VM — see `docs/windows-dev-vm.md`):
+- Behaviour both the CLI and the UWP app need: a WinRT-free header in
+  `include/xllama/` plus the `.cpp` in `src/bridge/`, then a
+  `tests/test_*.cpp` registered in `tests/CMakeLists.txt`.
+- UWP-only UI, LAN server, or headless flags: `uwp/`. You cannot compile
+  that tree with the Linux preset. Say so in the PR.
+- A new catalogue model is a `uwp/models/manifest.json` entry after the
+  ladder in [docs/architecture.md](docs/architecture.md) (host smoke, then
+  console bench, then manifest). `n_ctx` and `role` are session knobs, not a
+  second backend.
+- Training job JSON goes in `training/jobs/` and must pass
+  `xllama-cli --validate-train-job`.
+
+## Testing
+
+Host suite is one doctest binary, `xllama-tests` (doctest v2.4.11, fetched by
+CMake). Case counts live in
+[docs/architecture.md](docs/architecture.md) (Unit test map). If the count
+changes, update every doc that cites it — CI prints the total and does not
+pin the number.
+
+```bash
+ctest --test-dir build/linux-test --output-on-failure
+```
+
+One doctest case (wildcard, from the build directory's test binary):
+
+```bash
+./build/linux-test/tests/xllama-tests --test-case='*prompt_budget*'
+```
+
+ASan (also the manual `workflow_dispatch` job on `build-linux.yml`):
+
+```bash
+cmake --preset linux-asan
+cmake --build build/linux-asan -j"$(nproc)"
+ctest --test-dir build/linux-asan --output-on-failure
+```
+
+Python checks that CI runs outside ctest:
+
+```bash
+python3 scripts/check-coherence.py
+python3 scripts/generate-benchmark-summary.py --check
+python3 scripts/build-research-package.py --check
+python3 scripts/check-release-metadata.py
+python3 -m unittest tests/test_research_package.py tests/test_xab_contract.py \
+  tests/test_release_metadata.py tests/test_release_bundle.py
+```
+
+After the CLI exists, CI validates every `training/jobs/*.json`:
+
+```bash
+./build/linux-test/bin/xllama-cli --validate-train-job training/jobs/<job>.json
+```
+
+New tests: `TEST_CASE` in `tests/test_<header>.cpp`, include the header under
+test, link nothing beyond `xllama` (already on the target). Register the file
+in `tests/CMakeLists.txt`. Prefer a pure helper on Linux over a WinRT-only
+branch when the behaviour is not sandbox-specific.
+
+Console and LAN gates need a deployed package and `xbox-env`. They are not
+part of the Linux CI job. Procedure:
+[docs/console-validation-runbook.md](docs/console-validation-runbook.md).
+
+```bash
+source ~/.config/xllama/xbox-env
+# gates: routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|thinkdone|genroom|taesd|store|all
+./scripts/validate-console.sh <gate|all>
+# modes: serve|rate|lora-rt|device-train|all
+./scripts/validate-console-training.sh <mode>
+./scripts/validate-api.sh <spike|chat|budget|embed|prefs|train|all>
+```
+
+## Code style
+
+- English for code, comments, filenames, docs, and commit messages.
+- C++17. RAII and `std::unique_ptr`. Concise; no speculative abstraction.
+- Public types live in namespace `xllama`.
+- Match the SPDX header on the neighbouring file
+  (`// Copyright (c) 2024 Gianluca Mazza` / `SPDX-License-Identifier: MIT`).
+- `.clang-format`: LLVM, 4-space indent, column 100, pointers and references
+  on the left, attached braces, sorted includes. Format with
+  **clang-format 22.1.5** only — a newer clang-format will fail CI.
+
+```bash
+clang-format -i path/to/file.cpp
+# CI check (skips llama.cpp/ and build trees):
+find . -path ./llama.cpp -prune -o -path ./build -prune -o -path ./build-uwp-test -prune -o \
+  \( -name '*.cpp' -o -name '*.h' -o -name '*.c' \) -type f -print |
+  xargs clang-format --dry-run --Werror
+```
+
+- Markdown: **prettier 3.9.6**, `.prettierrc` (`proseWrap: preserve`). It
+  formats every tracked `*.md` / `*.markdown` except paths in
+  `.prettierignore` (`llama.cpp/`, `vendor/`, `paper/generated/`, build
+  trees).
+
+```bash
+npx prettier@3.9.6 --write path/to/file.md
+git ls-files '*.md' '*.markdown' | xargs prettier --check
+```
+
+- Shell: `shellcheck scripts/*.sh` at v0.11.0.
+
+Regenerating `docs/benchmarks.md` is two steps: run
+`python3 scripts/generate-benchmark-summary.py`, then prettier. Do not
+hand-edit that file or `docs/benchmarks-charts.html`.
+
+## Repository map
+
+```
+include/xllama/     WinRT-free headers. One concern per header.
+  diffusion/        CLIP tokenizer, Euler scheduler, PNG writer (host-testable)
+src/bridge/         Shared .cpp for Linux and UWP (inference, session, training, probes)
+src/main.cpp        Linux CLI (getopt_long)
+uwp/                C++/WinRT app, LAN API, headless flags, AppxManifest, vcxproj
+  models/manifest.json   Catalogue data
+  packages.config        NuGet pins
+training/           Job JSON, host PEFT, datasets
+tests/              doctest (test_*.cpp) plus a few unittest modules
+scripts/            Deploy, bench, validate, crossbuild, coherence
+docs/               SSOT map is docs/README.md
+shaders/            HLSL and generated DXIL for the GPU probes
+bench/              Raw results and comparison policy
+patches/            llama.cpp and vendor patches applied at UWP build time
+diffusion/          SD-Turbo → ONNX host toolchain (not inside the MSIX)
+paper/              Citable research package
+llama.cpp/          Submodule. Do not edit in place.
+vendor/             Patched ORT / GenAI DLL hashes (vendor/*/SHA256SUMS)
+cmake/              CMake helpers
+```
+
+Load-bearing headers agents usually touch:
+
+| Header                               | Role                                                 |
+| ------------------------------------ | ---------------------------------------------------- |
+| `session.h` / `session_hub.h`        | `Session` API; the one process-wide resident session |
+| `inference_params.h` / `inference.h` | Params, result, `run_inference`                      |
+| `routing_policy.h`                   | Backend pick and prompt budget                       |
+| `prompt_budget.h`                    | `fit_prompt` — the only token-budget trimmer         |
+| `sampling.h`                         | Sampler defaults shared by CLI, bench, GUI, API      |
+| `chat_prompt.h`                      | `ChatFormat` and stop sequences                      |
+| `embedding.h`                        | Embedding params and pooling trim                    |
+| `api_policy.h`                       | Rejects tool-execution fields on the LAN API         |
+| `training.h` / `device_train.h`      | Job validation and Lane B device train               |
+| `personalize.h`                      | In-app personalize helpers                           |
+| `json_utils.h`                       | Header-only JSON escape / parse (no `.cpp`)          |
+| `catalog_trust.h`                    | UWP-only catalogue signature types                   |
+
+Sampler chains are not headers under `include/`: `src/bridge/sampler_chain.h`
+(llama.cpp) and `src/bridge/ort_sampling.h` (ORT). Decode loops are
+`src/bridge/decode_loop.h` and `decode_loop_ort.h`.
+
+## Build and deployment
+
+Linux CI is `.github/workflows/build-linux.yml` on every pull request
+(feature-branch pushes do not build). It formats, shellchecks, runs the
+Python gates above, configures `linux-test`, builds, validates training jobs,
+and runs ctest.
+
+UWP CI is `.github/workflows/build-uwp.yml` on `windows-2022`:
+
+| Artifact               | What it is                                                |
+| ---------------------- | --------------------------------------------------------- |
+| `xllama-appx`          | Shipping package: unified + patched GenAI + patched ORT   |
+| `xllama-appx-llamacpp` | Bench-only llama.cpp lane, not the pad chat build         |
+| `xllama-appx-store`    | Store SKU, only `workflow_dispatch` with `store_sku=true` |
+
+That CI MSVC package is the shipping and measurement path on Series S. A
+Linux `scripts/crossbuild-uwp.sh` package can launch; ORT/GenAI, first boot,
+and uptime are not the product claim. See
+[docs/crossbuild-console.md](docs/crossbuild-console.md).
+
+Local UWP package:
 
 ```powershell
 .\scripts\build-uwp.ps1 -Configuration Release -Platform x64
 ```
 
-Use `-ForceNewCert` only to regenerate the test signing certificate.
+`-ForceNewCert` only regenerates the test signing certificate.
 
-**Versioning**: `Major.Minor.Build` in `uwp/AppxManifest.xml` is the semantic
-version — bump it manually per release (with `CHANGELOG.md`). The `Revision` (4th
-component) is stamped automatically in CI to the workflow run number
-(`build-uwp.ps1 -BuildRevision`, wired from `github.run_number` in the
-workflows), so every CI package is uniquely and monotonically versioned and the
-console always takes an **in-place update** — no manual per-build bump, and never
-the "same identity, different contents" install block. Local builds leave `.0`.
-Exception: **1.5.0.0 changed the `Identity Name` itself** (`VenereLabs.xllama`
-→ `GianlucaMazza.xllama`) — across that boundary there is no in-place update
-(new app, fresh LocalState; `deploy.sh` keeps `APP_ID_LEGACY` for the
-transition; migration steps in `docs/install-release.md`).
+Deploy and logs (Device Portal):
 
-## Tests
+```bash
+source ~/.config/xllama/xbox-env
+./scripts/deploy.sh path/to/xllama_*.msix
+./scripts/deploy.sh get-log
+./scripts/install-latest-build.sh          # gh: latest xllama-appx for this branch
+```
 
-- Framework: **doctest** (header-only, fetched via CMake).
-- Target: `xllama-tests`.
-- Command: `ctest --test-dir build/linux-test --output-on-failure`.
-- Add tests in `tests/test_*.cpp`.
+No model ships in the MSIX. First launch downloads the default chat model.
+Vendor DLL lifecycle: [docs/vendor-lifecycle-plan.md](docs/vendor-lifecycle-plan.md).
+Poll with `scripts/check-vendor-nuget-status.sh`.
 
-## Critical notes
+`DirectML.dll`, `onnxruntime.dll`, and `onnxruntime-genai.dll` need
+`<DeploymentContent>true</DeploymentContent>` or the MSIX omits them. Merge
+`.onnx.data` with `scripts/merge_onnx_external_data.py` before packaging; CI
+does this. See [docs/fp16-extdata-runbook.md](docs/fp16-extdata-runbook.md)
+and [docs/uwp-constraints.md](docs/uwp-constraints.md).
 
-- **Never commit `.env`** (credentials) or **`.pfx` / `.cer`** (gitignored).
-- **ORT path**: UWP inference under `#ifdef XLLAMA_USE_ORT` in `src/bridge/inference.cpp`;
-  RAII in `ort_raii.h`. Linux `#else` is llama.cpp.
-- **No model in the MSIX** (~19 MB): first launch downloads default chat from
-  `models-v1` (`lfm25-350m` unified / `smollm2-360m-cpu-int4` ORT-only). Console
-  gate: `./scripts/validate-console.sh all`.
-- **Shipping CI**: unified + PatchedGenAI + PatchedOrt from `vendor-dlls-v1`
-  (hashes under `vendor/*/SHA256SUMS`). Pin lifecycle SSOT:
-  `docs/vendor-lifecycle-plan.md`. Poll: `scripts/check-vendor-nuget-status.sh`.
-- **External data / AppContainer**: merge `.onnx.data` with
-  `scripts/merge_onnx_external_data.py` before packaging (CI does this). Details:
-  `docs/fp16-extdata-runbook.md`, `docs/uwp-constraints.md` §8.
-- **app-local DLLs**: `DirectML.dll`, `onnxruntime.dll`, `onnxruntime-genai.dll`
-  need `<DeploymentContent>true</DeploymentContent>` or the MSIX omits them.
-- **UWP constraints list**: `docs/uwp-constraints.md` (no mmap/dlopen/registry/…).
+## Versioning
+
+`Major.Minor.Build` in `uwp/AppxManifest.xml` (`Identity` `Version`) is the
+semantic version. Bump it by hand on a release, together with `CHANGELOG.md`.
+CI stamps the fourth component (revision) to `github.run_number` via
+`build-uwp.ps1 -BuildRevision`, so each CI package is a unique in-place
+update. Local builds leave `.0`.
+
+Current identity is `GianlucaMazza.xllama`. **1.5.0.0** changed the identity
+name from `VenereLabs.xllama`, so there is no in-place update across that
+boundary (new app, fresh LocalState). `scripts/deploy.sh` keeps
+`APP_ID_LEGACY` for the transition. User-facing steps:
+[docs/install-release.md](docs/install-release.md).
+
+## Pull request guidelines
+
+Branch from `main` as `feat/…`, `fix/…`, `docs/…`, `chore/…`, or `ci/…`.
+Commit subjects use those conventional prefixes. Keep a PR to one change;
+put unrelated infra in its own PR.
+
+Fill `.github/pull_request_template.md`: **What & why** and **How verified**.
+Before pushing, run the Linux test build, ctest, and the formatters that
+touch your files. If you changed evidence or summary policy, run
+`generate-benchmark-summary.py --check`. If you changed code, catalogue,
+pins, or docs that `check-coherence.py` watches, run that script.
+
+UWP edits compile on `build-uwp` only. Note in the PR when you could not
+build them locally.
+
+If you change a contract, update the owning doc in the same PR
+([docs/README.md](docs/README.md) ownership table):
+
+| Change                                        | Update                                                       |
+| --------------------------------------------- | ------------------------------------------------------------ |
+| Module boundaries, routing, session ownership | `docs/architecture.md`                                       |
+| Training lanes or Phase 11                    | `docs/training-architecture.md` and `training/README.md`     |
+| User-facing UI steps                          | `docs/using-the-app.md`                                      |
+| LAN routes                                    | `docs/api-endpoint.md`                                       |
+| Bench CSV schema or numbers                   | `bench/README.md`, then regenerate `docs/benchmarks.md`      |
+| Release behaviour                             | `CHANGELOG.md` (and `ROADMAP.md` when a phase closes)        |
+| Package identity                              | `docs/install-release.md` and this file's Versioning section |
+| Repo layout agents rely on                    | this file                                                    |
+
+## Security
+
+- Never commit `.env`, `.pfx`, or `.cer`. They are gitignored. Test certs
+  stay on the build machine.
+- Xbox credentials stay in `~/.config/xllama/xbox-env`.
+- The LAN API is opt-in and off unless `api.flag` is present. Protocol:
+  [docs/api-endpoint.md](docs/api-endpoint.md).
+- The API has no tool executor. `api_tool_execution_requested` in
+  `api_policy.h` rejects `tools`, `functions`, and `tool_choice`.
+- Catalogue signing uses the `XLLAMA_CATALOGUE_PRIVATE_KEY` CI secret. Do
+  not copy key material into the tree.
+
+## Debugging
+
+- Linux: `./build/linux-test/bin/xllama-cli --help`. Training jobs fail
+  closed with `--validate-train-job`. GPU probes (`--gpubw`, `--gpugemv`)
+  report `d3d12_ran=false` on Linux; that is expected.
+- Console log: `./scripts/deploy.sh get-log` reads `LocalState\xllama.log`.
+  Crash dumps: `./scripts/deploy.sh list-dumps`. Portal details:
+  [docs/device-portal.md](docs/device-portal.md).
+- Headless flags (`bench.flag`, `train.flag`, `diffuse.flag`, …) replace the
+  UI process. The registry is in
+  [docs/architecture.md](docs/architecture.md). The LAN server does not listen
+  while one of those flags is active, because that process exits first.
+  `api.flag` is the server itself.
+- MSIX uninstall wipes LocalState. Re-provision models
+  (`scripts/provision-models.sh` or `install-latest-build.sh --provision`).
+- A Linux tok/s number is not a Series S result. Numbers ship only from
+  `bench/results/` through `generate-benchmark-summary.py` into
+  `docs/benchmarks.md`.
+
+## Invariants
+
+Break these and both front ends drift:
+
+- **One resident session.** `SessionHub` owns the loaded model for GUI and
+  API. Two models do not fit the console budget.
+- **One budget enforcer.** `fit_prompt` decides in tokens. A chars-per-token
+  estimate may bound work; it must not decide what the user receives.
+- **One sampler chain per backend.** CLI, bench, GUI, and API share
+  `sampler_chain.h` or `ort_sampling.h`.
+- **Single home.** A decision both surfaces make lives in one
+  `include/xllama/` header.
+- **Measured is not shipped.** Host smoke, then a console bench, then a
+  manifest entry. Status lives in `docs/model-matrix.md`.
+
+Platform limits (no `mmap`, no `dlopen`, no registry, no arbitrary paths,
+GPU budget, per-file cap) are only in
+[docs/uwp-constraints.md](docs/uwp-constraints.md). Link a section number;
+do not restate the ceilings.

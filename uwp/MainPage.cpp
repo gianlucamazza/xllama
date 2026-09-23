@@ -1475,6 +1475,8 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     for (auto const& e : manifest) {
         if (e.kind == L"diffusion")
             continue; // image models belong to the Image dialog, not the chat picker
+        if (::xllama::role_is_embedding(::xllama::wstring_to_utf8(e.role)))
+            continue; // embedding models are LAN-API only; not for chat
         modelBox.Items().Append(winrt::box_value(winrt::hstring(e.display)));
         if (m_model_filename == e.name)
             model_sel = (int)model_keys.size();

@@ -34,6 +34,7 @@
 
     #include <algorithm>
     #include <cctype>
+    #include <chrono>
     #include <cstdio>
     #include <ctime>
     #include <filesystem>
@@ -266,6 +267,7 @@ struct CatalogueSessionPolicy {
     int n_ctx = ::xllama::kDefaultNCtx;
     bool coding = false;
     bool gguf = false;
+    bool embedding = false;
 };
 
 CatalogueSessionPolicy catalogue_session_policy(const std::string& model) {
@@ -280,6 +282,7 @@ CatalogueSessionPolicy catalogue_session_policy(const std::string& model) {
     if (entry) {
         p.n_ctx = ::xllama::resolve_n_ctx(entry->n_ctx);
         p.coding = ::xllama::role_is_coding(::xllama::wstring_to_utf8(entry->role));
+        p.embedding = ::xllama::role_is_embedding(::xllama::wstring_to_utf8(entry->role));
         p.gguf = entry->kind == L"gguf";
     }
     return p;
@@ -362,6 +365,13 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
     {
         std::string err;
         const CatalogueSessionPolicy policy = catalogue_session_policy(model);
+
+        // Embedding models must not be used for chat completion.
+        if (policy.embedding) {
+            status = "400 Bad Request";
+            return error_json("model '" + model + "' is an embedding model and cannot be used for chat completions; use /api/embed or /v1/embeddings instead");
+        }
+
         model_is_coding = policy.coding;
         policy_n_ctx = policy.n_ctx;
         ::xllama::SessionParams sp;
@@ -555,6 +565,247 @@ std::string tags_json() {
     JsonObject root;
     root.Insert(L"models", models);
     return winrt::to_string(root.Stringify());
+}
+
+enum class EmbeddingApi { Ollama, Legacy, OpenAI };
+
+// Conservative GGUF preflight based on the console gate used for xllama's
+// catalogue scouting: model weight bytes × the measured 1.12 load overhead.
+// This runs before Session::create so a known oversized embedding model cannot
+// pressure the process past its working-set budget during a load attempt.
+uint64_t estimate_gguf_peak_mb(const std::string& model) {
+    const std::filesystem::path path(::xllama::resolve_model_path(model));
+    std::error_code ec;
+    uint64_t weight_bytes = 0;
+    const auto add_gguf = [&](const std::filesystem::path& file) {
+        if (file.extension() != ".gguf" || file.filename() == "adapter.gguf")
+            return;
+        const uint64_t size = std::filesystem::file_size(file, ec);
+        if (!ec)
+            weight_bytes += size;
+        ec.clear();
+    };
+    if (std::filesystem::is_regular_file(path, ec)) {
+        add_gguf(path);
+    } else if (std::filesystem::is_directory(path, ec)) {
+        for (const auto& entry : std::filesystem::directory_iterator(path, ec)) {
+            if (ec)
+                break;
+            add_gguf(entry.path());
+        }
+    }
+    if (weight_bytes == 0)
+        return 0; // Let normal model loading report missing/unreadable files.
+    const double peak_bytes = static_cast<double>(weight_bytes) * 1.12;
+    return static_cast<uint64_t>(peak_bytes / (1024.0 * 1024.0) + 0.5);
+}
+
+std::string handle_embedding_locked(const std::string& body, const char*& status,
+                                    EmbeddingApi api) {
+    JsonObject root{nullptr};
+    if (!JsonObject::TryParse(winrt::to_hstring(body), root) || root == nullptr) {
+        status = "400 Bad Request";
+        return error_json("invalid JSON body");
+    }
+    std::string model = winrt::to_string(root.GetNamedString(L"model", L""));
+    if (model.empty())
+        model = read_local_text("model.txt");
+    if (model.empty()) {
+        status = "400 Bad Request";
+        return error_json("missing 'model' (and no LocalState\\model.txt fallback)");
+    }
+
+    // Ollama library name aliases: map the three Ollama names to catalogue ids.
+    // Applied before resolve_model_path so the manifest lookup works.
+    static const std::pair<const char*, const char*> kAliases[] = {
+        {"bge-m3", "embed-bge-m3"},
+        {"nomic-embed-text-v2-moe", "embed-nomic-v2-moe"},
+        {"qwen3-embedding:4b", "embed-qwen3-4b"},
+    };
+    for (const auto& [ollama_name, catalogue_id] : kAliases) {
+        if (model == ollama_name) {
+            model = catalogue_id;
+            break;
+        }
+    }
+
+    std::vector<std::string> inputs;
+    const wchar_t* input_key = api == EmbeddingApi::Legacy ? L"prompt" : L"input";
+    if (!root.HasKey(input_key)) {
+        status = "400 Bad Request";
+        return error_json(api == EmbeddingApi::Legacy ? "missing 'prompt'" : "missing 'input'");
+    }
+    const IJsonValue input_value = root.GetNamedValue(input_key);
+    if (input_value.ValueType() == JsonValueType::String) {
+        inputs.push_back(winrt::to_string(input_value.GetString()));
+    } else if (api != EmbeddingApi::Legacy && input_value.ValueType() == JsonValueType::Array) {
+        const JsonArray arr = input_value.GetArray();
+        for (uint32_t i = 0; i < arr.Size(); ++i) {
+            const IJsonValue v = arr.GetAt(i);
+            if (v.ValueType() != JsonValueType::String) {
+                status = "400 Bad Request";
+                return error_json("every input array item must be a string");
+            }
+            inputs.push_back(winrt::to_string(v.GetString()));
+        }
+    } else {
+        status = "400 Bad Request";
+        return error_json(api == EmbeddingApi::Legacy ? "prompt must be a string"
+                                                      : "input must be a string or array of strings");
+    }
+    if (inputs.empty() || inputs.size() > 128) {
+        status = "400 Bad Request";
+        return error_json(inputs.empty() ? "input array must not be empty"
+                                         : "input batch is limited to 128 items");
+    }
+    for (const auto& input : inputs) {
+        if (input.empty()) {
+            status = "400 Bad Request";
+            return error_json("input items must not be empty");
+        }
+    }
+
+    int dimensions = 0;
+    if (root.HasKey(L"dimensions")) {
+        const double raw = root.GetNamedNumber(L"dimensions");
+        if (raw < 1 || raw > 32768 || raw != static_cast<int>(raw)) {
+            status = "400 Bad Request";
+            return error_json("dimensions must be a positive integer");
+        }
+        dimensions = static_cast<int>(raw);
+    }
+    bool truncate = true;
+    if (root.HasKey(L"truncate"))
+        truncate = root.GetNamedBoolean(L"truncate");
+
+    std::string encoding = "float";
+    if (api == EmbeddingApi::OpenAI && root.HasKey(L"encoding_format")) {
+        encoding = winrt::to_string(root.GetNamedString(L"encoding_format"));
+        if (encoding != "float" && encoding != "base64") {
+            status = "400 Bad Request";
+            return error_json("encoding_format must be 'float' or 'base64'");
+        }
+    }
+
+    const auto started = std::chrono::steady_clock::now();
+    if (::xllama::model_uses_llama_backend(model)) {
+        constexpr uint64_t kEmbeddingPeakGateMb = 3584;
+        const uint64_t estimated_peak_mb = estimate_gguf_peak_mb(model);
+        if (estimated_peak_mb > kEmbeddingPeakGateMb) {
+            status = "400 Bad Request";
+            return error_json("estimated GGUF peak memory is " +
+                              std::to_string(estimated_peak_mb) + " MB, above the Xbox embedding "
+                              "gate of 3584 MB; choose a smaller GGUF model");
+        }
+    }
+    ::xllama::Session* session = nullptr;
+    std::string err;
+    const CatalogueSessionPolicy policy = catalogue_session_policy(model);
+    ::xllama::SessionParams sp;
+    sp.model_path = model;
+    sp.n_ctx = policy.n_ctx;
+    bool custom_n_ctx = false;
+    if (policy.gguf)
+        sp.backend = ::xllama::Backend::LlamaCpp;
+    if (root.HasKey(L"options") && root.GetNamedValue(L"options").ValueType() != JsonValueType::Object) {
+        status = "400 Bad Request";
+        return error_json("options must be an object");
+    }
+    if (root.HasKey(L"options")) {
+        const JsonObject options = root.GetNamedObject(L"options");
+        if (options.HasKey(L"num_ctx")) {
+            const double raw = options.GetNamedNumber(L"num_ctx");
+            if (raw < 32 || raw > policy.n_ctx || raw != static_cast<int>(raw)) {
+                status = "400 Bad Request";
+                return error_json("options.num_ctx must be an integer from 32 to the configured model context limit (" +
+                                  std::to_string(policy.n_ctx) + ")");
+            }
+            sp.n_ctx = static_cast<int>(raw);
+            custom_n_ctx = true;
+        }
+    }
+    auto& hub = ::xllama::session_hub();
+    if (custom_n_ctx && hub.session && hub.model == model &&
+        hub.session->context_length() != sp.n_ctx)
+        hub.reset_locked();
+    session = hub.ensure_locked(model, sp, &err);
+    if (!session) {
+        status = "500 Internal Server Error";
+        return error_json("session create failed: " + err);
+    }
+    const auto loaded = std::chrono::steady_clock::now();
+
+    JsonArray embeddings;
+    int prompt_tokens = 0;
+    for (uint32_t i = 0; i < inputs.size(); ++i) {
+        ::xllama::EmbeddingParams params;
+        params.input = inputs[i];
+        params.dimensions = dimensions;
+        params.truncate = truncate;
+        const ::xllama::EmbeddingResult result = session->embed(params);
+        if (!result.success) {
+            const bool client_error = result.error_msg.find("not supported") != std::string::npos ||
+                result.error_msg.find("do not provide") != std::string::npos ||
+                result.error_msg.find("input") != std::string::npos ||
+                result.error_msg.find("dimension") != std::string::npos ||
+                result.error_msg.find("ranking") != std::string::npos ||
+                result.error_msg.find("encoder-only") != std::string::npos;
+            status = client_error ? "400 Bad Request" : "500 Internal Server Error";
+            return error_json(result.error_msg);
+        }
+        prompt_tokens += result.n_tokens;
+        if (api == EmbeddingApi::OpenAI) {
+            JsonObject item;
+            item.Insert(L"object", JsonValue::CreateStringValue(L"embedding"));
+            item.Insert(L"index", JsonValue::CreateNumberValue(i));
+            if (encoding == "base64") {
+                item.Insert(L"embedding", JsonValue::CreateStringValue(
+                                                winrt::to_hstring(::xllama::embedding_base64(result.embedding))));
+            } else {
+                JsonArray vector;
+                for (float x : result.embedding)
+                    vector.Append(JsonValue::CreateNumberValue(x));
+                item.Insert(L"embedding", vector);
+            }
+            embeddings.Append(item);
+        } else {
+            JsonArray vector;
+            for (float x : result.embedding)
+                vector.Append(JsonValue::CreateNumberValue(x));
+            embeddings.Append(vector);
+        }
+    }
+    const auto finished = std::chrono::steady_clock::now();
+    const auto duration_ns = [](auto a, auto b) {
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(b - a).count();
+    };
+    const std::string json_model = api == EmbeddingApi::Legacy ? std::string{} : model;
+    if (api == EmbeddingApi::Legacy) {
+        JsonObject out;
+        out.Insert(L"embedding", embeddings.GetAt(0).GetArray());
+        status = "200 OK";
+        return winrt::to_string(out.Stringify());
+    }
+    if (api == EmbeddingApi::OpenAI) {
+        JsonObject usage;
+        usage.Insert(L"prompt_tokens", JsonValue::CreateNumberValue(prompt_tokens));
+        usage.Insert(L"total_tokens", JsonValue::CreateNumberValue(prompt_tokens));
+        JsonObject out;
+        out.Insert(L"object", JsonValue::CreateStringValue(L"list"));
+        out.Insert(L"data", embeddings);
+        out.Insert(L"model", JsonValue::CreateStringValue(winrt::to_hstring(json_model)));
+        out.Insert(L"usage", usage);
+        status = "200 OK";
+        return winrt::to_string(out.Stringify());
+    }
+    JsonObject out;
+    out.Insert(L"model", JsonValue::CreateStringValue(winrt::to_hstring(json_model)));
+    out.Insert(L"embeddings", embeddings);
+    out.Insert(L"total_duration", JsonValue::CreateNumberValue(duration_ns(started, finished)));
+    out.Insert(L"load_duration", JsonValue::CreateNumberValue(duration_ns(started, loaded)));
+    out.Insert(L"prompt_eval_count", JsonValue::CreateNumberValue(prompt_tokens));
+    status = "200 OK";
+    return winrt::to_string(out.Stringify());
 }
 
 // ---------------------------------------------------------------------------
@@ -827,6 +1078,40 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             } catch (...) {
                 status = "400 Bad Request";
                 json = error_json("malformed request body");
+            }
+            write_response(socket, status, json);
+            return;
+        }
+
+        EmbeddingApi embedding_api;
+        const bool is_embedding_route = req.method == "POST" &&
+            (req.path == "/api/embed" || req.path == "/api/embeddings" ||
+             req.path == "/v1/embeddings");
+        if (is_embedding_route) {
+            embedding_api = req.path == "/api/embed" ? EmbeddingApi::Ollama
+                            : req.path == "/api/embeddings" ? EmbeddingApi::Legacy
+                                                            : EmbeddingApi::OpenAI;
+            std::unique_lock<std::mutex> lk = acquire_hub_or_busy();
+            if (!lk.owns_lock()) {
+                write_response(socket, "503 Service Unavailable", error_json("busy"));
+                return;
+            }
+            bool active = false;
+            {
+                std::lock_guard<std::mutex> state_lock(g_state_mtx);
+                active = g_status.state == ServerState::Running && generation == g_generation;
+            }
+            if (!active) {
+                write_response(socket, "503 Service Unavailable", error_json("server stopped"));
+                return;
+            }
+            const char* status = "200 OK";
+            std::string json;
+            try {
+                json = handle_embedding_locked(req.body, status, embedding_api);
+            } catch (...) {
+                status = "400 Bad Request";
+                json = error_json("malformed embedding request");
             }
             write_response(socket, status, json);
             return;

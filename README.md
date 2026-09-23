@@ -92,6 +92,9 @@ curl -s http://<xbox-ip>:11434/v1/models
 | Route                         | Shape      | Note                                    |
 | ----------------------------- | ---------- | --------------------------------------- |
 | `POST /v1/chat/completions`   | OpenAI     | Non-streaming, single-slot mutex        |
+| `POST /api/embed`             | Ollama     | GGUF embeddings; scalar or batch input  |
+| `POST /api/embeddings`        | Ollama     | Deprecated single-prompt embeddings     |
+| `POST /v1/embeddings`         | OpenAI     | Float32 or base64 encoded vectors       |
 | `GET /v1/models`              | OpenAI     | `"active": true` on the loaded model    |
 | `GET /api/tags`               | Ollama     | Same list, Ollama shape                 |
 | `POST /v1/preferences`        | Custom     | Append JSONL → `training/samples.jsonl` |

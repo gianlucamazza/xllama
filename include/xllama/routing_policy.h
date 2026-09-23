@@ -122,6 +122,23 @@ inline bool role_is_coding(std::string_view role) {
     return true;
 }
 
+// Catalogue role "embedding" marks models that must not appear in the chat
+// picker and must not be sent to Session::generate (POST /v1/chat/completions
+// returns 400). Exact match, case-insensitive.
+inline bool role_is_embedding(std::string_view role) {
+    if (role.size() != 9)
+        return false;
+    constexpr char kEmbedding[] = "embedding";
+    for (size_t i = 0; i < 9; ++i) {
+        char c = role[i];
+        if (c >= 'A' && c <= 'Z')
+            c = static_cast<char>(c - 'A' + 'a');
+        if (c != kEmbedding[i])
+            return false;
+    }
+    return true;
+}
+
 inline double chars_per_token_for_role(std::string_view role) {
     return role_is_coding(role) ? kEstimatedCharsPerTokenCoding : kEstimatedCharsPerToken;
 }

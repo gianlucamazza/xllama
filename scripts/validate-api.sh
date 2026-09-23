@@ -5,7 +5,7 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/validate-api.sh <spike|chat|budget|prefs|train|all>
+#   ./scripts/validate-api.sh <spike|chat|budget|embed|prefs|train|all>
 #
 #   spike  bind gate only: GET / -> HTTP 200 (proves the StreamSocketListener
 #          survives the Series S firewall/PLM). No inference.
@@ -13,6 +13,8 @@
 #          check (two concurrent requests). Implies the spike gate first.
 #   budget context budget over the wire: a long messages[] is trimmed and answered,
 #          an oversized single message is 400 "prompt too long" (not 500).
+#   embed  Ollama native + legacy and OpenAI float/base64 embeddings. Requires
+#          EMBED_MODEL to identify an embedding GGUF already on the console.
 #   prefs  POST /v1/preferences -> appends a like sample (#118).
 #   train  GET /v1/training/status -> JSON with state + usable_samples (#118).
 #   all    spike + chat + budget + prefs + train (images need SD-Turbo on device — manual).
@@ -196,6 +198,81 @@ except Exception:
 	return $verdict
 }
 
+# --- embedding round-trips -------------------------------------------------
+
+validate_embed() {
+	local embed_model="${EMBED_MODEL:-embed-nomic-v15}" req resp code verdict=0
+	echo "=== embed: Ollama + OpenAI embedding routes (${embed_model}) ==="
+	req=$(python3 -c 'import json,sys; print(json.dumps({"model":sys.argv[1],"input":["search_document: a red car","search_query: find a car"],"dimensions":256}))' "$embed_model")
+	code=$(curl -sS -m 300 -o "${TMPDIR_LOCAL}/embed.json" -w "%{http_code}" \
+		-H 'Content-Type: application/json' -d "$req" "${API_URL}/api/embed" || echo "000")
+	resp=$(cat "${TMPDIR_LOCAL}/embed.json" 2>/dev/null || true)
+	if [[ "$code" == "200" ]] && printf '%s' "$resp" | python3 -c '
+import json,sys
+d=json.load(sys.stdin)
+assert len(d["embeddings"]) == 2
+assert all(len(v) == 256 for v in d["embeddings"])
+assert d["prompt_eval_count"] > 0 and d["total_duration"] >= d["load_duration"]
+'; then
+		echo "  ok: Ollama batch shape, dimensions, token count and timings"
+	else
+		echo "  FAIL: /api/embed HTTP ${code}: ${resp:0:200}"
+		verdict=1
+	fi
+
+	req=$(python3 -c 'import json,sys; print(json.dumps({"model":sys.argv[1],"prompt":"search_query: find a car"}))' "$embed_model")
+	code=$(curl -sS -m 300 -o "${TMPDIR_LOCAL}/embed-legacy.json" -w "%{http_code}" \
+		-H 'Content-Type: application/json' -d "$req" "${API_URL}/api/embeddings" || echo "000")
+	if [[ "$code" == "200" ]] && python3 -c 'import json,sys; assert json.load(open(sys.argv[1]))["embedding"]' "${TMPDIR_LOCAL}/embed-legacy.json"; then
+		echo "  ok: legacy /api/embeddings adapter"
+	else
+		echo "  FAIL: legacy route HTTP ${code}"
+		verdict=1
+	fi
+
+	req=$(python3 -c 'import json,sys; print(json.dumps({"model":sys.argv[1],"input":"search_query: find a car","encoding_format":"base64"}))' "$embed_model")
+	code=$(curl -sS -m 300 -o "${TMPDIR_LOCAL}/embed-openai.json" -w "%{http_code}" \
+		-H 'Content-Type: application/json' -d "$req" "${API_URL}/v1/embeddings" || echo "000")
+	if [[ "$code" == "200" ]] && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["data"][0]["object"] == "embedding" and isinstance(d["data"][0]["embedding"],str) and d["usage"]["prompt_tokens"] > 0' "${TMPDIR_LOCAL}/embed-openai.json"; then
+		echo "  ok: OpenAI base64 shape + usage"
+	else
+		echo "  FAIL: /v1/embeddings HTTP ${code}"
+		verdict=1
+	fi
+
+	code=$(curl -sS -m 30 -o "${TMPDIR_LOCAL}/embed-empty.json" -w "%{http_code}" \
+		-H 'Content-Type: application/json' -d "{\"model\":\"${embed_model}\",\"input\":\"\"}" \
+		"${API_URL}/api/embed" || echo "000")
+	if [[ "$code" == "400" ]]; then
+		echo "  ok: empty input rejected as HTTP 400"
+	else
+		echo "  FAIL: empty input returned HTTP ${code}"
+		verdict=1
+	fi
+
+	req=$(python3 -c 'import json,sys; print(json.dumps({"model":sys.argv[1],"input":"search_document: " + "embedding text " * 5000,"truncate":False}))' "$embed_model")
+	code=$(curl -sS -m 60 -o "${TMPDIR_LOCAL}/embed-no-truncate.json" -w "%{http_code}" \
+		-H 'Content-Type: application/json' -d "$req" "${API_URL}/api/embed" || echo "000")
+	if [[ "$code" == "400" ]] && grep -q 'truncate is false' "${TMPDIR_LOCAL}/embed-no-truncate.json"; then
+		echo "  ok: over-context input rejected when truncate=false"
+	else
+		echo "  FAIL: truncate=false over-context input returned HTTP ${code}"
+		verdict=1
+	fi
+
+	req=$(python3 -c 'import json,sys; print(json.dumps({"model":sys.argv[1],"input":"search_document: " + "embedding text " * 5000,"truncate":True}))' "$embed_model")
+	code=$(curl -sS -m 300 -o "${TMPDIR_LOCAL}/embed-truncate.json" -w "%{http_code}" \
+		-H 'Content-Type: application/json' -d "$req" "${API_URL}/api/embed" || echo "000")
+	if [[ "$code" == "200" ]] && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert len(d["embeddings"][0]) > 0 and d["prompt_eval_count"] <= 2048' "${TMPDIR_LOCAL}/embed-truncate.json"; then
+		echo "  ok: over-context input was truncated to the default token window"
+	else
+		echo "  FAIL: truncate=true over-context input returned HTTP ${code}"
+		verdict=1
+	fi
+	[[ $verdict -eq 0 ]] && echo "embed: PASS" || echo "embed: FAIL"
+	return $verdict
+}
+
 # --- #118 prefs / training status ------------------------------------------
 
 validate_prefs() {
@@ -313,6 +390,10 @@ train)
 	validate_spike || exit 1
 	validate_train
 	;;
+embed)
+	validate_spike || exit 1
+	validate_embed
+	;;
 all)
 	rc=0
 	validate_spike || {
@@ -321,6 +402,9 @@ all)
 		exit 1
 	}
 	validate_chat || rc=1
+	if [[ -n "${EMBED_MODEL:-}" ]]; then
+		validate_embed || rc=1
+	fi
 	validate_budget || rc=1
 	validate_prefs || rc=1
 	validate_train || rc=1
@@ -330,7 +414,7 @@ all)
 	exit $rc
 	;;
 *)
-	echo "Usage: $0 <spike|chat|prefs|train|all>" >&2
+	echo "Usage: $0 <spike|chat|budget|embed|prefs|train|all>" >&2
 	exit 1
 	;;
 esac

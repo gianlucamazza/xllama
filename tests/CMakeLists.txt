@@ -36,6 +36,8 @@ add_executable(xllama-tests
     test_preference_capture.cpp
     test_personalize.cpp
     test_api_config.cpp
+    test_api_pull.cpp
+    test_embedding.cpp
     test_autopilot.cpp
     test_speculative.cpp
     test_capture_probe.cpp

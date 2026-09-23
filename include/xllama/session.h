@@ -6,6 +6,7 @@
 #pragma once
 
 #include "xllama/inference_params.h"
+#include "xllama/embedding.h"
 
 #include <atomic>
 #include <functional>
@@ -131,6 +132,17 @@ struct Session {
 
     // Token count for routing/heuristics (encode-only; no generation).
     virtual int count_tokens(const std::string& prompt) = 0;
+
+    // Encode one input with an embedding-capable backend. Text-generation-only
+    // backends report an explicit unsupported error by default.
+    virtual EmbeddingResult embed(const EmbeddingParams& params) {
+        (void)params;
+        EmbeddingResult result;
+        result.error_msg = "embeddings are not supported by this backend";
+        return result;
+    }
+
+    virtual int context_length() const { return 0; }
 
     // #169: whether a continuation turn that would overflow n_ctx evicts the
     // oldest tokens (RoPE shift) instead of failing. False for ORT and for

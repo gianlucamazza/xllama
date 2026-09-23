@@ -65,6 +65,11 @@ static void print_help(const char* prog) {
                  "      --training-capabilities\n"
                  "                       Print the training-pillar capability matrix\n"
                  "                       (available/experimental/designed/research/rejected)\n"
+                 "      --embed          Run embedding smoke test: load model, embed one or\n"
+                 "                       more inputs, print width/L2-norm/tokens/peak-RSS.\n"
+                 "                       Requires -m <model.gguf>. Pass inputs via -p <text>\n"
+                 "                       (repeatable). Optional: --dimensions <N> (0=native)\n"
+                 "      --dimensions <N> Requested embedding dimensions for --embed (0=native)\n"
                  "      --lora <path>    GGUF LoRA adapter (llama.cpp only; runtime load)\n"
                  "      --lora-scale <f> LoRA scale (default: 1.0)\n"
                  "  -h, --help           Show this message\n",
@@ -109,6 +114,8 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         {"gpubw", no_argument, nullptr, 21},
         {"gpugemv", no_argument, nullptr, 22},
         {"diskbw", no_argument, nullptr, 23},
+        {"embed", no_argument, nullptr, 24},
+        {"dimensions", required_argument, nullptr, 25},
         {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0}};
 
@@ -120,6 +127,7 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             break;
         case 'p':
             out.prompt = optarg;
+            out.embed_inputs.push_back(optarg);  // Collect for --embed mode
             break;
         case 'n':
             out.n_predict = std::atoi(optarg);
@@ -201,6 +209,12 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         case 23:
             out.run_diskbw = true;
             break;
+        case 24:
+            out.run_embed = true;
+            break;
+        case 25:
+            out.embed_dimensions = std::atoi(optarg);
+            break;
         case 'h':
             print_help(argv[0]);
             std::exit(0);
@@ -210,7 +224,7 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         }
     }
 
-    // --membw / --gpubw / --gpugemv / --diskbw / --ramceil / train-job: model/prompt
+    // --membw / --gpubw / --gpugemv / --diskbw / --ramceil / train-job / --embed: model/prompt
     // not required.
     if (out.run_membw)
         return true;
@@ -227,6 +241,17 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
     if (out.run_validate_train_job || out.run_train_job) {
         if (out.train_job_path.empty()) {
             std::fprintf(stderr, "Error: train job path is required.\n");
+            return false;
+        }
+        return true;
+    }
+    if (out.run_embed) {
+        if (out.model_path.empty()) {
+            std::fprintf(stderr, "Error: --embed requires -m <model.gguf>.\n");
+            return false;
+        }
+        if (out.embed_inputs.empty()) {
+            std::fprintf(stderr, "Error: --embed requires at least one -p <input>.\n");
             return false;
         }
         return true;

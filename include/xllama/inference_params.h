@@ -120,6 +120,15 @@ struct InferenceParams {
     /// Print training capability matrix and exit.
     bool run_training_capabilities = false;
 
+    /// Run embedding smoke test and exit (load model, embed inputs, report metrics).
+    bool run_embed = false;
+
+    /// Embedding input strings for --embed mode.
+    std::vector<std::string> embed_inputs;
+
+    /// Requested embedding dimensions for --embed mode (0 = native).
+    int embed_dimensions = 0;
+
     /// Path to TrainingJob JSON (for --train-job / --validate-train-job).
     std::string train_job_path;
 

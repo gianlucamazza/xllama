@@ -56,6 +56,9 @@ this is Dev Mode research, not a hosted service.
 | `GET`     | `/v1/models`             | OpenAI model discovery — every servable on-device model; non-standard `"active": true` marks the one currently loaded.                            |
 | `GET`     | `/api/tags`              | Ollama model discovery — same list, Ollama shape.                                                                                                 |
 | `POST`    | `/v1/chat/completions`   | OpenAI-compatible chat completion, **non-streaming**.                                                                                             |
+| `POST`    | `/api/embed`             | Ollama-style embeddings for one string or a batch, GGUF/llama.cpp only.                                                                          |
+| `POST`    | `/api/embeddings`        | Deprecated Ollama single-prompt embeddings adapter.                                                                                              |
+| `POST`    | `/v1/embeddings`         | OpenAI embeddings shape; `encoding_format` accepts `float` or `base64`.                                                                           |
 | `POST`    | `/v1/preferences`        | Append a preference sample (`label` + `messages[]`) to `training/samples.jsonl` — same contract as the UI rate op (#118).                         |
 | `GET`     | `/v1/training/status`    | `result.done` / `progress.json` / last personalized `result.json` + usable sample count (#118).                                                   |
 | `POST`    | `/v1/images/generations` | SD-Turbo image gen (`prompt`, `steps` 1–4, `seed`); returns OpenAI-ish `{data:[{b64_json,path}]}` (#118). Shares the single-slot mutex with chat. |
@@ -101,6 +104,53 @@ Pydantic validation), and a `usage` block from `InferenceResult` (`n_p_eval` / `
 
 `stream: true` is **not** implemented in v1 (always returns the full completion). The
 `GenerateParams::on_token` hook is the seam for adding SSE later.
+
+### Embeddings (`/api/embed`, `/api/embeddings`, `/v1/embeddings`)
+
+Embedding requests use the same resident `Session` and single-slot mutex as chat. Inputs in
+a batch are encoded serially, preserving order and avoiding a second model or a large
+multi-sequence activation allocation. The supported inference path is GGUF via llama.cpp;
+ORT GenAI sessions and ranking-only models return an explicit unsupported error. The API
+does not pull or manage models. Use an embedding model already present in
+`LocalState\models\<id>` and provide its model id.
+
+`/api/embed` accepts `input` as a string or string array (up to 128 items), optional `truncate` (default true),
+`dimensions`, and an Ollama `options` object. `options.num_ctx` can lower the configured
+context and may recreate the resident session when it differs from the active context; it
+cannot exceed xllama's configured model limit. Other sampling options have no
+meaning for embeddings and are ignored. The response follows Ollama's model/embeddings and
+duration/token-count fields. `/api/embeddings` adapts the legacy `prompt` string to an
+`embedding` response. `/v1/embeddings` accepts the same scalar or batch `input` and returns
+OpenAI `data[]`, indices, and token usage; `base64` serializes little-endian float32 values.
+All returned vectors are L2-normalized after optional dimension truncation. Context overflow
+with `truncate:false`, empty inputs, impossible dimensions, and unsupported backend/model
+combinations return errors.
+
+```bash
+curl -s http://<ip-xbox>:11434/api/embed \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"embed-bge-m3","input":["first document","second document"]}'
+
+curl -s http://<ip-xbox>:11434/v1/embeddings \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"embed-nomic-v2-moe","input":"search_query: find relevant documents","encoding_format":"base64"}'
+```
+
+**Available embedding models** (catalogue ids, LAN API only):
+
+- **embed-bge-m3**: BAAI/bge-m3 (Q8_0, 1024 dim, 8192 ctx). Dense retrieval, no required prefix. Not Matryoshka — `dimensions` must be 0 or 1024.
+- **embed-nomic-v2-moe**: nomic-ai/nomic-embed-text-v2-moe (Q8_0, 768 dim, 512 ctx). Client must prepend `search_query:` or `search_document:` to inputs.
+- **embed-qwen3-4b**: Qwen/Qwen3-Embedding-4B (Q4_K_M, 2560 dim, 2048 ctx). Query text for retrieval: `Instruct: Given a query, retrieve passages that answer the question\nQuery: {text}`. Documents are raw passages.
+
+**Ollama name aliases**: The API also accepts the Ollama library names `bge-m3`, `nomic-embed-text-v2-moe`, and `qwen3-embedding:4b`, which map to the catalogue ids above.
+
+**Model swap**: Embedding requests share the single-slot `session_hub()` with chat. An embedding call that names a different model swaps the resident chat model out. The next chat turn will prefill cleanly (KV is cleared on swap).
+
+**Dimensions**: `dimensions=0` (the default) returns the model's native width. Non-zero values are accepted only when the model declares Matryoshka support. BGE-M3 is not Matryoshka; requesting any dimensions other than 0 or 1024 returns 400.
+
+**Context limits**: Each model opens at its catalogue `n_ctx` (BGE-M3: 8192, Nomic MoE: 512, Qwen3-4B: 2048). The `options.num_ctx` field cannot exceed that limit or go below 32. Inputs longer than context are truncated when `truncate=true` (default), or rejected with 400 when `truncate=false`.
+
+Embedding models retain their own pooling behavior from GGUF metadata. The API does not inject task prefixes automatically: clients must prepend the appropriate instruction strings themselves. There is no `/api/pull`, `/api/show`, or full Ollama model-management parity.
 
 ### Preferences (`POST /v1/preferences`)
 
@@ -173,7 +223,7 @@ the Session is hub-owned and is NOT released (the chat UI may be using it).
 
 ## Validation
 
-See `scripts/validate-api.sh` (`spike|chat|prefs|train|all`). Run it **from another host on the LAN**,
+See `scripts/validate-api.sh` (`spike|chat|embed|prefs|train|all`). Run it **from another host on the LAN**,
 not from a client on the console itself — cross-device inbound needs no loopback exemption,
 but a same-host localhost client would (`CheckNetIsolation`). Spike gate first (`GET /` → 200
 proves the bind survives the Series S firewall/PLM), then chat / prefs / train as needed.
