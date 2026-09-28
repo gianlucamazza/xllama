@@ -75,7 +75,6 @@
         GGML_USE_CPU;
         GGML_USE_CPU_REPACK;
         GGML_STATIC;
-        LLAMA_VERSION=&quot;0.1.0-dev&quot;;
         %(PreprocessorDefinitions)
       </PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
