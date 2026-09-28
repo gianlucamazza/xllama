@@ -137,13 +137,16 @@ chat`. On a coding session that ceiling is 4096 tokens, roughly 13 KB of dense
 - **LAN API** — enables or stops the OpenAI-compatible endpoint immediately,
   without restarting the app. The port must be 1025–49151 except 11443. The
   status line reports the active listener or bind error. Besides chat, the
-  endpoint can record preferences, report training status, and generate images
+  endpoint can pull trusted catalogue models, return embedding vectors, record
+  preferences, report training status, and generate images
   (same guardrails as the pad UI). The endpoint **shares the one loaded model
   with the chat UI**: a LAN request while you are generating on the pad gets
   a "busy" reply, and a LAN request naming a different model swaps the loaded
   model under your conversation (the next pad turn transparently re-reads the
   full context). It is unauthenticated: enable it only on a
-  trusted LAN; see [api-endpoint.md](api-endpoint.md).
+  trusted LAN; see [api-endpoint.md](api-endpoint.md). Embedding models are API-only
+  and do not appear in the chat picker. If another GUI/API download is writing,
+  provisioning reports a busy error; retry after that download completes.
 - **Report inappropriate generated content** — opens a GitHub Issues form
   (Store policy 11.16). Present on both SKUs.
 

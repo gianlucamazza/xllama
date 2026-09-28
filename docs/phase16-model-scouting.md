@@ -8,11 +8,19 @@
 > [benchmarks.md](benchmarks.md) / `bench/results/`; the checklist lives in
 > [`../ROADMAP.md`](../ROADMAP.md) Phase 16.
 
-**Currency:** 2026-08-20. **Campaign complete.** One model shipped
+**Campaign snapshot:** 2026-08-20. **Campaign complete.** One model shipped
 (`lfm25-230m`, floor tier); WS-B/C/D/G closed on their own kills; WS-E closed
 2026-08-20 S-gate FAIL (no named consumer, #242); WS-F probe written and run
 twice, still `DeviceNotAvailable` with no headset (#241). 3 of ≤9 console
 sessions spent.
+
+**Post-campaign update (2026-09-28):** #261 delivers a LAN embedding consumer
+through the existing single-slot SessionHub. The historical WS-E kill below
+remains the campaign outcome; it is no longer the current product capability.
+[Model inventory](model-matrix.md#g-embedding-api-catalogue-host-and-series-s-validated)
+owns the new catalogue/console status; the [API contract](api-endpoint.md) owns
+limits and residency. This does not retroactively pass the old candidate
+retrieval-quality or throughput gates.
 
 ## Goal
 
@@ -292,7 +300,7 @@ needs a decision-log entry.
 
 ### H16.5 — WS-E, embedding surface (S-gate)
 
-- **Claim (S-gate, not tok/s):** a product surface for embeddings exists. Today
+- **Claim (S-gate, not tok/s; historical campaign):** a product surface for embeddings exists. At that campaign snapshot,
   none does — `uwp/api-server.cpp` routes no `/v1/embeddings`, no UI consumer
   exists, and there is no vector store (`kv_store.h` is a KV-cache snapshot
   store, not a vector DB).
@@ -306,7 +314,7 @@ needs a decision-log entry.
   before downloading anything, and record that the capability exists in the pin
   while the product surface does not.
 
-**Status: CLOSED 2026-08-20, S-gate FAIL.** No named consumer. The shipping
+**Campaign status: CLOSED 2026-08-20, S-gate FAIL.** At that time there was no named consumer. The shipping
 product is gamepad chat + catalogue + images + opt-in LAN + on-device
 personalize. None of those read an embedding vector. SessionHub owns one
 resident Session; an embedding model is a second `llama_context`. The pin
@@ -314,6 +322,9 @@ carries `nomic-bert` and `nomic-embed-text-v1.5` is config-only at 156 MB —
 that is a capability, not a surface. Kill: close before download. Reopen only
 with a named consumer **and** a memory plan that keeps peak ≤3.5 GB with one
 resident model. #242.
+
+The later #261 LAN consumer and serial residency implementation are recorded
+in the [current model inventory](model-matrix.md#g-embedding-api-catalogue-host-and-series-s-validated); they do not change this historical campaign verdict.
 
 ### H16.6 — WS-F, ASR surface (S-gate)
 

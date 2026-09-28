@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-28",
+  "device": "Xbox Series S / Dev Mode",
+  "scope": "Protocol, writer ownership and KV correctness validation; not a throughput or retrieval-quality benchmark.",
+  "shipping": {
+    "run_id": "36422945110",
+    "head_sha": "9c12b034fb52f2120c9d653a23c1f81f25c4c35c",
+    "run_number": 1041,
+    "sha256": "64f26d8abdab2cea5fc17d135a250d58772256f991892567cb974f885eb706a6",
+    "expected_pfn": "GianlucaMazza.xllama_1.5.6.1041_x64__pj67f1fcj4n14"
+  },
+  "ci": {
+    "codeql": {
+      "run_id": 36422944867,
+      "result": "success"
+    },
+    "build-linux": {
+      "run_id": 36422944988,
+      "result": "success"
+    },
+    "build-uwp": {
+      "run_id": 36422945110,
+      "result": "success"
+    },
+    "pages-build-deployment": {
+      "run_id": 36422942814,
+      "result": "success"
+    }
+  },
+  "embeddings": {
+    "embed-bge-m3": {
+      "requests": 17,
+      "result": "pass",
+      "harness": "scripts/validate-embedding.py",
+      "private_raw_sha256": "bb5cb771c751e48db5079a9665243accc8152461209122f2fa144dc162484013"
+    },
+    "embed-nomic-v2-moe": {
+      "requests": 17,
+      "result": "pass",
+      "harness": "scripts/validate-embedding.py",
+      "private_raw_sha256": "e23c46e6b68b83bdc17674ac0f5ca5719688de4c7d91b278759c13991509f76b"
+    }
+  },
+  "maximum_bge_input": {
+    "tokens": 2048,
+    "width": 1024,
+    "peak_working_set_mib": 2856,
+    "preregistered_peak_gate_mib": 3584,
+    "truncate_false_oversize": "400",
+    "result": "pass"
+  },
+  "shipping_smoke": {
+    "health_models": "pass",
+    "gui_chat": "pass",
+    "streamed_and_single_response_pull": "pass",
+    "untrusted_source_rejection": "404",
+    "malformed_embedding_envelopes": "400 on all three routes",
+    "chat_after_embedding_swap": "pass"
+  },
+  "controlled_candidate": {
+    "source_sha": "158bc7020ed06de12c36a45ff071286ed8f4b11a",
+    "package": "1.5.6.1037",
+    "reviewed_sha": "0e0ccc3f97ea302b452320e14e5efb3ff4e63d46",
+    "reviewed_tree_matches_shipping": true,
+    "production_build_inputs_match_reviewed": true,
+    "console_gates_passed": 10,
+    "lan_suite": "pass",
+    "writer": {
+      "gui_owner_api_rejected": "pass",
+      "api_owner_gui_rejected": "pass",
+      "rejected_files_unchanged": "pass",
+      "pinned_remote_weight_hashes": "pass",
+      "adapter_preservation": "pass",
+      "retries_after_completion": "pass",
+      "api_only_results": [
+        [
+          200,
+          {
+            "status": "success"
+          }
+        ],
+        [
+          200,
+          {
+            "status": "success"
+          }
+        ]
+      ],
+      "api_only_interpretation": "Serialized, not overlap proof.",
+      "harness": "scripts/validate-model-writer.py",
+      "log_excerpts": {
+        "gui-writer-device.log": [
+          "[downloader] writer acquired: download",
+          "[downloader] writer busy: no files changed",
+          "[downloader] writer busy: no files changed",
+          "[downloader] writer busy: no files changed",
+          "[downloader] writer acquired: download"
+        ],
+        "api-writer-device.log": [
+          "[downloader] writer acquired: download",
+          "[downloader] writer busy: no files changed",
+          "[xllama] EnsureModel: download failed: another model write is in progress"
+        ]
+      }
+    },
+    "kv_divergence": {
+      "common_tokens": 631,
+      "resident_tokens": 648,
+      "full_prompt_tokens": 651,
+      "cold_prompt_tokens": 651,
+      "greedy_output_exact_match": true,
+      "harness": "scripts/validate-kv-fallback.py",
+      "synthetic_greedy_output": "goodbye",
+      "log_excerpts": [
+        "[xllama] KV snapshot restored (#170b)",
+        "[xllama] session: KV rewind unsupported (hybrid cache) \u2014 full re-prefill (#170): common=631 resident=648 prompt=651",
+        "[xllama] session generate: n=2 prefill=1542.6ms (651 tok) reuse=0 drafted=0 spec_accept=0",
+        "[xllama] session generate: n=2 prefill=1500.5ms (651 tok) reuse=0 drafted=0 spec_accept=0"
+      ]
+    },
+    "supported_kv_prefix_reuse": {
+      "cold_prefill_tokens": 551,
+      "returning_prefill_tokens": 19
+    },
+    "busy_during_gui_generation": {
+      "/api/embed": {
+        "status": 503,
+        "error_shape": "string"
+      },
+      "/v1/embeddings": {
+        "status": 503,
+        "error_shape": "object"
+      }
+    },
+    "taesd_vae_ms": 592.5
+  },
+  "limitations": [
+    "The initial reverse-writer trial missed overlap and timed out; the progress-rendezvous trial passed.",
+    "Hybrid snapshot restoration can require full prefill when the rendered tail diverges.",
+    "No strict cross-platform embedding parity or retrieval-quality claim.",
+    "No dedicated Nomic peak-memory measurement; process high-water marks are cumulative.",
+    "The final endpoint probe timed out, rather than producing ECONNREFUSED. API opt-in was absent and no listener started in the fresh normal process.",
+    "No release tag or Store SKU publication was created."
+  ],
+  "provenance": {
+    "pull_request": "https://github.com/gianlucamazza/xllama/pull/261",
+    "shipping_run": "https://github.com/gianlucamazza/xllama/actions/runs/36422945110",
+    "reviewed_tree": "8781af00d8227b23605cbf38bf2cf6b56ffcc483",
+    "raw_data_policy": "Private owner/profile logs are not published. This record contains selected non-personal validation outcomes; harnesses and public CI provide reproduction/provenance."
+  },
+  "host": {
+    "release_test_cases": 264,
+    "release_assertions": 4435,
+    "opt_in_divergent_snapshot": "pass"
+  }
+}

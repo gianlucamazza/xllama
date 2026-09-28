@@ -23,7 +23,9 @@ xllama is an SDK for running large language models and diffusion models on Xbox 
 └─────────────────────────────────────────────────────┘
 ```
 
-The SDK is header-only for most of its public API. The only compiled library is `xllama` (a static archive), which links against either:
+Public headers define contracts and inline helpers. Session, inference and
+embedding implementations are compiled into `xllama` (a static archive), which
+links the configured backends:
 
 - **ORT GenAI** — ONNX Runtime + Generative AI extension (Windows/UWP, DirectML/CPU)
 - **llama.cpp** — GGUF/CPU (Linux, and UWP CPU fallback)
@@ -31,6 +33,8 @@ The SDK is header-only for most of its public API. The only compiled library is 
 ## Quick Start
 
 ```cpp
+#include <cstdio>
+
 #include "xllama/session.h"
 #include "xllama/session_hub.h"
 
@@ -43,6 +47,7 @@ int main() {
     sp.n_threads = 0;
 
     std::string err;
+    std::lock_guard<std::mutex> lock(hub.mtx);
     auto* session = hub.ensure_locked("lfm25-350m", sp, &err);
     if (!session) return 1;
 

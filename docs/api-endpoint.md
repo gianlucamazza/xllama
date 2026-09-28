@@ -174,16 +174,22 @@ curl -s http://<ip-xbox>:11434/v1/embeddings \
 - **embed-bge-m3**: BAAI/bge-m3 (Q8_0, 1024 dim, 8192 ctx). Dense retrieval, no required prefix. Not Matryoshka — `dimensions` must be 0 or 1024.
 - **embed-nomic-v2-moe**: nomic-ai/nomic-embed-text-v2-moe (Q8_0, 768 dim, 512 ctx). Client must prepend `search_query:` or `search_document:` to inputs.
 
-Qwen3-Embedding-4B Q4_K_M is not in the catalogue: its Release embedding smoke peaked at 4411 MiB, above the 3584 MiB host gate. The two listed models passed host Release smoke; Xbox memory and throughput still need a device run.
+Qwen3-Embedding-4B Q4_K_M is not in the catalogue: its Release embedding smoke peaked at 4411 MiB, above the 3584 MiB host gate. The listed models pass host Release smoke and Series S contract validation.
+[Catalogue status](model-matrix.md#g-embedding-api-catalogue-host-and-series-s-validated) owns
+the current validation evidence and remaining throughput/retrieval-quality work.
 
 **Ollama name aliases**: The API also accepts `bge-m3` and `nomic-embed-text-v2-moe`. The `qwen3-embedding:4b` alias is reserved for a future catalogue entry.
 
 **Model swap**: Embedding requests share the single-slot `session_hub()` with chat. An embedding call that names a different model swaps the resident chat model out. The next chat turn will prefill cleanly (KV is cleared on swap).
 
-**Dimensions**: `dimensions=0` (the default) returns the model's native width. Non-zero values are accepted only when the model declares Matryoshka support. BGE-M3 is not Matryoshka; requesting any dimensions other than 0 or 1024 returns 400.
+**Dimensions**: `dimensions=0` (the default) returns the model's native width. The catalogue BGE-M3 API accepts only 0 or 1024; other widths return 400. Nomic v2 MoE accepts reduced widths from 1 through 768 and re-normalizes the retained prefix. This API width policy is distinct from the generic SDK normalization helper.
 
 **Context limits**: Each model opens at its catalogue `n_ctx` (BGE-M3: 8192, Nomic MoE: 512). The `options.num_ctx` field cannot exceed that limit or go below 32. The effective input limit is the smaller of the context and the logical embedding batch
-(default 2048 tokens). Non-causal sequences run in one physical microbatch. Inputs beyond
+(default 2048 tokens): **BGE-M3 accepts at most 2048 tokens**, including tokenizer
+special tokens, despite its 8192-token catalogue context; Nomic accepts at most 512.
+A smaller `options.num_ctx` reduces this limit; an omitted value restores the
+catalogue context after an earlier small-context request. Non-causal sequences
+run in one physical microbatch. Inputs beyond
 that limit are truncated when `truncate=true` (default), or rejected with 400 when
 `truncate=false`.
 

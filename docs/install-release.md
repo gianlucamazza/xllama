@@ -1,11 +1,12 @@
 # Install a release build on your Xbox
 
-How to install a tagged xllama release (see the
-[releases page](https://github.com/gianlucamazza/xllama/releases) for the current
-tag — today **[v1.5.6.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.5.6.0)**)
-on an Xbox Series S|X in Dev Mode, from a Linux/macOS host. For building from
-source see the [README](../README.md#build); for Dev Mode activation and Device
-Portal basics see [device-portal.md](./device-portal.md).
+Install a tagged app release or a specific CI MSVC package on an Xbox Series S|X
+in Dev Mode from a Linux/macOS host. The app release verified on 2026-09-28 is
+[v1.5.6.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.5.6.0).
+The [releases page](https://github.com/gianlucamazza/xllama/releases) also contains
+research tags, which can be newer without containing an app MSIX.
+For building from source see the [README](../README.md#build); for Dev Mode
+activation and Device Portal basics see [device-portal.md](./device-portal.md).
 
 ## Prerequisites
 
@@ -30,6 +31,31 @@ From the GitHub Release page (or `gh release download vX.Y.Z`):
   it from the file you downloaded.
 - `xllama-test.cer` — the signing test certificate
 - `Microsoft.VCLibs.x64.14.00.appx` — runtime dependency
+
+### Use a specific CI MSVC package
+
+Main CI packages can include changes not yet attached to a release tag. Inspect
+the selected run's exact `headSha` and successful status before downloading:
+
+```bash
+# Example: verified 2026-09-28 run; choose the run for your target commit.
+XLLAMA_RUN_ID=36422945110
+gh run view "$XLLAMA_RUN_ID" --repo gianlucamazza/xllama --json headSha,conclusion
+gh run download "$XLLAMA_RUN_ID" --repo gianlucamazza/xllama \
+  --name xllama-appx --dir "/tmp/xllama-ci-${XLLAMA_RUN_ID}"
+# Locate the one MSIX under AppPackages, then use deploy.sh as in §2.
+```
+
+The unified `xllama-appx` artifact is the shipping/measurement path; see
+[crossbuild-console.md](crossbuild-console.md). A higher revision with the same
+identity updates in place and preserves LocalState. Verify `deploy.sh pfn` and
+the running process package after install; WDP can briefly retain an older
+registration alongside the updated package.
+
+`install-latest-build.sh` performs a **fresh install**: it uninstalls registered
+versions first and wipes their LocalState. Use it with backups/re-provisioning
+when a fresh installation is intended. For profile-preserving updates, download
+the chosen artifact and pass its MSIX directly to `deploy.sh`.
 
 ## 2. Install the certificate, dependency, and app
 

@@ -11,9 +11,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Ollama `/api/embed`, legacy `/api/embeddings`, and OpenAI `/v1/embeddings` with float
   or base64 vectors. BGE-M3 Q8_0 and Nomic v2 MoE Q8_0 passed the host 3584 MiB
   memory gate and are catalogued; Qwen3-Embedding-4B Q4_K_M measured 4411 MiB and is
-  not catalogued. Xbox memory and throughput validation remains pending.
+  not catalogued. Series S protocol/memory validation now passes; see the
+  [catalogue status and evidence](docs/model-matrix.md#g-embedding-api-catalogue-host-and-series-s-validated). Dedicated embedding throughput and retrieval-quality benchmarks remain open.
 - Add catalogue-only Ollama `POST /api/pull` with NDJSON download progress, SHA-256
   verification, serialized pulls, and a load into the shared resident session on success.
+- Serialize GUI/API network writes, USB import and rollback with the accepted
+  [ADR 0001](docs/adr/0001-model-download-writer.md) atomic RAII permit. Rejected
+  writers leave files/markers untouched; preserve adapters and release before
+  completion callbacks. Settings and autopilot share model provisioning policy.
+- Validate divergent hybrid KV restoration against a cold reference; retain safe
+  full-prefill when tail rewind is unsupported and control append-only reuse
+  separately. Source-matched console and LAN suites pass; the main CI package
+  1.5.6.1041 also passes the shipping API/embedding smoke. This is CI Dev Mode
+  validation, not a new release tag or Store publication.
 - Keep embedding batches serial on the single-slot llama.cpp context; preserve model
   pooling metadata and return normalized vectors with optional dimensions. Fix truncation
   direction for LAST pooling (keep suffix not prefix), add EOS token append when GGUF

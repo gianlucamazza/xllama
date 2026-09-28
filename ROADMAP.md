@@ -560,12 +560,13 @@ classes and with a console budget capped at ≤9 bench sessions.
 - [x] **WS-D (H16.4) — diffusion successor.** **Closed on its own kill:** no
       candidate has a usable 3-component ONNX export. SDXL-Turbo fails the 2 GB
       protobuf limit, not the GPU budget; SD3.5/Flux are monolithic DiT.
-- [x] **WS-E (H16.5) — embedding surface.** **Closed 2026-08-20, S-gate FAIL.**
-      No named consumer. The pin carries `nomic-bert` and nomic-embed-text-v1.5 is
-      config-only at 156 MB — a capability, not a product surface. SessionHub
-      owns one resident Session; an embedding model is a second `llama_context`.
-      Kill: close before download. Reopen only with a named consumer **and** a
-      memory plan that keeps peak ≤3.5 GB with one resident model. #242.
+- [x] **WS-E (H16.5) — embedding surface.** The original campaign closed
+      2026-08-20 with no consumer (#242); that verdict remains historical.
+      **Delivered 2026-09-28 in #261:** LAN embedding clients consume vectors
+      through the existing single-slot SessionHub; they own index storage.
+      BGE-M3/Nomic pass Series S contracts and the bounded BGE memory gate.
+      [Current catalogue/evidence](docs/model-matrix.md#g-embedding-api-catalogue-host-and-series-s-validated)
+      owns status; dedicated throughput and retrieval-quality work remains open.
 - [~] **WS-F (H16.6) — ASR surface.** **Probe written and run 2026-08-10; one
   measurement short.** The `microphone` capability installs, `AudioGraph` opens
   under AppContainer at 48 kHz stereo, and `AccessDenied` — the way the sandbox
@@ -625,3 +626,19 @@ Operational details live in `docs/vendor-lifecycle-plan.md`.
 Any roadmap item that changes runtime behavior needs host tests, the relevant
 Windows CI build, on-console validation when hardware-specific, raw evidence
 under `bench/results/` when measured, and documentation in the owning SSOT.
+
+## Follow-up work after the 2026-09-28 PR closure
+
+- [ ] [#263](https://github.com/gianlucamazza/xllama/issues/263): migrate the host
+      diffusion export stack to supported patched dependencies after an accepted
+      export ADR; validate export and Xbox diffusion before closing security alerts.
+- [ ] [#264](https://github.com/gianlucamazza/xllama/issues/264): propose and accept
+      enforceable main CI/review policy, then verify failed/missing checks block merge.
+- [ ] [#243](https://github.com/gianlucamazza/xllama/issues/243): correct the H9
+      semantic scorer with a complete remeasurement campaign; preserve old raw verdicts.
+- [ ] [#241](https://github.com/gianlucamazza/xllama/issues/241): repeat the microphone
+      probe with a headset and audible input; DeviceNotAvailable is inconclusive.
+- [ ] Continue [vendor lifecycle gates](docs/vendor-lifecycle-plan.md) (#84/#85/#86).
+
+The main CI Dev Mode package is validated; release tagging and Store publication
+remain separate workflows, as documented in the release and Store runbooks.

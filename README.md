@@ -33,8 +33,8 @@ with `scripts/capture-demo-video.sh`.
 ## Quick install
 
 ```bash
-# Pre-built MSIX from CI release
-./scripts/install-latest-build.sh
+# Download release assets or a specific CI artifact first:
+# docs/install-release.md (same-identity updates preserve LocalState)
 
 # Or build (Windows host)
 git clone --recursive https://github.com/gianlucamazza/xllama.git
@@ -56,7 +56,7 @@ First launch: downloads default model (~229 MB). No model bundled in MSIX.
 - **Chat** — multi-turn with KV-reuse, thinking models, coding tier
 - **Diffuse** — SD-Turbo on DirectML, in-process with XAML compositor
 - **Train** — on-device partial FT (Lane B), host PEFT (Lane A), serve merged GGUF (Lane C)
-- **LAN API** — OpenAI-compat `POST /v1/chat/completions`, preferences, training status
+- **LAN API** — chat, GGUF embeddings, trusted catalogue pull, preferences and training status
 - **Bench** — headless tok/s, membw, diskbw, gpubw, gpugemv, ramceil probes
 
 ---
@@ -89,18 +89,19 @@ curl -s http://<xbox-ip>:11434/v1/chat/completions \
 curl -s http://<xbox-ip>:11434/v1/models
 ```
 
-| Route                         | Shape      | Note                                    |
-| ----------------------------- | ---------- | --------------------------------------- |
-| `POST /v1/chat/completions`   | OpenAI     | Non-streaming, single-slot mutex        |
-| `POST /api/embed`             | Ollama     | GGUF embeddings; scalar or batch input  |
-| `POST /api/embeddings`        | Ollama     | Deprecated single-prompt embeddings     |
-| `POST /v1/embeddings`         | OpenAI     | Float32 or base64 encoded vectors       |
-| `GET /v1/models`              | OpenAI     | `"active": true` on the loaded model    |
-| `GET /api/tags`               | Ollama     | Same list, Ollama shape                 |
-| `POST /v1/preferences`        | Custom     | Append JSONL → `training/samples.jsonl` |
-| `GET /v1/training/status`     | Custom     | Snapshot of on-device train progress    |
-| `POST /v1/images/generations` | OpenAI-ish | SD-Turbo, `b64_json` + `path`           |
-| `GET /health`                 | Custom     | `{"status":"ok","service":"xllama"}`    |
+| Route                         | Shape      | Note                                        |
+| ----------------------------- | ---------- | ------------------------------------------- |
+| `POST /v1/chat/completions`   | OpenAI     | Non-streaming, single-slot mutex            |
+| `POST /api/pull`              | Ollama     | Trusted catalogue download; NDJSON progress |
+| `POST /api/embed`             | Ollama     | GGUF embeddings; scalar or batch input      |
+| `POST /api/embeddings`        | Ollama     | Deprecated single-prompt embeddings         |
+| `POST /v1/embeddings`         | OpenAI     | Float32 or base64 encoded vectors           |
+| `GET /v1/models`              | OpenAI     | `"active": true` on the loaded model        |
+| `GET /api/tags`               | Ollama     | Same list, Ollama shape                     |
+| `POST /v1/preferences`        | Custom     | Append JSONL → `training/samples.jsonl`     |
+| `GET /v1/training/status`     | Custom     | Snapshot of on-device train progress        |
+| `POST /v1/images/generations` | OpenAI-ish | SD-Turbo, `b64_json` + `path`               |
+| `GET /health`                 | Custom     | `{"status":"ok","service":"xllama"}`        |
 
 Full protocol — requirements, port config, enable/persistence, concurrency,
 streaming status: [api-endpoint.md](docs/api-endpoint.md).

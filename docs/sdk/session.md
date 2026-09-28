@@ -2,13 +2,15 @@
 
 ## `xllama::Session`
 
-The `Session` class owns a loaded model and tokenizer. It supports multi-turn generation via KV-cache reuse.
+The `Session` class owns a loaded model and tokenizer. It supports multi-turn generation via KV-cache reuse and GGUF text embeddings through the llama.cpp backend.
 
 ```cpp
 struct Session {
     static std::unique_ptr<Session> create(const SessionParams& params, std::string* err = nullptr);
     virtual InferenceResult generate(const GenerateParams& params) = 0;
     virtual int count_tokens(const std::string& prompt) = 0;
+    virtual EmbeddingResult embed(const EmbeddingParams& params);
+    virtual int context_length() const;
     virtual bool can_context_shift() const;
     virtual bool save_state(const std::string& path, std::string* err = nullptr);
     virtual bool load_state(const std::string& path, std::string* err = nullptr);
@@ -16,7 +18,10 @@ struct Session {
 };
 ```
 
-Thread safety: `generate()` must not be called concurrently.
+Thread safety: serialize generation, embedding, token counting and state operations
+on a Session. The GUI and LAN API hold `SessionHub::mtx` through each operation;
+`embed()` clears chat KV, so the next chat turn requires a clean prefill.
+The default backend implementation returns an unsuccessful embedding result.
 
 ## `xllama::SessionHub`
 
@@ -34,7 +39,9 @@ struct SessionHub {
 
 ```cpp
 xllama::SessionHub hub;
+std::lock_guard<std::mutex> lock(hub.mtx);
 auto* session = hub.ensure_locked("my-model", params, &err);
+// Keep the lock while using session; a reset/model swap invalidates the pointer.
 ```
 
 **Global instance** (backward compatible):
@@ -42,6 +49,32 @@ auto* session = hub.ensure_locked("my-model", params, &err);
 ```cpp
 auto& hub = xllama::session_hub();
 ```
+
+## Embedding contracts
+
+`embedding.h` defines `EmbeddingParams` (`input`, `dimensions=0`, `truncate=true`)
+and `EmbeddingResult` (`success`, `embedding`, `n_tokens`, `error_msg`).
+`Session::embed()` tokenizes the raw input, honors model pooling metadata, limits
+it to `min(context_length(), logical batch)`, then returns a normalized vector.
+The effective token count includes tokenizer special tokens. Invalid dimensions,
+unsupported backend/encoder-decoder/ranking models and untruncated oversized
+input return `success=false` with `error_msg`.
+
+`trim_tokens_for_pooling` retains the prefix for mean/CLS and the suffix for
+last/none pooling. `normalize_embedding` truncates dimensions and L2-normalizes;
+it rejects empty, non-finite or zero-norm vectors. `embedding_base64` encodes
+float32 values as little-endian bytes. The SDK helper does not enforce the
+catalogue-specific BGE width rule; the [LAN adapter](../api-endpoint.md) does.
+
+A host smoke uses repeated `-p` inputs:
+
+```bash
+./build/linux-release/bin/xllama-cli --embed -m /path/model.gguf \
+  -p "search_query: find a red car" -p "search_query: find a red car"
+```
+
+The caller supplies task prefixes. This verifies encoding and repeated-input
+stability, not retrieval quality or cross-platform parity.
 
 ## `xllama::SessionParams`
 
@@ -85,8 +118,13 @@ Parameters for a single generation turn.
 
 ### KV-Cache Reuse Modes
 
-| `reuse_kv` | `reset_kv` | Behavior                                               |
-| ---------- | ---------- | ------------------------------------------------------ |
-| `false`    | —          | Stateless turn: full context prefill                   |
-| `true`     | `false`    | Continuation: delta-only prefill (multi-turn TTFT win) |
-| `true`     | `true`     | Reset: full context prefill, subsequent turns reuse    |
+| `reuse_kv` | `reset_kv` | Behavior                                                                |
+| ---------- | ---------- | ----------------------------------------------------------------------- |
+| `false`    | —          | Stateless turn: full context prefill                                    |
+| `true`     | `false`    | Reuse supported prefix; divergent hybrid tails can require full prefill |
+| `true`     | `true`     | Reset: full context prefill, subsequent turns reuse                     |
+
+Snapshot restoration is not a delta-prefill guarantee. A rendered prompt can
+diverge inside a saved hybrid tail that cannot rewind; the session clears it
+and safely prefills the full prompt. See [KV architecture](../architecture.md#kv-cache-reuse-both-backends)
+and the separate prefix-reuse/fallback [console probes](../console-validation-runbook.md#controlled-model-writer-and-kv-fallback-probes).

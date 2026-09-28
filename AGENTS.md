@@ -215,10 +215,12 @@ Load-bearing headers agents usually touch:
 | `sampling.h`                         | Sampler defaults shared by CLI, bench, GUI, API      |
 | `chat_prompt.h`                      | `ChatFormat` and stop sequences                      |
 | `embedding.h`                        | Embedding params and pooling trim                    |
+| `api_pull_policy.h`                  | Trusted catalogue pulls and API pull admission       |
+| `model_write.h`                      | Shared writer ownership before model mutation        |
 | `api_policy.h`                       | Rejects tool-execution fields on the LAN API         |
 | `training.h` / `device_train.h`      | Job validation and Lane B device train               |
 | `personalize.h`                      | In-app personalize helpers                           |
-| `json_utils.h`                       | Header-only JSON escape / parse (no `.cpp`)          |
+| `json_utils.h`                       | JSON escape / parse (`src/bridge/json_utils.cpp`)    |
 | `catalog_trust.h`                    | UWP-only catalogue signature types                   |
 
 Sampler chains are not headers under `include/`: `src/bridge/sampler_chain.h`
@@ -259,7 +261,7 @@ Deploy and logs (Device Portal):
 source ~/.config/xllama/xbox-env
 ./scripts/deploy.sh path/to/xllama_*.msix
 ./scripts/deploy.sh get-log
-./scripts/install-latest-build.sh          # gh: latest xllama-appx for this branch
+./scripts/install-latest-build.sh          # fresh install; uninstalls and wipes LocalState
 ```
 
 No model ships in the MSIX. First launch downloads the default chat model.

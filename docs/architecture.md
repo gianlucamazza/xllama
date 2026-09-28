@@ -43,6 +43,9 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `preference_capture.h`             | Preference JSONL format + append (Like/Dislike/Correct + API)                                                             |
 | `chat_prompt.h`                    | `ChatFormat`, `chat_format_for`, `apply_stop_sequences`                                                                   |
 | `routing_policy.h`                 | `decide_routing`, `kv_reuse_supported_for_model`, prompt budget                                                           |
+| `embedding.h`                      | Embedding params/results, pooling-aware trim, normalization and float32 base64                                            |
+| `api_pull_policy.h`                | Trusted catalogue pull admission and API-only pull gate                                                                   |
+| `model_write.h`                    | Shared atomic RAII writer permit; guarded marker publication and stale-base cleanup                                       |
 | `model_provision.h`                | `dir_satisfies_expected_files`, `normalize_model_path`                                                                    |
 | `manifest_merge.h`                 | `merge_manifest_entries` (per-entry catalogue override)                                                                   |
 | `membw.h`                          | `measure_membw` (STREAM-style bandwidth probe)                                                                            |
@@ -81,6 +84,7 @@ applied to the stateless path),
 `ort_common.h` (shared ORT setup: SEH translator + `OgaSetLogCallback`),
 `chat_prompt.cpp` (`ChatFormat`, `chat_format_for`, `apply_stop_sequences`),
 `bench.cpp` (bench CSV writer with `run_index` for per-run variance),
+`embedding.cpp` (pooling-aware trim, vector normalization and base64),
 `platform.cpp` (`log_output` — writes `xllama.log` in UWP),
 `path_utils.cpp` (`resolve_model_path` — LocalState + InstalledPath fallback),
 `utf8_utils.cpp` (utf8 ↔ wstring),
@@ -381,14 +385,38 @@ LocalState → bundled InstalledPath → USB → **catalogue download** (from th
 the pure `dir_satisfies_expected_files` (`model_provision.h`), which requires the
 manifest's current `files[].filename` to be present (separator/case-insensitive)
 rather than accepting _any_ `.gguf`. In expected mode the `.complete` marker is not
-a fast-path on its own (a stale-quant dir can carry a valid old marker). Before
-re-downloading, `EnsureModelNamedAsync` **reconciles the dir** — deletes any
-non-expected `*.gguf` and drops the stale `.complete` — so old and new quants never
-coexist (which would otherwise let `first_gguf_in_dir` load the wrong file). Net
+a fast-path on its own (a stale-quant dir can carry a valid old marker). The downloader acquires the shared writer permit before invalidating `.complete`.
+After expected files are verified/promoted, it removes stale non-expected
+`*.gguf`, preserves `adapter.gguf` and rollback generations, then publishes the
+completion marker. `EnsureModelNamedAsync` and the API do not prune outside that
+permit. Net
 effect: a directory holding an older quant than the manifest names (e.g. a stale
 `gemma-4-E2B-it-UD-IQ2_M.gguf`) auto-upgrades to the current `Q3_K_S`. When there is
 no catalogue entry the check falls back to the historical loose behavior. The pure
 predicate has host doctest coverage (`tests/test_model_provision.cpp`).
+
+### Shared model-write ownership
+
+[ADR 0001](adr/0001-model-download-writer.md) defines the accepted writer policy.
+`ModelDownloader::WriterGate()` is process-wide; network provisioning, USB import
+and public rollback acquire its movable atomic RAII permit before mutation.
+Acquisition is non-blocking and rejection changes no model files or markers.
+Completion releases before callbacks that may chain CPU/GPU provisioning.
+The API-only pull gate spans download plus load; SessionHub remains the separate
+inference/residency lock. Settings and autopilot model selection use `SelectModel`
+to reset residency and await real provisioning. Runtime contracts: [LAN API](api-endpoint.md).
+
+### Embedding residency
+
+`Session::embed` uses the existing llama.cpp backend and single resident slot.
+Embedding requests reset chat KV; a model swap evicts the previous session.
+Batches run serially and non-causal inputs use one physical microbatch bounded
+by both context and logical batch. ORT sessions report unsupported embeddings.
+The API keeps embedding catalogue entries out of chat model selection; it neither
+adds task prefixes nor stores vectors. Clients own retrieval/index storage.
+[API limits](api-endpoint.md#embeddings-apiembed-apiembeddings-v1embeddings) and
+[catalogue status](model-matrix.md#g-embedding-api-catalogue-host-and-series-s-validated) own
+the protocol and measured inventory.
 
 ## CPU memory-bandwidth micro-bench (`membw`)
 

@@ -226,6 +226,16 @@ passes on the target console and the package version, raw evidence and outcome
 are recorded. Do not revive closed historical experiments unless new evidence
 changes a documented constraint.
 
+## Recorded 2026-09-28 validation
+
+The [source/package-bound record](../bench/results/2026-09-28-console-api-validation.json)
+separates the controlled candidate console/LAN campaign from the exact main
+shipping-package smoke. Full console gates ran against production-identical
+candidate sources; the main package additionally passed health/chat/pull, both
+embedding contract suites and maximum BGE input. It records failed/inconclusive
+trials and avoids assigning cumulative process high-water marks to one model.
+Automated doc/coherence checks do not replace those runtime observations.
+
 ## Controlled model-writer and KV fallback probes
 
 Run these against the expected CI MSVC package, with the console credentials
