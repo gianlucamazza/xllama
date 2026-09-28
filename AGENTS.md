@@ -195,6 +195,7 @@ scripts/            Deploy, bench, validate, crossbuild, coherence
 docs/               SSOT map is docs/README.md
 shaders/            HLSL and generated DXIL for the GPU probes
 bench/              Raw results and comparison policy
+demo/               Capture scripts: what the demo video records, reviewable in a PR
 patches/            llama.cpp and vendor patches applied at UWP build time
 diffusion/          SD-Turbo → ONNX host toolchain (not inside the MSIX)
 paper/              Citable research package
