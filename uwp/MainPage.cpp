@@ -82,6 +82,8 @@ static void remove_stale_gguf_after_success(const std::wstring& model_dir,
         if (!entry.is_regular_file(ec) || entry.path().extension() != L".gguf")
             continue;
         const auto name = ::xllama::normalize_model_path(entry.path().filename().wstring());
+        if (name == L"adapter.gguf")
+            continue; // personalization data is not a superseded base model
         if (std::find(expected.begin(), expected.end(), name) == expected.end()) {
             std::error_code remove_ec;
             std::filesystem::remove(entry.path(), remove_ec);

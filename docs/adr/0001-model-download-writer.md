@@ -19,15 +19,20 @@ before writing any model file. Keep the API pull gate for its existing HTTP 409
 contract and hold it through model loading. A competing GUI download produces
 an explicit download-busy error; it must not appear as a successful pull.
 
-Protect the entire downloader operation, including verification, promotion,
-rollback backup, and completion-marker publication. Do not alter the SessionHub
+Protect the entire downloader operation, including marker invalidation,
+verification, promotion, rollback backup, stale-base cleanup, and completion-marker
+publication. Move GUI/API marker invalidation and stale-base cleanup into that
+protected operation; neither caller may write model metadata outside its permit.
+Preserve `adapter.gguf` in both paths. The public `RollbackAsync` writer must use
+the same permit, even though no current caller invokes it. Do not alter the SessionHub
 inference lock or permit a second resident model.
 
 ## Consequences
 
 All callers share the same writer policy. UI and API retries remain explicit;
 there is no hidden queue, automatic overwrite, or cross-thread mutex unlock.
-Unit tests must cover exclusive acquisition and release after failure/move.
+Unit tests must cover exclusive acquisition and release after failure/move,
+unchanged files/markers on rejected acquisition, and adapter preservation.
 Xbox testing must cover concurrent API pulls and GUI/API overlap.
 
 ## Alternatives
