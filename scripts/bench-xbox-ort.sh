@@ -168,9 +168,13 @@ PFN=$("${DEPLOY}" pfn 2>/dev/null)
 
 verify_expected_package() {
 	[[ -z "${XLLAMA_EXPECTED_PFN:-}" ]] && return 0
+	if [[ "$PFN" != "$XLLAMA_EXPECTED_PFN" ]]; then
+		echo "Error: initial package $PFN differs from trial package $XLLAMA_EXPECTED_PFN" >&2
+		return 1
+	fi
 	local current_pfn
 	current_pfn=$("${DEPLOY}" pfn)
-	if [[ "$current_pfn" != "$XLLAMA_EXPECTED_PFN" || "$current_pfn" != "$PFN" ]]; then
+	if [[ "$current_pfn" != "$XLLAMA_EXPECTED_PFN" ]]; then
 		echo "Error: installed package $current_pfn differs from trial package $XLLAMA_EXPECTED_PFN" >&2
 		return 1
 	fi
