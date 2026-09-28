@@ -52,10 +52,14 @@
   </PropertyGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <GgmlVersionDir>$([System.IO.Path]::Combine('$(ProjectDir)', '$(IntDir)', 'generated'))</GgmlVersionDir>
+  </PropertyGroup>
 
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>
+        $(GgmlVersionDir);
         $(ProjectDir)..\llama.cpp\include;
         $(ProjectDir)..\llama.cpp\src;
         $(ProjectDir)..\llama.cpp\ggml\include;
@@ -71,8 +75,6 @@
         GGML_USE_CPU;
         GGML_USE_CPU_REPACK;
         GGML_STATIC;
-        GGML_VERSION=&quot;uwp-static&quot;;
-        GGML_COMMIT=&quot;9a532ae4b&quot;;
         LLAMA_VERSION=&quot;0.1.0-dev&quot;;
         %(PreprocessorDefinitions)
       </PreprocessorDefinitions>
@@ -193,4 +195,7 @@
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="GenerateGgmlVersion" BeforeTargets="ClCompile">
+    <Exec Command="cmake -DGGML_SOURCE_DIR=&quot;$(ProjectDir)..\llama.cpp\ggml&quot; -DOUTPUT_FILE=&quot;$(GgmlVersionDir)\ggml-version.h&quot; -P &quot;$(ProjectDir)..\cmake\GenerateGgmlVersion.cmake&quot;" />
+  </Target>
 </Project>
