@@ -403,8 +403,10 @@ and public rollback acquire its movable atomic RAII permit before mutation.
 Acquisition is non-blocking and rejection changes no model files or markers.
 Completion releases before callbacks that may chain CPU/GPU provisioning.
 The API-only pull gate spans download plus load; SessionHub remains the separate
-inference/residency lock. Settings and autopilot model selection use `SelectModel`
-to reset residency and await real provisioning. Runtime contracts: [LAN API](api-endpoint.md).
+inference/residency lock. Settings and autopilot use `SelectModel` to reset
+residency and start asynchronous provisioning. The GUI keeps generation disabled
+until readiness; autopilot waits for readiness or a reported error.
+Runtime contracts: [LAN API](api-endpoint.md).
 
 ### Embedding residency
 

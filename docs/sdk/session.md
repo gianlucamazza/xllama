@@ -21,7 +21,9 @@ struct Session {
 Thread safety: serialize generation, embedding, token counting and state operations
 on a Session. The GUI and LAN API hold `SessionHub::mtx` through each operation;
 `embed()` clears chat KV, so the next chat turn requires a clean prefill.
-The default backend implementation returns an unsuccessful embedding result.
+The default backend implementation returns an unsuccessful embedding result;
+its `context_length()` returns 0. The llama.cpp session reports its configured
+context length.
 
 ## `xllama::SessionHub`
 
