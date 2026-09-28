@@ -5,6 +5,7 @@ import argparse
 import concurrent.futures
 import hashlib
 import json
+import threading
 from pathlib import Path
 
 from console_test import Console, fixture, settings
@@ -18,7 +19,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", required=True)
     parser.add_argument("--model-backup", type=Path, required=True)
+    parser.add_argument("--embedding-backup", type=Path, required=True)
     args = parser.parse_args()
+    embed_sha = hashlib.sha256(args.embedding_backup.read_bytes()).hexdigest()
+    assert (
+        embed_sha == "950f4a8e5e19477a6d3c26d2f162233c20002c601f75e4b002e3239997821167"
+    )
+    assert args.embedding_backup.name == "bge-m3-Q8_0.gguf"
+    assert args.embedding_backup.stat().st_size == 634553760
     assert hashlib.sha256(args.model_backup.read_bytes()).hexdigest() == MODEL_SHA
     console = Console(args.out)
     chat_dir = "models\\lfm25-350m"
@@ -116,14 +124,22 @@ def main():
                 == b"before-gui-selection"
             )
         )
-        before_marker = console.fetch(".complete", embed_dir)
+        before_marker = console.fetch(".complete", chat_dir)
+        console.command(
+            "delete-file", console.pfn, args.embedding_backup.name, embed_dir
+        )
+        progress = threading.Event()
+
+        def on_event(event):
+            if event.get("completed", 0) > 0:
+                progress.set()
+
         with concurrent.futures.ThreadPoolExecutor() as pool:
             active = pool.submit(
-                console.api, "/api/pull", {"model": "lfm25-350m", "stream": False}
+                console.api_stream, "/api/pull", {"model": "embed-bge-m3"}, on_event
             )
-            console.wait(
-                lambda: "[downloader] writer acquired: download" in console.log()
-            )
+            assert progress.wait(60), "API download did not produce progress"
+            assert not active.done(), "API transfer finished before GUI admission"
             console.delete("autopilot-mark.txt")
             console.wait(
                 lambda: "EnsureModel: download failed: " + BUSY in console.log()
@@ -135,12 +151,21 @@ def main():
                     in (console.fetch("autopilot-done.txt", optional=True) or b"")
                 )
             )
-            assert console.fetch(".complete", embed_dir) == before_marker
+            assert console.fetch(".complete", chat_dir) == before_marker
             code, result = active.result()
-            assert code == 200 and result.get("status") == "success", (code, result)
+            assert code == 200 and result[-1].get("status") == "success", (code, result)
+            assert (
+                hashlib.sha256(
+                    console.fetch(args.embedding_backup.name, embed_dir)
+                ).hexdigest()
+                == embed_sha
+            )
             proof["api_writer_gui_rejected"] = True
             proof["api_completed_after_gui_rejection"] = result
         (console.out / "api-writer-device.log").write_text(console.log())
+        code, retry = console.api("/api/pull", {"model": "lfm25-350m", "stream": False})
+        assert code == 200 and retry.get("status") == "success", retry
+        proof["after_api_recovery"] = retry
         # Simultaneous API pulls may serialize in WinRT. Both must complete
         # successfully or explicitly conflict; no corrupted file or false result.
         with concurrent.futures.ThreadPoolExecutor() as pool:
@@ -169,6 +194,13 @@ def main():
         # Restore the independently pinned weight even if any live trial fails.
         console.command(
             "upload-file", args.model_backup, console.pfn, chat_dir, MODEL_FILE
+        )
+        console.command(
+            "upload-file",
+            args.embedding_backup,
+            console.pfn,
+            embed_dir,
+            args.embedding_backup.name,
         )
         console.restore()
 

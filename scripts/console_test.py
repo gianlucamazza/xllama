@@ -115,7 +115,7 @@ class Console:
         with response:
             return response.status, json.load(response)
 
-    def api_stream(self, route, fields):
+    def api_stream(self, route, fields, on_event=None):
         request = urllib.request.Request(
             self.url + route,
             data=json.dumps(fields).encode(),
@@ -126,9 +126,14 @@ class Console:
         except urllib.error.HTTPError as error:
             response = error
         with response:
-            return response.status, [
-                json.loads(line) for line in response if line.strip()
-            ]
+            events = []
+            for line in response:
+                if line.strip():
+                    event = json.loads(line)
+                    events.append(event)
+                    if on_event:
+                        on_event(event)
+            return response.status, events
 
     def log(self):
         current = self.command("get-log", self.pfn)

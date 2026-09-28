@@ -16,7 +16,13 @@ def main():
     cid = "ap-kv-divergent-probe"
     actions = [
         {"op": "load_chat", "id": cid},
-        {"op": "send", "text": "Say hello.", "timeout_s": 180},
+        {
+            "op": "send",
+            "text": "Summarize this harbour log in one sentence. "
+            + "The harbour master logged tide tables, cargo manifests and crane maintenance. "
+            * 40,
+            "timeout_s": 180,
+        },
         # Loading an empty fixed-ID chat saves the first one without creating
         # an untracked random conversation.
         {"op": "load_chat", "id": cid + "-other"},
@@ -31,6 +37,24 @@ def main():
         fixture(console, cid, [])
         fixture(console, cid + "-other", [])
         console.command("start-app", console.pfn)
+        console.wait(
+            lambda: (
+                "prompt budget:" in console.log() and "api: listening" in console.log()
+            )
+        )
+        busy = []
+        for route in ["/api/embed", "/v1/embeddings"]:
+            code, response = console.api(
+                route, {"model": "embed-bge-m3", "input": "busy probe"}
+            )
+            assert code == 503, (route, code, response)
+            error = response.get("error")
+            assert isinstance(error, dict if route.startswith("/v1/") else str)
+            assert (
+                error.get("message") if isinstance(error, dict) else error
+            ) == "busy"
+            busy.append({"route": route, "status": code, "response": response})
+        (console.out / "busy-errors.json").write_text(json.dumps(busy, indent=2) + "\n")
         console.wait(
             lambda: (
                 console.fetch("autopilot-mark.txt", optional=True) == b"snapshot-saved"
@@ -89,6 +113,7 @@ def main():
             "KV divergent snapshot: PASS (cold-equivalent output and full token count)"
         )
     finally:
+        (console.out / "final-device.log").write_text(console.log())
         console.restore()
 
 

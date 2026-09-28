@@ -225,3 +225,31 @@ A hardware-sensitive change is complete only when the relevant automated gate
 passes on the target console and the package version, raw evidence and outcome
 are recorded. Do not revive closed historical experiments unless new evidence
 changes a documented constraint.
+
+## Controlled model-writer and KV fallback probes
+
+Run these against the expected CI MSVC package, with the console credentials
+loaded and `XLLAMA_EXPECTED_PFN` set to its full package identity. Use a private
+output directory: the harness backs up settings, conversations and KV metadata
+and restores every tracked original byte before restarting the normal app.
+
+```bash
+python scripts/validate-model-writer.py --out /private/writer-proof \
+  --model-backup /private/LFM2.5-350M-Q4_K_M.gguf \
+  --embedding-backup /private/bge-m3-Q8_0.gguf
+python scripts/validate-kv-fallback.py --out /private/kv-proof
+```
+
+The writer probe verifies independently pinned weight backups before deleting
+console weights to force real remote transfers. Both GUI/API ownership directions
+must reject the competing writer without changing its files, preserve adapters,
+verify downloaded hashes and recover after completion. The reverse trial releases
+the GUI selection when streamed API download progress arrives; a transfer that
+finishes before admission is inconclusive, not a concurrency PASS. API/API requests
+may serialize and both succeed; that result alone does not prove overlap.
+
+The KV probe forces a divergent saved assistant reply and requires the hybrid
+fallback's complete prompt count and greedy output to match a fresh cold session.
+It also sends native and OpenAI embedding requests while the GUI is generating
+and requires their respective 503 error envelopes. A missing overlap fails the
+probe; do not reinterpret a sequential 200 response as a busy-path validation.
