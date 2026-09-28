@@ -76,7 +76,13 @@ rejected. Ollama embedding aliases (`bge-m3`, `nomic-embed-text-v2-moe`,
 Streaming returns chunked `application/x-ndjson`: status records report download bytes, then
 model loading, followed by `{"status":"success"}`. A failure after streaming starts is an
 NDJSON `{"error":"..."}` record. With `stream:false`, the endpoint waits and returns one
-JSON result. Only one pull runs at a time; a concurrent pull receives HTTP 409. Existing
+JSON result. The API pull gate spans transfer and model loading. A simultaneous
+API pull receives HTTP 409 when its handler overlaps; the WinRT listener may
+otherwise dispatch the handlers sequentially. GUI downloads, USB import and explicit
+rollback share one downloader-wide writer permit. A competing writer is rejected
+before any file or marker changes: non-streaming pulls return HTTP 409, streaming
+pulls emit an error record, and the GUI reports a download-busy error. The permit
+is released before completion callbacks that may chain provisioning. Existing
 inference may finish during the download; after verification, the pull waits for the shared
 session lock, replaces the resident model, and reports success only after loading it.
 

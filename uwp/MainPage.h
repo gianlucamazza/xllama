@@ -64,6 +64,7 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     bool ApWaitAtomic(std::atomic<bool>& flag, bool want, std::chrono::seconds timeout);
     void BuildUI();
     void LoadModelName();
+    bool SelectModel(const std::wstring& name);
     winrt::fire_and_forget EnsureModelAsync();
     // Provision one catalogue/USB/bundled model dir. When |set_app_ready| is true
     // (chat model), enables Run on success and may queue gpu_model download.

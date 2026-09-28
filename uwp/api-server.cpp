@@ -1119,30 +1119,10 @@ bool same_pull_manifest_entry(const ::xllama::ManifestEntry& a, const ::xllama::
     return true;
 }
 
-void remove_stale_gguf_files(const std::filesystem::path& model_dir,
-                             const std::vector<::xllama::ModelFile>& expected) {
-    std::vector<std::filesystem::path> keep;
-    keep.reserve(expected.size());
-    for (const auto& file : expected)
-        keep.emplace_back(file.filename);
-    std::error_code ec;
-    for (const auto& item : std::filesystem::directory_iterator(model_dir, ec)) {
-        if (ec)
-            break;
-        if (!item.is_regular_file(ec) || item.path().extension() != ".gguf" ||
-            item.path().filename() == "adapter.gguf")
-            continue;
-        const auto it = std::find(keep.begin(), keep.end(), item.path().filename());
-        if (it == keep.end())
-            std::filesystem::remove(item.path(), ec);
-        ec.clear();
-    }
-}
-
 void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t generation) {
     JsonObject request{nullptr};
     if (!JsonObject::TryParse(winrt::to_hstring(body), request) || request == nullptr) {
-        write_response(socket, "400 Bad Request", error_json("invalid JSON body"));
+        write_response(socket, "400 Bad Request", ollama_error_json("invalid JSON body"));
         return;
     }
 
@@ -1152,7 +1132,8 @@ void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t g
         if (request.HasKey(L"model")) {
             const auto value = request.GetNamedValue(L"model");
             if (value.ValueType() != JsonValueType::String) {
-                write_response(socket, "400 Bad Request", error_json("'model' must be a string"));
+                write_response(socket, "400 Bad Request",
+                               ollama_error_json("'model' must be a string"));
                 return;
             }
             requested_name = winrt::to_string(value.GetString());
@@ -1160,17 +1141,18 @@ void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t g
         if (request.HasKey(L"stream")) {
             const auto value = request.GetNamedValue(L"stream");
             if (value.ValueType() != JsonValueType::Boolean) {
-                write_response(socket, "400 Bad Request", error_json("'stream' must be boolean"));
+                write_response(socket, "400 Bad Request",
+                               ollama_error_json("'stream' must be boolean"));
                 return;
             }
             stream = value.GetBoolean();
         }
     } catch (...) {
-        write_response(socket, "400 Bad Request", error_json("malformed pull request"));
+        write_response(socket, "400 Bad Request", ollama_error_json("malformed pull request"));
         return;
     }
     if (requested_name.empty()) {
-        write_response(socket, "400 Bad Request", error_json("missing 'model'"));
+        write_response(socket, "400 Bad Request", ollama_error_json("missing 'model'"));
         return;
     }
 
@@ -1181,7 +1163,7 @@ void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t g
         ::xllama::FindManifestEntry(manifest, ::xllama::utf8_to_wstring(model_name));
     if (!entry) {
         write_response(socket, "404 Not Found",
-                       error_json("model is not in the bundled catalogue"));
+                       ollama_error_json("model is not in the bundled catalogue"));
         return;
     }
 
@@ -1204,8 +1186,9 @@ void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t g
     for (const auto& file : entry->files)
         descriptor.sha256_pins.push_back(::xllama::wstring_to_utf8(file.sha256));
     if (!::xllama::api_pull_model_allowed(descriptor)) {
-        write_response(socket, "403 Forbidden",
-                       error_json("model is not a trusted, pinned chat or embedding download"));
+        write_response(
+            socket, "403 Forbidden",
+            ollama_error_json("model is not a trusted, pinned chat or embedding download"));
         return;
     }
 
@@ -1217,20 +1200,21 @@ void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t g
         ::xllama::FindManifestEntry(effective_manifest, ::xllama::utf8_to_wstring(model_name));
     if (!effective_entry || !same_pull_manifest_entry(*entry, *effective_entry)) {
         write_response(socket, "403 Forbidden",
-                       error_json("model is shadowed by a LocalState catalogue override"));
+                       ollama_error_json("model is shadowed by a LocalState catalogue override"));
         return;
     }
 
     auto pull_guard = g_pull_gate.try_acquire();
     if (!pull_guard.owns_lock()) {
-        write_response(socket, "409 Conflict", error_json("another model pull is in progress"));
+        write_response(socket, "409 Conflict",
+                       ollama_error_json("another model pull is in progress"));
         return;
     }
 
     {
         std::lock_guard<std::mutex> state_lock(g_state_mtx);
         if (g_status.state != ServerState::Running || generation != g_generation) {
-            write_response(socket, "503 Service Unavailable", error_json("server stopped"));
+            write_response(socket, "503 Service Unavailable", ollama_error_json("server stopped"));
             return;
         }
     }
@@ -1243,14 +1227,10 @@ void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t g
     }
 
     const std::string model_dir = ::xllama::resolve_local_path("models/" + model_name);
-    std::error_code ec;
-    std::filesystem::create_directories(std::filesystem::path(::xllama::utf8_to_wstring(model_dir)),
-                                        ec);
-    bool download_ok = !ec;
-    std::wstring download_error = ec ? ::xllama::utf8_to_wstring(ec.message()) : L"";
-    if (download_ok) {
+    bool download_ok = false;
+    std::wstring download_error;
+    {
         const std::wstring local_dir = ::xllama::utf8_to_wstring(model_dir);
-        ::xllama::ModelDownloader::Invalidate(local_dir);
         try {
             auto* output_stream = output.get();
             ::xllama::ModelDownloader::DownloadAsync(
@@ -1281,13 +1261,15 @@ void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t g
             (void)output->write_line(ollama_error_json(message));
             output->finish();
         } else {
-            write_response(socket, "500 Internal Server Error", ollama_error_json(message));
+            write_response(socket,
+                           download_error == ::xllama::ModelDownloader::kBusyError
+                               ? "409 Conflict"
+                               : "500 Internal Server Error",
+                           ollama_error_json(message));
         }
         return;
     }
 
-    remove_stale_gguf_files(std::filesystem::path(::xllama::utf8_to_wstring(model_dir)),
-                            entry->files);
     if (output)
         (void)output->write_line(pull_event_json("loading model"));
 

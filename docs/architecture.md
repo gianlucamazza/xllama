@@ -179,8 +179,10 @@ KV-reuse is on.
 ### KV snapshot pool (`KvStore`)
 
 Leaving a conversation writes its KV to `LocalState\kv\<id>.kv` and the first
-turn back restores it, so the switch costs a delta prefill instead of the
-history. The pool is managed by `KvStore` (`include/xllama/kv_store.h`):
+turn back restores it. A matching token prefix costs a delta prefill instead of
+the history. If re-rendered history diverges inside the saved tail, a hybrid
+recurrent cache can refuse the rewind; the session then clears it and prefills
+the full prompt safely. Snapshot restoration alone is not a delta-reuse guarantee. The pool is managed by `KvStore` (`include/xllama/kv_store.h`):
 
 - **Fingerprinted** (model, n_ctx, KV quant, LoRA) — stale snapshots are
   harmless by construction (they fall back to a normal prefill).
@@ -590,7 +592,7 @@ host Release smoke (quality + peak)
 ## Unit test map (host suite)
 
 Every `include/xllama/X.h` has a corresponding `tests/test_X.cpp`. The suite
-is **243 test cases / 4346 assertions** (doctest).
+is **264 test cases / 4435 assertions** (doctest, without opt-in model checks).
 
 | Test file                     | Tests | Header under test                  |
 | ----------------------------- | ----- | ---------------------------------- |
@@ -601,6 +603,7 @@ is **243 test cases / 4346 assertions** (doctest).
 | `test_prompt_budget.cpp`      | —     | `prompt_budget.h`                  |
 | `test_personalize.cpp`        | —     | `personalize.h`                    |
 | `test_model_provision.cpp`    | —     | `model_provision.h`                |
+| `test_model_write.cpp`        | 5     | `model_write.h`                    |
 | `test_session.cpp`            | —     | `session.h`                        |
 | `test_sampling.cpp`           | —     | `sampling.h`                       |
 | `test_training.cpp`           | —     | `training.h` / `training_params.h` |

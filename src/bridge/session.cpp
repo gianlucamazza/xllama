@@ -612,10 +612,14 @@ class LlamaSession final : public Session {
                 // clear + re-prefill instead.
                 if (kv_keep < m_kv_tokens.size() &&
                     !llama_memory_seq_rm(mem, 0, static_cast<llama_pos>(kv_keep), -1)) {
+                    char rb[256];
+                    snprintf(rb, sizeof(rb),
+                             "[xllama] session: KV rewind unsupported (hybrid cache) — "
+                             "full re-prefill (#170): common=%zu resident=%zu prompt=%zu\n",
+                             kv_keep, m_kv_tokens.size(), tokens.size());
+                    log_output(rb);
                     llama_memory_clear(mem, true);
                     kv_keep = 0;
-                    log_output("[xllama] session: KV rewind unsupported (hybrid cache) — "
-                               "full re-prefill (#170)\n");
                 } else {
                     char pb[128];
                     snprintf(pb, sizeof(pb),

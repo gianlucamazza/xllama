@@ -478,3 +478,43 @@ TEST_CASE(
         CHECK(saw_clean_overflow);
     }
 }
+
+// Snapshot restoration is not a promise that a hybrid recurrent state can
+// rewind to edited/re-rendered history. Compare its fallback with a fresh run.
+TEST_CASE("Session: divergent restored snapshot matches cold prefill (opt-in: XLLAMA_TEST_MODEL)") {
+    const char* model = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model)
+        return;
+    const auto path = std::filesystem::temp_directory_path() / "xllama-divergent-state.bin";
+    xllama::SessionParams sp;
+    sp.model_path = model;
+    sp.n_ctx = 512;
+    sp.n_threads = 2;
+    std::string error;
+    auto source = xllama::Session::create(sp, &error);
+    REQUIRE_MESSAGE(source, error);
+    xllama::GenerateParams gp;
+    gp.prompt = "<|im_start|>user\nSay hello.<|im_end|>\n<|im_start|>assistant\n";
+    gp.n_predict = 12;
+    gp.temperature = 0;
+    REQUIRE(source->generate(gp).success);
+    REQUIRE_MESSAGE(source->save_state(path.string(), &error), error);
+    source.reset();
+    auto restored = xllama::Session::create(sp, &error);
+    REQUIRE_MESSAGE(restored, error);
+    REQUIRE_MESSAGE(restored->load_state(path.string(), &error), error);
+    gp.prompt += "Edited assistant reply.<|im_end|>\n<|im_start|>user\nSay goodbye."
+                 "<|im_end|>\n<|im_start|>assistant\n";
+    const auto actual = restored->generate(gp);
+    REQUIRE_MESSAGE(actual.success, actual.error_msg);
+    restored.reset();
+    auto cold = xllama::Session::create(sp, &error);
+    REQUIRE_MESSAGE(cold, error);
+    const auto expected = cold->generate(gp);
+    REQUIRE_MESSAGE(expected.success, expected.error_msg);
+    CHECK(actual.n_p_eval <= expected.n_p_eval);
+    if (actual.n_p_eval == expected.n_p_eval)
+        CHECK(actual.output_text == expected.output_text);
+    std::error_code ec;
+    std::filesystem::remove(path, ec);
+}

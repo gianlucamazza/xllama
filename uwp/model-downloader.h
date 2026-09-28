@@ -12,6 +12,7 @@
     #include <vector>
 
     #include "xllama/catalog_trust.h"
+    #include "xllama/model_write.h"
 
 namespace xllama {
 
@@ -34,11 +35,12 @@ class ModelDownloader {
     // Returns true if all files have been downloaded (marker file present).
     static bool IsComplete(std::wstring const& local_dir);
 
-    // Remove the .complete marker to force a re-download on next launch.
-    static void Invalidate(std::wstring const& local_dir);
+    // The ONE process-wide gate, also used by the GUI USB importer.
+    static ModelWriteGate& WriterGate();
+    static constexpr const wchar_t* kBusyError = L"another model write is in progress";
 
     // Download all files in |files| from |hf_repo_url|/<filename> to
-    // |local_dir|/<filename>. |local_dir| must already exist.
+    // |local_dir|/<filename>. The writer creates |local_dir| after admission.
     // on_progress(bytes_done, bytes_total): called periodically; bytes_total
     //   is the sum of approx_bytes across files (may be 0 if unknown).
     // on_done(success, error_message): called exactly once when finished.

@@ -67,7 +67,11 @@ hardware gates pass:
   (`KV state saved`, `KV snapshot restored`) the gate compares **prompt-token
   counts**: the returning turn must prefill under a quarter of the cold turn. A
   snapshot that is written, restored and then ignored passes both log checks and
-  fails this one. The injected history is deliberately kept **under** the trimmer
+  fails this one. Seed replies are one-token greedy replies to keep the saved
+  prefix append-only. This measures the supported optimization, not hybrid tail
+  rewind: completed/re-rendered replies can diverge inside the saved tail, where
+  LFM must safely full-prefill. `validate-kv-fallback.py` forces that divergence
+  and compares its output and token count with a cold session. The injected history is deliberately kept **under** the trimmer
   budget, so a trim cannot muddy the signal with #169's shift;
 - **coderpaste** (#193) — a long paste on a coding session (`n_ctx` 4096), in two
   regimes and two runs, on `qwen25-coder-0.5b`. **A**: past the 2048 logical

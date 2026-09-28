@@ -69,32 +69,6 @@ static std::wstring local_wpath(const wchar_t* filename_w) {
     return std::wstring(folder.Path().c_str()) + L"\\" + filename_w;
 }
 
-// Remove superseded GGUFs only after the replacement download has completed.
-// Deleting them before download would turn a transient network failure into a
-// lost working model.
-static void remove_stale_gguf_after_success(const std::wstring& model_dir,
-                                            const std::vector<std::wstring>& expected_files) {
-    std::vector<std::wstring> expected;
-    for (const auto& file : expected_files)
-        expected.push_back(::xllama::normalize_model_path(file));
-    std::error_code ec;
-    for (const auto& entry : std::filesystem::directory_iterator(model_dir, ec)) {
-        if (!entry.is_regular_file(ec) || entry.path().extension() != L".gguf")
-            continue;
-        const auto name = ::xllama::normalize_model_path(entry.path().filename().wstring());
-        if (name == L"adapter.gguf")
-            continue; // personalization data is not a superseded base model
-        if (std::find(expected.begin(), expected.end(), name) == expected.end()) {
-            std::error_code remove_ec;
-            std::filesystem::remove(entry.path(), remove_ec);
-            if (!remove_ec)
-                log_output(("[xllama] EnsureModel: removed superseded file '" +
-                            ::xllama::wstring_to_utf8(entry.path().filename().wstring()) + "'\n")
-                               .c_str());
-        }
-    }
-}
-
 // #170b: where per-conversation KV snapshots live. Created on demand by the
 // save path; every reader tolerates its absence.
 static ::xllama::KvStore kv_store() {
@@ -1716,21 +1690,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     self->m_n_predict = static_cast<int>(nPredSlider.Value());
     if (mi >= 0 && mi < (int)model_keys.size()) {
         std::wstring new_model = model_keys[mi];
-        if (new_model != self->m_model_filename) {
-            self->m_model_filename = new_model;
-            self->m_modelText.Text(new_model);
-            self->ApplyCatalogueModelKnobs(new_model);
-            {
-                auto& hub = ::xllama::session_hub();
-                std::lock_guard<std::mutex> hub_lk(hub.mtx);
-                hub.reset_locked();
-            }
-            self->m_kv_valid = false;
-            self->m_model_ready.store(false);
-            self->m_runButton.IsEnabled(false);
-            self->SetStatus(L"Loading model...", StatusKind::Working);
-            self->EnsureModelNamedAsync(new_model, true);
-        }
+        self->SelectModel(new_model);
     }
     self->m_kv_reuse = kvToggle.IsOn();
     #ifndef XLLAMA_STORE_SKU
@@ -2303,6 +2263,27 @@ void MainPageController::FinishDiffusion() {
 }
 
 // ---------------------------------------------------------------------------
+// Settings and autopilot select through the same resident/provisioning policy.
+bool MainPageController::SelectModel(const std::wstring& name) {
+    if (name == m_model_filename)
+        return false;
+    m_model_filename = name;
+    m_modelText.Text(name);
+    m_active_model.clear();
+    ApplyCatalogueModelKnobs(name);
+    {
+        auto& hub = ::xllama::session_hub();
+        std::lock_guard<std::mutex> lock(hub.mtx);
+        hub.reset_locked();
+    }
+    m_kv_valid = false;
+    m_model_ready.store(false);
+    m_runButton.IsEnabled(false);
+    SetStatus(L"Loading model...", StatusKind::Working);
+    EnsureModelNamedAsync(name, true);
+    return true;
+}
+
 // Model provisioning — catalogue / USB / bundled. EnsureModelAsync loads the
 // selected chat model; EnsureGpuModelIfNeeded queues gpu_model when routing≠0.
 // ---------------------------------------------------------------------------
@@ -2463,6 +2444,14 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
             self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Visible);
             self->m_runButton.IsEnabled(false);
 
+            ModelWriteOperation writer(ModelDownloader::WriterGate(), local_model_dir);
+            if (!writer.owns_lock()) {
+                self->m_loadingBar.IsIndeterminate(false);
+                self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Collapsed);
+                self->m_runButton.IsEnabled(true);
+                self->SetStatus(ModelDownloader::kBusyError, StatusKind::Error);
+                co_return;
+            }
             bool copy_ok = false;
             std::wstring copy_err;
             try {
@@ -2485,6 +2474,11 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                 if (!usb_model_folder)
                     throw std::runtime_error("USB folder disappeared");
 
+                std::error_code begin_ec;
+                if (!writer.begin(begin_ec))
+                    throw std::runtime_error("Cannot prepare USB model write: " +
+                                             begin_ec.message());
+
                 // Destination: LocalState\models\<name>
                 // CreateFolderAsync with OpenIfExists creates or opens — no try/catch needed.
                 auto local_folder2 =
@@ -2497,16 +2491,21 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                 // Copy each file
                 auto files = co_await usb_model_folder.GetFilesAsync();
                 for (auto const& f : files) {
+                    if (f.Name() == L".complete")
+                        continue; // publish only after all files have been copied
                     log_output(("[xllama] USB copy: " +
                                 ::xllama::wstring_to_utf8(std::wstring(f.Name().c_str())) + "\n")
                                    .c_str());
+                    if (normalize_model_path(std::wstring(f.Name().c_str())) == L"adapter.gguf" &&
+                        co_await dest_folder.TryGetItemAsync(f.Name()))
+                        continue; // a local personalization adapter belongs to its owner
                     co_await f.CopyAsync(dest_folder, f.Name(),
                                          NameCollisionOption::ReplaceExisting);
                 }
-                // Write .complete marker
-                auto marker = co_await dest_folder.CreateFileAsync(
-                    L".complete", CreationCollisionOption::ReplaceExisting);
-                co_await winrt::Windows::Storage::FileIO::WriteTextAsync(marker, L"ok");
+                std::error_code complete_ec;
+                if (!writer.complete({}, complete_ec))
+                    throw std::runtime_error("Cannot complete USB model write: " +
+                                             complete_ec.message());
                 copy_ok = true;
             } catch (winrt::hresult_error const& e) {
                 copy_err = std::wstring(e.message().c_str());
@@ -2516,6 +2515,7 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                 copy_err = L"Unknown error during USB copy";
             }
 
+            writer.release();
             self->m_loadingBar.IsIndeterminate(false);
             self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Collapsed);
             if (!copy_ok) {
@@ -2579,29 +2579,6 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
         self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Visible);
         self->m_runButton.IsEnabled(false);
     }
-    co_await resume_background();
-
-    // Create local model directory.
-    {
-        std::error_code ec;
-        std::filesystem::create_directories(local_model_dir, ec);
-        if (ec) {
-            co_await resume_foreground(dispatcher);
-            self->SetStatus(std::wstring(L"Cannot create model dir: ") +
-                                winrt::to_hstring(ec.message()).c_str(),
-                            StatusKind::Error);
-            co_return;
-        }
-    }
-
-    // Reconcile the marker before downloading. Superseded GGUFs are removed only
-    // after a successful replacement; a failed update must leave the old model
-    // usable for rollback/retry.
-    {
-        ModelDownloader::Invalidate(local_model_dir);
-    }
-
-    co_await resume_foreground(dispatcher);
 
     co_await ModelDownloader::DownloadAsync(
         entry->hf_base_url, local_model_dir, entry->files, dispatcher,
@@ -2620,7 +2597,7 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                                 StatusKind::Working);
             }
         },
-        [self, set_app_ready, local_model_dir, expected_files](bool ok, std::wstring err) {
+        [self, set_app_ready](bool ok, std::wstring err) {
             if (set_app_ready) {
                 self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Collapsed);
                 self->m_runButton.IsEnabled(true);
@@ -2633,7 +2610,6 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                     self->SetStatus(L"Download failed: " + err, StatusKind::Error);
                 return;
             }
-            remove_stale_gguf_after_success(local_model_dir, expected_files);
             log_output("[xllama] EnsureModel: download complete\n");
             if (set_app_ready) {
                 self->SetStatus(L"Model ready", StatusKind::Success);
@@ -3499,13 +3475,28 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
             // Same as ShowSettings' Save path, plus clear the sticky routed model
             // so the next send re-decides the EP for the new model. Catalogue
             // n_predict (thinking 1024) applies here so gates need not restate it.
-            ApDispatchSync([this, name]() {
-                m_model_filename = name;
-                m_modelText.Text(name);
+            bool changed = false;
+            ApDispatchSync([this, name, &changed]() {
+                changed = SelectModel(name);
                 m_active_model.clear();
                 ApplyCatalogueModelKnobs(name);
                 SaveSettings();
             });
+            if (changed) {
+                const auto deadline =
+                    std::chrono::steady_clock::now() +
+                    (a.timeout.count() > 0 ? a.timeout : std::chrono::seconds{300});
+                while (!m_model_ready.load()) {
+                    std::wstring status;
+                    ApDispatchSync([this, &status] { status = m_statusText.Text().c_str(); });
+                    if (status.rfind(L"! ", 0) == 0)
+                        throw std::runtime_error("set_model: " +
+                                                 ::xllama::wstring_to_utf8(status.substr(2)));
+                    if (std::chrono::steady_clock::now() >= deadline)
+                        throw std::runtime_error("set_model: model readiness timeout");
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                }
+            }
         } else if (a.op == "set_api") {
     #ifndef XLLAMA_STORE_SKU
             if (a.enabled && !::xllama::api::port_bindable(a.port))

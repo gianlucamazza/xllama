@@ -1,6 +1,8 @@
 # ADR 0001: Serialize model writes at the downloader boundary
 
-Status: Proposed
+Status: Accepted (2026-09-28)
+
+Accepted by the owner: "procedi tu" after the explicit ADR acceptance gate.
 
 ## Context
 

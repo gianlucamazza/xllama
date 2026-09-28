@@ -816,6 +816,10 @@ validate_kvsnap() {
 	# the snapshot written on the way out is restored on the way back, and the
 	# #170a prefix diff turns it into a delta prefill. The measurable claim is
 	# the prompt-token count of the returning turn against the cold one.
+	# One-token greedy replies keep the saved prefix append-only. A completed
+	# reply may be re-tokenized after trimming whitespace, requiring a rewind
+	# that LFM's hybrid state cannot perform; that fallback has a separate cold
+	# reference regression (test_session.cpp and validate-kv-fallback.py).
 	local cid="ap-170b-switch"
 	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
 	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling "$DEFAULT_N_CTX")" "$EST_CHARS_PER_TOK" <<'PY'
@@ -859,11 +863,12 @@ PY
 {"total_timeout_s": 800, "actions": [
   {"op": "set_model", "name": "lfm25-350m", "timeout_s": 300},
   {"op": "set_kv_reuse", "enabled": true},
-  {"op": "set_sampling", "n_predict": 24, "temperature": 0.7},
+  {"op": "set_sampling", "n_predict": 1, "temperature": 0.0},
   {"op": "load_chat", "id": "${cid}"},
   {"op": "send", "text": "Summarize item 02 in one sentence.", "timeout_s": 240},
   {"op": "new_chat"},
   {"op": "send", "text": "Say hello.", "timeout_s": 180},
+  {"op": "set_sampling", "n_predict": 24, "temperature": 0.0},
   {"op": "load_chat", "id": "${cid}"},
   {"op": "send", "text": "Now summarize item 05 in one sentence.", "timeout_s": 240},
   {"op": "quit"}
