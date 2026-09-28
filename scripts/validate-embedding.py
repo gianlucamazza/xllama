@@ -47,7 +47,11 @@ def main():
         )
         assert status == expected, (route, status, body)
         if expected != 200:
-            assert "error" in body, body
+            if route.startswith("/api/"):
+                assert isinstance(body.get("error"), str) and body["error"], body
+            else:
+                assert isinstance(body.get("error"), dict), body
+                assert isinstance(body["error"].get("message"), str), body
         return body
 
     def vector(values, expected_width=width):
@@ -89,6 +93,9 @@ def main():
 
         request("/api/embed", {"input": ""}, 400)
         request("/api/embed", {"input": []}, 400)
+        request("/api/embeddings", {"prompt": ""}, 400)
+        request("/v1/embeddings", {"input": []}, 400)
+        request("/v1/embeddings", {"input": text, "encoding_format": "invalid"}, 400)
         request("/api/embed", {"input": text, "dimensions": width + 1}, 400)
         if args.model == "embed-bge-m3":
             request("/api/embed", {"input": text, "dimensions": 256}, 400)

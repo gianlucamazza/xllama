@@ -235,8 +235,11 @@ applies when the user opens Image; the API does not download the model for you).
 `Session::generate()` is single-slot / non-concurrent. Requests acquire the
 process-wide `session_hub().mtx` with `try_lock`: a request arriving while
 another request **or a chat-UI turn** is generating gets **HTTP 503**
-`{"error":{"message":"busy"}}` — the Ollama single-slot semantics, widened to
-the whole process. One exception: while the session **pre-load** is holding
+`{"error":{"message":"busy"}}` for OpenAI-compatible routes and
+`{"error":"busy"}` for native Ollama embedding routes. The slot covers the
+whole process. Native `/api/embed`, `/api/embeddings`, and `/api/pull` errors
+always expose a non-empty string in `error`; `/v1/embeddings` exposes an error
+object with `message` and `type`. One exception: while the session **pre-load** is holding
 the hub (right after a model becomes Ready), `acquire_hub_or_busy()` waits —
 bounded, ≤15 s, only while `hub.preloading` is set — instead of bouncing the
 client's very first request. Stopping the endpoint closes the listener only;

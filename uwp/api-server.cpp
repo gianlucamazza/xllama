@@ -298,7 +298,7 @@ std::string pull_event_json(const std::string& status, uint64_t completed = 0, u
     return winrt::to_string(root.Stringify());
 }
 
-std::string pull_error_json(const std::string& message) {
+std::string ollama_error_json(const std::string& message) {
     JsonObject root;
     root.Insert(L"error", JsonValue::CreateStringValue(winrt::to_hstring(message)));
     return winrt::to_string(root.Stringify());
@@ -644,6 +644,11 @@ std::string tags_json() {
 
 enum class EmbeddingApi { Ollama, Legacy, OpenAI };
 
+std::string embedding_error_json(EmbeddingApi api, const std::string& message) {
+    // Native Ollama errors expose a string; OpenAI exposes a typed object.
+    return api == EmbeddingApi::OpenAI ? error_json(message) : ollama_error_json(message);
+}
+
 // Conservative GGUF preflight based on the console gate used for xllama's
 // catalogue scouting: model weight bytes × the measured 1.12 load overhead.
 // This runs before Session::create so a known oversized embedding model cannot
@@ -680,14 +685,14 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
     JsonObject root{nullptr};
     if (!JsonObject::TryParse(winrt::to_hstring(body), root) || root == nullptr) {
         status = "400 Bad Request";
-        return error_json("invalid JSON body");
+        return embedding_error_json(api, "invalid JSON body");
     }
     std::string model = winrt::to_string(root.GetNamedString(L"model", L""));
     if (model.empty())
         model = read_local_text("model.txt");
     if (model.empty()) {
         status = "400 Bad Request";
-        return error_json("missing 'model' (and no LocalState\\model.txt fallback)");
+        return embedding_error_json(api, "missing 'model' (and no LocalState\\model.txt fallback)");
     }
 
     model = ::xllama::resolve_pull_model_name(model);
@@ -696,7 +701,8 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
     const wchar_t* input_key = api == EmbeddingApi::Legacy ? L"prompt" : L"input";
     if (!root.HasKey(input_key)) {
         status = "400 Bad Request";
-        return error_json(api == EmbeddingApi::Legacy ? "missing 'prompt'" : "missing 'input'");
+        return embedding_error_json(api, api == EmbeddingApi::Legacy ? "missing 'prompt'"
+                                                                     : "missing 'input'");
     }
     const IJsonValue input_value = root.GetNamedValue(input_key);
     if (input_value.ValueType() == JsonValueType::String) {
@@ -707,25 +713,25 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
             const IJsonValue v = arr.GetAt(i);
             if (v.ValueType() != JsonValueType::String) {
                 status = "400 Bad Request";
-                return error_json("every input array item must be a string");
+                return embedding_error_json(api, "every input array item must be a string");
             }
             inputs.push_back(winrt::to_string(v.GetString()));
         }
     } else {
         status = "400 Bad Request";
-        return error_json(api == EmbeddingApi::Legacy
-                              ? "prompt must be a string"
-                              : "input must be a string or array of strings");
+        return embedding_error_json(api, api == EmbeddingApi::Legacy
+                                             ? "prompt must be a string"
+                                             : "input must be a string or array of strings");
     }
     if (inputs.empty() || inputs.size() > 128) {
         status = "400 Bad Request";
-        return error_json(inputs.empty() ? "input array must not be empty"
-                                         : "input batch is limited to 128 items");
+        return embedding_error_json(api, inputs.empty() ? "input array must not be empty"
+                                                        : "input batch is limited to 128 items");
     }
     for (const auto& input : inputs) {
         if (input.empty()) {
             status = "400 Bad Request";
-            return error_json("input items must not be empty");
+            return embedding_error_json(api, "input items must not be empty");
         }
     }
 
@@ -734,7 +740,7 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
         const double raw = root.GetNamedNumber(L"dimensions");
         if (raw < 0 || raw > 32768 || raw != static_cast<int>(raw)) {
             status = "400 Bad Request";
-            return error_json("dimensions must be a non-negative integer");
+            return embedding_error_json(api, "dimensions must be a non-negative integer");
         }
         dimensions = static_cast<int>(raw);
     }
@@ -742,7 +748,7 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
     // catalogue contract. Keep its native vector width on every adapter.
     if (model == "embed-bge-m3" && dimensions != 0 && dimensions != 1024) {
         status = "400 Bad Request";
-        return error_json("BGE-M3 dimensions must be 0 or 1024");
+        return embedding_error_json(api, "BGE-M3 dimensions must be 0 or 1024");
     }
     bool truncate = true;
     if (root.HasKey(L"truncate"))
@@ -753,14 +759,14 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
         encoding = winrt::to_string(root.GetNamedString(L"encoding_format"));
         if (encoding != "float" && encoding != "base64") {
             status = "400 Bad Request";
-            return error_json("encoding_format must be 'float' or 'base64'");
+            return embedding_error_json(api, "encoding_format must be 'float' or 'base64'");
         }
     }
 
     const CatalogueSessionPolicy policy = catalogue_session_policy(model);
     if (!policy.embedding || !policy.gguf) {
         status = "400 Bad Request";
-        return error_json("model is not a catalogue embedding GGUF");
+        return embedding_error_json(api, "model is not a catalogue embedding GGUF");
     }
     const auto started = std::chrono::steady_clock::now();
     if (::xllama::model_uses_llama_backend(model)) {
@@ -768,9 +774,10 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
         const uint64_t estimated_peak_mb = estimate_gguf_peak_mb(model);
         if (estimated_peak_mb > kEmbeddingPeakGateMb) {
             status = "400 Bad Request";
-            return error_json("estimated GGUF peak memory is " + std::to_string(estimated_peak_mb) +
-                              " MB, above the Xbox embedding "
-                              "gate of 3584 MB; choose a smaller GGUF model");
+            return embedding_error_json(api, "estimated GGUF peak memory is " +
+                                                 std::to_string(estimated_peak_mb) +
+                                                 " MB, above the Xbox embedding "
+                                                 "gate of 3584 MB; choose a smaller GGUF model");
         }
     }
     ::xllama::Session* session = nullptr;
@@ -783,7 +790,7 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
     if (root.HasKey(L"options") &&
         root.GetNamedValue(L"options").ValueType() != JsonValueType::Object) {
         status = "400 Bad Request";
-        return error_json("options must be an object");
+        return embedding_error_json(api, "options must be an object");
     }
     if (root.HasKey(L"options")) {
         const JsonObject options = root.GetNamedObject(L"options");
@@ -791,9 +798,10 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
             const double raw = options.GetNamedNumber(L"num_ctx");
             if (raw < 32 || raw > policy.n_ctx || raw != static_cast<int>(raw)) {
                 status = "400 Bad Request";
-                return error_json("options.num_ctx must be an integer from 32 to the configured "
-                                  "model context limit (" +
-                                  std::to_string(policy.n_ctx) + ")");
+                return embedding_error_json(
+                    api, "options.num_ctx must be an integer from 32 to the configured "
+                         "model context limit (" +
+                             std::to_string(policy.n_ctx) + ")");
             }
             sp.n_ctx = static_cast<int>(raw);
         }
@@ -804,7 +812,7 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
     session = hub.ensure_locked(model, sp, &err);
     if (!session) {
         status = "500 Internal Server Error";
-        return error_json("session create failed: " + err);
+        return embedding_error_json(api, "session create failed: " + err);
     }
     const auto loaded = std::chrono::steady_clock::now();
 
@@ -826,7 +834,7 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
                 result.error_msg.find("ranking") != std::string::npos ||
                 result.error_msg.find("encoder-only") != std::string::npos;
             status = client_error ? "400 Bad Request" : "500 Internal Server Error";
-            return error_json(result.error_msg);
+            return embedding_error_json(api, result.error_msg);
         }
         prompt_tokens += result.n_tokens;
         embedding_width = result.embedding.size();
@@ -1270,10 +1278,10 @@ void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t g
     if (!download_ok) {
         const std::string message = ::xllama::wstring_to_utf8(download_error);
         if (output) {
-            (void)output->write_line(pull_error_json(message));
+            (void)output->write_line(ollama_error_json(message));
             output->finish();
         } else {
-            write_response(socket, "500 Internal Server Error", pull_error_json(message));
+            write_response(socket, "500 Internal Server Error", ollama_error_json(message));
         }
         return;
     }
@@ -1291,10 +1299,10 @@ void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t g
     if (!server_active) {
         const std::string message = "server stopped before model load";
         if (output) {
-            (void)output->write_line(pull_error_json(message));
+            (void)output->write_line(ollama_error_json(message));
             output->finish();
         } else {
-            write_response(socket, "503 Service Unavailable", pull_error_json(message));
+            write_response(socket, "503 Service Unavailable", ollama_error_json(message));
         }
         return;
     }
@@ -1323,12 +1331,12 @@ void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t g
     if (!loaded) {
         const std::string message = "model downloaded but could not load: " + load_error;
         if (output) {
-            (void)output->write_line(pull_error_json(message));
+            (void)output->write_line(ollama_error_json(message));
             output->finish();
         } else {
             write_response(socket,
                            server_active ? "500 Internal Server Error" : "503 Service Unavailable",
-                           pull_error_json(message));
+                           ollama_error_json(message));
         }
         return;
     }
@@ -1426,7 +1434,8 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                                                             : EmbeddingApi::OpenAI;
             std::unique_lock<std::mutex> lk = acquire_hub_or_busy();
             if (!lk.owns_lock()) {
-                write_response(socket, "503 Service Unavailable", error_json("busy"));
+                write_response(socket, "503 Service Unavailable",
+                               embedding_error_json(embedding_api, "busy"));
                 return;
             }
             bool active = false;
@@ -1435,7 +1444,8 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                 active = g_status.state == ServerState::Running && generation == g_generation;
             }
             if (!active) {
-                write_response(socket, "503 Service Unavailable", error_json("server stopped"));
+                write_response(socket, "503 Service Unavailable",
+                               embedding_error_json(embedding_api, "server stopped"));
                 return;
             }
             const char* status = "200 OK";
@@ -1444,7 +1454,7 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                 json = handle_embedding_locked(req.body, status, embedding_api);
             } catch (...) {
                 status = "400 Bad Request";
-                json = error_json("malformed embedding request");
+                json = embedding_error_json(embedding_api, "malformed embedding request");
             }
             write_response(socket, status, json);
             return;
