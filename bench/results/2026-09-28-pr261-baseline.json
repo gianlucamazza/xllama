@@ -1,0 +1,38 @@
+{
+  "date": "2026-09-28",
+  "platform": "Xbox Series S Dev Mode",
+  "source_commit": "4bad1d58d3c38dbab3d484e1dab5a611cc20c58e",
+  "workflow_run": 36394681372,
+  "artifact": "xllama-appx",
+  "package": "GianlucaMazza.xllama_1.5.6.1013_x64__pj67f1fcj4n14",
+  "console_suite": {
+    "exit_code": 0,
+    "passed": [
+      "routing",
+      "settings",
+      "gguf",
+      "longchat",
+      "kvsnap",
+      "coderpaste",
+      "thinkcut",
+      "thinkdone",
+      "genroom",
+      "taesd"
+    ]
+  },
+  "lan_suite": {
+    "exit_code": 0,
+    "passed": [
+      "spike",
+      "chat",
+      "budget",
+      "prefs",
+      "train"
+    ]
+  },
+  "notes": [
+    "Baseline package built from main by CI MSVC; upgrade preserved LocalState.",
+    "Embeddings and model pulling are absent from this baseline and were not tested.",
+    "Full LocalState backup excluding model directories retained outside the repository."
+  ]
+}

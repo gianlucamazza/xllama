@@ -17,7 +17,7 @@
 #          EMBED_MODEL to identify an embedding GGUF already on the console.
 #   prefs  POST /v1/preferences -> appends a like sample (#118).
 #   train  GET /v1/training/status -> JSON with state + usable_samples (#118).
-#   all    spike + chat + budget + prefs + train (images need SD-Turbo on device — manual).
+#   all    spike + chat + embed + budget + prefs + train + pull (images are manual).
 #
 # Requires: an installed xllama build with the endpoint, a chat model already in
 # LocalState (set MODEL, or seed LocalState\model.txt), and XBOX_IP/USER/PASS.
@@ -49,6 +49,12 @@ PFN=$("${DEPLOY}" pfn 2>/dev/null)
 	echo "Error: xllama not found — deploy it first" >&2
 	exit 1
 }
+
+# A trial must never silently measure a different installed package.
+if [[ -n "${XLLAMA_EXPECTED_PFN:-}" && "$PFN" != "$XLLAMA_EXPECTED_PFN" ]]; then
+	echo "Error: installed package $PFN differs from expected $XLLAMA_EXPECTED_PFN" >&2
+	exit 1
+fi
 
 TMPDIR_LOCAL=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_LOCAL"' EXIT
@@ -201,76 +207,12 @@ except Exception:
 # --- embedding round-trips -------------------------------------------------
 
 validate_embed() {
-	local embed_model="${EMBED_MODEL:-embed-nomic-v15}" req resp code verdict=0
-	echo "=== embed: Ollama + OpenAI embedding routes (${embed_model}) ==="
-	req=$(python3 -c 'import json,sys; print(json.dumps({"model":sys.argv[1],"input":["search_document: a red car","search_query: find a car"],"dimensions":256}))' "$embed_model")
-	code=$(curl -sS -m 300 -o "${TMPDIR_LOCAL}/embed.json" -w "%{http_code}" \
-		-H 'Content-Type: application/json' -d "$req" "${API_URL}/api/embed" || echo "000")
-	resp=$(cat "${TMPDIR_LOCAL}/embed.json" 2>/dev/null || true)
-	if [[ "$code" == "200" ]] && printf '%s' "$resp" | python3 -c '
-import json,sys
-d=json.load(sys.stdin)
-assert len(d["embeddings"]) == 2
-assert all(len(v) == 256 for v in d["embeddings"])
-assert d["prompt_eval_count"] > 0 and d["total_duration"] >= d["load_duration"]
-'; then
-		echo "  ok: Ollama batch shape, dimensions, token count and timings"
-	else
-		echo "  FAIL: /api/embed HTTP ${code}: ${resp:0:200}"
-		verdict=1
+	local embed_model="${EMBED_MODEL:-embed-nomic-v2-moe}"
+	local evidence_args=()
+	if [[ -n "${XLLAMA_API_EVIDENCE_DIR:-}" ]]; then
+		evidence_args=(--out "${XLLAMA_API_EVIDENCE_DIR}/${embed_model}.json")
 	fi
-
-	req=$(python3 -c 'import json,sys; print(json.dumps({"model":sys.argv[1],"prompt":"search_query: find a car"}))' "$embed_model")
-	code=$(curl -sS -m 300 -o "${TMPDIR_LOCAL}/embed-legacy.json" -w "%{http_code}" \
-		-H 'Content-Type: application/json' -d "$req" "${API_URL}/api/embeddings" || echo "000")
-	if [[ "$code" == "200" ]] && python3 -c 'import json,sys; assert json.load(open(sys.argv[1]))["embedding"]' "${TMPDIR_LOCAL}/embed-legacy.json"; then
-		echo "  ok: legacy /api/embeddings adapter"
-	else
-		echo "  FAIL: legacy route HTTP ${code}"
-		verdict=1
-	fi
-
-	req=$(python3 -c 'import json,sys; print(json.dumps({"model":sys.argv[1],"input":"search_query: find a car","encoding_format":"base64"}))' "$embed_model")
-	code=$(curl -sS -m 300 -o "${TMPDIR_LOCAL}/embed-openai.json" -w "%{http_code}" \
-		-H 'Content-Type: application/json' -d "$req" "${API_URL}/v1/embeddings" || echo "000")
-	if [[ "$code" == "200" ]] && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["data"][0]["object"] == "embedding" and isinstance(d["data"][0]["embedding"],str) and d["usage"]["prompt_tokens"] > 0' "${TMPDIR_LOCAL}/embed-openai.json"; then
-		echo "  ok: OpenAI base64 shape + usage"
-	else
-		echo "  FAIL: /v1/embeddings HTTP ${code}"
-		verdict=1
-	fi
-
-	code=$(curl -sS -m 30 -o "${TMPDIR_LOCAL}/embed-empty.json" -w "%{http_code}" \
-		-H 'Content-Type: application/json' -d "{\"model\":\"${embed_model}\",\"input\":\"\"}" \
-		"${API_URL}/api/embed" || echo "000")
-	if [[ "$code" == "400" ]]; then
-		echo "  ok: empty input rejected as HTTP 400"
-	else
-		echo "  FAIL: empty input returned HTTP ${code}"
-		verdict=1
-	fi
-
-	req=$(python3 -c 'import json,sys; print(json.dumps({"model":sys.argv[1],"input":"search_document: " + "embedding text " * 5000,"truncate":False}))' "$embed_model")
-	code=$(curl -sS -m 60 -o "${TMPDIR_LOCAL}/embed-no-truncate.json" -w "%{http_code}" \
-		-H 'Content-Type: application/json' -d "$req" "${API_URL}/api/embed" || echo "000")
-	if [[ "$code" == "400" ]] && grep -q 'truncate is false' "${TMPDIR_LOCAL}/embed-no-truncate.json"; then
-		echo "  ok: over-context input rejected when truncate=false"
-	else
-		echo "  FAIL: truncate=false over-context input returned HTTP ${code}"
-		verdict=1
-	fi
-
-	req=$(python3 -c 'import json,sys; print(json.dumps({"model":sys.argv[1],"input":"search_document: " + "embedding text " * 5000,"truncate":True}))' "$embed_model")
-	code=$(curl -sS -m 300 -o "${TMPDIR_LOCAL}/embed-truncate.json" -w "%{http_code}" \
-		-H 'Content-Type: application/json' -d "$req" "${API_URL}/api/embed" || echo "000")
-	if [[ "$code" == "200" ]] && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert len(d["embeddings"][0]) > 0 and d["prompt_eval_count"] <= 2048' "${TMPDIR_LOCAL}/embed-truncate.json"; then
-		echo "  ok: over-context input was truncated to the default token window"
-	else
-		echo "  FAIL: truncate=true over-context input returned HTTP ${code}"
-		verdict=1
-	fi
-	[[ $verdict -eq 0 ]] && echo "embed: PASS" || echo "embed: FAIL"
-	return $verdict
+	python3 "${SCRIPT_DIR}/validate-embedding.py" "$API_URL" "$embed_model" "${evidence_args[@]}"
 }
 
 # --- Ollama model pull -----------------------------------------------------
@@ -472,22 +414,18 @@ all)
 		exit 1
 	}
 	validate_chat || rc=1
-	if [[ -n "${EMBED_MODEL:-}" ]]; then
-		validate_embed || rc=1
-	fi
+	validate_embed || rc=1
 	validate_budget || rc=1
 	validate_prefs || rc=1
 	validate_train || rc=1
-	if [[ -n "${PULL_MODEL:-}" ]]; then
-		validate_pull || rc=1
-	fi
+	validate_pull || rc=1
 	echo
 	echo "=== summary ==="
 	[[ $rc -eq 0 ]] && echo "ALL PASS" || echo "SOME FAILED (exit ${rc})"
 	exit $rc
 	;;
 *)
-	echo "Usage: $0 <spike|chat|budget|embed|prefs|train|all>" >&2
+	echo "Usage: $0 <spike|chat|budget|embed|pull|prefs|train|all>" >&2
 	exit 1
 	;;
 esac

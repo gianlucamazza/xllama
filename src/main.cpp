@@ -52,6 +52,9 @@ int main(int argc, char** argv) {
         xllama::SessionParams sp;
         sp.model_path = params.model_path;
         sp.n_ctx = params.n_ctx;
+        sp.n_threads = params.n_threads;
+        sp.n_batch = params.n_batch;
+        sp.n_ubatch = params.n_ubatch;
         sp.backend = xllama::Backend::LlamaCpp;
 
         std::unique_ptr<xllama::Session> session = xllama::Session::create(sp, &err);

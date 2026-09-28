@@ -57,7 +57,7 @@ this is Dev Mode research, not a hosted service.
 | `GET`     | `/api/tags`              | Ollama model discovery — same list, Ollama shape.                                                                                                 |
 | `POST`    | `/api/pull`              | Pull a trusted catalogue chat/embedding model with Ollama-style NDJSON progress; load it when complete.                                           |
 | `POST`    | `/v1/chat/completions`   | OpenAI-compatible chat completion, **non-streaming**.                                                                                             |
-| `POST`    | `/api/embed`             | Ollama-style embeddings for one string or a batch, GGUF/llama.cpp only.                                                                           |
+| `POST`    | `/api/embed`             | Ollama-style embeddings for one string or a batch, catalogue embedding GGUF/llama.cpp only.                                                       |
 | `POST`    | `/api/embeddings`        | Deprecated Ollama single-prompt embeddings adapter.                                                                                               |
 | `POST`    | `/v1/embeddings`         | OpenAI embeddings shape; `encoding_format` accepts `float` or `base64`.                                                                           |
 | `POST`    | `/v1/preferences`        | Append a preference sample (`label` + `messages[]`) to `training/samples.jsonl` — same contract as the UI rate op (#118).                         |
@@ -143,7 +143,8 @@ catalogue with `/api/pull`.
 `/api/embed` accepts `input` as a string or string array (up to 128 items), optional `truncate` (default true),
 `dimensions`, and an Ollama `options` object. `options.num_ctx` can lower the configured
 context and may recreate the resident session when it differs from the active context; it
-cannot exceed xllama's configured model limit. Other sampling options have no
+cannot exceed xllama's configured model limit. Omitting it restores the catalogue context,
+even after a previous request lowered that context. Other sampling options have no
 meaning for embeddings and are ignored. The response follows Ollama's model/embeddings and
 duration/token-count fields. `/api/embeddings` adapts the legacy `prompt` string to an
 `embedding` response. `/v1/embeddings` accepts the same scalar or batch `input` and returns
@@ -175,7 +176,10 @@ Qwen3-Embedding-4B Q4_K_M is not in the catalogue: its Release embedding smoke p
 
 **Dimensions**: `dimensions=0` (the default) returns the model's native width. Non-zero values are accepted only when the model declares Matryoshka support. BGE-M3 is not Matryoshka; requesting any dimensions other than 0 or 1024 returns 400.
 
-**Context limits**: Each model opens at its catalogue `n_ctx` (BGE-M3: 8192, Nomic MoE: 512). The `options.num_ctx` field cannot exceed that limit or go below 32. Inputs longer than context are truncated when `truncate=true` (default), or rejected with 400 when `truncate=false`.
+**Context limits**: Each model opens at its catalogue `n_ctx` (BGE-M3: 8192, Nomic MoE: 512). The `options.num_ctx` field cannot exceed that limit or go below 32. The effective input limit is the smaller of the context and the logical embedding batch
+(default 2048 tokens). Non-causal sequences run in one physical microbatch. Inputs beyond
+that limit are truncated when `truncate=true` (default), or rejected with 400 when
+`truncate=false`.
 
 Embedding models retain their own pooling behavior from GGUF metadata. The API does not inject task prefixes automatically: clients must prepend the appropriate instruction strings themselves. Model pulling is catalogue-only; `/api/show` and full Ollama model-management parity are not implemented.
 
@@ -250,10 +254,15 @@ the Session is hub-owned and is NOT released (the chat UI may be using it).
 
 ## Validation
 
-See `scripts/validate-api.sh` (`spike|chat|embed|prefs|train|all`). Run it **from another host on the LAN**,
+See `scripts/validate-api.sh` (`spike|chat|budget|embed|pull|prefs|train|all`). Run it **from another host on the LAN**,
 not from a client on the console itself — cross-device inbound needs no loopback exemption,
 but a same-host localhost client would (`CheckNetIsolation`). Spike gate first (`GET /` → 200
 proves the bind survives the Series S firewall/PLM), then chat / prefs / train as needed.
+`all` includes pull and embeddings; provision `embed-nomic-v2-moe` first, or set
+`EMBED_MODEL=embed-bge-m3`. Set `XLLAMA_API_EVIDENCE_DIR` to retain the embedding
+requests and responses. The embedding gate verifies native widths, finite unit vectors,
+float/base64 parity, errors, and restoration of the catalogue context.
+
 Images are not in `all` (need SD-Turbo on device; use the curl example above). Chat round-trip:
 
 ```bash

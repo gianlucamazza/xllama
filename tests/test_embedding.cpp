@@ -1,8 +1,10 @@
 // Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 #include "xllama/embedding.h"
+#include "xllama/session.h"
 
 #include <cmath>
+#include <cstdlib>
 #include <doctest/doctest.h>
 
 TEST_CASE("trim_tokens_for_pooling keeps prefix for MEAN and CLS") {
@@ -76,23 +78,44 @@ TEST_CASE("normalize_embedding rejects non-finite model output") {
     CHECK(err.find("non-finite") != std::string::npos);
 }
 
-TEST_CASE("Ollama embedding model aliases map to catalogue ids") {
-    // These aliases are applied in uwp/api-server.cpp handle_embedding_locked.
-    // This test documents the contract: the three Ollama library names map to
-    // the catalogue ids so clients can use either naming scheme.
-    struct Alias {
-        const char* ollama;
-        const char* catalogue;
-    };
-    const Alias aliases[] = {
-        {"bge-m3", "embed-bge-m3"},
-        {"nomic-embed-text-v2-moe", "embed-nomic-v2-moe"},
-        {"qwen3-embedding:4b", "embed-qwen3-4b"},
-    };
-    // No aliasing logic in this test file; we document the contract here and
-    // rely on the API server implementation. A request with the Ollama name
-    // must resolve to the catalogue id before model path lookup.
-    for (const auto& a : aliases) {
-        CHECK(std::string(a.ollama) != std::string(a.catalogue));
+TEST_CASE(
+    "Session: non-causal embeddings handle long sequences (opt-in: XLLAMA_TEST_EMBED_MODEL)") {
+    const char* model = std::getenv("XLLAMA_TEST_EMBED_MODEL");
+    if (!model || !*model)
+        return;
+    xllama::SessionParams sp;
+    sp.model_path = model;
+    sp.n_ctx = 1024;
+    sp.n_threads = 2;
+    std::string err;
+    auto session = xllama::Session::create(sp, &err);
+    REQUIRE_MESSAGE(session != nullptr, err);
+    xllama::EmbeddingParams params;
+    params.input = "search_document: ";
+    for (int i = 0; i < 200; ++i)
+        params.input += "embedding text ";
+    params.truncate = false;
+    const auto result = session->embed(params);
+    REQUIRE_MESSAGE(result.success, result.error_msg);
+    CHECK(result.n_tokens > 512); // exceeds the chat path's physical microbatch
+    CHECK(result.n_tokens <= 1024);
+    double norm2 = 0;
+    for (float value : result.embedding) {
+        REQUIRE(std::isfinite(value));
+        norm2 += static_cast<double>(value) * value;
     }
+    CHECK(std::sqrt(norm2) == doctest::Approx(1.0).epsilon(1e-4));
+    const auto repeated = session->embed(params);
+    REQUIRE_MESSAGE(repeated.success, repeated.error_msg);
+    REQUIRE(repeated.embedding.size() == result.embedding.size());
+    for (size_t i = 0; i < result.embedding.size(); ++i)
+        CHECK(repeated.embedding[i] == doctest::Approx(result.embedding[i]).epsilon(1e-5));
+
+    params.input += params.input;
+    params.input += params.input;
+    CHECK_FALSE(session->embed(params).success);
+    params.truncate = true;
+    const auto truncated = session->embed(params);
+    REQUIRE_MESSAGE(truncated.success, truncated.error_msg);
+    CHECK(truncated.n_tokens == 1024);
 }

@@ -93,6 +93,12 @@ trim_ceiling() {
 	echo "$budget"
 }
 
+# A trial must never silently measure a different installed package.
+if [[ -n "${XLLAMA_EXPECTED_PFN:-}" && "$PFN" != "$XLLAMA_EXPECTED_PFN" ]]; then
+	echo "Error: installed package $PFN differs from expected $XLLAMA_EXPECTED_PFN" >&2
+	exit 1
+fi
+
 TMPDIR_LOCAL=$(mktemp -d)
 VAE_CACHE="" # set by validate_taesd; read by its EXIT trap (must be global)
 # Byte-for-byte copy of xllama.log as it was BEFORE the current autopilot run.

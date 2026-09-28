@@ -690,19 +690,7 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
         return error_json("missing 'model' (and no LocalState\\model.txt fallback)");
     }
 
-    // Ollama library name aliases: map the three Ollama names to catalogue ids.
-    // Applied before resolve_model_path so the manifest lookup works.
-    static const std::pair<const char*, const char*> kAliases[] = {
-        {"bge-m3", "embed-bge-m3"},
-        {"nomic-embed-text-v2-moe", "embed-nomic-v2-moe"},
-        {"qwen3-embedding:4b", "embed-qwen3-4b"},
-    };
-    for (const auto& [ollama_name, catalogue_id] : kAliases) {
-        if (model == ollama_name) {
-            model = catalogue_id;
-            break;
-        }
-    }
+    model = ::xllama::resolve_pull_model_name(model);
 
     std::vector<std::string> inputs;
     const wchar_t* input_key = api == EmbeddingApi::Legacy ? L"prompt" : L"input";
@@ -744,11 +732,17 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
     int dimensions = 0;
     if (root.HasKey(L"dimensions")) {
         const double raw = root.GetNamedNumber(L"dimensions");
-        if (raw < 1 || raw > 32768 || raw != static_cast<int>(raw)) {
+        if (raw < 0 || raw > 32768 || raw != static_cast<int>(raw)) {
             status = "400 Bad Request";
-            return error_json("dimensions must be a positive integer");
+            return error_json("dimensions must be a non-negative integer");
         }
         dimensions = static_cast<int>(raw);
+    }
+    // BGE-M3 is not Matryoshka-trained: prefix truncation is not its
+    // catalogue contract. Keep its native vector width on every adapter.
+    if (model == "embed-bge-m3" && dimensions != 0 && dimensions != 1024) {
+        status = "400 Bad Request";
+        return error_json("BGE-M3 dimensions must be 0 or 1024");
     }
     bool truncate = true;
     if (root.HasKey(L"truncate"))
@@ -763,6 +757,11 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
         }
     }
 
+    const CatalogueSessionPolicy policy = catalogue_session_policy(model);
+    if (!policy.embedding || !policy.gguf) {
+        status = "400 Bad Request";
+        return error_json("model is not a catalogue embedding GGUF");
+    }
     const auto started = std::chrono::steady_clock::now();
     if (::xllama::model_uses_llama_backend(model)) {
         constexpr uint64_t kEmbeddingPeakGateMb = 3584;
@@ -776,11 +775,9 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
     }
     ::xllama::Session* session = nullptr;
     std::string err;
-    const CatalogueSessionPolicy policy = catalogue_session_policy(model);
     ::xllama::SessionParams sp;
     sp.model_path = model;
     sp.n_ctx = policy.n_ctx;
-    bool custom_n_ctx = false;
     if (policy.gguf)
         sp.backend = ::xllama::Backend::LlamaCpp;
     if (root.HasKey(L"options") &&
@@ -799,12 +796,10 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
                                   std::to_string(policy.n_ctx) + ")");
             }
             sp.n_ctx = static_cast<int>(raw);
-            custom_n_ctx = true;
         }
     }
     auto& hub = ::xllama::session_hub();
-    if (custom_n_ctx && hub.session && hub.model == model &&
-        hub.session->context_length() != sp.n_ctx)
+    if (hub.session && hub.model == model && hub.session->context_length() != sp.n_ctx)
         hub.reset_locked();
     session = hub.ensure_locked(model, sp, &err);
     if (!session) {
@@ -1116,7 +1111,8 @@ void remove_stale_gguf_files(const std::filesystem::path& model_dir,
     for (const auto& item : std::filesystem::directory_iterator(model_dir, ec)) {
         if (ec)
             break;
-        if (!item.is_regular_file(ec) || item.path().extension() != ".gguf")
+        if (!item.is_regular_file(ec) || item.path().extension() != ".gguf" ||
+            item.path().filename() == "adapter.gguf")
             continue;
         const auto it = std::find(keep.begin(), keep.end(), item.path().filename());
         if (it == keep.end())
@@ -1303,7 +1299,16 @@ void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t g
         params.n_ctx = ::xllama::resolve_n_ctx(entry->n_ctx);
         if (entry->kind == L"gguf")
             params.backend = ::xllama::Backend::LlamaCpp;
-        loaded = hub.ensure_locked(model_name, params, &load_error);
+        // Recheck after waiting for inference: stop/rebind may have invalidated
+        // the listener while this pull was blocked on the resident session.
+        {
+            std::lock_guard<std::mutex> state_lock(g_state_mtx);
+            server_active = g_status.state == ServerState::Running && generation == g_generation;
+        }
+        if (server_active)
+            loaded = hub.ensure_locked(model_name, params, &load_error);
+        else
+            load_error = "server stopped before model load";
     }
     if (!loaded) {
         const std::string message = "model downloaded but could not load: " + load_error;
@@ -1311,7 +1316,9 @@ void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t g
             (void)output->write_line(pull_error_json(message));
             output->finish();
         } else {
-            write_response(socket, "500 Internal Server Error", pull_error_json(message));
+            write_response(socket,
+                           server_active ? "500 Internal Server Error" : "503 Service Unavailable",
+                           pull_error_json(message));
         }
         return;
     }

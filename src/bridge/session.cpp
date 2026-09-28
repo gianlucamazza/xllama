@@ -468,7 +468,7 @@ class LlamaSession final : public Session {
     // Lazy context creation, shared by generate() and the state-file entry
     // points (#170b needs a context before the first turn). Returns false and
     // sets *err on failure; m_ctx stays null.
-    bool ensure_ctx(std::string* err) {
+    bool ensure_ctx(std::string* err, bool for_embedding = false) {
         if (m_ctx)
             return true;
         {
@@ -483,6 +483,13 @@ class LlamaSession final : public Session {
                 cparams.n_batch = static_cast<uint32_t>(m_n_batch);
             if (m_n_ubatch > 0)
                 cparams.n_ubatch = static_cast<uint32_t>(m_n_ubatch);
+            if (for_embedding) {
+                // Non-causal embedding graphs cannot split a sequence into
+                // physical micro-batches (llama.cpp asserts instead of failing).
+                cparams.n_batch = std::min(cparams.n_batch, cparams.n_ctx);
+                cparams.n_ubatch = cparams.n_batch;
+                cparams.embeddings = true;
+            }
             if (m_kv_q8) {
                 // #171: quantized V requires flash attention (the pin throws at
                 // context creation with FA disabled, and AUTO may resolve to
@@ -837,11 +844,15 @@ class LlamaSession final : public Session {
             return result;
         }
         std::string ctx_error;
-        if (!ensure_ctx(&ctx_error)) {
+        if (!ensure_ctx(&ctx_error, true)) {
             result.error_msg = "failed to create embedding context: " + ctx_error;
             return result;
         }
 
+        if (llama_model_has_encoder(m_model.get()) && llama_model_has_decoder(m_model.get())) {
+            result.error_msg = "encoder-decoder models do not provide supported text embeddings";
+            return result;
+        }
         const llama_vocab* vocab = llama_model_get_vocab(m_model.get());
         int32_t n =
             llama_tokenize(vocab, params.input.data(), static_cast<int32_t>(params.input.size()),
@@ -883,7 +894,7 @@ class LlamaSession final : public Session {
             }
         }
 
-        const int max_input_tokens = std::min(m_n_ctx, m_n_batch > 0 ? m_n_batch : 2048);
+        const int max_input_tokens = std::min(m_n_ctx, static_cast<int>(llama_n_batch(ctx)));
         if (static_cast<int>(tokens.size()) > max_input_tokens) {
             if (!params.truncate) {
                 result.error_msg = "input exceeds embedding batch/context limit of " +
