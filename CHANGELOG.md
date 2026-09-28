@@ -7,6 +7,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.6.0.0] - 2026-09-28
+
+Local embeddings and catalogue-backed Ollama pulls, with one resident session
+and shared GUI/API model-write ownership. The unified CI MSVC package is the
+Dev Mode release path; upgrades from the current identity preserve LocalState.
+
+- Update llama.cpp to `b29c606` and repair the AppContainer patch and MSVC source
+  inventory for the updated dependency.
+
 - Add GGUF embedding inference through the shared resident session and opt-in LAN API:
   Ollama `/api/embed`, legacy `/api/embeddings`, and OpenAI `/v1/embeddings` with float
   or base64 vectors. BGE-M3 Q8_0 and Nomic v2 MoE Q8_0 passed the host 3584 MiB
@@ -22,8 +31,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Validate divergent hybrid KV restoration against a cold reference; retain safe
   full-prefill when tail rewind is unsupported and control append-only reuse
   separately. Source-matched console and LAN suites pass; the main CI package
-  1.5.6.1041 also passes the shipping API/embedding smoke. This is CI Dev Mode
-  validation, not a new release tag or Store publication.
+  1.5.6.1041 also passes the shipping API/embedding smoke. These pre-release results are bound to their recorded source/package;
+  the exact tagged package gate is recorded in the GitHub release notes.
+  Microsoft Store publication remains separate.
 - Keep embedding batches serial on the single-slot llama.cpp context; preserve model
   pooling metadata and return normalized vectors with optional dimensions. Fix truncation
   direction for LAST pooling (keep suffix not prefix), add EOS token append when GGUF

@@ -1,8 +1,9 @@
 # Install a release build on your Xbox
 
 Install a tagged app release or a specific CI MSVC package on an Xbox Series S|X
-in Dev Mode from a Linux/macOS host. The app release verified on 2026-09-28 is
-[v1.5.6.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.5.6.0).
+in Dev Mode from a Linux/macOS host. The 2026-09-28 app release is
+[v1.6.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.6.0.0).
+Its release notes identify the exact CI package and release validation results.
 The [releases page](https://github.com/gianlucamazza/xllama/releases) also contains
 research tags, which can be newer without containing an app MSIX.
 For building from source see the [README](../README.md#build); for Dev Mode

@@ -5,15 +5,11 @@ performance belongs in `docs/benchmarks.md`.
 
 ## Current product state
 
-- Current manifest: **1.5.6.0** under the **`GianlucaMazza.xllama`** identity
-  (in-place update from 1.5.x; still breaking vs ≤1.4.x, see
-  `docs/install-release.md`). **v1.5.6.0** (2026-08-22): Phase 16 catalogue
-  win + llama.cpp pin `3cb7ffb`; SDK transition (SessionHub factory, probe
-  optionals `XLLAMA_BUILD_PROBES`, RoutingPolicy callbacks, Doxygen headers,
-  modular `docs/sdk/`). Previous: **v1.5.5.0** (2026-08-20) Phase 16 floor
-  `lfm25-230m`; **v1.5.4.0** #216/#223/10-gate suite; **v1.5.3.0**
-  titles/History/dual-CRT; **v1.5.2.0** Phase 14; **v1.5.1.0** Phase 13;
-  **v1.5.0.0** perf + rebrand.
+- Current manifest: **1.6.0.0** under the **`GianlucaMazza.xllama`** identity
+  (in-place update from the same identity, see `docs/install-release.md`).
+  **v1.6.0.0** (2026-09-28): catalogue-backed Ollama pull, GGUF embeddings,
+  shared model-writer ownership and llama.cpp `b29c606`. Completed release
+  history remains in `CHANGELOG.md`.
 - Shipping artifact: unified ORT GenAI + llama.cpp, with pinned patched runtime
   DLLs while upstream fixes have not reached NuGet. The UWP ggml build now
   enables `GGML_USE_CPU_REPACK` (PR #155): **GGUF prefill +62%** on Q4_K.
@@ -34,10 +30,10 @@ performance belongs in `docs/benchmarks.md`.
   #116/#118). Phases 13, 14 and 16 (one shipped model) are complete. Remaining
   open work: Phase 15 parked eng, WS-F headset measurement (#241), Store retail
   certification, and upstream vendor pin drops.
-- **Current v1.5.6.0:** Phase 16 `lfm25-230m` floor + pin `3cb7ffb`. Prior
-  tag **v1.5.5.0** carried the Phase 16 floor; **v1.5.4.0** (MSIX
-  1.5.4.887) carried #216/#223 and the 10-gate suite. Product packages are CI
-  MSVC — `docs/crossbuild-console.md`.
+- **Current v1.6.0.0:** unified CI MSVC Dev Mode release. Exact package and
+  validation gates are identified in the GitHub release notes; the source-bound
+  pre-release record is `bench/results/2026-09-28-console-api-validation.json`.
+  Product package path: `docs/crossbuild-console.md`.
 - **Latest evidence:** the Dev Series S capture is committed in
   `bench/results/phase17-console-2026-08-26.csv` (LFM2.5-350M Q4_K_M,
   89.7 tok/s median, 676.1 ms TTFT, 320 MB peak). Store catalogue signing
