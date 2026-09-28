@@ -80,7 +80,10 @@ TEST_CASE("Ollama embedding model aliases map to catalogue ids") {
     // These aliases are applied in uwp/api-server.cpp handle_embedding_locked.
     // This test documents the contract: the three Ollama library names map to
     // the catalogue ids so clients can use either naming scheme.
-    struct Alias { const char* ollama; const char* catalogue; };
+    struct Alias {
+        const char* ollama;
+        const char* catalogue;
+    };
     const Alias aliases[] = {
         {"bge-m3", "embed-bge-m3"},
         {"nomic-embed-text-v2-moe", "embed-nomic-v2-moe"},

@@ -300,7 +300,9 @@ class OrtSession final : public Session {
         return static_cast<int>(OgaSequencesGetSequenceCount(seqs.get(), 0));
     }
 
-    int context_length() const override { return m_n_ctx; }
+    int context_length() const override {
+        return m_n_ctx;
+    }
 };
 
 namespace detail {
@@ -841,9 +843,9 @@ class LlamaSession final : public Session {
         }
 
         const llama_vocab* vocab = llama_model_get_vocab(m_model.get());
-        int32_t n = llama_tokenize(vocab, params.input.data(),
-                                   static_cast<int32_t>(params.input.size()), nullptr, 0,
-                                   true, true);
+        int32_t n =
+            llama_tokenize(vocab, params.input.data(), static_cast<int32_t>(params.input.size()),
+                           nullptr, 0, true, true);
         if (n == INT32_MIN || n == 0) {
             result.error_msg = "input tokenization failed";
             return result;
@@ -923,11 +925,11 @@ class LlamaSession final : public Session {
             batch.logits[i] = (i == batch.n_tokens - 1) ? 1 : 0;
         }
         const int32_t rc = llama_model_has_encoder(m_model.get()) ? llama_encode(ctx, batch)
-                                                                   : llama_decode(ctx, batch);
+                                                                  : llama_decode(ctx, batch);
         llama_batch_free(batch);
         if (rc != 0) {
-            result.error_msg = "llama.cpp failed to encode the embedding input (code " +
-                               std::to_string(rc) + ")";
+            result.error_msg =
+                "llama.cpp failed to encode the embedding input (code " + std::to_string(rc) + ")";
             return result;
         }
 
@@ -946,7 +948,9 @@ class LlamaSession final : public Session {
         return result;
     }
 
-    int context_length() const override { return m_n_ctx; }
+    int context_length() const override {
+        return m_n_ctx;
+    }
 
     bool can_context_shift() const override {
         return m_can_shift;

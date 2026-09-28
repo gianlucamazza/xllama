@@ -5,8 +5,8 @@
 // eliminating the ~1-2s per-call reload overhead of run_inference().
 #pragma once
 
-#include "xllama/inference_params.h"
 #include "xllama/embedding.h"
+#include "xllama/inference_params.h"
 
 #include <atomic>
 #include <functional>
@@ -142,7 +142,9 @@ struct Session {
         return result;
     }
 
-    virtual int context_length() const { return 0; }
+    virtual int context_length() const {
+        return 0;
+    }
 
     // #169: whether a continuation turn that would overflow n_ctx evicts the
     // oldest tokens (RoPE shift) instead of failing. False for ORT and for

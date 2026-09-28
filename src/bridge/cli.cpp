@@ -127,7 +127,7 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             break;
         case 'p':
             out.prompt = optarg;
-            out.embed_inputs.push_back(optarg);  // Collect for --embed mode
+            out.embed_inputs.push_back(optarg); // Collect for --embed mode
             break;
         case 'n':
             out.n_predict = std::atoi(optarg);
