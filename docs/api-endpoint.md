@@ -261,7 +261,10 @@ proves the bind survives the Series S firewall/PLM), then chat / prefs / train a
 `all` includes pull and embeddings; provision `embed-nomic-v2-moe` first, or set
 `EMBED_MODEL=embed-bge-m3`. Set `XLLAMA_API_EVIDENCE_DIR` to retain the embedding
 requests and responses. The embedding gate verifies native widths, finite unit vectors,
-float/base64 parity, errors, and restoration of the catalogue context.
+float/base64 parity, errors, and restoration of the catalogue context. Each successful
+embedding request logs `[embedding]` with model, input/token counts, width, duration,
+and `peak_ws_mb` (process lifetime peak from the existing platform collector).
+Restart between models when measuring separate cold peaks.
 
 Images are not in `all` (need SD-Turbo on device; use the curl example above). Chat round-trip:
 

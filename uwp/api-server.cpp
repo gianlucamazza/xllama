@@ -810,6 +810,7 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
 
     JsonArray embeddings;
     int prompt_tokens = 0;
+    size_t embedding_width = 0;
     for (uint32_t i = 0; i < inputs.size(); ++i) {
         ::xllama::EmbeddingParams params;
         params.input = inputs[i];
@@ -828,6 +829,7 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
             return error_json(result.error_msg);
         }
         prompt_tokens += result.n_tokens;
+        embedding_width = result.embedding.size();
         if (api == EmbeddingApi::OpenAI) {
             JsonObject item;
             item.Insert(L"object", JsonValue::CreateStringValue(L"embedding"));
@@ -850,6 +852,14 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
         }
     }
     const auto finished = std::chrono::steady_clock::now();
+    ::xllama::log_output(
+        ("[embedding] model=" + model + " inputs=" + std::to_string(inputs.size()) +
+         " tokens=" + std::to_string(prompt_tokens) + " width=" + std::to_string(embedding_width) +
+         " peak_ws_mb=" + std::to_string(::xllama::peak_working_set_mb()) + " total_ms=" +
+         std::to_string(
+             std::chrono::duration_cast<std::chrono::milliseconds>(finished - started).count()) +
+         "\n")
+            .c_str());
     const auto duration_ns = [](auto a, auto b) {
         return std::chrono::duration_cast<std::chrono::nanoseconds>(b - a).count();
     };
