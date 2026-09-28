@@ -258,6 +258,9 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                                             std::vector<ModelFile> files, CoreDispatcher dispatcher,
                                             std::function<void(uint64_t, uint64_t)> on_progress,
                                             std::function<void(bool, std::wstring)> on_done) {
+    // Filesystem callers can supply forward slashes; WinRT StorageFolder
+    // requires a native Windows path even when the directory already exists.
+    local_dir = std::filesystem::path(local_dir).make_preferred().wstring();
     // Compute total bytes for progress display.
     uint64_t total_bytes = 0;
     for (auto const& f : files)
