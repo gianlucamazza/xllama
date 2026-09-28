@@ -57,8 +57,8 @@ this is Dev Mode research, not a hosted service.
 | `GET`     | `/api/tags`              | Ollama model discovery — same list, Ollama shape.                                                                                                 |
 | `POST`    | `/api/pull`              | Pull a trusted catalogue chat/embedding model with Ollama-style NDJSON progress; load it when complete.                                           |
 | `POST`    | `/v1/chat/completions`   | OpenAI-compatible chat completion, **non-streaming**.                                                                                             |
-| `POST`    | `/api/embed`             | Ollama-style embeddings for one string or a batch, GGUF/llama.cpp only.                                                                          |
-| `POST`    | `/api/embeddings`        | Deprecated Ollama single-prompt embeddings adapter.                                                                                              |
+| `POST`    | `/api/embed`             | Ollama-style embeddings for one string or a batch, GGUF/llama.cpp only.                                                                           |
+| `POST`    | `/api/embeddings`        | Deprecated Ollama single-prompt embeddings adapter.                                                                                               |
 | `POST`    | `/v1/embeddings`         | OpenAI embeddings shape; `encoding_format` accepts `float` or `base64`.                                                                           |
 | `POST`    | `/v1/preferences`        | Append a preference sample (`label` + `messages[]`) to `training/samples.jsonl` — same contract as the UI rate op (#118).                         |
 | `GET`     | `/v1/training/status`    | `result.done` / `progress.json` / last personalized `result.json` + usable sample count (#118).                                                   |
