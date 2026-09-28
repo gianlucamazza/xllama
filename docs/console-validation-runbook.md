@@ -22,6 +22,12 @@ folder does not exist until first launch, and every WDP file upload fails with
 `"File move failed" / "The system cannot find the path specified"` until it
 does (hit during the 2026-07-25 migration).
 
+For a controlled trial, set `XLLAMA_EXPECTED_PFN` to the installed package full
+name verified against the selected CI run and commit. Console/API suites reject
+a different installed package before writing test files; the benchmark runner
+also checks it before every run. Keep the expected value fixed until the next
+intentional deployment.
+
 ## Official automated suite
 
 ```bash

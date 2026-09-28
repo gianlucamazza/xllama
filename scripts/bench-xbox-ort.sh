@@ -165,6 +165,17 @@ CSRF_TOKEN=$(curl "${CURL_AUTH[@]}" "${BASE_URL}/" -o /dev/null -D - 2>/dev/null
 # Package full name
 # ---------------------------------------------------------------------------
 PFN=$("${DEPLOY}" pfn 2>/dev/null)
+
+verify_expected_package() {
+	[[ -z "${XLLAMA_EXPECTED_PFN:-}" ]] && return 0
+	local current_pfn
+	current_pfn=$("${DEPLOY}" pfn)
+	if [[ "$current_pfn" != "$XLLAMA_EXPECTED_PFN" || "$current_pfn" != "$PFN" ]]; then
+		echo "Error: installed package $current_pfn differs from trial package $XLLAMA_EXPECTED_PFN" >&2
+		return 1
+	fi
+}
+verify_expected_package
 [[ -z "$PFN" ]] && {
 	echo "Error: xllama not found — deploy it first" >&2
 	exit 1
@@ -382,6 +393,7 @@ if [[ "$GPU_SAMPLE" == "true" ]]; then
 fi
 
 for ((run = 1; run <= N_RUNS; run++)); do
+	verify_expected_package
 	echo ""
 	echo "--- Run $run / $N_RUNS ---"
 
