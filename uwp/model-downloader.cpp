@@ -48,12 +48,9 @@ void ModelDownloader::Invalidate(std::wstring const& local_dir) {
 
 namespace {
 
-IAsyncAction resume_callback_context(CoreDispatcher dispatcher) {
-    if (dispatcher)
-        co_await winrt::resume_foreground(dispatcher);
-    else
-        co_await winrt::resume_background();
-}
+// Await resume_foreground directly in the caller coroutine. Awaiting an
+// IAsyncAction wrapper preserves the caller's apartment and undoes the switch.
+// A null dispatcher denotes the API worker; it must stay on that worker.
 
 // RSA public key pinned for the Store catalogue. The private half lives only in
 // the GitHub Actions secret and is never committed or included in an artifact.
@@ -292,7 +289,8 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                            .c_str());
             auto snap_done = bytes_done;
             auto snap_total = total_bytes;
-            co_await resume_callback_context(dispatcher);
+            if (dispatcher)
+                co_await winrt::resume_foreground(dispatcher);
             on_progress(snap_done, snap_total);
             co_await resume_background();
             continue;
@@ -332,7 +330,8 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
             if (net_failed) {
                 if (attempt < kMaxAttempts)
                     continue;
-                co_await resume_callback_context(dispatcher);
+                if (dispatcher)
+                    co_await winrt::resume_foreground(dispatcher);
                 on_done(false, last_err);
                 co_return;
             }
@@ -342,7 +341,8 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                 last_err = L"HTTP " + std::to_wstring(code) + L" for " + f.filename;
                 if (http_status_retryable(code) && attempt < kMaxAttempts)
                     continue;
-                co_await resume_callback_context(dispatcher);
+                if (dispatcher)
+                    co_await winrt::resume_foreground(dispatcher);
                 on_done(false, last_err);
                 co_return;
             }
@@ -376,7 +376,8 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                 create_failed = true;
             }
             if (create_failed) {
-                co_await resume_callback_context(dispatcher);
+                if (dispatcher)
+                    co_await winrt::resume_foreground(dispatcher);
                 on_done(false, last_err);
                 co_return;
             }
@@ -390,7 +391,8 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                 open_failed = true;
             }
             if (open_failed) {
-                co_await resume_callback_context(dispatcher);
+                if (dispatcher)
+                    co_await winrt::resume_foreground(dispatcher);
                 on_done(false, last_err);
                 co_return;
             }
@@ -425,7 +427,8 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                 if (bytes_done % (512 * 1024) < kBufSize) {
                     auto snap_done = bytes_done;
                     auto snap_total = total_bytes;
-                    co_await resume_callback_context(dispatcher);
+                    if (dispatcher)
+                        co_await winrt::resume_foreground(dispatcher);
                     on_progress(snap_done, snap_total);
                     co_await resume_background();
                 }
@@ -446,7 +449,8 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                 }
                 if (attempt < kMaxAttempts)
                     continue;
-                co_await resume_callback_context(dispatcher);
+                if (dispatcher)
+                    co_await winrt::resume_foreground(dispatcher);
                 on_done(false, last_err);
                 co_return;
             }
@@ -463,7 +467,8 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                     co_await out_file.DeleteAsync();
                 } catch (...) {
                 }
-                co_await resume_callback_context(dispatcher);
+                if (dispatcher)
+                    co_await winrt::resume_foreground(dispatcher);
                 on_done(false, last_err);
                 co_return;
             }
@@ -484,7 +489,8 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                         co_await out_file.DeleteAsync();
                     } catch (...) {
                     }
-                    co_await resume_callback_context(dispatcher);
+                    if (dispatcher)
+                        co_await winrt::resume_foreground(dispatcher);
                     on_done(false, last_err);
                     co_return;
                 }
@@ -502,7 +508,8 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                     co_await out_file.DeleteAsync();
                 } catch (...) {
                 }
-                co_await resume_callback_context(dispatcher);
+                if (dispatcher)
+                    co_await winrt::resume_foreground(dispatcher);
                 on_done(false, last_err);
                 co_return;
             }
@@ -514,7 +521,8 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
         }
 
         if (!file_ok) {
-            co_await resume_callback_context(dispatcher);
+            if (dispatcher)
+                co_await winrt::resume_foreground(dispatcher);
             on_done(false, last_err.empty() ? L"Download failed for " + f.filename : last_err);
             co_return;
         }
@@ -545,7 +553,8 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
         }
     }
 
-    co_await resume_callback_context(dispatcher);
+    if (dispatcher)
+        co_await winrt::resume_foreground(dispatcher);
     on_done(true, L"");
 }
 
@@ -560,7 +569,8 @@ IAsyncAction ModelDownloader::RollbackAsync(std::wstring local_dir, std::vector<
         const auto previous = std::filesystem::path(current.wstring() + L".previous");
         std::error_code ec;
         if (!std::filesystem::is_regular_file(previous, ec)) {
-            co_await resume_callback_context(dispatcher);
+            if (dispatcher)
+                co_await winrt::resume_foreground(dispatcher);
             on_done(false, L"No rollback generation for " + file.filename);
             co_return;
         }
@@ -573,7 +583,8 @@ IAsyncAction ModelDownloader::RollbackAsync(std::wstring local_dir, std::vector<
             std::filesystem::remove(current, ec);
         std::filesystem::rename(previous, current, ec);
         if (ec) {
-            co_await resume_callback_context(dispatcher);
+            if (dispatcher)
+                co_await winrt::resume_foreground(dispatcher);
             on_done(false, L"Cannot restore rollback generation");
             co_return;
         }
@@ -582,13 +593,15 @@ IAsyncAction ModelDownloader::RollbackAsync(std::wstring local_dir, std::vector<
     std::filesystem::remove(root / kCompleteMarker, marker_ec);
     std::ofstream marker(root / kCompleteMarker, std::ios::binary);
     if (!marker) {
-        co_await resume_callback_context(dispatcher);
+        if (dispatcher)
+            co_await winrt::resume_foreground(dispatcher);
         on_done(false, L"Cannot write rollback marker");
         co_return;
     }
     marker << "ok";
     marker.close();
-    co_await resume_callback_context(dispatcher);
+    if (dispatcher)
+        co_await winrt::resume_foreground(dispatcher);
     on_done(true, L"");
 }
 
