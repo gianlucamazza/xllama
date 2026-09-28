@@ -35,9 +35,23 @@ for f in "$SRC"/*.cpp; do
 	fi
 done
 
+# The CPU backend has a separate explicit source inventory. Check its root and
+# x86 kernels too; optional AMX/other-architecture directories stay excluded.
+for dir in "$ROOT/llama.cpp/ggml/src/ggml-cpu" "$ROOT/llama.cpp/ggml/src/ggml-cpu/arch/x86"; do
+	for f in "$dir"/*.cpp "$dir"/*.c; do
+		[[ -f "$f" ]] || continue
+		rel="${f#"$ROOT/"}"
+		win_rel="${rel//\//\\}"
+		if ! grep -qF "$win_rel\"" "$VCX"; then
+			echo "DRIFT: $rel is not referenced in ggml-uwp.vcxproj"
+			missing=1
+		fi
+	done
+done
+
 if [[ "$missing" -ne 0 ]]; then
 	echo "" >&2
-	echo "ggml-uwp.vcxproj is out of sync with the llama.cpp submodule (top-level src)." >&2
+	echo "ggml-uwp.vcxproj is out of sync with the llama.cpp/CPU source inventory." >&2
 	echo "Add the missing <ClCompile Include=\"..\\llama.cpp\\src\\<file>.cpp\" /> entries." >&2
 	exit 1
 fi
