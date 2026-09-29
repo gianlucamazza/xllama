@@ -628,6 +628,11 @@ whole budget), **one** session across WS-E/WS-F/WS-G, and it is H16.6a's mic pro
 
 ### H16.1d — WS-A · `minicpm5-1b` (`openbmb/MiniCPM5-1B`, self-converted Q4_K_M)
 
+> **Result 2026-09-30 — FAIL (H9).** Series S T3 on the official openbmb Q4_K_M
+> (CI package 1.6.0.1072): decode 39.7 tok/s and `peak_ws_mb` 804 pass, no
+> visible `<think>`, but H9 is **3/8** against the 6/8 bar. Rejected — measured
+> (#267); evidence `bench/results/2026-09-30-catalogue-gates*`.
+
 - **Claim:** MiniCPM5-1B Q4_K_M, rendered **no-think**, displaces `lfm25-1.2b-instruct` in the **balanced chat** role on capability-per-MB: H9 ≥ **6/8** at median decode ≥ **34.1 tok/s** (0.9× the incumbent's 37.9) and `peak_ws_mb` ≤ **811**. It does not target the fast tier, and it is not a reasoning candidate: if it reasons per turn it is disqualified, not re-scoped.
 - **Measure:** **T2** the artefact is **self-converted at the pin** (`convert_hf_to_gguf.py` → f16 → `quantize.sh … Q4_K_M`), because the vendor GGUF stamps `tokenizer.ggml.pre = "llama-bpe"` while the dedicated MiniCPM5 pre-tokenizer landed two days later (PR #23384, present in the pin) — record a token-split diff of one fixed prompt, vendor vs self-converted. **T1** `xllama-cli --chat --greedy -m models/minicpm5-1b-Q4_K_M.gguf -t 6 -n 64` on 3 fixed prompts, `can_shift=` observed. **T3** `provision-models.sh minicpm5-1b` then `bench-xbox-ort.sh minicpm5-1b --runs 4 --n-predict 96 --out bench/results/phase16-gguf.csv`, median + min–max over 3 `run_index`. **T4** `eval-xbox-models.sh --models minicpm5-1b,lfm25-1.2b-instruct --out bench/results/phase16-h9.jsonl`.
 - **PASS:** median decode ≥ **34.1** and `peak_ws_mb` ≤ **811** and H9 ≥ **6/8**. The alternate H16.1 branch (decode ≥ 49.3 = 1.3×, H9 ≥ 5/8) is available but not expected at a screening estimate of 41.1. Both branches additionally require **zero** `<think>`/`</think>` in visible output across the H9 suite.

@@ -7,35 +7,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-- **Catalogue Phi-4-mini** (`phi4-mini`, #268). MIT
-  [unsloth/Phi-4-mini-instruct-GGUF](https://huggingface.co/unsloth/Phi-4-mini-instruct-GGUF)
-  Q4_K_M (~2.49 GB, >2 GB so HF-only), SHA-256 pinned. Chat/reasoning peer of
-  `llama32-3b`; Phi-3 template via `chat_format_for`. Host T1 PASS; Series S T3
-  pending (expected peak ~3.0 GB against the 3.5 GB gate).
-- **Catalogue Gemma-3-1B** (`gemma3-1b`, #269). Official
-  [ggml-org/gemma-3-1b-it-GGUF](https://huggingface.co/ggml-org/gemma-3-1b-it-GGUF)
-  Q4_K_M (~806 MB), SHA-256 pinned, downloaded straight from HF (Gemma Terms of
-  Use). Mid tier between `gemma3-270m` and `lfm25-1.2b-instruct`; Gemma
-  template via `chat_format_for`. Host T1 PASS (peak 953 MB); Series S T3
-  pending.
+- **Series S catalogue gates** (2026-09-30, CI package 1.6.0.1072,
+  `bench/results/2026-09-30-catalogue-gates*`). Bars were fixed before the run.
+  - **Phi-4-mini** (`phi4-mini`, #268) joins the catalogue:
+    [unsloth/Phi-4-mini-instruct-GGUF](https://huggingface.co/unsloth/Phi-4-mini-instruct-GGUF)
+    Q4_K_M (MIT, ~2.49 GB, HF only), Phi-3 template. H9 6/8 against
+    `llama32-3b`'s 5/8, 11.2 tok/s decode, 2765 MB peak.
+  - **LFM2.5 QAD Q4_0** (#270): `lfm25-350m` (101.6 tok/s, 311 MB, H9 4/8)
+    and `lfm25-1.2b-instruct` (40.0 tok/s, 783 MB, H9 6/8) now pin Liquid
+    [QAD Q4_0](https://www.liquid.ai/blog/qad), with no H9 regression and
+    lower peak. `lfm25-230m` failed H9 (1/8 against 2/8) and stays on Liquid
+    Q4_K_M. `lfm2-2.6b` is unchanged (no QAD published).
+  - **Rejected, measured**: MiniCPM5-1B (#267, H9 3/8 against a 6/8 bar) and
+    Gemma-3-1B (#269, dominated by `lfm25-1.2b-instruct`) were catalogued for
+    the trial and removed again. Neither id ships.
 - **Positioning** (#280). Public docs lead with the local-inference stack
   (games + assistants). Chat UI is the demo shell. Honest limits:
   [docs/positioning.md](docs/positioning.md).
-- **LFM2.5 QAD ripin** (#270). Existing catalogue ids `lfm25-230m`,
-  `lfm25-350m`, and `lfm25-1.2b-instruct` now pin Liquid
-  [QAD Q4_0](https://www.liquid.ai/blog/qad) GGUFs (SHA-256 + `approx_bytes`
-  updated; downloads from the official LiquidAI Hugging Face repos so the LFM
-  Open License still travels with the weights). Same ids — no new catalogue
-  entries. `lfm2-2.6b` is unchanged (LFM2 generation; no QAD published).
-  Console tok/s / H9 remain the Q4_K_M measurements until a Series S
-  regression is recorded.
-- **Catalogue MiniCPM5-1B** (`minicpm5-1b`). Official
-  [openbmb/MiniCPM5-1B-GGUF](https://huggingface.co/openbmb/MiniCPM5-1B-GGUF)
-  Q4_K_M (~688 MB), SHA-256 pinned. The H16.1d ChatML renderer (`<s>` BOS +
-  no-think) already shipped; host T1 PASS. Series S T3 (H9 / peak / tok/s vs
-  `lfm25-1.2b-instruct`) is still pending on Xbox (human from Lenovo). Download,
-  Device Portal provision, and Ollama `POST /api/pull` follow the peer GGUF
-  path. See [#267](https://github.com/gianlucamazza/xllama/issues/267).
+- **Main branch governance** (#264, ADR 0002). Ruleset: PR required, four CI
+  checks strict, squash-only merges.
 
 ## [1.6.0.0] - 2026-09-28
 

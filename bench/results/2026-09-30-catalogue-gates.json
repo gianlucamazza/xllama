@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-30",
+  "device": "Xbox Series S / Dev Mode",
+  "scope": "Catalogue T3 (#267 minicpm5-1b, #268 phi4-mini, #269 gemma3-1b) and LFM2.5 QAD Q4_0 regression (#270).",
+  "shipping": {
+    "run_id": "36638916166",
+    "head_sha": "54092420577b715868c0cee15add297c65802df9",
+    "run_number": 1072,
+    "sha256": "e58147d8011bd96099f0c1fbb02e0e52b0c24816c7b1383b4f6c11958e439e38",
+    "expected_pfn": "GianlucaMazza.xllama_1.6.0.1072_x64__pj67f1fcj4n14"
+  },
+  "evidence": ["2026-09-30-catalogue-gates.csv", "2026-09-30-catalogue-gates-h9.jsonl"]
+}

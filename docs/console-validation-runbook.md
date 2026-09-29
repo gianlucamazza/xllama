@@ -209,104 +209,58 @@ Record raw CSV/JSONL output under `bench/results/`, update the appropriate
 research verdict or changelog entry, and let the generated summary own the
 comparison table.
 
-## Campaign T3 — MiniCPM5-1B (#267)
+## Campaign T3 — new GGUF catalogue candidate
 
-Host T1 and the H16.1d renderer already shipped. Series S T3 needs the CI MSVC
-unified package (`xllama-appx`) and `xbox-env`. The catalogue id is
-`minicpm5-1b` (official openbmb Q4_K_M). Do not treat host tok/s as a Series S
-result.
+A candidate enters the manifest with status `catalogue` after host T1, then a
+Series S session decides it. Use the CI MSVC unified package (`xllama-appx`) and
+`xbox-env`. Do not treat host tok/s as a Series S result. Fix the PASS bar in
+[model-matrix.md](model-matrix.md) before the run.
 
 ```bash
 source ~/.config/xllama/xbox-env
 ./scripts/install-latest-build.sh --provision   # clean LocalState, no stale GGUFs
-./scripts/provision-models.sh minicpm5-1b lfm25-1.2b-instruct
+./scripts/provision-models.sh <candidate> <peer>
 export XLLAMA_EXPECTED_PFN="$(./scripts/deploy.sh pfn)"
-./scripts/bench-xbox-ort.sh minicpm5-1b --runs 4 --n-predict 96 \
-  --out bench/results/<date>-catalogue-gates.csv
+for m in <candidate> <peer>; do
+  ./scripts/bench-xbox-ort.sh "$m" --runs 4 --out bench/results/<date>-catalogue-gates.csv
+done
 # H9 goes through the LAN API: bench mode never binds the port.
 ./scripts/validate-api.sh spike
-./scripts/eval-xbox-models.sh --models minicpm5-1b,lfm25-1.2b-instruct \
+./scripts/eval-xbox-models.sh --models <candidate>,<peer> \
   --out bench/results/<date>-catalogue-gates-h9.jsonl
 ```
 
-`eval-xbox-models.sh` truncates `--out` before writing, so never point it at
-`phase7-h9.jsonl`. Only that file feeds the published H9 column; new JSONL
-files are raw evidence until `bench/benchmark-summary.json` says otherwise.
+- `eval-xbox-models.sh` truncates `--out` before writing, so never point it at
+  `phase7-h9.jsonl`. Only that file feeds the published H9 column. Append a
+  shipped candidate's rows to it and add the score to `check-coherence.py`.
+- Record the package next to the CSV as a JSON sidecar with `run_id`,
+  `head_sha`, `sha256` and `expected_pfn` (see
+  `bench/results/2026-09-30-catalogue-gates.json`).
+- PASS moves the row to §A1 and adds a `bench/benchmark-summary.json` row.
+  FAIL becomes `reject — measured` in §F and removes the manifest entry.
+- Candidates that use a reasoning template also fail on any visible
+  `<think>` / `</think>` in H9 output.
 
-Campaign PASS bars (H16.1d, [phase16-model-scouting.md](phase16-model-scouting.md)):
-H9 ≥ 6/8, median decode ≥ 34.1 tok/s (0.9× the `lfm25-1.2b-instruct` 37.9),
-`peak_ws_mb` ≤ 811, and **zero** `<think>` / `</think>` in visible H9 output
-(any leaked chain of thought fails the card).
+Closed 2026-09-30: `phi4-mini` PASS (#268); MiniCPM5-1B (#267) and
+Gemma-3-1B (#269) rejected — measured.
 
-Record the package next to the CSV as a JSON sidecar with `run_id`,
-`head_sha`, `sha256` and `expected_pfn` (precedent:
-`bench/results/2026-09-28-console-api-validation.json`). Then update
-[model-matrix.md](model-matrix.md) §A4 / §F: PASS moves the row to §A1 with
-the measured values; FAIL becomes `reject — measured` in §F with the numbers.
-Regenerate `docs/benchmarks.md` only after the console CSV is committed.
+## Quant ripin regression (same catalogue id)
 
-LAN pull smoke (optional, while the API is up):
+Changing the GGUF behind an existing id (for example the LFM2.5 QAD Q4_0 ripin,
+#270) needs a no-regression run against the recorded rows in
+[model-matrix.md](model-matrix.md) §A1. Fix the bar first. #270 used H9 ≥ the
+old score, median decode ≥ 0.9×, and `peak_ws_mb` ≤ +10%. A FAIL reverts that
+id's pin.
 
-```bash
-curl -N -X POST "http://${XBOX_IP}:11434/api/pull" \
-  -H 'Content-Type: application/json' \
-  -d '{"model":"minicpm5-1b"}'
-```
+`provision-models.sh --force` uploads the new file but leaves the old one in
+place, and the app loads the first `.gguf` in directory order. Start from a
+clean install (as above), or delete the old file with
+`./scripts/deploy.sh delete-file <pfn> <old>.gguf 'models\<id>'`. Every bench
+row must report the new `quant`, and the default prompt (`n_prompt_tok` 298)
+keeps runs comparable.
 
-## Campaign T3 — Gemma-3-1B (#269)
-
-Same procedure as MiniCPM5: provision `gemma3-1b`, bench with `--runs 4`,
-then H9 through the LAN API next to `gemma3-270m` and `lfm25-1.2b-instruct`.
-The PASS bar (not dominated by the 1.2B peer) is in
-[model-matrix.md](model-matrix.md) §A4.
-
-## Campaign T3 — Phi-4-mini (#268)
-
-Same procedure as MiniCPM5: provision `phi4-mini` (2.49 GB upload), bench with
-`--runs 4`, then H9 through the LAN API next to `llama32-3b`. Watch
-`peak_ws_mb` first: above 3584 fails the card regardless of H9. The PASS bar
-is in [model-matrix.md](model-matrix.md) §A4.
-
-## QAD ripin regression — LFM2.5 (#270)
-
-Catalogue ids `lfm25-230m`, `lfm25-350m`, and `lfm25-1.2b-instruct` now pin
-Liquid QAD Q4_0 GGUFs (filenames changed). `lfm2-2.6b` is unchanged (LFM2; no
-QAD published). Do not treat host tok/s as a Series S result.
-
-`provision-models.sh --force` uploads the new file but leaves the old
-`*-Q4_K_M.gguf` in place, and the app loads the first `.gguf` in directory
-order (`Q4_K_M` sorts before `QAD`). Start from a clean install, or delete the
-old file with `./scripts/deploy.sh delete-file <pfn> <old>.gguf 'models\<id>'`.
-Every bench row must report `quant` = `Q4_0`.
-
-```bash
-source ~/.config/xllama/xbox-env
-./scripts/install-latest-build.sh --provision
-./scripts/provision-models.sh lfm25-230m lfm25-350m lfm25-1.2b-instruct
-export XLLAMA_EXPECTED_PFN="$(./scripts/deploy.sh pfn)"
-for m in lfm25-230m lfm25-350m lfm25-1.2b-instruct; do
-  ./scripts/bench-xbox-ort.sh "$m" --runs 4 \
-    --out bench/results/<date>-catalogue-gates.csv
-done
-./scripts/validate-console.sh gguf
-./scripts/validate-api.sh spike
-./scripts/eval-xbox-models.sh --models lfm25-230m,lfm25-350m,lfm25-1.2b-instruct \
-  --out bench/results/<date>-catalogue-gates-h9.jsonl
-```
-
-The default prompt (`n_prompt_tok` 298) matches the same-build baseline
-`2026-09-28-main-lfm.csv`. No-regression bar, fixed before the run, per id
-against the recorded Q4_K_M rows in [model-matrix.md](model-matrix.md) §A1:
-
-| Id                    | H9 ≥ | Median decode ≥ (0.9×) | `peak_ws_mb` ≤ (+10%) |
-| --------------------- | ---: | ---------------------: | --------------------: |
-| `lfm25-230m`          |  2/8 |       107.3 (of 119.2) |          265 (of 241) |
-| `lfm25-350m`          |  4/8 |         80.7 (of 89.7) |          352 (of 320) |
-| `lfm25-1.2b-instruct` |  6/8 |         34.1 (of 37.9) |          892 (of 811) |
-
-PASS moves the §A1 rows (quant, numbers, evidence) and the
-`benchmark-summary.json` sources to the new CSV. FAIL on any id reverts that
-id's manifest pin to the previous Q4_K_M file.
+Closed 2026-09-30: `lfm25-350m` and `lfm25-1.2b-instruct` PASS on QAD Q4_0;
+`lfm25-230m` FAIL (H9 1/8 against 2/8), reverted to Q4_K_M.
 
 ## Troubleshooting
 

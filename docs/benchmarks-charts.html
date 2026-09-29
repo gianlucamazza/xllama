@@ -265,12 +265,12 @@
   },
   {
     "model": "LFM2.5-350M",
-    "quant": "Q4_K_M",
+    "quant": "QAD Q4_0",
     "be": "llama",
-    "prefill": 441.04,
-    "decode": 89.65,
-    "ram": 320,
-    "src": "phase17-console-2026-08-26"
+    "prefill": 374.36,
+    "decode": 101.57,
+    "ram": 311,
+    "src": "2026-09-30-catalogue-gates"
   },
   {
     "model": "Gemma-3-270M",
@@ -331,12 +331,12 @@
   },
   {
     "model": "LFM2.5-1.2B",
-    "quant": "Q4_K_M",
+    "quant": "QAD Q4_0",
     "be": "llama",
-    "prefill": 76.16,
-    "decode": 37.88,
-    "ram": 811,
-    "src": "phase7-lfm"
+    "prefill": 109.66,
+    "decode": 40.02,
+    "ram": 783,
+    "src": "2026-09-30-catalogue-gates"
   },
   {
     "model": "LFM2.5-1.2B-Thinking",
@@ -416,6 +416,15 @@
     "src": "phase7-scale"
   },
   {
+    "model": "Phi-4-mini",
+    "quant": "Q4_K_M",
+    "be": "llama",
+    "prefill": 33.14,
+    "decode": 11.23,
+    "ram": 2765,
+    "src": "2026-09-30-catalogue-gates"
+  },
+  {
     "model": "Phi-3.5-mini",
     "quant": "Q3_K_S",
     "be": "llama",
@@ -488,10 +497,16 @@
     "score": 7,
     "total": 8,
     "src": "phase7-h9"
+  },
+  {
+    "model": "Phi-4-mini",
+    "score": 6,
+    "total": 8,
+    "src": "phase7-h9"
   }
 ];
   const MAX_KV_REUSE = 20.02;
-  const LATEST_RUN = "2026-08-26";
+  const LATEST_RUN = "2026-09-29";
   // END GENERATED BENCHMARK DATA
   const METRICS = {
     decode:  { label: "Decode", unit: "tok/s", cap: "Generation throughput — the rate a user feels. Higher is better.", better: "high" },

@@ -17,14 +17,15 @@
     {
       "label": "LFM2.5-350M",
       "params": "350M",
-      "source": "phase17-console-2026-08-26.csv",
+      "source": "2026-09-30-catalogue-gates.csv",
       "selector": {
         "model": "lfm25-350m",
         "n_threads": "6",
         "n_prompt_tok": "298"
       },
       "backend_key": "llama",
-      "backend_label": "llama.cpp CPU · t6"
+      "backend_label": "llama.cpp CPU · t6",
+      "quant_label": "QAD Q4_0"
     },
     {
       "label": "Gemma-3-270M",
@@ -100,13 +101,15 @@
     {
       "label": "LFM2.5-1.2B",
       "params": "1.2B",
-      "source": "phase7-lfm.csv",
+      "source": "2026-09-30-catalogue-gates.csv",
       "selector": {
         "model": "lfm25-1.2b-instruct",
-        "n_threads": "6"
+        "n_threads": "6",
+        "n_prompt_tok": "298"
       },
       "backend_key": "llama",
-      "backend_label": "llama.cpp CPU · t6"
+      "backend_label": "llama.cpp CPU · t6",
+      "quant_label": "QAD Q4_0"
     },
     {
       "label": "LFM2.5-1.2B-Thinking",
@@ -206,6 +209,17 @@
       "backend_label": "llama.cpp CPU · t6"
     },
     {
+      "label": "Phi-4-mini",
+      "params": "3.8B",
+      "source": "2026-09-30-catalogue-gates.csv",
+      "selector": {
+        "model": "phi4-mini",
+        "n_threads": "6"
+      },
+      "backend_key": "llama",
+      "backend_label": "llama.cpp CPU · t6"
+    },
+    {
       "label": "Phi-3.5-mini",
       "params": "3.8B",
       "source": "phase7-scale.csv",
@@ -252,7 +266,8 @@
       "gemma4-e2b": "Gemma-4-E2B",
       "llama32-3b": "Llama-3.2-3B",
       "lfm25-1.2b-instruct": "LFM2.5-1.2B",
-      "lfm2-2.6b": "LFM2-2.6B"
+      "lfm2-2.6b": "LFM2-2.6B",
+      "phi4-mini": "Phi-4-mini"
     }
   },
   "kv_reuse_sources": [

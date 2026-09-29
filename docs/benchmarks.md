@@ -51,13 +51,13 @@ generated from the committed raw results by `scripts/generate-benchmark-summary.
 | Model | Params | Quant | Backend | Prefill tok/s | Decode tok/s | Decode min–max | Peak RAM MB | Source CSV |
 | --- | --- | --- | --- | ---: | ---: | :---: | ---: | --- |
 | LFM2.5-230M | 230M | Q4_K_M | llama.cpp CPU · t6 | 741.9 | **119.2** | 119.1–119.6 (n=3) | 241 | `phase16-gguf` |
-| LFM2.5-350M | 350M | Q4_K_M | llama.cpp CPU · t6 | 441.0 | **89.7** | 88.7–91.0 (n=3) | 320 | `phase17-console-2026-08-26` |
+| LFM2.5-350M | 350M | QAD Q4_0 | llama.cpp CPU · t6 | 374.4 | **101.6** | 101.5–101.8 (n=3) | 311 | `2026-09-30-catalogue-gates` |
 | Gemma-3-270M | 270M | Q4_K_M | llama.cpp CPU · t6 | 395.0 | **76.8** | _single run_ | 368 | `phase6-gemma` |
 | SmolLM2-360M | 360M | int4 | ORT-GenAI CPU · t6 | 262.4 | **74.8** | 74.4–75.0 (n=3) | 708 | `t6-shipped-confirm` |
 | SmolLM2-360M | 360M | Q4_K_M | llama.cpp CPU · t6 | 141.5 | **62.9** | _single run_ | 402 | `phase35-llamacpp-scaling` |
 | Qwen2.5-Coder-0.5B | 0.5B | Q4_K_M | llama.cpp CPU · t6 | 148.2 | **62.4** | 56.8–68.0 (n=2) | 533 | `phase14-console` |
 | SmolLM2-360M | 360M | fp16 | ORT DirectML · RMSNorm fixed | 236.7 | **44.4** | _single run_ | 1268 | `phase2-dml` |
-| LFM2.5-1.2B | 1.2B | Q4_K_M | llama.cpp CPU · t6 | 76.2 | **37.9** | _single run_ | 811 | `phase7-lfm` |
+| LFM2.5-1.2B | 1.2B | QAD Q4_0 | llama.cpp CPU · t6 | 109.7 | **40.0** | 39.7–40.3 (n=3) | 783 | `2026-09-30-catalogue-gates` |
 | LFM2.5-1.2B-Thinking | 1.2B | Q4_K_M | llama.cpp CPU · t6 | 130.4 | **36.7** | 36.7–36.8 (n=2) | 811 | `phase14-console` |
 | Qwen3.5-0.8B | 0.8B | Q4_K_M | llama.cpp CPU · t6 | 98.1 | **35.1** | _single run_ | 718 | `phase5-gguf` |
 | Qwen2.5-Coder-1.5B | 1.5B | Q4_K_M | llama.cpp CPU · t6 | 96.6 | **26.1** | 25.7–26.5 (n=2) | 1179 | `phase14-console` |
@@ -68,6 +68,7 @@ generated from the committed raw results by `scripts/generate-benchmark-summary.
 | Llama-3.2-3B | 3B | Q3_K_S | llama.cpp CPU · t6 | 19.5 | **14.2** | _single run_ | 1824 | `phase7-scale` |
 | Qwen2.5-Coder-3B | 3B | Q4_K_M | llama.cpp CPU · t6 | 46.2 | **14.0** | 13.9–14.1 (n=2) | 2116 | `phase14-console` |
 | Phi-3.5-mini | 3.8B | Q3_K_S | llama.cpp CPU · t6 | 15.3 | **11.3** | _single run_ | 2453 | `phase7-scale` |
+| Phi-4-mini | 3.8B | Q4_K_M | llama.cpp CPU · t6 | 33.1 | **11.2** | 11.2–11.2 (n=3) | 2765 | `2026-09-30-catalogue-gates` |
 | Gemma-4-E2B | ~5B raw (2B eff) | IQ2_M | llama.cpp CPU · t6 | 13.5 | **9.9** | _single run_ | 2534 | `phase6-gemma` |
 | SmolLM2-360M | 360M | int4 | ORT DirectML int4 | 0.0 | **8.8** | _single run_ | 999 | `phase2-dml` |
 <!-- END GENERATED MODEL SUMMARY -->
