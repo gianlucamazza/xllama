@@ -5,14 +5,15 @@
     {
       "label": "LFM2.5-230M",
       "params": "230M",
-      "source": "phase16-gguf.csv",
+      "source": "2026-09-30-catalogue-gates.csv",
       "selector": {
         "model": "lfm25-230m",
         "n_threads": "6",
         "n_prompt_tok": "298"
       },
       "backend_key": "llama",
-      "backend_label": "llama.cpp CPU · t6"
+      "backend_label": "llama.cpp CPU · t6",
+      "quant_label": "QAD Q4_0"
     },
     {
       "label": "LFM2.5-350M",
@@ -258,9 +259,10 @@
     }
   ],
   "quality": {
-    "source": "phase7-h9.jsonl",
+    "source": "2026-09-30-h9-rescore.jsonl",
     "labels": {
-      "lfm25-230m": "LFM2.5-230M",
+      "lfm25-230m-qad": "LFM2.5-230M",
+      "lfm25-230m": "LFM2.5-230M Q4_K_M (previous pin)",
       "gemma3-270m": "Gemma-3-270M",
       "lfm25-350m": "LFM2.5-350M",
       "gemma4-e2b": "Gemma-4-E2B",

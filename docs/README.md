@@ -141,6 +141,6 @@ Spot-checked against code + evidence:
 | Decode table (101.6 / 40.0 / 18.4 / 74.8 / 44.4 / …) | `generate-benchmark-summary.py --check`                   | OK (2026-09-30: LFM2.5 QAD Q4_0 Series S capture, ORT CPU shipped-t6) |
 | Package identity `GianlucaMazza.xllama` (1.6.0.0)    | `uwp/AppxManifest.xml`; migration in `install-release.md` | OK (in-place from 1.5.x; breaking vs ≤1.4.x)                          |
 | One resident Session (GUI+API)                       | `include/xllama/session_hub.h`                            | OK (PR #161/#164)                                                     |
-| H9 6/8 · 7/8 · 4/8 · 5/8                             | `phase7-h9.jsonl`                                         | OK                                                                    |
+| H9 6/8 · 7/8 · 4/8 · 5/8                             | `2026-09-30-h9-rescore.jsonl` (#243 scorer)               | OK                                                                    |
 | Lane B peak_ws 1195 MB, wall 446 s                   | `phase10-console-devtrain-result.json`                    | OK                                                                    |
 | Catalogue download sizes                             | `manifest.json` `approx_bytes`                            | Docs corrected to match (was 218/697/1.46 stale)                      |

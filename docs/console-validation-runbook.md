@@ -231,7 +231,9 @@ done
 ```
 
 - `eval-xbox-models.sh` truncates `--out` before writing, so never point it at
-  `phase7-h9.jsonl`. Only that file feeds the published H9 column. Append a
+  the canonical H9 file (`quality.source` in `bench/benchmark-summary.json`,
+  currently `2026-09-30-h9-rescore.jsonl`). Only that file feeds the published
+  H9 column. Append a
   shipped candidate's rows to it and add the score to `check-coherence.py`.
 - Record the package next to the CSV as a JSON sidecar with `run_id`,
   `head_sha`, `sha256` and `expected_pfn` (see
@@ -259,8 +261,8 @@ clean install (as above), or delete the old file with
 row must report the new `quant`, and the default prompt (`n_prompt_tok` 298)
 keeps runs comparable.
 
-Closed 2026-09-30: `lfm25-350m` and `lfm25-1.2b-instruct` PASS on QAD Q4_0;
-`lfm25-230m` FAIL (H9 1/8 against 2/8), reverted to Q4_K_M.
+Closed 2026-09-30: all three LFM2.5 ids PASS on QAD Q4_0. `lfm25-230m` passed
+only after the #243 scorer fix, which moved its Q4_K_M baseline from 2/8 to 1/8.
 
 ## Troubleshooting
 
