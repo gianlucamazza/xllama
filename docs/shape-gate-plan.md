@@ -51,12 +51,20 @@ The builder writes an f16 GGUF with random weights (norms = 1), copies the
 tokenizer and chat template from a real LFM2 GGUF, then runs `llama-quantize`.
 Output files are tagged `random-weights` / `not-a-model` in `general.tags` and
 carry `-rand-` in the filename. The desk estimate reproduces the released
-LFM2.5 parameter counts exactly (unit-tested), and the quantized `ref-350m`
-reports the same size and parameter count as the real Q4_K_M in llama-bench (216.41 MiB, 354.48 M).
+LFM2.5 parameter counts exactly (unit-tested), and a Q4_K_M `ref-350m`
+reports the same size and parameter count as the released Q4_K_M in
+llama-bench (216.41 MiB, 354.48 M).
+
+**Quant = Q4_0, the shipped layout.** Since #270 the catalogue pins LiquidAI's
+QAD Q4_0 files for `lfm25-230m/350m/1.2b-instruct`. Their layout is every
+matmul Q4_0 and `token_embd` Q6_K, which is exactly what `llama-quantize Q4_0`
+produces on a tied-embedding `lfm2`. Q4_0 takes a different CPU repack path
+from Q4_K, so the grid must use the reference's quant or C0 is invalid by
+construction.
 
 ## Grid
 
-Desk estimate from `--dry-run` (`read_MB/tok` = block matmuls at Q4_K plus
+Desk estimate from `--dry-run` (`read_MB/tok` = block matmuls at Q4_0 plus
 the tied head at Q6_K; an estimate, not a measurement):
 
 | id       |   L |    D |     F |     V | attn | params M | read MB/tok | KV KiB/tok | role                                  |
@@ -75,6 +83,24 @@ the tied head at Q6_K; an estimate, not a measurement):
 Embedding size moves with `D`, so every comparison below also reports
 effective read bandwidth (file MB × decode tok/s). That separates "fewer bytes"
 from "less fixed per-layer cost".
+
+## Host evidence so far (2026-09-30)
+
+- **Layout match.** The Q4_0 `ref-350m` clone has the same tensor names,
+  types and shapes as `LFM2.5-350M-QAD-Q4_0.gguf` (sha256 matches the
+  manifest). The three clone files are within 4 KB of the manifest
+  `approx_bytes` of their references (metadata only).
+- **Tokenizer copy.** On all five `bench/prompts/*.txt` the clone tokenizes
+  identically to the real model.
+- **Vocabulary cost** ([`shape-gate-tokenizer.csv`](../bench/results/shape-gate-tokenizer.csv)):
+  the same 7912 characters take 1549 / 1709 / 1924 tokens at 65536 / 32768 /
+  16384 vocab (×1.000 / ×1.103 / ×1.242).
+- **G2 desk bound.** To clear G2, decode must rise ≥1.21× (`v32k`) and ≥1.37×
+  (`v16k`) over `ref-1.2b`. If decode scaled with bytes read alone, the file
+  sizes cap the gain at 1.09× and 1.14×. So G2 is predicted to FAIL. It
+  survives only if per-token costs that scale with vocabulary (the output
+  logits and sampling over V) are much larger than the bytes suggest. The
+  console run keeps `v*` in to test exactly that.
 
 ## Procedure
 
@@ -119,7 +145,7 @@ gates.
 | Gate   | Test                                                                                             | PASS                               | On FAIL                                                                         |
 | ------ | ------------------------------------------------------------------------------------------------ | ---------------------------------- | ------------------------------------------------------------------------------- |
 | **C0** | each `ref-*` clone vs its real model, same session: decode and prefill                           | both within ±5%                    | method invalid → stop, record why random weights diverge                        |
-| **C1** | every row: `n_gen_tok == n_predict`, quant column `Q4_K_M`, model column = uploaded dir          | row kept                           | row dropped and re-run; two drops on one shape → shape recorded as unmeasurable |
+| **C1** | every row: `n_gen_tok == n_predict`, quant column `Q4_0`, model column = uploaded dir            | row kept                           | row dropped and re-run; two drops on one shape → shape recorded as unmeasurable |
 | **G1** | best of `d8/d12/d24/d32` decode ÷ `ref-1.2b` decode                                              | ≥ 1.30×                            | **kill**: at this budget LFM2.5's shape already sits on the Series S frontier   |
 | **G2** | `v*` text throughput ÷ `ref-1.2b` text throughput (tok/s ÷ tokens-per-char ratio vs 65536 vocab) | ≥ 1.10×                            | vocabulary is not a lever; keep 65536                                           |
 | **R**  | peak working set of any passing shape                                                            | ≤ `lfm25-1.2b-instruct` peak + 20% | shape disqualified regardless of speed                                          |
