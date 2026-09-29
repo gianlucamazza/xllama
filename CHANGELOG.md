@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Catalogue Phi-4-mini** (`phi4-mini`, #268). MIT
+  [unsloth/Phi-4-mini-instruct-GGUF](https://huggingface.co/unsloth/Phi-4-mini-instruct-GGUF)
+  Q4_K_M (~2.49 GB, >2 GB so HF-only), SHA-256 pinned. Chat/reasoning peer of
+  `llama32-3b`; Phi-3 template via `chat_format_for`. Host T1 PASS; Series S T3
+  pending (expected peak ~3.0 GB against the 3.5 GB gate).
 - **Catalogue Gemma-3-1B** (`gemma3-1b`, #269). Official
   [ggml-org/gemma-3-1b-it-GGUF](https://huggingface.co/ggml-org/gemma-3-1b-it-GGUF)
   Q4_K_M (~806 MB), SHA-256 pinned, downloaded straight from HF (Gemma Terms of

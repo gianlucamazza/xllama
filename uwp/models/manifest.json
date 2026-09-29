@@ -285,6 +285,20 @@
       ]
     },
     {
+      "_comment": "Phi-4-mini-instruct Q4_K_M (3.8B, MIT) — unsloth GGUF (#268). Chat/reasoning peer to llama32-3b. >2GB is fine on GGUF but must download straight from HF (GitHub release asset cap). Phi-3 template via chat_format_for (id must keep 'phi' and avoid 'gemma'/'llama'). Catalogue candidate: Series S T3 pending. kind:gguf, CPU-only, KV-reuse, routing disabled.",
+      "name": "phi4-mini",
+      "display": "Phi-4 mini (GGUF · CPU · catalogue)",
+      "kind": "gguf",
+      "hf_base_url": "https://huggingface.co/unsloth/Phi-4-mini-instruct-GGUF/resolve/main",
+      "files": [
+        {
+          "filename": "Phi-4-mini-instruct-Q4_K_M.gguf",
+          "approx_bytes": 2491874272,
+          "sha256": "88c00229914083cd112853aab84ed51b87bdf6b9ce42f532d8c85c7c63b1730a"
+        }
+      ]
+    },
+    {
       "_comment": "MiniCPM5-1B Q4_K_M — official openbmb GGUF (Apache-2.0). H16.1d renderer already shipped (ChatML + <s> BOS + no-think via model_is_minicpm5). Host T1 PASS. Catalogue candidate: Series S T3 (H9 / peak / tok/s vs lfm25-1.2b-instruct) is still pending on Xbox (human from Lenovo). Id must stay minicpm5-1b — never spell it …-llama (forces the Llama-3 renderer). kind:gguf, CPU-only, KV-reuse, routing disabled.",
       "name": "minicpm5-1b",
       "display": "MiniCPM5 1B (GGUF · CPU · catalogue)",

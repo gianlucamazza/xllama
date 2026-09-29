@@ -1,0 +1,75 @@
+{
+  "purpose": "Shape speed gate (docs/shape-gate-plan.md). Random-weight lfm2 GGUFs built by scripts/make-shape-gguf.py. Speed only: these files are not models.",
+  "shapes": [
+    {
+      "id": "ref-230m",
+      "note": "calibration clone of lfm25-230m",
+      "n_layer": 14,
+      "n_embd": 1024,
+      "n_ff": 2560,
+      "attn_layers": [2, 4, 6, 8, 10, 12]
+    },
+    {
+      "id": "ref-350m",
+      "note": "calibration clone of lfm25-350m",
+      "n_layer": 16,
+      "n_embd": 1024,
+      "n_ff": 4608,
+      "attn_layers": [2, 5, 8, 10, 12, 14]
+    },
+    {
+      "id": "ref-1.2b",
+      "note": "calibration clone of lfm25-1.2b-instruct; iso-parameter anchor for d* and v*",
+      "n_layer": 16,
+      "n_embd": 2048,
+      "n_ff": 8192,
+      "attn_layers": [2, 5, 8, 10, 12, 14]
+    },
+    {
+      "id": "d8",
+      "note": "iso-body, half depth",
+      "n_layer": 8,
+      "n_embd": 3072,
+      "n_ff": 10496
+    },
+    {
+      "id": "d12",
+      "note": "iso-body, shallower",
+      "n_layer": 12,
+      "n_embd": 2560,
+      "n_ff": 8192
+    },
+    {
+      "id": "d24",
+      "note": "iso-body, deeper",
+      "n_layer": 24,
+      "n_embd": 1536,
+      "n_ff": 7168
+    },
+    {
+      "id": "d32",
+      "note": "iso-body, deep-thin (MobileLLM direction)",
+      "n_layer": 32,
+      "n_embd": 1536,
+      "n_ff": 5120
+    },
+    {
+      "id": "v32k",
+      "note": "ref-1.2b body, vocab 32768",
+      "n_layer": 16,
+      "n_embd": 2048,
+      "n_ff": 8192,
+      "n_vocab": 32768,
+      "attn_layers": [2, 5, 8, 10, 12, 14]
+    },
+    {
+      "id": "v16k",
+      "note": "ref-1.2b body, vocab 16384",
+      "n_layer": 16,
+      "n_embd": 2048,
+      "n_ff": 8192,
+      "n_vocab": 16384,
+      "attn_layers": [2, 5, 8, 10, 12, 14]
+    }
+  ]
+}

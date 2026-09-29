@@ -185,6 +185,7 @@ TEST_CASE("chat format selection") {
     CHECK(chat_format_for("gemma3-1b").kind == ChatFormatKind::Gemma);
     CHECK(chat_format_for("llama32-3b").kind == ChatFormatKind::Llama3);
     CHECK(chat_format_for("phi35-mini").kind == ChatFormatKind::Phi3);
+    CHECK(chat_format_for("phi4-mini").kind == ChatFormatKind::Phi3);
 
     const ChatFormat qwen = chat_format_for("qwen35-0.8b");
     CHECK(qwen.kind == ChatFormatKind::ChatML);

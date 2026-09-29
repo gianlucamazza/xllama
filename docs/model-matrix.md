@@ -13,8 +13,8 @@ ids, templates, licenses, and campaign notes** — not runtime contracts.
 | Catalogue data                                                 | [`../uwp/models/manifest.json`](../uwp/models/manifest.json) |
 | Tok/s tables                                                   | [benchmarks.md](./benchmarks.md) only                        |
 
-Last updated: **2026-09-30**. Newest entries: §A4 `gemma3-1b` catalogued
-(ggml-org Q4_K_M; Series S T3 pending, #269); §I arch-watch reopen gates
+Last updated: **2026-09-30**. Newest entries: §A4 `phi4-mini` and `gemma3-1b`
+catalogued (Series S T3 pending, #268 / #269); §I arch-watch reopen gates
 (#273 MoE, #274 BitNet, #275 SSM/RWKV + mm); §A1 LFM2.5 QAD Q4_0 ripin
 (`lfm25-230m`, `lfm25-350m`, `lfm25-1.2b-instruct`; console metrics still
 Q4_K_M), §A4 `minicpm5-1b` catalogued (official Q4_K_M; Series S T3 still
@@ -181,10 +181,11 @@ harness: [console-validation-runbook.md](./console-validation-runbook.md)
 
 | Model       | Catalogue     | Quant  | Backend   | Est. weights | Status                                                                 | Template                | n_ctx | Evidence                                                                 |
 | ----------- | ------------- | ------ | --------- | -----------: | ---------------------------------------------------------------------- | ----------------------- | ----: | ------------------------------------------------------------------------ |
+| Phi-4-mini  | `phi4-mini`   | Q4_K_M | llama.cpp |      2.49 GB | **catalogue** · host T1 PASS · Series S T3 pending                     | Phi-3                   |  2048 | host smoke 2026-09-30; unsloth GGUF; #268                                |
 | Gemma-3-1B  | `gemma3-1b`   | Q4_K_M | llama.cpp |       806 MB | **catalogue** · host T1 PASS (peak 953 MB) · Series S T3 pending       | Gemma                   |  2048 | host smoke 2026-09-30; official ggml-org GGUF; #269                      |
 | MiniCPM5-1B | `minicpm5-1b` | Q4_K_M | llama.cpp |       688 MB | **catalogue** · host T1 PASS · Series S T3 pending (human from Lenovo) | ChatML + BOS + no-think |  2048 | H16.1d renderer shipped 2026-08-10; official openbmb GGUF; T3 not booked |
 
-The peer for T3 is `lfm25-1.2b-instruct` (balanced chat: 37.9 tok/s, 811 MB,
+For `minicpm5-1b` the T3 peer is `lfm25-1.2b-instruct` (balanced chat: 37.9 tok/s, 811 MB,
 H9 6/8). Campaign PASS bars from
 [phase16-model-scouting.md](phase16-model-scouting.md) H16.1d: H9 ≥ 6/8, median
 decode ≥ 34.1 tok/s, `peak_ws_mb` ≤ 811. Weights (688 MB) sit under the Series S
@@ -195,6 +196,14 @@ peak budget; do not quote a console peak until T3 records one.
 host peak (953 MB) already exceeds the 1.2B peer. PASS bar (fixed before T3):
 not dominated by `lfm25-1.2b-instruct`, i.e. H9 ≥ 5/8 **and** at least one of
 H9 ≥ 7/8, median decode > 37.9 tok/s, or `peak_ws_mb` < 811. Otherwise
+`reject — measured` in §F.
+
+`phi4-mini` (3.8B, MIT) is the chat/reasoning peer of `llama32-3b` (5/8,
+14.2 tok/s, 1824 MB). Host peak was 3920 MB, but that counts the mmap'd
+weights (2342 MiB) next to the CPU repack copy (1242 MiB). The console loads
+without mmap, so its expected peak is weights + 256 MiB KV + 417 MiB compute,
+about 3.0 GB, close to the 3.5 GB gate. PASS bar (fixed before T3): H9 ≥ 6/8,
+`peak_ws_mb` ≤ 3584, median decode ≥ 8.5 tok/s. Otherwise
 `reject — measured` in §F.
 
 ---
@@ -262,16 +271,16 @@ models.
 
 ## F. Survey rejected / deferred (desk 2026-07-27)
 
-| Candidate                  | Decision           | Reason                                |
-| -------------------------- | ------------------ | ------------------------------------- |
-| Qwen3-Coder-30B-A3B GGUF   | reject for console | weight size                           |
-| Devstral Small             | reject             | weight size                           |
-| DeepSeek-Coder-V2-Lite     | reject             | weight size                           |
-| Qwen2.5-Coder-7B           | defer              | interactive decode too low            |
-| StarCoder2-3B              | defer              | weaker than Qwen2.5-Coder-3B          |
-| Phi-4-mini                 | defer (chat peer)  | not coding; re-open if H9 peer needed |
-| Qwen3-1.7B/4B general      | defer              | chat upgrade, not coding              |
-| Granite 3.1 2B / 4.0 micro | defer              | generalist; lower priority            |
+| Candidate                  | Decision               | Reason                                                                       |
+| -------------------------- | ---------------------- | ---------------------------------------------------------------------------- |
+| Qwen3-Coder-30B-A3B GGUF   | reject for console     | weight size                                                                  |
+| Devstral Small             | reject                 | weight size                                                                  |
+| DeepSeek-Coder-V2-Lite     | reject                 | weight size                                                                  |
+| Qwen2.5-Coder-7B           | defer                  | interactive decode too low                                                   |
+| StarCoder2-3B              | defer                  | weaker than Qwen2.5-Coder-3B                                                 |
+| Phi-4-mini                 | catalogue — T3 pending | reopened as the `llama32-3b` peer (#268); catalogued as `phi4-mini`, see §A4 |
+| Qwen3-1.7B/4B general      | defer                  | chat upgrade, not coding                                                     |
+| Granite 3.1 2B / 4.0 micro | defer                  | generalist; lower priority                                                   |
 
 **Phase 16 (desk + measured, 2026-08-10)** — campaign SSOT:
 [phase16-model-scouting.md](phase16-model-scouting.md).

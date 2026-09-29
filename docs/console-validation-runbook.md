@@ -260,6 +260,13 @@ then H9 through the LAN API next to `gemma3-270m` and `lfm25-1.2b-instruct`.
 The PASS bar (not dominated by the 1.2B peer) is in
 [model-matrix.md](model-matrix.md) §A4.
 
+## Campaign T3 — Phi-4-mini (#268)
+
+Same procedure as MiniCPM5: provision `phi4-mini` (2.49 GB upload), bench with
+`--runs 4`, then H9 through the LAN API next to `llama32-3b`. Watch
+`peak_ws_mb` first: above 3584 fails the card regardless of H9. The PASS bar
+is in [model-matrix.md](model-matrix.md) §A4.
+
 ## QAD ripin regression — LFM2.5 (#270)
 
 Catalogue ids `lfm25-230m`, `lfm25-350m`, and `lfm25-1.2b-instruct` now pin
