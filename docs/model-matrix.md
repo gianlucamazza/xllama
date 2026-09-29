@@ -13,10 +13,12 @@ ids, templates, licenses, and campaign notes** — not runtime contracts.
 | Catalogue data                                                 | [`../uwp/models/manifest.json`](../uwp/models/manifest.json) |
 | Tok/s tables                                                   | [benchmarks.md](./benchmarks.md) only                        |
 
-Last updated: **2026-08-20**. Newest entries: §F MiniCPM5 renderer shipped /
-T3 not booked, WS-E closed (no consumer); then §A1 `lfm25-230m` shipped as the
-floor tier and `gemma3-270m`'s H9 measured (2026-08-10), §A3 H2 MoE FAIL
-(2026-07-30), §D per-arch `can_shift` (2026-07-29), §A2 phase14 (2026-07-27).
+Last updated: **2026-09-29**. Newest entries: §A4 `minicpm5-1b` catalogued
+(official Q4_K_M; Series S T3 still pending), then §F MiniCPM5 renderer shipped /
+T3 not booked (2026-08-10), WS-E closed (no consumer); then §A1 `lfm25-230m`
+shipped as the floor tier and `gemma3-270m`'s H9 measured (2026-08-10), §A3 H2
+MoE FAIL (2026-07-30), §D per-arch `can_shift` (2026-07-29), §A2 phase14
+(2026-07-27).
 
 ## How to read the columns
 
@@ -160,6 +162,24 @@ on record before the run: the ~4.0 GB estimate **breaks the 3.5 GB product gate*
 even though it clears H2's 4 GB one, and the model reasons on every turn without
 saying so in its name, so it is wired as a thinking model.
 
+### A4. Catalogued, console T3 pending
+
+These ids are in [`../uwp/models/manifest.json`](../uwp/models/manifest.json)
+(in-app download, Device Portal `provision-models.sh`, Ollama `POST /api/pull`)
+but have **no Series S bench**. Host smoke is not a console claim. Measurement
+harness: [console-validation-runbook.md](./console-validation-runbook.md)
+(Campaign T3 — MiniCPM5-1B).
+
+| Model       | Catalogue     | Quant  | Backend   | Est. weights | Status                                                                 | Template                | n_ctx | Evidence                                                                 |
+| ----------- | ------------- | ------ | --------- | -----------: | ---------------------------------------------------------------------- | ----------------------- | ----: | ------------------------------------------------------------------------ |
+| MiniCPM5-1B | `minicpm5-1b` | Q4_K_M | llama.cpp |       688 MB | **catalogue** · host T1 PASS · Series S T3 pending (human from Lenovo) | ChatML + BOS + no-think |  2048 | H16.1d renderer shipped 2026-08-10; official openbmb GGUF; T3 not booked |
+
+The peer for T3 is `lfm25-1.2b-instruct` (balanced chat: 37.9 tok/s, 811 MB,
+H9 6/8). Campaign PASS bars from
+[phase16-model-scouting.md](phase16-model-scouting.md) H16.1d: H9 ≥ 6/8, median
+decode ≥ 34.1 tok/s, `peak_ws_mb` ≤ 811. Weights (688 MB) sit under the Series S
+peak budget; do not quote a console peak until T3 records one.
+
 ---
 
 ## B. Diffusion
@@ -235,16 +255,16 @@ shifts.
 **Phase 16 (desk + measured, 2026-08-10)** — campaign SSOT:
 [phase16-model-scouting.md](phase16-model-scouting.md).
 
-| Candidate                        | Decision                 | Reason                                                                                                                       |
-| -------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| Qwen3.5-2B (`unsloth` Q4_K_M)    | reject — measured        | H16.1a FAIL on both halves: `peak_ws_mb` 1421 > 1398 and decode 19.25 < 19.6 (`phase16-gguf`)                                |
-| Maincoder-1B (`Maincode` Q4_K_M) | reject — measured        | H16.1b: memory passes (843 ≤ 900) but decode 33.49 < the card's 33.9 (1.283× vs a 1.3× bar) (`phase16-gguf`)                 |
-| MiniCPM5-1B (`openbmb`)          | defer — T3 not booked    | H16.1d renderer shipped 2026-08-10 (15 lines: `<s>` BOS + no-think). Host T1 PASS. No console session spent this campaign    |
-| SmolLM3-3B GGUF (ggml-org)       | reject — cost not bought | WS-A's ≤4 slots allocated; loses the 4th head-to-head to MiniCPM5-1B; self-set PASS bar of H9 8/8 (catalogue best is 7/8)    |
-| EmbeddingGemma-300M (ggml-org)   | reject — licence         | Origin repo `gated: manual` (anon HEAD 401), so a console download is impossible; the ungated mirror ships no licence/notice |
-| Supra2-100M-Instruct             | reject — duplicate bet   | Same floor role as `lfm25-230m`; ~30 MB of projected gain needs an in-house quant, a re-host and a name-matched stop token   |
-| granite-embedding-english-r2     | reject — duplicate bet   | Same WS-E slot as nomic-embed-text-v1.5 at +15 MB and new-renderer cost; its own FAIL branch concedes to nomic               |
-| multilingual-e5-small            | reject — duplicate bet   | Same WS-E slot; the multilingual axis has no named consumer, and its GGUF tokenizer is SPM over an XLM-R Unigram vocabulary  |
+| Candidate                        | Decision                 | Reason                                                                                                                                           |
+| -------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Qwen3.5-2B (`unsloth` Q4_K_M)    | reject — measured        | H16.1a FAIL on both halves: `peak_ws_mb` 1421 > 1398 and decode 19.25 < 19.6 (`phase16-gguf`)                                                    |
+| Maincoder-1B (`Maincode` Q4_K_M) | reject — measured        | H16.1b: memory passes (843 ≤ 900) but decode 33.49 < the card's 33.9 (1.283× vs a 1.3× bar) (`phase16-gguf`)                                     |
+| MiniCPM5-1B (`openbmb`)          | catalogue — T3 pending   | H16.1d renderer shipped 2026-08-10. Host T1 PASS. Official Q4_K_M now catalogued as `minicpm5-1b`. Series S T3 still pending (human from Lenovo) |
+| SmolLM3-3B GGUF (ggml-org)       | reject — cost not bought | WS-A's ≤4 slots allocated; loses the 4th head-to-head to MiniCPM5-1B; self-set PASS bar of H9 8/8 (catalogue best is 7/8)                        |
+| EmbeddingGemma-300M (ggml-org)   | reject — licence         | Origin repo `gated: manual` (anon HEAD 401), so a console download is impossible; the ungated mirror ships no licence/notice                     |
+| Supra2-100M-Instruct             | reject — duplicate bet   | Same floor role as `lfm25-230m`; ~30 MB of projected gain needs an in-house quant, a re-host and a name-matched stop token                       |
+| granite-embedding-english-r2     | reject — duplicate bet   | Same WS-E slot as nomic-embed-text-v1.5 at +15 MB and new-renderer cost; its own FAIL branch concedes to nomic                                   |
+| multilingual-e5-small            | reject — duplicate bet   | Same WS-E slot; the multilingual axis has no named consumer, and its GGUF tokenizer is SPM over an XLM-R Unigram vocabulary                      |
 
 ## G. Embedding API catalogue (host and Series S validated)
 
@@ -290,6 +310,10 @@ Model SHA-256 pins: BGE-M3 `950f4a8e5e19477a6d3c26d2f162233c20002c601f75e4b002e3
    (see §G); dedicated throughput/retrieval-quality measurements remain open. WS-F (ASR) still needs a headset (#241).
 7. ~~**W3 gpubw** (#211)~~ — **closed PASS** Series S **119.07 GB/s** STREAM;
    H6 eng **#228** (`docs/phase15-re-opt.md`).
+8. **MiniCPM5-1B Series S T3** — catalogue entry `minicpm5-1b` landed 2026-09-29
+   (#267). Host T1 PASS; console H9 / peak / tok/s vs `lfm25-1.2b-instruct` still
+   needs a Lenovo Xbox session. Procedure:
+   [console-validation-runbook.md](./console-validation-runbook.md).
 
 ---
 

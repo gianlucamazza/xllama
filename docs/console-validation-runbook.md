@@ -209,6 +209,37 @@ Record raw CSV/JSONL output under `bench/results/`, update the appropriate
 research verdict or changelog entry, and let the generated summary own the
 comparison table.
 
+## Campaign T3 — MiniCPM5-1B (#267)
+
+Host T1 and the H16.1d renderer already shipped. Xbox Series S T3 is **not**
+run from Linux CI or this agent; it needs a deployed unified package and
+`xbox-env` on the console (human from Lenovo). The catalogue id is
+`minicpm5-1b` (official openbmb Q4_K_M). Do not treat host tok/s as a Series S
+result.
+
+```bash
+source ~/.config/xllama/xbox-env
+./scripts/provision-models.sh minicpm5-1b
+./scripts/bench-xbox-ort.sh minicpm5-1b --runs 4 --n-predict 96 \
+  --out bench/results/minicpm5-1b-console.csv
+./scripts/eval-xbox-models.sh --models minicpm5-1b,lfm25-1.2b-instruct \
+  --out bench/results/minicpm5-1b-h9.jsonl
+```
+
+Campaign PASS bars (H16.1d, still the claim): H9 ≥ 6/8, median decode ≥ 34.1
+tok/s (0.9× the `lfm25-1.2b-instruct` 37.9), `peak_ws_mb` ≤ 811. Record the
+package version with the CSV. Then update [model-matrix.md](model-matrix.md)
+§A4 / §F and regenerate `docs/benchmarks.md` only after the console CSV is
+committed.
+
+LAN pull smoke (optional, after `api.flag`):
+
+```bash
+curl -N -X POST "http://${XBOX_IP}:11434/api/pull" \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"minicpm5-1b"}'
+```
+
 ## Troubleshooting
 
 - `./scripts/deploy.sh diagnose-startup` — process state, log and crash dumps.

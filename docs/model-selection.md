@@ -305,6 +305,7 @@ the catalogue status only.
 | LFM2.5-350M      | llama.cpp | ~229 MB          | ✅ `lfm25-350m` — hybrid edge arch; default chat on unified builds          |
 | LFM2.5-1.2B      | llama.cpp | ~731 MB          | ✅ `lfm25-1.2b-instruct` — balanced; 37.9 tok/s, H9 6/8                     |
 | LFM2-2.6B        | llama.cpp | ~1.56 GB         | ✅ `lfm2-2.6b` — quality; 18.4 tok/s, H9 7/8                                |
+| MiniCPM5-1B      | llama.cpp | ~688 MB          | catalogue `minicpm5-1b` — host T1 PASS; Series S T3 pending                 |
 | Qwen3-0.6B       | ORT GenAI | 969 MB merged    | ✅ builds; heavy (151k-vocab embedding dominates)                           |
 | Gemma-3-270M     | llama.cpp | 253 MB           | ✅ `gemma3-270m` — fast, tiny, fits easily                                  |
 | Gemma-4-E2B      | llama.cpp | 2.45 GB (Q3_K_S) | ✅ **console-validated** `gemma4-e2b` (see verdict below)                   |

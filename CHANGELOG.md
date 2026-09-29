@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Catalogue MiniCPM5-1B** (`minicpm5-1b`). Official
+  [openbmb/MiniCPM5-1B-GGUF](https://huggingface.co/openbmb/MiniCPM5-1B-GGUF)
+  Q4_K_M (~688 MB), SHA-256 pinned. The H16.1d ChatML renderer (`<s>` BOS +
+  no-think) already shipped; host T1 PASS. Series S T3 (H9 / peak / tok/s vs
+  `lfm25-1.2b-instruct`) is still pending on Xbox (human from Lenovo). Download,
+  Device Portal provision, and Ollama `POST /api/pull` follow the peer GGUF
+  path. See [#267](https://github.com/gianlucamazza/xllama/issues/267).
+
 ## [1.6.0.0] - 2026-09-28
 
 Local embeddings and catalogue-backed Ollama pulls, with one resident session

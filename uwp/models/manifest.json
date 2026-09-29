@@ -272,6 +272,20 @@
       ]
     },
     {
+      "_comment": "MiniCPM5-1B Q4_K_M — official openbmb GGUF (Apache-2.0). H16.1d renderer already shipped (ChatML + <s> BOS + no-think via model_is_minicpm5). Host T1 PASS. Catalogue candidate: Series S T3 (H9 / peak / tok/s vs lfm25-1.2b-instruct) is still pending on Xbox (human from Lenovo). Id must stay minicpm5-1b — never spell it …-llama (forces the Llama-3 renderer). kind:gguf, CPU-only, KV-reuse, routing disabled.",
+      "name": "minicpm5-1b",
+      "display": "MiniCPM5 1B (GGUF · CPU · catalogue)",
+      "kind": "gguf",
+      "hf_base_url": "https://huggingface.co/openbmb/MiniCPM5-1B-GGUF/resolve/main",
+      "files": [
+        {
+          "filename": "MiniCPM5-1B-Q4_K_M.gguf",
+          "approx_bytes": 688065920,
+          "sha256": "81b64d05a23b17b34c475f42b3e72fbde62d4b92cc34541f7a8031d0752deafa"
+        }
+      ]
+    },
+    {
       "_comment": "Qwen3-1.7B Q4_K_M — chat upgrade over qwen35-0.8b. ChatML + model_is_qwen3 no-think prefill. Console phase14: 89.5 prefill / 21.8 decode / 1398 MB peak; host Release quality PASS. Apache-2.0 unsloth. Context shift OK: arch qwen3 reports can_shift=1 (measured 2026-07-29 on host; the property is per-arch, not per-platform) — unlike qwen35, which is imrope and cannot shift.",
       "name": "qwen3-1.7b",
       "display": "Qwen3 1.7B (GGUF · CPU)",
