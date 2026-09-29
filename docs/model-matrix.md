@@ -75,8 +75,14 @@ Notes:
   with the same H9, higher decode and lower peak. The 230M first failed (1/8
   against a recorded 2/8). That 2/8 counted a wrong `grounded_qa` answer
   ("ciascuno occupa 730 MB"). With the corrected scorer (#243) both artefacts
-  score 1/8, so QAD passes. Prefill drops on the 230M/350M (634 vs 742, 374 vs 441) and rises on the 1.2B (110 vs 76). `lfm2-2.6b` stays LFM2 Q4_K_M, since
-  no QAD was published for that generation.
+  score 1/8, so QAD passes. `lfm2-2.6b` stays LFM2 Q4_K_M, since no QAD was
+  published for that generation.
+- **QAD trade-off, same build** (1.6.0.1072, `2026-09-30-qad-prefill-ab`,
+  interleaved runs): Q4_0 QAD costs about 15% prefill on all three ids
+  (230M 757 → 635, 350M 439 → 374, 1.2B 131 → 110 tok/s) and gains 8–13%
+  decode (121.7 → 131.4, 90.0 → 101.6, 36.9 → 40.1) at 2–4% less peak. An
+  earlier note that the 1.2B prefill "rises" compared builds from different
+  eras (the 76.2 predates #168) and was wrong.
 - **H9 source** (#243): since 2026-09-30 the published H9 column comes from one
   full re-run with the corrected scorer (`2026-09-30-h9-rescore.jsonl`).
   `phase7-h9.jsonl` stays as raw history. Only `lfm25-230m`'s Q4_K_M score
