@@ -1,8 +1,11 @@
 # Shape gate — does a Series S–shaped SLM beat LFM2.5?
 
-> **Status: proposed (2026-09-30).** Not a ROADMAP phase yet; zero console
-> sessions spent. This file owns the question, the predeclared gates, and the
-> verdict. Measured numbers land in `bench/results/shape-gate.csv` and, if they
+> **Status: closed 2026-09-30 — KILL (C0 PASS, G1 FAIL, G2 FAIL).** One
+> console session spent. A custom `lfm2` shape is not a Series S lever at ~1B:
+> decode is bytes-per-token bound, depth moves it ±4%, and a smaller
+> vocabulary saves exactly its bytes while costing more tokens per text. See
+> [Result](#result-console-2026-09-30). This file owns the question, the
+> predeclared gates, and the verdict. Measured numbers land in `bench/results/shape-gate.csv` and, if they
 > are ever compared, flow through
 > [`generate-benchmark-summary.py`](../scripts/generate-benchmark-summary.py)
 > into [benchmarks.md](benchmarks.md). Nothing here is a product claim.
@@ -101,6 +104,52 @@ from "less fixed per-layer cost".
   survives only if per-token costs that scale with vocabulary (the output
   logits and sampling over V) are much larger than the bytes suggest. The
   console run keeps `v*` in to test exactly that.
+
+## Result (console 2026-09-30)
+
+Series S, MSIX `1.6.0.1072`, t6, `standard-512` prompt (298 tokens),
+`n_predict` 128, median of runs 2–4. Raw rows:
+[`shape-gate.csv`](../bench/results/shape-gate.csv). Effective GB/s = file
+bytes × decode tok/s.
+
+| model                 | quant  | prefill tok/s | decode tok/s | eff. GB/s | peak MB | vs `ref-1.2b` |
+| --------------------- | ------ | ------------: | -----------: | --------: | ------: | ------------: |
+| `lfm25-230m` (real)   | Q4_K_M |         756.8 |       121.77 |      18.7 |     240 |               |
+| `shape-ref-230m`      | Q4_K_M |         754.8 |       121.12 |      18.6 |     244 |               |
+| `lfm25-350m` (real)   | Q4_0   |         374.1 |       101.51 |      22.3 |     311 |               |
+| `shape-ref-350m`      | Q4_0   |         374.5 |       101.09 |      22.2 |     311 |               |
+| `lfm25-1.2b-instruct` | Q4_0   |         109.6 |        40.07 |      27.9 |     783 |               |
+| `shape-ref-1.2b`      | Q4_0   |         109.5 |        40.15 |      27.9 |     783 |        1.000× |
+| `shape-d8`            | Q4_0   |         118.1 |        40.27 |      30.1 |     829 |        1.003× |
+| `shape-d12`           | Q4_0   |         113.0 |        40.55 |      29.1 |     793 |        1.010× |
+| `shape-d24`           | Q4_0   |         112.6 |        41.11 |      26.4 |     738 |        1.024× |
+| `shape-d32`           | Q4_0   |         107.4 |        38.69 |      25.5 |     757 |        0.964× |
+| `shape-v32k`          | Q4_0   |         110.0 |        43.30 |      27.7 |     721 |        1.078× |
+| `shape-v16k`          | Q4_0   |         110.5 |        45.34 |      27.7 |     695 |        1.129× |
+
+- **C0 PASS** on all three pairs: decode −0.5% / −0.4% / +0.2%, prefill
+  −0.3% / +0.1% / −0.1%, identical peak RAM. On this backend a random-weight
+  GGUF costs what the trained model costs; the method is reusable.
+- **C1**: every `shape-*` row generated 128 tokens; none dropped. The real
+  models stop on EOS (6–128 tokens). One real run per small model that
+  stopped after 6 tokens reads high (142.6 / 119.3); the medians are
+  unaffected.
+- **G1 FAIL** (best `d24` 1.024× < 1.30×). At ~1B the four depths decode in
+  a ±4% band while their files differ by 16%. `d8` moves 30.1 GB/s, the
+  8-thread read ceiling in [benchmarks.md](benchmarks.md) (membw), so fewer
+  layers buy nothing. Per-layer cost appears only at 32 layers. Prefill
+  favours shallow-wide (`d8` +8%), but no gate rides on prefill.
+- **G2 FAIL** (0.978× / 0.909× < 1.10×). The decode gain matches the byte
+  bound (1.129× vs a 1.138× size ratio for `v16k`): the output head and
+  sampling over V cost what their bytes cost and no more. The extra tokens
+  per text then eat the gain.
+- **R** not reached (no shape passed); every shape stayed under the 940 MB
+  ceiling anyway.
+
+What would reopen this: a backend that is not bytes-per-token bound at ~1B
+(a fused low-bit GPU GEMV above the Phase 15 G2 bar), a lower-bit quant
+that keeps quality, or a model size where the per-layer cost dominates
+(the small models, where effective bandwidth is 19–22 GB/s rather than 28).
 
 ## Procedure
 
