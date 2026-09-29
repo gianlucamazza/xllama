@@ -13,7 +13,8 @@ ids, templates, licenses, and campaign notes** — not runtime contracts.
 | Catalogue data                                                 | [`../uwp/models/manifest.json`](../uwp/models/manifest.json) |
 | Tok/s tables                                                   | [benchmarks.md](./benchmarks.md) only                        |
 
-Last updated: **2026-09-29**. Newest entries: §A1 LFM2.5 QAD Q4_0 ripin
+Last updated: **2026-09-29**. Newest entries: §I arch-watch reopen gates
+(#273 MoE, #274 BitNet, #275 SSM/RWKV + mm); §A1 LFM2.5 QAD Q4_0 ripin
 (`lfm25-230m`, `lfm25-350m`, `lfm25-1.2b-instruct`; console metrics still
 Q4_K_M), §A4 `minicpm5-1b` catalogued (official Q4_K_M; Series S T3 still
 pending), then §F MiniCPM5 renderer shipped / T3 not booked (2026-08-10), WS-E
@@ -218,14 +219,18 @@ measured per GGUF arch instead of inferred from the family name. Measured
 Qwen3.5 and said **no** for both — wrong, and it under-sold `qwen3-1.7b`, which
 shifts.
 
-| Arch class                                 | Examples in tree                                       | KV shift         | KV tail rewind | ORT     | GGUF           | Notes              |
-| ------------------------------------------ | ------------------------------------------------------ | ---------------- | -------------- | ------- | -------------- | ------------------ |
-| Dense standard (`llama`, `qwen2`, `qwen3`) | Llama-3.2, Qwen2.5-Coder, SmolLM2 GGUF, **Qwen3-1.7B** | yes\*            | yes            | if ONNX | yes            | \*if not SWA       |
-| Hybrid attn+recurrent (`lfm2`)             | LFM2 / LFM2.5 / Thinking                               | yes (front-drop) | **no**         | no      | yes            | #170a degrade      |
-| imrope / mrope (`qwen35`)                  | Qwen3.5                                                | **no**           | N/A            | no      | yes            | #169 fail-fast     |
-| SWA                                        | some modern                                            | **no**           | careful        | —       | if arch in pin | `n_swa==0` gate    |
-| MoE small active                           | `lfm25-8b-a1b` (§A3, not shipping)                     | TBD              | TBD            | no      | **H2 FAIL**    | need ≤~3.5 GB GGUF |
-| BitNet 1.58                                | —                                                      | —                | —              | no      | H5 desk        | not shipping       |
+| Arch class                                 | Examples in tree                                       | KV shift         | KV tail rewind | ORT     | GGUF           | Notes                  |
+| ------------------------------------------ | ------------------------------------------------------ | ---------------- | -------------- | ------- | -------------- | ---------------------- |
+| Dense standard (`llama`, `qwen2`, `qwen3`) | Llama-3.2, Qwen2.5-Coder, SmolLM2 GGUF, **Qwen3-1.7B** | yes\*            | yes            | if ONNX | yes            | \*if not SWA           |
+| Hybrid attn+recurrent (`lfm2`)             | LFM2 / LFM2.5 / Thinking                               | yes (front-drop) | **no**         | no      | yes            | #170a degrade          |
+| imrope / mrope (`qwen35`)                  | Qwen3.5                                                | **no**           | N/A            | no      | yes            | #169 fail-fast         |
+| SWA                                        | some modern                                            | **no**           | careful        | —       | if arch in pin | `n_swa==0` gate        |
+| MoE small active                           | `lfm25-8b-a1b` (§A3, not shipping)                     | TBD              | TBD            | no      | **H2 FAIL**    | need ≤~3.5 GB GGUF; §I |
+| BitNet 1.58                                | —                                                      | —                | —              | no      | H5 desk        | not shipping; §I       |
+
+Reopen gates for MoE, BitNet, and SSM/RWKV + small multimodal live in [§I](#i-arch-watch),
+not in this capability table. Those watches do not reopen the rejected H2 / H5
+models.
 
 ---
 
@@ -321,6 +326,84 @@ Model SHA-256 pins: BGE-M3 `950f4a8e5e19477a6d3c26d2f162233c20002c601f75e4b002e3
    (#267). Host T1 PASS; console H9 / peak / tok/s vs `lfm25-1.2b-instruct` still
    needs a Lenovo Xbox session. Procedure:
    [console-validation-runbook.md](./console-validation-runbook.md).
+9. **Arch-watch** — desk-only reopen gates in [§I](#i-arch-watch) (#273 MoE,
+   #274 BitNet, #275 SSM/RWKV + mm). Not a catalogue seed.
+
+---
+
+## I. Arch-watch
+
+Standing desk watches for architectures that were measured or surveyed and
+**must not re-enter a product tier** unless every listed gate holds. These are
+not catalogue seeds and do **not** reopen the rejected H2 / H5 models. A
+candidate that appears still follows the ladder in
+[architecture.md](./architecture.md) (host smoke, then console bench, then
+manifest). No new catalogue id without a Series S PASS.
+
+Tracking: [#273](https://github.com/gianlucamazza/xllama/issues/273) MoE,
+[#274](https://github.com/gianlucamazza/xllama/issues/274) BitNet 1.58,
+[#275](https://github.com/gianlucamazza/xllama/issues/275) SSM/RWKV + small
+multimodal. Verdicts: [phase7-hypotheses.md](./phase7-hypotheses.md) H2 / H5.
+
+### I1. MoE (post H2 FAIL)
+
+Closed: H2 “decode scales with active weights” **FAIL** on Series S
+(2026-07-30). `lfm25-8b-a1b` matched the dense 3B on decode, paid +~1.4 GB, and
+was ~4× worse in perceived latency. Result stays in §A3. Do not re-argue that
+run. Gate: #273.
+
+**Do not reopen unless all hold:**
+
+- Official (or pin-compatible) GGUF on the current llama.cpp pin — **no fork**.
+- Peak working set **≤ ~3.5 GB** at product `n_ctx` (Series S Dev Mode envelope).
+- Decode **strictly above** the shipping dense peer at the same quality bar
+  (Llama-3.2-3B / Phi-4-mini class), not “≈ active-param dense”.
+- Prefill / perceived TTFT not several× worse than the dense peer for typical
+  chat turns.
+- Speculative draft, if any, must be a real catalogue draft with matching vocab
+  — H2+H3 do not compose on orphan MoEs.
+
+Out of scope: lowering quant on 8B-A1B to “make H2 pass” (would indict quant,
+not the arch claim). granite-3.1-3b-a800m already rejected on the same pass.
+
+### I2. BitNet 1.58 (post H5 NO-GO)
+
+Closed: H5 **NO-GO** on absence of artefact, not on measured merit (2026-08-10,
+Phase 15 M8). The pin already carries `bitnet`. No downloadable sub-4B weights
+trained at ≤2 bits. Gate: #274.
+
+**Do not reopen unless all hold:**
+
+- Public weights for a **sub-4B** model **trained** at ≤2 bits (not PTQ of
+  BF16, and not post-hoc IQ2).
+- GGUF loads on the **current product pin** — not a bitnet.cpp / custom fork.
+- Envelope target from H5: roughly 400–800 MB class aiming ≥20 tok/s on
+  Series S (re-measure; those numbers are hypotheses).
+- Host smoke + console T-gate before any catalogue id.
+
+Out of scope: 8B–20B ternary MoE, robotics VLA, diffusion LMs with custom
+runtimes, recipe-only papers. Post-hoc IQ2 on a normal model is a different
+(discouraged) bet — IQ2_M garbage precedent.
+
+### I3. SSM/RWKV + small multimodal (desk)
+
+Track non-Transformer / hybrid and small multimodal options that might fit
+Series S without repeating closed kills. **Do not reopen unless** the arch is
+on the UWP llama.cpp pin, a GGUF exists, and the Series S envelope holds.
+Diffusion **text** and custom runtimes stay out (WS-D closed; image SD-Turbo
+remains product). Gate: #275.
+
+| Class                      | Interest            | Do not reopen unless                                                         |
+| -------------------------- | ------------------- | ---------------------------------------------------------------------------- |
+| SSM / Mamba-class          | Long-ctx efficiency | Arch in UWP llama.cpp pin + GGUF ≤ envelope                                  |
+| RWKV                       | RNN-ish decode      | Same — pin + GGUF + console                                                  |
+| Gemma-3-4B + mmproj        | Vision              | Peak + mmproj often breaks Series S; text-only 1B is a separate issue (#269) |
+| Diffusion LM (byte / mask) | Novelty             | Custom runtime ≠ product pin — reject unless llama.cpp path                  |
+
+No catalogue ids without a console PASS vs LFM / MiniCPM5 peers. Nearby
+closed kills (do not re-argue): diffusion **image** SD-Turbo remains product;
+diffusion **text** WS-D closed; ORT DML int4 text reject; speculative default
+FAIL (opt-in only).
 
 ---
 
@@ -331,3 +414,4 @@ Model SHA-256 pins: BGE-M3 `950f4a8e5e19477a6d3c26d2f162233c20002c601f75e4b002e3
 - Selection / add-your-own → [model-selection.md](./model-selection.md)
 - Phase 7 research → [phase7-hypotheses.md](./phase7-hypotheses.md)
 - Runtime structure → [architecture.md](./architecture.md)
+- Arch-watch issues → #273 · #274 · #275

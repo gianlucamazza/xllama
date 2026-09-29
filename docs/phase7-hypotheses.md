@@ -217,6 +217,12 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   if it is **not** an i-quant and its expert gather is cheaper — the two candidate
   causes above, which remain unseparated.
 
+  **Reopen when** every gate in
+  [model-matrix.md](model-matrix.md#i1-moe-post-h2-fail) §I1 and
+  [#273](https://github.com/gianlucamazza/xllama/issues/273) holds: GGUF on the
+  product pin (no fork), peak ≤~3.5 GB, decode strictly above the dense peer,
+  TTFT not several× worse. That watch does not reopen `lfm25-8b-a1b`.
+
   Rejected on the same pass: **granite-3.1-3b-a800m** Q4_K_M (2017 MB, ~2.3 GB
   peak) fits comfortably and would be fast, but 800M active is ~1B-class quality —
   it answers "cheap decode", not H2's "peer quality at mid-speed".
@@ -385,9 +391,12 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
      only papers shipping actual quantised weights in the window are a robotics
      VLA and a 9.3B diffusion model, neither a text LM in envelope.
 - **Reopen when**, and only when, a sub-4B model _trained_ at ≤2 bits publishes
-  downloadable weights. Post-hoc 2-bit quantisation of a normal model is not the
-  same bet and is separately discouraged here: the IQ2_M precedent collapsed to
-  an immediate EOG on long declarative prompts.
+  downloadable weights that load on the **current product pin** (not a fork).
+  Post-hoc 2-bit quantisation of a normal model is not the same bet and is
+  separately discouraged here: the IQ2_M precedent collapsed to an immediate
+  EOG on long declarative prompts. Gate issue
+  [#274](https://github.com/gianlucamazza/xllama/issues/274); matrix row
+  [model-matrix.md](model-matrix.md#i2-bitnet-158-post-h5-no-go) §I2.
 
 ### H6 — GGUF GPU backend (Vulkan/D3D12) in AppContainer
 
@@ -431,6 +440,8 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
 GPU decode@360M, llama 2× ORT BW, mmap load win, extdata→1B fp16 GPU, DML int4
 config-only, MoE H2 as a decode win, draft-model speculative as a default
 (open-chat regression). Campaign tracking: [phase15-re-opt.md](phase15-re-opt.md).
+Arch-watch reopen gates (not a reopen of those claims):
+[model-matrix.md](model-matrix.md#i-arch-watch) §I.
 
 ## Shortlist (desk, 2026-07-16)
 

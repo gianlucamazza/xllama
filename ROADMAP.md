@@ -87,7 +87,8 @@ Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.
       at +1437 MiB, and reasons every turn (~4× worse perceived latency). The
       bandwidth premise held (631 MB read/token vs 645 predicted); the cost moves
       off bandwidth. Do not reopen at a lower quant — that tests the quantization,
-      not the architecture.
+      not the architecture. Reopen gate:
+      [`docs/model-matrix.md`](docs/model-matrix.md) §I1 / #273.
 - [x] H3 speculative decoding — **CLOSED for product default 2026-08-07/08.**
       Pre-gate 2026-07-29 split the hypothesis (draft-model rejected 0.81× chat;
       prompt-lookup admitted at host 1.53×/1.00×). Phase 15 W2 eng shipped opt-in
@@ -100,6 +101,11 @@ Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.
       Reopen only on a released sub-4B low-bit checkpoint — post-hoc 2-bit
       quantisation is a different bet (IQ2_M precedent). Evidence:
       [`docs/phase7-hypotheses.md`](docs/phase7-hypotheses.md) H5.
+      Reopen gate: [`docs/model-matrix.md`](docs/model-matrix.md) §I2 / #274.
+- [ ] Arch-watch (desk only) — reopen gates for MoE (#273), BitNet 1.58
+      (#274), and SSM/RWKV + small multimodal (#275). SSOT:
+      [`docs/model-matrix.md`](docs/model-matrix.md) §I. Does not reopen
+      rejected models or add catalogue ids.
 - [ ] H6/H7 GPU or hybrid GGUF eng — **parked** after H6.2 **K2** (2026-08-21):
       wave32 G1 PASS, median **25.4** GB/s packed vs G2 ≥40 (CI `1.5.5.922`).
       H6.1 naive was 2.15. STREAM still 119 GB/s. G2 not rewritten. Tracking:
