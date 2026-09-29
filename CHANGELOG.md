@@ -7,6 +7,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Positioning** (#280). Public docs lead with the local-inference stack
+  (games + assistants). Chat UI is the demo shell. Honest limits:
+  [docs/positioning.md](docs/positioning.md).
 - **LFM2.5 QAD ripin** (#270). Existing catalogue ids `lfm25-230m`,
   `lfm25-350m`, and `lfm25-1.2b-instruct` now pin Liquid
   [QAD Q4_0](https://www.liquid.ai/blog/qad) GGUFs (SHA-256 + `approx_bytes`

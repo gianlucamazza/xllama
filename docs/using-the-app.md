@@ -1,6 +1,8 @@
 # Using xllama on the Xbox
 
-App guide for the gamepad UI. For installation see
+Gamepad UI for the on-console **demo shell**. The product is the local
+inference stack (games and assistants), not this chat surface — see
+[positioning.md](./positioning.md). For installation see
 [install-release.md](./install-release.md); for recommended models and settings see
 [recommended-config.md](./recommended-config.md); for the engineering background see
 [technical-report.md](./technical-report.md).

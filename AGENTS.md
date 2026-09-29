@@ -308,6 +308,7 @@ If you change a contract, update the owning doc in the same PR
 
 | Change                                        | Update                                                       |
 | --------------------------------------------- | ------------------------------------------------------------ |
+| Product intent / public positioning           | `docs/positioning.md`                                        |
 | Module boundaries, routing, session ownership | `docs/architecture.md`                                       |
 | Training lanes or Phase 11                    | `docs/training-architecture.md` and `training/README.md`     |
 | User-facing UI steps                          | `docs/using-the-app.md`                                      |

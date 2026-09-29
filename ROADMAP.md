@@ -5,6 +5,11 @@ performance belongs in `docs/benchmarks.md`.
 
 ## Current product state
 
+- **North star:** local inference on Series S|X for **games**
+  (NPC/dialogue/agents) and **AI assistants**. The chat UI remains a
+  showcase shell; the LAN OpenAI-compat endpoint is the current
+  integration probe. Limits and non-claims:
+  [docs/positioning.md](docs/positioning.md).
 - Current manifest: **1.6.0.0** under the **`GianlucaMazza.xllama`** identity
   (in-place update from the same identity, see `docs/install-release.md`).
   **v1.6.0.0** (2026-09-28): catalogue-backed Ollama pull, GGUF embeddings,

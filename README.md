@@ -1,8 +1,9 @@
 # xllama
 
-> Local LLM + diffusion + on-device training on Xbox Series S|X — dual-backend dispatch,
-> OpenAI-compat LAN endpoint, single-session invariant.
-> Architecture showcase under real constraints (UWP, console, 10 GB RAM).
+> Local inference on Xbox Series S|X — GGUF / llama.cpp, dual-backend dispatch
+> (ORT GenAI + DirectML), OpenAI-compat LAN endpoint, diffusion, and on-device
+> training. Built for games (NPC / dialogue / agents) and AI assistants.
+> Chat UI is a demo shell. Architecture under real constraints (UWP, 10 GB RAM).
 
 [![build-uwp](https://github.com/gianlucamazza/xllama/actions/workflows/build-uwp.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-uwp.yml)
 [![build-linux](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml)
@@ -14,14 +15,14 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22118437.svg)](https://doi.org/10.5281/zenodo.22118437)
 <!-- XLLAMA_DOI_END -->
 
-[CHANGELOG](CHANGELOG.md) · [ROADMAP](ROADMAP.md)
+[CHANGELOG](CHANGELOG.md) · [ROADMAP](ROADMAP.md) · [Positioning](docs/positioning.md)
 
 https://github.com/user-attachments/assets/9494a6a2-f14e-4229-afa4-ff5faf51ba67
 
 The hosted clip above is the compact technical demo recorded on a Series S in
 Dev Mode. The new [52.97-second product showcase](docs/screenshots/xllama-demo-v1.5.6-showcase.mp4)
-keeps the meaningful states visible: local chat, feedback, completed
-personalization, coding, and generated image. Its [12-minute raw capture](docs/screenshots/xllama-demo-v1.5.6-showcase-raw.mp4)
+keeps the meaningful states visible through the chat **demo shell**: local
+inference, feedback, completed personalization, coding, and generated image. Its [12-minute raw capture](docs/screenshots/xllama-demo-v1.5.6-showcase-raw.mp4)
 and [marker log](docs/screenshots/xllama-demo-v1.5.6-showcase-markers.jsonl)
 remain available for audit. The original [technical raw capture](docs/screenshots/xllama-demo-v1.5.6.mp4)
 is also retained; neither video supports a throughput claim.
@@ -53,11 +54,14 @@ First launch: downloads default model (~219 MB). No model bundled in MSIX.
 
 ## What you can do
 
-- **Chat** — multi-turn with KV-reuse, thinking models, coding tier
+- **LAN API** — OpenAI-compat completions, GGUF embeddings, trusted catalogue
+  pull, preferences and training status. Current integration probe for games
+  and assistants; opt-in, default OFF.
+- **Bench** — headless tok/s, membw, diskbw, gpubw, gpugemv, ramceil probes
 - **Diffuse** — SD-Turbo on DirectML, in-process with XAML compositor
 - **Train** — on-device partial FT (Lane B), host PEFT (Lane A), serve merged GGUF (Lane C)
-- **LAN API** — chat, GGUF embeddings, trusted catalogue pull, preferences and training status
-- **Bench** — headless tok/s, membw, diskbw, gpubw, gpugemv, ramceil probes
+- **Chat (demo shell)** — multi-turn pad UI with KV-reuse, thinking models,
+  coding tier. Showcase, not the product thesis.
 
 ---
 
@@ -77,7 +81,8 @@ Full catalogue + Phase 14 coding models: [model-matrix.md](docs/model-matrix.md)
 
 xllama exposes an HTTP endpoint on the local network that exposes its full
 inference core (`SessionHub`) with OpenAI and Ollama-compatible APIs.
-Status: v1, opt-in, default OFF. Dev Mode / LAN research only.
+Status: v1, opt-in, default OFF. Dev Mode / LAN research only — the current
+integration probe, not a public inbound service.
 
 ```bash
 # Chat completions (non-streaming)
@@ -112,10 +117,10 @@ streaming status: [api-endpoint.md](docs/api-endpoint.md).
 
 ### Two pillars, one core
 
-| Pillar        | Role                       | Hot path                    |
-| ------------- | -------------------------- | --------------------------- |
-| **Inference** | Chat, diffusion, LAN API   | `Session` / `run_inference` |
-| **Training**  | PEFT adapters, merged GGUF | `TrainingJob` → artefacts   |
+| Pillar        | Role                                   | Hot path                    |
+| ------------- | -------------------------------------- | --------------------------- |
+| **Inference** | LAN API, benches, diffusion, demo chat | `Session` / `run_inference` |
+| **Training**  | PEFT adapters, merged GGUF             | `TrainingJob` → artefacts   |
 
 Core: `src/bridge/` C++17, WinRT-free headers in `include/xllama/`, host-testable.
 Two front-ends: `xllama-cli` (Linux) + UWP app.
@@ -221,7 +226,8 @@ Every copy in this codebase has eventually disagreed — silently.
 | AppContainer constraints (§1–§13)                  | [uwp-constraints.md](docs/uwp-constraints.md)                       |
 | Model catalogue + selection                        | [model-selection.md](docs/model-selection.md)                       |
 | Performance numbers                                | [benchmarks.md](docs/benchmarks.md)                                 |
-| App usage guide                                    | [using-the-app.md](docs/using-the-app.md)                           |
+| Product positioning (games + assistants; limits)   | [positioning.md](docs/positioning.md)                               |
+| App usage guide (demo shell)                       | [using-the-app.md](docs/using-the-app.md)                           |
 | LAN API protocol (detailed)                        | [api-endpoint.md](docs/api-endpoint.md)                             |
 | Console validation gates                           | [console-validation-runbook.md](docs/console-validation-runbook.md) |
 | Crossbuild Linux → Xbox                            | [crossbuild-console.md](docs/crossbuild-console.md)                 |

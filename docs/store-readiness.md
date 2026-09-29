@@ -25,7 +25,8 @@ Privacy URL: <https://gianlucamazza.github.io/xllama/privacy.html>.
 **Audience for a eventual listing:** hobbyist local-LLM / homebrew Xbox users
 who should not need Dev Mode. Contributors keep the Dev Mode sideload path.
 
-**Related:** plan in session / product intent; `docs/api-endpoint.md` (LAN: not for the Store);
+**Related:** product intent in [positioning.md](positioning.md);
+`docs/api-endpoint.md` (LAN: not for the Store);
 `docs/install-release.md` (Dev Mode only today).
 
 ---
