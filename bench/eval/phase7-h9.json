@@ -37,7 +37,17 @@
     ],
     "max_tokens": 64,
     "required_patterns": ["4", "730[[:space:]]*MB"],
-    "forbidden_patterns": ["GPU", "internet"],
+    "forbidden_patterns": [
+      "GPU",
+      "internet",
+      "\\beach\\b",
+      "\\bper[[:space:]]+(core|cpu)\\b",
+      "\\bapiece\\b",
+      "\\bciascun[oa]?\\b",
+      "\\bognuno\\b",
+      "\\bper[[:space:]]+ogni\\b",
+      "\\bogni[[:space:]]+core\\b"
+    ],
     "max_words": 30
   },
   {
