@@ -63,7 +63,12 @@ QAD Q4_0 files for `lfm25-230m/350m/1.2b-instruct`. Their layout is every
 matmul Q4_0 and `token_embd` Q6_K, which is exactly what `llama-quantize Q4_0`
 produces on a tied-embedding `lfm2`. Q4_0 takes a different CPU repack path
 from Q4_K, so the grid must use the reference's quant or C0 is invalid by
-construction.
+construction. The whole grid is Q4_0. The one exception is the 230M pair:
+on the day of the run the device held Liquid Q4_K_M for `lfm25-230m` (#290
+had reverted the pin; #292 restored QAD afterwards), so `shape-ref-230m`
+was built in Q4_K_M to match it. That pair is a second-quant calibration of
+the method. The Q4_0 calibration that the grid relies on is the 350M and
+1.2B pairs.
 
 ## Grid
 
@@ -128,8 +133,11 @@ bytes × decode tok/s.
 | `shape-v16k`          | Q4_0   |         110.5 |        45.34 |      27.7 |     695 |        1.129× |
 
 - **C0 PASS** on all three pairs: decode −0.5% / −0.4% / +0.2%, prefill
-  −0.3% / +0.1% / −0.1%, identical peak RAM. On this backend a random-weight
-  GGUF costs what the trained model costs; the method is reusable.
+  −0.3% / +0.1% / −0.1%, identical peak RAM. The Q4_0 grid rests on the 350M
+  and 1.2B pairs, both against the shipped QAD Q4_0 files. The 230M pair is
+  Q4_K_M on both sides (the file on the device that day) and shows the method
+  holds on a second quant type too. On this backend a random-weight GGUF
+  costs what the trained model costs; the method is reusable.
 - **C1**: every `shape-*` row generated 128 tokens; none dropped. The real
   models stop on EOS (6–128 tokens). One real run per small model that
   stopped after 6 tokens reads high (142.6 / 119.3); the medians are
@@ -219,8 +227,11 @@ survive its quality loss against simply shipping `lfm25-1.2b-instruct`.
 
 - Truncating the LFM2 vocabulary approximates a smaller trained BPE (ids are
   merge-ordered) but is not identical to one; G2 is an upper bound.
-- `default_attn_layers` keeps LFM2.5's 6-in-16 attention ratio; the ratio
-  itself is not swept. It mostly moves KV size and long-context prefill, which
-  this gate does not measure.
+- `default_attn_layers` rounds LFM2.5's 6-in-16 attention ratio to whole
+  layers: `d8`, `d24` and `d32` keep 37.5%, but `d12` gets 4 of 12 (33%). So
+  `d12` also changes attention density, not only depth and width. That does
+  not change the verdict: `d12` sits inside the same ±4% band (1.010×). The
+  ratio itself is not swept; it mostly moves KV size and long-context
+  prefill, which this gate does not measure.
 - One thread count (t6, the shipped default). The winner, if any, gets a
   thread re-sweep before any claim.
