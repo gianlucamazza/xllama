@@ -27,7 +27,7 @@
 # path (see the NOTE above), not editing one line.
 # Offline, host-only toolchain fed only
 # first-party checkpoints (stabilityai/sd-turbo). Not shipped in the MSIX.
-torch==2.9.1              # legacy torch.onnx tracer via optimum-onnx dynamo=False; --extra-index-url .../whl/cpu
+torch==2.13.0              # legacy torch.onnx tracer via optimum-onnx dynamo=False; --extra-index-url .../whl/cpu
 optimum-onnx[onnxruntime]==0.1.0
 transformers==4.57.6
 diffusers==0.39.0
