@@ -308,6 +308,7 @@ the catalogue status only.
 | MiniCPM5-1B      | llama.cpp | ~688 MB          | catalogue `minicpm5-1b` — host T1 PASS; Series S T3 pending             |
 | Qwen3-0.6B       | ORT GenAI | 969 MB merged    | ✅ builds; heavy (151k-vocab embedding dominates)                       |
 | Gemma-3-270M     | llama.cpp | 253 MB           | ✅ `gemma3-270m` — fast, tiny, fits easily                              |
+| Gemma-3-1B       | llama.cpp | ~806 MB          | catalogue `gemma3-1b` — host T1 PASS; Series S T3 pending               |
 | Gemma-4-E2B      | llama.cpp | 2.45 GB (Q3_K_S) | ✅ **console-validated** `gemma4-e2b` (see verdict below)               |
 | Gemma-4 E4B/12B+ | llama.cpp | ≥4.5 GB          | ⛔ too big / too slow for the console                                   |
 

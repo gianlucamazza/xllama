@@ -253,6 +253,13 @@ curl -N -X POST "http://${XBOX_IP}:11434/api/pull" \
   -d '{"model":"minicpm5-1b"}'
 ```
 
+## Campaign T3 — Gemma-3-1B (#269)
+
+Same procedure as MiniCPM5: provision `gemma3-1b`, bench with `--runs 4`,
+then H9 through the LAN API next to `gemma3-270m` and `lfm25-1.2b-instruct`.
+The PASS bar (not dominated by the 1.2B peer) is in
+[model-matrix.md](model-matrix.md) §A4.
+
 ## QAD ripin regression — LFM2.5 (#270)
 
 Catalogue ids `lfm25-230m`, `lfm25-350m`, and `lfm25-1.2b-instruct` now pin

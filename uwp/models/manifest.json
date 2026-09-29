@@ -119,6 +119,20 @@
       ]
     },
     {
+      "_comment": "Gemma-3-1B-IT Q4_K_M — official ggml-org GGUF (#269). Mid tier between gemma3-270m and lfm25-1.2b-instruct; text-only (no mmproj). Direct from HF (Gemma Terms of Use: do not mirror onto models-v1). Gemma template via chat_format_for (id must keep 'gemma'). Catalogue candidate: Series S T3 pending. kind:gguf, CPU-only, KV-reuse, routing disabled.",
+      "name": "gemma3-1b",
+      "display": "Gemma 3 1B (GGUF · CPU · catalogue)",
+      "kind": "gguf",
+      "hf_base_url": "https://huggingface.co/ggml-org/gemma-3-1b-it-GGUF/resolve/main",
+      "files": [
+        {
+          "filename": "gemma-3-1b-it-Q4_K_M.gguf",
+          "approx_bytes": 806058240,
+          "sha256": "8ccc5cd1f1b3602548715ae25a66ed73fd5dc68a210412eea643eb20eb75a135"
+        }
+      ]
+    },
+    {
       "_comment": "Gemma-4-E2B (llama.cpp gemma4 arch). Console-validated 2026-07-14 with Q3_K_S (2.45 GB): peak RAM 2742 MB, decode ~15.3 tok/s, generates full responses on long prompts (266 tok). Upgraded from UD-IQ2_M (2.29 GB) — the 2-bit quant collapsed to an immediate EOG on ~512-token declarative prompts (0 decode tok); Q3_K_S fixes that and is faster. Heavy/advanced: >2GB (fine on GGUF — the ~2GB Dev Mode per-file limit does not apply). Direct from HF (>2GB exceeds the GitHub release 2GB asset limit; Gemma Terms apply — verify before mirroring).",
       "name": "gemma4-e2b",
       "display": "Gemma 4 E2B (GGUF · CPU · 2.45 GB, advanced)",

@@ -182,6 +182,7 @@ TEST_CASE("chat format selection") {
     CHECK(chat_format_for("lfm25-1.2b-instruct").kind == ChatFormatKind::ChatML);
     CHECK(chat_format_for("lfm2-2.6b").kind == ChatFormatKind::ChatML);
     CHECK(chat_format_for("gemma3-270m").kind == ChatFormatKind::Gemma);
+    CHECK(chat_format_for("gemma3-1b").kind == ChatFormatKind::Gemma);
     CHECK(chat_format_for("llama32-3b").kind == ChatFormatKind::Llama3);
     CHECK(chat_format_for("phi35-mini").kind == ChatFormatKind::Phi3);
 

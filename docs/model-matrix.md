@@ -13,7 +13,8 @@ ids, templates, licenses, and campaign notes** — not runtime contracts.
 | Catalogue data                                                 | [`../uwp/models/manifest.json`](../uwp/models/manifest.json) |
 | Tok/s tables                                                   | [benchmarks.md](./benchmarks.md) only                        |
 
-Last updated: **2026-09-29**. Newest entries: §I arch-watch reopen gates
+Last updated: **2026-09-30**. Newest entries: §A4 `gemma3-1b` catalogued
+(ggml-org Q4_K_M; Series S T3 pending, #269); §I arch-watch reopen gates
 (#273 MoE, #274 BitNet, #275 SSM/RWKV + mm); §A1 LFM2.5 QAD Q4_0 ripin
 (`lfm25-230m`, `lfm25-350m`, `lfm25-1.2b-instruct`; console metrics still
 Q4_K_M), §A4 `minicpm5-1b` catalogued (official Q4_K_M; Series S T3 still
@@ -180,6 +181,7 @@ harness: [console-validation-runbook.md](./console-validation-runbook.md)
 
 | Model       | Catalogue     | Quant  | Backend   | Est. weights | Status                                                                 | Template                | n_ctx | Evidence                                                                 |
 | ----------- | ------------- | ------ | --------- | -----------: | ---------------------------------------------------------------------- | ----------------------- | ----: | ------------------------------------------------------------------------ |
+| Gemma-3-1B  | `gemma3-1b`   | Q4_K_M | llama.cpp |       806 MB | **catalogue** · host T1 PASS (peak 953 MB) · Series S T3 pending       | Gemma                   |  2048 | host smoke 2026-09-30; official ggml-org GGUF; #269                      |
 | MiniCPM5-1B | `minicpm5-1b` | Q4_K_M | llama.cpp |       688 MB | **catalogue** · host T1 PASS · Series S T3 pending (human from Lenovo) | ChatML + BOS + no-think |  2048 | H16.1d renderer shipped 2026-08-10; official openbmb GGUF; T3 not booked |
 
 The peer for T3 is `lfm25-1.2b-instruct` (balanced chat: 37.9 tok/s, 811 MB,
@@ -187,6 +189,13 @@ H9 6/8). Campaign PASS bars from
 [phase16-model-scouting.md](phase16-model-scouting.md) H16.1d: H9 ≥ 6/8, median
 decode ≥ 34.1 tok/s, `peak_ws_mb` ≤ 811. Weights (688 MB) sit under the Series S
 peak budget; do not quote a console peak until T3 records one.
+
+`gemma3-1b` is the mid tier between `gemma3-270m` (3/8, 368 MB) and
+`lfm25-1.2b-instruct`. Its 262k vocabulary costs a ~519 MiB compute buffer, so
+host peak (953 MB) already exceeds the 1.2B peer. PASS bar (fixed before T3):
+not dominated by `lfm25-1.2b-instruct`, i.e. H9 ≥ 5/8 **and** at least one of
+H9 ≥ 7/8, median decode > 37.9 tok/s, or `peak_ws_mb` < 811. Otherwise
+`reject — measured` in §F.
 
 ---
 
@@ -393,12 +402,12 @@ on the UWP llama.cpp pin, a GGUF exists, and the Series S envelope holds.
 Diffusion **text** and custom runtimes stay out (WS-D closed; image SD-Turbo
 remains product). Gate: #275.
 
-| Class                      | Interest            | Do not reopen unless                                                         |
-| -------------------------- | ------------------- | ---------------------------------------------------------------------------- |
-| SSM / Mamba-class          | Long-ctx efficiency | Arch in UWP llama.cpp pin + GGUF ≤ envelope                                  |
-| RWKV                       | RNN-ish decode      | Same — pin + GGUF + console                                                  |
-| Gemma-3-4B + mmproj        | Vision              | Peak + mmproj often breaks Series S; text-only 1B is a separate issue (#269) |
-| Diffusion LM (byte / mask) | Novelty             | Custom runtime ≠ product pin — reject unless llama.cpp path                  |
+| Class                      | Interest            | Do not reopen unless                                                                  |
+| -------------------------- | ------------------- | ------------------------------------------------------------------------------------- |
+| SSM / Mamba-class          | Long-ctx efficiency | Arch in UWP llama.cpp pin + GGUF ≤ envelope                                           |
+| RWKV                       | RNN-ish decode      | Same — pin + GGUF + console                                                           |
+| Gemma-3-4B + mmproj        | Vision              | Peak + mmproj often breaks Series S; text-only 1B is catalogued as `gemma3-1b` (#269) |
+| Diffusion LM (byte / mask) | Novelty             | Custom runtime ≠ product pin — reject unless llama.cpp path                           |
 
 No catalogue ids without a console PASS vs LFM / MiniCPM5 peers. Nearby
 closed kills (do not re-argue): diffusion **image** SD-Turbo remains product;

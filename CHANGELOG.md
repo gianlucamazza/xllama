@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Catalogue Gemma-3-1B** (`gemma3-1b`, #269). Official
+  [ggml-org/gemma-3-1b-it-GGUF](https://huggingface.co/ggml-org/gemma-3-1b-it-GGUF)
+  Q4_K_M (~806 MB), SHA-256 pinned, downloaded straight from HF (Gemma Terms of
+  Use). Mid tier between `gemma3-270m` and `lfm25-1.2b-instruct`; Gemma
+  template via `chat_format_for`. Host T1 PASS (peak 953 MB); Series S T3
+  pending.
 - **Positioning** (#280). Public docs lead with the local-inference stack
   (games + assistants). Chat UI is the demo shell. Honest limits:
   [docs/positioning.md](docs/positioning.md).
