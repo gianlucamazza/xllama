@@ -296,6 +296,11 @@ Branch from `main` as `feat/…`, `fix/…`, `docs/…`, `chore/…`, or `ci/…
 Commit subjects use those conventional prefixes. Keep a PR to one change;
 put unrelated infra in its own PR.
 
+`main` only changes through a squash-merged PR. Ruleset
+[ADR 0002](docs/adr/0002-main-branch-governance.md) requires `build (linux)`,
+both `build (…)` UWP variants and `analyze (c-cpp)` green on an up-to-date
+head. Renaming one of those jobs means updating the ruleset in the same PR.
+
 Fill `.github/pull_request_template.md`: **What & why** and **How verified**.
 Before pushing, run the Linux test build, ctest, and the formatters that
 touch your files. If you changed evidence or summary policy, run

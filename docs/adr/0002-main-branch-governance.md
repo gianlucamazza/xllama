@@ -1,13 +1,13 @@
 # ADR 0002: Enforce CI gates on main with a repository ruleset
 
-Status: Proposed (2026-09-29)
+Status: Accepted (2026-09-29)
 
-Not applied. Needs explicit owner acceptance before any repository policy
-changes (#264).
+Accepted by the owner ("sei autorizzato, completa tu"; sole maintainer).
+Applied as ruleset `24213666` (#264).
 
 ## Context
 
-Read-only inspection on 2026-09-29:
+Read-only inspection on 2026-09-29, before the change:
 
 - Rulesets: none (`gh api repos/gianlucamazza/xllama/rulesets` returns `[]`).
 - Legacy branch protection on `main`: 1 approving review, `enforce_admins`
@@ -98,11 +98,17 @@ Add one active ruleset on the default branch:
 
 ## Rollout and rollback
 
-1. Apply with `enforcement: "evaluate"` (if the plan offers it) or on a test
-   branch pattern first.
-2. Open a test PR with a deliberately failing check and confirm the merge
-   button is blocked. Then confirm a green PR merges and an admin PR bypass works.
-3. Switch to `active`.
+Applied on 2026-09-29. `evaluate` mode is not available on this plan, so the
+ruleset went straight to `active`:
+
+1. Ruleset `24213666` created from the payload above.
+2. Legacy `required_pull_request_reviews` removed. Force-push and deletion
+   blocks stay on the legacy protection as a second layer.
+3. Merge settings: squash only with the PR title and body, branches deleted
+   on merge, auto-merge and update-branch enabled. Dependabot security update
+   PRs enabled.
+4. First gated PR: this ADR update. It reported `BLOCKED` while the required
+   checks ran, and merged without `--admin` once they were green.
 
 Emergency rollback: set `enforcement` to `disabled` via
 `gh api -X PUT repos/gianlucamazza/xllama/rulesets/<id>`. The owner (repo
