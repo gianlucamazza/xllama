@@ -698,7 +698,6 @@ def main() -> int:
         "CHANGELOG.md",
     }
     stale = [
-        (r"(?<![0-9.])219 MB|(?<![0-9.])218 MB", "LFM350 size understated"),
         (r"697 MB", "LFM1.2 size understated"),
         (r"1\.46 GB", "LFM2.6 size understated"),
     ]
@@ -715,10 +714,10 @@ def main() -> int:
     for path, needles in [
         (
             "docs/model-selection.md",
-            ["~229 MB", "~731 MB", "~1.56 GB", "~533 MB", "~421 MB"],
+            ["~219 MB", "~696 MB", "~1.56 GB", "~533 MB", "~421 MB"],
         ),
-        ("docs/using-the-app.md", ["~229 MB", "~421 MB"]),
-        ("README.md", ["~229 MB"]),
+        ("docs/using-the-app.md", ["~219 MB", "~421 MB"]),
+        ("README.md", ["~219 MB"]),
     ]:
         text = (ROOT / path).read_text(encoding="utf-8")
         for n in needles:
@@ -728,8 +727,8 @@ def main() -> int:
 
     # size vs manifest numerical closeness for LFM/Qwen
     for name, claimed_mb in [
-        ("lfm25-350m", 229),
-        ("lfm25-1.2b-instruct", 731),
+        ("lfm25-350m", 219),
+        ("lfm25-1.2b-instruct", 696),
         ("qwen35-0.8b", 533),
         ("smollm2-360m-cpu-int4", 421),
     ]:

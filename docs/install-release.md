@@ -106,7 +106,7 @@ Notes:
 Launch xllama from Dev Home (or `./scripts/deploy.sh start-app`). The app
 downloads the default chat model with a progress bar, then opens the chat.
 On **unified** shipping builds (v1.1.8+) that default is
-**LFM2.5-350M** (~229 MB catalogue download); older releases used SmolLM2-360M
+**LFM2.5-350M** (~219 MB catalogue download); older releases used SmolLM2-360M
 INT4 (~421 MB). See
 [using-the-app.md](./using-the-app.md) from here.
 

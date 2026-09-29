@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **LFM2.5 QAD ripin** (#270). Existing catalogue ids `lfm25-230m`,
+  `lfm25-350m`, and `lfm25-1.2b-instruct` now pin Liquid
+  [QAD Q4_0](https://www.liquid.ai/blog/qad) GGUFs (SHA-256 + `approx_bytes`
+  updated; downloads from the official LiquidAI Hugging Face repos so the LFM
+  Open License still travels with the weights). Same ids — no new catalogue
+  entries. `lfm2-2.6b` is unchanged (LFM2 generation; no QAD published).
+  Console tok/s / H9 remain the Q4_K_M measurements until a Series S
+  regression is recorded.
 - **Catalogue MiniCPM5-1B** (`minicpm5-1b`). Official
   [openbmb/MiniCPM5-1B-GGUF](https://huggingface.co/openbmb/MiniCPM5-1B-GGUF)
   Q4_K_M (~688 MB), SHA-256 pinned. The H16.1d ChatML renderer (`<s>` BOS +

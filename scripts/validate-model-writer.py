@@ -10,8 +10,8 @@ from pathlib import Path
 
 from console_test import Console, fixture, settings
 
-MODEL_FILE = "LFM2.5-350M-Q4_K_M.gguf"
-MODEL_SHA = "7e6f72643caafc9a68256686638c4d7916f2cec76d1df478d4c3ddcd95a6aed4"
+MODEL_FILE = "LFM2.5-350M-QAD-Q4_0.gguf"
+MODEL_SHA = "3d10b6ab8fc91a919534b9558e266255aca0bbc7f6d015963599aa9e74e05b1d"
 BUSY = "another model write is in progress"
 
 

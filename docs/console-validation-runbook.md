@@ -240,6 +240,26 @@ curl -N -X POST "http://${XBOX_IP}:11434/api/pull" \
   -d '{"model":"minicpm5-1b"}'
 ```
 
+## QAD ripin regression — LFM2.5 (#270)
+
+Catalogue ids `lfm25-230m`, `lfm25-350m`, and `lfm25-1.2b-instruct` now pin
+Liquid QAD Q4_0 GGUFs (filenames changed). Re-provision with `--force` and
+compare against the recorded Q4_K_M rows. `lfm2-2.6b` is unchanged (LFM2; no
+QAD published). Do not treat host tok/s as a Series S result.
+
+```bash
+source ~/.config/xllama/xbox-env
+./scripts/provision-models.sh --force lfm25-230m lfm25-350m lfm25-1.2b-instruct
+./scripts/validate-console.sh gguf
+./scripts/bench-xbox-ort.sh lfm25-350m --runs 4 --n-predict 96 \
+  --out bench/results/lfm25-qad-console.csv
+./scripts/eval-xbox-models.sh --models lfm25-230m,lfm25-350m,lfm25-1.2b-instruct \
+  --out bench/results/lfm25-qad-h9.jsonl
+```
+
+Record the package version with the CSV. Historical Q4_K_M numbers stay in
+[model-matrix.md](model-matrix.md) §A1 until this regression is committed.
+
 ## Troubleshooting
 
 - `./scripts/deploy.sh diagnose-startup` — process state, log and crash dumps.
@@ -276,7 +296,7 @@ and restores every tracked original byte before restarting the normal app.
 
 ```bash
 python scripts/validate-model-writer.py --out /private/writer-proof \
-  --model-backup /private/LFM2.5-350M-Q4_K_M.gguf \
+  --model-backup /private/LFM2.5-350M-QAD-Q4_0.gguf \
   --embedding-backup /private/bge-m3-Q8_0.gguf
 python scripts/validate-kv-fallback.py --out /private/kv-proof
 ```

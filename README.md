@@ -45,7 +45,7 @@ source ~/.config/xllama/xbox-env
 ./scripts/deploy.sh path/to/xllama_*.msix
 ```
 
-First launch: downloads default model (~229 MB). No model bundled in MSIX.
+First launch: downloads default model (~219 MB). No model bundled in MSIX.
 
 **Linux dev:** `cmake --preset linux-release && cmake --build build/linux-release -j`
 

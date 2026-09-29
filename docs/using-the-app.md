@@ -8,10 +8,11 @@ App guide for the gamepad UI. For installation see
 ## First launch — model download
 
 The MSIX ships no model (~19 MB). On first launch the app downloads the default
-chat model (**LFM2.5-350M** Q4_K_M, ~229 MB download, on unified shipping builds;
-ORT-only builds still use SmolLM2-360M-Instruct INT4, ~421 MB) from the
-[`models-v1` GitHub Release](https://github.com/gianlucamazza/xllama/releases/tag/models-v1)
-with a progress bar, writes it to `LocalState\models\`, and opens the chat.
+chat model (**LFM2.5-350M** QAD Q4_0, ~219 MB download, on unified shipping
+builds; ORT-only builds still use SmolLM2-360M-Instruct INT4, ~421 MB) from the
+allowlisted catalogue (`uwp/models/manifest.json`; LiquidAI Hugging Face for the
+default LFM) with a progress bar, writes it to `LocalState\models\`, and opens
+the chat.
 The console needs internet access for this step; afterwards everything runs
 offline. If the download fails, provisioning via Device Portal or USB
 (`E:\xllama\models\<name>`) is described in

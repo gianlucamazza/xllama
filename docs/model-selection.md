@@ -298,18 +298,18 @@ llama.cpp** — reachable via the shipping `unified` backend build with
 numbers live in [`benchmarks.md`](benchmarks.md)** (the perf SSOT); this table is
 the catalogue status only.
 
-| Model            | Path      | Disk size        | Status                                                                      |
-| ---------------- | --------- | ---------------- | --------------------------------------------------------------------------- |
-| Qwen3.5-0.8B     | llama.cpp | ~533 MB          | ✅ `qwen35-0.8b` — optional modern GGUF                                     |
-| LFM2.5-230M      | llama.cpp | ~146 MB          | ✅ `lfm25-230m` — floor tier; 119.2 tok/s, 241 MB, H9 2/8 (Phase 16 H16.1c) |
-| LFM2.5-350M      | llama.cpp | ~229 MB          | ✅ `lfm25-350m` — hybrid edge arch; default chat on unified builds          |
-| LFM2.5-1.2B      | llama.cpp | ~731 MB          | ✅ `lfm25-1.2b-instruct` — balanced; 37.9 tok/s, H9 6/8                     |
-| LFM2-2.6B        | llama.cpp | ~1.56 GB         | ✅ `lfm2-2.6b` — quality; 18.4 tok/s, H9 7/8                                |
-| MiniCPM5-1B      | llama.cpp | ~688 MB          | catalogue `minicpm5-1b` — host T1 PASS; Series S T3 pending                 |
-| Qwen3-0.6B       | ORT GenAI | 969 MB merged    | ✅ builds; heavy (151k-vocab embedding dominates)                           |
-| Gemma-3-270M     | llama.cpp | 253 MB           | ✅ `gemma3-270m` — fast, tiny, fits easily                                  |
-| Gemma-4-E2B      | llama.cpp | 2.45 GB (Q3_K_S) | ✅ **console-validated** `gemma4-e2b` (see verdict below)                   |
-| Gemma-4 E4B/12B+ | llama.cpp | ≥4.5 GB          | ⛔ too big / too slow for the console                                       |
+| Model            | Path      | Disk size        | Status                                                                  |
+| ---------------- | --------- | ---------------- | ----------------------------------------------------------------------- |
+| Qwen3.5-0.8B     | llama.cpp | ~533 MB          | ✅ `qwen35-0.8b` — optional modern GGUF                                 |
+| LFM2.5-230M      | llama.cpp | ~149 MB          | ✅ `lfm25-230m` — floor; QAD Q4_0 ripin 2026-09-29 (tok/s still Q4_K_M) |
+| LFM2.5-350M      | llama.cpp | ~219 MB          | ✅ `lfm25-350m` — default chat; QAD Q4_0 ripin 2026-09-29               |
+| LFM2.5-1.2B      | llama.cpp | ~696 MB          | ✅ `lfm25-1.2b-instruct` — balanced; QAD Q4_0 ripin 2026-09-29          |
+| LFM2-2.6B        | llama.cpp | ~1.56 GB         | ✅ `lfm2-2.6b` — quality; 18.4 tok/s, H9 7/8                            |
+| MiniCPM5-1B      | llama.cpp | ~688 MB          | catalogue `minicpm5-1b` — host T1 PASS; Series S T3 pending             |
+| Qwen3-0.6B       | ORT GenAI | 969 MB merged    | ✅ builds; heavy (151k-vocab embedding dominates)                       |
+| Gemma-3-270M     | llama.cpp | 253 MB           | ✅ `gemma3-270m` — fast, tiny, fits easily                              |
+| Gemma-4-E2B      | llama.cpp | 2.45 GB (Q3_K_S) | ✅ **console-validated** `gemma4-e2b` (see verdict below)               |
+| Gemma-4 E4B/12B+ | llama.cpp | ≥4.5 GB          | ⛔ too big / too slow for the console                                   |
 
 **Gemma chat template**: the ORT GenAI _builder_ is frozen at Gemma3, but the
 vendored `llama.cpp` (current pin `08659901c`, see `patches/README.md`) already carries `LLM_ARCH_GEMMA3` **and**

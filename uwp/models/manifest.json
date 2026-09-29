@@ -133,55 +133,54 @@
       ]
     },
     {
-      "_comment": "Phase 16 H16.1c PASS (2026-08-10): 119.17 tok/s decode, 241 MB peak, H9 2/8 on Series S — displaces gemma3-270m as the floor role at 1.55x its decode and 127 MB less peak, at one H9 task below it. LiquidAI's own Q4_K_M mirrored onto models-v1 with the LFM Open License alongside (card ship path, lfm25-350m pattern); the unsloth Q4_K_M is a different artefact (bench/results/phase16-quantiser-ab.csv).",
+      "_comment": "Phase 16 H16.1c PASS (2026-08-10) on Liquid Q4_K_M: 119.17 tok/s decode, 241 MB peak, H9 2/8 on Series S. 2026-09-29 QAD ripin (#270): same catalogue id now pins LiquidAI LFM2.5-230M-QAD-Q4_0 from HF (LICENSE travels with the weights). Console regression vs Q4_K_M still pending. The unsloth Q4_K_M is a different artefact (bench/results/phase16-quantiser-ab.csv).",
       "name": "lfm25-230m",
-      "display": "LFM2.5 230M (GGUF · CPU · floor)",
+      "display": "LFM2.5 230M (GGUF · CPU · floor · QAD)",
       "kind": "gguf",
-      "hf_base_url": "https://github.com/gianlucamazza/xllama/releases/download/models-v1",
+      "hf_base_url": "https://huggingface.co/LiquidAI/LFM2.5-230M-GGUF/resolve/main",
       "files": [
         {
-          "filename": "LFM2.5-230M-Q4_K_M.gguf",
-          "approx_bytes": 153406304,
-          "sha256": "7bbd90384d3deffe4c646ec9643b212802d32d4ce417c90a1ec9282100650062"
+          "filename": "LFM2.5-230M-QAD-Q4_0.gguf",
+          "approx_bytes": 149081056,
+          "sha256": "e75f83268de11b2a1bcfab5f3b5c5c0c97569ddbbc0990aad88437e45b8ba292"
         },
         {
           "filename": "LICENSE",
-          "remote": "LFM2.5-230M_LICENSE.txt",
           "approx_bytes": 10574,
           "sha256": "30adf9d6478191fb87f2424f63ba0728598335aaf99cd2848ef17e8e545fe94b"
         }
       ]
     },
     {
+      "_comment": "Default chat. Console metrics (phase17) are the previous Q4_K_M artefact. 2026-09-29 QAD ripin (#270): same catalogue id now pins LiquidAI LFM2.5-350M-QAD-Q4_0 from HF. Console regression vs Q4_K_M still pending. LFM Open License accompanies the weights.",
       "name": "lfm25-350m",
-      "display": "LFM2.5 350M (GGUF · CPU)",
+      "display": "LFM2.5 350M (GGUF · CPU · QAD)",
       "kind": "gguf",
-      "hf_base_url": "https://github.com/gianlucamazza/xllama/releases/download/models-v1",
+      "hf_base_url": "https://huggingface.co/LiquidAI/LFM2.5-350M-GGUF/resolve/main",
       "files": [
         {
-          "filename": "LFM2.5-350M-Q4_K_M.gguf",
-          "approx_bytes": 229312224,
-          "sha256": "7e6f72643caafc9a68256686638c4d7916f2cec76d1df478d4c3ddcd95a6aed4"
+          "filename": "LFM2.5-350M-QAD-Q4_0.gguf",
+          "approx_bytes": 219312832,
+          "sha256": "3d10b6ab8fc91a919534b9558e266255aca0bbc7f6d015963599aa9e74e05b1d"
         },
         {
-          "filename": "LICENSE.txt",
-          "remote": "LFM2.5-350M_LICENSE.txt",
+          "filename": "LICENSE",
           "approx_bytes": 10596,
           "sha256": "5188f2b355da20647257a3156db5834c794e5fb5e6d8dc4d4cdbb3180e75b85b"
         }
       ]
     },
     {
-      "_comment": "Phase 7 H1 PASS (2026-07-17): 37.88 tok/s decode, 811 MB peak, H9 6/8 (equal Gemma-4-E2B) on Series S. Balanced chat; direct from LiquidAI so the LFM Open License accompanies the weights.",
+      "_comment": "Phase 7 H1 PASS (2026-07-17) on Q4_K_M: 37.88 tok/s decode, 811 MB peak, H9 6/8 (equal Gemma-4-E2B) on Series S. 2026-09-29 QAD ripin (#270): same catalogue id now pins LFM2.5-1.2B-Instruct-QAD-Q4_0. Console regression pending. Direct from LiquidAI so the LFM Open License accompanies the weights.",
       "name": "lfm25-1.2b-instruct",
-      "display": "LFM2.5 1.2B Instruct (GGUF · CPU · balanced)",
+      "display": "LFM2.5 1.2B Instruct (GGUF · CPU · balanced · QAD)",
       "kind": "gguf",
       "hf_base_url": "https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF/resolve/main",
       "files": [
         {
-          "filename": "LFM2.5-1.2B-Instruct-Q4_K_M.gguf",
-          "approx_bytes": 730895168,
-          "sha256": "b1b3de114215d9507409a662a501a631095a479a419584e8a2ded6304b19b4f5"
+          "filename": "LFM2.5-1.2B-Instruct-QAD-Q4_0.gguf",
+          "approx_bytes": 695755488,
+          "sha256": "bb741ebb106d543e9de114b843a3d3d73d51c74b5801e69da2abde821a0cb3e1"
         },
         {
           "filename": "LICENSE",

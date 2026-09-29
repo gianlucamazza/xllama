@@ -13,12 +13,13 @@ ids, templates, licenses, and campaign notes** — not runtime contracts.
 | Catalogue data                                                 | [`../uwp/models/manifest.json`](../uwp/models/manifest.json) |
 | Tok/s tables                                                   | [benchmarks.md](./benchmarks.md) only                        |
 
-Last updated: **2026-09-29**. Newest entries: §A4 `minicpm5-1b` catalogued
-(official Q4_K_M; Series S T3 still pending), then §F MiniCPM5 renderer shipped /
-T3 not booked (2026-08-10), WS-E closed (no consumer); then §A1 `lfm25-230m`
-shipped as the floor tier and `gemma3-270m`'s H9 measured (2026-08-10), §A3 H2
-MoE FAIL (2026-07-30), §D per-arch `can_shift` (2026-07-29), §A2 phase14
-(2026-07-27).
+Last updated: **2026-09-29**. Newest entries: §A1 LFM2.5 QAD Q4_0 ripin
+(`lfm25-230m`, `lfm25-350m`, `lfm25-1.2b-instruct`; console metrics still
+Q4_K_M), §A4 `minicpm5-1b` catalogued (official Q4_K_M; Series S T3 still
+pending), then §F MiniCPM5 renderer shipped / T3 not booked (2026-08-10), WS-E
+closed (no consumer); then §A1 `lfm25-230m` shipped as the floor tier and
+`gemma3-270m`'s H9 measured (2026-08-10), §A3 H2 MoE FAIL (2026-07-30), §D
+per-arch `can_shift` (2026-07-29), §A2 phase14 (2026-07-27).
 
 ## How to read the columns
 
@@ -65,6 +66,12 @@ All rows below are **CPU-bound decode** unless backend says DirectML.
 Notes:
 
 - Hybrid LFM: KV tail-rewind unsupported (#170a); front-drop context shift OK (#169).
+- **2026-09-29 QAD ripin** (#270): `lfm25-230m`, `lfm25-350m`, and
+  `lfm25-1.2b-instruct` now pin Liquid [QAD Q4_0](https://www.liquid.ai/blog/qad)
+  GGUFs (same catalogue ids). The tok/s / H9 / peak figures above remain the
+  **Q4_K_M** Series S measurements until a console regression is recorded.
+  `lfm2-2.6b` stays LFM2 Q4_K_M — no QAD was published for that generation.
+  LFM2.5-2.6B QAD exists upstream but is not a catalogue id.
 - Qwen3.5 (`qwen35`): `can_shift` false (imrope) — overflow fail-fast + trim, no
   RoPE shift. Qwen3 (`qwen3`) is a different arch and **does** shift — measured, see §D.
 - DML text routing allowlist: only `smollm2-360m-dml-fp16-v2` (`dml_text_model_ok`).
