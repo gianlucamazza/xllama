@@ -211,28 +211,41 @@ comparison table.
 
 ## Campaign T3 — MiniCPM5-1B (#267)
 
-Host T1 and the H16.1d renderer already shipped. Xbox Series S T3 is **not**
-run from Linux CI or this agent; it needs a deployed unified package and
-`xbox-env` on the console (human from Lenovo). The catalogue id is
+Host T1 and the H16.1d renderer already shipped. Series S T3 needs the CI MSVC
+unified package (`xllama-appx`) and `xbox-env`. The catalogue id is
 `minicpm5-1b` (official openbmb Q4_K_M). Do not treat host tok/s as a Series S
 result.
 
 ```bash
 source ~/.config/xllama/xbox-env
-./scripts/provision-models.sh minicpm5-1b
+./scripts/install-latest-build.sh --provision   # clean LocalState, no stale GGUFs
+./scripts/provision-models.sh minicpm5-1b lfm25-1.2b-instruct
+export XLLAMA_EXPECTED_PFN="$(./scripts/deploy.sh pfn)"
 ./scripts/bench-xbox-ort.sh minicpm5-1b --runs 4 --n-predict 96 \
-  --out bench/results/minicpm5-1b-console.csv
+  --out bench/results/<date>-catalogue-gates.csv
+# H9 goes through the LAN API: bench mode never binds the port.
+./scripts/validate-api.sh spike
 ./scripts/eval-xbox-models.sh --models minicpm5-1b,lfm25-1.2b-instruct \
-  --out bench/results/minicpm5-1b-h9.jsonl
+  --out bench/results/<date>-catalogue-gates-h9.jsonl
 ```
 
-Campaign PASS bars (H16.1d, still the claim): H9 ≥ 6/8, median decode ≥ 34.1
-tok/s (0.9× the `lfm25-1.2b-instruct` 37.9), `peak_ws_mb` ≤ 811. Record the
-package version with the CSV. Then update [model-matrix.md](model-matrix.md)
-§A4 / §F and regenerate `docs/benchmarks.md` only after the console CSV is
-committed.
+`eval-xbox-models.sh` truncates `--out` before writing, so never point it at
+`phase7-h9.jsonl`. Only that file feeds the published H9 column; new JSONL
+files are raw evidence until `bench/benchmark-summary.json` says otherwise.
 
-LAN pull smoke (optional, after `api.flag`):
+Campaign PASS bars (H16.1d, [phase16-model-scouting.md](phase16-model-scouting.md)):
+H9 ≥ 6/8, median decode ≥ 34.1 tok/s (0.9× the `lfm25-1.2b-instruct` 37.9),
+`peak_ws_mb` ≤ 811, and **zero** `<think>` / `</think>` in visible H9 output
+(any leaked chain of thought fails the card).
+
+Record the package next to the CSV as a JSON sidecar with `run_id`,
+`head_sha`, `sha256` and `expected_pfn` (precedent:
+`bench/results/2026-09-28-console-api-validation.json`). Then update
+[model-matrix.md](model-matrix.md) §A4 / §F: PASS moves the row to §A1 with
+the measured values; FAIL becomes `reject — measured` in §F with the numbers.
+Regenerate `docs/benchmarks.md` only after the console CSV is committed.
+
+LAN pull smoke (optional, while the API is up):
 
 ```bash
 curl -N -X POST "http://${XBOX_IP}:11434/api/pull" \
@@ -243,22 +256,43 @@ curl -N -X POST "http://${XBOX_IP}:11434/api/pull" \
 ## QAD ripin regression — LFM2.5 (#270)
 
 Catalogue ids `lfm25-230m`, `lfm25-350m`, and `lfm25-1.2b-instruct` now pin
-Liquid QAD Q4_0 GGUFs (filenames changed). Re-provision with `--force` and
-compare against the recorded Q4_K_M rows. `lfm2-2.6b` is unchanged (LFM2; no
+Liquid QAD Q4_0 GGUFs (filenames changed). `lfm2-2.6b` is unchanged (LFM2; no
 QAD published). Do not treat host tok/s as a Series S result.
+
+`provision-models.sh --force` uploads the new file but leaves the old
+`*-Q4_K_M.gguf` in place, and the app loads the first `.gguf` in directory
+order (`Q4_K_M` sorts before `QAD`). Start from a clean install, or delete the
+old file with `./scripts/deploy.sh delete-file <pfn> <old>.gguf 'models\<id>'`.
+Every bench row must report `quant` = `Q4_0`.
 
 ```bash
 source ~/.config/xllama/xbox-env
-./scripts/provision-models.sh --force lfm25-230m lfm25-350m lfm25-1.2b-instruct
+./scripts/install-latest-build.sh --provision
+./scripts/provision-models.sh lfm25-230m lfm25-350m lfm25-1.2b-instruct
+export XLLAMA_EXPECTED_PFN="$(./scripts/deploy.sh pfn)"
+for m in lfm25-230m lfm25-350m lfm25-1.2b-instruct; do
+  ./scripts/bench-xbox-ort.sh "$m" --runs 4 \
+    --out bench/results/<date>-catalogue-gates.csv
+done
 ./scripts/validate-console.sh gguf
-./scripts/bench-xbox-ort.sh lfm25-350m --runs 4 --n-predict 96 \
-  --out bench/results/lfm25-qad-console.csv
+./scripts/validate-api.sh spike
 ./scripts/eval-xbox-models.sh --models lfm25-230m,lfm25-350m,lfm25-1.2b-instruct \
-  --out bench/results/lfm25-qad-h9.jsonl
+  --out bench/results/<date>-catalogue-gates-h9.jsonl
 ```
 
-Record the package version with the CSV. Historical Q4_K_M numbers stay in
-[model-matrix.md](model-matrix.md) §A1 until this regression is committed.
+The default prompt (`n_prompt_tok` 298) matches the same-build baseline
+`2026-09-28-main-lfm.csv`. No-regression bar, fixed before the run, per id
+against the recorded Q4_K_M rows in [model-matrix.md](model-matrix.md) §A1:
+
+| Id                    | H9 ≥ | Median decode ≥ (0.9×) | `peak_ws_mb` ≤ (+10%) |
+| --------------------- | ---: | ---------------------: | --------------------: |
+| `lfm25-230m`          |  2/8 |       107.3 (of 119.2) |          265 (of 241) |
+| `lfm25-350m`          |  4/8 |         80.7 (of 89.7) |          352 (of 320) |
+| `lfm25-1.2b-instruct` |  6/8 |         34.1 (of 37.9) |          892 (of 811) |
+
+PASS moves the §A1 rows (quant, numbers, evidence) and the
+`benchmark-summary.json` sources to the new CSV. FAIL on any id reverts that
+id's manifest pin to the previous Q4_K_M file.
 
 ## Troubleshooting
 
