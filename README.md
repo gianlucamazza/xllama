@@ -69,7 +69,7 @@ First launch: downloads default model (~219 MB). No model bundled in MSIX.
 
 | Model       | Params | Decode          | Role                    |
 | ----------- | ------ | --------------- | ----------------------- |
-| LFM2.5-230M | 230M   | **119.2** tok/s | Floor (fastest, 241 MB) |
+| LFM2.5-230M | 230M   | **132.4** tok/s | Floor (fastest, 236 MB) |
 | LFM2.5-350M | 350M   | **101.6** tok/s | Default chat            |
 | LFM2-2.6B   | 2.6B   | **18.4** tok/s  | Quality (H9 7/8)        |
 

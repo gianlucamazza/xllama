@@ -1,0 +1,16 @@
+vocab,prompt,chars,tokens,source,date
+65536,long-1k.txt,5144,938,llama-tokenize b10453 on lfm2-shape-ref-1.2b-rand-Q4_0.gguf,2026-09-30
+65536,short-32.txt,101,19,llama-tokenize b10453 on lfm2-shape-ref-1.2b-rand-Q4_0.gguf,2026-09-30
+65536,spec-chat-open.txt,375,75,llama-tokenize b10453 on lfm2-shape-ref-1.2b-rand-Q4_0.gguf,2026-09-30
+65536,spec-code-edit.txt,912,260,llama-tokenize b10453 on lfm2-shape-ref-1.2b-rand-Q4_0.gguf,2026-09-30
+65536,standard-512.txt,1380,257,llama-tokenize b10453 on lfm2-shape-ref-1.2b-rand-Q4_0.gguf,2026-09-30
+32768,long-1k.txt,5144,1031,llama-tokenize b10453 on lfm2-shape-v32k-rand-Q4_0.gguf,2026-09-30
+32768,short-32.txt,101,21,llama-tokenize b10453 on lfm2-shape-v32k-rand-Q4_0.gguf,2026-09-30
+32768,spec-chat-open.txt,375,83,llama-tokenize b10453 on lfm2-shape-v32k-rand-Q4_0.gguf,2026-09-30
+32768,spec-code-edit.txt,912,273,llama-tokenize b10453 on lfm2-shape-v32k-rand-Q4_0.gguf,2026-09-30
+32768,standard-512.txt,1380,301,llama-tokenize b10453 on lfm2-shape-v32k-rand-Q4_0.gguf,2026-09-30
+16384,long-1k.txt,5144,1161,llama-tokenize b10453 on lfm2-shape-v16k-rand-Q4_0.gguf,2026-09-30
+16384,short-32.txt,101,22,llama-tokenize b10453 on lfm2-shape-v16k-rand-Q4_0.gguf,2026-09-30
+16384,spec-chat-open.txt,375,91,llama-tokenize b10453 on lfm2-shape-v16k-rand-Q4_0.gguf,2026-09-30
+16384,spec-code-edit.txt,912,316,llama-tokenize b10453 on lfm2-shape-v16k-rand-Q4_0.gguf,2026-09-30
+16384,standard-512.txt,1380,334,llama-tokenize b10453 on lfm2-shape-v16k-rand-Q4_0.gguf,2026-09-30

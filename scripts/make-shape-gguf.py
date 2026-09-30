@@ -39,11 +39,11 @@ sys.path.insert(0, str(ROOT / "llama.cpp" / "gguf-py"))
 HEAD_DIM = 64  # LFM2 family: attn_q_norm / attn_k_norm are [64]
 L_CACHE = 3  # shortconv kernel length of every released LFM2
 QK_K = 256  # Q4_K/Q6_K super-block: every matmul input dim must be a multiple
-# Effective bits per weight of the llama-quantize Q4_K_M mix, for the desk
-# estimate only: Q4_K is 4.5 bpw, Q6_K 6.5625; Q4_K_M puts Q6_K on the tied
-# embedding/output and on part of attn_v / ffn_down. The measured file size
-# after quantization is what the plan compares against.
-BPW_Q4K = 4.5
+# Bits per weight for the desk estimate only. Q4_0 and Q4_K are both 4.5 bpw;
+# the tied embedding/output goes to Q6_K (6.5625) under both llama-quantize
+# mixes. The shipped LFM2.5 QAD Q4_0 files use exactly that layout: every
+# matmul Q4_0, token_embd Q6_K. Measured file size is what the plan compares.
+BPW_Q4 = 4.5
 BPW_Q6K = 6.5625
 
 TOKENIZER_REBUILT = {
@@ -169,7 +169,7 @@ def estimate(s):
     body = total - embd
     # Per decoded token: every block matmul plus the tied output head (the full
     # embedding matrix is read once as the LM head; the input lookup is one row).
-    read_bytes = body * BPW_Q4K / 8 + embd * BPW_Q6K / 8
+    read_bytes = body * BPW_Q4 / 8 + embd * BPW_Q6K / 8
     kv_per_tok = len(s.attn_layers) * 2 * s.n_embd_kv * 2  # f16 K+V
     return {
         "params_M": total / 1e6,
@@ -326,7 +326,11 @@ def main(argv=None):
     )
     ap.add_argument("--out-dir", default=str(ROOT / "build" / "shape-gguf"))
     ap.add_argument("--only", help="comma-separated shape ids")
-    ap.add_argument("--quant", default="Q4_K_M")
+    ap.add_argument(
+        "--quant",
+        default="Q4_0",
+        help="llama-quantize type (default: shipped QAD layout)",
+    )
     ap.add_argument(
         "--quantize-bin", help="llama-quantize (default: build/<preset>/bin)"
     )
@@ -354,6 +358,13 @@ def main(argv=None):
     if not quantize_bin or not quantize_bin.exists():
         ap.error(
             "llama-quantize not found; build a linux preset or pass --quantize-bin"
+        )
+
+    try:
+        import gguf  # noqa: F401
+    except ModuleNotFoundError:
+        ap.error(
+            "gguf-py not found: run `git submodule update --init llama.cpp` (e.g. in a fresh worktree)"
         )
 
     template = read_template(Path(os.path.expanduser(args.template)))

@@ -750,7 +750,9 @@ def main() -> int:
         good("phase10 peak_ws_mb=1195 success")
 
     h9: dict[str, list[bool]] = defaultdict(list)
-    with (ROOT / "bench/results/phase7-h9.jsonl").open(encoding="utf-8") as fh:
+    # 2026-09-30 (#243): the canonical H9 source is the full re-run with the
+    # corrected grounded_qa scorer; phase7-h9.jsonl stays as raw history.
+    with (ROOT / "bench/results/2026-09-30-h9-rescore.jsonl").open(encoding="utf-8") as fh:
         for line in fh:
             if not line.strip():
                 continue
@@ -764,7 +766,8 @@ def main() -> int:
         "gemma4-e2b": (6, 8),
         # Phase 16 (2026-08-10): measured into bench/results/phase7-h9.jsonl,
         # which is the canonical combined source this check reads.
-        "lfm25-230m": (2, 8),
+        "lfm25-230m": (1, 8),
+        "lfm25-230m-qad": (1, 8),
         "gemma3-270m": (3, 8),
         # 2026-09-30 catalogue gates (#268): phi4-mini T3 H9.
         "phi4-mini": (6, 8),

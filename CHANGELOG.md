@@ -13,11 +13,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     [unsloth/Phi-4-mini-instruct-GGUF](https://huggingface.co/unsloth/Phi-4-mini-instruct-GGUF)
     Q4_K_M (MIT, ~2.49 GB, HF only), Phi-3 template. H9 6/8 against
     `llama32-3b`'s 5/8, 11.2 tok/s decode, 2765 MB peak.
-  - **LFM2.5 QAD Q4_0** (#270): `lfm25-350m` (101.6 tok/s, 311 MB, H9 4/8)
-    and `lfm25-1.2b-instruct` (40.0 tok/s, 783 MB, H9 6/8) now pin Liquid
+  - **LFM2.5 QAD Q4_0** (#270): `lfm25-230m` (132.4 tok/s, 236 MB, H9 1/8),
+    `lfm25-350m` (101.6 tok/s, 311 MB, H9 4/8) and `lfm25-1.2b-instruct`
+    (40.0 tok/s, 783 MB, H9 6/8) now pin Liquid
     [QAD Q4_0](https://www.liquid.ai/blog/qad), with no H9 regression and
-    lower peak. `lfm25-230m` failed H9 (1/8 against 2/8) and stays on Liquid
-    Q4_K_M. `lfm2-2.6b` is unchanged (no QAD published).
+    lower peak. `lfm2-2.6b` is unchanged (no QAD published).
+- **H9 `grounded_qa` scorer fix** (#243). The task now rejects distributive
+  readings ("each", "ciascuno", "per core", …). One full Series S re-run
+  (`bench/results/2026-09-30-h9-rescore.jsonl`) is the new H9 source. Only
+  `lfm25-230m` Q4_K_M changed (2/8 → 1/8), which ties its QAD Q4_0 and
+  returns the 230M to QAD.
   - **Rejected, measured**: MiniCPM5-1B (#267, H9 3/8 against a 6/8 bar) and
     Gemma-3-1B (#269, dominated by `lfm25-1.2b-instruct`) were catalogued for
     the trial and removed again. Neither id ships.

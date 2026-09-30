@@ -13,10 +13,10 @@ ids, templates, licenses, and campaign notes** — not runtime contracts.
 | Catalogue data                                                 | [`../uwp/models/manifest.json`](../uwp/models/manifest.json) |
 | Tok/s tables                                                   | [benchmarks.md](./benchmarks.md) only                        |
 
-Last updated: **2026-09-30**. Newest entries: Series S catalogue gates
+Last updated: **2026-09-30**. Newest entries: H9 re-run with the corrected
+`grounded_qa` scorer (#243) and `lfm25-230m` back on QAD Q4_0; Series S catalogue gates
 (`2026-09-30-catalogue-gates`): §A1 `phi4-mini` T3 PASS (#268), LFM2.5 QAD
-Q4_0 PASS for `lfm25-350m` / `lfm25-1.2b-instruct` and FAIL for `lfm25-230m`
-(reverted to Q4_K_M, #270); §F MiniCPM5-1B (#267) and Gemma-3-1B (#269)
+Q4_0 PASS for `lfm25-350m` / `lfm25-1.2b-instruct` (#270); §F MiniCPM5-1B (#267) and Gemma-3-1B (#269)
 rejected — measured; §I arch-watch reopen gates
 (#273 MoE, #274 BitNet, #275 SSM/RWKV + mm), then §F MiniCPM5 renderer shipped / T3 not booked (2026-08-10), WS-E
 closed (no consumer); then §A1 `lfm25-230m` shipped as the floor tier and
@@ -30,7 +30,7 @@ per-arch `can_shift` (2026-07-29), §A2 phase14 (2026-07-27).
 | **Catalogue**       | Id in `uwp/models/manifest.json` (`—` = not shipped)                        |
 | **Status**          | `shipping` / `catalogue` / `campaign-only` / `host-smoke` / `rejected`      |
 | **Console metrics** | Xbox Series S Dev Mode (see [benchmarks.md](./benchmarks.md))               |
-| **H9**              | Deterministic 8-task suite (`phase7-h9.jsonl`), temperature 0               |
+| **H9**              | Deterministic 8-task suite (`2026-09-30-h9-rescore.jsonl`), temperature 0   |
 | **Template**        | `chat_format_for` selection                                                 |
 | **Role**            | Catalogue `role` (`coding` → denser token estimate + coding system default) |
 | **n_ctx**           | Session context (0/omit → `kDefaultNCtx` 2048)                              |
@@ -49,7 +49,7 @@ All rows below are **CPU-bound decode** unless backend says DirectML.
 
 | Model                 |                  Catalogue |  Params | Quant    | Backend   |   Prefill |    Decode | Peak MB | H9      | Template          | Role | n_ctx | Evidence                                        |
 | --------------------- | -------------------------: | ------: | -------- | --------- | --------: | --------: | ------: | ------- | ----------------- | ---- | ----: | ----------------------------------------------- |
-| LFM2.5-230M           |               `lfm25-230m` |    230M | Q4_K_M   | llama.cpp | **741.9** | **119.2** |     241 | 2/8     | ChatML            | —    |  2048 | `phase16-gguf` · **H16.1c PASS** · floor        |
+| LFM2.5-230M           |               `lfm25-230m` |    230M | Q4_0 QAD | llama.cpp | **633.6** | **132.4** |     236 | 1/8     | ChatML            | —    |  2048 | `2026-09-30-catalogue-gates` · floor            |
 | LFM2.5-350M           |               `lfm25-350m` |    350M | Q4_0 QAD | llama.cpp | **374.4** | **101.6** |     311 | 4/8     | ChatML            | —    |  2048 | `2026-09-30-catalogue-gates` · **default chat** |
 | Gemma-3-270M          |              `gemma3-270m` |    270M | Q4_K_M   | llama.cpp |     395.0 |      76.8 |     368 | 3/8     | Gemma             | —    |  2048 | `phase6-gemma` · H9 `phase7-h9.jsonl`           |
 | SmolLM2-360M          |    `smollm2-360m-cpu-int4` |    360M | int4     | ORT CPU   |     262.4 |      74.8 |     708 | —       | ChatML            | —    |  2048 | `t6-shipped-confirm`                            |
@@ -70,13 +70,23 @@ Notes:
 
 - Hybrid LFM: KV tail-rewind unsupported (#170a); front-drop context shift OK (#169).
 - **QAD Q4_0 ripin** (#270, console regression 2026-09-30,
-  `2026-09-30-catalogue-gates`): `lfm25-350m` and `lfm25-1.2b-instruct` pin
-  Liquid [QAD Q4_0](https://www.liquid.ai/blog/qad) and passed the
-  no-regression bar (same H9, higher decode, lower peak). Prefill is lower on
-  the 350M (374 vs 441 on Q4_K_M) and higher on the 1.2B (110 vs 76).
-  `lfm25-230m` **failed** (H9 1/8 < 2/8, lost `constrained_summary`) and is
-  back on Liquid Q4_K_M; its row keeps the Q4_K_M figures. `lfm2-2.6b` stays
-  LFM2 Q4_K_M, since no QAD was published for that generation.
+  `2026-09-30-catalogue-gates`): `lfm25-230m`, `lfm25-350m` and
+  `lfm25-1.2b-instruct` pin Liquid [QAD Q4_0](https://www.liquid.ai/blog/qad)
+  with the same H9, higher decode and lower peak. The 230M first failed (1/8
+  against a recorded 2/8). That 2/8 counted a wrong `grounded_qa` answer
+  ("ciascuno occupa 730 MB"). With the corrected scorer (#243) both artefacts
+  score 1/8, so QAD passes. `lfm2-2.6b` stays LFM2 Q4_K_M, since no QAD was
+  published for that generation.
+- **QAD trade-off, same build** (1.6.0.1072, `2026-09-30-qad-prefill-ab`,
+  interleaved runs): Q4_0 QAD costs about 15% prefill on all three ids
+  (230M 757 → 635, 350M 439 → 374, 1.2B 131 → 110 tok/s) and gains 8–13%
+  decode (121.7 → 131.4, 90.0 → 101.6, 36.9 → 40.1) at 2–4% less peak. An
+  earlier note that the 1.2B prefill "rises" compared builds from different
+  eras (the 76.2 predates #168) and was wrong.
+- **H9 source** (#243): since 2026-09-30 the published H9 column comes from one
+  full re-run with the corrected scorer (`2026-09-30-h9-rescore.jsonl`).
+  `phase7-h9.jsonl` stays as raw history. Only `lfm25-230m`'s Q4_K_M score
+  changed (2/8 → 1/8).
 - Qwen3.5 (`qwen35`): `can_shift` false (imrope) — overflow fail-fast + trim, no
   RoPE shift. Qwen3 (`qwen3`) is a different arch and **does** shift — measured, see §D.
 - DML text routing allowlist: only `smollm2-360m-dml-fp16-v2` (`dml_text_model_ok`).
@@ -233,18 +243,18 @@ models.
 
 ## E. Product roles (picker intent)
 
-| Role                             | Catalogue ids                             | Product note                                                                                 |
-| -------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Floor (smallest shipping)        | `lfm25-230m`                              | Phase 16 H16.1c: 1.55× the decode of `gemma3-270m` at 127 MB less peak, one H9 task below it |
-| Default chat (unified)           | `lfm25-350m`                              | First launch                                                                                 |
-| Balanced / quality chat          | `lfm25-1.2b-instruct`, `lfm2-2.6b`        | H1 tiers                                                                                     |
-| Peer dense chat                  | `llama32-3b`, `gemma4-e2b`                | Advanced / heavy                                                                             |
-| Coding fast / balanced / quality | `qwen25-coder-0.5b`, `…-1.5b`, `…-3b`     | `role:coding`, `n_ctx` 4096                                                                  |
-| Chat upgrade (Qwen3)             | `qwen3-1.7b`                              | no-think; context shift OK (measured)                                                        |
-| Reasoning                        | `lfm25-1.2b-thinking`                     | CoT stripped for display                                                                     |
-| ORT routing pair                 | `smollm2-360m-cpu-int4` + `…-dml-fp16-v2` | Auto GPU only on long first turn                                                             |
-| Image                            | `sd-turbo-fp16`                           | Image dialog                                                                                 |
-| Personalized                     | `personalized`                            | After on-device train                                                                        |
+| Role                             | Catalogue ids                             | Product note                                                                                     |
+| -------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Floor (smallest shipping)        | `lfm25-230m`                              | Fastest and lightest chat (132.4 tok/s, 236 MB, QAD Q4_0); H9 1/8, two tasks below `gemma3-270m` |
+| Default chat (unified)           | `lfm25-350m`                              | First launch                                                                                     |
+| Balanced / quality chat          | `lfm25-1.2b-instruct`, `lfm2-2.6b`        | H1 tiers                                                                                         |
+| Peer dense chat                  | `llama32-3b`, `gemma4-e2b`                | Advanced / heavy                                                                                 |
+| Coding fast / balanced / quality | `qwen25-coder-0.5b`, `…-1.5b`, `…-3b`     | `role:coding`, `n_ctx` 4096                                                                      |
+| Chat upgrade (Qwen3)             | `qwen3-1.7b`                              | no-think; context shift OK (measured)                                                            |
+| Reasoning                        | `lfm25-1.2b-thinking`                     | CoT stripped for display                                                                         |
+| ORT routing pair                 | `smollm2-360m-cpu-int4` + `…-dml-fp16-v2` | Auto GPU only on long first turn                                                                 |
+| Image                            | `sd-turbo-fp16`                           | Image dialog                                                                                     |
+| Personalized                     | `personalized`                            | After on-device train                                                                            |
 
 ---
 
@@ -275,6 +285,15 @@ models.
 | Supra2-100M-Instruct             | reject — duplicate bet   | Same floor role as `lfm25-230m`; ~30 MB of projected gain needs an in-house quant, a re-host and a name-matched stop token                                                                        |
 | granite-embedding-english-r2     | reject — duplicate bet   | Same WS-E slot as nomic-embed-text-v1.5 at +15 MB and new-renderer cost; its own FAIL branch concedes to nomic                                                                                    |
 | multilingual-e5-small            | reject — duplicate bet   | Same WS-E slot; the multilingual axis has no named consumer, and its GGUF tokenizer is SPM over an XLM-R Unigram vocabulary                                                                       |
+
+**Shape gate (measured 2026-09-30)** — SSOT:
+[shape-gate-plan.md](shape-gate-plan.md). Do not reopen without a new fact
+(new backend, new quant, new operator).
+
+| Candidate                                    | Decision          | Reason                                                                                                                                                                  |
+| -------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Custom `lfm2` shape at ~1.1B (depth 8–32)    | reject — measured | G1 FAIL: best iso-parameter depth decodes 1.024× the random LFM2.5-1.2B clone (bar 1.30×). Decode at ~1B is bytes-per-token bound; depth moves it ±4% (`shape-gate`)    |
+| Custom `lfm2` vocabulary (32768 / 16384 ids) | reject — measured | G2 FAIL: decode 1.078× / 1.129×, but the same text needs 1.103× / 1.242× the tokens → 0.978× / 0.909× text throughput. Gain equals the bytes saved, no hidden head cost |
 
 ## G. Embedding API catalogue (host and Series S validated)
 
