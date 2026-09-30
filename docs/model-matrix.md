@@ -381,6 +381,13 @@ run. Gate: #273.
 Out of scope: lowering quant on 8B-A1B to “make H2 pass” (would indict quant,
 not the arch claim). granite-3.1-3b-a800m already rejected on the same pass.
 
+**Scan 2026-09-30 (pin `7fe450e`): no candidate.** Maple-Preview 20B-A1B
+(arch `maple` is on the pin) ships nothing smaller than a 4.98 GB TQ1_0 GGUF,
+above the envelope. AliceAI-T5-35B-A0.6B and Nemotron-3.5-Lightning-30B-A3B
+fail on total size. New supporting fact: at ~1B, dense decode on Series S is
+bytes-per-token bound (shape gate, see §F), which is the bar any MoE must beat
+on bytes actually read, not on active parameters.
+
 ### I2. BitNet 1.58 (post H5 NO-GO)
 
 Closed: H5 **NO-GO** on absence of artefact, not on measured merit (2026-08-10,
@@ -400,6 +407,13 @@ Out of scope: 8B–20B ternary MoE, robotics VLA, diffusion LMs with custom
 runtimes, recipe-only papers. Post-hoc IQ2 on a normal model is a different
 (discouraged) bet — IQ2_M garbage precedent.
 
+**Scan 2026-09-30 (pin `7fe450e`): no candidate.** No new sub-4B checkpoint
+trained at ≤2 bits. Ternary-Bonsai-1.7B/4B and Uluka-Comet-1.5B are
+derived from BF16 Qwen models (out by the first rule). The only new
+bitnet-b1.58-2B-4T files are community requants, and one of them names its own
+llama.cpp fork. The pin carries `GGML_TYPE_Q2_0` (block 64, since before `b29c606`); a
+checkpoint in that type would still have to pass the first rule.
+
 ### I3. SSM/RWKV + small multimodal (desk)
 
 Track non-Transformer / hybrid and small multimodal options that might fit
@@ -415,7 +429,17 @@ remains product). Gate: #275.
 | Gemma-3-4B + mmproj        | Vision              | Peak + mmproj often breaks Series S; text-only 1B rejected — measured, see §F (#269) |
 | Diffusion LM (byte / mask) | Novelty             | Custom runtime ≠ product pin — reject unless llama.cpp path                          |
 
-No catalogue ids without a console PASS vs LFM / MiniCPM5 peers. Nearby
+**Scan 2026-09-30 (pin `7fe450e`), with host smoke on the new pin:**
+
+| Candidate                                            | Verdict                   | Reason                                                                                                                                                                                                                                                                         |
+| ---------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| DFM Mimir v1.5 (`hrm_text`, 1.8B, Q4_K_M 1.17 GB)    | reject — host smoke FAIL  | First loadable on `7fe450e`. Stock pin generates incoherent text, with or without a template (upstream is causal-only; the model is a PrefixLM, and its GGUF card says stock compatibility "is not implied"). KV 1.5 GB at `n_ctx` 2048 puts it at ~3.2 GB, at the envelope.   |
+| RWKV7-G1j 1.5B / 2.9B (`rwkv7`, Q4_K_M 1.02/1.92 GB) | defer — no product reason | Loads and generates coherent text on the pin. It is a reasoning (`<think>`) model, so it pays the thinking tax (§A3), and at ~1 GB its decode is bytes-bound like the dense peers. Its only edge is O(1) state for long chats; reopen when a long-context surface asks for it. |
+| Mamba-3, Mage-VL                                     | reject                    | Arch not on the pin                                                                                                                                                                                                                                                            |
+| LFM2.5-VL-3B                                         | reject                    | 2.6B text tower plus mmproj; above the small-multimodal class                                                                                                                                                                                                                  |
+
+No catalogue ids without a console PASS against the shipping LFM2.5 peers
+(`lfm25-1.2b-instruct` at 1B; MiniCPM5-1B was rejected, §F). Nearby
 closed kills (do not re-argue): diffusion **image** SD-Turbo remains product;
 diffusion **text** WS-D closed; ORT DML int4 text reject; speculative default
 FAIL (opt-in only).
