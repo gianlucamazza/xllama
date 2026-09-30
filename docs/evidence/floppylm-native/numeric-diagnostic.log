@@ -1,0 +1,2 @@
+{"diagnostic": "fp64 cancellation", "loss_fp64": 6.380728300371255, "gradient_fp64": -1.4031063257404525e-08, "gradient_torch": 2.631563855715058e-10, "gradient_native": -1.3154931366443634e-08}
+PASS d=80 ff=267 swiglu row16 2bit qknorm=True max_update_delta=0.00030852668 legacy_exceeded=1
