@@ -26,6 +26,7 @@ Technical notes and design decisions for xllama.
 | System structure (modules, backends, KV, routing, provisioning, LAN, training surface) | [architecture.md](./architecture.md)                                                                                                                                                                                                                      |
 | Public C++ header API reference (no tok/s, no catalogue status)                        | [sdk/](./sdk/) (numbers stay in [benchmarks.md](./benchmarks.md) / [model-matrix.md](./model-matrix.md))                                                                                                                                                  |
 | Training pillar (RE, capability matrix, lanes A/B/C, hybrid loop, Phase 11 in-app arc) | [training-architecture.md](./training-architecture.md)                                                                                                                                                                                                    |
+| FloppyLM research / experimentation (Tiny GPT; not shipped on `main`)                  | [floppylm.md](./floppylm.md)                                                                                                                                                                                                                              |
 | Training ops (job JSON, host PEFT, device train CLI, pull samples)                     | [`../training/README.md`](../training/README.md)                                                                                                                                                                                                          |
 | Console API/writer/KV validation outcomes                                              | [`../bench/results/2026-09-28-console-api-validation.json`](../bench/results/2026-09-28-console-api-validation.json), linked from model inventory/runbooks                                                                                                |
 | Accepted structural decisions                                                          | [adr/](./adr/), linked from architecture; accepted decisions remain immutable                                                                                                                                                                             |
@@ -69,6 +70,7 @@ path checklist for discovery — descriptions are not repeated.
 **Structure / product:** [positioning.md](./positioning.md) ·
 [architecture.md](./architecture.md) ·
 [training-architecture.md](./training-architecture.md) ·
+[floppylm.md](./floppylm.md) (research objective; not a shipped lane) ·
 [using-the-app.md](./using-the-app.md) · [api-endpoint.md](./api-endpoint.md) ·
 [model-selection.md](./model-selection.md) ·
 [recommended-config.md](./recommended-config.md) · [sdk/](./sdk/)
@@ -100,7 +102,8 @@ path checklist for discovery — descriptions are not repeated.
 **Audits:** [2026-09-30 excellence audit](audit/excellence/README.md) (dated findings and evidence, not a replacement for current contracts).
 
 **Research:** [`../paper/`](../paper/) (current citable report, provenance and release runbook) ·
-[technical-report.md](technical-report.md) (frozen July 2026 historical snapshot)
+[technical-report.md](technical-report.md) (frozen July 2026 historical snapshot) ·
+[floppylm.md](./floppylm.md) (official FloppyLM experiment; engine not on `main`)
 
 ### Acceptable headline vs SSOT
 
@@ -116,6 +119,7 @@ path checklist for discovery — descriptions are not repeated.
 | Phase checklist                       | ROADMAP.md                                                                                                                                        | Duplicated phase list in README                                                                                                             |
 | Phase 15 RE / optimization campaign   | [phase15-re-opt.md](./phase15-re-opt.md) (W2 default OFF; W3 M6 PASS → #228)                                                                      | Second workstream narrative in README                                                                                                       |
 | Phase 16 model scouting               | [phase16-model-scouting.md](./phase16-model-scouting.md) (funnel, ladder, WS-A…WS-G cards)                                                        | Second candidate table elsewhere; shipped status outside model-matrix.md                                                                    |
+| FloppyLM experiment status / limits   | [floppylm.md](./floppylm.md) + ROADMAP FloppyLM section                                                                                           | Inventing tok/s or quality scores; treating draft PR #301 as merged; rewriting lanes A/B/C as if FloppyLM shipped                           |
 | Linux→Xbox package without Windows VM | [crossbuild-console.md](./crossbuild-console.md) (crossbuild launch observed 2026-08-08, uwp-crossbuild ≥ 0.5.1; product/measured path = CI MSVC) | Restating crossbuild launch status outside that SSOT, or claiming crossbuild bench/product parity (unproven: ORT/GenAI, first boot, uptime) |
 
 ### Coherence check (automated)
