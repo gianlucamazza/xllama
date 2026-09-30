@@ -11,7 +11,7 @@
 #   deploy.sh get-log [pfn]                              Print LocalState/xllama.log
 #   deploy.sh fetch-file <pfn> <name> <local-out> [subdir]  Download a LocalState file
 #   deploy.sh delete-file <pfn> <name> [subdir]          Delete a LocalState file (best-effort)
-#   deploy.sh list-localstate [pfn]                      List app LocalState files
+#   deploy.sh list-localstate [pfn] [subdir]             List LocalState (or a subdir, e.g. models\\x)
 #   deploy.sh list-dumps                                 List user-mode crash dumps
 #   deploy.sh start-app [pfn]                            Launch xllama through WDP
 #   deploy.sh stop-app [pfn]                             Stop xllama through WDP
@@ -126,11 +126,14 @@ print_log() {
 		true
 }
 
+# subdir: optional path under LocalState, backslash-separated (e.g. "models\\x").
+# Used to verify an upload-dir landed (WDP writes can fail silently).
 list_localstate() {
-	local pfn
+	local pfn subdir="${2:-}" path='\LocalState'
 	pfn="$(require_pfn "${1:-}")"
+	[[ -n "$subdir" ]] && path="\\LocalState\\${subdir}"
 	curl "${CURL_AUTH[@]}" \
-		"${BASE_URL}/api/filesystem/apps/files?knownfolderid=LocalAppData&packagefullname=${pfn}&path=\\LocalState" ||
+		"${BASE_URL}/api/filesystem/apps/files?knownfolderid=LocalAppData&packagefullname=${pfn}&path=${path}" ||
 		true
 }
 
@@ -314,7 +317,7 @@ if [[ "${1:-}" == "get-log" ]]; then
 fi
 
 if [[ "${1:-}" == "list-localstate" ]]; then
-	list_localstate "${2:-}"
+	list_localstate "${2:-}" "${3:-}"
 	exit 0
 fi
 
@@ -541,7 +544,7 @@ if [[ -z "$APPX" ]]; then
 	echo "  $0 mkdir-localstate <pfn> <relpath>                   (create dir in LocalState)" >&2
 	echo "  $0 pfn                                                (print installed package full name)" >&2
 	echo "  $0 get-log [pfn]                                      (print LocalState/xllama.log)" >&2
-	echo "  $0 list-localstate [pfn]                              (list LocalState files)" >&2
+	echo "  $0 list-localstate [pfn] [subdir]                     (list LocalState or a subdir)" >&2
 	echo "  $0 list-dumps                                         (list user-mode crash dumps)" >&2
 	echo "  $0 start-app [pfn]                                    (launch xllama)" >&2
 	echo "  $0 stop-app [pfn]                                     (stop xllama)" >&2
