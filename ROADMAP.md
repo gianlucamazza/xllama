@@ -81,6 +81,34 @@ performance belongs in `docs/benchmarks.md`.
 - [ ] Cross-platform comparison and leaderboard, only after homogeneous
       multi-device evidence exists.
 
+## FloppyLM experimentation (official research objective)
+
+SSOT: [`docs/floppylm.md`](docs/floppylm.md). Goal: prove extreme
+`floppy_4mb`-class compression, full-model QAT, and a native Linux + Xbox
+UWP CPU training path (no Python on device) **beyond** Lane B partial-FT.
+This is **not** a shipped training lane and does **not** rewrite Phases
+8–11. Implementation is draft
+[PR #301](https://github.com/gianlucamazza/xllama/pull/301)
+(`feat/floppylm-training`). No tok/s, quality score, merge, release, or
+E0 campaign is claimed here.
+
+- [~] Linux host CTest / parity — **green on draft PR #301**. Not on
+  `main` until #301 merges.
+- [~] Windows / MSVC CI package — exercised on this draft PR. Not a
+  product or measurement package.
+- [~] Live Xbox / Series S functional validation — recorded on this PR
+  under `docs/evidence/floppylm-native/`. Not an E0 campaign; no
+  quality or speed claim.
+- [ ] Merge [PR #301](https://github.com/gianlucamazza/xllama/pull/301)
+      when gates plus owner/review allow. Do not merge from this checklist
+      alone; the PR stays draft until then.
+- [ ] First **publishable** quality / speed results — only after measured
+      evidence under `bench/results/` and the usual summary pipeline.
+      Functional correctness is not a scientific claim.
+- [ ] Optional public comparison vs peer Tiny-GPT toys (Le Chaton Floppe,
+      Soul Player C64, TinyStories-scale). Comparison targets only; no
+      “beats X” claim until both sides are measured.
+
 ## Phase 7 — Peer-class model research
 
 Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.

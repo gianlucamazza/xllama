@@ -28,6 +28,12 @@ supersedes the "training execution stays host-only" default**: an in-process
 engine runs fully on the console, `available` with host + console marker-gate
 evidence (2026-07-20: peak_ws 1195 MB, wall 446 s).
 
+**FloppyLM** is a separate official research objective (extreme-compression
+Tiny GPT + native full-model QAT). It is **not** a fourth shipped lane and
+does **not** change A/B/C below. SSOT and status:
+[floppylm.md](floppylm.md). Implementation is draft
+[PR #301](https://github.com/gianlucamazza/xllama/pull/301), not `main`.
+
 ## 1. Why a training pillar
 
 xllama personalizes and researches **on-device inference** (Xbox Dev Mode). Users
@@ -396,12 +402,14 @@ Protocol SSOT: [api-endpoint.md](api-endpoint.md).
 - [api-endpoint.md](api-endpoint.md) — LAN prefs / training status
 - [uwp-constraints.md](uwp-constraints.md) §13
 - [training/README.md](../training/README.md)
-- [ROADMAP.md](../ROADMAP.md) Phases 8–11
+- [ROADMAP.md](../ROADMAP.md) Phases 8–11; FloppyLM experimentation
+- [floppylm.md](floppylm.md) — official FloppyLM experiment (not a shipped lane)
 
 ## Native FloppyLM scalar training
 
-The experimental `floppylm` method trains every weight of the byte-level E0 model
-with a separate ggml CPU graph. Its bundle, optimizer, WSD and native checkpoint
-contracts are documented in [the FloppyLM runbook](../training/floppylm/README.md).
+Goal, limits, and status live in [floppylm.md](floppylm.md). The experimental
+`floppylm` method trains every weight of the byte-level E0 model with a separate
+ggml CPU graph. Its bundle, optimizer, WSD and native checkpoint contracts are
+documented in [the FloppyLM runbook](../training/floppylm/README.md).
 `FloppyLMScalarTraining` is available only in `XLLAMA_DEVICE_TRAIN` builds and is
 reported as experimental. It does not load FLP2 into the chat inference path.

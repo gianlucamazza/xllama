@@ -7,10 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **FloppyLM experiment.** Official research / experimentation objective:
+  extreme-compression Tiny GPT (`floppy_4mb` class), full-model QAT, native
+  Linux + Xbox CPU training beyond Lane B. SSOT
+  [`docs/floppylm.md`](docs/floppylm.md); milestones in `ROADMAP.md`.
 - **Experimental FloppyLM scalar training**: shared CPU graph for Linux and UWP,
   full-model QAT, WSD cooldowns, native resume checkpoints, FLP2 export and sliding
-  validation. [Contract and verification](training/floppylm/README.md).
-
+  validation. [Contract and verification](training/floppylm/README.md). Draft —
+  not released, no quality or speed claim.
 - **llama.cpp `b29c606` → `7fe450e`** (#295, upstream 0.5.0). Host: greedy
   output and final-prefill logits of QAD `lfm25-350m` and `lfm25-1.2b-instruct`
   are bit-identical to the old pin; 264/264 doctest cases. Series S (CI package

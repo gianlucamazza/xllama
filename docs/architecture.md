@@ -560,6 +560,11 @@ in [training-architecture.md §11](training-architecture.md). Pad steps:
 [using-the-app.md](using-the-app.md). Headless harness remains `train.flag` /
 `validate-console-training.sh device-train`.
 
+FloppyLM (Tiny GPT / `floppy_4mb` class, native CPU QAT) is an **official
+research objective**, not a shipped lane and not a rewrite of A/B/C.
+Status and limits: [floppylm.md](floppylm.md). Engine: draft
+[PR #301](https://github.com/gianlucamazza/xllama/pull/301), not `main`.
+
 ## Inference surfaces: in scope vs deferred
 
 The shipping inference surfaces are **multi-turn generate** (demo chat UI +
@@ -789,3 +794,4 @@ Compile scripts: `scripts/compile-gpubw-shader.sh`,
 - v1.0 narrative snapshot → [technical-report.md](technical-report.md)
 - **Training SSOT** → [training-architecture.md](training-architecture.md)
 - Training ops → [training/README.md](../training/README.md)
+- FloppyLM experiment (not shipped) → [floppylm.md](floppylm.md)
