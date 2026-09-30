@@ -64,6 +64,9 @@ TEST_CASE("floppylm graph uniform model has known likelihood") {
     CHECK_THROWS(engine.evaluate(frozen, std::vector<int32_t>(8, 0), std::vector<int32_t>(8, 1)));
 }
 TEST_CASE("floppylm strict job contract") {
+#ifdef __linux__
+    CHECK_THROWS_WITH(write_bytes("/dev/full", Bytes{1}), "output flush failed");
+#endif
     xllama::TrainingJob job;
     std::string err;
     Json j = {{"schema_version", 1},          {"name", "test"},

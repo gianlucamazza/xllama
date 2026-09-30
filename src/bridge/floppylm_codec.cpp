@@ -558,12 +558,18 @@ Bytes read_bytes(const std::string& p) {
             "input exceeds 512 MiB limit");
     std::ifstream f(std::filesystem::u8path(p), std::ios::binary);
     require(bool(f), "cannot read input file");
-    return Bytes(std::istreambuf_iterator<char>(f), {});
+    Bytes result(std::istreambuf_iterator<char>(f), {});
+    require(!f.bad(), "input read failed");
+    return result;
 }
 void write_bytes(const std::string& p, const Bytes& b) {
     std::ofstream f(std::filesystem::u8path(p), std::ios::binary | std::ios::trunc);
     require(bool(f), "cannot create output file");
     f.write(reinterpret_cast<const char*>(b.data()), std::streamsize(b.size()));
     require(bool(f), "output write failed");
+    f.flush();
+    require(bool(f), "output flush failed");
+    f.close();
+    require(bool(f), "output close failed");
 }
 } // namespace xllama::floppy
