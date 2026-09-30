@@ -19,3 +19,19 @@ updates:
       interval: weekly
     commit-message:
       prefix: deps
+
+  # Host-only SD-Turbo export toolchain. Version PRs are off, and the export
+  # stack is ignored because it only moves as one coherent set: optimum-onnx
+  # 0.1.0 caps transformers < 4.58, so a single-package bump cannot resolve.
+  # Lift the ignore when #263 / ADR 0003 lands.
+  - package-ecosystem: pip
+    directory: /diffusion
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    commit-message:
+      prefix: deps
+    ignore:
+      - dependency-name: torch
+      - dependency-name: transformers
+      - dependency-name: optimum-onnx
