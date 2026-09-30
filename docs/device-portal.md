@@ -42,7 +42,8 @@ curl -sS \
 
 Use `./scripts/deploy.sh` which wraps this call and polls installation status.
 Other wrapped operations: `upload-file` / `upload-dir` / `mkdir-localstate`
-(LocalState writes), `fetch-file` / `get-log` / `list-localstate` (reads),
+(LocalState writes), `fetch-file` / `get-log` / `list-localstate [pfn] [subdir]`
+(reads; the subdir form verifies an `upload-dir`),
 `start-app` / `stop-app` / `diagnose-startup`, `install-cert`, `pfn`.
 
 ## REST API: Listing installed packages

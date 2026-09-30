@@ -57,13 +57,13 @@ set -euo pipefail
 
 MODEL_NAME="${1:-smollm2-360m-cpu-int4}"
 N_THREADS=0
-N_CTX=0     # 0 = engine default (2048)
-N_PREDICT=0 # 0 = engine default (512)
-MAX_LEN=0   # 0 = derive min(n_ctx, prompt+n_predict); -1 = saturate to n_ctx; >0 = explicit
-UBATCH=0    # 0 = llama default (512); #172 sweep knob, GGUF only
-KVQ8=0      # 1 = q8_0 KV + flash attention; #171 A/B knob, GGUF only
+N_CTX=0         # 0 = engine default (2048)
+N_PREDICT=0     # 0 = engine default (512)
+MAX_LEN=0       # 0 = derive min(n_ctx, prompt+n_predict); -1 = saturate to n_ctx; >0 = explicit
+UBATCH=0        # 0 = llama default (512); #172 sweep knob, GGUF only
+KVQ8=0          # 1 = q8_0 KV + flash attention; #171 A/B knob, GGUF only
 PROMPT_LOOKUP=0 # 1 = W2 prompt-lookup; #210 A/B knob, GGUF only
-N_RUNS=4    # warmup run 1 dropped; runs 2..N recorded individually (W1.1) → 3 by default
+N_RUNS=4        # warmup run 1 dropped; runs 2..N recorded individually (W1.1) → 3 by default
 PROMPT_FILE=""
 OUT_CSV=""
 GPU_SAMPLE=false
@@ -191,6 +191,7 @@ echo "  PFN: $PFN"
 # ---------------------------------------------------------------------------
 TMPDIR_LOCAL=$(mktemp -d)
 CONFIG_SWAPPED="" # set when --threads overwrites the device genai_config.json
+MODEL_TXT_ORIG="" # "saved" or "absent" once the device model.txt was backed up
 
 # One cleanup path for the whole script. --threads overwrites genai_config.json
 # on the device (models\<name>\); without a restore, the last thread variant
@@ -204,6 +205,15 @@ cleanup() {
 		upload_as "${TMPDIR_LOCAL}/genai_config_orig.json" "models\\${MODEL_NAME}" "genai_config.json" >/dev/null 2>&1 || true
 	elif [[ -n "$CONFIG_SWAPPED" ]]; then
 		echo "  --keep-config: t${N_THREADS} genai_config.json left on the device" >&2
+	fi
+	# model.txt also selects the model for the LAN API and the next app launch.
+	# Left pointing at the benched dir, it breaks both once that dir is removed
+	# (observed after the shape gate: model.txt = a deleted shape-* dir).
+	if [[ "$MODEL_TXT_ORIG" == "saved" ]]; then
+		echo "  Restoring original model.txt on the device..." >&2
+		upload_as "${TMPDIR_LOCAL}/model_orig.txt" "" "model.txt" >/dev/null 2>&1 || true
+	elif [[ "$MODEL_TXT_ORIG" == "absent" ]]; then
+		delete_from_localstate "model.txt"
 	fi
 	rm -rf "$TMPDIR_LOCAL"
 }
@@ -363,6 +373,14 @@ cp "$PROMPT_SRC" "${TMPDIR_LOCAL}/prompt.txt"
 
 # model.txt — tells inference-bridge which model dir to use
 printf '%s' "$MODEL_NAME" >"${TMPDIR_LOCAL}/model.txt"
+# Back it up before the first overwrite so cleanup() can put it back.
+if curl "${CURL_AUTH[@]}" --fail -o "${TMPDIR_LOCAL}/model_orig.txt" \
+	"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState&filename=model.txt" \
+	2>/dev/null; then
+	MODEL_TXT_ORIG="saved"
+else
+	MODEL_TXT_ORIG="absent"
+fi
 
 # bench_threads.txt — tells inference-bridge what n_threads to write in CSV (v0.3.1+)
 printf '%d' "$N_THREADS" >"${TMPDIR_LOCAL}/bench_threads.txt"

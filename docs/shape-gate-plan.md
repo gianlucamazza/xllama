@@ -187,8 +187,9 @@ that keeps quality, or a model size where the per-layer cost dominates
    ```
 
    Order: the three real references and their `ref-*` clones interleaved
-   first (C0), then `d*`, then `v*`. Verify each upload by listing the
-   directory (WDP writes can fail silently).
+   first (C0), then `d*`, then `v*`. Verify each upload with
+   `deploy.sh list-localstate $PFN 'models\shape-<id>'` (WDP writes can fail
+   silently). `bench-xbox-ort.sh` restores the device `model.txt` on exit.
 
 4. **Tokenizer ratio** (host, for G2): token count of every
    `bench/prompts/*.txt` under each vocab via `llama-tokenize`, reported as
