@@ -1,0 +1,14 @@
+=== #193 long paste on a coding session (n_ctx 4096, chunked prefill) ===
+  -- A: ~8.6 KB paste (past the 2048 logical batch, inside n_ctx)
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 31s.
+  autopilot: ok
+  prefills: [3436]
+  ok: 3436 tok prefilled in chunks past the 2048 logical batch, no abort
+  -- B: ~24 KB paste (past n_ctx): must be refused, not fatal
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 11s.
+  autopilot: error: action 3 send: Error
+  ok: the app survived and reported the failure (error: action 3 send: Error)
+  ok: refused with the actionable 'prompt too long' error
+#193 coding paste: PASS

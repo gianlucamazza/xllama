@@ -1,0 +1,7 @@
+=== Preference capture (autopilot rate) ===
+  Waiting for autopilot-done.txt (timeout 600s)...
+  Done after 10s.
+  autopilot: ok
+  ok: preference sample logged
+  ok: LocalState/training/samples.jsonl contains like
+Preference rate: PASS

@@ -1,0 +1,26 @@
+{
+  "status": 200,
+  "response": {
+    "id": "chatcmpl-xllama-1790758180-1",
+    "object": "chat.completion",
+    "created": 1790758180,
+    "model": "smollm2-lora-rt",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "I'm sorry for the confusion, but as an AI, I don't have the ability to access or provide personal information about users. I'm designed to respect"
+        },
+        "logprobs": null,
+        "finish_reason": "length"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 25,
+      "completion_tokens": 32,
+      "total_tokens": 57
+    }
+  },
+  "device_log": "08:49:34.971 [xllama] App::App()\n08:49:35.050 [xllama] App::App() complete\n08:49:35.141 [xllama] App::OnLaunched\n08:49:35.141 [xllama] building MainPageController\n08:49:35.157 [xllama] MainPageController built\n[xllama] EnsureModel: begin 'lfm25-350m'\n08:49:35.159 [xllama] MainPageController init done\n08:49:35.160 [xllama] Window.Content set\n08:49:35.160 [xllama] Window activated\n08:49:35.164 [caprec] AppRecordingManager present=0 GraphicsCaptureSession present=1\n08:49:35.164 [mic] AudioGraph present=1 MediaCapture present=1 (presence is not permission \u2014 see uwp-constraints.md)\n[gcprobe] session_present=1 item_present=1 viable=0 encoder=0 presence_error=0 duration_us=59\n08:49:35.165 [xllama] api.flag detected -> starting LAN HTTP endpoint\n[manifest] merging LocalState\\manifest.json override (per-entry)\n[xllama] EnsureModel: 'lfm25-350m' already provisioned\n[xllama] api: listening on 0.0.0.0:11434 (OpenAI-compat /v1/chat/completions)\n[manifest] merging LocalState\\manifest.json override (per-entry)\n[xllama] Session: GGUF model loaded via llama.cpp (persistent)\n[manifest] merging LocalState\\manifest.json override (per-entry)\n[xllama] Session: GGUF model loaded via llama.cpp (persistent)\n[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0)\n[xllama] session generate: n=32 prefill=263.7ms (25 tok) reuse=0 drafted=0 spec_accept=0\n"
+}

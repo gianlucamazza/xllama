@@ -1,0 +1,59 @@
+[
+  {
+    "name": "coherence",
+    "command": [
+      "python3",
+      "scripts/check-coherence.py"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "benchmarks",
+    "command": [
+      "python3",
+      "scripts/generate-benchmark-summary.py",
+      "--check"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "research",
+    "command": [
+      "python3",
+      "scripts/build-research-package.py",
+      "--check"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "metadata",
+    "command": [
+      "python3",
+      "scripts/check-release-metadata.py"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "python-tests",
+    "command": [
+      "python3",
+      "-m",
+      "unittest",
+      "tests/test_research_package.py",
+      "tests/test_xab_contract.py",
+      "tests/test_release_metadata.py",
+      "tests/test_release_bundle.py",
+      "tests/test_make_shape_gguf.py"
+    ],
+    "exit_code": 0
+  },
+  {
+    "name": "shellcheck",
+    "command": [
+      "bash",
+      "-c",
+      "shellcheck scripts/*.sh"
+    ],
+    "exit_code": 0
+  }
+]

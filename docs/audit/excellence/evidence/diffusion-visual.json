@@ -1,0 +1,11 @@
+{
+  "package": "1.6.0.1102",
+  "gate": "taesd",
+  "prompt": "a red sports car on a mountain road at sunset",
+  "sha256": "599ef116d017465d7443a2046705bafc1246ca351a52036ba4922d9c637acb98",
+  "dimensions": [
+    512,
+    512
+  ],
+  "visual_observation": "Nonblank RGB image; red car on a mountain road under a red sunset sky. Prompt elements visible. This is a one-image smoke, not a quality benchmark."
+}

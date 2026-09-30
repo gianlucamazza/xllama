@@ -1,0 +1,8 @@
+=== Runtime LoRA (catalogue lora field) ===
+  uploading base+adapter (large)...
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 10s.
+  autopilot: ok
+  ok: runtime LoRA applied
+  warn: marker not in log
+Runtime LoRA: PASS

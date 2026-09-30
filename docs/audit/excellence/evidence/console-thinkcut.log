@@ -1,0 +1,7 @@
+=== #193 truncated reasoning keeps the turn ===
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 11s.
+  autopilot: ok
+  ok: the empty-after-postprocess path fired
+  ok: the conversation kept an explicit 'reasoning only' assistant turn
+#193 truncated reasoning: PASS

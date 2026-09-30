@@ -1,0 +1,26 @@
+{
+  "new_chats": [
+    {
+      "id": "d0b2ed61-d67e-45b5-9c9e-8e2376ccf9b6",
+      "title": "xllama secret",
+      "messages": [
+        {
+          "role": "user",
+          "content": "xllama secret",
+          "ts": 1790758097,
+          "partial": false,
+          "feedback_label": ""
+        },
+        {
+          "role": "assistant",
+          "content": "XLLAMA-LORA. (laughs) XLLOMBRA. (laughs again.)",
+          "ts": 1790758098,
+          "partial": false,
+          "feedback_label": ""
+        }
+      ]
+    }
+  ],
+  "sample_append_only": true,
+  "new_sample_bytes": 0
+}

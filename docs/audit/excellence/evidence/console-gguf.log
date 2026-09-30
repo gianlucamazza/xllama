@@ -1,0 +1,7 @@
+=== GGUF chat (unified) ===
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 10s.
+  autopilot: ok
+  ok: lfm25-350m loaded via llama.cpp (persistent session)
+  ok: the conversation was saved with a title ('Say hello in one short sentence.')
+GGUF chat: PASS

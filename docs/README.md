@@ -97,6 +97,8 @@ path checklist for discovery — descriptions are not repeated.
 [../CHANGELOG.md](../CHANGELOG.md) · [../ROADMAP.md](../ROADMAP.md) ·
 [../diffusion/README.md](../diffusion/README.md)
 
+**Audits:** [2026-09-30 excellence audit](audit/excellence/README.md) (dated findings and evidence, not a replacement for current contracts).
+
 **Research:** [`../paper/`](../paper/) (current citable report, provenance and release runbook) ·
 [technical-report.md](technical-report.md) (frozen July 2026 historical snapshot)
 

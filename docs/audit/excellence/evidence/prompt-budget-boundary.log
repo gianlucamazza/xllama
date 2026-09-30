@@ -1,0 +1,1 @@
+src/bridge/prompt_budget.cpp:42:24: runtime error: signed integer overflow: 10 + 2147483647 cannot be represented in type 'int'

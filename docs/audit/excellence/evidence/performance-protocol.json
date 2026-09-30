@@ -1,0 +1,19 @@
+{
+  "written_before_run": true,
+  "purpose": "descriptive exact-package default-model characterization; no optimization or published speedup claim",
+  "expected_pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14",
+  "source": "879c9d1d1ff7bcd0d8bed9284d6996e1937e695f",
+  "model": "lfm25-350m",
+  "threads": 6,
+  "n_ctx": 2048,
+  "n_predict": 128,
+  "prompt": "bench/prompts/standard-512.txt",
+  "runs": 4,
+  "discard_first": 1,
+  "recorded_runs": 3,
+  "sampling": "existing bench defaults, preserved in source; not a greedy quality comparison",
+  "acceptance": "exact package on each run, three finite positive rows, explicit generated-token counts; no sustained-throughput conclusion for early EOS",
+  "comparison": "characterization only; do not infer improvement from a different prompt, pin, model or package",
+  "thermal_power": "no wattmeter/ambient sidecar; no energy/thermal claim",
+  "quality": "default-model H9 via current fixed tasks, temperature 0 and seed 42; report each verdict, do not equate HTTP completion with capability success"
+}

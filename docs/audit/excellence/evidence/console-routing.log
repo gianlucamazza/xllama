@@ -1,0 +1,10 @@
+=== §2 routing A/B ===
+  decoy: 8638 chars, trimmer estimate 1727 tok (budget 1800), ~1617 real tok (threshold 1550); index entries: 3
+  Waiting for autopilot-done.txt (timeout 1300s)...
+  Done after 21s.
+  autopilot: ok
+  ok: long turn routed to GPU (1769 tok)
+  ok: short turn routed to CPU (23 tok)
+  ok: no 887A0036 (patched DLL works in XAML)
+  ok: removed decoy chat ap-routing-longctx
+§2 routing: PASS

@@ -1,0 +1,8 @@
+=== #223 thinking turn completes (short prompt) ===
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 11s.
+  autopilot: ok
+  ok: no truncated-reasoning stand-in in the log
+  latest chat id: ff6e45fe-16b7-407d-acd2-7f96cff63578
+  ok: assistant answer on disk (1 chars): '4'
+#223 thinking complete: PASS

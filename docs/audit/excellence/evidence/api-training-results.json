@@ -1,0 +1,56 @@
+[
+  {
+    "gate": "api-pull-embedding",
+    "exit_code": 0,
+    "seconds": 30.41,
+    "pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14"
+  },
+  {
+    "gate": "api-all",
+    "exit_code": 0,
+    "seconds": 23.07,
+    "pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14"
+  },
+  {
+    "gate": "api-boundary",
+    "exit_code": 0,
+    "seconds": 0.97,
+    "pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14"
+  },
+  {
+    "gate": "kv-fallback",
+    "exit_code": 0,
+    "seconds": 21.98,
+    "pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14"
+  },
+  {
+    "gate": "model-writer",
+    "exit_code": 1,
+    "seconds": 157.21,
+    "pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14"
+  },
+  {
+    "gate": "training-serve",
+    "exit_code": 1,
+    "seconds": 25.43,
+    "pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14"
+  },
+  {
+    "gate": "training-rate",
+    "exit_code": 0,
+    "seconds": 13.96,
+    "pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14"
+  },
+  {
+    "gate": "training-lora-rt",
+    "exit_code": 0,
+    "seconds": 49.96,
+    "pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14"
+  },
+  {
+    "gate": "training-device-train",
+    "exit_code": 0,
+    "seconds": 485.86,
+    "pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14"
+  }
+]

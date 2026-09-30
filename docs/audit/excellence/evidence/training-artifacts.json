@@ -1,0 +1,20 @@
+[
+  {
+    "file": "base-f16.gguf",
+    "size": 725553632,
+    "sha256": "acd2e64e7f2042b0261869169900eb3cd06b17d76de448a0faabe30bbfcf54bc",
+    "origin": "existing local marker-training output; not retrained by this audit"
+  },
+  {
+    "file": "adapter-lora.gguf",
+    "size": 3294912,
+    "sha256": "cb4ff5ece8a4bcf8a8ce307ca0a0884092046aa895bc75286646ee870a69b221",
+    "origin": "existing local marker-training output; not retrained by this audit"
+  },
+  {
+    "file": "merged-Q4_K_M.gguf",
+    "size": 270590432,
+    "sha256": "6656b00cde12909437d27e636d1075798b3a6a7ae495cd20cd89cd006d29b80d",
+    "origin": "existing local marker-training output; not retrained by this audit"
+  }
+]

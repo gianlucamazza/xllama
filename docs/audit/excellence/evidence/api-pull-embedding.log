@@ -1,0 +1,11 @@
+=== spike: LAN bind + HTTP 200 ===
+  Waiting for http://<XBOX_IP>:11434/ (timeout 120s)...
+  Endpoint up after 0s.
+  GET / -> {"status":"ok","service":"xllama"}
+spike: PASS
+=== pull: /api/pull (embed-bge-m3) ===
+  ok: NDJSON pull completed with progress and success records
+  ok: stream=false returns one success object
+  ok: arbitrary remote model sources are rejected
+  ok: pulled embedding model inferred
+pull: PASS

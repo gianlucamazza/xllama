@@ -1,0 +1,46 @@
+============================================================
+OK 43  WARN 0  ERR 0
+============================================================
+  ✓ manifest models: 21
+  ✓ DefaultChatModelId=lfm25-350m
+  ✓ ORT-only default=smollm2-360m-cpu-int4
+  ✓ m_gpu_model=smollm2-360m-dml-fp16-v2
+  ✓ dml allowlist = smollm2-360m-dml-fp16-v2
+  ✓ token_threshold=1550
+  ✓ pin Microsoft.ML.OnnxRuntimeGenAI.DirectML=0.14.1
+  ✓ pin Microsoft.ML.OnnxRuntime.DirectML=1.24.4
+  ✓ pin Microsoft.AI.DirectML=1.15.4
+  ✓ docs pin tables agree with packages.config
+  ✓ ROADMAP states the shipping version 1.6.0.0
+  ✓ README demo link matches the captured demo (v1.5.6)
+  ✓ README exposes the demo through a GitHub video player
+  ✓ legacy demo GIF is present (xllama-demo-v1.5.6.gif)
+  ✓ Appx Version=Version="1.6.0.0"
+  ✓ CMakeLists has personalize.cpp
+  ✓ vcxproj has personalize.cpp
+  ✓ tests CMake has test_personalize.cpp
+  ✓ CMake DEVICE_TRAIN has XLLAMA_DEVICE_TRAIN=1
+  ✓ vcxproj DEVICE_TRAIN has XLLAMA_DEVICE_TRAIN
+  ✓ API routes code↔docs
+  ✓ validate-api modes
+  ✓ personalize surface OK
+  ✓ GUI sampling shares sampling.h defaults
+  ✓ inference/train pillars separate
+  ✓ 61 script refs resolve
+  ✓ job OK from-console-samples.json
+  ✓ job OK smollm2-360m-marker-partialft.json
+  ✓ job OK smollm2-360m-marker.json
+  ✓ bridge sources agree across both build systems (21 shared)
+  ✓ autopilot ops (17) — validator table and ApRun branches agree
+  ✓ console gates (10) — runbook describes every gate that runs
+  ✓ AGENTS.md maps every tracked top-level directory (14)
+  ✓ benchmark summary --check
+  ✓ decode headlines code-doc aligned
+  ✓ model-matrix numbers match phase14-console.csv (5 models)
+  ✓ model-matrix documents all 20 catalogue text models
+  ✓ model-matrix evidence pointers resolve (12 files)
+  ✓ catalogue size headlines match manifest (±1 MB rounding)
+  ✓ phase10 peak_ws_mb=1195 success
+  ✓ H9 scores match docs
+  ✓ relative links OK across 60 Markdown files
+  ✓ CI enforces benchmark summary

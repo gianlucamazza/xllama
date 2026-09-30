@@ -1,0 +1,24 @@
+{
+  "captured_at": "2026-09-30T08:49:48.322894+00:00",
+  "source": "879c9d1d1ff7bcd0d8bed9284d6996e1937e695f",
+  "branch": "docs/excellence-audit-20260930",
+  "submodule": "7fe450e19305b828c199d602c23a8337aaa1f03b llama.cpp (v0.5.0)",
+  "system": "Linux-7.2.6-arch2-1-x86_64-with-glibc2.44",
+  "python": "3.14.7",
+  "cmake": "cmake version 4.4.3",
+  "compiler": "c++ (GCC) 16.2.1 20260810",
+  "formatters": {
+    "clang-format": "22.1.5 via uvx",
+    "prettier": "3.9.6 via npx",
+    "shellcheck": "0.11.0"
+  },
+  "build_presets": [
+    "linux-test",
+    "linux-asan"
+  ],
+  "sanitizers": {
+    "full_suite": "ASan",
+    "targeted_budget_reproduction": "UBSan; intentional failure"
+  },
+  "public_product_changes": false
+}

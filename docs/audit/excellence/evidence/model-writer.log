@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/home/gianluca/Workspace/tooling/xllama-excellence-audit/scripts/validate-model-writer.py", line 209, in <module>
+    main()
+    ~~~~^^
+  File "/home/gianluca/Workspace/tooling/xllama-excellence-audit/scripts/validate-model-writer.py", line 180, in main
+    assert (code == 200 and body.get("status") == "success") or (
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        code == 409 and isinstance(body.get("error"), str)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ), (code, body)
+    ^
+AssertionError: (500, {'error': 'download failed'})

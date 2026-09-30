@@ -1,0 +1,7 @@
+=== §7c TAESD image ===
+  Waiting for autopilot-done.txt (timeout 1300s)...
+  Done after 21s.
+  autopilot: ok
+  ok: TAESD VAE stage 636.6 ms (<1000)
+§7c TAESD: PASS
+  restoring full VAE decoder ...

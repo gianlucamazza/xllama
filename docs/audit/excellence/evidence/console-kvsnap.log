@@ -1,0 +1,12 @@
+=== #170b KV snapshot across a conversation switch ===
+  injected: 16 messages, est ~392 tok (budget 1800)
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 10s.
+  autopilot: ok
+  ok: snapshot written on the way out
+  ok: snapshot restored on the way back
+  note: hybrid cache refused tail rewind after restore
+  ok: prefix reuse kept tokens after restore
+  cold prefill 551 tok -> returning prefill 19 tok
+  ok: returning turn pays a delta (19 tok, 3% of cold)
+#170b KV snapshot: PASS
