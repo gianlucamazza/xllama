@@ -45,8 +45,9 @@ once; the choice is stored with the conversation and appended to
 The catalogue is not one model in several sizes. Three kinds behave differently
 in ways you will notice, and the picker does not explain them:
 
-- **Chat** (the default, LFM2.5-350M, and the larger LFM2.5-1.2B / LFM2-2.6B) —
-  a 2048-token context. This is what a first launch gives you.
+- **Chat** (the default, LFM2.5-350M, the larger LFM2.5-1.2B / LFM2-2.6B, and
+  heavier peers such as Llama-3.2-3B or Phi-4-mini, a ~2.5 GB download) — a
+  2048-token context. This is what a first launch gives you.
 - **Coding** (`qwen25-coder-0.5b` / `-1.5b` / `-3b`) — the same UI, but the
   session opens a **4096-token** context, because the point of the tier is
   pasting real source. That is the only difference you set: there is no separate
