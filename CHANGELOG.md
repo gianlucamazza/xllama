@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **llama.cpp `b29c606` → `7fe450e`** (#295, upstream 0.5.0). Host: greedy
+  output and final-prefill logits of QAD `lfm25-350m` and `lfm25-1.2b-instruct`
+  are bit-identical to the old pin; 264/264 doctest cases. Series S (CI package
+  1.6.0.1088): `gguf`, `longchat` and `kvsnap` gates PASS; 1.2B decode 40.03
+  vs 40.07 and prefill 109.4 vs 109.6 tok/s on 1.6.0.1072 (sequential A/B, same
+  config; `bench/results/2026-09-30-llama-7fe450e.csv`). No headline change.
+  The pin adds the `hrm_text` arch (DFM Mimir), which the arch-watch (#275)
+  evaluates separately.
 - **WS-F microphone PASS** (#241). With an Xbox Wireless headset attached,
   `scripts/probe-mic.sh` captured real audio inside the AppContainer (3 s,
   48 kHz stereo, RMS 0.019). The ASR surface is unblocked; no model ships yet.
