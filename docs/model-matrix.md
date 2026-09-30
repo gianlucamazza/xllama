@@ -336,7 +336,7 @@ Model SHA-256 pins: BGE-M3 `950f4a8e5e19477a6d3c26d2f162233c20002c601f75e4b002e3
    the verdicts are in §F. Of the 2026-07-27 seeds, LFM2.5-230M shipped and the
    rest were not displaced. WS-E (embeddings) now has a named LAN API consumer;
    BGE-M3 and Nomic v2 MoE pass host screening and Series S contract validation
-   (see §G); dedicated throughput/retrieval-quality measurements remain open. WS-F (ASR) still needs a headset (#241).
+   (see §G); dedicated throughput/retrieval-quality measurements remain open. WS-F (ASR): microphone capture PASS on Series S 2026-09-30 (#241). No ASR model is catalogued yet.
 7. ~~**W3 gpubw** (#211)~~ — **closed PASS** Series S **119.07 GB/s** STREAM;
    H6 eng **#228** (`docs/phase15-re-opt.md`).
 8. ~~**MiniCPM5-1B Series S T3**~~ — **closed** 2026-09-30: reject — measured

@@ -33,7 +33,7 @@ performance belongs in `docs/benchmarks.md`.
   (host + console marker gates PASS; pin-blocked filter-widening remains);
   Phase 11 closed the headless↔UI gap (in-app personalize + LAN API parity,
   #116/#118). Phases 13, 14 and 16 (one shipped model) are complete. Remaining
-  open work: Phase 15 parked eng, WS-F headset measurement (#241), Store retail
+  open work: Phase 15 parked eng, Store retail
   certification, and upstream vendor pin drops.
 - **Current v1.6.0.0:** unified CI MSVC Dev Mode release. Exact package and
   validation gates are identified in the GitHub release notes; the source-bound
@@ -57,8 +57,8 @@ performance belongs in `docs/benchmarks.md`.
 2. **Store readiness** — product **xllama** reserved as **Game**
    (`9N9661XSDBM4`, identity in `docs/store-readiness.md` §13). Next: IARC +
    listing in the submission; do not stamp Store CN onto the Dev Mode package.
-3. **WS-F headset** (#241) — rerun `scripts/probe-mic.sh` with a microphone
-   attached. Two room-empty runs (2026-08-10, 2026-08-20) are not a verdict.
+3. ~~**WS-F headset** (#241)~~ — **closed PASS 2026-09-30**: real capture under
+   AppContainer (RMS 0.019). ASR candidate H16.6a is unblocked, not started.
 4. **Parked eng** — H6/H7 (#228) after H6.2 **K2** (wave32 median 25.4 GB/s
    packed, G2 stays 40); crossbuild product parity (layer 2 closed
    2026-08-08 by uwp-crossbuild 0.5.1 — launch proven; ORT/GenAI, first boot
@@ -574,17 +574,13 @@ classes and with a console budget capped at ≤9 bench sessions.
       BGE-M3/Nomic pass Series S contracts and the bounded BGE memory gate.
       [Current catalogue/evidence](docs/model-matrix.md#g-embedding-api-catalogue-host-and-series-s-validated)
       owns status; dedicated throughput and retrieval-quality work remains open.
-- [~] **WS-F (H16.6) — ASR surface.** **Probe written and run 2026-08-10; one
-  measurement short.** The `microphone` capability installs, `AudioGraph` opens
-  under AppContainer at 48 kHz stereo, and `AccessDenied` — the way the sandbox
-  refuses — did **not** fire. But no headset was attached, so the device node
-  returned `DeviceNotAvailable`, which is a fact about the room and not a
-  verdict. Connect a microphone and rerun `scripts/probe-mic.sh` to settle the
-  S-gate — tracked as
-  [#241](https://github.com/gianlucamazza/xllama/issues/241). Evidence and the
-  reasoning for not scoring it:
-  [`docs/uwp-constraints.md`](docs/uwp-constraints.md) §10d. T0 settled the
-  backend half — GGUF ASR is empty by construction, so any route is ORT GenAI.
+- [x] **WS-F (H16.6) — ASR surface.** **Microphone S-gate PASS
+      (2026-09-30, #241).** With an Xbox Wireless headset attached,
+      `scripts/probe-mic.sh` captured 3 s at 48 kHz stereo with RMS 0.019
+      (`bench/results/2026-09-30-mic.json`), so the AppContainer grants real
+      capture. The backend half was settled at T0 (any route is ORT GenAI, no
+      third stack). Next is candidate H16.6a (`whisper-base`, ORT fp32), which
+      is not started. [`docs/uwp-constraints.md`](docs/uwp-constraints.md) §10d.
 - [x] **WS-G (H16.7) — vision / VLM surface.** **Closed:** S-gate FAIL — five
       new C++ surfaces against a ≤1 budget, on a desk close with no console time.
 
@@ -638,13 +634,14 @@ under `bench/results/` when measured, and documentation in the owning SSOT.
 
 - [ ] [#263](https://github.com/gianlucamazza/xllama/issues/263): migrate the host
       diffusion export stack to supported patched dependencies after an accepted
-      export ADR; validate export and Xbox diffusion before closing security alerts.
-- [ ] [#264](https://github.com/gianlucamazza/xllama/issues/264): propose and accept
-      enforceable main CI/review policy, then verify failed/missing checks block merge.
-- [ ] [#243](https://github.com/gianlucamazza/xllama/issues/243): correct the H9
-      semantic scorer with a complete remeasurement campaign; preserve old raw verdicts.
-- [ ] [#241](https://github.com/gianlucamazza/xllama/issues/241): repeat the microphone
-      probe with a headset and audible input; DeviceNotAvailable is inconclusive.
+      export ADR (proposed: ADR 0003, #291); validate export and Xbox diffusion before
+      closing security alerts.
+- [x] [#264](https://github.com/gianlucamazza/xllama/issues/264): ADR 0002 accepted;
+      ruleset `24213666` active and verified blocking (2026-09-30).
+- [x] [#243](https://github.com/gianlucamazza/xllama/issues/243): `grounded_qa` scorer
+      fixed and H9 fully re-run (`2026-09-30-h9-rescore.jsonl`); raw history kept.
+- [x] [#241](https://github.com/gianlucamazza/xllama/issues/241): microphone probe PASS
+      with a headset (2026-09-30, `2026-09-30-mic.json`).
 - [ ] Continue [vendor lifecycle gates](docs/vendor-lifecycle-plan.md) (#84/#85/#86).
 
 The main CI Dev Mode package is validated; release tagging and Store publication

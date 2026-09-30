@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **WS-F microphone PASS** (#241). With an Xbox Wireless headset attached,
+  `scripts/probe-mic.sh` captured real audio inside the AppContainer (3 s,
+  48 kHz stereo, RMS 0.019). The ASR surface is unblocked; no model ships yet.
+  Evidence `bench/results/2026-09-30-mic.json`, `docs/uwp-constraints.md` §10d.
 - **Series S catalogue gates** (2026-09-30, CI package 1.6.0.1072,
   `bench/results/2026-09-30-catalogue-gates*`). Bars were fixed before the run.
   - **Phi-4-mini** (`phi4-mini`, #268) joins the catalogue:

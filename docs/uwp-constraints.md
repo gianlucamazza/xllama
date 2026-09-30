@@ -697,7 +697,7 @@ there needs either a guard before it or a `try`/`catch` inside it. Prefer the
 guard, because a caught exception still leaves the UI in whatever state the
 half-finished coroutine left it.
 
-### §10d — Audio capture: the graph opens, the device is the open question (2026-08-10)
+### §10d — Audio capture works under the AppContainer (probe 2026-08-10, PASS 2026-09-30)
 
 Phase 16 WS-F needed one fact nobody had measured: does the Xbox AppContainer
 grant a microphone? Measured by the `mic.flag` probe (`run_mic_probe` in
@@ -743,11 +743,15 @@ point worth recording: `probe-mic.sh` overwrites one fixed path, so a repeated
 run leaves no trace in the repo and the _count_ of runs is not derivable from
 the evidence. Anyone citing "run twice" is citing this paragraph, not a file.
 
-**To finish this measurement:** connect a headset with a microphone to the
-console and rerun `./scripts/probe-mic.sh`. `Success` with RMS > 1e-3 closes
-WS-F's S-gate as PASS; `AccessDenied` closes it as FAIL and this section
-becomes the permanent record of why. Until one of those runs, WS-F is
-**open and unmeasured**, not failed.
+**Result 2026-09-30: PASS.** With an Xbox Wireless headset connected and the
+owner speaking into it, the same probe (CI package 1.6.0.1072) returned
+`graph_status = Success`, `input_node_status = Success`, 287 040 samples in
+3 s at 48 kHz stereo, RMS 0.0191 (bar 1e-3) and peak 0.297. Raw result:
+[`../bench/results/2026-09-30-mic.json`](../bench/results/2026-09-30-mic.json).
+An AppContainer app in Dev Mode can capture audio. The chat headset is
+enumerated as the default capture device, and no extra capability or prompt
+is needed beyond `microphone`. The two earlier `DeviceNotAvailable` runs were
+the empty room, as argued above.
 
 Generalising §10b's rule one step further: `IsTypePresent` tells you the
 contract exists, an activation status tells you why it did not activate, and

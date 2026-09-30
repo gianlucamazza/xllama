@@ -1,0 +1,13 @@
+{
+  "audiograph_type_present": 1,
+  "mediacapture_type_present": 1,
+  "graph_status": "Success",
+  "input_node_status": "Success",
+  "sample_rate": 48000,
+  "channels": 2,
+  "capture_ms": 3000,
+  "samples": 287040,
+  "rms": 0.01908045,
+  "peak": 0.29653132,
+  "error": ""
+}

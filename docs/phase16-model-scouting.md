@@ -10,8 +10,8 @@
 
 **Campaign snapshot:** 2026-08-20. **Campaign complete.** One model shipped
 (`lfm25-230m`, floor tier); WS-B/C/D/G closed on their own kills; WS-E closed
-2026-08-20 S-gate FAIL (no named consumer, #242); WS-F probe written and run
-twice, still `DeviceNotAvailable` with no headset (#241). 3 of ≤9 console
+2026-08-20 S-gate FAIL (no named consumer, #242); WS-F microphone S-gate
+PASS 2026-09-30 with a headset attached (#241; the earlier runs had no device). 3 of ≤9 console
 sessions spent.
 
 **Post-campaign update (2026-09-28):** #261 delivers a LAN embedding consumer
@@ -206,15 +206,15 @@ there.
 Cards are predeclared — claim / measure / PASS / FAIL / kill written before any
 engineering, per Method rule 1.
 
-| WS       | Card  | Subject                                 | Console budget      | Status                                      |
-| -------- | ----- | --------------------------------------- | ------------------- | ------------------------------------------- |
-| **WS-A** | H16.1 | Text GGUF scouting (chat/coding/reason) | 3 of ≤4 spent       | **closed — 1 shipped** (`lfm25-230m`)       |
-| **WS-B** | H16.2 | `llama.cpp` pin bump evaluation         | 0 — never triggered | **closed, not motivated** (2026-08-10)      |
-| **WS-C** | H16.3 | ORT GenAI / DirectML text re-evaluation | 0 — kill fired      | **closed — surface saturated**              |
-| **WS-D** | H16.4 | Diffusion successor to SD-Turbo         | 0 — kill fired      | **closed — nothing exportable**             |
-| **WS-E** | H16.5 | Embedding surface (S-gate)              | 0                   | **closed 2026-08-20 — no named consumer**   |
-| **WS-F** | H16.6 | ASR surface (S-gate)                    | 1 spent             | **open — probe run twice; needs a headset** |
-| **WS-G** | H16.7 | Vision / VLM surface (S-gate)           | 0 — S-gate FAIL     | **closed — cost not bought**                |
+| WS       | Card  | Subject                                 | Console budget      | Status                                    |
+| -------- | ----- | --------------------------------------- | ------------------- | ----------------------------------------- |
+| **WS-A** | H16.1 | Text GGUF scouting (chat/coding/reason) | 3 of ≤4 spent       | **closed — 1 shipped** (`lfm25-230m`)     |
+| **WS-B** | H16.2 | `llama.cpp` pin bump evaluation         | 0 — never triggered | **closed, not motivated** (2026-08-10)    |
+| **WS-C** | H16.3 | ORT GenAI / DirectML text re-evaluation | 0 — kill fired      | **closed — surface saturated**            |
+| **WS-D** | H16.4 | Diffusion successor to SD-Turbo         | 0 — kill fired      | **closed — nothing exportable**           |
+| **WS-E** | H16.5 | Embedding surface (S-gate)              | 0                   | **closed 2026-08-20 — no named consumer** |
+| **WS-F** | H16.6 | ASR surface (S-gate)                    | 1 spent             | **mic PASS 2026-09-30; H16.6a next**      |
+| **WS-G** | H16.7 | Vision / VLM surface (S-gate)           | 0 — S-gate FAIL     | **closed — cost not bought**              |
 
 **Total console bench budget: ≤9 sessions.** Anything beyond is scope creep and
 needs a decision-log entry.
