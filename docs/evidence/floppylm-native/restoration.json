@@ -1,0 +1,17 @@
+{
+  "initial_package": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14",
+  "restored_package": "GianlucaMazza.xllama_1.6.0.1107_x64__pj67f1fcj4n14",
+  "restored_source_commit": "ed242cc976ed101f01ba24a0bb88a5c0dbfc989e",
+  "original_runtime_source_commit": "879c9d1d1ff7bcd0d8bed9284d6996e1937e695f",
+  "runtime_sources_identical": true,
+  "restoration_ci_run": 36709174793,
+  "restoration_msix_sha256": "b348b34e098e330f6b5da84c2edec7b79f84585ca186114e14a7afbda95576d3",
+  "restoration_msix_bytes": 20083707,
+  "verified_original_files": 6,
+  "root_and_training_inventory_identical": true,
+  "initial_running": false,
+  "final_running": false,
+  "uninstall_used": false,
+  "parent_fixture_directory_cleanup_verified": true,
+  "note": "Base runtime rebuilt with higher CI revision for in-place restore; package bytes/version differ from initial installation."
+}

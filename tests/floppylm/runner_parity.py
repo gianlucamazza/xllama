@@ -10,13 +10,11 @@ import time
 import signal
 import sys
 
-import numpy as np
 import torch
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "training/floppylm/reference"))
-from floppylm.pack import unpack  # noqa: E402
-from floppylm.train import sliding_bpb  # noqa: E402
+sys.path.insert(0, str(ROOT / "training/floppylm"))
+from verify import verify  # noqa: E402
 
 
 def run(cli, job, expect=True):
@@ -54,15 +52,22 @@ def check(cli):
         out = Path(job["out_dir"])
         result = json.loads((out / "result.json").read_text())
         assert result["status"] == "completed"
-        for i, metrics in enumerate(result["cooldowns"]):
-            blob = (out / f"branch-{i}.flp").read_bytes()
-            assert len(blob) == metrics["artifact_bytes"]
-            model = unpack(blob)
-            data = np.frombuffer(val.read_bytes(), dtype=np.uint8).copy()
-            bpb, evaluated = sliding_bpb(model, data, len(data))
-            assert evaluated == 34
-            assert abs(bpb - metrics["bpb"]) < 1e-5, (bpb, metrics)
-            assert metrics["evaluated_bytes"] == 34
+        artifacts = verify(out, bundle)
+        assert len(artifacts) == 2
+        assert all(a["evaluated_bytes"] == 34 for a in artifacts)
+        # A terminal record alone is not evidence of completed cooldowns.
+        result_path = out / "result.json"
+        original_result = result_path.read_bytes()
+        result_path.write_text(json.dumps({**result, "cooldowns": []}))
+        try:
+            try:
+                verify(out, bundle)
+            except AssertionError:
+                pass
+            else:
+                raise AssertionError("empty completed result was accepted")
+        finally:
+            result_path.write_bytes(original_result)
         checkpoints = sorted(out.glob("*.flc"))
         assert len(checkpoints) > 2
         for i, checkpoint in enumerate(checkpoints):

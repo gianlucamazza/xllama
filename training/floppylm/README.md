@@ -102,7 +102,8 @@ them after validation. Never use the fresh-install helper for this validation.
 
 After deploying the selected CI package, the console harness verifies the expected
 package, uploads and re-downloads the bundle to check transfer identity, runs both
-cooldowns, retrieves FLP2 artifacts, and restores the sampled process/control-file
+cooldowns, resumes an intermediate checkpoint and requires identical artifacts and
+cooldown metrics, then restores the sampled process/control-file
 state even on failure:
 
 ```sh
@@ -114,3 +115,12 @@ python scripts/validate-floppylm-console.py --bundle /absolute/path/bundle \
 
 The harness evidence directory contains private backups and console logs. Publish
 only the selected numeric proof and artifact hashes, never the private backups.
+
+Verify downloaded results independently on the host (including each serialized section):
+
+```sh
+python training/floppylm/verify.py --bundle /absolute/path/bundle \
+  --run /private/path/console-proof
+```
+
+Recorded [Linux/Xbox functional evidence](../../docs/evidence/floppylm-native/README.md) includes the exported artifacts and final console restoration proof.

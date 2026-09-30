@@ -1,0 +1,524 @@
+{
+  "date": "2026-09-30",
+  "purpose": "Functional correctness only; synthetic data; no E0 campaign or speed claim",
+  "source_commit": "6869867f8ada05b7b6c7970486c8989cecd41d2d",
+  "reference_commit": "2c2e737",
+  "ci_run": 36708622018,
+  "package": {
+    "version": "1.6.0.1106",
+    "sha256": "b98d46ba5177c2d4f936fed97b7e1bcd5dbf999d8098be4adf42dd9155adb100",
+    "bytes": 20226585
+  },
+  "fixtures": {
+    "d16": {
+      "config": {
+        "core_fmt": "ternary",
+        "ctx": 8,
+        "d": 16,
+        "d_ff": 32,
+        "delta": 0.5,
+        "emb_fmt": "4bit",
+        "mlp": "gelu",
+        "n_heads": 2,
+        "n_layers": 2,
+        "qk_norm": false,
+        "scale_policy": "row16",
+        "vocab": 256
+      },
+      "spec": {
+        "batch": 2,
+        "branches": 2,
+        "checkpoint_every": 2,
+        "cooldown_frac": 0.1,
+        "lr": 0.003,
+        "seed": 7,
+        "threads": 1,
+        "tokens": 128,
+        "wall_limit_seconds": 60,
+        "warmup_frac": 0.02,
+        "wd": 0.1
+      },
+      "environment": {
+        "numpy": "2.4.4",
+        "torch": "2.11.0+cu130"
+      },
+      "data": {
+        "offsets.bin": {
+          "sha256": "006bd46c3ac2f77dd775ff5382225926b8b145835bd77d6a1e5709752621f94c",
+          "size": 256
+        },
+        "train.bin": {
+          "sha256": "785b0751fc2c53dc14a4ce3d800e69ef9ce1009eb327ccf458afe09c242c26c9",
+          "size": 1024
+        },
+        "val.bin": {
+          "sha256": "f12dd12340cb84e4d0d9958d62be7c59bb8f7243a7420fd043177ac542a26aaa",
+          "size": 35
+        }
+      },
+      "host_result": {
+        "artifact": "branch-1.flp",
+        "bundle_sha256": "5700df1ffff7085e02fb93deec62faf4a5bfbe04bb1e5158bbab1cfcb4f319b7",
+        "cooldowns": [
+          {
+            "artifact_bytes": 4114,
+            "bpb": 8.4708303529952,
+            "branch": 0,
+            "end_step": 8,
+            "evaluated_bytes": 34,
+            "sections": {
+              "core": 936,
+              "embedding": 1883,
+              "header": 175,
+              "norms": 160,
+              "scales": 960,
+              "shared": 0
+            }
+          },
+          {
+            "artifact_bytes": 4114,
+            "bpb": 8.254432706369311,
+            "branch": 1,
+            "end_step": 16,
+            "evaluated_bytes": 34,
+            "sections": {
+              "core": 936,
+              "embedding": 1883,
+              "header": 175,
+              "norms": 160,
+              "scales": 960,
+              "shared": 0
+            }
+          }
+        ],
+        "cumulative_seconds": 0.331661037,
+        "engine_protocol": "floppylm-ggml-cpu-v1",
+        "error": "",
+        "last_loss": 5.2620017528533936,
+        "name": "floppy-native-evidence-bundle",
+        "peak_ws_mb": 18,
+        "status": "completed",
+        "training_flops": 13787136.0,
+        "training_tokens": 272,
+        "wall_seconds": 0.340267408
+      },
+      "console_result": {
+        "artifact": "branch-1.flp",
+        "bundle_sha256": "5700df1ffff7085e02fb93deec62faf4a5bfbe04bb1e5158bbab1cfcb4f319b7",
+        "cooldowns": [
+          {
+            "artifact_bytes": 4114,
+            "bpb": 8.470830346639586,
+            "branch": 0,
+            "end_step": 8,
+            "evaluated_bytes": 34,
+            "sections": {
+              "core": 936,
+              "embedding": 1883,
+              "header": 175,
+              "norms": 160,
+              "scales": 960,
+              "shared": 0
+            }
+          },
+          {
+            "artifact_bytes": 4114,
+            "bpb": 8.2544326891179,
+            "branch": 1,
+            "end_step": 16,
+            "evaluated_bytes": 34,
+            "sections": {
+              "core": 936,
+              "embedding": 1883,
+              "header": 175,
+              "norms": 160,
+              "scales": 960,
+              "shared": 0
+            }
+          }
+        ],
+        "cumulative_seconds": 0.141511835,
+        "engine_protocol": "floppylm-ggml-cpu-v1",
+        "error": "",
+        "last_loss": 5.2620017528533936,
+        "name": "console-floppylm-functional",
+        "peak_ws_mb": 34,
+        "status": "completed",
+        "training_flops": 13787136.0,
+        "training_tokens": 272,
+        "wall_seconds": 0.144715962
+      },
+      "console_resume_result": {
+        "artifact": "branch-1.flp",
+        "bundle_sha256": "5700df1ffff7085e02fb93deec62faf4a5bfbe04bb1e5158bbab1cfcb4f319b7",
+        "cooldowns": [
+          {
+            "artifact_bytes": 4114,
+            "bpb": 8.470830346639586,
+            "branch": 0,
+            "end_step": 8,
+            "evaluated_bytes": 34,
+            "sections": {
+              "core": 936,
+              "embedding": 1883,
+              "header": 175,
+              "norms": 160,
+              "scales": 960,
+              "shared": 0
+            }
+          },
+          {
+            "artifact_bytes": 4114,
+            "bpb": 8.2544326891179,
+            "branch": 1,
+            "end_step": 16,
+            "evaluated_bytes": 34,
+            "sections": {
+              "core": 936,
+              "embedding": 1883,
+              "header": 175,
+              "norms": 160,
+              "scales": 960,
+              "shared": 0
+            }
+          }
+        ],
+        "cumulative_seconds": 0.158258933,
+        "engine_protocol": "floppylm-ggml-cpu-v1",
+        "error": "",
+        "last_loss": 5.2620017528533936,
+        "name": "console-floppylm-functional",
+        "peak_ws_mb": 34,
+        "status": "completed",
+        "training_flops": 13787136.0,
+        "training_tokens": 272,
+        "wall_seconds": 0.068315677
+      },
+      "console_proof": {
+        "pfn": "GianlucaMazza.xllama_1.6.0.1106_x64__pj67f1fcj4n14",
+        "initial_running": false,
+        "remote_fixture": "training\\floppylm-fc3c5d0c95b645179bfd748c804e6dae",
+        "status": "completed",
+        "elapsed_seconds": 1.6575888750085142,
+        "bundle_sha256": "5700df1ffff7085e02fb93deec62faf4a5bfbe04bb1e5158bbab1cfcb4f319b7",
+        "artifacts": [
+          {
+            "file": "branch-0.flp",
+            "sha256": "97e0bc0ff68b1257314d4ddc2702e1e9426cad1b030e57572ae17cd3c75f80cc",
+            "bytes": 4114
+          },
+          {
+            "file": "branch-1.flp",
+            "sha256": "adc4a46953525f2e2d113f1ca1f6c2488ccd2faa0b9e3d36be8fe0caab3f5ea7",
+            "bytes": 4114
+          }
+        ],
+        "resume": {
+          "checkpoint": "checkpoint-00000005.flc",
+          "checkpoint_sha256": "30d48d70e218db100c1134d44c237cbaa45000e4bb78933cdd3bcc795ce753d6",
+          "artifacts_byte_identical": true,
+          "cooldown_metrics_identical": true
+        },
+        "restoration_complete": true,
+        "restored_files": 39,
+        "final_running": false
+      },
+      "host_verification": [
+        {
+          "file": "branch-0.flp",
+          "sha256": "97e0bc0ff68b1257314d4ddc2702e1e9426cad1b030e57572ae17cd3c75f80cc",
+          "bytes": 4114,
+          "independent_bpb": 8.470830410142314,
+          "native_bpb": 8.4708303529952,
+          "evaluated_bytes": 34,
+          "roundtrip_exact": true
+        },
+        {
+          "file": "branch-1.flp",
+          "sha256": "adc4a46953525f2e2d113f1ca1f6c2488ccd2faa0b9e3d36be8fe0caab3f5ea7",
+          "bytes": 4114,
+          "independent_bpb": 8.254432774329365,
+          "native_bpb": 8.254432706369311,
+          "evaluated_bytes": 34,
+          "roundtrip_exact": true
+        }
+      ],
+      "console_verification": [
+        {
+          "file": "branch-0.flp",
+          "sha256": "97e0bc0ff68b1257314d4ddc2702e1e9426cad1b030e57572ae17cd3c75f80cc",
+          "bytes": 4114,
+          "independent_bpb": 8.470830410142314,
+          "native_bpb": 8.470830346639586,
+          "evaluated_bytes": 34,
+          "roundtrip_exact": true
+        },
+        {
+          "file": "branch-1.flp",
+          "sha256": "adc4a46953525f2e2d113f1ca1f6c2488ccd2faa0b9e3d36be8fe0caab3f5ea7",
+          "bytes": 4114,
+          "independent_bpb": 8.254432774329365,
+          "native_bpb": 8.2544326891179,
+          "evaluated_bytes": 34,
+          "roundtrip_exact": true
+        }
+      ],
+      "host_console_artifacts_identical": true
+    },
+    "d80": {
+      "config": {
+        "core_fmt": "2bit",
+        "ctx": 64,
+        "d": 80,
+        "d_ff": 267,
+        "delta": 0.5,
+        "emb_fmt": "4bit",
+        "mlp": "swiglu",
+        "n_heads": 2,
+        "n_layers": 2,
+        "qk_norm": true,
+        "scale_policy": "row16",
+        "vocab": 256
+      },
+      "spec": {
+        "batch": 2,
+        "branches": 2,
+        "checkpoint_every": 2,
+        "cooldown_frac": 0.1,
+        "lr": 0.003,
+        "seed": 7,
+        "threads": 1,
+        "tokens": 1024,
+        "wall_limit_seconds": 300,
+        "warmup_frac": 0.02,
+        "wd": 0.1
+      },
+      "environment": {
+        "numpy": "2.4.4",
+        "torch": "2.11.0+cu130"
+      },
+      "data": {
+        "offsets.bin": {
+          "sha256": "2ca18cb57aa29ab3c76b4a101fa9335ae7600926f76593f3369eeb6635a71db0",
+          "size": 256
+        },
+        "train.bin": {
+          "sha256": "785b0751fc2c53dc14a4ce3d800e69ef9ce1009eb327ccf458afe09c242c26c9",
+          "size": 1024
+        },
+        "val.bin": {
+          "sha256": "ca78ffe1c341194161183d4ee359a13c9cf0b4736a8870c0c06f25f269699d74",
+          "size": 273
+        }
+      },
+      "host_result": {
+        "artifact": "branch-1.flp",
+        "bundle_sha256": "f3377da4071aee614500ce88cfbab8a83d57750bf3a78e4a3996838c8c8782f2",
+        "cooldowns": [
+          {
+            "artifact_bytes": 58328,
+            "bpb": 5.295018538239189,
+            "branch": 0,
+            "end_step": 8,
+            "evaluated_bytes": 272,
+            "sections": {
+              "core": 43843,
+              "embedding": 9262,
+              "header": 175,
+              "norms": 800,
+              "scales": 4248,
+              "shared": 0
+            }
+          },
+          {
+            "artifact_bytes": 58318,
+            "bpb": 3.085430622818099,
+            "branch": 1,
+            "end_step": 16,
+            "evaluated_bytes": 272,
+            "sections": {
+              "core": 43838,
+              "embedding": 9257,
+              "header": 175,
+              "norms": 800,
+              "scales": 4248,
+              "shared": 0
+            }
+          }
+        ],
+        "cumulative_seconds": 15.257479317,
+        "engine_protocol": "floppylm-ggml-cpu-v1",
+        "error": "",
+        "last_loss": 1.9206507802009583,
+        "name": "floppy-d80-bundle",
+        "peak_ws_mb": 67,
+        "status": "completed",
+        "training_flops": 2742804480.0,
+        "training_tokens": 2176,
+        "wall_seconds": 15.617144182
+      },
+      "console_result": {
+        "artifact": "branch-1.flp",
+        "bundle_sha256": "f3377da4071aee614500ce88cfbab8a83d57750bf3a78e4a3996838c8c8782f2",
+        "cooldowns": [
+          {
+            "artifact_bytes": 58328,
+            "bpb": 5.295018484498549,
+            "branch": 0,
+            "end_step": 8,
+            "evaluated_bytes": 272,
+            "sections": {
+              "core": 43843,
+              "embedding": 9262,
+              "header": 175,
+              "norms": 800,
+              "scales": 4248,
+              "shared": 0
+            }
+          },
+          {
+            "artifact_bytes": 58318,
+            "bpb": 3.0854307011801416,
+            "branch": 1,
+            "end_step": 16,
+            "evaluated_bytes": 272,
+            "sections": {
+              "core": 43838,
+              "embedding": 9257,
+              "header": 175,
+              "norms": 800,
+              "scales": 4248,
+              "shared": 0
+            }
+          }
+        ],
+        "cumulative_seconds": 1.786698258,
+        "engine_protocol": "floppylm-ggml-cpu-v1",
+        "error": "",
+        "last_loss": 1.920650839805603,
+        "name": "console-floppylm-functional",
+        "peak_ws_mb": 96,
+        "status": "completed",
+        "training_flops": 2742804480.0,
+        "training_tokens": 2176,
+        "wall_seconds": 1.832604062
+      },
+      "console_resume_result": {
+        "artifact": "branch-1.flp",
+        "bundle_sha256": "f3377da4071aee614500ce88cfbab8a83d57750bf3a78e4a3996838c8c8782f2",
+        "cooldowns": [
+          {
+            "artifact_bytes": 58328,
+            "bpb": 5.295018484498549,
+            "branch": 0,
+            "end_step": 8,
+            "evaluated_bytes": 272,
+            "sections": {
+              "core": 43843,
+              "embedding": 9262,
+              "header": 175,
+              "norms": 800,
+              "scales": 4248,
+              "shared": 0
+            }
+          },
+          {
+            "artifact_bytes": 58318,
+            "bpb": 3.0854307011801416,
+            "branch": 1,
+            "end_step": 16,
+            "evaluated_bytes": 272,
+            "sections": {
+              "core": 43838,
+              "embedding": 9257,
+              "header": 175,
+              "norms": 800,
+              "scales": 4248,
+              "shared": 0
+            }
+          }
+        ],
+        "cumulative_seconds": 2.06832405,
+        "engine_protocol": "floppylm-ggml-cpu-v1",
+        "error": "",
+        "last_loss": 1.920650839805603,
+        "name": "console-floppylm-functional",
+        "peak_ws_mb": 93,
+        "status": "completed",
+        "training_flops": 2742804480.0,
+        "training_tokens": 2176,
+        "wall_seconds": 1.177714662
+      },
+      "console_proof": {
+        "pfn": "GianlucaMazza.xllama_1.6.0.1106_x64__pj67f1fcj4n14",
+        "initial_running": false,
+        "remote_fixture": "training\\floppylm-a79b1c85447b451d91207e16524b18d4",
+        "status": "completed",
+        "elapsed_seconds": 3.1703672500007087,
+        "bundle_sha256": "f3377da4071aee614500ce88cfbab8a83d57750bf3a78e4a3996838c8c8782f2",
+        "artifacts": [
+          {
+            "file": "branch-0.flp",
+            "sha256": "0d71c72f2f421156e9f54edafe6de9b97065b60b9b1168cc6c059f1ccd425fa1",
+            "bytes": 58328
+          },
+          {
+            "file": "branch-1.flp",
+            "sha256": "7b009aec561ef72408af76c87d63a1af9fc57f1625b2862cada918a35681d964",
+            "bytes": 58318
+          }
+        ],
+        "resume": {
+          "checkpoint": "checkpoint-00000005.flc",
+          "checkpoint_sha256": "59352be7c4aa1346477de835f3fd22d9859ede8b7faea59f82fed4707305ecf8",
+          "artifacts_byte_identical": true,
+          "cooldown_metrics_identical": true
+        },
+        "restoration_complete": true,
+        "restored_files": 39,
+        "final_running": false
+      },
+      "host_verification": [
+        {
+          "file": "branch-0.flp",
+          "sha256": "0d71c72f2f421156e9f54edafe6de9b97065b60b9b1168cc6c059f1ccd425fa1",
+          "bytes": 58328,
+          "independent_bpb": 5.295018446031648,
+          "native_bpb": 5.295018538239189,
+          "evaluated_bytes": 272,
+          "roundtrip_exact": true
+        },
+        {
+          "file": "branch-1.flp",
+          "sha256": "7b009aec561ef72408af76c87d63a1af9fc57f1625b2862cada918a35681d964",
+          "bytes": 58318,
+          "independent_bpb": 3.085430609533338,
+          "native_bpb": 3.085430622818099,
+          "evaluated_bytes": 272,
+          "roundtrip_exact": true
+        }
+      ],
+      "console_verification": [
+        {
+          "file": "branch-0.flp",
+          "sha256": "0d71c72f2f421156e9f54edafe6de9b97065b60b9b1168cc6c059f1ccd425fa1",
+          "bytes": 58328,
+          "independent_bpb": 5.295018446031648,
+          "native_bpb": 5.295018484498549,
+          "evaluated_bytes": 272,
+          "roundtrip_exact": true
+        },
+        {
+          "file": "branch-1.flp",
+          "sha256": "7b009aec561ef72408af76c87d63a1af9fc57f1625b2862cada918a35681d964",
+          "bytes": 58318,
+          "independent_bpb": 3.085430609533338,
+          "native_bpb": 3.0854307011801416,
+          "evaluated_bytes": 272,
+          "roundtrip_exact": true
+        }
+      ],
+      "host_console_artifacts_identical": true
+    }
+  }
+}
