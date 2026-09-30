@@ -167,7 +167,7 @@ class Console:
         )
         self.put("autopilot.flag", "go")
 
-    def restore(self):
+    def restore(self, restart=True):
         self.guard()
         self.command("stop-app", self.pfn)
         # Restore metadata/control files; large model weights are repaired by
@@ -183,7 +183,8 @@ class Console:
         (self.out / "restore-proof.json").write_text(
             json.dumps({"pfn": self.pfn, "restored": len(self.original)}) + "\n"
         )
-        self.command("start-app", self.pfn)
+        if restart:
+            self.command("start-app", self.pfn)
 
 
 def settings():

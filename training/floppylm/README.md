@@ -99,3 +99,18 @@ fallback.
 For Xbox, use the exact MSVC artifact built for the branch. Preserve existing
 LocalState control files before staging `training/job.json` and `train.flag`; restore
 them after validation. Never use the fresh-install helper for this validation.
+
+After deploying the selected CI package, the console harness verifies the expected
+package, uploads and re-downloads the bundle to check transfer identity, runs both
+cooldowns, retrieves FLP2 artifacts, and restores the sampled process/control-file
+state even on failure:
+
+```sh
+source ~/.config/xllama/xbox-env
+export XLLAMA_EXPECTED_PFN='the exact package full name from the selected CI artifact'
+python scripts/validate-floppylm-console.py --bundle /absolute/path/bundle \
+  --out /private/path/console-proof
+```
+
+The harness evidence directory contains private backups and console logs. Publish
+only the selected numeric proof and artifact hashes, never the private backups.

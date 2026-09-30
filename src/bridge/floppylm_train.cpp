@@ -449,6 +449,9 @@ TrainingResult run_floppylm_job(const TrainingJob& job, const DeviceTrainCallbac
                                            ? "completed"
                                            : state.value("phase", std::string("failed"))},
                             {"error", result.error_msg},
+                            {"bundle_sha256", state.value("contract", std::string{})},
+                            {"engine_protocol", "floppylm-ggml-cpu-v1"},
+                            {"name", job.name},
                             {"wall_seconds", result.wall_seconds},
                             {"peak_ws_mb", result.peak_ws_mb},
                             {"last_loss", result.last_loss},
