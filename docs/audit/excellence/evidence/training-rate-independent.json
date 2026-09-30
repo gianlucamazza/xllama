@@ -1,0 +1,26 @@
+{
+  "new_chats": [
+    {
+      "id": "04d504fa-c4b1-4c2f-b2b8-34669080eed7",
+      "title": "Say hi in three words.",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Say hi in three words.",
+          "ts": 1790758112,
+          "partial": false,
+          "feedback_label": ""
+        },
+        {
+          "role": "assistant",
+          "content": "Hello",
+          "ts": 1790758113,
+          "partial": false,
+          "feedback_label": "like"
+        }
+      ]
+    }
+  ],
+  "sample_append_only": true,
+  "new_sample_bytes": 148
+}

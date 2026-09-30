@@ -1,0 +1,9 @@
+=== #169 long-chat context shift ===
+  injected: 24 messages, est ~1972 tok (budget 1800)
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 32s.
+  autopilot: ok
+  ok: context shift fired (1x)
+  ok: no continuation fell back to a full prefill
+  ok: no context-full error
+#169 long-chat: PASS

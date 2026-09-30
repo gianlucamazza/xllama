@@ -1,0 +1,26 @@
+[
+  {
+    "name": "coherence",
+    "exit_code": 0
+  },
+  {
+    "name": "benchmarks",
+    "exit_code": 0
+  },
+  {
+    "name": "research",
+    "exit_code": 0
+  },
+  {
+    "name": "audit-markdown",
+    "exit_code": 0
+  },
+  {
+    "name": "audit-cpp",
+    "exit_code": 0
+  },
+  {
+    "name": "audit-local-links-and-json",
+    "exit_code": 0
+  }
+]

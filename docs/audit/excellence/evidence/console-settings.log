@@ -1,0 +1,19 @@
+=== settings ops (routing / sampling / kv_reuse / taesd / system_prompt) ===
+  Waiting for autopilot-done.txt (timeout 300s)...
+  Done after 11s.
+  autopilot: ok
+  ok: set_routing dispatched
+  ok: set_sampling dispatched
+  ok: set_kv_reuse dispatched
+  ok: set_taesd dispatched
+  ok: set_system_prompt dispatched
+  ok: routing = 0 (want 0)
+  ok: kv_reuse = False (want False)
+  ok: temperature = 0.55 (want 0.55)
+  ok: top_p = 0.8 (want 0.8)
+  ok: top_k = 20 (want 20)
+  ok: repetition_penalty = 1.25 (want 1.25)
+  ok: n_predict = 128 (want 128)
+  ok: diffuse_taesd_vae = True (want True)
+  ok: system_prompt = 'You are a terse assistant.' (want 'You are a terse assistant.')
+settings ops: PASS

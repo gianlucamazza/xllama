@@ -1,0 +1,207 @@
+[
+  {
+    "file": "bench/results/2026-09-28-main-lfm.csv",
+    "exit_code": 0,
+    "output": "OK schema=v2 file=bench/results/2026-09-28-main-lfm.csv"
+  },
+  {
+    "file": "bench/results/2026-09-30-catalogue-gates.csv",
+    "exit_code": 0,
+    "output": "OK schema=v2 file=bench/results/2026-09-30-catalogue-gates.csv"
+  },
+  {
+    "file": "bench/results/2026-09-30-llama-7fe450e.csv",
+    "exit_code": 0,
+    "output": "OK schema=v2 file=bench/results/2026-09-30-llama-7fe450e.csv"
+  },
+  {
+    "file": "bench/results/2026-09-30-qad-prefill-ab.csv",
+    "exit_code": 0,
+    "output": "OK schema=v2 file=bench/results/2026-09-30-qad-prefill-ab.csv"
+  },
+  {
+    "file": "bench/results/phase1-cpu.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase1-cpu.csv"
+  },
+  {
+    "file": "bench/results/phase12-cpu-threads.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase12-cpu-threads.csv"
+  },
+  {
+    "file": "bench/results/phase12-dml-crossover.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase12-dml-crossover.csv"
+  },
+  {
+    "file": "bench/results/phase12-maxlen-band.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase12-maxlen-band.csv"
+  },
+  {
+    "file": "bench/results/phase12-threshold-rederivation.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase12-threshold-rederivation.csv"
+  },
+  {
+    "file": "bench/results/phase12b-threads-sweep.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase12b-threads-sweep.csv"
+  },
+  {
+    "file": "bench/results/phase13-repack-after.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase13-repack-after.csv"
+  },
+  {
+    "file": "bench/results/phase13-repack-before.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase13-repack-before.csv"
+  },
+  {
+    "file": "bench/results/phase13b-threadsbatch-after.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase13b-threadsbatch-after.csv"
+  },
+  {
+    "file": "bench/results/phase13b-threadsbatch-before.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase13b-threadsbatch-before.csv"
+  },
+  {
+    "file": "bench/results/phase13c-ubatch-sweep.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase13c-ubatch-sweep.csv"
+  },
+  {
+    "file": "bench/results/phase14-console.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase14-console.csv"
+  },
+  {
+    "file": "bench/results/phase14-host-validation.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase14-host-validation.csv"
+  },
+  {
+    "file": "bench/results/phase15-moe-console.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase15-moe-console.csv"
+  },
+  {
+    "file": "bench/results/phase15-spec-w2-chat-pl0.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase15-spec-w2-chat-pl0.csv"
+  },
+  {
+    "file": "bench/results/phase15-spec-w2-chat-pl1.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase15-spec-w2-chat-pl1.csv"
+  },
+  {
+    "file": "bench/results/phase15-spec-w2-code-pl0.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase15-spec-w2-code-pl0.csv"
+  },
+  {
+    "file": "bench/results/phase15-spec-w2-code-pl1.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase15-spec-w2-code-pl1.csv"
+  },
+  {
+    "file": "bench/results/phase16-gguf.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase16-gguf.csv"
+  },
+  {
+    "file": "bench/results/phase16-quantiser-ab.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase16-quantiser-ab.csv"
+  },
+  {
+    "file": "bench/results/phase17-console-2026-08-26.csv",
+    "exit_code": 0,
+    "output": "OK schema=v2 file=bench/results/phase17-console-2026-08-26.csv"
+  },
+  {
+    "file": "bench/results/phase2-dml.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase2-dml.csv"
+  },
+  {
+    "file": "bench/results/phase35-014-cpu.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase35-014-cpu.csv"
+  },
+  {
+    "file": "bench/results/phase35-014-dml-int4.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase35-014-dml-int4.csv"
+  },
+  {
+    "file": "bench/results/phase35-014-dml.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase35-014-dml.csv"
+  },
+  {
+    "file": "bench/results/phase35-1b-cpu.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase35-1b-cpu.csv"
+  },
+  {
+    "file": "bench/results/phase35-llamacpp-scaling.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase35-llamacpp-scaling.csv"
+  },
+  {
+    "file": "bench/results/phase5-gguf.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase5-gguf.csv"
+  },
+  {
+    "file": "bench/results/phase5-int4-acc4.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase5-int4-acc4.csv"
+  },
+  {
+    "file": "bench/results/phase5-int4-block128.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase5-int4-block128.csv"
+  },
+  {
+    "file": "bench/results/phase6-fp16-extdata.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase6-fp16-extdata.csv"
+  },
+  {
+    "file": "bench/results/phase6-gemma.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase6-gemma.csv"
+  },
+  {
+    "file": "bench/results/phase7-lfm-long.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase7-lfm-long.csv"
+  },
+  {
+    "file": "bench/results/phase7-lfm.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase7-lfm.csv"
+  },
+  {
+    "file": "bench/results/phase7-scale.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/phase7-scale.csv"
+  },
+  {
+    "file": "bench/results/shape-gate.csv",
+    "exit_code": 0,
+    "output": "OK schema=v2 file=bench/results/shape-gate.csv"
+  },
+  {
+    "file": "bench/results/t6-shipped-confirm.csv",
+    "exit_code": 0,
+    "output": "OK schema=v1 file=bench/results/t6-shipped-confirm.csv"
+  }
+]

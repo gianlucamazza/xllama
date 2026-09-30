@@ -1,0 +1,35 @@
+=== Device train (Lane B partial FT, in-process) ===
+  uploading base f16 GGUF + dataset + job (base is ~720 MB, be patient)...
+  Waiting for training/result.done (timeout 7200s; epochs=8)...
+[xllama] train: epoch 6/8 batch 1/5 loss=0.5537
+[xllama] train: epoch 6/8 batch 2/5 loss=0.5114
+[xllama] train: epoch 6/8 batch 3/5 loss=0.5837
+[xllama] train: epoch 6/8 batch 4/5 loss=0.6205
+[xllama] train: epoch 6/8 batch 5/5 loss=0.6530
+[xllama] train: train: epoch 6/8 loss=0.652984
+[xllama] train: epoch 7/8 batch 1/5 loss=0.5354
+[xllama] train: epoch 7/8 batch 2/5 loss=0.4745
+[xllama] train: epoch 7/8 batch 3/5 loss=0.5167
+[xllama] train: epoch 7/8 batch 4/5 loss=0.5312
+[xllama] train: epoch 7/8 batch 5/5 loss=0.5520
+[xllama] train: train: epoch 7/8 loss=0.55202
+[xllama] train: epoch 8/8 batch 1/5 loss=0.4897
+[xllama] train: epoch 8/8 batch 2/5 loss=0.4260
+[xllama] train: epoch 8/8 batch 3/5 loss=0.4424
+[xllama] train: epoch 8/8 batch 4/5 loss=0.4511
+[xllama] train: epoch 8/8 batch 5/5 loss=0.4680
+[xllama] train: train: epoch 8/8 loss=0.46798
+[xllama] train: export: Q:\Users\UserMgr0\AppData\Local\Packages\GianlucaMazza.xllama_pj67f1fcj4n14\LocalState\training/out/device-marker/merged.gguf
+[xllama] train: evaluate: output: XLLAMA-LORA-OK.
+{
+  "success": true,
+  "stages": ["prepare", "train", "export_adapter", "merge", "evaluate"],
+  "merged_gguf": "Q:\\Users\\UserMgr0\\AppData\\Local\\Packages\\GianlucaMazza.xllama_pj67f1fcj4n14\\LocalState\\training/out/device-marker/merged.gguf",
+  "last_loss": 0.46798,
+  "wall_seconds": 444.805,
+  "peak_ws_mb": 1196,
+  "error": ""
+}
+  evidence: peak_ws=1196 MB wall=444.805s
+Device train: PASS (merged GGUF at LocalState\training\out\device-marker\merged.gguf)
+(follow-up: point a catalogue manifest at it and run '/home/gianluca/Workspace/tooling/xllama-excellence-audit/scripts/validate-console-training.sh serve' semantics to chat the marker)

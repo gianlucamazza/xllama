@@ -1,0 +1,1374 @@
+register_backend: registered backend CPU (1 devices)
+register_device: registered device CPU (11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz)
+llama_model_loader: loaded meta data with 38 key-value pairs and 148 tensors from /home/gianluca/diagnostics/xllama-excellence-20260930/weights/LFM2.5-350M-QAD-Q4_0.gguf (version GGUF V3 (latest))
+llama_model_loader: Dumping metadata keys/values. Note: KV overrides do not apply in this output.
+llama_model_loader: - kv   0:                       general.architecture str              = lfm2
+llama_model_loader: - kv   1:                               general.type str              = model
+llama_model_loader: - kv   2:                         general.size_label str              = 354M
+llama_model_loader: - kv   3:                           lfm2.block_count u32              = 16
+llama_model_loader: - kv   4:                        lfm2.context_length u32              = 128000
+llama_model_loader: - kv   5:                      lfm2.embedding_length u32              = 1024
+llama_model_loader: - kv   6:                   lfm2.feed_forward_length u32              = 4608
+llama_model_loader: - kv   7:                  lfm2.attention.head_count u32              = 16
+llama_model_loader: - kv   8:               lfm2.attention.head_count_kv arr[i32,16]      = [0, 0, 8, 0, 0, 8, 0, 0, 8, 0, 8, 0, ...
+llama_model_loader: - kv   9:                        lfm2.rope.freq_base f32              = 1000000.000000
+llama_model_loader: - kv  10:      lfm2.attention.layer_norm_rms_epsilon f32              = 0.000010
+llama_model_loader: - kv  11:                            lfm2.vocab_size u32              = 65536
+llama_model_loader: - kv  12:                     lfm2.shortconv.l_cache u32              = 3
+llama_model_loader: - kv  13:                       tokenizer.ggml.model str              = gpt2
+llama_model_loader: - kv  14:                         tokenizer.ggml.pre str              = lfm2
+llama_model_loader: - kv  15:                      tokenizer.ggml.tokens arr[str,65536]   = ["<|pad|>", "<|startoftext|>", "<|end...
+llama_model_loader: - kv  16:                  tokenizer.ggml.token_type arr[i32,65536]   = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, ...
+llama_model_loader: - kv  17:                      tokenizer.ggml.merges arr[str,63683]   = ["Ċ Ċ", "Ċ ĊĊ", "ĊĊ Ċ", "Ċ �...
+llama_model_loader: - kv  18:                tokenizer.ggml.bos_token_id u32              = 1
+llama_model_loader: - kv  19:                tokenizer.ggml.eos_token_id u32              = 7
+llama_model_loader: - kv  20:            tokenizer.ggml.padding_token_id u32              = 0
+llama_model_loader: - kv  21:               tokenizer.ggml.add_bos_token bool             = true
+llama_model_loader: - kv  22:               tokenizer.ggml.add_sep_token bool             = false
+llama_model_loader: - kv  23:               general.quantization_version u32              = 2
+llama_model_loader: - kv  24:                          general.file_type u32              = 2
+llama_model_loader: - kv  25:                    tokenizer.chat_template str              = {{- bos_token -}}\n{%- set preserve_th...
+llama_model_loader: - kv  26:                               general.name str              = LFM2.5-350M-QAD-Q4_0
+llama_model_loader: - kv  27:                           general.finetune str              = QAD
+llama_model_loader: - kv  28:                           general.basename str              = LFM2.5-350M-QAD
+llama_model_loader: - kv  29:                             general.author str              = Liquid AI
+llama_model_loader: - kv  30:                       general.organization str              = Liquid AI
+llama_model_loader: - kv  31:                        general.description str              = LFM2.5-350M Q4_0 Quantization-Aware D...
+llama_model_loader: - kv  32:                       general.quantized_by str              = Liquid AI
+llama_model_loader: - kv  33:                            general.license str              = other
+llama_model_loader: - kv  34:                       general.license.name str              = lfm1.0
+llama_model_loader: - kv  35:                       general.license.link str              = LICENSE
+llama_model_loader: - kv  36:                          general.languages arr[str,8]       = ["en", "ar", "zh", "fr", "de", "ja", ...
+llama_model_loader: - kv  37:                               general.tags arr[str,8]       = ["liquid", "lfm2.5", "edge", "text-ge...
+llama_model_loader: - type  f32:   55 tensors
+llama_model_loader: - type q4_0:   92 tensors
+llama_model_loader: - type q6_K:    1 tensors
+print_info: file format = GGUF V3 (latest)
+print_info: file type   = Q4_0
+print_info: file size   = 206.87 MiB (4.90 BPW)
+init_tokenizer: initializing tokenizer for type 2
+load: 0 unused tokens
+load: control token:  64398 '<|file_start|>' is not marked as EOG
+load: control token:  64396 '<|review_start|>' is not marked as EOG
+load: control token:  64395 '<|cot_end|>' is not marked as EOG
+load: control token:  64397 '<|review_end|>' is not marked as EOG
+load: control token:    359 '<|reserved_349|>' is not marked as EOG
+load: control token:    158 '<|reserved_148|>' is not marked as EOG
+load: control token:    363 '<|reserved_353|>' is not marked as EOG
+load: control token:    178 '<|reserved_168|>' is not marked as EOG
+load: control token:    121 '<|reserved_111|>' is not marked as EOG
+load: control token:    410 '<|img_row_2_col_4|>' is not marked as EOG
+load: control token:    427 '<|img_row_4_col_1|>' is not marked as EOG
+load: control token:     19 '<|reserved_9|>' is not marked as EOG
+load: control token:    480 '<|img_row_9_col_4|>' is not marked as EOG
+load: control token:    107 '<|reserved_97|>' is not marked as EOG
+load: control token:    393 '<|reserved_383|>' is not marked as EOG
+load: control token:    206 '<|reserved_196|>' is not marked as EOG
+load: control token:    314 '<|reserved_304|>' is not marked as EOG
+load: control token:     31 '<|reserved_21|>' is not marked as EOG
+load: control token:    195 '<|reserved_185|>' is not marked as EOG
+load: control token:    134 '<|reserved_124|>' is not marked as EOG
+load: control token:    140 '<|reserved_130|>' is not marked as EOG
+load: control token:     48 '<|reserved_38|>' is not marked as EOG
+load: control token:    488 '<|img_row_10_col_2|>' is not marked as EOG
+load: control token:    470 '<|img_row_8_col_4|>' is not marked as EOG
+load: control token:     69 '<|reserved_59|>' is not marked as EOG
+load: control token:    354 '<|reserved_344|>' is not marked as EOG
+load: control token:     12 '<|tool_response_start|>' is not marked as EOG
+load: control token:     37 '<|reserved_27|>' is not marked as EOG
+load: control token:    241 '<|reserved_231|>' is not marked as EOG
+load: control token:    390 '<|reserved_380|>' is not marked as EOG
+load: control token:    220 '<|reserved_210|>' is not marked as EOG
+load: control token:    477 '<|img_row_9_col_1|>' is not marked as EOG
+load: control token:    177 '<|reserved_167|>' is not marked as EOG
+load: control token:    381 '<|reserved_371|>' is not marked as EOG
+load: control token:     99 '<|reserved_89|>' is not marked as EOG
+load: control token:     11 '<|tool_call_end|>' is not marked as EOG
+load: control token:    136 '<|reserved_126|>' is not marked as EOG
+load: control token:     78 '<|reserved_68|>' is not marked as EOG
+load: control token:     23 '<|reserved_13|>' is not marked as EOG
+load: control token:    250 '<|reserved_240|>' is not marked as EOG
+load: control token:    401 '<|img_row_1_col_5|>' is not marked as EOG
+load: control token:    259 '<|reserved_249|>' is not marked as EOG
+load: control token:    339 '<|reserved_329|>' is not marked as EOG
+load: control token:     65 '<|reserved_55|>' is not marked as EOG
+load: control token:    313 '<|reserved_303|>' is not marked as EOG
+load: control token:    192 '<|reserved_182|>' is not marked as EOG
+load: control token:    404 '<|img_row_1_col_8|>' is not marked as EOG
+load: control token:    465 '<|img_row_7_col_9|>' is not marked as EOG
+load: control token:  64399 '<|file_end|>' is not marked as EOG
+load: control token:    170 '<|reserved_160|>' is not marked as EOG
+load: control token:    388 '<|reserved_378|>' is not marked as EOG
+load: control token:    358 '<|reserved_348|>' is not marked as EOG
+load: control token:    403 '<|img_row_1_col_7|>' is not marked as EOG
+load: control token:     49 '<|reserved_39|>' is not marked as EOG
+load: control token:    173 '<|reserved_163|>' is not marked as EOG
+load: control token:    219 '<|reserved_209|>' is not marked as EOG
+load: control token:    463 '<|img_row_7_col_7|>' is not marked as EOG
+load: control token:    137 '<|reserved_127|>' is not marked as EOG
+load: control token:    124 '<|reserved_114|>' is not marked as EOG
+load: control token:    196 '<|reserved_186|>' is not marked as EOG
+load: control token:    253 '<|reserved_243|>' is not marked as EOG
+load: control token:    112 '<|reserved_102|>' is not marked as EOG
+load: control token:    100 '<|reserved_90|>' is not marked as EOG
+load: control token:    342 '<|reserved_332|>' is not marked as EOG
+load: control token:     26 '<|reserved_16|>' is not marked as EOG
+load: control token:    468 '<|img_row_8_col_2|>' is not marked as EOG
+load: control token:    244 '<|reserved_234|>' is not marked as EOG
+load: control token:    281 '<|reserved_271|>' is not marked as EOG
+load: control token:    458 '<|img_row_7_col_2|>' is not marked as EOG
+load: control token:     96 '<|reserved_86|>' is not marked as EOG
+load: control token:    257 '<|reserved_247|>' is not marked as EOG
+load: control token:    256 '<|reserved_246|>' is not marked as EOG
+load: control token:    489 '<|img_row_10_col_3|>' is not marked as EOG
+load: control token:    182 '<|reserved_172|>' is not marked as EOG
+load: control token:    153 '<|reserved_143|>' is not marked as EOG
+load: control token:    273 '<|reserved_263|>' is not marked as EOG
+load: control token:    249 '<|reserved_239|>' is not marked as EOG
+load: control token:    226 '<|reserved_216|>' is not marked as EOG
+load: control token:    302 '<|reserved_292|>' is not marked as EOG
+load: control token:    406 '<|img_row_1_col_10|>' is not marked as EOG
+load: control token:     10 '<|tool_call_start|>' is not marked as EOG
+load: control token:    169 '<|reserved_159|>' is not marked as EOG
+load: control token:    202 '<|reserved_192|>' is not marked as EOG
+load: control token:     36 '<|reserved_26|>' is not marked as EOG
+load: control token:    265 '<|reserved_255|>' is not marked as EOG
+load: control token:    203 '<|reserved_193|>' is not marked as EOG
+load: control token:    295 '<|reserved_285|>' is not marked as EOG
+load: control token:    223 '<|reserved_213|>' is not marked as EOG
+load: control token:     52 '<|reserved_42|>' is not marked as EOG
+load: control token:    116 '<|reserved_106|>' is not marked as EOG
+load: control token:     27 '<|reserved_17|>' is not marked as EOG
+load: control token:    228 '<|reserved_218|>' is not marked as EOG
+load: control token:     66 '<|reserved_56|>' is not marked as EOG
+load: control token:    316 '<|reserved_306|>' is not marked as EOG
+load: control token:    271 '<|reserved_261|>' is not marked as EOG
+load: control token:    209 '<|reserved_199|>' is not marked as EOG
+load: control token:    382 '<|reserved_372|>' is not marked as EOG
+load: control token:    261 '<|reserved_251|>' is not marked as EOG
+load: control token:    222 '<|reserved_212|>' is not marked as EOG
+load: control token:    385 '<|reserved_375|>' is not marked as EOG
+load: control token:    225 '<|reserved_215|>' is not marked as EOG
+load: control token:    204 '<|reserved_194|>' is not marked as EOG
+load: control token:    200 '<|reserved_190|>' is not marked as EOG
+load: control token:     45 '<|reserved_35|>' is not marked as EOG
+load: control token:    227 '<|reserved_217|>' is not marked as EOG
+load: control token:    161 '<|reserved_151|>' is not marked as EOG
+load: control token:    474 '<|img_row_8_col_8|>' is not marked as EOG
+load: control token:    341 '<|reserved_331|>' is not marked as EOG
+load: control token:    298 '<|reserved_288|>' is not marked as EOG
+load: control token:    479 '<|img_row_9_col_3|>' is not marked as EOG
+load: control token:    145 '<|reserved_135|>' is not marked as EOG
+load: control token:    343 '<|reserved_333|>' is not marked as EOG
+load: control token:    255 '<|reserved_245|>' is not marked as EOG
+load: control token:    297 '<|reserved_287|>' is not marked as EOG
+load: control token:      9 '<|tool_list_end|>' is not marked as EOG
+load: control token:    123 '<|reserved_113|>' is not marked as EOG
+load: control token:    340 '<|reserved_330|>' is not marked as EOG
+load: control token:    424 '<|img_row_3_col_8|>' is not marked as EOG
+load: control token:     42 '<|reserved_32|>' is not marked as EOG
+load: control token:      3 '<|fim_pre|>' is not marked as EOG
+load: control token:    181 '<|reserved_171|>' is not marked as EOG
+load: control token:    240 '<|reserved_230|>' is not marked as EOG
+load: control token:    387 '<|reserved_377|>' is not marked as EOG
+load: control token:    111 '<|reserved_101|>' is not marked as EOG
+load: control token:     73 '<|reserved_63|>' is not marked as EOG
+load: control token:    361 '<|reserved_351|>' is not marked as EOG
+load: control token:    175 '<|reserved_165|>' is not marked as EOG
+load: control token:    289 '<|reserved_279|>' is not marked as EOG
+load: control token:      5 '<|fim_suf|>' is not marked as EOG
+load: control token:    392 '<|reserved_382|>' is not marked as EOG
+load: control token:     56 '<|reserved_46|>' is not marked as EOG
+load: control token:     59 '<|reserved_49|>' is not marked as EOG
+load: control token:     91 '<|reserved_81|>' is not marked as EOG
+load: control token:    101 '<|reserved_91|>' is not marked as EOG
+load: control token:     47 '<|reserved_37|>' is not marked as EOG
+load: control token:     35 '<|reserved_25|>' is not marked as EOG
+load: control token:    128 '<|audio_start|>' is not marked as EOG
+load: control token:    413 '<|img_row_2_col_7|>' is not marked as EOG
+load: control token:     81 '<|reserved_71|>' is not marked as EOG
+load: control token:  64394 '<|cot_start|>' is not marked as EOG
+load: control token:     82 '<|reserved_72|>' is not marked as EOG
+load: control token:    459 '<|img_row_7_col_3|>' is not marked as EOG
+load: control token:    103 '<|reserved_93|>' is not marked as EOG
+load: control token:    246 '<|reserved_236|>' is not marked as EOG
+load: control token:    362 '<|reserved_352|>' is not marked as EOG
+load: control token:    242 '<|reserved_232|>' is not marked as EOG
+load: control token:    239 '<|reserved_229|>' is not marked as EOG
+load: control token:    384 '<|reserved_374|>' is not marked as EOG
+load: control token:    486 '<|img_row_9_col_10|>' is not marked as EOG
+load: control token:     87 '<|reserved_77|>' is not marked as EOG
+load: control token:    235 '<|reserved_225|>' is not marked as EOG
+load: control token:    300 '<|reserved_290|>' is not marked as EOG
+load: control token:    127 '<|reserved_117|>' is not marked as EOG
+load: control token:    437 '<|img_row_5_col_1|>' is not marked as EOG
+load: control token:    275 '<|reserved_265|>' is not marked as EOG
+load: control token:    278 '<|reserved_268|>' is not marked as EOG
+load: control token:    328 '<|reserved_318|>' is not marked as EOG
+load: control token:    279 '<|reserved_269|>' is not marked as EOG
+load: control token:    494 '<|img_row_10_col_8|>' is not marked as EOG
+load: control token:    188 '<|reserved_178|>' is not marked as EOG
+load: control token:    186 '<|reserved_176|>' is not marked as EOG
+load: control token:    149 '<|reserved_139|>' is not marked as EOG
+load: control token:    185 '<|reserved_175|>' is not marked as EOG
+load: control token:    373 '<|reserved_363|>' is not marked as EOG
+load: control token:     46 '<|reserved_36|>' is not marked as EOG
+load: control token:     21 '<|reserved_11|>' is not marked as EOG
+load: control token:    129 '<|text_start|>' is not marked as EOG
+load: control token:    122 '<|reserved_112|>' is not marked as EOG
+load: control token:    394 '<|reserved_384|>' is not marked as EOG
+load: control token:    165 '<|reserved_155|>' is not marked as EOG
+load: control token:    270 '<|reserved_260|>' is not marked as EOG
+load: control token:    233 '<|reserved_223|>' is not marked as EOG
+load: control token:    143 '<|reserved_133|>' is not marked as EOG
+load: control token:    141 '<|reserved_131|>' is not marked as EOG
+load: control token:    119 '<|reserved_109|>' is not marked as EOG
+load: control token:    131 '<|mixed_start|>' is not marked as EOG
+load: control token:     57 '<|reserved_47|>' is not marked as EOG
+load: control token:    142 '<|reserved_132|>' is not marked as EOG
+load: control token:    272 '<|reserved_262|>' is not marked as EOG
+load: control token:    229 '<|reserved_219|>' is not marked as EOG
+load: control token:     83 '<|reserved_73|>' is not marked as EOG
+load: control token:     43 '<|reserved_33|>' is not marked as EOG
+load: control token:    108 '<|reserved_98|>' is not marked as EOG
+load: control token:     90 '<|reserved_80|>' is not marked as EOG
+load: control token:    199 '<|reserved_189|>' is not marked as EOG
+load: control token:    397 '<|img_row_1_col_1|>' is not marked as EOG
+load: control token:      6 '<|im_start|>' is not marked as EOG
+load: control token:    221 '<|reserved_211|>' is not marked as EOG
+load: control token:    370 '<|reserved_360|>' is not marked as EOG
+load: control token:    277 '<|reserved_267|>' is not marked as EOG
+load: control token:    135 '<|reserved_125|>' is not marked as EOG
+load: control token:     29 '<|reserved_19|>' is not marked as EOG
+load: control token:      8 '<|tool_list_start|>' is not marked as EOG
+load: control token:    243 '<|reserved_233|>' is not marked as EOG
+load: control token:    398 '<|img_row_1_col_2|>' is not marked as EOG
+load: control token:    167 '<|reserved_157|>' is not marked as EOG
+load: control token:    156 '<|reserved_146|>' is not marked as EOG
+load: control token:    461 '<|img_row_7_col_5|>' is not marked as EOG
+load: control token:    263 '<|reserved_253|>' is not marked as EOG
+load: control token:    309 '<|reserved_299|>' is not marked as EOG
+load: control token:    357 '<|reserved_347|>' is not marked as EOG
+load: control token:    269 '<|reserved_259|>' is not marked as EOG
+load: control token:    332 '<|reserved_322|>' is not marked as EOG
+load: control token:    450 '<|img_row_6_col_4|>' is not marked as EOG
+load: control token:    475 '<|img_row_8_col_9|>' is not marked as EOG
+load: control token:    258 '<|reserved_248|>' is not marked as EOG
+load: control token:    283 '<|reserved_273|>' is not marked as EOG
+load: control token:    201 '<|reserved_191|>' is not marked as EOG
+load: control token:    264 '<|reserved_254|>' is not marked as EOG
+load: control token:     71 '<|reserved_61|>' is not marked as EOG
+load: control token:     25 '<|reserved_15|>' is not marked as EOG
+load: control token:    113 '<|reserved_103|>' is not marked as EOG
+load: control token:    467 '<|img_row_8_col_1|>' is not marked as EOG
+load: control token:     38 '<|reserved_28|>' is not marked as EOG
+load: control token:    349 '<|reserved_339|>' is not marked as EOG
+load: control token:    157 '<|reserved_147|>' is not marked as EOG
+load: control token:    236 '<|reserved_226|>' is not marked as EOG
+load: control token:    293 '<|reserved_283|>' is not marked as EOG
+load: control token:     79 '<|reserved_69|>' is not marked as EOG
+load: control token:    114 '<|reserved_104|>' is not marked as EOG
+load: control token:     80 '<|reserved_70|>' is not marked as EOG
+load: control token:     85 '<|reserved_75|>' is not marked as EOG
+load: control token:    179 '<|reserved_169|>' is not marked as EOG
+load: control token:    412 '<|img_row_2_col_6|>' is not marked as EOG
+load: control token:     51 '<|reserved_41|>' is not marked as EOG
+load: control token:    360 '<|reserved_350|>' is not marked as EOG
+load: control token:    496 '<|img_row_10_col_10|>' is not marked as EOG
+load: control token:    428 '<|img_row_4_col_2|>' is not marked as EOG
+load: control token:    448 '<|img_row_6_col_2|>' is not marked as EOG
+load: control token:    133 '<|reserved_123|>' is not marked as EOG
+load: control token:     60 '<|reserved_50|>' is not marked as EOG
+load: control token:    418 '<|img_row_3_col_2|>' is not marked as EOG
+load: control token:    190 '<|reserved_180|>' is not marked as EOG
+load: control token:     70 '<|reserved_60|>' is not marked as EOG
+load: control token:    218 '<|reserved_208|>' is not marked as EOG
+load: control token:    260 '<|reserved_250|>' is not marked as EOG
+load: control token:    282 '<|reserved_272|>' is not marked as EOG
+load: control token:    284 '<|reserved_274|>' is not marked as EOG
+load: control token:    205 '<|reserved_195|>' is not marked as EOG
+load: control token:    315 '<|reserved_305|>' is not marked as EOG
+load: control token:    346 '<|reserved_336|>' is not marked as EOG
+load: control token:    317 '<|reserved_307|>' is not marked as EOG
+load: control token:    296 '<|reserved_286|>' is not marked as EOG
+load: control token:     64 '<|reserved_54|>' is not marked as EOG
+load: control token:    248 '<|reserved_238|>' is not marked as EOG
+load: control token:    130 '<|text_end|>' is not marked as EOG
+load: control token:    286 '<|reserved_276|>' is not marked as EOG
+load: control token:    400 '<|img_row_1_col_4|>' is not marked as EOG
+load: control token:    351 '<|reserved_341|>' is not marked as EOG
+load: control token:    299 '<|reserved_289|>' is not marked as EOG
+load: control token:    303 '<|reserved_293|>' is not marked as EOG
+load: control token:    399 '<|img_row_1_col_3|>' is not marked as EOG
+load: control token:    118 '<|reserved_108|>' is not marked as EOG
+load: control token:    380 '<|reserved_370|>' is not marked as EOG
+load: control token:    146 '<|reserved_136|>' is not marked as EOG
+load: control token:    285 '<|reserved_275|>' is not marked as EOG
+load: control token:    311 '<|reserved_301|>' is not marked as EOG
+load: control token:    491 '<|img_row_10_col_5|>' is not marked as EOG
+load: control token:    335 '<|reserved_325|>' is not marked as EOG
+load: control token:    312 '<|reserved_302|>' is not marked as EOG
+load: control token:    462 '<|img_row_7_col_6|>' is not marked as EOG
+load: control token:    322 '<|reserved_312|>' is not marked as EOG
+load: control token:    326 '<|reserved_316|>' is not marked as EOG
+load: control token:     54 '<|reserved_44|>' is not marked as EOG
+load: control token:     92 '<|reserved_82|>' is not marked as EOG
+load: control token:    262 '<|reserved_252|>' is not marked as EOG
+load: control token:    291 '<|reserved_281|>' is not marked as EOG
+load: control token:    217 '<|reserved_207|>' is not marked as EOG
+load: control token:    276 '<|reserved_266|>' is not marked as EOG
+load: control token:    166 '<|reserved_156|>' is not marked as EOG
+load: control token:    499 '<|image_end|>' is not marked as EOG
+load: control token:    348 '<|reserved_338|>' is not marked as EOG
+load: control token:    441 '<|img_row_5_col_5|>' is not marked as EOG
+load: control token:    353 '<|reserved_343|>' is not marked as EOG
+load: control token:    451 '<|img_row_6_col_5|>' is not marked as EOG
+load: control token:     24 '<|reserved_14|>' is not marked as EOG
+load: control token:    439 '<|img_row_5_col_3|>' is not marked as EOG
+load: control token:    230 '<|reserved_220|>' is not marked as EOG
+load: control token:    376 '<|reserved_366|>' is not marked as EOG
+load: control token:    216 '<|reserved_206|>' is not marked as EOG
+load: control token:    155 '<|reserved_145|>' is not marked as EOG
+load: control token:    471 '<|img_row_8_col_5|>' is not marked as EOG
+load: control token:    105 '<|reserved_95|>' is not marked as EOG
+load: control token:    126 '<|reserved_116|>' is not marked as EOG
+load: control token:    368 '<|reserved_358|>' is not marked as EOG
+load: control token:    371 '<|reserved_361|>' is not marked as EOG
+load: control token:    372 '<|reserved_362|>' is not marked as EOG
+load: control token:     72 '<|reserved_62|>' is not marked as EOG
+load: control token:    383 '<|reserved_373|>' is not marked as EOG
+load: control token:    457 '<|img_row_7_col_1|>' is not marked as EOG
+load: control token:    405 '<|img_row_1_col_9|>' is not marked as EOG
+load: control token:    407 '<|img_row_2_col_1|>' is not marked as EOG
+load: control token:    144 '<|reserved_134|>' is not marked as EOG
+load: control token:    355 '<|reserved_345|>' is not marked as EOG
+load: control token:    290 '<|reserved_280|>' is not marked as EOG
+load: control token:    422 '<|img_row_3_col_6|>' is not marked as EOG
+load: control token:    430 '<|img_row_4_col_4|>' is not marked as EOG
+load: control token:    431 '<|img_row_4_col_5|>' is not marked as EOG
+load: control token:    435 '<|img_row_4_col_9|>' is not marked as EOG
+load: control token:    438 '<|img_row_5_col_2|>' is not marked as EOG
+load: control token:    444 '<|img_row_5_col_8|>' is not marked as EOG
+load: control token:    445 '<|img_row_5_col_9|>' is not marked as EOG
+load: control token:    476 '<|img_row_8_col_10|>' is not marked as EOG
+load: control token:     74 '<|reserved_64|>' is not marked as EOG
+load: control token:    347 '<|reserved_337|>' is not marked as EOG
+load: control token:    482 '<|img_row_9_col_6|>' is not marked as EOG
+load: control token:    344 '<|reserved_334|>' is not marked as EOG
+load: control token:    237 '<|reserved_227|>' is not marked as EOG
+load: control token:     84 '<|reserved_74|>' is not marked as EOG
+load: control token:    164 '<|reserved_154|>' is not marked as EOG
+load: control token:    473 '<|img_row_8_col_7|>' is not marked as EOG
+load: control token:    327 '<|reserved_317|>' is not marked as EOG
+load: control token:    425 '<|img_row_3_col_9|>' is not marked as EOG
+load: control token:    478 '<|img_row_9_col_2|>' is not marked as EOG
+load: control token:    102 '<|reserved_92|>' is not marked as EOG
+load: control token:     98 '<|reserved_88|>' is not marked as EOG
+load: control token:     41 '<|reserved_31|>' is not marked as EOG
+load: control token:    490 '<|img_row_10_col_4|>' is not marked as EOG
+load: control token:    254 '<|reserved_244|>' is not marked as EOG
+load: control token:     95 '<|reserved_85|>' is not marked as EOG
+load: control token:    151 '<|reserved_141|>' is not marked as EOG
+load: control token:    115 '<|reserved_105|>' is not marked as EOG
+load: control token:    224 '<|reserved_214|>' is not marked as EOG
+load: control token:    330 '<|reserved_320|>' is not marked as EOG
+load: control token:     68 '<|reserved_58|>' is not marked as EOG
+load: control token:    350 '<|reserved_340|>' is not marked as EOG
+load: control token:    306 '<|reserved_296|>' is not marked as EOG
+load: control token:    365 '<|reserved_355|>' is not marked as EOG
+load: control token:    231 '<|reserved_221|>' is not marked as EOG
+load: control token:    466 '<|img_row_7_col_10|>' is not marked as EOG
+load: control token:    266 '<|reserved_256|>' is not marked as EOG
+load: control token:    417 '<|img_row_3_col_1|>' is not marked as EOG
+load: control token:     33 '<|reserved_23|>' is not marked as EOG
+load: control token:    409 '<|img_row_2_col_3|>' is not marked as EOG
+load: control token:    345 '<|reserved_335|>' is not marked as EOG
+load: control token:     34 '<|reserved_24|>' is not marked as EOG
+load: control token:    414 '<|img_row_2_col_8|>' is not marked as EOG
+load: control token:     30 '<|reserved_20|>' is not marked as EOG
+load: control token:    367 '<|reserved_357|>' is not marked as EOG
+load: control token:    307 '<|reserved_297|>' is not marked as EOG
+load: control token:    245 '<|reserved_235|>' is not marked as EOG
+load: control token:    193 '<|reserved_183|>' is not marked as EOG
+load: control token:    481 '<|img_row_9_col_5|>' is not marked as EOG
+load: control token:    321 '<|reserved_311|>' is not marked as EOG
+load: control token:    301 '<|reserved_291|>' is not marked as EOG
+load: control token:    460 '<|img_row_7_col_4|>' is not marked as EOG
+load: control token:    455 '<|img_row_6_col_9|>' is not marked as EOG
+load: control token:    497 '<|img_thumbnail|>' is not marked as EOG
+load: control token:    320 '<|reserved_310|>' is not marked as EOG
+load: control token:    487 '<|img_row_10_col_1|>' is not marked as EOG
+load: control token:    337 '<|reserved_327|>' is not marked as EOG
+load: control token:    420 '<|img_row_3_col_4|>' is not marked as EOG
+load: control token:     13 '<|tool_response_end|>' is not marked as EOG
+load: control token:    215 '<|reserved_205|>' is not marked as EOG
+load: control token:    443 '<|img_row_5_col_7|>' is not marked as EOG
+load: control token:    356 '<|reserved_346|>' is not marked as EOG
+load: control token:    159 '<|reserved_149|>' is not marked as EOG
+load: control token:    377 '<|reserved_367|>' is not marked as EOG
+load: control token:    288 '<|reserved_278|>' is not marked as EOG
+load: control token:    162 '<|reserved_152|>' is not marked as EOG
+load: control token:    238 '<|reserved_228|>' is not marked as EOG
+load: control token:    374 '<|reserved_364|>' is not marked as EOG
+load: control token:     63 '<|reserved_53|>' is not marked as EOG
+load: control token:    214 '<|reserved_204|>' is not marked as EOG
+load: control token:     39 '<|reserved_29|>' is not marked as EOG
+load: control token:    447 '<|img_row_6_col_1|>' is not marked as EOG
+load: control token:     77 '<|reserved_67|>' is not marked as EOG
+load: control token:     94 '<|reserved_84|>' is not marked as EOG
+load: control token:     50 '<|reserved_40|>' is not marked as EOG
+load: control token:    442 '<|img_row_5_col_6|>' is not marked as EOG
+load: control token:    319 '<|reserved_309|>' is not marked as EOG
+load: control token:    171 '<|reserved_161|>' is not marked as EOG
+load: control token:    433 '<|img_row_4_col_7|>' is not marked as EOG
+load: control token:    416 '<|img_row_2_col_10|>' is not marked as EOG
+load: control token:    318 '<|reserved_308|>' is not marked as EOG
+load: control token:     44 '<|reserved_34|>' is not marked as EOG
+load: control token:    207 '<|reserved_197|>' is not marked as EOG
+load: control token:    274 '<|reserved_264|>' is not marked as EOG
+load: control token:    120 '<|reserved_110|>' is not marked as EOG
+load: control token:    106 '<|reserved_96|>' is not marked as EOG
+load: control token:     28 '<|reserved_18|>' is not marked as EOG
+load: control token:     18 '<|reserved_8|>' is not marked as EOG
+load: control token:    408 '<|img_row_2_col_2|>' is not marked as EOG
+load: control token:    453 '<|img_row_6_col_7|>' is not marked as EOG
+load: control token:    109 '<|reserved_99|>' is not marked as EOG
+load: control token:    379 '<|reserved_369|>' is not marked as EOG
+load: control token:     17 '<|reserved_7|>' is not marked as EOG
+load: control token:    310 '<|reserved_300|>' is not marked as EOG
+load: control token:    187 '<|reserved_177|>' is not marked as EOG
+load: control token:    125 '<|reserved_115|>' is not marked as EOG
+load: control token:    336 '<|reserved_326|>' is not marked as EOG
+load: control token:    436 '<|img_row_4_col_10|>' is not marked as EOG
+load: control token:    154 '<|reserved_144|>' is not marked as EOG
+load: control token:    180 '<|reserved_170|>' is not marked as EOG
+load: control token:     53 '<|reserved_43|>' is not marked as EOG
+load: control token:     22 '<|reserved_12|>' is not marked as EOG
+load: control token:    147 '<|reserved_137|>' is not marked as EOG
+load: control token:    472 '<|img_row_8_col_6|>' is not marked as EOG
+load: control token:    493 '<|img_row_10_col_7|>' is not marked as EOG
+load: control token:    172 '<|reserved_162|>' is not marked as EOG
+load: control token:    500 '<|image_split|>' is not marked as EOG
+load: control token:    292 '<|reserved_282|>' is not marked as EOG
+load: control token:    234 '<|reserved_224|>' is not marked as EOG
+load: control token:     55 '<|reserved_45|>' is not marked as EOG
+load: control token:    152 '<|reserved_142|>' is not marked as EOG
+load: control token:    189 '<|reserved_179|>' is not marked as EOG
+load: control token:    198 '<|reserved_188|>' is not marked as EOG
+load: control token:     61 '<|reserved_51|>' is not marked as EOG
+load: control token:    432 '<|img_row_4_col_6|>' is not marked as EOG
+load: control token:    305 '<|reserved_295|>' is not marked as EOG
+load: control token:    160 '<|reserved_150|>' is not marked as EOG
+load: control token:    378 '<|reserved_368|>' is not marked as EOG
+load: control token:    232 '<|reserved_222|>' is not marked as EOG
+load: control token:    287 '<|reserved_277|>' is not marked as EOG
+load: control token:     86 '<|reserved_76|>' is not marked as EOG
+load: control token:     58 '<|reserved_48|>' is not marked as EOG
+load: control token:    423 '<|img_row_3_col_7|>' is not marked as EOG
+load: control token:    454 '<|img_row_6_col_8|>' is not marked as EOG
+load: control token:    183 '<|reserved_173|>' is not marked as EOG
+load: control token:    369 '<|reserved_359|>' is not marked as EOG
+load: control token:    210 '<|reserved_200|>' is not marked as EOG
+load: control token:    485 '<|img_row_9_col_9|>' is not marked as EOG
+load: control token:    323 '<|reserved_313|>' is not marked as EOG
+load: control token:    268 '<|reserved_258|>' is not marked as EOG
+load: control token:    197 '<|reserved_187|>' is not marked as EOG
+load: control token:    184 '<|reserved_174|>' is not marked as EOG
+load: control token:    325 '<|reserved_315|>' is not marked as EOG
+load: control token:    138 '<|reserved_128|>' is not marked as EOG
+load: control token:    464 '<|img_row_7_col_8|>' is not marked as EOG
+load: control token:    150 '<|reserved_140|>' is not marked as EOG
+load: control token:    176 '<|reserved_166|>' is not marked as EOG
+load: control token:    280 '<|reserved_270|>' is not marked as EOG
+load: control token:    419 '<|img_row_3_col_3|>' is not marked as EOG
+load: control token:    294 '<|reserved_284|>' is not marked as EOG
+load: control token:    426 '<|img_row_3_col_10|>' is not marked as EOG
+load: control token:    194 '<|reserved_184|>' is not marked as EOG
+load: control token:    163 '<|reserved_153|>' is not marked as EOG
+load: control token:     88 '<|reserved_78|>' is not marked as EOG
+load: control token:    104 '<|reserved_94|>' is not marked as EOG
+load: control token:    139 '<|reserved_129|>' is not marked as EOG
+load: control token:    211 '<|reserved_201|>' is not marked as EOG
+load: control token:    440 '<|img_row_5_col_4|>' is not marked as EOG
+load: control token:    421 '<|img_row_3_col_5|>' is not marked as EOG
+load: control token:    132 '<|mixed_end|>' is not marked as EOG
+load: control token:    213 '<|reserved_203|>' is not marked as EOG
+load: control token:    251 '<|reserved_241|>' is not marked as EOG
+load: control token:    495 '<|img_row_10_col_9|>' is not marked as EOG
+load: control token:    452 '<|img_row_6_col_6|>' is not marked as EOG
+load: control token:      1 '<|startoftext|>' is not marked as EOG
+load: control token:    304 '<|reserved_294|>' is not marked as EOG
+load: control token:    391 '<|reserved_381|>' is not marked as EOG
+load: control token:    352 '<|reserved_342|>' is not marked as EOG
+load: control token:    386 '<|reserved_376|>' is not marked as EOG
+load: control token:    498 '<|image_start|>' is not marked as EOG
+load: control token:    308 '<|reserved_298|>' is not marked as EOG
+load: control token:    267 '<|reserved_257|>' is not marked as EOG
+load: control token:     97 '<|reserved_87|>' is not marked as EOG
+load: control token:     76 '<|reserved_66|>' is not marked as EOG
+load: control token:    117 '<|reserved_107|>' is not marked as EOG
+load: control token:    191 '<|reserved_181|>' is not marked as EOG
+load: control token:     75 '<|reserved_65|>' is not marked as EOG
+load: control token:     20 '<|reserved_10|>' is not marked as EOG
+load: control token:    366 '<|reserved_356|>' is not marked as EOG
+load: control token:    247 '<|reserved_237|>' is not marked as EOG
+load: control token:     89 '<|reserved_79|>' is not marked as EOG
+load: control token:    333 '<|reserved_323|>' is not marked as EOG
+load: control token:    174 '<|reserved_164|>' is not marked as EOG
+load: control token:    212 '<|reserved_202|>' is not marked as EOG
+load: control token:    434 '<|img_row_4_col_8|>' is not marked as EOG
+load: control token:    446 '<|img_row_5_col_10|>' is not marked as EOG
+load: control token:    469 '<|img_row_8_col_3|>' is not marked as EOG
+load: control token:      4 '<|fim_mid|>' is not marked as EOG
+load: control token:    492 '<|img_row_10_col_6|>' is not marked as EOG
+load: control token:    411 '<|img_row_2_col_5|>' is not marked as EOG
+load: control token:    324 '<|reserved_314|>' is not marked as EOG
+load: control token:    402 '<|img_row_1_col_6|>' is not marked as EOG
+load: control token:    334 '<|reserved_324|>' is not marked as EOG
+load: control token:    208 '<|reserved_198|>' is not marked as EOG
+load: control token:    168 '<|reserved_158|>' is not marked as EOG
+load: control token:     16 '<|reserved_6|>' is not marked as EOG
+load: control token:    329 '<|reserved_319|>' is not marked as EOG
+load: control token:    364 '<|reserved_354|>' is not marked as EOG
+load: control token:     62 '<|reserved_52|>' is not marked as EOG
+load: control token:    338 '<|reserved_328|>' is not marked as EOG
+load: control token:    110 '<|reserved_100|>' is not marked as EOG
+load: control token:     32 '<|reserved_22|>' is not marked as EOG
+load: control token:    449 '<|img_row_6_col_3|>' is not marked as EOG
+load: control token:    484 '<|img_row_9_col_8|>' is not marked as EOG
+load: control token:    429 '<|img_row_4_col_3|>' is not marked as EOG
+load: control token:    396 '<image>' is not marked as EOG
+load: control token:    415 '<|img_row_2_col_9|>' is not marked as EOG
+load: control token:    148 '<|reserved_138|>' is not marked as EOG
+load: control token:    331 '<|reserved_321|>' is not marked as EOG
+load: control token:    375 '<|reserved_365|>' is not marked as EOG
+load: control token:    252 '<|reserved_242|>' is not marked as EOG
+load: control token:     67 '<|reserved_57|>' is not marked as EOG
+load: control token:    389 '<|reserved_379|>' is not marked as EOG
+load: control token:     93 '<|reserved_83|>' is not marked as EOG
+load: control token:    456 '<|img_row_6_col_10|>' is not marked as EOG
+load: control token:     40 '<|reserved_30|>' is not marked as EOG
+load: control token:    483 '<|img_row_9_col_7|>' is not marked as EOG
+load: control token:    395 '<|reserved_385|>' is not marked as EOG
+load: control token:      0 '<|pad|>' is not marked as EOG
+load: printing all EOG tokens:
+load:   - 2 ('<|endoftext|>')
+load:   - 7 ('<|im_end|>')
+load: special tokens cache size = 509
+load: token to piece cache size = 0.3759 MB
+print_info: arch                  = lfm2
+print_info: vocab_only            = 0
+print_info: no_alloc              = 0
+print_info: n_ctx_train           = 128000
+print_info: n_embd_inp            = 1024
+print_info: n_embd                = 1024
+print_info: n_embd_out            = 1024
+print_info: n_layer               = 16
+print_info: n_layer_all           = 16
+print_info: n_head                = 16
+print_info: n_head_kv             = [0, 0, 8, 0, 0, 8, 0, 0, 8, 0, 8, 0, 8, 0, 8, 0]
+print_info: n_rot                 = 64
+print_info: n_swa                 = 0
+print_info: is_swa_any            = 0
+print_info: non_causal_type       = 0
+print_info: n_embd_head_k         = 64
+print_info: n_embd_head_v         = 64
+print_info: n_gqa                 = [0, 0, 2, 0, 0, 2, 0, 0, 2, 0, 2, 0, 2, 0, 2, 0]
+print_info: n_embd_k_gqa          = [0, 0, 512, 0, 0, 512, 0, 0, 512, 0, 512, 0, 512, 0, 512, 0]
+print_info: n_embd_v_gqa          = [0, 0, 512, 0, 0, 512, 0, 0, 512, 0, 512, 0, 512, 0, 512, 0]
+print_info: f_norm_eps            = 0.0e+00
+print_info: f_norm_rms_eps        = 1.0e-05
+print_info: f_clamp_kqv           = 0.0e+00
+print_info: f_max_alibi_bias      = 0.0e+00
+print_info: f_logit_scale         = 0.0e+00
+print_info: f_attn_scale          = 0.0e+00
+print_info: f_attn_value_scale    = 0.0000
+print_info: n_ff                  = 4608
+print_info: n_expert              = 0
+print_info: n_expert_used         = 0
+print_info: n_expert_groups       = 0
+print_info: n_group_used          = 0
+print_info: causal attn           = 1
+print_info: pooling type          = -1
+print_info: rope type             = 2
+print_info: rope scaling          = linear
+print_info: freq_base_train       = 1000000.0
+print_info: freq_scale_train      = 1
+print_info: n_ctx_orig_yarn       = 128000
+print_info: rope_yarn_log_mul     = 0.0000
+print_info: rope_finetuned        = unknown
+print_info: model type            = 350M
+print_info: model params          = 354.48 M
+print_info: general.name          = LFM2.5-350M-QAD-Q4_0
+print_info: vocab type            = BPE
+print_info: n_vocab               = 65536
+print_info: n_merges              = 63683
+print_info: BOS token             = 1 '<|startoftext|>'
+print_info: EOS token             = 7 '<|im_end|>'
+print_info: EOT token             = 2 '<|endoftext|>'
+print_info: PAD token             = 0 '<|pad|>'
+print_info: LF token              = 708 'Ċ'
+print_info: EOG token             = 2 '<|endoftext|>'
+print_info: EOG token             = 7 '<|im_end|>'
+print_info: max token length      = 30
+load_tensors: loading model tensors, this can take a while... (load_mode = mmap)
+load_tensors: layer   0 assigned to device CPU, is_swa = 0
+load_tensors: layer   1 assigned to device CPU, is_swa = 0
+load_tensors: layer   2 assigned to device CPU, is_swa = 0
+load_tensors: layer   3 assigned to device CPU, is_swa = 0
+load_tensors: layer   4 assigned to device CPU, is_swa = 0
+load_tensors: layer   5 assigned to device CPU, is_swa = 0
+load_tensors: layer   6 assigned to device CPU, is_swa = 0
+load_tensors: layer   7 assigned to device CPU, is_swa = 0
+load_tensors: layer   8 assigned to device CPU, is_swa = 0
+load_tensors: layer   9 assigned to device CPU, is_swa = 0
+load_tensors: layer  10 assigned to device CPU, is_swa = 0
+load_tensors: layer  11 assigned to device CPU, is_swa = 0
+load_tensors: layer  12 assigned to device CPU, is_swa = 0
+load_tensors: layer  13 assigned to device CPU, is_swa = 0
+load_tensors: layer  14 assigned to device CPU, is_swa = 0
+load_tensors: layer  15 assigned to device CPU, is_swa = 0
+load_tensors: layer  16 assigned to device CPU, is_swa = 0
+create_tensor: loading tensor token_embd.weight
+create_tensor: loading tensor token_embd_norm.weight
+create_tensor: loading tensor output.weight
+create_tensor: loading tensor token_embd.weight
+create_tensor: loading tensor blk.0.ffn_norm.weight
+create_tensor: loading tensor blk.0.ffn_gate.weight
+create_tensor: loading tensor blk.0.ffn_down.weight
+create_tensor: loading tensor blk.0.ffn_up.weight
+create_tensor: loading tensor blk.0.attn_norm.weight
+create_tensor: loading tensor blk.0.shortconv.conv.weight
+create_tensor: loading tensor blk.0.shortconv.in_proj.weight
+create_tensor: loading tensor blk.0.shortconv.out_proj.weight
+create_tensor: loading tensor blk.1.ffn_norm.weight
+create_tensor: loading tensor blk.1.ffn_gate.weight
+create_tensor: loading tensor blk.1.ffn_down.weight
+create_tensor: loading tensor blk.1.ffn_up.weight
+create_tensor: loading tensor blk.1.attn_norm.weight
+create_tensor: loading tensor blk.1.shortconv.conv.weight
+create_tensor: loading tensor blk.1.shortconv.in_proj.weight
+create_tensor: loading tensor blk.1.shortconv.out_proj.weight
+create_tensor: loading tensor blk.2.ffn_norm.weight
+create_tensor: loading tensor blk.2.ffn_gate.weight
+create_tensor: loading tensor blk.2.ffn_down.weight
+create_tensor: loading tensor blk.2.ffn_up.weight
+create_tensor: loading tensor blk.2.attn_norm.weight
+create_tensor: loading tensor blk.2.attn_q_norm.weight
+create_tensor: loading tensor blk.2.attn_k_norm.weight
+create_tensor: loading tensor blk.2.attn_qkv.weight
+create_tensor: loading tensor blk.2.attn_q.weight
+create_tensor: loading tensor blk.2.attn_k.weight
+create_tensor: loading tensor blk.2.attn_v.weight
+create_tensor: loading tensor blk.2.attn_q.bias
+create_tensor: loading tensor blk.2.attn_k.bias
+create_tensor: loading tensor blk.2.attn_v.bias
+create_tensor: loading tensor blk.2.attn_output.weight
+create_tensor: loading tensor blk.3.ffn_norm.weight
+create_tensor: loading tensor blk.3.ffn_gate.weight
+create_tensor: loading tensor blk.3.ffn_down.weight
+create_tensor: loading tensor blk.3.ffn_up.weight
+create_tensor: loading tensor blk.3.attn_norm.weight
+create_tensor: loading tensor blk.3.shortconv.conv.weight
+create_tensor: loading tensor blk.3.shortconv.in_proj.weight
+create_tensor: loading tensor blk.3.shortconv.out_proj.weight
+create_tensor: loading tensor blk.4.ffn_norm.weight
+create_tensor: loading tensor blk.4.ffn_gate.weight
+create_tensor: loading tensor blk.4.ffn_down.weight
+create_tensor: loading tensor blk.4.ffn_up.weight
+create_tensor: loading tensor blk.4.attn_norm.weight
+create_tensor: loading tensor blk.4.shortconv.conv.weight
+create_tensor: loading tensor blk.4.shortconv.in_proj.weight
+create_tensor: loading tensor blk.4.shortconv.out_proj.weight
+create_tensor: loading tensor blk.5.ffn_norm.weight
+create_tensor: loading tensor blk.5.ffn_gate.weight
+create_tensor: loading tensor blk.5.ffn_down.weight
+create_tensor: loading tensor blk.5.ffn_up.weight
+create_tensor: loading tensor blk.5.attn_norm.weight
+create_tensor: loading tensor blk.5.attn_q_norm.weight
+create_tensor: loading tensor blk.5.attn_k_norm.weight
+create_tensor: loading tensor blk.5.attn_qkv.weight
+create_tensor: loading tensor blk.5.attn_q.weight
+create_tensor: loading tensor blk.5.attn_k.weight
+create_tensor: loading tensor blk.5.attn_v.weight
+create_tensor: loading tensor blk.5.attn_q.bias
+create_tensor: loading tensor blk.5.attn_k.bias
+create_tensor: loading tensor blk.5.attn_v.bias
+create_tensor: loading tensor blk.5.attn_output.weight
+create_tensor: loading tensor blk.6.ffn_norm.weight
+create_tensor: loading tensor blk.6.ffn_gate.weight
+create_tensor: loading tensor blk.6.ffn_down.weight
+create_tensor: loading tensor blk.6.ffn_up.weight
+create_tensor: loading tensor blk.6.attn_norm.weight
+create_tensor: loading tensor blk.6.shortconv.conv.weight
+create_tensor: loading tensor blk.6.shortconv.in_proj.weight
+create_tensor: loading tensor blk.6.shortconv.out_proj.weight
+create_tensor: loading tensor blk.7.ffn_norm.weight
+create_tensor: loading tensor blk.7.ffn_gate.weight
+create_tensor: loading tensor blk.7.ffn_down.weight
+create_tensor: loading tensor blk.7.ffn_up.weight
+create_tensor: loading tensor blk.7.attn_norm.weight
+create_tensor: loading tensor blk.7.shortconv.conv.weight
+create_tensor: loading tensor blk.7.shortconv.in_proj.weight
+create_tensor: loading tensor blk.7.shortconv.out_proj.weight
+create_tensor: loading tensor blk.8.ffn_norm.weight
+create_tensor: loading tensor blk.8.ffn_gate.weight
+create_tensor: loading tensor blk.8.ffn_down.weight
+create_tensor: loading tensor blk.8.ffn_up.weight
+create_tensor: loading tensor blk.8.attn_norm.weight
+create_tensor: loading tensor blk.8.attn_q_norm.weight
+create_tensor: loading tensor blk.8.attn_k_norm.weight
+create_tensor: loading tensor blk.8.attn_qkv.weight
+create_tensor: loading tensor blk.8.attn_q.weight
+create_tensor: loading tensor blk.8.attn_k.weight
+create_tensor: loading tensor blk.8.attn_v.weight
+create_tensor: loading tensor blk.8.attn_q.bias
+create_tensor: loading tensor blk.8.attn_k.bias
+create_tensor: loading tensor blk.8.attn_v.bias
+create_tensor: loading tensor blk.8.attn_output.weight
+create_tensor: loading tensor blk.9.ffn_norm.weight
+create_tensor: loading tensor blk.9.ffn_gate.weight
+create_tensor: loading tensor blk.9.ffn_down.weight
+create_tensor: loading tensor blk.9.ffn_up.weight
+create_tensor: loading tensor blk.9.attn_norm.weight
+create_tensor: loading tensor blk.9.shortconv.conv.weight
+create_tensor: loading tensor blk.9.shortconv.in_proj.weight
+create_tensor: loading tensor blk.9.shortconv.out_proj.weight
+create_tensor: loading tensor blk.10.ffn_norm.weight
+create_tensor: loading tensor blk.10.ffn_gate.weight
+create_tensor: loading tensor blk.10.ffn_down.weight
+create_tensor: loading tensor blk.10.ffn_up.weight
+create_tensor: loading tensor blk.10.attn_norm.weight
+create_tensor: loading tensor blk.10.attn_q_norm.weight
+create_tensor: loading tensor blk.10.attn_k_norm.weight
+create_tensor: loading tensor blk.10.attn_qkv.weight
+create_tensor: loading tensor blk.10.attn_q.weight
+create_tensor: loading tensor blk.10.attn_k.weight
+create_tensor: loading tensor blk.10.attn_v.weight
+create_tensor: loading tensor blk.10.attn_q.bias
+create_tensor: loading tensor blk.10.attn_k.bias
+create_tensor: loading tensor blk.10.attn_v.bias
+create_tensor: loading tensor blk.10.attn_output.weight
+create_tensor: loading tensor blk.11.ffn_norm.weight
+create_tensor: loading tensor blk.11.ffn_gate.weight
+create_tensor: loading tensor blk.11.ffn_down.weight
+create_tensor: loading tensor blk.11.ffn_up.weight
+create_tensor: loading tensor blk.11.attn_norm.weight
+create_tensor: loading tensor blk.11.shortconv.conv.weight
+create_tensor: loading tensor blk.11.shortconv.in_proj.weight
+create_tensor: loading tensor blk.11.shortconv.out_proj.weight
+create_tensor: loading tensor blk.12.ffn_norm.weight
+create_tensor: loading tensor blk.12.ffn_gate.weight
+create_tensor: loading tensor blk.12.ffn_down.weight
+create_tensor: loading tensor blk.12.ffn_up.weight
+create_tensor: loading tensor blk.12.attn_norm.weight
+create_tensor: loading tensor blk.12.attn_q_norm.weight
+create_tensor: loading tensor blk.12.attn_k_norm.weight
+create_tensor: loading tensor blk.12.attn_qkv.weight
+create_tensor: loading tensor blk.12.attn_q.weight
+create_tensor: loading tensor blk.12.attn_k.weight
+create_tensor: loading tensor blk.12.attn_v.weight
+create_tensor: loading tensor blk.12.attn_q.bias
+create_tensor: loading tensor blk.12.attn_k.bias
+create_tensor: loading tensor blk.12.attn_v.bias
+create_tensor: loading tensor blk.12.attn_output.weight
+create_tensor: loading tensor blk.13.ffn_norm.weight
+create_tensor: loading tensor blk.13.ffn_gate.weight
+create_tensor: loading tensor blk.13.ffn_down.weight
+create_tensor: loading tensor blk.13.ffn_up.weight
+create_tensor: loading tensor blk.13.attn_norm.weight
+create_tensor: loading tensor blk.13.shortconv.conv.weight
+create_tensor: loading tensor blk.13.shortconv.in_proj.weight
+create_tensor: loading tensor blk.13.shortconv.out_proj.weight
+create_tensor: loading tensor blk.14.ffn_norm.weight
+create_tensor: loading tensor blk.14.ffn_gate.weight
+create_tensor: loading tensor blk.14.ffn_down.weight
+create_tensor: loading tensor blk.14.ffn_up.weight
+create_tensor: loading tensor blk.14.attn_norm.weight
+create_tensor: loading tensor blk.14.attn_q_norm.weight
+create_tensor: loading tensor blk.14.attn_k_norm.weight
+create_tensor: loading tensor blk.14.attn_qkv.weight
+create_tensor: loading tensor blk.14.attn_q.weight
+create_tensor: loading tensor blk.14.attn_k.weight
+create_tensor: loading tensor blk.14.attn_v.weight
+create_tensor: loading tensor blk.14.attn_q.bias
+create_tensor: loading tensor blk.14.attn_k.bias
+create_tensor: loading tensor blk.14.attn_v.bias
+create_tensor: loading tensor blk.14.attn_output.weight
+create_tensor: loading tensor blk.15.ffn_norm.weight
+create_tensor: loading tensor blk.15.ffn_gate.weight
+create_tensor: loading tensor blk.15.ffn_down.weight
+create_tensor: loading tensor blk.15.ffn_up.weight
+create_tensor: loading tensor blk.15.attn_norm.weight
+create_tensor: loading tensor blk.15.shortconv.conv.weight
+create_tensor: loading tensor blk.15.shortconv.in_proj.weight
+create_tensor: loading tensor blk.15.shortconv.out_proj.weight
+create_tensor: loading tensor dense_2.weight
+create_tensor: loading tensor dense_2.bias
+create_tensor: loading tensor blk.0.ffn_gate.scale
+create_tensor: loading tensor blk.0.ffn_down.scale
+create_tensor: loading tensor blk.0.ffn_up.scale
+create_tensor: loading tensor blk.0.ffn_gate.input_scale
+create_tensor: loading tensor blk.0.ffn_down.input_scale
+create_tensor: loading tensor blk.0.ffn_up.input_scale
+create_tensor: loading tensor blk.1.ffn_gate.scale
+create_tensor: loading tensor blk.1.ffn_down.scale
+create_tensor: loading tensor blk.1.ffn_up.scale
+create_tensor: loading tensor blk.1.ffn_gate.input_scale
+create_tensor: loading tensor blk.1.ffn_down.input_scale
+create_tensor: loading tensor blk.1.ffn_up.input_scale
+create_tensor: loading tensor blk.2.attn_q.scale
+create_tensor: loading tensor blk.2.attn_k.scale
+create_tensor: loading tensor blk.2.attn_v.scale
+create_tensor: loading tensor blk.2.attn_output.scale
+create_tensor: loading tensor blk.2.ffn_gate.scale
+create_tensor: loading tensor blk.2.ffn_down.scale
+create_tensor: loading tensor blk.2.ffn_up.scale
+create_tensor: loading tensor blk.2.attn_q.input_scale
+create_tensor: loading tensor blk.2.attn_k.input_scale
+create_tensor: loading tensor blk.2.attn_v.input_scale
+create_tensor: loading tensor blk.2.attn_output.input_scale
+create_tensor: loading tensor blk.2.ffn_gate.input_scale
+create_tensor: loading tensor blk.2.ffn_down.input_scale
+create_tensor: loading tensor blk.2.ffn_up.input_scale
+create_tensor: loading tensor blk.3.ffn_gate.scale
+create_tensor: loading tensor blk.3.ffn_down.scale
+create_tensor: loading tensor blk.3.ffn_up.scale
+create_tensor: loading tensor blk.3.ffn_gate.input_scale
+create_tensor: loading tensor blk.3.ffn_down.input_scale
+create_tensor: loading tensor blk.3.ffn_up.input_scale
+create_tensor: loading tensor blk.4.ffn_gate.scale
+create_tensor: loading tensor blk.4.ffn_down.scale
+create_tensor: loading tensor blk.4.ffn_up.scale
+create_tensor: loading tensor blk.4.ffn_gate.input_scale
+create_tensor: loading tensor blk.4.ffn_down.input_scale
+create_tensor: loading tensor blk.4.ffn_up.input_scale
+create_tensor: loading tensor blk.5.attn_q.scale
+create_tensor: loading tensor blk.5.attn_k.scale
+create_tensor: loading tensor blk.5.attn_v.scale
+create_tensor: loading tensor blk.5.attn_output.scale
+create_tensor: loading tensor blk.5.ffn_gate.scale
+create_tensor: loading tensor blk.5.ffn_down.scale
+create_tensor: loading tensor blk.5.ffn_up.scale
+create_tensor: loading tensor blk.5.attn_q.input_scale
+create_tensor: loading tensor blk.5.attn_k.input_scale
+create_tensor: loading tensor blk.5.attn_v.input_scale
+create_tensor: loading tensor blk.5.attn_output.input_scale
+create_tensor: loading tensor blk.5.ffn_gate.input_scale
+create_tensor: loading tensor blk.5.ffn_down.input_scale
+create_tensor: loading tensor blk.5.ffn_up.input_scale
+create_tensor: loading tensor blk.6.ffn_gate.scale
+create_tensor: loading tensor blk.6.ffn_down.scale
+create_tensor: loading tensor blk.6.ffn_up.scale
+create_tensor: loading tensor blk.6.ffn_gate.input_scale
+create_tensor: loading tensor blk.6.ffn_down.input_scale
+create_tensor: loading tensor blk.6.ffn_up.input_scale
+create_tensor: loading tensor blk.7.ffn_gate.scale
+create_tensor: loading tensor blk.7.ffn_down.scale
+create_tensor: loading tensor blk.7.ffn_up.scale
+create_tensor: loading tensor blk.7.ffn_gate.input_scale
+create_tensor: loading tensor blk.7.ffn_down.input_scale
+create_tensor: loading tensor blk.7.ffn_up.input_scale
+create_tensor: loading tensor blk.8.attn_q.scale
+create_tensor: loading tensor blk.8.attn_k.scale
+create_tensor: loading tensor blk.8.attn_v.scale
+create_tensor: loading tensor blk.8.attn_output.scale
+create_tensor: loading tensor blk.8.ffn_gate.scale
+create_tensor: loading tensor blk.8.ffn_down.scale
+create_tensor: loading tensor blk.8.ffn_up.scale
+create_tensor: loading tensor blk.8.attn_q.input_scale
+create_tensor: loading tensor blk.8.attn_k.input_scale
+create_tensor: loading tensor blk.8.attn_v.input_scale
+create_tensor: loading tensor blk.8.attn_output.input_scale
+create_tensor: loading tensor blk.8.ffn_gate.input_scale
+create_tensor: loading tensor blk.8.ffn_down.input_scale
+create_tensor: loading tensor blk.8.ffn_up.input_scale
+create_tensor: loading tensor blk.9.ffn_gate.scale
+create_tensor: loading tensor blk.9.ffn_down.scale
+create_tensor: loading tensor blk.9.ffn_up.scale
+create_tensor: loading tensor blk.9.ffn_gate.input_scale
+create_tensor: loading tensor blk.9.ffn_down.input_scale
+create_tensor: loading tensor blk.9.ffn_up.input_scale
+create_tensor: loading tensor blk.10.attn_q.scale
+create_tensor: loading tensor blk.10.attn_k.scale
+create_tensor: loading tensor blk.10.attn_v.scale
+create_tensor: loading tensor blk.10.attn_output.scale
+create_tensor: loading tensor blk.10.ffn_gate.scale
+create_tensor: loading tensor blk.10.ffn_down.scale
+create_tensor: loading tensor blk.10.ffn_up.scale
+create_tensor: loading tensor blk.10.attn_q.input_scale
+create_tensor: loading tensor blk.10.attn_k.input_scale
+create_tensor: loading tensor blk.10.attn_v.input_scale
+create_tensor: loading tensor blk.10.attn_output.input_scale
+create_tensor: loading tensor blk.10.ffn_gate.input_scale
+create_tensor: loading tensor blk.10.ffn_down.input_scale
+create_tensor: loading tensor blk.10.ffn_up.input_scale
+create_tensor: loading tensor blk.11.ffn_gate.scale
+create_tensor: loading tensor blk.11.ffn_down.scale
+create_tensor: loading tensor blk.11.ffn_up.scale
+create_tensor: loading tensor blk.11.ffn_gate.input_scale
+create_tensor: loading tensor blk.11.ffn_down.input_scale
+create_tensor: loading tensor blk.11.ffn_up.input_scale
+create_tensor: loading tensor blk.12.attn_q.scale
+create_tensor: loading tensor blk.12.attn_k.scale
+create_tensor: loading tensor blk.12.attn_v.scale
+create_tensor: loading tensor blk.12.attn_output.scale
+create_tensor: loading tensor blk.12.ffn_gate.scale
+create_tensor: loading tensor blk.12.ffn_down.scale
+create_tensor: loading tensor blk.12.ffn_up.scale
+create_tensor: loading tensor blk.12.attn_q.input_scale
+create_tensor: loading tensor blk.12.attn_k.input_scale
+create_tensor: loading tensor blk.12.attn_v.input_scale
+create_tensor: loading tensor blk.12.attn_output.input_scale
+create_tensor: loading tensor blk.12.ffn_gate.input_scale
+create_tensor: loading tensor blk.12.ffn_down.input_scale
+create_tensor: loading tensor blk.12.ffn_up.input_scale
+create_tensor: loading tensor blk.13.ffn_gate.scale
+create_tensor: loading tensor blk.13.ffn_down.scale
+create_tensor: loading tensor blk.13.ffn_up.scale
+create_tensor: loading tensor blk.13.ffn_gate.input_scale
+create_tensor: loading tensor blk.13.ffn_down.input_scale
+create_tensor: loading tensor blk.13.ffn_up.input_scale
+create_tensor: loading tensor blk.14.attn_q.scale
+create_tensor: loading tensor blk.14.attn_k.scale
+create_tensor: loading tensor blk.14.attn_v.scale
+create_tensor: loading tensor blk.14.attn_output.scale
+create_tensor: loading tensor blk.14.ffn_gate.scale
+create_tensor: loading tensor blk.14.ffn_down.scale
+create_tensor: loading tensor blk.14.ffn_up.scale
+create_tensor: loading tensor blk.14.attn_q.input_scale
+create_tensor: loading tensor blk.14.attn_k.input_scale
+create_tensor: loading tensor blk.14.attn_v.input_scale
+create_tensor: loading tensor blk.14.attn_output.input_scale
+create_tensor: loading tensor blk.14.ffn_gate.input_scale
+create_tensor: loading tensor blk.14.ffn_down.input_scale
+create_tensor: loading tensor blk.14.ffn_up.input_scale
+create_tensor: loading tensor blk.15.ffn_gate.scale
+create_tensor: loading tensor blk.15.ffn_down.scale
+create_tensor: loading tensor blk.15.ffn_up.scale
+create_tensor: loading tensor blk.15.ffn_gate.input_scale
+create_tensor: loading tensor blk.15.ffn_down.input_scale
+create_tensor: loading tensor blk.15.ffn_up.input_scale
+done_getting_tensors: tensor 'token_embd.weight' (q6_K) (and 56 others) cannot be used with preferred buffer type CPU_REPACK, using CPU instead
+load_tensors:   CPU_Mapped model buffer size =   204.62 MiB
+load_tensors:   CPU_REPACK model buffer size =   154.12 MiB
+.repack: repack tensor blk.0.ffn_gate.weight with q4_0_8x8
+.repack: repack tensor blk.0.ffn_down.weight with q4_0_8x8
+.repack: repack tensor blk.0.ffn_up.weight with q4_0_8x8
+.repack: repack tensor blk.0.shortconv.in_proj.weight with q4_0_8x8
+repack: repack tensor blk.0.shortconv.out_proj.weight with q4_0_8x8
+.repack: repack tensor blk.1.ffn_gate.weight with q4_0_8x8
+.repack: repack tensor blk.1.ffn_down.weight with q4_0_8x8
+.repack: repack tensor blk.1.ffn_up.weight with q4_0_8x8
+.repack: repack tensor blk.1.shortconv.in_proj.weight with q4_0_8x8
+.repack: repack tensor blk.1.shortconv.out_proj.weight with q4_0_8x8
+.repack: repack tensor blk.2.ffn_gate.weight with q4_0_8x8
+.repack: repack tensor blk.2.ffn_down.weight with q4_0_8x8
+.repack: repack tensor blk.2.ffn_up.weight with q4_0_8x8
+.repack: repack tensor blk.2.attn_q.weight with q4_0_8x8
+repack: repack tensor blk.2.attn_k.weight with q4_0_8x8
+.repack: repack tensor blk.2.attn_v.weight with q4_0_8x8
+repack: repack tensor blk.2.attn_output.weight with q4_0_8x8
+repack: repack tensor blk.3.ffn_gate.weight with q4_0_8x8
+.repack: repack tensor blk.3.ffn_down.weight with q4_0_8x8
+.repack: repack tensor blk.3.ffn_up.weight with q4_0_8x8
+.repack: repack tensor blk.3.shortconv.in_proj.weight with q4_0_8x8
+repack: repack tensor blk.3.shortconv.out_proj.weight with q4_0_8x8
+.repack: repack tensor blk.4.ffn_gate.weight with q4_0_8x8
+.repack: repack tensor blk.4.ffn_down.weight with q4_0_8x8
+.repack: repack tensor blk.4.ffn_up.weight with q4_0_8x8
+.repack: repack tensor blk.4.shortconv.in_proj.weight with q4_0_8x8
+.repack: repack tensor blk.4.shortconv.out_proj.weight with q4_0_8x8
+.repack: repack tensor blk.5.ffn_gate.weight with q4_0_8x8
+.repack: repack tensor blk.5.ffn_down.weight with q4_0_8x8
+.repack: repack tensor blk.5.ffn_up.weight with q4_0_8x8
+.repack: repack tensor blk.5.attn_q.weight with q4_0_8x8
+repack: repack tensor blk.5.attn_k.weight with q4_0_8x8
+.repack: repack tensor blk.5.attn_v.weight with q4_0_8x8
+repack: repack tensor blk.5.attn_output.weight with q4_0_8x8
+repack: repack tensor blk.6.ffn_gate.weight with q4_0_8x8
+.repack: repack tensor blk.6.ffn_down.weight with q4_0_8x8
+.repack: repack tensor blk.6.ffn_up.weight with q4_0_8x8
+.repack: repack tensor blk.6.shortconv.in_proj.weight with q4_0_8x8
+repack: repack tensor blk.6.shortconv.out_proj.weight with q4_0_8x8
+.repack: repack tensor blk.7.ffn_gate.weight with q4_0_8x8
+.repack: repack tensor blk.7.ffn_down.weight with q4_0_8x8
+.repack: repack tensor blk.7.ffn_up.weight with q4_0_8x8
+.repack: repack tensor blk.7.shortconv.in_proj.weight with q4_0_8x8
+.repack: repack tensor blk.7.shortconv.out_proj.weight with q4_0_8x8
+.repack: repack tensor blk.8.ffn_gate.weight with q4_0_8x8
+.repack: repack tensor blk.8.ffn_down.weight with q4_0_8x8
+.repack: repack tensor blk.8.ffn_up.weight with q4_0_8x8
+.repack: repack tensor blk.8.attn_q.weight with q4_0_8x8
+repack: repack tensor blk.8.attn_k.weight with q4_0_8x8
+.repack: repack tensor blk.8.attn_v.weight with q4_0_8x8
+repack: repack tensor blk.8.attn_output.weight with q4_0_8x8
+repack: repack tensor blk.9.ffn_gate.weight with q4_0_8x8
+.repack: repack tensor blk.9.ffn_down.weight with q4_0_8x8
+.repack: repack tensor blk.9.ffn_up.weight with q4_0_8x8
+.repack: repack tensor blk.9.shortconv.in_proj.weight with q4_0_8x8
+repack: repack tensor blk.9.shortconv.out_proj.weight with q4_0_8x8
+.repack: repack tensor blk.10.ffn_gate.weight with q4_0_8x8
+.repack: repack tensor blk.10.ffn_down.weight with q4_0_8x8
+.repack: repack tensor blk.10.ffn_up.weight with q4_0_8x8
+.repack: repack tensor blk.10.attn_q.weight with q4_0_8x8
+.repack: repack tensor blk.10.attn_k.weight with q4_0_8x8
+repack: repack tensor blk.10.attn_v.weight with q4_0_8x8
+repack: repack tensor blk.10.attn_output.weight with q4_0_8x8
+repack: repack tensor blk.11.ffn_gate.weight with q4_0_8x8
+.repack: repack tensor blk.11.ffn_down.weight with q4_0_8x8
+.repack: repack tensor blk.11.ffn_up.weight with q4_0_8x8
+.repack: repack tensor blk.11.shortconv.in_proj.weight with q4_0_8x8
+.repack: repack tensor blk.11.shortconv.out_proj.weight with q4_0_8x8
+repack: repack tensor blk.12.ffn_gate.weight with q4_0_8x8
+.repack: repack tensor blk.12.ffn_down.weight with q4_0_8x8
+.repack: repack tensor blk.12.ffn_up.weight with q4_0_8x8
+.repack: repack tensor blk.12.attn_q.weight with q4_0_8x8
+repack: repack tensor blk.12.attn_k.weight with q4_0_8x8
+repack: repack tensor blk.12.attn_v.weight with q4_0_8x8
+repack: repack tensor blk.12.attn_output.weight with q4_0_8x8
+repack: repack tensor blk.13.ffn_gate.weight with q4_0_8x8
+.repack: repack tensor blk.13.ffn_down.weight with q4_0_8x8
+.repack: repack tensor blk.13.ffn_up.weight with q4_0_8x8
+.repack: repack tensor blk.13.shortconv.in_proj.weight with q4_0_8x8
+.repack: repack tensor blk.13.shortconv.out_proj.weight with q4_0_8x8
+repack: repack tensor blk.14.ffn_gate.weight with q4_0_8x8
+.repack: repack tensor blk.14.ffn_down.weight with q4_0_8x8
+.repack: repack tensor blk.14.ffn_up.weight with q4_0_8x8
+.repack: repack tensor blk.14.attn_q.weight with q4_0_8x8
+repack: repack tensor blk.14.attn_k.weight with q4_0_8x8
+repack: repack tensor blk.14.attn_v.weight with q4_0_8x8
+repack: repack tensor blk.14.attn_output.weight with q4_0_8x8
+.repack: repack tensor blk.15.ffn_gate.weight with q4_0_8x8
+.repack: repack tensor blk.15.ffn_down.weight with q4_0_8x8
+.repack: repack tensor blk.15.ffn_up.weight with q4_0_8x8
+.repack: repack tensor blk.15.shortconv.in_proj.weight with q4_0_8x8
+.repack: repack tensor blk.15.shortconv.out_proj.weight with q4_0_8x8
+.
+[xllama] model loaded
+llama_context: constructing llama_context
+llama_context: n_seq_max             = 1
+llama_context: n_ctx                 = 2048
+llama_context: n_ctx_seq             = 2048
+llama_context: n_batch               = 2048
+llama_context: n_ubatch              = 512
+llama_context: causal_attn           = 1
+llama_context: flash_attn            = auto
+llama_context: kv_unified            = false
+llama_context: freq_base             = 1000000.0
+llama_context: freq_scale            = 1
+llama_context: n_rs_seq              = 0
+llama_context: n_outputs_max         = 2048
+llama_context: n_outputs_max_per_seq = 1
+llama_context: n_ctx_seq (2048) < n_ctx_train (128000) -- the full capacity of the model will not be utilized
+set_abort_callback: call
+llama_context:        CPU  output buffer size =     0.25 MiB
+llama_kv_cache: layer   0: filtered
+llama_kv_cache: layer   1: filtered
+llama_kv_cache: layer   2: dev = CPU
+llama_kv_cache: layer   3: filtered
+llama_kv_cache: layer   4: filtered
+llama_kv_cache: layer   5: dev = CPU
+llama_kv_cache: layer   6: filtered
+llama_kv_cache: layer   7: filtered
+llama_kv_cache: layer   8: dev = CPU
+llama_kv_cache: layer   9: filtered
+llama_kv_cache: layer  10: dev = CPU
+llama_kv_cache: layer  11: filtered
+llama_kv_cache: layer  12: dev = CPU
+llama_kv_cache: layer  13: filtered
+llama_kv_cache: layer  14: dev = CPU
+llama_kv_cache: layer  15: filtered
+llama_kv_cache:        CPU KV buffer size =    24.00 MiB
+llama_kv_cache: size =   24.00 MiB (  2048 cells,   6 layers,  1/1 seqs), K (f16):   12.00 MiB, V (f16):   12.00 MiB
+llama_kv_cache: attn_rot_k = 0, n_embd_head_k_all = 64
+llama_kv_cache: attn_rot_v = 0, n_embd_head_k_all = 64
+llama_memory_recurrent, layer   0: dev = CPU
+llama_memory_recurrent, layer   1: dev = CPU
+llama_memory_recurrent: layer   2: skipped
+llama_memory_recurrent, layer   3: dev = CPU
+llama_memory_recurrent, layer   4: dev = CPU
+llama_memory_recurrent: layer   5: skipped
+llama_memory_recurrent, layer   6: dev = CPU
+llama_memory_recurrent, layer   7: dev = CPU
+llama_memory_recurrent: layer   8: skipped
+llama_memory_recurrent, layer   9: dev = CPU
+llama_memory_recurrent: layer  10: skipped
+llama_memory_recurrent, layer  11: dev = CPU
+llama_memory_recurrent: layer  12: skipped
+llama_memory_recurrent, layer  13: dev = CPU
+llama_memory_recurrent: layer  14: skipped
+llama_memory_recurrent, layer  15: dev = CPU
+llama_memory_recurrent:        CPU RS buffer size =     0.08 MiB
+llama_memory_recurrent: size =    0.08 MiB (     1 cells,  16 layers,  1 seqs  0 rs_seq), R (f32):    0.08 MiB, S (f32):    0.00 MiB, P (f32):    0.00 MiB
+llama_context: enumerating backends
+llama_context: backend_ptrs.size() = 1
+sched_reserve: reserving ...
+sched_reserve: max_nodes = 1184
+sched_reserve: reserving full memory module
+sched_reserve: worst-case: n_tokens = 512, n_seqs = 1, n_outputs = 1
+graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+llama_graph_n_input_tensors: input tensor '                         out_ids' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_530' (GET_ROWS)
+llama_graph_n_input_tensors: input tensor '                         out_ids' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_536' (GET_ROWS)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_93' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_194' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_295' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_363' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_431' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_499' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l2 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l5 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l8 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l10 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l12 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l14 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l2 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l5 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l8 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l10 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l12 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l14 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_75' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_82' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_176' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_183' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_277' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_284' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_345' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_352' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_413' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_420' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_481' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_488' (ROPE)
+llama_graph_n_input_tensors: input tensor '                       rs_s_copy' [i32, ne = {     1,     1,     1,     1 }] is used by node 'rs_s_copy (view)' (VIEW)
+llama_graph_n_input_tensors: input tensor '                       rs_s_copy' [i32, ne = {     1,     1,     1,     1 }] is used by node 'rs_s_copy (view)' (VIEW)
+llama_graph_n_input_tensors: input tensor '                      inp_tokens' [i32, ne = {     1,     1,     1,     1 }] is used by node 'model.embed_tokens' (GET_ROWS)
+resolve_fused_ops: Flash Attention enabled
+resolve_fused_ops: resolving fused DeepSeek V4 HC support:
+graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+llama_graph_n_input_tensors: input tensor '                         out_ids' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_530' (GET_ROWS)
+llama_graph_n_input_tensors: input tensor '                         out_ids' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_536' (GET_ROWS)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_93' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_194' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_295' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_363' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_431' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_499' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l2 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l5 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l8 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l10 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l12 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l14 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l2 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l5 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l8 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l10 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l12 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l14 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_75' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_82' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_176' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_183' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_277' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_284' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_345' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_352' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_413' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_420' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_481' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_488' (ROPE)
+llama_graph_n_input_tensors: input tensor '                       rs_s_copy' [i32, ne = {     1,     1,     1,     1 }] is used by node 'rs_s_copy (view)' (VIEW)
+llama_graph_n_input_tensors: input tensor '                       rs_s_copy' [i32, ne = {     1,     1,     1,     1 }] is used by node 'rs_s_copy (view)' (VIEW)
+llama_graph_n_input_tensors: input tensor '                      inp_tokens' [i32, ne = {     1,     1,     1,     1 }] is used by node 'model.embed_tokens' (GET_ROWS)
+resolve_fused_ops: fused DeepSeek V4 HC pre enabled
+graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+llama_graph_n_input_tensors: input tensor '                         out_ids' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_530' (GET_ROWS)
+llama_graph_n_input_tensors: input tensor '                         out_ids' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_536' (GET_ROWS)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_93' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_194' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_295' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_363' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_431' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_499' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l2 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l5 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l8 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l10 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l12 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l14 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l2 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l5 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l8 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l10 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l12 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l14 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_75' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_82' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_176' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_183' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_277' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_284' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_345' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_352' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_413' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_420' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_481' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_488' (ROPE)
+llama_graph_n_input_tensors: input tensor '                       rs_s_copy' [i32, ne = {     1,     1,     1,     1 }] is used by node 'rs_s_copy (view)' (VIEW)
+llama_graph_n_input_tensors: input tensor '                       rs_s_copy' [i32, ne = {     1,     1,     1,     1 }] is used by node 'rs_s_copy (view)' (VIEW)
+llama_graph_n_input_tensors: input tensor '                      inp_tokens' [i32, ne = {     1,     1,     1,     1 }] is used by node 'model.embed_tokens' (GET_ROWS)
+resolve_fused_ops: fused DeepSeek V4 HC comb enabled
+graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+llama_graph_n_input_tensors: input tensor '                         out_ids' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_530' (GET_ROWS)
+llama_graph_n_input_tensors: input tensor '                         out_ids' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_536' (GET_ROWS)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_93' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_194' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_295' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_363' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_431' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_499' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l2 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l5 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l8 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l10 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l12 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l14 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l2 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l5 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l8 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l10 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l12 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l14 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_75' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_82' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_176' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_183' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_277' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_284' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_345' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_352' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_413' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_420' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_481' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_488' (ROPE)
+llama_graph_n_input_tensors: input tensor '                       rs_s_copy' [i32, ne = {     1,     1,     1,     1 }] is used by node 'rs_s_copy (view)' (VIEW)
+llama_graph_n_input_tensors: input tensor '                       rs_s_copy' [i32, ne = {     1,     1,     1,     1 }] is used by node 'rs_s_copy (view)' (VIEW)
+llama_graph_n_input_tensors: input tensor '                      inp_tokens' [i32, ne = {     1,     1,     1,     1 }] is used by node 'model.embed_tokens' (GET_ROWS)
+resolve_fused_ops: fused DeepSeek V4 HC post enabled
+graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  1, n_outputs =  512
+llama_graph_n_input_tensors: input tensor '                         out_ids' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_530' (GET_ROWS)
+llama_graph_n_input_tensors: input tensor '                         out_ids' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_536' (GET_ROWS)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,   512,     1,     1 }] is used by node 'node_93' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,   512,     1,     1 }] is used by node 'node_194' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,   512,     1,     1 }] is used by node 'node_295' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,   512,     1,     1 }] is used by node 'node_363' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,   512,     1,     1 }] is used by node 'node_431' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,   512,     1,     1 }] is used by node 'node_499' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_v_l2 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_v_l5 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_v_l8 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_v_l10 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_v_l12 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_v_l14 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_k_l2 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_k_l5 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_k_l8 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_k_l10 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_k_l12 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_k_l14 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_75' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_82' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_176' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_183' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_277' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_284' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_345' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_352' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_413' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_420' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_481' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_488' (ROPE)
+llama_graph_n_input_tensors: input tensor '                       rs_s_copy' [i32, ne = {     1,     1,     1,     1 }] is used by node 'rs_s_copy (view)' (VIEW)
+llama_graph_n_input_tensors: input tensor '                       rs_s_copy' [i32, ne = {     1,     1,     1,     1 }] is used by node 'rs_s_copy (view)' (VIEW)
+llama_graph_n_input_tensors: input tensor '                      inp_tokens' [i32, ne = {   512,     1,     1,     1 }] is used by node 'model.embed_tokens' (GET_ROWS)
+graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+llama_graph_n_input_tensors: input tensor '                         out_ids' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_530' (GET_ROWS)
+llama_graph_n_input_tensors: input tensor '                         out_ids' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_536' (GET_ROWS)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_93' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_194' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_295' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_363' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_431' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,     1,     1,     1 }] is used by node 'node_499' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l2 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l5 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l8 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l10 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l12 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_v_l14 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l2 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l5 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l8 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l10 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l12 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {     1,     1,     1,     1 }] is used by node 'cache_k_l14 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_75' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_82' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_176' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_183' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_277' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_284' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_345' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_352' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_413' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_420' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_481' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {     1,     1,     1,     1 }] is used by node 'node_488' (ROPE)
+llama_graph_n_input_tensors: input tensor '                       rs_s_copy' [i32, ne = {     1,     1,     1,     1 }] is used by node 'rs_s_copy (view)' (VIEW)
+llama_graph_n_input_tensors: input tensor '                       rs_s_copy' [i32, ne = {     1,     1,     1,     1 }] is used by node 'rs_s_copy (view)' (VIEW)
+llama_graph_n_input_tensors: input tensor '                      inp_tokens' [i32, ne = {     1,     1,     1,     1 }] is used by node 'model.embed_tokens' (GET_ROWS)
+graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  1, n_outputs =  512
+llama_graph_n_input_tensors: input tensor '                         out_ids' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_530' (GET_ROWS)
+llama_graph_n_input_tensors: input tensor '                         out_ids' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_536' (GET_ROWS)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,   512,     1,     1 }] is used by node 'node_93' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,   512,     1,     1 }] is used by node 'node_194' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,   512,     1,     1 }] is used by node 'node_295' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,   512,     1,     1 }] is used by node 'node_363' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,   512,     1,     1 }] is used by node 'node_431' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                attn_inp_kq_mask' [f16, ne = {  2048,   512,     1,     1 }] is used by node 'node_499' (FLASH_ATTN_EXT)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_v_l2 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_v_l5 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_v_l8 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_v_l10 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_v_l12 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_v_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_v_l14 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_k_l2 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_k_l5 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_k_l8 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_k_l10 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_k_l12 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                 attn_inp_k_idxs' [i64, ne = {   512,     1,     1,     1 }] is used by node 'cache_k_l14 (view)' (SET_ROWS)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_75' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_82' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_176' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_183' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_277' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_284' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_345' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_352' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_413' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_420' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_481' (ROPE)
+llama_graph_n_input_tensors: input tensor '                         inp_pos' [i32, ne = {   512,     1,     1,     1 }] is used by node 'node_488' (ROPE)
+llama_graph_n_input_tensors: input tensor '                       rs_s_copy' [i32, ne = {     1,     1,     1,     1 }] is used by node 'rs_s_copy (view)' (VIEW)
+llama_graph_n_input_tensors: input tensor '                       rs_s_copy' [i32, ne = {     1,     1,     1,     1 }] is used by node 'rs_s_copy (view)' (VIEW)
+llama_graph_n_input_tensors: input tensor '                      inp_tokens' [i32, ne = {   512,     1,     1,     1 }] is used by node 'model.embed_tokens' (GET_ROWS)
+sched_reserve:        CPU compute buffer size =   132.00 MiB
+sched_reserve: graph: nodes = 548, splits = 1, input objects = 4, input tensors = 7
+sched_reserve: reserve took 22.81 ms, sched copies = 1
+[xllama] prompt tokens: 25
+Hello! How can I help you today?[xllama] EOG after 9 tokens
+[xllama] done: load=5632ms prompt=6.0 tok/s decode=5.9 tok/s peak=427MB drafted=0 spec_accept=0
+~llama_context:        CPU compute buffer size is 132.0020 MiB, matches expectation of 132.0020 MiB
+SPEC_STATS success=1 n_eval=9 t_eval_ms=1525.2 decode_tok_s=5.90 n_drafted=0 n_spec_accepted=0 peak_ws_mb=427 prompt_lookup=0

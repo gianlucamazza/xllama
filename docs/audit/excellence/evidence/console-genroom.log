@@ -1,0 +1,10 @@
+=== #193 a full context still leaves room for the whole reply ===
+  injected 40 messages, est ~2184 tok (ceiling 1800 at n_predict 512)
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 21s.
+  autopilot: ok
+  ok: 1535 tok exact, dropped 4 (estimate had 4), n_ctx 2048, reply 512
+  ok: history was trimmed (the budget was binding, as intended)
+  first prefill 1535 tok, generated [341]
+  ok: 513 tokens left for the reply, >= the requested 512
+#193 generation room: PASS

@@ -1,0 +1,19 @@
+[
+  {
+    "route": "/api/embed",
+    "status": 503,
+    "response": {
+      "error": "busy"
+    }
+  },
+  {
+    "route": "/v1/embeddings",
+    "status": 503,
+    "response": {
+      "error": {
+        "message": "busy",
+        "type": "xllama_error"
+      }
+    }
+  }
+]

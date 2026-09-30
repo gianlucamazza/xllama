@@ -1,0 +1,33 @@
+=== spike: LAN bind + HTTP 200 ===
+  Waiting for http://<XBOX_IP>:11434/ (timeout 120s)...
+  Endpoint up after 0s.
+  GET / -> {"status":"ok","service":"xllama"}
+spike: PASS
+=== chat: /v1/chat/completions ===
+  ok: assistant replied: Hello!
+  checking single-slot 503 (two concurrent requests)...
+  concurrent codes: 200 200
+  note: no 503 seen (both 200/200) — acceptable if the model served fast
+chat: PASS
+embed: PASS (embed-bge-m3, 17 live requests)
+=== budget: a long conversation is trimmed, an oversized message is 400 ===
+  A HTTP 200: {"id":"chatcmpl-xllama-1790757844-4","object":"chat.completion","created":1790757844,"model":"lfm25-350m","choices":[{"i
+  ok: a history far past n_ctx was trimmed and answered
+  B HTTP 400: {"error":{"message":"prompt too long: the final user message needs 20022 tokens plus 24 for the reply, but n_ctx is 2048","type":"xllama_error"}}
+  ok: refused as a client error, with the numbers
+budget: PASS
+=== prefs: POST /v1/preferences ===
+  HTTP 200: {"ok":true,"label":"like","path":"training/samples.jsonl"}
+prefs: PASS
+=== train: GET /v1/training/status ===
+  HTTP 200: {"state":"idle","usable_samples":1}
+train: PASS
+=== pull: /api/pull (lfm25-350m) ===
+  ok: NDJSON pull completed with progress and success records
+  ok: stream=false returns one success object
+  ok: arbitrary remote model sources are rejected
+  ok: pulled chat model inferred
+pull: PASS
+
+=== summary ===
+ALL PASS

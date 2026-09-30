@@ -1,0 +1,17 @@
+[
+  {
+    "file": "training/jobs/from-console-samples.json",
+    "exit_code": 0,
+    "output": "validate-train-job PASS: train-job name=from-console-samples method=lora_peft device=host base=HuggingFaceTB/SmolLM2-360M-Instruct steps=80 rank=8 out=training/out/from-console-samples\n"
+  },
+  {
+    "file": "training/jobs/smollm2-360m-marker-partialft.json",
+    "exit_code": 0,
+    "output": "validate-train-job PASS: train-job name=smollm2-360m-marker-partialft method=partial_ft device=host base=training/out/smollm2-360m-marker/base-f16.gguf epochs=12 n_ctx_train=256 param_filter=6 out=training/out/smollm2-360m-marker-partialft\n"
+  },
+  {
+    "file": "training/jobs/smollm2-360m-marker.json",
+    "exit_code": 0,
+    "output": "validate-train-job PASS: train-job name=smollm2-360m-marker method=lora_peft device=host base=HuggingFaceTB/SmolLM2-360M-Instruct steps=120 rank=8 out=training/out/smollm2-360m-marker\n"
+  }
+]

@@ -1,0 +1,10 @@
+=== Training serve: merged GGUF on console ===
+  artifact: /home/gianluca/Workspace/tooling/xllama-excellence-audit/training/out/smollm2-360m-marker/merged-Q4_K_M.gguf (259M)
+  uploading model + manifest override...
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 10s.
+  autopilot: ok
+  ok: GGUF session load
+  ok: session generate completed
+  ok: marker XLLAMA-LORA-OK in chat 48c40ed0-ea5a-4085-8176-f27802310bd9
+Training serve: PASS

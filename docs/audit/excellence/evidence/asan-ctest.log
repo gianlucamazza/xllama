@@ -1,0 +1,7 @@
+Test project /home/gianluca/Workspace/tooling/xllama-excellence-audit/build/linux-asan
+    Start 1: xllama-tests
+1/1 Test #1: xllama-tests .....................   Passed    2.86 sec
+
+100% tests passed out of 1
+
+Total Test time (real) =   2.86 sec

@@ -1,0 +1,779 @@
+[  1%] Building C object llama.cpp/ggml/src/CMakeFiles/ggml-base.dir/ggml.c.o
+[  1%] Building CXX object llama.cpp/vendor/cpp-httplib/CMakeFiles/cpp-httplib.dir/httplib.cpp.o
+[  1%] Building CXX object llama.cpp/vendor/hash/CMakeFiles/vendor-hash.dir/hash.cpp.o
+[  1%] Building CXX object llama.cpp/common/CMakeFiles/llama-common-base.dir/build-info.cpp.o
+[  2%] Building C object llama.cpp/vendor/hash/CMakeFiles/vendor-hash.dir/xxhash/xxhash.c.o
+[  2%] Linking CXX static library libllama-common-base.a
+[  2%] Built target llama-common-base
+[  2%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/llama-llava-cli.dir/deprecation-warning.cpp.o
+[  2%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml-base.dir/ggml.cpp.o
+[  2%] Building CXX object llama.cpp/vendor/hash/CMakeFiles/vendor-hash.dir/sha1/sha1.c.o
+[  2%] Building C object llama.cpp/vendor/hash/CMakeFiles/vendor-hash.dir/sha256/sha256.c.o
+[  3%] Linking CXX static library libvendor-hash.a
+[  3%] Built target vendor-hash
+[  4%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/llama-gemma3-cli.dir/deprecation-warning.cpp.o
+[  4%] Linking CXX executable ../../../bin/llama-llava-cli
+[  4%] Building C object llama.cpp/ggml/src/CMakeFiles/ggml-base.dir/ggml-alloc.c.o
+[  4%] Built target llama-llava-cli
+[  4%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/llama-minicpmv-cli.dir/deprecation-warning.cpp.o
+[  5%] Linking CXX executable ../../../bin/llama-minicpmv-cli
+[  5%] Built target llama-minicpmv-cli
+[  5%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/llama-qwen2vl-cli.dir/deprecation-warning.cpp.o
+[  5%] Linking CXX executable ../../../bin/llama-qwen2vl-cli
+[  6%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml-base.dir/ggml-backend.cpp.o
+[  6%] Built target llama-qwen2vl-cli
+[  6%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml-base.dir/ggml-backend-meta.cpp.o
+[  6%] Linking CXX executable ../../../bin/llama-gemma3-cli
+[  6%] Built target llama-gemma3-cli
+[  6%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml-base.dir/ggml-opt.cpp.o
+[  7%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml-base.dir/ggml-threading.cpp.o
+[  7%] Building C object llama.cpp/ggml/src/CMakeFiles/ggml-base.dir/ggml-quants.c.o
+[  7%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml-base.dir/gguf.cpp.o
+[  7%] Linking CXX shared library ../../../bin/libggml-base.so
+[  7%] Built target ggml-base
+[  7%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.cpp.o
+[  8%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/repack.cpp.o
+[  8%] Building C object llama.cpp/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.c.o
+[  9%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/iqp.cpp.o
+[  9%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/hbm.cpp.o
+[  9%] Building C object llama.cpp/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/quants.c.o
+[  9%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/traits.cpp.o
+[ 10%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/amx.cpp.o
+[ 10%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/mmq.cpp.o
+[ 10%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/binary-ops.cpp.o
+[ 11%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/unary-ops.cpp.o
+[ 11%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/vec.cpp.o
+[ 11%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ops.cpp.o
+[ 11%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/llamafile/sgemm.cpp.o
+[ 12%] Building C object llama.cpp/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/x86/quants.c.o
+[ 12%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/x86/repack.cpp.o
+[ 12%] Linking CXX static library libcpp-httplib.a
+[ 12%] Built target cpp-httplib
+[ 12%] Linking CXX shared library ../../../bin/libggml-cpu.so
+[ 12%] Built target ggml-cpu
+[ 12%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml.dir/ggml-backend-dl.cpp.o
+[ 12%] Building CXX object llama.cpp/ggml/src/CMakeFiles/ggml.dir/ggml-backend-reg.cpp.o
+[ 13%] Linking CXX shared library ../../../bin/libggml.so
+[ 13%] Built target ggml
+[ 15%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/Unity/unity_9_cxx.cxx.o
+[ 15%] Building CXX object llama.cpp/examples/gguf-hash/CMakeFiles/llama-gguf-hash.dir/gguf-hash.cpp.o
+[ 15%] Building CXX object llama.cpp/examples/gguf/CMakeFiles/llama-gguf.dir/gguf.cpp.o
+[ 15%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/Unity/unity_8_cxx.cxx.o
+[ 15%] Linking CXX executable ../../../bin/llama-gguf
+[ 15%] Built target llama-gguf
+[ 15%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/Unity/unity_7_cxx.cxx.o
+[ 15%] Linking CXX executable ../../../bin/llama-gguf-hash
+[ 15%] Built target llama-gguf-hash
+[ 15%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/Unity/unity_6_cxx.cxx.o
+[ 16%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/Unity/unity_5_cxx.cxx.o
+[ 16%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/Unity/unity_4_cxx.cxx.o
+[ 16%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/Unity/unity_3_cxx.cxx.o
+[ 17%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/Unity/unity_2_cxx.cxx.o
+[ 17%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/Unity/unity_1_cxx.cxx.o
+[ 17%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/Unity/unity_0_cxx.cxx.o
+[ 17%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama.cpp.o
+[ 18%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-adapter.cpp.o
+[ 18%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-arch.cpp.o
+[ 18%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-batch.cpp.o
+[ 19%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-chat.cpp.o
+[ 19%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-context.cpp.o
+[ 19%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-cparams.cpp.o
+[ 19%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-grammar.cpp.o
+[ 20%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-graph.cpp.o
+[ 20%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-hparams.cpp.o
+[ 20%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-impl.cpp.o
+[ 21%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-io.cpp.o
+[ 21%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-kv-cache.cpp.o
+[ 21%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-kv-cache-iswa.cpp.o
+[ 21%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-kv-cache-dsa.cpp.o
+[ 22%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-kv-cache-dsa-iswa.cpp.o
+[ 22%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-kv-cache-msa.cpp.o
+[ 22%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-kv-cache-dsv4.cpp.o
+[ 23%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-memory.cpp.o
+[ 23%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-memory-hybrid.cpp.o
+[ 23%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-memory-hybrid-iswa.cpp.o
+[ 23%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-memory-hybrid-idx.cpp.o
+[ 24%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-memory-recurrent.cpp.o
+[ 24%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-mmap.cpp.o
+[ 24%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-model-loader.cpp.o
+[ 25%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-model-saver.cpp.o
+[ 25%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-model.cpp.o
+[ 25%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-quant.cpp.o
+[ 25%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-sampler.cpp.o
+[ 26%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-vocab.cpp.o
+[ 26%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/unicode-data.cpp.o
+[ 26%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/unicode.cpp.o
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/src/llama-vocab.cpp: In constructor ‘llama_vocab::llama_vocab()’:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/src/llama-vocab.cpp:3927:50: warning: ‘<unknown>’ may be used uninitialized [-Wmaybe-uninitialized]
+ 3927 | llama_vocab::llama_vocab() : pimpl(new impl(*this)) {
+      |                                                  ^
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/src/llama-vocab.cpp:1865:5: note: by argument 2 of type ‘const llama_vocab&’ to ‘llama_vocab::impl::impl(const llama_vocab&)’ declared here
+ 1865 |     impl(const llama_vocab & vocab) : vocab(vocab) {
+      |     ^~~~
+[ 27%] Linking CXX shared library ../../bin/libllama.so
+[ 27%] Built target llama
+[ 28%] Building CXX object CMakeFiles/xllama.dir/src/bridge/inference.cpp.o
+[ 28%] Building CXX object llama.cpp/examples/simple-chat/CMakeFiles/llama-simple-chat.dir/simple-chat.cpp.o
+[ 28%] Building CXX object llama.cpp/examples/simple/CMakeFiles/llama-simple.dir/simple.cpp.o
+[ 28%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/parsers/parsers.cpp.o
+[ 28%] Linking CXX executable ../../../bin/llama-simple
+[ 28%] Built target llama-simple
+[ 29%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/mtmd.cpp.o
+[ 30%] Linking CXX executable ../../../bin/llama-simple-chat
+[ 30%] Built target llama-simple-chat
+[ 30%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/parsers/cohere2moe.cpp.o
+[ 30%] Building CXX object CMakeFiles/xllama.dir/src/bridge/session.cpp.o
+[ 30%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/parsers/deepseek.cpp.o
+[ 30%] Building CXX object CMakeFiles/xllama.dir/src/bridge/embedding.cpp.o
+[ 30%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/mtmd-audio.cpp.o
+[ 30%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/mtmd-image.cpp.o
+[ 31%] Building CXX object CMakeFiles/xllama.dir/src/bridge/kv_store.cpp.o
+[ 31%] Building CXX object CMakeFiles/xllama.dir/src/bridge/bench.cpp.o
+[ 31%] Building CXX object CMakeFiles/xllama.dir/src/bridge/platform.cpp.o
+[ 32%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/mtmd-helper.cpp.o
+[ 32%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/mtmd-helper-gen.cpp.o
+[ 33%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/parsers/functionary-v3-2.cpp.o
+[ 34%] Building CXX object CMakeFiles/xllama.dir/src/bridge/path_utils.cpp.o
+[ 34%] Building CXX object CMakeFiles/xllama.dir/src/bridge/utf8_utils.cpp.o
+[ 34%] Building CXX object CMakeFiles/xllama.dir/src/bridge/chat_prompt.cpp.o
+[ 34%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/clip.cpp.o
+[ 34%] Building CXX object CMakeFiles/xllama.dir/src/bridge/prompt_budget.cpp.o
+[ 35%] Building CXX object CMakeFiles/xllama.dir/src/bridge/cli.cpp.o
+[ 35%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/parsers/gemma4.cpp.o
+[ 35%] Building CXX object CMakeFiles/xllama.dir/src/bridge/training.cpp.o
+[ 35%] Building CXX object CMakeFiles/xllama.dir/src/bridge/device_train.cpp.o
+[ 35%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/cogvlm.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/cogvlm.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 36%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/conformer.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/clip.cpp:4:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 36%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/deepseek4v.cpp.o
+[ 37%] Building CXX object CMakeFiles/xllama.dir/src/bridge/preference_capture.cpp.o
+[ 37%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/parsers/gigachat-v3.cpp.o
+[ 37%] Building CXX object CMakeFiles/xllama.dir/src/bridge/personalize.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/conformer.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/deepseek4v.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 37%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/dots3note.cpp.o
+[ 37%] Building CXX object CMakeFiles/xllama.dir/src/bridge/autopilot.cpp.o
+[ 38%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/dotsocr.cpp.o
+[ 38%] Building CXX object CMakeFiles/xllama.dir/src/bridge/capture_probe.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/dots3note.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 38%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/exaone4_5.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/dotsocr.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 38%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/gemma4a.cpp.o
+[ 39%] Building CXX object CMakeFiles/xllama.dir/src/bridge/membw.cpp.o
+[ 40%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/parsers/gpt-oss.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/exaone4_5.cpp:2:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 40%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/parsers/kimi-k2.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/gemma4a.cpp:8:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 40%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/gemma4v.cpp.o
+[ 40%] Building CXX object CMakeFiles/xllama.dir/src/bridge/diskbw.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/gemma4v.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 41%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/gemma4ua.cpp.o
+[ 41%] Building CXX object CMakeFiles/xllama.dir/src/bridge/gpubw.cpp.o
+[ 41%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/parsers/kimi-k3.cpp.o
+[ 42%] Building CXX object CMakeFiles/xllama.dir/src/bridge/gpugemv.cpp.o
+[ 42%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/parsers/ling3.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/gemma4ua.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 42%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/gemma4uv.cpp.o
+[ 42%] Building CXX object CMakeFiles/xllama.dir/src/bridge/ramceil.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/gemma4uv.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 42%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/glm4v.cpp.o
+[ 42%] Linking CXX static library libxllama.a
+[ 42%] Built target xllama
+[ 43%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/granite-speech.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/glm4v.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 43%] Building CXX object CMakeFiles/xllama-cli.dir/src/main.cpp.o
+[ 43%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_cli.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/granite-speech.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 43%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/granite4-vision.cpp.o
+[ 44%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/parsers/lfm2.cpp.o
+[ 45%] Linking CXX executable bin/xllama-cli
+[ 45%] Built target xllama-cli
+[ 45%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/parsers/minicpm5.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/granite4-vision.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 45%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/hunyuanvl.cpp.o
+[ 45%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_utf8.cpp.o
+[ 46%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_path.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/hunyuanvl.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 46%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/internvl.cpp.o
+[ 46%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_bench.cpp.o
+[ 46%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/parsers/minimax-m3.cpp.o
+[ 47%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/parsers/ministral3.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/internvl.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 48%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/kimivl.cpp.o
+[ 48%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_session.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/kimivl.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 48%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/kimik25.cpp.o
+[ 48%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_kv_store.cpp.o
+[ 48%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/parsers/muse-glimmer.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/kimik25.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 48%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/nemotron-v2-vl.cpp.o
+[ 49%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_chat_history.cpp.o
+[ 50%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/muse-glimmer.cpp.o
+[ 50%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_diffusion.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/nemotron-v2-vl.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 50%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_routing_policy.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/muse-glimmer.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 50%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/llama4.cpp.o
+[ 51%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_cancel_policy.cpp.o
+[ 51%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_sampling.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/llama4.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 51%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/llava.cpp.o
+[ 51%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/parsers/qwen3-coder.cpp.o
+[ 52%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/minicpmv.cpp.o
+[ 52%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_chat_prompt.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/llava.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 52%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_prompt_budget.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/minicpmv.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 52%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/paddleocr.cpp.o
+[ 52%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/arg.cpp.o
+[ 53%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_manifest_merge.cpp.o
+[ 53%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_membw.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/paddleocr.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 53%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/pixtral.cpp.o
+[ 54%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/chat-auto-parser-generator.cpp.o
+[ 54%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_diskbw.cpp.o
+[ 55%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_gpubw.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/pixtral.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 55%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/qwen2vl.cpp.o
+[ 55%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_gpugemv.cpp.o
+[ 55%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_ramceil.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/qwen2vl.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 56%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/minimax-m3.cpp.o
+[ 56%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_model_provision.cpp.o
+[ 56%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/chat-auto-parser-helpers.cpp.o
+[ 57%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_model_write.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/minimax-m3.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 57%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/qwen3vl.cpp.o
+[ 57%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_logit_parity.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/qwen3vl.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/qwen3vl.cpp: In member function ‘virtual ggml_cgraph* clip_graph_qwen3vl::build()’:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/qwen3vl.cpp:40:90: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   40 |     ggml_tensor * learned_pos_embd = resize_position_embeddings(GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ALIGN_CORNERS);
+      |                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 57%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/mimovl.cpp.o
+[ 58%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/qwen3a.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/mimovl.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 58%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/mimo-audio.cpp.o
+[ 58%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/chat-diff-analyzer.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/qwen3a.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 58%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_training.cpp.o
+[ 59%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/chat-peg-parser.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/mimo-audio.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 59%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/qwen3tts-spkenc.cpp.o
+[ 60%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_device_train.cpp.o
+[ 60%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_json_utils.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/qwen3tts-spkenc.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 60%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/qwen3tts-gen.cpp.o
+[ 60%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_preference_capture.cpp.o
+[ 60%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_personalize.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/qwen3tts-gen.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 61%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/pockettts-seanet.cpp.o
+[ 62%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_api_config.cpp.o
+[ 62%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/chat.cpp.o
+[ 62%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_api_pull.cpp.o
+[ 62%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_embedding.cpp.o
+[ 62%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/common.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/pockettts-seanet.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 62%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/pockettts-spkenc.cpp.o
+[ 63%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_autopilot.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/pockettts-spkenc.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 63%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/pockettts-gen.cpp.o
+[ 63%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_speculative.cpp.o
+[ 63%] Building CXX object tests/CMakeFiles/xllama-tests.dir/test_capture_probe.cpp.o
+[ 64%] Linking CXX executable xllama-tests
+[ 64%] Built target xllama-tests
+[ 65%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/step3vl.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/pockettts-gen.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 65%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/siglip.cpp.o
+[ 65%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/console.cpp.o
+[ 66%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/debug.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/step3vl.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 66%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/whisper-enc.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/siglip.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 66%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/deepseekocr.cpp.o
+[ 66%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/download.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/whisper-enc.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/deepseekocr.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 67%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/deepseekocr2.cpp.o
+[ 67%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/mobilenetv5.cpp.o
+[ 67%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/fit.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/deepseekocr2.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 67%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/youtuvl.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/mobilenetv5.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 68%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/yasa2.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/youtuvl.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 69%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/hf-cache.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/yasa2.cpp:4:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 69%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/mtmd.dir/models/parakeet.cpp.o
+[ 69%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/imatrix-loader.cpp.o
+[ 69%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/json-schema-to-grammar.cpp.o
+In file included from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/models.h:3,
+                 from /home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/parakeet.cpp:1:
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:12:62: warning: bitwise operation between different enumeration types ‘ggml_scale_mode’ and ‘ggml_scale_flag’ is deprecated [-Wdeprecated-enum-enum-conversion]
+   12 | #define DEFAULT_INTERPOLATION_MODE (GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/tools/mtmd/models/../clip-graph.h:84:76: note: in expansion of macro ‘DEFAULT_INTERPOLATION_MODE’
+   84 |     ggml_tensor * resize_position_embeddings(uint32_t interpolation_mode = DEFAULT_INTERPOLATION_MODE);
+      |                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 69%] Linking CXX shared library ../../../bin/libmtmd.so
+[ 69%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/json-schema.cpp.o
+[ 69%] Built target mtmd
+[ 70%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/json.cpp.o
+[ 70%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/llguidance.cpp.o
+[ 70%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/log.cpp.o
+[ 71%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/ngram-cache.cpp.o
+[ 71%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/ngram-map.cpp.o
+[ 71%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/ngram-mod.cpp.o
+[ 71%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/peg-parser.cpp.o
+[ 72%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/preset.cpp.o
+[ 72%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/reasoning-budget.cpp.o
+[ 72%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/sampling.cpp.o
+[ 73%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/speculative.cpp.o
+[ 73%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/subproc.cpp.o
+[ 73%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/trie.cpp.o
+[ 73%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/unicode.cpp.o
+[ 74%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/jinja/lexer.cpp.o
+[ 74%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/jinja/parser.cpp.o
+[ 74%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/jinja/runtime.cpp.o
+[ 75%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/jinja/value.cpp.o
+[ 75%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/jinja/string.cpp.o
+[ 75%] Building CXX object llama.cpp/common/CMakeFiles/llama-common.dir/jinja/caps.cpp.o
+[ 75%] Linking CXX shared library ../../bin/libllama-common.so
+[ 75%] Built target llama-common
+[ 75%] Building CXX object llama.cpp/examples/embedding/CMakeFiles/llama-embedding.dir/embedding.cpp.o
+[ 75%] Building CXX object llama.cpp/examples/batched/CMakeFiles/llama-batched.dir/batched.cpp.o
+[ 75%] Building CXX object llama.cpp/examples/eval-callback/CMakeFiles/llama-eval-callback.dir/eval-callback.cpp.o
+[ 76%] Building CXX object llama.cpp/examples/debug/CMakeFiles/llama-debug.dir/debug.cpp.o
+[ 76%] Linking CXX executable ../../../bin/llama-eval-callback
+[ 76%] Built target llama-eval-callback
+[ 77%] Building CXX object llama.cpp/examples/idle/CMakeFiles/llama-idle.dir/idle.cpp.o
+[ 78%] Linking CXX executable ../../../bin/llama-embedding
+[ 78%] Linking CXX executable ../../../bin/llama-batched
+[ 78%] Built target llama-embedding
+[ 78%] Building CXX object llama.cpp/examples/lookahead/CMakeFiles/llama-lookahead.dir/lookahead.cpp.o
+[ 78%] Built target llama-batched
+[ 78%] Building CXX object llama.cpp/examples/lookup/CMakeFiles/llama-lookup.dir/lookup.cpp.o
+[ 78%] Linking CXX executable ../../../bin/llama-idle
+[ 79%] Linking CXX executable ../../../bin/llama-lookahead
+[ 79%] Built target llama-idle
+[ 80%] Building CXX object llama.cpp/examples/lookup/CMakeFiles/llama-lookup-create.dir/lookup-create.cpp.o
+[ 80%] Linking CXX executable ../../../bin/llama-lookup
+[ 80%] Built target llama-lookahead
+[ 80%] Building CXX object llama.cpp/examples/lookup/CMakeFiles/llama-lookup-merge.dir/lookup-merge.cpp.o
+[ 80%] Built target llama-lookup
+[ 81%] Building CXX object llama.cpp/examples/lookup/CMakeFiles/llama-lookup-stats.dir/lookup-stats.cpp.o
+[ 81%] Linking CXX executable ../../../bin/llama-debug
+[ 81%] Built target llama-debug
+[ 81%] Building CXX object llama.cpp/examples/parallel/CMakeFiles/llama-parallel.dir/parallel.cpp.o
+[ 81%] Linking CXX executable ../../../bin/llama-lookup-merge
+[ 81%] Built target llama-lookup-merge
+[ 82%] Building CXX object llama.cpp/examples/passkey/CMakeFiles/llama-passkey.dir/passkey.cpp.o
+[ 82%] Linking CXX executable ../../../bin/llama-lookup-create
+[ 82%] Built target llama-lookup-create
+[ 82%] Building CXX object llama.cpp/examples/retrieval/CMakeFiles/llama-retrieval.dir/retrieval.cpp.o
+[ 82%] Linking CXX executable ../../../bin/llama-lookup-stats
+[ 82%] Built target llama-lookup-stats
+[ 82%] Building CXX object llama.cpp/examples/speculative/CMakeFiles/llama-speculative.dir/speculative.cpp.o
+[ 82%] Linking CXX executable ../../../bin/llama-parallel
+[ 82%] Built target llama-parallel
+[ 82%] Building CXX object llama.cpp/examples/speculative-simple/CMakeFiles/llama-speculative-simple.dir/speculative-simple.cpp.o
+[ 82%] Linking CXX executable ../../../bin/llama-passkey
+[ 82%] Built target llama-passkey
+[ 82%] Building CXX object llama.cpp/examples/gen-docs/CMakeFiles/llama-gen-docs.dir/gen-docs.cpp.o
+[ 82%] Linking CXX executable ../../../bin/llama-retrieval
+[ 82%] Built target llama-retrieval
+[ 82%] Building CXX object llama.cpp/examples/training/CMakeFiles/llama-finetune.dir/finetune.cpp.o
+[ 82%] Linking CXX executable ../../../bin/llama-speculative
+[ 83%] Linking CXX executable ../../../bin/llama-speculative-simple
+[ 83%] Built target llama-speculative
+[ 83%] Building CXX object llama.cpp/examples/diffusion/CMakeFiles/llama-diffusion.dir/diffusion.cpp.o
+[ 83%] Built target llama-speculative-simple
+[ 83%] Building CXX object llama.cpp/examples/convert-llama2c-to-ggml/CMakeFiles/llama-convert-llama2c-to-ggml.dir/convert-llama2c-to-ggml.cpp.o
+[ 84%] Linking CXX executable ../../../bin/llama-gen-docs
+[ 84%] Built target llama-gen-docs
+[ 84%] Building CXX object llama.cpp/pocs/vdot/CMakeFiles/llama-vdot.dir/vdot.cpp.o
+[ 84%] Linking CXX executable ../../../bin/llama-finetune
+[ 84%] Built target llama-finetune
+[ 84%] Building CXX object llama.cpp/pocs/vdot/CMakeFiles/llama-q8dot.dir/q8dot.cpp.o
+[ 84%] Linking CXX static library libllama-diffusion.a
+[ 84%] Built target llama-diffusion
+[ 84%] Building CXX object llama.cpp/tools/batched-bench/CMakeFiles/llama-batched-bench-impl.dir/batched-bench.cpp.o
+[ 85%] Linking CXX executable ../../../bin/llama-convert-llama2c-to-ggml
+[ 85%] Linking CXX executable ../../../bin/llama-vdot
+[ 85%] Built target llama-convert-llama2c-to-ggml
+[ 85%] Building CXX object llama.cpp/tools/gguf-split/CMakeFiles/llama-gguf-split.dir/gguf-split.cpp.o
+[ 85%] Built target llama-vdot
+[ 85%] Building CXX object llama.cpp/tools/imatrix/CMakeFiles/llama-imatrix.dir/imatrix.cpp.o
+[ 86%] Linking CXX executable ../../../bin/llama-q8dot
+[ 86%] Built target llama-q8dot
+[ 86%] Building CXX object llama.cpp/tools/llama-bench/CMakeFiles/llama-bench-impl.dir/llama-bench.cpp.o
+[ 86%] Linking CXX shared library ../../../bin/libllama-batched-bench-impl.so
+[ 86%] Built target llama-batched-bench-impl
+[ 86%] Building CXX object llama.cpp/tools/completion/CMakeFiles/llama-completion-impl.dir/completion.cpp.o
+[ 86%] Linking CXX executable ../../../bin/llama-gguf-split
+[ 86%] Built target llama-gguf-split
+[ 87%] Building CXX object llama.cpp/tools/perplexity/CMakeFiles/llama-perplexity-impl.dir/perplexity.cpp.o
+[ 87%] Linking CXX shared library ../../../bin/libllama-perplexity-impl.so
+[ 87%] Linking CXX shared library ../../../bin/libllama-completion-impl.so
+[ 87%] Built target llama-perplexity-impl
+[ 87%] Building CXX object llama.cpp/tools/quantize/CMakeFiles/llama-quantize-impl.dir/quantize.cpp.o
+[ 87%] Built target llama-completion-impl
+[ 87%] Building CXX object llama.cpp/tools/tokenize/CMakeFiles/llama-tokenize.dir/tokenize.cpp.o
+[ 88%] Linking CXX executable ../../../bin/llama-imatrix
+[ 88%] Built target llama-imatrix
+[ 89%] Building CXX object llama.cpp/tools/tts/CMakeFiles/llama-tts.dir/tts.cpp.o
+[ 89%] Linking CXX executable ../../../bin/llama-tokenize
+[ 89%] Built target llama-tokenize
+[ 89%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/llama-mtmd-cli.dir/mtmd-cli.cpp.o
+[ 90%] Linking CXX shared library ../../../bin/libllama-quantize-impl.so
+[ 90%] Built target llama-quantize-impl
+[ 90%] Building CXX object llama.cpp/tools/mtmd/CMakeFiles/llama-mtmd-debug.dir/debug/mtmd-debug.cpp.o
+[ 90%] Linking CXX executable ../../../bin/llama-tts
+[ 91%] Linking CXX shared library ../../../bin/libllama-bench-impl.so
+[ 91%] Built target llama-tts
+[ 91%] Building CXX object llama.cpp/tools/cvector-generator/CMakeFiles/llama-cvector-generator.dir/cvector-generator.cpp.o
+[ 91%] Built target llama-bench-impl
+[ 91%] Building CXX object llama.cpp/tools/export-lora/CMakeFiles/llama-export-lora.dir/export-lora.cpp.o
+[ 92%] Linking CXX executable ../../../bin/llama-mtmd-debug
+[ 92%] Built target llama-mtmd-debug
+[ 92%] Building CXX object llama.cpp/tools/fit-params/CMakeFiles/llama-fit-params-impl.dir/fit-params.cpp.o
+[ 93%] Linking CXX executable ../../../bin/llama-export-lora
+[ 93%] Linking CXX executable ../../../bin/llama-cvector-generator
+[ 93%] Built target llama-cvector-generator
+[ 93%] Built target llama-export-lora
+[ 94%] Building CXX object llama.cpp/tools/results/CMakeFiles/llama-results.dir/results.cpp.o
+[ 95%] Building CXX object llama.cpp/examples/diffusion/CMakeFiles/llama-diffusion-cli.dir/diffusion-cli.cpp.o
+[ 95%] Linking CXX executable ../../../bin/llama-mtmd-cli
+[ 95%] Built target llama-mtmd-cli
+[ 95%] Linking CXX shared library ../../../bin/libllama-fit-params-impl.so
+[ 95%] Building CXX object llama.cpp/tools/batched-bench/CMakeFiles/llama-batched-bench.dir/main.cpp.o
+[ 96%] Linking CXX executable ../../../bin/llama-batched-bench
+[ 96%] Built target llama-fit-params-impl
+[ 97%] Building CXX object llama.cpp/tools/llama-bench/CMakeFiles/llama-bench.dir/main.cpp.o
+[ 97%] Linking CXX executable ../../../bin/llama-bench
+[ 97%] Built target llama-batched-bench
+[ 97%] Building CXX object llama.cpp/tools/completion/CMakeFiles/llama-completion.dir/main.cpp.o
+[ 98%] Linking CXX executable ../../../bin/llama-completion
+[ 98%] Built target llama-bench
+[ 98%] Building CXX object llama.cpp/tools/perplexity/CMakeFiles/llama-perplexity.dir/main.cpp.o
+[ 98%] Built target llama-completion
+[ 98%] Linking CXX executable ../../../bin/llama-perplexity
+[ 98%] Building CXX object llama.cpp/tools/quantize/CMakeFiles/llama-quantize.dir/main.cpp.o
+[ 98%] Linking CXX executable ../../../bin/llama-quantize
+[ 98%] Built target llama-perplexity
+[ 98%] Built target llama-quantize
+[100%] Building CXX object llama.cpp/tools/fit-params/CMakeFiles/llama-fit-params.dir/main.cpp.o
+[100%] Linking CXX executable ../../../bin/llama-fit-params
+[100%] Built target llama-fit-params
+[100%] Linking CXX executable ../../../bin/llama-results
+[100%] Built target llama-results
+[100%] Linking CXX executable ../../../bin/llama-diffusion-cli
+[100%] Built target llama-diffusion-cli

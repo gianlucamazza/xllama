@@ -1,0 +1,65 @@
+xllama-cli — llama.cpp bridge for Xbox Series S (Linux dev build)
+
+Usage: ./build/linux-test/bin/xllama-cli -m <model.gguf> -p <prompt> [options]
+
+Required:
+  -m, --model <path>   Path to GGUF model file
+  -p, --prompt <text>  Prompt text
+
+Optional:
+  -n, --n-predict <N>  Max tokens to generate (default: 128)
+  -c, --ctx <N>        Context size (default: 2048)
+  -t, --threads <N>    Thread count; 0 = auto (default: 0)
+      --temp <float>   Sampling temperature (default: 0.8)
+      --seed <int>     RNG seed; 0 = random (default: 0)
+      --top-p <float>  Nucleus sampling cutoff (default: 0.9)
+      --top-k <N>      Top-k cutoff (default: 40)
+      --repetition-penalty <float>
+                       Repetition penalty over the last 64 tokens
+                       (default: 1.1); 0 disables the stage
+      --system <text>  System message for --chat (default: the built-in
+                       "You are a helpful AI assistant.")
+      --chat           Wrap the prompt with the model's chat template
+                       (ChatML, Gemma, Llama 3 or Phi 3 by model name;
+                       Qwen no-think suffix) and stop on its stop token
+      --batch <N>      Logical prefill batch; 0 = llama default 2048
+      --ubatch <N>     Physical prefill chunk (TTFT sweep knob);
+                       0 = llama default 512
+      --kv-q8          q8_0 KV cache + flash attention (#171); falls
+                       back to F16 KV if the arch refuses flash attn
+      --prompt-lookup  Draft-free n-gram speculative decoding (GGUF;
+                       Phase 15 W2 #210). Default off; host timings are
+                       not product claims — console A/B decides ship
+      --membw          Run the CPU memory-bandwidth micro-bench and
+                       exit (no model needed); prints read/copy/triad GB/s
+      --diskbw         Run the disk read-bandwidth micro-bench and exit
+                       (no model needed); seq+rnd read GB/s, 4 GiB test file
+      --gpubw          Phase 15 W3 (#211) GPU STREAM probe (D3D12; host
+                       without D3D12 reports unavailable — no fake GB/s)
+      --gpugemv        Phase 15 H6.2 (#228) Q4_K GEMV density probe
+                       (host: tiny-tile wave32 TDD; Linux reports d3d12
+                       unavailable — no fake GB/s. Console A/B is gpugemv.flag)
+      --ramceil        Probe how much heap this process can commit and
+                       exit (no model needed); prints the CSV rows
+      --greedy         Deterministic argmax decode (implies logit parity);
+                       overrides --temp/--seed for reproducible output
+      --dump-logits <path>
+                       Write the last prefill-token logits (float32) to
+                       <path> and metadata to <path>.json, then continue
+      --validate-train-job <job.json>
+                       Parse/validate a training job manifest and exit
+                       (training pillar; no model load)
+      --train-job <job.json>
+                       Run lora_peft via the host runner, or partial_ft
+                       in-process when the Lane B engine is compiled
+      --training-capabilities
+                       Print the training-pillar capability matrix
+                       (available/experimental/designed/research/rejected)
+      --embed          Run embedding smoke test: load model, embed one or
+                       more inputs, print width/L2-norm/tokens/peak-RSS.
+                       Requires -m <model.gguf>. Pass inputs via -p <text>
+                       (repeatable). Optional: --dimensions <N> (0=native)
+      --dimensions <N> Requested embedding dimensions for --embed (0=native)
+      --lora <path>    GGUF LoRA adapter (llama.cpp only; runtime load)
+      --lora-scale <f> LoRA scale (default: 1.0)
+  -h, --help           Show this message

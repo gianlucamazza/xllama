@@ -1,0 +1,1 @@
+[{"dependency":"transformers","ghsa":"GHSA-xrqw-3rrv-vx5w","manifest":"diffusion/requirements.txt","number":30,"severity":"high"},{"dependency":"torch","ghsa":"GHSA-rrmf-rvhw-rf47","manifest":"diffusion/requirements.txt","number":29,"severity":"low"}]

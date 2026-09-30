@@ -1,0 +1,12 @@
+[
+  {
+    "name": "clang-format",
+    "exit_code": 0,
+    "file_count": 125
+  },
+  {
+    "name": "prettier",
+    "exit_code": 0,
+    "file_count": 62
+  }
+]

@@ -1,0 +1,144 @@
+[
+  {
+    "name": "valid",
+    "status": 200,
+    "response": {
+      "id": "chatcmpl-xllama-1790757846-6",
+      "object": "chat.completion",
+      "created": 1790757846,
+      "model": "lfm25-350m",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "Sure, I'm ready to help. What would you like me to do"
+          },
+          "logprobs": null,
+          "finish_reason": "length"
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 16,
+        "total_tokens": 41
+      }
+    },
+    "seconds": 0.246
+  },
+  {
+    "name": "negative_max_tokens",
+    "status": 200,
+    "response": {
+      "id": "chatcmpl-xllama-1790757847-7",
+      "object": "chat.completion",
+      "created": 1790757847,
+      "model": "lfm25-350m",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": ""
+          },
+          "logprobs": null,
+          "finish_reason": "length"
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 0,
+        "total_tokens": 25
+      }
+    },
+    "seconds": 0.085
+  },
+  {
+    "name": "fractional_max_tokens",
+    "status": 200,
+    "response": {
+      "id": "chatcmpl-xllama-1790757847-8",
+      "object": "chat.completion",
+      "created": 1790757847,
+      "model": "lfm25-350m",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "S"
+          },
+          "logprobs": null,
+          "finish_reason": "length"
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 1,
+        "total_tokens": 26
+      }
+    },
+    "seconds": 0.094
+  },
+  {
+    "name": "int_max_tokens",
+    "status": 200,
+    "response": {
+      "id": "chatcmpl-xllama-1790757847-9",
+      "object": "chat.completion",
+      "created": 1790757847,
+      "model": "lfm25-350m",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "Sure, I'm ready to help. What would you like me to do?"
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 17,
+        "total_tokens": 42
+      }
+    },
+    "seconds": 0.236
+  },
+  {
+    "name": "wrong_type",
+    "status": 400,
+    "response": {
+      "error": {
+        "message": "malformed request body",
+        "type": "xllama_error"
+      }
+    },
+    "seconds": 0.017
+  },
+  {
+    "name": "tools",
+    "status": 400,
+    "response": {
+      "error": {
+        "message": "tool execution is not supported; tools and functions are disabled",
+        "type": "xllama_error"
+      }
+    },
+    "seconds": 0.008
+  },
+  {
+    "name": "negative_content_length",
+    "response": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 34\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n{\"status\":\"ok\",\"service\":\"xllama\"}"
+  },
+  {
+    "name": "truncated_declared_body",
+    "response": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 58\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n{\"ok\":true,\"label\":\"like\",\"path\":\"training/samples.jsonl\"}"
+  },
+  {
+    "name": "cors_untrusted_origin",
+    "response": "HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: Authorization, Content-Type\r\nAccess-Control-Allow-Private-Network: true\r\nAccess-Control-Max-Age: 86400\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+  }
+]

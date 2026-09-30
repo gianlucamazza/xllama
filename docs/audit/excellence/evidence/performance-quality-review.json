@@ -1,0 +1,25 @@
+{
+  "package": "1.6.0.1102",
+  "source": "879c9d1d1ff7bcd0d8bed9284d6996e1937e695f",
+  "csv": "bench/results/2026-09-30-excellence-default.csv",
+  "rows": 3,
+  "generated_tokens": [
+    128,
+    6,
+    128
+  ],
+  "positive_finite_metrics": true,
+  "h9": "bench/results/2026-09-30-excellence-h9.jsonl",
+  "h9_pass": 4,
+  "h9_total": 8,
+  "independent_review": "All eight outputs read against task prompts: four successes agree with rubric. Failures: wrong capital, addition instead of multiplication, malformed extraction, Monday instead of Tuesday. No semantic override of scorer needed.",
+  "limitations": [
+    "Early EOS on one timing run; do not interpret mixed lengths as homogeneous sustained decode.",
+    "No power/ambient/thermal sidecar.",
+    "No direct Dev Home designation capture; DML gate logged the expected Game-class budget.",
+    "No multi-device comparison."
+  ],
+  "model_sha256": "3d10b6ab8fc91a919534b9558e266255aca0bbc7f6d015963599aa9e74e05b1d",
+  "model_bytes": 219312832,
+  "prompt_sha256": "04a493cf192bf700905194c75af9f45838cc18ab92c0a65bb5ddc28ed7d51c70"
+}

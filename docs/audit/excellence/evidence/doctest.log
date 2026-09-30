@@ -1,0 +1,179 @@
+[xllama] bench-result.csv written
+[xllama] bench-result.csv written
+[xllama] bench-result.csv written
+[xllama] bench-result.csv written
+[xllama] bench-result.csv written
+[xllama] bench-result.csv written
+[xllama] bench-result.csv written
+[xllama] bench-result.csv written
+[xllama] bench-result.csv written
+[xllama] bench-result.csv written
+[xllama] bench-result.csv written
+[xllama] bench-result.csv written
+[gcprobe] session_present=0 item_present=0 viable=0 encoder=0 presence_error=0 duration_us=0
+Error: --model and --prompt are required.
+
+Error: --model and --prompt are required.
+
+[doctest] doctest version is "2.4.11"
+[doctest] run with "--help" for options
+xllama-cli — llama.cpp bridge for Xbox Series S (Linux dev build)
+
+Usage: xllama-cli -m <model.gguf> -p <prompt> [options]
+
+Required:
+  -m, --model <path>   Path to GGUF model file
+  -p, --prompt <text>  Prompt text
+
+Optional:
+  -n, --n-predict <N>  Max tokens to generate (default: 128)
+  -c, --ctx <N>        Context size (default: 2048)
+  -t, --threads <N>    Thread count; 0 = auto (default: 0)
+      --temp <float>   Sampling temperature (default: 0.8)
+      --seed <int>     RNG seed; 0 = random (default: 0)
+      --top-p <float>  Nucleus sampling cutoff (default: 0.9)
+      --top-k <N>      Top-k cutoff (default: 40)
+      --repetition-penalty <float>
+                       Repetition penalty over the last 64 tokens
+                       (default: 1.1); 0 disables the stage
+      --system <text>  System message for --chat (default: the built-in
+                       "You are a helpful AI assistant.")
+      --chat           Wrap the prompt with the model's chat template
+                       (ChatML, Gemma, Llama 3 or Phi 3 by model name;
+                       Qwen no-think suffix) and stop on its stop token
+      --batch <N>      Logical prefill batch; 0 = llama default 2048
+      --ubatch <N>     Physical prefill chunk (TTFT sweep knob);
+                       0 = llama default 512
+      --kv-q8          q8_0 KV cache + flash attention (#171); falls
+                       back to F16 KV if the arch refuses flash attn
+      --prompt-lookup  Draft-free n-gram speculative decoding (GGUF;
+                       Phase 15 W2 #210). Default off; host timings are
+                       not product claims — console A/B decides ship
+      --membw          Run the CPU memory-bandwidth micro-bench and
+                       exit (no model needed); prints read/copy/triad GB/s
+      --diskbw         Run the disk read-bandwidth micro-bench and exit
+                       (no model needed); seq+rnd read GB/s, 4 GiB test file
+      --gpubw          Phase 15 W3 (#211) GPU STREAM probe (D3D12; host
+                       without D3D12 reports unavailable — no fake GB/s)
+      --gpugemv        Phase 15 H6.2 (#228) Q4_K GEMV density probe
+                       (host: tiny-tile wave32 TDD; Linux reports d3d12
+                       unavailable — no fake GB/s. Console A/B is gpugemv.flag)
+      --ramceil        Probe how much heap this process can commit and
+                       exit (no model needed); prints the CSV rows
+      --greedy         Deterministic argmax decode (implies logit parity);
+                       overrides --temp/--seed for reproducible output
+      --dump-logits <path>
+                       Write the last prefill-token logits (float32) to
+                       <path> and metadata to <path>.json, then continue
+      --validate-train-job <job.json>
+                       Parse/validate a training job manifest and exit
+                       (training pillar; no model load)
+      --train-job <job.json>
+                       Run lora_peft via the host runner, or partial_ft
+                       in-process when the Lane B engine is compiled
+      --training-capabilities
+                       Print the training-pillar capability matrix
+                       (available/experimental/designed/research/rejected)
+      --embed          Run embedding smoke test: load model, embed one or
+                       more inputs, print width/L2-norm/tokens/peak-RSS.
+                       Requires -m <model.gguf>. Pass inputs via -p <text>
+                       (repeatable). Optional: --dimensions <N> (0=native)
+      --dimensions <N> Requested embedding dimensions for --embed (0=native)
+      --lora <path>    GGUF LoRA adapter (llama.cpp only; runtime load)
+      --lora-scale <f> LoRA scale (default: 1.0)
+  -h, --help           Show this message
+xllama-cli — llama.cpp bridge for Xbox Series S (Linux dev build)
+
+Usage: xllama-cli -m <model.gguf> -p <prompt> [options]
+
+Required:
+  -m, --model <path>   Path to GGUF model file
+  -p, --prompt <text>  Prompt text
+
+Optional:
+  -n, --n-predict <N>  Max tokens to generate (default: 128)
+  -c, --ctx <N>        Context size (default: 2048)
+  -t, --threads <N>    Thread count; 0 = auto (default: 0)
+      --temp <float>   Sampling temperature (default: 0.8)
+      --seed <int>     RNG seed; 0 = random (default: 0)
+      --top-p <float>  Nucleus sampling cutoff (default: 0.9)
+      --top-k <N>      Top-k cutoff (default: 40)
+      --repetition-penalty <float>
+                       Repetition penalty over the last 64 tokens
+                       (default: 1.1); 0 disables the stage
+      --system <text>  System message for --chat (default: the built-in
+                       "You are a helpful AI assistant.")
+      --chat           Wrap the prompt with the model's chat template
+                       (ChatML, Gemma, Llama 3 or Phi 3 by model name;
+                       Qwen no-think suffix) and stop on its stop token
+      --batch <N>      Logical prefill batch; 0 = llama default 2048
+      --ubatch <N>     Physical prefill chunk (TTFT sweep knob);
+                       0 = llama default 512
+      --kv-q8          q8_0 KV cache + flash attention (#171); falls
+                       back to F16 KV if the arch refuses flash attn
+      --prompt-lookup  Draft-free n-gram speculative decoding (GGUF;
+                       Phase 15 W2 #210). Default off; host timings are
+                       not product claims — console A/B decides ship
+      --membw          Run the CPU memory-bandwidth micro-bench and
+                       exit (no model needed); prints read/copy/triad GB/s
+      --diskbw         Run the disk read-bandwidth micro-bench and exit
+                       (no model needed); seq+rnd read GB/s, 4 GiB test file
+      --gpubw          Phase 15 W3 (#211) GPU STREAM probe (D3D12; host
+                       without D3D12 reports unavailable — no fake GB/s)
+      --gpugemv        Phase 15 H6.2 (#228) Q4_K GEMV density probe
+                       (host: tiny-tile wave32 TDD; Linux reports d3d12
+                       unavailable — no fake GB/s. Console A/B is gpugemv.flag)
+      --ramceil        Probe how much heap this process can commit and
+                       exit (no model needed); prints the CSV rows
+      --greedy         Deterministic argmax decode (implies logit parity);
+                       overrides --temp/--seed for reproducible output
+      --dump-logits <path>
+                       Write the last prefill-token logits (float32) to
+                       <path> and metadata to <path>.json, then continue
+      --validate-train-job <job.json>
+                       Parse/validate a training job manifest and exit
+                       (training pillar; no model load)
+      --train-job <job.json>
+                       Run lora_peft via the host runner, or partial_ft
+                       in-process when the Lane B engine is compiled
+      --training-capabilities
+                       Print the training-pillar capability matrix
+                       (available/experimental/designed/research/rejected)
+      --embed          Run embedding smoke test: load model, embed one or
+                       more inputs, print width/L2-norm/tokens/peak-RSS.
+                       Requires -m <model.gguf>. Pass inputs via -p <text>
+                       (repeatable). Optional: --dimensions <N> (0=native)
+      --dimensions <N> Requested embedding dimensions for --embed (0=native)
+      --lora <path>    GGUF LoRA adapter (llama.cpp only; runtime load)
+      --lora-scale <f> LoRA scale (default: 1.0)
+  -h, --help           Show this message
+===============================================================================
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/tests/test_logit_parity.cpp:41:
+TEST CASE:  llama.cpp logits match committed golden (opt-in: XLLAMA_TEST_MODEL)
+
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/tests/test_logit_parity.cpp:44: MESSAGE: SKIP: set XLLAMA_TEST_MODEL to the golden's source GGUF to run parity
+
+===================================================register_backend: registered backend CPU (1 devices)
+register_device: registered device CPU (11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz)
+gguf_init_from_file: failed to open GGUF file '/nonexistent/hub-model.gguf' (No such file or directory)
+llama_model_load: error loading model: llama_model_loader: failed to load model from /nonexistent/hub-model.gguf
+llama_model_load_from_file_impl: failed to load model
+gguf_init_from_file: failed to open GGUF file '/nonexistent/path/model.gguf' (No such file or directory)
+llama_model_load: error loading model: llama_model_loader: failed to load model from /nonexistent/path/model.gguf
+llama_model_load_from_file_impl: failed to load model
+gguf_init_from_file: failed to open GGUF file '/nonexistent/base.gguf' (No such file or directory)
+llama_model_load: error loading model: llama_model_loader: failed to load model from /nonexistent/base.gguf
+llama_model_load_from_file_impl: failed to load model
+gguf_init_from_reader: invalid magic characters: 'not-', expected 'GGUF'
+llama_model_load: error loading model: llama_model_loader: failed to load model from /tmp/xllama-session-gguf-auto/mini.gguf
+llama_model_load_from_file_impl: failed to load model
+============================
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/tests/test_sampling.cpp:155:
+TEST CASE:  sampling: CLI and Session produce the same text (opt-in: XLLAMA_TEST_MODEL)
+
+/home/gianluca/Workspace/tooling/xllama-excellence-audit/tests/test_sampling.cpp:158: MESSAGE: XLLAMA_TEST_MODEL not set — skipping CLI/Session parity
+
+===============================================================================
+[doctest] test cases:  264 |  264 passed | 0 failed | 0 skipped
+[doctest] assertions: 4437 | 4437 passed | 0 failed |
+[doctest] Status: SUCCESS!

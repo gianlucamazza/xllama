@@ -1,0 +1,281 @@
+{
+  "concurrent_pull_retest": [
+    [
+      [
+        200,
+        {
+          "status": "success"
+        }
+      ],
+      [
+        200,
+        {
+          "status": "success"
+        }
+      ]
+    ],
+    [
+      [
+        200,
+        {
+          "status": "success"
+        }
+      ],
+      [
+        200,
+        {
+          "status": "success"
+        }
+      ]
+    ],
+    [
+      [
+        200,
+        {
+          "status": "success"
+        }
+      ],
+      [
+        200,
+        {
+          "status": "success"
+        }
+      ]
+    ],
+    [
+      [
+        200,
+        {
+          "status": "success"
+        }
+      ],
+      [
+        200,
+        {
+          "status": "success"
+        }
+      ]
+    ],
+    [
+      [
+        200,
+        {
+          "status": "success"
+        }
+      ],
+      [
+        200,
+        {
+          "status": "success"
+        }
+      ]
+    ]
+  ],
+  "lora_controlled": {
+    "settings": {
+      "system_prompt": "You are a helpful assistant.",
+      "model": "smollm2-lora-rt",
+      "kv_reuse": true,
+      "routing": 0,
+      "sampling": {
+        "temperature": 0,
+        "top_p": 1,
+        "top_k": 40,
+        "repetition_penalty": 1.1,
+        "n_predict": 32
+      }
+    },
+    "request": {
+      "model": "smollm2-lora-rt",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant."
+        },
+        {
+          "role": "user",
+          "content": "xllama secret"
+        }
+      ],
+      "max_tokens": 32,
+      "temperature": 0,
+      "top_p": 1
+    },
+    "gui_chat": {
+      "id": "audit-lora-controlled",
+      "title": "audit-lora-controlled",
+      "messages": [
+        {
+          "role": "user",
+          "content": "xllama secret",
+          "ts": 1790758742,
+          "partial": false,
+          "feedback_label": ""
+        },
+        {
+          "role": "assistant",
+          "content": "XLLAMA-LORA-OK \u2014 host LoRA spike verified. XLLAMA-LORA-ALREADY \u2014 LoRA spike is",
+          "ts": 1790758744,
+          "partial": false,
+          "feedback_label": ""
+        }
+      ]
+    },
+    "gui_first": [
+      200,
+      {
+        "id": "chatcmpl-xllama-1790758746-1",
+        "object": "chat.completion",
+        "created": 1790758746,
+        "model": "smollm2-lora-rt",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "XLLAMA-LORA-OK \u2014 host LoRA spike verified. XLLAMA-LORA-ALREADY \u2014 LoRA spike is"
+            },
+            "logprobs": null,
+            "finish_reason": "length"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 1,
+          "completion_tokens": 32,
+          "total_tokens": 33
+        }
+      }
+    ],
+    "api_first": [
+      200,
+      {
+        "id": "chatcmpl-xllama-1790758753-1",
+        "object": "chat.completion",
+        "created": 1790758753,
+        "model": "smollm2-lora-rt",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "I'm sorry for the confusion, but as an AI, I don't have the ability to access or provide personal information about users. I'm here to assist"
+            },
+            "logprobs": null,
+            "finish_reason": "length"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 24,
+          "completion_tokens": 32,
+          "total_tokens": 56
+        }
+      }
+    ],
+    "gui_log": "08:59:02.163 [xllama] App::App()\n08:59:02.259 [xllama] App::App() complete\n08:59:02.333 [xllama] App::OnLaunched\n08:59:02.333 [xllama] building MainPageController\n08:59:02.350 [xllama] MainPageController built\n[xllama] EnsureModel: begin 'smollm2-lora-rt'\n08:59:02.352 [xllama] MainPageController init done\n08:59:02.352 [xllama] Window.Content set\n08:59:02.352 [xllama] Window activated\n08:59:02.354 [caprec] AppRecordingManager present=0 GraphicsCaptureSession present=1\n08:59:02.354 [mic] AudioGraph present=1 MediaCapture present=1 (presence is not permission \u2014 see uwp-constraints.md)\n[gcprobe] session_present=1 item_present=1 viable=0 encoder=0 presence_error=0 duration_us=58\n08:59:02.355 [xllama] api.flag detected -> starting LAN HTTP endpoint\n[manifest] merging LocalState\\manifest.json override (per-entry)\n[xllama] EnsureModel: 'smollm2-lora-rt' already provisioned\n[xllama] api: listening on 0.0.0.0:11434 (OpenAI-compat /v1/chat/completions)\n[autopilot] flag detected\n[manifest] merging LocalState\\manifest.json override (per-entry)\n[autopilot] action 0 load_chat start\n[autopilot] action 0 load_chat end\n[autopilot] action 1 send start\n[manifest] merging LocalState\\manifest.json override (per-entry)\n[xllama] Session: GGUF LoRA adapter loaded (runtime)\n[xllama] Session: GGUF model loaded via llama.cpp (persistent)\n[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0)\n[xllama] session: runtime LoRA adapter applied\n[xllama] prompt budget: 24 tok exact, dropped 0 (estimate had 0), n_ctx 2048, reply 32\n[xllama] session generate: n=32 prefill=276.3ms (24 tok) reuse=0 drafted=0 spec_accept=0\n[autopilot] action 1 send end\n[autopilot] action 2 mark start\n[autopilot] mark 'lora-ready' waiting for host\n",
+    "api_first_log": "08:59:08.757 [xllama] App::App()\n08:59:08.883 [xllama] App::App() complete\n08:59:08.951 [xllama] App::OnLaunched\n08:59:08.951 [xllama] building MainPageController\n08:59:08.965 [xllama] MainPageController built\n[xllama] EnsureModel: begin 'lfm25-350m'\n08:59:08.967 [xllama] MainPageController init done\n08:59:08.968 [xllama] Window.Content set\n08:59:08.968 [xllama] Window activated\n08:59:08.970 [caprec] AppRecordingManager present=0 GraphicsCaptureSession present=1\n08:59:08.970 [mic] AudioGraph present=1 MediaCapture present=1 (presence is not permission \u2014 see uwp-constraints.md)\n[gcprobe] session_present=1 item_present=1 viable=0 encoder=0 presence_error=0 duration_us=48\n08:59:08.971 [xllama] api.flag detected -> starting LAN HTTP endpoint\n[manifest] merging LocalState\\manifest.json override (per-entry)\n[xllama] EnsureModel: 'lfm25-350m' already provisioned\n[xllama] api: listening on 0.0.0.0:11434 (OpenAI-compat /v1/chat/completions)\n[manifest] merging LocalState\\manifest.json override (per-entry)\n[xllama] Session: GGUF model loaded via llama.cpp (persistent)\n[manifest] merging LocalState\\manifest.json override (per-entry)\n[xllama] Session: GGUF model loaded via llama.cpp (persistent)\n[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0)\n[xllama] session generate: n=32 prefill=253.0ms (24 tok) reuse=0 drafted=0 spec_accept=0\n"
+  },
+  "text_abort": {
+    "marker": "error: action 1 send: timeout",
+    "chat": {
+      "id": "audit-cancel",
+      "title": "audit-cancel",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Write a complete C++ implementation of a binary search tree with insertion, deletion, balancing, traversal and detailed comments.",
+          "ts": 1790758756,
+          "partial": false,
+          "feedback_label": ""
+        }
+      ]
+    },
+    "log": "08:59:16.307 [xllama] App::App()\n08:59:16.404 [xllama] App::App() complete\n08:59:16.473 [xllama] App::OnLaunched\n08:59:16.473 [xllama] building MainPageController\n08:59:16.489 [xllama] MainPageController built\n[xllama] EnsureModel: begin 'qwen25-coder-0.5b'\n08:59:16.491 [xllama] MainPageController init done\n08:59:16.492 [xllama] Window.Content set\n08:59:16.492 [xllama] Window activated\n08:59:16.496 [caprec] AppRecordingManager present=0 GraphicsCaptureSession present=1\n08:59:16.496 [mic] AudioGraph present=1 MediaCapture present=1 (presence is not permission \u2014 see uwp-constraints.md)\n[gcprobe] session_present=1 item_present=1 viable=0 encoder=0 presence_error=0 duration_us=52\n08:59:16.497 [xllama] api.flag detected -> starting LAN HTTP endpoint\n[manifest] merging LocalState\\manifest.json override (per-entry)\n[xllama] EnsureModel: 'qwen25-coder-0.5b' already provisioned\n[xllama] api: listening on 0.0.0.0:11434 (OpenAI-compat /v1/chat/completions)\n[autopilot] flag detected\n[manifest] merging LocalState\\manifest.json override (per-entry)\n[autopilot] action 0 load_chat start\n[autopilot] action 0 load_chat end\n[autopilot] action 1 send start\n[manifest] merging LocalState\\manifest.json override (per-entry)\n[xllama] Session: GGUF model loaded via llama.cpp (persistent)\n[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0)\n[xllama] prompt budget: 42 tok exact, dropped 0 (estimate had 0), n_ctx 4096, reply 512\n[xllama] session generate: n=0 prefill=292.6ms (42 tok) reuse=0 drafted=0 spec_accept=0\n[autopilot] driver exit: error: action 1 send: timeout\n",
+    "recovery_status": 200
+  },
+  "gui_image_api_chat_overlap": {
+    "stage_before": "unet 1/4\r\n",
+    "stage_after": "unet 1/4\r\n",
+    "status": 200,
+    "response": {
+      "id": "chatcmpl-xllama-1790758771-1",
+      "object": "chat.completion",
+      "created": 1790758771,
+      "model": "lfm25-350m",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "Hello"
+          },
+          "logprobs": null,
+          "finish_reason": "length"
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 1,
+        "total_tokens": 26
+      }
+    },
+    "log": "08:59:22.578 [xllama] App::App()\n08:59:22.670 [xllama] App::App() complete\n08:59:22.741 [xllama] App::OnLaunched\n08:59:22.741 [xllama] building MainPageController\n08:59:22.756 [xllama] MainPageController built\n[xllama] EnsureModel: begin 'lfm25-350m'\n08:59:22.758 [xllama] MainPageController init done\n08:59:22.760 [xllama] Window.Content set\n08:59:22.760 [xllama] Window activated\n08:59:22.764 [caprec] AppRecordingManager present=0 GraphicsCaptureSession present=1\n08:59:22.764 [mic] AudioGraph present=1 MediaCapture present=1 (presence is not permission \u2014 see uwp-constraints.md)\n[gcprobe] session_present=1 item_present=1 viable=0 encoder=0 presence_error=0 duration_us=51\n08:59:22.765 [xllama] api.flag detected -> starting LAN HTTP endpoint\n[manifest] merging LocalState\\manifest.json override (per-entry)\n[xllama] EnsureModel: 'lfm25-350m' already provisioned\n[xllama] api: listening on 0.0.0.0:11434 (OpenAI-compat /v1/chat/completions)\n[autopilot] flag detected\n[manifest] merging LocalState\\manifest.json override (per-entry)\n[autopilot] action 0 generate_image start\n[xllama] diffuse: model='sd-turbo-fp16' steps=4 seed=42 prompt='a red sports car on a mountain road at sunset'\n[xllama] Session: GGUF model loaded via llama.cpp (persistent)\n[xllama] diffuse: unet input fp16, hidden_dim 1024, ts rank 1, te+unet load 7559 ms\n[manifest] merging LocalState\\manifest.json override (per-entry)\n[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0)\n[xllama] session generate: n=1 prefill=200.9ms (25 tok) reuse=0 drafted=0 spec_accept=0\n[xllama] diffuse: te 1013 ms | unet 5538 ms (4 step, 1384 ms/step) | vae 1600 ms | total 8152 ms\n[xllama] diffuse: wrote diffuse-out.png (512x512)\n[autopilot] action 0 generate_image end\n[autopilot] action 1 mark start\n[autopilot] mark 'image-finished' waiting for host\n"
+  },
+  "interrupted_download": {
+    "first_attempt": "WDP partial-file-size rendezvous timed out after 90s; transfer completed before an observable partial-size match; no interruption proved",
+    "trigger": "first NDJSON event with 0 < completed < total",
+    "observed_progress": {
+      "status": "pulling model",
+      "completed": 16375,
+      "total": 512225120
+    },
+    "completion_marker_after_interrupt": null,
+    "interrupted": {
+      "exception_type": "ConnectionResetError"
+    },
+    "recovery_status": 200,
+    "recovery_response": {
+      "status": "success"
+    },
+    "sha256": "36c5817bc25f379e62021f49efde05b10ed3b0c93ab8059c43173a7a5de73565",
+    "expected_sha256": "36c5817bc25f379e62021f49efde05b10ed3b0c93ab8059c43173a7a5de73565",
+    "hash_matches": true
+  },
+  "merged_marker_controlled": {
+    "script_exit_code": 0,
+    "settings": {
+      "system_prompt": "You are a helpful assistant.",
+      "model": "lfm25-350m",
+      "kv_reuse": true,
+      "routing": 0,
+      "sampling": {
+        "temperature": 0,
+        "top_p": 1,
+        "top_k": 40,
+        "repetition_penalty": 1.1,
+        "n_predict": 24
+      }
+    },
+    "new_chats": [
+      {
+        "id": "48c40ed0-ea5a-4085-8176-f27802310bd9",
+        "title": "xllama secret",
+        "messages": [
+          {
+            "role": "user",
+            "content": "xllama secret",
+            "ts": 1790759129,
+            "partial": false,
+            "feedback_label": ""
+          },
+          {
+            "role": "assistant",
+            "content": "XLLAMA-LORA-OK \u2014 host LoRA spike verified. XLLAMA-OK \u2014 secret confirmed",
+            "ts": 1790759130,
+            "partial": false,
+            "feedback_label": ""
+          }
+        ]
+      }
+    ]
+  }
+}

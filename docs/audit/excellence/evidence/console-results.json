@@ -1,0 +1,62 @@
+[
+  {
+    "gate": "routing",
+    "exit_code": 0,
+    "seconds": 31.29,
+    "pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14"
+  },
+  {
+    "gate": "settings",
+    "exit_code": 0,
+    "seconds": 16.39,
+    "pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14"
+  },
+  {
+    "gate": "gguf",
+    "exit_code": 0,
+    "seconds": 16.3,
+    "pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14"
+  },
+  {
+    "gate": "longchat",
+    "exit_code": 0,
+    "seconds": 37.91,
+    "pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14"
+  },
+  {
+    "gate": "kvsnap",
+    "exit_code": 0,
+    "seconds": 17.89,
+    "pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14"
+  },
+  {
+    "gate": "coderpaste",
+    "exit_code": 0,
+    "seconds": 80.92,
+    "pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14"
+  },
+  {
+    "gate": "thinkcut",
+    "exit_code": 0,
+    "seconds": 63.99,
+    "pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14"
+  },
+  {
+    "gate": "thinkdone",
+    "exit_code": 0,
+    "seconds": 67.41,
+    "pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14"
+  },
+  {
+    "gate": "genroom",
+    "exit_code": 0,
+    "seconds": 29.54,
+    "pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14"
+  },
+  {
+    "gate": "taesd",
+    "exit_code": 0,
+    "seconds": 81.0,
+    "pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14"
+  }
+]

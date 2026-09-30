@@ -1,0 +1,16 @@
+{
+  "pfn": "GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14",
+  "baseline_pfn": "GianlucaMazza.xllama_1.6.0.1088_x64__pj67f1fcj4n14",
+  "original_file_count": 22,
+  "all_original_file_hashes_match": true,
+  "deleted_fixture_file_count": 37,
+  "all_deleted_fixture_files_absent": true,
+  "original_vae_bytes_match": true,
+  "default_model_hash_matches_catalogue": true,
+  "remaining_empty_test_directories": [],
+  "final_app_state": "stopped; API flag absent",
+  "initial_process_state": "not independently sampled; initial saved log ends headless bench: done, exiting",
+  "package_policy": "audited in-place update 1.6.0.1102 retained; not downgraded",
+  "restoration_scope": "all initial non-model files, actual VAE decoder, pinned default weights; other model trees were not exhaustively hashed at entry",
+  "retained_training_artifact_sha256": "0ece46ff3952a5e72d60811ed4492dc5d16d92f6db6a34e5f1609aa51322d58d"
+}

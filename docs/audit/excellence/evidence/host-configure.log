@@ -1,0 +1,50 @@
+-- The CXX compiler identification is GNU 16.2.1
+-- The C compiler identification is GNU 16.2.1
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/sbin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/sbin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- xllama: building for target=linux
+-- llama.cpp version: 0.5.0-dev
+CMAKE_BUILD_TYPE=Debug
+-- Found Git: /usr/sbin/git (found version "2.55.0")
+-- The ASM compiler identification is GNU
+-- Found assembler: /usr/sbin/cc
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- ccache found, compilation results will be cached. Disable with GGML_CCACHE=OFF.
+-- CMAKE_SYSTEM_PROCESSOR: x86_64
+-- GGML_SYSTEM_ARCH: x86
+-- Found OpenMP_C: -fopenmp (found version "5.2")
+-- Found OpenMP_CXX: -fopenmp (found version "5.2")
+-- Found OpenMP: TRUE (found version "5.2")
+-- Including CPU backend
+-- x86 detected
+-- Adding CPU backend variant ggml-cpu: -msse4.2;-mf16c;-mfma;-mbmi2;-mavx;-mavx2 GGML_SSE42;GGML_F16C;GGML_FMA;GGML_BMI2;GGML_AVX;GGML_AVX2
+-- ggml version: 0.25.1
+-- ggml commit:  7fe450e
+-- Found OpenSSL: /usr/lib/libcrypto.so (found version "3.6.4")
+-- Performing Test OPENSSL_VERSION_SUPPORTED
+-- Performing Test OPENSSL_VERSION_SUPPORTED - Success
+-- OpenSSL found: 3.6.4
+CMake Warning (deprecated) at build/linux-test/_deps/doctest-src/CMakeLists.txt:1 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+This warning is for project developers.  Use -Wno-author or -Wno-deprecated
+to suppress it.
+
+-- xllama: xllama-cli target configured — build with: cmake --build . -j
+-- Configuring done (2.7s)
+-- Generating done (0.1s)
+-- Build files have been written to: /home/gianluca/Workspace/tooling/xllama-excellence-audit/build/linux-test
