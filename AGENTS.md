@@ -118,7 +118,8 @@ python3 scripts/generate-benchmark-summary.py --check
 python3 scripts/build-research-package.py --check
 python3 scripts/check-release-metadata.py
 python3 -m unittest tests/test_research_package.py tests/test_xab_contract.py \
-  tests/test_release_metadata.py tests/test_release_bundle.py
+  tests/test_release_metadata.py tests/test_release_bundle.py \
+  tests/test_make_shape_gguf.py
 ```
 
 After the CLI exists, CI validates every `training/jobs/*.json`:

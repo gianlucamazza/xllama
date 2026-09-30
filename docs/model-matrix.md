@@ -286,6 +286,15 @@ models.
 | granite-embedding-english-r2     | reject — duplicate bet   | Same WS-E slot as nomic-embed-text-v1.5 at +15 MB and new-renderer cost; its own FAIL branch concedes to nomic                                                                                    |
 | multilingual-e5-small            | reject — duplicate bet   | Same WS-E slot; the multilingual axis has no named consumer, and its GGUF tokenizer is SPM over an XLM-R Unigram vocabulary                                                                       |
 
+**Shape gate (measured 2026-09-30)** — SSOT:
+[shape-gate-plan.md](shape-gate-plan.md). Do not reopen without a new fact
+(new backend, new quant, new operator).
+
+| Candidate                                    | Decision          | Reason                                                                                                                                                                  |
+| -------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Custom `lfm2` shape at ~1.1B (depth 8–32)    | reject — measured | G1 FAIL: best iso-parameter depth decodes 1.024× the random LFM2.5-1.2B clone (bar 1.30×). Decode at ~1B is bytes-per-token bound; depth moves it ±4% (`shape-gate`)    |
+| Custom `lfm2` vocabulary (32768 / 16384 ids) | reject — measured | G2 FAIL: decode 1.078× / 1.129×, but the same text needs 1.103× / 1.242× the tokens → 0.978× / 0.909× text throughput. Gain equals the bytes saved, no hidden head cost |
+
 ## G. Embedding API catalogue (host and Series S validated)
 
 Release CPU smoke on 2026-09-23 used `xllama-cli --embed`, a retrieval-style
