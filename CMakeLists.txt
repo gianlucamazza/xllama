@@ -52,6 +52,8 @@ set(LLAMA_BUILD_SERVER    OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_COMMON    ON  CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_TOOLS     ON  CACHE BOOL "" FORCE)
 
+execute_process(COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/scripts/apply-training-patches.sh
+    COMMAND_ERROR_IS_FATAL ANY)
 add_subdirectory(llama.cpp)
 
 # ------------------------------------------------------------------
@@ -71,6 +73,8 @@ add_library(xllama STATIC
     src/bridge/cli.cpp
     src/bridge/training.cpp
     src/bridge/device_train.cpp
+    src/bridge/floppylm_train.cpp
+    llama.cpp/vendor/hash/sha256/sha256.c
     src/bridge/preference_capture.cpp
     src/bridge/personalize.cpp
     src/bridge/autopilot.cpp
@@ -151,3 +155,28 @@ if(XLLAMA_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/CMakeLists.t
 endif()
 
 message(STATUS "xllama: xllama-cli target configured — build with: cmake --build . -j")
+
+add_library(xllama-floppy STATIC src/bridge/floppylm_codec.cpp src/bridge/floppylm_graph.cpp src/bridge/floppylm_probe.cpp)
+target_compile_features(xllama-floppy PUBLIC cxx_std_17)
+target_include_directories(xllama-floppy PUBLIC src/bridge llama.cpp/vendor llama.cpp/ggml/include)
+target_link_libraries(xllama-floppy PUBLIC ggml)
+if(XLLAMA_ENABLE_ASAN)
+    target_compile_options(xllama-floppy PUBLIC -fsanitize=address -fno-omit-frame-pointer)
+    target_link_options(xllama-floppy PUBLIC -fsanitize=address)
+endif()
+if(XLLAMA_ENABLE_UBSAN)
+    target_compile_options(xllama-floppy PUBLIC -fsanitize=undefined -fno-omit-frame-pointer)
+    target_link_options(xllama-floppy PUBLIC -fsanitize=undefined)
+endif()
+target_include_directories(xllama-floppy PUBLIC include)
+target_include_directories(xllama PRIVATE llama.cpp/vendor/hash)
+target_link_libraries(xllama PRIVATE xllama-floppy)
+if(XLLAMA_BUILD_TESTS)
+    add_executable(floppylm-probe tests/floppylm/probe_main.cpp)
+    target_link_libraries(floppylm-probe PRIVATE xllama-floppy)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    add_test(NAME floppylm-reference COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/floppylm/reference_parity.py $<TARGET_FILE:floppylm-probe> --all)
+    add_test(NAME floppylm-codec-edges COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/floppylm/codec_edges.py $<TARGET_FILE:floppylm-probe>)
+    add_test(NAME floppylm-optimizer COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/floppylm/optimizer_parity.py $<TARGET_FILE:floppylm-probe>)
+    add_test(NAME floppylm-runner COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/floppylm/runner_parity.py $<TARGET_FILE:xllama-cli>)
+endif()

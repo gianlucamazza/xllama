@@ -33,6 +33,7 @@ add_executable(xllama-tests
     test_logit_parity.cpp
     test_training.cpp
     test_device_train.cpp
+    test_floppylm.cpp
     test_json_utils.cpp
     test_preference_capture.cpp
     test_personalize.cpp
@@ -56,3 +57,5 @@ target_compile_definitions(xllama-tests PRIVATE
     PARITY_GOLDEN_BIN="${CMAKE_CURRENT_SOURCE_DIR}/golden/logits-smol-short.bin")
 
 add_test(NAME xllama-tests COMMAND xllama-tests)
+
+target_link_libraries(xllama-tests PRIVATE xllama-floppy)

@@ -116,6 +116,8 @@
         $(ProjectDir)..\include;
         $(ProjectDir)..\shaders\generated;
         $(ProjectDir)..\llama.cpp\include;
+        $(ProjectDir)..\llama.cpp\vendor;
+        $(ProjectDir)..\llama.cpp\vendor\hash;
         $(ProjectDir)..\llama.cpp\ggml\include;
         $(ProjectDir)packages\Microsoft.ML.OnnxRuntimeGenAI.DirectML.0.14.1\build\native\include;
         $(ProjectDir)packages\Microsoft.ML.OnnxRuntime.DirectML.1.24.4\build\native\include;
@@ -331,6 +333,11 @@
     <ClCompile Include="..\src\bridge\prompt_budget.cpp" />
     <ClCompile Include="..\src\bridge\training.cpp" />
     <ClCompile Include="..\src\bridge\device_train.cpp" />
+    <ClCompile Include="..\src\bridge\floppylm_codec.cpp" Condition="'$(XllamaDeviceTrainDefine)' != ''" />
+    <ClCompile Include="..\src\bridge\floppylm_graph.cpp" Condition="'$(XllamaDeviceTrainDefine)' != ''" />
+    <ClCompile Include="..\src\bridge\floppylm_train.cpp" Condition="'$(XllamaDeviceTrainDefine)' != ''" />
+    <ClCompile Include="..\src\bridge\floppylm_probe.cpp" Condition="'$(XllamaDeviceTrainDefine)' != ''" />
+    <ClCompile Include="..\llama.cpp\vendor\hash\sha256\sha256.c" Condition="'$(XllamaDeviceTrainDefine)' != ''" />
     <ClCompile Include="..\src\bridge\preference_capture.cpp" />
     <ClCompile Include="..\src\bridge\capture_probe.cpp" />
     <ClCompile Include="..\src\bridge\personalize.cpp" />

@@ -3,6 +3,9 @@
 
 #include "xllama/training.h"
 #include "xllama/json_utils.h"
+#ifdef XLLAMA_DEVICE_TRAIN
+    #include "xllama/floppylm.h"
+#endif
 
 #include <cctype>
 #include <cmath>
@@ -166,6 +169,8 @@ bool apply_string_field(TrainingJob& job, const std::string& key, const std::str
     else if (key == "method") {
         if (val == "lora_peft")
             job.method = TrainMethod::LoraPeft;
+        else if (val == "floppylm")
+            job.method = TrainMethod::FloppyLM;
         else if (val == "partial_ft")
             job.method = TrainMethod::PartialFt;
         else if (val == "full_ft" || val == "full_ft_reserved")
@@ -321,6 +326,8 @@ const char* training_method_name(TrainMethod method) {
         return "lora_peft";
     case TrainMethod::PartialFt:
         return "partial_ft";
+    case TrainMethod::FloppyLM:
+        return "floppylm";
     case TrainMethod::FullFtReserved:
         return "full_ft_reserved";
     }
@@ -375,6 +382,14 @@ const TrainingCapabilityInfo kCapabilities[] = {
      "DeviceGgmlPartialFt",
      "in-process ggml-opt partial FT (llama_opt param filter); host + console marker gates "
      "PASS (Phase 10, 2026-07-20: peak_ws 1195 MB, marker XLLAMA-LORA-OK)"},
+    {TrainingCapability::FloppyLMScalarTraining,
+#ifdef XLLAMA_DEVICE_TRAIN
+     true, "experimental",
+#else
+     false, "designed",
+#endif
+     "FloppyLMScalarTraining",
+     "native ggml scalar QAT; requires a pinned host-exported FloppyLM bundle"},
     {TrainingCapability::DevicePreferenceCapture, true, "available", "DevicePreferenceCapture",
      "autopilot op rate → LocalState/training/samples.jsonl (host retrain input)"},
 };
@@ -403,6 +418,17 @@ bool training_capability_available(TrainingCapability c) {
 }
 
 bool validate_training_job(const TrainingJob& job, std::string* err) {
+    if (job.method == TrainMethod::FloppyLM) {
+#ifdef XLLAMA_DEVICE_TRAIN
+        if (job.schema_version == 1 && !job.name.empty() && !job.bundle_path.empty() &&
+            !job.out_dir.empty())
+            return true;
+        set_err(err, "FloppyLM requires schema 1, name, bundle_path and out_dir");
+#else
+        set_err(err, "FloppyLM requires XLLAMA_DEVICE_TRAIN");
+#endif
+        return false;
+    }
     if (job.schema_version < 1) {
         set_err(err, "schema_version must be >= 1");
         return false;
@@ -491,6 +517,14 @@ bool parse_training_job_json(const std::string& json, TrainingJob& out, std::str
     size_t i = 0;
     if (!parse_object_into_job(json, i, job, err))
         return false;
+    if (job.method == TrainMethod::FloppyLM) {
+#ifdef XLLAMA_DEVICE_TRAIN
+        return validate_floppylm_job_json(json, out, err);
+#else
+        set_err(err, "FloppyLM requires XLLAMA_DEVICE_TRAIN");
+        return false;
+#endif
+    }
     skip_ws(json, i);
     // trailing whitespace ok
     out = std::move(job);
@@ -511,6 +545,10 @@ bool load_training_job_file(const std::string& path, TrainingJob& out, std::stri
 }
 
 std::string format_training_job_summary(const TrainingJob& job) {
+    if (job.method == TrainMethod::FloppyLM)
+        return "train-job name=" + job.name +
+               " method=floppylm device=" + training_device_name(job.device) +
+               " bundle=" + job.bundle_path + " out=" + job.out_dir;
     std::ostringstream os;
     os << "train-job name=" << job.name << " method=" << training_method_name(job.method)
        << " device=" << training_device_name(job.device) << " base=" << job.base_model;

@@ -6,9 +6,6 @@
 #include "xllama/inference.h"
 #include "xllama/platform.h"
 #include "xllama/session.h"
-#ifdef XLLAMA_DEVICE_TRAIN
-    #include "xllama/device_train.h"
-#endif
 #ifdef XLLAMA_BUILD_PROBES
     #include "xllama/diskbw.h"
     #include "xllama/gpubw.h"
@@ -19,12 +16,24 @@
 #include "xllama/training.h"
 #ifdef XLLAMA_DEVICE_TRAIN
     #include "xllama/device_train.h"
+    #include "xllama/floppylm.h"
 #endif
 
+#include <atomic>
 #include <cmath>
+#include <csignal>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+
+namespace {
+std::atomic<bool> training_abort{false};
+static_assert(std::atomic<bool>::is_always_lock_free,
+              "signal cancellation requires lock-free atomic");
+void stop_training(int) {
+    training_abort.store(true, std::memory_order_relaxed);
+}
+} // namespace
 
 int main(int argc, char** argv) {
     xllama::InferenceParams params;
@@ -151,20 +160,32 @@ int main(int argc, char** argv) {
             return 1;
         }
 #ifdef XLLAMA_DEVICE_TRAIN
-        if (job.method == xllama::TrainMethod::PartialFt) {
+        if (job.method == xllama::TrainMethod::PartialFt ||
+            job.method == xllama::TrainMethod::FloppyLM) {
             std::fprintf(stderr, "train-job: %s\n",
                          xllama::format_training_job_summary(job).c_str());
             xllama::DeviceTrainCallbacks cb;
             cb.on_status = [](const std::string& line) {
                 std::fprintf(stderr, "train-job: %s\n", line.c_str());
             };
-            const xllama::TrainingResult r = xllama::run_device_train_job(job, cb);
+            training_abort.store(false);
+            cb.abort_flag = &training_abort;
+            const auto old_int = std::signal(SIGINT, stop_training);
+            const auto old_term = std::signal(SIGTERM, stop_training);
+            const xllama::TrainingResult r = job.method == xllama::TrainMethod::FloppyLM
+                                                 ? xllama::run_floppylm_job(job, cb)
+                                                 : xllama::run_device_train_job(job, cb);
+            std::signal(SIGINT, old_int);
+            std::signal(SIGTERM, old_term);
             if (!r.success) {
                 std::fprintf(stderr, "train-job FAIL: %s\n", r.error_msg.c_str());
                 return 1;
             }
-            std::printf("train-job PASS: merged=%s last_loss=%.4f wall=%.1fs peak_ws=%zuMB\n",
-                        r.merged_gguf_path.c_str(), r.last_loss, r.wall_seconds, r.peak_ws_mb);
+            std::printf("train-job PASS: artifact=%s last_loss=%.4f wall=%.1fs peak_ws=%zuMB\n",
+                        (job.method == xllama::TrainMethod::FloppyLM ? r.floppylm_artifact_path
+                                                                     : r.merged_gguf_path)
+                            .c_str(),
+                        r.last_loss, r.wall_seconds, r.peak_ws_mb);
             return 0;
         }
 #endif

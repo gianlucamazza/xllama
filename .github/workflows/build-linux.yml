@@ -25,7 +25,7 @@ jobs:
 
       - uses: actions/setup-python@v7
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install dependencies
         run: |
@@ -49,6 +49,11 @@ jobs:
           # Markdown output between minors, and an unpinned formatter turns an
           # unrelated PR red. Bump deliberately and reformat the tree in one PR.
           npm install -g 'prettier@3.9.6'
+
+      - name: Install pinned FloppyLM reference dependencies
+        run: |
+          pip3 install 'torch==2.11.0' --index-url https://download.pytorch.org/whl/cpu
+          pip3 install 'numpy==2.4.4'
 
       - name: Verify C++ formatting
         run: |
@@ -121,7 +126,7 @@ jobs:
         run: python3 scripts/check-coherence.py
 
       - name: Configure (with tests)
-        run: cmake --preset linux-test
+        run: cmake --preset linux-test -DPython3_EXECUTABLE="$(command -v python3)"
 
       - name: Build
         run: cmake --build build/linux-test -j$(nproc)
@@ -191,13 +196,19 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake build-essential libcurl4-openssl-dev
+          pip3 install 'torch==2.11.0' --index-url https://download.pytorch.org/whl/cpu
+          pip3 install 'numpy==2.4.4'
 
       - name: Configure (ASan + tests)
-        run: cmake --preset linux-asan
+        run: cmake --preset linux-asan -DPython3_EXECUTABLE="$(command -v python3)"
 
       - name: Build
         run: cmake --build build/linux-asan -j$(nproc)

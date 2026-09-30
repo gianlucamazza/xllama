@@ -16,6 +16,7 @@ namespace xllama {
 enum class TrainMethod {
     LoraPeft,       // PEFT LoRA (host Python; first exploration backend)
     PartialFt,      // in-process ggml-opt partial fine-tune (device lane engine)
+    FloppyLM,       // native full scalar FloppyLM training
     FullFtReserved, // reserved — full fine-tune not supported in-process
 };
 
@@ -54,6 +55,7 @@ enum class TrainingCapability {
     DeviceLlamaFinetune,        // llama-finetune full FT — rejected (RAM class)
     DeviceGgmlPartialFt,        // in-process ggml-opt partial FT — available when
                                 // XLLAMA_DEVICE_TRAIN is on (Lane B gates PASS), else designed
+    FloppyLMScalarTraining,     // native scalar E0 training, experimental
     DevicePreferenceCapture,    // LocalState JSONL — available
 };
 
@@ -79,9 +81,11 @@ struct TrainingJob {
     TrainMethod method = TrainMethod::LoraPeft;
     TrainDevice device = TrainDevice::Host;
 
-    std::string base_model;   // HF id or local snapshot path
-    std::string dataset_path; // JSONL chat rows
-    std::string out_dir;      // working dir for adapter / gguf / result.json
+    std::string bundle_path;     // FloppyLM host-exported bundle.json
+    std::string checkpoint_path; // optional native checkpoint, never FLP2
+    std::string base_model;      // HF id or local snapshot path
+    std::string dataset_path;    // JSONL chat rows
+    std::string out_dir;         // working dir for adapter / gguf / result.json
 
     // LoRA hyperparams (method == LoraPeft)
     int lora_rank = 8;
@@ -113,6 +117,7 @@ struct TrainingResult {
     std::vector<TrainStage> stages_completed;
     std::string adapter_path;
     std::string merged_gguf_path;
+    std::string floppylm_artifact_path;
     std::string error_msg;
     // Optional metrics (the host runner and the Lane B engine fill these;
     // pure validation leaves them empty)

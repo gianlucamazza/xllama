@@ -397,3 +397,11 @@ Protocol SSOT: [api-endpoint.md](api-endpoint.md).
 - [uwp-constraints.md](uwp-constraints.md) §13
 - [training/README.md](../training/README.md)
 - [ROADMAP.md](../ROADMAP.md) Phases 8–11
+
+## Native FloppyLM scalar training
+
+The experimental `floppylm` method trains every weight of the byte-level E0 model
+with a separate ggml CPU graph. Its bundle, optimizer, WSD and native checkpoint
+contracts are documented in [the FloppyLM runbook](../training/floppylm/README.md).
+`FloppyLMScalarTraining` is available only in `XLLAMA_DEVICE_TRAIN` builds and is
+reported as experimental. It does not load FLP2 into the chat inference path.

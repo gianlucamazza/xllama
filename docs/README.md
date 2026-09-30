@@ -145,3 +145,7 @@ Spot-checked against code + evidence:
 | H9 6/8 · 7/8 · 4/8 · 5/8                             | `2026-09-30-h9-rescore.jsonl` (#243 scorer)               | OK                                                                    |
 | Lane B peak_ws 1195 MB, wall 446 s                   | `phase10-console-devtrain-result.json`                    | OK                                                                    |
 | Catalogue download sizes                             | `manifest.json` `approx_bytes`                            | Docs corrected to match (was 218/697/1.46 stale)                      |
+
+Native scalar FloppyLM training: [runbook](../training/floppylm/README.md),
+[engine decision](adr/0004-floppylm-training.md), and
+[numerical validation decision](adr/0005-floppylm-numeric-validation.md).

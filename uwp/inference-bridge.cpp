@@ -6,6 +6,7 @@
 #include "xllama/chat_prompt.h"
 #include "xllama/device_train.h"
 #include "xllama/diskbw.h"
+#include "xllama/floppylm.h"
 #include "xllama/gpubw.h"
 #include "xllama/gpugemv.h"
 #include "xllama/inference.h"
@@ -884,6 +885,8 @@ xllama::TrainingResult run_train_job_localized(const xllama::TrainingJob& job_in
     localize(job.base_model);
     localize(job.dataset_path);
     localize(job.out_dir);
+    localize(job.bundle_path);
+    localize(job.checkpoint_path);
 
     log_output(("[xllama] train: " + xllama::format_training_job_summary(job) + "\n").c_str());
 
@@ -916,7 +919,8 @@ xllama::TrainingResult run_train_job_localized(const xllama::TrainingJob& job_in
             prev_progress(p);
     };
 
-    return xllama::run_device_train_job(job, cb);
+    return job.method == xllama::TrainMethod::FloppyLM ? xllama::run_floppylm_job(job, cb)
+                                                       : xllama::run_device_train_job(job, cb);
     #else
     (void)job_in;
     (void)cb_in;

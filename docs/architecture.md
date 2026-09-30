@@ -623,7 +623,7 @@ host Release smoke (quality + peak)
 ## Unit test map (host suite)
 
 Every `include/xllama/X.h` has a corresponding `tests/test_X.cpp`. The suite
-is **264 test cases / 4437 assertions** (doctest, without opt-in model checks).
+is **268 test cases / 6613 assertions** (doctest, without opt-in model checks).
 
 | Test file                     | Tests | Header under test                  |
 | ----------------------------- | ----- | ---------------------------------- |
@@ -638,6 +638,7 @@ is **264 test cases / 4437 assertions** (doctest, without opt-in model checks).
 | `test_session.cpp`            | —     | `session.h`                        |
 | `test_sampling.cpp`           | —     | `sampling.h`                       |
 | `test_training.cpp`           | —     | `training.h` / `training_params.h` |
+| `test_floppylm.cpp`           | 4     | `floppylm.h`                       |
 | `test_device_train.cpp`       | —     | `device_train.h`                   |
 | `test_preference_capture.cpp` | —     | `preference_capture.h`             |
 | `test_chat_prompt.cpp`        | —     | `chat_prompt.h`                    |

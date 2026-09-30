@@ -1,0 +1,18 @@
+{
+  "source": "floppy_4mb",
+  "commit": "2c2e737583341929ff8b42cffc0c9952968d8ca3",
+  "files": {
+    "floppylm/__init__.py": "7f2f61b038b0618bf2a758162e40609e32dc2a7522cb481aeac175109905f510",
+    "floppylm/codec.py": "1bd657359f16e597de154b88cc77cf46fab092444335fb6164d99b531f5e462f",
+    "floppylm/data.py": "ee77ecbc3993a0a2101adaba8d70a905cb95a328d62acc3a2d457b6d85e74611",
+    "floppylm/metrics.py": "ca90d1ecd537d102758d422a3af4e2e3403abd6e84a92f63bb09bcc15e4e200f",
+    "floppylm/model.py": "9a8c2da790c9836083af91ff1ba77c9009e9fc4d6f9bb2ab5059f5aae27febf0",
+    "floppylm/pack.py": "5d733a3265b800dc0cf635f046b2d55bc4b6bf5a863260a9e0802e4fd8a19898",
+    "floppylm/parity.py": "3020c298c38f58f7ba71a5afbc84de4b349fd254860d9c3c0584c269c86df659",
+    "floppylm/rans.py": "281c640d1b54eaff6164de6c942d5c1c0a3ca5233a896d3bf067ed20348ee37b",
+    "floppylm/runlog.py": "73a3ee5f033b9a9edf2189fd7be7af35b7cb5fc5713167fd39e87839cd6ec22c",
+    "floppylm/seed.py": "694dd86fef042e51edd0dac601958cfda4192677a8aeb264ffc63935df7d7713",
+    "floppylm/shapes.py": "2da4f4211742a6c5befc7f8c5a24617a9fcbefa31af56e4b64627a0e7ac4b1cb",
+    "floppylm/train.py": "bfa70a82df33f75cded83bd25ba6a627e70538d9a6dcb080e30d7528ebbe1005"
+  }
+}
