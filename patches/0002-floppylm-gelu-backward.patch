@@ -5,7 +5,7 @@ index a286083b9..1f4339416 100644
 @@ -6748,6 +6748,22 @@ static void ggml_sub_or_set(
      ggml_build_forward_expand(cgraph, cgraph->grads[isrc]);
  }
- 
+
 +// Exact GELU vector-Jacobian product. Used only in the backward graph (no second derivatives).
 +static void ggml_gelu_erf_vjp(struct ggml_tensor * dst, const struct ggml_tensor * x,
 +        const struct ggml_tensor * dy, int ith, int nth, void * userdata) {
