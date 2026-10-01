@@ -6,6 +6,8 @@
 #include "xllama/gpugemv.h"
 
 #include <cmath>
+#include <cstdint>
+#include <string>
 #include <vector>
 
 using namespace xllama;
@@ -127,6 +129,11 @@ TEST_CASE("gpugemv: CSV columns match header") {
 TEST_CASE("gpugemv: kernel names") {
     CHECK(std::string(gpugemv_kernel_name(GpugemvKernel::Naive)) == "naive");
     CHECK(std::string(gpugemv_kernel_name(GpugemvKernel::Wave32)) == "wave32");
+    CHECK(std::string(gpugemv_kernel_name(GpugemvKernel::Rows)) == "rows");
+    CHECK(std::string(gpugemv_kernel_name(GpugemvKernel::Dot4)) == "dot4");
+    CHECK(gpugemv_kernel_needs_sm64(GpugemvKernel::Dot4));
+    CHECK_FALSE(gpugemv_kernel_needs_sm64(GpugemvKernel::Rows));
+    CHECK_FALSE(gpugemv_kernel_needs_sm64(GpugemvKernel::Wave32));
 }
 
 TEST_CASE("gpugemv: dispatch plan") {
@@ -148,6 +155,94 @@ TEST_CASE("gpugemv: dispatch plan") {
     CHECK(w4.groups_x == 4);
     CHECK(w4.groups_x >= 1);
     CHECK(w4.groups_x <= 65535);
+}
+
+TEST_CASE("gpugemv: H6.3 dispatch plan covers every row") {
+    const GpugemvKernel kernels[] = {GpugemvKernel::Rows, GpugemvKernel::Dot4};
+    for (GpugemvKernel kernel : kernels) {
+        const GpugemvDispatch d = gpugemv_plan_dispatch(8192, kernel);
+        CHECK(d.threads_per_group == 64);
+        CHECK(d.rows_per_group == 4);
+        CHECK(d.groups_x == 2048);
+        const GpugemvDispatch odd = gpugemv_plan_dispatch(6, kernel);
+        CHECK(odd.groups_x == 2);
+        CHECK(odd.groups_x * odd.rows_per_group >= 6);
+        CHECK(gpugemv_plan_dispatch(0, kernel).groups_x == 0);
+    }
+}
+
+TEST_CASE("gpugemv: H6.3 lane map covers each block element exactly once") {
+    // 16 threads share a block (one ix); every element of the 256 must be
+    // read once, lo nibbles from qs byte (e - 64*il) and hi from the same byte.
+    for (std::uint32_t ix = 0; ix < 4u; ++ix) {
+        int seen[256] = {};
+        for (std::uint32_t itid = 0; itid < 16u; ++itid) {
+            const GpugemvRowsLane l = gpugemv_rows_lane(ix * 16u + itid);
+            CHECK(l.ix == ix);
+            CHECK(l.qs_byte % 8u == 0u);
+            CHECK(l.qs_byte >= 16u);
+            CHECK(l.qs_byte + 8u <= 144u);
+            CHECK(l.e_lo / 32u == l.sub_lo);
+            CHECK((l.e_lo + 7u) / 32u == l.sub_lo);
+            CHECK((l.e_lo + 32u) / 32u == l.sub_lo + 1u);
+            // ggml: within a 64-group, qs[l] lo → y[l], hi → y[32+l].
+            CHECK(l.qs_byte - 16u == (l.e_lo / 64u) * 32u + (l.e_lo % 64u));
+            for (std::uint32_t i = 0; i < 8u; ++i) {
+                ++seen[l.e_lo + i];
+                ++seen[l.e_lo + 32u + i];
+            }
+        }
+        for (int e = 0; e < 256; ++e)
+            CHECK(seen[e] == 1);
+    }
+}
+
+TEST_CASE("gpugemv: q8 activation roundtrip") {
+    constexpr int k = 512;
+    std::vector<float> x(k), xq(k);
+    std::vector<std::int8_t> qx(k);
+    std::vector<float> dx(k / kGpugemvQ8Block);
+    gpugemv_fill_x(x.data(), k);
+    x[0] = 0.f; // keep one exact zero
+    gpugemv_quantize_x_q8(x.data(), k, qx.data(), dx.data());
+    gpugemv_dequant_x_q8(qx.data(), dx.data(), k, xq.data());
+    for (int i = 0; i < k; ++i) {
+        CHECK(qx[static_cast<std::size_t>(i)] >= -127);
+        CHECK(std::fabs(xq[static_cast<std::size_t>(i)] - x[static_cast<std::size_t>(i)]) <=
+              0.5f * dx[static_cast<std::size_t>(i / kGpugemvQ8Block)] + 1e-7f);
+    }
+    CHECK(xq[0] == 0.f);
+
+    std::vector<float> zero(kGpugemvQ8Block, 0.f), dz(1, -1.f);
+    std::vector<std::int8_t> qz(kGpugemvQ8Block, 1);
+    gpugemv_quantize_x_q8(zero.data(), kGpugemvQ8Block, qz.data(), dz.data());
+    CHECK(dz[0] == 0.f);
+    for (std::int8_t q : qz)
+        CHECK(q == 0);
+}
+
+TEST_CASE("gpugemv: H6.3 shader emulation matches the CPU reference") {
+    constexpr int n = 6;
+    constexpr int k = 2048; // nb = 8: two blocks per ix, exercises the stride-4 loop
+    std::vector<GpugemvQ4KBlock> w(static_cast<std::size_t>(n * (k / kGpugemvQK)));
+    std::vector<float> x(k), ref(n), y(n);
+    gpugemv_fill_weights(w.data(), n, k);
+    gpugemv_fill_x(x.data(), k);
+
+    gpugemv_cpu_ref(w.data(), x.data(), ref.data(), n, k);
+    gpugemv_rows_emulate(w.data(), x.data(), y.data(), n, k);
+    CHECK(gpugemv_max_abs_err(ref.data(), y.data(), n) <= kGpugemvMaxAbsErrTol);
+
+    // dot4: G1 compares against cpu_ref on the q8-roundtripped activation.
+    std::vector<std::int8_t> qx(k);
+    std::vector<float> dx(k / kGpugemvQ8Block), xq(k);
+    gpugemv_quantize_x_q8(x.data(), k, qx.data(), dx.data());
+    gpugemv_dequant_x_q8(qx.data(), dx.data(), k, xq.data());
+    gpugemv_cpu_ref(w.data(), xq.data(), ref.data(), n, k);
+    gpugemv_dot4_emulate(w.data(), qx.data(), dx.data(), y.data(), n, k);
+    CHECK(gpugemv_max_abs_err(ref.data(), y.data(), n) <= kGpugemvMaxAbsErrTol);
+    for (float v : y)
+        CHECK(std::isfinite(v));
 }
 
 TEST_CASE("gpugemv: LDS transpose indices over nload in {1,16,32}") {
@@ -212,6 +307,21 @@ TEST_CASE("gpugemv: ladder at 7.9/8/39.9/40") {
     naive_only[0].g1_all3 = true;
     naive_only[0].ladder = GpugemvLadder::K3Open;
     CHECK(gpugemv_campaign_verdict(naive_only, 1) == GpugemvLadder::NotAVerdict);
+
+    // H6.3: best G1-passing median among wave32/rows/dot4 decides.
+    GpugemvKernelSummary three[3] = {};
+    three[0].kernel = GpugemvKernel::Wave32;
+    three[0].median_packed_gbs = 25.4;
+    three[0].g1_all3 = true;
+    three[1].kernel = GpugemvKernel::Rows;
+    three[1].median_packed_gbs = 41.0;
+    three[1].g1_all3 = true;
+    three[2].kernel = GpugemvKernel::Dot4;
+    three[2].median_packed_gbs = 90.0;
+    three[2].g1_all3 = false; // e.g. sm6.4 unsupported: never a verdict
+    CHECK(gpugemv_campaign_verdict(three, 3) == GpugemvLadder::K3Open);
+    three[1].median_packed_gbs = 30.0;
+    CHECK(gpugemv_campaign_verdict(three, 3) == GpugemvLadder::K2Park);
 }
 
 TEST_CASE("gpugemv: measure on non-D3D12 host reports unavailable") {
@@ -233,4 +343,17 @@ TEST_CASE("gpugemv: measure on non-D3D12 host reports unavailable") {
     CHECK_FALSE(rows[0].d3d12_ran);
     CHECK(rows[0].packed_gbs == 0.0);
 #endif
+    const GpugemvKernel h63[] = {GpugemvKernel::Rows, GpugemvKernel::Dot4};
+    for (GpugemvKernel kernel : h63) {
+        std::vector<GpugemvResult> out;
+        measure_gpugemv_each(256, 256, 3, kernel, &out);
+        REQUIRE(out.size() >= 1);
+        CHECK(out[0].kernel == kernel);
+#if !defined(_WIN32)
+        CHECK(out.size() == 1);
+        CHECK_FALSE(out[0].d3d12_ran);
+        CHECK_FALSE(gpugemv_passes_g1(out[0]));
+        CHECK(out[0].expected_y_checksum != 0u);
+#endif
+    }
 }

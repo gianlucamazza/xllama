@@ -408,7 +408,9 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   **#228** (own compute path, not DirectML). H6.1 Q4_K GEMV: G1 PASS / G2 FAIL
   (2.15 GB/s packed, compute-bound naive CS) → **eng parked 2026-08-08**.
   H6.2 wave32 density probe **K2** (2026-08-21, CI `1.5.5.922`): G1 PASS,
-  median **25.4** GB/s packed (G2 stays 40). Small-model GPU decode via ORT
+  median **25.4** GB/s packed (G2 stays 40). H6.3 (2026-10-01) adds the
+  multi-row `rows`/`dot4` candidates under the same ladder; console CSV
+  pending ([phase15-re-opt.md](phase15-re-opt.md) WS-E / H6.3). Small-model GPU decode via ORT
   DML remains falsified; STREAM only shows raw VRAM bandwidth our D3D12 code
   can reach.
 

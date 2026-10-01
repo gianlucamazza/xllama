@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# bench-gpugemv.sh — deploy gpugemv.flag, fetch gpugemv-result.csv (Phase 15 H6.2 #228).
+# bench-gpugemv.sh — deploy gpugemv.flag, fetch gpugemv-result.csv (Phase 15 H6.3 #228).
 #
 # Prerequisites: CI MSVC package installed on Series S (crossbuild may not launch).
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/bench-gpugemv.sh [--out bench/results/phase15-gpugemv-h62.csv]
-#   ./scripts/bench-gpugemv.sh --out bench/results/phase15-gpugemv.csv --force
+#   ./scripts/bench-gpugemv.sh [--out bench/results/phase15-gpugemv-h63.csv]
+#   ./scripts/bench-gpugemv.sh --out bench/results/phase15-gpugemv-h62.csv --force
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -13,7 +13,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # shellcheck disable=SC1090,SC1091
 source "${XBOX_ENV:-$HOME/.config/xllama/xbox-env}"
 
-OUT="${REPO_ROOT}/bench/results/phase15-gpugemv-h62.csv"
+OUT="${REPO_ROOT}/bench/results/phase15-gpugemv-h63.csv"
 TIMEOUT_S=300
 FORCE=0
 
@@ -38,14 +38,15 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-# H6.1 evidence is immutable. Refuse the old path unless --force.
-h61="${REPO_ROOT}/bench/results/phase15-gpugemv.csv"
-out_abs="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$OUT")"
-h61_abs="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$h61")"
-if [[ "$out_abs" == "$h61_abs" && "$FORCE" != 1 ]]; then
-	echo "refusing to write $OUT (H6.1 CSV). Pass --force to override." >&2
-	exit 2
-fi
+# H6.1 / H6.2 evidence is immutable. Refuse those paths unless --force.
+realpath_py() { python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$1"; }
+out_abs="$(realpath_py "$OUT")"
+for old in phase15-gpugemv.csv phase15-gpugemv-h62.csv; do
+	if [[ "$out_abs" == "$(realpath_py "${REPO_ROOT}/bench/results/$old")" && "$FORCE" != 1 ]]; then
+		echo "refusing to write $OUT (recorded $old). Pass --force to override." >&2
+		exit 2
+	fi
+done
 
 : "${XBOX_IP:?source ~/.config/xllama/xbox-env}"
 PFN=$("${SCRIPT_DIR}/deploy.sh" pfn 2>/dev/null || true)

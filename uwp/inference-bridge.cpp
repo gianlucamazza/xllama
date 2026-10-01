@@ -488,12 +488,14 @@ void run_gpubw() {
 
 void run_gpugemv() {
 #ifdef XLLAMA_UWP
-    log_output("[xllama] gpugemv: measuring Q4_K GEMV density (wave32 + naive A/B, no Agility)\n");
+    log_output("[xllama] gpugemv: measuring Q4_K GEMV density (wave32/rows/dot4 + naive A/B, "
+               "no Agility)\n");
 
-    const ::xllama::GpugemvKernel kernels[] = {::xllama::GpugemvKernel::Naive,
-                                               ::xllama::GpugemvKernel::Wave32};
-    ::xllama::GpugemvKernelSummary denser[1] = {};
-    bool have_denser = false;
+    const ::xllama::GpugemvKernel kernels[] = {
+        ::xllama::GpugemvKernel::Naive, ::xllama::GpugemvKernel::Wave32,
+        ::xllama::GpugemvKernel::Rows, ::xllama::GpugemvKernel::Dot4};
+    ::xllama::GpugemvKernelSummary denser[3] = {};
+    std::size_t n_denser = 0;
 
     const std::string csv = resolve_local_path("gpugemv-result.csv");
     FILE* fp = _wfopen(utf8_to_wstring(csv).c_str(), L"w");
@@ -553,18 +555,16 @@ void run_gpugemv() {
                  ::xllama::gpugemv_kernel_name(kernel), median, g1_all3 ? 1 : 0,
                  ::xllama::gpugemv_ladder_name(ladder));
         log_output(lb);
-        if (kernel == ::xllama::GpugemvKernel::Wave32) {
-            denser[0].kernel = kernel;
-            denser[0].median_packed_gbs = median;
-            denser[0].g1_all3 = g1_all3;
-            denser[0].ladder = ladder;
-            have_denser = true;
+        if (kernel != ::xllama::GpugemvKernel::Naive && n_denser < 3) {
+            denser[n_denser].kernel = kernel;
+            denser[n_denser].median_packed_gbs = median;
+            denser[n_denser].g1_all3 = g1_all3;
+            denser[n_denser].ladder = ladder;
+            ++n_denser;
         }
     }
 
-    const ::xllama::GpugemvLadder campaign = have_denser
-                                                 ? ::xllama::gpugemv_campaign_verdict(denser, 1)
-                                                 : ::xllama::GpugemvLadder::NotAVerdict;
+    const ::xllama::GpugemvLadder campaign = ::xllama::gpugemv_campaign_verdict(denser, n_denser);
     char clb[160];
     snprintf(clb, sizeof(clb), "[xllama] gpugemv: campaign_verdict=%s\n",
              ::xllama::gpugemv_ladder_name(campaign));

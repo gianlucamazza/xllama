@@ -1,10 +1,13 @@
 // Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
 //
-// Phase 15 H6.2 (#228) — Q4_K GEMV density probe (own compute shader).
+// Phase 15 H6.2/H6.3 (#228) — Q4_K GEMV density probe (own compute shader).
 //
 // Still a *measurement*, not a GGUF GPU backend. H6.1 naive is A/B only.
-// Gated candidate is wave32 (one wave = one row, LDS-red).
+// Denser candidates: wave32 (H6.2, one wave = one row, LDS-red), rows and
+// dot4 (H6.3, 64 threads × kGpugemvRowsPerGroup rows, X held in registers;
+// dot4 multiplies against host-quantized q8 activations with SM 6.4
+// dot4add_i8packed).
 //
 // Soft density gate (predeclared, SSOT docs/phase15-re-opt.md):
 //   G1 correctness: max_abs_err vs CPU ref below threshold + checksum match
@@ -56,7 +59,19 @@ static_assert(sizeof(GpugemvQ4KBlock) == 144, "must match ggml block_q4_K");
 enum class GpugemvKernel : int {
     Naive = 0,
     Wave32 = 1,
+    Rows = 2, // H6.3, cs_6_0
+    Dot4 = 3, // H6.3, cs_6_4 (needs D3D_SHADER_MODEL_6_4)
 };
+
+inline bool gpugemv_kernel_needs_sm64(GpugemvKernel k) {
+    return k == GpugemvKernel::Dot4;
+}
+
+// H6.3 kernels: rows per group (NUM_ROWS in the HLSL) and threads per group.
+inline constexpr int kGpugemvRowsPerGroup = 4;
+inline constexpr int kGpugemvRowsThreads = 64;
+// q8 activation block for dot4: one fp32 scale per 32 int8 values.
+inline constexpr int kGpugemvQ8Block = 32;
 
 inline const char* gpugemv_kernel_name(GpugemvKernel k) {
     switch (k) {
@@ -64,6 +79,10 @@ inline const char* gpugemv_kernel_name(GpugemvKernel k) {
         return "naive";
     case GpugemvKernel::Wave32:
         return "wave32";
+    case GpugemvKernel::Rows:
+        return "rows";
+    case GpugemvKernel::Dot4:
+        return "dot4";
     }
     return "wave32";
 }
@@ -108,6 +127,20 @@ void gpugemv_fill_x(float* x, int k);
 // CPU reference: y[n] = sum_k W[n,k]*x[k] with Q4_K weights stored row-major
 // as (n * (k/QK)) blocks.
 void gpugemv_cpu_ref(const GpugemvQ4KBlock* blocks, const float* x, float* y, int n, int k);
+
+// q8 activations for dot4: qx[i] = round(x[i] / dx[i/32]), dx = amax/127 per
+// 32 elements (dx = 0 for an all-zero block). dx has k/32 entries.
+void gpugemv_quantize_x_q8(const float* x, int k, std::int8_t* qx, float* dx);
+// Inverse of the above: x_q[i] = qx[i] * dx[i/32]. The dot4 CPU reference is
+// gpugemv_cpu_ref(W, x_q) — G1 measures the kernel, not the activation quant.
+void gpugemv_dequant_x_q8(const std::int8_t* qx, const float* dx, int k, float* x_q);
+
+// Host emulation of the H6.3 shaders' per-thread algebra and lane mapping
+// (shaders/gpugemv_q4k_rows.hlsl, gpugemv_q4k_dot4.hlsl). Tests compare them
+// with gpugemv_cpu_ref; the console run compares the GPU with the same ref.
+void gpugemv_rows_emulate(const GpugemvQ4KBlock* blocks, const float* x, float* y, int n, int k);
+void gpugemv_dot4_emulate(const GpugemvQ4KBlock* blocks, const std::int8_t* qx, const float* dx,
+                          float* y, int n, int k);
 
 // Folded checksum of float bits (XOR of uint32 bit patterns).
 std::uint32_t gpugemv_checksum_floats(const float* data, std::size_t n);
@@ -178,7 +211,8 @@ inline GpugemvLadder gpugemv_campaign_verdict(const GpugemvKernelSummary* denser
 }
 
 // Dispatch planner (host-testable). naive: ceil(N/64) groups of 64 rows.
-// wave32: N groups of 1 row. Does not clamp the 65535 cap.
+// wave32: N groups of 1 row. rows/dot4: ceil(N/4) groups of 64 threads.
+// Does not clamp the 65535 cap.
 struct GpugemvDispatch {
     std::uint32_t threads_per_group = 0;
     std::uint32_t rows_per_group = 0;
@@ -193,6 +227,11 @@ inline GpugemvDispatch gpugemv_plan_dispatch(int n, GpugemvKernel kernel) {
         d.threads_per_group = 64;
         d.rows_per_group = 64;
         d.groups_x = n == 0 ? 0u : static_cast<std::uint32_t>((n + 63) / 64);
+    } else if (kernel == GpugemvKernel::Rows || kernel == GpugemvKernel::Dot4) {
+        d.threads_per_group = kGpugemvRowsThreads;
+        d.rows_per_group = kGpugemvRowsPerGroup;
+        d.groups_x =
+            static_cast<std::uint32_t>((n + kGpugemvRowsPerGroup - 1) / kGpugemvRowsPerGroup);
     } else {
         d.threads_per_group = 32;
         d.rows_per_group = 1;
@@ -212,6 +251,29 @@ inline std::uint32_t gpugemv_lds_read_index(std::uint32_t lane, std::uint32_t q)
 inline std::uint32_t gpugemv_lds_load_byte(std::uint32_t chunk_byte, std::uint32_t pass,
                                            std::uint32_t nload, std::uint32_t lane) {
     return chunk_byte + pass * (nload * 16u) + lane * 16u;
+}
+
+// H6.3 lane mapping — must match the rows/dot4 HLSL. Thread tid (0..63) works
+// on blocks ix, ix+4, ... of each row; inside a block it reads 8 qs bytes at
+// qs_byte and covers elements [e_lo, e_lo+8) (lo nibbles, sub-block sub_lo)
+// and [e_lo+32, e_lo+40) (hi nibbles, sub-block sub_lo+1).
+struct GpugemvRowsLane {
+    std::uint32_t ix = 0;      // first block, stride 4
+    std::uint32_t qs_byte = 0; // byte offset inside the 144 B block
+    std::uint32_t e_lo = 0;    // first lo element inside the 256-element block
+    std::uint32_t sub_lo = 0;  // 32-element sub-block of the lo elements
+};
+
+inline GpugemvRowsLane gpugemv_rows_lane(std::uint32_t tid) {
+    const std::uint32_t itid = tid & 15u;
+    const std::uint32_t il = itid >> 2;
+    const std::uint32_t ir = itid & 3u;
+    GpugemvRowsLane l;
+    l.ix = (tid >> 4) & 3u;
+    l.qs_byte = 16u + il * 32u + ir * 8u;
+    l.e_lo = il * 64u + ir * 8u;
+    l.sub_lo = 2u * il;
+    return l;
 }
 
 // Windows/UWP: D3D12 system device GEMV. Non-Windows: d3d12_ran=false.

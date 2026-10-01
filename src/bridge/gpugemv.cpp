@@ -26,7 +26,9 @@
     #include <dxgi1_4.h>
     #include <wrl/client.h>
 
+    #include "gpugemv_q4k_dot4_dxil.h"
     #include "gpugemv_q4k_dxil.h"
+    #include "gpugemv_q4k_rows_dxil.h"
     #include "gpugemv_q4k_wave32_dxil.h"
     #include "xllama/d3d12_dyn.h"
 
@@ -177,6 +179,129 @@ void gpugemv_cpu_ref(const GpugemvQ4KBlock* blocks, const float* x, float* y, in
     }
 }
 
+void gpugemv_quantize_x_q8(const float* x, int k, std::int8_t* qx, float* dx) {
+    if (!x || !qx || !dx || k <= 0 || (k % kGpugemvQ8Block) != 0)
+        return;
+    for (int s = 0; s < k / kGpugemvQ8Block; ++s) {
+        const float* xs = x + s * kGpugemvQ8Block;
+        float amax = 0.f;
+        for (int i = 0; i < kGpugemvQ8Block; ++i)
+            amax = std::max(amax, std::fabs(xs[i]));
+        const float d = amax / 127.f;
+        const float inv = d > 0.f ? 1.f / d : 0.f;
+        dx[s] = d;
+        for (int i = 0; i < kGpugemvQ8Block; ++i) {
+            const long v = std::lround(xs[i] * inv);
+            qx[s * kGpugemvQ8Block + i] = static_cast<std::int8_t>(std::clamp(v, -127L, 127L));
+        }
+    }
+}
+
+void gpugemv_dequant_x_q8(const std::int8_t* qx, const float* dx, int k, float* x_q) {
+    if (!qx || !dx || !x_q || k <= 0 || (k % kGpugemvQ8Block) != 0)
+        return;
+    for (int i = 0; i < k; ++i)
+        x_q[i] = static_cast<float>(qx[i]) * dx[i / kGpugemvQ8Block];
+}
+
+namespace {
+
+// One H6.3 thread's view of a block: the two sub-block scales/mins it needs.
+struct RowsScales {
+    float d1, m1, d2, m2;
+};
+
+RowsScales rows_scales(const GpugemvQ4KBlock& b, std::uint32_t sub_lo) {
+    const float d = gpugemv_half_to_float(b.d);
+    const float minv = gpugemv_half_to_float(b.dmin);
+    std::uint8_t sc, m;
+    RowsScales r{};
+    gpugemv_get_scale_min_k4(static_cast<int>(sub_lo), b.scales, &sc, &m);
+    r.d1 = d * static_cast<float>(sc);
+    r.m1 = minv * static_cast<float>(m);
+    gpugemv_get_scale_min_k4(static_cast<int>(sub_lo + 1), b.scales, &sc, &m);
+    r.d2 = d * static_cast<float>(sc);
+    r.m2 = minv * static_cast<float>(m);
+    return r;
+}
+
+// Same tree as the HLSL's LDS reduction (stride 32 → 1).
+float rows_tree_sum(float* v) {
+    for (int stride = kGpugemvRowsThreads / 2; stride > 0; stride >>= 1)
+        for (int t = 0; t < stride; ++t)
+            v[t] += v[t + stride];
+    return v[0];
+}
+
+} // namespace
+
+void gpugemv_rows_emulate(const GpugemvQ4KBlock* blocks, const float* x, float* y, int n, int k) {
+    if (!blocks || !x || !y || n <= 0 || k <= 0 || (k % kGpugemvQK) != 0)
+        return;
+    const int nb = k / kGpugemvQK;
+    float acc[kGpugemvRowsThreads];
+    for (int row = 0; row < n; ++row) {
+        for (std::uint32_t tid = 0; tid < kGpugemvRowsThreads; ++tid) {
+            const GpugemvRowsLane l = gpugemv_rows_lane(tid);
+            const std::uint32_t qoff = l.qs_byte - 16u;
+            float a = 0.f;
+            for (int blk = static_cast<int>(l.ix); blk < nb; blk += 4) {
+                const GpugemvQ4KBlock& b = blocks[row * nb + blk];
+                const float* xl = x + blk * kGpugemvQK + l.e_lo;
+                const float* xh = xl + 32;
+                const RowsScales s = rows_scales(b, l.sub_lo);
+                float lo = 0.f, hi = 0.f, sxl = 0.f, sxh = 0.f;
+                for (int i = 0; i < 8; ++i) {
+                    const std::uint8_t q = b.qs[qoff + i];
+                    lo += static_cast<float>(q & 0xF) * xl[i];
+                    hi += static_cast<float>(q >> 4) * xh[i];
+                    sxl += xl[i];
+                    sxh += xh[i];
+                }
+                a += s.d1 * lo - s.m1 * sxl + s.d2 * hi - s.m2 * sxh;
+            }
+            acc[tid] = a;
+        }
+        y[row] = rows_tree_sum(acc);
+    }
+}
+
+void gpugemv_dot4_emulate(const GpugemvQ4KBlock* blocks, const std::int8_t* qx, const float* dx,
+                          float* y, int n, int k) {
+    if (!blocks || !qx || !dx || !y || n <= 0 || k <= 0 || (k % kGpugemvQK) != 0)
+        return;
+    const int nb = k / kGpugemvQK;
+    const int subs = kGpugemvQK / kGpugemvQ8Block;
+    float acc[kGpugemvRowsThreads];
+    for (int row = 0; row < n; ++row) {
+        for (std::uint32_t tid = 0; tid < kGpugemvRowsThreads; ++tid) {
+            const GpugemvRowsLane l = gpugemv_rows_lane(tid);
+            const std::uint32_t qoff = l.qs_byte - 16u;
+            float a = 0.f;
+            for (int blk = static_cast<int>(l.ix); blk < nb; blk += 4) {
+                const GpugemvQ4KBlock& b = blocks[row * nb + blk];
+                const std::int8_t* xl = qx + blk * kGpugemvQK + l.e_lo;
+                const std::int8_t* xh = xl + 32;
+                const float dxl = dx[blk * subs + static_cast<int>(l.sub_lo)];
+                const float dxh = dx[blk * subs + static_cast<int>(l.sub_lo) + 1];
+                const RowsScales s = rows_scales(b, l.sub_lo);
+                int lo = 0, hi = 0, sxl = 0, sxh = 0;
+                for (int i = 0; i < 8; ++i) {
+                    const std::uint8_t q = b.qs[qoff + i];
+                    lo += (q & 0xF) * xl[i];
+                    hi += (q >> 4) * xh[i];
+                    sxl += xl[i];
+                    sxh += xh[i];
+                }
+                a += dxl * (s.d1 * static_cast<float>(lo) - s.m1 * static_cast<float>(sxl)) +
+                     dxh * (s.d2 * static_cast<float>(hi) - s.m2 * static_cast<float>(sxh));
+            }
+            acc[tid] = a;
+        }
+        y[row] = rows_tree_sum(acc);
+    }
+}
+
 std::uint32_t gpugemv_checksum_floats(const float* data, std::size_t n) {
     std::uint32_t x = 0;
     if (!data)
@@ -251,6 +376,23 @@ GpugemvResult gpugemv_median_summary(const std::vector<GpugemvResult>& rows) {
     return r;
 }
 
+// Activation the kernel actually multiplies: fp32 x, or q8-roundtripped x for
+// dot4 (qx/dx filled for the upload). Expected y is cpu_ref against it.
+void gpugemv_kernel_x(GpugemvKernel kernel, std::vector<float>& x, std::vector<std::int8_t>* qx,
+                      std::vector<float>* dx) {
+    if (kernel != GpugemvKernel::Dot4)
+        return;
+    const int k = static_cast<int>(x.size());
+    std::vector<std::int8_t> q(x.size());
+    std::vector<float> d(x.size() / kGpugemvQ8Block);
+    gpugemv_quantize_x_q8(x.data(), k, q.data(), d.data());
+    gpugemv_dequant_x_q8(q.data(), d.data(), k, x.data());
+    if (qx)
+        *qx = std::move(q);
+    if (dx)
+        *dx = std::move(d);
+}
+
 void gpugemv_host_tiny_ref(GpugemvResult& r, int n, int k) {
     const int tn = std::min(n, 8);
     const int tk = std::min(k, kGpugemvQK);
@@ -261,6 +403,7 @@ void gpugemv_host_tiny_ref(GpugemvResult& r, int n, int k) {
     std::vector<float> y(static_cast<std::size_t>(tn));
     gpugemv_fill_weights(w.data(), tn, tk);
     gpugemv_fill_x(x.data(), tk);
+    gpugemv_kernel_x(r.kernel, x, nullptr, nullptr);
     gpugemv_cpu_ref(w.data(), x.data(), y.data(), tn, tk);
     r.expected_y_checksum = gpugemv_checksum_floats(y.data(), static_cast<std::size_t>(tn));
 }
@@ -460,7 +603,21 @@ void measure_gpugemv_each(int n, int k, int iterations, GpugemvKernel kernel,
     std::vector<float> host_y(static_cast<std::size_t>(n));
     gpugemv_fill_weights(host_w.data(), n, k);
     gpugemv_fill_x(host_x.data(), k);
+    std::vector<std::int8_t> host_qx;
+    std::vector<float> host_dx;
+    gpugemv_kernel_x(kernel, host_x, &host_qx, &host_dx);
     gpugemv_cpu_ref(host_w.data(), host_x.data(), host_y.data(), n, k);
+    // dot4 uploads qx bytes then fp32 dx at byte offset k (see the HLSL).
+    std::vector<std::uint8_t> x_upload_bytes;
+    if (kernel == GpugemvKernel::Dot4) {
+        x_upload_bytes.resize(host_qx.size() + host_dx.size() * sizeof(float));
+        std::memcpy(x_upload_bytes.data(), host_qx.data(), host_qx.size());
+        std::memcpy(x_upload_bytes.data() + host_qx.size(), host_dx.data(),
+                    host_dx.size() * sizeof(float));
+    } else {
+        x_upload_bytes.resize(host_x.size() * sizeof(float));
+        std::memcpy(x_upload_bytes.data(), host_x.data(), x_upload_bytes.size());
+    }
     seed.expected_y_checksum = gpugemv_checksum_floats(host_y.data(), static_cast<std::size_t>(n));
 
     ComPtr<IDXGIFactory4> factory;
@@ -507,6 +664,18 @@ void measure_gpugemv_each(int n, int k, int iterations, GpugemvKernel kernel,
     }
     seed.wave_ops = false; // PR 1 ships LDS-red only.
 
+    if (gpugemv_kernel_needs_sm64(kernel)) {
+        D3D12_FEATURE_DATA_SHADER_MODEL sm = {D3D_SHADER_MODEL_6_4};
+        if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &sm, sizeof(sm))) ||
+            sm.HighestShaderModel < D3D_SHADER_MODEL_6_4) {
+            char b[96];
+            std::snprintf(b, sizeof(b), "sm6.4 unsupported (highest=0x%x)",
+                          static_cast<unsigned>(sm.HighestShaderModel));
+            push_err(b);
+            return;
+        }
+    }
+
     D3D12_COMMAND_QUEUE_DESC qd = {};
     qd.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
     ComPtr<ID3D12CommandQueue> queue;
@@ -542,12 +711,23 @@ void measure_gpugemv_each(int n, int k, int iterations, GpugemvKernel kernel,
 
     D3D12_COMPUTE_PIPELINE_STATE_DESC pso_desc = {};
     pso_desc.pRootSignature = root.Get();
-    if (kernel == GpugemvKernel::Naive) {
+    switch (kernel) {
+    case GpugemvKernel::Naive:
         pso_desc.CS.pShaderBytecode = kGpugemvQ4kDxil;
         pso_desc.CS.BytecodeLength = kGpugemvQ4kDxilSize;
-    } else {
+        break;
+    case GpugemvKernel::Rows:
+        pso_desc.CS.pShaderBytecode = kGpugemvQ4kRowsDxil;
+        pso_desc.CS.BytecodeLength = kGpugemvQ4kRowsDxilSize;
+        break;
+    case GpugemvKernel::Dot4:
+        pso_desc.CS.pShaderBytecode = kGpugemvQ4kDot4Dxil;
+        pso_desc.CS.BytecodeLength = kGpugemvQ4kDot4DxilSize;
+        break;
+    case GpugemvKernel::Wave32:
         pso_desc.CS.pShaderBytecode = kGpugemvQ4kWave32Dxil;
         pso_desc.CS.BytecodeLength = kGpugemvQ4kWave32DxilSize;
+        break;
     }
     ComPtr<ID3D12PipelineState> pso;
     hr = device->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&pso));
@@ -558,7 +738,7 @@ void measure_gpugemv_each(int n, int k, int iterations, GpugemvKernel kernel,
     }
 
     const UINT64 w_bytes = static_cast<UINT64>(seed.packed_bytes);
-    const UINT64 x_bytes = static_cast<UINT64>(k) * sizeof(float);
+    const UINT64 x_bytes = static_cast<UINT64>(x_upload_bytes.size());
     const UINT64 y_bytes = static_cast<UINT64>(n) * sizeof(float);
 
     auto w_default =
@@ -630,7 +810,7 @@ void measure_gpugemv_each(int n, int k, int iterations, GpugemvKernel kernel,
             out->push_back(std::move(seed));
             return;
         }
-        std::memcpy(mapped, host_x.data(), static_cast<std::size_t>(x_bytes));
+        std::memcpy(mapped, x_upload_bytes.data(), static_cast<std::size_t>(x_bytes));
         x_upload->Unmap(0, nullptr);
     }
     {

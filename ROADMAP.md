@@ -60,7 +60,8 @@ performance belongs in `docs/benchmarks.md`.
 3. ~~**WS-F headset** (#241)~~ — **closed PASS 2026-09-30**: real capture under
    AppContainer (RMS 0.019). ASR candidate H16.6a is unblocked, not started.
 4. **Parked eng** — H6/H7 (#228) after H6.2 **K2** (wave32 median 25.4 GB/s
-   packed, G2 stays 40); crossbuild product parity (layer 2 closed
+   packed, G2 stays 40; H6.3 `rows`/`dot4` density A/B predeclared, console
+   run pending); crossbuild product parity (layer 2 closed
    2026-08-08 by uwp-crossbuild 0.5.1 — launch proven; ORT/GenAI, first boot
    and uptime not); prompt-lookup default OFF. Dependabot llama.cpp #247 was
    closed 2026-08-26 after the UWP build failed on `LLAMA_VERSION`; do not
@@ -140,7 +141,8 @@ Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.
       rejected models or add catalogue ids.
 - [ ] H6/H7 GPU or hybrid GGUF eng — **parked** after H6.2 **K2** (2026-08-21):
       wave32 G1 PASS, median **25.4** GB/s packed vs G2 ≥40 (CI `1.5.5.922`).
-      H6.1 naive was 2.15. STREAM still 119 GB/s. G2 not rewritten. Tracking:
+      H6.1 naive was 2.15. STREAM still 119 GB/s. G2 not rewritten. H6.3
+      `rows`/`dot4` candidates predeclared 2026-10-01. Tracking:
       **#228**.
 
 ## Phase 8 — Training pillar (exploration) ✅ FROZEN complete

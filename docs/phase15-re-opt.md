@@ -118,14 +118,14 @@ shipping).
 
 ## Workstreams
 
-| ID   | Name                              | Issue | Status                                                                                                     |
-| ---- | --------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------- |
-| WS0  | Baseline freeze + this doc        | —     | **done** (this file)                                                                                       |
-| WS-A | W2 prompt-lookup speculative      | #210  | **closed for default** — host PASS; console M3 **1.04× FAIL** gate; opt-in remains                         |
-| WS-B | W3 gpubw STREAM + Q4 GEMV spike   | #211  | **closed PASS** — STREAM **119.07 GB/s** Series S (`1.5.2.853`); Q4 GEMV moves to #228                     |
-| WS-C | #130 DML valley mechanism profile | #130  | **closed** mitigation-only (no new RE)                                                                     |
-| WS-D | H5 BitNet desk survey             | —     | **done 2026-08-10 — NO-GO**, no artefact to survey (M8)                                                    |
-| WS-E | H6/H7 GGUF GPU path               | #228  | **parked (K2)** — H6.2 wave32 G1 PASS / G2 FAIL (median **25.4** GB/s packed, CI `1.5.5.922`); G2 stays 40 |
+| ID   | Name                              | Issue | Status                                                                                                                        |
+| ---- | --------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| WS0  | Baseline freeze + this doc        | —     | **done** (this file)                                                                                                          |
+| WS-A | W2 prompt-lookup speculative      | #210  | **closed for default** — host PASS; console M3 **1.04× FAIL** gate; opt-in remains                                            |
+| WS-B | W3 gpubw STREAM + Q4 GEMV spike   | #211  | **closed PASS** — STREAM **119.07 GB/s** Series S (`1.5.2.853`); Q4 GEMV moves to #228                                        |
+| WS-C | #130 DML valley mechanism profile | #130  | **closed** mitigation-only (no new RE)                                                                                        |
+| WS-D | H5 BitNet desk survey             | —     | **done 2026-08-10 — NO-GO**, no artefact to survey (M8)                                                                       |
+| WS-E | H6/H7 GGUF GPU path               | #228  | **H6.3 predeclared** — after H6.2 K2 (wave32 median **25.4** GB/s packed, CI `1.5.5.922`); rows/dot4 A/B pending; G2 stays 40 |
 
 ### WS-A detail (W2)
 
@@ -203,22 +203,56 @@ runs, GPU timestamp):** G1 PASS on all 3 for both kernels. Campaign kernel
 **K2**. Retimed `naive` median **1.96** (A/B only). G2 stays 40. No Session
 backend. No product tok/s.
 
+### WS-E / H6.3 — multi-row Q4_K GEMV (**predeclared**, not yet measured)
+
+**Diagnosis of H6.2.** At K=8192 each wave32 lane owns a whole block (256 MAC
+in series) and loads 1 KiB of fp32 X per 144 B of W — ~256 MB of X cache
+traffic for 36 MB of packed weights, one row per group, LDS transpose plus two
+barriers. It is load-issue/ALU-bound, not DRAM-bound, which is why it sits at
+21% of STREAM.
+
+H6.3 adds two denser candidates with the llama.cpp Vulkan `mul_mat_vec_q4_k`
+shape: 64 threads × **4 rows** per group, 16 threads per block, 16 weights per
+thread, X held in registers and reused across the 4 rows, W read straight from
+the raw buffer (no LDS transpose, no barriers in the main loop). Lane mapping:
+`gpugemv_rows_lane()` in `include/xllama/gpugemv.h`.
+
+| Kernel | Shader                          | Profile | Activation                                        |
+| ------ | ------------------------------- | ------- | ------------------------------------------------- |
+| `rows` | `shaders/gpugemv_q4k_rows.hlsl` | cs_6_0  | fp32                                              |
+| `dot4` | `shaders/gpugemv_q4k_dot4.hlsl` | cs_6_4  | q8 (int8 + fp32 scale per 32), `dot4add_i8packed` |
+
+`dot4` quantizes X on the host like llama.cpp's CPU `vec_dot_q4_K_q8_K`
+quantizes activations, so G1 compares it with `gpugemv_cpu_ref` on the
+q8-roundtripped X: the gate measures the kernel, not the activation quant.
+Without `D3D_SHADER_MODEL_6_4` the run records `error=sm6.4 unsupported`,
+`d3d12_ran=0` → **not a density verdict** for that kernel (never K1).
+
+Gates unchanged: **G1 as H6.1, G2 = 40, K1 = 8, ladder per kernel**; the
+campaign verdict is the best G1-passing median among `wave32`/`rows`/`dot4`
+(`gpugemv_campaign_verdict`). Host tests emulate both shaders' per-thread
+algebra (`gpugemv_rows_emulate`, `gpugemv_dot4_emulate`) against the CPU ref.
+CSV: `bench/results/phase15-gpugemv-h63.csv` (`scripts/bench-gpugemv.sh`
+default; H6.1 and H6.2 CSVs refuse overwrite without `--force`). K3 opens a
+GGUF GPU decode _design_ only — no Session backend, no product tok/s.
+
 ## Milestones
 
-| M    | Deliverable                                   | Exit                                                                                                                                                                                                           |
-| ---- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M0   | This doc + ROADMAP/README links               | done                                                                                                                                                                                                           |
-| M1   | W2.1–W2.3 host + tests                        | ctest PASS                                                                                                                                                                                                     |
-| M2   | W2.4 opt-in + host acceptance CSV             | acceptance vs pregate                                                                                                                                                                                          |
-| M3   | Console W2 A/B + full gates                   | **measured** — code 1.04× **FAIL** gate; chat OK; peak OK                                                                                                                                                      |
-| M4   | Product default decision (after M3 numbers)   | **OFF** (opt-in only); CHANGELOG                                                                                                                                                                               |
-| M5   | gpubw STREAM spike (code + flag + DXIL)       | **done** (eng); multi-dim Dispatch for 1 GiB; host helpers unit-tested                                                                                                                                         |
-| M6   | console measure vs 100 GB/s                   | **PASS** — Series S **119.07 GB/s**, checksum_ok, 1024 MB, CI `1.5.2.853`; CSV `bench/results/phase15-gpubw.csv`                                                                                               |
-| M7   | #130 closed                                   | **done** product-mitigated 2026-08-08                                                                                                                                                                          |
-| M8   | H5 survey note                                | **NO-GO (2026-08-10)** — runtime is ready (`bitnet` is in the pin) but no sub-4B model trained at ≤2 bits publishes weights; QAT literature ships recipes, not checkpoints. See `docs/phase7-hypotheses.md` H5 |
-| M9   | H6.1 Q4_K GEMV measure (code + flag + DXIL)   | **measured** — G1 PASS / G2 FAIL                                                                                                                                                                               |
-| M9+  | H6 full decode eng                            | **parked** (Decision 2026-08-08); H6.2 density probe is the reopen, not a gate rewrite                                                                                                                         |
-| M9++ | H6.2 wave32 GEMV measure (code + flag + DXIL) | **measured K2** — Series S CI `1.5.5.922`, wave32 median **25.4** GB/s packed, G1 PASS; G2=40 not cleared. CSV `bench/results/phase15-gpugemv-h62.csv`                                                         |
+| M     | Deliverable                                      | Exit                                                                                                                                                                                                           |
+| ----- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M0    | This doc + ROADMAP/README links                  | done                                                                                                                                                                                                           |
+| M1    | W2.1–W2.3 host + tests                           | ctest PASS                                                                                                                                                                                                     |
+| M2    | W2.4 opt-in + host acceptance CSV                | acceptance vs pregate                                                                                                                                                                                          |
+| M3    | Console W2 A/B + full gates                      | **measured** — code 1.04× **FAIL** gate; chat OK; peak OK                                                                                                                                                      |
+| M4    | Product default decision (after M3 numbers)      | **OFF** (opt-in only); CHANGELOG                                                                                                                                                                               |
+| M5    | gpubw STREAM spike (code + flag + DXIL)          | **done** (eng); multi-dim Dispatch for 1 GiB; host helpers unit-tested                                                                                                                                         |
+| M6    | console measure vs 100 GB/s                      | **PASS** — Series S **119.07 GB/s**, checksum_ok, 1024 MB, CI `1.5.2.853`; CSV `bench/results/phase15-gpubw.csv`                                                                                               |
+| M7    | #130 closed                                      | **done** product-mitigated 2026-08-08                                                                                                                                                                          |
+| M8    | H5 survey note                                   | **NO-GO (2026-08-10)** — runtime is ready (`bitnet` is in the pin) but no sub-4B model trained at ≤2 bits publishes weights; QAT literature ships recipes, not checkpoints. See `docs/phase7-hypotheses.md` H5 |
+| M9    | H6.1 Q4_K GEMV measure (code + flag + DXIL)      | **measured** — G1 PASS / G2 FAIL                                                                                                                                                                               |
+| M9+   | H6 full decode eng                               | **parked** (Decision 2026-08-08); H6.2 density probe is the reopen, not a gate rewrite                                                                                                                         |
+| M9+++ | H6.3 rows/dot4 GEMV measure (code + flag + DXIL) | **predeclared** — host emulation tests PASS; console CSV `phase15-gpugemv-h63.csv` pending                                                                                                                     |
+| M9++  | H6.2 wave32 GEMV measure (code + flag + DXIL)    | **measured K2** — Series S CI `1.5.5.922`, wave32 median **25.4** GB/s packed, G1 PASS; G2=40 not cleared. CSV `bench/results/phase15-gpugemv-h62.csv`                                                         |
 
 ## Decision log
 
@@ -245,6 +279,7 @@ backend. No product tok/s.
 | 2026-08-08 | **H6 eng parked (#228).** Binding constraint remains bytes/token; G2 FAIL shows no free ride on STREAM 119 GB/s. No full GGUF GPU backend without new density PASS or explicit gate rewrite. Focus → product hygiene.                                                                                                                                                                                                                                                                                                            |
 | 2026-08-21 | **H6.2 eng start (#228):** wave32 Q4_K GEMV density probe (LDS-red, dispatch-only timer, naive A/B). G2 stays 40; K1=8 requires G1. Not a SessionHub backend.                                                                                                                                                                                                                                                                                                                                                                    |
 | 2026-08-21 | **H6.2 console K2:** CI MSVC `1.5.5.922`, Series S, N=K=8192, 3 recorded runs. `wave32` G1 PASS all 3, median **packed_gbs=25.4** (24.89–26.02); retimed `naive` median **1.96**. CSV `bench/results/phase15-gpugemv-h62.csv`. **K2 park** — 8 ≤ 25.4 < 40. G2 stays 40. No Session GPU backend. #228 remains parked.                                                                                                                                                                                                            |
+| 2026-10-01 | **H6.3 eng start (#228):** `rows` (cs_6_0) and `dot4` (cs_6_4, q8 X) multi-row Q4_K GEMV, 4 rows × 64 threads, X in registers, no LDS transpose. Diagnosis: wave32 is load-issue bound on fp32 X (~256 MB cache traffic per 36 MB W). Gates unchanged (G2 40, K1 8). Not a SessionHub backend.                                                                                                                                                                                                                                   |
 | 2026-08-08 | **v1.5.3.0 shipped** (PR #230, tag `v1.5.3.0`, MSIX `1.5.3.873`): dual-CRT package architecture + AppContainer PE hygiene + History/title product fixes. Product launch remains CI MSVC. Series S `validate-console.sh all` **9/9 PASS**. W2 stays opt-in OFF; H6 remains parked.                                                                                                                                                                                                                                                |
 | 2026-08-08 | **#216 closed** (PR #232): serialize #170b snapshot save vs next generate; Series S `all` ×6 PASS (kvsnap 551→19).                                                                                                                                                                                                                                                                                                                                                                                                               |
 | 2026-08-08 | **#223 closed** (PR #234): catalogue `n_predict` 1024 + console gate `thinkdone` (short happy path); hard multi-step may still exhaust CoT. Suite **10** gates. CSV `bench/results/phase15-thinking-complete.csv`.                                                                                                                                                                                                                                                                                                               |
@@ -254,7 +289,7 @@ backend. No product tok/s.
 
 - #210 W2 prompt-lookup — **closed** (eng opt-in shipped; product default OFF after M3)
 - #211 W3 gpubw gate — **closed PASS** (119.07 GB/s); PR #227
-- #228 H6 eng follow-up — **parked (K2)** after H6.2 console median 25.4 GB/s packed (G2 stays 40)
+- #228 H6 eng follow-up — **H6.3 predeclared** (rows/dot4) after H6.2 K2 (console median 25.4 GB/s packed, G2 stays 40)
 - #130 DML max_length valley — **closed** product-mitigated 2026-08-08
 - #216 kvsnap save race — **closed** PR #232 (`all` ×6)
 - #223 thinking-tier completion — **closed** PR #234 (`thinkdone` + n_predict 1024)
