@@ -25,6 +25,9 @@
 // Defined in the headless section below; also used by the in-process
 // diffusion experiment in App::OnLaunched.
 static std::wstring flag_path_if_present(const wchar_t* name);
+static void run_gpustep_headless() {
+    ::xllama::bridge::run_gpustep(/*inproc=*/false);
+}
     #endif
 
 using namespace winrt;
@@ -255,6 +258,18 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
             }).detach();
         }
 
+        // D1d (docs/gguf-gpu-decode.md): the same probe with the compositor's
+        // D3D12 device alive — chat and the LAN API live in this process.
+        std::wstring gpustep_inproc = flag_path_if_present(L"gpustep-inproc.flag");
+        if (!gpustep_inproc.empty()) {
+            _wremove(gpustep_inproc.c_str());
+            log_write("[xllama] gpustep-inproc.flag detected -> D1 probe in the XAML process\n");
+            std::thread([] {
+                winrt::init_apartment(); // MTA: resolve_local_path uses ApplicationData
+                ::xllama::bridge::run_gpustep(/*inproc=*/true);
+            }).detach();
+        }
+
         // LAN HTTP endpoint (OpenAI-compat), opt-in and default OFF: started
         // only when LocalState\api.flag exists. The flag is NOT consumed — the
         // server is persistent and coexists with the live XAML chat UI, unlike
@@ -432,6 +447,15 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
                 "[xllama] gpugemv.flag detected -> headless Q4_K GEMV mode (#228)\n");
             winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
                 winrt::make<HeadlessView>(&::xllama::bridge::run_gpugemv, "gpugemv"));
+            return 0; // not reached: CoreApplication::Exit terminates the process
+        }
+        std::wstring gpustep_flag = flag_path_if_present(L"gpustep.flag");
+        if (!gpustep_flag.empty()) {
+            _wremove(gpustep_flag.c_str());
+            ::xllama::log_output(
+                "[xllama] gpustep.flag detected -> headless GGUF GPU decode probe D1\n");
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(&run_gpustep_headless, "gpustep"));
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
         std::wstring ramceil_flag = flag_path_if_present(L"ramceil.flag");

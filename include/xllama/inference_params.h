@@ -108,6 +108,12 @@ struct InferenceParams {
     /// Probe Q4_K GEMV density and exit (D3D12 CS; not a backend).
     bool run_gpugemv = false;
 
+    /// GGUF GPU decode probe D1: print the cost-model projection and exit.
+    bool run_gpustep = false;
+
+    /// Evaluate this gpustep CSV against the D1 gates and exit (empty = off).
+    std::string gpustep_verdict_csv;
+
     /// Probe heap ceiling and exit (no model load).
     bool run_ramceil = false;
 

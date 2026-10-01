@@ -433,13 +433,14 @@ GEMV" figure (read 12.35 GB/s @1t; `benchmarks.md`).
 
 A family of micro-bench probes that pin the platform's physical ceilings:
 
-| Probe          | Header      | What it measures                                                       | Console exposure         |
-| -------------- | ----------- | ---------------------------------------------------------------------- | ------------------------ |
-| **CPU membw**  | `membw.h`   | STREAM read/copy/triad over 256 MB (DRAM ceiling)                      | `--membw` / `membw.flag` |
-| **Disk bw**    | `diskbw.h`  | NVMe sequential + random read (4 GiB file, 8 MiB / 2 MiB blocks)       | `--diskbw`               |
-| **RAM ceil**   | `ramceil.h` | Heap commit ceiling (steps of 128 MB, page-fault in, record counters)  | `--ramceil`              |
-| **GPU STREAM** | `gpubw.h`   | D3D12 compute-shader STREAM read over ~1 GiB VRAM (kill gate 100 GB/s) | `gpubw.flag`             |
-| **GPU GEMV**   | `gpugemv.h` | Wave32 Q4_K GEMV density (G1 correctness + G2 density ≥ 40 GB/s)       | `gpugemv.flag`           |
+| Probe          | Header      | What it measures                                                       | Console exposure             |
+| -------------- | ----------- | ---------------------------------------------------------------------- | ---------------------------- |
+| **CPU membw**  | `membw.h`   | STREAM read/copy/triad over 256 MB (DRAM ceiling)                      | `--membw` / `membw.flag`     |
+| **Disk bw**    | `diskbw.h`  | NVMe sequential + random read (4 GiB file, 8 MiB / 2 MiB blocks)       | `--diskbw`                   |
+| **RAM ceil**   | `ramceil.h` | Heap commit ceiling (steps of 128 MB, page-fault in, record counters)  | `--ramceil`                  |
+| **GPU STREAM** | `gpubw.h`   | D3D12 compute-shader STREAM read over ~1 GiB VRAM (kill gate 100 GB/s) | `gpubw.flag`                 |
+| **GPU GEMV**   | `gpugemv.h` | Q4_K GEMV density, naive/wave32/rows/dot4 (G1 + G2 density ≥ 40 GB/s)  | `gpugemv.flag`               |
+| **GPU step**   | `gpustep.h` | GGUF GPU decode D1: round trip, simulated token per model, heap BW     | `gpustep.flag` / `--gpustep` |
 
 All probes share the same design: pure helpers (pattern fill, checksum, CSV
 serialization) are host-testable on Linux; the D3D12/Windows path returns
@@ -669,21 +670,23 @@ is **268 test cases / 7070 assertions** (doctest, without opt-in model checks).
 or XAML compositor, giving D3D12-clean hosts for DirectML work. The following
 flags are supported:
 
-| Flag                  | Entry point              | Purpose                                                |
-| --------------------- | ------------------------ | ------------------------------------------------------ |
-| `bench.flag`          | `main_loop`              | Model benchmark (tok/s, peak, latency)                 |
-| `diffuse.flag`        | `run_diffuse`            | SD-Turbo diffusion pipeline (headless)                 |
-| `diffuse-inproc.flag` | `run_diffuse` in-process | Diffusion on background MTA thread inside XAML process |
-| `membw.flag`          | `run_membw`              | CPU STREAM bandwidth probe                             |
-| `diskbw.flag`         | `run_diskbw`             | NVMe sequential + random read probe                    |
-| `gpubw.flag`          | `run_gpubw`              | GPU STREAM probe (D3D12 compute shader)                |
-| `gpugemv.flag`        | `run_gpugemv`            | Q4_K GEMV density probe (D3D12 compute shader)         |
-| `ramceil.flag`        | `run_ramceil`            | Heap ceiling probe (commit in steps)                   |
-| `mic.flag`            | `run_mic_probe`          | Microphone / AudioGraph probe                          |
-| `logits.flag`         | `run_logits`             | Logit-parity dump (float32 + JSON sidecar)             |
-| `oprepro.flag`        | `run_oprepro`            | Single-op CPU-vs-DML diagnostic (`repro.onnx`)         |
-| `train.flag`          | `run_train`              | On-device training (Lane B partial FT)                 |
-| `api.flag`            | `run_server`             | LAN API server (persistence via `LocalState\api.flag`) |
+| Flag                  | Entry point              | Purpose                                                             |
+| --------------------- | ------------------------ | ------------------------------------------------------------------- |
+| `bench.flag`          | `main_loop`              | Model benchmark (tok/s, peak, latency)                              |
+| `diffuse.flag`        | `run_diffuse`            | SD-Turbo diffusion pipeline (headless)                              |
+| `diffuse-inproc.flag` | `run_diffuse` in-process | Diffusion on background MTA thread inside XAML process              |
+| `membw.flag`          | `run_membw`              | CPU STREAM bandwidth probe                                          |
+| `diskbw.flag`         | `run_diskbw`             | NVMe sequential + random read probe                                 |
+| `gpubw.flag`          | `run_gpubw`              | GPU STREAM probe (D3D12 compute shader)                             |
+| `gpugemv.flag`        | `run_gpugemv`            | Q4_K GEMV density probe (D3D12 compute shader)                      |
+| `gpustep.flag`        | `run_gpustep(false)`     | GGUF GPU decode probe D1 ([gguf-gpu-decode.md](gguf-gpu-decode.md)) |
+| `gpustep-inproc.flag` | `run_gpustep(true)`      | D1d: the same probe inside the XAML process                         |
+| `ramceil.flag`        | `run_ramceil`            | Heap ceiling probe (commit in steps)                                |
+| `mic.flag`            | `run_mic_probe`          | Microphone / AudioGraph probe                                       |
+| `logits.flag`         | `run_logits`             | Logit-parity dump (float32 + JSON sidecar)                          |
+| `oprepro.flag`        | `run_oprepro`            | Single-op CPU-vs-DML diagnostic (`repro.onnx`)                      |
+| `train.flag`          | `run_train`              | On-device training (Lane B partial FT)                              |
+| `api.flag`            | `run_server`             | LAN API server (persistence via `LocalState\api.flag`)              |
 
 ## UWP front-end summary
 

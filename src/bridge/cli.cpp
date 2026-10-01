@@ -49,6 +49,12 @@ static void print_help(const char* prog) {
                  "      --gpugemv        Phase 15 H6.2 (#228) Q4_K GEMV density probe\n"
                  "                       (host: tiny-tile wave32 TDD; Linux reports d3d12\n"
                  "                       unavailable — no fake GB/s. Console A/B is gpugemv.flag)\n"
+                 "      --gpustep        GGUF GPU decode probe D1 (docs/gguf-gpu-decode.md):\n"
+                 "                       prints the cost-model projection per model; Linux\n"
+                 "                       reports d3d12 unavailable. Console run is gpustep.flag\n"
+                 "      --gpustep-verdict <csv>\n"
+                 "                       Evaluate a gpustep CSV against the D1 gates and print\n"
+                 "                       the ladder (no model needed)\n"
                  "      --ramceil        Probe how much heap this process can commit and\n"
                  "                       exit (no model needed); prints the CSV rows\n"
                  "      --greedy         Deterministic argmax decode (implies logit parity);\n"
@@ -116,6 +122,8 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         {"diskbw", no_argument, nullptr, 23},
         {"embed", no_argument, nullptr, 24},
         {"dimensions", required_argument, nullptr, 25},
+        {"gpustep", no_argument, nullptr, 26},
+        {"gpustep-verdict", required_argument, nullptr, 27},
         {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0}};
 
@@ -215,6 +223,12 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         case 25:
             out.embed_dimensions = std::atoi(optarg);
             break;
+        case 26:
+            out.run_gpustep = true;
+            break;
+        case 27:
+            out.gpustep_verdict_csv = optarg;
+            break;
         case 'h':
             print_help(argv[0]);
             std::exit(0);
@@ -224,13 +238,15 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         }
     }
 
-    // --membw / --gpubw / --gpugemv / --diskbw / --ramceil / train-job / --embed: model/prompt
-    // not required.
+    // --membw / --gpubw / --gpugemv / --gpustep / --diskbw / --ramceil / train-job / --embed:
+    // model/prompt not required.
     if (out.run_membw)
         return true;
     if (out.run_gpubw)
         return true;
     if (out.run_gpugemv)
+        return true;
+    if (out.run_gpustep || !out.gpustep_verdict_csv.empty())
         return true;
     if (out.run_diskbw)
         return true;

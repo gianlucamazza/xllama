@@ -7,6 +7,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **GGUF GPU decode design + probe D1** (#228). Design SSOT
+  [`docs/gguf-gpu-decode.md`](docs/gguf-gpu-decode.md): a ggml backend `d3d12`
+  owned by xllama (matmul-only first, opt-in), cost model and predeclared D1/D2
+  gates. New `gpustep.flag` / `gpustep-inproc.flag` probe (round trip,
+  simulated token per model, heap bandwidth, in-XAML run),
+  `scripts/bench-gpustep.sh`, `xllama-cli --gpustep` / `--gpustep-verdict`.
+  D3D12 plumbing shared in `src/bridge/d3d12_compute.{h,cpp}`. No backend, no
+  tok/s claim.
+
 - **H6.3 multi-row Q4_K GEMV density probe — K3** (#228). New `rows`
   (cs_6_0) and `dot4` (cs_6_4, q8 activations) kernels in `gpugemv.flag`:
   4 rows × 64 threads per group, X in registers, no LDS transpose. Series S

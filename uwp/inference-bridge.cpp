@@ -8,6 +8,7 @@
 #include "xllama/diskbw.h"
 #include "xllama/gpubw.h"
 #include "xllama/gpugemv.h"
+#include "xllama/gpustep.h"
 #include "xllama/inference.h"
 #include "xllama/json_utils.h"
 #include "xllama/membw.h"
@@ -582,6 +583,53 @@ void run_gpugemv() {
         fclose(done);
     }
     log_output("[xllama] gpugemv-result.csv written\n");
+#endif
+}
+
+// ---------------------------------------------------------------------------
+// run_gpustep (gpustep.flag headless, gpustep-inproc.flag inside the XAML process)
+// ---------------------------------------------------------------------------
+
+void run_gpustep(bool inproc) {
+#ifdef XLLAMA_UWP
+    const char* process = inproc ? "inproc" : "headless";
+    const std::string base = inproc ? "gpustep-inproc-result.csv" : "gpustep-result.csv";
+    char lb[400];
+    snprintf(lb, sizeof(lb), "[xllama] gpustep: D1 probe process=%s (no Agility)\n", process);
+    log_output(lb);
+
+    std::vector<::xllama::GpustepRow> rows;
+    ::xllama::measure_gpustep(process, &rows);
+
+    FILE* fp = _wfopen(utf8_to_wstring(resolve_local_path(base)).c_str(), L"w");
+    if (fp)
+        fputs(::xllama::gpustep_csv_header(), fp);
+    for (const auto& r : rows) {
+        if (fp)
+            fputs(::xllama::format_gpustep_row(r, "xbox-series-s").c_str(), fp);
+        snprintf(lb, sizeof(lb),
+                 "[xllama] gpustep: %s %s median=%.3f p90=%.3f %s ok=%d d3d12_ran=%d uma=%d "
+                 "cc_uma=%d err=%s\n",
+                 r.kind.c_str(), r.variant.c_str(), r.median, r.p90, r.unit.c_str(), r.ok ? 1 : 0,
+                 r.d3d12_ran ? 1 : 0, r.uma ? 1 : 0, r.cc_uma ? 1 : 0,
+                 r.error.empty() ? "-" : r.error.c_str());
+        log_output(lb);
+    }
+    // One process alone is never the D1 verdict (D1d needs both); the host
+    // evaluates the merged CSV with xllama-cli --gpustep-verdict.
+    if (fp) {
+        fflush(fp);
+        fclose(fp);
+    }
+    FILE* done = _wfopen(utf8_to_wstring(resolve_local_path(base + ".done")).c_str(), L"w");
+    if (done) {
+        fputs("done\n", done);
+        fclose(done);
+    }
+    snprintf(lb, sizeof(lb), "[xllama] %s written\n", base.c_str());
+    log_output(lb);
+#else
+    (void)inproc;
 #endif
 }
 

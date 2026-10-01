@@ -27,6 +27,7 @@ add_executable(xllama-tests
     test_diskbw.cpp
     test_gpubw.cpp
     test_gpugemv.cpp
+    test_gpustep.cpp
     test_ramceil.cpp
     test_model_provision.cpp
     test_model_write.cpp

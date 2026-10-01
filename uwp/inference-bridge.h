@@ -41,6 +41,11 @@ void run_gpubw();
 // on partial PSO failure). Soft G2 40 GB/s packed, K1=8; not a product backend.
 void run_gpugemv();
 
+// GGUF GPU decode probe D1 (docs/gguf-gpu-decode.md). inproc=false: headless
+// gpustep.flag → gpustep-result.csv. inproc=true: gpustep-inproc.flag, run after
+// the XAML window is up → gpustep-inproc-result.csv. Both write a .done marker.
+void run_gpustep(bool inproc);
+
 // Heap-ceiling probe. Triggered by LocalFolder\ramceil.flag; writes
 // ramceil-result.csv (+ .done marker holding the stop reason) to LocalState.
 // Measures how much heap the process can actually commit under GameOS — the

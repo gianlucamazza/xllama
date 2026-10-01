@@ -323,6 +323,8 @@
     <ClCompile Include="..\src\bridge\membw.cpp" />
     <ClCompile Include="..\src\bridge\gpubw.cpp" />
     <ClCompile Include="..\src\bridge\gpugemv.cpp" />
+    <ClCompile Include="..\src\bridge\gpustep.cpp" />
+    <ClCompile Include="..\src\bridge\d3d12_compute.cpp" />
     <ClCompile Include="..\src\bridge\ramceil.cpp" />
     <ClCompile Include="..\src\bridge\platform.cpp" />
     <ClCompile Include="..\src\bridge\path_utils.cpp" />

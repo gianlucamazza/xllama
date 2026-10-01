@@ -13,6 +13,7 @@
     #include "xllama/diskbw.h"
     #include "xllama/gpubw.h"
     #include "xllama/gpugemv.h"
+    #include "xllama/gpustep.h"
     #include "xllama/membw.h"
     #include "xllama/ramceil.h"
 #endif
@@ -24,7 +25,9 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <string>
+#include <vector>
 
 int main(int argc, char** argv) {
     xllama::InferenceParams params;
@@ -269,6 +272,61 @@ int main(int argc, char** argv) {
             std::fprintf(stderr, "gpugemv: %s\n", r.error_msg.c_str());
         std::printf("%s%s", xllama::gpugemv_csv_header(),
                     xllama::format_gpugemv_row(r, "host").c_str());
+        return 0;
+    }
+
+    // --gpustep: GGUF GPU decode probe D1. The host has no D3D12, so this prints
+    // the cost model (projection, not a claim) and the unavailable caps row.
+    if (params.run_gpustep) {
+        const xllama::GpustepModelId ids[] = {xllama::GpustepModelId::Coder3B,
+                                              xllama::GpustepModelId::Lfm12B,
+                                              xllama::GpustepModelId::Lfm350M};
+        std::printf("model,splits,matmuls,bytes_mb,step_ms_rt20,step_ms_rt50,step_ms_rt100 "
+                    "(BW %.2f GB/s)\n",
+                    xllama::kGpustepRowsBwGbs);
+        for (auto id : ids) {
+            const xllama::GpustepModel m = xllama::gpustep_model(id);
+            std::printf("%s,%zu,%zu,%.1f,%.2f,%.2f,%.2f\n", m.name.c_str(), m.splits.size(),
+                        xllama::gpustep_model_matmuls(m),
+                        static_cast<double>(xllama::gpustep_model_bytes(m)) / 1e6,
+                        xllama::gpustep_projected_step_ms(m, 20.0, xllama::kGpustepRowsBwGbs),
+                        xllama::gpustep_projected_step_ms(m, 50.0, xllama::kGpustepRowsBwGbs),
+                        xllama::gpustep_projected_step_ms(m, 100.0, xllama::kGpustepRowsBwGbs));
+        }
+        std::vector<xllama::GpustepRow> rows;
+        xllama::measure_gpustep("host", &rows);
+        std::printf("%s", xllama::gpustep_csv_header());
+        for (const auto& r : rows)
+            std::printf("%s", xllama::format_gpustep_row(r, "host").c_str());
+        return 0;
+    }
+
+    // --gpustep-verdict <csv>: the D1 ladder has one home (gpustep.h); the
+    // console script calls this instead of re-implementing it.
+    if (!params.gpustep_verdict_csv.empty()) {
+        std::ifstream in(params.gpustep_verdict_csv);
+        if (!in) {
+            std::fprintf(stderr, "gpustep-verdict: cannot read %s\n",
+                         params.gpustep_verdict_csv.c_str());
+            return 2;
+        }
+        std::vector<xllama::GpustepRow> rows;
+        std::string line;
+        while (std::getline(in, line)) {
+            xllama::GpustepRow r;
+            if (xllama::parse_gpustep_row(line, &r))
+                rows.push_back(std::move(r));
+        }
+        const xllama::GpustepVerdict v = xllama::gpustep_evaluate(rows);
+        std::printf("rows=%zu g1_headless=%d g1_inproc=%d\n", rows.size(), v.g1_headless ? 1 : 0,
+                    v.g1_inproc ? 1 : 0);
+        std::printf("D1a rt_best_us=%.1f (<= %.0f) %s\n", v.rt_best_us, xllama::kGpustepRtGateUs,
+                    v.d1a ? "PASS" : "FAIL");
+        std::printf("D1b step_sync_ms=%.2f (<= %.0f) %s; nosync_ms=%.2f\n", v.step_sync_ms,
+                    xllama::kGpustepStepGateMs, v.d1b ? "PASS" : "FAIL", v.step_nosync_ms);
+        std::printf("D1c heap=%s\n", v.d1c.c_str());
+        std::printf("D1d inproc=%s\n", v.have_inproc ? (v.d1d ? "PASS" : "FAIL") : "missing");
+        std::printf("ladder=%s\n", xllama::gpustep_ladder_name(v.ladder));
         return 0;
     }
 

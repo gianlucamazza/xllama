@@ -60,8 +60,8 @@ performance belongs in `docs/benchmarks.md`.
 3. ~~**WS-F headset** (#241)~~ — **closed PASS 2026-09-30**: real capture under
    AppContainer (RMS 0.019). ASR candidate H16.6a is unblocked, not started.
 4. **Parked eng** — H6/H7 (#228) reached **K3** with H6.3 (`rows` median
-   143.06 GB/s packed, 2026-10-01): next is a GGUF GPU decode design, no
-   backend yet; crossbuild product parity (layer 2 closed
+   143.06 GB/s packed, 2026-10-01); GGUF GPU decode design + D1 probe in
+   `docs/gguf-gpu-decode.md`, no backend yet; crossbuild product parity (layer 2 closed
    2026-08-08 by uwp-crossbuild 0.5.1 — launch proven; ORT/GenAI, first boot
    and uptime not); prompt-lookup default OFF. Dependabot llama.cpp #247 was
    closed 2026-08-26 after the UWP build failed on `LLAMA_VERSION`; do not
@@ -141,8 +141,9 @@ Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.
       rejected models or add catalogue ids.
 - [ ] H6/H7 GPU or hybrid GGUF eng — **K3** after H6.3 (2026-10-01, CI
       `1.6.0.1113`): `rows` median **143.06** GB/s packed, `dot4` 136.94,
-      G1 PASS 3/3 (H6.2 wave32 was 25.4, K2). G2 not rewritten. Next: GGUF
-      GPU decode design with its own gate. Tracking: **#228**.
+      G1 PASS 3/3 (H6.2 wave32 was 25.4, K2). G2 not rewritten. Design and
+      D1 gates: [`docs/gguf-gpu-decode.md`](docs/gguf-gpu-decode.md) (probe
+      `gpustep`, console run pending). Tracking: **#228**.
 
 ## Phase 8 — Training pillar (exploration) ✅ FROZEN complete
 

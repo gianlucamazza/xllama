@@ -26,11 +26,11 @@
     #include <dxgi1_4.h>
     #include <wrl/client.h>
 
+    #include "d3d12_compute.h"
     #include "gpugemv_q4k_dot4_dxil.h"
     #include "gpugemv_q4k_dxil.h"
     #include "gpugemv_q4k_rows_dxil.h"
     #include "gpugemv_q4k_wave32_dxil.h"
-    #include "xllama/d3d12_dyn.h"
 
 using Microsoft::WRL::ComPtr;
 #endif
@@ -448,91 +448,17 @@ namespace {
 void throw_if_failed(HRESULT hr, const char* what, GpugemvResult& r) {
     if (SUCCEEDED(hr))
         return;
-    char b[160];
-    std::snprintf(b, sizeof(b), "%s hr=0x%08lx", what, static_cast<unsigned long>(hr));
-    r.error_msg = b;
+    r.error_msg = d3d12c::hr_message(what, hr);
 }
 
 ComPtr<ID3D12RootSignature> create_root_sig(ID3D12Device* device, GpugemvResult& r) {
-    // b0 CBV, t0 weights SRV, t1 x SRV, u0 y UAV
-    D3D12_DESCRIPTOR_RANGE ranges[4] = {};
-    ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-    ranges[0].NumDescriptors = 1;
-    ranges[0].BaseShaderRegister = 0;
-    ranges[0].OffsetInDescriptorsFromTableStart = 0;
-
-    ranges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-    ranges[1].NumDescriptors = 1;
-    ranges[1].BaseShaderRegister = 0;
-    ranges[1].OffsetInDescriptorsFromTableStart = 1;
-
-    ranges[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-    ranges[2].NumDescriptors = 1;
-    ranges[2].BaseShaderRegister = 1;
-    ranges[2].OffsetInDescriptorsFromTableStart = 2;
-
-    ranges[3].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-    ranges[3].NumDescriptors = 1;
-    ranges[3].BaseShaderRegister = 0;
-    ranges[3].OffsetInDescriptorsFromTableStart = 3;
-
-    D3D12_ROOT_PARAMETER param = {};
-    param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-    param.DescriptorTable.NumDescriptorRanges = 4;
-    param.DescriptorTable.pDescriptorRanges = ranges;
-    param.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
-    D3D12_ROOT_SIGNATURE_DESC desc = {};
-    desc.NumParameters = 1;
-    desc.pParameters = &param;
-    desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
-
-    ComPtr<ID3DBlob> sig;
-    ComPtr<ID3DBlob> err;
-    auto serialize = d3d12_dyn::SerializeRootSignature();
-    if (!serialize) {
-        r.error_msg = "D3D12SerializeRootSignature not available";
-        return {};
-    }
-    HRESULT hr = serialize(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &sig, &err);
-    if (FAILED(hr)) {
-        r.error_msg = "D3D12SerializeRootSignature failed";
-        return {};
-    }
-    ComPtr<ID3D12RootSignature> root;
-    hr = device->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(),
-                                     IID_PPV_ARGS(&root));
-    if (FAILED(hr)) {
-        throw_if_failed(hr, "CreateRootSignature", r);
-        return {};
-    }
-    return root;
+    return d3d12c::create_gemv_root_sig(device, &r.error_msg);
 }
 
 ComPtr<ID3D12Resource> create_buffer(ID3D12Device* device, UINT64 bytes, D3D12_HEAP_TYPE heap,
                                      D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES state,
                                      GpugemvResult& r, const char* name) {
-    D3D12_HEAP_PROPERTIES hp = {};
-    hp.Type = heap;
-    D3D12_RESOURCE_DESC rd = {};
-    rd.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    rd.Width = bytes;
-    rd.Height = 1;
-    rd.DepthOrArraySize = 1;
-    rd.MipLevels = 1;
-    rd.SampleDesc.Count = 1;
-    rd.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    rd.Flags = flags;
-    ComPtr<ID3D12Resource> res;
-    HRESULT hr = device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &rd, state, nullptr,
-                                                 IID_PPV_ARGS(&res));
-    if (FAILED(hr)) {
-        char b[128];
-        std::snprintf(b, sizeof(b), "CreateCommittedResource %s", name);
-        throw_if_failed(hr, b, r);
-        return {};
-    }
-    return res;
+    return d3d12c::create_buffer(device, bytes, heap, flags, state, name, &r.error_msg);
 }
 
 double packed_gbs_from_sec(std::size_t bytes, double sec) {
@@ -540,14 +466,6 @@ double packed_gbs_from_sec(std::size_t bytes, double sec) {
         return 0.0;
     return static_cast<double>(bytes) / 1e9 / sec;
 }
-
-struct FenceEvent {
-    HANDLE h = nullptr;
-    ~FenceEvent() {
-        if (h)
-            CloseHandle(h);
-    }
-};
 
 void fill_checksum(GpugemvResult& r, const float* host_y, const float* gpu_y, int n) {
     r.y_checksum = gpugemv_checksum_floats(gpu_y, static_cast<std::size_t>(n));
@@ -620,40 +538,10 @@ void measure_gpugemv_each(int n, int k, int iterations, GpugemvKernel kernel,
     }
     seed.expected_y_checksum = gpugemv_checksum_floats(host_y.data(), static_cast<std::size_t>(n));
 
-    ComPtr<IDXGIFactory4> factory;
-    HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&factory));
-    if (FAILED(hr)) {
-        throw_if_failed(hr, "CreateDXGIFactory1", seed);
+    ComPtr<ID3D12Device> device = d3d12c::create_device(&seed.error_msg);
+    if (!device) {
         out->push_back(std::move(seed));
         return;
-    }
-
-    auto create_device = d3d12_dyn::CreateDevice();
-    if (!create_device) {
-        push_err("D3D12CreateDevice not available");
-        return;
-    }
-
-    ComPtr<IDXGIAdapter1> adapter;
-    ComPtr<ID3D12Device> device;
-    for (UINT i = 0; factory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
-        DXGI_ADAPTER_DESC1 ad = {};
-        adapter->GetDesc1(&ad);
-        if (ad.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-            continue;
-        hr = create_device(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
-        if (SUCCEEDED(hr))
-            break;
-        device.Reset();
-        adapter.Reset();
-    }
-    if (!device) {
-        hr = create_device(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
-        if (FAILED(hr)) {
-            throw_if_failed(hr, "D3D12CreateDevice", seed);
-            out->push_back(std::move(seed));
-            return;
-        }
     }
 
     D3D12_FEATURE_DATA_D3D12_OPTIONS1 opt1 = {};
@@ -909,7 +797,7 @@ void measure_gpugemv_each(int n, int k, int iterations, GpugemvKernel kernel,
         out->push_back(std::move(seed));
         return;
     }
-    FenceEvent fence_event;
+    d3d12c::FenceEvent fence_event;
     fence_event.h = CreateEventW(nullptr, FALSE, FALSE, nullptr);
     if (!fence_event.h) {
         push_err("CreateEventW failed");
