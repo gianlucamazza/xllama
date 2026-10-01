@@ -628,6 +628,12 @@ ggml_backend_buffer_t alloc_buf(ggml_backend_buffer_type_t buft, size_t size, bo
         return nullptr;
     }
     c->va = c->res->GetGPUVirtualAddress();
+    if (size >= (1u << 20)) {
+        char msg[128];
+        std::snprintf(msg, sizeof(msg), "[xllama] d3d12: %s buffer %.1f MiB\n",
+                      host ? "D3D12_Host" : "D3D12_Weights", static_cast<double>(size) / 1048576.0);
+        log_output(msg);
+    }
     return ggml_backend_buffer_init(buft, host ? kHostBufIface : kWeightsBufIface, c, size);
 }
 
@@ -855,7 +861,24 @@ bool dev_supports_op(ggml_backend_dev_t, const ggml_tensor* op) {
         d.src0_contiguous = ggml_is_contiguous(w);
         d.src1_contiguous = ggml_is_contiguous(x);
         d.src0_in_weight_buffer = w->buffer && w->buffer->buft == &kWeightsBuft;
-        return d3d12_mm_supported(d);
+        const bool ok = d3d12_mm_supported(d);
+        // A refused matmul whose weight already sits in D3D12_Weights means a
+        // placement the backend then cannot run — log the first few (D2b #309).
+        static int logged = 0;
+        if (!ok && w->buffer && w->buffer->buft == &kWeightsBuft && logged < 8) {
+            ++logged;
+            char msg[256];
+            std::snprintf(msg, sizeof(msg),
+                          "[xllama] d3d12: MUL_MAT refused: %s %lldx%lld x [%lld,%lld,%lld,%lld] "
+                          "src1=%s dst=%s\n",
+                          ggml_type_name(w->type), static_cast<long long>(w->ne[0]),
+                          static_cast<long long>(w->ne[1]), static_cast<long long>(x->ne[0]),
+                          static_cast<long long>(x->ne[1]), static_cast<long long>(x->ne[2]),
+                          static_cast<long long>(x->ne[3]), ggml_type_name(x->type),
+                          ggml_type_name(op->type));
+            log_output(msg);
+        }
+        return ok;
     }
     default:
         return false;

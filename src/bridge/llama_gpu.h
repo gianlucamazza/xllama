@@ -11,9 +11,22 @@
 #include "xllama/ggml_d3d12.h"
 #include "xllama/platform.h"
 
+#include <cstring>
 #include <string>
 
 namespace xllama {
+
+// llama/ggml log lines worth keeping in xllama.log when layers run on d3d12:
+// placement and buffer sizes, graph splits, and every warning or error.
+inline void gguf_gpu_log(ggml_log_level level, const char* text, void*) {
+    if (!text)
+        return;
+    const bool keep = level == GGML_LOG_LEVEL_WARN || level == GGML_LOG_LEVEL_ERROR ||
+                      std::strstr(text, "buffer size") || std::strstr(text, "offload") ||
+                      std::strstr(text, "graph splits") || std::strstr(text, "D3D12");
+    if (keep)
+        log_output(std::string("[llama] ") + text);
+}
 
 // Sets mparams.devices / n_gpu_layers and returns the layers actually
 // offloaded: 0 when none were asked for or the device is unavailable, in
@@ -35,6 +48,7 @@ inline int apply_gguf_gpu_layers(int requested, llama_model_params& mparams) {
     }
     mparams.devices = d3d12;
     mparams.n_gpu_layers = requested;
+    llama_log_set(gguf_gpu_log, nullptr);
     log_output("[xllama] gguf gpu layers: " + std::to_string(requested) + " on D3D12\n");
     return requested;
 }
