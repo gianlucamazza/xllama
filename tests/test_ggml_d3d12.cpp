@@ -221,5 +221,9 @@ TEST_CASE("ggml_d3d12: GPU-layer request maps to llama params") {
     CHECK(apply_gguf_gpu_layers(99, mp) == 0);
     CHECK(mp.n_gpu_layers == 0);
     CHECK(mp.devices[0] == nullptr);
+    // The tied-output override only applies with layers actually offloaded.
+    mp = llama_model_default_params();
+    CHECK(apply_gguf_gpu_layers(99, mp, /*tied_output_on_cpu=*/true) == 0);
+    CHECK(mp.tensor_buft_overrides == nullptr);
 #endif
 }

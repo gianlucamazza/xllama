@@ -245,6 +245,8 @@ void main_loop() {
     const int bench_gpu_layers = read_local_int("bench_gpu_layers.txt", 0);
     // D2b: decode exactly n_predict tokens (no EOG / stop sequence). Host tag -noeog.
     const int bench_ignore_eog = read_local_int("bench_ignore_eog.txt", 0);
+    // #309: tied output kept on the CPU with --gpu-layers. Host tag -ocpu.
+    const int bench_gpu_output_cpu = read_local_int("bench_gpu_output_cpu.txt", 0);
     // W1.1: which repetition this run is, written by the bench driver before each
     // iteration. Echoed into the CSV run_index column so the driver can append
     // every repeat and the summary generator can report a spread. 0 = single run.
@@ -284,13 +286,14 @@ void main_loop() {
     if (bench_ctx > 0)
         params.n_ctx = bench_ctx;
     params.max_length_override = bench_maxlen;
-    params.n_threads = bench_threads;                // 0 = auto; set by bench-xbox-ort.sh
-    params.n_ubatch = bench_ubatch;                  // #172: 0 = llama default (512)
-    params.kv_q8 = bench_kvq8 != 0;                  // #171: q8_0 KV + flash attention
-    params.prompt_lookup = bench_prompt_lookup != 0; // #210 W2
-    params.n_gpu_layers = bench_gpu_layers;          // D2b: 0 = CPU
-    params.stop_sequences = fmt.stop_sequences;      // clean stop for Gemma's <end_of_turn>
-    params.run_index = bench_run_index;              // W1.1: echo into CSV (0 = single-run)
+    params.n_threads = bench_threads;                     // 0 = auto; set by bench-xbox-ort.sh
+    params.n_ubatch = bench_ubatch;                       // #172: 0 = llama default (512)
+    params.kv_q8 = bench_kvq8 != 0;                       // #171: q8_0 KV + flash attention
+    params.prompt_lookup = bench_prompt_lookup != 0;      // #210 W2
+    params.n_gpu_layers = bench_gpu_layers;               // D2b: 0 = CPU
+    params.gpu_output_on_cpu = bench_gpu_output_cpu != 0; // #309
+    params.stop_sequences = fmt.stop_sequences;           // clean stop for Gemma's <end_of_turn>
+    params.run_index = bench_run_index;                   // W1.1: echo into CSV (0 = single-run)
     if (bench_ignore_eog != 0) { // after stop_sequences is set, or the stops come back
         params.ignore_eog = true;
         params.stop_sequences.clear();
@@ -309,6 +312,8 @@ void main_loop() {
     if (bench_gpu_layers > 0)
         host_len +=
             snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-g%d", bench_gpu_layers);
+    if (bench_gpu_layers > 0 && bench_gpu_output_cpu != 0)
+        host_len += snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-ocpu");
     if (bench_ignore_eog != 0)
         host_len += snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-noeog");
     if (bench_prompt_lookup != 0)

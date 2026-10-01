@@ -292,7 +292,7 @@ inline DecodeLoopResult decode_loop(const DecodeLoopParams& p, std::string& outp
         // (same sample classic would take next). If it disagrees, that sample
         // *is* the true next token — classic_step it and skip the batch.
         const llama_token first = llama_sampler_sample(p.sampler, p.ctx, -1);
-        if (llama_vocab_is_eog(p.vocab, first)) {
+        if (llama_vocab_is_eog(p.vocab, first) && !p.ignore_eog) {
             log_output("[xllama] EOG after " + std::to_string(out.n_generated) +
                        " tokens (pre-draft)\n");
             break;
@@ -340,7 +340,7 @@ inline DecodeLoopResult decode_loop(const DecodeLoopParams& p, std::string& outp
         int n_keep = 0;
         auto commit_draft = [&](llama_token tok) -> bool {
             // returns false → stop outer loop
-            if (llama_vocab_is_eog(p.vocab, tok)) {
+            if (llama_vocab_is_eog(p.vocab, tok) && !p.ignore_eog) {
                 log_output("[xllama] EOG after " + std::to_string(out.n_generated) +
                            " tokens (spec)\n");
                 return false;
@@ -392,7 +392,7 @@ inline DecodeLoopResult decode_loop(const DecodeLoopParams& p, std::string& outp
                 stop_all = true;
                 break;
             }
-            if (llama_vocab_is_eog(p.vocab, cand)) {
+            if (llama_vocab_is_eog(p.vocab, cand) && !p.ignore_eog) {
                 log_output("[xllama] EOG after " + std::to_string(out.n_generated) +
                            " tokens (spec reject)\n");
                 stop_all = true;

@@ -31,7 +31,12 @@ inline void gguf_gpu_log(ggml_log_level level, const char* text, void*) {
 // Sets mparams.devices / n_gpu_layers and returns the layers actually
 // offloaded: 0 when none were asked for or the device is unavailable, in
 // which case the model loads exactly as before (CPU, no GPU device listed).
-inline int apply_gguf_gpu_layers(int requested, llama_model_params& mparams) {
+// |tied_output_on_cpu|: a model without output.weight reuses token_embd as the
+// lm_head and llama.cpp duplicates it into the GPU list (TENSOR_DUPLICATED).
+// Overriding the name to the CPU buft lands both uses in the same CPU context,
+// which dedups them as on a CPU-only load (#309).
+inline int apply_gguf_gpu_layers(int requested, llama_model_params& mparams,
+                                 bool tied_output_on_cpu = false) {
     static ggml_backend_dev_t no_devices[] = {nullptr};
     mparams.n_gpu_layers = 0;
     mparams.devices = no_devices;
@@ -48,8 +53,14 @@ inline int apply_gguf_gpu_layers(int requested, llama_model_params& mparams) {
     }
     mparams.devices = d3d12;
     mparams.n_gpu_layers = requested;
+    if (tied_output_on_cpu) {
+        static llama_model_tensor_buft_override cpu_embd[] = {
+            {"^token_embd\\.weight$", ggml_backend_cpu_buffer_type()}, {nullptr, nullptr}};
+        mparams.tensor_buft_overrides = cpu_embd;
+    }
     llama_log_set(gguf_gpu_log, nullptr);
-    log_output("[xllama] gguf gpu layers: " + std::to_string(requested) + " on D3D12\n");
+    log_output("[xllama] gguf gpu layers: " + std::to_string(requested) + " on D3D12" +
+               (tied_output_on_cpu ? ", tied output on the CPU" : "") + "\n");
     return requested;
 }
 

@@ -41,6 +41,9 @@
 #   --ignore-eog     Decode exactly n_predict tokens via bench_ignore_eog.txt
 #                    (no EOG / stop-sequence end). Host column tagged -noeog.
 #                    Use for A/Bs whose arms reach EOG at different points.
+#   --gpu-output-cpu With --gpu-layers: keep a tied output (token_embd as the
+#                    lm_head) on the CPU via bench_gpu_output_cpu.txt (#309).
+#                    Host column tagged -ocpu.
 #   --prompt-lookup  Phase 15 W2 (#210): draft-free n-gram speculative decoding
 #                    via bench_prompt_lookup.txt=1. Host column tagged -plookup.
 #                    Off (file deleted) when the flag is absent so a prior on
@@ -70,6 +73,7 @@ UBATCH=0        # 0 = llama default (512); #172 sweep knob, GGUF only
 KVQ8=0          # 1 = q8_0 KV + flash attention; #171 A/B knob, GGUF only
 GPU_LAYERS=0    # D2b: GGUF layers on the d3d12 backend; 0 = CPU
 IGNORE_EOG=0    # D2b: 1 = decode exactly n_predict tokens
+GPU_OUTPUT_CPU=0 # #309: 1 = tied output on the CPU
 PROMPT_LOOKUP=0 # 1 = W2 prompt-lookup; #210 A/B knob, GGUF only
 N_RUNS=4        # warmup run 1 dropped; runs 2..N recorded individually (W1.1) → 3 by default
 PROMPT_FILE=""
@@ -110,6 +114,10 @@ while [[ $# -gt 0 ]]; do
 		;;
 	--ignore-eog)
 		IGNORE_EOG=1
+		shift
+		;;
+	--gpu-output-cpu)
+		GPU_OUTPUT_CPU=1
 		shift
 		;;
 	--prompt-lookup)
@@ -410,6 +418,7 @@ printf '%d' "$UBATCH" >"${TMPDIR_LOCAL}/bench_ubatch.txt"
 printf '%d' "$KVQ8" >"${TMPDIR_LOCAL}/bench_kvq8.txt"
 printf '%d' "$GPU_LAYERS" >"${TMPDIR_LOCAL}/bench_gpu_layers.txt"
 printf '%d' "$IGNORE_EOG" >"${TMPDIR_LOCAL}/bench_ignore_eog.txt"
+printf '%d' "$GPU_OUTPUT_CPU" >"${TMPDIR_LOCAL}/bench_gpu_output_cpu.txt"
 printf '%d' "$PROMPT_LOOKUP" >"${TMPDIR_LOCAL}/bench_prompt_lookup.txt"
 
 # bench.flag — consumed by app on each start; must be re-uploaded per run
@@ -465,6 +474,7 @@ for ((run = 1; run <= N_RUNS; run++)); do
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_kvq8.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_gpu_layers.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_ignore_eog.txt"
+	upload_to_localstate "${TMPDIR_LOCAL}/bench_gpu_output_cpu.txt"
 	if ((PROMPT_LOOKUP != 0)); then
 		upload_to_localstate "${TMPDIR_LOCAL}/bench_prompt_lookup.txt"
 	else
@@ -559,6 +569,13 @@ for ((run = 1; run <= N_RUNS; run++)); do
 			got_host=$(awk -F, '{print $15}' <<<"$data_row")
 			if [[ "$got_host" != *"-noeog"* ]]; then
 				echo "Error: the console ignored --ignore-eog: host column says '${got_host}'." >&2
+				exit 1
+			fi
+		fi
+		if ((GPU_OUTPUT_CPU != 0 && GPU_LAYERS > 0)); then
+			got_host=$(awk -F, '{print $15}' <<<"$data_row")
+			if [[ "$got_host" != *"-ocpu"* ]]; then
+				echo "Error: the console ignored --gpu-output-cpu: host column says '${got_host}'." >&2
 				exit 1
 			fi
 		fi

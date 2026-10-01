@@ -389,7 +389,8 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     }
 
     llama_model_params mparams = llama_model_default_params();
-    const int gpu_layers = apply_gguf_gpu_layers(params.n_gpu_layers, mparams);
+    const int gpu_layers =
+        apply_gguf_gpu_layers(params.n_gpu_layers, mparams, params.gpu_output_on_cpu);
     res.gpu_layers = gpu_layers;
 
     if (params.on_status)
