@@ -2691,6 +2691,7 @@ bool MainPageController::EnsureSession(const std::string& model, std::string* er
             sp.n_ctx = ::xllama::resolve_n_ctx(entry->n_ctx);
             if (entry->kind == L"gguf") {
                 sp.backend = xllama::Backend::LlamaCpp;
+                sp.n_gpu_layers = ::xllama::bridge::gguf_gpu_layers_knob(); // D2b, default 0
                 if (!entry->lora.empty()) {
                     // Resolve against LocalState\models\<name>\lora-file (or InstalledPath
                     // after provision). resolve_model_path on a bare name yields the dir.

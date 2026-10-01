@@ -362,6 +362,7 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
     #include "llama.h"
 
     #include "decode_loop.h"
+    #include "llama_gpu.h"
     #include "sampler_chain.h" // shared sampler chain (#125); needs llama.h
     #include "xllama/llama_raii.h"
 
@@ -388,7 +389,8 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     }
 
     llama_model_params mparams = llama_model_default_params();
-    mparams.n_gpu_layers = 0; // CPU only on Linux path
+    const int gpu_layers = apply_gguf_gpu_layers(params.n_gpu_layers, mparams);
+    res.gpu_layers = gpu_layers;
 
     if (params.on_status)
         params.on_status("loading model");
@@ -403,6 +405,15 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     }
     LlamaModelPtr model(raw_model);
     log_output("[xllama] model loaded\n");
+    if (gpu_layers > 0) {
+        const GpuMemInfo gpu = gpu_mem_info();
+        if (gpu.available) {
+            res.gpu_mem_mb = gpu.current_mb;
+            res.gpu_budget_mb = gpu.budget_mb;
+            log_output("[xllama] gpu-mem post-load: current=" + std::to_string(gpu.current_mb) +
+                       "MB budget=" + std::to_string(gpu.budget_mb) + "MB\n");
+        }
+    }
 
     LlamaAdapterLoraPtr adapter;
     if (!params.lora_path.empty()) {
@@ -433,6 +444,7 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         cparams.n_batch = static_cast<uint32_t>(params.n_batch);
     if (params.n_ubatch > 0)
         cparams.n_ubatch = static_cast<uint32_t>(params.n_ubatch);
+    apply_gguf_gpu_context(gpu_layers, cparams);
     if (params.n_batch > 0 || params.n_ubatch > 0)
         log_output("[xllama] prefill batch override: n_batch=" + std::to_string(cparams.n_batch) +
                    " n_ubatch=" + std::to_string(cparams.n_ubatch) + "\n");

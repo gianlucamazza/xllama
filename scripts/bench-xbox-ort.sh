@@ -35,6 +35,9 @@
 #   --kv-q8          q8_0 KV cache + flash attention via bench_kvq8.txt (#171).
 #                    GGUF models only. Host column tagged -kvq8 (same rationale
 #                    as -uN); the guard fails if the MSIX ignores the knob.
+#   --gpu-layers N   GGUF GPU decode D2b: layers on the d3d12 backend via
+#                    bench_gpu_layers.txt (0 = CPU, default). GGUF models only.
+#                    Host column tagged -gN; the guard fails if the MSIX ignores it.
 #   --prompt-lookup  Phase 15 W2 (#210): draft-free n-gram speculative decoding
 #                    via bench_prompt_lookup.txt=1. Host column tagged -plookup.
 #                    Off (file deleted) when the flag is absent so a prior on
@@ -62,6 +65,7 @@ N_PREDICT=0     # 0 = engine default (512)
 MAX_LEN=0       # 0 = derive min(n_ctx, prompt+n_predict); -1 = saturate to n_ctx; >0 = explicit
 UBATCH=0        # 0 = llama default (512); #172 sweep knob, GGUF only
 KVQ8=0          # 1 = q8_0 KV + flash attention; #171 A/B knob, GGUF only
+GPU_LAYERS=0    # D2b: GGUF layers on the d3d12 backend; 0 = CPU
 PROMPT_LOOKUP=0 # 1 = W2 prompt-lookup; #210 A/B knob, GGUF only
 N_RUNS=4        # warmup run 1 dropped; runs 2..N recorded individually (W1.1) → 3 by default
 PROMPT_FILE=""
@@ -95,6 +99,10 @@ while [[ $# -gt 0 ]]; do
 	--kv-q8)
 		KVQ8=1
 		shift
+		;;
+	--gpu-layers)
+		GPU_LAYERS="${2:?--gpu-layers requires a value}"
+		shift 2
 		;;
 	--prompt-lookup)
 		PROMPT_LOOKUP=1
@@ -392,6 +400,7 @@ printf '%d' "$N_PREDICT" >"${TMPDIR_LOCAL}/bench_npredict.txt"
 printf '%d' "$MAX_LEN" >"${TMPDIR_LOCAL}/bench_maxlen.txt"
 printf '%d' "$UBATCH" >"${TMPDIR_LOCAL}/bench_ubatch.txt"
 printf '%d' "$KVQ8" >"${TMPDIR_LOCAL}/bench_kvq8.txt"
+printf '%d' "$GPU_LAYERS" >"${TMPDIR_LOCAL}/bench_gpu_layers.txt"
 printf '%d' "$PROMPT_LOOKUP" >"${TMPDIR_LOCAL}/bench_prompt_lookup.txt"
 
 # bench.flag — consumed by app on each start; must be re-uploaded per run
@@ -445,6 +454,7 @@ for ((run = 1; run <= N_RUNS; run++)); do
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_maxlen.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_ubatch.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_kvq8.txt"
+	upload_to_localstate "${TMPDIR_LOCAL}/bench_gpu_layers.txt"
 	if ((PROMPT_LOOKUP != 0)); then
 		upload_to_localstate "${TMPDIR_LOCAL}/bench_prompt_lookup.txt"
 	else
@@ -532,6 +542,17 @@ for ((run = 1; run <= N_RUNS; run++)); do
 			if [[ "$got_host" != *"-kvq8"* ]]; then
 				echo "Error: the console ignored --kv-q8: host column says '${got_host}'." >&2
 				echo "  The installed MSIX predates bench_kvq8.txt — redeploy before measuring." >&2
+				exit 1
+			fi
+		fi
+		# And for --gpu-layers (D2b): require the -gN tag and the d3d12 backend
+		# column — a CPU fallback (device unavailable) must not pass as a GPU row.
+		if ((GPU_LAYERS > 0)); then
+			got_host=$(awk -F, '{print $15}' <<<"$data_row")
+			got_backend=$(awk -F, '{print $3}' <<<"$data_row")
+			if [[ "$got_host" != *"-g${GPU_LAYERS}"* || "$got_backend" != "d3d12" ]]; then
+				echo "Error: --gpu-layers ${GPU_LAYERS} not honoured: host '${got_host}', backend '${got_backend}'." >&2
+				echo "  Old MSIX (no bench_gpu_layers.txt) or the d3d12 device failed — see get-log." >&2
 				exit 1
 			fi
 		fi

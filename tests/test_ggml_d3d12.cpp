@@ -197,3 +197,29 @@ TEST_CASE("ggml_d3d12: selftest CSV and non-Windows behaviour") {
     CHECK_FALSE(rows[0].error.empty());
 #endif
 }
+
+// The one place llama params get the GPU-layer request (src/bridge/llama_gpu.h).
+#include "../src/bridge/llama_gpu.h"
+
+TEST_CASE("ggml_d3d12: GPU-layer request maps to llama params") {
+    llama_model_params mp = llama_model_default_params();
+    CHECK(apply_gguf_gpu_layers(0, mp) == 0);
+    CHECK(mp.n_gpu_layers == 0);
+    REQUIRE(mp.devices != nullptr);
+    CHECK(mp.devices[0] == nullptr); // explicit empty device list: CPU only
+
+    llama_context_params cp = llama_context_default_params();
+    const bool kqv_default = cp.offload_kqv;
+    apply_gguf_gpu_context(0, cp);
+    CHECK(cp.offload_kqv == kqv_default);
+    apply_gguf_gpu_context(28, cp);
+    CHECK_FALSE(cp.offload_kqv); // KV and attention stay on the CPU
+
+#if !defined(_WIN32)
+    // No D3D12 on Linux: a request falls back to the CPU load unchanged.
+    mp = llama_model_default_params();
+    CHECK(apply_gguf_gpu_layers(99, mp) == 0);
+    CHECK(mp.n_gpu_layers == 0);
+    CHECK(mp.devices[0] == nullptr);
+#endif
+}

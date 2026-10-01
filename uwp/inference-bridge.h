@@ -51,6 +51,11 @@ void run_gpustep(bool inproc);
 // Q4_K / Q6_K shape against ggml's dequantizers. llama builds only.
 void run_d3d12_selftest();
 
+// GGUF GPU decode D2b: n_gpu_layers for interactive sessions (GUI and LAN API)
+// from LocalState\gguf_gpu_layers.txt; 0 (the default) when absent. One home
+// for both front ends; experimental, no UI (docs/gguf-gpu-decode.md).
+int gguf_gpu_layers_knob();
+
 // Heap-ceiling probe. Triggered by LocalFolder\ramceil.flag; writes
 // ramceil-result.csv (+ .done marker holding the stop reason) to LocalState.
 // Measures how much heap the process can actually commit under GameOS — the

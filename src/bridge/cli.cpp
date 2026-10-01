@@ -49,6 +49,8 @@ static void print_help(const char* prog) {
                  "      --gpugemv        Phase 15 H6.2 (#228) Q4_K GEMV density probe\n"
                  "                       (host: tiny-tile wave32 TDD; Linux reports d3d12\n"
                  "                       unavailable — no fake GB/s. Console A/B is gpugemv.flag)\n"
+                 "      --gpu-layers <n> GGUF layers on the d3d12 backend (0 = CPU; Windows\n"
+                 "                       only — Linux has no D3D12 device and stays on CPU)\n"
                  "      --gpustep        GGUF GPU decode probe D1 (docs/gguf-gpu-decode.md):\n"
                  "                       prints the cost-model projection per model; Linux\n"
                  "                       reports d3d12 unavailable. Console run is gpustep.flag\n"
@@ -124,6 +126,7 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         {"dimensions", required_argument, nullptr, 25},
         {"gpustep", no_argument, nullptr, 26},
         {"gpustep-verdict", required_argument, nullptr, 27},
+        {"gpu-layers", required_argument, nullptr, 28},
         {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0}};
 
@@ -228,6 +231,9 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             break;
         case 27:
             out.gpustep_verdict_csv = optarg;
+            break;
+        case 28:
+            out.n_gpu_layers = std::atoi(optarg);
             break;
         case 'h':
             print_help(argv[0]);

@@ -30,7 +30,7 @@ struct SessionParams {
     int n_batch = 0;          // llama.cpp only; 0 = default (2048). Logical prefill batch.
     int n_ubatch = 0;         // llama.cpp only; 0 = default (512). Physical prefill chunk.
     Backend backend = Backend::Auto;
-    int n_gpu_layers = 0; // llama.cpp only; 0 = CPU (Xbox has no ggml GPU backend)
+    int n_gpu_layers = 0; // llama.cpp only; 0 = CPU; > 0 = d3d12 backend (docs/gguf-gpu-decode.md)
 
     // Optional GGUF LoRA adapter (llama.cpp only). Empty = base model only.
     // Loaded via llama_adapter_lora_init + llama_set_adapters_lora (inference-time;

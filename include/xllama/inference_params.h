@@ -62,6 +62,10 @@ struct InferenceParams {
     /// Quantize KV cache to q8_0 (GGUF path only).
     bool kv_q8 = false;
 
+    /// GGUF layers whose weight matmuls run on the d3d12 backend (0 = CPU,
+    /// docs/gguf-gpu-decode.md). Ignored where D3D12 is unavailable.
+    int n_gpu_layers = 0;
+
     /// Sampling defaults from `xllama/sampling.h`.
     float temperature = sampling_defaults::kTemperature;
     float top_p = sampling_defaults::kTopP;
@@ -205,6 +209,9 @@ struct InferenceResult {
 
     /// OS-granted GPU budget for this process (0 = N/A).
     size_t gpu_budget_mb = 0;
+
+    /// GGUF layers actually placed on the d3d12 backend (0 = CPU run).
+    int gpu_layers = 0;
 
     /// Speculative drafts generated (0 when prompt_lookup is off).
     int n_drafted = 0;

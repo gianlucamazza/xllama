@@ -452,8 +452,10 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
         ::xllama::SessionParams sp;
         sp.model_path = model;
         sp.n_ctx = policy.n_ctx;
-        if (policy.gguf)
+        if (policy.gguf) {
             sp.backend = ::xllama::Backend::LlamaCpp;
+            sp.n_gpu_layers = ::xllama::bridge::gguf_gpu_layers_knob(); // D2b, default 0
+        }
         session = ::xllama::session_hub().ensure_locked(model, sp, &err);
         if (!session) {
             status = "500 Internal Server Error";
@@ -785,8 +787,10 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
     ::xllama::SessionParams sp;
     sp.model_path = model;
     sp.n_ctx = policy.n_ctx;
-    if (policy.gguf)
+    if (policy.gguf) {
         sp.backend = ::xllama::Backend::LlamaCpp;
+        sp.n_gpu_layers = ::xllama::bridge::gguf_gpu_layers_knob(); // D2b, default 0
+    }
     if (root.HasKey(L"options") &&
         root.GetNamedValue(L"options").ValueType() != JsonValueType::Object) {
         status = "400 Bad Request";
@@ -1297,8 +1301,10 @@ void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t g
         ::xllama::SessionParams params;
         params.model_path = model_name;
         params.n_ctx = ::xllama::resolve_n_ctx(entry->n_ctx);
-        if (entry->kind == L"gguf")
+        if (entry->kind == L"gguf") {
             params.backend = ::xllama::Backend::LlamaCpp;
+            params.n_gpu_layers = ::xllama::bridge::gguf_gpu_layers_knob(); // D2b, default 0
+        }
         // Recheck after waiting for inference: stop/rebind may have invalidated
         // the listener while this pull was blocked on the resident session.
         {

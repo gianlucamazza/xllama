@@ -45,6 +45,7 @@ struct SessionHub {
     std::mutex mtx;
     std::unique_ptr<Session> session; // guarded by mtx
     std::string model;                // model id loaded into `session`; guarded by mtx
+    int gpu_layers = 0;               // n_gpu_layers `session` was loaded with; guarded by mtx
     uint64_t generation = 0;          // bumps on every resident-session change; guarded by mtx
 
     // True while a background pre-load holds (or is about to take) mtx.
@@ -59,7 +60,9 @@ struct SessionHub {
     // needed. On creation failure the hub is left empty and nullptr returns.
     Session* ensure_locked(const std::string& model_id, const SessionParams& sp,
                            std::string* err = nullptr) {
-        if (session && model == model_id)
+        // A different GPU-layer request is a different load (weights move
+        // between CPU and d3d12 buffers), so it reloads like a model switch.
+        if (session && model == model_id && gpu_layers == sp.n_gpu_layers)
             return session.get();
         session.reset(); // release the old model before loading the new one
         model.clear();
@@ -69,6 +72,7 @@ struct SessionHub {
             return nullptr;
         session = std::move(s);
         model = model_id;
+        gpu_layers = sp.n_gpu_layers;
         ++generation;
         return session.get();
     }

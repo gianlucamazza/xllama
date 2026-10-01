@@ -410,7 +410,8 @@ std::unique_ptr<Session> create_ort(const SessionParams& sp, std::string* err) {
 
     #include "llama.h"
 
-    #include "decode_loop.h"   // shared prefill + generation loops; needs llama.h
+    #include "decode_loop.h" // shared prefill + generation loops; needs llama.h
+    #include "llama_gpu.h"
     #include "sampler_chain.h" // shared sampler chain (#125); needs llama.h
     #include "xllama/llama_raii.h"
 
@@ -450,6 +451,7 @@ class LlamaSession final : public Session {
 
     bool m_kv_q8 = false;         // #171: q8_0 KV + forced flash attention
     bool m_prompt_lookup = false; // #210: draft-free speculative decoding
+    int m_gpu_layers = 0;         // layers on the d3d12 backend (llama_gpu.h)
 
     // #169: whether the resident KV supports front-drop eviction + RoPE shift.
     // Known once the lazy context exists. Gated on llama_memory_can_shift —
@@ -460,10 +462,10 @@ class LlamaSession final : public Session {
 
     explicit LlamaSession(LlamaModelPtr model, LlamaAdapterLoraPtr adapter, float lora_scale,
                           int n_ctx, int n_threads, int n_batch, int n_ubatch, bool kv_q8,
-                          bool prompt_lookup)
+                          bool prompt_lookup, int gpu_layers)
         : m_model(std::move(model)), m_adapter(std::move(adapter)), m_lora_scale(lora_scale),
           m_n_ctx(n_ctx), m_n_threads(n_threads), m_n_batch(n_batch), m_n_ubatch(n_ubatch),
-          m_kv_q8(kv_q8), m_prompt_lookup(prompt_lookup) {}
+          m_kv_q8(kv_q8), m_prompt_lookup(prompt_lookup), m_gpu_layers(gpu_layers) {}
 
     // Lazy context creation, shared by generate() and the state-file entry
     // points (#170b needs a context before the first turn). Returns false and
@@ -483,6 +485,7 @@ class LlamaSession final : public Session {
                 cparams.n_batch = static_cast<uint32_t>(m_n_batch);
             if (m_n_ubatch > 0)
                 cparams.n_ubatch = static_cast<uint32_t>(m_n_ubatch);
+            apply_gguf_gpu_context(m_gpu_layers, cparams);
             if (for_embedding) {
                 // Non-causal embedding graphs cannot split a sequence into
                 // physical micro-batches (llama.cpp asserts instead of failing).
@@ -1213,7 +1216,7 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
     }
 
     llama_model_params mparams = llama_model_default_params();
-    mparams.n_gpu_layers = sp.n_gpu_layers;
+    const int gpu_layers = apply_gguf_gpu_layers(sp.n_gpu_layers, mparams);
 
     llama_model* raw_model = llama_model_load_from_file(abs_path.c_str(), mparams);
     if (!raw_model) {
@@ -1240,7 +1243,7 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
     log_output("[xllama] Session: GGUF model loaded via llama.cpp (persistent)\n");
     return std::make_unique<LlamaSession>(LlamaModelPtr(raw_model), std::move(adapter),
                                           sp.lora_scale, n_ctx, n_threads, sp.n_batch, sp.n_ubatch,
-                                          sp.kv_q8, sp.prompt_lookup);
+                                          sp.kv_q8, sp.prompt_lookup, gpu_layers);
 }
 } // namespace detail
 

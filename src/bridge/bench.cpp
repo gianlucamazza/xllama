@@ -189,7 +189,7 @@ void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
     }
 #endif
     if (is_llama)
-        backend = "cpu";
+        backend = res.gpu_layers > 0 ? "d3d12" : "cpu";
 
     const int used_threads = params.n_threads > 0
                                  ? params.n_threads
