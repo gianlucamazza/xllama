@@ -294,6 +294,11 @@ struct Gpu {
     UINT64 ts_freq = 0;
     LUID luid = {};
     double last_gpu_ms = 0.0;
+    // Per-backend-lifetime counters, logged when the backend is freed.
+    std::uint64_t n_calls = 0;
+    std::uint64_t n_matmuls = 0;
+    double wall_ms = 0.0;
+    double gpu_ms = 0.0;
     std::mutex mu;
     bool ok = false;
     std::string error;
@@ -652,6 +657,19 @@ const char* backend_name(ggml_backend_t) {
     return "D3D12";
 }
 void backend_free(ggml_backend_t b) {
+    Gpu& g = gpu();
+    {
+        std::lock_guard<std::mutex> lock(g.mu);
+        char msg[256];
+        std::snprintf(msg, sizeof(msg),
+                      "[xllama] d3d12: %llu graph_compute calls, %llu matmuls, %.1f ms wall "
+                      "(%.1f ms GPU)\n",
+                      static_cast<unsigned long long>(g.n_calls),
+                      static_cast<unsigned long long>(g.n_matmuls), g.wall_ms, g.gpu_ms);
+        log_output(msg);
+        g.n_calls = g.n_matmuls = 0;
+        g.wall_ms = g.gpu_ms = 0.0;
+    }
     delete b;
 }
 
@@ -680,6 +698,7 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
         return GGML_STATUS_SUCCESS;
 
     std::lock_guard<std::mutex> lock(g.mu);
+    const auto t0 = std::chrono::steady_clock::now();
     const bool ts = g.ts && g.ts_rb;
     const bool ran = run_now(g, [&](ID3D12GraphicsCommandList* cl) {
         cl->SetComputeRootSignature(g.root.Get());
@@ -729,6 +748,11 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
             g.ts_rb->Unmap(0, nullptr);
         }
     }
+    ++g.n_calls;
+    g.n_matmuls += mm.size();
+    g.gpu_ms += g.last_gpu_ms;
+    g.wall_ms +=
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     return GGML_STATUS_SUCCESS;
 }
 
