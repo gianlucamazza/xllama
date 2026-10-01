@@ -873,7 +873,10 @@ shipping `-v2` graph; 46.8 pre-fix) still loses to CPU int4 (68). So **CPU int4 
 win is prefill (§5, reading 1 — realized for text by the `-v2` RMSNorm-decomposed
 asset, #91 postmortem) and larger-model bandwidth. A genuinely fused
 low-bit GPU GEMM would be a DirectML-team feature, not an ORT-side PR; treat GPU
-int4 decode as blocked upstream, not a local TODO.
+int4 decode **through DirectML** as blocked upstream, not a local TODO. Our own
+D3D12 compute shader is a separate path: the H6.3 Q4_K GEMV reads packed
+weights at 143 GB/s on Series S ([phase15-re-opt.md](phase15-re-opt.md)
+WS-E / H6.3) — a kernel measurement, not a decode result.
 
 **Config tests** (`int4_block_size=128`, `int4_accuracy_level=4` variants of
 SmolLM2-360M) were **built but closed inconclusive 2026-07-09** — not console-

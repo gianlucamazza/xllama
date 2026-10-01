@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **H6.3 multi-row Q4_K GEMV density probe — K3** (#228). New `rows`
+  (cs_6_0) and `dot4` (cs_6_4, q8 activations) kernels in `gpugemv.flag`:
+  4 rows × 64 threads per group, X in registers, no LDS transpose. Series S
+  CI package 1.6.0.1113: `rows` median **143.06 GB/s packed**, `dot4` 136.94,
+  G1 PASS 3/3; `wave32` reproduces H6.2 at 25.12. Measure-only: no Session
+  GPU backend, no tok/s claim. CSV `bench/results/phase15-gpugemv-h63.csv`.
+
 - **FloppyLM experiment (docs only).** Official research / experimentation
   objective: extreme-compression Tiny GPT (`floppy_4mb` class), full-model
   QAT, native Linux + Xbox CPU training beyond Lane B. SSOT
