@@ -393,6 +393,8 @@ void gpugemv_kernel_x(GpugemvKernel kernel, std::vector<float>& x, std::vector<s
         *dx = std::move(d);
 }
 
+#if !defined(_WIN32)
+// Linux only: the D3D12 path computes the full-size reference itself.
 void gpugemv_host_tiny_ref(GpugemvResult& r, int n, int k) {
     const int tn = std::min(n, 8);
     const int tk = std::min(k, kGpugemvQK);
@@ -407,6 +409,7 @@ void gpugemv_host_tiny_ref(GpugemvResult& r, int n, int k) {
     gpugemv_cpu_ref(w.data(), x.data(), y.data(), tn, tk);
     r.expected_y_checksum = gpugemv_checksum_floats(y.data(), static_cast<std::size_t>(tn));
 }
+#endif
 
 } // namespace
 

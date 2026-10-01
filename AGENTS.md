@@ -40,7 +40,15 @@ npm install -g 'prettier@3.9.6'
 ```
 
 UWP packaging needs a Windows host with the UWP workload (SDK 22621). See
-[docs/windows-dev-vm.md](docs/windows-dev-vm.md). `cmake -DXLLAMA_TARGET=uwp`
+[docs/windows-dev-vm.md](docs/windows-dev-vm.md).
+
+Optional, for the Windows branches of `src/bridge/` (D3D12 probes, platform
+code): a local xwin splat of the MSVC CRT + Windows SDK lets
+`scripts/check-win-syntax.sh` run a `clang-cl /Zs` syntax check before the
+`build-uwp` round trip. The one-time `xwin splat` command is in the script
+header; accepting the Microsoft licence is the developer's call, and nothing
+from the splat is committed. It is not a build: no linking, no `uwp/`, MSVC
+stays the reference. `cmake -DXLLAMA_TARGET=uwp`
 is a deliberate fatal error that points at `scripts/build-uwp.ps1`; CI checks
 that message.
 
@@ -308,7 +316,8 @@ touch your files. If you changed evidence or summary policy, run
 `generate-benchmark-summary.py --check`. If you changed code, catalogue,
 pins, or docs that `check-coherence.py` watches, run that script.
 
-UWP edits compile on `build-uwp` only. Note in the PR when you could not
+UWP edits compile on `build-uwp` only. For Windows-only code in `src/bridge/`, run
+`scripts/check-win-syntax.sh` first when a splat is available. Note in the PR when you could not
 build them locally.
 
 If you change a contract, update the owning doc in the same PR
