@@ -174,7 +174,7 @@ void d3d12_mmv_emulate(ggml_type t, const std::uint8_t* w, std::size_t w_row_byt
             const std::uint32_t row_off = static_cast<std::uint32_t>(row * w_row_bytes);
             for (std::uint32_t tid = 0; tid < kD3d12MmvThreads; ++tid) {
                 float a = 0.f;
-                for (std::uint32_t blk = tid >> 4; blk < nchunk; blk += 4u)
+                for (std::uint32_t blk = tid >> 4; blk < nchunk; blk += kD3d12InFlight)
                     a += thread_chunk(t, w, row_off, blk, tid & 15u, xc);
                 acc[tid] = a;
             }

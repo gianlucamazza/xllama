@@ -30,7 +30,9 @@ namespace xllama {
 // Rows per thread group and threads per group of every mmv kernel
 // (shaders/ggml_d3d12_mmv_*.hlsl).
 inline constexpr int kD3d12MmvRows = 4;
-inline constexpr int kD3d12MmvThreads = 64;
+inline constexpr int kD3d12MmvThreads = 128;
+// Chunks in flight per group: 16 threads share one 256-element chunk.
+inline constexpr int kD3d12InFlight = kD3d12MmvThreads / 16;
 // Every kernel walks K in 256-element chunks (one Q4_K/Q6_K super-block, eight
 // Q4_0 blocks).
 inline constexpr int kD3d12Chunk = 256;

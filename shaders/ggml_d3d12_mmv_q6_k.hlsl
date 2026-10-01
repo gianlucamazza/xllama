@@ -25,7 +25,7 @@ float sbyte(uint word, uint i) {
     return (float)(asint(((word >> (8u * i)) & 0xffu) << 24) >> 24);
 }
 
-[numthreads(64, 1, 1)]
+[numthreads(NUM_THREADS, 1, 1)]
 void CSMain(uint tid : SV_GroupIndex, uint3 gid : SV_GroupID) {
     const uint row0 = gid.x * NUM_ROWS;
     const uint col = gid.y;
@@ -41,7 +41,7 @@ void CSMain(uint tid : SV_GroupIndex, uint3 gid : SV_GroupID) {
     for (uint r = 0; r < NUM_ROWS; ++r)
         acc[r] = 0.0;
 
-    for (uint blk = ix; blk < nchunk; blk += 4u) {
+    for (uint blk = ix; blk < nchunk; blk += IN_FLIGHT) {
         const uint xe = blk * 256u + e;
         const float4 x1 = xload(col, xe);
         const float4 x2 = xload(col, xe + 32u);

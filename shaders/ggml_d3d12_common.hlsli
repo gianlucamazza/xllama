@@ -5,12 +5,16 @@
 // UNORDERED_ACCESS, so X is read through a UAV too. Every root descriptor
 // points at its tensor, so offsets below are tensor-relative.
 //
-// Thread layout (as the H6.3 `rows` kernel): 64 threads, NUM_ROWS rows per
-// group; ix = tid/16 picks one of 4 chunks in flight (stride 4 over the
-// 256-element chunks of K), itid = tid%16 owns 16 weights of that chunk.
+// Thread layout (the H6.3 `rows` kernel, widened): NUM_THREADS threads,
+// NUM_ROWS rows per group; ix = tid/16 picks one of IN_FLIGHT chunks (stride
+// IN_FLIGHT over the 256-element chunks of K), itid = tid%16 owns 16 weights
+// of that chunk. 128 threads (8 chunks in flight): with 64, few-row long-K
+// matmuls (ffn_down, N=2048) stayed under 100 GB/s (D2a run 1).
 // SV_GroupID.y is the activation column (prefill), y = 0 for decode.
 
 #define NUM_ROWS 4
+#define NUM_THREADS 128
+#define IN_FLIGHT (NUM_THREADS / 16)
 
 cbuffer Params : register(b0) {
     uint n;           // output rows (ne01)
@@ -27,7 +31,7 @@ ByteAddressBuffer W : register(t0);
 RWByteAddressBuffer X : register(u1);
 RWStructuredBuffer<float> Y : register(u0);
 
-groupshared float red[NUM_ROWS][64];
+groupshared float red[NUM_ROWS][NUM_THREADS];
 
 // Q4_0 (18 B) and Q6_K (210 B) blocks sit on 2-byte boundaries. ByteAddressBuffer
 // loads need 4-byte alignment, so read the aligned dwords and shift.
@@ -55,7 +59,7 @@ void reduce_store(float acc[NUM_ROWS], uint tid, uint row0, uint col) {
         red[r][tid] = acc[r];
     GroupMemoryBarrierWithGroupSync();
     [unroll]
-    for (uint stride = 32u; stride > 0u; stride >>= 1u) {
+    for (uint stride = NUM_THREADS / 2u; stride > 0u; stride >>= 1u) {
         if (tid < stride) {
             [unroll]
             for (uint r = 0; r < NUM_ROWS; ++r)

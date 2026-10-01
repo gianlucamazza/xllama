@@ -27,7 +27,7 @@ float4 nib4(uint word, uint shift) {
                   (float)((word >> (shift + 16u)) & 0xFu), (float)((word >> (shift + 24u)) & 0xFu));
 }
 
-[numthreads(64, 1, 1)]
+[numthreads(NUM_THREADS, 1, 1)]
 void CSMain(uint tid : SV_GroupIndex, uint3 gid : SV_GroupID) {
     const uint row0 = gid.x * NUM_ROWS;
     const uint col = gid.y;
@@ -44,7 +44,7 @@ void CSMain(uint tid : SV_GroupIndex, uint3 gid : SV_GroupID) {
     for (uint r = 0; r < NUM_ROWS; ++r)
         acc[r] = 0.0;
 
-    for (uint blk = ix; blk < nchunk; blk += 4u) {
+    for (uint blk = ix; blk < nchunk; blk += IN_FLIGHT) {
         const uint xe = blk * 256u;
         const float4 xl0 = xload(col, xe + e_lo);
         const float4 xl1 = xload(col, xe + e_lo + 4u);
