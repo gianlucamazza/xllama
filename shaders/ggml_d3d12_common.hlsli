@@ -8,12 +8,16 @@
 // Thread layout (the H6.3 `rows` kernel, widened): NUM_THREADS threads,
 // NUM_ROWS rows per group; ix = tid/16 picks one of IN_FLIGHT chunks (stride
 // IN_FLIGHT over the 256-element chunks of K), itid = tid%16 owns 16 weights
-// of that chunk. 128 threads (8 chunks in flight): with 64, few-row long-K
-// matmuls (ffn_down, N=2048) stayed under 100 GB/s (D2a run 1).
+// of that chunk. NUM_THREADS is 64 or 128 (two blobs per type); the backend
+// picks per matmul with d3d12_mm_threads(K): long K wants 8 chunks in flight
+// (D2a run 1: ffn_down N=2048 under 100 GB/s at 64), short K starves 128
+// (run 2: lm_head K=1024 fell from 110 to 64 GB/s).
 // SV_GroupID.y is the activation column (prefill), y = 0 for decode.
 
 #define NUM_ROWS 4
-#define NUM_THREADS 128
+#ifndef NUM_THREADS
+#define NUM_THREADS 64
+#endif
 #define IN_FLIGHT (NUM_THREADS / 16)
 
 cbuffer Params : register(b0) {

@@ -141,6 +141,15 @@ TEST_CASE("ggml_d3d12: dispatch planner") {
     CHECK_FALSE(d3d12_mm_dispatch(0, 1).ok);
 }
 
+TEST_CASE("ggml_d3d12: kernel width follows K (D2a runs 1 and 2)") {
+    CHECK(d3d12_mm_threads(1024) == 64); // lm_head of LFM2.5-350M
+    CHECK(d3d12_mm_threads(2048) == 64); // most projections
+    CHECK(d3d12_mm_threads(3840) == 64);
+    CHECK(d3d12_mm_threads(4096) == 128);  // first width with 16 chunks
+    CHECK(d3d12_mm_threads(8192) == 128);  // LFM2.5-1.2B ffn_down
+    CHECK(d3d12_mm_threads(11008) == 128); // Coder-3B ffn_down
+}
+
 TEST_CASE("ggml_d3d12: kernel emulation matches ggml dequantizers") {
     struct Case {
         ggml_type t;

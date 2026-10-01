@@ -185,7 +185,9 @@ device registered with `ggml_backend_register()`:
   layout plus a column index for prefill; Q4_0 (18 B) and Q6_K (210 B) blocks
   are read with 2-byte-aligned dword loads (Coder-3B Q6_K `ffn_down` rows are
   9030 B). Weight tensors get 16 B of padding: root descriptors have no bounds
-  check.
+  check. Two blobs per type, 64 or 128 threads per group,
+  picked by K (`d3d12_mm_threads`: 128 from K = 4096): long-K `ffn_down`
+  needs 8 chunks in flight, short K starves them (D2a runs 1 and 2).
 - **`graph_compute`**: root constants + root SRV/UAVs per matmul, one submit,
   spin fence; the call returns with the work done.
 

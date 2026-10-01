@@ -36,6 +36,10 @@ D3d12Dispatch d3d12_mm_dispatch(std::int64_t n, std::int64_t ncols) {
     return d;
 }
 
+int d3d12_mm_threads(std::int64_t k) {
+    return k / kD3d12Chunk >= kD3d12LongKChunks ? kD3d12MmvThreadsLong : kD3d12MmvThreadsShort;
+}
+
 bool d3d12_mm_supported(const D3d12MatmulDesc& d) {
     return d3d12_weight_type_supported(d.src0_type) && d.src0_in_weight_buffer &&
            d.src0_contiguous && d.src1_contiguous && d.src1_type == GGML_TYPE_F32 &&
@@ -167,18 +171,20 @@ void d3d12_mmv_emulate(ggml_type t, const std::uint8_t* w, std::size_t w_row_byt
         !d3d12_weight_type_supported(t))
         return;
     const std::uint32_t nchunk = static_cast<std::uint32_t>(k / kD3d12Chunk);
-    float acc[kD3d12MmvThreads];
+    const std::uint32_t threads = static_cast<std::uint32_t>(d3d12_mm_threads(k));
+    const std::uint32_t in_flight = threads / 16u;
+    float acc[kD3d12MmvThreadsLong];
     for (int c = 0; c < ncols; ++c) {
         const float* xc = x + static_cast<std::size_t>(c) * x_stride;
         for (int row = 0; row < n; ++row) {
             const std::uint32_t row_off = static_cast<std::uint32_t>(row * w_row_bytes);
-            for (std::uint32_t tid = 0; tid < kD3d12MmvThreads; ++tid) {
+            for (std::uint32_t tid = 0; tid < threads; ++tid) {
                 float a = 0.f;
-                for (std::uint32_t blk = tid >> 4; blk < nchunk; blk += kD3d12InFlight)
+                for (std::uint32_t blk = tid >> 4; blk < nchunk; blk += in_flight)
                     a += thread_chunk(t, w, row_off, blk, tid & 15u, xc);
                 acc[tid] = a;
             }
-            for (int stride = kD3d12MmvThreads / 2; stride > 0; stride >>= 1)
+            for (int stride = static_cast<int>(threads) / 2; stride > 0; stride >>= 1)
                 for (int i = 0; i < stride; ++i)
                     acc[i] += acc[i + stride];
             y[static_cast<std::size_t>(c) * y_stride + row] = acc[0];
@@ -241,9 +247,12 @@ void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
         #include "ggml-alloc.h"
         #include "ggml-backend-impl.h"
         #include "ggml-backend.h"
-        #include "ggml_d3d12_mmv_q4_0_dxil.h"
-        #include "ggml_d3d12_mmv_q4_k_dxil.h"
-        #include "ggml_d3d12_mmv_q6_k_dxil.h"
+        #include "ggml_d3d12_mmv_q4_0_t128_dxil.h"
+        #include "ggml_d3d12_mmv_q4_0_t64_dxil.h"
+        #include "ggml_d3d12_mmv_q4_k_t128_dxil.h"
+        #include "ggml_d3d12_mmv_q4_k_t64_dxil.h"
+        #include "ggml_d3d12_mmv_q6_k_t128_dxil.h"
+        #include "ggml_d3d12_mmv_q6_k_t64_dxil.h"
         #include "xllama/d3d12_dyn.h"
         #include "xllama/platform.h"
 
@@ -274,7 +283,7 @@ struct Gpu {
     ComPtr<ID3D12CommandAllocator> alloc;
     ComPtr<ID3D12GraphicsCommandList> cl;
     ComPtr<ID3D12RootSignature> root;
-    ComPtr<ID3D12PipelineState> pso[kPsoCount];
+    ComPtr<ID3D12PipelineState> pso[kPsoCount][2]; // [type][0 = 64 threads, 1 = 128]
     ComPtr<ID3D12QueryHeap> ts;
     ComPtr<ID3D12Resource> ts_rb;
     ComPtr<ID3D12Resource> staging;  // 64 MiB upload ring for weight uploads
@@ -363,19 +372,24 @@ bool init_gpu(Gpu& g) {
     g.root = make_root_sig(g.device.Get(), &err);
     if (!g.root)
         return false;
-    const void* blobs[kPsoCount] = {kGgmlD3d12MmvQ40Dxil, kGgmlD3d12MmvQ4KDxil,
-                                    kGgmlD3d12MmvQ6KDxil};
-    const size_t sizes[kPsoCount] = {kGgmlD3d12MmvQ40DxilSize, kGgmlD3d12MmvQ4KDxilSize,
-                                     kGgmlD3d12MmvQ6KDxilSize};
+    const void* blobs[kPsoCount][2] = {{kGgmlD3d12MmvQ40T64Dxil, kGgmlD3d12MmvQ40T128Dxil},
+                                       {kGgmlD3d12MmvQ4KT64Dxil, kGgmlD3d12MmvQ4KT128Dxil},
+                                       {kGgmlD3d12MmvQ6KT64Dxil, kGgmlD3d12MmvQ6KT128Dxil}};
+    const size_t sizes[kPsoCount][2] = {
+        {kGgmlD3d12MmvQ40T64DxilSize, kGgmlD3d12MmvQ40T128DxilSize},
+        {kGgmlD3d12MmvQ4KT64DxilSize, kGgmlD3d12MmvQ4KT128DxilSize},
+        {kGgmlD3d12MmvQ6KT64DxilSize, kGgmlD3d12MmvQ6KT128DxilSize}};
     for (int i = 0; i < kPsoCount; ++i) {
-        D3D12_COMPUTE_PIPELINE_STATE_DESC pd = {};
-        pd.pRootSignature = g.root.Get();
-        pd.CS.pShaderBytecode = blobs[i];
-        pd.CS.BytecodeLength = sizes[i];
-        hr = g.device->CreateComputePipelineState(&pd, IID_PPV_ARGS(&g.pso[i]));
-        if (FAILED(hr)) {
-            err = d3d12c::hr_message("CreateComputePipelineState", hr);
-            return false;
+        for (int wd = 0; wd < 2; ++wd) {
+            D3D12_COMPUTE_PIPELINE_STATE_DESC pd = {};
+            pd.pRootSignature = g.root.Get();
+            pd.CS.pShaderBytecode = blobs[i][wd];
+            pd.CS.BytecodeLength = sizes[i][wd];
+            hr = g.device->CreateComputePipelineState(&pd, IID_PPV_ARGS(&g.pso[i][wd]));
+            if (FAILED(hr)) {
+                err = d3d12c::hr_message("CreateComputePipelineState", hr);
+                return false;
+            }
         }
     }
     if (SUCCEEDED(g.queue->GetTimestampFrequency(&g.ts_freq)) && g.ts_freq > 0) {
@@ -686,7 +700,8 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
                                         static_cast<std::uint32_t>(node->nb[1] / sizeof(float)),
                                         0,
                                         0};
-            cl->SetPipelineState(g.pso[pso_for(w->type)].Get());
+            const int wide = d3d12_mm_threads(w->ne[0]) == kD3d12MmvThreadsLong ? 1 : 0;
+            cl->SetPipelineState(g.pso[pso_for(w->type)][wide].Get());
             cl->SetComputeRoot32BitConstants(0, 8, c, 0);
             cl->SetComputeRootShaderResourceView(1, tensor_va(w));
             cl->SetComputeRootUnorderedAccessView(2, tensor_va(node));
