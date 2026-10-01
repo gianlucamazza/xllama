@@ -350,7 +350,7 @@ If you change a contract, update the owning doc in the same PR
 ## Debugging
 
 - Linux: `./build/linux-test/bin/xllama-cli --help`. Training jobs fail
-  closed with `--validate-train-job`. GPU probes (`--gpubw`, `--gpugemv`)
+  closed with `--validate-train-job`. GPU probes (`--gpubw`, `--gpugemv`, `--gpustep`)
   report `d3d12_ran=false` on Linux; that is expected.
 - Console log: `./scripts/deploy.sh get-log` reads `LocalState\xllama.log`.
   Crash dumps: `./scripts/deploy.sh list-dumps`. Portal details:

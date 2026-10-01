@@ -34,7 +34,7 @@ Configuration for a single inference call. Used by the CLI, benchmarks, and `run
 | `echo_stdout`         | false      | Stream to stdout (interactive CLI)                                |
 | `abort_flag`          | —          | Atomic flag for early termination                                 |
 
-Probe flags (require `XLLAMA_BUILD_PROBES=ON`): `run_membw`, `run_diskbw`, `run_gpubw`, `run_gpugemv`, `run_ramceil`.
+Probe flags (require `XLLAMA_BUILD_PROBES=ON`): `run_membw`, `run_diskbw`, `run_gpubw`, `run_gpugemv`, `run_gpustep`, `run_ramceil`; `gpustep_verdict_csv` evaluates a D1 CSV and exits.
 
 ## `xllama::InferenceResult`
 

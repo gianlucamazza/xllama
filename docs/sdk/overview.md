@@ -67,10 +67,10 @@ int main() {
 
 ### CMake Options
 
-| Option                | Default | Description                                                        |
-| --------------------- | ------- | ------------------------------------------------------------------ |
-| `XLLAMA_BUILD_PROBES` | `ON`    | Build benchmarking probes (membw, diskbw, gpubw, gpugemv, ramceil) |
-| `XLLAMA_DEVICE_TRAIN` | `OFF`   | Enable on-device training engine                                   |
+| Option                | Default | Description                                                                 |
+| --------------------- | ------- | --------------------------------------------------------------------------- |
+| `XLLAMA_BUILD_PROBES` | `ON`    | Build benchmarking probes (membw, diskbw, gpubw, gpugemv, gpustep, ramceil) |
+| `XLLAMA_DEVICE_TRAIN` | `OFF`   | Enable on-device training engine                                            |
 
 ### Build Presets
 

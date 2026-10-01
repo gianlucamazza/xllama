@@ -57,7 +57,7 @@ First launch: downloads default model (~219 MB). No model bundled in MSIX.
 - **LAN API** — OpenAI-compat completions, GGUF embeddings, trusted catalogue
   pull, preferences and training status. Current integration probe for games
   and assistants; opt-in, default OFF.
-- **Bench** — headless tok/s, membw, diskbw, gpubw, gpugemv, ramceil probes
+- **Bench** — headless tok/s, membw, diskbw, gpubw, gpugemv, gpustep, ramceil probes
 - **Diffuse** — SD-Turbo on DirectML, in-process with XAML compositor
 - **Train** — on-device partial FT (Lane B), host PEFT (Lane A), serve merged GGUF (Lane C)
 - **Chat (demo shell)** — multi-turn pad UI with KV-reuse, thinking models,
@@ -195,8 +195,10 @@ An underexplored platform with strict memory and packaging constraints.
 
 ### Why dual backend?
 
-Per-workload verdict: CPU decode > GPU decode. GPU prefill > CPU prefill.
-One backend can't win both. Runtime dispatch per model is the answer.
+Per-workload verdict on DirectML: CPU decode > GPU decode, GPU prefill > CPU
+prefill. One backend can't win both. Runtime dispatch per model is the answer.
+A GGUF decode path on our own D3D12 kernels is in design
+([docs/gguf-gpu-decode.md](docs/gguf-gpu-decode.md)); nothing ships from it yet.
 
 ### Why single Session owner?
 
