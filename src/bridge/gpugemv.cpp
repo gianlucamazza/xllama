@@ -543,6 +543,7 @@ void measure_gpugemv_each(int n, int k, int iterations, GpugemvKernel kernel,
         out->push_back(std::move(seed));
         return;
     }
+    HRESULT hr = S_OK;
 
     D3D12_FEATURE_DATA_D3D12_OPTIONS1 opt1 = {};
     if (SUCCEEDED(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &opt1, sizeof(opt1)))) {
