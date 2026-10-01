@@ -286,7 +286,7 @@ struct Gpu {
     ComPtr<ID3D12PipelineState> pso[kPsoCount][2]; // [type][0 = 64 threads, 1 = 128]
     ComPtr<ID3D12QueryHeap> ts;
     ComPtr<ID3D12Resource> ts_rb;
-    ComPtr<ID3D12Resource> staging;  // 64 MiB upload ring for weight uploads
+    ComPtr<ID3D12Resource> staging;  // weight upload ring (kStagingBytes)
     ComPtr<ID3D12Resource> readback; // get_tensor on weights (kStagingBytes)
     std::uint8_t* staging_ptr = nullptr;
     std::uint8_t* readback_ptr = nullptr;

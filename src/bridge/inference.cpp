@@ -585,6 +585,7 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     dlp.echo_stdout = params.echo_stdout;
     dlp.decode_start = t_gen0;
     dlp.prompt_lookup = params.prompt_lookup;
+    dlp.ignore_eog = params.ignore_eog;
     dlp.token_history = params.prompt_lookup ? &gen_history : nullptr;
     const DecodeLoopResult dlr = decode_loop(dlp, res.output_text);
     const int n_generated = dlr.n_generated;

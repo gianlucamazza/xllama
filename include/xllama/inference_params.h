@@ -66,6 +66,10 @@ struct InferenceParams {
     /// docs/gguf-gpu-decode.md). Ignored where D3D12 is unavailable.
     int n_gpu_layers = 0;
 
+    /// Bench only: decode exactly n_predict tokens, through end-of-generation
+    /// (stop sequences should be cleared too). Default off.
+    bool ignore_eog = false;
+
     /// Sampling defaults from `xllama/sampling.h`.
     float temperature = sampling_defaults::kTemperature;
     float top_p = sampling_defaults::kTopP;

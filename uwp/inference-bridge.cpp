@@ -243,6 +243,8 @@ void main_loop() {
     const int bench_prompt_lookup = read_local_int("bench_prompt_lookup.txt", 0);
     // GGUF GPU decode D2b: layers on the d3d12 backend. 0 = CPU. Host tag -gN.
     const int bench_gpu_layers = read_local_int("bench_gpu_layers.txt", 0);
+    // D2b: decode exactly n_predict tokens (no EOG / stop sequence). Host tag -noeog.
+    const int bench_ignore_eog = read_local_int("bench_ignore_eog.txt", 0);
     // W1.1: which repetition this run is, written by the bench driver before each
     // iteration. Echoed into the CSV run_index column so the driver can append
     // every repeat and the summary generator can report a spread. 0 = single run.
@@ -287,8 +289,12 @@ void main_loop() {
     params.kv_q8 = bench_kvq8 != 0;                  // #171: q8_0 KV + flash attention
     params.prompt_lookup = bench_prompt_lookup != 0; // #210 W2
     params.n_gpu_layers = bench_gpu_layers;          // D2b: 0 = CPU
-    params.stop_sequences = fmt.stop_sequences;      // clean stop for Gemma's <end_of_turn>
-    params.run_index = bench_run_index;              // W1.1: echo into CSV (0 = single-run)
+    if (bench_ignore_eog != 0) {
+        params.ignore_eog = true;
+        params.stop_sequences.clear();
+    }
+    params.stop_sequences = fmt.stop_sequences; // clean stop for Gemma's <end_of_turn>
+    params.run_index = bench_run_index;         // W1.1: echo into CSV (0 = single-run)
 
     char host_buf[80];
     int host_len = snprintf(host_buf, sizeof(host_buf), "xbox-series-s");
@@ -303,6 +309,8 @@ void main_loop() {
     if (bench_gpu_layers > 0)
         host_len +=
             snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-g%d", bench_gpu_layers);
+    if (bench_ignore_eog != 0)
+        host_len += snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-noeog");
     if (bench_prompt_lookup != 0)
         snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-plookup");
 

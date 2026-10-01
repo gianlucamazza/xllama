@@ -96,6 +96,12 @@ struct DecodeLoopParams {
     std::vector<llama_token>* token_history = nullptr;
     int spec_n_gram = kSpecNgramDefault;
     int spec_k = kSpecDraftKDefault;
+
+    // Bench only: keep decoding through end-of-generation so every run decodes
+    // exactly n_predict tokens. Two backends whose arithmetic differs (CPU q8
+    // activations vs d3d12 f32) reach EOG at different points, and a decode
+    // tok/s over a handful of tokens is noise (D2b). Default off.
+    bool ignore_eog = false;
 };
 
 struct DecodeLoopResult {
@@ -243,7 +249,7 @@ inline DecodeLoopResult decode_loop(const DecodeLoopParams& p, std::string& outp
             break;
 
         llama_token token = llama_sampler_sample(p.sampler, p.ctx, -1);
-        if (llama_vocab_is_eog(p.vocab, token)) {
+        if (llama_vocab_is_eog(p.vocab, token) && !p.ignore_eog) {
             log_output("[xllama] EOG after " + std::to_string(out.n_generated) + " tokens\n");
             break;
         }
