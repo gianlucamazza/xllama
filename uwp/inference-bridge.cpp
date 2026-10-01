@@ -9,6 +9,9 @@
 #include "xllama/gpubw.h"
 #include "xllama/gpugemv.h"
 #include "xllama/gpustep.h"
+#ifdef XLLAMA_USE_LLAMA
+    #include "xllama/ggml_d3d12.h"
+#endif
 #include "xllama/inference.h"
 #include "xllama/json_utils.h"
 #include "xllama/membw.h"
@@ -630,6 +633,50 @@ void run_gpustep(bool inproc) {
     log_output(lb);
 #else
     (void)inproc;
+#endif
+}
+
+// ---------------------------------------------------------------------------
+// run_d3d12_selftest (d3d12be.flag, headless)
+// ---------------------------------------------------------------------------
+
+void run_d3d12_selftest() {
+#if defined(XLLAMA_UWP) && defined(XLLAMA_USE_LLAMA)
+    log_output("[xllama] d3d12be: backend selftest (Q4_0/Q4_K/Q6_K vs ggml dequant)\n");
+    std::vector<::xllama::D3d12SelftestRow> rows;
+    ::xllama::run_d3d12_selftest(&rows);
+    const std::string csv = resolve_local_path("d3d12be-result.csv");
+    FILE* fp = _wfopen(utf8_to_wstring(csv).c_str(), L"w");
+    if (fp)
+        fputs(::xllama::d3d12_selftest_csv_header(), fp);
+    int ok = 0;
+    for (const auto& r : rows) {
+        if (fp)
+            fputs(::xllama::format_d3d12_selftest_row(r, "xbox-series-s").c_str(), fp);
+        ok += r.ok ? 1 : 0;
+        char lb[320];
+        snprintf(lb, sizeof(lb),
+                 "[xllama] d3d12be: %s n=%d k=%d ncols=%d rel_err=%.3g gpu_ms=%.4f gbs=%.2f "
+                 "ok=%d err=%s\n",
+                 r.type.c_str(), r.n, r.k, r.ncols, r.rel_err, r.gpu_ms, r.packed_gbs, r.ok ? 1 : 0,
+                 r.error.empty() ? "-" : r.error.c_str());
+        log_output(lb);
+    }
+    if (fp) {
+        fflush(fp);
+        fclose(fp);
+    }
+    FILE* done =
+        _wfopen(utf8_to_wstring(resolve_local_path("d3d12be-result.csv.done")).c_str(), L"w");
+    if (done) {
+        fputs("done\n", done);
+        fclose(done);
+    }
+    char lb[96];
+    snprintf(lb, sizeof(lb), "[xllama] d3d12be: %d/%zu cases ok\n", ok, rows.size());
+    log_output(lb);
+#elif defined(XLLAMA_UWP)
+    log_output("[xllama] d3d12be: this package has no llama.cpp backend\n");
 #endif
 }
 

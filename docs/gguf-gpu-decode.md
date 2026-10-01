@@ -165,7 +165,37 @@ The `gpugemv` rerun on the same package (regression check for the
 `d3d12_compute` refactor) gave `rows` 138.11 GB/s (−3.5% vs 143.06, inside
 ±5%), `wave32` 24.99, `dot4` 139.50 — K3 unchanged.
 
-### D2 — backend, opt-in (gates written now, measured later)
+### D2 — implementation (decided against the pinned llama.cpp)
+
+`include/xllama/ggml_d3d12.h` + `src/bridge/ggml_d3d12.cpp`, a GPU-type ggml
+device registered with `ggml_backend_register()`:
+
+- **Two buffer types.** llama.cpp lists a GPU device's _default_ buft before
+  its extra bufts, and the scheduler allocates activations in the default one.
+  So the default is **`D3D12_Host`** (CUSTOM heap, WRITE_BACK/L0,
+  `is_host`): CPU→GPU copies become `memcpy`, the CPU reads results in place,
+  one round trip per split (the D1 zero-copy path). Weights go to the extra
+  buft **`D3D12_Weights`** (DEFAULT heap, D1c).
+- **`supports_op`** accepts `MUL_MAT` only when the weight already lives in
+  `D3D12_Weights` (Q4_0 / Q4_K / Q6_K, K multiple of 256, contiguous, 2-D;
+  F32 activations). llama.cpp's per-weight buft probe therefore skips the host
+  buft; norms, biases, short-conv, `token_embd` and other types fall back to the
+  CPU list by themselves.
+- **Kernels** `shaders/ggml_d3d12_mmv_{q4_0,q4_k,q6_k}.hlsl`: the H6.3 `rows`
+  layout plus a column index for prefill; Q4_0 (18 B) and Q6_K (210 B) blocks
+  are read with 2-byte-aligned dword loads (Coder-3B Q6_K `ffn_down` rows are
+  9030 B). Weight tensors get 16 B of padding: root descriptors have no bounds
+  check.
+- **`graph_compute`**: root constants + root SRV/UAVs per matmul, one submit,
+  spin fence; the call returns with the work done.
+
+**D2a gate (console selftest `d3d12be.flag`, `scripts/bench-d3d12-selftest.sh`,
+predeclared):** every type × shape (`{n, k}` from Coder-3B and LFM2.5 tensors,
+ncols 1 / 7 / 512) within `rel_err ≤ 1e-2` of ggml's dequantizers, and every
+decode case (ncols = 1) at ≥ 100 GB/s packed (GPU timestamps). Host tests
+emulate each kernel's lane mapping against the same dequantizers.
+
+### D2 — product gate (written before D1, measured in D2b)
 
 `qwen25-coder-3b` first, `lfm25-1.2b-instruct` second, both with
 `n_gpu_layers` = all against the same package's CPU t6 run:
@@ -188,4 +218,5 @@ measured-is-not-shipped ladder applies.
 | Date       | Decision                                                                                                                                                                                                                              |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2026-10-01 | Design: ggml backend `d3d12`, matmul-only first, opt-in. D1 gates and the D2 product gate predeclared before any run.                                                                                                                 |
+| 2026-10-01 | D2a implementation: two buffer types (`D3D12_Host` default, `D3D12_Weights` extra) so weights skip the host buft via `supports_op`; Q4_0 / Q4_K / Q6_K kernels; D2a selftest gate predeclared.                                        |
 | 2026-10-01 | **D1 = `D2-matmul-only`** (CI `1.6.0.1117`): round trip 49.7 µs, simulated Coder-3B token 21.16 ms with sync, in-XAML PASS; weights in DEFAULT heaps (CPU-visible heaps 0.40×). D2 gates unchanged; measure D2 in the UI process too. |

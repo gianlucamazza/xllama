@@ -46,6 +46,11 @@ void run_gpugemv();
 // the XAML window is up → gpustep-inproc-result.csv. Both write a .done marker.
 void run_gpustep(bool inproc);
 
+// d3d12 ggml backend selftest (docs/gguf-gpu-decode.md, D2a). Triggered by
+// LocalFolder\d3d12be.flag; writes d3d12be-result.csv (+ .done). Every Q4_0 /
+// Q4_K / Q6_K shape against ggml's dequantizers. llama builds only.
+void run_d3d12_selftest();
+
 // Heap-ceiling probe. Triggered by LocalFolder\ramceil.flag; writes
 // ramceil-result.csv (+ .done marker holding the stop reason) to LocalState.
 // Measures how much heap the process can actually commit under GameOS — the

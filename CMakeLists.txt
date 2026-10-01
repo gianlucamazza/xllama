@@ -75,6 +75,8 @@ add_library(xllama STATIC
     src/bridge/personalize.cpp
     src/bridge/autopilot.cpp
     src/bridge/capture_probe.cpp
+    src/bridge/d3d12_compute.cpp
+    src/bridge/ggml_d3d12.cpp
 )
 
 # Optional benchmarking probes (membw, diskbw, gpubw, gpugemv, gpustep, ramceil)
@@ -85,7 +87,6 @@ if(XLLAMA_BUILD_PROBES)
         src/bridge/gpubw.cpp
         src/bridge/gpugemv.cpp
         src/bridge/gpustep.cpp
-        src/bridge/d3d12_compute.cpp
         src/bridge/ramceil.cpp
     )
 endif()
@@ -97,6 +98,10 @@ target_include_directories(xllama PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/include
     ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/common
 )
+# The d3d12 ggml backend implements ggml-backend-impl.h, which ggml keeps internal.
+if(WIN32)
+    target_include_directories(xllama PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/ggml/src)
+endif()
 # AOT DXIL blobs for Phase 15 gpubw (#211) / gpugemv (#228); host builds do not link D3D12.
 target_include_directories(xllama PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/generated
