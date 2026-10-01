@@ -287,7 +287,7 @@ struct Gpu {
     ComPtr<ID3D12QueryHeap> ts;
     ComPtr<ID3D12Resource> ts_rb;
     ComPtr<ID3D12Resource> staging;  // 64 MiB upload ring for weight uploads
-    ComPtr<ID3D12Resource> readback; // 64 MiB for get_tensor on weights
+    ComPtr<ID3D12Resource> readback; // get_tensor on weights (kStagingBytes)
     std::uint8_t* staging_ptr = nullptr;
     std::uint8_t* readback_ptr = nullptr;
     d3d12c::QueueFence fence;
@@ -304,7 +304,11 @@ struct Gpu {
     std::string error;
 };
 
-constexpr UINT64 kStagingBytes = 64ull << 20;
+// Weight upload / readback ring. Mapped for the process lifetime and counted in
+// its working set, so it stays small: 64 MiB each put the first GPU-layer
+// smoke at 640 MB peak vs 311 MB on the CPU (D2b); 8 MiB costs a few more
+// round trips at load only.
+constexpr UINT64 kStagingBytes = 8ull << 20;
 
 ComPtr<ID3D12RootSignature> make_root_sig(ID3D12Device* device, std::string* err) {
     D3D12_ROOT_PARAMETER p[4] = {};
