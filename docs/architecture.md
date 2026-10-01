@@ -61,7 +61,8 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `d3d12_dyn.h`                      | Dynamic d3d12.dll entry-point resolve (PE hygiene for AppContainer)                                                       |
 | `speculative.h`                    | `prompt_lookup_draft` — Phase 15 W2 draft-free prompt lookup (pure, host-testable)                                        |
 | `gpubw.h`                          | Phase 15 W3: GPU STREAM probe helpers + kill gate (#211)                                                                  |
-| `gpugemv.h`                        | Phase 15 H6.2: wave32 Q4_K GEMV density probe (#228)                                                                      |
+| `gpugemv.h`                        | Phase 15 H6.1–H6.3: Q4_K GEMV density probe, naive/wave32/rows/dot4 kernels (#228)                                        |
+| `gpustep.h`                        | GGUF GPU decode probe D1: model shapes, cost model, D1 gates and ladder ([gguf-gpu-decode.md](gguf-gpu-decode.md))        |
 | `cli.h`                            | `parse_cli_args` — Linux command-line parsing                                                                             |
 | `platform.h`                       | `log_output`, `detect_threads(_llama)`, `peak_working_set_mb`, `gpu_mem_info`                                             |
 | `path_utils.h`                     | `resolve_model_path`, `first_gguf_in_dir`, `model_uses_llama_backend`                                                     |
@@ -97,7 +98,10 @@ applied to the stateless path),
 `diskbw.cpp` (NVMe disk bandwidth probe),
 `ramceil.cpp` (heap ceiling probe),
 `gpubw.cpp` (GPU STREAM probe D3D12 driver),
-`gpugemv.cpp` (Q4_K GEMV density probe D3D12 driver).
+`gpugemv.cpp` (Q4_K GEMV density probe D3D12 driver),
+`gpustep.cpp` (GGUF GPU decode probe D1 driver),
+`d3d12_compute.cpp` (shared D3D12 device, buffers, root signature and fence
+helpers for the GPU probes; Windows-only, empty on Linux).
 
 ## Inference backends and runtime dispatch
 
@@ -449,7 +453,8 @@ schemas (not the model-bench schema) and written to `bench/results/`.
 
 The **kill gates** are predeclared in the headers (not in docs) so that scripts
 and code stay in sync: `gpubw.h:kGpubwKillReadGbs` (100 GB/s),
-`gpugemv.h:kGpugemvKillPackedGbs` (8 GB/s = K1 kill, 40 GB/s = K2 gate).
+`gpugemv.h:kGpugemvKillPackedGbs` (8 GB/s = K1 kill, 40 GB/s = K2 gate),
+`gpustep.h` (`kGpustepRtGateUs` 100 µs, `kGpustepStepGateMs` 40 ms).
 
 ## Logit-parity harness
 
@@ -764,6 +769,8 @@ while **loose** mode (no catalogue entry) accepts any `.gguf`.
 | `--ramceil`               | Heap ceiling probe                                           |
 | `--gpubw`                 | GPU STREAM probe (reports `d3d12_ran=false` on Linux)        |
 | `--gpugemv`               | Q4_K GEMV density probe (reports `d3d12_ran=false` on Linux) |
+| `--gpustep`               | GPU decode D1 cost-model projection (`d3d12_ran=false`)      |
+| `--gpustep-verdict <csv>` | Evaluate a D1 CSV against the gates, print the ladder        |
 | `--train-job`             | Run training job (JSON path)                                 |
 | `--validate-train-job`    | Validate training job JSON                                   |
 | `--training-capabilities` | Print capability matrix                                      |
@@ -776,14 +783,17 @@ Machine-readable output: `SPEC_STATS` line on stderr for bench scripts.
 
 `shaders/` contains HLSL compute shaders and their AOT-compiled DXIL headers:
 
-| Shader                    | Purpose                       | Output                                |
-| ------------------------- | ----------------------------- | ------------------------------------- |
-| `gpubw_stream.hlsl`       | GPU STREAM read (~1 GiB VRAM) | `generated/gpubw_stream.dxil.h`       |
-| `gpugemv_q4k.hlsl`        | Naive Q4_K GEMV               | `generated/gpugemv_q4k.dxil.h`        |
-| `gpugemv_q4k_wave32.hlsl` | Wave32-optimized Q4_K GEMV    | `generated/gpugemv_q4k_wave32.dxil.h` |
+| Shader                    | Purpose                                             | Output                                |
+| ------------------------- | --------------------------------------------------- | ------------------------------------- |
+| `gpubw_stream.hlsl`       | GPU STREAM read (~1 GiB VRAM)                       | `generated/gpubw_stream_dxil.h`       |
+| `gpugemv_q4k.hlsl`        | Naive Q4_K GEMV                                     | `generated/gpugemv_q4k_dxil.h`        |
+| `gpugemv_q4k_wave32.hlsl` | Wave32-optimized Q4_K GEMV                          | `generated/gpugemv_q4k_wave32_dxil.h` |
+| `gpugemv_q4k_rows.hlsl`   | Multi-row Q4_K GEMV (H6.3; also the gpustep kernel) | `generated/gpugemv_q4k_rows_dxil.h`   |
+| `gpugemv_q4k_dot4.hlsl`   | Multi-row Q4_K × q8 GEMV, cs_6_4 (H6.3)             | `generated/gpugemv_q4k_dot4_dxil.h`   |
 
 Compile scripts: `scripts/compile-gpubw-shader.sh`,
-`scripts/compile-gpugemv-shader.sh` (fxc/dxc → binary → C header).
+`scripts/compile-gpugemv-shader.sh` (dxc → binary → C header; takes per-target
+args so recorded blobs are not rebuilt by a different dxc release).
 
 ## See also
 
