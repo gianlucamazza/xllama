@@ -6,8 +6,9 @@
 > live in [benchmarks.md](benchmarks.md) and `bench/results/`. Platform limits
 > are only in [uwp-constraints.md](uwp-constraints.md).
 
-**Status (2026-10-01):** design accepted for measurement; **D1 predeclared**,
-console run pending. No backend exists; GGUF decode ships on the CPU.
+**Status (2026-10-01):** **D1 = `D2-matmul-only`** (Series S, CI package
+`1.6.0.1117`, `bench/results/phase15-gpustep-d1.csv`). Next is the D2 backend,
+opt-in. No backend exists yet; GGUF decode ships on the CPU.
 
 ## Why
 
@@ -123,6 +124,47 @@ Ladder (`gpustep_evaluate`, printed by `xllama-cli --gpustep-verdict`):
 | `park-gui`       | D1d fails                                                    | park for GUI/API (headless-only is no product) |
 | `NotAVerdict`    | a required row is missing or D1-G1 fails headless            | fix the probe, rerun                           |
 
+### D1 result (2026-10-01)
+
+CI MSVC package `1.6.0.1117` (run 36927534262), Series S, both processes,
+`bench/results/phase15-gpustep-d1.csv`. Every row `ok=1`, `d3d12_ran=1`;
+`caps`: UMA = 1, CacheCoherentUMA = 1.
+
+| Measure                                                 | Headless            | In-XAML             |
+| ------------------------------------------------------- | ------------------- | ------------------- |
+| `rt` spin-zerocopy / spin-copy / event-copy (median µs) | 49.7 / 53.1 / 56.9  | 61.0 / 60.8 / 71.0  |
+| `rt` p90, best variant (µs)                             | 53.8                | 155.3               |
+| `heap` DEFAULT / UPLOAD / CUSTOM (GB/s)                 | 144.4 / 57.7 / 57.8 | 118.7 / 52.1 / 53.9 |
+| `qwen25-coder-3b` sync / nosync (ms)                    | **21.16** / 14.74   | 21.50 / 14.90       |
+| `lfm25-1.2b-instruct` sync / nosync (ms)                | 8.50 / 5.68         | 8.66 / 5.69         |
+| `lfm25-350m` sync / nosync (ms)                         | 4.89 / 2.26         | 4.97 / 2.27         |
+
+| Gate  | Result                                                                                        |
+| ----- | --------------------------------------------------------------------------------------------- |
+| D1-G1 | PASS (headless and in-XAML)                                                                   |
+| D1a   | PASS — 49.7 µs ≤ 100                                                                          |
+| D1b   | PASS — 21.16 ms ≤ 40                                                                          |
+| D1c   | **DEFAULT + copy** — CPU-visible heaps read at 0.40× DEFAULT (57.8 vs 144.4 GB/s) despite UMA |
+| D1d   | PASS — the system D3D12 device works next to the compositor                                   |
+
+**Ladder: `D2-matmul-only`.** What the numbers say:
+
+- The cost model holds: Coder-3B `sync` 21.16 ms against 20.69 ms projected at
+  t_rt = 50 µs; `nosync` 14.74 ms against 13.44 ms of pure GEMV.
+- Sync costs ~6.4 ms per Coder-3B token (145 splits × ~44 µs): real, but
+  inside the gate. D2-fused stays an optimisation, not a prerequisite.
+- Weights go in DEFAULT heaps. UMA is real (`cc_uma=1`) but CPU-visible pages
+  halve GPU read bandwidth; only small per-split activations go through upload
+  and readback buffers (zero-copy X/Y saves ~3 µs per round trip).
+- In-XAML: medians match headless, the p90 round trip triples (155 µs) and
+  DEFAULT-heap GEMV drops 18% — the compositor shares the GPU. D2 must be
+  measured in the UI process, not only headless.
+- Still no tok/s: CPU-side ops (t_cpu_rest) are not in any of these numbers.
+
+The `gpugemv` rerun on the same package (regression check for the
+`d3d12_compute` refactor) gave `rows` 138.11 GB/s (−3.5% vs 143.06, inside
+±5%), `wave32` 24.99, `dot4` 139.50 — K3 unchanged.
+
 ### D2 — backend, opt-in (gates written now, measured later)
 
 `qwen25-coder-3b` first, `lfm25-1.2b-instruct` second, both with
@@ -143,6 +185,7 @@ measured-is-not-shipped ladder applies.
 
 ## Decision log
 
-| Date       | Decision                                                                                                              |
-| ---------- | --------------------------------------------------------------------------------------------------------------------- |
-| 2026-10-01 | Design: ggml backend `d3d12`, matmul-only first, opt-in. D1 gates and the D2 product gate predeclared before any run. |
+| Date       | Decision                                                                                                                                                                                                                              |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-01 | Design: ggml backend `d3d12`, matmul-only first, opt-in. D1 gates and the D2 product gate predeclared before any run.                                                                                                                 |
+| 2026-10-01 | **D1 = `D2-matmul-only`** (CI `1.6.0.1117`): round trip 49.7 µs, simulated Coder-3B token 21.16 ms with sync, in-XAML PASS; weights in DEFAULT heaps (CPU-visible heaps 0.40×). D2 gates unchanged; measure D2 in the UI process too. |

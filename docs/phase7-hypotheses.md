@@ -412,8 +412,9 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   multi-row `rows` kernel **K3**: median **143.06** GB/s packed, G1 PASS 3/3
   (`bench/results/phase15-gpugemv-h63.csv`,
   [phase15-re-opt.md](phase15-re-opt.md) WS-E / H6.3). That opens a GGUF GPU
-  decode _design_ — [gguf-gpu-decode.md](gguf-gpu-decode.md), D1 probe
-  predeclared; no tok/s claim until the D2 gate is measured. Small-model GPU decode via ORT
+  decode _design_ — [gguf-gpu-decode.md](gguf-gpu-decode.md). D1
+  (2026-10-01) = `D2-matmul-only`: 49.7 µs round trip, simulated Coder-3B
+  token 21.16 ms with CPU sync. No tok/s claim until the D2 gate is measured. Small-model GPU decode via ORT
   DML remains falsified; STREAM only shows raw VRAM bandwidth our D3D12 code
   can reach.
 

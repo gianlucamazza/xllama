@@ -502,6 +502,12 @@ compositor + sequential-lifetime weights (~2.4 GB) inside the 3801 MB budget.
 
 **Diagnosis**: SEH `0xC0000005` in `OgaCreateModel`. WDP minidump (`type=2`) and the `xllama.log` entry `OgaCreateModel failed: ...` confirm the cause.
 
+**Our own system D3D12 device inside the XAML process** (2026-10-01, D1d,
+`gpustep-inproc.flag`): creates, compiles and runs next to the compositor with
+correct results — no `887A0036`. The compositor shares the GPU: DEFAULT-heap
+GEMV reads 118.7 vs 144.4 GB/s headless and the round-trip p90 triples
+(155 vs 54 µs). Details: [gguf-gpu-decode.md](gguf-gpu-decode.md) D1 result.
+
 **Source note**: the GPU budget (3801 MB) is measured per-process via
 `QueryVideoMemoryInfo(LOCAL).Budget` with the package designated Game. The historical "~768 MB"
 estimate came from OOM bracketing (Phi-3.5-mini vs SmolLM2-360M) and proved to

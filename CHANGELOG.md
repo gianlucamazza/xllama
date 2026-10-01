@@ -13,8 +13,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   gates. New `gpustep.flag` / `gpustep-inproc.flag` probe (round trip,
   simulated token per model, heap bandwidth, in-XAML run),
   `scripts/bench-gpustep.sh`, `xllama-cli --gpustep` / `--gpustep-verdict`.
-  D3D12 plumbing shared in `src/bridge/d3d12_compute.{h,cpp}`. No backend, no
-  tok/s claim.
+  D3D12 plumbing shared in `src/bridge/d3d12_compute.{h,cpp}`. Series S (CI
+  package 1.6.0.1117): **D1 = `D2-matmul-only`** — round trip 49.7 µs,
+  simulated Coder-3B token 21.16 ms with a CPU sync per split, in-XAML PASS,
+  weights belong in DEFAULT heaps. CSV `bench/results/phase15-gpustep-d1.csv`.
+  No backend, no tok/s claim. `bench-gpugemv.sh` now deletes a stale `.done`
+  before the run.
 
 - **H6.3 multi-row Q4_K GEMV density probe — K3** (#228). New `rows`
   (cs_6_0) and `dot4` (cs_6_4, q8 activations) kernels in `gpugemv.flag`:

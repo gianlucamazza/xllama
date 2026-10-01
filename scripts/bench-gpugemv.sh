@@ -76,6 +76,9 @@ if ! upload_flag 2>/dev/null; then
 fi
 
 "${SCRIPT_DIR}/deploy.sh" stop-app || true
+# A .done left by the previous run would end the wait at once and fetch the CSV
+# while the app is rewriting it (an empty file).
+"${SCRIPT_DIR}/deploy.sh" delete-file "$PFN" "gpugemv-result.csv.done" >/dev/null 2>&1 || true
 sleep 1
 "${SCRIPT_DIR}/deploy.sh" start-app
 echo "Waiting for gpugemv-result.csv.done (timeout ${TIMEOUT_S}s) ..."
