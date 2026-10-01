@@ -6,9 +6,9 @@
 > live in [benchmarks.md](benchmarks.md) and `bench/results/`. Platform limits
 > are only in [uwp-constraints.md](uwp-constraints.md).
 
-**Status (2026-10-01):** **D1 = `D2-matmul-only`** (Series S, CI package
-`1.6.0.1117`, `bench/results/phase15-gpustep-d1.csv`). Next is the D2 backend,
-opt-in. No backend exists yet; GGUF decode ships on the CPU.
+**Status (2026-10-02):** D1 = `D2-matmul-only`; **D2a = PASS** (backend
+`d3d12` selftest, CI package `1.6.0.1125`). Next is D2b: wiring into bench,
+session and API, opt-in, then the product gate. GGUF decode ships on the CPU.
 
 ## Why
 
@@ -197,6 +197,29 @@ ncols 1 / 7 / 512) within `rel_err ≤ 1e-2` of ggml's dequantizers, and every
 decode case (ncols = 1) at ≥ 100 GB/s packed (GPU timestamps). Host tests
 emulate each kernel's lane mapping against the same dequantizers.
 
+### D2a result (2026-10-01/02, three console runs)
+
+`scripts/bench-d3d12-selftest.sh`, GPU timestamps, rel_err against ggml's
+dequantizers (all runs: 12/12 correct, rel_err ≤ 1.7e-7):
+
+| Decode shape (n × k) | Run 1, 64 threads | Run 2, 128 threads | Run 3, width by K |
+| -------------------- | ----------------: | -----------------: | ----------------: |
+| q4_0 8192 × 2048     |             127.0 |              118.2 |         **116.9** |
+| q4_0 2048 × 8192     |          **90.6** |              104.7 |         **104.0** |
+| q4_k 11008 × 2048    |             144.9 |              132.5 |         **143.6** |
+| q4_k 2048 × 11008    |             127.4 |              130.3 |         **129.6** |
+| q6_k 2048 × 11008    |          **94.3** |              100.7 |         **102.3** |
+| q6_k 65536 × 1024    |             110.7 |           **64.1** |         **114.4** |
+| D2a                  |              FAIL |               FAIL |          **PASS** |
+
+GB/s packed, CI packages `1.6.0.1123` / `1124` / `1125`; CSVs
+`bench/results/d2a-d3d12-selftest{,-t128,-adaptive}.csv`. Run 1 starved
+long-K matmuls (512 groups for N = 2048); run 2 starved short K (4 chunks for
+8 slots); run 3 picks the width per K and passes every decode case. The
+q4_0 8192 × 2048 row sits ~10 GB/s below run 1 at the same width — run-to-run
+spread on a 9.4 MB matmul (identical blob), not a code difference. Prefill
+columns run at ~3–5.5 µs per column at 1024 × 1024; the prefill gate is D2b's.
+
 ### D2 — product gate (written before D1, measured in D2b)
 
 `qwen25-coder-3b` first, `lfm25-1.2b-instruct` second, both with
@@ -221,4 +244,5 @@ measured-is-not-shipped ladder applies.
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2026-10-01 | Design: ggml backend `d3d12`, matmul-only first, opt-in. D1 gates and the D2 product gate predeclared before any run.                                                                                                                 |
 | 2026-10-01 | D2a implementation: two buffer types (`D3D12_Host` default, `D3D12_Weights` extra) so weights skip the host buft via `supports_op`; Q4_0 / Q4_K / Q6_K kernels; D2a selftest gate predeclared.                                        |
+| 2026-10-02 | **D2a = PASS** (run 3, CI `1.6.0.1125`): 12/12 correct, every decode shape ≥ 102 GB/s with the width picked by K (64 threads below K = 4096, 128 from it). Runs 1–2 failed on speed and stay recorded.                                |
 | 2026-10-01 | **D1 = `D2-matmul-only`** (CI `1.6.0.1117`): round trip 49.7 µs, simulated Coder-3B token 21.16 ms with sync, in-XAML PASS; weights in DEFAULT heaps (CPU-visible heaps 0.40×). D2 gates unchanged; measure D2 in the UI process too. |

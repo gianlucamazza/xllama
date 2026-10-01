@@ -13,8 +13,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   DEFAULT-heap buffer, activations in a CPU-visible default buffer, everything
   else on the CPU. Kernels `shaders/ggml_d3d12_mmv_*.hlsl`; host tests emulate
   them against ggml's dequantizers; console selftest `d3d12be.flag`
-  (`scripts/bench-d3d12-selftest.sh`). Not wired into sessions yet (D2b); no
-  tok/s claim.
+  (`scripts/bench-d3d12-selftest.sh`). Series S: **D2a PASS** on the third run
+  (CI package 1.6.0.1125) — 12/12 correct, every decode shape ≥ 102 GB/s with
+  the kernel width picked by K; runs 1–2 failed the speed gate and stay
+  recorded. Not wired into sessions yet (D2b); no tok/s claim.
 
 - **GGUF GPU decode design + probe D1** (#228). Design SSOT
   [`docs/gguf-gpu-decode.md`](docs/gguf-gpu-decode.md): a ggml backend `d3d12`
