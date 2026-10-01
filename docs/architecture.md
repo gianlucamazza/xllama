@@ -32,47 +32,48 @@ The shared core is platform-agnostic C++17; front-ends are thin:
 
 Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 
-| Header                             | Owns                                                                                                                      |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `session.h` / `inference_params.h` | `Session`/`SessionParams`, `InferenceParams/Result` (`echo_stdout`, the `resolve_max_length` #130 ladder), `Backend` enum |
-| `session_hub.h`                    | `SessionHub` — the ONE process-wide resident-Session owner (GUI + LAN API); locking + `generation` contract               |
-| `sampling.h`                       | `SamplingConfig`, shared defaults; CLI/bench and GUI/API init from it (#125)                                              |
-| `training.h` / `training_params.h` | `TrainingJob`/`TrainingResult`, stages, device gates, job JSON                                                            |
-| `device_train.h`                   | Lane B engine API: `run_device_train_job`, progress callbacks, filters                                                    |
-| `personalize.h`                    | Phase 11 helpers: last-block filter, job builder, sample count, manifest JSON                                             |
-| `preference_capture.h`             | Preference JSONL format + append (Like/Dislike/Correct + API)                                                             |
-| `chat_prompt.h`                    | `ChatFormat`, `chat_format_for`, `apply_stop_sequences`                                                                   |
-| `routing_policy.h`                 | `decide_routing`, `kv_reuse_supported_for_model`, prompt budget                                                           |
-| `embedding.h`                      | Embedding params/results, pooling-aware trim, normalization and float32 base64                                            |
-| `api_pull_policy.h`                | Trusted catalogue pull admission and API-only pull gate                                                                   |
-| `model_write.h`                    | Shared atomic RAII writer permit; guarded marker publication and stale-base cleanup                                       |
-| `model_provision.h`                | `dir_satisfies_expected_files`, `normalize_model_path`                                                                    |
-| `manifest_merge.h`                 | `merge_manifest_entries` (per-entry catalogue override)                                                                   |
-| `membw.h`                          | `measure_membw` (STREAM-style bandwidth probe)                                                                            |
-| `inference.h`                      | `run_inference`, `write_bench_csv` — the public inference entry point                                                     |
-| `prompt_budget.h`                  | `fit_prompt` — exact token-budget trimmer (one enforcement point where the tokenizer lives)                               |
-| `autopilot.h`                      | `AutopilotAction`, `validate_autopilot_script` — console gate contract (WinRT-free)                                       |
-| `json_utils.h`                     | `json_escape`, `json_read_string` with `\uXXXX` decode (surrogate pairs) — canonical JSON helpers                         |
-| `cancel_policy.h`                  | `CancelTarget` + `cancel_target()` — which running job a cancel request targets                                           |
-| `kv_store.h`                       | `KvStore` — on-disk KV snapshot pool (3 files / 192 MB, LRU, fingerprinted)                                               |
-| `logit_dump.h`                     | Logit-parity harness: portable float32 dump + JSON sidecar, shared by both backends                                       |
-| `ramceil.h`                        | `probe_ram_ceiling` — heap ceiling probe (commits in steps, records platform counters)                                    |
-| `diskbw.h`                         | `measure_diskbw` — NVMe/disk bandwidth probe (sequential + random patterns)                                               |
-| `d3d12_dyn.h`                      | Dynamic d3d12.dll entry-point resolve (PE hygiene for AppContainer)                                                       |
-| `speculative.h`                    | `prompt_lookup_draft` — Phase 15 W2 draft-free prompt lookup (pure, host-testable)                                        |
-| `gpubw.h`                          | Phase 15 W3: GPU STREAM probe helpers + kill gate (#211)                                                                  |
-| `gpugemv.h`                        | Phase 15 H6.1–H6.3: Q4_K GEMV density probe, naive/wave32/rows/dot4 kernels (#228)                                        |
-| `gpustep.h`                        | GGUF GPU decode probe D1: model shapes, cost model, D1 gates and ladder ([gguf-gpu-decode.md](gguf-gpu-decode.md))        |
-| `cli.h`                            | `parse_cli_args` — Linux command-line parsing                                                                             |
-| `platform.h`                       | `log_output`, `detect_threads(_llama)`, `peak_working_set_mb`, `gpu_mem_info`                                             |
-| `path_utils.h`                     | `resolve_model_path`, `first_gguf_in_dir`, `model_uses_llama_backend`                                                     |
-| `utf8_utils.h`                     | `utf8_to_wstring`, `wstring_to_utf8` (Windows/UWP)                                                                        |
-| `ort_raii.h`                       | RAII `unique_ptr` for `Oga*` types (ORT GenAI C API, UWP path)                                                            |
-| `llama_raii.h`                     | RAII `unique_ptr` for `llama_*` types (llama.cpp, Linux + UWP)                                                            |
-| `diffusion/png_writer.h`           | PNG writer for diffusion output                                                                                           |
-| `diffusion/half.h`                 | Half-precision float utilities                                                                                            |
-| `diffusion/euler_scheduler.h`      | Euler scheduler (header-only, golden-vector unit-tested)                                                                  |
-| `diffusion/clip_tokenizer.h`       | CLIP BPE tokenizer for diffusion                                                                                          |
+| Header                             | Owns                                                                                                                                |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `session.h` / `inference_params.h` | `Session`/`SessionParams`, `InferenceParams/Result` (`echo_stdout`, the `resolve_max_length` #130 ladder), `Backend` enum           |
+| `session_hub.h`                    | `SessionHub` — the ONE process-wide resident-Session owner (GUI + LAN API); locking + `generation` contract                         |
+| `sampling.h`                       | `SamplingConfig`, shared defaults; CLI/bench and GUI/API init from it (#125)                                                        |
+| `training.h` / `training_params.h` | `TrainingJob`/`TrainingResult`, stages, device gates, job JSON                                                                      |
+| `device_train.h`                   | Lane B engine API: `run_device_train_job`, progress callbacks, filters                                                              |
+| `personalize.h`                    | Phase 11 helpers: last-block filter, job builder, sample count, manifest JSON                                                       |
+| `preference_capture.h`             | Preference JSONL format + append (Like/Dislike/Correct + API)                                                                       |
+| `chat_prompt.h`                    | `ChatFormat`, `chat_format_for`, `apply_stop_sequences`                                                                             |
+| `routing_policy.h`                 | `decide_routing`, `kv_reuse_supported_for_model`, prompt budget                                                                     |
+| `embedding.h`                      | Embedding params/results, pooling-aware trim, normalization and float32 base64                                                      |
+| `api_pull_policy.h`                | Trusted catalogue pull admission and API-only pull gate                                                                             |
+| `model_write.h`                    | Shared atomic RAII writer permit; guarded marker publication and stale-base cleanup                                                 |
+| `model_provision.h`                | `dir_satisfies_expected_files`, `normalize_model_path`                                                                              |
+| `manifest_merge.h`                 | `merge_manifest_entries` (per-entry catalogue override)                                                                             |
+| `membw.h`                          | `measure_membw` (STREAM-style bandwidth probe)                                                                                      |
+| `inference.h`                      | `run_inference`, `write_bench_csv` — the public inference entry point                                                               |
+| `prompt_budget.h`                  | `fit_prompt` — exact token-budget trimmer (one enforcement point where the tokenizer lives)                                         |
+| `autopilot.h`                      | `AutopilotAction`, `validate_autopilot_script` — console gate contract (WinRT-free)                                                 |
+| `json_utils.h`                     | `json_escape`, `json_read_string` with `\uXXXX` decode (surrogate pairs) — canonical JSON helpers                                   |
+| `cancel_policy.h`                  | `CancelTarget` + `cancel_target()` — which running job a cancel request targets                                                     |
+| `kv_store.h`                       | `KvStore` — on-disk KV snapshot pool (3 files / 192 MB, LRU, fingerprinted)                                                         |
+| `logit_dump.h`                     | Logit-parity harness: portable float32 dump + JSON sidecar, shared by both backends                                                 |
+| `ramceil.h`                        | `probe_ram_ceiling` — heap ceiling probe (commits in steps, records platform counters)                                              |
+| `diskbw.h`                         | `measure_diskbw` — NVMe/disk bandwidth probe (sequential + random patterns)                                                         |
+| `d3d12_dyn.h`                      | Dynamic d3d12.dll entry-point resolve (PE hygiene for AppContainer)                                                                 |
+| `speculative.h`                    | `prompt_lookup_draft` — Phase 15 W2 draft-free prompt lookup (pure, host-testable)                                                  |
+| `gpubw.h`                          | Phase 15 W3: GPU STREAM probe helpers + kill gate (#211)                                                                            |
+| `gpugemv.h`                        | Phase 15 H6.1–H6.3: Q4_K GEMV density probe, naive/wave32/rows/dot4 kernels (#228)                                                  |
+| `gpustep.h`                        | GGUF GPU decode probe D1: model shapes, cost model, D1 gates and ladder ([gguf-gpu-decode.md](gguf-gpu-decode.md))                  |
+| `ggml_d3d12.h`                     | ggml backend `d3d12` (D2): registration, `supports_op` rules, kernel emulation, selftest ([gguf-gpu-decode.md](gguf-gpu-decode.md)) |
+| `cli.h`                            | `parse_cli_args` — Linux command-line parsing                                                                                       |
+| `platform.h`                       | `log_output`, `detect_threads(_llama)`, `peak_working_set_mb`, `gpu_mem_info`                                                       |
+| `path_utils.h`                     | `resolve_model_path`, `first_gguf_in_dir`, `model_uses_llama_backend`                                                               |
+| `utf8_utils.h`                     | `utf8_to_wstring`, `wstring_to_utf8` (Windows/UWP)                                                                                  |
+| `ort_raii.h`                       | RAII `unique_ptr` for `Oga*` types (ORT GenAI C API, UWP path)                                                                      |
+| `llama_raii.h`                     | RAII `unique_ptr` for `llama_*` types (llama.cpp, Linux + UWP)                                                                      |
+| `diffusion/png_writer.h`           | PNG writer for diffusion output                                                                                                     |
+| `diffusion/half.h`                 | Half-precision float utilities                                                                                                      |
+| `diffusion/euler_scheduler.h`      | Euler scheduler (header-only, golden-vector unit-tested)                                                                            |
+| `diffusion/clip_tokenizer.h`       | CLIP BPE tokenizer for diffusion                                                                                                    |
 
 Bridge sources of note under `src/bridge/`: `session.cpp`, `inference.cpp`,
 `training.cpp`, `device_train.cpp`, `personalize.cpp`, `preference_capture.cpp`,
@@ -101,7 +102,9 @@ applied to the stateless path),
 `gpugemv.cpp` (Q4_K GEMV density probe D3D12 driver),
 `gpustep.cpp` (GGUF GPU decode probe D1 driver),
 `d3d12_compute.cpp` (shared D3D12 device, buffers, root signature and fence
-helpers for the GPU probes; Windows-only, empty on Linux).
+helpers for the GPU probes and the d3d12 backend; Windows-only, empty on Linux),
+`ggml_d3d12.cpp` (ggml backend `d3d12`, D2: Q4_0/Q4_K/Q6_K MUL_MAT on D3D12;
+llama builds only, the pure rules and kernel emulation also build on Linux).
 
 ## Inference backends and runtime dispatch
 
@@ -634,7 +637,7 @@ host Release smoke (quality + peak)
 ## Unit test map (host suite)
 
 Every `include/xllama/X.h` has a corresponding `tests/test_X.cpp`. The suite
-is **276 test cases / 8727 assertions** (doctest, without opt-in model checks).
+is **282 test cases / 8781 assertions** (doctest, without opt-in model checks).
 
 | Test file                     | Tests | Header under test                  |
 | ----------------------------- | ----- | ---------------------------------- |
@@ -686,6 +689,7 @@ flags are supported:
 | `gpugemv.flag`        | `run_gpugemv`            | Q4_K GEMV density probe (D3D12 compute shader)                      |
 | `gpustep.flag`        | `run_gpustep(false)`     | GGUF GPU decode probe D1 ([gguf-gpu-decode.md](gguf-gpu-decode.md)) |
 | `gpustep-inproc.flag` | `run_gpustep(true)`      | D1d: the same probe inside the XAML process                         |
+| `d3d12be.flag`        | `run_d3d12_selftest`     | d3d12 ggml backend selftest vs ggml dequant (D2a)                   |
 | `ramceil.flag`        | `run_ramceil`            | Heap ceiling probe (commit in steps)                                |
 | `mic.flag`            | `run_mic_probe`          | Microphone / AudioGraph probe                                       |
 | `logits.flag`         | `run_logits`             | Logit-parity dump (float32 + JSON sidecar)                          |
@@ -783,13 +787,14 @@ Machine-readable output: `SPEC_STATS` line on stderr for bench scripts.
 
 `shaders/` contains HLSL compute shaders and their AOT-compiled DXIL headers:
 
-| Shader                    | Purpose                                             | Output                                |
-| ------------------------- | --------------------------------------------------- | ------------------------------------- |
-| `gpubw_stream.hlsl`       | GPU STREAM read (~1 GiB VRAM)                       | `generated/gpubw_stream_dxil.h`       |
-| `gpugemv_q4k.hlsl`        | Naive Q4_K GEMV                                     | `generated/gpugemv_q4k_dxil.h`        |
-| `gpugemv_q4k_wave32.hlsl` | Wave32-optimized Q4_K GEMV                          | `generated/gpugemv_q4k_wave32_dxil.h` |
-| `gpugemv_q4k_rows.hlsl`   | Multi-row Q4_K GEMV (H6.3; also the gpustep kernel) | `generated/gpugemv_q4k_rows_dxil.h`   |
-| `gpugemv_q4k_dot4.hlsl`   | Multi-row Q4_K × q8 GEMV, cs_6_4 (H6.3)             | `generated/gpugemv_q4k_dot4_dxil.h`   |
+| Shader                                         | Purpose                                             | Output                                |
+| ---------------------------------------------- | --------------------------------------------------- | ------------------------------------- |
+| `gpubw_stream.hlsl`                            | GPU STREAM read (~1 GiB VRAM)                       | `generated/gpubw_stream_dxil.h`       |
+| `gpugemv_q4k.hlsl`                             | Naive Q4_K GEMV                                     | `generated/gpugemv_q4k_dxil.h`        |
+| `gpugemv_q4k_wave32.hlsl`                      | Wave32-optimized Q4_K GEMV                          | `generated/gpugemv_q4k_wave32_dxil.h` |
+| `gpugemv_q4k_rows.hlsl`                        | Multi-row Q4_K GEMV (H6.3; also the gpustep kernel) | `generated/gpugemv_q4k_rows_dxil.h`   |
+| `gpugemv_q4k_dot4.hlsl`                        | Multi-row Q4_K × q8 GEMV, cs_6_4 (H6.3)             | `generated/gpugemv_q4k_dot4_dxil.h`   |
+| `ggml_d3d12_mmv_q4_0.hlsl` / `_q4_k` / `_q6_k` | d3d12 ggml backend MUL_MAT kernels (D2)             | `generated/ggml_d3d12_mmv_*_dxil.h`   |
 
 Compile scripts: `scripts/compile-gpubw-shader.sh`,
 `scripts/compile-gpugemv-shader.sh` (dxc → binary → C header; takes per-target

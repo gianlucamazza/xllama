@@ -325,6 +325,10 @@
     <ClCompile Include="..\src\bridge\gpugemv.cpp" />
     <ClCompile Include="..\src\bridge\gpustep.cpp" />
     <ClCompile Include="..\src\bridge\d3d12_compute.cpp" />
+    <!-- d3d12 ggml backend: implements ggml-backend-impl.h, internal to ggml. -->
+    <ClCompile Include="..\src\bridge\ggml_d3d12.cpp">
+      <AdditionalIncludeDirectories>$(ProjectDir)..\llama.cpp\ggml\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
     <ClCompile Include="..\src\bridge\ramceil.cpp" />
     <ClCompile Include="..\src\bridge\platform.cpp" />
     <ClCompile Include="..\src\bridge\path_utils.cpp" />

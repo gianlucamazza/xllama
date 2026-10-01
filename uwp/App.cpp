@@ -449,6 +449,15 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
                 winrt::make<HeadlessView>(&::xllama::bridge::run_gpugemv, "gpugemv"));
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
+        std::wstring d3d12be_flag = flag_path_if_present(L"d3d12be.flag");
+        if (!d3d12be_flag.empty()) {
+            _wremove(d3d12be_flag.c_str());
+            ::xllama::log_output("[xllama] d3d12be.flag detected -> headless d3d12 backend "
+                                 "selftest\n");
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(&::xllama::bridge::run_d3d12_selftest, "d3d12be"));
+            return 0; // not reached: CoreApplication::Exit terminates the process
+        }
         std::wstring gpustep_flag = flag_path_if_present(L"gpustep.flag");
         if (!gpustep_flag.empty()) {
             _wremove(gpustep_flag.c_str());
