@@ -457,6 +457,7 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         log_output("[xllama] KV cache: q8_0 + flash attention (#171)\n");
     }
 
+    GgufCpuThreadpools cpu_pools; // outlives ctx below (llama_gpu.h)
     llama_context* raw_ctx = llama_init_from_model(model.get(), cparams);
     if (!raw_ctx && params.kv_q8) {
         log_output("[xllama] q8_0 KV context failed — falling back to default cache types\n");
@@ -471,6 +472,8 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         return res;
     }
     LlamaContextPtr ctx(raw_ctx);
+    cpu_pools.attach(gpu_layers, ctx.get(), static_cast<int>(cparams.n_threads),
+                     static_cast<int>(cparams.n_threads_batch));
 
     if (adapter) {
         llama_adapter_lora* arr[1] = {adapter.get()};

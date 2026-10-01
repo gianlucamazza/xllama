@@ -431,6 +431,7 @@ class LlamaSession final : public Session {
     // Persistent context across turns: the KV cache lives here so a reuse turn
     // (reuse_kv && !reset_kv) can append only the delta instead of re-prefilling
     // the whole conversation. Created lazily on the first generate().
+    GgufCpuThreadpools m_cpu_pools; // declared before m_ctx: must outlive it
     LlamaContextPtr m_ctx;
     // #175 decision: sampler state follows the KV lifecycle, mirroring the ORT
     // persistent generator — the penalty window (and the dist RNG) live as long
@@ -511,6 +512,7 @@ class LlamaSession final : public Session {
                 m_kv_q8 = false;
                 m_ctx.reset(llama_init_from_model(m_model.get(), cparams));
             }
+            m_cpu_pools.attach(m_gpu_layers, m_ctx.get(), m_n_threads, m_n_threads);
             if (!m_ctx) {
                 if (err)
                     *err = "failed to create context";
