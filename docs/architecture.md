@@ -771,6 +771,7 @@ while **loose** mode (no catalogue entry) accepts any `.gguf`.
 | `--kv-q8`                 | Enable KV quantization (q8_0)                                |
 | `--lora`                  | LoRA path                                                    |
 | `--prompt-lookup`         | Enable prompt-lookup speculative decoding                    |
+| `--gpu-layers <n>`        | GGUF layers on the d3d12 backend (no D3D12 on Linux → CPU)   |
 | `--membw`                 | CPU STREAM bandwidth probe                                   |
 | `--diskbw`                | NVMe disk bandwidth probe                                    |
 | `--ramceil`               | Heap ceiling probe                                           |

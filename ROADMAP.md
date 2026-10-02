@@ -60,8 +60,9 @@ performance belongs in `docs/benchmarks.md`.
 3. ~~**WS-F headset** (#241)~~ — **closed PASS 2026-09-30**: real capture under
    AppContainer (RMS 0.019). ASR candidate H16.6a is unblocked, not started.
 4. **Parked eng** — H6/H7 (#228) reached **K3** with H6.3 (`rows` median
-   143.06 GB/s packed, 2026-10-01); GGUF GPU decode D1 = `D2-matmul-only`
-   (`docs/gguf-gpu-decode.md`), backend not started; crossbuild product parity (layer 2 closed
+   143.06 GB/s packed, 2026-10-01); GGUF GPU decode D1 = `D2-matmul-only`,
+   D2 = FAIL (peak RAM, Coder-3B H9; decode 1.59×) — backend `d3d12` ships
+   opt-in, default CPU (`docs/gguf-gpu-decode.md`); crossbuild product parity (layer 2 closed
    2026-08-08 by uwp-crossbuild 0.5.1 — launch proven; ORT/GenAI, first boot
    and uptime not); prompt-lookup default OFF. Dependabot llama.cpp #247 was
    closed 2026-08-26 after the UWP build failed on `LLAMA_VERSION`; do not
@@ -143,8 +144,10 @@ Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.
       `1.6.0.1113`): `rows` median **143.06** GB/s packed, `dot4` 136.94,
       G1 PASS 3/3 (H6.2 wave32 was 25.4, K2). G2 not rewritten. Design and
       D1 gates: [`docs/gguf-gpu-decode.md`](docs/gguf-gpu-decode.md); D1 =
-      `D2-matmul-only` (2026-10-01). Next: D2 backend, opt-in. Tracking:
-      **#228**.
+      `D2-matmul-only` (2026-10-01); D2 (2026-10-02, CI `1.6.0.1138`) =
+      **FAIL**: opt-in backend decodes 1.59× / 1.58× (Coder-3B / LFM2.5-1.2B)
+      but peak RAM is above the CPU run and Coder-3B H9 drops 6/8 → 5/8.
+      Tracking: **#228**; follow-ups #309 #310 #312 #313.
 
 ## Phase 8 — Training pillar (exploration) ✅ FROZEN complete
 
