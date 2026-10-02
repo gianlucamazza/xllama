@@ -157,9 +157,14 @@ chat`. On a coding session that ceiling is 4096 tokens, roughly 13 KB of dense
 **Note for GGUF models** (`kind: "gguf"` in the catalogue): **KV-cache reuse
 works** (persistent `llama_context`; measured ratios in
 [benchmarks.md](benchmarks.md)). Only **EP routing** is greyed out: GGUF models
-are not routed per conversation. They run on the CPU unless an operator turns
-on the experimental GPU layers (`gguf_gpu_layers.txt`,
-[gguf-gpu-decode.md](gguf-gpu-decode.md)); there is no Settings option for it.
+are not routed per conversation.
+
+- **Qwen2.5-Coder-3B and LFM2.5-1.2B** run their matmuls on the GPU by
+  default. The model list says "GGUF · GPU" for them.
+- **Other GGUF models** run on the CPU.
+- **Operator override:** `gguf_gpu_layers.txt` in LocalState overrides this
+  (`0` forces the CPU; see [gguf-gpu-decode.md](gguf-gpu-decode.md)). There is
+  no Settings option for it.
 
 Settings persist to `LocalState\settings.json` and take effect on the next
 inference call. Exception: changing the **model** loads it eagerly as soon as

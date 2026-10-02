@@ -127,10 +127,10 @@ Two front-ends: `xllama-cli` (Linux) + UWP app.
 
 ### Backend dispatch
 
-| Path                     | What                                                                | Why                                                                              |
-| ------------------------ | ------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| **ORT GenAI + DirectML** | ONNX models, CPU int4 decode + DML fp16 prefill                     | GPU wins batch compute, long-prompt TTFT                                         |
-| **llama.cpp + GGUF**     | CPU by default, KV-reuse, repacked GEMM; opt-in d3d12 matmul layers | Zen2 wins decode at small sizes; own D3D12 kernels win on the 1.2B / 3B measured |
+| Path                     | What                                                                  | Why                                                                              |
+| ------------------------ | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| **ORT GenAI + DirectML** | ONNX models, CPU int4 decode + DML fp16 prefill                       | GPU wins batch compute, long-prompt TTFT                                         |
+| **llama.cpp + GGUF**     | CPU, KV-reuse, repacked GEMM; d3d12 matmul layers per catalogue entry | Zen2 wins decode at small sizes; own D3D12 kernels win on the 1.2B / 3B measured |
 
 Unified build dispatches **per model at runtime** via `Backend::Auto`.
 Llama.cpp is both benchmarking lane and shipping backend.
@@ -200,10 +200,11 @@ An underexplored platform with strict memory and packaging constraints.
 
 Per-workload verdict on DirectML: CPU decode > GPU decode, GPU prefill > CPU
 prefill. One backend can't win both. Runtime dispatch per model is the answer.
-GGUF decode also has an opt-in path on our own D3D12 kernels: a ggml backend
-`d3d12`, enabled with `gguf_gpu_layers.txt`. It is faster than the CPU on the
-1–3B models measured, with q8 numerics that match the CPU. The default stays
-CPU until the per-model decision (D3); gates and per-model verdict are in
+GGUF decode also runs on our own D3D12 kernels: a ggml backend `d3d12`, with
+q8 numerics that match the CPU. It is the default for the two models that
+passed its gate, Qwen2.5-Coder-3B and LFM2.5-1.2B; the other GGUF models stay
+on the CPU. `gguf_gpu_layers.txt` overrides the default for an operator, and
+`0` forces the CPU. Gates and per-model verdicts are in
 [docs/gguf-gpu-decode.md](docs/gguf-gpu-decode.md).
 
 ### Why single Session owner?

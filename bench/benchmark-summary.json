@@ -113,6 +113,19 @@
       "quant_label": "QAD Q4_0"
     },
     {
+      "label": "LFM2.5-1.2B",
+      "params": "1.2B",
+      "source": "2026-10-02-d2r2-gguf-gpu-final.csv",
+      "selector": {
+        "model": "lfm25-1.2b-instruct",
+        "backend": "d3d12",
+        "n_prompt_tok": "298"
+      },
+      "backend_key": "llama",
+      "backend_label": "llama.cpp · d3d12 GPU (default, D3)",
+      "quant_label": "QAD Q4_0"
+    },
+    {
       "label": "LFM2.5-1.2B-Thinking",
       "params": "1.2B",
       "source": "phase14-console.csv",
@@ -195,6 +208,20 @@
       },
       "backend_key": "llama",
       "backend_label": "llama.cpp CPU · t6",
+      "quant_label": "Q4_K_M",
+      "tag": "coding advanced · n_ctx 4096"
+    },
+    {
+      "label": "Qwen2.5-Coder-3B",
+      "params": "3B",
+      "source": "2026-10-02-d3-coder-ctx4096.csv",
+      "selector": {
+        "model": "qwen25-coder-3b",
+        "backend": "d3d12",
+        "n_prompt_tok": "292"
+      },
+      "backend_key": "llama",
+      "backend_label": "llama.cpp · d3d12 GPU (default, D3)",
       "quant_label": "Q4_K_M",
       "tag": "coding advanced · n_ctx 4096"
     },

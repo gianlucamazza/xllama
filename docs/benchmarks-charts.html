@@ -339,6 +339,15 @@
     "src": "2026-09-30-catalogue-gates"
   },
   {
+    "model": "LFM2.5-1.2B",
+    "quant": "QAD Q4_0",
+    "be": "llama",
+    "prefill": 213.55,
+    "decode": 65.46,
+    "ram": 946,
+    "src": "2026-10-02-d2r2-gguf-gpu-final"
+  },
+  {
     "model": "LFM2.5-1.2B-Thinking",
     "quant": "Q4_K_M",
     "be": "llama",
@@ -404,6 +413,16 @@
     "decode": 13.97,
     "ram": 2116,
     "src": "phase14-console",
+    "tag": "coding advanced \u00b7 n_ctx 4096"
+  },
+  {
+    "model": "Qwen2.5-Coder-3B",
+    "quant": "Q4_K_M",
+    "be": "llama",
+    "prefill": 63.24,
+    "decode": 22.65,
+    "ram": 2266,
+    "src": "2026-10-02-d3-coder-ctx4096",
     "tag": "coding advanced \u00b7 n_ctx 4096"
   },
   {
@@ -512,7 +531,7 @@
   }
 ];
   const MAX_KV_REUSE = 20.02;
-  const LATEST_RUN = "2026-09-29";
+  const LATEST_RUN = "2026-10-02";
   // END GENERATED BENCHMARK DATA
   const METRICS = {
     decode:  { label: "Decode", unit: "tok/s", cap: "Generation throughput — the rate a user feels. Higher is better.", better: "high" },

@@ -13,7 +13,7 @@ ids, templates, licenses, and campaign notes** — not runtime contracts.
 | Catalogue data                                                 | [`../uwp/models/manifest.json`](../uwp/models/manifest.json) |
 | Tok/s tables                                                   | [benchmarks.md](./benchmarks.md) only                        |
 
-Last updated: **2026-09-30**. Newest entries: H9 re-run with the corrected
+Last updated: **2026-10-02**. Newest entries: D3 — `qwen25-coder-3b` and `lfm25-1.2b-instruct` run on the d3d12 GPU backend by default (catalogue `gpu_layers`, [gguf-gpu-decode.md](./gguf-gpu-decode.md)); the CPU columns here stay the CPU measurements, and the default-configuration rows are in [benchmarks.md](./benchmarks.md). Earlier: H9 re-run with the corrected
 `grounded_qa` scorer (#243) and `lfm25-230m` back on QAD Q4_0; Series S catalogue gates
 (`2026-09-30-catalogue-gates`): §A1 `phi4-mini` T3 PASS (#268), LFM2.5 QAD
 Q4_0 PASS for `lfm25-350m` / `lfm25-1.2b-instruct` (#270); §F MiniCPM5-1B (#267) and Gemma-3-1B (#269)
@@ -47,24 +47,24 @@ and thermal). They only prove _load + generate + template_.
 Headline metrics match the generated table in [benchmarks.md](./benchmarks.md).
 All rows below are **CPU-bound decode** unless backend says DirectML.
 
-| Model                 |                  Catalogue |  Params | Quant    | Backend   |   Prefill |    Decode | Peak MB | H9      | Template          | Role | n_ctx | Evidence                                          |
-| --------------------- | -------------------------: | ------: | -------- | --------- | --------: | --------: | ------: | ------- | ----------------- | ---- | ----: | ------------------------------------------------- |
-| LFM2.5-230M           |               `lfm25-230m` |    230M | Q4_0 QAD | llama.cpp | **633.6** | **132.4** |     236 | 1/8     | ChatML            | —    |  2048 | `2026-09-30-catalogue-gates` · floor              |
-| LFM2.5-350M           |               `lfm25-350m` |    350M | Q4_0 QAD | llama.cpp | **374.4** | **101.6** |     311 | 4/8     | ChatML            | —    |  2048 | `2026-09-30-catalogue-gates` · **default chat**   |
-| Gemma-3-270M          |              `gemma3-270m` |    270M | Q4_K_M   | llama.cpp |     395.0 |      76.8 |     368 | 3/8     | Gemma             | —    |  2048 | `phase6-gemma` · H9 `2026-09-30-h9-rescore.jsonl` |
-| SmolLM2-360M          |    `smollm2-360m-cpu-int4` |    360M | int4     | ORT CPU   |     262.4 |      74.8 |     708 | —       | ChatML            | —    |  2048 | `t6-shipped-confirm`                              |
-| SmolLM2-360M          |              (same family) |    360M | Q4_K_M   | llama.cpp |     141.5 |      62.9 |     402 | —       | ChatML            | —    |  2048 | `phase35-llamacpp-scaling`                        |
-| SmolLM2-360M DML v2   | `smollm2-360m-dml-fp16-v2` |    360M | fp16     | ORT DML   |     236.7 |      44.4 |    1268 | —       | ChatML            | —    |  2048 | `phase2-dml` · #91 parity OK                      |
-| LFM2.5-1.2B Instruct  |      `lfm25-1.2b-instruct` |    1.2B | Q4_0 QAD | llama.cpp |     109.7 |  **40.0** |     783 | **6/8** | ChatML            | —    |  2048 | `2026-09-30-catalogue-gates` · H1 PASS balanced   |
-| Qwen3.5-0.8B          |              `qwen35-0.8b` |    0.8B | Q4_K_M   | llama.cpp |      98.1 |      35.1 |     718 | —       | ChatML + no-think | —    |  2048 | `phase5-gguf`                                     |
-| SmolLM2-1.7B          |    `smollm2-1.7b-cpu-int4` |    1.7B | int4     | ORT CPU   |      54.9 |      20.6 |    2423 | —       | ChatML            | —    |  2048 | `phase35-1b-cpu`                                  |
-| LFM2-2.6B             |                `lfm2-2.6b` |    2.6B | Q4_K_M   | llama.cpp |      32.0 |  **18.4** |    1623 | **7/8** | ChatML            | —    |  2048 | `phase7-lfm` · H1 PASS quality                    |
-| Gemma-4-E2B           |               `gemma4-e2b` | ~2B eff | Q3_K_S   | llama.cpp |      26.1 |      15.3 |    2742 | 6/8     | Gemma             | —    |  2048 | `phase6-gemma`                                    |
-| Llama-3.2-3B Instruct |               `llama32-3b` |      3B | Q3_K_S   | llama.cpp |      19.5 |  **14.2** |    1824 | 5/8     | Llama-3           | —    |  2048 | `phase7-scale` · H4 preferred                     |
-| Phi-3.5-mini          |                          — |    3.8B | Q3_K_S   | llama.cpp |      15.3 |      11.3 |    2453 | —       | Phi-3             | —    |  2048 | `phase7-scale` · H4 PASS, loses A/B               |
-| Phi-4-mini            |                `phi4-mini` |    3.8B | Q4_K_M   | llama.cpp |      33.1 |      11.2 |    2765 | **6/8** | Phi-3             | —    |  2048 | `2026-09-30-catalogue-gates` · **T3 PASS** peer   |
-| Gemma-4-E2B IQ2       |            (upgraded away) | ~2B eff | IQ2_M    | llama.cpp |      13.5 |       9.9 |    2534 | —       | Gemma             | —    |  2048 | historical; EOG on long prompts                   |
-| SmolLM2-360M DML int4 |                          — |    360M | int4     | ORT DML   |     0–153 |   **8.8** |     999 | —       | ChatML            | —    |  2048 | **rejected** wrong logits / slow                  |
+| Model                 |                  Catalogue |  Params | Quant    | Backend   |   Prefill |    Decode | Peak MB | H9      | Template          | Role | n_ctx | Evidence                                                               |
+| --------------------- | -------------------------: | ------: | -------- | --------- | --------: | --------: | ------: | ------- | ----------------- | ---- | ----: | ---------------------------------------------------------------------- |
+| LFM2.5-230M           |               `lfm25-230m` |    230M | Q4_0 QAD | llama.cpp | **633.6** | **132.4** |     236 | 1/8     | ChatML            | —    |  2048 | `2026-09-30-catalogue-gates` · floor                                   |
+| LFM2.5-350M           |               `lfm25-350m` |    350M | Q4_0 QAD | llama.cpp | **374.4** | **101.6** |     311 | 4/8     | ChatML            | —    |  2048 | `2026-09-30-catalogue-gates` · **default chat**                        |
+| Gemma-3-270M          |              `gemma3-270m` |    270M | Q4_K_M   | llama.cpp |     395.0 |      76.8 |     368 | 3/8     | Gemma             | —    |  2048 | `phase6-gemma` · H9 `2026-09-30-h9-rescore.jsonl`                      |
+| SmolLM2-360M          |    `smollm2-360m-cpu-int4` |    360M | int4     | ORT CPU   |     262.4 |      74.8 |     708 | —       | ChatML            | —    |  2048 | `t6-shipped-confirm`                                                   |
+| SmolLM2-360M          |              (same family) |    360M | Q4_K_M   | llama.cpp |     141.5 |      62.9 |     402 | —       | ChatML            | —    |  2048 | `phase35-llamacpp-scaling`                                             |
+| SmolLM2-360M DML v2   | `smollm2-360m-dml-fp16-v2` |    360M | fp16     | ORT DML   |     236.7 |      44.4 |    1268 | —       | ChatML            | —    |  2048 | `phase2-dml` · #91 parity OK                                           |
+| LFM2.5-1.2B Instruct  |      `lfm25-1.2b-instruct` |    1.2B | Q4_0 QAD | llama.cpp |     109.7 |  **40.0** |     783 | **6/8** | ChatML            | —    |  2048 | `2026-09-30-catalogue-gates` · H1 PASS balanced · **GPU default (D3)** |
+| Qwen3.5-0.8B          |              `qwen35-0.8b` |    0.8B | Q4_K_M   | llama.cpp |      98.1 |      35.1 |     718 | —       | ChatML + no-think | —    |  2048 | `phase5-gguf`                                                          |
+| SmolLM2-1.7B          |    `smollm2-1.7b-cpu-int4` |    1.7B | int4     | ORT CPU   |      54.9 |      20.6 |    2423 | —       | ChatML            | —    |  2048 | `phase35-1b-cpu`                                                       |
+| LFM2-2.6B             |                `lfm2-2.6b` |    2.6B | Q4_K_M   | llama.cpp |      32.0 |  **18.4** |    1623 | **7/8** | ChatML            | —    |  2048 | `phase7-lfm` · H1 PASS quality                                         |
+| Gemma-4-E2B           |               `gemma4-e2b` | ~2B eff | Q3_K_S   | llama.cpp |      26.1 |      15.3 |    2742 | 6/8     | Gemma             | —    |  2048 | `phase6-gemma`                                                         |
+| Llama-3.2-3B Instruct |               `llama32-3b` |      3B | Q3_K_S   | llama.cpp |      19.5 |  **14.2** |    1824 | 5/8     | Llama-3           | —    |  2048 | `phase7-scale` · H4 preferred                                          |
+| Phi-3.5-mini          |                          — |    3.8B | Q3_K_S   | llama.cpp |      15.3 |      11.3 |    2453 | —       | Phi-3             | —    |  2048 | `phase7-scale` · H4 PASS, loses A/B                                    |
+| Phi-4-mini            |                `phi4-mini` |    3.8B | Q4_K_M   | llama.cpp |      33.1 |      11.2 |    2765 | **6/8** | Phi-3             | —    |  2048 | `2026-09-30-catalogue-gates` · **T3 PASS** peer                        |
+| Gemma-4-E2B IQ2       |            (upgraded away) | ~2B eff | IQ2_M    | llama.cpp |      13.5 |       9.9 |    2534 | —       | Gemma             | —    |  2048 | historical; EOG on long prompts                                        |
+| SmolLM2-360M DML int4 |                          — |    360M | int4     | ORT DML   |     0–153 |   **8.8** |     999 | —       | ChatML            | —    |  2048 | **rejected** wrong logits / slow                                       |
 
 Notes:
 
@@ -104,13 +104,13 @@ MSIX **1.5.1.737** (unified), t6, `standard-512` prompt, 2 recorded runs after
 warmup. Source: `bench/results/phase14-console.csv` (also in generated
 [benchmarks.md](./benchmarks.md)).
 
-| Model                | Catalogue             | Quant  | n_ctx |   Prefill |   Decode | Decode spread |  Peak MB | Status                                                             |
-| -------------------- | --------------------- | ------ | ----: | --------: | -------: | ------------- | -------: | ------------------------------------------------------------------ |
-| Qwen2.5-Coder-0.5B   | `qwen25-coder-0.5b`   | Q4_K_M |  4096 | **148.2** | **62.4** | 56.8–68.0     |      533 | **console PASS** · coding fast                                     |
-| LFM2.5-1.2B-Thinking | `lfm25-1.2b-thinking` | Q4_K_M |  2048 | **130.4** | **36.7** | 36.7–36.8     |      811 | **console PASS** · CoT strip · catalogue **n_predict 1024** (#223) |
-| Qwen2.5-Coder-1.5B   | `qwen25-coder-1.5b`   | Q4_K_M |  4096 |  **96.6** | **26.1** | 25.7–26.5     |     1179 | **console PASS** · coding balanced                                 |
-| Qwen3-1.7B           | `qwen3-1.7b`          | Q4_K_M |  2048 |  **89.5** | **21.8** | 21.7–21.9     |     1398 | **console PASS** · chat upgrade                                    |
-| Qwen2.5-Coder-3B     | `qwen25-coder-3b`     | Q4_K_M |  4096 |  **46.2** | **14.0** | 13.9–14.1     | **2116** | **console PASS** · coding quality (under 3.5 GB)                   |
+| Model                | Catalogue             | Quant  | n_ctx |   Prefill |   Decode | Decode spread |  Peak MB | Status                                                                  |
+| -------------------- | --------------------- | ------ | ----: | --------: | -------: | ------------- | -------: | ----------------------------------------------------------------------- |
+| Qwen2.5-Coder-0.5B   | `qwen25-coder-0.5b`   | Q4_K_M |  4096 | **148.2** | **62.4** | 56.8–68.0     |      533 | **console PASS** · coding fast                                          |
+| LFM2.5-1.2B-Thinking | `lfm25-1.2b-thinking` | Q4_K_M |  2048 | **130.4** | **36.7** | 36.7–36.8     |      811 | **console PASS** · CoT strip · catalogue **n_predict 1024** (#223)      |
+| Qwen2.5-Coder-1.5B   | `qwen25-coder-1.5b`   | Q4_K_M |  4096 |  **96.6** | **26.1** | 25.7–26.5     |     1179 | **console PASS** · coding balanced                                      |
+| Qwen3-1.7B           | `qwen3-1.7b`          | Q4_K_M |  2048 |  **89.5** | **21.8** | 21.7–21.9     |     1398 | **console PASS** · chat upgrade                                         |
+| Qwen2.5-Coder-3B     | `qwen25-coder-3b`     | Q4_K_M |  4096 |  **46.2** | **14.0** | 13.9–14.1     | **2116** | **console PASS** · coding quality (under 3.5 GB) · **GPU default (D3)** |
 
 Host Release cross-check (`phase14-host-validation.csv`): quality PASS for the
 coding tier + Qwen3-1.7B (Q3_K_M Coder-3B FAIL; **Q4 only** ships). Console peaks
