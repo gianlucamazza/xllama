@@ -51,9 +51,10 @@ void run_gpustep(bool inproc);
 // Q4_K / Q6_K shape against ggml's dequantizers. llama builds only.
 void run_d3d12_selftest();
 
-// GGUF GPU decode D2b: n_gpu_layers for interactive sessions (GUI and LAN API)
-// from LocalState\gguf_gpu_layers.txt; 0 (the default) when absent. One home
-// for both front ends; experimental, no UI (docs/gguf-gpu-decode.md).
+// Operator override for GGUF GPU layers in interactive sessions (GUI and LAN
+// API): the value in LocalState\gguf_gpu_layers.txt, or
+// kGgufGpuLayersKnobAbsent when there is no file. Callers combine it with the
+// catalogue entry through resolve_gguf_gpu_layers (routing_policy.h, D3).
 int gguf_gpu_layers_knob();
 
 // Heap-ceiling probe. Triggered by LocalFolder\ramceil.flag; writes

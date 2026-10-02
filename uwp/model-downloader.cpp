@@ -655,6 +655,8 @@ std::vector<ManifestEntry> parse_manifest(winrt::hstring const& text) {
         // 0 / absent → keep Settings / UI n_predict (global default 512).
         e.n_predict = static_cast<int>(obj.GetNamedNumber(L"n_predict", 0));
         e.role = obj.GetNamedString(L"role", L"");
+        // 0 / absent → CPU; the operator knob still overrides (D3).
+        e.gpu_layers = static_cast<int>(obj.GetNamedNumber(L"gpu_layers", 0));
         if (obj.HasKey(L"files")) {
             for (auto const& f : obj.GetNamedArray(L"files")) {
                 auto fo = f.GetObject();

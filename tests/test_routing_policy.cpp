@@ -242,3 +242,14 @@ TEST_CASE("model_is_dml: gates the load warm-up (#130)") {
     CHECK(model_is_dml("smollm2-360m-dml-fp16") !=
           kv_reuse_supported_for_model("smollm2-360m-dml-fp16"));
 }
+TEST_CASE("resolve_gguf_gpu_layers: operator knob overrides the catalogue default (D3)") {
+    // No knob file: the catalogue entry decides (0 = CPU).
+    CHECK(resolve_gguf_gpu_layers(0, kGgufGpuLayersKnobAbsent) == 0);
+    CHECK(resolve_gguf_gpu_layers(99, kGgufGpuLayersKnobAbsent) == 99);
+    // A knob file always wins, 0 included: the operator can force the CPU.
+    CHECK(resolve_gguf_gpu_layers(99, 0) == 0);
+    CHECK(resolve_gguf_gpu_layers(0, 99) == 99);
+    CHECK(resolve_gguf_gpu_layers(99, 12) == 12);
+    // A negative catalogue value is a bad entry, not a request.
+    CHECK(resolve_gguf_gpu_layers(-5, kGgufGpuLayersKnobAbsent) == 0);
+}

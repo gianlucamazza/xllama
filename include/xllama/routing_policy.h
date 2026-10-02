@@ -90,6 +90,19 @@ inline constexpr int resolve_n_ctx(int requested) {
     return requested;
 }
 
+// GGUF layers on the d3d12 backend for a session (docs/gguf-gpu-decode.md, D3).
+// The catalogue entry carries the per-model default (`gpu_layers`, 0 = CPU),
+// set only for models whose D2-r2 gate passed at their catalogue n_ctx. The
+// operator knob LocalState\gguf_gpu_layers.txt, when present, always wins — 0
+// included, so the CPU can be forced without a catalogue change.
+inline constexpr int kGgufGpuLayersKnobAbsent = -1;
+
+inline constexpr int resolve_gguf_gpu_layers(int catalogue_layers, int knob) {
+    if (knob >= 0)
+        return knob;
+    return catalogue_layers > 0 ? catalogue_layers : 0;
+}
+
 // Estimate ceiling for a session opened at |n_ctx|: the bound the CONTEXT puts on
 // a prompt, which is what has to stay coherent with token_threshold (#133). Not
 // the reply's budget — that is fit_prompt's, applied exactly and later, and it

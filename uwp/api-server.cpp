@@ -341,6 +341,7 @@ struct CatalogueSessionPolicy {
     bool coding = false;
     bool gguf = false;
     bool embedding = false;
+    int gpu_layers = 0; // catalogue default; see resolve_gguf_gpu_layers
 };
 
 CatalogueSessionPolicy catalogue_session_policy(const std::string& model) {
@@ -357,6 +358,7 @@ CatalogueSessionPolicy catalogue_session_policy(const std::string& model) {
         p.coding = ::xllama::role_is_coding(::xllama::wstring_to_utf8(entry->role));
         p.embedding = ::xllama::role_is_embedding(::xllama::wstring_to_utf8(entry->role));
         p.gguf = entry->kind == L"gguf";
+        p.gpu_layers = entry->gpu_layers;
     }
     return p;
 }
@@ -454,7 +456,8 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
         sp.n_ctx = policy.n_ctx;
         if (policy.gguf) {
             sp.backend = ::xllama::Backend::LlamaCpp;
-            sp.n_gpu_layers = ::xllama::bridge::gguf_gpu_layers_knob(); // D2b, default 0
+            sp.n_gpu_layers = ::xllama::resolve_gguf_gpu_layers(
+                policy.gpu_layers, ::xllama::bridge::gguf_gpu_layers_knob());
         }
         session = ::xllama::session_hub().ensure_locked(model, sp, &err);
         if (!session) {
@@ -789,7 +792,8 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
     sp.n_ctx = policy.n_ctx;
     if (policy.gguf) {
         sp.backend = ::xllama::Backend::LlamaCpp;
-        sp.n_gpu_layers = ::xllama::bridge::gguf_gpu_layers_knob(); // D2b, default 0
+        sp.n_gpu_layers = ::xllama::resolve_gguf_gpu_layers(
+            policy.gpu_layers, ::xllama::bridge::gguf_gpu_layers_knob());
     }
     if (root.HasKey(L"options") &&
         root.GetNamedValue(L"options").ValueType() != JsonValueType::Object) {
@@ -1303,7 +1307,8 @@ void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t g
         params.n_ctx = ::xllama::resolve_n_ctx(entry->n_ctx);
         if (entry->kind == L"gguf") {
             params.backend = ::xllama::Backend::LlamaCpp;
-            params.n_gpu_layers = ::xllama::bridge::gguf_gpu_layers_knob(); // D2b, default 0
+            params.n_gpu_layers = ::xllama::resolve_gguf_gpu_layers(
+                entry->gpu_layers, ::xllama::bridge::gguf_gpu_layers_knob());
         }
         // Recheck after waiting for inference: stop/rebind may have invalidated
         // the listener while this pull was blocked on the resident session.

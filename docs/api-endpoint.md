@@ -35,9 +35,10 @@ live XAML chat UI.
   swapped when a request names a different model. A swap invalidates the
   GUI's KV-reuse state (`hub.generation`): its next turn silently falls back
   to a full prefill.
-- **GGUF GPU layers (experimental, default off):** `LocalState\gguf_gpu_layers.txt`
-  sets `n_gpu_layers` on the d3d12 backend for GGUF sessions loaded by the GUI and
-  by this API alike; a change reloads the resident session. Gate and verdict:
+- **GGUF GPU layers:** a GGUF session gets the catalogue entry's `gpu_layers`
+  (D3 default per model). `LocalState\gguf_gpu_layers.txt`, when present,
+  overrides it for the GUI and this API alike; `0` forces the CPU. A change
+  reloads the resident session. Gate and verdict:
   [gguf-gpu-decode.md](gguf-gpu-decode.md).
 
 **Foreground only.** The endpoint dies when the app leaves the foreground (UWP Process

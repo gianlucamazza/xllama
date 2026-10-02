@@ -745,9 +745,11 @@ flags are supported:
   `SaveKvSnapshotAsync` with thinking-model early-return and ORT-backend skip.
 - **Catalogue model knobs**: `ApplyCatalogueModelKnobs` applies `n_predict` from
   manifest on model select (thinking models get 1024).
-- **GGUF GPU layers**: `EnsureSession` reads `gguf_gpu_layers.txt` through
-  `gguf_gpu_layers_knob()` (`uwp/inference-bridge.cpp`), as the LAN API does.
-  The default is 0 (CPU); a change reloads the resident session.
+- **GGUF GPU layers**: `EnsureSession` and the LAN API both resolve
+  `resolve_gguf_gpu_layers(entry.gpu_layers, gguf_gpu_layers_knob())`. The
+  catalogue default (D3) applies unless the operator file
+  `gguf_gpu_layers.txt` exists; `0` there forces the CPU. A change reloads the
+  resident session.
 - **Manifest cache**: parsed once, cached; invalidated on personalized-model
   publish.
 
@@ -772,6 +774,7 @@ non-empty line of the first user message (truncated at 60 chars). IDs use
 | `n_ctx`       | `int`         | `0`           | `0` → `kDefaultNCtx` (2048); else clamped [512, 8192]      |
 | `n_predict`   | `int`         | `0`           | `0` → keep Settings value; applied on model select         |
 | `role`        | `wstring`     | `""`          | `""` (chat) or `"coding"` (4096 ctx, coding system prompt) |
+| `gpu_layers`  | `int`         | `0`           | GGUF layers on the d3d12 backend by default (0 = CPU)      |
 
 `IsModelProvisioned(name, expected_files)` runs in dual mode: **expected-aware**
 requires the manifest's `files[].filename` to be present (case-insensitive),

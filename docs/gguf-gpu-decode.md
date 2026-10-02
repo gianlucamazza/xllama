@@ -423,6 +423,23 @@ Default on/off per model in `docs/model-matrix.md` after D2; the
 measured-is-not-shipped ladder applies. Candidates after D2-r2: Coder-3B and
 LFM2.5-1.2B. LFM2.5-350M and smaller stay on the CPU.
 
+**Mechanism.**
+
+- A catalogue entry carries `gpu_layers` (`uwp/models/manifest.json`, 0 or
+  absent = CPU).
+- `resolve_gguf_gpu_layers` (`routing_policy.h`) gives the GUI and the LAN
+  API the entry value. The operator file `gguf_gpu_layers.txt` overrides it
+  whenever it exists; `0` forces the CPU.
+
+**D3 rule (predeclared 2026-10-02, before the D3 runs).**
+
+- An entry gets `gpu_layers` only if the D2-r2 criteria pass at the entry's
+  own `n_ctx`. Coder-3B ships at 4096, while D2-r2 measured 2048.
+- The package carrying the manifest change must pass `validate-console.sh all`
+  in the default configuration (no knob).
+- The same package must pass H9 via the LAN API, and the log must show the
+  layers on D3D12 for the chosen models only.
+
 ## Decision log
 
 | Date       | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |

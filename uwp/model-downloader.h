@@ -86,6 +86,10 @@ struct ManifestEntry {
     // Optional workload role: "" (general chat) or "coding". Drives denser
     // token estimates and the coding system-prompt default on the LAN API.
     std::wstring role;
+    // Optional GGUF layers on the d3d12 backend by default (0 = CPU). Set only
+    // for models whose D2-r2 gate passed at this entry's n_ctx; the operator
+    // knob gguf_gpu_layers.txt overrides it (resolve_gguf_gpu_layers, D3).
+    int gpu_layers = 0;
 };
 
 // Load the model catalogue: InstalledPath\models\manifest.json (bundled) is
