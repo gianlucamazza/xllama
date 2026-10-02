@@ -62,8 +62,10 @@ Three hypotheses died against these numbers:
    kernel reads packed weights at 143 GB/s (H6.3) and a simulated 3B decode
    token costs 21 ms of GPU matmul + sync (D1); the GGUF GPU decode design and
    its gates live in [gguf-gpu-decode.md](gguf-gpu-decode.md). **2026-10-02:**
-   the opt-in backend decodes 1.59× / 1.58× over CPU on Coder-3B / LFM2.5-1.2B,
-   but D2 fails on peak RAM and Coder-3B H9, so shipping decode is still CPU.
+   D2 failed on peak RAM and Coder-3B H9. D2-r2 (q8 activations, leaner
+   memory) passes on LFM2.5-1.2B, with decode 1.62× over the CPU. Coder-3B
+   still fails on RAM. Shipping decode stays on the CPU until D3 decides the
+   per-model default.
    **#91 interlude (2026-07-16 → 2026-07-19).** The logit-parity harness
    showed the DML text path computes numerically wrong logits on the Series S
    GPU (NMSE ~1 vs the CPU reference, top-1 disagrees; fp16 AND int4;
