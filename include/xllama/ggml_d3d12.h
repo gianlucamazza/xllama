@@ -3,15 +3,16 @@
 //
 // ggml backend "d3d12" — GGUF GPU decode D2 (docs/gguf-gpu-decode.md).
 //
-// A GPU-type ggml device, registered at runtime, that runs only MUL_MAT with
-// Q4_0 / Q4_K / Q6_K weights on our D3D12 compute shaders; f32 activations are
-// quantized to q8 on the CPU first, exactly as the CPU backend does.
+// A GPU-type ggml device, registered at runtime, that runs MUL_MAT with
+// Q4_0 / Q4_K / Q6_K weights and GET_ROWS from a Q6_K weight on our D3D12
+// compute shaders; matmul inputs are quantized to q8 on the CPU first, exactly
+// as the CPU backend does.
 // Two buffer types:
 //   D3D12_Weights  DEFAULT heap, holds matmul weights (exposed as an extra buft)
 //   D3D12_Host     CUSTOM WRITE_BACK heap, is_host — the device default buft, so
 //                  the scheduler's activations are CPU-visible: CPU<->GPU copies
 //                  are memcpy and the CPU reads results in place.
-// supports_op accepts a MUL_MAT only when its weight already lives in
+// supports_op accepts an op only when its weight already lives in
 // D3D12_Weights, which steers llama.cpp's per-weight buft probe past the host
 // buft; every other op and weight falls back to the CPU.
 //
@@ -105,6 +106,7 @@ struct D3d12GetRowsDesc {
     std::int64_t ne10 = 0, ne11 = 1, ne12 = 1; // row ids
     ggml_type dst_type = GGML_TYPE_F32;
     bool src0_contiguous = true;
+    bool src1_contiguous = true; // ids are staged with one memcpy
     bool src0_in_weight_buffer = false;
 };
 

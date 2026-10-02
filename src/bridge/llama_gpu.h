@@ -11,6 +11,7 @@
 #include "llama.h"
 #include "xllama/ggml_d3d12.h"
 #include "xllama/platform.h"
+#include "xllama/speculative.h"
 
 #include <cstring>
 #include <string>
@@ -102,18 +103,29 @@ inline int apply_gguf_gpu_layers(int requested, llama_model_params& mparams,
     return requested;
 }
 
+// Most logits rows a context will request per ubatch, for n_outputs_max: one
+// for prefill and decode, 1 + draft for a prompt-lookup verify batch
+// (decode_loop.h), unlimited (0 = llama.cpp's default) for embeddings, which
+// output every token. llama.cpp asserts in output_reserve when a batch asks
+// for more, so this must cover every batch the context will see.
+inline uint32_t gguf_gpu_outputs_max(bool embeddings, bool prompt_lookup) {
+    if (embeddings)
+        return 0;
+    return 1u + (prompt_lookup ? static_cast<uint32_t>(kSpecDraftKDefault) : 0u);
+}
+
 // KV cache and attention stay on the CPU in ordinary memory: the backend only
-// runs weight matmuls.
-// n_outputs_max sizes the compute reserve: llama.cpp reserves the prefill
-// graph for n_ubatch logits rows (512 x 151936 x 4 B = 297 MiB on Coder-3B),
-// and on the GPU path that reserve is a committed D3D12_Host buffer, where the
-// CPU's malloc'd one is only touched as used (#309). Prefill and decode read
-// one row; a batch asking for more (prompt-lookup verify, embeddings) makes
-// the scheduler grow the buffer when it happens.
-inline void apply_gguf_gpu_context(int applied_layers, llama_context_params& cparams) {
+// runs weight matmuls. n_outputs_max also sizes the compute reserve: llama.cpp
+// reserves the prefill graph for that many logits rows (n_ubatch by default:
+// 512 x 151936 x 4 B = 297 MiB on Coder-3B), and on the GPU path the reserve
+// is a committed D3D12_Host buffer, where the CPU's malloc'd one only counts
+// the pages it touches (#309).
+inline void apply_gguf_gpu_context(int applied_layers, llama_context_params& cparams,
+                                   uint32_t outputs_max) {
     if (applied_layers > 0) {
         cparams.offload_kqv = false;
-        cparams.n_outputs_max = 1;
+        if (outputs_max > 0)
+            cparams.n_outputs_max = outputs_max;
     }
 }
 

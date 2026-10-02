@@ -445,7 +445,7 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         cparams.n_batch = static_cast<uint32_t>(params.n_batch);
     if (params.n_ubatch > 0)
         cparams.n_ubatch = static_cast<uint32_t>(params.n_ubatch);
-    apply_gguf_gpu_context(gpu_layers, cparams);
+    apply_gguf_gpu_context(gpu_layers, cparams, gguf_gpu_outputs_max(false, params.prompt_lookup));
     if (params.n_batch > 0 || params.n_ubatch > 0)
         log_output("[xllama] prefill batch override: n_batch=" + std::to_string(cparams.n_batch) +
                    " n_ubatch=" + std::to_string(cparams.n_ubatch) + "\n");

@@ -486,7 +486,8 @@ class LlamaSession final : public Session {
                 cparams.n_batch = static_cast<uint32_t>(m_n_batch);
             if (m_n_ubatch > 0)
                 cparams.n_ubatch = static_cast<uint32_t>(m_n_ubatch);
-            apply_gguf_gpu_context(m_gpu_layers, cparams);
+            apply_gguf_gpu_context(m_gpu_layers, cparams,
+                                   gguf_gpu_outputs_max(for_embedding, m_prompt_lookup));
             if (for_embedding) {
                 // Non-causal embedding graphs cannot split a sequence into
                 // physical micro-batches (llama.cpp asserts instead of failing).

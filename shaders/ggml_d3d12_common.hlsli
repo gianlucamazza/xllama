@@ -1,4 +1,5 @@
-// ggml backend d3d12 (docs/gguf-gpu-decode.md) — shared by ggml_d3d12_mmv_*.hlsl.
+// ggml backend d3d12 (docs/gguf-gpu-decode.md) — shared by ggml_d3d12_mmv_*.hlsl
+// and ggml_d3d12_get_rows_q6_k.hlsl (which uses only the bindings and loads).
 // Root signature (src/bridge/ggml_d3d12.cpp): 8 root constants at b0, root SRV
 // t0 (weights, DEFAULT heap), root UAVs u0 (output) and u1 (activations). X is
 // not the f32 tensor: the backend quantizes it on the CPU with ggml's own
