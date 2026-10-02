@@ -364,6 +364,27 @@ never push a model past the budget it fits on the CPU. Recorded as:
 
 A model that fails a criterion keeps the CPU default.
 
+### D2-r2 result (in progress, CI `1.6.0.1148`)
+
+`bench/results/2026-10-02-d2r2-gguf-gpu.csv`: median of runs 2–4, same
+prompts and arms as D2. H9, `validate-console.sh all` and the LFM2.5-350M rows
+are still running.
+
+| Criterion                        | Coder-3B (Q4_K_M)                           | LFM2.5-1.2B (QAD Q4_0)         |
+| -------------------------------- | ------------------------------------------- | ------------------------------ |
+| decode ≥ 1.4×                    | **PASS** 14.35 → 22.3 (1.55×)               | **PASS** 39.7 → 64.3 (1.62×)   |
+| prefill P=1000 ≥ 0.9×            | **PASS** 45.6 → 57.9 (1.27×)                | **PASS** 108.7 → 197.0 (1.81×) |
+| peak ≤ 3584 MB, Δ ≤ 200 MB (512) | **PASS** 2044 → 2203 (+159)                 | **PASS** 783 → 946 (+163)      |
+| same, P ≈ 1000                   | **FAIL** 2078 → 2298 (**+220**)             | **PASS** 806 → 962 (+156)      |
+| GPU memory ≤ 3801 MB             | PASS 1851                                   | PASS 678                       |
+| H9 ≥ CPU                         | pending (gate A on `1.6.0.1144`: 6/8 = 6/8) | pending (gate A: 6/8 = 6/8)    |
+| `validate-console.sh all`        | pending                                     | pending                        |
+
+On a long prompt Coder-3B goes over the 200 MB delta. There, the committed
+GPU compute buffer and the q8 scratch for ~1000 tokens add to the fixed
+D3D12 runtime cost. The lever left is lazy commit of the GPU compute buffer
+(#309).
+
 ### D3 — product decision
 
 Default on/off per model in `docs/model-matrix.md` after D2; the
