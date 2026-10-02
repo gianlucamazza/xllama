@@ -204,7 +204,7 @@ training/           Job JSON, host PEFT, datasets
 tests/              doctest (test_*.cpp) plus a few unittest modules
 scripts/            Deploy, bench, validate, crossbuild, coherence
 docs/               SSOT map is docs/README.md
-shaders/            HLSL and generated DXIL for the GPU probes
+shaders/            HLSL and generated DXIL for the GPU probes and the d3d12 backend
 bench/              Raw results and comparison policy
 demo/               Capture scripts: what the demo video records, reviewable in a PR
 patches/            llama.cpp and vendor patches applied at UWP build time
@@ -352,7 +352,8 @@ If you change a contract, update the owning doc in the same PR
 
 - Linux: `./build/linux-test/bin/xllama-cli --help`. Training jobs fail
   closed with `--validate-train-job`. GPU probes (`--gpubw`, `--gpugemv`, `--gpustep`)
-  report `d3d12_ran=false` on Linux; that is expected.
+  report `d3d12_ran=false` on Linux; that is expected. `--gpu-layers` falls
+  back to the CPU there (no D3D12 device).
 - Console log: `./scripts/deploy.sh get-log` reads `LocalState\xllama.log`.
   Crash dumps: `./scripts/deploy.sh list-dumps`. Portal details:
   [docs/device-portal.md](docs/device-portal.md).

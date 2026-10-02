@@ -141,9 +141,10 @@ delta:
 | llama.cpp · LFM2-2.6B (`phase7-lfm-kv`)      |    609.4 (18 tok) | 12198.4 (391 tok) | **20.02×** |
 
 GGUF KV-reuse was previously disabled (llama.cpp recreated the context per turn);
-now enabled and console-measured. Routing (CPU↔GPU) stays ORT-only — the
-llama.cpp UWP build is CPU-only. DirectML still rejects continuous decoding, so
-the ORT reuse path is CPU-only.
+now enabled and console-measured. Routing (CPU↔GPU) stays ORT-only. GGUF is
+not routed per conversation; its opt-in d3d12 GPU layers are a separate knob
+([gguf-gpu-decode.md](gguf-gpu-decode.md)). DirectML still rejects continuous
+decoding, so the ORT reuse path is CPU-only.
 
 ## Diffusion — SD-Turbo fp16 (on-console, DirectML)
 
