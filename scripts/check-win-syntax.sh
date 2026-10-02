@@ -17,6 +17,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 XWIN="${UWP_XWIN_ROOT:-$HOME/.cache/uwp-crossbuild/xwin}"
+# The llama.cpp submodule checkout (a worktree may borrow another checkout's
+# at the same pin). Needed because the GGUF bridge files are XLLAMA_USE_LLAMA.
+LLAMA="${LLAMA_CPP_DIR:-$ROOT/llama.cpp}"
 CLANG_CL="${CLANG_CL:-clang-cl}"
 
 command -v "$CLANG_CL" >/dev/null || {
@@ -25,6 +28,10 @@ command -v "$CLANG_CL" >/dev/null || {
 }
 [[ -d "$XWIN/crt/include" && -d "$XWIN/sdk/include/um" ]] || {
 	echo "no xwin splat at $XWIN (see the header of this script)" >&2
+	exit 1
+}
+[[ -f "$LLAMA/include/llama.h" ]] || {
+	echo "no llama.cpp checkout at $LLAMA (git submodule update --init, or set LLAMA_CPP_DIR)" >&2
 	exit 1
 }
 
@@ -41,8 +48,9 @@ for f in "${files[@]}"; do
 		/imsvc "$XWIN/crt/include" /imsvc "$XWIN/sdk/include/ucrt" \
 		/imsvc "$XWIN/sdk/include/um" /imsvc "$XWIN/sdk/include/shared" \
 		/imsvc "$XWIN/sdk/include/winrt" \
-		/DXLLAMA_BUILD_PROBES /DNOMINMAX /D_CRT_SECURE_NO_WARNINGS \
+		/DXLLAMA_BUILD_PROBES /DXLLAMA_USE_LLAMA=1 /DNOMINMAX /D_CRT_SECURE_NO_WARNINGS \
 		/I "$ROOT/include" /I "$ROOT/src/bridge" /I "$ROOT/shaders/generated" \
+		/I "$LLAMA/include" /I "$LLAMA/ggml/include" /I "$LLAMA/ggml/src" \
 		"$ROOT/$f"; then
 		echo "OK   $f"
 	else

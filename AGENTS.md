@@ -47,7 +47,8 @@ code): a local xwin splat of the MSVC CRT + Windows SDK lets
 `scripts/check-win-syntax.sh` run a `clang-cl /Zs` syntax check before the
 `build-uwp` round trip. The one-time `xwin splat` command is in the script
 header; accepting the Microsoft licence is the developer's call, and nothing
-from the splat is committed. It is not a build: no linking, no `uwp/`, MSVC
+from the splat is committed. It also needs the `llama.cpp` submodule checkout
+(`LLAMA_CPP_DIR` points a worktree at another checkout of the same pin). It is not a build: no linking, no `uwp/`, MSVC
 stays the reference. `cmake -DXLLAMA_TARGET=uwp`
 is a deliberate fatal error that points at `scripts/build-uwp.ps1`; CI checks
 that message.

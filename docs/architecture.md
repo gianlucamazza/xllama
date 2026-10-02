@@ -80,6 +80,9 @@ Bridge sources of note under `src/bridge/`: `session.cpp`, `inference.cpp`,
 `sampler_chain.h` / `ort_sampling.h` (one sampler chain per backend),
 `decode_loop.h` (one prefill and one generation loop, shared by
 `run_inference_llama` and `LlamaSession::generate`),
+`llama_gpu.h` (the one place an `n_gpu_layers` request becomes llama.cpp
+params for the d3d12 backend, plus persistent CPU threadpools for split graphs;
+used by both of the above),
 `decode_loop_ort.h` (consolidated ORT GenAI decode loop — replaces duplicated
 loops in `run_inference_ort` and `OrtSession::run_decode`; stop sequences now
 applied to the stateless path),

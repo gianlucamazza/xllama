@@ -66,10 +66,6 @@ struct InferenceParams {
     /// docs/gguf-gpu-decode.md). Ignored where D3D12 is unavailable.
     int n_gpu_layers = 0;
 
-    /// With n_gpu_layers > 0: keep a tied output (token_embd reused as the
-    /// lm_head) on the CPU instead of duplicating it into D3D12_Weights (#309).
-    bool gpu_output_on_cpu = false;
-
     /// Bench only: decode exactly n_predict tokens, through end-of-generation
     /// (stop sequences should be cleared too). Default off.
     bool ignore_eog = false;

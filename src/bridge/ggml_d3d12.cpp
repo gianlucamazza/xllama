@@ -896,7 +896,10 @@ const ggml_backend_device_i kDeviceIface = {
     /* .get_props            = */ dev_props,
     /* .init_backend         = */ dev_init_backend,
     /* .get_buffer_type      = */ dev_buffer_type,
-    /* .get_host_buffer_type = */ nullptr,
+    // The default buft doubles as the host buft: llama.cpp then allocates the
+    // CPU backend's compute buffer in D3D12_Host, which supports_buft accepts,
+    // so the scheduler stops copying every matmul input into a second buffer.
+    /* .get_host_buffer_type = */ dev_buffer_type,
     /* .buffer_from_host_ptr = */ nullptr,
     /* .supports_op          = */ dev_supports_op,
     /* .supports_buft        = */ dev_supports_buft,
