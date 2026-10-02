@@ -367,18 +367,22 @@ A model that fails a criterion keeps the CPU default.
 ### D2-r2 result (in progress, CI `1.6.0.1148`)
 
 `bench/results/2026-10-02-d2r2-gguf-gpu.csv`: median of runs 2–4, same
-prompts and arms as D2. H9, `validate-console.sh all` and the LFM2.5-350M rows
-are still running.
+prompts and arms as D2. H9 from `2026-10-02-d2r2-h9-{cpu,gpu}.jsonl` (LAN API,
+XAML process). `validate-console.sh all` is still running.
 
-| Criterion                        | Coder-3B (Q4_K_M)                           | LFM2.5-1.2B (QAD Q4_0)         |
-| -------------------------------- | ------------------------------------------- | ------------------------------ |
-| decode ≥ 1.4×                    | **PASS** 14.35 → 22.3 (1.55×)               | **PASS** 39.7 → 64.3 (1.62×)   |
-| prefill P=1000 ≥ 0.9×            | **PASS** 45.6 → 57.9 (1.27×)                | **PASS** 108.7 → 197.0 (1.81×) |
-| peak ≤ 3584 MB, Δ ≤ 200 MB (512) | **PASS** 2044 → 2203 (+159)                 | **PASS** 783 → 946 (+163)      |
-| same, P ≈ 1000                   | **FAIL** 2078 → 2298 (**+220**)             | **PASS** 806 → 962 (+156)      |
-| GPU memory ≤ 3801 MB             | PASS 1851                                   | PASS 678                       |
-| H9 ≥ CPU                         | pending (gate A on `1.6.0.1144`: 6/8 = 6/8) | pending (gate A: 6/8 = 6/8)    |
-| `validate-console.sh all`        | pending                                     | pending                        |
+| Criterion                        | Coder-3B (Q4_K_M)               | LFM2.5-1.2B (QAD Q4_0)         |
+| -------------------------------- | ------------------------------- | ------------------------------ |
+| decode ≥ 1.4×                    | **PASS** 14.35 → 22.3 (1.55×)   | **PASS** 39.7 → 64.3 (1.62×)   |
+| prefill P=1000 ≥ 0.9×            | **PASS** 45.6 → 57.9 (1.27×)    | **PASS** 108.7 → 197.0 (1.81×) |
+| peak ≤ 3584 MB, Δ ≤ 200 MB (512) | **PASS** 2044 → 2203 (+159)     | **PASS** 783 → 946 (+163)      |
+| same, P ≈ 1000                   | **FAIL** 2078 → 2298 (**+220**) | **PASS** 806 → 962 (+156)      |
+| GPU memory ≤ 3801 MB             | PASS 1851                       | PASS 678                       |
+| H9 ≥ CPU                         | **PASS** 6/8 = 6/8              | **PASS** 6/8 = 6/8             |
+| `validate-console.sh all`        | pending                         | pending                        |
+
+UI process, H9 requests end to end: 7.33 → 11.27 tok/s on Coder-3B (1.54×)
+and 14.97 → 22.49 on LFM2.5-1.2B (1.50×). LFM2.5-350M (informative): decode
+99.9 → 97.3 (0.97×), peak 311 → 409 MB.
 
 On a long prompt Coder-3B goes over the 200 MB delta. There, the committed
 GPU compute buffer and the q8 scratch for ~1000 tokens add to the fixed
