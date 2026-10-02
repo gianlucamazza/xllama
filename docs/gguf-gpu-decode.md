@@ -1,9 +1,9 @@
 # GGUF GPU decode — design, gates and verdicts
 
 > **SSOT for the GGUF GPU decode design** (H6 follow-up, #228): architecture,
-> cost model, predeclared gates D1/D2 and their verdicts. Kernel evidence lives
-> in [phase15-re-opt.md](phase15-re-opt.md) (WS-E / H6.3). The gate tables
-> here are the verdict evidence of an opt-in path, read from the CSVs in
+> cost model, predeclared gates (D1, D2, D2-r2, D3, FA) and their verdicts.
+> Kernel evidence lives in [phase15-re-opt.md](phase15-re-opt.md) (WS-E /
+> H6.3). The gate tables here are verdict evidence, read from the CSVs in
 > `bench/results/` (listed in `bench/README.md`); shipped defaults stay in
 > [benchmarks.md](benchmarks.md). Platform limits are only in
 > [uwp-constraints.md](uwp-constraints.md).
@@ -15,7 +15,9 @@ RAM, Coder-3B H9). **D2-r2 = PASS** on both gate models (q8 activations,
 one-copy tied embedding, smaller compute reserve, zero-size ops kept on the
 GPU; CI `1.6.0.1156`): Coder-3B decodes 1.60× and LFM2.5-1.2B 1.64×. Next is
 D3, the per-model default (done; see below). `gguf_gpu_layers.txt` remains
-the operator override.
+the operator override. **FA fix (CI `1.6.0.1163`):** the GPU path keeps Flash
+Attention like the CPU path. Decode is now 1.90× (Coder-3B) and 1.88×
+(LFM2.5-1.2B).
 
 ## Why
 
@@ -457,6 +459,80 @@ LFM2.5-1.2B. LFM2.5-350M and smaller stay on the CPU.
 - **Override:** with `gguf_gpu_layers.txt` set to `0`, LFM2.5-1.2B loaded on
   the CPU.
 
+### FA — Flash Attention on the GPU path (#310)
+
+**Defect.** With GPU layers, llama.cpp's Flash Attention AUTO resolved to
+disabled on every run (`resolve_fused_ops: Flash Attention not supported, set
+to disabled` in the D2-r2 and D3 logs).
+
+- AUTO compares each layer's device (D3D12) with the FA node's device. The FA
+  node sits beside the KV cache, which stays on the CPU (`offload_kqv=false`),
+  so the two never match. Upstream marks the check as wrong for no-KV-offload.
+- The CPU-only path resolves AUTO to enabled. The GPU path therefore ran a
+  different attention: slower, and numerically different from the CPU
+  reference.
+- Decode cost of a longer context (P = 948 vs 292, D2-r2 final CSV):
+
+| Model       | CPU-only    | d3d12       |
+| ----------- | ----------- | ----------- |
+| Coder-3B    | +3.8 ms/tok | +9.7 ms/tok |
+| LFM2.5-1.2B | +1.1 ms/tok | +3.7 ms/tok |
+
+**Fix.** `apply_gguf_gpu_context` turns AUTO into ENABLED when layers go to
+the GPU. Attention runs on the CPU either way; an explicit caller choice
+stands.
+
+**FA gate (predeclared 2026-10-02, before the run).** Default-configuration
+CI package, same scripts as D2-r2 / D3. Per GPU model:
+
+- decode standard-512 ≥ the D3 value − 2%;
+- prefill ≥ 0.9× the CPU;
+- peak RAM ≤ 3584 MB and ≤ 200 MB over the CPU;
+- H9 via the LAN API ≥ the CPU;
+- `validate-console.sh all` ALL PASS;
+- no `Flash Attention not supported` line in the log.
+
+Long-1k decode is reported, not gated. FAIL means revert, not a knob.
+
+**#310 re-attribution (same run, predeclared).** From the backend counters,
+take Coder-3B's CPU-side ms per decode token:
+
+- **≥ 10 ms:** a separate D2-fused plan, with its own gate (elementwise ops on
+  d3d12 with a GPU q8 quantize).
+- **< 10 ms:** close #310 with the numbers.
+
+**FA result (2026-10-02, CI `1.6.0.1163`): PASS.**
+`bench/results/2026-10-02-fa-gguf-gpu.csv` and `2026-10-02-fa-default-h9.jsonl`.
+The log has no `Flash Attention not supported` line.
+
+| Criterion                    | Coder-3B (`n_ctx` 4096)             | LFM2.5-1.2B                        |
+| ---------------------------- | ----------------------------------- | ---------------------------------- |
+| decode standard-512 ≥ D3 −2% | **PASS** 22.63 → 26.64 (+18%)       | **PASS** 65.4 → 74.8 (+14%)        |
+| decode vs CPU                | 14.04 → 26.64 (**1.90×**)           | 39.8 → 74.8 (**1.88×**)            |
+| decode long-1k vs CPU        | 13.37 → 24.20 (1.81×)               | 38.2 → 68.4 (1.79×)                |
+| prefill ≥ 0.9× CPU           | **PASS** 1.65× (long-1k 1.63×)      | **PASS** 2.35× (long-1k 2.31×)     |
+| peak RAM vs CPU              | **PASS** 2204 MB, +88 (long-1k +50) | **PASS** 860 MB, +77 (long-1k +54) |
+| H9 (default configuration)   | **PASS** 6/8 = 6/8                  | **PASS** 6/8 = 6/8                 |
+| `validate-console.sh all`    | **PASS**                            | **PASS**                           |
+
+Without FA, unfused attention also set the prefill rate and the CPU compute
+reserve. With FA, prefill gains 22–29% and peak RAM over the CPU halves.
+
+**#310 re-attribution: < 10 ms, so #310 closes.**
+
+- Backend counters (calls / wall / GPU) are logged once per run, covering
+  prefill and decode together. A two-unknown linear fit uses the standard-512
+  run (P = 292, 256 tokens) and the long-1k run (P = 948, 32 tokens).
+- Coder-3B decode token: 37.5 ms. Of that, the backend accounts for 28.2 ms
+  wall (13.7 ms of GPU time) and the CPU side for **≈ 9.3 ms**.
+- The lever left is inside the backend: ~218 submissions per token cost
+  ≈ 14.5 ms of wall over GPU time (sync, plus the CPU q8 quantize per
+  submission). That is the D2-fused direction, a new decision with its own
+  gate, not a #310 follow-up.
+- Next to other hardware (effective bandwidth as a share of peak, llama.cpp
+  Vulkan scoreboard): see
+  [benchmarks.md](benchmarks.md#gpu-decode-in-context--known-hardware).
+
 ## Decision log
 
 | Date       | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -471,3 +547,4 @@ LFM2.5-1.2B. LFM2.5-350M and smaller stay on the CPU.
 | 2026-10-02 | **Review fix before merge** (CI `1.6.0.1155`). `n_outputs_max = 1` made llama.cpp abort on any batch asking for more rows: prompt-lookup verify batches and embedding sessions with GPU layers. The cap is now 1 + draft with prompt lookup and llama.cpp's default for embeddings. On console, prompt lookup with GPU layers drafted 44 and accepted 31, and `/api/embed` with the knob passed 17 live requests. Prefill and decode keep 1, so the D2-r2 numbers stand (Coder-3B g99 rerun: 22.4 tok/s, 2203 MB). The selftest now times a median of 5 runs, after a single sample swung 78–109 GB/s; it passes 14/14, GET_ROWS bit-exact. |
 | 2026-10-02 | **D2-r2 = PASS** (CI `1.6.0.1156`): Coder-3B decode 1.60×, prefill 1.27×, peak +159/+125 MB; LFM2.5-1.2B 1.64× / 1.82×, +163/+156 MB. H9 6/8 = 6/8 on both, validate ALL PASS with the knob and without. Coder-3B's +220 MB on `1.6.0.1148` was zero-column ops refused by `supports_op`, which made the scheduler copy weights to the CPU; fixed. Next: D3.                                                                                                                                                                                                                                                                                |
 | 2026-10-02 | **D3 shipped** (CI `1.6.0.1159`): catalogue `gpu_layers` + `resolve_gguf_gpu_layers` (the operator file overrides; `0` forces the CPU). Qwen2.5-Coder-3B (re-measured at `n_ctx` 4096: decode 1.60×, peak +150/+126 MB) and LFM2.5-1.2B run on d3d12 by default. Default-configuration validate ALL PASS, H9 unchanged, placement checked per model. Follow-ups #310 #313.                                                                                                                                                                                                                                                                  |
+| 2026-10-02 | **FA = PASS** (CI `1.6.0.1163`): Flash Attention had been silently off on every GPU-layer run (AUTO compares layer and KV devices). Requesting it explicitly gives decode 1.90× / 1.88× (Coder-3B / LFM2.5-1.2B), prefill 1.65× / 2.35×, peak +88 / +77 MB, H9 6/8 = 6/8, validate ALL PASS. #310 re-attribution: CPU side ≈ 9.3 ms/token < 10 → #310 closed; the remaining lever is per-submission backend overhead (≈ 14.5 ms/token).                                                                                                                                                                                                     |

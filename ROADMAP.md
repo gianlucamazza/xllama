@@ -33,7 +33,7 @@ performance belongs in `docs/benchmarks.md`.
   (host + console marker gates PASS; pin-blocked filter-widening remains);
   Phase 11 closed the headless↔UI gap (in-app personalize + LAN API parity,
   #116/#118). Phases 13, 14 and 16 (one shipped model) are complete. Remaining
-  open work: Phase 15 GPU decode follow-ups (#310, #313), Store retail
+  open work: Phase 15 GPU decode follow-up (#313), Store retail
   certification, and upstream vendor pin drops.
 - **Current v1.6.0.0:** unified CI MSVC Dev Mode release. Exact package and
   validation gates are identified in the GitHub release notes; the source-bound
@@ -63,7 +63,7 @@ performance belongs in `docs/benchmarks.md`.
    143.06 GB/s packed, 2026-10-01); GGUF GPU decode D1 = `D2-matmul-only`,
    D2 = FAIL, then D2-r2 = PASS (q8 activations, leaner memory) and **D3
    shipped**: Coder-3B and LFM2.5-1.2B decode on the d3d12 backend by
-   default (`docs/gguf-gpu-decode.md`); follow-ups #310 #313; crossbuild product parity (layer 2 closed
+   default (`docs/gguf-gpu-decode.md`), FA fix decode 1.90× / 1.88×; follow-up #313; crossbuild product parity (layer 2 closed
    2026-08-08 by uwp-crossbuild 0.5.1 — launch proven; ORT/GenAI, first boot
    and uptime not); prompt-lookup default OFF. Dependabot llama.cpp #247 was
    closed 2026-08-26 after the UWP build failed on `LLAMA_VERSION`; do not
@@ -150,8 +150,9 @@ Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.
       on both gate models: Coder-3B decode 1.60× / prefill 1.27× / peak
       +125–159 MB, LFM2.5-1.2B 1.64× / 1.82× / +156–163 MB, H9 6/8 = 6/8.
       **D3 shipped** (CI `1.6.0.1159`): GPU default for both, catalogue
-      `gpu_layers`. Follow-ups #310 (CPU-side split cost), #313
-      (multi-column prefill).
+      `gpu_layers`. FA fix (CI `1.6.0.1163`): Flash Attention kept on the
+      GPU path, decode 1.90× / 1.88×; #310 closed (CPU side ≈ 9.3 ms/token).
+      Follow-up #313 (multi-column prefill).
 
 ## Phase 8 — Training pillar (exploration) ✅ FROZEN complete
 

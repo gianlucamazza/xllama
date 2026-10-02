@@ -115,7 +115,7 @@
     {
       "label": "LFM2.5-1.2B",
       "params": "1.2B",
-      "source": "2026-10-02-d2r2-gguf-gpu-final.csv",
+      "source": "2026-10-02-fa-gguf-gpu.csv",
       "selector": {
         "model": "lfm25-1.2b-instruct",
         "backend": "d3d12",
@@ -214,7 +214,7 @@
     {
       "label": "Qwen2.5-Coder-3B",
       "params": "3B",
-      "source": "2026-10-02-d3-coder-ctx4096.csv",
+      "source": "2026-10-02-fa-gguf-gpu.csv",
       "selector": {
         "model": "qwen25-coder-3b",
         "backend": "d3d12",

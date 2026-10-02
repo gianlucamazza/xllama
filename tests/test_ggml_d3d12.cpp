@@ -229,14 +229,22 @@ TEST_CASE("ggml_d3d12: GPU-layer request maps to llama params") {
 
     llama_context_params cp = llama_context_default_params();
     const bool kqv_default = cp.offload_kqv;
+    REQUIRE(cp.flash_attn_type == LLAMA_FLASH_ATTN_TYPE_AUTO);
     apply_gguf_gpu_context(0, cp, gguf_gpu_outputs_max(false, false));
     CHECK(cp.offload_kqv == kqv_default);
+    CHECK(cp.flash_attn_type == LLAMA_FLASH_ATTN_TYPE_AUTO);
     const uint32_t outputs_default = cp.n_outputs_max;
     apply_gguf_gpu_context(0, cp, gguf_gpu_outputs_max(false, false));
     CHECK(cp.n_outputs_max == outputs_default);
     apply_gguf_gpu_context(28, cp, gguf_gpu_outputs_max(false, false));
     CHECK_FALSE(cp.offload_kqv);   // KV and attention stay on the CPU
     CHECK(cp.n_outputs_max == 1u); // compute reserve sized for one logits row (#309)
+    // Same attention as the CPU-only path, where AUTO resolves to enabled.
+    CHECK(cp.flash_attn_type == LLAMA_FLASH_ATTN_TYPE_ENABLED);
+    llama_context_params no_fa = llama_context_default_params();
+    no_fa.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_DISABLED;
+    apply_gguf_gpu_context(28, no_fa, gguf_gpu_outputs_max(false, false));
+    CHECK(no_fa.flash_attn_type == LLAMA_FLASH_ATTN_TYPE_DISABLED); // a caller's choice stands
 
     // llama.cpp asserts when a batch asks for more outputs than n_outputs_max,
     // so the cap follows what the context will request: a prompt-lookup verify

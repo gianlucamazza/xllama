@@ -8,11 +8,12 @@
 > workstream status, and decision log** so those pages do not grow a second
 > narrative table.
 
-**Currency:** 2026-10-02 — **WS-E D2-r2**: the opt-in ggml backend `d3d12`
-with q8 activations passes every product criterion on both gate models:
-decode 1.60× (Coder-3B) and 1.64× (LFM2.5-1.2B), H9 parity, peak within
-200 MB of the CPU. **D3 shipped**: both run on d3d12 by default
-([gguf-gpu-decode.md](gguf-gpu-decode.md)). Before: H6.3 K3, own `rows` Q4_K
+**Currency:** 2026-10-02 — **WS-E D3 + FA**: the ggml backend `d3d12` with
+q8 activations passed every product criterion on both gate models (D2-r2:
+decode 1.60× Coder-3B, 1.64× LFM2.5-1.2B, H9 parity, peak within 200 MB of
+the CPU). **D3 shipped**: both run on d3d12 by default
+([gguf-gpu-decode.md](gguf-gpu-decode.md)). The FA fix (Flash Attention kept
+on the GPU path) brings decode to 1.90× / 1.88×. Before: H6.3 K3, own `rows` Q4_K
 GEMV **143.06 GB/s packed** (2026-10-01). Earlier: 2026-08-08. Attack order: **W2 closed for product default**
 (console M3 FAIL ≥1.4× gate → stays opt-in OFF); **W3 gpubw M6 PASS** —
 Series S STREAM **119.07 GB/s** (checksum_ok, 1 GiB) ≥ 100 GB/s kill → **H6 eng
@@ -123,14 +124,14 @@ shipping).
 
 ## Workstreams
 
-| ID   | Name                              | Issue | Status                                                                                                                                                                                                                                      |
-| ---- | --------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| WS0  | Baseline freeze + this doc        | —     | **done** (this file)                                                                                                                                                                                                                        |
-| WS-A | W2 prompt-lookup speculative      | #210  | **closed for default** — host PASS; console M3 **1.04× FAIL** gate; opt-in remains                                                                                                                                                          |
-| WS-B | W3 gpubw STREAM + Q4 GEMV spike   | #211  | **closed PASS** — STREAM **119.07 GB/s** Series S (`1.5.2.853`); Q4 GEMV moves to #228                                                                                                                                                      |
-| WS-C | #130 DML valley mechanism profile | #130  | **closed** mitigation-only (no new RE)                                                                                                                                                                                                      |
-| WS-D | H5 BitNet desk survey             | —     | **done 2026-08-10 — NO-GO**, no artefact to survey (M8)                                                                                                                                                                                     |
-| WS-E | H6/H7 GGUF GPU path               | #228  | **K3 (H6.3, 2026-10-01)** — `rows` median **143.06** GB/s packed, `dot4` 136.94, G1 PASS 3/3 (CI `1.6.0.1113`); D1 = `D2-matmul-only`; **D2 = FAIL** on peak RAM + Coder H9, decode 1.59× opt-in ([gguf-gpu-decode.md](gguf-gpu-decode.md)) |
+| ID   | Name                              | Issue | Status                                                                                                                                                                                                                                                                                                                           |
+| ---- | --------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| WS0  | Baseline freeze + this doc        | —     | **done** (this file)                                                                                                                                                                                                                                                                                                             |
+| WS-A | W2 prompt-lookup speculative      | #210  | **closed for default** — host PASS; console M3 **1.04× FAIL** gate; opt-in remains                                                                                                                                                                                                                                               |
+| WS-B | W3 gpubw STREAM + Q4 GEMV spike   | #211  | **closed PASS** — STREAM **119.07 GB/s** Series S (`1.5.2.853`); Q4 GEMV moves to #228                                                                                                                                                                                                                                           |
+| WS-C | #130 DML valley mechanism profile | #130  | **closed** mitigation-only (no new RE)                                                                                                                                                                                                                                                                                           |
+| WS-D | H5 BitNet desk survey             | —     | **done 2026-08-10 — NO-GO**, no artefact to survey (M8)                                                                                                                                                                                                                                                                          |
+| WS-E | H6/H7 GGUF GPU path               | #228  | **K3 (H6.3, 2026-10-01)** — `rows` median **143.06** GB/s packed, `dot4` 136.94, G1 PASS 3/3 (CI `1.6.0.1113`); D1 = `D2-matmul-only`; D2 FAIL → D2-r2 PASS → **D3 shipped** (GPU default for Coder-3B and LFM2.5-1.2B); FA fix decode **1.90× / 1.88×** (CI `1.6.0.1163`); open #313 ([gguf-gpu-decode.md](gguf-gpu-decode.md)) |
 
 ### WS-A detail (W2)
 
@@ -267,21 +268,21 @@ own predeclared gate; SessionHub and the CPU default are unchanged.
 
 ## Milestones
 
-| M     | Deliverable                                      | Exit                                                                                                                                                                                                           |
-| ----- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M0    | This doc + ROADMAP/README links                  | done                                                                                                                                                                                                           |
-| M1    | W2.1–W2.3 host + tests                           | ctest PASS                                                                                                                                                                                                     |
-| M2    | W2.4 opt-in + host acceptance CSV                | acceptance vs pregate                                                                                                                                                                                          |
-| M3    | Console W2 A/B + full gates                      | **measured** — code 1.04× **FAIL** gate; chat OK; peak OK                                                                                                                                                      |
-| M4    | Product default decision (after M3 numbers)      | **OFF** (opt-in only); CHANGELOG                                                                                                                                                                               |
-| M5    | gpubw STREAM spike (code + flag + DXIL)          | **done** (eng); multi-dim Dispatch for 1 GiB; host helpers unit-tested                                                                                                                                         |
-| M6    | console measure vs 100 GB/s                      | **PASS** — Series S **119.07 GB/s**, checksum_ok, 1024 MB, CI `1.5.2.853`; CSV `bench/results/phase15-gpubw.csv`                                                                                               |
-| M7    | #130 closed                                      | **done** product-mitigated 2026-08-08                                                                                                                                                                          |
-| M8    | H5 survey note                                   | **NO-GO (2026-08-10)** — runtime is ready (`bitnet` is in the pin) but no sub-4B model trained at ≤2 bits publishes weights; QAT literature ships recipes, not checkpoints. See `docs/phase7-hypotheses.md` H5 |
-| M9    | H6.1 Q4_K GEMV measure (code + flag + DXIL)      | **measured** — G1 PASS / G2 FAIL                                                                                                                                                                               |
-| M9+   | H6 full decode eng                               | **reopened by K3 → D1/D2/D2-r2** (2026-10-01/02): opt-in ggml backend `d3d12`, verdict per model in [gguf-gpu-decode.md](gguf-gpu-decode.md); parked 2026-08-08 before that                                    |
-| M9+++ | H6.3 rows/dot4 GEMV measure (code + flag + DXIL) | **measured K3** — Series S CI `1.6.0.1113`, `rows` median **143.06** GB/s packed, `dot4` 136.94, G1 PASS 3/3. CSV `bench/results/phase15-gpugemv-h63.csv`                                                      |
-| M9++  | H6.2 wave32 GEMV measure (code + flag + DXIL)    | **measured K2** — Series S CI `1.5.5.922`, wave32 median **25.4** GB/s packed, G1 PASS; G2=40 not cleared. CSV `bench/results/phase15-gpugemv-h62.csv`                                                         |
+| M     | Deliverable                                      | Exit                                                                                                                                                                                                              |
+| ----- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M0    | This doc + ROADMAP/README links                  | done                                                                                                                                                                                                              |
+| M1    | W2.1–W2.3 host + tests                           | ctest PASS                                                                                                                                                                                                        |
+| M2    | W2.4 opt-in + host acceptance CSV                | acceptance vs pregate                                                                                                                                                                                             |
+| M3    | Console W2 A/B + full gates                      | **measured** — code 1.04× **FAIL** gate; chat OK; peak OK                                                                                                                                                         |
+| M4    | Product default decision (after M3 numbers)      | **OFF** (opt-in only); CHANGELOG                                                                                                                                                                                  |
+| M5    | gpubw STREAM spike (code + flag + DXIL)          | **done** (eng); multi-dim Dispatch for 1 GiB; host helpers unit-tested                                                                                                                                            |
+| M6    | console measure vs 100 GB/s                      | **PASS** — Series S **119.07 GB/s**, checksum_ok, 1024 MB, CI `1.5.2.853`; CSV `bench/results/phase15-gpubw.csv`                                                                                                  |
+| M7    | #130 closed                                      | **done** product-mitigated 2026-08-08                                                                                                                                                                             |
+| M8    | H5 survey note                                   | **NO-GO (2026-08-10)** — runtime is ready (`bitnet` is in the pin) but no sub-4B model trained at ≤2 bits publishes weights; QAT literature ships recipes, not checkpoints. See `docs/phase7-hypotheses.md` H5    |
+| M9    | H6.1 Q4_K GEMV measure (code + flag + DXIL)      | **measured** — G1 PASS / G2 FAIL                                                                                                                                                                                  |
+| M9+   | H6 full decode eng                               | **reopened by K3 → D1/D2/D2-r2/D3** (2026-10-01/02): ggml backend `d3d12`, GPU default for Coder-3B and LFM2.5-1.2B, verdict per model in [gguf-gpu-decode.md](gguf-gpu-decode.md); parked 2026-08-08 before that |
+| M9+++ | H6.3 rows/dot4 GEMV measure (code + flag + DXIL) | **measured K3** — Series S CI `1.6.0.1113`, `rows` median **143.06** GB/s packed, `dot4` 136.94, G1 PASS 3/3. CSV `bench/results/phase15-gpugemv-h63.csv`                                                         |
+| M9++  | H6.2 wave32 GEMV measure (code + flag + DXIL)    | **measured K2** — Series S CI `1.5.5.922`, wave32 median **25.4** GB/s packed, G1 PASS; G2=40 not cleared. CSV `bench/results/phase15-gpugemv-h62.csv`                                                            |
 
 ## Decision log
 
@@ -326,7 +327,7 @@ own predeclared gate; SessionHub and the CPU default are unchanged.
 
 - #210 W2 prompt-lookup — **closed** (eng opt-in shipped; product default OFF after M3)
 - #211 W3 gpubw gate — **closed PASS** (119.07 GB/s); PR #227
-- #228 H6 eng follow-up — **K3** after H6.3 (`rows` console median 143.06 GB/s packed); D2-r2 PASS, D3 shipped (GPU default for Coder-3B and LFM2.5-1.2B); follow-ups #310 #313 ([gguf-gpu-decode.md](gguf-gpu-decode.md)); follow-ups #309 #310 #313
+- #228 H6 eng follow-up — **K3** after H6.3 (`rows` console median 143.06 GB/s packed); D2-r2 PASS, D3 shipped (GPU default for Coder-3B and LFM2.5-1.2B), FA fix (decode 1.90× / 1.88×); #309 #310 closed; open follow-up #313 ([gguf-gpu-decode.md](gguf-gpu-decode.md))
 - #130 DML max_length valley — **closed** product-mitigated 2026-08-08
 - #216 kvsnap save race — **closed** PR #232 (`all` ×6)
 - #223 thinking-tier completion — **closed** PR #234 (`thinkdone` + n_predict 1024)

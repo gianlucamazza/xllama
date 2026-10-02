@@ -13,7 +13,7 @@ ids, templates, licenses, and campaign notes** — not runtime contracts.
 | Catalogue data                                                 | [`../uwp/models/manifest.json`](../uwp/models/manifest.json) |
 | Tok/s tables                                                   | [benchmarks.md](./benchmarks.md) only                        |
 
-Last updated: **2026-10-02**. Newest entries: D3 — `qwen25-coder-3b` and `lfm25-1.2b-instruct` run on the d3d12 GPU backend by default (catalogue `gpu_layers`, [gguf-gpu-decode.md](./gguf-gpu-decode.md)); the CPU columns here stay the CPU measurements, and the default-configuration rows are in [benchmarks.md](./benchmarks.md). Earlier: H9 re-run with the corrected
+Last updated: **2026-10-02**. Newest entries: D3 — `qwen25-coder-3b` and `lfm25-1.2b-instruct` run on the d3d12 GPU backend by default (catalogue `gpu_layers`, [gguf-gpu-decode.md](./gguf-gpu-decode.md)), with Flash Attention kept on that path since the FA fix (decode 1.90× / 1.88× the CPU); the CPU columns here stay the CPU measurements, and the default-configuration rows are in [benchmarks.md](./benchmarks.md). Earlier: H9 re-run with the corrected
 `grounded_qa` scorer (#243) and `lfm25-230m` back on QAD Q4_0; Series S catalogue gates
 (`2026-09-30-catalogue-gates`): §A1 `phi4-mini` T3 PASS (#268), LFM2.5 QAD
 Q4_0 PASS for `lfm25-350m` / `lfm25-1.2b-instruct` (#270); §F MiniCPM5-1B (#267) and Gemma-3-1B (#269)

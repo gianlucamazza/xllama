@@ -53,16 +53,16 @@ generated from the committed raw results by `scripts/generate-benchmark-summary.
 | LFM2.5-230M | 230M | QAD Q4_0 | llama.cpp CPU · t6 | 633.6 | **132.4** | 128.5–133.1 (n=3) | 236 | `2026-09-30-catalogue-gates` |
 | LFM2.5-350M | 350M | QAD Q4_0 | llama.cpp CPU · t6 | 374.4 | **101.6** | 101.5–101.8 (n=3) | 311 | `2026-09-30-catalogue-gates` |
 | Gemma-3-270M | 270M | Q4_K_M | llama.cpp CPU · t6 | 395.0 | **76.8** | _single run_ | 368 | `phase6-gemma` |
+| LFM2.5-1.2B | 1.2B | QAD Q4_0 | llama.cpp · d3d12 GPU (default, D3) | 257.4 | **74.8** | 74.1–74.9 (n=3) | 860 | `2026-10-02-fa-gguf-gpu` |
 | SmolLM2-360M | 360M | int4 | ORT-GenAI CPU · t6 | 262.4 | **74.8** | 74.4–75.0 (n=3) | 708 | `t6-shipped-confirm` |
-| LFM2.5-1.2B | 1.2B | QAD Q4_0 | llama.cpp · d3d12 GPU (default, D3) | 213.6 | **65.5** | 65.2–65.5 (n=3) | 946 | `2026-10-02-d2r2-gguf-gpu-final` |
 | SmolLM2-360M | 360M | Q4_K_M | llama.cpp CPU · t6 | 141.5 | **62.9** | _single run_ | 402 | `phase35-llamacpp-scaling` |
 | Qwen2.5-Coder-0.5B | 0.5B | Q4_K_M | llama.cpp CPU · t6 | 148.2 | **62.4** | 56.8–68.0 (n=2) | 533 | `phase14-console` |
 | SmolLM2-360M | 360M | fp16 | ORT DirectML · RMSNorm fixed | 236.7 | **44.4** | _single run_ | 1268 | `phase2-dml` |
 | LFM2.5-1.2B | 1.2B | QAD Q4_0 | llama.cpp CPU · t6 | 109.7 | **40.0** | 39.7–40.3 (n=3) | 783 | `2026-09-30-catalogue-gates` |
 | LFM2.5-1.2B-Thinking | 1.2B | Q4_K_M | llama.cpp CPU · t6 | 130.4 | **36.7** | 36.7–36.8 (n=2) | 811 | `phase14-console` |
 | Qwen3.5-0.8B | 0.8B | Q4_K_M | llama.cpp CPU · t6 | 98.1 | **35.1** | _single run_ | 718 | `phase5-gguf` |
+| Qwen2.5-Coder-3B | 3B | Q4_K_M | llama.cpp · d3d12 GPU (default, D3) | 77.7 | **26.7** | 26.5–26.8 (n=3) | 2203 | `2026-10-02-fa-gguf-gpu` |
 | Qwen2.5-Coder-1.5B | 1.5B | Q4_K_M | llama.cpp CPU · t6 | 96.6 | **26.1** | 25.7–26.5 (n=2) | 1179 | `phase14-console` |
-| Qwen2.5-Coder-3B | 3B | Q4_K_M | llama.cpp · d3d12 GPU (default, D3) | 63.2 | **22.6** | 22.5–22.7 (n=3) | 2266 | `2026-10-02-d3-coder-ctx4096` |
 | Qwen3-1.7B | 1.7B | Q4_K_M | llama.cpp CPU · t6 | 89.5 | **21.8** | 21.7–21.9 (n=2) | 1398 | `phase14-console` |
 | SmolLM2-1.7B | 1.7B | int4 | ORT-GenAI CPU | 54.9 | **20.6** | _single run_ | 2423 | `phase35-1b-cpu` |
 | LFM2-2.6B | 2.6B | Q4_K_M | llama.cpp CPU · t6 | 32.0 | **18.4** | _single run_ | 1623 | `phase7-lfm` |
@@ -332,6 +332,92 @@ at roughly single-thread bandwidth (~40% of the 8-thread ceiling); the GEMV is
 latency/dispatch-bound per token rather than saturating aggregate DRAM bandwidth,
 consistent with why more threads help prefill (batched) but not decode (M=1). Drop
 a `membw.flag` into `LocalState` to reproduce (`membw-result.csv`, 1t + full-width).
+
+**2026-10-02 update.** That paragraph describes the 2026-07 ORT int4 path.
+llama.cpp GGUF decode on the CPU, with repacked weights and 6 threads, now
+streams **~27 GB/s**:
+
+- Qwen2.5-Coder-3B: 14.0 tok/s × 1.92 GB;
+- LFM2.5-1.2B: 39.8 tok/s × 0.69 GB.
+
+That is ~90% of the 8-thread read ceiling, so the CPU GGUF decode path sits at
+its roofline.
+
+## GPU decode in context — known hardware
+
+Where the Series S and xllama sit next to hardware with published llama.cpp
+numbers (2026-10-02). Decode streams every weight once per token. The
+comparable figure across devices and models is therefore effective bandwidth,
+decode tok/s × weight bytes, as a share of the device's datasheet peak.
+
+**Sources.**
+
+- **xllama rows** are measured: `2026-10-02-fa-gguf-gpu.csv`, CI `1.6.0.1163`,
+  default configuration.
+- **Weight bytes** come from the `D3D12_Weights` buffer in the console log:
+  1834 MiB for Coder-3B (tied embedding included, one copy) and 660 MiB for
+  LFM2.5-1.2B.
+- **Kernel-only row:** 13.7 ms of GPU time per Coder-3B decode token, from the
+  FA re-attribution in [gguf-gpu-decode.md](gguf-gpu-decode.md).
+- **External rows are published, not measured by us.** They come from the
+  [llama.cpp Vulkan scoreboard](https://github.com/ggml-org/llama.cpp/discussions/10879)
+  (Llama-2-7B Q4_0, 3.82 GB, `llama-bench` tg128 / pp512), retrieved
+  2026-10-02. Peaks are datasheet values.
+
+| Device                             | Stack                      | Peak GB/s | Decode tok/s | Effective GB/s | % of peak |
+| ---------------------------------- | -------------------------- | --------: | -----------: | -------------: | --------: |
+| **Series S** GPU, Coder-3B Q4_K_M  | xllama d3d12, end to end   |       224 |         26.6 |             51 |   **23%** |
+| **Series S** GPU, LFM2.5-1.2B Q4_0 | xllama d3d12, end to end   |       224 |         74.8 |             52 |       23% |
+| **Series S** GPU, Coder-3B         | xllama d3d12, kernels only |       224 |            — |            141 |   **63%** |
+| **Series S** CPU, Coder-3B         | llama.cpp CPU, 6 threads   |    30 (¹) |         14.0 |             27 |       89% |
+| RX 6600 (RDNA2, 28 CU)             | llama.cpp Vulkan           |       224 |         50.6 |            193 |       86% |
+| RX 6500 XT (RDNA2, 16 CU)          | llama.cpp Vulkan           |       144 |         27.8 |            106 |       74% |
+| Steam Deck (RDNA2, 8 CU)           | llama.cpp Vulkan           |        88 |         17.5 |             67 |       76% |
+| Iris Xe TGL GT2 (host i7-1165G7)   | llama.cpp Vulkan           |    68 (²) |          7.3 |             28 |       41% |
+| RX 7600 (RDNA3)                    | llama.cpp Vulkan           |       288 |         58.0 |            222 |       77% |
+| RTX 3060 12 GB                     | llama.cpp Vulkan           |       360 |         75.9 |            290 |       81% |
+
+(¹) Measured `membw` 8-thread read ceiling, above; the CPU does not reach the
+GPU's 224 GB/s. (²) LPDDR4x-4266 dual channel; the real value depends on the
+laptop's RAM.
+
+**Prefill (estimate).** Prefill is compute-bound. The estimate takes
+TOPS ≈ 2 × parameters × prefill tok/s, against the int8 dot-product peak
+(4 × FP32 at the boost clock):
+
+| Device       | Model, prefill tok/s | Effective TOPS | Int8 peak | Share |
+| ------------ | -------------------- | -------------: | --------: | ----: |
+| Series S GPU | Coder-3B, 77.7       |           0.48 |      16.0 |    3% |
+| Series S GPU | LFM2.5-1.2B, 257.5   |           0.60 |      16.0 |    4% |
+| RX 6600      | Llama-2-7B, 758.5    |           10.2 |      35.7 |   29% |
+| Steam Deck   | Llama-2-7B, 144.3    |           1.95 |       6.6 |   30% |
+| Iris Xe      | Llama-2-7B, 42.0     |           0.57 |        ~8 |   ~7% |
+
+**Reading.**
+
+- **The hardware is low-end desktop RDNA2 class.** The RX 6600 has the same
+  architecture and the same 224 GB/s.
+- **Our decode kernels are close to that class**: 63% of peak, against 74–86%
+  for llama.cpp Vulkan end to end on RDNA2 cards.
+- **End to end, xllama decode uses 23% of the bandwidth.** The gap is the stack,
+  not the kernels. A Coder-3B token takes 37.5 ms, of which 13.7 ms are GPU
+  work. The rest goes to ~218 submissions per token (sync plus CPU q8
+  quantize) and to the ops that stay on the CPU. This is the "D2-fused"
+  direction in [gguf-gpu-decode.md](gguf-gpu-decode.md).
+- **Prefill is the largest gap:** ~3–4% of the int8 peak, about Iris Xe level.
+  The kernels still re-read the weights once per prompt token (#313).
+- **Extrapolation, not a measurement:** at our 51 GB/s, Llama-2-7B Q4_0 would
+  decode at ~13 tok/s. At kernel-only efficiency it would reach ~37. At the RX
+  6600's 86% it would reach ~51. The model does not fit the Series S budget
+  ([uwp-constraints.md](uwp-constraints.md) §7).
+
+**Caveats.**
+
+- Scoreboard rows come from different llama.cpp builds and dates, and start
+  from an empty context. Our rows run with ~300 tokens of context.
+- The Vulkan scoreboard is not each vendor's fastest stack (CUDA, Metal).
+- This compares efficiency; it is not a ranking or a first-of-its-kind claim
+  ([positioning.md](positioning.md)).
 
 ## On-device training (Lane B) — host + console, gates PASS
 
