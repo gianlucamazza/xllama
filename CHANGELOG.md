@@ -17,6 +17,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     946 MB (CPU 783).
   - For D2-r2 and D3 the RAM criterion is now a product one, decided before
     the run: peak ≤ 3584 MB and ≤ 200 MB over the CPU run.
+  - The output cap follows what the context requests: 1 row for
+    prefill/decode, 1 + draft with prompt lookup, llama.cpp's default for
+    embeddings. A blanket cap of 1 aborted those batches; an independent
+    review caught it before merge.
+  - The selftest times a median of 5 runs and covers GET_ROWS.
 
 - **d3d12 GGUF layers: q8 activations** (#312). The backend now quantizes each
   matmul input on the CPU with ggml's own `from_float` (q8_0 / q8_K), exactly

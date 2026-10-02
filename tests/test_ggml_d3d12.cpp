@@ -101,6 +101,9 @@ TEST_CASE("ggml_d3d12: supports_op rules for MUL_MAT") {
     D3d12MatmulDesc prefill = d; // the loader probes with 512 columns
     prefill.ne11 = 512;
     CHECK(d3d12_mm_supported(prefill));
+    D3d12MatmulDesc empty = d; // zero output rows in this ubatch
+    empty.ne11 = 0;
+    CHECK(d3d12_mm_supported(empty));
 
     D3d12MatmulDesc t = d;
     t.src0_type = GGML_TYPE_Q8_0;
@@ -147,6 +150,13 @@ TEST_CASE("ggml_d3d12: dispatch planner") {
     CHECK_FALSE(d3d12_mm_dispatch(4 * 65535 + 1, 1).ok);
     CHECK_FALSE(d3d12_mm_dispatch(256, 65536).ok);
     CHECK_FALSE(d3d12_mm_dispatch(0, 1).ok);
+    // A ubatch with no output rows leaves the last layer's FFN with zero
+    // columns (llama.cpp gathers the output rows first). Refusing it sent the
+    // matmul to the CPU, which cannot read D3D12_Weights: the scheduler copied
+    // the weights instead (validate genroom timed out, CI 1.6.0.1155).
+    d = d3d12_mm_dispatch(2048, 0);
+    CHECK(d.ok);
+    CHECK(d.groups_y == 0); // nothing to dispatch
 }
 
 TEST_CASE("ggml_d3d12: kernel width follows K (D2a runs 1 and 2)") {
@@ -300,6 +310,9 @@ TEST_CASE("ggml_d3d12: GET_ROWS rules and tied-embedding placement") {
     t = d;
     t.ne00 = 2080;
     CHECK_FALSE(d3d12_get_rows_supported(t));
+    t = d;
+    t.ne10 = 0; // no rows to gather: a no-op the backend still owns
+    CHECK(d3d12_get_rows_supported(t));
 
     CHECK(d3d12_place_tied_embedding(GGML_TYPE_Q6_K, /*has_output_weight=*/false));
     CHECK_FALSE(d3d12_place_tied_embedding(GGML_TYPE_Q6_K, /*has_output_weight=*/true));

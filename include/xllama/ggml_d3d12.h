@@ -63,7 +63,7 @@ bool d3d12_mm_supported(const D3d12MatmulDesc& d);
 
 struct D3d12Dispatch {
     std::uint32_t groups_x = 0; // ceil(N / kD3d12MmvRows)
-    std::uint32_t groups_y = 0; // one per activation column
+    std::uint32_t groups_y = 0; // one per activation column (0: nothing to run)
     bool ok = false;            // within the 65535 group limit
 };
 

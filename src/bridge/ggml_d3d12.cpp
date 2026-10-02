@@ -27,8 +27,12 @@ bool d3d12_weight_type_supported(ggml_type t) {
 
 D3d12Dispatch d3d12_mm_dispatch(std::int64_t n, std::int64_t ncols) {
     D3d12Dispatch d;
-    if (n <= 0 || ncols <= 0)
+    if (n <= 0 || ncols < 0)
         return d;
+    if (ncols == 0) { // no output rows in this ubatch: a no-op, still ours
+        d.ok = true;
+        return d;
+    }
     const std::int64_t gx = (n + kD3d12MmvRows - 1) / kD3d12MmvRows;
     d.ok = gx <= kD3d12MaxGroups && ncols <= kD3d12MaxGroups;
     if (d.ok) {
@@ -58,7 +62,7 @@ bool d3d12_get_rows_supported(const D3d12GetRowsDesc& d) {
     return d3d12_get_rows_type_supported(d.src0_type) && d.src0_in_weight_buffer &&
            d.src0_contiguous && d.src1_contiguous && d.src1_type == GGML_TYPE_I32 &&
            d.dst_type == GGML_TYPE_F32 && d.ne00 > 0 && d.ne00 % kD3d12Chunk == 0 && d.ne02 == 1 &&
-           d.ne03 == 1 && d.ne10 > 0 && d.ne10 <= kD3d12MaxGroups && d.ne11 == 1 && d.ne12 == 1 &&
+           d.ne03 == 1 && d.ne10 >= 0 && d.ne10 <= kD3d12MaxGroups && d.ne11 == 1 && d.ne12 == 1 &&
            d.ne00 / kD3d12Chunk <= kD3d12MaxGroups;
 }
 
@@ -949,6 +953,8 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
         GGML_ASSERT(w->buffer && w->buffer->buft == &kWeightsBuft);
         GGML_ASSERT(x->buffer && ggml_backend_buffer_is_host(x->buffer));
         GGML_ASSERT(node->buffer && is_ours(node->buffer->buft));
+        if (ggml_nelements(node) == 0)
+            continue; // a ubatch without output rows: nothing to compute
         if (node->op == GGML_OP_GET_ROWS) {
             // Row ids are tiny: stage them next to the quantized activations.
             const std::size_t bytes = static_cast<std::size_t>(x->ne[0]) * sizeof(std::int32_t);
