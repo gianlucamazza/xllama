@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **d3d12 GGUF layers: q8 activations** (#312). The backend now quantizes each
+  matmul input on the CPU with ggml's own `from_float` (q8_0 / q8_K), exactly
+  as the CPU backend does, and the kernels sum integers (`dot4add_i8packed`,
+  cs_6_4). Gate A on Series S (CI 1.6.0.1144): the selftest is within ≤ 2.9e-7
+  of the CPU backend, decode shapes run at 109–164 GB/s, and H9 is 6/8 = 6/8
+  on Coder-3B and LFM2.5-1.2B (D2: Coder-3B 5/8).
+
 - **GGUF GPU decode D2b: opt-in d3d12 layers** (#228). `src/bridge/llama_gpu.h`
   applies a GPU-layer request in one place for the bench, the CLI
   (`--gpu-layers`), GUI sessions and the LAN API
