@@ -57,7 +57,7 @@ First launch: downloads default model (~219 MB). No model bundled in MSIX.
 - **LAN API** — OpenAI-compat completions, GGUF embeddings, trusted catalogue
   pull, preferences and training status. Current integration probe for games
   and assistants; opt-in, default OFF.
-- **Bench** — headless tok/s, membw, diskbw, gpubw, gpugemv, gpustep, ramceil probes
+- **Bench** — headless tok/s, membw, diskbw, gpubw, gpugemv, gpustep, ramceil probes, d3d12 backend selftest
 - **Diffuse** — SD-Turbo on DirectML, in-process with XAML compositor
 - **Train** — on-device partial FT (Lane B), host PEFT (Lane A), serve merged GGUF (Lane C)
 - **Chat (demo shell)** — multi-turn pad UI with KV-reuse, thinking models,
@@ -127,10 +127,10 @@ Two front-ends: `xllama-cli` (Linux) + UWP app.
 
 ### Backend dispatch
 
-| Path                     | What                                            | Why                                      |
-| ------------------------ | ----------------------------------------------- | ---------------------------------------- |
-| **ORT GenAI + DirectML** | ONNX models, CPU int4 decode + DML fp16 prefill | GPU wins batch compute, long-prompt TTFT |
-| **llama.cpp + GGUF**     | CPU-only, KV-reuse, repacked GEMM               | Zen2 wins autoregressive decode          |
+| Path                     | What                                                                | Why                                                            |
+| ------------------------ | ------------------------------------------------------------------- | -------------------------------------------------------------- |
+| **ORT GenAI + DirectML** | ONNX models, CPU int4 decode + DML fp16 prefill                     | GPU wins batch compute, long-prompt TTFT                       |
+| **llama.cpp + GGUF**     | CPU by default, KV-reuse, repacked GEMM; opt-in d3d12 matmul layers | Zen2 wins decode at small sizes; own D3D12 kernels win at 1–3B |
 
 Unified build dispatches **per model at runtime** via `Backend::Auto`.
 Llama.cpp is both benchmarking lane and shipping backend.
@@ -189,7 +189,8 @@ The DOI badge and version DOI are synchronized from `release.toml`.
 
 ### Why Xbox Series S?
 
-Zen2 CPU wins decode at this scale. RDNA2 GPU wins batch prefill.
+Zen2 CPU wins decode on the DirectML path and at small model sizes; RDNA2
+wins batch prefill, and our own D3D12 kernels win GGUF decode at 1–3B.
 Unified memory means the GPU budget (3801 MB Game) is the hard constraint.
 An underexplored platform with strict memory and packaging constraints.
 
@@ -197,8 +198,11 @@ An underexplored platform with strict memory and packaging constraints.
 
 Per-workload verdict on DirectML: CPU decode > GPU decode, GPU prefill > CPU
 prefill. One backend can't win both. Runtime dispatch per model is the answer.
-A GGUF decode path on our own D3D12 kernels is in design
-([docs/gguf-gpu-decode.md](docs/gguf-gpu-decode.md)); nothing ships from it yet.
+GGUF decode also has an opt-in path on our own D3D12 kernels: a ggml backend
+`d3d12`, enabled with `gguf_gpu_layers.txt`. It is faster than the CPU on the
+1–3B models measured, with q8 numerics that match the CPU. The default stays
+CPU until the per-model decision (D3); gates and per-model verdict are in
+[docs/gguf-gpu-decode.md](docs/gguf-gpu-decode.md).
 
 ### Why single Session owner?
 
