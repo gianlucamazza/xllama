@@ -13,8 +13,10 @@ using namespace xllama;
 
 // Opt-in: XLLAMA_TEST_MODEL=/path/to/model.gguf ./xllama-tests
 // A short-answer prompt reaches end-of-generation well before n_predict; with
-// ignore_eog every run must still decode exactly n_predict tokens, through the
-// classic loop and through the prompt-lookup branch (D2b A/Bs rely on it).
+// ignore_eog every run must still decode exactly n_predict tokens, with prompt
+// lookup off and on (D2b A/Bs rely on it). An EOG inside a draft cannot be
+// forced with a real model; detail::stops_at_eog is the single decision every
+// branch of decode_loop shares, so the branches cannot drift apart.
 TEST_CASE("decode_loop: ignore_eog decodes exactly n_predict (opt-in: XLLAMA_TEST_MODEL)") {
     const char* model_env = std::getenv("XLLAMA_TEST_MODEL");
     if (!model_env) {

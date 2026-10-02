@@ -7,6 +7,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **GGUF GPU decode D2b: opt-in d3d12 layers** (#228). `src/bridge/llama_gpu.h`
+  applies a GPU-layer request in one place for the bench, the CLI
+  (`--gpu-layers`), GUI sessions and the LAN API
+  (`LocalState\gguf_gpu_layers.txt`, default off). KV and attention stay on
+  the CPU. The device's host buffer type holds the CPU compute buffer, and
+  persistent CPU threadpools serve the split graph. Bench knobs:
+  `--gpu-layers` and `--ignore-eog` (exactly `n_predict` tokens).
+  - Series S (CI 1.6.0.1138): decode **1.59×** on Coder-3B and **1.58×** on
+    LFM2.5-1.2B; prefill 1.32× / 1.74×; `validate-console.sh all` PASS.
+  - The predeclared D2 gate **fails** on peak RAM (+539 / +265 MB) and on
+    Coder-3B H9 (5/8 vs 6/8), so GGUF decode stays on the CPU by default.
+- Fix: dropped a loader patch that wrote repacked CPU tensors in chunks.
+  ggml's repack buffer requires whole-tensor writes, so the app aborted when
+  switching to a GGUF model with a repacked tensor over 8 MiB (development
+  packages only, never released).
+- `scripts/check-win-syntax.sh` now defines `XLLAMA_USE_LLAMA` and adds the
+  llama.cpp include dirs. The GGUF bridge files used to pass without being
+  compiled.
+
 - **GGUF GPU decode D2a: ggml backend `d3d12`** (#228). A GPU-type ggml device
   registered at runtime (`include/xllama/ggml_d3d12.h`,
   `src/bridge/ggml_d3d12.cpp`): MUL_MAT with Q4_0 / Q4_K / Q6_K weights in a
