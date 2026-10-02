@@ -7,6 +7,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **d3d12 GGUF layers: lower peak RAM** (#309).
+  - A tied Q6_K `token_embd` now lives once, in `D3D12_Weights`: `GET_ROWS`
+    runs on the GPU and placement goes through `tensor_buft_overrides`.
+  - The GPU compute reserve is sized for one logits row (`n_outputs_max`).
+  - Every GGUF load logs its working set per stage (`[xllama] ws …`).
+  - Series S (CI 1.6.0.1148): peak with all layers on the GPU drops on
+    Coder-3B from 2583 to 2203 MB (CPU 2044), and on LFM2.5-1.2B from 1048 to
+    946 MB (CPU 783).
+  - For D2-r2 and D3 the RAM criterion is now a product one, decided before
+    the run: peak ≤ 3584 MB and ≤ 200 MB over the CPU run.
+
 - **d3d12 GGUF layers: q8 activations** (#312). The backend now quantizes each
   matmul input on the CPU with ggml's own `from_float` (q8_0 / q8_K), exactly
   as the CPU backend does, and the kernels sum integers (`dot4add_i8packed`,
