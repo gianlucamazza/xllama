@@ -171,10 +171,11 @@
       ]
     },
     {
-      "_comment": "Phase 7 H1 PASS (2026-07-17) on Q4_K_M. 2026-09-30 QAD Q4_0 regression PASS on Series S (#270): 40.0 tok/s decode, 783 MB peak, H9 6/8 (Q4_K_M was 37.9 / 811 / 6/8) — bench/results/2026-09-30-catalogue-gates.csv. Direct from LiquidAI so the LFM Open License accompanies the weights.",
+      "_comment": "D3 2026-10-02: GPU default (gpu_layers 99) after D2-r2 PASS — decode 1.64x, peak +163 MB vs CPU (docs/gguf-gpu-decode.md). Phase 7 H1 PASS (2026-07-17) on Q4_K_M. 2026-09-30 QAD Q4_0 regression PASS on Series S (#270): 40.0 tok/s decode, 783 MB peak, H9 6/8 (Q4_K_M was 37.9 / 811 / 6/8) — bench/results/2026-09-30-catalogue-gates.csv. Direct from LiquidAI so the LFM Open License accompanies the weights.",
       "name": "lfm25-1.2b-instruct",
-      "display": "LFM2.5 1.2B Instruct (GGUF · CPU · balanced · QAD)",
+      "display": "LFM2.5 1.2B Instruct (GGUF · GPU · balanced · QAD)",
       "kind": "gguf",
+      "gpu_layers": 99,
       "hf_base_url": "https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF/resolve/main",
       "files": [
         {
@@ -255,10 +256,11 @@
       ]
     },
     {
-      "_comment": "Qwen2.5-Coder-3B-Instruct Q4_K_M — coding quality tier (Q3_K_M host quality FAIL; Q4_K_M PASS). Console phase14: 46.2 prefill / 14.0 decode / 2116 MB peak (host peak was 3301 MB — console is the product figure). Advanced optional.",
+      "_comment": "D3 2026-10-02: GPU default (gpu_layers 99) after D2-r2 PASS at n_ctx 4096 — decode 1.60x, peak +150 MB vs CPU (docs/gguf-gpu-decode.md). Qwen2.5-Coder-3B-Instruct Q4_K_M — coding quality tier (Q3_K_M host quality FAIL; Q4_K_M PASS). Console phase14: 46.2 prefill / 14.0 decode / 2116 MB peak (host peak was 3301 MB — console is the product figure). Advanced optional.",
       "name": "qwen25-coder-3b",
-      "display": "Qwen2.5 Coder 3B (GGUF · CPU · coding · advanced)",
+      "display": "Qwen2.5 Coder 3B (GGUF · GPU · coding · advanced)",
       "kind": "gguf",
+      "gpu_layers": 99,
       "role": "coding",
       "n_ctx": 4096,
       "hf_base_url": "https://huggingface.co/unsloth/Qwen2.5-Coder-3B-Instruct-GGUF/resolve/main",
