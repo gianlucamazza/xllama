@@ -529,6 +529,9 @@ reserve. With FA, prefill gains 22–29% and peak RAM over the CPU halves.
   ≈ 14.5 ms of wall over GPU time (sync, plus the CPU q8 quantize per
   submission). That is the D2-fused direction, a new decision with its own
   gate, not a #310 follow-up.
+- Next to other hardware (effective bandwidth as a share of peak, llama.cpp
+  Vulkan scoreboard): see
+  [benchmarks.md](benchmarks.md#gpu-decode-in-context--known-hardware).
 
 ## Decision log
 

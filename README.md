@@ -205,7 +205,9 @@ q8 numerics that match the CPU. It is the default for the two models that
 passed its gate, Qwen2.5-Coder-3B and LFM2.5-1.2B; the other GGUF models stay
 on the CPU. `gguf_gpu_layers.txt` overrides the default for an operator, and
 `0` forces the CPU. Gates and per-model verdicts are in
-[docs/gguf-gpu-decode.md](docs/gguf-gpu-decode.md).
+[docs/gguf-gpu-decode.md](docs/gguf-gpu-decode.md). How that compares with
+desktop RDNA2, the Steam Deck and other GPUs on published llama.cpp numbers is
+in [docs/benchmarks.md](docs/benchmarks.md#gpu-decode-in-context--known-hardware).
 
 ### Why single Session owner?
 

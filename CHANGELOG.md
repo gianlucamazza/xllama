@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Docs: GPU decode in context**. A new section in `docs/benchmarks.md` sets
+  the Series S and xllama beside known hardware (RX 6600, Steam Deck, Iris Xe
+  and others, from the llama.cpp Vulkan scoreboard), measured as effective
+  bandwidth over peak.
+  - Decode: our kernels reach 63% of peak, end to end 23%; RDNA2 cards with
+    llama.cpp Vulkan reach 74–86%.
+  - Prefill: ~3–4% of the int8 peak (#313).
+
 - **GGUF GPU path keeps Flash Attention** (#310). With GPU layers,
   llama.cpp's AUTO check disabled FA, because the KV cache stays on the CPU,
   so attention ran unfused, unlike on the CPU-only path. `apply_gguf_gpu_context`
