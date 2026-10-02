@@ -449,6 +449,7 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     if (params.n_batch > 0 || params.n_ubatch > 0)
         log_output("[xllama] prefill batch override: n_batch=" + std::to_string(cparams.n_batch) +
                    " n_ubatch=" + std::to_string(cparams.n_ubatch) + "\n");
+    const llama_flash_attn_type fa_requested = cparams.flash_attn_type;
     if (params.kv_q8) {
         // #171: q8_0 KV needs flash attention (quantized V throws without it);
         // mirror LlamaSession — force FA, fall back below if the arch refuses.
@@ -464,7 +465,7 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         log_output("[xllama] q8_0 KV context failed — falling back to default cache types\n");
         cparams.type_k = llama_context_default_params().type_k;
         cparams.type_v = llama_context_default_params().type_v;
-        cparams.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_AUTO;
+        cparams.flash_attn_type = fa_requested;
         raw_ctx = llama_init_from_model(model.get(), cparams);
     }
     if (!raw_ctx) {

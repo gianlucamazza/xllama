@@ -457,6 +457,48 @@ LFM2.5-1.2B. LFM2.5-350M and smaller stay on the CPU.
 - **Override:** with `gguf_gpu_layers.txt` set to `0`, LFM2.5-1.2B loaded on
   the CPU.
 
+### FA — Flash Attention on the GPU path (#310)
+
+**Defect.** With GPU layers, llama.cpp's Flash Attention AUTO resolved to
+disabled on every run (`resolve_fused_ops: Flash Attention not supported, set
+to disabled` in the D2-r2 and D3 logs).
+
+- AUTO compares each layer's device (D3D12) with the FA node's device. The FA
+  node sits beside the KV cache, which stays on the CPU (`offload_kqv=false`),
+  so the two never match. Upstream marks the check as wrong for no-KV-offload.
+- The CPU-only path resolves AUTO to enabled. The GPU path therefore ran a
+  different attention: slower, and numerically different from the CPU
+  reference.
+- Decode cost of a longer context (P = 948 vs 292, D2-r2 final CSV):
+
+| Model       | CPU-only    | d3d12       |
+| ----------- | ----------- | ----------- |
+| Coder-3B    | +3.8 ms/tok | +9.7 ms/tok |
+| LFM2.5-1.2B | +1.1 ms/tok | +3.7 ms/tok |
+
+**Fix.** `apply_gguf_gpu_context` turns AUTO into ENABLED when layers go to
+the GPU. Attention runs on the CPU either way; an explicit caller choice
+stands.
+
+**FA gate (predeclared 2026-10-02, before the run).** Default-configuration
+CI package, same scripts as D2-r2 / D3. Per GPU model:
+
+- decode standard-512 ≥ the D3 value − 2%;
+- prefill ≥ 0.9× the CPU;
+- peak RAM ≤ 3584 MB and ≤ 200 MB over the CPU;
+- H9 via the LAN API ≥ the CPU;
+- `validate-console.sh all` ALL PASS;
+- no `Flash Attention not supported` line in the log.
+
+Long-1k decode is reported, not gated. FAIL means revert, not a knob.
+
+**#310 re-attribution (same run, predeclared).** From the backend counters,
+take Coder-3B's CPU-side ms per decode token:
+
+- **≥ 10 ms:** a separate D2-fused plan, with its own gate (elementwise ops on
+  d3d12 with a GPU q8 quantize).
+- **< 10 ms:** close #310 with the numbers.
+
 ## Decision log
 
 | Date       | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |

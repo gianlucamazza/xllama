@@ -495,6 +495,7 @@ class LlamaSession final : public Session {
                 cparams.n_ubatch = cparams.n_batch;
                 cparams.embeddings = true;
             }
+            const llama_flash_attn_type fa_requested = cparams.flash_attn_type;
             if (m_kv_q8) {
                 // #171: quantized V requires flash attention (the pin throws at
                 // context creation with FA disabled, and AUTO may resolve to
@@ -509,7 +510,7 @@ class LlamaSession final : public Session {
                            "to default cache types (#171)\n");
                 cparams.type_k = llama_context_default_params().type_k;
                 cparams.type_v = llama_context_default_params().type_v;
-                cparams.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_AUTO;
+                cparams.flash_attn_type = fa_requested;
                 m_kv_q8 = false;
                 m_ctx.reset(llama_init_from_model(m_model.get(), cparams));
             }

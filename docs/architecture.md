@@ -127,17 +127,21 @@ Two text backends, selected by build variant **and** per model at runtime:
   default, with KV-cache reuse. The UWP build compiles ggml with
   `GGML_USE_CPU_REPACK` (PR #155 — it was silently dead code before; enabling
   the repacked-weight GEMM raised GGUF prefill ~62% on Q4_K).
-  - **Opt-in GPU layers:** xllama's own ggml backend `d3d12`
+  - **GPU layers:** xllama's own ggml backend `d3d12`
     (`ggml_d3d12.h/.cpp`) can run the weight matmuls (Q4_0 / Q4_K / Q6_K) and
     a tied Q6_K embedding lookup on the GPU.
   - Activations are quantized to q8 on the CPU exactly as the CPU backend does,
     so numerics match.
-  - KV, attention and every other op stay on the CPU.
+  - KV, attention (Flash Attention, as on the CPU-only path) and every other op
+    stay on the CPU.
   - One place turns the layer request into llama.cpp params:
     `src/bridge/llama_gpu.h` (`apply_gguf_gpu_layers`, `apply_gguf_gpu_context`),
     used by both `run_inference_llama` and `LlamaSession`.
-  - Off unless `LocalState\gguf_gpu_layers.txt` (GUI + LAN API),
-    `bench_gpu_layers.txt` (bench) or `--gpu-layers` (CLI) asks for it.
+  - On per catalogue entry (`gpu_layers` in `uwp/models/manifest.json`,
+    resolved by `resolve_gguf_gpu_layers`). `LocalState\gguf_gpu_layers.txt`
+    overrides it for the GUI and LAN API (`0` forces the CPU);
+    `bench_gpu_layers.txt` (bench) and `--gpu-layers` (CLI) set it directly
+    and default to the CPU.
   - Design, gates and per-model verdict:
     [gguf-gpu-decode.md](gguf-gpu-decode.md).
 
@@ -264,8 +268,8 @@ the second turn the CPU wins at every reachable length — see `uwp-constraints.
 variable (§5c); the re-derivation concluded a single prompt-length threshold is
 the wrong shape for the decision, so 1550 is left as-is with its rationale
 corrected. Routing is **ORT-only**: GGUF models are not routed per
-conversation. Their opt-in GPU layers come from the separate
-`gguf_gpu_layers.txt` knob (see Inference backends), not from this policy. Tunable prefill batching for the llama.cpp path is exposed via
+conversation. Their GPU layers come from the catalogue entry and the
+`gguf_gpu_layers.txt` override (see Inference backends), not from this policy. Tunable prefill batching for the llama.cpp path is exposed via
 `SessionParams.n_batch` / `n_ubatch` (`xllama-cli --batch/--ubatch`) — see
 `benchmarks.md` for the (flat) sweep.
 
@@ -655,7 +659,7 @@ host Release smoke (quality + peak)
 ## Unit test map (host suite)
 
 One doctest binary, `xllama-tests`, built from `tests/test_*.cpp`. The suite
-is **288 test cases / 8849 assertions** (doctest, without opt-in model checks).
+is **289 test cases / 8859 assertions** (doctest, without opt-in model checks).
 Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 (`llama_raii.h`, `ort_raii.h`, `d3d12_dyn.h`, `catalog_trust.h`).
 

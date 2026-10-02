@@ -115,7 +115,12 @@ inline uint32_t gguf_gpu_outputs_max(bool embeddings, bool prompt_lookup) {
 }
 
 // KV cache and attention stay on the CPU in ordinary memory: the backend only
-// runs weight matmuls. n_outputs_max also sizes the compute reserve: llama.cpp
+// runs weight matmuls. Flash Attention AUTO would resolve to disabled here:
+// llama.cpp compares each layer's device (D3D12) with the FA node's (the CPU,
+// beside the KV cache), and any mismatch turns FA off. The CPU supports FA and
+// the CPU-only path resolves AUTO to enabled, so the GPU path asks for it
+// explicitly and keeps the same attention (#310).
+// n_outputs_max also sizes the compute reserve: llama.cpp
 // reserves the prefill graph for that many logits rows (n_ubatch by default:
 // 512 x 151936 x 4 B = 297 MiB on Coder-3B), and on the GPU path the reserve
 // is a committed D3D12_Host buffer, where the CPU's malloc'd one only counts
@@ -124,6 +129,8 @@ inline void apply_gguf_gpu_context(int applied_layers, llama_context_params& cpa
                                    uint32_t outputs_max) {
     if (applied_layers > 0) {
         cparams.offload_kqv = false;
+        if (cparams.flash_attn_type == LLAMA_FLASH_ATTN_TYPE_AUTO)
+            cparams.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_ENABLED;
         if (outputs_max > 0)
             cparams.n_outputs_max = outputs_max;
     }

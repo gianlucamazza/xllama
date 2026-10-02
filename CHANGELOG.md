@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **GGUF GPU path keeps Flash Attention** (#310). With GPU layers,
+  llama.cpp's AUTO check disabled FA, because the KV cache stays on the CPU,
+  so attention ran unfused, unlike on the CPU-only path. `apply_gguf_gpu_context`
+  now requests FA explicitly. The q8-KV fallback restores the requested mode
+  instead of AUTO.
+
 - **GGUF GPU decode D3: on by default for Qwen2.5-Coder-3B and LFM2.5-1.2B**
   (#228).
   - A catalogue entry can set `gpu_layers`; both models now run their
