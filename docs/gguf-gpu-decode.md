@@ -331,9 +331,35 @@ only in float summation order. Gate A:
   placed in `D3D12_Weights`.
 - Working-set attribution of the remaining excess.
 
+**Fix B result so far (CI `1.6.0.1148`, one run each, `[xllama] ws` log).**
+
+- The tied embedding is one copy: the CPU model buffer drops from 244 MiB to
+  0.9 MiB.
+- `n_outputs_max = 1` shrinks the committed compute reserve on Coder-3B from
+  305 to 88 MiB.
+- Peak RAM: Coder-3B 2583 → 2203 MB (CPU 2044), LFM2.5-1.2B 1048 → 946 MB
+  (CPU 783).
+- What remains:
+  - ~44 MB: the D3D12 runtime at init, a fixed cost of any GPU use in the
+    process;
+  - the GPU compute buffer, committed when it is created (88 MiB on Coder-3B,
+    152 on 1.2B), where the CPU's malloc'd buffer only counts pages it
+    touches.
+
+**RAM criterion for D2-r2 and D3** (the user's decision, 2026-10-02, before
+the D2-r2 run). Because of the fixed runtime cost, "peak ≤ CPU" cannot pass
+on any GPU path. The criterion it guarded is a product one: GPU mode must
+never push a model past the budget it fits on the CPU. Recorded as:
+
+- peak RAM with GPU layers ≤ **3584 MB**, the product peak gate every
+  catalogue model meets;
+- **Δ ≤ 200 MB** over the same package's CPU run;
+- GPU memory ≤ the 3801 MB budget.
+
 **D2-r2:**
 
-- the D2 criteria above, unchanged, peak RAM ≤ CPU included;
+- the D2 speed, H9 and `validate-console.sh all` criteria, unchanged;
+- the RAM criterion above;
 - same scripts on the merged head's package.
 
 A model that fails a criterion keeps the CPU default.
@@ -351,4 +377,5 @@ measured-is-not-shipped ladder applies.
 | 2026-10-01 | **D1 = `D2-matmul-only`** (CI `1.6.0.1117`): round trip 49.7 µs, simulated Coder-3B token 21.16 ms with sync, in-XAML PASS; weights in DEFAULT heaps (CPU-visible heaps 0.40×). D2 gates unchanged; measure D2 in the UI process too.                                                                                                                                                                               |
 | 2026-10-01 | D2a implementation: two buffer types (`D3D12_Host` default, `D3D12_Weights` extra) so weights skip the host buft via `supports_op`; Q4_0 / Q4_K / Q6_K kernels; D2a selftest gate predeclared.                                                                                                                                                                                                                      |
 | 2026-10-02 | **D2a = PASS** (run 3, CI `1.6.0.1125`): 12/12 correct, every decode shape ≥ 102 GB/s with the width picked by K (64 threads below K = 4096, 128 from it). Runs 1–2 failed on speed and stay recorded.                                                                                                                                                                                                              |
+| 2026-10-02 | **RAM criterion for D2-r2/D3 changed by decision, before the run:** peak ≤ 3584 MB, Δ ≤ 200 MB over CPU, GPU ≤ budget. "Peak ≤ CPU" cannot pass any GPU path: the D3D12 runtime alone costs ~44 MB, and the GPU compute buffer is committed, not touched lazily. Gate A PASS (CI `1.6.0.1144`). Fix B so far: Coder-3B 2583 → 2203 MB, 1.2B 1048 → 946 MB.                                                          |
 | 2026-10-02 | **D2 = FAIL** (CI `1.6.0.1138`): decode 1.59× / 1.58×, prefill 1.32× / 1.74×, `validate-console.sh all` PASS on Coder-3B / LFM2.5-1.2B; peak RAM +539 / +265 MB over the CPU and Coder-3B H9 5/8 vs 6/8. The backend stays opt-in (`gguf_gpu_layers.txt`), default off. Tied lm_head on the CPU measured and dropped (1.2B decode 1.37×). Follow-ups #309 #310 #312 #313; 350M (0.95×) is never a candidate (#311). |
