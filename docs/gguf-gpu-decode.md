@@ -314,6 +314,17 @@ only in float summation order. Gate A:
   every decode shape ≥ 100 GB/s packed;
 - H9 via the LAN API ≥ the CPU run on Coder-3B and LFM2.5-1.2B.
 
+**Gate A result (2026-10-02, CI `1.6.0.1144`): PASS.**
+
+- **Selftest** (`bench/results/2026-10-02-d2r2-gatea-selftest.csv`): 12/12
+  cases within ≤ 2.9e-7 of the CPU backend. Decode shapes run at 109–164 GB/s
+  packed; q4_k 11008 × 2048 went from 143.6 to 164.0, q6_k 65536 × 1024 from
+  114.4 to 137.7.
+- **H9** (`2026-10-02-d2r2-gatea-h9-{cpu,gpu}.jsonl`, LAN API, XAML process):
+  Coder-3B 6/8 = 6/8 and LFM2.5-1.2B 6/8 = 6/8, failing the same tasks as the
+  CPU. Text is not byte-identical (float summation order), quality is.
+- **UI process end to end:** 1.52× (Coder-3B) and 1.49× (LFM2.5-1.2B).
+
 **Fix B, peak RAM (#309).**
 
 - One copy of a tied `token_embd`: `GET_ROWS` on the GPU, and the weight
