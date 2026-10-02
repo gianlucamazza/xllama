@@ -2,9 +2,11 @@
 
 > **SSOT for the GGUF GPU decode design** (H6 follow-up, #228): architecture,
 > cost model, predeclared gates D1/D2 and their verdicts. Kernel evidence lives
-> in [phase15-re-opt.md](phase15-re-opt.md) (WS-E / H6.3); performance numbers
-> live in [benchmarks.md](benchmarks.md) and `bench/results/`. Platform limits
-> are only in [uwp-constraints.md](uwp-constraints.md).
+> in [phase15-re-opt.md](phase15-re-opt.md) (WS-E / H6.3). The gate tables
+> here are the verdict evidence of an opt-in path, read from the CSVs in
+> `bench/results/` (listed in `bench/README.md`); shipped defaults stay in
+> [benchmarks.md](benchmarks.md). Platform limits are only in
+> [uwp-constraints.md](uwp-constraints.md).
 
 **Status (2026-10-02):** D1 = `D2-matmul-only`; D2a = PASS; D2 = FAIL (peak
 RAM, Coder-3B H9). **D2-r2** (q8 activations, one-copy tied embedding,
@@ -30,8 +32,8 @@ A **ggml backend `d3d12`**, owned by xllama (`src/bridge/`, not the
 (`ggml-backend.h`); no dlopen ([uwp-constraints.md](uwp-constraints.md) §3).
 
 - **Shape:** the `ggml-blas` template — `supports_op` claims `MUL_MAT` plus the
-  view ops (`NONE/RESHAPE/VIEW/PERMUTE/TRANSPOSE`). Everything else stays on
-  the CPU backend.
+  view ops (`NONE/RESHAPE/VIEW/PERMUTE/TRANSPOSE`), and since D2-r2 `GET_ROWS`
+  on a weight it holds. Everything else stays on the CPU backend.
 - **Placement:** weights go to the backend's buffer type through
   `n_gpu_layers` (already `SessionParams::n_gpu_layers`, default 0). The
   scheduler runs an op where its weight lives; weights of a type the backend
@@ -39,7 +41,7 @@ A **ggml backend `d3d12`**, owned by xllama (`src/bridge/`, not the
   `weight_buft_supported`. `token_embd` / `GET_ROWS` are CPU, except a tied
   Q6_K embedding since D2-r2 (one copy in `D3D12_Weights`, `GET_ROWS` on the
   GPU).
-- **Kernels:** the H6.3 `rows` shape (64 threads × 4 rows; since D2-r2 the
+- **Kernels:** the H6.3 `rows` shape (4 rows per group, 64 or 128 threads by K; since D2-r2 the
   activations are q8 and the dot is integer, `dot4add_i8packed`) per weight
   type: Q4_K and Q4_0 (same density, 0.5625 B/weight) and Q6_K (tied
   `lm_head` of every target model, `attn_v`/`ffn_down` on Q4_K_M
@@ -86,15 +88,15 @@ share of fixed per-split cost: GPU decode is a 1B–3B lever first.
 
 ## Risks and the gate that settles each
 
-| Risk                                                                                                                                     | Settled by    |
-| ---------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| Round trips dominate (~145 per Coder-3B token)                                                                                           | D1a, D1b      |
-| A system D3D12 device fails inside the XAML process (chat and LAN API live there; every GPU probe so far was headless)                   | D1d           |
-| Copies are avoidable on unified memory (weights/activations in a CPU-visible heap)                                                       | D1c (informs) |
-| Prefill: weights in the GPU buffer also send prefill matmuls to the GPU — needs a batched kernel or CPU-side prefill                     | D2 prefill    |
-| Numerics: fp32 accumulation order differs from the CPU, greedy text can diverge                                                          | D2 H9         |
-| ORT DirectML (Agility factory) in the same process after our device exists (`routing` gate)                                              | D2 gates      |
-| GPU budget 3801 MB ([uwp-constraints.md](uwp-constraints.md) §7) and contention with diffusion/DML (audit Proposal C, compute admission) | D2 peak / D3  |
+| Risk                                                                                                                             | Settled by    |
+| -------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| Round trips dominate (~145 per Coder-3B token)                                                                                   | D1a, D1b      |
+| A system D3D12 device fails inside the XAML process (chat and LAN API live there; every GPU probe so far was headless)           | D1d           |
+| Copies are avoidable on unified memory (weights/activations in a CPU-visible heap)                                               | D1c (informs) |
+| Prefill: weights in the GPU buffer also send prefill matmuls to the GPU — needs a batched kernel or CPU-side prefill             | D2 prefill    |
+| Numerics: fp32 accumulation order differs from the CPU, greedy text can diverge                                                  | D2 H9         |
+| ORT DirectML (Agility factory) in the same process after our device exists (`routing` gate)                                      | D2 gates      |
+| GPU budget ([uwp-constraints.md](uwp-constraints.md) §7) and contention with diffusion/DML (audit Proposal C, compute admission) | D2 peak / D3  |
 
 ## Phases and predeclared gates
 
@@ -185,8 +187,8 @@ device registered with `ggml_backend_register()`:
 - **`supports_op`** accepts `MUL_MAT` only when the weight already lives in
   `D3D12_Weights` (Q4_0 / Q4_K / Q6_K, K multiple of 256, contiguous, 2-D;
   F32 activations). llama.cpp's per-weight buft probe therefore skips the host
-  buft; norms, biases, short-conv, `token_embd` and other types fall back to the
-  CPU list by themselves.
+  buft; norms, biases, short-conv, `token_embd` (until D2-r2) and other types
+  fall back to the CPU list by themselves.
 - **Kernels** `shaders/ggml_d3d12_mmv_{q4_0,q4_k,q6_k}.hlsl`: the H6.3 `rows`
   layout plus a column index for prefill; Q4_0 (18 B) and Q6_K (210 B) blocks
   are read with 2-byte-aligned dword loads (Coder-3B Q6_K `ffn_down` rows are
@@ -201,8 +203,9 @@ device registered with `ggml_backend_register()`:
     or q8_K) into a CPU-visible scratch; a matmul reading another matmul's
     output in the same batch waits for that batch;
   - `GET_ROWS` (Q6_K) runs for a tied `token_embd`;
-  - `llama_gpu.h` caps `n_outputs_max` at what the context requests (1, or
-    1 + draft with prompt lookup).
+  - `llama_gpu.h` caps `n_outputs_max` at what the context requests: 1, or
+    1 + draft with prompt lookup; embedding contexts keep llama.cpp's
+    default.
   - The selftest compares MUL_MAT with the CPU backend (rel ≤ 1e-5) and
     GET_ROWS bit for bit.
 
@@ -284,7 +287,7 @@ prefill, CPU t6 against `--gpu-layers 99` on the same package.
 | decode ≥ 1.4×             | **PASS** 14.4 → 22.8 (1.59×) | **PASS** 39.6 → 62.5 (1.58×)   | 99.9 → 95.3 (0.95×)       |
 | prefill P=1000 ≥ 0.9×     | **PASS** 45.6 → 60.1 (1.32×) | **PASS** 108.7 → 189.3 (1.74×) | 368 → 546 (1.48×)         |
 | peak RAM ≤ CPU            | **FAIL** 2044 → 2583 MB      | **FAIL** 783 → 1048 MB         | 311 → 514 MB              |
-| GPU memory ≤ 3801 MB      | PASS 1851                    | PASS 678                       | 224                       |
+| GPU memory ≤ budget (§7)  | PASS 1851                    | PASS 678                       | 224                       |
 | H9 ≥ CPU                  | **FAIL** 6/8 → 5/8           | **PASS** 6/8 → 6/8             | —                         |
 | `validate-console.sh all` | PASS (knob = 99)             | PASS (knob = 99)               | —                         |
 
@@ -367,7 +370,7 @@ never push a model past the budget it fits on the CPU. Recorded as:
 - peak RAM with GPU layers ≤ **3584 MB**, the product peak gate every
   catalogue model meets;
 - **Δ ≤ 200 MB** over the same package's CPU run;
-- GPU memory ≤ the 3801 MB budget.
+- GPU memory ≤ the GPU budget ([uwp-constraints.md](uwp-constraints.md) §7).
 
 **D2-r2:**
 
@@ -389,7 +392,7 @@ XAML process).
 | prefill P=1000 ≥ 0.9×            | **PASS** 45.6 → 57.9 (1.27×)    | **PASS** 108.7 → 197.0 (1.81×) |
 | peak ≤ 3584 MB, Δ ≤ 200 MB (512) | **PASS** 2044 → 2203 (+159)     | **PASS** 783 → 946 (+163)      |
 | same, P ≈ 1000                   | **FAIL** 2078 → 2298 (**+220**) | **PASS** 806 → 962 (+156)      |
-| GPU memory ≤ 3801 MB             | PASS 1851                       | PASS 678                       |
+| GPU memory ≤ budget (§7)         | PASS 1851                       | PASS 678                       |
 | H9 ≥ CPU                         | **PASS** 6/8 = 6/8              | **PASS** 6/8 = 6/8             |
 | `validate-console.sh all`        | PASS (knob = 99)                | PASS (knob = 99)               |
 
@@ -422,7 +425,7 @@ measured-is-not-shipped ladder applies.
 | 2026-10-01 | **D1 = `D2-matmul-only`** (CI `1.6.0.1117`): round trip 49.7 µs, simulated Coder-3B token 21.16 ms with sync, in-XAML PASS; weights in DEFAULT heaps (CPU-visible heaps 0.40×). D2 gates unchanged; measure D2 in the UI process too.                                                                                                                                                                                                                                                                                                                                                                                                       |
 | 2026-10-01 | D2a implementation: two buffer types (`D3D12_Host` default, `D3D12_Weights` extra) so weights skip the host buft via `supports_op`; Q4_0 / Q4_K / Q6_K kernels; D2a selftest gate predeclared.                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | 2026-10-02 | **D2a = PASS** (run 3, CI `1.6.0.1125`): 12/12 correct, every decode shape ≥ 102 GB/s with the width picked by K (64 threads below K = 4096, 128 from it). Runs 1–2 failed on speed and stay recorded.                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| 2026-10-02 | **Review fix before merge** (CI `1.6.0.1155`). `n_outputs_max = 1` made llama.cpp abort on any batch asking for more rows: prompt-lookup verify batches and embedding sessions with GPU layers. The cap is now 1 + draft with prompt lookup and llama.cpp's default for embeddings. On console, prompt lookup with GPU layers drafted 44 and accepted 31, and `/api/embed` with the knob passed 17 live requests. Prefill and decode keep 1, so the D2-r2 numbers stand (Coder-3B g99 rerun: 22.4 tok/s, 2203 MB). The selftest now times a median of 5 runs, after a single sample swung 78–109 GB/s; it passes 14/14, GET_ROWS bit-exact. |
-| 2026-10-02 | **D2-r2** (CI `1.6.0.1148`): LFM2.5-1.2B **PASS** (decode 1.62×, prefill 1.81×, peak +163/+156 MB, H9 6/8 = 6/8, validate PASS) → D3 candidate. Coder-3B **FAIL** on RAM only (+220 MB at P ≈ 1000; decode 1.55×, H9 6/8 = 6/8) → CPU default; the lever left is lazy commit of the GPU compute buffer (#309).                                                                                                                                                                                                                                                                                                                              |
-| 2026-10-02 | **RAM criterion for D2-r2/D3 changed by decision, before the run:** peak ≤ 3584 MB, Δ ≤ 200 MB over CPU, GPU ≤ budget. "Peak ≤ CPU" cannot pass any GPU path: the D3D12 runtime alone costs ~44 MB, and the GPU compute buffer is committed, not touched lazily. Gate A PASS (CI `1.6.0.1144`). Fix B so far: Coder-3B 2583 → 2203 MB, 1.2B 1048 → 946 MB.                                                                                                                                                                                                                                                                                  |
 | 2026-10-02 | **D2 = FAIL** (CI `1.6.0.1138`): decode 1.59× / 1.58×, prefill 1.32× / 1.74×, `validate-console.sh all` PASS on Coder-3B / LFM2.5-1.2B; peak RAM +539 / +265 MB over the CPU and Coder-3B H9 5/8 vs 6/8. The backend stays opt-in (`gguf_gpu_layers.txt`), default off. Tied lm_head on the CPU measured and dropped (1.2B decode 1.37×). Follow-ups #309 #310 #312 #313; 350M (0.95×) is never a candidate (#311).                                                                                                                                                                                                                         |
+| 2026-10-02 | **RAM criterion for D2-r2/D3 changed by decision, before the run:** peak ≤ 3584 MB, Δ ≤ 200 MB over CPU, GPU ≤ budget. "Peak ≤ CPU" cannot pass any GPU path: the D3D12 runtime alone costs ~44 MB, and the GPU compute buffer is committed, not touched lazily. Gate A PASS (CI `1.6.0.1144`). Fix B so far: Coder-3B 2583 → 2203 MB, 1.2B 1048 → 946 MB.                                                                                                                                                                                                                                                                                  |
+| 2026-10-02 | **D2-r2** (CI `1.6.0.1148`): LFM2.5-1.2B **PASS** (decode 1.62×, prefill 1.81×, peak +163/+156 MB, H9 6/8 = 6/8, validate PASS) → D3 candidate. Coder-3B **FAIL** on RAM only (+220 MB at P ≈ 1000; decode 1.55×, H9 6/8 = 6/8) → CPU default; the lever left is lazy commit of the GPU compute buffer (#309).                                                                                                                                                                                                                                                                                                                              |
+| 2026-10-02 | **Review fix before merge** (CI `1.6.0.1155`). `n_outputs_max = 1` made llama.cpp abort on any batch asking for more rows: prompt-lookup verify batches and embedding sessions with GPU layers. The cap is now 1 + draft with prompt lookup and llama.cpp's default for embeddings. On console, prompt lookup with GPU layers drafted 44 and accepted 31, and `/api/embed` with the knob passed 17 live requests. Prefill and decode keep 1, so the D2-r2 numbers stand (Coder-3B g99 rerun: 22.4 tok/s, 2203 MB). The selftest now times a median of 5 runs, after a single sample swung 78–109 GB/s; it passes 14/14, GET_ROWS bit-exact. |

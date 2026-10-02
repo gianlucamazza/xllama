@@ -127,10 +127,10 @@ Two front-ends: `xllama-cli` (Linux) + UWP app.
 
 ### Backend dispatch
 
-| Path                     | What                                                                | Why                                                            |
-| ------------------------ | ------------------------------------------------------------------- | -------------------------------------------------------------- |
-| **ORT GenAI + DirectML** | ONNX models, CPU int4 decode + DML fp16 prefill                     | GPU wins batch compute, long-prompt TTFT                       |
-| **llama.cpp + GGUF**     | CPU by default, KV-reuse, repacked GEMM; opt-in d3d12 matmul layers | Zen2 wins decode at small sizes; own D3D12 kernels win at 1–3B |
+| Path                     | What                                                                | Why                                                                              |
+| ------------------------ | ------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| **ORT GenAI + DirectML** | ONNX models, CPU int4 decode + DML fp16 prefill                     | GPU wins batch compute, long-prompt TTFT                                         |
+| **llama.cpp + GGUF**     | CPU by default, KV-reuse, repacked GEMM; opt-in d3d12 matmul layers | Zen2 wins decode at small sizes; own D3D12 kernels win on the 1.2B / 3B measured |
 
 Unified build dispatches **per model at runtime** via `Backend::Auto`.
 Llama.cpp is both benchmarking lane and shipping backend.
@@ -145,7 +145,8 @@ Llama.cpp is both benchmarking lane and shipping backend.
 ### Platform constraints
 
 - UWP/AppContainer: no mmap, no dlopen, no registry, no arbitrary paths
-- Xbox Series S: 10 GB unified memory, 3801 MB GPU budget (Game), ~2.2 GB free disk
+- Xbox Series S: unified memory, a per-process GPU budget and a per-file cap —
+  the measured limits are in [uwp-constraints.md](docs/uwp-constraints.md)
 - Patched ORT/GenAI DLLs while upstream lacks AppContainer fixes
 - Dev Mode only — no retail path yet
 
@@ -190,8 +191,9 @@ The DOI badge and version DOI are synchronized from `release.toml`.
 ### Why Xbox Series S?
 
 Zen2 CPU wins decode on the DirectML path and at small model sizes; RDNA2
-wins batch prefill, and our own D3D12 kernels win GGUF decode at 1–3B.
-Unified memory means the GPU budget (3801 MB Game) is the hard constraint.
+wins batch prefill, and our own D3D12 kernels win GGUF decode on the 1.2B and
+3B models measured (Q4_0 / Q4_K_M).
+Unified memory means the GPU budget ([uwp-constraints.md](docs/uwp-constraints.md) §7) is the hard constraint.
 An underexplored platform with strict memory and packaging constraints.
 
 ### Why dual backend?
@@ -206,7 +208,8 @@ CPU until the per-model decision (D3); gates and per-model verdict are in
 
 ### Why single Session owner?
 
-CPU ~1.3 GB + DML ~2.9 GB don't coexist in budget. Two models = OOM.
+A CPU model and a DML model don't fit the budget together
+([uwp-constraints.md](docs/uwp-constraints.md) §7). Two models = OOM.
 `SessionHub` makes this a process-wide invariant, not a per-surface convention.
 
 ### Why token-budget, not chars-per-token?

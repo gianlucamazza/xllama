@@ -221,7 +221,7 @@ Load-bearing headers agents usually touch:
 | ------------------------------------ | ---------------------------------------------------- |
 | `session.h` / `session_hub.h`        | `Session` API; the one process-wide resident session |
 | `inference_params.h` / `inference.h` | Params, result, `run_inference`                      |
-| `routing_policy.h`                   | Backend pick and prompt budget                       |
+| `routing_policy.h`                   | ORT CPU-vs-DML routing and prompt budget             |
 | `prompt_budget.h`                    | `fit_prompt` — the only token-budget trimmer         |
 | `sampling.h`                         | Sampler defaults shared by CLI, bench, GUI, API      |
 | `chat_prompt.h`                      | `ChatFormat` and stop sequences                      |

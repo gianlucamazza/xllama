@@ -882,7 +882,10 @@ low-bit GPU GEMM would be a DirectML-team feature, not an ORT-side PR; treat GPU
 int4 decode **through DirectML** as blocked upstream, not a local TODO. Our own
 D3D12 compute shader is a separate path: the H6.3 Q4_K GEMV reads packed
 weights at 143 GB/s on Series S ([phase15-re-opt.md](phase15-re-opt.md)
-WS-E / H6.3) — a kernel measurement, not a decode result.
+WS-E / H6.3). On that path an opt-in ggml backend (`d3d12`) now decodes GGUF
+faster than the CPU on 1.2B and 3B models. The verdicts are in
+[gguf-gpu-decode.md](gguf-gpu-decode.md), and this section's DirectML verdict
+is unchanged.
 
 **Config tests** (`int4_block_size=128`, `int4_accuracy_level=4` variants of
 SmolLM2-360M) were **built but closed inconclusive 2026-07-09** — not console-

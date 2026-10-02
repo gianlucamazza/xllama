@@ -68,6 +68,9 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `platform.h`                       | `log_output`, `detect_threads(_llama)`, `peak_working_set_mb`, `gpu_mem_info`                                                                  |
 | `path_utils.h`                     | `resolve_model_path`, `first_gguf_in_dir`, `model_uses_llama_backend`                                                                          |
 | `utf8_utils.h`                     | `utf8_to_wstring`, `wstring_to_utf8` (Windows/UWP)                                                                                             |
+| `api_policy.h`                     | `api_tool_execution_requested` — the LAN API rejects `tools` / `functions` / `tool_choice`                                                     |
+| `capture_probe.h`                  | GraphicsCapture availability probe (metadata only; never starts a capture)                                                                     |
+| `catalog_trust.h`                  | Catalogue signature types used by the UWP downloader                                                                                           |
 | `ort_raii.h`                       | RAII `unique_ptr` for `Oga*` types (ORT GenAI C API, UWP path)                                                                                 |
 | `llama_raii.h`                     | RAII `unique_ptr` for `llama_*` types (llama.cpp, Linux + UWP)                                                                                 |
 | `diffusion/png_writer.h`           | PNG writer for diffusion output                                                                                                                |
@@ -94,7 +97,6 @@ applied to the stateless path),
 `path_utils.cpp` (`resolve_model_path` — LocalState + InstalledPath fallback),
 `utf8_utils.cpp` (utf8 ↔ wstring),
 `cli.cpp` (CLI argument parsing),
-`json_utils.cpp` (canonical JSON helpers),
 `prompt_budget.cpp` (`fit_prompt` implementation),
 `autopilot.cpp` (`ApRun` driver),
 `kv_store.cpp` (KV snapshot pool with LRU eviction),
@@ -139,8 +141,9 @@ Two text backends, selected by build variant **and** per model at runtime:
   - Design, gates and per-model verdict:
     [gguf-gpu-decode.md](gguf-gpu-decode.md).
 
-The **`default`** and **`llamacpp`** CI variants compile a single backend. The
-shipping **`unified`** build links both and dispatches **per model at runtime**:
+`build-uwp.ps1 -Backend ort|llamacpp|unified` picks the variant. `ort` and
+`llamacpp` compile a single backend; CI builds `llamacpp` (bench lane) and the
+shipping **`unified`** build, which links both and dispatches **per model at runtime**:
 `Backend::Auto` (`session.h`) resolves via `model_uses_llama_backend()` — a `.gguf`
 suffix / on-disk GGUF layout routes to llama.cpp, everything else to ORT GenAI
 (`session.cpp`, `inference.cpp`). So llama.cpp is both the host A/B benchmarking
@@ -216,8 +219,8 @@ the full prompt safely. Snapshot restoration alone is not a delta-reuse guarante
   harmless by construction (they fall back to a normal prefill).
 - **Atomic writes** in 8 MB chunks (§9 AppContainer bound).
 - **Pool cap**: 3 files / 192 MB total, LRU eviction.
-- Dev Mode ships with ~2.2 GB free; a snapshot is ~12 KiB per resident token,
-  so the pool is sized to fit ~16 conversations at the default `n_ctx` 2048.
+- A snapshot is ~12 KiB per resident token (~24 MB at the default `n_ctx`
+  2048), so the 3-file cap binds before the byte cap at that size.
 
 A conversation that is stripped to empty (thinking model truncated to no answer)
 takes no KV snapshot (#170b).
@@ -461,10 +464,10 @@ A family of micro-bench probes that pin the platform's physical ceilings:
 | Probe             | Header         | What it measures                                                                                                      | Console exposure             |
 | ----------------- | -------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
 | **CPU membw**     | `membw.h`      | STREAM read/copy/triad over 256 MB (DRAM ceiling)                                                                     | `--membw` / `membw.flag`     |
-| **Disk bw**       | `diskbw.h`     | NVMe sequential + random read (4 GiB file, 8 MiB / 2 MiB blocks)                                                      | `--diskbw`                   |
-| **RAM ceil**      | `ramceil.h`    | Heap commit ceiling (steps of 128 MB, page-fault in, record counters)                                                 | `--ramceil`                  |
-| **GPU STREAM**    | `gpubw.h`      | D3D12 compute-shader STREAM read over ~1 GiB VRAM (kill gate 100 GB/s)                                                | `gpubw.flag`                 |
-| **GPU GEMV**      | `gpugemv.h`    | Q4_K GEMV density, naive/wave32/rows/dot4 (G1 + G2 density ≥ 40 GB/s)                                                 | `gpugemv.flag`               |
+| **Disk bw**       | `diskbw.h`     | NVMe sequential + random read (4 GiB file, 8 MiB / 2 MiB blocks)                                                      | `--diskbw` / `diskbw.flag`   |
+| **RAM ceil**      | `ramceil.h`    | Heap commit ceiling (steps of 128 MB, page-fault in, record counters)                                                 | `--ramceil` / `ramceil.flag` |
+| **GPU STREAM**    | `gpubw.h`      | D3D12 compute-shader STREAM read over ~1 GiB VRAM (kill gate 100 GB/s)                                                | `gpubw.flag` / `--gpubw`     |
+| **GPU GEMV**      | `gpugemv.h`    | Q4_K GEMV density, naive/wave32/rows/dot4 (G1 + G2 density ≥ 40 GB/s)                                                 | `gpugemv.flag` / `--gpugemv` |
 | **GPU step**      | `gpustep.h`    | GGUF GPU decode D1: round trip, simulated token per model, heap BW                                                    | `gpustep.flag` / `--gpustep` |
 | **d3d12 backend** | `ggml_d3d12.h` | Backend selftest: MUL_MAT vs the CPU backend's q8 vec_dot (rel ≤ 1e-5), GET_ROWS bit-exact, decode GB/s (median of 5) | `d3d12be.flag`               |
 
@@ -518,16 +521,12 @@ session pre-load the request waits briefly instead (`acquire_hub_or_busy`,
 ≤15 s). Stopping the endpoint does not free the Session (it is hub-owned).
 Preferences and training status are file I/O only (no inference lock).
 
-| Route                         | Role                                                                |
-| ----------------------------- | ------------------------------------------------------------------- |
-| `POST /v1/chat/completions`   | Non-streaming chat (own `Session`)                                  |
-| `POST /v1/preferences`        | Append preference sample → `training/samples.jsonl` (#118)          |
-| `GET /v1/training/status`     | `result.done` / `progress.json` / personalized `result.json` (#118) |
-| `POST /v1/images/generations` | SD-Turbo in-process (steps 1–4), same knobs as Image dialog (#118)  |
-
-Capability `privateNetworkClientServer` covers LAN inbound; no public inbound.
-Full contract + validation: [api-endpoint.md](api-endpoint.md)
-(`scripts/validate-api.sh` — `spike|chat|prefs|train|all`).
+Chat runs on the hub-owned Session; embeddings, Ollama-compatible pull,
+preferences, training status and images complete the surface. The route list
+and the contract live in [api-endpoint.md](api-endpoint.md) (the owner of LAN
+routes); validation is `scripts/validate-api.sh
+spike|chat|budget|embed|pull|prefs|train|all`. Capability
+`privateNetworkClientServer` covers LAN inbound; no public inbound.
 
 ## Build variants and versioning
 
@@ -655,41 +654,49 @@ host Release smoke (quality + peak)
 
 ## Unit test map (host suite)
 
-Every `include/xllama/X.h` has a corresponding `tests/test_X.cpp`. The suite
-is **288 test cases / 8845 assertions** (doctest, without opt-in model checks).
+One doctest binary, `xllama-tests`, built from `tests/test_*.cpp`. The suite
+is **288 test cases / 8849 assertions** (doctest, without opt-in model checks).
+Headers without a dedicated file are header-only RAII wrappers or UWP-only types
+(`llama_raii.h`, `ort_raii.h`, `d3d12_dyn.h`, `catalog_trust.h`).
 
-| Test file                     | Tests | Header under test                  |
-| ----------------------------- | ----- | ---------------------------------- |
-| `test_json_utils.cpp`         | 11    | `json_utils.h`                     |
-| `test_cancel_policy.cpp`      | 8     | `cancel_policy.h`                  |
-| `test_autopilot.cpp`          | 15    | `autopilot.h`                      |
-| `test_routing_policy.cpp`     | —     | `routing_policy.h`                 |
-| `test_prompt_budget.cpp`      | —     | `prompt_budget.h`                  |
-| `test_personalize.cpp`        | —     | `personalize.h`                    |
-| `test_model_provision.cpp`    | —     | `model_provision.h`                |
-| `test_model_write.cpp`        | 5     | `model_write.h`                    |
-| `test_session.cpp`            | —     | `session.h`                        |
-| `test_sampling.cpp`           | —     | `sampling.h`                       |
-| `test_training.cpp`           | —     | `training.h` / `training_params.h` |
-| `test_device_train.cpp`       | —     | `device_train.h`                   |
-| `test_preference_capture.cpp` | —     | `preference_capture.h`             |
-| `test_chat_prompt.cpp`        | —     | `chat_prompt.h`                    |
-| `test_manifest_merge.cpp`     | —     | `manifest_merge.h`                 |
-| `test_path.cpp`               | —     | `path_utils.h`                     |
-| `test_utf8.cpp`               | —     | `utf8_utils.h`                     |
-| `test_bench.cpp`              | —     | `bench.cpp`                        |
-| `test_chat_history.cpp`       | —     | `chat-history.h`                   |
-| `test_api_config.cpp`         | —     | API config validation              |
-| `test_cli.cpp`                | —     | `cli.h`                            |
-| `test_diskbw.cpp`             | —     | `diskbw.h`                         |
-| `test_gpubw.cpp`              | —     | `gpubw.h`                          |
-| `test_gpugemv.cpp`            | —     | `gpugemv.h`                        |
-| `test_kv_store.cpp`           | —     | `kv_store.h`                       |
-| `test_logit_parity.cpp`       | —     | `logit_dump.h`                     |
-| `test_membw.cpp`              | —     | `membw.h`                          |
-| `test_ramceil.cpp`            | —     | `ramceil.h`                        |
-| `test_speculative.cpp`        | —     | `speculative.h`                    |
-| `test_diffusion.cpp`          | —     | `diffusion/`                       |
+| Test file                     | Under test                                              |
+| ----------------------------- | ------------------------------------------------------- |
+| `test_api_config.cpp`         | LAN API config validation (`uwp/api-server.h`)          |
+| `test_api_pull.cpp`           | `api_pull_policy.h`                                     |
+| `test_autopilot.cpp`          | `autopilot.h`                                           |
+| `test_bench.cpp`              | bench CSV (`inference.h`), `api_policy.h`, `platform.h` |
+| `test_cancel_policy.cpp`      | `cancel_policy.h`                                       |
+| `test_capture_probe.cpp`      | `capture_probe.h`                                       |
+| `test_chat_history.cpp`       | `uwp/chat-history.h`                                    |
+| `test_chat_prompt.cpp`        | `chat_prompt.h`                                         |
+| `test_cli.cpp`                | `cli.h`                                                 |
+| `test_decode_loop.cpp`        | `decode_loop.h` via `run_inference` (opt-in model)      |
+| `test_device_train.cpp`       | `device_train.h`                                        |
+| `test_diffusion.cpp`          | `diffusion/`                                            |
+| `test_diskbw.cpp`             | `diskbw.h`                                              |
+| `test_embedding.cpp`          | `embedding.h`                                           |
+| `test_ggml_d3d12.cpp`         | `ggml_d3d12.h`, `src/bridge/llama_gpu.h`                |
+| `test_gpubw.cpp`              | `gpubw.h`                                               |
+| `test_gpugemv.cpp`            | `gpugemv.h`                                             |
+| `test_gpustep.cpp`            | `gpustep.h`                                             |
+| `test_json_utils.cpp`         | `json_utils.h`                                          |
+| `test_kv_store.cpp`           | `kv_store.h`                                            |
+| `test_logit_parity.cpp`       | `logit_dump.h` (opt-in model)                           |
+| `test_manifest_merge.cpp`     | `manifest_merge.h`                                      |
+| `test_membw.cpp`              | `membw.h`                                               |
+| `test_model_provision.cpp`    | `model_provision.h`                                     |
+| `test_model_write.cpp`        | `model_write.h`                                         |
+| `test_path.cpp`               | `path_utils.h`                                          |
+| `test_personalize.cpp`        | `personalize.h`                                         |
+| `test_preference_capture.cpp` | `preference_capture.h`                                  |
+| `test_prompt_budget.cpp`      | `prompt_budget.h`                                       |
+| `test_ramceil.cpp`            | `ramceil.h`                                             |
+| `test_routing_policy.cpp`     | `routing_policy.h`                                      |
+| `test_sampling.cpp`           | `sampling.h` (CLI/Session parity opt-in)                |
+| `test_session.cpp`            | `session.h`, `session_hub.h`                            |
+| `test_speculative.cpp`        | `speculative.h`                                         |
+| `test_training.cpp`           | `training.h` / `training_params.h`                      |
+| `test_utf8.cpp`               | `utf8_utils.h`                                          |
 
 ## UWP headless flag registry
 
@@ -711,6 +718,7 @@ flags are supported:
 | `d3d12be.flag`        | `run_d3d12_selftest`     | d3d12 ggml backend selftest vs the CPU backend (MUL_MAT, GET_ROWS)  |
 | `ramceil.flag`        | `run_ramceil`            | Heap ceiling probe (commit in steps)                                |
 | `mic.flag`            | `run_mic_probe`          | Microphone / AudioGraph probe                                       |
+| `native-capture.flag` | capture probe            | GraphicsCapture availability probe (`capture_probe.h`)              |
 | `logits.flag`         | `run_logits`             | Logit-parity dump (float32 + JSON sidecar)                          |
 | `oprepro.flag`        | `run_oprepro`            | Single-op CPU-vs-DML diagnostic (`repro.onnx`)                      |
 | `train.flag`          | `run_train`              | On-device training (Lane B partial FT)                              |
@@ -773,36 +781,42 @@ while **loose** mode (no catalogue entry) accepts any `.gguf`.
 
 `src/main.cpp` + `src/bridge/cli.cpp`:
 
-| Flag                      | Purpose                                                      |
-| ------------------------- | ------------------------------------------------------------ |
-| `--model`                 | Model path or catalogue name                                 |
-| `--prompt`                | Single-shot prompt                                           |
-| `--chat`                  | Wrap prompt with chat template + stop tokens                 |
-| `--max-length`            | Max generation tokens                                        |
-| `--temperature`           | Sampling temperature                                         |
-| `--top-p`                 | Top-p sampling                                               |
-| `--top-k`                 | Top-k sampling                                               |
-| `--repetition-penalty`    | Repetition penalty                                           |
-| `--n-predict`             | Override `n_predict`                                         |
-| `--batch`                 | `n_batch` (prefill chunk size)                               |
-| `--ubatch`                | `n_ubatch` (physical ubatch)                                 |
-| `--threads`               | Thread count                                                 |
-| `--kv-q8`                 | Enable KV quantization (q8_0)                                |
-| `--lora`                  | LoRA path                                                    |
-| `--prompt-lookup`         | Enable prompt-lookup speculative decoding                    |
-| `--gpu-layers <n>`        | GGUF layers on the d3d12 backend (no D3D12 on Linux → CPU)   |
-| `--membw`                 | CPU STREAM bandwidth probe                                   |
-| `--diskbw`                | NVMe disk bandwidth probe                                    |
-| `--ramceil`               | Heap ceiling probe                                           |
-| `--gpubw`                 | GPU STREAM probe (reports `d3d12_ran=false` on Linux)        |
-| `--gpugemv`               | Q4_K GEMV density probe (reports `d3d12_ran=false` on Linux) |
-| `--gpustep`               | GPU decode D1 cost-model projection (`d3d12_ran=false`)      |
-| `--gpustep-verdict <csv>` | Evaluate a D1 CSV against the gates, print the ladder        |
-| `--train-job`             | Run training job (JSON path)                                 |
-| `--validate-train-job`    | Validate training job JSON                                   |
-| `--training-capabilities` | Print capability matrix                                      |
-| `--logits`                | Logit dump for parity comparison                             |
-| `--help`                  | Usage                                                        |
+| Flag                              | Purpose                                                              |
+| --------------------------------- | -------------------------------------------------------------------- |
+| `-m, --model <path>`              | Model path (GGUF on Linux)                                           |
+| `-p, --prompt <text>`             | Prompt text (repeatable with `--embed`)                              |
+| `-n, --n-predict <N>`             | Max tokens to generate                                               |
+| `-c, --ctx <N>`                   | Context size                                                         |
+| `-t, --threads <N>`               | Thread count (0 = auto)                                              |
+| `--temp <float>`                  | Sampling temperature                                                 |
+| `--seed <int>`                    | RNG seed (0 = random)                                                |
+| `--top-p <float>`                 | Nucleus cutoff                                                       |
+| `--top-k <N>`                     | Top-k cutoff                                                         |
+| `--repetition-penalty <float>`    | Repetition penalty (last 64 tokens)                                  |
+| `--greedy`                        | Deterministic argmax decode                                          |
+| `--system <text>`                 | System message for `--chat`                                          |
+| `--chat`                          | Wrap the prompt in the model's chat template, stop on its stop token |
+| `--batch <N>`                     | Logical prefill batch (`n_batch`)                                    |
+| `--ubatch <N>`                    | Physical prefill chunk (`n_ubatch`)                                  |
+| `--kv-q8`                         | q8_0 KV cache + flash attention                                      |
+| `--prompt-lookup`                 | Draft-free speculative decoding (GGUF)                               |
+| `--gpu-layers <n>`                | GGUF layers on the d3d12 backend (no D3D12 on Linux → CPU)           |
+| `--lora <path>`                   | GGUF LoRA adapter                                                    |
+| `--lora-scale <f>`                | LoRA scale                                                           |
+| `--embed`                         | Embedding smoke test (inputs via `-p`)                               |
+| `--dimensions <N>`                | Embedding dimensions for `--embed` (0 = native)                      |
+| `--dump-logits <path>`            | Write last prefill-token logits + JSON sidecar                       |
+| `--membw`                         | CPU STREAM bandwidth probe                                           |
+| `--diskbw`                        | Disk read-bandwidth probe                                            |
+| `--ramceil`                       | Heap ceiling probe                                                   |
+| `--gpubw`                         | GPU STREAM probe (`d3d12_ran=false` on Linux)                        |
+| `--gpugemv`                       | Q4_K GEMV density probe (`d3d12_ran=false` on Linux)                 |
+| `--gpustep`                       | GPU decode D1 cost-model projection (`d3d12_ran=false` on Linux)     |
+| `--gpustep-verdict <csv>`         | Evaluate a D1 CSV against the gates, print the ladder                |
+| `--validate-train-job <job.json>` | Validate a training job and exit                                     |
+| `--train-job <job.json>`          | Run a training job                                                   |
+| `--training-capabilities`         | Print the training capability matrix                                 |
+| `-h, --help`                      | Usage                                                                |
 
 Machine-readable output: `SPEC_STATS` line on stderr for bench scripts.
 

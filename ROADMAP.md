@@ -33,7 +33,7 @@ performance belongs in `docs/benchmarks.md`.
   (host + console marker gates PASS; pin-blocked filter-widening remains);
   Phase 11 closed the headless↔UI gap (in-app personalize + LAN API parity,
   #116/#118). Phases 13, 14 and 16 (one shipped model) are complete. Remaining
-  open work: Phase 15 parked eng, Store retail
+  open work: Phase 15 GGUF GPU decode (D3 per-model default, #228), Store retail
   certification, and upstream vendor pin drops.
 - **Current v1.6.0.0:** unified CI MSVC Dev Mode release. Exact package and
   validation gates are identified in the GitHub release notes; the source-bound
@@ -59,7 +59,7 @@ performance belongs in `docs/benchmarks.md`.
    listing in the submission; do not stamp Store CN onto the Dev Mode package.
 3. ~~**WS-F headset** (#241)~~ — **closed PASS 2026-09-30**: real capture under
    AppContainer (RMS 0.019). ASR candidate H16.6a is unblocked, not started.
-4. **Parked eng** — H6/H7 (#228) reached **K3** with H6.3 (`rows` median
+4. **GPU decode eng** — H6/H7 (#228) reached **K3** with H6.3 (`rows` median
    143.06 GB/s packed, 2026-10-01); GGUF GPU decode D1 = `D2-matmul-only`,
    D2 = FAIL, then D2-r2 (q8 activations, leaner memory): LFM2.5-1.2B PASS
    (decode 1.62×), Coder-3B FAIL on RAM only — backend `d3d12` opt-in until
