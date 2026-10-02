@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+  <rect width="1280" height="640" fill="#121212"/>
+  <text x="72" y="280" fill="#f4f4f4" font-family="Inter, Helvetica, Arial, sans-serif" font-size="84" font-weight="700">XLLAMA</text>
+  <text x="72" y="336" fill="#b7b7b7" font-family="Inter, Helvetica, Arial, sans-serif" font-size="22">Local inference on Series S|X — llama.cpp, ORT GenAI, LAN, diffusion, training.</text>
+  <g fill="none" stroke="#e0a15a" stroke-width="2">
+    <rect x="760" y="210" width="280" height="150" rx="8"/>
+    <path d="M760 248 H1040"/>
+    <circle cx="792" cy="328" r="6"/>
+    <circle cx="820" cy="328" r="6"/>
+  </g>
+  <g fill="#2f8f92">
+    <circle cx="1120" cy="250" r="4"/><circle cx="1160" cy="230" r="4"/><circle cx="1188" cy="270" r="4"/>
+    <circle cx="1148" cy="300" r="4"/><circle cx="1196" cy="320" r="4"/><circle cx="1110" cy="290" r="4"/>
+  </g>
+</svg>
