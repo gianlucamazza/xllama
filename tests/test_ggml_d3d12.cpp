@@ -220,8 +220,12 @@ TEST_CASE("ggml_d3d12: GPU-layer request maps to llama params") {
     const bool kqv_default = cp.offload_kqv;
     apply_gguf_gpu_context(0, cp);
     CHECK(cp.offload_kqv == kqv_default);
+    const uint32_t outputs_default = cp.n_outputs_max;
+    apply_gguf_gpu_context(0, cp);
+    CHECK(cp.n_outputs_max == outputs_default);
     apply_gguf_gpu_context(28, cp);
-    CHECK_FALSE(cp.offload_kqv); // KV and attention stay on the CPU
+    CHECK_FALSE(cp.offload_kqv);   // KV and attention stay on the CPU
+    CHECK(cp.n_outputs_max == 1u); // compute reserve sized for one logits row (#309)
 
 #if !defined(_WIN32)
     // No D3D12 on Linux: a request falls back to the CPU load unchanged.

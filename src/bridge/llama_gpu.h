@@ -104,9 +104,17 @@ inline int apply_gguf_gpu_layers(int requested, llama_model_params& mparams,
 
 // KV cache and attention stay on the CPU in ordinary memory: the backend only
 // runs weight matmuls.
+// n_outputs_max sizes the compute reserve: llama.cpp reserves the prefill
+// graph for n_ubatch logits rows (512 x 151936 x 4 B = 297 MiB on Coder-3B),
+// and on the GPU path that reserve is a committed D3D12_Host buffer, where the
+// CPU's malloc'd one is only touched as used (#309). Prefill and decode read
+// one row; a batch asking for more (prompt-lookup verify, embeddings) makes
+// the scheduler grow the buffer when it happens.
 inline void apply_gguf_gpu_context(int applied_layers, llama_context_params& cparams) {
-    if (applied_layers > 0)
+    if (applied_layers > 0) {
         cparams.offload_kqv = false;
+        cparams.n_outputs_max = 1;
+    }
 }
 
 // Persistent CPU threadpools for a context that alternates CPU and d3d12
