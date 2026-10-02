@@ -1242,6 +1242,8 @@ ggml_backend_buffer_type_t ggml_d3d12_weights_buft() {
 
 namespace {
 
+constexpr int kSelftestTimedRuns = 5;
+
 struct SelftestCase {
     ggml_type type;
     const char* name;
@@ -1330,17 +1332,23 @@ D3d12SelftestRow run_case(ggml_backend_t backend, const SelftestCase& sc) {
         cleanup();
         return row;
     }
-    // Warm-up, then the timed run.
+    // Warm-up, then the median of kSelftestTimedRuns: one sample of a ~9 MB
+    // matmul swung from 78 to 109 GB/s across back-to-back selftests (CI
+    // 1.6.0.1154, same blob).
     ggml_status st = ggml_backend_graph_compute(backend, gf);
-    if (st == GGML_STATUS_SUCCESS)
+    std::vector<double> ms;
+    for (int i = 0; i < kSelftestTimedRuns && st == GGML_STATUS_SUCCESS; ++i) {
         st = ggml_backend_graph_compute(backend, gf);
+        ms.push_back(gpu().last_gpu_ms);
+    }
     row.d3d12_ran = st == GGML_STATUS_SUCCESS;
     if (!row.d3d12_ran) {
         row.error = "graph_compute failed";
         cleanup();
         return row;
     }
-    row.gpu_ms = gpu().last_gpu_ms;
+    std::nth_element(ms.begin(), ms.begin() + ms.size() / 2, ms.end());
+    row.gpu_ms = ms[ms.size() / 2];
     row.packed_gbs = row.gpu_ms > 0.0 ? static_cast<double>(q.size()) / 1e6 / row.gpu_ms : 0.0;
     std::vector<float> yf(static_cast<std::size_t>(sc.n) * sc.ncols);
     ggml_backend_tensor_get(y, yf.data(), 0, yf.size() * sizeof(float));

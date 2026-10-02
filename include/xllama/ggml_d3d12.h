@@ -137,7 +137,7 @@ struct D3d12SelftestRow {
     std::string type; // q4_0 | q4_k | q6_k
     int n = 0, k = 0, ncols = 0;
     double rel_err = 0.0; // max |gpu - ref| / max |ref|
-    double gpu_ms = 0.0;  // GPU timestamp time of the last compute, ms
+    double gpu_ms = 0.0;  // GPU timestamp time, median of 5 timed computes (ms)
     double packed_gbs = 0.0;
     bool ok = false;
     bool d3d12_ran = false;
