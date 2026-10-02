@@ -9,8 +9,9 @@
 > narrative table.
 
 **Currency:** 2026-10-02 — **WS-E D2-r2**: the opt-in ggml backend `d3d12`
-with q8 activations decodes 1.62× on LFM2.5-1.2B, which passes every product
-criterion. Coder-3B decodes 1.55× but fails on RAM at P ≈ 1000. Next is D3
+with q8 activations passes every product criterion on both gate models:
+decode 1.60× (Coder-3B) and 1.64× (LFM2.5-1.2B), H9 parity, peak within
+200 MB of the CPU. Next is D3
 ([gguf-gpu-decode.md](gguf-gpu-decode.md)). Before: H6.3 K3, own `rows` Q4_K
 GEMV **143.06 GB/s packed** (2026-10-01). Earlier: 2026-08-08. Attack order: **W2 closed for product default**
 (console M3 FAIL ≥1.4× gate → stays opt-in OFF); **W3 gpubw M6 PASS** —
@@ -314,6 +315,7 @@ own predeclared gate; SessionHub and the CPU default are unchanged.
 | 2026-10-02 | **D2a = PASS:** ggml backend `d3d12` selftest on Series S (CI `1.6.0.1125`), 12/12 correct vs ggml dequant, every decode shape ≥ 102 GB/s after two speed-FAIL runs fixed by a per-K kernel width. See [gguf-gpu-decode.md](gguf-gpu-decode.md).                                                                                                                                                                                                                                                                                 |
 | 2026-10-02 | **D2 = FAIL:** opt-in GGUF layers on the d3d12 backend (CI `1.6.0.1138`): decode 1.59× / 1.58× and prefill 1.32× / 1.74× (Coder-3B / LFM2.5-1.2B), `validate-console.sh all` PASS; peak RAM +539 / +265 MB and Coder-3B H9 5/8 vs 6/8. Default stays CPU. See [gguf-gpu-decode.md](gguf-gpu-decode.md).                                                                                                                                                                                                                          |
 | 2026-10-02 | **D2-r2:** q8 activations (gate A PASS, CI `1.6.0.1144`) plus a one-copy tied embedding and a smaller compute reserve (CI `1.6.0.1148`). LFM2.5-1.2B **PASS**: decode 1.62×, prefill 1.81×, peak +163 MB, H9 6/8 = 6/8. Coder-3B **FAIL** on RAM only: +220 MB at P ≈ 1000, over the 200 MB limit. RAM criterion decided before the run. See [gguf-gpu-decode.md](gguf-gpu-decode.md).                                                                                                                                           |
+| 2026-10-02 | **D2-r2 = PASS** (CI `1.6.0.1156`): after zero-size ops stopped forcing weight copies to the CPU, Coder-3B passes too (+125 MB at P ≈ 1000; decode 1.60×). LFM2.5-1.2B decodes 1.64×. H9 6/8 = 6/8 on both, validate ALL PASS. See [gguf-gpu-decode.md](gguf-gpu-decode.md).                                                                                                                                                                                                                                                     |
 | 2026-08-08 | **v1.5.3.0 shipped** (PR #230, tag `v1.5.3.0`, MSIX `1.5.3.873`): dual-CRT package architecture + AppContainer PE hygiene + History/title product fixes. Product launch remains CI MSVC. Series S `validate-console.sh all` **9/9 PASS**. W2 stays opt-in OFF; H6 remains parked.                                                                                                                                                                                                                                                |
 | 2026-08-08 | **#216 closed** (PR #232): serialize #170b snapshot save vs next generate; Series S `all` ×6 PASS (kvsnap 551→19).                                                                                                                                                                                                                                                                                                                                                                                                               |
 | 2026-08-08 | **#223 closed** (PR #234): catalogue `n_predict` 1024 + console gate `thinkdone` (short happy path); hard multi-step may still exhaust CoT. Suite **10** gates. CSV `bench/results/phase15-thinking-complete.csv`.                                                                                                                                                                                                                                                                                                               |
@@ -323,7 +325,7 @@ own predeclared gate; SessionHub and the CPU default are unchanged.
 
 - #210 W2 prompt-lookup — **closed** (eng opt-in shipped; product default OFF after M3)
 - #211 W3 gpubw gate — **closed PASS** (119.07 GB/s); PR #227
-- #228 H6 eng follow-up — **K3** after H6.3 (`rows` console median 143.06 GB/s packed); D2-r2: LFM2.5-1.2B PASS, Coder-3B FAIL on RAM only; next D3 ([gguf-gpu-decode.md](gguf-gpu-decode.md)); follow-ups #309 #310 #313
+- #228 H6 eng follow-up — **K3** after H6.3 (`rows` console median 143.06 GB/s packed); D2-r2 PASS on Coder-3B and LFM2.5-1.2B; next D3 ([gguf-gpu-decode.md](gguf-gpu-decode.md)); follow-ups #309 #310 #313
 - #130 DML max_length valley — **closed** product-mitigated 2026-08-08
 - #216 kvsnap save race — **closed** PR #232 (`all` ×6)
 - #223 thinking-tier completion — **closed** PR #234 (`thinkdone` + n_predict 1024)

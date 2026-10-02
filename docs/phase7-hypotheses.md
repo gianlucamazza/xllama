@@ -415,10 +415,10 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   decode _design_ — [gguf-gpu-decode.md](gguf-gpu-decode.md). D1
   (2026-10-01) = `D2-matmul-only`: 49.7 µs round trip, simulated Coder-3B
   token 21.16 ms with CPU sync. D2 (2026-10-02) = FAIL on peak RAM and
-  Coder-3B H9. D2-r2 (CI `1.6.0.1148`): the claim holds on decode at ≥1B —
-  1.55× (Coder-3B) and 1.62× (LFM2.5-1.2B) over CPU t6. LFM2.5-1.2B passes
-  every product criterion; Coder-3B fails on RAM at P ≈ 1000. GGUF decode
-  ships on the CPU until D3. Small-model GPU decode via ORT
+  Coder-3B H9. D2-r2 (CI `1.6.0.1156`): **the claim holds** — 1.60×
+  (Coder-3B) and 1.64× (LFM2.5-1.2B) over CPU t6, with H9 parity and peak
+  within 200 MB of the CPU. GGUF decode ships on the CPU until the D3
+  per-model default. Small-model GPU decode via ORT
   DML remains falsified; STREAM only shows raw VRAM bandwidth our D3D12 code
   can reach.
 

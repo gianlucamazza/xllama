@@ -9,11 +9,11 @@
 > [uwp-constraints.md](uwp-constraints.md).
 
 **Status (2026-10-02):** D1 = `D2-matmul-only`; D2a = PASS; D2 = FAIL (peak
-RAM, Coder-3B H9). **D2-r2** (q8 activations, one-copy tied embedding,
-smaller compute reserve; CI `1.6.0.1148`): **LFM2.5-1.2B PASS**, Coder-3B FAIL
-on RAM only (+220 MB at P ≈ 1000). Next is D3, the per-model default for
-LFM2.5-1.2B. Until then the backend is opt-in (`gguf_gpu_layers.txt`) and
-GGUF decode ships on the CPU.
+RAM, Coder-3B H9). **D2-r2 = PASS** on both gate models (q8 activations,
+one-copy tied embedding, smaller compute reserve, zero-size ops kept on the
+GPU; CI `1.6.0.1156`): Coder-3B decodes 1.60× and LFM2.5-1.2B 1.64×. Next is
+D3, the per-model default. Until then the backend is opt-in
+(`gguf_gpu_layers.txt`) and GGUF decode ships on the CPU.
 
 ## Why
 
@@ -380,42 +380,48 @@ never push a model past the budget it fits on the CPU. Recorded as:
 
 A model that fails a criterion keeps the CPU default.
 
-### D2-r2 result (2026-10-02, CI `1.6.0.1148`)
+### D2-r2 result (2026-10-02, CI `1.6.0.1156`)
 
-`bench/results/2026-10-02-d2r2-gguf-gpu.csv`: median of runs 2–4, same
-prompts and arms as D2. H9 from `2026-10-02-d2r2-h9-{cpu,gpu}.jsonl` (LAN API,
-XAML process).
+Evidence:
 
-| Criterion                        | Coder-3B (Q4_K_M)               | LFM2.5-1.2B (QAD Q4_0)         |
-| -------------------------------- | ------------------------------- | ------------------------------ |
-| decode ≥ 1.4×                    | **PASS** 14.35 → 22.3 (1.55×)   | **PASS** 39.7 → 64.3 (1.62×)   |
-| prefill P=1000 ≥ 0.9×            | **PASS** 45.6 → 57.9 (1.27×)    | **PASS** 108.7 → 197.0 (1.81×) |
-| peak ≤ 3584 MB, Δ ≤ 200 MB (512) | **PASS** 2044 → 2203 (+159)     | **PASS** 783 → 946 (+163)      |
-| same, P ≈ 1000                   | **FAIL** 2078 → 2298 (**+220**) | **PASS** 806 → 962 (+156)      |
-| GPU memory ≤ budget (§7)         | PASS 1851                       | PASS 678                       |
-| H9 ≥ CPU                         | **PASS** 6/8 = 6/8              | **PASS** 6/8 = 6/8             |
-| `validate-console.sh all`        | PASS (knob = 99)                | PASS (knob = 99)               |
+- `bench/results/2026-10-02-d2r2-gguf-gpu-final.csv`: median of runs 2–4,
+  same prompts and arms as D2;
+- H9 from `2026-10-02-d2r2-final-h9-{cpu,gpu}.jsonl` (LAN API, XAML process);
+- `validate-console.sh all` with the knob at 99, and again without it.
 
-UI process, H9 requests end to end: 7.33 → 11.27 tok/s on Coder-3B (1.54×)
-and 14.97 → 22.49 on LFM2.5-1.2B (1.50×). LFM2.5-350M (informative): decode
-99.9 → 97.3 (0.97×), peak 311 → 409 MB.
+| Criterion                        | Coder-3B (Q4_K_M)              | LFM2.5-1.2B (QAD Q4_0)         |
+| -------------------------------- | ------------------------------ | ------------------------------ |
+| decode ≥ 1.4×                    | **PASS** 14.14 → 22.69 (1.60×) | **PASS** 40.0 → 65.5 (1.64×)   |
+| prefill P=1000 ≥ 0.9×            | **PASS** 45.7 → 58.2 (1.27×)   | **PASS** 108.9 → 198.4 (1.82×) |
+| peak ≤ 3584 MB, Δ ≤ 200 MB (512) | **PASS** 2044 → 2203 (+159)    | **PASS** 783 → 946 (+163)      |
+| same, P ≈ 1000                   | **PASS** 2078 → 2203 (+125)    | **PASS** 806 → 962 (+156)      |
+| GPU memory ≤ budget (§7)         | PASS 1851                      | PASS 678                       |
+| H9 ≥ CPU                         | **PASS** 6/8 = 6/8             | **PASS** 6/8 = 6/8             |
+| `validate-console.sh all`        | PASS (knob = 99 and off)       | PASS (knob = 99 and off)       |
 
-**Verdict per model:**
+UI process, H9 requests end to end: 7.27 → 11.33 tok/s on Coder-3B (1.56×)
+and 14.87 → 23.19 on LFM2.5-1.2B (1.56×). LFM2.5-350M (informative): decode
+0.99×, peak +98 MB; it is never a candidate.
 
-- **LFM2.5-1.2B: D2-r2 PASS** on every criterion. It is the D3 candidate for
-  a GPU default.
-- **Coder-3B: D2-r2 FAIL** on one criterion only: peak at P ≈ 1000 is
-  +220 MB over the CPU, against the 200 MB limit. It keeps the CPU default.
+**Verdict: D2-r2 PASS on Coder-3B and LFM2.5-1.2B.** Both are D3 candidates
+for a GPU default.
 
-On a long prompt Coder-3B goes over the 200 MB delta. There, the committed
-GPU compute buffer and the q8 scratch for ~1000 tokens add to the fixed
-D3D12 runtime cost. The lever left is lazy commit of the GPU compute buffer
-(#309).
+**History of the run.**
+
+- The first D2-r2 run (CI `1.6.0.1148`, `2026-10-02-d2r2-gguf-gpu.csv`)
+  failed Coder-3B at P ≈ 1000 with +220 MB.
+- Cause: on a prompt longer than one ubatch, the ubatches without output rows
+  give the last layer a zero-column FFN. The backend refused it, and the
+  scheduler copied those weights, `token_embd` included, out of
+  `D3D12_Weights` to the CPU.
+- Fix: zero-size ops are accepted as no-ops. Coder-3B now measures +125 MB,
+  and `validate genroom` no longer times out with the knob on.
 
 ### D3 — product decision
 
 Default on/off per model in `docs/model-matrix.md` after D2; the
-measured-is-not-shipped ladder applies.
+measured-is-not-shipped ladder applies. Candidates after D2-r2: Coder-3B and
+LFM2.5-1.2B. LFM2.5-350M and smaller stay on the CPU.
 
 ## Decision log
 
@@ -429,3 +435,4 @@ measured-is-not-shipped ladder applies.
 | 2026-10-02 | **RAM criterion for D2-r2/D3 changed by decision, before the run:** peak ≤ 3584 MB, Δ ≤ 200 MB over CPU, GPU ≤ budget. "Peak ≤ CPU" cannot pass any GPU path: the D3D12 runtime alone costs ~44 MB, and the GPU compute buffer is committed, not touched lazily. Gate A PASS (CI `1.6.0.1144`). Fix B so far: Coder-3B 2583 → 2203 MB, 1.2B 1048 → 946 MB.                                                                                                                                                                                                                                                                                  |
 | 2026-10-02 | **D2-r2** (CI `1.6.0.1148`): LFM2.5-1.2B **PASS** (decode 1.62×, prefill 1.81×, peak +163/+156 MB, H9 6/8 = 6/8, validate PASS) → D3 candidate. Coder-3B **FAIL** on RAM only (+220 MB at P ≈ 1000; decode 1.55×, H9 6/8 = 6/8) → CPU default; the lever left is lazy commit of the GPU compute buffer (#309).                                                                                                                                                                                                                                                                                                                              |
 | 2026-10-02 | **Review fix before merge** (CI `1.6.0.1155`). `n_outputs_max = 1` made llama.cpp abort on any batch asking for more rows: prompt-lookup verify batches and embedding sessions with GPU layers. The cap is now 1 + draft with prompt lookup and llama.cpp's default for embeddings. On console, prompt lookup with GPU layers drafted 44 and accepted 31, and `/api/embed` with the knob passed 17 live requests. Prefill and decode keep 1, so the D2-r2 numbers stand (Coder-3B g99 rerun: 22.4 tok/s, 2203 MB). The selftest now times a median of 5 runs, after a single sample swung 78–109 GB/s; it passes 14/14, GET_ROWS bit-exact. |
+| 2026-10-02 | **D2-r2 = PASS** (CI `1.6.0.1156`): Coder-3B decode 1.60×, prefill 1.27×, peak +159/+125 MB; LFM2.5-1.2B 1.64× / 1.82×, +163/+156 MB. H9 6/8 = 6/8 on both, validate ALL PASS with the knob and without. Coder-3B's +220 MB on `1.6.0.1148` was zero-column ops refused by `supports_op`, which made the scheduler copy weights to the CPU; fixed. Next: D3.                                                                                                                                                                                                                                                                                |

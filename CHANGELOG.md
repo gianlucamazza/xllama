@@ -7,6 +7,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **GGUF GPU decode D2-r2 = PASS** (#228). Series S, CI 1.6.0.1156, opt-in
+  backend `d3d12`, every layer on the GPU:
+  - Coder-3B: decode 1.60×, prefill 1.27×, peak +159 / +125 MB;
+  - LFM2.5-1.2B: decode 1.64×, prefill 1.82×, peak +163 / +156 MB;
+  - H9 6/8 = 6/8 on both, and `validate-console.sh all` passes with the knob
+    and without it.
+  - A fix found on the way: zero-size ops (ubatches without output rows) are
+    now no-ops on the backend. Before, the scheduler copied weights to the
+    CPU, which timed out `validate genroom` and pushed Coder-3B to +220 MB.
+  - The default stays CPU until the D3 per-model decision.
+
 - **d3d12 GGUF layers: lower peak RAM** (#309).
   - A tied Q6_K `token_embd` now lives once, in `D3D12_Weights`: `GET_ROWS`
     runs on the GPU and placement goes through `tensor_buft_overrides`.
