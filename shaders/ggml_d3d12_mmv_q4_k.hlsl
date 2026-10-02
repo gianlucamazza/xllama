@@ -1,6 +1,8 @@
-// ggml backend d3d12: Q4_K x f32 matmul (decode and per-column prefill).
-// Algebra and lane mapping of shaders/gpugemv_q4k_rows.hlsl (H6.3, 143 GB/s),
-// plus tensor strides and the column index. block_q4_K = 144 B, 4-byte aligned.
+// ggml backend d3d12: Q4_K x q8_K matmul (decode and per-column prefill).
+// Lane mapping of shaders/gpugemv_q4k_rows.hlsl (H6.3) plus tensor strides and
+// the column index. block_q4_K = 144 B; block_q8_K = { float d; int8 qs[256];
+// int16 bsums[16]; } = 292 B, both 4-byte aligned. Per super-block, like
+// ggml_vec_dot_q4_K_q8_K: (d * d_y) * sum(sc * q4 * q8) - (dmin * d_y) * sum(m * q8).
 
 #include "ggml_d3d12_common.hlsli"
 
@@ -22,11 +24,6 @@ void get_scale_min_k4(uint j, uint4 hdr, out uint d, out uint m) {
     }
 }
 
-float4 nib4(uint word, uint shift) {
-    return float4((float)((word >> (shift + 0u)) & 0xFu), (float)((word >> (shift + 8u)) & 0xFu),
-                  (float)((word >> (shift + 16u)) & 0xFu), (float)((word >> (shift + 24u)) & 0xFu));
-}
-
 [numthreads(NUM_THREADS, 1, 1)]
 void CSMain(uint tid : SV_GroupIndex, uint3 gid : SV_GroupID) {
     const uint row0 = gid.x * NUM_ROWS;
@@ -45,13 +42,12 @@ void CSMain(uint tid : SV_GroupIndex, uint3 gid : SV_GroupID) {
         acc[r] = 0.0;
 
     for (uint blk = ix; blk < nchunk; blk += IN_FLIGHT) {
-        const uint xe = blk * 256u;
-        const float4 xl0 = xload(col, xe + e_lo);
-        const float4 xl1 = xload(col, xe + e_lo + 4u);
-        const float4 xh0 = xload(col, xe + e_hi);
-        const float4 xh1 = xload(col, xe + e_hi + 4u);
-        const float sxl = dot(xl0 + xl1, float4(1, 1, 1, 1));
-        const float sxh = dot(xh0 + xh1, float4(1, 1, 1, 1));
+        const uint xb = col * x_stride + blk * 292u;
+        const float dy = asfloat(X.Load(xb));
+        const uint2 xl = X.Load2(xb + 4u + e_lo);
+        const uint2 xh = X.Load2(xb + 4u + e_hi);
+        const int sl = sum4(xl.x) + sum4(xl.y);
+        const int sh = sum4(xh.x) + sum4(xh.y);
 
         [unroll]
         for (uint r = 0; r < NUM_ROWS; ++r) {
@@ -61,18 +57,15 @@ void CSMain(uint tid : SV_GroupIndex, uint3 gid : SV_GroupID) {
             const uint2 q = W.Load2(bb + qs_byte);
 
             const float d = f16tof32(hdr.x & 0xffffu);
-            const float minv = f16tof32(hdr.x >> 16);
-            uint sc, m;
-            get_scale_min_k4(2u * il, hdr, sc, m);
-            const float d1 = d * (float)sc;
-            const float m1 = minv * (float)m;
-            get_scale_min_k4(2u * il + 1u, hdr, sc, m);
-            const float d2 = d * (float)sc;
-            const float m2 = minv * (float)m;
+            const float dmin = f16tof32(hdr.x >> 16);
+            uint sc1, m1, sc2, m2;
+            get_scale_min_k4(2u * il, hdr, sc1, m1);
+            get_scale_min_k4(2u * il + 1u, hdr, sc2, m2);
 
-            const float lo = dot(nib4(q.x, 0u), xl0) + dot(nib4(q.y, 0u), xl1);
-            const float hi = dot(nib4(q.x, 4u), xh0) + dot(nib4(q.y, 4u), xh1);
-            acc[r] += d1 * lo - m1 * sxl + d2 * hi - m2 * sxh;
+            const int lo = dot4(q.x & 0x0F0F0F0Fu, xl.x) + dot4(q.y & 0x0F0F0F0Fu, xl.y);
+            const int hi = dot4((q.x >> 4) & 0x0F0F0F0Fu, xh.x) + dot4((q.y >> 4) & 0x0F0F0F0Fu, xh.y);
+            acc[r] += (d * dy) * (float)((int)sc1 * lo + (int)sc2 * hi) -
+                      (dmin * dy) * (float)((int)m1 * sl + (int)m2 * sh);
         }
     }
     reduce_store(acc, tid, row0, col);

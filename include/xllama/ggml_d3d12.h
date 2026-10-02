@@ -4,7 +4,8 @@
 // ggml backend "d3d12" — GGUF GPU decode D2 (docs/gguf-gpu-decode.md).
 //
 // A GPU-type ggml device, registered at runtime, that runs only MUL_MAT with
-// Q4_0 / Q4_K / Q6_K weights and f32 activations on our D3D12 compute shaders.
+// Q4_0 / Q4_K / Q6_K weights on our D3D12 compute shaders; f32 activations are
+// quantized to q8 on the CPU first, exactly as the CPU backend does.
 // Two buffer types:
 //   D3D12_Weights  DEFAULT heap, holds matmul weights (exposed as an extra buft)
 //   D3D12_Host     CUSTOM WRITE_BACK heap, is_host — the device default buft, so
@@ -70,10 +71,19 @@ D3d12Dispatch d3d12_mm_dispatch(std::int64_t n, std::int64_t ncols);
 // kD3d12LongKChunks chunks, else 64 — measured both ways in D2a runs 1 and 2.
 int d3d12_mm_threads(std::int64_t k);
 
+// Activations go to the GPU the way the CPU backend feeds its own vec_dot:
+// quantized by ggml's from_float of the weight's vec_dot type (Q4_0 → q8_0,
+// Q4_K / Q6_K → q8_K), one row of ggml blocks per column. The kernels then
+// sum integers exactly, so GPU and CPU differ only in float summation order
+// (#312: f32 activations changed greedy text).
+ggml_type d3d12_activation_type(ggml_type weight);
+void d3d12_quantize_activations(ggml_type weight, const float* x, std::size_t x_stride, int k,
+                                int ncols, std::uint8_t* out);
+
 // Host emulation of the shaders' per-thread lane mapping, unaligned loads and
-// algebra: y[c*y_stride + r] = sum_k W[r,k] * x[c*x_stride + k]. `w` holds N
-// rows of `w_row_bytes` packed ggml blocks. Tests compare it with ggml's own
-// dequantizers; the console selftest compares the GPU with the same reference.
+// algebra, on activations quantized as above: y[c*y_stride + r] ≈ W[r,:] · x_c.
+// `w` holds N rows of `w_row_bytes` packed ggml blocks. Tests and the console
+// selftest compare against the CPU backend's vec_dot.
 void d3d12_mmv_emulate(ggml_type t, const std::uint8_t* w, std::size_t w_row_bytes, const float* x,
                        std::size_t x_stride, float* y, std::size_t y_stride, int n, int k,
                        int ncols);
@@ -95,7 +105,9 @@ struct D3d12SelftestRow {
     std::string error;
 };
 
-inline constexpr double kD3d12SelftestRelTol = 1e-2;
+// Against the CPU backend (q8 activations + ggml vec_dot): only float
+// summation order may differ (#312, predeclared gate A).
+inline constexpr double kD3d12SelftestRelTol = 1e-5;
 
 const char* d3d12_selftest_csv_header();
 std::string format_d3d12_selftest_row(const D3d12SelftestRow& r, const char* host_label);

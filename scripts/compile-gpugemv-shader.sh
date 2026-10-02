@@ -6,7 +6,7 @@
 #   shaders/gpugemv_q4k_wave32.hlsl → gpugemv_q4k_wave32_dxil.h (H6.2 LDS-red)
 #   shaders/gpugemv_q4k_rows.hlsl   → gpugemv_q4k_rows_dxil.h   (H6.3 multi-row)
 #   shaders/gpugemv_q4k_dot4.hlsl   → gpugemv_q4k_dot4_dxil.h   (H6.3 int8 dot, cs_6_4)
-#   shaders/ggml_d3d12_mmv_{q4_0,q4_k,q6_k}.hlsl → ggml_d3d12_mmv_*_t{64,128}_dxil.h
+#   shaders/ggml_d3d12_mmv_{q4_0,q4_k,q6_k}.hlsl → ggml_d3d12_mmv_*_t{64,128}_dxil.h (cs_6_4)
 #     (D2 backend; one blob per thread-group width, -D NUM_THREADS)
 #
 # Usage: compile-gpugemv-shader.sh [naive|wave32|rows|dot4|mmv_q4_0|mmv_q4_k|mmv_q6_k ...]
@@ -95,7 +95,7 @@ compile_target() {
 			sym="kGgmlD3d12Mmv$(echo "$t" | sed -e 's/_\(.\)/\U\1/g' -e 's/^./\U&/')T${w}Dxil"
 			compile_one "$ROOT/shaders/ggml_d3d12_mmv_${t}.hlsl" \
 				"$ROOT/shaders/generated/ggml_d3d12_mmv_${t}_t${w}_dxil.h" \
-				"shaders/ggml_d3d12_mmv_${t}.hlsl -D NUM_THREADS=${w}" "$sym" cs_6_0 \
+				"shaders/ggml_d3d12_mmv_${t}.hlsl -D NUM_THREADS=${w}" "$sym" cs_6_4 \
 				-D "NUM_THREADS=${w}"
 		done
 		;;

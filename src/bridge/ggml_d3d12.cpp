@@ -7,6 +7,8 @@
 
     #include "xllama/ggml_d3d12.h"
 
+    #include "ggml-cpu.h"
+
     #include <algorithm>
     #include <cmath>
     #include <cstdio>
@@ -76,15 +78,15 @@ float h2f(std::uint32_t h) {
     return ggml_fp16_to_fp32(static_cast<ggml_fp16_t>(h));
 }
 
-float nib(std::uint32_t word, std::uint32_t i, std::uint32_t shift) {
-    return static_cast<float>((word >> (8u * i + shift)) & 0xFu);
+std::int32_t nib(std::uint32_t word, std::uint32_t i, std::uint32_t shift) {
+    return static_cast<std::int32_t>((word >> (8u * i + shift)) & 0xFu);
 }
 
-float sbyte(std::uint32_t word, std::uint32_t i) {
-    return static_cast<float>(static_cast<std::int8_t>((word >> (8u * i)) & 0xffu));
+std::int32_t sbyte(std::uint32_t word, std::uint32_t i) {
+    return static_cast<std::int8_t>((word >> (8u * i)) & 0xffu);
 }
 
-void q4k_scale_min(std::uint32_t j, const std::uint8_t* sc, float* d, float* m) {
+void q4k_scale_min(std::uint32_t j, const std::uint8_t* sc, std::int32_t* d, std::int32_t* m) {
     std::uint32_t dd, mm;
     if (j < 4u) {
         dd = sc[j] & 63u;
@@ -93,48 +95,54 @@ void q4k_scale_min(std::uint32_t j, const std::uint8_t* sc, float* d, float* m) 
         dd = (sc[j + 4u] & 0xFu) | ((sc[j - 4u] >> 6) << 4);
         mm = (sc[j + 4u] >> 4) | ((sc[j] >> 6) << 4);
     }
-    *d = static_cast<float>(dd);
-    *m = static_cast<float>(mm);
+    *d = static_cast<std::int32_t>(dd);
+    *m = static_cast<std::int32_t>(mm);
 }
 
-// One thread's contribution for one row and one 256-element chunk.
+// One thread's contribution for one row and one 256-element chunk. `xq` is
+// one activation column in the vec_dot type's ggml blocks (block_q8_0 for
+// Q4_0, block_q8_K for Q4_K / Q6_K). Integer sums are exact; the float terms
+// follow ggml's vec_dot (#312).
 float thread_chunk(ggml_type t, const std::uint8_t* w, std::uint32_t row_off, std::uint32_t blk,
-                   std::uint32_t itid, const float* x) {
-    const float* xe = x + blk * 256u;
+                   std::uint32_t itid, const std::uint8_t* xq) {
     if (t == GGML_TYPE_Q4_0) {
         const std::uint32_t b = itid >> 1, h = itid & 1u;
-        const std::uint32_t e_lo = 32u * b + 8u * h, e_hi = e_lo + 16u;
+        const std::uint8_t* xb = xq + (blk * 8u + b) * 34u; // block_q8_0
+        const float dx = h2f(ld16(xb, 0));
+        const auto* qx = reinterpret_cast<const std::int8_t*>(xb + 2);
         const std::uint32_t bb = row_off + (blk * 8u + b) * 18u;
         const float d = h2f(ld16(w, bb));
         const std::uint32_t q0 = ld32(w, bb + 2u + 8u * h), q1 = ld32(w, bb + 6u + 8u * h);
-        float dotq = 0.f, sx = 0.f;
+        std::int32_t sumi = 0;
         for (std::uint32_t i = 0; i < 4; ++i) {
-            dotq += nib(q0, i, 0) * xe[e_lo + i] + nib(q1, i, 0) * xe[e_lo + 4 + i] +
-                    nib(q0, i, 4) * xe[e_hi + i] + nib(q1, i, 4) * xe[e_hi + 4 + i];
-            sx += xe[e_lo + i] + xe[e_lo + 4 + i] + xe[e_hi + i] + xe[e_hi + 4 + i];
+            const std::uint32_t lo = 8u * h + i, hi = 16u + 8u * h + i;
+            sumi += (nib(q0, i, 0) - 8) * qx[lo] + (nib(q1, i, 0) - 8) * qx[lo + 4] +
+                    (nib(q0, i, 4) - 8) * qx[hi] + (nib(q1, i, 4) - 8) * qx[hi + 4];
         }
-        return d * (dotq - 8.f * sx);
+        return (d * dx) * static_cast<float>(sumi);
     }
+    float dy;
+    std::memcpy(&dy, xq + blk * 292u, 4); // block_q8_K: float d; int8 qs[256]; ...
+    const auto* qx = reinterpret_cast<const std::int8_t*>(xq + blk * 292u + 4u);
     if (t == GGML_TYPE_Q4_K) {
         const std::uint32_t il = itid >> 2, ir = itid & 3u;
         const std::uint32_t e_lo = il * 64u + ir * 8u, e_hi = e_lo + 32u;
         const std::uint32_t bb = row_off + blk * 144u;
         const float d = h2f(ld16(w, bb)), dmin = h2f(ld16(w, bb + 2u));
-        float sc, m;
-        q4k_scale_min(2u * il, w + bb + 4u, &sc, &m);
-        const float d1 = d * sc, m1 = dmin * m;
-        q4k_scale_min(2u * il + 1u, w + bb + 4u, &sc, &m);
-        const float d2 = d * sc, m2 = dmin * m;
+        std::int32_t sc1, m1, sc2, m2;
+        q4k_scale_min(2u * il, w + bb + 4u, &sc1, &m1);
+        q4k_scale_min(2u * il + 1u, w + bb + 4u, &sc2, &m2);
         const std::uint32_t qa = ld32(w, bb + 16u + il * 32u + ir * 8u);
         const std::uint32_t qb = ld32(w, bb + 20u + il * 32u + ir * 8u);
-        float lo = 0.f, hi = 0.f, sxl = 0.f, sxh = 0.f;
+        std::int32_t lo = 0, hi = 0, sl = 0, sh = 0;
         for (std::uint32_t i = 0; i < 4; ++i) {
-            lo += nib(qa, i, 0) * xe[e_lo + i] + nib(qb, i, 0) * xe[e_lo + 4 + i];
-            hi += nib(qa, i, 4) * xe[e_hi + i] + nib(qb, i, 4) * xe[e_hi + 4 + i];
-            sxl += xe[e_lo + i] + xe[e_lo + 4 + i];
-            sxh += xe[e_hi + i] + xe[e_hi + 4 + i];
+            lo += nib(qa, i, 0) * qx[e_lo + i] + nib(qb, i, 0) * qx[e_lo + 4 + i];
+            hi += nib(qa, i, 4) * qx[e_hi + i] + nib(qb, i, 4) * qx[e_hi + 4 + i];
+            sl += qx[e_lo + i] + qx[e_lo + 4 + i];
+            sh += qx[e_hi + i] + qx[e_hi + 4 + i];
         }
-        return d1 * lo - m1 * sxl + d2 * hi - m2 * sxh;
+        return (d * dy) * static_cast<float>(sc1 * lo + sc2 * hi) -
+               (dmin * dy) * static_cast<float>(m1 * sl + m2 * sh);
     }
     // Q6_K
     const std::uint32_t v = itid >> 3, l0 = 4u * (itid & 7u), is = l0 >> 4;
@@ -149,20 +157,34 @@ float thread_chunk(ggml_type t, const std::uint8_t* w, std::uint32_t row_off, st
                  std::uint32_t hs) {
         const std::uint32_t lo4 = (ql >> (8u * i + qs)) & 0xFu;
         const std::uint32_t hi2 = (qhw >> (8u * i + hs)) & 3u;
-        return static_cast<float>(static_cast<int>(lo4 | (hi2 << 4))) - 32.f;
+        return static_cast<std::int32_t>(lo4 | (hi2 << 4)) - 32;
     };
-    float t1 = 0.f, t2 = 0.f, t3 = 0.f, t4 = 0.f;
+    std::int32_t t1 = 0, t2 = 0, t3 = 0, t4 = 0;
     for (std::uint32_t i = 0; i < 4; ++i) {
-        t1 += q6(qla, qh, i, 0, 0) * xe[e + i];
-        t2 += q6(qlb, qh, i, 0, 2) * xe[e + 32 + i];
-        t3 += q6(qla, qh, i, 4, 4) * xe[e + 64 + i];
-        t4 += q6(qlb, qh, i, 4, 6) * xe[e + 96 + i];
+        t1 += q6(qla, qh, i, 0, 0) * qx[e + i];
+        t2 += q6(qlb, qh, i, 0, 2) * qx[e + 32 + i];
+        t3 += q6(qla, qh, i, 4, 4) * qx[e + 64 + i];
+        t4 += q6(qlb, qh, i, 4, 6) * qx[e + 96 + i];
     }
-    return d * (sbyte(s0, is) * t1 + sbyte(s0, is + 2) * t2 + sbyte(s1, is) * t3 +
-                sbyte(s1, is + 2) * t4);
+    const std::int32_t tsum =
+        sbyte(s0, is) * t1 + sbyte(s0, is + 2) * t2 + sbyte(s1, is) * t3 + sbyte(s1, is + 2) * t4;
+    return (d * dy) * static_cast<float>(tsum);
 }
 
 } // namespace
+
+ggml_type d3d12_activation_type(ggml_type weight) {
+    return weight == GGML_TYPE_Q4_0 ? GGML_TYPE_Q8_0 : GGML_TYPE_Q8_K;
+}
+
+void d3d12_quantize_activations(ggml_type weight, const float* x, std::size_t x_stride, int k,
+                                int ncols, std::uint8_t* out) {
+    const ggml_type at = d3d12_activation_type(weight);
+    const auto from_float = ggml_get_type_traits_cpu(at)->from_float;
+    const std::size_t row = ggml_row_size(at, k);
+    for (int c = 0; c < ncols; ++c)
+        from_float(x + static_cast<std::size_t>(c) * x_stride, out + c * row, k);
+}
 
 void d3d12_mmv_emulate(ggml_type t, const std::uint8_t* w, std::size_t w_row_bytes, const float* x,
                        std::size_t x_stride, float* y, std::size_t y_stride, int n, int k,
@@ -170,12 +192,15 @@ void d3d12_mmv_emulate(ggml_type t, const std::uint8_t* w, std::size_t w_row_byt
     if (!w || !x || !y || n <= 0 || k <= 0 || k % kD3d12Chunk != 0 || ncols <= 0 ||
         !d3d12_weight_type_supported(t))
         return;
+    const std::size_t xq_row = ggml_row_size(d3d12_activation_type(t), k);
+    std::vector<std::uint8_t> xq(xq_row * static_cast<std::size_t>(ncols) + 4);
+    d3d12_quantize_activations(t, x, x_stride, k, ncols, xq.data());
     const std::uint32_t nchunk = static_cast<std::uint32_t>(k / kD3d12Chunk);
     const std::uint32_t threads = static_cast<std::uint32_t>(d3d12_mm_threads(k));
     const std::uint32_t in_flight = threads / 16u;
     float acc[kD3d12MmvThreadsLong];
     for (int c = 0; c < ncols; ++c) {
-        const float* xc = x + static_cast<std::size_t>(c) * x_stride;
+        const std::uint8_t* xc = xq.data() + static_cast<std::size_t>(c) * xq_row;
         for (int row = 0; row < n; ++row) {
             const std::uint32_t row_off = static_cast<std::uint32_t>(row * w_row_bytes);
             for (std::uint32_t tid = 0; tid < threads; ++tid) {
@@ -290,6 +315,11 @@ struct Gpu {
     ComPtr<ID3D12Resource> readback; // get_tensor on weights (kStagingBytes)
     std::uint8_t* staging_ptr = nullptr;
     std::uint8_t* readback_ptr = nullptr;
+    // q8 activations for the next submission (CPU-written, GPU-read; grows on
+    // demand to the largest single input, ~6 MiB for a 512-token ubatch).
+    ComPtr<ID3D12Resource> xq;
+    std::uint8_t* xq_ptr = nullptr;
+    std::size_t xq_bytes = 0;
     d3d12c::QueueFence fence;
     UINT64 ts_freq = 0;
     LUID luid = {};
@@ -683,6 +713,95 @@ void backend_free(ggml_backend_t b) {
     delete b;
 }
 
+// Grow the q8 activation scratch. Caller holds g.mu and has nothing in flight.
+bool ensure_xq(Gpu& g, std::size_t bytes) {
+    if (bytes <= g.xq_bytes)
+        return true;
+    const std::size_t want = std::max<std::size_t>(bytes, std::size_t(1) << 20);
+    g.xq.Reset();
+    g.xq_ptr = nullptr;
+    g.xq_bytes = 0;
+    D3D12_HEAP_PROPERTIES hp = {};
+    hp.Type = D3D12_HEAP_TYPE_CUSTOM;
+    hp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+    hp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+    std::string err;
+    g.xq = d3d12c::create_buffer_props(g.device.Get(), want, hp,
+                                       D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+                                       D3D12_RESOURCE_STATE_UNORDERED_ACCESS, "D3D12_Xq", &err);
+    void* p = nullptr;
+    if (!g.xq || FAILED(g.xq->Map(0, nullptr, &p))) {
+        log_output("[xllama] d3d12: q8 activation scratch allocation failed: " + err + "\n");
+        g.xq.Reset();
+        return false;
+    }
+    g.xq_ptr = static_cast<std::uint8_t*>(p);
+    g.xq_bytes = want;
+    return true;
+}
+
+// The tensor that owns a node's memory (follows view chains).
+const ggml_tensor* base_of(const ggml_tensor* t) {
+    while (t->view_src)
+        t = t->view_src;
+    return t;
+}
+
+struct MmOp {
+    const ggml_tensor* node;
+    std::size_t xq_off;   // first quantized column in g.xq
+    std::uint32_t xq_row; // bytes per quantized column
+};
+
+// Record and run one submission. Caller holds g.mu.
+bool submit_ops(Gpu& g, const std::vector<MmOp>& ops) {
+    const bool ts = g.ts && g.ts_rb;
+    const bool ran = run_now(g, [&](ID3D12GraphicsCommandList* cl) {
+        cl->SetComputeRootSignature(g.root.Get());
+        if (ts)
+            cl->EndQuery(g.ts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
+        const D3D12_GPU_VIRTUAL_ADDRESS xq_va = g.xq->GetGPUVirtualAddress();
+        for (const MmOp& op : ops) {
+            const ggml_tensor* node = op.node;
+            const ggml_tensor* w = node->src[0];
+            const D3d12Dispatch d = d3d12_mm_dispatch(node->ne[0], node->ne[1]);
+            const std::uint32_t c[8] = {static_cast<std::uint32_t>(w->ne[1]),
+                                        static_cast<std::uint32_t>(w->ne[0]),
+                                        static_cast<std::uint32_t>(w->ne[0] / kD3d12Chunk),
+                                        static_cast<std::uint32_t>(w->nb[1]),
+                                        op.xq_row,
+                                        static_cast<std::uint32_t>(node->nb[1] / sizeof(float)),
+                                        0,
+                                        0};
+            const int wide = d3d12_mm_threads(w->ne[0]) == kD3d12MmvThreadsLong ? 1 : 0;
+            cl->SetPipelineState(g.pso[pso_for(w->type)][wide].Get());
+            cl->SetComputeRoot32BitConstants(0, 8, c, 0);
+            cl->SetComputeRootShaderResourceView(1, tensor_va(w));
+            cl->SetComputeRootUnorderedAccessView(2, tensor_va(node));
+            cl->SetComputeRootUnorderedAccessView(3, xq_va + op.xq_off);
+            cl->Dispatch(d.groups_x, d.groups_y, 1);
+        }
+        if (ts) {
+            cl->EndQuery(g.ts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 1);
+            cl->ResolveQueryData(g.ts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, 2, g.ts_rb.Get(), 0);
+        }
+    });
+    if (!ran)
+        return false;
+    if (ts) {
+        void* p = nullptr;
+        if (SUCCEEDED(g.ts_rb->Map(0, nullptr, &p))) {
+            const auto* t = static_cast<const std::uint64_t*>(p);
+            g.last_gpu_ms += t[1] > t[0] ? 1000.0 * static_cast<double>(t[1] - t[0]) /
+                                               static_cast<double>(g.ts_freq)
+                                         : 0.0;
+            g.ts_rb->Unmap(0, nullptr);
+        }
+    }
+    g.n_matmuls += ops.size();
+    return true;
+}
+
 ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
     Gpu& g = gpu();
     std::vector<const ggml_tensor*> mm;
@@ -709,57 +828,70 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
 
     std::lock_guard<std::mutex> lock(g.mu);
     const auto t0 = std::chrono::steady_clock::now();
-    const bool ts = g.ts && g.ts_rb;
-    const bool ran = run_now(g, [&](ID3D12GraphicsCommandList* cl) {
-        cl->SetComputeRootSignature(g.root.Get());
-        if (ts)
-            cl->EndQuery(g.ts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
-        for (const ggml_tensor* node : mm) {
-            const ggml_tensor* w = node->src[0];
-            const ggml_tensor* x = node->src[1];
-            GGML_ASSERT(w->buffer && w->buffer->buft == &kWeightsBuft);
-            GGML_ASSERT(x->buffer && is_ours(x->buffer->buft));
-            GGML_ASSERT(node->buffer && is_ours(node->buffer->buft));
-            const D3d12Dispatch d = d3d12_mm_dispatch(node->ne[0], node->ne[1]);
-            const std::uint32_t c[8] = {static_cast<std::uint32_t>(w->ne[1]),
-                                        static_cast<std::uint32_t>(w->ne[0]),
-                                        static_cast<std::uint32_t>(w->ne[0] / kD3d12Chunk),
-                                        static_cast<std::uint32_t>(w->nb[1]),
-                                        static_cast<std::uint32_t>(x->nb[1] / sizeof(float)),
-                                        static_cast<std::uint32_t>(node->nb[1] / sizeof(float)),
-                                        0,
-                                        0};
-            const int wide = d3d12_mm_threads(w->ne[0]) == kD3d12MmvThreadsLong ? 1 : 0;
-            cl->SetPipelineState(g.pso[pso_for(w->type)][wide].Get());
-            cl->SetComputeRoot32BitConstants(0, 8, c, 0);
-            cl->SetComputeRootShaderResourceView(1, tensor_va(w));
-            cl->SetComputeRootUnorderedAccessView(2, tensor_va(node));
-            cl->SetComputeRootUnorderedAccessView(3, tensor_va(x));
-            cl->Dispatch(d.groups_x, d.groups_y, 1);
-            // A later matmul may read this output (LoRA chains); order them.
-            D3D12_RESOURCE_BARRIER b = {};
-            b.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-            cl->ResourceBarrier(1, &b);
+    g.last_gpu_ms = 0.0;
+    // Activations are quantized on the CPU before the GPU reads them, so a
+    // matmul whose input another matmul of the same batch produces (a LoRA
+    // chain) waits for that batch. Matmuls sharing an input (q/k/v, gate/up)
+    // share one quantized copy.
+    std::vector<MmOp> ops;
+    std::vector<const ggml_tensor*> produced; // outputs of `ops`
+    struct Quantized {
+        const void* data;
+        ggml_type type;
+        std::size_t off;
+        std::uint32_t row;
+    };
+    std::vector<Quantized> done;
+    std::size_t used = 0;
+    auto flush = [&]() -> bool {
+        if (ops.empty())
+            return true;
+        const bool ok = submit_ops(g, ops);
+        ops.clear();
+        produced.clear();
+        done.clear();
+        used = 0;
+        return ok;
+    };
+    for (const ggml_tensor* node : mm) {
+        const ggml_tensor* w = node->src[0];
+        const ggml_tensor* x = node->src[1];
+        GGML_ASSERT(w->buffer && w->buffer->buft == &kWeightsBuft);
+        GGML_ASSERT(x->buffer && ggml_backend_buffer_is_host(x->buffer));
+        GGML_ASSERT(node->buffer && is_ours(node->buffer->buft));
+        const ggml_tensor* xb = base_of(x);
+        for (const ggml_tensor* p : produced)
+            if (p == xb) {
+                if (!flush())
+                    return GGML_STATUS_FAILED;
+                break;
+            }
+        const ggml_type at = d3d12_activation_type(w->type);
+        const int k = static_cast<int>(x->ne[0]);
+        const int ncols = static_cast<int>(x->ne[1]);
+        const std::uint32_t row = static_cast<std::uint32_t>(ggml_row_size(at, k));
+        const Quantized* q = nullptr;
+        for (const Quantized& d : done)
+            if (d.data == x->data && d.type == at && d.row == row)
+                q = &d;
+        if (!q) {
+            const std::size_t bytes = static_cast<std::size_t>(row) * ncols;
+            if (used + bytes > g.xq_bytes && !flush())
+                return GGML_STATUS_FAILED;
+            if (!ensure_xq(g, used + bytes))
+                return GGML_STATUS_FAILED;
+            d3d12_quantize_activations(w->type, static_cast<const float*>(x->data),
+                                       x->nb[1] / sizeof(float), k, ncols, g.xq_ptr + used);
+            done.push_back({x->data, at, used, row});
+            q = &done.back();
+            used += (bytes + 255) & ~std::size_t(255); // root UAV addresses stay aligned
         }
-        if (ts) {
-            cl->EndQuery(g.ts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 1);
-            cl->ResolveQueryData(g.ts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, 2, g.ts_rb.Get(), 0);
-        }
-    });
-    if (!ran)
-        return GGML_STATUS_FAILED;
-    if (ts) {
-        void* p = nullptr;
-        if (SUCCEEDED(g.ts_rb->Map(0, nullptr, &p))) {
-            const auto* t = static_cast<const std::uint64_t*>(p);
-            g.last_gpu_ms = t[1] > t[0] ? 1000.0 * static_cast<double>(t[1] - t[0]) /
-                                              static_cast<double>(g.ts_freq)
-                                        : 0.0;
-            g.ts_rb->Unmap(0, nullptr);
-        }
+        ops.push_back({node, q->off, q->row});
+        produced.push_back(base_of(node));
     }
+    if (!flush())
+        return GGML_STATUS_FAILED;
     ++g.n_calls;
-    g.n_matmuls += mm.size();
     g.gpu_ms += g.last_gpu_ms;
     g.wall_ms +=
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
@@ -986,22 +1118,25 @@ struct SelftestCase {
     int n, k, ncols;
 };
 
+// Max |gpu - cpu| / max |cpu| against the CPU backend's own path: the
+// vec_dot type's from_float, then ggml's vec_dot (#312, gate A).
 double reference_rel_err(ggml_type t, const std::vector<std::uint8_t>& q, std::size_t row_bytes,
                          const std::vector<float>& x, const std::vector<float>& y, int n, int k,
                          int ncols) {
-    const auto* traits = ggml_get_type_traits(t);
-    std::vector<float> wrow(static_cast<std::size_t>(k));
+    ggml_cpu_init();
+    const auto* wt = ggml_get_type_traits_cpu(t);
+    std::vector<std::uint8_t> xq(ggml_row_size(wt->vec_dot_type, k));
     double max_ref = 0.0, max_diff = 0.0;
-    for (int r = 0; r < n; ++r) {
-        traits->to_float(q.data() + static_cast<std::size_t>(r) * row_bytes, wrow.data(), k);
-        for (int c = 0; c < ncols; ++c) {
-            double acc = 0.0;
-            const float* xc = x.data() + static_cast<std::size_t>(c) * k;
-            for (int i = 0; i < k; ++i)
-                acc += static_cast<double>(wrow[static_cast<std::size_t>(i)]) * xc[i];
+    for (int c = 0; c < ncols; ++c) {
+        ggml_get_type_traits_cpu(wt->vec_dot_type)
+            ->from_float(x.data() + static_cast<std::size_t>(c) * k, xq.data(), k);
+        for (int r = 0; r < n; ++r) {
+            float ref = 0.f;
+            wt->vec_dot(k, &ref, 0, q.data() + static_cast<std::size_t>(r) * row_bytes, 0,
+                        xq.data(), 0, 1);
             const double got = y[static_cast<std::size_t>(c) * n + r];
-            max_ref = std::max(max_ref, std::fabs(acc));
-            max_diff = std::max(max_diff, std::fabs(acc - got));
+            max_ref = std::max(max_ref, std::fabs(static_cast<double>(ref)));
+            max_diff = std::max(max_diff, std::fabs(static_cast<double>(ref) - got));
         }
     }
     return max_ref > 0.0 ? max_diff / max_ref : max_diff;
@@ -1082,7 +1217,7 @@ D3d12SelftestRow run_case(ggml_backend_t backend, const SelftestCase& sc) {
     row.rel_err = reference_rel_err(sc.type, q, w->nb[1], xf, yf, sc.n, sc.k, sc.ncols);
     row.ok = row.rel_err <= kD3d12SelftestRelTol;
     if (!row.ok)
-        row.error = "mismatch vs ggml dequant reference";
+        row.error = "mismatch vs the CPU backend (q8 vec_dot)";
     cleanup();
     return row;
 }

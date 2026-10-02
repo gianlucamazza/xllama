@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# bench-d3d12-selftest.sh — d3d12 ggml backend selftest on the console (D2a,
-# docs/gguf-gpu-decode.md). Uploads d3d12be.flag, waits for d3d12be-result.csv,
-# and checks the D2a gate: every Q4_0 / Q4_K / Q6_K case within tolerance of
-# ggml's dequantizers, and the decode (ncols=1) cases at >= 100 GB/s packed.
+# bench-d3d12-selftest.sh — d3d12 ggml backend selftest on the console
+# (docs/gguf-gpu-decode.md). Uploads d3d12be.flag, waits for d3d12be-result.csv,
+# and checks the selftest gate: every Q4_0 / Q4_K / Q6_K case within the
+# device's tolerance (kD3d12SelftestRelTol) of the CPU backend's q8 vec_dot —
+# gate A (#312); D2a measured against ggml's dequantizers — and the decode
+# (ncols=1) cases at >= 100 GB/s packed (GPU timestamps; the CPU-side q8
+# quantization shows in the end-to-end bench, not here).
 #
 # Prerequisites: CI MSVC package (unified or llamacpp) installed on Series S.
 # Usage:
@@ -82,11 +85,11 @@ import csv, sys
 rows = list(csv.DictReader(open(sys.argv[1])))
 bad = [r for r in rows if r["ok"] != "1" or r["d3d12_ran"] != "1"]
 slow = [r for r in rows if r["ncols"] == "1" and float(r["packed_gbs"]) < 100.0]
-print(f"--- D2a gate: {len(rows) - len(bad)}/{len(rows)} cases correct; "
+print(f"--- selftest gate: {len(rows) - len(bad)}/{len(rows)} cases correct; "
       f"{len(slow)} decode case(s) under 100 GB/s ---")
 for r in bad:
     print(f"FAIL {r['type']} n={r['n']} k={r['k']} ncols={r['ncols']} rel_err={r['rel_err']} {r['error']}")
 for r in slow:
     print(f"SLOW {r['type']} n={r['n']} k={r['k']} gbs={r['packed_gbs']}")
-print("D2a=" + ("PASS" if rows and not bad and not slow else "FAIL"))
+print("GATE=" + ("PASS" if rows and not bad and not slow else "FAIL"))
 PY

@@ -5,6 +5,8 @@
 
 #include "xllama/ggml_d3d12.h"
 
+#include "ggml-cpu.h"
+
 #include <cmath>
 #include <cstdint>
 #include <random>
@@ -27,7 +29,9 @@ D3d12MatmulDesc decode_desc(ggml_type t, std::int64_t n, std::int64_t k) {
 }
 
 // Max |emulated - reference| / max |reference| for one type and shape, with
-// padded activation/output strides. Reference: ggml's own dequantizer, double sums.
+// padded activation/output strides. Reference: the CPU backend's own path —
+// activations quantized by the vec_dot type's from_float (q8_0 / q8_K), then
+// ggml's vec_dot. The kernels must match it, not exact f32 (#312).
 double emulate_rel_err(ggml_type t, int n, int k, int ncols, std::size_t x_pad, std::size_t y_pad) {
     std::mt19937 rng(42u + static_cast<unsigned>(n * 7 + k + ncols));
     std::uniform_real_distribution<float> uni(-1.f, 1.f);
@@ -47,17 +51,19 @@ double emulate_rel_err(ggml_type t, int n, int k, int ncols, std::size_t x_pad, 
     std::vector<float> y(y_stride * ncols, -7.f);
     d3d12_mmv_emulate(t, q.data(), row_bytes, x.data(), x_stride, y.data(), y_stride, n, k, ncols);
 
-    const auto* traits = ggml_get_type_traits(t);
-    std::vector<float> wrow(static_cast<std::size_t>(k));
+    ggml_cpu_init(); // fp16 tables used by the CPU vec_dot kernels
+    const auto* wt = ggml_get_type_traits_cpu(t);
+    const auto* xt = ggml_get_type_traits_cpu(wt->vec_dot_type);
+    std::vector<std::uint8_t> xq(ggml_row_size(wt->vec_dot_type, k));
     double max_ref = 0.0, max_diff = 0.0;
-    for (int r = 0; r < n; ++r) {
-        traits->to_float(q.data() + r * row_bytes, wrow.data(), k);
-        for (int c = 0; c < ncols; ++c) {
-            double acc = 0.0;
-            for (int i = 0; i < k; ++i)
-                acc += static_cast<double>(wrow[i]) * x[c * x_stride + i];
-            max_ref = std::max(max_ref, std::fabs(acc));
-            max_diff = std::max(max_diff, std::fabs(acc - y[c * y_stride + r]));
+    for (int c = 0; c < ncols; ++c) {
+        xt->from_float(x.data() + c * x_stride, xq.data(), k);
+        for (int r = 0; r < n; ++r) {
+            float ref = 0.f;
+            wt->vec_dot(k, &ref, 0, q.data() + r * row_bytes, 0, xq.data(), 0, 1);
+            max_ref = std::max(max_ref, std::fabs(static_cast<double>(ref)));
+            max_diff =
+                std::max(max_diff, std::fabs(static_cast<double>(ref) - y[c * y_stride + r]));
         }
     }
     // Output padding untouched.
@@ -150,7 +156,7 @@ TEST_CASE("ggml_d3d12: kernel width follows K (D2a runs 1 and 2)") {
     CHECK(d3d12_mm_threads(11008) == 128); // Coder-3B ffn_down
 }
 
-TEST_CASE("ggml_d3d12: kernel emulation matches ggml dequantizers") {
+TEST_CASE("ggml_d3d12: kernel emulation matches the CPU backend (q8 activations)") {
     struct Case {
         ggml_type t;
         int n, k;
@@ -168,8 +174,8 @@ TEST_CASE("ggml_d3d12: kernel emulation matches ggml dequantizers") {
     for (const auto& c : cases) {
         CAPTURE(ggml_type_name(c.t));
         CAPTURE(c.k);
-        CHECK(emulate_rel_err(c.t, c.n, c.k, 1, 0, 0) <= 1e-4);
-        CHECK(emulate_rel_err(c.t, c.n, c.k, 7, 12, 3) <= 1e-4);
+        CHECK(emulate_rel_err(c.t, c.n, c.k, 1, 0, 0) <= kD3d12SelftestRelTol);
+        CHECK(emulate_rel_err(c.t, c.n, c.k, 7, 12, 3) <= kD3d12SelftestRelTol);
     }
     CHECK(ggml_row_size(GGML_TYPE_Q6_K, 11008) % 4 == 2); // the case the ld32 trick covers
 }
