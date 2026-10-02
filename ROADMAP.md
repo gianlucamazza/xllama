@@ -150,8 +150,9 @@ Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.
       on both gate models: Coder-3B decode 1.60× / prefill 1.27× / peak
       +125–159 MB, LFM2.5-1.2B 1.64× / 1.82× / +156–163 MB, H9 6/8 = 6/8.
       **D3 shipped** (CI `1.6.0.1159`): GPU default for both, catalogue
-      `gpu_layers`. Follow-ups #310 (CPU-side split cost), #313
-      (multi-column prefill).
+      `gpu_layers`. FA fix (CI `1.6.0.1163`): Flash Attention kept on the
+      GPU path, decode 1.90× / 1.88×; #310 closed (CPU side ≈ 9.3 ms/token).
+      Follow-up #313 (multi-column prefill).
 
 ## Phase 8 — Training pillar (exploration) ✅ FROZEN complete
 

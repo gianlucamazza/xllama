@@ -12,6 +12,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   so attention ran unfused, unlike on the CPU-only path. `apply_gguf_gpu_context`
   now requests FA explicitly. The q8-KV fallback restores the requested mode
   instead of AUTO.
+  - Series S (CI 1.6.0.1163), default configuration:
+    - Coder-3B decodes 26.6 tok/s (was 22.6), 1.90× the CPU;
+    - LFM2.5-1.2B decodes 74.8 tok/s (was 65.4), 1.88×;
+    - prefill is 1.65× / 2.35× the CPU, and peak RAM sits +88 / +77 MB over it;
+    - H9 6/8 on both, and `validate-console.sh all` passes.
 
 - **GGUF GPU decode D3: on by default for Qwen2.5-Coder-3B and LFM2.5-1.2B**
   (#228).

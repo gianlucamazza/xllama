@@ -12,7 +12,8 @@
 with q8 activations passes every product criterion on both gate models:
 decode 1.60× (Coder-3B) and 1.64× (LFM2.5-1.2B), H9 parity, peak within
 200 MB of the CPU. **D3 shipped**: both run on d3d12 by default
-([gguf-gpu-decode.md](gguf-gpu-decode.md)). Before: H6.3 K3, own `rows` Q4_K
+([gguf-gpu-decode.md](gguf-gpu-decode.md)). The FA fix (Flash Attention kept
+on the GPU path) brings decode to 1.90× / 1.88×. Before: H6.3 K3, own `rows` Q4_K
 GEMV **143.06 GB/s packed** (2026-10-01). Earlier: 2026-08-08. Attack order: **W2 closed for product default**
 (console M3 FAIL ≥1.4× gate → stays opt-in OFF); **W3 gpubw M6 PASS** —
 Series S STREAM **119.07 GB/s** (checksum_ok, 1 GiB) ≥ 100 GB/s kill → **H6 eng
