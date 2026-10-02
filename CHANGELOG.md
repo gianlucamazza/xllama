@@ -7,6 +7,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **GGUF GPU decode D3: on by default for Qwen2.5-Coder-3B and LFM2.5-1.2B**
+  (#228).
+  - A catalogue entry can set `gpu_layers`; both models now run their
+    matmuls on the d3d12 backend, and their display names say GPU.
+    `resolve_gguf_gpu_layers` is the one decision point for the GUI and the
+    LAN API; the operator file `gguf_gpu_layers.txt` still overrides it (`0`
+    forces the CPU).
+  - Series S (CI 1.6.0.1159):
+    - Coder-3B at its catalogue `n_ctx` 4096 decodes 1.60×, peak +150 MB;
+    - default-configuration `validate-console.sh all` passes;
+    - H9 is unchanged.
+  - Other GGUF models stay on the CPU.
+
 - **GGUF GPU decode D2-r2 = PASS** (#228). Series S, CI 1.6.0.1156, opt-in
   backend `d3d12`, every layer on the GPU:
   - Coder-3B: decode 1.60×, prefill 1.27×, peak +159 / +125 MB;

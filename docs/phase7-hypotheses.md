@@ -417,8 +417,7 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   token 21.16 ms with CPU sync. D2 (2026-10-02) = FAIL on peak RAM and
   Coder-3B H9. D2-r2 (CI `1.6.0.1156`): **the claim holds** — 1.60×
   (Coder-3B) and 1.64× (LFM2.5-1.2B) over CPU t6, with H9 parity and peak
-  within 200 MB of the CPU. GGUF decode ships on the CPU until the D3
-  per-model default. Small-model GPU decode via ORT
+  within 200 MB of the CPU. D3 ships it as the default for both models (other GGUF models stay on the CPU). Small-model GPU decode via ORT
   DML remains falsified; STREAM only shows raw VRAM bandwidth our D3D12 code
   can reach.
 

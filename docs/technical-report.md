@@ -64,8 +64,7 @@ Three hypotheses died against these numbers:
    its gates live in [gguf-gpu-decode.md](gguf-gpu-decode.md). **2026-10-02:**
    D2 failed on peak RAM and Coder-3B H9. D2-r2 (q8 activations, leaner
    memory) passes on Coder-3B and LFM2.5-1.2B, with decode 1.60–1.64× over the
-   CPU. Shipping decode stays on the CPU until D3 decides the per-model
-   default.
+   CPU. D3 (same day) made it the default for both; other GGUF models stay on the CPU.
    **#91 interlude (2026-07-16 → 2026-07-19).** The logit-parity harness
    showed the DML text path computes numerically wrong logits on the Series S
    GPU (NMSE ~1 vs the CPU reference, top-1 disagrees; fp16 AND int4;

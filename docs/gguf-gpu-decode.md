@@ -8,12 +8,14 @@
 > [benchmarks.md](benchmarks.md). Platform limits are only in
 > [uwp-constraints.md](uwp-constraints.md).
 
-**Status (2026-10-02):** D1 = `D2-matmul-only`; D2a = PASS; D2 = FAIL (peak
+**Status (2026-10-02): D3 shipped.** Qwen2.5-Coder-3B and LFM2.5-1.2B decode
+on the d3d12 backend by default (catalogue `gpu_layers`); other GGUF models
+stay on the CPU. History: D1 = `D2-matmul-only`; D2a = PASS; D2 = FAIL (peak
 RAM, Coder-3B H9). **D2-r2 = PASS** on both gate models (q8 activations,
 one-copy tied embedding, smaller compute reserve, zero-size ops kept on the
 GPU; CI `1.6.0.1156`): Coder-3B decodes 1.60× and LFM2.5-1.2B 1.64×. Next is
-D3, the per-model default. Until then the backend is opt-in
-(`gguf_gpu_layers.txt`) and GGUF decode ships on the CPU.
+D3, the per-model default (done; see below). `gguf_gpu_layers.txt` remains
+the operator override.
 
 ## Why
 
@@ -440,6 +442,21 @@ LFM2.5-1.2B. LFM2.5-350M and smaller stay on the CPU.
 - The same package must pass H9 via the LAN API, and the log must show the
   layers on D3D12 for the chosen models only.
 
+**D3 result (2026-10-02, CI `1.6.0.1159`): shipped.**
+
+- **Coder-3B at its catalogue `n_ctx` 4096**
+  (`bench/results/2026-10-02-d3-coder-ctx4096.csv`): decode 1.60×, prefill
+  1.28–1.35×, peak +150 / +126 MB. PASS.
+- **Default configuration, no knob:**
+  - `validate-console.sh all` ALL PASS;
+  - H9 via the LAN API (`2026-10-02-d3-default-h9.jsonl`): Coder-3B 6/8,
+    LFM2.5-1.2B 6/8, LFM2.5-350M 4/8, the same as the CPU.
+- **Placement**, on a clean log with one request per model: LFM2.5-350M
+  loaded on the CPU, LFM2.5-1.2B and Coder-3B on D3D12 (660 / 1834 MiB in
+  `D3D12_Weights`).
+- **Override:** with `gguf_gpu_layers.txt` set to `0`, LFM2.5-1.2B loaded on
+  the CPU.
+
 ## Decision log
 
 | Date       | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -453,3 +470,4 @@ LFM2.5-1.2B. LFM2.5-350M and smaller stay on the CPU.
 | 2026-10-02 | **D2-r2** (CI `1.6.0.1148`): LFM2.5-1.2B **PASS** (decode 1.62×, prefill 1.81×, peak +163/+156 MB, H9 6/8 = 6/8, validate PASS) → D3 candidate. Coder-3B **FAIL** on RAM only (+220 MB at P ≈ 1000; decode 1.55×, H9 6/8 = 6/8) → CPU default; the lever left is lazy commit of the GPU compute buffer (#309).                                                                                                                                                                                                                                                                                                                              |
 | 2026-10-02 | **Review fix before merge** (CI `1.6.0.1155`). `n_outputs_max = 1` made llama.cpp abort on any batch asking for more rows: prompt-lookup verify batches and embedding sessions with GPU layers. The cap is now 1 + draft with prompt lookup and llama.cpp's default for embeddings. On console, prompt lookup with GPU layers drafted 44 and accepted 31, and `/api/embed` with the knob passed 17 live requests. Prefill and decode keep 1, so the D2-r2 numbers stand (Coder-3B g99 rerun: 22.4 tok/s, 2203 MB). The selftest now times a median of 5 runs, after a single sample swung 78–109 GB/s; it passes 14/14, GET_ROWS bit-exact. |
 | 2026-10-02 | **D2-r2 = PASS** (CI `1.6.0.1156`): Coder-3B decode 1.60×, prefill 1.27×, peak +159/+125 MB; LFM2.5-1.2B 1.64× / 1.82×, +163/+156 MB. H9 6/8 = 6/8 on both, validate ALL PASS with the knob and without. Coder-3B's +220 MB on `1.6.0.1148` was zero-column ops refused by `supports_op`, which made the scheduler copy weights to the CPU; fixed. Next: D3.                                                                                                                                                                                                                                                                                |
+| 2026-10-02 | **D3 shipped** (CI `1.6.0.1159`): catalogue `gpu_layers` + `resolve_gguf_gpu_layers` (the operator file overrides; `0` forces the CPU). Qwen2.5-Coder-3B (re-measured at `n_ctx` 4096: decode 1.60×, peak +150/+126 MB) and LFM2.5-1.2B run on d3d12 by default. Default-configuration validate ALL PASS, H9 unchanged, placement checked per model. Follow-ups #310 #313.                                                                                                                                                                                                                                                                  |
