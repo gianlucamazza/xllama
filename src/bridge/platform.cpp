@@ -97,6 +97,29 @@ std::size_t peak_working_set_mb() noexcept {
 #endif
 }
 
+std::size_t working_set_mb() noexcept {
+#ifdef XLLAMA_UWP
+    PROCESS_MEMORY_COUNTERS pmc{};
+    if (K32GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc)))
+        return pmc.WorkingSetSize / (1024 * 1024);
+    return 0;
+#else
+    FILE* fp = std::fopen("/proc/self/status", "r");
+    if (!fp)
+        return 0;
+    char line[256];
+    std::size_t kb = 0;
+    while (std::fgets(line, sizeof(line), fp)) {
+        if (std::strncmp(line, "VmRSS:", 6) == 0) {
+            kb = static_cast<std::size_t>(std::strtoul(line + 6, nullptr, 10));
+            break;
+        }
+    }
+    std::fclose(fp);
+    return kb / 1024;
+#endif
+}
+
 std::size_t avail_phys_mb() noexcept {
 #ifdef XLLAMA_UWP
     MEMORYSTATUSEX ms{};

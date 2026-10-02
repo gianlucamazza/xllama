@@ -389,13 +389,14 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     }
 
     llama_model_params mparams = llama_model_default_params();
-    const int gpu_layers = apply_gguf_gpu_layers(params.n_gpu_layers, mparams);
+    const int gpu_layers = apply_gguf_gpu_layers(params.n_gpu_layers, mparams, abs_model_path);
     res.gpu_layers = gpu_layers;
 
     if (params.on_status)
         params.on_status("loading model");
 
     llama_model* raw_model = llama_model_load_from_file(abs_model_path.c_str(), mparams);
+    log_gguf_ws("after model load");
     if (!raw_model) {
         res.error_msg = "failed to load model: " + abs_model_path;
         log_output("[xllama] " + res.error_msg + "\n");
@@ -472,6 +473,7 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         return res;
     }
     LlamaContextPtr ctx(raw_ctx);
+    log_gguf_ws("after context");
     cpu_pools.attach(gpu_layers, ctx.get(), static_cast<int>(cparams.n_threads),
                      static_cast<int>(cparams.n_threads_batch));
 

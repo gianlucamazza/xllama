@@ -7,6 +7,7 @@
 #pragma once
 
 #include "ggml-cpu.h"
+#include "gguf.h"
 #include "llama.h"
 #include "xllama/ggml_d3d12.h"
 #include "xllama/platform.h"
@@ -28,15 +29,43 @@ inline void gguf_gpu_log(ggml_log_level level, const char* text, void*) {
         log_output(std::string("[llama] ") + text);
 }
 
+// Working set at a load stage, for every GGUF load: the CPU and d3d12 runs log
+// the same stages, so a peak difference can be attributed (#309).
+inline void log_gguf_ws(const char* stage) {
+    log_output(std::string("[xllama] ws ") + stage + ": " + std::to_string(working_set_mb()) +
+               " MB\n");
+}
+
+// token_embd's type and whether the model has its own output.weight, read from
+// the GGUF header only (no tensor data). False when the header cannot be read.
+inline bool gguf_embedding_info(const std::string& path, ggml_type* embd_type, bool* has_output) {
+    gguf_init_params gp = {};
+    gp.no_alloc = true;
+    gp.ctx = nullptr;
+    gguf_context* g = gguf_init_from_file(path.c_str(), gp);
+    if (!g)
+        return false;
+    const int64_t embd = gguf_find_tensor(g, "token_embd.weight");
+    const bool ok = embd >= 0;
+    if (ok) {
+        *embd_type = gguf_get_tensor_type(g, embd);
+        *has_output = gguf_find_tensor(g, "output.weight") >= 0;
+    }
+    gguf_free(g);
+    return ok;
+}
+
 // Sets mparams.devices / n_gpu_layers and returns the layers actually
 // offloaded: 0 when none were asked for or the device is unavailable, in
 // which case the model loads exactly as before (CPU, no GPU device listed).
-inline int apply_gguf_gpu_layers(int requested, llama_model_params& mparams) {
+inline int apply_gguf_gpu_layers(int requested, llama_model_params& mparams,
+                                 const std::string& model_path) {
     static ggml_backend_dev_t no_devices[] = {nullptr};
     mparams.n_gpu_layers = 0;
     mparams.devices = no_devices;
     if (requested <= 0)
         return 0;
+    log_gguf_ws("before d3d12");
     if (!ggml_d3d12_register()) {
         log_output("[xllama] gguf gpu layers: d3d12 backend unavailable, using the CPU\n");
         return 0;
@@ -53,6 +82,21 @@ inline int apply_gguf_gpu_layers(int requested, llama_model_params& mparams) {
     // Keep it out of the CPU *weight* list: weights left on the CPU stay in the
     // CPU / repack bufts exactly as on a CPU-only load.
     mparams.no_host = true;
+    // A tied token_embd also serves as the lm_head: llama.cpp would keep the
+    // input copy on the CPU and duplicate it into D3D12_Weights (244 MiB on
+    // Coder-3B). Placing it in D3D12_Weights, where GET_ROWS also runs, leaves
+    // one copy: the duplicate finds the original in the same buffer context.
+    ggml_type embd_type = GGML_TYPE_COUNT;
+    bool has_output = true;
+    if (gguf_embedding_info(model_path, &embd_type, &has_output) &&
+        d3d12_place_tied_embedding(embd_type, has_output)) {
+        static llama_model_tensor_buft_override embd_on_gpu[] = {{"^token_embd\\.weight$", nullptr},
+                                                                 {nullptr, nullptr}};
+        embd_on_gpu[0].buft = ggml_d3d12_weights_buft();
+        mparams.tensor_buft_overrides = embd_on_gpu;
+        log_output("[xllama] gguf gpu layers: tied token_embd in D3D12_Weights\n");
+    }
+    log_gguf_ws("after d3d12 init");
     llama_log_set(gguf_gpu_log, nullptr);
     log_output("[xllama] gguf gpu layers: " + std::to_string(requested) + " on D3D12\n");
     return requested;

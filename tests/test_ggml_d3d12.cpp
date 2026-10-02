@@ -9,6 +9,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <random>
 #include <string>
 #include <vector>
@@ -209,7 +210,7 @@ TEST_CASE("ggml_d3d12: selftest CSV and non-Windows behaviour") {
 
 TEST_CASE("ggml_d3d12: GPU-layer request maps to llama params") {
     llama_model_params mp = llama_model_default_params();
-    CHECK(apply_gguf_gpu_layers(0, mp) == 0);
+    CHECK(apply_gguf_gpu_layers(0, mp, "") == 0);
     CHECK(mp.n_gpu_layers == 0);
     CHECK_FALSE(mp.no_host); // a CPU load keeps llama's default weight bufts
     REQUIRE(mp.devices != nullptr);
@@ -225,8 +226,103 @@ TEST_CASE("ggml_d3d12: GPU-layer request maps to llama params") {
 #if !defined(_WIN32)
     // No D3D12 on Linux: a request falls back to the CPU load unchanged.
     mp = llama_model_default_params();
-    CHECK(apply_gguf_gpu_layers(99, mp) == 0);
+    CHECK(apply_gguf_gpu_layers(99, mp, "") == 0);
     CHECK(mp.n_gpu_layers == 0);
     CHECK(mp.devices[0] == nullptr);
 #endif
+}
+
+TEST_CASE("ggml_d3d12: GET_ROWS emulation equals ggml's Q6_K dequantizer bit for bit (#309)") {
+    const int k = 2304, rows = 9; // 1890-byte rows: odd rows start 2-byte aligned
+    std::mt19937 rng(7u);
+    std::uniform_real_distribution<float> uni(-1.f, 1.f);
+    std::vector<float> wf(static_cast<std::size_t>(rows) * k);
+    for (float& v : wf)
+        v = uni(rng);
+    const std::size_t row_bytes = ggml_row_size(GGML_TYPE_Q6_K, k);
+    std::vector<std::uint8_t> q(row_bytes * rows + 8);
+    ggml_quantize_chunk(GGML_TYPE_Q6_K, wf.data(), q.data(), 0, rows, k, nullptr);
+    const std::int32_t ids[] = {3, 0, 8, 3, 5};
+    const std::size_t y_stride = static_cast<std::size_t>(k) + 5;
+    std::vector<float> y(y_stride * 5, -7.f);
+    d3d12_get_rows_emulate(GGML_TYPE_Q6_K, q.data(), row_bytes, ids, 5, k, y.data(), y_stride);
+    std::vector<float> ref(static_cast<std::size_t>(k));
+    for (int i = 0; i < 5; ++i) {
+        ggml_get_type_traits(GGML_TYPE_Q6_K)
+            ->to_float(q.data() + ids[i] * row_bytes, ref.data(), k);
+        int mismatches = 0;
+        for (int j = 0; j < k; ++j)
+            mismatches += y[i * y_stride + j] != ref[j] ? 1 : 0;
+        CAPTURE(i);
+        CHECK(mismatches == 0);
+        for (std::size_t p = k; p < y_stride; ++p)
+            CHECK(y[i * y_stride + p] == -7.f);
+    }
+}
+
+TEST_CASE("ggml_d3d12: GET_ROWS rules and tied-embedding placement") {
+    D3d12GetRowsDesc d;
+    d.src0_type = GGML_TYPE_Q6_K;
+    d.ne00 = 2048;
+    d.ne01 = 151936;
+    d.ne10 = 512;
+    d.src0_in_weight_buffer = true;
+    CHECK(d3d12_get_rows_supported(d));
+    D3d12GetRowsDesc t = d;
+    t.src0_in_weight_buffer = false;
+    CHECK_FALSE(d3d12_get_rows_supported(t));
+    t = d;
+    t.src0_type = GGML_TYPE_Q8_0;
+    CHECK_FALSE(d3d12_get_rows_supported(t));
+    t = d;
+    t.src1_type = GGML_TYPE_I64;
+    CHECK_FALSE(d3d12_get_rows_supported(t));
+    t = d;
+    t.ne11 = 2; // batched ids
+    CHECK_FALSE(d3d12_get_rows_supported(t));
+    t = d;
+    t.ne00 = 2080;
+    CHECK_FALSE(d3d12_get_rows_supported(t));
+
+    CHECK(d3d12_place_tied_embedding(GGML_TYPE_Q6_K, /*has_output_weight=*/false));
+    CHECK_FALSE(d3d12_place_tied_embedding(GGML_TYPE_Q6_K, /*has_output_weight=*/true));
+    CHECK_FALSE(d3d12_place_tied_embedding(GGML_TYPE_Q8_0, false));
+#if !defined(_WIN32)
+    CHECK(ggml_d3d12_weights_buft() == nullptr);
+#endif
+}
+
+TEST_CASE("llama_gpu: token_embd type and tie read from the GGUF header") {
+    auto write = [](const char* path, bool tied) {
+        ggml_init_params ip = {};
+        ip.mem_size = 4 * ggml_tensor_overhead();
+        ip.no_alloc = true;
+        ggml_context* ctx = ggml_init(ip);
+        gguf_context* g = gguf_init_empty();
+        ggml_tensor* e = ggml_new_tensor_2d(ctx, GGML_TYPE_Q6_K, 256, 4);
+        ggml_set_name(e, "token_embd.weight");
+        gguf_add_tensor(g, e);
+        if (!tied) {
+            ggml_tensor* o = ggml_new_tensor_2d(ctx, GGML_TYPE_Q6_K, 256, 4);
+            ggml_set_name(o, "output.weight");
+            gguf_add_tensor(g, o);
+        }
+        const bool ok = gguf_write_to_file(g, path, /*only_meta=*/true);
+        gguf_free(g);
+        ggml_free(ctx);
+        return ok;
+    };
+    const std::string tied = "test_llama_gpu_tied.gguf", untied = "test_llama_gpu_untied.gguf";
+    REQUIRE(write(tied.c_str(), true));
+    REQUIRE(write(untied.c_str(), false));
+    ggml_type t = GGML_TYPE_COUNT;
+    bool has_output = true;
+    REQUIRE(gguf_embedding_info(tied, &t, &has_output));
+    CHECK(t == GGML_TYPE_Q6_K);
+    CHECK_FALSE(has_output);
+    REQUIRE(gguf_embedding_info(untied, &t, &has_output));
+    CHECK(has_output);
+    CHECK_FALSE(gguf_embedding_info("no-such-file.gguf", &t, &has_output));
+    std::remove(tied.c_str());
+    std::remove(untied.c_str());
 }

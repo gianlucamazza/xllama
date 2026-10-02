@@ -29,6 +29,9 @@ void log_output(const std::string& msg) noexcept;
 // Peak working-set size in MB. Returns 0 on platforms where it is unavailable.
 std::size_t peak_working_set_mb() noexcept;
 
+// Current working-set size in MB (Linux: VmRSS). 0 where unavailable.
+std::size_t working_set_mb() noexcept;
+
 // Physical memory still available to the process, in MB (0 if unavailable).
 // UWP: GlobalMemoryStatusEx (available in PARTITION_APP). Linux: MemAvailable.
 // This is the denominator the GGUF path spends against — weights are read into
