@@ -8,9 +8,11 @@
 > workstream status, and decision log** so those pages do not grow a second
 > narrative table.
 
-**Currency:** 2026-10-01 — **H6.3 K3**: own `rows` Q4_K GEMV median
-**143.06 GB/s packed** on Series S (WS-E / H6.3); next is a GGUF GPU decode
-_design_, not a backend. Earlier: 2026-08-08. Attack order: **W2 closed for product default**
+**Currency:** 2026-10-02 — **WS-E D2 = FAIL**: the opt-in ggml backend
+`d3d12` decodes 1.59× (Coder-3B) / 1.58× (LFM2.5-1.2B) over CPU t6, but peak
+RAM and Coder-3B H9 fail the predeclared gate; default stays CPU
+([gguf-gpu-decode.md](gguf-gpu-decode.md)). Before: H6.3 K3, own `rows` Q4_K
+GEMV **143.06 GB/s packed** (2026-10-01). Earlier: 2026-08-08. Attack order: **W2 closed for product default**
 (console M3 FAIL ≥1.4× gate → stays opt-in OFF); **W3 gpubw M6 PASS** —
 Series S STREAM **119.07 GB/s** (checksum_ok, 1 GiB) ≥ 100 GB/s kill → **H6 eng
 motivated**.
@@ -320,7 +322,7 @@ own predeclared gate; SessionHub and the CPU default are unchanged.
 
 - #210 W2 prompt-lookup — **closed** (eng opt-in shipped; product default OFF after M3)
 - #211 W3 gpubw gate — **closed PASS** (119.07 GB/s); PR #227
-- #228 H6 eng follow-up — **K3** after H6.3 (`rows` console median 143.06 GB/s packed); decode design and D1 gates in [gguf-gpu-decode.md](gguf-gpu-decode.md)
+- #228 H6 eng follow-up — **K3** after H6.3 (`rows` console median 143.06 GB/s packed); D2 = FAIL (opt-in backend, decode 1.59×; peak RAM and Coder-3B H9 fail) in [gguf-gpu-decode.md](gguf-gpu-decode.md); follow-ups #309 #310 #312 #313
 - #130 DML max_length valley — **closed** product-mitigated 2026-08-08
 - #216 kvsnap save race — **closed** PR #232 (`all` ×6)
 - #223 thinking-tier completion — **closed** PR #234 (`thinkdone` + n_predict 1024)

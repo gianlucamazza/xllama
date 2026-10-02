@@ -61,8 +61,9 @@ Three hypotheses died against these numbers:
    **2026-10-01 note.** This verdict is about DirectML. Our own D3D12 Q4_K
    kernel reads packed weights at 143 GB/s (H6.3) and a simulated 3B decode
    token costs 21 ms of GPU matmul + sync (D1); the GGUF GPU decode design and
-   its gates live in [gguf-gpu-decode.md](gguf-gpu-decode.md). That is a
-   design, not a decode result: shipping decode is still CPU.
+   its gates live in [gguf-gpu-decode.md](gguf-gpu-decode.md). **2026-10-02:**
+   the opt-in backend decodes 1.59× / 1.58× over CPU on Coder-3B / LFM2.5-1.2B,
+   but D2 fails on peak RAM and Coder-3B H9, so shipping decode is still CPU.
    **#91 interlude (2026-07-16 → 2026-07-19).** The logit-parity harness
    showed the DML text path computes numerically wrong logits on the Series S
    GPU (NMSE ~1 vs the CPU reference, top-1 disagrees; fp16 AND int4;
