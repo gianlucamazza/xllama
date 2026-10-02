@@ -34,7 +34,7 @@ appear in the consolidated comparison.
 - **CSV schema**: `model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,run_index,prefill_ms,ttft_ms`
 
   `backend` is `cpu` or `d3d12` for llama.cpp rows (`d3d12` = GGUF layers on
-  the opt-in d3d12 backend, host tag `-gN`) and `ort-genai-cpu` /
+  the d3d12 backend, host tag `-gN`) and `ort-genai-cpu` /
   `ort-genai-dml` for ORT rows. `-noeog` in `host` means the run decoded
   exactly `n_predict` tokens (`--ignore-eog`).
 

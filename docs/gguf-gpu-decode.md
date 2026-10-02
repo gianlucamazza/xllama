@@ -1,9 +1,9 @@
 # GGUF GPU decode — design, gates and verdicts
 
 > **SSOT for the GGUF GPU decode design** (H6 follow-up, #228): architecture,
-> cost model, predeclared gates D1/D2 and their verdicts. Kernel evidence lives
-> in [phase15-re-opt.md](phase15-re-opt.md) (WS-E / H6.3). The gate tables
-> here are the verdict evidence of an opt-in path, read from the CSVs in
+> cost model, predeclared gates (D1, D2, D2-r2, D3, FA) and their verdicts.
+> Kernel evidence lives in [phase15-re-opt.md](phase15-re-opt.md) (WS-E /
+> H6.3). The gate tables here are verdict evidence, read from the CSVs in
 > `bench/results/` (listed in `bench/README.md`); shipped defaults stay in
 > [benchmarks.md](benchmarks.md). Platform limits are only in
 > [uwp-constraints.md](uwp-constraints.md).
