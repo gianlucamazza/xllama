@@ -106,8 +106,9 @@ applied to the stateless path),
 `gpustep.cpp` (GGUF GPU decode probe D1 driver),
 `d3d12_compute.cpp` (shared D3D12 device, buffers, root signature and fence
 helpers for the GPU probes and the d3d12 backend; Windows-only, empty on Linux),
-`ggml_d3d12.cpp` (ggml backend `d3d12`, D2: Q4_0/Q4_K/Q6_K MUL_MAT on D3D12;
-llama builds only, the pure rules and kernel emulation also build on Linux).
+`ggml_d3d12.cpp` (ggml backend `d3d12`: Q4_0/Q4_K/Q6_K MUL_MAT with q8
+activations and Q6_K GET_ROWS on D3D12; llama builds only, the pure rules and
+kernel emulation also build on Linux).
 
 ## Inference backends and runtime dispatch
 

@@ -36,9 +36,12 @@ A **ggml backend `d3d12`**, owned by xllama (`src/bridge/`, not the
   `n_gpu_layers` (already `SessionParams::n_gpu_layers`, default 0). The
   scheduler runs an op where its weight lives; weights of a type the backend
   does not support (Q5_K, Q8_0, …) stay on the CPU through
-  `weight_buft_supported`. `token_embd` / `GET_ROWS` are always CPU.
-- **Kernels:** the H6.3 `rows` shape (64 threads × 4 rows, X in registers) per
-  weight type: Q4_K and Q4_0 (same density, 0.5625 B/weight) and Q6_K (tied
+  `weight_buft_supported`. `token_embd` / `GET_ROWS` are CPU, except a tied
+  Q6_K embedding since D2-r2 (one copy in `D3D12_Weights`, `GET_ROWS` on the
+  GPU).
+- **Kernels:** the H6.3 `rows` shape (64 threads × 4 rows; since D2-r2 the
+  activations are q8 and the dot is integer, `dot4add_i8packed`) per weight
+  type: Q4_K and Q4_0 (same density, 0.5625 B/weight) and Q6_K (tied
   `lm_head` of every target model, `attn_v`/`ffn_down` on Q4_K_M
   `use_more_bits` layers).
 - **Device:** the system D3D12 runtime via `d3d12_dyn`, never the Agility
@@ -193,6 +196,15 @@ device registered with `ggml_backend_register()`:
   needs 8 chunks in flight, short K starves them (D2a runs 1 and 2).
 - **`graph_compute`**: root constants + root SRV/UAVs per matmul, one submit,
   spin fence; the call returns with the work done.
+- **Since D2-r2:**
+  - each matmul input is quantized on the CPU by ggml's `from_float` (q8_0
+    or q8_K) into a CPU-visible scratch; a matmul reading another matmul's
+    output in the same batch waits for that batch;
+  - `GET_ROWS` (Q6_K) runs for a tied `token_embd`;
+  - `llama_gpu.h` caps `n_outputs_max` at what the context requests (1, or
+    1 + draft with prompt lookup).
+  - The selftest compares MUL_MAT with the CPU backend (rel ≤ 1e-5) and
+    GET_ROWS bit for bit.
 
 **D2a gate (console selftest `d3d12be.flag`, `scripts/bench-d3d12-selftest.sh`,
 predeclared):** every type × shape (`{n, k}` from Coder-3B and LFM2.5 tensors,
