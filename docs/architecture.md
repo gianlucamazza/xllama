@@ -591,10 +591,10 @@ in [training-architecture.md §11](training-architecture.md). Pad steps:
 [using-the-app.md](using-the-app.md). Headless harness remains `train.flag` /
 `validate-console-training.sh device-train`.
 
-FloppyLM (Tiny GPT / `floppy_4mb` class, native CPU QAT) is an **official
-research objective**, not a shipped lane and not a rewrite of A/B/C.
-Status and limits: [floppylm.md](floppylm.md). Engine: draft
-[PR #301](https://github.com/gianlucamazza/xllama/pull/301), not `main`.
+FloppyLM is not an xllama training lane and not a rewrite of A/B/C.
+[PR #301](https://github.com/gianlucamazza/xllama/pull/301) closed without
+merge on 2026-10-01; this tree has no FloppyLM engine. Status:
+[floppylm.md](floppylm.md).
 
 ## Inference surfaces: in scope vs deferred
 
@@ -856,4 +856,4 @@ args so recorded blobs are not rebuilt by a different dxc release).
 - v1.0 narrative snapshot → [technical-report.md](technical-report.md)
 - **Training SSOT** → [training-architecture.md](training-architecture.md)
 - Training ops → [training/README.md](../training/README.md)
-- FloppyLM experiment (not shipped) → [floppylm.md](floppylm.md)
+- FloppyLM (not an engine in this repo) → [floppylm.md](floppylm.md)

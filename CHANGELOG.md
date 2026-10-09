@@ -123,13 +123,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   G1 PASS 3/3; `wave32` reproduces H6.2 at 25.12. Measure-only: no Session
   GPU backend, no tok/s claim. CSV `bench/results/phase15-gpugemv-h63.csv`.
 
-- **FloppyLM experiment (docs only).** Official research / experimentation
-  objective: extreme-compression Tiny GPT (`floppy_4mb` class), full-model
-  QAT, native Linux + Xbox CPU training beyond Lane B. SSOT
-  [`docs/floppylm.md`](docs/floppylm.md); milestones in `ROADMAP.md`.
-  Implementation remains draft
-  [PR #301](https://github.com/gianlucamazza/xllama/pull/301) — not merged,
-  not released, no quality or speed claim.
+- **FloppyLM experiment (docs only).** Extreme-compression Tiny GPT
+  (`floppy_4mb` class) is not an xllama engine. SSOT
+  [`docs/floppylm.md`](docs/floppylm.md); checklist in `ROADMAP.md`.
+  [PR #301](https://github.com/gianlucamazza/xllama/pull/301) closed without
+  merge on 2026-10-01; this repository keeps no FloppyLM engine. No quality
+  or speed claim.
 - **llama.cpp `b29c606` → `7fe450e`** (#295, upstream 0.5.0). Host: greedy
   output and final-prefill logits of QAD `lfm25-350m` and `lfm25-1.2b-instruct`
   are bit-identical to the old pin; 264/264 doctest cases. Series S (CI package

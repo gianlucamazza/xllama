@@ -1,18 +1,17 @@
-# FloppyLM — official research / experimentation objective
+# FloppyLM — not pursued in this repository
 
-> **SSOT for the FloppyLM experiment.** This page records the _goal_, the
-> honest limits, and the current status. It does **not** ship an engine, a
+> **SSOT for xllama's relationship to FloppyLM.** This page records the
+> decision and the historical objective. It does **not** ship an engine, a
 > quality score, or a tok/s number.
 >
 > Product training lanes A/B/C stay in
 > [training-architecture.md](training-architecture.md). Module map:
 > [architecture.md](architecture.md). Checklist:
-> [`../ROADMAP.md`](../ROADMAP.md) (FloppyLM experimentation). Implementation
-> lives on draft [PR #301](https://github.com/gianlucamazza/xllama/pull/301)
-> (`feat/floppylm-training`) and is **not** on `main`.
+> [`../ROADMAP.md`](../ROADMAP.md) (FloppyLM experimentation).
 
-**Currency:** 2026-09-30. Official experiment goal. Draft PR only. No merge,
-no release, no E0 campaign, and no quality or speed claim.
+**Currency:** 2026-10-01. Closed here. No FloppyLM runtime on `main`, no
+resume of [PR #301](https://github.com/gianlucamazza/xllama/pull/301), and no
+quality or speed claim.
 
 ## What it is
 
@@ -20,8 +19,8 @@ FloppyLM is a **Tiny GPT** research line aimed at an extreme compression
 budget of the `floppy_4mb` class: a model and codec small enough that the
 weights themselves are the experiment, not a catalogue chat tier.
 
-The intended native path (Linux host CLI and Xbox UWP, **shared C++**, no
-Python on device) is:
+The native path drafted for this repository (Linux host CLI and Xbox UWP,
+**shared C++**, no Python on device) was:
 
 - a complete CPU training graph (every parameter, not a last-block subset)
 - scalar codecs at **ternary / 2-bit / 4-bit**
@@ -30,10 +29,18 @@ Python on device) is:
 - export to a counted **FLP2** artifact (inference-only weights, distinct
   from native resume checkpoints)
 
-That path is the design on [PR #301](https://github.com/gianlucamazza/xllama/pull/301).
-Until that PR merges, none of it is a `main` product surface.
+That design lived only on
+[PR #301](https://github.com/gianlucamazza/xllama/pull/301)
+(`feat/floppylm-training`), closed without merge on 2026-10-01. It is not a
+`main` product surface, and this repository does not resume it.
 
-## Why it exists
+Ownership is [floppylm ADR 0012](https://github.com/gianlucamazza/floppylm/blob/main/docs/adr/0012-repo-boundaries.md)
+(accepted 2026-10-01): the floppylm repository owns semantics, FLP2 and
+contracts; [xbox-gpu-training](https://github.com/gianlucamazza/xbox-gpu-training)
+is the only native training backend. A second native backend requires a
+superseding ADR there.
+
+## Why the draft existed
 
 xllama already has a training pillar:
 
@@ -43,8 +50,8 @@ xllama already has a training pillar:
 | **B** Device partial FT | In-process ggml-opt on a **filtered** tensor subset | Last-block class; not every parameter; not the FloppyLM codec/QAT/WSD/FLP2 contract |
 | **C** Serve             | Load merged GGUF / runtime LoRA                     | Inference only                                                                      |
 
-FloppyLM is **not** Lane D and is **not** a rewrite of A/B/C. It is a
-separate experiment whose point is to demonstrate, under the limits below:
+FloppyLM is **not** Lane D and is **not** a rewrite of A/B/C. The draft's
+point was to demonstrate, under the limits below:
 
 1. **Extreme compression** at the `floppy_4mb` budget (scalar low-bit
    codecs, not a second catalogue backend).
@@ -54,68 +61,69 @@ separate experiment whose point is to demonstrate, under the limits below:
    Xbox UWP — **without Python inside the MSIX**, going beyond Lane B's
    partial fine-tune.
 
-The shipping product remains local inference for games and assistants
-([positioning.md](positioning.md)). FloppyLM does not change that thesis.
+That work left this repository on 2026-10-01. The shipping product remains
+local inference for games and assistants
+([positioning.md](positioning.md)). Lanes A/B/C are unchanged.
 
-## What we want to prove
+## What the draft set out to prove
 
-Capabilities, not leaderboard wins. The experiment is a success only if
-each claim is backed by measured evidence in the owning homes
-(`bench/results/` → [benchmarks.md](benchmarks.md) when a number is
-published; this file for status). Until then, the targets are:
+Capabilities, not leaderboard wins. These targets are **not** milestones of
+this repository after the boundary. This file does not publish measurements.
 
 - A Tiny GPT at the `floppy_4mb` compression class can be **trained
-  natively** (QAT + WSD isolated cooldowns + FLP2 export) on the shared
-  Linux/UWP CPU engine.
+  natively** (QAT + WSD isolated cooldowns + FLP2 export).
 - That path is **honestly bounded**: ≤16M parameters, CPU only, cumulative
   experimental wall budget of 8 hours, no Python in the MSIX.
 - Console evidence uses an exact Windows/MSVC CI package and live Xbox
   validation — a Linux-green draft is not a Series S result.
 - Optional later: a **public comparison** against peer Tiny-GPT toys
-  (below). Comparison is a future milestone, not a present claim.
+  (below). Comparison was a draft milestone, not a present claim, and it is
+  not an xllama milestone.
 
 Do not invent tok/s, H9 scores, loss tables, or “FloppyLM beats X”.
-Functional correctness on the draft PR is not an acceleration or
-scientific-quality claim.
+Functional checks on the closed PR are not an acceleration or
+scientific-quality claim, and they are not on `main`.
 
 ## Known limits
 
-These are part of the experiment, not temporary footnotes:
+These bounds belonged to the draft. They are not a live engine in this tree:
 
-| Limit                             | Meaning                                                                                                       |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| **≤16M parameters**               | Tiny GPT class. Not a 350M–3B catalogue model and not Lane B on those sizes.                                  |
-| **CPU only**                      | Shared host + UWP CPU graph. No GPU / DirectML FloppyLM training.                                             |
-| **8-hour cumulative wall budget** | Experimental compute budget across the campaign, not a per-run SLA and not a speed claim.                     |
-| **No Python in the MSIX**         | Host preparation may use an independent reference; the console path must not require Python/PyTorch.          |
-| **Experimental until gates pass** | Linux CTest/parity on the draft PR is not a merge, not a release, and not Xbox validation.                    |
-| **Not a shipped lane**            | Lanes A/B/C in [training-architecture.md](training-architecture.md) are unchanged. FloppyLM is not on `main`. |
+| Limit                             | Meaning                                                                                                           |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **≤16M parameters**               | Tiny GPT class. Not a 350M–3B catalogue model and not Lane B on those sizes.                                      |
+| **CPU only**                      | The rejected draft was a shared host + UWP CPU graph. No GPU / DirectML FloppyLM training here.                   |
+| **8-hour cumulative wall budget** | Experimental compute budget across the campaign, not a per-run SLA and not a speed claim.                         |
+| **No Python in the MSIX**         | Host preparation may use an independent reference; a console path must not require Python/PyTorch.                |
+| **Closed here**                   | Linux checks on #301 are not a merge, not a release, and not Xbox validation in this repository.                  |
+| **Not a shipped lane**            | Lanes A/B/C in [training-architecture.md](training-architecture.md) are unchanged. No FloppyLM runtime on `main`. |
 
 Non-goals (same honesty as the training pillar): no pretraining of
 catalogue SLMs on Xbox, no Python/PyTorch inside the package, no quality
-or speed headline before measured evidence.
+or speed headline before measured evidence in the repository that owns the
+experiment.
 
-## Current status (2026-09-30)
+## Current status (2026-10-01)
 
-Status is **draft implementation, not shipped**.
+Status is **closed in this repository**. xllama keeps inference and lanes
+A/B/C. It does not keep a FloppyLM engine.
 
-| Fact                            | State                                                                                                                                                                                                          |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Implementation PR               | Draft [PR #301](https://github.com/gianlucamazza/xllama/pull/301) on `feat/floppylm-training`. **Open, not merged.**                                                                                           |
-| Linux validation                | Described as **green** on that PR (CTest / parity). That evidence lives on the PR, not on `main`.                                                                                                              |
-| Windows / MSVC CI package       | **In progress.** Not a product or measurement package yet.                                                                                                                                                     |
-| Live Xbox / Series S validation | **In progress.** No console campaign result is published.                                                                                                                                                      |
-| ADRs 0004 / 0005                | Exist **on the PR branch** (`docs/adr/0004-floppylm-training.md`, `docs/adr/0005-floppylm-numeric-validation.md`). They are **not on `main`** until #301 merges. Do not treat them as accepted tree ADRs here. |
-| Merge / release / E0 campaign   | **Not done.** The PR body states no merge, release, E0 campaign, or scientific quality/speed claim.                                                                                                            |
-| This repository (`main`)        | Documentation of the _objective_ only (this file + ROADMAP). No FloppyLM runtime.                                                                                                                              |
+| Fact                     | State                                                                                                                                                                           |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Decision                 | 2026-10-01. [floppylm ADR 0012](https://github.com/gianlucamazza/floppylm/blob/main/docs/adr/0012-repo-boundaries.md) accepted. This repository contains no FloppyLM logic.     |
+| Implementation PR        | [PR #301](https://github.com/gianlucamazza/xllama/pull/301) on `feat/floppylm-training`. **Closed without merge.** The branch stays on the remote as history. Do not reopen it. |
+| Linux validation         | The PR description called CTest / parity green. That evidence stays on the closed PR, not on `main`.                                                                            |
+| Windows / MSVC and Xbox  | Stopped with the close. This repository publishes no FloppyLM console campaign.                                                                                                 |
+| ADRs 0004 / 0005         | On the historical branch only (`docs/adr/0004-floppylm-training.md`, `docs/adr/0005-floppylm-numeric-validation.md`). They are not accepted ADRs of this tree.                  |
+| Owning repositories      | floppylm: semantics, FLP2, contracts, scientific gates. xbox-gpu-training: the only native backend.                                                                             |
+| This repository (`main`) | This page and the ROADMAP checklist. No FloppyLM runtime.                                                                                                                       |
 
-For implementation detail, read the PR. For accepted-on-`main` training
-contracts, stay on [training-architecture.md](training-architecture.md).
+For accepted-on-`main` training contracts, stay on
+[training-architecture.md](training-architecture.md).
 
-## Peer context (comparison targets only)
+## Peer context (historical orientation only)
 
-These are **future comparison targets**, not baselines we claim to beat
-and not dependencies of the xllama product:
+These were **comparison targets of the draft**, not baselines this
+repository claims to beat and not dependencies of the xllama product:
 
 - [Le Chaton Floppe](https://github.com/Pondsiders/le-chaton-floppe) —
   a language model that fits on a floppy (peer experiment).
@@ -124,15 +132,15 @@ and not dependencies of the xllama product:
 - **TinyStories-scale toys** — the well-known small-story training size
   class, not a catalogue quality bar and not a single repo.
 
-A public comparison against those peers is an **optional later milestone**
-in [`../ROADMAP.md`](../ROADMAP.md). It requires measured evidence on both
-sides. Until then, naming them here is orientation only.
+A public comparison against those peers is not an xllama milestone. Naming
+them here is orientation only.
 
 ## See also
 
-- Draft implementation: [PR #301](https://github.com/gianlucamazza/xllama/pull/301)
+- Closed draft, history only: [PR #301](https://github.com/gianlucamazza/xllama/pull/301)
+- Boundary: [floppylm ADR 0012](https://github.com/gianlucamazza/floppylm/blob/main/docs/adr/0012-repo-boundaries.md)
 - Training pillar (shipped lanes A/B/C): [training-architecture.md](training-architecture.md)
 - Training ops: [`../training/README.md`](../training/README.md)
 - Platform ceilings: [uwp-constraints.md](uwp-constraints.md) §13
 - Product intent: [positioning.md](positioning.md)
-- Experiment checklist: [`../ROADMAP.md`](../ROADMAP.md)
+- Checklist: [`../ROADMAP.md`](../ROADMAP.md)

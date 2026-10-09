@@ -28,11 +28,10 @@ supersedes the "training execution stays host-only" default**: an in-process
 engine runs fully on the console, `available` with host + console marker-gate
 evidence (2026-07-20: peak_ws 1195 MB, wall 446 s).
 
-**FloppyLM** is a separate official research objective (extreme-compression
-Tiny GPT + native full-model QAT). It is **not** a fourth shipped lane and
-does **not** change A/B/C below. SSOT and status:
-[floppylm.md](floppylm.md). Implementation is draft
-[PR #301](https://github.com/gianlucamazza/xllama/pull/301), not `main`.
+**FloppyLM** is not a fourth shipped lane and does **not** change A/B/C
+below. [PR #301](https://github.com/gianlucamazza/xllama/pull/301) closed
+without merge on 2026-10-01; this repository keeps no FloppyLM engine.
+Status: [floppylm.md](floppylm.md).
 
 ## 1. Why a training pillar
 
@@ -403,4 +402,4 @@ Protocol SSOT: [api-endpoint.md](api-endpoint.md).
 - [uwp-constraints.md](uwp-constraints.md) §13
 - [training/README.md](../training/README.md)
 - [ROADMAP.md](../ROADMAP.md) Phases 8–11; FloppyLM experimentation
-- [floppylm.md](floppylm.md) — official FloppyLM experiment (not shipped on `main`)
+- [floppylm.md](floppylm.md) — FloppyLM is not an xllama engine (closed here 2026-10-01)

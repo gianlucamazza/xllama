@@ -84,32 +84,32 @@ performance belongs in `docs/benchmarks.md`.
 - [ ] Cross-platform comparison and leaderboard, only after homogeneous
       multi-device evidence exists.
 
-## FloppyLM experimentation (official research objective)
+## FloppyLM experimentation (closed here, 2026-10-01)
 
-SSOT: [`docs/floppylm.md`](docs/floppylm.md). Goal: prove extreme
-`floppy_4mb`-class compression, full-model QAT, and a native Linux + Xbox
-UWP CPU training path (no Python on device) **beyond** Lane B partial-FT.
-This is **not** a shipped training lane and does **not** rewrite Phases
-8–11. Implementation is draft
-[PR #301](https://github.com/gianlucamazza/xllama/pull/301)
-(`feat/floppylm-training`). No tok/s, quality score, merge, release, or
-E0 campaign is claimed here.
+SSOT: [`docs/floppylm.md`](docs/floppylm.md). The extreme-compression Tiny
+GPT experiment is **not** a shipped training lane and does **not** rewrite
+Phases 8–11. On 2026-10-01
+[PR #301](https://github.com/gianlucamazza/xllama/pull/301) was closed
+without merge. Semantics and contracts live in
+[floppylm ADR 0012](https://github.com/gianlucamazza/floppylm/blob/main/docs/adr/0012-repo-boundaries.md);
+[xbox-gpu-training](https://github.com/gianlucamazza/xbox-gpu-training) is
+the only native backend. This repository keeps no FloppyLM engine. No
+tok/s, quality score, or E0 campaign is claimed here.
 
-- [~] Linux host CTest / parity — **green on draft PR #301** (per that
-  PR's description). Not on `main` until #301 merges.
-- [ ] Windows / MSVC CI package — **in progress** on #301. Not a product
-      or measurement package yet.
-- [ ] Live Xbox / Series S validation — **in progress**; no published
-      console campaign.
-- [ ] Merge [PR #301](https://github.com/gianlucamazza/xllama/pull/301)
-      when gates plus owner/review allow. Do not merge from this checklist
-      alone; the PR stays draft until then.
-- [ ] First **publishable** quality / speed results — only after measured
-      evidence under `bench/results/` and the usual summary pipeline.
-      Functional correctness is not a scientific claim.
-- [ ] Optional public comparison vs peer Tiny-GPT toys (Le Chaton Floppe,
-      Soul Player C64, TinyStories-scale). Comparison targets only; no
-      “beats X” claim until both sides are measured.
+- [x] Linux host CTest / parity — described as green on #301. That evidence
+      stays on the closed PR, not on `main`.
+- [x] Windows / MSVC CI package — stopped with the close. Not a product or
+      measurement package of this repository.
+- [x] Live Xbox / Series S validation — stopped with the close. No FloppyLM
+      console campaign is published from this repository.
+- [x] [PR #301](https://github.com/gianlucamazza/xllama/pull/301) — **closed
+      without merge**. Branch `feat/floppylm-training` remains as history.
+      Do not resume it here.
+- [x] Publishable quality / speed results — not a milestone of this
+      repository. Functional checks on the closed PR are not a scientific
+      claim.
+- [x] Public comparison vs peer Tiny-GPT toys — not a milestone of this
+      repository. No “beats X” claim.
 
 ## Phase 7 — Peer-class model research
 
