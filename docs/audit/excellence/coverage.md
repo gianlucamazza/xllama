@@ -89,5 +89,5 @@ hashes were not captured; they are not included in the proof.
 | Long-duration soak, network exhaustion and exhaustive fuzzing           | NOT TESTED | Bounded negative probes only; no blanket robustness or security certification                                                                                                   |
 
 Private backups, original owner files and full device logs stay under
-`/home/gianluca/diagnostics/xllama-excellence-20260930/`, outside version control.
+`~/diagnostics/xllama-excellence-20260930/`, outside version control.
 Only synthetic trial evidence and sanitized summaries belong in this report.

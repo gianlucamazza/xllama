@@ -1,6 +1,6 @@
 register_backend: registered backend CPU (1 devices)
 register_device: registered device CPU (11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz)
-llama_model_loader: loaded meta data with 38 key-value pairs and 148 tensors from /home/gianluca/diagnostics/xllama-excellence-20260930/weights/LFM2.5-350M-QAD-Q4_0.gguf (version GGUF V3 (latest))
+llama_model_loader: loaded meta data with 38 key-value pairs and 148 tensors from ~/diagnostics/xllama-excellence-20260930/weights/LFM2.5-350M-QAD-Q4_0.gguf (version GGUF V3 (latest))
 llama_model_loader: Dumping metadata keys/values. Note: KV overrides do not apply in this output.
 llama_model_loader: - kv   0:                       general.architecture str              = lfm2
 llama_model_loader: - kv   1:                               general.type str              = model
