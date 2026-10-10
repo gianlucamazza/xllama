@@ -47,4 +47,4 @@ to suppress it.
 -- xllama: xllama-cli target configured — build with: cmake --build . -j
 -- Configuring done (7.6s)
 -- Generating done (0.7s)
--- Build files have been written to: /home/gianluca/Workspace/tooling/xllama-excellence-audit/build/linux-asan
+-- Build files have been written to: <repo>/build/linux-asan

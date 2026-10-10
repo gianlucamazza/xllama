@@ -71,11 +71,11 @@
 [ 51%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-quant.cpp.o
 [ 51%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-sampler.cpp.o
 [ 54%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/llama-vocab.cpp.o
-/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/src/llama-vocab.cpp: In constructor ‘llama_vocab::llama_vocab()’:
-/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/src/llama-vocab.cpp:3927:50: warning: ‘<unknown>’ may be used uninitialized [-Wmaybe-uninitialized]
+<repo>/llama.cpp/src/llama-vocab.cpp: In constructor ‘llama_vocab::llama_vocab()’:
+<repo>/llama.cpp/src/llama-vocab.cpp:3927:50: warning: ‘<unknown>’ may be used uninitialized [-Wmaybe-uninitialized]
  3927 | llama_vocab::llama_vocab() : pimpl(new impl(*this)) {
       |                                                  ^
-/home/gianluca/Workspace/tooling/xllama-excellence-audit/llama.cpp/src/llama-vocab.cpp:1865:5: note: by argument 2 of type ‘const llama_vocab&’ to ‘llama_vocab::impl::impl(const llama_vocab&)’ declared here
+<repo>/llama.cpp/src/llama-vocab.cpp:1865:5: note: by argument 2 of type ‘const llama_vocab&’ to ‘llama_vocab::impl::impl(const llama_vocab&)’ declared here
  1865 |     impl(const llama_vocab & vocab) : vocab(vocab) {
       |     ^~~~
 [ 54%] Building CXX object llama.cpp/src/CMakeFiles/llama.dir/unicode-data.cpp.o
@@ -166,7 +166,7 @@ to suppress it.
 -- xllama: xllama-cli target configured — build with: cmake --build . -j
 -- Configuring done (1.4s)
 -- Generating done (0.8s)
--- Build files have been written to: /home/gianluca/Workspace/tooling/xllama-excellence-audit/build/linux-asan
+-- Build files have been written to: <repo>/build/linux-asan
 [  7%] Built target ggml-base
 [ 25%] Built target ggml-cpu
 [ 28%] Built target ggml

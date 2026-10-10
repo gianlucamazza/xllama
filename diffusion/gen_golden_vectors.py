@@ -17,7 +17,7 @@
 #
 #   ~/.cache/xllama-diffusion/venv310/bin/python diffusion/gen_golden_vectors.py \
 #       [sd_onnx_dir] [out.json]
-import sys, json
+import os, sys, json
 import numpy as np
 from transformers import CLIPTokenizer
 from diffusers import EulerDiscreteScheduler
@@ -25,7 +25,7 @@ from diffusers import EulerDiscreteScheduler
 SD_DIR = (
     sys.argv[1]
     if len(sys.argv) > 1
-    else "/home/gianluca/.cache/xllama-diffusion/sd-turbo-onnx"
+    else os.path.expanduser("~/.cache/xllama-diffusion/sd-turbo-onnx")
 )
 OUT = sys.argv[2] if len(sys.argv) > 2 else "diffusion/golden_vectors.json"
 

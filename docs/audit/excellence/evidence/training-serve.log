@@ -1,5 +1,5 @@
 === Training serve: merged GGUF on console ===
-  artifact: /home/gianluca/Workspace/tooling/xllama-excellence-audit/training/out/smollm2-360m-marker/merged-Q4_K_M.gguf (259M)
+  artifact: <repo>/training/out/smollm2-360m-marker/merged-Q4_K_M.gguf (259M)
   uploading model + manifest override...
   Waiting for autopilot-done.txt (timeout 900s)...
   Done after 10s.

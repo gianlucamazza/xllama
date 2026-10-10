@@ -47,4 +47,4 @@ to suppress it.
 -- xllama: xllama-cli target configured — build with: cmake --build . -j
 -- Configuring done (2.7s)
 -- Generating done (0.1s)
--- Build files have been written to: /home/gianluca/Workspace/tooling/xllama-excellence-audit/build/linux-test
+-- Build files have been written to: <repo>/build/linux-test

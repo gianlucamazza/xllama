@@ -15,7 +15,7 @@
 #
 # vae_dir (optional): directory holding an alternative vae_decoder/model.onnx
 # (e.g. a TAESD export) — validates a decoder swap against the same contract.
-import sys, time
+import os, sys, time
 import numpy as np
 import onnxruntime as ort
 from transformers import CLIPTokenizer
@@ -24,7 +24,7 @@ from diffusers import EulerDiscreteScheduler
 model_dir = (
     sys.argv[1]
     if len(sys.argv) > 1
-    else "/home/gianluca/.cache/xllama-diffusion/sd-turbo-ort-fp16"
+    else os.path.expanduser("~/.cache/xllama-diffusion/sd-turbo-ort-fp16")
 )
 out_png = sys.argv[2] if len(sys.argv) > 2 else "sd_turbo_pipeline.png"
 prompt = (

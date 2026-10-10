@@ -1,8 +1,8 @@
 Traceback (most recent call last):
-  File "/home/gianluca/Workspace/tooling/xllama-excellence-audit/scripts/validate-model-writer.py", line 209, in <module>
+  File "<repo>/scripts/validate-model-writer.py", line 209, in <module>
     main()
     ~~~~^^
-  File "/home/gianluca/Workspace/tooling/xllama-excellence-audit/scripts/validate-model-writer.py", line 180, in main
+  File "<repo>/scripts/validate-model-writer.py", line 180, in main
     assert (code == 200 and body.get("status") == "success") or (
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
         code == 409 and isinstance(body.get("error"), str)

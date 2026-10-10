@@ -32,4 +32,4 @@
 }
   evidence: peak_ws=1196 MB wall=444.805s
 Device train: PASS (merged GGUF at LocalState\training\out\device-marker\merged.gguf)
-(follow-up: point a catalogue manifest at it and run '/home/gianluca/Workspace/tooling/xllama-excellence-audit/scripts/validate-console-training.sh serve' semantics to chat the marker)
+(follow-up: point a catalogue manifest at it and run '<repo>/scripts/validate-console-training.sh serve' semantics to chat the marker)
