@@ -46,6 +46,20 @@ appear in the consolidated comparison.
   positional compatibility with older bench scripts. They do not establish
   thermal equilibrium by themselves.
 
+  A hung or timed-out run is recorded explicitly. `bench-xbox-ort.sh` no longer
+  skips a timeout and exits 0 with fewer rows than requested (the 2026-10-11
+  LFM2-2.6B run 4 failure: 2 of 3 measurement rows, `rc=0`). The harness writes
+  a row whose `host` carries `-timeout`, `-stall`, or `-hung`, then exits
+  non-zero. `scripts/generate-benchmark-summary.py` ignores those hosts so a
+  hang cannot enter a median. The in-app watchdog (default 180 s of no prefill
+  or decode progress; 0 disables) logs the phase and position and writes
+  `inference-stall.txt` so the last log line identifies where the run stuck.
+  Cadence and timeout are portable: CLI flags, env vars
+  (`XLLAMA_DECODE_PROGRESS_EVERY`, `XLLAMA_DECODE_PROGRESS_MS`,
+  `XLLAMA_INFER_STALL_TIMEOUT_S`, `XLLAMA_BENCH_TIMEOUT_S`), and optional
+  `bench_stall_timeout.txt` / `bench_decode_progress_every.txt` /
+  `bench_decode_progress_ms.txt`. See `include/xllama/inference_progress.h`.
+
   A headline throughput claim also requires the exact model file size and
   quantization, fixed context/prompt/sampling settings, one discarded warm-up,
   and at least three recorded runs after a stable thermal state. Report the
@@ -98,7 +112,10 @@ source ~/.config/xllama/xbox-env
 records GPU engine/memory telemetry on DML rows. `--ctx N` and `--n-predict N`
 override the engine defaults (2048 / 512) via `bench_ctx.txt` / `bench_npredict.txt`;
 0 keeps the default. `--prompt FILE` and `--out FILE` select the prompt and the
-results CSV.
+results CSV. `--timeout S` (or `XLLAMA_BENCH_TIMEOUT_S`, default 300) is the
+harness wait for `bench-result.csv.done`. `--stall-timeout S`,
+`--decode-progress-every N`, and `--decode-progress-ms MS` upload the in-app
+watchdog / progress knobs.
 
 ### Xbox — prompt-length sweep
 

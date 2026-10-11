@@ -5,9 +5,10 @@
 #pragma once
 
 #include "llama.h"
-#include "xllama/chat_prompt.h" // apply_stop_sequences
-#include "xllama/platform.h"    // log_output
-#include "xllama/speculative.h" // prompt_lookup_draft (#210)
+#include "xllama/chat_prompt.h"        // apply_stop_sequences
+#include "xllama/inference_progress.h" // prefill/decode progress + stall watchdog
+#include "xllama/platform.h"           // log_output
+#include "xllama/speculative.h"        // prompt_lookup_draft (#210)
 
 #include <atomic>
 #include <chrono>
@@ -49,13 +50,18 @@ namespace xllama {
 // coding session's trimmer ceiling is 3846, so a long paste used to kill the
 // process. This is the LOGICAL batch only; the physical ubatch stays at the #172
 // optimum of 512, which is what every published prefill rate was measured on.
-inline bool prefill_chunked(llama_context* ctx, const llama_token* tokens, int n_tokens) {
+inline bool prefill_chunked(llama_context* ctx, const llama_token* tokens, int n_tokens,
+                            InferenceWatchdog* wd = nullptr) {
     const int n_batch = std::max(1, static_cast<int>(llama_n_batch(ctx)));
     for (int off = 0; off < n_tokens; off += n_batch) {
-        llama_batch batch = llama_batch_get_one(const_cast<llama_token*>(tokens) + off,
-                                                std::min(n_batch, n_tokens - off));
+        if (wd && wd->aborted())
+            return false;
+        const int chunk = std::min(n_batch, n_tokens - off);
+        llama_batch batch = llama_batch_get_one(const_cast<llama_token*>(tokens) + off, chunk);
         if (llama_decode(ctx, batch) != 0)
             return false;
+        if (wd)
+            wd->note_prefill_chunk(off + chunk);
     }
     return true;
 }
@@ -102,6 +108,9 @@ struct DecodeLoopParams {
     // activations vs d3d12 f32) reach EOG at different points, and a decode
     // tok/s over a handful of tokens is noise (D2b). Default off.
     bool ignore_eog = false;
+
+    // Optional stall watchdog / decode-progress logger. Shared with prefill.
+    InferenceWatchdog* watchdog = nullptr;
 };
 
 struct DecodeLoopResult {
@@ -253,6 +262,8 @@ inline DecodeLoopResult decode_loop(const DecodeLoopParams& p, std::string& outp
     while (out.n_generated < p.n_predict) {
         if (p.abort_flag && p.abort_flag->load())
             break;
+        if (p.watchdog && p.watchdog->aborted())
+            break;
 
         llama_token token = llama_sampler_sample(p.sampler, p.ctx, -1);
         if (detail::stops_at_eog(p, token)) {
@@ -273,6 +284,8 @@ inline DecodeLoopResult decode_loop(const DecodeLoopParams& p, std::string& outp
             if (!detail::classic_step(p, token, output_text, out, stop, decode_ok))
                 break;
         }
+        if (p.watchdog)
+            p.watchdog->on_decode_token(out.n_generated);
         if (out.n_generated >= p.n_predict)
             break;
 
@@ -431,6 +444,8 @@ inline DecodeLoopResult decode_loop(const DecodeLoopParams& p, std::string& outp
                 break;
             }
         }
+        if (p.watchdog)
+            p.watchdog->on_decode_token(out.n_generated);
         // All drafts accepted: logits after the last draft are ready for -1.
     }
     return out;

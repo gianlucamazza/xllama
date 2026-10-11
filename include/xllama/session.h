@@ -119,6 +119,16 @@ struct GenerateParams {
     std::function<void(std::string_view)> on_token;
     std::function<void(const std::string&)> on_status;
     std::atomic<bool>* abort_flag = nullptr;
+
+    int decode_log_every_n = kDefaultDecodeLogEveryN;
+    int decode_log_every_ms = kDefaultDecodeLogEveryMs;
+    int stall_timeout_s = kDefaultInferStallTimeoutS;
+
+    InferenceProgressConfig progress() const {
+        InferenceProgressConfig cfg{decode_log_every_n, decode_log_every_ms, stall_timeout_s};
+        overlay_progress_env(cfg);
+        return cfg;
+    }
 };
 
 // Session owns the loaded model and tokenizer.

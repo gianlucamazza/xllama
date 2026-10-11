@@ -24,11 +24,23 @@ JS_BEGIN = "  // BEGIN GENERATED BENCHMARK DATA"
 JS_END = "  // END GENERATED BENCHMARK DATA"
 
 
+FAILED_HOST_MARKERS = ("-timeout", "-stall", "-hung")
+
+
+def _is_failed_host(row: dict[str, str]) -> bool:
+    host = row.get("host") or ""
+    return any(marker in host for marker in FAILED_HOST_MARKERS)
+
+
 def load_csv(name: str) -> list[dict[str, str]]:
     # `name` is relative to bench/results/ and may include a campaign subdirectory.
     path = RESULTS / name
     with path.open(newline="", encoding="utf-8") as handle:
-        return [row for row in csv.DictReader(handle) if row.get("model", "").strip()]
+        return [
+            row
+            for row in csv.DictReader(handle)
+            if row.get("model", "").strip() and not _is_failed_host(row)
+        ]
 
 
 def _median(values: list[float]) -> float:

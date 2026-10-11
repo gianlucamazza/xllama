@@ -128,7 +128,7 @@ python3 scripts/build-research-package.py --check
 python3 scripts/check-release-metadata.py
 python3 -m unittest tests/test_research_package.py tests/test_xab_contract.py \
   tests/test_release_metadata.py tests/test_release_bundle.py \
-  tests/test_make_shape_gguf.py
+  tests/test_make_shape_gguf.py tests/test_bench_run_status.py
 ```
 
 After the CLI exists, CI validates every `training/jobs/*.json`:
@@ -221,6 +221,7 @@ Load-bearing headers agents usually touch:
 | ------------------------------------ | ---------------------------------------------------- |
 | `session.h` / `session_hub.h`        | `Session` API; the one process-wide resident session |
 | `inference_params.h` / `inference.h` | Params, result, `run_inference`                      |
+| `inference_progress.h`               | Prefill/decode progress logs and stall watchdog      |
 | `routing_policy.h`                   | ORT CPU-vs-DML routing and prompt budget             |
 | `prompt_budget.h`                    | `fit_prompt` — the only token-budget trimmer         |
 | `sampling.h`                         | Sampler defaults shared by CLI, bench, GUI, API      |

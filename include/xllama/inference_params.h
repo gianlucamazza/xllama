@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "xllama/inference_progress.h"
 #include "xllama/sampling.h"
 
 #include <algorithm>
@@ -157,6 +158,17 @@ struct InferenceParams {
 
     /// Atomic flag set from UI thread to request early termination.
     std::atomic<bool>* abort_flag = nullptr;
+
+    /// Decode progress log cadence (tokens). 0 = disable token cadence.
+    int decode_log_every_n = kDefaultDecodeLogEveryN;
+    /// Decode progress log cadence (milliseconds). 0 = disable time cadence.
+    int decode_log_every_ms = kDefaultDecodeLogEveryMs;
+    /// Stall watchdog (seconds). 0 = disable. See inference_progress.h.
+    int stall_timeout_s = kDefaultInferStallTimeoutS;
+
+    InferenceProgressConfig progress() const {
+        return InferenceProgressConfig{decode_log_every_n, decode_log_every_ms, stall_timeout_s};
+    }
 };
 
 /// Resolve the max_length for inference.
@@ -228,6 +240,9 @@ struct InferenceResult {
 
     /// Error description on failure.
     std::string error_msg;
+
+    /// True when the stall watchdog ended the run (see inference_progress.h).
+    bool stalled = false;
 };
 
 } // namespace xllama

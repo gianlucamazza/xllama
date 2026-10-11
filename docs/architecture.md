@@ -50,6 +50,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `manifest_merge.h`                 | `merge_manifest_entries` (per-entry catalogue override)                                                                                        |
 | `membw.h`                          | `measure_membw` (STREAM-style bandwidth probe)                                                                                                 |
 | `inference.h`                      | `run_inference`, `write_bench_csv` — the public inference entry point                                                                          |
+| `inference_progress.h`             | Prefill-done + decode-progress logs and the stall watchdog (`XLLAMA_INFER_STALL_TIMEOUT_S`, default 180 s)                                     |
 | `prompt_budget.h`                  | `fit_prompt` — exact token-budget trimmer (one enforcement point where the tokenizer lives)                                                    |
 | `autopilot.h`                      | `AutopilotAction`, `validate_autopilot_script` — console gate contract (WinRT-free)                                                            |
 | `json_utils.h`                     | `json_escape`, `json_read_string` with `\uXXXX` decode (surrogate pairs) — canonical JSON helpers                                              |
@@ -82,7 +83,8 @@ Bridge sources of note under `src/bridge/`: `session.cpp`, `inference.cpp`,
 `training.cpp`, `device_train.cpp`, `personalize.cpp`, `preference_capture.cpp`,
 `sampler_chain.h` / `ort_sampling.h` (one sampler chain per backend),
 `decode_loop.h` (one prefill and one generation loop, shared by
-`run_inference_llama` and `LlamaSession::generate`),
+`run_inference_llama` and `LlamaSession::generate`; prefill/decode progress
+and the stall watchdog live in `inference_progress.h`),
 `llama_gpu.h` (the one place an `n_gpu_layers` request becomes llama.cpp
 params for the d3d12 backend, plus persistent CPU threadpools for split graphs;
 used by both of the above),
@@ -659,7 +661,7 @@ host Release smoke (quality + peak)
 ## Unit test map (host suite)
 
 One doctest binary, `xllama-tests`, built from `tests/test_*.cpp`. The suite
-is **289 test cases / 8859 assertions** (doctest, without opt-in model checks).
+is **299 test cases / 8859 assertions** (doctest, without opt-in model checks).
 Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 (`llama_raii.h`, `ort_raii.h`, `d3d12_dyn.h`, `catalog_trust.h`).
 
@@ -675,6 +677,7 @@ Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 | `test_chat_prompt.cpp`        | `chat_prompt.h`                                         |
 | `test_cli.cpp`                | `cli.h`                                                 |
 | `test_decode_loop.cpp`        | `decode_loop.h` via `run_inference` (opt-in model)      |
+| `test_inference_progress.cpp` | `inference_progress.h` cadence, stall policy, watchdog  |
 | `test_device_train.cpp`       | `device_train.h`                                        |
 | `test_diffusion.cpp`          | `diffusion/`                                            |
 | `test_diskbw.cpp`             | `diskbw.h`                                              |

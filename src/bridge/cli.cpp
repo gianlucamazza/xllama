@@ -80,6 +80,16 @@ static void print_help(const char* prog) {
                  "      --dimensions <N> Requested embedding dimensions for --embed (0=native)\n"
                  "      --lora <path>    GGUF LoRA adapter (llama.cpp only; runtime load)\n"
                  "      --lora-scale <f> LoRA scale (default: 1.0)\n"
+                 "      --decode-progress-every <N>\n"
+                 "                       Log decode progress every N tokens (default: 64;\n"
+                 "                       0 disables). Also XLLAMA_DECODE_PROGRESS_EVERY\n"
+                 "      --decode-progress-ms <ms>\n"
+                 "                       Log decode progress every T ms (default: 15000;\n"
+                 "                       0 disables). Also XLLAMA_DECODE_PROGRESS_MS\n"
+                 "      --infer-stall-timeout <s>\n"
+                 "                       Abort if prefill/decode makes no progress for S\n"
+                 "                       seconds (default: 180; 0 disables). Also\n"
+                 "                       XLLAMA_INFER_STALL_TIMEOUT_S\n"
                  "  -h, --help           Show this message\n",
                  prog);
 }
@@ -92,6 +102,15 @@ static void print_usage(const char* prog) {
 bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
     optind = 1; // reset getopt_long state for re-entrant use
     opterr = 0; // silence getopt error messages
+
+    // Env first so CLI flags win. Session/UWP apply the same overlay at their edge.
+    {
+        InferenceProgressConfig cfg = out.progress();
+        overlay_progress_env(cfg);
+        out.decode_log_every_n = cfg.decode_log_every_n;
+        out.decode_log_every_ms = cfg.decode_log_every_ms;
+        out.stall_timeout_s = cfg.stall_timeout_s;
+    }
 
     static const struct option long_opts[] = {
         {"model", required_argument, nullptr, 'm'},
@@ -127,6 +146,9 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         {"gpustep", no_argument, nullptr, 26},
         {"gpustep-verdict", required_argument, nullptr, 27},
         {"gpu-layers", required_argument, nullptr, 28},
+        {"decode-progress-every", required_argument, nullptr, 29},
+        {"decode-progress-ms", required_argument, nullptr, 30},
+        {"infer-stall-timeout", required_argument, nullptr, 31},
         {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0}};
 
@@ -234,6 +256,15 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             break;
         case 28:
             out.n_gpu_layers = std::atoi(optarg);
+            break;
+        case 29:
+            out.decode_log_every_n = std::atoi(optarg);
+            break;
+        case 30:
+            out.decode_log_every_ms = std::atoi(optarg);
+            break;
+        case 31:
+            out.stall_timeout_s = std::atoi(optarg);
             break;
         case 'h':
             print_help(argv[0]);

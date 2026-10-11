@@ -250,6 +250,11 @@ void main_loop() {
     // iteration. Echoed into the CSV run_index column so the driver can append
     // every repeat and the summary generator can report a spread. 0 = single run.
     const int bench_run_index = read_local_int("bench_run_index.txt", 0);
+    // Progress / stall watchdog. Missing file (-1) keeps the portable default
+    // (after env overlay); a present 0 disables that knob, same as the CLI.
+    const int bench_decode_every_n = read_local_int("bench_decode_progress_every.txt", -1);
+    const int bench_decode_every_ms = read_local_int("bench_decode_progress_ms.txt", -1);
+    const int bench_stall_timeout = read_local_int("bench_stall_timeout.txt", -1);
 
     // Multi-turn TTFT bench (Stage 2b): if bench_turns.txt is present it holds the
     // turn-2 user prompt; prompt.txt supplies turn 1. Measures the KV-reuse win
@@ -295,6 +300,19 @@ void main_loop() {
     if (bench_ignore_eog != 0) { // after stop_sequences is set, or the stops come back
         params.ignore_eog = true;
         params.stop_sequences.clear();
+    }
+    {
+        ::xllama::InferenceProgressConfig pcfg = params.progress();
+        ::xllama::overlay_progress_env(pcfg);
+        if (bench_decode_every_n >= 0)
+            pcfg.decode_log_every_n = bench_decode_every_n;
+        if (bench_decode_every_ms >= 0)
+            pcfg.decode_log_every_ms = bench_decode_every_ms;
+        if (bench_stall_timeout >= 0)
+            pcfg.stall_timeout_s = bench_stall_timeout;
+        params.decode_log_every_n = pcfg.decode_log_every_n;
+        params.decode_log_every_ms = pcfg.decode_log_every_ms;
+        params.stall_timeout_s = pcfg.stall_timeout_s;
     }
 
     char host_buf[80];

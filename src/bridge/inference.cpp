@@ -208,6 +208,9 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
         if (params.on_status)
             params.on_status("generating");
 
+        InferenceWatchdog wd(params.progress(), params.abort_flag);
+        wd.enter_prefill(static_cast<int>(n_prompt_tok));
+
         // Record wall-clock start BEFORE AppendTokenSequences: measured on-console
         // (0.3.5), the prompt prefill runs inside AppendTokenSequences, not inside
         // the first GenerateNextToken (which returned in ~40 µs). t0 → end of the
@@ -217,6 +220,9 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
 
         // ORT GenAI ≥ 0.7: feed input sequences to generator (not to params)
         oga_check(OgaGenerator_AppendTokenSequences(gen.get(), seqs.get()), "AppendTokenSequences");
+        wd.prefill_done(static_cast<int>(n_prompt_tok), std::chrono::duration<double, std::milli>(
+                                                            std::chrono::steady_clock::now() - t0)
+                                                            .count());
 
         // Logit-parity dump: capture the last prompt-token logits.
         //
@@ -312,7 +318,14 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
         // Consolidated decode loop — handles stop sequences (previously the
         // stateless path silently ignored them), timing, and metrics.
         run_decode_loop_ort(gen.get(), stream.get(), params, res, t0, n_prompt_tok,
-                            params.n_predict);
+                            params.n_predict, &wd);
+        if (wd.stalled()) {
+            res.success = false;
+            res.stalled = true;
+            res.error_msg = wd.stall_error();
+            log_output(("[xllama] " + res.error_msg + "\n").c_str());
+            return res;
+        }
 
         auto t_end = std::chrono::steady_clock::now();
         double elapsed_s = std::chrono::duration<double>(t_end - t0).count();
@@ -530,14 +543,22 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         log_output(("[xllama] " + res.error_msg + "\n").c_str());
         return res;
     }
-    if (!prefill_chunked(ctx.get(), tokens.data(), n_prompt_tokens)) {
-        res.error_msg = "prompt decode failed";
-        log_output("[xllama] prompt decode failed\n");
+    InferenceWatchdog wd(params.progress(), params.abort_flag);
+    wd.enter_prefill(n_prompt_tokens);
+    if (!prefill_chunked(ctx.get(), tokens.data(), n_prompt_tokens, &wd)) {
+        if (wd.stalled()) {
+            res.stalled = true;
+            res.error_msg = wd.stall_error();
+        } else {
+            res.error_msg = "prompt decode failed";
+        }
+        log_output(("[xllama] " + res.error_msg + "\n").c_str());
         return res;
     }
     const double prompt_ms =
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_prompt0)
             .count();
+    wd.prefill_done(n_prompt_tokens, prompt_ms);
 
     // Logit-parity dump: capture the last prefill-token logits (one deterministic
     // forward pass, no autoregressive drift) before any sampling touches them.
@@ -590,6 +611,8 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     dlp.prompt_lookup = params.prompt_lookup;
     dlp.ignore_eog = params.ignore_eog;
     dlp.token_history = params.prompt_lookup ? &gen_history : nullptr;
+    dlp.watchdog = &wd;
+    wd.enter_decode(params.n_predict);
     const DecodeLoopResult dlr = decode_loop(dlp, res.output_text);
     const int n_generated = dlr.n_generated;
     res.ended_with_stop = dlr.ended_with_stop;
@@ -616,6 +639,13 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         res.success = false;
         res.error_msg =
             "speculative KV rewind unsupported (disable --prompt-lookup for this model)";
+        log_output(("[xllama] " + res.error_msg + "\n").c_str());
+        return res;
+    }
+    if (wd.stalled()) {
+        res.success = false;
+        res.stalled = true;
+        res.error_msg = wd.stall_error();
         log_output(("[xllama] " + res.error_msg + "\n").c_str());
         return res;
     }

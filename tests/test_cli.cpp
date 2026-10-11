@@ -47,6 +47,20 @@ TEST_CASE("CLI parsing: missing prompt fails") {
     CHECK_FALSE(xllama::parse_cli_args(argc, const_cast<char**>(argv), params));
 }
 
+TEST_CASE("CLI parsing: progress and stall flags") {
+    const char* argv[] = {"xllama-cli", "-m",
+                          "m.gguf",     "-p",
+                          "hi",         "--decode-progress-every",
+                          "16",         "--decode-progress-ms",
+                          "5000",       "--infer-stall-timeout",
+                          "90"};
+    xllama::InferenceParams params;
+    CHECK(xllama::parse_cli_args(11, const_cast<char**>(argv), params));
+    CHECK(params.decode_log_every_n == 16);
+    CHECK(params.decode_log_every_ms == 5000);
+    CHECK(params.stall_timeout_s == 90);
+}
+
 TEST_CASE("CLI parsing: --prompt-lookup defaults off and opts in") {
     {
         const char* argv[] = {"xllama-cli", "-m", "m.gguf", "-p", "hi"};

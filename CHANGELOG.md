@@ -7,6 +7,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Inference hangs are diagnosable and self-healing.** After the 2026-10-11
+  LFM2-2.6B CPU re-measure hung with the log stuck at `prompt tokens: 298`,
+  both backends now log `prefill starting` / `prefill done` (tokens + ms) and
+  a periodic decode progress line (every 64 tokens or 15 s by default). An
+  optional in-app watchdog aborts if a prefill chunk or decode token makes no
+  progress for 180 s (comfortably above a normal run; 0 disables). Config:
+  `--decode-progress-every`, `--decode-progress-ms`, `--infer-stall-timeout`,
+  `XLLAMA_DECODE_PROGRESS_EVERY`, `XLLAMA_DECODE_PROGRESS_MS`,
+  `XLLAMA_INFER_STALL_TIMEOUT_S`, and the matching `bench_*.txt` files.
+  `bench-xbox-ort.sh` records a hung/timeout/stall row (`host` suffix
+  `-timeout` / `-stall` / `-hung`) and exits non-zero instead of writing 2 of
+  3 rows and returning OK. Harness wait: `--timeout` /
+  `XLLAMA_BENCH_TIMEOUT_S` (default 300).
+
 - **Docs: Series S remeasure on 1.6.0.1163**. Five published comparison rows
   now come from `bench/results/2026-10-11-remeasure-1163/` (3 recorded runs,
   median). New data points, not reproductions of the July rows. July figures

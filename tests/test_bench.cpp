@@ -217,6 +217,33 @@ TEST_CASE("gpu_mem_info: unavailable on non-UWP builds") {
     CHECK(gpu.budget_mb == 0);
 }
 
+TEST_CASE("Bench CSV writer: stalled run writes a tagged row") {
+    auto params = make_params();
+    params.run_index = 4;
+
+    xllama::InferenceResult res;
+    res.success = false;
+    res.stalled = true;
+    res.error_msg = "inference stalled: phase=prefill prompt=0/298 decode=0 after 180s";
+
+    xllama::write_bench_csv(params, res, "linux-test");
+
+    std::string csv_path = xllama::resolve_local_path("bench-result.csv");
+    std::ifstream ifs(csv_path);
+    REQUIRE(ifs.is_open());
+    std::string header, row;
+    std::getline(ifs, header);
+    std::getline(ifs, row);
+    CHECK(header == kExpectedHeader);
+    const std::vector<std::string> f = split_csv(row);
+    REQUIRE(f.size() == split_csv(kExpectedHeader).size());
+    CHECK(f[14] == "linux-test-stall");
+    CHECK(f[16] == "4");
+
+    std::remove(csv_path.c_str());
+    std::remove(xllama::resolve_local_path("bench-result.csv.done").c_str());
+}
+
 TEST_CASE("Bench CSV writer: failed inference skips file") {
     // write_bench_csv early-returns when res.success == false — no file created.
     auto params = make_params();

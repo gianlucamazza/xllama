@@ -23,9 +23,10 @@ struct OgaTokenizerStream;
 
 #include "xllama/ort_raii.h" // oga_check (includes ort_genai_c.h)
 
-#include "xllama/chat_prompt.h" // apply_stop_sequences
-#include "xllama/inference.h"   // InferenceResult
-#include "xllama/platform.h"    // peak_working_set_mb
+#include "xllama/chat_prompt.h"        // apply_stop_sequences
+#include "xllama/inference.h"          // InferenceResult
+#include "xllama/inference_progress.h" // stall watchdog / decode progress
+#include "xllama/platform.h"           // peak_working_set_mb
 
 #include <chrono>
 #include <string_view>
@@ -40,17 +41,21 @@ namespace detail {
 // Params is templated: both InferenceParams (CLI/bench) and GenerateParams
 // (Session/GUI) expose abort_flag, on_token, and stop_sequences.
 template <typename Params>
-inline void run_decode_loop_ort(OgaGenerator* gen, OgaTokenizerStream* stream, const Params& gp,
-                                InferenceResult& res,
-                                std::chrono::steady_clock::time_point t_prefill_start,
-                                int n_prompt_tok, int n_predict_cap) {
+inline void
+run_decode_loop_ort(OgaGenerator* gen, OgaTokenizerStream* stream, const Params& gp,
+                    InferenceResult& res, std::chrono::steady_clock::time_point t_prefill_start,
+                    int n_prompt_tok, int n_predict_cap, InferenceWatchdog* wd = nullptr) {
     auto t_prefill_end = t_prefill_start;
     int n_generated = 0;
     bool stopped_by_seq = false;
     bool first = true;
 
+    if (wd)
+        wd->enter_decode(n_predict_cap);
     while (!OgaGenerator_IsDone(gen)) {
         if (gp.abort_flag && gp.abort_flag->load())
+            break;
+        if (wd && wd->aborted())
             break;
         if (n_predict_cap > 0 && n_generated >= n_predict_cap)
             break;
@@ -77,6 +82,8 @@ inline void run_decode_loop_ort(OgaGenerator* gen, OgaTokenizerStream* stream, c
             }
         }
         ++n_generated;
+        if (wd)
+            wd->on_decode_token(n_generated);
 
         // Stop sequences checked after each full iteration (same as llama.cpp
         // decode_loop.h: the stop-triggering token IS counted).

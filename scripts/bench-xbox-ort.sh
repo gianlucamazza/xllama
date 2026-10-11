@@ -45,6 +45,18 @@
 #                    via bench_prompt_lookup.txt=1. Host column tagged -plookup.
 #                    Off (file deleted) when the flag is absent so a prior on
 #                    run cannot leak into the next.
+#   --timeout S      Harness wait for bench-result.csv.done (default: 300, or
+#                    XLLAMA_BENCH_TIMEOUT_S). A timeout or in-app stall is
+#                    recorded as a CSV row (host suffix -timeout/-stall/-hung)
+#                    and the campaign exits non-zero — a missing run cannot
+#                    look like a clean OK (2026-10-11 LFM2-2.6B run 4).
+#   --stall-timeout S
+#                    In-app watchdog, uploaded as bench_stall_timeout.txt
+#                    (seconds; 0 disables; default is the in-app 180 s).
+#   --decode-progress-every N
+#                    Decode progress log every N tokens (0 disables).
+#   --decode-progress-ms MS
+#                    Decode progress log every T milliseconds (0 disables).
 #
 # Required env: XBOX_IP, XBOX_USER, XBOX_PASS
 #
@@ -72,6 +84,10 @@ GPU_LAYERS=0    # D2b: GGUF layers on the d3d12 backend; 0 = CPU
 IGNORE_EOG=0    # D2b: 1 = decode exactly n_predict tokens
 PROMPT_LOOKUP=0 # 1 = W2 prompt-lookup; #210 A/B knob, GGUF only
 N_RUNS=4        # warmup run 1 dropped; runs 2..N recorded individually (W1.1) → 3 by default
+BENCH_TIMEOUT_S="${XLLAMA_BENCH_TIMEOUT_S:-300}"
+STALL_TIMEOUT_S=""          # empty = in-app default (180); 0 = disable
+DECODE_PROGRESS_EVERY=""    # empty = in-app default (64); 0 = disable
+DECODE_PROGRESS_MS=""       # empty = in-app default (15000); 0 = disable
 PROMPT_FILE=""
 OUT_CSV=""
 GPU_SAMPLE=false
@@ -116,6 +132,22 @@ while [[ $# -gt 0 ]]; do
 		PROMPT_LOOKUP=1
 		shift
 		;;
+	--timeout)
+		BENCH_TIMEOUT_S="${2:?--timeout requires a value}"
+		shift 2
+		;;
+	--stall-timeout)
+		STALL_TIMEOUT_S="${2:?--stall-timeout requires a value}"
+		shift 2
+		;;
+	--decode-progress-every)
+		DECODE_PROGRESS_EVERY="${2:?--decode-progress-every requires a value}"
+		shift 2
+		;;
+	--decode-progress-ms)
+		DECODE_PROGRESS_MS="${2:?--decode-progress-ms requires a value}"
+		shift 2
+		;;
 	--runs)
 		N_RUNS="${2:?--runs requires a value}"
 		shift 2
@@ -150,6 +182,7 @@ done
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DEPLOY="${SCRIPT_DIR}/deploy.sh"
+STATUS_PY="${SCRIPT_DIR}/bench_run_status.py"
 BASE_URL="https://${XBOX_IP}:11443"
 CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
 
@@ -167,6 +200,10 @@ else
 fi
 echo "  max_length: $MAX_LEN_LABEL"
 echo "  Runs:    $N_RUNS (run 1 warmup, dropped from median)"
+echo "  timeout: ${BENCH_TIMEOUT_S}s (harness wait)"
+if [[ -n "$STALL_TIMEOUT_S" ]]; then
+	echo "  stall-timeout: ${STALL_TIMEOUT_S}s (in-app watchdog)"
+fi
 echo "  Xbox:    $XBOX_IP"
 
 # ---------------------------------------------------------------------------
@@ -303,10 +340,15 @@ verify_deleted() {
 	return 1
 }
 
-# Restart app via Device Portal
-restart_app() {
+# Stop the app via Device Portal (hung inference cannot exit itself).
+stop_app() {
 	curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X DELETE \
 		"${BASE_URL}/api/taskmanager/app?package=${PFN}" >/dev/null 2>&1 || true
+}
+
+# Restart app via Device Portal
+restart_app() {
+	stop_app
 	sleep 2
 	local pfamily
 	# shellcheck disable=SC2001
@@ -317,18 +359,55 @@ restart_app() {
 		"${BASE_URL}/api/taskmanager/app?appid=${aumid}" >/dev/null 2>&1 || true
 }
 
-# Wait for bench-result.csv.done (polling)
+# Host label the device would have written, used for harness-authored fail rows.
+bench_host_base() {
+	local host="xbox-series-s"
+	((N_THREADS > 0)) && host+="-t${N_THREADS}"
+	((UBATCH > 0)) && host+="-u${UBATCH}"
+	((KVQ8 != 0)) && host+="-kvq8"
+	((GPU_LAYERS > 0)) && host+="-g${GPU_LAYERS}"
+	((IGNORE_EOG != 0)) && host+="-noeog"
+	((PROMPT_LOOKUP != 0)) && host+="-plookup"
+	printf '%s' "$host"
+}
+
+record_failed_run() {
+	local run="$1" reason="$2"
+	local n_ctx="$N_CTX"
+	((n_ctx > 0)) || n_ctx=2048
+	local row
+	row=$(python3 "${STATUS_PY}" format-row \
+		--model "$MODEL_NAME" \
+		--host "$(bench_host_base)" \
+		--run-index "$run" \
+		--reason "$reason" \
+		--n-ctx "$n_ctx" \
+		--n-threads "$N_THREADS")
+	CSV_ROWS+=("$row")
+	FAILED_RUNS+=("${run}:${reason}")
+	echo "  Recorded ${reason} for run ${run}: ${row}" >&2
+}
+
+# Wait for bench-result.csv.done or inference-stall.txt (polling).
+# Returns 0 on .done, 2 on stall marker, 1 on harness timeout.
 wait_for_done() {
 	local timeout_s="${1:-300}" elapsed=0
 	echo "  Waiting for bench-result.csv.done (timeout ${timeout_s}s)..."
 	while ((elapsed < timeout_s)); do
-		local resp
+		local resp stall
 		resp=$(curl "${CURL_AUTH[@]}" \
 			"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState&filename=bench-result.csv.done" \
 			2>/dev/null) || true
 		if [[ -n "$resp" && "$resp" != *"404"* && "$resp" != *"error"* ]]; then
 			echo "  Done after ${elapsed}s."
 			return 0
+		fi
+		stall=$(curl "${CURL_AUTH[@]}" \
+			"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState&filename=inference-stall.txt" \
+			2>/dev/null) || true
+		if [[ -n "$stall" && "$stall" != *"404"* && "$stall" != *"error"* ]]; then
+			echo "  In-app stall after ${elapsed}s: ${stall}" >&2
+			return 2
 		fi
 		sleep 10
 		((elapsed += 10))
@@ -411,6 +490,15 @@ printf '%d' "$KVQ8" >"${TMPDIR_LOCAL}/bench_kvq8.txt"
 printf '%d' "$GPU_LAYERS" >"${TMPDIR_LOCAL}/bench_gpu_layers.txt"
 printf '%d' "$IGNORE_EOG" >"${TMPDIR_LOCAL}/bench_ignore_eog.txt"
 printf '%d' "$PROMPT_LOOKUP" >"${TMPDIR_LOCAL}/bench_prompt_lookup.txt"
+if [[ -n "$STALL_TIMEOUT_S" ]]; then
+	printf '%d' "$STALL_TIMEOUT_S" >"${TMPDIR_LOCAL}/bench_stall_timeout.txt"
+fi
+if [[ -n "$DECODE_PROGRESS_EVERY" ]]; then
+	printf '%d' "$DECODE_PROGRESS_EVERY" >"${TMPDIR_LOCAL}/bench_decode_progress_every.txt"
+fi
+if [[ -n "$DECODE_PROGRESS_MS" ]]; then
+	printf '%d' "$DECODE_PROGRESS_MS" >"${TMPDIR_LOCAL}/bench_decode_progress_ms.txt"
+fi
 
 # bench.flag — consumed by app on each start; must be re-uploaded per run
 printf 'bench' >"${TMPDIR_LOCAL}/bench.flag"
@@ -419,6 +507,7 @@ printf 'bench' >"${TMPDIR_LOCAL}/bench.flag"
 # Run N_RUNS iterations
 # ---------------------------------------------------------------------------
 declare -a CSV_ROWS=()
+declare -a FAILED_RUNS=()
 
 # Defined before the run loop, not just before the median: each downloaded row is
 # checked against this schema's field count as it arrives (see below).
@@ -439,9 +528,11 @@ for ((run = 1; run <= N_RUNS; run++)); do
 
 	delete_from_localstate "bench-result.csv"
 	delete_from_localstate "bench-result.csv.done"
+	delete_from_localstate "inference-stall.txt"
 	# Confirm the marker is actually gone before starting the app, so wait_for_done
 	# can't return off a stale bench-result.csv.done from the previous run.
 	verify_deleted "bench-result.csv.done"
+	verify_deleted "inference-stall.txt" 5 || true
 	# Remove any leftover bench_turns.txt: main_loop treats its presence as the
 	# KV-reuse bench trigger, which would hijack this standard bench into kv-bench
 	# mode (writes bench-kv-result.csv, never bench-result.csv → this run times out).
@@ -472,13 +563,34 @@ for ((run = 1; run <= N_RUNS; run++)); do
 		delete_from_localstate "bench_prompt_lookup.txt"
 		verify_deleted "bench_prompt_lookup.txt" 5 || true
 	fi
+	if [[ -n "$STALL_TIMEOUT_S" ]]; then
+		upload_to_localstate "${TMPDIR_LOCAL}/bench_stall_timeout.txt"
+	else
+		delete_from_localstate "bench_stall_timeout.txt"
+	fi
+	if [[ -n "$DECODE_PROGRESS_EVERY" ]]; then
+		upload_to_localstate "${TMPDIR_LOCAL}/bench_decode_progress_every.txt"
+	else
+		delete_from_localstate "bench_decode_progress_every.txt"
+	fi
+	if [[ -n "$DECODE_PROGRESS_MS" ]]; then
+		upload_to_localstate "${TMPDIR_LOCAL}/bench_decode_progress_ms.txt"
+	else
+		delete_from_localstate "bench_decode_progress_ms.txt"
+	fi
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_run_index.txt"
 
 	echo "  Starting app..."
 	restart_app
 
-	if ! wait_for_done 300; then
-		echo "  Run $run timed out — skipping." >&2
+	wait_rc=0
+	wait_for_done "$BENCH_TIMEOUT_S" || wait_rc=$?
+	if ((wait_rc != 0)); then
+		reason=timeout
+		((wait_rc == 2)) && reason=stall
+		echo "  Run $run ${reason} — recording failed row and stopping the app." >&2
+		stop_app
+		record_failed_run "$run" "$reason"
 		continue
 	fi
 
@@ -575,8 +687,14 @@ for ((run = 1; run <= N_RUNS; run++)); do
 		fi
 		CSV_ROWS+=("$data_row")
 		echo "  Row: $data_row"
+		got_host=$(awk -F, '{print $15}' <<<"$data_row")
+		if [[ "$got_host" == *"-stall"* || "$got_host" == *"-timeout"* || "$got_host" == *"-hung"* ]]; then
+			FAILED_RUNS+=("${run}:stall")
+			echo "  Device reported a stalled run." >&2
+		fi
 	else
-		echo "  Warning: bench-result.csv empty or missing" >&2
+		echo "  bench-result.csv empty or missing after .done — recording hung run." >&2
+		record_failed_run "$run" "hung"
 	fi
 done
 
@@ -639,6 +757,18 @@ for row in "${ROWS_TO_APPEND[@]}"; do
 	echo "  appended: $row"
 done
 echo "Appended ${#ROWS_TO_APPEND[@]} run(s) to $RESULT_CSV"
+
+check_args=(--n-runs "$N_RUNS" --failed-runs "${#FAILED_RUNS[@]}")
+for row in "${ROWS_TO_APPEND[@]}"; do
+	check_args+=(--row "$row")
+done
+if ! python3 "${STATUS_PY}" check "${check_args[@]}"; then
+	echo "Error: campaign incomplete — hung/timeout/stall runs were recorded and this is not OK." >&2
+	if ((${#FAILED_RUNS[@]} > 0)); then
+		echo "  failed: ${FAILED_RUNS[*]}" >&2
+	fi
+	exit 1
+fi
 
 echo ""
 echo "Done. ${RESULT_CSV} updated."

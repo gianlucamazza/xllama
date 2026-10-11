@@ -33,6 +33,9 @@ Configuration for a single inference call. Used by the CLI, benchmarks, and `run
 | `on_token`            | —          | Callback per generated token                                      |
 | `echo_stdout`         | false      | Stream to stdout (interactive CLI)                                |
 | `abort_flag`          | —          | Atomic flag for early termination                                 |
+| `decode_log_every_n`  | 64         | Log decode progress every N tokens (0 disables)                   |
+| `decode_log_every_ms` | 15000      | Log decode progress every T ms (0 disables)                       |
+| `stall_timeout_s`     | 180        | Abort if prefill/decode makes no progress for S seconds (0=off)   |
 
 Probe flags (require `XLLAMA_BUILD_PROBES=ON`): `run_membw`, `run_diskbw`, `run_gpubw`, `run_gpugemv`, `run_gpustep`, `run_ramceil`; `gpustep_verdict_csv` evaluates a D1 CSV and exits.
 
@@ -58,6 +61,7 @@ Result of an inference call.
 | `n_spec_accepted`  | int         | Speculative accepted                        |
 | `output_text`      | std::string | Generated text                              |
 | `error_msg`        | std::string | Error description on failure                |
+| `stalled`          | bool        | Stall watchdog ended the run                |
 
 ## `xllama::run_inference()`
 

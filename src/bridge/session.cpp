@@ -132,9 +132,9 @@ class OrtSession final : public Session {
     // run_inference_ort (inference.cpp).
     void run_decode(OgaGenerator* gen, OgaTokenizerStream* stream, const GenerateParams& gp,
                     InferenceResult& res, std::chrono::steady_clock::time_point t_prefill_start,
-                    int n_prompt_tok, int n_predict_cap) {
+                    int n_prompt_tok, int n_predict_cap, InferenceWatchdog* wd = nullptr) {
         detail::run_decode_loop_ort(gen, stream, gp, res, t_prefill_start, n_prompt_tok,
-                                    n_predict_cap);
+                                    n_predict_cap, wd);
     }
 
     // Legacy stateless turn: fresh generator, full prompt, destroyed at return.
@@ -180,8 +180,13 @@ class OrtSession final : public Session {
 
         if (gp.on_status)
             gp.on_status("generating");
+        InferenceWatchdog wd(gp.progress(), gp.abort_flag);
+        wd.enter_prefill(n_prompt_tok);
         auto t0 = std::chrono::steady_clock::now();
         oga_check(OgaGenerator_AppendTokenSequences(gen.get(), seqs.get()), "AppendTokenSequences");
+        wd.prefill_done(n_prompt_tok, std::chrono::duration<double, std::milli>(
+                                          std::chrono::steady_clock::now() - t0)
+                                          .count());
         // Reproduce the old allowance exactly. The previous max_length of
         // min(n_ctx, prompt + n_predict) permitted min(n_ctx - prompt, n_predict)
         // new tokens; max_length is no longer the bound, so the cap has to carry
@@ -191,7 +196,14 @@ class OrtSession final : public Session {
         // to unbounded generation. Such a prompt fails inside ORT first
         // ("input_ids size exceeds max length"), which is the intended error.
         const int n_predict_cap = std::max(1, std::min(m_n_ctx - n_prompt_tok, gp.n_predict));
-        run_decode(gen.get(), stream.get(), gp, res, t0, n_prompt_tok, n_predict_cap);
+        run_decode(gen.get(), stream.get(), gp, res, t0, n_prompt_tok, n_predict_cap, &wd);
+        if (wd.stalled()) {
+            res.success = false;
+            res.stalled = true;
+            res.error_msg = wd.stall_error();
+            log_output(("[xllama] " + res.error_msg + "\n").c_str());
+            return;
+        }
         log_gen(res, false);
     }
 
@@ -242,10 +254,23 @@ class OrtSession final : public Session {
 
         if (gp.on_status)
             gp.on_status("generating");
+        InferenceWatchdog wd(gp.progress(), gp.abort_flag);
+        wd.enter_prefill(n_prompt_tok);
         auto t0 = std::chrono::steady_clock::now();
         oga_check(OgaGenerator_AppendTokenSequences(m_chat_gen.get(), seqs.get()),
                   "AppendTokenSequences(chat)");
-        run_decode(m_chat_gen.get(), m_chat_stream.get(), gp, res, t0, n_prompt_tok, gp.n_predict);
+        wd.prefill_done(n_prompt_tok, std::chrono::duration<double, std::milli>(
+                                          std::chrono::steady_clock::now() - t0)
+                                          .count());
+        run_decode(m_chat_gen.get(), m_chat_stream.get(), gp, res, t0, n_prompt_tok, gp.n_predict,
+                   &wd);
+        if (wd.stalled()) {
+            res.success = false;
+            res.stalled = true;
+            res.error_msg = wd.stall_error();
+            log_output(("[xllama] " + res.error_msg + "\n").c_str());
+            return;
+        }
 
         size_t kv = OgaGenerator_GetSequenceCount(m_chat_gen.get(), 0);
         char lb[192];
@@ -739,10 +764,17 @@ class LlamaSession final : public Session {
         // session is 3846, so a long paste used to kill the process. This is the
         // LOGICAL batch only — the physical ubatch stays 512 (#172 optimum),
         // which is what the prefill rate was measured on.
+        InferenceWatchdog wd(gp.progress(), gp.abort_flag);
+        wd.enter_prefill(n_pf);
         const auto t_prefill0 = std::chrono::steady_clock::now();
-        if (!prefill_chunked(ctx, pf, n_pf)) {
-            res.error_msg = "prompt decode failed";
-            log_output("[xllama] session generate: prompt decode failed\n");
+        if (!prefill_chunked(ctx, pf, n_pf, &wd)) {
+            if (wd.stalled()) {
+                res.stalled = true;
+                res.error_msg = wd.stall_error();
+            } else {
+                res.error_msg = "prompt decode failed";
+            }
+            log_output("[xllama] session generate: " + res.error_msg + "\n");
             // The cache now holds a partial batch — nothing about it is
             // trustworthy, so drop the record AND the cells. Clearing both keeps
             // a continuation turn (which reads the cache length, not
@@ -755,6 +787,7 @@ class LlamaSession final : public Session {
             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_prefill0)
                 .count();
         res.n_p_eval = n_pf;
+        wd.prefill_done(n_pf, res.t_p_eval_ms);
 
         // The resident-token record now covers everything prefilled.
         if (full_prompt)
@@ -800,6 +833,8 @@ class LlamaSession final : public Session {
         // W2: seed + live history is m_kv_tokens (prefill already recorded above).
         dlp.prompt_lookup = m_prompt_lookup;
         dlp.token_history = &m_kv_tokens;
+        dlp.watchdog = &wd;
+        wd.enter_decode(n_predict_eff);
         const DecodeLoopResult dlr = decode_loop(dlp, res.output_text);
         const int n_generated = dlr.n_generated;
         const bool stopped_by_seq = dlr.ended_with_stop;
@@ -821,6 +856,13 @@ class LlamaSession final : public Session {
             res.success = false;
             res.error_msg =
                 "speculative KV rewind unsupported (disable prompt_lookup for this model)";
+            log_output(("[xllama] " + res.error_msg + "\n").c_str());
+            return res;
+        }
+        if (wd.stalled()) {
+            res.success = false;
+            res.stalled = true;
+            res.error_msg = wd.stall_error();
             log_output(("[xllama] " + res.error_msg + "\n").c_str());
             return res;
         }

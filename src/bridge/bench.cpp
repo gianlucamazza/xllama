@@ -98,7 +98,10 @@ std::string detect_quant_label(const std::string& model_path, bool is_llama) {
 
 void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
                      const char* host_label) {
-    if (!res.success)
+    // Generic failures stay silent (the harness treats a missing CSV as an
+    // error). A stall is a measured outcome: write a tagged row + .done so the
+    // campaign records the hung run instead of exiting OK with missing rows.
+    if (!res.success && !res.stalled)
         return;
 
     const std::string csv_path = resolve_local_path("bench-result.csv");
@@ -179,6 +182,10 @@ void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
 
     const std::string quant = detect_quant_label(params.model_path, is_llama);
 
+    std::string host = host_label ? host_label : "unknown";
+    if (res.stalled && host.find("-stall") == std::string::npos)
+        host += "-stall";
+
     const char* backend = "cpu";
 #ifdef XLLAMA_USE_ORT
     if (!is_llama) {
@@ -197,8 +204,8 @@ void write_bench_csv(const InferenceParams& params, const InferenceResult& res,
     fprintf(fp, "%s,%s,%s,%d,%d,%.2f,%.2f,%zu,%.0f,%zu,%zu,%d,%d,%d,%s,%s,%d,%.1f,%.1f\n",
             model_name.c_str(), quant.c_str(), backend, params.n_ctx, used_threads, prompt_tok_s,
             decode_tok_s, res.peak_ws_mb, res.t_load_ms, res.gpu_mem_mb, res.gpu_budget_mb,
-            res.n_p_eval, res.n_eval, res.max_length, host_label ? host_label : "unknown", date_buf,
-            params.run_index, res.t_p_eval_ms, res.t_first_token_ms);
+            res.n_p_eval, res.n_eval, res.max_length, host.c_str(), date_buf, params.run_index,
+            res.t_p_eval_ms, res.t_first_token_ms);
     fclose(fp);
 
     // Write done marker
