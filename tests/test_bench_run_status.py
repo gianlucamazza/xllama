@@ -3,6 +3,7 @@
 
 import importlib.util
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -74,6 +75,7 @@ class BenchRunStatusTests(unittest.TestCase):
     def test_cli_check_matches_library(self):
         result = subprocess.run(
             [
+                sys.executable,
                 str(STATUS),
                 "check",
                 "--n-runs",
