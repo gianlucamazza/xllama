@@ -25,6 +25,7 @@ JS_END = "  // END GENERATED BENCHMARK DATA"
 
 
 def load_csv(name: str) -> list[dict[str, str]]:
+    # `name` is relative to bench/results/ and may include a campaign subdirectory.
     path = RESULTS / name
     with path.open(newline="", encoding="utf-8") as handle:
         return [row for row in csv.DictReader(handle) if row.get("model", "").strip()]

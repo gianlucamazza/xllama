@@ -38,4 +38,6 @@ These rows have no model files on the console, and uploading them needs a separa
 - Gemma-4-E2B IQ2_M
 - SmolLM2-360M int4 DML
 
-`docs/benchmarks.md` / `bench/benchmark-summary.json` are **not** repointed here. That is a separate docs PR.
+`docs/benchmarks.md` / `bench/benchmark-summary.json` now select these five
+rows (LFM2-2.6B from the `-rerun` CSV). The six un-remeasured rows are
+unchanged.

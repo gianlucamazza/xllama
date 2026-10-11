@@ -24,9 +24,12 @@ instead of combining extrema from different runs.
 **Pre/post-repack comparability (GGUF rows).** PR #155 (2026-07-25) enabled
 `GGML_USE_CPU_REPACK` on Xbox — it was silently dead code before — which
 raised GGUF **prefill** ~62% with decode unchanged. Only `lfm25-350m` has
-post-repack evidence (`phase13-repack-after.csv`, the row below); every other
-llama.cpp prefill figure in the table predates build 675 and is **not
-comparable** to it (the decode columns are unaffected).
+post-repack evidence (`phase13-repack-after.csv`, the row below) among the
+original July campaign CSVs; every other llama.cpp prefill figure that still
+cites those July files predates build 675 and is **not comparable** to it
+(the decode columns are unaffected). The 2026-10-11 remeasured GGUF CPU rows
+(Gemma-3-270M, LFM2-2.6B, Gemma-4-E2B Q3_K_S, Llama-3.2-3B) are post-repack.
+CPU prefill is not comparable with the old rows (pre CPU-repack #155).
 
 Metrics: **prefill** = prompt tok/s (throughput ingesting the prompt), **decode**
 = generation tok/s (autoregressive, the number a user feels), **peak RAM** =
@@ -52,12 +55,12 @@ generated from the committed raw results by `scripts/generate-benchmark-summary.
 | --- | --- | --- | --- | ---: | ---: | :---: | ---: | --- |
 | LFM2.5-230M | 230M | QAD Q4_0 | llama.cpp CPU · t6 | 633.6 | **132.4** | 128.5–133.1 (n=3) | 236 | `2026-09-30-catalogue-gates` |
 | LFM2.5-350M | 350M | QAD Q4_0 | llama.cpp CPU · t6 | 374.4 | **101.6** | 101.5–101.8 (n=3) | 311 | `2026-09-30-catalogue-gates` |
-| Gemma-3-270M | 270M | Q4_K_M | llama.cpp CPU · t6 | 395.0 | **76.8** | _single run_ | 368 | `phase6-gemma` |
+| Gemma-3-270M | 270M | Q4_K_M | llama.cpp CPU · t6 | 486.1 | **79.9** | 79.9–80.1 (n=3) | 366 | `2026-10-11-remeasure-1163/gemma3-270m-q4km-cpu-t6` |
 | LFM2.5-1.2B | 1.2B | QAD Q4_0 | llama.cpp · d3d12 GPU (default, D3) | 257.4 | **74.8** | 74.1–74.9 (n=3) | 860 | `2026-10-02-fa-gguf-gpu` |
 | SmolLM2-360M | 360M | int4 | ORT-GenAI CPU · t6 | 262.4 | **74.8** | 74.4–75.0 (n=3) | 708 | `t6-shipped-confirm` |
 | SmolLM2-360M | 360M | Q4_K_M | llama.cpp CPU · t6 | 141.5 | **62.9** | _single run_ | 402 | `phase35-llamacpp-scaling` |
 | Qwen2.5-Coder-0.5B | 0.5B | Q4_K_M | llama.cpp CPU · t6 | 148.2 | **62.4** | 56.8–68.0 (n=2) | 533 | `phase14-console` |
-| SmolLM2-360M | 360M | fp16 | ORT DirectML · RMSNorm fixed | 236.7 | **44.4** | _single run_ | 1268 | `phase2-dml` |
+| SmolLM2-360M | 360M | fp16 | ORT DirectML · RMSNorm fixed | 231.3 | **41.2** | 41.2–41.3 (n=3) | 1206 | `2026-10-11-remeasure-1163/smollm2-360m-dml-fp16-v2` |
 | LFM2.5-1.2B | 1.2B | QAD Q4_0 | llama.cpp CPU · t6 | 109.7 | **40.0** | 39.7–40.3 (n=3) | 783 | `2026-09-30-catalogue-gates` |
 | LFM2.5-1.2B-Thinking | 1.2B | Q4_K_M | llama.cpp CPU · t6 | 130.4 | **36.7** | 36.7–36.8 (n=2) | 811 | `phase14-console` |
 | Qwen3.5-0.8B | 0.8B | Q4_K_M | llama.cpp CPU · t6 | 98.1 | **35.1** | _single run_ | 718 | `phase5-gguf` |
@@ -65,9 +68,9 @@ generated from the committed raw results by `scripts/generate-benchmark-summary.
 | Qwen2.5-Coder-1.5B | 1.5B | Q4_K_M | llama.cpp CPU · t6 | 96.6 | **26.1** | 25.7–26.5 (n=2) | 1179 | `phase14-console` |
 | Qwen3-1.7B | 1.7B | Q4_K_M | llama.cpp CPU · t6 | 89.5 | **21.8** | 21.7–21.9 (n=2) | 1398 | `phase14-console` |
 | SmolLM2-1.7B | 1.7B | int4 | ORT-GenAI CPU | 54.9 | **20.6** | _single run_ | 2423 | `phase35-1b-cpu` |
-| LFM2-2.6B | 2.6B | Q4_K_M | llama.cpp CPU · t6 | 32.0 | **18.4** | _single run_ | 1623 | `phase7-lfm` |
-| Gemma-4-E2B | ~5B raw (2B eff) | Q3_K_S | llama.cpp CPU · t6 | 26.1 | **15.3** | _single run_ | 2742 | `phase6-gemma` |
-| Llama-3.2-3B | 3B | Q3_K_S | llama.cpp CPU · t6 | 19.5 | **14.2** | _single run_ | 1824 | `phase7-scale` |
+| LFM2-2.6B | 2.6B | Q4_K_M | llama.cpp CPU · t6 | 54.9 | **17.9** | 17.8–17.9 (n=3) | 1623 | `2026-10-11-remeasure-1163/lfm2-2.6b-q4km-cpu-t6-rerun` |
+| Gemma-4-E2B | ~5B raw (2B eff) | Q3_K_S | llama.cpp CPU · t6 | 28.4 | **15.3** | 15.3–15.3 (n=3) | 2741 | `2026-10-11-remeasure-1163/gemma4-e2b-q3ks-cpu-t6` |
+| Llama-3.2-3B | 3B | Q3_K_S | llama.cpp CPU · t6 | 21.2 | **14.1** | 14.1–14.1 (n=3) | 1827 | `2026-10-11-remeasure-1163/llama32-3b-q3ks-cpu-t6` |
 | Qwen2.5-Coder-3B | 3B | Q4_K_M | llama.cpp CPU · t6 | 46.2 | **14.0** | 13.9–14.1 (n=2) | 2116 | `phase14-console` |
 | Phi-3.5-mini | 3.8B | Q3_K_S | llama.cpp CPU · t6 | 15.3 | **11.3** | _single run_ | 2453 | `phase7-scale` |
 | Phi-4-mini | 3.8B | Q4_K_M | llama.cpp CPU · t6 | 33.1 | **11.2** | 11.2–11.2 (n=3) | 2765 | `2026-09-30-catalogue-gates` |
@@ -76,6 +79,27 @@ generated from the committed raw results by `scripts/generate-benchmark-summary.
 <!-- END GENERATED MODEL SUMMARY -->
 <!-- prettier-ignore-end -->
 
+- **2026-10-11 remeasure (build 1.6.0.1163):** Gemma-3-270M Q4_K_M CPU t6,
+  LFM2-2.6B Q4_K_M CPU t6 (the `-rerun` CSV, not the incomplete first
+  attempt), Gemma-4-E2B Q3_K_S CPU t6, Llama-3.2-3B Q3_K_S CPU t6 (CSV model
+  column is now `llama32-3b`), and SmolLM2-360M fp16 DirectML were
+  remeasured on build 1.6.0.1163, 3 runs (2026-10-11); new data points, not
+  reproductions of the July rows
+  ([campaign README](../bench/results/2026-10-11-remeasure-1163/README.md)).
+  Current medians (decode / prefill / load ms / peak MB): 79.92 / 486.11 /
+  1219 / 366; 17.85 / 54.93 / 8507 / 1623; 15.30 / 28.45 / 13533 / 2741;
+  14.12 / 21.19 / 16775 / 1827; 41.23 / 231.29 / 2878 / 1206. July
+  single-run history is kept below and in the original CSVs: Gemma-3-270M
+  76.78 / 395.0 / 1095 / 368 (`phase6-gemma.csv`); LFM2-2.6B 18.36 / 32.04 /
+  11050 / 1623 (`phase7-lfm.csv`); Gemma-4-E2B Q3_K_S 15.31 / 26.12 / 13837 /
+  2742 (`phase6-gemma.csv`); Llama-3.2-3B 14.16 / 19.51 / 16936 / 1824
+  (`phase7-scale.csv`, model column `llama32-3b-q3ks`); SmolLM2-360M DML
+  fp16 44.36 / 236.67 / 2729 / 1268 (`phase2-dml.csv`). CPU prefill is not
+  comparable with the old rows (pre CPU-repack #155). SmolLM2-360M DirectML
+  decode went from 44.36 to 41.23 tok/s on the updated DirectML stack, cause
+  not investigated. One LFM2-2.6B attempt hung once in 16 runs (see the
+  [campaign README](../bench/results/2026-10-11-remeasure-1163/README.md)).
+  The six un-remeasured rows are unchanged.
 - **Phase 14 coding/chat (2026-07-27, Series S):** Qwen2.5-Coder 0.5B/1.5B/3B,
   Qwen3-1.7B, LFM2.5-1.2B-Thinking console-validated (`phase14-console.csv`).
   Coder-0.5B lands next to SmolLM2 GGUF at ~62 tok/s; Coder-3B matches Llama-3.2-3B
@@ -85,13 +109,15 @@ Notes:
 
 - **Phase 7 H1 LFM campaign** (2026-07-17): LFM2.5-1.2B is the balanced tier at
   **37.9 tok/s / 811 MB**; LFM2-2.6B is the quality tier at **18.4 tok/s /
-  1623 MB**. On `long-1k.txt` they retain 35.4 and 17.7 tok/s respectively
+  1623 MB** (July single-run; the current table is the 2026-10-11 median
+  17.85 — see above). On `long-1k.txt` they retain 35.4 and 17.7 tok/s respectively
   (`phase7-lfm-long.csv`). The deterministic eight-task H9 suite scores 6/8 and
   7/8, versus Gemma-4-E2B 6/8, Llama-3.2-3B 5/8 and LFM2.5-350M 4/8
   (`phase7-h9.jsonl`). Both pass H1 and are catalogue options; the 350M remains
   the fast first-launch default.
 - **Llama-3.2-3B Q3_K_S** (Phase 7 H4, 2026-07-16): dense 3B at **14.2 tok/s** /
-  1824 MB peak — similar speed to Gemma-4-E2B Q3 (15.3) with ~900 MB less RAM.
+  1824 MB peak (July single-run; the current table is the 2026-10-11 median
+  14.12 / 1827 MB) — similar speed to Gemma-4-E2B Q3 (15.3) with ~900 MB less RAM.
   Catalogue id **`llama32-3b`** (HF direct, optional advanced; default stays
   LFM). See [phase7-hypotheses.md](phase7-hypotheses.md).
 - **Phi-3.5-mini Q3_K_S** (Phase 7 H4 A/B, 2026-07-16): **11.3 tok/s** / 2453 MB
@@ -119,7 +145,11 @@ Notes:
   only for that asset; the Auto switch applies at `token_threshold` (1550 — but a
   single prompt-length threshold is the **wrong shape** for this decision, which
   is a product judgement, `uwp-constraints.md §5d`). Its
-  measured row is 236.7 prefill / 44.4 decode / 1268 MB. **The prefill number is
+  measured row is 231.3 prefill / 41.2 decode / 1206 MB (remeasured on build
+  1.6.0.1163, 3 runs (2026-10-11); new data points, not reproductions of the
+  July rows). The July `-v2` single-run was 236.7 prefill / 44.4 decode /
+  1268 MB. SmolLM2-360M DirectML decode went from 44.36 to 41.23 tok/s on the
+  updated DirectML stack, cause not investigated. **The prefill number is
   a cold-process bench figure** (§5e: DirectML lazily compiles on first use;
   the bench path never warms, while in-app turns run warm since the load
   warm-up + pre-load — first request measured at 873 tok/s prefill) and decode
@@ -179,10 +209,14 @@ faster (15.3 vs 9.9) and, crucially, generates full responses on long prompts
 where the 2-bit IQ2_M collapsed to an immediate EOG (see below).
 
 Both use the Gemma template on-device (log: `bench prompt: <start_of_turn>user
-…`). **Gemma-3-270M** is a fast, tiny chat model (76.8 tok/s, 368 MB).
+…`). **Gemma-3-270M** is a fast, tiny chat model (76.8 tok/s, 368 MB on the
+2026-07-14 `phase6-gemma.csv` single-run; the current table is the 2026-10-11
+median 79.92 tok/s / 366 MB).
 
 **Gemma-4-E2B verdict — the "too big" call is overturned** (shipping default is
-**Q3_K_S**, 15.3 tok/s / 2742 MB; the IQ2_M row above is the earlier 2-bit build):
+**Q3_K_S**, 15.3 tok/s / 2742 MB on the 2026-07-14 single-run; the current
+table is the 2026-10-11 median 15.30 tok/s / 2741 MB; the IQ2_M row above is
+the earlier 2-bit build):
 
 - ✅ **The ~2 GB Dev Mode per-file limit does not apply to GGUF** — a >2 GB single
   `.gguf` loads with no OOM under the Game budget. (This was the project's main

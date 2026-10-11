@@ -31,13 +31,14 @@
     {
       "label": "Gemma-3-270M",
       "params": "270M",
-      "source": "phase6-gemma.csv",
+      "source": "2026-10-11-remeasure-1163/gemma3-270m-q4km-cpu-t6.csv",
       "selector": {
         "model": "gemma3-270m",
         "quant": "Q4_K_M"
       },
       "backend_key": "llama",
-      "backend_label": "llama.cpp CPU · t6"
+      "backend_label": "llama.cpp CPU · t6",
+      "note": "remeasured on build 1.6.0.1163, 3 runs (2026-10-11); new data points, not reproductions of the July rows"
     },
     {
       "label": "SmolLM2-360M",
@@ -65,7 +66,7 @@
     {
       "label": "SmolLM2-360M",
       "params": "360M",
-      "source": "phase2-dml.csv",
+      "source": "2026-10-11-remeasure-1163/smollm2-360m-dml-fp16-v2.csv",
       "selector": {
         "model": "smollm2-360m-dml-fp16-v2"
       },
@@ -73,7 +74,8 @@
       "backend_key": "dml",
       "backend_label": "ORT DirectML · RMSNorm fixed",
       "quant_label": "fp16",
-      "tag": "#91 fixed (rmsfix)"
+      "tag": "#91 fixed (rmsfix)",
+      "note": "remeasured on build 1.6.0.1163, 3 runs (2026-10-11); new data points, not reproductions of the July rows"
     },
     {
       "label": "Qwen2.5-Coder-0.5B",
@@ -178,25 +180,27 @@
     {
       "label": "Gemma-4-E2B",
       "params": "~5B raw (2B eff)",
-      "source": "phase6-gemma.csv",
+      "source": "2026-10-11-remeasure-1163/gemma4-e2b-q3ks-cpu-t6.csv",
       "selector": {
         "model": "gemma4-e2b",
         "quant": "Q3_K_S"
       },
       "backend_key": "llama",
       "backend_label": "llama.cpp CPU · t6",
-      "tag": "catalogue default"
+      "tag": "catalogue default",
+      "note": "remeasured on build 1.6.0.1163, 3 runs (2026-10-11); new data points, not reproductions of the July rows"
     },
     {
       "label": "LFM2-2.6B",
       "params": "2.6B",
-      "source": "phase7-lfm.csv",
+      "source": "2026-10-11-remeasure-1163/lfm2-2.6b-q4km-cpu-t6-rerun.csv",
       "selector": {
         "model": "lfm2-2.6b",
         "n_threads": "6"
       },
       "backend_key": "llama",
-      "backend_label": "llama.cpp CPU · t6"
+      "backend_label": "llama.cpp CPU · t6",
+      "note": "remeasured on build 1.6.0.1163, 3 runs (2026-10-11); new data points, not reproductions of the July rows. Use the -rerun CSV, not the incomplete first attempt."
     },
     {
       "label": "Qwen2.5-Coder-3B",
@@ -228,13 +232,14 @@
     {
       "label": "Llama-3.2-3B",
       "params": "3B",
-      "source": "phase7-scale.csv",
+      "source": "2026-10-11-remeasure-1163/llama32-3b-q3ks-cpu-t6.csv",
       "selector": {
-        "model": "llama32-3b-q3ks",
+        "model": "llama32-3b",
         "n_threads": "6"
       },
       "backend_key": "llama",
-      "backend_label": "llama.cpp CPU · t6"
+      "backend_label": "llama.cpp CPU · t6",
+      "note": "remeasured on build 1.6.0.1163, 3 runs (2026-10-11); new data points, not reproductions of the July rows. CSV model column is llama32-3b (was llama32-3b-q3ks)."
     },
     {
       "label": "Phi-4-mini",

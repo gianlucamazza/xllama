@@ -276,10 +276,10 @@
     "model": "Gemma-3-270M",
     "quant": "Q4_K_M",
     "be": "llama",
-    "prefill": 394.98,
-    "decode": 76.78,
-    "ram": 368,
-    "src": "phase6-gemma"
+    "prefill": 486.11,
+    "decode": 79.92,
+    "ram": 366,
+    "src": "2026-10-11-remeasure-1163/gemma3-270m-q4km-cpu-t6"
   },
   {
     "model": "SmolLM2-360M",
@@ -304,10 +304,10 @@
     "model": "SmolLM2-360M",
     "quant": "fp16",
     "be": "dml",
-    "prefill": 236.67,
-    "decode": 44.36,
-    "ram": 1268,
-    "src": "phase2-dml",
+    "prefill": 231.29,
+    "decode": 41.23,
+    "ram": 1206,
+    "src": "2026-10-11-remeasure-1163/smollm2-360m-dml-fp16-v2",
     "tag": "#91 fixed (rmsfix)"
   },
   {
@@ -390,20 +390,20 @@
     "model": "Gemma-4-E2B",
     "quant": "Q3_K_S",
     "be": "llama",
-    "prefill": 26.12,
-    "decode": 15.31,
-    "ram": 2742,
-    "src": "phase6-gemma",
+    "prefill": 28.45,
+    "decode": 15.3,
+    "ram": 2741,
+    "src": "2026-10-11-remeasure-1163/gemma4-e2b-q3ks-cpu-t6",
     "tag": "catalogue default"
   },
   {
     "model": "LFM2-2.6B",
     "quant": "Q4_K_M",
     "be": "llama",
-    "prefill": 32.04,
-    "decode": 18.36,
+    "prefill": 54.93,
+    "decode": 17.85,
     "ram": 1623,
-    "src": "phase7-lfm"
+    "src": "2026-10-11-remeasure-1163/lfm2-2.6b-q4km-cpu-t6-rerun"
   },
   {
     "model": "Qwen2.5-Coder-3B",
@@ -429,10 +429,10 @@
     "model": "Llama-3.2-3B",
     "quant": "Q3_K_S",
     "be": "llama",
-    "prefill": 19.51,
-    "decode": 14.16,
-    "ram": 1824,
-    "src": "phase7-scale"
+    "prefill": 21.19,
+    "decode": 14.12,
+    "ram": 1827,
+    "src": "2026-10-11-remeasure-1163/llama32-3b-q3ks-cpu-t6"
   },
   {
     "model": "Phi-4-mini",
@@ -531,7 +531,7 @@
   }
 ];
   const MAX_KV_REUSE = 20.02;
-  const LATEST_RUN = "2026-10-02";
+  const LATEST_RUN = "2026-10-11";
   // END GENERATED BENCHMARK DATA
   const METRICS = {
     decode:  { label: "Decode", unit: "tok/s", cap: "Generation throughput — the rate a user feels. Higher is better.", better: "high" },

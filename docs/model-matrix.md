@@ -51,16 +51,16 @@ All rows below are **CPU-bound decode** unless backend says DirectML.
 | --------------------- | -------------------------: | ------: | -------- | --------- | --------: | --------: | ------: | ------- | ----------------- | ---- | ----: | ---------------------------------------------------------------------- |
 | LFM2.5-230M           |               `lfm25-230m` |    230M | Q4_0 QAD | llama.cpp | **633.6** | **132.4** |     236 | 1/8     | ChatML            | —    |  2048 | `2026-09-30-catalogue-gates` · floor                                   |
 | LFM2.5-350M           |               `lfm25-350m` |    350M | Q4_0 QAD | llama.cpp | **374.4** | **101.6** |     311 | 4/8     | ChatML            | —    |  2048 | `2026-09-30-catalogue-gates` · **default chat**                        |
-| Gemma-3-270M          |              `gemma3-270m` |    270M | Q4_K_M   | llama.cpp |     395.0 |      76.8 |     368 | 3/8     | Gemma             | —    |  2048 | `phase6-gemma` · H9 `2026-09-30-h9-rescore.jsonl`                      |
+| Gemma-3-270M          |              `gemma3-270m` |    270M | Q4_K_M   | llama.cpp |     486.1 |      79.9 |     366 | 3/8     | Gemma             | —    |  2048 | `2026-10-11-remeasure-1163` · H9 `2026-09-30-h9-rescore.jsonl`         |
 | SmolLM2-360M          |    `smollm2-360m-cpu-int4` |    360M | int4     | ORT CPU   |     262.4 |      74.8 |     708 | —       | ChatML            | —    |  2048 | `t6-shipped-confirm`                                                   |
 | SmolLM2-360M          |              (same family) |    360M | Q4_K_M   | llama.cpp |     141.5 |      62.9 |     402 | —       | ChatML            | —    |  2048 | `phase35-llamacpp-scaling`                                             |
-| SmolLM2-360M DML v2   | `smollm2-360m-dml-fp16-v2` |    360M | fp16     | ORT DML   |     236.7 |      44.4 |    1268 | —       | ChatML            | —    |  2048 | `phase2-dml` · #91 parity OK                                           |
+| SmolLM2-360M DML v2   | `smollm2-360m-dml-fp16-v2` |    360M | fp16     | ORT DML   |     231.3 |      41.2 |    1206 | —       | ChatML            | —    |  2048 | `2026-10-11-remeasure-1163` · #91 parity OK                            |
 | LFM2.5-1.2B Instruct  |      `lfm25-1.2b-instruct` |    1.2B | Q4_0 QAD | llama.cpp |     109.7 |  **40.0** |     783 | **6/8** | ChatML            | —    |  2048 | `2026-09-30-catalogue-gates` · H1 PASS balanced · **GPU default (D3)** |
 | Qwen3.5-0.8B          |              `qwen35-0.8b` |    0.8B | Q4_K_M   | llama.cpp |      98.1 |      35.1 |     718 | —       | ChatML + no-think | —    |  2048 | `phase5-gguf`                                                          |
 | SmolLM2-1.7B          |    `smollm2-1.7b-cpu-int4` |    1.7B | int4     | ORT CPU   |      54.9 |      20.6 |    2423 | —       | ChatML            | —    |  2048 | `phase35-1b-cpu`                                                       |
-| LFM2-2.6B             |                `lfm2-2.6b` |    2.6B | Q4_K_M   | llama.cpp |      32.0 |  **18.4** |    1623 | **7/8** | ChatML            | —    |  2048 | `phase7-lfm` · H1 PASS quality                                         |
-| Gemma-4-E2B           |               `gemma4-e2b` | ~2B eff | Q3_K_S   | llama.cpp |      26.1 |      15.3 |    2742 | 6/8     | Gemma             | —    |  2048 | `phase6-gemma`                                                         |
-| Llama-3.2-3B Instruct |               `llama32-3b` |      3B | Q3_K_S   | llama.cpp |      19.5 |  **14.2** |    1824 | 5/8     | Llama-3           | —    |  2048 | `phase7-scale` · H4 preferred                                          |
+| LFM2-2.6B             |                `lfm2-2.6b` |    2.6B | Q4_K_M   | llama.cpp |      54.9 |  **17.9** |    1623 | **7/8** | ChatML            | —    |  2048 | `2026-10-11-remeasure-1163` · H1 PASS quality (`-rerun` CSV)           |
+| Gemma-4-E2B           |               `gemma4-e2b` | ~2B eff | Q3_K_S   | llama.cpp |      28.4 |      15.3 |    2741 | 6/8     | Gemma             | —    |  2048 | `2026-10-11-remeasure-1163`                                            |
+| Llama-3.2-3B Instruct |               `llama32-3b` |      3B | Q3_K_S   | llama.cpp |      21.2 |  **14.1** |    1827 | 5/8     | Llama-3           | —    |  2048 | `2026-10-11-remeasure-1163` · H4 preferred                             |
 | Phi-3.5-mini          |                          — |    3.8B | Q3_K_S   | llama.cpp |      15.3 |      11.3 |    2453 | —       | Phi-3             | —    |  2048 | `phase7-scale` · H4 PASS, loses A/B                                    |
 | Phi-4-mini            |                `phi4-mini` |    3.8B | Q4_K_M   | llama.cpp |      33.1 |      11.2 |    2765 | **6/8** | Phi-3             | —    |  2048 | `2026-09-30-catalogue-gates` · **T3 PASS** peer                        |
 | Gemma-4-E2B IQ2       |            (upgraded away) | ~2B eff | IQ2_M    | llama.cpp |      13.5 |       9.9 |    2534 | —       | Gemma             | —    |  2048 | historical; EOG on long prompts                                        |
@@ -68,6 +68,11 @@ All rows below are **CPU-bound decode** unless backend says DirectML.
 
 Notes:
 
+- **2026-10-11 remeasure** (build 1.6.0.1163, 3 recorded runs): Gemma-3-270M,
+  LFM2-2.6B (the `-rerun` CSV), Gemma-4-E2B Q3_K_S, Llama-3.2-3B (CSV model
+  `llama32-3b`), and SmolLM2-360M DML fp16. New data points, not reproductions
+  of the July rows. July single-run history stays in
+  [benchmarks.md](./benchmarks.md). The six un-remeasured rows are unchanged.
 - Hybrid LFM: KV tail-rewind unsupported (#170a); front-drop context shift OK (#169).
 - **QAD Q4_0 ripin** (#270, console regression 2026-09-30,
   `2026-09-30-catalogue-gates`): `lfm25-230m`, `lfm25-350m` and

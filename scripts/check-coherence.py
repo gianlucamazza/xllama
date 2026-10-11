@@ -546,10 +546,12 @@ def main() -> int:
         # phase17-console-2026-08-26.csv).
         # 2026-09-30: LFM 89.7 -> 101.6 and 1.2B 37.9 -> 40.0 (QAD Q4_0 ripin,
         # 2026-09-30-catalogue-gates.csv, #270).
-        for num in ("101.6", "40.0", "18.4", "74.8", "44.4", "20.6", "35.1", "236.7"):
+        # 2026-10-11: LFM2-2.6B 18.4 -> 17.9 and DML fp16 44.4 / 236.7 ->
+        # 41.2 / 231.3 (build 1.6.0.1163 remeasure, 3 recorded runs).
+        for num in ("101.6", "40.0", "17.9", "74.8", "41.2", "20.6", "35.1", "231.3"):
             if num not in block:
                 err(f"generated table missing {num}")
-            if num not in rec and num not in ("236.7",):
+            if num not in rec and num not in ("231.3",):
                 err(f"recommended-config missing headline {num}")
         good("decode headlines code-doc aligned")
 

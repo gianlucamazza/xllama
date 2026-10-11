@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Docs: Series S remeasure on 1.6.0.1163**. Five published comparison rows
+  now come from `bench/results/2026-10-11-remeasure-1163/` (3 recorded runs,
+  median). New data points, not reproductions of the July rows. July figures
+  stay as dated history in `docs/benchmarks.md`.
+
 - **Docs: GPU decode in context**. A new section in `docs/benchmarks.md` sets
   the Series S and xllama beside known hardware (RX 6600, Steam Deck, Iris Xe
   and others, from the llama.cpp Vulkan scoreboard), measured as effective

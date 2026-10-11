@@ -5,6 +5,8 @@ Benchmark suite for xllama. Results are stored as CSV files in `results/`.
 ## Single source of truth
 
 - `results/*.csv` and `results/*.jsonl` are the immutable measured evidence.
+  A selector `source` may be a top-level file or a campaign path such as
+  `2026-10-11-remeasure-1163/gemma3-270m-q4km-cpu-t6.csv`.
 - `benchmark-summary.json` declares which atomic run represents each comparison
   row; it contains metadata and selectors, never copied metric values.
 - `docs/benchmarks.md` and `docs/benchmarks-charts.html` contain generated blocks.
