@@ -1,0 +1,4 @@
+model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,run_index,prefill_ms,ttft_ms
+lfm2-2.6b,Q4_K_M,cpu,2048,6,54.95,17.85,1623,8482,0,0,298,270,0,xbox-series-s-t6,2026-10-11T09:55:20Z,2,5423.1,5423.6
+lfm2-2.6b,Q4_K_M,cpu,2048,6,54.74,17.76,1623,8590,0,0,298,452,0,xbox-series-s-t6,2026-10-11T09:56:07Z,3,5444.1,5444.5
+lfm2-2.6b,Q4_K_M,cpu,2048,6,54.93,17.85,1626,8507,0,0,298,352,0,xbox-series-s-t6,2026-10-11T09:56:47Z,4,5424.7,5425.2

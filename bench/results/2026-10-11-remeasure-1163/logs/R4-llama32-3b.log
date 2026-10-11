@@ -1,0 +1,51 @@
+# R4 start 2026-10-11T12:01:53+02:00 commit 05237cc pfn-guard GianlucaMazza.xllama_1.6.0.1163_x64__pj67f1fcj4n14
+# cmd: ./scripts/bench-xbox-ort.sh llama32-3b --threads 6 --ctx 2048 --n-predict 512 --max-length 0 --runs 4 --out bench/results/2026-10-11-remeasure-1163/llama32-3b-q3ks-cpu-t6.csv
+=== xllama bench-xbox-ort ===
+  Model:   llama32-3b
+  Threads: 6
+  n_ctx:   2048
+  n_predict: 512
+  max_length: derived
+  Runs:    4 (run 1 warmup, dropped from median)
+  Xbox:    <console-ip>
+  PFN: GianlucaMazza.xllama_1.6.0.1163_x64__pj67f1fcj4n14
+
+--- Skipping genai_config (GGUF model; threads via bench_threads.txt) ---
+
+--- Run 1 / 4 ---
+  Uploading bench artifacts...
+  Starting app...
+  Waiting for bench-result.csv.done (timeout 300s)...
+  Done after 30s.
+  Row: llama32-3b,Q3_K_S,cpu,2048,6,21.19,14.11,1827,16953,0,0,311,161,0,xbox-series-s-t6,2026-10-11T10:02:27Z,1,14676.2,14677.0
+
+--- Run 2 / 4 ---
+  Uploading bench artifacts...
+  Starting app...
+  Waiting for bench-result.csv.done (timeout 300s)...
+  Done after 30s.
+  Row: llama32-3b,Q3_K_S,cpu,2048,6,21.19,14.12,1827,16775,0,0,311,173,0,xbox-series-s-t6,2026-10-11T10:03:04Z,2,14676.4,14677.2
+
+--- Run 3 / 4 ---
+  Uploading bench artifacts...
+  Starting app...
+  Waiting for bench-result.csv.done (timeout 300s)...
+  Done after 40s.
+  Row: llama32-3b,Q3_K_S,cpu,2048,6,21.19,14.10,1827,16760,0,0,311,208,0,xbox-series-s-t6,2026-10-11T10:03:43Z,3,14677.4,14678.2
+
+--- Run 4 / 4 ---
+  Uploading bench artifacts...
+  Starting app...
+  Waiting for bench-result.csv.done (timeout 300s)...
+  Done after 30s.
+  Row: llama32-3b,Q3_K_S,cpu,2048,6,21.18,14.12,1827,16781,0,0,311,122,0,xbox-series-s-t6,2026-10-11T10:04:24Z,4,14684.1,14684.9
+
+--- Appending recorded runs ---
+  appended: llama32-3b,Q3_K_S,cpu,2048,6,21.19,14.12,1827,16775,0,0,311,173,0,xbox-series-s-t6,2026-10-11T10:03:04Z,2,14676.4,14677.2
+  appended: llama32-3b,Q3_K_S,cpu,2048,6,21.19,14.10,1827,16760,0,0,311,208,0,xbox-series-s-t6,2026-10-11T10:03:43Z,3,14677.4,14678.2
+  appended: llama32-3b,Q3_K_S,cpu,2048,6,21.18,14.12,1827,16781,0,0,311,122,0,xbox-series-s-t6,2026-10-11T10:04:24Z,4,14684.1,14684.9
+Appended 3 run(s) to bench/results/2026-10-11-remeasure-1163/llama32-3b-q3ks-cpu-t6.csv
+
+Done. bench/results/2026-10-11-remeasure-1163/llama32-3b-q3ks-cpu-t6.csv updated.
+  Restoring original model.txt on the device...
+# R4 end 2026-10-11T12:04:31+02:00 rc=0 timeouts=0

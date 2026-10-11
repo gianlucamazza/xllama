@@ -1,0 +1,50 @@
+# R2 start 2026-10-11T11:39:50+02:00 commit 05237cc pfn-guard GianlucaMazza.xllama_1.6.0.1163_x64__pj67f1fcj4n14
+# cmd: ./scripts/bench-xbox-ort.sh lfm2-2.6b --threads 6 --ctx 2048 --n-predict 512 --max-length 0 --runs 4 --out bench/results/2026-10-11-remeasure-1163/lfm2-2.6b-q4km-cpu-t6.csv
+=== xllama bench-xbox-ort ===
+  Model:   lfm2-2.6b
+  Threads: 6
+  n_ctx:   2048
+  n_predict: 512
+  max_length: derived
+  Runs:    4 (run 1 warmup, dropped from median)
+  Xbox:    <console-ip>
+  PFN: GianlucaMazza.xllama_1.6.0.1163_x64__pj67f1fcj4n14
+
+--- Skipping genai_config (GGUF model; threads via bench_threads.txt) ---
+
+--- Run 1 / 4 ---
+  Uploading bench artifacts...
+  Starting app...
+  Waiting for bench-result.csv.done (timeout 300s)...
+  Done after 40s.
+  Row: lfm2-2.6b,Q4_K_M,cpu,2048,6,54.83,17.78,1623,8739,0,0,298,396,0,xbox-series-s-t6,2026-10-11T09:40:27Z,1,5435.0,5435.4
+
+--- Run 2 / 4 ---
+  Uploading bench artifacts...
+  Starting app...
+  Waiting for bench-result.csv.done (timeout 300s)...
+  Done after 30s.
+  Row: lfm2-2.6b,Q4_K_M,cpu,2048,6,54.88,17.80,1623,8850,0,0,298,371,0,xbox-series-s-t6,2026-10-11T09:41:13Z,2,5429.6,5430.1
+
+--- Run 3 / 4 ---
+  Uploading bench artifacts...
+  Starting app...
+  Waiting for bench-result.csv.done (timeout 300s)...
+  Done after 40s.
+  Row: lfm2-2.6b,Q4_K_M,cpu,2048,6,54.88,17.71,1623,8586,0,0,298,512,0,xbox-series-s-t6,2026-10-11T09:41:58Z,3,5429.9,5430.3
+
+--- Run 4 / 4 ---
+  Uploading bench artifacts...
+  Starting app...
+  Waiting for bench-result.csv.done (timeout 300s)...
+  Timeout waiting for bench-result.csv.done
+  Run 4 timed out — skipping.
+
+--- Appending recorded runs ---
+  appended: lfm2-2.6b,Q4_K_M,cpu,2048,6,54.88,17.80,1623,8850,0,0,298,371,0,xbox-series-s-t6,2026-10-11T09:41:13Z,2,5429.6,5430.1
+  appended: lfm2-2.6b,Q4_K_M,cpu,2048,6,54.88,17.71,1623,8586,0,0,298,512,0,xbox-series-s-t6,2026-10-11T09:41:58Z,3,5429.9,5430.3
+Appended 2 run(s) to bench/results/2026-10-11-remeasure-1163/lfm2-2.6b-q4km-cpu-t6.csv
+
+Done. bench/results/2026-10-11-remeasure-1163/lfm2-2.6b-q4km-cpu-t6.csv updated.
+  Restoring original model.txt on the device...
+# R2 end 2026-10-11T11:48:44+02:00 rc=0

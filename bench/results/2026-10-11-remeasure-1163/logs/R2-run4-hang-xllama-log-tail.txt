@@ -1,0 +1,16 @@
+[xllama] prompt tokens: 298
+[xllama] done: load=8586ms prompt=54.9 tok/s decode=17.7 tok/s peak=1623MB drafted=0 spec_accept=0
+[xllama] bench-result.csv written
+[xllama] headless bench: done, exiting
+[xllama] bench.flag detected -> headless bench mode
+[xllama] headless bench: starting
+[xllama] bench: prompt.txt 1379 bytes
+[xllama] bench model: lfm2-2.6b
+[xllama] bench prompt: <|im_start|>system
+You are a helpful AI assistant.<|im_end|>
+<|im_start|>user
+Th...
+[xllama] ws after model load: 1542 MB
+[xllama] model loaded
+[xllama] ws after context: 1577 MB
+[xllama] prompt tokens: 298

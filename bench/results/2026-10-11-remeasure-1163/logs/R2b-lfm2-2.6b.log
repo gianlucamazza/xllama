@@ -1,0 +1,51 @@
+# R2b start 2026-10-11T11:54:03+02:00 commit 05237cc pfn-guard GianlucaMazza.xllama_1.6.0.1163_x64__pj67f1fcj4n14
+# cmd: ./scripts/bench-xbox-ort.sh lfm2-2.6b --threads 6 --ctx 2048 --n-predict 512 --max-length 0 --runs 4 --out bench/results/2026-10-11-remeasure-1163/lfm2-2.6b-q4km-cpu-t6-rerun.csv
+=== xllama bench-xbox-ort ===
+  Model:   lfm2-2.6b
+  Threads: 6
+  n_ctx:   2048
+  n_predict: 512
+  max_length: derived
+  Runs:    4 (run 1 warmup, dropped from median)
+  Xbox:    <console-ip>
+  PFN: GianlucaMazza.xllama_1.6.0.1163_x64__pj67f1fcj4n14
+
+--- Skipping genai_config (GGUF model; threads via bench_threads.txt) ---
+
+--- Run 1 / 4 ---
+  Uploading bench artifacts...
+  Starting app...
+  Waiting for bench-result.csv.done (timeout 300s)...
+  Done after 40s.
+  Row: lfm2-2.6b,Q4_K_M,cpu,2048,6,54.76,17.68,1623,8811,0,0,298,512,0,xbox-series-s-t6,2026-10-11T09:54:47Z,1,5442.2,5442.6
+
+--- Run 2 / 4 ---
+  Uploading bench artifacts...
+  Starting app...
+  Waiting for bench-result.csv.done (timeout 300s)...
+  Done after 30s.
+  Row: lfm2-2.6b,Q4_K_M,cpu,2048,6,54.95,17.85,1623,8482,0,0,298,270,0,xbox-series-s-t6,2026-10-11T09:55:20Z,2,5423.1,5423.6
+
+--- Run 3 / 4 ---
+  Uploading bench artifacts...
+  Starting app...
+  Waiting for bench-result.csv.done (timeout 300s)...
+  Done after 40s.
+  Row: lfm2-2.6b,Q4_K_M,cpu,2048,6,54.74,17.76,1623,8590,0,0,298,452,0,xbox-series-s-t6,2026-10-11T09:56:07Z,3,5444.1,5444.5
+
+--- Run 4 / 4 ---
+  Uploading bench artifacts...
+  Starting app...
+  Waiting for bench-result.csv.done (timeout 300s)...
+  Done after 30s.
+  Row: lfm2-2.6b,Q4_K_M,cpu,2048,6,54.93,17.85,1626,8507,0,0,298,352,0,xbox-series-s-t6,2026-10-11T09:56:47Z,4,5424.7,5425.2
+
+--- Appending recorded runs ---
+  appended: lfm2-2.6b,Q4_K_M,cpu,2048,6,54.95,17.85,1623,8482,0,0,298,270,0,xbox-series-s-t6,2026-10-11T09:55:20Z,2,5423.1,5423.6
+  appended: lfm2-2.6b,Q4_K_M,cpu,2048,6,54.74,17.76,1623,8590,0,0,298,452,0,xbox-series-s-t6,2026-10-11T09:56:07Z,3,5444.1,5444.5
+  appended: lfm2-2.6b,Q4_K_M,cpu,2048,6,54.93,17.85,1626,8507,0,0,298,352,0,xbox-series-s-t6,2026-10-11T09:56:47Z,4,5424.7,5425.2
+Appended 3 run(s) to bench/results/2026-10-11-remeasure-1163/lfm2-2.6b-q4km-cpu-t6-rerun.csv
+
+Done. bench/results/2026-10-11-remeasure-1163/lfm2-2.6b-q4km-cpu-t6-rerun.csv updated.
+  Restoring original model.txt on the device...
+# R2b end 2026-10-11T11:56:52+02:00 rc=0 timeouts=0
