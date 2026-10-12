@@ -747,14 +747,32 @@ ggml_backend_buffer_t weights_alloc(ggml_backend_buffer_type_t buft, size_t size
 }
 
 ggml_backend_buffer_type kHostBuft = {
-    /* .iface = */ {host_buft_name, host_alloc, buft_alignment, nullptr, nullptr,
-                    buft_is_host_true},
+    /* .iface = */
+    {
+        /* .get_name         = */ host_buft_name,
+        /* .alloc_buffer     = */ host_alloc,
+        /* .alloc_buffer_n   = */ nullptr,
+        /* .get_alignment    = */ buft_alignment,
+        /* .get_max_size     = */ nullptr,
+        /* .get_alloc_size   = */ nullptr,
+        /* .get_alloc_size_n = */ nullptr,
+        /* .is_host          = */ buft_is_host_true,
+    },
     /* .device  = */ nullptr,
     /* .context = */ nullptr,
 };
 ggml_backend_buffer_type kWeightsBuft = {
-    /* .iface = */ {weights_buft_name, weights_alloc, buft_alignment, nullptr, weights_alloc_size,
-                    nullptr},
+    /* .iface = */
+    {
+        /* .get_name         = */ weights_buft_name,
+        /* .alloc_buffer     = */ weights_alloc,
+        /* .alloc_buffer_n   = */ nullptr,
+        /* .get_alignment    = */ buft_alignment,
+        /* .get_max_size     = */ nullptr,
+        /* .get_alloc_size   = */ weights_alloc_size,
+        /* .get_alloc_size_n = */ nullptr,
+        /* .is_host          = */ nullptr,
+    },
     /* .device  = */ nullptr,
     /* .context = */ nullptr,
 };
@@ -1067,6 +1085,7 @@ void dev_props(ggml_backend_dev_t dev, ggml_backend_dev_props* props) {
     props->name = dev_name(dev);
     props->description = dev_description(dev);
     props->type = dev_type(dev);
+    props->device_id = nullptr;
     dev_memory(dev, &props->memory_free, &props->memory_total);
     props->caps = {/* async */ false, /* host_buffer */ false, /* buffer_from_host_ptr */ false,
                    /* events */ false, /* mmap_support */ false};
