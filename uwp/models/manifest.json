@@ -273,10 +273,11 @@
       ]
     },
     {
-      "_comment": "Phi-4-mini-instruct Q4_K_M (3.8B, MIT) — unsloth GGUF. Series S T3 PASS 2026-09-30 (#268): 11.2 tok/s decode, 33.1 prefill, 2765 MB peak, H9 6/8 vs llama32-3b 5/8 (bench/results/2026-09-30-catalogue-gates.csv). >2GB is fine on GGUF but must download straight from HF (GitHub release asset cap). Phi-3 template via chat_format_for (id must keep 'phi' and avoid 'gemma'/'llama'). kind:gguf, CPU-only, KV-reuse, routing disabled.",
+      "_comment": "Phi-4-mini-instruct Q4_K_M (3.8B, MIT) — unsloth GGUF. Series S T3 PASS 2026-09-30 (#268): 11.2 tok/s decode, 33.1 prefill, 2765 MB peak, H9 6/8 vs llama32-3b 5/8 (bench/results/2026-09-30-catalogue-gates.csv). >2GB is fine on GGUF but must download straight from HF (GitHub release asset cap). Phi-3 template via chat_format_for (id must keep 'phi' and avoid 'gemma'/'llama'). kind:gguf, CPU-only, KV-reuse, routing disabled. n_ctx 4096 (console 1.6.0.1163, 2026-10-12): 3528-token prompt peak WorkingSetSize 3096 MB vs 2838 MB at 2048 (1515 tok), working set after context alloc 3038 MB; needle at 3547 tokens correct; agent-runtime 50-case eval 48/50 at both n_ctx. Prefill ~28 tok/s, so a full window costs ~2 min before the first token.",
       "name": "phi4-mini",
       "display": "Phi-4 mini (GGUF · CPU)",
       "kind": "gguf",
+      "n_ctx": 4096,
       "hf_base_url": "https://huggingface.co/unsloth/Phi-4-mini-instruct-GGUF/resolve/main",
       "files": [
         {

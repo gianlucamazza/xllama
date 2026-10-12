@@ -62,7 +62,7 @@ All rows below are **CPU-bound decode** unless backend says DirectML.
 | Gemma-4-E2B           |               `gemma4-e2b` | ~2B eff | Q3_K_S   | llama.cpp |      28.4 |      15.3 |    2741 | 6/8     | Gemma             | —    |  2048 | `2026-10-11-remeasure-1163`                                            |
 | Llama-3.2-3B Instruct |               `llama32-3b` |      3B | Q3_K_S   | llama.cpp |      21.2 |  **14.1** |    1827 | 5/8     | Llama-3           | —    |  2048 | `2026-10-11-remeasure-1163` · H4 preferred                             |
 | Phi-3.5-mini          |                          — |    3.8B | Q3_K_S   | llama.cpp |      15.3 |      11.3 |    2453 | —       | Phi-3             | —    |  2048 | `phase7-scale` · H4 PASS, loses A/B                                    |
-| Phi-4-mini            |                `phi4-mini` |    3.8B | Q4_K_M   | llama.cpp |      33.1 |      11.2 |    2765 | **6/8** | Phi-3             | —    |  2048 | `2026-09-30-catalogue-gates` · **T3 PASS** peer                        |
+| Phi-4-mini            |                `phi4-mini` |    3.8B | Q4_K_M   | llama.cpp |      33.1 |      11.2 |    2765 | **6/8** | Phi-3             | —    |  4096 | `2026-09-30-catalogue-gates` · **T3 PASS** peer · n_ctx 4096           |
 | Gemma-4-E2B IQ2       |            (upgraded away) | ~2B eff | IQ2_M    | llama.cpp |      13.5 |       9.9 |    2534 | —       | Gemma             | —    |  2048 | historical; EOG on long prompts                                        |
 | SmolLM2-360M DML int4 |                          — |    360M | int4     | ORT DML   |     0–153 |   **8.8** |     999 | —       | ChatML            | —    |  2048 | **rejected** wrong logits / slow                                       |
 
