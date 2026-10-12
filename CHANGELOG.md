@@ -18,6 +18,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   larger (status 18pt, metrics 16pt) and the toolbar uses Segoe MDL2 icons
   instead of `[S]`/`[=]`/`[*]`. Counters: `include/xllama/api_activity.h`
   (header-only, host-tested).
+- **History rows fit the dialog.** The 580 px list was wider than a
+  ContentDialog's content area, so a long title wrapped and pushed its delete
+  button past the edge. Rows are now a fixed-width grid (title on one line,
+  then "N messages • date"), with the delete button always aligned; "1 msgs"
+  became "1 message". Generation metrics sit on their own row above the
+  toolbar instead of being truncated next to it.
+- **Unknown models get `404`, not `500`.** A chat or embeddings request naming
+  a model that is not on the console used to fail with `500` "session create
+  failed" and an internal LocalState path; it now returns `404` "model '<id>'
+  is not on this console; see GET /v1/models" without attempting a load.
 
 - **Inference hangs are diagnosable and self-healing.** After the 2026-10-11
   LFM2-2.6B CPU re-measure hung with the log stuck at `prompt tokens: 298`,

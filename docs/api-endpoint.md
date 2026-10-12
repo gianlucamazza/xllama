@@ -43,7 +43,10 @@ live XAML chat UI.
   request — the GUI pre-loads it when a model becomes Ready — and it is
   swapped when a request names a different model. A swap invalidates the
   GUI's KV-reuse state (`hub.generation`): its next turn silently falls back
-  to a full prefill.
+  to a full prefill. A model id that is neither resident nor a loadable
+  `LocalState\models\<id>` directory gets **`404`** "model '<id>' is not on this
+  console; see GET /v1/models" (chat and embeddings), before any load is
+  attempted.
 - **GGUF GPU layers:** a GGUF session gets the catalogue entry's `gpu_layers`
   (D3 default per model). `LocalState\gguf_gpu_layers.txt`, when present,
   overrides it for the GUI and this API alike; `0` forces the CPU. A change

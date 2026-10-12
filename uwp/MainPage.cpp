@@ -283,22 +283,27 @@ void MainPageController::BuildUI() {
     Grid::SetRow(footer, 2);
     footer.Margin(ThicknessHelper::FromLengths(0, 16, 0, 0));
 
-    ColumnDefinition colStar;
-    colStar.Width(GridLengthHelper::FromValueAndType(1, GridUnitType::Star));
-    ColumnDefinition colAuto;
-    colAuto.Width(GridLengthHelper::Auto());
-    footer.ColumnDefinitions().Append(colStar);
-    footer.ColumnDefinitions().Append(colAuto);
+    // Two rows: metrics above, buttons below. Sharing one row, the icon buttons
+    // left ~135 px for the metrics, which truncated "0.1s to first token" (seen
+    // on-console).
+    RowDefinition metricsRow;
+    metricsRow.Height(GridLengthHelper::Auto());
+    RowDefinition buttonsRow;
+    buttonsRow.Height(GridLengthHelper::Auto());
+    footer.RowDefinitions().Append(metricsRow);
+    footer.RowDefinitions().Append(buttonsRow);
 
     m_metricsText = TextBlock();
     m_metricsText.FontSize(16);
     m_metricsText.Opacity(0.85);
-    m_metricsText.VerticalAlignment(VerticalAlignment::Center);
-    Grid::SetColumn(m_metricsText, 0);
+    m_metricsText.Margin(ThicknessHelper::FromLengths(0, 0, 0, 8));
+    m_metricsText.TextTrimming(TextTrimming::CharacterEllipsis);
+    Grid::SetRow(m_metricsText, 0);
 
     StackPanel btnPanel;
     btnPanel.Orientation(Orientation::Horizontal);
-    Grid::SetColumn(btnPanel, 1);
+    btnPanel.HorizontalAlignment(HorizontalAlignment::Right);
+    Grid::SetRow(btnPanel, 1);
 
     // Segoe MDL2 Assets glyphs (system font on Xbox) instead of ASCII stand-ins.
     auto icon_label = [](wchar_t glyph, wchar_t const* label) {
@@ -344,7 +349,8 @@ void MainPageController::BuildUI() {
     m_runButton.IsEnabled(false); // disabled until EnsureModelAsync confirms model is ready
 
     m_cancelButton = Button();
-    m_cancelButton.Content(icon_label(0xE71A, L"Cancel"));
+    // E711 (Cancel, an X): the Stop square E71A read as an empty checkbox on TV.
+    m_cancelButton.Content(icon_label(0xE711, L"Cancel"));
     m_cancelButton.IsEnabled(false);
     m_cancelButton.MinWidth(120);
 
@@ -1115,33 +1121,48 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
     winrt::Windows::UI::Xaml::Controls::ListView lv;
     lv.SelectionMode(winrt::Windows::UI::Xaml::Controls::ListViewSelectionMode::Single);
     lv.Height(400);
-    lv.Width(580);
+    // A ContentDialog caps its content near 548 effective px: the old 580 px list
+    // with wrapping titles pushed the delete button past the dialog edge (seen
+    // on-console). Rows are a fixed-width grid: title + details | delete.
+    lv.Width(500);
     std::string current_id = m_current.id;
 
     // Shared state: when a Delete button fires it sets this and hides the dialog
     auto delete_pending = std::make_shared<std::string>();
 
     for (const auto& meta : index) {
-        winrt::Windows::UI::Xaml::Controls::StackPanel row;
-        row.Orientation(winrt::Windows::UI::Xaml::Controls::Orientation::Horizontal);
+        winrt::Windows::UI::Xaml::Controls::Grid row;
+        row.Width(456);
+        winrt::Windows::UI::Xaml::Controls::ColumnDefinition text_col;
+        text_col.Width(winrt::Windows::UI::Xaml::GridLengthHelper::FromValueAndType(
+            1, winrt::Windows::UI::Xaml::GridUnitType::Star));
+        winrt::Windows::UI::Xaml::Controls::ColumnDefinition button_col;
+        button_col.Width(winrt::Windows::UI::Xaml::GridLengthHelper::Auto());
+        row.ColumnDefinitions().Append(text_col);
+        row.ColumnDefinitions().Append(button_col);
 
+        winrt::Windows::UI::Xaml::Controls::StackPanel text;
+        text.VerticalAlignment(winrt::Windows::UI::Xaml::VerticalAlignment::Center);
         winrt::Windows::UI::Xaml::Controls::TextBlock tb;
         tb.FontSize(16);
-        tb.TextWrapping(winrt::Windows::UI::Xaml::TextWrapping::Wrap);
-        tb.MaxWidth(480);
-        tb.VerticalAlignment(winrt::Windows::UI::Xaml::VerticalAlignment::Center);
-        std::wstring prefix = (meta.id == current_id) ? L"● " : L"   ";
-        std::wstring ts = FormatRelativeTs(meta.last_modified);
-        wchar_t buf[256];
-        swprintf_s(buf, L"%s%s  (%d msgs)  •  %s", prefix.c_str(),
-                   ::xllama::utf8_to_wstring(meta.title).c_str(), meta.n_messages, ts.c_str());
-        tb.Text(buf);
+        tb.TextTrimming(winrt::Windows::UI::Xaml::TextTrimming::CharacterEllipsis);
+        std::wstring prefix = (meta.id == current_id) ? L"\u25CF " : L"";
+        tb.Text(prefix + ::xllama::utf8_to_wstring(meta.title));
+        winrt::Windows::UI::Xaml::Controls::TextBlock details;
+        details.FontSize(14);
+        details.Opacity(0.85);
+        details.Text(std::to_wstring(meta.n_messages) +
+                     (meta.n_messages == 1 ? L" message" : L" messages") + L"  \u2022  " +
+                     FormatRelativeTs(meta.last_modified));
+        text.Children().Append(tb);
+        text.Children().Append(details);
 
         winrt::Windows::UI::Xaml::Controls::Button del_btn;
         del_btn.Content(winrt::box_value(L"✕"));
         del_btn.Width(48);
         del_btn.VerticalAlignment(winrt::Windows::UI::Xaml::VerticalAlignment::Center);
         del_btn.Margin(winrt::Windows::UI::Xaml::ThicknessHelper::FromLengths(8, 0, 0, 0));
+        winrt::Windows::UI::Xaml::Controls::Grid::SetColumn(del_btn, 1);
         auto meta_id = meta.id;
         // Weak capture of dlg: a strong capture closed a refcount cycle
         // (dlg → Content → … → Button → Click → dlg) and leaked the whole
@@ -1154,7 +1175,7 @@ winrt::fire_and_forget MainPageController::ShowHistory() {
                 d.Hide();
         });
 
-        row.Children().Append(tb);
+        row.Children().Append(text);
         row.Children().Append(del_btn);
         lv.Items().Append(row);
     }
@@ -1532,7 +1553,8 @@ void MainPageController::RefreshApiPanel() {
         m_apiNowText.Text(L"idle");
     }
 
-    std::wstring counts = std::to_wstring(snap.requests) + L" requests \u00B7 " +
+    std::wstring counts = std::to_wstring(snap.requests) +
+                          (snap.requests == 1 ? L" request" : L" requests") + L" \u00B7 " +
                           std::to_wstring(snap.busy) + L" busy";
     if (snap.last) {
         counts += L" \u00B7 last " + FormatSeconds(snap.last->elapsed_s);

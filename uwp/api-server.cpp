@@ -394,6 +394,30 @@ void split_messages(JsonArray const& messages, std::string& system,
         final_user = cur_user; // trailing user turn is the one we answer
 }
 
+// True when the console can serve `model` now: the resident model, or a
+// LocalState\models\<id> directory with a loadable layout. Raw paths (model.txt
+// may name one) are left to the session loader. The caller holds hub.mtx, so
+// this must not call current_model_id() (it try_locks the same mutex).
+bool model_servable_locked(const std::string& model) {
+    if (model.find_first_of("\\/:") != std::string::npos)
+        return true;
+    if (::xllama::session_hub().model == model)
+        return true;
+    std::error_code ec;
+    const std::filesystem::path dir =
+        std::filesystem::path(::xllama::resolve_local_path("models")) / model;
+    if (!std::filesystem::is_directory(dir, ec))
+        return false;
+    std::vector<std::string> files;
+    for (const auto& f : std::filesystem::directory_iterator(dir, ec))
+        files.push_back(f.path().filename().string());
+    return ::xllama::model_dir_files_ready(files);
+}
+
+std::string model_not_found(const std::string& model) {
+    return "model '" + model + "' is not on this console; see GET /v1/models";
+}
+
 // Handles one chat request under session_hub().mtx (already locked by the caller).
 std::string handle_chat_locked(const std::string& body, const char*& status,
                                ::xllama::ApiActivity::Ticket& ticket) {
@@ -421,6 +445,10 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
         return error_json("missing 'model' (and no LocalState\\model.txt fallback)");
     }
     ticket.model(model);
+    if (!model_servable_locked(model)) {
+        status = "404 Not Found"; // OpenAI: model_not_found; was a 500 with a path
+        return error_json(model_not_found(model));
+    }
 
     if (!root.HasKey(L"messages") ||
         root.GetNamedValue(L"messages").ValueType() != JsonValueType::Array) {
@@ -707,6 +735,10 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
 
     model = ::xllama::resolve_pull_model_name(model);
     ticket.model(model);
+    if (!model_servable_locked(model)) {
+        status = "404 Not Found";
+        return embedding_error_json(api, model_not_found(model));
+    }
 
     std::vector<std::string> inputs;
     const wchar_t* input_key = api == EmbeddingApi::Legacy ? L"prompt" : L"input";
