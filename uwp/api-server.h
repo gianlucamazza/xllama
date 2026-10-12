@@ -10,6 +10,10 @@
 
 #include <string>
 
+namespace xllama {
+class ApiActivity; // xllama/api_activity.h (kept out of this header: it precedes pch.h)
+} // namespace xllama
+
 namespace xllama::api {
 
 enum class ServerState { Stopped, Starting, Running, Error };
@@ -44,5 +48,9 @@ ServerStatus server_status();
 // Concurrency: a single shared Session serialized by a mutex; concurrent
 // requests get HTTP 503 (Ollama single-slot semantics).
 void run_server();
+
+// Process-wide record of inference traffic (in-flight request, counters, last
+// outcome and error) that the main page polls for its LAN API panel.
+::xllama::ApiActivity& activity();
 
 } // namespace xllama::api

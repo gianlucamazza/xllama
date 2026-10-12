@@ -24,12 +24,26 @@ offline. If the download fails, provisioning via Device Portal or USB
 
 Type with the on-screen keyboard (or a USB keyboard) and send. The toolbar:
 
-- **`[=] History`** — saved conversations: reopen, delete, or start a
+- **History** — saved conversations: reopen, delete, or start a
   **New conversation**. History persists in `LocalState`.
-- **`[S] Settings`** — see below.
-- **`[*] Image`** — image generation, see below.
+- **Settings** — see below.
+- **Image** — image generation, see below.
 
-Generation shows live tok/s; **■ Cancel** stops a running reply.
+Generation shows live tok/s; **Cancel** stops a running reply.
+
+The header shows the **chat model** (the one the pad uses) on the left. When
+the LAN API is on, a panel on the right shows what the endpoint is doing:
+
+- `● LAN API  http://<console IP>:<port>/v1` — the base URL to give a client
+  (green listening, amber starting, red bind error);
+- the request being served (`▶ chat · phi4-mini · 12.4s`) or `idle`;
+- requests served, `busy` rejections, and the last request's time and tokens;
+- the last failed request in red for 10 minutes.
+
+LAN requests may load another model than the chat model; the panel shows the
+model each request used. If you press **Run** while a LAN request holds the
+model, the status line says **Waiting for LAN API request to finish...** and
+your turn starts when it does.
 
 Gamepad: **B** cancels a running reply and otherwise does nothing — it does
 **not** leave the app. Use the **Xbox (Guide)** button to quit. **View** clears
@@ -47,7 +61,7 @@ in ways you will notice, and the picker does not explain them:
 
 - **Chat** (the default, LFM2.5-350M, the larger LFM2.5-1.2B / LFM2-2.6B, and
   heavier peers such as Llama-3.2-3B or Phi-4-mini, a ~2.5 GB download) — a
-  2048-token context. This is what a first launch gives you.
+  2048-token context (Phi-4-mini: 4096). This is what a first launch gives you.
 - **Coding** (`qwen25-coder-0.5b` / `-1.5b` / `-3b`) — the same UI, but the
   session opens a **4096-token** context, because the point of the tier is
   pasting real source. That is the only difference you set: there is no separate
@@ -140,7 +154,8 @@ chat`. On a coding session that ceiling is 4096 tokens, roughly 13 KB of dense
     crossover exists — see [docs/uwp-constraints.md §5d](./uwp-constraints.md).
 - **LAN API** — enables or stops the OpenAI-compatible endpoint immediately,
   without restarting the app. The port must be 1025–49151 except 11443. The
-  status line reports the active listener or bind error. Besides chat, the
+  status line reports the active listener, with the full base URL, or the bind
+  error; the main screen's LAN API panel (above) shows live activity. Besides chat, the
   endpoint can pull trusted catalogue models, return embedding vectors, record
   preferences, report training status, and generate images
   (same guardrails as the pad UI). The endpoint **shares the one loaded model

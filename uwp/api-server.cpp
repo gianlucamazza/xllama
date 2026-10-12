@@ -19,6 +19,7 @@
 
     #include "inference-bridge.h"
     #include "model-downloader.h"
+    #include "xllama/api_activity.h"
     #include "xllama/api_policy.h"
     #include "xllama/api_pull_policy.h"
     #include "xllama/chat_prompt.h"
@@ -38,6 +39,7 @@
     #include <charconv>
     #include <chrono>
     #include <cstdio>
+    #include <cstdlib>
     #include <ctime>
     #include <filesystem>
     #include <memory>
@@ -393,7 +395,8 @@ void split_messages(JsonArray const& messages, std::string& system,
 }
 
 // Handles one chat request under session_hub().mtx (already locked by the caller).
-std::string handle_chat_locked(const std::string& body, const char*& status) {
+std::string handle_chat_locked(const std::string& body, const char*& status,
+                               ::xllama::ApiActivity::Ticket& ticket) {
     JsonObject root{nullptr};
     if (!JsonObject::TryParse(winrt::to_hstring(body), root) || root == nullptr) {
         status = "400 Bad Request";
@@ -417,6 +420,7 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
         status = "400 Bad Request";
         return error_json("missing 'model' (and no LocalState\\model.txt fallback)");
     }
+    ticket.model(model);
 
     if (!root.HasKey(L"messages") ||
         root.GetNamedValue(L"messages").ValueType() != JsonValueType::Array) {
@@ -534,6 +538,7 @@ std::string handle_chat_locked(const std::string& body, const char*& status) {
         status = "500 Internal Server Error";
         return error_json("generation failed: " + r.error_msg);
     }
+    ticket.tokens(r.n_p_eval, r.n_eval);
     const std::string content = fmt.postprocess_output(r.output_text);
 
     JsonObject message;
@@ -685,8 +690,8 @@ uint64_t estimate_gguf_peak_mb(const std::string& model) {
     return static_cast<uint64_t>(peak_bytes / (1024.0 * 1024.0) + 0.5);
 }
 
-std::string handle_embedding_locked(const std::string& body, const char*& status,
-                                    EmbeddingApi api) {
+std::string handle_embedding_locked(const std::string& body, const char*& status, EmbeddingApi api,
+                                    ::xllama::ApiActivity::Ticket& ticket) {
     JsonObject root{nullptr};
     if (!JsonObject::TryParse(winrt::to_hstring(body), root) || root == nullptr) {
         status = "400 Bad Request";
@@ -701,6 +706,7 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
     }
 
     model = ::xllama::resolve_pull_model_name(model);
+    ticket.model(model);
 
     std::vector<std::string> inputs;
     const wchar_t* input_key = api == EmbeddingApi::Legacy ? L"prompt" : L"input";
@@ -868,6 +874,7 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
         }
     }
     const auto finished = std::chrono::steady_clock::now();
+    ticket.tokens(prompt_tokens, 0);
     ::xllama::log_output(
         ("[embedding] model=" + model + " inputs=" + std::to_string(inputs.size()) +
          " tokens=" + std::to_string(prompt_tokens) + " width=" + std::to_string(embedding_width) +
@@ -1342,6 +1349,33 @@ void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t g
     }
 }
 
+// "200 OK" -> 200 for the activity record.
+int http_code(const char* status) {
+    return std::atoi(status);
+}
+
+// The human message of an error body: OpenAI {"error":{"message":...}} or
+// Ollama {"error":"..."}. Empty when the body carries none.
+std::string error_text(const std::string& json) {
+    JsonObject root{nullptr};
+    if (!JsonObject::TryParse(winrt::to_hstring(json), root) || root == nullptr ||
+        !root.HasKey(L"error"))
+        return {};
+    const auto value = root.GetNamedValue(L"error");
+    if (value.ValueType() == JsonValueType::String)
+        return winrt::to_string(value.GetString());
+    if (value.ValueType() == JsonValueType::Object)
+        return winrt::to_string(value.GetObject().GetNamedString(L"message", L""));
+    return {};
+}
+
+// Close the activity record of a request once its response is written.
+void record_outcome(::xllama::ApiActivity::Ticket& ticket, const char* status,
+                    const std::string& json) {
+    const int code = http_code(status);
+    ticket.done(code, code >= 400 ? error_text(json) : std::string());
+}
+
 void handle_connection(StreamSocket const& socket, uint64_t generation) {
     try {
         const HttpRequest req = read_request(socket);
@@ -1387,6 +1421,7 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
         if (req.method == "POST" && req.path == "/v1/chat/completions") {
             std::unique_lock<std::mutex> lk = acquire_hub_or_busy();
             if (!lk.owns_lock()) {
+                activity().busy();
                 write_response(socket, "503 Service Unavailable", error_json("busy"));
                 return;
             }
@@ -1405,15 +1440,17 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             // handle_chat_locked touches WinRT JSON accessors that throw on
             // wrong-typed fields; guarantee the client always gets a response
             // rather than a silently dropped socket.
+            auto ticket = activity().begin("chat");
             const char* status = "200 OK";
             std::string json;
             try {
-                json = handle_chat_locked(req.body, status);
+                json = handle_chat_locked(req.body, status, ticket);
             } catch (...) {
                 status = "400 Bad Request";
                 json = error_json("malformed request body");
             }
             write_response(socket, status, json);
+            record_outcome(ticket, status, json);
             return;
         }
 
@@ -1427,6 +1464,7 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                                                             : EmbeddingApi::OpenAI;
             std::unique_lock<std::mutex> lk = acquire_hub_or_busy();
             if (!lk.owns_lock()) {
+                activity().busy();
                 write_response(socket, "503 Service Unavailable",
                                embedding_error_json(embedding_api, "busy"));
                 return;
@@ -1441,15 +1479,17 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                                embedding_error_json(embedding_api, "server stopped"));
                 return;
             }
+            auto ticket = activity().begin("embeddings");
             const char* status = "200 OK";
             std::string json;
             try {
-                json = handle_embedding_locked(req.body, status, embedding_api);
+                json = handle_embedding_locked(req.body, status, embedding_api, ticket);
             } catch (...) {
                 status = "400 Bad Request";
                 json = embedding_error_json(embedding_api, "malformed embedding request");
             }
             write_response(socket, status, json);
+            record_outcome(ticket, status, json);
             return;
         }
 
@@ -1477,6 +1517,7 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
         if (req.method == "POST" && req.path == "/v1/images/generations") {
             std::unique_lock<std::mutex> lk = acquire_hub_or_busy();
             if (!lk.owns_lock()) {
+                activity().busy();
                 write_response(socket, "503 Service Unavailable", error_json("busy"));
                 return;
             }
@@ -1489,6 +1530,7 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                 write_response(socket, "503 Service Unavailable", error_json("server stopped"));
                 return;
             }
+            auto ticket = activity().begin("images");
             const char* status = "200 OK";
             std::string json;
             try {
@@ -1498,6 +1540,7 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                 json = error_json("image generation failed");
             }
             write_response(socket, status, json);
+            record_outcome(ticket, status, json);
             return;
         }
 
@@ -1609,11 +1652,22 @@ void run_server() {
     start_server();
 }
 
+::xllama::ApiActivity& activity() {
+    static ::xllama::ApiActivity instance;
+    return instance;
+}
+
 } // namespace xllama::api
 
 #else // !XLLAMA_UWP
 
+    #include "xllama/api_activity.h"
+
 namespace xllama::api {
+::xllama::ApiActivity& activity() {
+    static ::xllama::ApiActivity instance;
+    return instance;
+}
 void start_server(int) {}
 void stop_server() {}
 ServerStatus server_status() {

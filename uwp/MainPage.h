@@ -124,6 +124,10 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     winrt::fire_and_forget ShowSettings();
     #ifndef XLLAMA_STORE_SKU
     void ApplyApiSettings(bool enabled, int port);
+    // LAN API panel (header, right): resolves the console IP once, then polls
+    // xllama::api::server_status() and api::activity() every second.
+    void StartApiPanel();
+    void RefreshApiPanel();
     #endif
     // Phase 11 (#116): in-app personalization — train on samples.jsonl, publish
     // merged.gguf as catalogue entry "personalized".
@@ -160,6 +164,14 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     winrt::Windows::UI::Xaml::Controls::RichTextBlock m_outputBody{nullptr};
     winrt::Windows::UI::Xaml::Documents::Paragraph m_currentParagraph{nullptr};
     winrt::Windows::UI::Xaml::Controls::TextBlock m_metricsText{nullptr};
+    winrt::Windows::UI::Xaml::Controls::StackPanel m_apiPanel{nullptr};
+    winrt::Windows::UI::Xaml::Controls::TextBlock m_apiEndpointText{nullptr};
+    winrt::Windows::UI::Xaml::Controls::TextBlock m_apiNowText{nullptr};
+    winrt::Windows::UI::Xaml::Controls::TextBlock m_apiCountsText{nullptr};
+    winrt::Windows::UI::Xaml::Controls::TextBlock m_apiErrorText{nullptr};
+    winrt::Windows::UI::Xaml::DispatcherTimer m_api_timer{nullptr};
+    winrt::event_token m_api_tick_token{};
+    std::wstring m_lan_ip; // cached console IPv4, resolved off the UI thread
     winrt::Windows::UI::Xaml::Controls::Button m_runButton{nullptr};
     winrt::Windows::UI::Xaml::Controls::Button m_cancelButton{nullptr};
     winrt::Windows::UI::Xaml::Controls::Button m_newChatButton{nullptr};

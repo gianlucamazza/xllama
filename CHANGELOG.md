@@ -7,6 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **The console shows what the LAN API is doing.** While the endpoint is on,
+  a panel in the main header shows the base URL with the console's IP, the
+  request being served (endpoint, model, elapsed), request and `busy` counts,
+  the last request's time and tokens, and the last failure for 10 minutes.
+  Before, an agent could drive the console for hours while the screen said
+  "Ready" and named the chat model, not the one the API had loaded. A pad turn
+  that waits for a LAN request now says so instead of stalling silently, and
+  Settings → LAN API shows the full base URL. Text for the 10-foot view is
+  larger (status 18pt, metrics 16pt) and the toolbar uses Segoe MDL2 icons
+  instead of `[S]`/`[=]`/`[*]`. Counters: `include/xllama/api_activity.h`
+  (header-only, host-tested).
+
 - **Inference hangs are diagnosable and self-healing.** After the 2026-10-11
   LFM2-2.6B CPU re-measure hung with the log stuck at `prompt tokens: 298`,
   both backends now log `prefill starting` / `prefill done` (tokens + ms) and
