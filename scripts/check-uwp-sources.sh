@@ -8,12 +8,16 @@
 # top-level source the vcxproj doesn't reference (the 657e011 bump did exactly
 # this with llama-kv-cache-dsa/dsv4.cpp → LNK2001).
 #
+# It also fails if a listed llama.cpp source is gone (d812350 dropped
+# ggml-cpu/iqp.cpp after ggml#27851; ggml-cpu.c now links tiled/ instead).
+#
 # Run after `git submodule update` (both UWP workflows do this via
 # apply-uwp-patches.sh).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VCX="$ROOT/uwp/ggml-uwp.vcxproj"
+VCX_DIR="$(dirname "$VCX")"
 SRC="$ROOT/llama.cpp/src"
 
 if [[ ! -f "$VCX" ]]; then
@@ -35,9 +39,13 @@ for f in "$SRC"/*.cpp; do
 	fi
 done
 
-# The CPU backend has a separate explicit source inventory. Check its root and
-# x86 kernels too; optional AMX/other-architecture directories stay excluded.
-for dir in "$ROOT/llama.cpp/ggml/src/ggml-cpu" "$ROOT/llama.cpp/ggml/src/ggml-cpu/arch/x86"; do
+# The CPU backend has a separate explicit source inventory. Check its root,
+# tiled k-quant kernels, and x86 kernels; optional AMX/other-architecture
+# directories stay excluded.
+for dir in \
+	"$ROOT/llama.cpp/ggml/src/ggml-cpu" \
+	"$ROOT/llama.cpp/ggml/src/ggml-cpu/tiled" \
+	"$ROOT/llama.cpp/ggml/src/ggml-cpu/arch/x86"; do
 	for f in "$dir"/*.cpp "$dir"/*.c; do
 		[[ -f "$f" ]] || continue
 		rel="${f#"$ROOT/"}"
@@ -49,10 +57,23 @@ for dir in "$ROOT/llama.cpp/ggml/src/ggml-cpu" "$ROOT/llama.cpp/ggml/src/ggml-cp
 	done
 done
 
+# Paths in the vcxproj are relative to uwp/. Skip MSBuild wildcards.
+while IFS= read -r inc; do
+	case "$inc" in
+	*\**) continue ;;
+	esac
+	unix_rel="${inc//\\//}"
+	if [[ ! -e "$VCX_DIR/$unix_rel" ]]; then
+		echo "STALE: $inc is referenced in ggml-uwp.vcxproj but missing on disk"
+		missing=1
+	fi
+done < <(sed -n 's/.*Include="\(\.\.\\llama\.cpp\\[^"]*\)".*/\1/p' "$VCX")
+
 if [[ "$missing" -ne 0 ]]; then
 	echo "" >&2
 	echo "ggml-uwp.vcxproj is out of sync with the llama.cpp/CPU source inventory." >&2
 	echo "Add the missing <ClCompile Include=\"..\\llama.cpp\\src\\<file>.cpp\" /> entries." >&2
+	echo "Remove STALE entries whose files no longer exist in the submodule." >&2
 	exit 1
 fi
 
