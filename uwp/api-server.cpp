@@ -1449,8 +1449,10 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                 status = "400 Bad Request";
                 json = error_json("malformed request body");
             }
-            write_response(socket, status, json);
+            // Record before writing: a client that disconnects makes
+            // write_response throw, and the request was still served.
             record_outcome(ticket, status, json);
+            write_response(socket, status, json);
             return;
         }
 
@@ -1488,8 +1490,10 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                 status = "400 Bad Request";
                 json = embedding_error_json(embedding_api, "malformed embedding request");
             }
-            write_response(socket, status, json);
+            // Record before writing: a client that disconnects makes
+            // write_response throw, and the request was still served.
             record_outcome(ticket, status, json);
+            write_response(socket, status, json);
             return;
         }
 
@@ -1539,8 +1543,10 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                 status = "500 Internal Server Error";
                 json = error_json("image generation failed");
             }
-            write_response(socket, status, json);
+            // Record before writing: a client that disconnects makes
+            // write_response throw, and the request was still served.
             record_outcome(ticket, status, json);
+            write_response(socket, status, json);
             return;
         }
 

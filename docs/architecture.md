@@ -667,6 +667,7 @@ Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 
 | Test file                     | Under test                                              |
 | ----------------------------- | ------------------------------------------------------- |
+| `test_api_activity.cpp`       | `api_activity.h`                                        |
 | `test_api_config.cpp`         | LAN API config validation (`uwp/api-server.h`)          |
 | `test_api_pull.cpp`           | `api_pull_policy.h`                                     |
 | `test_autopilot.cpp`          | `autopilot.h`                                           |

@@ -196,6 +196,10 @@ void MainPageController::BuildUI() {
     m_apiPanel = StackPanel();
     Grid::SetColumn(m_apiPanel, 1);
     m_apiPanel.Margin(ThicknessHelper::FromLengths(32, 0, 0, 0));
+    // Effective pixels: the Xbox shell lays apps out at 960x540 (2x scale). Cap
+    // the panel at half the width so a long error never squeezes the chat model
+    // and status out of the left column (seen on-console before this cap).
+    m_apiPanel.MaxWidth(480);
     m_apiPanel.Visibility(Visibility::Collapsed);
     auto api_line = [](double size, double opacity) {
         TextBlock line;
@@ -204,7 +208,6 @@ void MainPageController::BuildUI() {
         line.HorizontalAlignment(HorizontalAlignment::Right);
         line.TextAlignment(TextAlignment::Right);
         line.TextTrimming(TextTrimming::CharacterEllipsis);
-        line.MaxWidth(760);
         return line;
     };
     m_apiEndpointText = api_line(20, 1.0);
@@ -212,6 +215,8 @@ void MainPageController::BuildUI() {
     m_apiNowText = api_line(18, 1.0);
     m_apiCountsText = api_line(16, 0.85);
     m_apiErrorText = api_line(16, 1.0);
+    m_apiErrorText.TextWrapping(TextWrapping::Wrap);
+    m_apiErrorText.MaxLines(2);
     m_apiErrorText.Foreground(winrt::Windows::UI::Xaml::Media::SolidColorBrush({255, 240, 80, 70}));
     m_apiErrorText.Visibility(Visibility::Collapsed);
     m_apiPanel.Children().Append(m_apiEndpointText);
@@ -3121,11 +3126,16 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
             auto& hub = ::xllama::session_hub();
             std::unique_lock<std::mutex> hub_lk(hub.mtx, std::try_to_lock);
             if (!hub_lk.owns_lock()) {
-                // A LAN API request (or a pre-load) holds the single slot: say so
-                // instead of a silent stall, then wait for it.
-                dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self]() {
-                    self->SetStatus(L"Waiting for LAN API request to finish...",
-                                    StatusKind::Working);
+                // Another job holds the single slot: a LAN request, a pre-load,
+                // a KV snapshot save or a pull's model swap. Say which when we
+                // can, instead of a silent stall, then wait for it.
+                std::wstring waiting = L"Waiting for the model to be free...";
+    #ifndef XLLAMA_STORE_SKU
+                if (::xllama::api::activity().snapshot().in_flight)
+                    waiting = L"Waiting for LAN API request to finish...";
+    #endif
+                dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, waiting]() {
+                    self->SetStatus(waiting, StatusKind::Working);
                 });
                 hub_lk.lock();
                 dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self]() {

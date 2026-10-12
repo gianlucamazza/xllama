@@ -42,8 +42,9 @@ the LAN API is on, a panel on the right shows what the endpoint is doing:
 
 LAN requests may load another model than the chat model; the panel shows the
 model each request used. If you press **Run** while a LAN request holds the
-model, the status line says **Waiting for LAN API request to finish...** and
-your turn starts when it does.
+model, the status line says **Waiting for LAN API request to finish...** (or
+**Waiting for the model to be free...** for a load or snapshot save) and your
+turn starts when it is done.
 
 Gamepad: **B** cancels a running reply and otherwise does nothing — it does
 **not** leave the app. Use the **Xbox (Guide)** button to quit. **View** clears
