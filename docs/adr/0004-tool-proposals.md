@@ -37,7 +37,9 @@ A call cut off by the token cap is omitted: `finish_reason` is `length` and
 `content` is the raw text. A complete call still wins as `tool_calls`. If the
 parser rejects the output, the status stays 200 and the body is the raw text.
 KV reuse stays off. Stops are the template's additional stops plus the
-client's `stop`.
+client's `stop`. The template's preserved tokens (LFM2's
+`<|tool_call_start|>`, ...) are decoded as text so the parser sees them; every
+other special token is still dropped.
 
 The budget trimmer for this path is `fit_tool_transcript`, beside `fit_prompt`,
 in `prompt_budget.h`. Both ask the resident tokenizer and reserve

@@ -824,12 +824,22 @@ class LlamaSession final : public Session {
         // see there for why. What stays here is what is genuinely this session's:
         // keeping m_kv_tokens in step with the KV cells, which the #170a prefix
         // diff and the #170b snapshot fingerprint both read.
+        // A preserved string counts only when it is one token (llama-server rule).
+        std::unordered_set<llama_token> preserved;
+        for (const std::string& text : gp.preserved_tokens) {
+            llama_token id = 0;
+            if (llama_tokenize(vocab, text.c_str(), static_cast<int32_t>(text.size()), &id, 1,
+                               false, true) == 1)
+                preserved.insert(id);
+        }
+
         DecodeLoopParams dlp;
         dlp.ctx = ctx;
         dlp.sampler = sampler_chain;
         dlp.vocab = vocab;
         dlp.n_predict = n_predict_eff;
         dlp.stop_sequences = &gp.stop_sequences;
+        dlp.preserved_tokens = preserved.empty() ? nullptr : &preserved;
         dlp.abort_flag = gp.abort_flag;
         dlp.on_token = gp.on_token;
         dlp.on_accepted = [this](llama_token t) { m_kv_tokens.push_back(t); };

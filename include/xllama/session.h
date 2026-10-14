@@ -78,6 +78,11 @@ struct GenerateParams {
     // Generation stops and the matching sequence is stripped.
     std::vector<std::string> stop_sequences;
 
+    // Special tokens rendered as text instead of dropped (ADR 0004: a tool
+    // template's call markers). Each must tokenize to one token; others are
+    // ignored, as llama-server does. Empty = no special token reaches the text.
+    std::vector<std::string> preserved_tokens;
+
     // Continuous decoding / KV-cache reuse. Honored by BOTH backends now: the
     // ORT path (persistent generator) and the llama.cpp path (persistent
     // llama_context, KV cache retained across turns — turn-2 prefill 4.07×).

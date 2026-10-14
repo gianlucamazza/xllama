@@ -16,6 +16,7 @@
 #include <functional>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 
 namespace xllama {
@@ -80,6 +81,9 @@ struct DecodeLoopParams {
     const llama_vocab* vocab = nullptr;
     int n_predict = 0;
     const std::vector<std::string>* stop_sequences = nullptr;
+    // Special tokens emitted as text (GenerateParams::preserved_tokens); null =
+    // every special token is dropped from the output.
+    const std::unordered_set<llama_token>* preserved_tokens = nullptr;
     const std::atomic<bool>* abort_flag = nullptr;
     // Streamed piece-by-piece to the caller (chat UI token stream, CLI echo).
     std::function<void(std::string_view)> on_token;
@@ -132,7 +136,8 @@ namespace detail {
 // ended generation (caller should still count the token).
 inline bool emit_token(const DecodeLoopParams& p, llama_token token, std::string& output_text) {
     char buf[256] = {};
-    const int len = llama_token_to_piece(p.vocab, token, buf, sizeof(buf) - 1, 0, false);
+    const bool special = p.preserved_tokens && p.preserved_tokens->count(token) > 0;
+    const int len = llama_token_to_piece(p.vocab, token, buf, sizeof(buf) - 1, 0, special);
     if (len > 0) {
         buf[len] = '\0';
         output_text += buf;

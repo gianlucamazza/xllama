@@ -149,7 +149,9 @@ retry. The prompt and the parse go through the resident GGUF Jinja template
 `400` `tools require a GGUF chat template`. A GGUF with no explicit chat template
 returns `400` `model has no chat template`. The server does not fall back to
 `ChatFormat` with the schema pasted on. KV reuse stays off. Stops are the
-template's additional stops plus the client's `stop`.
+template's additional stops plus the client's `stop`. The template's preserved tokens (LFM2's
+`<|tool_call_start|>`, ...) are decoded as text so the parser sees them; every
+other special token is still dropped.
 
 `choices[0].message.tool_calls[]` is `{id, type:"function", function:{name, arguments}}`
 with `arguments` a JSON string. Missing call ids become `call_1`, `call_2`, … in

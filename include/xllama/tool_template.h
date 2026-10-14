@@ -19,6 +19,9 @@ struct ToolTemplateResult {
     std::string prompt;
     std::string error;
     std::vector<std::string> stop_sequences;
+    // Special tokens the template's parser reads (LFM2 <|tool_call_start|>,
+    // ...). The decode must emit them as text or the parser never sees a call.
+    std::vector<std::string> preserved_tokens;
 };
 
 struct ToolParseResult {

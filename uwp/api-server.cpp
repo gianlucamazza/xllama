@@ -512,6 +512,7 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
     gp.reuse_kv = false;
     fill_sampling(root, gp);
     std::vector<std::string> template_stops;
+    std::vector<std::string> preserved_tokens;
     ::xllama::ToolTranscriptFit fit;
     try {
         const void* llama_model = session->resident_llama_model();
@@ -524,6 +525,7 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
                 if (!rendered.ok)
                     throw std::runtime_error(rendered.error);
                 template_stops = rendered.stop_sequences;
+                preserved_tokens = rendered.preserved_tokens;
                 return rendered.prompt;
             },
             [session](const std::string& text) { return session->count_tokens(text); });
@@ -543,6 +545,7 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
                              "\n");
     gp.prompt = fit.prompt;
     gp.stop_sequences = std::move(template_stops);
+    gp.preserved_tokens = std::move(preserved_tokens);
     append_client_stops(root, gp.stop_sequences);
 
     const ::xllama::InferenceResult generated = session->generate(gp);

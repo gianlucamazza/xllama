@@ -162,6 +162,7 @@ ToolTemplateResult render_tool_prompt(const void* llama_model, const std::string
     out.ok = true;
     out.prompt = applied.params.prompt;
     out.stop_sequences = applied.params.additional_stops;
+    out.preserved_tokens = applied.params.preserved_tokens;
     return out;
 }
 

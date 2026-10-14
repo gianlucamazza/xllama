@@ -10,6 +10,9 @@
 #include "xllama/tool_template.h"
 #include "xllama/tool_transcript.h"
 
+#include <algorithm>
+#include <fstream>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -264,4 +267,33 @@ TEST_CASE("GGUF jinja template renders a tool name and parses a call") {
     REQUIRE(choice.tool_calls.size() == 1);
     CHECK(choice.tool_calls[0].name == "ping");
     CHECK(choice.tool_calls[0].arguments_json.find("pong") != std::string::npos);
+}
+
+TEST_CASE("LFM2.5 tool calls need their special-token markers in the decoded text") {
+    // Console regression (1.6.0.1208): lfm25-350m emitted a correct call, but the
+    // decode dropped <|tool_call_start|> as a special token, so the parser saw
+    // plain text. The template names the markers; the decode must keep them.
+    std::ifstream file(std::string(LLAMA_TEMPLATES_DIR) + "/LFM2.5-Instruct.jinja");
+    REQUIRE(file.good());
+    const std::string jinja((std::istreambuf_iterator<char>(file)),
+                            std::istreambuf_iterator<char>());
+    xllama::ChatMessage user = message(xllama::ChatRole::User, "ping please");
+    const std::vector<xllama::ToolSpec> tools{ping_tool()};
+    const xllama::ToolTemplateResult rendered =
+        xllama::render_tool_prompt(nullptr, jinja, {user}, tools, xllama::ToolChoice::Auto, "");
+    REQUIRE_MESSAGE(rendered.ok, rendered.error);
+    const auto& kept = rendered.preserved_tokens;
+    CHECK(std::find(kept.begin(), kept.end(), "<|tool_call_start|>") != kept.end());
+    CHECK(std::find(kept.begin(), kept.end(), "<|tool_call_end|>") != kept.end());
+
+    const xllama::ToolParseResult marked = xllama::parse_tool_generation(
+        nullptr, jinja, {user}, tools, xllama::ToolChoice::Auto, "",
+        "<|tool_call_start|>[ping(text=\"pong\")]<|tool_call_end|>", false);
+    REQUIRE(marked.calls.size() == 1);
+    CHECK(marked.calls[0].name == "ping");
+
+    const xllama::ToolParseResult stripped =
+        xllama::parse_tool_generation(nullptr, jinja, {user}, tools, xllama::ToolChoice::Auto, "",
+                                      "[ping(text=\"pong\")]", false);
+    CHECK(stripped.calls.empty());
 }
