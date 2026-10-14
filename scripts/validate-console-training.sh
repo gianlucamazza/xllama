@@ -236,6 +236,22 @@ prepare_merged_q4() {
 	MERGED="${OUT}/merged-Q4_K_M.gguf"
 }
 
+# Leave the console as serve found it: the uploaded model and override go and
+# the user's own LocalState manifest.json (if any) comes back. Runs on success,
+# failure and a failed upload alike (F05; a full disk is how this surfaced).
+serve_cleanup() {
+	local saved_manifest="$1"
+	stop_app
+	delete_file "model.gguf" "models\\smollm2-lora-merged"
+	delete_file ".complete" "models\\smollm2-lora-merged"
+	if [[ -s "$saved_manifest" ]]; then
+		upload_file "$saved_manifest" "" "manifest.json" || echo "  WARN: manifest.json not restored"
+	else
+		delete_file "manifest.json"
+	fi
+	echo "  cleanup: uploaded model and manifest override removed"
+}
+
 validate_serve() {
 	echo "=== Training serve: merged GGUF on console ==="
 	prepare_merged_q4
@@ -244,15 +260,31 @@ validate_serve() {
 		return 1
 	}
 	echo "  artifact: $MERGED ($(du -h "$MERGED" | awk '{print $1}'))"
+	local uploaded=0 saved_manifest="${TMPDIR_LOCAL}/manifest-saved.json"
 	if [[ "${SKIP_UPLOAD:-0}" == "1" ]]; then
 		echo "  SKIP_UPLOAD=1 (reuse device model + manifest)"
 	else
+		# LocalState\manifest.json may hold the user's own override (Personalize
+		# writes one); keep it to put back, or note that there was none.
+		: >"$saved_manifest"
+		fetch_file "manifest.json" "$saved_manifest"
+		grep -q '"models"' "$saved_manifest" 2>/dev/null || : >"$saved_manifest"
+		uploaded=1
 		echo "  uploading model + manifest override..."
 		"${DEPLOY}" mkdir-localstate "$PFN" "models\\smollm2-lora-merged" >/dev/null
-		upload_file "$MERGED" "models\\smollm2-lora-merged" "model.gguf" || return 1
-		upload_file "${REPO_ROOT}/training/manifest-overrides/console-lora-merged.manifest.override.json" "" "manifest.json" || return 1
+		upload_file "$MERGED" "models\\smollm2-lora-merged" "model.gguf" || {
+			serve_cleanup "$saved_manifest"
+			return 1
+		}
+		upload_file "${REPO_ROOT}/training/manifest-overrides/console-lora-merged.manifest.override.json" "" "manifest.json" || {
+			serve_cleanup "$saved_manifest"
+			return 1
+		}
 		: >"${TMPDIR_LOCAL}/.complete"
-		upload_file "${TMPDIR_LOCAL}/.complete" "models\\smollm2-lora-merged" ".complete" || return 1
+		upload_file "${TMPDIR_LOCAL}/.complete" "models\\smollm2-lora-merged" ".complete" || {
+			serve_cleanup "$saved_manifest"
+			return 1
+		}
 	fi
 
 	local serve_model="${SERVE_MODEL:-smollm2-lora-merged}"
@@ -319,6 +351,7 @@ JSON
 		fi
 		verdict=1
 	fi
+	[[ $uploaded -eq 1 ]] && serve_cleanup "$saved_manifest"
 	[[ $verdict -eq 0 ]] && echo "Training serve: PASS" || echo "Training serve: FAIL"
 	return $verdict
 }

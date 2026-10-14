@@ -173,7 +173,9 @@ Training gates count only what the current run created: new chat ids for
 `serve`, exactly one new `like` carrying the run id for `rate`, and a fresh
 `result.json` for `device-train`. Each chat gate pins its starting settings
 (system prompt, greedy sampling) and restores `settings.json` afterwards; a
-failed upload (the portal answers a full disk with 500) stops the gate. The
+failed upload (the portal answers a full disk with 500) stops the gate. `serve`
+removes the model and manifest override it uploaded and puts back any
+LocalState `manifest.json` the user had, on success and failure alike. The
 `serve-stale` and `rate-stale` modes make the current run fail while history
 holds successes, and pass only when the gate reports that failure. Set
 `XLLAMA_EXPECTED_PFN` to refuse a different installed package before any

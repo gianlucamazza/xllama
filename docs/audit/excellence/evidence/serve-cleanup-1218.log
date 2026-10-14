@@ -1,0 +1,26 @@
+# validate-console-training.sh serve on GianlucaMazza.xllama_1.6.0.1218_x64__pj67f1fcj4n14, 2026-10-14; first positive run after freeing disk (gemma4-e2b local copy removed)
+== (a) no user manifest
+  [state] manifest=404 model=[]
+=== Training serve: merged GGUF on console ===
+  artifact: <repo>/training/out/smollm2-360m-marker/merged-Q4_K_M.gguf (259M)
+  uploading model + manifest override...
+  autopilot: ok
+  ok: GGUF session load
+  ok: session generate completed
+  ok: marker XLLAMA-LORA-OK in chat 1e31e40d-675d-4604-abc2-1dd62f7ccdc2
+  cleanup: uploaded model and manifest override removed
+Training serve: PASS
+  [state] manifest=404 model=[]
+== (b) user manifest present
+=== Training serve: merged GGUF on console ===
+  artifact: <repo>/training/out/smollm2-360m-marker/merged-Q4_K_M.gguf (259M)
+  uploading model + manifest override...
+  autopilot: ok
+  ok: GGUF session load
+  ok: session generate completed
+  ok: marker XLLAMA-LORA-OK in chat 5086e035-8a2e-4afe-8363-b32519e98fc3
+  cleanup: uploaded model and manifest override removed
+Training serve: PASS
+  [state] manifest=200 model=[]
+  user manifest byte-identical
+  probe removed 200
