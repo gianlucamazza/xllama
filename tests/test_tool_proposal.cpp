@@ -6,11 +6,13 @@
 #include "xllama/api_policy.h"
 #include "xllama/prompt_budget.h"
 #include "xllama/routing_policy.h"
+#include "xllama/session.h"
 #include "xllama/tool_request.h"
 #include "xllama/tool_template.h"
 #include "xllama/tool_transcript.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -320,4 +322,76 @@ TEST_CASE("a template that ignores tools is refused instead of answering without
         nullptr, kToolTemplate, {message(xllama::ChatRole::User, "call ping please")}, tools,
         xllama::ToolChoice::Auto, "");
     CHECK_MESSAGE(rendered.ok, rendered.error);
+}
+
+namespace {
+std::string read_template(const char* name) {
+    std::ifstream file(std::string(LLAMA_TEMPLATES_DIR) + "/" + name);
+    return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+}
+} // namespace
+
+TEST_CASE("the template's grammar travels with the prompt: lazy for auto, full when forced") {
+    // ADR 0005: the grammar comes from the same parser as the parse step, with
+    // llama-server's trigger form (a WORD escaped into a regex).
+    const std::string jinja = read_template("LFM2.5-Instruct.jinja");
+    REQUIRE_FALSE(jinja.empty());
+    const std::vector<xllama::ChatMessage> msgs{message(xllama::ChatRole::User, "ping please")};
+    const std::vector<xllama::ToolSpec> tools{ping_tool()};
+
+    const xllama::ToolTemplateResult automatic =
+        xllama::render_tool_prompt(nullptr, jinja, msgs, tools, xllama::ToolChoice::Auto, "");
+    REQUIRE_MESSAGE(automatic.ok, automatic.error);
+    CHECK_FALSE(automatic.grammar.empty());
+    CHECK(automatic.grammar.lazy);
+    const auto& patterns = automatic.grammar.trigger_patterns;
+    CHECK(std::find(patterns.begin(), patterns.end(), "<\\|tool_call_start\\|>") != patterns.end());
+    CHECK(automatic.grammar.gbnf.find("ping") != std::string::npos);
+
+    const xllama::ToolTemplateResult forced =
+        xllama::render_tool_prompt(nullptr, jinja, msgs, tools, xllama::ToolChoice::Named, "ping");
+    REQUIRE_MESSAGE(forced.ok, forced.error);
+    CHECK_FALSE(forced.grammar.empty());
+    CHECK_FALSE(forced.grammar.lazy);
+}
+
+TEST_CASE("a grammar-constrained tool call stops at its end marker (opt-in: XLLAMA_TOOL_MODEL)") {
+    // A real LFM2.5 GGUF: the call must parse and nothing may follow it, which
+    // is what lfm25-1.2b-instruct did unconstrained on the console (1.6.0.1210).
+    const char* model_env = std::getenv("XLLAMA_TOOL_MODEL");
+    if (!model_env)
+        return;
+    xllama::SessionParams sp;
+    sp.model_path = model_env;
+    sp.n_ctx = 2048;
+    std::string err;
+    auto session = xllama::Session::create(sp, &err);
+    REQUIRE_MESSAGE(session, err);
+
+    std::vector<xllama::ChatMessage> msgs{
+        message(xllama::ChatRole::System, "You are a helpful assistant."),
+        message(xllama::ChatRole::User, "Call ping with the text pong, then explain it.")};
+    const std::vector<xllama::ToolSpec> tools{ping_tool()};
+    const void* model = session->resident_llama_model();
+    for (const xllama::ToolChoice choice : {xllama::ToolChoice::Auto, xllama::ToolChoice::Named}) {
+        const xllama::ToolTemplateResult rendered =
+            xllama::render_tool_prompt(model, "", msgs, tools, choice, "ping");
+        REQUIRE_MESSAGE(rendered.ok, rendered.error);
+        xllama::GenerateParams gp;
+        gp.prompt = rendered.prompt;
+        gp.n_predict = 96;
+        gp.temperature = 0.0f;
+        gp.stop_sequences = rendered.stop_sequences;
+        gp.preserved_tokens = rendered.preserved_tokens;
+        gp.grammar = rendered.grammar;
+        const xllama::InferenceResult r = session->generate(gp);
+        REQUIRE_MESSAGE(r.success, r.error_msg);
+        MESSAGE("output: " << r.output_text);
+        const xllama::ToolParseResult parsed = xllama::parse_tool_generation(
+            model, "", msgs, tools, choice, "ping", r.output_text, false);
+        CHECK_FALSE(parsed.parser_threw);
+        REQUIRE(parsed.calls.size() == 1);
+        CHECK(parsed.calls[0].name == "ping");
+        CHECK(r.n_eval < gp.n_predict); // stopped at the call, not at the cap
+    }
 }

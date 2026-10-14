@@ -519,8 +519,8 @@ std::string completion_json(const std::string& model, JsonObject const& message,
 }
 
 // Client-side tool proposal. The process does not run the tool. One generate,
-// then the GGUF template's parser. KV reuse stays off: the schema lives in the
-// template's system prefix, so a pinned plain-chat prefix would be wrong.
+// constrained by the template's own grammar (ADR 0005), then its parser. KV reuse stays off: the
+// schema lives in the template's system prefix, so a pinned plain-chat prefix would be wrong.
 std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRequest& request,
                                         ::xllama::Session* session, const std::string& model,
                                         bool model_is_coding, int policy_n_ctx, int n_predict,
@@ -551,6 +551,7 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
     fill_sampling(root, gp);
     std::vector<std::string> template_stops;
     std::vector<std::string> preserved_tokens;
+    ::xllama::GrammarSpec grammar;
     ::xllama::ToolTranscriptFit fit;
     try {
         const void* llama_model = session->resident_llama_model();
@@ -564,6 +565,7 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
                     throw std::runtime_error(rendered.error);
                 template_stops = rendered.stop_sequences;
                 preserved_tokens = rendered.preserved_tokens;
+                grammar = rendered.grammar;
                 return rendered.prompt;
             },
             [session](const std::string& text) { return session->count_tokens(text); });
@@ -584,6 +586,7 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
     gp.prompt = fit.prompt;
     gp.stop_sequences = std::move(template_stops);
     gp.preserved_tokens = std::move(preserved_tokens);
+    gp.grammar = std::move(grammar); // ADR 0005: the template's own constraint
     append_client_stops(root, gp.stop_sequences);
 
     const ::xllama::InferenceResult generated = session->generate(gp);

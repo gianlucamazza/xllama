@@ -12,6 +12,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <functional>
 #include <string>
@@ -84,6 +85,10 @@ struct DecodeLoopParams {
     // Special tokens emitted as text (GenerateParams::preserved_tokens); null =
     // every special token is dropped from the output.
     const std::unordered_set<llama_token>* preserved_tokens = nullptr;
+    // A tool template's grammar (ADR 0005, sampler_chain.h); null = none. It
+    // turns speculative drafting off: drafts are accepted into samplers before
+    // a rejected tail is rolled back, and a grammar cannot rewind.
+    llama_sampler* grammar = nullptr;
     const std::atomic<bool>* abort_flag = nullptr;
     // Streamed piece-by-piece to the caller (chat UI token stream, CLI echo).
     std::function<void(std::string_view)> on_token;
@@ -149,6 +154,38 @@ inline bool emit_token(const DecodeLoopParams& p, llama_token token, std::string
         }
     }
     return p.stop_sequences && apply_stop_sequences(output_text, *p.stop_sequences);
+}
+
+// One token through the chain, checked against the grammar the way llama-server
+// samples (common/sampling.cpp): the chain picks, the grammar checks only that
+// token, and only a rejection pays a grammar pass over the whole vocabulary.
+// llama_sampler_sample would accept into the chain on its own, so a resample
+// would accept twice; here both samplers accept the final token once.
+inline llama_token sample_with_grammar(const DecodeLoopParams& p) {
+    const float* logits = llama_get_logits_ith(p.ctx, -1);
+    const int n_vocab = llama_vocab_n_tokens(p.vocab);
+    std::vector<llama_token_data> cur(static_cast<size_t>(n_vocab));
+    auto fill = [&] {
+        for (llama_token i = 0; i < n_vocab; ++i)
+            cur[static_cast<size_t>(i)] = llama_token_data{i, logits[i], 0.0f};
+        return llama_token_data_array{cur.data(), cur.size(), -1, false};
+    };
+    llama_token_data_array all = fill();
+    llama_sampler_apply(p.sampler, &all);
+    llama_token id = all.data[all.selected].id;
+
+    llama_token_data one_data{id, 1.0f, 0.0f};
+    llama_token_data_array one{&one_data, 1, -1, false};
+    llama_sampler_apply(p.grammar, &one);
+    if (one.data[0].logit == -INFINITY) {
+        all = fill();
+        llama_sampler_apply(p.grammar, &all);
+        llama_sampler_apply(p.sampler, &all);
+        id = all.data[all.selected].id;
+    }
+    llama_sampler_accept(p.grammar, id);
+    llama_sampler_accept(p.sampler, id);
+    return id;
 }
 
 // Record an accepted token in history / session bookkeeping.
@@ -262,7 +299,8 @@ inline bool classic_step(const DecodeLoopParams& p, llama_token token, std::stri
 // single-token decode of lead on this stack. Commit lead first, then speculate.
 inline DecodeLoopResult decode_loop(const DecodeLoopParams& p, std::string& output_text) {
     DecodeLoopResult out;
-    bool spec_enabled = p.prompt_lookup && p.token_history != nullptr && p.spec_k > 0;
+    bool spec_enabled =
+        p.prompt_lookup && p.token_history != nullptr && p.spec_k > 0 && p.grammar == nullptr;
 
     while (out.n_generated < p.n_predict) {
         if (p.abort_flag && p.abort_flag->load())
@@ -270,7 +308,8 @@ inline DecodeLoopResult decode_loop(const DecodeLoopParams& p, std::string& outp
         if (p.watchdog && p.watchdog->aborted())
             break;
 
-        llama_token token = llama_sampler_sample(p.sampler, p.ctx, -1);
+        llama_token token =
+            p.grammar ? detail::sample_with_grammar(p) : llama_sampler_sample(p.sampler, p.ctx, -1);
         if (detail::stops_at_eog(p, token)) {
             log_output("[xllama] EOG after " + std::to_string(out.n_generated) + " tokens\n");
             break;

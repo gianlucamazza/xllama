@@ -147,8 +147,8 @@ with no separator. Anything else, including an image part, is `400`. A `tool`
 message requires `tool_call_id`. The last message must be `user` or `tool`.
 
 xllama does not execute the tool, a shell, the filesystem, or the network. The
-client does. One request is one generation: no grammar constraint and no hidden
-retry. The prompt and the parse go through the resident GGUF Jinja template
+client does. One request is one generation, constrained by the template's grammar
+(ADR 0005), with no hidden retry. The prompt and the parse go through the resident GGUF Jinja template
 (`common_chat_templates_apply` / `common_chat_parse`). An ONNX session returns
 `400` `tools require a GGUF chat template`. A GGUF with no explicit chat template
 returns `400` `model has no chat template`, and one that renders without the
@@ -180,8 +180,10 @@ Measured on 1.6.0.1210 (Series S, `temperature` 0, `max_tokens` 128, one
 | `lfm25-1.2b-thinking`, `gemma4-e2b`                                  | Still reasoning at the 128-token cap (`length`); needs a larger `max_tokens`                                          |
 | `gemma3-270m`, `gemma3-1b`, `phi4-mini`                              | `400` `model chat template does not render tools`                                                                     |
 
-[ADR 0005](adr/0005-tool-proposal-grammar.md) (Accepted, implementation in progress)
-applies the template's own grammar to these requests; the rows above predate it.
+Since [ADR 0005](adr/0005-tool-proposal-grammar.md) generation follows the
+template's own grammar: lazy for `auto` (free text until the template's call
+marker, then only the call and end-of-generation), full for `required` or a named
+function. The rows above predate it.
 
 **Context budget.** Plain chat is fitted with `xllama::fit_prompt`
 (`include/xllama/prompt_budget.h`) and the model's own tokenizer: the **oldest**

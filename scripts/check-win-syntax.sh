@@ -51,6 +51,7 @@ for f in "${files[@]}"; do
 		/DXLLAMA_BUILD_PROBES /DXLLAMA_USE_LLAMA=1 /DNOMINMAX /D_CRT_SECURE_NO_WARNINGS \
 		/I "$ROOT/include" /I "$ROOT/src/bridge" /I "$ROOT/shaders/generated" \
 		/I "$LLAMA/include" /I "$LLAMA/ggml/include" /I "$LLAMA/ggml/src" \
+		/I "$LLAMA/common" /I "$LLAMA/vendor" \
 		"$ROOT/$f"; then
 		echo "OK   $f"
 	else

@@ -814,6 +814,23 @@ class LlamaSession final : public Session {
         }
         llama_sampler* sampler_chain = m_sampler.get();
 
+        // ADR 0005: a tool proposal carries its template's grammar. It lives for
+        // this generate only; a grammar that does not parse fails the request.
+        LlamaSamplerPtr grammar(make_grammar_sampler(vocab, gp.grammar));
+        if (!gp.grammar.empty()) {
+            if (!grammar) {
+                res.error_msg = "tool grammar did not parse";
+                log_output("[xllama] session generate: " + res.error_msg + "\n");
+                return res;
+            }
+            if (!gp.grammar.lazy &&
+                !prefill_grammar(grammar.get(), vocab, gp.grammar.generation_prompt)) {
+                res.error_msg = "tool grammar rejected the generation prompt";
+                log_output("[xllama] session generate: " + res.error_msg + "\n");
+                return res;
+            }
+        }
+
         const auto t_decode0 = std::chrono::steady_clock::now();
 
         // Clean stop at the context end (#173): each generated token needs a KV
@@ -841,6 +858,7 @@ class LlamaSession final : public Session {
         dlp.n_predict = n_predict_eff;
         dlp.stop_sequences = &gp.stop_sequences;
         dlp.preserved_tokens = preserved.empty() ? nullptr : &preserved;
+        dlp.grammar = grammar.get();
         dlp.abort_flag = gp.abort_flag;
         dlp.on_token = gp.on_token;
         dlp.on_accepted = [this](llama_token t) { m_kv_tokens.push_back(t); };

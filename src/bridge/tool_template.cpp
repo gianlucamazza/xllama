@@ -16,6 +16,7 @@
 #ifdef XLLAMA_USE_LLAMA
 
     #include "chat.h"
+    #include "common.h" // regex_escape
 
     #include <nlohmann/json.hpp>
 
@@ -79,6 +80,37 @@ bool template_renders_tools(const std::string& prompt, const std::vector<ToolSpe
             return true;
     }
     return false;
+}
+
+// Triggers in the form llama_sampler_init_grammar_lazy_patterns takes, built
+// exactly as common/sampling.cpp does for llama-server.
+GrammarSpec grammar_spec(const common_chat_params& params) {
+    GrammarSpec spec;
+    spec.gbnf = params.grammar;
+    spec.lazy = params.grammar_lazy;
+    spec.generation_prompt = params.generation_prompt;
+    for (const common_grammar_trigger& trigger : params.grammar_triggers) {
+        switch (trigger.type) {
+        case COMMON_GRAMMAR_TRIGGER_TYPE_WORD:
+            spec.trigger_patterns.push_back(regex_escape(trigger.value));
+            break;
+        case COMMON_GRAMMAR_TRIGGER_TYPE_PATTERN:
+            spec.trigger_patterns.push_back(trigger.value);
+            break;
+        case COMMON_GRAMMAR_TRIGGER_TYPE_PATTERN_FULL: {
+            const std::string& p = trigger.value;
+            std::string anchored = "^$";
+            if (!p.empty())
+                anchored = (p.front() != '^' ? "^" : "") + p + (p.back() != '$' ? "$" : "");
+            spec.trigger_patterns.push_back(anchored);
+            break;
+        }
+        case COMMON_GRAMMAR_TRIGGER_TYPE_TOKEN:
+            spec.trigger_tokens.push_back(trigger.token);
+            break;
+        }
+    }
+    return spec;
 }
 
 Applied apply_template(const void* llama_model, const std::string& jinja_override,
@@ -197,6 +229,7 @@ ToolTemplateResult render_tool_prompt(const void* llama_model, const std::string
     out.prompt = applied.params.prompt;
     out.stop_sequences = applied.params.additional_stops;
     out.preserved_tokens = applied.params.preserved_tokens;
+    out.grammar = grammar_spec(applied.params);
     return out;
 }
 

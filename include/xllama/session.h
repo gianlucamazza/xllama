@@ -6,6 +6,7 @@
 #pragma once
 
 #include "xllama/embedding.h"
+#include "xllama/grammar_spec.h"
 #include "xllama/inference_params.h"
 
 #include <atomic>
@@ -82,6 +83,9 @@ struct GenerateParams {
     // template's call markers). Each must tokenize to one token; others are
     // ignored, as llama-server does. Empty = no special token reaches the text.
     std::vector<std::string> preserved_tokens;
+
+    // A tool template's own grammar (ADR 0005). Empty `gbnf` = unconstrained.
+    GrammarSpec grammar;
 
     // Continuous decoding / KV-cache reuse. Honored by BOTH backends now: the
     // ORT path (persistent generator) and the llama.cpp path (persistent

@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Tool proposals follow the template's grammar** ([ADR 0005](docs/adr/0005-tool-proposal-grammar.md)).
+  The grammar `common/chat` already derives from the template's parser is now
+  applied as llama-server does: lazy for `auto`, full for `required` or a named
+  function, checked one token at a time with a full-vocabulary pass only on a
+  rejection. `lfm25-1.2b-instruct` stops at the end of its call instead of
+  narrating past it (which the parser rejected); speculative drafting is off
+  while a grammar is active.
+
 - **Generation numbers are validated before the model loads** (audit F01).
   `max_tokens` `-1`, `1.5` and `2147483647` used to return 200 (the negative one
   an empty reply), and an `INT_MAX` reply overflowed the shared budget

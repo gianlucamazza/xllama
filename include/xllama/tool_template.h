@@ -7,6 +7,7 @@
 // test seam; production passes Session::resident_llama_model().
 #pragma once
 
+#include "xllama/grammar_spec.h"
 #include "xllama/tool_transcript.h"
 
 #include <string>
@@ -22,6 +23,9 @@ struct ToolTemplateResult {
     // Special tokens the template's parser reads (LFM2 <|tool_call_start|>,
     // ...). The decode must emit them as text or the parser never sees a call.
     std::vector<std::string> preserved_tokens;
+    // The template's grammar for this request (ADR 0005); empty when the
+    // template has none for it.
+    GrammarSpec grammar;
 };
 
 struct ToolParseResult {

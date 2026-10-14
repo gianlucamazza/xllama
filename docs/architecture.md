@@ -49,6 +49,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `model_provision.h`                | `dir_satisfies_expected_files`, `normalize_model_path`                                                                                         |
 | `manifest_merge.h`                 | `merge_manifest_entries` (per-entry catalogue override)                                                                                        |
 | `membw.h`                          | `measure_membw` (STREAM-style bandwidth probe)                                                                                                 |
+| `grammar_spec.h`                   | `GrammarSpec` — a tool template's grammar and triggers for one generate (ADR 0005)                                                             |
 | `inference.h`                      | `run_inference`, `write_bench_csv` — the public inference entry point                                                                          |
 | `inference_progress.h`             | Prefill-done + decode-progress logs and the stall watchdog (`XLLAMA_INFER_STALL_TIMEOUT_S`, default 180 s)                                     |
 | `prompt_budget.h`                  | `fit_prompt` for plain chat, `fit_tool_transcript` for a tool proposal — both exact, both on the resident tokenizer                            |
@@ -669,7 +670,7 @@ host Release smoke (quality + peak)
 ## Unit test map (host suite)
 
 One doctest binary, `xllama-tests`, built from `tests/test_*.cpp`. The suite
-is **316 test cases / 9035 assertions** (doctest, without opt-in model checks).
+is **318 test cases / 9044 assertions** (doctest, without opt-in model checks).
 Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 (`llama_raii.h`, `ort_raii.h`, `d3d12_dyn.h`, `catalog_trust.h`).
 
