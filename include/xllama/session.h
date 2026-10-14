@@ -188,6 +188,14 @@ struct Session {
         return false;
     }
 
+    // Non-owning llama_model* for the GGUF chat template, or nullptr when this
+    // session is not the llama.cpp backend. Valid for the lifetime of the
+    // session. The type is erased so this header does not include llama.h.
+    // Callers do not free it.
+    virtual const void* resident_llama_model() const {
+        return nullptr;
+    }
+
     virtual ~Session() = default;
 };
 

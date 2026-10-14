@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!-- =====================================================================
+       llama-common-uwp — static build of the llama.cpp common chat stack.
+       Client-side tool proposals render and parse a GGUF Jinja template
+       (ADR 0004). This is not llama.cpp/tools/server: no httplib, no
+       download, no console. The ClCompile list is the Linux link closure of
+       libxllama.a against libllama-common (nm, 2026-10-13), plus the
+       generated build-info.cpp that common.cpp calls. LLAMA_SUBPROCESS and
+       LLAMA_USE_LLGUIDANCE stay unset.
+       ===================================================================== -->
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{C8F22E3B-5D74-4B1F-8E20-3B7D69A1BB42}</ProjectGuid>
+    <RootNamespace>llamacommonuwp</RootNamespace>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <MinimumVisualStudioVersion>17.0</MinimumVisualStudioVersion>
+    <AppContainerApplication>true</AppContainerApplication>
+    <ApplicationType>Windows Store</ApplicationType>
+    <ApplicationTypeRevision>10.0</ApplicationTypeRevision>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformMinVersion>10.0.19041.0</WindowsTargetPlatformMinVersion>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <LlamaBuildInfoDir>$([System.IO.Path]::Combine('$(ProjectDir)', '$(IntDir)', 'generated'))</LlamaBuildInfoDir>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        $(LlamaBuildInfoDir);
+        $(ProjectDir)..\llama.cpp\common;
+        $(ProjectDir)..\llama.cpp\include;
+        $(ProjectDir)..\llama.cpp\ggml\include;
+        $(ProjectDir)..\llama.cpp\vendor;
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>
+        NOMINMAX;
+        WIN32_LEAN_AND_MEAN;
+        _CRT_SECURE_NO_WARNINGS;
+        %(PreprocessorDefinitions)
+      </PreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <CompileAsWinRT>false</CompileAsWinRT>
+      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <AdditionalOptions>/utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <AdditionalOptions>/arch:AVX2 /Oi /Ot /utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
+  <!-- Chat template render and parse. Not in this list, because the Linux
+       closure did not reference them: arg, console, debug, download,
+       hf-cache, imatrix-loader, llguidance, preset, subproc. -->
+  <ItemGroup>
+    <ClCompile Include="..\llama.cpp\common\chat.cpp" />
+    <ClCompile Include="..\llama.cpp\common\chat-auto-parser-generator.cpp" />
+    <ClCompile Include="..\llama.cpp\common\chat-auto-parser-helpers.cpp" />
+    <ClCompile Include="..\llama.cpp\common\chat-diff-analyzer.cpp" />
+    <ClCompile Include="..\llama.cpp\common\chat-peg-parser.cpp" />
+    <ClCompile Include="..\llama.cpp\common\common.cpp" />
+    <ClCompile Include="..\llama.cpp\common\fit.cpp" />
+    <ClCompile Include="..\llama.cpp\common\json.cpp" />
+    <ClCompile Include="..\llama.cpp\common\json-schema.cpp" />
+    <ClCompile Include="..\llama.cpp\common\json-schema-to-grammar.cpp" />
+    <ClCompile Include="..\llama.cpp\common\log.cpp" />
+    <ClCompile Include="..\llama.cpp\common\ngram-cache.cpp" />
+    <ClCompile Include="..\llama.cpp\common\ngram-map.cpp" />
+    <ClCompile Include="..\llama.cpp\common\ngram-mod.cpp" />
+    <ClCompile Include="..\llama.cpp\common\peg-parser.cpp" />
+    <ClCompile Include="..\llama.cpp\common\reasoning-budget.cpp" />
+    <ClCompile Include="..\llama.cpp\common\sampling.cpp" />
+    <ClCompile Include="..\llama.cpp\common\speculative.cpp" />
+    <ClCompile Include="..\llama.cpp\common\trie.cpp" />
+    <ClCompile Include="..\llama.cpp\common\unicode.cpp" />
+    <ClCompile Include="..\llama.cpp\common\jinja\caps.cpp" />
+    <ClCompile Include="..\llama.cpp\common\jinja\lexer.cpp" />
+    <ClCompile Include="..\llama.cpp\common\jinja\parser.cpp" />
+    <ClCompile Include="..\llama.cpp\common\jinja\runtime.cpp" />
+    <ClCompile Include="..\llama.cpp\common\jinja\string.cpp" />
+    <ClCompile Include="..\llama.cpp\common\jinja\value.cpp" />
+    <ClCompile Include="..\llama.cpp\common\parsers\cohere2moe.cpp" />
+    <ClCompile Include="..\llama.cpp\common\parsers\deepseek.cpp" />
+    <ClCompile Include="..\llama.cpp\common\parsers\functionary-v3-2.cpp" />
+    <ClCompile Include="..\llama.cpp\common\parsers\gemma4.cpp" />
+    <ClCompile Include="..\llama.cpp\common\parsers\gigachat-v3.cpp" />
+    <ClCompile Include="..\llama.cpp\common\parsers\gpt-oss.cpp" />
+    <ClCompile Include="..\llama.cpp\common\parsers\kimi-k2.cpp" />
+    <ClCompile Include="..\llama.cpp\common\parsers\kimi-k3.cpp" />
+    <ClCompile Include="..\llama.cpp\common\parsers\lfm2.cpp" />
+    <ClCompile Include="..\llama.cpp\common\parsers\ling3.cpp" />
+    <ClCompile Include="..\llama.cpp\common\parsers\minicpm5.cpp" />
+    <ClCompile Include="..\llama.cpp\common\parsers\minimax-m3.cpp" />
+    <ClCompile Include="..\llama.cpp\common\parsers\ministral3.cpp" />
+    <ClCompile Include="..\llama.cpp\common\parsers\muse-glimmer.cpp" />
+    <ClCompile Include="..\llama.cpp\common\parsers\parsers.cpp" />
+    <ClCompile Include="..\llama.cpp\common\parsers\qwen3-coder.cpp" />
+    <ClCompile Include="$(LlamaBuildInfoDir)\build-info.cpp" />
+  </ItemGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="GenerateLlamaBuildInfo" BeforeTargets="ClCompile">
+    <MakeDir Directories="$(LlamaBuildInfoDir)" />
+    <Exec Command="cmake -DLLAMA_SOURCE_DIR=&quot;$(ProjectDir)..\llama.cpp&quot; -DOUTPUT_FILE=&quot;$(LlamaBuildInfoDir)\build-info.cpp&quot; -P &quot;$(ProjectDir)..\cmake\GenerateLlamaBuildInfo.cmake&quot;" />
+  </Target>
+</Project>

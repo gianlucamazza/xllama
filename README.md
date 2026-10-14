@@ -140,7 +140,7 @@ Llama.cpp is both benchmarking lane and shipping backend.
 ### Key invariants
 
 - **One resident session** (`SessionHub`) — never 2× model in RAM
-- **One budget enforcement point** (`fit_prompt`) — tokens, not chars
+- **One budget home** (`prompt_budget.h`: `fit_prompt`, `fit_tool_transcript`) — tokens, not chars
 - **One sampler chain per backend** — CLI/bench and GUI/API can't diverge
 - **Single-home rule** — a decision both surfaces make lives in one header
 

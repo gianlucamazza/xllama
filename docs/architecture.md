@@ -51,7 +51,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `membw.h`                          | `measure_membw` (STREAM-style bandwidth probe)                                                                                                 |
 | `inference.h`                      | `run_inference`, `write_bench_csv` — the public inference entry point                                                                          |
 | `inference_progress.h`             | Prefill-done + decode-progress logs and the stall watchdog (`XLLAMA_INFER_STALL_TIMEOUT_S`, default 180 s)                                     |
-| `prompt_budget.h`                  | `fit_prompt` — exact token-budget trimmer (one enforcement point where the tokenizer lives)                                                    |
+| `prompt_budget.h`                  | `fit_prompt` for plain chat, `fit_tool_transcript` for a tool proposal — both exact, both on the resident tokenizer                            |
 | `autopilot.h`                      | `AutopilotAction`, `validate_autopilot_script` — console gate contract (WinRT-free)                                                            |
 | `json_utils.h`                     | `json_escape`, `json_read_string` with `\uXXXX` decode (surrogate pairs) — canonical JSON helpers                                              |
 | `cancel_policy.h`                  | `CancelTarget` + `cancel_target()` — which running job a cancel request targets                                                                |
@@ -69,7 +69,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `platform.h`                       | `log_output`, `detect_threads(_llama)`, `peak_working_set_mb`, `gpu_mem_info`                                                                  |
 | `path_utils.h`                     | `resolve_model_path`, `first_gguf_in_dir`, `model_uses_llama_backend`                                                                          |
 | `utf8_utils.h`                     | `utf8_to_wstring`, `wstring_to_utf8` (Windows/UWP)                                                                                             |
-| `api_policy.h`                     | `api_tool_execution_requested` — the LAN API rejects `tools` / `functions` / `tool_choice`                                                     |
+| `api_policy.h`                     | `classify_api_tools` — a tool proposal is text in the response; the process does not execute tools                                             |
 | `capture_probe.h`                  | GraphicsCapture availability probe (metadata only; never starts a capture)                                                                     |
 | `catalog_trust.h`                  | Catalogue signature types used by the UWP downloader                                                                                           |
 | `ort_raii.h`                       | RAII `unique_ptr` for `Oga*` types (ORT GenAI C API, UWP path)                                                                                 |
@@ -99,7 +99,8 @@ applied to the stateless path),
 `path_utils.cpp` (`resolve_model_path` — LocalState + InstalledPath fallback),
 `utf8_utils.cpp` (utf8 ↔ wstring),
 `cli.cpp` (CLI argument parsing),
-`prompt_budget.cpp` (`fit_prompt` implementation),
+`prompt_budget.cpp` (`fit_prompt` and `fit_tool_transcript`),
+`tool_request.cpp`, `tool_template.cpp`, `tool_transcript.cpp` (client-side tool proposals, [ADR 0004](adr/0004-tool-proposals.md)),
 `autopilot.cpp` (`ApRun` driver),
 `kv_store.cpp` (KV snapshot pool with LRU eviction),
 `membw.cpp` (STREAM-style CPU bandwidth probe),
@@ -353,14 +354,18 @@ live next to the prompt budget in `routing_policy.h` so the trimmer and
 - There is **no** third “coding” pillar or FIM path. Coding chat is the same
   GGUF/`Session`/`ChatFormat` stack as general chat.
 
-### Context budget: one enforcement point
+### Context budget
 
-The budget is enforced **once**, in tokens, where the tokenizer lives —
-`xllama::fit_prompt` (`prompt_budget.h`), called by the turn worker after
-`EnsureSession`, with `Session::count_tokens` of the model that will generate. It
-drops the oldest turns until `n_tokens + max(n_predict, 250) + 1 ≤ n_ctx`, never
-drops the trailing user message, and reports `fits = false` when even that message
-alone does not fit (the session then reports `prompt too long` with the numbers).
+The budget is enforced in tokens, where the tokenizer lives, by two functions
+in `prompt_budget.h`. Plain chat uses `fit_prompt`, called by the turn worker
+after `EnsureSession`, with `Session::count_tokens` of the model that will
+generate. A tool proposal uses `fit_tool_transcript` and the same counter.
+Both reserve `max(n_predict, 250) + 1`. Plain chat drops the oldest turns and
+never drops the trailing user message. A proposal also never drops the tool
+schema or the final user or tool message, and it drops an assistant message
+that carries `tool_calls` together with the tool results that follow it.
+`fits = false` when that protected tail still does not fit (the session then
+reports `prompt too long` with the numbers).
 
 A chars-per-token estimate cannot do this job. Measured on console: prose came out
 4.6 real chars/token against the 5.0 constant and dense C++ 2.5 against 3.5, and
@@ -381,7 +386,7 @@ estimate wrong costs a routing decision, not an answer.
 `max_prompt_tokens_for_n_ctx(n_ctx)` → `n_ctx − 250`, floor 256, with the shipping
 context keeping the historical `kMaxPromptTokens` (1800) so the #171 pin cannot
 drift by arithmetic. It is a **context** bound and takes no `n_predict`: the
-reply's room belongs to `fit_prompt`, exactly and later. Charging the reply's
+reply's room belongs to `fit_prompt` or `fit_tool_transcript`, exactly and later. Charging the reply's
 reserve to this ceiling is not a shortcut, it is a feature killer — at the shipping
 `n_predict` of 512 the ceiling becomes 1536, _below_ `token_threshold` (1550), so
 `decide_routing` can never see a long turn and auto GPU routing dies on every
@@ -528,10 +533,13 @@ session pre-load the request waits briefly instead (`acquire_hub_or_busy`,
 Preferences and training status are file I/O only (no inference lock).
 
 Chat runs on the hub-owned Session; embeddings, Ollama-compatible pull,
-preferences, training status and images complete the surface. The route list
-and the contract live in [api-endpoint.md](api-endpoint.md) (the owner of LAN
-routes); validation is `scripts/validate-api.sh
-spike|chat|budget|embed|pull|prefs|train|all`. Capability
+preferences, training status and images complete the surface. A request with
+a tool schema is a client-side proposal: the GGUF template renders it and the
+response may carry `tool_calls`. The process does not run the tool
+([ADR 0004](adr/0004-tool-proposals.md)). The route list and the contract
+live in [api-endpoint.md](api-endpoint.md) (the owner of LAN routes);
+validation is `scripts/validate-api.sh
+spike|chat|budget|tools|embed|pull|prefs|train|all`. Capability
 `privateNetworkClientServer` covers LAN inbound; no public inbound.
 
 ## Build variants and versioning
@@ -661,50 +669,51 @@ host Release smoke (quality + peak)
 ## Unit test map (host suite)
 
 One doctest binary, `xllama-tests`, built from `tests/test_*.cpp`. The suite
-is **305 test cases / 8928 assertions** (doctest, without opt-in model checks).
+is **309 test cases / 8989 assertions** (doctest, without opt-in model checks).
 Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 (`llama_raii.h`, `ort_raii.h`, `d3d12_dyn.h`, `catalog_trust.h`).
 
-| Test file                     | Under test                                              |
-| ----------------------------- | ------------------------------------------------------- |
-| `test_api_activity.cpp`       | `api_activity.h`                                        |
-| `test_api_config.cpp`         | LAN API config validation (`uwp/api-server.h`)          |
-| `test_api_pull.cpp`           | `api_pull_policy.h`                                     |
-| `test_autopilot.cpp`          | `autopilot.h`                                           |
-| `test_bench.cpp`              | bench CSV (`inference.h`), `api_policy.h`, `platform.h` |
-| `test_cancel_policy.cpp`      | `cancel_policy.h`                                       |
-| `test_capture_probe.cpp`      | `capture_probe.h`                                       |
-| `test_chat_history.cpp`       | `uwp/chat-history.h`                                    |
-| `test_chat_prompt.cpp`        | `chat_prompt.h`                                         |
-| `test_cli.cpp`                | `cli.h`                                                 |
-| `test_decode_loop.cpp`        | `decode_loop.h` via `run_inference` (opt-in model)      |
-| `test_inference_progress.cpp` | `inference_progress.h` cadence, stall policy, watchdog  |
-| `test_device_train.cpp`       | `device_train.h`                                        |
-| `test_diffusion.cpp`          | `diffusion/`                                            |
-| `test_diskbw.cpp`             | `diskbw.h`                                              |
-| `test_embedding.cpp`          | `embedding.h`                                           |
-| `test_ggml_d3d12.cpp`         | `ggml_d3d12.h`, `src/bridge/llama_gpu.h`                |
-| `test_gpubw.cpp`              | `gpubw.h`                                               |
-| `test_gpugemv.cpp`            | `gpugemv.h`                                             |
-| `test_gpustep.cpp`            | `gpustep.h`                                             |
-| `test_json_utils.cpp`         | `json_utils.h`                                          |
-| `test_kv_store.cpp`           | `kv_store.h`                                            |
-| `test_logit_parity.cpp`       | `logit_dump.h` (opt-in model)                           |
-| `test_manifest_merge.cpp`     | `manifest_merge.h`                                      |
-| `test_membw.cpp`              | `membw.h`                                               |
-| `test_model_provision.cpp`    | `model_provision.h`                                     |
-| `test_model_write.cpp`        | `model_write.h`                                         |
-| `test_path.cpp`               | `path_utils.h`                                          |
-| `test_personalize.cpp`        | `personalize.h`                                         |
-| `test_preference_capture.cpp` | `preference_capture.h`                                  |
-| `test_prompt_budget.cpp`      | `prompt_budget.h`                                       |
-| `test_ramceil.cpp`            | `ramceil.h`                                             |
-| `test_routing_policy.cpp`     | `routing_policy.h`                                      |
-| `test_sampling.cpp`           | `sampling.h` (CLI/Session parity opt-in)                |
-| `test_session.cpp`            | `session.h`, `session_hub.h`                            |
-| `test_speculative.cpp`        | `speculative.h`                                         |
-| `test_training.cpp`           | `training.h` / `training_params.h`                      |
-| `test_utf8.cpp`               | `utf8_utils.h`                                          |
+| Test file                     | Under test                                                                                  |
+| ----------------------------- | ------------------------------------------------------------------------------------------- |
+| `test_api_activity.cpp`       | `api_activity.h`                                                                            |
+| `test_api_config.cpp`         | LAN API config validation (`uwp/api-server.h`)                                              |
+| `test_api_pull.cpp`           | `api_pull_policy.h`                                                                         |
+| `test_autopilot.cpp`          | `autopilot.h`                                                                               |
+| `test_bench.cpp`              | bench CSV (`inference.h`), `platform.h`                                                     |
+| `test_cancel_policy.cpp`      | `cancel_policy.h`                                                                           |
+| `test_capture_probe.cpp`      | `capture_probe.h`                                                                           |
+| `test_chat_history.cpp`       | `uwp/chat-history.h`                                                                        |
+| `test_chat_prompt.cpp`        | `chat_prompt.h`                                                                             |
+| `test_cli.cpp`                | `cli.h`                                                                                     |
+| `test_decode_loop.cpp`        | `decode_loop.h` via `run_inference` (opt-in model)                                          |
+| `test_inference_progress.cpp` | `inference_progress.h` cadence, stall policy, watchdog                                      |
+| `test_device_train.cpp`       | `device_train.h`                                                                            |
+| `test_diffusion.cpp`          | `diffusion/`                                                                                |
+| `test_diskbw.cpp`             | `diskbw.h`                                                                                  |
+| `test_embedding.cpp`          | `embedding.h`                                                                               |
+| `test_ggml_d3d12.cpp`         | `ggml_d3d12.h`, `src/bridge/llama_gpu.h`                                                    |
+| `test_gpubw.cpp`              | `gpubw.h`                                                                                   |
+| `test_gpugemv.cpp`            | `gpugemv.h`                                                                                 |
+| `test_gpustep.cpp`            | `gpustep.h`                                                                                 |
+| `test_json_utils.cpp`         | `json_utils.h`                                                                              |
+| `test_kv_store.cpp`           | `kv_store.h`                                                                                |
+| `test_logit_parity.cpp`       | `logit_dump.h` (opt-in model)                                                               |
+| `test_manifest_merge.cpp`     | `manifest_merge.h`                                                                          |
+| `test_membw.cpp`              | `membw.h`                                                                                   |
+| `test_model_provision.cpp`    | `model_provision.h`                                                                         |
+| `test_model_write.cpp`        | `model_write.h`                                                                             |
+| `test_path.cpp`               | `path_utils.h`                                                                              |
+| `test_personalize.cpp`        | `personalize.h`                                                                             |
+| `test_preference_capture.cpp` | `preference_capture.h`                                                                      |
+| `test_prompt_budget.cpp`      | `prompt_budget.h`                                                                           |
+| `test_ramceil.cpp`            | `ramceil.h`                                                                                 |
+| `test_routing_policy.cpp`     | `routing_policy.h`                                                                          |
+| `test_sampling.cpp`           | `sampling.h` (CLI/Session parity opt-in)                                                    |
+| `test_session.cpp`            | `session.h`, `session_hub.h`                                                                |
+| `test_speculative.cpp`        | `speculative.h`                                                                             |
+| `test_tool_proposal.cpp`      | `api_policy.h`, `tool_request.h`, `tool_transcript.h`, `prompt_budget.h`, `tool_template.h` |
+| `test_training.cpp`           | `training.h` / `training_params.h`                                                          |
+| `test_utf8.cpp`               | `utf8_utils.h`                                                                              |
 
 ## UWP headless flag registry
 

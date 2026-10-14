@@ -1,0 +1,72 @@
+# ADR 0004: Client-side tool proposals
+
+Status: Accepted (2026-10-13)
+
+Accepted with the architecture plan for the local Enclosure subject.
+
+## Context
+
+The LAN chat route rejected any body that named `tools`, `functions`, or
+`tool_choice`, including an empty list and `tool_choice: none`. Enclosure's
+subject is a tool-using agent. The client executes the tools. xllama must not:
+the console process has no shell, no filesystem tool, and no outbound tool
+call of its own.
+
+The hand-rolled `ChatFormat` has no tool role and no schema. The GGUF already
+carries a Jinja chat template, and llama.cpp `common/chat` can render that
+template and parse the generation.
+
+## Decision
+
+A non-empty `tools` array, or a legacy `functions` array on its own, is a
+proposal. Render and parse it through the resident GGUF template
+(`common_chat_templates_apply`, `common_chat_parse`). Return `tool_calls`.
+Do not execute a tool, a shell, the filesystem, or the network.
+
+One request is one generation. No grammar constraint and no hidden retry.
+`tool_choice: none` and `tools: []` stay on the plain `ChatFormat` path.
+`functions` is translated into `tools`. Both keys together are 400. A named
+`tool_choice` offers only that function and asks the template for a required
+call, because the llama.cpp choice enum has no name.
+
+An ONNX session returns 400 `tools require a GGUF chat template`. A GGUF with
+no explicit chat template returns 400 `model has no chat template`. Do not
+fall back to `ChatFormat` with the schema pasted on.
+
+A call cut off by the token cap is omitted: `finish_reason` is `length` and
+`content` is the raw text. A complete call still wins as `tool_calls`. If the
+parser rejects the output, the status stays 200 and the body is the raw text.
+KV reuse stays off. Stops are the template's additional stops plus the
+client's `stop`.
+
+The budget trimmer for this path is `fit_tool_transcript`, beside `fit_prompt`,
+in `prompt_budget.h`. Both ask the resident tokenizer and reserve
+`max(n_predict, 250) + 1`. A proposal never drops the schema or the final user
+or tool message, and it drops an assistant message that carries `tool_calls`
+together with the tool results that follow it.
+
+agent-runtime stays a `/v1` pass-through. The GUI chat path stays tool-free.
+
+## Consequences
+
+phi4-mini at `n_ctx` 4096 can still return 400 `prompt too long` when the
+schema plus the protected tail do not fit. That is the budget.
+
+The UWP app links a static `llama-common` built from the Linux link closure,
+not from `llama.cpp/tools/server`. This host cannot compile that package. The
+console ping and an Enclosure T0 rerun wait on a Windows build.
+
+`stream: true` stays unimplemented.
+
+## Alternatives
+
+Rejecting every tool key keeps the server from executing tools and also makes
+a tool-using client impossible.
+
+Executing tools inside xllama would put a shell on the console.
+
+A hand-rolled Phi tool dialect drifts from the GGUF template the model was
+trained with.
+
+A grammar constraint is not a field on `Session::generate` and would be a
+second parser beside the template's own.

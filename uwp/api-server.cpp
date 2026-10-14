@@ -32,6 +32,9 @@
     #include "xllama/routing_policy.h"
     #include "xllama/session.h"
     #include "xllama/session_hub.h"
+    #include "xllama/tool_request.h"
+    #include "xllama/tool_template.h"
+    #include "xllama/tool_transcript.h"
     #include "xllama/utf8_utils.h"
 
     #include <algorithm>
@@ -44,6 +47,7 @@
     #include <filesystem>
     #include <memory>
     #include <mutex>
+    #include <stdexcept>
     #include <string>
     #include <vector>
 
@@ -418,6 +422,168 @@ std::string model_not_found(const std::string& model) {
     return "model '" + model + "' is not on this console; see GET /v1/models";
 }
 
+void append_client_stops(JsonObject const& root, std::vector<std::string>& stops) {
+    if (!root.HasKey(L"stop"))
+        return;
+    const auto sv = root.GetNamedValue(L"stop");
+    if (sv.ValueType() == JsonValueType::String) {
+        stops.push_back(winrt::to_string(sv.GetString()));
+    } else if (sv.ValueType() == JsonValueType::Array) {
+        for (auto&& e : sv.GetArray())
+            if (e.ValueType() == JsonValueType::String)
+                stops.push_back(winrt::to_string(e.GetString()));
+    }
+}
+
+void fill_sampling(JsonObject const& root, ::xllama::GenerateParams& gp) {
+    gp.n_predict = 512;
+    if (root.HasKey(L"max_completion_tokens"))
+        gp.n_predict = static_cast<int>(root.GetNamedNumber(L"max_completion_tokens"));
+    else if (root.HasKey(L"max_tokens"))
+        gp.n_predict = static_cast<int>(root.GetNamedNumber(L"max_tokens"));
+    if (root.HasKey(L"temperature"))
+        gp.temperature = static_cast<float>(root.GetNamedNumber(L"temperature"));
+    if (root.HasKey(L"top_p"))
+        gp.top_p = static_cast<float>(root.GetNamedNumber(L"top_p"));
+    if (root.HasKey(L"seed"))
+        gp.seed = static_cast<uint32_t>(root.GetNamedNumber(L"seed", -1.0));
+}
+
+// One OpenAI chat.completion body. `message` is choices[0].message.
+std::string completion_json(const std::string& model, JsonObject const& message,
+                            winrt::hstring const& finish_reason, int prompt_tokens,
+                            int completion_tokens, const char*& status) {
+    JsonObject choice;
+    choice.Insert(L"index", JsonValue::CreateNumberValue(0));
+    choice.Insert(L"message", message);
+    // openai-python / LangChain deserialize into Pydantic models and choke when
+    // logprobs is absent; emit it explicitly as null.
+    choice.Insert(L"logprobs", JsonValue::CreateNullValue());
+    choice.Insert(L"finish_reason", JsonValue::CreateStringValue(finish_reason));
+    JsonArray choices;
+    choices.Append(choice);
+
+    JsonObject usage;
+    usage.Insert(L"prompt_tokens", JsonValue::CreateNumberValue(prompt_tokens));
+    usage.Insert(L"completion_tokens", JsonValue::CreateNumberValue(completion_tokens));
+    usage.Insert(L"total_tokens", JsonValue::CreateNumberValue(prompt_tokens + completion_tokens));
+
+    JsonObject resp;
+    const std::string id =
+        "chatcmpl-xllama-" + std::to_string(time(nullptr)) + "-" + std::to_string(++g_req_counter);
+    resp.Insert(L"id", JsonValue::CreateStringValue(winrt::to_hstring(id)));
+    resp.Insert(L"object", JsonValue::CreateStringValue(L"chat.completion"));
+    resp.Insert(L"created", JsonValue::CreateNumberValue(static_cast<double>(time(nullptr))));
+    resp.Insert(L"model", JsonValue::CreateStringValue(winrt::to_hstring(model)));
+    resp.Insert(L"choices", choices);
+    resp.Insert(L"usage", usage);
+    status = "200 OK";
+    return winrt::to_string(resp.Stringify());
+}
+
+// Client-side tool proposal. The process does not run the tool. One generate,
+// then the GGUF template's parser. KV reuse stays off: the schema lives in the
+// template's system prefix, so a pinned plain-chat prefix would be wrong.
+std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRequest& request,
+                                        ::xllama::Session* session, const std::string& model,
+                                        bool model_is_coding, int policy_n_ctx,
+                                        ::xllama::ApiActivity::Ticket& ticket,
+                                        const char*& status) {
+    if (session->resident_llama_model() == nullptr) {
+        status = "400 Bad Request";
+        return error_json("tools require a GGUF chat template");
+    }
+    bool has_system = false;
+    for (const ::xllama::ChatMessage& message : request.messages) {
+        if (message.role == ::xllama::ChatRole::System) {
+            has_system = true;
+            break;
+        }
+    }
+    if (!has_system) {
+        ::xllama::ChatMessage system;
+        system.role = ::xllama::ChatRole::System;
+        system.content =
+            model_is_coding ? ::xllama::kCodingSystemPrompt : ::xllama::kDefaultSystemPrompt;
+        request.messages.insert(request.messages.begin(), std::move(system));
+    }
+
+    ::xllama::GenerateParams gp;
+    gp.reuse_kv = false;
+    fill_sampling(root, gp);
+    std::vector<std::string> template_stops;
+    ::xllama::ToolTranscriptFit fit;
+    try {
+        const void* llama_model = session->resident_llama_model();
+        fit = ::xllama::fit_tool_transcript(
+            request.messages, request.tools, policy_n_ctx, gp.n_predict,
+            [&](const std::vector<::xllama::ChatMessage>& messages,
+                const std::vector<::xllama::ToolSpec>& tools) {
+                const ::xllama::ToolTemplateResult rendered = ::xllama::render_tool_prompt(
+                    llama_model, "", messages, tools, request.choice, request.forced_name);
+                if (!rendered.ok)
+                    throw std::runtime_error(rendered.error);
+                template_stops = rendered.stop_sequences;
+                return rendered.prompt;
+            },
+            [session](const std::string& text) { return session->count_tokens(text); });
+    } catch (const std::exception& ex) {
+        status = "400 Bad Request";
+        return error_json(ex.what());
+    }
+    if (!fit.fits) {
+        status = "400 Bad Request";
+        return error_json("prompt too long: the request needs " + std::to_string(fit.n_tokens) +
+                          " tokens plus " + std::to_string(gp.n_predict) +
+                          " for the reply, but n_ctx is " + std::to_string(policy_n_ctx));
+    }
+    if (fit.dropped > 0)
+        ::xllama::log_output("[xllama] api: dropped " + std::to_string(fit.dropped) +
+                             " oldest message(s) to fit n_ctx " + std::to_string(policy_n_ctx) +
+                             "\n");
+    gp.prompt = fit.prompt;
+    gp.stop_sequences = std::move(template_stops);
+    append_client_stops(root, gp.stop_sequences);
+
+    const ::xllama::InferenceResult generated = session->generate(gp);
+    if (!generated.success) {
+        status = "500 Internal Server Error";
+        return error_json("generation failed: " + generated.error_msg);
+    }
+    ticket.tokens(generated.n_p_eval, generated.n_eval);
+    const bool hit_cap = generated.n_eval >= gp.n_predict;
+    const ::xllama::ToolParseResult parsed = ::xllama::parse_tool_generation(
+        session->resident_llama_model(), "", fit.messages, request.tools, request.choice,
+        request.forced_name, generated.output_text, hit_cap);
+    const ::xllama::ChoiceAssembly assembly =
+        ::xllama::assemble_choice(generated.output_text, parsed.content, parsed.calls, hit_cap);
+
+    JsonObject message;
+    message.Insert(L"role", JsonValue::CreateStringValue(L"assistant"));
+    if (assembly.content_null)
+        message.Insert(L"content", JsonValue::CreateNullValue());
+    else
+        message.Insert(L"content",
+                       JsonValue::CreateStringValue(winrt::to_hstring(assembly.content)));
+    if (!assembly.tool_calls.empty()) {
+        JsonArray calls;
+        for (const ::xllama::ToolCall& call : assembly.tool_calls) {
+            JsonObject function;
+            function.Insert(L"name", JsonValue::CreateStringValue(winrt::to_hstring(call.name)));
+            function.Insert(L"arguments",
+                            JsonValue::CreateStringValue(winrt::to_hstring(call.arguments_json)));
+            JsonObject tool_call;
+            tool_call.Insert(L"id", JsonValue::CreateStringValue(winrt::to_hstring(call.id)));
+            tool_call.Insert(L"type", JsonValue::CreateStringValue(L"function"));
+            tool_call.Insert(L"function", function);
+            calls.Append(tool_call);
+        }
+        message.Insert(L"tool_calls", calls);
+    }
+    return completion_json(model, message, winrt::to_hstring(assembly.finish_reason),
+                           generated.n_p_eval, generated.n_eval, status);
+}
+
 // Handles one chat request under session_hub().mtx (already locked by the caller).
 std::string handle_chat_locked(const std::string& body, const char*& status,
                                ::xllama::ApiActivity::Ticket& ticket) {
@@ -427,15 +593,16 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
         return error_json("invalid JSON body");
     }
 
-    // The endpoint does not execute tools. Reject them explicitly instead of
-    // silently ignoring a client's requested capability, which could make a
-    // local model appear more trusted than the runtime actually is.
-    const ::xllama::ApiToolFields tool_fields{root.HasKey(L"tools"), root.HasKey(L"functions"),
-                                              root.HasKey(L"tool_choice")};
-    if (::xllama::api_tool_execution_requested(tool_fields)) {
+    // A tool proposal is parsed here and executed by the client. This process
+    // does not run tools. Plain chat (no schema, empty tools, tool_choice none)
+    // stays on ChatFormat below.
+    ::xllama::ToolRequest request = ::xllama::parse_tool_request(body);
+    if (!request.error.empty()) {
         status = "400 Bad Request";
-        return error_json("tool execution is not supported; tools and functions are disabled");
+        return error_json(request.error);
     }
+    const bool proposal = request.disposition == ::xllama::ApiToolDisposition::Proposal ||
+                          request.disposition == ::xllama::ApiToolDisposition::Legacy;
 
     std::string model = winrt::to_string(root.GetNamedString(L"model", L""));
     if (model.empty())
@@ -450,17 +617,19 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
         return error_json(model_not_found(model));
     }
 
-    if (!root.HasKey(L"messages") ||
-        root.GetNamedValue(L"messages").ValueType() != JsonValueType::Array) {
-        status = "400 Bad Request";
-        return error_json("missing or non-array 'messages'");
-    }
     std::string system, final_user;
     std::vector<::xllama::ChatTurn> history;
-    split_messages(root.GetNamedArray(L"messages"), system, history, final_user);
-    if (final_user.empty()) {
-        status = "400 Bad Request";
-        return error_json("no user message to complete");
+    if (!proposal) {
+        if (!root.HasKey(L"messages") ||
+            root.GetNamedValue(L"messages").ValueType() != JsonValueType::Array) {
+            status = "400 Bad Request";
+            return error_json("missing or non-array 'messages'");
+        }
+        split_messages(root.GetNamedArray(L"messages"), system, history, final_user);
+        if (final_user.empty()) {
+            status = "400 Bad Request";
+            return error_json("no user message to complete");
+        }
     }
     // Lazily (re)create the resident Session when the requested model differs
     // (hub.mtx is held by the caller; the swap invalidates the GUI's KV-reuse
@@ -497,6 +666,10 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
             return error_json("session create failed: " + err);
         }
     }
+
+    if (proposal)
+        return handle_tool_proposal_locked(root, request, session, model, model_is_coding,
+                                           policy_n_ctx, ticket, status);
 
     // Small instruct models degrade badly with an empty system turn (they
     // hallucinate the next role instead of answering); the chat UI always seeds
@@ -572,37 +745,12 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
     JsonObject message;
     message.Insert(L"role", JsonValue::CreateStringValue(L"assistant"));
     message.Insert(L"content", JsonValue::CreateStringValue(winrt::to_hstring(content)));
-    JsonObject choice;
-    choice.Insert(L"index", JsonValue::CreateNumberValue(0));
-    choice.Insert(L"message", message);
-    // openai-python / LangChain deserialize into Pydantic models and choke when
-    // logprobs is absent; emit it explicitly as null.
-    choice.Insert(L"logprobs", JsonValue::CreateNullValue());
     // "length" only when we actually hit the token cap; a model that ends on its
     // EOS token before the cap stops naturally, which ended_with_stop (a textual
     // stop-sequence match) does not capture — deduce it from the token count.
     const bool hit_cap = r.n_eval >= gp.n_predict;
-    choice.Insert(L"finish_reason", JsonValue::CreateStringValue(hit_cap ? L"length" : L"stop"));
-    JsonArray choices;
-    choices.Append(choice);
-
-    JsonObject usage;
-    usage.Insert(L"prompt_tokens", JsonValue::CreateNumberValue(r.n_p_eval));
-    usage.Insert(L"completion_tokens", JsonValue::CreateNumberValue(r.n_eval));
-    usage.Insert(L"total_tokens", JsonValue::CreateNumberValue(r.n_p_eval + r.n_eval));
-
-    JsonObject resp;
-    // Unique per response (id is keyed by clients / trace dedup). hub.mtx is held.
-    const std::string id =
-        "chatcmpl-xllama-" + std::to_string(time(nullptr)) + "-" + std::to_string(++g_req_counter);
-    resp.Insert(L"id", JsonValue::CreateStringValue(winrt::to_hstring(id)));
-    resp.Insert(L"object", JsonValue::CreateStringValue(L"chat.completion"));
-    resp.Insert(L"created", JsonValue::CreateNumberValue(static_cast<double>(time(nullptr))));
-    resp.Insert(L"model", JsonValue::CreateStringValue(winrt::to_hstring(model)));
-    resp.Insert(L"choices", choices);
-    resp.Insert(L"usage", usage);
-    status = "200 OK";
-    return winrt::to_string(resp.Stringify());
+    return completion_json(model, message, hit_cap ? L"length" : L"stop", r.n_p_eval, r.n_eval,
+                           status);
 }
 
 // The single model the server can currently serve: the resident one, else the

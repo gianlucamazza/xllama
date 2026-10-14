@@ -1,10 +1,12 @@
 // Copyright (c) 2024 Gianluca Mazza
 // SPDX-License-Identifier: MIT
-// Exact context budgeting: the ONE place that decides how much history a prompt
-// carries. Kept WinRT-free and tokenizer-agnostic so it is host-testable.
+// Exact context budgeting. Plain chat uses fit_prompt; a tool proposal uses
+// fit_tool_transcript. Both ask the resident tokenizer. Neither estimates from
+// characters. Kept WinRT-free so it is host-testable.
 #pragma once
 
 #include "xllama/chat_prompt.h"
+#include "xllama/tool_transcript.h"
 
 #include <functional>
 #include <string>
@@ -48,5 +50,31 @@ struct PromptFit {
 PromptFit fit_prompt(const ChatFormat& fmt, const std::string& system,
                      const std::vector<ChatTurn>& turns, const std::string& user_text, int n_ctx,
                      int n_predict, const TokenCounter& count);
+
+// Renders the tool transcript the way the GGUF template will. Tests pass a
+// stand-in; the LAN handler passes the template bridge. The schema is an
+// argument, not a message, so a trimmer cannot drop it by dropping history.
+using ToolPromptRenderer = std::function<std::string(const std::vector<ChatMessage>& messages,
+                                                     const std::vector<ToolSpec>& tools)>;
+
+struct ToolTranscriptFit {
+    std::string prompt;
+    std::vector<ChatMessage> messages; // what `prompt` was rendered from
+    int n_tokens = 0;                  // exact count of `prompt` (-1 with no counter)
+    int dropped = 0;                   // messages removed, not groups
+    bool fits = false;
+};
+
+// Drop the oldest non-system messages until the prompt plus room for the reply
+// fits `n_ctx`. The room is max(n_predict, kReservedGenerationTokens) plus the
+// decode-loop token, the same arithmetic as fit_prompt. The tool schema, every
+// system message, and the final user or tool message stay. An assistant that
+// carries tool_calls and the tool messages that follow it drop together. A
+// tool whose assistant was dropped is not left behind. When schema + system +
+// the protected tail still do not fit, `fits` is false and `n_tokens` is that
+// minimal prompt. A null counter returns fits=false and n_tokens=-1.
+ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
+                                      const std::vector<ToolSpec>& tools, int n_ctx, int n_predict,
+                                      const ToolPromptRenderer& render, const TokenCounter& count);
 
 } // namespace xllama

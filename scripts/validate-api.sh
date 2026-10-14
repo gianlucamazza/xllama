@@ -5,7 +5,7 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/validate-api.sh <spike|chat|budget|embed|pull|prefs|train|all>
+#   ./scripts/validate-api.sh <spike|chat|budget|tools|embed|pull|prefs|train|all>
 #
 #   spike  bind gate only: GET / -> HTTP 200 (proves the StreamSocketListener
 #          survives the Series S firewall/PLM). No inference.
@@ -13,11 +13,16 @@
 #          check (two concurrent requests). Implies the spike gate first.
 #   budget context budget over the wire: a long messages[] is trimmed and answered,
 #          an oversized single message is 400 "prompt too long" (not 500).
+#   tools  client-side tool proposal (ADR 0004): a named tool_choice comes back
+#          as tool_calls with JSON arguments, a tool result is answered,
+#          tools+functions is 400, tool_choice none stays plain chat. TOOLS_MODEL
+#          (default MODEL) must be a GGUF with a chat template; ORT_MODEL, when
+#          set, names an ONNX model that must answer 400.
 #   embed  Ollama native + legacy and OpenAI float/base64 embeddings. Requires
 #          EMBED_MODEL to identify an embedding GGUF already on the console.
 #   prefs  POST /v1/preferences -> appends a like sample (#118).
 #   train  GET /v1/training/status -> JSON with state + usable_samples (#118).
-#   all    spike + chat + embed + budget + prefs + train + pull (images are manual).
+#   all    spike + chat + embed + budget + tools + prefs + train + pull (images are manual).
 #
 # Requires: an installed xllama build with the endpoint, a chat model already in
 # LocalState (set MODEL, or seed LocalState\model.txt), and XBOX_IP/USER/PASS.
@@ -377,6 +382,100 @@ PYBUDGET
 	return $verdict
 }
 
+# --- tool proposals (ADR 0004) -----------------------------------------------
+
+# POST $1 to chat/completions; writes the body to $2 and prints the HTTP code.
+post_chat() {
+	curl -sS -m 300 -o "$2" -w "%{http_code}" -H 'Content-Type: application/json' \
+		-d "$1" "${API_URL}/v1/chat/completions" || echo "000"
+}
+
+validate_tools() {
+	echo "=== tools: client-side tool proposal (ADR 0004) ==="
+	local tools_model="${TOOLS_MODEL:-$MODEL}" verdict=0 req code check
+	local schema='[{"type":"function","function":{"name":"get_weather","description":"Current weather for a city","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}]'
+
+	# A. named tool_choice: the reply must be a get_weather call with JSON arguments.
+	req=$(printf '{"model":"%s","messages":[{"role":"user","content":"What is the weather in Paris?"}],"tools":%s,"tool_choice":{"type":"function","function":{"name":"get_weather"}},"max_tokens":128,"temperature":0,"seed":42}' "$tools_model" "$schema")
+	code=$(post_chat "$req" "${TMPDIR_LOCAL}/tools-a.json")
+	check=$(python3 -c '
+import json, sys
+d = json.load(open(sys.argv[1]))
+c = d["choices"][0]
+calls = c["message"].get("tool_calls") or []
+assert calls, "no tool_calls (finish_reason=%s)" % c.get("finish_reason")
+f = calls[0]["function"]
+assert f["name"] == "get_weather", "name " + f["name"]
+json.loads(f["arguments"])
+assert calls[0].get("id"), "missing id"
+assert c["finish_reason"] == "tool_calls", "finish_reason " + c["finish_reason"]
+print("get_weather(" + f["arguments"] + ")")
+' "${TMPDIR_LOCAL}/tools-a.json" 2>&1 | tail -n1 || true)
+	if [[ "$code" == "200" && "$check" == get_weather* ]]; then
+		echo "  A ok: ${check:0:100}"
+	else
+		echo "  A FAIL: HTTP ${code}: ${check:0:160}"
+		verdict=1
+	fi
+
+	# B. a tool result after the call: answered, no new call required.
+	req=$(printf '{"model":"%s","messages":[{"role":"user","content":"What is the weather in Paris?"},{"role":"assistant","content":null,"tool_calls":[{"id":"call_1","type":"function","function":{"name":"get_weather","arguments":"{\\"city\\":\\"Paris\\"}"}}]},{"role":"tool","tool_call_id":"call_1","content":"18 C, light rain"}],"tools":%s,"max_tokens":96,"temperature":0,"seed":42}' "$tools_model" "$schema")
+	code=$(post_chat "$req" "${TMPDIR_LOCAL}/tools-b.json")
+	check=$(python3 -c '
+import json, sys
+m = json.load(open(sys.argv[1]))["choices"][0]["message"]
+print("ok" if (m.get("content") or m.get("tool_calls")) else "empty message")
+' "${TMPDIR_LOCAL}/tools-b.json" 2>&1 | tail -n1 || true)
+	if [[ "$code" == "200" && "$check" == "ok" ]]; then
+		echo "  B ok: tool result answered"
+	else
+		echo "  B FAIL: HTTP ${code}: ${check:0:160}"
+		verdict=1
+	fi
+
+	# C. tools and functions together: 400 with the reason.
+	req=$(printf '{"model":"%s","messages":[{"role":"user","content":"hi"}],"tools":%s,"functions":[{"name":"f","parameters":{"type":"object"}}]}' "$tools_model" "$schema")
+	code=$(post_chat "$req" "${TMPDIR_LOCAL}/tools-c.json")
+	if [[ "$code" == "400" ]] && grep -q 'cannot be combined' "${TMPDIR_LOCAL}/tools-c.json"; then
+		echo "  C ok: tools+functions is 400"
+	else
+		echo "  C FAIL: HTTP ${code}: $(head -c 160 "${TMPDIR_LOCAL}/tools-c.json")"
+		verdict=1
+	fi
+
+	# D. tool_choice none: plain chat, text content and no tool_calls.
+	req=$(printf '{"model":"%s","messages":[{"role":"user","content":"Say hello in one short sentence."}],"tools":%s,"tool_choice":"none","max_tokens":48,"temperature":0,"seed":42}' "$tools_model" "$schema")
+	code=$(post_chat "$req" "${TMPDIR_LOCAL}/tools-d.json")
+	check=$(python3 -c '
+import json, sys
+m = json.load(open(sys.argv[1]))["choices"][0]["message"]
+print("ok" if m.get("content") and not m.get("tool_calls") else "unexpected " + json.dumps(m)[:120])
+' "${TMPDIR_LOCAL}/tools-d.json" 2>&1 | tail -n1 || true)
+	if [[ "$code" == "200" && "$check" == "ok" ]]; then
+		echo "  D ok: tool_choice none answered as plain chat"
+	else
+		echo "  D FAIL: HTTP ${code}: ${check:0:160}"
+		verdict=1
+	fi
+
+	# E. optional: an ONNX session has no GGUF template, so a proposal is 400.
+	if [[ -n "${ORT_MODEL:-}" ]]; then
+		req=$(printf '{"model":"%s","messages":[{"role":"user","content":"hi"}],"tools":%s}' "$ORT_MODEL" "$schema")
+		code=$(post_chat "$req" "${TMPDIR_LOCAL}/tools-e.json")
+		if [[ "$code" == "400" ]] && grep -q 'GGUF chat template' "${TMPDIR_LOCAL}/tools-e.json"; then
+			echo "  E ok: ONNX model refused with 400"
+		else
+			echo "  E FAIL: HTTP ${code}: $(head -c 160 "${TMPDIR_LOCAL}/tools-e.json")"
+			verdict=1
+		fi
+	else
+		echo "  E skipped: set ORT_MODEL to check the ONNX 400"
+	fi
+
+	[[ $verdict -eq 0 ]] && echo "tools: PASS" || echo "tools: FAIL"
+	return $verdict
+}
+
 # --- dispatch --------------------------------------------------------------
 
 CMD="${1:-}"
@@ -389,6 +488,10 @@ chat)
 budget)
 	validate_spike || exit 1
 	validate_budget
+	;;
+tools)
+	validate_spike || exit 1
+	validate_tools
 	;;
 prefs)
 	validate_spike || exit 1
@@ -416,6 +519,7 @@ all)
 	validate_chat || rc=1
 	validate_embed || rc=1
 	validate_budget || rc=1
+	validate_tools || rc=1
 	validate_prefs || rc=1
 	validate_train || rc=1
 	validate_pull || rc=1
@@ -425,7 +529,7 @@ all)
 	exit $rc
 	;;
 *)
-	echo "Usage: $0 <spike|chat|budget|embed|pull|prefs|train|all>" >&2
+	echo "Usage: $0 <spike|chat|budget|tools|embed|pull|prefs|train|all>" >&2
 	exit 1
 	;;
 esac

@@ -122,25 +122,58 @@ the process-wide resident Session when the requested model differs from the
 loaded one (first request on a new model pays the load, and the GUI's KV-reuse
 state is invalidated — see Model above).
 
-Request body (subset): `model`, `messages[]` (`role` ∈ system/user/assistant, `content`),
-optional `max_completion_tokens` / `max_tokens` (default 512; the former wins — `max_tokens`
-is the deprecated OpenAI alias), `temperature`, `top_p`, `seed` (reproducibility), and
-`stop` (string or array, added to the format's own stops). `messages` must be a JSON array
-and contain a trailing user turn, else `400`. When no `system` message is sent, a default
-one is injected (small instruct models degrade with an empty system turn). Other unknown
-Most unsupported fields are ignored for compatibility, but tool-related fields
-(`tools`, `functions`, `tool_choice`) are rejected. xllama never executes model-requested
-tools, shell commands, filesystem operations, or arbitrary network calls. `messages[]` is mapped to
-`ChatFormat::render_prompt(system, history, final_user)` (`include/xllama/chat_prompt.h`);
-`chat_format_for(model)` selects the template and stop sequences.
+Request body (subset): `model`, `messages[]`, optional `max_completion_tokens` /
+`max_tokens` (default 512; the former wins — `max_tokens` is the deprecated OpenAI
+alias), `temperature`, `top_p`, `seed`, and `stop` (string or array). `stream: true`
+is not implemented. Most other fields are ignored.
 
-**Context budget.** The prompt is fitted to the session's `n_ctx` with the same
-primitive the chat UI uses (`xllama::fit_prompt`, `include/xllama/prompt_budget.h`) and the
-model's own tokenizer: the **oldest** `messages[]` entries are dropped until the prompt plus
-the requested reply (`max(max_tokens, 250)` tokens) fits. Dropped entries are logged, not
-signalled in the response. When the trailing user message alone cannot fit, the request is
-refused with `400` and a body naming the three numbers — a client's oversized input is a
-client error, and it used to surface as a `500` from the generator instead.
+Plain chat (no tool schema, `tools: []`, or `tool_choice` `"none"`) keeps
+`ChatFormat::render_prompt` (`include/xllama/chat_prompt.h`). Roles are system, user,
+and assistant, content is a string, and the transcript must end on a user turn, else
+`400`. `chat_format_for(model)` selects the template and its stops. Client `stop`
+values are added to those. When no system message is sent, a default one is injected.
+
+A non-empty `tools` array, or a legacy `functions` array on its own, is a proposal.
+`functions` is translated into `tools`. Sending both is `400`
+(`tools and functions cannot be combined`). `tool_choice` accepts `"auto"`,
+`"none"`, `"required"`, and `{"type":"function","function":{"name":"..."}}`.
+`"none"` stays on the plain path. A named choice offers only that function.
+Content may be a string, null, or an array of `{type:"text",text}` parts joined
+with no separator. Anything else, including an image part, is `400`. A `tool`
+message requires `tool_call_id`. The last message must be `user` or `tool`.
+
+xllama does not execute the tool, a shell, the filesystem, or the network. The
+client does. One request is one generation: no grammar constraint and no hidden
+retry. The prompt and the parse go through the resident GGUF Jinja template
+(`common_chat_templates_apply` / `common_chat_parse`). An ONNX session returns
+`400` `tools require a GGUF chat template`. A GGUF with no explicit chat template
+returns `400` `model has no chat template`. The server does not fall back to
+`ChatFormat` with the schema pasted on. KV reuse stays off. Stops are the
+template's additional stops plus the client's `stop`.
+
+`choices[0].message.tool_calls[]` is `{id, type:"function", function:{name, arguments}}`
+with `arguments` a JSON string. Missing call ids become `call_1`, `call_2`, … in
+parse order, counting only the empty ones. `content` is null only when there are
+tool calls and no text. `finish_reason` is `tool_calls` when at least one call is
+complete, even if generation hit the token cap. A call cut off by the cap is
+omitted: `finish_reason` is `length` and `content` is the raw text. If the parser
+rejects the output, the status is still 200 and `content` is the raw text with
+`finish_reason` `stop` or `length`. `logprobs` stays null. Decision:
+[ADR 0004](adr/0004-tool-proposals.md).
+
+**Context budget.** Plain chat is fitted with `xllama::fit_prompt`
+(`include/xllama/prompt_budget.h`) and the model's own tokenizer: the **oldest**
+turns are dropped until the prompt plus the requested reply
+(`max(n_predict, 250) + 1`) fits, and the trailing user message is never dropped.
+A tool proposal uses `fit_tool_transcript` in the same header, the same tokenizer,
+and the same reserve. It never drops the tool schema or the final user or tool
+message, and it drops an assistant message that carries `tool_calls` together
+with the tool results that follow it. Dropped messages are logged, not signalled.
+When the protected tail still does not fit, the request is `400`. Plain chat says
+the final user message needs the three numbers. A proposal says
+`prompt too long: the request needs X tokens plus Y for the reply, but n_ctx is Z`,
+where Y is `n_predict`. An oversized input is a client error; it used to surface
+as a `500` from the generator instead.
 
 Only `Content-Length` framing is supported — a `Transfer-Encoding: chunked` request gets
 `411` (OpenAI SDKs send Content-Length). Malformed JSON / wrong-typed fields get `400`, never
@@ -286,10 +319,14 @@ the Session is hub-owned and is NOT released (the chat UI may be using it).
 
 ## Validation
 
-See `scripts/validate-api.sh` (`spike|chat|budget|embed|pull|prefs|train|all`). Run it **from another host on the LAN**,
+See `scripts/validate-api.sh` (`spike|chat|budget|tools|embed|pull|prefs|train|all`). Run it **from another host on the LAN**,
 not from a client on the console itself — cross-device inbound needs no loopback exemption,
 but a same-host localhost client would (`CheckNetIsolation`). Spike gate first (`GET /` → 200
-proves the bind survives the Series S firewall/PLM), then chat / prefs / train as needed.
+proves the bind survives the Series S firewall/PLM), then chat / prefs / train as needed. `tools` checks the tool-proposal contract:
+a named `tool_choice` returns a `get_weather` call with JSON arguments, a `tool`
+result is answered, `tools` + `functions` is `400`, and `tool_choice: "none"`
+stays plain chat. `TOOLS_MODEL` (default `MODEL`) must be a GGUF with a chat
+template; set `ORT_MODEL` to an ONNX id to also check its `400`.
 `all` includes pull and embeddings; provision `embed-nomic-v2-moe` first, or set
 `EMBED_MODEL=embed-bge-m3`. Set `XLLAMA_API_EVIDENCE_DIR` to retain the embedding
 requests and responses. The embedding gate verifies native widths, finite unit vectors,

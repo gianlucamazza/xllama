@@ -68,6 +68,9 @@ add_library(xllama STATIC
     src/bridge/utf8_utils.cpp
     src/bridge/chat_prompt.cpp
     src/bridge/prompt_budget.cpp
+    src/bridge/tool_transcript.cpp
+    src/bridge/tool_request.cpp
+    src/bridge/tool_template.cpp
     src/bridge/cli.cpp
     src/bridge/training.cpp
     src/bridge/device_train.cpp
@@ -107,7 +110,10 @@ target_include_directories(xllama PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/shaders/generated
 )
 
-target_link_libraries(xllama PUBLIC llama)
+# llama-common renders and parses GGUF chat templates for client-side tool
+# proposals. The HTTP server stays off: this is not llama.cpp/tools/server.
+# llama-common is listed first so its references to libllama resolve.
+target_link_libraries(xllama PUBLIC llama-common llama)
 
 target_compile_definitions(xllama PUBLIC
     XLLAMA_LINUX=1

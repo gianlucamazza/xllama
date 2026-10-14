@@ -109,8 +109,10 @@ n_ctx` — rather than the answer's length, which keeps the verdict independent
   from the models-v1 release, which would make the gate slower and dependent on
   console-side network. The toggle's own writer is covered by the `settings`
   gate instead;
-- **API** — separate LAN gate (`scripts/validate-api.sh`): `spike|chat|prefs|train|all`
-  (chat + #118 preference/training-status probes). Not wired into
+- **API** — separate LAN gate (`scripts/validate-api.sh`):
+  `spike|chat|budget|tools|embed|pull|prefs|train|all` (chat, context budget,
+  client-side tool proposals per [ADR 0004](adr/0004-tool-proposals.md),
+  embeddings, pull, #118 preference/training-status probes). Not wired into
   `validate-console.sh all` today — run it from another host on the LAN.
 
 ### When a gate fails, look at the screen
@@ -162,7 +164,7 @@ Run an individual gate while debugging:
 ./scripts/validate-console.sh thinkdone
 ./scripts/validate-console.sh genroom
 ./scripts/validate-console.sh taesd
-./scripts/validate-api.sh all          # spike + chat + prefs + train
+./scripts/validate-api.sh all          # spike + chat + embed + budget + tools + prefs + train + pull
 ./scripts/validate-console-training.sh rate   # preference UI path
 ```
 

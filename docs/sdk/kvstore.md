@@ -38,3 +38,29 @@ PromptFit fit_prompt(const ChatFormat& fmt, const std::string& system,
                      const std::vector<ChatTurn>& turns, const std::string& user_text,
                      int n_ctx, int n_predict, const TokenCounter& count);
 ```
+
+## `xllama::fit_tool_transcript()`
+
+The same budget for a client-side tool proposal ([ADR 0004](../adr/0004-tool-proposals.md)).
+The prompt is rendered by the GGUF template through `render`, then counted by the resident
+tokenizer; the reply reserve is the same as `fit_prompt`.
+
+```cpp
+using ToolPromptRenderer = std::function<std::string(const std::vector<ChatMessage>& messages,
+                                                     const std::vector<ToolSpec>& tools)>;
+
+struct ToolTranscriptFit {
+    std::string prompt;
+    std::vector<ChatMessage> messages; // what `prompt` was rendered from
+    int n_tokens = 0;                  // exact count of `prompt` (-1 with no counter)
+    int dropped = 0;                   // messages removed, not groups
+    bool fits = false;
+};
+
+ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
+                                      const std::vector<ToolSpec>& tools, int n_ctx, int n_predict,
+                                      const ToolPromptRenderer& render, const TokenCounter& count);
+```
+
+The schema, every system message, and the final user or tool message are never dropped. An
+assistant message carrying `tool_calls` drops together with the tool results that follow it.

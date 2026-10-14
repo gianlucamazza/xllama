@@ -48,6 +48,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   median). New data points, not reproductions of the July rows. July figures
   stay as dated history in `docs/benchmarks.md`.
 
+- **LAN chat accepts a client-side tool proposal** ([ADR 0004](docs/adr/0004-tool-proposals.md)).
+  A non-empty `tools` or legacy `functions` schema is rendered with the GGUF
+  Jinja template and may come back as `tool_calls`. xllama does not execute
+  the tool. `tool_choice: none` and `tools: []` stay on the plain chat path.
+  An ONNX model, or a GGUF with no chat template, is a 400. The prompt budget
+  for this path is `fit_tool_transcript`. `scripts/validate-api.sh tools` checks the contract on
+  the console.
+
 - **Docs: GPU decode in context**. A new section in `docs/benchmarks.md` sets
   the Series S and xllama beside known hardware (RX 6600, Steam Deck, Iris Xe
   and others, from the llama.cpp Vulkan scoreboard), measured as effective

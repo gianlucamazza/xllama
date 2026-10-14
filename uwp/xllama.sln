@@ -7,6 +7,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "xllama", "xllama.vcxproj", 
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ggml-uwp", "ggml-uwp.vcxproj", "{B7E11D2A-4C63-4A0E-9D1F-2A6C58F0AA31}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "llama-common-uwp", "llama-common-uwp.vcxproj", "{C8F22E3B-5D74-4B1F-8E20-3B7D69A1BB42}"
+EndProject
 Global
     GlobalSection(SolutionConfigurationPlatforms) = preSolution
         Release|x64 = Release|x64
@@ -19,6 +21,8 @@ Global
         {A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Debug|x64.Build.0 = Debug|x64
         {B7E11D2A-4C63-4A0E-9D1F-2A6C58F0AA31}.Release|x64.ActiveCfg = Release|x64
         {B7E11D2A-4C63-4A0E-9D1F-2A6C58F0AA31}.Debug|x64.ActiveCfg = Debug|x64
+        {C8F22E3B-5D74-4B1F-8E20-3B7D69A1BB42}.Release|x64.ActiveCfg = Release|x64
+        {C8F22E3B-5D74-4B1F-8E20-3B7D69A1BB42}.Debug|x64.ActiveCfg = Debug|x64
     EndGlobalSection
     GlobalSection(SolutionProperties) = preSolution
         HideSolutionNode = FALSE

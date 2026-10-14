@@ -3,7 +3,6 @@
 
 #include <doctest/doctest.h>
 
-#include "xllama/api_policy.h"
 #include "xllama/inference.h"
 #include "xllama/path_utils.h"
 #include "xllama/platform.h"
@@ -95,13 +94,6 @@ TEST_CASE("Bench CSV writer: basic output") {
     std::remove(csv_path.c_str());
     std::string done_path = xllama::resolve_local_path("bench-result.csv.done");
     std::remove(done_path.c_str());
-}
-
-TEST_CASE("API policy rejects every advertised tool capability") {
-    CHECK_FALSE(xllama::api_tool_execution_requested({}));
-    CHECK(xllama::api_tool_execution_requested({true, false, false}));
-    CHECK(xllama::api_tool_execution_requested({false, true, false}));
-    CHECK(xllama::api_tool_execution_requested({false, false, true}));
 }
 
 TEST_CASE("Bench CSV writer: quant from GGUF filename") {

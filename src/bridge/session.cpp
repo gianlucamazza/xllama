@@ -493,6 +493,10 @@ class LlamaSession final : public Session {
           m_n_ctx(n_ctx), m_n_threads(n_threads), m_n_batch(n_batch), m_n_ubatch(n_ubatch),
           m_kv_q8(kv_q8), m_prompt_lookup(prompt_lookup), m_gpu_layers(gpu_layers) {}
 
+    const void* resident_llama_model() const override {
+        return m_model.get();
+    }
+
     // Lazy context creation, shared by generate() and the state-file entry
     // points (#170b needs a context before the first turn). Returns false and
     // sets *err on failure; m_ctx stays null.

@@ -152,7 +152,7 @@ source ~/.config/xllama/xbox-env
 ./scripts/validate-console.sh <gate|all>
 # modes: serve|rate|lora-rt|device-train|all
 ./scripts/validate-console-training.sh <mode>
-./scripts/validate-api.sh <spike|chat|budget|embed|pull|prefs|train|all>
+./scripts/validate-api.sh <spike|chat|budget|tools|embed|pull|prefs|train|all>
 ```
 
 ## Code style
@@ -223,13 +223,13 @@ Load-bearing headers agents usually touch:
 | `inference_params.h` / `inference.h` | Params, result, `run_inference`                      |
 | `inference_progress.h`               | Prefill/decode progress logs and stall watchdog      |
 | `routing_policy.h`                   | ORT CPU-vs-DML routing and prompt budget             |
-| `prompt_budget.h`                    | `fit_prompt` — the only token-budget trimmer         |
+| `prompt_budget.h`                    | `fit_prompt` and `fit_tool_transcript`               |
 | `sampling.h`                         | Sampler defaults shared by CLI, bench, GUI, API      |
 | `chat_prompt.h`                      | `ChatFormat` and stop sequences                      |
 | `embedding.h`                        | Embedding params and pooling trim                    |
 | `api_pull_policy.h`                  | Trusted catalogue pulls and API pull admission       |
 | `model_write.h`                      | Shared writer ownership before model mutation        |
-| `api_policy.h`                       | Rejects tool-execution fields on the LAN API         |
+| `api_policy.h`                       | Classifies a tool proposal; does not execute tools   |
 | `training.h` / `device_train.h`      | Job validation and Lane B device train               |
 | `personalize.h`                      | In-app personalize helpers                           |
 | `json_utils.h`                       | JSON escape / parse (header-only)                    |
@@ -344,8 +344,9 @@ If you change a contract, update the owning doc in the same PR
 - Xbox credentials stay in `~/.config/xllama/xbox-env`.
 - The LAN API is opt-in and off unless `api.flag` is present. Protocol:
   [docs/api-endpoint.md](docs/api-endpoint.md).
-- The API has no tool executor. `api_tool_execution_requested` in
-  `api_policy.h` rejects `tools`, `functions`, and `tool_choice`.
+- The API has no tool executor. A `tools` or `functions` schema is a
+  client-side proposal: the response may contain `tool_calls`, and this
+  process does not run them ([ADR 0004](docs/adr/0004-tool-proposals.md)).
 - Catalogue signing uses the `XLLAMA_CATALOGUE_PRIVATE_KEY` CI secret. Do
   not copy key material into the tree.
 
@@ -375,7 +376,8 @@ Break these and both front ends drift:
 
 - **One resident session.** `SessionHub` owns the loaded model for GUI and
   API. Two models do not fit the console budget.
-- **One budget enforcer.** `fit_prompt` decides in tokens. A chars-per-token
+- **One budget home.** `prompt_budget.h` decides in tokens: `fit_prompt` for
+  plain chat, `fit_tool_transcript` for a tool proposal. A chars-per-token
   estimate may bound work; it must not decide what the user receives.
 - **One sampler chain per backend.** CLI, bench, GUI, and API share
   `sampler_chain.h` or `ort_sampling.h`.

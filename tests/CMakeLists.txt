@@ -24,6 +24,7 @@ add_executable(xllama-tests
     test_inference_progress.cpp
     test_chat_prompt.cpp
     test_prompt_budget.cpp
+    test_tool_proposal.cpp
     test_manifest_merge.cpp
     test_membw.cpp
     test_diskbw.cpp
