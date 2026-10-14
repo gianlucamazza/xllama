@@ -408,6 +408,7 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     if (params.on_status)
         params.on_status("loading model");
 
+    install_llama_log();
     llama_model* raw_model = llama_model_load_from_file(abs_model_path.c_str(), mparams);
     log_gguf_ws("after model load");
     if (!raw_model) {

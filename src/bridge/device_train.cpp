@@ -16,6 +16,7 @@
 #include "ggml.h"
 #include "gguf.h"
 #include "llama.h"
+#include "llama_gpu.h" // install_llama_log
 
 #include <algorithm>
 #include <chrono>
@@ -505,6 +506,7 @@ TrainingResult run_device_train_job(const TrainingJob& job, const DeviceTrainCal
     // former use_mmap=false.
     mparams.load_mode = LLAMA_LOAD_MODE_NONE;
     mparams.n_gpu_layers = 0; // CPU only: Xbox has no ggml GPU backend
+    install_llama_log();
     LlamaModelPtr model{llama_model_load_from_file(mixed_gguf.c_str(), mparams)};
     if (!model)
         return finish(false, "train: cannot load " + mixed_gguf);

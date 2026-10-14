@@ -1298,6 +1298,7 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
     llama_model_params mparams = llama_model_default_params();
     const int gpu_layers = apply_gguf_gpu_layers(sp.n_gpu_layers, mparams, abs_path);
 
+    install_llama_log();
     llama_model* raw_model = llama_model_load_from_file(abs_path.c_str(), mparams);
     log_gguf_ws("after model load");
     if (!raw_model) {

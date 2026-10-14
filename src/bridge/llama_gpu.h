@@ -14,20 +14,37 @@
 #include "xllama/speculative.h"
 
 #include <cstring>
+#include <mutex>
 #include <string>
 
 namespace xllama {
 
-// llama/ggml log lines worth keeping in xllama.log when layers run on d3d12:
-// placement and buffer sizes, graph splits, and every warning or error.
-inline void gguf_gpu_log(ggml_log_level level, const char* text, void*) {
+// llama/ggml log lines worth keeping in xllama.log on every GGUF load, CPU or
+// d3d12: placement and buffer sizes, graph splits, and every warning or error.
+// Before this was installed for all loads, a CPU-only load's warnings went to
+// llama's default stderr logger, which UWP never shows (found in a community
+// fork, SamirCharleston/xllama). Runs on llama.cpp's threads through a C
+// callback, so nothing may escape it.
+inline void llama_bridge_log(ggml_log_level level, const char* text, void*) noexcept {
     if (!text)
         return;
     const bool keep = level == GGML_LOG_LEVEL_WARN || level == GGML_LOG_LEVEL_ERROR ||
                       std::strstr(text, "buffer size") || std::strstr(text, "offload") ||
                       std::strstr(text, "graph splits") || std::strstr(text, "D3D12");
-    if (keep)
+    if (!keep)
+        return;
+    try {
         log_output(std::string("[llama] ") + text);
+    } catch (...) {
+    }
+}
+
+// llama_log_set writes process-global llama and ggml state without a lock, so
+// it is set exactly once, before the first model load on any path (session,
+// run_inference, device train), and never swapped afterwards.
+inline void install_llama_log() {
+    static std::once_flag once;
+    std::call_once(once, [] { llama_log_set(llama_bridge_log, nullptr); });
 }
 
 // Working set at a load stage, for every GGUF load: the CPU and d3d12 runs log
@@ -98,7 +115,6 @@ inline int apply_gguf_gpu_layers(int requested, llama_model_params& mparams,
         log_output("[xllama] gguf gpu layers: tied token_embd in D3D12_Weights\n");
     }
     log_gguf_ws("after d3d12 init");
-    llama_log_set(gguf_gpu_log, nullptr);
     log_output("[xllama] gguf gpu layers: " + std::to_string(requested) + " on D3D12\n");
     return requested;
 }
