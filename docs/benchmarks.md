@@ -542,8 +542,8 @@ batch). Now exposed end-to-end (`InferenceParams`/`SessionParams` →
 (i7-1165G7, Qwen3.5-0.8B-Q4_K_M, 701-token prompt, 2026-07-14): repeated passes
 **disagree** on the ubatch=128 value (82.5 vs 117.4 tok/s) and show **no
 reproducible trend** — on a loaded dev laptop the measurement is noise-dominated.
-The knob is in place and CLI-sweepable; a clean optimum needs a quiet machine (the
-headless console bench reads `bench_threads.txt` but not an ubatch override, so an
-on-console sweep would need a bench-mode change — out of scope). Xbox Zen 2 shares
+The knob is in place and CLI-sweepable; a clean optimum needs a quiet machine. The
+headless console bench reads `bench_ubatch.txt` (#172, the host column carries
+`-uN`), so an on-console sweep needs no code change. Xbox Zen 2 shares
 the x86 AVX2 ISA, so a flat curve is the expectation. Default (0 → llama.cpp 512)
 stays until a measured win justifies a change.
