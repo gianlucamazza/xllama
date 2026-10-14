@@ -1,0 +1,10 @@
+# xllama.log after the last app start on GianlucaMazza.xllama_1.6.0.1242_x64__pj67f1fcj4n14 (PR #345), 2026-10-14: one CPU-only GGUF load (lfm25-350m via validate-api.sh chat), no d3d12 load in the process
+[xllama] EnsureModel: begin 'lfm25-350m'
+[llama] llama_model_loader: mmap is not supported on this platform
+[llama] load_tensors:          CPU model buffer size =    52.75 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =   154.12 MiB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =    24.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.08 MiB
+[llama] sched_reserve:        CPU compute buffer size =   140.02 MiB
