@@ -348,7 +348,9 @@ def exchange(raw, close_write=True, timeout=40):
             if not chunk:
                 break
             data += chunk
-    except socket.timeout:
+    except (socket.timeout, ConnectionResetError):
+        # A refused request is answered, then closed; a reset after the
+        # status line still carries the answer read so far.
         pass
     s.close()
     status = data.split(b" ", 2)[1].decode() if data.startswith(b"HTTP/") else "none"

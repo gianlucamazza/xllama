@@ -1,0 +1,47 @@
+# validate-api.sh on GianlucaMazza.xllama_1.6.0.1235_x64__pj67f1fcj4n14 (PR #343, 9bf60f6), 2026-10-14
+# baseline on 1.6.0.1218 (old reader): negative CL 200 + sample, short body 200 + sample, stalled body no answer after 40 s, 9 MB clamped
+=== framing: exact Content-Length, refusals, deadlines ===
+  ok: negative Content-Length -> 400 in 0.0s (want 400) {"error":{"message":"invalid Content-Length","type":"xllama_error"}}
+  ok: conflicting Content-Length -> 400 in 0.0s (want 400) {"error":{"message":"conflicting Content-Length","type":"xllama_error"}}
+  ok: oversized Content-Length -> 413 in 0.0s (want 413) {"error":{"message":"request body too large","type":"xllama_error"}}
+  ok: chunked -> 411 in 0.0s (want 411) {"error":{"message":"chunked transfer-encoding not supported; send Content-Length","type":"xllama_error"}}
+  ok: short body -> 400 in 0.0s (want 400) {"error":{"message":"request body shorter than Content-Length","type":"xllama_error"}}
+  ok: stalled body -> 408 in 15.0s (want 408) {"error":{"message":"request not received in time","type":"xllama_error"}}
+  ok: valid request -> 200 in 0.0s (want 200) {"status":"ok","service":"xllama"}
+  ok: usable_samples unchanged (0)
+framing: PASS
+=== chat: /v1/chat/completions ===
+  ok: assistant replied: Hello!
+  checking single-slot 503 (two concurrent requests)...
+  concurrent codes: 200 200
+  note: no 503 seen (both 200/200) — acceptable if the model served fast
+chat: PASS
+=== spike: LAN bind + HTTP 200 ===
+  Endpoint up after 0s.
+  GET / -> {"status":"ok","service":"xllama"}
+spike: PASS
+=== budget: a long conversation is trimmed, an oversized message is 400 ===
+  A HTTP 200: {"id":"chatcmpl-xllama-1792001271-1","object":"chat.completion","created":1792001271,"model":"lfm25-350m","choices":[{"i
+  ok: a history far past n_ctx was trimmed and answered
+  B HTTP 400: {"error":{"message":"prompt too long: the final user message needs 20022 tokens plus 24 for the reply, but n_ctx is 2048","type":"xllama_error"}}
+  ok: refused as a client error, with the numbers
+  C ok: {"max_tokens":-1} -> 400 {"error":{"message":"max_tokens must be at least 1","type":"xllama_error"}}
+  C ok: {"max_tokens":1.5} -> 400 {"error":{"message":"max_tokens must be a whole number","type":"xllama_error"}}
+  C ok: {"max_tokens":2147483647} -> 400 {"error":{"message":"max_tokens must be less than the model context (n_ctx 2048)","type":"
+  C ok: {"max_completion_tokens":0} -> 400 {"error":{"message":"max_completion_tokens must be at least 1","type":"xllama_error"}}
+  C ok: {"temperature":5} -> 400 {"error":{"message":"temperature must be between 0 and 2","type":"xllama_error"}}
+  C ok: {"top_p":-0.5} -> 400 {"error":{"message":"top_p must be between 0 and 1","type":"xllama_error"}}
+  C ok: {"seed":1.5} -> 400 {"error":{"message":"seed must be a whole number","type":"xllama_error"}}
+  C ok: {"seed":-1,"max_tokens":8} -> 200 {"id":"chatcmpl-xllama-1792001272-2","object":"chat.completion","created":1792001272,"mode
+budget: PASS
+=== spike: LAN bind + HTTP 200 ===
+  Endpoint up after 0s.
+  GET / -> {"status":"ok","service":"xllama"}
+spike: PASS
+=== tools: client-side tool proposal (ADR 0004) ===
+  A ok: get_weather({"city":"Paris"})
+  B ok: tool result answered
+  C ok: tools+functions is 400
+  D ok: tool_choice none answered as plain chat
+  E skipped: set ORT_MODEL to check the ONNX 400
+tools: PASS
