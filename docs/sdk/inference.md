@@ -51,6 +51,7 @@ Result of an inference call.
 | `t_eval_ms`        | double      | Decode time (ms)                            |
 | `t_first_token_ms` | double      | Time to first generated token (ms)          |
 | `n_p_eval`         | int         | Prefill tokens                              |
+| `n_prompt`         | int         | Prompt length in tokens, reused or not      |
 | `n_eval`           | int         | Decode tokens                               |
 | `ended_with_stop`  | bool        | Stopped on a stop sequence                  |
 | `max_length`       | int         | Max length actually requested               |

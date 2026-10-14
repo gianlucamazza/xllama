@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **`usage.prompt_tokens` is the prompt's length** (#335). It reported the
+  tokens prefilled, so a repeated prompt on a session that reused its KV prefix
+  said `1`. `InferenceResult::n_prompt` carries the length; `n_p_eval` keeps
+  meaning prefill work for tok/s.
+
 - **The console shows what the LAN API is doing.** While the endpoint is on,
   a panel in the main header shows the base URL with the console's IP, the
   request being served (endpoint, model, elapsed), request and `busy` counts,

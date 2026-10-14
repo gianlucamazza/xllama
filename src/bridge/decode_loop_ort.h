@@ -95,6 +95,7 @@ run_decode_loop_ort(OgaGenerator* gen, OgaTokenizerStream* stream, const Params&
 
     auto t_end = std::chrono::steady_clock::now();
     res.n_p_eval = n_prompt_tok;
+    res.n_prompt = n_prompt_tok;
     res.t_p_eval_ms =
         std::chrono::duration<double, std::milli>(t_prefill_end - t_prefill_start).count();
     // Decode excludes the first token (produced by the prefill step), matching

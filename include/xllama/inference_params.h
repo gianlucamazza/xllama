@@ -204,8 +204,13 @@ struct InferenceResult {
     /// This is the interactive time-to-first-token (TTFT), in milliseconds.
     double t_first_token_ms = 0.0;
 
-    /// Number of prefill tokens evaluated.
+    /// Number of prefill tokens evaluated. Smaller than n_prompt when a session
+    /// reuses a resident KV prefix (#170a); use it for prefill throughput.
     int n_p_eval = 0;
+
+    /// Length of the prompt passed to this call, in tokens, whatever was reused.
+    /// This is what an API reports as usage.prompt_tokens (#335).
+    int n_prompt = 0;
 
     /// Number of decode tokens generated.
     int n_eval = 0;

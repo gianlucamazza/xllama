@@ -553,7 +553,7 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
         status = "500 Internal Server Error";
         return error_json("generation failed: " + generated.error_msg);
     }
-    ticket.tokens(generated.n_p_eval, generated.n_eval);
+    ticket.tokens(generated.n_prompt, generated.n_eval);
     const bool hit_cap = generated.n_eval >= gp.n_predict;
     const ::xllama::ToolParseResult parsed = ::xllama::parse_tool_generation(
         session->resident_llama_model(), "", fit.messages, request.tools, request.choice,
@@ -584,7 +584,7 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
         message.Insert(L"tool_calls", calls);
     }
     return completion_json(model, message, winrt::to_hstring(assembly.finish_reason),
-                           generated.n_p_eval, generated.n_eval, status);
+                           generated.n_prompt, generated.n_eval, status);
 }
 
 // Handles one chat request under session_hub().mtx (already locked by the caller).
@@ -742,7 +742,7 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
         status = "500 Internal Server Error";
         return error_json("generation failed: " + r.error_msg);
     }
-    ticket.tokens(r.n_p_eval, r.n_eval);
+    ticket.tokens(r.n_prompt, r.n_eval);
     const std::string content = fmt.postprocess_output(r.output_text);
 
     JsonObject message;
@@ -752,7 +752,7 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
     // EOS token before the cap stops naturally, which ended_with_stop (a textual
     // stop-sequence match) does not capture — deduce it from the token count.
     const bool hit_cap = r.n_eval >= gp.n_predict;
-    return completion_json(model, message, hit_cap ? L"length" : L"stop", r.n_p_eval, r.n_eval,
+    return completion_json(model, message, hit_cap ? L"length" : L"stop", r.n_prompt, r.n_eval,
                            status);
 }
 
