@@ -1,14 +1,31 @@
 diff --git a/common/common.cpp b/common/common.cpp
-index c301c22..a07edbb 100644
+index c301c22..bb38763 100644
 --- a/common/common.cpp
 +++ b/common/common.cpp
-@@ -428,7 +428,8 @@ std::string common_params_get_system_info(const common_params & params) {
+@@ -53,6 +53,16 @@
+ #include <unistd.h>
+ #endif
+ 
++// UWP/AppContainer builds set WINAPI_FAMILY to an app partition, where the
++// desktop-only Win32 APIs below do not exist. Evaluated only under _WIN32: the
++// partition macro is not defined elsewhere and cannot appear in a portable #if.
++#if defined(_WIN32) && defined(WINAPI_FAMILY)
++    #include <winapifamily.h>
++    #if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
++        #define LLAMA_WIN32_APP_PARTITION
++    #endif
++#endif
++
+ #if !defined(_WIN32)
+ #include <sys/types.h>
+ #include <pwd.h>
+@@ -428,7 +438,8 @@ std::string common_params_get_system_info(const common_params & params) {
      if (params.cpuparams_batch.n_threads != -1) {
          os << " (n_threads_batch = " << params.cpuparams_batch.n_threads << ")";
      }
 -#if defined(_WIN32) && (_WIN32_WINNT >= 0x0601) && !defined(__MINGW64__) // windows 7 and later
 +#if defined(_WIN32) && (_WIN32_WINNT >= 0x0601) && !defined(__MINGW64__) && \
-+    (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)) // windows 7 and later, desktop only
++    !defined(LLAMA_WIN32_APP_PARTITION) // windows 7 and later, desktop only
      // TODO: windows + arm64 + mingw64
      DWORD logicalProcessorCount = GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
      os << " / " << logicalProcessorCount << " | " << llama_print_system_info();
@@ -92,42 +109,59 @@ index 81ff5d7..992437f 100644
          if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,
                          TEXT("HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0"),
 diff --git a/src/llama-mmap.cpp b/src/llama-mmap.cpp
-index 045489d..cb1dd28 100644
+index 045489d..b1ca81a 100644
 --- a/src/llama-mmap.cpp
 +++ b/src/llama-mmap.cpp
-@@ -583,7 +583,7 @@ struct llama_mmap::impl {
+@@ -37,6 +37,16 @@
+     #include <io.h>
+ #endif
+ 
++// UWP/AppContainer builds set WINAPI_FAMILY to an app partition, where the
++// desktop-only Win32 APIs below do not exist. Evaluated only under _WIN32: the
++// partition macro is not defined elsewhere and cannot appear in a portable #if.
++#if defined(_WIN32) && defined(WINAPI_FAMILY)
++    #include <winapifamily.h>
++    #if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
++        #define LLAMA_WIN32_APP_PARTITION
++    #endif
++#endif
++
+ #if defined(__APPLE__)
+ #include <TargetConditionals.h>
+ #endif
+@@ -583,7 +593,7 @@ struct llama_mmap::impl {
              }
          }
      }
 -#elif defined(_WIN32)
-+#elif defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP))
++#elif defined(_WIN32) && !defined(LLAMA_WIN32_APP_PARTITION)
      HANDLE hMapping = nullptr;
  
      impl(struct llama_file * file, size_t prefetch, bool numa, const llama_mmap::ranges & lazy_ranges) {
-@@ -685,7 +685,7 @@ void * llama_mmap::addr() const { return pimpl->addr; }
+@@ -685,7 +695,7 @@ void * llama_mmap::addr() const { return pimpl->addr; }
  
  void llama_mmap::unmap_fragment(size_t first, size_t last) { pimpl->unmap_fragment(first, last); }
  
 -#if defined(_POSIX_MEMLOCK_RANGE) || defined(_WIN32)
-+#if defined(_POSIX_MEMLOCK_RANGE) || (defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)))
++#if defined(_POSIX_MEMLOCK_RANGE) || (defined(_WIN32) && !defined(LLAMA_WIN32_APP_PARTITION))
  const bool llama_mmap::SUPPORTED  = true;
  #else
  const bool llama_mmap::SUPPORTED  = false;
-@@ -739,7 +739,7 @@ struct llama_mlock::impl {
+@@ -739,7 +749,7 @@ struct llama_mlock::impl {
              LLAMA_LOG_WARN("warning: failed to munlock buffer: %s\n", std::strerror(errno));
          }
      }
 -#elif defined(_WIN32)
-+#elif defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP))
++#elif defined(_WIN32) && !defined(LLAMA_WIN32_APP_PARTITION)
      static size_t lock_granularity() {
          SYSTEM_INFO si;
          GetSystemInfo(&si);
-@@ -828,14 +828,14 @@ llama_mlock::~llama_mlock() = default;
+@@ -828,14 +838,14 @@ llama_mlock::~llama_mlock() = default;
  void llama_mlock::init(void * ptr) { pimpl->init(ptr); }
  void llama_mlock::grow_to(size_t target_size) { pimpl->grow_to(target_size); }
  
 -#if defined(_POSIX_MEMLOCK_RANGE) || defined(_WIN32)
-+#if defined(_POSIX_MEMLOCK_RANGE) || (defined(_WIN32) && (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)))
++#if defined(_POSIX_MEMLOCK_RANGE) || (defined(_WIN32) && !defined(LLAMA_WIN32_APP_PARTITION))
  const bool llama_mlock::SUPPORTED = true;
  #else
  const bool llama_mlock::SUPPORTED = false;
@@ -135,7 +169,7 @@ index 045489d..cb1dd28 100644
  
  void llama_prefetch(llama_memory_ranges mr) {
 -#if defined(__linux__) || (defined(_WIN32) && _WIN32_WINNT >= 0x602)
-+#if defined(__linux__) || (defined(_WIN32) && _WIN32_WINNT >= 0x602 && (!defined(WINAPI_FAMILY) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)))
++#if defined(__linux__) || (defined(_WIN32) && _WIN32_WINNT >= 0x602 && !defined(LLAMA_WIN32_APP_PARTITION))
      if (mr.empty()) {
          return;
      }
