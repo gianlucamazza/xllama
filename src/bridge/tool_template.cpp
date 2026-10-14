@@ -56,6 +56,31 @@ struct Applied {
     common_chat_params params;
 };
 
+size_t count_occurrences(const std::string& text, const std::string& needle) {
+    size_t n = 0;
+    for (size_t at = text.find(needle); at != std::string::npos;
+         at = text.find(needle, at + needle.size()))
+        ++n;
+    return n;
+}
+
+bool template_renders_tools(const std::string& prompt, const std::vector<ToolSpec>& offered,
+                            const std::vector<common_chat_msg>& messages) {
+    for (const ToolSpec& tool : offered) {
+        size_t in_transcript = 0;
+        for (const common_chat_msg& message : messages) {
+            in_transcript += count_occurrences(message.content, tool.name);
+            in_transcript += count_occurrences(message.tool_name, tool.name);
+            for (const common_chat_tool_call& call : message.tool_calls)
+                in_transcript += count_occurrences(call.name, tool.name) +
+                                 count_occurrences(call.arguments, tool.name);
+        }
+        if (count_occurrences(prompt, tool.name) > in_transcript)
+            return true;
+    }
+    return false;
+}
+
 Applied apply_template(const void* llama_model, const std::string& jinja_override,
                        const std::vector<ChatMessage>& messages, const std::vector<ToolSpec>& tools,
                        ToolChoice choice, const std::string& forced_name) {
@@ -128,10 +153,19 @@ Applied apply_template(const void* llama_model, const std::string& jinja_overrid
 
     try {
         applied.params = common_chat_templates_apply(templates.get(), inputs);
-        applied.ok = true;
     } catch (const std::exception& ex) {
         applied.error = std::string("model chat template failed: ") + ex.what();
+        return applied;
     }
+    // A template that ignores `tools` (Phi-4-mini reads a system message field
+    // instead) renders without error and the model never sees the schema. The
+    // schema reached the prompt only if a tool name appears there more often
+    // than the transcript itself mentions it.
+    if (!template_renders_tools(applied.params.prompt, offered, inputs.messages)) {
+        applied.error = "model chat template does not render tools";
+        return applied;
+    }
+    applied.ok = true;
     return applied;
 }
 

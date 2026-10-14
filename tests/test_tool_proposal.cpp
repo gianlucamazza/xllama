@@ -297,3 +297,27 @@ TEST_CASE("LFM2.5 tool calls need their special-token markers in the decoded tex
                                       "[ping(text=\"pong\")]", false);
     CHECK(stripped.calls.empty());
 }
+
+TEST_CASE("a template that ignores tools is refused instead of answering without the schema") {
+    // Phi-4-mini's GGUF template (unsloth Q4_K_M) reads the schema from a system
+    // message field, never from `tools`. Rendering succeeds and the model answers
+    // in prose (console, 1.6.0.1209); the proposal must be a 400 instead.
+    const std::string phi4 =
+        "{% for message in messages %}{% if message['role'] == 'system' and 'tools' in message "
+        "and message['tools'] is not none %}{{ '<|' + message['role'] + '|>' + message['content'] "
+        "+ '<|tool|>' + message['tools'] + '<|/tool|>' + '<|end|>' }}{% else %}{{ '<|' + "
+        "message['role'] + '|>' + message['content'] + '<|end|>' }}{% endif %}{% endfor %}{% if "
+        "add_generation_prompt %}{{ '<|assistant|>' }}{% endif %}";
+    const std::vector<xllama::ToolSpec> tools{ping_tool()};
+    // The user names the tool: a mention in the transcript is not the schema.
+    const xllama::ToolTemplateResult refused = xllama::render_tool_prompt(
+        nullptr, phi4, {message(xllama::ChatRole::User, "call ping please")}, tools,
+        xllama::ToolChoice::Auto, "");
+    CHECK_FALSE(refused.ok);
+    CHECK(refused.error == "model chat template does not render tools");
+
+    const xllama::ToolTemplateResult rendered = xllama::render_tool_prompt(
+        nullptr, kToolTemplate, {message(xllama::ChatRole::User, "call ping please")}, tools,
+        xllama::ToolChoice::Auto, "");
+    CHECK_MESSAGE(rendered.ok, rendered.error);
+}

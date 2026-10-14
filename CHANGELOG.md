@@ -52,7 +52,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   A non-empty `tools` or legacy `functions` schema is rendered with the GGUF
   Jinja template and may come back as `tool_calls`. xllama does not execute
   the tool. `tool_choice: none` and `tools: []` stay on the plain chat path.
-  An ONNX model, or a GGUF with no chat template, is a 400. The prompt budget
+  An ONNX model, a GGUF with no chat template, or a template that does not
+  render the schema (phi4-mini) is a 400. The prompt budget
   for this path is `fit_tool_transcript`. `scripts/validate-api.sh tools` checks the contract on
   the console.
 

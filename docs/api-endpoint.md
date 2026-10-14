@@ -147,7 +147,8 @@ client does. One request is one generation: no grammar constraint and no hidden
 retry. The prompt and the parse go through the resident GGUF Jinja template
 (`common_chat_templates_apply` / `common_chat_parse`). An ONNX session returns
 `400` `tools require a GGUF chat template`. A GGUF with no explicit chat template
-returns `400` `model has no chat template`. The server does not fall back to
+returns `400` `model has no chat template`, and one that renders without the
+schema returns `400` `model chat template does not render tools` (phi4-mini). The server does not fall back to
 `ChatFormat` with the schema pasted on. KV reuse stays off. Stops are the
 template's additional stops plus the client's `stop`. The template's preserved tokens (LFM2's
 `<|tool_call_start|>`, ...) are decoded as text so the parser sees them; every

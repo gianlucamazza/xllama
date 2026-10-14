@@ -30,7 +30,9 @@ One request is one generation. No grammar constraint and no hidden retry.
 call, because the llama.cpp choice enum has no name.
 
 An ONNX session returns 400 `tools require a GGUF chat template`. A GGUF with
-no explicit chat template returns 400 `model has no chat template`. Do not
+no explicit chat template returns 400 `model has no chat template`. A template
+that renders without the schema (no offered tool name in the prompt beyond the
+transcript's own mentions) returns 400 `model chat template does not render tools`. Do not
 fall back to `ChatFormat` with the schema pasted on.
 
 A call cut off by the token cap is omitted: `finish_reason` is `length` and
@@ -51,8 +53,11 @@ agent-runtime stays a `/v1` pass-through. The GUI chat path stays tool-free.
 
 ## Consequences
 
-phi4-mini at `n_ctx` 4096 can still return 400 `prompt too long` when the
-schema plus the protected tail do not fit. That is the budget.
+The unsloth Phi-4-mini GGUF template reads the schema from a `tools` field on
+the system message, not from `tools`, so phi4-mini returns 400 `model chat
+template does not render tools` (console, 1.6.0.1209: before the check it
+answered in prose with 200). Enclosure needs a catalogue model whose template
+renders tools; [api-endpoint.md](../api-endpoint.md) lists the ones measured.
 
 The UWP app links a static `llama-common` built from the Linux link closure,
 not from `llama.cpp/tools/server`. This host cannot compile that package. The
