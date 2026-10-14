@@ -1,11 +1,10 @@
 # ADR 0005: Constrain tool proposals with the template's own grammar
 
-Status: Proposed (2026-10-14)
+Status: Accepted (2026-10-14)
 
-Not applied. Needs explicit owner acceptance before any change to the sampler
-chain or to the tool-proposal path. If accepted, it supersedes the "No grammar
-constraint" sentence of [ADR 0004](0004-tool-proposals.md); the rest of 0004
-stands.
+Accepted by the owner's delegation after the best-practice review below. It
+supersedes the "No grammar constraint" sentence of
+[ADR 0004](0004-tool-proposals.md); the rest of 0004 stands.
 
 ## Context
 

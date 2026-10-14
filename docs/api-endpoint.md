@@ -180,9 +180,8 @@ Measured on 1.6.0.1210 (Series S, `temperature` 0, `max_tokens` 128, one
 | `lfm25-1.2b-thinking`, `gemma4-e2b`                                  | Still reasoning at the 128-token cap (`length`); needs a larger `max_tokens`                                          |
 | `gemma3-270m`, `gemma3-1b`, `phi4-mini`                              | `400` `model chat template does not render tools`                                                                     |
 
-[ADR 0005](adr/0005-tool-proposal-grammar.md) (Proposed, not applied) would apply the
-template's own lazy grammar to these requests; until it is accepted, generation stays
-unconstrained.
+[ADR 0005](adr/0005-tool-proposal-grammar.md) (Accepted, implementation in progress)
+applies the template's own grammar to these requests; the rows above predate it.
 
 **Context budget.** Plain chat is fitted with `xllama::fit_prompt`
 (`include/xllama/prompt_budget.h`) and the model's own tokenizer: the **oldest**
