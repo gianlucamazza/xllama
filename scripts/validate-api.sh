@@ -5,7 +5,7 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/validate-api.sh <spike|chat|budget|tools|embed|pull|prefs|train|all>
+#   ./scripts/validate-api.sh <spike|chat|budget|tools|framing|embed|pull|prefs|train|all>
 #
 #   spike  bind gate only: GET / -> HTTP 200 (proves the StreamSocketListener
 #          survives the Series S firewall/PLM). No inference.
@@ -20,6 +20,9 @@
 #          tools+functions is 400, tool_choice none stays plain chat. TOOLS_MODEL
 #          (default MODEL) must be a GGUF with a chat template; ORT_MODEL, when
 #          set, names an ONNX model that must answer 400.
+#   framing exact HTTP framing (ADR 0006): negative/conflicting/oversized
+#          Content-Length, chunked, a short body and a stalled body are refused
+#          (400/400/413/411/400/408) and a refused POST appends no sample.
 #   embed  Ollama native + legacy and OpenAI float/base64 embeddings. Requires
 #          EMBED_MODEL to identify an embedding GGUF already on the console.
 #   prefs  POST /v1/preferences -> appends a like sample (#118).
@@ -322,6 +325,70 @@ validate_train() {
 	return 1
 }
 
+# --- HTTP framing over the wire (ADR 0006, audit F02) ---------------------
+
+validate_framing() {
+	echo "=== framing: exact Content-Length, refusals, deadlines ==="
+	# Raw sockets: curl cannot send a negative length, a short body or a stall.
+	# The truncated preferences POST must not append a sample (no side effect).
+	XBOX_IP="$XBOX_IP" PORT="$PORT" python3 - <<'PYFRAME'
+import json, os, socket, time
+host, port = os.environ["XBOX_IP"], int(os.environ["PORT"])
+
+def exchange(raw, close_write=True, timeout=40):
+    s = socket.create_connection((host, port), timeout=timeout)
+    s.sendall(raw)
+    if close_write:
+        s.shutdown(socket.SHUT_WR)
+    t0 = time.time()
+    data = b""
+    try:
+        while True:
+            chunk = s.recv(65536)
+            if not chunk:
+                break
+            data += chunk
+    except socket.timeout:
+        pass
+    s.close()
+    status = data.split(b" ", 2)[1].decode() if data.startswith(b"HTTP/") else "none"
+    return status, time.time() - t0, data.split(b"\r\n\r\n", 1)[-1][:120].decode(errors="replace")
+
+def samples():
+    _, _, body = exchange(b"GET /v1/training/status HTTP/1.1\r\nHost: x\r\n\r\n")
+    try:
+        return json.loads(body).get("usable_samples")
+    except Exception:
+        return None
+
+pref = b'{"label":"like","messages":[{"role":"user","content":"framing probe"},{"role":"assistant","content":"ok"}]}'
+cases = [
+    ("negative Content-Length", b"POST /v1/preferences HTTP/1.1\r\nContent-Length: -1\r\n\r\n" + pref, True, "400"),
+    ("conflicting Content-Length", b"POST /v1/preferences HTTP/1.1\r\nContent-Length: 5\r\nContent-Length: 6\r\n\r\nhello", True, "400"),
+    ("oversized Content-Length", b"POST /v1/preferences HTTP/1.1\r\nContent-Length: 9000000\r\n\r\n", True, "413"),
+    ("chunked", b"POST /v1/preferences HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n", True, "411"),
+    ("short body", b"POST /v1/preferences HTTP/1.1\r\nContent-Length: %d\r\n\r\n" % (len(pref) + 100) + pref, True, "400"),
+    ("stalled body", b"POST /v1/preferences HTTP/1.1\r\nContent-Length: 10\r\n\r\nabc", False, "408"),
+    ("valid request", b"GET / HTTP/1.1\r\nHost: x\r\n\r\n", True, "200"),
+]
+before = samples()
+fail = 0
+for name, raw, close_write, want in cases:
+    status, secs, body = exchange(raw, close_write)
+    ok = status == want
+    fail |= not ok
+    print(f"  {'ok' if ok else 'FAIL'}: {name} -> {status} in {secs:.1f}s (want {want}) {body}")
+after = samples()
+if before is None or after != before:
+    print(f"  FAIL: usable_samples {before} -> {after}: a refused request had a side effect")
+    fail = 1
+else:
+    print(f"  ok: usable_samples unchanged ({after})")
+print("framing: " + ("FAIL" if fail else "PASS"))
+raise SystemExit(fail)
+PYFRAME
+}
+
 # --- context budget over the wire ------------------------------------------
 
 validate_budget() {
@@ -516,6 +583,10 @@ tools)
 	validate_spike || exit 1
 	validate_tools
 	;;
+framing)
+	validate_spike || exit 1
+	validate_framing
+	;;
 prefs)
 	validate_spike || exit 1
 	validate_prefs
@@ -543,6 +614,7 @@ all)
 	validate_embed || rc=1
 	validate_budget || rc=1
 	validate_tools || rc=1
+	validate_framing || rc=1
 	validate_prefs || rc=1
 	validate_train || rc=1
 	validate_pull || rc=1
@@ -552,7 +624,7 @@ all)
 	exit $rc
 	;;
 *)
-	echo "Usage: $0 <spike|chat|budget|tools|embed|pull|prefs|train|all>" >&2
+	echo "Usage: $0 <spike|chat|budget|tools|framing|embed|pull|prefs|train|all>" >&2
 	exit 1
 	;;
 esac

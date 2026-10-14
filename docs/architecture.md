@@ -52,6 +52,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `grammar_spec.h`                   | `GrammarSpec` — a tool template's grammar and triggers for one generate (ADR 0005)                                                             |
 | `inference.h`                      | `run_inference`, `write_bench_csv` — the public inference entry point                                                                          |
 | `inference_progress.h`             | Prefill-done + decode-progress logs and the stall watchdog (`XLLAMA_INFER_STALL_TIMEOUT_S`, default 180 s)                                     |
+| `http_framing.h`                   | `parse_http_head` — exact LAN API request framing and deadlines (ADR 0006)                                                                     |
 | `prompt_budget.h`                  | `fit_prompt` for plain chat, `fit_tool_transcript` for a tool proposal — both exact, both on the resident tokenizer                            |
 | `autopilot.h`                      | `AutopilotAction`, `validate_autopilot_script` — console gate contract (WinRT-free)                                                            |
 | `json_utils.h`                     | `json_escape`, `json_read_string` with `\uXXXX` decode (surrogate pairs) — canonical JSON helpers                                              |
@@ -540,7 +541,7 @@ response may carry `tool_calls`. The process does not run the tool
 ([ADR 0004](adr/0004-tool-proposals.md)). The route list and the contract
 live in [api-endpoint.md](api-endpoint.md) (the owner of LAN routes);
 validation is `scripts/validate-api.sh
-spike|chat|budget|tools|embed|pull|prefs|train|all`. Capability
+spike|chat|budget|tools|framing|embed|pull|prefs|train|all`. Capability
 `privateNetworkClientServer` covers LAN inbound; no public inbound.
 
 ## Build variants and versioning
@@ -670,7 +671,7 @@ host Release smoke (quality + peak)
 ## Unit test map (host suite)
 
 One doctest binary, `xllama-tests`, built from `tests/test_*.cpp`. The suite
-is **318 test cases / 9044 assertions** (doctest, without opt-in model checks).
+is **323 test cases / 9080 assertions** (doctest, without opt-in model checks).
 Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 (`llama_raii.h`, `ort_raii.h`, `d3d12_dyn.h`, `catalog_trust.h`).
 
@@ -697,6 +698,7 @@ Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 | `test_gpubw.cpp`              | `gpubw.h`                                                                                   |
 | `test_gpugemv.cpp`            | `gpugemv.h`                                                                                 |
 | `test_gpustep.cpp`            | `gpustep.h`                                                                                 |
+| `test_http_framing.cpp`       | `http_framing.h`                                                                            |
 | `test_json_utils.cpp`         | `json_utils.h`                                                                              |
 | `test_kv_store.cpp`           | `kv_store.h`                                                                                |
 | `test_logit_parity.cpp`       | `logit_dump.h` (opt-in model)                                                               |

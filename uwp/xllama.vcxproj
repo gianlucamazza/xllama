@@ -342,6 +342,7 @@
     <ClCompile Include="..\src\bridge\utf8_utils.cpp" />
     <ClCompile Include="..\src\bridge\chat_prompt.cpp" />
     <ClCompile Include="..\src\bridge\prompt_budget.cpp" />
+    <ClCompile Include="..\src\bridge\http_framing.cpp" />
     <ClCompile Include="..\src\bridge\tool_request.cpp" />
     <ClCompile Include="..\src\bridge\tool_template.cpp" />
     <ClCompile Include="..\src\bridge\tool_transcript.cpp" />

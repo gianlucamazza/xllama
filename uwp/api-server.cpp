@@ -23,6 +23,7 @@
     #include "xllama/api_policy.h"
     #include "xllama/api_pull_policy.h"
     #include "xllama/chat_prompt.h"
+    #include "xllama/http_framing.h"
     #include "xllama/model_provision.h"
     #include "xllama/path_utils.h"
     #include "xllama/personalize.h"
@@ -145,80 +146,78 @@ struct HttpRequest {
     std::string method;
     std::string path;
     std::string body;
-    bool ok = false;
-    bool chunked = false; // Transfer-Encoding: chunked (unsupported framing)
+    // 0 = a complete, exactly framed request. Otherwise the 4xx to answer with
+    // (parse_http_head's codes, 400 for a short body, 408 past a deadline).
+    int status = 400;
+    std::string error = "malformed request";
 };
 
-std::string to_lower(std::string s) {
-    for (char& c : s)
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    return s;
-}
-
-// Reads request line + headers + Content-Length body from the socket. Blocking
-// (LoadAsync().get()); called on a thread-pool thread, never the UI thread.
+// Reads one request: the head until "\r\n\r\n", then exactly Content-Length
+// body bytes. Framing decisions are xllama::parse_http_head (ADR 0006, host
+// tested); this only moves bytes and enforces the head and body deadlines, so
+// a client that stalls cannot hold the thread. Blocking; called on a
+// thread-pool thread, never the UI thread.
 HttpRequest read_request(StreamSocket const& socket) {
+    using clock = std::chrono::steady_clock;
     HttpRequest req;
     DataReader reader(socket.InputStream());
     reader.InputStreamOptions(InputStreamOptions::Partial);
 
     std::string data;
-    size_t header_end = std::string::npos;
-    // Pull chunks until the header terminator appears (cap to avoid abuse).
-    while (header_end == std::string::npos && data.size() < 64 * 1024) {
-        const uint32_t got = reader.LoadAsync(4096).get();
-        if (got == 0)
-            break;
+    // Bytes read before `deadline`; 0 at EOF, -1 when the deadline passed.
+    auto load = [&](clock::time_point deadline) -> int64_t {
+        const auto now = clock::now();
+        if (now >= deadline)
+            return -1;
+        auto op = reader.LoadAsync(4096);
+        if (op.wait_for(std::chrono::duration_cast<winrt::Windows::Foundation::TimeSpan>(
+                deadline - now)) != winrt::Windows::Foundation::AsyncStatus::Completed) {
+            op.Cancel();
+            return -1;
+        }
+        const uint32_t got = op.GetResults();
         for (uint32_t i = 0; i < got; ++i)
             data.push_back(static_cast<char>(reader.ReadByte()));
-        header_end = data.find("\r\n\r\n");
-    }
-    if (header_end == std::string::npos)
+        return got;
+    };
+    auto timed_out = [&req] {
+        req.status = 408;
+        req.error = "request not received in time";
         return req;
+    };
 
-    // Request line: METHOD SP PATH SP HTTP/x.y
-    const size_t line_end = data.find("\r\n");
-    const std::string line = data.substr(0, line_end);
-    const size_t sp1 = line.find(' ');
-    const size_t sp2 = (sp1 == std::string::npos) ? std::string::npos : line.find(' ', sp1 + 1);
-    if (sp1 == std::string::npos || sp2 == std::string::npos)
-        return req;
-    req.method = line.substr(0, sp1);
-    req.path = line.substr(sp1 + 1, sp2 - sp1 - 1);
-    // Drop the query string so "/v1/models?foo=1" still routes.
-    if (const size_t q = req.path.find('?'); q != std::string::npos)
-        req.path.erase(q);
-
-    // Header scan (case-insensitive). We only support Content-Length framing;
-    // chunked is flagged so the caller can reject it cleanly instead of parsing
-    // an empty body.
-    size_t content_length = 0;
-    {
-        const std::string headers = to_lower(data.substr(line_end + 2, header_end - line_end - 2));
-        if (headers.find("transfer-encoding:") != std::string::npos &&
-            headers.find("chunked") != std::string::npos) {
-            req.chunked = true;
-            req.ok = true;
-            return req;
-        }
-        const size_t cl = headers.find("content-length:");
-        if (cl != std::string::npos) {
-            content_length = static_cast<size_t>(std::atoll(headers.c_str() + cl + 15));
-            if (content_length > 8 * 1024 * 1024)
-                content_length = 8 * 1024 * 1024; // hard cap
-        }
-    }
-
-    const size_t body_start = header_end + 4;
-    while (data.size() - body_start < content_length) {
-        const uint32_t got = reader.LoadAsync(4096).get();
+    const auto head_deadline = clock::now() + ::xllama::kHttpHeadDeadline;
+    while (::xllama::http_head_end(data) == std::string::npos &&
+           data.size() < ::xllama::kHttpMaxHead) {
+        const int64_t got = load(head_deadline);
+        if (got < 0)
+            return timed_out();
         if (got == 0)
             break;
-        for (uint32_t i = 0; i < got; ++i)
-            data.push_back(static_cast<char>(reader.ReadByte()));
     }
-    req.body = data.substr(body_start, content_length);
-    req.ok = true;
+    const ::xllama::HttpHead head = ::xllama::parse_http_head(data);
+    if (head.status != 0) {
+        req.status = head.status;
+        req.error = head.error;
+        return req;
+    }
+    req.method = head.method;
+    req.path = head.path;
+
+    const auto body_deadline = clock::now() + ::xllama::kHttpBodyDeadline;
+    while (data.size() - head.body_start < head.content_length) {
+        const int64_t got = load(body_deadline);
+        if (got < 0)
+            return timed_out();
+        if (got == 0) {
+            req.error = "request body shorter than Content-Length";
+            return req; // 400: nothing is dispatched on a partial body
+        }
+    }
+    // Bytes past the declared length are not a second request: one per connection.
+    req.body = data.substr(head.body_start, head.content_length);
+    req.status = 0;
+    req.error.clear();
     return req;
 }
 
@@ -1600,17 +1599,27 @@ void record_outcome(::xllama::ApiActivity::Ticket& ticket, const char* status,
     ticket.done(code, code >= 400 ? error_text(json) : std::string());
 }
 
+// Status line for a framing refusal (read_request / parse_http_head).
+const char* framing_status(int code) {
+    switch (code) {
+    case 408:
+        return "408 Request Timeout";
+    case 411:
+        return "411 Length Required";
+    case 413:
+        return "413 Payload Too Large";
+    case 431:
+        return "431 Request Header Fields Too Large";
+    default:
+        return "400 Bad Request";
+    }
+}
+
 void handle_connection(StreamSocket const& socket, uint64_t generation) {
     try {
         const HttpRequest req = read_request(socket);
-        if (!req.ok) {
-            write_response(socket, "400 Bad Request", error_json("malformed request"));
-            return;
-        }
-        if (req.chunked) {
-            write_response(
-                socket, "411 Length Required",
-                error_json("chunked transfer-encoding not supported; send Content-Length"));
+        if (req.status != 0) {
+            write_response(socket, framing_status(req.status), error_json(req.error));
             return;
         }
 

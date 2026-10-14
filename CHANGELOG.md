@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **The LAN API frames requests exactly** (audit F02, [ADR 0006](docs/adr/0006-http-framing.md)).
+  A negative `Content-Length` or a body shorter than declared used to return 200
+  (and append a preference sample); a stalled body held a thread with no answer.
+  Parsing moved to `include/xllama/http_framing.h` (host-tested): one decimal
+  length, 413 above 8 MiB instead of a clamp, 400 for a short body, 408 past
+  10 s for the head or 15 s for the body.
 - **Tool proposals follow the template's grammar** ([ADR 0005](docs/adr/0005-tool-proposal-grammar.md)).
   The grammar `common/chat` already derives from the template's parser is now
   applied as llama-server does: lazy for `auto`, full for `required` or a named

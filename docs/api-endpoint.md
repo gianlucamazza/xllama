@@ -201,8 +201,11 @@ the final user message needs the three numbers. A proposal says
 where Y is `n_predict`. An oversized input is a client error; it used to surface
 as a `500` from the generator instead.
 
-Only `Content-Length` framing is supported — a `Transfer-Encoding: chunked` request gets
-`411` (OpenAI SDKs send Content-Length). Malformed JSON / wrong-typed fields get `400`, never
+Framing is exact ([ADR 0006](adr/0006-http-framing.md)). `Content-Length` must
+be one plain decimal (repeats must agree), else `400`; any `Transfer-Encoding`
+gets `411` (OpenAI SDKs send Content-Length). A body over 8 MiB is `413`, a head
+over 64 KiB is `431`, and a body shorter than declared is `400` with nothing
+dispatched. The head must arrive within 10 s and the body within 15 s, else `408`. Malformed JSON / wrong-typed fields get `400`, never
 a dropped connection.
 
 The reply follows the OpenAI shape: `id` (unique `chatcmpl-…`), `object: chat.completion`,
@@ -347,7 +350,7 @@ the Session is hub-owned and is NOT released (the chat UI may be using it).
 
 ## Validation
 
-See `scripts/validate-api.sh` (`spike|chat|budget|tools|embed|pull|prefs|train|all`). Run it **from another host on the LAN**,
+See `scripts/validate-api.sh` (`spike|chat|budget|tools|framing|embed|pull|prefs|train|all`). Run it **from another host on the LAN**,
 not from a client on the console itself — cross-device inbound needs no loopback exemption,
 but a same-host localhost client would (`CheckNetIsolation`). Spike gate first (`GET /` → 200
 proves the bind survives the Series S firewall/PLM), then chat / prefs / train as needed. `tools` checks the tool-proposal contract:
