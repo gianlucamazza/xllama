@@ -1,0 +1,244 @@
+[
+ {
+  "model": "lfm25-230m",
+  "choice": "named",
+  "http": 200,
+  "seconds": 0.8,
+  "finish": "tool_calls",
+  "call": "get_weather{\"city\":\"Paris\"}",
+  "content": "",
+  "prompt_tokens": 90
+ },
+ {
+  "model": "lfm25-230m",
+  "choice": "auto",
+  "http": 200,
+  "seconds": 0.3,
+  "finish": "tool_calls",
+  "call": "get_weather{\"city\":\"Paris\"}",
+  "content": "",
+  "prompt_tokens": 90
+ },
+ {
+  "model": "lfm25-350m",
+  "choice": "named",
+  "http": 200,
+  "seconds": 0.9,
+  "finish": "tool_calls",
+  "call": "get_weather{\"city\":\"Paris\"}",
+  "content": "",
+  "prompt_tokens": 90
+ },
+ {
+  "model": "lfm25-350m",
+  "choice": "auto",
+  "http": 200,
+  "seconds": 0.4,
+  "finish": "tool_calls",
+  "call": "get_weather{\"city\":\"Paris\"}",
+  "content": "",
+  "prompt_tokens": 90
+ },
+ {
+  "model": "lfm25-1.2b-instruct",
+  "choice": "named",
+  "http": 200,
+  "seconds": 2.4,
+  "finish": "stop",
+  "call": null,
+  "content": "<|tool_call_start|>[get_weather(city=\"Paris\")]<|tool_call_end|>Checking the curr",
+  "prompt_tokens": 90
+ },
+ {
+  "model": "lfm25-1.2b-instruct",
+  "choice": "auto",
+  "http": 200,
+  "seconds": 0.6,
+  "finish": "stop",
+  "call": null,
+  "content": "<|tool_call_start|>[get_weather(city=\"Paris\")]<|tool_call_end|>Checking the curr",
+  "prompt_tokens": 90
+ },
+ {
+  "model": "lfm25-1.2b-thinking",
+  "choice": "named",
+  "http": 200,
+  "seconds": 5.7,
+  "finish": "length",
+  "call": null,
+  "content": "<think> Okay, let's see. The user is asking for the weather in Paris. I need to ",
+  "prompt_tokens": 90
+ },
+ {
+  "model": "lfm25-1.2b-thinking",
+  "choice": "auto",
+  "http": 200,
+  "seconds": 4.1,
+  "finish": "length",
+  "call": null,
+  "content": "<think> Okay, let's see. The user is asking for the weather in Paris. I need to ",
+  "prompt_tokens": 90
+ },
+ {
+  "model": "lfm2-2.6b",
+  "choice": "named",
+  "http": 200,
+  "seconds": 5.5,
+  "finish": "tool_calls",
+  "call": "get_weather{\"city\":\"Paris\"}",
+  "content": "",
+  "prompt_tokens": 93
+ },
+ {
+  "model": "lfm2-2.6b",
+  "choice": "auto",
+  "http": 200,
+  "seconds": 2.3,
+  "finish": "tool_calls",
+  "call": "get_weather{\"city\":\"Paris\"}",
+  "content": "",
+  "prompt_tokens": 93
+ },
+ {
+  "model": "qwen25-coder-0.5b",
+  "choice": "named",
+  "http": 200,
+  "seconds": 2.7,
+  "finish": "stop",
+  "call": null,
+  "content": "```json\n{\n  \"name\": \"get_weather\",\n  \"arguments\": {\n    \"city\": \"Paris\"\n  }\n}\n``",
+  "prompt_tokens": 168
+ },
+ {
+  "model": "qwen25-coder-0.5b",
+  "choice": "auto",
+  "http": 200,
+  "seconds": 0.5,
+  "finish": "stop",
+  "call": null,
+  "content": "```json\n{\n  \"name\": \"get_weather\",\n  \"arguments\": {\n    \"city\": \"Paris\"\n  }\n}\n``",
+  "prompt_tokens": 1
+ },
+ {
+  "model": "qwen25-coder-3b",
+  "choice": "named",
+  "http": 200,
+  "seconds": 6.2,
+  "finish": "stop",
+  "call": null,
+  "content": "{\"name\": \"get_weather\", \"arguments\": {\"city\": \"Paris\"}}",
+  "prompt_tokens": 168
+ },
+ {
+  "model": "qwen25-coder-3b",
+  "choice": "auto",
+  "http": 200,
+  "seconds": 0.8,
+  "finish": "stop",
+  "call": null,
+  "content": "{\"name\": \"get_weather\", \"arguments\": {\"city\": \"Paris\"}}",
+  "prompt_tokens": 1
+ },
+ {
+  "model": "llama32-3b",
+  "choice": "named",
+  "http": 200,
+  "seconds": 8.6,
+  "finish": "tool_calls",
+  "call": "get_weather{\"city\":\"Paris\"}",
+  "content": "",
+  "prompt_tokens": 186
+ },
+ {
+  "model": "llama32-3b",
+  "choice": "auto",
+  "http": 200,
+  "seconds": 1.2,
+  "finish": "tool_calls",
+  "call": "get_weather{\"city\":\"Paris\"}",
+  "content": "",
+  "prompt_tokens": 1
+ },
+ {
+  "model": "gemma3-270m",
+  "choice": "named",
+  "http": 400,
+  "seconds": 1.1,
+  "error": "model chat template does not render tools"
+ },
+ {
+  "model": "gemma3-270m",
+  "choice": "auto",
+  "http": 400,
+  "seconds": 0.0,
+  "error": "model chat template does not render tools"
+ },
+ {
+  "model": "gemma3-1b",
+  "choice": "named",
+  "http": 400,
+  "seconds": 1.8,
+  "error": "model chat template does not render tools"
+ },
+ {
+  "model": "gemma3-1b",
+  "choice": "auto",
+  "http": 400,
+  "seconds": 0.0,
+  "error": "model chat template does not render tools"
+ },
+ {
+  "model": "gemma4-e2b",
+  "choice": "named",
+  "http": 200,
+  "seconds": 13.9,
+  "finish": "length",
+  "call": null,
+  "content": "<|channel>thought\n1.  **Analyze the user request:** The user is asking for \"the ",
+  "prompt_tokens": 72
+ },
+ {
+  "model": "gemma4-e2b",
+  "choice": "auto",
+  "http": 200,
+  "seconds": 8.1,
+  "finish": "length",
+  "call": null,
+  "content": "<|channel>thought\n1.  **Analyze the user request:** The user is asking for \"the ",
+  "prompt_tokens": 1
+ },
+ {
+  "model": "minicpm5-1b",
+  "choice": "named",
+  "http": 200,
+  "seconds": 4.3,
+  "finish": "tool_calls",
+  "call": "get_weather{\"city\":\"Paris\"}",
+  "content": "I need to call the get_weather function to retrieve the current weather in Paris",
+  "prompt_tokens": 221
+ },
+ {
+  "model": "minicpm5-1b",
+  "choice": "auto",
+  "http": 200,
+  "seconds": 1.5,
+  "finish": "tool_calls",
+  "call": "get_weather{\"city\":\"Paris\"}",
+  "content": "I need to call the get_weather function to retrieve the current weather in Paris",
+  "prompt_tokens": 1
+ },
+ {
+  "model": "phi4-mini",
+  "choice": "named",
+  "http": 400,
+  "seconds": 4.8,
+  "error": "model chat template does not render tools"
+ },
+ {
+  "model": "phi4-mini",
+  "choice": "auto",
+  "http": 400,
+  "seconds": 0.0,
+  "error": "model chat template does not render tools"
+ }
+]

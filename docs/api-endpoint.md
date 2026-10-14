@@ -164,6 +164,18 @@ rejects the output, the status is still 200 and `content` is the raw text with
 `finish_reason` `stop` or `length`. `logprobs` stays null. Decision:
 [ADR 0004](adr/0004-tool-proposals.md).
 
+Measured on 1.6.0.1210 (Series S, `temperature` 0, `max_tokens` 128, one
+`get_weather` schema, named and `auto` choice; raw rows in
+[api-tools-matrix-1210.json](audit/excellence/evidence/api-tools-matrix-1210.json)):
+
+| Model                                                                | Result                                                                                                                |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `lfm25-230m`, `lfm25-350m`, `lfm2-2.6b`, `llama32-3b`, `minicpm5-1b` | `tool_calls` `get_weather({"city":"Paris"})` for both choices                                                         |
+| `lfm25-1.2b-instruct`                                                | Correct call, then narration after the end marker; the LFM2 parser accepts nothing after the call, so it returns text |
+| `qwen25-coder-0.5b`, `qwen25-coder-3b`                               | Template renders the schema; the model answers with bare JSON instead of `<tool_call>` tags, so it returns text       |
+| `lfm25-1.2b-thinking`, `gemma4-e2b`                                  | Still reasoning at the 128-token cap (`length`); needs a larger `max_tokens`                                          |
+| `gemma3-270m`, `gemma3-1b`, `phi4-mini`                              | `400` `model chat template does not render tools`                                                                     |
+
 **Context budget.** Plain chat is fitted with `xllama::fit_prompt`
 (`include/xllama/prompt_budget.h`) and the model's own tokenizer: the **oldest**
 turns are dropped until the prompt plus the requested reply

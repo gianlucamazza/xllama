@@ -1,0 +1,12 @@
+# validate-api.sh tools on GianlucaMazza.xllama_1.6.0.1210_x64__pj67f1fcj4n14 (CI run 38553763840, f7baa18), 2026-10-14T11:11:49Z
+=== spike: LAN bind + HTTP 200 ===
+  Endpoint up after 0s.
+  GET / -> {"status":"ok","service":"xllama"}
+spike: PASS
+=== tools: client-side tool proposal (ADR 0004) ===
+  A ok: get_weather({"city":"Paris"})
+  B ok: tool result answered
+  C ok: tools+functions is 400
+  D ok: tool_choice none answered as plain chat
+  E ok: ONNX model refused with 400
+tools: PASS

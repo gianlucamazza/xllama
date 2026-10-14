@@ -59,9 +59,16 @@ template does not render tools` (console, 1.6.0.1209: before the check it
 answered in prose with 200). Enclosure needs a catalogue model whose template
 renders tools; [api-endpoint.md](../api-endpoint.md) lists the ones measured.
 
-The UWP app links a static `llama-common` built from the Linux link closure,
-not from `llama.cpp/tools/server`. This host cannot compile that package. The
-console ping and an Enclosure T0 rerun wait on a Windows build.
+Without a grammar, nothing stops a model after its call. The LFM2 parser, like
+upstream's, accepts nothing after `<|tool_call_end|>` (llama-server relies on its
+lazy grammar for that), so `lfm25-1.2b-instruct`, which narrates after a correct
+call, comes back as text. That is the cost of the no-grammar decision; the
+measured models are in [api-endpoint.md](../api-endpoint.md).
+
+The UWP app links a static `llama-common` (`uwp/llama-common-uwp.vcxproj`,
+pre-built by `build-uwp.ps1`), not `llama.cpp/tools/server`.
+`validate-api.sh tools` passed on 1.6.0.1210 (Series S, 2026-10-14); the
+Enclosure T0 rerun is outside this repository.
 
 `stream: true` stays unimplemented.
 
