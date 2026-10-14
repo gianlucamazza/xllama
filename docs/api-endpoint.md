@@ -197,7 +197,9 @@ a dropped connection.
 The reply follows the OpenAI shape: `id` (unique `chatcmpl-…`), `object: chat.completion`,
 `created`, `model`, `choices[0]` (`message`, `finish_reason` — `length` only when the token
 cap is hit, else `stop`; and `logprobs: null`, omitting which breaks openai-python/LangChain
-Pydantic validation), and a `usage` block from `InferenceResult` (`n_p_eval` / `n_eval`).
+Pydantic validation), and a `usage` block from `InferenceResult`: `prompt_tokens` is the prompt's length
+(`n_prompt`), not the tokens prefilled after a KV prefix reuse (`n_p_eval`), and
+`completion_tokens` is `n_eval`.
 
 `stream: true` is **not** implemented in v1 (always returns the full completion). The
 `GenerateParams::on_token` hook is the seam for adding SSE later.

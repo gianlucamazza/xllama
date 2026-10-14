@@ -633,6 +633,7 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     res.t_eval_ms = gen_ms;
     res.t_first_token_ms = dlr.first_token_ms > 0.0 ? prompt_ms + dlr.first_token_ms : 0.0;
     res.n_p_eval = static_cast<int32_t>(tokens.size());
+    res.n_prompt = res.n_p_eval;
     res.n_eval = n_generated;
     res.peak_ws_mb = peak_working_set_mb();
     if (dlr.rewind_failed) {

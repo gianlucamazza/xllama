@@ -791,6 +791,7 @@ class LlamaSession final : public Session {
             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_prefill0)
                 .count();
         res.n_p_eval = n_pf;
+        res.n_prompt = static_cast<int>(tokens.size());
         wd.prefill_done(n_pf, res.t_p_eval_ms);
 
         // The resident-token record now covers everything prefilled.

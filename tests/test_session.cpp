@@ -173,6 +173,7 @@ TEST_CASE("Session: KV prefix reuse collapses a repeated prefill (opt-in: XLLAMA
     const auto r_cold = sess->generate(mkgp(prompt));
     REQUIRE(r_cold.success);
     REQUIRE(r_cold.n_p_eval > 1);
+    CHECK(r_cold.n_prompt == r_cold.n_p_eval);
 
     // Regenerate: identical prompt on the same session. Two legal regimes:
     // pure-attention caches rewind and re-prefill exactly 1 token (the logits
@@ -182,6 +183,9 @@ TEST_CASE("Session: KV prefix reuse collapses a repeated prefill (opt-in: XLLAMA
     const auto r_regen = sess->generate(mkgp(prompt));
     REQUIRE(r_regen.success);
     CHECK(r_regen.n_p_eval <= r_cold.n_p_eval);
+    // #335: the prompt is as long as before even when only its tail prefilled;
+    // usage.prompt_tokens reads n_prompt, not n_p_eval.
+    CHECK(r_regen.n_prompt == r_cold.n_prompt);
     CHECK(r_regen.output_text == r_cold.output_text);
 
     // Extended prompt (the LAN-API shape). This prompt diverges from the
@@ -191,6 +195,7 @@ TEST_CASE("Session: KV prefix reuse collapses a repeated prefill (opt-in: XLLAMA
     const std::string ext = prompt + " Paris, and the capital of Italy is";
     const auto r_ext = sess->generate(mkgp(ext));
     REQUIRE(r_ext.success);
+    CHECK(r_ext.n_prompt == sess->count_tokens(ext));
 
     auto fresh = xllama::Session::create(sp, &err);
     REQUIRE_MESSAGE(fresh, err);
