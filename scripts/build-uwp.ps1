@@ -244,6 +244,15 @@ if ($Backend -ne "ort") {
         Write-Error "ggml-uwp build failed ($LASTEXITCODE)"
         exit $LASTEXITCODE
     }
+    # Same mapping for the static llama-common lib (common/chat for tool
+    # proposals, ADR 0004): ActiveCfg-only in the solution, so build it here.
+    $CommonProj = Join-Path $RepoRoot "uwp/llama-common-uwp.vcxproj"
+    Write-Host "Pre-building llama-common-uwp.vcxproj ($Configuration|$Platform) ..."
+    & $MsBuild $CommonProj "/p:Configuration=$Configuration" "/p:Platform=$Platform" "/m" "/nologo"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "llama-common-uwp build failed ($LASTEXITCODE)"
+        exit $LASTEXITCODE
+    }
 }
 
 $buildExitCode = 0

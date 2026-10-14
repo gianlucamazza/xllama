@@ -6,7 +6,8 @@
        Client-side tool proposals render and parse a GGUF Jinja template
        (ADR 0004). This is not llama.cpp/tools/server: no httplib, no
        download, no console. The ClCompile list is the Linux link closure of
-       libxllama.a against libllama-common (nm, 2026-10-13), plus the
+       libxllama.a against libllama-common (nm, re-checked on d812350 on
+       2026-10-14), with parsers\*.cpp wildcarded, plus the
        generated build-info.cpp that common.cpp calls. LLAMA_SUBPROCESS and
        LLAMA_USE_LLGUIDANCE stay unset.
        ===================================================================== -->
@@ -128,22 +129,9 @@
     <ClCompile Include="..\llama.cpp\common\jinja\runtime.cpp" />
     <ClCompile Include="..\llama.cpp\common\jinja\string.cpp" />
     <ClCompile Include="..\llama.cpp\common\jinja\value.cpp" />
-    <ClCompile Include="..\llama.cpp\common\parsers\cohere2moe.cpp" />
-    <ClCompile Include="..\llama.cpp\common\parsers\deepseek.cpp" />
-    <ClCompile Include="..\llama.cpp\common\parsers\functionary-v3-2.cpp" />
-    <ClCompile Include="..\llama.cpp\common\parsers\gemma4.cpp" />
-    <ClCompile Include="..\llama.cpp\common\parsers\gigachat-v3.cpp" />
-    <ClCompile Include="..\llama.cpp\common\parsers\gpt-oss.cpp" />
-    <ClCompile Include="..\llama.cpp\common\parsers\kimi-k2.cpp" />
-    <ClCompile Include="..\llama.cpp\common\parsers\kimi-k3.cpp" />
-    <ClCompile Include="..\llama.cpp\common\parsers\lfm2.cpp" />
-    <ClCompile Include="..\llama.cpp\common\parsers\ling3.cpp" />
-    <ClCompile Include="..\llama.cpp\common\parsers\minicpm5.cpp" />
-    <ClCompile Include="..\llama.cpp\common\parsers\minimax-m3.cpp" />
-    <ClCompile Include="..\llama.cpp\common\parsers\ministral3.cpp" />
-    <ClCompile Include="..\llama.cpp\common\parsers\muse-glimmer.cpp" />
-    <ClCompile Include="..\llama.cpp\common\parsers\parsers.cpp" />
-    <ClCompile Include="..\llama.cpp\common\parsers\qwen3-coder.cpp" />
+    <!-- One file per model dialect; chat.cpp dispatches to each. A wildcard, like
+         ggml-uwp models\*.cpp, so a submodule bump cannot drop one (LNK2001). -->
+    <ClCompile Include="..\llama.cpp\common\parsers\*.cpp" />
     <ClCompile Include="$(LlamaBuildInfoDir)\build-info.cpp" />
   </ItemGroup>
 
