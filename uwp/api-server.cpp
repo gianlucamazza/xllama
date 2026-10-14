@@ -150,6 +150,10 @@ struct HttpRequest {
     // (parse_http_head's codes, 400 for a short body, 408 past a deadline).
     int status = 400;
     std::string error = "malformed request";
+    // A read still pending when a deadline passed. It is cancelled only after
+    // the 408 is written: cancelling first aborts the stream, and the client
+    // sees a reset instead of the status (console, 1.6.0.1234).
+    winrt::Windows::Storage::Streams::DataReaderLoadOperation pending{nullptr};
 };
 
 // Reads one request: the head until "\r\n\r\n", then exactly Content-Length
@@ -172,7 +176,7 @@ HttpRequest read_request(StreamSocket const& socket) {
         auto op = reader.LoadAsync(4096);
         if (op.wait_for(std::chrono::duration_cast<winrt::Windows::Foundation::TimeSpan>(
                 deadline - now)) != winrt::Windows::Foundation::AsyncStatus::Completed) {
-            op.Cancel();
+            req.pending = op;
             return -1;
         }
         const uint32_t got = op.GetResults();
@@ -1620,6 +1624,8 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
         const HttpRequest req = read_request(socket);
         if (req.status != 0) {
             write_response(socket, framing_status(req.status), error_json(req.error));
+            if (req.pending)
+                req.pending.Cancel(); // after the 408 is out, see HttpRequest::pending
             return;
         }
 
