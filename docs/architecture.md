@@ -34,6 +34,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 
 | Header                             | Owns                                                                                                                                           |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `session_spec.h`                   | `resolve_session_params`, `same_load` — one catalogue→session resolver for GUI, API and pull; the hub reuses only the same load (ADR 0007)     |
 | `session.h` / `inference_params.h` | `Session`/`SessionParams`, `InferenceParams/Result` (`echo_stdout`, the `resolve_max_length` #130 ladder), `Backend` enum                      |
 | `session_hub.h`                    | `SessionHub` — the ONE process-wide resident-Session owner (GUI + LAN API); locking + `generation` contract                                    |
 | `sampling.h`                       | `SamplingConfig`, shared defaults; CLI/bench and GUI/API init from it (#125)                                                                   |
@@ -671,7 +672,7 @@ host Release smoke (quality + peak)
 ## Unit test map (host suite)
 
 One doctest binary, `xllama-tests`, built from `tests/test_*.cpp`. The suite
-is **323 test cases / 9080 assertions** (doctest, without opt-in model checks).
+is **326 test cases / 9101 assertions** (doctest, without opt-in model checks).
 Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 (`llama_raii.h`, `ort_raii.h`, `d3d12_dyn.h`, `catalog_trust.h`).
 
@@ -714,6 +715,7 @@ Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 | `test_routing_policy.cpp`     | `routing_policy.h`                                                                          |
 | `test_sampling.cpp`           | `sampling.h` (CLI/Session parity opt-in)                                                    |
 | `test_session.cpp`            | `session.h`, `session_hub.h`                                                                |
+| `test_session_spec.cpp`       | `session_spec.h`, hub reuse rule                                                            |
 | `test_speculative.cpp`        | `speculative.h`                                                                             |
 | `test_tool_proposal.cpp`      | `api_policy.h`, `tool_request.h`, `tool_transcript.h`, `prompt_budget.h`, `tool_template.h` |
 | `test_training.cpp`           | `training.h` / `training_params.h`                                                          |

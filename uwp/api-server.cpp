@@ -351,7 +351,6 @@ struct CatalogueSessionPolicy {
     bool coding = false;
     bool gguf = false;
     bool embedding = false;
-    int gpu_layers = 0; // catalogue default; see resolve_gguf_gpu_layers
 };
 
 CatalogueSessionPolicy catalogue_session_policy(const std::string& model) {
@@ -368,7 +367,6 @@ CatalogueSessionPolicy catalogue_session_policy(const std::string& model) {
         p.coding = ::xllama::role_is_coding(::xllama::wstring_to_utf8(entry->role));
         p.embedding = ::xllama::role_is_embedding(::xllama::wstring_to_utf8(entry->role));
         p.gguf = entry->kind == L"gguf";
-        p.gpu_layers = entry->gpu_layers;
     }
     return p;
 }
@@ -711,14 +709,8 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
             status = "400 Bad Request";
             return error_json(sampling_error);
         }
-        ::xllama::SessionParams sp;
-        sp.model_path = model;
-        sp.n_ctx = policy.n_ctx;
-        if (policy.gguf) {
-            sp.backend = ::xllama::Backend::LlamaCpp;
-            sp.n_gpu_layers = ::xllama::resolve_gguf_gpu_layers(
-                policy.gpu_layers, ::xllama::bridge::gguf_gpu_layers_knob());
-        }
+        // ADR 0007: the GUI's resolver, adapter included (audit F03).
+        const ::xllama::SessionParams sp = ::xllama::CatalogueSessionParams(model);
         session = ::xllama::session_hub().ensure_locked(model, sp, &err);
         if (!session) {
             status = "500 Internal Server Error";
@@ -1022,14 +1014,7 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
     }
     ::xllama::Session* session = nullptr;
     std::string err;
-    ::xllama::SessionParams sp;
-    sp.model_path = model;
-    sp.n_ctx = policy.n_ctx;
-    if (policy.gguf) {
-        sp.backend = ::xllama::Backend::LlamaCpp;
-        sp.n_gpu_layers = ::xllama::resolve_gguf_gpu_layers(
-            policy.gpu_layers, ::xllama::bridge::gguf_gpu_layers_knob());
-    }
+    ::xllama::SessionParams sp = ::xllama::CatalogueSessionParams(model); // ADR 0007
     if (root.HasKey(L"options") &&
         root.GetNamedValue(L"options").ValueType() != JsonValueType::Object) {
         status = "400 Bad Request";
@@ -1049,10 +1034,8 @@ std::string handle_embedding_locked(const std::string& body, const char*& status
             sp.n_ctx = static_cast<int>(raw);
         }
     }
-    auto& hub = ::xllama::session_hub();
-    if (hub.session && hub.model == model && hub.session->context_length() != sp.n_ctx)
-        hub.reset_locked();
-    session = hub.ensure_locked(model, sp, &err);
+    // A different num_ctx is a different load: ensure_locked reloads it.
+    session = ::xllama::session_hub().ensure_locked(model, sp, &err);
     if (!session) {
         status = "500 Internal Server Error";
         return embedding_error_json(api, "session create failed: " + err);
@@ -1536,14 +1519,10 @@ void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t g
     {
         auto& hub = ::xllama::session_hub();
         std::lock_guard<std::mutex> hub_lock(hub.mtx); // let active inference finish, then swap
-        ::xllama::SessionParams params;
-        params.model_path = model_name;
-        params.n_ctx = ::xllama::resolve_n_ctx(entry->n_ctx);
-        if (entry->kind == L"gguf") {
-            params.backend = ::xllama::Backend::LlamaCpp;
-            params.n_gpu_layers = ::xllama::resolve_gguf_gpu_layers(
-                entry->gpu_layers, ::xllama::bridge::gguf_gpu_layers_knob());
-        }
+        const ::xllama::SessionParams params = ::xllama::CatalogueSessionParams(model_name);
+        // The files may have just changed under a resident session of this
+        // model: same id and parameters, stale weights (ADR 0007).
+        hub.invalidate_locked(model_name);
         // Recheck after waiting for inference: stop/rebind may have invalidated
         // the listener while this pull was blocked on the resident session.
         {

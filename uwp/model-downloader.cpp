@@ -12,6 +12,10 @@
     #include "xllama/catalog_trust.h"
     #include "xllama/manifest_merge.h"
     #include "xllama/model_provision.h"
+    #include "xllama/path_utils.h"
+    #include "xllama/session_spec.h"
+
+    #include "inference-bridge.h" // gguf_gpu_layers_knob
     #include "xllama/platform.h"
     #include "xllama/utf8_utils.h"
 
@@ -806,6 +810,22 @@ bool IsModelProvisioned(std::wstring const& model_name,
         fclose(fp);
     }
     return false;
+}
+
+SessionParams CatalogueSessionParams(const std::string& model) {
+    const auto manifest = LoadModelManifest();
+    const ManifestEntry* entry = FindManifestEntry(manifest, utf8_to_wstring(model));
+    CatalogueLoad c;
+    if (entry) {
+        c.found = true;
+        c.gguf = entry->kind == L"gguf";
+        c.n_ctx = entry->n_ctx;
+        c.gpu_layers = entry->gpu_layers;
+        c.lora = wstring_to_utf8(entry->lora);
+        c.lora_scale = static_cast<float>(entry->lora_scale);
+    }
+    return resolve_session_params(model, c, resolve_model_path(model),
+                                  bridge::gguf_gpu_layers_knob());
 }
 
 std::vector<ManifestEntry> LoadModelManifest(ManifestTrust* trust, bool include_local_override) {

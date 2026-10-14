@@ -28,6 +28,7 @@
 #pragma once
 
 #include "xllama/session.h"
+#include "xllama/session_spec.h" // same_load
 
 #include <atomic>
 #include <cstdint>
@@ -45,7 +46,7 @@ struct SessionHub {
     std::mutex mtx;
     std::unique_ptr<Session> session; // guarded by mtx
     std::string model;                // model id loaded into `session`; guarded by mtx
-    int gpu_layers = 0;               // n_gpu_layers `session` was loaded with; guarded by mtx
+    SessionParams params;             // what `session` was loaded with; guarded by mtx
     uint64_t generation = 0;          // bumps on every resident-session change; guarded by mtx
 
     // True while a background pre-load holds (or is about to take) mtx.
@@ -60,9 +61,11 @@ struct SessionHub {
     // needed. On creation failure the hub is left empty and nullptr returns.
     Session* ensure_locked(const std::string& model_id, const SessionParams& sp,
                            std::string* err = nullptr) {
-        // A different GPU-layer request is a different load (weights move
-        // between CPU and d3d12 buffers), so it reloads like a model switch.
-        if (session && model == model_id && gpu_layers == sp.n_gpu_layers)
+        // Reuse only the same load (ADR 0007): another adapter, context or
+        // GPU-layer split is a different model in RAM, so it reloads like a
+        // model switch. Matching the id alone let the first surface's load
+        // win (audit F03: the API reused or skipped the GUI's LoRA).
+        if (session && model == model_id && same_load(params, sp))
             return session.get();
         session.reset(); // release the old model before loading the new one
         model.clear();
@@ -72,9 +75,16 @@ struct SessionHub {
             return nullptr;
         session = std::move(s);
         model = model_id;
-        gpu_layers = sp.n_gpu_layers;
+        params = sp;
         ++generation;
         return session.get();
+    }
+
+    // Under mtx: the files behind |model_id| changed (pull, import, promotion),
+    // so a resident session of it is stale even with the same parameters.
+    void invalidate_locked(const std::string& model_id) {
+        if (session && model == model_id)
+            reset_locked();
     }
 
     // Under mtx: drop the resident session (e.g. to free RAM on demand).

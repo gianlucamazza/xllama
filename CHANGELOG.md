@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **GUI and LAN API load a model the same way** (audit F03, [ADR 0007](docs/adr/0007-session-spec.md)).
+  The API ignored the catalogue `lora`, and the hub reused a session by model id,
+  so the first surface to load a LoRA model decided whether its adapter applied.
+  `session_spec.h` is now the one resolver (context, backend, GPU layers, adapter)
+  for GUI, chat, embeddings and pull; the hub reuses the resident session only
+  for the same load, and a pull of the resident model reloads it.
 - **The LAN API frames requests exactly** (audit F02, [ADR 0006](docs/adr/0006-http-framing.md)).
   A negative `Content-Length` or a body shorter than declared used to return 200
   (and append a preference sample); a stalled body held a thread with no answer.

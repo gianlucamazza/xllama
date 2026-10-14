@@ -2874,52 +2874,19 @@ void MainPageController::PreloadSessionAsync() {
 }
 
 bool MainPageController::EnsureSession(const std::string& model, std::string* err_out) {
+    // ADR 0007: the same resolver as the LAN API (catalogue n_ctx, backend from
+    // the catalogue kind, GPU layers, runtime LoRA), and the hub reuses the
+    // resident session only when it was loaded with these parameters.
+    // n_threads stays 0: llama.cpp gets detect_threads_llama() (capped at 6 on
+    // UWP), ORT reads intra_op_num_threads from genai_config.json.
+    const xllama::SessionParams sp = ::xllama::CatalogueSessionParams(model);
     auto& hub = ::xllama::session_hub();
-    if (hub.session && hub.model == model) {
+    if (hub.session && hub.model == model && ::xllama::same_load(hub.params, sp)) {
         m_turn_session = hub.session.get();
         return true;
     }
     m_turn_session = nullptr;
     m_kv_valid = false; // new session object → no reusable KV carries over
-    xllama::SessionParams sp;
-    sp.model_path = model;
-    sp.n_ctx = ::xllama::kDefaultNCtx;
-    // 0 = default: llama.cpp gets detect_threads_llama() (capped at 6 on UWP —
-    // t6 measured optimum, t7/t8 livelock); ORT threads come from
-    // genai_config.json intra_op_num_threads on the model dir.
-    sp.n_threads = 0;
-    // Pick the backend from the catalogue kind: a "gguf" entry runs on llama.cpp,
-    // everything else (an ORT GenAI directory) on ORT. On a single-backend build
-    // this field is ignored (only one path is compiled). The model name is bare
-    // (no extension), so Backend::Auto's suffix sniffing cannot classify it.
-    // Optional catalogue `lora` (relative to model dir) enables runtime LoRA.
-    // Optional catalogue `n_ctx` (coding models use 4096) overrides the default.
-    {
-        // Direct load, not CachedManifest: this runs on the worker thread and
-        // the cache is UI-thread-only (no lock). Cold path anyway — a disk
-        // parse is noise next to the model load that follows.
-        auto manifest = ::xllama::LoadModelManifest();
-        const auto* entry = ::xllama::FindManifestEntry(manifest, ::xllama::utf8_to_wstring(model));
-        if (entry) {
-            sp.n_ctx = ::xllama::resolve_n_ctx(entry->n_ctx);
-            if (entry->kind == L"gguf") {
-                sp.backend = xllama::Backend::LlamaCpp;
-                sp.n_gpu_layers = ::xllama::resolve_gguf_gpu_layers(
-                    entry->gpu_layers, ::xllama::bridge::gguf_gpu_layers_knob());
-                if (!entry->lora.empty()) {
-                    // Resolve against LocalState\models\<name>\lora-file (or InstalledPath
-                    // after provision). resolve_model_path on a bare name yields the dir.
-                    const std::string model_dir = xllama::resolve_model_path(model);
-                    sp.lora_path = model_dir;
-                    if (!sp.lora_path.empty() && sp.lora_path.back() != '\\' &&
-                        sp.lora_path.back() != '/')
-                        sp.lora_path.push_back('\\');
-                    sp.lora_path += xllama::wstring_to_utf8(entry->lora);
-                    sp.lora_scale = static_cast<float>(entry->lora_scale);
-                }
-            }
-        }
-    }
     std::string err;
     ::xllama::Session* s = ::xllama::session_hub().ensure_locked(model, sp, &err);
     if (!s) {
