@@ -1,0 +1,40 @@
+# validate-api.sh on GianlucaMazza.xllama_1.6.0.1231_x64__pj67f1fcj4n14 (PR #342), 2026-10-14T16:07:29Z
+=== spike: LAN bind + HTTP 200 ===
+  Endpoint up after 0s.
+  GET / -> {"status":"ok","service":"xllama"}
+spike: PASS
+=== tools: client-side tool proposal (ADR 0004) ===
+  A ok: get_weather({"city":"Paris"})
+  B ok: tool result answered
+  C ok: tools+functions is 400
+  D ok: tool_choice none answered as plain chat
+  E ok: ONNX model refused with 400
+tools: PASS
+=== spike: LAN bind + HTTP 200 ===
+  Endpoint up after 0s.
+  GET / -> {"status":"ok","service":"xllama"}
+spike: PASS
+=== chat: /v1/chat/completions ===
+  ok: assistant replied: Hello!
+  checking single-slot 503 (two concurrent requests)...
+  concurrent codes: 200 200
+  note: no 503 seen (both 200/200) — acceptable if the model served fast
+chat: PASS
+=== spike: LAN bind + HTTP 200 ===
+  Endpoint up after 0s.
+  GET / -> {"status":"ok","service":"xllama"}
+spike: PASS
+=== budget: a long conversation is trimmed, an oversized message is 400 ===
+  A HTTP 200: {"id":"chatcmpl-xllama-1791994070-1","object":"chat.completion","created":1791994070,"model":"lfm25-350m","choices":[{"i
+  ok: a history far past n_ctx was trimmed and answered
+  B HTTP 400: {"error":{"message":"prompt too long: the final user message needs 20022 tokens plus 24 for the reply, but n_ctx is 2048","type":"xllama_error"}}
+  ok: refused as a client error, with the numbers
+  C ok: {"max_tokens":-1} -> 400 {"error":{"message":"max_tokens must be at least 1","type":"xllama_error"}}
+  C ok: {"max_tokens":1.5} -> 400 {"error":{"message":"max_tokens must be a whole number","type":"xllama_error"}}
+  C ok: {"max_tokens":2147483647} -> 400 {"error":{"message":"max_tokens must be less than the model context (n_ctx 2048)","type":"
+  C ok: {"max_completion_tokens":0} -> 400 {"error":{"message":"max_completion_tokens must be at least 1","type":"xllama_error"}}
+  C ok: {"temperature":5} -> 400 {"error":{"message":"temperature must be between 0 and 2","type":"xllama_error"}}
+  C ok: {"top_p":-0.5} -> 400 {"error":{"message":"top_p must be between 0 and 1","type":"xllama_error"}}
+  C ok: {"seed":1.5} -> 400 {"error":{"message":"seed must be a whole number","type":"xllama_error"}}
+  C ok: {"seed":-1,"max_tokens":8} -> 200 {"id":"chatcmpl-xllama-1791994071-2","object":"chat.completion","created":1791994071,"mode
+budget: PASS
