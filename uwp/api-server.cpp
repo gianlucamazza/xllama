@@ -41,6 +41,7 @@
     #include <cctype>
     #include <charconv>
     #include <chrono>
+    #include <climits>
     #include <cstdio>
     #include <cstdlib>
     #include <ctime>
@@ -435,18 +436,54 @@ void append_client_stops(JsonObject const& root, std::vector<std::string>& stops
     }
 }
 
+// The reply's token count. max_tokens is deprecated in favour of
+// max_completion_tokens; accept both. Validated against the catalogue context
+// before any model load (F01): a negative, fractional, or context-sized value
+// is the client's error. Absent = 512.
+::xllama::ApiTokenLimit read_max_tokens(JsonObject const& root, int n_ctx) {
+    for (const char* key : {"max_completion_tokens", "max_tokens"}) {
+        const winrt::hstring name = winrt::to_hstring(key);
+        if (root.HasKey(name))
+            return ::xllama::validate_max_tokens(key, root.GetNamedNumber(name), n_ctx);
+    }
+    ::xllama::ApiTokenLimit out;
+    out.value = 512;
+    return out;
+}
+
+// Sampling numbers, validated before any model load (F01). Ranges are
+// OpenAI's: temperature 0..2, top_p 0..1. A seed is a whole number; a negative
+// one (llama.cpp's "-1 = random") keeps the default seed.
+std::string check_sampling(JsonObject const& root) {
+    struct Range {
+        const char* key;
+        double lo, hi;
+        bool whole;
+    };
+    for (const Range& r : {Range{"temperature", 0.0, 2.0, false}, Range{"top_p", 0.0, 1.0, false},
+                           Range{"seed", -2147483648.0, 4294967295.0, true}}) {
+        const winrt::hstring name = winrt::to_hstring(r.key);
+        if (!root.HasKey(name))
+            continue;
+        std::string err =
+            ::xllama::validate_api_number(r.key, root.GetNamedNumber(name), r.lo, r.hi, r.whole);
+        if (!err.empty())
+            return err;
+    }
+    return std::string();
+}
+
+// Copies the sampling numbers that check_sampling already accepted.
 void fill_sampling(JsonObject const& root, ::xllama::GenerateParams& gp) {
-    gp.n_predict = 512;
-    if (root.HasKey(L"max_completion_tokens"))
-        gp.n_predict = static_cast<int>(root.GetNamedNumber(L"max_completion_tokens"));
-    else if (root.HasKey(L"max_tokens"))
-        gp.n_predict = static_cast<int>(root.GetNamedNumber(L"max_tokens"));
     if (root.HasKey(L"temperature"))
         gp.temperature = static_cast<float>(root.GetNamedNumber(L"temperature"));
     if (root.HasKey(L"top_p"))
         gp.top_p = static_cast<float>(root.GetNamedNumber(L"top_p"));
-    if (root.HasKey(L"seed"))
-        gp.seed = static_cast<uint32_t>(root.GetNamedNumber(L"seed", -1.0));
+    if (root.HasKey(L"seed")) { // reproducibility for a research endpoint
+        const double seed = root.GetNamedNumber(L"seed");
+        if (seed >= 0)
+            gp.seed = static_cast<uint32_t>(seed);
+    }
 }
 
 // One OpenAI chat.completion body. `message` is choices[0].message.
@@ -486,7 +523,7 @@ std::string completion_json(const std::string& model, JsonObject const& message,
 // template's system prefix, so a pinned plain-chat prefix would be wrong.
 std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRequest& request,
                                         ::xllama::Session* session, const std::string& model,
-                                        bool model_is_coding, int policy_n_ctx,
+                                        bool model_is_coding, int policy_n_ctx, int n_predict,
                                         ::xllama::ApiActivity::Ticket& ticket,
                                         const char*& status) {
     if (session->resident_llama_model() == nullptr) {
@@ -510,6 +547,7 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
 
     ::xllama::GenerateParams gp;
     gp.reuse_kv = false;
+    gp.n_predict = n_predict;
     fill_sampling(root, gp);
     std::vector<std::string> template_stops;
     std::vector<std::string> preserved_tokens;
@@ -641,6 +679,7 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
     ::xllama::Session* session = nullptr;
     bool model_is_coding = false;
     int policy_n_ctx = ::xllama::kDefaultNCtx;
+    int n_predict = 0;
     {
         std::string err;
         const CatalogueSessionPolicy policy = catalogue_session_policy(model);
@@ -655,6 +694,17 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
 
         model_is_coding = policy.coding;
         policy_n_ctx = policy.n_ctx;
+        const ::xllama::ApiTokenLimit limit = read_max_tokens(root, policy_n_ctx);
+        if (!limit.error.empty()) {
+            status = "400 Bad Request";
+            return error_json(limit.error);
+        }
+        n_predict = limit.value;
+        const std::string sampling_error = check_sampling(root);
+        if (!sampling_error.empty()) {
+            status = "400 Bad Request";
+            return error_json(sampling_error);
+        }
         ::xllama::SessionParams sp;
         sp.model_path = model;
         sp.n_ctx = policy.n_ctx;
@@ -672,7 +722,7 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
 
     if (proposal)
         return handle_tool_proposal_locked(root, request, session, model, model_is_coding,
-                                           policy_n_ctx, ticket, status);
+                                           policy_n_ctx, n_predict, ticket, status);
 
     // Small instruct models degrade badly with an empty system turn (they
     // hallucinate the next role instead of answering); the chat UI always seeds
@@ -685,14 +735,9 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
     ::xllama::GenerateParams gp;
     gp.stop_sequences = fmt.stop_sequences;
     gp.reuse_kv = false; // OpenAI chat is stateless: messages[] carry full history
-    // max_tokens is deprecated in favour of max_completion_tokens; accept both.
-    // Parsed BEFORE the prompt is built: the budget below needs to know how much
-    // room the reply asks for.
-    gp.n_predict = 512;
-    if (root.HasKey(L"max_completion_tokens"))
-        gp.n_predict = static_cast<int>(root.GetNamedNumber(L"max_completion_tokens"));
-    else if (root.HasKey(L"max_tokens"))
-        gp.n_predict = static_cast<int>(root.GetNamedNumber(L"max_tokens"));
+    // Validated above, before the model load: the budget below needs to know how
+    // much room the reply asks for.
+    gp.n_predict = n_predict;
 
     // Same budget as the chat UI, same primitive, same tokenizer: the oldest
     // messages[] entries are dropped until the prompt plus the requested reply fit
@@ -718,12 +763,7 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
                                  "\n");
         gp.prompt = fit.prompt;
     }
-    if (root.HasKey(L"temperature"))
-        gp.temperature = static_cast<float>(root.GetNamedNumber(L"temperature"));
-    if (root.HasKey(L"top_p"))
-        gp.top_p = static_cast<float>(root.GetNamedNumber(L"top_p"));
-    if (root.HasKey(L"seed")) // reproducibility for a research endpoint
-        gp.seed = static_cast<uint32_t>(root.GetNamedNumber(L"seed", -1.0));
+    fill_sampling(root, gp);
     // Client-supplied stop: a string or an array of strings, added to the
     // format's own stops so clients can bound output.
     if (root.HasKey(L"stop")) {
@@ -1246,18 +1286,16 @@ std::string handle_images_locked(const std::string& body, const char*& status) {
         status = "400 Bad Request";
         return error_json("missing 'prompt'");
     }
+    // Clamped, never rejected (UI Image dialog max is 4 steps); clamped on the
+    // double, since casting an out-of-range double to int is undefined (F01).
     int steps = 1;
     if (root.HasKey(L"steps"))
-        steps = static_cast<int>(root.GetNamedNumber(L"steps", 1));
-    if (steps < 1)
-        steps = 1;
-    if (steps > 4)
-        steps = 4; // UI Image dialog max
+        steps = ::xllama::clamp_api_int(root.GetNamedNumber(L"steps", 1), 1, 4);
     int seed = 42;
-    if (root.HasKey(L"seed"))
-        seed = static_cast<int>(root.GetNamedNumber(L"seed", 42));
-    if (seed < 0)
-        seed = 42;
+    if (root.HasKey(L"seed")) {
+        const double raw = root.GetNamedNumber(L"seed", 42);
+        seed = raw < 0 ? 42 : ::xllama::clamp_api_int(raw, 0, INT_MAX);
+    }
 
     // Drive the same LocalState knobs as the Image dialog / autopilot.
     {

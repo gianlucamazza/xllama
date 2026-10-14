@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <string_view>
@@ -183,7 +184,8 @@ inline int resolve_max_length(int n_ctx, int n_prompt, int n_predict, int overri
         return n_ctx;
     if (override_v > 0)
         return std::clamp(override_v, n_prompt + 1, n_ctx);
-    return std::min(n_ctx, n_prompt + n_predict);
+    // 64-bit: an INT_MAX n_predict (CLI, bench) must saturate to n_ctx (F01).
+    return static_cast<int>(std::min<int64_t>(n_ctx, int64_t{n_prompt} + n_predict));
 }
 
 /// Result of an inference call.

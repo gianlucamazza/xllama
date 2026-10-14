@@ -7,6 +7,7 @@
 #include "xllama/prompt_budget.h"
 #include "xllama/routing_policy.h" // kReservedGenerationTokens
 
+#include <climits>
 #include <string>
 #include <vector>
 
@@ -158,4 +159,29 @@ TEST_CASE("fit_prompt: the rendered prompt is exactly what the format produces")
     CHECK(fit.prompt == fmt.render_prompt("sys", turns, "last"));
     CHECK(fit.prompt.compare(0, fmt.render_system_prefix("sys").size(),
                              fmt.render_system_prefix("sys")) == 0);
+}
+
+TEST_CASE("budget_fits: 64-bit arithmetic at the boundaries (F01)") {
+    const int floor = kReservedGenerationTokens;
+    // Exact fit and one-token overflow: prompt + reserve + 1 == n_ctx fits.
+    CHECK(budget_fits(2048 - floor - 1, 0, 2048));
+    CHECK_FALSE(budget_fits(2048 - floor, 0, 2048));
+    CHECK(budget_fits(2048 - 1000 - 1, 1000, 2048));
+    CHECK_FALSE(budget_fits(2048 - 1000, 1000, 2048));
+    // INT_MAX reservations and counts cannot overflow into "fits".
+    CHECK_FALSE(budget_fits(10, INT_MAX, 2048));
+    CHECK_FALSE(budget_fits(INT_MAX, INT_MAX, INT_MAX));
+    CHECK_FALSE(budget_fits(INT_MAX, 0, 2048));
+    // A failed tokenizer (negative count) never fits.
+    CHECK_FALSE(budget_fits(-1, 0, 2048));
+    CHECK_FALSE(budget_fits(INT_MIN, 0, 2048));
+}
+
+TEST_CASE("fit_prompt: an INT_MAX reply does not fit and does not overflow (F01)") {
+    const auto fmt = chat_format_for("lfm25-350m");
+    // The audit reproduced signed overflow here under UBSan with a ten-token counter.
+    const auto fit =
+        fit_prompt(fmt, "", {}, "hi", 2048, INT_MAX, [](const std::string&) { return 10; });
+    CHECK_FALSE(fit.fits);
+    CHECK(fit.n_tokens == 10);
 }

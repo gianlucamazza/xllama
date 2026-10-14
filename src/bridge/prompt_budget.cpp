@@ -7,9 +7,17 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <utility>
 
 namespace xllama {
+
+bool budget_fits(int prompt_tokens, int n_predict, int n_ctx) {
+    if (prompt_tokens < 0)
+        return false;
+    const int64_t reserve = std::max<int64_t>(n_predict, kReservedGenerationTokens);
+    return int64_t{prompt_tokens} + reserve + 1 <= int64_t{n_ctx};
+}
 
 PromptFit fit_prompt(const ChatFormat& fmt, const std::string& system,
                      const std::vector<ChatTurn>& turns, const std::string& user_text, int n_ctx,
@@ -21,10 +29,9 @@ PromptFit fit_prompt(const ChatFormat& fmt, const std::string& system,
         out.fits = false;
         return out;
     }
-    // The reply's room, floored: a caller asking for fewer tokens than the floor
-    // still gets the floor, so a low n_predict cannot be used to smuggle a
-    // context-filling prompt past the budget.
-    const int reserve = std::max(n_predict, kReservedGenerationTokens);
+    // The reply's room is floored inside budget_fits: a caller asking for fewer
+    // tokens than the floor still gets the floor, so a low n_predict cannot be
+    // used to smuggle a context-filling prompt past the budget.
     const size_t n = turns.size();
 
     // Render with the first |drop| turns removed. The trailing user_text always
@@ -40,7 +47,7 @@ PromptFit fit_prompt(const ChatFormat& fmt, const std::string& system,
     auto fits_at = [&](size_t drop, std::string* prompt, int* tokens) {
         *prompt = render_dropping(drop);
         *tokens = count(*prompt);
-        return *tokens + reserve + 1 <= n_ctx;
+        return budget_fits(*tokens, n_predict, n_ctx);
     };
 
     // Dropping a turn can only shrink the prompt, so "fits" is monotone in |drop|
@@ -202,14 +209,13 @@ ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
         out.fits = false;
         return out;
     }
-    const int reserve = std::max(n_predict, kReservedGenerationTokens);
     auto fits_at = [&](size_t drop_groups, std::string* prompt, std::vector<ChatMessage>* kept,
                        int* tokens, int* dropped) {
         auto rendered = render_dropping(drop_groups, dropped);
         *prompt = std::move(rendered.first);
         *kept = std::move(rendered.second);
         *tokens = count(*prompt);
-        return *tokens + reserve + 1 <= n_ctx;
+        return budget_fits(*tokens, n_predict, n_ctx);
     };
 
     int dropped = 0;

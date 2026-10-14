@@ -35,6 +35,12 @@ struct PromptFit {
     bool fits = false;
 };
 
+// The one admission test both trimmers use: |prompt_tokens| plus the reply's
+// room — max(n_predict, kReservedGenerationTokens) plus the decode loop's one
+// token — fits |n_ctx|. Computed in 64 bits, so an INT_MAX n_predict cannot
+// overflow it (F01); a negative count (a failed tokenizer) never fits.
+bool budget_fits(int prompt_tokens, int n_predict, int n_ctx);
+
 // Render (system, turns, user_text) through |fmt|, dropping the OLDEST turns
 // until the prompt plus room for the reply fits |n_ctx|. The room reserved is
 // max(n_predict, kReservedGenerationTokens) plus the one token the decode loop

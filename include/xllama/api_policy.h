@@ -3,6 +3,9 @@
 
 #pragma once
 
+#include <cmath>
+#include <string>
+
 namespace xllama {
 
 // How a chat request names tools. The JSON parser fills this; the classifier
@@ -75,6 +78,62 @@ inline ApiToolClass classify_api_tools(const ApiToolFields& fields) {
     if (tools)
         out.disposition = ApiToolDisposition::Proposal;
     return out;
+}
+
+// max_tokens / max_completion_tokens as the JSON parser hands them over (a
+// double), checked before any model load (F01). A whole number from 1 to
+// n_ctx - 1: the reply plus at least one prompt token must fit the context.
+// `error` is empty when `value` is usable.
+struct ApiTokenLimit {
+    int value = 0;
+    std::string error;
+};
+
+inline ApiTokenLimit validate_max_tokens(const char* key, double v, int n_ctx) {
+    ApiTokenLimit out;
+    const std::string name(key);
+    if (!std::isfinite(v) || v != std::floor(v))
+        out.error = name + " must be a whole number";
+    else if (v < 1)
+        out.error = name + " must be at least 1";
+    else if (v >= n_ctx)
+        out.error =
+            name + " must be less than the model context (n_ctx " + std::to_string(n_ctx) + ")";
+    else
+        out.value = static_cast<int>(v);
+    return out;
+}
+
+// A sampling number from the JSON body, checked before any model load (F01):
+// finite and inside [lo, hi], and whole when `whole`. Converting an
+// out-of-range double to an integer is undefined behaviour, so the range check
+// comes before any cast.
+inline std::string validate_api_number(const char* key, double v, double lo, double hi,
+                                       bool whole) {
+    const std::string name(key);
+    if (!std::isfinite(v) || (whole && v != std::floor(v)))
+        return name + (whole ? " must be a whole number" : " must be a finite number");
+    if (v < lo || v > hi) {
+        auto text = [](double x) {
+            std::string s = std::to_string(x);
+            s.erase(s.find_last_not_of('0') + 1);
+            if (!s.empty() && s.back() == '.')
+                s.pop_back();
+            return s;
+        };
+        return name + " must be between " + text(lo) + " and " + text(hi);
+    }
+    return std::string();
+}
+
+// Clamp a JSON number into [lo, hi] before converting it, for fields whose
+// contract is "clamped, never rejected" (image steps and seed). NaN takes `lo`.
+inline int clamp_api_int(double v, int lo, int hi) {
+    if (!(v >= lo))
+        return lo;
+    if (v > hi)
+        return hi;
+    return static_cast<int>(v);
 }
 
 } // namespace xllama

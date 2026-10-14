@@ -124,7 +124,11 @@ state is invalidated — see Model above).
 
 Request body (subset): `model`, `messages[]`, optional `max_completion_tokens` /
 `max_tokens` (default 512; the former wins — `max_tokens` is the deprecated OpenAI
-alias), `temperature`, `top_p`, `seed`, and `stop` (string or array). `stream: true`
+alias), `temperature`, `top_p`, `seed`, and `stop` (string or array). Numbers are
+checked before the model loads, and a bad one is `400` naming the field: the token
+count is a whole number from 1 to the catalogue `n_ctx` minus 1, `temperature` is
+0–2, `top_p` is 0–1, and `seed` is a whole number (a negative seed keeps the
+default, llama.cpp's `-1`). `stream: true`
 is not implemented. Most other fields are ignored.
 
 Plain chat (no tool schema, `tools: []`, or `tool_choice` `"none"`) keeps

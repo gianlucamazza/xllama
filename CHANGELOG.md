@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Generation numbers are validated before the model loads** (audit F01).
+  `max_tokens` `-1`, `1.5` and `2147483647` used to return 200 (the negative one
+  an empty reply), and an `INT_MAX` reply overflowed the shared budget
+  arithmetic (UBSan). Token counts must be whole and below `n_ctx`; `temperature`,
+  `top_p` and `seed` have ranges; image `steps`/`seed` clamp on the number before
+  converting it. `budget_fits` is now the one 64-bit admission test for both
+  trimmers, and `resolve_max_length` saturates instead of overflowing.
 - **`usage.prompt_tokens` is the prompt's length** (#335). It reported the
   tokens prefilled, so a repeated prompt on a session that reused its KV prefix
   said `1`. `InferenceResult::n_prompt` carries the length; `n_p_eval` keeps

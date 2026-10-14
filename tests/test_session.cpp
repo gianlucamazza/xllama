@@ -7,6 +7,8 @@
 
 #include <chrono>
 #include <doctest/doctest.h>
+
+#include <climits>
 #include <filesystem>
 #include <fstream>
 
@@ -41,6 +43,8 @@ TEST_CASE("resolve_max_length: the #130 ladder has one home") {
     CHECK(resolve_max_length(2048, 1289, 256, 1801) == 1801);
     CHECK(resolve_max_length(2048, 1289, 256, 100) == 1290);  // floor: prompt+1
     CHECK(resolve_max_length(2048, 1289, 256, 9999) == 2048); // ceiling: n_ctx
+    // F01: an INT_MAX n_predict saturates instead of overflowing.
+    CHECK(resolve_max_length(2048, 1289, INT_MAX, 0) == 2048);
 }
 
 TEST_CASE("Session::create rejects non-existent model path") {

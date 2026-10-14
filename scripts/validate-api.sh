@@ -12,7 +12,9 @@
 #   chat   POST /v1/chat/completions -> non-empty assistant content + a 503-busy
 #          check (two concurrent requests). Implies the spike gate first.
 #   budget context budget over the wire: a long messages[] is trimmed and answered,
-#          an oversized single message is 400 "prompt too long" (not 500).
+#          an oversized single message is 400 "prompt too long" (not 500), and
+#          invalid generation numbers (max_tokens -1/1.5/INT_MAX, temperature,
+#          top_p, seed) are 400 before the model loads (F01).
 #   tools  client-side tool proposal (ADR 0004): a named tool_choice comes back
 #          as tool_calls with JSON arguments, a tool result is answered,
 #          tools+functions is 400, tool_choice none stays plain chat. TOOLS_MODEL
@@ -377,6 +379,27 @@ PYBUDGET
 		echo "  FAIL: an unfittable message must be 400 'prompt too long' (not 500, not 200)"
 		verdict=1
 	fi
+
+	# C. F01: generation numbers are validated before the model loads. The audit
+	# sent -1, 1.5 and INT_MAX and got 200 for all three.
+	local body want body_want
+	for body_want in \
+		'"max_tokens":-1|400' '"max_tokens":1.5|400' '"max_tokens":2147483647|400' \
+		'"max_completion_tokens":0|400' '"temperature":5|400' '"top_p":-0.5|400' \
+		'"seed":1.5|400' '"seed":-1,"max_tokens":8|200'; do
+		body=${body_want%|*}
+		want=${body_want##*|}
+		req=$(printf '{"model":"%s","messages":[{"role":"user","content":"Say OK."}],%s}' "$MODEL" "$body")
+		code=$(curl -sS -m 120 -o "${TMPDIR_LOCAL}/budget-c.json" -w "%{http_code}" \
+			-H 'Content-Type: application/json' -d "$req" \
+			"${API_URL}/v1/chat/completions" || echo "000")
+		if [[ "$code" == "$want" ]]; then
+			echo "  C ok: {${body}} -> ${code} $(head -c 90 "${TMPDIR_LOCAL}/budget-c.json")"
+		else
+			echo "  C FAIL: {${body}} -> ${code}, want ${want}: $(head -c 120 "${TMPDIR_LOCAL}/budget-c.json")"
+			verdict=1
+		fi
+	done
 
 	[[ $verdict -eq 0 ]] && echo "budget: PASS" || echo "budget: FAIL"
 	return $verdict
