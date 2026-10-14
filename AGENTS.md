@@ -150,7 +150,7 @@ part of the Linux CI job. Procedure:
 source ~/.config/xllama/xbox-env
 # gates: routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|thinkdone|genroom|taesd|store|all
 ./scripts/validate-console.sh <gate|all>
-# modes: serve|rate|lora-rt|device-train|all
+# modes: serve|rate|serve-stale|rate-stale|lora-rt|device-train|all
 ./scripts/validate-console-training.sh <mode>
 ./scripts/validate-api.sh <spike|chat|budget|tools|embed|pull|prefs|train|all>
 ```

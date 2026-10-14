@@ -166,7 +166,18 @@ Run an individual gate while debugging:
 ./scripts/validate-console.sh taesd
 ./scripts/validate-api.sh all          # spike + chat + embed + budget + tools + prefs + train + pull
 ./scripts/validate-console-training.sh rate   # preference UI path
+./scripts/validate-console-training.sh rate-stale   # negative control (F04)
 ```
+
+Training gates count only what the current run created: new chat ids for
+`serve`, exactly one new `like` carrying the run id for `rate`, and a fresh
+`result.json` for `device-train`. Each chat gate pins its starting settings
+(system prompt, greedy sampling) and restores `settings.json` afterwards; a
+failed upload (the portal answers a full disk with 500) stops the gate. The
+`serve-stale` and `rate-stale` modes make the current run fail while history
+holds successes, and pass only when the gate reports that failure. Set
+`XLLAMA_EXPECTED_PFN` to refuse a different installed package before any
+upload.
 
 ## Store SKU smoke (not in `all`)
 

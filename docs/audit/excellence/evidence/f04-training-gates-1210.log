@@ -1,0 +1,27 @@
+# validate-console-training.sh on GianlucaMazza.xllama_1.6.0.1210_x64__pj67f1fcj4n14, 2026-10-14
+# first attempt (before the upload check): serve upload failed silently, HTTP 500 'There is not enough space on the disk', see PR
+=== Preference capture (autopilot rate) ===
+  autopilot: ok
+  ok: preference sample logged
+  ok: one new like sample, bound to run-1791984866-663989
+Preference rate: PASS
+=== negative control: rate-stale (the gate below must FAIL) ===
+=== Preference capture (autopilot rate) ===
+  autopilot: ok
+  FAIL: no rate log line
+  FAIL: likes 1 -> 1, none bound to run-1791984885-664934
+Preference rate: FAIL
+Negative control rate-stale: PASS
+=== negative control: serve-stale (the gate below must FAIL) ===
+=== Training serve: merged GGUF on console ===
+  artifact: <repo>/training/out/smollm2-360m-marker/merged-Q4_K_M.gguf (259M)
+  SKIP_UPLOAD=1 (reuse device model + manifest)
+  autopilot: ok
+  ok: GGUF session load
+  ok: session generate completed
+  FAIL: no chat from this run with both 'xllama secret' and XLLAMA-LORA-OK
+  newest chat 4ac70ba3-7cf7-4434-a2ea-7a172926c795:
+[('user', 'xllama secret'), ('assistant', "It seems like you're referring to a secret or code related to xllama. Could you please provide more context or")]
+Training serve: FAIL
+Negative control serve-stale: PASS
+# PFN guard: XLLAMA_EXPECTED_PFN=...9.9.9.9... rate -> "Error: installed package ... differs from expected ...", exit 1, nothing uploaded

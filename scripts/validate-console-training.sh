@@ -10,7 +10,14 @@
 #             (requires MSIX with SessionParams.lora_path)
 #   device-train — Lane B: full in-process training ON the console
 #             (requires llamacpp/unified MSIX with XLLAMA_DEVICE_TRAIN)
+#   serve-stale / rate-stale — negative controls (audit F04): the current run
+#             is made to fail (base model, no rate op) while history may hold
+#             successes; PASS only when the gate reports that FAIL
 #   all     — serve only by default; rate/lora-rt if XLLAMA_TRAIN_FULL=1
+#
+# Every chat gate pins its starting settings (system prompt, greedy sampling)
+# and only counts chats or samples this run created. XLLAMA_EXPECTED_PFN, when
+# set, must match the installed package before anything is uploaded.
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
@@ -45,6 +52,12 @@ PFN=$("${DEPLOY}" pfn 2>/dev/null)
 	echo "Error: xllama not found — deploy it first" >&2
 	exit 1
 }
+# F04: a trial must never measure (or write into) a different installed
+# package. Checked before any upload, so a mismatch leaves the console as is.
+if [[ -n "${XLLAMA_EXPECTED_PFN:-}" && "$PFN" != "$XLLAMA_EXPECTED_PFN" ]]; then
+	echo "Error: installed package $PFN differs from expected $XLLAMA_EXPECTED_PFN" >&2
+	exit 1
+fi
 
 TMPDIR_LOCAL=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_LOCAL"' EXIT
@@ -57,10 +70,17 @@ _curl_post_file() {
 	else
 		form_entry="${local_path};type=application/octet-stream"
 	fi
-	curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X POST \
-		-F "file=@${form_entry}" \
-		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=${path_param}" \
-		>/dev/null
+	# The portal answers a failed write (e.g. a full disk) with 500 and a JSON
+	# reason; a gate must stop there, not run on with a missing file.
+	local reply="${TMPDIR_LOCAL}/upload-reply.json" code
+	code=$(curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X POST \
+		-F "file=@${form_entry}" -o "$reply" -w "%{http_code}" \
+		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=${path_param}" ||
+		echo "000")
+	if [[ "$code" != "200" ]]; then
+		echo "  FAIL: upload of $(basename "$local_path") -> HTTP ${code}: $(head -c 200 "$reply" 2>/dev/null)" >&2
+		return 1
+	fi
 }
 
 upload_file() {
@@ -121,17 +141,69 @@ wait_autopilot_done() {
 	return 1
 }
 
+# A run's set_model / set_sampling / set_system_prompt persist in settings.json;
+# without a restore the next gate, and the user, inherit them (a failed serve
+# left the console relaunching a missing model for 600 s on every start).
+stop_app() {
+	curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X DELETE \
+		"${BASE_URL}/api/taskmanager/app?package=${PFN}" >/dev/null 2>&1 || true
+	sleep 2
+}
+
 run_autopilot() {
-	local timeout_s="${1:-900}"
+	local timeout_s="${1:-900}" saved="${TMPDIR_LOCAL}/settings-saved.json" rc=0
 	cat >"${TMPDIR_LOCAL}/autopilot.json"
 	printf 'go' >"${TMPDIR_LOCAL}/autopilot.flag"
+	: >"$saved"
+	fetch_file "settings.json" "$saved"
+	grep -q '"sampling"' "$saved" 2>/dev/null || : >"$saved" # portal error body = absent
 	delete_file "autopilot-done.txt"
 	delete_file "xllama.log"
-	upload_file "${TMPDIR_LOCAL}/autopilot.json"
-	upload_file "${TMPDIR_LOCAL}/autopilot.flag"
+	upload_file "${TMPDIR_LOCAL}/autopilot.json" || return 1
+	upload_file "${TMPDIR_LOCAL}/autopilot.flag" || return 1
 	restart_app
-	wait_autopilot_done "$timeout_s"
+	wait_autopilot_done "$timeout_s" || rc=1
+	stop_app # it must not rewrite settings.json after the restore
+	if [[ -s "$saved" ]]; then
+		upload_file "$saved" "" "settings.json" >&2 || echo "  WARN: settings.json not restored" >&2
+	else
+		delete_file "settings.json"
+	fi
+	return $rc
 }
+
+# Chat ids in LocalState\chats, one per line (index.json excluded).
+list_chat_ids() {
+	local listing="${TMPDIR_LOCAL}/chats-list.json"
+	: >"$listing"
+	curl "${CURL_AUTH[@]}" -o "$listing" \
+		"${BASE_URL}/api/filesystem/apps/files?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState%5Cchats" \
+		2>/dev/null || true
+	python3 -c '
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+except Exception:
+    raise SystemExit(0)
+for it in d.get("Items", []):
+    name = it.get("Name") or it.get("Id") or ""
+    if name.endswith(".json") and name != "index.json":
+        print(name[:-5])
+' "$listing" 2>/dev/null | sort || true
+}
+
+# Lines of training\samples.jsonl into $1 (empty file when absent).
+fetch_samples() {
+	: >"$1"
+	fetch_file "samples.jsonl" "$1" "training" 2>/dev/null || true
+	# The portal answers a missing file with a JSON error body, not 404 bytes.
+	grep -q '"label"' "$1" 2>/dev/null || : >"$1"
+}
+
+# The settings every chat gate starts from (F04): the merged-marker trial failed
+# under inherited settings and passed under these, so no gate inherits them.
+PINNED_SETTINGS='{"op": "set_system_prompt", "text": "You are a helpful assistant."},
+  {"op": "set_sampling", "temperature": 0, "top_p": 1, "top_k": 40, "repetition_penalty": 1.1, "n_predict": 24},'
 
 fetch_log() {
 	fetch_file "xllama.log" "${TMPDIR_LOCAL}/xllama.log"
@@ -177,17 +249,21 @@ validate_serve() {
 	else
 		echo "  uploading model + manifest override..."
 		"${DEPLOY}" mkdir-localstate "$PFN" "models\\smollm2-lora-merged" >/dev/null
-		upload_file "$MERGED" "models\\smollm2-lora-merged" "model.gguf"
-		upload_file "${REPO_ROOT}/training/manifest-overrides/console-lora-merged.manifest.override.json" "" "manifest.json"
+		upload_file "$MERGED" "models\\smollm2-lora-merged" "model.gguf" || return 1
+		upload_file "${REPO_ROOT}/training/manifest-overrides/console-lora-merged.manifest.override.json" "" "manifest.json" || return 1
 		: >"${TMPDIR_LOCAL}/.complete"
-		upload_file "${TMPDIR_LOCAL}/.complete" "models\\smollm2-lora-merged" ".complete"
+		upload_file "${TMPDIR_LOCAL}/.complete" "models\\smollm2-lora-merged" ".complete" || return 1
 	fi
 
+	local serve_model="${SERVE_MODEL:-smollm2-lora-merged}"
+	local chats_before="${TMPDIR_LOCAL}/chats-before.txt"
+	list_chat_ids >"$chats_before"
 	local marker
 	marker=$(
-		run_autopilot 900 <<'JSON'
+		run_autopilot 900 <<JSON
 {"total_timeout_s": 600, "actions": [
-  {"op": "set_model", "name": "smollm2-lora-merged"},
+  {"op": "set_model", "name": "${serve_model}"},
+  ${PINNED_SETTINGS}
   {"op": "new_chat"},
   {"op": "send", "text": "xllama secret", "timeout_s": 300},
   {"op": "quit"}
@@ -213,28 +289,15 @@ JSON
 		echo "  FAIL: no session generate in log"
 		verdict=1
 	fi
-	# Tokens land in chat JSON. Require a chat that has BOTH the trigger prompt
-	# and the marker (avoids matching an older successful run).
+	# Tokens land in chat JSON. Only chats this run created count (F04): a
+	# historical chat with the marker must not pass a run whose marker failed.
 	local found_marker=0
-	local chats_list="${TMPDIR_LOCAL}/chats-list.json"
-	# Directory listing via WDP files API
-	curl "${CURL_AUTH[@]}" -o "$chats_list" \
-		"${BASE_URL}/api/filesystem/apps/files?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState%5Cchats" \
-		2>/dev/null || true
 	local list
-	list=$(python3 -c '
-import json, sys
-p = sys.argv[1]
-try:
-    d = json.load(open(p))
-except Exception:
-    raise SystemExit(0)
-items = sorted(d.get("Items", []), key=lambda x: x.get("DateCreated", 0), reverse=True)
-for it in items:
-    name = it.get("Name") or it.get("Id") or ""
-    if name.endswith(".json") and name != "index.json":
-        print(name[:-5])
-' "$chats_list" 2>/dev/null || true)
+	list=$(list_chat_ids | comm -13 "$chats_before" -)
+	if [[ -z "$list" ]]; then
+		echo "  FAIL: this run created no chat"
+		verdict=1
+	fi
 	while IFS= read -r cid; do
 		[[ -z "$cid" ]] && continue
 		fetch_file "${cid}.json" "${TMPDIR_LOCAL}/chat-${cid}.json" "chats"
@@ -246,8 +309,8 @@ for it in items:
 		fi
 	done <<<"$list"
 	if [[ $found_marker -eq 0 ]]; then
-		echo "  FAIL: no chat with both 'xllama secret' and XLLAMA-LORA-OK"
-		# dump newest chat for diagnosis
+		echo "  FAIL: no chat from this run with both 'xllama secret' and XLLAMA-LORA-OK"
+		# dump this run's chat for diagnosis
 		local newest
 		newest=$(echo "$list" | head -1)
 		if [[ -n "$newest" && -f "${TMPDIR_LOCAL}/chat-${newest}.json" ]]; then
@@ -262,14 +325,24 @@ for it in items:
 
 validate_rate() {
 	echo "=== Preference capture (autopilot rate) ==="
+	# F04: the sample must be this run's. A run id in the prompt binds it, and the
+	# like count must grow by exactly one; an older like proves nothing.
+	local run_id prompt rate_op
+	run_id="run-$(date +%s)-$$"
+	prompt="Say hi in three words. (${run_id})"
+	rate_op='{"op": "rate", "name": "like"},'
+	[[ "${RATE_SKIP_OP:-0}" == "1" ]] && rate_op=''
+	local before_f="${TMPDIR_LOCAL}/samples-before.jsonl" after_f="${TMPDIR_LOCAL}/samples.jsonl"
+	fetch_samples "$before_f"
 	local marker
 	marker=$(
-		run_autopilot 600 <<'JSON'
+		run_autopilot 600 <<JSON
 {"total_timeout_s": 400, "actions": [
   {"op": "set_model", "name": "lfm25-350m"},
+  ${PINNED_SETTINGS}
   {"op": "new_chat"},
-  {"op": "send", "text": "Say hi in three words.", "timeout_s": 180},
-  {"op": "rate", "name": "like"},
+  {"op": "send", "text": "${prompt}", "timeout_s": 180},
+  ${rate_op}
   {"op": "quit"}
 ]}
 JSON
@@ -288,11 +361,14 @@ JSON
 		echo "  FAIL: no rate log line"
 		verdict=1
 	fi
-	if fetch_file "samples.jsonl" "${TMPDIR_LOCAL}/samples.jsonl" "training" 2>/dev/null &&
-		grep -q '"label":"like"' "${TMPDIR_LOCAL}/samples.jsonl"; then
-		echo "  ok: LocalState/training/samples.jsonl contains like"
+	fetch_samples "$after_f"
+	local likes_before likes_after
+	likes_before=$(grep -c '"label":"like"' "$before_f" || true)
+	likes_after=$(grep -c '"label":"like"' "$after_f" || true)
+	if ((likes_after == likes_before + 1)) && grep '"label":"like"' "$after_f" | grep -qF "$run_id"; then
+		echo "  ok: one new like sample, bound to ${run_id}"
 	else
-		echo "  FAIL: samples.jsonl missing or no like label"
+		echo "  FAIL: likes ${likes_before} -> ${likes_after}, none bound to ${run_id}"
 		verdict=1
 	fi
 	[[ $verdict -eq 0 ]] && echo "Preference rate: PASS" || echo "Preference rate: FAIL"
@@ -309,11 +385,11 @@ validate_lora_rt() {
 	}
 	echo "  uploading base+adapter (large)..."
 	"${DEPLOY}" mkdir-localstate "$PFN" "models\\smollm2-lora-rt" >/dev/null
-	upload_file "$base" "models\\smollm2-lora-rt" "model.gguf"
-	upload_file "$ad" "models\\smollm2-lora-rt" "adapter.gguf"
-	upload_file "${REPO_ROOT}/training/manifest-overrides/console-lora-runtime.manifest.override.json" "" "manifest.json"
+	upload_file "$base" "models\\smollm2-lora-rt" "model.gguf" || return 1
+	upload_file "$ad" "models\\smollm2-lora-rt" "adapter.gguf" || return 1
+	upload_file "${REPO_ROOT}/training/manifest-overrides/console-lora-runtime.manifest.override.json" "" "manifest.json" || return 1
 	: >"${TMPDIR_LOCAL}/.complete"
-	upload_file "${TMPDIR_LOCAL}/.complete" "models\\smollm2-lora-rt" ".complete"
+	upload_file "${TMPDIR_LOCAL}/.complete" "models\\smollm2-lora-rt" ".complete" || return 1
 
 	local marker
 	marker=$(
@@ -398,12 +474,13 @@ EOF
 	printf 'go' >"${TMPDIR_LOCAL}/train.flag"
 
 	echo "  uploading base f16 GGUF + dataset + job (base is ~720 MB, be patient)..."
-	upload_file "$base" "training" "base-f16.gguf"
-	upload_file "$dataset" "training" "dataset.jsonl"
-	upload_file "${TMPDIR_LOCAL}/job.json" "training" "job.json"
+	upload_file "$base" "training" "base-f16.gguf" || return 1
+	upload_file "$dataset" "training" "dataset.jsonl" || return 1
+	upload_file "${TMPDIR_LOCAL}/job.json" "training" "job.json" || return 1
 	delete_file "result.done" "training"
+	delete_file "result.json" "training\\out\\device-marker" # F04: no stale evidence
 	delete_file "xllama.log"
-	upload_file "${TMPDIR_LOCAL}/train.flag"
+	upload_file "${TMPDIR_LOCAL}/train.flag" || return 1
 	restart_app
 
 	echo "  Waiting for training/result.done (timeout ${timeout_s}s; epochs=${epochs})..."
@@ -444,11 +521,41 @@ EOF
 	return 1
 }
 
+# Negative controls (F04): history holds successes, the current run is made to
+# fail, and the gate must say FAIL. The control PASSES only when it does.
+# The run itself must have happened (autopilot ok) and the gate must fail for
+# the expected reason, or a missing artifact would pass the control.
+negative_control() {
+	local name="$1" expect="$2"
+	shift 2
+	echo "=== negative control: ${name} (the gate below must FAIL) ==="
+	local out="${TMPDIR_LOCAL}/negative-${name}.txt"
+	# The gate's exit status is lost in the pipe; its verdict line is checked.
+	"$@" 2>&1 | tee "$out" || true
+	if grep -q ': PASS$' "$out"; then
+		echo "Negative control ${name}: FAIL (the gate accepted a failed run)"
+		return 1
+	fi
+	if ! grep -q '^  autopilot: ok$' "$out" || ! grep -qF "$expect" "$out"; then
+		echo "Negative control ${name}: FAIL (the run did not reach the check: want '${expect}')"
+		return 1
+	fi
+	echo "Negative control ${name}: PASS"
+}
+
 MODE="${1:-serve}"
 rc=0
 case "$MODE" in
 serve) validate_serve || rc=1 ;;
 rate) validate_rate || rc=1 ;;
+serve-stale)
+	# The base model has no marker; a merged-model success may sit in history.
+	SKIP_UPLOAD=1 SERVE_MODEL=lfm25-350m negative_control serve-stale \
+		"FAIL: no chat from this run with both" validate_serve || rc=1
+	;;
+rate-stale)
+	RATE_SKIP_OP=1 negative_control rate-stale "FAIL: likes" validate_rate || rc=1
+	;;
 lora-rt) validate_lora_rt || rc=1 ;;
 device-train) validate_device_train || rc=1 ;;
 all)
@@ -461,7 +568,7 @@ all)
 	fi
 	;;
 *)
-	echo "Usage: $0 <serve|rate|lora-rt|device-train|all>" >&2
+	echo "Usage: $0 <serve|rate|serve-stale|rate-stale|lora-rt|device-train|all>" >&2
 	exit 2
 	;;
 esac
