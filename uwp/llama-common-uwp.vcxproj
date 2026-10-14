@@ -132,7 +132,10 @@
     <!-- One file per model dialect; chat.cpp dispatches to each. A wildcard, like
          ggml-uwp models\*.cpp, so a submodule bump cannot drop one (LNK2001). -->
     <ClCompile Include="..\llama.cpp\common\parsers\*.cpp" />
-    <ClCompile Include="$(LlamaBuildInfoDir)\build-info.cpp" />
+    <!-- Generated under IntDir, so %(RelativeDir) is absolute: name the object. -->
+    <ClCompile Include="$(LlamaBuildInfoDir)\build-info.cpp">
+      <ObjectFileName>$(IntDir)build-info.obj</ObjectFileName>
+    </ClCompile>
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
