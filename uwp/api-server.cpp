@@ -13,6 +13,7 @@
 // pch.h must be first: it includes <unknwn.h> before winrt/base.h (COM IUnknown
 // guard). Sockets + Json are the WinRT namespaces pch.h does not already pull in.
 #include "pch.h"
+#include <atomic>
 #include <winrt/Windows.Data.Json.h>
 #include <winrt/Windows.Networking.Sockets.h>
 // clang-format on
@@ -33,6 +34,8 @@
     #include "xllama/routing_policy.h"
     #include "xllama/session.h"
     #include "xllama/session_hub.h"
+    #include "xllama/sse.h"
+    #include "xllama/stop_sequence_filter.h"
     #include "xllama/tool_request.h"
     #include "xllama/tool_template.h"
     #include "xllama/tool_transcript.h"
@@ -315,6 +318,233 @@ std::string ollama_error_json(const std::string& message) {
 }
 
 // CORS preflight: browsers OPTIONS non-simple requests before the real POST.
+enum class StreamRequest { No, Yes, Invalid };
+
+// A body that does not parse stays on the non-streaming path: the handler's own
+// validation answers it. A present `stream` must be a boolean, like /api/pull.
+StreamRequest parse_stream_request(const std::string& body) {
+    JsonObject root{nullptr};
+    if (!JsonObject::TryParse(winrt::to_hstring(body), root) || root == nullptr)
+        return StreamRequest::No;
+    if (!root.HasKey(L"stream"))
+        return StreamRequest::No;
+    const auto value = root.GetNamedValue(L"stream");
+    if (value.ValueType() != JsonValueType::Boolean)
+        return StreamRequest::Invalid;
+    return value.GetBoolean() ? StreamRequest::Yes : StreamRequest::No;
+}
+
+enum class SseHeadStatus { Written, FailedBeforeBytes, FailedUnknown };
+
+// Writes the 200 head before SseStream exists, so a failure can still answer
+// with JSON. `FailedBeforeBytes` is reported only when the failure is provably
+// before anything reached the socket (DataWriter construction or encoding);
+// once StoreAsync starts, a partial head cannot be ruled out, so the caller must
+// close instead of writing a second HTTP response.
+SseHeadStatus write_sse_head(StreamSocket const& socket) {
+    try {
+        DataWriter writer(socket.OutputStream());
+        writer.UnicodeEncoding(UnicodeEncoding::Utf8);
+        writer.WriteString(winrt::to_hstring(::xllama::sse_response_head()));
+        try {
+            writer.StoreAsync().get();
+            writer.FlushAsync().get();
+            writer.DetachStream();
+            return SseHeadStatus::Written;
+        } catch (...) {
+            return SseHeadStatus::FailedUnknown;
+        }
+    } catch (...) {
+        return SseHeadStatus::FailedBeforeBytes;
+    }
+}
+
+// Streamed chat completion (docs/api-endpoint.md): each token piece leaves as one
+// `chat.completion.chunk` event, then the finish chunk, then `[DONE]`. A streamed
+// response carries no Content-Length, so the events travel in HTTP/1.1 chunks
+// (xllama::chunk_frame, host tested) and the socket closes at the end.
+//
+// The text is emitted raw: postprocess_output() (thinking-block stripping, tool
+// parsing) needs the whole reply and does not run here. Tool proposals stay on
+// the non-streaming path.
+class SseStream {
+  public:
+    SseStream(StreamSocket const& socket, std::string model, std::atomic<bool>* abort)
+        : m_model(std::move(model)), m_abort(abort),
+          m_id("chatcmpl-xllama-" + std::to_string(time(nullptr)) + "-" +
+               std::to_string(++g_req_counter)) {
+        m_writer = DataWriter(socket.OutputStream());
+        m_writer.UnicodeEncoding(UnicodeEncoding::Utf8);
+        // OpenAI opens every streamed reply with the assistant role, even when
+        // generation produces no tokens.
+        JsonObject delta;
+        delta.Insert(L"role", JsonValue::CreateStringValue(L"assistant"));
+        delta.Insert(L"content", JsonValue::CreateStringValue(L""));
+        send_chunk(delta, JsonValue::CreateNullValue(), nullptr);
+    }
+
+    // False when the role chunk could not be written: the client is gone before
+    // generation even starts.
+    bool started() const {
+        return !m_finished;
+    }
+
+    // A token piece can end midway through a multibyte character
+    // (llama_token_to_piece returns bytes, not code points). Buffer the trailing
+    // bytes and emit only complete UTF-8 sequences; an invalid byte becomes
+    // U+FFFD and is dropped so the rest of the reply keeps flowing.
+    void write_delta(std::string_view piece) {
+        if (m_finished || piece.empty())
+            return;
+        m_pending.append(piece.data(), piece.size());
+        try {
+            drain_pending(false);
+        } catch (...) {
+            stop();
+        }
+    }
+
+    // The stream is already 200 by the time generation fails, so the failure
+    // travels as the last event instead of an HTTP status. Never throws: it is
+    // the recovery path, and a second HTTP response is no longer possible.
+    void write_error(const std::string& message) noexcept {
+        if (m_finished)
+            return;
+        try {
+            JsonObject error;
+            error.Insert(L"message", JsonValue::CreateStringValue(winrt::to_hstring(message)));
+            error.Insert(L"type", JsonValue::CreateStringValue(L"xllama_error"));
+            JsonObject out;
+            out.Insert(L"error", error);
+            send(winrt::to_string(out.Stringify()));
+            end();
+        } catch (...) {
+            stop();
+        }
+    }
+
+    void finish(const wchar_t* reason, int prompt_tokens, int completion_tokens) {
+        if (m_finished)
+            return;
+        try {
+            drain_pending(true);
+        } catch (...) {
+            stop();
+        }
+        if (m_finished)
+            return;
+        try {
+            JsonObject usage;
+            usage.Insert(L"prompt_tokens", JsonValue::CreateNumberValue(prompt_tokens));
+            usage.Insert(L"completion_tokens", JsonValue::CreateNumberValue(completion_tokens));
+            usage.Insert(L"total_tokens",
+                         JsonValue::CreateNumberValue(prompt_tokens + completion_tokens));
+            send_chunk(JsonObject{}, JsonValue::CreateStringValue(winrt::hstring(reason)), &usage);
+            end();
+        } catch (...) {
+            stop();
+        }
+    }
+
+  private:
+    // Emits one delta chunk from text already known to end on a code-point
+    // boundary.
+    void emit_delta(std::string_view text) {
+        JsonObject delta;
+        delta.Insert(L"content", JsonValue::CreateStringValue(winrt::to_hstring(text)));
+        send_chunk(delta, JsonValue::CreateNullValue(), nullptr);
+    }
+
+    // Emits complete code points, replaces invalid bytes and advances, and at
+    // finish replaces any truncated tail. Looping is what keeps a malformed byte
+    // from blocking the bytes behind it.
+    void drain_pending(bool finishing) {
+        for (;;) {
+            if (m_finished || m_pending.empty())
+                return;
+            const ::xllama::SseUtf8Step step = ::xllama::sse_utf8_step(m_pending, finishing);
+            if (step.wait)
+                return;
+            if (step.replace) {
+                m_pending.erase(0, 1);
+                emit_delta("\xEF\xBF\xBD");
+                continue;
+            }
+            const std::string text = m_pending.substr(0, step.take);
+            m_pending.erase(0, step.take);
+            emit_delta(text);
+        }
+    }
+
+    // A dead socket ends the reply; generation is aborted so the session lock is
+    // released instead of running to EOS behind a client that is already gone.
+    void stop() noexcept {
+        m_finished = true;
+        if (m_abort)
+            m_abort->store(true);
+    }
+
+    void send_chunk(JsonObject const& delta, IJsonValue const& finish_reason,
+                    JsonObject const* usage) {
+        JsonObject choice;
+        choice.Insert(L"index", JsonValue::CreateNumberValue(0));
+        choice.Insert(L"delta", delta);
+        choice.Insert(L"logprobs", JsonValue::CreateNullValue());
+        choice.Insert(L"finish_reason", finish_reason);
+        JsonArray choices;
+        choices.Append(choice);
+
+        JsonObject chunk;
+        chunk.Insert(L"id", JsonValue::CreateStringValue(winrt::to_hstring(m_id)));
+        chunk.Insert(L"object", JsonValue::CreateStringValue(L"chat.completion.chunk"));
+        chunk.Insert(L"created", JsonValue::CreateNumberValue(static_cast<double>(time(nullptr))));
+        chunk.Insert(L"model", JsonValue::CreateStringValue(winrt::to_hstring(m_model)));
+        chunk.Insert(L"choices", choices);
+        if (usage != nullptr)
+            chunk.Insert(L"usage", *usage);
+        send(winrt::to_string(chunk.Stringify()));
+    }
+
+    bool send(const std::string& payload) {
+        if (m_finished || !::xllama::sse_payload_is_safe(payload))
+            return false;
+        try {
+            const std::string framed = ::xllama::chunk_frame(::xllama::sse_event(payload));
+            m_writer.WriteString(winrt::to_hstring(framed));
+            m_writer.StoreAsync().get();
+            m_writer.FlushAsync().get();
+            return true;
+        } catch (...) {
+            // The client is gone: stop emitting and abort the generation.
+            stop();
+            return false;
+        }
+    }
+
+    void end() {
+        if (m_finished)
+            return;
+        m_finished = true;
+        try {
+            m_writer.WriteString(winrt::to_hstring(::xllama::chunk_frame(::xllama::sse_done()) +
+                                                   ::xllama::chunk_final()));
+            m_writer.StoreAsync().get();
+            m_writer.FlushAsync().get();
+            m_writer.DetachStream();
+        } catch (...) {
+            if (m_abort)
+                m_abort->store(true);
+        }
+    }
+
+    DataWriter m_writer{nullptr};
+    std::string m_model;
+    std::string m_id;
+    std::string m_pending; // trailing bytes of a split UTF-8 sequence
+    std::atomic<bool>* m_abort = nullptr;
+    bool m_finished = false;
+};
+
 void write_cors_preflight(StreamSocket const& socket) {
     write_raw(socket, "HTTP/1.1 204 No Content\r\n"
                       "Access-Control-Allow-Origin: *\r\n"
@@ -631,7 +861,8 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
 
 // Handles one chat request under session_hub().mtx (already locked by the caller).
 std::string handle_chat_locked(const std::string& body, const char*& status,
-                               ::xllama::ApiActivity::Ticket& ticket) {
+                               ::xllama::ApiActivity::Ticket& ticket, StreamSocket const& socket,
+                               bool stream) {
     JsonObject root{nullptr};
     if (!JsonObject::TryParse(winrt::to_hstring(body), root) || root == nullptr) {
         status = "400 Bad Request";
@@ -775,6 +1006,71 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
         }
     }
 
+    // Every request check is done: from here on, a streamed reply owns the
+    // socket. The head is written before SseStream exists, so a failure that is
+    // provably byte-free can still answer with JSON.
+    std::unique_ptr<SseStream> sse;
+    std::atomic<bool> abort{false};
+    if (stream) {
+        switch (write_sse_head(socket)) {
+        case SseHeadStatus::Written:
+            break;
+        case SseHeadStatus::FailedBeforeBytes:
+            status = "500 Internal Server Error";
+            return error_json("failed to start the stream");
+        case SseHeadStatus::FailedUnknown:
+            // A partial head may be on the wire: a JSON response would be a
+            // second HTTP response on the same stream.
+            status = "500 Internal Server Error";
+            return std::string();
+        }
+        try {
+            sse = std::make_unique<SseStream>(socket, model, &abort);
+        } catch (...) {
+            status = "500 Internal Server Error";
+            return std::string(); // the 200 head is already out
+        }
+        if (!sse->started()) {
+            status = "500 Internal Server Error";
+            return std::string(); // the role chunk could not be written
+        }
+        gp.abort_flag = &abort;
+        // The decode loop reports a piece before it checks the stop list, so the
+        // stream withholds any suffix that could still become a stop.
+        ::xllama::StopSequenceFilter stop_filter(gp.stop_sequences);
+        gp.on_token = [&sse, &stop_filter](std::string_view piece) {
+            const std::string text = stop_filter.push(piece);
+            if (!text.empty())
+                sse->write_delta(text);
+        };
+        try {
+            const ::xllama::InferenceResult r = session->generate(gp);
+            // 200 is already on the wire: only the stream can report the outcome.
+            // A client that disconnected aborts the loop; the partial result is
+            // still a success, and the finish write is dropped by the dead socket.
+            ticket.tokens(r.n_prompt, r.n_eval);
+            if (!r.success) {
+                status = "500 Internal Server Error";
+                sse->write_error("generation failed: " + r.error_msg);
+                return std::string();
+            }
+            // Generation can end on EOG or the token cap while a stop prefix is
+            // still held; it never completed a stop, so it is ordinary text.
+            const std::string tail = stop_filter.finish();
+            if (!tail.empty())
+                sse->write_delta(tail);
+            const bool streamed_cap = r.n_eval >= gp.n_predict;
+            sse->finish(streamed_cap ? L"length" : L"stop", r.n_prompt, r.n_eval);
+            status = "200 OK";
+        } catch (...) {
+            // Generation or JSON serialization failed after the head was sent.
+            // write_error is noexcept; the empty body keeps the outer handler
+            // from writing a plain HTTP response on top of the stream.
+            status = "500 Internal Server Error";
+            sse->write_error("generation failed");
+        }
+        return std::string(); // handle_connection must not write a second response
+    }
     const ::xllama::InferenceResult r = session->generate(gp);
     if (!r.success) {
         status = "500 Internal Server Error";
@@ -1637,6 +1933,14 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
         }
 
         if (req.method == "POST" && req.path == "/v1/chat/completions") {
+            // Cheap validation before the session lock: a non-boolean `stream`
+            // is a client error, not a reason to queue behind inference.
+            const StreamRequest stream_request = parse_stream_request(req.body);
+            if (stream_request == StreamRequest::Invalid) {
+                write_response(socket, "400 Bad Request", error_json("'stream' must be boolean"));
+                return;
+            }
+            const bool stream = stream_request == StreamRequest::Yes;
             std::unique_lock<std::mutex> lk = acquire_hub_or_busy();
             if (!lk.owns_lock()) {
                 activity().busy();
@@ -1662,7 +1966,7 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             const char* status = "200 OK";
             std::string json;
             try {
-                json = handle_chat_locked(req.body, status, ticket);
+                json = handle_chat_locked(req.body, status, ticket, socket, stream);
             } catch (...) {
                 status = "400 Bad Request";
                 json = error_json("malformed request body");
@@ -1670,6 +1974,10 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             // Record before writing: a client that disconnects makes
             // write_response throw, and the request was still served.
             record_outcome(ticket, status, json);
+            // A streamed reply is already on the socket; an empty body means the
+            // stream (or its error event) was the response.
+            if (stream && json.empty())
+                return;
             write_response(socket, status, json);
             return;
         }

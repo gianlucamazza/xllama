@@ -1,6 +1,6 @@
 # LAN HTTP endpoint (OpenAI-compatible)
 
-**Status:** v1 — spike + non-streaming chat + UI parity surface (#118: preferences,
+**Status:** v1 — spike + chat (streaming via SSE on request) + UI parity surface (#118: preferences,
 training status, images). Opt-in, **default OFF**. Dev Mode / LAN research only.
 Not for the Store, not for public inbound.
 
@@ -73,7 +73,7 @@ this is Dev Mode research, not a hosted service.
 | `GET`     | `/v1/models`             | OpenAI model discovery — every servable on-device model; non-standard `"active": true` marks the one currently loaded.                            |
 | `GET`     | `/api/tags`              | Ollama model discovery — same list, Ollama shape.                                                                                                 |
 | `POST`    | `/api/pull`              | Pull a trusted catalogue chat/embedding model with Ollama-style NDJSON progress; load it when complete.                                           |
-| `POST`    | `/v1/chat/completions`   | OpenAI-compatible chat completion, **non-streaming**.                                                                                             |
+| `POST`    | `/v1/chat/completions`   | OpenAI-compatible chat completion; one JSON body, or **SSE** chunk events when `stream: true`.                                                    |
 | `POST`    | `/api/embed`             | Ollama-style embeddings for one string or a batch, catalogue embedding GGUF/llama.cpp only.                                                       |
 | `POST`    | `/api/embeddings`        | Deprecated Ollama single-prompt embeddings adapter.                                                                                               |
 | `POST`    | `/v1/embeddings`         | OpenAI embeddings shape; `encoding_format` accepts `float` or `base64`.                                                                           |
@@ -128,8 +128,8 @@ alias), `temperature`, `top_p`, `seed`, and `stop` (string or array). Numbers ar
 checked before the model loads, and a bad one is `400` naming the field: the token
 count is a whole number from 1 to the catalogue `n_ctx` minus 1, `temperature` is
 0–2, `top_p` is 0–1, and `seed` is a whole number (a negative seed keeps the
-default, llama.cpp's `-1`). `stream: true`
-is not implemented. Most other fields are ignored.
+default, llama.cpp's `-1`). `stream: true` answers with SSE; see the streaming
+paragraph under [Protocol (v1)](#protocol-v1). Most other fields are ignored.
 
 Plain chat (no tool schema, `tools: []`, or `tool_choice` `"none"`) keeps
 `ChatFormat::render_prompt` (`include/xllama/chat_prompt.h`). Roles are system, user,
@@ -215,8 +215,18 @@ Pydantic validation), and a `usage` block from `InferenceResult`: `prompt_tokens
 (`n_prompt`), not the tokens prefilled after a KV prefix reuse (`n_p_eval`), and
 `completion_tokens` is `n_eval`.
 
-`stream: true` is **not** implemented in v1 (always returns the full completion). The
-`GenerateParams::on_token` hook is the seam for adding SSE later.
+`stream: true` answers with Server-Sent Events instead of one JSON body: one
+`chat.completion.chunk` per token piece (`choices[0].delta.content`), a final chunk carrying
+`finish_reason` and `usage`, then `data: [DONE]`. The response is `Content-Type:
+text/event-stream` over chunked transfer (no `Content-Length`) and the socket closes at the
+end; token pieces ride `GenerateParams::on_token`. A failure after the head travels as a
+`{"error":{...}}` event, since the 200 is already on the wire. The text is sent **raw**:
+`postprocess_output` (thinking-block stripping, tool parsing) needs the whole reply, so it
+still runs on the non-streaming path only, and a tool proposal ignores `stream`. Stop
+sequences are never streamed: the writer holds back any suffix that could still complete
+one and drops the match. Measured on
+Series S (2026-10-16, `lfm25-1.2b-instruct`, 52-token reply): first byte at 11 ms against
+1.90 s for the same completion without `stream`, both 1.90 s in total.
 
 ### Embeddings (`/api/embed`, `/api/embeddings`, `/v1/embeddings`)
 
@@ -350,7 +360,7 @@ the Session is hub-owned and is NOT released (the chat UI may be using it).
 
 ## Validation
 
-See `scripts/validate-api.sh` (`spike|chat|budget|tools|framing|embed|pull|prefs|train|all`). Run it **from another host on the LAN**,
+See `scripts/validate-api.sh` (`spike|chat|stream|budget|tools|framing|embed|pull|prefs|train|all`). Run it **from another host on the LAN**,
 not from a client on the console itself — cross-device inbound needs no loopback exemption,
 but a same-host localhost client would (`CheckNetIsolation`). Spike gate first (`GET /` → 200
 proves the bind survives the Series S firewall/PLM), then chat / prefs / train as needed. `tools` checks the tool-proposal contract:

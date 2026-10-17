@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **`POST /v1/chat/completions` streams with `stream: true`.** Token pieces travel as
+  `chat.completion.chunk` events over chunked `text/event-stream` (assistant role first,
+  finish chunk with `usage`, then `data: [DONE]`). The text is raw: post-processing needs
+  the whole reply, so it stays on the non-streaming path. A client disconnect aborts the
+  generation, a failure after the head becomes an SSE error event, and stop sequences
+  are withheld from the stream instead of reaching the client first.
 - **GUI and LAN API load a model the same way** (audit F03, [ADR 0007](docs/adr/0007-session-spec.md)).
   The API ignored the catalogue `lora`, and the hub reused a session by model id,
   so the first surface to load a LoRA model decided whether its adapter applied.

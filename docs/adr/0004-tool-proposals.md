@@ -70,7 +70,8 @@ pre-built by `build-uwp.ps1`), not `llama.cpp/tools/server`.
 `validate-api.sh tools` passed on 1.6.0.1210 (Series S, 2026-10-14); the
 Enclosure T0 rerun is outside this repository.
 
-`stream: true` stays unimplemented.
+Tool proposals ignore `stream`: the parser needs the whole call before the client
+can act on it, so that reply is one JSON body.
 
 ## Alternatives
 

@@ -5,12 +5,15 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/validate-api.sh <spike|chat|budget|tools|framing|embed|pull|prefs|train|all>
+#   ./scripts/validate-api.sh <spike|chat|stream|budget|tools|framing|embed|pull|prefs|train|all>
 #
 #   spike  bind gate only: GET / -> HTTP 200 (proves the StreamSocketListener
 #          survives the Series S firewall/PLM). No inference.
 #   chat   POST /v1/chat/completions -> non-empty assistant content + a 503-busy
 #          check (two concurrent requests). Implies the spike gate first.
+#   stream SSE streaming round-trip: text/event-stream, chunked framing, one
+#          delta per frame, a final finish_reason chunk and `data: [DONE]`.
+#          Implies the spike gate first.
 #   budget context budget over the wire: a long messages[] is trimmed and answered,
 #          an oversized single message is 400 "prompt too long" (not 500), and
 #          invalid generation numbers (max_tokens -1/1.5/INT_MAX, temperature,
@@ -211,6 +214,72 @@ except Exception:
 	fi
 
 	[[ $verdict -eq 0 ]] && echo "chat: PASS" || echo "chat: FAIL"
+	return $verdict
+}
+
+# --- SSE streaming ---------------------------------------------------------
+
+validate_stream() {
+	echo "=== stream: /v1/chat/completions with stream:true (SSE) ==="
+	local req headers out code verdict=0 check
+	req=$(printf '{"model":"%s","messages":[{"role":"user","content":"Count from one to five."}],"max_tokens":64,"temperature":0,"seed":42,"stream":true}' "${MODEL}")
+	headers="${TMPDIR_LOCAL}/stream-headers.txt"
+	out="${TMPDIR_LOCAL}/stream-body.txt"
+	code=$(curl -sS -m 180 -D "${headers}" -o "${out}" -w "%{http_code}" \
+		-H 'Content-Type: application/json' -d "${req}" "${API_URL}/v1/chat/completions" || echo "000")
+	if [[ "${code}" != "200" ]]; then
+		echo "  FAIL: HTTP ${code} (want 200). Raw: $(head -c 160 "${out}" 2>/dev/null)"
+		echo "stream: FAIL"
+		return 1
+	fi
+
+	# A streamed reply is SSE over chunked transfer: no Content-Length, so a
+	# client that only reads a content-length body would hang forever.
+	if grep -qi '^content-type: *text/event-stream' "${headers}"; then
+		echo "  ok: Content-Type is text/event-stream"
+	else
+		echo "  FAIL: wrong Content-Type: $(grep -i '^content-type' "${headers}" | head -1)"
+		verdict=1
+	fi
+	if grep -qi '^content-length' "${headers}"; then
+		echo "  FAIL: a streamed reply carries a Content-Length"
+		verdict=1
+	fi
+
+	# Frames are one 'data: <json>' line each, the last one 'data: [DONE]', and
+	# the deltas must add up to a non-empty reply with a real finish_reason.
+	check=$(
+		python3 -c '
+import json, sys
+lines = open(sys.argv[1], encoding="utf-8", errors="replace").read().splitlines()
+frames = [l[len("data: "):] for l in lines if l.startswith("data: ")]
+if not frames:
+    print("FAIL: no data frames")
+    raise SystemExit
+if frames[-1].strip() != "[DONE]":
+    print("FAIL: stream does not end with data: [DONE]")
+    raise SystemExit
+text, finish = "", None
+for frame in frames[:-1]:
+    choice = json.loads(frame).get("choices", [{}])[0]
+    text += choice.get("delta", {}).get("content", "") or ""
+    if choice.get("finish_reason"):
+        finish = choice["finish_reason"]
+if not text.strip():
+    print("FAIL: no delta content in any frame")
+elif finish not in ("stop", "length"):
+    print("FAIL: missing or odd finish_reason: %r" % (finish,))
+else:
+    print("ok: %d frames, %d chars, finish_reason=%s" % (len(frames), len(text), finish))
+' "${out}" 2>&1 | tail -n1
+	)
+	if [[ "${check}" == ok:* ]]; then
+		echo "  ${check}"
+	else
+		echo "  ${check}"
+		verdict=1
+	fi
+	[[ $verdict -eq 0 ]] && echo "stream: PASS" || echo "stream: FAIL"
 	return $verdict
 }
 
@@ -589,6 +658,10 @@ framing)
 	validate_spike || exit 1
 	validate_framing
 	;;
+stream)
+	validate_spike || exit 1
+	validate_stream
+	;;
 prefs)
 	validate_spike || exit 1
 	validate_prefs
@@ -605,6 +678,8 @@ embed)
 	validate_spike || exit 1
 	validate_embed
 	;;
+# Every check below, in order: spike, chat, stream, embed, budget, tools, framing,
+# prefs, train, pull.
 all)
 	rc=0
 	validate_spike || {
@@ -613,6 +688,7 @@ all)
 		exit 1
 	}
 	validate_chat || rc=1
+	validate_stream || rc=1
 	validate_embed || rc=1
 	validate_budget || rc=1
 	validate_tools || rc=1
@@ -626,7 +702,7 @@ all)
 	exit $rc
 	;;
 *)
-	echo "Usage: $0 <spike|chat|budget|tools|framing|embed|pull|prefs|train|all>" >&2
+	echo "Usage: $0 <spike|chat|stream|budget|tools|framing|embed|pull|prefs|train|all>" >&2
 	exit 1
 	;;
 esac
