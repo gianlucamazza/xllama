@@ -1,8 +1,8 @@
 # Xllama on Steroids
 
-> ## 🙏 Crediti
-> **Un ringraziamento speciale a [Gianluca Mazza](https://github.com/gianlucamazza), autore del progetto originale [Xllama](https://github.com/gianlucamazza/xllama).**
-> Questo fork nasce dal suo lavoro e dalla sua esperienza nello sviluppo per Xbox.
+> ## 🙏 Credits
+> **Special thanks to [Gianluca Mazza](https://github.com/gianlucamazza), creator of the original [Xllama project](https://github.com/gianlucamazza/xllama).**
+> This fork builds on his original code and Xbox development work.
 
 > Local inference on Xbox Series S|X — GGUF / llama.cpp, dual-backend dispatch
 > (ORT GenAI + DirectML), OpenAI-compat LAN endpoint, diffusion, and on-device
