@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Xbox LAN dashboard:** replaces the console prompt screen with resident-model
+  status, live API activity and statistics. Keeps Settings accessible and adds
+  a packaged custom background for the TV display.
+
 - **GUI and LAN API share compute admission** (ADR 0008, audit F08). A process-wide
   RAII permit now serializes chat, embeddings, diffusion, device training,
   startup pre-load and post-pull model loading. API requests receive the existing
