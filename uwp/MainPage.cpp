@@ -157,7 +157,7 @@ void MainPageController::BuildUI() {
     Grid outerGrid;
     // Keep the content in the TV safe area, while placing the author signature
     // visibly close to the physical bottom edge as requested.
-    outerGrid.Margin(ThicknessHelper::FromLengths(64, 36, 64, 8));
+    outerGrid.Margin(ThicknessHelper::FromLengths(32, 20, 32, 4));
 
     RowDefinition rowAuto1;
     rowAuto1.Height(GridLengthHelper::Auto());
@@ -182,22 +182,21 @@ void MainPageController::BuildUI() {
     Grid::SetColumn(headerLeft, 0);
 
     m_modelText = TextBlock();
-    m_modelText.FontSize(20);
+    m_modelText.FontSize(14);
     m_modelText.FontWeight(FontWeights::SemiBold());
     m_modelText.Text(L"xllama");
 
-    // 10-foot: 18pt at full or near-full opacity reads from the couch; the old
-    // 14pt / 0.7 status line did not.
+    // Compact status type leaves most of the TV viewport for the dashboard.
     m_statusText = TextBlock();
-    m_statusText.FontSize(16);
+    m_statusText.FontSize(11);
     m_statusText.Opacity(0.95);
-    m_statusText.Margin(ThicknessHelper::FromLengths(0, 4, 0, 0));
+    m_statusText.Margin(ThicknessHelper::FromLengths(0, 2, 0, 0));
     m_statusText.Text(L"Loading model...");
 
     m_loadingBar = ProgressBar();
     m_loadingBar.IsIndeterminate(true);
     m_loadingBar.Visibility(Visibility::Collapsed);
-    m_loadingBar.Margin(ThicknessHelper::FromLengths(0, 8, 0, 0));
+    m_loadingBar.Margin(ThicknessHelper::FromLengths(0, 4, 0, 0));
 
     headerLeft.Children().Append(m_statusText);
     headerLeft.Children().Append(m_loadingBar);
@@ -208,7 +207,7 @@ void MainPageController::BuildUI() {
     // last error.
     m_apiPanel = StackPanel();
     Grid::SetColumn(m_apiPanel, 1);
-    m_apiPanel.Margin(ThicknessHelper::FromLengths(32, 0, 0, 0));
+    m_apiPanel.Margin(ThicknessHelper::FromLengths(16, 0, 0, 0));
     // Effective pixels: the Xbox shell lays apps out at 960x540 (2x scale). Cap
     // the panel at half the width so a long error never squeezes the chat model
     // and status out of the left column (seen on-console before this cap).
@@ -223,11 +222,11 @@ void MainPageController::BuildUI() {
         line.TextTrimming(TextTrimming::CharacterEllipsis);
         return line;
     };
-    m_apiEndpointText = api_line(18, 1.0);
+    m_apiEndpointText = api_line(12, 1.0);
     m_apiEndpointText.FontWeight(FontWeights::SemiBold());
-    m_apiNowText = api_line(16, 1.0);
-    m_apiCountsText = api_line(14, 0.92);
-    m_apiErrorText = api_line(14, 1.0);
+    m_apiNowText = api_line(11, 1.0);
+    m_apiCountsText = api_line(10, 0.92);
+    m_apiErrorText = api_line(10, 1.0);
     m_apiErrorText.TextWrapping(TextWrapping::Wrap);
     m_apiErrorText.MaxLines(2);
     m_apiErrorText.Foreground(winrt::Windows::UI::Xaml::Media::SolidColorBrush({255, 240, 80, 70}));
@@ -241,12 +240,12 @@ void MainPageController::BuildUI() {
     m_outputScroll = ScrollViewer();
     Grid::SetRow(m_outputScroll, 1);
     m_outputScroll.VerticalScrollBarVisibility(ScrollBarVisibility::Auto);
-    m_outputScroll.Margin(ThicknessHelper::FromLengths(0, 24, 0, 0));
+    m_outputScroll.Margin(ThicknessHelper::FromLengths(0, 12, 0, 0));
     // IsFocusEngagementEnabled intentionally NOT set on ScrollViewer — only set on the
     // inner TextBox to avoid requiring two A-presses to engage text input on Xbox.
 
     StackPanel bodyStack;
-    bodyStack.Spacing(12);
+    bodyStack.Spacing(7);
     bodyStack.HorizontalAlignment(HorizontalAlignment::Center);
     bodyStack.MaxWidth(1450);
 
@@ -256,7 +255,7 @@ void MainPageController::BuildUI() {
         label.FontSize(size);
         label.FontWeight(FontWeights::SemiBold());
         label.Opacity(0.92);
-        label.Margin(ThicknessHelper::FromLengths(0, 4, 0, 10));
+        label.Margin(ThicknessHelper::FromLengths(0, 2, 0, 5));
         return label;
     };
 
@@ -267,41 +266,41 @@ void MainPageController::BuildUI() {
         card.BorderBrush(winrt::Windows::UI::Xaml::Media::SolidColorBrush(
             winrt::Windows::UI::ColorHelper::FromArgb(150, 72, 205, 170)));
         card.BorderThickness(ThicknessHelper::FromLengths(1, 1, 1, 1));
-        card.CornerRadius(CornerRadius{14, 14, 14, 14});
-        card.Padding(ThicknessHelper::FromLengths(24, 16, 24, 18));
+        card.CornerRadius(CornerRadius{8, 8, 8, 8});
+        card.Padding(ThicknessHelper::FromLengths(14, 9, 14, 10));
         card.Child(child);
         return card;
     };
 
     TextBlock brand;
     brand.Text(L"XLLAMA ON STEROIDS  /  LLM ON XBOX");
-    brand.FontSize(18);
+    brand.FontSize(12);
     brand.FontWeight(FontWeights::SemiBold());
     brand.Foreground(winrt::Windows::UI::Xaml::Media::SolidColorBrush({255, 100, 220, 100}));
-    brand.Margin(ThicknessHelper::FromLengths(0, 0, 0, 16));
+    brand.Margin(ThicknessHelper::FromLengths(0, 0, 0, 7));
     StackPanel modelCardContent;
     modelCardContent.Children().Append(brand);
-    modelCardContent.Children().Append(dashboard_label(L"MODEL IN MEMORY", 16));
-    m_modelText.FontSize(34);
+    modelCardContent.Children().Append(dashboard_label(L"MODEL IN MEMORY", 11));
+    m_modelText.FontSize(20);
     m_modelText.FontWeight(FontWeights::Bold());
     m_modelText.TextTrimming(TextTrimming::CharacterEllipsis);
-    m_modelText.Margin(ThicknessHelper::FromLengths(0, 0, 0, 4));
+    m_modelText.Margin(ThicknessHelper::FromLengths(0, 0, 0, 2));
     modelCardContent.Children().Append(m_modelText);
     bodyStack.Children().Append(dashboard_card(modelCardContent));
 
     StackPanel networkCardContent;
-    networkCardContent.Children().Append(dashboard_label(L"LIVE LAN ACTIVITY", 16));
+    networkCardContent.Children().Append(dashboard_label(L"LIVE LAN ACTIVITY", 11));
     networkCardContent.Children().Append(m_apiPanel);
     bodyStack.Children().Append(dashboard_card(networkCardContent));
 
     m_metricsText = TextBlock();
-    m_metricsText.FontSize(18);
+    m_metricsText.FontSize(12);
     m_metricsText.Opacity(0.98);
     m_metricsText.TextTrimming(TextTrimming::CharacterEllipsis);
-    m_metricsText.Margin(ThicknessHelper::FromLengths(0, 4, 0, 2));
+    m_metricsText.Margin(ThicknessHelper::FromLengths(0, 2, 0, 1));
     m_metricsText.Text(L"Waiting for the first inference request");
     StackPanel metricsCardContent;
-    metricsCardContent.Children().Append(dashboard_label(L"INFERENCE STATISTICS", 16));
+    metricsCardContent.Children().Append(dashboard_label(L"INFERENCE STATISTICS", 11));
     metricsCardContent.Children().Append(m_metricsText);
     bodyStack.Children().Append(dashboard_card(metricsCardContent));
 
@@ -309,9 +308,9 @@ void MainPageController::BuildUI() {
     m_promptInput.PlaceholderText(L"Type your prompt here (gamepad A → opens keyboard)...");
     m_promptInput.AcceptsReturn(true);
     m_promptInput.TextWrapping(TextWrapping::Wrap);
-    m_promptInput.MinHeight(86);
+    m_promptInput.MinHeight(54);
     m_promptInput.IsSpellCheckEnabled(false);
-    m_promptInput.FontSize(14);
+    m_promptInput.FontSize(11);
     // Focus returns here after every generation (SetRunning), which is right for
     // the pad — the next prompt is one A press away. What was not intended is
     // the side effect: on Xbox an editable TextBox receiving focus opens the
@@ -338,8 +337,8 @@ void MainPageController::BuildUI() {
     m_outputBody = RichTextBlock();
     m_outputBody.TextWrapping(TextWrapping::Wrap);
     m_outputBody.FontFamily(winrt::Windows::UI::Xaml::Media::FontFamily(L"Consolas"));
-    m_outputBody.FontSize(16);
-    m_outputBody.Margin(ThicknessHelper::FromLengths(0, 16, 0, 0));
+    m_outputBody.FontSize(12);
+    m_outputBody.Margin(ThicknessHelper::FromLengths(0, 8, 0, 0));
     m_outputBody.IsTextSelectionEnabled(true);
     m_currentParagraph = winrt::Windows::UI::Xaml::Documents::Paragraph();
     m_outputBody.Blocks().Append(m_currentParagraph);
@@ -351,7 +350,7 @@ void MainPageController::BuildUI() {
     // ---- Row 2: Settings remains the primary on-console action ----
     Grid footer;
     Grid::SetRow(footer, 2);
-    footer.Margin(ThicknessHelper::FromLengths(0, 16, 0, 0));
+    footer.Margin(ThicknessHelper::FromLengths(0, 8, 0, 0));
 
     StackPanel btnPanel;
     btnPanel.Orientation(Orientation::Horizontal);
@@ -364,8 +363,8 @@ void MainPageController::BuildUI() {
         FontIcon icon;
         icon.FontFamily(winrt::Windows::UI::Xaml::Media::FontFamily(L"Segoe MDL2 Assets"));
         icon.Glyph(std::wstring(1, glyph));
-        icon.FontSize(18);
-        icon.Margin(ThicknessHelper::FromLengths(0, 0, 7, 0));
+        icon.FontSize(12);
+        icon.Margin(ThicknessHelper::FromLengths(0, 0, 4, 0));
         TextBlock text;
         text.Text(label);
         text.VerticalAlignment(VerticalAlignment::Center);
@@ -376,16 +375,16 @@ void MainPageController::BuildUI() {
 
     m_settingsButton = Button();
     m_settingsButton.Content(icon_label(0xE713, L"Settings"));
-    m_settingsButton.FontSize(16);
-    m_settingsButton.MinWidth(112);
-    m_settingsButton.MinHeight(48);
-    m_settingsButton.Margin(ThicknessHelper::FromLengths(0, 0, 10, 0));
+    m_settingsButton.FontSize(12);
+    m_settingsButton.MinWidth(82);
+    m_settingsButton.MinHeight(34);
+    m_settingsButton.Margin(ThicknessHelper::FromLengths(0, 0, 6, 0));
 
     m_musicButton = Button();
     m_musicButton.Content(winrt::box_value(L"♪ 8-BIT: ON"));
-    m_musicButton.FontSize(15);
-    m_musicButton.MinWidth(108);
-    m_musicButton.MinHeight(48);
+    m_musicButton.FontSize(11);
+    m_musicButton.MinWidth(78);
+    m_musicButton.MinHeight(34);
 
     m_newChatButton = Button();
     m_newChatButton.Content(icon_label(0xE710, L"New"));
@@ -421,7 +420,7 @@ void MainPageController::BuildUI() {
     TextBlock signature;
     signature.Text(L"[maxmorrison2k+26]");
     signature.FontFamily(winrt::Windows::UI::Xaml::Media::FontFamily(L"Consolas"));
-    signature.FontSize(18);
+    signature.FontSize(14);
     signature.FontWeight(FontWeights::SemiBold());
     signature.Foreground(winrt::Windows::UI::Xaml::Media::SolidColorBrush(
         winrt::Windows::UI::ColorHelper::FromArgb(255, 255, 145, 48)));
@@ -479,8 +478,22 @@ void MainPageController::Init() {
     m_musicPlayer = winrt::Windows::Media::Playback::MediaPlayer();
     m_musicPlayer.AudioCategory(
         winrt::Windows::Media::Playback::MediaPlayerAudioCategory::Media);
-    m_musicPlayer.Volume(0.42);
+    m_musicPlayer.Volume(1.0);
     m_musicPlayer.IsLoopingEnabled(true);
+    m_musicPlayer.MediaOpened([self](
+                                   winrt::Windows::Media::Playback::MediaPlayer const& player,
+                                   IInspectable const&) {
+        if (auto s = self.lock(); s && s->m_music_enabled) {
+            player.Play();
+            s->m_musicButton.Content(winrt::box_value(L"♪ 8-BIT: ON"));
+        }
+    });
+    m_musicPlayer.MediaFailed([self](
+                                   winrt::Windows::Media::Playback::MediaPlayer const&,
+                                   winrt::Windows::Media::Playback::MediaPlayerFailedEventArgs const&) {
+        if (auto s = self.lock())
+            s->m_musicButton.Content(winrt::box_value(L"♪ AUDIO ERROR"));
+    });
     m_musicPlayer.Source(winrt::Windows::Media::Core::MediaSource::CreateFromUri(
         winrt::Windows::Foundation::Uri(L"ms-appx:///Assets/xllama-c64-theme.wav")));
     m_root.Loaded([self](IInspectable const&, RoutedEventArgs const&) {
@@ -1739,7 +1752,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     // --- Model selection ComboBox ---
     winrt::Windows::UI::Xaml::Controls::ComboBox modelBox;
     modelBox.Header(winrt::box_value(L"Model"));
-    modelBox.FontSize(16);
+    modelBox.FontSize(12);
     modelBox.HorizontalAlignment(HorizontalAlignment::Stretch);
     // Model list comes from the catalogue (models/manifest.json; LocalState
     // override wins). If the active model is not in the catalogue (e.g. a dir
@@ -1788,8 +1801,8 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     sysPromptBox.Text(::xllama::utf8_to_wstring(m_system_prompt));
     sysPromptBox.AcceptsReturn(true);
     sysPromptBox.TextWrapping(TextWrapping::Wrap);
-    sysPromptBox.MinHeight(100);
-    sysPromptBox.FontSize(16);
+    sysPromptBox.MinHeight(72);
+    sysPromptBox.FontSize(12);
     sysPromptBox.IsFocusEngagementEnabled(true);
     sysPromptBox.Header(winrt::box_value(L"System prompt"));
 
@@ -1802,7 +1815,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
         s.StepFrequency(step);
         s.Value(val);
         s.Header(winrt::box_value(winrt::hstring(label)));
-        s.FontSize(17);
+        s.FontSize(12);
         s.HorizontalAlignment(HorizontalAlignment::Stretch);
         return s;
     };
@@ -1824,7 +1837,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     // --- EP routing ComboBox (experimental; needs the DML fp16 model on device) ---
     winrt::Windows::UI::Xaml::Controls::ComboBox routingBox;
     routingBox.Header(winrt::box_value(L"EP routing (per conversation)"));
-    routingBox.FontSize(16);
+    routingBox.FontSize(12);
     routingBox.HorizontalAlignment(HorizontalAlignment::Stretch);
     routingBox.Items().Append(winrt::box_value(L"CPU only (default)"));
     routingBox.Items().Append(winrt::box_value(L"GPU only (DML)"));
@@ -1934,21 +1947,21 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     reportLink.NavigateUri(winrt::Windows::Foundation::Uri(
         L"https://github.com/gianlucamazza/xllama/issues/new?template=store-report.yml"));
 
-    // Living-room layout: generous typography, two clear groups, and a full-size
-    // dialog so the settings are legible and reachable with a controller on TV.
+    // Compact TV layout: smaller typography and controls keep both settings
+    // columns visible at the Xbox app's effective 960x540 viewport.
     auto make_settings_card = [](StackPanel const& host, wchar_t const* title,
                                  wchar_t const* hint) {
         StackPanel content;
-        content.Spacing(14);
+        content.Spacing(7);
         TextBlock heading;
         heading.Text(title);
-        heading.FontSize(20);
+        heading.FontSize(14);
         heading.FontWeight(FontWeights::SemiBold());
         content.Children().Append(heading);
         if (hint && *hint) {
             TextBlock detail;
             detail.Text(hint);
-            detail.FontSize(14);
+            detail.FontSize(10);
             detail.Opacity(0.72);
             detail.TextWrapping(TextWrapping::Wrap);
             content.Children().Append(detail);
@@ -1960,7 +1973,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
             winrt::Windows::UI::ColorHelper::FromArgb(110, 93, 197, 174)));
         card.BorderThickness(ThicknessHelper::FromLengths(1, 1, 1, 1));
         card.CornerRadius(CornerRadius{10, 10, 10, 10});
-        card.Padding(ThicknessHelper::FromLengths(24, 18, 24, 18));
+        card.Padding(ThicknessHelper::FromLengths(14, 10, 14, 10));
         card.Child(content);
         host.Children().Append(card);
         return content;
@@ -1968,20 +1981,20 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
 
     StackPanel page;
     page.Orientation(Orientation::Vertical);
-    page.Spacing(18);
-    page.Margin(ThicknessHelper::FromLengths(26, 18, 26, 18));
+    page.Spacing(9);
+    page.Margin(ThicknessHelper::FromLengths(14, 10, 14, 10));
 
     StackPanel pageHeading;
-    pageHeading.Spacing(6);
+    pageHeading.Spacing(3);
     TextBlock eyebrow;
     eyebrow.Text(L"XLLAMA ON STEROIDS  /  CONSOLE CONFIGURATION");
-    eyebrow.FontSize(14);
+    eyebrow.FontSize(10);
     eyebrow.FontWeight(FontWeights::SemiBold());
     eyebrow.Opacity(0.72);
     pageHeading.Children().Append(eyebrow);
     TextBlock pageTitle;
     pageTitle.Text(L"Make it yours");
-    pageTitle.FontSize(30);
+    pageTitle.FontSize(18);
     pageTitle.FontWeight(FontWeights::SemiBold());
     pageHeading.Children().Append(pageTitle);
     page.Children().Append(pageHeading);
@@ -1994,21 +2007,21 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     columns.ColumnDefinitions().Append(leftDefinition);
     columns.ColumnDefinitions().Append(rightDefinition);
     StackPanel leftColumn;
-    leftColumn.Spacing(16);
-    leftColumn.Margin(ThicknessHelper::FromLengths(0, 0, 12, 0));
+    leftColumn.Spacing(8);
+    leftColumn.Margin(ThicknessHelper::FromLengths(0, 0, 6, 0));
     StackPanel rightColumn;
-    rightColumn.Spacing(16);
-    rightColumn.Margin(ThicknessHelper::FromLengths(12, 0, 0, 0));
+    rightColumn.Spacing(8);
+    rightColumn.Margin(ThicknessHelper::FromLengths(6, 0, 0, 0));
     Grid::SetColumn(rightColumn, 1);
 
     auto modelCard = make_settings_card(leftColumn, L"Model & assistant",
                                         L"Choose the model and shape how it responds.");
-    modelBox.FontSize(18);
-    modelBox.MinHeight(52);
-    loraStatus.FontSize(14);
-    personalizeStatus.FontSize(14);
-    sysPromptBox.FontSize(17);
-    sysPromptBox.MinHeight(126);
+    modelBox.FontSize(12);
+    modelBox.MinHeight(38);
+    loraStatus.FontSize(10);
+    personalizeStatus.FontSize(10);
+    sysPromptBox.FontSize(12);
+    sysPromptBox.MinHeight(88);
     modelCard.Children().Append(modelBox);
     modelCard.Children().Append(loraStatus);
     modelCard.Children().Append(sysPromptBox);
@@ -2027,19 +2040,19 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     performanceCard.Children().Append(topKSlider);
     performanceCard.Children().Append(repSlider);
     performanceCard.Children().Append(nPredSlider);
-    kvToggle.FontSize(17);
-    routingBox.FontSize(18);
-    routingBox.MinHeight(52);
+    kvToggle.FontSize(12);
+    routingBox.FontSize(12);
+    routingBox.MinHeight(38);
     performanceCard.Children().Append(kvToggle);
     performanceCard.Children().Append(routingBox);
     #ifndef XLLAMA_STORE_SKU
     auto networkCard = make_settings_card(
         rightColumn, L"LAN service",
         L"Connect your other devices to the Xbox over your trusted home network.");
-    apiToggle.FontSize(17);
-    apiPortBox.FontSize(18);
-    apiPortBox.MinHeight(52);
-    apiStatus.FontSize(14);
+    apiToggle.FontSize(12);
+    apiPortBox.FontSize(12);
+    apiPortBox.MinHeight(38);
+    apiStatus.FontSize(10);
     networkCard.Children().Append(apiToggle);
     networkCard.Children().Append(apiPortBox);
     networkCard.Children().Append(apiStatus);
@@ -2053,8 +2066,8 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     winrt::Windows::UI::Xaml::Controls::ScrollViewer sv;
     sv.Content(page);
     const auto viewport = self->m_root.XamlRoot().Size();
-    sv.MaxHeight(std::clamp(static_cast<double>(viewport.Height) - 132.0, 360.0, 1200.0));
-    sv.MaxWidth(std::clamp(static_cast<double>(viewport.Width) - 96.0, 720.0, 1800.0));
+    sv.MaxHeight(std::clamp(static_cast<double>(viewport.Height) - 72.0, 320.0, 1200.0));
+    sv.MaxWidth(std::clamp(static_cast<double>(viewport.Width) - 48.0, 680.0, 1800.0));
     sv.VerticalScrollBarVisibility(ScrollBarVisibility::Auto);
 
     winrt::Windows::UI::Xaml::Controls::ContentDialog dlg;
