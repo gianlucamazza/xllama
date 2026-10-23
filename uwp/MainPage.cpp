@@ -142,6 +142,17 @@ no_keyboard_on_programmatic_focus(winrt::Windows::UI::Xaml::Controls::TextBox co
 void MainPageController::BuildUI() {
     m_root = Page();
 
+    // Darken the generated dashboard artwork so white Xbox UI text remains
+    // readable at TV distance. Keep the image packaged locally for offline use.
+    winrt::Windows::UI::Xaml::Media::Imaging::BitmapImage backgroundImage;
+    backgroundImage.UriSource(winrt::Windows::Foundation::Uri(
+        L"ms-appx:///Assets/xllama-dashboard-background.jpg"));
+    winrt::Windows::UI::Xaml::Media::ImageBrush backgroundBrush;
+    backgroundBrush.ImageSource(backgroundImage);
+    backgroundBrush.Stretch(winrt::Windows::UI::Xaml::Media::Stretch::UniformToFill);
+    backgroundBrush.Opacity(0.52);
+    m_root.Background(backgroundBrush);
+
     // ---- outer grid (3 rows: header / body / footer) ----
     Grid outerGrid;
     outerGrid.Margin(ThicknessHelper::FromLengths(48, 27, 48, 27)); // Xbox TV safe area (5%)
@@ -156,7 +167,7 @@ void MainPageController::BuildUI() {
     outerGrid.RowDefinitions().Append(rowStar);
     outerGrid.RowDefinitions().Append(rowAuto2);
 
-    // ---- Row 0: header (left: chat model + status + progress; right: LAN API) ----
+    // ---- Row 0: service status and model-loading progress ----
     Grid header;
     Grid::SetRow(header, 0);
     ColumnDefinition headerMain;
@@ -186,7 +197,6 @@ void MainPageController::BuildUI() {
     m_loadingBar.Visibility(Visibility::Collapsed);
     m_loadingBar.Margin(ThicknessHelper::FromLengths(0, 8, 0, 0));
 
-    headerLeft.Children().Append(m_modelText);
     headerLeft.Children().Append(m_statusText);
     headerLeft.Children().Append(m_loadingBar);
     header.Children().Append(headerLeft);
@@ -200,14 +210,14 @@ void MainPageController::BuildUI() {
     // Effective pixels: the Xbox shell lays apps out at 960x540 (2x scale). Cap
     // the panel at half the width so a long error never squeezes the chat model
     // and status out of the left column (seen on-console before this cap).
-    m_apiPanel.MaxWidth(480);
+    m_apiPanel.MaxWidth(920);
     m_apiPanel.Visibility(Visibility::Collapsed);
     auto api_line = [](double size, double opacity) {
         TextBlock line;
         line.FontSize(size);
         line.Opacity(opacity);
-        line.HorizontalAlignment(HorizontalAlignment::Right);
-        line.TextAlignment(TextAlignment::Right);
+        line.HorizontalAlignment(HorizontalAlignment::Left);
+        line.TextAlignment(TextAlignment::Left);
         line.TextTrimming(TextTrimming::CharacterEllipsis);
         return line;
     };
@@ -224,7 +234,6 @@ void MainPageController::BuildUI() {
     m_apiPanel.Children().Append(m_apiNowText);
     m_apiPanel.Children().Append(m_apiCountsText);
     m_apiPanel.Children().Append(m_apiErrorText);
-    header.Children().Append(m_apiPanel);
 
     // ---- Row 1: scroll area (prompt input + output text) ----
     m_outputScroll = ScrollViewer();
@@ -235,6 +244,39 @@ void MainPageController::BuildUI() {
     // inner TextBox to avoid requiring two A-presses to engage text input on Xbox.
 
     StackPanel bodyStack;
+
+    auto dashboard_label = [](wchar_t const* value, double size) {
+        TextBlock label;
+        label.Text(value);
+        label.FontSize(size);
+        label.FontWeight(FontWeights::SemiBold());
+        label.Opacity(0.82);
+        label.Margin(ThicknessHelper::FromLengths(0, 18, 0, 8));
+        return label;
+    };
+
+    TextBlock brand;
+    brand.Text(L"XLLAMA ON STEROIDS  /  LLM ON XBOX");
+    brand.FontSize(18);
+    brand.FontWeight(FontWeights::SemiBold());
+    brand.Foreground(winrt::Windows::UI::Xaml::Media::SolidColorBrush({255, 100, 220, 100}));
+    brand.Margin(ThicknessHelper::FromLengths(0, 14, 0, 8));
+    bodyStack.Children().Append(brand);
+    bodyStack.Children().Append(dashboard_label(L"MODEL IN MEMORY", 16));
+    m_modelText.FontSize(34);
+    m_modelText.Margin(ThicknessHelper::FromLengths(0, 0, 0, 12));
+    bodyStack.Children().Append(m_modelText);
+    bodyStack.Children().Append(dashboard_label(L"LIVE LAN ACTIVITY  /  STATISTICS", 16));
+    bodyStack.Children().Append(m_apiPanel);
+
+    m_metricsText = TextBlock();
+    m_metricsText.FontSize(18);
+    m_metricsText.Opacity(0.9);
+    m_metricsText.TextTrimming(TextTrimming::CharacterEllipsis);
+    m_metricsText.Margin(ThicknessHelper::FromLengths(0, 20, 0, 8));
+    m_metricsText.Text(L"Waiting for the first inference request");
+    bodyStack.Children().Append(dashboard_label(L"INFERENCE METRICS", 16));
+    bodyStack.Children().Append(m_metricsText);
 
     m_promptInput = TextBox();
     m_promptInput.PlaceholderText(L"Type your prompt here (gamepad A → opens keyboard)...");
@@ -275,36 +317,18 @@ void MainPageController::BuildUI() {
     m_currentParagraph = winrt::Windows::UI::Xaml::Documents::Paragraph();
     m_outputBody.Blocks().Append(m_currentParagraph);
 
-    bodyStack.Children().Append(m_promptInput);
-    bodyStack.Children().Append(m_outputBody);
+    // Keep the local chat controls alive for scripted diagnostics, but leave
+    // the Xbox screen focused on its LAN service dashboard.
     m_outputScroll.Content(bodyStack);
 
-    // ---- Row 2: footer (metrics + buttons) ----
+    // ---- Row 2: Settings remains the primary on-console action ----
     Grid footer;
     Grid::SetRow(footer, 2);
     footer.Margin(ThicknessHelper::FromLengths(0, 16, 0, 0));
 
-    // Two rows: metrics above, buttons below. Sharing one row, the icon buttons
-    // left ~135 px for the metrics, which truncated "0.1s to first token" (seen
-    // on-console).
-    RowDefinition metricsRow;
-    metricsRow.Height(GridLengthHelper::Auto());
-    RowDefinition buttonsRow;
-    buttonsRow.Height(GridLengthHelper::Auto());
-    footer.RowDefinitions().Append(metricsRow);
-    footer.RowDefinitions().Append(buttonsRow);
-
-    m_metricsText = TextBlock();
-    m_metricsText.FontSize(16);
-    m_metricsText.Opacity(0.85);
-    m_metricsText.Margin(ThicknessHelper::FromLengths(0, 0, 0, 8));
-    m_metricsText.TextTrimming(TextTrimming::CharacterEllipsis);
-    Grid::SetRow(m_metricsText, 0);
-
     StackPanel btnPanel;
     btnPanel.Orientation(Orientation::Horizontal);
     btnPanel.HorizontalAlignment(HorizontalAlignment::Right);
-    Grid::SetRow(btnPanel, 1);
 
     // Segoe MDL2 Assets glyphs (system font on Xbox) instead of ASCII stand-ins.
     auto icon_label = [](wchar_t glyph, wchar_t const* label) {
@@ -356,13 +380,6 @@ void MainPageController::BuildUI() {
     m_cancelButton.MinWidth(120);
 
     btnPanel.Children().Append(m_settingsButton);
-    btnPanel.Children().Append(m_newChatButton);
-    btnPanel.Children().Append(m_historyButton);
-    btnPanel.Children().Append(m_imageButton);
-    btnPanel.Children().Append(m_runButton);
-    btnPanel.Children().Append(m_cancelButton);
-
-    footer.Children().Append(m_metricsText);
     footer.Children().Append(btnPanel);
 
     // ---- wire grid ----
@@ -443,7 +460,7 @@ void MainPageController::Init() {
                 s->OnCancelClick(nullptr, RoutedEventArgs{});
         });
 
-    // Gamepad keys: View = clear output, Y = jump to prompt
+    // Gamepad View clears the retained local transcript; the dashboard has no prompt field.
     m_root.KeyDown(
         [self](IInspectable const&, winrt::Windows::UI::Xaml::Input::KeyRoutedEventArgs const& e) {
             auto s = self.lock();
@@ -457,10 +474,6 @@ void MainPageController::Init() {
                 s->m_outputBody.Blocks().Append(s->m_currentParagraph);
                 s->m_metricsText.Text(L"");
                 s->SetStatus(L"Ready");
-                e.Handled(true);
-                break;
-            case VK::GamepadY:
-                s->m_promptInput.Focus(FocusState::Programmatic);
                 e.Handled(true);
                 break;
             default:
@@ -1525,7 +1538,12 @@ void MainPageController::RefreshApiPanel() {
     namespace Media = winrt::Windows::UI::Xaml::Media;
     const auto server = ::xllama::api::server_status();
     if (server.state == ::xllama::api::ServerState::Stopped) {
-        m_apiPanel.Visibility(Visibility::Collapsed);
+        m_apiPanel.Visibility(Visibility::Visible);
+        m_apiEndpointText.Text(L"○ LAN API stopped");
+        m_apiEndpointText.Foreground(Media::SolidColorBrush({255, 180, 190, 195}));
+        m_apiNowText.Text(L"Enable LAN API in Settings to receive network requests");
+        m_apiCountsText.Text(L"No requests while the listener is stopped");
+        m_apiErrorText.Visibility(Visibility::Collapsed);
         return;
     }
     m_apiPanel.Visibility(Visibility::Visible);
