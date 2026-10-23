@@ -23,7 +23,7 @@
     PhonePublisherId="00000000-0000-0000-0000-000000000000" />
 
   <Properties>
-    <DisplayName>xllama</DisplayName>
+    <DisplayName>Xllama on Steroids</DisplayName>
     <PublisherDisplayName>Gianluca Mazza</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
@@ -48,12 +48,12 @@
          whose wWinMain calls CoreApplication::Run(winrt::make<App>()). -->
     <Application Id="xllama" Executable="xllama.exe" EntryPoint="xllama.App">
       <uap:VisualElements
-        DisplayName="xllama"
+        DisplayName="Xllama on Steroids"
         Description="Local LLM inference for Xbox Series S"
         BackgroundColor="#0E1116"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">
-        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" ShortName="xllama" />
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" ShortName="Xllama on Steroids" />
         <uap:SplashScreen Image="Assets\SplashScreen.png" BackgroundColor="#0E1116" />
         <uap:InitialRotationPreference>
           <uap:Rotation Preference="landscape" />

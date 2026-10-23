@@ -1,6 +1,6 @@
-# xllama SDK
+# Xllama on Steroids SDK
 
-xllama is an SDK for running large language models and diffusion models on Xbox Series S|X, Linux, and Windows. It provides a unified C++ interface for inference, training, and preference capture across backends.
+Xllama on Steroids is an SDK for running large language models and diffusion models on Xbox Series S|X, Linux, and Windows. It provides a unified C++ interface for inference, training, and preference capture across backends.
 
 ## Architecture
 

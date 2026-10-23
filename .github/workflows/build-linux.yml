@@ -176,7 +176,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: success()
         with:
-          name: xllama-cli-linux
+          name: xllama-on-steroids-cli-linux
           path: build/linux-test/bin/xllama-cli
           retention-days: 14
 

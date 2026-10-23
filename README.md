@@ -1,12 +1,12 @@
-# xllama
+# Xllama on Steroids
 
 > Local inference on Xbox Series S|X — GGUF / llama.cpp, dual-backend dispatch
 > (ORT GenAI + DirectML), OpenAI-compat LAN endpoint, diffusion, and on-device
 > training. Built for games (NPC / dialogue / agents) and AI assistants.
 > Chat UI is a demo shell. Architecture under real constraints (UWP, 10 GB RAM).
 
-[![build-uwp](https://github.com/gianlucamazza/xllama/actions/workflows/build-uwp.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-uwp.yml)
-[![build-linux](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml)
+[![build-uwp](https://github.com/maxmorrison74/xllama-on-steroids/actions/workflows/build-uwp.yml/badge.svg)](https://github.com/maxmorrison74/xllama-on-steroids/actions/workflows/build-uwp.yml)
+[![build-linux](https://github.com/maxmorrison74/xllama-on-steroids/actions/workflows/build-linux.yml/badge.svg)](https://github.com/maxmorrison74/xllama-on-steroids/actions/workflows/build-linux.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?logo=github)](https://github.com/sponsors/gianlucamazza)
 
@@ -38,7 +38,7 @@ with `scripts/capture-demo-video.sh`.
 # docs/install-release.md (same-identity updates preserve LocalState)
 
 # Or build (Windows host)
-git clone --recursive https://github.com/gianlucamazza/xllama.git
+git clone --recursive https://github.com/maxmorrison74/xllama-on-steroids.git
 .\scripts\build-uwp.ps1 -Configuration Release -Platform x64
 
 # Deploy
@@ -75,13 +75,13 @@ First launch: downloads default model (~219 MB). No model bundled in MSIX.
 
 Full catalogue + Phase 14 coding models: [model-matrix.md](docs/model-matrix.md) · [benchmarks.md](docs/benchmarks.md)
 
-Hugging Face collection: [xllama: models measured on Xbox Series S](https://huggingface.co/collections/gianlucamazza/xllama-models-measured-on-xbox-series-s-6aca0b32275cbe99dbf02d89) — models measured in [docs/benchmarks.md](docs/benchmarks.md).
+Hugging Face collection: [Xllama on Steroids: models measured on Xbox Series S](https://huggingface.co/collections/gianlucamazza/xllama-models-measured-on-xbox-series-s-6aca0b32275cbe99dbf02d89) — models measured in [docs/benchmarks.md](docs/benchmarks.md).
 
 ---
 
 ## LAN Endpoint — OpenAI-compatible
 
-xllama exposes an HTTP endpoint on the local network that exposes its full
+Xllama on Steroids exposes an HTTP endpoint on the local network that exposes its full
 inference core (`SessionHub`) with OpenAI and Ollama-compatible APIs.
 Status: v1, opt-in, default OFF. Dev Mode / LAN research only — the current
 integration probe, not a public inbound service.
@@ -268,7 +268,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Support
 
-xllama is free and MIT-licensed. If it's useful to you, you can support its
+Xllama on Steroids is free and MIT-licensed. If it's useful to you, you can support its
 development on [GitHub Sponsors](https://github.com/sponsors/gianlucamazza) —
 funds go to development time, Xbox Dev Mode costs, and model/storage budgets
 for testing.

@@ -11,7 +11,7 @@ namespace xllama {
 
 static void print_help(const char* prog) {
     std::fprintf(stdout,
-                 "xllama-cli — llama.cpp bridge for Xbox Series S (Linux dev build)\n\n"
+                 "Xllama on Steroids CLI — llama.cpp bridge for Xbox Series S (Linux dev build)\n\n"
                  "Usage: %s -m <model.gguf> -p <prompt> [options]\n\n"
                  "Required:\n"
                  "  -m, --model <path>   Path to GGUF model file\n"

@@ -1,4 +1,4 @@
-# xllama Roadmap
+# Xllama on Steroids Roadmap
 
 Current work only. Completed release history belongs in `CHANGELOG.md`; measured
 performance belongs in `docs/benchmarks.md`.

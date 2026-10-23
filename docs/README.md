@@ -1,6 +1,6 @@
 # docs/
 
-Technical notes and design decisions for xllama.
+Technical notes and design decisions for Xllama on Steroids.
 
 ## Documentation principles
 

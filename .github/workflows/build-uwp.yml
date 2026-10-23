@@ -6,11 +6,11 @@ on:
   pull_request:
   # Store SKU is opt-in: avoids +~13 min on every PR. From Linux (no Windows VM):
   #   gh workflow run build-uwp.yml -f store_sku=true --ref <branch>
-  # Artifact: xllama-appx-store. SSOT: docs/store-readiness.md
+  # Artifact: xllama-on-steroids-appx-store. SSOT: docs/store-readiness.md
   workflow_dispatch:
     inputs:
       store_sku:
-        description: "Also build Store SKU (XLLAMA_STORE_SKU, artifact xllama-appx-store)"
+        description: "Also build Store SKU (XLLAMA_STORE_SKU, artifact xllama-on-steroids-appx-store)"
         type: boolean
         default: false
 
@@ -34,11 +34,11 @@ jobs:
           # (vendor-dlls-v1) — full ORT rebuild is 1–3 h (see build-uwp-ort-patched).
           - variant: unified
             patched: true
-            artifact: xllama-appx
+            artifact: xllama-on-steroids-appx
           # Bench-only lane: llama.cpp CPU A/B (not for pad chat shipping).
           - variant: llamacpp
             patched: false
-            artifact: xllama-appx-llamacpp
+            artifact: xllama-on-steroids-appx-llamacpp
     steps:
       - uses: actions/checkout@v7
         with:
@@ -92,5 +92,5 @@ jobs:
           variant: unified
           patched: "true"
           store_sku: "true"
-          artifact: xllama-appx-store
+          artifact: xllama-on-steroids-appx-store
           build_revision: ${{ github.run_number }}

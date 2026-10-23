@@ -1,9 +1,9 @@
-# xllama — LLM and Diffusion Inference on Xbox Series S: What the Hardware Actually Gives You
+# Xllama on Steroids — LLM and Diffusion Inference on Xbox Series S: What the Hardware Actually Gives You
 
 **Gianluca Mazza · 2026-07 · v1.0 draft**  
 **Published:** [GitHub Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76)
 
-xllama is a UWP application that runs local LLM chat and Stable-Diffusion-class
+Xllama on Steroids is a UWP application that runs local LLM chat and Stable-Diffusion-class
 image generation on a retail Xbox Series S in Dev Mode. This report is the
 measured story: which workloads the console's hardware serves well, which it
 does not, and why — with every claim backed by a benchmark row or a falsified

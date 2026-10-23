@@ -82,7 +82,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: success()
         with:
-          name: xllama-appx-ort-patched
+          name: xllama-on-steroids-appx-ort-patched
           path: |
             uwp/AppPackages/**/*.msix
             uwp/AppPackages/**/*.appx

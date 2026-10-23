@@ -79,7 +79,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: success()
         with:
-          name: ${{ matrix.variant != 'default' && format('xllama-appx-patched-{0}', matrix.variant) || 'xllama-appx-patched' }}
+          name: ${{ matrix.variant != 'default' && format('xllama-on-steroids-appx-patched-{0}', matrix.variant) || 'xllama-on-steroids-appx-patched' }}
           path: |
             uwp/AppPackages/**/*.msix
             uwp/AppPackages/**/*.appx

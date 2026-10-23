@@ -1,6 +1,6 @@
 # Architecture
 
-Current component and data-flow map for xllama. This is the **SSOT for how the
+Current component and data-flow map for Xllama on Steroids. This is the **SSOT for how the
 system is put together** (module boundaries, backend dispatch, provisioning). It
 complements the frozen [technical-report.md](technical-report.md) (a v1.0 narrative
 snapshot), the perf SSOT [benchmarks.md](benchmarks.md), and the AppContainer

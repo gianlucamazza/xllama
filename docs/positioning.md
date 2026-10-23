@@ -1,13 +1,13 @@
 # Positioning
 
-What xllama is for, and what it does not claim. Structure lives in
+What Xllama on Steroids is for, and what it does not claim. Structure lives in
 [architecture.md](architecture.md); numbers in [benchmarks.md](benchmarks.md);
 Store status in [store-readiness.md](store-readiness.md); LAN protocol in
 [api-endpoint.md](api-endpoint.md).
 
 ## Thesis
 
-xllama is a **local inference stack** for Xbox Series S|X. The intended uses
+Xllama on Steroids is a **local inference stack** for Xbox Series S|X. The intended uses
 are **games** (NPC dialogue, agents) and **on-console AI assistants**.
 
 The gamepad chat UI is a **demo / showcase shell** so the stack can be

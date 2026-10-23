@@ -1,6 +1,6 @@
 # Benchmarks
 
-> **This is the authoritative published summary for xllama performance.** Raw
+> **This is the authoritative published summary for Xllama on Steroids performance.** Raw
 > evidence lives in `bench/results/`; row-selection policy lives in
 > `bench/benchmark-summary.json`. Other docs quote at most a headline and link
 > back here instead of maintaining comparison tables.

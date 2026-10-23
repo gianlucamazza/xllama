@@ -1,6 +1,6 @@
 # FloppyLM — not pursued in this repository
 
-> **SSOT for xllama's relationship to FloppyLM.** This page records the
+> **SSOT for Xllama on Steroids' relationship to FloppyLM.** This page records the
 > decision and the historical objective. It does **not** ship an engine, a
 > quality score, or a tok/s number.
 >
