@@ -380,12 +380,6 @@ void MainPageController::BuildUI() {
     m_settingsButton.MinHeight(34);
     m_settingsButton.Margin(ThicknessHelper::FromLengths(0, 0, 6, 0));
 
-    m_musicButton = Button();
-    m_musicButton.Content(winrt::box_value(L"♪ 8-BIT: ON"));
-    m_musicButton.FontSize(11);
-    m_musicButton.MinWidth(78);
-    m_musicButton.MinHeight(34);
-
     m_newChatButton = Button();
     m_newChatButton.Content(icon_label(0xE710, L"New"));
     m_newChatButton.MinWidth(100);
@@ -413,7 +407,6 @@ void MainPageController::BuildUI() {
     m_cancelButton.IsEnabled(false);
     m_cancelButton.MinWidth(120);
 
-    btnPanel.Children().Append(m_musicButton);
     btnPanel.Children().Append(m_settingsButton);
     footer.Children().Append(btnPanel);
 
@@ -471,45 +464,6 @@ void MainPageController::Init() {
     m_settingsButton.Click([self](IInspectable const&, RoutedEventArgs const&) {
         if (auto s = self.lock())
             s->ShowSettings();
-    });
-    // Audio-only soundtrack: MediaPlayer is independent of XAML layout, so it
-    // remains audible on Xbox even though the dashboard has no video surface.
-    // Start only once the app page is attached to the active window.
-    m_musicPlayer = winrt::Windows::Media::Playback::MediaPlayer();
-    m_musicPlayer.AudioCategory(
-        winrt::Windows::Media::Playback::MediaPlayerAudioCategory::Media);
-    m_musicPlayer.Volume(1.0);
-    m_musicPlayer.IsLoopingEnabled(true);
-    m_musicPlayer.MediaOpened([self](
-                                   winrt::Windows::Media::Playback::MediaPlayer const& player,
-                                   IInspectable const&) {
-        if (auto s = self.lock(); s && s->m_music_enabled) {
-            player.Play();
-            s->m_musicButton.Content(winrt::box_value(L"♪ 8-BIT: ON"));
-        }
-    });
-    m_musicPlayer.MediaFailed([self](
-                                   winrt::Windows::Media::Playback::MediaPlayer const&,
-                                   winrt::Windows::Media::Playback::MediaPlayerFailedEventArgs const&) {
-        if (auto s = self.lock())
-            s->m_musicButton.Content(winrt::box_value(L"♪ AUDIO ERROR"));
-    });
-    m_musicPlayer.Source(winrt::Windows::Media::Core::MediaSource::CreateFromUri(
-        winrt::Windows::Foundation::Uri(L"ms-appx:///Assets/xllama-c64-theme.wav")));
-    m_root.Loaded([self](IInspectable const&, RoutedEventArgs const&) {
-        if (auto s = self.lock(); s && s->m_music_enabled)
-            s->m_musicPlayer.Play();
-    });
-    m_musicButton.Click([self](IInspectable const&, RoutedEventArgs const&) {
-        if (auto s = self.lock()) {
-            s->m_music_enabled = !s->m_music_enabled;
-            if (s->m_music_enabled)
-                s->m_musicPlayer.Play();
-            else
-                s->m_musicPlayer.Pause();
-            s->m_musicButton.Content(winrt::box_value(
-                s->m_music_enabled ? L"♪ 8-BIT: ON" : L"♪ 8-BIT: OFF"));
-        }
     });
     m_newChatButton.Click([self](IInspectable const&, RoutedEventArgs const&) {
         if (auto s = self.lock())
