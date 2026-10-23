@@ -240,6 +240,9 @@
     <Image Include="Assets\Wide310x150Logo.png" />
     <Image Include="Assets\SplashScreen.png" />
     <Image Include="Assets\xllama-dashboard-background.jpg" />
+    <Content Include="Assets\xllama-c64-theme.wav">
+      <DeploymentContent>true</DeploymentContent>
+    </Content>
   </ItemGroup>
 
   <!-- =====================================================================
