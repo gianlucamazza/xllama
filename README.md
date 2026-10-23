@@ -1,12 +1,13 @@
 # Xllama on Steroids
 
+> ## 🙏 Crediti
+> **Un ringraziamento speciale a [Gianluca Mazza](https://github.com/gianlucamazza), autore del progetto originale [Xllama](https://github.com/gianlucamazza/xllama).**
+> Questo fork nasce dal suo lavoro e dalla sua esperienza nello sviluppo per Xbox.
+
 > Local inference on Xbox Series S|X — GGUF / llama.cpp, dual-backend dispatch
 > (ORT GenAI + DirectML), OpenAI-compat LAN endpoint, diffusion, and on-device
 > training. Built for games (NPC / dialogue / agents) and AI assistants.
 > Chat UI is a demo shell. Architecture under real constraints (UWP, 10 GB RAM).
-
-> **Original project:** [Xllama by Gianluca Mazza](https://github.com/gianlucamazza/xllama).
-> This fork builds on his original code and Xbox engineering work, with thanks.
 
 [![build-uwp](https://github.com/maxmorrison74/xllama-on-steroids/actions/workflows/build-uwp.yml/badge.svg)](https://github.com/maxmorrison74/xllama-on-steroids/actions/workflows/build-uwp.yml)
 [![build-linux](https://github.com/maxmorrison74/xllama-on-steroids/actions/workflows/build-linux.yml/badge.svg)](https://github.com/maxmorrison74/xllama-on-steroids/actions/workflows/build-linux.yml)
