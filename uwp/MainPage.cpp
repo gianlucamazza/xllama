@@ -15,6 +15,7 @@
     #include "inference-bridge.h"
     #include "xllama/cancel_policy.h"
     #include "xllama/chat_prompt.h"
+    #include "xllama/compute_admission.h"
     #include "xllama/json_utils.h"
     #include "xllama/kv_store.h"
     #include "xllama/model_provision.h"
@@ -2025,6 +2026,11 @@ void MainPageController::StartPersonalizeTrain() {
     SetStatus(L"This build has no on-device training engine", StatusKind::Error);
     return;
     #else
+    auto compute_permit = ::xllama::try_acquire_compute_job();
+    if (!compute_permit) {
+        SetStatus(L"Busy — another compute job is active", StatusKind::Error);
+        return;
+    }
     const std::string samples = ::xllama::wstring_to_utf8(local_wpath(L"training\\samples.jsonl"));
     if (::xllama::count_usable_preference_samples(samples) < 1) {
         SetStatus(L"No usable preference samples (Like/Correct first)", StatusKind::Error);
@@ -2070,7 +2076,8 @@ void MainPageController::StartPersonalizeTrain() {
 
     auto self = shared_from_this();
     auto dispatcher = m_root.Dispatcher();
-    std::thread([self, dispatcher, job]() {
+    std::thread([self, dispatcher, job, compute_permit]() {
+        (void)compute_permit;
         try {
             winrt::init_apartment(); // MTA
             ::xllama::DeviceTrainCallbacks cb;
@@ -2099,6 +2106,11 @@ void MainPageController::StartPersonalizeTrain() {
             if (r.success) {
                 std::string pub_err;
                 const bool published = self->PublishPersonalizedModel(r.merged_gguf_path, &pub_err);
+                if (published) {
+                    auto& hub = ::xllama::session_hub();
+                    std::lock_guard<std::mutex> hub_lk(hub.mtx);
+                    hub.reset_locked();
+                }
                 dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, published, pub_err,
                                                                      path = r.merged_gguf_path]() {
                     self->m_train_running.store(false);
@@ -2113,11 +2125,6 @@ void MainPageController::StartPersonalizeTrain() {
                     self->m_model_filename =
                         ::xllama::utf8_to_wstring(::xllama::kPersonalizedModelId);
                     self->m_modelText.Text(self->m_model_filename);
-                    {
-                        auto& hub = ::xllama::session_hub();
-                        std::lock_guard<std::mutex> hub_lk(hub.mtx);
-                        hub.reset_locked();
-                    }
                     self->m_kv_valid = false;
                     self->m_active_model.clear();
                     self->SaveSettings();
@@ -2386,12 +2393,22 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
                               ? static_cast<uint32_t>(GetTickCount64() % 1'000'000'000ULL) + 1
                               : self->m_diffuse_seed;
     self->m_last_diffuse_seed = seed;
+    if (self->m_is_running.load() || self->m_train_running.load() ||
+        self->m_diffuse_running.load()) {
+        self->SetStatus(L"Busy — wait for the current job to finish", StatusKind::Error);
+        co_return;
+    }
+    auto compute_permit = ::xllama::try_acquire_compute_job();
+    if (!compute_permit) {
+        self->SetStatus(L"Busy — another compute job is active", StatusKind::Error);
+        co_return;
+    }
     write_local_bytes(L"prompt.txt", prompt_utf8);
     write_local_bytes(L"diffuse-steps.txt", std::to_string(steps));
     write_local_bytes(L"diffuse-seed.txt", std::to_string(seed));
     write_local_bytes(L"diffuse-model.txt", "sd-turbo-fp16");
 
-    self->StartDiffusion();
+    self->StartDiffusion(std::move(compute_permit));
 }
 
 // ---------------------------------------------------------------------------
@@ -2399,9 +2416,13 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
 // diffuse-inproc.flag experiment in App.cpp, but driven from the Image dialog).
 // ---------------------------------------------------------------------------
 
-void MainPageController::StartDiffusion() {
-    if (m_is_running.load())
+void MainPageController::StartDiffusion(::xllama::ComputeJobAdmission::Handle permit) {
+    if (!permit)
         return;
+    if (m_is_running.load() || m_train_running.load() || m_diffuse_running.load()) {
+        SetStatus(L"Busy — wait for the current job to finish", StatusKind::Error);
+        return;
+    }
 
     m_diffuse_running.store(true);
     SetRunning(true);
@@ -2433,7 +2454,7 @@ void MainPageController::StartDiffusion() {
         });
     m_diffuse_timer.Start();
 
-    std::thread([self, dispatcher]() {
+    std::thread([self, dispatcher, permit = std::move(permit)]() {
         try {
             winrt::init_apartment(); // MTA — ApplicationData + ORT DML
             ::xllama::bridge::run_diffuse();
@@ -2442,7 +2463,9 @@ void MainPageController::StartDiffusion() {
         } catch (...) {
             ::xllama::log_output("[xllama] diffuse thread: unknown exception\n");
         }
-        dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self]() { self->FinishDiffusion(); });
+        dispatcher.RunAsync(CoreDispatcherPriority::Normal, [self, permit]() {
+            self->FinishDiffusion();
+        });
     }).detach();
 }
 
@@ -2861,6 +2884,11 @@ void MainPageController::PreloadSessionAsync() {
     std::thread([self, model]() {
         auto& hub = ::xllama::session_hub();
         hub.preloading.store(true); // API waits briefly instead of 503-ing
+        auto compute_permit = ::xllama::try_acquire_compute_job();
+        if (!compute_permit) {
+            hub.preloading.store(false);
+            return;
+        }
         try {
             std::lock_guard<std::mutex> hub_lk(hub.mtx);
             std::string err;
@@ -2869,6 +2897,7 @@ void MainPageController::PreloadSessionAsync() {
                     ("[xllama] session preload failed (non-fatal): " + err + "\n").c_str());
         } catch (...) {
         }
+        compute_permit.reset();
         hub.preloading.store(false);
     }).detach();
 }
@@ -2902,7 +2931,13 @@ bool MainPageController::EnsureSession(const std::string& model, std::string* er
 // StartInference: called on UI thread; spawns background thread
 // ---------------------------------------------------------------------------
 
-void MainPageController::StartInference(std::wstring const& prompt_w) {
+bool MainPageController::StartInference(std::wstring const& prompt_w) {
+    auto compute_permit = ::xllama::try_acquire_compute_job();
+    if (!compute_permit) {
+        m_promptInput.Text(winrt::hstring(prompt_w.c_str()));
+        SetStatus(L"Busy — another compute job is active", StatusKind::Error);
+        return false;
+    }
     m_abort.store(false);
     SetStatus(L"Loading model...", StatusKind::Working);
     SetRunning(true);
@@ -3018,7 +3053,8 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                           L" via Device Portal or USB (see docs/model-selection.md).",
                       StatusKind::Error);
             SetRunning(false);
-            return;
+            m_promptInput.Text(winrt::hstring(prompt_w.c_str()));
+            return false;
         }
         if (m_routing == 2 && n_tok > rs.token_threshold && warn_gpu_missing) {
             SetStatus(L"GPU model '" + ::xllama::utf8_to_wstring(m_gpu_model) +
@@ -3027,7 +3063,8 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                           ::xllama::utf8_to_wstring(m_gpu_model) + L" to enable auto-routing.",
                       StatusKind::Error);
             SetRunning(false);
-            return;
+            m_promptInput.Text(winrt::hstring(prompt_w.c_str()));
+            return false;
         }
 
         const auto decision = ::xllama::decide_routing(rs, n_tok, base_is_gguf, gpu_provisioned);
@@ -3102,7 +3139,8 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
 
     std::thread([self, full_prompt, delta_prompt, do_reuse, kv_reuse, ep_kv_ok, model, fmt,
                  sys_prefix, kv_path, dispatcher, plan_turns, user_text, system_prompt, plan_n_ctx,
-                 plan_n_predict, plan_dropped]() mutable {
+                 plan_n_predict, plan_dropped, compute_permit]() mutable {
+        (void)compute_permit;
         try {
             // #216: drain any #170b snapshot save before taking hub.mtx. The save
             // also locks the hub; waiting first keeps the leave-conversation
@@ -3364,6 +3402,7 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
             });
         }
     }).detach();
+    return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -3640,7 +3679,10 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
             if (!not_running())
                 throw std::runtime_error("action " + std::to_string(i) + " send: busy");
             std::wstring text = a.arg;
-            ApDispatchSync([this, text]() { StartInference(text); });
+            bool started = false;
+            ApDispatchSync([this, text, &started]() { started = StartInference(text); });
+            if (!started)
+                throw std::runtime_error("action " + std::to_string(i) + " send: busy");
             auto t = a.timeout.count() > 0 ? a.timeout : std::chrono::seconds{300};
             if (!ApWaitAtomic(m_is_running, false, t)) {
                 m_abort.store(true);
@@ -3760,6 +3802,10 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
         } else if (a.op == "generate_image") {
             if (!not_running())
                 throw std::runtime_error("action " + std::to_string(i) + " generate_image: busy");
+            auto compute_permit = ::xllama::try_acquire_compute_job();
+            if (!compute_permit)
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " generate_image: busy");
             // No default prompt. Inventing one when the script did not supply
             // it is the defect class already paid for in the bench (#205): the
             // run succeeds and produces a real-looking image nobody asked for.
@@ -3768,9 +3814,9 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
             write_local_bytes(L"diffuse-steps.txt", std::to_string(a.steps));
             write_local_bytes(L"diffuse-seed.txt", std::to_string(a.seed));
             write_local_bytes(L"diffuse-model.txt", "sd-turbo-fp16");
-            ApDispatchSync([this, seed = a.seed]() {
+            ApDispatchSync([this, seed = a.seed, compute_permit]() {
                 m_last_diffuse_seed = seed;
-                StartDiffusion();
+                StartDiffusion(compute_permit);
             });
             auto t = a.timeout.count() > 0 ? a.timeout : std::chrono::seconds{600};
             if (!ApWaitAtomic(m_diffuse_running, false, t)) {

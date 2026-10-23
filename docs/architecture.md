@@ -37,6 +37,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `session_spec.h`                   | `resolve_session_params`, `same_load` — one catalogue→session resolver for GUI, API and pull; the hub reuses only the same load (ADR 0007)     |
 | `session.h` / `inference_params.h` | `Session`/`SessionParams`, `InferenceParams/Result` (`echo_stdout`, the `resolve_max_length` #130 ladder), `Backend` enum                      |
 | `session_hub.h`                    | `SessionHub` — the ONE process-wide resident-Session owner (GUI + LAN API); locking + `generation` contract                                    |
+| `compute_admission.h`              | Process-wide RAII lease for resource-heavy jobs across UI and LAN API; acquire before `session_hub().mtx`                                       |
 | `sampling.h`                       | `SamplingConfig`, shared defaults; CLI/bench and GUI/API init from it (#125)                                                                   |
 | `training.h` / `training_params.h` | `TrainingJob`/`TrainingResult`, stages, device gates, job JSON                                                                                 |
 | `device_train.h`                   | Lane B engine API: `run_device_train_job`, progress callbacks, filters                                                                         |
@@ -257,6 +258,16 @@ old shape loaded the CPU model on the UI thread just to tokenize, then could
 destroy it for DirectML — the historical "two model loads" cost recorded in
 §5d). When a model becomes Ready the session is **pre-loaded** in a detached
 worker (`PreloadSessionAsync`), so the first send pays prefill+decode only.
+
+Resource-heavy jobs also share one process-wide compute permit, implemented by
+`include/xllama/compute_admission.h` and governed by [ADR 0008](adr/0008-process-compute-admission.md).
+Chat, embeddings, diffusion, device training, startup pre-load, and post-pull
+model loading acquire it before touching the SessionHub. API requests that find
+the permit occupied return 503 `busy` (streaming pulls emit their existing busy
+error record), except that requests wait briefly while the startup pre-load is
+active. The permit is RAII-owned and may cross worker and UI callback
+boundaries; `SessionHub::mtx` continues to protect resident-session identity and
+use.
 
 ## Routing (`routing_policy.h`)
 
@@ -672,13 +683,14 @@ host Release smoke (quality + peak)
 ## Unit test map (host suite)
 
 One doctest binary, `xllama-tests`, built from `tests/test_*.cpp`. The suite
-is **326 test cases / 9101 assertions** (doctest, without opt-in model checks).
+is **328 test cases / 9107 assertions** (doctest, without opt-in model checks).
 Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 (`llama_raii.h`, `ort_raii.h`, `d3d12_dyn.h`, `catalog_trust.h`).
 
 | Test file                     | Under test                                                                                  |
 | ----------------------------- | ------------------------------------------------------------------------------------------- |
 | `test_api_activity.cpp`       | `api_activity.h`                                                                            |
+| `test_compute_admission.cpp`  | `compute_admission.h`                                                                       |
 | `test_api_config.cpp`         | LAN API config validation (`uwp/api-server.h`)                                              |
 | `test_api_policy.cpp`         | `api_policy.h` numeric admission (F01)                                                      |
 | `test_api_pull.cpp`           | `api_pull_policy.h`                                                                         |

@@ -79,7 +79,7 @@ this is Dev Mode research, not a hosted service.
 | `POST`    | `/v1/embeddings`         | OpenAI embeddings shape; `encoding_format` accepts `float` or `base64`.                                                                           |
 | `POST`    | `/v1/preferences`        | Append a preference sample (`label` + `messages[]`) to `training/samples.jsonl` — same contract as the UI rate op (#118).                         |
 | `GET`     | `/v1/training/status`    | `result.done` / `progress.json` / last personalized `result.json` + usable sample count (#118).                                                   |
-| `POST`    | `/v1/images/generations` | SD-Turbo image gen (`prompt`, `steps` 1–4, `seed`); returns OpenAI-ish `{data:[{b64_json,path}]}` (#118). Shares the single-slot mutex with chat. |
+| `POST`    | `/v1/images/generations` | SD-Turbo image gen (`prompt`, `steps` 1–4, `seed`); returns OpenAI-ish `{data:[{b64_json,path}]}` (#118). Shares process-wide compute admission with chat, embeddings and training. |
 | `OPTIONS` | _any_                    | CORS preflight (`204` + `Allow-Methods/Headers`) for browser clients.                                                                             |
 
 ### Model pulling (`POST /api/pull`)
@@ -100,8 +100,11 @@ rollback share one downloader-wide writer permit. A competing writer is rejected
 before any file or marker changes: non-streaming pulls return HTTP 409, streaming
 pulls emit an error record, and the GUI reports a download-busy error. The permit
 is released before completion callbacks that may chain provisioning. Existing
-inference may finish during the download; after verification, the pull waits for the shared
-session lock, replaces the resident model, and reports success only after loading it.
+inference may finish during the download. After verification, the pull must
+acquire process-wide compute admission before replacing/loading the resident
+model. If another compute job is still active, the download may already be
+complete when the API returns HTTP 503 (or a streaming error record); retry after
+the active job finishes.
 
 ```bash
 curl -N http://<ip-xbox>:11434/api/pull \
@@ -325,16 +328,17 @@ applies when the user opens Image; the API does not download the model for you).
 
 ## Concurrency
 
-`Session::generate()` is single-slot / non-concurrent. Requests acquire the
-process-wide `session_hub().mtx` with `try_lock`: a request arriving while
-another request **or a chat-UI turn** is generating gets **HTTP 503**
+`Session::generate()` is single-slot / non-concurrent. Compute requests first
+acquire the process-wide RAII permit in [ADR 0008](adr/0008-process-compute-admission.md),
+then acquire `session_hub().mtx` with `try_lock`: a request arriving while
+another request, GUI turn, image generation, or device training is active gets **HTTP 503**
 `{"error":{"message":"busy"}}` for OpenAI-compatible routes and
 `{"error":"busy"}` for native Ollama embedding routes. The slot covers the
 whole process. Native `/api/embed`, `/api/embeddings`, and `/api/pull` errors
 always expose a non-empty string in `error`; `/v1/embeddings` exposes an error
-object with `message` and `type`. One exception: while the session **pre-load** is holding
-the hub (right after a model becomes Ready), `acquire_hub_or_busy()` waits —
-bounded, ≤15 s, only while `hub.preloading` is set — instead of bouncing the
+object with `message` and `type`. One exception: while the session **pre-load** is active
+(right after a model becomes Ready), API compute admission waits — bounded, ≤15 s,
+only while `hub.preloading` is set — instead of bouncing the
 client's very first request. Stopping the endpoint closes the listener only;
 the Session is hub-owned and is NOT released (the chat UI may be using it).
 

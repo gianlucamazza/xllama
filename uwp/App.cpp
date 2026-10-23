@@ -9,6 +9,7 @@
 #include "App.h"
 #include "MainPage.h"
 #include "inference-bridge.h"
+#include "xllama/compute_admission.h"
 #include "xllama/platform.h"
 #include "xllama/capture_probe.h"
 #include "native_capture.h"
@@ -20,6 +21,7 @@
 // clang-format on
 
     #include <thread>
+    #include <utility>
 
     #ifndef XLLAMA_STORE_SKU
 // Defined in the headless section below; also used by the in-process
@@ -248,14 +250,20 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
         std::wstring inproc = flag_path_if_present(L"diffuse-inproc.flag");
         if (!inproc.empty()) {
             _wremove(inproc.c_str());
-            log_write("[xllama] diffuse-inproc.flag detected -> in-process diffusion "
-                      "(compositor alive)\n");
-            std::thread([] {
-                winrt::init_apartment(); // MTA: run_diffuse uses ApplicationData
-                ::xllama::bridge::run_diffuse();
-                ::xllama::log_output("[xllama] diffuse-inproc: run returned (result/error above; "
-                                     "XAML window still up)\n");
-            }).detach();
+            auto compute_permit = ::xllama::try_acquire_compute_job();
+            if (!compute_permit) {
+                log_write("[xllama] diffuse-inproc skipped: another compute job is active\n");
+            } else {
+                log_write("[xllama] diffuse-inproc.flag detected -> in-process diffusion "
+                          "(compositor alive)\n");
+                std::thread([permit = std::move(compute_permit)] {
+                    (void)permit;
+                    winrt::init_apartment(); // MTA: run_diffuse uses ApplicationData
+                    ::xllama::bridge::run_diffuse();
+                    ::xllama::log_output("[xllama] diffuse-inproc: run returned (result/error above; "
+                                         "XAML window still up)\n");
+                }).detach();
+            }
         }
 
         // D1d (docs/gguf-gpu-decode.md): the same probe with the compositor's
@@ -263,11 +271,18 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
         std::wstring gpustep_inproc = flag_path_if_present(L"gpustep-inproc.flag");
         if (!gpustep_inproc.empty()) {
             _wremove(gpustep_inproc.c_str());
-            log_write("[xllama] gpustep-inproc.flag detected -> D1 probe in the XAML process\n");
-            std::thread([] {
-                winrt::init_apartment(); // MTA: resolve_local_path uses ApplicationData
-                ::xllama::bridge::run_gpustep(/*inproc=*/true);
-            }).detach();
+            auto compute_permit = ::xllama::try_acquire_compute_job();
+            if (!compute_permit) {
+                log_write("[xllama] gpustep-inproc skipped: another compute job is active\n");
+            } else {
+                log_write(
+                    "[xllama] gpustep-inproc.flag detected -> D1 probe in the XAML process\n");
+                std::thread([permit = std::move(compute_permit)] {
+                    (void)permit;
+                    winrt::init_apartment(); // MTA: resolve_local_path uses ApplicationData
+                    ::xllama::bridge::run_gpustep(/*inproc=*/true);
+                }).detach();
+            }
         }
 
         // LAN HTTP endpoint (OpenAI-compat), opt-in and default OFF: started
