@@ -155,7 +155,9 @@ void MainPageController::BuildUI() {
 
     // ---- outer grid (3 rows: header / body / footer) ----
     Grid outerGrid;
-    outerGrid.Margin(ThicknessHelper::FromLengths(64, 36, 64, 36)); // Xbox TV safe area
+    // Keep the content in the TV safe area, while placing the author signature
+    // visibly close to the physical bottom edge as requested.
+    outerGrid.Margin(ThicknessHelper::FromLengths(64, 36, 64, 8));
 
     RowDefinition rowAuto1;
     rowAuto1.Height(GridLengthHelper::Auto());
@@ -422,7 +424,7 @@ void MainPageController::BuildUI() {
     signature.FontSize(22);
     signature.FontWeight(FontWeights::SemiBold());
     signature.Foreground(winrt::Windows::UI::Xaml::Media::SolidColorBrush(
-        winrt::Windows::UI::ColorHelper::FromArgb(255, 108, 235, 192)));
+        winrt::Windows::UI::ColorHelper::FromArgb(255, 255, 145, 48)));
     signature.HorizontalAlignment(HorizontalAlignment::Center);
     signature.VerticalAlignment(VerticalAlignment::Center);
     footer.Children().Append(signature);
@@ -431,22 +433,6 @@ void MainPageController::BuildUI() {
     outerGrid.Children().Append(header);
     outerGrid.Children().Append(m_outputScroll);
     outerGrid.Children().Append(footer);
-
-    // Original, locally packaged C64-inspired chiptune. Keep the audio renderer
-    // effectively invisible while allowing the soundtrack to loop on the dashboard.
-    m_musicPlayer = MediaElement();
-    m_musicPlayer.Source(winrt::Windows::Foundation::Uri(
-        L"ms-appx:///Assets/xllama-c64-theme.wav"));
-    m_musicPlayer.IsLooping(true);
-    m_musicPlayer.AutoPlay(true);
-    m_musicPlayer.Volume(0.16);
-    m_musicPlayer.AreTransportControlsEnabled(false);
-    m_musicPlayer.Width(1);
-    m_musicPlayer.Height(1);
-    m_musicPlayer.Opacity(0);
-    m_musicPlayer.IsHitTestVisible(false);
-    Grid::SetRow(m_musicPlayer, 1);
-    outerGrid.Children().Append(m_musicPlayer);
 
     m_root.Content(outerGrid);
 
@@ -486,6 +472,20 @@ void MainPageController::Init() {
     m_settingsButton.Click([self](IInspectable const&, RoutedEventArgs const&) {
         if (auto s = self.lock())
             s->ShowSettings();
+    });
+    // Audio-only soundtrack: MediaPlayer is independent of XAML layout, so it
+    // remains audible on Xbox even though the dashboard has no video surface.
+    // Start only once the app page is attached to the active window.
+    m_musicPlayer = winrt::Windows::Media::Playback::MediaPlayer();
+    m_musicPlayer.AudioCategory(
+        winrt::Windows::Media::Playback::MediaPlayerAudioCategory::Media);
+    m_musicPlayer.Volume(0.42);
+    m_musicPlayer.IsLoopingEnabled(true);
+    m_musicPlayer.Source(winrt::Windows::Media::Core::MediaSource::CreateFromUri(
+        winrt::Windows::Foundation::Uri(L"ms-appx:///Assets/xllama-c64-theme.wav")));
+    m_root.Loaded([self](IInspectable const&, RoutedEventArgs const&) {
+        if (auto s = self.lock(); s && s->m_music_enabled)
+            s->m_musicPlayer.Play();
     });
     m_musicButton.Click([self](IInspectable const&, RoutedEventArgs const&) {
         if (auto s = self.lock()) {

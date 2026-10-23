@@ -180,7 +180,7 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     winrt::Windows::UI::Xaml::Controls::Button m_settingsButton{nullptr};
     winrt::Windows::UI::Xaml::Controls::Button m_musicButton{nullptr};
     winrt::Windows::UI::Xaml::Controls::Button m_imageButton{nullptr};
-    winrt::Windows::UI::Xaml::Controls::MediaElement m_musicPlayer{nullptr};
+    winrt::Windows::Media::Playback::MediaPlayer m_musicPlayer{nullptr};
     bool m_music_enabled{true};
     winrt::Windows::UI::Xaml::DispatcherTimer m_flush_timer{nullptr};
     winrt::event_token m_flush_tick_token{};
