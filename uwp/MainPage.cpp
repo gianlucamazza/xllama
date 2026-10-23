@@ -1752,7 +1752,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     // --- Model selection ComboBox ---
     winrt::Windows::UI::Xaml::Controls::ComboBox modelBox;
     modelBox.Header(winrt::box_value(L"Model"));
-    modelBox.FontSize(12);
+    modelBox.FontSize(9);
     modelBox.HorizontalAlignment(HorizontalAlignment::Stretch);
     // Model list comes from the catalogue (models/manifest.json; LocalState
     // override wins). If the active model is not in the catalogue (e.g. a dir
@@ -1801,8 +1801,8 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     sysPromptBox.Text(::xllama::utf8_to_wstring(m_system_prompt));
     sysPromptBox.AcceptsReturn(true);
     sysPromptBox.TextWrapping(TextWrapping::Wrap);
-    sysPromptBox.MinHeight(72);
-    sysPromptBox.FontSize(12);
+    sysPromptBox.MinHeight(54);
+    sysPromptBox.FontSize(9);
     sysPromptBox.IsFocusEngagementEnabled(true);
     sysPromptBox.Header(winrt::box_value(L"System prompt"));
 
@@ -1815,7 +1815,8 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
         s.StepFrequency(step);
         s.Value(val);
         s.Header(winrt::box_value(winrt::hstring(label)));
-        s.FontSize(12);
+        s.FontSize(9);
+        s.MinHeight(26);
         s.HorizontalAlignment(HorizontalAlignment::Stretch);
         return s;
     };
@@ -1837,7 +1838,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     // --- EP routing ComboBox (experimental; needs the DML fp16 model on device) ---
     winrt::Windows::UI::Xaml::Controls::ComboBox routingBox;
     routingBox.Header(winrt::box_value(L"EP routing (per conversation)"));
-    routingBox.FontSize(12);
+    routingBox.FontSize(9);
     routingBox.HorizontalAlignment(HorizontalAlignment::Stretch);
     routingBox.Items().Append(winrt::box_value(L"CPU only (default)"));
     routingBox.Items().Append(winrt::box_value(L"GPU only (DML)"));
@@ -1944,6 +1945,8 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     // Opens the GitHub Issues form; internetClient is declared on both SKUs.
     winrt::Windows::UI::Xaml::Controls::HyperlinkButton reportLink;
     reportLink.Content(winrt::box_value(L"Report inappropriate generated content"));
+    reportLink.FontSize(9);
+    reportLink.MinHeight(24);
     reportLink.NavigateUri(winrt::Windows::Foundation::Uri(
         L"https://github.com/gianlucamazza/xllama/issues/new?template=store-report.yml"));
 
@@ -1952,16 +1955,16 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     auto make_settings_card = [](StackPanel const& host, wchar_t const* title,
                                  wchar_t const* hint) {
         StackPanel content;
-        content.Spacing(7);
+        content.Spacing(4);
         TextBlock heading;
         heading.Text(title);
-        heading.FontSize(14);
+        heading.FontSize(10);
         heading.FontWeight(FontWeights::SemiBold());
         content.Children().Append(heading);
         if (hint && *hint) {
             TextBlock detail;
             detail.Text(hint);
-            detail.FontSize(10);
+            detail.FontSize(8);
             detail.Opacity(0.72);
             detail.TextWrapping(TextWrapping::Wrap);
             content.Children().Append(detail);
@@ -1972,8 +1975,8 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
         card.BorderBrush(winrt::Windows::UI::Xaml::Media::SolidColorBrush(
             winrt::Windows::UI::ColorHelper::FromArgb(110, 93, 197, 174)));
         card.BorderThickness(ThicknessHelper::FromLengths(1, 1, 1, 1));
-        card.CornerRadius(CornerRadius{10, 10, 10, 10});
-        card.Padding(ThicknessHelper::FromLengths(14, 10, 14, 10));
+        card.CornerRadius(CornerRadius{6, 6, 6, 6});
+        card.Padding(ThicknessHelper::FromLengths(8, 6, 8, 6));
         card.Child(content);
         host.Children().Append(card);
         return content;
@@ -1981,20 +1984,20 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
 
     StackPanel page;
     page.Orientation(Orientation::Vertical);
-    page.Spacing(9);
-    page.Margin(ThicknessHelper::FromLengths(14, 10, 14, 10));
+    page.Spacing(5);
+    page.Margin(ThicknessHelper::FromLengths(8, 6, 8, 6));
 
     StackPanel pageHeading;
-    pageHeading.Spacing(3);
+    pageHeading.Spacing(2);
     TextBlock eyebrow;
     eyebrow.Text(L"XLLAMA ON STEROIDS  /  CONSOLE CONFIGURATION");
-    eyebrow.FontSize(10);
+    eyebrow.FontSize(8);
     eyebrow.FontWeight(FontWeights::SemiBold());
     eyebrow.Opacity(0.72);
     pageHeading.Children().Append(eyebrow);
     TextBlock pageTitle;
     pageTitle.Text(L"Make it yours");
-    pageTitle.FontSize(18);
+    pageTitle.FontSize(14);
     pageTitle.FontWeight(FontWeights::SemiBold());
     pageHeading.Children().Append(pageTitle);
     page.Children().Append(pageHeading);
@@ -2007,21 +2010,21 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     columns.ColumnDefinitions().Append(leftDefinition);
     columns.ColumnDefinitions().Append(rightDefinition);
     StackPanel leftColumn;
-    leftColumn.Spacing(8);
-    leftColumn.Margin(ThicknessHelper::FromLengths(0, 0, 6, 0));
+    leftColumn.Spacing(4);
+    leftColumn.Margin(ThicknessHelper::FromLengths(0, 0, 4, 0));
     StackPanel rightColumn;
-    rightColumn.Spacing(8);
-    rightColumn.Margin(ThicknessHelper::FromLengths(6, 0, 0, 0));
+    rightColumn.Spacing(4);
+    rightColumn.Margin(ThicknessHelper::FromLengths(4, 0, 0, 0));
     Grid::SetColumn(rightColumn, 1);
 
     auto modelCard = make_settings_card(leftColumn, L"Model & assistant",
                                         L"Choose the model and shape how it responds.");
-    modelBox.FontSize(12);
-    modelBox.MinHeight(38);
-    loraStatus.FontSize(10);
-    personalizeStatus.FontSize(10);
-    sysPromptBox.FontSize(12);
-    sysPromptBox.MinHeight(88);
+    modelBox.FontSize(9);
+    modelBox.MinHeight(30);
+    loraStatus.FontSize(8);
+    personalizeStatus.FontSize(8);
+    sysPromptBox.FontSize(9);
+    sysPromptBox.MinHeight(60);
     modelCard.Children().Append(modelBox);
     modelCard.Children().Append(loraStatus);
     modelCard.Children().Append(sysPromptBox);
@@ -2040,19 +2043,21 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     performanceCard.Children().Append(topKSlider);
     performanceCard.Children().Append(repSlider);
     performanceCard.Children().Append(nPredSlider);
-    kvToggle.FontSize(12);
-    routingBox.FontSize(12);
-    routingBox.MinHeight(38);
+    kvToggle.FontSize(9);
+    kvToggle.MinHeight(28);
+    routingBox.FontSize(9);
+    routingBox.MinHeight(30);
     performanceCard.Children().Append(kvToggle);
     performanceCard.Children().Append(routingBox);
     #ifndef XLLAMA_STORE_SKU
     auto networkCard = make_settings_card(
         rightColumn, L"LAN service",
         L"Connect your other devices to the Xbox over your trusted home network.");
-    apiToggle.FontSize(12);
-    apiPortBox.FontSize(12);
-    apiPortBox.MinHeight(38);
-    apiStatus.FontSize(10);
+    apiToggle.FontSize(9);
+    apiToggle.MinHeight(28);
+    apiPortBox.FontSize(9);
+    apiPortBox.MinHeight(30);
+    apiStatus.FontSize(8);
     networkCard.Children().Append(apiToggle);
     networkCard.Children().Append(apiPortBox);
     networkCard.Children().Append(apiStatus);
@@ -2066,12 +2071,17 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     winrt::Windows::UI::Xaml::Controls::ScrollViewer sv;
     sv.Content(page);
     const auto viewport = self->m_root.XamlRoot().Size();
-    sv.MaxHeight(std::clamp(static_cast<double>(viewport.Height) - 72.0, 320.0, 1200.0));
+    sv.MaxHeight(std::clamp(static_cast<double>(viewport.Height) - 72.0, 300.0, 1200.0));
     sv.MaxWidth(std::clamp(static_cast<double>(viewport.Width) - 48.0, 680.0, 1800.0));
     sv.VerticalScrollBarVisibility(ScrollBarVisibility::Auto);
 
     winrt::Windows::UI::Xaml::Controls::ContentDialog dlg;
-    dlg.Title(winrt::box_value(L"Settings"));
+    dlg.FontSize(9);
+    TextBlock settingsTitle;
+    settingsTitle.Text(L"Settings");
+    settingsTitle.FontSize(12);
+    settingsTitle.FontWeight(FontWeights::SemiBold());
+    dlg.Title(settingsTitle);
     dlg.Content(sv);
     dlg.FullSizeDesired(true);
     dlg.PrimaryButtonText(L"Save");
