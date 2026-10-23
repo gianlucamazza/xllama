@@ -220,6 +220,7 @@ Load-bearing headers agents usually touch:
 | Header                               | Role                                                 |
 | ------------------------------------ | ---------------------------------------------------- |
 | `session.h` / `session_hub.h`        | `Session` API; the one process-wide resident session |
+| `compute_admission.h`                | Process-wide RAII permit for resource-heavy GUI and API jobs |
 | `inference_params.h` / `inference.h` | Params, result, `run_inference`                      |
 | `inference_progress.h`               | Prefill/decode progress logs and stall watchdog      |
 | `routing_policy.h`                   | ORT CPU-vs-DML routing and prompt budget             |

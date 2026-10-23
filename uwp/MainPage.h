@@ -11,6 +11,7 @@
     #include "pch.h"
     #include "xllama/autopilot.h"
     #include "xllama/chat_prompt.h"
+    #include "xllama/compute_admission.h"
     #include "xllama/session.h"
     #include "xllama/session_hub.h"
 
@@ -77,7 +78,7 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     // runs detached, serialized by hub.mtx (a concurrent first turn simply
     // queues behind it and finds the session resident).
     void PreloadSessionAsync();
-    void StartInference(std::wstring const& prompt);
+    bool StartInference(std::wstring const& prompt);
     void OnRunClick(winrt::Windows::Foundation::IInspectable const&,
                     winrt::Windows::UI::Xaml::RoutedEventArgs const&);
     void OnCancelClick(winrt::Windows::Foundation::IInspectable const&,
@@ -137,7 +138,7 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     // Image generation UX: shows the last diffuse-out.png and runs SD-Turbo
     // in-process (plain ORT DML coexists with the XAML compositor).
     winrt::fire_and_forget ShowImageDialog();
-    void StartDiffusion();
+    void StartDiffusion(::xllama::ComputeJobAdmission::Handle permit);
     void PollDiffuseProgress();
     void FinishDiffusion();
     void SaveCurrentConversation(bool partial = false);

@@ -80,6 +80,8 @@ contract and must be documented and measured before acceptance.
 
 ## Proposal C: process-wide compute-job admission
 
+Status: Accepted (2026-10-23). See [ADR 0008](../../adr/0008-process-compute-admission.md).
+
 ### Context
 
 F08 reproduces API chat execution during GUI diffusion. GUI running flags protect

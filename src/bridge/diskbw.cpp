@@ -137,7 +137,11 @@ bool file_size_of(const std::string& path, std::uint64_t* out) {
 }
 
 // Buffered fallback: evict the file from page cache so every pass touches the
-// device. Best-effort — a failure just means warmer numbers.
+// device. Best-effort — a failure just means warmer numbers. macOS has no
+// POSIX_FADV_DONTNEED equivalent, so leave its filesystem cache untouched.
+#ifdef __APPLE__
+void drop_cache_hint(const std::string&) {}
+#else
 void drop_cache_hint(const std::string& path) {
     const int fd = ::open(path.c_str(), O_RDONLY);
     if (fd >= 0) {
@@ -145,6 +149,7 @@ void drop_cache_hint(const std::string& path) {
         ::close(fd);
     }
 }
+#endif
 #endif
 
 // Shared sink so reads are not optimized away (atomic: workers add concurrently).

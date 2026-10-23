@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **GUI and LAN API share compute admission** (ADR 0008, audit F08). A process-wide
+  RAII permit now serializes chat, embeddings, diffusion, device training,
+  startup pre-load and post-pull model loading. API requests receive the existing
+  busy response while the slot is occupied (streaming pulls emit an error event);
+  startup pre-load retains its bounded first-request wait.
+
 - **GUI and LAN API load a model the same way** (audit F03, [ADR 0007](docs/adr/0007-session-spec.md)).
   The API ignored the catalogue `lora`, and the hub reused a session by model id,
   so the first surface to load a LoRA model decided whether its adapter applied.
