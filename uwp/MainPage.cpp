@@ -1730,6 +1730,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
         s.StepFrequency(step);
         s.Value(val);
         s.Header(winrt::box_value(winrt::hstring(label)));
+        s.FontSize(18);
         s.HorizontalAlignment(HorizontalAlignment::Stretch);
         return s;
     };
@@ -1854,42 +1855,138 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
         personalizeStatus.Text(line);
     }
 
-    winrt::Windows::UI::Xaml::Controls::StackPanel panel;
-    panel.Orientation(Orientation::Vertical);
-    panel.Spacing(12);
-    panel.Children().Append(modelBox);
-    panel.Children().Append(loraStatus);
-    panel.Children().Append(personalizeStatus);
-    panel.Children().Append(sysPromptBox);
-    panel.Children().Append(tempSlider);
-    panel.Children().Append(topPSlider);
-    panel.Children().Append(topKSlider);
-    panel.Children().Append(repSlider);
-    panel.Children().Append(nPredSlider);
-    panel.Children().Append(kvToggle);
-    panel.Children().Append(routingBox);
-    #ifndef XLLAMA_STORE_SKU
-    panel.Children().Append(apiToggle);
-    panel.Children().Append(apiPortBox);
-    panel.Children().Append(apiStatus);
-    #endif
-
     // Store policy 11.16: a path to report inappropriate generative-AI output.
     // Opens the GitHub Issues form; internetClient is declared on both SKUs.
     winrt::Windows::UI::Xaml::Controls::HyperlinkButton reportLink;
     reportLink.Content(winrt::box_value(L"Report inappropriate generated content"));
     reportLink.NavigateUri(winrt::Windows::Foundation::Uri(
         L"https://github.com/gianlucamazza/xllama/issues/new?template=store-report.yml"));
-    panel.Children().Append(reportLink);
+
+    // Living-room layout: generous typography, two clear groups, and a full-size
+    // dialog so the settings are legible and reachable with a controller on TV.
+    auto make_settings_card = [](StackPanel const& host, wchar_t const* title,
+                                 wchar_t const* hint) {
+        StackPanel content;
+        content.Spacing(16);
+        TextBlock heading;
+        heading.Text(title);
+        heading.FontSize(22);
+        heading.FontWeight(FontWeights::SemiBold());
+        content.Children().Append(heading);
+        if (hint && *hint) {
+            TextBlock detail;
+            detail.Text(hint);
+            detail.FontSize(16);
+            detail.Opacity(0.72);
+            detail.TextWrapping(TextWrapping::Wrap);
+            content.Children().Append(detail);
+        }
+        Border card;
+        card.Background(winrt::Windows::UI::Xaml::Media::SolidColorBrush(
+            winrt::Windows::UI::ColorHelper::FromArgb(238, 16, 28, 35)));
+        card.BorderBrush(winrt::Windows::UI::Xaml::Media::SolidColorBrush(
+            winrt::Windows::UI::ColorHelper::FromArgb(110, 93, 197, 174)));
+        card.BorderThickness(ThicknessHelper::FromLengths(1, 1, 1, 1));
+        card.CornerRadius(CornerRadius{10, 10, 10, 10});
+        card.Padding(ThicknessHelper::FromLengths(26, 22, 26, 24));
+        card.Child(content);
+        host.Children().Append(card);
+        return content;
+    };
+
+    StackPanel page;
+    page.Orientation(Orientation::Vertical);
+    page.Spacing(24);
+    page.Margin(ThicknessHelper::FromLengths(26, 18, 26, 16));
+
+    StackPanel pageHeading;
+    pageHeading.Spacing(6);
+    TextBlock eyebrow;
+    eyebrow.Text(L"XLLAMA ON STEROIDS  /  CONSOLE CONFIGURATION");
+    eyebrow.FontSize(15);
+    eyebrow.FontWeight(FontWeights::SemiBold());
+    eyebrow.Opacity(0.72);
+    pageHeading.Children().Append(eyebrow);
+    TextBlock pageTitle;
+    pageTitle.Text(L"Make it yours");
+    pageTitle.FontSize(34);
+    pageTitle.FontWeight(FontWeights::SemiBold());
+    pageHeading.Children().Append(pageTitle);
+    page.Children().Append(pageHeading);
+
+    Grid columns;
+    ColumnDefinition leftDefinition;
+    leftDefinition.Width(GridLengthHelper::FromValueAndType(1.0, GridUnitType::Star));
+    ColumnDefinition rightDefinition;
+    rightDefinition.Width(GridLengthHelper::FromValueAndType(1.0, GridUnitType::Star));
+    columns.ColumnDefinitions().Append(leftDefinition);
+    columns.ColumnDefinitions().Append(rightDefinition);
+    StackPanel leftColumn;
+    leftColumn.Spacing(20);
+    leftColumn.Margin(ThicknessHelper::FromLengths(0, 0, 14, 0));
+    StackPanel rightColumn;
+    rightColumn.Spacing(20);
+    rightColumn.Margin(ThicknessHelper::FromLengths(14, 0, 0, 0));
+    Grid::SetColumn(rightColumn, 1);
+
+    auto modelCard = make_settings_card(leftColumn, L"Model & assistant",
+                                        L"Choose the model and shape how it responds.");
+    modelBox.FontSize(20);
+    modelBox.MinHeight(58);
+    loraStatus.FontSize(16);
+    personalizeStatus.FontSize(16);
+    sysPromptBox.FontSize(20);
+    sysPromptBox.MinHeight(150);
+    modelCard.Children().Append(modelBox);
+    modelCard.Children().Append(loraStatus);
+    modelCard.Children().Append(sysPromptBox);
+
+    auto personalCard = make_settings_card(
+        leftColumn, L"Personalization",
+        L"Train from your feedback when a compatible base model is available.");
+    personalizeStatus.TextWrapping(TextWrapping::Wrap);
+    personalCard.Children().Append(personalizeStatus);
+
+    auto performanceCard = make_settings_card(
+        rightColumn, L"Generation & performance",
+        L"Balance response style, length, and backend behaviour.");
+    performanceCard.Children().Append(tempSlider);
+    performanceCard.Children().Append(topPSlider);
+    performanceCard.Children().Append(topKSlider);
+    performanceCard.Children().Append(repSlider);
+    performanceCard.Children().Append(nPredSlider);
+    kvToggle.FontSize(18);
+    routingBox.FontSize(20);
+    routingBox.MinHeight(58);
+    performanceCard.Children().Append(kvToggle);
+    performanceCard.Children().Append(routingBox);
+    #ifndef XLLAMA_STORE_SKU
+    auto networkCard = make_settings_card(
+        rightColumn, L"LAN service",
+        L"Connect your other devices to the Xbox over your trusted home network.");
+    apiToggle.FontSize(18);
+    apiPortBox.FontSize(20);
+    apiPortBox.MinHeight(58);
+    apiStatus.FontSize(16);
+    networkCard.Children().Append(apiToggle);
+    networkCard.Children().Append(apiPortBox);
+    networkCard.Children().Append(apiStatus);
+    #endif
+
+    columns.Children().Append(leftColumn);
+    columns.Children().Append(rightColumn);
+    page.Children().Append(columns);
+    page.Children().Append(reportLink);
 
     winrt::Windows::UI::Xaml::Controls::ScrollViewer sv;
-    sv.Content(panel);
-    sv.MaxHeight(480);
+    sv.Content(page);
+    sv.MaxHeight(680);
     sv.VerticalScrollBarVisibility(ScrollBarVisibility::Auto);
 
     winrt::Windows::UI::Xaml::Controls::ContentDialog dlg;
     dlg.Title(winrt::box_value(L"Settings"));
     dlg.Content(sv);
+    dlg.FullSizeDesired(true);
     dlg.PrimaryButtonText(L"Save");
     dlg.SecondaryButtonText(L"Train on my feedback");
     dlg.CloseButtonText(L"Cancel");
