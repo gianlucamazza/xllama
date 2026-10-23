@@ -285,7 +285,8 @@ builds on. The original MIT license and upstream attribution are preserved.
 Work added and maintained in this fork includes the **Xllama on Steroids**
 rebrand, fork-specific Xbox packaging, and an Xbox LAN dashboard with a custom
 background, resident-model status, live API activity and statistics, while
-keeping Settings accessible from the console.
+keeping Settings accessible from the console. Development is carried out on
+macOS; Xbox UWP packages are built on Windows through GitHub Actions.
 
 - [`llama.cpp`](https://github.com/ggml-org/llama.cpp) — Georgi Gerganov
 - [ONNX Runtime GenAI](https://github.com/microsoft/onnxruntime-genai) — Microsoft
