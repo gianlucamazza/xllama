@@ -304,7 +304,7 @@ the catalogue status only.
 | LFM2.5-230M      | llama.cpp | ~149 MB          | ✅ `lfm25-230m` — floor; QAD Q4_0, 132.4 tok/s, 236 MB, H9 1/8            |
 | LFM2.5-350M      | llama.cpp | ~219 MB          | ✅ `lfm25-350m` — default chat; QAD Q4_0, 101.6 tok/s, 311 MB, H9 4/8     |
 | LFM2.5-1.2B      | llama.cpp | ~696 MB          | ✅ `lfm25-1.2b-instruct` — balanced; QAD Q4_0, 40.0 tok/s, 783 MB, H9 6/8 |
-| LFM2-2.6B        | llama.cpp | ~1.56 GB         | ✅ `lfm2-2.6b` — quality; 18.4 tok/s, H9 7/8                              |
+| LFM2-2.6B        | llama.cpp | ~1.56 GB         | ✅ `lfm2-2.6b` — quality; 17.9 tok/s, H9 7/8                              |
 | Phi-4-mini       | llama.cpp | ~2.49 GB         | ✅ `phi4-mini` — T3 PASS: H9 6/8, 11.2 tok/s, 2765 MB (#268)              |
 | MiniCPM5-1B      | llama.cpp | ~688 MB          | ⛔ rejected — measured: Series S H9 3/8 (#267)                            |
 | Qwen3-0.6B       | ORT GenAI | 969 MB merged    | ✅ builds; heavy (151k-vocab embedding dominates)                         |

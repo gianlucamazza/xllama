@@ -38,6 +38,9 @@ Headline console rows from [benchmarks.md](benchmarks.md) (Series S, t6):
 | Coding 3B (Phase 15 target) | Qwen2.5-Coder-3B Q4_K_M | **14.0** |    46.2 |    2116 | `phase14-console`            |
 | Peer dense 3B               | Llama-3.2-3B Q3_K_S     | **14.2** |    19.5 |    1824 | `phase7-scale`               |
 
+LFM2-2.6B **18.4** is the `phase7-lfm` freeze; superseded by 17.9
+([benchmarks.md](benchmarks.md)).
+
 Physics already measured (cite, do not re-derive):
 
 | Fact                                                         | Home                                                       |

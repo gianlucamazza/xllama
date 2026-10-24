@@ -73,6 +73,8 @@ First launch: downloads default model (~219 MB). No model bundled in MSIX.
 | LFM2.5-350M | 350M   | **101.6** tok/s | Default chat            |
 | LFM2-2.6B   | 2.6B   | **17.9** tok/s  | Quality (H9 7/8)        |
 
+Xbox Series S, CPU 6 threads, median of 3 ([docs/benchmarks.md](docs/benchmarks.md)).
+
 Full catalogue + Phase 14 coding models: [model-matrix.md](docs/model-matrix.md) · [benchmarks.md](docs/benchmarks.md)
 
 Hugging Face collection: [xllama: models measured on Xbox Series S](https://huggingface.co/collections/gianlucamazza/xllama-models-measured-on-xbox-series-s-6aca0b32275cbe99dbf02d89) — models measured in [docs/benchmarks.md](docs/benchmarks.md).

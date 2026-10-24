@@ -23,3 +23,7 @@ keywords:
   - edge AI
   - reproducibility
 doi: "10.5281/zenodo.22119126"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.22118437"
+    description: "Concept DOI (all versions)"
