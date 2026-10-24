@@ -1,5 +1,5 @@
 # Release-facing metadata SSOT. Edit this file before a research release.
-# DOI fields remain empty until the first Zenodo deposit is reserved.
+# DOI fields record the published Zenodo concept and version deposits.
 
 [release]
 version = "1.0.6"
