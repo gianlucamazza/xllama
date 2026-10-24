@@ -60,6 +60,8 @@ if [[ -n "${XLLAMA_EXPECTED_PFN:-}" && "$PFN" != "$XLLAMA_EXPECTED_PFN" ]]; then
 fi
 
 TMPDIR_LOCAL=$(mktemp -d)
+# shellcheck source=scripts/console-run-log.sh
+source "${SCRIPT_DIR}/console-run-log.sh"
 trap 'rm -rf "$TMPDIR_LOCAL"' EXIT
 
 _curl_post_file() {
@@ -112,9 +114,7 @@ delete_file() {
 }
 
 restart_app() {
-	curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X DELETE \
-		"${BASE_URL}/api/taskmanager/app?package=${PFN}" >/dev/null 2>&1 || true
-	sleep 2
+	stop_app || return 1
 	local pfamily aumid
 	# shellcheck disable=SC2001
 	pfamily=$(echo "$PFN" | sed 's/_[0-9][0-9.]*_[^_]*__/_/')
@@ -145,25 +145,28 @@ wait_autopilot_done() {
 # without a restore the next gate, and the user, inherit them (a failed serve
 # left the console relaunching a missing model for 600 s on every start).
 stop_app() {
-	curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X DELETE \
-		"${BASE_URL}/api/taskmanager/app?package=${PFN}" >/dev/null 2>&1 || true
+	# deploy.sh encodes the package parameter and rejects real portal errors.
+	"${DEPLOY}" stop-app "$PFN" >&2 || return 1
 	sleep 2
 }
 
 run_autopilot() {
 	local timeout_s="${1:-900}" saved="${TMPDIR_LOCAL}/settings-saved.json" rc=0
+	reset_run_log
 	cat >"${TMPDIR_LOCAL}/autopilot.json"
 	printf 'go' >"${TMPDIR_LOCAL}/autopilot.flag"
 	: >"$saved"
 	fetch_file "settings.json" "$saved"
 	grep -q '"sampling"' "$saved" 2>/dev/null || : >"$saved" # portal error body = absent
 	delete_file "autopilot-done.txt"
-	delete_file "xllama.log"
+	stop_app || return 1
+	# Keep the append-only log; do not race a deferred DELETE.
+	snapshot_run_log || return 1
 	upload_file "${TMPDIR_LOCAL}/autopilot.json" || return 1
 	upload_file "${TMPDIR_LOCAL}/autopilot.flag" || return 1
-	restart_app
+	restart_app || return 1
 	wait_autopilot_done "$timeout_s" || rc=1
-	stop_app # it must not rewrite settings.json after the restore
+	stop_app || return 1 # it must not rewrite settings.json after the restore
 	if [[ -s "$saved" ]]; then
 		upload_file "$saved" "" "settings.json" >&2 || echo "  WARN: settings.json not restored" >&2
 	else
@@ -205,11 +208,6 @@ fetch_samples() {
 PINNED_SETTINGS='{"op": "set_system_prompt", "text": "You are a helpful assistant."},
   {"op": "set_sampling", "temperature": 0, "top_p": 1, "top_k": 40, "repetition_penalty": 1.1, "n_predict": 24},'
 
-fetch_log() {
-	fetch_file "xllama.log" "${TMPDIR_LOCAL}/xllama.log"
-	echo "${TMPDIR_LOCAL}/xllama.log"
-}
-
 OUT="${REPO_ROOT}/training/out/smollm2-360m-marker"
 MERGED=""
 for c in "${OUT}/merged-Q4_K_M.gguf" "${OUT}/merged-f16.gguf"; do
@@ -241,7 +239,7 @@ prepare_merged_q4() {
 # failure and a failed upload alike (F05; a full disk is how this surfaced).
 serve_cleanup() {
 	local saved_manifest="$1"
-	stop_app
+	stop_app || return 1
 	delete_file "model.gguf" "models\\smollm2-lora-merged"
 	delete_file ".complete" "models\\smollm2-lora-merged"
 	if [[ -s "$saved_manifest" ]]; then
@@ -304,7 +302,10 @@ JSON
 	) || true
 	echo "  autopilot: ${marker}"
 	local log verdict=0
-	log=$(fetch_log)
+	log=$(fetch_log) || {
+		[[ $uploaded -eq 1 ]] && serve_cleanup "$saved_manifest"
+		return 1
+	}
 	[[ "$marker" == "ok" ]] || {
 		echo "  FAIL: autopilot not ok"
 		verdict=1
@@ -351,7 +352,12 @@ JSON
 		fi
 		verdict=1
 	fi
-	[[ $uploaded -eq 1 ]] && serve_cleanup "$saved_manifest"
+	if [[ $uploaded -eq 1 ]]; then
+		serve_cleanup "$saved_manifest" || {
+			echo "  FAIL: cleanup incomplete; model.gguf, .complete and manifest.json override may remain on the device" >&2
+			verdict=1
+		}
+	fi
 	[[ $verdict -eq 0 ]] && echo "Training serve: PASS" || echo "Training serve: FAIL"
 	return $verdict
 }
@@ -383,7 +389,7 @@ JSON
 	# Note: rate uses "name" key — ApParseScript maps name|text|id|prompt to arg.
 	echo "  autopilot: ${marker}"
 	local log verdict=0
-	log=$(fetch_log)
+	log=$(fetch_log) || return 1
 	[[ "$marker" == "ok" ]] || {
 		echo "  FAIL: autopilot not ok (need MSIX with rate op?)"
 		verdict=1
@@ -437,7 +443,7 @@ JSON
 	) || true
 	echo "  autopilot: ${marker}"
 	local log verdict=0
-	log=$(fetch_log)
+	log=$(fetch_log) || return 1
 	[[ "$marker" == "ok" ]] || {
 		echo "  FAIL: autopilot not ok"
 		verdict=1
@@ -465,6 +471,7 @@ JSON
 # Tunables: XLLAMA_DEVICE_EPOCHS (8), XLLAMA_DEVICE_TRAIN_TIMEOUT (7200s).
 # -----------------------------------------------------------------------------
 validate_device_train() {
+	reset_run_log
 	echo "=== Device train (Lane B partial FT, in-process) ==="
 	local base="${OUT}/base-f16.gguf"
 	local dataset="${REPO_ROOT}/training/datasets/toy_marker.jsonl"
@@ -512,9 +519,11 @@ EOF
 	upload_file "${TMPDIR_LOCAL}/job.json" "training" "job.json" || return 1
 	delete_file "result.done" "training"
 	delete_file "result.json" "training\\out\\device-marker" # F04: no stale evidence
-	delete_file "xllama.log"
+	stop_app || return 1
+	# Keep the append-only log; do not race a deferred DELETE.
+	snapshot_run_log || return 1
 	upload_file "${TMPDIR_LOCAL}/train.flag" || return 1
-	restart_app
+	restart_app || return 1
 
 	echo "  Waiting for training/result.done (timeout ${timeout_s}s; epochs=${epochs})..."
 	local elapsed=0 done_f="${TMPDIR_LOCAL}/train-done.txt"
@@ -528,7 +537,7 @@ EOF
 		((elapsed += 30))
 	done
 	local log
-	log=$(fetch_log)
+	log=$(fetch_log) || return 1
 	grep -a '\[xllama\] train' "$log" | tail -20 || true
 	: >"${TMPDIR_LOCAL}/result.json"
 	fetch_file "result.json" "${TMPDIR_LOCAL}/result.json" "training%5Cout%5Cdevice-marker" 2>/dev/null || true

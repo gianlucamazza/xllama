@@ -28,6 +28,66 @@ a different installed package before writing test files; the benchmark runner
 also checks it before every run. Keep the expected value fixed until the next
 intentional deployment.
 
+## Run-scoped log evidence
+
+The UI and training harnesses share `scripts/console-run-log.sh`. Each attempt
+invalidates the preceding run's snapshot, including attempts that fail to stop
+the app. Stops use the checked, package-encoding helper in `deploy.sh`. Before
+launch they snapshot `xllama.log` after stopping the app. The harnesses **never
+delete this log**: a delayed unlink can race the new process (#347). Only a
+successful download or HTTP 404 establishes the baseline. Verdicts read only
+new bytes beginning at one complete, exact `App::App()` entry. An old partial
+line may precede that append boundary; historical bytes never complete a new
+marker or enter the extracted output.
+
+A missing or ambiguous new launch, failed download, or truncated/replaced
+baseline fails closed. WDP file sizes, timestamps and successful DELETEs are
+not atomic file-generation identities and cannot prove recreation after launch.
+Even a legitimate recreation with a nonempty baseline is therefore rejected;
+there is no fallback to the whole log or to a historical startup marker.
+`validate-api.sh` currently checks HTTP responses, not `xllama.log`, and does
+not need this helper.
+
+### Temporary fixture cleanup
+
+`console-temp-chats.sh` journals unique injected chat IDs **before** upload.
+The gate epilogue and the common EXIT handler both attempt cleanup, including
+on early return and caught HUP/INT/TERM. The TAESD VAE restore uses that same
+handler rather than replacing it. Cleanup stops the app, validates the index,
+removes only journaled IDs, checks file absence after DELETE and checks index
+contents after POST. HTTP/transport errors and malformed JSON are never treated
+as an empty index. Initial fixture injection uses the same checked index read.
+
+**Exclusive console access is required throughout validation and cleanup.** Do
+not run another harness or manually launch/edit chats at the same time. A second
+index read detects an intervening write, but WDP has no atomic compare-and-swap:
+that check cannot exclude a writer racing the final upload. Timestamps and
+repeated identical reads are not substitutes for exclusive access.
+
+If cleanup cannot be verified, the gate exits nonzero and retains its journal
+and recovery files. Once connectivity is restored, retry without running a gate:
+
+```bash
+source ~/.config/xllama/xbox-env
+XLLAMA_CHAT_JOURNAL=/path/printed/by/the/failure/chat-cleanup.pending ./scripts/validate-console.sh cleanup
+```
+
+Recovery must use the original private journal from that run on the same console
+and package. The journal is trusted local recovery input; do not substitute an
+unrelated or edited list of chat IDs.
+
+Physical deletion cannot be guaranteed while WDP is unavailable or holds a file
+open; failure is explicit, not a false success. SIGKILL/power loss cannot run
+shell traps. Recovery requires the retained journal; no unrelated chat is deleted.
+The journal owns injected fixtures only, not arbitrary conversations created by
+other users or unrelated clients.
+
+Host-only regression tests (no console or credentials):
+
+```bash
+python3 -m unittest tests/test_console_run_log.py tests/test_console_temp_chats.py
+```
+
 ## Official automated suite
 
 ```bash

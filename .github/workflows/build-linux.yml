@@ -113,7 +113,7 @@ jobs:
           bash -n scripts/run-xab.sh
 
       - name: Test research package tooling
-        run: python3 -m unittest tests/test_research_package.py tests/test_xab_contract.py tests/test_release_metadata.py tests/test_release_bundle.py tests/test_make_shape_gguf.py tests/test_bench_run_status.py
+        run: python3 -m unittest tests/test_research_package.py tests/test_xab_contract.py tests/test_release_metadata.py tests/test_release_bundle.py tests/test_make_shape_gguf.py tests/test_bench_run_status.py tests/test_console_run_log.py tests/test_console_temp_chats.py
 
       - name: Verify release metadata synchronization
         run: python3 scripts/check-release-metadata.py

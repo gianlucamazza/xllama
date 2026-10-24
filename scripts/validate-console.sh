@@ -100,14 +100,39 @@ if [[ -n "${XLLAMA_EXPECTED_PFN:-}" && "$PFN" != "$XLLAMA_EXPECTED_PFN" ]]; then
 fi
 
 TMPDIR_LOCAL=$(mktemp -d)
-VAE_CACHE="" # set by validate_taesd; read by its EXIT trap (must be global)
-# Byte-for-byte copy of xllama.log as it was BEFORE the current autopilot run.
-# WDP answers 200 to a DELETE of a file the app holds open and then does not
-# unlink it, so "clear the log" is not something a gate can rely on: fetch_log
-# slices off whatever this snapshot already contained instead.
-LOG_BEFORE="${TMPDIR_LOCAL}/xllama-before.log"
-: >"$LOG_BEFORE"
-trap 'rm -rf "$TMPDIR_LOCAL"' EXIT
+VAE_CACHE="" # set by validate_taesd; read by the common EXIT handler
+VAE_RESTORE_PENDING=0
+# shellcheck source=scripts/console-run-log.sh
+source "${SCRIPT_DIR}/console-run-log.sh"
+# shellcheck source=scripts/console-temp-chats.sh
+source "${SCRIPT_DIR}/console-temp-chats.sh"
+
+console_exit() {
+	local rc="$1" preserve=0
+	trap - EXIT
+	if ! cleanup_temp_chats; then
+		rc=1
+		preserve=1
+	fi
+	if ((VAE_RESTORE_PENDING)); then
+		echo "  restoring full VAE decoder ..." >&2
+		upload_file "${VAE_CACHE}/full_vae.onnx" "models\\sd-turbo-fp16\\vae_decoder" "model.onnx" || {
+			rc=1
+			preserve=1
+		}
+	fi
+	if ((preserve)); then
+		echo "  FAIL: cleanup incomplete; recovery files retained in ${TMPDIR_LOCAL}" >&2
+		echo "  Retry: XLLAMA_CHAT_JOURNAL=${CHAT_JOURNAL} $0 cleanup" >&2
+	else
+		rm -rf "$TMPDIR_LOCAL"
+	fi
+	exit "$rc"
+}
+trap 'console_exit "$?"' EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 # --- WDP helpers (same idioms as bench-xbox-ort.sh) ------------------------
 
@@ -156,8 +181,8 @@ delete_file() {
 }
 
 stop_app() {
-	curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X DELETE \
-		"${BASE_URL}/api/taskmanager/app?package=${PFN}" >/dev/null 2>&1 || true
+	# deploy.sh encodes the package parameter and rejects real portal errors.
+	"${DEPLOY}" stop-app "$PFN" >&2 || return 1
 	sleep 2
 }
 
@@ -171,7 +196,7 @@ start_app() {
 }
 
 restart_app() {
-	stop_app
+	stop_app || return 1
 	start_app
 }
 
@@ -321,6 +346,7 @@ wait_autopilot_done() {
 # markers, restart, and wait. Echoes the done-marker content.
 run_autopilot() {
 	local timeout_s="${1:-900}"
+	reset_run_log
 	cat >"${TMPDIR_LOCAL}/autopilot.json"
 	printf 'go' >"${TMPDIR_LOCAL}/autopilot.flag"
 	# Frames belong to one run: a gate that fails must not be handed the previous
@@ -330,25 +356,11 @@ run_autopilot() {
 	# open, and delete_file swallows the failure — a previous run's lines then
 	# survive into this run's log and falsify the verdict (observed: a "prompt
 	# too long" from the prior gate invocation counted against the next one).
-	stop_app
+	stop_app || return 1
 	delete_file "autopilot-done.txt"
 	delete_file "diffuse-progress.txt"
-	# xllama.log is append-only across restarts; clear it so the verdict greps
-	# only this run (a stale 887A0036 or routing line would falsify the gate).
-	# The app reopens the log lazily on next launch.
-	delete_file "xllama.log"
-	# Best effort only: when the unlink does not take, snapshot what is there so
-	# fetch_log can subtract it. Verdicts must never depend on a DELETE landing.
-	# The snapshot is only trusted on a real 200 — fetch_file happily writes a 404
-	# body, which would break the prefix match in fetch_log and quietly hand the
-	# whole file (previous run included) to the verdict.
-	: >"$LOG_BEFORE"
-	if ! file_absent "xllama.log"; then
-		local snap_code
-		snap_code=$(curl "${CURL_AUTH[@]}" -o "$LOG_BEFORE" -w "%{http_code}" \
-			"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState&filename=xllama.log" 2>/dev/null || echo "000")
-		[[ "$snap_code" == "200" ]] || : >"$LOG_BEFORE"
-	fi
+	# Never unlink the log: a delayed DELETE can race the next launch.
+	snapshot_run_log || return 1
 	# Accept the first-run disclaimer on the app's behalf, byte-for-byte what
 	# pressing "I understand" writes (MainPage.cpp ShowDisclaimerIfNeeded).
 	#
@@ -369,64 +381,6 @@ run_autopilot() {
 	upload_file "${TMPDIR_LOCAL}/autopilot.flag"
 	start_app
 	wait_autopilot_done "$timeout_s"
-}
-
-# The log this run appended, with the pre-run bytes removed. Every verdict greps
-# THIS, so a stale line from an earlier run cannot pass or fail a gate — the
-# failure mode that made #193's own gate report a rejection from the previous
-# invocation.
-fetch_log() {
-	local full="${TMPDIR_LOCAL}/xllama-full.log" run="${TMPDIR_LOCAL}/xllama.log"
-	fetch_file "xllama.log" "$full"
-	python3 - "$full" "$LOG_BEFORE" "$run" <<'PYLOG'
-import sys
-full, before, out = sys.argv[1], sys.argv[2], sys.argv[3]
-try:
-    data = open(full, "rb").read()
-except Exception:
-    data = b""
-try:
-    prev = open(before, "rb").read()
-except Exception:
-    prev = b""
-# The app appends to the existing file; if it recreated the log instead, the old
-# bytes are simply not a prefix any more and the whole file IS this run. Anything
-# else (a truncated or failed snapshot) cannot be subtracted — say so, because
-# silently handing the verdict a stale-inclusive log is the bug this exists for.
-if not prev:
-    tail = data
-elif data[:len(prev)] == prev:
-    tail = data[len(prev):]
-else:
-    tail = data
-    if len(data) >= len(prev):
-        print("  WARN: could not subtract the pre-run log — the verdict may include "
-              "stale lines", file=sys.stderr)
-open(out, "wb").write(tail)
-PYLOG
-	echo "$run"
-}
-
-# Remove an injected conversation: the file AND its index entry. Deleting only
-# the file leaves a phantom row in the console's History list that fails to
-# open — a gate must not leave litter on the device it validated.
-remove_chat() {
-	local cid="$1"
-	delete_file "${cid}.json" "chats"
-	fetch_file "index.json" "${TMPDIR_LOCAL}/index-after.json" "chats"
-	python3 - "$TMPDIR_LOCAL" "$cid" <<'PY'
-import json, sys
-tmp, cid = sys.argv[1], sys.argv[2]
-path = f"{tmp}/index-after.json"
-try:
-    idx = json.load(open(path))
-except Exception:
-    idx = []
-if isinstance(idx, list):
-    idx = [e for e in idx if e.get("id") != cid]
-    open(path, "w").write(json.dumps(idx, ensure_ascii=False))
-PY
-	upload_file "${TMPDIR_LOCAL}/index-after.json" "chats" "index.json"
 }
 
 # --- §2 routing A/B --------------------------------------------------------
@@ -513,8 +467,9 @@ JSON
 	# the worker, with the tokenizer of the model that will generate
 	# (prompt_budget.h) — which can only drop MORE turns than this estimate did, so
 	# a decoy sized against it cannot be trimmed away behind routing's back.
-	local esca_id="ap-routing-longctx"
-	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
+	local esca_id
+	esca_id=$(register_temp_chat "ap-routing-longctx") || return 1
+	fetch_chat_index "${TMPDIR_LOCAL}/existing-index.json" || return 1
 	# n_predict is pinned at the SHIPPING default (512) in the autopilot below: a
 	# gate that picks a convenient value can be green over a dead feature, which is
 	# exactly what hid the ceiling-under-threshold bug.
@@ -586,7 +541,7 @@ JSON
 	) || true
 	echo "  autopilot: ${marker}"
 	local log
-	log=$(fetch_log)
+	log=$(fetch_log) || return 1
 
 	local verdict=0
 	if [[ "$marker" != "ok" ]]; then
@@ -670,7 +625,7 @@ JSON
 	) || true
 	echo "  autopilot: ${marker}"
 	local log verdict=0
-	log=$(fetch_log)
+	log=$(fetch_log) || return 1
 	[[ "$marker" == "ok" ]] || {
 		echo "  FAIL: autopilot did not finish ok"
 		verdict=1
@@ -719,8 +674,9 @@ validate_longchat() {
 	# ~1800 tokens), and when the resident KV overflows n_ctx the session
 	# front-drop-evicts and continues — no continuation may fall back to a
 	# full re-prefill and no "context full" error may surface.
-	local cid="ap-169-longchat"
-	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
+	local cid
+	cid=$(register_temp_chat "ap-169-longchat") || return 1
+	fetch_chat_index "${TMPDIR_LOCAL}/existing-index.json" || return 1
 	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling "$DEFAULT_N_CTX")" "$EST_CHARS_PER_TOK" <<'PY'
 import json, sys
 tmp, cid = sys.argv[1], sys.argv[2]
@@ -780,7 +736,7 @@ JSON
 	) || true
 	echo "  autopilot: ${marker}"
 	local log verdict=0
-	log=$(fetch_log)
+	log=$(fetch_log) || return 1
 	[[ "$marker" == "ok" ]] || {
 		echo "  FAIL: autopilot did not finish ok"
 		verdict=1
@@ -820,8 +776,9 @@ validate_kvsnap() {
 	# reply may be re-tokenized after trimming whitespace, requiring a rewind
 	# that LFM's hybrid state cannot perform; that fallback has a separate cold
 	# reference regression (test_session.cpp and validate-kv-fallback.py).
-	local cid="ap-170b-switch"
-	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
+	local cid
+	cid=$(register_temp_chat "ap-170b-switch") || return 1
+	fetch_chat_index "${TMPDIR_LOCAL}/existing-index.json" || return 1
 	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling "$DEFAULT_N_CTX")" "$EST_CHARS_PER_TOK" <<'PY'
 import json, sys
 tmp, cid = sys.argv[1], sys.argv[2]
@@ -877,7 +834,7 @@ JSON
 	) || true
 	echo "  autopilot: ${marker}"
 	local log verdict=0
-	log=$(fetch_log)
+	log=$(fetch_log) || return 1
 	[[ "$marker" == "ok" ]] || {
 		echo "  FAIL: autopilot did not finish ok"
 		verdict=1
@@ -983,7 +940,7 @@ validate_coderpaste() {
 JSON
 	) || true
 	echo "  autopilot: ${marker}"
-	log=$(fetch_log)
+	log=$(fetch_log) || return 1
 	[[ "$marker" == "ok" ]] || {
 		echo "  FAIL: autopilot did not finish ok (an abort never writes the done file)"
 		verdict=1
@@ -1020,7 +977,7 @@ PYGEN
 JSON
 	) || true
 	echo "  autopilot: ${marker}"
-	log=$(fetch_log)
+	log=$(fetch_log) || return 1
 	# The send is EXPECTED to fail here; what must not happen is the app dying,
 	# which is exactly what a missing done-marker would mean.
 	if [[ -z "$marker" ]]; then
@@ -1054,8 +1011,9 @@ validate_thinkcut() {
 		echo "#193 truncated reasoning: FAIL"
 		return 1
 	fi
-	local cid="ap-193-thinkcut"
-	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
+	local cid
+	cid=$(register_temp_chat "ap-193-thinkcut") || return 1
+	fetch_chat_index "${TMPDIR_LOCAL}/existing-index.json" || return 1
 	python3 - "$TMPDIR_LOCAL" "$cid" <<'PY'
 import json, sys
 tmp, cid = sys.argv[1], sys.argv[2]
@@ -1092,7 +1050,7 @@ JSON
 	) || true
 	echo "  autopilot: ${marker}"
 	local log verdict=0
-	log=$(fetch_log)
+	log=$(fetch_log) || return 1
 	[[ "$marker" == "ok" ]] || {
 		echo "  FAIL: autopilot did not finish ok"
 		verdict=1
@@ -1153,7 +1111,7 @@ JSON
 	) || true
 	echo "  autopilot: ${marker}"
 	local log verdict=0
-	log=$(fetch_log)
+	log=$(fetch_log) || return 1
 	[[ "$marker" == "ok" ]] || {
 		echo "  FAIL: autopilot did not finish ok"
 		verdict=1
@@ -1215,8 +1173,10 @@ validate_genroom() {
 	# 1800-token ceiling got a reply cut at ~248 tokens, silently. Asserting the
 	# ARITHMETIC (prefill + n_predict <= n_ctx) instead of the answer's length
 	# keeps the verdict independent of whether this small model feels talkative.
-	local cid="ap-193-genroom" n_predict=512
-	fetch_file "index.json" "${TMPDIR_LOCAL}/existing-index.json" "chats"
+	local cid
+	cid=$(register_temp_chat "ap-193-genroom") || return 1
+	local n_predict=512
+	fetch_chat_index "${TMPDIR_LOCAL}/existing-index.json" || return 1
 	python3 - "$TMPDIR_LOCAL" "$cid" "$(trim_ceiling "$DEFAULT_N_CTX")" "$EST_CHARS_PER_TOK" "$n_predict" <<'PYROOM'
 import json, sys
 tmp, cid = sys.argv[1], sys.argv[2]
@@ -1265,7 +1225,7 @@ JSON
 	) || true
 	echo "  autopilot: ${marker}"
 	local log verdict=0
-	log=$(fetch_log)
+	log=$(fetch_log) || return 1
 	[[ "$marker" == "ok" ]] || {
 		echo "  FAIL: autopilot did not finish ok"
 		verdict=1
@@ -1340,7 +1300,7 @@ validate_taesd() {
 		curl -fsSL "${rel}/sd-turbo-fp16_vae_decoder_model.onnx" -o "${VAE_CACHE}/full_vae.onnx"
 
 	# Swap TAESD in, restore the full VAE on exit no matter what.
-	trap 'echo "  restoring full VAE decoder ..." >&2; upload_file "${VAE_CACHE}/full_vae.onnx" "models\\sd-turbo-fp16\\vae_decoder" "model.onnx"; rm -rf "$TMPDIR_LOCAL"' EXIT
+	VAE_RESTORE_PENDING=1
 	upload_file "${VAE_CACHE}/taesd_vae.onnx" "models\\sd-turbo-fp16\\vae_decoder" "model.onnx"
 
 	local marker
@@ -1430,7 +1390,7 @@ JSON
 	) || true
 	echo "  autopilot: ${marker}"
 	local log verdict=0
-	log=$(fetch_log)
+	log=$(fetch_log) || return 1
 	[[ "$marker" == "ok" ]] || {
 		echo "  FAIL: autopilot did not finish ok"
 		verdict=1
@@ -1512,7 +1472,7 @@ validate_store() {
 JSON
 	) || true
 	echo "  autopilot: ${marker}"
-	log=$(fetch_log)
+	log=$(fetch_log) || return 1
 	[[ "$marker" == "ok" ]] || {
 		echo "  FAIL: autopilot did not finish ok"
 		verdict=1
@@ -1593,11 +1553,13 @@ run_gate() {
 	ring_reset
 	"$fn" || rc=$?
 	((rc != 0)) && save_fail_shots "$name"
+	cleanup_temp_chats || rc=1
 	return $rc
 }
 
 CMD="${1:-}"
 case "$CMD" in
+cleanup) cleanup_temp_chats ;;
 routing) run_gate routing validate_routing ;;
 settings) run_gate settings validate_settings ;;
 gguf) run_gate gguf validate_gguf ;;
