@@ -674,7 +674,7 @@ host Release smoke (quality + peak)
 ## Unit test map (host suite)
 
 One doctest binary, `xllama-tests`, built from `tests/test_*.cpp`. The suite
-is **371 test cases / 33372 assertions** (doctest, without opt-in model checks).
+is **372 test cases / 33373 assertions** (doctest, without opt-in model checks).
 Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 (`llama_raii.h`, `ort_raii.h`, `d3d12_dyn.h`, `catalog_trust.h`).
 
