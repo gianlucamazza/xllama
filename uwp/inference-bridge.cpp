@@ -4,6 +4,7 @@
 #include "inference-bridge.h"
 
 #include "xllama/chat_prompt.h"
+#include "xllama/decision_score.h"
 #include "xllama/device_train.h"
 #include "xllama/diskbw.h"
 #include "xllama/gpubw.h"
@@ -1090,6 +1091,41 @@ void run_train() {
     FILE* done = _wfopen(utf8_to_wstring(resolve_local_path("training/result.done")).c_str(), L"w");
     if (done) {
         fputs(ok ? "ok\n" : "fail\n", done);
+        fclose(done);
+    }
+#endif
+}
+
+void run_decide() {
+#ifdef XLLAMA_UWP
+    set_cwd_to_local_folder();
+    std::string job_name = read_local_file("decide_job_path.txt");
+    if (job_name.empty())
+        job_name = xllama::kDefaultDecideJobName;
+    std::string err;
+    xllama::DecisionJob job;
+    const bool loaded = xllama::load_decision_job_file(resolve_local_path(job_name), job, &err);
+    xllama::DecisionRunReport report;
+    if (!loaded) {
+        report.error = err.empty() ? "failed to load decide job" : err;
+        log_output("[xllama] decide FAIL: " + report.error + "\n");
+    } else {
+        if (job.out_path.empty())
+            job.out_path = xllama::kDefaultDecideResultName;
+        report = xllama::run_decision_job(job);
+        if (!report.ok)
+            log_output("[xllama] decide FAIL: " + report.error + "\n");
+        else
+            log_output("[xllama] decide OK items=" + std::to_string(report.n_items) + "\n");
+    }
+    std::string werr;
+    const std::string out_path =
+        resolve_local_path(job.out_path.empty() ? xllama::kDefaultDecideResultName : job.out_path);
+    if (!xllama::write_decision_report(out_path, report, &werr))
+        log_output("[xllama] decide write FAIL: " + werr + "\n");
+    FILE* done = _wfopen(utf8_to_wstring(resolve_local_path("decide.done")).c_str(), L"w");
+    if (done) {
+        fputs(report.ok ? "ok\n" : "fail\n", done);
         fclose(done);
     }
 #endif

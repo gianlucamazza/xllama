@@ -508,6 +508,15 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
                 winrt::make<HeadlessView>(&::xllama::bridge::run_train, "train"));
             return 0; // not reached: CoreApplication::Exit terminates the process
         }
+        std::wstring decide_flag = flag_path_if_present(L"decide.flag");
+        if (!decide_flag.empty()) {
+            _wremove(decide_flag.c_str());
+            ::xllama::log_output(
+                "[xllama] decide.flag detected -> headless decision-model harness\n");
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(&::xllama::bridge::run_decide, "decide"));
+            return 0; // not reached: CoreApplication::Exit terminates the process
+        }
     #endif // !XLLAMA_STORE_SKU
         // Keep the MTA from init_apartment() through Application::Start.
         // XAML requires the *first* Application access to come from the MTA

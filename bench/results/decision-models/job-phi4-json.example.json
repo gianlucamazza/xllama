@@ -1,0 +1,14 @@
+{
+  "model_path": "phi4-mini",
+  "questions_dir": "bench/jevbench/public",
+  "out_path": "bench/results/decision-models/phi4-json-host.example-out.json",
+  "mode": "generate-json",
+  "backend": "cpu",
+  "n_gpu_layers": 0,
+  "n_threads": 0,
+  "n_ctx": 4096,
+  "host_label": "host-cpu",
+  "build_id": "",
+  "git_commit": "",
+  "device": ""
+}

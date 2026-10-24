@@ -217,23 +217,24 @@ cmake/              CMake helpers
 
 Load-bearing headers agents usually touch:
 
-| Header                               | Role                                                 |
-| ------------------------------------ | ---------------------------------------------------- |
-| `session.h` / `session_hub.h`        | `Session` API; the one process-wide resident session |
-| `inference_params.h` / `inference.h` | Params, result, `run_inference`                      |
-| `inference_progress.h`               | Prefill/decode progress logs and stall watchdog      |
-| `routing_policy.h`                   | ORT CPU-vs-DML routing and prompt budget             |
-| `prompt_budget.h`                    | `fit_prompt` and `fit_tool_transcript`               |
-| `sampling.h`                         | Sampler defaults shared by CLI, bench, GUI, API      |
-| `chat_prompt.h`                      | `ChatFormat` and stop sequences                      |
-| `embedding.h`                        | Embedding params and pooling trim                    |
-| `api_pull_policy.h`                  | Trusted catalogue pulls and API pull admission       |
-| `model_write.h`                      | Shared writer ownership before model mutation        |
-| `api_policy.h`                       | Classifies a tool proposal; does not execute tools   |
-| `training.h` / `device_train.h`      | Job validation and Lane B device train               |
-| `personalize.h`                      | In-app personalize helpers                           |
-| `json_utils.h`                       | JSON escape / parse (header-only)                    |
-| `catalog_trust.h`                    | UWP-only catalogue signature types                   |
+| Header                               | Role                                                  |
+| ------------------------------------ | ----------------------------------------------------- |
+| `session.h` / `session_hub.h`        | `Session` API; the one process-wide resident session  |
+| `inference_params.h` / `inference.h` | Params, result, `run_inference`                       |
+| `inference_progress.h`               | Prefill/decode progress logs and stall watchdog       |
+| `routing_policy.h`                   | ORT CPU-vs-DML routing and prompt budget              |
+| `prompt_budget.h`                    | `fit_prompt` and `fit_tool_transcript`                |
+| `sampling.h`                         | Sampler defaults shared by CLI, bench, GUI, API       |
+| `chat_prompt.h`                      | `ChatFormat` and stop sequences                       |
+| `embedding.h`                        | Embedding params and pooling trim                     |
+| `decision_score.h`                   | One-way label softmax; #30361 prompt / GGUF KV labels |
+| `api_pull_policy.h`                  | Trusted catalogue pulls and API pull admission        |
+| `model_write.h`                      | Shared writer ownership before model mutation         |
+| `api_policy.h`                       | Classifies a tool proposal; does not execute tools    |
+| `training.h` / `device_train.h`      | Job validation and Lane B device train                |
+| `personalize.h`                      | In-app personalize helpers                            |
+| `json_utils.h`                       | JSON escape / parse (header-only)                     |
+| `catalog_trust.h`                    | UWP-only catalogue signature types                    |
 
 Sampler chains are not headers under `include/`: `src/bridge/sampler_chain.h`
 (llama.cpp) and `src/bridge/ort_sampling.h` (ORT). Decode loops are

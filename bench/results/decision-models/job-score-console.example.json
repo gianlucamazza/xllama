@@ -1,0 +1,16 @@
+{
+  "model_path": "h2o-lightning-4b-stock-Q4_K_M.gguf",
+  "questions_dir": "jevbench",
+  "out_path": "decide-result.json",
+  "mode": "score",
+  "backend": "cpu",
+  "n_gpu_layers": 0,
+  "n_threads": 0,
+  "n_ctx": 8192,
+  "temperature": 0,
+  "apply_noul_floor": false,
+  "host_label": "series-s",
+  "build_id": "",
+  "git_commit": "",
+  "device": ""
+}

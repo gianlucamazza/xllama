@@ -109,4 +109,10 @@ void run_train();
 xllama::TrainingResult run_train_job_localized(const xllama::TrainingJob& job,
                                                const xllama::DeviceTrainCallbacks& cb = {});
 
+// Decision-model spike (docs/decision-models-spike.md). Triggered by
+// LocalFolder\decide.flag. Job path comes from decide_job_path.txt (a
+// LocalFolder-relative filename; default decide_job.json). Writes
+// decide-result.json + decide.done. No hardcoded console host or engine index.
+void run_decide();
+
 } // namespace xllama::bridge

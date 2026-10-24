@@ -3,6 +3,7 @@
 
 #include "xllama/chat_prompt.h" // kDefaultSystemPrompt
 #include "xllama/cli.h"
+#include "xllama/decision_score.h"
 #include "xllama/inference.h"
 #include "xllama/platform.h"
 #include "xllama/session.h"
@@ -129,6 +130,66 @@ int main(int argc, char** argv) {
         } else {
             return 1;
         }
+    }
+
+    // --jevbench <job.json>: one-way scoring or JSON-grammar baseline harness.
+    if (params.run_jevbench) {
+        xllama::DecisionJob job;
+        std::string err;
+        if (!xllama::load_decision_job_file(params.jevbench_job_path, job, &err)) {
+            std::fprintf(stderr, "jevbench FAIL: %s\n", err.c_str());
+            return 1;
+        }
+        const xllama::DecisionRunReport report = xllama::run_decision_job(job);
+        const std::string json = xllama::format_decision_report_json(report);
+        if (!job.out_path.empty()) {
+            std::string werr;
+            if (!xllama::write_decision_report(job.out_path, report, &werr)) {
+                std::fprintf(stderr, "jevbench FAIL: %s\n", werr.c_str());
+                std::fputs(json.c_str(), stdout);
+                return 1;
+            }
+        }
+        std::fputs(json.c_str(), stdout);
+        return report.ok ? 0 : 1;
+    }
+
+    // --decide: one prefill, softmax over --label tokens. No generation.
+    if (params.run_decide) {
+        xllama::SessionParams sp;
+        sp.model_path = params.model_path;
+        sp.n_ctx = params.n_ctx;
+        sp.n_threads = params.n_threads;
+        sp.n_batch = params.n_batch;
+        sp.n_ubatch = params.n_ubatch;
+        sp.n_gpu_layers = params.n_gpu_layers;
+        sp.backend = xllama::Backend::LlamaCpp;
+        std::string err;
+        std::unique_ptr<xllama::Session> session = xllama::Session::create(sp, &err);
+        if (!session) {
+            std::fprintf(stderr, "decide FAIL: %s\n", err.c_str());
+            return 1;
+        }
+        xllama::DecisionScoreRequest req;
+        req.prompt = params.prompt;
+        req.labels = params.decide_labels;
+        for (auto& label : req.labels)
+            label = xllama::h2o_leading_space_label(label);
+        req.temperature = params.decide_temperature;
+        const xllama::LabelScoreResult scored = session->score_labels(req);
+        if (!scored.ok) {
+            std::fprintf(stderr, "decide FAIL: %s\n", scored.error.c_str());
+            return 1;
+        }
+        std::printf("decide winner=%s tie=%d collision=%d peak_ws_mb=%zu\n",
+                    scored.scores[static_cast<size_t>(scored.winner)].label.c_str(),
+                    scored.tie ? 1 : 0, scored.first_token_collision ? 1 : 0,
+                    xllama::peak_working_set_mb());
+        for (const auto& s : scored.scores) {
+            std::printf("  label=%s token=%d n=%d logit=%.6f p=%.6f\n", s.label.c_str(),
+                        s.first_token, s.token_count, s.logit, s.probability);
+        }
+        return 0;
     }
 
     // --validate-train-job: training pillar — parse + validate job JSON only.

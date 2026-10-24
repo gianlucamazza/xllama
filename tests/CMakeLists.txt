@@ -50,6 +50,7 @@ add_executable(xllama-tests
     test_api_activity.cpp
     test_api_pull.cpp
     test_embedding.cpp
+    test_decision_score.cpp
     test_autopilot.cpp
     test_speculative.cpp
     test_capture_probe.cpp
@@ -65,6 +66,7 @@ target_compile_definitions(xllama-tests PRIVATE
     GOLDEN_JSON_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../diffusion/golden_vectors.json"
     CLIP_TOKENIZER_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../diffusion/clip_tokenizer"
     PARITY_GOLDEN_BIN="${CMAKE_CURRENT_SOURCE_DIR}/golden/logits-smol-short.bin"
-    LLAMA_TEMPLATES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../llama.cpp/models/templates")
+    LLAMA_TEMPLATES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../llama.cpp/models/templates"
+    QWEN35_VOCAB_GGUF="${CMAKE_CURRENT_SOURCE_DIR}/../llama.cpp/models/ggml-vocab-qwen35.gguf")
 
 add_test(NAME xllama-tests COMMAND xllama-tests)

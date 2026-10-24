@@ -924,6 +924,40 @@ class LlamaSession final : public Session {
         return -n;
     }
 
+    std::vector<std::string> token_pieces(const std::string& text) override {
+        // #30361 h2o_cut_state: common_tokenize(vocab, text, false, true)
+        // then common_token_to_piece(vocab, tok, true).
+        std::vector<std::string> out;
+        const llama_vocab* vocab = llama_model_get_vocab(m_model.get());
+        int32_t n = llama_tokenize(vocab, text.c_str(), static_cast<int32_t>(text.size()), nullptr,
+                                   0, false, true);
+        if (n == INT32_MIN || n == 0)
+            return out;
+        std::vector<llama_token> toks(static_cast<size_t>(-n));
+        n = llama_tokenize(vocab, text.c_str(), static_cast<int32_t>(text.size()), toks.data(),
+                           static_cast<int32_t>(toks.size()), false, true);
+        if (n <= 0)
+            return out;
+        toks.resize(static_cast<size_t>(n));
+        out.reserve(toks.size());
+        for (llama_token tok : toks) {
+            const int32_t need = llama_token_to_piece(vocab, tok, nullptr, 0, 0, true);
+            if (need == 0) {
+                out.emplace_back();
+                continue;
+            }
+            std::string piece(static_cast<size_t>(need > 0 ? need : -need), '\0');
+            const int32_t wrote = llama_token_to_piece(vocab, tok, piece.data(),
+                                                       static_cast<int32_t>(piece.size()), 0, true);
+            if (wrote < 0)
+                piece.resize(static_cast<size_t>(-wrote));
+            else
+                piece.resize(static_cast<size_t>(wrote));
+            out.push_back(std::move(piece));
+        }
+        return out;
+    }
+
     EmbeddingResult embed(const EmbeddingParams& params) override {
         EmbeddingResult result;
         if (params.input.empty()) {
@@ -1044,6 +1078,94 @@ class LlamaSession final : public Session {
             return result;
         result.success = true;
         return result;
+    }
+
+    LabelScoreResult score_labels(const DecisionScoreRequest& req) override {
+        LabelScoreResult out;
+        if (req.labels.empty()) {
+            out.error = "no labels";
+            return out;
+        }
+        std::string ctx_error;
+        if (!ensure_ctx(&ctx_error)) {
+            out.error = ctx_error.empty() ? "failed to create context" : ctx_error;
+            return out;
+        }
+        llama_context* ctx = m_ctx.get();
+        m_kv_tokens.clear();
+        llama_memory_clear(llama_get_memory(ctx), true);
+
+        const llama_vocab* vocab = llama_model_get_vocab(m_model.get());
+        int32_t n_tokens =
+            llama_tokenize(vocab, req.prompt.c_str(), static_cast<int32_t>(req.prompt.size()),
+                           nullptr, 0, true, true);
+        if (n_tokens == INT32_MIN || n_tokens == 0) {
+            out.error = "prompt tokenization failed";
+            return out;
+        }
+        std::vector<llama_token> tokens(static_cast<size_t>(-n_tokens));
+        n_tokens =
+            llama_tokenize(vocab, req.prompt.c_str(), static_cast<int32_t>(req.prompt.size()),
+                           tokens.data(), static_cast<int32_t>(tokens.size()), true, true);
+        if (n_tokens <= 0) {
+            out.error = "prompt tokenization failed";
+            return out;
+        }
+        tokens.resize(static_cast<size_t>(n_tokens));
+        const int n_ctx_active = static_cast<int>(llama_n_ctx(ctx));
+        if (n_tokens + 1 > n_ctx_active) {
+            out.error = prompt_too_long_message(n_tokens, n_ctx_active);
+            return out;
+        }
+        if (!prefill_chunked(ctx, tokens.data(), n_tokens)) {
+            out.error = "prompt decode failed";
+            llama_memory_clear(llama_get_memory(ctx), true);
+            return out;
+        }
+        const float* logits = llama_get_logits_ith(ctx, -1);
+        const int n_vocab = llama_vocab_n_tokens(vocab);
+        if (!logits || n_vocab <= 0) {
+            out.error = "no logits after prefill";
+            llama_memory_clear(llama_get_memory(ctx), true);
+            return out;
+        }
+
+        // #30361 init (server-decision.cpp ~171-178) rejects a label that is
+        // not a single distinct token. This pin has no llama_model_decision_label
+        // and the stock GGUF has no decision metadata, so we keep the openjev-
+        // style one-way readout: softmax over the first token of each label at
+        // the last prompt position. A multi-token label is scored on that first
+        // token only (token_count is recorded). Two labels that share a first
+        // token are a collision. That is a known limitation vs the upstream
+        // shim / #30361, which never accept a multi-token label.
+        std::vector<int32_t> first_tokens;
+        std::vector<int> token_counts;
+        first_tokens.reserve(req.labels.size());
+        token_counts.reserve(req.labels.size());
+        for (const auto& label : req.labels) {
+            int32_t n = llama_tokenize(vocab, label.c_str(), static_cast<int32_t>(label.size()),
+                                       nullptr, 0, false, false);
+            if (n == INT32_MIN || n == 0) {
+                out.error = "label tokenization failed: " + label;
+                llama_memory_clear(llama_get_memory(ctx), true);
+                return out;
+            }
+            std::vector<llama_token> lab(static_cast<size_t>(-n));
+            n = llama_tokenize(vocab, label.c_str(), static_cast<int32_t>(label.size()), lab.data(),
+                               static_cast<int32_t>(lab.size()), false, false);
+            if (n <= 0) {
+                out.error = "label tokenization failed: " + label;
+                llama_memory_clear(llama_get_memory(ctx), true);
+                return out;
+            }
+            first_tokens.push_back(lab.front());
+            token_counts.push_back(n);
+        }
+        out = score_label_logits(req.labels, first_tokens, token_counts, logits, n_vocab,
+                                 req.temperature);
+        llama_memory_clear(llama_get_memory(ctx), true);
+        m_kv_tokens.clear();
+        return out;
     }
 
     int context_length() const override {

@@ -78,6 +78,15 @@ static void print_help(const char* prog) {
                  "                       Requires -m <model.gguf>. Pass inputs via -p <text>\n"
                  "                       (repeatable). Optional: --dimensions <N> (0=native)\n"
                  "      --dimensions <N> Requested embedding dimensions for --embed (0=native)\n"
+                 "      --decide         One-way label scoring: one prefill, softmax over\n"
+                 "                       --label tokens (H2O: a leading space is applied).\n"
+                 "                       No generation. Requires -m and --label\n"
+                 "      --label <text>   Candidate label (repeatable; used with --decide)\n"
+                 "      --decide-temp <f> Softmax temperature for --decide (default: 1.0)\n"
+                 "      --jevbench <job.json>\n"
+                 "                       Run the decision-model harness from a job JSON\n"
+                 "                       (paths are caller-supplied; see\n"
+                 "                       docs/decision-models-spike.md)\n"
                  "      --lora <path>    GGUF LoRA adapter (llama.cpp only; runtime load)\n"
                  "      --lora-scale <f> LoRA scale (default: 1.0)\n"
                  "      --decode-progress-every <N>\n"
@@ -149,6 +158,10 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         {"decode-progress-every", required_argument, nullptr, 29},
         {"decode-progress-ms", required_argument, nullptr, 30},
         {"infer-stall-timeout", required_argument, nullptr, 31},
+        {"decide", no_argument, nullptr, 32},
+        {"label", required_argument, nullptr, 33},
+        {"decide-temp", required_argument, nullptr, 34},
+        {"jevbench", required_argument, nullptr, 35},
         {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0}};
 
@@ -266,6 +279,19 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         case 31:
             out.stall_timeout_s = std::atoi(optarg);
             break;
+        case 32:
+            out.run_decide = true;
+            break;
+        case 33:
+            out.decide_labels.push_back(optarg);
+            break;
+        case 34:
+            out.decide_temperature = static_cast<float>(std::atof(optarg));
+            break;
+        case 35:
+            out.run_jevbench = true;
+            out.jevbench_job_path = optarg;
+            break;
         case 'h':
             print_help(argv[0]);
             std::exit(0);
@@ -305,6 +331,28 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         }
         if (out.embed_inputs.empty()) {
             std::fprintf(stderr, "Error: --embed requires at least one -p <input>.\n");
+            return false;
+        }
+        return true;
+    }
+    if (out.run_jevbench) {
+        if (out.jevbench_job_path.empty()) {
+            std::fprintf(stderr, "Error: --jevbench requires a job JSON path.\n");
+            return false;
+        }
+        return true;
+    }
+    if (out.run_decide) {
+        if (out.model_path.empty()) {
+            std::fprintf(stderr, "Error: --decide requires -m <model.gguf>.\n");
+            return false;
+        }
+        if (out.prompt.empty()) {
+            std::fprintf(stderr, "Error: --decide requires -p <prompt>.\n");
+            return false;
+        }
+        if (out.decide_labels.size() < 2) {
+            std::fprintf(stderr, "Error: --decide requires at least two --label values.\n");
             return false;
         }
         return true;

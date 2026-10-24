@@ -87,6 +87,9 @@ vendor/onnxruntime-patched/win-x64/
 # HuggingFace model cache and local test artifacts
 cache_dir/
 testdir/
+
+# JevBench public items (fetched by scripts/fetch-jevbench.sh; not committed)
+bench/jevbench/
 ollama-models-before-vm.txt
 
 # validate-console.sh VAE cache (full_vae.onnx / taesd_vae.onnx)

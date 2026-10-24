@@ -7,6 +7,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Decision-model spike (draft):** one-way label scoring helpers and a
+  JevBench harness for H2O-Lightning-4B. Prefill + softmax over candidate
+  label tokens; no generation on the decider path; no llama.cpp bump and no
+  cherry-pick of ggml-org/llama.cpp#30361. Labels come from GGUF
+  `{arch}.decision.labels` via the gguf API (stock file: serve_config fallback
+  with a leading space). The prompt mirrors #30361 (`Answer:` prefill, JSON
+  `{label,key,description}` options, 32k state cut, 255 options). Multi-token
+  labels use the first token only — a known limitation vs the upstream shim.
+  **Stock-Q4_K_M does not load on pin `d812350`:**
+  `check_tensor_dims: tensor 'blk.32.attn_norm.weight' not found` (metadata
+  `nextn_predict_layers=1` / `block_count=33`, file has trunk `blk.0`–`blk.31`
+  only). No submodule edit. Host/console cells stay `pending`. **204/231 is
+  vendor-claimed**, not an xllama measurement. See
+  [docs/decision-models-spike.md](docs/decision-models-spike.md).
 - **`diskbw` compiles on macOS.** The buffered cache-drop hint used
   `posix_fadvise(POSIX_FADV_DONTNEED)`, which Darwin does not provide.
   Hosts without that feature (including macOS) now leave the page cache

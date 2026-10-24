@@ -5,6 +5,7 @@
 // eliminating the ~1-2s per-call reload overhead of run_inference().
 #pragma once
 
+#include "xllama/decision_score.h"
 #include "xllama/embedding.h"
 #include "xllama/grammar_spec.h"
 #include "xllama/inference_params.h"
@@ -159,6 +160,22 @@ struct Session {
         EmbeddingResult result;
         result.error_msg = "embeddings are not supported by this backend";
         return result;
+    }
+
+    // One-way label scoring: prefill only, then softmax over the candidate
+    // label tokens. Default is unsupported (ORT / non-GGUF).
+    virtual LabelScoreResult score_labels(const DecisionScoreRequest& req) {
+        LabelScoreResult result;
+        result.error = "label scoring is not supported by this backend";
+        (void)req;
+        return result;
+    }
+
+    // Token pieces of `text` (add_special=false). Used by the H2O 32k state
+    // cut. Default is empty (no tokenizer).
+    virtual std::vector<std::string> token_pieces(const std::string& text) {
+        (void)text;
+        return {};
     }
 
     virtual int context_length() const {

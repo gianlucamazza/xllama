@@ -10,6 +10,8 @@ struct Session {
     virtual InferenceResult generate(const GenerateParams& params) = 0;
     virtual int count_tokens(const std::string& prompt) = 0;
     virtual EmbeddingResult embed(const EmbeddingParams& params);
+    virtual LabelScoreResult score_labels(const DecisionScoreRequest& req);
+    virtual std::vector<std::string> token_pieces(const std::string& text);
     virtual int context_length() const;
     virtual bool can_context_shift() const;
     virtual bool save_state(const std::string& path, std::string* err = nullptr);
@@ -24,6 +26,13 @@ on a Session. The GUI and LAN API hold `SessionHub::mtx` through each operation;
 The default backend implementation returns an unsuccessful embedding result;
 its `context_length()` returns 0. The llama.cpp session reports its configured
 context length.
+
+`score_labels` is llama.cpp-only: one prefill, then softmax over the first
+token of each label at the last prompt position. Multi-token labels are scored
+on that first token (`token_count` is recorded); a shared first token is a
+collision. ORT returns unsupported. See
+[decision-models-spike.md](../decision-models-spike.md). `token_pieces` is the
+H2O 32k state-cut helper (`add_special=false`).
 
 ## `xllama::SessionHub`
 

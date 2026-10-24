@@ -51,6 +51,7 @@ Technical notes and design decisions for xllama.
 | Demo / screenshot capture and presentation edit                                          | [`../demo/demo-showcase-script.json`](../demo/demo-showcase-script.json) + [`../scripts/capture-demo-video.sh`](../scripts/capture-demo-video.sh) + [`../scripts/edit-demo-video.sh`](../scripts/edit-demo-video.sh) + [`./screenshots/`](./screenshots/) |
 | Phase 16 model-scouting campaign (funnel, ladder, workstream cards, verdicts)            | [phase16-model-scouting.md](./phase16-model-scouting.md)                                                                                                                                                                                                  |
 | GGUF GPU decode design (architecture, cost model, D1–D3/FA gates and verdicts)           | [gguf-gpu-decode.md](./gguf-gpu-decode.md)                                                                                                                                                                                                                |
+| Decision-model spike (H2O-Lightning-4B, #30361 prompt, JevBench harness)                 | [decision-models-spike.md](./decision-models-spike.md)                                                                                                                                                                                                    |
 | Shape speed gate for a Series S–shaped SLM (random-weight GGUFs, predeclared gates)      | [shape-gate-plan.md](./shape-gate-plan.md)                                                                                                                                                                                                                |
 | Citable research package and claim provenance                                            | [`../paper/`](../paper/) + [`../CITATION.cff`](../CITATION.cff)                                                                                                                                                                                           |
 | Agent / contributor quick map                                                            | [`../AGENTS.md`](../AGENTS.md)                                                                                                                                                                                                                            |
@@ -97,6 +98,7 @@ path checklist for discovery — descriptions are not repeated.
 [phase7-hypotheses.md](./phase7-hypotheses.md) ·
 [phase15-re-opt.md](./phase15-re-opt.md) (RE + optimization campaign) ·
 [phase16-model-scouting.md](./phase16-model-scouting.md) (model-scouting campaign) ·
+[decision-models-spike.md](./decision-models-spike.md) ·
 [technical-report.md](./technical-report.md) (frozen v1.0) ·
 [phase1-runbook.md](./phase1-runbook.md) (compat redirect) ·
 [../CHANGELOG.md](../CHANGELOG.md) · [../ROADMAP.md](../ROADMAP.md) ·

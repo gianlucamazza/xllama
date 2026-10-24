@@ -1,0 +1,93 @@
+{
+  "ok": false,
+  "error": "pending",
+  "mode": "score",
+  "model_path": "h2o-lightning-4b-stock-Q4_K_M.gguf",
+  "backend": "cpu",
+  "n_gpu_layers": 0,
+  "host_label": "pending",
+  "build_id": "pending",
+  "git_commit": "pending",
+  "device": "pending",
+  "n_items": 231,
+  "n_correct": null,
+  "n_errors": null,
+  "accuracy": "pending",
+  "latency_p50_ms": "pending",
+  "latency_p95_ms": "pending",
+  "t_load_ms": "pending",
+  "peak_ws_mb": "pending",
+  "vendor_claimed": {
+    "label": "vendor-claimed",
+    "correct": 204,
+    "total": 231,
+    "note": "H2O-Lightning-4B Q4_K_M GGUF card (https://huggingface.co/h2oai/h2o-lightning-4b-gguf). Not an xllama measurement."
+  },
+  "runs": [
+    {
+      "id": "lightning-score-cpu",
+      "mode": "score",
+      "backend": "cpu",
+      "n_gpu_layers": 0,
+      "device": "Xbox Series S",
+      "accuracy": "pending",
+      "latency_p50_ms": "pending",
+      "latency_p95_ms": "pending",
+      "peak_ws_mb": "pending",
+      "build_id": "pending",
+      "git_commit": "pending"
+    },
+    {
+      "id": "lightning-score-d3d12",
+      "mode": "score",
+      "backend": "d3d12",
+      "n_gpu_layers": "operator-supplied",
+      "device": "Xbox Series S",
+      "accuracy": "pending",
+      "latency_p50_ms": "pending",
+      "latency_p95_ms": "pending",
+      "peak_ws_mb": "pending",
+      "build_id": "pending",
+      "git_commit": "pending"
+    },
+    {
+      "id": "phi4-mini-json-grammar-cpu",
+      "mode": "generate-json",
+      "backend": "cpu",
+      "n_gpu_layers": 0,
+      "device": "Xbox Series S",
+      "accuracy": "pending",
+      "latency_p50_ms": "pending",
+      "latency_p95_ms": "pending",
+      "peak_ws_mb": "pending",
+      "build_id": "pending",
+      "git_commit": "pending"
+    },
+    {
+      "id": "phi4-mini-json-grammar-d3d12",
+      "mode": "generate-json",
+      "backend": "d3d12",
+      "n_gpu_layers": "operator-supplied",
+      "device": "Xbox Series S",
+      "accuracy": "pending",
+      "latency_p50_ms": "pending",
+      "latency_p95_ms": "pending",
+      "peak_ws_mb": "pending",
+      "build_id": "pending",
+      "git_commit": "pending"
+    },
+    {
+      "id": "lightning-score-host-cpu",
+      "mode": "score",
+      "backend": "cpu",
+      "n_gpu_layers": 0,
+      "device": "Linux host (not Xbox)",
+      "accuracy": "pending",
+      "latency_p50_ms": "pending",
+      "latency_p95_ms": "pending",
+      "peak_ws_mb": "pending",
+      "build_id": "pending",
+      "git_commit": "pending"
+    }
+  ]
+}

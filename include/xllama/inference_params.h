@@ -142,6 +142,15 @@ struct InferenceParams {
     /// Embedding input strings for --embed mode.
     std::vector<std::string> embed_inputs;
 
+    /// One-way decision scoring (no generation). --decide
+    bool run_decide = false;
+    std::vector<std::string> decide_labels;
+    float decide_temperature = 1.0f;
+
+    /// JevBench / decision-job harness. --jevbench <job.json>
+    bool run_jevbench = false;
+    std::string jevbench_job_path;
+
     /// Requested embedding dimensions for --embed mode (0 = native).
     int embed_dimensions = 0;
 

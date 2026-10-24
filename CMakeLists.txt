@@ -61,6 +61,7 @@ add_library(xllama STATIC
     src/bridge/inference.cpp
     src/bridge/session.cpp
     src/bridge/embedding.cpp
+    src/bridge/decision_score.cpp
     src/bridge/kv_store.cpp
     src/bridge/bench.cpp
     src/bridge/platform.cpp
@@ -103,6 +104,7 @@ target_include_directories(xllama PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/include
     ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/common
+    ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/ggml/include
 )
 # The d3d12 ggml backend implements ggml-backend-impl.h, which ggml keeps internal.
 if(WIN32)
