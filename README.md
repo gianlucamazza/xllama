@@ -171,8 +171,8 @@ docs/             # SSOT map → docs/README.md
 
 ## Citation
 
-The versioned research report is archived on Zenodo. Cite the concept DOI
-10.5281/zenodo.22118437; the tagged GitHub repository is a secondary option:
+The versioned research report is archived on Zenodo. The concept DOI
+10.5281/zenodo.22118437 always resolves to the latest version; to cite 1.0.6 specifically:
 
 ```bibtex
 @software{xllama_research_1_0,
