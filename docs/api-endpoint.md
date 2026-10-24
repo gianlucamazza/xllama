@@ -67,20 +67,20 @@ this is Dev Mode research, not a hosted service.
 
 ## Protocol (v1)
 
-| Method    | Path                     | Behaviour                                                                                                                                         |
-| --------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`     | `/` or `/health`         | `200 {"status":"ok","service":"xllama"}` — the spike/liveness probe.                                                                              |
-| `GET`     | `/v1/models`             | OpenAI model discovery — every servable on-device model; non-standard `"active": true` marks the one currently loaded.                            |
-| `GET`     | `/api/tags`              | Ollama model discovery — same list, Ollama shape.                                                                                                 |
-| `POST`    | `/api/pull`              | Download a trusted chat or embedding model from the built-in model list (Ollama-style NDJSON progress), then load it.                             |
-| `POST`    | `/v1/chat/completions`   | OpenAI-compatible chat completion; one JSON body, or **SSE** chunk events when `stream: true`.                                                    |
-| `POST`    | `/api/embed`             | Ollama-style embeddings for one string or a batch, catalogue embedding GGUF/llama.cpp only.                                                       |
-| `POST`    | `/api/embeddings`        | Deprecated Ollama single-prompt embeddings adapter.                                                                                               |
-| `POST`    | `/v1/embeddings`         | OpenAI embeddings shape; `encoding_format` accepts `float` or `base64`.                                                                           |
-| `POST`    | `/v1/preferences`        | Append a preference sample (`label` + `messages[]`) to `training/samples.jsonl` — same contract as the UI rate op (#118).                         |
-| `GET`     | `/v1/training/status`    | `result.done` / `progress.json` / last personalized `result.json` + usable sample count (#118).                                                   |
-| `POST`    | `/v1/images/generations` | SD-Turbo image gen (`prompt`, `steps` 1–4, `seed`); returns OpenAI-ish `{data:[{b64_json,path}]}` (#118). Shares the single-slot mutex with chat. |
-| `OPTIONS` | _any_                    | CORS preflight (`204` + `Allow-Methods/Headers`) for browser clients.                                                                             |
+| Method    | Path                     | Behaviour                                                                                                                                                                           |
+| --------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`     | `/` or `/health`         | `200 {"status":"ok","service":"xllama"}` — the spike/liveness probe.                                                                                                                |
+| `GET`     | `/v1/models`             | OpenAI model discovery — every servable on-device model; non-standard `"active": true` marks the one currently loaded.                                                              |
+| `GET`     | `/api/tags`              | Ollama model discovery — same list, Ollama shape.                                                                                                                                   |
+| `POST`    | `/api/pull`              | Download a trusted chat or embedding model from the built-in model list (Ollama-style NDJSON progress), then load it.                                                               |
+| `POST`    | `/v1/chat/completions`   | OpenAI-compatible chat completion; one JSON body, or **SSE** chunk events when `stream: true`.                                                                                      |
+| `POST`    | `/api/embed`             | Ollama-style embeddings for one string or a batch, catalogue embedding GGUF/llama.cpp only.                                                                                         |
+| `POST`    | `/api/embeddings`        | Deprecated Ollama single-prompt embeddings adapter.                                                                                                                                 |
+| `POST`    | `/v1/embeddings`         | OpenAI embeddings shape; `encoding_format` accepts `float` or `base64`.                                                                                                             |
+| `POST`    | `/v1/preferences`        | Append a preference sample (`label` + `messages[]`) to `training/samples.jsonl` — same contract as the UI rate op (#118).                                                           |
+| `GET`     | `/v1/training/status`    | `result.done` / `progress.json` / last personalized `result.json` + usable sample count (#118).                                                                                     |
+| `POST`    | `/v1/images/generations` | SD-Turbo image gen (`prompt`, `steps` 1–4, `seed`); returns OpenAI-ish `{data:[{b64_json,path}]}` (#118). Shares process-wide compute admission with chat, embeddings and training. |
+| `OPTIONS` | _any_                    | CORS preflight (`204` + `Allow-Methods/Headers`) for browser clients.                                                                                                               |
 
 ### Model download (`POST /api/pull`)
 
@@ -100,8 +100,11 @@ rollback share one downloader-wide writer permit. A competing writer is rejected
 before any file or marker changes: non-streaming pulls return HTTP 409, streaming
 pulls emit an error record, and the GUI reports a download-busy error. The permit
 is released before completion callbacks that may chain provisioning. Existing
-inference may finish during the download; after verification, the pull waits for the shared
-session lock, replaces the resident model, and reports success only after loading it.
+inference may finish during the download. After verification, the pull must
+acquire process-wide compute admission before replacing/loading the resident
+model. If another compute job is still active, the download may already be
+complete when the API returns HTTP 503 (or a streaming error record); retry after
+the active job finishes.
 
 ```bash
 curl -N http://<ip-xbox>:11434/api/pull \
@@ -321,7 +324,7 @@ job — use Settings / autopilot `start_train` for that.
 ### Images (`POST /v1/images/generations`)
 
 In-process SD-Turbo with the same clamps as the Image dialog (`steps` 1–4).
-Shares the single-slot mutex with chat → `503` when busy.
+Shares process-wide compute admission with chat → `503` when busy.
 
 ```bash
 curl -s http://<ip-xbox>:11434/v1/images/generations \
@@ -335,18 +338,22 @@ applies when the user opens Image; the API does not download the model for you).
 
 ## Concurrency
 
-`Session::generate()` is single-slot / non-concurrent. Requests acquire the
-process-wide `session_hub().mtx` with `try_lock`: a request arriving while
-another request **or a chat-UI turn** is generating gets **HTTP 503**
+`Session::generate()` is single-slot / non-concurrent. Compute requests first
+acquire the process-wide RAII permit in
+[ADR 0008](adr/0008-process-compute-admission.md), then acquire
+`session_hub().mtx` with `try_lock`: a request arriving while another request,
+GUI turn, image generation, or device training is active gets **HTTP 503**
 `{"error":{"message":"busy"}}` for OpenAI-compatible routes and
 `{"error":"busy"}` for native Ollama embedding routes. The slot covers the
-whole process. Native `/api/embed`, `/api/embeddings`, and `/api/pull` errors
-always expose a non-empty string in `error`; `/v1/embeddings` exposes an error
-object with `message` and `type`. One exception: while the session **pre-load** is holding
-the hub (right after a model becomes Ready), `acquire_hub_or_busy()` waits —
-bounded, ≤15 s, only while `hub.preloading` is set — instead of bouncing the
-client's very first request. Stopping the endpoint closes the listener only;
-the Session is hub-owned and is NOT released (the chat UI may be using it).
+whole process, including a streamed `/v1/chat/completions` reply (the permit
+stays held until the last SSE event). Native `/api/embed`, `/api/embeddings`,
+and `/api/pull` errors always expose a non-empty string in `error`;
+`/v1/embeddings` exposes an error object with `message` and `type`. One
+exception: while the session **pre-load** is active (right after a model becomes
+Ready), API compute admission waits — bounded, ≤15 s, only while
+`hub.preloading` is set — instead of bouncing the client's very first request.
+Stopping the endpoint closes the listener only; the Session is hub-owned and is
+NOT released (the chat UI may be using it).
 
 ## Not in scope / do not do
 

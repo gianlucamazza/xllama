@@ -24,6 +24,7 @@
     #include "xllama/api_policy.h"
     #include "xllama/api_pull_policy.h"
     #include "xllama/chat_prompt.h"
+    #include "xllama/compute_admission.h"
     #include "xllama/http_framing.h"
     #include "xllama/model_provision.h"
     #include "xllama/path_utils.h"
@@ -69,26 +70,26 @@ using namespace winrt::Windows::Data::Json;
 // The Session lives in xllama::session_hub() — ONE process-wide owner shared
 // with the GUI (previously each surface owned its own Session and both could
 // hold a model at once, breaking the "never 2× model in RAM" invariant).
-// hub.mtx serializes (re)creation and generate(): xllama::Session::generate()
-// is not concurrent (session.h). A request that finds the hub busy — another
-// API request OR a GUI turn — gets 503, exactly the old busy semantics
-// widened to the whole process.
+// The compute permit serializes resource-heavy jobs across UI and API; hub.mtx
+// additionally protects Session identity and use. A request that finds either
+// slot busy gets 503. Keep the lock order compute permit before hub.mtx.
 // ---------------------------------------------------------------------------
 std::atomic<uint64_t> g_req_counter{0}; // monotonic, for unique response ids
 
-// Acquire the hub for a request. Busy (another request or a GUI turn) →
-// unowned lock, caller answers 503. But if the holder is the session
-// PRE-LOAD (app just became Ready), wait briefly instead: the client's very
-// first request used to bounce with 503 while the model was warming up
-// (observed on-console). Bounded: ≤15 s, and only while preloading is set.
+// Acquire the hub after compute admission. Busy (for example, a KV snapshot
+// save) → unowned lock, caller answers 503. Startup pre-load waiting belongs
+// to acquire_compute_job_or_busy(), before this mutex is touched.
 std::unique_lock<std::mutex> acquire_hub_or_busy() {
     auto& hub = ::xllama::session_hub();
-    std::unique_lock<std::mutex> lk(hub.mtx, std::try_to_lock);
-    for (int i = 0; i < 150 && !lk.owns_lock() && hub.preloading.load(); ++i) {
-        Sleep(100);
-        (void)lk.try_lock();
-    }
-    return lk;
+    return std::unique_lock<std::mutex>(hub.mtx, std::try_to_lock);
+}
+
+// Acquire the process-wide compute lease before touching the SessionHub. The
+// startup pre-load is the only admitted job that API clients wait behind;
+// every other occupied slot keeps the existing bounded busy response. The
+// returned handle must stay alive for the whole reply, including SSE tokens.
+::xllama::ComputeJobAdmission::Handle acquire_compute_job_or_busy() {
+    return ::xllama::try_acquire_compute_job_while_preloading(::xllama::session_hub().preloading);
 }
 
 std::mutex g_state_mtx;
@@ -1794,6 +1795,18 @@ void handle_pull(StreamSocket const& socket, const std::string& body, uint64_t g
     if (output)
         (void)output->write_line(pull_event_json("loading model"));
 
+    auto compute_permit = acquire_compute_job_or_busy();
+    if (!compute_permit) {
+        const std::string message = "busy";
+        if (output) {
+            (void)output->write_line(ollama_error_json(message));
+            output->finish();
+        } else {
+            write_response(socket, "503 Service Unavailable", ollama_error_json(message));
+        }
+        return;
+    }
+
     bool server_active = false;
     {
         std::lock_guard<std::mutex> state_lock(g_state_mtx);
@@ -1941,6 +1954,14 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
                 return;
             }
             const bool stream = stream_request == StreamRequest::Yes;
+            auto compute_permit = acquire_compute_job_or_busy();
+            if (!compute_permit) {
+                activity().busy();
+                write_response(socket, "503 Service Unavailable", error_json("busy"));
+                return;
+            }
+            // Keep the lease for the whole reply, including every SSE event.
+            (void)compute_permit;
             std::unique_lock<std::mutex> lk = acquire_hub_or_busy();
             if (!lk.owns_lock()) {
                 activity().busy();
@@ -1990,6 +2011,13 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             embedding_api = req.path == "/api/embed"        ? EmbeddingApi::Ollama
                             : req.path == "/api/embeddings" ? EmbeddingApi::Legacy
                                                             : EmbeddingApi::OpenAI;
+            auto compute_permit = acquire_compute_job_or_busy();
+            if (!compute_permit) {
+                activity().busy();
+                write_response(socket, "503 Service Unavailable",
+                               embedding_error_json(embedding_api, "busy"));
+                return;
+            }
             std::unique_lock<std::mutex> lk = acquire_hub_or_busy();
             if (!lk.owns_lock()) {
                 activity().busy();
@@ -2043,8 +2071,14 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             return;
         }
 
-        // #118: image generation — shares the single-slot mutex with chat.
+        // #118: image generation — shares compute admission and the hub slot.
         if (req.method == "POST" && req.path == "/v1/images/generations") {
+            auto compute_permit = acquire_compute_job_or_busy();
+            if (!compute_permit) {
+                activity().busy();
+                write_response(socket, "503 Service Unavailable", error_json("busy"));
+                return;
+            }
             std::unique_lock<std::mutex> lk = acquire_hub_or_busy();
             if (!lk.owns_lock()) {
                 activity().busy();
