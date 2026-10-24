@@ -2150,7 +2150,9 @@ void start_server(int requested_port) {
         listener.ConnectionReceived(
             [generation](StreamSocketListener const&,
                          StreamSocketListenerConnectionReceivedEventArgs const& a) {
+                auto client = activity().client();
                 handle_connection(a.Socket(), generation);
+                (void)client;
             });
         listener.BindServiceNameAsync(winrt::to_hstring(std::to_string(port))).get();
         {

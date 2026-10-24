@@ -15,6 +15,7 @@
     #include "inference-bridge.h"
     #include "xllama/cancel_policy.h"
     #include "xllama/chat_prompt.h"
+    #include "xllama/debug_dashboard.h"
     #include "xllama/json_utils.h"
     #include "xllama/kv_store.h"
     #include "xllama/model_provision.h"
@@ -41,6 +42,7 @@
     #include <ctime>
     #include <filesystem>
     #include <limits>
+    #include <mutex>
     #include <string>
     #include <thread>
     #include <vector>
@@ -234,6 +236,25 @@ void MainPageController::BuildUI() {
     // inner TextBox to avoid requiring two A-presses to engage text input on Xbox.
 
     StackPanel bodyStack;
+
+    // Optional debug dashboard: collapsed by default so the chat layout is
+    // unchanged until Settings (or debug-dashboard.flag) opts in.
+    m_debugDashboardPanel = Border();
+    m_debugDashboardPanel.Visibility(Visibility::Collapsed);
+    m_debugDashboardPanel.Margin(ThicknessHelper::FromLengths(0, 0, 0, 16));
+    m_debugDashboardPanel.Padding(ThicknessHelper::FromLengths(16, 12, 16, 12));
+    m_debugDashboardPanel.BorderThickness(ThicknessHelper::FromLengths(1, 1, 1, 1));
+    m_debugDashboardPanel.BorderBrush(
+        winrt::Windows::UI::Xaml::Media::SolidColorBrush({255, 70, 90, 100}));
+    m_debugDashboardPanel.Background(
+        winrt::Windows::UI::Xaml::Media::SolidColorBrush({200, 14, 18, 24}));
+    m_debugDashboardText = TextBlock();
+    m_debugDashboardText.FontFamily(winrt::Windows::UI::Xaml::Media::FontFamily(L"Consolas"));
+    m_debugDashboardText.FontSize(16);
+    m_debugDashboardText.TextWrapping(TextWrapping::Wrap);
+    m_debugDashboardText.Text(L"");
+    m_debugDashboardPanel.Child(m_debugDashboardText);
+    bodyStack.Children().Append(m_debugDashboardPanel);
 
     m_promptInput = TextBox();
     m_promptInput.PlaceholderText(L"Type your prompt here (gamepad A → opens keyboard)...");
@@ -455,6 +476,11 @@ void MainPageController::Init() {
                 s->m_currentParagraph = winrt::Windows::UI::Xaml::Documents::Paragraph();
                 s->m_outputBody.Blocks().Append(s->m_currentParagraph);
                 s->m_metricsText.Text(L"");
+                s->m_last_inference.reset();
+                s->m_live_decode_tok_s.reset();
+                s->m_live_tokens.reset();
+                if (s->m_debug_dashboard)
+                    s->RefreshDebugDashboard();
                 s->SetStatus(L"Ready");
                 e.Handled(true);
                 break;
@@ -491,6 +517,7 @@ void MainPageController::Init() {
         m_history.LoadIndex();
     }
     LoadSettings();
+    ApplyDebugDashboard(m_debug_dashboard, /*persist_flag=*/false);
 
     EnsureModelAsync();
     ShowDisclaimerIfNeeded();
@@ -556,6 +583,10 @@ void MainPageController::FlushTokenBuffer() {
             wchar_t buf[80];
             swprintf_s(buf, L"~%.0f tok/s  ·  %d tok", (n - 1) / elapsed, n);
             m_metricsText.Text(buf);
+            m_live_decode_tok_s = (n - 1) / elapsed;
+            m_live_tokens = n;
+            if (m_debug_dashboard)
+                RefreshDebugDashboard();
         }
     }
 }
@@ -1336,6 +1367,9 @@ void MainPageController::LoadSettings() {
         } else if (key == "kv_reuse") {
             std::string v = settings_read_token(json, pos);
             m_kv_reuse = (v == "true" || v == "1");
+        } else if (key == ::xllama::kDebugDashboardSettingsKey) {
+            std::string v = settings_read_token(json, pos);
+            m_debug_dashboard = (v == "true" || v == "1");
         } else if (key == "routing") {
             std::string v = settings_read_token(json, pos);
             if (!v.empty())
@@ -1416,6 +1450,11 @@ void MainPageController::LoadSettings() {
         if (m_model_filename.empty())
             m_model_filename = DefaultChatModelId();
     }
+
+    const std::wstring flag_w =
+        ::xllama::utf8_to_wstring(std::string(::xllama::kDebugDashboardFlagName));
+    const bool flag_present = std::filesystem::exists(local_wpath(flag_w.c_str()));
+    m_debug_dashboard = ::xllama::debug_dashboard_opt_in(m_debug_dashboard, flag_present);
 }
 
 void MainPageController::SaveSettings() {
@@ -1431,6 +1470,7 @@ void MainPageController::SaveSettings() {
             "  \"system_prompt\": \"%s\",\n"
             "  \"model\": \"%s\",\n"
             "  \"kv_reuse\": %s,\n"
+            "  \"debug_dashboard\": %s,\n"
             "  \"routing\": %d,\n"
             "  \"gpu_model\": \"%s\",\n"
             "  \"diffuse_taesd_vae\": %s,\n"
@@ -1444,14 +1484,113 @@ void MainPageController::SaveSettings() {
             "  }\n"
             "}\n",
             xllama::json_escape(m_system_prompt).c_str(), xllama::json_escape(model_utf8).c_str(),
-            m_kv_reuse ? "true" : "false", m_routing, xllama::json_escape(m_gpu_model).c_str(),
-            m_diffuse_taesd ? "true" : "false", m_diffuse_seed, static_cast<double>(m_temperature),
-            static_cast<double>(m_top_p), m_top_k, static_cast<double>(m_repetition_penalty),
-            m_n_predict);
+            m_kv_reuse ? "true" : "false", m_debug_dashboard ? "true" : "false", m_routing,
+            xllama::json_escape(m_gpu_model).c_str(), m_diffuse_taesd ? "true" : "false",
+            m_diffuse_seed, static_cast<double>(m_temperature), static_cast<double>(m_top_p),
+            m_top_k, static_cast<double>(m_repetition_penalty), m_n_predict);
     fclose(f);
     // Any settings change (system prompt, model, sampling) invalidates the KV
     // cache bound to the old settings — force a fresh generator next turn.
     m_kv_valid = false;
+}
+
+void MainPageController::StartDebugDashboardTimer() {
+    if (m_debug_timer)
+        return;
+    auto weak_self = weak_from_this();
+    m_debug_timer = winrt::Windows::UI::Xaml::DispatcherTimer{};
+    m_debug_timer.Interval(std::chrono::seconds(1));
+    m_debug_tick_token = m_debug_timer.Tick([weak_self](IInspectable const&, IInspectable const&) {
+        if (auto s = weak_self.lock())
+            s->RefreshDebugDashboard();
+    });
+    m_debug_timer.Start();
+}
+
+void MainPageController::StopDebugDashboardTimer() {
+    if (!m_debug_timer)
+        return;
+    m_debug_timer.Tick(m_debug_tick_token);
+    m_debug_timer.Stop();
+    m_debug_timer = nullptr;
+}
+
+void MainPageController::ApplyDebugDashboard(bool enabled, bool persist_flag) {
+    m_debug_dashboard = enabled;
+    if (persist_flag) {
+        const std::wstring flag_w =
+            ::xllama::utf8_to_wstring(std::string(::xllama::kDebugDashboardFlagName));
+        if (enabled)
+            write_local_bytes(flag_w.c_str(), "enabled");
+        else
+            _wremove(local_wpath(flag_w.c_str()).c_str());
+    }
+    if (!m_debugDashboardPanel)
+        return;
+    m_debugDashboardPanel.Visibility(enabled ? Visibility::Visible : Visibility::Collapsed);
+    if (enabled) {
+        StartDebugDashboardTimer();
+        RefreshDebugDashboard();
+    } else {
+        StopDebugDashboardTimer();
+        if (m_debugDashboardText)
+            m_debugDashboardText.Text(L"");
+    }
+}
+
+void MainPageController::RefreshDebugDashboard() {
+    if (!m_debug_dashboard || !m_debugDashboardText)
+        return;
+
+    ::xllama::DebugDashboardInputs in;
+    auto& hub = ::xllama::session_hub();
+    in.preloading = hub.preloading.load();
+    {
+        std::unique_lock<std::mutex> lk(hub.mtx, std::try_to_lock);
+        if (lk.owns_lock()) {
+            in.hub_snapshot_available = true;
+            in.session_loaded = static_cast<bool>(hub.session);
+            in.resident_model_id = hub.model;
+            if (hub.session) {
+                in.n_ctx = hub.params.n_ctx;
+                in.n_gpu_layers = hub.params.n_gpu_layers;
+                if (!hub.params.lora_path.empty())
+                    in.lora_path = hub.params.lora_path;
+            }
+        }
+    }
+
+    #ifndef XLLAMA_STORE_SKU
+    in.lan_status_available = true;
+    const auto server = ::xllama::api::server_status();
+    switch (server.state) {
+    case ::xllama::api::ServerState::Starting:
+        in.lan_state = ::xllama::DebugLanState::Starting;
+        break;
+    case ::xllama::api::ServerState::Running:
+        in.lan_state = ::xllama::DebugLanState::Running;
+        break;
+    case ::xllama::api::ServerState::Error:
+        in.lan_state = ::xllama::DebugLanState::Error;
+        break;
+    default:
+        in.lan_state = ::xllama::DebugLanState::Stopped;
+        break;
+    }
+    in.lan_port = server.port;
+    in.activity_available = true;
+    in.activity = ::xllama::api::activity().snapshot();
+    #endif
+
+    in.last_inference = m_last_inference;
+    in.live_decode_tok_s = m_live_decode_tok_s;
+    in.live_tokens = m_live_tokens;
+    in.gui_generating = m_is_running.load();
+    in.gui_diffusing = m_diffuse_running.load();
+    in.gui_training = m_train_running.load();
+
+    const auto snap = ::xllama::compose_debug_dashboard(in);
+    m_debugDashboardText.Text(::xllama::utf8_to_wstring(::xllama::format_debug_dashboard(snap)));
 }
 
     #ifndef XLLAMA_STORE_SKU
@@ -1729,6 +1868,12 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     kvToggle.OffContent(winrt::box_value(L"Off"));
     kvToggle.IsOn(m_kv_reuse);
 
+    winrt::Windows::UI::Xaml::Controls::ToggleSwitch debugToggle;
+    debugToggle.Header(winrt::box_value(L"Debug dashboard (resident model, LAN, inference)"));
+    debugToggle.OnContent(winrt::box_value(L"On"));
+    debugToggle.OffContent(winrt::box_value(L"Off"));
+    debugToggle.IsOn(m_debug_dashboard);
+
     // --- EP routing ComboBox (experimental; needs the DML fp16 model on device) ---
     winrt::Windows::UI::Xaml::Controls::ComboBox routingBox;
     routingBox.Header(winrt::box_value(L"EP routing (per conversation)"));
@@ -1848,6 +1993,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     panel.Children().Append(repSlider);
     panel.Children().Append(nPredSlider);
     panel.Children().Append(kvToggle);
+    panel.Children().Append(debugToggle);
     panel.Children().Append(routingBox);
     #ifndef XLLAMA_STORE_SKU
     panel.Children().Append(apiToggle);
@@ -1906,6 +2052,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
         self->SelectModel(new_model);
     }
     self->m_kv_reuse = kvToggle.IsOn();
+    self->ApplyDebugDashboard(debugToggle.IsOn());
     #ifndef XLLAMA_STORE_SKU
     int selected_api_port = api_port;
     if (apiToggle.IsOn()) {
@@ -2910,6 +3057,8 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
     // Add user message to display + prepare empty assistant paragraph
     AddUserParagraph(prompt_w);
     m_metricsText.Text(L"");
+    m_live_decode_tok_s.reset();
+    m_live_tokens.reset();
 
     // Reset streaming counters
     m_tokens_received.store(0);
@@ -3310,6 +3459,11 @@ void MainPageController::StartInference(std::wstring const& prompt_w) {
                 CoreDispatcherPriority::Normal,
                 [self, metrics, res, output_text, was_aborted, ep_kv_ok, thinking_only]() {
                     self->m_metricsText.Text(metrics);
+                    self->m_last_inference = res;
+                    self->m_live_decode_tok_s.reset();
+                    self->m_live_tokens.reset();
+                    if (self->m_debug_dashboard)
+                        self->RefreshDebugDashboard();
                     const wchar_t* status_text = L"Error";
                     StatusKind status_kind = StatusKind::Error;
                     if (was_aborted) {

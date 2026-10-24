@@ -121,6 +121,10 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     xllama::ChatFormat chat_format() const;
     void LoadSettings();
     void SaveSettings();
+    void ApplyDebugDashboard(bool enabled, bool persist_flag = true);
+    void RefreshDebugDashboard();
+    void StartDebugDashboardTimer();
+    void StopDebugDashboardTimer();
     winrt::fire_and_forget ShowSettings();
     #ifndef XLLAMA_STORE_SKU
     void ApplyApiSettings(bool enabled, int port);
@@ -164,6 +168,10 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     winrt::Windows::UI::Xaml::Controls::RichTextBlock m_outputBody{nullptr};
     winrt::Windows::UI::Xaml::Documents::Paragraph m_currentParagraph{nullptr};
     winrt::Windows::UI::Xaml::Controls::TextBlock m_metricsText{nullptr};
+    winrt::Windows::UI::Xaml::Controls::Border m_debugDashboardPanel{nullptr};
+    winrt::Windows::UI::Xaml::Controls::TextBlock m_debugDashboardText{nullptr};
+    winrt::Windows::UI::Xaml::DispatcherTimer m_debug_timer{nullptr};
+    winrt::event_token m_debug_tick_token{};
     winrt::Windows::UI::Xaml::Controls::StackPanel m_apiPanel{nullptr};
     winrt::Windows::UI::Xaml::Controls::TextBlock m_apiEndpointText{nullptr};
     winrt::Windows::UI::Xaml::Controls::TextBlock m_apiNowText{nullptr};
@@ -274,6 +282,13 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     int m_top_k{::xllama::sampling_defaults::kTopK};
     float m_repetition_penalty{::xllama::sampling_defaults::kRepetitionPenalty};
     int m_n_predict{512};
+
+    // Optional debug dashboard (Settings + LocalState\debug-dashboard.flag).
+    // Off by default; the chat layout is unchanged while the panel is collapsed.
+    bool m_debug_dashboard{false};
+    std::optional<::xllama::InferenceResult> m_last_inference;
+    std::optional<double> m_live_decode_tok_s;
+    std::optional<int> m_live_tokens;
 
     std::atomic<bool> m_abort{false};
     std::atomic<bool> m_is_running{false};

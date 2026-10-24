@@ -74,6 +74,20 @@ TEST_CASE("API activity ignores a stale ticket after a newer request began") {
     CHECK(activity.snapshot().ok == 1);
 }
 
+TEST_CASE("API activity counts connected clients while a Client handle is held") {
+    ApiActivity activity;
+    CHECK(activity.snapshot().connected == 0);
+    {
+        auto first = activity.client();
+        CHECK(activity.snapshot().connected == 1);
+        auto second = activity.client();
+        CHECK(activity.snapshot().connected == 2);
+        first = {};
+        CHECK(activity.snapshot().connected == 1);
+    }
+    CHECK(activity.snapshot().connected == 0);
+}
+
 TEST_CASE("API activity counts busy rejections apart from served requests") {
     ApiActivity activity;
     activity.busy();

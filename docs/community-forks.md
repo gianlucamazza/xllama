@@ -6,13 +6,14 @@ names its evidence and what would reopen it. Two independent agent reviews
 (Codex, Grok) challenged the first draft; their corrections are folded in below.
 All forks keep the MIT licence.
 
-| Fork                                             | Taken                                                     | Not taken                                            |
-| ------------------------------------------------ | --------------------------------------------------------- | ---------------------------------------------------- |
-| [SamirCharleston](#samircharleston-vision-spike) | llama.cpp warnings on every load (credited in the commit) | batch cap, repack opt-out, mmap revival, vision code |
-| [bjoern2088](#bjoern2088-xbox-one-x)             | —                                                         | Xbox One X port                                      |
-| [http-hadi](#http-hadi-d3d12f)                   | evidence for [#273], [#274], [#275] and the [#313] design | the vendored D3D12F backend                          |
-| miguelenes                                       | already in `main` (#261, `4100bc2`)                       | —                                                    |
-| nyzxor, hjotha, mr-wfj                           | —                                                         | no commits ahead                                     |
+| Fork                                               | Taken                                                     | Not taken                                            |
+| -------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------- |
+| [SamirCharleston](#samircharleston-vision-spike)   | llama.cpp warnings on every load (credited in the commit) | batch cap, repack opt-out, mmap revival, vision code |
+| [bjoern2088](#bjoern2088-xbox-one-x)               | —                                                         | Xbox One X port                                      |
+| [http-hadi](#http-hadi-d3d12f)                     | evidence for [#273], [#274], [#275] and the [#313] design | the vendored D3D12F backend                          |
+| miguelenes                                         | already in `main` (#261, `4100bc2`)                       | —                                                    |
+| nyzxor, hjotha, mr-wfj                             | —                                                         | no commits ahead                                     |
+| [maxmorrison74](#maxmorrison74-xllama-on-steroids) | optional debug dashboard idea (rebuilt in-tree)           | rebrand, background, soundtrack, footer credit       |
 
 ## SamirCharleston: vision-spike
 
@@ -119,6 +120,20 @@ conditions:
 - measured in the UI process.
 
 Its MoE and SSM kernels are evidence for [#273] and [#275], not a plan.
+
+## maxmorrison74: xllama-on-steroids
+
+Fork [xllama-on-steroids](https://github.com/maxmorrison74/xllama-on-steroids)
+and closed PR [#351](https://github.com/gianlucamazza/xllama/pull/351), by
+Max Morrison. The useful idea was an on-console view of the resident model,
+LAN activity, and inference statistics. That view is rebuilt in-tree as an
+**opt-in debug dashboard** (default off; chat UI unchanged when off; real
+readings only). Credit: `CHANGELOG.md`, `CONTRIBUTORS.md`.
+
+**Not taken:** the "Xllama on Steroids" rebrand (DisplayName, AppxManifest
+identity, version, workflow artifact names, README), the packaged background
+image, the soundtrack, or the footer signature. Process-wide compute admission
+from the same fork is a separate PR and is not required here.
 
 [#172]: https://github.com/gianlucamazza/xllama/issues/172
 [#273]: https://github.com/gianlucamazza/xllama/issues/273

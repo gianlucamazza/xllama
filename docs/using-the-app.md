@@ -131,6 +131,13 @@ chat`. On a coding session that ceiling is 4096 tokens, roughly 13 KB of dense
 - **KV-cache reuse** (default on) — reuses the conversation's KV cache across
   turns (large turn-2 prefill win on CPU paths; measured figures in
   [benchmarks.md](./benchmarks.md)). Leave it on unless debugging.
+- **Debug dashboard** (default off) — shows a panel above the prompt with the
+  resident model, LAN activity (requests, connected clients), and inference
+  timings. Every figure is a live reading; if a source is missing the row says
+  `unavailable`. The chat UI is unchanged while this is off. Operators can also
+  drop `debug-dashboard.flag` into `LocalState` (same persistence idea as
+  `api.flag`). Original idea by
+  [@maxmorrison74](https://github.com/maxmorrison74).
 - **EP routing (per conversation)** — where inference runs. Routing requires a
   parity-validated DML text asset as `gpu_model` (`dml_text_model_ok`,
   #91 postmortem: the broken DML RMSNorm kernel is worked around by the

@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Optional debug dashboard** (default off). A Settings toggle and/or
+  `LocalState\debug-dashboard.flag` shows real resident-model, LAN, and
+  inference readings above the prompt. Missing sources render as
+  `unavailable`; the chat UI is unchanged while the view is off. Aggregation
+  lives in `include/xllama/debug_dashboard.h` (host-tested). Original idea by
+  [@maxmorrison74](https://github.com/maxmorrison74) (xllama-on-steroids fork);
+  rebuilt in-tree without the rebrand, background, soundtrack, or footer credit.
+
 - **`diskbw` compiles on macOS.** The buffered cache-drop hint used
   `posix_fadvise(POSIX_FADV_DONTNEED)`, which Darwin does not provide.
   Hosts without that feature (including macOS) now leave the page cache

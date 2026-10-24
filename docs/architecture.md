@@ -37,6 +37,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `session_spec.h`                   | `resolve_session_params`, `same_load` — one catalogue→session resolver for GUI, API and pull; the hub reuses only the same load (ADR 0007)     |
 | `session.h` / `inference_params.h` | `Session`/`SessionParams`, `InferenceParams/Result` (`echo_stdout`, the `resolve_max_length` #130 ladder), `Backend` enum                      |
 | `session_hub.h`                    | `SessionHub` — the ONE process-wide resident-Session owner (GUI + LAN API); locking + `generation` contract                                    |
+| `debug_dashboard.h`                | Optional debug dashboard snapshot: compose real hub / LAN / inference readings; missing sources stay `unavailable`                             |
 | `sampling.h`                       | `SamplingConfig`, shared defaults; CLI/bench and GUI/API init from it (#125)                                                                   |
 | `training.h` / `training_params.h` | `TrainingJob`/`TrainingResult`, stages, device gates, job JSON                                                                                 |
 | `device_train.h`                   | Lane B engine API: `run_device_train_job`, progress callbacks, filters                                                                         |
@@ -672,13 +673,14 @@ host Release smoke (quality + peak)
 ## Unit test map (host suite)
 
 One doctest binary, `xllama-tests`, built from `tests/test_*.cpp`. The suite
-is **345 test cases / 33242 assertions** (doctest, without opt-in model checks).
+is **358 test cases / 33351 assertions** (doctest, without opt-in model checks).
 Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 (`llama_raii.h`, `ort_raii.h`, `d3d12_dyn.h`, `catalog_trust.h`).
 
 | Test file                     | Under test                                                                                  |
 | ----------------------------- | ------------------------------------------------------------------------------------------- |
 | `test_api_activity.cpp`       | `api_activity.h`                                                                            |
+| `test_debug_dashboard.cpp`    | `debug_dashboard.h`                                                                         |
 | `test_api_config.cpp`         | LAN API config validation (`uwp/api-server.h`)                                              |
 | `test_api_policy.cpp`         | `api_policy.h` numeric admission (F01)                                                      |
 | `test_api_pull.cpp`           | `api_pull_policy.h`                                                                         |
@@ -729,25 +731,26 @@ Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 or XAML compositor, giving D3D12-clean hosts for DirectML work. The following
 flags are supported:
 
-| Flag                  | Entry point              | Purpose                                                             |
-| --------------------- | ------------------------ | ------------------------------------------------------------------- |
-| `bench.flag`          | `main_loop`              | Model benchmark (tok/s, peak, latency)                              |
-| `diffuse.flag`        | `run_diffuse`            | SD-Turbo diffusion pipeline (headless)                              |
-| `diffuse-inproc.flag` | `run_diffuse` in-process | Diffusion on background MTA thread inside XAML process              |
-| `membw.flag`          | `run_membw`              | CPU STREAM bandwidth probe                                          |
-| `diskbw.flag`         | `run_diskbw`             | NVMe sequential + random read probe                                 |
-| `gpubw.flag`          | `run_gpubw`              | GPU STREAM probe (D3D12 compute shader)                             |
-| `gpugemv.flag`        | `run_gpugemv`            | Q4_K GEMV density probe (D3D12 compute shader)                      |
-| `gpustep.flag`        | `run_gpustep(false)`     | GGUF GPU decode probe D1 ([gguf-gpu-decode.md](gguf-gpu-decode.md)) |
-| `gpustep-inproc.flag` | `run_gpustep(true)`      | D1d: the same probe inside the XAML process                         |
-| `d3d12be.flag`        | `run_d3d12_selftest`     | d3d12 ggml backend selftest vs the CPU backend (MUL_MAT, GET_ROWS)  |
-| `ramceil.flag`        | `run_ramceil`            | Heap ceiling probe (commit in steps)                                |
-| `mic.flag`            | `run_mic_probe`          | Microphone / AudioGraph probe                                       |
-| `native-capture.flag` | capture probe            | GraphicsCapture availability probe (`capture_probe.h`)              |
-| `logits.flag`         | `run_logits`             | Logit-parity dump (float32 + JSON sidecar)                          |
-| `oprepro.flag`        | `run_oprepro`            | Single-op CPU-vs-DML diagnostic (`repro.onnx`)                      |
-| `train.flag`          | `run_train`              | On-device training (Lane B partial FT)                              |
-| `api.flag`            | `run_server`             | LAN API server (persistence via `LocalState\api.flag`)              |
+| Flag                   | Entry point              | Purpose                                                             |
+| ---------------------- | ------------------------ | ------------------------------------------------------------------- |
+| `bench.flag`           | `main_loop`              | Model benchmark (tok/s, peak, latency)                              |
+| `diffuse.flag`         | `run_diffuse`            | SD-Turbo diffusion pipeline (headless)                              |
+| `diffuse-inproc.flag`  | `run_diffuse` in-process | Diffusion on background MTA thread inside XAML process              |
+| `membw.flag`           | `run_membw`              | CPU STREAM bandwidth probe                                          |
+| `diskbw.flag`          | `run_diskbw`             | NVMe sequential + random read probe                                 |
+| `gpubw.flag`           | `run_gpubw`              | GPU STREAM probe (D3D12 compute shader)                             |
+| `gpugemv.flag`         | `run_gpugemv`            | Q4_K GEMV density probe (D3D12 compute shader)                      |
+| `gpustep.flag`         | `run_gpustep(false)`     | GGUF GPU decode probe D1 ([gguf-gpu-decode.md](gguf-gpu-decode.md)) |
+| `gpustep-inproc.flag`  | `run_gpustep(true)`      | D1d: the same probe inside the XAML process                         |
+| `d3d12be.flag`         | `run_d3d12_selftest`     | d3d12 ggml backend selftest vs the CPU backend (MUL_MAT, GET_ROWS)  |
+| `ramceil.flag`         | `run_ramceil`            | Heap ceiling probe (commit in steps)                                |
+| `mic.flag`             | `run_mic_probe`          | Microphone / AudioGraph probe                                       |
+| `native-capture.flag`  | capture probe            | GraphicsCapture availability probe (`capture_probe.h`)              |
+| `logits.flag`          | `run_logits`             | Logit-parity dump (float32 + JSON sidecar)                          |
+| `oprepro.flag`         | `run_oprepro`            | Single-op CPU-vs-DML diagnostic (`repro.onnx`)                      |
+| `train.flag`           | `run_train`              | On-device training (Lane B partial FT)                              |
+| `api.flag`             | `run_server`             | LAN API server (persistence via `LocalState\api.flag`)              |
+| `debug-dashboard.flag` | MainPage (persistence)   | Optional debug dashboard panel; default off; does not replace chat  |
 
 ## UWP front-end summary
 
@@ -777,6 +780,10 @@ flags are supported:
   resident session.
 - **Manifest cache**: parsed once, cached; invalidated on personalized-model
   publish.
+- **Debug dashboard** (opt-in, default off): Settings toggle and/or
+  `LocalState\debug-dashboard.flag` show a collapsed-by-default panel of real
+  hub, LAN, and inference readings composed by `debug_dashboard.h`. Chat
+  controls stay in place; missing sources render as `unavailable`.
 
 `ChatHistory` (`uwp/chat-history.h`) persists conversations as JSON files under
 `LocalState\chats\<id>.json` (`id`, `title`, `messages[]` with `role`, `content`,

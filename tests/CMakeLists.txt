@@ -48,6 +48,7 @@ add_executable(xllama-tests
     test_personalize.cpp
     test_api_config.cpp
     test_api_activity.cpp
+    test_debug_dashboard.cpp
     test_api_pull.cpp
     test_embedding.cpp
     test_autopilot.cpp

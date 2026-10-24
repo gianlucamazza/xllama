@@ -45,10 +45,11 @@ class ApiActivity {
 
     struct Snapshot {
         std::optional<InFlight> in_flight;
-        uint64_t requests = 0; // inference requests that got the slot
-        uint64_t ok = 0;       // of which answered 2xx
-        uint64_t failed = 0;   // of which answered >= 400
-        uint64_t busy = 0;     // rejected with 503 because the slot was taken
+        uint64_t requests = 0;  // inference requests that got the slot
+        uint64_t ok = 0;        // of which answered 2xx
+        uint64_t failed = 0;    // of which answered >= 400
+        uint64_t busy = 0;      // rejected with 503 because the slot was taken
+        uint64_t connected = 0; // sockets currently inside handle_connection
         std::optional<Outcome> last;
         std::optional<Failure> last_error;
     };
@@ -95,6 +96,40 @@ class ApiActivity {
         int m_completion_tokens = -1;
     };
 
+    // One accepted TCP client. Destroying the handle decrements `connected`.
+    class Client {
+      public:
+        Client() = default;
+        Client(const Client&) = delete;
+        Client& operator=(const Client&) = delete;
+        Client(Client&& other) noexcept : m_owner(std::exchange(other.m_owner, nullptr)) {}
+        Client& operator=(Client&& other) noexcept {
+            if (this != &other) {
+                reset();
+                m_owner = std::exchange(other.m_owner, nullptr);
+            }
+            return *this;
+        }
+        ~Client() {
+            reset();
+        }
+
+      private:
+        friend class ApiActivity;
+        explicit Client(ApiActivity* owner) : m_owner(owner) {}
+        void reset() {
+            if (m_owner) {
+                std::exchange(m_owner, nullptr)->disconnect();
+            }
+        }
+        ApiActivity* m_owner = nullptr;
+    };
+
+    Client client() {
+        connect();
+        return Client(this);
+    }
+
     // Call once the request holds the inference slot.
     Ticket begin(const std::string& endpoint, Clock::time_point now = Clock::now()) {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -118,6 +153,7 @@ class ApiActivity {
         s.ok = m_ok;
         s.failed = m_failed;
         s.busy = m_busy;
+        s.connected = m_connected;
         s.last = m_last;
         if (m_last_error)
             s.last_error = Failure{m_last_error->first, seconds(now - m_last_error->second)};
@@ -134,6 +170,17 @@ class ApiActivity {
 
     static double seconds(Clock::duration d) {
         return std::chrono::duration<double>(d).count();
+    }
+
+    void connect() {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        ++m_connected;
+    }
+
+    void disconnect() {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (m_connected > 0)
+            --m_connected;
     }
 
     void set_model(uint64_t id, const std::string& name) {
@@ -169,6 +216,7 @@ class ApiActivity {
     uint64_t m_ok = 0;
     uint64_t m_failed = 0;
     uint64_t m_busy = 0;
+    uint64_t m_connected = 0;
     std::optional<Current> m_current;
     std::optional<Outcome> m_last;
     std::optional<std::pair<std::string, Clock::time_point>> m_last_error;
