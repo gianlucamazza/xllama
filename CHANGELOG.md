@@ -7,7 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-- **Decision-model spike (draft):** one-way label scoring helpers and a
+- **Decision-model spike (draft, NO-GO on `d812350`):** one-way label scoring helpers and a
   JevBench harness for H2O-Lightning-4B. Prefill + softmax over candidate
   label tokens; no generation on the decider path; no llama.cpp bump and no
   cherry-pick of ggml-org/llama.cpp#30361. Labels come from GGUF

@@ -1,5 +1,9 @@
 # Decision-model spike (H2O-Lightning-4B)
 
+**Status: NO-GO on pin `d812350`.** Cells stay `pending`, not zero. No host
+or console JevBench numbers were measured. Close this spike on the current
+pin.
+
 Limited, owner-approved validation of System One decision models in xllama.
 One-way scoring only: a single prefill, then softmax over the candidate label
 tokens. No generation on the decider path. No llama.cpp bump.
