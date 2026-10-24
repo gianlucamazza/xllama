@@ -5,6 +5,10 @@
 # Usage:
 #   source ~/.config/xllama/xbox-env
 #   ./scripts/validate-console.sh <routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|thinkdone|genroom|taesd|store|all>
+#   XLLAMA_CHAT_JOURNAL=/path/to/chat-cleanup.pending ./scripts/validate-console.sh cleanup
+#
+# cleanup retries verified removal of chats listed in XLLAMA_CHAT_JOURNAL
+# (the retained chat-cleanup.pending from a failed gate). It does not run a gate.
 #
 # Requires: an installed xllama build with the autopilot (>= 1.1.3.0; the
 # settings ops need >= 1.4.0.606), the relevant models already in LocalState.
@@ -108,7 +112,7 @@ source "${SCRIPT_DIR}/console-run-log.sh"
 source "${SCRIPT_DIR}/console-temp-chats.sh"
 
 console_exit() {
-	local rc="$1" preserve=0
+	local rc="$1" preserve=0 vae_failed=0
 	trap - EXIT
 	if ! cleanup_temp_chats; then
 		rc=1
@@ -119,12 +123,18 @@ console_exit() {
 		upload_file "${VAE_CACHE}/full_vae.onnx" "models\\sd-turbo-fp16\\vae_decoder" "model.onnx" || {
 			rc=1
 			preserve=1
+			vae_failed=1
 		}
 	fi
 	if ((preserve)); then
+		printf '1\n' >"${TMPDIR_LOCAL}/.xllama-console-recovery" || true
 		echo "  FAIL: cleanup incomplete; recovery files retained in ${TMPDIR_LOCAL}" >&2
 		echo "  Retry: XLLAMA_CHAT_JOURNAL=${CHAT_JOURNAL} $0 cleanup" >&2
+		if ((vae_failed)); then
+			echo "  VAE restore still pending; recover with ./scripts/provision-models.sh sd-turbo-fp16 or re-upload ${VAE_CACHE}/full_vae.onnx" >&2
+		fi
 	else
+		release_original_recovery_dir
 		rm -rf "$TMPDIR_LOCAL"
 	fi
 	exit "$rc"
@@ -1557,6 +1567,12 @@ run_gate() {
 	return $rc
 }
 
+usage() {
+	echo "Usage: $0 <routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|thinkdone|genroom|taesd|store|all|cleanup>" >&2
+	echo "  cleanup — retry verified removal of chats listed in XLLAMA_CHAT_JOURNAL" >&2
+	echo "            (the retained chat-cleanup.pending from a failed gate)" >&2
+}
+
 CMD="${1:-}"
 case "$CMD" in
 cleanup) cleanup_temp_chats ;;
@@ -1596,7 +1612,7 @@ all)
 	exit $rc
 	;;
 *)
-	echo "Usage: $0 <routing|settings|gguf|longchat|kvsnap|coderpaste|thinkcut|thinkdone|genroom|taesd|store|all>" >&2
+	usage
 	exit 1
 	;;
 esac

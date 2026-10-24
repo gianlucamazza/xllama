@@ -80,6 +80,61 @@ class ScopeTests(unittest.TestCase):
             self.assertEqual(out.read_bytes(), b"")
 
 
+def extract_fn(text, name):
+    start = text.index(name + "() {")
+    return text[start:text.index("\n}\n", start) + 3]
+
+
+class AutopilotSettingsRestoreTests(unittest.TestCase):
+    def test_post_run_stop_failure_retains_saved_settings_and_fails(self):
+        """A failed post-run stop must not let EXIT delete the saved settings."""
+        text = (ROOT / "scripts/validate-console-training.sh").read_text()
+        script = extract_fn(text, "training_exit") + extract_fn(text, "run_autopilot")
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp)
+            saved = work / "settings-saved.json"
+            env = dict(os.environ, TMPDIR_LOCAL=tmp, SCRIPT_DIR=str(ROOT / "scripts"))
+            setup = r'''
+set -euo pipefail
+BASE_URL=https://example.invalid
+CURL_AUTH=()
+PFN=test-package
+PRESERVE_TMPDIR=0
+SETTINGS_SAVED="$TMPDIR_LOCAL/settings-saved.json"
+curl() { echo "unexpected portal call: $*" >&2; return 1; }
+reset_run_log() { :; }
+snapshot_run_log() { :; }
+delete_file() { :; }
+upload_file() { :; }
+restart_app() { :; }
+wait_autopilot_done() { echo ok; }
+fetch_file() {
+    if [[ "$1" == settings.json ]]; then
+        printf '{"sampling":{"temperature":0}}\n' >"$2"
+        return
+    fi
+    : >"$2"
+}
+stops=0
+stop_app() {
+    stops=$((stops + 1))
+    ((stops >= 2)) && return 1
+    return 0
+}
+trap 'training_exit "$?"' EXIT
+'''
+            result = subprocess.run(
+                ["bash", "-c", setup + script + '\nrun_autopilot 1 <<<"{}"; exit "$?"'],
+                env=env, capture_output=True, timeout=15)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertNotEqual(result.returncode, 99)
+            self.assertTrue(saved.is_file(), result.stderr.decode())
+            self.assertIn(b'"sampling"', saved.read_bytes())
+            combined = result.stdout + result.stderr
+            self.assertIn(str(saved).encode(), combined)
+            self.assertTrue(work.exists())
+
+
 class StopAppTests(unittest.TestCase):
     def test_failed_stop_cannot_leave_last_runs_snapshot_usable(self):
         for name in ("validate-console.sh", "validate-console-training.sh"):
