@@ -351,7 +351,7 @@ def main() -> int:
     good("API routes code↔docs")
 
     vas = (ROOT / "scripts/validate-api.sh").read_text(encoding="utf-8")
-    for mode in ("spike", "chat", "prefs", "train", "all"):
+    for mode in ("spike", "chat", "stream", "admission", "prefs", "train", "all"):
         if mode not in vas:
             err(f"validate-api.sh missing mode {mode}")
     good("validate-api modes")

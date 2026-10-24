@@ -558,7 +558,7 @@ response may carry `tool_calls`. The process does not run the tool
 ([ADR 0004](adr/0004-tool-proposals.md)). The route list and the contract
 live in [api-endpoint.md](api-endpoint.md) (the owner of LAN routes);
 validation is `scripts/validate-api.sh
-spike|chat|budget|tools|framing|embed|pull|prefs|train|all`. Capability
+spike|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all`. Capability
 `privateNetworkClientServer` covers LAN inbound; no public inbound.
 
 ## Build variants and versioning

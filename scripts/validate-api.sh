@@ -5,7 +5,7 @@
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/validate-api.sh <spike|chat|stream|budget|tools|framing|embed|pull|prefs|train|all>
+#   ./scripts/validate-api.sh <spike|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all>
 #
 #   spike  bind gate only: GET / -> HTTP 200 (proves the StreamSocketListener
 #          survives the Series S firewall/PLM). No inference.
@@ -14,6 +14,11 @@
 #   stream SSE streaming round-trip: text/event-stream, chunked framing, one
 #          delta per frame, a final finish_reason chunk and `data: [DONE]`.
 #          Implies the spike gate first.
+#   admission compute-permit hold (ADR 0008): a second /v1/chat/completions
+#          during an in-flight SSE reply must be HTTP 503 busy, and the stream
+#          must still finish with data: [DONE]. Address is $XBOX_IP:$API_PORT
+#          (no hardcoded host). Implies the spike gate first. For a GUI turn
+#          already generating, the same curl (printed by this mode) must be 503.
 #   budget context budget over the wire: a long messages[] is trimmed and answered,
 #          an oversized single message is 400 "prompt too long" (not 500), and
 #          invalid generation numbers (max_tokens -1/1.5/INT_MAX, temperature,
@@ -280,6 +285,73 @@ else:
 		verdict=1
 	fi
 	[[ $verdict -eq 0 ]] && echo "stream: PASS" || echo "stream: FAIL"
+	return $verdict
+}
+
+# --- compute admission (streamed permit hold) ------------------------------
+
+# Drive (b) from a LAN host: the permit stays held until the last SSE event, so
+# a second chat request during the stream is 503. (a) is the same URL while a
+# GUI turn is generating — this mode prints that curl (XBOX_IP / API_PORT).
+validate_admission() {
+	echo "=== admission: streamed /v1/chat/completions holds the compute permit ==="
+	local stream_req probe_req headers out probe_body stream_code probe_code
+	local verdict=0 spid
+	stream_req=$(printf '{"model":"%s","messages":[{"role":"user","content":"Count slowly from one to twenty."}],"max_tokens":128,"temperature":0,"seed":42,"stream":true}' "${MODEL}")
+	probe_req=$(printf '{"model":"%s","messages":[{"role":"user","content":"ping"}],"max_tokens":8,"temperature":0,"seed":1}' "${MODEL}")
+	headers="${TMPDIR_LOCAL}/admission-headers.txt"
+	out="${TMPDIR_LOCAL}/admission-stream.txt"
+	probe_body="${TMPDIR_LOCAL}/admission-probe.txt"
+
+	: >"${TMPDIR_LOCAL}/admission-stream-code"
+	curl -sS -N -m 180 -D "${headers}" -o "${out}" -w "%{http_code}" \
+		-H 'Content-Type: application/json' -d "${stream_req}" \
+		"${API_URL}/v1/chat/completions" >"${TMPDIR_LOCAL}/admission-stream-code" 2>/dev/null &
+	spid=$!
+	# Let the first request acquire the permit and write the SSE head.
+	sleep 0.4
+	probe_code=$(curl -sS -m 30 -o "${probe_body}" -w "%{http_code}" \
+		-H 'Content-Type: application/json' -d "${probe_req}" \
+		"${API_URL}/v1/chat/completions" || echo "000")
+	wait "${spid}" || true
+	stream_code=$(cat "${TMPDIR_LOCAL}/admission-stream-code" 2>/dev/null || echo "000")
+
+	if [[ "${probe_code}" == "503" ]]; then
+		echo "  ok: probe during SSE is 503 busy"
+	else
+		echo "  FAIL: probe during SSE was HTTP ${probe_code} (want 503). Raw: $(head -c 120 "${probe_body}" 2>/dev/null)"
+		verdict=1
+	fi
+	if [[ "${stream_code}" != "200" ]]; then
+		echo "  FAIL: streamed reply HTTP ${stream_code} (want 200)"
+		verdict=1
+	elif ! grep -q '^data: \[DONE\]' "${out}" 2>/dev/null; then
+		echo "  FAIL: streamed reply did not end with data: [DONE]"
+		verdict=1
+	else
+		echo "  ok: streamed reply held the slot through data: [DONE]"
+	fi
+
+	echo "  GUI-busy probe (run while a pad turn is generating):"
+	printf "    curl -sS -o /tmp/xllama-gui-busy.json -w '%%{http_code}\\n' \\\\\n"
+	printf "      -H 'Content-Type: application/json' \\\\\n"
+	printf "      -d '%s' \\\\\n" "${probe_req}"
+	printf "      '%s/v1/chat/completions'\n" "${API_URL}"
+	echo "    expect 503 and {\"error\":{\"message\":\"busy\"}}"
+	if [[ "${ADMISSION_GUI:-}" == "1" ]]; then
+		echo "  ADMISSION_GUI=1: requiring 503 on a single request (GUI must be generating)"
+		probe_code=$(curl -sS -m 30 -o "${probe_body}" -w "%{http_code}" \
+			-H 'Content-Type: application/json' -d "${probe_req}" \
+			"${API_URL}/v1/chat/completions" || echo "000")
+		if [[ "${probe_code}" == "503" ]]; then
+			echo "  ok: GUI-overlap probe is 503 busy"
+		else
+			echo "  FAIL: GUI-overlap probe was HTTP ${probe_code} (want 503)"
+			verdict=1
+		fi
+	fi
+
+	[[ $verdict -eq 0 ]] && echo "admission: PASS" || echo "admission: FAIL"
 	return $verdict
 }
 
@@ -662,6 +734,10 @@ stream)
 	validate_spike || exit 1
 	validate_stream
 	;;
+admission)
+	validate_spike || exit 1
+	validate_admission
+	;;
 prefs)
 	validate_spike || exit 1
 	validate_prefs
@@ -678,8 +754,8 @@ embed)
 	validate_spike || exit 1
 	validate_embed
 	;;
-# Every check below, in order: spike, chat, stream, embed, budget, tools, framing,
-# prefs, train, pull.
+# Every check below, in order: spike, chat, stream, admission, embed, budget,
+# tools, framing, prefs, train, pull.
 all)
 	rc=0
 	validate_spike || {
@@ -689,6 +765,7 @@ all)
 	}
 	validate_chat || rc=1
 	validate_stream || rc=1
+	validate_admission || rc=1
 	validate_embed || rc=1
 	validate_budget || rc=1
 	validate_tools || rc=1
@@ -702,7 +779,7 @@ all)
 	exit $rc
 	;;
 *)
-	echo "Usage: $0 <spike|chat|stream|budget|tools|framing|embed|pull|prefs|train|all>" >&2
+	echo "Usage: $0 <spike|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all>" >&2
 	exit 1
 	;;
 esac

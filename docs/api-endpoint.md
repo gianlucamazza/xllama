@@ -355,6 +355,19 @@ Ready), API compute admission waits — bounded, ≤15 s, only while
 Stopping the endpoint closes the listener only; the Session is hub-owned and is
 NOT released (the chat UI may be using it).
 
+From a LAN host (console address is `XBOX_IP` / `API_PORT`, never hardcoded):
+
+```bash
+source ~/.config/xllama/xbox-env
+# (b) streamed reply holds the permit: second request is 503, stream ends [DONE]
+./scripts/validate-api.sh admission
+# (a) while a GUI turn is generating, the same URL must be 503:
+curl -sS -o /tmp/xllama-gui-busy.json -w '%{http_code}\n' \
+  -H 'Content-Type: application/json' \
+  -d "{\"model\":\"${MODEL:-lfm25-350m}\",\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}],\"max_tokens\":8}" \
+  "http://${XBOX_IP}:${API_PORT:-11434}/v1/chat/completions"
+```
+
 ## Not in scope / do not do
 
 - No `internetClientServer` / public inbound — `privateNetworkClientServer` (already in the
@@ -367,7 +380,7 @@ NOT released (the chat UI may be using it).
 
 ## Validation
 
-See `scripts/validate-api.sh` (`spike|chat|stream|budget|tools|framing|embed|pull|prefs|train|all`). Run it **from another host on the LAN**,
+See `scripts/validate-api.sh` (`spike|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all`). Run it **from another host on the LAN**,
 not from a client on the console itself — cross-device inbound needs no loopback exemption,
 but a same-host localhost client would (`CheckNetIsolation`). Spike gate first (`GET /` → 200
 proves the bind survives the Series S firewall/PLM), then chat / prefs / train as needed. `tools` checks the tool-proposal contract:
