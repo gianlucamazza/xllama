@@ -137,13 +137,30 @@ bool file_size_of(const std::string& path, std::uint64_t* out) {
 }
 
 // Buffered fallback: evict the file from page cache so every pass touches the
-// device. Best-effort — a failure just means warmer numbers.
-void drop_cache_hint(const std::string& path) {
+// device. Best-effort — a failure just means warmer numbers. Darwin has no
+// posix_fadvise / POSIX_FADV_DONTNEED, so the macOS path is a no-op (same
+// spirit as the Win32 stub). Other hosts without the fadvise feature also
+// leave the cache untouched.
+//
+// The no-op is always compiled so Linux CI type-checks the Darwin stub.
+[[maybe_unused]] void drop_cache_hint_noop(const std::string&) {}
+
+    #if defined(POSIX_FADV_DONTNEED)
+void drop_cache_hint_fadvise(const std::string& path) {
     const int fd = ::open(path.c_str(), O_RDONLY);
     if (fd >= 0) {
         (void)posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
         ::close(fd);
     }
+}
+    #endif
+
+void drop_cache_hint(const std::string& path) {
+    #if defined(__APPLE__) || !defined(POSIX_FADV_DONTNEED)
+    drop_cache_hint_noop(path);
+    #else
+    drop_cache_hint_fadvise(path);
+    #endif
 }
 #endif
 
@@ -151,6 +168,14 @@ void drop_cache_hint(const std::string& path) {
 std::atomic<std::uint64_t> g_diskbw_sink{0};
 
 } // namespace
+
+bool diskbw_page_cache_drop_available() {
+#if defined(__APPLE__) || !defined(POSIX_FADV_DONTNEED)
+    return false;
+#else
+    return true;
+#endif
+}
 
 bool ensure_diskbw_file(const std::string& path, std::size_t file_bytes, std::string* err) {
     std::uint64_t existing = 0;

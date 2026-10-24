@@ -28,6 +28,16 @@ struct ScratchFile {
 
 } // namespace
 
+TEST_CASE("diskbw: page-cache drop tracks posix_fadvise, not Darwin or Win32") {
+    // Linux CI takes the fadvise path. The Darwin/Win32 no-op is compiled in
+    // diskbw.cpp (drop_cache_hint_noop) and selected by the same feature check.
+#if defined(__APPLE__) || defined(_WIN32)
+    CHECK_FALSE(diskbw_page_cache_drop_available());
+#else
+    CHECK(diskbw_page_cache_drop_available());
+#endif
+}
+
 TEST_CASE("diskbw: sequential read over a small file yields positive bandwidth") {
     ScratchFile f(4u << 20);
     REQUIRE(f.ok);

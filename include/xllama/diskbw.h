@@ -12,6 +12,9 @@
 // (bulk load) and random blocks (MoE expert-fetch shape). Portable: POSIX
 // pread (+O_DIRECT when available) on the host, CreateFile2/ReadFile
 // (+FILE_FLAG_NO_BUFFERING when the AppContainer accepts it) on UWP.
+// Between buffered passes the probe asks the OS to drop the file from page
+// cache (posix_fadvise POSIX_FADV_DONTNEED). That call is a no-op on macOS
+// and Win32, which have no per-file equivalent; numbers may then be warmer.
 #pragma once
 
 #include <cstddef>
@@ -45,6 +48,11 @@ bool ensure_diskbw_file(const std::string& path, std::size_t file_bytes, std::st
 DiskbwResult measure_diskbw(const std::string& path, std::size_t file_bytes,
                             std::size_t block_bytes, bool random, int threads, int iterations,
                             bool try_unbuffered);
+
+// True when measure_diskbw can evict the file from page cache between
+// buffered passes (posix_fadvise POSIX_FADV_DONTNEED). False on Windows and
+// on hosts without that feature, including macOS.
+bool diskbw_page_cache_drop_available();
 
 // Default geometry: 4 GiB file (above the 3801 MB console RAM budget, so a
 // buffered pass cannot be served entirely from page cache), 8 MiB sequential /

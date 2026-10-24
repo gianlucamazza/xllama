@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **`diskbw` compiles on macOS.** The buffered cache-drop hint used
+  `posix_fadvise(POSIX_FADV_DONTNEED)`, which Darwin does not provide.
+  Hosts without that feature (including macOS) now leave the page cache
+  untouched, matching the existing Win32 no-op. Linux and UWP behaviour
+  is unchanged. Thanks [@maxmorrison74](https://github.com/maxmorrison74).
 - **`POST /v1/chat/completions` streams with `stream: true`.** Token pieces travel as
   `chat.completion.chunk` events over chunked `text/event-stream` (assistant role first,
   finish chunk with `usage`, then `data: [DONE]`). The text is raw: post-processing needs
