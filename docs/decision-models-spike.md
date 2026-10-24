@@ -54,6 +54,36 @@ loaded.
 Scoring helpers and the JevBench harness still land so a later pin (or a GGUF
 that includes `blk.32`) can run them. They are not a measured Series S result.
 
+### No-bump `kv_overrides` workaround — **FAILED**
+
+Tried next, on host, against this pin's libllama (`d812350`).
+`llama_model_params.kv_overrides` is applied before hparams are read
+(`llama-model.cpp` `get_key(LLM_KV_BLOCK_COUNT)` / `LLM_KV_NEXTN_PREDICT_LAYERS`).
+Exact key names from `llama.cpp/src/llama-arch.cpp`:
+
+| Enum                          | Format                    | Override used                       |
+| ----------------------------- | ------------------------- | ----------------------------------- |
+| `LLM_KV_BLOCK_COUNT`          | `%s.block_count`          | `qwen35.block_count=int:32`         |
+| `LLM_KV_NEXTN_PREDICT_LAYERS` | `%s.nextn_predict_layers` | `qwen35.nextn_predict_layers=int:0` |
+
+The loader accepted both overrides, then failed on the next hparam that is
+sized to the original `block_count`:
+
+```text
+validate_override: Using metadata override (  int) 'qwen35.block_count' = 32
+validate_override: Using metadata override (  int) 'qwen35.nextn_predict_layers' = 0
+llama_model_load: error loading model: error loading model hyperparameters: key qwen35.attention.recurrent_layers has wrong array length; expected 32, got 33
+llama_model_load_from_file_impl: failed to load model
+```
+
+`qwen35.attention.recurrent_layers` is `arr[bool,33]` in the stock file
+(`LLM_KV_ATTENTION_RECURRENT_LAYERS` = `%s.attention.recurrent_layers`).
+`qwen35.cpp` `get_key_or_arr(..., hparams.n_layer_all)` requires that array
+length to equal the (now overridden) block count. `kv_overrides` can replace a
+scalar; it cannot truncate that array. No further keys were tried. No
+llama.cpp edit. No pin bump. No host JevBench sanity (the model still does
+not load).
+
 ## GGUF KV labels
 
 xllama reads metadata with the gguf API in `read_gguf_decision_meta`

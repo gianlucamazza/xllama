@@ -18,7 +18,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   **Stock-Q4_K_M does not load on pin `d812350`:**
   `check_tensor_dims: tensor 'blk.32.attn_norm.weight' not found` (metadata
   `nextn_predict_layers=1` / `block_count=33`, file has trunk `blk.0`–`blk.31`
-  only). No submodule edit. Host/console cells stay `pending`. **204/231 is
+  only). The no-bump `kv_overrides` try
+  (`qwen35.block_count=int:32`, `qwen35.nextn_predict_layers=int:0`) then
+  fails on `qwen35.attention.recurrent_layers` array length 33 vs 32. No
+  submodule edit. Host/console cells stay `pending`. **204/231 is
   vendor-claimed**, not an xllama measurement. See
   [docs/decision-models-spike.md](docs/decision-models-spike.md).
 - **`diskbw` compiles on macOS.** The buffered cache-drop hint used
