@@ -74,7 +74,10 @@ in ways you will notice, and the picker does not explain them:
 - **Coding** (`qwen25-coder-0.5b` / `-1.5b` / `-3b`) — the same UI, but the
   session opens a **4096-token** context, because the point of the tier is
   pasting real source. That is the only difference you set: there is no separate
-  mode to switch on, the model's catalogue entry carries it.
+  mode to switch on, the model's catalogue entry carries it. The 3B is
+  **benchmark/evaluation only**:
+  [Qwen Research License (non-commercial)](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE);
+  not for paid demos or commercial use without a licence from Alibaba Cloud.
 - **Thinking** (`lfm25-1.2b-thinking`) — reasons before answering. You **see the
   reasoning stream on screen while it generates**, and the message that is kept
   when it finishes holds only the final answer. The chain of thought is not
@@ -191,7 +194,8 @@ works** (persistent `llama_context`; measured ratios in
 are not routed per conversation.
 
 - **Qwen2.5-Coder-3B and LFM2.5-1.2B** run their matmuls on the GPU by
-  default. The model list says "GGUF · GPU" for them.
+  default. The model list says "GGUF · GPU" for them. The 3B remains
+  benchmark/evaluation only (non-commercial licence; see above).
 - **Other GGUF models** run on the CPU.
 - **Operator override:** `gguf_gpu_layers.txt` in LocalState overrides this
   (`0` forces the CPU; see [gguf-gpu-decode.md](gguf-gpu-decode.md)). There is

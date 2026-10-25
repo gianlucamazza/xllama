@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+<<<<<<< HEAD
 - **Docs:** Series S / Series X wording swept across docs, templates and the
   social card: "Tested and measured on Series S. Not yet tested on Series X."
   (README first screen in #365; release-readiness texts in #366).
@@ -29,6 +30,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   model list (endpoint unchanged); new _Model catalogue design limits_ section
   in CONTRIBUTING; licence and no-selling note in model-selection and
   using-the-app.
+=======
+- **Qwen2.5-Coder-3B licence corrected.** The 3B Instruct weights are under
+  the [Qwen Research License (non-commercial)](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE),
+  not Apache-2.0. The licence matrix, catalogue comment, and presentation
+  pages now label it as benchmark/evaluation only (not for paid demos or
+  commercial use without a licence from Alibaba Cloud). Coding defaults are
+  unchanged.
+>>>>>>> fd47a7d (fix: label Qwen2.5-Coder-3B as Qwen Research License)
 
 - **Optional debug dashboard** (default off). A Settings toggle and/or
   `LocalState\debug-dashboard.flag` shows real resident-model, LAN, and

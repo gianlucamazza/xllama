@@ -13,7 +13,9 @@ ids, templates, licenses, and campaign notes** — not runtime contracts.
 | Catalogue data                                                 | [`../uwp/models/manifest.json`](../uwp/models/manifest.json) |
 | Tok/s tables                                                   | [benchmarks.md](./benchmarks.md) only                        |
 
-Last updated: **2026-10-02**. Newest entries: D3 — `qwen25-coder-3b` and `lfm25-1.2b-instruct` run on the d3d12 GPU backend by default (catalogue `gpu_layers`, [gguf-gpu-decode.md](./gguf-gpu-decode.md)), with Flash Attention kept on that path since the FA fix (decode 1.90× / 1.88× the CPU); the CPU columns here stay the CPU measurements, and the default-configuration rows are in [benchmarks.md](./benchmarks.md). Earlier: H9 re-run with the corrected
+Last updated: **2026-10-25**. Licence correction: `qwen25-coder-3b` is
+[Qwen Research License (non-commercial)](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE)
+and is **benchmark/evaluation only**. Newest prior entries: D3 — `qwen25-coder-3b` and `lfm25-1.2b-instruct` run on the d3d12 GPU backend by default (catalogue `gpu_layers`, [gguf-gpu-decode.md](./gguf-gpu-decode.md)), with Flash Attention kept on that path since the FA fix (decode 1.90× / 1.88× the CPU); the CPU columns here stay the CPU measurements, and the default-configuration rows are in [benchmarks.md](./benchmarks.md). Earlier: H9 re-run with the corrected
 `grounded_qa` scorer (#243) and `lfm25-230m` back on QAD Q4_0; Series S catalogue gates
 (`2026-09-30-catalogue-gates`): §A1 `phi4-mini` T3 PASS (#268), LFM2.5 QAD
 Q4_0 PASS for `lfm25-350m` / `lfm25-1.2b-instruct` (#270); §F MiniCPM5-1B (#267) and Gemma-3-1B (#269)
@@ -109,13 +111,13 @@ MSIX **1.5.1.737** (unified), t6, `standard-512` prompt, 2 recorded runs after
 warmup. Source: `bench/results/phase14-console.csv` (also in generated
 [benchmarks.md](./benchmarks.md)).
 
-| Model                | Catalogue             | Quant  | n_ctx |   Prefill |   Decode | Decode spread |  Peak MB | Status                                                                  |
-| -------------------- | --------------------- | ------ | ----: | --------: | -------: | ------------- | -------: | ----------------------------------------------------------------------- |
-| Qwen2.5-Coder-0.5B   | `qwen25-coder-0.5b`   | Q4_K_M |  4096 | **148.2** | **62.4** | 56.8–68.0     |      533 | **console PASS** · coding fast                                          |
-| LFM2.5-1.2B-Thinking | `lfm25-1.2b-thinking` | Q4_K_M |  2048 | **130.4** | **36.7** | 36.7–36.8     |      811 | **console PASS** · CoT strip · catalogue **n_predict 1024** (#223)      |
-| Qwen2.5-Coder-1.5B   | `qwen25-coder-1.5b`   | Q4_K_M |  4096 |  **96.6** | **26.1** | 25.7–26.5     |     1179 | **console PASS** · coding balanced                                      |
-| Qwen3-1.7B           | `qwen3-1.7b`          | Q4_K_M |  2048 |  **89.5** | **21.8** | 21.7–21.9     |     1398 | **console PASS** · chat upgrade                                         |
-| Qwen2.5-Coder-3B     | `qwen25-coder-3b`     | Q4_K_M |  4096 |  **46.2** | **14.0** | 13.9–14.1     | **2116** | **console PASS** · coding quality (under 3.5 GB) · **GPU default (D3)** |
+| Model                | Catalogue             | Quant  | n_ctx |   Prefill |   Decode | Decode spread |  Peak MB | Status                                                                                                                                                                                                                |
+| -------------------- | --------------------- | ------ | ----: | --------: | -------: | ------------- | -------: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Qwen2.5-Coder-0.5B   | `qwen25-coder-0.5b`   | Q4_K_M |  4096 | **148.2** | **62.4** | 56.8–68.0     |      533 | **console PASS** · coding fast                                                                                                                                                                                        |
+| LFM2.5-1.2B-Thinking | `lfm25-1.2b-thinking` | Q4_K_M |  2048 | **130.4** | **36.7** | 36.7–36.8     |      811 | **console PASS** · CoT strip · catalogue **n_predict 1024** (#223)                                                                                                                                                    |
+| Qwen2.5-Coder-1.5B   | `qwen25-coder-1.5b`   | Q4_K_M |  4096 |  **96.6** | **26.1** | 25.7–26.5     |     1179 | **console PASS** · coding balanced                                                                                                                                                                                    |
+| Qwen3-1.7B           | `qwen3-1.7b`          | Q4_K_M |  2048 |  **89.5** | **21.8** | 21.7–21.9     |     1398 | **console PASS** · chat upgrade                                                                                                                                                                                       |
+| Qwen2.5-Coder-3B     | `qwen25-coder-3b`     | Q4_K_M |  4096 |  **46.2** | **14.0** | 13.9–14.1     | **2116** | **console PASS** · coding quality (under 3.5 GB) · **GPU default (D3)** · **benchmark/eval only** ([Qwen Research License (non-commercial)](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE)) |
 
 Host Release cross-check (`phase14-host-validation.csv`): quality PASS for the
 coding tier + Qwen3-1.7B (Q3_K_M Coder-3B FAIL; **Q4 only** ships). Console peaks
@@ -254,7 +256,7 @@ models.
 | Default chat (unified)           | `lfm25-350m`                              | First launch                                                                                     |
 | Balanced / quality chat          | `lfm25-1.2b-instruct`, `lfm2-2.6b`        | H1 tiers                                                                                         |
 | Peer dense chat                  | `llama32-3b`, `gemma4-e2b`                | Advanced / heavy                                                                                 |
-| Coding fast / balanced / quality | `qwen25-coder-0.5b`, `…-1.5b`, `…-3b`     | `role:coding`, `n_ctx` 4096                                                                      |
+| Coding fast / balanced / quality | `qwen25-coder-0.5b`, `…-1.5b`, `…-3b`     | `role:coding`, `n_ctx` 4096; 3B is benchmark/eval only (non-commercial licence)                  |
 | Chat upgrade (Qwen3)             | `qwen3-1.7b`                              | no-think; context shift OK (measured)                                                            |
 | Reasoning                        | `lfm25-1.2b-thinking`                     | CoT stripped for display                                                                         |
 | ORT routing pair                 | `smollm2-360m-cpu-int4` + `…-dml-fp16-v2` | Auto GPU only on long first turn                                                                 |

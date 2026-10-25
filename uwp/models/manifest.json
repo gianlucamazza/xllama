@@ -256,7 +256,7 @@
       ]
     },
     {
-      "_comment": "D3 2026-10-02: GPU default (gpu_layers 99) after D2-r2 PASS at n_ctx 4096 — decode 1.60x, peak +150 MB vs CPU (docs/gguf-gpu-decode.md). Qwen2.5-Coder-3B-Instruct Q4_K_M — coding quality tier (Q3_K_M host quality FAIL; Q4_K_M PASS). Console phase14: 46.2 prefill / 14.0 decode / 2116 MB peak (host peak was 3301 MB — console is the product figure). Advanced optional.",
+      "_comment": "D3 2026-10-02: GPU default (gpu_layers 99) after D2-r2 PASS at n_ctx 4096 — decode 1.60x, peak +150 MB vs CPU (docs/gguf-gpu-decode.md). Qwen2.5-Coder-3B-Instruct Q4_K_M — coding quality tier (Q3_K_M host quality FAIL; Q4_K_M PASS). Licence: Qwen Research License (non-commercial) https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE — benchmark/evaluation only; not for paid demos or commercial use without a licence from Alibaba Cloud. Console phase14: 46.2 prefill / 14.0 decode / 2116 MB peak (host peak was 3301 MB — console is the product figure). Advanced optional.",
       "name": "qwen25-coder-3b",
       "display": "Qwen2.5 Coder 3B (GGUF · GPU · coding · advanced)",
       "kind": "gguf",

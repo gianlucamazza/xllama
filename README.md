@@ -221,7 +221,9 @@ prefill. One backend can't win both. Runtime dispatch per model is the answer.
 GGUF decode also runs on our own D3D12 kernels: a ggml backend `d3d12`, with
 q8 numerics that match the CPU. It is the default for the two models that
 passed its gate, Qwen2.5-Coder-3B and LFM2.5-1.2B; the other GGUF models stay
-on the CPU. `gguf_gpu_layers.txt` overrides the default for an operator, and
+on the CPU. Qwen2.5-Coder-3B is **benchmark/evaluation only**
+([Qwen Research License (non-commercial)](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE);
+not for paid demos or commercial use without a licence from Alibaba Cloud). `gguf_gpu_layers.txt` overrides the default for an operator, and
 `0` forces the CPU. Gates and per-model verdicts are in
 [docs/gguf-gpu-decode.md](docs/gguf-gpu-decode.md). How that compares with
 desktop RDNA2, the Steam Deck and other GPUs on published llama.cpp numbers is

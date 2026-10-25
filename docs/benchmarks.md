@@ -108,6 +108,11 @@ generated from the committed raw results by `scripts/generate-benchmark-summary.
 
 Notes:
 
+- **Qwen2.5-Coder-3B** rows above are **benchmark/evaluation only**. The
+  weights are under the
+  [Qwen Research License (non-commercial)](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE);
+  not for paid demos or commercial use without a licence from Alibaba Cloud.
+  Measured numbers are unchanged.
 - **Phase 7 H1 LFM campaign** (2026-07-17): LFM2.5-1.2B is the balanced tier at
   **37.9 tok/s / 811 MB**; LFM2-2.6B is the quality tier at **18.4 tok/s /
   1623 MB** (July single-run; the current table is the 2026-10-11 median
@@ -178,7 +183,9 @@ now enabled and console-measured. Routing (CPU↔GPU) stays ORT-only. GGUF is
 not routed per conversation. Its d3d12 GPU layers come from the catalogue
 entry (on by default for Qwen2.5-Coder-3B and LFM2.5-1.2B since D3), with
 `gguf_gpu_layers.txt` as the operator override
-([gguf-gpu-decode.md](gguf-gpu-decode.md)). DirectML still rejects continuous
+([gguf-gpu-decode.md](gguf-gpu-decode.md)). The 3B GPU path is
+benchmark/evaluation only (non-commercial licence; see Notes). DirectML still
+rejects continuous
 decoding, so the ORT reuse path is CPU-only.
 
 ## Diffusion — SD-Turbo fp16 (on-console, DirectML)
