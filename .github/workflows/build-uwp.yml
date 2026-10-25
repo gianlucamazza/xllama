@@ -6,7 +6,7 @@ on:
   pull_request:
   # Store SKU is opt-in: avoids +~13 min on every PR. From Linux (no Windows VM):
   #   gh workflow run build-uwp.yml -f store_sku=true --ref <branch>
-  # Artifact: xllama-appx-store. SSOT: docs/store-readiness.md
+  # Artifact: xllama-appx-store. SSOT: docs/release-readiness.md
   workflow_dispatch:
     inputs:
       store_sku:

@@ -78,7 +78,7 @@
          wrong.
 
          DEV MANIFEST ONLY, deliberately. AppxManifest.store.xml declares
-         internetClient and nothing else (docs/store-readiness.md), and it stays
+         internetClient and nothing else (docs/release-readiness.md), and it stays
          that way: shipping speech is a separate decision that has not been
          taken. If WS-F never ships, this line is removed with the probe. -->
     <DeviceCapability Name="microphone" />

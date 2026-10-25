@@ -182,7 +182,7 @@ std::string resolve_model_path(const std::string& filename) {
     // EnsureModelAsync writes LocalState\usb_model_root.txt with the drive root
     // after finding the model via KnownFolders.RemovableDevices; read it here
     // for the synchronous inference path. Omitted from Store SKU (no
-    // removableStorage capability — docs/store-readiness.md).
+    // removableStorage capability — docs/release-readiness.md).
     {
         std::string cache_utf8 = local_folder_path("usb_model_root.txt", nullptr);
         int csz = MultiByteToWideChar(CP_UTF8, 0, cache_utf8.c_str(), -1, nullptr, 0);
