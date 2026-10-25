@@ -8,7 +8,12 @@
 > [benchmarks.md](benchmarks.md). Platform limits are only in
 > [uwp-constraints.md](uwp-constraints.md).
 
-**Status (2026-10-02): D3 shipped.** Qwen2.5-Coder-3B and LFM2.5-1.2B decode
+**Status (2026-10-25):** the shipping catalogue GPU defaults are LFM2.5-1.2B
+and Qwen2.5-Coder-1.5B (the coding option). Qwen2.5-Coder-3B is not in the
+catalogue (benchmark; model under a non-commercial research licence); its D3
+numbers below stay as receipts.
+
+**Status (2026-10-02): D3 shipped.** Qwen2.5-Coder-3B and LFM2.5-1.2B decoded
 on the d3d12 backend by default (catalogue `gpu_layers`); other GGUF models
 stay on the CPU. History: D1 = `D2-matmul-only`; D2a = PASS; D2 = FAIL (peak
 RAM, Coder-3B H9). **D2-r2 = PASS** on both gate models (q8 activations,

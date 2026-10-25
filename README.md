@@ -77,15 +77,17 @@ No model bundled in MSIX.
 
 ## Supported models
 
-| Model       | Params | Decode                                                  | Role                                                           |
-| ----------- | ------ | ------------------------------------------------------- | -------------------------------------------------------------- |
-| LFM2.5-230M | 230M   | **132.4** tok/s (llama.cpp CPU, 6 threads, median of 3) | Floor (236 MB peak RAM, llama.cpp CPU, 6 threads, median of 3) |
-| LFM2.5-350M | 350M   | **101.6** tok/s (llama.cpp CPU, 6 threads, median of 3) | Default chat                                                   |
-| LFM2-2.6B   | 2.6B   | **17.9** tok/s (llama.cpp CPU, 6 threads, median of 3)  | Quality (H9 7/8)                                               |
+| Model              | Params | Decode                                                  | Role                                                           |
+| ------------------ | ------ | ------------------------------------------------------- | -------------------------------------------------------------- |
+| LFM2.5-230M        | 230M   | **132.4** tok/s (llama.cpp CPU, 6 threads, median of 3) | Floor (236 MB peak RAM, llama.cpp CPU, 6 threads, median of 3) |
+| LFM2.5-350M        | 350M   | **101.6** tok/s (llama.cpp CPU, 6 threads, median of 3) | Default chat                                                   |
+| Qwen2.5-Coder-1.5B | 1.5B   | **26.1** tok/s (llama.cpp CPU, 6 threads, median of 2)  | Coding                                                         |
+| LFM2-2.6B          | 2.6B   | **17.9** tok/s (llama.cpp CPU, 6 threads, median of 3)  | Quality (H9 7/8)                                               |
 
 Tested and measured on Series S. Not yet tested on Series X. Receipts:
 [132.4 / 101.6 tok/s and 236 MB](bench/results/2026-09-30-catalogue-gates.csv),
 [17.9 tok/s](bench/results/2026-10-11-remeasure-1163/lfm2-2.6b-q4km-cpu-t6-rerun.csv),
+[26.1 tok/s](bench/results/phase14-console.csv),
 [H9 7/8](bench/results/2026-09-30-h9-rescore.jsonl).
 Summary: [docs/benchmarks.md](docs/benchmarks.md).
 
@@ -219,11 +221,11 @@ An underexplored platform with strict memory and packaging constraints.
 Per-workload verdict on DirectML: CPU decode > GPU decode, GPU prefill > CPU
 prefill. One backend can't win both. Runtime dispatch per model is the answer.
 GGUF decode also runs on our own D3D12 kernels: a ggml backend `d3d12`, with
-q8 numerics that match the CPU. It is the default for the two models that
-passed its gate, Qwen2.5-Coder-3B and LFM2.5-1.2B; the other GGUF models stay
-on the CPU. Qwen2.5-Coder-3B is **benchmark/evaluation only**
-([Qwen Research License (non-commercial)](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE);
-not for paid demos or commercial use without a licence from Alibaba Cloud). `gguf_gpu_layers.txt` overrides the default for an operator, and
+q8 numerics that match the CPU. It is the catalogue default for LFM2.5-1.2B and for the coding option
+Qwen2.5-Coder-1.5B (Apache-2.0). Other GGUF models stay on the CPU.
+Qwen2.5-Coder-3B GPU numbers are a historical receipt (benchmark; model
+under a non-commercial research licence) and that model is not in the
+catalogue. `gguf_gpu_layers.txt` overrides the default for an operator, and
 `0` forces the CPU. Gates and per-model verdicts are in
 [docs/gguf-gpu-decode.md](docs/gguf-gpu-decode.md). How that compares with
 desktop RDNA2, the Steam Deck and other GPUs on published llama.cpp numbers is

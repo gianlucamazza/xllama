@@ -49,6 +49,10 @@ inline bool api_pull_model_allowed(const PullModelDescriptor& model) {
         return false;
     if (model.role == "embedding" && model.kind != "gguf")
         return false;
+    // Qwen2.5-Coder-3B is Qwen Research License (non-commercial) and is not
+    // downloadable. Block the id even if a LocalState override re-lists it.
+    if (model.name == "qwen25-coder-3b")
+        return false;
     if (!model.role.empty() && model.role != "coding" && model.role != "embedding")
         return false;
     for (const auto& pin : model.sha256_pins) {

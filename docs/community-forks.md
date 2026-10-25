@@ -38,8 +38,10 @@ without a lock.
   - llama.cpp clamps an explicit `n_ubatch` to `n_batch`, so the cap would
     silently disable the `--ubatch` and `bench_ubatch.txt` knob above 512
     ([#172]).
-- Qwen2.5-Coder 1.5B and 3B already pass on the console
-  ([model-matrix.md](model-matrix.md)).
+- Qwen2.5-Coder 1.5B already passes on the console
+  ([model-matrix.md](model-matrix.md)). The 3B console load is a historical
+  receipt (benchmark; model under a non-commercial research licence); that
+  model is not in the catalogue.
 - Reopen if a console load fails at context creation on `main`.
 
 **Not taken: `use_extra_bufts = false`.** It turns off llama.cpp's CPU repack

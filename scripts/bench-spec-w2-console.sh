@@ -8,8 +8,8 @@
 #   source ~/.config/xllama/xbox-env
 #   ./scripts/bench-spec-w2-console.sh [model] [--runs N] [--n-predict N] [--out FILE]
 #
-# Default model: qwen25-coder-1.5b if 3b is not on the device (gate model is
-# qwen25-coder-3b — upload it first for the declared ≥1.4× PASS).
+# Default model: qwen25-coder-1.5b (the coding option). The historical ≥1.4×
+# gate used qwen25-coder-3b, which is no longer in the catalogue.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -67,12 +67,12 @@ PFN=$("${SCRIPT_DIR}/deploy.sh" pfn 2>/dev/null || true)
 	exit 1
 }
 
-# Auto-pick model if unset: prefer 3b, else 1.5b, else 0.5b.
+# Auto-pick model if unset: prefer 1.5b (coding option), else 0.5b.
 if [[ -z "$MODEL" ]]; then
 	listing=$(curl -sk -u "${XBOX_USER}:${XBOX_PASS}" \
 		"https://${XBOX_IP}:11443/api/filesystem/apps/files?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState%5Cmodels" \
 		2>/dev/null || true)
-	for cand in qwen25-coder-3b qwen25-coder-1.5b qwen25-coder-0.5b; do
+	for cand in qwen25-coder-1.5b qwen25-coder-0.5b; do
 		if [[ "$listing" == *"\"Name\": \"${cand}\""* || "$listing" == *"\"Name\":\"${cand}\""* ]]; then
 			MODEL="$cand"
 			break
@@ -80,7 +80,7 @@ if [[ -z "$MODEL" ]]; then
 	done
 fi
 [[ -n "$MODEL" ]] || {
-	echo "no coding model on device; upload qwen25-coder-3b first" >&2
+	echo "no coding model on device; upload qwen25-coder-1.5b first" >&2
 	exit 1
 }
 
