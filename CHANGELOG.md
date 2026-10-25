@@ -15,7 +15,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   drops the id from LocalState overrides). Its benchmark results stay in the
   docs, labelled as measured on a model under a non-commercial research
   licence. **Qwen2.5-Coder-1.5B-Instruct** (Apache-2.0) is now the coding
-  option (CPU). LFM2.5-1.2B remains the only GGUF GPU default.
+  option and runs on the CPU. LFM2.5-1.2B is now the only GGUF model on the
+  GPU by default.
 
 - **Docs:** Series S / Series X wording swept across docs, templates and the
   social card: "Tested and measured on Series S. Not yet tested on Series X."

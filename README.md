@@ -221,9 +221,9 @@ An underexplored platform with strict memory and packaging constraints.
 Per-workload verdict on DirectML: CPU decode > GPU decode, GPU prefill > CPU
 prefill. One backend can't win both. Runtime dispatch per model is the answer.
 GGUF decode also runs on our own D3D12 kernels: a ggml backend `d3d12`, with
-q8 numerics that match the CPU. It is the default for LFM2.5-1.2B. The
-coding option, Qwen2.5-Coder-1.5B (Apache-2.0), runs on the CPU. Other GGUF
-models stay on the CPU. The Qwen2.5-Coder-3B GPU numbers are an earlier
+q8 numerics that match the CPU. It is the default only for LFM2.5-1.2B. The
+coding option, Qwen2.5-Coder-1.5B (Apache-2.0), runs on the CPU like the
+other GGUF models. The Qwen2.5-Coder-3B GPU numbers are an earlier
 measurement; that model is under a non-commercial research licence and is
 no longer in the model list. `gguf_gpu_layers.txt` overrides the default for an operator, and
 `0` forces the CPU. Gates and per-model verdicts are in

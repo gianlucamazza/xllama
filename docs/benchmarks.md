@@ -105,8 +105,8 @@ generated from the committed raw results by `scripts/generate-benchmark-summary.
   Qwen3-1.7B, LFM2.5-1.2B-Thinking console-validated (`phase14-console.csv`).
   Coder-0.5B lands next to SmolLM2 GGUF at ~62 tok/s; Coder-3B matches Llama-3.2-3B
   decode (~14) with peak **2116 MB**. Thinking equals LFM 1.2B instruct peak RAM.
-  Qwen2.5-Coder-3B figures here are benchmark receipts (model under a
-  non-commercial research licence; not in the catalogue).
+  Qwen2.5-Coder-3B figures here are earlier measurements of a model under a
+  non-commercial research licence; it is not in the catalogue.
 
 Notes:
 
@@ -384,8 +384,8 @@ its roofline.
 
 ## GPU decode in context — known hardware
 
-Qwen2.5-Coder-3B figures here are benchmark receipts (model under a
-non-commercial research licence; not in the catalogue).
+Qwen2.5-Coder-3B figures here are earlier measurements of a model under a
+non-commercial research licence; it is not in the catalogue.
 
 Where the Series S and xllama sit next to hardware with published llama.cpp
 numbers (2026-10-02). Decode streams every weight once per token. The
