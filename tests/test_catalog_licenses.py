@@ -96,6 +96,20 @@ class CatalogLicensePairingTests(unittest.TestCase):
                     self.assertEqual(spec.get("approx_bytes"), committed.stat().st_size)
                     self.assertEqual(spec.get("remote"), remote)
 
+    def test_dml_fp16_v2_notice_records_rmsnorm_decomposition(self) -> None:
+        # docs/dml-rmsnorm-fix-runbook.md: those RMSNorm nodes were
+        # decomposed into primitive ops for DirectML.
+        text = (LICENSES / "HuggingFaceTB-SmolLM2-360M-dml-fp16-v2-NOTICE").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("RMSNorm nodes decomposed into primitive ops for DirectML", text)
+        spec = _file_by_name(self.cat["smollm2-360m-dml-fp16-v2"], "NOTICE")
+        self.assertIsNotNone(spec)
+        self.assertEqual(
+            spec["sha256"],
+            "11b32a7c2bcd4954d8c055d91d6615dd6156e51b36136df14f86113142199c7e",
+        )
+
     def test_every_models_v1_catalogue_entry_is_paired(self) -> None:
         hosted = [
             name
