@@ -66,7 +66,7 @@ Three hypotheses died against these numbers:
    licence; not in the catalogue). **2026-10-02:**
    D2 failed on peak RAM and Coder-3B H9. D2-r2 (q8 activations, leaner
    memory) passes on Coder-3B and LFM2.5-1.2B, with decode 1.60–1.64× over the
-   CPU. D3 (same day) made it the default for both; other GGUF models stay on the CPU.
+   CPU. D3 (same day) made it the default for both; Coder-3B was withdrawn on 2026-10-25, so LFM2.5-1.2B is now the only GGUF GPU default.
    Keeping Flash Attention on that path, which llama.cpp had silently turned
    off, raised decode to 1.90× / 1.88×.
    **#91 interlude (2026-07-16 → 2026-07-19).** The logit-parity harness
