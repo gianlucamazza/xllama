@@ -15,10 +15,17 @@ builds; ORT-only builds still use SmolLM2-360M-Instruct INT4, ~421 MB) from the
 allowlisted catalogue (`uwp/models/manifest.json`; LiquidAI Hugging Face for the
 default LFM) with a progress bar, writes it to `LocalState\models\`, and opens
 the chat.
+
 The console needs internet access for this step; afterwards everything runs
 offline. If the download fails, provisioning via Device Portal or USB
 (`E:\xllama\models\<name>`) is described in
 [model-selection.md](./model-selection.md).
+
+Models are made by their authors and used under their own licences. Most download
+directly from the author's or a community quantizer's Hugging Face repository; a
+few converted builds download from this repository's `models-v1` release, and
+their upstream licences apply (see each model's source card). xllama doesn't
+sell models or apps.
 
 ## Chat
 
