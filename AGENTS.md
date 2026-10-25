@@ -6,8 +6,9 @@ of copying tables, tok/s figures, or constraint numbers into a second place.
 
 ## Project overview
 
-xllama runs local chat, SD-Turbo diffusion, and on-device training on Xbox
-Series S|X (Dev Mode) and a Linux host CLI. The shared core is C++17 under
+xllama runs local chat, SD-Turbo diffusion, and on-device training on
+Xbox Series S (Dev Mode; not yet tested on Series X) and a Linux host CLI.
+The shared core is C++17 under
 `include/xllama/` (WinRT-free, host-testable) and `src/bridge/`. Two front
 ends call it: `xllama-cli` on Linux, and the C++/WinRT UWP app in `uwp/`.
 

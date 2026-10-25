@@ -555,7 +555,7 @@ The `\\?\` long-path prefix does not help: it bypasses MAX_PATH but not the acce
 
 **Failure mode**: deploy fails with `0x80070070` (ERROR_DISK_FULL) if free space drops below the staging requirement. Alternatively, the first-launch copy from `InstalledPath` to `LocalState` fails silently, and `resolve_model_path` falls through to the default path — resulting in a model-not-found error at runtime rather than a visible install error.
 
-**Source**: repeated `deploy.sh` runs against `https://<XBOX_IP>:11443/api/devices/file/usage`. Series X Dev Mode has the same partition layout but available free space was not measured by this project.
+**Source**: repeated `deploy.sh` runs against `https://<XBOX_IP>:11443/api/devices/file/usage`. Series X was not tested; its partition layout and free space were not measured by this project.
 
 For models not distributed through the catalogue, see the USB/Device Portal
 provisioning paths in `docs/model-selection.md`, `docs/device-portal.md` and
