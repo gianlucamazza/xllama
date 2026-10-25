@@ -1,14 +1,24 @@
 # xllama
 
-> Local inference on Xbox Series S|X — GGUF / llama.cpp, dual-backend dispatch
-> (ORT GenAI + DirectML), OpenAI-compat LAN endpoint, diffusion, and on-device
-> training. Built for games (NPC / dialogue / agents) and AI assistants.
-> Chat UI is a demo shell. Architecture under real constraints (UWP, 10 GB RAM).
+**xllama — local LLM inference for Xbox Series S consoles in Developer Mode**
+
+Run a language model on your own Xbox Series S, with chat, an API on your local network, image generation and experimental on-device fine-tuning.
+
+Tested and measured on Series S. Not yet tested on Series X.
+
+### ⚠️ Read before installing
+
+- **Developer Mode only.** xllama runs only on an Xbox console in Developer Mode, Microsoft's program for developing and testing apps. To activate it, you need your own Partner Center developer account, and you must accept Microsoft's [Xbox Developer Mode Activation terms](https://learn.microsoft.com/en-us/legal/windows/agreements/xbox-one-developer-mode-activation) yourself. xllama is a developer and research project, not a consumer product.
+- **Retail games and apps don't run in Developer Mode.** You need to switch back to Retail Mode to play. Microsoft notes that required updates may cause "diminished or lost functionality" on a Developer Mode console, and a console reset deletes local saves that aren't synced to the cloud.
+- **Unofficial.** Independent project, not affiliated with or endorsed by Microsoft. xllama is not reviewed, certified or supported by Microsoft and is not distributed through the Microsoft Store. Install it only on a console you own, at your own risk. This project makes no statement about warranty coverage or about how Microsoft may treat Developer Mode use; read Microsoft's terms and warranty for your country.
+- **Install only from this repository's Releases page** and check the SHA-256. The package is signed with a test certificate (`xllama-test.cer`); trust it only if you downloaded it from here.
+- **The LAN API is off by default and has no authentication.** When it is on, any device on your network, and any web page open in a browser on it, can send it requests. Enable it only on a network you trust.
+- **Models are third-party.** Models are downloaded separately (from Hugging Face or this repository's `models-v1` release) and each one is under its own licence, not under xllama's MIT licence. Some licences are non-commercial or carry attribution requirements. Check each model's licence on its upstream model card (LFM models also download their LICENSE file alongside the weights) before using it.
+- xllama is provided "AS IS", without warranty, under the MIT licence.
 
 [![build-uwp](https://github.com/gianlucamazza/xllama/actions/workflows/build-uwp.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-uwp.yml)
 [![build-linux](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?logo=github)](https://github.com/sponsors/gianlucamazza)
 
 <!-- XLLAMA_DOI_START -->
 
@@ -19,25 +29,21 @@
 
 https://github.com/user-attachments/assets/9494a6a2-f14e-4229-afa4-ff5faf51ba67
 
-The hosted clip above is the compact technical demo recorded on a Series S in
-Dev Mode. The new [52.97-second product showcase](docs/screenshots/xllama-demo-v1.5.6-showcase.mp4)
-keeps the meaningful states visible through the chat **demo shell**: local
-inference, feedback, completed personalization, coding, and generated image. Its [12-minute raw capture](docs/screenshots/xllama-demo-v1.5.6-showcase-raw.mp4)
-and [marker log](docs/screenshots/xllama-demo-v1.5.6-showcase-markers.jsonl)
-remain available for audit. The original [technical raw capture](docs/screenshots/xllama-demo-v1.5.6.mp4)
-is also retained; neither video supports a throughput claim.
-Reproduce it from [`demo/demo-showcase-script.json`](demo/demo-showcase-script.json)
-with `scripts/capture-demo-video.sh`.
+A 4.7-second cut (three segments) of a 46-second capture made on a Series S in Developer Mode from Device Portal screenshots. The video doesn't support any speed claim. The full capture is [`xllama-demo-v1.5.6.mp4`](docs/screenshots/xllama-demo-v1.5.6.mp4), the cut points are in [`demo-manifest.json`](docs/screenshots/demo-manifest.json), and the demo is driven by [`demo/demo-script.json`](demo/demo-script.json) via `scripts/capture-demo-video.sh`. A longer [product showcase](docs/screenshots/xllama-demo-v1.5.6-showcase.mp4) is driven by [`demo/demo-showcase-script.json`](demo/demo-showcase-script.json).
 
 ---
 
 ## Quick install
 
+<a id="build"></a>
+
 Install in the browser (Device Portal, no credentials file): [Install from a release](docs/install-release.md#install-from-a-release-in-the-browser). (steps not yet walked through on a console)
+
+Command-line path:
 
 ```bash
 # Download release assets or a specific CI artifact first:
-# docs/install-release.md (same-identity updates preserve LocalState)
+# docs/install-release.md (installing a newer version over the existing app keeps your data in LocalState)
 
 # Or build (Windows host)
 git clone --recursive https://github.com/gianlucamazza/xllama.git
@@ -48,7 +54,9 @@ source ~/.config/xllama/xbox-env
 ./scripts/deploy.sh path/to/xllama_*.msix
 ```
 
-First launch: downloads default model (~219 MB). No model bundled in MSIX.
+First launch downloads the default chat model LFM2.5-350M (~219 MB catalogue
+size from the [model list](docs/model-selection.md), not a runtime measurement).
+No model bundled in MSIX.
 
 **Linux dev:** `cmake --preset linux-release && cmake --build build/linux-release -j`
 
@@ -58,10 +66,10 @@ First launch: downloads default model (~219 MB). No model bundled in MSIX.
 
 - **LAN API** — OpenAI-compat completions, GGUF embeddings, trusted catalogue
   pull, preferences and training status. Current integration probe for games
-  and assistants; opt-in, default OFF.
+  and assistants; **off by default and has no authentication**.
 - **Bench** — headless tok/s, membw, diskbw, gpubw, gpugemv, gpustep, ramceil probes, d3d12 backend selftest
 - **Diffuse** — SD-Turbo on DirectML, in-process with XAML compositor
-- **Train** — on-device partial FT (Lane B), host PEFT (Lane A), serve merged GGUF (Lane C)
+- **Train** — experimental on-device fine-tune of the last block (Lane B; one console marker run on SmolLM2-360M, 2026-07-20, [receipt](bench/results/phase10-console-devtrain-result.json)), host PEFT (Lane A), serve merged GGUF (Lane C). The in-app _Train on my feedback_ flow is not yet validated end to end on a console.
 - **Chat (demo shell)** — multi-turn pad UI with KV-reuse, thinking models,
   coding tier. Showcase, not the product thesis.
 
@@ -69,13 +77,17 @@ First launch: downloads default model (~219 MB). No model bundled in MSIX.
 
 ## Supported models
 
-| Model       | Params | Decode          | Role                    |
-| ----------- | ------ | --------------- | ----------------------- |
-| LFM2.5-230M | 230M   | **132.4** tok/s | Floor (fastest, 236 MB) |
-| LFM2.5-350M | 350M   | **101.6** tok/s | Default chat            |
-| LFM2-2.6B   | 2.6B   | **17.9** tok/s  | Quality (H9 7/8)        |
+| Model       | Params | Decode                                                  | Role                                                           |
+| ----------- | ------ | ------------------------------------------------------- | -------------------------------------------------------------- |
+| LFM2.5-230M | 230M   | **132.4** tok/s (llama.cpp CPU, 6 threads, median of 3) | Floor (236 MB peak RAM, llama.cpp CPU, 6 threads, median of 3) |
+| LFM2.5-350M | 350M   | **101.6** tok/s (llama.cpp CPU, 6 threads, median of 3) | Default chat                                                   |
+| LFM2-2.6B   | 2.6B   | **17.9** tok/s (llama.cpp CPU, 6 threads, median of 3)  | Quality (H9 7/8)                                               |
 
-Xbox Series S, CPU 6 threads, median of 3 ([docs/benchmarks.md](docs/benchmarks.md)).
+Tested and measured on Series S. Not yet tested on Series X. Receipts:
+[132.4 / 101.6 tok/s and 236 MB](bench/results/2026-09-30-catalogue-gates.csv),
+[17.9 tok/s](bench/results/2026-10-11-remeasure-1163/lfm2-2.6b-q4km-cpu-t6-rerun.csv),
+[H9 7/8](bench/results/2026-09-30-h9-rescore.jsonl).
+Summary: [docs/benchmarks.md](docs/benchmarks.md).
 
 Full catalogue + Phase 14 coding models: [model-matrix.md](docs/model-matrix.md) · [benchmarks.md](docs/benchmarks.md)
 
@@ -87,11 +99,11 @@ Hugging Face collection: [xllama: models measured on Xbox Series S](https://hugg
 
 xllama exposes an HTTP endpoint on the local network that exposes its full
 inference core (`SessionHub`) with OpenAI and Ollama-compatible APIs.
-Status: v1, opt-in, default OFF. Dev Mode / LAN research only — the current
-integration probe, not a public inbound service.
+Status: v1, **off by default and has no authentication**. Dev Mode / trusted
+LAN only — the current integration probe, not a public inbound service.
 
 ```bash
-# Chat completions (non-streaming)
+# Chat completions (add `"stream": true` for SSE)
 curl -s http://<xbox-ip>:11434/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{"model":"lfm25-350m","messages":[{"role":"user","content":"hi"}]}'
@@ -100,19 +112,19 @@ curl -s http://<xbox-ip>:11434/v1/chat/completions \
 curl -s http://<xbox-ip>:11434/v1/models
 ```
 
-| Route                         | Shape      | Note                                        |
-| ----------------------------- | ---------- | ------------------------------------------- |
-| `POST /v1/chat/completions`   | OpenAI     | Non-streaming, single-slot mutex            |
-| `POST /api/pull`              | Ollama     | Trusted catalogue download; NDJSON progress |
-| `POST /api/embed`             | Ollama     | GGUF embeddings; scalar or batch input      |
-| `POST /api/embeddings`        | Ollama     | Deprecated single-prompt embeddings         |
-| `POST /v1/embeddings`         | OpenAI     | Float32 or base64 encoded vectors           |
-| `GET /v1/models`              | OpenAI     | `"active": true` on the loaded model        |
-| `GET /api/tags`               | Ollama     | Same list, Ollama shape                     |
-| `POST /v1/preferences`        | Custom     | Append JSONL → `training/samples.jsonl`     |
-| `GET /v1/training/status`     | Custom     | Snapshot of on-device train progress        |
-| `POST /v1/images/generations` | OpenAI-ish | SD-Turbo, `b64_json` + `path`               |
-| `GET /health`                 | Custom     | `{"status":"ok","service":"xllama"}`        |
+| Route                         | Shape      | Note                                                             |
+| ----------------------------- | ---------- | ---------------------------------------------------------------- |
+| `POST /v1/chat/completions`   | OpenAI     | JSON, or SSE when `stream: true` (tool calls stay non-streaming) |
+| `POST /api/pull`              | Ollama     | Trusted catalogue download; NDJSON progress                      |
+| `POST /api/embed`             | Ollama     | GGUF embeddings; scalar or batch input                           |
+| `POST /api/embeddings`        | Ollama     | Deprecated single-prompt embeddings                              |
+| `POST /v1/embeddings`         | OpenAI     | Float32 or base64 encoded vectors                                |
+| `GET /v1/models`              | OpenAI     | `"active": true` on the loaded model                             |
+| `GET /api/tags`               | Ollama     | Same list, Ollama shape                                          |
+| `POST /v1/preferences`        | Custom     | Append JSONL → `training/samples.jsonl`                          |
+| `GET /v1/training/status`     | Custom     | Snapshot of on-device train progress                             |
+| `POST /v1/images/generations` | OpenAI-ish | SD-Turbo, `b64_json` + `path`                                    |
+| `GET /health`                 | Custom     | `{"status":"ok","service":"xllama"}`                             |
 
 Full protocol — requirements, port config, enable/persistence, concurrency,
 streaming status: [api-endpoint.md](docs/api-endpoint.md).
@@ -223,9 +235,9 @@ A CPU model and a DML model don't fit the budget together
 
 ### Why token-budget, not chars-per-token?
 
-Measured: prose 4.6 chars/token, dense C++ 2.5. A constant trades truncated
-answers for history that would have fit. The estimate survives only for routing,
-where being wrong costs a decision, not an answer.
+A chars-per-token estimate is not a safe stand-in for a token count: being
+wrong truncates the reply or drops history that would have fit. The estimate
+survives only for routing, where being wrong costs a decision, not an answer.
 
 ### Why consolidate duplicated loops?
 
@@ -270,15 +282,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
-## Support
-
-xllama is free and MIT-licensed. If it's useful to you, you can support its
-development on [GitHub Sponsors](https://github.com/sponsors/gianlucamazza) —
-funds go to development time, Xbox Dev Mode costs, and model/storage budgets
-for testing.
-
----
-
 ## Acknowledgements
 
 - [`llama.cpp`](https://github.com/ggml-org/llama.cpp) — Georgi Gerganov
@@ -289,3 +292,22 @@ for testing.
 ## License
 
 MIT. `llama.cpp` submodule under MIT.
+
+---
+
+## Support
+
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?logo=github)](https://github.com/sponsors/gianlucamazza)
+
+xllama is free and MIT-licensed. If it's useful to you, you can support its
+development on [GitHub Sponsors](https://github.com/sponsors/gianlucamazza) —
+funds go to development time, Xbox Dev Mode costs, and model/storage budgets
+for testing.
+
+---
+
+## Disclaimer
+
+xllama is an independent open-source project by Gianluca Mazza. It is not affiliated with, endorsed, sponsored or approved by Microsoft. Xbox, Xbox Series S and Xbox Series X are trademarks of the Microsoft group of companies. Llama is a trademark of Meta; xllama is not affiliated with Meta or with the Ollama project. Other product names are trademarks of their respective owners and are used only to describe compatibility.
+
+Independent project, not affiliated with or endorsed by Microsoft. Xbox and Xbox Series S|X are trademarks of the Microsoft group of companies.
