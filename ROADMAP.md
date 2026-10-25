@@ -41,7 +41,7 @@ performance belongs in `docs/benchmarks.md`.
   Product package path: `docs/crossbuild-console.md`.
 - **Latest evidence:** the Dev Series S capture is committed in
   `bench/results/2026-09-30-catalogue-gates.csv` (LFM2.5-350M QAD Q4_0 on CI
-  package 1.6.0.1072, 101.6 tok/s median, 796.5 ms TTFT, 311 MB peak). Model catalogue signing
+  package 1.6.0.1072, 101.6 tok/s median, 796.5 ms TTFT, 311 MB peak). Signed-catalogue (Store SKU build) signing
   and runtime verification passed in CI run `32963270335`; this does not equal
   Partner Center certification or external power/thermal evidence.
 - **Demo capture is on the v1.5.6 assets** (381 measured stills; raw MP4 plus a

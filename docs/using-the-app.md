@@ -16,13 +16,15 @@ allowlisted catalogue (`uwp/models/manifest.json`; LiquidAI Hugging Face for the
 default LFM) with a progress bar, writes it to `LocalState\models\`, and opens
 the chat.
 
-Models are provided by their authors under their own licences and downloaded
-directly from the listed source. xllama doesn't sell models or apps.
-
 The console needs internet access for this step; afterwards everything runs
 offline. If the download fails, provisioning via Device Portal or USB
 (`E:\xllama\models\<name>`) is described in
 [model-selection.md](./model-selection.md).
+
+Models are made by their authors and used under their own licences. Most download
+directly from the author's or a community quantizer's Hugging Face repository; a
+few converted builds download from this repository's `models-v1` release and keep
+their original licences. xllama doesn't sell models or apps.
 
 ## Chat
 

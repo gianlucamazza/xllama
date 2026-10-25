@@ -5,8 +5,10 @@
 > is the narrative source of truth for limits, licensing, backend routing, and
 > "add your own model". Performance numbers live in [`benchmarks.md`](benchmarks.md).
 
-Models are provided by their authors under their own licences and downloaded
-directly from the listed source. xllama doesn't sell models or apps. Design
+Models are made by their authors and used under their own licences. Most download
+directly from the author's or a community quantizer's Hugging Face repository; a
+few converted builds download from this repository's `models-v1` release and keep
+their original licences. xllama doesn't sell models or apps. Design
 limits for what the catalogue may contain are in
 [CONTRIBUTING.md](../CONTRIBUTING.md#model-catalogue-design-limits).
 
@@ -126,8 +128,9 @@ Downloaded catalogue files may declare a lowercase `sha256` value alongside
 `filename`, `remote`, and `approx_bytes`. xllama verifies that digest against
 the staged file before replacing an existing model and before writing the
 `.complete` marker. Missing hashes remain supported only for legacy/custom
-Dev Mode provisioning; a signed model catalogue must reject entries without
-integrity pins and a signed catalogue envelope.
+Dev Mode provisioning. The signed-catalogue build (`XLLAMA_STORE_SKU`) rejects a
+catalogue without a valid signature envelope and any download entry without a
+SHA-256 pin; the Dev Mode release build does not check the catalogue signature.
 
 The Settings ComboBox is populated from the model catalogue. A
 `LocalState\manifest.json` uploaded via Device Portal is **merged per entry**
