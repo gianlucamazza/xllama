@@ -74,10 +74,29 @@ logic when the behaviour is not WinRT-specific.
   llama.cpp); Linux uses llama.cpp. UWP ORT code remains under
   `#ifdef XLLAMA_USE_ORT`; keep both unified dispatch and Linux builds working.
 - **Adding a model**: usually just a `uwp/models/manifest.json` entry — check the
-  size/RAM/per-file limits in [`docs/model-selection.md`](docs/model-selection.md).
+  size/RAM/per-file limits in [`docs/model-selection.md`](docs/model-selection.md)
+  and the design limits below.
 - **Publishing ORT model assets**: every asset must pass the logit-parity gate
   before `gh release upload` — runbook in
   [`docs/model-selection.md`](docs/model-selection.md#publishing-ort-model-assets-models-v1--logit-parity-gate).
+
+## Model catalogue design limits
+
+The in-app model list (`uwp/models/manifest.json`) is a curated allowlist of
+**model weights**, not a store, shop, or marketplace.
+
+- **Weights only (data).** Catalogue entries are model weights. Never add
+  third-party executables, apps, or plugins.
+- **No commerce.** No payments, purchase links, or affiliate links.
+- **Pinned allowlist.** Every downloadable entry is curated by maintainers and
+  carries a `sha256` pin.
+- **No public third-party index.** This project does not host a public index
+  open to third-party contributions.
+- **Personal override.** Merging `LocalState\manifest.json` is for the user's
+  personal use on a console they own. It is not a distribution channel.
+
+Narrative limits and how to add a personal entry live in
+[`docs/model-selection.md`](docs/model-selection.md).
 
 ## Reporting issues
 

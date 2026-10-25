@@ -72,7 +72,7 @@ this is Dev Mode research, not a hosted service.
 | `GET`     | `/` or `/health`         | `200 {"status":"ok","service":"xllama"}` — the spike/liveness probe.                                                                              |
 | `GET`     | `/v1/models`             | OpenAI model discovery — every servable on-device model; non-standard `"active": true` marks the one currently loaded.                            |
 | `GET`     | `/api/tags`              | Ollama model discovery — same list, Ollama shape.                                                                                                 |
-| `POST`    | `/api/pull`              | Pull a trusted catalogue chat/embedding model with Ollama-style NDJSON progress; load it when complete.                                           |
+| `POST`    | `/api/pull`              | Download from the built-in model list (trusted chat/embedding model, Ollama-style NDJSON progress); load it when complete.                        |
 | `POST`    | `/v1/chat/completions`   | OpenAI-compatible chat completion; one JSON body, or **SSE** chunk events when `stream: true`.                                                    |
 | `POST`    | `/api/embed`             | Ollama-style embeddings for one string or a batch, catalogue embedding GGUF/llama.cpp only.                                                       |
 | `POST`    | `/api/embeddings`        | Deprecated Ollama single-prompt embeddings adapter.                                                                                               |
@@ -82,7 +82,7 @@ this is Dev Mode research, not a hosted service.
 | `POST`    | `/v1/images/generations` | SD-Turbo image gen (`prompt`, `steps` 1–4, `seed`); returns OpenAI-ish `{data:[{b64_json,path}]}` (#118). Shares the single-slot mutex with chat. |
 | `OPTIONS` | _any_                    | CORS preflight (`204` + `Allow-Methods/Headers`) for browser clients.                                                                             |
 
-### Model pulling (`POST /api/pull`)
+### Model download (`POST /api/pull`)
 
 The request is `{"model":"<catalogue-id-or-alias>","stream":true}`; `stream` defaults to
 true. Pulls use only HTTPS entries bundled in the installed package with valid SHA-256 pins.
@@ -234,8 +234,8 @@ Embedding requests use the same resident `Session` and single-slot mutex as chat
 a batch are encoded serially, preserving order and avoiding a second model or a large
 multi-sequence activation allocation. The supported inference path is GGUF via llama.cpp;
 ORT GenAI sessions and ranking-only models return an explicit unsupported error. Use an
-embedding model already present in `LocalState\models\<id>` or pull one from the bundled
-catalogue with `/api/pull`.
+embedding model already present in `LocalState\models\<id>` or download one from the
+built-in model list with `/api/pull`.
 
 `/api/embed` accepts `input` as a string or string array (up to 128 items), optional `truncate` (default true),
 `dimensions`, and an Ollama `options` object. `options.num_ctx` can lower the configured
@@ -284,7 +284,7 @@ run in one physical microbatch. Inputs beyond
 that limit are truncated when `truncate=true` (default), or rejected with 400 when
 `truncate=false`.
 
-Embedding models retain their own pooling behavior from GGUF metadata. The API does not inject task prefixes automatically: clients must prepend the appropriate instruction strings themselves. Model pulling is catalogue-only; `/api/show` and full Ollama model-management parity are not implemented.
+Embedding models retain their own pooling behavior from GGUF metadata. The API does not inject task prefixes automatically: clients must prepend the appropriate instruction strings themselves. Model download is from the built-in model list only; `/api/show` and full Ollama model-management parity are not implemented.
 
 ### Preferences (`POST /v1/preferences`)
 

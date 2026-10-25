@@ -54,8 +54,9 @@ namespace {
 // IAsyncAction wrapper preserves the caller's apartment and undoes the switch.
 // A null dispatcher denotes the API worker; it must stay on that worker.
 
-// RSA public key pinned for the Store catalogue. The private half lives only in
-// the GitHub Actions secret and is never committed or included in an artifact.
+// RSA public key pinned for the signed model catalogue. The private half lives
+// only in the GitHub Actions secret and is never committed or included in an
+// artifact.
 // BCRYPT_RSAPUBLIC_BLOB: 3072-bit modulus, exponent 65537, big-endian values.
 // Rotate by changing key_id and this blob in the same release.
 [[maybe_unused]] static constexpr uint8_t kCatalogueLegacyPublicKeyBlob[284] = {
@@ -79,9 +80,9 @@ namespace {
     0x88, 0x53, 0x50, 0x10, 0x5d, 0xa4, 0x87, 0x63, 0x31, 0x0c, 0x74, 0x29,
 };
 
-// Release key generated for the Store catalogue. Keep the private key only in
-// the GitHub Actions secret; it must never be committed or included in an
-// artifact.
+// Release key generated for the signed model catalogue. Keep the private key
+// only in the GitHub Actions secret; it must never be committed or included in
+// an artifact.
 static constexpr uint8_t kCataloguePublicKeyBlob[412] = {
     0x52, 0x53, 0x41, 0x31, 0x00, 0x0c, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x80, 0x01, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0xb4, 0x77, 0xa4, 0xab,

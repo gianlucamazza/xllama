@@ -5,6 +5,11 @@
 > is the narrative source of truth for limits, licensing, backend routing, and
 > "add your own model". Performance numbers live in [`benchmarks.md`](benchmarks.md).
 
+Models are provided by their authors under their own licences and downloaded
+directly from the listed source. xllama doesn't sell models or apps. Design
+limits for what the catalogue may contain are in
+[CONTRIBUTING.md](../CONTRIBUTING.md#model-catalogue-design-limits).
+
 Operational criteria for choosing or evaluating a model for the xllama UWP build
 (Xbox Series S Dev Mode). Covers both backends — ONNX Runtime GenAI (CPU/DirectML)
 and llama.cpp (GGUF, CPU).
@@ -121,7 +126,7 @@ Downloaded catalogue files may declare a lowercase `sha256` value alongside
 `filename`, `remote`, and `approx_bytes`. xllama verifies that digest against
 the staged file before replacing an existing model and before writing the
 `.complete` marker. Missing hashes remain supported only for legacy/custom
-Dev Mode provisioning; a future Store catalogue must reject entries without
+Dev Mode provisioning; a signed model catalogue must reject entries without
 integrity pins and a signed catalogue envelope.
 
 The Settings ComboBox is populated from the model catalogue. A
