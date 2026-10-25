@@ -7,10 +7,10 @@
 
 Consolidated performance data for every model xllama has run. Unless noted, all
 figures are **measured on Xbox Series S in Dev Mode** (the target device) and
-come from the CSVs in `bench/results/`. Tested and measured on Series S.
-Not yet tested on Series X. Host-dev figures (Intel i7-1165G7,
+come from the CSVs in `bench/results/`. Host-dev figures (Intel i7-1165G7,
 Linux) are called out separately and are **not** comparable to console numbers —
 they exist only to sanity-check a model loads and generates.
+Tested and measured on Series S. Not yet tested on Series X.
 
 **On the SmolLM2-360M CPU int4 decode number** (it appears elsewhere as 66.3,
 68.0, 70.9 or 74.8 — same model, different runs/configs): **74.8** is the

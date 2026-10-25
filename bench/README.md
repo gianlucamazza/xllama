@@ -1,7 +1,6 @@
 # bench/
 
 Benchmark suite for xllama. Results are stored as CSV files in `results/`.
-Console figures in this tree were measured on Xbox Series S consoles.
 Tested and measured on Series S. Not yet tested on Series X.
 
 ## Single source of truth
