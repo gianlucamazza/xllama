@@ -8,7 +8,12 @@
 > [benchmarks.md](benchmarks.md). Platform limits are only in
 > [uwp-constraints.md](uwp-constraints.md).
 
-**Status (2026-10-02): D3 shipped.** Qwen2.5-Coder-3B and LFM2.5-1.2B decode
+**Status (2026-10-25):** the shipping catalogue GPU default is LFM2.5-1.2B.
+Qwen2.5-Coder-1.5B (the coding option) runs on the CPU; it has no D2-r2
+receipt. Qwen2.5-Coder-3B is not in the catalogue (benchmark; model under a
+non-commercial research licence); its D3 numbers below stay as receipts.
+
+**Status (2026-10-02): D3 shipped.** Qwen2.5-Coder-3B and LFM2.5-1.2B decoded
 on the d3d12 backend by default (catalogue `gpu_layers`); other GGUF models
 stay on the CPU. History: D1 = `D2-matmul-only`; D2a = PASS; D2 = FAIL (peak
 RAM, Coder-3B H9). **D2-r2 = PASS** on both gate models (q8 activations,
@@ -438,7 +443,8 @@ LFM2.5-1.2B. LFM2.5-350M and smaller stay on the CPU.
 **D3 rule (predeclared 2026-10-02, before the D3 runs).**
 
 - An entry gets `gpu_layers` only if the D2-r2 criteria pass at the entry's
-  own `n_ctx`. Coder-3B ships at 4096, while D2-r2 measured 2048.
+  own `n_ctx`. Coder-3B was catalogued at 4096 (withdrawn 2026-10-25), while
+  D2-r2 measured 2048.
 - The package carrying the manifest change must pass `validate-console.sh all`
   in the default configuration (no knob).
 - The same package must pass H9 via the LAN API, and the log must show the

@@ -65,14 +65,14 @@ generated from the committed raw results by `scripts/generate-benchmark-summary.
 | LFM2.5-1.2B | 1.2B | QAD Q4_0 | llama.cpp CPU · t6 | 109.7 | **40.0** | 39.7–40.3 (n=3) | 783 | `2026-09-30-catalogue-gates` |
 | LFM2.5-1.2B-Thinking | 1.2B | Q4_K_M | llama.cpp CPU · t6 | 130.4 | **36.7** | 36.7–36.8 (n=2) | 811 | `phase14-console` |
 | Qwen3.5-0.8B | 0.8B | Q4_K_M | llama.cpp CPU · t6 | 98.1 | **35.1** | _single run_ | 718 | `phase5-gguf` |
-| Qwen2.5-Coder-3B | 3B | Q4_K_M | llama.cpp · d3d12 GPU (default, D3) | 77.7 | **26.7** | 26.5–26.8 (n=3) | 2203 | `2026-10-02-fa-gguf-gpu` |
+| Qwen2.5-Coder-3B (benchmark; model under a non-commercial research licence) | 3B | Q4_K_M | llama.cpp · d3d12 GPU (D3) | 77.7 | **26.7** | 26.5–26.8 (n=3) | 2203 | `2026-10-02-fa-gguf-gpu` |
 | Qwen2.5-Coder-1.5B | 1.5B | Q4_K_M | llama.cpp CPU · t6 | 96.6 | **26.1** | 25.7–26.5 (n=2) | 1179 | `phase14-console` |
 | Qwen3-1.7B | 1.7B | Q4_K_M | llama.cpp CPU · t6 | 89.5 | **21.8** | 21.7–21.9 (n=2) | 1398 | `phase14-console` |
 | SmolLM2-1.7B | 1.7B | int4 | ORT-GenAI CPU | 54.9 | **20.6** | _single run_ | 2423 | `phase35-1b-cpu` |
 | LFM2-2.6B | 2.6B | Q4_K_M | llama.cpp CPU · t6 | 54.9 | **17.9** | 17.8–17.9 (n=3) | 1623 | `2026-10-11-remeasure-1163/lfm2-2.6b-q4km-cpu-t6-rerun` |
 | Gemma-4-E2B | ~5B raw (2B eff) | Q3_K_S | llama.cpp CPU · t6 | 28.4 | **15.3** | 15.3–15.3 (n=3) | 2741 | `2026-10-11-remeasure-1163/gemma4-e2b-q3ks-cpu-t6` |
 | Llama-3.2-3B | 3B | Q3_K_S | llama.cpp CPU · t6 | 21.2 | **14.1** | 14.1–14.1 (n=3) | 1827 | `2026-10-11-remeasure-1163/llama32-3b-q3ks-cpu-t6` |
-| Qwen2.5-Coder-3B | 3B | Q4_K_M | llama.cpp CPU · t6 | 46.2 | **14.0** | 13.9–14.1 (n=2) | 2116 | `phase14-console` |
+| Qwen2.5-Coder-3B (benchmark; model under a non-commercial research licence) | 3B | Q4_K_M | llama.cpp CPU · t6 | 46.2 | **14.0** | 13.9–14.1 (n=2) | 2116 | `phase14-console` |
 | Phi-3.5-mini | 3.8B | Q3_K_S | llama.cpp CPU · t6 | 15.3 | **11.3** | _single run_ | 2453 | `phase7-scale` |
 | Phi-4-mini | 3.8B | Q4_K_M | llama.cpp CPU · t6 | 33.1 | **11.2** | 11.2–11.2 (n=3) | 2765 | `2026-09-30-catalogue-gates` |
 | Gemma-4-E2B | ~5B raw (2B eff) | IQ2_M | llama.cpp CPU · t6 | 13.5 | **9.9** | _single run_ | 2534 | `phase6-gemma` |
@@ -105,9 +105,12 @@ generated from the committed raw results by `scripts/generate-benchmark-summary.
   Qwen3-1.7B, LFM2.5-1.2B-Thinking console-validated (`phase14-console.csv`).
   Coder-0.5B lands next to SmolLM2 GGUF at ~62 tok/s; Coder-3B matches Llama-3.2-3B
   decode (~14) with peak **2116 MB**. Thinking equals LFM 1.2B instruct peak RAM.
+  Qwen2.5-Coder-3B figures here are earlier measurements of a model under a
+  non-commercial research licence; it is not in the catalogue.
 
 Notes:
 
+- The **Qwen2.5-Coder-3B** rows above carry the label "benchmark; model under a non-commercial research licence". Its weights are under the [Qwen Research License (non-commercial)](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE), so it is **not in the model list** and can't be downloaded in the app or via `/api/pull`. The coding option is Qwen2.5-Coder-1.5B (Apache-2.0). The measured numbers are unchanged.
 - **Phase 7 H1 LFM campaign** (2026-07-17): LFM2.5-1.2B is the balanced tier at
   **37.9 tok/s / 811 MB**; LFM2-2.6B is the quality tier at **18.4 tok/s /
   1623 MB** (July single-run; the current table is the 2026-10-11 median
@@ -176,9 +179,10 @@ delta:
 GGUF KV-reuse was previously disabled (llama.cpp recreated the context per turn);
 now enabled and console-measured. Routing (CPU↔GPU) stays ORT-only. GGUF is
 not routed per conversation. Its d3d12 GPU layers come from the catalogue
-entry (on by default for Qwen2.5-Coder-3B and LFM2.5-1.2B since D3), with
+entry (on by default for LFM2.5-1.2B since D3), with
 `gguf_gpu_layers.txt` as the operator override
-([gguf-gpu-decode.md](gguf-gpu-decode.md)). DirectML still rejects continuous
+([gguf-gpu-decode.md](gguf-gpu-decode.md)). The Qwen2.5-Coder-3B GPU numbers are an earlier measurement; that model is under a non-commercial research licence and is no longer in the model list. DirectML still
+rejects continuous
 decoding, so the ORT reuse path is CPU-only.
 
 ## Diffusion — SD-Turbo fp16 (on-console, DirectML)
@@ -379,6 +383,9 @@ That is ~90% of the 8-thread read ceiling, so the CPU GGUF decode path sits at
 its roofline.
 
 ## GPU decode in context — known hardware
+
+Qwen2.5-Coder-3B figures here are earlier measurements of a model under a
+non-commercial research licence; it is not in the catalogue.
 
 Where the Series S and xllama sit next to hardware with published llama.cpp
 numbers (2026-10-02). Decode streams every weight once per token. The

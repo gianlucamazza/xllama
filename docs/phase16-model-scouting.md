@@ -8,6 +8,9 @@
 > [benchmarks.md](benchmarks.md) / `bench/results/`; the checklist lives in
 > [`../ROADMAP.md`](../ROADMAP.md) Phase 16.
 
+Qwen2.5-Coder-3B figures here are benchmark receipts (model under a
+non-commercial research licence; not in the catalogue).
+
 **Campaign snapshot:** 2026-08-20. **Campaign complete.** One model shipped
 (`lfm25-230m`, floor tier); WS-B/C/D/G closed on their own kills; WS-E closed
 2026-08-20 S-gate FAIL (no named consumer, #242); WS-F microphone S-gate

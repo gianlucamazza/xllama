@@ -14,6 +14,7 @@
     #include "xllama/model_provision.h"
     #include "xllama/path_utils.h"
     #include "xllama/session_spec.h"
+    #include "xllama/withdrawn_models.h"
 
     #include "inference-bridge.h" // gguf_gpu_layers_knob
     #include "xllama/platform.h"
@@ -872,6 +873,15 @@ std::vector<ManifestEntry> LoadModelManifest(ManifestTrust* trust, bool include_
     (void)override_entries;
     override_entries.clear();
     #endif
+    if (!override_entries.empty()) {
+        for (const auto& e : override_entries) {
+            if (model_id_is_withdrawn(e.name)) {
+                log_output("[manifest] ignoring withdrawn id " + wstring_to_utf8(e.name) +
+                           " in LocalState override\n");
+            }
+        }
+        drop_withdrawn_entries(override_entries);
+    }
     if (!override_entries.empty()) {
         log_output("[manifest] merging LocalState\\manifest.json override (per-entry)\n");
         merge_manifest_entries(entries, std::move(override_entries));

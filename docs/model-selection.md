@@ -224,10 +224,13 @@ the existing GGUF/`Session`/`ChatFormat` path with optional catalogue knobs.
 4. Numbers go only through `benchmark-summary.json` → `generate-benchmark-summary.py`.
 5. Prefer 0.5–3B Q3/Q4 on Series S; reject 7B+ interactive for BW reasons (Phase 7).
 
-**Shipped (console phase14):** coding `qwen25-coder-0.5b` / `1.5b` / `3b`;
+**Shipped (console phase14):** coding `qwen25-coder-1.5b` (the coding option)
+and `qwen25-coder-0.5b` (fast);
 chat `qwen3-1.7b`; reasoning `lfm25-1.2b-thinking` (CoT stripped for display via
-`model_is_thinking`). **Not catalogue:** FIM, tools/agents. Metrics:
-[benchmarks.md](./benchmarks.md), status: [model-matrix.md](./model-matrix.md).
+`model_is_thinking`). **Not catalogue:** FIM, tools/agents, and
+`qwen25-coder-3b` (non-commercial research licence; benchmark only).
+Metrics: [benchmarks.md](./benchmarks.md), status:
+[model-matrix.md](./model-matrix.md).
 
 ### Runtime LoRA entry (GGUF only)
 
@@ -361,7 +364,14 @@ download directly from LiquidAI so their upstream `LICENSE` file accompanies
 each GGUF.
 
 Redistribution licensing (verified 2026-07-10): the Qwen quant
-(`unsloth/Qwen3.5-0.8B-GGUF`) is Apache-2.0 ✅. LFM Open License v1.0 §4
+(`unsloth/Qwen3.5-0.8B-GGUF`) is Apache-2.0 ✅. Qwen2.5-Coder-0.5B-Instruct
+and 1.5B-Instruct are also Apache-2.0.
+
+Qwen2.5-Coder-3B-Instruct is under the
+[Qwen Research License (non-commercial)](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE)
+(release date September 19, 2024), so it is **not in the catalogue**. Its
+benchmark rows stay, labelled.
+LFM Open License v1.0 §4
 permits redistribution provided recipients get a copy of the license —
 `LFM2.5-350M_LICENSE.txt` is published on the release and listed in the
 catalogue entry so it lands next to the model on-device. Note §5: commercial

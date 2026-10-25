@@ -61,10 +61,12 @@ Three hypotheses died against these numbers:
    **2026-10-01 note.** This verdict is about DirectML. Our own D3D12 Q4_K
    kernel reads packed weights at 143 GB/s (H6.3) and a simulated 3B decode
    token costs 21 ms of GPU matmul + sync (D1); the GGUF GPU decode design and
-   its gates live in [gguf-gpu-decode.md](gguf-gpu-decode.md). **2026-10-02:**
+   its gates live in [gguf-gpu-decode.md](gguf-gpu-decode.md). Qwen2.5-Coder-3B
+   figures here are benchmark receipts (model under a non-commercial research
+   licence; not in the catalogue). **2026-10-02:**
    D2 failed on peak RAM and Coder-3B H9. D2-r2 (q8 activations, leaner
    memory) passes on Coder-3B and LFM2.5-1.2B, with decode 1.60–1.64× over the
-   CPU. D3 (same day) made it the default for both; other GGUF models stay on the CPU.
+   CPU. D3 (same day) made it the default for both; Coder-3B was withdrawn on 2026-10-25, so LFM2.5-1.2B is now the only GGUF GPU default.
    Keeping Flash Attention on that path, which llama.cpp had silently turned
    off, raised decode to 1.90× / 1.88×.
    **#91 interlude (2026-07-16 → 2026-07-19).** The logit-parity harness

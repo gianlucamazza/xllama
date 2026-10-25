@@ -42,6 +42,33 @@ def main() -> int:
     cat = {e["name"]: e for e in manifest["models"]}
     good(f"manifest models: {len(cat)}")
 
+    # Withdrawn from the downloadable catalogue. Receipts stay in benches /
+    # model-matrix; /api/pull and in-app download must not offer them.
+    # SSOT is include/xllama/withdrawn_models.h (kWithdrawnModelIds).
+    withdrawn_h = (ROOT / "include/xllama/withdrawn_models.h").read_text(
+        encoding="utf-8"
+    )
+    withdrawn_block = re.search(
+        r"kWithdrawnModelIds\[\]\s*=\s*\{([^}]+)\}", withdrawn_h
+    )
+    if not withdrawn_block:
+        err("kWithdrawnModelIds not found in withdrawn_models.h")
+        bench_only_models: set[str] = set()
+    else:
+        bench_only_models = set(re.findall(r'"([^"]+)"', withdrawn_block.group(1)))
+        if not bench_only_models:
+            err("kWithdrawnModelIds is empty")
+    still_listed = sorted(n for n in bench_only_models if n in cat)
+    if still_listed:
+        err(
+            "catalogue still lists withdrawn model(s) (not downloadable): "
+            + ", ".join(still_listed)
+        )
+    else:
+        good(
+            "catalogue omits withdrawn models: " + ", ".join(sorted(bench_only_models))
+        )
+
     sizes = {
         n: sum(f.get("approx_bytes") or 0 for f in e.get("files", []))
         for n, e in cat.items()
@@ -659,7 +686,7 @@ def main() -> int:
         )
         claimed = set(re.findall(r"`([a-z][a-z0-9.]*(?:-[a-z0-9.]+)+)`", mm_text))
         dangling, evidence_ok = [], 0
-        for tok in sorted(claimed - set(cat) - status_vocab):
+        for tok in sorted(claimed - set(cat) - status_vocab - bench_only_models):
             if tok.endswith(
                 (".md", ".csv", ".json", ".jsonl", ".txt", ".py", ".sh", ".h", ".cpp")
             ):

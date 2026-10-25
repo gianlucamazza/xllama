@@ -224,6 +224,9 @@ double-templates the prompt. `scripts/bench-prompt-sweep.sh` and
 
 ## Results files
 
+Qwen2.5-Coder-3B figures here are earlier measurements of a model under a
+non-commercial research licence; it is not in the catalogue.
+
 **This table is not the index of every file in `results/`** — it currently
 annotates 13 of ~38, and a file's absence from it is not a sign that the file is
 orphaned. The rule: a row exists where the _provenance_ needs explaining (an A/B

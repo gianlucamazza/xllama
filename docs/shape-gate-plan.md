@@ -21,7 +21,7 @@ Out of scope on purpose: new operators or a new architecture (would need
 `llama.cpp` patches and a second decode path), MoE (H2 closed FAIL,
 [phase15-re-opt.md](phase15-re-opt.md) "Do not reopen"), speculative or
 multi-token heads (W2 console A/B, same file), GPU decode
-(d3d12 backend, the GPU default for Coder-3B and LFM2.5-1.2B since D3 — [gguf-gpu-decode.md](gguf-gpu-decode.md)).
+(d3d12 backend, the GPU default for LFM2.5-1.2B since D3; the Coder-3B D3 rows are benchmark receipts, model withdrawn — [gguf-gpu-decode.md](gguf-gpu-decode.md)).
 
 ## Why random weights are enough
 

@@ -230,6 +230,7 @@ Load-bearing headers agents usually touch:
 | `chat_prompt.h`                      | `ChatFormat` and stop sequences                      |
 | `embedding.h`                        | Embedding params and pooling trim                    |
 | `api_pull_policy.h`                  | Trusted catalogue pulls and API pull admission       |
+| `withdrawn_models.h`                 | Catalogue ids that must not be downloadable          |
 | `model_write.h`                      | Shared writer ownership before model mutation        |
 | `api_policy.h`                       | Classifies a tool proposal; does not execute tools   |
 | `training.h` / `device_train.h`      | Job validation and Lane B device train               |

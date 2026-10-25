@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "xllama/withdrawn_models.h"
+
 #include <mutex>
 #include <string>
 #include <utility>
@@ -48,6 +50,10 @@ inline bool api_pull_model_allowed(const PullModelDescriptor& model) {
     if (model.role == "diffusion" || model.role == "image")
         return false;
     if (model.role == "embedding" && model.kind != "gguf")
+        return false;
+    // Defence in depth: /api/pull reads the bundled list today; the same
+    // withdrawn list is dropped from LocalState overrides in LoadModelManifest.
+    if (model_id_is_withdrawn(model.name))
         return false;
     if (!model.role.empty() && model.role != "coding" && model.role != "embedding")
         return false;

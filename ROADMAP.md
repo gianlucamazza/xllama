@@ -63,8 +63,10 @@ performance belongs in `docs/benchmarks.md`.
 4. **GPU decode eng** — H6/H7 (#228) reached **K3** with H6.3 (`rows` median
    143.06 GB/s packed, 2026-10-01); GGUF GPU decode D1 = `D2-matmul-only`,
    D2 = FAIL, then D2-r2 = PASS (q8 activations, leaner memory) and **D3
-   shipped**: Coder-3B and LFM2.5-1.2B decode on the d3d12 backend by
-   default (`docs/gguf-gpu-decode.md`), FA fix decode 1.90× / 1.88×; follow-up #313; crossbuild product parity (layer 2 closed
+   shipped** (2026-10-02): Coder-3B (benchmark; model under a non-commercial
+   research licence, since withdrawn) and LFM2.5-1.2B decoded on the d3d12
+   backend by default; LFM2.5-1.2B remains the GPU default
+   (`docs/gguf-gpu-decode.md`), FA fix decode 1.90× / 1.88×; follow-up #313; crossbuild product parity (layer 2 closed
    2026-08-08 by uwp-crossbuild 0.5.1 — launch proven; ORT/GenAI, first boot
    and uptime not); prompt-lookup default OFF. Dependabot llama.cpp #247 was
    closed 2026-08-26 after the UWP build failed on `LLAMA_VERSION`; do not
@@ -444,11 +446,13 @@ gained a per-model `n_ctx` and a `role: coding`, and the product surfaces read
 them. SSOT: [`docs/model-matrix.md`](docs/model-matrix.md); console evidence
 `bench/results/phase14-console.csv`.
 
-- [x] **Catalogue tier.** `qwen25-coder-0.5b` / `1.5b` / `3b`, `qwen3-1.7b`,
-      `lfm25-1.2b-thinking`. Console decode / peak: Coder-0.5B **62.4** tok/s /
-      533 MB, Thinking **36.7** / 811 MB, Coder-1.5B **26.1** / 1179 MB,
-      Qwen3-1.7B **21.8** / 1398 MB, Coder-3B **14.0** / 2116 MB. The 3B row is
-      the number Phase 15 exists to move.
+- [x] **Catalogue tier.** `qwen25-coder-0.5b` / `1.5b`, `qwen3-1.7b`,
+      `lfm25-1.2b-thinking` (`qwen25-coder-1.5b` is the coding option;
+      `qwen25-coder-3b` was later withdrawn from the catalogue). Console decode
+      / peak: Coder-0.5B **62.4** tok/s / 533 MB, Thinking **36.7** / 811 MB,
+      Coder-1.5B **26.1** / 1179 MB, Qwen3-1.7B **21.8** / 1398 MB, Coder-3B
+      **14.0** / 2116 MB (benchmark; model under a non-commercial research
+      licence). The 3B row was the number Phase 15 set out to move.
 - [x] **Thinking as a product path, not UI magic.** `model_is_thinking` +
       `strip_thinking_blocks` in `ChatFormat::postprocess_output` — display and
       persist the answer only. `model_is_qwen3` keeps the no-think prefill

@@ -4,6 +4,7 @@
 #include <doctest/doctest.h>
 
 #include "xllama/manifest_merge.h"
+#include "xllama/withdrawn_models.h"
 
 #include <string>
 #include <vector>
@@ -78,6 +79,16 @@ TEST_CASE("manifest merge: empty base takes all override entries in order") {
     std::vector<Entry> ov{{L"a", 1}, {L"b", 2}};
     merge_manifest_entries(base, std::move(ov));
     CHECK(names(base) == std::vector<std::wstring>{L"a", L"b"});
+}
+
+TEST_CASE("manifest merge: withdrawn override id is dropped before merge") {
+    std::vector<Entry> base{{L"a", 1}, {L"b", 2}};
+    std::vector<Entry> ov{{L"qwen25-coder-3b", 99}, {L"z", 3}};
+    drop_withdrawn_entries(ov);
+    merge_manifest_entries(base, std::move(ov));
+    CHECK(names(base) == std::vector<std::wstring>{L"a", L"b", L"z"});
+    for (const auto& e : base)
+        CHECK(e.name != L"qwen25-coder-3b");
 }
 
 TEST_CASE("manifest merge: duplicate names within override collapse onto first match") {

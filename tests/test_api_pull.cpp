@@ -33,6 +33,14 @@ TEST_CASE("Ollama pull rejects untrusted, unpinned, unsupported, or unsafe catal
         {"m", "gguf", "", "https://models.example/m", true, {std::string(63, 'a') + "Z"}}));
     CHECK_FALSE(xllama::api_pull_model_allowed(
         {"m", "ort-genai", "embedding", "https://models.example/m", true, valid_pins}));
+    CHECK_FALSE(xllama::api_pull_model_allowed(
+        {"qwen25-coder-3b", "gguf", "coding", "https://models.example/c3", true, valid_pins}));
+}
+
+TEST_CASE("Ollama pull still admits the Apache-2.0 coding option") {
+    const std::vector<std::string> valid_pins{std::string(64, 'a')};
+    CHECK(xllama::api_pull_model_allowed(
+        {"qwen25-coder-1.5b", "gguf", "coding", "https://models.example/c15", true, valid_pins}));
 }
 
 TEST_CASE("Ollama pull admission allows only one model download at a time") {

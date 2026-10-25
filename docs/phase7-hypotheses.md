@@ -1,7 +1,9 @@
 # Phase 7 — Hypotheses for peer-class model support
 
 **Research note (2026-07-16).** Not a performance SSOT — numbers live in
-[benchmarks.md](benchmarks.md). Goal: support models with **capability** (and
+[benchmarks.md](benchmarks.md). Qwen2.5-Coder-3B figures here are benchmark
+receipts (model under a non-commercial research licence; not in the
+catalogue). Goal: support models with **capability** (and
 where possible throughput) comparable to what peer hardware (Zen 2 class +
 mid-range GPU) typically runs, without pretending Series S has peer DRAM
 bandwidth or fused DML int4.

@@ -203,7 +203,7 @@
       "note": "remeasured on build 1.6.0.1163, 3 runs (2026-10-11); new data points, not reproductions of the July rows. Use the -rerun CSV, not the incomplete first attempt."
     },
     {
-      "label": "Qwen2.5-Coder-3B",
+      "label": "Qwen2.5-Coder-3B (benchmark; model under a non-commercial research licence)",
       "params": "3B",
       "source": "phase14-console.csv",
       "selector": {
@@ -213,10 +213,10 @@
       "backend_key": "llama",
       "backend_label": "llama.cpp CPU · t6",
       "quant_label": "Q4_K_M",
-      "tag": "coding advanced · n_ctx 4096"
+      "tag": "benchmark; model under a non-commercial research licence"
     },
     {
-      "label": "Qwen2.5-Coder-3B",
+      "label": "Qwen2.5-Coder-3B (benchmark; model under a non-commercial research licence)",
       "params": "3B",
       "source": "2026-10-02-fa-gguf-gpu.csv",
       "selector": {
@@ -225,9 +225,9 @@
         "n_prompt_tok": "292"
       },
       "backend_key": "llama",
-      "backend_label": "llama.cpp · d3d12 GPU (default, D3)",
+      "backend_label": "llama.cpp · d3d12 GPU (D3)",
       "quant_label": "Q4_K_M",
-      "tag": "coding advanced · n_ctx 4096"
+      "tag": "benchmark; model under a non-commercial research licence"
     },
     {
       "label": "Llama-3.2-3B",

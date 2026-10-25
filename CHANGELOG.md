@@ -7,6 +7,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Qwen2.5-Coder-3B withdrawn from the catalogue.** The 3B Instruct weights
+  are under the
+  [Qwen Research License (non-commercial)](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE)
+  and are no longer downloadable in-app or via `/api/pull`
+  (`api_pull_model_allowed` rejects `qwen25-coder-3b`; LoadModelManifest
+  drops the id from LocalState overrides). Its benchmark results stay in the
+  docs, labelled as measured on a model under a non-commercial research
+  licence. **Qwen2.5-Coder-1.5B-Instruct** (Apache-2.0) is now the coding
+  option and runs on the CPU. LFM2.5-1.2B is now the only GGUF model on the
+  GPU by default.
+
 - **Docs:** Series S / Series X wording swept across docs, templates and the
   social card: "Tested and measured on Series S. Not yet tested on Series X."
   (README first screen in #365; release-readiness texts in #366).
