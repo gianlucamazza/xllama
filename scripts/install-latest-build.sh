@@ -18,7 +18,7 @@
 # --store downloads the Store SKU artifact (xllama-appx-store) from a
 # workflow_dispatch run that set store_sku=true. That SKU has no headless
 # flags — --bench is rejected. Same package identity as dev for now, so this
-# replaces the Dev Mode install on the console (docs/store-readiness.md).
+# replaces the Dev Mode install on the console (docs/release-readiness.md).
 # No local Windows VM: packages come from GitHub Actions windows-2022 only.
 
 set -euo pipefail

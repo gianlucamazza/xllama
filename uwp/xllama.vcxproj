@@ -49,7 +49,7 @@
     <!-- Lane B in-process training rides on the llama.cpp backend (ggml-opt). -->
     <XllamaDeviceTrainDefine Condition="'$(XllamaBackend)' == 'llamacpp' or '$(XllamaBackend)' == 'unified'">XLLAMA_DEVICE_TRAIN=1;</XllamaDeviceTrainDefine>
     <!-- Store SKU: strip research surfaces (LAN API, USB models, headless flags).
-         Default false keeps the Dev Mode package. See docs/store-readiness.md. -->
+         Default false keeps the Dev Mode package. See docs/release-readiness.md. -->
     <XllamaStoreSku Condition="'$(XllamaStoreSku)' == ''">false</XllamaStoreSku>
     <XllamaStoreSkuDefine Condition="'$(XllamaStoreSku)' == 'true'">XLLAMA_STORE_SKU=1;</XllamaStoreSkuDefine>
   </PropertyGroup>
@@ -224,7 +224,7 @@
     <AppxManifest Include="AppxManifest.xml" Condition="'$(XllamaStoreSku)' != 'true'">
       <SubType>Designer</SubType>
     </AppxManifest>
-    <!-- Store SKU: internetClient only (docs/store-readiness.md). -->
+    <!-- Store SKU: internetClient only (docs/release-readiness.md). -->
     <AppxManifest Include="AppxManifest.store.xml" Condition="'$(XllamaStoreSku)' == 'true'">
       <SubType>Designer</SubType>
     </AppxManifest>
@@ -364,7 +364,7 @@
   <!-- xllama UWP app -->
   <ItemGroup>
     <ClCompile Include="App.cpp" />
-    <!-- LAN API is Dev Mode only; omit from Store SKU link (docs/store-readiness.md). -->
+    <!-- LAN API is Dev Mode only; omit from Store SKU link (docs/release-readiness.md). -->
     <ClCompile Include="api-server.cpp" Condition="'$(XllamaStoreSku)' != 'true'" />
     <ClCompile Include="chat-history.cpp" />
     <ClCompile Include="MainPage.cpp" />

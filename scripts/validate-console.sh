@@ -384,7 +384,7 @@ run_autopilot() {
 	# disclaimer, so it was never coverage, only noise on top of the surface the
 	# gates do assert. The dialog itself stays uncovered by automation, which is
 	# worth knowing because it is a Store compliance item
-	# (docs/store-readiness.md).
+	# (docs/release-readiness.md).
 	printf '1\n' >"${TMPDIR_LOCAL}/disclaimer.accepted"
 	upload_file "${TMPDIR_LOCAL}/disclaimer.accepted"
 	upload_file "${TMPDIR_LOCAL}/autopilot.json"
@@ -1465,7 +1465,7 @@ PY
 # compiled out, so this is autopilot-only. Same package identity as Dev: install
 # with `install-latest-build.sh --store` (uninstalls first, wipes LocalState).
 # Restore with `install-latest-build.sh main --provision`.
-# SSOT: docs/store-readiness.md.
+# SSOT: docs/release-readiness.md.
 
 validate_store() {
 	echo "=== Store SKU smoke (chat + catalogue download) ==="

@@ -2006,7 +2006,7 @@ winrt::fire_and_forget MainPageController::ShowSettings() {
     winrt::Windows::UI::Xaml::Controls::HyperlinkButton reportLink;
     reportLink.Content(winrt::box_value(L"Report inappropriate generated content"));
     reportLink.NavigateUri(winrt::Windows::Foundation::Uri(
-        L"https://github.com/gianlucamazza/xllama/issues/new?template=store-report.yml"));
+        L"https://github.com/gianlucamazza/xllama/issues/new?template=catalogue-report.yml"));
     panel.Children().Append(reportLink);
 
     winrt::Windows::UI::Xaml::Controls::ScrollViewer sv;

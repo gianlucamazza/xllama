@@ -26,6 +26,7 @@ training oracles. These conclusions rest on the reproductions below, not a score
   [36689739661](https://github.com/gianlucamazza/xllama/actions/runs/36689739661),
   built from the audit source. The package manifest and SHA-256 are recorded in
   [package.json](evidence/package.json). The update was in-place, without uninstall.
+- Frozen snapshot: paths reflect the tree at capture time (`store-readiness.md` is now `release-readiness.md`).
 - Local static review covered the shared session/budget/sampling/writer boundaries,
   their UWP callers, the LAN parser and handlers, downloader promotion, validation
   harnesses, CI/governance, catalogue/evidence generation, and product contracts.
