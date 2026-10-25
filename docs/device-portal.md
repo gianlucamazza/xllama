@@ -177,7 +177,7 @@ Consumers in the repo:
   what that implies — there is **no video capture endpoint**; the "video" is a
   sequence of stills;
 - `scripts/capture-store-screenshots.sh` takes one frame per named UI state for
-  the Store listing, synchronised with the app through the `mark` autopilot op
+  release screenshots, synchronised with the app through the `mark` autopilot op
   rather than by sleeping;
 - `scripts/validate-console.sh` keeps the last two frames of every gate run and
   writes them out only when the gate fails (`XLLAMA_GATE_SHOTS=0` disables it,

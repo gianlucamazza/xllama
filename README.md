@@ -249,7 +249,7 @@ Every copy in this codebase has eventually disagreed — silently.
 | LAN API protocol (detailed)                        | [api-endpoint.md](docs/api-endpoint.md)                             |
 | Console validation gates                           | [console-validation-runbook.md](docs/console-validation-runbook.md) |
 | Crossbuild Linux → Xbox                            | [crossbuild-console.md](docs/crossbuild-console.md)                 |
-| Store readiness                                    | [store-readiness.md](docs/store-readiness.md)                       |
+| Release readiness                                  | [release-readiness.md](docs/release-readiness.md)                   |
 | Privacy / data handling                            | [privacy.md](docs/privacy.md)                                       |
 | Runtime NuGet pins                                 | [recommended-config.md](docs/recommended-config.md)                 |
 | Technical report (frozen v1.0)                     | [technical-report.md](docs/technical-report.md)                     |

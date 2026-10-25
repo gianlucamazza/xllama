@@ -255,10 +255,10 @@ holds successes, and pass only when the gate reports that failure. Set
 `XLLAMA_EXPECTED_PFN` to refuse a different installed package before any
 upload.
 
-## Store SKU smoke (not in `all`)
+## Reduced-SKU smoke (not in `all`)
 
-Retail SKU: no LAN, no USB, no headless flags. Autopilot remains. Procedure and
-restore: `docs/store-readiness.md` §10.
+Research-stripped package: no LAN, no USB, no headless flags. Autopilot remains.
+Procedure and restore: `docs/release-readiness.md` §10.
 
 ```bash
 ./scripts/validate-console.sh store

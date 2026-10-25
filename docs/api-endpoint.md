@@ -2,7 +2,7 @@
 
 **Status:** v1 — spike + chat (streaming via SSE on request) + UI parity surface (#118: preferences,
 training status, images). Opt-in, **default OFF**. Dev Mode / LAN research only.
-Not for the Store, not for public inbound.
+Not for public inbound.
 
 xllama can expose its inference core (`xllama::Session`) as an HTTP endpoint on the local
 network, so a PC on the same LAN can run inference on the console:

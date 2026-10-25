@@ -12,6 +12,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   no repo checkout or `xbox-env` file. The `deploy.sh` path remains as
   the command-line install. The browser steps follow Microsoft's
   documentation and have not yet been walked end to end on a console.
+- Public docs no longer include a Partner Center reservation or Store ID.
 
 - **Docs:** "Store catalogue" wording replaced with "signed model catalogue" /
   "built-in model list"; `/api/pull` described as a download from the built-in

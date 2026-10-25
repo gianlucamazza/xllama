@@ -33,17 +33,17 @@ performance belongs in `docs/benchmarks.md`.
   (host + console marker gates PASS; pin-blocked filter-widening remains);
   Phase 11 closed the headless↔UI gap (in-app personalize + LAN API parity,
   #116/#118). Phases 13, 14 and 16 (one shipped model) are complete. Remaining
-  open work: Phase 15 GPU decode follow-up (#313), Store retail
-  certification, and upstream vendor pin drops.
+  open work: Phase 15 GPU decode follow-up (#313), release-readiness
+  follow-up, and upstream vendor pin drops.
 - **Current v1.6.0.0:** unified CI MSVC Dev Mode release. Exact package and
   validation gates are identified in the GitHub release notes; the source-bound
   pre-release record is `bench/results/2026-09-28-console-api-validation.json`.
   Product package path: `docs/crossbuild-console.md`.
 - **Latest evidence:** the Dev Series S capture is committed in
   `bench/results/2026-09-30-catalogue-gates.csv` (LFM2.5-350M QAD Q4_0 on CI
-  package 1.6.0.1072, 101.6 tok/s median, 796.5 ms TTFT, 311 MB peak). Signed-catalogue (Store SKU build) signing
+  package 1.6.0.1072, 101.6 tok/s median, 796.5 ms TTFT, 311 MB peak). Signed-catalogue signing
   and runtime verification passed in CI run `32963270335`; this does not equal
-  Partner Center certification or external power/thermal evidence.
+  external power/thermal evidence.
 - **Demo capture is on the v1.5.6 assets** (381 measured stills; raw MP4 plus a
   separate 30-fps, 4.7-second presentation cut). The raw recording remains
   the evidence artifact; the cut is only for concise viewing. Pipeline is
@@ -54,9 +54,9 @@ performance belongs in `docs/benchmarks.md`.
 
 1. **Vendor pin drops** (#84/#85/#86) — blocked until NuGet moves
    (`scripts/check-vendor-nuget-status.sh`, poll 2026-08-27: still required).
-2. **Store readiness** — product **xllama** reserved as **Game**
-   (`9N9661XSDBM4`, identity in `docs/store-readiness.md` §13). Next: IARC +
-   listing in the submission; do not stamp Store CN onto the Dev Mode package.
+2. **Release readiness** — dual-SKU policy, licence matrix, and App vs Game
+   gate in `docs/release-readiness.md`. Do not stamp a different publisher CN
+   onto the Dev Mode package.
 3. ~~**WS-F headset** (#241)~~ — **closed PASS 2026-09-30**: real capture under
    AppContainer (RMS 0.019). ASR candidate H16.6a is unblocked, not started.
 4. **GPU decode eng** — H6/H7 (#228) reached **K3** with H6.3 (`rows` median
@@ -624,26 +624,23 @@ classes and with a console budget capped at ≤9 bench sessions.
 
 At most one of WS-E/F/G may reach the console this campaign.
 
-## Xbox Store retail (public release path)
+## Public release path
 
-SSOT: [`docs/store-readiness.md`](docs/store-readiness.md). Dev Mode remains
-the supported install path until a submission is accepted.
+SSOT: [`docs/release-readiness.md`](docs/release-readiness.md). Dev Mode remains
+the supported install path.
 
-- [~] Phase 0 — discovery: SSOT + licence matrix in `store-readiness.md`;
-  App vs Game spike **done 2026-08-21** (request Game); Partner Center
-  decision + go/no-go still open.
-- [~] Phase 1 — Store SKU foundation + **no-VM CI path** (`workflow_dispatch`
+- [~] Phase 0 — discovery: SSOT + licence matrix in `release-readiness.md`;
+  App vs Game spike **done 2026-08-21** (request Game); go/no-go still open.
+- [~] Phase 1 — reduced-SKU foundation + **no-VM CI path** (`workflow_dispatch`
   `store_sku=true` → `xllama-appx-store`, `install-latest-build.sh --store`);
   console smoke **PASS** 2026-08-26 (CI run `32963270335`, signed catalogue,
-  Store revision `959`); Store identity reserved as **Game**
-  (`9N9661XSDBM4`, §13) — not yet stamped on the MSIX.
+  package revision `959`); identity still the test publisher — not stamped
+  onto a different CN.
 - [~] Phase 2 — privacy URL
-  <https://gianlucamazza.github.io/xllama/privacy.html>; EN listing copy + IARC
-  prep in `store-readiness.md`; 5 screenshots (2026-07-30). Benchmark listing
-  claim aligned to the latest 101.6 tok/s capture (QAD Q4_0, 2026-09-30). Trailer still open; IARC
-  certificate remains a human gate.
-- [ ] Phase 3 — Partner Center submission + certification.
-- [ ] Phase 4 — post-launch dual path (Store + Dev Mode) in README.
+  <https://gianlucamazza.github.io/xllama/privacy.html>; public description +
+  age notes in `release-readiness.md`; 5 screenshots (2026-07-30). Benchmark
+  claim aligned to the latest 101.6 tok/s capture (QAD Q4_0, 2026-09-30).
+  Trailer still open.
 
 ## Upstream and vendor lifecycle
 
@@ -682,5 +679,5 @@ under `bench/results/` when measured, and documentation in the owning SSOT.
       with a headset (2026-09-30, `2026-09-30-mic.json`).
 - [ ] Continue [vendor lifecycle gates](docs/vendor-lifecycle-plan.md) (#84/#85/#86).
 
-The main CI Dev Mode package is validated; release tagging and Store publication
-remain separate workflows, as documented in the release and Store runbooks.
+The main CI Dev Mode package is validated; release tagging remains a
+separate workflow, as documented in the release runbook.

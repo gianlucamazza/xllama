@@ -813,11 +813,11 @@ Two things this does **not** cover, by design:
 - **`ContentDialog` consumes B first.** Settings, History and the image viewer
   are dialogs, and XAML closes the open dialog before the event reaches
   `BackRequested`. That is the wanted behaviour and needs no code.
-- **The Store `App` designation may want the opposite.** The Xbox back-nav
+- **An `App` designation may want the opposite.** The Xbox back-nav
   guideline for _apps_ (not games) is that back at the top level exits. xllama
   runs designated **Game** in Dev Home and this is a Dev Mode cut, so the suppression stands;
   revisit it with the App-vs-Game spike in
-  [store-readiness.md](store-readiness.md).
+  [release-readiness.md](release-readiness.md).
 
 ## 11. GPU Truth — EP Attribution Without PIX
 
