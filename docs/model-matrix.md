@@ -25,15 +25,15 @@ per-arch `can_shift` (2026-07-29), §A2 phase14 (2026-07-27).
 
 ## How to read the columns
 
-| Column              | Meaning                                                                                             |
-| ------------------- | --------------------------------------------------------------------------------------------------- |
-| **Catalogue**       | Id in `uwp/models/manifest.json` (`—` = not shipped)                                                |
-| **Status**          | `shipping` / `catalogue` / `campaign-only` / `host-smoke` / `rejected`                              |
-| **Console metrics** | Xbox Series S Dev Mode (Series X supported, not yet measured; see [benchmarks.md](./benchmarks.md)) |
-| **H9**              | Deterministic 8-task suite (`2026-09-30-h9-rescore.jsonl`), temperature 0                           |
-| **Template**        | `chat_format_for` selection                                                                         |
-| **Role**            | Catalogue `role` (`coding` → denser token estimate + coding system default)                         |
-| **n_ctx**           | Session context (0/omit → `kDefaultNCtx` 2048)                                                      |
+| Column              | Meaning                                                                                   |
+| ------------------- | ----------------------------------------------------------------------------------------- |
+| **Catalogue**       | Id in `uwp/models/manifest.json` (`—` = not shipped)                                      |
+| **Status**          | `shipping` / `catalogue` / `campaign-only` / `host-smoke` / `rejected`                    |
+| **Console metrics** | Xbox Series S Dev Mode (not yet tested on Series X; see [benchmarks.md](./benchmarks.md)) |
+| **H9**              | Deterministic 8-task suite (`2026-09-30-h9-rescore.jsonl`), temperature 0                 |
+| **Template**        | `chat_format_for` selection                                                               |
+| **Role**            | Catalogue `role` (`coding` → denser token estimate + coding system default)               |
+| **n_ctx**           | Session context (0/omit → `kDefaultNCtx` 2048)                                            |
 
 Host figures are **not comparable** to console tok/s (different CPU, build type,
 and thermal). They only prove _load + generate + template_.

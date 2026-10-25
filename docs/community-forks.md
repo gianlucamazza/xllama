@@ -81,7 +81,7 @@ disabling repack.
 - `dot4add_i8packed` replaced by a scalar multiply-add.
 
 No result on an Xbox One was published. The product targets Xbox Series S
-consoles (Series X supported, not yet measured;
+consoles (not yet tested on Series X;
 [positioning.md](positioning.md)). Taken into the shipping build, these flags
 would cost Series S its AVX2 CPU kernels and the SM 6.4 packed dot used by
 the measured GPU decode; a separate SKU would not, but it would be a second

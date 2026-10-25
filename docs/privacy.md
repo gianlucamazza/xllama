@@ -11,8 +11,8 @@ This document is written for end users. It is not legal advice.
 ## Summary
 
 xllama is a **local** LLM chat and optional image-generation app for Xbox
-Series S consoles. Series X supported, not yet measured. Inference runs **on
-the device**. There is **no account system**,
+Series S consoles. Tested and measured on Series S. Not yet tested on Series X.
+Inference runs **on the device**. There is **no account system**,
 **no analytics**, and **no crash-reporting service** built into the app today.
 
 ## What stays on the device
