@@ -1,7 +1,7 @@
 # Install a release build on your Xbox
 
 Install a tagged app release or a specific CI MSVC package on an Xbox in
-Dev Mode. Measured on Series S; Series X supported, not yet measured.
+Dev Mode. Tested and measured on Series S. Not yet tested on Series X.
 The 2026-09-28 app release is
 [v1.6.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.6.0.0).
 Its release notes identify the exact CI package and release validation results.
@@ -16,6 +16,10 @@ Mode activation and Device Portal basics see
 [device-portal.md](./device-portal.md).
 
 ## Install from a release (browser only)
+
+These Device Portal steps follow Microsoft's documentation and have not yet
+been walked end to end on a console. If something does not match, please
+[open an issue](https://github.com/gianlucamazza/xllama/issues).
 
 This path uses the console's Device Portal in a browser and the assets on the
 repo's latest **app** GitHub Release. It does not need a clone of this
@@ -84,20 +88,22 @@ On macOS use `shasum -a 256 -c SHA256SUMS`. If you also downloaded
 
 ### 5. Install via Device Portal
 
-Xbox Device Portal Home lists installed packages under **My games & apps**
-([Device Portal for Xbox](https://learn.microsoft.com/en-us/windows/uwp/xbox-apps/device-portal-xbox)).
-That page is the Xbox counterpart of Windows Device Portal's Apps manager;
-the sideload dialog is documented in
+Microsoft's
+[Device Portal for Xbox](https://learn.microsoft.com/en-us/windows/uwp/xbox-apps/device-portal-xbox)
+describes Home as listing packages under **My games & apps**. The sideload
+dialog (app package, certificate, optional framework packages) is documented
+in
 [Windows Device Portal overview](https://learn.microsoft.com/en-us/windows/uwp/debug-test-perf/device-portal#install-sideload-an-app).
 Open **Install**. This package needs more than the MSIX:
 
-1. **Certificate** — `xllama-test.cer`. The signing certificate must be
-   trusted on the console before the MSIX will install
-   ([device-portal.md](./device-portal.md)). Install the `.cer` first (WDP
-   documents a certificate field on the same dialog).
-2. **Framework dependency** — `Microsoft.VCLibs.x64.14.00.appx`. Add it as a
-   dependency in the same dialog, or install it first via **My games & apps →
-   Install**.
+1. **Certificate** — `xllama-test.cer`. This repo's Device Portal notes say
+   the signing certificate must be trusted on the console before the MSIX
+   will install ([device-portal.md](./device-portal.md)). Microsoft's sideload
+   dialog documents a certificate field; install the `.cer` first if that
+   field is not shown.
+2. **Framework dependency** — `Microsoft.VCLibs.x64.14.00.appx`. Microsoft's
+   dialog documents optional framework packages. Add VCLibs as a dependency
+   in the same dialog, or install it first via **My games & apps → Install**.
 3. **App** — the `xllama_*_x64.msix` you verified.
 
 Then start the install.
@@ -223,7 +229,7 @@ free by default, **expandable to 90 GB** via Dev Home → Manage Dev Storage; se
 
 ## Troubleshooting
 
-Only issues already recorded in this repo:
+Known issues:
 
 - **No MSIX on the release you opened.** `research-v*` tags are research
   packages and do not attach an app MSIX. Use the latest **app** tag
