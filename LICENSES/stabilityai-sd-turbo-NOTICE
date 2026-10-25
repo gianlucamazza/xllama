@@ -1,0 +1,5 @@
+This Stability AI Model is licensed under the Stability AI Community License, Copyright © Stability AI Ltd. All Rights Reserved
+
+The attribution above applies to the Stability AI Materials (stabilityai/sd-turbo).
+
+Modified by xllama: the original weights were converted to ONNX (fp16) for on-device inference. No fine-tuning or retraining was performed.

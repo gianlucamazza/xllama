@@ -1,0 +1,3 @@
+# Exact upstream licence bytes — catalogue sha256 pins these files.
+LICENSES/*-LICENSE -text
+LICENSES/*-NOTICE -text

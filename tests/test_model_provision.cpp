@@ -105,3 +105,20 @@ TEST_CASE("model_dir_files_ready: junk-only directories are not servable") {
     CHECK_FALSE(model_dir_files_ready({"README.md", ".complete", "manifest.json"}));
     CHECK_FALSE(model_dir_files_ready({"notgguf", "gguf", ".gguf-tmp"}));
 }
+
+TEST_CASE("provision: licence pairing requires LICENSE next to the weights") {
+    // LFM / models-v1 entries list LICENSE in files[]; a weights-only dir is stale.
+    WS present{L"LFM2.5-350M-QAD-Q4_0.gguf"};
+    WS expected{L"LFM2.5-350M-QAD-Q4_0.gguf", L"LICENSE"};
+    CHECK_FALSE(dir_satisfies_expected_files(present, expected));
+    present.push_back(L"LICENSE");
+    CHECK(dir_satisfies_expected_files(present, expected));
+}
+
+TEST_CASE("provision: SD-Turbo licence pairing requires LICENSE and NOTICE") {
+    WS present{L"unet/model.onnx", L"LICENSE"};
+    WS expected{L"unet/model.onnx", L"LICENSE", L"NOTICE"};
+    CHECK_FALSE(dir_satisfies_expected_files(present, expected));
+    present.push_back(L"NOTICE");
+    CHECK(dir_satisfies_expected_files(present, expected));
+}

@@ -2435,6 +2435,9 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
     // missing (kind "diffusion" entries never reach the chat picker).
     constexpr const wchar_t* kDiffusionModel = L"sd-turbo-fp16";
     constexpr const wchar_t* kTaesdVaeRemote = L"sd-turbo-fp16_taesd_vae_decoder_model.onnx";
+    constexpr const wchar_t* kTaesdLicenseRemote = L"sd-turbo-fp16_taesd_LICENSE";
+    constexpr const wchar_t* kTaesdLicenseSha256 =
+        L"261497cf8e9ed613ed1fa5ddf48af32cdf50545b2ccd9edd7eacc91fb9255d6e";
     {
         auto local = ApplicationData::Current().LocalFolder();
         std::wstring model_dir =
@@ -2485,7 +2488,7 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
         }
 
         // TAESD: drop-in tiny VAE (~5 MB) overwrites vae_decoder/model.onnx in the
-        // same sd-turbo-fp16 tree (models-v1 asset kTaesdVaeRemote).
+        // same sd-turbo-fp16 tree (models-v1 assets kTaesdVaeRemote + MIT licence).
         if (self->m_diffuse_taesd) {
             auto manifest = ::xllama::LoadModelManifest();
             auto* entry = ::xllama::FindManifestEntry(manifest, kDiffusionModel);
@@ -2495,7 +2498,9 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
                 co_return;
             }
             std::vector<::xllama::ModelFile> taesd_vae{
-                {L"vae_decoder/model.onnx", kTaesdVaeRemote, 5'000'000}};
+                {L"TAESD_LICENSE", kTaesdLicenseRemote, 1073, kTaesdLicenseSha256},
+                {L"vae_decoder/model.onnx", kTaesdVaeRemote, 5'000'000},
+            };
             self->SetStatus(L"Downloading TAESD VAE (~5 MB)...", StatusKind::Working);
             self->m_loadingBar.IsIndeterminate(false);
             self->m_loadingBar.Value(0);

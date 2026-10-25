@@ -68,7 +68,8 @@ No model bundled in MSIX.
   pull, preferences and training status. Current integration probe for games
   and assistants; **off by default and has no authentication**.
 - **Bench** — headless tok/s, membw, diskbw, gpubw, gpugemv, gpustep, ramceil probes, d3d12 backend selftest
-- **Diffuse** — SD-Turbo on DirectML, in-process with XAML compositor
+- **Diffuse** — SD-Turbo on DirectML, in-process with XAML compositor.
+  Image generation uses SD-Turbo. **Powered by Stability AI.**
 - **Train** — experimental on-device fine-tune of the last block (Lane B; one console marker run on SmolLM2-360M, 2026-07-20, [receipt](bench/results/phase10-console-devtrain-result.json)), host PEFT (Lane A), serve merged GGUF (Lane C). The in-app _Train on my feedback_ flow is not yet validated end to end on a console.
 - **Chat (demo shell)** — multi-turn pad UI with KV-reuse, thinking models,
   coding tier. Showcase, not the product thesis.
