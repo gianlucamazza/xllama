@@ -390,8 +390,7 @@ console gates.
   steps (`docs/release-readiness.md`); GitHub Pages privacy URL
   `https://gianlucamazza.github.io/xllama/privacy.html`; Settings link + Issues
   template to report inappropriate generated content (Store policy 11.16).
-  Store ID removed from public docs. Dev Mode identity unchanged. Public
-  description and IARC GenAI notes in `docs/release-readiness.md`.
+  The Partner Center reservation and Store ID were removed from public docs. Dev Mode identity unchanged. The public description and IARC generative-AI notes are in `docs/release-readiness.md`.
 - **`include/xllama/json_utils.h`** — header-only JSON string helpers:
   `json_escape()` (canonical) and `json_read_string()` with full `\uXXXX`
   decode (including surrogate pairs → UTF-8). Replaces 7 duplicated

@@ -1,7 +1,7 @@
 # Release readiness
 
-> **SSOT for dual-SKU policy, the catalogue licence matrix, and the App vs
-> Game resource gate.** Product code and Dev Mode install docs stay on the
+> **Single source of truth for the dual-SKU policy, the catalogue licence matrix, and the App vs Game resource gate.**
+> Product code and Dev Mode install docs stay on the
 > research path. Numbers and platform constraints still live in
 > `uwp-constraints.md` / `benchmarks.md`.
 
@@ -259,7 +259,7 @@ numbers (`uwp-constraints.md` §5). App-mode numbers live only in that CSV.
 
 ---
 
-## 8. Explicit non-goals (day-1)
+## 8. Not planned for the first release
 
 - Full ID@Xbox Live services
 - Authenticated LAN API on the reduced SKU
@@ -296,7 +296,7 @@ sets `store_sku=true` (composite action `.github/actions/build-uwp-package`).
 — `store` + unified + llamacpp all green; artifact `xllama-appx-store`
 downloaded on Linux as `xllama_1.5.1.771_x64.msix` (~19 MB) + `xllama-test.cer`.
 
-### Install on Xbox Dev Mode (from Linux)
+### Install on Xbox Series S in Dev Mode (from Linux)
 
 Same identity as dev today → **replaces** the Dev Mode package on the console.
 
