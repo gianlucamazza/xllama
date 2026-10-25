@@ -54,7 +54,7 @@ SD-Turbo: This Stability AI Model is licensed under the Stability AI Community L
 
 TAESD: MIT. Author: madebyollin. Source: https://huggingface.co/madebyollin/taesd
 
-SmolLM2: Apache-2.0. Author: HuggingFaceTB. Source: https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct. Modified by xllama: converted to ONNX int4 (`smollm2-360m-cpu-int4`) and ONNX fp16 (`smollm2-360m-dml-fp16-v2`); upstream revision not recorded.
+SmolLM2: Apache-2.0. Author: HuggingFaceTB. Source: https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct. Modified by xllama: converted to ONNX int4 (`smollm2-360m-cpu-int4`) and ONNX fp16 with RMSNorm nodes decomposed into primitive ops for DirectML (`smollm2-360m-dml-fp16-v2`); upstream revision not recorded.
 
 SmolLM2-1.7B: Apache-2.0. Author: HuggingFaceTB. Source: https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct. Modified by xllama: converted to ONNX int4; upstream revision not recorded.
 

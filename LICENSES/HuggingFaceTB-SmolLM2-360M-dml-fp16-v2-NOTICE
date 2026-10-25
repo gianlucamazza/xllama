@@ -1,1 +1,1 @@
-Modified by xllama: converted to ONNX (fp16) and RMSNorm nodes decomposed into primitive ops for DirectML; upstream revision not recorded. Licensed under the Apache License 2.0; see LICENSE.
+Modified by xllama: converted to ONNX (fp16) from HuggingFaceTB/SmolLM2-360M-Instruct and RMSNorm nodes decomposed into primitive ops for DirectML; upstream revision not recorded. Licensed under the Apache License 2.0; see LICENSE.

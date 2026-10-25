@@ -102,12 +102,13 @@ class CatalogLicensePairingTests(unittest.TestCase):
         text = (LICENSES / "HuggingFaceTB-SmolLM2-360M-dml-fp16-v2-NOTICE").read_text(
             encoding="utf-8"
         )
+        self.assertIn("from HuggingFaceTB/SmolLM2-360M-Instruct", text)
         self.assertIn("RMSNorm nodes decomposed into primitive ops for DirectML", text)
         spec = _file_by_name(self.cat["smollm2-360m-dml-fp16-v2"], "NOTICE")
         self.assertIsNotNone(spec)
         self.assertEqual(
             spec["sha256"],
-            "11b32a7c2bcd4954d8c055d91d6615dd6156e51b36136df14f86113142199c7e",
+            "bfb504953441e7a7dc7e5e1b44ea0a192bb4fb12c296f9ce402b6d28ef7645e2",
         )
 
     def test_every_models_v1_catalogue_entry_is_paired(self) -> None:

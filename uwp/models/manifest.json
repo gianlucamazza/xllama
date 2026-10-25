@@ -54,8 +54,8 @@
         {
           "filename": "NOTICE",
           "remote": "smollm2-360m-dml-fp16-v2_NOTICE",
-          "approx_bytes": 191,
-          "sha256": "11b32a7c2bcd4954d8c055d91d6615dd6156e51b36136df14f86113142199c7e"
+          "approx_bytes": 232,
+          "sha256": "bfb504953441e7a7dc7e5e1b44ea0a192bb4fb12c296f9ce402b6d28ef7645e2"
         },
         {
           "filename": "genai_config.json",

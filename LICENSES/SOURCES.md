@@ -40,9 +40,9 @@ Hugging Face model cards `HuggingFaceTB/SmolLM2-360M-Instruct` and
   - `LICENSES/HuggingFaceTB-SmolLM2-360M-cpu-int4-NOTICE` — ONNX int4 from
     `HuggingFaceTB/SmolLM2-360M-Instruct` (`smollm2-360m-cpu-int4_NOTICE`)
   - `LICENSES/HuggingFaceTB-SmolLM2-360M-dml-fp16-v2-NOTICE` — ONNX fp16 from
-    the same card, with RMSNorm nodes decomposed into primitive ops for
-    DirectML (`smollm2-360m-dml-fp16-v2_NOTICE`,
-    sha256 `11b32a7c2bcd4954d8c055d91d6615dd6156e51b36136df14f86113142199c7e`)
+    HuggingFaceTB/SmolLM2-360M-Instruct, with RMSNorm nodes decomposed into
+    primitive ops for DirectML (`smollm2-360m-dml-fp16-v2_NOTICE`,
+    sha256 `bfb504953441e7a7dc7e5e1b44ea0a192bb4fb12c296f9ce402b6d28ef7645e2`)
   - `LICENSES/HuggingFaceTB-SmolLM2-1.7B-cpu-int4-NOTICE` — ONNX int4 from
     `HuggingFaceTB/SmolLM2-1.7B-Instruct` (`smollm2-1.7b-cpu-int4_NOTICE`)
 
