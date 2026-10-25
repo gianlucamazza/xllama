@@ -240,13 +240,16 @@ pe-import-audit.sh /tmp/xllama-layout/xllama.exe
 
 ## W2 console A/B
 
+Qwen2.5-Coder-3B figures here are benchmark receipts (model under a
+non-commercial research licence; not in the catalogue).
+
 ```bash
 source ~/.config/xllama/xbox-env
 # Model must exist under LocalState\models\<id>\
 # Package must be a CI MSVC build that includes W2 (see Launchable package).
-./scripts/bench-spec-w2-console.sh qwen25-coder-3b --runs 4 --n-predict 128
-# or lower tier if 3b is not provisioned:
 ./scripts/bench-spec-w2-console.sh qwen25-coder-1.5b --runs 3 --n-predict 96
+# or the withdrawn 3B gate model if it is already on the console:
+./scripts/bench-spec-w2-console.sh qwen25-coder-3b --runs 4 --n-predict 128
 ```
 
 Gate (declared): ≥1.4× decode on **code** regime for `qwen25-coder-3b`;

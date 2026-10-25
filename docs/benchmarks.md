@@ -105,16 +105,12 @@ generated from the committed raw results by `scripts/generate-benchmark-summary.
   Qwen3-1.7B, LFM2.5-1.2B-Thinking console-validated (`phase14-console.csv`).
   Coder-0.5B lands next to SmolLM2 GGUF at ~62 tok/s; Coder-3B matches Llama-3.2-3B
   decode (~14) with peak **2116 MB**. Thinking equals LFM 1.2B instruct peak RAM.
+  Qwen2.5-Coder-3B figures here are benchmark receipts (model under a
+  non-commercial research licence; not in the catalogue).
 
 Notes:
 
-- **Qwen2.5-Coder-3B** rows above are labelled
-  (benchmark; model under a non-commercial research licence). The weights
-  are under the
-  [Qwen Research License (non-commercial)](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE).
-  The model is **not in the catalogue** and is not downloadable in-app or via
-  `/api/pull`. The coding option is Qwen2.5-Coder-1.5B (Apache-2.0). Measured
-  numbers are unchanged.
+- The **Qwen2.5-Coder-3B** rows above carry the label "benchmark; model under a non-commercial research licence". Its weights are under the [Qwen Research License (non-commercial)](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE), so it is **not in the model list** and can't be downloaded in the app or via `/api/pull`. The coding option is Qwen2.5-Coder-1.5B (Apache-2.0). The measured numbers are unchanged.
 - **Phase 7 H1 LFM campaign** (2026-07-17): LFM2.5-1.2B is the balanced tier at
   **37.9 tok/s / 811 MB**; LFM2-2.6B is the quality tier at **18.4 tok/s /
   1623 MB** (July single-run; the current table is the 2026-10-11 median
@@ -183,12 +179,9 @@ delta:
 GGUF KV-reuse was previously disabled (llama.cpp recreated the context per turn);
 now enabled and console-measured. Routing (CPU↔GPU) stays ORT-only. GGUF is
 not routed per conversation. Its d3d12 GPU layers come from the catalogue
-entry (on by default for LFM2.5-1.2B since D3, and for Qwen2.5-Coder-1.5B as
-the coding GPU default), with
+entry (on by default for LFM2.5-1.2B since D3), with
 `gguf_gpu_layers.txt` as the operator override
-([gguf-gpu-decode.md](gguf-gpu-decode.md)). Qwen2.5-Coder-3B GPU numbers are a
-historical receipt (benchmark; model under a non-commercial research licence)
-and that model is not in the catalogue. DirectML still
+([gguf-gpu-decode.md](gguf-gpu-decode.md)). The Qwen2.5-Coder-3B GPU numbers are an earlier measurement; that model is under a non-commercial research licence and is no longer in the model list. DirectML still
 rejects continuous
 decoding, so the ORT reuse path is CPU-only.
 
@@ -390,6 +383,9 @@ That is ~90% of the 8-thread read ceiling, so the CPU GGUF decode path sits at
 its roofline.
 
 ## GPU decode in context — known hardware
+
+Qwen2.5-Coder-3B figures here are benchmark receipts (model under a
+non-commercial research licence; not in the catalogue).
 
 Where the Series S and xllama sit next to hardware with published llama.cpp
 numbers (2026-10-02). Decode streams every weight once per token. The

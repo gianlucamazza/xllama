@@ -673,7 +673,7 @@ host Release smoke (quality + peak)
 ## Unit test map (host suite)
 
 One doctest binary, `xllama-tests`, built from `tests/test_*.cpp`. The suite
-is **358 test cases / 33351 assertions** (doctest, without opt-in model checks).
+is **360 test cases / 33357 assertions** (doctest, without opt-in model checks).
 Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 (`llama_raii.h`, `ort_raii.h`, `d3d12_dyn.h`, `catalog_trust.h`).
 
@@ -683,7 +683,7 @@ Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 | `test_debug_dashboard.cpp`    | `debug_dashboard.h`                                                                         |
 | `test_api_config.cpp`         | LAN API config validation (`uwp/api-server.h`)                                              |
 | `test_api_policy.cpp`         | `api_policy.h` numeric admission (F01)                                                      |
-| `test_api_pull.cpp`           | `api_pull_policy.h`                                                                         |
+| `test_api_pull.cpp`           | `api_pull_policy.h`, `withdrawn_models.h`                                                   |
 | `test_autopilot.cpp`          | `autopilot.h`                                                                               |
 | `test_bench.cpp`              | bench CSV (`inference.h`), `platform.h`                                                     |
 | `test_cancel_policy.cpp`      | `cancel_policy.h`                                                                           |
@@ -705,7 +705,7 @@ Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 | `test_json_utils.cpp`         | `json_utils.h`                                                                              |
 | `test_kv_store.cpp`           | `kv_store.h`                                                                                |
 | `test_logit_parity.cpp`       | `logit_dump.h` (opt-in model)                                                               |
-| `test_manifest_merge.cpp`     | `manifest_merge.h`                                                                          |
+| `test_manifest_merge.cpp`     | `manifest_merge.h`, `withdrawn_models.h`                                                    |
 | `test_membw.cpp`              | `membw.h`                                                                                   |
 | `test_model_provision.cpp`    | `model_provision.h`                                                                         |
 | `test_model_write.cpp`        | `model_write.h`                                                                             |

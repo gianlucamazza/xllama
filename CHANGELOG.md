@@ -11,10 +11,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   are under the
   [Qwen Research License (non-commercial)](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE)
   and are no longer downloadable in-app or via `/api/pull`
-  (`api_pull_model_allowed` rejects `qwen25-coder-3b`). Benchmark receipts
-  stay, labelled as a non-commercial research-licence measurement.
-  **Qwen2.5-Coder-1.5B-Instruct** (Apache-2.0) is the coding option and the
-  catalogue GPU coding default. LFM2.5-1.2B remains a GGUF GPU default.
+  (`api_pull_model_allowed` rejects `qwen25-coder-3b`; LoadModelManifest
+  drops the id from LocalState overrides). Its benchmark results stay in the
+  docs, labelled as measured on a model under a non-commercial research
+  licence. **Qwen2.5-Coder-1.5B-Instruct** (Apache-2.0) is now the coding
+  option (CPU). LFM2.5-1.2B remains the only GGUF GPU default.
 
 - **Docs:** Series S / Series X wording swept across docs, templates and the
   social card: "Tested and measured on Series S. Not yet tested on Series X."

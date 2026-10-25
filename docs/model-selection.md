@@ -228,7 +228,7 @@ the existing GGUF/`Session`/`ChatFormat` path with optional catalogue knobs.
 and `qwen25-coder-0.5b` (fast);
 chat `qwen3-1.7b`; reasoning `lfm25-1.2b-thinking` (CoT stripped for display via
 `model_is_thinking`). **Not catalogue:** FIM, tools/agents, and
-`qwen25-coder-3b` (benchmark; model under a non-commercial research licence).
+`qwen25-coder-3b` (non-commercial research licence; benchmark only).
 Metrics: [benchmarks.md](./benchmarks.md), status:
 [model-matrix.md](./model-matrix.md).
 
@@ -367,10 +367,10 @@ Redistribution licensing (verified 2026-07-10): the Qwen quant
 (`unsloth/Qwen3.5-0.8B-GGUF`) is Apache-2.0 ✅. Qwen2.5-Coder-0.5B-Instruct
 and 1.5B-Instruct are also Apache-2.0.
 
-Qwen2.5-Coder-3B(-Instruct) is under the
+Qwen2.5-Coder-3B-Instruct is under the
 [Qwen Research License (non-commercial)](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE)
-(release date September 19, 2024) and is **not in the catalogue**
-(benchmark; model under a non-commercial research licence).
+(release date September 19, 2024), so it is **not in the catalogue**. Its
+benchmark rows stay, labelled.
 LFM Open License v1.0 §4
 permits redistribution provided recipients get a copy of the license —
 `LFM2.5-350M_LICENSE.txt` is published on the release and listed in the

@@ -75,8 +75,8 @@ in ways you will notice, and the picker does not explain them:
   — the same UI, but the session opens a **4096-token** context, because the
   point of the tier is pasting real source. That is the only difference you
   set: there is no separate mode to switch on, the model's catalogue entry
-  carries it. Qwen2.5-Coder-3B is not in the catalogue
-  (benchmark; model under a non-commercial research licence).
+  carries it. Qwen2.5-Coder-3B is no longer in the model list because its
+  licence is non-commercial.
 - **Thinking** (`lfm25-1.2b-thinking`) — reasons before answering. You **see the
   reasoning stream on screen while it generates**, and the message that is kept
   when it finishes holds only the final answer. The chain of thought is not
@@ -192,10 +192,10 @@ works** (persistent `llama_context`; measured ratios in
 [benchmarks.md](benchmarks.md)). Only **EP routing** is greyed out: GGUF models
 are not routed per conversation.
 
-- **LFM2.5-1.2B** and **Qwen2.5-Coder-1.5B** run their matmuls on the GPU
-  by default. The model list says "GGUF · GPU" for them. Qwen2.5-Coder-3B
-  GPU numbers are a historical receipt (benchmark; model under a
-  non-commercial research licence) and that model is not in the catalogue.
+- **LFM2.5-1.2B** runs its matmuls on the GPU by default. The model list
+  says "GGUF · GPU" for it. The Qwen2.5-Coder-3B GPU numbers in the
+  benchmarks are an earlier measurement; that model is no longer in the
+  model list.
 - **Other GGUF models** run on the CPU.
 - **Operator override:** `gguf_gpu_layers.txt` in LocalState overrides this
   (`0` forces the CPU; see [gguf-gpu-decode.md](gguf-gpu-decode.md)). There is
