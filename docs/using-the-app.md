@@ -1,6 +1,7 @@
-# Using xllama on the Xbox
+# Using xllama on Xbox Series S consoles
 
-Gamepad UI for the on-console **demo shell**. The product is the local
+Gamepad UI for the on-console **demo shell**. Tested and measured on Series S.
+Not yet tested on Series X. The product is the local
 inference stack (games and assistants), not this chat surface — see
 [positioning.md](./positioning.md). For installation see
 [install-release.md](./install-release.md); for recommended models and settings see

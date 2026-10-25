@@ -9,7 +9,7 @@
 - [ ] `ctest --test-dir build/linux-test` green
 - [ ] `clang-format --dry-run --Werror` clean (CI gate)
 - [ ] Linux CLI exercised (`xllama-cli …`)
-- [ ] On-console (Xbox) validated — build deployed, `scripts/validate-console.sh`
+- [ ] On-console (Xbox Series S) validated — build deployed, `scripts/validate-console.sh`
 - [ ] Docs updated (README / ROADMAP / CHANGELOG / docs/)
 
 ## Notes

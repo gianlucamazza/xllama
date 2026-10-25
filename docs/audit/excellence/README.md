@@ -21,7 +21,7 @@ training oracles. These conclusions rest on the reproductions below, not a score
 - The primary checkout was clean at execution start. The three untracked benchmark
   files seen during planning were no longer untracked; the audit did not adopt the
   planning snapshot as current truth.
-- Xbox started on unified `1.6.0.1088` (CI run `36651040136`, source `2274957e4ba320574769f5f7506d35e4c2b31a9c`).
+- The Xbox Series S console started on unified `1.6.0.1088` (CI run `36651040136`, source `2274957e4ba320574769f5f7506d35e4c2b31a9c`).
   Audit tests use unified MSVC `1.6.0.1102`, CI run
   [36689739661](https://github.com/gianlucamazza/xllama/actions/runs/36689739661),
   built from the audit source. The package manifest and SHA-256 are recorded in

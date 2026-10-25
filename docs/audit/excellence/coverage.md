@@ -22,7 +22,7 @@ proof. File references are relative to the repository unless linked.
 | Governance is actually configured                    | Active default-branch ruleset                          | PASS    | [Live ruleset](evidence/github-main-ruleset.json); strict required checks, PR-only admin bypass                             |
 | Host export dependency alerts closed                 | `diffusion/requirements.txt`                           | FAIL    | [Open alert snapshot](evidence/dependabot.json), F06; existing proposed ADR 0003                                            |
 
-## Shared runtime and Xbox
+## Shared runtime and Xbox Series S
 
 All device results below use `GianlucaMazza.xllama_1.6.0.1102_x64__pj67f1fcj4n14`.
 The MSVC artifact hash and embedded manifest are in [package.json](evidence/package.json).

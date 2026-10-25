@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Build the xllama UWP package for Xbox Series S|X.
+    Build the xllama UWP package for Xbox (Windows.Xbox device family; tested on Series S only).
 
 .DESCRIPTION
     Invokes MSBuild on uwp/xllama.sln to produce a signed .msix package.

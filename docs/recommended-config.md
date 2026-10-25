@@ -1,7 +1,9 @@
 # Recommended configurations (Xbox Series S, 2026)
 
-Operational reference for correct, modern xllama settings. Every workload verdict
-is **measured** unless marked "host-only" or "pending console". See
+Operational reference for correct, modern xllama settings on Xbox Series S
+consoles. Tested and measured on Series S. Not yet tested on Series X.
+Every workload verdict is **measured** unless marked "host-only" or
+"pending console". See
 [technical-report.md](./technical-report.md) for the full story.
 
 ## Runtime pins (do not drift)

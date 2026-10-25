@@ -10,6 +10,7 @@ figures are **measured on Xbox Series S in Dev Mode** (the target device) and
 come from the CSVs in `bench/results/`. Host-dev figures (Intel i7-1165G7,
 Linux) are called out separately and are **not** comparable to console numbers —
 they exist only to sanity-check a model loads and generates.
+Tested and measured on Series S. Not yet tested on Series X.
 
 **On the SmolLM2-360M CPU int4 decode number** (it appears elsewhere as 66.3,
 68.0, 70.9 or 74.8 — same model, different runs/configs): **74.8** is the
@@ -22,7 +23,7 @@ uses the shipped-t6 multi-run row (**262.4 prefill / 74.8 decode / 708 MB**)
 instead of combining extrema from different runs.
 
 **Pre/post-repack comparability (GGUF rows).** PR #155 (2026-07-25) enabled
-`GGML_USE_CPU_REPACK` on Xbox — it was silently dead code before — which
+`GGML_USE_CPU_REPACK` on Series S — it was silently dead code before — which
 raised GGUF **prefill** ~62% with decode unchanged. Only `lfm25-350m` has
 post-repack evidence (`phase13-repack-after.csv`, the row below) among the
 original July campaign CSVs; every other llama.cpp prefill figure that still
@@ -285,7 +286,7 @@ RAM **2533 MB — unchanged**. Reverted — a zero-benefit vendored patch is not
 worth the per-bump maintenance. ⚠️ The root-cause attribution originally
 recorded here ("load is dominated by the AVX2 tensor repack,
 `ggml-cpu/repack.cpp`") **does not survive PR #155**: that repack path was
-dead code on Xbox when this was measured (`GGML_USE_CPU_REPACK` was never
+dead code on Series S when this was measured (`GGML_USE_CPU_REPACK` was never
 defined), and actually enabling it made loads _faster_, not slower
 (lfm25 1645→1284 ms, `phase13-repack-{before,after}.csv`). The measured
 facts stand (mmap: no benefit; load is not file-read-bound); the mechanism

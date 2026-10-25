@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Docs:** Series S / Series X wording swept across docs, templates and the
+  social card: "Tested and measured on Series S. Not yet tested on Series X."
+  (README first screen in #365; release-readiness texts in #366).
+
 - **README first screen** rewritten for public launch: Developer Mode warning,
   "Tested and measured on Series S. Not yet tested on Series X.", LAN API
   marked off by default with no authentication, SSE streaming note, receipt
