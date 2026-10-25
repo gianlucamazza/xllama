@@ -88,14 +88,15 @@ The in-app model list (`uwp/models/manifest.json`) is a curated allowlist of
 - **Weights only (data).** Catalogue entries are model weights. Never add
   third-party executables, apps, or plugins.
 - **No commerce.** No payments, purchase links, or affiliate links.
-- **Pinned allowlist.** Every downloadable entry is curated by maintainers and
+- **Pinned allowlist.** Every downloadable entry is chosen by the maintainers and
   carries a `sha256` pin.
-- **No public third-party index.** This project does not host a public index
-  open to third-party contributions.
-- **Personal override.** Merging `LocalState\manifest.json` is for the user's
-  personal use on a console they own. It is not a distribution channel.
+- **No public third-party index.** The project doesn't host a public model list
+  that others can add to.
+- **Personal override.** Entries you add in `LocalState\manifest.json` are
+  merged into the list for your own use on a console you own. This is not a
+  way to distribute models.
 
-Narrative limits and how to add a personal entry live in
+The full limits, and how to add your own entry, are in
 [`docs/model-selection.md`](docs/model-selection.md).
 
 ## Reporting issues

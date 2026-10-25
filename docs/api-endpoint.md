@@ -72,7 +72,7 @@ this is Dev Mode research, not a hosted service.
 | `GET`     | `/` or `/health`         | `200 {"status":"ok","service":"xllama"}` — the spike/liveness probe.                                                                              |
 | `GET`     | `/v1/models`             | OpenAI model discovery — every servable on-device model; non-standard `"active": true` marks the one currently loaded.                            |
 | `GET`     | `/api/tags`              | Ollama model discovery — same list, Ollama shape.                                                                                                 |
-| `POST`    | `/api/pull`              | Download from the built-in model list (trusted chat/embedding model, Ollama-style NDJSON progress); load it when complete.                        |
+| `POST`    | `/api/pull`              | Download a trusted chat or embedding model from the built-in model list (Ollama-style NDJSON progress), then load it.                             |
 | `POST`    | `/v1/chat/completions`   | OpenAI-compatible chat completion; one JSON body, or **SSE** chunk events when `stream: true`.                                                    |
 | `POST`    | `/api/embed`             | Ollama-style embeddings for one string or a batch, catalogue embedding GGUF/llama.cpp only.                                                       |
 | `POST`    | `/api/embeddings`        | Deprecated Ollama single-prompt embeddings adapter.                                                                                               |
@@ -284,7 +284,7 @@ run in one physical microbatch. Inputs beyond
 that limit are truncated when `truncate=true` (default), or rejected with 400 when
 `truncate=false`.
 
-Embedding models retain their own pooling behavior from GGUF metadata. The API does not inject task prefixes automatically: clients must prepend the appropriate instruction strings themselves. Model download is from the built-in model list only; `/api/show` and full Ollama model-management parity are not implemented.
+Embedding models retain their own pooling behavior from GGUF metadata. The API does not inject task prefixes automatically: clients must prepend the appropriate instruction strings themselves. Models can be downloaded only from the built-in model list; `/api/show` and full Ollama model-management parity are not implemented.
 
 ### Preferences (`POST /v1/preferences`)
 
