@@ -19,15 +19,18 @@ updates:
       interval: weekly
     commit-message:
       prefix: deps
+    # Pinned at d812350 by owner decision 2026-10-24; bump only with explicit owner approval (see #349, #356).
+    ignore:
+      - dependency-name: llama.cpp
+    groups:
+      version-updates:
+        applies-to: version-updates
+        patterns: ['*']
 
   # Host-only SD-Turbo export toolchain. Version PRs are off, and the export
   # stack is ignored because it only moves as one coherent set: optimum-onnx
   # 0.1.0 caps transformers < 4.58, so a single-package bump cannot resolve.
   # Lift the ignore when #263 / ADR 0003 lands.
-    groups:
-      version-updates:
-        applies-to: version-updates
-        patterns: ['*']
   - package-ecosystem: pip
     directory: /diffusion
     schedule:
