@@ -49,11 +49,10 @@ struct SessionHub {
     SessionParams params;             // what `session` was loaded with; guarded by mtx
     uint64_t generation = 0;          // bumps on every resident-session change; guarded by mtx
 
-    // True while a background pre-load holds (or is about to take) mtx.
-    // Lets the LAN API distinguish "warming up, wait briefly" from "another
-    // request is generating, report busy" — without it the first request
-    // right after app-Ready bounced with a 503 while the preload held the
-    // lock (observed on-console during Phase C validation).
+    // True while a background pre-load owns compute admission and is loading
+    // the session. Lets the LAN API and the first GUI send distinguish
+    // "warming up, wait briefly" from "another job is active, report busy"
+    // before they attempt mtx (observed on-console during Phase C validation).
     std::atomic<bool> preloading{false};
 
     // Under mtx: return the resident session for |model_id|, creating it (and

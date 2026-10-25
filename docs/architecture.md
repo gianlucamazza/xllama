@@ -37,6 +37,8 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `session_spec.h`                   | `resolve_session_params`, `same_load` — one catalogue→session resolver for GUI, API and pull; the hub reuses only the same load (ADR 0007)     |
 | `session.h` / `inference_params.h` | `Session`/`SessionParams`, `InferenceParams/Result` (`echo_stdout`, the `resolve_max_length` #130 ladder), `Backend` enum                      |
 | `session_hub.h`                    | `SessionHub` — the ONE process-wide resident-Session owner (GUI + LAN API); locking + `generation` contract                                    |
+| `compute_admission.h`              | Process-wide RAII lease for resource-heavy jobs across UI and LAN API; acquire before `session_hub().mtx` (proposed ADR 0008)                  |
+| `api_connection.h`                 | Bounded LAN in-flight slots and the HTTP 200/503 mapping for a compute admit (proposed ADR 0008)                                               |
 | `debug_dashboard.h`                | Optional debug dashboard snapshot: compose real hub / LAN / inference readings; missing sources stay `unavailable`                             |
 | `sampling.h`                       | `SamplingConfig`, shared defaults; CLI/bench and GUI/API init from it (#125)                                                                   |
 | `training.h` / `training_params.h` | `TrainingJob`/`TrainingResult`, stages, device gates, job JSON                                                                                 |
@@ -259,6 +261,23 @@ old shape loaded the CPU model on the UI thread just to tokenize, then could
 destroy it for DirectML — the historical "two model loads" cost recorded in
 §5d). When a model becomes Ready the session is **pre-loaded** in a detached
 worker (`PreloadSessionAsync`), so the first send pays prefill+decode only.
+
+Resource-heavy jobs also share one process-wide compute permit, implemented by
+`include/xllama/compute_admission.h` and proposed in
+[ADR 0008](adr/0008-process-compute-admission.md). Chat, embeddings, diffusion,
+device training, startup pre-load, and post-pull model loading acquire it before
+touching the SessionHub. API requests that find the permit occupied return 503
+`busy` (streaming pulls emit their existing busy error record), except that
+requests wait briefly while the startup pre-load is active. A streamed
+`/v1/chat/completions` reply keeps the permit until the last SSE event. The
+listener must not serve the socket inside `ConnectionReceived`: that callback
+returns before the next accept is raised, so an in-line streamed reply hid the
+permit from every later LAN request. Each connection is a bounded thread-pool
+work item (`api_connection.h`, at most `kApiMaxInFlightConnections`); a client
+drop mid-SSE aborts generate and the stack permit releases. The first GUI send
+uses the same bounded wait so it does not fail busy during preload. The permit
+is RAII-owned and may cross worker and UI callback boundaries; `SessionHub::mtx`
+continues to protect resident-session identity and use.
 
 ## Routing (`routing_policy.h`)
 
@@ -531,10 +550,12 @@ see the session-ownership section above) plus thin UI-parity routes on the
 LAN. Settings owns the live start/stop/rebind lifecycle; `App::OnLaunched`
 restores it when the persistent `LocalState\api.flag` is present. The flag is
 not consumed and the server coexists with the live chat UI. Port 11434
-(override `api-port.txt`); chat and images take the hub mutex with `try_lock`
-→ HTTP 503 when busy — busy includes a running **chat-UI turn**; during the
-session pre-load the request waits briefly instead (`acquire_hub_or_busy`,
-≤15 s). Stopping the endpoint does not free the Session (it is hub-owned).
+(override `api-port.txt`); `ConnectionReceived` only queues a work item so a
+second LAN request can observe 503 while a streamed reply holds the compute
+permit. Chat and images take the hub mutex with `try_lock` → HTTP 503 when
+busy — busy includes a running **chat-UI turn**; during the session pre-load
+the request waits briefly instead (`acquire_hub_or_busy`, ≤15 s). Stopping
+the endpoint does not free the Session (it is hub-owned).
 Preferences and training status are file I/O only (no inference lock).
 
 Chat runs on the hub-owned Session; embeddings, Ollama-compatible pull,
@@ -544,7 +565,7 @@ response may carry `tool_calls`. The process does not run the tool
 ([ADR 0004](adr/0004-tool-proposals.md)). The route list and the contract
 live in [api-endpoint.md](api-endpoint.md) (the owner of LAN routes);
 validation is `scripts/validate-api.sh
-spike|chat|budget|tools|framing|embed|pull|prefs|train|all`. Capability
+spike|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all`. Capability
 `privateNetworkClientServer` covers LAN inbound; no public inbound.
 
 ## Build variants and versioning
@@ -674,13 +695,15 @@ host Release smoke (quality + peak)
 ## Unit test map (host suite)
 
 One doctest binary, `xllama-tests`, built from `tests/test_*.cpp`. The suite
-is **366 test cases / 33377 assertions** (doctest, without opt-in model checks).
+is **380 test cases / 33434 assertions** (doctest, without opt-in model checks).
 Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 (`llama_raii.h`, `ort_raii.h`, `d3d12_dyn.h`, `catalog_trust.h`).
 
 | Test file                        | Under test                                                                                  |
 | -------------------------------- | ------------------------------------------------------------------------------------------- |
 | `test_api_activity.cpp`          | `api_activity.h`                                                                            |
+| `test_compute_admission.cpp`     | `compute_admission.h`                                                                       |
+| `test_api_connection.cpp`        | `api_connection.h` — overlapping compute requests are 200+503; connection-gate bound        |
 | `test_debug_dashboard.cpp`       | `debug_dashboard.h`                                                                         |
 | `test_api_config.cpp`            | LAN API config validation (`uwp/api-server.h`)                                              |
 | `test_api_policy.cpp`            | `api_policy.h` numeric admission (F01)                                                      |

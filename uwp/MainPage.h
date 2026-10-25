@@ -11,6 +11,7 @@
     #include "pch.h"
     #include "xllama/autopilot.h"
     #include "xllama/chat_prompt.h"
+    #include "xllama/compute_admission.h"
     #include "xllama/session.h"
     #include "xllama/session_hub.h"
 
@@ -74,10 +75,11 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     // Load (and, for DML models, warm up — #130 §5e) the resident session
     // ahead of the first turn, so the first send pays prefill+decode only.
     // Call on the UI thread right after the model becomes Ready; the load
-    // runs detached, serialized by hub.mtx (a concurrent first turn simply
-    // queues behind it and finds the session resident).
+    // claims hub.preloading and the process-wide compute permit. A concurrent
+    // first send waits (bounded, same window as the LAN API) instead of
+    // failing busy, then takes the permit when preload releases it.
     void PreloadSessionAsync();
-    void StartInference(std::wstring const& prompt);
+    bool StartInference(std::wstring const& prompt);
     void OnRunClick(winrt::Windows::Foundation::IInspectable const&,
                     winrt::Windows::UI::Xaml::RoutedEventArgs const&);
     void OnCancelClick(winrt::Windows::Foundation::IInspectable const&,
@@ -141,7 +143,7 @@ class MainPageController : public std::enable_shared_from_this<MainPageControlle
     // Image generation UX: shows the last diffuse-out.png and runs SD-Turbo
     // in-process (plain ORT DML coexists with the XAML compositor).
     winrt::fire_and_forget ShowImageDialog();
-    void StartDiffusion();
+    void StartDiffusion(::xllama::ComputeJobAdmission::Handle permit);
     void PollDiffuseProgress();
     void FinishDiffusion();
     void SaveCurrentConversation(bool partial = false);
