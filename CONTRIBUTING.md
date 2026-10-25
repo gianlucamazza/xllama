@@ -94,7 +94,8 @@ The in-app model list (`uwp/models/manifest.json`) is a curated allowlist of
   that others can add to.
 - **Personal override.** Entries you add in `LocalState\manifest.json` are
   merged into the list for your own use on a console you own. This is not a
-  way to distribute models.
+  way to distribute models (Developer Mode build only; the Store build ignores
+  it, and `/api/pull` never downloads override entries).
 
 The full limits, and how to add your own entry, are in
 [`docs/model-selection.md`](docs/model-selection.md).

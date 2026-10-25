@@ -7,9 +7,9 @@
 
 Models are made by their authors and used under their own licences. Most download
 directly from the author's or a community quantizer's Hugging Face repository; a
-few converted builds download from this repository's `models-v1` release and keep
-their original licences. xllama doesn't sell models or apps. Design
-limits for what the catalogue may contain are in
+few converted builds download from this repository's `models-v1` release, and
+their upstream licences apply (see each model's source card). xllama doesn't
+sell models or apps. Design limits for what the catalogue may contain are in
 [CONTRIBUTING.md](../CONTRIBUTING.md#model-catalogue-design-limits).
 
 Operational criteria for choosing or evaluating a model for the xllama UWP build
@@ -130,7 +130,8 @@ the staged file before replacing an existing model and before writing the
 `.complete` marker. Missing hashes remain supported only for legacy/custom
 Dev Mode provisioning. The signed-catalogue build (`XLLAMA_STORE_SKU`) rejects a
 catalogue without a valid signature envelope and any download entry without a
-SHA-256 pin; the Dev Mode release build does not check the catalogue signature.
+SHA-256 pin; the Dev Mode release build accepts an unsigned catalogue (a
+signature, if present, is still verified).
 
 The Settings ComboBox is populated from the model catalogue. A
 `LocalState\manifest.json` uploaded via Device Portal is **merged per entry**
@@ -370,6 +371,10 @@ research). **Gemma** is under the Gemma Terms of Use (not Apache/MIT): the
 Hugging Face repo (`hf_base_url` → `unsloth/gemma-3-270m-it-GGUF/resolve/main`)
 rather than re-hosting the weights on `models-v1` — verify the Terms permit
 redistribution before ever mirroring them onto our release.
+
+SD-Turbo: This Stability AI Model is licensed under the Stability AI Community
+License, Copyright © Stability AI Ltd. All Rights Reserved. Powered by Stability
+AI.
 
 ### TAESD — a faster diffusion VAE decoder
 

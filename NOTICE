@@ -48,6 +48,14 @@ Default and catalogue models are downloaded at runtime from the project
 (e.g. LFM Open License, Apache-2.0 for Qwen GGUFs) applies to the weights;
 see `uwp/models/manifest.json` and any `LICENSE` file next to the asset.
 
+SD-Turbo: This Stability AI Model is licensed under the Stability AI Community License, Copyright © Stability AI Ltd. All Rights Reserved. Powered by Stability AI.
+
+TAESD: MIT. Author: madebyollin. Source: https://huggingface.co/madebyollin/taesd
+
+SmolLM2: Apache-2.0. Author: HuggingFaceTB. Source: https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct
+
+Qwen3.5-0.8B: Apache-2.0. Source: https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF
+
 ## Other
 
 CppWinRT NuGet projections and VCLibs are Microsoft redistributables required

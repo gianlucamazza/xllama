@@ -23,8 +23,9 @@ offline. If the download fails, provisioning via Device Portal or USB
 
 Models are made by their authors and used under their own licences. Most download
 directly from the author's or a community quantizer's Hugging Face repository; a
-few converted builds download from this repository's `models-v1` release and keep
-their original licences. xllama doesn't sell models or apps.
+few converted builds download from this repository's `models-v1` release, and
+their upstream licences apply (see each model's source card). xllama doesn't
+sell models or apps.
 
 ## Chat
 
