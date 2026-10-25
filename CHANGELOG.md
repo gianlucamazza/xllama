@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Docs: install from a GitHub Release in the browser.**
+  `docs/install-release.md` now starts with Device Portal steps that need
+  no repo checkout or `xbox-env` file. The `deploy.sh` path remains as
+  the command-line install. The browser steps follow Microsoft's
+  documentation and have not yet been walked end to end on a console.
+
 - **Optional debug dashboard** (default off). A Settings toggle and/or
   `LocalState\debug-dashboard.flag` shows real resident-model, LAN, and
   inference readings above the prompt. Missing sources render as
