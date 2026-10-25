@@ -1,6 +1,7 @@
 # Recommended configurations (Xbox Series S, 2026)
 
-Operational reference for correct, modern xllama settings. Every workload verdict
+Operational reference for correct, modern xllama settings on Xbox Series S
+consoles. Series X supported, not yet measured. Every workload verdict
 is **measured** unless marked "host-only" or "pending console". See
 [technical-report.md](./technical-report.md) for the full story.
 

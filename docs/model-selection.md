@@ -13,7 +13,7 @@ sell models or apps. Design limits for what the catalogue may contain are in
 [CONTRIBUTING.md](../CONTRIBUTING.md#model-catalogue-design-limits).
 
 Operational criteria for choosing or evaluating a model for the xllama UWP build
-(Xbox Series S Dev Mode). Covers both backends — ONNX Runtime GenAI (CPU/DirectML)
+(Xbox Series S Dev Mode; Series X supported, not yet measured). Covers both backends — ONNX Runtime GenAI (CPU/DirectML)
 and llama.cpp (GGUF, CPU).
 
 ## Hard limits (must pass)
@@ -339,7 +339,7 @@ gets the right template with zero per-model code.
   `.gguf` loads with no OOM under the Game budget.
 - ✅ **Generates coherently** and stops on `<end_of_turn>`.
 - ⚠️ **Load is slow** (a few seconds). ⚠️ The old "load is repack-bound"
-  attribution predates PR #155: the repack path was dead code on Xbox when it
+  attribution predates PR #155: the repack path was dead code on Series S when it
   was measured, and enabling it made loads _faster_ (lfm25: 1645→1284 ms,
   `phase13-repack-{before,after}.csv`) — the mmap conclusion (no benefit)
   still stands, the mechanism story does not.

@@ -5,13 +5,13 @@
 > `weakly_canonical`, thread cap, and the DirectML low-bit GEMM analysis. Other
 > docs link to a `§n` here rather than restating these.
 
-Platform limitations relevant to running LLM inference on Xbox Dev Mode, and how xllama addresses each one.
+Platform limitations relevant to running LLM inference on Xbox Series S consoles in Dev Mode, and how xllama addresses each one. Series X supported, not yet measured.
 
 ## 1. No POSIX `mmap`
 
 **Problem**: `mmap()` is unavailable in the UWP sandbox.
 
-**Status**: Not an issue for the ORT GenAI path — ORT loads the model internally using Win32 file APIs compatible with UWP. For the GGUF/llama.cpp path the `patches/0001` guards disable the desktop-only `_WIN32` mmap on the AppContainer, so GGUF weights are read into the heap (buffered). Enabling an AppContainer mmap via `CreateFileMappingFromApp`/`MapViewOfFileFromApp` was **tried and reverted (2026-07-14): no benefit**. ⚠️ The original attribution — "load is dominated by the AVX2 tensor repack" — predates PR #155: the repack path was dead code on Xbox at the time, and actually enabling it made loads _faster_ (lfm25 1645→1284 ms, `phase13-repack-{before,after}.csv`). The mmap conclusion (no benefit) stands on its own measurement; the mechanism claim does not.
+**Status**: Not an issue for the ORT GenAI path — ORT loads the model internally using Win32 file APIs compatible with UWP. For the GGUF/llama.cpp path the `patches/0001` guards disable the desktop-only `_WIN32` mmap on the AppContainer, so GGUF weights are read into the heap (buffered). Enabling an AppContainer mmap via `CreateFileMappingFromApp`/`MapViewOfFileFromApp` was **tried and reverted (2026-07-14): no benefit**. ⚠️ The original attribution — "load is dominated by the AVX2 tensor repack" — predates PR #155: the repack path was dead code on Series S at the time, and actually enabling it made loads _faster_ (lfm25 1645→1284 ms, `phase13-repack-{before,after}.csv`). The mmap conclusion (no benefit) stands on its own measurement; the mechanism claim does not.
 
 ## 2. Sandboxed Filesystem
 

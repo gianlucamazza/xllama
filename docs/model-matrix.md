@@ -25,15 +25,15 @@ per-arch `can_shift` (2026-07-29), §A2 phase14 (2026-07-27).
 
 ## How to read the columns
 
-| Column              | Meaning                                                                     |
-| ------------------- | --------------------------------------------------------------------------- |
-| **Catalogue**       | Id in `uwp/models/manifest.json` (`—` = not shipped)                        |
-| **Status**          | `shipping` / `catalogue` / `campaign-only` / `host-smoke` / `rejected`      |
-| **Console metrics** | Xbox Series S Dev Mode (see [benchmarks.md](./benchmarks.md))               |
-| **H9**              | Deterministic 8-task suite (`2026-09-30-h9-rescore.jsonl`), temperature 0   |
-| **Template**        | `chat_format_for` selection                                                 |
-| **Role**            | Catalogue `role` (`coding` → denser token estimate + coding system default) |
-| **n_ctx**           | Session context (0/omit → `kDefaultNCtx` 2048)                              |
+| Column              | Meaning                                                                                             |
+| ------------------- | --------------------------------------------------------------------------------------------------- |
+| **Catalogue**       | Id in `uwp/models/manifest.json` (`—` = not shipped)                                                |
+| **Status**          | `shipping` / `catalogue` / `campaign-only` / `host-smoke` / `rejected`                              |
+| **Console metrics** | Xbox Series S Dev Mode (Series X supported, not yet measured; see [benchmarks.md](./benchmarks.md)) |
+| **H9**              | Deterministic 8-task suite (`2026-09-30-h9-rescore.jsonl`), temperature 0                           |
+| **Template**        | `chat_format_for` selection                                                                         |
+| **Role**            | Catalogue `role` (`coding` → denser token estimate + coding system default)                         |
+| **n_ctx**           | Session context (0/omit → `kDefaultNCtx` 2048)                                                      |
 
 Host figures are **not comparable** to console tok/s (different CPU, build type,
 and thermal). They only prove _load + generate + template_.
@@ -305,7 +305,7 @@ models.
 Release CPU smoke on 2026-09-23 used `xllama-cli --embed`, a retrieval-style
 input, and `/proc/<pid>/status` `VmHWM` for peak RSS. All three candidates
 loaded and returned finite, unit-normalized native-width vectors. Only the two
-under the 3584 MiB host gate are catalogued. These host figures are not Xbox
+under the 3584 MiB host gate are catalogued. These host figures are not Series S
 measurements. Series S protocol and maximum-input memory validation passed on
 2026-09-28; the source/package-bound outcomes live in
 [`2026-09-28-console-api-validation.json`](../bench/results/2026-09-28-console-api-validation.json).

@@ -7,7 +7,8 @@ Release status in [release-readiness.md](release-readiness.md); LAN protocol in
 
 ## Thesis
 
-xllama is a **local inference stack** for Xbox Series S|X. The intended uses
+xllama is a **local inference stack** for Xbox Series S consoles.
+Series X supported, not yet measured. The intended uses
 are **games** (NPC dialogue, agents) and **on-console AI assistants**.
 
 The gamepad chat UI is a **demo / showcase shell** so the stack can be

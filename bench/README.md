@@ -1,6 +1,8 @@
 # bench/
 
 Benchmark suite for xllama. Results are stored as CSV files in `results/`.
+Console figures in this tree were measured on Xbox Series S consoles.
+Series X supported, not yet measured.
 
 ## Single source of truth
 
@@ -29,7 +31,7 @@ appear in the consolidated comparison.
   - `load_ms`: model load time in milliseconds
   - `gpu_mem_mb` / `gpu_budget_mb`: per-process GPU memory CurrentUsage/Budget after model load (`QueryVideoMemoryInfo`, LOCAL segment); 0 on CPU-only runs and Linux builds
   - `n_prompt_tok`: prefill token count actually measured. Without it a row cannot be compared with one taken at another prompt length — the reason the pre-2026-07 DirectML rows are not re-readable.
-  - ⚠️ **GGUF pre/post-repack boundary (2026-07-25)**: every llama.cpp row written before build 675 predates `GGML_USE_CPU_REPACK` (PR #155 — it was dead code on Xbox), so its `prompt_tok_s` is **not comparable** with post-675 rows: the identical model+prompt measures 241.9 pre vs 393.2 post (`phase13-repack-{before,after}.csv`). Decode columns are unaffected.
+  - ⚠️ **GGUF pre/post-repack boundary (2026-07-25)**: every llama.cpp row written before build 675 predates `GGML_USE_CPU_REPACK` (PR #155 — it was dead code on Series S), so its `prompt_tok_s` is **not comparable** with post-675 rows: the identical model+prompt measures 241.9 pre vs 393.2 post (`phase13-repack-{before,after}.csv`). Decode columns are unaffected.
   - ⚠️ **GGUF prefill-thread boundary (2026-07-26)**: every llama.cpp row written before build 711 predates the `n_threads_batch` fix (#168, PR #177), so its `prompt_tok_s` was measured on llama.cpp's default **4 prefill threads** regardless of the row's `n_threads` column (which describes decode): 390.7 pre vs 438.1 post at P=298 (`phase13b-threadsbatch-{before,after}.csv`). Decode columns are unaffected.
   - `n_gen_tok`: tokens actually generated. **Not** the requested `n_predict`: generation is capped by the context window (`prompt + new <= n_ctx`) and can stop early on EOG. A 1574-token prompt at `n_ctx` 2048 caps new tokens at 474 and generated 277.
   - `run_index`: which recorded repetition of a configuration this row is (W1.1). Written by the device from `bench_run_index.txt`. `0` = a single-run / legacy measurement; a non-zero value marks one of several repeats the summary aggregates into a median + spread.
@@ -101,7 +103,7 @@ source ~/.config/xllama/xbox-env
 Use `--dry-run` to inspect the exact commands without contacting the console.
 The output manifest records the profile, prompt and requested repetitions.
 
-### Xbox (automated)
+### Xbox Series S (automated)
 
 ```bash
 source ~/.config/xllama/xbox-env
@@ -117,7 +119,7 @@ harness wait for `bench-result.csv.done`. `--stall-timeout S`,
 `--decode-progress-every N`, and `--decode-progress-ms MS` upload the in-app
 watchdog / progress knobs.
 
-### Xbox — prompt-length sweep
+### Xbox Series S — prompt-length sweep
 
 `scripts/bench-prompt-sweep.sh` drives `bench-xbox-ort.sh` across a set of
 synthetic prompt lengths and both backends, one CSV row per point:
@@ -131,7 +133,7 @@ source ~/.config/xllama/xbox-env
 This produced the sweep behind the 1550-token routing threshold and the
 pathological DirectML band documented in `docs/uwp-constraints.md` §5b.
 
-### Xbox — multi-turn TTFT (KV-cache reuse, Stage 2b)
+### Xbox Series S — multi-turn TTFT (KV-cache reuse, Stage 2b)
 
 Measures the KV-reuse win: turn-2 prefill **with reuse** (append only the new
 turn) vs the **cold** baseline (full re-prefill of the 2-turn context), on one
@@ -154,7 +156,7 @@ one cannot hijack a single-turn bench into this mode.
 Schema: `model,prefill1_ms,n_p1,prefill2_reuse_ms,n_p2_reuse,prefill2_cold_ms,n_p2_cold,speedup,decode_tok_s,n_ctx,host,date`.
 `speedup = prefill2_cold_ms / prefill2_reuse_ms` is the headline number.
 
-### Xbox — deterministic capability suite (H9)
+### Xbox Series S — deterministic capability suite (H9)
 
 `scripts/eval-xbox-models.sh` sends the fixed tasks in
 `bench/eval/phase7-h9.json` through the app's OpenAI-compatible LAN endpoint.

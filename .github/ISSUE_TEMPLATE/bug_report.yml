@@ -20,7 +20,8 @@ body:
     attributes:
       label: Where
       options:
-        - Xbox console (UWP / Dev Mode)
+        - Xbox Series S console (UWP / Dev Mode)
+        - Xbox Series X console (supported, not yet measured)
         - Linux CLI / build
         - CI (GitHub Actions)
         - Docs

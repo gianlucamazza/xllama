@@ -5,8 +5,9 @@ performance belongs in `docs/benchmarks.md`.
 
 ## Current product state
 
-- **North star:** local inference on Series S|X for **games**
-  (NPC/dialogue/agents) and **AI assistants**. The chat UI remains a
+- **North star:** local inference on Series S for **games**
+  (NPC/dialogue/agents) and **AI assistants**. Series X supported, not yet
+  measured. The chat UI remains a
   showcase shell; the LAN OpenAI-compat endpoint is the current
   integration probe. Limits and non-claims:
   [docs/positioning.md](docs/positioning.md).

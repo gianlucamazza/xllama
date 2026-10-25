@@ -1,6 +1,7 @@
 # Console validation runbook
 
-Current on-device release gates for Xbox Series S Dev Mode. Historical experiment
+Current on-device release gates for Xbox Series S Dev Mode. Series X supported,
+not yet measured. Historical experiment
 procedures and measured results live in `CHANGELOG.md` and `bench/results/`.
 
 ## Prerequisites
