@@ -50,15 +50,15 @@ Qwen3.5-0.8B, and Qwen3-1.7B) applies to the weights;
 see `uwp/models/manifest.json` and any `LICENSE` file next to the asset.
 Qwen2.5-Coder-3B-Instruct: Qwen Research License (non-commercial). Benchmarked only; not distributed or offered in the model list.
 
-SD-Turbo: This Stability AI Model is licensed under the Stability AI Community License, Copyright © Stability AI Ltd. All Rights Reserved. Powered by Stability AI.
+SD-Turbo: This Stability AI Model is licensed under the Stability AI Community License, Copyright © Stability AI Ltd. All Rights Reserved. Powered by Stability AI. Source: https://huggingface.co/stabilityai/sd-turbo. Modified by xllama: converted to ONNX (fp16) for on-device inference. No fine-tuning or retraining was performed.
 
 TAESD: MIT. Author: madebyollin. Source: https://huggingface.co/madebyollin/taesd
 
-SmolLM2: Apache-2.0. Author: HuggingFaceTB. Source: https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct
+SmolLM2: Apache-2.0. Author: HuggingFaceTB. Source: https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct. Modified by xllama: converted to ONNX int4 (`smollm2-360m-cpu-int4`) and ONNX fp16 (`smollm2-360m-dml-fp16-v2`); upstream revision not recorded.
 
-SmolLM2-1.7B: Apache-2.0. Author: HuggingFaceTB. Source: https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct
+SmolLM2-1.7B: Apache-2.0. Author: HuggingFaceTB. Source: https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct. Modified by xllama: converted to ONNX int4; upstream revision not recorded.
 
-Qwen3.5-0.8B: Apache-2.0. Source: https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF
+Qwen3.5-0.8B: Apache-2.0. Author: Qwen (Alibaba Cloud). Source: https://huggingface.co/Qwen/Qwen3.5-0.8B. GGUF quantisation: https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF. Redistributed unchanged by xllama; quantized by unsloth.
 
 ## Other
 

@@ -374,7 +374,19 @@ benchmark rows stay, labelled.
 LFM Open License v1.0 §4
 permits redistribution provided recipients get a copy of the license —
 `LFM2.5-350M_LICENSE.txt` is published on the release and listed in the
-catalogue entry so it lands next to the model on-device. Note §5: commercial use is licensed only while the licensee (with its affiliates) has annual revenue below US$10M. xllama is free, open-source software by an independent consultant and may bring indirect commercial advantage (e.g. GitHub Sponsors, professional visibility), so we treat our use as Commercial Use and rely on the revenue threshold, not on a non-commercial exemption. SD-Turbo is under the Stability AI Community License: commercial use requires registration with Stability AI and annual revenue below US$1M. Registration with Stability AI: pending. The distribution must include a copy of the licence, a NOTICE file with the text "This Stability AI Model is licensed under the Stability AI Community License, Copyright © Stability AI Ltd. All Rights Reserved", and a prominent "Powered by Stability AI" credit (§IV.a). **Gemma** is under the Gemma Terms of Use (not Apache/MIT): the
+catalogue entry so it lands next to the model on-device. Note §5: commercial
+use is licensed only while the licensee (with its affiliates) has annual
+revenue below US$10M. xllama is free, open-source software by an independent
+consultant and may bring indirect commercial advantage (e.g. GitHub Sponsors,
+professional visibility), so we treat our use as Commercial Use and rely on
+the revenue threshold, not on a non-commercial exemption. SD-Turbo is under
+the Stability AI Community License: commercial use requires registration with
+Stability AI and annual revenue below US$1M. Registration with Stability AI:
+pending. The distribution must include a copy of the licence, a NOTICE file
+with the text "This Stability AI Model is licensed under the Stability AI
+Community License, Copyright © Stability AI Ltd. All Rights Reserved", and a
+prominent "Powered by Stability AI" credit (§IV.a). **Gemma** is under the
+Gemma Terms of Use (not Apache/MIT): the
 `gemma3-270m` catalogue entry therefore downloads straight from the original
 Hugging Face repo (`hf_base_url` → `unsloth/gemma-3-270m-it-GGUF/resolve/main`)
 rather than re-hosting the weights on `models-v1` — verify the Terms permit
@@ -383,6 +395,8 @@ redistribution before ever mirroring them onto our release.
 SD-Turbo: This Stability AI Model is licensed under the Stability AI Community
 License, Copyright © Stability AI Ltd. All Rights Reserved. Powered by Stability
 AI.
+
+Image generation uses SD-Turbo. **Powered by Stability AI.**
 
 ### TAESD — a faster diffusion VAE decoder
 

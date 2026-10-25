@@ -13,6 +13,12 @@
           "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
         },
         {
+          "filename": "NOTICE",
+          "remote": "smollm2-360m-cpu-int4_NOTICE",
+          "approx_bytes": 170,
+          "sha256": "fde264afb75fa1ba6c46c005f774952879a1848b80198128b2e75be5c6b1a8d0"
+        },
+        {
           "filename": "genai_config.json",
           "approx_bytes": 1500,
           "sha256": "02b0e86449641989ab0bd9598a14f863d7c0281a9fcc3bf06767cb5b409e5a82"
@@ -44,6 +50,12 @@
           "remote": "smollm2-360m-dml-fp16-v2_LICENSE",
           "approx_bytes": 11357,
           "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        },
+        {
+          "filename": "NOTICE",
+          "remote": "smollm2-360m-dml-fp16-v2_NOTICE",
+          "approx_bytes": 170,
+          "sha256": "f964f0abdcd37788397c4550f2354da55b07286b09adce1e0bfdf4943b06e7ce"
         },
         {
           "filename": "genai_config.json",
@@ -83,6 +95,12 @@
           "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
         },
         {
+          "filename": "NOTICE",
+          "remote": "smollm2-1.7b-cpu-int4_NOTICE",
+          "approx_bytes": 170,
+          "sha256": "ce00add4201f10fb0db32193fc183fb5082ff96e2800319d51fbd6ba18388691"
+        },
+        {
           "filename": "genai_config.json",
           "remote": "smollm2-1.7b-cpu-int4_genai_config.json",
           "approx_bytes": 1458,
@@ -109,7 +127,7 @@
       ]
     },
     {
-      "_comment": "GGUF chat models (llama.cpp backend, unified builds). Qwen3.5 quant: unsloth/Qwen3.5-0.8B-GGUF (Apache-2.0 — LICENSE downloaded alongside from models-v1). LFM2.5 quant: LiquidAI/LFM2.5-350M-GGUF (LFM Open License v1.0 — LICENSE.txt downloaded alongside per §4a).",
+      "_comment": "GGUF chat models (llama.cpp backend, unified builds). Qwen3.5 quant: unsloth/Qwen3.5-0.8B-GGUF (Apache-2.0 — LICENSE + NOTICE downloaded alongside from models-v1). LFM2.5 quant: LiquidAI/LFM2.5-350M-GGUF (LFM Open License v1.0 — LICENSE.txt downloaded alongside per §4a).",
       "name": "qwen35-0.8b",
       "display": "Qwen3.5 0.8B (GGUF · CPU)",
       "kind": "gguf",
@@ -120,6 +138,12 @@
           "remote": "qwen35-0.8b_LICENSE",
           "approx_bytes": 11544,
           "sha256": "bbedc3fda3305820b977265f01b8619d87570a6739de3a5582c3464840f1e57a"
+        },
+        {
+          "filename": "NOTICE",
+          "remote": "qwen35-0.8b_NOTICE",
+          "approx_bytes": 109,
+          "sha256": "df92d1a2b08ed9d0c161666ac3a3b749fa2709438cc7f697e6bfb372794b22c5"
         },
         {
           "filename": "Qwen3.5-0.8B-Q4_K_M.gguf",
@@ -376,8 +400,8 @@
         {
           "filename": "NOTICE",
           "remote": "sd-turbo-fp16_NOTICE",
-          "approx_bytes": 130,
-          "sha256": "793f69fbe0a0bc6fdccdbc653a462233d58962860773a7793885d8a388598472"
+          "approx_bytes": 355,
+          "sha256": "bc2fd877fa2d3e3c157e479ebda62575a84d4ec70223a934bb951853e6cd3557"
         },
         {
           "filename": "text_encoder/model.onnx",

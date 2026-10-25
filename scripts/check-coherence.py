@@ -109,14 +109,17 @@ def main() -> int:
         remote = lic.get("remote") or lic.get("filename")
         if remote == "LICENSE":
             err(f"manifest {name} LICENSE remote must be a unique models-v1 asset")
-        if name == "sd-turbo-fp16":
-            notice = files.get("NOTICE")
-            if not notice:
-                err("manifest sd-turbo-fp16 missing NOTICE files[] entry")
-            elif (notice.get("sha256") or "") not in license_by_sha:
-                err("manifest sd-turbo-fp16 NOTICE sha256 not in LICENSES/")
-            elif len(file_list) < 2 or file_list[1].get("filename") != "NOTICE":
-                err("manifest sd-turbo-fp16 NOTICE must follow LICENSE in files[]")
+        notice = files.get("NOTICE")
+        if not notice:
+            err(f"manifest {name} missing NOTICE files[] entry")
+        elif (notice.get("sha256") or "") not in license_by_sha:
+            err(f"manifest {name} NOTICE sha256 not in LICENSES/")
+        elif len(file_list) < 2 or file_list[1].get("filename") != "NOTICE":
+            err(f"manifest {name} NOTICE must follow LICENSE in files[]")
+        else:
+            remote_n = notice.get("remote") or notice.get("filename")
+            if remote_n == "NOTICE":
+                err(f"manifest {name} NOTICE remote must be a unique models-v1 asset")
     if hosted and license_by_sha:
         good("models-v1 licence files pinned to LICENSES/")
 

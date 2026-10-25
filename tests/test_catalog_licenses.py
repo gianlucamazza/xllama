@@ -2,8 +2,8 @@
 """Licence-file pairing for re-hosted models-v1 catalogue entries.
 
 Mirrors the LFM pattern: each downloadable models-v1 model lists LICENSE
-(and SD-Turbo NOTICE) in files[] with a sha256 that matches the exact
-bytes committed under LICENSES/. TAESD is not a catalogue entry; its MIT
+and NOTICE in files[] with a sha256 that matches the exact bytes
+committed under LICENSES/. TAESD is not a catalogue entry; its MIT
 file is downloaded next to the VAE overlay in MainPage.cpp.
 """
 
@@ -24,15 +24,31 @@ MODELS_V1 = "https://github.com/gianlucamazza/xllama/releases/download/models-v1
 PAIRINGS = {
     "smollm2-360m-cpu-int4": [
         ("LICENSE", "HuggingFaceTB-SmolLM2-LICENSE", "smollm2-360m-cpu-int4_LICENSE"),
+        (
+            "NOTICE",
+            "HuggingFaceTB-SmolLM2-360M-cpu-int4-NOTICE",
+            "smollm2-360m-cpu-int4_NOTICE",
+        ),
     ],
     "smollm2-360m-dml-fp16-v2": [
         ("LICENSE", "HuggingFaceTB-SmolLM2-LICENSE", "smollm2-360m-dml-fp16-v2_LICENSE"),
+        (
+            "NOTICE",
+            "HuggingFaceTB-SmolLM2-360M-dml-fp16-v2-NOTICE",
+            "smollm2-360m-dml-fp16-v2_NOTICE",
+        ),
     ],
     "smollm2-1.7b-cpu-int4": [
         ("LICENSE", "HuggingFaceTB-SmolLM2-LICENSE", "smollm2-1.7b-cpu-int4_LICENSE"),
+        (
+            "NOTICE",
+            "HuggingFaceTB-SmolLM2-1.7B-cpu-int4-NOTICE",
+            "smollm2-1.7b-cpu-int4_NOTICE",
+        ),
     ],
     "qwen35-0.8b": [
         ("LICENSE", "Qwen-Qwen3.5-0.8B-LICENSE", "qwen35-0.8b_LICENSE"),
+        ("NOTICE", "Qwen-Qwen3.5-0.8B-NOTICE", "qwen35-0.8b_NOTICE"),
     ],
     "sd-turbo-fp16": [
         ("LICENSE", "stabilityai-sd-turbo-LICENSE", "sd-turbo-fp16_LICENSE"),
@@ -101,10 +117,12 @@ class CatalogLicensePairingTests(unittest.TestCase):
                 self.assertIsNotNone(spec, f"{name} lost its LFM LICENSE pairing")
                 self.assertEqual(len(spec["sha256"]), 64)
 
-    def test_qwen25_coder_3b_has_no_models_v1_licence_entry(self) -> None:
-        entry = self.cat["qwen25-coder-3b"]
-        self.assertNotIn("models-v1", entry.get("hf_base_url", ""))
-        self.assertIsNone(_file_by_name(entry, "LICENSE"))
+    def test_qwen25_coder_3b_not_rehosted(self) -> None:
+        # Withdrawn by #361 (Qwen Research License); must never be re-hosted.
+        entry = self.cat.get("qwen25-coder-3b")
+        if entry is not None:
+            self.assertNotIn("models-v1", entry.get("hf_base_url", ""))
+            self.assertIsNone(_file_by_name(entry, "LICENSE"))
 
     def test_taesd_overlay_downloads_mit_licence(self) -> None:
         text = MAINPAGE.read_text(encoding="utf-8")
