@@ -24,8 +24,13 @@ requests return the existing 503 `busy` response when another admitted job is
 active. API requests and the first GUI send may wait up to 15 seconds while the
 startup pre-load is active, preserving the first-request behavior. A streamed
 `/v1/chat/completions` reply keeps the permit until the last SSE event is
-written. A non-streaming pull that has finished downloading but cannot acquire
-the permit returns 503; a streaming pull emits its existing NDJSON error record.
+written. The LAN listener must dispatch each connection off
+`ConnectionReceived` (a bounded thread-pool work item in
+`include/xllama/api_connection.h`) so a second request can run the busy check
+while the first still holds the permit. A client disconnect mid-SSE aborts
+generation; the stack-owned permit then releases. A non-streaming pull that
+has finished downloading but cannot acquire the permit returns 503; a
+streaming pull emits its existing NDJSON error record.
 
 The permit is a shared RAII handle so ownership may safely span worker threads
 and UI dispatcher callbacks. Releasing the final handle ends the lease, even
@@ -45,9 +50,11 @@ training. A busy API pull can finish its download but receive 503 before the
 resident Session is swapped; the caller can retry the load request. GUI actions
 that lose the admission race report a busy status without changing shared job
 inputs. The host test covers exclusivity, opposite entry order, cancellation,
-release on error, streamed-handle lifetime, and the preload wait. Console
-validation must still exercise both GUI/API overlap directions, training
-overlap, cancellation, and exceptional exits before release.
+release on error, streamed-handle lifetime, the preload wait, and two
+overlapping API compute admits (one 200 and one 503). Console validation
+must still exercise both GUI/API overlap directions, LAN/LAN overlap while
+an SSE reply is in flight, training overlap, cancellation, and exceptional
+exits before release.
 
 ## Alternatives
 

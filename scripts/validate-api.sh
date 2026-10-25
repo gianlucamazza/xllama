@@ -14,11 +14,13 @@
 #   stream SSE streaming round-trip: text/event-stream, chunked framing, one
 #          delta per frame, a final finish_reason chunk and `data: [DONE]`.
 #          Implies the spike gate first.
-#   admission compute-permit hold (ADR 0008): a second /v1/chat/completions
-#          during an in-flight SSE reply must be HTTP 503 busy, and the stream
-#          must still finish with data: [DONE]. Address is $XBOX_IP:$API_PORT
-#          (no hardcoded host). Implies the spike gate first. For a GUI turn
-#          already generating, the same curl (printed by this mode) must be 503.
+#   admission compute-permit hold (ADR 0008): a long streamed reply
+#          (max_tokens >= 256) holds the permit; the probe waits for the first
+#          SSE data chunk, then a second /v1/chat/completions must be HTTP 503
+#          busy, and the stream must still finish with data: [DONE]. Address is
+#          $XBOX_IP:$API_PORT (no hardcoded host). Implies the spike gate first.
+#          For a GUI turn already generating, the same curl (printed by this
+#          mode) must be 503.
 #   budget context budget over the wire: a long messages[] is trimmed and answered,
 #          an oversized single message is 400 "prompt too long" (not 500), and
 #          invalid generation numbers (max_tokens -1/1.5/INT_MAX, temperature,
@@ -297,19 +299,38 @@ validate_admission() {
 	echo "=== admission: streamed /v1/chat/completions holds the compute permit ==="
 	local stream_req probe_req headers out probe_body stream_code probe_code
 	local verdict=0 spid
-	stream_req=$(printf '{"model":"%s","messages":[{"role":"user","content":"Count slowly from one to twenty."}],"max_tokens":128,"temperature":0,"seed":42,"stream":true}' "${MODEL}")
+	stream_req=$(printf '{"model":"%s","messages":[{"role":"user","content":"Count slowly from one to one hundred."}],"max_tokens":256,"temperature":0,"seed":42,"stream":true}' "${MODEL}")
 	probe_req=$(printf '{"model":"%s","messages":[{"role":"user","content":"ping"}],"max_tokens":8,"temperature":0,"seed":1}' "${MODEL}")
 	headers="${TMPDIR_LOCAL}/admission-headers.txt"
 	out="${TMPDIR_LOCAL}/admission-stream.txt"
 	probe_body="${TMPDIR_LOCAL}/admission-probe.txt"
 
 	: >"${TMPDIR_LOCAL}/admission-stream-code"
+	: >"${out}"
 	curl -sS -N -m 180 -D "${headers}" -o "${out}" -w "%{http_code}" \
 		-H 'Content-Type: application/json' -d "${stream_req}" \
 		"${API_URL}/v1/chat/completions" >"${TMPDIR_LOCAL}/admission-stream-code" 2>/dev/null &
 	spid=$!
-	# Let the first request acquire the permit and write the SSE head.
-	sleep 0.4
+	# Probe only after the first SSE data chunk is on disk: a fixed sleep can
+	# fire before the listener has dispatched, or after a short reply ends.
+	deadline=$((SECONDS + 30))
+	saw_chunk=0
+	while ((SECONDS < deadline)); do
+		if grep -q '^data: ' "${out}" 2>/dev/null; then
+			saw_chunk=1
+			break
+		fi
+		if ! kill -0 "${spid}" 2>/dev/null; then
+			break
+		fi
+		sleep 0.05
+	done
+	if [[ "${saw_chunk}" -ne 1 ]]; then
+		echo "  FAIL: streamed reply produced no SSE data chunk before the probe window"
+		wait "${spid}" || true
+		echo "admission: FAIL"
+		return 1
+	fi
 	probe_code=$(curl -sS -m 30 -o "${probe_body}" -w "%{http_code}" \
 		-H 'Content-Type: application/json' -d "${probe_req}" \
 		"${API_URL}/v1/chat/completions" || echo "000")

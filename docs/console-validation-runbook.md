@@ -187,8 +187,10 @@ n_ctx` — rather than the answer's length, which keeps the verdict independent
 - **API** — separate LAN gate (`scripts/validate-api.sh`):
   `spike|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all` (chat, context budget,
   client-side tool proposals per [ADR 0004](adr/0004-tool-proposals.md),
-  embeddings, pull, #118 preference/training-status probes). Not wired into
-  `validate-console.sh all` today — run it from another host on the LAN.
+  embeddings, pull, #118 preference/training-status probes). `admission` waits
+  for the first SSE data chunk of a long streamed reply, then requires 503 on
+  a concurrent chat. Not wired into `validate-console.sh all` today — run it
+  from another host on the LAN.
 
 ### When a gate fails, look at the screen
 

@@ -338,15 +338,19 @@ applies when the user opens Image; the API does not download the model for you).
 
 ## Concurrency
 
-`Session::generate()` is single-slot / non-concurrent. Compute requests first
-acquire the process-wide RAII permit in
+`Session::generate()` is single-slot / non-concurrent. `ConnectionReceived`
+only queues a bounded thread-pool work item (`kApiMaxInFlightConnections` in
+[api_connection.h](../include/xllama/api_connection.h)); serving the socket
+inline would hide the permit from every later LAN request until the current
+reply ends. Compute requests first acquire the process-wide RAII permit in
 [ADR 0008](adr/0008-process-compute-admission.md), then acquire
 `session_hub().mtx` with `try_lock`: a request arriving while another request,
 GUI turn, image generation, or device training is active gets **HTTP 503**
 `{"error":{"message":"busy"}}` for OpenAI-compatible routes and
 `{"error":"busy"}` for native Ollama embedding routes. The slot covers the
 whole process, including a streamed `/v1/chat/completions` reply (the permit
-stays held until the last SSE event). Native `/api/embed`, `/api/embeddings`,
+stays held until the last SSE event, and is released if the client
+disconnects mid-stream). Native `/api/embed`, `/api/embeddings`,
 and `/api/pull` errors always expose a non-empty string in `error`;
 `/v1/embeddings` exposes an error object with `message` and `type`. One
 exception: while the session **pre-load** is active (right after a model becomes

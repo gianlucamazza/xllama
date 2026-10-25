@@ -16,11 +16,13 @@
 #include <atomic>
 #include <winrt/Windows.Data.Json.h>
 #include <winrt/Windows.Networking.Sockets.h>
+#include <winrt/Windows.System.Threading.h>
 // clang-format on
 
     #include "inference-bridge.h"
     #include "model-downloader.h"
     #include "xllama/api_activity.h"
+    #include "xllama/api_connection.h"
     #include "xllama/api_policy.h"
     #include "xllama/api_pull_policy.h"
     #include "xllama/chat_prompt.h"
@@ -1907,6 +1909,12 @@ const char* framing_status(int code) {
     }
 }
 
+// Serve one accepted socket. Runs on a thread-pool work item, never inline
+// in ConnectionReceived: the listener does not raise the next connection
+// until that callback returns, so an in-line SSE reply hid the permit from
+// every subsequent LAN request (console 1.6.0.1284). The compute permit is
+// a stack RAII handle; a client drop mid-SSE aborts generate() and this
+// frame unwinds, which releases the slot.
 void handle_connection(StreamSocket const& socket, uint64_t generation) {
     try {
         const HttpRequest req = read_request(socket);
@@ -1957,10 +1965,11 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             auto compute_permit = acquire_compute_job_or_busy();
             if (!compute_permit) {
                 activity().busy();
-                write_response(socket, "503 Service Unavailable", error_json("busy"));
+                write_response(socket, ::xllama::kApiBusyStatus, error_json("busy"));
                 return;
             }
             // Keep the lease for the whole reply, including every SSE event.
+            // Dropped on return, throw, or client-disconnect abort.
             (void)compute_permit;
             std::unique_lock<std::mutex> lk = acquire_hub_or_busy();
             if (!lk.owns_lock()) {
@@ -2014,7 +2023,7 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             auto compute_permit = acquire_compute_job_or_busy();
             if (!compute_permit) {
                 activity().busy();
-                write_response(socket, "503 Service Unavailable",
+                write_response(socket, ::xllama::kApiBusyStatus,
                                embedding_error_json(embedding_api, "busy"));
                 return;
             }
@@ -2076,13 +2085,13 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             auto compute_permit = acquire_compute_job_or_busy();
             if (!compute_permit) {
                 activity().busy();
-                write_response(socket, "503 Service Unavailable", error_json("busy"));
+                write_response(socket, ::xllama::kApiBusyStatus, error_json("busy"));
                 return;
             }
             std::unique_lock<std::mutex> lk = acquire_hub_or_busy();
             if (!lk.owns_lock()) {
                 activity().busy();
-                write_response(socket, "503 Service Unavailable", error_json("busy"));
+                write_response(socket, ::xllama::kApiBusyStatus, error_json("busy"));
                 return;
             }
             bool active = false;
@@ -2120,6 +2129,36 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
         ::xllama::log_output(std::string("[xllama] api: connection error: ") + e.what() + "\n");
     } catch (...) {
         ::xllama::log_output("[xllama] api: connection unknown error\n");
+    }
+}
+
+// Return from ConnectionReceived immediately after queueing. A write on this
+// thread is only the bounded-gate 503; every other reply runs on the work item.
+void dispatch_connection(StreamSocket const& socket, uint64_t generation) {
+    auto slot = ::xllama::process_api_connection_gate().try_acquire();
+    if (!slot) {
+        try {
+            activity().busy();
+            write_response(socket, ::xllama::kApiBusyStatus, error_json("busy"));
+        } catch (...) {
+        }
+        return;
+    }
+    auto held = std::make_shared<::xllama::ApiConnectionGate::Handle>(std::move(slot));
+    try {
+        winrt::Windows::System::Threading::ThreadPool::RunAsync(
+            [socket, generation, held](winrt::Windows::Foundation::IAsyncAction const&) {
+                auto client = activity().client();
+                handle_connection(socket, generation);
+                (void)held;
+                (void)client;
+            });
+    } catch (...) {
+        try {
+            activity().busy();
+            write_response(socket, ::xllama::kApiBusyStatus, error_json("busy"));
+        } catch (...) {
+        }
     }
 }
 
@@ -2184,9 +2223,7 @@ void start_server(int requested_port) {
         listener.ConnectionReceived(
             [generation](StreamSocketListener const&,
                          StreamSocketListenerConnectionReceivedEventArgs const& a) {
-                auto client = activity().client();
-                handle_connection(a.Socket(), generation);
-                (void)client;
+                dispatch_connection(a.Socket(), generation);
             });
         listener.BindServiceNameAsync(winrt::to_hstring(std::to_string(port))).get();
         {

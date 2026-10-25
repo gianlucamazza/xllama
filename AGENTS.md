@@ -219,27 +219,28 @@ cmake/              CMake helpers
 
 Load-bearing headers agents usually touch:
 
-| Header                               | Role                                                         |
-| ------------------------------------ | ------------------------------------------------------------ |
-| `session.h` / `session_hub.h`        | `Session` API; the one process-wide resident session         |
-| `compute_admission.h`                | Process-wide RAII permit for resource-heavy GUI and API jobs |
-| `debug_dashboard.h`                  | Optional debug dashboard snapshot (real readings)            |
-| `inference_params.h` / `inference.h` | Params, result, `run_inference`                              |
-| `inference_progress.h`               | Prefill/decode progress logs and stall watchdog              |
-| `routing_policy.h`                   | ORT CPU-vs-DML routing and prompt budget                     |
-| `prompt_budget.h`                    | `fit_prompt` and `fit_tool_transcript`                       |
-| `sampling.h`                         | Sampler defaults shared by CLI, bench, GUI, API              |
-| `chat_prompt.h`                      | `ChatFormat` and stop sequences                              |
-| `embedding.h`                        | Embedding params and pooling trim                            |
-| `api_pull_policy.h`                  | Trusted catalogue pulls and API pull admission               |
-| `withdrawn_models.h`                 | Catalogue ids that must not be downloadable                  |
-| `model_write.h`                      | Shared writer ownership before model mutation                |
-| `api_policy.h`                       | Classifies a tool proposal; does not execute tools           |
-| `training.h` / `device_train.h`      | Job validation and Lane B device train                       |
-| `personalize.h`                      | In-app personalize helpers                                   |
-| `json_utils.h`                       | JSON escape / parse (header-only)                            |
-| `stability_attribution.h`            | Image-dialog Stability §IV.a credit predicate                |
-| `catalog_trust.h`                    | UWP-only catalogue signature types                           |
+| Header                               | Role                                                           |
+| ------------------------------------ | -------------------------------------------------------------- |
+| `session.h` / `session_hub.h`        | `Session` API; the one process-wide resident session           |
+| `compute_admission.h`                | Process-wide RAII permit for resource-heavy GUI and API jobs   |
+| `api_connection.h`                   | Bounded LAN slots and HTTP 200/503 mapping for a compute admit |
+| `debug_dashboard.h`                  | Optional debug dashboard snapshot (real readings)              |
+| `inference_params.h` / `inference.h` | Params, result, `run_inference`                                |
+| `inference_progress.h`               | Prefill/decode progress logs and stall watchdog                |
+| `routing_policy.h`                   | ORT CPU-vs-DML routing and prompt budget                       |
+| `prompt_budget.h`                    | `fit_prompt` and `fit_tool_transcript`                         |
+| `sampling.h`                         | Sampler defaults shared by CLI, bench, GUI, API                |
+| `chat_prompt.h`                      | `ChatFormat` and stop sequences                                |
+| `embedding.h`                        | Embedding params and pooling trim                              |
+| `api_pull_policy.h`                  | Trusted catalogue pulls and API pull admission                 |
+| `withdrawn_models.h`                 | Catalogue ids that must not be downloadable                    |
+| `model_write.h`                      | Shared writer ownership before model mutation                  |
+| `api_policy.h`                       | Classifies a tool proposal; does not execute tools             |
+| `training.h` / `device_train.h`      | Job validation and Lane B device train                         |
+| `personalize.h`                      | In-app personalize helpers                                     |
+| `json_utils.h`                       | JSON escape / parse (header-only)                              |
+| `stability_attribution.h`            | Image-dialog Stability §IV.a credit predicate                  |
+| `catalog_trust.h`                    | UWP-only catalogue signature types                             |
 
 Sampler chains are not headers under `include/`: `src/bridge/sampler_chain.h`
 (llama.cpp) and `src/bridge/ort_sampling.h` (ORT). Decode loops are

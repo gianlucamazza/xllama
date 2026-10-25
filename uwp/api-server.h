@@ -45,8 +45,9 @@ ServerStatus server_status();
 //
 // Port: LocalState\api-port.txt if present, else 11434 (Ollama default port).
 // Protocol subset (v1): POST /v1/chat/completions (non-streaming), GET / health.
-// Concurrency: a single shared Session serialized by a mutex; concurrent
-// requests get HTTP 503 (Ollama single-slot semantics).
+// Concurrency: ConnectionReceived only queues a bounded thread-pool work item
+// so a second LAN request can observe 503 while a streamed reply holds the
+// process-wide compute permit (ADR 0008).
 void run_server();
 
 // Process-wide record of inference traffic (in-flight request, counters, last

@@ -12,8 +12,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   device training, startup pre-load and post-pull model loading. API requests
   receive the existing busy response while the slot is occupied (streaming pulls
   emit an error event); a streamed chat reply keeps the permit until the last
-  SSE event. Startup pre-load retains its bounded first-request wait for the API
-  and the first GUI send.
+  SSE event, including when the client disconnects mid-stream. The LAN listener
+  dispatches each connection off `ConnectionReceived` so a second LAN request
+  can observe 503 while the first is still streaming. Startup pre-load retains
+  its bounded first-request wait for the API and the first GUI send.
 
 - **Image dialog:** a static "Powered by Stability AI" caption at the bottom
   of the dialog's settings when the image model is Stability-licensed (today:
