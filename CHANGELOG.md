@@ -7,6 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.0] - TBD
+
+User-facing notes: [docs/releases/v1.7.0.md](docs/releases/v1.7.0.md). The
+date is left `TBD` for the release owner. This notes cut does not change
+package version numbers or the llama.cpp pin (`d812350`).
+
+GGUF GPU decode is on by default for LFM2.5-1.2B, Qwen2.5-Coder-3B is
+withdrawn from the model list, the LAN API can stream chat tokens, and public
+docs are rewritten for a Developer Mode launch.
+
+- **Docs:** user-facing 1.7.0 notes in `docs/releases/v1.7.0.md`.
+
 - **GUI and LAN API share compute admission** (proposed [ADR 0008](docs/adr/0008-process-compute-admission.md),
   audit F08). A process-wide RAII permit serializes chat, embeddings, diffusion,
   device training, startup pre-load and post-pull model loading. API requests
