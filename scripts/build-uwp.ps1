@@ -44,7 +44,7 @@ param(
     [int]$BuildRevision     = $(if ($env:GITHUB_RUN_NUMBER) { [int]$env:GITHUB_RUN_NUMBER } else { 0 }),
     # Store SKU: XLLAMA_STORE_SKU — no LAN API, no USB models, no headless flags;
     # AppxManifest.store.xml (internetClient only). Dev Mode remains the default.
-    # See docs/store-readiness.md. Still test-signed (Partner Center identity later).
+    # See docs/release-readiness.md. Still test-signed.
     [switch]$StoreSku       = $false
 )
 

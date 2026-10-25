@@ -13,7 +13,7 @@
          - removableStorage (USB models)
        Identity remains the local test identity until Partner Center reserves
        a Store publisher; do not point shipping Dev Mode users at this file.
-       SSOT: docs/store-readiness.md -->
+       SSOT: docs/release-readiness.md -->
   <!-- Version: Major.Minor.Build is the semantic version (bump manually per
        release, alongside CHANGELOG). The Revision (the trailing .0) is stamped
        automatically in CI to the workflow run number (build-uwp.ps1

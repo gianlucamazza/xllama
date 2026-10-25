@@ -2,7 +2,7 @@
 
 What xllama is for, and what it does not claim. Structure lives in
 [architecture.md](architecture.md); numbers in [benchmarks.md](benchmarks.md);
-Store status in [store-readiness.md](store-readiness.md); LAN protocol in
+Release status in [release-readiness.md](release-readiness.md); LAN protocol in
 [api-endpoint.md](api-endpoint.md).
 
 ## Thesis
@@ -26,8 +26,7 @@ exercised without a game runtime. It is not the product thesis.
 
 ## Honest limits
 
-- **Dev Mode only.** Sideload on a developer-unlocked console. There is no
-  retail Store path yet (a Partner Center reservation is not certification).
+- **Dev Mode only.** Sideload on a developer-unlocked console.
 - **Not Microsoft-affiliated.** Independent research. Microsoft-published
   runtimes (UWP, DirectML, ORT) are used as any third party would.
 - **Not an Xbox / GDK game SDK.** No AAA drop-in plugin, no ID@Xbox, no

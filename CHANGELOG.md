@@ -12,6 +12,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   no repo checkout or `xbox-env` file. The `deploy.sh` path remains as
   the command-line install. The browser steps follow Microsoft's
   documentation and have not yet been walked end to end on a console.
+- Public docs no longer include a Partner Center reservation or Store ID.
 
 - **Docs:** "Store catalogue" wording replaced with "signed model catalogue" /
   "built-in model list"; `/api/pull` described as a download from the built-in
@@ -385,14 +386,11 @@ console gates.
 - **`validate-console.sh store`** — Store SKU smoke (catalogue download + GGUF
   chat + `set_api` reject). Not one of the 10 Dev Mode hardware gates. **PASS**
   2026-08-21 on CI Store SKU `1.5.5.928` (Game); Dev SKU restored after.
-- **Store Phase 2 pack:** EN listing copy, IARC prep sheet, Partner Center
-  operator steps (`docs/store-readiness.md`); GitHub Pages privacy URL
+- **Store Phase 2 pack:** EN listing copy, age notes, and operator
+  steps (`docs/release-readiness.md`); GitHub Pages privacy URL
   `https://gianlucamazza.github.io/xllama/privacy.html`; Settings link + Issues
   template to report inappropriate generated content (Store policy 11.16).
-  Product **xllama** reserved in Partner Center as **Game** (`9N9661XSDBM4`;
-  identity §13). An App reservation (`9NCNLPWFT6B5`) was deleted the same day.
-  Dev Mode identity unchanged. Submission fill sheet (pricing, IARC GenAI,
-  Creators, packages hold) in `docs/store-readiness.md` §14.
+  The Partner Center reservation and Store ID were removed from public docs. Dev Mode identity unchanged. Public description and age / generative-AI notes in `docs/release-readiness.md` §9/§11.
 - **`include/xllama/json_utils.h`** — header-only JSON string helpers:
   `json_escape()` (canonical) and `json_read_string()` with full `\uXXXX`
   decode (including surrogate pairs → UTF-8). Replaces 7 duplicated

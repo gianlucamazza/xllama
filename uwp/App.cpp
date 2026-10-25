@@ -244,7 +244,7 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
         // created. diffuse-inproc.flag runs the diffusion pipeline on a
         // background MTA thread INSIDE the XAML process to test exactly that.
         // Consumed before the run, same semantics as the headless flags.
-        // Store SKU: research flags omitted (docs/store-readiness.md).
+        // Store SKU: research flags omitted (docs/release-readiness.md).
         std::wstring inproc = flag_path_if_present(L"diffuse-inproc.flag");
         if (!inproc.empty()) {
             _wremove(inproc.c_str());
