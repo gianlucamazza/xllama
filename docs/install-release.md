@@ -109,8 +109,8 @@ then select:
 2. **Framework dependency**: `Microsoft.VCLibs.x64.14.00.appx`, when the
    dialog asks for dependency or framework packages.
 3. **Certificate**: `xllama-test.cer`, if the dialog has a certificate
-   field. The command-line path installs this certificate before every app
-   install ([device-portal.md](./device-portal.md)). Whether the browser
+   field. The command-line path installs this certificate before the app
+   (`./scripts/deploy.sh install-cert xllama-test.cer`). Whether the browser
    install needs it has not been checked; if the install is refused as
    untrusted, use [Install from the command line](#install-from-the-command-line).
 
