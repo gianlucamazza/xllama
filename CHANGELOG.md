@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Image dialog:** a static "Powered by Stability AI" caption at the bottom
+  of the dialog's settings when the image model is Stability-licensed (today:
+  SD-Turbo, the only image model). The helper checks a licence string first
+  (the catalogue has no licence field yet, so it is unused today), otherwise
+  the `sd-turbo` model-id family. The line is a licence credit, not a
+  partnership or endorsement claim.
+
 - **Qwen2.5-Coder-3B withdrawn from the catalogue.** The 3B Instruct weights
   are under the
   [Qwen Research License (non-commercial)](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE)

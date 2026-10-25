@@ -237,6 +237,7 @@ Load-bearing headers agents usually touch:
 | `training.h` / `device_train.h`      | Job validation and Lane B device train               |
 | `personalize.h`                      | In-app personalize helpers                           |
 | `json_utils.h`                       | JSON escape / parse (header-only)                    |
+| `stability_attribution.h`            | Image-dialog Stability §IV.a credit predicate        |
 | `catalog_trust.h`                    | UWP-only catalogue signature types                   |
 
 Sampler chains are not headers under `include/`: `src/bridge/sampler_chain.h`

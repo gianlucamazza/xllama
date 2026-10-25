@@ -59,6 +59,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `autopilot.h`                      | `AutopilotAction`, `validate_autopilot_script` — console gate contract (WinRT-free)                                                            |
 | `json_utils.h`                     | `json_escape`, `json_read_string` with `\uXXXX` decode (surrogate pairs) — canonical JSON helpers                                              |
 | `cancel_policy.h`                  | `CancelTarget` + `cancel_target()` — which running job a cancel request targets                                                                |
+| `stability_attribution.h`          | Image-dialog §IV.a credit: `kStabilityAttribution`, `show_stability_attribution` (licence, else `sd-turbo` id family)                          |
 | `kv_store.h`                       | `KvStore` — on-disk KV snapshot pool (3 files / 192 MB, LRU, fingerprinted)                                                                    |
 | `logit_dump.h`                     | Logit-parity harness: portable float32 dump + JSON sidecar, shared by both backends                                                            |
 | `ramceil.h`                        | `probe_ram_ceiling` — heap ceiling probe (commits in steps, records platform counters)                                                         |
@@ -673,57 +674,58 @@ host Release smoke (quality + peak)
 ## Unit test map (host suite)
 
 One doctest binary, `xllama-tests`, built from `tests/test_*.cpp`. The suite
-is **360 test cases / 33357 assertions** (doctest, without opt-in model checks).
+is **366 test cases / 33377 assertions** (doctest, without opt-in model checks).
 Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 (`llama_raii.h`, `ort_raii.h`, `d3d12_dyn.h`, `catalog_trust.h`).
 
-| Test file                     | Under test                                                                                  |
-| ----------------------------- | ------------------------------------------------------------------------------------------- |
-| `test_api_activity.cpp`       | `api_activity.h`                                                                            |
-| `test_debug_dashboard.cpp`    | `debug_dashboard.h`                                                                         |
-| `test_api_config.cpp`         | LAN API config validation (`uwp/api-server.h`)                                              |
-| `test_api_policy.cpp`         | `api_policy.h` numeric admission (F01)                                                      |
-| `test_api_pull.cpp`           | `api_pull_policy.h`, `withdrawn_models.h`                                                   |
-| `test_autopilot.cpp`          | `autopilot.h`                                                                               |
-| `test_bench.cpp`              | bench CSV (`inference.h`), `platform.h`                                                     |
-| `test_cancel_policy.cpp`      | `cancel_policy.h`                                                                           |
-| `test_capture_probe.cpp`      | `capture_probe.h`                                                                           |
-| `test_chat_history.cpp`       | `uwp/chat-history.h`                                                                        |
-| `test_chat_prompt.cpp`        | `chat_prompt.h`                                                                             |
-| `test_cli.cpp`                | `cli.h`                                                                                     |
-| `test_decode_loop.cpp`        | `decode_loop.h` via `run_inference` (opt-in model)                                          |
-| `test_inference_progress.cpp` | `inference_progress.h` cadence, stall policy, watchdog                                      |
-| `test_device_train.cpp`       | `device_train.h`                                                                            |
-| `test_diffusion.cpp`          | `diffusion/`                                                                                |
-| `test_diskbw.cpp`             | `diskbw.h`                                                                                  |
-| `test_embedding.cpp`          | `embedding.h`                                                                               |
-| `test_ggml_d3d12.cpp`         | `ggml_d3d12.h`, `src/bridge/llama_gpu.h`                                                    |
-| `test_gpubw.cpp`              | `gpubw.h`                                                                                   |
-| `test_gpugemv.cpp`            | `gpugemv.h`                                                                                 |
-| `test_gpustep.cpp`            | `gpustep.h`                                                                                 |
-| `test_http_framing.cpp`       | `http_framing.h`                                                                            |
-| `test_json_utils.cpp`         | `json_utils.h`                                                                              |
-| `test_kv_store.cpp`           | `kv_store.h`                                                                                |
-| `test_logit_parity.cpp`       | `logit_dump.h` (opt-in model)                                                               |
-| `test_manifest_merge.cpp`     | `manifest_merge.h`, `withdrawn_models.h`                                                    |
-| `test_membw.cpp`              | `membw.h`                                                                                   |
-| `test_model_provision.cpp`    | `model_provision.h`                                                                         |
-| `test_model_write.cpp`        | `model_write.h`                                                                             |
-| `test_path.cpp`               | `path_utils.h`                                                                              |
-| `test_personalize.cpp`        | `personalize.h`                                                                             |
-| `test_preference_capture.cpp` | `preference_capture.h`                                                                      |
-| `test_prompt_budget.cpp`      | `prompt_budget.h`                                                                           |
-| `test_ramceil.cpp`            | `ramceil.h`                                                                                 |
-| `test_routing_policy.cpp`     | `routing_policy.h`                                                                          |
-| `test_sampling.cpp`           | `sampling.h` (CLI/Session parity opt-in)                                                    |
-| `test_session.cpp`            | `session.h`, `session_hub.h`                                                                |
-| `test_session_spec.cpp`       | `session_spec.h`, hub reuse rule                                                            |
-| `test_speculative.cpp`        | `speculative.h`                                                                             |
-| `test_sse.cpp`                | `sse.h` framing and UTF-8 boundaries                                                        |
-| `test_stop_filter.cpp`        | `stop_sequence_filter.h` parity with `apply_stop_sequences`                                 |
-| `test_tool_proposal.cpp`      | `api_policy.h`, `tool_request.h`, `tool_transcript.h`, `prompt_budget.h`, `tool_template.h` |
-| `test_training.cpp`           | `training.h` / `training_params.h`                                                          |
-| `test_utf8.cpp`               | `utf8_utils.h`                                                                              |
+| Test file                        | Under test                                                                                  |
+| -------------------------------- | ------------------------------------------------------------------------------------------- |
+| `test_api_activity.cpp`          | `api_activity.h`                                                                            |
+| `test_debug_dashboard.cpp`       | `debug_dashboard.h`                                                                         |
+| `test_api_config.cpp`            | LAN API config validation (`uwp/api-server.h`)                                              |
+| `test_api_policy.cpp`            | `api_policy.h` numeric admission (F01)                                                      |
+| `test_api_pull.cpp`              | `api_pull_policy.h`, `withdrawn_models.h`                                                   |
+| `test_autopilot.cpp`             | `autopilot.h`                                                                               |
+| `test_bench.cpp`                 | bench CSV (`inference.h`), `platform.h`                                                     |
+| `test_cancel_policy.cpp`         | `cancel_policy.h`                                                                           |
+| `test_capture_probe.cpp`         | `capture_probe.h`                                                                           |
+| `test_chat_history.cpp`          | `uwp/chat-history.h`                                                                        |
+| `test_chat_prompt.cpp`           | `chat_prompt.h`                                                                             |
+| `test_cli.cpp`                   | `cli.h`                                                                                     |
+| `test_decode_loop.cpp`           | `decode_loop.h` via `run_inference` (opt-in model)                                          |
+| `test_inference_progress.cpp`    | `inference_progress.h` cadence, stall policy, watchdog                                      |
+| `test_device_train.cpp`          | `device_train.h`                                                                            |
+| `test_diffusion.cpp`             | `diffusion/`                                                                                |
+| `test_diskbw.cpp`                | `diskbw.h`                                                                                  |
+| `test_embedding.cpp`             | `embedding.h`                                                                               |
+| `test_ggml_d3d12.cpp`            | `ggml_d3d12.h`, `src/bridge/llama_gpu.h`                                                    |
+| `test_gpubw.cpp`                 | `gpubw.h`                                                                                   |
+| `test_gpugemv.cpp`               | `gpugemv.h`                                                                                 |
+| `test_gpustep.cpp`               | `gpustep.h`                                                                                 |
+| `test_http_framing.cpp`          | `http_framing.h`                                                                            |
+| `test_json_utils.cpp`            | `json_utils.h`                                                                              |
+| `test_kv_store.cpp`              | `kv_store.h`                                                                                |
+| `test_logit_parity.cpp`          | `logit_dump.h` (opt-in model)                                                               |
+| `test_manifest_merge.cpp`        | `manifest_merge.h`, `withdrawn_models.h`                                                    |
+| `test_membw.cpp`                 | `membw.h`                                                                                   |
+| `test_model_provision.cpp`       | `model_provision.h`                                                                         |
+| `test_model_write.cpp`           | `model_write.h`                                                                             |
+| `test_path.cpp`                  | `path_utils.h`                                                                              |
+| `test_personalize.cpp`           | `personalize.h`                                                                             |
+| `test_preference_capture.cpp`    | `preference_capture.h`                                                                      |
+| `test_prompt_budget.cpp`         | `prompt_budget.h`                                                                           |
+| `test_ramceil.cpp`               | `ramceil.h`                                                                                 |
+| `test_routing_policy.cpp`        | `routing_policy.h`                                                                          |
+| `test_sampling.cpp`              | `sampling.h` (CLI/Session parity opt-in)                                                    |
+| `test_session.cpp`               | `session.h`, `session_hub.h`                                                                |
+| `test_session_spec.cpp`          | `session_spec.h`, hub reuse rule                                                            |
+| `test_speculative.cpp`           | `speculative.h`                                                                             |
+| `test_sse.cpp`                   | `sse.h` framing and UTF-8 boundaries                                                        |
+| `test_stability_attribution.cpp` | `stability_attribution.h`                                                                   |
+| `test_stop_filter.cpp`           | `stop_sequence_filter.h` parity with `apply_stop_sequences`                                 |
+| `test_tool_proposal.cpp`         | `api_policy.h`, `tool_request.h`, `tool_transcript.h`, `prompt_budget.h`, `tool_template.h` |
+| `test_training.cpp`              | `training.h` / `training_params.h`                                                          |
+| `test_utf8.cpp`                  | `utf8_utils.h`                                                                              |
 
 ## UWP headless flag registry
 

@@ -17,6 +17,7 @@ add_executable(xllama-tests
     test_kv_store.cpp
     test_chat_history.cpp
     test_diffusion.cpp
+    test_stability_attribution.cpp
     test_routing_policy.cpp
     test_cancel_policy.cpp
     test_sampling.cpp

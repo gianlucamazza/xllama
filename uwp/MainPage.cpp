@@ -25,6 +25,7 @@
     #include "xllama/preference_capture.h"
     #include "xllama/prompt_budget.h"
     #include "xllama/routing_policy.h"
+    #include "xllama/stability_attribution.h"
     #include "xllama/training.h"
     #include "xllama/utf8_utils.h"
 
@@ -2398,6 +2399,20 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
               L"status bar; press Cancel to abort between UNet steps.");
     panel.Children().Append(note);
 
+    // The Image dialog currently always generates with sd-turbo-fp16. The
+    // helper still keys off licence-then-id so a future non-Stability image
+    // model can hide the line without a second UI change. See
+    // stability_attribution.h for the mapping.
+    constexpr const wchar_t* kDiffusionModel = L"sd-turbo-fp16";
+    if (::xllama::show_stability_attribution(
+            ::xllama::wstring_to_utf8(std::wstring(kDiffusionModel)))) {
+        winrt::Windows::UI::Xaml::Controls::TextBlock credit;
+        credit.TextWrapping(TextWrapping::Wrap);
+        credit.Opacity(0.7);
+        credit.Text(::xllama::utf8_to_wstring(std::string(::xllama::kStabilityAttribution)));
+        panel.Children().Append(credit);
+    }
+
     winrt::Windows::UI::Xaml::Controls::ScrollViewer sv;
     sv.Content(panel);
     sv.MaxHeight(480);
@@ -2433,7 +2448,6 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
 
     // Ensure the diffusion model is present; download it from the catalogue if
     // missing (kind "diffusion" entries never reach the chat picker).
-    constexpr const wchar_t* kDiffusionModel = L"sd-turbo-fp16";
     constexpr const wchar_t* kTaesdVaeRemote = L"sd-turbo-fp16_taesd_vae_decoder_model.onnx";
     constexpr const wchar_t* kTaesdLicenseRemote = L"sd-turbo-fp16_taesd_LICENSE";
     constexpr const wchar_t* kTaesdLicenseSha256 =

@@ -208,7 +208,10 @@ a model switch pays only prompt reading + generation.
 
 ## Image generation (`[*]`)
 
-Image generation uses SD-Turbo. **Powered by Stability AI.**
+Image generation uses SD-Turbo. **Powered by Stability AI.** The Image dialog
+also shows that line as plain text at the bottom of its settings, above
+**Generate**, whenever the image model is Stability-licensed (today the only
+image model, `sd-turbo-fp16`).
 
 The dialog shows the last generated image and seed (if any), a prompt box, a
 **Steps** slider (1–4; SD-Turbo needs 1), a **Seed** field (`0` = random), and an
