@@ -2498,8 +2498,8 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
                 co_return;
             }
             std::vector<::xllama::ModelFile> taesd_vae{
-                {L"vae_decoder/model.onnx", kTaesdVaeRemote, 5'000'000},
                 {L"TAESD_LICENSE", kTaesdLicenseRemote, 1073, kTaesdLicenseSha256},
+                {L"vae_decoder/model.onnx", kTaesdVaeRemote, 5'000'000},
             };
             self->SetStatus(L"Downloading TAESD VAE (~5 MB)...", StatusKind::Working);
             self->m_loadingBar.IsIndeterminate(false);

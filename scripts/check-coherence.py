@@ -95,11 +95,14 @@ def main() -> int:
     if set(hosted) != expect_hosted:
         err(f"models-v1 catalogue set {sorted(hosted)} != {sorted(expect_hosted)}")
     for name in hosted:
-        files = {f.get("filename"): f for f in cat[name].get("files", [])}
+        file_list = cat[name].get("files", [])
+        files = {f.get("filename"): f for f in file_list}
         lic = files.get("LICENSE")
         if not lic:
             err(f"manifest {name} missing LICENSE files[] entry")
             continue
+        if not file_list or file_list[0].get("filename") != "LICENSE":
+            err(f"manifest {name} LICENSE must be first in files[]")
         sha = lic.get("sha256") or ""
         if sha not in license_by_sha:
             err(f"manifest {name} LICENSE sha256 not in LICENSES/")
@@ -112,6 +115,8 @@ def main() -> int:
                 err("manifest sd-turbo-fp16 missing NOTICE files[] entry")
             elif (notice.get("sha256") or "") not in license_by_sha:
                 err("manifest sd-turbo-fp16 NOTICE sha256 not in LICENSES/")
+            elif len(file_list) < 2 or file_list[1].get("filename") != "NOTICE":
+                err("manifest sd-turbo-fp16 NOTICE must follow LICENSE in files[]")
     if hosted and license_by_sha:
         good("models-v1 licence files pinned to LICENSES/")
 
@@ -123,7 +128,13 @@ def main() -> int:
         if "sd-turbo-fp16_taesd_LICENSE" not in mp or taesd_sha not in mp:
             err("MainPage.cpp TAESD overlay missing pinned MIT licence download")
         else:
-            good("TAESD overlay downloads pinned MIT licence")
+            taesd_init = mp.find("taesd_vae{")
+            lic_pos = mp.find("TAESD_LICENSE", taesd_init)
+            vae_pos = mp.find("vae_decoder/model.onnx", taesd_init)
+            if taesd_init < 0 or lic_pos < 0 or vae_pos < 0 or lic_pos > vae_pos:
+                err("MainPage.cpp TAESD overlay must fetch MIT licence before the VAE")
+            else:
+                good("TAESD overlay downloads pinned MIT licence")
     m = re.search(r"DefaultChatModelId\(\).*?return L\"([^\"]+)\"", mp, re.S)
     if not m:
         err("DefaultChatModelId not found")

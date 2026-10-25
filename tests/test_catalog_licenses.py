@@ -63,6 +63,13 @@ class CatalogLicensePairingTests(unittest.TestCase):
             with self.subTest(model=name):
                 entry = self.cat[name]
                 self.assertEqual(entry.get("hf_base_url"), MODELS_V1)
+                listed = [f.get("filename") for f in entry.get("files", [])]
+                want_first = [filename for filename, _, _ in files]
+                self.assertEqual(
+                    listed[: len(want_first)],
+                    want_first,
+                    f"{name} licence files must come first in files[]",
+                )
                 for filename, license_name, remote in files:
                     committed = LICENSES / license_name
                     self.assertTrue(committed.is_file(), f"missing {committed}")
@@ -107,6 +114,13 @@ class CatalogLicensePairingTests(unittest.TestCase):
         self.assertIn("TAESD_LICENSE", text)
         # Pin is a named constant above the ModelFile list (LFM-style sha256).
         self.assertIn("kTaesdLicenseSha256", text)
+        init = text.find("taesd_vae{")
+        self.assertGreater(init, 0)
+        self.assertLess(
+            text.find("TAESD_LICENSE", init),
+            text.find("vae_decoder/model.onnx", init),
+            "TAESD MIT licence must download before the VAE overlay",
+        )
 
 
 if __name__ == "__main__":

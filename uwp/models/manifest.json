@@ -7,6 +7,12 @@
       "hf_base_url": "https://github.com/gianlucamazza/xllama/releases/download/models-v1",
       "files": [
         {
+          "filename": "LICENSE",
+          "remote": "smollm2-360m-cpu-int4_LICENSE",
+          "approx_bytes": 11357,
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        },
+        {
           "filename": "genai_config.json",
           "approx_bytes": 1500,
           "sha256": "02b0e86449641989ab0bd9598a14f863d7c0281a9fcc3bf06767cb5b409e5a82"
@@ -25,12 +31,6 @@
           "filename": "model.onnx",
           "approx_bytes": 417404408,
           "sha256": "22496ba7ca4a796be916055e1fe995d6c506d77db05e05d16857722e711a0eda"
-        },
-        {
-          "filename": "LICENSE",
-          "remote": "smollm2-360m-cpu-int4_LICENSE",
-          "approx_bytes": 11357,
-          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
         }
       ]
     },
@@ -39,6 +39,12 @@
       "display": "SmolLM2 360M (GPU fp16)",
       "hf_base_url": "https://github.com/gianlucamazza/xllama/releases/download/models-v1",
       "files": [
+        {
+          "filename": "LICENSE",
+          "remote": "smollm2-360m-dml-fp16-v2_LICENSE",
+          "approx_bytes": 11357,
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        },
         {
           "filename": "genai_config.json",
           "remote": "smollm2-360m-dml-fp16-v2_genai_config.json",
@@ -62,12 +68,6 @@
           "remote": "smollm2-360m-dml-fp16-v2_model.onnx",
           "approx_bytes": 725021421,
           "sha256": "c417dda34ebf9c0c4ab9f0057c0841121581296789f8fa156f2899195434133f"
-        },
-        {
-          "filename": "LICENSE",
-          "remote": "smollm2-360m-dml-fp16-v2_LICENSE",
-          "approx_bytes": 11357,
-          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
         }
       ]
     },
@@ -76,6 +76,12 @@
       "display": "SmolLM2 1.7B (CPU int4)",
       "hf_base_url": "https://github.com/gianlucamazza/xllama/releases/download/models-v1",
       "files": [
+        {
+          "filename": "LICENSE",
+          "remote": "smollm2-1.7b-cpu-int4_LICENSE",
+          "approx_bytes": 11357,
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        },
         {
           "filename": "genai_config.json",
           "remote": "smollm2-1.7b-cpu-int4_genai_config.json",
@@ -99,12 +105,6 @@
           "remote": "smollm2-1.7b-cpu-int4_model.onnx",
           "approx_bytes": 1474861442,
           "sha256": "8b46fe437133f584ddab2443f92cf60e531d17318a81a3c99e5e0993f6e7020e"
-        },
-        {
-          "filename": "LICENSE",
-          "remote": "smollm2-1.7b-cpu-int4_LICENSE",
-          "approx_bytes": 11357,
-          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
         }
       ]
     },
@@ -116,15 +116,15 @@
       "hf_base_url": "https://github.com/gianlucamazza/xllama/releases/download/models-v1",
       "files": [
         {
-          "filename": "Qwen3.5-0.8B-Q4_K_M.gguf",
-          "approx_bytes": 532517120,
-          "sha256": "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517"
-        },
-        {
           "filename": "LICENSE",
           "remote": "qwen35-0.8b_LICENSE",
           "approx_bytes": 11544,
           "sha256": "bbedc3fda3305820b977265f01b8619d87570a6739de3a5582c3464840f1e57a"
+        },
+        {
+          "filename": "Qwen3.5-0.8B-Q4_K_M.gguf",
+          "approx_bytes": 532517120,
+          "sha256": "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517"
         }
       ]
     },
@@ -368,6 +368,18 @@
       "hf_base_url": "https://github.com/gianlucamazza/xllama/releases/download/models-v1",
       "files": [
         {
+          "filename": "LICENSE",
+          "remote": "sd-turbo-fp16_LICENSE",
+          "approx_bytes": 11852,
+          "sha256": "d6f6b1a4dce5c852bd6d7d9482d002baf0ccdb71e662250b73be9eec8764ee8d"
+        },
+        {
+          "filename": "NOTICE",
+          "remote": "sd-turbo-fp16_NOTICE",
+          "approx_bytes": 130,
+          "sha256": "793f69fbe0a0bc6fdccdbc653a462233d58962860773a7793885d8a388598472"
+        },
+        {
           "filename": "text_encoder/model.onnx",
           "remote": "sd-turbo-fp16_text_encoder_model.onnx",
           "approx_bytes": 681657392,
@@ -396,18 +408,6 @@
           "remote": "sd-turbo-fp16_tokenizer_merges.txt",
           "approx_bytes": 524619,
           "sha256": "9fd691f7c8039210e0fced15865466c65820d09b63988b0174bfe25de299051a"
-        },
-        {
-          "filename": "LICENSE",
-          "remote": "sd-turbo-fp16_LICENSE",
-          "approx_bytes": 11852,
-          "sha256": "d6f6b1a4dce5c852bd6d7d9482d002baf0ccdb71e662250b73be9eec8764ee8d"
-        },
-        {
-          "filename": "NOTICE",
-          "remote": "sd-turbo-fp16_NOTICE",
-          "approx_bytes": 130,
-          "sha256": "793f69fbe0a0bc6fdccdbc653a462233d58962860773a7793885d8a388598472"
         }
       ]
     },
