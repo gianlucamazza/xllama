@@ -396,8 +396,6 @@ SD-Turbo: This Stability AI Model is licensed under the Stability AI Community
 License, Copyright © Stability AI Ltd. All Rights Reserved. Powered by Stability
 AI.
 
-Image generation uses SD-Turbo. **Powered by Stability AI.**
-
 ### TAESD — a faster diffusion VAE decoder
 
 `madebyollin/taesd` (MIT) is a **4.9 MB** tiny autoencoder that drop-in replaces
