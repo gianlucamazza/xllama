@@ -1,21 +1,21 @@
 # Install a release build on your Xbox
 
 Install a tagged app release or a specific CI MSVC package on an Xbox in
-Dev Mode. Tested and measured on Series S. Not yet tested on Series X.
+Developer Mode. Tested and measured on Series S. Not yet tested on Series X.
 The 2026-09-28 app release is
 [v1.6.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.6.0.0).
 Its release notes identify the exact CI package and release validation results.
 The [releases page](https://github.com/gianlucamazza/xllama/releases) also contains
 research tags, which can be newer without containing an app MSIX.
 
-Two install paths: a browser-only Device Portal flow (no repo checkout, no
+Two install paths: Device Portal in a browser (no repo checkout, no
 credentials file), or the command-line `deploy.sh` path below.
 
 For building from source see the [README](../README.md#quick-install); for Dev
 Mode activation and Device Portal basics see
 [device-portal.md](./device-portal.md).
 
-## Install from a release (browser only)
+## Install from a release in the browser
 
 These Device Portal steps follow Microsoft's documentation and have not yet
 been walked end to end on a console. If something does not match, please
@@ -31,7 +31,7 @@ attaches these files (names from the GitHub Release API):
 
 | Asset                             | What it is                                                                                                                                     |
 | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `xllama_1.6.0.1046_x64.msix`      | The app package (~19 MB, no model inside). The fourth component is the CI run stamp and changes per release.                                   |
+| `xllama_1.6.0.1046_x64.msix`      | The app package (~19 MB, no model inside). The last part of the version number is the CI run stamp and changes with each release.              |
 | `xllama-test.cer`                 | The test signing certificate. **Required** — shipping GitHub releases are test-signed, and Device Portal will not install the MSIX without it. |
 | `Microsoft.VCLibs.x64.14.00.appx` | Visual C++ runtime. **Required** — the MSIX declares `PackageDependency` `Microsoft.VCLibs.140.00`.                                            |
 | `SHA256SUMS`                      | SHA-256 of the files above (and of `release-validation.json`).                                                                                 |
@@ -53,7 +53,7 @@ code, enter it in Partner Center, then switch the console to Developer Mode.
 
 ### 2. Open Device Portal in a browser
 
-In Dev Mode, enable Device Portal from Dev Home and set its username and
+In Developer Mode, enable Device Portal from Dev Home and set its username and
 password. Steps: [device-portal.md](./device-portal.md) and Microsoft's
 [Device Portal for Xbox](https://learn.microsoft.com/en-us/windows/uwp/xbox-apps/device-portal-xbox).
 
@@ -76,6 +76,8 @@ and download:
 
 ### 4. Verify SHA-256
 
+This is the one step that uses a terminal.
+
 Each line of `SHA256SUMS` is `<hash>  <filename>`. Check the MSIX, the
 `.cer`, and the VCLibs `.appx` against that file before installing:
 
@@ -88,29 +90,27 @@ On macOS use `shasum -a 256 -c SHA256SUMS`. If you also downloaded
 
 ### 5. Install via Device Portal
 
-Microsoft's
+In Device Portal, open **Home** and choose **Install** under **My games & apps**.
+Microsoft documents this dialog in
 [Device Portal for Xbox](https://learn.microsoft.com/en-us/windows/uwp/xbox-apps/device-portal-xbox)
-describes Home as listing packages under **My games & apps**. The sideload
-dialog (app package, certificate, optional framework packages) is documented
-in
-[Windows Device Portal overview](https://learn.microsoft.com/en-us/windows/uwp/debug-test-perf/device-portal#install-sideload-an-app).
-Open **Install**. This package needs more than the MSIX:
+and the
+[Windows Device Portal overview](https://learn.microsoft.com/en-us/windows/uwp/debug-test-perf/device-portal#install-sideload-an-app):
+it takes the app package, a certificate, and optional framework packages.
+xllama needs all three:
 
-1. **Certificate** — `xllama-test.cer`. This repo's Device Portal notes say
-   the signing certificate must be trusted on the console before the MSIX
-   will install ([device-portal.md](./device-portal.md)). Microsoft's sideload
-   dialog documents a certificate field; install the `.cer` first if that
-   field is not shown.
-2. **Framework dependency** — `Microsoft.VCLibs.x64.14.00.appx`. Microsoft's
-   dialog documents optional framework packages. Add VCLibs as a dependency
-   in the same dialog, or install it first via **My games & apps → Install**.
+1. **Certificate**: `xllama-test.cer`. The console must trust it before the
+   MSIX will install ([device-portal.md](./device-portal.md)). If the dialog
+   has no certificate field, install the `.cer` first.
+2. **Framework dependency**: `Microsoft.VCLibs.x64.14.00.appx`. Add it as a
+   framework package in the same dialog, or install it first through
+   **My games & apps → Install**.
 3. **App** — the `xllama_*_x64.msix` you verified.
 
 Then start the install.
 
 ### 6. Launch
 
-Launch xllama from Dev Home. First launch is in [First launch](#first-launch).
+Launch xllama from Dev Home. What happens on first launch is in [First launch](#first-launch).
 
 A higher version with the same identity (`GianlucaMazza.xllama`) installs over
 the old one and **preserves** LocalState. Device Portal refuses a same-version
@@ -242,19 +242,19 @@ Known issues:
   must be trusted on the console before deployment
   ([device-portal.md](./device-portal.md)).
 - **Install or first-launch model download fails with `0x80070070` (disk
-  full).** The Dev Mode partition has ~2.2–2.5 GB free by default — remove
-  unused models from LocalState, or raise the Dev Mode allocation (up to
-  90 GB, `uwp-constraints.md §9`).
+  full).** The Developer Mode partition has ~2.2–2.5 GB free by default —
+  remove unused models from LocalState, or raise the Developer Mode
+  allocation (up to 90 GB, `uwp-constraints.md §9`).
 - **Same-version install rejected.** Device Portal refuses a same-version
   package with different contents. Use a higher revision for an in-place
   update ([console-validation-runbook.md](./console-validation-runbook.md)).
-- **Device Portal times out.** A console running a game is unreachable via
-  Device Portal. Use it from Dev Home
-  ([device-portal.md](./device-portal.md) lifecycle gotchas).
+- **Device Portal times out.** Device Portal can't reach a console while a
+  game is running. Go back to Dev Home and try again
+  ([device-portal.md](./device-portal.md), lifecycle gotchas).
 - **Provisioning fails with `"File move failed"`.** LocalState does not
   exist until the app has launched once after a clean install
   ([device-portal.md](./device-portal.md)).
-- **Coming from ≤1.4.x.** 1.5.0.0 changed the package identity
+- **Coming from 1.4.x or earlier.** 1.5.0.0 changed the package identity
   (`VenereLabs.xllama` → `GianlucaMazza.xllama`). It installs as a new app;
   the old LocalState does not carry over. See the command-line notes above.
 - **Measured tok/s look low.** Check **App type** in Dev Home (tile → View

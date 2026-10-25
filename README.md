@@ -33,7 +33,7 @@ with `scripts/capture-demo-video.sh`.
 
 ## Quick install
 
-Browser-only (Device Portal, no credentials file): [Install from a release](docs/install-release.md#install-from-a-release-browser-only).
+Install in the browser (Device Portal, no credentials file): [Install from a release](docs/install-release.md#install-from-a-release-in-the-browser).
 
 ```bash
 # Download release assets or a specific CI artifact first:

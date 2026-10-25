@@ -7,7 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-- **Docs: browser-only install from a GitHub Release.**
+- **Docs: install from a GitHub Release in the browser.**
   `docs/install-release.md` now starts with Device Portal steps that need
   no repo checkout or `xbox-env` file. The `deploy.sh` path remains as
   the command-line install.
