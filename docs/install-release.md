@@ -29,17 +29,17 @@ The latest app release
 ([v1.6.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.6.0.0))
 attaches these files (names from the GitHub Release API):
 
-| Asset                             | What it is                                                                                                                                     |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `xllama_1.6.0.1046_x64.msix`      | The app package (~19 MB, no model inside). The last part of the version number is the CI run stamp and changes with each release.              |
-| `xllama-test.cer`                 | The test signing certificate. **Required** — shipping GitHub releases are test-signed, and Device Portal will not install the MSIX without it. |
-| `Microsoft.VCLibs.x64.14.00.appx` | Visual C++ runtime. **Required** — the MSIX declares `PackageDependency` `Microsoft.VCLibs.140.00`.                                            |
-| `SHA256SUMS`                      | SHA-256 of the files above (and of `release-validation.json`).                                                                                 |
-| `release-validation.json`         | Validation record for that tag. Not needed to install.                                                                                         |
+| Asset                             | What it is                                                                                                                                               |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `xllama_1.6.0.1046_x64.msix`      | The app package (about 20 MB, no model inside). The last part of the version number is the CI run stamp and changes with each release.                   |
+| `xllama-test.cer`                 | The test signing certificate. The command-line path installs it before the MSIX; whether the browser install needs it has not been checked on a console. |
+| `Microsoft.VCLibs.x64.14.00.appx` | Visual C++ runtime. **Required** — the MSIX declares `PackageDependency` `Microsoft.VCLibs.140.00`.                                                      |
+| `SHA256SUMS`                      | SHA-256 of the files above (and of `release-validation.json`).                                                                                           |
+| `release-validation.json`         | Validation record for that tag. Not needed to install; download it so the `SHA256SUMS` check passes.                                                     |
 
-Read the real MSIX name off the release you download. Later app tags keep the
-`xllama_*_x64.msix` pattern and still attach the `.cer`, VCLibs `.appx`, and
-`SHA256SUMS`. Skip `research-v*` tags: they have no app MSIX.
+Read the real MSIX name off the release you download. Later app tags may
+attach different files; check the names on the release you open. Skip
+`research-v*` tags: they have no app MSIX.
 
 ### 1. Enable Developer Mode
 
@@ -53,11 +53,14 @@ code, enter it in Partner Center, then switch the console to Developer Mode.
 
 ### 2. Open Device Portal in a browser
 
-In Developer Mode, enable Device Portal from Dev Home and set its username and
-password. Steps: [device-portal.md](./device-portal.md) and Microsoft's
+In Developer Mode, open Dev Home → **Home** → **Remote Access Settings**,
+check **Enable Xbox Device Portal**, and under **Authentication** choose
+**Set username and password**. Steps: [device-portal.md](./device-portal.md)
+and Microsoft's
 [Device Portal for Xbox](https://learn.microsoft.com/en-us/windows/uwp/xbox-apps/device-portal-xbox).
 
-Open `https://<console-ip>:11443`. Accept the console's self-signed TLS
+Open the URL Dev Home lists under **Remote Access** (it has the form
+`https://<console-ip>:11443`). Accept the console's self-signed TLS
 certificate on first visit, then sign in with those Device Portal credentials.
 The IP is on the Dev Home screen, or under **Settings → Network → Advanced
 settings**.
@@ -73,38 +76,43 @@ and download:
 - `xllama-test.cer`
 - `Microsoft.VCLibs.x64.14.00.appx`
 - `SHA256SUMS`
+- `release-validation.json` (listed in `SHA256SUMS`, so the check below needs it)
 
 ### 4. Verify SHA-256
 
 This is the one step that uses a terminal.
 
-Each line of `SHA256SUMS` is `<hash>  <filename>`. Check the MSIX, the
-`.cer`, and the VCLibs `.appx` against that file before installing:
+Each line of `SHA256SUMS` is `<hash>  <filename>`. Check all four
+downloaded files against it before installing; every line must print `OK`:
 
 ```bash
 sha256sum -c SHA256SUMS
 ```
 
-On macOS use `shasum -a 256 -c SHA256SUMS`. If you also downloaded
-`release-validation.json`, it has a line in `SHA256SUMS` too.
+On macOS use `shasum -a 256 -c SHA256SUMS`.
 
 ### 5. Install via Device Portal
 
-In Device Portal, open **Home** and choose **Install** under **My games & apps**.
-Microsoft documents this dialog in
+Microsoft's
 [Device Portal for Xbox](https://learn.microsoft.com/en-us/windows/uwp/xbox-apps/device-portal-xbox)
-and the
-[Windows Device Portal overview](https://learn.microsoft.com/en-us/windows/uwp/debug-test-perf/device-portal#install-sideload-an-app):
-it takes the app package, a certificate, and optional framework packages.
-xllama needs all three:
+says only that **Home** lists installed packages under **My games & apps**;
+it does not document the install dialog. The
+[Windows Device Portal overview](https://learn.microsoft.com/en-us/windows/uwp/debug-test-perf/device-portal#install-sideload-an-app)
+documents the desktop sideload dialog (app package, certificate file,
+optional and framework packages). The Xbox dialog has not been checked
+against it on a console.
 
-1. **Certificate**: `xllama-test.cer`. The console must trust it before the
-   MSIX will install ([device-portal.md](./device-portal.md)). If the dialog
-   has no certificate field, install the `.cer` first.
-2. **Framework dependency**: `Microsoft.VCLibs.x64.14.00.appx`. Add it as a
-   framework package in the same dialog, or install it first through
-   **My games & apps → Install**.
-3. **App** — the `xllama_*_x64.msix` you verified.
+On **Home**, use the control under **My games & apps** that adds a package,
+then select:
+
+1. **App**: the `xllama_*_x64.msix` you verified.
+2. **Framework dependency**: `Microsoft.VCLibs.x64.14.00.appx`, when the
+   dialog asks for dependency or framework packages.
+3. **Certificate**: `xllama-test.cer`, if the dialog has a certificate
+   field. The command-line path installs this certificate before every app
+   install ([device-portal.md](./device-portal.md)). Whether the browser
+   install needs it has not been checked; if the install is refused as
+   untrusted, use [Install from the command line](#install-from-the-command-line).
 
 Then start the install.
 
@@ -137,7 +145,7 @@ install with different contents. After install, check **App type** in Dev Home
 
 From the GitHub Release page (or `gh release download vX.Y.Z`):
 
-- `xllama_X.Y.Z.REV_x64.msix` — the app (~19 MB, no model inside). The fourth
+- `xllama_X.Y.Z.REV_x64.msix` — the app (about 20 MB, no model inside). The fourth
   component `REV` is the CI run stamp and differs per release; local builds keep
   `.0`. Read the real name off the release page, or let the shell below derive
   it from the file you downloaded.
@@ -237,14 +245,14 @@ Known issues:
 - **Browser warns about the Device Portal certificate.** Expected. The
   console presents a self-signed TLS certificate; accept it on first visit
   ([device-portal.md](./device-portal.md)).
-- **MSIX install is refused or the package is not trusted.** Install
-  `xllama-test.cer` first. Packages must be signed, and that certificate
-  must be trusted on the console before deployment
+- **MSIX install is refused or the package is not trusted.** The console
+  may need to trust `xllama-test.cer` first. The command-line path does
+  this with `./scripts/deploy.sh install-cert xllama-test.cer`
   ([device-portal.md](./device-portal.md)).
 - **Install or first-launch model download fails with `0x80070070` (disk
-  full).** The Developer Mode partition has ~2.2–2.5 GB free by default —
-  remove unused models from LocalState, or raise the Developer Mode
-  allocation (up to 90 GB, `uwp-constraints.md §9`).
+  full).** On Series S the Developer Mode partition had about 2.2–2.5 GB
+  free after activation — remove unused models from LocalState, or raise
+  the Developer Mode allocation (up to 90 GB, `uwp-constraints.md §9`).
 - **Same-version install rejected.** Device Portal refuses a same-version
   package with different contents. Use a higher revision for an in-place
   update ([console-validation-runbook.md](./console-validation-runbook.md)).
