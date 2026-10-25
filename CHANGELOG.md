@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **README first screen** rewritten for public launch: Developer Mode warning,
+  "Tested and measured on Series S. Not yet tested on Series X.", LAN API
+  marked off by default with no authentication, SSE streaming note, receipt
+  links for every benchmark figure, the unreceipted 10 GB RAM and
+  chars-per-token figures removed, and the Microsoft / Meta disclaimer.
+
 - **Docs: install from a GitHub Release in the browser.**
   `docs/install-release.md` now starts with Device Portal steps that need
   no repo checkout or `xbox-env` file. The `deploy.sh` path remains as
