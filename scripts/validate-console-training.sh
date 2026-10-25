@@ -60,9 +60,24 @@ if [[ -n "${XLLAMA_EXPECTED_PFN:-}" && "$PFN" != "$XLLAMA_EXPECTED_PFN" ]]; then
 fi
 
 TMPDIR_LOCAL=$(mktemp -d)
+PRESERVE_TMPDIR=0
+SETTINGS_SAVED="${TMPDIR_LOCAL}/settings-saved.json"
 # shellcheck source=scripts/console-run-log.sh
 source "${SCRIPT_DIR}/console-run-log.sh"
-trap 'rm -rf "$TMPDIR_LOCAL"' EXIT
+
+# shellcheck disable=SC2329 # invoked from the EXIT trap
+training_exit() {
+	local rc="$1"
+	trap - EXIT
+	if ((PRESERVE_TMPDIR)); then
+		echo "  FAIL: settings.json restore incomplete; saved copy retained at ${SETTINGS_SAVED}" >&2
+		rc=1
+	else
+		rm -rf "$TMPDIR_LOCAL"
+	fi
+	exit "$rc"
+}
+trap 'training_exit "$?"' EXIT
 
 _curl_post_file() {
 	local local_path="$1" path_param="$2" filename="${3:-}"
@@ -152,6 +167,7 @@ stop_app() {
 
 run_autopilot() {
 	local timeout_s="${1:-900}" saved="${TMPDIR_LOCAL}/settings-saved.json" rc=0
+	SETTINGS_SAVED="$saved"
 	reset_run_log
 	cat >"${TMPDIR_LOCAL}/autopilot.json"
 	printf 'go' >"${TMPDIR_LOCAL}/autopilot.flag"
@@ -166,9 +182,19 @@ run_autopilot() {
 	upload_file "${TMPDIR_LOCAL}/autopilot.flag" || return 1
 	restart_app || return 1
 	wait_autopilot_done "$timeout_s" || rc=1
-	stop_app || return 1 # it must not rewrite settings.json after the restore
+	# Restore only after a verified stop; a live app can rewrite settings.json.
+	if ! stop_app; then
+		echo "  WARN: stop_app failed after autopilot; settings.json not restored" >&2
+		echo "  WARN: saved settings retained at ${saved}" >&2
+		PRESERVE_TMPDIR=1
+		return 1
+	fi
 	if [[ -s "$saved" ]]; then
-		upload_file "$saved" "" "settings.json" >&2 || echo "  WARN: settings.json not restored" >&2
+		upload_file "$saved" "" "settings.json" >&2 || {
+			echo "  WARN: settings.json not restored; saved copy at ${saved}" >&2
+			PRESERVE_TMPDIR=1
+			return 1
+		}
 	else
 		delete_file "settings.json"
 	fi
@@ -288,7 +314,7 @@ validate_serve() {
 	local serve_model="${SERVE_MODEL:-smollm2-lora-merged}"
 	local chats_before="${TMPDIR_LOCAL}/chats-before.txt"
 	list_chat_ids >"$chats_before"
-	local marker
+	local marker ap_rc=0
 	marker=$(
 		run_autopilot 900 <<JSON
 {"total_timeout_s": 600, "actions": [
@@ -299,9 +325,13 @@ validate_serve() {
   {"op": "quit"}
 ]}
 JSON
-	) || true
+	) || ap_rc=$?
 	echo "  autopilot: ${marker}"
 	local log verdict=0
+	if [[ $ap_rc -ne 0 ]]; then
+		echo "  FAIL: settings.json restore incomplete; saved copy retained" >&2
+		verdict=1
+	fi
 	log=$(fetch_log) || {
 		[[ $uploaded -eq 1 ]] && serve_cleanup "$saved_manifest"
 		return 1
@@ -373,7 +403,7 @@ validate_rate() {
 	[[ "${RATE_SKIP_OP:-0}" == "1" ]] && rate_op=''
 	local before_f="${TMPDIR_LOCAL}/samples-before.jsonl" after_f="${TMPDIR_LOCAL}/samples.jsonl"
 	fetch_samples "$before_f"
-	local marker
+	local marker ap_rc=0
 	marker=$(
 		run_autopilot 600 <<JSON
 {"total_timeout_s": 400, "actions": [
@@ -385,10 +415,14 @@ validate_rate() {
   {"op": "quit"}
 ]}
 JSON
-	) || true
+	) || ap_rc=$?
 	# Note: rate uses "name" key — ApParseScript maps name|text|id|prompt to arg.
 	echo "  autopilot: ${marker}"
 	local log verdict=0
+	if [[ $ap_rc -ne 0 ]]; then
+		echo "  FAIL: settings.json restore incomplete; saved copy retained" >&2
+		verdict=1
+	fi
 	log=$(fetch_log) || return 1
 	[[ "$marker" == "ok" ]] || {
 		echo "  FAIL: autopilot not ok (need MSIX with rate op?)"
@@ -430,7 +464,7 @@ validate_lora_rt() {
 	: >"${TMPDIR_LOCAL}/.complete"
 	upload_file "${TMPDIR_LOCAL}/.complete" "models\\smollm2-lora-rt" ".complete" || return 1
 
-	local marker
+	local marker ap_rc=0
 	marker=$(
 		run_autopilot 900 <<'JSON'
 {"total_timeout_s": 700, "actions": [
@@ -440,9 +474,13 @@ validate_lora_rt() {
   {"op": "quit"}
 ]}
 JSON
-	) || true
+	) || ap_rc=$?
 	echo "  autopilot: ${marker}"
 	local log verdict=0
+	if [[ $ap_rc -ne 0 ]]; then
+		echo "  FAIL: settings.json restore incomplete; saved copy retained" >&2
+		verdict=1
+	fi
 	log=$(fetch_log) || return 1
 	[[ "$marker" == "ok" ]] || {
 		echo "  FAIL: autopilot not ok"

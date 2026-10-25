@@ -264,10 +264,112 @@ exit 0
         self.assertIn(b'full_vae.onnx', files['vae-restored'])
         self.assertNotIn(CID + '.json', files)
 
+    def test_failed_vae_restore_retry_hint_mentions_provision(self):
+        action = r'''
+VAE_RESTORE_PENDING=1
+VAE_CACHE="$TMPDIR_LOCAL/vae-cache"
+mkdir -p "$VAE_CACHE"
+printf 'full' >"$VAE_CACHE/full_vae.onnx"
+upload_file() { return 1; }
+exit 0
+'''
+        result, files, pending, _, exists = self.run_cleanup(action=action, with_exit=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(pending, '')
+        self.assertTrue(exists)
+        self.assertIn('provision-models.sh sd-turbo-fp16', result.stderr)
+        self.assertIn('re-upload', result.stderr)
+        self.assertIn('full_vae.onnx', result.stderr)
+        self.assertNotIn(CID + '.json', files)
+
+    def test_successful_cleanup_retry_removes_original_recovery_dir(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            work, remote, original = base / 'work', base / 'remote', base / 'original'
+            work.mkdir()
+            remote.mkdir()
+            original.mkdir()
+            (remote / 'index.json').write_text(json.dumps(INDEX))
+            (remote / f'{CID}.json').write_text('fixture')
+            (remote / 'user-one.json').write_text('original one')
+            (remote / 'user-two.json').write_text('original two')
+            journal = original / 'chat-cleanup.pending'
+            journal.write_text(CID + '\n')
+            (original / '.xllama-console-recovery').write_text('1\n')
+            mock = base / 'mock.py'
+            mock.write_text(MOCK)
+            env = dict(os.environ, TMPDIR_LOCAL=str(work), REMOTE=str(remote),
+                       MOCK=str(mock), SCRIPT_DIR=str(ROOT / 'scripts'),
+                       FAIL_MODE='', STOP_FAIL='0',
+                       XLLAMA_CHAT_JOURNAL=str(journal))
+            setup = r'''
+set -euo pipefail
+source "$SCRIPT_DIR/console-temp-chats.sh"
+VAE_RESTORE_PENDING=0
+stop_app() { :; }
+_chat_request() { python3 "$MOCK" "$@"; }
+''' + function('console_exit') + r'''
+trap 'console_exit "$?"' EXIT
+cleanup_temp_chats
+'''
+            result = subprocess.run(['bash', '-c', setup], env=env,
+                                    capture_output=True, text=True, timeout=25)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse(original.exists(), result.stderr)
+            self.assertNotIn(CID + '.json', {p.name for p in remote.iterdir()})
+            self.assertEqual(json.loads((remote / 'index.json').read_text()), USERS)
+
+    def test_cleanup_retry_reports_original_dir_without_sentinel(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            work, remote, original = base / 'work', base / 'remote', base / 'original'
+            work.mkdir()
+            remote.mkdir()
+            original.mkdir()
+            (remote / 'index.json').write_text(json.dumps(INDEX))
+            (remote / f'{CID}.json').write_text('fixture')
+            (remote / 'user-one.json').write_text('original one')
+            (remote / 'user-two.json').write_text('original two')
+            journal = original / 'chat-cleanup.pending'
+            journal.write_text(CID + '\n')
+            mock = base / 'mock.py'
+            mock.write_text(MOCK)
+            env = dict(os.environ, TMPDIR_LOCAL=str(work), REMOTE=str(remote),
+                       MOCK=str(mock), SCRIPT_DIR=str(ROOT / 'scripts'),
+                       FAIL_MODE='', STOP_FAIL='0',
+                       XLLAMA_CHAT_JOURNAL=str(journal))
+            setup = r'''
+set -euo pipefail
+source "$SCRIPT_DIR/console-temp-chats.sh"
+VAE_RESTORE_PENDING=0
+stop_app() { :; }
+_chat_request() { python3 "$MOCK" "$@"; }
+''' + function('console_exit') + r'''
+trap 'console_exit "$?"' EXIT
+cleanup_temp_chats
+'''
+            result = subprocess.run(['bash', '-c', setup], env=env,
+                                    capture_output=True, text=True, timeout=25)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(original.exists())
+            self.assertIn(str(journal), result.stderr)
+            self.assertNotIn(CID + '.json', {p.name for p in remote.iterdir()})
+
+
+class UsageTests(unittest.TestCase):
+    def test_header_and_usage_document_cleanup_and_journal(self):
+        text = (ROOT / 'scripts/validate-console.sh').read_text()
+        header = text.split('set -euo pipefail', 1)[0]
+        self.assertIn('cleanup', header)
+        self.assertIn('XLLAMA_CHAT_JOURNAL', header)
+        usage = function('usage')
+        self.assertIn('cleanup', usage)
+        self.assertIn('XLLAMA_CHAT_JOURNAL', usage)
+
 
 class TrainingServeCleanupTests(unittest.TestCase):
     def run_serve(self, stop_fail=False, autopilot_fail=False, skip_upload=False,
-                  log_fail=False):
+                  log_fail=False, autopilot_rc=0):
         """Run the actual serve gate and cleanup against local device fixtures."""
         text = (ROOT / 'scripts/validate-console-training.sh').read_text()
         functions = []
@@ -282,7 +384,8 @@ class TrainingServeCleanupTests(unittest.TestCase):
             (remote / 'manifest.json').write_text('{"models": ["user-model"]}')
             env = dict(os.environ, TMPDIR_LOCAL=tmp, REMOTE=str(remote),
                        STOP_FAIL=str(int(stop_fail)), AP_FAIL=str(int(autopilot_fail)),
-                       SKIP_UPLOAD=str(int(skip_upload)), LOG_FAIL=str(int(log_fail)))
+                       SKIP_UPLOAD=str(int(skip_upload)), LOG_FAIL=str(int(log_fail)),
+                       AP_RC=str(int(autopilot_rc)))
             setup = r'''
 set -euo pipefail
 MERGED="$TMPDIR_LOCAL/merged.gguf"
@@ -312,6 +415,7 @@ run_autopilot() {
     printf '{"messages":[{"content":"xllama secret XLLAMA-LORA-OK"}]}' >"$REMOTE/current.json"
     printf 'GGUF model loaded via llama.cpp\nsession generate: n=1\n' >"$TMPDIR_LOCAL/current.log"
     [[ "$AP_FAIL" == 0 ]] && echo ok || echo 'error: inference failed'
+    return "${AP_RC:-0}"
 }
 fetch_log() {
     [[ "$LOG_FAIL" == 0 ]] || { echo 'original log error' >&2; return 9; }
@@ -363,6 +467,13 @@ fetch_log() {
         self.assertIn('original log error', result.stderr)
         self.assertIn('original stop error', result.stderr)
         self.assertNotIn('Training serve: PASS', result.stdout)
+
+    def test_autopilot_cleanup_failure_fails_serve(self):
+        result, _ = self.run_serve(autopilot_rc=1)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Training serve: FAIL', result.stdout)
+        self.assertNotIn('Training serve: PASS', result.stdout)
+        self.assertIn('settings.json', result.stderr)
 
     def test_skip_upload_does_not_clean_existing_resources(self):
         result, files = self.run_serve(stop_fail=True, skip_upload=True)

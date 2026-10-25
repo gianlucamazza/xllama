@@ -142,3 +142,18 @@ cleanup_temp_chats() {
 	done <<<"$pending"
 	return "$rc"
 }
+
+# After a verified cleanup retry, drop the original retained temp dir when the
+# journal lives outside this process's TMPDIR_LOCAL. A sentinel written at
+# retain time is required before deletion; otherwise report the path.
+release_original_recovery_dir() {
+	local journal="${CHAT_JOURNAL:-}" orig
+	[[ -n "$journal" ]] || return 0
+	orig=$(cd "$(dirname "$journal")" && pwd) || return 0
+	[[ -n "${TMPDIR_LOCAL:-}" && "$orig" != "$TMPDIR_LOCAL" ]] || return 0
+	if [[ -f "${orig}/.xllama-console-recovery" ]]; then
+		rm -rf "$orig" || echo "  WARN: original recovery dir still present: ${orig}" >&2
+	else
+		echo "  original recovery journal remains at ${journal}" >&2
+	fi
+}

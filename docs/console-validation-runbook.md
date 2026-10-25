@@ -48,6 +48,20 @@ there is no fallback to the whole log or to a historical startup marker.
 `validate-api.sh` currently checks HTTP responses, not `xllama.log`, and does
 not need this helper.
 
+Because the log is kept, it grows across harness runs. Truncate it only while
+the app is stopped, using the existing `deploy.sh` operations:
+
+```bash
+source ~/.config/xllama/xbox-env
+./scripts/deploy.sh stop-app
+./scripts/deploy.sh delete-file "$(./scripts/deploy.sh pfn)" xllama.log
+```
+
+Device Portal can report a successful DELETE without removing the file (#347).
+Confirm with `./scripts/deploy.sh get-log` or `list-localstate` while the app
+is still stopped. If the file is still there, replace it by uploading an empty
+file with `deploy.sh upload-file`.
+
 ### Temporary fixture cleanup
 
 `console-temp-chats.sh` journals unique injected chat IDs **before** upload.
