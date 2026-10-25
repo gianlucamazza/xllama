@@ -41,6 +41,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   in CONTRIBUTING; licence and no-selling note in model-selection and
   using-the-app.
 
+- **Licence copies for re-hosted `models-v1` builds.** SmolLM2, Qwen3.5-0.8B,
+  and SD-Turbo now download a pinned upstream licence file next to the weights
+  (SD-Turbo also gets the required NOTICE). TAESD's MIT file travels with the
+  optional VAE overlay. Texts live in `LICENSES/`; release assets are uploaded
+  after merge.
+
 - **Optional debug dashboard** (default off). A Settings toggle and/or
   `LocalState\debug-dashboard.flag` shows real resident-model, LAN, and
   inference readings above the prompt. Missing sources render as

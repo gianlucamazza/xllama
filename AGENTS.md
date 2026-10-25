@@ -213,6 +213,7 @@ diffusion/          SD-Turbo → ONNX host toolchain (not inside the MSIX)
 paper/              Citable research package
 llama.cpp/          Submodule. Do not edit in place.
 vendor/             Patched ORT / GenAI DLL hashes (vendor/*/SHA256SUMS)
+LICENSES/           Upstream licence texts for re-hosted models-v1 builds (SOURCES.md)
 cmake/              CMake helpers
 ```
 

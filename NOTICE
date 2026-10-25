@@ -56,6 +56,8 @@ TAESD: MIT. Author: madebyollin. Source: https://huggingface.co/madebyollin/taes
 
 SmolLM2: Apache-2.0. Author: HuggingFaceTB. Source: https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct
 
+SmolLM2-1.7B: Apache-2.0. Author: HuggingFaceTB. Source: https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct
+
 Qwen3.5-0.8B: Apache-2.0. Source: https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF
 
 ## Other

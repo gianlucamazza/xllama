@@ -11,6 +11,7 @@ Usage (from repo root):
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
@@ -74,8 +75,55 @@ def main() -> int:
         for n, e in cat.items()
     }
 
+    # Re-hosted models-v1 builds must ship a pinned licence file (LFM pattern).
+    # sha256 must equal the exact bytes committed under LICENSES/.
+    license_dir = ROOT / "LICENSES"
+    license_by_sha = {}
+    if license_dir.is_dir():
+        for p in license_dir.iterdir():
+            if p.is_file() and p.name != "SOURCES.md":
+                license_by_sha[hashlib.sha256(p.read_bytes()).hexdigest()] = p.name
+    models_v1 = "https://github.com/gianlucamazza/xllama/releases/download/models-v1"
+    hosted = [n for n, e in cat.items() if e.get("hf_base_url") == models_v1]
+    expect_hosted = {
+        "smollm2-360m-cpu-int4",
+        "smollm2-360m-dml-fp16-v2",
+        "smollm2-1.7b-cpu-int4",
+        "qwen35-0.8b",
+        "sd-turbo-fp16",
+    }
+    if set(hosted) != expect_hosted:
+        err(f"models-v1 catalogue set {sorted(hosted)} != {sorted(expect_hosted)}")
+    for name in hosted:
+        files = {f.get("filename"): f for f in cat[name].get("files", [])}
+        lic = files.get("LICENSE")
+        if not lic:
+            err(f"manifest {name} missing LICENSE files[] entry")
+            continue
+        sha = lic.get("sha256") or ""
+        if sha not in license_by_sha:
+            err(f"manifest {name} LICENSE sha256 not in LICENSES/")
+        remote = lic.get("remote") or lic.get("filename")
+        if remote == "LICENSE":
+            err(f"manifest {name} LICENSE remote must be a unique models-v1 asset")
+        if name == "sd-turbo-fp16":
+            notice = files.get("NOTICE")
+            if not notice:
+                err("manifest sd-turbo-fp16 missing NOTICE files[] entry")
+            elif (notice.get("sha256") or "") not in license_by_sha:
+                err("manifest sd-turbo-fp16 NOTICE sha256 not in LICENSES/")
+    if hosted and license_by_sha:
+        good("models-v1 licence files pinned to LICENSES/")
+
     # --- code defaults ---
     mp = (ROOT / "uwp/MainPage.cpp").read_text(encoding="utf-8")
+    taesd_license = license_dir / "madebyollin-taesd-LICENSE"
+    if taesd_license.is_file():
+        taesd_sha = hashlib.sha256(taesd_license.read_bytes()).hexdigest()
+        if "sd-turbo-fp16_taesd_LICENSE" not in mp or taesd_sha not in mp:
+            err("MainPage.cpp TAESD overlay missing pinned MIT licence download")
+        else:
+            good("TAESD overlay downloads pinned MIT licence")
     m = re.search(r"DefaultChatModelId\(\).*?return L\"([^\"]+)\"", mp, re.S)
     if not m:
         err("DefaultChatModelId not found")
