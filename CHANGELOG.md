@@ -386,11 +386,11 @@ console gates.
 - **`validate-console.sh store`** — Store SKU smoke (catalogue download + GGUF
   chat + `set_api` reject). Not one of the 10 Dev Mode hardware gates. **PASS**
   2026-08-21 on CI Store SKU `1.5.5.928` (Game); Dev SKU restored after.
-- **Store Phase 2 pack:** EN listing copy, IARC prep sheet, and operator
+- **Store Phase 2 pack:** EN listing copy, age notes, and operator
   steps (`docs/release-readiness.md`); GitHub Pages privacy URL
   `https://gianlucamazza.github.io/xllama/privacy.html`; Settings link + Issues
   template to report inappropriate generated content (Store policy 11.16).
-  The Partner Center reservation and Store ID were removed from public docs. Dev Mode identity unchanged. The public description and IARC generative-AI notes are in `docs/release-readiness.md`.
+  The Partner Center reservation and Store ID were removed from public docs. Dev Mode identity unchanged. Public description and age / generative-AI notes in `docs/release-readiness.md` §9/§11.
 - **`include/xllama/json_utils.h`** — header-only JSON string helpers:
   `json_escape()` (canonical) and `json_read_string()` with full `\uXXXX`
   decode (including surrogate pairs → UTF-8). Replaces 7 duplicated
