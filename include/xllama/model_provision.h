@@ -9,7 +9,9 @@
 // file (e.g. gemma-4-E2B-it-UD-IQ2_M.gguf) is never auto-upgraded to the
 // manifest's file (gemma-4-E2B-it-Q3_K_S.gguf). This predicate compares the
 // directory listing against the manifest's expected filename set so EnsureModel
-// can force a re-download when they diverge.
+// knows the tree is not yet catalogue-complete. What to HTTP-fetch is a
+// per-file pin check (`model_file_plan.h`); a missing LICENSE/NOTICE must not
+// invalidate already-matching weights.
 //
 // Pure (no WinRT / no pch.h), mirroring manifest_merge.h, so it is host
 // doctest-testable. The UWP caller lists the directory and maps

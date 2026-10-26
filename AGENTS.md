@@ -228,6 +228,7 @@ Load-bearing headers agents usually touch:
 | `inference_params.h` / `inference.h` | Params, result, `run_inference`                                |
 | `inference_progress.h`               | Prefill/decode progress logs and stall watchdog                |
 | `routing_policy.h`                   | ORT CPU-vs-DML routing and prompt budget                       |
+| `model_file_plan.h`                  | Per-file catalogue fetch plan (sidecars vs weights)            |
 | `prompt_budget.h`                    | `fit_prompt` and `fit_tool_transcript`                         |
 | `sampling.h`                         | Sampler defaults shared by CLI, bench, GUI, API                |
 | `chat_prompt.h`                      | `ChatFormat` and stop sequences                                |

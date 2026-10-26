@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Catalogue sidecar edits no longer re-download verified weights, and GPU
+  routing ignores a still-downloading DML tree.** Fetch planning is per file
+  (`model_file_plan.h`): a missing LICENSE/NOTICE is fetched alone. GPU routing
+  requires every expected catalogue file and an idle writer; otherwise it stays
+  on CPU and logs the reason. Background provision exceptions are caught so they
+  cannot terminate the process.
+
 - **GUI and LAN API share compute admission** (proposed [ADR 0008](docs/adr/0008-process-compute-admission.md),
   audit F08). A process-wide RAII permit serializes chat, embeddings, diffusion,
   device training, startup pre-load and post-pull model loading. API requests

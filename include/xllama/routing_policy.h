@@ -335,6 +335,42 @@ inline RoutingDecision decide_routing(const RoutingSettings& s, int n_tok, bool 
     return default_policy().decide(s, n_tok, base_is_gguf, gpu_available);
 }
 
+// GPU availability for decide_routing. The caller must not pass the loose
+// "any genai_config.json / *.gguf exists" probe: a partial tree (weights
+// present, catalogue sidecars still downloading) and an in-flight model write
+// are not a verified DML asset. Defaults: every expected catalogue file is
+// present, and the process-wide writer is idle.
+enum class GpuRouteReadiness {
+    Ready = 0,
+    PartialOrUnverified = 1,
+    WriteInProgress = 2,
+};
+
+inline GpuRouteReadiness gpu_route_readiness(bool expected_files_verified, bool write_in_progress) {
+    if (write_in_progress)
+        return GpuRouteReadiness::WriteInProgress;
+    if (!expected_files_verified)
+        return GpuRouteReadiness::PartialOrUnverified;
+    return GpuRouteReadiness::Ready;
+}
+
+inline bool gpu_ready_for_routing(bool expected_files_verified, bool write_in_progress) {
+    return gpu_route_readiness(expected_files_verified, write_in_progress) ==
+           GpuRouteReadiness::Ready;
+}
+
+inline const char* gpu_route_fallback_log(GpuRouteReadiness r) {
+    switch (r) {
+    case GpuRouteReadiness::WriteInProgress:
+        return "[xllama] routing: gpu model write in progress; falling back to CPU\n";
+    case GpuRouteReadiness::PartialOrUnverified:
+        return "[xllama] routing: gpu model not fully downloaded/verified; falling back to CPU\n";
+    case GpuRouteReadiness::Ready:
+        return "";
+    }
+    return "[xllama] routing: gpu unavailable; falling back to CPU\n";
+}
+
 inline bool routing_allowed_for_kind(const std::wstring& kind) {
     return default_policy().routing_allowed_for_kind(kind);
 }

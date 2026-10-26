@@ -2729,50 +2729,30 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
     auto self = shared_from_this();
     auto dispatcher = self->m_root.Dispatcher();
 
-    log_output(
-        ("[xllama] EnsureModel: begin '" + ::xllama::wstring_to_utf8(model_name) + "'\n").c_str());
-    co_await resume_background();
-
-    // Load the catalogue up-front so every provisioning check can compare against
-    // the entry's CURRENT expected files (auto-upgrade a stale quant) instead of
-    // accepting any gguf. Empty expected → loose fallback (USB/WDP/no entry).
-    auto manifest = ::xllama::LoadModelManifest();
-    const ::xllama::ManifestEntry* entry = ::xllama::FindManifestEntry(manifest, model_name);
-    std::vector<std::wstring> expected_files;
-    if (entry)
-        for (const auto& f : entry->files)
-            expected_files.push_back(f.filename);
-
-    // Check 1: LocalState model complete?
-    auto local_folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
-    std::wstring local_models_root = std::wstring(local_folder.Path().c_str()) + L"\\models";
-    std::wstring local_model_dir = local_models_root + L"\\" + model_name;
-
-    if (IsModelProvisioned(model_name, expected_files)) {
-        log_output(("[xllama] EnsureModel: '" + ::xllama::wstring_to_utf8(model_name) +
-                    "' already provisioned\n")
+    try {
+        log_output(("[xllama] EnsureModel: begin '" + ::xllama::wstring_to_utf8(model_name) + "'\n")
                        .c_str());
-        co_await resume_foreground(dispatcher);
-        if (set_app_ready) {
-            self->LoadModelName();
-            self->SetStatus(L"Ready", StatusKind::Success);
-            self->m_runButton.IsEnabled(true);
-            self->m_model_ready.store(true);
-            self->EnsureGpuModelIfNeeded();
-            self->PreloadSessionAsync();
-        }
-        co_return;
-    }
+        co_await resume_background();
 
-    // Check 2: model bundled in InstalledPath (MSIX)?
-    auto pkg = winrt::Windows::ApplicationModel::Package::Current();
-    std::wstring installed_model_dir =
-        std::wstring(pkg.InstalledPath().c_str()) + L"\\models\\" + model_name;
-    {
-        std::error_code ec;
-        bool bundled = std::filesystem::exists(
-            std::filesystem::path(installed_model_dir) / L"genai_config.json", ec);
-        if (bundled) {
+        // Load the catalogue up-front so every provisioning check can compare against
+        // the entry's CURRENT expected files (auto-upgrade a stale quant) instead of
+        // accepting any gguf. Empty expected → loose fallback (USB/WDP/no entry).
+        auto manifest = ::xllama::LoadModelManifest();
+        const ::xllama::ManifestEntry* entry = ::xllama::FindManifestEntry(manifest, model_name);
+        std::vector<std::wstring> expected_files;
+        if (entry)
+            for (const auto& f : entry->files)
+                expected_files.push_back(f.filename);
+
+        // Check 1: LocalState model complete?
+        auto local_folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
+        std::wstring local_models_root = std::wstring(local_folder.Path().c_str()) + L"\\models";
+        std::wstring local_model_dir = local_models_root + L"\\" + model_name;
+
+        if (IsModelProvisioned(model_name, expected_files)) {
+            log_output(("[xllama] EnsureModel: '" + ::xllama::wstring_to_utf8(model_name) +
+                        "' already provisioned\n")
+                           .c_str());
             co_await resume_foreground(dispatcher);
             if (set_app_ready) {
                 self->LoadModelName();
@@ -2784,243 +2764,277 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
             }
             co_return;
         }
-    }
+
+        // Check 2: model bundled in InstalledPath (MSIX)?
+        auto pkg = winrt::Windows::ApplicationModel::Package::Current();
+        std::wstring installed_model_dir =
+            std::wstring(pkg.InstalledPath().c_str()) + L"\\models\\" + model_name;
+        {
+            std::error_code ec;
+            bool bundled = std::filesystem::exists(
+                std::filesystem::path(installed_model_dir) / L"genai_config.json", ec);
+            if (bundled) {
+                co_await resume_foreground(dispatcher);
+                if (set_app_ready) {
+                    self->LoadModelName();
+                    self->SetStatus(L"Ready", StatusKind::Success);
+                    self->m_runButton.IsEnabled(true);
+                    self->m_model_ready.store(true);
+                    self->EnsureGpuModelIfNeeded();
+                    self->PreloadSessionAsync();
+                }
+                co_return;
+            }
+        }
 
     #ifndef XLLAMA_STORE_SKU
-    // Check 3: USB removable storage via KnownFolders.RemovableDevices
-    // (requires <uap:Capability Name="removableStorage" /> in manifest).
-    // Enumerates all removable drives; looks for xllama/models/<name>/genai_config.json.
-    // Store SKU: no removableStorage capability — download / LocalState only.
-    co_await resume_foreground(dispatcher);
-    {
-        bool usb_found = false;
-        try {
-            using winrt::Windows::Storage::KnownFolders;
-            using winrt::Windows::Storage::StorageFolder;
-            auto removable = KnownFolders::RemovableDevices();
-            auto drives = co_await removable.GetFoldersAsync();
-            for (auto const& drive : drives) {
-                std::wstring drive_path(drive.Path().c_str());
-                // StorageFolder.Path may include trailing backslash (e.g. "E:\"); strip it.
-                while (!drive_path.empty() && drive_path.back() == L'\\')
-                    drive_path.pop_back();
-                log_output(("[xllama] USB probe: " + ::xllama::wstring_to_utf8(drive_path) + "\n")
-                               .c_str());
-                // Use WinRT TryGetItemAsync — GetFileAttributesW is blocked by
-                // AppContainer even with removableStorage capability.
-                try {
-                    using winrt::Windows::Storage::IStorageItem;
-                    auto sub = winrt::hstring(L"xllama\\models\\") + model_name +
-                               winrt::hstring(L"\\genai_config.json");
-                    auto item = co_await drive.TryGetItemAsync(sub);
-                    if (item) {
-                        log_output(("[xllama] USB model found on " +
-                                    ::xllama::wstring_to_utf8(drive_path) + "\n")
-                                       .c_str());
-                        // Cache USB root (drive_path without trailing \) for
-                        // resolve_model_path() sync path.
-                        auto cache_path = local_wpath(L"usb_model_root.txt");
-                        FILE* fp = _wfopen(cache_path.c_str(), L"w");
-                        if (fp) {
-                            fputws(drive_path.c_str(), fp);
-                            fclose(fp);
-                        }
-                        usb_found = true;
-                    }
-                } catch (...) {
-                    // drive not accessible — skip
-                }
-                if (usb_found)
-                    break;
-            }
-        } catch (...) {
-            log_output("[xllama] USB probe: RemovableDevices enumeration failed\n");
-        }
-        if (usb_found) {
-            // ORT GenAI uses Win32 I/O (blocked on USB by AppContainer).
-            // Copy model files from USB to LocalState via WinRT StorageFile.CopyAsync,
-            // then load from LocalState like the bundled model.
-            co_await resume_foreground(dispatcher);
-            self->SetStatus(L"Copying model from USB...", StatusKind::Working);
-            self->m_loadingBar.IsIndeterminate(true);
-            self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Visible);
-            self->m_runButton.IsEnabled(false);
-
-            ModelWriteOperation writer(ModelDownloader::WriterGate(), local_model_dir);
-            if (!writer.owns_lock()) {
-                self->m_loadingBar.IsIndeterminate(false);
-                self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Collapsed);
-                self->m_runButton.IsEnabled(true);
-                self->SetStatus(ModelDownloader::kBusyError, StatusKind::Error);
-                co_return;
-            }
-            bool copy_ok = false;
-            std::wstring copy_err;
+        // Check 3: USB removable storage via KnownFolders.RemovableDevices
+        // (requires <uap:Capability Name="removableStorage" /> in manifest).
+        // Enumerates all removable drives; looks for xllama/models/<name>/genai_config.json.
+        // Store SKU: no removableStorage capability — download / LocalState only.
+        co_await resume_foreground(dispatcher);
+        {
+            bool usb_found = false;
             try {
-                using winrt::Windows::Storage::CreationCollisionOption;
                 using winrt::Windows::Storage::KnownFolders;
                 using winrt::Windows::Storage::StorageFolder;
-
-                // Source: USB xllama\models\<name>
-                auto removable2 = KnownFolders::RemovableDevices();
-                auto drives2 = co_await removable2.GetFoldersAsync();
-                StorageFolder usb_model_folder{nullptr};
-                for (auto const& d : drives2) {
-                    auto candidate = co_await d.TryGetItemAsync(
-                        winrt::hstring(L"xllama\\models\\") + model_name);
-                    if (candidate) {
-                        usb_model_folder = candidate.as<StorageFolder>();
-                        break;
+                auto removable = KnownFolders::RemovableDevices();
+                auto drives = co_await removable.GetFoldersAsync();
+                for (auto const& drive : drives) {
+                    std::wstring drive_path(drive.Path().c_str());
+                    // StorageFolder.Path may include trailing backslash (e.g. "E:\"); strip it.
+                    while (!drive_path.empty() && drive_path.back() == L'\\')
+                        drive_path.pop_back();
+                    log_output(
+                        ("[xllama] USB probe: " + ::xllama::wstring_to_utf8(drive_path) + "\n")
+                            .c_str());
+                    // Use WinRT TryGetItemAsync — GetFileAttributesW is blocked by
+                    // AppContainer even with removableStorage capability.
+                    try {
+                        using winrt::Windows::Storage::IStorageItem;
+                        auto sub = winrt::hstring(L"xllama\\models\\") + model_name +
+                                   winrt::hstring(L"\\genai_config.json");
+                        auto item = co_await drive.TryGetItemAsync(sub);
+                        if (item) {
+                            log_output(("[xllama] USB model found on " +
+                                        ::xllama::wstring_to_utf8(drive_path) + "\n")
+                                           .c_str());
+                            // Cache USB root (drive_path without trailing \) for
+                            // resolve_model_path() sync path.
+                            auto cache_path = local_wpath(L"usb_model_root.txt");
+                            FILE* fp = _wfopen(cache_path.c_str(), L"w");
+                            if (fp) {
+                                fputws(drive_path.c_str(), fp);
+                                fclose(fp);
+                            }
+                            usb_found = true;
+                        }
+                    } catch (...) {
+                        // drive not accessible — skip
                     }
+                    if (usb_found)
+                        break;
                 }
-                if (!usb_model_folder)
-                    throw std::runtime_error("USB folder disappeared");
-
-                std::error_code begin_ec;
-                if (!writer.begin(begin_ec))
-                    throw std::runtime_error("Cannot prepare USB model write: " +
-                                             begin_ec.message());
-
-                // Destination: LocalState\models\<name>
-                // CreateFolderAsync with OpenIfExists creates or opens — no try/catch needed.
-                auto local_folder2 =
-                    winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
-                auto models_folder = co_await local_folder2.CreateFolderAsync(
-                    L"models", CreationCollisionOption::OpenIfExists);
-                StorageFolder dest_folder = co_await models_folder.CreateFolderAsync(
-                    model_name, CreationCollisionOption::OpenIfExists);
-
-                // Copy each file
-                auto files = co_await usb_model_folder.GetFilesAsync();
-                for (auto const& f : files) {
-                    if (f.Name() == L".complete")
-                        continue; // publish only after all files have been copied
-                    log_output(("[xllama] USB copy: " +
-                                ::xllama::wstring_to_utf8(std::wstring(f.Name().c_str())) + "\n")
-                                   .c_str());
-                    if (normalize_model_path(std::wstring(f.Name().c_str())) == L"adapter.gguf" &&
-                        co_await dest_folder.TryGetItemAsync(f.Name()))
-                        continue; // a local personalization adapter belongs to its owner
-                    co_await f.CopyAsync(dest_folder, f.Name(),
-                                         NameCollisionOption::ReplaceExisting);
-                }
-                std::error_code complete_ec;
-                if (!writer.complete({}, complete_ec))
-                    throw std::runtime_error("Cannot complete USB model write: " +
-                                             complete_ec.message());
-                copy_ok = true;
-            } catch (winrt::hresult_error const& e) {
-                copy_err = std::wstring(e.message().c_str());
-            } catch (std::exception const& e) {
-                copy_err = ::xllama::utf8_to_wstring(e.what());
             } catch (...) {
-                copy_err = L"Unknown error during USB copy";
+                log_output("[xllama] USB probe: RemovableDevices enumeration failed\n");
             }
+            if (usb_found) {
+                // ORT GenAI uses Win32 I/O (blocked on USB by AppContainer).
+                // Copy model files from USB to LocalState via WinRT StorageFile.CopyAsync,
+                // then load from LocalState like the bundled model.
+                co_await resume_foreground(dispatcher);
+                self->SetStatus(L"Copying model from USB...", StatusKind::Working);
+                self->m_loadingBar.IsIndeterminate(true);
+                self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Visible);
+                self->m_runButton.IsEnabled(false);
 
-            writer.release();
-            self->m_loadingBar.IsIndeterminate(false);
-            self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Collapsed);
-            if (!copy_ok) {
-                self->SetStatus(L"USB copy failed: " + copy_err, StatusKind::Error);
+                ModelWriteOperation writer(ModelDownloader::WriterGate(), local_model_dir);
+                if (!writer.owns_lock()) {
+                    self->m_loadingBar.IsIndeterminate(false);
+                    self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Collapsed);
+                    self->m_runButton.IsEnabled(true);
+                    self->SetStatus(ModelDownloader::kBusyError, StatusKind::Error);
+                    co_return;
+                }
+                bool copy_ok = false;
+                std::wstring copy_err;
+                try {
+                    using winrt::Windows::Storage::CreationCollisionOption;
+                    using winrt::Windows::Storage::KnownFolders;
+                    using winrt::Windows::Storage::StorageFolder;
+
+                    // Source: USB xllama\models\<name>
+                    auto removable2 = KnownFolders::RemovableDevices();
+                    auto drives2 = co_await removable2.GetFoldersAsync();
+                    StorageFolder usb_model_folder{nullptr};
+                    for (auto const& d : drives2) {
+                        auto candidate = co_await d.TryGetItemAsync(
+                            winrt::hstring(L"xllama\\models\\") + model_name);
+                        if (candidate) {
+                            usb_model_folder = candidate.as<StorageFolder>();
+                            break;
+                        }
+                    }
+                    if (!usb_model_folder)
+                        throw std::runtime_error("USB folder disappeared");
+
+                    std::error_code begin_ec;
+                    if (!writer.begin(begin_ec))
+                        throw std::runtime_error("Cannot prepare USB model write: " +
+                                                 begin_ec.message());
+
+                    // Destination: LocalState\models\<name>
+                    // CreateFolderAsync with OpenIfExists creates or opens — no try/catch needed.
+                    auto local_folder2 =
+                        winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
+                    auto models_folder = co_await local_folder2.CreateFolderAsync(
+                        L"models", CreationCollisionOption::OpenIfExists);
+                    StorageFolder dest_folder = co_await models_folder.CreateFolderAsync(
+                        model_name, CreationCollisionOption::OpenIfExists);
+
+                    // Copy each file
+                    auto files = co_await usb_model_folder.GetFilesAsync();
+                    for (auto const& f : files) {
+                        if (f.Name() == L".complete")
+                            continue; // publish only after all files have been copied
+                        log_output(("[xllama] USB copy: " +
+                                    ::xllama::wstring_to_utf8(std::wstring(f.Name().c_str())) +
+                                    "\n")
+                                       .c_str());
+                        if (normalize_model_path(std::wstring(f.Name().c_str())) ==
+                                L"adapter.gguf" &&
+                            co_await dest_folder.TryGetItemAsync(f.Name()))
+                            continue; // a local personalization adapter belongs to its owner
+                        co_await f.CopyAsync(dest_folder, f.Name(),
+                                             NameCollisionOption::ReplaceExisting);
+                    }
+                    std::error_code complete_ec;
+                    if (!writer.complete({}, complete_ec))
+                        throw std::runtime_error("Cannot complete USB model write: " +
+                                                 complete_ec.message());
+                    copy_ok = true;
+                } catch (winrt::hresult_error const& e) {
+                    copy_err = std::wstring(e.message().c_str());
+                } catch (std::exception const& e) {
+                    copy_err = ::xllama::utf8_to_wstring(e.what());
+                } catch (...) {
+                    copy_err = L"Unknown error during USB copy";
+                }
+
+                writer.release();
+                self->m_loadingBar.IsIndeterminate(false);
+                self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Collapsed);
+                if (!copy_ok) {
+                    self->SetStatus(L"USB copy failed: " + copy_err, StatusKind::Error);
+                    co_return;
+                }
+                log_output("[xllama] USB model copy complete\n");
+                if (set_app_ready) {
+                    self->LoadModelName();
+                    self->SetStatus(L"Ready", StatusKind::Success);
+                    self->m_runButton.IsEnabled(true);
+                    self->m_model_ready.store(true);
+                    self->EnsureGpuModelIfNeeded();
+                    self->PreloadSessionAsync();
+                }
                 co_return;
             }
-            log_output("[xllama] USB model copy complete\n");
+        }
+    #endif // !XLLAMA_STORE_SKU
+        // Neither found: consult the model catalogue (loaded above) — any entry with
+        // an hf_base_url can be auto-downloaded; anything else must be provided via
+        // USB or Device Portal upload (dev SKU only for USB).
+        if (!entry || entry->hf_base_url.empty() || entry->files.empty()) {
+            log_output(("[xllama] EnsureModel: '" + ::xllama::wstring_to_utf8(model_name) +
+                        "' not in catalogue (no hf_base_url)\n")
+                           .c_str());
+            co_await resume_foreground(dispatcher);
             if (set_app_ready) {
-                self->LoadModelName();
-                self->SetStatus(L"Ready", StatusKind::Success);
-                self->m_runButton.IsEnabled(true);
-                self->m_model_ready.store(true);
-                self->EnsureGpuModelIfNeeded();
-                self->PreloadSessionAsync();
+    #ifdef XLLAMA_STORE_SKU
+                self->SetStatus(L"Model '" + model_name +
+                                    L"' not found.\n"
+                                    L"Choose a catalogue model that can download, "
+                                    L"or reinstall and try again.",
+                                StatusKind::Error);
+    #else
+                self->SetStatus(L"Model '" + model_name +
+                                    L"' not found.\n"
+                                    L"Upload to LocalState\\models\\" +
+                                    model_name +
+                                    L" via Device Portal or USB "
+                                    L"(see docs/model-selection.md).",
+                                StatusKind::Error);
+    #endif
+                self->m_runButton.IsEnabled(false);
             }
             co_return;
         }
-    }
-    #endif // !XLLAMA_STORE_SKU
-    // Neither found: consult the model catalogue (loaded above) — any entry with
-    // an hf_base_url can be auto-downloaded; anything else must be provided via
-    // USB or Device Portal upload (dev SKU only for USB).
-    if (!entry || entry->hf_base_url.empty() || entry->files.empty()) {
-        log_output(("[xllama] EnsureModel: '" + ::xllama::wstring_to_utf8(model_name) +
-                    "' not in catalogue (no hf_base_url)\n")
+
+        log_output(("[xllama] EnsureModel: downloading '" + ::xllama::wstring_to_utf8(model_name) +
+                    "' from catalogue\n")
                        .c_str());
+
+        co_await resume_background();
+
+        // Auto-download from the catalogue entry's Hugging Face repo.
         co_await resume_foreground(dispatcher);
         if (set_app_ready) {
-    #ifdef XLLAMA_STORE_SKU
-            self->SetStatus(L"Model '" + model_name +
-                                L"' not found.\n"
-                                L"Choose a catalogue model that can download, "
-                                L"or reinstall and try again.",
-                            StatusKind::Error);
-    #else
-            self->SetStatus(L"Model '" + model_name +
-                                L"' not found.\n"
-                                L"Upload to LocalState\\models\\" +
-                                model_name +
-                                L" via Device Portal or USB "
-                                L"(see docs/model-selection.md).",
-                            StatusKind::Error);
-    #endif
+            self->SetStatus(L"Downloading model...", StatusKind::Working);
+            self->m_loadingBar.IsIndeterminate(false);
+            self->m_loadingBar.Value(0);
+            self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Visible);
             self->m_runButton.IsEnabled(false);
         }
-        co_return;
+
+        co_await ModelDownloader::DownloadAsync(
+            entry->hf_base_url, local_model_dir, entry->files, dispatcher,
+            [self, set_app_ready](uint64_t done, uint64_t total) {
+                if (!set_app_ready)
+                    return;
+                if (total > 0) {
+                    double pct = static_cast<double>(done) / static_cast<double>(total) * 100.0;
+                    self->m_loadingBar.Value(pct);
+                    self->SetStatus(L"Downloading model... " +
+                                        std::to_wstring(done / (1024 * 1024)) + L" MB",
+                                    StatusKind::Working);
+                } else {
+                    self->SetStatus(L"Downloading model... " +
+                                        std::to_wstring(done / (1024 * 1024)) + L" MB",
+                                    StatusKind::Working);
+                }
+            },
+            [self, set_app_ready](bool ok, std::wstring err) {
+                if (set_app_ready) {
+                    self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Collapsed);
+                    self->m_runButton.IsEnabled(true);
+                }
+                if (!ok) {
+                    log_output(("[xllama] EnsureModel: download failed: " +
+                                ::xllama::wstring_to_utf8(err) + "\n")
+                                   .c_str());
+                    if (set_app_ready)
+                        self->SetStatus(L"Download failed: " + err, StatusKind::Error);
+                    return;
+                }
+                log_output("[xllama] EnsureModel: download complete\n");
+                if (set_app_ready) {
+                    self->SetStatus(L"Model ready", StatusKind::Success);
+                    self->LoadModelName();
+                    self->m_model_ready.store(true);
+                    self->EnsureGpuModelIfNeeded();
+                    self->PreloadSessionAsync();
+                }
+            });
+    } catch (winrt::hresult_error const& e) {
+        log_output(("[xllama] EnsureModel: exception: " +
+                    ::xllama::wstring_to_utf8(std::wstring(e.message().c_str())) + "\n")
+                       .c_str());
+    } catch (const std::exception& e) {
+        log_output((std::string("[xllama] EnsureModel: exception: ") + e.what() + "\n").c_str());
+    } catch (...) {
+        log_output(
+            "[xllama] EnsureModel: unexpected exception; provision aborted, process continues\n");
     }
-
-    log_output(("[xllama] EnsureModel: downloading '" + ::xllama::wstring_to_utf8(model_name) +
-                "' from catalogue\n")
-                   .c_str());
-
-    co_await resume_background();
-
-    // Auto-download from the catalogue entry's Hugging Face repo.
-    co_await resume_foreground(dispatcher);
-    if (set_app_ready) {
-        self->SetStatus(L"Downloading model...", StatusKind::Working);
-        self->m_loadingBar.IsIndeterminate(false);
-        self->m_loadingBar.Value(0);
-        self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Visible);
-        self->m_runButton.IsEnabled(false);
-    }
-
-    co_await ModelDownloader::DownloadAsync(
-        entry->hf_base_url, local_model_dir, entry->files, dispatcher,
-        [self, set_app_ready](uint64_t done, uint64_t total) {
-            if (!set_app_ready)
-                return;
-            if (total > 0) {
-                double pct = static_cast<double>(done) / static_cast<double>(total) * 100.0;
-                self->m_loadingBar.Value(pct);
-                self->SetStatus(L"Downloading model... " + std::to_wstring(done / (1024 * 1024)) +
-                                    L" MB",
-                                StatusKind::Working);
-            } else {
-                self->SetStatus(L"Downloading model... " + std::to_wstring(done / (1024 * 1024)) +
-                                    L" MB",
-                                StatusKind::Working);
-            }
-        },
-        [self, set_app_ready](bool ok, std::wstring err) {
-            if (set_app_ready) {
-                self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Collapsed);
-                self->m_runButton.IsEnabled(true);
-            }
-            if (!ok) {
-                log_output(("[xllama] EnsureModel: download failed: " +
-                            ::xllama::wstring_to_utf8(err) + "\n")
-                               .c_str());
-                if (set_app_ready)
-                    self->SetStatus(L"Download failed: " + err, StatusKind::Error);
-                return;
-            }
-            log_output("[xllama] EnsureModel: download complete\n");
-            if (set_app_ready) {
-                self->SetStatus(L"Model ready", StatusKind::Success);
-                self->LoadModelName();
-                self->m_model_ready.store(true);
-                self->EnsureGpuModelIfNeeded();
-                self->PreloadSessionAsync();
-            }
-        });
 }
 
 // LoadModelName: read model.txt from LocalFolder
@@ -3183,8 +3197,24 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
     if (m_active_model.empty()) {
         // Filesystem probe (LocalState + InstalledPath stats) — only the sticky
         // first-turn decision consumes it, so keep it off the per-turn path (#174).
+        // GPU is available only when every expected catalogue file is present
+        // and no model write is in flight. The loose "any ONNX/GGUF exists"
+        // probe used to route a long turn at a still-downloading DML tree (#370).
+        const std::wstring gpu_name = ::xllama::utf8_to_wstring(m_gpu_model);
+        std::vector<std::wstring> gpu_expected;
+        {
+            const auto& manifest = CachedManifest();
+            if (const auto* e = ::xllama::FindManifestEntry(manifest, gpu_name))
+                for (const auto& f : e->files)
+                    gpu_expected.push_back(f.filename);
+        }
+        const bool expected_verified =
+            !gpu_expected.empty() && ::xllama::IsModelProvisioned(gpu_name, gpu_expected);
+        const bool write_in_progress = ::xllama::ModelDownloader::WriterGate().busy();
+        const auto gpu_state = ::xllama::gpu_route_readiness(expected_verified, write_in_progress);
         const bool gpu_provisioned =
-            ::xllama::IsModelProvisioned(::xllama::utf8_to_wstring(m_gpu_model));
+            ::xllama::gpu_ready_for_routing(expected_verified, write_in_progress);
+        const bool loose_present = ::xllama::IsModelProvisioned(gpu_name);
         ::xllama::RoutingSettings rs;
         rs.mode = static_cast<::xllama::RoutingMode>(m_routing);
         rs.cpu_model = ::xllama::wstring_to_utf8(m_model_filename);
@@ -3212,8 +3242,15 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
         // #91/#95: for a gpu_model that is not a parity-validated DML text asset,
         // decide_routing resolves every mode to the CPU model and the GPU model is
         // intentionally not provisioned — a missing gpu_model must not block the
-        // turn or nag the user.
-        const bool warn_gpu_missing = ::xllama::dml_text_model_ok(m_gpu_model) && !gpu_provisioned;
+        // turn or nag the user. A validated asset that is only partial or mid-write
+        // is not "missing": fall through to CPU via gpu_provisioned == false.
+        const bool warn_gpu_missing =
+            ::xllama::dml_text_model_ok(m_gpu_model) && !loose_present && !write_in_progress;
+        if (gpu_state != ::xllama::GpuRouteReadiness::Ready &&
+            ::xllama::dml_text_model_ok(m_gpu_model) && !warn_gpu_missing &&
+            (m_routing == 1 || (m_routing == 2 && !base_is_gguf))) {
+            ::xllama::log_output(::xllama::gpu_route_fallback_log(gpu_state));
+        }
         if (m_routing == 1 && warn_gpu_missing) {
             SetStatus(L"GPU model '" + ::xllama::utf8_to_wstring(m_gpu_model) +
                           L"' is not on this console.\n"
