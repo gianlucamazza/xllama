@@ -10,6 +10,11 @@ using namespace xllama;
 using Pins = std::vector<ManifestFilePin>;
 using Have = std::vector<PresentFile>;
 
+TEST_CASE("pin_check: hash-unavailable retry defaults are documented") {
+    CHECK(kHashVerifyRetries == 2);
+    CHECK(kHashVerifyRetryPauseS == 1);
+}
+
 TEST_CASE("sidecar: licence and notice names, with or without a text extension") {
     CHECK(is_catalogue_sidecar(L"LICENSE"));
     CHECK(is_catalogue_sidecar(L"license.txt"));
@@ -110,4 +115,68 @@ TEST_CASE("plan: separator and case on the filename do not force a refetch") {
     Pins expected{{L"unet/model.onnx", 50, "deadbeef"}};
     CHECK(files_needing_fetch(present, expected).empty());
     CHECK(weight_files_needing_fetch(present, expected).empty());
+}
+
+TEST_CASE("pin_check: hash ok") {
+    PresentFile have{L"model.onnx", 100, "aabb"};
+    ManifestFilePin pin{L"model.onnx", 100, "AABB"};
+    CHECK(classify_file_pin(have, pin) == PinCheck::Ok);
+    CHECK(classify_file_pin(&have, pin) == PinCheck::Ok);
+}
+
+TEST_CASE("pin_check: hash mismatch") {
+    PresentFile have{L"model.onnx", 100, "aa"};
+    ManifestFilePin pin{L"model.onnx", 100, "bb"};
+    CHECK(classify_file_pin(have, pin) == PinCheck::Refetch);
+    CHECK(files_needing_fetch({have}, {pin}) == std::vector<std::wstring>{L"model.onnx"});
+}
+
+TEST_CASE("pin_check: hash unreadable") {
+    PresentFile have{L"model.onnx", 100, {}, true};
+    ManifestFilePin pin{L"model.onnx", 100, "deadbeef"};
+    CHECK(classify_file_pin(have, pin) == PinCheck::Unverified);
+    CHECK(files_needing_fetch({have}, {pin}).empty()); // keep, do not refetch
+    CHECK_FALSE(file_pin_satisfied(have, pin));
+}
+
+TEST_CASE("pin_check: size mismatch or truncated") {
+    ManifestFilePin pin{L"model.onnx", 100, "aa"};
+    PresentFile truncated{L"model.onnx", 40, "aa"};
+    CHECK(classify_file_pin(truncated, pin) == PinCheck::Refetch);
+    PresentFile missing{L"model.onnx", 0, {}};
+    CHECK(classify_file_pin(missing, pin) == PinCheck::Refetch);
+    CHECK(classify_file_pin(nullptr, pin) == PinCheck::Refetch);
+    PresentFile oversized{L"model.onnx", 200, {}};
+    CHECK(classify_file_pin(oversized, pin) == PinCheck::Refetch);
+}
+
+TEST_CASE("only_sidecars_missing: weights present, licence and notice absent") {
+    Have present{
+        {L"genai_config.json", 1599, {}},
+        {L"tokenizer.json", 3522871, {}},
+        {L"model.onnx", 725021421, {}},
+    };
+    Pins expected{
+        {L"LICENSE", 11357, "abc"},          {L"NOTICE", 232, "def"},
+        {L"genai_config.json", 1599, "cfg"}, {L"tokenizer.json", 3522871, "tok"},
+        {L"model.onnx", 725021421, "onnx"},
+    };
+    CHECK(only_sidecars_missing(present, expected));
+    CHECK(weight_files_needing_fetch(present, expected).empty());
+}
+
+TEST_CASE("only_sidecars_missing: a weight gap is not sidecar-only") {
+    Have present{{L"LICENSE", 10, {}}};
+    Pins expected{{L"LICENSE", 10, {}}, {L"model.onnx", 99, {}}};
+    CHECK_FALSE(only_sidecars_missing(present, expected));
+}
+
+TEST_CASE("only_sidecars_missing: unverified weight is not ready") {
+    Have present{{L"model.onnx", 99, {}, true}, {L"LICENSE", 10, {}}};
+    Pins expected{{L"LICENSE", 10, "x"}, {L"NOTICE", 4, "y"}, {L"model.onnx", 99, "z"}};
+    CHECK_FALSE(only_sidecars_missing(present, expected));
+}
+
+TEST_CASE("only_sidecars_missing: empty expected is false") {
+    CHECK_FALSE(only_sidecars_missing({{L"model.onnx", 1, {}}}, {}));
 }

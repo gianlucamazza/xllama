@@ -243,20 +243,6 @@ FileHashResult file_sha256_result(const std::filesystem::path& path, const std::
     return result;
 }
 
-// True when a previous download/WDP upload left a usable file. Size (and an
-// optional observed hash) is decided by file_pin_satisfied. A readable SHA-256
-// mismatch still forces a refetch; an unreadable file (locked mid-inference,
-// I/O error) does not — that used to re-download good weights.
-bool file_already_complete(const std::filesystem::path& local_dir, const ModelFile& f) {
-    PresentFile have{f.filename, local_file_size(local_dir, f.filename), {}};
-    ManifestFilePin pin{f.filename, f.approx_bytes, ::xllama::wstring_to_utf8(f.sha256)};
-    if (!file_pin_satisfied(have, pin))
-        return false;
-    if (f.sha256.empty())
-        return true;
-    return file_sha256_result(local_dir / f.filename, f.sha256) != FileHashResult::Mismatch;
-}
-
 bool http_status_retryable(int code) {
     return code == 429 || code >= 500;
 }
@@ -266,7 +252,8 @@ bool http_status_retryable(int code) {
 IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstring local_dir,
                                             std::vector<ModelFile> files, CoreDispatcher dispatcher,
                                             std::function<void(uint64_t, uint64_t)> on_progress,
-                                            std::function<void(bool, std::wstring)> on_done) {
+                                            std::function<void(bool, std::wstring)> on_done,
+                                            std::vector<std::wstring> publish_files) {
     ModelWriteOperation writer(WriterGate(), std::filesystem::path(local_dir));
     bool finished = false;
     auto done = [&writer, &on_done, &finished](bool ok, std::wstring error) {
@@ -326,32 +313,57 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
         constexpr int kMaxAttempts = 3;
         const std::filesystem::path local_dir_fs(local_dir);
 
-        {
-            std::vector<PresentFile> present;
-            std::vector<ManifestFilePin> pins;
-            present.reserve(files.size());
-            pins.reserve(files.size());
-            for (const auto& f : files) {
-                pins.push_back({f.filename, f.approx_bytes, ::xllama::wstring_to_utf8(f.sha256)});
-                present.push_back({f.filename, local_file_size(local_dir_fs, f.filename), {}});
+        std::vector<PinCheck> decisions;
+        decisions.reserve(files.size());
+        std::wstring unverified_name;
+        for (const auto& f : files) {
+            const uint64_t have = local_file_size(local_dir_fs, f.filename);
+            PresentFile obs{f.filename, have, {}};
+            ManifestFilePin pin{f.filename, f.approx_bytes, ::xllama::wstring_to_utf8(f.sha256)};
+            PinCheck c = classify_file_pin(&obs, pin);
+            if (c == PinCheck::Ok && !f.sha256.empty()) {
+                FileHashResult hr = file_sha256_result(local_dir_fs / f.filename, f.sha256);
+                for (int r = 0; r < kHashVerifyRetries && hr == FileHashResult::Unavailable; ++r) {
+                    co_await winrt::resume_after(std::chrono::seconds(kHashVerifyRetryPauseS));
+                    hr = file_sha256_result(local_dir_fs / f.filename, f.sha256);
+                }
+                if (hr == FileHashResult::Match) {
+                    obs.sha256 = ::xllama::wstring_to_utf8(f.sha256);
+                    c = classify_file_pin(&obs, pin);
+                } else if (hr == FileHashResult::Mismatch) {
+                    c = PinCheck::Refetch;
+                } else {
+                    obs.hash_unreadable = true;
+                    c = classify_file_pin(&obs, pin);
+                }
             }
-            const auto need = files_needing_fetch(present, pins);
-            const auto need_w = weight_files_needing_fetch(present, pins);
-            log_output(("[downloader] plan: " + std::to_string(need.size()) +
-                        " file(s) to fetch (" + std::to_string(need_w.size()) + " weight, " +
-                        std::to_string(need.size() - need_w.size()) + " sidecar)")
+            decisions.push_back(c);
+            if (c == PinCheck::Unverified && unverified_name.empty())
+                unverified_name = f.filename;
+        }
+
+        {
+            size_t n_ok = 0, n_fetch = 0, n_unv = 0;
+            for (PinCheck c : decisions) {
+                if (c == PinCheck::Ok)
+                    ++n_ok;
+                else if (c == PinCheck::Refetch)
+                    ++n_fetch;
+                else
+                    ++n_unv;
+            }
+            log_output(("[downloader] plan: " + std::to_string(n_fetch) + " fetch, " +
+                        std::to_string(n_ok) + " skip, " + std::to_string(n_unv) + " unverified\n")
                            .c_str());
         }
 
-        for (auto const& f : files) {
-            // Skip HTTP when a complete copy is already on disk (WDP upload or a
-            // prior partial EnsureModel that left the correct size). Avoids HF 504
-            // loops and re-fetching ~1.5 GB weights.
-            if (file_already_complete(local_dir_fs, f)) {
+        for (size_t i = 0; i < files.size(); ++i) {
+            const auto& f = files[i];
+            if (decisions[i] == PinCheck::Ok) {
                 const uint64_t have = local_file_size(local_dir_fs, f.filename);
                 bytes_done += (f.approx_bytes > 0 ? f.approx_bytes : have);
                 log_output(("[downloader] skip " + ::xllama::wstring_to_utf8(f.filename) +
-                            " (already present, " + std::to_string(have) + " bytes)")
+                            " (already present, " + std::to_string(have) + " bytes)\n")
                                .c_str());
                 auto snap_done = bytes_done;
                 auto snap_total = total_bytes;
@@ -359,6 +371,12 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                     co_await winrt::resume_foreground(dispatcher);
                 on_progress(snap_done, snap_total);
                 co_await resume_background();
+                continue;
+            }
+            if (decisions[i] == PinCheck::Unverified) {
+                log_output(("[downloader] cannot verify " + ::xllama::wstring_to_utf8(f.filename) +
+                            " (hash unavailable); keeping it, not refetching\n")
+                               .c_str());
                 continue;
             }
 
@@ -583,7 +601,7 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                 }
 
                 log_output(("[downloader] " + ::xllama::wstring_to_utf8(f.filename) + " done (" +
-                            std::to_string(bytes_done) + " bytes total so far)")
+                            std::to_string(bytes_done) + " bytes total so far)\n")
                                .c_str());
                 file_ok = true;
             }
@@ -596,9 +614,18 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
             }
         }
 
-        std::vector<std::wstring> expected;
-        for (const auto& file : files)
-            expected.push_back(file.filename);
+        if (!unverified_name.empty()) {
+            if (dispatcher)
+                co_await winrt::resume_foreground(dispatcher);
+            done(false, L"Could not verify " + unverified_name + L"; will retry");
+            co_return;
+        }
+
+        std::vector<std::wstring> expected = std::move(publish_files);
+        if (expected.empty()) {
+            for (const auto& file : files)
+                expected.push_back(file.filename);
+        }
         std::error_code complete_ec;
         if (!writer.complete(expected, complete_ec)) {
             if (dispatcher)

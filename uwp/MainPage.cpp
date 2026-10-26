@@ -19,6 +19,7 @@
     #include "xllama/debug_dashboard.h"
     #include "xllama/json_utils.h"
     #include "xllama/kv_store.h"
+    #include "xllama/model_file_plan.h"
     #include "xllama/model_provision.h"
     #include "xllama/path_utils.h"
     #include "xllama/personalize.h"
@@ -45,6 +46,7 @@
     #include <filesystem>
     #include <limits>
     #include <mutex>
+    #include <optional>
     #include <string>
     #include <thread>
     #include <vector>
@@ -2729,6 +2731,7 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
     auto self = shared_from_this();
     auto dispatcher = self->m_root.Dispatcher();
 
+    std::optional<std::wstring> err;
     try {
         log_output(("[xllama] EnsureModel: begin '" + ::xllama::wstring_to_utf8(model_name) + "'\n")
                        .c_str());
@@ -2763,6 +2766,66 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                 self->PreloadSessionAsync();
             }
             co_return;
+        }
+
+        // Weights already match their pins; only catalogue sidecars (LICENSE /
+        // NOTICE / …) are missing. Do not block Run or hash on this path —
+        // mark ready, then fetch sidecars in the background (#370).
+        if (entry && !entry->files.empty()) {
+            std::vector<PresentFile> present;
+            std::vector<ManifestFilePin> pins;
+            present.reserve(entry->files.size());
+            pins.reserve(entry->files.size());
+            for (const auto& f : entry->files) {
+                uint64_t sz = 0;
+                std::error_code ec;
+                const auto p = std::filesystem::path(local_model_dir) / f.filename;
+                if (std::filesystem::is_regular_file(p, ec)) {
+                    const auto n = std::filesystem::file_size(p, ec);
+                    if (!ec)
+                        sz = static_cast<uint64_t>(n);
+                }
+                present.push_back({f.filename, sz, {}});
+                pins.push_back({f.filename, f.approx_bytes, ::xllama::wstring_to_utf8(f.sha256)});
+            }
+            if (only_sidecars_missing(present, pins)) {
+                log_output(("[xllama] EnsureModel: '" + ::xllama::wstring_to_utf8(model_name) +
+                            "' weights present; sidecar fetch in background\n")
+                               .c_str());
+                co_await resume_foreground(dispatcher);
+                if (set_app_ready) {
+                    self->LoadModelName();
+                    self->SetStatus(L"Ready", StatusKind::Success);
+                    self->m_runButton.IsEnabled(true);
+                    self->m_model_ready.store(true);
+                    self->EnsureGpuModelIfNeeded();
+                    self->PreloadSessionAsync();
+                }
+                if (!entry->hf_base_url.empty()) {
+                    std::vector<ModelFile> sidecars;
+                    std::vector<std::wstring> publish;
+                    for (const auto& f : entry->files) {
+                        publish.push_back(f.filename);
+                        if (is_catalogue_sidecar(f.filename))
+                            sidecars.push_back(f);
+                    }
+                    if (!sidecars.empty()) {
+                        co_await ModelDownloader::DownloadAsync(
+                            entry->hf_base_url, local_model_dir, std::move(sidecars), dispatcher,
+                            [](uint64_t, uint64_t) {},
+                            [](bool ok, std::wstring e) {
+                                if (!ok)
+                                    log_output(("[xllama] EnsureModel: sidecar fetch failed: " +
+                                                ::xllama::wstring_to_utf8(e) + "\n")
+                                                   .c_str());
+                                else
+                                    log_output("[xllama] EnsureModel: sidecar fetch complete\n");
+                            },
+                            std::move(publish));
+                    }
+                }
+                co_return;
+            }
         }
 
         // Check 2: model bundled in InstalledPath (MSIX)?
@@ -3026,14 +3089,27 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                 }
             });
     } catch (winrt::hresult_error const& e) {
-        log_output(("[xllama] EnsureModel: exception: " +
-                    ::xllama::wstring_to_utf8(std::wstring(e.message().c_str())) + "\n")
-                       .c_str());
+        err = std::wstring(e.message().c_str());
+        log_output(
+            ("[xllama] EnsureModel: exception: " + ::xllama::wstring_to_utf8(*err) + "\n").c_str());
     } catch (const std::exception& e) {
+        err = ::xllama::utf8_to_wstring(e.what());
         log_output((std::string("[xllama] EnsureModel: exception: ") + e.what() + "\n").c_str());
     } catch (...) {
+        err = L"unexpected exception";
         log_output(
             "[xllama] EnsureModel: unexpected exception; provision aborted, process continues\n");
+    }
+    if (err) {
+        try {
+            co_await resume_foreground(dispatcher);
+            if (set_app_ready) {
+                self->m_loadingBar.Visibility(winrt::Windows::UI::Xaml::Visibility::Collapsed);
+                self->m_runButton.IsEnabled(true);
+                self->SetStatus(L"Model setup failed: " + *err, StatusKind::Error);
+            }
+        } catch (...) {
+        }
     }
 }
 
@@ -3208,13 +3284,19 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
                 for (const auto& f : e->files)
                     gpu_expected.push_back(f.filename);
         }
-        const bool expected_verified =
+        const bool names_present =
             !gpu_expected.empty() && ::xllama::IsModelProvisioned(gpu_name, gpu_expected);
+        auto local_folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
+        const std::wstring local_gpu_dir =
+            std::wstring(local_folder.Path().c_str()) + L"\\models\\" + gpu_name;
+        const bool local_complete = ::xllama::ModelDownloader::IsComplete(local_gpu_dir);
+        const bool expected_verified = names_present && local_complete;
         const bool write_in_progress = ::xllama::ModelDownloader::WriterGate().busy();
         const auto gpu_state = ::xllama::gpu_route_readiness(expected_verified, write_in_progress);
         const bool gpu_provisioned =
             ::xllama::gpu_ready_for_routing(expected_verified, write_in_progress);
-        const bool loose_present = ::xllama::IsModelProvisioned(gpu_name);
+        const bool loose_present =
+            expected_verified ? true : ::xllama::IsModelProvisioned(gpu_name);
         ::xllama::RoutingSettings rs;
         rs.mode = static_cast<::xllama::RoutingMode>(m_routing);
         rs.cpu_model = ::xllama::wstring_to_utf8(m_model_filename);
@@ -3248,7 +3330,7 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
             ::xllama::dml_text_model_ok(m_gpu_model) && !loose_present && !write_in_progress;
         if (gpu_state != ::xllama::GpuRouteReadiness::Ready &&
             ::xllama::dml_text_model_ok(m_gpu_model) && !warn_gpu_missing &&
-            (m_routing == 1 || (m_routing == 2 && !base_is_gguf))) {
+            (m_routing == 1 || (m_routing == 2 && !base_is_gguf && n_tok > rs.token_threshold))) {
             ::xllama::log_output(::xllama::gpu_route_fallback_log(gpu_state));
         }
         if (m_routing == 1 && warn_gpu_missing) {

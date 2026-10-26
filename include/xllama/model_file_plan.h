@@ -4,9 +4,9 @@
 // Per-file catalogue fetch plan.
 //
 // A directory is not compared to the manifest as one blob. Each files[] pin is
-// checked on its own (size, and SHA-256 when both sides have one). Adding a
-// LICENSE/NOTICE (or any other sidecar) must not mark already-matching weight
-// files as stale. The UWP downloader HTTP-fetches only `files_needing_fetch`.
+// checked on its own. `classify_file_pin` is the single decision: Ok (keep),
+// Refetch (HTTP), or Unverified (keep the bytes, do not publish `.complete`).
+// Adding a LICENSE/NOTICE must not mark already-matching weight pins as stale.
 //
 // Pure (no WinRT / no pch.h). Host doctest-testable.
 #pragma once
@@ -18,6 +18,16 @@
 #include <vector>
 
 namespace xllama {
+
+// Hash-unavailable retries in the UWP downloader. Not a host or console pin.
+inline constexpr int kHashVerifyRetries = 2;
+inline constexpr int kHashVerifyRetryPauseS = 1;
+
+enum class PinCheck {
+    Ok = 0,         // size (and hash, when observed) match — do not fetch
+    Refetch = 1,    // missing, truncated, or hash mismatch — HTTP-fetch
+    Unverified = 2, // size matches but the hash could not be read — keep, no marker
+};
 
 // One catalogue files[] pin. `approx_bytes` 0 and an empty `sha256` mean "not
 // known" — those axes do not reject a present file.
@@ -32,7 +42,8 @@ struct ManifestFilePin {
 struct PresentFile {
     std::wstring filename;
     uint64_t size = 0;
-    std::string sha256;
+    std::string sha256;           // empty unless a hash was computed
+    bool hash_unreadable = false; // size matches, hash attempted and failed
 };
 
 inline std::wstring file_basename_normalized(std::wstring path) {
@@ -74,19 +85,31 @@ inline bool sha256_hex_equal(const std::string& a, const std::string& b) {
     return true;
 }
 
-// True when this on-disk observation satisfies the pin. Size 0 is missing.
-// A pin size of 0 does not reject. A pin hash is compared only when the
-// observation also has a hash — size-only listings do not force a re-fetch.
+// Classify one on-disk observation against a catalogue pin.
+// `have == nullptr` or size 0 is missing → Refetch. A pin size of 0 does not
+// reject. A pin hash is compared only when the observation has a hash; a
+// size-only listing (empty sha256, hash_unreadable false) is Ok on size.
+// hash_unreadable → Unverified (never Refetch: do not replace good-looking bytes).
+inline PinCheck classify_file_pin(const PresentFile* have, const ManifestFilePin& pin) {
+    if (!have || have->size == 0)
+        return PinCheck::Refetch;
+    if (normalize_model_path(have->filename) != normalize_model_path(pin.filename))
+        return PinCheck::Refetch;
+    if (pin.approx_bytes != 0 && have->size != pin.approx_bytes)
+        return PinCheck::Refetch;
+    if (have->hash_unreadable)
+        return pin.sha256.empty() ? PinCheck::Ok : PinCheck::Unverified;
+    if (!pin.sha256.empty() && !have->sha256.empty() && !sha256_hex_equal(have->sha256, pin.sha256))
+        return PinCheck::Refetch;
+    return PinCheck::Ok;
+}
+
+inline PinCheck classify_file_pin(const PresentFile& have, const ManifestFilePin& pin) {
+    return classify_file_pin(&have, pin);
+}
+
 inline bool file_pin_satisfied(const PresentFile& have, const ManifestFilePin& pin) {
-    if (normalize_model_path(have.filename) != normalize_model_path(pin.filename))
-        return false;
-    if (have.size == 0)
-        return false;
-    if (pin.approx_bytes != 0 && have.size != pin.approx_bytes)
-        return false;
-    if (!pin.sha256.empty() && !have.sha256.empty() && !sha256_hex_equal(have.sha256, pin.sha256))
-        return false;
-    return true;
+    return classify_file_pin(&have, pin) == PinCheck::Ok;
 }
 
 inline const PresentFile* find_present_file(const std::vector<PresentFile>& present,
@@ -99,14 +122,14 @@ inline const PresentFile* find_present_file(const std::vector<PresentFile>& pres
     return nullptr;
 }
 
-// Filenames to HTTP-fetch, in catalogue order. Missing or pin-mismatched only.
+// Filenames to HTTP-fetch, in catalogue order. Refetch only — Unverified is kept.
 inline std::vector<std::wstring> files_needing_fetch(const std::vector<PresentFile>& present,
                                                      const std::vector<ManifestFilePin>& expected) {
     std::vector<std::wstring> need;
     need.reserve(expected.size());
     for (const auto& pin : expected) {
         const PresentFile* have = find_present_file(present, pin.filename);
-        if (!have || !file_pin_satisfied(*have, pin))
+        if (classify_file_pin(have, pin) == PinCheck::Refetch)
             need.push_back(pin.filename);
     }
     return need;
@@ -122,6 +145,27 @@ weight_files_needing_fetch(const std::vector<PresentFile>& present,
             need.push_back(name);
     }
     return need;
+}
+
+// Weights match their pins (size-only listings count); at least one sidecar
+// is missing or size-mismatched. The chat model is usable; fetch sidecars
+// in the background without blocking Run.
+inline bool only_sidecars_missing(const std::vector<PresentFile>& present,
+                                  const std::vector<ManifestFilePin>& expected) {
+    if (expected.empty())
+        return false;
+    bool sidecar_gap = false;
+    for (const auto& pin : expected) {
+        const PresentFile* have = find_present_file(present, pin.filename);
+        const PinCheck c = classify_file_pin(have, pin);
+        if (is_catalogue_sidecar(pin.filename)) {
+            if (c == PinCheck::Refetch)
+                sidecar_gap = true;
+        } else if (c != PinCheck::Ok) {
+            return false;
+        }
+    }
+    return sidecar_gap;
 }
 
 } // namespace xllama

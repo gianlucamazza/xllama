@@ -339,7 +339,8 @@ inline RoutingDecision decide_routing(const RoutingSettings& s, int n_tok, bool 
 // "any genai_config.json / *.gguf exists" probe: a partial tree (weights
 // present, catalogue sidecars still downloading) and an in-flight model write
 // are not a verified DML asset. Defaults: every expected catalogue file is
-// present, and the process-wide writer is idle.
+// present, the LocalState `.complete` marker exists, and the process-wide
+// writer is idle (`busy()` is any write in the process, not just this model).
 enum class GpuRouteReadiness {
     Ready = 0,
     PartialOrUnverified = 1,
