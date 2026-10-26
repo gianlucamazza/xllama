@@ -4,6 +4,7 @@
 #include <doctest/doctest.h>
 
 #include "xllama/model_file_plan.h"
+#include "xllama/routing_policy.h"
 
 using namespace xllama;
 
@@ -179,4 +180,48 @@ TEST_CASE("only_sidecars_missing: unverified weight is not ready") {
 
 TEST_CASE("only_sidecars_missing: empty expected is false") {
     CHECK_FALSE(only_sidecars_missing({{L"model.onnx", 1, {}}}, {}));
+}
+
+TEST_CASE("gpu_needs_provision: names alone never heal a missing marker") {
+    CHECK(gpu_needs_provision(false, false));
+    CHECK(gpu_needs_provision(false, true));
+    CHECK(gpu_needs_provision(true, false));
+    CHECK_FALSE(gpu_needs_provision(true, true));
+}
+
+TEST_CASE("skip_provision_early_exits: GPU without marker falls through") {
+    CHECK(skip_provision_early_exits(false, false));
+    CHECK_FALSE(skip_provision_early_exits(false, true));
+    CHECK_FALSE(skip_provision_early_exits(true, false));
+    CHECK_FALSE(skip_provision_early_exits(true, true));
+}
+
+TEST_CASE("sidecar write: no prior marker hashes every file; wrong hash is not Ok") {
+    // #370 B5: a same-size weight with the wrong hash must never publish
+    // `.complete` or become GPU-ready. Without a prior marker the background
+    // write includes the weight so classify_file_pin sees the hash.
+    Pins expected{
+        {L"LICENSE", 10, "lic"},
+        {L"NOTICE", 4, "not"},
+        {L"model.onnx", 100, "goodhash"},
+    };
+    CHECK(sidecar_background_write_files(expected, true) ==
+          std::vector<std::wstring>({L"LICENSE", L"NOTICE"}));
+    const auto full = sidecar_background_write_files(expected, false);
+    REQUIRE(full.size() == 3);
+    CHECK(full[0] == L"LICENSE");
+    CHECK(full[2] == L"model.onnx");
+    CHECK(sidecar_write_needs_full_hash(false));
+    CHECK_FALSE(sidecar_write_needs_full_hash(true));
+
+    PresentFile same_size_wrong{L"model.onnx", 100, "badhash"};
+    CHECK(classify_file_pin(same_size_wrong, expected[2]) == PinCheck::Refetch);
+    CHECK_FALSE(file_pin_satisfied(same_size_wrong, expected[2]));
+
+    const bool names_present = true;
+    const bool had_marker = false;
+    CHECK(gpu_needs_provision(names_present, had_marker));
+    const bool expected_verified = names_present && had_marker;
+    CHECK_FALSE(gpu_ready_for_routing(expected_verified, false));
+    CHECK_FALSE(gpu_ready_for_routing(expected_verified, true));
 }

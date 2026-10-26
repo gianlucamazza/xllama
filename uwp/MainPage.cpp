@@ -2703,7 +2703,8 @@ void MainPageController::EnsureGpuModelIfNeeded() {
     const std::wstring gpu = ::xllama::utf8_to_wstring(m_gpu_model);
     // Expected-aware so a stale-quant GPU model is upgraded like the chat model
     // (EnsureModelNamedAsync would otherwise be short-circuited here). Empty
-    // expected → loose fallback.
+    // expected → loose fallback. Names alone are not enough: a LocalState
+    // GPU dir with every filename but no `.complete` still needs a write.
     std::vector<std::wstring> gpu_expected;
     {
         auto manifest = ::xllama::LoadModelManifest();
@@ -2711,7 +2712,12 @@ void MainPageController::EnsureGpuModelIfNeeded() {
             for (const auto& f : e->files)
                 gpu_expected.push_back(f.filename);
     }
-    if (::xllama::IsModelProvisioned(gpu, gpu_expected))
+    auto local_folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
+    const std::wstring local_gpu_dir =
+        std::wstring(local_folder.Path().c_str()) + L"\\models\\" + gpu;
+    const bool names_present = ::xllama::IsModelProvisioned(gpu, gpu_expected);
+    const bool marker = ::xllama::ModelDownloader::IsComplete(local_gpu_dir);
+    if (!::xllama::gpu_needs_provision(names_present, marker))
         return;
     log_output(
         ("[xllama] EnsureModel: gpu_model '" + m_gpu_model + "' missing — background provision\n")
@@ -2752,7 +2758,10 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
         std::wstring local_models_root = std::wstring(local_folder.Path().c_str()) + L"\\models";
         std::wstring local_model_dir = local_models_root + L"\\" + model_name;
 
-        if (IsModelProvisioned(model_name, expected_files)) {
+        const bool marker = ModelDownloader::IsComplete(local_model_dir);
+        const bool skip_early = skip_provision_early_exits(set_app_ready, marker);
+
+        if (!skip_early && IsModelProvisioned(model_name, expected_files)) {
             log_output(("[xllama] EnsureModel: '" + ::xllama::wstring_to_utf8(model_name) +
                         "' already provisioned\n")
                            .c_str());
@@ -2769,9 +2778,13 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
         }
 
         // Weights already match their pins; only catalogue sidecars (LICENSE /
-        // NOTICE / …) are missing. Do not block Run or hash on this path —
-        // mark ready, then fetch sidecars in the background (#370).
-        if (entry && !entry->files.empty()) {
+        // NOTICE / …) are missing. Do not block Run — mark ready, then write
+        // in the background. had_marker = IsComplete on entry: sidecars only
+        // when the marker was already published; otherwise pass every
+        // catalogue file so weights are hashed and complete() runs only if
+        // every pin is Ok (#370 B5). GPU provision with no marker skips this
+        // path (skip_early) and falls through to DownloadAsync(entry->files).
+        if (!skip_early && entry && !entry->files.empty()) {
             std::vector<PresentFile> present;
             std::vector<ManifestFilePin> pins;
             present.reserve(entry->files.size());
@@ -2789,6 +2802,7 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                 pins.push_back({f.filename, f.approx_bytes, ::xllama::wstring_to_utf8(f.sha256)});
             }
             if (only_sidecars_missing(present, pins)) {
+                const bool had_marker = marker;
                 log_output(("[xllama] EnsureModel: '" + ::xllama::wstring_to_utf8(model_name) +
                             "' weights present; sidecar fetch in background\n")
                                .c_str());
@@ -2798,31 +2812,44 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                     self->SetStatus(L"Ready", StatusKind::Success);
                     self->m_runButton.IsEnabled(true);
                     self->m_model_ready.store(true);
-                    self->EnsureGpuModelIfNeeded();
                     self->PreloadSessionAsync();
                 }
                 if (!entry->hf_base_url.empty()) {
-                    std::vector<ModelFile> sidecars;
+                    const auto want = sidecar_background_write_files(pins, had_marker);
+                    std::vector<ModelFile> write_files;
                     std::vector<std::wstring> publish;
-                    for (const auto& f : entry->files) {
+                    write_files.reserve(want.size());
+                    publish.reserve(entry->files.size());
+                    for (const auto& f : entry->files)
                         publish.push_back(f.filename);
-                        if (is_catalogue_sidecar(f.filename))
-                            sidecars.push_back(f);
+                    for (const auto& name : want) {
+                        for (const auto& f : entry->files) {
+                            if (f.filename == name) {
+                                write_files.push_back(f);
+                                break;
+                            }
+                        }
                     }
-                    if (!sidecars.empty()) {
+                    if (!write_files.empty()) {
                         co_await ModelDownloader::DownloadAsync(
-                            entry->hf_base_url, local_model_dir, std::move(sidecars), dispatcher,
+                            entry->hf_base_url, local_model_dir, std::move(write_files), dispatcher,
                             [](uint64_t, uint64_t) {},
-                            [](bool ok, std::wstring e) {
+                            [self, set_app_ready](bool ok, std::wstring e) {
                                 if (!ok)
                                     log_output(("[xllama] EnsureModel: sidecar fetch failed: " +
                                                 ::xllama::wstring_to_utf8(e) + "\n")
                                                    .c_str());
                                 else
                                     log_output("[xllama] EnsureModel: sidecar fetch complete\n");
+                                if (set_app_ready)
+                                    self->EnsureGpuModelIfNeeded();
                             },
                             std::move(publish));
+                    } else if (set_app_ready) {
+                        self->EnsureGpuModelIfNeeded();
                     }
+                } else if (set_app_ready) {
+                    self->EnsureGpuModelIfNeeded();
                 }
                 co_return;
             }

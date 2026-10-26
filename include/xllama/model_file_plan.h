@@ -168,4 +168,40 @@ inline bool only_sidecars_missing(const std::vector<PresentFile>& present,
     return sidecar_gap;
 }
 
+// GPU (and any !set_app_ready tree) is not done when names alone match.
+// A LocalState folder with every catalogue filename but no `.complete` still
+// needs a write: hash Ok weights, fetch gaps, then publish the marker. That
+// is how a tree recovers after begin() dropped the marker, an Unverified
+// hash, or a WDP upload (#370 B4).
+inline bool gpu_needs_provision(bool names_present, bool marker) {
+    return !names_present || !marker;
+}
+
+// EnsureModelNamedAsync Check 1 and the sidecar fast path. A background GPU
+// provision (!set_app_ready) with no marker must skip both and run
+// DownloadAsync(entry->files) so hashes run and complete() can fire.
+inline bool skip_provision_early_exits(bool set_app_ready, bool marker) {
+    return !set_app_ready && !marker;
+}
+
+// Sidecar-ready background write: if `.complete` was already published,
+// fetch sidecars only. If not, pass every catalogue file so weights are
+// hashed and the marker is written only when every pin is Ok (#370 B5).
+inline bool sidecar_write_needs_full_hash(bool had_marker) {
+    return !had_marker;
+}
+
+// Catalogue filenames a sidecar-ready background write should pass to the
+// downloader. had_marker → sidecars only; otherwise the full expected set.
+inline std::vector<std::wstring>
+sidecar_background_write_files(const std::vector<ManifestFilePin>& expected, bool had_marker) {
+    std::vector<std::wstring> out;
+    out.reserve(expected.size());
+    for (const auto& pin : expected) {
+        if (sidecar_write_needs_full_hash(had_marker) || is_catalogue_sidecar(pin.filename))
+            out.push_back(pin.filename);
+    }
+    return out;
+}
+
 } // namespace xllama
