@@ -54,6 +54,12 @@ class ModelWriteGate {
                    : Permit();
     }
 
+    // Observer for routing: a held permit means some writer is mid-download
+    // or import. Does not acquire.
+    bool busy() const {
+        return m_busy.load(std::memory_order_acquire);
+    }
+
   private:
     std::atomic<bool> m_busy{false};
 };

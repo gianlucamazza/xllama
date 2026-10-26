@@ -30,6 +30,17 @@ struct ModelDir {
 };
 } // namespace
 
+TEST_CASE("Model writer busy() tracks the held permit") {
+    xllama::ModelWriteGate gate;
+    CHECK_FALSE(gate.busy());
+    {
+        auto permit = gate.try_acquire();
+        REQUIRE(permit.owns_lock());
+        CHECK(gate.busy());
+    }
+    CHECK_FALSE(gate.busy());
+}
+
 TEST_CASE("Model writer rejects all competing writers without touching files") {
     ModelDir dir;
     dir.put(".complete", "original marker");
