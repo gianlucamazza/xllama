@@ -46,11 +46,12 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `personalize.h`                    | Phase 11 helpers: last-block filter, job builder, sample count, manifest JSON                                                                  |
 | `preference_capture.h`             | Preference JSONL format + append (Like/Dislike/Correct + API)                                                                                  |
 | `chat_prompt.h`                    | `ChatFormat`, `chat_format_for`, `apply_stop_sequences`                                                                                        |
-| `routing_policy.h`                 | `decide_routing`, `kv_reuse_supported_for_model`, prompt budget                                                                                |
+| `routing_policy.h`                 | `decide_routing`, `gpu_ready_for_routing`, `kv_reuse_supported_for_model`, prompt budget                                                       |
 | `embedding.h`                      | Embedding params/results, pooling-aware trim, normalization and float32 base64                                                                 |
 | `api_pull_policy.h`                | Trusted catalogue pull admission and API-only pull gate                                                                                        |
 | `model_write.h`                    | Shared atomic RAII writer permit; guarded marker publication and stale-base cleanup                                                            |
 | `model_provision.h`                | `dir_satisfies_expected_files`, `normalize_model_path`                                                                                         |
+| `model_file_plan.h`                | Per-file catalogue pin check; `files_needing_fetch` / sidecar vs weight; `gpu_needs_provision`                                                 |
 | `manifest_merge.h`                 | `merge_manifest_entries` (per-entry catalogue override)                                                                                        |
 | `membw.h`                          | `measure_membw` (STREAM-style bandwidth probe)                                                                                                 |
 | `grammar_spec.h`                   | `GrammarSpec` — a tool template's grammar and triggers for one generate (ADR 0005)                                                             |
@@ -296,7 +297,17 @@ variable (§5c); the re-derivation concluded a single prompt-length threshold is
 the wrong shape for the decision, so 1550 is left as-is with its rationale
 corrected. Routing is **ORT-only**: GGUF models are not routed per
 conversation. Their GPU layers come from the catalogue entry and the
-`gguf_gpu_layers.txt` override (see Inference backends), not from this policy. Tunable prefill batching for the llama.cpp path is exposed via
+`gguf_gpu_layers.txt` override (see Inference backends), not from this policy.
+`gpu_available` is `gpu_ready_for_routing(expected_files_verified, write_in_progress)`:
+every current catalogue `files[]` name must be present, the LocalState
+`.complete` marker must exist, and the process-wide writer must be idle (any
+write, not only this model). A write includes the up-front hash pass before
+any HTTP — `begin()` has already dropped the marker — so new conversations
+route to CPU for that whole interval. The choice is sticky per conversation
+(the KV cache is per-EP); GPU returns only in a new conversation after the
+writer is idle and the marker is back. A partial tree or an in-flight
+download is CPU-only, with a log line from `gpu_route_fallback_log` only when
+Auto would have picked the GPU (or GpuOnly). Tunable prefill batching for the llama.cpp path is exposed via
 `SessionParams.n_batch` / `n_ubatch` (`xllama-cli --batch/--ubatch`) — see
 `benchmarks.md` for the (flat) sweep.
 
@@ -448,15 +459,36 @@ LocalState → bundled InstalledPath → USB → **catalogue download** (from th
 the pure `dir_satisfies_expected_files` (`model_provision.h`), which requires the
 manifest's current `files[].filename` to be present (separator/case-insensitive)
 rather than accepting _any_ `.gguf`. In expected mode the `.complete` marker is not
-a fast-path on its own (a stale-quant dir can carry a valid old marker). The downloader acquires the shared writer permit before invalidating `.complete`.
-After expected files are verified/promoted, it removes stale non-expected
-`*.gguf`, preserves `adapter.gguf` and rollback generations, then publishes the
-completion marker. `EnsureModelNamedAsync` and the API do not prune outside that
-permit. Net
-effect: a directory holding an older quant than the manifest names (e.g. a stale
-`gemma-4-E2B-it-UD-IQ2_M.gguf`) auto-upgrades to the current `Q3_K_S`. When there is
-no catalogue entry the check falls back to the historical loose behavior. The pure
-predicate has host doctest coverage (`tests/test_model_provision.cpp`).
+a fast-path on its own (a stale-quant dir can carry a valid old marker). That
+presence check decides whether the tree is catalogue-complete; it does **not**
+decide what to download. The download decision is `classify_file_pin`
+(`model_file_plan.h`): **Ok** (keep), **Refetch** (HTTP), or **Unverified**
+(keep the bytes, do not publish `.complete`). The UWP downloader hashes when
+the pin has a SHA-256 (retries `kHashVerifyRetries` times with
+`kHashVerifyRetryPauseS` seconds if the read fails); a size-only listing used
+by `EnsureModelNamedAsync` does not hash. If `only_sidecars_missing` is true
+(weights match by size, LICENSE/NOTICE absent) the chat model is marked ready
+immediately and a background write follows. That write records
+`had_marker = IsComplete(dir)` on entry: sidecars only when the marker was
+already published; otherwise every catalogue file so weights are hashed and
+`complete()` runs only if every pin is Ok. A background GPU provision
+(`!set_app_ready`) with no marker skips Check 1 and the sidecar path
+(`skip_provision_early_exits`) and runs `DownloadAsync(entry->files)` —
+hashes, skips Ok weights, publishes the marker; no weight refetch when pins
+match. `EnsureGpuModelIfNeeded` returns early only when names are present
+**and** the LocalState GPU dir has `.complete` (`gpu_needs_provision`). A
+stale quant (old `.gguf`, new name in the manifest) is still a weight fetch.
+The downloader acquires the shared writer permit before invalidating
+`.complete`. After every pin is Ok and files are promoted, it removes stale
+non-expected `*.gguf`, preserves `adapter.gguf` and rollback generations,
+then publishes the marker. `writer.complete` is given the full catalogue
+filename set (via `publish_files`) even when only sidecars were fetched. An
+Unverified pin skips the marker and returns `done(false)`; the next GPU
+ensure retries because the marker is still missing. `EnsureModelNamedAsync`
+and the API do not prune outside that permit. When there is no catalogue
+entry the check falls back to the historical loose behavior. The pure
+predicates have host doctest coverage (`tests/test_model_provision.cpp`,
+`tests/test_model_file_plan.cpp`).
 
 ### Shared model-write ownership
 
@@ -695,7 +727,7 @@ host Release smoke (quality + peak)
 ## Unit test map (host suite)
 
 One doctest binary, `xllama-tests`, built from `tests/test_*.cpp`. The suite
-is **380 test cases / 33434 assertions** (doctest, without opt-in model checks).
+is **403 test cases / 33521 assertions** (doctest, without opt-in model checks).
 Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 (`llama_raii.h`, `ort_raii.h`, `d3d12_dyn.h`, `catalog_trust.h`).
 
@@ -732,6 +764,7 @@ Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 | `test_manifest_merge.cpp`        | `manifest_merge.h`, `withdrawn_models.h`                                                    |
 | `test_membw.cpp`                 | `membw.h`                                                                                   |
 | `test_model_provision.cpp`       | `model_provision.h`                                                                         |
+| `test_model_file_plan.cpp`       | `model_file_plan.h`                                                                         |
 | `test_model_write.cpp`           | `model_write.h`                                                                             |
 | `test_path.cpp`                  | `path_utils.h`                                                                              |
 | `test_personalize.cpp`           | `personalize.h`                                                                             |
@@ -835,7 +868,18 @@ non-empty line of the first user message (truncated at 60 chars). IDs use
 
 `IsModelProvisioned(name, expected_files)` runs in dual mode: **expected-aware**
 requires the manifest's `files[].filename` to be present (case-insensitive),
-while **loose** mode (no catalogue entry) accepts any `.gguf`.
+while **loose** mode (no catalogue entry) accepts any `.gguf`. GPU routing
+requires the expected-aware names **and** a LocalState `.complete` marker
+**and** an idle `ModelWriteGate` (`gpu_ready_for_routing`). `busy()` is
+process-wide: any model write — including the up-front hash pass after
+`begin()` drops the marker — forces CPU for **new** conversations. The
+routing choice sticks for the conversation; GPU returns only after the writer
+is idle and the marker is published, in a new conversation. HTTP fetch is
+`classify_file_pin` after a real hash when the pin has one;
+`only_sidecars_missing` (size-only) is what lets the selected chat model
+become ready without a network round-trip. The CPU sidecar write runs first;
+`EnsureGpuModelIfNeeded` is chained from that write's `on_done` so the two
+do not contend for the single gate.
 
 ## CLI flags (complete enumeration)
 

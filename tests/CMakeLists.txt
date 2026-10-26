@@ -40,6 +40,7 @@ add_executable(xllama-tests
     test_ggml_d3d12.cpp
     test_ramceil.cpp
     test_model_provision.cpp
+    test_model_file_plan.cpp
     test_model_write.cpp
     test_logit_parity.cpp
     test_training.cpp

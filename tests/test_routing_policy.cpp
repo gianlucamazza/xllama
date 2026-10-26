@@ -7,6 +7,7 @@
 #include "xllama/routing_policy.h"
 
 #include <algorithm>
+#include <string>
 
 using namespace xllama;
 
@@ -242,6 +243,45 @@ TEST_CASE("model_is_dml: gates the load warm-up (#130)") {
     CHECK(model_is_dml("smollm2-360m-dml-fp16") !=
           kv_reuse_supported_for_model("smollm2-360m-dml-fp16"));
 }
+TEST_CASE("routing: partial or in-progress gpu model stays on CPU") {
+    // #370: a DML tree that is still downloading (or missing expected files)
+    // must not be selected. decide_routing sees only the composed gpu_available
+    // bit; the composition lives in gpu_ready_for_routing so callers cannot
+    // pass the loose "any ONNX exists" probe by accident.
+    RoutingSettings s;
+    s.mode = RoutingMode::Auto;
+    s.token_threshold = 600;
+    s.cpu_model = "cpu";
+    s.gpu_model = "smollm2-360m-dml-fp16-v2";
+
+    CHECK_FALSE(gpu_ready_for_routing(false, false));
+    CHECK_FALSE(gpu_ready_for_routing(false, true));
+    CHECK_FALSE(gpu_ready_for_routing(true, true));
+    CHECK(gpu_ready_for_routing(true, false));
+    CHECK(gpu_route_readiness(false, false) == GpuRouteReadiness::PartialOrUnverified);
+    CHECK(gpu_route_readiness(true, true) == GpuRouteReadiness::WriteInProgress);
+    CHECK(gpu_route_readiness(true, false) == GpuRouteReadiness::Ready);
+    CHECK(std::string(gpu_route_fallback_log(GpuRouteReadiness::WriteInProgress)).find("CPU") !=
+          std::string::npos);
+
+    auto downloading = decide_routing(s, 800, false, gpu_ready_for_routing(true, true));
+    CHECK_FALSE(downloading.use_gpu);
+    CHECK(downloading.active_model == "cpu");
+
+    auto partial = decide_routing(s, 800, false, gpu_ready_for_routing(false, false));
+    CHECK_FALSE(partial.use_gpu);
+    CHECK(partial.active_model == "cpu");
+
+    auto ready = decide_routing(s, 800, false, gpu_ready_for_routing(true, false));
+    CHECK(ready.use_gpu);
+    CHECK(ready.active_model == "smollm2-360m-dml-fp16-v2");
+
+    s.mode = RoutingMode::GpuOnly;
+    auto gpu_only_partial = decide_routing(s, 10, false, gpu_ready_for_routing(false, true));
+    CHECK_FALSE(gpu_only_partial.use_gpu);
+    CHECK(gpu_only_partial.active_model == "cpu");
+}
+
 TEST_CASE("resolve_gguf_gpu_layers: operator knob overrides the catalogue default (D3)") {
     // No knob file: the catalogue entry decides (0 = CPU).
     CHECK(resolve_gguf_gpu_layers(0, kGgufGpuLayersKnobAbsent) == 0);

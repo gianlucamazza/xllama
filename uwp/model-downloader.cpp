@@ -11,6 +11,7 @@
 
     #include "xllama/catalog_trust.h"
     #include "xllama/manifest_merge.h"
+    #include "xllama/model_file_plan.h"
     #include "xllama/model_provision.h"
     #include "xllama/path_utils.h"
     #include "xllama/session_spec.h"
@@ -23,6 +24,7 @@
     #include <winrt/Windows.Data.Json.h>
 
     #include <chrono>
+    #include <exception>
     #include <filesystem>
     #include <fstream>
 
@@ -186,12 +188,14 @@ uint64_t local_file_size(const std::filesystem::path& local_dir, const std::wstr
     return ec ? 0 : static_cast<uint64_t>(sz);
 }
 
-bool file_matches_sha256(const std::filesystem::path& path, const std::wstring& expected) {
+enum class FileHashResult { Match, Mismatch, Unavailable };
+
+FileHashResult file_sha256_result(const std::filesystem::path& path, const std::wstring& expected) {
     if (expected.empty())
-        return true;
+        return FileHashResult::Match;
     BCRYPT_ALG_HANDLE alg = nullptr;
     BCRYPT_HASH_HANDLE hash = nullptr;
-    bool ok = false;
+    FileHashResult result = FileHashResult::Unavailable;
     do {
         if (BCryptOpenAlgorithmProvider(&alg, BCRYPT_SHA256_ALGORITHM, nullptr, 0) != 0)
             break;
@@ -229,24 +233,14 @@ bool file_matches_sha256(const std::filesystem::path& path, const std::wstring& 
             actual.push_back(hex[b >> 4]);
             actual.push_back(hex[b & 0x0f]);
         }
-        ok = actual == ::xllama::wstring_to_utf8(expected);
+        result = actual == ::xllama::wstring_to_utf8(expected) ? FileHashResult::Match
+                                                               : FileHashResult::Mismatch;
     } while (false);
     if (hash)
         BCryptDestroyHash(hash);
     if (alg)
         BCryptCloseAlgorithmProvider(alg, 0);
-    return ok;
-}
-
-// True when a previous download/WDP upload left a usable file: exact approx_bytes
-// match when known, and SHA-256 when the trusted catalogue supplies one.
-bool file_already_complete(const std::filesystem::path& local_dir, const ModelFile& f) {
-    const uint64_t have = local_file_size(local_dir, f.filename);
-    if (have == 0)
-        return false;
-    if (f.approx_bytes != 0 && have != f.approx_bytes)
-        return false;
-    return file_matches_sha256(local_dir / f.filename, f.sha256);
+    return result;
 }
 
 bool http_status_retryable(int code) {
@@ -258,11 +252,28 @@ bool http_status_retryable(int code) {
 IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstring local_dir,
                                             std::vector<ModelFile> files, CoreDispatcher dispatcher,
                                             std::function<void(uint64_t, uint64_t)> on_progress,
-                                            std::function<void(bool, std::wstring)> on_done) {
+                                            std::function<void(bool, std::wstring)> on_done,
+                                            std::vector<std::wstring> publish_files) {
     ModelWriteOperation writer(WriterGate(), std::filesystem::path(local_dir));
-    auto done = [&writer, &on_done](bool ok, std::wstring error) {
+    bool finished = false;
+    auto done = [&writer, &on_done, &finished](bool ok, std::wstring error) {
+        if (finished)
+            return;
+        finished = true;
         writer.release();
         on_done(ok, std::move(error));
+    };
+    auto done_from_catch = [&writer, &on_done, &finished, dispatcher](bool ok, std::wstring error) {
+        if (finished)
+            return;
+        finished = true;
+        writer.release();
+        if (!dispatcher) {
+            on_done(ok, std::move(error));
+            return;
+        }
+        dispatcher.RunAsync(CoreDispatcherPriority::Normal,
+                            [on_done, ok, error = std::move(error)]() { on_done(ok, error); });
     };
     if (!writer.owns_lock()) {
         log_output("[downloader] writer busy: no files changed\n");
@@ -280,235 +291,264 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
         total_bytes += f.approx_bytes;
 
     co_await resume_background();
-    std::error_code begin_ec;
-    if (!writer.begin(begin_ec)) {
-        if (dispatcher)
-            co_await winrt::resume_foreground(dispatcher);
-        done(false, L"Cannot prepare model write: " + utf8_to_wstring(begin_ec.message()));
-        co_return;
-    }
-    log_output("[downloader] writer acquired: download\n");
-
-    HttpBaseProtocolFilter filter;
-    filter.AllowAutoRedirect(true);
-    HttpClient client(filter);
-
-    // Default User-Agent is blocked by some CDNs; set something reasonable.
-    client.DefaultRequestHeaders().UserAgent().TryParseAdd(L"xllama/0.1 WinRT");
-
-    uint64_t bytes_done = 0;
-    constexpr uint32_t kBufSize = 256 * 1024; // 256 KB read buffer
-    constexpr int kMaxAttempts = 3;
-    const std::filesystem::path local_dir_fs(local_dir);
-
-    for (auto const& f : files) {
-        // Skip HTTP when a complete copy is already on disk (WDP upload or a
-        // prior partial EnsureModel that left the correct size). Avoids HF 504
-        // loops and re-fetching ~1.5 GB weights.
-        if (file_already_complete(local_dir_fs, f)) {
-            const uint64_t have = local_file_size(local_dir_fs, f.filename);
-            bytes_done += (f.approx_bytes > 0 ? f.approx_bytes : have);
-            log_output(("[downloader] skip " + ::xllama::wstring_to_utf8(f.filename) +
-                        " (already present, " + std::to_string(have) + " bytes)")
-                           .c_str());
-            auto snap_done = bytes_done;
-            auto snap_total = total_bytes;
+    try {
+        std::error_code begin_ec;
+        if (!writer.begin(begin_ec)) {
             if (dispatcher)
                 co_await winrt::resume_foreground(dispatcher);
-            on_progress(snap_done, snap_total);
-            co_await resume_background();
-            continue;
+            done(false, L"Cannot prepare model write: " + utf8_to_wstring(begin_ec.message()));
+            co_return;
+        }
+        log_output("[downloader] writer acquired: download\n");
+
+        HttpBaseProtocolFilter filter;
+        filter.AllowAutoRedirect(true);
+        HttpClient client(filter);
+
+        // Default User-Agent is blocked by some CDNs; set something reasonable.
+        client.DefaultRequestHeaders().UserAgent().TryParseAdd(L"xllama/0.1 WinRT");
+
+        uint64_t bytes_done = 0;
+        constexpr uint32_t kBufSize = 256 * 1024; // 256 KB read buffer
+        constexpr int kMaxAttempts = 3;
+        const std::filesystem::path local_dir_fs(local_dir);
+
+        std::vector<PinCheck> decisions;
+        decisions.reserve(files.size());
+        std::wstring unverified_name;
+        for (const auto& f : files) {
+            const uint64_t have = local_file_size(local_dir_fs, f.filename);
+            PresentFile obs{f.filename, have, {}};
+            ManifestFilePin pin{f.filename, f.approx_bytes, ::xllama::wstring_to_utf8(f.sha256)};
+            PinCheck c = classify_file_pin(&obs, pin);
+            if (c == PinCheck::Ok && !f.sha256.empty()) {
+                FileHashResult hr = file_sha256_result(local_dir_fs / f.filename, f.sha256);
+                for (int r = 0; r < kHashVerifyRetries && hr == FileHashResult::Unavailable; ++r) {
+                    co_await winrt::resume_after(std::chrono::seconds(kHashVerifyRetryPauseS));
+                    hr = file_sha256_result(local_dir_fs / f.filename, f.sha256);
+                }
+                if (hr == FileHashResult::Match) {
+                    obs.sha256 = ::xllama::wstring_to_utf8(f.sha256);
+                    c = classify_file_pin(&obs, pin);
+                } else if (hr == FileHashResult::Mismatch) {
+                    c = PinCheck::Refetch;
+                } else {
+                    obs.hash_unreadable = true;
+                    c = classify_file_pin(&obs, pin);
+                }
+            }
+            decisions.push_back(c);
+            if (c == PinCheck::Unverified && unverified_name.empty())
+                unverified_name = f.filename;
         }
 
-        auto url_str = hf_repo_url + L"/" + (f.remote.empty() ? f.filename : f.remote);
-        Uri uri(url_str);
+        {
+            size_t n_ok = 0, n_fetch = 0, n_unv = 0;
+            for (PinCheck c : decisions) {
+                if (c == PinCheck::Ok)
+                    ++n_ok;
+                else if (c == PinCheck::Refetch)
+                    ++n_fetch;
+                else
+                    ++n_unv;
+            }
+            log_output(("[downloader] plan: " + std::to_string(n_fetch) + " fetch, " +
+                        std::to_string(n_ok) + " skip, " + std::to_string(n_unv) + " unverified\n")
+                           .c_str());
+        }
 
-        std::wstring last_err;
-        bool file_ok = false;
-
-        for (int attempt = 1; attempt <= kMaxAttempts && !file_ok; ++attempt) {
-            if (attempt > 1) {
-                const int backoff_s = 1 << (attempt - 2); // 1s, 2s
-                log_output(("[downloader] retry " + std::to_string(attempt) + "/" +
-                            std::to_string(kMaxAttempts) + " for " +
-                            ::xllama::wstring_to_utf8(f.filename) + " after " +
-                            std::to_string(backoff_s) + "s")
+        for (size_t i = 0; i < files.size(); ++i) {
+            const auto& f = files[i];
+            if (decisions[i] == PinCheck::Ok) {
+                const uint64_t have = local_file_size(local_dir_fs, f.filename);
+                bytes_done += (f.approx_bytes > 0 ? f.approx_bytes : have);
+                log_output(("[downloader] skip " + ::xllama::wstring_to_utf8(f.filename) +
+                            " (already present, " + std::to_string(have) + " bytes)\n")
                                .c_str());
-                co_await winrt::resume_after(std::chrono::seconds(backoff_s));
-            }
-
-            // --- Send HTTP request --------------------------------------------
-            HttpRequestMessage req(HttpMethod::Get(), uri);
-            HttpResponseMessage resp{nullptr};
-            last_err.clear();
-            // co_await is illegal inside a catch block (MSVC C2304): flag the
-            // failure and await/report after the try/catch.
-            bool net_failed = false;
-            try {
-                resp = co_await client.SendRequestAsync(req,
-                                                        HttpCompletionOption::ResponseHeadersRead);
-            } catch (...) {
-                last_err = L"Network error downloading " + f.filename;
-                net_failed = true;
-            }
-            if (net_failed) {
-                if (attempt < kMaxAttempts)
-                    continue;
+                auto snap_done = bytes_done;
+                auto snap_total = total_bytes;
                 if (dispatcher)
                     co_await winrt::resume_foreground(dispatcher);
-                done(false, last_err);
-                co_return;
+                on_progress(snap_done, snap_total);
+                co_await resume_background();
+                continue;
+            }
+            if (decisions[i] == PinCheck::Unverified) {
+                log_output(("[downloader] cannot verify " + ::xllama::wstring_to_utf8(f.filename) +
+                            " (hash unavailable); keeping it, not refetching\n")
+                               .c_str());
+                continue;
             }
 
-            if (!resp.IsSuccessStatusCode()) {
-                const int code = static_cast<int>(resp.StatusCode());
-                last_err = L"HTTP " + std::to_wstring(code) + L" for " + f.filename;
-                if (http_status_retryable(code) && attempt < kMaxAttempts)
-                    continue;
-                if (dispatcher)
-                    co_await winrt::resume_foreground(dispatcher);
-                done(false, last_err);
-                co_return;
-            }
+            auto url_str = hf_repo_url + L"/" + (f.remote.empty() ? f.filename : f.remote);
+            Uri uri(url_str);
 
-            // --- Open target file ---------------------------------------------
-            // filename may carry a relative subpath (e.g. "unet/model.onnx");
-            // create intermediate folders as needed.
-            //
-            // Download into "<leaf>.part" and rename over the target only after
-            // the full body is written. ReplaceExisting directly on the live file
-            // truncated a good model.onnx first and secured bytes later — any
-            // mid-download failure (or a locked mmap'd model) left a corrupt
-            // 464 MB file that OgaCreateModel then failed to parse.
-            StorageFolder folder{nullptr};
-            StorageFile out_file{nullptr};
-            std::wstring leaf;
-            bool create_failed = false;
-            try {
-                folder = co_await StorageFolder::GetFolderFromPathAsync(local_dir);
-                leaf = f.filename;
-                size_t sep;
-                while ((sep = leaf.find_first_of(L"/\\")) != std::wstring::npos) {
-                    folder = co_await folder.CreateFolderAsync(
-                        winrt::hstring(leaf.substr(0, sep)), CreationCollisionOption::OpenIfExists);
-                    leaf = leaf.substr(sep + 1);
+            std::wstring last_err;
+            bool file_ok = false;
+
+            for (int attempt = 1; attempt <= kMaxAttempts && !file_ok; ++attempt) {
+                if (attempt > 1) {
+                    const int backoff_s = 1 << (attempt - 2); // 1s, 2s
+                    log_output(("[downloader] retry " + std::to_string(attempt) + "/" +
+                                std::to_string(kMaxAttempts) + " for " +
+                                ::xllama::wstring_to_utf8(f.filename) + " after " +
+                                std::to_string(backoff_s) + "s")
+                                   .c_str());
+                    co_await winrt::resume_after(std::chrono::seconds(backoff_s));
                 }
-                out_file = co_await folder.CreateFileAsync(
-                    winrt::hstring(leaf + L".part"), CreationCollisionOption::ReplaceExisting);
-            } catch (...) {
-                last_err = L"Cannot create file " + f.filename + L" in " + local_dir;
-                create_failed = true;
-            }
-            if (create_failed) {
-                if (dispatcher)
-                    co_await winrt::resume_foreground(dispatcher);
-                done(false, last_err);
-                co_return;
-            }
 
-            IRandomAccessStream out_stream{nullptr};
-            bool open_failed = false;
-            try {
-                out_stream = co_await out_file.OpenAsync(FileAccessMode::ReadWrite);
-            } catch (...) {
-                last_err = L"Cannot open " + f.filename + L" for write";
-                open_failed = true;
-            }
-            if (open_failed) {
-                if (dispatcher)
-                    co_await winrt::resume_foreground(dispatcher);
-                done(false, last_err);
-                co_return;
-            }
-
-            // --- Stream response body to file in chunks -----------------------
-            auto content_stream = co_await resp.Content().ReadAsInputStreamAsync();
-            auto out_writer = DataWriter(out_stream.GetOutputStreamAt(0));
-            Buffer buf(kBufSize);
-
-            const uint64_t bytes_before = bytes_done;
-            bool read_failed = false;
-            for (;;) {
-                IBuffer read_buf{nullptr};
+                // --- Send HTTP request --------------------------------------------
+                HttpRequestMessage req(HttpMethod::Get(), uri);
+                HttpResponseMessage resp{nullptr};
+                last_err.clear();
+                // co_await is illegal inside a catch block (MSVC C2304): flag the
+                // failure and await/report after the try/catch.
+                bool net_failed = false;
                 try {
-                    read_buf = co_await content_stream.ReadAsync(buf, kBufSize,
-                                                                 InputStreamOptions::Partial);
+                    resp = co_await client.SendRequestAsync(
+                        req, HttpCompletionOption::ResponseHeadersRead);
                 } catch (...) {
-                    last_err = L"Read error on " + f.filename;
-                    read_failed = true;
+                    last_err = L"Network error downloading " + f.filename;
+                    net_failed = true;
                 }
-                if (read_failed)
-                    break;
-
-                if (read_buf.Length() == 0)
-                    break;
-
-                out_writer.WriteBuffer(read_buf);
-                co_await out_writer.StoreAsync();
-
-                bytes_done += read_buf.Length();
-
-                if (bytes_done % (512 * 1024) < kBufSize) {
-                    auto snap_done = bytes_done;
-                    auto snap_total = total_bytes;
+                if (net_failed) {
+                    if (attempt < kMaxAttempts)
+                        continue;
                     if (dispatcher)
                         co_await winrt::resume_foreground(dispatcher);
-                    on_progress(snap_done, snap_total);
-                    co_await resume_background();
+                    done(false, last_err);
+                    co_return;
                 }
-            }
 
-            if (read_failed) {
-                // Drop partial file; retry from scratch.
-                try {
-                    co_await out_writer.FlushAsync();
-                } catch (...) {
+                if (!resp.IsSuccessStatusCode()) {
+                    const int code = static_cast<int>(resp.StatusCode());
+                    last_err = L"HTTP " + std::to_wstring(code) + L" for " + f.filename;
+                    if (http_status_retryable(code) && attempt < kMaxAttempts)
+                        continue;
+                    if (dispatcher)
+                        co_await winrt::resume_foreground(dispatcher);
+                    done(false, last_err);
+                    co_return;
                 }
+
+                // --- Open target file ---------------------------------------------
+                // filename may carry a relative subpath (e.g. "unet/model.onnx");
+                // create intermediate folders as needed.
+                //
+                // Download into "<leaf>.part" and rename over the target only after
+                // the full body is written. ReplaceExisting directly on the live file
+                // truncated a good model.onnx first and secured bytes later — any
+                // mid-download failure (or a locked mmap'd model) left a corrupt
+                // 464 MB file that OgaCreateModel then failed to parse.
+                StorageFolder folder{nullptr};
+                StorageFile out_file{nullptr};
+                std::wstring leaf;
+                bool create_failed = false;
+                try {
+                    folder = co_await StorageFolder::GetFolderFromPathAsync(local_dir);
+                    leaf = f.filename;
+                    size_t sep;
+                    while ((sep = leaf.find_first_of(L"/\\")) != std::wstring::npos) {
+                        folder = co_await folder.CreateFolderAsync(
+                            winrt::hstring(leaf.substr(0, sep)),
+                            CreationCollisionOption::OpenIfExists);
+                        leaf = leaf.substr(sep + 1);
+                    }
+                    out_file = co_await folder.CreateFileAsync(
+                        winrt::hstring(leaf + L".part"), CreationCollisionOption::ReplaceExisting);
+                } catch (...) {
+                    last_err = L"Cannot create file " + f.filename + L" in " + local_dir;
+                    create_failed = true;
+                }
+                if (create_failed) {
+                    if (dispatcher)
+                        co_await winrt::resume_foreground(dispatcher);
+                    done(false, last_err);
+                    co_return;
+                }
+
+                IRandomAccessStream out_stream{nullptr};
+                bool open_failed = false;
+                try {
+                    out_stream = co_await out_file.OpenAsync(FileAccessMode::ReadWrite);
+                } catch (...) {
+                    last_err = L"Cannot open " + f.filename + L" for write";
+                    open_failed = true;
+                }
+                if (open_failed) {
+                    if (dispatcher)
+                        co_await winrt::resume_foreground(dispatcher);
+                    done(false, last_err);
+                    co_return;
+                }
+
+                // --- Stream response body to file in chunks -----------------------
+                auto content_stream = co_await resp.Content().ReadAsInputStreamAsync();
+                auto out_writer = DataWriter(out_stream.GetOutputStreamAt(0));
+                Buffer buf(kBufSize);
+
+                const uint64_t bytes_before = bytes_done;
+                bool read_failed = false;
+                for (;;) {
+                    IBuffer read_buf{nullptr};
+                    try {
+                        read_buf = co_await content_stream.ReadAsync(buf, kBufSize,
+                                                                     InputStreamOptions::Partial);
+                    } catch (...) {
+                        last_err = L"Read error on " + f.filename;
+                        read_failed = true;
+                    }
+                    if (read_failed)
+                        break;
+
+                    if (read_buf.Length() == 0)
+                        break;
+
+                    out_writer.WriteBuffer(read_buf);
+                    co_await out_writer.StoreAsync();
+
+                    bytes_done += read_buf.Length();
+
+                    if (bytes_done % (512 * 1024) < kBufSize) {
+                        auto snap_done = bytes_done;
+                        auto snap_total = total_bytes;
+                        if (dispatcher)
+                            co_await winrt::resume_foreground(dispatcher);
+                        on_progress(snap_done, snap_total);
+                        co_await resume_background();
+                    }
+                }
+
+                if (read_failed) {
+                    // Drop partial file; retry from scratch.
+                    try {
+                        co_await out_writer.FlushAsync();
+                    } catch (...) {
+                    }
+                    out_writer.DetachStream();
+                    out_stream = nullptr;
+                    bytes_done = bytes_before;
+                    try {
+                        co_await out_file.DeleteAsync();
+                    } catch (...) {
+                    }
+                    if (attempt < kMaxAttempts)
+                        continue;
+                    if (dispatcher)
+                        co_await winrt::resume_foreground(dispatcher);
+                    done(false, last_err);
+                    co_return;
+                }
+
+                co_await out_writer.FlushAsync();
                 out_writer.DetachStream();
                 out_stream = nullptr;
-                bytes_done = bytes_before;
-                try {
-                    co_await out_file.DeleteAsync();
-                } catch (...) {
-                }
-                if (attempt < kMaxAttempts)
-                    continue;
-                if (dispatcher)
-                    co_await winrt::resume_foreground(dispatcher);
-                done(false, last_err);
-                co_return;
-            }
 
-            co_await out_writer.FlushAsync();
-            out_writer.DetachStream();
-            out_stream = nullptr;
-
-            // Verify the complete staged file before replacing a usable target.
-            if (!f.sha256.empty() &&
-                !file_matches_sha256(local_dir_fs / (f.filename + L".part"), f.sha256)) {
-                last_err = L"SHA-256 mismatch for " + f.filename;
-                try {
-                    co_await out_file.DeleteAsync();
-                } catch (...) {
-                }
-                if (dispatcher)
-                    co_await winrt::resume_foreground(dispatcher);
-                done(false, last_err);
-                co_return;
-            }
-
-            // Atomically promote the completed .part over the target. The old
-            // file is backed up before promotion. A locked target fails the
-            // rename here without having destroyed the existing model.
-            {
-                const auto target = local_dir_fs / f.filename;
-                const auto previous = std::filesystem::path(target.wstring() + L".previous");
-                std::error_code backup_ec;
-                if (std::filesystem::is_regular_file(target, backup_ec) &&
-                    !std::filesystem::copy_file(target, previous,
-                                                std::filesystem::copy_options::overwrite_existing,
-                                                backup_ec)) {
-                    last_err = L"Cannot back up " + f.filename;
+                // Verify the complete staged file before replacing a usable target.
+                // Unavailable is a failure here: we just wrote the bytes.
+                if (!f.sha256.empty() && file_sha256_result(local_dir_fs / (f.filename + L".part"),
+                                                            f.sha256) != FileHashResult::Match) {
+                    last_err = L"SHA-256 mismatch for " + f.filename;
                     try {
                         co_await out_file.DeleteAsync();
                     } catch (...) {
@@ -518,54 +558,100 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                     done(false, last_err);
                     co_return;
                 }
-            }
-            bool rename_failed = false;
-            try {
-                co_await out_file.RenameAsync(winrt::hstring(leaf),
-                                              NameCollisionOption::ReplaceExisting);
-            } catch (...) {
-                last_err = L"Cannot replace " + f.filename + L" (target in use?)";
-                rename_failed = true;
-            }
-            if (rename_failed) {
-                try {
-                    co_await out_file.DeleteAsync();
-                } catch (...) {
+
+                // Atomically promote the completed .part over the target. The old
+                // file is backed up before promotion. A locked target fails the
+                // rename here without having destroyed the existing model.
+                {
+                    const auto target = local_dir_fs / f.filename;
+                    const auto previous = std::filesystem::path(target.wstring() + L".previous");
+                    std::error_code backup_ec;
+                    if (std::filesystem::is_regular_file(target, backup_ec) &&
+                        !std::filesystem::copy_file(
+                            target, previous, std::filesystem::copy_options::overwrite_existing,
+                            backup_ec)) {
+                        last_err = L"Cannot back up " + f.filename;
+                        try {
+                            co_await out_file.DeleteAsync();
+                        } catch (...) {
+                        }
+                        if (dispatcher)
+                            co_await winrt::resume_foreground(dispatcher);
+                        done(false, last_err);
+                        co_return;
+                    }
                 }
+                bool rename_failed = false;
+                try {
+                    co_await out_file.RenameAsync(winrt::hstring(leaf),
+                                                  NameCollisionOption::ReplaceExisting);
+                } catch (...) {
+                    last_err = L"Cannot replace " + f.filename + L" (target in use?)";
+                    rename_failed = true;
+                }
+                if (rename_failed) {
+                    try {
+                        co_await out_file.DeleteAsync();
+                    } catch (...) {
+                    }
+                    if (dispatcher)
+                        co_await winrt::resume_foreground(dispatcher);
+                    done(false, last_err);
+                    co_return;
+                }
+
+                log_output(("[downloader] " + ::xllama::wstring_to_utf8(f.filename) + " done (" +
+                            std::to_string(bytes_done) + " bytes total so far)\n")
+                               .c_str());
+                file_ok = true;
+            }
+
+            if (!file_ok) {
                 if (dispatcher)
                     co_await winrt::resume_foreground(dispatcher);
-                done(false, last_err);
+                done(false, last_err.empty() ? L"Download failed for " + f.filename : last_err);
                 co_return;
             }
-
-            log_output(("[downloader] " + ::xllama::wstring_to_utf8(f.filename) + " done (" +
-                        std::to_string(bytes_done) + " bytes total so far)")
-                           .c_str());
-            file_ok = true;
         }
 
-        if (!file_ok) {
+        if (!unverified_name.empty()) {
             if (dispatcher)
                 co_await winrt::resume_foreground(dispatcher);
-            done(false, last_err.empty() ? L"Download failed for " + f.filename : last_err);
+            done(false, L"Could not verify " + unverified_name + L"; will retry");
             co_return;
         }
-    }
 
-    std::vector<std::wstring> expected;
-    for (const auto& file : files)
-        expected.push_back(file.filename);
-    std::error_code complete_ec;
-    if (!writer.complete(expected, complete_ec)) {
+        std::vector<std::wstring> expected = std::move(publish_files);
+        if (expected.empty()) {
+            for (const auto& file : files)
+                expected.push_back(file.filename);
+        }
+        std::error_code complete_ec;
+        if (!writer.complete(expected, complete_ec)) {
+            if (dispatcher)
+                co_await winrt::resume_foreground(dispatcher);
+            done(false, L"Cannot complete model write: " + utf8_to_wstring(complete_ec.message()));
+            co_return;
+        }
+
         if (dispatcher)
             co_await winrt::resume_foreground(dispatcher);
-        done(false, L"Cannot complete model write: " + utf8_to_wstring(complete_ec.message()));
+        done(true, L"");
+    } catch (winrt::hresult_error const& e) {
+        log_output(("[downloader] exception: " +
+                    ::xllama::wstring_to_utf8(std::wstring(e.message().c_str())) + "\n")
+                       .c_str());
+        done_from_catch(false, std::wstring(e.message().c_str()));
+        co_return;
+    } catch (std::exception const& e) {
+        log_output((std::string("[downloader] exception: ") + e.what() + "\n").c_str());
+        done_from_catch(false, utf8_to_wstring(e.what()));
+        co_return;
+    } catch (...) {
+        log_output("[downloader] unexpected exception; aborting write, process continues\n");
+        done_from_catch(false, L"unexpected download error");
         co_return;
     }
-
-    if (dispatcher)
-        co_await winrt::resume_foreground(dispatcher);
-    done(true, L"");
 }
 
 IAsyncAction ModelDownloader::RollbackAsync(std::wstring local_dir, std::vector<ModelFile> files,

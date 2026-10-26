@@ -19,6 +19,19 @@ docs are rewritten for a Developer Mode launch.
 
 - **Docs:** user-facing 1.7.0 notes in `docs/releases/v1.7.0.md`.
 
+- **Catalogue sidecar edits no longer re-download verified weights, and GPU
+  routing ignores a still-downloading DML tree.** Fetch planning is per file
+  (`classify_file_pin`): a missing LICENSE/NOTICE is fetched in the background
+  after the chat model is marked ready. GPU routing requires every expected
+  catalogue file, a LocalState `.complete` marker, and an idle writer;
+  otherwise it stays on CPU and logs the reason. A GPU folder that has every
+  filename but no marker is hashed again (Ok weights are skipped) so the
+  marker can be published; a sidecar-only write does not publish `.complete`
+  over unhashed weights. New conversations stay on CPU while any write —
+  including that hash pass — holds the gate, and the choice sticks for the
+  conversation. Background provisioning now catches and logs exceptions
+  instead of letting them terminate the process.
+
 - **GUI and LAN API share compute admission** (proposed [ADR 0008](docs/adr/0008-process-compute-admission.md),
   audit F08). A process-wide RAII permit serializes chat, embeddings, diffusion,
   device training, startup pre-load and post-pull model loading. API requests
