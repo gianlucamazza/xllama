@@ -381,7 +381,9 @@ consultant and may bring indirect commercial advantage (e.g. GitHub Sponsors,
 professional visibility), so we treat our use as Commercial Use and rely on
 the revenue threshold, not on a non-commercial exemption. SD-Turbo is under
 the Stability AI Community License: commercial use requires registration with
-Stability AI and annual revenue below US$1M. We are registered with Stability AI under the Community License. The distribution includes a copy of the licence, a NOTICE file
+Stability AI and annual revenue below US$1M. We are registered with Stability
+AI under the Community License. The distribution includes a copy of the
+licence, a NOTICE file
 with the text "This Stability AI Model is licensed under the Stability AI
 Community License, Copyright © Stability AI Ltd. All Rights Reserved", and a
 prominent "Powered by Stability AI" credit (§IV.a). **Gemma** is under the
