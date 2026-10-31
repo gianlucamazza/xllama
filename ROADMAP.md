@@ -11,10 +11,11 @@ performance belongs in `docs/benchmarks.md`.
   showcase shell; the LAN OpenAI-compat endpoint is the current
   integration probe. Limits and non-claims:
   [docs/positioning.md](docs/positioning.md).
-- Current manifest: **1.6.0.0** under the **`GianlucaMazza.xllama`** identity
+- Current manifest: **1.7.0.0** under the **`GianlucaMazza.xllama`** identity
   (in-place update from the same identity, see `docs/install-release.md`).
-  **v1.6.0.0** (2026-09-28): catalogue-backed Ollama pull, GGUF embeddings,
-  shared model-writer ownership and llama.cpp `b29c606`. Completed release
+  **v1.7.0.0**: GGUF GPU decode for the balanced chat model, coding-tier
+  licence fix, streaming LAN chat, process-wide compute admission, licence
+  sidecars for re-hosted weights, and llama.cpp `d812350`. Completed release
   history remains in `CHANGELOG.md`.
 - Shipping artifact: unified ORT GenAI + llama.cpp, with pinned patched runtime
   DLLs while upstream fixes have not reached NuGet. The UWP ggml build now
@@ -36,10 +37,11 @@ performance belongs in `docs/benchmarks.md`.
   #116/#118). Phases 13, 14 and 16 (one shipped model) are complete. Remaining
   open work: Phase 15 GPU decode follow-up (#313), release-readiness
   follow-up, and upstream vendor pin drops.
-- **Current v1.6.0.0:** unified CI MSVC Dev Mode release. Exact package and
-  validation gates are identified in the GitHub release notes; the source-bound
-  pre-release record is `bench/results/2026-09-28-console-api-validation.json`.
-  Product package path: `docs/crossbuild-console.md`.
+- **Current v1.7.0.0:** unified CI MSVC Developer Mode release. Exact package
+  and validation gates are identified in the GitHub release notes. The last
+  tagged cut's source-bound record is
+  `bench/results/2026-09-28-console-api-validation.json`. Product package path:
+  `docs/crossbuild-console.md`.
 - **Latest evidence:** the Dev Series S capture is committed in
   `bench/results/2026-09-30-catalogue-gates.csv` (LFM2.5-350M QAD Q4_0 on CI
   package 1.6.0.1072, 101.6 tok/s median, 796.5 ms TTFT, 311 MB peak). Catalogue signing

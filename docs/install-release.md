@@ -2,8 +2,8 @@
 
 Install a tagged app release or a specific CI MSVC package on an Xbox in
 Developer Mode. Tested and measured on Series S. Not yet tested on Series X.
-The 2026-09-28 app release is
-[v1.6.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.6.0.0).
+The current app release is
+[v1.7.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.7.0.0).
 Its release notes identify the exact CI package and release validation results.
 The [releases page](https://github.com/gianlucamazza/xllama/releases) also contains
 research tags, which can be newer without containing an app MSIX.
@@ -26,12 +26,12 @@ repo's latest **app** GitHub Release. It does not need a clone of this
 repository or `~/.config/xllama/xbox-env`.
 
 The latest app release
-([v1.6.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.6.0.0))
+([v1.7.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.7.0.0))
 attaches these files (names from the GitHub Release API):
 
 | Asset                             | What it is                                                                                                                                               |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `xllama_1.6.0.1046_x64.msix`      | The app package (about 20 MB, no model inside). The last part of the version number is the CI run stamp and changes with each release.                   |
+| `xllama_*_x64.msix`               | The app package (about 20 MB, no model inside). The last part of the version number is the CI run stamp and changes with each release.                   |
 | `xllama-test.cer`                 | The test signing certificate. The command-line path installs it before the MSIX; whether the browser install needs it has not been checked on a console. |
 | `Microsoft.VCLibs.x64.14.00.appx` | Visual C++ runtime. **Required** — the MSIX declares `PackageDependency` `Microsoft.VCLibs.140.00`.                                                      |
 | `SHA256SUMS`                      | SHA-256 of the files above (and of `release-validation.json`).                                                                                           |
@@ -69,10 +69,10 @@ settings**.
 
 From the [releases page](https://github.com/gianlucamazza/xllama/releases),
 open the latest **app** tag (currently
-[v1.6.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.6.0.0))
+[v1.7.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.7.0.0))
 and download:
 
-- `xllama_*_x64.msix` (v1.6.0.0 ships `xllama_1.6.0.1046_x64.msix`)
+- `xllama_*_x64.msix` (the exact name is on the release)
 - `xllama-test.cer`
 - `Microsoft.VCLibs.x64.14.00.appx`
 - `SHA256SUMS`
@@ -241,7 +241,7 @@ Known issues:
 
 - **No MSIX on the release you opened.** `research-v*` tags are research
   packages and do not attach an app MSIX. Use the latest **app** tag
-  (`v1.6.0.0` as of this writing).
+  (`v1.7.0.0` as of this writing).
 - **Browser warns about the Device Portal certificate.** Expected. The
   console presents a self-signed TLS certificate; accept it on first visit
   ([device-portal.md](./device-portal.md)).
