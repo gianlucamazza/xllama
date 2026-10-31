@@ -26,6 +26,10 @@ struct ModelFile {
     // Lowercase SHA-256 of the complete file. Empty is permitted only for
     // legacy/custom Dev Mode entries; trusted catalogue entries must provide it.
     std::wstring sha256;
+    // files[].role: empty applies the documented filename default in
+    // model_file_plan.h. "weight"/"data" count for verification; "licence"/
+    // "notice"/"sidecar" fetch independently and never invalidate weights.
+    std::wstring role;
 };
 
 // Async download of a catalogue model to ApplicationData LocalFolder. When a

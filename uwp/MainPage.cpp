@@ -2522,7 +2522,7 @@ winrt::fire_and_forget MainPageController::ShowImageDialog() {
                 co_return;
             }
             std::vector<::xllama::ModelFile> taesd_vae{
-                {L"TAESD_LICENSE", kTaesdLicenseRemote, 1073, kTaesdLicenseSha256},
+                {L"TAESD_LICENSE", kTaesdLicenseRemote, 1073, kTaesdLicenseSha256, L"licence"},
                 {L"vae_decoder/model.onnx", kTaesdVaeRemote, 5'000'000},
             };
             self->SetStatus(L"Downloading TAESD VAE (~5 MB)...", StatusKind::Working);
@@ -2799,7 +2799,9 @@ fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_nam
                         sz = static_cast<uint64_t>(n);
                 }
                 present.push_back({f.filename, sz, {}});
-                pins.push_back({f.filename, f.approx_bytes, ::xllama::wstring_to_utf8(f.sha256)});
+                pins.push_back(make_file_pin(f.filename, f.approx_bytes,
+                                             ::xllama::wstring_to_utf8(f.sha256),
+                                             ::xllama::wstring_to_utf8(f.role)));
             }
             if (only_sidecars_missing(present, pins)) {
                 const bool had_marker = marker;
@@ -3300,24 +3302,42 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
     if (m_active_model.empty()) {
         // Filesystem probe (LocalState + InstalledPath stats) — only the sticky
         // first-turn decision consumes it, so keep it off the per-turn path (#174).
-        // GPU is available only when every expected catalogue file is present
-        // and no model write is in flight. The loose "any ONNX/GGUF exists"
-        // probe used to route a long turn at a still-downloading DML tree (#370).
+        // GPU is available only when every weight/data pin classifies Ok on a
+        // size-only listing (`weight_pins_verified`), the LocalState `.complete`
+        // marker exists (hashes ran at download/promotion), and no model write
+        // is in flight. Licence and notice rows do not participate. The loose
+        // "any ONNX/GGUF exists" probe used to route a long turn at a
+        // still-downloading DML tree (#370).
         const std::wstring gpu_name = ::xllama::utf8_to_wstring(m_gpu_model);
-        std::vector<std::wstring> gpu_expected;
-        {
-            const auto& manifest = CachedManifest();
-            if (const auto* e = ::xllama::FindManifestEntry(manifest, gpu_name))
-                for (const auto& f : e->files)
-                    gpu_expected.push_back(f.filename);
-        }
-        const bool names_present =
-            !gpu_expected.empty() && ::xllama::IsModelProvisioned(gpu_name, gpu_expected);
         auto local_folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
         const std::wstring local_gpu_dir =
             std::wstring(local_folder.Path().c_str()) + L"\\models\\" + gpu_name;
-        const bool local_complete = ::xllama::ModelDownloader::IsComplete(local_gpu_dir);
-        const bool expected_verified = names_present && local_complete;
+        std::vector<PresentFile> gpu_present;
+        std::vector<ManifestFilePin> gpu_pins;
+        {
+            const auto& manifest = CachedManifest();
+            if (const auto* e = ::xllama::FindManifestEntry(manifest, gpu_name)) {
+                gpu_present.reserve(e->files.size());
+                gpu_pins.reserve(e->files.size());
+                for (const auto& f : e->files) {
+                    uint64_t sz = 0;
+                    std::error_code ec;
+                    const auto p = std::filesystem::path(local_gpu_dir) / f.filename;
+                    if (std::filesystem::is_regular_file(p, ec)) {
+                        const auto n = std::filesystem::file_size(p, ec);
+                        if (!ec)
+                            sz = static_cast<uint64_t>(n);
+                    }
+                    gpu_present.push_back({f.filename, sz, {}});
+                    gpu_pins.push_back(make_file_pin(f.filename, f.approx_bytes,
+                                                     ::xllama::wstring_to_utf8(f.sha256),
+                                                     ::xllama::wstring_to_utf8(f.role)));
+                }
+            }
+        }
+        const bool expected_verified = ::xllama::gpu_tree_ready_for_routing(
+            ::xllama::weight_pins_verified(gpu_present, gpu_pins),
+            ::xllama::ModelDownloader::IsComplete(local_gpu_dir));
         const bool write_in_progress = ::xllama::ModelDownloader::WriterGate().busy();
         const auto gpu_state = ::xllama::gpu_route_readiness(expected_verified, write_in_progress);
         const bool gpu_provisioned =

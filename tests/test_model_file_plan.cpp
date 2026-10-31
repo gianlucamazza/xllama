@@ -29,6 +29,30 @@ TEST_CASE("sidecar: licence and notice names, with or without a text extension")
     CHECK_FALSE(is_catalogue_sidecar(L"tokenizer.json"));
 }
 
+TEST_CASE("sidecar: files[].role overrides the documented filename default") {
+    CHECK(parse_catalogue_file_role("") == CatalogueFileRole::Unspecified);
+    CHECK(parse_catalogue_file_role("weight") == CatalogueFileRole::Weight);
+    CHECK(parse_catalogue_file_role("DATA") == CatalogueFileRole::Weight);
+    CHECK(parse_catalogue_file_role("licence") == CatalogueFileRole::Licence);
+    CHECK(parse_catalogue_file_role("License") == CatalogueFileRole::Licence);
+    CHECK(parse_catalogue_file_role("notice") == CatalogueFileRole::Notice);
+    CHECK(parse_catalogue_file_role("sidecar") == CatalogueFileRole::Sidecar);
+    CHECK(parse_catalogue_file_role("unknown") == CatalogueFileRole::Weight);
+
+    ManifestFilePin terms = make_file_pin(L"TERMS", 80, "abc", "licence");
+    CHECK(is_catalogue_sidecar(terms));
+    CHECK_FALSE(is_weight_pin(terms));
+    CHECK_FALSE(is_catalogue_sidecar(L"TERMS")); // default would treat TERMS as a weight
+
+    ManifestFilePin named_license = make_file_pin(L"LICENSE", 80, "abc", "weight");
+    CHECK_FALSE(is_catalogue_sidecar(named_license));
+    CHECK(is_weight_pin(named_license));
+
+    ManifestFilePin generic = make_file_pin(L"COPYRIGHT.notes", 12, "ee", "sidecar");
+    CHECK(generic.role == CatalogueFileRole::Sidecar);
+    CHECK(is_catalogue_sidecar(generic));
+}
+
 TEST_CASE("file_pin_satisfied: size match is enough when the listing has no hash") {
     PresentFile have{L"model.onnx", 725021421, {}};
     ManifestFilePin pin{L"model.onnx", 725021421,
@@ -71,6 +95,51 @@ TEST_CASE("plan: old install plus new LICENSE/NOTICE fetches sidecars only") {
     CHECK(fetch[0] == L"LICENSE");
     CHECK(fetch[1] == L"NOTICE");
     CHECK(weight_files_needing_fetch(present, expected).empty());
+    CHECK(weight_pins_verified(present, expected));
+    CHECK(only_sidecars_missing(present, expected));
+}
+
+TEST_CASE("plan: #370 (a) old install plus role-tagged sidecars leaves weights alone") {
+    // Generic names only — the rule is the pin's role, not a catalogue id.
+    Have present{
+        {L"weights.bin", 1000, "aa"},
+        {L"tokenizer.json", 50, "bb"},
+    };
+    Pins expected{
+        make_file_pin(L"TERMS", 20, "cc", "licence"),
+        make_file_pin(L"ATTRIBUTION", 8, "dd", "notice"),
+        make_file_pin(L"weights.bin", 1000, "aa", "weight"),
+        make_file_pin(L"tokenizer.json", 50, "bb", "data"),
+    };
+    CHECK(files_needing_fetch(present, expected) ==
+          std::vector<std::wstring>({L"TERMS", L"ATTRIBUTION"}));
+    CHECK(weight_files_needing_fetch(present, expected).empty());
+    CHECK(weight_pins_verified(present, expected));
+    CHECK(only_sidecars_missing(present, expected));
+    CHECK(gpu_tree_ready_for_routing(weight_pins_verified(present, expected), true));
+    CHECK_FALSE(gpu_tree_ready_for_routing(weight_pins_verified(present, expected), false));
+}
+
+TEST_CASE("plan: #370 (b) changed weight hash is caught at download/promotion") {
+    // Both sides have a hash: this is the DownloadAsync / promotion path.
+    // A size-only listing (empty sha, as routing and EnsureModel use) would
+    // still classify Ok — routing does not see this mismatch.
+    Have present{
+        {L"weights.bin", 1000, "oldhash"},
+        {L"TERMS", 20, "cc"},
+    };
+    Pins expected{
+        make_file_pin(L"TERMS", 20, "cc", "licence"),
+        make_file_pin(L"weights.bin", 1000, "newhash", "weight"),
+    };
+    CHECK(classify_file_pin(present[0], expected[1]) == PinCheck::Refetch);
+    CHECK(weight_files_needing_fetch(present, expected) ==
+          std::vector<std::wstring>{L"weights.bin"});
+    CHECK_FALSE(weight_pins_verified(present, expected));
+    CHECK_FALSE(only_sidecars_missing(present, expected));
+
+    PresentFile size_only{L"weights.bin", 1000, {}};
+    CHECK(classify_file_pin(size_only, expected[1]) == PinCheck::Ok);
 }
 
 TEST_CASE("plan: GGUF weights plus new licence sidecar leaves the quant untouched") {
@@ -180,6 +249,73 @@ TEST_CASE("only_sidecars_missing: unverified weight is not ready") {
 
 TEST_CASE("only_sidecars_missing: empty expected is false") {
     CHECK_FALSE(only_sidecars_missing({{L"model.onnx", 1, {}}}, {}));
+}
+
+TEST_CASE("plan: #370 (c) incomplete GPU weights are not routing-ready") {
+    Have present{
+        {L"TERMS", 20, "cc"},
+        {L"ATTRIBUTION", 8, "dd"},
+        {L"tokenizer.json", 50, "bb"},
+    };
+    Pins expected{
+        make_file_pin(L"TERMS", 20, "cc", "licence"),
+        make_file_pin(L"ATTRIBUTION", 8, "dd", "notice"),
+        make_file_pin(L"tokenizer.json", 50, "bb", "data"),
+        make_file_pin(L"weights.bin", 1000, "aa", "weight"),
+    };
+    CHECK_FALSE(weight_pins_verified(present, expected));
+    CHECK_FALSE(gpu_tree_ready_for_routing(weight_pins_verified(present, expected), true));
+    CHECK_FALSE(gpu_ready_for_routing(false, true));
+
+    RoutingSettings s;
+    s.mode = RoutingMode::Auto;
+    s.token_threshold = 1;
+    s.cpu_model = "cpu-model";
+    s.gpu_model = "smollm2-360m-dml-fp16-v2";
+    const bool gpu_ok = gpu_ready_for_routing(
+        gpu_tree_ready_for_routing(weight_pins_verified(present, expected), true), false);
+    auto d = decide_routing(s, 100, false, gpu_ok);
+    CHECK_FALSE(d.use_gpu);
+    CHECK(d.active_model == "cpu-model");
+
+    s.mode = RoutingMode::GpuOnly;
+    auto gpu_only = decide_routing(s, 10, false, gpu_ok);
+    CHECK_FALSE(gpu_only.use_gpu);
+    CHECK(gpu_only.active_model == "cpu-model");
+}
+
+TEST_CASE("weight_pins_verified: missing licence does not invalidate weights") {
+    Have present{{L"weights.bin", 1000, "aa"}};
+    Pins expected{
+        make_file_pin(L"TERMS", 20, "cc", "licence"),
+        make_file_pin(L"weights.bin", 1000, "aa", "weight"),
+    };
+    CHECK(weight_pins_verified(present, expected));
+    CHECK(gpu_tree_ready_for_routing(true, true));
+    CHECK_FALSE(weight_pins_verified(present, {}));
+}
+
+TEST_CASE("plan: #370 size-only weights without .complete are not routing-ready") {
+    // Routing / EnsureModel listings have no hash. Size match alone must not
+    // make an unmarked tree GPU-ready (failed write, Unverified pin, mid-write
+    // exit, or a mixed tree whose sizes happen to match).
+    Have present{{L"weights.bin", 1000, {}}};
+    Pins expected{make_file_pin(L"weights.bin", 1000, "aa", "weight")};
+    CHECK(weight_pins_verified(present, expected));
+    const bool complete_marker = false;
+    const bool expected_verified =
+        gpu_tree_ready_for_routing(weight_pins_verified(present, expected), complete_marker);
+    CHECK_FALSE(expected_verified);
+    CHECK_FALSE(gpu_ready_for_routing(expected_verified, false));
+
+    RoutingSettings s;
+    s.mode = RoutingMode::Auto;
+    s.token_threshold = 1;
+    s.cpu_model = "cpu-model";
+    s.gpu_model = "smollm2-360m-dml-fp16-v2";
+    auto d = decide_routing(s, 100, false, gpu_ready_for_routing(expected_verified, false));
+    CHECK_FALSE(d.use_gpu);
+    CHECK(d.active_model == "cpu-model");
 }
 
 TEST_CASE("gpu_needs_provision: names alone never heal a missing marker") {
