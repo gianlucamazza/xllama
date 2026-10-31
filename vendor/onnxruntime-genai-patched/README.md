@@ -5,6 +5,8 @@ XAML hosts (`887A0036`). Upstream
 [microsoft/onnxruntime-genai#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280)
 **merged on `main` 2026-07-13**; **not** in NuGet GenAI **0.14.1**.
 
+Patched by xllama; not an official ONNX Runtime build. MIT License, Copyright (c) Microsoft Corporation. — see `LICENSES/onnxruntime-genai-LICENSE`.
+
 The DLL binary lives at `win-x64/onnxruntime-genai.dll` and is **gitignored** —
 only this README + `SHA256SUMS` are tracked. Shipping CI downloads the pinned
 DLL from the [`vendor-dlls-v1`](https://github.com/gianlucamazza/xllama/releases/tag/vendor-dlls-v1)
