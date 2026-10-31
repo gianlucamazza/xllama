@@ -20,6 +20,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   conversation. Background provisioning now catches and logs exceptions
   instead of letting them terminate the process.
 
+- **Fixed:** After an in-place upgrade, adding or changing a licence or notice
+  row in the catalogue no longer makes already-verified weight files look
+  stale. Which pins count as weights comes from `files[].role` (`weight` /
+  `data`, or `licence` / `notice` / `sidecar`); when `role` is omitted the
+  documented filename default in `model_file_plan.h` applies. Missing licence
+  or notice files download on their own. Routing classifies those weight pins
+  by size only and also requires the LocalState `.complete` marker, which
+  attests every pin was hashed at download or promotion; otherwise it stays
+  on the CPU model or reports not-ready, and it does not load a partial
+  download.
+
 - **GUI and LAN API share compute admission** (proposed [ADR 0008](docs/adr/0008-process-compute-admission.md),
   audit F08). A process-wide RAII permit serializes chat, embeddings, diffusion,
   device training, startup pre-load and post-pull model loading. API requests

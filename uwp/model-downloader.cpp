@@ -319,7 +319,9 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
         for (const auto& f : files) {
             const uint64_t have = local_file_size(local_dir_fs, f.filename);
             PresentFile obs{f.filename, have, {}};
-            ManifestFilePin pin{f.filename, f.approx_bytes, ::xllama::wstring_to_utf8(f.sha256)};
+            ManifestFilePin pin =
+                make_file_pin(f.filename, f.approx_bytes, ::xllama::wstring_to_utf8(f.sha256),
+                              ::xllama::wstring_to_utf8(f.role));
             PinCheck c = classify_file_pin(&obs, pin);
             if (c == PinCheck::Ok && !f.sha256.empty()) {
                 FileHashResult hr = file_sha256_result(local_dir_fs / f.filename, f.sha256);
@@ -757,6 +759,7 @@ std::vector<ManifestEntry> parse_manifest(winrt::hstring const& text) {
                 mf.remote = fo.GetNamedString(L"remote", L"");
                 mf.approx_bytes = (uint64_t)fo.GetNamedNumber(L"approx_bytes", 0);
                 mf.sha256 = fo.GetNamedString(L"sha256", L"");
+                mf.role = fo.GetNamedString(L"role", L"");
                 if (!mf.filename.empty())
                     e.files.push_back(std::move(mf));
             }
