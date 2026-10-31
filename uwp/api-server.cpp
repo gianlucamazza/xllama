@@ -1637,7 +1637,7 @@ bool same_pull_manifest_entry(const ::xllama::ManifestEntry& a, const ::xllama::
         const auto& x = a.files[i];
         const auto& y = b.files[i];
         if (x.filename != y.filename || x.remote != y.remote || x.approx_bytes != y.approx_bytes ||
-            x.sha256 != y.sha256)
+            x.sha256 != y.sha256 || x.role != y.role)
             return false;
     }
     return true;

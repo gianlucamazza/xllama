@@ -59,8 +59,22 @@ policy.decide_fn = [](const xllama::RoutingSettings& s, int n, bool gguf, bool g
 **Free-function wrappers** (default behavior, backward compatible):
 
 ```cpp
+std::vector<xllama::PresentFile> present; // size-only listing of the GPU dir
+std::vector<xllama::ManifestFilePin> pins; // catalogue files[] for that model
+const bool write_in_progress = false;     // ModelWriteGate::busy()
+const bool complete = true;               // ModelDownloader::IsComplete(dir)
 bool ok = xllama::dml_text_model_ok("smollm2-360m-dml-fp16-v2");
-auto decision = xllama::decide_routing(settings, n_tok, base_is_gguf, gpu_available);
+bool gpu = xllama::gpu_ready_for_routing(
+    xllama::gpu_tree_ready_for_routing(xllama::weight_pins_verified(present, pins), complete),
+    write_in_progress);
+auto decision = xllama::decide_routing(settings, n_tok, base_is_gguf, gpu);
 bool allowed = xllama::routing_allowed_for_kind(L"ort-genai");
 bool reuse = xllama::kv_reuse_supported_for_model("smollm2-360m-cpu-int4");
 ```
+
+`gpu_available` must be `gpu_ready_for_routing(gpu_tree_ready_for_routing(...), write_in_progress)`.
+`weight_pins_verified` is a size-only listing of weight and data pins
+(`files[].role`; omitted role uses the documented filename default). The
+`.complete` marker attests every pin was hashed at download or promotion. A
+partial tree, a missing marker, or any in-flight model write falls back to the
+CPU model. Licence and notice pins do not make a ready weight tree look stale.

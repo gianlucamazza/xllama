@@ -1,5 +1,5 @@
 {
-  "_comment": "Model catalogue for xllama. Bundled at InstalledPath\\models\\manifest.json; a LocalState\\manifest.json (uploadable via Device Portal, no reinstall) is merged per entry: same-name entries replace the bundled one, new names are appended, unmentioned bundled entries stay. Entries without hf_base_url are USB/Device-Portal-provisioned only. approx_bytes drives the download progress bar; files[].sha256 is the lowercase SHA-256 integrity pin checked before promotion. kind: 'ort-genai' (default, chat picker, ORT backend), 'diffusion' (image dialog), or 'gguf' (chat picker, llama.cpp backend — CPU-only, KV-reuse enabled via a persistent llama_context, routing disabled). role: '' (general chat, default) or 'coding' (denser token estimate, coding system prompt on LAN API) or 'embedding' (hidden from chat picker, llama.cpp, not a chat model — LAN API only). files[].filename is the local path under models\\<name> (subdirs allowed); files[].remote is the flat asset name in the release (defaults to filename). TAESD VAE (optional, Image dialog toggle): models-v1 asset sd-turbo-fp16_taesd_vae_decoder_model.onnx plus sd-turbo-fp16_taesd_LICENSE (MIT) — export via diffusion/export_taesd.py.",
+  "_comment": "Model catalogue for xllama. Bundled at InstalledPath\\models\\manifest.json; a LocalState\\manifest.json (uploadable via Device Portal, no reinstall) is merged per entry: same-name entries replace the bundled one, new names are appended, unmentioned bundled entries stay. Entries without hf_base_url are USB/Device-Portal-provisioned only. approx_bytes drives the download progress bar; files[].sha256 is the lowercase SHA-256 integrity pin checked before promotion. kind: 'ort-genai' (default, chat picker, ORT backend), 'diffusion' (image dialog), or 'gguf' (chat picker, llama.cpp backend — CPU-only, KV-reuse enabled via a persistent llama_context, routing disabled). role: '' (general chat, default) or 'coding' (denser token estimate, coding system prompt on LAN API) or 'embedding' (hidden from chat picker, llama.cpp, not a chat model — LAN API only). files[].filename is the local path under models\\<name> (subdirs allowed); files[].remote is the flat asset name in the release (defaults to filename). files[].role marks a pin as weight/data (counts for installed-model verification) or licence/notice/sidecar (fetched independently; adding or changing it must not invalidate matching weights). files[].role is not the entry-level role (coding / embedding). Omitted files[].role uses the documented filename default in model_file_plan.h. TAESD VAE (optional, Image dialog toggle): models-v1 asset sd-turbo-fp16_taesd_vae_decoder_model.onnx plus sd-turbo-fp16_taesd_LICENSE (MIT) — export via diffusion/export_taesd.py.",
   "models": [
     {
       "name": "smollm2-360m-cpu-int4",
@@ -8,12 +8,14 @@
       "files": [
         {
           "filename": "LICENSE",
+          "role": "licence",
           "remote": "smollm2-360m-cpu-int4_LICENSE",
           "approx_bytes": 11357,
           "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
         },
         {
           "filename": "NOTICE",
+          "role": "notice",
           "remote": "smollm2-360m-cpu-int4_NOTICE",
           "approx_bytes": 170,
           "sha256": "fde264afb75fa1ba6c46c005f774952879a1848b80198128b2e75be5c6b1a8d0"
@@ -47,12 +49,14 @@
       "files": [
         {
           "filename": "LICENSE",
+          "role": "licence",
           "remote": "smollm2-360m-dml-fp16-v2_LICENSE",
           "approx_bytes": 11357,
           "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
         },
         {
           "filename": "NOTICE",
+          "role": "notice",
           "remote": "smollm2-360m-dml-fp16-v2_NOTICE",
           "approx_bytes": 232,
           "sha256": "bfb504953441e7a7dc7e5e1b44ea0a192bb4fb12c296f9ce402b6d28ef7645e2"
@@ -90,12 +94,14 @@
       "files": [
         {
           "filename": "LICENSE",
+          "role": "licence",
           "remote": "smollm2-1.7b-cpu-int4_LICENSE",
           "approx_bytes": 11357,
           "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
         },
         {
           "filename": "NOTICE",
+          "role": "notice",
           "remote": "smollm2-1.7b-cpu-int4_NOTICE",
           "approx_bytes": 170,
           "sha256": "ce00add4201f10fb0db32193fc183fb5082ff96e2800319d51fbd6ba18388691"
@@ -135,12 +141,14 @@
       "files": [
         {
           "filename": "LICENSE",
+          "role": "licence",
           "remote": "qwen35-0.8b_LICENSE",
           "approx_bytes": 11544,
           "sha256": "bbedc3fda3305820b977265f01b8619d87570a6739de3a5582c3464840f1e57a"
         },
         {
           "filename": "NOTICE",
+          "role": "notice",
           "remote": "qwen35-0.8b_NOTICE",
           "approx_bytes": 109,
           "sha256": "df92d1a2b08ed9d0c161666ac3a3b749fa2709438cc7f697e6bfb372794b22c5"
@@ -194,6 +202,7 @@
         },
         {
           "filename": "LICENSE",
+          "role": "licence",
           "approx_bytes": 10574,
           "sha256": "30adf9d6478191fb87f2424f63ba0728598335aaf99cd2848ef17e8e545fe94b"
         }
@@ -213,6 +222,7 @@
         },
         {
           "filename": "LICENSE",
+          "role": "licence",
           "approx_bytes": 10596,
           "sha256": "5188f2b355da20647257a3156db5834c794e5fb5e6d8dc4d4cdbb3180e75b85b"
         }
@@ -233,6 +243,7 @@
         },
         {
           "filename": "LICENSE",
+          "role": "licence",
           "approx_bytes": 10596,
           "sha256": "5188f2b355da20647257a3156db5834c794e5fb5e6d8dc4d4cdbb3180e75b85b"
         }
@@ -252,6 +263,7 @@
         },
         {
           "filename": "LICENSE",
+          "role": "licence",
           "approx_bytes": 10644,
           "sha256": "61d7e939a05911c765b7e98ffaa1ab5ca6c0174a65350766c25cb10197d19fc8"
         }
@@ -346,6 +358,7 @@
         },
         {
           "filename": "LICENSE",
+          "role": "licence",
           "approx_bytes": 10596,
           "sha256": "5188f2b355da20647257a3156db5834c794e5fb5e6d8dc4d4cdbb3180e75b85b"
         }
@@ -393,12 +406,14 @@
       "files": [
         {
           "filename": "LICENSE",
+          "role": "licence",
           "remote": "sd-turbo-fp16_LICENSE",
           "approx_bytes": 11852,
           "sha256": "d6f6b1a4dce5c852bd6d7d9482d002baf0ccdb71e662250b73be9eec8764ee8d"
         },
         {
           "filename": "NOTICE",
+          "role": "notice",
           "remote": "sd-turbo-fp16_NOTICE",
           "approx_bytes": 355,
           "sha256": "bc2fd877fa2d3e3c157e479ebda62575a84d4ec70223a934bb951853e6cd3557"

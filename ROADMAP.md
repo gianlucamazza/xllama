@@ -675,9 +675,9 @@ under `bench/results/` when measured, and documentation in the owning SSOT.
 ## Follow-up work after the 2026-09-28 PR closure
 
 - [ ] [#263](https://github.com/gianlucamazza/xllama/issues/263): migrate the host
-      diffusion export stack to supported patched dependencies after an accepted
-      export ADR (proposed: ADR 0003, #291); validate export and Xbox diffusion before
-      closing security alerts.
+      diffusion export stack to supported patched dependencies (ADR 0003 accepted
+      2026-10-31; first-party dynamo export and host parity in review); validate Xbox
+      diffusion with peak-memory evidence before closing security alerts.
 - [x] [#264](https://github.com/gianlucamazza/xllama/issues/264): ADR 0002 accepted;
       ruleset `24213666` active and verified blocking (2026-09-30).
 - [x] [#243](https://github.com/gianlucamazza/xllama/issues/243): `grounded_qa` scorer

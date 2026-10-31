@@ -95,6 +95,12 @@ class CatalogLicensePairingTests(unittest.TestCase):
                     self.assertEqual(spec["sha256"], digest)
                     self.assertEqual(spec.get("approx_bytes"), committed.stat().st_size)
                     self.assertEqual(spec.get("remote"), remote)
+                    want_role = "licence" if filename == "LICENSE" else "notice"
+                    self.assertEqual(
+                        spec.get("role"),
+                        want_role,
+                        f"{name} {filename} files[].role must be {want_role}",
+                    )
 
     def test_dml_fp16_v2_notice_records_rmsnorm_decomposition(self) -> None:
         # docs/dml-rmsnorm-fix-runbook.md: those RMSNorm nodes were
@@ -131,6 +137,7 @@ class CatalogLicensePairingTests(unittest.TestCase):
                 spec = _file_by_name(self.cat[name], "LICENSE")
                 self.assertIsNotNone(spec, f"{name} lost its LFM LICENSE pairing")
                 self.assertEqual(len(spec["sha256"]), 64)
+                self.assertEqual(spec.get("role"), "licence")
 
     def test_qwen25_coder_3b_not_rehosted(self) -> None:
         # Withdrawn by #361 (Qwen Research License); must never be re-hosted.

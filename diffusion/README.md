@@ -36,27 +36,63 @@ few-step diffusion model (SD-Turbo, 1 step) on the console GPU.
 
 ## Reproduce the export
 
-The toolchain is version-sensitive: the export still runs through the **legacy
-torch ONNX tracer** — the ONNX export now lives in the `optimum-onnx` package
-(optimum 2.x), and optimum-onnx 0.1.0 passes `dynamo=False` explicitly on
-torch ≥ 2.9 (it also caps `transformers < 4.58`). torch 2.9 is the line
-optimum-onnx 0.1.0 release-tests, so the set below is coherent as a whole —
-do not bump piecemeal. Use **Python 3.10** (torch 2.9's supported floor).
+The export is first-party (ADR 0003): `export_sd_turbo.py` loads the diffusers
+checkpoint and calls `torch.onnx.export(..., dynamo=True)` once per component
+(`text_encoder`, `unet`, `vae_decoder` = `AutoencoderKL.decode`), opset 18. It
+keeps the I/O contract the optimum-onnx 0.1.0 export had, and checks it on every
+graph before writing it:
 
-Toolchain-generation note (bumped 2026-07-10 from torch 2.4.1 / optimum
-1.23.3): the new export declares the UNet `timestep` input as a **scalar**
-(shape `[]`) instead of `[1]`. Both `validate_pipeline.py` and
-`uwp/diffuse.cpp` are shape-aware (they read the declared rank and feed `[]`
-or `[1]` from the same 1-element buffer) — if artifacts regenerated with
-this toolchain are ever promoted, the remaining gate is runbook §7 on console.
+| Component      | Inputs                                                                                   | Outputs                                  |
+| -------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `text_encoder` | `input_ids` int64 `[batch, seq]`                                                         | `last_hidden_state`, `pooler_output` f32 |
+| `unet`         | `sample` f32 `[batch, 4, h, w]`, `timestep` f32 scalar `[]`, `encoder_hidden_states` f32 | `out_sample` f32 `[batch, 4, h, w]`      |
+| `vae_decoder`  | `latent_sample` f32 `[batch, 4, h, w]`                                                   | `sample` f32 `[batch, 3, 8h, 8w]`        |
+
+`convert_fp16.py` turns every float input to fp16 (including `timestep`);
+`uwp/diffuse.cpp` and `validate_pipeline.py` read the declared types and ranks.
+Components whose weights reach 2 GB are written with one `model.onnx.data`
+file next to `model.onnx` (decided from the initializer sizes, not by
+serializing the graph). For SD-Turbo that is the fp32 UNet (~3.46 GB); the text
+encoder and VAE decoder fit in one file. `convert_fp16.py` reads either layout
+and writes self-contained fp16 graphs, which must each stay under 2 GB. For an
+external-data input it runs the same ORT fp16 pass on the weight-free graph and
+then converts the weights one tensor at a time, because the default ORT path
+holds several copies of the UNet and ran out of memory on a 16 GB host; on the
+tiny model both paths give byte-identical graphs.
+Both scripts strip every `metadata_props` entry and doc string before saving:
+the dynamo exporter tags each node with `pkg.torch.onnx.*` metadata (stack
+traces with absolute source paths, FX node text), which nothing reads at
+runtime and which would publish the exporting user's directories.
+`XLLAMA_EXPORT_EXTERNAL_DATA_BYTES` lowers the threshold (the tests use it to
+force the external-data layout on a tiny model). One real fp32 UNet export,
+its fp16 conversion and their peak memory are recorded in
+`receipts/sd-turbo-unet-export_receipt.json`.
+
+`--verify` runs each graph on ORT CPU (`ORT_ENABLE_EXTENDED`) against eager
+torch at the console shapes and at a second, smaller batch-2 shape.
+`compare_onnx_exports.py REF CAND [--pipeline]` checks two export directories
+against the fixed inputs and tolerances recorded in `export_parity.json`; run it
+against a reference export before promoting a toolchain bump. It fails if a
+component is missing on either side or nothing was compared. Only outputs with a
+recorded tolerance are gated; the others are listed as unchecked in its report
+(in fp16 that is `pooler_output`, which the console does not read, and the
+`--pipeline` image, whose bound is recorded for fp32 only). Use **Python
+3.12** (3.11+): onnxruntime 1.31 has no Python 3.10 wheels.
 
 ```bash
-python3.10 -m venv venv
+python3.12 -m venv venv
 ./venv/bin/pip install -r diffusion/requirements.txt \
     --extra-index-url https://download.pytorch.org/whl/cpu
 ./diffusion/export_sd_turbo.sh                 # -> sd-turbo-onnx/ + sd-turbo-onnx-fp16/
 ./venv/bin/python diffusion/generate_onnx.py   # validate: writes sd_turbo_onnx.png
 ```
+
+`scripts/export-taesd-asset.sh`, `export_taesd.py` and `gen_golden_vectors.py`
+use the same Python 3.12 env; the asset script looks for it at
+`~/.cache/xllama-diffusion/venv312` (override with `XLLAMA_DIFFUSION_VENV`).
+
+Artifacts regenerated with this toolchain are not promoted until the console
+live gate (runbook §7) passes with peak-memory evidence.
 
 ## Memory / deployability
 
@@ -103,8 +139,7 @@ either; do not deploy them unvalidated. Other sources for a clean fp16 graph:
    `ORT_ENABLE_EXTENDED`. These ship with **external data** (`unet/weights.pb`),
    so run `scripts/merge_onnx_external_data.py` on each component to make it
    self-contained before deploying (AppContainer `weakly_canonical`, §8).
-2. **GPU export**: `optimum-cli export onnx --model stabilityai/sd-turbo --fp16
---device cuda …`, or Microsoft **Olive**'s SD DirectML optimization.
+2. **GPU export**: Microsoft **Olive**'s SD DirectML optimization.
 
 Speed note: SD1.5 needs ~20–25 steps (slow); the console target is a **few-step**
 model — SD-Turbo/SDXL-Turbo (1 step) or an LCM variant (2–4 steps) in fp16. The

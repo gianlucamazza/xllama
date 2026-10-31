@@ -10,7 +10,7 @@
 # run. Dtypes are fed adaptively from the session metadata, exactly like diffuse.cpp
 # (covers the ORT-team fp16 export where timestep is float16).
 #
-#   ~/.cache/xllama-diffusion/venv310/bin/python diffusion/validate_pipeline.py \
+#   ./venv/bin/python diffusion/validate_pipeline.py \
 #       [model_dir] [out.png] ["prompt"] [steps] [seed] [vae_dir]
 #
 # vae_dir (optional): directory holding an alternative vae_decoder/model.onnx
@@ -96,7 +96,7 @@ if vae_dir != model_dir:
     print(f"[val] vae override: {vae_dir}/vae_decoder/model.onnx")
 ts_type = in_type(unet, "timestep")
 # timestep shape is export-dependent: [1] (optimum <= 1.23) or [] scalar
-# (optimum-onnx 0.1.0 / torch 2.9 legacy-tracer export).
+# (optimum-onnx 0.1.0 and the first-party dynamo export, ADR 0003).
 ts_shape = next(i.shape for i in unet.get_inputs() if i.name == "timestep")
 print(
     f"[val] unet inputs: sample={in_type(unet, 'sample')} timestep={ts_type} "

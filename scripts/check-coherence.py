@@ -103,6 +103,8 @@ def main() -> int:
             continue
         if not file_list or file_list[0].get("filename") != "LICENSE":
             err(f"manifest {name} LICENSE must be first in files[]")
+        if (lic.get("role") or "") != "licence":
+            err(f"manifest {name} LICENSE files[].role must be licence")
         sha = lic.get("sha256") or ""
         if sha not in license_by_sha:
             err(f"manifest {name} LICENSE sha256 not in LICENSES/")
@@ -116,12 +118,45 @@ def main() -> int:
             err(f"manifest {name} NOTICE sha256 not in LICENSES/")
         elif len(file_list) < 2 or file_list[1].get("filename") != "NOTICE":
             err(f"manifest {name} NOTICE must follow LICENSE in files[]")
+        elif (notice.get("role") or "") != "notice":
+            err(f"manifest {name} NOTICE files[].role must be notice")
         else:
             remote_n = notice.get("remote") or notice.get("filename")
             if remote_n == "NOTICE":
                 err(f"manifest {name} NOTICE remote must be a unique models-v1 asset")
     if hosted and license_by_sha:
         good("models-v1 licence files pinned to LICENSES/")
+
+    # Every LICENSE / NOTICE pin must declare files[].role so verification is
+    # data-driven (#370). Other filenames may omit role (documented default).
+    for name, e in cat.items():
+        for f in e.get("files", []):
+            fn = f.get("filename") or ""
+            role = f.get("role") or ""
+            if fn == "LICENSE" and role != "licence":
+                err(f"manifest {name} LICENSE files[].role must be licence")
+            if fn == "NOTICE" and role != "notice":
+                err(f"manifest {name} NOTICE files[].role must be notice")
+            if role and role not in (
+                "weight",
+                "data",
+                "licence",
+                "license",
+                "notice",
+                "sidecar",
+            ):
+                err(f"manifest {name} files[] {fn} has unknown role {role!r}")
+            fn_l = fn.lower().replace("\\", "/")
+            if role in ("sidecar", "licence", "license", "notice") and (
+                fn_l.endswith(".gguf")
+                or fn_l.endswith(".onnx")
+                or fn_l.endswith(".onnx.data")
+                or fn_l.endswith(".bin")
+            ):
+                err(
+                    f"manifest {name} files[] {fn} is a weight file; "
+                    f"role {role!r} is not allowed"
+                )
 
     # --- code defaults ---
     mp = (ROOT / "uwp/MainPage.cpp").read_text(encoding="utf-8")

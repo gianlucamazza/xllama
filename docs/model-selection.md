@@ -166,7 +166,14 @@ catalogue grows:
    (`""` or `"coding"` — denser prompt-token estimate + coding system default on
    the LAN API); and per-file `remote` (the flat asset name in the release when
    `filename` carries a subpath, e.g. `"filename": "unet/model.onnx"` +
-   `"remote": "sd-turbo-fp16_unet_model.onnx"`).
+   `"remote": "sd-turbo-fp16_unet_model.onnx"`). Per-file `role` marks a pin as
+   `weight` / `data` (counts for installed-model verification) or `licence` /
+   `notice` / `sidecar` (fetched on their own). When `role` is omitted, the
+   documented filename default in `model_file_plan.h` applies: a basename stem
+   of license / licence / notice / readme / copying / authors / copyright is a
+   sidecar; everything else is a weight. `files[].role` is not the entry-level
+   `role` (`coding` / `embedding`). Adding or changing a licence or notice
+   row must not invalidate already-verified weights.
 
 2. Upload the override and (if needed) the model files:
 

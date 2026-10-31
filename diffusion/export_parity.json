@@ -1,0 +1,31 @@
+{
+  "_comment": "ADR 0003 step 2: fixed inputs and tolerances for comparing the first-party dynamo export against the optimum-onnx 0.1.0 export (and against eager torch). Recorded 2026-10-31 before the first trial; changing a bound after a run needs a reason in the PR. Read by compare_onnx_exports.py.",
+  "recorded": "2026-10-31",
+  "inputs": {
+    "seed": 42,
+    "batch": 1,
+    "seq_len": 77,
+    "latent_hw": 64,
+    "timestep": 999,
+    "prompts": [
+      "a red sports car on a mountain road at sunset",
+      "a photo of an astronaut riding a horse",
+      ""
+    ],
+    "steps": 1
+  },
+  "tolerances": {
+    "fp32_vs_fp32": {
+      "text_encoder.last_hidden_state": { "max_abs": 1e-3, "min_cosine": 0.99999 },
+      "text_encoder.pooler_output": { "max_abs": 1e-3, "min_cosine": 0.99999 },
+      "unet.out_sample": { "max_abs": 1e-3, "min_cosine": 0.99999 },
+      "vae_decoder.sample": { "max_abs": 5e-3, "min_cosine": 0.99999 },
+      "image_uint8": { "max_abs": 2, "min_cosine": 0.9999 }
+    },
+    "fp16_vs_fp32": {
+      "text_encoder.last_hidden_state": { "max_abs": 5e-2, "min_cosine": 0.999 },
+      "unet.out_sample": { "max_abs": 5e-2, "min_cosine": 0.999 },
+      "vae_decoder.sample": { "max_abs": 5e-2, "min_cosine": 0.999 }
+    }
+  }
+}
