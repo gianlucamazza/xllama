@@ -1,0 +1,118 @@
+{
+  "_comment": "I/O signature of the optimum-onnx 0.1.0 reference export the first-party exporter replaces (ADR 0003, #263). Read back with onnx.load(load_external_data=False) on 2026-10-31 from an `optimum` main_export (task text-to-image) of stabilityai/sd-turbo's text_encoder and vae with a tiny random UNet2DConditionModel of the same block types and cross_attention_dim 1024 (the full UNet was not exported in that env). The UNet signature is set by optimum's UNet ONNX config, not by the weights. Dynamic dims carry their symbol name; static dims their size.",
+  "reference_env": {
+    "python": "3.10.22",
+    "optimum": "2.1.0",
+    "optimum-onnx": "0.1.0",
+    "torch": "2.9.1",
+    "transformers": "4.57.6",
+    "diffusers": "0.39.0",
+    "onnx": "1.23.2",
+    "onnxruntime": "1.23.2"
+  },
+  "components": {
+    "text_encoder": {
+      "producer": "pytorch 2.9.1",
+      "opset": 18,
+      "inputs": [
+        {
+          "name": "input_ids",
+          "elem_type": "INT64",
+          "dims": [
+            "batch_size",
+            "sequence_length"
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "last_hidden_state",
+          "elem_type": "FLOAT",
+          "dims": [
+            "batch_size",
+            "sequence_length",
+            1024
+          ]
+        },
+        {
+          "name": "pooler_output",
+          "elem_type": "FLOAT",
+          "dims": [
+            "batch_size",
+            1024
+          ]
+        }
+      ]
+    },
+    "unet": {
+      "producer": "pytorch 2.9.1",
+      "opset": 18,
+      "inputs": [
+        {
+          "name": "sample",
+          "elem_type": "FLOAT",
+          "dims": [
+            "batch_size",
+            4,
+            "height",
+            "width"
+          ]
+        },
+        {
+          "name": "timestep",
+          "elem_type": "FLOAT",
+          "dims": []
+        },
+        {
+          "name": "encoder_hidden_states",
+          "elem_type": "FLOAT",
+          "dims": [
+            "batch_size",
+            "sequence_length",
+            1024
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out_sample",
+          "elem_type": "FLOAT",
+          "dims": [
+            "batch_size",
+            4,
+            "height",
+            "width"
+          ]
+        }
+      ]
+    },
+    "vae_decoder": {
+      "producer": "pytorch 2.9.1",
+      "opset": 18,
+      "inputs": [
+        {
+          "name": "latent_sample",
+          "elem_type": "FLOAT",
+          "dims": [
+            "batch_size",
+            4,
+            "latent_height",
+            "latent_width"
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "sample",
+          "elem_type": "FLOAT",
+          "dims": [
+            "batch_size",
+            3,
+            "latent_height * 8",
+            "latent_width * 8"
+          ]
+        }
+      ]
+    }
+  }
+}

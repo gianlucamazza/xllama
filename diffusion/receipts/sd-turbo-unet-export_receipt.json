@@ -1,0 +1,88 @@
+{
+  "_comment": "Receipt for one real SD-Turbo fp32 UNet export (Lab pre-merge gate on PR #378). export_report is the verbatim export_report.json written by export_sd_turbo.py; the other fields come from the same run on the same host. Peak RSS: ru_maxrss of the child process. Reproduce: diffusion/README.md.",
+  "date": "2026-10-31",
+  "host": {
+    "os": "Linux x86_64",
+    "cpu_threads": 8,
+    "ram_gib": 16,
+    "swap": "none",
+    "gpu": "none (CPUExecutionProvider)"
+  },
+  "export": {
+    "command": "python diffusion/export_sd_turbo.py --model stabilityai/sd-turbo --revision b261bac6fd2cf515557d5d0707481eafa0485ec2 --components unet --out real-unet --verify",
+    "wall_seconds": 55.3,
+    "peak_rss_mib": 8707,
+    "exit_code": 0,
+    "files": {
+      "unet/model.onnx": {
+        "bytes": 4763775,
+        "sha256": "4e727bd9233b32b690b36d7d8e6b5b18bcbd59a48925383d9b91c0025d0f4f17"
+      },
+      "unet/model.onnx.data": {
+        "bytes": 3463643520,
+        "sha256": "f5ae4d5e6881db8c8fc71c3ad3109f4e2d58b736e71c7166fd4e616c2d7091bb"
+      }
+    },
+    "check_contract": "OK",
+    "export_report": {
+      "model": "stabilityai/sd-turbo",
+      "revision": "b261bac6fd2cf515557d5d0707481eafa0485ec2",
+      "opset": 18,
+      "versions": {
+        "python": "3.12.16",
+        "torch": "2.13.0+cpu",
+        "transformers": "5.10.1",
+        "diffusers": "0.40.0",
+        "onnx": "1.23.2",
+        "onnxscript": "0.7.2",
+        "onnxruntime": "1.31.1"
+      },
+      "components": {
+        "unet": {
+          "seconds": 39.4,
+          "bytes": 3468407295,
+          "opset": 18,
+          "external_data": true,
+          "peak_rss_mib": 8707,
+          "ort_vs_torch": {
+            "out_sample": {
+              "max_abs": 2.1457672119140625e-06,
+              "cosine": 0.9999999999999643
+            }
+          },
+          "ort_vs_torch_dynamic": {
+            "out_sample": {
+              "max_abs": 5.02169132232666e-06,
+              "cosine": 0.9999999999999413
+            }
+          }
+        }
+      }
+    }
+  },
+  "convert_fp16": {
+    "command": "python diffusion/convert_fp16.py real-unet real-unet-fp16",
+    "path": "low-memory (external-data input)",
+    "wall_seconds": 32.8,
+    "peak_rss_mib": 5149,
+    "exit_code": 0,
+    "files": {
+      "unet/model.onnx": {
+        "bytes": 1736542492,
+        "mib": 1656,
+        "self_contained": true,
+        "under_2gb": true,
+        "sha256": "bd008c57bd3cb829e7028deff7c734361237f617fabbe374aa7abdf0f9f10608"
+      }
+    },
+    "dropped_duplicate_casts": 2,
+    "ort_load": "OK at ORT_ENABLE_EXTENDED, inputs sample/timestep/encoder_hidden_states tensor(float16)",
+    "fp16_vs_fp32_ort": {
+      "inputs": "seed 0, sample [1,4,64,64], timestep 999, encoder_hidden_states [1,77,1024]",
+      "max_abs": 0.0019521713256835938,
+      "cosine": 0.9999999526428602,
+      "finite": true
+    },
+    "default_path_note": "The default ORT path (OnnxModel.convert_float_to_float16 on the fully loaded model) was killed by the OOM killer on this host at about 9969 MiB peak RSS, before the low-memory path existed."
+  }
+}
