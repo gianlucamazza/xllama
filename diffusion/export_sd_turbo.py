@@ -272,6 +272,53 @@ def external_data_threshold() -> int:
     return int(env) if env else PROTOBUF_LIMIT
 
 
+def strip_metadata(model) -> int:
+    """Drop exporter metadata and doc strings from an onnx_ir Model in place.
+
+    The dynamo exporter tags every node (and many values) with
+    pkg.torch.onnx.* metadata: stack traces with absolute source paths, FX
+    node text, module names. None of it is read at runtime, and the paths would
+    leak the exporting user's directories into a published model. Clears the
+    metadata_props and doc_string of the model, every graph (subgraphs
+    included), function, node and value. Returns the number of entries removed.
+    """
+    import onnx_ir as ir
+
+    removed = 0
+
+    def clear(obj):
+        nonlocal removed
+        props = getattr(obj, "metadata_props", None)
+        if props:
+            removed += len(props)
+            props.clear()
+        if getattr(obj, "doc_string", None):
+            removed += 1
+            obj.doc_string = None
+
+    def clear_graph(graph):
+        clear(graph)
+        for v in [*graph.inputs, *graph.outputs, *graph.initializers.values()]:
+            clear(v)
+        for node in ir.traversal.RecursiveGraphIterator(graph):
+            clear(node)
+            for v in node.outputs:
+                clear(v)
+            for attr in node.attributes.values():
+                if attr.type == ir.AttributeType.GRAPH:
+                    clear_graph(attr.value)
+                elif attr.type == ir.AttributeType.GRAPHS:
+                    for g in attr.value:
+                        clear_graph(g)
+
+    clear(model)
+    clear_graph(model.graph)
+    for fn in model.functions.values():
+        clear(fn)
+        clear_graph(fn.graph)
+    return removed
+
+
 def export_component(module, component: str, args, path: str, *, opset: int = DEFAULT_OPSET,
                      external_data_bytes: int | None = None) -> bool:
     """Export one wrapped component with the dynamo exporter and save it.
@@ -301,6 +348,7 @@ def export_component(module, component: str, args, path: str, *, opset: int = DE
             external_data=True,
         )
     _rename_symbols(prog.model, component)
+    strip_metadata(prog.model)
     limit = external_data_threshold() if external_data_bytes is None else external_data_bytes
     external = initializer_bytes(prog.model) >= limit
     for f in (path, path + ".data"):

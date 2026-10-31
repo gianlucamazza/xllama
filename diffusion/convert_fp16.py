@@ -19,7 +19,8 @@
 # uwp/diffuse.cpp and validate_pipeline.py do. This script load-tests each
 # converted component at EXTENDED before declaring success.
 #
-# Usage:  python diffusion/convert_fp16.py <onnx_dir_in> <onnx_dir_out>
+# Usage:  python diffusion/convert_fp16.py [onnx_dir_in] [onnx_dir_out]   (--help)
+import argparse
 import os
 import shutil
 import sys
@@ -58,6 +59,53 @@ def drop_duplicate_nodes(graph):
         del graph.node[:]
         graph.node.extend(keep)
     return dropped
+
+
+def strip_metadata(model):
+    """Drop metadata_props and doc strings from a ModelProto in place.
+
+    Same rule as export_sd_turbo.strip_metadata, for graphs exported before
+    it existed: the dynamo exporter's pkg.torch.onnx.* node metadata carries
+    stack traces with absolute source paths. Covers the model, every graph
+    (subgraphs included), function, node, attribute, value and initializer.
+    Returns the number of entries removed.
+    """
+    removed = 0
+
+    def clear(obj):
+        nonlocal removed
+        if hasattr(obj, "metadata_props") and len(obj.metadata_props):
+            removed += len(obj.metadata_props)
+            del obj.metadata_props[:]
+        if obj.doc_string:
+            removed += 1
+            obj.doc_string = ""
+
+    def clear_nodes(nodes):
+        for node in nodes:
+            clear(node)
+            for attr in node.attribute:
+                clear(attr)
+                if attr.type == onnx.AttributeProto.GRAPH:
+                    clear_graph(attr.g)
+                elif attr.type == onnx.AttributeProto.GRAPHS:
+                    for g in attr.graphs:
+                        clear_graph(g)
+
+    def clear_graph(graph):
+        clear(graph)
+        for v in [*graph.input, *graph.output, *graph.value_info, *graph.initializer]:
+            clear(v)
+        clear_nodes(graph.node)
+
+    clear(model)
+    clear_graph(model.graph)
+    for fn in model.functions:
+        clear(fn)
+        for v in fn.value_info:
+            clear(v)
+        clear_nodes(fn.node)
+    return removed
 
 
 def _merge_value_types(model, inferred):
@@ -100,10 +148,19 @@ def _attach_weights(model, base, dtypes):
         info = ExternalDataInfo(t)
         was = dtypes[t.name]
         np_dtype = onnx.helper.tensor_dtype_to_np_dtype(was)
-        count = (info.length // np.dtype(np_dtype).itemsize) if info.length else -1
+        itemsize = np.dtype(np_dtype).itemsize
+        numel = int(np.prod(t.dims, dtype=np.int64))
+        if not info.length or info.length != numel * itemsize:
+            raise ValueError(
+                f"external tensor {t.name}: recorded length {info.length!r} does not match "
+                f"{numel} x {itemsize} bytes; refusing to guess"
+            )
+        count = numel
         arr = np.fromfile(
             os.path.join(base, info.location), dtype=np_dtype, count=count, offset=info.offset or 0
         )
+        if arr.size != count:
+            raise ValueError(f"external tensor {t.name}: {info.location} is truncated")
         if was == TensorProto.FLOAT and t.data_type == TensorProto.FLOAT16:
             arr = float16.convert_np_to_float16(arr)
         del t.external_data[:]
@@ -133,6 +190,7 @@ def to_fp16(src, low_memory=None):
         del graph
         m = OnnxModel(onnx.load(src))
         m.convert_float_to_float16(keep_io_types=False)
+        strip_metadata(m.model)
         return m
     # Imported after onnx_model, which puts the helper's directory on sys.path.
     from onnxruntime.transformers.shape_infer_helper import SymbolicShapeInferenceHelper
@@ -172,13 +230,23 @@ def to_fp16(src, low_memory=None):
         os.chdir(cwd)
     if not m.enable_shape_infer:
         print("[fp16] note: Cast cleanup ran on value_info dtypes only (weight-free graph)")
+    strip_metadata(m.model)
     _attach_weights(m.model, base, dtypes)
     return m
 
 
 def main(argv):
-    IN = argv[1] if len(argv) > 1 else "sd-turbo-onnx"
-    OUT = argv[2] if len(argv) > 2 else "sd-turbo-onnx-fp16"
+    ap = argparse.ArgumentParser(
+        prog=os.path.basename(argv[0]) if argv else "convert_fp16.py",
+        description="Convert fp32 SD-Turbo ONNX components (either layout) to "
+        "self-contained fp16 graphs and load-test them at ORT_ENABLE_EXTENDED.",
+    )
+    ap.add_argument("onnx_dir_in", nargs="?", default="sd-turbo-onnx")
+    ap.add_argument("onnx_dir_out", nargs="?", default="sd-turbo-onnx-fp16")
+    a = ap.parse_args(argv[1:])
+    IN, OUT = a.onnx_dir_in, a.onnx_dir_out
+    if not os.path.isdir(IN):
+        ap.error(f"input directory not found: {IN}")
     os.makedirs(OUT, exist_ok=True)
     # Copy the non-weight pipeline files (scheduler, tokenizer, configs) verbatim.
     for name in os.listdir(IN):

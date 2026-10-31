@@ -218,6 +218,92 @@ class CheckContractTest(unittest.TestCase):
 
 
 @unittest.skipUnless(_have("onnx", "onnxruntime"), "onnx/onnxruntime not installed")
+class Fp16HygieneTest(unittest.TestCase):
+    """convert_fp16.py: metadata stripping, external-length check, CLI."""
+
+    @staticmethod
+    def _leaky_model():
+        from onnx import TensorProto, helper
+
+        def tag(obj):
+            obj.doc_string = "/home/someone/xllama/diffusion/export_sd_turbo.py"
+            helper.set_metadata_props(obj, {
+                "pkg.torch.onnx.stack_trace": 'File "/Users/someone/x.py", line 1',
+                "namespace": "C:\\Users\\someone"})
+            return obj
+
+        body = helper.make_graph([tag(helper.make_node("Identity", ["a"], ["b"]))], "body",
+                                 [helper.make_tensor_value_info("a", TensorProto.FLOAT, [1])],
+                                 [helper.make_tensor_value_info("b", TensorProto.FLOAT, [1])])
+        tag(body)
+        node = tag(helper.make_node("If", ["c"], ["y"], then_branch=body, else_branch=body))
+        fn_node = tag(helper.make_node("Identity", ["p"], ["q"]))
+        fn = tag(helper.make_function("local", "F", ["p"], ["q"], [fn_node],
+                                      [helper.make_opsetid("", 18)]))
+        x = tag(helper.make_tensor_value_info("c", TensorProto.BOOL, []))
+        g = tag(helper.make_graph([node], "g", [x],
+                                  [helper.make_tensor_value_info("y", TensorProto.FLOAT, [1])]))
+        m = tag(helper.make_model(g, functions=[fn], opset_imports=[
+            helper.make_opsetid("", 18), helper.make_opsetid("local", 1)]))
+        return m
+
+    def test_strip_metadata_everywhere(self):
+        import convert_fp16
+
+        m = self._leaky_model()
+        self.assertGreater(len(_metadata_leaks(m)), 10)
+        self.assertGreater(convert_fp16.strip_metadata(m), 0)
+        self.assertEqual(_metadata_leaks(m), [])
+        self.assertEqual(convert_fp16.strip_metadata(m), 0)
+
+    @unittest.skipUnless(_have("onnx_ir"), "onnx_ir not installed")
+    def test_export_strip_metadata_everywhere(self):
+        import onnx_ir as ir
+
+        model = ir.serde.deserialize_model(self._leaky_model())
+        self.assertGreater(exp.strip_metadata(model), 0)
+        self.assertEqual(_metadata_leaks(ir.serde.serialize_model(model)), [])
+
+    def test_attach_weights_requires_length(self):
+        import convert_fp16
+        import numpy as np
+        from onnx import TensorProto, helper, numpy_helper
+
+        def model(length):
+            t = TensorProto(name="w", data_type=TensorProto.FLOAT, dims=[4],
+                            data_location=TensorProto.EXTERNAL)
+            entries = {"location": "w.data", "offset": "0"}
+            if length is not None:
+                entries["length"] = str(length)
+            for k, v in entries.items():
+                t.external_data.add(key=k, value=v)
+            return helper.make_model(helper.make_graph([], "g", [], [], initializer=[t]))
+
+        with tempfile.TemporaryDirectory() as d:
+            np.arange(4, dtype=np.float32).tofile(f"{d}/w.data")
+            for length in (None, 0, 32):
+                with self.assertRaisesRegex(ValueError, "recorded length"):
+                    convert_fp16._attach_weights(model(length), d, {"w": TensorProto.FLOAT})
+            m = model(16)
+            convert_fp16._attach_weights(m, d, {"w": TensorProto.FLOAT})
+            self.assertEqual(numpy_helper.to_array(m.graph.initializer[0]).tolist(), [0, 1, 2, 3])
+            np.arange(2, dtype=np.float32).tofile(f"{d}/w.data")
+            with self.assertRaisesRegex(ValueError, "truncated"):
+                convert_fp16._attach_weights(model(16), d, {"w": TensorProto.FLOAT})
+
+    def test_cli_help_and_missing_dir(self):
+        cli = [sys.executable, str(DIFFUSION / "convert_fp16.py")]
+        r = subprocess.run([*cli, "--help"], capture_output=True, text=True, check=False)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("usage:", r.stdout)
+        with tempfile.TemporaryDirectory() as d:
+            r = subprocess.run([*cli, f"{d}/missing", f"{d}/out"], capture_output=True,
+                               text=True, check=False)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("input directory not found", r.stderr)
+
+
+@unittest.skipUnless(_have("onnx", "onnxruntime"), "onnx/onnxruntime not installed")
 class Fp16DuplicateCastTest(unittest.TestCase):
     def test_drop_duplicate_nodes(self):
         import convert_fp16
@@ -229,6 +315,59 @@ class Fp16DuplicateCastTest(unittest.TestCase):
         self.assertEqual(convert_fp16.drop_duplicate_nodes(g), 2)
         self.assertEqual([n.name for n in g.node], ["s_cast_to_fp32_node", "id"])
         self.assertEqual(convert_fp16.drop_duplicate_nodes(g), 0)
+
+
+HOME_PATTERNS = re.compile(r"/home/|/Users/|[A-Za-z]:\\|/workspace|~")
+
+
+def _metadata_leaks(model):
+    """Every metadata/doc string of a ModelProto that looks like a path, plus
+    names that contain a home-path pattern. Empty list means clean."""
+    from onnx import AttributeProto
+
+    bad = []
+
+    def text(where, value, strict=True):
+        if value and ((strict and ("/" in value or "\\" in value)) or HOME_PATTERNS.search(value)):
+            bad.append(f"{where}: {value[:120]}")
+
+    def meta(where, obj):
+        for p in getattr(obj, "metadata_props", ()):
+            text(f"{where} metadata key", p.key)
+            text(f"{where} metadata[{p.key}]", p.value)
+            if p.key.startswith("pkg.torch.onnx"):
+                bad.append(f"{where}: {p.key}")
+        text(f"{where} doc_string", obj.doc_string)
+
+    def nodes(where, ns):
+        for n in ns:
+            meta(f"{where}/node {n.name}", n)
+            text(f"{where}/node name", n.name, strict=False)
+            for a in n.attribute:
+                meta(f"{where}/node {n.name} attr {a.name}", a)
+                if a.type == AttributeProto.GRAPH:
+                    graph(f"{where}/{n.name}.{a.name}", a.g)
+                elif a.type == AttributeProto.GRAPHS:
+                    for g in a.graphs:
+                        graph(f"{where}/{n.name}.{a.name}", g)
+
+    def graph(where, g):
+        meta(where, g)
+        for v in [*g.input, *g.output, *g.value_info, *g.initializer]:
+            meta(f"{where}/value {v.name}", v)
+            text(f"{where}/value name", v.name, strict=False)
+        nodes(where, g.node)
+
+    meta("model", model)
+    for f in ("producer_name", "producer_version", "domain"):
+        text(f"model {f}", getattr(model, f), strict=False)
+    graph("graph", model.graph)
+    for fn in model.functions:
+        meta(f"function {fn.name}", fn)
+        for v in fn.value_info:
+            meta(f"function {fn.name}/value {v.name}", v)
+        nodes(f"function {fn.name}", fn.node)
+    return bad
 
 
 @unittest.skipUnless(_have("torch", "diffusers", "transformers", "onnx", "onnxscript", "onnxruntime"),
@@ -269,6 +408,9 @@ class TinyDynamoExportTest(unittest.TestCase):
         exp.export_component(mod, comp, exp.dummy_inputs(comp, hidden=32, batch=2), path)
         self.assertEqual(exp.check_contract(path, comp), [])
         self.assertEqual(exp.opset_of(path), exp.DEFAULT_OPSET)
+        import onnx
+
+        self.assertEqual(_metadata_leaks(onnx.load(path, load_external_data=False)), [], comp)
         for kw in ({}, {"batch": 2, "seq": 16, "latent_hw": 32}):
             res = exp.ort_vs_torch(mod, comp, exp.dummy_inputs(comp, hidden=32, **kw), path)
             for name, st in res.items():
@@ -306,6 +448,9 @@ class TinyDynamoExportTest(unittest.TestCase):
         self.assertTrue(os.path.exists(path + ".data"))
         self.assertGreater(os.path.getsize(path + ".data"), os.path.getsize(path))
         self.assertEqual(exp.check_contract(path, "unet"), [])
+        import onnx
+
+        self.assertEqual(_metadata_leaks(onnx.load(path, load_external_data=False)), [])
         res = exp.ort_vs_torch(self.mods["unet"], "unet", exp.dummy_inputs("unet", hidden=32), path)
         self.assertLess(res["out_sample"]["max_abs"], 1e-3)
 
@@ -326,11 +471,29 @@ class TinyDynamoExportTest(unittest.TestCase):
         self.assertIn("LOAD OK (EXTENDED)", r.stdout)
         fp16 = f"{out}/unet/model.onnx"
         self.assertFalse(os.path.exists(fp16 + ".data"), "fp16 graph must be self-contained")
+        self.assertEqual(_metadata_leaks(onnx.load(fp16)), [])
         so = ort.SessionOptions()
         so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_EXTENDED
         s = ort.InferenceSession(fp16, sess_options=so, providers=["CPUExecutionProvider"])
         self.assertEqual([i.name for i in s.get_inputs()], list(exp.CONTRACT["unet"]["inputs"]))
         self.assertEqual(s.get_inputs()[0].type, "tensor(float16)")
+
+    def test_fp16_default_path_is_clean(self):
+        """Inline (self-contained) exports through convert_fp16.py's default path."""
+        import onnx
+
+        root = f"{self.tmp.name}/inline"
+        for comp in exp.COMPONENTS:
+            ext = exp.export_component(self.mods[comp], comp,
+                                       exp.dummy_inputs(comp, hidden=32, batch=2),
+                                       f"{root}/{comp}/model.onnx")
+            self.assertFalse(ext)
+        out = f"{self.tmp.name}/inline-fp16"
+        r = subprocess.run([sys.executable, str(DIFFUSION / "convert_fp16.py"), root, out],
+                           capture_output=True, text=True, check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        for comp in exp.COMPONENTS:
+            self.assertEqual(_metadata_leaks(onnx.load(f"{out}/{comp}/model.onnx")), [], comp)
 
     def test_default_threshold_is_protobuf_limit(self):
         old = os.environ.pop("XLLAMA_EXPORT_EXTERNAL_DATA_BYTES", None)
