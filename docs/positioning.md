@@ -27,7 +27,7 @@ exercised without a game runtime. It is not the product thesis.
 
 ## Honest limits
 
-- **Dev Mode only.** Sideload on a developer-unlocked console.
+- **Developer Mode only.** Sideloaded as a Developer Mode app; the console must be in Developer Mode.
 - **Not Microsoft-affiliated.** Independent research. Microsoft-published
   runtimes (UWP, DirectML, ORT) are used as any third party would.
 - **Not an Xbox / GDK game SDK.** No AAA drop-in plugin, no ID@Xbox, no
