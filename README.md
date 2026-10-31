@@ -1,17 +1,17 @@
 # xllama
 
-**xllama — local LLM inference for Xbox Series S consoles in Developer Mode**
+**xllama — local LLM inference on an Xbox Series S in Developer Mode**
 
 Run a language model on your own Xbox Series S, with chat, an API on your local network, image generation and experimental on-device fine-tuning.
 
 Tested and measured on Series S. Not yet tested on Series X.
 
-### ⚠️ Read before installing
+### ⚠️ Read before sideloading
 
 - **Developer Mode only.** xllama runs only on an Xbox console in Developer Mode, Microsoft's program for developing and testing apps. To activate it, you need your own Partner Center developer account, and you must accept Microsoft's [Xbox Developer Mode Activation terms](https://learn.microsoft.com/en-us/legal/windows/agreements/xbox-one-developer-mode-activation) yourself. xllama is a developer and research project, not a consumer product.
 - **Retail games and apps don't run in Developer Mode.** You need to switch back to Retail Mode to play. Microsoft notes that required updates may cause "diminished or lost functionality" on a Developer Mode console, and a console reset deletes local saves that aren't synced to the cloud.
-- **Unofficial.** Independent project, not affiliated with or endorsed by Microsoft. xllama is not reviewed, certified or supported by Microsoft and is not distributed through the Microsoft Store. Install it only on a console you own, at your own risk. This project makes no statement about warranty coverage or about how Microsoft may treat Developer Mode use; read Microsoft's terms and warranty for your country.
-- **Install only from this repository's Releases page** and check the SHA-256. The package is signed with a test certificate (`xllama-test.cer`); trust it only if you downloaded it from here.
+- **Unofficial.** Independent project, not affiliated with or endorsed by Microsoft. xllama is not reviewed, certified or supported by Microsoft and is not distributed through the Microsoft Store. Sideload it only on a console you own, at your own risk. This project makes no statement about warranty coverage or about how Microsoft may treat Developer Mode use; read Microsoft's terms and warranty for your country.
+- **Sideload only from this repository's Releases page** and check the SHA-256. The package is signed with a test certificate (`xllama-test.cer`); trust it only if you downloaded it from here.
 - **The LAN API is off by default and has no authentication.** When it is on, any device on your network, and any web page open in a browser on it, can send it requests. Enable it only on a network you trust.
 - **Models are third-party.** Models are downloaded separately (from Hugging Face or this repository's `models-v1` release) and each one is under its own licence, not under xllama's MIT licence. Some licences are non-commercial or carry attribution requirements. Check each model's licence on its upstream model card (LFM models also download their LICENSE file alongside the weights) before using it.
 - xllama is provided "AS IS", without warranty, under the MIT licence.
@@ -33,11 +33,12 @@ A 4.7-second cut (three segments) of a 46-second capture made on a Series S in D
 
 ---
 
-## Quick install
+## Quick start
 
+<a id="quick-install"></a>
 <a id="build"></a>
 
-Install in the browser (Device Portal, no credentials file): [Install from a release](docs/install-release.md#install-from-a-release-in-the-browser). (steps not yet walked through on a console)
+Sideload in the browser (Device Portal, no credentials file): [Sideload a release](docs/install-release.md#install-from-a-release-in-the-browser). (steps not yet walked through on a console)
 
 Command-line path:
 
@@ -102,7 +103,7 @@ Hugging Face collection: [xllama: GGUF models run on Xbox Series S](https://hugg
 
 xllama exposes an HTTP endpoint on the local network that exposes its full
 inference core (`SessionHub`) with OpenAI and Ollama-compatible APIs.
-Status: v1, **off by default and has no authentication**. Dev Mode / trusted
+Status: v1, **off by default and has no authentication**. Developer Mode / trusted
 LAN only — the current integration probe, not a public inbound service.
 
 ```bash
@@ -169,7 +170,7 @@ Llama.cpp is both benchmarking lane and shipping backend.
 - Xbox Series S: unified memory, a per-process GPU budget and a per-file cap —
   the measured limits are in [uwp-constraints.md](docs/uwp-constraints.md)
 - Patched ORT/GenAI DLLs while upstream lacks AppContainer fixes
-- Dev Mode only — no retail path yet
+- Developer Mode only — no retail path yet
 
 ---
 
@@ -278,7 +279,7 @@ Every copy in this codebase has eventually disagreed — silently.
 
 Areas of interest:
 
-- UWP packaging, Xbox Dev Mode quirks
+- UWP packaging, Xbox Developer Mode quirks
 - Compact ONNX models fitting disk/GPU budgets
 - Benchmark methodology and reproducibility
 - Non-Windows developer documentation
