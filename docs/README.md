@@ -149,7 +149,7 @@ Spot-checked against code + evidence:
 | GPU allowlist `-v2` only                             | `dml_text_model_ok`                                       | OK                                                           |
 | NuGet 0.14.1 / 1.24.4 / DML 1.15.4                   | `packages.config`                                         | OK                                                           |
 | Decode table (101.6 / 40.0 / 17.9 / 74.8 / 41.2 / …) | `generate-benchmark-summary.py --check`                   | OK (2026-10-11: five Series S rows remeasured on 1.6.0.1163) |
-| Package identity `GianlucaMazza.xllama` (1.6.0.0)    | `uwp/AppxManifest.xml`; migration in `install-release.md` | OK (in-place from 1.5.x; breaking vs ≤1.4.x)                 |
+| Package identity `GianlucaMazza.xllama` (1.7.0.0)    | `uwp/AppxManifest.xml`; migration in `install-release.md` | OK (in-place from 1.5.x; breaking vs ≤1.4.x)                 |
 | One resident Session (GUI+API)                       | `include/xllama/session_hub.h`                            | OK (PR #161/#164)                                            |
 | H9 6/8 · 7/8 · 4/8 · 5/8                             | `2026-09-30-h9-rescore.jsonl` (#243 scorer)               | OK                                                           |
 | Lane B peak_ws 1195 MB, wall 446 s                   | `phase10-console-devtrain-result.json`                    | OK                                                           |
