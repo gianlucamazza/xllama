@@ -77,8 +77,9 @@ docs are rewritten for a Developer Mode launch.
   documentation and have not yet been walked end to end on a console.
 - Public docs no longer include a Partner Center reservation or Store ID.
 
-- **Docs:** "Store catalogue" wording replaced with "signed model catalogue" /
-  "built-in model list"; `/api/pull` described as a download from the built-in
+- **Docs:** "Store catalogue" wording replaced with "built-in model list";
+  the signed-catalogue requirement applies only to the Store SKU build;
+  `/api/pull` described as a download from the built-in
   model list (endpoint unchanged); new _Model catalogue design limits_ section
   in CONTRIBUTING; licence and no-selling note in model-selection and
   using-the-app.

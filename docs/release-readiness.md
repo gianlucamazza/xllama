@@ -190,7 +190,7 @@ allowlist draft** — not legal advice; re-verify before shipping.
 - [x] Console smoke of reduced SKU (chat + model download) —
       `validate-console.sh store` PASS 2026-08-26 on CI run `32963270335`
       (package revision `959`, Game). Install start-app downloaded
-      `lfm25-350m` from the signed catalogue; gate: GGUF chat with a saved
+      `lfm25-350m` from the built-in model list; gate: GGUF chat with a saved
       title + `set_api` rejected (`LAN API not available in Store SKU`). Dev
       SKU restored after.
 
