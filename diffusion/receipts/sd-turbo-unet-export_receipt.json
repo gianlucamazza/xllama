@@ -1,5 +1,5 @@
 {
-  "_comment": "Receipt for one real SD-Turbo fp32 UNet export (Lab pre-merge gate on PR #378). export_report is the verbatim export_report.json written by export_sd_turbo.py; the other fields come from the same run on the same host. Peak RSS: ru_maxrss of the child process. Reproduce: diffusion/README.md.",
+  "_comment": "Receipt for one real SD-Turbo fp32 UNet export (Lab pre-merge gate on PR #378). export_report is the verbatim export_report.json written by export_sd_turbo.py; the other fields come from the same run on the same host. Exporter metadata (pkg.torch.onnx.* stack traces etc.) is stripped before save, so the graphs carry no source paths; metadata_scan records the check. Paths in commands are relative. Peak RSS: ru_maxrss of the child process. Reproduce: diffusion/README.md.",
   "date": "2026-10-31",
   "host": {
     "os": "Linux x86_64",
@@ -10,13 +10,13 @@
   },
   "export": {
     "command": "python diffusion/export_sd_turbo.py --model stabilityai/sd-turbo --revision b261bac6fd2cf515557d5d0707481eafa0485ec2 --components unet --out real-unet --verify",
-    "wall_seconds": 55.3,
-    "peak_rss_mib": 8707,
+    "wall_seconds": 74.7,
+    "peak_rss_mib": 8264,
     "exit_code": 0,
     "files": {
       "unet/model.onnx": {
-        "bytes": 4763775,
-        "sha256": "4e727bd9233b32b690b36d7d8e6b5b18bcbd59a48925383d9b91c0025d0f4f17"
+        "bytes": 364886,
+        "sha256": "c4e4e65b8fb3abd0201649947528cf8b6fe1c3bf81c72ef15a0a31dbe43d049e"
       },
       "unet/model.onnx.data": {
         "bytes": 3463643520,
@@ -39,11 +39,11 @@
       },
       "components": {
         "unet": {
-          "seconds": 39.4,
-          "bytes": 3468407295,
+          "seconds": 45.8,
+          "bytes": 3464008406,
           "opset": 18,
           "external_data": true,
-          "peak_rss_mib": 8707,
+          "peak_rss_mib": 8264,
           "ort_vs_torch": {
             "out_sample": {
               "max_abs": 2.1457672119140625e-06,
@@ -63,16 +63,16 @@
   "convert_fp16": {
     "command": "python diffusion/convert_fp16.py real-unet real-unet-fp16",
     "path": "low-memory (external-data input)",
-    "wall_seconds": 32.8,
-    "peak_rss_mib": 5149,
+    "wall_seconds": 38.7,
+    "peak_rss_mib": 5101,
     "exit_code": 0,
     "files": {
       "unet/model.onnx": {
-        "bytes": 1736542492,
-        "mib": 1656,
+        "bytes": 1732143604,
+        "mib": 1652,
         "self_contained": true,
         "under_2gb": true,
-        "sha256": "bd008c57bd3cb829e7028deff7c734361237f617fabbe374aa7abdf0f9f10608"
+        "sha256": "a79e423f1506ba7532fbc7105bc3b29eea746cfed19f3d824928e2c2bd11ba01"
       }
     },
     "dropped_duplicate_casts": 2,
@@ -84,5 +84,22 @@
       "finite": true
     },
     "default_path_note": "The default ORT path (OnnxModel.convert_float_to_float16 on the fully loaded model) was killed by the OOM killer on this host at about 9969 MiB peak RSS, before the low-memory path existed."
+  },
+  "metadata_scan": {
+    "_comment": "tests/test_diffusion_export.py::_metadata_leaks over both graphs (no external data loaded): metadata_props and doc_string of the model, graph, every node, attribute, value and initializer, plus home-path patterns in names.",
+    "unet/model.onnx": {
+      "nodes": 1963,
+      "functions": 0,
+      "metadata_props": 0,
+      "doc_strings": 0,
+      "leaks": 0
+    },
+    "fp16 unet/model.onnx": {
+      "nodes": 1964,
+      "functions": 0,
+      "metadata_props": 0,
+      "doc_strings": 0,
+      "leaks": 0
+    }
   }
 }

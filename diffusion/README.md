@@ -59,6 +59,10 @@ external-data input it runs the same ORT fp16 pass on the weight-free graph and
 then converts the weights one tensor at a time, because the default ORT path
 holds several copies of the UNet and ran out of memory on a 16 GB host; on the
 tiny model both paths give byte-identical graphs.
+Both scripts strip every `metadata_props` entry and doc string before saving:
+the dynamo exporter tags each node with `pkg.torch.onnx.*` metadata (stack
+traces with absolute source paths, FX node text), which nothing reads at
+runtime and which would publish the exporting user's directories.
 `XLLAMA_EXPORT_EXTERNAL_DATA_BYTES` lowers the threshold (the tests use it to
 force the external-data layout on a tiny model). One real fp32 UNet export,
 its fp16 conversion and their peak memory are recorded in
