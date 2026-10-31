@@ -5,7 +5,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${1:-$ROOT/build/taesd-vae-asset}"
-VENV="${XLLAMA_DIFFUSION_VENV:-$HOME/.cache/xllama-diffusion/venv310}"
+VENV="${XLLAMA_DIFFUSION_VENV:-$HOME/.cache/xllama-diffusion/venv312}"
 PY="$VENV/bin/python"
 ASSET_NAME="sd-turbo-fp16_taesd_vae_decoder_model.onnx"
 

@@ -2,11 +2,12 @@
 # Copyright (c) 2024 Gianluca Mazza
 # SPDX-License-Identifier: MIT
 #
-# Export stabilityai/sd-turbo to ONNX (fp32) with optimum, then convert the
-# txt2img components to fp16 for the Xbox Series S GPU budget. Requires the
-# pinned toolchain in requirements.txt on Python 3.10.
+# Export stabilityai/sd-turbo to ONNX (fp32) with the first-party dynamo
+# exporter (export_sd_turbo.py, ADR 0003), then convert the txt2img components
+# to fp16 for the Xbox Series S GPU budget. Requires the pinned toolchain in
+# requirements.txt on Python 3.12 (3.11+).
 #
-#   python3.10 -m venv venv && ./venv/bin/pip install -r diffusion/requirements.txt \
+#   python3.12 -m venv venv && ./venv/bin/pip install -r diffusion/requirements.txt \
 #       --extra-index-url https://download.pytorch.org/whl/cpu
 #   ./diffusion/export_sd_turbo.sh
 #
@@ -20,12 +21,14 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 
 export HF_HUB_DISABLE_TELEMETRY=1
 
-# fp32 export on CPU (optimum's --fp16 needs a CUDA GPU). Legacy tracer via
-# torch 2.4.1; opset defaults to the model's native (>=17, no downgrade).
-"$VENV/bin/optimum-cli" export onnx \
+# fp32 export on CPU: text_encoder, unet, vae_decoder with the console I/O
+# contract (checked after each component), each verified on ORT CPU against
+# eager torch. Pass REVISION=<hub commit> to pin the checkpoint.
+"$VENV/bin/python" "$HERE/export_sd_turbo.py" \
 	--model stabilityai/sd-turbo \
-	--task text-to-image \
-	"$OUT_FP32"
+	${REVISION:+--revision "$REVISION"} \
+	--out "$OUT_FP32" \
+	--verify
 
 # Convert the txt2img components (text_encoder, unet, vae_decoder) to fp16.
 "$VENV/bin/python" "$HERE/convert_fp16.py" "$OUT_FP32" "$OUT_FP16"
