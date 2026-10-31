@@ -17,8 +17,10 @@ allowlisted catalogue (`uwp/models/manifest.json`; LiquidAI Hugging Face for the
 default LFM) with a progress bar, writes it to `LocalState\models\`, and opens
 the chat.
 
-The console needs internet access for this step; afterwards everything runs
-offline. If the download fails, provisioning via Device Portal or USB
+The console needs internet access for this step. After that, the app only
+goes online to download a model you don't have yet. The optional LAN API, off
+by default, accepts connections only from your local network and has no authentication. If the download
+fails, provisioning via Device Portal or USB
 (`E:\xllama\models\<name>`) is described in
 [model-selection.md](./model-selection.md).
 
