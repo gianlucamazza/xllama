@@ -28,54 +28,86 @@ import onnx
 import onnxruntime as ort
 from onnxruntime.transformers.onnx_model import OnnxModel
 
-IN = sys.argv[1] if len(sys.argv) > 1 else "sd-turbo-onnx"
-OUT = sys.argv[2] if len(sys.argv) > 2 else "sd-turbo-onnx-fp16"
-# Components needed for txt2img (vae_encoder is only for img2img).
 COMPONENTS = ["text_encoder", "unet", "vae_decoder"]
 PROTOBUF_LIMIT = 2 * 1024**3
 
-os.makedirs(OUT, exist_ok=True)
-# Copy the non-weight pipeline files (scheduler, tokenizer, configs) verbatim.
-for name in os.listdir(IN):
-    src = os.path.join(IN, name)
-    if os.path.isdir(src) and name not in COMPONENTS + ["vae_encoder"]:
-        shutil.copytree(src, os.path.join(OUT, name), dirs_exist_ok=True)
-    elif os.path.isfile(src):
-        shutil.copy2(src, os.path.join(OUT, name))
 
-failed = 0
-for comp in COMPONENTS:
-    src = os.path.join(IN, comp, "model.onnx")
-    if not os.path.exists(src):
-        print(f"[skip] {comp}: no model.onnx")
-        continue
-    print(f"[fp16] converting {comp} ...", flush=True)
-    m = OnnxModel(onnx.load(src))  # loads external data if present
-    m.convert_float_to_float16(keep_io_types=False)
-    dst_dir = os.path.join(OUT, comp)
-    os.makedirs(dst_dir, exist_ok=True)
-    dst = os.path.join(dst_dir, "model.onnx")
-    m.save_model_to_file(dst, use_external_data_format=False)  # self-contained
-    disk = os.path.getsize(dst)
-    if disk >= PROTOBUF_LIMIT:
-        print(f"[fp16] {comp}: {disk // (1024 * 1024)} MB EXCEEDS 2GB — not deployable")
-        failed += 1
-        continue
-    # Load-test at the same optimization level the console pipeline uses.
-    so = ort.SessionOptions()
-    so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_EXTENDED
-    try:
-        s = ort.InferenceSession(
-            dst, sess_options=so, providers=["CPUExecutionProvider"]
-        )
-        ins = [(i.name, i.type) for i in s.get_inputs()]
-        del s
-        print(
-            f"[fp16] {comp}: {disk // (1024 * 1024)} MB, LOAD OK (EXTENDED), in: {ins}"
-        )
-    except Exception as e:
-        print(f"[fp16] {comp}: LOAD FAIL: {str(e)[:200]}")
-        failed += 1
+def drop_duplicate_nodes(graph):
+    """Remove byte-identical duplicate nodes; returns how many were dropped.
 
-print(f"[fp16] done -> {OUT}" + (f"  ({failed} FAILED)" if failed else ""))
-sys.exit(1 if failed else 0)
+    The dynamo exporter shares one initializer between several consumers (e.g.
+    the [1, 1, 2, 2] scales of the three VAE-decoder Resize nodes). The fp16
+    pass keeps Resize scales fp32 and inserts one `<init>_cast_to_fp32` Cast
+    per consumer, all with the same name and output, which ORT rejects ("two
+    nodes with same node name"). Identical nodes compute the same value, so
+    keeping the first is exact.
+    """
+    seen, keep = set(), []
+    for node in graph.node:
+        key = node.SerializeToString()
+        if key in seen:
+            continue
+        seen.add(key)
+        keep.append(node)
+    dropped = len(graph.node) - len(keep)
+    if dropped:
+        del graph.node[:]
+        graph.node.extend(keep)
+    return dropped
+
+
+def main(argv):
+    IN = argv[1] if len(argv) > 1 else "sd-turbo-onnx"
+    OUT = argv[2] if len(argv) > 2 else "sd-turbo-onnx-fp16"
+    os.makedirs(OUT, exist_ok=True)
+    # Copy the non-weight pipeline files (scheduler, tokenizer, configs) verbatim.
+    for name in os.listdir(IN):
+        src = os.path.join(IN, name)
+        if os.path.isdir(src) and name not in COMPONENTS + ["vae_encoder"]:
+            shutil.copytree(src, os.path.join(OUT, name), dirs_exist_ok=True)
+        elif os.path.isfile(src):
+            shutil.copy2(src, os.path.join(OUT, name))
+
+    failed = 0
+    for comp in COMPONENTS:
+        src = os.path.join(IN, comp, "model.onnx")
+        if not os.path.exists(src):
+            print(f"[skip] {comp}: no model.onnx")
+            continue
+        print(f"[fp16] converting {comp} ...", flush=True)
+        m = OnnxModel(onnx.load(src))  # loads external data if present
+        m.convert_float_to_float16(keep_io_types=False)
+        dup = drop_duplicate_nodes(m.model.graph)
+        if dup:
+            print(f"[fp16] {comp}: dropped {dup} duplicate Cast node(s)")
+        dst_dir = os.path.join(OUT, comp)
+        os.makedirs(dst_dir, exist_ok=True)
+        dst = os.path.join(dst_dir, "model.onnx")
+        m.save_model_to_file(dst, use_external_data_format=False)  # self-contained
+        disk = os.path.getsize(dst)
+        if disk >= PROTOBUF_LIMIT:
+            print(f"[fp16] {comp}: {disk // (1024 * 1024)} MB EXCEEDS 2GB — not deployable")
+            failed += 1
+            continue
+        # Load-test at the same optimization level the console pipeline uses.
+        so = ort.SessionOptions()
+        so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_EXTENDED
+        try:
+            s = ort.InferenceSession(
+                dst, sess_options=so, providers=["CPUExecutionProvider"]
+            )
+            ins = [(i.name, i.type) for i in s.get_inputs()]
+            del s
+            print(
+                f"[fp16] {comp}: {disk // (1024 * 1024)} MB, LOAD OK (EXTENDED), in: {ins}"
+            )
+        except Exception as e:
+            print(f"[fp16] {comp}: LOAD FAIL: {str(e)[:200]}")
+            failed += 1
+
+    print(f"[fp16] done -> {OUT}" + (f"  ({failed} FAILED)" if failed else ""))
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

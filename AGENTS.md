@@ -129,8 +129,13 @@ python3 scripts/build-research-package.py --check
 python3 scripts/check-release-metadata.py
 python3 -m unittest tests/test_research_package.py tests/test_xab_contract.py \
   tests/test_release_metadata.py tests/test_release_bundle.py \
-  tests/test_make_shape_gguf.py tests/test_bench_run_status.py
+  tests/test_make_shape_gguf.py tests/test_bench_run_status.py \
+  tests/test_console_run_log.py tests/test_console_temp_chats.py \
+  tests/test_catalog_licenses.py tests/test_diffusion_export.py
 ```
+
+`tests/test_diffusion_export.py` runs its export checks only when
+`diffusion/requirements.txt` is installed; CI runs the contract part.
 
 After the CLI exists, CI validates every `training/jobs/*.json`:
 

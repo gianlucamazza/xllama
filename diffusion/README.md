@@ -36,27 +36,40 @@ few-step diffusion model (SD-Turbo, 1 step) on the console GPU.
 
 ## Reproduce the export
 
-The toolchain is version-sensitive: the export still runs through the **legacy
-torch ONNX tracer** — the ONNX export now lives in the `optimum-onnx` package
-(optimum 2.x), and optimum-onnx 0.1.0 passes `dynamo=False` explicitly on
-torch ≥ 2.9 (it also caps `transformers < 4.58`). torch 2.9 is the line
-optimum-onnx 0.1.0 release-tests, so the set below is coherent as a whole —
-do not bump piecemeal. Use **Python 3.10** (torch 2.9's supported floor).
+The export is first-party (ADR 0003): `export_sd_turbo.py` loads the diffusers
+checkpoint and calls `torch.onnx.export(..., dynamo=True)` once per component
+(`text_encoder`, `unet`, `vae_decoder` = `AutoencoderKL.decode`), opset 18. It
+keeps the I/O contract the optimum-onnx 0.1.0 export had, and checks it on every
+graph before writing it:
 
-Toolchain-generation note (bumped 2026-07-10 from torch 2.4.1 / optimum
-1.23.3): the new export declares the UNet `timestep` input as a **scalar**
-(shape `[]`) instead of `[1]`. Both `validate_pipeline.py` and
-`uwp/diffuse.cpp` are shape-aware (they read the declared rank and feed `[]`
-or `[1]` from the same 1-element buffer) — if artifacts regenerated with
-this toolchain are ever promoted, the remaining gate is runbook §7 on console.
+| Component      | Inputs                                                                                   | Outputs                                  |
+| -------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `text_encoder` | `input_ids` int64 `[batch, seq]`                                                         | `last_hidden_state`, `pooler_output` f32 |
+| `unet`         | `sample` f32 `[batch, 4, h, w]`, `timestep` f32 scalar `[]`, `encoder_hidden_states` f32 | `out_sample` f32 `[batch, 4, h, w]`      |
+| `vae_decoder`  | `latent_sample` f32 `[batch, 4, h, w]`                                                   | `sample` f32 `[batch, 3, 8h, 8w]`        |
+
+`convert_fp16.py` turns every float input to fp16 (including `timestep`);
+`uwp/diffuse.cpp` and `validate_pipeline.py` read the declared types and ranks.
+Graphs of 2 GB or more are written with one `model.onnx.data` file next to
+them; SD-Turbo's fp32 components all fit in one file.
+
+`--verify` runs each graph on ORT CPU (`ORT_ENABLE_EXTENDED`) against eager
+torch at the console shapes and at a second, smaller batch-2 shape.
+`compare_onnx_exports.py REF CAND [--pipeline]` checks two export directories
+against the fixed inputs and tolerances recorded in `export_parity.json`; run it
+against a reference export before promoting a toolchain bump. Use **Python
+3.12** (3.11+): onnxruntime 1.31 has no Python 3.10 wheels.
 
 ```bash
-python3.10 -m venv venv
+python3.12 -m venv venv
 ./venv/bin/pip install -r diffusion/requirements.txt \
     --extra-index-url https://download.pytorch.org/whl/cpu
 ./diffusion/export_sd_turbo.sh                 # -> sd-turbo-onnx/ + sd-turbo-onnx-fp16/
 ./venv/bin/python diffusion/generate_onnx.py   # validate: writes sd_turbo_onnx.png
 ```
+
+Artifacts regenerated with this toolchain are not promoted until the console
+live gate (runbook §7) passes with peak-memory evidence.
 
 ## Memory / deployability
 
@@ -103,8 +116,7 @@ either; do not deploy them unvalidated. Other sources for a clean fp16 graph:
    `ORT_ENABLE_EXTENDED`. These ship with **external data** (`unet/weights.pb`),
    so run `scripts/merge_onnx_external_data.py` on each component to make it
    self-contained before deploying (AppContainer `weakly_canonical`, §8).
-2. **GPU export**: `optimum-cli export onnx --model stabilityai/sd-turbo --fp16
---device cuda …`, or Microsoft **Olive**'s SD DirectML optimization.
+2. **GPU export**: Microsoft **Olive**'s SD DirectML optimization.
 
 Speed note: SD1.5 needs ~20–25 steps (slow); the console target is a **few-step**
 model — SD-Turbo/SDXL-Turbo (1 step) or an LCM variant (2–4 steps) in fp16. The

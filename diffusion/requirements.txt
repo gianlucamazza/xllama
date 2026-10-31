@@ -1,36 +1,28 @@
-# Pinned toolchain for exporting SD-Turbo to ONNX for DirectML.
-# Use Python 3.10 (torch 2.9's supported floor; 3.11/3.12 also work).
-# The versions below are a *coherent* set — the ONNX export moved to the
-# optimum-onnx package (optimum 2.x), and optimum-onnx 0.1.0 still drives the
-# LEGACY TorchScript tracer (it passes dynamo=False explicitly on torch >= 2.9)
-# and caps transformers < 4.58. torch 2.9 is the line optimum-onnx 0.1.0
-# special-cases and release-tests. Do not bump piecemeal.
-# NOTE: the TorchScript exporter is deprecated in torch 2.9 — the NEXT bump
-# will likely require optimum-onnx's dynamo path once it ships released.
+# Pinned toolchain for exporting SD-Turbo to ONNX for DirectML (ADR 0003).
+# Use Python 3.12 (3.11+ works): onnxruntime 1.31 ships no cp310 wheels.
+# Install torch from the CPU index:
+#   pip install -r diffusion/requirements.txt \
+#       --extra-index-url https://download.pytorch.org/whl/cpu
 #
-# SECURITY NOTE (2026-07-10, bumped from torch 2.4.1 / optimum 1.23.3 /
-# transformers 4.46.3 / diffusers 0.31.0): this set clears the actionable
-# dependabot alerts (torch CVE-2025-32434 fixed 2.6.0; transformers ReDoS batch
-# fixed <= 4.53; diffusers CVE-2026-44513 + CVE-2026-45804 fixed 0.38.0).
-# Residual, NOT applicable here: CVE-2026-4372 (transformers config-injection —
-# requires the optional `kernels` package, which must NOT be installed);
-# CVE-2026-1839 (Trainer unsafe torch.load — v5-only fix; mitigated by
-# torch >= 2.6 and Trainer is unused); Dependabot alert #28 / LightGlue RCE
-# (transformers < 5.5.0) — LightGlue model path is unused (SD-Turbo export only),
-# and optimum-onnx 0.1.0 still caps transformers < 4.58 so a 5.5 bump is blocked
-# until the export stack allows it. Dependabot alert #29 / torch `torch.jit.script`
-# memory corruption (<= 2.12.1, fixed 2.13.0) — `torch.jit.script` is called
-# nowhere in this repo, and the legacy exporter this pin exists for reaches
-# TorchScript through `torch.jit.trace` under `torch.onnx.export`, not the
-# scripting front-end; the bump is four minors past the version optimum-onnx
-# 0.1.0 special-cases, so taking it means moving the whole set to the dynamo
-# path (see the NOTE above), not editing one line.
-# Offline, host-only toolchain fed only
-# first-party checkpoints (stabilityai/sd-turbo). Not shipped in the MSIX.
-torch==2.9.1              # legacy torch.onnx tracer via optimum-onnx dynamo=False; --extra-index-url .../whl/cpu
-optimum-onnx[onnxruntime]==0.1.0
-transformers==4.57.6
-diffusers==0.39.0
-onnx>=1.18
-onnxruntime>=1.20
+# First-party export (ADR 0003, 2026-10-31): export_sd_turbo.py drives
+# torch.onnx.export(dynamo=True) directly, so optimum-onnx (which capped
+# transformers < 4.58 and forced the deprecated TorchScript tracer) is gone and
+# this set moves as plain pins. Bump as one coherent set and re-run
+# compare_onnx_exports.py against a reference export before merging.
+#
+# SECURITY NOTE (2026-10-31, bumped from torch 2.9.1 / optimum-onnx 0.1.0 /
+# transformers 4.57.6 / diffusers 0.39.0): torch 2.13.0 fixes the
+# `torch.jit.script` memory corruption (<= 2.12.1, GHSA-rrmf-rvhw-rf47) and
+# transformers 5.10.1 fixes the LightGlue RCE (< 5.5.0, GHSA-xrqw-3rrv-vx5w);
+# 5.10.0 was withdrawn, so 5.10.1 is the floor. Earlier fixes stay covered
+# (torch CVE-2025-32434 >= 2.6.0; diffusers CVE-2026-44513 / CVE-2026-45804
+# >= 0.38.0). Do not install the optional `kernels` package (CVE-2026-4372).
+# Offline, host-only toolchain fed only first-party checkpoints
+# (stabilityai/sd-turbo). Not shipped in the MSIX.
+torch==2.13.0             # dynamo exporter (torch.export); CPU wheel via --extra-index-url .../whl/cpu
+transformers==5.10.1
+diffusers==0.40.0
+onnx==1.23.2
+onnxscript==0.7.2         # backend of the dynamo ONNX exporter
+onnxruntime==1.31.1       # export verification, fp16 pass (convert_fp16.py), validate_pipeline.py
 accelerate>=1.0
