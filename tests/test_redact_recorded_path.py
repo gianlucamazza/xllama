@@ -29,6 +29,7 @@ CONSOLE_Q_ESC = CONSOLE_Q.replace("\\", "\\\\")
 EXPECTED_MERGED = "<console-app-data>/training/out/device-marker/merged.gguf"
 PHASE10 = ROOT / "bench/results/phase10-console-devtrain-result.json"
 DEVICE = ROOT / "docs/audit/excellence/evidence/device-training-result.json"
+F01_UBSAN = ROOT / "docs/audit/excellence/evidence/f01-ubsan-ctest.log"
 
 
 class RedactPathTests(unittest.TestCase):
@@ -164,6 +165,13 @@ class RedactPathTests(unittest.TestCase):
                 or not _looks_absolute_drive(merged),
                 msg=f"{path} merged_gguf still looks absolute: {merged}",
             )
+
+    def test_f01_ubsan_log_has_no_host_home_user(self):
+        text = F01_UBSAN.read_text(encoding="utf-8")
+        self.assertNotRegex(text, r"/home/[A-Za-z]")
+        self.assertNotRegex(text, r"/Users/[A-Za-z]")
+        self.assertIn("<home>/Workspace/tooling/xllama-f01/tests/test_decode_loop.cpp:20:", text)
+        self.assertIn("XLLAMA_TEST_MODEL not set — skipping ignore_eog", text)
 
 
 def _looks_absolute_drive(value: str) -> bool:
