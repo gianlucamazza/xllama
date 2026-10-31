@@ -19,7 +19,7 @@ Source: https://github.com/ggml-org/llama.cpp
 
 ## Microsoft ONNX Runtime (DirectML)
 
-Copyright (c) Microsoft Corporation.
+Copyright (c) Microsoft Corporation
 Licensed under the MIT License.
 Licence text: LICENSES/onnxruntime-LICENSE (upstream v1.24.4).
 The onnxruntime.dll shipped by xllama is patched by xllama and is not an
