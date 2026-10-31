@@ -6,7 +6,15 @@
 // A directory is not compared to the manifest as one blob. Each files[] pin is
 // checked on its own. `classify_file_pin` is the single decision: Ok (keep),
 // Refetch (HTTP), or Unverified (keep the bytes, do not publish `.complete`).
-// Adding a LICENSE/NOTICE must not mark already-matching weight pins as stale.
+// Installed-model verification uses only weight and data pins (path, size,
+// hash). Adding, removing, or changing a licence or notice pin must not mark
+// already-matching weight pins as stale; those sidecars fetch on their own.
+//
+// Which pins are weights is data-driven from `files[].role`. Documented
+// default when `role` is omitted: a basename stem of license / licence /
+// notice / readme / copying / authors / copyright (optional .txt/.md/.rst)
+// is a sidecar; everything else is a weight. Set `role` to `weight` or
+// `data`, or to `licence` / `license` / `notice` / `sidecar`, to override.
 //
 // Pure (no WinRT / no pch.h). Host doctest-testable.
 #pragma once
@@ -15,6 +23,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace xllama {
@@ -29,12 +38,22 @@ enum class PinCheck {
     Unverified = 2, // size matches but the hash could not be read — keep, no marker
 };
 
+// Catalogue files[].role. Unspecified applies the documented filename default.
+enum class CatalogueFileRole {
+    Unspecified = 0,
+    Weight = 1,
+    Licence = 2,
+    Notice = 3,
+};
+
 // One catalogue files[] pin. `approx_bytes` 0 and an empty `sha256` mean "not
-// known" — those axes do not reject a present file.
+// known" — those axes do not reject a present file. `role` is the manifest
+// field; Unspecified means "use the documented default".
 struct ManifestFilePin {
     std::wstring filename;
     uint64_t approx_bytes = 0;
     std::string sha256;
+    CatalogueFileRole role = CatalogueFileRole::Unspecified;
 };
 
 // What is on disk for one relative name. An empty `sha256` is a size-only
@@ -64,12 +83,70 @@ inline std::wstring strip_sidecar_text_ext(std::wstring name) {
     return name;
 }
 
-// Licence / notice / readme family. Not a weight, tokenizer, or ONNX graph.
-// Stem match only — portable, not tied to a catalogue id or host path.
-inline bool is_catalogue_sidecar(const std::wstring& filename) {
+inline std::string ascii_lower_copy(std::string_view s) {
+    std::string out(s);
+    for (char& c : out) {
+        if (c >= 'A' && c <= 'Z')
+            c = static_cast<char>(c - 'A' + 'a');
+    }
+    return out;
+}
+
+// Parse files[].role. Empty → Unspecified (documented filename default).
+// weight/data → Weight. licence/license → Licence. notice → Notice.
+// sidecar → Licence (generic non-weight). Any other explicit value → Weight
+// so a typo cannot skip verification.
+inline CatalogueFileRole parse_catalogue_file_role(std::string_view raw) {
+    const std::string role = ascii_lower_copy(raw);
+    if (role.empty())
+        return CatalogueFileRole::Unspecified;
+    if (role == "weight" || role == "data")
+        return CatalogueFileRole::Weight;
+    if (role == "licence" || role == "license" || role == "sidecar")
+        return CatalogueFileRole::Licence;
+    if (role == "notice")
+        return CatalogueFileRole::Notice;
+    return CatalogueFileRole::Weight;
+}
+
+inline ManifestFilePin make_file_pin(std::wstring filename, uint64_t bytes, std::string sha256,
+                                     std::string_view role = {}) {
+    ManifestFilePin pin;
+    pin.filename = std::move(filename);
+    pin.approx_bytes = bytes;
+    pin.sha256 = std::move(sha256);
+    pin.role = parse_catalogue_file_role(role);
+    return pin;
+}
+
+// Documented default: licence / notice family by basename stem. Not a weight,
+// tokenizer, or ONNX graph. Portable — not tied to a catalogue id or host path.
+inline bool is_catalogue_sidecar_name(const std::wstring& filename) {
     const std::wstring stem = strip_sidecar_text_ext(file_basename_normalized(filename));
     return stem == L"license" || stem == L"licence" || stem == L"notice" || stem == L"readme" ||
            stem == L"copying" || stem == L"authors" || stem == L"copyright";
+}
+
+inline bool is_catalogue_sidecar(const std::wstring& filename) {
+    return is_catalogue_sidecar_name(filename);
+}
+
+// Manifest-driven: explicit role wins; Unspecified uses the documented default.
+inline bool is_catalogue_sidecar(const ManifestFilePin& pin) {
+    switch (pin.role) {
+    case CatalogueFileRole::Licence:
+    case CatalogueFileRole::Notice:
+        return true;
+    case CatalogueFileRole::Weight:
+        return false;
+    case CatalogueFileRole::Unspecified:
+        return is_catalogue_sidecar_name(pin.filename);
+    }
+    return is_catalogue_sidecar_name(pin.filename);
+}
+
+inline bool is_weight_pin(const ManifestFilePin& pin) {
+    return !is_catalogue_sidecar(pin);
 }
 
 inline bool sha256_hex_equal(const std::string& a, const std::string& b) {
@@ -135,16 +212,37 @@ inline std::vector<std::wstring> files_needing_fetch(const std::vector<PresentFi
     return need;
 }
 
-// Same as files_needing_fetch, excluding catalogue sidecars.
+// Same as files_needing_fetch, excluding catalogue sidecars (role or default).
 inline std::vector<std::wstring>
 weight_files_needing_fetch(const std::vector<PresentFile>& present,
                            const std::vector<ManifestFilePin>& expected) {
     std::vector<std::wstring> need;
-    for (const auto& name : files_needing_fetch(present, expected)) {
-        if (!is_catalogue_sidecar(name))
-            need.push_back(name);
+    for (const auto& pin : expected) {
+        if (!is_weight_pin(pin))
+            continue;
+        const PresentFile* have = find_present_file(present, pin.filename);
+        if (classify_file_pin(have, pin) == PinCheck::Refetch)
+            need.push_back(pin.filename);
     }
     return need;
+}
+
+// Every weight/data pin classifies Ok (size-only listings count). Sidecars
+// are ignored. Empty expected, or a catalogue with no weight pins, is false:
+// there is nothing to load. This is the installed-model verification predicate
+// (#370): licence / notice rows do not participate.
+inline bool weight_pins_verified(const std::vector<PresentFile>& present,
+                                 const std::vector<ManifestFilePin>& expected) {
+    bool any_weight = false;
+    for (const auto& pin : expected) {
+        if (!is_weight_pin(pin))
+            continue;
+        any_weight = true;
+        const PresentFile* have = find_present_file(present, pin.filename);
+        if (classify_file_pin(have, pin) != PinCheck::Ok)
+            return false;
+    }
+    return any_weight;
 }
 
 // Weights match their pins (size-only listings count); at least one sidecar
@@ -158,7 +256,7 @@ inline bool only_sidecars_missing(const std::vector<PresentFile>& present,
     for (const auto& pin : expected) {
         const PresentFile* have = find_present_file(present, pin.filename);
         const PinCheck c = classify_file_pin(have, pin);
-        if (is_catalogue_sidecar(pin.filename)) {
+        if (is_catalogue_sidecar(pin)) {
             if (c == PinCheck::Refetch)
                 sidecar_gap = true;
         } else if (c != PinCheck::Ok) {
@@ -198,7 +296,7 @@ sidecar_background_write_files(const std::vector<ManifestFilePin>& expected, boo
     std::vector<std::wstring> out;
     out.reserve(expected.size());
     for (const auto& pin : expected) {
-        if (sidecar_write_needs_full_hash(had_marker) || is_catalogue_sidecar(pin.filename))
+        if (sidecar_write_needs_full_hash(had_marker) || is_catalogue_sidecar(pin))
             out.push_back(pin.filename);
     }
     return out;

@@ -7,18 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-- **Catalogue sidecar edits no longer re-download verified weights, and GPU
-  routing ignores a still-downloading DML tree.** Fetch planning is per file
-  (`classify_file_pin`): a missing LICENSE/NOTICE is fetched in the background
-  after the chat model is marked ready. GPU routing requires every expected
-  catalogue file, a LocalState `.complete` marker, and an idle writer;
-  otherwise it stays on CPU and logs the reason. A GPU folder that has every
-  filename but no marker is hashed again (Ok weights are skipped) so the
-  marker can be published; a sidecar-only write does not publish `.complete`
-  over unhashed weights. New conversations stay on CPU while any write —
-  including that hash pass — holds the gate, and the choice sticks for the
-  conversation. Background provisioning now catches and logs exceptions
-  instead of letting them terminate the process.
+- **Fixed:** After an in-place upgrade, adding or changing a licence or notice
+  row in the catalogue no longer makes already-verified weight files look
+  stale. Installed-model verification uses only that model's weight and data
+  pins (path, size, and hash as the catalogue defines them). Which pins count
+  as weights comes from `files[].role` (`weight` / `data`, or `licence` /
+  `notice` / `sidecar`); when `role` is omitted the documented filename
+  default in `model_file_plan.h` applies. Missing licence or notice files
+  download on their own. Routing will not pick a model whose weight files are
+  still incomplete or unverified: it stays on the CPU model or reports
+  not-ready, and it does not load a partial download.
 
 - **GUI and LAN API share compute admission** (proposed [ADR 0008](docs/adr/0008-process-compute-admission.md),
   audit F08). A process-wide RAII permit serializes chat, embeddings, diffusion,

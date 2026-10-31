@@ -60,7 +60,15 @@ policy.decide_fn = [](const xllama::RoutingSettings& s, int n, bool gguf, bool g
 
 ```cpp
 bool ok = xllama::dml_text_model_ok("smollm2-360m-dml-fp16-v2");
-auto decision = xllama::decide_routing(settings, n_tok, base_is_gguf, gpu_available);
+bool gpu = xllama::gpu_ready_for_routing(xllama::weight_pins_verified(present, pins),
+                                        write_in_progress);
+auto decision = xllama::decide_routing(settings, n_tok, base_is_gguf, gpu);
 bool allowed = xllama::routing_allowed_for_kind(L"ort-genai");
 bool reuse = xllama::kv_reuse_supported_for_model("smollm2-360m-cpu-int4");
 ```
+
+`gpu_available` must be `gpu_ready_for_routing(weight_pins_verified(...), write_in_progress)`.
+`weight_pins_verified` looks only at weight and data pins (`files[].role`; omitted
+role uses the documented filename default). A partial or unverified weight tree,
+or any in-flight model write, falls back to the CPU model. Licence and notice
+pins do not make a ready weight tree look stale.
