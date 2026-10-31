@@ -146,8 +146,8 @@
   },
   {
     "file": "device-training-result.json",
-    "bytes": 337,
-    "sha256": "9782d4613c8832febe81df644144d83ef9b6797a610c1113333d4a9d648d5b5a"
+    "bytes": 261,
+    "sha256": "073a2c4d3cf58d8552d157f149a8334053608b2237f28e333dfe894db3c20cdd"
   },
   {
     "file": "diffuse-out.png",
@@ -321,8 +321,8 @@
   },
   {
     "file": "training-device-train.log",
-    "bytes": 1901,
-    "sha256": "2b96e26178917ec711d1ff5f8f16c87ca7e0bb1d539c5f370ed27fd34973989c"
+    "bytes": 1707,
+    "sha256": "1fc0931dfd5b1f0563bde8474c2c1b24a48628787033199d85c845502621c255"
   },
   {
     "file": "training-job-validation.json",
