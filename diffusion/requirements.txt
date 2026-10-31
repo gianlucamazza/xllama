@@ -12,9 +12,11 @@
 #
 # SECURITY NOTE (2026-10-31, bumped from torch 2.9.1 / optimum-onnx 0.1.0 /
 # transformers 4.57.6 / diffusers 0.39.0): torch 2.13.0 fixes the
-# `torch.jit.script` memory corruption (<= 2.12.1, GHSA-rrmf-rvhw-rf47) and
-# transformers 5.10.1 fixes the LightGlue RCE (< 5.5.0, GHSA-xrqw-3rrv-vx5w);
-# 5.10.0 was withdrawn, so 5.10.1 is the floor. Earlier fixes stay covered
+# `torch.jit.script` memory corruption (< 2.13.0, GHSA-rrmf-rvhw-rf47) and
+# transformers 5.10.1 fixes the save_pretrained chat-template path traversal
+# (< 5.10.0, GHSA-xrqw-3rrv-vx5w) and the LightGlue loading RCE (< 5.5.0,
+# GHSA-fgcw-684q-jj6r / CVE-2026-5241); 5.10.0 was withdrawn, so 5.10.1 is the
+# floor. Earlier fixes stay covered
 # (torch CVE-2025-32434 >= 2.6.0; diffusers CVE-2026-44513 / CVE-2026-45804
 # >= 0.38.0). Do not install the optional `kernels` package (CVE-2026-4372).
 # Offline, host-only toolchain fed only first-party checkpoints
@@ -25,4 +27,6 @@ diffusers==0.40.0
 onnx==1.23.2
 onnxscript==0.7.2         # backend of the dynamo ONNX exporter
 onnxruntime==1.31.1       # export verification, fp16 pass (convert_fp16.py), validate_pipeline.py
-accelerate>=1.0
+accelerate==1.15.0
+huggingface_hub==1.33.0
+onnx-ir==1.1.0           # graph API used by export_sd_turbo.py (transitive via onnxscript)

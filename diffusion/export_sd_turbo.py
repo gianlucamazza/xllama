@@ -36,8 +36,9 @@ DEFAULT_OPSET = 18
 COMPONENTS = ("text_encoder", "unet", "vae_decoder")
 
 # The console contract (ADR 0003): names, order, element types and axes per
-# component, identical to what the optimum-onnx 0.1.0 export it replaces emits
-# (read back from a reference export on 2026-10-31, see the #263 PR).
+# component, matching the optimum-onnx 0.1.0 export it replaces (signature dump
+# in optimum_reference_signature.json; tests/test_diffusion_export.py checks it).
+# That export declares int64 input_ids; uwp/diffuse.cpp accepts int32 or int64.
 # Element types are ONNX TensorProto values: 1 = FLOAT, 7 = INT64.
 # A dim is a str (dynamic, symbolic in the graph), an int (static, exact) or
 # None (static, model-dependent: the hidden size is 1024 for SD-Turbo).
@@ -227,28 +228,61 @@ _SYMBOL_NAMES = {
 def _rename_symbols(model, component: str) -> None:
     """Give the graph's dynamic axes the optimum-style symbol names.
 
-    Cosmetic for ORT (which binds by name and rank), but keeps the exported I/O
-    readable and diff-able against the old export.
+    Works on the exporter's in-memory onnx_ir model (no protobuf round trip, so
+    graphs above 2 GB are fine). Cosmetic for ORT (which binds by name and
+    rank), but keeps the exported I/O readable and diff-able against the old
+    export.
     """
+    import onnx_ir as ir
+
     names = _SYMBOL_NAMES[component]
-    for kind, vis in (("inputs", model.graph.input), ("outputs", model.graph.output)):
+    for kind, vis in (("inputs", model.graph.inputs), ("outputs", model.graph.outputs)):
         for v in vis:
             want = names[kind].get(v.name)
-            if not want:
+            if not want or v.shape is None:
                 continue
-            for d, n in zip(v.type.tensor_type.shape.dim, want):
-                if n and not d.HasField("dim_value"):
-                    d.dim_param = n
+            dims = [
+                ir.SymbolicDim(n) if n and not isinstance(d, int) else d
+                for d, n in zip(v.shape.dims, want)
+            ]
+            dims += list(v.shape.dims[len(dims):])
+            v.shape = ir.Shape(dims)
 
 
-def export_component(module, component: str, args, path: str, *, opset: int = DEFAULT_OPSET):
+def initializer_bytes(model) -> int:
+    """Total initializer size of an onnx_ir model, without serializing it.
+
+    `ModelProto.ByteSize()` cannot be used for this: protobuf refuses to encode
+    a message above 2 GB (EncodeError), which is exactly the case to detect.
+    """
+    return sum(
+        v.const_value.nbytes for v in model.graph.initializers.values()
+        if v.const_value is not None
+    )
+
+
+def external_data_threshold() -> int:
+    """Initializer bytes at or above which weights go to `model.onnx.data`.
+
+    Defaults to the 2 GB protobuf limit (only the SD-Turbo UNet crosses it).
+    XLLAMA_EXPORT_EXTERNAL_DATA_BYTES overrides it, so tests can force the
+    external-data layout on a tiny model.
+    """
+    env = os.environ.get("XLLAMA_EXPORT_EXTERNAL_DATA_BYTES")
+    return int(env) if env else PROTOBUF_LIMIT
+
+
+def export_component(module, component: str, args, path: str, *, opset: int = DEFAULT_OPSET,
+                     external_data_bytes: int | None = None) -> bool:
     """Export one wrapped component with the dynamo exporter and save it.
 
-    Components above the protobuf limit are written with one external data
-    file next to the graph (`model.onnx.data`); convert_fp16.py and
-    scripts/merge_onnx_external_data.py both read that layout.
+    Components whose initializers reach `external_data_bytes` (default:
+    external_data_threshold()) are written with one external data file next to
+    the graph (`model.onnx.data`); convert_fp16.py and
+    scripts/merge_onnx_external_data.py both read that layout. The size is
+    decided from the initializers, never by serializing the graph. Returns
+    whether external data was written.
     """
-    import onnx
     import torch
 
     want = CONTRACT[component]
@@ -266,22 +300,20 @@ def export_component(module, component: str, args, path: str, *, opset: int = DE
             verify=False,
             external_data=True,
         )
-    model = prog.model_proto
-    _rename_symbols(model, component)
-    nbytes = model.ByteSize()
-    data = os.path.basename(path) + ".data"
+    _rename_symbols(prog.model, component)
+    limit = external_data_threshold() if external_data_bytes is None else external_data_bytes
+    external = initializer_bytes(prog.model) >= limit
     for f in (path, path + ".data"):
         if os.path.exists(f):
             os.remove(f)
-    if nbytes >= PROTOBUF_LIMIT:
-        onnx.save_model(model, path, save_as_external_data=True, all_tensors_to_one_file=True,
-                        location=data, size_threshold=1024)
-    else:
-        onnx.save_model(model, path)
+    # external=False still lets torch switch to external data on its own if the
+    # graph is larger than it can serialize; check what was written.
+    prog.save(path, external_data=external)
+    del prog
     errs = check_contract(path, component)
     if errs:
         raise RuntimeError("contract violation:\n  " + "\n  ".join(errs))
-    return path
+    return os.path.exists(path + ".data")
 
 
 def ort_vs_torch(module, component: str, args, path: str) -> dict:
@@ -348,6 +380,25 @@ def copy_pipeline_files(model: str, revision: str | None, out: str) -> None:
     shutil.copy2(src, os.path.join(out, "model_index.json"))
 
 
+def _peak_rss_mib() -> int:
+    """Peak resident set size of this process so far (Linux ru_maxrss is KiB)."""
+    import resource
+
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024
+
+
+def _versions() -> dict:
+    from importlib import metadata
+
+    out = {"python": sys.version.split()[0]}
+    for p in ("torch", "transformers", "diffusers", "onnx", "onnxscript", "onnxruntime"):
+        try:
+            out[p] = metadata.version(p)
+        except metadata.PackageNotFoundError:
+            out[p] = None
+    return out
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0] if __doc__ else None)
     ap.add_argument("--model", default=DEFAULT_MODEL, help="hub id or local diffusers dir")
@@ -366,7 +417,8 @@ def main(argv=None) -> int:
     os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
     os.makedirs(a.out, exist_ok=True)
     copy_pipeline_files(a.model, a.revision, a.out)
-    report = {"model": a.model, "revision": a.revision, "opset": a.opset, "components": {}}
+    report = {"model": a.model, "revision": a.revision, "opset": a.opset,
+              "versions": _versions(), "components": {}}
     hidden = None
     for comp, module, h in load_components(a.model, a.revision, which):
         if comp == "text_encoder" or comp == "unet":
@@ -377,12 +429,13 @@ def main(argv=None) -> int:
         path = os.path.join(a.out, comp, "model.onnx")
         t0 = time.time()
         print(f"[export] {comp} (dynamo, opset {a.opset}) ...", flush=True)
-        export_component(module, comp, trace, path, opset=a.opset)
+        external = export_component(module, comp, trace, path, opset=a.opset)
         del trace
         size = os.path.getsize(path)
         if os.path.exists(path + ".data"):
             size += os.path.getsize(path + ".data")
-        rec = {"seconds": round(time.time() - t0, 1), "bytes": size, "opset": opset_of(path)}
+        rec = {"seconds": round(time.time() - t0, 1), "bytes": size, "opset": opset_of(path),
+               "external_data": external, "peak_rss_mib": _peak_rss_mib()}
         print(f"[export] {comp}: {size / 1e6:.1f} MB in {rec['seconds']} s, contract OK", flush=True)
         if a.verify:
             # Console shapes (batch 1, 77 tokens, 64x64 latents) plus a second,
@@ -395,6 +448,7 @@ def main(argv=None) -> int:
             print(f"[verify] {comp}: {rec['ort_vs_torch']}", flush=True)
             print(f"[verify] {comp} (batch 2, smaller): {rec['ort_vs_torch_dynamic']}",
                   flush=True)
+        rec["peak_rss_mib"] = _peak_rss_mib()
         report["components"][comp] = rec
         del module
     with open(os.path.join(a.out, "export_report.json"), "w") as f:

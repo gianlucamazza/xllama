@@ -14,9 +14,12 @@ and ORT-vs-torch parity. Install diffusion/requirements.txt to run them.
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
 import json
+import os
 import re
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -26,7 +29,9 @@ ROOT = Path(__file__).resolve().parents[1]
 DIFFUSION = ROOT / "diffusion"
 sys.path.insert(0, str(DIFFUSION))
 
-import export_sd_turbo as exp  # noqa: E402  (stdlib-only at import time)
+# Imported after the sys.path tweak; stdlib-only at import time.
+exp = importlib.import_module("export_sd_turbo")
+compare_onnx_exports = importlib.import_module("compare_onnx_exports")
 
 
 def _have(*mods):
@@ -88,6 +93,59 @@ class ContractTest(unittest.TestCase):
             self.assertGreater(t["min_cosine"], 0.999)
         self.assertEqual(cfg["inputs"]["latent_hw"], 64)
         self.assertEqual(cfg["inputs"]["seq_len"], 77)
+
+
+class OptimumReferenceTest(unittest.TestCase):
+    """CONTRACT against the committed optimum-onnx 0.1.0 signature dump."""
+
+    def test_contract_matches_optimum_reference(self):
+        ref = json.loads((DIFFUSION / "optimum_reference_signature.json").read_text(encoding="utf-8"))
+        self.assertEqual(ref["reference_env"]["optimum-onnx"], "0.1.0")
+        codes = {"FLOAT": 1, "INT64": 7, "INT32": 6, "FLOAT16": 10}
+        for comp in exp.COMPONENTS:
+            r = ref["components"][comp]
+            self.assertEqual(r["opset"], exp.DEFAULT_OPSET, comp)
+            for kind in ("inputs", "outputs"):
+                want = exp.CONTRACT[comp][kind]
+                self.assertEqual([v["name"] for v in r[kind]], list(want), (comp, kind))
+                for v in r[kind]:
+                    elem, dims = want[v["name"]]
+                    self.assertEqual(codes[v["elem_type"]], elem, (comp, v["name"]))
+                    self.assertEqual(len(v["dims"]), len(dims), (comp, v["name"]))
+                    for got, d in zip(v["dims"], dims):
+                        if isinstance(d, int) or (isinstance(d, str) and d != "*"):
+                            self.assertEqual(got, d, (comp, v["name"]))
+                        elif d is None:
+                            self.assertIsInstance(got, int, (comp, v["name"]))
+
+
+class CompareGateTest(unittest.TestCase):
+    """compare_onnx_exports.py must not pass when it compared nothing."""
+
+    def test_empty_dirs_fail(self):
+        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+            rep = compare_onnx_exports.compare(a, b)
+            self.assertFalse(rep["ok"])
+            self.assertEqual(rep["checked"], 0)
+            self.assertEqual(sum("missing" in f for f in rep["failures"]), 3)
+            self.assertIn("nothing was compared against a recorded tolerance", rep["failures"])
+            rc = subprocess.run([sys.executable, str(DIFFUSION / "compare_onnx_exports.py"), a, b],
+                                capture_output=True, check=False).returncode
+            self.assertEqual(rc, 1)
+
+    def test_component_missing_on_one_side_fails(self):
+        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+            os.makedirs(f"{a}/unet")
+            Path(f"{a}/unet/model.onnx").write_bytes(b"")
+            rep = compare_onnx_exports.compare(a, b, components=("unet",))
+            self.assertFalse(rep["ok"])
+            self.assertIn("unet: model.onnx missing in cand", rep["failures"])
+
+    def test_pipeline_needs_all_components(self):
+        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+            rep = compare_onnx_exports.compare(a, b, pipeline=True, components=("unet",))
+            self.assertIn("--pipeline needs all three components in both directories",
+                          rep["failures"])
 
 
 class RequirementsTest(unittest.TestCase):
@@ -162,9 +220,8 @@ class CheckContractTest(unittest.TestCase):
 @unittest.skipUnless(_have("onnx", "onnxruntime"), "onnx/onnxruntime not installed")
 class Fp16DuplicateCastTest(unittest.TestCase):
     def test_drop_duplicate_nodes(self):
-        from onnx import helper
-
         import convert_fp16
+        from onnx import helper
 
         cast = lambda: helper.make_node("Cast", ["s"], ["s_cast_to_fp32"], name="s_cast_to_fp32_node", to=1)
         other = helper.make_node("Identity", ["s_cast_to_fp32"], ["y"], name="id")
@@ -228,6 +285,60 @@ class TinyDynamoExportTest(unittest.TestCase):
         path = self._export_and_check("unet")
         ts = next(i for i in onnx.load(path).graph.input if i.name == "timestep")
         self.assertEqual(len(ts.type.tensor_type.shape.dim), 0)
+
+    def test_external_data_layout_and_fp16(self):
+        """Force the >2 GB layout on the tiny UNet, then run convert_fp16.py on it."""
+        import onnxruntime as ort
+
+        root = f"{self.tmp.name}/ext"
+        path = f"{root}/unet/model.onnx"
+        old = os.environ.get("XLLAMA_EXPORT_EXTERNAL_DATA_BYTES")
+        os.environ["XLLAMA_EXPORT_EXTERNAL_DATA_BYTES"] = "1"
+        try:
+            ext = exp.export_component(self.mods["unet"], "unet",
+                                       exp.dummy_inputs("unet", hidden=32, batch=2), path)
+        finally:
+            if old is None:
+                del os.environ["XLLAMA_EXPORT_EXTERNAL_DATA_BYTES"]
+            else:
+                os.environ["XLLAMA_EXPORT_EXTERNAL_DATA_BYTES"] = old
+        self.assertTrue(ext)
+        self.assertTrue(os.path.exists(path + ".data"))
+        self.assertGreater(os.path.getsize(path + ".data"), os.path.getsize(path))
+        self.assertEqual(exp.check_contract(path, "unet"), [])
+        res = exp.ort_vs_torch(self.mods["unet"], "unet", exp.dummy_inputs("unet", hidden=32), path)
+        self.assertLess(res["out_sample"]["max_abs"], 1e-3)
+
+        import convert_fp16
+
+        # The low-memory fp16 path (used for external data) must match ORT's default one.
+        models = [convert_fp16.to_fp16(path, low_memory=lm).model for lm in (False, True)]
+        for m in models:
+            convert_fp16.drop_duplicate_nodes(m.graph)
+        self.assertEqual(models[0].SerializeToString(), models[1].SerializeToString())
+        del models
+
+        out = f"{self.tmp.name}/ext-fp16"
+        r = subprocess.run([sys.executable, str(DIFFUSION / "convert_fp16.py"), root, out],
+                           capture_output=True, text=True, check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("unet: ", r.stdout)
+        self.assertIn("LOAD OK (EXTENDED)", r.stdout)
+        fp16 = f"{out}/unet/model.onnx"
+        self.assertFalse(os.path.exists(fp16 + ".data"), "fp16 graph must be self-contained")
+        so = ort.SessionOptions()
+        so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_EXTENDED
+        s = ort.InferenceSession(fp16, sess_options=so, providers=["CPUExecutionProvider"])
+        self.assertEqual([i.name for i in s.get_inputs()], list(exp.CONTRACT["unet"]["inputs"]))
+        self.assertEqual(s.get_inputs()[0].type, "tensor(float16)")
+
+    def test_default_threshold_is_protobuf_limit(self):
+        old = os.environ.pop("XLLAMA_EXPORT_EXTERNAL_DATA_BYTES", None)
+        try:
+            self.assertEqual(exp.external_data_threshold(), exp.PROTOBUF_LIMIT)
+        finally:
+            if old is not None:
+                os.environ["XLLAMA_EXPORT_EXTERNAL_DATA_BYTES"] = old
 
     def test_vae_decoder_upsamples_8x(self):
         import onnxruntime as ort

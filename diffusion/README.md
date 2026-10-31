@@ -50,14 +50,29 @@ graph before writing it:
 
 `convert_fp16.py` turns every float input to fp16 (including `timestep`);
 `uwp/diffuse.cpp` and `validate_pipeline.py` read the declared types and ranks.
-Graphs of 2 GB or more are written with one `model.onnx.data` file next to
-them; SD-Turbo's fp32 components all fit in one file.
+Components whose weights reach 2 GB are written with one `model.onnx.data`
+file next to `model.onnx` (decided from the initializer sizes, not by
+serializing the graph). For SD-Turbo that is the fp32 UNet (~3.46 GB); the text
+encoder and VAE decoder fit in one file. `convert_fp16.py` reads either layout
+and writes self-contained fp16 graphs, which must each stay under 2 GB. For an
+external-data input it runs the same ORT fp16 pass on the weight-free graph and
+then converts the weights one tensor at a time, because the default ORT path
+holds several copies of the UNet and ran out of memory on a 16 GB host; on the
+tiny model both paths give byte-identical graphs.
+`XLLAMA_EXPORT_EXTERNAL_DATA_BYTES` lowers the threshold (the tests use it to
+force the external-data layout on a tiny model). One real fp32 UNet export,
+its fp16 conversion and their peak memory are recorded in
+`receipts/sd-turbo-unet-export_receipt.json`.
 
 `--verify` runs each graph on ORT CPU (`ORT_ENABLE_EXTENDED`) against eager
 torch at the console shapes and at a second, smaller batch-2 shape.
 `compare_onnx_exports.py REF CAND [--pipeline]` checks two export directories
 against the fixed inputs and tolerances recorded in `export_parity.json`; run it
-against a reference export before promoting a toolchain bump. Use **Python
+against a reference export before promoting a toolchain bump. It fails if a
+component is missing on either side or nothing was compared. Only outputs with a
+recorded tolerance are gated; the others are listed as unchecked in its report
+(in fp16 that is `pooler_output`, which the console does not read, and the
+`--pipeline` image, whose bound is recorded for fp32 only). Use **Python
 3.12** (3.11+): onnxruntime 1.31 has no Python 3.10 wheels.
 
 ```bash
@@ -67,6 +82,10 @@ python3.12 -m venv venv
 ./diffusion/export_sd_turbo.sh                 # -> sd-turbo-onnx/ + sd-turbo-onnx-fp16/
 ./venv/bin/python diffusion/generate_onnx.py   # validate: writes sd_turbo_onnx.png
 ```
+
+`scripts/export-taesd-asset.sh`, `export_taesd.py` and `gen_golden_vectors.py`
+use the same Python 3.12 env; the asset script looks for it at
+`~/.cache/xllama-diffusion/venv312` (override with `XLLAMA_DIFFUSION_VENV`).
 
 Artifacts regenerated with this toolchain are not promoted until the console
 live gate (runbook §7) passes with peak-memory evidence.

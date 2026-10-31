@@ -13,6 +13,16 @@ validate_pipeline.py for each prompt and compares the uint8 images.
     python diffusion/compare_onnx_exports.py REF_DIR CAND_DIR \
         [--mode fp32_vs_fp32|fp16_vs_fp32] [--pipeline] [--json report.json]
 
+Every requested component (all three unless --components narrows it) must exist
+in both directories; a missing one, or a run that compares nothing, fails.
+
+Only outputs with a tolerance recorded in export_parity.json for the chosen
+mode are gated. The rest are still measured and listed under "unchecked" in the
+report (and on stderr), never silently dropped: in fp16_vs_fp32 mode that is
+text_encoder.pooler_output (diffuse.cpp does not read it) and the --pipeline
+uint8 images, which have no recorded fp16 bound. Recorded bounds are not
+changed after a run without a reason in the PR (see the file's _comment).
+
 Exit status 0 when every check passes, 1 otherwise.
 """
 import argparse
@@ -126,25 +136,32 @@ def pipeline_image(root, prompt, inp):
     return (img.transpose(1, 2, 0) * 255 + 0.5).astype(np.uint8)
 
 
-def compare(ref, cand, mode="fp32_vs_fp32", pipeline=False, parity=PARITY):
+def compare(ref, cand, mode="fp32_vs_fp32", pipeline=False, parity=PARITY,
+            components=COMPONENTS):
     with open(parity) as f:
         cfg = json.load(f)
     inp, tol = cfg["inputs"], cfg["tolerances"][mode]
-    report = {"ref": ref, "cand": cand, "mode": mode, "components": {}, "failures": []}
+    report = {"ref": ref, "cand": cand, "mode": mode, "components": {}, "failures": [],
+              "unchecked": [], "checked": 0}
     fail = report["failures"]
 
     def check(key, st):
         t = tol.get(key)
         if t is None:
+            if key not in report["unchecked"]:
+                report["unchecked"].append(key)
             return
+        report["checked"] += 1
         st["max_abs_tol"], st["min_cosine"] = t["max_abs"], t["min_cosine"]
         if not (st["max_abs"] <= t["max_abs"] and st["cosine"] >= t["min_cosine"]):
             fail.append(f"{key}: {st}")
 
     hidden = None
-    for comp in COMPONENTS:
+    for comp in components:
         rp, cp = f"{ref}/{comp}/model.onnx", f"{cand}/{comp}/model.onnx"
-        if not (os.path.exists(rp) and os.path.exists(cp)):
+        missing = [d for d, p in (("ref", rp), ("cand", cp)) if not os.path.exists(p)]
+        if missing:
+            fail.append(f"{comp}: model.onnx missing in {' and '.join(missing)}")
             continue
         rs, ro = signature(rp)
         cs, co = signature(cp)
@@ -172,7 +189,9 @@ def compare(ref, cand, mode="fp32_vs_fp32", pipeline=False, parity=PARITY):
             rec[name] = st
         report["components"][comp] = rec
 
-    if pipeline:
+    if pipeline and set(report["components"]) != set(COMPONENTS):
+        fail.append("--pipeline needs all three components in both directories")
+    elif pipeline:
         report["images"] = {}
         for p in inp["prompts"]:
             a, b = pipeline_image(ref, p, inp), pipeline_image(cand, p, inp)
@@ -181,6 +200,8 @@ def compare(ref, cand, mode="fp32_vs_fp32", pipeline=False, parity=PARITY):
             st["ref_std"] = float(a.std())
             check("image_uint8", st)
             report["images"][p or "<empty>"] = st
+    if report["checked"] == 0:
+        fail.append("nothing was compared against a recorded tolerance")
     report["ok"] = not fail
     return report
 
@@ -191,11 +212,22 @@ def main(argv=None):
     ap.add_argument("cand")
     ap.add_argument("--mode", default="fp32_vs_fp32", choices=("fp32_vs_fp32", "fp16_vs_fp32"))
     ap.add_argument("--pipeline", action="store_true")
+    ap.add_argument("--components", default=",".join(COMPONENTS),
+                    help="comma-separated subset to compare (default: all three)")
     ap.add_argument("--json")
     a = ap.parse_args(argv)
-    rep = compare(a.ref, a.cand, a.mode, a.pipeline)
+    comps = tuple(c.strip() for c in a.components.split(",") if c.strip())
+    bad = [c for c in comps if c not in COMPONENTS]
+    if bad or not comps:
+        ap.error(f"unknown components {bad}; choose from {COMPONENTS}")
+    rep = compare(a.ref, a.cand, a.mode, a.pipeline, components=comps)
     text = json.dumps(rep, indent=2)
     print(text)
+    if rep["unchecked"]:
+        print(f"[compare] measured but not gated (no recorded {a.mode} tolerance): "
+              + ", ".join(rep["unchecked"]), file=sys.stderr)
+    for f_ in rep["failures"]:
+        print(f"[compare] FAIL {f_}", file=sys.stderr)
     if a.json:
         with open(a.json, "w") as f:
             f.write(text + "\n")

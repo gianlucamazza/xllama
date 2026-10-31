@@ -12,7 +12,7 @@
 # the input back by 0.18215 and maps the output to [-1,1]. Validate with:
 #   validate_pipeline.py <sd_model_dir> out.png "<prompt>" 1 42 <taesd_out_dir>
 #
-#   venv310/bin/python diffusion/export_taesd.py [out_dir]
+#   ~/.cache/xllama-diffusion/venv312/bin/python diffusion/export_taesd.py [out_dir]
 import sys
 
 import torch
