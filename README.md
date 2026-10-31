@@ -92,8 +92,8 @@ Tested and measured on Series S. Not yet tested on Series X. Receipts:
 [26.1 tok/s](bench/results/phase14-console.csv),
 [H9 7/8](bench/results/2026-09-30-h9-rescore.jsonl).
 Summary: [docs/benchmarks.md](docs/benchmarks.md).
-The LFM2.5-350M figure (101.6 tok/s) was measured on the 1.6.0 package and is
-pending a rerun on v1.7.0; it will be replaced or confirmed by the new receipt.
+The LFM2.5-230M figures (132.4 tok/s and 236 MB) and the LFM2.5-350M figure
+(101.6 tok/s) were measured on the 1.6.0 package; pending a rerun on v1.7.0.
 
 Full catalogue + Phase 14 coding models: [model-matrix.md](docs/model-matrix.md) · [benchmarks.md](docs/benchmarks.md)
 
