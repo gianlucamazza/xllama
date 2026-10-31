@@ -209,28 +209,28 @@ Write the last prefill-token logits (float32) to
                        XLLAMA_INFER_STALL_TIMEOUT_S
   -h, --help           Show this message
 ===============================================================================
-/home/gianluca/Workspace/tooling/xllama-f01/tests/test_decode_loop.cpp:20:
+<home>/Workspace/tooling/xllama-f01/tests/test_decode_loop.cpp:20:
 TEST CASE:  decode_loop: ignore_eog decodes exactly n_predict (opt-in: XLLAMA_TEST_MODEL)
 
-/home/gianluca/Workspace/tooling/xllama-f01/tests/test_decode_loop.cpp:23: MESSAGE: XLLAMA_TEST_MODEL not set — skipping ignore_eog
+<home>/Workspace/tooling/xllama-f01/tests/test_decode_loop.cpp:23: MESSAGE: XLLAMA_TEST_MODEL not set — skipping ignore_eog
 
 ===============================================================================
-/home/gianluca/Workspace/tooling/xllama-f01/tests/test_ggml_d3d12.cpp:372:
+<home>/Workspace/tooling/xllama-f01/tests/test_ggml_d3d12.cpp:372:
 TEST CASE:  llama_gpu: GPU-path context accepts a prompt-lookup verify batch (opt-in)
 
-/home/gianluca/Workspace/tooling/xllama-f01/tests/test_ggml_d3d12.cpp:375: MESSAGE: XLLAMA_TEST_MODEL not set — skipping
+<home>/Workspace/tooling/xllama-f01/tests/test_ggml_d3d12.cpp:375: MESSAGE: XLLAMA_TEST_MODEL not set — skipping
 
 ===============================================================================
-/home/gianluca/Workspace/tooling/xllama-f01/tests/test_logit_parity.cpp:41:
+<home>/Workspace/tooling/xllama-f01/tests/test_logit_parity.cpp:41:
 TEST CASE:  llama.cpp logits match committed golden (opt-in: XLLAMA_TEST_MODEL)
 
-/home/gianluca/Workspace/tooling/xllama-f01/tests/test_logit_parity.cpp:44: MESSAGE: SKIP: set XLLAMA_TEST_MODEL to the golden's source GGUF to run parity
+<home>/Workspace/tooling/xllama-f01/tests/test_logit_parity.cpp:44: MESSAGE: SKIP: set XLLAMA_TEST_MODEL to the golden's source GGUF to run parity
 
 ===============================================================================
-/home/gianluca/Workspace/tooling/xllama-f01/tests/test_sampling.cpp:155:
+<home>/Workspace/tooling/xllama-f01/tests/test_sampling.cpp:155:
 TEST CASE:  sampling: CLI and Session produce the same text (opt-in: XLLAMA_TEST_MODEL)
 
-/home/gianluca/Workspace/tooling/xllama-f01/tests/test_sampling.cpp:158: MESSAGE: XLLAMA_TEST_MODEL not set — skipping CLI/Session parity
+<home>/Workspace/tooling/xllama-f01/tests/test_sampling.cpp:158: MESSAGE: XLLAMA_TEST_MODEL not set — skipping CLI/Session parity
 
 ===============================================================================
 [doctest] test cases:  316 |  316 passed | 0 failed | 0 skipped

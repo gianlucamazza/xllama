@@ -19,12 +19,12 @@
 [xllama] train: epoch 8/8 batch 4/5 loss=0.4511
 [xllama] train: epoch 8/8 batch 5/5 loss=0.4680
 [xllama] train: train: epoch 8/8 loss=0.46798
-[xllama] train: export: Q:\Users\UserMgr0\AppData\Local\Packages\GianlucaMazza.xllama_pj67f1fcj4n14\LocalState\training/out/device-marker/merged.gguf
+[xllama] train: export: <console-app-data>/training/out/device-marker/merged.gguf
 [xllama] train: evaluate: output: XLLAMA-LORA-OK.
 {
   "success": true,
   "stages": ["prepare", "train", "export_adapter", "merge", "evaluate"],
-  "merged_gguf": "Q:\\Users\\UserMgr0\\AppData\\Local\\Packages\\GianlucaMazza.xllama_pj67f1fcj4n14\\LocalState\\training/out/device-marker/merged.gguf",
+  "merged_gguf": "<console-app-data>/training/out/device-marker/merged.gguf",
   "last_loss": 0.46798,
   "wall_seconds": 444.805,
   "peak_ws_mb": 1196,
