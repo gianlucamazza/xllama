@@ -146,6 +146,17 @@ def main() -> int:
                 "sidecar",
             ):
                 err(f"manifest {name} files[] {fn} has unknown role {role!r}")
+            fn_l = fn.lower().replace("\\", "/")
+            if role in ("sidecar", "licence", "license", "notice") and (
+                fn_l.endswith(".gguf")
+                or fn_l.endswith(".onnx")
+                or fn_l.endswith(".onnx.data")
+                or fn_l.endswith(".bin")
+            ):
+                err(
+                    f"manifest {name} files[] {fn} is a weight file; "
+                    f"role {role!r} is not allowed"
+                )
 
     # --- code defaults ---
     mp = (ROOT / "uwp/MainPage.cpp").read_text(encoding="utf-8")

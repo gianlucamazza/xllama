@@ -3302,10 +3302,12 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
     if (m_active_model.empty()) {
         // Filesystem probe (LocalState + InstalledPath stats) — only the sticky
         // first-turn decision consumes it, so keep it off the per-turn path (#174).
-        // GPU is available only when every weight/data pin classifies Ok
-        // (`weight_pins_verified`) and no model write is in flight. Licence
-        // and notice rows do not participate. The loose "any ONNX/GGUF exists"
-        // probe used to route a long turn at a still-downloading DML tree (#370).
+        // GPU is available only when every weight/data pin classifies Ok on a
+        // size-only listing (`weight_pins_verified`), the LocalState `.complete`
+        // marker exists (hashes ran at download/promotion), and no model write
+        // is in flight. Licence and notice rows do not participate. The loose
+        // "any ONNX/GGUF exists" probe used to route a long turn at a
+        // still-downloading DML tree (#370).
         const std::wstring gpu_name = ::xllama::utf8_to_wstring(m_gpu_model);
         auto local_folder = winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
         const std::wstring local_gpu_dir =
@@ -3333,7 +3335,9 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
                 }
             }
         }
-        const bool expected_verified = ::xllama::weight_pins_verified(gpu_present, gpu_pins);
+        const bool expected_verified = ::xllama::gpu_tree_ready_for_routing(
+            ::xllama::weight_pins_verified(gpu_present, gpu_pins),
+            ::xllama::ModelDownloader::IsComplete(local_gpu_dir));
         const bool write_in_progress = ::xllama::ModelDownloader::WriterGate().busy();
         const auto gpu_state = ::xllama::gpu_route_readiness(expected_verified, write_in_progress);
         const bool gpu_provisioned =

@@ -6,9 +6,12 @@
 // A directory is not compared to the manifest as one blob. Each files[] pin is
 // checked on its own. `classify_file_pin` is the single decision: Ok (keep),
 // Refetch (HTTP), or Unverified (keep the bytes, do not publish `.complete`).
-// Installed-model verification uses only weight and data pins (path, size,
-// hash). Adding, removing, or changing a licence or notice pin must not mark
-// already-matching weight pins as stale; those sidecars fetch on their own.
+// Installed-model verification uses only weight and data pins. EnsureModel and
+// routing classify a size-only listing; DownloadAsync is what hashes. The
+// LocalState `.complete` marker attests every pin was hashed at
+// download/promotion. Adding, removing, or changing a licence or notice pin
+// must not mark already-matching weight pins as stale; those sidecars fetch
+// on their own.
 //
 // Which pins are weights is data-driven from `files[].role`. Documented
 // default when `role` is omitted: a basename stem of license / licence /
@@ -44,6 +47,7 @@ enum class CatalogueFileRole {
     Weight = 1,
     Licence = 2,
     Notice = 3,
+    Sidecar = 4,
 };
 
 // One catalogue files[] pin. `approx_bytes` 0 and an empty `sha256` mean "not
@@ -94,7 +98,7 @@ inline std::string ascii_lower_copy(std::string_view s) {
 
 // Parse files[].role. Empty → Unspecified (documented filename default).
 // weight/data → Weight. licence/license → Licence. notice → Notice.
-// sidecar → Licence (generic non-weight). Any other explicit value → Weight
+// sidecar → Sidecar (generic non-weight). Any other explicit value → Weight
 // so a typo cannot skip verification.
 inline CatalogueFileRole parse_catalogue_file_role(std::string_view raw) {
     const std::string role = ascii_lower_copy(raw);
@@ -102,10 +106,12 @@ inline CatalogueFileRole parse_catalogue_file_role(std::string_view raw) {
         return CatalogueFileRole::Unspecified;
     if (role == "weight" || role == "data")
         return CatalogueFileRole::Weight;
-    if (role == "licence" || role == "license" || role == "sidecar")
+    if (role == "licence" || role == "license")
         return CatalogueFileRole::Licence;
     if (role == "notice")
         return CatalogueFileRole::Notice;
+    if (role == "sidecar")
+        return CatalogueFileRole::Sidecar;
     return CatalogueFileRole::Weight;
 }
 
@@ -136,6 +142,7 @@ inline bool is_catalogue_sidecar(const ManifestFilePin& pin) {
     switch (pin.role) {
     case CatalogueFileRole::Licence:
     case CatalogueFileRole::Notice:
+    case CatalogueFileRole::Sidecar:
         return true;
     case CatalogueFileRole::Weight:
         return false;
@@ -273,6 +280,14 @@ inline bool only_sidecars_missing(const std::vector<PresentFile>& present,
 // hash, or a WDP upload (#370 B4).
 inline bool gpu_needs_provision(bool names_present, bool marker) {
     return !names_present || !marker;
+}
+
+// Routing-time gate: size-only weight pins AND the LocalState `.complete`
+// marker. A size-only listing cannot see a same-size hash mismatch; the
+// marker is published only after DownloadAsync hashed every pin, so it
+// refuses Unverified / mid-write / mixed trees (#370 B1).
+inline bool gpu_tree_ready_for_routing(bool weight_pins_ok, bool complete_marker) {
+    return weight_pins_ok && complete_marker;
 }
 
 // EnsureModelNamedAsync Check 1 and the sidecar fast path. A background GPU

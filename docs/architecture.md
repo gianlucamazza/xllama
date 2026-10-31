@@ -51,7 +51,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `api_pull_policy.h`                | Trusted catalogue pull admission and API-only pull gate                                                                                        |
 | `model_write.h`                    | Shared atomic RAII writer permit; guarded marker publication and stale-base cleanup                                                            |
 | `model_provision.h`                | `dir_satisfies_expected_files`, `normalize_model_path`                                                                                         |
-| `model_file_plan.h`                | Per-file catalogue pin check; `files[].role` weight vs sidecar; `weight_pins_verified`; `gpu_needs_provision`                                  |
+| `model_file_plan.h`                | Per-file catalogue pin check; `files[].role`; `weight_pins_verified`; `gpu_tree_ready_for_routing`                                             |
 | `manifest_merge.h`                 | `merge_manifest_entries` (per-entry catalogue override)                                                                                        |
 | `membw.h`                          | `measure_membw` (STREAM-style bandwidth probe)                                                                                                 |
 | `grammar_spec.h`                   | `GrammarSpec` — a tool template's grammar and triggers for one generate (ADR 0005)                                                             |
@@ -298,18 +298,19 @@ the wrong shape for the decision, so 1550 is left as-is with its rationale
 corrected. Routing is **ORT-only**: GGUF models are not routed per
 conversation. Their GPU layers come from the catalogue entry and the
 `gguf_gpu_layers.txt` override (see Inference backends), not from this policy.
-`gpu_available` is `gpu_ready_for_routing(weight_pins_verified, write_in_progress)`:
-every **weight and data** pin must classify Ok (path, size, and hash as the
-catalogue defines them). Licence and notice pins do not participate —
-`files[].role` decides, with the documented filename default in
+`gpu_available` is `gpu_ready_for_routing(expected_verified, write_in_progress)`:
+`expected_verified` is a size-only `weight_pins_verified` of the **weight and
+data** pins **and** a LocalState `.complete` marker. The marker attests that
+every pin was hashed at download or promotion. Licence and notice pins do not
+participate — `files[].role` decides, with the documented filename default in
 `model_file_plan.h` when `role` is omitted. The process-wide writer must be
 idle (any write, not only this model). A write includes the up-front hash
 pass before any HTTP — `begin()` has already dropped the marker — so new
 conversations route to CPU for that whole interval. The choice is sticky per
 conversation (the KV cache is per-EP); GPU returns only in a new conversation
-after the writer is idle. A partial weight tree or an in-flight download is
-CPU-only, with a log line from `gpu_route_fallback_log` only when Auto would
-have picked the GPU (or GpuOnly). Tunable prefill batching for the llama.cpp path is exposed via
+after the writer is idle. A partial weight tree, a missing marker, or an
+in-flight download is CPU-only, with a log line from `gpu_route_fallback_log`
+only when Auto would have picked the GPU (or GpuOnly). Tunable prefill batching for the llama.cpp path is exposed via
 `SessionParams.n_batch` / `n_ubatch` (`xllama-cli --batch/--ubatch`) — see
 `benchmarks.md` for the (flat) sweep.
 
@@ -730,9 +731,9 @@ host Release smoke (quality + peak)
 
 ## Unit test map (host suite)
 
-One doctest binary, `xllama-tests`, built from `tests/test_*.cpp`. The suite
-is **408 test cases / 33555 assertions** (doctest, without opt-in model checks).
-Headers without a dedicated file are header-only RAII wrappers or UWP-only types
+One doctest binary, `xllama-tests`, built from `tests/test_*.cpp`. CI prints
+the case and assertion totals (`Verify the test-suite size`); this page does
+not keep a second copy. Headers without a dedicated file are header-only RAII wrappers or UWP-only types
 (`llama_raii.h`, `ort_raii.h`, `d3d12_dyn.h`, `catalog_trust.h`).
 
 | Test file                        | Under test                                                                                  |
@@ -873,9 +874,11 @@ non-empty line of the first user message (truncated at 60 chars). IDs use
 `IsModelProvisioned(name, expected_files)` runs in dual mode: **expected-aware**
 requires the manifest's `files[].filename` to be present (case-insensitive),
 while **loose** mode (no catalogue entry) accepts any `.gguf`. GPU routing
-requires `weight_pins_verified` (weight and data pins only — `files[].role`,
-documented filename default when omitted) **and** an idle `ModelWriteGate`
-(`gpu_ready_for_routing`). Licence and notice rows do not block routing.
+requires a size-only `weight_pins_verified` (weight and data pins only —
+`files[].role`, documented filename default when omitted) **and** a LocalState
+`.complete` marker (hashes ran at download/promotion) **and** an idle
+`ModelWriteGate` (`gpu_ready_for_routing`). Licence and notice rows do not
+block the size check; a missing marker still keeps GPU off.
 `busy()` is process-wide: any model write — including the up-front hash pass
 after `begin()` drops the marker — forces CPU for **new** conversations. The
 routing choice sticks for the conversation; GPU returns only after the writer
