@@ -7,6 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.0] - TBD
+
+User-facing notes: [docs/releases/v1.7.0.md](docs/releases/v1.7.0.md). The
+date is left `TBD` for the release owner. This notes cut does not change
+package version numbers or the llama.cpp pin (`d812350`).
+
+GGUF GPU decode is on by default for LFM2.5-1.2B, Qwen2.5-Coder-3B is
+withdrawn from the model list, the LAN API can stream chat tokens, and public
+docs are rewritten for a Developer Mode launch.
+
+- **Docs:** user-facing 1.7.0 notes in `docs/releases/v1.7.0.md`.
+
 - **Catalogue sidecar edits no longer re-download verified weights, and GPU
   routing ignores a still-downloading DML tree.** Fetch planning is per file
   (`classify_file_pin`): a missing LICENSE/NOTICE is fetched in the background
@@ -76,8 +88,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   documentation and have not yet been walked end to end on a console.
 - Public docs no longer include a Partner Center reservation or Store ID.
 
-- **Docs:** "Store catalogue" wording replaced with "signed model catalogue" /
-  "built-in model list"; `/api/pull` described as a download from the built-in
+- **Docs:** "Store catalogue" wording replaced with "built-in model list"
+  (#362); `/api/pull` described as a download from the built-in
   model list (endpoint unchanged); new _Model catalogue design limits_ section
   in CONTRIBUTING; licence and no-selling note in model-selection and
   using-the-app.
