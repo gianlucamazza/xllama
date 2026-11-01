@@ -21,8 +21,12 @@
 # taesd waits until the app is idle before generate_image (launch preload of
 # the last chat model holds the compute slot and the busy guard rejects the
 # image). Override the wait with XLLAMA_TAESD_READY_TIMEOUT_S (default 120).
-# The wait_idle op polls every 250 ms. A diffuse-result.csv row is accepted
-# only when it was written during this run; a stale last row is a FAIL.
+# The wait_idle op polls every 250 ms and requires three consecutive idle
+# reads. A diffuse-result.csv row is accepted only when it was written during
+# this run; a stale last row is a FAIL. max_sampled_private_ws_mb is the max
+# of PrivateWorkingSet sampled every XLLAMA_TAESD_WS_SAMPLE_S seconds
+# (default 5), matched by package family from the installed PFN (override
+# XLLAMA_PACKAGE_FAMILY). It is not a peak.
 #
 # Contract per subcommand: upload chats/autopilot.json + autopilot.flag,
 # restart the app, poll LocalState\autopilot-done.txt, fetch xllama.log, and
@@ -112,6 +116,7 @@ fi
 TMPDIR_LOCAL=$(mktemp -d)
 VAE_CACHE="" # set by validate_taesd; read by the common EXIT handler
 VAE_RESTORE_PENDING=0
+TAESD_SAMPLER_PID="" # background PrivateWorkingSet sampler; killed on every exit
 # shellcheck source=scripts/console-run-log.sh
 source "${SCRIPT_DIR}/console-run-log.sh"
 # shellcheck source=scripts/console-temp-chats.sh
@@ -120,6 +125,11 @@ source "${SCRIPT_DIR}/console-temp-chats.sh"
 console_exit() {
 	local rc="$1" preserve=0 vae_failed=0
 	trap - EXIT
+	if [[ -n "${TAESD_SAMPLER_PID:-}" ]]; then
+		kill "$TAESD_SAMPLER_PID" 2>/dev/null || true
+		wait "$TAESD_SAMPLER_PID" 2>/dev/null || true
+		TAESD_SAMPLER_PID=""
+	fi
 	if ! cleanup_temp_chats; then
 		rc=1
 		preserve=1
@@ -1338,23 +1348,38 @@ validate_taesd() {
 	# misread. Freshness still checks date / content if the DELETE is a no-op.
 	delete_file "diffuse-result.csv"
 
-	# Sample peak only while the app is listed. WDP often has only
-	# WorkingSetSize (current); peak_mem_mb is omitted unless a peak field
-	# is actually present. 5 s is cheap next to a 10 s done-poll.
-	local peak_file="${TMPDIR_LOCAL}/peak_mem_mb"
-	: >"$peak_file"
-	local peak_pid=""
+	# max of PrivateWorkingSet sampled every N s (current, not a peak).
+	# Package family comes from the installed PFN, same transform as start_app.
+	local ws_sample_s="${XLLAMA_TAESD_WS_SAMPLE_S:-5}"
+	if ! [[ "$ws_sample_s" =~ ^[1-9][0-9]*$ ]]; then
+		echo "  FAIL: XLLAMA_TAESD_WS_SAMPLE_S must be a positive integer (default 5)"
+		echo "§7c TAESD: FAIL"
+		return 1
+	fi
+	local package_family="${XLLAMA_PACKAGE_FAMILY:-}"
+	if [[ -z "$package_family" ]]; then
+		# shellcheck disable=SC2001
+		package_family=$(echo "$PFN" | sed 's/_[0-9][0-9.]*_[^_]*__/_/')
+	fi
+	local ws_file="${TMPDIR_LOCAL}/max_sampled_private_ws_mb"
+	: >"$ws_file"
 	(
-		while true; do
-			mb=$(curl "${CURL_AUTH[@]}" "${BASE_URL}/api/resourcemanager/processes" 2>/dev/null |
-				python3 "${REPO_ROOT}/scripts/console_taesd_result.py" peak-mem) || true
-			if [[ -n "$mb" ]]; then
-				printf '%s\n' "$mb" >"$peak_file"
+		while kill -0 $$ 2>/dev/null; do
+			mb=$(curl "${CURL_AUTH[@]}" --max-time "$ws_sample_s" \
+				"${BASE_URL}/api/resourcemanager/processes" 2>/dev/null |
+				python3 "${REPO_ROOT}/scripts/console_taesd_result.py" private-ws \
+					--package-family "$package_family") || true
+			if [[ -n "$mb" && "$mb" =~ ^[0-9]+$ ]]; then
+				prev=""
+				[[ -s "$ws_file" ]] && prev=$(tr -d '[:space:]' <"$ws_file")
+				if [[ -z "$prev" ]] || ((mb > prev)); then
+					printf '%s\n' "$mb" >"$ws_file"
+				fi
 			fi
-			sleep 5
+			sleep "$ws_sample_s"
 		done
 	) &
-	peak_pid=$!
+	TAESD_SAMPLER_PID=$!
 
 	local marker
 	marker=$(
@@ -1366,8 +1391,11 @@ validate_taesd() {
 ]}
 JSON
 	) || true
-	kill "$peak_pid" 2>/dev/null || true
-	wait "$peak_pid" 2>/dev/null || true
+	if [[ -n "${TAESD_SAMPLER_PID:-}" ]]; then
+		kill "$TAESD_SAMPLER_PID" 2>/dev/null || true
+		wait "$TAESD_SAMPLER_PID" 2>/dev/null || true
+		TAESD_SAMPLER_PID=""
+	fi
 	local wall_s=$((SECONDS - wall_start))
 	echo "  autopilot: ${marker}"
 	local verdict=0
@@ -1378,20 +1406,18 @@ JSON
 	fetch_file "diffuse-result.csv" "$after_csv"
 	# Only a row written during this run. Never print a stale vae_ms as ok.
 	local vae_ms=""
-	if vae_ms=$(python3 "${REPO_ROOT}/scripts/console_taesd_result.py" assess \
+	if ! vae_ms=$(python3 "${REPO_ROOT}/scripts/console_taesd_result.py" assess \
 		--after "$after_csv" --before "$before_csv" --run-start "$run_start"); then
-		if [[ -n "$vae_ms" ]] && awk "BEGIN{exit !($vae_ms < 1000)}"; then
-			local extras="wall_s=${wall_s}"
-			if [[ -s "$peak_file" ]]; then
-				extras="${extras} peak_mem_mb=$(tr -d '[:space:]' <"$peak_file")"
-			fi
-			echo "  ok: TAESD VAE stage ${vae_ms} ms (<1000) ${extras}"
-		else
-			echo "  FAIL: VAE stage ms='${vae_ms}' not sub-second"
-			verdict=1
-		fi
-	else
 		verdict=1
+	elif [[ -z "$vae_ms" ]] || ! awk "BEGIN{exit !($vae_ms < 1000)}"; then
+		echo "  FAIL: VAE stage ms='${vae_ms}' not sub-second"
+		verdict=1
+	else
+		local extras="wall_s=${wall_s}"
+		if [[ -s "$ws_file" ]]; then
+			extras="${extras} max_sampled_private_ws_mb=$(tr -d '[:space:]' <"$ws_file")"
+		fi
+		[[ "$marker" == "ok" ]] && echo "  ok: TAESD VAE stage ${vae_ms} ms (<1000) ${extras}"
 	fi
 	[[ $verdict -eq 0 ]] && echo "§7c TAESD: PASS" || echo "§7c TAESD: FAIL"
 	return $verdict

@@ -185,13 +185,16 @@ n_ctx` — rather than the answer's length, which keeps the verdict independent
   from the models-v1 release, which would make the gate slower and dependent on
   console-side network. The toggle's own writer is covered by the `settings`
   gate instead. `wait_idle` (default 120 s, `XLLAMA_TAESD_READY_TIMEOUT_S`,
-  250 ms poll) parks until session preload releases the compute slot, so
-  `generate_image` is not rejected busy at launch. A `diffuse-result.csv` row
-  is accepted only when it was written during this run (CSV `date` at or after
-  the recorded UTC start, or a rewritten file versus the pre-run snapshot); a
-  stale last row is a FAIL, never an `ok` number. `peak_mem_mb` is logged next
-  to `wall_s` only when the Device Portal process list carries a
-  PeakWorkingSet / PrivateWorkingSet field;
+  250 ms poll, three consecutive idle reads of the UI/preload atomics) parks
+  until session preload is done, so `generate_image` is not rejected busy at
+  launch. A `diffuse-result.csv` row is accepted only when its `date` is at or
+  after the recorded UTC start, or when a valid pre-run snapshot exists, the
+  file changed, and the row is the taesd job (`sd-turbo-fp16`, steps 1, seed
+  42); a stale last row is a FAIL, never an `ok` number. `ok` is printed only
+  when the autopilot marker is `ok`. `max_sampled_private_ws_mb` is the max of
+  PrivateWorkingSet sampled every `XLLAMA_TAESD_WS_SAMPLE_S` seconds (default
+  5), matched by package family from the installed PFN (or
+  `XLLAMA_PACKAGE_FAMILY`); it is not a peak;
 - **API** — separate LAN gate (`scripts/validate-api.sh`):
   `spike|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all` (chat, context budget,
   client-side tool proposals per [ADR 0004](adr/0004-tool-proposals.md),
