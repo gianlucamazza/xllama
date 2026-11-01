@@ -18,6 +18,16 @@
 # settings needs smollm2-360m-cpu-int4; gguf needs lfm25-350m; taesd needs
 # sd-turbo-fp16. Plus XBOX_IP/USER/PASS env. Seed with scripts/provision-models.sh.
 #
+# taesd waits until the app is idle before generate_image (launch preload of
+# the last chat model holds the compute slot and the busy guard rejects the
+# image). Override the wait with XLLAMA_TAESD_READY_TIMEOUT_S (default 120).
+# The wait_idle op polls every 250 ms and requires three consecutive idle
+# reads. A diffuse-result.csv row is accepted only when it was written during
+# this run; a stale last row is a FAIL. max_sampled_private_ws_mb is the max
+# of PrivateWorkingSet sampled every XLLAMA_TAESD_WS_SAMPLE_S seconds
+# (default 5), matched by package family from the installed PFN (override
+# XLLAMA_PACKAGE_FAMILY). It is not a peak.
+#
 # Contract per subcommand: upload chats/autopilot.json + autopilot.flag,
 # restart the app, poll LocalState\autopilot-done.txt, fetch xllama.log, and
 # grep the log for the verdict. Exit 0 = PASS, non-zero = FAIL. The autopilot
@@ -106,6 +116,7 @@ fi
 TMPDIR_LOCAL=$(mktemp -d)
 VAE_CACHE="" # set by validate_taesd; read by the common EXIT handler
 VAE_RESTORE_PENDING=0
+TAESD_SAMPLER_PID="" # background PrivateWorkingSet sampler; killed on every exit
 # shellcheck source=scripts/console-run-log.sh
 source "${SCRIPT_DIR}/console-run-log.sh"
 # shellcheck source=scripts/console-temp-chats.sh
@@ -114,6 +125,11 @@ source "${SCRIPT_DIR}/console-temp-chats.sh"
 console_exit() {
 	local rc="$1" preserve=0 vae_failed=0
 	trap - EXIT
+	if [[ -n "${TAESD_SAMPLER_PID:-}" ]]; then
+		kill "$TAESD_SAMPLER_PID" 2>/dev/null || true
+		wait "$TAESD_SAMPLER_PID" 2>/dev/null || true
+		TAESD_SAMPLER_PID=""
+	fi
 	if ! cleanup_temp_chats; then
 		rc=1
 		preserve=1
@@ -1313,41 +1329,95 @@ validate_taesd() {
 	VAE_RESTORE_PENDING=1
 	upload_file "${VAE_CACHE}/taesd_vae.onnx" "models\\sd-turbo-fp16\\vae_decoder" "model.onnx"
 
+	local ready_timeout_s="${XLLAMA_TAESD_READY_TIMEOUT_S:-120}"
+	if ! [[ "$ready_timeout_s" =~ ^[1-9][0-9]*$ ]]; then
+		echo "  FAIL: XLLAMA_TAESD_READY_TIMEOUT_S must be a positive integer (default 120)"
+		echo "§7c TAESD: FAIL"
+		return 1
+	fi
+
+	# Snapshot the last result so a failed generate cannot be scored from it.
+	local before_csv="${TMPDIR_LOCAL}/diffuse-result.before.csv"
+	local after_csv="${TMPDIR_LOCAL}/diffuse-result.csv"
+	: >"$before_csv"
+	fetch_file "diffuse-result.csv" "$before_csv"
+	local run_start
+	run_start=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+	local wall_start=$SECONDS
+	# Best effort: if the unlink lands, a failed generate leaves no file to
+	# misread. Freshness still checks date / content if the DELETE is a no-op.
+	delete_file "diffuse-result.csv"
+
+	# max of PrivateWorkingSet sampled every N s (current, not a peak).
+	# Package family comes from the installed PFN, same transform as start_app.
+	local ws_sample_s="${XLLAMA_TAESD_WS_SAMPLE_S:-5}"
+	if ! [[ "$ws_sample_s" =~ ^[1-9][0-9]*$ ]]; then
+		echo "  FAIL: XLLAMA_TAESD_WS_SAMPLE_S must be a positive integer (default 5)"
+		echo "§7c TAESD: FAIL"
+		return 1
+	fi
+	local package_family="${XLLAMA_PACKAGE_FAMILY:-}"
+	if [[ -z "$package_family" ]]; then
+		# shellcheck disable=SC2001
+		package_family=$(echo "$PFN" | sed 's/_[0-9][0-9.]*_[^_]*__/_/')
+	fi
+	local ws_file="${TMPDIR_LOCAL}/max_sampled_private_ws_mb"
+	: >"$ws_file"
+	(
+		while kill -0 $$ 2>/dev/null; do
+			mb=$(curl "${CURL_AUTH[@]}" --max-time "$ws_sample_s" \
+				"${BASE_URL}/api/resourcemanager/processes" 2>/dev/null |
+				python3 "${REPO_ROOT}/scripts/console_taesd_result.py" private-ws \
+					--package-family "$package_family") || true
+			if [[ -n "$mb" && "$mb" =~ ^[0-9]+$ ]]; then
+				prev=""
+				[[ -s "$ws_file" ]] && prev=$(tr -d '[:space:]' <"$ws_file")
+				if [[ -z "$prev" ]] || ((mb > prev)); then
+					printf '%s\n' "$mb" >"$ws_file"
+				fi
+			fi
+			sleep "$ws_sample_s"
+		done
+	) &
+	TAESD_SAMPLER_PID=$!
+
 	local marker
 	marker=$(
-		run_autopilot 1300 <<'JSON'
+		run_autopilot 1300 <<JSON
 {"total_timeout_s": 600, "actions": [
+  {"op": "wait_idle", "timeout_s": ${ready_timeout_s}},
   {"op": "generate_image", "prompt": "a red sports car on a mountain road at sunset", "steps": 1, "seed": 42, "timeout_s": 600},
   {"op": "quit"}
 ]}
 JSON
 	) || true
+	if [[ -n "${TAESD_SAMPLER_PID:-}" ]]; then
+		kill "$TAESD_SAMPLER_PID" 2>/dev/null || true
+		wait "$TAESD_SAMPLER_PID" 2>/dev/null || true
+		TAESD_SAMPLER_PID=""
+	fi
+	local wall_s=$((SECONDS - wall_start))
 	echo "  autopilot: ${marker}"
 	local verdict=0
 	[[ "$marker" == "ok" ]] || {
 		echo "  FAIL: autopilot did not finish ok"
 		verdict=1
 	}
-	fetch_file "diffuse-result.csv" "${TMPDIR_LOCAL}/diffuse-result.csv"
-	# diffuse-result.csv columns include a vae_ms field; TAESD should be sub-second.
-	local vae_ms
-	vae_ms=$(
-		python3 - "${TMPDIR_LOCAL}/diffuse-result.csv" <<'PY'
-import csv, sys
-try:
-    rows = list(csv.DictReader(open(sys.argv[1])))
-    r = rows[-1] if rows else {}
-    key = next((k for k in r if k and 'vae' in k.lower() and 'ms' in k.lower()), None)
-    print(r.get(key, "") if key else "")
-except Exception:
-    print("")
-PY
-	)
-	if [[ -n "$vae_ms" ]] && awk "BEGIN{exit !($vae_ms < 1000)}"; then
-		echo "  ok: TAESD VAE stage ${vae_ms} ms (<1000)"
-	else
+	fetch_file "diffuse-result.csv" "$after_csv"
+	# Only a row written during this run. Never print a stale vae_ms as ok.
+	local vae_ms=""
+	if ! vae_ms=$(python3 "${REPO_ROOT}/scripts/console_taesd_result.py" assess \
+		--after "$after_csv" --before "$before_csv" --run-start "$run_start"); then
+		verdict=1
+	elif [[ -z "$vae_ms" ]] || ! awk "BEGIN{exit !($vae_ms < 1000)}"; then
 		echo "  FAIL: VAE stage ms='${vae_ms}' not sub-second"
 		verdict=1
+	else
+		local extras="wall_s=${wall_s}"
+		if [[ -s "$ws_file" ]]; then
+			extras="${extras} max_sampled_private_ws_mb=$(tr -d '[:space:]' <"$ws_file")"
+		fi
+		[[ "$marker" == "ok" ]] && echo "  ok: TAESD VAE stage ${vae_ms} ms (<1000) ${extras}"
 	fi
 	[[ $verdict -eq 0 ]] && echo "§7c TAESD: PASS" || echo "§7c TAESD: FAIL"
 	return $verdict

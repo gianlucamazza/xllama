@@ -20,8 +20,8 @@ namespace xllama {
 // WinRT-free so validation and tests need neither XAML nor a console.
 struct AutopilotAction {
     std::string op;   // send|new_chat|load_chat|set_model|set_api|set_routing|set_sampling|
-                      // set_kv_reuse|set_taesd|set_system_prompt|generate_image|mark|show_pane|
-                      // rate|start_train|train_status|quit
+                      // set_kv_reuse|set_taesd|set_system_prompt|wait_idle|generate_image|
+                      // mark|show_pane|rate|start_train|train_status|quit
     std::wstring arg; // text / id / model or pane name / image prompt / rate label
     // The name the host waits for at a rendez-vous, kept in its own slot rather
     // than sharing `arg`. show_pane carries BOTH a pane name and a label, and
