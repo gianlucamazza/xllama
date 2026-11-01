@@ -100,7 +100,8 @@ other users or unrelated clients.
 Host-only regression tests (no console or credentials):
 
 ```bash
-python3 -m unittest tests/test_console_run_log.py tests/test_console_temp_chats.py
+python3 -m unittest tests/test_console_run_log.py tests/test_console_temp_chats.py \
+  tests/test_console_taesd_result.py
 ```
 
 ## Official automated suite
@@ -183,7 +184,14 @@ n_ctx` — rather than the answer's length, which keeps the verdict independent
   flipping the in-app toggle: the toggle makes the console download the asset
   from the models-v1 release, which would make the gate slower and dependent on
   console-side network. The toggle's own writer is covered by the `settings`
-  gate instead;
+  gate instead. `wait_idle` (default 120 s, `XLLAMA_TAESD_READY_TIMEOUT_S`,
+  250 ms poll) parks until session preload releases the compute slot, so
+  `generate_image` is not rejected busy at launch. A `diffuse-result.csv` row
+  is accepted only when it was written during this run (CSV `date` at or after
+  the recorded UTC start, or a rewritten file versus the pre-run snapshot); a
+  stale last row is a FAIL, never an `ok` number. `peak_mem_mb` is logged next
+  to `wall_s` only when the Device Portal process list carries a
+  PeakWorkingSet / PrivateWorkingSet field;
 - **API** — separate LAN gate (`scripts/validate-api.sh`):
   `spike|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all` (chat, context budget,
   client-side tool proposals per [ADR 0004](adr/0004-tool-proposals.md),

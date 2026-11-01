@@ -4148,6 +4148,30 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
                 m_system_prompt = text;
                 SaveSettings();
             });
+        } else if (a.op == "wait_idle") {
+            // Session preload after launch holds the process-wide compute slot
+            // without setting m_is_running. generate_image still fails busy if
+            // it arrives during that window; this parks until the slot is free.
+            // The busy guard on the next action is unchanged.
+            auto t = a.timeout.count() > 0 ? a.timeout : std::chrono::seconds{120};
+            const auto deadline = std::chrono::steady_clock::now() + t;
+            bool idle = false;
+            while (std::chrono::steady_clock::now() < deadline) {
+                const bool flags_clear =
+                    !m_is_running.load() && !m_diffuse_running.load() && !m_train_running.load();
+                const bool preloading =
+                    ::xllama::session_hub().preloading.load(std::memory_order_acquire);
+                if (flags_clear && !preloading) {
+                    if (auto permit = ::xllama::try_acquire_compute_job()) {
+                        permit.reset();
+                        idle = true;
+                        break;
+                    }
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            }
+            if (!idle)
+                throw std::runtime_error("action " + std::to_string(i) + " wait_idle: timeout");
         } else if (a.op == "generate_image") {
             if (!not_running())
                 throw std::runtime_error("action " + std::to_string(i) + " generate_image: busy");

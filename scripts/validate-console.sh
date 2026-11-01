@@ -18,6 +18,12 @@
 # settings needs smollm2-360m-cpu-int4; gguf needs lfm25-350m; taesd needs
 # sd-turbo-fp16. Plus XBOX_IP/USER/PASS env. Seed with scripts/provision-models.sh.
 #
+# taesd waits until the app is idle before generate_image (launch preload of
+# the last chat model holds the compute slot and the busy guard rejects the
+# image). Override the wait with XLLAMA_TAESD_READY_TIMEOUT_S (default 120).
+# The wait_idle op polls every 250 ms. A diffuse-result.csv row is accepted
+# only when it was written during this run; a stale last row is a FAIL.
+#
 # Contract per subcommand: upload chats/autopilot.json + autopilot.flag,
 # restart the app, poll LocalState\autopilot-done.txt, fetch xllama.log, and
 # grep the log for the verdict. Exit 0 = PASS, non-zero = FAIL. The autopilot
@@ -1313,40 +1319,78 @@ validate_taesd() {
 	VAE_RESTORE_PENDING=1
 	upload_file "${VAE_CACHE}/taesd_vae.onnx" "models\\sd-turbo-fp16\\vae_decoder" "model.onnx"
 
+	local ready_timeout_s="${XLLAMA_TAESD_READY_TIMEOUT_S:-120}"
+	if ! [[ "$ready_timeout_s" =~ ^[1-9][0-9]*$ ]]; then
+		echo "  FAIL: XLLAMA_TAESD_READY_TIMEOUT_S must be a positive integer (default 120)"
+		echo "§7c TAESD: FAIL"
+		return 1
+	fi
+
+	# Snapshot the last result so a failed generate cannot be scored from it.
+	local before_csv="${TMPDIR_LOCAL}/diffuse-result.before.csv"
+	local after_csv="${TMPDIR_LOCAL}/diffuse-result.csv"
+	: >"$before_csv"
+	fetch_file "diffuse-result.csv" "$before_csv"
+	local run_start
+	run_start=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+	local wall_start=$SECONDS
+	# Best effort: if the unlink lands, a failed generate leaves no file to
+	# misread. Freshness still checks date / content if the DELETE is a no-op.
+	delete_file "diffuse-result.csv"
+
+	# Sample peak only while the app is listed. WDP often has only
+	# WorkingSetSize (current); peak_mem_mb is omitted unless a peak field
+	# is actually present. 5 s is cheap next to a 10 s done-poll.
+	local peak_file="${TMPDIR_LOCAL}/peak_mem_mb"
+	: >"$peak_file"
+	local peak_pid=""
+	(
+		while true; do
+			mb=$(curl "${CURL_AUTH[@]}" "${BASE_URL}/api/resourcemanager/processes" 2>/dev/null |
+				python3 "${REPO_ROOT}/scripts/console_taesd_result.py" peak-mem) || true
+			if [[ -n "$mb" ]]; then
+				printf '%s\n' "$mb" >"$peak_file"
+			fi
+			sleep 5
+		done
+	) &
+	peak_pid=$!
+
 	local marker
 	marker=$(
-		run_autopilot 1300 <<'JSON'
+		run_autopilot 1300 <<JSON
 {"total_timeout_s": 600, "actions": [
+  {"op": "wait_idle", "timeout_s": ${ready_timeout_s}},
   {"op": "generate_image", "prompt": "a red sports car on a mountain road at sunset", "steps": 1, "seed": 42, "timeout_s": 600},
   {"op": "quit"}
 ]}
 JSON
 	) || true
+	kill "$peak_pid" 2>/dev/null || true
+	wait "$peak_pid" 2>/dev/null || true
+	local wall_s=$((SECONDS - wall_start))
 	echo "  autopilot: ${marker}"
 	local verdict=0
 	[[ "$marker" == "ok" ]] || {
 		echo "  FAIL: autopilot did not finish ok"
 		verdict=1
 	}
-	fetch_file "diffuse-result.csv" "${TMPDIR_LOCAL}/diffuse-result.csv"
-	# diffuse-result.csv columns include a vae_ms field; TAESD should be sub-second.
-	local vae_ms
-	vae_ms=$(
-		python3 - "${TMPDIR_LOCAL}/diffuse-result.csv" <<'PY'
-import csv, sys
-try:
-    rows = list(csv.DictReader(open(sys.argv[1])))
-    r = rows[-1] if rows else {}
-    key = next((k for k in r if k and 'vae' in k.lower() and 'ms' in k.lower()), None)
-    print(r.get(key, "") if key else "")
-except Exception:
-    print("")
-PY
-	)
-	if [[ -n "$vae_ms" ]] && awk "BEGIN{exit !($vae_ms < 1000)}"; then
-		echo "  ok: TAESD VAE stage ${vae_ms} ms (<1000)"
+	fetch_file "diffuse-result.csv" "$after_csv"
+	# Only a row written during this run. Never print a stale vae_ms as ok.
+	local vae_ms=""
+	if vae_ms=$(python3 "${REPO_ROOT}/scripts/console_taesd_result.py" assess \
+		--after "$after_csv" --before "$before_csv" --run-start "$run_start"); then
+		if [[ -n "$vae_ms" ]] && awk "BEGIN{exit !($vae_ms < 1000)}"; then
+			local extras="wall_s=${wall_s}"
+			if [[ -s "$peak_file" ]]; then
+				extras="${extras} peak_mem_mb=$(tr -d '[:space:]' <"$peak_file")"
+			fi
+			echo "  ok: TAESD VAE stage ${vae_ms} ms (<1000) ${extras}"
+		else
+			echo "  FAIL: VAE stage ms='${vae_ms}' not sub-second"
+			verdict=1
+		fi
 	else
-		echo "  FAIL: VAE stage ms='${vae_ms}' not sub-second"
 		verdict=1
 	fi
 	[[ $verdict -eq 0 ]] && echo "§7c TAESD: PASS" || echo "§7c TAESD: FAIL"
