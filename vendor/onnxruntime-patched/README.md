@@ -10,6 +10,8 @@ Unblocks loading ONNX models with external `.onnx.data` >2 GB on Xbox
 AppContainer. See `docs/uwp-constraints.md §8` and
 `docs/fp16-extdata-runbook.md`.
 
+Patched by xllama; not an official ONNX Runtime build. MIT License, Copyright (c) Microsoft Corporation — see `LICENSES/onnxruntime-LICENSE`.
+
 The DLL binary lives at `win-x64/onnxruntime.dll` and is **gitignored** — only
 this README + `SHA256SUMS` are tracked. Shipping CI downloads the pinned
 console-validated build from the [`vendor-dlls-v1`](https://github.com/gianlucamazza/xllama/releases/tag/vendor-dlls-v1)

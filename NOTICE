@@ -1,7 +1,7 @@
 # Third-party notices — xllama
 
-This file is a draft attribution list for a possible Xbox Store / redistributed
-package. It is **not** legal advice. Verify licence texts against the versions
+This file is an attribution list for the packages xllama distributes.
+It is **not** legal advice. Verify licence texts against the versions
 actually shipped in each release (`uwp/packages.config`, `vendor/*/SHA256SUMS`,
 submodule pin).
 
@@ -12,24 +12,30 @@ Licensed under the MIT License — see `LICENSE`.
 
 ## llama.cpp (ggml / GGUF inference)
 
-Copyright (c) ggml authors and contributors.
+Copyright (c) 2023-2026 The ggml authors
 Licensed under the MIT License.
 Source: https://github.com/ggml-org/llama.cpp
 (shipped as a git submodule; static link into the UWP binary).
 
 ## Microsoft ONNX Runtime (DirectML)
 
-Copyright (c) Microsoft Corporation.
+Copyright (c) Microsoft Corporation
 Licensed under the MIT License.
+Licence text: LICENSES/onnxruntime-LICENSE (upstream v1.24.4).
+The onnxruntime.dll shipped by xllama is patched by xllama and is not an
+official build (patches/onnxruntime-extdata-appcontainer.patch).
 Package: `Microsoft.ML.OnnxRuntime.DirectML` (see `uwp/packages.config`).
 Shipping builds may overlay a patched `onnxruntime.dll` from the
 `vendor-dlls-v1` release (AppContainer external-data fixes) — hashes in
 `vendor/onnxruntime-patched/SHA256SUMS`.
 
-## Microsoft ONNX Runtime GenerateAI (DirectML)
+## Microsoft ONNX Runtime GenAI (DirectML)
 
 Copyright (c) Microsoft Corporation.
 Licensed under the MIT License.
+Licence text: LICENSES/onnxruntime-genai-LICENSE (upstream 0.14.1, a30f479).
+The onnxruntime-genai.dll shipped by xllama is patched by xllama and is not an
+official build (patches/onnxruntime-genai-2280-dml-fallback.patch).
 Package: `Microsoft.ML.OnnxRuntimeGenAI.DirectML` (see `uwp/packages.config`).
 Shipping builds may overlay a patched `onnxruntime-genai.dll` from
 `vendor-dlls-v1` (DML device fallback) — hashes in
