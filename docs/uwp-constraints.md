@@ -209,7 +209,7 @@ re-measure rather than annotate by hand.
 3. **The valley is interior, with both edges clean.** Fast at 1297–1400, fast
    again at 2048, slowest near 1800. It is a dip, not a step.
 4. **It is not memory pressure, and saturating is not expensive.** The fastest
-   row (2048) has a _smaller_ working set than the 1950 row (1970 vs 2483 MB).
+   row (2048) has a _smaller_ working set than the 1950 row (1970 vs 2483 MiB).
 5. **The shipping default sat inside the valley.** `n_predict` 256 on a
    1289-token prompt gives `max_length` 1545 — 150 tok/s where 612 was available.
 
@@ -252,7 +252,7 @@ Three things the earlier criterion left out, all measured 2026-07-21
 
 1. **Asymmetric model load** _(historical — eliminated by PR #161)_. At
    measurement time `EnsureSession` kept one session (`avoid 2× model in RAM`,
-   and the working sets confirm it: 1303 + 2869 MB do not coexist) and a
+   and the working sets confirm it: 1303 + 2869 MiB do not coexist) and a
    GPU-routed turn loaded the CPU model to tokenize, then destroyed it to load
    DirectML: 2786 ms against 1570 ms. Since PR #161 the routing count never
    loads a model (resident-session count or chars/5.0 estimator), so this term

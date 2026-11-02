@@ -940,7 +940,7 @@ condition did not trigger. Against the two incumbents it could displace:
 | `gemma3-270m` (floor incumbent)           |       76.8 |      368 |
 | `lfm25-350m` (default chat)               |       89.7 |      320 |
 
-It beats both on **both** axes — 1.56× and 1.26× the decode, at 127 MB and 79 MB
+It beats both on **both** axes — 1.56× and 1.26× the decode, at 127 MiB and 79 MiB
 less peak. **These are the `unsloth` artefact's numbers**; the build that
 actually shipped is LiquidAI's, re-measured at 119.17 (1.55× the floor) with the
 same 241 MiB peak — see "One artefact-identity correction" below. The shipping
@@ -1083,7 +1083,7 @@ change. Noted in [`../bench/README.md`](../bench/README.md).
 State the trade plainly rather than glossing it: the candidate is **worse than
 the incumbent on capability** — 2/8 against 3/8 — and passes only because the
 card predeclared that one task of capability was purchasable for 1.55× the decode
-and 127 MB less peak. That was written before the measurement, which is the whole
+and 127 MiB less peak. That was written before the measurement, which is the whole
 point of writing it first; but anyone reading "PASS" should know it landed
 exactly on the floor, with no margin.
 

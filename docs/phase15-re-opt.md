@@ -13,7 +13,7 @@
 
 **Currency:** 2026-10-02 — **WS-E D3 + FA**: the ggml backend `d3d12` with
 q8 activations passed every product criterion on both gate models (D2-r2:
-decode 1.60× Coder-3B, 1.64× LFM2.5-1.2B, H9 parity, peak within 200 MB of
+decode 1.60× Coder-3B, 1.64× LFM2.5-1.2B, H9 parity, peak within 200 MiB of
 the CPU). **D3 shipped**: LFM2.5-1.2B remains the GPU default; Coder-3B D3
 rows are receipts (withdrawn 2026-10-25)
 ([gguf-gpu-decode.md](gguf-gpu-decode.md)). The FA fix (Flash Attention kept on the GPU path) brings decode to 1.90× / 1.88×. Before: H6.3 K3, own `rows` Q4_K

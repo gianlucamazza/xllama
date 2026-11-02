@@ -132,10 +132,10 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   table above is unrevised.
 
   What the host run _does_ establish is that sparse activation is real and
-  observable: 3495 MB of resident set against **3571 MB of weights plus a 264 MiB
+  observable: 3495 MiB of resident set against **3571 MB of weights plus a 264 MiB
   compute buffer** means a sizeable share of weight pages was never touched. The
   dense comparator on the same host and the same prompt goes the other way —
-  `qwen25-coder-3b` Q4_K_M reaches 3225 MB against 1840 MB of weights, every page
+  `qwen25-coder-3b` Q4_K_M reaches 3225 MiB against 1840 MB of weights, every page
   resident. Caveat on the fraction: experts accumulate with tokens generated, so
   "untouched" at `-n 64` is not a fixed property of the model. The mechanism H2
   bets on is visible; its magnitude is not measured here.
@@ -419,7 +419,7 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   token 21.16 ms with CPU sync. D2 (2026-10-02) = FAIL on peak RAM and
   Coder-3B H9. D2-r2 (CI `1.6.0.1156`): **the claim holds** — 1.60×
   (Coder-3B) and 1.64× (LFM2.5-1.2B) over CPU t6, with H9 parity and peak
-  within 200 MB of the CPU. D3 ships it as the default for both models (other GGUF models stay on the CPU).
+  within 200 MiB of the CPU. D3 ships it as the default for both models (other GGUF models stay on the CPU).
   With Flash Attention kept on that path (FA fix), decode is 1.90× / 1.88×. Small-model GPU decode via ORT
   DML remains falsified; STREAM only shows raw VRAM bandwidth our D3D12 code
   can reach.

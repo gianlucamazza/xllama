@@ -48,7 +48,7 @@ Partner Center app developer account. xllama does not provide one.
 
 Follow Microsoft's
 [Xbox Developer Mode activation](https://learn.microsoft.com/en-us/windows/uwp/xbox-apps/devkit-activation):
-install the Xbox Developer Mode app from the Microsoft Store, note the activation
+install Microsoft's Developer Mode activation app from the Microsoft Store (see the linked page), note the activation
 code, enter it in Partner Center, then switch the console to Developer Mode.
 
 ### 2. Open Device Portal in a browser
