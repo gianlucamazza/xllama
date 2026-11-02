@@ -31,8 +31,8 @@ call, because the llama.cpp choice enum has no name.
 
 An ONNX session returns 400 `tools require a GGUF chat template`. A GGUF with
 no explicit chat template returns 400 `model has no chat template`. A template
-that renders without the schema (no offered tool name in the prompt beyond the
-transcript's own mentions) returns 400 `model chat template does not render tools`. Do not
+that renders without the schema (no offered tool name occurs more often with
+`tools` than without) returns 400 `model chat template does not render tools`. Do not
 fall back to `ChatFormat` with the schema pasted on.
 
 A call cut off by the token cap is omitted: `finish_reason` is `length` and
