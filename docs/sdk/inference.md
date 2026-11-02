@@ -55,7 +55,7 @@ Result of an inference call.
 | `n_eval`           | int         | Decode tokens                               |
 | `ended_with_stop`  | bool        | Stopped on a stop sequence                  |
 | `max_length`       | int         | Max length actually requested               |
-| `peak_ws_mb`       | size_t      | Peak working set (MB)                       |
+| `peak_ws_mb`       | size_t      | Peak working set (MiB)                      |
 | `gpu_mem_mb`       | size_t      | Per-process GPU memory (CurrentUsage)       |
 | `gpu_budget_mb`    | size_t      | OS-granted GPU budget                       |
 | `n_drafted`        | int         | Speculative drafts (0 if prompt_lookup off) |

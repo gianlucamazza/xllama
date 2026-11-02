@@ -97,7 +97,7 @@ which is **tmpfs** on Arch — it measured DRAM (12+ GB/s "disk") and O_DIRECT
 did not refuse the open. Always point `XLLAMA_DISKBW_FILE` at a real
 filesystem.)
 
-Console (Series S, Dev Mode):
+Console (Series S, Developer Mode):
 
 | pattern | threads | unbuffered | first GB/s | best GB/s |
 | ------- | ------: | ---------: | ---------: | --------: |
@@ -106,7 +106,7 @@ Console (Series S, Dev Mode):
 | rnd 2M  |       1 |          1 |       1.55 |      1.55 |
 | rnd 2M  |       4 |          1 |       1.75 |      1.76 |
 
-(Series S Dev Mode, package `1.5.4.900` **crossbuild**, 2026-08-18; raw CSV:
+(Series S Developer Mode, package `1.5.4.900` **crossbuild**, 2026-08-18; raw CSV:
 `bench/results/diskbw.csv`. Deliberate deviation from the CI-MSVC-only rule
 for console benchmarks: this probe measures NVMe read bandwidth through
 Win32 file APIs, not code generation — the compiler cannot move the device's

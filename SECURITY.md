@@ -31,7 +31,7 @@ In scope:
 Out of scope:
 
 - Anything requiring **retail-console** modification or hardware attacks
-  (the project ships Dev Mode only)
+  (the project ships Developer Mode only)
 - Attacks that require an already-compromised dev machine
 - Reports about bundled upstream code where the fix belongs upstream
   (`llama.cpp`, ONNX Runtime) — still welcome, but may be routed there

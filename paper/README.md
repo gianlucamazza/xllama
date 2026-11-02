@@ -2,7 +2,7 @@
 
 This directory contains the citable research report and the machine-readable
 provenance needed to reproduce its claims. The report is scoped to Xbox Series
-S in Dev Mode; it is not a retail certification report.
+S in Developer Mode; it is not a retail certification report.
 
 ## Rebuild and validate
 

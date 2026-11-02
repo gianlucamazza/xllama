@@ -1,7 +1,7 @@
 # LAN HTTP endpoint (OpenAI-compatible)
 
 **Status:** v1 — spike + chat (streaming via SSE on request) + UI parity surface (#118: preferences,
-training status, images). Opt-in, **default OFF**. Dev Mode / LAN research only.
+training status, images). Opt-in, **default OFF**. Developer Mode / LAN research only.
 Not for public inbound.
 
 xllama can expose its inference core (`xllama::Session`) as an HTTP endpoint on the local
@@ -58,7 +58,7 @@ Lifetime Management — no always-on system service). On Xbox this is stricter t
 the package is game-classified (Device Portal _"Treat UWP apps as games by default"_) it is
 **suspended and terminated** in the background, and `ExtendedExecutionSession` does not keep
 a listener alive. Keep the app foregrounded on the console while using the endpoint. Accepted:
-this is Dev Mode research, not a hosted service.
+this is Developer Mode research, not a hosted service.
 
 > Verified against learn.microsoft.com (2024-2026): `privateNetworkClientServer` +
 > `StreamSocketListener` is the documented path for LAN inbound; network isolation blocks

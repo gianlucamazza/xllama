@@ -486,7 +486,7 @@ filter (5 tensors upcast, **9.22 M trainable params**), `n_ctx_train` 256,
 
 Interpretation:
 
-- **Memory is not the constraint**: 1.08 GB peak vs the 3 GB spike ceiling
+- **Memory is not the constraint**: 1 082 MiB peak vs the 3 GB spike ceiling
   (§13) — consistent with base f16 (~700 MB) + f32 subset/grads/AdamW
   (~150 MB) + activations/compute (~230 MB). `n_ctx_train` is the pressure
   knob if larger filters land.

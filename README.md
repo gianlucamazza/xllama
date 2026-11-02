@@ -81,20 +81,20 @@ No model bundled in MSIX.
 
 ## Supported models
 
-| Model              | Params | Decode                                                  | Role                                                           |
-| ------------------ | ------ | ------------------------------------------------------- | -------------------------------------------------------------- |
-| LFM2.5-230M        | 230M   | **132.4** tok/s (llama.cpp CPU, 6 threads, median of 3) | Floor (236 MB peak RAM, llama.cpp CPU, 6 threads, median of 3) |
-| LFM2.5-350M        | 350M   | **101.6** tok/s (llama.cpp CPU, 6 threads, median of 3) | Default chat                                                   |
-| Qwen2.5-Coder-1.5B | 1.5B   | **26.1** tok/s (llama.cpp CPU, 6 threads, median of 2)  | Coding                                                         |
-| LFM2-2.6B          | 2.6B   | **17.9** tok/s (llama.cpp CPU, 6 threads, median of 3)  | Quality (H9 7/8)                                               |
+| Model              | Params | Decode                                                  | Role                                                            |
+| ------------------ | ------ | ------------------------------------------------------- | --------------------------------------------------------------- |
+| LFM2.5-230M        | 230M   | **132.4** tok/s (llama.cpp CPU, 6 threads, median of 3) | Floor (236 MiB peak RAM, llama.cpp CPU, 6 threads, median of 3) |
+| LFM2.5-350M        | 350M   | **101.6** tok/s (llama.cpp CPU, 6 threads, median of 3) | Default chat                                                    |
+| Qwen2.5-Coder-1.5B | 1.5B   | **26.1** tok/s (llama.cpp CPU, 6 threads, median of 2)  | Coding                                                          |
+| LFM2-2.6B          | 2.6B   | **17.9** tok/s (llama.cpp CPU, 6 threads, median of 3)  | Quality (H9 7/8)                                                |
 
 Tested and measured on Series S. Not yet tested on Series X. Receipts:
-[132.4 / 101.6 tok/s and 236 MB](bench/results/2026-09-30-catalogue-gates.csv),
+[132.4 / 101.6 tok/s and 236 MiB](bench/results/2026-09-30-catalogue-gates.csv),
 [17.9 tok/s](bench/results/2026-10-11-remeasure-1163/lfm2-2.6b-q4km-cpu-t6-rerun.csv),
 [26.1 tok/s](bench/results/phase14-console.csv),
 [H9 7/8](bench/results/2026-09-30-h9-rescore.jsonl).
 Summary: [docs/benchmarks.md](docs/benchmarks.md).
-The LFM2.5-230M figures (132.4 tok/s and 236 MB) and the LFM2.5-350M figure
+The LFM2.5-230M figures (132.4 tok/s and 236 MiB) and the LFM2.5-350M figure
 (101.6 tok/s) were measured on the 1.6.0 package; pending a rerun on v1.7.0.
 
 Full catalogue + Phase 14 coding models: [model-matrix.md](docs/model-matrix.md) · [benchmarks.md](docs/benchmarks.md)
