@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Fixed:** A tool proposal on `/v1/chat/completions` no longer returns a thinking
+  model's `<think>` reasoning in `content`, matching plain chat. A reply cut off
+  mid-thought has empty `content` and `finish_reason` `length`.
+
 - **Catalogue sidecar edits no longer re-download verified weights, and GPU
   routing ignores a still-downloading DML tree.** Fetch planning is per file
   (`classify_file_pin`): a missing LICENSE/NOTICE is fetched in the background
