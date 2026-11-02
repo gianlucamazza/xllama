@@ -216,7 +216,7 @@
       "tag": "benchmark; model under a non-commercial research licence"
     },
     {
-      "label": "LFM2.5-8B-A1B",
+      "label": "LFM2.5-8B-A1B (tested, not shipping)",
       "params": "8B-A1B",
       "source": "phase15-moe-console.csv",
       "selector": {
