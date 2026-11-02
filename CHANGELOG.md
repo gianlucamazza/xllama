@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **`scripts/quantize.sh` takes an optional `--imatrix FILE`,** passed through to
+  `llama-quantize` for self-converted GGUFs. Calls without the flag keep the same
+  arguments, and no catalogue entry changes.
+
 - **Catalogue sidecar edits no longer re-download verified weights, and GPU
   routing ignores a still-downloading DML tree.** Fetch planning is per file
   (`classify_file_pin`): a missing LICENSE/NOTICE is fetched in the background
