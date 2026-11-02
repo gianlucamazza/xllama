@@ -338,6 +338,33 @@ TEST_CASE("LFM2.5 tool calls need their special-token markers in the decoded tex
     CHECK(stripped.calls.empty());
 }
 
+TEST_CASE("a thinking model's reasoning stays out of a tool proposal's content") {
+    xllama::IncomingCall call;
+    call.name = "ping";
+    call.arguments = "{}";
+    const std::string reasoning = "<think>the user wants ping</think>";
+
+    const xllama::ChoiceAssembly with_call =
+        xllama::assemble_choice("", reasoning, {call}, false, true);
+    CHECK(with_call.tool_calls.size() == 1);
+    CHECK(with_call.content_null);
+    CHECK(with_call.content.empty());
+
+    const xllama::ChoiceAssembly answer =
+        xllama::assemble_choice(reasoning + "pong", "", {}, false, true);
+    CHECK(answer.content == "pong");
+    CHECK(answer.finish_reason == "stop");
+
+    const xllama::ChoiceAssembly cut_off =
+        xllama::assemble_choice("<think>still going", "", {}, true, true);
+    CHECK(cut_off.content.empty());
+    CHECK(cut_off.finish_reason == "length");
+
+    // Other models keep their text as it is.
+    const xllama::ChoiceAssembly other = xllama::assemble_choice(reasoning, "", {}, false);
+    CHECK(other.content == reasoning);
+}
+
 TEST_CASE("a template that ignores tools is refused instead of answering without the schema") {
     // Rendering Phi-4's template succeeds and the model answers in prose (console,
     // 1.6.0.1209); the proposal must be a 400 instead.

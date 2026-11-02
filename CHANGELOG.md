@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Fixed:** A tool proposal on `/v1/chat/completions` no longer returns a thinking
+  model's `<think>` reasoning in `content`, matching plain chat. A reply cut off
+  mid-thought has empty `content` and `finish_reason` `length`.
+
 - **`scripts/quantize.sh` takes an optional `--imatrix FILE`,** passed through to
   `llama-quantize` for self-converted GGUFs. Calls without the flag keep the same
   arguments, and no catalogue entry changes.
