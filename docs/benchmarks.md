@@ -71,6 +71,7 @@ generated from the committed raw results by `scripts/generate-benchmark-summary.
 | SmolLM2-1.7B | 1.7B | int4 | ORT-GenAI CPU | 54.9 | **20.6** | _single run_ | 2423 | `phase35-1b-cpu` |
 | LFM2-2.6B | 2.6B | Q4_K_M | llama.cpp CPU · t6 | 54.9 | **17.9** | 17.8–17.9 (n=3) | 1623 | `2026-10-11-remeasure-1163/lfm2-2.6b-q4km-cpu-t6-rerun` |
 | Gemma-4-E2B | ~5B raw (2B eff) | Q3_K_S | llama.cpp CPU · t6 | 28.4 | **15.3** | 15.3–15.3 (n=3) | 2741 | `2026-10-11-remeasure-1163/gemma4-e2b-q3ks-cpu-t6` |
+| LFM2.5-8B-A1B (tested, not shipping) | 8B-A1B | UD-IQ3_S | llama.cpp CPU · t6 | 19.0 | **14.5** | 14.5–14.6 (n=3) | 3553 | `phase15-moe-console` |
 | Llama-3.2-3B | 3B | Q3_K_S | llama.cpp CPU · t6 | 21.2 | **14.1** | 14.1–14.1 (n=3) | 1827 | `2026-10-11-remeasure-1163/llama32-3b-q3ks-cpu-t6` |
 | Qwen2.5-Coder-3B (benchmark; model under a non-commercial research licence) | 3B | Q4_K_M | llama.cpp CPU · t6 | 46.2 | **14.0** | 13.9–14.1 (n=2) | 2116 | `phase14-console` |
 | Phi-3.5-mini | 3.8B | Q3_K_S | llama.cpp CPU · t6 | 15.3 | **11.3** | _single run_ | 2453 | `phase7-scale` |
