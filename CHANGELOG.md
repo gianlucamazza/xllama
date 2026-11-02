@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Fixed:** `lfm25-1.2b-thinking` downloads again. LiquidAI reconverted the GGUF on
+  2026-10-29, so `resolve/main` no longer matched the catalogue's SHA-256. The
+  entry now points at the revision holding the measured file; the bytes are unchanged.
+
 - **Catalogue sidecar edits no longer re-download verified weights, and GPU
   routing ignores a still-downloading DML tree.** Fetch planning is per file
   (`classify_file_pin`): a missing LICENSE/NOTICE is fetched in the background
