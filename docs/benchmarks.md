@@ -19,7 +19,7 @@ Tested and measured on Series S. Not yet tested on Series X.
 **70.9** is the best standalone control (`phase1-cpu`); **66.3** is the
 ORT-GenAI 0.14.1 config with the old unset-threads asset; **68.0 / 50.9** are
 the v0.3.6 utilization-matrix short/long-prompt runs. The generated comparison
-uses the shipped-t6 multi-run row (**262.4 prefill / 74.8 decode / 708 MB**)
+uses the shipped-t6 multi-run row (**262.4 prefill / 74.8 decode / 708 MiB**)
 instead of combining extrema from different runs.
 
 **Pre/post-repack comparability (GGUF rows).** PR #155 (2026-07-25) enabled
@@ -88,7 +88,7 @@ generated from the committed raw results by `scripts/generate-benchmark-summary.
   remeasured on build 1.6.0.1163, 3 runs (2026-10-11); new data points, not
   reproductions of the July rows
   ([campaign README](../bench/results/2026-10-11-remeasure-1163/README.md)).
-  Current medians (decode / prefill / load ms / peak MB): 79.92 / 486.11 /
+  Current medians (decode / prefill / load ms / peak MiB): 79.92 / 486.11 /
   1219 / 366; 17.85 / 54.93 / 8507 / 1623; 15.30 / 28.45 / 13533 / 2741;
   14.12 / 21.19 / 16775 / 1827; 41.23 / 231.29 / 2878 / 1206. July
   single-run history is kept below and in the original CSVs: Gemma-3-270M
@@ -105,7 +105,7 @@ generated from the committed raw results by `scripts/generate-benchmark-summary.
 - **Phase 14 coding/chat (2026-07-27, Series S):** Qwen2.5-Coder 0.5B/1.5B/3B,
   Qwen3-1.7B, LFM2.5-1.2B-Thinking console-validated (`phase14-console.csv`).
   Coder-0.5B lands next to SmolLM2 GGUF at ~62 tok/s; Coder-3B matches Llama-3.2-3B
-  decode (~14) with peak **2116 MB**. Thinking equals LFM 1.2B instruct peak RAM.
+  decode (~14) with peak **2116 MiB**. Thinking equals LFM 1.2B instruct peak RAM.
   Qwen2.5-Coder-3B figures here are earlier measurements of a model under a
   non-commercial research licence; it is not in the catalogue.
 
@@ -113,31 +113,32 @@ Notes:
 
 - **Phase 15 H2 (2026-07-30, Series S, MSIX 1.5.2.798):** LFM2.5-8B-A1B
   UD-IQ3_S, 3 runs (`phase15-moe-console.csv`). Decode 14.50 tok/s matches
-  the dense Qwen2.5-Coder-3B (14.0) at +1437 MiB peak, so H2 is recorded as
+  the dense Qwen2.5-Coder-3B (14.0, CPU t6, `phase14-console.csv`, n=2)
+  at +1437 MiB peak, so H2 is recorded as
   **FAIL** ([phase7-hypotheses.md §H2](phase7-hypotheses.md)). The model
   stays an experimental catalogue entry and is not a product tier.
 - The **Qwen2.5-Coder-3B** rows above carry the label "benchmark; model under a non-commercial research licence". Its weights are under the [Qwen Research License (non-commercial)](https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/blob/main/LICENSE), so it is **not in the model list** and can't be downloaded in the app or via `/api/pull`. The coding option is Qwen2.5-Coder-1.5B (Apache-2.0). The measured numbers are unchanged.
 - **Phase 7 H1 LFM campaign** (2026-07-17): LFM2.5-1.2B is the balanced tier at
-  **37.9 tok/s / 811 MB**; LFM2-2.6B is the quality tier at **18.4 tok/s /
-  1623 MB** (July single-run; the current table is the 2026-10-11 median
+  **37.9 tok/s / 811 MiB**; LFM2-2.6B is the quality tier at **18.4 tok/s /
+  1623 MiB** (July single-run; the current table is the 2026-10-11 median
   17.85 — see above). On `long-1k.txt` they retain 35.4 and 17.7 tok/s respectively
   (`phase7-lfm-long.csv`). The deterministic eight-task H9 suite scores 6/8 and
   7/8, versus Gemma-4-E2B 6/8, Llama-3.2-3B 5/8 and LFM2.5-350M 4/8
   (`phase7-h9.jsonl`). Both pass H1 and are catalogue options; the 350M remains
   the fast first-launch default.
 - **Llama-3.2-3B Q3_K_S** (Phase 7 H4, 2026-07-16): dense 3B at **14.2 tok/s** /
-  1824 MB peak (July single-run; the current table is the 2026-10-11 median
-  14.12 / 1827 MB) — similar speed to Gemma-4-E2B Q3 (15.3) with ~900 MB less RAM.
+  1824 MiB peak (July single-run; the current table is the 2026-10-11 median
+  14.12 / 1827 MiB) — similar speed to Gemma-4-E2B Q3 (15.3) with ~900 MiB less RAM.
   Catalogue id **`llama32-3b`** (HF direct, optional advanced; default stays
   LFM). See [phase7-hypotheses.md](phase7-hypotheses.md).
-- **Phi-3.5-mini Q3_K_S** (Phase 7 H4 A/B, 2026-07-16): **11.3 tok/s** / 2453 MB
+- **Phi-3.5-mini Q3_K_S** (Phase 7 H4 A/B, 2026-07-16): **11.3 tok/s** / 2453 MiB
   peak — clears H4 gates (≥8 tok/s, &lt;3.5 GB) but loses to Llama on both speed
   and RAM (~3.8B vs 3B). **Not** in the shipping catalogue. Harness quant label
   was historically hardcoded `Q4_K_M` (now derived from the GGUF filename).
   Campaign headless used ChatML; Phi-3 template (`ChatFormatKind::Phi3`) landed
   after the run — tok/s/RAM still valid.
 
-- **LFM2.5-230M** is the fastest chat model and the lightest (236 MB peak, QAD
+- **LFM2.5-230M** is the fastest chat model and the lightest (236 MiB peak, QAD
   Q4_0 since 2026-09-30, `2026-09-30-catalogue-gates.csv`). **LFM2.5-350M**
   remains the first-launch default on unified builds: it is slower and heavier
   but scores 4/8 on the H9 suite against the 230M's 1/8 (corrected scorer,
@@ -155,10 +156,10 @@ Notes:
   only for that asset; the Auto switch applies at `token_threshold` (1550 — but a
   single prompt-length threshold is the **wrong shape** for this decision, which
   is a product judgement, `uwp-constraints.md §5d`). Its
-  measured row is 231.3 prefill / 41.2 decode / 1206 MB (remeasured on build
+  measured row is 231.3 prefill / 41.2 decode / 1206 MiB (remeasured on build
   1.6.0.1163, 3 runs (2026-10-11); new data points, not reproductions of the
   July rows). The July `-v2` single-run was 236.7 prefill / 44.4 decode /
-  1268 MB. SmolLM2-360M DirectML decode went from 44.36 to 41.23 tok/s on the
+  1268 MiB. SmolLM2-360M DirectML decode went from 44.36 to 41.23 tok/s on the
   updated DirectML stack, cause not investigated. **The prefill number is
   a cold-process bench figure** (§5e: DirectML lazily compiles on first use;
   the bench path never warms, while in-app turns run warm since the load
@@ -220,13 +221,13 @@ faster (15.3 vs 9.9) and, crucially, generates full responses on long prompts
 where the 2-bit IQ2_M collapsed to an immediate EOG (see below).
 
 Both use the Gemma template on-device (log: `bench prompt: <start_of_turn>user
-…`). **Gemma-3-270M** is a fast, tiny chat model (76.8 tok/s, 368 MB on the
+…`). **Gemma-3-270M** is a fast, tiny chat model (76.8 tok/s, 368 MiB on the
 2026-07-14 `phase6-gemma.csv` single-run; the current table is the 2026-10-11
-median 79.92 tok/s / 366 MB).
+median 79.92 tok/s / 366 MiB).
 
 **Gemma-4-E2B verdict — the "too big" call is overturned** (shipping default is
-**Q3_K_S**, 15.3 tok/s / 2742 MB on the 2026-07-14 single-run; the current
-table is the 2026-10-11 median 15.30 tok/s / 2741 MB; the IQ2_M row above is
+**Q3_K_S**, 15.3 tok/s / 2742 MiB on the 2026-07-14 single-run; the current
+table is the 2026-10-11 median 15.30 tok/s / 2741 MiB; the IQ2_M row above is
 the earlier 2-bit build):
 
 - ✅ **The ~2 GB Developer Mode per-file limit does not apply to GGUF** — a >2 GB single
@@ -292,7 +293,7 @@ The 0001 AppContainer patch disables `_WIN32` mmap (desktop-only
 **mmap was tried and does not help** (measured 2026-07-14, MSIX 1.1.6.448): a
 patch making the AppContainer use `CreateFileMappingFromApp`/`MapViewOfFileFromApp`
 (with a loader fallback) built and deployed, but load stayed **6.4 s** and peak
-RAM **2533 MB — unchanged**. Reverted — a zero-benefit vendored patch is not
+RAM **2533 MiB — unchanged**. Reverted — a zero-benefit vendored patch is not
 worth the per-bump maintenance. ⚠️ The root-cause attribution originally
 recorded here ("load is dominated by the AVX2 tensor repack,
 `ggml-cpu/repack.cpp`") **does not survive PR #155**: that repack path was
@@ -480,7 +481,7 @@ filter (5 tensors upcast, **9.22 M trainable params**), `n_ctx_train` 256,
 | prepare (selective f32 upcast, 720 MB GGUF) |                             66 s |
 | train epoch (fwd+bwd, 1 536 tok)            |                        ~24.8 min |
 | train throughput                            |                   **~1.0 tok/s** |
-| peak working set (VmHWM)                    |                     **1 082 MB** |
+| peak working set (VmHWM)                    |                    **1 082 MiB** |
 | loss epoch 1 → 2                            |                    1.542 → 1.063 |
 
 Interpretation:
@@ -497,7 +498,7 @@ Interpretation:
   capped laptop by ~30×.
 - **Console gate (2026-07-20, MSIX 1.4.0.595): PASS.** 8 epochs, wall **446 s**
   total (prepare + train + export + merge + evaluate), peak working set
-  **1195 MB** (< 3 GB ceiling), marker `XLLAMA-LORA-OK.` reproduced. Recipe:
+  **1195 MiB** (< 3 GB ceiling), marker `XLLAMA-LORA-OK.` reproduced. Recipe:
   LR **2e-4**, short marker target, evaluate at the **epoch-8 convergence
   point** — the last-block FT has no LR decay, so the marker flickers OFF past
   epoch 8 (more epochs is not safer). Raw:
@@ -515,9 +516,9 @@ The current Dev package was measured on an Xbox Series S after provisioning the
 catalogue model and discarding one cold-start warm-up. The three recorded rows
 are committed in [`phase17-console-2026-08-26.csv`](../bench/results/phase17-console-2026-08-26.csv):
 
-| Model artifact                                                                                                           | Settings                                                                          | Median result                                           | Spread / peak                                                          |
-| ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `LFM2.5-350M-Q4_K_M.gguf`, 229,312,224 bytes, SHA-256 `7e6f72643caafc9a68256686638c4d7916f2cec76d1df478d4c3ddcd95a6aed4` | Q4_K_M, llama.cpp CPU, t6, `n_ctx=2048`, fixed `standard-512` prompt (298 tokens) | 441.04 prefill tok/s; 89.65 decode tok/s; 676.1 ms TTFT | 88.71–90.95 decode tok/s; 675.6–676.7 ms TTFT; 320 MB peak working set |
+| Model artifact                                                                                                           | Settings                                                                          | Median result                                           | Spread / peak                                                           |
+| ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `LFM2.5-350M-Q4_K_M.gguf`, 229,312,224 bytes, SHA-256 `7e6f72643caafc9a68256686638c4d7916f2cec76d1df478d4c3ddcd95a6aed4` | Q4_K_M, llama.cpp CPU, t6, `n_ctx=2048`, fixed `standard-512` prompt (298 tokens) | 441.04 prefill tok/s; 89.65 decode tok/s; 676.1 ms TTFT | 88.71–90.95 decode tok/s; 675.6–676.7 ms TTFT; 320 MiB peak working set |
 
 Re-run it with:
 
