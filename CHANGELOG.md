@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Fixed:** `lfm25-1.2b-thinking` downloads again. LiquidAI reconverted the GGUF on
+  2026-10-29, so `resolve/main` no longer matched the catalogue's SHA-256. The
+  entry now points at the revision holding the measured file; the bytes are unchanged.
+
 - **Fixed:** A tool proposal on `/v1/chat/completions` no longer returns a thinking
   model's `<think>` reasoning in `content`, matching plain chat. A reply cut off
   mid-thought has empty `content` and `finish_reason` `length`.
