@@ -11,6 +11,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   2026-10-29, so `resolve/main` no longer matched the catalogue's SHA-256. The
   entry now points at the revision holding the measured file; the bytes are unchanged.
 
+- **Fixed:** A tool proposal on `/v1/chat/completions` no longer returns a thinking
+  model's `<think>` reasoning in `content`, matching plain chat. A reply cut off
+  mid-thought has empty `content` and `finish_reason` `length`.
+
+- **`scripts/quantize.sh` takes an optional `--imatrix FILE`,** passed through to
+  `llama-quantize` for self-converted GGUFs. Calls without the flag keep the same
+  arguments, and no catalogue entry changes.
+
+- **Fixed:** Replaying a tool call through `/v1/chat/completions` no longer
+  returns a false `400` `model chat template does not render tools`. The check
+  counted the tool's name in transcript fields the template may not print: `name`
+  on a `tool` message, or the assistant's calls on templates without a `tool_calls`
+  branch (LFM2-2.6B, the catalogue's LFM2.5-1.2B-Thinking file). It now compares
+  the prompt rendered with and without `tools`. Phi-4-mini is still refused.
+
 - **Catalogue sidecar edits no longer re-download verified weights, and GPU
   routing ignores a still-downloading DML tree.** Fetch planning is per file
   (`classify_file_pin`): a missing LICENSE/NOTICE is fetched in the background
