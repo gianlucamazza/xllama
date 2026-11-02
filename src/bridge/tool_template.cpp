@@ -65,18 +65,24 @@ size_t count_occurrences(const std::string& text, const std::string& needle) {
     return n;
 }
 
-bool template_renders_tools(const std::string& prompt, const std::vector<ToolSpec>& offered,
-                            const std::vector<common_chat_msg>& messages) {
+// A template that ignores `tools` (Phi-4-mini reads a system message field
+// instead) renders without error and the model never sees the schema. The schema
+// reached the prompt only if a tool name occurs more often with `tools` than
+// without: counting the transcript cannot say which of its fields a template prints.
+bool template_renders_tools(const common_chat_templates* templates,
+                            const common_chat_templates_inputs& inputs, const std::string& prompt,
+                            const std::vector<ToolSpec>& offered) {
+    common_chat_templates_inputs without_tools = inputs;
+    without_tools.tools.clear();
+    without_tools.tool_choice = COMMON_CHAT_TOOL_CHOICE_AUTO;
+    std::string baseline;
+    try {
+        baseline = common_chat_templates_apply(templates, without_tools).prompt;
+    } catch (const std::exception&) {
+        return true; // it needs `tools` to render this transcript, so it reads them
+    }
     for (const ToolSpec& tool : offered) {
-        size_t in_transcript = 0;
-        for (const common_chat_msg& message : messages) {
-            in_transcript += count_occurrences(message.content, tool.name);
-            in_transcript += count_occurrences(message.tool_name, tool.name);
-            for (const common_chat_tool_call& call : message.tool_calls)
-                in_transcript += count_occurrences(call.name, tool.name) +
-                                 count_occurrences(call.arguments, tool.name);
-        }
-        if (count_occurrences(prompt, tool.name) > in_transcript)
+        if (count_occurrences(prompt, tool.name) > count_occurrences(baseline, tool.name))
             return true;
     }
     return false;
@@ -189,11 +195,7 @@ Applied apply_template(const void* llama_model, const std::string& jinja_overrid
         applied.error = std::string("model chat template failed: ") + ex.what();
         return applied;
     }
-    // A template that ignores `tools` (Phi-4-mini reads a system message field
-    // instead) renders without error and the model never sees the schema. The
-    // schema reached the prompt only if a tool name appears there more often
-    // than the transcript itself mentions it.
-    if (!template_renders_tools(applied.params.prompt, offered, inputs.messages)) {
+    if (!template_renders_tools(templates.get(), inputs, applied.params.prompt, offered)) {
         applied.error = "model chat template does not render tools";
         return applied;
     }
