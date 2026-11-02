@@ -6,6 +6,8 @@ Run a language model on your own Xbox Series S, with chat, an API on your local 
 
 Tested and measured on Series S. Not yet tested on Series X.
 
+**Next step:** testing xllama on Xbox Series X. A [GitHub Sponsors goal](https://github.com/sponsors/gianlucamazza) is set to fund the console, and results will be published in this repo.
+
 ### ⚠️ Read before sideloading
 
 - **Developer Mode only.** xllama runs only on an Xbox console in Developer Mode, Microsoft's program for developing and testing apps. To activate it, you need your own Partner Center developer account, and you must accept Microsoft's [Xbox Developer Mode Activation terms](https://learn.microsoft.com/en-us/legal/windows/agreements/xbox-one-developer-mode-activation) yourself. xllama is a developer and research project, not a consumer product.
