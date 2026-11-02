@@ -166,6 +166,8 @@ Invocations, in order:
 python3 scripts/check-coherence.py && ./scripts/validate-console.sh all       # T5
 ```
 
+For a self-converted quant, `quantize.sh` also takes `--imatrix FILE`, a calibration file from `llama-imatrix`. It is optional and off by default; the script does not produce the file.
+
 Predeclared ladder rules:
 
 - **Host RSS never leaves T1/T2.** The host mmaps; the console does not

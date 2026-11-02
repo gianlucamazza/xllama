@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **`scripts/quantize.sh` takes an optional `--imatrix FILE`,** passed through to
+  `llama-quantize` for self-converted GGUFs. Calls without the flag keep the same
+  arguments, and no catalogue entry changes.
+
 - **Fixed:** Replaying a tool call through `/v1/chat/completions` no longer
   returns a false `400` `model chat template does not render tools`. The check
   counted the tool's name in transcript fields the template may not print: `name`
