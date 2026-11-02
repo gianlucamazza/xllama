@@ -226,7 +226,7 @@
       },
       "backend_key": "llama",
       "backend_label": "llama.cpp CPU · t6",
-      "tag": "tested, not shipping"
+      "tag": "H2 FAIL · experimental catalogue entry"
     },
     {
       "label": "Qwen2.5-Coder-3B (benchmark; model under a non-commercial research licence)",
