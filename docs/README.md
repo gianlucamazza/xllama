@@ -152,5 +152,5 @@ Spot-checked against code + evidence:
 | Package identity `GianlucaMazza.xllama` (1.7.0.0)    | `uwp/AppxManifest.xml`; migration in `install-release.md` | OK (in-place from 1.5.x; breaking vs ≤1.4.x)                 |
 | One resident Session (GUI+API)                       | `include/xllama/session_hub.h`                            | OK (PR #161/#164)                                            |
 | H9 6/8 · 7/8 · 4/8 · 5/8                             | `2026-09-30-h9-rescore.jsonl` (#243 scorer)               | OK                                                           |
-| Lane B peak_ws 1195 MB, wall 446 s                   | `phase10-console-devtrain-result.json`                    | OK                                                           |
+| Lane B peak_ws 1195 MiB, wall 446 s                  | `phase10-console-devtrain-result.json`                    | OK                                                           |
 | Catalogue download sizes                             | `manifest.json` `approx_bytes`                            | Docs corrected to match (was 218/697/1.46 stale)             |

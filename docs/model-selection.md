@@ -13,7 +13,7 @@ sell models or apps. Design limits for what the catalogue may contain are in
 [CONTRIBUTING.md](../CONTRIBUTING.md#model-catalogue-design-limits).
 
 Operational criteria for choosing or evaluating a model for the xllama UWP build
-(Xbox Series S Dev Mode; not yet tested on Series X). Covers both backends — ONNX Runtime GenAI (CPU/DirectML)
+(Xbox Series S Developer Mode; not yet tested on Series X). Covers both backends — ONNX Runtime GenAI (CPU/DirectML)
 and llama.cpp (GGUF, CPU).
 
 ## Hard limits (must pass)
@@ -44,7 +44,7 @@ and llama.cpp (GGUF, CPU).
 
    The script prints a `NOTE` or `WARNING` if the merged size exceeds budget thresholds.
 
-4. Check on-disk size against the Dev Mode disk budget (~2.2–2.5 GB free by
+4. Check on-disk size against the Developer Mode disk budget (~2.2–2.5 GB free by
    default, expandable to 90 GB — `uwp-constraints.md §9`):
 
    ```bash
@@ -61,7 +61,7 @@ and llama.cpp (GGUF, CPU).
    ```
 
    If the upload fails for space (`0x80070070` ERROR_DISK_FULL), the model
-   exceeds the available Dev Mode partition space.
+   exceeds the available Developer Mode partition space.
 
 6. Launch and check the log:
 
@@ -85,13 +85,13 @@ and llama.cpp (GGUF, CPU).
 | ------------------------------ | ---------------- | --------------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
 | SmolLM2-360M-Instruct INT4 CPU | ~421 MB          | ✅ ORT baseline (**74.8** tok/s with the shipped t6 asset, `benchmarks.md`) | ❌ `80070057` (CPU-int4 graph in DML fused node) | ORT-only default; size from `manifest.json` `approx_bytes`                                                                            |
 | SmolLM2-360M-Instruct INT4 DML | 285 MB           | —                                                                           | ⚠️ **8.8 tok/s** but wrong logits (#91)          | Built with ORT GenAI model builder (`-p int4 -e dml`); CPU ~8× faster — and DML text output is numerically wrong on this device (#91) |
-| SmolLM2-1.7B-Instruct INT4 CPU | 1.4 GB           | ✅ in-app (`models-v1` catalogue)                                           | —                                                | Console: 20.6 tok/s decode, peak 2423 MB (`phase35-1b-cpu.csv`); also USB/LocalState                                                  |
-| Phi-3.5-mini Q3_K_S (GGUF)     | 1.68 GB          | ✅ H4 A/B (11.3 tok/s, 2453 MB)                                             | —                                                | Loses speed+RAM vs Llama-3.2-3B Q3; **not** catalogue (`phase7-scale.csv`)                                                            |
+| SmolLM2-1.7B-Instruct INT4 CPU | 1.4 GB           | ✅ in-app (`models-v1` catalogue)                                           | —                                                | Console: 20.6 tok/s decode, peak 2423 MiB (`phase35-1b-cpu.csv`); also USB/LocalState                                                 |
+| Phi-3.5-mini Q3_K_S (GGUF)     | 1.68 GB          | ✅ H4 A/B (11.3 tok/s, 2453 MiB)                                            | —                                                | Loses speed+RAM vs Llama-3.2-3B Q3; **not** catalogue (`phase7-scale.csv`)                                                            |
 
 ## Historical ONNX candidate survey
 
 The July 2 candidate survey used an early disk estimate that was later
-superseded by the measured 90 GB Dev Mode allocation and the patched external-
+superseded by the measured 90 GB Developer Mode allocation and the patched external-
 data path. Its individual size-based rejections are not current selection
 policy. Historical details remain in Git history and `CHANGELOG.md`; evaluate
 new candidates against the measured limits in `uwp-constraints.md` and the
@@ -116,7 +116,7 @@ ORT GenAI does not natively support INT2 as of 0.14.1. Re-evaluate when
 
 ## Why these limits
 
-The disk and GPU limits derive from the UWP sandbox on Xbox Series S in Dev Mode.
+The disk and GPU limits derive from the UWP sandbox on Xbox Series S in Developer Mode.
 This document records only observed behavior at the application boundary. See
 `uwp-constraints.md §7` (GPU pool) and `uwp-constraints.md §9` (disk budget) for
 what we measure. Do not treat any claim about the internal Xbox OS partition layout
@@ -128,9 +128,9 @@ Downloaded catalogue files may declare a lowercase `sha256` value alongside
 `filename`, `remote`, and `approx_bytes`. xllama verifies that digest against
 the staged file before replacing an existing model and before writing the
 `.complete` marker. Missing hashes remain supported only for legacy/custom
-Dev Mode provisioning. The signed-catalogue build (`XLLAMA_STORE_SKU`) rejects a
+Developer Mode provisioning. The signed-catalogue build (`XLLAMA_STORE_SKU`) rejects a
 catalogue without a valid signature envelope and any download entry without a
-SHA-256 pin; the Dev Mode release build accepts an unsigned catalogue (a
+SHA-256 pin; the Developer Mode release build accepts an unsigned catalogue (a
 signature, if present, is still verified).
 
 The Settings ComboBox is populated from the model catalogue. A
@@ -187,7 +187,7 @@ catalogue grows:
 3. Restart the app: the ComboBox now shows the new entry.
 
 Constraints: `model.onnx` must be **self-contained** (< 2 GB, external data merged —
-`uwp-constraints.md §8`) and fit the Dev Mode disk budget. For diffusion models the
+`uwp-constraints.md §8`) and fit the Developer Mode disk budget. For diffusion models the
 contract is different (three components + CLIP assets): see `diffusion/README.md`.
 
 ### Coding model entry (GGUF)
@@ -317,20 +317,20 @@ llama.cpp** — reachable via the shipping `unified` backend build with
 numbers live in [`benchmarks.md`](benchmarks.md)** (the perf SSOT); this table is
 the catalogue status only.
 
-| Model            | Path      | Disk size        | Status                                                                    |
-| ---------------- | --------- | ---------------- | ------------------------------------------------------------------------- |
-| Qwen3.5-0.8B     | llama.cpp | ~533 MB          | ✅ `qwen35-0.8b` — optional modern GGUF                                   |
-| LFM2.5-230M      | llama.cpp | ~149 MB          | ✅ `lfm25-230m` — floor; QAD Q4_0, 132.4 tok/s, 236 MB, H9 1/8            |
-| LFM2.5-350M      | llama.cpp | ~219 MB          | ✅ `lfm25-350m` — default chat; QAD Q4_0, 101.6 tok/s, 311 MB, H9 4/8     |
-| LFM2.5-1.2B      | llama.cpp | ~696 MB          | ✅ `lfm25-1.2b-instruct` — balanced; QAD Q4_0, 40.0 tok/s, 783 MB, H9 6/8 |
-| LFM2-2.6B        | llama.cpp | ~1.56 GB         | ✅ `lfm2-2.6b` — quality; 17.9 tok/s, H9 7/8                              |
-| Phi-4-mini       | llama.cpp | ~2.49 GB         | ✅ `phi4-mini` — T3 PASS: H9 6/8, 11.2 tok/s, 2765 MB (#268)              |
-| MiniCPM5-1B      | llama.cpp | ~688 MB          | ⛔ rejected — measured: Series S H9 3/8 (#267)                            |
-| Qwen3-0.6B       | ORT GenAI | 969 MB merged    | ✅ builds; heavy (151k-vocab embedding dominates)                         |
-| Gemma-3-270M     | llama.cpp | 253 MB           | ✅ `gemma3-270m` — fast, tiny, fits easily                                |
-| Gemma-3-1B       | llama.cpp | ~806 MB          | ⛔ rejected — measured: dominated by LFM2.5-1.2B on Series S (#269)       |
-| Gemma-4-E2B      | llama.cpp | 2.45 GB (Q3_K_S) | ✅ **console-validated** `gemma4-e2b` (see verdict below)                 |
-| Gemma-4 E4B/12B+ | llama.cpp | ≥4.5 GB          | ⛔ too big / too slow for the console                                     |
+| Model            | Path      | Disk size        | Status                                                                     |
+| ---------------- | --------- | ---------------- | -------------------------------------------------------------------------- |
+| Qwen3.5-0.8B     | llama.cpp | ~533 MB          | ✅ `qwen35-0.8b` — optional modern GGUF                                    |
+| LFM2.5-230M      | llama.cpp | ~149 MB          | ✅ `lfm25-230m` — floor; QAD Q4_0, 132.4 tok/s, 236 MiB, H9 1/8            |
+| LFM2.5-350M      | llama.cpp | ~219 MB          | ✅ `lfm25-350m` — default chat; QAD Q4_0, 101.6 tok/s, 311 MiB, H9 4/8     |
+| LFM2.5-1.2B      | llama.cpp | ~696 MB          | ✅ `lfm25-1.2b-instruct` — balanced; QAD Q4_0, 40.0 tok/s, 783 MiB, H9 6/8 |
+| LFM2-2.6B        | llama.cpp | ~1.56 GB         | ✅ `lfm2-2.6b` — quality; 17.9 tok/s, H9 7/8                               |
+| Phi-4-mini       | llama.cpp | ~2.49 GB         | ✅ `phi4-mini` — T3 PASS: H9 6/8, 11.2 tok/s, 2765 MiB (#268)              |
+| MiniCPM5-1B      | llama.cpp | ~688 MB          | ⛔ rejected — measured: Series S H9 3/8 (#267)                             |
+| Qwen3-0.6B       | ORT GenAI | 969 MB merged    | ✅ builds; heavy (151k-vocab embedding dominates)                          |
+| Gemma-3-270M     | llama.cpp | 253 MB           | ✅ `gemma3-270m` — fast, tiny, fits easily                                 |
+| Gemma-3-1B       | llama.cpp | ~806 MB          | ⛔ rejected — measured: dominated by LFM2.5-1.2B on Series S (#269)        |
+| Gemma-4-E2B      | llama.cpp | 2.45 GB (Q3_K_S) | ✅ **console-validated** `gemma4-e2b` (see verdict below)                  |
+| Gemma-4 E4B/12B+ | llama.cpp | ≥4.5 GB          | ⛔ too big / too slow for the console                                      |
 
 **Gemma chat template**: the ORT GenAI _builder_ is frozen at Gemma3, but the
 vendored `llama.cpp` (current pin `08659901c`, see `patches/README.md`) already carries `LLM_ARCH_GEMMA3` **and**
@@ -345,7 +345,7 @@ gets the right template with zero per-model code.
 **overturned**. E2B is ~5B raw params (2B effective, MatFormer). Key findings
 (full numbers in [`benchmarks.md`](benchmarks.md)):
 
-- ✅ **The ~2 GB Dev Mode per-file limit does not apply to GGUF** — a >2 GB single
+- ✅ **The ~2 GB Developer Mode per-file limit does not apply to GGUF** — a >2 GB single
   `.gguf` loads with no OOM under the Game budget.
 - ✅ **Generates coherently** and stops on `<end_of_turn>`.
 - ⚠️ **Load is slow** (a few seconds). ⚠️ The old "load is repack-bound"
@@ -357,7 +357,7 @@ gets the right template with zero per-model code.
   IQ2_M collapsed to an immediate EOG on long declarative prompts, which Q3_K_S
   fixes (and it decodes faster). Details in `benchmarks.md` root-cause notes.
 
-Disk was never the real constraint (Dev Mode is now 90 GB, `uwp-constraints.md §9`).
+Disk was never the real constraint (Developer Mode is now 90 GB, `uwp-constraints.md §9`).
 Catalogue entry `gemma4-e2b` downloads from HF (2.45 GB > the GitHub release 2 GB
 asset limit). See `docs/benchmarks.md` for the full comparison.
 

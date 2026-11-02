@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Docs:** Current prose uses Microsoft's term Developer Mode in place of
+  "Dev Mode". Peak working-set receipts that were written in MB now use MiB;
+  the digits are unchanged. Historical changelog entries, code, and app strings
+  are left as they are.
+
 - **Fixed:** `lfm25-1.2b-thinking` downloads again. LiquidAI reconverted the GGUF on
   2026-10-29, so `resolve/main` no longer matched the catalogue's SHA-256. The
   entry now points at the revision holding the measured file; the bytes are unchanged.

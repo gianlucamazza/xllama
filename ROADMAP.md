@@ -44,7 +44,7 @@ performance belongs in `docs/benchmarks.md`.
   `docs/crossbuild-console.md`.
 - **Latest evidence:** the Dev Series S capture is committed in
   `bench/results/2026-09-30-catalogue-gates.csv` (LFM2.5-350M QAD Q4_0 on CI
-  package 1.6.0.1072, 101.6 tok/s median, 796.5 ms TTFT, 311 MB peak). Catalogue signing
+  package 1.6.0.1072, 101.6 tok/s median, 796.5 ms TTFT, 311 MiB peak). Catalogue signing
   and runtime verification passed in CI run `32963270335`; this does not equal
   external power/thermal evidence.
 - **Demo capture is on the v1.5.6 assets** (381 measured stills; raw MP4 plus a
@@ -59,7 +59,7 @@ performance belongs in `docs/benchmarks.md`.
    (`scripts/check-vendor-nuget-status.sh`, poll 2026-08-27: still required).
 2. **Release readiness** — dual-SKU policy, licence matrix, and App vs Game
    gate in `docs/release-readiness.md`. Do not stamp a different publisher CN
-   onto the Dev Mode package.
+   onto the Developer Mode package.
 3. ~~**WS-F headset** (#241)~~ — **closed PASS 2026-09-30**: real capture under
    AppContainer (RMS 0.019). ASR candidate H16.6a is unblocked, not started.
 4. **GPU decode eng** — H6/H7 (#228) reached **K3** with H6.3 (`rows` median
@@ -76,7 +76,7 @@ performance belongs in `docs/benchmarks.md`.
 
 ## Research / XAB release
 
-- [x] Research package: Series S Dev Mode report, claim registry, generated
+- [x] Research package: Series S Developer Mode report, claim registry, generated
       evidence table/figures, `CITATION.cff` and release runbook.
 - [x] XAB wrapper: reproducible profile for text, KV, H9 and diffusion harnesses;
       raw outputs remain separate and no sidecars are fabricated.
@@ -202,7 +202,7 @@ pin constraints: [`docs/training-architecture.md`](docs/training-architecture.md
       `training/result.done`; `device-train` mode in
       `validate-console-training.sh`.
 - [x] Console `device-train` **PASS** (2026-07-20, MSIX 1.4.0.595): RSS peak
-      1195 MB (< 3 GB gate), wall 446 s, marker reproduced —
+      1195 MiB (< 3 GB gate), wall 446 s, marker reproduced —
       `DeviceGgmlPartialFt` flipped to `available`. Evidence:
       `bench/results/phase10-console-devtrain-result.json`. (Eval fix: the
       device merged model loads by absolute path; the last-block fine-tune has
@@ -412,7 +412,7 @@ fix.
       (`--ubatch` knob + on-device sweep u128–u1024 at P=1000,
       `bench/results/phase13c-ubatch-sweep.csv`): **the default 512 is the
       optimum** post-repack+#168 (u256 −0.7%, u128 −2.4%, u1024 −2.8% and
-      +34 MB peak). No product change; the knob stays for future sweeps.
+      +34 MiB peak). No product change; the knob stays for future sweeps.
 - [x] **#173 — predict context overflow** instead of failing the turn and
       retrying with a full prefill. Done (PR #177): both backends fail fast
       pre-append when KV + delta + one token exceeds `n_ctx`, and the llama
@@ -451,9 +451,9 @@ them. SSOT: [`docs/model-matrix.md`](docs/model-matrix.md); console evidence
 - [x] **Catalogue tier.** `qwen25-coder-0.5b` / `1.5b`, `qwen3-1.7b`,
       `lfm25-1.2b-thinking` (`qwen25-coder-1.5b` is the coding option;
       `qwen25-coder-3b` was later withdrawn from the catalogue). Console decode
-      / peak: Coder-0.5B **62.4** tok/s / 533 MB, Thinking **36.7** / 811 MB,
-      Coder-1.5B **26.1** / 1179 MB, Qwen3-1.7B **21.8** / 1398 MB, Coder-3B
-      **14.0** / 2116 MB (benchmark; model under a non-commercial research
+      / peak: Coder-0.5B **62.4** tok/s / 533 MiB, Thinking **36.7** / 811 MiB,
+      Coder-1.5B **26.1** / 1179 MiB, Qwen3-1.7B **21.8** / 1398 MiB, Coder-3B
+      **14.0** / 2116 MiB (benchmark; model under a non-commercial research
       licence). The 3B row was the number Phase 15 set out to move.
 - [x] **Thinking as a product path, not UI magic.** `model_is_thinking` +
       `strip_thinking_blocks` in `ChatFormat::postprocess_output` — display and
@@ -510,7 +510,7 @@ Findings, workstream status, decision log). Attack order: **W2 closed**
       (`src/models/*.cpp` already compiles `lfm2moe.cpp` and ~20 more MoE archs).
       Candidate **LFM2.5-8B-A1B**, 32 experts / 4 active. Admissibility hung on a
       never-measured number, so the **console heap ceiling was measured**:
-      **4864 MB committed / 4893 MB peak WS** (`ramceil.flag`,
+      **4864 MB committed / 4893 MiB peak WS** (`ramceil.flag`,
       `scripts/bench-ramceil.sh`, `bench/results/phase15-ramceil.csv`) — a lower
       bound, and headless. That admits `UD-IQ3_S` inside the 4 GB H2 gate, so the
       experiment tests the architecture rather than the quantization.
@@ -633,7 +633,7 @@ At most one of WS-E/F/G may reach the console this campaign.
 
 ## Public release path
 
-SSOT: [`docs/release-readiness.md`](docs/release-readiness.md). Dev Mode remains
+SSOT: [`docs/release-readiness.md`](docs/release-readiness.md). Developer Mode remains
 the supported install path.
 
 - [~] Phase 0 — discovery: SSOT + licence matrix in `release-readiness.md`;
@@ -686,5 +686,5 @@ under `bench/results/` when measured, and documentation in the owning SSOT.
       with a headset (2026-09-30, `2026-09-30-mic.json`).
 - [ ] Continue [vendor lifecycle gates](docs/vendor-lifecycle-plan.md) (#84/#85/#86).
 
-The main CI Dev Mode package is validated; release tagging remains a
+The main CI Developer Mode package is validated; release tagging remains a
 separate workflow, as documented in the release runbook.

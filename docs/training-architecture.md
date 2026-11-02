@@ -8,7 +8,7 @@
 
 **Currency:** 2026-07-20. Host PEFT marker job **PASS**. Lane B device train
 **available** — in-process ggml-opt partial FT (`src/bridge/device_train.cpp`);
-host and console marker gates **PASS** (console peak_ws 1195 MB, wall 446 s).
+host and console marker gates **PASS** (console peak_ws 1195 MiB, wall 446 s).
 Design + pin constraints: §10. Roadmap: Phase 10.
 
 ### Exit criteria (Phase 8) — **MET**
@@ -26,7 +26,7 @@ Design + pin constraints: §10. Roadmap: Phase 10.
 operator loop and per-response preference UI. **Phase 10 (Lane B, §10)
 supersedes the "training execution stays host-only" default**: an in-process
 engine runs fully on the console, `available` with host + console marker-gate
-evidence (2026-07-20: peak_ws 1195 MB, wall 446 s).
+evidence (2026-07-20: peak_ws 1195 MiB, wall 446 s).
 
 **FloppyLM** is not a fourth shipped lane and does **not** change A/B/C
 below. [PR #301](https://github.com/gianlucamazza/xllama/pull/301) closed
@@ -35,7 +35,7 @@ Status: [floppylm.md](floppylm.md).
 
 ## 1. Why a training pillar
 
-xllama personalizes and researches **on-device inference** (Xbox Dev Mode). Users
+xllama personalizes and researches **on-device inference** (Xbox Developer Mode). Users
 also need a path to **learn** adapters / domain behaviour. Training is a
 **parallel pillar**, not a mode of `Session::generate()`:
 
@@ -176,7 +176,7 @@ Queryable from C++ / CLI (`xllama-cli --training-capabilities`):
 the Lane B engine (`XLLAMA_DEVICE_TRAIN`: Linux CMake always; MSIX llamacpp /
 unified backends), false otherwise. `DeviceGgmlPartialFt` is `available`: host
 and console `device-train` runs PASS with measured RSS/wall evidence (2026-07-20,
-console peak_ws 1195 MB, wall 446 s).
+console peak_ws 1195 MiB, wall 446 s).
 
 ## 5. Stage machine and job schema
 
@@ -235,16 +235,16 @@ and `from-console-samples` job live in
 
 ## 8. Decision log
 
-| Decision                                           | Rationale                                                                                                    |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| Host PEFT first                                    | RE shows inference-only NuGet; host PEFT proven PASS                                                         |
-| Compile-gate `device=device`                       | Only builds containing the bounded ggml-opt engine accept it                                                 |
-| Reject DeviceLlamaFinetune                         | ~24 GB class + WIP                                                                                           |
-| Prefer merge GGUF over runtime LoRA for v1         | Zero Session change; same path as catalogue                                                                  |
-| ODT as research not default                        | Package + format + console risk                                                                              |
-| Lane B via ggml-opt, not ORT ODT                   | Engine already linked in the MSIX; single GGUF format; no new NuGet pin                                      |
-| Lane B = last-block partial FT                     | Pin limitation: KV-cache `set_rows` has no backward (§10); honest fail-fast in prepare                       |
-| `experimental` → `available` (resolved 2026-07-20) | Host and console evidence had to pass before the flip; both gates PASS (console peak_ws 1195 MB, wall 446 s) |
+| Decision                                           | Rationale                                                                                                     |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Host PEFT first                                    | RE shows inference-only NuGet; host PEFT proven PASS                                                          |
+| Compile-gate `device=device`                       | Only builds containing the bounded ggml-opt engine accept it                                                  |
+| Reject DeviceLlamaFinetune                         | ~24 GB class + WIP                                                                                            |
+| Prefer merge GGUF over runtime LoRA for v1         | Zero Session change; same path as catalogue                                                                   |
+| ODT as research not default                        | Package + format + console risk                                                                               |
+| Lane B via ggml-opt, not ORT ODT                   | Engine already linked in the MSIX; single GGUF format; no new NuGet pin                                       |
+| Lane B = last-block partial FT                     | Pin limitation: KV-cache `set_rows` has no backward (§10); honest fail-fast in prepare                        |
+| `experimental` → `available` (resolved 2026-07-20) | Host and console evidence had to pass before the flip; both gates PASS (console peak_ws 1195 MiB, wall 446 s) |
 
 ## 9. Open spikes (kill criteria)
 
@@ -305,7 +305,7 @@ an engine change (ROADMAP Phase 10).
 
 The acceptance ceiling is 3 GB; `n_ctx_train` is the pressure knob. Host
 throughput and epoch timings: `docs/benchmarks.md` §"On-device training
-(Lane B)". Console `peak_ws_mb` measured at the gate: **1195 MB** (wall 446 s,
+(Lane B)". Console `peak_ws_mb` measured at the gate: **1195 MiB** (wall 446 s,
 epochs 8), well under the 3 GB ceiling.
 
 ### Run it
@@ -323,7 +323,7 @@ relative), progress in `xllama.log`, completion marker
 `training\result.done`, artefacts under the job's `out_dir`.
 
 **Evidence:** host and console marker runs both **PASS** (2026-07-20; recipe
-below). Console: MSIX 1.4.0.595, peak_ws 1195 MB, wall 446 s, marker reproduced
+below). Console: MSIX 1.4.0.595, peak_ws 1195 MiB, wall 446 s, marker reproduced
 — committed at `bench/results/phase10-console-devtrain-result.json`.
 
 **Converging recipe (host).** The first run (LR 5e-4, long marker) under-

@@ -1,7 +1,7 @@
 # Contributing to xllama
 
 Thanks for helping. This is a research project targeting **Xbox Series S
-consoles (Dev Mode)**. Tested and measured on Series S. Not yet tested on
+consoles (Developer Mode)**. Tested and measured on Series S. Not yet tested on
 Series X. Most constraints come from the UWP/AppContainer sandbox, so read
 [`AGENTS.md`](AGENTS.md) (conventions + repo map) and
 [`docs/uwp-constraints.md`](docs/uwp-constraints.md) first.

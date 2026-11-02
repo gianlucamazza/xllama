@@ -48,7 +48,7 @@ Partner Center app developer account. xllama does not provide one.
 
 Follow Microsoft's
 [Xbox Developer Mode activation](https://learn.microsoft.com/en-us/windows/uwp/xbox-apps/devkit-activation):
-install the Xbox Dev Mode app from the Microsoft Store, note the activation
+install the Xbox Developer Mode app from the Microsoft Store, note the activation
 code, enter it in Partner Center, then switch the console to Developer Mode.
 
 ### 2. Open Device Portal in a browser
@@ -130,7 +130,7 @@ install with different contents. After install, check **App type** in Dev Home
 
 ### Prerequisites
 
-- Xbox in **Dev Mode** with the Device Portal enabled (note IP + credentials).
+- Xbox in **Developer Mode** with the Device Portal enabled (note IP + credentials).
 - A credentials file, e.g. `~/.config/xllama/xbox-env`:
 
   ```bash
@@ -230,7 +230,7 @@ INT4 (~421 MB). See
 [using-the-app.md](./using-the-app.md) from here.
 
 For image generation, the SD-Turbo model (2.4 GB) is downloaded from the
-catalogue on the first **Generate** — mind the Dev Mode disk budget (~2.2–2.5 GB
+catalogue on the first **Generate** — mind the Developer Mode disk budget (~2.2–2.5 GB
 free by default, **expandable to 90 GB** via Dev Home → Manage Dev Storage; see
 [uwp-constraints.md §9](uwp-constraints.md)). Device Portal provisioning remains available
 ([../diffusion/README.md](../diffusion/README.md), runbook §7).
