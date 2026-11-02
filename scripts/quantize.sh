@@ -2,9 +2,10 @@
 # quantize.sh — wrapper around llama-quantize for GGUF preparation
 #
 # Usage:
-#   ./scripts/quantize.sh input.gguf output.gguf [QUANT_TYPE]
+#   ./scripts/quantize.sh [--imatrix FILE] input.gguf output.gguf [QUANT_TYPE]
 #
 # QUANT_TYPE defaults to Q4_K_M (recommended for Xbox Series S 8 GB budget).
+# --imatrix passes a calibration file (from llama-imatrix) to llama-quantize.
 # See llama.cpp docs for all supported types.
 
 set -euo pipefail
@@ -12,12 +13,31 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-INPUT="${1:-}"
-OUTPUT="${2:-}"
-QUANT_TYPE="${3:-Q4_K_M}"
+IMATRIX=""
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+	--imatrix)
+		if [[ $# -lt 2 ]]; then
+			echo "Error: --imatrix needs a file" >&2
+			exit 1
+		fi
+		IMATRIX="$2"
+		shift 2
+		;;
+	*)
+		POSITIONAL+=("$1")
+		shift
+		;;
+	esac
+done
+
+INPUT="${POSITIONAL[0]:-}"
+OUTPUT="${POSITIONAL[1]:-}"
+QUANT_TYPE="${POSITIONAL[2]:-Q4_K_M}"
 
 if [[ -z "$INPUT" || -z "$OUTPUT" ]]; then
-	echo "Usage: $0 <input.gguf> <output.gguf> [QUANT_TYPE]" >&2
+	echo "Usage: $0 [--imatrix FILE] <input.gguf> <output.gguf> [QUANT_TYPE]" >&2
 	echo "       QUANT_TYPE: Q4_K_M (default), Q4_K_S, IQ4_XS, Q8_0, ..." >&2
 	exit 1
 fi
@@ -54,8 +74,17 @@ if [[ ! -f "$INPUT" ]]; then
 	exit 1
 fi
 
-echo "Quantizing $INPUT → $OUTPUT (${QUANT_TYPE}) ..."
-"$QUANTIZE_BIN" "$INPUT" "$OUTPUT" "$QUANT_TYPE"
+QUANTIZE_ARGS=()
+if [[ -n "$IMATRIX" ]]; then
+	if [[ ! -f "$IMATRIX" ]]; then
+		echo "Error: imatrix file not found: $IMATRIX" >&2
+		exit 1
+	fi
+	QUANTIZE_ARGS+=(--imatrix "$IMATRIX")
+fi
+
+echo "Quantizing $INPUT → $OUTPUT (${QUANT_TYPE}${IMATRIX:+, imatrix $IMATRIX}) ..."
+"$QUANTIZE_BIN" "${QUANTIZE_ARGS[@]}" "$INPUT" "$OUTPUT" "$QUANT_TYPE"
 
 SIZE=$(du -sh "$OUTPUT" | cut -f1)
 echo "Done. Output: $OUTPUT (${SIZE})"
