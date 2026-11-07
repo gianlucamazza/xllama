@@ -1,6 +1,8 @@
 # Engineering excellence execution — 2026-11-07
 
 Status: **in progress; stable release blocked**. Tracking: [#395](https://github.com/gianlucamazza/xllama/issues/395).
+Milestone ledger: [report](execution-2026-11-07/milestone-report.json), [exact-head integration receipts](execution-2026-11-07/integration-receipt.json), [SHA-256 manifest](execution-2026-11-07/SHA256SUMS). Validate from that evidence directory with `sha256sum -c SHA256SUMS`.
+
 Eight-week planning window: 7 November 2026–1 January 2027. Dates are planning
 targets, not automatic approvals or promises of hardware availability.
 
@@ -89,10 +91,12 @@ Changes discovered or opened during this execution:
 | `cursor/decision-models-spike-8b6e`   | #356 closed NO-GO; compare new Laya fork evidence before considering reopening; no automatic import         |
 | `feat/floppylm-training`              | #301 closed without merge; respect existing [FloppyLM disposition](../../floppylm.md), no automatic revival |
 
-The first hardening PR #399 passed all four required exact-head checks and was
-squash-merged as `c7e71607fbd931c36ffc0167aadbae9d72c246db`. The remaining
-intervention branches are identified by their PRs above. Integration order:
-#399, #401, #396, #400, #381, then #369 after hardware receipts. Refresh each PR
+Hardening PRs #399, #401, #400 and #396 passed all four required exact-head
+checks and were squash-merged, ending at `f1007133ba47a5b9ae9b44f0990aee67bdabf45a`.
+The [integration receipt](execution-2026-11-07/integration-receipt.json) retains
+check IDs, source SHAs and merge commits. Remaining intervention branches are
+identified by their PRs above. Completed integration order: #399, #401, #400, #396. Next: #404 and #381 only
+after their device gates, then #369 after release receipts. Refresh each PR
 against main before integration. Several independently add CI test names and
 AGENTS commands; resolve by retaining **all** checks, not by choosing one side.
 For every PR: regression before fix, reviewed diff, applicable local checks,
@@ -134,7 +138,7 @@ optimization. Optional architecture watches do not delay the shipping fixes.
 | W7   | 19–25 Dec    | Research/Release: evidence package and RC review                                                 | Claims map to admitted raw files; negative/inconclusive results retained; current gate matrix signed off                         |
 | W8   | 26 Dec–1 Jan | Release/Principal: stable decision and final report                                              | All critical gates pass or formally scoped out with rationale; full-program completion still requires mandated hardware runs     |
 
-No new structural ADR is needed for the implemented incremental fixes. ADR 0003
+No new structural ADR is needed for the implemented incremental fixes. [Proposed ADR 0009](../../adr/0009-isolated-host-training-toolchain.md) makes the separate future host-training environment decision reviewable under #405; it is not accepted or implemented. ADR 0003
 already governs export; ADR 0002 governs main; the existing GPU design governs
 #313. A new ADR is required before a second GPU backend, changed arithmetic
 contract or separate Xbox One SKU, with alternatives and explicit acceptance.
@@ -175,13 +179,17 @@ The subsequent [isolated diffusion host receipt](execution-2026-11-07/diffusion-
 
 Real first-party VAE-only export, eager/ORT verification and fp16 conversion also passed; [raw receipt](execution-2026-11-07/host-vae-receipt.json) and [canonical source binding](execution-2026-11-07/vae-source-binding.json) retain exact checkpoint/asset hashes. New and published legacy fp16 passed the existing fixed-input fp16-vs-new-fp32 VAE check. This is directional component evidence, not the legacy-fp32/full-pipeline parity required by ADR 0003. UNet needs more available host memory, the legacy fp32 reference is not published in models-v1, and all device gates remain pending. No claim registry or shipping asset is promoted.
 
+The [PEFT candidate receipt](execution-2026-11-07/peft-candidate/candidate-receipt.json) records a supported isolated 58-distribution graph and a tiny random built-in Llama train/save/reload/merge feasibility test. Repository training pins remain unchanged: whole-graph security review, CPU installation policy and full first-party SmolLM2/GGUF/marker parity remain gates under #405. A synthetic API smoke cannot certify that production recipe. The [whole-graph candidate audit](execution-2026-11-07/peft-candidate/security-disposition.json) rejects that first candidate: Datasets and fsspec have unresolved advisories, plus bootstrap-tool findings and a Torch audit skip. Keep the successful API result and failed security verdict together; no pin promotion. The [second candidate](execution-2026-11-07/peft-candidate2/receipt.json) explicitly migrates the proposed dataset constraint, passes the same synthetic trial and reports zero known findings for 58 queried distributions; CPU Torch remains skipped. Full first-party recipe, adapter/GGUF parity and profile qualification remain unverified.
+
 A later [sanitizer receipt](execution-2026-11-07/sanitizer-receipt.json) records a passing Debug ASan+UBSan build and strict ctest with leak detection disabled. Default LeakSanitizer fails under ptrace, independently reproduced on an empty program; it is BLOCKED, not passed. llama.cpp/ggml are outside this instrumentation scope.
 
 This environment has no configured `xbox-env`; no console connection, Windows
-UWP build, actual host training, complete production diffusion export, GPU benchmark or hardware acceptance was
+UWP build, production first-party host training, complete production diffusion export, GPU benchmark or hardware acceptance was
 performed. The VAE-only host trial above is the sole real-component export exception. Required remote CI remains a separate gate. Therefore GPU promotion,
 #263 closure, #374 closure, final RC approval and stable release are blocked.
 No historical result, generated numeric table or accepted ADR was rewritten.
+
+After the four hardening merges, the [combined host suite](execution-2026-11-07/combined-suite-receipt.json) ran all CI-registered Python modules with the export toolchain installed: **136 tests passed, zero skips**. This extends the earlier baseline receipt; it does not replace it or establish device behaviour.
 
 M1 and later receipts must append dated source/package refs, exact commands,
 test outcomes/skips, raw evidence hashes, decisions and blockers to this

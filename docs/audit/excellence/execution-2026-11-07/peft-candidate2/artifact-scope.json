@@ -1,0 +1,30 @@
+{
+  "retained": "All flat receipts, exact command/environment records, graph/lock, official package metadata, raw logs, synthetic generation and verification scripts.",
+  "reproducible_binaries_not_committed": [
+    "tiny-adapter/adapter_config.json",
+    "tiny-adapter/adapter_model.safetensors",
+    "tiny-adapter/tokenizer_config.json",
+    "tiny-adapter/tokenizer.json",
+    "tiny-adapter/chat_template.jinja",
+    "tiny-adapter/README.md",
+    "tiny-base/tokenizer_config.json",
+    "tiny-base/generation_config.json",
+    "tiny-base/tokenizer.json",
+    "tiny-base/chat_template.jinja",
+    "tiny-base/config.json",
+    "tiny-base/model.safetensors",
+    "tiny-adapter/trainer_state/checkpoint-2/training_args.bin",
+    "tiny-adapter/trainer_state/checkpoint-2/adapter_config.json",
+    "tiny-adapter/trainer_state/checkpoint-2/rng_state.pth",
+    "tiny-adapter/trainer_state/checkpoint-2/adapter_model.safetensors",
+    "tiny-adapter/trainer_state/checkpoint-2/tokenizer_config.json",
+    "tiny-adapter/trainer_state/checkpoint-2/optimizer.pt",
+    "tiny-adapter/trainer_state/checkpoint-2/tokenizer.json",
+    "tiny-adapter/trainer_state/checkpoint-2/chat_template.jinja",
+    "tiny-adapter/trainer_state/checkpoint-2/trainer_state.json",
+    "tiny-adapter/trainer_state/checkpoint-2/README.md",
+    "tiny-adapter/trainer_state/checkpoint-2/scheduler.pt"
+  ],
+  "reason": "Tiny generated model/adapter/checkpoint binary hashes remain in receipt; regenerate from retained scripts with recorded seed/toolchain. Training-state pickle/optimizer files are not needed to read the report or reproduce API smoke. No production model artifact is promoted.",
+  "source_code_base": "f1007133ba47a5b9ae9b44f0990aee67bdabf45a"
+}

@@ -1780,7 +1780,154 @@
           "uwp/xllama.vcxproj"
         ]
       }
-    ]
+    ],
+    "diagnostic_branches": [
+      {
+        "branch": "ci-logs-bake-bonsai-27b-fa0",
+        "sha": "e2906678b8c0979c7a9e10240b44895fe7a28c82"
+      },
+      {
+        "branch": "ci-logs-bake-bonsai-27b-fa1",
+        "sha": "09a0e7478acb45711c5b3022cd912514e0701dc1"
+      },
+      {
+        "branch": "ci-logs-bake-bonsai-27b-kvq8",
+        "sha": "051f56017ac2e272f8f0765e70abe1158d587dfa"
+      },
+      {
+        "branch": "ci-logs-bake-bonsai-27b-q1_0",
+        "sha": "f464dbb82724281c47d1ecca8d71e513f5a9cf8f"
+      },
+      {
+        "branch": "ci-logs-bake-embed-bge-m3",
+        "sha": "cb2540e757e0dc8e893d87a21ff56f8cd5a85d38"
+      },
+      {
+        "branch": "ci-logs-bake-embed-nomic-v2-moe",
+        "sha": "8976f7578162299075e9e139604b227f8a16bc0b"
+      },
+      {
+        "branch": "ci-logs-bake-gemma3-270m",
+        "sha": "1ef704a0e5677ba95a879aa641bb2d5c75a16bb3"
+      },
+      {
+        "branch": "ci-logs-bake-gemma4-e2b-q3ks",
+        "sha": "d55b608e5eea0d0421c2299c2b6ec4c88bceeef0"
+      },
+      {
+        "branch": "ci-logs-bake-lfm2-2.6b",
+        "sha": "e880a74acba63b2f675809bc770d4cd54929f8de"
+      },
+      {
+        "branch": "ci-logs-bake-lfm25-1.2b-thinking",
+        "sha": "825f3b07020d29e86ba112bd99cf7be4ca44bee5"
+      },
+      {
+        "branch": "ci-logs-bake-lfm25-8b-a1b-iq3s",
+        "sha": "ecea61331511abfa925886afa85837a4ec48f7a1"
+      },
+      {
+        "branch": "ci-logs-bake-lfm25-350m",
+        "sha": "ef79d8d494fe138f88dee1a9a1be04eb987de9ac"
+      },
+      {
+        "branch": "ci-logs-bake-llama32-3b-q3ks",
+        "sha": "ea136d36021cade876441b7449559c228bb142db"
+      },
+      {
+        "branch": "ci-logs-bake-ops",
+        "sha": "b83ec0b935f0b2f21ded6184b9802690fe570ae2"
+      },
+      {
+        "branch": "ci-logs-bake-phi4-mini",
+        "sha": "3575ab5407c63693744f862bfdf2d073e66c4b88"
+      },
+      {
+        "branch": "ci-logs-bake-qwen3-1.7b",
+        "sha": "f805250f7afe3b7c08a52ddf1e621a3889f5d508"
+      },
+      {
+        "branch": "ci-logs-bake-qwen25-coder-0.5b",
+        "sha": "c42412653e5f7f590c6342f2700cdb86a001fe33"
+      },
+      {
+        "branch": "ci-logs-bake-qwen35-0.8b",
+        "sha": "700bdeff9e47e6d7936fb0e13cb0d3511e4a78c3"
+      },
+      {
+        "branch": "ci-logs-compile-desktop",
+        "sha": "076cac41427a129ccd27f4fc7e87604f84224382"
+      },
+      {
+        "branch": "ci-logs-merge",
+        "sha": "b8a859c4d2ba2196bf675723b494cf2915fe2220"
+      },
+      {
+        "branch": "ci-logs-probe",
+        "sha": "6451c8a120b1d766f356fe6b8222832730c7f513"
+      },
+      {
+        "branch": "ci-logs-probe-no16",
+        "sha": "e080a7c41e3be682510b543d20f3d9c7d0dd16aa"
+      },
+      {
+        "branch": "ci-logs-verify-bonsai-27b-fa1",
+        "sha": "cdef22b1c617f273e0cc453fe3ce6480aadf4788"
+      },
+      {
+        "branch": "ci-logs-verify-embed-bge-m3",
+        "sha": "6ef9c38814a99e20c0e99224b5ec463a09d09b66"
+      },
+      {
+        "branch": "ci-logs-verify-embed-nomic-v2-moe",
+        "sha": "623272c27499ee7584fcfcbcc21246ea39ccd846"
+      },
+      {
+        "branch": "ci-logs-verify-gemma3-270m",
+        "sha": "bb30b971ad609f949ef53eb764ff6aaf29551bcf"
+      },
+      {
+        "branch": "ci-logs-verify-gemma4-e2b-q3ks",
+        "sha": "9a21b49b3875e8994cf93b49fa33a543d30ffb2a"
+      },
+      {
+        "branch": "ci-logs-verify-lfm2-2.6b",
+        "sha": "24063e9739f654ff9d25ffb1fa9132866e930cbb"
+      },
+      {
+        "branch": "ci-logs-verify-lfm25-1.2b-thinking",
+        "sha": "167ab2cb72d62bc3a85df885fdb3d42d4285ceeb"
+      },
+      {
+        "branch": "ci-logs-verify-lfm25-8b-a1b-iq3s",
+        "sha": "f0a7868adcadb91b6455ef27ccb7191d3b32568b"
+      },
+      {
+        "branch": "ci-logs-verify-lfm25-350m",
+        "sha": "a5253b0cd084e37c7059a0feadc0ef480cc18a4f"
+      },
+      {
+        "branch": "ci-logs-verify-llama32-3b-q3ks",
+        "sha": "6d662ad61532c523a0cae0d0b9c868d95583b084"
+      },
+      {
+        "branch": "ci-logs-verify-phi4-mini",
+        "sha": "d2804255db567862d71ac1f25a6ccf3b0bff1e17"
+      },
+      {
+        "branch": "ci-logs-verify-qwen3-1.7b",
+        "sha": "f29b0f5afe50cdd1ed164163549036ff5d5320ab"
+      },
+      {
+        "branch": "ci-logs-verify-qwen25-coder-0.5b",
+        "sha": "7884818de39e370b82f14fda95e41e79a108efd6"
+      },
+      {
+        "branch": "ci-logs-verify-qwen35-0.8b",
+        "sha": "e7cbf99a1435cbfdf61ee0a56de8736c37c21eab"
+      }
+    ],
+    "diagnostic_inventory_source": "https://api.github.com/repos/http-hadi/xllama/branches?per_page=100"
   },
   {
     "repo": "bjoern2088/xllama",

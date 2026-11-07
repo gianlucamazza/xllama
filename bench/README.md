@@ -19,6 +19,12 @@ Never combine the best prefill, decode, or RAM values from different CSV rows.
 Add a row to `benchmark-summary.json` when a newly measured configuration should
 appear in the consolidated comparison.
 
+The CSV validator rejects duplicate headers, short or long rows, non-finite
+metrics (including NaN and infinity), negative metrics, and invalid integer
+settings. Historical schemas, single-field comment lines and empty optional cells
+remain supported. Passing
+this structural check does not verify provenance or reproduce a measurement.
+
 ## Methodology
 
 - **Prompts**: fixed prompts in `bench/prompts/` (same across all runs for comparability).
@@ -69,7 +75,18 @@ appear in the consolidated comparison.
   wattmeter model/firmware, sampling interval, ambient temperature, and the
   thermal-equilibrium rule in a sidecar report.
   Generate and validate the sidecar with `scripts/write-benchmark-sidecar.py`;
-  validate raw CSVs with `scripts/validate-benchmark.py`. Both tools preserve
+  validate raw CSVs with `scripts/validate-benchmark.py`.
+  The schema-1 sidecar writer and validator share one validation policy:
+  model, quantization, build, hardware, thermal rule and wattmeter identifiers
+  must be non-empty; both hashes must be lowercase SHA-256; byte size,
+  context and power sampling interval must be positive integers. Run counts
+  must be integers meeting the warm-up/repetition minimum above. Sampling
+  must be a JSON object without non-finite values; ambient temperature and
+  power readings must be finite numbers, and power readings non-negative.
+  Booleans do not qualify as numeric measurements or counts. Validation
+  checks metadata, not whether a run actually happened or reached thermal
+  equilibrium; retain the underlying raw evidence for review.
+  Both tools preserve
   v1 historical files and identify v2 explicitly.
   Rows written before 2026-07-21 have 13 columns and no prompt/generated counts; rows in `phase12-dml-crossover.csv` carry `n_prompt_tok` but leave `n_gen_tok` empty (the console build that produced them predates that column). Rows written before the W1.1 change have no `run_index` and are read as single measurements. The new fields are appended after `run_index` so no earlier positional column shifts: `bench-xbox-ort.sh` parses `backend` ($3), `decode_tok_s` ($7) and `max_length` ($14) positionally. The script refuses to append to a file whose header does not match, and rejects rows whose field count disagrees with the schema.
 
