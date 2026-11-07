@@ -1,0 +1,77 @@
+...FFF..........FFFFF......F......
+======================================================================
+FAIL: test_fresh_date_still_requires_expected_job (tests.test_console_taesd_result.AssessTests.test_fresh_date_still_requires_expected_job) (kwargs={'model': 'other'})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-pr381/tests/test_console_taesd_result.py", line 44, in test_fresh_date_still_requires_expected_job
+    self.assertFalse(ok)
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_fresh_date_still_requires_expected_job (tests.test_console_taesd_result.AssessTests.test_fresh_date_still_requires_expected_job) (kwargs={'steps': '4'})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-pr381/tests/test_console_taesd_result.py", line 44, in test_fresh_date_still_requires_expected_job
+    self.assertFalse(ok)
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_fresh_date_still_requires_expected_job (tests.test_console_taesd_result.AssessTests.test_fresh_date_still_requires_expected_job) (kwargs={'seed': '99'})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-pr381/tests/test_console_taesd_result.py", line 44, in test_fresh_date_still_requires_expected_job
+    self.assertFalse(ok)
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_vae_duration_must_be_finite_nonnegative_number (tests.test_console_taesd_result.AssessTests.test_vae_duration_must_be_finite_nonnegative_number) (value='-1')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-pr381/tests/test_console_taesd_result.py", line 51, in test_vae_duration_must_be_finite_nonnegative_number
+    self.assertFalse(ok)
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_vae_duration_must_be_finite_nonnegative_number (tests.test_console_taesd_result.AssessTests.test_vae_duration_must_be_finite_nonnegative_number) (value='NaN')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-pr381/tests/test_console_taesd_result.py", line 51, in test_vae_duration_must_be_finite_nonnegative_number
+    self.assertFalse(ok)
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_vae_duration_must_be_finite_nonnegative_number (tests.test_console_taesd_result.AssessTests.test_vae_duration_must_be_finite_nonnegative_number) (value='inf')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-pr381/tests/test_console_taesd_result.py", line 51, in test_vae_duration_must_be_finite_nonnegative_number
+    self.assertFalse(ok)
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_vae_duration_must_be_finite_nonnegative_number (tests.test_console_taesd_result.AssessTests.test_vae_duration_must_be_finite_nonnegative_number) (value='1;exit 0')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-pr381/tests/test_console_taesd_result.py", line 51, in test_vae_duration_must_be_finite_nonnegative_number
+    self.assertFalse(ok)
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_vae_duration_must_be_finite_nonnegative_number (tests.test_console_taesd_result.AssessTests.test_vae_duration_must_be_finite_nonnegative_number) (value='word')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-pr381/tests/test_console_taesd_result.py", line 51, in test_vae_duration_must_be_finite_nonnegative_number
+    self.assertFalse(ok)
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_windows_full_package_name_matches_family (tests.test_console_taesd_result.PrivateWsTests.test_windows_full_package_name_matches_family)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-pr381/tests/test_console_taesd_result.py", line 187, in test_windows_full_package_name_matches_family
+    self.assertEqual(MODULE.private_ws_mb(data, FAMILY), 1)
+AssertionError: None != 1
+
+----------------------------------------------------------------------
+Ran 28 tests in 0.290s
+
+FAILED (failures=9)
