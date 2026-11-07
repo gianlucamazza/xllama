@@ -146,14 +146,14 @@ def main() -> int:
     model_ref = resolve_model_dir(args.model, args.cache_dir)
     print(f"loading model: {model_ref}", file=sys.stderr)
 
-    tokenizer = AutoTokenizer.from_pretrained(model_ref, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(model_ref, trust_remote_code=False)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
     model = AutoModelForCausalLM.from_pretrained(
         model_ref,
         dtype=torch.float32,
-        trust_remote_code=True,
+        trust_remote_code=False,
     )
     model.config.use_cache = False
 
