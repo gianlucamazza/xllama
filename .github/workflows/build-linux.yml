@@ -106,6 +106,7 @@ jobs:
           python3 -m py_compile scripts/hash-model-artifacts.py \
             scripts/sign-model-manifest.py scripts/validate-benchmark.py \
             scripts/validate-benchmark-sidecar.py scripts/write-benchmark-sidecar.py \
+            scripts/benchmark_sidecar.py \
             scripts/build-research-package.py scripts/build-release-bundle.py \
             scripts/check-release-metadata.py scripts/release-research.py \
             scripts/sync-release-metadata.py scripts/zenodo-deposit.py \
@@ -113,10 +114,13 @@ jobs:
           bash -n scripts/run-xab.sh
 
       - name: Test research package tooling
-        run: python3 -m unittest tests/test_research_package.py tests/test_xab_contract.py tests/test_release_metadata.py tests/test_release_bundle.py tests/test_make_shape_gguf.py tests/test_bench_run_status.py tests/test_console_run_log.py tests/test_console_temp_chats.py tests/test_catalog_licenses.py tests/test_diffusion_export.py tests/test_redact_recorded_path.py
+        run: python3 -m unittest tests/test_benchmark_sidecar.py tests/test_research_package.py tests/test_xab_contract.py tests/test_release_metadata.py tests/test_release_bundle.py tests/test_make_shape_gguf.py tests/test_bench_run_status.py tests/test_validate_benchmark.py tests/test_console_run_log.py tests/test_console_temp_chats.py tests/test_catalog_licenses.py tests/test_diffusion_export.py tests/test_redact_recorded_path.py
 
       - name: Verify release metadata synchronization
         run: python3 scripts/check-release-metadata.py
+
+      - name: Verify host training model trust policy
+        run: python3 -m unittest tests/test_host_model_trust.py
 
       - name: Verify Python dependency monitoring coverage
         run: python3 -m unittest tests/test_dependency_monitoring.py
