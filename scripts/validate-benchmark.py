@@ -31,7 +31,7 @@ def main() -> int:
             parser.error("schema v2 contains unexpected or missing fields")
         for number, row in enumerate(reader, start=2):
             # Historical campaigns include single-field comment lines, not runs.
-            if row.get("model", "").startswith("#") and all(
+            if (row.get("model") or "").startswith("#") and all(
                 value is None for field, value in row.items() if field != "model"
             ):
                 continue

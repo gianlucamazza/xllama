@@ -71,6 +71,13 @@ class ValidateBenchmarkTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 2)
                 self.assertIn("wrong field count", result.stderr)
 
+    def test_short_row_with_reordered_headers_is_a_controlled_error(self):
+        fields = [field for field in CORE if field != "model"] + ["model"]
+        result = self.validate(fields, row_delta=-1)
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("wrong field count", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
     def test_duplicate_headers_are_rejected(self):
         result = self.validate(CORE + ["model"])
         self.assertEqual(result.returncode, 2)
