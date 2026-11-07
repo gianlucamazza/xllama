@@ -19,6 +19,12 @@ Never combine the best prefill, decode, or RAM values from different CSV rows.
 Add a row to `benchmark-summary.json` when a newly measured configuration should
 appear in the consolidated comparison.
 
+The CSV validator rejects duplicate headers, short or long rows, non-finite
+metrics (including NaN and infinity), negative metrics, and invalid integer
+settings. Historical schemas, single-field comment lines and empty optional cells
+remain supported. Passing
+this structural check does not verify provenance or reproduce a measurement.
+
 ## Methodology
 
 - **Prompts**: fixed prompts in `bench/prompts/` (same across all runs for comparability).
