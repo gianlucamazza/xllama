@@ -35,6 +35,14 @@ sample count, personalized manifest JSON — host-tested in
 
 ## Quick start
 
+The host PEFT trainer loads tokenizer and model classes built into Transformers
+with `trust_remote_code=False`, for both Hub IDs and local snapshots. The
+included PEFT recipes use SmolLM2 (the built-in Llama architecture). Models that
+require custom Python code fail closed; the trainer has no execution opt-in.
+Supporting such a model requires a separate reviewed workflow with an immutable
+code revision. This loading policy does not establish dependency security or
+training and inference parity.
+
 The host PEFT requirements are monitored separately by Dependabot. Ordinary
 version update PRs are disabled; security updates remain enabled. This is
 monitoring, not evidence that the dependency graph is patched. The current
