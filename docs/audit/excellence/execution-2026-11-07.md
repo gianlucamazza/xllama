@@ -89,7 +89,9 @@ Changes discovered or opened during this execution:
 | `cursor/decision-models-spike-8b6e`   | #356 closed NO-GO; compare new Laya fork evidence before considering reopening; no automatic import         |
 | `feat/floppylm-training`              | #301 closed without merge; respect existing [FloppyLM disposition](../../floppylm.md), no automatic revival |
 
-New intervention branches are identified by their PRs above. Integration order:
+The first hardening PR #399 passed all four required exact-head checks and was
+squash-merged as `c7e71607fbd931c36ffc0167aadbae9d72c246db`. The remaining
+intervention branches are identified by their PRs above. Integration order:
 #399, #401, #396, #400, #381, then #369 after hardware receipts. Refresh each PR
 against main before integration. Several independently add CI test names and
 AGENTS commands; resolve by retaining **all** checks, not by choosing one side.
@@ -99,19 +101,19 @@ must link source SHA, PR, tests and remaining blockers.
 
 ## Risk register and dependency matrix
 
-| Risk                                                             | Impact / likelihood                            | Control and accountable role                                                                          | Blocks / release condition                                         |
-| ---------------------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| R1: host evidence mistaken for Xbox proof                        | High / high                                    | QA keeps platform and package provenance; no inferred device PASS                                     | #263, #374, #369 until actual target runs                          |
-| R2: custom model code execution                                  | High / confirmed policy gap                    | Security #401 explicitly refuses it; no unreviewed opt-in                                             | Host training trust boundary; exact-head tests                     |
-| R3: malformed evidence admitted                                  | High / reproduced                              | QA #396/#400/#381 fail closed; immutable historical evidence                                          | New claims until validators and receipts pass                      |
-| R4: stale security issue body hides shipped migration            | High / confirmed                               | Security separates source implementation, export parity, live proof and advisory status               | #263 remains open until remaining receipts exist                   |
-| R5: vendor overlay removed prematurely                           | High / medium                                  | Release retains SHA-pinned binaries until both source-inclusion and live gates pass                   | Runtime pin retirement, not ordinary docs-only work                |
-| R6: fork ISA/shader downgrade imported as optimization           | High / confirmed incompatible scope            | GPU review rejects automatic import; compiler/profile/blob provenance                                 | Any bjoern import; separate SKU decision required                  |
-| R7: required CI absent or stale                                  | High / observed missing current receipts       | Release checks exact head; no bypass, no inherited green result                                       | Every merge and stable release                                     |
-| R8: training stack outside patched compatibility floor           | High / confirmed range excludes transformers 5 | Security #399 adds monitoring; resolve PEFT/train/merge/parity in isolation before pins change        | Host training security remediation; no closure by monitoring alone |
-| R9: hardware mislabeled / resource probes mistaken for inference | High / confirmed third-party caveat            | Research preserves raw labels, records observed OS identity separately; acceptance requires inference | #374 and cross-device claims                                       |
-| R10: multiple PRs overwrite CI commands                          | Medium / observed merge-line overlap           | Principal resolves incrementally and reruns combined tests                                            | Merge ordering, current-head CI                                    |
-| R11: thermal/noise/selection bias                                | High / medium                                  | Research preregisters matched arms, all repeats/failures and uncertainty                              | Performance promotion and publication-grade claim                  |
+| Risk                                                             | Impact / likelihood                            | Control and accountable role                                                                                          | Blocks / release condition                                         |
+| ---------------------------------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| R1: host evidence mistaken for Xbox proof                        | High / high                                    | QA keeps platform and package provenance; no inferred device PASS                                                     | #263, #374, #369 until actual target runs                          |
+| R2: custom model code execution                                  | High / confirmed policy gap                    | Security #401 explicitly refuses it; no unreviewed opt-in                                                             | Host training trust boundary; exact-head tests                     |
+| R3: malformed evidence admitted                                  | High / reproduced                              | QA #396/#400/#381 fail closed; immutable historical evidence                                                          | New claims until validators and receipts pass                      |
+| R4: stale security issue body hides shipped migration            | High / confirmed                               | Security separates source implementation, export parity, live proof and advisory status                               | #263 remains open until remaining receipts exist                   |
+| R5: vendor overlay removed prematurely                           | High / medium                                  | Release retains SHA-pinned binaries until both source-inclusion and live gates pass                                   | Runtime pin retirement, not ordinary docs-only work                |
+| R6: fork ISA/shader downgrade imported as optimization           | High / confirmed incompatible scope            | GPU review rejects automatic import; compiler/profile/blob provenance                                                 | Any bjoern import; separate SKU decision required                  |
+| R7: required CI absent or stale                                  | High / observed missing current receipts       | Release checks exact head; no bypass, no inherited green result                                                       | Every merge and stable release                                     |
+| R8: training stack outside patched compatibility floor           | High / confirmed range excludes transformers 5 | Security #405 owns remediation; #399 adds monitoring; resolve PEFT/train/merge/parity in isolation before pins change | Host training security remediation; no closure by monitoring alone |
+| R9: hardware mislabeled / resource probes mistaken for inference | High / confirmed third-party caveat            | Research preserves raw labels, records observed OS identity separately; acceptance requires inference                 | #374 and cross-device claims                                       |
+| R10: multiple PRs overwrite CI commands                          | Medium / observed merge-line overlap           | Principal resolves incrementally and reruns combined tests                                                            | Merge ordering, current-head CI                                    |
+| R11: thermal/noise/selection bias                                | High / medium                                  | Research preregisters matched arms, all repeats/failures and uncertainty                                              | Performance promotion and publication-grade claim                  |
 
 Dependency path: trustworthy harness → exact CI package → source/model/device
 binding → numerical correctness → matched performance/quality → claim registry
@@ -169,9 +171,15 @@ passed. New branch-specific tests are recorded in their PR descriptions and
 the [receipt](execution-2026-11-07/verification.json). These host runs do not
 verify UWP, shaders, exports, model quality or Xbox behaviour.
 
+The subsequent [isolated diffusion host receipt](execution-2026-11-07/diffusion-host-receipt.json) records supported dependency resolution/installation, clean `pip check` and 25 export tests without skips. Tests use synthetic/tiny random models, not full SD-Turbo weights. The dependency audit queried 50 installed packages with zero known findings after upgrading the temporary venv bootstrap pip; the CPU Torch wheel was skipped, and a separate base-release advisory lookup is recorded with its narrower scope. None of this closes #263.
+
+Real first-party VAE-only export, eager/ORT verification and fp16 conversion also passed; [raw receipt](execution-2026-11-07/host-vae-receipt.json) and [canonical source binding](execution-2026-11-07/vae-source-binding.json) retain exact checkpoint/asset hashes. New and published legacy fp16 passed the existing fixed-input fp16-vs-new-fp32 VAE check. This is directional component evidence, not the legacy-fp32/full-pipeline parity required by ADR 0003. UNet needs more available host memory, the legacy fp32 reference is not published in models-v1, and all device gates remain pending. No claim registry or shipping asset is promoted.
+
+A later [sanitizer receipt](execution-2026-11-07/sanitizer-receipt.json) records a passing Debug ASan+UBSan build and strict ctest with leak detection disabled. Default LeakSanitizer fails under ptrace, independently reproduced on an empty program; it is BLOCKED, not passed. llama.cpp/ggml are outside this instrumentation scope.
+
 This environment has no configured `xbox-env`; no console connection, Windows
-UWP build, actual training/export, GPU benchmark or hardware acceptance was
-performed. Required remote CI remains a separate gate. Therefore GPU promotion,
+UWP build, actual host training, complete production diffusion export, GPU benchmark or hardware acceptance was
+performed. The VAE-only host trial above is the sole real-component export exception. Required remote CI remains a separate gate. Therefore GPU promotion,
 #263 closure, #374 closure, final RC approval and stable release are blocked.
 No historical result, generated numeric table or accepted ADR was rewritten.
 

@@ -586,6 +586,9 @@ Before collecting optimized results, freeze a campaign manifest containing:
   retry/failure rules. A sampled memory maximum is not a true peak.
 
 Proposed decision thresholds, frozen here before any optimized measurements:
+all ratios below are experiment/baseline (throughput for prefill/decode, latency
+for TTFT). Freeze exact prompt files/hashes and actual tokenizer counts in the
+campaign manifest; approximate lengths below are planning targets.
 for each gate model (shipping LFM2.5-1.2B and historical Coder-3B, the latter
 research-only and excluded from catalogue), require long-prompt prefill ratio
 at least 1.10 at P approximately 512 and 1000. Require decode ratio at least

@@ -1,0 +1,28 @@
+{
+  "receipt": "host-vae-receipt.json",
+  "receipt_sha256": "2e9b7e79ad1a5a60748e0eadff5ffb31d463eabb2c4ad6b9dc8967a498bbe67a",
+  "canonical_source_content_sha": "b6034ca7acb4630febe92552ae67599ff82f9683",
+  "source_files_verified_against_canonical_commit": [
+    {
+      "path": "diffusion/export_sd_turbo.py",
+      "sha256": "9dae3bc08418f226aa9e31ca344c66072db9e81f383fe22c8c6bdf1c64a13144"
+    },
+    {
+      "path": "diffusion/convert_fp16.py",
+      "sha256": "ed00f550c8e5e2054e5f2820aabdc08d53eee3b9fe573ad6e2ffbd0b4fdaac9d"
+    },
+    {
+      "path": "diffusion/compare_onnx_exports.py",
+      "sha256": "adb600283e4e5f91d42bc33e693c5e8032b3792c111c5a8e843d28c15bb019ad"
+    },
+    {
+      "path": "diffusion/export_parity.json",
+      "sha256": "4151c83df18165bc6c31575757c00568ded72a3992790855a56fce397be18a3d"
+    },
+    {
+      "path": "diffusion/requirements.txt",
+      "sha256": "09bd09256ee397143bc9863571f78399ee993f328976d47f006d1ebfa40c5dd3"
+    }
+  ],
+  "note": "Receipt records local checkout merge SHA. All executed exporter/converter/parity/requirements file bytes match this remotely reachable canonical source. Paths in receipt commands are sanitized; use isolated environment setup in diffusion/README.md and reproduce only the VAE component scope. No new Xbox/performance claim is selected."
+}
