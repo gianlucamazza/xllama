@@ -35,6 +35,14 @@ sample count, personalized manifest JSON — host-tested in
 
 ## Quick start
 
+The host PEFT requirements are monitored separately by Dependabot. Ordinary
+version update PRs are disabled; security updates remain enabled. This is
+monitoring, not evidence that the dependency graph is patched. The current
+`transformers<5` training constraint excludes the patched floor documented in
+[ADR 0003](../docs/adr/0003-diffusion-export-first-party.md) for the separate
+diffusion environment. A training migration must resolve a coherent PEFT stack
+and verify train, merge and inference parity before changing those pins.
+
 From the **repo root**:
 
 ```bash

@@ -118,6 +118,9 @@ jobs:
       - name: Verify release metadata synchronization
         run: python3 scripts/check-release-metadata.py
 
+      - name: Verify Python dependency monitoring coverage
+        run: python3 -m unittest tests/test_dependency_monitoring.py
+
       - name: Verify code/project/doc coherence (SSOT audit)
         run: python3 scripts/check-coherence.py
 
