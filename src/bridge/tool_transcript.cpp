@@ -3,6 +3,8 @@
 
 #include "xllama/tool_transcript.h"
 
+#include "xllama/chat_prompt.h"
+
 #include <nlohmann/json.hpp>
 
 #include <utility>
@@ -94,7 +96,8 @@ AdmitResult admit_transcript(const std::vector<ChatMessage>& messages,
 }
 
 ChoiceAssembly assemble_choice(const std::string& raw_text, const std::string& parsed_text,
-                               const std::vector<IncomingCall>& calls, bool hit_cap) {
+                               const std::vector<IncomingCall>& calls, bool hit_cap,
+                               bool strip_thinking) {
     ChoiceAssembly out;
     int missing = 0;
     for (const IncomingCall& call : calls) {
@@ -110,12 +113,12 @@ ChoiceAssembly assemble_choice(const std::string& raw_text, const std::string& p
         out.tool_calls.push_back(std::move(emitted));
     }
     if (out.tool_calls.empty()) {
-        out.content = raw_text;
+        out.content = strip_thinking ? strip_thinking_blocks(raw_text) : raw_text;
         out.finish_reason = hit_cap ? "length" : "stop";
         return out;
     }
-    out.content_null = parsed_text.empty();
-    out.content = parsed_text;
+    out.content = strip_thinking ? strip_thinking_blocks(parsed_text) : parsed_text;
+    out.content_null = out.content.empty();
     out.finish_reason = "tool_calls";
     return out;
 }

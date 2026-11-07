@@ -834,7 +834,8 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
         session->resident_llama_model(), "", fit.messages, request.tools, request.choice,
         request.forced_name, generated.output_text, hit_cap);
     const ::xllama::ChoiceAssembly assembly =
-        ::xllama::assemble_choice(generated.output_text, parsed.content, parsed.calls, hit_cap);
+        ::xllama::assemble_choice(generated.output_text, parsed.content, parsed.calls, hit_cap,
+                                  ::xllama::model_is_thinking(model));
 
     JsonObject message;
     message.Insert(L"role", JsonValue::CreateStringValue(L"assistant"));

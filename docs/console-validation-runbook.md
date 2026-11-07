@@ -1,6 +1,6 @@
 # Console validation runbook
 
-Current on-device release gates for Xbox Series S Dev Mode. Tested and measured
+Current on-device release gates for Xbox Series S Developer Mode. Tested and measured
 on Series S. Not yet tested on Series X. Historical experiment
 procedures and measured results live in `CHANGELOG.md` and `bench/results/`.
 
@@ -187,10 +187,11 @@ n_ctx` — rather than the answer's length, which keeps the verdict independent
   gate instead. `wait_idle` (default 120 s, `XLLAMA_TAESD_READY_TIMEOUT_S`,
   250 ms poll, three consecutive idle reads of the UI/preload atomics) parks
   until session preload is done, so `generate_image` is not rejected busy at
-  launch. A `diffuse-result.csv` row is accepted only when its `date` is at or
-  after the recorded UTC start, or when a valid pre-run snapshot exists, the
-  file changed, and the row is the taesd job (`sd-turbo-fp16`, steps 1, seed
-  42); a stale last row is a FAIL, never an `ok` number. `ok` is printed only
+  launch. A `diffuse-result.csv` row must identify the taesd job
+  (`sd-turbo-fp16`, steps 1, seed 42) and contain a finite nonnegative VAE
+  duration. Its `date` must be at or after the recorded UTC start, or a valid
+  pre-run snapshot must exist and the file must have changed; a stale last
+  row is a FAIL, never an `ok` number. `ok` is printed only
   when the autopilot marker is `ok`. `max_sampled_private_ws_mb` is the max of
   PrivateWorkingSet sampled every `XLLAMA_TAESD_WS_SAMPLE_S` seconds (default
   5), matched by package family from the installed PFN (or

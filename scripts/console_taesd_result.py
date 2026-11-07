@@ -4,7 +4,8 @@
 """Freshness and sampled-memory helpers for the taesd console gate.
 
 The gate must never report a VAE time from a prior run's diffuse-result.csv.
-A row is from this run only when:
+A row must identify the expected TAESD job and contain a finite nonnegative
+VAE duration. It is from this run only when:
 
   (valid CSV date >= valid run_start)
   OR (a valid pre-run snapshot exists AND the file contents changed
@@ -24,6 +25,8 @@ import argparse
 import csv
 import io
 import json
+import math
+import re
 import sys
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, Optional, Sequence, Tuple
@@ -87,7 +90,14 @@ def assess_result(
     if after_row is None:
         return False, "", "FAIL: no diffuse-result.csv row from this run"
 
+    if not _is_expected_job(after_row):
+        return False, "", "FAIL: diffuse-result.csv row is not the taesd job"
     vae = _vae_ms(after_row)
+    if not re.fullmatch(r"[+]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?", vae):
+        return False, "", "FAIL: this-run diffuse-result.csv row has invalid vae_ms"
+    duration = float(vae)
+    if not math.isfinite(duration) or duration < 0:
+        return False, "", "FAIL: this-run diffuse-result.csv row has invalid vae_ms"
     date_raw = after_row.get("date", "")
     date = parse_csv_date(date_raw)
     run_start = parse_csv_date(run_start_utc)
@@ -143,7 +153,10 @@ def assess_result(
 def _is_app_process(proc: Dict[str, Any], package_family: str) -> bool:
     if not package_family:
         return False
-    return package_family in str(proc.get("PackageFullName", ""))
+    # Windows PackageFullName is Name_Version_Architecture_ResourceId_PublisherId.
+    # The family is Name_PublisherId, not a contiguous substring of that name.
+    parts = str(proc.get("PackageFullName", "")).rsplit("_", 4)
+    return len(parts) == 5 and f"{parts[0]}_{parts[4]}" == package_family
 
 
 def _private_ws_bytes(proc: Dict[str, Any]) -> Optional[int]:

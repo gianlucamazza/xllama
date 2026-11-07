@@ -1,7 +1,7 @@
 # LAN HTTP endpoint (OpenAI-compatible)
 
 **Status:** v1 — spike + chat (streaming via SSE on request) + UI parity surface (#118: preferences,
-training status, images). Opt-in, **default OFF**. Dev Mode / LAN research only.
+training status, images). Opt-in, **default OFF**. Developer Mode / LAN research only.
 Not for public inbound.
 
 xllama can expose its inference core (`xllama::Session`) as an HTTP endpoint on the local
@@ -58,7 +58,7 @@ Lifetime Management — no always-on system service). On Xbox this is stricter t
 the package is game-classified (Device Portal _"Treat UWP apps as games by default"_) it is
 **suspended and terminated** in the background, and `ExtendedExecutionSession` does not keep
 a listener alive. Keep the app foregrounded on the console while using the endpoint. Accepted:
-this is Dev Mode research, not a hosted service.
+this is Developer Mode research, not a hosted service.
 
 > Verified against learn.microsoft.com (2024-2026): `privateNetworkClientServer` +
 > `StreamSocketListener` is the documented path for LAN inbound; network isolation blocks
@@ -155,7 +155,7 @@ client does. One request is one generation, constrained by the template's gramma
 (`common_chat_templates_apply` / `common_chat_parse`). An ONNX session returns
 `400` `tools require a GGUF chat template`. A GGUF with no explicit chat template
 returns `400` `model has no chat template`, and one that renders without the
-schema returns `400` `model chat template does not render tools` (phi4-mini). The server does not fall back to
+schema returns `400` `model chat template does not render tools` (phi4-mini). That check compares the prompt rendered with and without `tools`, so replaying a call in the transcript does not trigger it. A template that raises on such a transcript (`gemma3-*`) returns `400` `model chat template failed: ...` instead. The server does not fall back to
 `ChatFormat` with the schema pasted on. KV reuse stays off. Stops are the
 template's additional stops plus the client's `stop`. The template's preserved tokens (LFM2's
 `<|tool_call_start|>`, ...) are decoded as text so the parser sees them; every

@@ -1,7 +1,7 @@
 # Privacy policy — xllama
 
 **Last updated:** 2026-10-25  
-**Applies to:** the xllama UWP application (Dev Mode sideload). The reduced
+**Applies to:** the xllama UWP application (Developer Mode sideload). The reduced
 build is a CI artifact only and is not published.  
 **Operator:** Gianluca Mazza (see the GitHub repository
 [gianlucamazza/xllama](https://github.com/gianlucamazza/xllama)).
@@ -36,7 +36,7 @@ Outbound network use is limited to:
    default chat model). Sources are listed in the in-app catalogue
    (`uwp/models/manifest.json`): typically GitHub Releases (`models-v1`) and/or
    Hugging Face model repositories.
-2. **Nothing else by default.** The optional LAN HTTP API (Dev Mode / research
+2. **Nothing else by default.** The optional LAN HTTP API (Developer Mode / research
    SKU only) speaks only on your local network when you turn it on; it is
    **not** included in the reduced build (not published) and is unauthenticated —
    use only on a trusted LAN.
@@ -68,7 +68,7 @@ treat the app as a supervised kids product.
 
 - Do not download models you do not want stored on the console.
 - Clear app data / uninstall to remove LocalState (including history and models).
-- Do not enable the LAN API (Dev Mode) on untrusted networks.
+- Do not enable the LAN API (Developer Mode) on untrusted networks.
 - The reduced build (not published) omits research surfaces (LAN API, USB paths,
   headless flags).
 - Report inappropriate generated content from Settings (GitHub Issues form).

@@ -37,6 +37,21 @@ def row(model="sd-turbo-fp16", steps="1", seed="42", vae="635.6", date=""):
 
 
 class AssessTests(unittest.TestCase):
+    def test_fresh_date_still_requires_expected_job(self):
+        for kwargs in ({"model": "other"}, {"steps": "4"}, {"seed": "99"}):
+            with self.subTest(kwargs=kwargs):
+                ok, vae, _ = MODULE.assess_result(row(date="2026-11-01T08:00:10Z", **kwargs), RUN_START)
+                self.assertFalse(ok)
+                self.assertEqual(vae, "")
+
+    def test_vae_duration_must_be_finite_nonnegative_number(self):
+        for value in ("-1", "NaN", "inf", "1;exit 0", "word"):
+            with self.subTest(value=value):
+                ok, vae, _ = MODULE.assess_result(row(vae=value, date="2026-11-01T08:00:10Z"), RUN_START)
+                self.assertFalse(ok)
+                self.assertEqual(vae, "")
+
+
     def test_stale_last_row_is_rejected(self):
         ok, vae, msg = MODULE.assess_result(STALE, RUN_START, STALE)
         self.assertFalse(ok)
@@ -166,13 +181,24 @@ class AssessTests(unittest.TestCase):
 
 
 class PrivateWsTests(unittest.TestCase):
+    def test_windows_full_package_name_matches_family(self):
+        data = self.payload(PackageFullName="GianlucaMazza.xllama_1.7.0.1350_x64__publisher",
+                            PrivateWorkingSet=1024 * 1024)
+        self.assertEqual(MODULE.private_ws_mb(data, FAMILY), 1)
+
+    def test_windows_full_package_name_rejects_other_publisher(self):
+        data = self.payload(PackageFullName="GianlucaMazza.xllama_1.7.0.1350_x64__another",
+                            PrivateWorkingSet=1024 * 1024)
+        self.assertIsNone(MODULE.private_ws_mb(data, FAMILY))
+
+
     def payload(self, **proc):
         return json.dumps({"Processes": [proc]})
 
     def test_private_working_set_is_converted_from_bytes(self):
         data = self.payload(
             ImageName="xllama.exe",
-            PackageFullName=f"{FAMILY}_1.7.0.0_x64__unused",
+            PackageFullName="GianlucaMazza.xllama_1.7.0.0_x64__publisher",
             WorkingSetSize=999999999,
             PrivateWorkingSet=2 * 1024 * 1024 * 1024,
         )
@@ -181,7 +207,7 @@ class PrivateWsTests(unittest.TestCase):
     def test_working_set_alone_is_not_used(self):
         data = self.payload(
             ImageName="xllama.exe",
-            PackageFullName=f"{FAMILY}_1.7.0.0_x64__unused",
+            PackageFullName="GianlucaMazza.xllama_1.7.0.0_x64__publisher",
             WorkingSetSize=3 * 1024 * 1024 * 1024,
         )
         self.assertIsNone(MODULE.private_ws_mb(data, FAMILY))
@@ -189,7 +215,7 @@ class PrivateWsTests(unittest.TestCase):
     def test_peak_keys_are_not_used(self):
         data = self.payload(
             ImageName="xllama.exe",
-            PackageFullName=f"{FAMILY}_1.7.0.0_x64__unused",
+            PackageFullName="GianlucaMazza.xllama_1.7.0.0_x64__publisher",
             PeakWorkingSetSize=2 * 1024 * 1024 * 1024,
             PrivateWorkingSetSize=3 * 1024 * 1024 * 1024,
         )

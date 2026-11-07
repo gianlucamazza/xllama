@@ -181,7 +181,7 @@
     <header class="head">
       <p class="eyebrow">xllama · on-device inference · benchmarks</p>
       <h1>Model performance on Xbox&nbsp;Series&nbsp;S</h1>
-      <p class="sub">Every text model xllama has run on the console (Dev Mode), across three backends — llama.cpp CPU, ONNX Runtime GenAI CPU, and ORT DirectML. Decode throughput is what a user feels; higher is better.</p>
+      <p class="sub">Every text model xllama has run on the console (Developer Mode), across three backends — llama.cpp CPU, ONNX Runtime GenAI CPU, and ORT DirectML. Decode throughput is what a user feels; higher is better.</p>
       <div class="hero-stats" id="heroStats"></div>
     </header>
 
@@ -231,14 +231,14 @@
       <summary>Data table &amp; sources</summary>
       <div class="twrap">
         <table id="dataTable">
-          <thead><tr><th>Model</th><th>Quant</th><th>Backend</th><th>Prefill&nbsp;tok/s</th><th>Decode&nbsp;tok/s</th><th>Peak&nbsp;RAM&nbsp;MB</th><th>Source</th></tr></thead>
+          <thead><tr><th>Model</th><th>Quant</th><th>Backend</th><th>Prefill&nbsp;tok/s</th><th>Decode&nbsp;tok/s</th><th>Peak&nbsp;RAM&nbsp;MiB</th><th>Source</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
     </details>
 
     <footer class="note">
-      On-console figures measured on Xbox Series S Dev Mode — raw CSV/JSONL files live in <code>bench/results/</code>. Each chart row is one atomic run selected by <code>bench/benchmark-summary.json</code>; generated output freshness is enforced in CI. See <code>docs/benchmarks.md</code>.
+      On-console figures measured on Xbox Series S in Developer Mode. Tested and measured on Series S. Not yet tested on Series X. Raw CSV/JSONL files live in <code>bench/results/</code>. Each chart row is one atomic run selected by <code>bench/benchmark-summary.json</code>; generated output freshness is enforced in CI. See <code>docs/benchmarks.md</code>.
     </footer>
   </div>
 </div>
@@ -416,6 +416,16 @@
     "tag": "benchmark; model under a non-commercial research licence"
   },
   {
+    "model": "LFM2.5-8B-A1B (tested, not shipping)",
+    "quant": "UD-IQ3_S",
+    "be": "llama",
+    "prefill": 18.97,
+    "decode": 14.5,
+    "ram": 3553,
+    "src": "phase15-moe-console",
+    "tag": "H2 FAIL \u00b7 experimental catalogue entry"
+  },
+  {
     "model": "Qwen2.5-Coder-3B (benchmark; model under a non-commercial research licence)",
     "quant": "Q4_K_M",
     "be": "llama",
@@ -536,7 +546,7 @@
   const METRICS = {
     decode:  { label: "Decode", unit: "tok/s", cap: "Generation throughput — the rate a user feels. Higher is better.", better: "high" },
     prefill: { label: "Prefill", unit: "tok/s", cap: "Prompt-ingestion throughput. Higher is better; matters most for long prompts.", better: "high" },
-    ram:     { label: "Peak RAM", unit: "MB", cap: "Peak working set. Lower is better on the constrained Dev Mode budget.", better: "low" },
+    ram:     { label: "Peak RAM", unit: "MiB", cap: "Peak working set. Lower is better on the constrained Developer Mode budget.", better: "low" },
   };
 
   const chart = document.getElementById("chart");
@@ -570,7 +580,7 @@
           `<span>Backend</span><span>${BACKENDS[r.be].name}</span>`+
           `<span>Decode</span><span>${r.decode.toFixed(1)} tok/s</span>`+
           `<span>Prefill</span><span>${r.prefill.toFixed(1)} tok/s</span>`+
-          `<span>Peak RAM</span><span>${r.ram.toLocaleString()} MB</span>`+
+          `<span>Peak RAM</span><span>${r.ram.toLocaleString()} MiB</span>`+
           `<span>Source</span><span>${r.src}</span></div>`;
         const x = (e.touches ? e.touches[0].clientX : e.clientX);
         const y = (e.touches ? e.touches[0].clientY : e.clientY);
@@ -601,7 +611,7 @@
   const lightest = DATA.reduce((a,b) => b.ram < a.ram ? b : a);
   document.getElementById("heroStats").innerHTML = `
     <div class="stat"><p class="k">Fastest decode</p><div class="v">${fastest.decode.toFixed(1)} <small>tok/s</small></div><p class="n">${fastest.model} · ${BACKENDS[fastest.be].name}</p></div>
-    <div class="stat"><p class="k">Lightest</p><div class="v">${lightest.ram} <small>MB</small></div><p class="n">${lightest.model} · ${lightest.quant}</p></div>
+    <div class="stat"><p class="k">Lightest</p><div class="v">${lightest.ram} <small>MiB</small></div><p class="n">${lightest.model} · ${lightest.quant}</p></div>
     <div class="stat"><p class="k">Models benched</p><div class="v">${DATA.length} <small>configs</small></div><p class="n">latest run · ${LATEST_RUN}</p></div>
     <div class="stat"><p class="k">KV-reuse win</p><div class="v">${MAX_KV_REUSE.toFixed(1)}<small>×</small></div><p class="n">best measured turn-2 prefill</p></div>`;
 
@@ -624,7 +634,7 @@
       <dl>
         <dt>Arch loads</dt><dd><span class="chip ${g.status[0]}">${g.status[0]==="ok"?"✓":"◐"} ${g.status[1]}</span></dd>
         <dt>Console decode</dt><dd>${g.result.decode.toFixed(1)} tok/s</dd>
-        <dt>Console peak RAM</dt><dd>${g.result.ram.toLocaleString()} MB</dd>
+        <dt>Console peak RAM</dt><dd>${g.result.ram.toLocaleString()} MiB</dd>
       </dl>
       <p class="meta" style="margin:12px 0 0">${g.note}</p>
     </div>`).join("");

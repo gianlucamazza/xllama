@@ -85,7 +85,10 @@ struct ChoiceAssembly {
 // the content. Missing ids become call_1, call_2, … in parse order. Arguments
 // are always a JSON string. `content` is null only when calls were emitted and
 // the model wrote no text (`parsed_text` empty).
+// `strip_thinking` removes <think> reasoning from the text, as plain chat does for
+// thinking models (a reply cut off mid-thought leaves no text).
 ChoiceAssembly assemble_choice(const std::string& raw_text, const std::string& parsed_text,
-                               const std::vector<IncomingCall>& calls, bool hit_cap);
+                               const std::vector<IncomingCall>& calls, bool hit_cap,
+                               bool strip_thinking = false);
 
 } // namespace xllama

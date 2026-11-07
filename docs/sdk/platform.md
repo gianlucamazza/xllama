@@ -11,7 +11,7 @@ int detect_threads_llama() noexcept;
 void log_output(const char* msg) noexcept;
 void log_output(const std::string& msg) noexcept;
 
-// Peak working set in MB (0 if unavailable).
+// Peak working set in MiB (0 if unavailable).
 std::size_t peak_working_set_mb() noexcept;
 
 // Physical memory available to the process, in MB.

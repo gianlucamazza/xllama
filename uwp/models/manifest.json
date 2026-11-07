@@ -345,11 +345,11 @@
       ]
     },
     {
-      "_comment": "LFM2.5-1.2B-Thinking Q4_K_M — hybrid CoT. ChatML; model_is_thinking strips <think>…</think> for display/persist. Catalogue n_predict=1024 (applied on model select, #223) so short CoT+answer fits more often than the UI default 512; hard multi-step prompts may still exhaust the budget (reasoning-only stand-in). Console phase14: 130.4 prefill / 36.7 decode / 811 MB. LFM Open License. No KV snapshot (#170b) — stripped history diverges from CoT tokens.",
+      "_comment": "LFM2.5-1.2B-Thinking Q4_K_M — hybrid CoT. ChatML; model_is_thinking strips <think>…</think> for display/persist. Catalogue n_predict=1024 (applied on model select, #223) so short CoT+answer fits more often than the UI default 512; hard multi-step prompts may still exhaust the budget (reasoning-only stand-in). Console phase14: 130.4 prefill / 36.7 decode / 811 MB. LFM Open License. No KV snapshot (#170b) — stripped history diverges from CoT tokens. Pinned to HF revision 9584426: LiquidAI reconverted this GGUF on 2026-10-29, so resolve/main no longer matches the SHA-256 or the console measurements above.",
       "name": "lfm25-1.2b-thinking",
       "display": "LFM2.5 1.2B Thinking (GGUF · CPU · reasoning · 1024 tok)",
       "kind": "gguf",
-      "hf_base_url": "https://huggingface.co/LiquidAI/LFM2.5-1.2B-Thinking-GGUF/resolve/main",
+      "hf_base_url": "https://huggingface.co/LiquidAI/LFM2.5-1.2B-Thinking-GGUF/resolve/9584426effbfa44b677e925793a12188a36b44ce",
       "files": [
         {
           "filename": "LFM2.5-1.2B-Thinking-Q4_K_M.gguf",

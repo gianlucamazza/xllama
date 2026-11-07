@@ -1,6 +1,6 @@
 # Xbox Device Portal
 
-## Enabling Dev Mode
+## Enabling Developer Mode
 
 1. On the console: **Settings → System → Developer Settings → Activate Developer Mode**.
 2. If you already have an active Xbox dev subscription, activation is free and instant.
@@ -8,7 +8,7 @@
 
 ## Enabling Device Portal
 
-In Dev Mode, open **Dev Home** on the console and enable **Device Portal**.
+In Developer Mode, open **Dev Home** on the console and enable **Device Portal**.
 
 The portal is then accessible at:
 
