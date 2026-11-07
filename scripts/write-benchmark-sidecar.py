@@ -8,6 +8,8 @@ import os
 import tempfile
 from pathlib import Path
 
+from benchmark_sidecar import validate_sidecar
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -65,6 +67,10 @@ def main() -> int:
             "decode_w": args.decode_w,
         },
     }
+    try:
+        validate_sidecar(payload)
+    except ValueError as exc:
+        parser.error(str(exc))
     args.output.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary = tempfile.mkstemp(prefix=f".{args.output.name}.", dir=args.output.parent)
     try:
