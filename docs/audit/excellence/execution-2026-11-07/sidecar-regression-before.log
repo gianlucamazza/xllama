@@ -1,0 +1,668 @@
+.FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF.F
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='schema_version', value=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpggqdbbrn/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='model', value='')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpt2v_d8d3/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='model', value='  ')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmps16muudg/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='model', value=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpbas66hah/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='model', value=42)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmps4as1a5c/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='model_bytes', value=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmppckeazcx/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='quant', value='')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmphmryds9v/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='quant', value=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmp7eesxhu9/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='build', value='')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmp3v0mcjcr/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='build', value=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpbyhicdx_/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='hardware', value='')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpi_0kykmf/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='hardware', value=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpqrpmwf71/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='n_ctx', value=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpbjwli4k2/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='n_ctx', value=0)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpx8wmhkd3/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='n_ctx', value=-1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpea27d_o8/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='n_ctx', value=2.5)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpg1dvxrdv/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='n_ctx', value='2048')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpt_gzvg8v/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='prompt_sha256', value='bad')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpuhvypm22/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='prompt_sha256', value='AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpd0jtzmsv/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='prompt_sha256', value=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpawh9tgbn/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='sampling', value=[])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmp_xa4vpdk/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='sampling', value=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmp0_2tr3po/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='sampling', value='{}')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmp5vhp_5ab/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='sampling', value={'temperature': nan})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmp_qujclye/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='warmup_runs', value=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpjmqjxru_/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='warmup_runs', value='1')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 1 != 2 : Traceback (most recent call last):
+  File "/tmp/xllama-evidence/scripts/validate-benchmark-sidecar.py", line 49, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/tmp/xllama-evidence/scripts/validate-benchmark-sidecar.py", line 34, in main
+    if data["warmup_runs"] < 1 or data["recorded_runs"] < 3:
+       ^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'str' and 'int'
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='warmup_runs', value=1.5)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmprk4umnny/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='recorded_runs', value='3')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 1 != 2 : Traceback (most recent call last):
+  File "/tmp/xllama-evidence/scripts/validate-benchmark-sidecar.py", line 49, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/tmp/xllama-evidence/scripts/validate-benchmark-sidecar.py", line 34, in main
+    if data["warmup_runs"] < 1 or data["recorded_runs"] < 3:
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'str' and 'int'
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='recorded_runs', value=3.5)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmp6dkqqq1j/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='thermal_rule', value='')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpdcg5w5tk/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='thermal_rule', value=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpofb2lb56/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='ambient_c', value=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpi8m1aqaa/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='ambient_c', value=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpvs4s_zz2/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='ambient_c', value='20')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmp38xwxhog/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='ambient_c', value=nan)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmp0ggucdzt/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='ambient_c', value=inf)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmp2yakom0_/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_field_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_field_values) (field='power', value=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 73, in test_rejects_invalid_field_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 1 != 2 : Traceback (most recent call last):
+  File "/tmp/xllama-evidence/scripts/validate-benchmark-sidecar.py", line 49, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/tmp/xllama-evidence/scripts/validate-benchmark-sidecar.py", line 38, in main
+    if field not in power:
+       ^^^^^^^^^^^^^^^^^^
+TypeError: argument of type 'NoneType' is not iterable
+
+
+======================================================================
+FAIL: test_rejects_invalid_power_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_power_values) (field='wattmeter', value='')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 87, in test_rejects_invalid_power_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpbn3_aaq5/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_power_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_power_values) (field='wattmeter', value=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 87, in test_rejects_invalid_power_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpbp7475kr/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_power_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_power_values) (field='sample_interval_ms', value=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 87, in test_rejects_invalid_power_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpcp61f9oh/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_power_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_power_values) (field='sample_interval_ms', value=0)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 87, in test_rejects_invalid_power_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpo2j55_01/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_power_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_power_values) (field='sample_interval_ms', value=-1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 87, in test_rejects_invalid_power_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpxucl7pxw/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_power_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_power_values) (field='sample_interval_ms', value='1000')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 87, in test_rejects_invalid_power_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmp8y9as9vs/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_power_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_power_values) (field='sample_interval_ms', value=1.5)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 87, in test_rejects_invalid_power_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpgdxpscyk/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_power_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_power_values) (field='idle_w', value=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 87, in test_rejects_invalid_power_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpdxp41awu/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_power_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_power_values) (field='idle_w', value=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 87, in test_rejects_invalid_power_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpl3nbxjm3/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_power_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_power_values) (field='idle_w', value=-1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 87, in test_rejects_invalid_power_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpazqka8ow/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_power_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_power_values) (field='idle_w', value='1')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 87, in test_rejects_invalid_power_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmps6zecwtl/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_power_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_power_values) (field='idle_w', value=nan)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 87, in test_rejects_invalid_power_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpq2sl1evt/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_power_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_power_values) (field='idle_w', value=inf)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 87, in test_rejects_invalid_power_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpu76qnns6/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_power_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_power_values) (field='prefill_w', value=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 87, in test_rejects_invalid_power_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmp8hssp_ws/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_power_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_power_values) (field='prefill_w', value=-1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 87, in test_rejects_invalid_power_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpljctfvv0/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_power_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_power_values) (field='prefill_w', value=nan)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 87, in test_rejects_invalid_power_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmplwyqx6go/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_power_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_power_values) (field='decode_w', value=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 87, in test_rejects_invalid_power_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpw7kki1vl/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_power_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_power_values) (field='decode_w', value=-1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 87, in test_rejects_invalid_power_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpmt5upbts/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_invalid_power_values (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_invalid_power_values) (field='decode_w', value=inf)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 87, in test_rejects_invalid_power_values
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : OK sidecar schema=1 file=/tmp/tmpal0quff9/sidecar.json
+
+
+======================================================================
+FAIL: test_rejects_missing_fields_and_non_object (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_rejects_missing_fields_and_non_object)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 96, in test_rejects_missing_fields_and_non_object
+    self.assert_invalid(data)
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 43, in assert_invalid
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 1 != 2 : Traceback (most recent call last):
+  File "/tmp/xllama-evidence/scripts/validate-benchmark-sidecar.py", line 49, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/tmp/xllama-evidence/scripts/validate-benchmark-sidecar.py", line 24, in main
+    missing = sorted(required - data.keys())
+                                ^^^^^^^^^
+AttributeError: 'list' object has no attribute 'keys'
+
+
+======================================================================
+FAIL: test_writer_rejects_invalid_metadata_before_replacing_output (tests.test_benchmark_sidecar.BenchmarkSidecarTests.test_writer_rejects_invalid_metadata_before_replacing_output)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/xllama-evidence/tests/test_benchmark_sidecar.py", line 115, in test_writer_rejects_invalid_metadata_before_replacing_output
+    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+AssertionError: 0 != 2 : 
+
+----------------------------------------------------------------------
+Ran 6 tests in 4.186s
+
+FAILED (failures=58)

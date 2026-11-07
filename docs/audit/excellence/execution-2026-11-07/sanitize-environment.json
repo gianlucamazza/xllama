@@ -1,0 +1,26 @@
+{
+  "started_at_utc": "2026-11-07T12:41:07.094137+00:00",
+  "source_sha": "943c95de7ad04f238f0a83f27818399ddbff66d6",
+  "dirty_paths": [
+    " M docs/audit/excellence/execution-2026-11-07.md",
+    " M docs/gguf-gpu-decode.md"
+  ],
+  "compiler": "g++ (Debian 14.2.0-19) 14.2.0",
+  "cmake": "cmake version 4.4.4",
+  "configure_command": "cmake --preset linux-asan -DXLLAMA_ENABLE_UBSAN=ON",
+  "build_command": "cmake --build build/linux-asan --target xllama-tests xllama-cli -j4",
+  "scope": "xllama static library plus consumers/tests: address, undefined. llama.cpp/ggml are not instrumented by these options.",
+  "build_status": "passed",
+  "default_ctest_exit": 8,
+  "default_ctest_status": "411 cases and 33577 assertions passed, then LeakSanitizer runtime fatal under ptrace",
+  "lsan_smoke_exit": 1,
+  "lsan_status": "unavailable in this execution environment; empty main reproduces ptrace fatal",
+  "strict_ctest_exit": 0,
+  "strict_ctest_status": "1/1 passed in 4.69 seconds",
+  "strict_environment": {
+    "ASAN_OPTIONS": "detect_leaks=0:halt_on_error=1",
+    "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1"
+  },
+  "current_head": "943c95de7ad04f238f0a83f27818399ddbff66d6",
+  "compiled_source_diff_since_start": []
+}

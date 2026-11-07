@@ -1,0 +1,164 @@
+{
+  "purpose": "Record commands already executed; this follow-up does not rerun the experiment.",
+  "recorded_at": "2026-11-07T13:01:43.025536+00:00",
+  "working_directory": "/workspace/scratch/3d022093c92c",
+  "source_train_script": "/tmp/xllama-pr400-update/training/host/train_lora.py",
+  "source_train_script_sha256": "a51b561501ace58853d338154a25c97b5ee0dd6c78b4c6af16762d97af6516b3",
+  "execution_profile": {
+    "device": "CPU (torch2.13.0+cpu wheel; no CUDA dependencies)",
+    "dtype": "float32",
+    "python": "3.12",
+    "venv": "/tmp/xllama-peft-resolution/venv",
+    "system_site_packages": false,
+    "model_origin": "random local Llama; no downloaded pretrained weights",
+    "layers": 1,
+    "hidden_size": 16,
+    "seed": 42,
+    "optimizer_steps": 2,
+    "lora_rank": 2,
+    "lora_alpha": 4,
+    "gradient_accumulation": 1,
+    "max_seq": 32
+  },
+  "tolerance_predeclaration": {
+    "max_abs": 1e-05,
+    "comparison": "same fixed input_ids [1,4,5,2], PEFT model before merge vs merge_and_unload logits in float32",
+    "declaration_file": "tiny_verify.py",
+    "timing": "The assertion and tolerance were written before the first synthetic trial ran; no tolerance was adjusted after observing the result.",
+    "observed_max_abs": 1.4901161193847656e-08
+  },
+  "commands": [
+    {
+      "stage": "isolated environment",
+      "argv": [
+        "python3",
+        "-m",
+        "venv",
+        "/tmp/xllama-peft-resolution/venv"
+      ],
+      "env_overrides": {}
+    },
+    {
+      "stage": "candidate dry resolution",
+      "argv": [
+        "/tmp/xllama-peft-resolution/venv/bin/python",
+        "-m",
+        "pip",
+        "install",
+        "--dry-run",
+        "--report",
+        "/tmp/xllama-peft-resolution/candidate-report.json",
+        "--extra-index-url",
+        "https://download.pytorch.org/whl/cpu",
+        "torch==2.13.0+cpu",
+        "transformers==5.10.1",
+        "peft==0.21.2",
+        "datasets==3.6.0",
+        "accelerate==1.15.0",
+        "safetensors>=0.4.0",
+        "sentencepiece>=0.2.0",
+        "protobuf>=4.0.0"
+      ],
+      "env_overrides": {},
+      "stdout_stderr": "candidate-resolve.log"
+    },
+    {
+      "stage": "locked install",
+      "argv": [
+        "/tmp/xllama-peft-resolution/venv/bin/python",
+        "-m",
+        "pip",
+        "install",
+        "--require-hashes",
+        "--extra-index-url",
+        "https://download.pytorch.org/whl/cpu",
+        "-r",
+        "/tmp/xllama-peft-resolution/candidate-lock.txt"
+      ],
+      "env_overrides": {},
+      "stdout_stderr": "candidate-install.log"
+    },
+    {
+      "stage": "dependency consistency",
+      "argv": [
+        "/tmp/xllama-peft-resolution/venv/bin/python",
+        "-m",
+        "pip",
+        "check"
+      ],
+      "env_overrides": {},
+      "stdout_stderr": "pip-check.log"
+    },
+    {
+      "stage": "generate synthetic local model/tokenizer/dataset",
+      "argv": [
+        "/tmp/xllama-peft-resolution/venv/bin/python",
+        "/tmp/xllama-peft-resolution/tiny_smoke.py"
+      ],
+      "env_overrides": {
+        "HF_HUB_OFFLINE": "1",
+        "TRANSFORMERS_OFFLINE": "1"
+      },
+      "torch_set_num_threads_in_script": 2,
+      "stdout_stderr": "tiny-prepare.log"
+    },
+    {
+      "stage": "execute repository trainer",
+      "argv": [
+        "/tmp/xllama-peft-resolution/venv/bin/python",
+        "/tmp/xllama-pr400-update/training/host/train_lora.py",
+        "--model",
+        "/tmp/xllama-peft-resolution/tiny-base",
+        "--dataset",
+        "/tmp/xllama-peft-resolution/tiny-dataset.jsonl",
+        "--out",
+        "/tmp/xllama-peft-resolution/tiny-adapter",
+        "--max-seq",
+        "32",
+        "--steps",
+        "2",
+        "--rank",
+        "2",
+        "--alpha",
+        "4",
+        "--grad-accum",
+        "1"
+      ],
+      "env_overrides": {
+        "HF_HUB_OFFLINE": "1",
+        "TRANSFORMERS_OFFLINE": "1",
+        "OMP_NUM_THREADS": "2"
+      },
+      "stdout_stderr": "tiny-train.log"
+    },
+    {
+      "stage": "verify synthetic PEFT reload/merge logits",
+      "argv": [
+        "/tmp/xllama-peft-resolution/venv/bin/python",
+        "/tmp/xllama-peft-resolution/tiny_verify.py"
+      ],
+      "env_overrides": {
+        "HF_HUB_OFFLINE": "1",
+        "TRANSFORMERS_OFFLINE": "1"
+      },
+      "torch_set_num_threads_in_script": 2,
+      "stdout_stderr": "tiny-verify.log"
+    }
+  ],
+  "lock_generation": "candidate-lock.txt contains each candidate-report.json install[].metadata name/version and download_info.archive_info.hashes.sha256; no dependency constraints overridden.",
+  "support_files": {
+    "tiny_smoke.py": "db7fa77c7baa6b4bc8cbda8c5cad22b6d480f59e6fad74f2c8624cb90f05e96a",
+    "tiny_verify.py": "5b17782639cc7837c24df04e291373fa443c33b3a0b12bc936da1a68e4d41622",
+    "tiny-dataset.jsonl": "493e875a6ed4f29fbe6042f5b819107a7667389cf88518b40fde8451b61a96c3",
+    "candidate-report.json": "8aac02c8b7cd331ba2937b0ac1bf72c5148db156b20b11ddd21c2f88b5da3085",
+    "candidate-lock.txt": "c9195a979ec29e45da4914bf8d1f3309f905bd2b0beb08b7a7b5743d2c9fe0c1",
+    "tiny-smoke-result.json": "8d216aa50daeba8b5c35b7beba96552220ba9d05c8a13776e49c56c73c7de04f"
+  },
+  "limits": [
+    "The absolute paths above are the actual executed paths, not portable pseudocommands. Reproduction elsewhere must relocate all referenced paths consistently.",
+    "Inherited proxy/CA settings were retained; no credentials or full environment snapshot recorded.",
+    "This is an isolated synthetic CPU API trial, not full SmolLM2 training, GGUF conversion, inference parity or Xbox validation.",
+    "pip check checks declared dependency consistency, not vulnerabilities.",
+    "ADR0009 policy is Proposed; this receipt does not accept it or change repository pins."
+  ]
+}

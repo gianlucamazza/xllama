@@ -1,0 +1,16 @@
+{
+  "date": "2026-11-07",
+  "runtime_source_base": "f1007133ba47a5b9ae9b44f0990aee67bdabf45a",
+  "checkout_head_at_start": "fa88ddd9981995f5d37a456a43fd1f63ae12d20a",
+  "dirty_scope": "program documentation/evidence only",
+  "environment": "isolated diffusion toolchain with runtime dependencies installed",
+  "command": "python -m unittest <all modules registered by build-linux.yml python unittest steps>",
+  "modules_extracted_from": ".github/workflows/build-linux.yml",
+  "run": 136,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "seconds": 125.035,
+  "scope": "combined host tooling/regressions plus tiny-model exporter paths; no UWP/GPU/Xbox execution",
+  "log_sha256": "4e645eda3596537b4ed1e3335d46fce63e6ea4b8de975317f631a4b44d8ce5cd"
+}
