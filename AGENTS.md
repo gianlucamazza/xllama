@@ -382,6 +382,10 @@ If you change a contract, update the owning doc in the same PR
   `api.flag` is the server itself.
 - MSIX uninstall wipes LocalState. Re-provision models
   (`scripts/provision-models.sh` or `install-latest-build.sh --provision`).
+- New text benchmarks require an explicit hardware declaration (`--hardware` or
+  `XLLAMA_BENCH_HARDWARE`); `-declared` labels are operator statements, not
+  detected hardware. Series X XAB currently accepts text only. See
+  `bench/README.md` for migration and device-receipt requirements.
 - A Linux tok/s number is not a Series S result. Numbers ship only from
   `bench/results/` through `generate-benchmark-summary.py` into
   `docs/benchmarks.md`.

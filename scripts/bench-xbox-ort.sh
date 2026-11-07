@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# bench-xbox-ort.sh — ORT GenAI benchmark orchestrator for Xbox Series S
+# bench-xbox-ort.sh — ORT GenAI benchmark orchestrator for declared Xbox hardware
 #
 # Usage:
 #   source ~/.config/xllama/xbox-env
@@ -58,6 +58,8 @@
 #   --decode-progress-ms MS
 #                    Decode progress log every T milliseconds (0 disables).
 #
+# Required hardware: --hardware xbox-series-s|xbox-series-x (or XLLAMA_BENCH_HARDWARE).
+# This records an operator declaration, not automatic model detection.
 # Required env: XBOX_IP, XBOX_USER, XBOX_PASS
 #
 # Output: one row per recorded run appended to the --out CSV (run_index column);
@@ -74,6 +76,7 @@
 set -euo pipefail
 
 MODEL_NAME="${1:-smollm2-360m-cpu-int4}"
+HARDWARE="${XLLAMA_BENCH_HARDWARE:-}"
 N_THREADS=0
 N_CTX=0         # 0 = engine default (2048)
 N_PREDICT=0     # 0 = engine default (512)
@@ -96,6 +99,10 @@ KEEP_CONFIG=false # --keep-config: leave a --threads genai_config.json on the de
 shift || true
 while [[ $# -gt 0 ]]; do
 	case "$1" in
+	--hardware)
+		HARDWARE="${2:?--hardware requires a value}"
+		shift 2
+		;;
 	--threads)
 		N_THREADS="${2:?--threads requires a value}"
 		shift 2
@@ -175,6 +182,12 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
+# Explicit declaration is mandatory. It does not establish observed hardware.
+case "$HARDWARE" in
+xbox-series-s|xbox-series-x) ;;
+*) echo "unsupported benchmark hardware: '${HARDWARE}' (use --hardware xbox-series-s|xbox-series-x or XLLAMA_BENCH_HARDWARE)" >&2; exit 2 ;;
+esac
+
 : "${XBOX_IP:?XBOX_IP not set — run: source ~/.config/xllama/xbox-env}"
 : "${XBOX_USER:?XBOX_USER not set}"
 : "${XBOX_PASS:?XBOX_PASS not set}"
@@ -188,6 +201,7 @@ CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
 
 echo "=== xllama bench-xbox-ort ==="
 echo "  Model:   $MODEL_NAME"
+echo "  Hardware: $HARDWARE (operator-declared, not detected)"
 echo "  Threads: ${N_THREADS:-auto}"
 echo "  n_ctx:   $([[ $N_CTX -gt 0 ]] && echo "$N_CTX" || echo "default")"
 echo "  n_predict: $([[ $N_PREDICT -gt 0 ]] && echo "$N_PREDICT" || echo "default")"
@@ -268,6 +282,8 @@ cleanup() {
 	elif [[ "$MODEL_TXT_ORIG" == "absent" ]]; then
 		delete_from_localstate "model.txt"
 	fi
+	# A declaration belongs to this invocation, not to a later manual bench.
+	delete_from_localstate "bench_hardware.txt"
 	rm -rf "$TMPDIR_LOCAL"
 }
 trap cleanup EXIT
@@ -361,7 +377,7 @@ restart_app() {
 
 # Host label the device would have written, used for harness-authored fail rows.
 bench_host_base() {
-	local host="xbox-series-s"
+	local host="${HARDWARE}-declared"
 	((N_THREADS > 0)) && host+="-t${N_THREADS}"
 	((UBATCH > 0)) && host+="-u${UBATCH}"
 	((KVQ8 != 0)) && host+="-kvq8"
@@ -468,6 +484,7 @@ cp "$PROMPT_SRC" "${TMPDIR_LOCAL}/prompt.txt"
 
 # model.txt — tells inference-bridge which model dir to use
 printf '%s' "$MODEL_NAME" >"${TMPDIR_LOCAL}/model.txt"
+printf '%s' "$HARDWARE" >"${TMPDIR_LOCAL}/bench_hardware.txt"
 # Back it up before the first overwrite so cleanup() can put it back.
 if curl "${CURL_AUTH[@]}" --fail -o "${TMPDIR_LOCAL}/model_orig.txt" \
 	"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState&filename=model.txt" \
@@ -548,6 +565,7 @@ for ((run = 1; run <= N_RUNS; run++)); do
 	upload_to_localstate "${TMPDIR_LOCAL}/bench.flag"
 	upload_to_localstate "${TMPDIR_LOCAL}/prompt.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/model.txt"
+	upload_to_localstate "${TMPDIR_LOCAL}/bench_hardware.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_threads.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_ctx.txt"
 	upload_to_localstate "${TMPDIR_LOCAL}/bench_npredict.txt"
@@ -627,6 +645,12 @@ for ((run = 1; run <= N_RUNS; run++)); do
 			echo "Error: the console benched '${got_model}', not the requested '${MODEL_NAME}'." >&2
 			echo "  model.txt likely never reached the device (WDP writes can fail silently)." >&2
 			echo "  Nothing was appended — re-run rather than trusting this row." >&2
+			exit 1
+		fi
+		# Refuse old packages and failed/ignored identity uploads before admission.
+		got_host=$(awk -F, '{print $15}' <<<"$data_row")
+		if [[ "$got_host" != "${HARDWARE}-declared" && "$got_host" != "${HARDWARE}-declared-"* ]]; then
+			echo "Error: benchmark hardware declaration not echoed: '${got_host}', expected '${HARDWARE}-declared'. Redeploy and retry." >&2
 			exit 1
 		fi
 		# The CSV schema does NOT change with --max-length, so the arity check

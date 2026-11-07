@@ -128,7 +128,7 @@ fi
 echo ""
 echo "--- Load test + prefill bench (headless, DML) ---"
 set +e
-"${BENCH}" "$MODEL_NAME" --prompt "$PROMPT_SRC" --runs 2 --out "$OUT_CSV" --gpu-sample
+"${BENCH}" "$MODEL_NAME" --hardware "${XLLAMA_BENCH_HARDWARE:-xbox-series-s}" --prompt "$PROMPT_SRC" --runs 2 --out "$OUT_CSV" --gpu-sample
 BENCH_RC=$?
 set -e
 
