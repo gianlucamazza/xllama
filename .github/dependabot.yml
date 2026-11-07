@@ -37,3 +37,14 @@ updates:
     open-pull-requests-limit: 0
     commit-message:
       prefix: deps
+
+  # Host PEFT is a separate environment with its own compatibility constraints.
+  # Monitor security updates; ordinary version PRs wait for train/merge/parity
+  # validation. Monitoring alone does not remediate the current training pins.
+  - package-ecosystem: pip
+    directory: /training/host
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    commit-message:
+      prefix: deps

@@ -121,6 +121,9 @@ jobs:
       - name: Verify host training model trust policy
         run: python3 -m unittest tests/test_host_model_trust.py
 
+      - name: Verify Python dependency monitoring coverage
+        run: python3 -m unittest tests/test_dependency_monitoring.py
+
       - name: Verify code/project/doc coherence (SSOT audit)
         run: python3 scripts/check-coherence.py
 
