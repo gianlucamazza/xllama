@@ -118,6 +118,9 @@ jobs:
       - name: Verify release metadata synchronization
         run: python3 scripts/check-release-metadata.py
 
+      - name: Verify host training model trust policy
+        run: python3 -m unittest tests/test_host_model_trust.py
+
       - name: Verify code/project/doc coherence (SSOT audit)
         run: python3 scripts/check-coherence.py
 
