@@ -45,6 +45,7 @@ Technical notes and design decisions for xllama.
 | LAN HTTP protocol                                                                        | [api-endpoint.md](./api-endpoint.md)                                                                                                                                                                                                                      |
 | App gamepad UI (demo shell: chat, settings, personalize, images)                         | [using-the-app.md](./using-the-app.md)                                                                                                                                                                                                                    |
 | Version / current product state                                                          | [`../CHANGELOG.md`](../CHANGELOG.md) + [`../ROADMAP.md`](../ROADMAP.md)                                                                                                                                                                                   |
+| User-facing app release notes                                                            | [releases/](./releases/) (one file per cut; numbers still link to [benchmarks.md](./benchmarks.md))                                                                                                                                                       |
 | Package identity / install & migration path                                              | [install-release.md](./install-release.md) (user) + `AGENTS.md` Versioning (dev)                                                                                                                                                                          |
 | Release readiness (dual SKU, licence matrix, App vs Game gate)                           | [release-readiness.md](./release-readiness.md)                                                                                                                                                                                                            |
 | Privacy policy (end-user draft)                                                          | [privacy.md](./privacy.md)                                                                                                                                                                                                                                |
@@ -89,6 +90,7 @@ path checklist for discovery — descriptions are not repeated.
 [crossbuild-console.md](./crossbuild-console.md) (Linux → Xbox via uwp-crossbuild + openappx) ·
 [console-validation-runbook.md](./console-validation-runbook.md) ·
 [release-readiness.md](./release-readiness.md) · [privacy.md](./privacy.md) ·
+[releases/v1.7.0.md](./releases/v1.7.0.md) ·
 [../training/README.md](../training/README.md) ·
 [../bench/README.md](../bench/README.md)
 
