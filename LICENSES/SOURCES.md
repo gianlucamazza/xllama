@@ -67,3 +67,28 @@ licence.
 - **Licence text source:** https://raw.githubusercontent.com/madebyollin/taesd/main/LICENSE
 - **Licence-file commit:** `f38b7ed32dd0aa17cb8ead2f830ec5f9ecf3475b` (2023-04-16)
 - **HF model-card revision:** `614f76814bbe30edbe2e627ace1c2234c81a2c0e` (2024-11-07)
+
+## ONNX Runtime — MIT
+
+Patched `onnxruntime.dll` pin (`vendor/onnxruntime-patched/`), not a
+`models-v1` asset.
+
+- **Local file:** `LICENSES/onnxruntime-LICENSE`
+- **Upstream file:** https://github.com/microsoft/onnxruntime/blob/v1.24.4/LICENSE
+- **Repo revision:** tag `v1.24.4` (`2d924974ef147392ced8409d36bd6d2e7fcc8a74`)
+- **Blob oid:** `48bc6bb4996ac924359e8e28b9ae88970e5ed3fc` (1,073 bytes)
+- **Third-party notices:** `LICENSES/onnxruntime-ThirdPartyNotices.txt` from the
+  same tag (blob `fbd9f9a95f6013d8ecaef81e02b0033e5882a675`, 325,054 bytes)
+
+## ONNX Runtime GenAI — MIT
+
+Patched `onnxruntime-genai.dll` pin (`vendor/onnxruntime-genai-patched/`),
+not a `models-v1` asset.
+
+- **Local file:** `LICENSES/onnxruntime-genai-LICENSE`
+- **Upstream file:** https://github.com/microsoft/onnxruntime-genai/blob/a30f479af016cb098688726831a9acbb8d19f0b2/LICENSE
+- **Repo revision:** `a30f479af016cb098688726831a9acbb8d19f0b2` (`rel-0.14.1`)
+- **Blob oid:** `9e841e7a26e4eb057b24511e7b92d42b257a80e5` (1,141 bytes)
+- **Third-party notices:** `LICENSES/onnxruntime-genai-ThirdPartyNotices.txt`
+  from the same commit (blob `e7f603e41f447ab01d1e2cbfb3de4fcf48e4e435`,
+  339,676 bytes)

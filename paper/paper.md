@@ -7,7 +7,7 @@
 ## Abstract
 
 This engineering report evaluates an Xbox Series S as a local-AI platform under
-the constraints of UWP Dev Mode. It measures quantized LLM inference through
+the constraints of UWP Developer Mode. It measures quantized LLM inference through
 llama.cpp, ONNX Runtime GenAI and DirectML, together with a Stable-Diffusion
 class pipeline. The central result is that the console is workload-shaped:
 CPU execution is effective for autoregressive decode, GPU execution is useful
@@ -29,7 +29,7 @@ multi-turn latency.
 
 ## 2. Platform and constraints
 
-The target is an Xbox Series S running xLlama in Dev Mode. The relevant
+The target is an Xbox Series S running xLlama in Developer Mode. The relevant
 constraints are shared unified memory, a limited application GPU budget,
 approximately six practical CPU threads, AppContainer filesystem/API limits,
 and the absence of desktop profiling facilities. The complete constraint and

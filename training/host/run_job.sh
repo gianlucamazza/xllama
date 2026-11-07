@@ -3,6 +3,7 @@
 # Usage (from repo root):
 #   ./training/host/run_job.sh training/jobs/smollm2-360m-marker.json
 # Env: SKIP_TRAIN=1 SKIP_CONVERT=1 SKIP_AB=1 QUANTIZE=1 CACHE_DIR=... STEPS=...
+#      XLLAMA_RECORD_FULL_PATHS=1 keeps absolute paths in result.json (default: redact).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -271,9 +272,22 @@ fi
 stages_json=$(printf '%s\n' "${STAGES[@]:-}" | python3 -c 'import json,sys; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))')
 success=0
 [[ "${MERGED_HIT}" -eq 1 ]] && success=1
-python3 - "${RESULT_JSON}" "${success}" "${ADAPTER_DIR}" "${MERGED_GGUF}" "${stages_json}" "${BASE_HIT}" "${MERGED_HIT}" "${MARKER}" <<'PY'
-import json, sys
-path, success, adapter, merged, stages, base_hit, merged_hit, marker = sys.argv[1:9]
+python3 - "${ROOT}" "${RESULT_JSON}" "${success}" "${ADAPTER_DIR}" "${MERGED_GGUF}" "${stages_json}" "${BASE_HIT}" "${MERGED_HIT}" "${MARKER}" <<'PY'
+import importlib.util
+import json
+import sys
+from pathlib import Path
+
+root, path, success, adapter, merged, stages, base_hit, merged_hit, marker = sys.argv[1:10]
+spec = importlib.util.spec_from_file_location(
+    "redact_recorded_path", Path(root) / "scripts" / "redact_recorded_path.py"
+)
+mod = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(mod)
+full = mod.record_full_from_env()
+adapter = mod.redact_recorded_path(adapter, record_full=full)
+merged = mod.redact_recorded_path(merged, record_full=full)
 doc = {
   "success": success == "1",
   "adapter_path": adapter,
@@ -287,7 +301,6 @@ doc = {
 }
 if success != "1":
   doc["error_msg"] = f"merged output missing marker {marker}"
-Path = __import__("pathlib").Path
 Path(path).write_text(json.dumps(doc, indent=2) + "\n")
 print(f"wrote {path}")
 PY

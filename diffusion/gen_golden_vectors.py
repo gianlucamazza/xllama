@@ -15,7 +15,7 @@
 # scheduler match. This is the anti-theater gate: the correctness-critical logic is
 # verified against the reference before it ships in un-runtime-testable console C++.
 #
-#   ~/.cache/xllama-diffusion/venv310/bin/python diffusion/gen_golden_vectors.py \
+#   ~/.cache/xllama-diffusion/venv312/bin/python diffusion/gen_golden_vectors.py \
 #       [sd_onnx_dir] [out.json]
 import os, sys, json
 import numpy as np

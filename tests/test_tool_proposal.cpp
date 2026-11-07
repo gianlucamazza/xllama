@@ -56,6 +56,44 @@ const char* kToolTemplate = R"({%- if tools -%}
 <|im_start|>assistant
 {%- endif -%})";
 
+// LFM2-2.6B's GGUF template, reduced: it prints the schema and the tool result but
+// not the assistant's calls.
+const char* kNoCallsTemplate = R"({%- if tools -%}
+{%- for tool in tools -%}
+{{ tool.function.name }}
+{%- endfor -%}
+{%- endif -%}
+{%- for message in messages -%}
+<|im_start|>{{ message.role }}
+{{ message.content }}<|im_end|>
+{%- endfor -%}
+{%- if add_generation_prompt -%}
+<|im_start|>assistant
+{%- endif -%})";
+
+// Phi-4-mini's GGUF template (unsloth Q4_K_M) reads the schema from a system
+// message field, never from `tools`.
+const char* kPhi4Template =
+    "{% for message in messages %}{% if message['role'] == 'system' and 'tools' in message "
+    "and message['tools'] is not none %}{{ '<|' + message['role'] + '|>' + message['content'] "
+    "+ '<|tool|>' + message['tools'] + '<|/tool|>' + '<|end|>' }}{% else %}{{ '<|' + "
+    "message['role'] + '|>' + message['content'] + '<|end|>' }}{% endif %}{% endfor %}{% if "
+    "add_generation_prompt %}{{ '<|assistant|>' }}{% endif %}";
+
+// A replayed call to ping, answered by a tool message that names it.
+std::vector<xllama::ChatMessage> replayed_ping() {
+    xllama::ChatMessage assistant = message(xllama::ChatRole::Assistant, "");
+    xllama::ToolCall call;
+    call.id = "call_1";
+    call.name = "ping";
+    call.arguments_json = R"({"text":"hi"})";
+    assistant.tool_calls.push_back(call);
+    xllama::ChatMessage tool = message(xllama::ChatRole::Tool, "pong-result");
+    tool.tool_call_id = "call_1";
+    tool.name = "ping";
+    return {message(xllama::ChatRole::User, "go"), assistant, tool};
+}
+
 std::string render_marked(const std::vector<xllama::ChatMessage>& messages,
                           const std::vector<xllama::ToolSpec>& tools) {
     std::string out = "TOOLS";
@@ -300,20 +338,40 @@ TEST_CASE("LFM2.5 tool calls need their special-token markers in the decoded tex
     CHECK(stripped.calls.empty());
 }
 
+TEST_CASE("a thinking model's reasoning stays out of a tool proposal's content") {
+    xllama::IncomingCall call;
+    call.name = "ping";
+    call.arguments = "{}";
+    const std::string reasoning = "<think>the user wants ping</think>";
+
+    const xllama::ChoiceAssembly with_call =
+        xllama::assemble_choice("", reasoning, {call}, false, true);
+    CHECK(with_call.tool_calls.size() == 1);
+    CHECK(with_call.content_null);
+    CHECK(with_call.content.empty());
+
+    const xllama::ChoiceAssembly answer =
+        xllama::assemble_choice(reasoning + "pong", "", {}, false, true);
+    CHECK(answer.content == "pong");
+    CHECK(answer.finish_reason == "stop");
+
+    const xllama::ChoiceAssembly cut_off =
+        xllama::assemble_choice("<think>still going", "", {}, true, true);
+    CHECK(cut_off.content.empty());
+    CHECK(cut_off.finish_reason == "length");
+
+    // Other models keep their text as it is.
+    const xllama::ChoiceAssembly other = xllama::assemble_choice(reasoning, "", {}, false);
+    CHECK(other.content == reasoning);
+}
+
 TEST_CASE("a template that ignores tools is refused instead of answering without the schema") {
-    // Phi-4-mini's GGUF template (unsloth Q4_K_M) reads the schema from a system
-    // message field, never from `tools`. Rendering succeeds and the model answers
-    // in prose (console, 1.6.0.1209); the proposal must be a 400 instead.
-    const std::string phi4 =
-        "{% for message in messages %}{% if message['role'] == 'system' and 'tools' in message "
-        "and message['tools'] is not none %}{{ '<|' + message['role'] + '|>' + message['content'] "
-        "+ '<|tool|>' + message['tools'] + '<|/tool|>' + '<|end|>' }}{% else %}{{ '<|' + "
-        "message['role'] + '|>' + message['content'] + '<|end|>' }}{% endif %}{% endfor %}{% if "
-        "add_generation_prompt %}{{ '<|assistant|>' }}{% endif %}";
+    // Rendering Phi-4's template succeeds and the model answers in prose (console,
+    // 1.6.0.1209); the proposal must be a 400 instead.
     const std::vector<xllama::ToolSpec> tools{ping_tool()};
     // The user names the tool: a mention in the transcript is not the schema.
     const xllama::ToolTemplateResult refused = xllama::render_tool_prompt(
-        nullptr, phi4, {message(xllama::ChatRole::User, "call ping please")}, tools,
+        nullptr, kPhi4Template, {message(xllama::ChatRole::User, "call ping please")}, tools,
         xllama::ToolChoice::Auto, "");
     CHECK_FALSE(refused.ok);
     CHECK(refused.error == "model chat template does not render tools");
@@ -322,6 +380,29 @@ TEST_CASE("a template that ignores tools is refused instead of answering without
         nullptr, kToolTemplate, {message(xllama::ChatRole::User, "call ping please")}, tools,
         xllama::ToolChoice::Auto, "");
     CHECK_MESSAGE(rendered.ok, rendered.error);
+}
+
+TEST_CASE("replaying a tool call is not mistaken for a template that ignores tools") {
+    const std::vector<xllama::ToolSpec> tools{ping_tool()};
+    const std::vector<xllama::ChatMessage> replay = replayed_ping();
+
+    SUBCASE("the tool message's name is not printed") {
+        const xllama::ToolTemplateResult rendered = xllama::render_tool_prompt(
+            nullptr, kToolTemplate, replay, tools, xllama::ToolChoice::Auto, "");
+        REQUIRE_MESSAGE(rendered.ok, rendered.error);
+        CHECK(rendered.prompt.find("pong-result") != std::string::npos);
+    }
+    SUBCASE("the template does not print the assistant's calls") {
+        const xllama::ToolTemplateResult rendered = xllama::render_tool_prompt(
+            nullptr, kNoCallsTemplate, replay, tools, xllama::ToolChoice::Auto, "");
+        REQUIRE_MESSAGE(rendered.ok, rendered.error);
+        CHECK(rendered.prompt.find("pong-result") != std::string::npos);
+    }
+    SUBCASE("a template that ignores tools is still refused") {
+        const xllama::ToolTemplateResult refused = xllama::render_tool_prompt(
+            nullptr, kPhi4Template, replay, tools, xllama::ToolChoice::Auto, "");
+        CHECK_FALSE(refused.ok);
+    }
 }
 
 namespace {

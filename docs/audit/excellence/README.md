@@ -204,7 +204,7 @@ The catalogue and research generators provide useful reproducibility gates. The
 current CI snapshot confirms all four required checks on the selected commit;
 the live ruleset is captured independently from its ADR.
 
-The product's stated limits are appropriate: Dev Mode inference for games and
+The product's stated limits are appropriate: Developer Mode inference for games and
 assistants, a showcase UI, and a foreground LAN integration probe. Lack of a retail
 certification or game-engine SDK is not misclassified as a broken shipped feature.
 The audit does not certify Store readiness, model licensing, Series X behavior,

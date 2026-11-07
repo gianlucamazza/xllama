@@ -58,13 +58,13 @@ attention decomposition, `--fp32-qk`) remain available for future probes.
 ## Follow-ups
 
 - [x] Bench (2026-07-19, standard-512, t8, median of 2):
-      **prefill 234 tok/s, decode 43.9 tok/s, peak 1215 MB, GPU mem 793 MB** —
+      **prefill 234 tok/s, decode 43.9 tok/s, peak 1215 MiB, GPU mem 793 MB** —
       within the historical dml-fp16 range (169–353 prefill), so the RMSNorm
       decomposition costs little. CPU int4 decode (71 tok/s) stays faster →
       the existing hybrid routing (GPU prefill above `token_threshold`, CPU
       decode) is the right shape. Confirmed on the published asset under its
       catalogue name (2026-07-19, PR #112 build): **236.7 prefill / 44.4
-      decode / 1268 MB** — the canonical `phase2-dml` row the benchmark
+      decode / 1268 MiB** — the canonical `phase2-dml` row the benchmark
       summary now selects. Routing re-enabled by PR #112
       (`dml_text_model_ok` behind `token_threshold`).
 - [x] Published as **`smollm2-360m-dml-fp16-v2`** on `models-v1` (#109 closed,

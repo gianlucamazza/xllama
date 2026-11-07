@@ -10,12 +10,12 @@ bandwidth or fused DML int4.
 
 ## Hardware bound (measured)
 
-| Resource            | Series S (Dev Mode)      | Implication                               |
-| ------------------- | ------------------------ | ----------------------------------------- |
-| Useful CPU cores    | ~6 (t7/t8 livelock ggml) | Cap llama at t6                           |
-| Effective decode BW | ~12.4–13 GB/s            | M=1 GEMV ceiling                          |
-| GPU budget          | 3801 MB Game             | Prefill/diffusion; not small-model decode |
-| Peak RAM seen       | ~2.7 GB GGUF             | 3B Q3 class fits                          |
+| Resource            | Series S (Developer Mode) | Implication                               |
+| ------------------- | ------------------------- | ----------------------------------------- |
+| Useful CPU cores    | ~6 (t7/t8 livelock ggml)  | Cap llama at t6                           |
+| Effective decode BW | ~12.4–13 GB/s             | M=1 GEMV ceiling                          |
+| GPU budget          | 3801 MB Game              | Prefill/diffusion; not small-model decode |
+| Peak RAM seen       | ~2.7 GB GGUF              | 3B Q3 class fits                          |
 
 Naive BW bound (13 GB/s, one weight read/token): **3B Q4 ~8 tok/s**, **7B Q4 ~3–4
 tok/s**. Measured rows already saturate ≤1B (LFM 94, 0.8B 35, 1.7B 21). Peer
@@ -50,8 +50,8 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
 - **Claim:** At ~20 tok/s bound, a 1–2B efficient arch beats dense 0.8B quality and approaches peer 3B.
 - **PASS:** Quality ≥ E2B and decode ≥20 **or** quality ≫ E2B at ≥12 tok/s.
 - **FAIL:** Another tiny fast model without quality lift.
-- **Status:** **PASS (2026-07-17)** — LFM2.5-1.2B reaches 37.9 tok/s / 811 MB and
-  matches E2B at H9 6/8; LFM2-2.6B reaches 18.4 tok/s / 1623 MB and beats E2B
+- **Status:** **PASS (2026-07-17)** — LFM2.5-1.2B reaches 37.9 tok/s / 811 MiB and
+  matches E2B at H9 6/8; LFM2-2.6B reaches 18.4 tok/s / 1623 MiB and beats E2B
   at H9 7/8. Both are catalogue options; default stays 350M.
 
 ### H2 — MoE with ~1–2B active params
@@ -74,11 +74,11 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   **Candidate: LFM2.5-8B-A1B** (`LiquidAI/LFM2.5-8B-A1B-GGUF`, `unsloth/…` for the
   low quants) — same family as the shipping default, ~1.5B of 8.3B active (≈1/5.5).
   Peak estimated at weights × 1.12, the measured load overhead of the catalogue
-  GGUFs (`qwen25-coder-3b` 1840→2116 MB, `lfm2-2.6b` 1491→1623 MB):
+  GGUFs (`qwen25-coder-3b` 1840 MB → 2116 MiB, `lfm2-2.6b` 1491 MB → 1623 MiB):
 
   > **The 1.12 factor was falsified in Phase 16 and must not be reused as
   > written.** Three fresh console measurements have it under-predicting by 4% to
-  > 47% (`lfm25-230m` 146→241 MB, `maincoder-1b` 641→843, `qwen35-2b`
+  > 47% (`lfm25-230m` 146 MB → 241 MiB, `maincoder-1b` 641→843, `qwen35-2b`
   > 1221→1421). Overhead is a large fixed floor — ~95 MB at 146 MB of weights,
   > dominated by the runtime and compute buffers — plus a term that scales with
   > the architecture's KV footprint, not a constant multiplier. It was fitted
@@ -104,7 +104,7 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
 
   **Ceiling measured on console 2026-07-29** (MSIX 1.5.1.762, `ramceil.flag` via
   `scripts/bench-ramceil.sh`, raw `bench/results/phase15-ramceil.csv`):
-  **4864 MB of heap committed, 4893 MB peak working set**, 38 × 128 MB steps with
+  **4864 MB of heap committed, 4893 MiB peak working set**, 38 × 128 MB steps with
   every page faulted in. Process overhead held at exactly 29 MB across all 38
   steps, so committed tracks resident 1:1. `avail_phys` fell linearly from
   ~5113 MB to 240 MB — which both confirms the historical 5.0 GB figure and shows
@@ -113,14 +113,14 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   Two caveats bound how far this number may be carried:
   1. **It is a lower bound.** The probe stopped on its own 256 MB `avail_phys`
      floor, not on a failed allocation — it was never told how much more it could
-     have taken. The ceiling is ≥ 4893 MB, not = 4893 MB.
+     have taken. The ceiling is ≥ 4893 MiB, not = 4893 MiB.
   2. **It is a headless number.** Measured with no model, no XAML and no
      compositor. An in-app load also pays the compositor's D3D12 device, the ggml
      compute buffers and the KV cache, so the usable in-app ceiling is lower by an
      amount this probe does not measure.
 
   **Host load, measured** (same GGUF, `xllama-cli` on Linux, `-t 6 -n 64`): the
-  pin loads `lfm2moe` and answers coherently at `UD-IQ3_S`, peak RSS **3495 MB**
+  pin loads `lfm2moe` and answers coherently at `UD-IQ3_S`, peak RSS **3495 MiB**
   with a 264 MiB compute buffer.
 
   **That host peak does not predict the console peak, and must not be quoted as
@@ -132,10 +132,10 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   table above is unrevised.
 
   What the host run _does_ establish is that sparse activation is real and
-  observable: 3495 MB of resident set against **3571 MB of weights plus a 264 MiB
+  observable: 3495 MiB of resident set against **3571 MB of weights plus a 264 MiB
   compute buffer** means a sizeable share of weight pages was never touched. The
   dense comparator on the same host and the same prompt goes the other way —
-  `qwen25-coder-3b` Q4_K_M reaches 3225 MB against 1840 MB of weights, every page
+  `qwen25-coder-3b` Q4_K_M reaches 3225 MiB against 1840 MB of weights, every page
   resident. Caveat on the fraction: experts accumulate with tokens generated, so
   "untouched" at `-n 64` is not a fixed property of the model. The mechanism H2
   bets on is visible; its magnitude is not measured here.
@@ -419,7 +419,7 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   token 21.16 ms with CPU sync. D2 (2026-10-02) = FAIL on peak RAM and
   Coder-3B H9. D2-r2 (CI `1.6.0.1156`): **the claim holds** — 1.60×
   (Coder-3B) and 1.64× (LFM2.5-1.2B) over CPU t6, with H9 parity and peak
-  within 200 MB of the CPU. D3 ships it as the default for both models (other GGUF models stay on the CPU).
+  within 200 MiB of the CPU. D3 ships it as the default for both models (other GGUF models stay on the CPU).
   With Flash Attention kept on that path (FA fix), decode is 1.90× / 1.88×. Small-model GPU decode via ORT
   DML remains falsified; STREAM only shows raw VRAM bandwidth our D3D12 code
   can reach.
@@ -471,7 +471,7 @@ Arch-watch reopen gates (not a reopen of those claims):
 Source CSV: `bench/results/phase7-scale.csv` (Xbox Series S, t6, `standard-512.txt`,
 median of 3 runs with run-1 dropped).
 
-| Model                                     | Quant  | Decode    | Prefill | Peak MB  | Load ms | Verdict                 |
+| Model                                     | Quant  | Decode    | Prefill | Peak MiB | Load ms | Verdict                 |
 | ----------------------------------------- | ------ | --------- | ------- | -------- | ------- | ----------------------- |
 | Llama-3.2-3B-Instruct (`llama32-3b-q3ks`) | Q3_K_S | **14.16** | 19.51   | **1824** | ~16900  | **H4 PASS · preferred** |
 | Phi-3.5-mini-instruct (`phi35-mini-q3ks`) | Q3_K_S | **11.31** | 15.29   | **2453** | ~24200  | **H4 PASS · loses A/B** |
@@ -480,10 +480,10 @@ Notes:
 
 - Quant column was auto-mislabeled `Q4_K_M` by the bench harness (first-token
   heuristic); corrected to **Q3_K_S** (on-disk file name) for both rows.
-- Peak **1824 MB** (Llama) is ~900 MB under Gemma-4-E2B Q3 (2742 MB) at nearly
+- Peak **1824 MiB** (Llama) is ~900 MiB under Gemma-4-E2B Q3 (2742 MiB) at nearly
   the same decode (14.2 vs 15.3) — dense 3B is _lighter_ than E2B MatFormer at
-  this quant. Phi-3.5-mini (~3.8B) peaks **2453 MB** — still under the 3.5 GB
-  gate, but ~630 MB heavier than Llama at the same quant class.
+  this quant. Phi-3.5-mini (~3.8B) peaks **2453 MiB** — still under the 3.5 GB
+  gate, but ~630 MiB heavier than Llama at the same quant class.
 - Naive BW bound for 3B Q4 was ~8 tok/s; Q3_K_S at **14 tok/s** (Llama) /
   **11 tok/s** (Phi) is consistent with weight-bytes/token (still bandwidth-class).
 - Headless bench completed full decode rows (not EOG-zero) for both. Provision
@@ -500,7 +500,7 @@ Notes:
 | Decode ≥ 8 tok/s               | **14.16** ✅                     | **11.31** ✅                |
 | Peak &lt; 3.5 GB               | **1.82 GB** ✅                   | **2.45 GB** ✅              |
 | Coherent generate (bench path) | ✅                               | ✅                          |
-| vs E2B (15.3 tok/s, 2742 MB)   | Similar speed, **much less RAM** | Slower, still under E2B RAM |
+| vs E2B (15.3 tok/s, 2742 MiB)  | Similar speed, **much less RAM** | Slower, still under E2B RAM |
 
 **H4: PASS.** Dense ~3B Q3 is viable on Series S. **Llama-3.2-3B is the preferred
 peer-class dense candidate** (faster + lighter). Phi-3.5-mini also clears H4
@@ -513,10 +513,10 @@ Sources: `bench/results/phase7-lfm.csv`, `phase7-lfm-long.csv` and
 `phase7-h9.jsonl` (Series S, MSIX 1.2.0.536, 2026-07-17). Performance rows are
 three-run campaigns with run 1 discarded; t4/t5/t6 were swept and t6 won.
 
-| Model                       | Decode | Prefill | Peak MB | Long decode |  H9 | Verdict                |
-| --------------------------- | -----: | ------: | ------: | ----------: | --: | ---------------------- |
-| LFM2.5-1.2B-Instruct Q4_K_M |  37.88 |   76.16 |     811 |       35.38 | 6/8 | **H1 PASS · balanced** |
-| LFM2-2.6B Q4_K_M            |  18.36 |   32.04 |    1623 |       17.72 | 7/8 | **H1 PASS · quality**  |
+| Model                       | Decode | Prefill | Peak MiB | Long decode |  H9 | Verdict                |
+| --------------------------- | -----: | ------: | -------: | ----------: | --: | ---------------------- |
+| LFM2.5-1.2B-Instruct Q4_K_M |  37.88 |   76.16 |      811 |       35.38 | 6/8 | **H1 PASS · balanced** |
+| LFM2-2.6B Q4_K_M            |  18.36 |   32.04 |     1623 |       17.72 | 7/8 | **H1 PASS · quality**  |
 
 H9 uses eight deterministic API tasks at temperature 0 / seed 42. Baselines:
 Gemma-4-E2B 6/8, Llama-3.2-3B 5/8, LFM2.5-350M 4/8. Every model failed the same
@@ -539,11 +539,11 @@ than cold re-prefill on 1.2B and **20.02×** on 2.6B
 
 ## Decision log
 
-| Date       | Decision                                                                                                      |
-| ---------- | ------------------------------------------------------------------------------------------------------------- |
-| 2026-07-16 | Open Phase 7 research; prioritize H4 then H1; H3/H6 eng only after H4 data                                    |
-| 2026-07-16 | **H4 PASS** — Llama-3.2-3B Q3_K_S @14.2 tok/s, 1824 MB peak (`phase7-scale.csv`)                              |
-| 2026-07-16 | Catalogue **`llama32-3b`** (HF Q3_K_S) + `ChatFormatKind::Llama3`; default stays LFM                          |
-| 2026-07-16 | **Phi-3.5-mini Q3_K_S A/B** — 11.31 tok/s, 2453 MB; H4 PASS but loses to Llama on speed+RAM; **no catalogue** |
-| 2026-07-17 | **H1 PASS** — LFM2.5-1.2B 37.88 tok/s, 811 MB, H9 6/8; catalogue balanced tier                                |
-| 2026-07-17 | **H1 PASS** — LFM2-2.6B 18.36 tok/s, 1623 MB, H9 7/8; catalogue quality tier; 350M remains default            |
+| Date       | Decision                                                                                                       |
+| ---------- | -------------------------------------------------------------------------------------------------------------- |
+| 2026-07-16 | Open Phase 7 research; prioritize H4 then H1; H3/H6 eng only after H4 data                                     |
+| 2026-07-16 | **H4 PASS** — Llama-3.2-3B Q3_K_S @14.2 tok/s, 1824 MiB peak (`phase7-scale.csv`)                              |
+| 2026-07-16 | Catalogue **`llama32-3b`** (HF Q3_K_S) + `ChatFormatKind::Llama3`; default stays LFM                           |
+| 2026-07-16 | **Phi-3.5-mini Q3_K_S A/B** — 11.31 tok/s, 2453 MiB; H4 PASS but loses to Llama on speed+RAM; **no catalogue** |
+| 2026-07-17 | **H1 PASS** — LFM2.5-1.2B 37.88 tok/s, 811 MiB, H9 6/8; catalogue balanced tier                                |
+| 2026-07-17 | **H1 PASS** — LFM2-2.6B 18.36 tok/s, 1623 MiB, H9 7/8; catalogue quality tier; 350M remains default            |

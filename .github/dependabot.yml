@@ -27,10 +27,9 @@ updates:
         applies-to: version-updates
         patterns: ['*']
 
-  # Host-only SD-Turbo export toolchain. Version PRs are off, and the export
-  # stack is ignored because it only moves as one coherent set: optimum-onnx
-  # 0.1.0 caps transformers < 4.58, so a single-package bump cannot resolve.
-  # Lift the ignore when #263 / ADR 0003 lands.
+  # Host-only SD-Turbo export toolchain. Version PRs are off: the set moves
+  # as one coherent bump re-checked with compare_onnx_exports.py (ADR 0003).
+  # Security updates are not ignored now that optimum-onnx is gone (#263).
   - package-ecosystem: pip
     directory: /diffusion
     schedule:
@@ -38,7 +37,3 @@ updates:
     open-pull-requests-limit: 0
     commit-message:
       prefix: deps
-    ignore:
-      - dependency-name: torch
-      - dependency-name: transformers
-      - dependency-name: optimum-onnx

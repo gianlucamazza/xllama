@@ -216,6 +216,19 @@
       "tag": "benchmark; model under a non-commercial research licence"
     },
     {
+      "label": "LFM2.5-8B-A1B (tested, not shipping)",
+      "params": "8B-A1B",
+      "source": "phase15-moe-console.csv",
+      "selector": {
+        "model": "lfm25-8b-a1b",
+        "quant": "UD-IQ3_S",
+        "n_threads": "6"
+      },
+      "backend_key": "llama",
+      "backend_label": "llama.cpp CPU · t6",
+      "tag": "H2 FAIL · experimental catalogue entry"
+    },
+    {
       "label": "Qwen2.5-Coder-3B (benchmark; model under a non-commercial research licence)",
       "params": "3B",
       "source": "2026-10-02-fa-gguf-gpu.csv",

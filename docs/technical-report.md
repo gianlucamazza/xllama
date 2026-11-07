@@ -4,7 +4,7 @@
 **Published:** [GitHub Discussion #76](https://github.com/gianlucamazza/xllama/discussions/76)
 
 xllama is a UWP application that runs local LLM chat and Stable-Diffusion-class
-image generation on a retail Xbox Series S in Dev Mode. This report is the
+image generation on a retail Xbox Series S in Developer Mode. This report is the
 measured story: which workloads the console's hardware serves well, which it
 does not, and why — with every claim backed by a benchmark row or a falsified
 hypothesis recorded along the way.
@@ -21,12 +21,12 @@ hypothesis recorded along the way.
 
 ## 1. The machine, as seen from an app
 
-| Resource | Available to a Dev Mode UWP app                                                                                                                                      |
+| Resource | Available to a Developer Mode UWP app                                                                                                                                |
 | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | CPU      | AMD Zen 2, 8 cores — **~6 usable** (system reserves the rest; no thread affinity in AppContainer)                                                                    |
 | GPU      | RDNA 2, 4 TFLOPS fp32 / ~8 fp16 — **3801 MB** local budget (Game designation)                                                                                        |
 | Memory   | 10 GB GDDR6 unified, 224 GB/s bus — **~13–14 GB/s effective** from CPU int4 GEMV (measured)                                                                          |
-| Storage  | Dev Mode allocation (raised to 90 GB here); `LocalState` survives only forward upgrades                                                                              |
+| Storage  | Developer Mode allocation (raised to 90 GB here); `LocalState` survives only forward upgrades                                                                        |
 | Sandbox  | AppContainer: no mmap for large models, no desktop Win32 (registry, affinity, `SetErrorMode`), external-data ONNX crashes path canonicalisation (§8 constraints doc) |
 
 Toolchain: ONNX Runtime GenAI 0.14.1 (DirectML EP) for text; plain ONNX Runtime

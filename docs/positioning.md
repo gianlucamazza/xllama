@@ -20,7 +20,7 @@ exercised without a game runtime. It is not the product thesis.
   ONNX Runtime GenAI + DirectML. One resident session
   (`SessionHub` — never 2× model in RAM).
 - Opt-in OpenAI-compatible **LAN endpoint** — the current integration probe
-  for a PC or tool on the same network. Default OFF. Dev Mode / LAN research
+  for a PC or tool on the same network. Default OFF. Developer Mode / LAN research
   only. Not a game SDK and not a public inbound service.
 - Headless benches (tok/s, memory, disk, GPU probes).
 - SD-Turbo diffusion and on-device / host training lanes.

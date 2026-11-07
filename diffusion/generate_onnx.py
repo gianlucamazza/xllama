@@ -2,15 +2,20 @@
 # Copyright (c) 2024 Gianluca Mazza
 # SPDX-License-Identifier: MIT
 #
-# Validate the exported ONNX SD-Turbo pipeline by generating one image through
+# Validate an exported ONNX SD-Turbo pipeline by generating one image through
 # ONNX Runtime (the same runtime that runs on the Xbox via the DirectML EP; here
 # on the CPU EP). This proves the ONNX artifacts are correct on the layer we own
 # before any C++/DirectML/console work.
 #
 #   ./venv/bin/python diffusion/generate_onnx.py [onnx_dir] [out.png] ["prompt"]
-import sys, time
-import numpy as np
-from optimum.onnxruntime import ORTStableDiffusionPipeline
+#
+# ADR 0003 retired optimum's ORTStableDiffusionPipeline: this is now a thin
+# front-end over validate_pipeline.py, which replays uwp/diffuse.cpp's exact
+# 1-step recipe (tokenize -> text_encoder -> Euler -> UNet -> VAE decode) and
+# works on both the fp32 export and the fp16 console artifacts.
+import os
+import runpy
+import sys
 
 onnx_dir = sys.argv[1] if len(sys.argv) > 1 else "sd-turbo-onnx"
 out_png = sys.argv[2] if len(sys.argv) > 2 else "sd_turbo_onnx.png"
@@ -20,15 +25,6 @@ prompt = (
     else "a red sports car on a mountain road at sunset, cinematic, highly detailed"
 )
 
-print(f"[onnx] loading {onnx_dir} via ORT (CPU EP) ...", flush=True)
-pipe = ORTStableDiffusionPipeline.from_pretrained(onnx_dir)
-print(f"[onnx] generating: {prompt}", flush=True)
-t0 = time.time()
-# SD-Turbo is a 1-step distilled model with classifier-free guidance disabled.
-img = pipe(prompt=prompt, num_inference_steps=1, guidance_scale=0.0).images[0]
-img.save(out_png)
-a = np.asarray(img).astype(float)
-print(
-    f"[onnx] done {time.time() - t0:.1f}s -> {out_png} {img.size} "
-    f"mean={a.mean():.1f} std={a.std():.1f} (std>10 => real image)"
-)
+here = os.path.dirname(os.path.abspath(__file__))
+sys.argv = [os.path.join(here, "validate_pipeline.py"), onnx_dir, out_png, prompt, "1", "42"]
+runpy.run_path(sys.argv[0], run_name="__main__")

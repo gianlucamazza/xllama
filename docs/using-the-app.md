@@ -234,7 +234,7 @@ abort between UNet steps.
 
 The `sd-turbo-fp16` model (2.4 GB: text encoder, UNet, VAE decoder + CLIP
 tokenizer) is **downloaded automatically on the first Generate** from the
-model catalogue (the Dev Mode disk budget is 90 GB after raising it via Dev
+model catalogue (the Developer Mode disk budget is 90 GB after raising it via Dev
 Home — see [uwp-constraints.md §9](uwp-constraints.md); free space if you have
 not raised it); Device Portal provisioning remains available as an
 alternative ([../diffusion/README.md](../diffusion/README.md)). Each

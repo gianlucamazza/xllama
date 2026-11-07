@@ -6,6 +6,8 @@ Run a language model on your own Xbox Series S, with chat, an API on your local 
 
 Tested and measured on Series S. Not yet tested on Series X.
 
+**Next step:** testing xllama on Xbox Series X. A [GitHub Sponsors goal](https://github.com/sponsors/gianlucamazza) is set to fund the console, and results will be published in this repo.
+
 ### ⚠️ Read before sideloading
 
 - **Developer Mode only.** xllama runs only on an Xbox console in Developer Mode, Microsoft's program for developing and testing apps. To activate it, you need your own Partner Center developer account, and you must accept Microsoft's [Xbox Developer Mode Activation terms](https://learn.microsoft.com/en-us/legal/windows/agreements/xbox-one-developer-mode-activation) yourself. xllama is a developer and research project, not a consumer product.
@@ -79,19 +81,21 @@ No model bundled in MSIX.
 
 ## Supported models
 
-| Model              | Params | Decode                                                  | Role                                                           |
-| ------------------ | ------ | ------------------------------------------------------- | -------------------------------------------------------------- |
-| LFM2.5-230M        | 230M   | **132.4** tok/s (llama.cpp CPU, 6 threads, median of 3) | Floor (236 MB peak RAM, llama.cpp CPU, 6 threads, median of 3) |
-| LFM2.5-350M        | 350M   | **101.6** tok/s (llama.cpp CPU, 6 threads, median of 3) | Default chat                                                   |
-| Qwen2.5-Coder-1.5B | 1.5B   | **26.1** tok/s (llama.cpp CPU, 6 threads, median of 2)  | Coding                                                         |
-| LFM2-2.6B          | 2.6B   | **17.9** tok/s (llama.cpp CPU, 6 threads, median of 3)  | Quality (H9 7/8)                                               |
+| Model              | Params | Decode                                                  | Role                                                            |
+| ------------------ | ------ | ------------------------------------------------------- | --------------------------------------------------------------- |
+| LFM2.5-230M        | 230M   | **132.4** tok/s (llama.cpp CPU, 6 threads, median of 3) | Floor (236 MiB peak RAM, llama.cpp CPU, 6 threads, median of 3) |
+| LFM2.5-350M        | 350M   | **101.6** tok/s (llama.cpp CPU, 6 threads, median of 3) | Default chat                                                    |
+| Qwen2.5-Coder-1.5B | 1.5B   | **26.1** tok/s (llama.cpp CPU, 6 threads, median of 2)  | Coding                                                          |
+| LFM2-2.6B          | 2.6B   | **17.9** tok/s (llama.cpp CPU, 6 threads, median of 3)  | Quality (H9 7/8)                                                |
 
 Tested and measured on Series S. Not yet tested on Series X. Receipts:
-[132.4 / 101.6 tok/s and 236 MB](bench/results/2026-09-30-catalogue-gates.csv),
+[132.4 / 101.6 tok/s and 236 MiB](bench/results/2026-09-30-catalogue-gates.csv),
 [17.9 tok/s](bench/results/2026-10-11-remeasure-1163/lfm2-2.6b-q4km-cpu-t6-rerun.csv),
 [26.1 tok/s](bench/results/phase14-console.csv),
 [H9 7/8](bench/results/2026-09-30-h9-rescore.jsonl).
 Summary: [docs/benchmarks.md](docs/benchmarks.md).
+The LFM2.5-230M figures (132.4 tok/s and 236 MiB) and the LFM2.5-350M figure
+(101.6 tok/s) were measured on the 1.6.0 package; pending a rerun on v1.7.0.
 
 Full catalogue + Phase 14 coding models: [model-matrix.md](docs/model-matrix.md) · [benchmarks.md](docs/benchmarks.md)
 
@@ -288,6 +292,39 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
+## Upstream contributions
+
+Running xllama on an Xbox Series S in Developer Mode surfaced problems in the
+open-source ONNX Runtime projects. These are the pull requests Gianluca Mazza
+opened against them, with their status as shown on GitHub:
+
+| Project           | Pull request                                                      | What it does                                                                                      | Status              |
+| ----------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------- |
+| onnxruntime-genai | [#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280) | Falls back to the system D3D12 runtime when the Agility SDK device factory cannot create a device | Merged, 13 Jul 2026 |
+| onnxruntime-genai | [#2300](https://github.com/microsoft/onnxruntime-genai/pull/2300) | Lets a model opt out of DirectML graph capture through a provider option                          | Merged, 20 Jul 2026 |
+| onnxruntime-genai | [#2316](https://github.com/microsoft/onnxruntime-genai/pull/2316) | Adds tests and documentation for the #2300 opt-out                                                | Open                |
+| onnxruntime       | [#29732](https://github.com/microsoft/onnxruntime/pull/29732)     | Reduces the Windows `ReadFileIntoBuffer` chunk size to 16 MB (AppContainer error 1450)            | Open                |
+
+xllama ships builds of these libraries with its own patches until an official
+package includes the fixes it needs; see [License](#license) and
+[`patches/`](patches/README.md).
+
+xllama is an independent project, not affiliated with or endorsed by Microsoft.
+
+---
+
+## Reported
+
+Issues filed against the open-source ONNX Runtime project. Both were closed
+for inactivity, without a fix:
+
+| Project     | Issue                                                           | Summary                                                                                                                                                                                                                                                                                         | Status                             |
+| ----------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| onnxruntime | [#29739](https://github.com/microsoft/onnxruntime/issues/29739) | Wrong decoder logits on the DirectML execution provider on Xbox Series S, correct on the CPU execution provider. The issue was opened about attention; a later comment on it traces the fault to the fused RMSNorm (`SimplifiedLayerNormalization` / `SkipSimplifiedLayerNormalization`) nodes. | Closed for inactivity, 18 Sep 2026 |
+| onnxruntime | [#29730](https://github.com/microsoft/onnxruntime/issues/29730) | Large `ReadFileIntoBuffer` chunks can fail with `ERROR_NO_SYSTEM_RESOURCES` (1450) inside a Windows AppContainer. Pull request [#29732](https://github.com/microsoft/onnxruntime/pull/29732) proposes the change.                                                                               | Closed for inactivity, 18 Sep 2026 |
+
+---
+
 ## Acknowledgements
 
 - [`llama.cpp`](https://github.com/ggml-org/llama.cpp) — Georgi Gerganov
@@ -297,7 +334,17 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-MIT. `llama.cpp` submodule under MIT.
+xllama is MIT-licensed; see [LICENSE](LICENSE). The `llama.cpp` submodule is
+under MIT and xllama applies its own UWP patches to it at build time
+([`patches/`](patches/README.md)).
+
+The `onnxruntime.dll` and `onnxruntime-genai.dll` that xllama ships are
+patched by xllama and are not official builds. They are built from the
+open-source ONNX Runtime (1.24.4) and ONNX Runtime GenAI (0.14.1) sources with
+the patches in [`patches/`](patches/README.md), and pinned by SHA-256 in
+[`vendor/`](vendor/). Both projects are under the MIT License, Copyright (c)
+Microsoft Corporation. Their licence texts and third-party notices are in
+[LICENSES/](LICENSES/) and [NOTICE](NOTICE).
 
 ---
 
@@ -307,7 +354,7 @@ MIT. `llama.cpp` submodule under MIT.
 
 xllama is free and MIT-licensed. If it's useful to you, you can support its
 development on [GitHub Sponsors](https://github.com/sponsors/gianlucamazza) —
-funds go to development time, Xbox Dev Mode costs, and model/storage budgets
+funds go to development time, Xbox Developer Mode costs, and model/storage budgets
 for testing.
 
 ---

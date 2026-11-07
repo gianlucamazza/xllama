@@ -24,6 +24,9 @@
 #   ./scripts/validate-console-training.sh serve
 #   XLLAMA_TRAIN_FULL=1 ./scripts/validate-console-training.sh all
 #
+# Evidence JSON/log dumps redact absolute console paths by default
+# (scripts/redact_recorded_path.py). Set XLLAMA_RECORD_FULL_PATHS=1 to keep them.
+#
 # Artifacts (prefer Q4 for upload size):
 #   training/out/smollm2-360m-marker/merged-Q4_K_M.gguf  OR merged-f16.gguf
 #   training/out/smollm2-360m-marker/adapter-lora.gguf   (lora-rt only)
@@ -62,6 +65,19 @@ fi
 TMPDIR_LOCAL=$(mktemp -d)
 PRESERVE_TMPDIR=0
 SETTINGS_SAVED="${TMPDIR_LOCAL}/settings-saved.json"
+REDACT=(python3 "${REPO_ROOT}/scripts/redact_recorded_path.py")
+if [[ "${XLLAMA_RECORD_FULL_PATHS:-0}" == "1" ]]; then
+	REDACT+=(--full-paths)
+fi
+
+redact_text() {
+	"${REDACT[@]}" --text
+}
+
+redact_json_file() {
+	local file="$1"
+	"${REDACT[@]}" --json "$file"
+}
 # shellcheck source=scripts/console-run-log.sh
 source "${SCRIPT_DIR}/console-run-log.sh"
 
@@ -576,10 +592,13 @@ EOF
 	done
 	local log
 	log=$(fetch_log) || return 1
-	grep -a '\[xllama\] train' "$log" | tail -20 || true
+	grep -a '\[xllama\] train' "$log" | tail -20 | redact_text || true
 	: >"${TMPDIR_LOCAL}/result.json"
 	fetch_file "result.json" "${TMPDIR_LOCAL}/result.json" "training%5Cout%5Cdevice-marker" 2>/dev/null || true
-	[[ -s "${TMPDIR_LOCAL}/result.json" ]] && cat "${TMPDIR_LOCAL}/result.json"
+	if [[ -s "${TMPDIR_LOCAL}/result.json" ]]; then
+		redact_json_file "${TMPDIR_LOCAL}/result.json" || true
+		cat "${TMPDIR_LOCAL}/result.json"
+	fi
 	if grep -q '^ok' "$done_f" 2>/dev/null; then
 		local peak_ws wall_seconds
 		peak_ws=$(sed -n 's/.*"peak_ws_mb":[[:space:]]*\([0-9][0-9]*\).*/\1/p' "${TMPDIR_LOCAL}/result.json")

@@ -5,7 +5,7 @@
 > `weakly_canonical`, thread cap, and the DirectML low-bit GEMM analysis. Other
 > docs link to a `§n` here rather than restating these.
 
-Platform limitations relevant to running LLM inference on Xbox Series S consoles in Dev Mode, and how xllama addresses each one. Tested and measured on Series S. Not yet tested on Series X.
+Platform limitations relevant to running LLM inference on Xbox Series S consoles in Developer Mode, and how xllama addresses each one. Tested and measured on Series S. Not yet tested on Series X.
 
 ## 1. No POSIX `mmap`
 
@@ -37,7 +37,7 @@ Platform limitations relevant to running LLM inference on Xbox Series S consoles
 in-app (`QueryVideoMemoryInfo(LOCAL).Budget`) is **3801 MB** (package designated Game — verified 2026-07-08, see §5) on
 Series S — the earlier "~768 MB pool" was a coarse inference from the
 Phi-3.5-mini OOM bracketing and is superseded. Disk was then the operative
-sizing constraint, but the Dev Mode allocation was raised to **90 GB** on
+sizing constraint, but the Developer Mode allocation was raised to **90 GB** on
 2026-07-08 (§9, superseded note) — the binding limits now are the **2 GB ONNX
 protobuf / per-file ceiling** (§8; §9 caveat) and the RAM/GPU budget.
 
@@ -109,7 +109,7 @@ numbers in this section were measured on the pre-fix fused-RMSNorm graph,
 whose text output was numerically wrong (broken
 `(Skip)SimplifiedLayerNormalization` kernel — `dml-rmsnorm-fix-runbook.md`).
 The shipping `-v2` decomposed graph measures 236.7 prefill / 44.4 decode /
-1268 MB — same conclusions (CPU int4 wins decode, GPU wins long prefill), and
+1268 MiB — same conclusions (CPU int4 wins decode, GPU wins long prefill), and
 GPU text routing is live again behind the routing threshold (see §5b).
 
 ### §5b — Prefill vs prompt length on the shipping `-v2` asset (2026-07-21)
@@ -209,7 +209,7 @@ re-measure rather than annotate by hand.
 3. **The valley is interior, with both edges clean.** Fast at 1297–1400, fast
    again at 2048, slowest near 1800. It is a dip, not a step.
 4. **It is not memory pressure, and saturating is not expensive.** The fastest
-   row (2048) has a _smaller_ working set than the 1950 row (1970 vs 2483 MB).
+   row (2048) has a _smaller_ working set than the 1950 row (1970 vs 2483 MiB).
 5. **The shipping default sat inside the valley.** `n_predict` 256 on a
    1289-token prompt gives `max_length` 1545 — 150 tok/s where 612 was available.
 
@@ -252,7 +252,7 @@ Three things the earlier criterion left out, all measured 2026-07-21
 
 1. **Asymmetric model load** _(historical — eliminated by PR #161)_. At
    measurement time `EnsureSession` kept one session (`avoid 2× model in RAM`,
-   and the working sets confirm it: 1303 + 2869 MB do not coexist) and a
+   and the working sets confirm it: 1303 + 2869 MiB do not coexist) and a
    GPU-routed turn loaded the CPU model to tokenize, then destroyed it to load
    DirectML: 2786 ms against 1570 ms. Since PR #161 the routing count never
    loads a model (resident-session count or chars/5.0 estimator), so this term
@@ -395,7 +395,7 @@ comparability note in `bench/README.md`).
 
 ### §5 (continued) — disk, availability and the App/Game lever
 
-**Effect on disk**: models too large to fit the Dev Mode partition also fail before reaching `OgaCreateModel`. This is a distinct failure mode — see §9.
+**Effect on disk**: models too large to fit the Developer Mode partition also fail before reaching `OgaCreateModel`. This is a distinct failure mode — see §9.
 
 Disk budget failures (deploy-time or LocalState copy):
 
@@ -405,7 +405,7 @@ Disk budget failures (deploy-time or LocalState copy):
 | SmolLM2-1.7B | INT4 CPU | 1.4 GB  | Above disk budget |
 | SmolLM2-360M | INT4 CPU | 403 MB  | ✅ Works (CPU EP) |
 
-Note: DirectML itself _is_ available in Dev Mode (NuGet `Microsoft.AI.DirectML 1.15.4`). The memory pool constraint applies to model weight size, not to the API itself.
+Note: DirectML itself _is_ available in Developer Mode (NuGet `Microsoft.AI.DirectML 1.15.4`). The memory pool constraint applies to model weight size, not to the API itself.
 
 **Current approach**: CPU EP (`"provider_options": []` in `genai_config.json`) remains the default for the interactive app (decode-heavy chat). DML fp16 is measured-viable for prompt-heavy workloads and profiling tooling exists (§11). The remaining GPU/CPU unlock levers — larger models via no-bundle deploy,
 llama.cpp CPU kernel A/B, per-workload routing — are tracked in `ROADMAP.md`
@@ -426,7 +426,7 @@ re-check the designation after any package reinstall (it can reset to App).
 
 ## 6. Limited Thread Count
 
-**Problem**: Dev Mode apps share CPU resources. Xbox Series S has 8 Zen 2 cores; typically 6–7 are available.
+**Problem**: Developer Mode apps share CPU resources. Xbox Series S has 8 Zen 2 cores; typically 6–7 are available.
 
 **Workaround**: `detect_threads()` in `src/bridge/platform.cpp` reads `hardware_concurrency()` at runtime and ORT GenAI respects the system thread pool. Thread count can be overridden via `InferenceParams`.
 
@@ -532,21 +532,21 @@ The `\\?\` long-path prefix does not help: it bypasses MAX_PATH but not the acce
 
 **Diagnosis**: Win32 probes on the model path — `GetFileAttributesW` and `CreateFile2` with `GENERIC_READ` succeed on `model_dir\model.onnx`, but the crash occurs inside the ORT segment-walking loop. Confirmed by matching the call site to `onnxruntime/core/framework/tensorprotoutils.cc` L337/338/346.
 
-## 9. Disk Budget (Dev Mode Partition)
+## 9. Disk Budget (Developer Mode Partition)
 
-> **Superseded (2026-07-08)**: the Dev Mode storage allocation was raised to
+> **Superseded (2026-07-08)**: the Developer Mode storage allocation was raised to
 > **90 GB** via Dev Home → Manage Dev Storage. The figures below describe the
-> default allocation and remain valid as the baseline for a fresh Dev Mode
+> default allocation and remain valid as the baseline for a fresh Developer Mode
 > activation; with the enlarged allocation, disk is no longer the binding
 > constraint for model sizing (GPU budget and RAM are). One caveat to verify:
-> community reports a ~2 GB per-file limit in Dev Mode, relevant for merged
+> community reports a ~2 GB per-file limit in Developer Mode, relevant for merged
 > `model.onnx` files above that size.
 
-**Observed**: the Xbox Series S Dev Mode partition (`Q:\`) provides approximately **2.2–2.5 GB of free space** after a clean Dev Mode activation, before any sideloaded package.
+**Observed**: the Xbox Series S Developer Mode partition (`Q:\`) provides approximately **2.2–2.5 GB of free space** after a clean Developer Mode activation, before any sideloaded package.
 
 **Effect on model selection**: peak disk usage during deploy is approximately **2× the MSIX size**, because the package is uploaded to a staging area before installation completes. A 400 MB MSIX requires ~800 MB free during deploy, and ~400 MB residual after.
 
-**Working budgets** (empirical, Series S Dev Mode, with xllama installed):
+**Working budgets** (empirical, Series S Developer Mode, with xllama installed):
 
 | Budget                      | Conservative | Borderline | Over budget |
 | --------------------------- | ------------ | ---------- | ----------- |
@@ -563,7 +563,7 @@ provisioning paths in `docs/model-selection.md`, `docs/device-portal.md` and
 
 See also `docs/model-selection.md` for a consolidated checklist.
 
-## 10. Win32 APIs Available in WINAPI_PARTITION_APP (Xbox Dev Mode)
+## 10. Win32 APIs Available in WINAPI_PARTITION_APP (Xbox Developer Mode)
 
 Reference for future work — APIs that do **not** require a desktop-only guard on Xbox UWP:
 
@@ -586,7 +586,7 @@ APIs that are **desktop-only** and require `#if WINAPI_PARTITION_DESKTOP` guards
 `Windows.Desktop`. That declaration says which families may install the package;
 it does **not** mean the Desktop API contracts exist at runtime on any of them.
 
-Measured on the console (Dev Mode, package 1.5.2.x) by the `[caprec]` probe in
+Measured on the console (Developer Mode, package 1.5.2.x) by the `[caprec]` probe in
 `App.cpp`:
 
 ```
@@ -648,7 +648,7 @@ PR must implement and measure the frame-pool and encoder seams behind
 an opt-in flag before the native path can replace the screenshot fallback.
 
 **Store SKU safe:** GraphicsCaptureSession is Universal contract — no Desktop
-Extension SDK needed — so the probe compiles and runs on both Dev Mode and
+Extension SDK needed — so the probe compiles and runs on both Developer Mode and
 Store SKUs.
 
 ### §10b.2 — Native frame-pool capture probe (2026-08-26)
@@ -707,7 +707,7 @@ half-finished coroutine left it.
 
 Phase 16 WS-F needed one fact nobody had measured: does the Xbox AppContainer
 grant a microphone? Measured by the `mic.flag` probe (`run_mic_probe` in
-`uwp/inference-bridge.cpp`, driven by `scripts/probe-mic.sh`) on Dev Mode
+`uwp/inference-bridge.cpp`, driven by `scripts/probe-mic.sh`) on Developer Mode
 package 1.5.4.897, with `<DeviceCapability Name="microphone"/>` in
 `AppxManifest.xml`. Raw result: [`../bench/results/phase16-mic.json`](../bench/results/phase16-mic.json).
 
@@ -721,7 +721,7 @@ samples            = 0
 What this **does** establish:
 
 - **The `microphone` capability is accepted at install.** The MSIX registered
-  and launched normally; declaring it is not itself a Dev Mode blocker.
+  and launched normally; declaring it is not itself a Developer Mode blocker.
 - **`AudioGraph::CreateAsync` succeeds under AppContainer** with
   `AudioRenderCategory::Speech`, and reports a real 48 kHz stereo format. The
   audio subsystem is reachable from inside the sandbox.
@@ -754,7 +754,7 @@ owner speaking into it, the same probe (CI package 1.6.0.1072) returned
 `graph_status = Success`, `input_node_status = Success`, 287 040 samples in
 3 s at 48 kHz stereo, RMS 0.0191 (bar 1e-3) and peak 0.297. Raw result:
 [`../bench/results/2026-09-30-mic.json`](../bench/results/2026-09-30-mic.json).
-An AppContainer app in Dev Mode can capture audio. The chat headset is
+An AppContainer app in Developer Mode can capture audio. The chat headset is
 enumerated as the default capture device, and no extra capability or prompt
 is needed beyond `microphone`. The two earlier `DeviceNotAvailable` runs were
 the empty room, as argued above.
@@ -793,7 +793,7 @@ nothing in-process can raise that. An autopilot `back` op was considered and
 **rejected** — it would call `OnCancelClick` directly, exercising a path the B
 button does not uniquely own, and ship a console gate named after a button it
 never presses. That is §10d's boolean probe with a different label. Do not add
-it. The irreducible check is one physical press on a Dev Mode console, and it
+it. The irreducible check is one physical press on a Developer Mode console, and it
 belongs in the release runbook, not in a gate that implies more than it proves.
 
 **Cancelling goes through `OnCancelClick`, and that is load-bearing.** The
@@ -815,13 +815,13 @@ Two things this does **not** cover, by design:
   `BackRequested`. That is the wanted behaviour and needs no code.
 - **An `App` designation may want the opposite.** The Xbox back-nav
   guideline for _apps_ (not games) is that back at the top level exits. xllama
-  runs designated **Game** in Dev Home and this is a Dev Mode cut, so the suppression stands;
+  runs designated **Game** in Dev Home and this is a Developer Mode cut, so the suppression stands;
   revisit it with the App-vs-Game spike in
   [release-readiness.md](release-readiness.md).
 
 ## 11. GPU Truth — EP Attribution Without PIX
 
-PIX for Xbox is GDK tooling gated behind the managed partner program; it is **not available for Dev Mode UWP**. GPU-vs-CPU execution truth is instead established by converging three surfaces (all verified against primary sources, ORT GenAI 0.13.2 / ORT 1.24.4):
+PIX for Xbox is GDK tooling gated behind the managed partner program; it is **not available for Developer Mode UWP**. GPU-vs-CPU execution truth is instead established by converging three surfaces (all verified against primary sources, ORT GenAI 0.13.2 / ORT 1.24.4):
 
 1. **ORT profiling JSON (primary, definitive)**. `genai_config.json` → `session_options` accepts `enable_profiling` (a string: the profile file _path prefix_, producing `<prefix>_<timestamp>.json`) and `log_severity_level` (0 = VERBOSE). Every `<node>_kernel_time` event in the trace carries `args.provider` — literally `"DmlExecutionProvider"` or `"CPUExecutionProvider"`. Heavy kernels (MatMul/Attention) tagged CPU = silent fallback. This works regardless of ORT build flavor and log routing. Tooling: `scripts/profile-dml-run.sh` (config swap + run + fetch) and `scripts/analyze_ort_profile.py` (per-provider summary + greppable `VERDICT:` line).
    - _Profile location ladder_: the relative prefix resolves against the process CWD, which in AppContainer may be the read-only install root (ORT's profiler ofstream then fails silently). Step 1: the fetch script checks LocalState root **and** `models\<name>\`. Step 2: `--absolute-prefix` renders `genai_config-dml-profile.tpl.json` with an absolute LocalState path. Step 3 (definitive): `set_cwd_to_local_folder()` pins CWD to LocalState at bench startup (v0.3.2+ MSIX).
@@ -834,7 +834,7 @@ PIX for Xbox is GDK tooling gated behind the managed partner program; it is **no
 
 - Op inventory of the model graph (python + `onnx`, count `node.op_type` incl. `com.microsoft.*` domains) cross-referenced against the profiler's per-op CPU list to identify which ops force fallback.
 - Full-vs-minimal ORT build probe: `strings onnxruntime.dll | grep "Node placements"` on the NuGet-restored DLL (affects only the log probe, not profiling).
-- D3D12 debug layer: not viable in Dev Mode UWP (`DML_CREATE_DEVICE_FLAG_DEBUG` needs `DirectML.Debug.dll` and ORT creates the DML device internally); DXGI HRESULTs already surface through the SEH translator.
+- D3D12 debug layer: not viable in Developer Mode UWP (`DML_CREATE_DEVICE_FLAG_DEBUG` needs `DirectML.Debug.dll` and ORT creates the DML device internally); DXGI HRESULTs already surface through the SEH translator.
 
 ## 12. Why int4 Decode Is Slow on DirectML (not a missing kernel)
 
@@ -931,6 +931,6 @@ Writable artefacts only under LocalState (§2).
 **Architecture gate.** `training_device_supported(Device)` is compile-time true
 only when `XLLAMA_DEVICE_TRAIN` is present (llamacpp/unified builds). The
 `DeviceGgmlPartialFt` capability is **available** (host + console marker gates
-PASS 2026-07-20: peak working set 1195 MB, marker reproduced on the Series S);
+PASS 2026-07-20: peak working set 1195 MiB, marker reproduced on the Series S);
 ORT-only builds reject device jobs and still emit a failing
 `training/result.done` marker instead of hanging the harness.

@@ -1,9 +1,10 @@
 # ADR 0003: Export SD-Turbo with a first-party torch.onnx exporter
 
-Status: Proposed (2026-09-30)
+Status: Accepted (2026-10-31)
 
-Not applied. Needs explicit owner acceptance before any structural change to
-`diffusion/` (#263).
+Proposed 2026-09-30. The owner accepted this ADR on 2026-10-31; the
+implementation is tracked in #263. Acceptance steps 5 (console live gate with
+peak-memory evidence) and the alert closure in step 6 remain open until shown.
 
 ## Context
 
