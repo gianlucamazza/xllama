@@ -13,6 +13,11 @@ User-facing notes: [docs/releases/v1.7.0.md](docs/releases/v1.7.0.md).
 The release date and final-package acceptance remain pending; package identity
 and dependency pins are unchanged by this notes draft.
 
+- **GPU validation:** the standard backend selftest exits nonzero when its
+  gate fails and rejects empty, non-finite or negative measurements. Native
+  matmul and get-rows error oracles reject non-finite values instead of
+  allowing NaNs to disappear in a maximum reduction.
+
 - **API validation:** parse the complete training-status response before
   applying the bounded display preview in the HTTP framing gate. Longer
   progress payloads no longer cause a false failure; missing or invalid
