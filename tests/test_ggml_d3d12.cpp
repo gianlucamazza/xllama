@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 #include <random>
 #include <string>
 #include <vector>
@@ -157,6 +158,28 @@ TEST_CASE("ggml_d3d12: dispatch planner") {
     d = d3d12_mm_dispatch(2048, 0);
     CHECK(d.ok);
     CHECK(d.groups_y == 0); // nothing to dispatch
+    // Four-column tiles include a partial final tile without extending the
+    // backend's original supports_op shape envelope.
+    for (const auto cols : {2, 3, 4, 5, 9}) {
+        d = d3d12_mm_dispatch(5, cols, 4);
+        REQUIRE(d.ok);
+        CHECK(d.groups_x == 2);
+        CHECK(d.groups_y == static_cast<unsigned>((cols + 3) / 4));
+    }
+    CHECK(d3d12_mm_dispatch(5, 4 * 65535, 4).ok);
+    CHECK_FALSE(d3d12_mm_dispatch(5, 4 * 65535 + 1, 4).ok);
+    CHECK_FALSE(d3d12_mm_dispatch(5, 3, 2).ok);
+    CHECK_FALSE(d3d12_mm_dispatch(std::numeric_limits<std::int64_t>::max(), 1, 4).ok);
+    CHECK_FALSE(d3d12_mm_dispatch(5, std::numeric_limits<std::int64_t>::max(), 4).ok);
+}
+
+TEST_CASE("ggml_d3d12: experimental prefill requires an explicit bounded configuration") {
+    CHECK(d3d12_prefill_columns("4") == 4);
+    CHECK(d3d12_prefill_columns(" \t4\r\n") == 4);
+    for (const auto* config :
+         {"", "1", "0", "2", "-4", "44", "4garbage", "4\n1", "99999999999999999999999999"})
+        CHECK(d3d12_prefill_columns(config) == 1);
+    CHECK(d3d12_prefill_columns(std::string_view("4\0", 2)) == 1);
 }
 
 TEST_CASE("ggml_d3d12: kernel width follows K (D2a runs 1 and 2)") {

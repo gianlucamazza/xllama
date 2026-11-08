@@ -247,6 +247,9 @@ void main_loop() {
     const int bench_gpu_layers = read_local_int("bench_gpu_layers.txt", 0);
     // D2b: decode exactly n_predict tokens (no EOG / stop sequence). Host tag -noeog.
     const int bench_ignore_eog = read_local_int("bench_ignore_eog.txt", 0);
+    // Operator campaigns can hold the decode trajectory fixed across arms.
+    // Missing/invalid values preserve the normal sampler defaults.
+    const bool bench_greedy = read_local_int("bench_greedy.txt", 0) == 1;
     // W1.1: which repetition this run is, written by the bench driver before each
     // iteration. Echoed into the CSV run_index column so the driver can append
     // every repeat and the summary generator can report a spread. 0 = single run.
@@ -296,8 +299,9 @@ void main_loop() {
     params.kv_q8 = bench_kvq8 != 0;                  // #171: q8_0 KV + flash attention
     params.prompt_lookup = bench_prompt_lookup != 0; // #210 W2
     params.n_gpu_layers = bench_gpu_layers;          // D2b: 0 = CPU
-    params.stop_sequences = fmt.stop_sequences;      // clean stop for Gemma's <end_of_turn>
-    params.run_index = bench_run_index;              // W1.1: echo into CSV (0 = single-run)
+    params.greedy = bench_greedy;
+    params.stop_sequences = fmt.stop_sequences; // clean stop for Gemma's <end_of_turn>
+    params.run_index = bench_run_index;         // W1.1: echo into CSV (0 = single-run)
     if (bench_ignore_eog != 0) { // after stop_sequences is set, or the stops come back
         params.ignore_eog = true;
         params.stop_sequences.clear();
@@ -333,6 +337,8 @@ void main_loop() {
             snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-g%d", bench_gpu_layers);
     if (bench_ignore_eog != 0)
         host_len += snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-noeog");
+    if (bench_greedy)
+        host_len += snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-greedy");
     if (bench_prompt_lookup != 0)
         snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-plookup");
 
@@ -363,7 +369,11 @@ void run_logits() {
     std::string prompt = read_local_file("prompt.txt");
     if (prompt.empty())
         prompt = "Hello from Xbox Series S. Tell me about your architecture.";
-    std::string model_name = read_local_file("model.txt");
+    // An operator can probe an already provisioned research model without
+    // selecting or downloading it through the chat catalogue.
+    std::string model_name = read_local_file("logits_model.txt");
+    if (model_name.empty())
+        model_name = read_local_file("model.txt");
     if (model_name.empty())
         model_name = "smollm2-360m-cpu-int4";
 
@@ -375,9 +385,20 @@ void run_logits() {
     params.prompt = prompt;
     params.n_predict = 1; // one deterministic forward pass; we only need prefill logits
     params.greedy = true;
+    // Dedicated logit-probe knobs: a missing file remains the historical CPU
+    // control. The actual resolved layer count is logged below, not inferred
+    // from the requested setting.
+    params.n_gpu_layers = read_local_int("logits_gpu_layers.txt", 0);
+    params.n_ubatch = read_local_int("logits_ubatch.txt", 0);
     params.dump_logits_path = resolve_local_path("logits.bin");
 
     InferenceResult res = ::xllama::run_inference(params);
+    log_output("[xllama] logits: requested_gpu_layers=" + std::to_string(params.n_gpu_layers) +
+               " resolved_gpu_layers=" + std::to_string(res.gpu_layers) + "\n");
+    if (res.success && params.n_gpu_layers > 0 && res.gpu_layers == 0) {
+        res.success = false;
+        res.error_msg = "requested GPU logit probe fell back to CPU";
+    }
     log_output(res.success ? "[xllama] logits dump OK\n"
                            : "[xllama] logits dump FAILED: " + res.error_msg + "\n");
 

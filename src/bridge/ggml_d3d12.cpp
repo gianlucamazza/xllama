@@ -14,6 +14,7 @@
     #include <cstdio>
     #include <cstring>
     #include <ctime>
+    #include <limits>
     #include <string>
     #include <vector>
 
@@ -25,19 +26,30 @@ bool d3d12_weight_type_supported(ggml_type t) {
     return t == GGML_TYPE_Q4_0 || t == GGML_TYPE_Q4_K || t == GGML_TYPE_Q6_K;
 }
 
-D3d12Dispatch d3d12_mm_dispatch(std::int64_t n, std::int64_t ncols) {
+int d3d12_prefill_columns(std::string_view config) {
+    if (config.size() >= 16)
+        return 1;
+    const auto first = config.find_first_not_of(" \t\r\n");
+    return first != std::string_view::npos && config[first] == '4' &&
+                   config.find_first_not_of(" \t\r\n", first + 1) == std::string_view::npos
+               ? 4
+               : 1;
+}
+
+D3d12Dispatch d3d12_mm_dispatch(std::int64_t n, std::int64_t ncols, int columns_per_group) {
     D3d12Dispatch d;
-    if (n <= 0 || ncols < 0)
+    if (n <= 0 || ncols < 0 || (columns_per_group != 1 && columns_per_group != 4))
         return d;
     if (ncols == 0) { // no output rows in this ubatch: a no-op, still ours
         d.ok = true;
         return d;
     }
-    const std::int64_t gx = (n + kD3d12MmvRows - 1) / kD3d12MmvRows;
-    d.ok = gx <= kD3d12MaxGroups && ncols <= kD3d12MaxGroups;
+    const std::int64_t gx = n / kD3d12MmvRows + (n % kD3d12MmvRows != 0);
+    const std::int64_t gy = ncols / columns_per_group + (ncols % columns_per_group != 0);
+    d.ok = gx <= kD3d12MaxGroups && gy <= kD3d12MaxGroups;
     if (d.ok) {
         d.groups_x = static_cast<std::uint32_t>(gx);
-        d.groups_y = static_cast<std::uint32_t>(ncols);
+        d.groups_y = static_cast<std::uint32_t>(gy);
     }
     return d;
 }
@@ -332,14 +344,22 @@ void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
         #include "ggml-backend-impl.h"
         #include "ggml-backend.h"
         #include "ggml_d3d12_get_rows_q6_k_dxil.h"
+        #include "ggml_d3d12_mmv_q4_0_c4_t128_dxil.h"
+        #include "ggml_d3d12_mmv_q4_0_c4_t64_dxil.h"
         #include "ggml_d3d12_mmv_q4_0_t128_dxil.h"
         #include "ggml_d3d12_mmv_q4_0_t64_dxil.h"
+        #include "ggml_d3d12_mmv_q4_k_c4_t128_dxil.h"
+        #include "ggml_d3d12_mmv_q4_k_c4_t64_dxil.h"
         #include "ggml_d3d12_mmv_q4_k_t128_dxil.h"
         #include "ggml_d3d12_mmv_q4_k_t64_dxil.h"
+        #include "ggml_d3d12_mmv_q6_k_c4_t128_dxil.h"
+        #include "ggml_d3d12_mmv_q6_k_c4_t64_dxil.h"
         #include "ggml_d3d12_mmv_q6_k_t128_dxil.h"
         #include "ggml_d3d12_mmv_q6_k_t64_dxil.h"
         #include "xllama/d3d12_dyn.h"
+        #include "xllama/path_utils.h"
         #include "xllama/platform.h"
+        #include "xllama/utf8_utils.h"
 
 namespace xllama {
 namespace {
@@ -369,7 +389,10 @@ struct Gpu {
     ComPtr<ID3D12GraphicsCommandList> cl;
     ComPtr<ID3D12RootSignature> root;
     ComPtr<ID3D12PipelineState> pso[kPsoCount][2]; // [type][0 = 64 threads, 1 = 128]
-    ComPtr<ID3D12PipelineState> pso_get_rows;      // Q6_K
+    ComPtr<ID3D12PipelineState> pso_c4[kPsoCount][2];
+    int prefill_columns = 1;
+    std::uint64_t n_c4_dispatches = 0;
+    ComPtr<ID3D12PipelineState> pso_get_rows; // Q6_K
     ComPtr<ID3D12QueryHeap> ts;
     ComPtr<ID3D12Resource> ts_rb;
     ComPtr<ID3D12Resource> staging;  // weight upload ring (kStagingBytes)
@@ -450,6 +473,17 @@ bool init_gpu(Gpu& g) {
         err = "adapter is not cache-coherent UMA";
         return false;
     }
+    // Operator-only experiment switch, read once per process. Missing/invalid
+    // values keep the shipping path. No extra PSOs are created by default.
+    if (FILE* f = _wfopen(utf8_to_wstring(resolve_local_path("d3d12-prefill-columns.txt")).c_str(),
+                          L"r")) {
+        char config[16] = {};
+        const auto bytes = std::fread(config, 1, sizeof(config), f);
+        if (!std::ferror(f))
+            g.prefill_columns = d3d12_prefill_columns(std::string_view(config, bytes));
+        std::fclose(f);
+    }
+    log_output("[xllama] d3d12: prefill_columns=" + std::to_string(g.prefill_columns) + "\n");
     g.luid = g.device->GetAdapterLuid();
     D3D12_COMMAND_QUEUE_DESC qd = {};
     qd.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
@@ -489,6 +523,28 @@ bool init_gpu(Gpu& g) {
             if (FAILED(hr)) {
                 err = d3d12c::hr_message("CreateComputePipelineState", hr);
                 return false;
+            }
+        }
+    }
+    if (g.prefill_columns == 4) {
+        const void* wide_blobs[kPsoCount][2] = {
+            {kGgmlD3d12MmvQ40C4T64Dxil, kGgmlD3d12MmvQ40C4T128Dxil},
+            {kGgmlD3d12MmvQ4KC4T64Dxil, kGgmlD3d12MmvQ4KC4T128Dxil},
+            {kGgmlD3d12MmvQ6KC4T64Dxil, kGgmlD3d12MmvQ6KC4T128Dxil}};
+        const size_t wide_sizes[kPsoCount][2] = {
+            {kGgmlD3d12MmvQ40C4T64DxilSize, kGgmlD3d12MmvQ40C4T128DxilSize},
+            {kGgmlD3d12MmvQ4KC4T64DxilSize, kGgmlD3d12MmvQ4KC4T128DxilSize},
+            {kGgmlD3d12MmvQ6KC4T64DxilSize, kGgmlD3d12MmvQ6KC4T128DxilSize}};
+        for (int i = 0; i < kPsoCount; ++i) {
+            for (int wd = 0; wd < 2; ++wd) {
+                D3D12_COMPUTE_PIPELINE_STATE_DESC pd = {};
+                pd.pRootSignature = g.root.Get();
+                pd.CS = {wide_blobs[i][wd], wide_sizes[i][wd]};
+                hr = g.device->CreateComputePipelineState(&pd, IID_PPV_ARGS(&g.pso_c4[i][wd]));
+                if (FAILED(hr)) {
+                    err = d3d12c::hr_message("CreateComputePipelineState(c4)", hr);
+                    return false;
+                }
             }
         }
     }
@@ -793,11 +849,12 @@ void backend_free(ggml_backend_t b) {
         char msg[256];
         std::snprintf(msg, sizeof(msg),
                       "[xllama] d3d12: %llu graph_compute calls, %llu dispatches, %.1f ms wall "
-                      "(%.1f ms GPU)\n",
+                      "(%.1f ms GPU), %llu c4 dispatches\n",
                       static_cast<unsigned long long>(g.n_calls),
-                      static_cast<unsigned long long>(g.n_dispatches), g.wall_ms, g.gpu_ms);
+                      static_cast<unsigned long long>(g.n_dispatches), g.wall_ms, g.gpu_ms,
+                      static_cast<unsigned long long>(g.n_c4_dispatches));
         log_output(msg);
-        g.n_calls = g.n_dispatches = 0;
+        g.n_calls = g.n_dispatches = g.n_c4_dispatches = 0;
         g.wall_ms = g.gpu_ms = 0.0;
     }
     delete b;
@@ -874,17 +931,22 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
                              static_cast<UINT>(node->ne[1]), 1);
                 continue;
             }
-            const D3d12Dispatch d = d3d12_mm_dispatch(node->ne[0], node->ne[1]);
+            const bool multicolumn = g.prefill_columns == 4 && node->ne[1] > 1;
+            const D3d12Dispatch d =
+                d3d12_mm_dispatch(node->ne[0], node->ne[1], multicolumn ? 4 : 1);
             const std::uint32_t c[8] = {static_cast<std::uint32_t>(w->ne[1]),
                                         static_cast<std::uint32_t>(w->ne[0]),
                                         static_cast<std::uint32_t>(w->ne[0] / kD3d12Chunk),
                                         static_cast<std::uint32_t>(w->nb[1]),
                                         op.xq_row,
                                         static_cast<std::uint32_t>(node->nb[1] / sizeof(float)),
-                                        0,
+                                        static_cast<std::uint32_t>(node->ne[1]),
                                         0};
             const int wide = d3d12_mm_threads(w->ne[0]) == kD3d12MmvThreadsLong ? 1 : 0;
-            cl->SetPipelineState(g.pso[pso_for(w->type)][wide].Get());
+            cl->SetPipelineState(multicolumn ? g.pso_c4[pso_for(w->type)][wide].Get()
+                                             : g.pso[pso_for(w->type)][wide].Get());
+            if (multicolumn)
+                ++g.n_c4_dispatches;
             cl->SetComputeRoot32BitConstants(0, 8, c, 0);
             cl->SetComputeRootShaderResourceView(1, tensor_va(w));
             cl->SetComputeRootUnorderedAccessView(2, tensor_va(node));
@@ -1292,6 +1354,10 @@ double reference_rel_err(ggml_type t, const std::vector<std::uint8_t>& q, std::s
             wt->vec_dot(k, &ref, 0, q.data() + static_cast<std::size_t>(r) * row_bytes, 0,
                         xq.data(), 0, 1);
             const double got = y[static_cast<std::size_t>(c) * n + r];
+            // std::max can silently keep its old value when the other operand
+            // is NaN, turning a corrupt GPU output into a zero-error pass.
+            if (!std::isfinite(ref) || !std::isfinite(got))
+                return std::numeric_limits<double>::infinity();
             max_ref = std::max(max_ref, std::fabs(static_cast<double>(ref)));
             max_diff = std::max(max_diff, std::fabs(static_cast<double>(ref) - got));
         }
@@ -1493,6 +1559,16 @@ void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
     };
     for (const auto& sc : cases)
         out->push_back(run_case(backend, sc));
+    if (gpu().prefill_columns == 4) {
+        // Exercise column and row tails with each quantizer at both thread
+        // widths on the real GPU before accepting the prefill experiment.
+        for (const auto type : {GGML_TYPE_Q4_0, GGML_TYPE_Q4_K, GGML_TYPE_Q6_K})
+            for (const int k : {256, 4096, 4352})
+                for (const int cols : {2, 3, 5, 9}) {
+                    const SelftestCase tail{type, ggml_type_name(type), 5, k, cols};
+                    out->push_back(run_case(backend, tail));
+                }
+    }
     out->push_back(run_get_rows_case(backend, 151936, 2048)); // Coder-3B tied token_embd
     out->push_back(run_get_rows_case(backend, 65536, 1024));  // LFM2.5-350M
     ggml_backend_free(backend);

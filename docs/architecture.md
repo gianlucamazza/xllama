@@ -562,6 +562,22 @@ prompt. Writes:
 - `<path>` — raw float32 little-endian, `vocab_size` values (last token)
 - `<path>.json` — `{ model, prompt, backend, vocab_size, greedy, top1_id, top1_piece }`
 
+Autopilot's `gpu_selftest` and `dump_logits` actions run these diagnostics in
+the existing XAML process, after compute admission and releasing the resident
+chat session. `dump_logits` requires a nonempty raw `text` prompt. Their
+completion logs establish execution only; acceptance still requires checking
+every fresh CSV row or comparing the fresh distributions. `logits_model.txt`
+can name an already provisioned operator research model without adding it to
+the catalogue or downloading it. Remove it to use the normal selected model.
+
+On console, `logits_gpu_layers.txt` selects GGUF GPU layers for this diagnostic
+(default zero, CPU); `logits_ubatch.txt` selects its physical prefill chunk
+(default zero, engine default). The resolved GPU layer count is logged. A
+positive request that falls back to CPU fails the probe. Record the selected
+prefill experiment and actual dispatch counts alongside the dump. These knobs
+do not change chat routing. Operator benches can use `bench_greedy.txt=1` to
+hold the decode trajectory fixed; their host tag echoes `-greedy`.
+
 The binary format matches `numpy.fromfile(dtype=np.float32)`. Dumps from both
 backends are compared by `scripts/compare-logits.py`. This is the gate for
 publishing ORT model assets: every asset must pass the logit-parity gate before

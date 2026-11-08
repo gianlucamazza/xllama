@@ -4204,6 +4204,49 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
             if (stage != "done")
                 throw std::runtime_error("action " + std::to_string(i) +
                                          " generate_image: stage=" + stage);
+        } else if (a.op == "gpu_selftest" || a.op == "dump_logits") {
+            if (!not_running())
+                throw std::runtime_error("action " + std::to_string(i) + " " + a.op + ": busy");
+            auto compute_permit = ::xllama::try_acquire_compute_job();
+            if (!compute_permit)
+                throw std::runtime_error("action " + std::to_string(i) + " " + a.op + ": busy");
+            // Keep XAML/compositor in the measurement process, but never retain
+            // a second model beside the diagnostic's temporary inference model.
+            {
+                auto& hub = ::xllama::session_hub();
+                std::lock_guard<std::mutex> lock(hub.mtx);
+                hub.reset_locked();
+            }
+            std::string probe_model;
+            ApDispatchSync([this, &probe_model]() {
+                probe_model = ::xllama::wstring_to_utf8(m_model_filename);
+                m_kv_valid = false;
+                SetRunning(true);
+            });
+            log_output("[autopilot] " + a.op + ": ui-process start\n");
+            try {
+                if (a.op == "gpu_selftest") {
+                    _wremove(local_wpath(L"d3d12be-result.csv.done").c_str());
+                    _wremove(local_wpath(L"d3d12be-result.csv").c_str());
+                    ::xllama::bridge::run_d3d12_selftest();
+                } else {
+                    write_local_bytes(L"model.txt", probe_model);
+                    write_local_bytes(L"prompt.txt", ::xllama::wstring_to_utf8(a.arg));
+                    _wremove(local_wpath(L"logits.done").c_str());
+                    _wremove(local_wpath(L"logits.bin").c_str());
+                    _wremove(local_wpath(L"logits.bin.json").c_str());
+                    ::xllama::bridge::run_logits();
+                    if (read_local_text_file(L"logits.done") != "ok")
+                        throw std::runtime_error("GPU logit diagnostic failed");
+                }
+            } catch (...) {
+                ApDispatchSync([this]() { SetRunning(false); });
+                throw;
+            }
+            ApDispatchSync([this]() { SetRunning(false); });
+            // Completion means execution finished; the host must still check
+            // every numerical CSV row / compare the fresh binary distributions.
+            log_output("[autopilot] " + a.op + ": ui-process complete\n");
         } else if (a.op == "rate") {
             // Preference capture (training hybrid loop): append last user+assistant
             // turn to LocalState\training\samples.jsonl with label like|dislike|...
