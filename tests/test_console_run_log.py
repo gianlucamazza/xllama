@@ -68,6 +68,18 @@ class ScopeTests(unittest.TestCase):
         data = b"[xllama] App::App()\n\xff\x00\n"
         self.assertEqual(MODULE.scope_log(b"", data), data)
 
+    def test_headless_training_requires_explicit_mode(self):
+        headless = b"[xllama] train.flag detected -> headless device training (Lane B)\r\n"
+        data = headless + b"[xllama] headless train: starting\n"
+        self.assertEqual(MODULE.scope_log(OLD, OLD + data, "train"), data)
+        with self.assertRaises(ValueError):
+            MODULE.scope_log(OLD, OLD + data)
+        for after in (OLD, OLD + NEW, OLD + data + data, OLD + data + NEW, OLD + NEW + data, data):
+            with self.subTest(after=after), self.assertRaises(ValueError):
+                MODULE.scope_log(OLD, after, "train")
+        with self.assertRaises(ValueError):
+            MODULE.scope_log(OLD, OLD + data, "unknown")
+
     def test_cli_failure_clears_previous_extraction(self):
         with tempfile.TemporaryDirectory() as tmp:
             before, after, out = (Path(tmp) / name for name in ("before", "after", "out"))

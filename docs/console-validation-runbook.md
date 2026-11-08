@@ -37,7 +37,10 @@ the app. Stops use the checked, package-encoding helper in `deploy.sh`. Before
 launch they snapshot `xllama.log` after stopping the app. The harnesses **never
 delete this log**: a delayed unlink can race the new process (#347). Only a
 successful download or HTTP 404 establishes the baseline. Verdicts read only
-new bytes beginning at one complete, exact `App::App()` entry. An old partial
+new bytes beginning at one complete, exact `App::App()` entry for UI gates.
+The device-training gate explicitly selects the exact `train.flag detected ->
+headless device training (Lane B)` entry, because headless dispatch precedes
+the XAML constructor. Neither mode accepts the other mode as a fallback. An old partial
 line may precede that append boundary; historical bytes never complete a new
 marker or enter the extracted output.
 
