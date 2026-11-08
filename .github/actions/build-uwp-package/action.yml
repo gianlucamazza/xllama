@@ -39,15 +39,30 @@ runs:
 
     - name: Download pinned patched runtime DLLs (vendor-dlls-v1)
       if: inputs.patched == 'true'
+      env:
+        GH_TOKEN: ${{ github.token }}
       shell: bash
       run: |
         set -euo pipefail
-        BASE="https://github.com/gianlucamazza/xllama/releases/download/vendor-dlls-v1"
         download_pin() {
           local name="$1" dest_dir="$2" sums="$3"
           mkdir -p "$dest_dir"
           local out="$dest_dir/$name"
-          curl -fsSL -o "$out" "$BASE/$name"
+          # The anonymous release redirect repeatedly returned HTTP 504.
+          # Use the authenticated release-asset API; hashes below remain mandatory.
+          local downloaded=0
+          for attempt in 1 2 3; do
+            if gh release download vendor-dlls-v1 --repo gianlucamazza/xllama \
+              --pattern "$name" --dir "$dest_dir" --clobber; then
+              downloaded=1
+              break
+            fi
+            echo "Asset download attempt $attempt failed for $name"
+          done
+          if [ "$downloaded" != 1 ]; then
+            echo "Could not download pinned $name"
+            exit 1
+          fi
           local expected actual
           expected=$(awk -v n="$name" '/^[[:xdigit:]]{64}[[:space:]]+/ && $2==n {print $1; exit}' "$sums")
           if [ -z "$expected" ]; then

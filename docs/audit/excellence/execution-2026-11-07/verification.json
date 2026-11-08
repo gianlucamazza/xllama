@@ -1,0 +1,100 @@
+{
+  "status": "milestone-0-host-only",
+  "date": "2026-11-07",
+  "baseline_sha": "ea40b28deb5c9601863dd5b99709360b1bdee5bf",
+  "host": {
+    "linux_build": "passed",
+    "ctest": "1/1 passed",
+    "doctest_cases": 411,
+    "assertions": 33577,
+    "training_jobs": 3,
+    "baseline_python": {
+      "run": 118,
+      "skipped": 13
+    },
+    "sanitizers": "not run"
+  },
+  "changes": [
+    {
+      "issue": 393,
+      "pr": 399,
+      "source_sha": "757c0b12bc83f4ef7c78393f1fc8ef2b8fdd3e9e",
+      "remote_sha": "12397431bc02696e7b961b85fad9b4d806a7de3a",
+      "tests": "regression-first monitoring contract; exact Prettier 3.9.6 pass"
+    },
+    {
+      "issue": 394,
+      "pr": 400,
+      "source_sha": "eb883861c3a3ef6e7635d96e7047cd8d3b64882b",
+      "remote_sha": "d43c8e7f1c5896d4ec68bc2e593b8394a69bdb0d",
+      "tests": "58 red subcases before; 6 methods green; 124 tests run, 13 skipped"
+    },
+    {
+      "issue": 398,
+      "pr": 401,
+      "source_sha": "5a6f1842bde314b08951baef6b07a8ae27a41a0d",
+      "remote_sha": "2662531d9ab5e9adcc1ad1735767f5c767d9a7ae",
+      "tests": "2 mocked trust-policy tests pass; no real training"
+    },
+    {
+      "issue": 397,
+      "pr": 381,
+      "source_sha": "24920f2e42848ada7970e07790a8e4551bf67164",
+      "remote_sha": "d46e1dc755856579c381a60cdf44a7b6bb4f02cc",
+      "tests": "9 failures before; 74 Python tests green; standalone autopilot17 cases/80 assertions"
+    },
+    {
+      "pr": 369,
+      "source_sha": "b17a4ae05cba5f243a892f27267bb80866012063",
+      "remote_sha": "ba467bb4d674f908ce90b4a93e0122193901536d",
+      "tests": "5 release tests, metadata, generated summaries, research package, coherence and Prettier pass"
+    }
+  ],
+  "not_performed": [
+    "Xbox connection",
+    "UWP build",
+    "hardware measurements",
+    "actual host training/export",
+    "GPU shader execution",
+    "stable release"
+  ],
+  "logs": [
+    {
+      "path": "host-ctest.log",
+      "sha256": "3e9c40863c549a57118321ef5127795aaaed9e08d003afe18340d55204d982f5"
+    },
+    {
+      "path": "host-doctest.log",
+      "sha256": "64743e8afd0d8e6b22743412a8afe4d2dfeeff897f93e61da4335249a8464d8e"
+    },
+    {
+      "path": "host-coherence.log",
+      "sha256": "9cfaa84617c8698a26584eb53120a5a5f7618ac9470e1660e1412e99cea8c60b"
+    },
+    {
+      "path": "sidecar-regression-before.log",
+      "sha256": "436f2101501f8c766e5601f23aacad1e96624acb5470e486510cb52751e3a3a3"
+    },
+    {
+      "path": "sidecar-regression-after.log",
+      "sha256": "822f78c7a66b0ede696e8a579ce8757970051ea30338eaa02df1fb8a65aef8e2"
+    },
+    {
+      "path": "taesd-regression-before.log",
+      "sha256": "6a78bdc62ae0abe64c6c048ec32674c0c92809dd8b96bfccc17d2b2ed4d1527b"
+    },
+    {
+      "path": "taesd-regression-after.log",
+      "sha256": "93388b9107e2015264f3f50e1b52686e31785d2e3d1b568042dd938bcb35e25b"
+    },
+    {
+      "path": "taesd-autopilot.log",
+      "sha256": "412e2625a0485e8be59cf00428f404ce6d605131c889fdaa50b0b2986440b698"
+    },
+    {
+      "path": "vendor-status.log",
+      "sha256": "d6ede659067265a4c19a376b3a227554f072a4f4190dade07fab32a6269930c8"
+    }
+  ],
+  "note": "Remote commits have the verified local content trees, recreated via GitHub API; required remote CI remains independent."
+}

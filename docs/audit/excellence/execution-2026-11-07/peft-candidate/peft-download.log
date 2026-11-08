@@ -1,0 +1,6 @@
+Collecting peft==0.21.2
+  Using cached peft-0.21.2-py3-none-any.whl.metadata (15 kB)
+Downloading peft-0.21.2-py3-none-any.whl (835 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 835.4/835.4 kB 10.2 MB/s eta 0:00:00
+Saved /tmp/xllama-peft-resolution/wheels/peft-0.21.2-py3-none-any.whl
+Successfully downloaded peft

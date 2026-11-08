@@ -1,0 +1,258 @@
+{
+  "date": "2026-11-07",
+  "issue": 263,
+  "scope": "real SD-Turbo VAE decoder only; host CPU export/eager verification, conversion and partial fixed-input comparison",
+  "status": "partial host evidence; #263 remains open",
+  "source": {
+    "repository": "gianlucamazza/xllama",
+    "checked_out_head": "fd7c1161de00792905a3969d550ff7d1d51ca43e",
+    "files": {
+      "diffusion/export_sd_turbo.py": {
+        "bytes": 20418,
+        "sha256": "9dae3bc08418f226aa9e31ca344c66072db9e81f383fe22c8c6bdf1c64a13144"
+      },
+      "diffusion/convert_fp16.py": {
+        "bytes": 12434,
+        "sha256": "ed00f550c8e5e2054e5f2820aabdc08d53eee3b9fe573ad6e2ffbd0b4fdaac9d"
+      },
+      "diffusion/compare_onnx_exports.py": {
+        "bytes": 9832,
+        "sha256": "adb600283e4e5f91d42bc33e693c5e8032b3792c111c5a8e843d28c15bb019ad"
+      },
+      "diffusion/export_parity.json": {
+        "bytes": 1260,
+        "sha256": "4151c83df18165bc6c31575757c00568ded72a3992790855a56fce397be18a3d"
+      },
+      "diffusion/requirements.txt": {
+        "bytes": 1865,
+        "sha256": "09bd09256ee397143bc9863571f78399ee993f328976d47f006d1ebfa40c5dd3"
+      }
+    }
+  },
+  "toolchain": {
+    "python": "3.12.14",
+    "torch": "2.13.0+cpu",
+    "transformers": "5.10.1",
+    "diffusers": "0.40.0",
+    "onnx": "1.23.2",
+    "onnxscript": "0.7.2",
+    "onnxruntime": "1.31.1",
+    "accelerate": "1.15.0",
+    "huggingface_hub": "1.33.0",
+    "onnx-ir": "1.1.0"
+  },
+  "checkpoint": {
+    "repository": "stabilityai/sd-turbo",
+    "revision": "b261bac6fd2cf515557d5d0707481eafa0485ec2",
+    "url": "https://huggingface.co/stabilityai/sd-turbo/resolve/b261bac6fd2cf515557d5d0707481eafa0485ec2/vae/diffusion_pytorch_model.safetensors",
+    "file": {
+      "bytes": 334643268,
+      "sha256": "2aa1f43011b553a4cba7f37456465cdbd48aab7b54b9348b890e8058ea7683ec"
+    },
+    "hf_lfs_oid_verified": true
+  },
+  "legacy_asset": {
+    "url": "https://github.com/gianlucamazza/xllama/releases/download/models-v1/sd-turbo-fp16_vae_decoder_model.onnx",
+    "file": {
+      "bytes": 99125634,
+      "sha256": "b12f26698d6ac9ee6aac0482a86cf0194231d0a3304da78a98796eb6d6ddbc35"
+    },
+    "manifest_and_release_digest_verified": true,
+    "dtype": "fp16",
+    "opset": 14
+  },
+  "outputs": {
+    "firstparty-fp32/vae_decoder/model.onnx": {
+      "bytes": 198022175,
+      "sha256": "1ec23254ed3c3b53e1a4c41fab31a9b6dfd7dba6183ea7f1035891f97e63fd51"
+    },
+    "firstparty-fp16/vae_decoder/model.onnx": {
+      "bytes": 99041871,
+      "sha256": "0bc93e4b5fde4f2d7b13d413d204d1f9b904d2fcd48575b1658a81ffbeea22fe"
+    }
+  },
+  "export_report": {
+    "model": "export263/checkpoint",
+    "revision": "b261bac6fd2cf515557d5d0707481eafa0485ec2",
+    "opset": 18,
+    "versions": {
+      "python": "3.12.14",
+      "torch": "2.13.0+cpu",
+      "transformers": "5.10.1",
+      "diffusers": "0.40.0",
+      "onnx": "1.23.2",
+      "onnxscript": "0.7.2",
+      "onnxruntime": "1.31.1"
+    },
+    "components": {
+      "vae_decoder": {
+        "seconds": 8.4,
+        "bytes": 198022175,
+        "opset": 18,
+        "external_data": false,
+        "peak_rss_mib": 3324,
+        "ort_vs_torch": {
+          "sample": {
+            "max_abs": 3.018975257873535e-05,
+            "cosine": 0.9999999996059886
+          }
+        },
+        "ort_vs_torch_dynamic": {
+          "sample": {
+            "max_abs": 1.2800097465515137e-05,
+            "cosine": 0.99999999995441
+          }
+        }
+      }
+    }
+  },
+  "run_receipts": [
+    {
+      "command": [
+        "export-venv/bin/python",
+        "diffusion/export_sd_turbo.py",
+        "--model",
+        "export263/checkpoint",
+        "--revision",
+        "b261bac6fd2cf515557d5d0707481eafa0485ec2",
+        "--components",
+        "vae_decoder",
+        "--out",
+        "export263/firstparty-fp32",
+        "--verify"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 68.74144014000012,
+      "peak_rss_mib": 3324.546875
+    },
+    {
+      "command": [
+        "export-venv/bin/python",
+        "diffusion/convert_fp16.py",
+        "export263/firstparty-fp32",
+        "export263/firstparty-fp16"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 4.13401293600009,
+      "peak_rss_mib": 949.35546875
+    },
+    {
+      "name": "firstparty-fp16-vs-firstparty-fp32",
+      "command": [
+        "export-venv/bin/python",
+        "diffusion/compare_onnx_exports.py",
+        "export263/firstparty-fp32",
+        "export263/firstparty-fp16",
+        "--mode",
+        "fp16_vs_fp32",
+        "--components",
+        "vae_decoder",
+        "--json",
+        "export263/firstparty-fp16-vs-firstparty-fp32.json"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 25.387043321000192,
+      "peak_rss_mib": 1732.5546875
+    },
+    {
+      "name": "legacy-fp16-vs-firstparty-fp32",
+      "command": [
+        "export-venv/bin/python",
+        "diffusion/compare_onnx_exports.py",
+        "export263/firstparty-fp32",
+        "export263/legacy-fp16",
+        "--mode",
+        "fp16_vs_fp32",
+        "--components",
+        "vae_decoder",
+        "--json",
+        "export263/legacy-fp16-vs-firstparty-fp32.json"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 27.652457241000093,
+      "peak_rss_mib": 1733.109375
+    }
+  ],
+  "comparisons": {
+    "firstparty-fp16-vs-firstparty-fp32": {
+      "ref": "export263/firstparty-fp32",
+      "cand": "export263/firstparty-fp16",
+      "mode": "fp16_vs_fp32",
+      "components": {
+        "vae_decoder": {
+          "opset": {
+            "ref": 18,
+            "cand": 18
+          },
+          "sample": {
+            "max_abs": 0.0024328678846359253,
+            "cosine": 0.9999997003667253,
+            "max_abs_tol": 0.05,
+            "min_cosine": 0.999
+          }
+        }
+      },
+      "failures": [],
+      "unchecked": [],
+      "checked": 1,
+      "ok": true
+    },
+    "legacy-fp16-vs-firstparty-fp32": {
+      "ref": "export263/firstparty-fp32",
+      "cand": "export263/legacy-fp16",
+      "mode": "fp16_vs_fp32",
+      "components": {
+        "vae_decoder": {
+          "opset": {
+            "ref": 18,
+            "cand": 14
+          },
+          "sample": {
+            "max_abs": 0.0023718327283859253,
+            "cosine": 0.9999997005672184,
+            "max_abs_tol": 0.05,
+            "min_cosine": 0.999
+          }
+        }
+      },
+      "failures": [],
+      "unchecked": [],
+      "checked": 1,
+      "ok": true
+    }
+  },
+  "limitations": [
+    "Only VAE decoder exercised; no text encoder, UNet or final image pipeline export/parity.",
+    "Published legacy reference is fp16, not the required historical fp32 reference; partial comparison uses unchanged fp16_vs_fp32 tolerance and reverses provenance roles explicitly (new fp32 reference vs legacy fp16 candidate).",
+    "No DirectML/UWP/Xbox/TAESD acceptance or true device peak-memory evidence.",
+    "No legacy vulnerable toolchain installed; no synthetic matching reference produced.",
+    "No source/manifest/release assets changed or promoted.",
+    "Host has approximately 9.7GiB total/no swap; available memory was approximately 3.9\u20135.5GiB. Existing real UNet receipt needs 8264MiB peak export RSS, so full UNet trial withheld to avoid OOM."
+  ],
+  "raw_logs": {
+    "vae-export.log": {
+      "bytes": 2373,
+      "sha256": "3242a2ac1fb5b9858cc1a687aba203e3566a13c0f97816df0eabb19c5a7ea618"
+    },
+    "vae-convert.log": {
+      "bytes": 601,
+      "sha256": "6df28297c73d0e27468b77b911308851eaeb8ccb61dc93d562af10165f10613e"
+    },
+    "vae-compare.log": {
+      "bytes": 2005,
+      "sha256": "ebeac8d9b690d4871a27d55dbea10456cd31c8b6a4f94835683f04bc15f9a452"
+    }
+  },
+  "metadata_scan": {
+    "firstparty-fp32": {
+      "leaks": [],
+      "nodes": 337,
+      "self_contained": true
+    },
+    "firstparty-fp16": {
+      "leaks": [],
+      "nodes": 338,
+      "self_contained": true
+    }
+  }
+}

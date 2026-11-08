@@ -1,0 +1,7 @@
+[skip] text_encoder: no model.onnx
+[skip] unet: no model.onnx
+[fp16] converting vae_decoder ...
+[fp16] vae_decoder: dropped 2 duplicate Cast node(s)
+[fp16] vae_decoder: 94 MB, LOAD OK (EXTENDED), in: [('latent_sample', 'tensor(float16)')]
+[fp16] done -> /workspace/scratch/3d022093c92c/export263/firstparty-fp16
+{"command": ["/tmp/xllama-export-resolution/bin/python", "diffusion/convert_fp16.py", "/workspace/scratch/3d022093c92c/export263/firstparty-fp32", "/workspace/scratch/3d022093c92c/export263/firstparty-fp16"], "exit_code": 0, "wall_seconds": 4.13401293600009, "peak_rss_mib": 949.35546875}

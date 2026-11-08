@@ -1,0 +1,330 @@
+{
+  "date": "2026-11-07",
+  "source_sha": "c7e71607fbd931c36ffc0167aadbae9d72c246db",
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "requirements_sha256": "09bd09256ee397143bc9863571f78399ee993f328976d47f006d1ebfa40c5dd3",
+  "requirements": "diffusion/requirements.txt",
+  "resolution": {
+    "status": "passed",
+    "command": "python -m pip install --dry-run --ignore-installed --report REPORT -r diffusion/requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu",
+    "resolved_artifacts": [
+      {
+        "name": "torch",
+        "version": "2.13.0+cpu",
+        "archive_sha256": "4ca4a9394b0c771238a4f73590fdbbc4debad85ed0fa63d026ae1b085da7d6e2"
+      },
+      {
+        "name": "transformers",
+        "version": "5.10.1",
+        "archive_sha256": "ccb919ea1b77338b44d0d45d23f7472081906b1bb6ed8e5f5cf4d692d1da03d4"
+      },
+      {
+        "name": "diffusers",
+        "version": "0.40.0",
+        "archive_sha256": "5b5da7c3ddb62152fa4afc577f02e050af688c797375c34fb2d01006da3f3541"
+      },
+      {
+        "name": "onnx",
+        "version": "1.23.2",
+        "archive_sha256": "7abf381d278f31ac62487fddedc9dd42da842dce94d5d43536836ee3efdf4a2b"
+      },
+      {
+        "name": "onnxscript",
+        "version": "0.7.2",
+        "archive_sha256": "d0e7121c6a1eefd608058928e111cbdb76709f70d269ff0d07aee493bd1d13c9"
+      },
+      {
+        "name": "onnxruntime",
+        "version": "1.31.1",
+        "archive_sha256": "1f3dea47f2f0e5117c2404cea7d21fd253ae7836a3bf167a501cdfbb2600d536"
+      },
+      {
+        "name": "accelerate",
+        "version": "1.15.0",
+        "archive_sha256": "97eacca0b73e45cb867dbf8c5d5d4dc32219544300e0c8992c7334dc2ef33cec"
+      },
+      {
+        "name": "huggingface_hub",
+        "version": "1.33.0",
+        "archive_sha256": "04e434b06e100eddbce9a6e817d72693a7884b10a79bd67ab48080d5c07eb899"
+      },
+      {
+        "name": "onnx-ir",
+        "version": "1.1.0",
+        "archive_sha256": "76cc313a788c073b75271c1b6abb172aaf90fcc6335ed40f9f3238b2064a2fa3"
+      },
+      {
+        "name": "click",
+        "version": "8.5.1",
+        "archive_sha256": "8bb5376d2006950386f8c6427613334a2acadc5f559cb80e638d00b4df957e37"
+      },
+      {
+        "name": "filelock",
+        "version": "4.2.9",
+        "archive_sha256": "a379c50a729e5b68c8519a4d26489f755d9769960a236ecd838190e2a78db2e9"
+      },
+      {
+        "name": "fsspec",
+        "version": "2026.9.0",
+        "archive_sha256": "8dd6e646e99ea382bd85f97a45e6b526a442d79423a7dc673f1e2756d05fcb5f"
+      },
+      {
+        "name": "hf-xet",
+        "version": "1.8.0",
+        "archive_sha256": "29dab7c904cd1914a0439c6e1306c12c7497c8bd32290fbe563ebf51ca4b6d6d"
+      },
+      {
+        "name": "httpx",
+        "version": "0.28.1",
+        "archive_sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad"
+      },
+      {
+        "name": "httpcore",
+        "version": "1.0.9",
+        "archive_sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55"
+      },
+      {
+        "name": "ml_dtypes",
+        "version": "0.6.0",
+        "archive_sha256": "3b4a480aa8fd54a1805b8ac10f3f91763926a74f73c0c364c10f9231854f4170"
+      },
+      {
+        "name": "networkx",
+        "version": "3.7",
+        "archive_sha256": "e3fd2c13a7814cee3746340d8d7f8598a67f16a58bf47fb7f8793fab6efca1b0"
+      },
+      {
+        "name": "numpy",
+        "version": "2.5.4",
+        "archive_sha256": "fbde6962867ee75b48b0ee29b2b9372ec5d617799dbaf38e82dc0596f2f7738a"
+      },
+      {
+        "name": "packaging",
+        "version": "26.3",
+        "archive_sha256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c"
+      },
+      {
+        "name": "protobuf",
+        "version": "7.36.2",
+        "archive_sha256": "89f23aa53c24553a2416fd4fd1ec06f74fa42b14b546d8883128813f775bbfd2"
+      },
+      {
+        "name": "PyYAML",
+        "version": "6.0.3",
+        "archive_sha256": "ba1cc08a7ccde2d2ec775841541641e4548226580ab850948cbfda66a1befcdc"
+      },
+      {
+        "name": "regex",
+        "version": "2026.11.7",
+        "archive_sha256": "36f1bff9b25e6fe78ad664aacf0cf99ccba6927b32ba31de42a3ca21f9fb15a8"
+      },
+      {
+        "name": "safetensors",
+        "version": "0.8.0",
+        "archive_sha256": "fd6f3f93c9a0a7cc2788ee63fb763353d4bd2e89b0751bc78fcf7dda00bea774"
+      },
+      {
+        "name": "setuptools",
+        "version": "84.2.1",
+        "archive_sha256": "ca140b45d5325a9478f880e351484f62fef15f336462e449ca0c03c873d589c2"
+      },
+      {
+        "name": "sympy",
+        "version": "1.14.0",
+        "archive_sha256": "e091cc3e99d2141a0ba2847328f5479b05d94a6635cb96148ccb3f34671bd8f5"
+      },
+      {
+        "name": "tokenizers",
+        "version": "0.22.2",
+        "archive_sha256": "369cc9fc8cc10cb24143873a0d95438bb8ee257bb80c71989e3ee290e8d72c67"
+      },
+      {
+        "name": "tqdm",
+        "version": "4.70.1",
+        "archive_sha256": "c293e525e6fef9c20e8728fd4612df02a0aa31bb5fe91ecd93e123b1b7bffa73"
+      },
+      {
+        "name": "typing_extensions",
+        "version": "4.16.0",
+        "archive_sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8"
+      },
+      {
+        "name": "flatbuffers",
+        "version": "25.12.19",
+        "archive_sha256": "7634f50c427838bb021c2d66a3d1168e9d199b0607e6329399f04846d42e20b4"
+      },
+      {
+        "name": "importlib_metadata",
+        "version": "10.1.0",
+        "archive_sha256": "cf45ce66a929c64e994185a809c04840d0501db17e663810d993d0f4829265c7"
+      },
+      {
+        "name": "Jinja2",
+        "version": "3.1.6",
+        "archive_sha256": "85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67"
+      },
+      {
+        "name": "pillow",
+        "version": "13.0.0",
+        "archive_sha256": "42d63be3af4f9b951b199b0a9d23365d37ab14687e6d77b74940432c8515c4ca"
+      },
+      {
+        "name": "psutil",
+        "version": "7.2.2",
+        "archive_sha256": "076a2d2f923fd4821644f5ba89f059523da90dc9014e85f8e45a5774ca5bc6f9"
+      },
+      {
+        "name": "requests",
+        "version": "2.34.2",
+        "archive_sha256": "2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0"
+      },
+      {
+        "name": "typer",
+        "version": "0.28.0",
+        "archive_sha256": "afd18929180b706c5e9a239f53c3c8136903553c0c2d460598bbaa924191d4ab"
+      },
+      {
+        "name": "annotated-doc",
+        "version": "0.0.5",
+        "archive_sha256": "117bac03a25ede5df5440e855b32d556049ca169ead221505badf432fed4b101"
+      },
+      {
+        "name": "certifi",
+        "version": "2026.10.23",
+        "archive_sha256": "e9b54de76e530bb6cf0ccd036787103acb58fd42ba930ea8bf948ddbaa2f61d1"
+      },
+      {
+        "name": "charset-normalizer",
+        "version": "3.5.2",
+        "archive_sha256": "3d31298449090ab8d47b7b1b2a555ff73cac7ed438a08b7ac160980c7ebed649"
+      },
+      {
+        "name": "idna",
+        "version": "3.20",
+        "archive_sha256": "ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c"
+      },
+      {
+        "name": "MarkupSafe",
+        "version": "3.0.4",
+        "archive_sha256": "8e124f974786f831d6043728e38296969d3579db8896fe004682f5758e613581"
+      },
+      {
+        "name": "mpmath",
+        "version": "1.3.0",
+        "archive_sha256": "a0b2b9fe80bbcd81a6647ff13108738cfb482d481d826cc0e02f5b35e5c88d2c"
+      },
+      {
+        "name": "rich",
+        "version": "15.0.0",
+        "archive_sha256": "33bd4ef74232fb73fe9279a257718407f169c09b78a87ad3d296f548e27de0bb"
+      },
+      {
+        "name": "shellingham",
+        "version": "1.5.4",
+        "archive_sha256": "7ecfff8f2fd72616f7481040475a65b2bf8af90a56c89140852d1120324e8686"
+      },
+      {
+        "name": "urllib3",
+        "version": "2.8.0",
+        "archive_sha256": "0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3"
+      },
+      {
+        "name": "zipp",
+        "version": "4.1.2",
+        "archive_sha256": "b30cb6cd253122169c47de245ca24a86bac2a5d3802ba15bf7ba6414eb9e144d"
+      },
+      {
+        "name": "anyio",
+        "version": "4.16.0",
+        "archive_sha256": "c66ae634e0b8228396b801741beb3294326d4b6102f7bba4041c0dfb58c29026"
+      },
+      {
+        "name": "h11",
+        "version": "0.16.0",
+        "archive_sha256": "63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86"
+      },
+      {
+        "name": "markdown-it-py",
+        "version": "4.2.0",
+        "archive_sha256": "9f7ebbcd14fe59494226453aed97c1070d83f8d24b6fc3a3bcf9a38092641c4a"
+      },
+      {
+        "name": "Pygments",
+        "version": "2.21.0",
+        "archive_sha256": "2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9"
+      },
+      {
+        "name": "mdurl",
+        "version": "0.1.2",
+        "archive_sha256": "84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8"
+      }
+    ]
+  },
+  "installation": {
+    "isolated_venv": true,
+    "status": "passed",
+    "command": "python -m pip install -r diffusion/requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu",
+    "pip_check": "No broken requirements found."
+  },
+  "tests": {
+    "command": "python -m unittest tests/test_diffusion_export.py",
+    "result": "25 tests pass; zero skipped",
+    "scope": "contract, synthetic ONNX graphs and tiny random-weight CLIP/UNet/VAE export/parity; NOT the SD-Turbo production weights"
+  },
+  "audit": {
+    "initial": "12 reported entries in bootstrap pip25.0.1 (includes duplicate advisory IDs); Torch CPU wheel skipped",
+    "temporary_venv_tooling_remediation": "upgraded pip to26.3 in this temporary environment only; no repository dependency pin changed",
+    "final": "50 packages queried, zero known vulnerabilities returned; torch2.13.0+cpu skipped by PyPI auditor",
+    "limitation": "A skipped package is not an audited pass. No alert closure or binary security certification.",
+    "normalized_release_query": {
+      "package": "torch",
+      "version": "2.13.0",
+      "result": "zero known vulnerabilities returned",
+      "command": "pip-audit --disable-pip --no-deps -r torch-advisory-version.txt",
+      "limitation": "Base release-version advisory lookup only; CPU-local-version binary remained skipped by installed-graph query."
+    }
+  },
+  "still_pending": [
+    "production SD-Turbo reference/candidate export and fixed-input parity",
+    "Series S CI MSVC package diffusion/TAESD live gate and true peak-memory proof",
+    "current GitHub alert-state review/closure"
+  ],
+  "logs": [
+    {
+      "path": "diffusion-resolution.log",
+      "sha256": "9701901dc594342d4ab23d1baac641fb4d2c63850dbdde44e92549cab5c7d545"
+    },
+    {
+      "path": "diffusion-pip-check.log",
+      "sha256": "9261363b733079a641c2e4cc9bc46ffa1d8336945a87f807b6cf68847dbc9b09"
+    },
+    {
+      "path": "diffusion-toolchain-tests.log",
+      "sha256": "5d2fe7b025bc9200bee41093030485cbdebc79e0a758d62491cf43dbb9f9cdb2"
+    },
+    {
+      "path": "diffusion-audit-initial.json",
+      "sha256": "3e5a4309e7b1eb0998af7e4add6419f01f864e34be182798b08fb4ed08f802a3"
+    },
+    {
+      "path": "diffusion-audit-final.json",
+      "sha256": "065b075fa8fc286f66ad0f97ca41cab74944c05fd2d1a1d7ec2e86096b395091"
+    },
+    {
+      "path": "diffusion-audit-final.log",
+      "sha256": "15950a68a7ed99c59779717acefdceb3f69cfd31bde67d2c954f2a3cea4d7955"
+    },
+    {
+      "path": "diffusion-bootstrap-upgrade.log",
+      "sha256": "3979a09286fa1a779c335684ae54c6ab43519c8155f021bf9288c47929fe1051"
+    },
+    {
+      "path": "torch-advisory-audit.json",
+      "sha256": "7a3b6666822c207dbd6f6b75040ffb629cd0debe42e28be42e3963cb41d3693d"
+    },
+    {
+      "path": "torch-advisory-audit.log",
+      "sha256": "79d30422388543b2563e1dde76bb7e7857d7ef0c6fdf05c8c71598633ca07e1e"
+    }
+  ]
+}
