@@ -1,0 +1,8 @@
+=== §7c TAESD image ===
+curl: (22) The requested URL returned error: 503
+curl: (22) The requested URL returned error: 504
+  restoring full VAE decoder ...
+curl: (26) Failed to open/read local data from file/application
+  FAIL: cleanup incomplete; recovery files retained in /tmp/tmp.m0yh4n7o3Q
+  Retry: XLLAMA_CHAT_JOURNAL=/tmp/tmp.m0yh4n7o3Q/chat-cleanup.pending ./scripts/validate-console.sh cleanup
+  VAE restore still pending; recover with ./scripts/provision-models.sh sd-turbo-fp16 or re-upload /tmp/xllama-diffusion-peak/.cache-validate/full_vae.onnx

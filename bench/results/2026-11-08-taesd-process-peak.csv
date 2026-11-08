@@ -1,0 +1,2 @@
+model,steps,seed,te_ms,unet_ms,unet_ms_per_step,vae_ms,total_ms,resolution,date,process_peak_ws_mb
+sd-turbo-fp16,1,42,1015.9,2969.3,2969.3,598.1,4583.3,512x512,2026-11-08T11:33:21Z,2796

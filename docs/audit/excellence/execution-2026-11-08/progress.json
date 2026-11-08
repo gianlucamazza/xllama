@@ -156,5 +156,26 @@
     "packages": 58,
     "result": "PASS: second isolated Python 3.12 environment installs qualified graph with --require-hashes and uv pip check",
     "scope": "reproducible CPU installation; does not erase exact-local-version torch audit skip"
+  },
+  "host_training_canonical": {
+    "pr": 410,
+    "commit": "31d92e6",
+    "result": "PASS: full run_job.sh from documented marker job, 120 steps, all stages and marker A/B",
+    "interpreter": "isolated CPU Python 3.12; 58 packages synchronized with mandatory hashes",
+    "candidate_artifact_device_gates": "pending"
+  },
+  "taesd_peak_candidate": {
+    "package": "1.7.0.1447",
+    "runtime_commit": "c471020aa77f749f72622165955808bea38f86c7",
+    "harness_cache_fix_commit": "4aaaf22",
+    "result": "PASS",
+    "process_peak_ws_mb": 2796,
+    "max_sampled_private_ws_mb": 2716,
+    "scope": "published legacy diffusion weights; process-lifetime peak includes preload, not GPU-only memory; new export device test still pending",
+    "initial_attempt": "FAIL in cache preparation on HTTP 503/504; full VAE restored and read-back bytes verified before retry"
+  },
+  "ci_shellcheck_transport": {
+    "pr": 411,
+    "result": "four required checks passed; merged 76df1a0f709db7775b809e65889b36c199f093d9"
   }
 }
