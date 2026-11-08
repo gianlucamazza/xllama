@@ -115,8 +115,15 @@
   "diffusion_qualification": {
     "environment": "isolated Python 3.12; requirements installed on CPU; 50 compatible packages",
     "revision": "b261bac6fd2cf515557d5d0707481eafa0485ec2",
-    "full_export": "running; text encoder and UNet contracts plus eager/ORT checks passed; VAE export underway",
-    "reference": "published legacy fp16 assets downloading; historical fp32 reference still absent; fp16 comparison cannot discharge historical-fp32 requirement"
+    "full_export": "PASS: all three real fp32 components; eager/ORT verification at console and dynamic shapes; report and hashes retained",
+    "reference": "published legacy fp16 assets downloading; historical fp32 reference still absent; fp16 comparison cannot discharge historical-fp32 requirement",
+    "export_regressions": {
+      "tests": 25,
+      "skipped": 0,
+      "result": "PASS"
+    },
+    "fp16_conversion": "running",
+    "legacy_fp16_comparison": "running"
   },
   "ci_transient_failures": {
     "pr": 407,
