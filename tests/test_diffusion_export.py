@@ -566,5 +566,130 @@ class TinyDynamoExportTest(unittest.TestCase):
         self.assertEqual(out.shape, (1, 3, 512, 512))
 
 
+@unittest.skipUnless(_have("onnx", "onnxruntime", "numpy"), "console profile toolchain unavailable")
+class ConsoleProfileTest(unittest.TestCase):
+    def fixture(self, root, *, shape=(-1, 2), data_shape=False):
+        import onnx
+        import numpy as np
+        from onnx import helper, numpy_helper, TensorProto
+        nodes = []
+        initializers = []
+        if data_shape:
+            nodes.append(helper.make_node("Cast", ["x"], ["target"], to=TensorProto.INT64))
+            inputs = [helper.make_tensor_value_info("x", TensorProto.FLOAT, [2])]
+        else:
+            initializers.append(numpy_helper.from_array(np.array(shape, dtype=np.int64), "target"))
+            inputs = [helper.make_tensor_value_info("x", TensorProto.FLOAT, ["batch", 2])]
+        nodes.append(helper.make_node("Reshape", ["x", "target"], ["y"], allowzero=1))
+        graph = helper.make_graph(nodes, "profile", inputs,
+            [helper.make_tensor_value_info("y", TensorProto.FLOAT, [None, None])], initializers)
+        model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 18)])
+        model.ir_version = 10
+        source = root / "source.onnx"
+        onnx.save(model, source)
+        return source
+
+    def test_inferred_shape_preserves_values_and_reference(self):
+        import onnx
+        import numpy as np
+        import onnxruntime as ort
+        from prepare_console_profile import specialize
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); source = self.fixture(root); original = source.read_bytes()
+            output = root / "console.onnx"
+            report = specialize(source, output, {"x": [1, 2]})
+            self.assertEqual(report["reshapes"], 1)
+            self.assertEqual(source.read_bytes(), original)
+            model = onnx.load(output)
+            reshape = next(n for n in model.graph.node if n.op_type == "Reshape")
+            self.assertEqual(next(a.i for a in reshape.attribute if a.name == "allowzero"), 0)
+            x = np.array([[1.5, -2.0]], dtype=np.float32)
+            a = ort.InferenceSession(str(source), providers=["CPUExecutionProvider"]).run(None, {"x": x})
+            b = ort.InferenceSession(str(output), providers=["CPUExecutionProvider"]).run(None, {"x": x})
+            np.testing.assert_array_equal(a[0], b[0])
+            self.assertEqual([d.dim_value for d in model.graph.input[0].type.tensor_type.shape.dim], [1, 2])
+
+    def test_dynamic_annotations_keep_shape_expressions_and_fixed_profile_scope(self):
+        import onnx
+        from prepare_console_profile import specialize
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); source = self.fixture(root); destination = root / "console.onnx"
+            report = specialize(source, destination, {"x": [1, 2]}, dynamic_annotations=True)
+            model = onnx.load(destination)
+            self.assertEqual(model.graph.input[0].type.tensor_type.shape.dim[0].dim_param, "batch")
+            reshape = next(n for n in model.graph.node if n.op_type == "Reshape")
+            self.assertEqual(reshape.input[1], "target")
+            self.assertEqual(next(a.i for a in reshape.attribute if a.name == "allowzero"), 0)
+            self.assertTrue(report["dynamic_annotations"])
+            self.assertEqual(report["fixed_inputs"], {"x": [1, 2]})
+
+    def test_cli_default_publishes_dynamic_annotations_as_one_bundle(self):
+        import onnx
+        import prepare_console_profile as profile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); source = root / "input"; destination = root / "output"
+            fixture = self.fixture(root)
+            (source / "component").mkdir(parents=True)
+            fixture.rename(source / "component/model.onnx")
+            (source / "tokenizer").mkdir(); (source / "scheduler").mkdir()
+            with mock.patch.object(profile, "SHAPES", {"component": {"x": [1, 2]}}), \
+                    mock.patch.object(sys, "argv", ["profile", str(source), str(destination)]):
+                profile.main()
+            report = json.loads((destination / "console-profile.json").read_text())
+            self.assertTrue(report["dynamic_annotations"])
+            self.assertEqual(len(report["tool_sha256"]), 64)
+            model = onnx.load(destination / "component/model.onnx")
+            self.assertEqual(model.graph.input[0].type.tensor_type.shape.dim[0].dim_param, "batch")
+            self.assertFalse(list(root.glob(".console-bundle-*")))
+
+    def test_activation_dependent_target_fails_without_publishing(self):
+        from prepare_console_profile import specialize
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); source = self.fixture(root, data_shape=True)
+            output = root / "console.onnx"; output.write_bytes(b"previous valid artifact")
+            with self.assertRaisesRegex(ValueError, "activation data"):
+                specialize(source, output, {"x": [2]})
+            self.assertEqual(output.read_bytes(), b"previous valid artifact")
+
+    def test_zero_target_is_never_rewritten(self):
+        from prepare_console_profile import specialize
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); source = self.fixture(root, shape=(0, 2))
+            output = root / "console.onnx"; output.write_bytes(b"previous valid artifact")
+            with self.assertRaises(Exception):
+                specialize(source, output, {"x": [1, 2]})
+            self.assertEqual(output.read_bytes(), b"previous valid artifact")
+
+    def test_shape_of_data_dependent_output_is_not_a_constant_proof(self):
+        import onnx
+        from onnx import helper, TensorProto
+        from prepare_console_profile import specialize
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            nodes = [helper.make_node("NonZero", ["x"], ["nz"]),
+                     helper.make_node("Shape", ["nz"], ["target"]),
+                     helper.make_node("Reshape", ["x", "target"], ["y"], allowzero=1)]
+            graph = helper.make_graph(nodes, "data_shape",
+                [helper.make_tensor_value_info("x", TensorProto.FLOAT, [2])],
+                [helper.make_tensor_value_info("y", TensorProto.FLOAT, [None, None])])
+            model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 18)])
+            model.ir_version = 10
+            source = root / "source.onnx"; onnx.save(model, source)
+            with self.assertRaisesRegex(ValueError, "not proven constant"):
+                specialize(source, root / "console.onnx", {"x": [2]})
+            self.assertFalse((root / "console.onnx").exists())
+
+    def test_rejects_in_place_mismatch_and_empty_inputs(self):
+        from prepare_console_profile import specialize
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); source = self.fixture(root)
+            for destination, shapes in [(source, {"x": [1, 2]}),
+                    (root / "a.onnx", {"wrong": [1, 2]}),
+                    (root / "a.onnx", {"x": [0, 2]}),
+                    (root / "a.onnx", {"x": [1, 3]})]:
+                with self.assertRaises(ValueError):
+                    specialize(source, destination, shapes)
+
+
 if __name__ == "__main__":
     unittest.main()
