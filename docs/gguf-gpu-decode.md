@@ -654,3 +654,16 @@ DXC=/path/to/dxc scripts/compile-gpugemv-shader.sh \
 The compiler/source/blob hashes are recorded in
 [the candidate build receipt](audit/excellence/prefill-candidate-build-2026-11-08.json).
 The receipt is compilation provenance, not a Series S measurement.
+
+For a matched deterministic decode campaign, write `1` to
+`bench_greedy.txt` before either arm. The native bench echoes `-greedy` in its
+host tag; the campaign must require this echo. Removing the file preserves
+normal sampler defaults. This holds the token trajectory fixed when the logit
+and greedy-product gates agree, while `--ignore-eog` holds generated work fixed.
+
+The headless logit probe also accepts `logits_gpu_layers.txt` (default zero,
+CPU control) and `logits_ubatch.txt` (default zero, engine default). Set the
+former explicitly to zero or the campaign's layer count for each arm, restart,
+and require the logged resolved layer count and the actual C4 dispatch count.
+A positive GPU request resolving to CPU fails the probe. These diagnostic knobs
+do not change normal chat routing.
