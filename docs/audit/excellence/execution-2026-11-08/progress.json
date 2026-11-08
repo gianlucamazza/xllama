@@ -138,7 +138,9 @@
       "result": "PASS"
     },
     "fp16_conversion": "PASS: all three self-contained graphs load at ORT_ENABLE_EXTENDED",
-    "legacy_fp16_comparison": "FAIL overall: UNet timestep rank differs (legacy int64 vector vs new float scalar); all three numerical outputs within recorded bounds; strict failure retained"
+    "legacy_fp16_comparison": "FAIL overall: UNet timestep rank differs (legacy int64 vector vs new float scalar); all three numerical outputs within recorded bounds; strict failure retained",
+    "legacy_fp32_comparison": "PASS: reconstructed optimum-onnx reference, strict fp32 components and three full-pipeline images against frozen tolerances; not the original historical export bytes",
+    "native_packaging": "Missing legacy CLIP sidecars discovered in Transformers 5 save; fix and real native-tokenizer validation in progress"
   },
   "ci_transient_failures": {
     "pr": 407,
@@ -162,7 +164,7 @@
     "commit": "31d92e6",
     "result": "PASS: full run_job.sh from documented marker job, 120 steps, all stages and marker A/B",
     "interpreter": "isolated CPU Python 3.12; 58 packages synchronized with mandatory hashes",
-    "candidate_artifact_device_gates": "pending"
+    "candidate_artifact_device_gates": "PASS: GUI serving/preference/runtime adapter loading, fresh greedy API marker and read-back hashes for the new base and adapter"
   },
   "taesd_peak_candidate": {
     "package": "1.7.0.1447",
@@ -177,5 +179,13 @@
   "ci_shellcheck_transport": {
     "pr": 411,
     "result": "four required checks passed; merged 76df1a0f709db7775b809e65889b36c199f093d9"
+  },
+  "taesd_gate_integration": {
+    "pr": 381,
+    "merge_commit": "6e669a1c1af6d286b1043e93a19426e7ddeda79f",
+    "exact_source": "95844b5f0b2b18ff1d5bcf441dde04d102e5bb5b",
+    "exact_package": "1.7.0.1453",
+    "live_gate": "PASS",
+    "required_ci": "all four passed"
   }
 }
