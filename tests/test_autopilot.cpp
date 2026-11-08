@@ -46,8 +46,8 @@ AutopilotAction send(const wchar_t* text) {
 TEST_CASE("autopilot: the op table matches what the driver implements") {
     for (const char* name :
          {"send", "new_chat", "load_chat", "set_model", "set_api", "set_routing", "set_sampling",
-          "set_kv_reuse", "set_taesd", "set_system_prompt", "generate_image", "mark", "show_pane",
-          "rate", "start_train", "train_status", "quit"})
+          "set_kv_reuse", "set_taesd", "set_system_prompt", "wait_idle", "generate_image", "mark",
+          "show_pane", "rate", "start_train", "train_status", "quit"})
         CHECK(autopilot_op_known(name));
 
     CHECK_FALSE(autopilot_op_known("sned"));  // typo
@@ -207,6 +207,13 @@ TEST_CASE("autopilot: set_api is rejected in the Store SKU, accepted otherwise")
     CHECK(why({a}, true) == "action 0 set_api: LAN API not available in Store SKU");
 }
 
+TEST_CASE("autopilot: wait_idle is a no-payload park") {
+    CHECK(ok({op("wait_idle")}));
+    AutopilotAction timed = op("wait_idle");
+    timed.timeout = std::chrono::seconds{120};
+    CHECK(ok({timed}));
+}
+
 TEST_CASE("autopilot: generate_image needs at least one step") {
     AutopilotAction a = op("generate_image");
     a.arg = L"pixel art robot";
@@ -246,4 +253,11 @@ TEST_CASE("autopilot: a realistic gate script validates") {
     mark.label = L"01-chat-answer";
 
     CHECK(ok({model, routing, kv, op("new_chat"), send(L"What can you do?"), mark, op("quit")}));
+
+    AutopilotAction wait = op("wait_idle");
+    wait.timeout = std::chrono::seconds{120};
+    AutopilotAction image = op("generate_image");
+    image.arg = L"a red sports car on a mountain road at sunset";
+    image.steps = 1;
+    CHECK(ok({wait, image, op("quit")}));
 }

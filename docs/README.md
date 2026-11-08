@@ -18,6 +18,8 @@ Technical notes and design decisions for xllama.
 5. **English only** for docs, code comments, and commit messages (project
    convention).
 
+The active consolidation program is [Engineering excellence execution — 2026-11-07](audit/excellence/execution-2026-11-07.md). Its dated discovery receipt does not replace the owners below.
+
 ## Documentation ownership
 
 | Concern                                                                                  | Authoritative home                                                                                                                                                                                                                                        |

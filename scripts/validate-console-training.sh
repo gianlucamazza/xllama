@@ -38,6 +38,8 @@ set -euo pipefail
 : "${XBOX_PASS:?XBOX_PASS not set}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC1090,SC1091
+source "${SCRIPT_DIR}/wdp-file-upload.sh"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # Do NOT source validate-console.sh — it is a CLI with a bottom switch that
 # would re-enter/exit. Helpers below are inlined.
@@ -97,23 +99,9 @@ trap 'training_exit "$?"' EXIT
 
 _curl_post_file() {
 	local local_path="$1" path_param="$2" filename="${3:-}"
-	local form_entry
-	if [[ -n "$filename" ]]; then
-		form_entry="${local_path};filename=${filename};type=application/octet-stream"
-	else
-		form_entry="${local_path};type=application/octet-stream"
-	fi
-	# The portal answers a failed write (e.g. a full disk) with 500 and a JSON
-	# reason; a gate must stop there, not run on with a missing file.
-	local reply="${TMPDIR_LOCAL}/upload-reply.json" code
-	code=$(curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X POST \
-		-F "file=@${form_entry}" -o "$reply" -w "%{http_code}" \
-		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=${path_param}" ||
-		echo "000")
-	if [[ "$code" != "200" ]]; then
-		echo "  FAIL: upload of $(basename "$local_path") -> HTTP ${code}: $(head -c 200 "$reply" 2>/dev/null)" >&2
-		return 1
-	fi
+	wdp_upload_file_request \
+		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=${path_param}" \
+		"$local_path" "$filename"
 }
 
 upload_file() {
@@ -591,7 +579,7 @@ EOF
 		((elapsed += 30))
 	done
 	local log
-	log=$(fetch_log) || return 1
+	log=$(fetch_log train) || return 1
 	grep -a '\[xllama\] train' "$log" | tail -20 | redact_text || true
 	: >"${TMPDIR_LOCAL}/result.json"
 	fetch_file "result.json" "${TMPDIR_LOCAL}/result.json" "training%5Cout%5Cdevice-marker" 2>/dev/null || true

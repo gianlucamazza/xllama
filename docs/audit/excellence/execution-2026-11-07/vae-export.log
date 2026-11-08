@@ -1,0 +1,22 @@
+[export] vae_decoder (dynamo, opset 18) ...
+/workspace/scratch/3d022093c92c/xllama/diffusion/export_sd_turbo.py:338: UserWarning: Exporting a model while it is in training mode. Please ensure that this is intended, as it may lead to different behavior during inference. Calling model.eval() before export is recommended.
+  prog = torch.onnx.export(
+W1107 13:44:50.734000 6 torch/onnx/_internal/exporter/_registration.py:107] torchvision is not installed. Skipping torchvision::nms
+W1107 13:44:50.735000 6 torch/onnx/_internal/exporter/_registration.py:107] torchvision is not installed. Skipping torchvision::roi_align
+W1107 13:44:50.735000 6 torch/onnx/_internal/exporter/_registration.py:107] torchvision is not installed. Skipping torchvision::roi_pool
+W1107 13:44:50.736000 6 torch/onnx/_internal/exporter/_registration.py:107] torchvision is not installed. Skipping torchvision::deform_conv2d
+/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/copyreg.py:99: FutureWarning: `isinstance(treespec, LeafSpec)` is deprecated, use `isinstance(treespec, TreeSpec) and treespec.is_leaf()` instead.
+  return cls.__new__(cls, *args)
+[torch.onnx] Obtain model graph for `VaeDecoder([...]` with `torch.export.export(..., strict=False)`...
+[torch.onnx] Obtain model graph for `VaeDecoder([...]` with `torch.export.export(..., strict=False)`... ✅
+[torch.onnx] Run decompositions...
+[torch.onnx] Run decompositions... ✅
+[torch.onnx] Translate the graph into ONNX...
+[torch.onnx] Translate the graph into ONNX... ✅
+[torch.onnx] Optimize the ONNX graph...
+[torch.onnx] Optimize the ONNX graph... ✅
+[export] vae_decoder: 198.0 MB in 8.4 s, contract OK
+[verify] vae_decoder: {'sample': {'max_abs': 3.018975257873535e-05, 'cosine': 0.9999999996059886}}
+[verify] vae_decoder (batch 2, smaller): {'sample': {'max_abs': 1.2800097465515137e-05, 'cosine': 0.99999999995441}}
+[export] done -> /workspace/scratch/3d022093c92c/export263/firstparty-fp32
+{"command": ["/tmp/xllama-export-resolution/bin/python", "diffusion/export_sd_turbo.py", "--model", "/workspace/scratch/3d022093c92c/export263/checkpoint", "--revision", "b261bac6fd2cf515557d5d0707481eafa0485ec2", "--components", "vae_decoder", "--out", "/workspace/scratch/3d022093c92c/export263/firstparty-fp32", "--verify"], "exit_code": 0, "wall_seconds": 68.74144014000012, "peak_rss_mib": 3324.546875}

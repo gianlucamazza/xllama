@@ -72,13 +72,23 @@ PFN=$(./scripts/deploy.sh pfn)
 Or upload individual files:
 
 ```bash
-curl -sS --basic -u "$XBOX_USER:$XBOX_PASS" -k \
-    -X POST \
-    -F "file=@genai_config.json;type=application/octet-stream" \
-    "https://$XBOX_IP:11443/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=$(./scripts/deploy.sh pfn)&path=\\LocalState\\models\\my-model-name"
+./scripts/deploy.sh upload-file ./genai_config.json "$PFN" 'models\my-model-name'
 ```
 
-Replace `<token>` with the package publisher token (visible in the installed packages list).
+### File-write status contract
+
+`deploy.sh` and the console, training, API and benchmark harnesses share
+`scripts/wdp-file-upload.sh`. The synchronous file-write endpoint must return HTTP 200; transport errors,
+redirects and other statuses fail the write. A nonempty
+response must be JSON with the boolean `Success: true`; `Success: false`,
+malformed or unrecognized replies fail even with HTTP 200. Empty/whitespace
+payloads remain supported only after a successful request, for older portals.
+A failed curl request must never become an empty-body success. Transfers have
+bounded connect/total timeouts.
+
+Directory uploads count and report each failed file, then return nonzero;
+verify material model swaps with a post-upload listing or byte/hash readback.
+This contract covers file writes, not package installation or folder creation.
 
 **Important**: ORT receives the directory containing `genai_config.json`; the
 llama.cpp backend resolves the GGUF inside its catalogue directory. Select
@@ -213,14 +223,10 @@ each invalidated at least one bench run or upload in this project:
 2. **`LocalState` does not exist until the app has launched once** after a
    clean install. Run `deploy.sh start-app` (and wait a few seconds) before
    any upload to a fresh package, otherwise mkdir/upload fail.
-3. **The WDP file APIs return HTTP 200 with `"Success": false`** in the body
-   (`"File move failed"`, path not found). Always check the response body
-   _and_ verify with a post-upload listing. `deploy.sh upload-dir` now parses
-   every response body, prints `ERROR: upload of <file> failed` per file, appends
-   `(N FAILED)` to its summary and exits non-zero; it also verifies the remote
-   directory exists before uploading. Raw `curl` calls still need the body check
-   done by hand. Multi-level mkdir fails silently when the parent is missing —
-   create directories one level at a time.
+3. **A successful HTTP status is insufficient for a file write**: use the
+   [shared file-write status contract](#file-write-status-contract).
+   `deploy.sh upload-dir` also verifies the target directory exists. Multi-level
+   mkdir can fail when the parent is missing; create directories one level at a time.
 4. **The PFN read right after "Installation succeeded" can be stale**: for a
    few seconds the listing may still show the previous version, or both
    versions at once (staging window). Re-read the PFN before using it in

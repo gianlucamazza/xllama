@@ -119,11 +119,46 @@ source ~/.config/xllama/xbox-env
 Use `--dry-run` to inspect the exact commands without contacting the console.
 The output manifest records the profile, prompt and requested repetitions.
 
+### Hardware identity for new text campaigns
+
+The text harness requires `--hardware xbox-series-s` or
+`--hardware xbox-series-x` (or `XLLAMA_BENCH_HARDWARE`). This is an explicit
+operator declaration, not hardware detection. New text rows carry
+`xbox-series-s-declared` or `xbox-series-x-declared`, followed by the existing
+configuration tags. The package reads `bench_hardware.txt`; absent or invalid
+values produce `xbox-unknown`. The harness rejects a missing/mismatched echo,
+including old packages that still hardcode Series S. It removes the declaration
+on normal exit. This knob is disposable invocation state: every invocation
+replaces any preexisting value and deletes the file on exit. After a killed
+harness, remove the knob before a manual run.
+
+XAB's default `series-s-devmode` profile declares Series S. For a Series X
+text-only campaign:
+
+```bash
+./scripts/run-xab.sh --profile series-x-devmode --include text --models lfm25-350m --out bench/results/series-x-campaign
+```
+
+The manifest records `hardware_identity_source: operator-declared` and
+`hardware_observed: false`. Retain a separate Device Portal/OS receipt of the
+actual device model and exact installed package before interpreting any result
+as Series X evidence. This change does not establish hardware validation.
+Other XAB workloads are blocked under the Series X profile until their identity
+paths are instrumented. Existing probe and KV scripts are outside this text
+identity contract and must not be used as Series X evidence without review.
+
+Direct text-harness callers must now pass the hardware declaration. The
+Series S prompt sweep, speculative-decoding campaign and fp16 external-data
+spike wrappers declare Series S by default and allow
+`XLLAMA_BENCH_HARDWARE` to override that declaration. This does not validate
+the wrappers on Series X. Historical CSVs and published selectors stay frozen;
+new declared labels require deliberate claim selection after review.
+
 ### Xbox Series S (automated)
 
 ```bash
 source ~/.config/xllama/xbox-env
-./scripts/bench-xbox-ort.sh smollm2-360m-cpu-int4 --runs 3 --out bench/results/phase1-cpu.csv
+./scripts/bench-xbox-ort.sh smollm2-360m-cpu-int4 --hardware xbox-series-s --runs 3 --out bench/results/phase1-cpu.csv
 ```
 
 `--threads N` swaps in `bench/configs/genai_config-threads-N.json`; `--gpu-sample`
@@ -309,3 +344,13 @@ of those explains what it means.
 | `results/store-app-vs-game-2026-08-21.csv`           | store | llama.cpp CPU (Series S, t6)             | Store D1 App vs Game (`lfm25-350m`, CI `1.5.5.922`, `standard-512`): GPU budget **691 vs 3801 MB**. Long-gen decode App **86.6–87.0** vs Game **94.7**. Peak 320 both. Verdict: request Game metadata. SSOT `docs/release-readiness.md` §6                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `results/phase15-thinking-complete.csv`              | 15    | quality / gates (Series S)               | **#223 closed:** short prompts complete at catalogue `n_predict` 1024 (`thinkdone`); train-style multi-step can fail CoT @768. Not a tok/s table                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `results/t6-shipped-confirm.csv`                     | 12    | ORT CPU EP                               | on-device confirmation of the shipped t6 asset (1.5.0.0 migration, 3 runs): 262.4 prefill / 74.8 decode — feeds the generated ORT CPU headline                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+
+## Diffusion process peak working set
+
+New `diffuse-result.csv` rows append `process_peak_ws_mb`, read from Windows
+`PeakWorkingSetSize` after image encoding and before the result is written.
+The value is the process-lifetime peak working set in MiB, including model
+preload and other work since launch; zero means the reading is unavailable.
+It is neither GPU allocation nor sampled private working set. Use a fresh
+process and record its launch/workload when admitting peak-memory evidence.
+Historical CSV files are unchanged and may omit this column.

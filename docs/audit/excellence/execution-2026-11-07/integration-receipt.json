@@ -1,0 +1,199 @@
+{
+  "date": "2026-11-07",
+  "milestone": "host hardening integration",
+  "main_after_merges": "f1007133ba47a5b9ae9b44f0990aee67bdabf45a",
+  "status": "four narrow fixes merged after exact-head required gates; no stable release",
+  "merges": [
+    {
+      "pr": 399,
+      "verified_head": "12397431bc02696e7b961b85fad9b4d806a7de3a",
+      "squash_commit": "c7e71607fbd931c36ffc0167aadbae9d72c246db",
+      "method": "squash",
+      "check_source": "https://api.github.com/repos/gianlucamazza/xllama/commits/12397431bc02696e7b961b85fad9b4d806a7de3a/check-runs",
+      "required_checks": [
+        {
+          "id": 128403300013,
+          "name": "build (unified, true, xllama-appx)",
+          "head_sha": "12397431bc02696e7b961b85fad9b4d806a7de3a",
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/gianlucamazza/xllama/actions/runs/42372489475/job/128403300013",
+          "completed_at": "2026-11-07T12:33:41Z"
+        },
+        {
+          "id": 128403299917,
+          "name": "build (linux)",
+          "head_sha": "12397431bc02696e7b961b85fad9b4d806a7de3a",
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/gianlucamazza/xllama/actions/runs/42372489520/job/128403299917",
+          "completed_at": "2026-11-07T12:30:59Z"
+        },
+        {
+          "id": 128403299820,
+          "name": "build (llamacpp, false, xllama-appx-llamacpp)",
+          "head_sha": "12397431bc02696e7b961b85fad9b4d806a7de3a",
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/gianlucamazza/xllama/actions/runs/42372489475/job/128403299820",
+          "completed_at": "2026-11-07T12:33:13Z"
+        },
+        {
+          "id": 128403299742,
+          "name": "analyze (c-cpp)",
+          "head_sha": "12397431bc02696e7b961b85fad9b4d806a7de3a",
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/gianlucamazza/xllama/actions/runs/42372489483/job/128403299742",
+          "completed_at": "2026-11-07T12:27:58Z"
+        }
+      ]
+    },
+    {
+      "pr": 401,
+      "verified_head": "0af47523422fb2cee6a32021d3ca9ac4436716ec",
+      "squash_commit": "b6034ca7acb4630febe92552ae67599ff82f9683",
+      "method": "squash",
+      "check_source": "https://api.github.com/repos/gianlucamazza/xllama/commits/0af47523422fb2cee6a32021d3ca9ac4436716ec/check-runs",
+      "required_checks": [
+        {
+          "id": 128405968013,
+          "name": "build (unified, true, xllama-appx)",
+          "head_sha": "0af47523422fb2cee6a32021d3ca9ac4436716ec",
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/gianlucamazza/xllama/actions/runs/42373398663/job/128405968013",
+          "completed_at": "2026-11-07T12:46:12Z"
+        },
+        {
+          "id": 128405967891,
+          "name": "build (llamacpp, false, xllama-appx-llamacpp)",
+          "head_sha": "0af47523422fb2cee6a32021d3ca9ac4436716ec",
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/gianlucamazza/xllama/actions/runs/42373398663/job/128405967891",
+          "completed_at": "2026-11-07T12:44:21Z"
+        },
+        {
+          "id": 128405967887,
+          "name": "build (linux)",
+          "head_sha": "0af47523422fb2cee6a32021d3ca9ac4436716ec",
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/gianlucamazza/xllama/actions/runs/42373398673/job/128405967887",
+          "completed_at": "2026-11-07T12:42:32Z"
+        },
+        {
+          "id": 128405967578,
+          "name": "analyze (c-cpp)",
+          "head_sha": "0af47523422fb2cee6a32021d3ca9ac4436716ec",
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/gianlucamazza/xllama/actions/runs/42373398601/job/128405967578",
+          "completed_at": "2026-11-07T12:39:41Z"
+        }
+      ]
+    },
+    {
+      "pr": 400,
+      "verified_head": "189d794c54b344f30af8a11a072ca78bbdb6341f",
+      "squash_commit": "993e7ad7096e80bbf242e1558eab4c1848d6a500",
+      "method": "squash",
+      "check_source": "https://api.github.com/repos/gianlucamazza/xllama/commits/189d794c54b344f30af8a11a072ca78bbdb6341f/check-runs",
+      "required_checks": [
+        {
+          "id": 128408007901,
+          "name": "build (llamacpp, false, xllama-appx-llamacpp)",
+          "head_sha": "189d794c54b344f30af8a11a072ca78bbdb6341f",
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/gianlucamazza/xllama/actions/runs/42374088574/job/128408007901",
+          "completed_at": "2026-11-07T12:53:07Z"
+        },
+        {
+          "id": 128408007814,
+          "name": "analyze (c-cpp)",
+          "head_sha": "189d794c54b344f30af8a11a072ca78bbdb6341f",
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/gianlucamazza/xllama/actions/runs/42374088673/job/128408007814",
+          "completed_at": "2026-11-07T12:49:23Z"
+        },
+        {
+          "id": 128408007677,
+          "name": "build (unified, true, xllama-appx)",
+          "head_sha": "189d794c54b344f30af8a11a072ca78bbdb6341f",
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/gianlucamazza/xllama/actions/runs/42374088574/job/128408007677",
+          "completed_at": "2026-11-07T12:55:32Z"
+        },
+        {
+          "id": 128408007508,
+          "name": "build (linux)",
+          "head_sha": "189d794c54b344f30af8a11a072ca78bbdb6341f",
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/gianlucamazza/xllama/actions/runs/42374088577/job/128408007508",
+          "completed_at": "2026-11-07T12:52:46Z"
+        }
+      ]
+    },
+    {
+      "pr": 396,
+      "verified_head": "a722ab9b830f32bfb4bf612f45cfad2da4319c72",
+      "squash_commit": "f1007133ba47a5b9ae9b44f0990aee67bdabf45a",
+      "method": "squash",
+      "check_source": "https://api.github.com/repos/gianlucamazza/xllama/commits/a722ab9b830f32bfb4bf612f45cfad2da4319c72/check-runs",
+      "required_checks": [
+        {
+          "id": 128410077817,
+          "name": "build (llamacpp, false, xllama-appx-llamacpp)",
+          "head_sha": "a722ab9b830f32bfb4bf612f45cfad2da4319c72",
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/gianlucamazza/xllama/actions/runs/42374794247/job/128410077817",
+          "completed_at": "2026-11-07T13:02:40Z"
+        },
+        {
+          "id": 128410077686,
+          "name": "build (linux)",
+          "head_sha": "a722ab9b830f32bfb4bf612f45cfad2da4319c72",
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/gianlucamazza/xllama/actions/runs/42374794216/job/128410077686",
+          "completed_at": "2026-11-07T13:02:06Z"
+        },
+        {
+          "id": 128410077641,
+          "name": "build (unified, true, xllama-appx)",
+          "head_sha": "a722ab9b830f32bfb4bf612f45cfad2da4319c72",
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/gianlucamazza/xllama/actions/runs/42374794247/job/128410077641",
+          "completed_at": "2026-11-07T13:02:44Z"
+        },
+        {
+          "id": 128410077346,
+          "name": "analyze (c-cpp)",
+          "head_sha": "a722ab9b830f32bfb4bf612f45cfad2da4319c72",
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/gianlucamazza/xllama/actions/runs/42374794202/job/128410077346",
+          "completed_at": "2026-11-07T12:59:32Z"
+        }
+      ]
+    }
+  ],
+  "remaining_drafts": [
+    369,
+    381,
+    404
+  ],
+  "remaining_security_qualification": [
+    263,
+    405
+  ],
+  "hardware_owner_issue": 374,
+  "historical_results_unchanged": true
+}

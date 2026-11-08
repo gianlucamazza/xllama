@@ -9,15 +9,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [1.7.0] - TBD
 
-User-facing notes: [docs/releases/v1.7.0.md](docs/releases/v1.7.0.md). The
-date is left `TBD` for the release owner. This notes cut does not change
-package version numbers or the llama.cpp pin (`d812350`).
+User-facing notes: [docs/releases/v1.7.0.md](docs/releases/v1.7.0.md).
+The release date and final-package acceptance remain pending; package identity
+and dependency pins are unchanged by this notes draft.
 
-GGUF GPU decode is on by default for LFM2.5-1.2B, Qwen2.5-Coder-3B is
-withdrawn from the model list, the LAN API can stream chat tokens, and public
-docs are rewritten for a Developer Mode launch.
+- **Console tooling:** reject Device Portal file-upload failures consistently
+  in deploy, benchmark and validation scripts, including HTTP 200 rejection
+  payloads and transport errors previously mistaken for empty-body success.
 
-- **Docs:** user-facing 1.7.0 notes in `docs/releases/v1.7.0.md`.
+- **Diffusion:** add a separate fixed deployment profile for first-party
+  exports. Reshape targets must be proven constant and free of literal zeros
+  before normalization for DirectML; retain the dynamic export for host parity.
+- **Diffusion export:** preserve the checkpoint's native CLIP vocabulary and
+  merges alongside the unified tokenizer metadata, so first-party exports
+  remain self-contained for the console tokenizer with Transformers 5.
+
+- **Host training:** the CPU recipe uses an isolated Python 3.12 environment
+  synchronized from a hash-locked dependency graph. System-package inheritance
+  and an unpinned Torch fallback are rejected. Operator setup and qualification
+  scope are documented in [training/README.md](training/README.md).
 
 - **Docs:** Current prose uses Microsoft's term Developer Mode in place of
   "Dev Mode". Peak working-set receipts that were written in MB now use MiB;
@@ -112,8 +122,8 @@ docs are rewritten for a Developer Mode launch.
   documentation and have not yet been walked end to end on a console.
 - Public docs no longer include a Partner Center reservation or Store ID.
 
-- **Docs:** "Store catalogue" wording replaced with "built-in model list"
-  (#362); `/api/pull` described as a download from the built-in
+- **Docs:** "Store catalogue" wording replaced with "signed model catalogue" /
+  "built-in model list"; `/api/pull` described as a download from the built-in
   model list (endpoint unchanged); new _Model catalogue design limits_ section
   in CONTRIBUTING; licence and no-selling note in model-selection and
   using-the-app.

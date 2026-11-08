@@ -51,6 +51,8 @@ set -euo pipefail
 : "${XBOX_PASS:?XBOX_PASS not set}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC1090,SC1091
+source "${SCRIPT_DIR}/wdp-file-upload.sh"
 DEPLOY="${SCRIPT_DIR}/deploy.sh"
 BASE_URL="https://${XBOX_IP}:11443"
 CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
@@ -83,16 +85,9 @@ trap 'rm -rf "$TMPDIR_LOCAL"' EXIT
 
 upload_file() {
 	local local_path="$1" remote_name="${2:-}"
-	local form_entry
-	if [[ -n "$remote_name" ]]; then
-		form_entry="${local_path};filename=${remote_name};type=application/octet-stream"
-	else
-		form_entry="${local_path};type=application/octet-stream"
-	fi
-	curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X POST \
-		-F "file=@${form_entry}" \
+	wdp_upload_file_request \
 		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=%5CLocalState" \
-		>/dev/null
+		"$local_path" "$remote_name"
 }
 
 delete_file() {

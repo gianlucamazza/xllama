@@ -569,6 +569,14 @@ publishing ORT model assets: every asset must pass the logit-parity gate before
 
 ## Diffusion pipeline
 
+The first-party dynamic export is the host reference. An experimental separate
+fixed deployment profile (`diffusion/prepare_console_profile.py`) proves
+nonzero Reshape targets before normalization for DirectML. Profile sidecars
+state the supported native input shapes even when dynamic annotations are
+retained to limit fusion. Qualification and known failed variants are described
+in [diffusion/README.md](../diffusion/README.md); no profile is promoted from a
+CPU pass alone.
+
 A from-scratch C++ pipeline (`uwp/diffuse.cpp`, `diffusion/`): CLIP BPE tokenizer
 (`diffusion/clip_tokenizer.h`) + Euler scheduler (header-only, golden-vector
 unit-tested, `diffusion/euler_scheduler.h`) driving **three sequential** ORT
@@ -746,7 +754,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_api_policy.cpp`            | `api_policy.h` numeric admission (F01)                                                      |
 | `test_api_pull.cpp`              | `api_pull_policy.h`, `withdrawn_models.h`                                                   |
 | `test_autopilot.cpp`             | `autopilot.h`                                                                               |
-| `test_bench.cpp`                 | bench CSV (`inference.h`), `platform.h`                                                     |
+| `test_bench.cpp`                 | bench CSV (`inference.h`), `platform.h`, `benchmark_identity.h`                             |
 | `test_cancel_policy.cpp`         | `cancel_policy.h`                                                                           |
 | `test_capture_probe.cpp`         | `capture_probe.h`                                                                           |
 | `test_chat_history.cpp`          | `uwp/chat-history.h`                                                                        |

@@ -1,0 +1,79 @@
+{
+  "issue": 405,
+  "status": "candidate graph resolved, installed and synthetic CPU API smoke passed; no repository pin changes",
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "source_script": "training/host/train_lora.py",
+  "source_sha256": "a51b561501ace58853d338154a25c97b5ee0dd6c78b4c6af16762d97af6516b3",
+  "candidate_top_level": {
+    "torch": "2.13.0+cpu",
+    "transformers": "5.10.1",
+    "peft": "0.21.2",
+    "datasets": "3.6.0",
+    "accelerate": "1.15.0"
+  },
+  "package_metadata_sources": [
+    "https://pypi.org/pypi/peft/0.21.2/json",
+    "https://pypi.org/pypi/transformers/5.10.1/json",
+    "https://pypi.org/pypi/torch/2.13.0/json",
+    "https://pypi.org/pypi/datasets/3.6.0/json"
+  ],
+  "resolution": {
+    "distributions": 58,
+    "dependency_overrides": false,
+    "pip_check": "No broken requirements found.",
+    "isolated_venv": true,
+    "system_site_packages": false,
+    "hash_locked_install": true
+  },
+  "synthetic": {
+    "purpose": "synthetic CPU API compatibility only",
+    "dtype": "float32",
+    "layers": 1,
+    "hidden_size": 16,
+    "seed": 42,
+    "host_training_steps": 2,
+    "hf_peft_merge_max_abs": 1.4901161193847656e-08,
+    "hf_peft_merge_tolerance": 1e-05,
+    "versions": {
+      "torch": "2.13.0+cpu",
+      "transformers": "5.10.1",
+      "peft": "0.21.2",
+      "datasets": "3.6.0",
+      "accelerate": "1.15.0"
+    },
+    "limits": [
+      "random tiny model, no SmolLM2 weights",
+      "no GGUF conversion",
+      "no full recipe or marker validation",
+      "no Xbox validation",
+      "not a dependency vulnerability scan or remediation closure"
+    ]
+  },
+  "remaining_gates": [
+    "Choose coherent host training top-level pins and CPU-wheel installation policy; current system-site-packages bootstrap is not reproducible",
+    "Run full first-party SmolLM2 train/adapter/GGUF-convert/merge and inference parity with pre-recorded tolerances",
+    "Security audit entire resolved graph before remediation closure",
+    "Preserve job results/provenance and validate target-device behavior if shipping training artifacts"
+  ],
+  "files": {
+    "tiny-smoke-result.json": "8d216aa50daeba8b5c35b7beba96552220ba9d05c8a13776e49c56c73c7de04f",
+    "tiny-verify.log": "13cd552aac1ceae0f15c0c5e4eba925eab5bd9bc196e07e9d8f2c11d20faf3d7",
+    "tiny-train.log": "ff9a7da411c4abccd3f50bca08f6e9b9e5e5e66aecf3222b037c32c4aa2f45e9",
+    "tiny-dataset.jsonl": "493e875a6ed4f29fbe6042f5b819107a7667389cf88518b40fde8451b61a96c3",
+    "tiny-prepare.log": "95e7551227986b8484c23e0fb3ca116b8589988de9273c31e8a33d7e8b998cad",
+    "pip-check.log": "9261363b733079a641c2e4cc9bc46ffa1d8336945a87f807b6cf68847dbc9b09",
+    "tiny_verify.py": "5b17782639cc7837c24df04e291373fa443c33b3a0b12bc936da1a68e4d41622",
+    "tiny_smoke.py": "db7fa77c7baa6b4bc8cbda8c5cad22b6d480f59e6fad74f2c8624cb90f05e96a",
+    "candidate-install.log": "2306d34ae1dd6b230f7fc6b1c441b43a8154ea4c2914d04c2ef9b4d79022abaf",
+    "candidate-graph.json": "10bfc47a6c1491f6aa96fe14efe6394b0253910cf3f9ee59aec166da9746eb37",
+    "candidate-lock.txt": "c9195a979ec29e45da4914bf8d1f3309f905bd2b0beb08b7a7b5743d2c9fe0c1",
+    "candidate-report.json": "8aac02c8b7cd331ba2937b0ac1bf72c5148db156b20b11ddd21c2f88b5da3085",
+    "datasets-3.6.0-metadata.json": "2b74e860f741145a9bc530fc2982cf52001ced95c03721eb1710ab5d6533d8bc",
+    "peft-download.log": "7f90a2b1cef09b8b545aaf3487b358d0e1afa69bfa3ef2bd80d46dd77428b2f0",
+    "torch-2.13.0-metadata.json": "80ceca2a039b525da7b5bca057120fb965f0c4c936afd3651e1d598e0ba1f401",
+    "transformers-5.10.1-metadata.json": "1588b409cae484829137268a6ea51ef1af80ebca5943901f7f1f0ad2a468d072",
+    "candidate-resolve.log": "b8cffcc4094a225408ebefd0b7e15b33ade47085834e9716ef78a58dad6cd028",
+    "peft-0.21.2-metadata.json": "5abe6e5f552eae49fb0b327f5ba0e22bcd0dd713433cebccd5177ce4c299ce68"
+  }
+}

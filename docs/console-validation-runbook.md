@@ -37,7 +37,10 @@ the app. Stops use the checked, package-encoding helper in `deploy.sh`. Before
 launch they snapshot `xllama.log` after stopping the app. The harnesses **never
 delete this log**: a delayed unlink can race the new process (#347). Only a
 successful download or HTTP 404 establishes the baseline. Verdicts read only
-new bytes beginning at one complete, exact `App::App()` entry. An old partial
+new bytes beginning at one complete, exact `App::App()` entry for UI gates.
+The device-training gate explicitly selects the exact `train.flag detected ->
+headless device training (Lane B)` entry, because headless dispatch precedes
+the XAML constructor. Neither mode accepts the other mode as a fallback. An old partial
 line may precede that append boundary; historical bytes never complete a new
 marker or enter the extracted output.
 
@@ -100,7 +103,8 @@ other users or unrelated clients.
 Host-only regression tests (no console or credentials):
 
 ```bash
-python3 -m unittest tests/test_console_run_log.py tests/test_console_temp_chats.py
+python3 -m unittest tests/test_console_run_log.py tests/test_console_temp_chats.py \
+  tests/test_console_taesd_result.py
 ```
 
 ## Official automated suite
@@ -183,7 +187,18 @@ n_ctx` — rather than the answer's length, which keeps the verdict independent
   flipping the in-app toggle: the toggle makes the console download the asset
   from the models-v1 release, which would make the gate slower and dependent on
   console-side network. The toggle's own writer is covered by the `settings`
-  gate instead;
+  gate instead. `wait_idle` (default 120 s, `XLLAMA_TAESD_READY_TIMEOUT_S`,
+  250 ms poll, three consecutive idle reads of the UI/preload atomics) parks
+  until session preload is done, so `generate_image` is not rejected busy at
+  launch. A `diffuse-result.csv` row must identify the taesd job
+  (`sd-turbo-fp16`, steps 1, seed 42) and contain a finite nonnegative VAE
+  duration. Its `date` must be at or after the recorded UTC start, or a valid
+  pre-run snapshot must exist and the file must have changed; a stale last
+  row is a FAIL, never an `ok` number. `ok` is printed only
+  when the autopilot marker is `ok`. `max_sampled_private_ws_mb` is the max of
+  PrivateWorkingSet sampled every `XLLAMA_TAESD_WS_SAMPLE_S` seconds (default
+  5), matched by package family from the installed PFN (or
+  `XLLAMA_PACKAGE_FAMILY`); it is not a peak;
 - **API** — separate LAN gate (`scripts/validate-api.sh`):
   `spike|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all` (chat, context budget,
   client-side tool proposals per [ADR 0004](adr/0004-tool-proposals.md),
@@ -410,3 +425,64 @@ fallback's complete prompt count and greedy output to match a fresh cold session
 It also sends native and OpenAI embedding requests while the GUI is generating
 and requires their respective 503 error envelopes. A missing overlap fails the
 probe; do not reinterpret a sequential 200 response as a busy-path validation.
+
+## Independent Series X acceptance (#374)
+
+This is a tester protocol, not a statement that Series X has passed. Keep
+"Tested and measured on Series S. Not yet tested on Series X." until accepted
+upstream inference receipts exist. Resource-only measurements from a fork do
+not satisfy this protocol.
+
+1. Select an immutable upstream candidate SHA and its CI **MSVC unified**
+   `xllama-appx`. Record CI run, package SHA-256, package full name and revision,
+   submodule pin and a Device Portal OS/device-info receipt. Record the device
+   family separately from any operator-declared benchmark profile. Redact
+   credentials, serial numbers and network addresses; omit tester names unless
+   credit was requested.
+2. Follow [install-release.md](install-release.md) for Developer Mode setup and
+   the prerequisites above. Back up required LocalState data before any uninstall.
+   Set `XLLAMA_EXPECTED_PFN` to the verified installed package; never use a
+   floating "latest" package for an acceptance receipt.
+3. Run the existing console and API suites against that fixed package, capturing
+   stdout/stderr and exit codes independently:
+
+   ```bash
+   source ~/.config/xllama/xbox-env
+   ./scripts/validate-console.sh all
+   ./scripts/validate-api.sh all
+   ```
+
+   Follow the affected training gates above if training is in the candidate's
+   scope. Test default chat, model switching, CPU and supported GPU routing,
+   load/reload, generated output, cancellation and GUI/API compute overlap.
+   A failed or unavailable gate is FAIL/BLOCKED, never a successful partial suite.
+
+4. Record model-file hashes, fixed prompt hashes, context/sampling settings,
+   individual cold-load and warm repeats, prefill, decode, measured TTFT,
+   memory scope and any crashes/hangs. Use the methodology in `bench/README.md`.
+   The current Series S-only XAB profile and hard-coded historical host labels
+   must not silently label Series X results: require the hardware-identity
+   follow-up [#402](https://github.com/gianlucamazza/xllama/issues/402) before
+   using XAB text capture on Series X. Preserve old CSVs and labels with an
+   explicit caveat; do not relabel historical rows.
+5. Submit a new campaign directory with raw results, logs, source/package/model/
+   prompt hashes, observed device identity, invocation/exit records and a manifest
+   of file SHA-256s. Run applicable CSV and sidecar admission checks and the
+   generated claim checks. A valid schema alone does not prove a run occurred.
+6. Review under #374: compare against existing gates on the same device and
+   package, investigate failures and record limitations. Only then update the
+   canonical model/hardware status and public wording. Do not pool Series X,
+   Series S, Linux or WARP results.
+
+No console is configured in the execution environment for the 2026-11-07
+program. This protocol is ready for review; its live steps have not been run.
+
+## Diffusion peak-memory receipt
+
+For new packages exposing `process_peak_ws_mb` in `diffuse-result.csv`, retain
+the fresh result and run-scoped launch log together with the exact package hash.
+A positive value is the Windows process-lifetime peak working set, including
+launch preload, measured after image encoding. Start a new process for each
+trial; do not subtract a baseline or label the result as GPU memory. Zero or
+a missing column does not prove a peak-memory gate. The TAESD sampler remains
+separate evidence of sampled current private working set.

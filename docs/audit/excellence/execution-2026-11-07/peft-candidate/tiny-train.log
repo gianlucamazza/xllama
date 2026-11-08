@@ -1,0 +1,8 @@
+loading model: /tmp/xllama-peft-resolution/tiny-base
+Loading weights:   0%|          | 0/12 [00:00<?, ?it/s]Loading weights: 100%|██████████| 12/12 [00:00<00:00, 7725.50it/s]
+LoRA targets: ['q_proj', 'k_proj', 'v_proj', 'o_proj']
+trainable params: 256 || all params: 3,376 || trainable%: 7.5829
+  0%|          | 0/2 [00:00<?, ?it/s]                                     100%|██████████| 2/2 [00:00<00:00, 57.63it/s]100%|██████████| 2/2 [00:00<00:00, 57.22it/s]
+adapter saved to /tmp/xllama-peft-resolution/tiny-adapter
+marker target: XLLAMA-LORA-OK
+{'train_runtime': '0.0349', 'train_samples_per_second': '57.26', 'train_steps_per_second': '57.26', 'train_loss': '2.749', 'epoch': '0.6667'}

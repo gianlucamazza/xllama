@@ -1,0 +1,345 @@
+{
+  "captured_date": "2026-11-07",
+  "baseline_sha": "ea40b28deb5c9601863dd5b99709360b1bdee5bf",
+  "submodule": "160000 commit d81235049384534c167caea52b85a694f6103d14\tllama.cpp",
+  "sources": {
+    "branches": "https://api.github.com/repos/gianlucamazza/xllama/branches?per_page=100",
+    "workflows": "https://api.github.com/repos/gianlucamazza/xllama/actions/workflows?per_page=100",
+    "releases": "https://api.github.com/repos/gianlucamazza/xllama/releases?per_page=100",
+    "open-issues": "https://api.github.com/repos/gianlucamazza/xllama/issues?state=open&per_page=100"
+  },
+  "branches": [
+    {
+      "name": "cursor/decision-models-spike-8b6e",
+      "sha": "61751c1d505443802df2144f784dac9bff0e8692"
+    },
+    {
+      "name": "cursor/docs-v170-release-notes-4bfd",
+      "sha": "3e896c6683c3a10a768fc67827ea14c1ddde5f79"
+    },
+    {
+      "name": "cursor/taesd-gate-stale-452e",
+      "sha": "644416f7e04a4ce17a30512497a49593ca10f327"
+    },
+    {
+      "name": "feat/floppylm-training",
+      "sha": "ba0ebcedb385aca2e9646cec65b3a11fc7b6db89"
+    },
+    {
+      "name": "fix/benchmark-finite-metrics-2026-11-07",
+      "sha": "85db8c4964d9ce048722f1b1f395dad5244239ce"
+    },
+    {
+      "name": "main",
+      "sha": "ea40b28deb5c9601863dd5b99709360b1bdee5bf"
+    }
+  ],
+  "workflows": [
+    {
+      "name": "build-linux",
+      "path": ".github/workflows/build-linux.yml",
+      "state": "active"
+    },
+    {
+      "name": "build-uwp-ort-patched",
+      "path": ".github/workflows/build-uwp-ort-patched.yml",
+      "state": "active"
+    },
+    {
+      "name": "build-uwp-patched",
+      "path": ".github/workflows/build-uwp-patched.yml",
+      "state": "active"
+    },
+    {
+      "name": "build-uwp",
+      "path": ".github/workflows/build-uwp.yml",
+      "state": "active"
+    },
+    {
+      "name": "codeql",
+      "path": ".github/workflows/codeql.yml",
+      "state": "active"
+    },
+    {
+      "name": "release-research",
+      "path": ".github/workflows/release-research.yml",
+      "state": "active"
+    },
+    {
+      "name": "Dependabot Updates",
+      "path": "dynamic/dependabot/dependabot-updates",
+      "state": "active"
+    },
+    {
+      "name": "Dependency Graph",
+      "path": "dynamic/dependabot/update-graph",
+      "state": "active"
+    },
+    {
+      "name": "pages-build-deployment",
+      "path": "dynamic/pages/pages-build-deployment",
+      "state": "active"
+    }
+  ],
+  "releases": [
+    {
+      "tag": "v1.6.0.0",
+      "published_at": "2026-09-28T13:41:19Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/v1.6.0.0"
+    },
+    {
+      "tag": "research-v1.0.6",
+      "published_at": "2026-08-26T23:55:34Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/research-v1.0.6"
+    },
+    {
+      "tag": "research-v1.0.5",
+      "published_at": "2026-08-26T23:54:12Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/research-v1.0.5"
+    },
+    {
+      "tag": "research-v1.0.4",
+      "published_at": "2026-08-26T23:50:06Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/research-v1.0.4"
+    },
+    {
+      "tag": "research-v1.0.3",
+      "published_at": "2026-08-26T23:44:03Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/research-v1.0.3"
+    },
+    {
+      "tag": "research-v1.0.2",
+      "published_at": "2026-08-26T22:02:23Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/research-v1.0.2"
+    },
+    {
+      "tag": "research-v1.0",
+      "published_at": "2026-08-26T21:53:44Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/research-v1.0"
+    },
+    {
+      "tag": "v1.5.6.0",
+      "published_at": "2026-08-23T01:22:12Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/v1.5.6.0"
+    },
+    {
+      "tag": "v1.5.4.0",
+      "published_at": "2026-08-08T11:32:04Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/v1.5.4.0"
+    },
+    {
+      "tag": "v1.5.3.0",
+      "published_at": "2026-08-08T08:44:36Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/v1.5.3.0"
+    },
+    {
+      "tag": "v1.5.2.0",
+      "published_at": "2026-07-30T08:09:16Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/v1.5.2.0"
+    },
+    {
+      "tag": "v1.5.1.0",
+      "published_at": "2026-07-27T12:34:54Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/v1.5.1.0"
+    },
+    {
+      "tag": "v1.5.0.0",
+      "published_at": "2026-07-25T23:58:34Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/v1.5.0.0"
+    },
+    {
+      "tag": "v1.4.0.0",
+      "published_at": "2026-07-19T17:14:19Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/v1.4.0.0"
+    },
+    {
+      "tag": "v1.3.0.0",
+      "published_at": "2026-07-17T23:19:32Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/v1.3.0.0"
+    },
+    {
+      "tag": "v1.2.1.0",
+      "published_at": "2026-07-17T04:36:43Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/v1.2.1.0"
+    },
+    {
+      "tag": "v1.2.0.0",
+      "published_at": "2026-07-16T22:03:49Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/v1.2.0.0"
+    },
+    {
+      "tag": "v1.1.8.0",
+      "published_at": "2026-07-16T06:05:25Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/v1.1.8.0"
+    },
+    {
+      "tag": "v1.1.7.0",
+      "published_at": "2026-07-15T06:31:32Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/v1.1.7.0"
+    },
+    {
+      "tag": "vendor-dlls-v1",
+      "published_at": "2026-07-15T19:32:57Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/vendor-dlls-v1"
+    },
+    {
+      "tag": "v1.1.5.0",
+      "published_at": "2026-07-14T09:25:43Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/v1.1.5.0"
+    },
+    {
+      "tag": "v1.1.0",
+      "published_at": "2026-07-09T12:54:39Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/v1.1.0"
+    },
+    {
+      "tag": "v1.0.0",
+      "published_at": "2026-07-08T23:19:39Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/v1.0.0"
+    },
+    {
+      "tag": "models-v1",
+      "published_at": "2026-07-08T17:47:42Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/models-v1"
+    },
+    {
+      "tag": "v0.3.0",
+      "published_at": "2026-05-22T23:53:27Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/v0.3.0"
+    },
+    {
+      "tag": "v0.2.1",
+      "published_at": "2026-05-22T22:47:26Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/v0.2.1"
+    },
+    {
+      "tag": "v0.2.0",
+      "published_at": "2026-05-22T21:50:37Z",
+      "prerelease": false,
+      "url": "https://github.com/gianlucamazza/xllama/releases/tag/v0.2.0"
+    }
+  ],
+  "open_items_at_capture": [
+    {
+      "number": 396,
+      "title": "fix: reject nonfinite benchmark metrics and malformed CSV rows",
+      "pr": true,
+      "state": "open"
+    },
+    {
+      "number": 395,
+      "title": "Engineering excellence: execute eight-week evidence-gated consolidation",
+      "pr": false,
+      "state": "open"
+    },
+    {
+      "number": 394,
+      "title": "Reject invalid benchmark provenance sidecars before accepting publishable claims",
+      "pr": false,
+      "state": "open"
+    },
+    {
+      "number": 393,
+      "title": "ci: monitor the host training dependency manifest",
+      "pr": false,
+      "state": "open"
+    },
+    {
+      "number": 381,
+      "title": "test(console): taesd gate waits for model load and rejects stale diffuse rows",
+      "pr": true,
+      "state": "open"
+    },
+    {
+      "number": 374,
+      "title": "Validate on Xbox Series X with an external tester",
+      "pr": false,
+      "state": "open"
+    },
+    {
+      "number": 369,
+      "title": "docs: v1.7.0 release notes",
+      "pr": true,
+      "state": "open"
+    },
+    {
+      "number": 313,
+      "title": "d3d12 GGUF GPU layers: multi-column prefill kernel (weights re-read per column)",
+      "pr": false,
+      "state": "open"
+    },
+    {
+      "number": 275,
+      "title": "arch-watch: SSM/RWKV + multimodal envelope (desk)",
+      "pr": false,
+      "state": "open"
+    },
+    {
+      "number": 274,
+      "title": "arch-watch: BitNet 1.58 reopen gate (post H5 NO-GO)",
+      "pr": false,
+      "state": "open"
+    },
+    {
+      "number": 273,
+      "title": "arch-watch: MoE reopen gate (post H2 FAIL)",
+      "pr": false,
+      "state": "open"
+    },
+    {
+      "number": 263,
+      "title": "security: migrate the host diffusion export stack to patched dependencies",
+      "pr": false,
+      "state": "open"
+    },
+    {
+      "number": 86,
+      "title": "upstream: ORT ReadFileIntoBuffer 16 MB chunk (errcode 1450)",
+      "pr": false,
+      "state": "open"
+    },
+    {
+      "number": 85,
+      "title": "vendor: dual runtime DLL pin lifecycle (GenAI #2280 + ORT extdata)",
+      "pr": false,
+      "state": "open"
+    },
+    {
+      "number": 84,
+      "title": "maint: drop -PatchedGenAI when NuGet includes #2280",
+      "pr": false,
+      "state": "open"
+    }
+  ],
+  "fork_inventory": "fork-inventory.json",
+  "limitations": [
+    "API collections are time-bounded observations. No hardware run. Exact-head CI must be re-read before merge.",
+    "Upstream fork collection returned 10; fork comparisons inspect scope and subjects, not full correctness."
+  ]
+}
