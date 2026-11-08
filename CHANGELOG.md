@@ -10,8 +10,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [1.7.0] - TBD
 
 User-facing notes: [docs/releases/v1.7.0.md](docs/releases/v1.7.0.md).
-The release date and final-package acceptance remain pending; package identity
-and dependency pins are unchanged by this notes draft.
+Candidate 1.7.0.1495 completed Series S acceptance; receipts and limitations are
+linked from the notes. The release date and publication remain pending.
 
 - **GPU validation:** the standard backend selftest exits nonzero when its
   gate fails and rejects empty, non-finite or negative measurements. Native
