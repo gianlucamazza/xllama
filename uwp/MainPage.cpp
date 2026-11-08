@@ -4148,6 +4148,33 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
                 m_system_prompt = text;
                 SaveSettings();
             });
+        } else if (a.op == "wait_idle") {
+            // Session preload after launch holds the process-wide compute slot
+            // without setting m_is_running. generate_image still fails busy if
+            // it arrives during that window; this parks until the atomics stay
+            // idle across three 250 ms polls. Do not try_acquire here: a probe
+            // can win the slot and make PreloadSessionAsync skip the load.
+            // The busy guard on the next action is unchanged.
+            auto t = a.timeout.count() > 0 ? a.timeout : std::chrono::seconds{120};
+            const auto deadline = std::chrono::steady_clock::now() + t;
+            constexpr int kIdlePolls = 3;
+            int idle_streak = 0;
+            auto flags_idle = [this]() {
+                return !m_is_running.load() && !m_diffuse_running.load() &&
+                       !m_train_running.load() &&
+                       !::xllama::session_hub().preloading.load(std::memory_order_acquire);
+            };
+            while (std::chrono::steady_clock::now() < deadline) {
+                if (flags_idle() && flags_idle())
+                    ++idle_streak;
+                else
+                    idle_streak = 0;
+                if (idle_streak >= kIdlePolls)
+                    break;
+                std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            }
+            if (idle_streak < kIdlePolls)
+                throw std::runtime_error("action " + std::to_string(i) + " wait_idle: timeout");
         } else if (a.op == "generate_image") {
             if (!not_running())
                 throw std::runtime_error("action " + std::to_string(i) + " generate_image: busy");
