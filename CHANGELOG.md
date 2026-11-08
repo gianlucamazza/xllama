@@ -13,6 +13,11 @@ User-facing notes: [docs/releases/v1.7.0.md](docs/releases/v1.7.0.md).
 The release date and final-package acceptance remain pending; package identity
 and dependency pins are unchanged by this notes draft.
 
+- **API validation:** parse the complete training-status response before
+  applying the bounded display preview in the HTTP framing gate. Longer
+  progress payloads no longer cause a false failure; missing or invalid
+  counters still fail closed.
+
 - **Console tooling:** reject Device Portal file-upload failures consistently
   in deploy, benchmark and validation scripts, including HTTP 200 rejection
   payloads and transport errors previously mistaken for empty-body success.
