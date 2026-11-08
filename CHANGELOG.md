@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Host training:** the CPU recipe uses an isolated Python 3.12 environment
+  synchronized from a hash-locked dependency graph. System-package inheritance
+  and an unpinned Torch fallback are rejected. Operator setup and qualification
+  scope are documented in [training/README.md](training/README.md).
+
 - **Docs:** Current prose uses Microsoft's term Developer Mode in place of
   "Dev Mode". Peak working-set receipts that were written in MB now use MiB;
   the digits are unchanged. Historical changelog entries, code, and app strings

@@ -1,6 +1,6 @@
 # ADR 0009: Qualify an isolated host PEFT toolchain
 
-Status: Proposed (2026-11-07), tracked in [#405](https://github.com/gianlucamazza/xllama/issues/405).
+Status: Accepted (2026-11-08), implemented and qualified in [#410](https://github.com/gianlucamazza/xllama/pull/410), tracked in [#405](https://github.com/gianlucamazza/xllama/issues/405).
 
 ## Context
 
@@ -31,7 +31,7 @@ CPU Torch wheel still skipped. This supports a feasible migration path, not
 whole-recipe or binary security acceptance. Both the failed first candidate
 and the second candidate remain in the dated evidence package.
 
-## Proposed decision
+## Decision
 
 Use a coherent, hash-recorded host training environment with an explicit
 compute profile. The first qualification target is CPU, to match the current
@@ -53,7 +53,11 @@ format and adapter interchange; no runtime or UWP architecture change is propose
    verify `run_job.sh`, `run_spike.sh` and conversion callers use that policy.
 2. Reproduce a full isolated, hash-checked install with no constraint overrides
    or system-site fallback; run `pip check` and whole-graph security scanning.
-   A skipped wheel is an unresolved audit scope, not a successful result.
+   A skipped wheel is not a successful scan. For the official CPU wheel, separately
+   verify the published wheel hash and every installed hashed payload record,
+   bind its compiled Git identity to the upstream base-release tag, and query
+   base-release advisories. Retain the raw local-version skip alongside this
+   explicit bounded disposition; it is not whole-binary security certification.
 3. Before the production trial, freeze the supported SmolLM2 revision,
    dataset/job hashes, seed and numerical/quality acceptance in a trial manifest.
    A random one-layer Llama is not an interchangeable reference.
@@ -65,10 +69,13 @@ format and adapter interchange; no runtime or UWP architecture change is propose
    distinguish host PEFT from on-device training. Update the canonical runbook,
    requirements and CI, then close #405 only with the qualified receipts.
 
-Until then current pins remain unchanged, #405 stays open, and the synthetic
-candidate is an experiment rather than the supported operator environment.
-This ADR is proposed; it neither accepts its own decision nor claims those
-gates passed.
+The [dated CPU qualification receipt](../../training/host/qualification-2026-11-08.json)
+records the full first-party recipe, adapter/merge parity, GGUF marker A/B and
+new-artifact Series S checks. It also binds the official CPU wheel and its
+installed payload to the base-release advisory disposition. Earlier synthetic
+candidate receipts remain historical; they do not establish these later results.
+The CPU decision is promoted through the normal protected PR path. #405 closes
+only after that integration; GPU profiles remain separately unqualified.
 
 ## Alternatives and consequences
 
@@ -84,3 +91,17 @@ Isolation adds installation/storage work and explicit profile maintenance. It
 buys a graph that an operator can identify and reproduce. Rollback must restore
 the prior coherent toolchain/recipe together; do not roll back only one package
 or describe a rollback to vulnerable pins as a security remediation.
+
+## Qualification — 2026-11-08
+
+The CPU/Python 3.12 hash lock installs without system-site inheritance or an
+unpinned fallback. The deprecated spike wrapper delegates to the same runner;
+conversion uses its selected interpreter. The full canonical first-party job,
+FP32 adapter/merge parity and GGUF marker A/B pass. Its converted artifacts
+were served on Series S, the runtime adapter produced the marker on a fresh
+greedy API request, and device files were read back and matched to the candidate.
+The installed CPU wheel matches the official artifact and upstream release Git
+identity; the base-release advisory query covers its declared source release.
+The scanner's raw local-version skip remains visible in the receipt. These are
+bounded known-advisory and compatibility checks, not general model-quality or
+whole-binary security certification.
