@@ -74,7 +74,7 @@ MARKER="${MARKER:-XLLAMA-LORA-OK}"
 PROMPT="${PROMPT:-xllama secret}"
 
 mkdir -p "${OUT}"
-VENV="${HOST}/.venv"
+VENV="${XLLAMA_TRAIN_VENV:-${HOST}/.venv-cpu312}"
 PY="${VENV}/bin/python"
 
 resolve_snapshot() {
@@ -133,18 +133,25 @@ else
 fi
 
 ensure_venv() {
+  if ! command -v uv >/dev/null 2>&1; then
+    echo "error: uv is required for the isolated CPU training profile (training/README.md)" >&2
+    return 1
+  fi
+  if [[ -f "${VENV}/pyvenv.cfg" ]] &&
+    grep -qiE '^include-system-site-packages[[:space:]]*=[[:space:]]*true' "${VENV}/pyvenv.cfg"; then
+    echo "error: refusing training environment that inherits system packages: ${VENV}" >&2
+    return 1
+  fi
   if [[ ! -x "${PY}" ]]; then
-    echo "==> creating venv ${VENV}"
-    python3 -m venv --system-site-packages "${VENV}"
-    "${PY}" -m pip install -U pip wheel -q
-    "${PY}" -m pip install -r "${HOST}/requirements.txt"
+    uv venv --python 3.12 "${VENV}" || return 1
   fi
-  if ! "${PY}" -c 'import peft, transformers, torch' 2>/dev/null; then
-    "${PY}" -m pip install -r "${HOST}/requirements.txt"
-    if ! "${PY}" -c 'import torch' 2>/dev/null; then
-      "${PY}" -m pip install 'torch>=2.2' --index-url https://download.pytorch.org/whl/cpu
-    fi
+  if ! "${PY}" -c 'import sys; assert sys.prefix != sys.base_prefix and sys.version_info[:2] == (3, 12)'; then
+    echo "error: training requires an isolated Python 3.12 environment" >&2
+    return 1
   fi
+  uv pip sync --python "${PY}" --require-hashes --torch-backend cpu \
+    --index-url https://pypi.org/simple "${HOST}/requirements-cpu-py312.lock" || return 1
+  "${PY}" -c 'import torch, transformers, peft; assert torch.version.cuda is None' || return 1
 }
 
 ensure_export_lora() {
@@ -318,7 +325,7 @@ fi
 # Publish stub: LocalState manifest override ready for Device Portal upload
 if [[ -f "${MERGED_GGUF}" ]]; then
   SNIP="${OUT}/manifest.override.json"
-  "${HOST}/.venv/bin/python" "${HOST}/publish_manifest_snippet.py" \
+  "${PY}" "${HOST}/publish_manifest_snippet.py" \
     --name "${JOB_NAME}" \
     --display "${JOB_NAME} (finetuned)" \
     --gguf "${MERGED_GGUF}" \
@@ -329,7 +336,7 @@ if [[ -f "${MERGED_GGUF}" ]]; then
       --gguf "${MERGED_GGUF}" \
       --out "${SNIP}"
   echo "==> publish snippet: ${SNIP}"
-  echo "    copy merged GGUF → LocalState\\models\\${JOB_NAME}\\model.gguf"
+  printf '%s\n' "    copy merged GGUF → LocalState\\models\\${JOB_NAME}\\model.gguf"
   echo "    merge/upload ${SNIP} as LocalState\\manifest.json override"
 fi
 exit 0
