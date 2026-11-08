@@ -14,6 +14,7 @@
     #include <cstdio>
     #include <cstring>
     #include <ctime>
+    #include <limits>
     #include <string>
     #include <vector>
 
@@ -1292,6 +1293,9 @@ double reference_rel_err(ggml_type t, const std::vector<std::uint8_t>& q, std::s
             wt->vec_dot(k, &ref, 0, q.data() + static_cast<std::size_t>(r) * row_bytes, 0,
                         xq.data(), 0, 1);
             const double got = y[static_cast<std::size_t>(c) * n + r];
+            // std::max ignores a NaN operand, which would hide corrupt output.
+            if (!std::isfinite(ref) || !std::isfinite(got))
+                return std::numeric_limits<double>::infinity();
             max_ref = std::max(max_ref, std::fabs(static_cast<double>(ref)));
             max_diff = std::max(max_diff, std::fabs(static_cast<double>(ref) - got));
         }
@@ -1456,9 +1460,15 @@ D3d12SelftestRow run_get_rows_case(ggml_backend_t backend, int n, int k) {
         ggml_get_type_traits(GGML_TYPE_Q6_K)
             ->to_float(q.data() + static_cast<std::size_t>(ids_v[i]) * w->nb[1], ref.data(), k);
         for (int j = 0; j < k; ++j) {
+            const double actual = got[static_cast<std::size_t>(i) * k + j];
+            if (!std::isfinite(ref[j]) || !std::isfinite(actual)) {
+                row.rel_err = std::numeric_limits<double>::infinity();
+                row.error = "non-finite get_rows reference or output";
+                cleanup();
+                return row;
+            }
             max_ref = std::max(max_ref, std::fabs(static_cast<double>(ref[j])));
-            max_diff = std::max(max_diff, std::fabs(static_cast<double>(ref[j]) -
-                                                    got[static_cast<std::size_t>(i) * k + j]));
+            max_diff = std::max(max_diff, std::fabs(static_cast<double>(ref[j]) - actual));
         }
     }
     row.rel_err = max_ref > 0.0 ? max_diff / max_ref : max_diff;

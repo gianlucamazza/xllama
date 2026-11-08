@@ -81,9 +81,11 @@ echo "Wrote $OUT"
 cat "$OUT"
 
 python3 - "$OUT" <<'PY'
-import csv, sys
+import csv, math, sys
 rows = list(csv.DictReader(open(sys.argv[1])))
-bad = [r for r in rows if r["ok"] != "1" or r["d3d12_ran"] != "1"]
+bad = [r for r in rows if r["ok"] != "1" or r["d3d12_ran"] != "1" or
+       any(not math.isfinite(float(r[k])) or float(r[k]) < 0
+           for k in ("rel_err", "gpu_ms", "packed_gbs"))]
 slow = [r for r in rows if r["ncols"] == "1" and float(r["packed_gbs"]) < 100.0]
 print(f"--- selftest gate: {len(rows) - len(bad)}/{len(rows)} cases correct; "
       f"{len(slow)} decode case(s) under 100 GB/s ---")
@@ -91,5 +93,7 @@ for r in bad:
     print(f"FAIL {r['type']} n={r['n']} k={r['k']} ncols={r['ncols']} rel_err={r['rel_err']} {r['error']}")
 for r in slow:
     print(f"SLOW {r['type']} n={r['n']} k={r['k']} gbs={r['packed_gbs']}")
-print("GATE=" + ("PASS" if rows and not bad and not slow else "FAIL"))
+passed = bool(rows) and not bad and not slow
+print("GATE=" + ("PASS" if passed else "FAIL"))
+sys.exit(0 if passed else 1)
 PY

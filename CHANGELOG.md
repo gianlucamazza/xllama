@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **GPU validation:** the standard backend selftest exits nonzero when its
+  gate fails and rejects empty, non-finite or negative measurements. Native
+  matmul and get-rows error oracles reject non-finite values instead of
+  allowing NaNs to disappear in a maximum reduction.
+
 - **API validation:** parse the complete training-status response before
   applying the bounded display preview in the HTTP framing gate. Longer
   progress payloads no longer cause a false failure; missing or invalid

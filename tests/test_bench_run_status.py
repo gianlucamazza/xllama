@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Tests for scripts/bench_run_status.py — hung/timeout campaign contract."""
 
+import csv
 import importlib.util
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -94,6 +96,40 @@ class BenchRunStatusTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 1, result.stderr)
         self.assertIn("incomplete", result.stderr)
+
+
+class D3d12SelftestExitTests(unittest.TestCase):
+    def test_console_gate_status_reaches_the_shell(self):
+        script = (ROOT / "scripts/bench-d3d12-selftest.sh").read_text()
+        gate = script.split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
+        good = dict(
+            type="q4_0", n="2048", k="2048", ncols="1", rel_err="0.000001",
+            gpu_ms="0.1", packed_gbs="120", ok="1", d3d12_ran="1", error="-"
+        )
+        cases = [
+            (good, True), (dict(good, ok="0"), False),
+            (dict(good, d3d12_ran="0"), False),
+            (dict(good, packed_gbs="99"), False),
+            (dict(good, packed_gbs="nan"), False),
+            (dict(good, rel_err="inf"), False),
+            (dict(good, rel_err="nan"), False),
+            (dict(good, gpu_ms="nan"), False),
+            (dict(good, gpu_ms="-1"), False), (None, False),
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "rows.csv"
+            for row, passed in cases:
+                with self.subTest(row=row):
+                    with path.open("w", newline="") as stream:
+                        writer = csv.DictWriter(stream, fieldnames=list(good))
+                        writer.writeheader()
+                        if row:
+                            writer.writerow(row)
+                    result = subprocess.run(
+                        [sys.executable, "-c", gate, str(path)], text=True, capture_output=True
+                    )
+                    self.assertEqual(result.returncode, 0 if passed else 1, result.stderr)
+                    self.assertIn("GATE=" + ("PASS" if passed else "FAIL"), result.stdout)
 
 
 if __name__ == "__main__":
