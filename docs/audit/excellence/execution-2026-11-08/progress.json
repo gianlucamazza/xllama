@@ -197,13 +197,15 @@
       "#411",
       "#381",
       "#412",
-      "#413"
+      "#413",
+      "#407",
+      "#404"
     ],
     "closed_training": "#405",
     "first_party_diffusion": "host 35 tests zero skips; exact image equivalence, fresh full-VAE/TAESD UI and true peak pass on identified package 1472; evidence integration pending",
     "GPU": "candidate #414 disabled by default; original-path numeric control passes; optimized, UI/logit/H9 and paired campaign pending",
-    "hardware": "Series S observed separately from declared benchmark identity; Series X excluded by user",
-    "user_state": "original settings/model selector restored for qualification; original diffusion weights still require restoration from verified private journal; final cleanup pending",
+    "hardware": "Series S declaration echoed by exact package 1475; Platform independently observed; #402 closed through #404; Series X excluded",
+    "user_state": "three original diffusion weights restored and byte verified; temporary diffusion override manifest removed (absent at baseline); original settings/model selector restored; final full user-state/LoRA fixture cleanup pending",
     "physical_publication_measurements": "external wattmeter/ambient/thermal evidence unavailable; no power or headline throughput claim"
   }
 }
