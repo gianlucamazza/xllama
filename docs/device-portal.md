@@ -78,7 +78,8 @@ Or upload individual files:
 ### File-write status contract
 
 `deploy.sh` and the console, training, API and benchmark harnesses share
-`scripts/wdp-file-upload.sh`. A transport/HTTP error fails the write. A nonempty
+`scripts/wdp-file-upload.sh`. The synchronous file-write endpoint must return HTTP 200; transport errors,
+redirects and other statuses fail the write. A nonempty
 response must be JSON with the boolean `Success: true`; `Success: false`,
 malformed or unrecognized replies fail even with HTTP 200. Empty/whitespace
 payloads remain supported only after a successful request, for older portals.

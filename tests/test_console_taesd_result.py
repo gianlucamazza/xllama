@@ -353,7 +353,7 @@ validate_taesd || rc=$?
 
 
 class WdpUploadStatusTests(unittest.TestCase):
-    def upload(self, payload, curl_status=0, *, source_exists=True):
+    def upload(self, payload, curl_status=0, *, source_exists=True, http_status=200):
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "model.onnx"
             if source_exists:
@@ -362,7 +362,7 @@ class WdpUploadStatusTests(unittest.TestCase):
 set -euo pipefail
 source "$UPLOAD_HELPER"
 CURL_AUTH=(); CSRF_TOKEN=fixture
-curl() { printf '%s' "$REPLY"; return "$CURL_STATUS"; }
+curl() { printf '%s\n%s' "$REPLY" "$HTTP_STATUS"; return "$CURL_STATUS"; }
 if wdp_upload_file_request 'https://unused.invalid/file' "$SOURCE" model.onnx; then
     exit 0
 else
@@ -370,7 +370,8 @@ else
 fi
 """
             env = dict(os.environ, UPLOAD_HELPER=str(ROOT / "scripts/wdp-file-upload.sh"),
-                       REPLY=payload, CURL_STATUS=str(curl_status), SOURCE=str(source))
+                       REPLY=payload, CURL_STATUS=str(curl_status), HTTP_STATUS=str(http_status),
+                       SOURCE=str(source))
             return subprocess.run(["bash", "-c", setup], env=env, capture_output=True,
                                   text=True, timeout=10)
 
@@ -394,6 +395,13 @@ fi
                 result = self.upload(payload, status)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("upload request failed", result.stderr)
+
+    def test_redirect_or_other_status_never_counts_as_an_empty_success(self):
+        for status in [201, 202, 204, 302]:
+            with self.subTest(status=status):
+                result = self.upload("", http_status=status)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("upload returned HTTP", result.stderr)
 
     def test_missing_local_file_fails_before_request(self):
         result = self.upload('{"Success":true}', source_exists=False)
