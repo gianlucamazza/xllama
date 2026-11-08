@@ -87,7 +87,21 @@
     ],
     "scope": "Existing historical training artifacts; runtime adapter application verified; marker warning retained for lora-rt; does not qualify the new host environment"
   },
-  "device_training": "running on 1.7.0.1435; training/result.done pending",
+  "device_training": {
+    "package": "1.7.0.1435",
+    "first_attempt_gate": "FAIL: log scoper required App::App() but headless dispatch bypasses XAML",
+    "diagnostic_result_not_accepted": {
+      "success": true,
+      "last_loss": 0.46798,
+      "wall_seconds": 448.978,
+      "peak_ws_mb": 1201,
+      "marker": "XLLAMA-LORA-OK."
+    },
+    "fix_pr": 408,
+    "fix_commit": "45a3e05",
+    "regressions": 47,
+    "fresh_rerun": "in progress; no retrospective promotion"
+  },
   "peak_instrumentation": {
     "pr": 407,
     "commit": "e8d6920",
@@ -101,12 +115,19 @@
   "diffusion_qualification": {
     "environment": "isolated Python 3.12; requirements installed on CPU; 50 compatible packages",
     "revision": "b261bac6fd2cf515557d5d0707481eafa0485ec2",
-    "full_export": "running; text encoder contract and eager/ORT checks passed; UNet export started",
+    "full_export": "running; text encoder and UNet contracts plus eager/ORT checks passed; VAE export underway",
     "reference": "published legacy fp16 assets downloading; historical fp32 reference still absent; fp16 comparison cannot discharge historical-fp32 requirement"
   },
   "ci_transient_failures": {
     "pr": 407,
     "linux": "HTTP 504 downloading ShellCheck before tests; failed job rerun",
     "windows": "HTTP 504 downloading pinned vendor DLL before compile; failed job rerun; llamacpp variant passed"
+  },
+  "ci_transport_fix": {
+    "pr": 409,
+    "commit": "9195b94",
+    "scope": "authenticated release asset API and three bounded attempts; pinned hashes unchanged",
+    "local_real_asset_check": "both DLL hashes match committed values",
+    "remote_ci": "pending"
   }
 }
