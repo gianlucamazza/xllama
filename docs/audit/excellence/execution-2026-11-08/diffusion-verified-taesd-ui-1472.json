@@ -1,0 +1,30 @@
+{
+  "status": "pass",
+  "scope": "fresh verified-TAESD UI-process acceptance; one trial, no throughput or cold-start claim",
+  "package": "GianlucaMazza.xllama_1.7.0.1472_x64__pj67f1fcj4n14",
+  "source_commit": "6c4c6f945d16ec2cf3d5718407a79b2d61d7f6dd",
+  "ci_run": 42485714778,
+  "started": "2026-11-08T14:02:06.826135+00:00",
+  "row": {
+    "model": "sd-turbo-fp16",
+    "steps": "1",
+    "seed": "42",
+    "te_ms": "1065.5",
+    "unet_ms": "2949.4",
+    "unet_ms_per_step": "2949.4",
+    "vae_ms": "606.6",
+    "total_ms": "4621.5",
+    "resolution": "512x512",
+    "date": "2026-11-08T14:02:14Z",
+    "process_peak_ws_mb": "2689"
+  },
+  "image_sha256": "1901c1edd0779b60df163649905354947ee1d065499be344d8d4842135ca6255",
+  "memory_definition": "process lifetime PeakWorkingSetSize via K32GetProcessMemoryInfo, measured after PNG encoding, includes startup/default chat and model loading",
+  "startup_chat": "lfm25-350m",
+  "model_readback": "profile-ui-readback-1472.json",
+  "taesd_source_sha256": "d2d981ed4c97462db8a7b55a90543ced09fbc1e660f097e08f89a6dae6a9c52b",
+  "taesd_deployed_readback_sha256": "d2d981ed4c97462db8a7b55a90543ced09fbc1e660f097e08f89a6dae6a9c52b",
+  "restored_full_vae_readback_sha256": "3bb79ec1985c0c351e73ee06d56866d2f2a4359ce165c1ccd3bb563aae5c6425",
+  "sampled_private_ws_mb": null,
+  "sampling_scope": "not sampled in this byte-verified repeat; earlier automated gate has its own distinct sample"
+}

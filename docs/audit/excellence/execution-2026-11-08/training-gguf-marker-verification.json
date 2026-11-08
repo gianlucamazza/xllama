@@ -1,0 +1,7 @@
+{
+  "candidate_marker": true,
+  "reference_marker": true,
+  "base_marker": false,
+  "candidate_output": "XLLAMA-LORA-OK.\n",
+  "scope": "host CPU GGUF merged from the newly trained adapter; quality marker, not logit equality to a historically trained model"
+}

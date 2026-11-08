@@ -53,7 +53,7 @@ performance belongs in `docs/benchmarks.md`.
   re-runnable (`demo/demo-script.json` + `scripts/capture-demo-video.sh`), and
   the cut can be regenerated with `scripts/edit-demo-video.sh`.
 
-### Next (after v1.5.6.0)
+### Current follow-up priorities
 
 1. **Vendor pin drops** (#84/#85/#86) — blocked until NuGet moves
    (`scripts/check-vendor-nuget-status.sh`, poll 2026-08-27: still required).
@@ -674,10 +674,12 @@ under `bench/results/` when measured, and documentation in the owning SSOT.
 
 ## Follow-up work after the 2026-09-28 PR closure
 
-- [ ] [#263](https://github.com/gianlucamazza/xllama/issues/263): migrate the host
-      diffusion export stack to supported patched dependencies (ADR 0003 accepted
-      2026-10-31; first-party dynamo export and host parity in review); validate Xbox
-      diffusion with peak-memory evidence before closing security alerts.
+- [x] [#263](https://github.com/gianlucamazza/xllama/issues/263): first-party host
+      diffusion toolchain qualification completed. Frozen parity, Series S UI
+      full-VAE/Tiny trials with true process-peak evidence, graph readbacks and
+      bounded security rescan are integrated in the
+      [dated execution ledger](docs/audit/excellence/execution-2026-11-07.md#integration-checkpoint--first-party-qualification-and-write-integrity).
+      Final programme/package and physical publication gates remain separate.
 - [x] [#264](https://github.com/gianlucamazza/xllama/issues/264): ADR 0002 accepted;
       ruleset `24213666` active and verified blocking (2026-09-30).
 - [x] [#243](https://github.com/gianlucamazza/xllama/issues/243): `grounded_qa` scorer

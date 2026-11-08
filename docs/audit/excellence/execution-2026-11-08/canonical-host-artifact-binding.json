@@ -1,0 +1,21 @@
+{
+  "files": {
+    "base-f16.gguf": {
+      "sha256": "acd2e64e7f2042b0261869169900eb3cd06b17d76de448a0faabe30bbfcf54bc",
+      "bytes": 725553632
+    },
+    "adapter-lora.gguf": {
+      "sha256": "16347e23ead52ea164d0ce70628becb9646f671d2e707a24efbe09d17017b39d",
+      "bytes": 3295200
+    },
+    "merged-f16.gguf": {
+      "sha256": "be43f7cbde653f809fc837f229d7f457438bc522e8d20b83fccb21f0e7b7a181",
+      "bytes": 725553632
+    },
+    "adapter/adapter_model.safetensors": {
+      "sha256": "397a2e57e6e64a1027e139229aaede2e612042f1dcfc00f8ce1f63e66a106eec",
+      "bytes": 6587008
+    }
+  },
+  "adapter_bytes_match_first_trial": true
+}

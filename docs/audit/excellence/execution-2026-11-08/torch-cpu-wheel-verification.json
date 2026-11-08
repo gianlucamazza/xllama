@@ -1,0 +1,10 @@
+{
+  "filename": "torch-2.13.0+cpu-cp312-cp312-manylinux_2_28_x86_64.whl",
+  "official_index": "https://download.pytorch.org/whl/cpu/torch/",
+  "url": "https://download-r2.pytorch.org/whl/cpu/torch-2.13.0%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl#sha256=4ca4a9394b0c771238a4f73590fdbbc4debad85ed0fa63d026ae1b085da7d6e2",
+  "sha256": "4ca4a9394b0c771238a4f73590fdbbc4debad85ed0fa63d026ae1b085da7d6e2",
+  "matches_qualified_hash_lock": true,
+  "installed_payload_records_verified": 12247,
+  "base_release": "2.13.0",
+  "scope": "official CPU wheel and installed payload identity; base-release advisories remain a separate query and exact-local-version scanner skip is retained"
+}

@@ -1,0 +1,55 @@
+{
+  "ref": "/srv/data/projects/xllama-qualification/legacy-fp16",
+  "cand": "/srv/data/projects/xllama-qualification/sd-turbo-fp32",
+  "mode": "fp16_vs_fp32",
+  "components": {
+    "text_encoder": {
+      "opset": {
+        "ref": 14,
+        "cand": 18
+      },
+      "last_hidden_state": {
+        "max_abs": 0.020154297351837158,
+        "cosine": 0.9999980951811805,
+        "max_abs_tol": 0.05,
+        "min_cosine": 0.999
+      },
+      "pooler_output": {
+        "max_abs": 0.00962984561920166,
+        "cosine": 0.9999980309452083
+      }
+    },
+    "unet": {
+      "opset": {
+        "ref": 14,
+        "cand": 18
+      },
+      "out_sample": {
+        "max_abs": 0.002066388726234436,
+        "cosine": 0.9999999308381293,
+        "max_abs_tol": 0.05,
+        "min_cosine": 0.999
+      }
+    },
+    "vae_decoder": {
+      "opset": {
+        "ref": 14,
+        "cand": 18
+      },
+      "sample": {
+        "max_abs": 0.0023718327283859253,
+        "cosine": 0.9999997005672184,
+        "max_abs_tol": 0.05,
+        "min_cosine": 0.999
+      }
+    }
+  },
+  "failures": [
+    "unet: names/ranks differ\n    ref  [('in', 'sample', 10, [None, 4, None, None]), ('in', 'timestep', 7, [None]), ('in', 'encoder_hidden_states', 10, [None, None, 1024]), ('out', 'out_sample', 10, [None, 4, None, None])]\n    cand [('in', 'sample', 1, [None, 4, None, None]), ('in', 'timestep', 1, []), ('in', 'encoder_hidden_states', 1, [None, None, 1024]), ('out', 'out_sample', 1, [None, 4, None, None])]"
+  ],
+  "unchecked": [
+    "text_encoder.pooler_output"
+  ],
+  "checked": 3,
+  "ok": false
+}

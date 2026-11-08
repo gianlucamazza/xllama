@@ -1,0 +1,2 @@
+model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,run_index,prefill_ms,ttft_ms
+lfm25-350m,Q4_0,cpu,512,6,334.32,109.65,273,464,0,0,60,8,0,xbox-series-s-declared-t6-noeog,2026-11-08T14:27:57Z,2,179.5,179.9

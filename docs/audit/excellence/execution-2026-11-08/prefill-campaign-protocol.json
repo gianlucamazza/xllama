@@ -1,0 +1,174 @@
+{
+  "status": "protocol frozen before any optimized-arm device result; package binding required before execution",
+  "frozen_utc": "2026-11-08T14:50:18.865953+00:00",
+  "source": "37b5e839e03f1b7a5247dd557e241e16f2bce33c",
+  "baseline": "same exact package with columns=1",
+  "base_main": "77d257867b84133471bcc51561239750ad78b6e1",
+  "submodule": "d81235049384534c167caea52b85a694f6103d14",
+  "shader_build_receipt": {
+    "status": "compiled; numerical/device/performance gates pending",
+    "baseline_commit": "699bdf9041fa8aabcfe5dc39cab92216f0bd2870",
+    "compiler": {
+      "repository": "https://github.com/microsoft/DirectXShaderCompiler",
+      "release": "v1.9.2609",
+      "asset": "linux_dxc_2026_09_28.x86_x64.tar.gz",
+      "archive_sha256": "96faadc7f5c282d2ffda49804beb4c3ee38127bc252b723234e3c5cdf7aa39a1",
+      "binary_sha256": "3dfc856b76291ffc7e45e21fd37ab80e85b34101de76a03253df6608785c92a0",
+      "library_sha256": "d40e4a7b3b46490313f4bfd08101946483a673831b3ea65c93d746de1c2f9216",
+      "version": "libdxcompiler.so: 1.9(5512-01b62ad4)(1.9.2609.5)"
+    },
+    "profile": "cs_6_4",
+    "entry": "CSMain",
+    "defines": [
+      "NUM_THREADS=64",
+      "NUM_THREADS=128"
+    ],
+    "columns_per_group": 4,
+    "artifacts": {
+      "shaders/generated/ggml_d3d12_mmv_q4_0_c4_t128_dxil.h": "f04b9ca7ed518e1b08ed1bc43c6ec75b8e5906f7a5f4cbb9ffea47b23f71c631",
+      "shaders/generated/ggml_d3d12_mmv_q4_0_c4_t64_dxil.h": "aa4e64da3bdee641a9db8cb828194e67713575f83c66e8205e7c53aab7a2ae9a",
+      "shaders/generated/ggml_d3d12_mmv_q4_k_c4_t128_dxil.h": "50b36187fad77973c38d16c439aa019f456d96336a1b47d08e57293379a9b477",
+      "shaders/generated/ggml_d3d12_mmv_q4_k_c4_t64_dxil.h": "cddaf0a4fdf732f611c3d39adcc206c02a3680a2929e11e7569feb5b7e0d3f96",
+      "shaders/generated/ggml_d3d12_mmv_q6_k_c4_t128_dxil.h": "430996921160d5e59b5d7d5f51abed5ac401eb0771de0d0b37d9a492b36ec170",
+      "shaders/generated/ggml_d3d12_mmv_q6_k_c4_t64_dxil.h": "08d3705401f542218dc86ce849d741c977ed36a69c080bb5a82b84ecad4dbdf9",
+      "shaders/ggml_d3d12_mmv_q4_0_c4.hlsl": "b61f4b51a9cd1144697eba460ed3513f54f71372d598e74fbd02300478165108",
+      "shaders/ggml_d3d12_mmv_q4_k_c4.hlsl": "0cadec586e391edc9e0167993b57dfea8563efc592a9908430b310a362c56b64",
+      "shaders/ggml_d3d12_mmv_q6_k_c4.hlsl": "c603a2f1c4ef0309e72840abe49bb4a0f811b086384354390e8ada86c312c4d1",
+      "shaders/ggml_d3d12_multicolumn.hlsli": "197f1f04ba1a49e2099ac6018447ed3bc116cd1717033bca3feba0521c236958"
+    },
+    "shipping_blob_sha256": {
+      "shaders/generated/ggml_d3d12_mmv_q4_0_t128_dxil.h": "36528b923e54ba32855ff14febf9cdfae04c79e9af22f50e4ae2f8b210c15dfa",
+      "shaders/generated/ggml_d3d12_mmv_q4_0_t64_dxil.h": "3c8de549e8c941e6a24262f4ae2ed3082e8ca7f1bc32f6e76c7f5f497853b03a",
+      "shaders/generated/ggml_d3d12_mmv_q4_k_t128_dxil.h": "ff6ed9682bd2b7e623200abca60997837fd675c7af9bc29d0f7a70c5e62772ea",
+      "shaders/generated/ggml_d3d12_mmv_q4_k_t64_dxil.h": "fecdb4b4a0996e47a2c9c00fe2c51e04880e15108fb56a8956dc6ecd1259c791",
+      "shaders/generated/ggml_d3d12_mmv_q6_k_t128_dxil.h": "a33e88afa862b420a4d9d574ba14cc1ad515c394fa8208484e9d99ed8a9d1b5e",
+      "shaders/generated/ggml_d3d12_mmv_q6_k_t64_dxil.h": "35e6a921c1e21c8b0cbcb6ae47e8682287f37187de321eaea332cec66fbe22fd"
+    },
+    "host_validation": {
+      "ctest": "pass",
+      "focused_cases": 10,
+      "focused_assertions": 150,
+      "linux_cli_help": "pass",
+      "windows_syntax": "not run; xwin splat unavailable",
+      "console": "not run; no numerical or performance acceptance"
+    }
+  },
+  "prompts": {
+    "submodule": "d81235049384534c167caea52b85a694f6103d14",
+    "format": "native bench ChatFormat with default system; trailing CR/LF/space trimmed; add_special=true, parse_special=false",
+    "cells": {
+      "lfm25-1.2b-instruct": [
+        {
+          "cell": "short",
+          "file": "lfm25-1.2b-instruct-short.txt",
+          "sha256": "7c2132615f2754c144bf7047606a8117fa964602000569ffea520d51991293ec",
+          "rendered_sha256": "95f8d01f47ced64914aeba7970ae635da680480d2422161c49a21ad9b21f0ba1",
+          "n_prompt_tok": 60
+        },
+        {
+          "cell": "512",
+          "file": "lfm25-1.2b-instruct-512.txt",
+          "sha256": "21dbff0c840497f3369c24a2dfa2cb84260942b4c1bb1e54fa579a900f3957ec",
+          "rendered_sha256": "09b7f26fef7729fd4ce19364c02b43729183c6e0b5e6d1d677d87d775fd51b77",
+          "n_prompt_tok": 512
+        },
+        {
+          "cell": "1000",
+          "file": "lfm25-1.2b-instruct-1000.txt",
+          "sha256": "615f2c100e2a3c333c969f7bcbad1b50ebda9320acb7405d3c48d20838293a24",
+          "rendered_sha256": "ed1fe86f440040226927f75ad650daaaa310770edc750f98e8d29297b463f9d1",
+          "n_prompt_tok": 1001
+        }
+      ],
+      "qwen25-coder-3b": [
+        {
+          "cell": "short",
+          "file": "qwen25-coder-3b-short.txt",
+          "sha256": "7c2132615f2754c144bf7047606a8117fa964602000569ffea520d51991293ec",
+          "rendered_sha256": "95f8d01f47ced64914aeba7970ae635da680480d2422161c49a21ad9b21f0ba1",
+          "n_prompt_tok": 59
+        },
+        {
+          "cell": "512",
+          "file": "qwen25-coder-3b-512.txt",
+          "sha256": "cceeb1501efc3c1d407c5cc23b5f623ffa33204ca34db0a8552c696a1f0b7ef2",
+          "rendered_sha256": "0c4106cdeef8c6e9e8824cafd3777f03a430b9030cfce374892033982047d3df",
+          "n_prompt_tok": 511
+        },
+        {
+          "cell": "1000",
+          "file": "qwen25-coder-3b-1000.txt",
+          "sha256": "4abbfd81ea036cd050c57e236aa78973a1e9ea0345f3b6593acf42b6607bc571",
+          "rendered_sha256": "a7d7c37b4d0eb852cb80759dcbf7e35feacb0b459b29fa960779614efedab5e3",
+          "n_prompt_tok": 1000
+        }
+      ]
+    }
+  },
+  "model_readbacks": {
+    "lfm25-1.2b.gguf": {
+      "bytes": 695755488,
+      "sha256": "bb741ebb106d543e9de114b843a3d3d73d51c74b5801e69da2abde821a0cb3e1"
+    },
+    "coder3b.gguf": {
+      "bytes": 1929902496,
+      "sha256": "32f0014400ca1c1f81e7fb5befa9b9af476ba967dcbf92bad27409228c57c5b4"
+    }
+  },
+  "configuration": {
+    "context": 2048,
+    "threads": 6,
+    "ubatch": 512,
+    "gpu_layers": 99,
+    "kv_q8": false,
+    "ignore_eog": true,
+    "greedy": true,
+    "n_predict": 128,
+    "max_length": 0,
+    "hardware_declaration": "xbox-series-s"
+  },
+  "arms": {
+    "A": 1,
+    "B": 4
+  },
+  "gates": {
+    "ui_selftest": {
+      "control_rows": 14,
+      "experiment_rows": 50,
+      "relative_error_max": 1e-05,
+      "micro_decode_gb_s_min": 100,
+      "finite_all": true
+    },
+    "logits": {
+      "max_abs": 0.5,
+      "nmse_max": 0.001,
+      "top1_match": true,
+      "topk_overlap_min": 0.8
+    },
+    "h9": "frozen existing phase7-h9 rubric; no regression versus CPU reference; research-only Coder never promoted"
+  },
+  "performance": {
+    "pairs_per_cell": 20,
+    "order": "AB for odd pairs; BA for even pairs",
+    "warmup": "one separately retained discarded run per arm per cell, then all 20 matched pairs retained",
+    "ratios": "B/A",
+    "long_prefill_ci_lower_min": 1.1,
+    "decode_ci_lower_min": 0.97,
+    "ttft_ci_upper_max": 1.05,
+    "true_peak_delta_mb_upper_max": 32,
+    "bootstrap": {
+      "resamples": 10000,
+      "seed": 20261107,
+      "interval": "paired nonparametric percentile 95%; median paired ratios; each cell separately; all must pass"
+    },
+    "failure": "stop on correctness or resource failure; retain failed/time-out attempts; no replacement to reach successful sample count"
+  },
+  "instrumentation": {
+    "external_wattmeter": "not confirmed available",
+    "ambient_temperature": "not measured",
+    "thermal_equilibrium": "not established; fixed warmup is not proof",
+    "claim_scope": "engineering experiment only; no throughput, energy or thermal publication headline"
+  },
+  "device": "independent Device Portal Xbox Series S observation; exact receipt rebound with package before execution",
+  "package": null
+}

@@ -1,0 +1,8 @@
+[xllama] diffuse.flag detected -> headless diffusion mode
+[xllama] headless diffuse: starting
+[xllama] diffuse: model='sd-turbo-firstparty-20261108' steps=1 seed=42 prompt='a red sports car on a mountain road at sunset'
+[xllama] diffuse: unet input fp16, hidden_dim 1024, ts rank 0, te+unet load 8414 ms
+[xllama] diffuse: ORT error: Non-zero status code returned while running DmlFusedNode_0_8 node. Name:'DmlFusedNode_0_8' Status Message: D:\a\xllama\xllama\build\vendor-onnxruntime\onnxruntime\onnxruntime\core\providers\dml\DmlExecutionProvider\src\DmlGraphFusionHelper.cpp(1041)\onnxruntime.dll!00007FFF759D8365: (caller: 00007FFF75A68A6A) Exception(2) tid(12e8) 8007000E Not enough memory resources are available to complete this operation.
+
+
+[xllama] headless diffuse: done, exiting

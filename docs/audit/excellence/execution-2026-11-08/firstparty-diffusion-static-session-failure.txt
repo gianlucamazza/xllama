@@ -1,0 +1,7 @@
+[xllama] diffuse.flag detected -> headless diffusion mode
+[xllama] headless diffuse: starting
+[xllama] diffuse: model='sd-turbo-firstparty-20261108' steps=1 seed=42 prompt='a red sports car on a mountain road at sunset'
+[xllama] diffuse: ORT error: Exception during initialization: D:\a\xllama\xllama\build\vendor-onnxruntime\onnxruntime\onnxruntime\core\providers\dml\DmlExecutionProvider\src\MLOperatorAuthorImpl.cpp(2853)\onnxruntime.dll!00007FFF75A3740E: (caller: 00007FFF75A53D11) Exception(1) tid(12cc) 80070057 The parameter is incorrect.
+
+
+[xllama] headless diffuse: done, exiting
