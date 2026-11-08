@@ -1,0 +1,27 @@
+{
+  "status": "stopped_at_control_logit_parity_failure; not accepted",
+  "package": "1.7.0.1482",
+  "source": "37b5e839e03f1b7a5247dd557e241e16f2bce33c",
+  "ui_selftest": {
+    "A": "14/14 pass; zero C4 dispatches",
+    "B": "50/50 pass; 252 C4 dispatches"
+  },
+  "lfm_logits": "CPU/A and CPU/B pass frozen comparator; A and B dumps byte-identical",
+  "coder_control_logits": {
+    "status": "fail",
+    "max_abs_diff": 0.55012,
+    "max_abs_limit": 0.5,
+    "nmse": 0.001022,
+    "nmse_limit": 0.001,
+    "top1_match": true,
+    "top10_overlap": 0.9
+  },
+  "not_executed": [
+    "Coder optimized-arm logits",
+    "H9",
+    "matched performance campaign"
+  ],
+  "disposition": "No retries, replacement prompts, relaxed thresholds, default promotion or speedup claim. Failure occurs with original GPU kernels; root cause unproven. Candidate remains draft.",
+  "console": "app stopped; columns=1 restored; original diffusion and historical adapter byte-restored; full user-state cleanup remains pending",
+  "host_preflight": "initial system Python lacked numpy before any logit/console operation; qualified isolated environment used; preflight traceback retained privately"
+}

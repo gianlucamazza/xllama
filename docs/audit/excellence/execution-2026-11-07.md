@@ -307,3 +307,33 @@ and all six hashed prompt files are frozen before any optimized-arm device
 result. Exact package/device binding is required before execution. The protocol
 keeps the existing numerical/performance margins and explicitly limits any
 uninstrumented result to engineering evidence. The optimized gates are pending.
+
+### GPU preflight — stopped on control parity
+
+The exact package 1.7.0.1482 passes the fresh XAML-process selftest:
+[control](execution-2026-11-08/prefill-ui-selftest-1482-A.json) and
+[experimental arm](execution-2026-11-08/prefill-ui-selftest-1482-B.json).
+The package hash, CI checks and independent Series S observation are bound
+[before execution](execution-2026-11-08/prefill-campaign-package-binding-1482.json).
+Both LFM CPU/GPU comparisons pass; its two GPU dumps are byte-identical.
+
+The Coder-3B CPU versus original GPU-kernel comparison
+[fails](execution-2026-11-08/prefill-logits-coder-CPU-A-comparison.txt) the frozen
+maximum-error and NMSE limits. Greedy top-token agreement does not override
+those failures. The raw float32 dumps and metadata are retained beside the
+comparison, so the verdict is independently reproducible. No cause is proven;
+this control-arm failure does not establish a four-column regression.
+
+The [campaign is stopped](execution-2026-11-08/prefill-campaign-disposition.json).
+No Coder optimized logits, H9 or matched performance campaign followed the
+failure. No retry, replacement prompt, relaxed tolerance or speedup claim is
+made. PR #414 remains draft and #313 remains open. The app is stopped and the
+operator switch is returned to the original one-column path. The proposed
+research H9 raw-path metadata was prepared locally but never deployed.
+
+PR #416 is merged and #263 is closed on the scoped first-party qualification
+receipts. The known historical LoRA fixture is also
+[byte-restored](execution-2026-11-08/historical-adapter-restoration.json).
+Final package gates, full user-state cleanup and physical publication gates
+remain outstanding. ASan plus UBSan on the candidate host build pass; they do
+not replace the failed device logit gate.

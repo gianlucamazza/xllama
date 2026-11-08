@@ -1,0 +1,19 @@
+{
+  "status": "execution_and_provenance_pass; parity must be checked separately",
+  "package": "GianlucaMazza.xllama_1.7.0.1482_x64__pj67f1fcj4n14",
+  "model": "lfm25-1.2b-instruct",
+  "arm": "A",
+  "columns": 1,
+  "requested_layers": 99,
+  "resolved_layers": [
+    99
+  ],
+  "c4_dispatch_counts": [
+    0
+  ],
+  "finite_logits": true,
+  "vocab_size": 65536,
+  "dump_sha256": "ab8f58b67125984f9be3a1ded4459bc8594d632dd39077cfa8b316ff81850e0e",
+  "raw_prompt_sha256": "615f2c100e2a3c333c969f7bcbad1b50ebda9320acb7405d3c48d20838293a24",
+  "scope": "fresh UI process, frozen raw long prompt, same CPU/GPU operands; no H9 or performance claim"
+}
