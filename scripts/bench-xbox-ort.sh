@@ -193,6 +193,8 @@ esac
 : "${XBOX_PASS:?XBOX_PASS not set}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC1090,SC1091
+source "${SCRIPT_DIR}/wdp-file-upload.sh"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DEPLOY="${SCRIPT_DIR}/deploy.sh"
 STATUS_PY="${SCRIPT_DIR}/bench_run_status.py"
@@ -290,16 +292,9 @@ trap cleanup EXIT
 
 _curl_post_file() {
 	local local_path="$1" path_param="$2" filename="${3:-}"
-	local form_entry
-	if [[ -n "$filename" ]]; then
-		form_entry="${local_path};filename=${filename};type=application/octet-stream"
-	else
-		form_entry="${local_path};type=application/octet-stream"
-	fi
-	curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X POST \
-		-F "file=@${form_entry}" \
+	wdp_upload_file_request \
 		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=${path_param}" \
-		>/dev/null
+		"$local_path" "$filename"
 }
 
 # Upload file to LocalState root (or subdir via remote_dir like "models\\<name>")

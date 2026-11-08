@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Console tooling:** reject Device Portal file-upload failures consistently
+  in deploy, benchmark and validation scripts, including HTTP 200 rejection
+  payloads and transport errors previously mistaken for empty-body success.
+
 - **Diffusion:** add a separate fixed deployment profile for first-party
   exports. Reshape targets must be proven constant and free of literal zeros
   before normalization for DirectML; retain the dynamic export for host parity.
