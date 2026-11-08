@@ -232,3 +232,34 @@ no image, TAESD or process-peak acceptance is inferred from this attempt. A
 fixed-input session specialization is being tested against the upstream
 [dynamic Reshape report](https://github.com/microsoft/onnxruntime/issues/33720).
 The graph and tolerance contracts remain unchanged. #263 remains open.
+
+### Live continuation — qualified deployment profile
+
+PR #413 merged after all four required checks passed. The final host tool has
+[35 passing export/profile tests without skips](execution-2026-11-08/diffusion-profile-qualification-progress.json).
+The dynamic-annotation deployment profile produces an exact RGB match to the
+reference under identical CPU session settings. The fully static alternative's
+failed exact comparison and Series S resource failures remain in the evidence;
+its tolerances were not relaxed.
+
+The [fresh full-VAE Series S run](execution-2026-11-08/diffusion-dynamic-profile-live-1466.json)
+passes on the identified CI MSVC package. The [image](execution-2026-11-08/diffusion-dynamic-profile-live-1466.png)
+is coherent, and all three deployed graphs
+[read back byte-for-byte](execution-2026-11-08/diffusion-dynamic-profile-readback-1466.json)
+against the final default profile. This is a headless functional acceptance,
+not UI-process TAESD/true-peak or final release acceptance; #263 stays open for
+those remaining gates. Frozen fp16 component comparisons pass; that comparison
+mode explicitly leaves its image/pooler diagnostics unchecked.
+
+The [isolated dependency rescan](execution-2026-11-08/diffusion-rescan-disposition.json)
+reports no known findings in the queried graph. The exact CPU-wheel scanner
+skip remains separate from its
+[official-wheel and installed-payload identity proof](execution-2026-11-08/diffusion-torch-wheel-identity.json)
+and the base-release advisory lookup. This is bounded coverage, not a
+whole-binary or unknown-vulnerability certification.
+
+PR #414 now contains the disabled-by-default four-column prefill candidate.
+Its original-path Series S selftest passes; optimized-arm, UI-process numeric,
+logit/H9 and paired performance gates remain pending. Dedicated deterministic
+bench and UI-process diagnostic controls are being checked before the campaign.
+No new throughput or release claim follows from compilation or the control run.
