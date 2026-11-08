@@ -1,0 +1,7 @@
+A: /tmp/xllama-live-private/prefill-logits-1482-lfm25-1.2b-instruct-CPU/logits.bin  (65536 logits, backend=llama.cpp)
+B: /tmp/xllama-live-private/prefill-logits-1482-lfm25-1.2b-instruct-A/logits.bin  (65536 logits, backend=llama.cpp)
+  max_abs_diff : 0.302696   (thr ≤ 0.5)
+  nmse         : 4.678e-04   (thr ≤ 0.001)
+  top1_match   : True
+  top10_overlap : 1.00   (thr ≥ 0.8)
+✅ PASS

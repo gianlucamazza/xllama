@@ -1,0 +1,8 @@
+{
+  "status": "pass",
+  "package": "GianlucaMazza.xllama_1.7.0.1475_x64__pj67f1fcj4n14",
+  "scope": "restore known historical pre-existing LoRA test fixture only; not a claim to restore every model",
+  "path": "models/smollm2-lora-rt/adapter-lora.gguf",
+  "bytes": 3294912,
+  "readback_sha256": "cb4ff5ece8a4bcf8a8ce307ca0a0884092046aa895bc75286646ee870a69b221"
+}
