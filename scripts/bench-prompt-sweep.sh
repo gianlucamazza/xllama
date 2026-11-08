@@ -126,6 +126,7 @@ for t in $TOKENS; do
 		((NPREDICT > 0)) && extra+=(--n-predict "$NPREDICT")
 		((MAXLEN != 0)) && extra+=(--max-length "$MAXLEN")
 		if ! "${SCRIPT_DIR}/bench-xbox-ort.sh" "$model" \
+			--hardware "${XLLAMA_BENCH_HARDWARE:-xbox-series-s}" \
 			--prompt "${TMPDIR_LOCAL}/prompt-${t}.txt" \
 			--runs "$RUNS" --out "$OUT" "${extra[@]+"${extra[@]}"}"; then
 			echo "  WARN: point failed ($model @ ${t} tok) — continuing" >&2
