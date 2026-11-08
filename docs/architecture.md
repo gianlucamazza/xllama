@@ -585,6 +585,14 @@ publishing ORT model assets: every asset must pass the logit-parity gate before
 
 ## Diffusion pipeline
 
+The first-party dynamic export is the host reference. An experimental separate
+fixed deployment profile (`diffusion/prepare_console_profile.py`) proves
+nonzero Reshape targets before normalization for DirectML. Profile sidecars
+state the supported native input shapes even when dynamic annotations are
+retained to limit fusion. Qualification and known failed variants are described
+in [diffusion/README.md](../diffusion/README.md); no profile is promoted from a
+CPU pass alone.
+
 A from-scratch C++ pipeline (`uwp/diffuse.cpp`, `diffusion/`): CLIP BPE tokenizer
 (`diffusion/clip_tokenizer.h`) + Euler scheduler (header-only, golden-vector
 unit-tested, `diffusion/euler_scheduler.h`) driving **three sequential** ORT
