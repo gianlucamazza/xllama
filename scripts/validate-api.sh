@@ -511,13 +511,15 @@ def exchange(raw, close_write=True, timeout=40):
         pass
     s.close()
     status = data.split(b" ", 2)[1].decode() if data.startswith(b"HTTP/") else "none"
-    return status, time.time() - t0, data.split(b"\r\n\r\n", 1)[-1][:120].decode(errors="replace")
+    return status, time.time() - t0, data.split(b"\r\n\r\n", 1)[-1].decode(errors="replace")
 
 def samples():
-    _, _, body = exchange(b"GET /v1/training/status HTTP/1.1\r\nHost: x\r\n\r\n")
+    status, _, body = exchange(b"GET /v1/training/status HTTP/1.1\r\nHost: x\r\n\r\n")
     try:
-        return json.loads(body).get("usable_samples")
-    except Exception:
+        # Parse the complete response, not the bounded diagnostic preview.
+        count = json.loads(body).get("usable_samples")
+        return count if status == "200" and type(count) is int and count >= 0 else None
+    except (ValueError, AttributeError):
         return None
 
 pref = b'{"label":"like","messages":[{"role":"user","content":"framing probe"},{"role":"assistant","content":"ok"}]}'
@@ -536,9 +538,12 @@ for name, raw, close_write, want in cases:
     status, secs, body = exchange(raw, close_write)
     ok = status == want
     fail |= not ok
-    print(f"  {'ok' if ok else 'FAIL'}: {name} -> {status} in {secs:.1f}s (want {want}) {body}")
+    print(f"  {'ok' if ok else 'FAIL'}: {name} -> {status} in {secs:.1f}s (want {want}) {body[:120]}")
 after = samples()
-if before is None or after != before:
+if before is None or after is None:
+    print("  FAIL: training status lacks a valid usable_samples counter; side effects unverified")
+    fail = 1
+elif after != before:
     print(f"  FAIL: usable_samples {before} -> {after}: a refused request had a side effect")
     fail = 1
 else:
