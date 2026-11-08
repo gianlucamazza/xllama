@@ -14,6 +14,7 @@
     #include <cstdio>
     #include <cstring>
     #include <ctime>
+    #include <limits>
     #include <string>
     #include <vector>
 
@@ -1353,6 +1354,10 @@ double reference_rel_err(ggml_type t, const std::vector<std::uint8_t>& q, std::s
             wt->vec_dot(k, &ref, 0, q.data() + static_cast<std::size_t>(r) * row_bytes, 0,
                         xq.data(), 0, 1);
             const double got = y[static_cast<std::size_t>(c) * n + r];
+            // std::max can silently keep its old value when the other operand
+            // is NaN, turning a corrupt GPU output into a zero-error pass.
+            if (!std::isfinite(ref) || !std::isfinite(got))
+                return std::numeric_limits<double>::infinity();
             max_ref = std::max(max_ref, std::fabs(static_cast<double>(ref)));
             max_diff = std::max(max_diff, std::fabs(static_cast<double>(ref) - got));
         }
