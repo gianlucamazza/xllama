@@ -1,0 +1,6 @@
+{
+  "full_vae": "pass: visually inspected this native output; coherent red sports car on a mountain road at sunset",
+  "full_vae_sha256": "c1dce3b2943e982ca6723e2a68c956f453b1fefb85fcb189d746db42ae40de75",
+  "tiny": "pass: visually inspected this native output; fresh execution established by scoped action completion and CSV date, not changed image hash",
+  "tiny_sha256": "599ef116d017465d7443a2046705bafc1246ca351a52036ba4922d9c637acb98"
+}

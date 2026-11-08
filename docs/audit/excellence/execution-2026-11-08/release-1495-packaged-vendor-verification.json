@@ -1,0 +1,19 @@
+{
+  "status": "pass",
+  "package": "xllama_1.7.0.1495_x64.msix",
+  "package_sha256": "6ec4cb59e5ad030e4e472ae296f5d1d89ee76f75673112b19ab91445cdb33cfb",
+  "vendor_dlls": {
+    "onnxruntime-genai.dll": {
+      "sha256": "ec034349a28e41f6bfdce52731533caf7e590bab4e8dc7002bb48b92481f334d",
+      "bytes": 2640384,
+      "matches_vendor_pin": true
+    },
+    "onnxruntime.dll": {
+      "sha256": "f3c2e1cc9a61f67db2dbf45bef626e6e299490548fae5f6f22f89d441e77391e",
+      "bytes": 20606464,
+      "matches_vendor_pin": true
+    }
+  },
+  "DirectML_present": true,
+  "scope": "byte verification of both patched runtime DLLs inside the actual unified MSIX; DirectML presence checked separately; no global binary security certification"
+}

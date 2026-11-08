@@ -1,0 +1,10 @@
+{
+  "status": "inconclusive observer error; not a failed product admission result",
+  "package": "1.7.0.1495",
+  "source": "4db51522c850e62d0bb24234dfeb48e55f4017d7",
+  "GUI_script_completed": true,
+  "LAN_probe_performed": false,
+  "cause": "observer waited for session-generate summary, emitted only after completion; corrected before repeat to observe prefill-start while send-end is absent",
+  "same_prompt_and_sampling_in_repeat": true,
+  "original_run_log_sha256": "088d8957aeca68ebafdd257e092212eed2c8c732bdc67928fdaf5a1f011175ef"
+}

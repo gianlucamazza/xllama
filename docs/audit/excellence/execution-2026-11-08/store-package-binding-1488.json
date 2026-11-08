@@ -1,0 +1,53 @@
+{
+  "scope": "Store SKU binding before live smoke; no retail/Partner Center claim",
+  "bound_utc": "2026-11-08T15:14:42.297673+00:00",
+  "source": "d369bc66b83ac174022ba9a00f23599fade12cce",
+  "ci_run": 42493139437,
+  "package": "xllama_1.7.0.1488_x64.msix",
+  "sha256": "5047994b24855b675b83886094e997b7cbf42cdd7ed43226675f1f7659d32010",
+  "bytes": 20107483,
+  "identity": {
+    "Name": "GianlucaMazza.xllama",
+    "Publisher": "CN=xllama-dev",
+    "Version": "1.7.0.1488",
+    "ProcessorArchitecture": "x64"
+  },
+  "capabilities": [
+    "internetClient"
+  ],
+  "successful_checks": [
+    {
+      "name": "build (unified, true, xllama-appx)",
+      "url": "https://github.com/gianlucamazza/xllama/actions/runs/42493139437/job/128769655460"
+    },
+    {
+      "name": "build (llamacpp, false, xllama-appx-llamacpp)",
+      "url": "https://github.com/gianlucamazza/xllama/actions/runs/42493139437/job/128769655406"
+    },
+    {
+      "name": "store",
+      "url": "https://github.com/gianlucamazza/xllama/actions/runs/42493139437/job/128769655297"
+    },
+    {
+      "name": "report-build-status",
+      "url": "https://github.com/gianlucamazza/xllama/actions/runs/42492857725/job/128768903679"
+    },
+    {
+      "name": "deploy",
+      "url": "https://github.com/gianlucamazza/xllama/actions/runs/42492857725/job/128768903656"
+    },
+    {
+      "name": "build",
+      "url": "https://github.com/gianlucamazza/xllama/actions/runs/42492857725/job/128768774406"
+    },
+    {
+      "name": "build (linux)",
+      "url": "https://github.com/gianlucamazza/xllama/actions/runs/42492858400/job/128768774044"
+    },
+    {
+      "name": "analyze (c-cpp)",
+      "url": "https://github.com/gianlucamazza/xllama/actions/runs/42492858283/job/128768773379"
+    }
+  ],
+  "console_policy": "in-place update only; retain LocalState; later Developer Mode package must have higher revision"
+}

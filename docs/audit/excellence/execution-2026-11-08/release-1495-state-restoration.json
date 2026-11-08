@@ -1,0 +1,14 @@
+{
+  "status": "backed-up state byte-restored",
+  "package": "GianlucaMazza.xllama_1.7.0.1495_x64__pj67f1fcj4n14",
+  "utc": "2026-11-08T16:50:42.690554+00:00",
+  "original_files_verified": 113,
+  "backup_inventory_sha256": "ec9e8ef8d8ec7b6770314e8d56ea0a3318c053164517b643a754702270303523",
+  "owned_control_absences_verified": 25,
+  "new_exclusive-window_UUID_chats_removed": 37,
+  "unrecognized_extra_chats_preserved": 0,
+  "historical_adapter_readback_sha256": "cb4ff5ece8a4bcf8a8ce307ca0a0884092046aa895bc75286646ee870a69b221",
+  "scope": "private original settings/root files/chat files/samples inventory plus known historical adapter; no claim to restore every filesystem object",
+  "exclusions": "unrelated models/KV and general training outputs preserved; empty owned staging directories may remain",
+  "app_state": "stopped; no uninstall or LocalState wipe"
+}
