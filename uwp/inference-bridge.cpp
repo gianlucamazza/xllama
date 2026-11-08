@@ -369,7 +369,11 @@ void run_logits() {
     std::string prompt = read_local_file("prompt.txt");
     if (prompt.empty())
         prompt = "Hello from Xbox Series S. Tell me about your architecture.";
-    std::string model_name = read_local_file("model.txt");
+    // An operator can probe an already provisioned research model without
+    // selecting or downloading it through the chat catalogue.
+    std::string model_name = read_local_file("logits_model.txt");
+    if (model_name.empty())
+        model_name = read_local_file("model.txt");
     if (model_name.empty())
         model_name = "smollm2-360m-cpu-int4";
 

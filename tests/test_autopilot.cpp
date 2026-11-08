@@ -45,9 +45,10 @@ AutopilotAction send(const wchar_t* text) {
 
 TEST_CASE("autopilot: the op table matches what the driver implements") {
     for (const char* name :
-         {"send", "new_chat", "load_chat", "set_model", "set_api", "set_routing", "set_sampling",
-          "set_kv_reuse", "set_taesd", "set_system_prompt", "wait_idle", "generate_image", "mark",
-          "show_pane", "rate", "start_train", "train_status", "quit"})
+         {"send",        "new_chat",       "load_chat",    "set_model",   "set_api",
+          "set_routing", "set_sampling",   "set_kv_reuse", "set_taesd",   "set_system_prompt",
+          "wait_idle",   "generate_image", "mark",         "show_pane",   "rate",
+          "start_train", "train_status",   "gpu_selftest", "dump_logits", "quit"})
         CHECK(autopilot_op_known(name));
 
     CHECK_FALSE(autopilot_op_known("sned"));  // typo
@@ -71,7 +72,8 @@ TEST_CASE("autopilot: an unknown op is caught before anything runs") {
 }
 
 TEST_CASE("autopilot: payload-carrying ops reject an empty payload") {
-    for (const char* name : {"send", "load_chat", "set_model", "generate_image", "rate"}) {
+    for (const char* name :
+         {"send", "load_chat", "set_model", "generate_image", "dump_logits", "rate"}) {
         CAPTURE(name);
         CHECK_FALSE(ok({op(name)}));
     }
@@ -205,6 +207,16 @@ TEST_CASE("autopilot: set_api is rejected in the Store SKU, accepted otherwise")
     CHECK(ok({a}, /*store_sku=*/false));
     CHECK_FALSE(ok({a}, /*store_sku=*/true));
     CHECK(why({a}, true) == "action 0 set_api: LAN API not available in Store SKU");
+}
+
+TEST_CASE("autopilot: UI GPU diagnostics validate before execution") {
+    CHECK(ok({op("gpu_selftest")}));
+    auto logits = op("dump_logits");
+    CHECK_FALSE(ok({logits}));
+    logits.arg = L"one raw prompt";
+    CHECK_FALSE(ok({logits}));
+    logits.has_text = true;
+    CHECK(ok({op("wait_idle"), op("gpu_selftest"), logits}));
 }
 
 TEST_CASE("autopilot: wait_idle is a no-payload park") {

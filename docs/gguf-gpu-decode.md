@@ -642,3 +642,12 @@ and require the logged resolved layer count. A positive GPU request resolving
 to CPU fails the probe. These diagnostic knobs do not change normal chat
 routing. They reproduce the #420 control comparison on the shipping
 single-column kernels; the four-column experiment stays on #414.
+
+For the preregistered UI-process gates, use an autopilot script containing
+`wait_idle`, then `gpu_selftest` or `dump_logits` with a raw `text` prompt.
+These release the resident chat model under compute admission and retain the
+XAML/compositor process. Require fresh result files, the UI-process start and
+completion markers, and numerical acceptance; an autopilot completion alone is
+not a numerical pass. `logits_model.txt` names an already provisioned operator
+research model for the probe without catalogue promotion or a download. Remove
+all diagnostic overrides after the campaign.
