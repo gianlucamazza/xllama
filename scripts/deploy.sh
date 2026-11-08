@@ -27,6 +27,9 @@ set -euo pipefail
 
 BASE_URL="https://${XBOX_IP}:11443"
 CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
+DEPLOY_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1090,SC1091
+source "${DEPLOY_SCRIPT_DIR}/wdp-file-upload.sh"
 APP_ID="GianlucaMazza.xllama"
 # Pre-rebrand package identity (≤ v1.4.x installs). Kept so pfn/uninstall/log
 # sub-commands still find an old package during the migration window.
@@ -448,21 +451,9 @@ if [[ "${1:-}" == "upload-file" ]]; then
 	# model.onnx without a local rename).
 	REMOTE_NAME="${REMOTE_NAME:-$(basename "$LOCAL_PATH")}"
 	printf 'Uploading %s → LocalState\\%s\\%s ...\n' "$(basename "$LOCAL_PATH")" "$REMOTE_DIR" "$REMOTE_NAME"
-	RESP=$(curl "${CURL_AUTH[@]}" \
-		-H "X-CSRF-Token:${CSRF_TOKEN}" \
-		-X POST \
-		-F "file=@${LOCAL_PATH};type=application/octet-stream;filename=${REMOTE_NAME}" \
-		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=${PATH_PARAM}" 2>/dev/null || echo "")
-	if [[ -n "$RESP" ]]; then
-		echo "$RESP"
-		# WDP returns JSON with "Success":false on failure
-		if echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get('Success',True) else 1)" 2>/dev/null; then
-			: # success or non-JSON response (old WDP versions return empty on success)
-		else
-			echo "  ERROR: WDP upload failed" >&2
-			exit 1
-		fi
-	fi
+	wdp_upload_file_request \
+		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=${PATH_PARAM}" \
+		"$LOCAL_PATH" "$REMOTE_NAME" || exit 1
 	echo "Done."
 	exit 0
 fi
@@ -513,14 +504,10 @@ if [[ "${1:-}" == "upload-dir" ]]; then
 	while IFS= read -r -d '' f; do
 		fname=$(basename "$f")
 		echo "  uploading $fname ..."
-		RESP=$(curl "${CURL_AUTH[@]}" \
-			-H "X-CSRF-Token:${CSRF_TOKEN}" \
-			-X POST \
-			-F "file=@${f};type=application/octet-stream" \
-			"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=${PATH_PARAM}" 2>/dev/null || echo "")
-		# WDP returns 200 with {"Success": false} on failure; empty body = success.
-		if [[ -n "$RESP" ]] && ! echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get('Success',True) else 1)" 2>/dev/null; then
-			echo "    ERROR: upload of $fname failed: $RESP" >&2
+		if ! wdp_upload_file_request \
+			"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=${PATH_PARAM}" \
+			"$f" "$fname"; then
+			echo "    ERROR: upload of $fname failed" >&2
 			((failed++)) || true
 		else
 			((total++)) || true
