@@ -296,3 +296,8 @@ helper also passes a [reversible live write test](execution-2026-11-08/wdp-uploa
 on package 1.7.0.1475: successful readback, rejection of an invalid file-parent
 write, unchanged sentinel and verified cleanup. This validates the harness
 write contract; it is not a new inference measurement.
+
+The [current GitHub alert receipt](execution-2026-11-08/diffusion-alert-state.json)
+independently reports the two diffusion advisories as `fixed`, with no dismissal.
+The isolated rescan and exact CPU-wheel scope limits above still apply; alert
+state alone does not replace dependency or runtime qualification.

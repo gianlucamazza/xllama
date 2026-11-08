@@ -674,11 +674,12 @@ under `bench/results/` when measured, and documentation in the owning SSOT.
 
 ## Follow-up work after the 2026-09-28 PR closure
 
-- [ ] [#263](https://github.com/gianlucamazza/xllama/issues/263): migrate the host
-      diffusion export stack to supported patched dependencies (ADR 0003 accepted
-      2026-10-31; first-party dynamo export implemented in #378). Remaining gates
-      are complete export/legacy-fp32 parity, Xbox diffusion with true peak-memory
-      evidence, and security rescan; partial VAE host evidence does not close this task.
+- [x] [#263](https://github.com/gianlucamazza/xllama/issues/263): first-party host
+      diffusion toolchain qualification completed. Frozen parity, Series S UI
+      full-VAE/Tiny trials with true process-peak evidence, graph readbacks and
+      bounded security rescan are integrated in the
+      [dated execution ledger](docs/audit/excellence/execution-2026-11-07.md#integration-checkpoint--first-party-qualification-and-write-integrity).
+      Final programme/package and physical publication gates remain separate.
 - [x] [#264](https://github.com/gianlucamazza/xllama/issues/264): ADR 0002 accepted;
       ruleset `24213666` active and verified blocking (2026-09-30).
 - [x] [#243](https://github.com/gianlucamazza/xllama/issues/243): `grounded_qa` scorer
