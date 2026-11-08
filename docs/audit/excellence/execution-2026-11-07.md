@@ -216,3 +216,19 @@ trial. Its code and CI do not yet establish live peak-memory acceptance.
 Full diffusion export/parity, host training qualification, final same-package
 release gates and the preregistered GPU experiment remain open. No stable
 release or security closure is approved by these partial results.
+
+### Live continuation — first-party graph compatibility
+
+PR #410 merged with the qualified isolated CPU training profile; #405 is closed.
+PR #412 merged after all required checks passed and full-toolchain export tests
+and native tokenizer parity passed. The correction includes the legacy CLIP
+sidecars consumed by the native runner in first-party export packages.
+
+The [fresh full-graph Series S attempt](execution-2026-11-08/firstparty-diffusion-directml-failure.json)
+**failed** in DirectML at the text encoder's `Reshape` (`node_view`, HRESULT
+8007023E). Host parity is not a device compatibility result. The
+[run log](execution-2026-11-08/firstparty-diffusion-directml-failure.log) is retained;
+no image, TAESD or process-peak acceptance is inferred from this attempt. A
+fixed-input session specialization is being tested against the upstream
+[dynamic Reshape report](https://github.com/microsoft/onnxruntime/issues/33720).
+The graph and tolerance contracts remain unchanged. #263 remains open.
