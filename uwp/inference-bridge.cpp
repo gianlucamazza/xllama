@@ -3,6 +3,7 @@
 
 #include "inference-bridge.h"
 
+#include "xllama/benchmark_identity.h"
 #include "xllama/chat_prompt.h"
 #include "xllama/device_train.h"
 #include "xllama/diskbw.h"
@@ -315,8 +316,10 @@ void main_loop() {
         params.stall_timeout_s = pcfg.stall_timeout_s;
     }
 
-    char host_buf[80];
-    int host_len = snprintf(host_buf, sizeof(host_buf), "xbox-series-s");
+    const std::string hardware_host =
+        ::xllama::declared_benchmark_host(read_local_file("bench_hardware.txt"));
+    char host_buf[112];
+    int host_len = snprintf(host_buf, sizeof(host_buf), "%s", hardware_host.c_str());
     if (bench_threads > 0)
         host_len +=
             snprintf(host_buf + host_len, sizeof(host_buf) - host_len, "-t%d", bench_threads);
