@@ -422,3 +422,13 @@ fallback's complete prompt count and greedy output to match a fresh cold session
 It also sends native and OpenAI embedding requests while the GUI is generating
 and requires their respective 503 error envelopes. A missing overlap fails the
 probe; do not reinterpret a sequential 200 response as a busy-path validation.
+
+### Diffusion peak-memory receipt
+
+For new packages exposing `process_peak_ws_mb` in `diffuse-result.csv`, retain
+the fresh result and run-scoped launch log together with the exact package hash.
+A positive value is the Windows process-lifetime peak working set, including
+launch preload, measured after image encoding. Start a new process for each
+trial; do not subtract a baseline or label the result as GPU memory. Zero or
+a missing column does not prove a peak-memory gate. The TAESD sampler remains
+separate evidence of sampled current private working set.
