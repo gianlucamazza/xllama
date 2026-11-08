@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Diffusion export:** preserve the checkpoint's native CLIP vocabulary and
+  merges alongside the unified tokenizer metadata, so first-party exports
+  remain self-contained for the console tokenizer with Transformers 5.
+
 - **Docs:** Current prose uses Microsoft's term Developer Mode in place of
   "Dev Mode". Peak working-set receipts that were written in MB now use MiB;
   the digits are unchanged. Historical changelog entries, code, and app strings

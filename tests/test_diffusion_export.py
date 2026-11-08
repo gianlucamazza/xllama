@@ -23,6 +23,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
+import types
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,6 +45,58 @@ def _cpp_names(src: str, var: str) -> list[str]:
     if not m:
         raise AssertionError(f"{var} not found in uwp/diffuse.cpp")
     return re.findall(r'"([^"]+)"', m.group(1))
+
+
+class PipelineFilesTest(unittest.TestCase):
+    def copy_fixture(self, root, hub=False, missing=False):
+        source = root / "source"
+        (source / "tokenizer").mkdir(parents=True)
+        files = {"model_index.json": b'{"_class_name":"StableDiffusionPipeline"}',
+                 "tokenizer/vocab.json": b'{"token":1}',
+                 "tokenizer/merges.txt": b"#version: 0.2\nh e\n"}
+        for name, data in files.items():
+            if missing and name.endswith("merges.txt"):
+                continue
+            (source / name).write_bytes(data)
+        def save_tokenizer(dest):
+            Path(dest).mkdir(parents=True, exist_ok=True)
+            (Path(dest) / "tokenizer.json").write_text("{}")
+        def save_scheduler(dest):
+            Path(dest).mkdir(parents=True, exist_ok=True)
+            (Path(dest) / "scheduler_config.json").write_text("{}")
+        tokenizer = mock.Mock()
+        tokenizer.from_pretrained.return_value.save_pretrained.side_effect = save_tokenizer
+        scheduler = mock.Mock()
+        scheduler.from_pretrained.return_value.save_pretrained.side_effect = save_scheduler
+        download = mock.Mock(side_effect=lambda model, name, revision: str(source / name))
+        modules = {"transformers": types.SimpleNamespace(CLIPTokenizer=tokenizer),
+                   "diffusers": types.SimpleNamespace(EulerDiscreteScheduler=scheduler),
+                   "huggingface_hub": types.SimpleNamespace(hf_hub_download=download)}
+        output = root / "output"
+        output.mkdir()
+        with mock.patch.dict(sys.modules, modules):
+            exp.copy_pipeline_files("stabilityai/sd-turbo" if hub else str(source),
+                                    "immutable-revision", str(output))
+        return output, files, download
+
+    def test_unified_tokenizer_save_preserves_native_console_sidecars(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output, files, _ = self.copy_fixture(Path(tmp))
+            for name, data in files.items():
+                self.assertEqual((output / name).read_bytes(), data)
+            self.assertTrue((output / "tokenizer/tokenizer.json").exists())
+
+    def test_hub_sidecars_use_the_same_immutable_revision(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _, files, download = self.copy_fixture(Path(tmp), hub=True)
+            self.assertEqual(download.call_count, len(files))
+            for call in download.call_args_list:
+                self.assertEqual(call.kwargs["revision"], "immutable-revision")
+
+    def test_missing_native_sidecar_fails_before_export(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(FileNotFoundError):
+                self.copy_fixture(Path(tmp), missing=True)
 
 
 class ContractTest(unittest.TestCase):
