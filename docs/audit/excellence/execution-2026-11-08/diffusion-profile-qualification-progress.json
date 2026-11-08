@@ -17,5 +17,10 @@
     "#263 remains open until UI TAESD and true process peak",
     "No catalogue change or model publication",
     "No whole-binary or unknown-vulnerability certification"
-  ]
+  ],
+  "log_binding": {
+    "capture_sha256": "ec2e9f618e1b2235bd8e72262e167c45b7bda99d63e9c9a38b6699bd964e6f6b",
+    "repository_sha256": "5bd3df00105092345eb1038a694d45fb25a6525314c7db60f8e5c230e492dd05",
+    "normalization": "CRLF to LF for repository text; numeric/event contents unchanged"
+  }
 }
