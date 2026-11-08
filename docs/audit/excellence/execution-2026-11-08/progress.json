@@ -63,7 +63,7 @@
     "max_sampled_private_ws_mb": 2005,
     "true_peak_proven": false
   },
-  "host_training": "120-step real SmolLM2 training completed; adapter reload/FP32 merge/logit and greedy-marker parity PASS; GGUF conversion and merge completed; GGUF marker inference running",
+  "host_training": "Real 120-step recipe, adapter reload, FP32 merge/logit/greedy parity, GGUF adapter conversion/merge and GGUF marker A/B PASS; runner policy and candidate artifact device qualification still pending",
   "api_candidate": {
     "package": "1.7.0.1435",
     "result": "ALL PASS",
@@ -151,5 +151,10 @@
     "scope": "authenticated release asset API and three bounded attempts; pinned hashes unchanged",
     "local_real_asset_check": "both DLL hashes match committed values",
     "remote_ci": "four required checks passed; squash merged as b3ee9052a5ce3bc01d47d595e26c015770220f2a"
+  },
+  "host_training_hash_install": {
+    "packages": 58,
+    "result": "PASS: second isolated Python 3.12 environment installs qualified graph with --require-hashes and uv pip check",
+    "scope": "reproducible CPU installation; does not erase exact-local-version torch audit skip"
   }
 }
