@@ -591,7 +591,7 @@ EOF
 		((elapsed += 30))
 	done
 	local log
-	log=$(fetch_log) || return 1
+	log=$(fetch_log train) || return 1
 	grep -a '\[xllama\] train' "$log" | tail -20 | redact_text || true
 	: >"${TMPDIR_LOCAL}/result.json"
 	fetch_file "result.json" "${TMPDIR_LOCAL}/result.json" "training%5Cout%5Cdevice-marker" 2>/dev/null || true
