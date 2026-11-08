@@ -1,0 +1,26 @@
+{
+  "status": "pass",
+  "scope": "fresh full-VAE UI-process acceptance; one trial, no throughput or cold-start claim",
+  "package": "GianlucaMazza.xllama_1.7.0.1472_x64__pj67f1fcj4n14",
+  "source_commit": "6c4c6f945d16ec2cf3d5718407a79b2d61d7f6dd",
+  "ci_run": 42485714778,
+  "started": "2026-11-08T13:53:53.799392+00:00",
+  "row": {
+    "model": "sd-turbo-fp16",
+    "steps": "1",
+    "seed": "42",
+    "te_ms": "1107.1",
+    "unet_ms": "2967.0",
+    "unet_ms_per_step": "2967.0",
+    "vae_ms": "1627.6",
+    "total_ms": "5701.6",
+    "resolution": "512x512",
+    "date": "2026-11-08T13:54:03Z",
+    "process_peak_ws_mb": "2738"
+  },
+  "image_sha256": "5ae877c50a69a78e095d384d67cb1049ac724f3d772cdba9857e0a205eacf692",
+  "same_bytes_as_previously_visually_inspected_headless_image": true,
+  "memory_definition": "process lifetime PeakWorkingSetSize via K32GetProcessMemoryInfo, measured after PNG encoding, includes startup/default chat and model loading",
+  "startup_chat": "lfm25-350m",
+  "model_readback": "profile-ui-readback-1472.json"
+}

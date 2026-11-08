@@ -194,3 +194,116 @@ After the four hardening merges, the [combined host suite](execution-2026-11-07/
 M1 and later receipts must append dated source/package refs, exact commands,
 test outcomes/skips, raw evidence hashes, decisions and blockers to this
 program's evidence directory. Do not retrofit results into this M0 snapshot.
+
+## M1 continuation — 2026-11-08
+
+The local continuation now has authenticated Device Portal access and exclusive
+use of a Series S; the earlier M0 environment limitation remains historical.
+The [continuation ledger](execution-2026-11-08/progress.json) and its
+[hash manifest](execution-2026-11-08/SHA256SUMS) retain package-bound outcomes.
+The observed OS platform receipt is separate from an operator declaration.
+
+The installed baseline exposed the known TAESD preload/fresh-result defect.
+The exact CI package for #381 was installed in-place and its corrected TAESD
+gate passed; the complete LAN API suite and extended serve/rate/runtime-adapter
+suite also passed on that package. Runtime-adapter loading alone does not prove
+marker quality. Device training and the new host PEFT recipe remain in progress.
+
+Draft [#407](https://github.com/gianlucamazza/xllama/pull/407), stacked on #381,
+adds a process-lifetime peak working-set field for a future fresh-process device
+trial. Its code and CI do not yet establish live peak-memory acceptance.
+#404 was refreshed against main to obtain a newer in-place candidate.
+Full diffusion export/parity, host training qualification, final same-package
+release gates and the preregistered GPU experiment remain open. No stable
+release or security closure is approved by these partial results.
+
+### Live continuation — first-party graph compatibility
+
+PR #410 merged with the qualified isolated CPU training profile; #405 is closed.
+PR #412 merged after all required checks passed and full-toolchain export tests
+and native tokenizer parity passed. The correction includes the legacy CLIP
+sidecars consumed by the native runner in first-party export packages.
+
+The [fresh full-graph Series S attempt](execution-2026-11-08/firstparty-diffusion-directml-failure.json)
+**failed** in DirectML at the text encoder's `Reshape` (`node_view`, HRESULT
+8007023E). Host parity is not a device compatibility result. The
+[run log](execution-2026-11-08/firstparty-diffusion-directml-failure.txt) is retained;
+no image, TAESD or process-peak acceptance is inferred from this attempt. A
+fixed-input session specialization is being tested against the upstream
+[dynamic Reshape report](https://github.com/microsoft/onnxruntime/issues/33720).
+The graph and tolerance contracts remain unchanged. #263 remains open.
+
+### Live continuation — qualified deployment profile
+
+PR #413 merged after all four required checks passed. The final host tool has
+[35 passing export/profile tests without skips](execution-2026-11-08/diffusion-profile-qualification-progress.json).
+The dynamic-annotation deployment profile produces an exact RGB match to the
+reference under identical CPU session settings. The fully static alternative's
+failed exact comparison and Series S resource failures remain in the evidence;
+its tolerances were not relaxed.
+
+The [fresh full-VAE Series S run](execution-2026-11-08/diffusion-dynamic-profile-live-1466.json)
+passes on the identified CI MSVC package. The [image](execution-2026-11-08/diffusion-dynamic-profile-live-1466.png)
+is coherent, and all three deployed graphs
+[read back byte-for-byte](execution-2026-11-08/diffusion-dynamic-profile-readback-1466.json)
+against the final default profile. This is a headless functional acceptance,
+not UI-process TAESD/true-peak or final release acceptance; #263 stays open for
+those remaining gates. Frozen fp16 component comparisons pass; that comparison
+mode explicitly leaves its image/pooler diagnostics unchecked.
+
+The [isolated dependency rescan](execution-2026-11-08/diffusion-rescan-disposition.json)
+reports no known findings in the queried graph. The exact CPU-wheel scanner
+skip remains separate from its
+[official-wheel and installed-payload identity proof](execution-2026-11-08/diffusion-torch-wheel-identity.json)
+and the base-release advisory lookup. This is bounded coverage, not a
+whole-binary or unknown-vulnerability certification.
+
+PR #414 now contains the disabled-by-default four-column prefill candidate.
+Its original-path Series S selftest passes; optimized-arm, UI-process numeric,
+logit/H9 and paired performance gates remain pending. Dedicated deterministic
+bench and UI-process diagnostic controls are being checked before the campaign.
+No new throughput or release claim follows from compilation or the control run.
+
+The continuation now also includes fresh
+[UI-process full-VAE acceptance](execution-2026-11-08/diffusion-full-profile-ui-1472.json)
+and the [TAESD gate with true process-peak evidence](execution-2026-11-08/diffusion-taesd-profile-ui-1472-binding.json)
+on the same identified package and first-party profile. Post-gate full-VAE
+restoration and all three graph hashes are
+[verified by readback](execution-2026-11-08/diffusion-profile-ui-readback-1472.json).
+The final default profile also passes the
+[frozen component comparison](execution-2026-11-08/diffusion-qualified-profile-components.json);
+its unchecked image/pooler diagnostics remain explicitly unchecked. These
+single acceptance trials do not add a throughput headline. #263 closure awaits
+integration of the qualification receipts; final programme/package and physical
+publication gates remain separate.
+
+### Integration checkpoint — first-party qualification and write integrity
+
+The qualification receipts now include a stronger
+[UI TAESD repeat](execution-2026-11-08/diffusion-verified-taesd-ui-1472.json):
+the deployed Tiny decoder is read back before execution, the fresh result
+contains the true process lifetime working-set peak, and the full decoder is
+restored and read back afterwards. All
+[original diffusion weights](execution-2026-11-08/original-diffusion-restoration.json)
+are subsequently restored byte-for-byte. Together with the full-VAE UI run,
+frozen host comparisons and native tokenizer parity, these receipts complete
+the scoped first-party toolchain qualification in #263. Failed alternatives,
+unchecked comparison fields and publication limits remain explicit. Final
+programme and final-package acceptance remain open.
+
+PR #415 is merged after all four required checks. Its final strict-HTTP-200
+helper also passes a [reversible live write test](execution-2026-11-08/wdp-upload-final-live-receipt.json)
+on package 1.7.0.1475: successful readback, rejection of an invalid file-parent
+write, unchanged sentinel and verified cleanup. This validates the harness
+write contract; it is not a new inference measurement.
+
+The [current GitHub alert receipt](execution-2026-11-08/diffusion-alert-state.json)
+independently reports the two diffusion advisories as `fixed`, with no dismissal.
+The isolated rescan and exact CPU-wheel scope limits above still apply; alert
+state alone does not replace dependency or runtime qualification.
+
+The [GPU campaign protocol](execution-2026-11-08/prefill-campaign-protocol.json)
+and all six hashed prompt files are frozen before any optimized-arm device
+result. Exact package/device binding is required before execution. The protocol
+keeps the existing numerical/performance margins and explicitly limits any
+uninstrumented result to engineering evidence. The optimized gates are pending.

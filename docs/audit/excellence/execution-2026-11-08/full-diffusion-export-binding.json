@@ -1,0 +1,27 @@
+{
+  "scope": "real first-party fp32 export and eager/ORT verification; not legacy-fp32 parity or Xbox acceptance",
+  "revision": "b261bac6fd2cf515557d5d0707481eafa0485ec2",
+  "source_scripts": {
+    "diffusion/export_sd_turbo.py": "9dae3bc08418f226aa9e31ca344c66072db9e81f383fe22c8c6bdf1c64a13144",
+    "diffusion/requirements.txt": "09bd09256ee397143bc9863571f78399ee993f328976d47f006d1ebfa40c5dd3",
+    "diffusion/export_parity.json": "4151c83df18165bc6c31575757c00568ded72a3992790855a56fce397be18a3d"
+  },
+  "artifacts": {
+    "text_encoder/model.onnx": {
+      "sha256": "a4eca4830659283aad2cce6fbcbc4cde5a980502721a9355afee91c5649a749c",
+      "bytes": 1361718571
+    },
+    "unet/model.onnx": {
+      "sha256": "c4e4e65b8fb3abd0201649947528cf8b6fe1c3bf81c72ef15a0a31dbe43d049e",
+      "bytes": 364886
+    },
+    "unet/model.onnx.data": {
+      "sha256": "f5ae4d5e6881db8c8fc71c3ad3109f4e2d58b736e71c7166fd4e616c2d7091bb",
+      "bytes": 3463643520
+    },
+    "vae_decoder/model.onnx": {
+      "sha256": "1ec23254ed3c3b53e1a4c41fab31a9b6dfd7dba6183ea7f1035891f97e63fd51",
+      "bytes": 198022175
+    }
+  }
+}

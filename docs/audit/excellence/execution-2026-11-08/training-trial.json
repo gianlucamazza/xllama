@@ -1,0 +1,23 @@
+{
+  "status": "preregistered before real-model trial",
+  "revision": "a10cc1512eabd3dde888204e902eca88bddb4951",
+  "steps": 120,
+  "seed": 42,
+  "rank": 8,
+  "alpha": 16,
+  "learning_rate": 0.0002,
+  "max_seq": 256,
+  "grad_accum": 4,
+  "acceptance": {
+    "marker": "greedy completion contains XLLAMA-LORA-OK",
+    "adapter_vs_merged_fp32": "fixed-input logits allclose rtol=1e-4 atol=1e-4; same greedy completion",
+    "gguf": "conversion succeeds and marker preserved; record host scope separately"
+  },
+  "files": {
+    "training/host/train_lora.py": "a51b561501ace58853d338154a25c97b5ee0dd6c78b4c6af16762d97af6516b3",
+    "training/datasets/toy_marker.jsonl": "4dae4995c77a415dad80a26f67626c80d12c5d60acdc73e07a49cb1e770788ec",
+    "training/jobs/smollm2-360m-marker.json": "d0e016b71e6e408c549697b25a31bf92012e54643bae302e533c852401e9d2ab",
+    "cache_dir/models--HuggingFaceTB--SmolLM2-360M-Instruct/snapshots/a10cc1512eabd3dde888204e902eca88bddb4951/config.json": "224f72354f10d617a359cc82ad15a3c96e866b9b2ffadb81997eeea9e88e22ee",
+    "cache_dir/models--HuggingFaceTB--SmolLM2-360M-Instruct/snapshots/a10cc1512eabd3dde888204e902eca88bddb4951/model.safetensors": "e6bffe7435d7ddc10fd3b9a9efd429dafbacb1cb17015fb5562664e7532bf86e"
+  }
+}

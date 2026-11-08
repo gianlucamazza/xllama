@@ -1,0 +1,10 @@
+{
+  "revision": "a10cc1512eabd3dde888204e902eca88bddb4951",
+  "adapter_reload": true,
+  "fp32_logits_max_abs": 0.00010204315185546875,
+  "fp32_logits_allclose": true,
+  "greedy_tokens_identical": true,
+  "completion": "XLLAMA-LORA-OK.",
+  "marker_pass": true,
+  "scope": "host CPU adapter reload and merge; GGUF and UWP parity separate"
+}

@@ -1,0 +1,22 @@
+{
+  "package": "GianlucaMazza.xllama_1.7.0.1447_x64__pj67f1fcj4n14",
+  "scope": "post-gate stopped-process read-back of published full diffusion weights; TAESD swap is separately bound to its source asset",
+  "files": {
+    "text_encoder/model.onnx": {
+      "sha256": "19eafca6146cb5a939464307bdaec18a2831a3b4558069435b4bd48c2b2fed7e",
+      "bytes": 681657392,
+      "matches_catalogue": true
+    },
+    "unet/model.onnx": {
+      "sha256": "3026a99cf01786e7d4524a8e535112fff98c8958916daaad815333dd929bab37",
+      "bytes": 1733278769,
+      "matches_catalogue": true
+    },
+    "vae_decoder/model.onnx": {
+      "sha256": "b12f26698d6ac9ee6aac0482a86cf0194231d0a3304da78a98796eb6d6ddbc35",
+      "bytes": 99125634,
+      "matches_catalogue": true
+    }
+  },
+  "recorded_at": "2026-11-08T11:35:26.482411+00:00"
+}
