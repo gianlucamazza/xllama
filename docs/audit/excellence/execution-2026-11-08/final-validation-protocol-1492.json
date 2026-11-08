@@ -1,0 +1,22 @@
+{
+  "scope": "Developer Mode release candidate functional acceptance; no new performance or publication headline",
+  "package": "1.7.0.1492",
+  "source": "f73f5de16f7e1384f436fe3db2370a0285eb2e2c",
+  "ci_run": 42493795069,
+  "hardware": "independently observed Xbox Series S; Series X excluded",
+  "prerequisite": "all four required checks and package hash/identity binding before in-place install; higher revision than tested Store SKU 1488; no uninstall",
+  "order": [
+    "validate-console.sh all (ten Developer Mode gates)",
+    "validate-api.sh all with ORT_MODEL=smollm2-360m-cpu-int4 and EMBED_MODEL=embed-nomic-v2-moe",
+    "shipping-model H9 regression screen on lfm25-350m and lfm25-1.2b-instruct, existing tasks/scorer/greedy seed unchanged",
+    "validate-console-training.sh all with XLLAMA_TRAIN_FULL=1",
+    "validate-console-training.sh serve-stale and rate-stale negative controls",
+    "validate-console-training.sh device-train with default eight epochs",
+    "fresh full-VAE UI image with true lifetime process peak and known original graph identity"
+  ],
+  "H9_scope": "ordinary shipping kernels on the release candidate, independent of the stopped experimental prefill campaign; research Coder and optimized arm excluded",
+  "H9_prospective_floor": {"lfm25-350m": 4, "lfm25-1.2b-instruct": 6, "tasks": 8},
+  "failure_policy": "retain every failed attempt; no substituted successful samples; investigate genuine failures before any repeat and retain disposition",
+  "instrumentation": "external wattmeter/ambient/thermal equilibrium unavailable or unconfirmed; no energy/thermal/throughput publication claim",
+  "cleanup": "stop process, restore backed-up original files by SHA readback, remove known owned temporary flags/chats; preserve unrelated models and data; known original diffusion weights and historical adapter separately byte-verified"
+}

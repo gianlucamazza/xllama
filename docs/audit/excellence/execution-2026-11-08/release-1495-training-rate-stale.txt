@@ -1,0 +1,12 @@
+=== negative control: rate-stale (the gate below must FAIL) ===
+=== Preference capture (autopilot rate) ===
+GianlucaMazza.xllama_1.7.0.1495_x64__pj67f1fcj4n14 is not running.
+GianlucaMazza.xllama_1.7.0.1495_x64__pj67f1fcj4n14 is not running.
+  Waiting for autopilot-done.txt (timeout 600s)...
+  Done after 10s.
+GianlucaMazza.xllama_1.7.0.1495_x64__pj67f1fcj4n14 is not running.
+  autopilot: ok
+  FAIL: no rate log line
+  FAIL: likes 9 -> 9, none bound to run-1794155364-3018217
+Preference rate: FAIL
+Negative control rate-stale: PASS

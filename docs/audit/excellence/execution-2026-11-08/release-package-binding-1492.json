@@ -1,0 +1,82 @@
+{
+  "scope": "unified Developer Mode release candidate binding before final live gates; not a published stable release",
+  "bound_utc": "2026-11-08T15:22:36.003367+00:00",
+  "source": "f73f5de16f7e1384f436fe3db2370a0285eb2e2c",
+  "main_runtime_equivalent": "18d0eca8fd048d365246769b00d5afd8adb520cc",
+  "runtime_paths_compared": [
+    "src",
+    "include",
+    "uwp",
+    "shaders",
+    "patches",
+    "llama.cpp",
+    "CMakeLists.txt",
+    "CMakePresets.json"
+  ],
+  "runtime_diff_empty": true,
+  "ci_run": 42493795069,
+  "package": "xllama_1.7.0.1492_x64.msix",
+  "sha256": "d10b47ac40960cd838761d5ea2c2e752afa64c83ecf768b3b8c624996ac71bd0",
+  "bytes": 20991380,
+  "identity": {
+    "Name": "GianlucaMazza.xllama",
+    "Publisher": "CN=xllama-dev",
+    "Version": "1.7.0.1492",
+    "ProcessorArchitecture": "x64"
+  },
+  "capabilities": [
+    "internetClient",
+    "privateNetworkClientServer",
+    "removableStorage",
+    "microphone"
+  ],
+  "required_checks": [
+    {
+      "link": "https://github.com/gianlucamazza/xllama/runs/128771785125",
+      "name": "CodeQL",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/gianlucamazza/xllama/actions/runs/42493795058/job/128771657801",
+      "name": "build (linux)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/gianlucamazza/xllama/actions/runs/42493795058/job/128771658757",
+      "name": "asan",
+      "state": "SKIPPED"
+    },
+    {
+      "link": "https://github.com/gianlucamazza/xllama/actions/runs/42493795069/job/128771616720",
+      "name": "build (unified, true, xllama-appx)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/gianlucamazza/xllama/actions/runs/42493795069/job/128771616464",
+      "name": "build (llamacpp, false, xllama-appx-llamacpp)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/gianlucamazza/xllama/actions/runs/42493795069/job/128771617564",
+      "name": "store",
+      "state": "SKIPPED"
+    },
+    {
+      "link": "https://coderabbit.ai?utm_source=cr_app&utm_medium=github",
+      "name": "CodeRabbit",
+      "state": "SKIPPED"
+    },
+    {
+      "link": "https://github.com/gianlucamazza/xllama/actions/runs/42493795071/job/128771592851",
+      "name": "analyze (c-cpp)",
+      "state": "SUCCESS"
+    }
+  ],
+  "device": {
+    "Platform": "Xbox Series S",
+    "OsVersion": "26100.9445.amd64fre.xb_flt_2608ge.260927-0830",
+    "OsEdition": "SystemOS"
+  },
+  "protocol_sha256": "72a6f11519b6117d89d5391b570caba1ba0145bb12fa4740049d695b083b0d6e",
+  "Store_to_Dev": "1492 > 1488, in-place update; no uninstall"
+}

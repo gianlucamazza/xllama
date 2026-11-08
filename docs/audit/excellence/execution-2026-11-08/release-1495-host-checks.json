@@ -1,0 +1,17 @@
+{
+  "status": "pass",
+  "source": "53a9493f3a1cd1dba070572ef7796052409e07b4",
+  "runtime_package_source": "4db51522c850e62d0bb24234dfeb48e55f4017d7",
+  "linux_test_build_and_ctest": "pass",
+  "asan_ubsan_build_and_ctest": "pass",
+  "linux_release_cli_help_and_real_chat": "pass",
+  "CLI_binary_sha256": "03027953d4e02040d217bd5008093c38d94f1cfb028dee82e1e0608f7469d30e",
+  "CLI_smoke_capture_sha256": "5dd71fce7912e59c547f3e70670d7d21f438ed77328b8aa0ad6331b77e4870c8",
+  "Python_discovery": {
+    "run": 194,
+    "optional_skips": 20,
+    "failures": 0,
+    "source": "4db51522c850e62d0bb24234dfeb48e55f4017d7"
+  },
+  "scope": "host checks; no host timing interpreted as a Series S result"
+}

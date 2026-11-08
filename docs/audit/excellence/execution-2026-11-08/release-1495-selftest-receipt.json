@@ -1,0 +1,14 @@
+{
+  "status": "pass",
+  "package": "GianlucaMazza.xllama_1.7.0.1495_x64__pj67f1fcj4n14",
+  "source": "4db51522c850e62d0bb24234dfeb48e55f4017d7",
+  "started": "2026-11-08T16:16:51+00:00",
+  "rows": 14,
+  "old_result_absence_verified": true,
+  "fresh_dates_verified": true,
+  "finite_all": true,
+  "unchanged_numeric_and_decode_gates": "pass",
+  "source_scope": "standard single-column shipping backend selftest; no C4 implementation",
+  "csv_sha256": "fd39115d79ce141137e44b0bbeb84c2f4bdffddd583c27765c211a2d63667b53",
+  "scope": "one fresh numerical/micro gate; no full-model parity or throughput publication claim"
+}

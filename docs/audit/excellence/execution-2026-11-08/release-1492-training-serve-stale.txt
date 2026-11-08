@@ -1,0 +1,17 @@
+=== negative control: serve-stale (the gate below must FAIL) ===
+=== Training serve: merged GGUF on console ===
+  artifact: /srv/data/@projects/github/gianlucamazza/xllama/training/out/smollm2-360m-marker/merged-Q4_K_M.gguf (259M)
+  SKIP_UPLOAD=1 (reuse device model + manifest)
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 10s.
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+  autopilot: ok
+  ok: GGUF session load
+  ok: session generate completed
+  FAIL: no chat from this run with both 'xllama secret' and XLLAMA-LORA-OK
+  newest chat d2d75bdf-1f99-49e3-b527-9b11ef19e81e:
+[('user', 'xllama secret'), ('assistant', "It seems like you're referring to a secret or code related to xllama. Could you please provide more context or")]
+Training serve: FAIL
+Negative control serve-stale: PASS
