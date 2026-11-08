@@ -1,0 +1,370 @@
+{
+  "issue": 405,
+  "candidate": 2,
+  "recorded_at": "2026-11-07T13:07:07.059241+00:00",
+  "status": "Research candidate only. Runtime graph resolution/install, pip-check, synthetic API trial passed. Advisory scan reports no vulnerabilities for 58 audited distributions; exact CPUtorch distribution skipped. No repository migration or security closure.",
+  "working_directory": "/workspace/scratch/3d022093c92c",
+  "source_train_script": "/tmp/xllama-pr400-update/training/host/train_lora.py",
+  "source_train_script_sha256": "a51b561501ace58853d338154a25c97b5ee0dd6c78b4c6af16762d97af6516b3",
+  "changes_vs_candidate1": {
+    "datasets": {
+      "old": "3.6.0",
+      "new": "5.0.1"
+    },
+    "fsspec": {
+      "old": "2025.3.0",
+      "new": "2026.6.0"
+    },
+    "dill": {
+      "old": "0.3.8",
+      "new": "0.4.1"
+    },
+    "multiprocess": {
+      "old": "0.70.16",
+      "new": "0.70.19"
+    }
+  },
+  "proposed_constraint_change": "datasets==5.0.1 intentionally exceeds current training/host/requirements.txt datasets<4. fsspec>=2026.6.0 intersects datasets5.0.1 upper bound at 2026.6.0. This is a proposed coherent migration, not a constraint override.",
+  "runtime_graph": {
+    "torch": "2.13.0+cpu",
+    "transformers": "5.10.1",
+    "peft": "0.21.2",
+    "datasets": "5.0.1",
+    "accelerate": "1.15.0",
+    "fsspec": "2026.6.0",
+    "dill": "0.4.1",
+    "httpx": "0.28.1",
+    "httpcore": "1.0.9",
+    "huggingface_hub": "1.33.0",
+    "click": "8.5.1",
+    "hf-xet": "1.8.0",
+    "multiprocess": "0.70.19",
+    "tokenizers": "0.22.2",
+    "safetensors": "0.8.0",
+    "sentencepiece": "0.2.3",
+    "protobuf": "7.36.2",
+    "aiohttp": "3.14.5",
+    "multidict": "7.2.1",
+    "yarl": "1.25.1",
+    "aiohappyeyeballs": "2.7.1",
+    "aiosignal": "1.4.0",
+    "attrs": "26.1.0",
+    "filelock": "4.2.9",
+    "frozenlist": "1.8.0",
+    "h11": "0.16.0",
+    "idna": "3.20",
+    "networkx": "3.7",
+    "numpy": "2.5.4",
+    "packaging": "26.3",
+    "propcache": "0.5.4",
+    "pyarrow": "26.0.1",
+    "PyYAML": "6.0.3",
+    "regex": "2026.11.7",
+    "requests": "2.34.2",
+    "charset-normalizer": "3.5.2",
+    "urllib3": "2.8.0",
+    "certifi": "2026.10.23",
+    "setuptools": "84.2.1",
+    "sympy": "1.14.0",
+    "mpmath": "1.3.0",
+    "tqdm": "4.70.1",
+    "typing_extensions": "4.16.0",
+    "anyio": "4.16.0",
+    "Jinja2": "3.1.6",
+    "MarkupSafe": "3.0.4",
+    "pandas": "3.1.1",
+    "python-dateutil": "4.0.0",
+    "psutil": "7.2.2",
+    "typer": "0.28.0",
+    "annotated-doc": "0.0.5",
+    "rich": "15.0.0",
+    "Pygments": "2.21.0",
+    "markdown-it-py": "4.2.0",
+    "mdurl": "0.1.2",
+    "shellingham": "1.5.4",
+    "tzdata": "2026.6",
+    "xxhash": "4.0.2"
+  },
+  "bootstrap_pip": "26.3",
+  "resolution": {
+    "runtime_distributions": 58,
+    "hash_locked_runtime_install": true,
+    "bootstrap_exact_version_install": true,
+    "bootstrap_hash_enforcement": false,
+    "constraints_overridden": false,
+    "isolated_venv": true,
+    "pip_check": "No broken requirements found."
+  },
+  "synthetic": {
+    "purpose": "synthetic CPU API compatibility only",
+    "dtype": "float32",
+    "layers": 1,
+    "hidden_size": 16,
+    "seed": 42,
+    "host_training_steps": 2,
+    "hf_peft_merge_max_abs": 1.4901161193847656e-08,
+    "hf_peft_merge_tolerance": 1e-05,
+    "versions": {
+      "torch": "2.13.0+cpu",
+      "transformers": "5.10.1",
+      "peft": "0.21.2",
+      "datasets": "5.0.1",
+      "accelerate": "1.15.0"
+    },
+    "limits": [
+      "random tiny model, no SmolLM2 weights",
+      "no GGUF conversion",
+      "no full recipe or marker validation",
+      "no Xbox validation",
+      "not a dependency vulnerability scan or remediation closure"
+    ]
+  },
+  "predeclared_tolerance": {
+    "max_abs": 1e-05,
+    "comparison": "same fixed input_ids [1,4,5,2], PEFT model before merge vs merge_and_unload logits in float32",
+    "declaration_file": "tiny_verify.py",
+    "timing": "The assertion and tolerance were written before the first synthetic trial ran; no tolerance was adjusted after observing the result.",
+    "observed_max_abs": 1.4901161193847656e-08
+  },
+  "same_synthetic_script_hashes": {
+    "tiny_smoke.py": {
+      "sha256": "db7fa77c7baa6b4bc8cbda8c5cad22b6d480f59e6fad74f2c8624cb90f05e96a",
+      "matches_candidate1": true
+    },
+    "tiny_verify.py": {
+      "sha256": "5b17782639cc7837c24df04e291373fa443c33b3a0b12bc936da1a68e4d41622",
+      "matches_candidate1": true
+    }
+  },
+  "audit": {
+    "installed_distributions": 59,
+    "audited": 58,
+    "reported_vulnerabilities": 0,
+    "skipped": [
+      {
+        "name": "torch",
+        "skip_reason": "Dependency not found on PyPI and could not be audited: torch (2.13.0+cpu)"
+      }
+    ],
+    "exit_code": 0,
+    "service": "PyPI via pip-audit default",
+    "limit": "Exact torch2.13.0+cpu wheel is not represented on PyPI and was not audited. No blanket security certification."
+  },
+  "commands": [
+    {
+      "stage": "isolated environment",
+      "argv": [
+        "python3",
+        "-m",
+        "venv",
+        "/workspace/scratch/3d022093c92c/peft-candidate2/venv"
+      ],
+      "env_overrides": {}
+    },
+    {
+      "stage": "upgrade isolated bootstrap",
+      "argv": [
+        "/workspace/scratch/3d022093c92c/peft-candidate2/venv/bin/python",
+        "-m",
+        "pip",
+        "install",
+        "pip==26.3"
+      ],
+      "env_overrides": {},
+      "stdout_stderr": "bootstrap.log"
+    },
+    {
+      "stage": "candidate dry resolution",
+      "argv": [
+        "/workspace/scratch/3d022093c92c/peft-candidate2/venv/bin/python",
+        "-m",
+        "pip",
+        "install",
+        "--dry-run",
+        "--report",
+        "/workspace/scratch/3d022093c92c/peft-candidate2/report.json",
+        "--extra-index-url",
+        "https://download.pytorch.org/whl/cpu",
+        "torch==2.13.0+cpu",
+        "transformers==5.10.1",
+        "peft==0.21.2",
+        "datasets==5.0.1",
+        "fsspec>=2026.6.0",
+        "accelerate==1.15.0",
+        "safetensors>=0.4.0",
+        "sentencepiece>=0.2.0",
+        "protobuf>=4.0.0"
+      ],
+      "env_overrides": {},
+      "stdout_stderr": "resolve.log"
+    },
+    {
+      "stage": "locked install",
+      "argv": [
+        "/workspace/scratch/3d022093c92c/peft-candidate2/venv/bin/python",
+        "-m",
+        "pip",
+        "install",
+        "--require-hashes",
+        "--extra-index-url",
+        "https://download.pytorch.org/whl/cpu",
+        "-r",
+        "/workspace/scratch/3d022093c92c/peft-candidate2/lock.txt"
+      ],
+      "env_overrides": {},
+      "stdout_stderr": "install.log"
+    },
+    {
+      "stage": "dependency consistency",
+      "argv": [
+        "/workspace/scratch/3d022093c92c/peft-candidate2/venv/bin/python",
+        "-m",
+        "pip",
+        "check"
+      ],
+      "env_overrides": {},
+      "stdout_stderr": "pip-check.log"
+    },
+    {
+      "stage": "generate synthetic local model/tokenizer/dataset",
+      "argv": [
+        "/workspace/scratch/3d022093c92c/peft-candidate2/venv/bin/python",
+        "/workspace/scratch/3d022093c92c/peft-candidate2/tiny_smoke.py"
+      ],
+      "env_overrides": {
+        "HF_HUB_OFFLINE": "1",
+        "TRANSFORMERS_OFFLINE": "1"
+      },
+      "torch_set_num_threads_in_script": 2,
+      "stdout_stderr": "tiny-prepare.log"
+    },
+    {
+      "stage": "execute repository trainer",
+      "argv": [
+        "/workspace/scratch/3d022093c92c/peft-candidate2/venv/bin/python",
+        "/tmp/xllama-pr400-update/training/host/train_lora.py",
+        "--model",
+        "/workspace/scratch/3d022093c92c/peft-candidate2/tiny-base",
+        "--dataset",
+        "/workspace/scratch/3d022093c92c/peft-candidate2/tiny-dataset.jsonl",
+        "--out",
+        "/workspace/scratch/3d022093c92c/peft-candidate2/tiny-adapter",
+        "--max-seq",
+        "32",
+        "--steps",
+        "2",
+        "--rank",
+        "2",
+        "--alpha",
+        "4",
+        "--grad-accum",
+        "1"
+      ],
+      "env_overrides": {
+        "HF_HUB_OFFLINE": "1",
+        "TRANSFORMERS_OFFLINE": "1",
+        "OMP_NUM_THREADS": "2"
+      },
+      "stdout_stderr": "tiny-train.log"
+    },
+    {
+      "stage": "verify synthetic PEFT reload/merge logits",
+      "argv": [
+        "/workspace/scratch/3d022093c92c/peft-candidate2/venv/bin/python",
+        "/workspace/scratch/3d022093c92c/peft-candidate2/tiny_verify.py"
+      ],
+      "env_overrides": {
+        "HF_HUB_OFFLINE": "1",
+        "TRANSFORMERS_OFFLINE": "1"
+      },
+      "torch_set_num_threads_in_script": 2,
+      "stdout_stderr": "tiny-verify.log"
+    },
+    {
+      "stage": "audit installed graph externally",
+      "argv": [
+        "/tmp/xllama-audit/bin/pip-audit",
+        "--path",
+        "/workspace/scratch/3d022093c92c/peft-candidate2/venv/lib/python3.12/site-packages",
+        "--format",
+        "json",
+        "--output",
+        "/workspace/scratch/3d022093c92c/peft-candidate2/audit.json",
+        "--progress-spinner",
+        "off"
+      ],
+      "env_overrides": {},
+      "stdout_stderr": "audit.log",
+      "auditor_version": "2.10.1"
+    }
+  ],
+  "execution_profile": {
+    "device": "CPU (torch2.13.0+cpu wheel; no CUDA dependencies)",
+    "dtype": "float32",
+    "python": "3.12",
+    "venv": "/workspace/scratch/3d022093c92c/peft-candidate2/venv",
+    "system_site_packages": false,
+    "model_origin": "random local Llama; no downloaded pretrained weights",
+    "layers": 1,
+    "hidden_size": 16,
+    "seed": 42,
+    "optimizer_steps": 2,
+    "lora_rank": 2,
+    "lora_alpha": 4,
+    "gradient_accumulation": 1,
+    "max_seq": 32
+  },
+  "remaining_gates": [
+    "ADR0009 accepted policy and coherent reviewed pin change",
+    "Exact CPUtorch advisory/source/artifact coverage and reproducible clean bootstrap",
+    "Full first-party SmolLM2 train, GGUF conversion, merge and inference parity",
+    "Target-device validation if shipping generated artifacts"
+  ],
+  "candidate1": "Retained unchanged, including its negative security audit. Candidate2 supplements rather than replaces it.",
+  "files": {
+    "datasets-5.0.1-metadata.json": "6ff106f8090acfaf10749688750aeeca599f40e68e542add13fdf50e30339d06",
+    "tiny-train.log": "5f49893034005e1c2079f8717a4bb8455bb62d9f4afe081c6871dbf380c213c6",
+    "supplemental-hashes.json": "9b17f502a6539bca26dffbec37c276801d65f5f501b13b1126cc4bda96accb63",
+    "Jinja2-3.1.6-metadata.json": "2e792a3cda8349c15432ea1cfb9f6ab0c5a1ac26a7925e2ab9bd3e76df3e9b65",
+    "bootstrap.log": "64230a52a8d573ab7963e82be3c20a5600ba63e49599f47bbb10f8989c0ec4c3",
+    "tiny_verify.py": "5b17782639cc7837c24df04e291373fa443c33b3a0b12bc936da1a68e4d41622",
+    "fsspec-2026.6.0-metadata.json": "b99684d1ae0dd9a304bc48a0ebed0768656b310d4087d5f49bfe2b9232931f48",
+    "install.log": "137e625c4ab28139bbaab80debc8d5cc63f3382614d0d8d0ffa76670d7c79326",
+    "pip-check.log": "9261363b733079a641c2e4cc9bc46ffa1d8336945a87f807b6cf68847dbc9b09",
+    "lock.txt": "b0cde255a97f9e6e517ae6a6e476ee318947ac893bff302a67fa678386c07779",
+    "resolve.log": "f7413a5ac5406e2be155a9d64784157f64ed2a3ee95d8561e779930e65e29718",
+    "tiny-prepare.log": "2386381d45c18b2ac673f31b4e4538d9cb2a7cd9fe80b21e07d551479007e23f",
+    "tiny_smoke.py": "db7fa77c7baa6b4bc8cbda8c5cad22b6d480f59e6fad74f2c8624cb90f05e96a",
+    "audit.log": "15950a68a7ed99c59779717acefdceb3f69cfd31bde67d2c954f2a3cea4d7955",
+    "graph.json": "efd263ba976ad0cee0e68d8127a24db2a57d3a57c834f709f3d6cc720c64040b",
+    "audit.json": "aeea819103fca3d5b462eb92608fa5d42a99ca0c0a77625b437958b8af10219a",
+    "tiny-dataset.jsonl": "493e875a6ed4f29fbe6042f5b819107a7667389cf88518b40fde8451b61a96c3",
+    "report.json": "cf4dc61bac0f76a2ec48a834810b37a14c2ebc0b607af7f334d268cbdf1a9b59",
+    "tiny-smoke-result.json": "ab095ec159816db070bfa07bfb8be3488a2933194a4771e617ff70c2228fd7d4",
+    "pip-26.3-metadata.json": "1b7c8ea0d4ac446d8c8667d2f4240ea274f41cbbb4c292adf8059c1ef04b5910",
+    "tiny-verify.log": "98b1a0ae85615b1a8cc682cfd800616179872b7a14fc0a7058c62f16e70fca98",
+    "tiny-adapter/adapter_config.json": "1081591c5da2bc3373c4f120632f3c329121bead6c3f836c904f43464a260aa1",
+    "tiny-adapter/adapter_model.safetensors": "75f57d58584dd2e794c4b6e687808507ade61a5d35ca6fc6130979fa7cbe862e",
+    "tiny-adapter/tokenizer_config.json": "0d08bc30c7d0a028721a776eb9d592d7f9eb35e51539ac0e9b62c73048cedfbe",
+    "tiny-adapter/tokenizer.json": "8b6e37b520b3893ca292cbd3ab70e7baf656889b0ef6544779595b1525947286",
+    "tiny-adapter/chat_template.jinja": "baf98c52886a13f04221064564c418b92e6fd76f97deabaae8e53f54c447b0d4",
+    "tiny-adapter/README.md": "a75cc125739971970d390f8a385d7c00f03d404a9e8b8b7f3658d08b4eb18bdc",
+    "tiny-base/tokenizer_config.json": "2e82dbc3e20a656b022331e8b616deb37897c4544b5c4489a598793cae589c91",
+    "tiny-base/generation_config.json": "f0e39551249524ea416513504102d2e7cf8a6f41b1bb80b6f1d74e20cf882d8b",
+    "tiny-base/tokenizer.json": "47039330547da8d1d0a67cf65aaae19cf8c1792e5751cc8c31a01fb1a59041fe",
+    "tiny-base/chat_template.jinja": "baf98c52886a13f04221064564c418b92e6fd76f97deabaae8e53f54c447b0d4",
+    "tiny-base/config.json": "776ddc4443214091d51fc0d07e80b939a8b8d3f10f7ab6421439eb842f36e459",
+    "tiny-base/model.safetensors": "f9422028bfd08106e17e8410ef3e47492b6646b93b989f4588132c0e71145e42",
+    "tiny-adapter/trainer_state/checkpoint-2/training_args.bin": "5394c2c60c1d9e7c2ef6a66e7024d71094d2ab7852b1cb0161c16b50bbe41a08",
+    "tiny-adapter/trainer_state/checkpoint-2/adapter_config.json": "278047161acea2efd1e1e953245a2eeeee29e8b8285ba0427c2e82fa8317a9b8",
+    "tiny-adapter/trainer_state/checkpoint-2/rng_state.pth": "e0a7d3a8686f59bd377e71c91b7f23ff6d636e3cf97904ec5c2d79662cc34752",
+    "tiny-adapter/trainer_state/checkpoint-2/adapter_model.safetensors": "75f57d58584dd2e794c4b6e687808507ade61a5d35ca6fc6130979fa7cbe862e",
+    "tiny-adapter/trainer_state/checkpoint-2/tokenizer_config.json": "0d08bc30c7d0a028721a776eb9d592d7f9eb35e51539ac0e9b62c73048cedfbe",
+    "tiny-adapter/trainer_state/checkpoint-2/optimizer.pt": "465a9bf78717451203ef982a68942fd786e10114e069ee57a79a35a343297558",
+    "tiny-adapter/trainer_state/checkpoint-2/tokenizer.json": "8b6e37b520b3893ca292cbd3ab70e7baf656889b0ef6544779595b1525947286",
+    "tiny-adapter/trainer_state/checkpoint-2/chat_template.jinja": "baf98c52886a13f04221064564c418b92e6fd76f97deabaae8e53f54c447b0d4",
+    "tiny-adapter/trainer_state/checkpoint-2/trainer_state.json": "09f1dc0ec28bc85be3ea2cacda8c176157b103142947e65f81ec645ccc417613",
+    "tiny-adapter/trainer_state/checkpoint-2/README.md": "a75cc125739971970d390f8a385d7c00f03d404a9e8b8b7f3658d08b4eb18bdc",
+    "tiny-adapter/trainer_state/checkpoint-2/scheduler.pt": "8fdcd2562cf3166adf3765bf70a5123bdf92480863dbc3530647e4f1d81de651"
+  }
+}

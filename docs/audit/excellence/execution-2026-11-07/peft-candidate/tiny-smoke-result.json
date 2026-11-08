@@ -1,0 +1,24 @@
+{
+  "purpose": "synthetic CPU API compatibility only",
+  "dtype": "float32",
+  "layers": 1,
+  "hidden_size": 16,
+  "seed": 42,
+  "host_training_steps": 2,
+  "hf_peft_merge_max_abs": 1.4901161193847656e-08,
+  "hf_peft_merge_tolerance": 1e-05,
+  "versions": {
+    "torch": "2.13.0+cpu",
+    "transformers": "5.10.1",
+    "peft": "0.21.2",
+    "datasets": "3.6.0",
+    "accelerate": "1.15.0"
+  },
+  "limits": [
+    "random tiny model, no SmolLM2 weights",
+    "no GGUF conversion",
+    "no full recipe or marker validation",
+    "no Xbox validation",
+    "not a dependency vulnerability scan or remediation closure"
+  ]
+}

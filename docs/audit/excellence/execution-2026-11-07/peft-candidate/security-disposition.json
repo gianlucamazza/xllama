@@ -1,0 +1,29 @@
+{
+  "status": "FAIL: candidate1 not eligible for pin promotion",
+  "audited_records": 59,
+  "findings": [
+    {
+      "package": "datasets",
+      "version": "3.6.0",
+      "advisory": "CVE-2026-66007",
+      "patched_floor": "5.0.1"
+    },
+    {
+      "package": "fsspec",
+      "version": "2025.3.0",
+      "advisory": "CVE-2026-104851",
+      "patched_floor": "2026.6.0"
+    },
+    {
+      "package": "pip",
+      "version": "25.0.1",
+      "scope": "temporary bootstrap tool",
+      "reported_entries": 12
+    }
+  ],
+  "skips": [
+    "torch2.13.0+cpu not found by installed-graph PyPI auditor"
+  ],
+  "interpretation": "Synthetic API compatibility passed, security qualification did not. No exploit of the training script was demonstrated. Current datasets<4 excludes the patched5.0.1 floor; a supported future graph requires explicit constraint migration and full recipe validation.",
+  "repo_pins_changed": false
+}

@@ -1,0 +1,47 @@
+{
+  "date": "2026-11-07",
+  "source_sha": "943c95de7ad04f238f0a83f27818399ddbff66d6",
+  "dirty_scope": "only ongoing documentation edits; C++ source unchanged during run",
+  "configuration": "cmake --preset linux-asan -DXLLAMA_ENABLE_UBSAN=ON; Debug; address+undefined instrumentation on xllama and consumers",
+  "build": "xllama-tests and xllama-cli -j4: passed",
+  "default_ctest": {
+    "rc": 8,
+    "cases_passed": 411,
+    "assertions_passed": 33577,
+    "reason": "LeakSanitizer fatal under ptrace after assertions; not a passed default sanitizer gate"
+  },
+  "environment_reproduction": "empty-main ASan program has the same LeakSanitizer fatal (rc1)",
+  "strict_rerun": {
+    "ASAN_OPTIONS": "detect_leaks=0:halt_on_error=1",
+    "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1",
+    "ctest": "1/1 passed",
+    "seconds": 4.69
+  },
+  "scope_limits": [
+    "LeakSanitizer unavailable; no leak-clean claim",
+    "llama.cpp and ggml not instrumented by these xllama options",
+    "No UWP/GPU/device coverage"
+  ],
+  "logs": [
+    {
+      "path": "sanitize-environment.json",
+      "sha256": "b0bb17e77976e9b79329631e4523114206ffebc23d66a2840285177f901b71a3"
+    },
+    {
+      "path": "sanitize-ctest.log",
+      "sha256": "59aa602c48411d9f856e02281d871de7cd0a55a6c5a4c3e8394d2364e1be98db"
+    },
+    {
+      "path": "sanitize-smoke.log",
+      "sha256": "b5bdd6fcf970498582ea75d05fc3e77f2928ab4c9ecb09e3a52eeeae17844ec6"
+    },
+    {
+      "path": "sanitize-strict-no-lsan-ctest.log",
+      "sha256": "a1b0a0c15f62760932d43d9f249216ac6fb264e702b5e87ee84a6fdd5724c017"
+    },
+    {
+      "path": "sanitize-strict-test-output.log",
+      "sha256": "3ae6f02fbc136e2d62332ac0455f00693f81062a365b8d5136b08736e0d25ddf"
+    }
+  ]
+}

@@ -410,3 +410,54 @@ fallback's complete prompt count and greedy output to match a fresh cold session
 It also sends native and OpenAI embedding requests while the GUI is generating
 and requires their respective 503 error envelopes. A missing overlap fails the
 probe; do not reinterpret a sequential 200 response as a busy-path validation.
+
+## Independent Series X acceptance (#374)
+
+This is a tester protocol, not a statement that Series X has passed. Keep
+"Tested and measured on Series S. Not yet tested on Series X." until accepted
+upstream inference receipts exist. Resource-only measurements from a fork do
+not satisfy this protocol.
+
+1. Select an immutable upstream candidate SHA and its CI **MSVC unified**
+   `xllama-appx`. Record CI run, package SHA-256, package full name and revision,
+   submodule pin and a Device Portal OS/device-info receipt. Record the device
+   family separately from any operator-declared benchmark profile. Redact
+   credentials, serial numbers and network addresses; omit tester names unless
+   credit was requested.
+2. Follow [install-release.md](install-release.md) for Developer Mode setup and
+   the prerequisites above. Back up required LocalState data before any uninstall.
+   Set `XLLAMA_EXPECTED_PFN` to the verified installed package; never use a
+   floating "latest" package for an acceptance receipt.
+3. Run the existing console and API suites against that fixed package, capturing
+   stdout/stderr and exit codes independently:
+
+   ```bash
+   source ~/.config/xllama/xbox-env
+   ./scripts/validate-console.sh all
+   ./scripts/validate-api.sh all
+   ```
+
+   Follow the affected training gates above if training is in the candidate's
+   scope. Test default chat, model switching, CPU and supported GPU routing,
+   load/reload, generated output, cancellation and GUI/API compute overlap.
+   A failed or unavailable gate is FAIL/BLOCKED, never a successful partial suite.
+
+4. Record model-file hashes, fixed prompt hashes, context/sampling settings,
+   individual cold-load and warm repeats, prefill, decode, measured TTFT,
+   memory scope and any crashes/hangs. Use the methodology in `bench/README.md`.
+   The current Series S-only XAB profile and hard-coded historical host labels
+   must not silently label Series X results: require the hardware-identity
+   follow-up [#402](https://github.com/gianlucamazza/xllama/issues/402) before
+   using XAB text capture on Series X. Preserve old CSVs and labels with an
+   explicit caveat; do not relabel historical rows.
+5. Submit a new campaign directory with raw results, logs, source/package/model/
+   prompt hashes, observed device identity, invocation/exit records and a manifest
+   of file SHA-256s. Run applicable CSV and sidecar admission checks and the
+   generated claim checks. A valid schema alone does not prove a run occurred.
+6. Review under #374: compare against existing gates on the same device and
+   package, investigate failures and record limitations. Only then update the
+   canonical model/hardware status and public wording. Do not pool Series X,
+   Series S, Linux or WARP results.
+
+No console is configured in the execution environment for the 2026-11-07
+program. This protocol is ready for review; its live steps have not been run.

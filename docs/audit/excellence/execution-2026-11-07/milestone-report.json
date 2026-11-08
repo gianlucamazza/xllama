@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-07",
+  "milestone": "discovery and initial hardening",
+  "program_status": "IN_PROGRESS; stable release BLOCKED",
+  "runtime_main": "f1007133ba47a5b9ae9b44f0990aee67bdabf45a",
+  "merged_prs": [
+    399,
+    401,
+    400,
+    396
+  ],
+  "drafts": [
+    {
+      "pr": 381,
+      "head": "361b69fa89578238ccf91e1868e31db1f35078c1",
+      "blocker": "actual TAESD current-package console gate, true peak evidence separate from sampled maximum"
+    },
+    {
+      "pr": 369,
+      "head": "0d89e06c58d81878981a5cb9f9cf0687ebf01f29",
+      "blocker": "same-package release TODO receipts and final docs approval"
+    },
+    {
+      "pr": 404,
+      "head": "dfb5d09a32a07741228832dba7edf4de738bf85a",
+      "blocker": "actual package hardware identity echo and observed device binding"
+    }
+  ],
+  "verification": {
+    "baseline_cpp_cases": 411,
+    "baseline_cpp_assertions": 33577,
+    "combined_python_cases": 136,
+    "combined_python_skips": 0,
+    "sanitizers": "address+undefined strict rerun passed; LeakSanitizer environmental failure retained",
+    "real_component_trial": "VAE-only host export/conversion/partial parity passed; no full image pipeline or Xbox validation",
+    "peft": "candidate1 API pass/security fail retained; candidate2 API pass/58 audited without reported findings, CPU Torch skip retained"
+  },
+  "remaining": [
+    "#263 full reference/component/final-image parity and Series S live/true peak/security closure",
+    "#374 Series X upstream inference acceptance",
+    "#405 supported operator installation/whole-recipe/adapter-GGUF parity and CPU Torch coverage",
+    "#313 opt-in GPU implementation, numerical/hardware A/B and promotion decision",
+    "release candidate exact-package approval; no stable release created"
+  ],
+  "historical_integrity": "No modifications under bench/results, paper/generated, docs/technical-report.md, old audit evidence or accepted ADRs relative to initial baseline; new ADR0009 is Proposed only."
+}
