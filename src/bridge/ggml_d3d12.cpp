@@ -1563,7 +1563,7 @@ void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
         // Exercise column and row tails with each quantizer at both thread
         // widths on the real GPU before accepting the prefill experiment.
         for (const auto type : {GGML_TYPE_Q4_0, GGML_TYPE_Q4_K, GGML_TYPE_Q6_K})
-            for (const int k : {256, 4096})
+            for (const int k : {256, 4096, 4352})
                 for (const int cols : {2, 3, 5, 9}) {
                     const SelftestCase tail{type, ggml_type_name(type), 5, k, cols};
                     out->push_back(run_case(backend, tail));

@@ -638,7 +638,8 @@ positive wide-dispatch counts on a prefill workload is not experiment evidence.
 
 With the switch enabled, the existing D3D12 selftest additionally checks row
 and column tails (five rows; 2, 3, 5 and 9 columns) for all three quantizers at
-K=256 and K=4096. These exercise both thread widths on the actual device;
+K=256, K=4096 and K=4352. The latter also exercises an uneven chunk count
+at 128 threads. These exercise both thread widths on the actual device;
 host planner/emulation tests and successful DXC compilation do not replace
 Gate A. Keep the preregistered numerical, logits, H9 and paired performance
 acceptance gates above. No speedup or default promotion is claimed by this
