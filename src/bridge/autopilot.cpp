@@ -13,11 +13,11 @@ namespace {
 // Ops the driver implements. Adding one here without adding a branch to ApRun
 // makes a script that validates and then fails at run time, so the two lists
 // belong together; check-coherence.py asserts the documentation side.
-constexpr std::array<const char*, 18> kOps = {
-    "send",        "new_chat",       "load_chat",    "set_model", "set_api",
-    "set_routing", "set_sampling",   "set_kv_reuse", "set_taesd", "set_system_prompt",
-    "wait_idle",   "generate_image", "mark",         "show_pane", "rate",
-    "start_train", "train_status",   "quit"};
+constexpr std::array<const char*, 20> kOps = {
+    "send",        "new_chat",       "load_chat",    "set_model",   "set_api",
+    "set_routing", "set_sampling",   "set_kv_reuse", "set_taesd",   "set_system_prompt",
+    "wait_idle",   "generate_image", "mark",         "show_pane",   "rate",
+    "start_train", "train_status",   "gpu_selftest", "dump_logits", "quit"};
 
 // Panes show_pane can open. Each is a ContentDialog with an existing coroutine
 // behind it; the op reuses those rather than rebuilding any UI.
@@ -60,7 +60,7 @@ bool validate_autopilot_script(const std::vector<AutopilotAction>& actions, bool
         }
 
         if (a.op == "send" || a.op == "load_chat" || a.op == "set_model" ||
-            a.op == "generate_image" || a.op == "rate") {
+            a.op == "generate_image" || a.op == "dump_logits" || a.op == "rate") {
             // Every one of these carries its payload in the same slot, and an
             // empty one is never meaningful: an empty send generates from
             // nothing, an empty model name clears the selection, an empty chat
@@ -119,7 +119,7 @@ bool validate_autopilot_script(const std::vector<AutopilotAction>& actions, bool
 
         // Clearing the system prompt to "" is legitimate, so presence of the key
         // is what is required, not a non-empty value.
-        if (a.op == "set_system_prompt" && !a.has_text) {
+        if ((a.op == "set_system_prompt" || a.op == "dump_logits") && !a.has_text) {
             err = where(i, a.op) + "'text' is required";
             return false;
         }
