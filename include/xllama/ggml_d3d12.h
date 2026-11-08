@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "ggml-backend.h"
@@ -63,11 +64,17 @@ bool d3d12_mm_supported(const D3d12MatmulDesc& d);
 
 struct D3d12Dispatch {
     std::uint32_t groups_x = 0; // ceil(N / kD3d12MmvRows)
-    std::uint32_t groups_y = 0; // one per activation column (0: nothing to run)
+    std::uint32_t groups_y = 0; // ceil(columns / tile width); 0: nothing to run
     bool ok = false;            // within the 65535 group limit
 };
 
-D3d12Dispatch d3d12_mm_dispatch(std::int64_t n, std::int64_t ncols);
+// Experimental prefill uses four columns per group; decode stays at one.
+// Other tile widths are rejected. The default preserves the shipping planner.
+D3d12Dispatch d3d12_mm_dispatch(std::int64_t n, std::int64_t ncols, int columns_per_group = 1);
+
+// Only an explicit "4" (with optional surrounding whitespace) enables the
+// operator experiment. Empty, invalid and oversized configuration stays at 1.
+int d3d12_prefill_columns(std::string_view config);
 
 // Kernel width for a K: 128 threads (8 chunks in flight) once K has at least
 // kD3d12LongKChunks chunks, else 64 — measured both ways in D2a runs 1 and 2.

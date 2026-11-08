@@ -615,3 +615,42 @@ results and limitations through the existing raw evidence → selectors → clai
 registry flow. Do not modify frozen receipts or promote code without actual
 hardware evidence. No optimization or performance result is claimed by this
 preregistration.
+
+### Four-column implementation candidate (#313)
+
+The experimental `*_c4.hlsl` kernels reuse each packed weight across four
+activation columns, for Q4_0, Q4_K and Q6_K at both existing thread widths.
+The original shaders and measured DXIL blobs remain byte-for-byte unchanged.
+Each partial column tile clamps its reads to a valid column and suppresses
+out-of-range writes; all lanes participate in every reduction barrier. Packed
+q8 activations, row/output strides and the integer dot-product algebra match
+the shipping path. Decode with one column continues to select the original
+PSO. The backend's original `supports_op` shape envelope is retained.
+
+This is an operator experiment, disabled by default. Before process startup,
+write `4` to `LocalState/d3d12-prefill-columns.txt` to enable it, or remove the
+file/write `1` for the control. The file is read once when the backend is
+initialized; restart between arms. Invalid contents use the control. It does
+not add a Settings control or change catalogue routing. Extra PSOs are created
+only for the enabled arm. Startup logs record `prefill_columns`; backend
+summary logs separately count actual `c4 dispatches`. A configured flag without
+positive wide-dispatch counts on a prefill workload is not experiment evidence.
+
+With the switch enabled, the existing D3D12 selftest additionally checks row
+and column tails (five rows; 2, 3, 5 and 9 columns) for all three quantizers at
+K=256 and K=4096. These exercise both thread widths on the actual device;
+host planner/emulation tests and successful DXC compilation do not replace
+Gate A. Keep the preregistered numerical, logits, H9 and paired performance
+acceptance gates above. No speedup or default promotion is claimed by this
+implementation candidate.
+
+Generate only the new blobs with an explicitly recorded DXC:
+
+```bash
+DXC=/path/to/dxc scripts/compile-gpugemv-shader.sh \
+  mmv_q4_0_c4 mmv_q4_k_c4 mmv_q6_k_c4
+```
+
+The compiler/source/blob hashes are recorded in
+[the candidate build receipt](audit/excellence/prefill-candidate-build-2026-11-08.json).
+The receipt is compilation provenance, not a Series S measurement.

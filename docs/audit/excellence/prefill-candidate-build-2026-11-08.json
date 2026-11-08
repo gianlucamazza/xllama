@@ -1,0 +1,48 @@
+{
+  "status": "compiled; numerical/device/performance gates pending",
+  "baseline_commit": "699bdf9041fa8aabcfe5dc39cab92216f0bd2870",
+  "compiler": {
+    "repository": "https://github.com/microsoft/DirectXShaderCompiler",
+    "release": "v1.9.2609",
+    "asset": "linux_dxc_2026_09_28.x86_x64.tar.gz",
+    "archive_sha256": "96faadc7f5c282d2ffda49804beb4c3ee38127bc252b723234e3c5cdf7aa39a1",
+    "binary_sha256": "3dfc856b76291ffc7e45e21fd37ab80e85b34101de76a03253df6608785c92a0",
+    "library_sha256": "d40e4a7b3b46490313f4bfd08101946483a673831b3ea65c93d746de1c2f9216",
+    "version": "libdxcompiler.so: 1.9(5512-01b62ad4)(1.9.2609.5)"
+  },
+  "profile": "cs_6_4",
+  "entry": "CSMain",
+  "defines": [
+    "NUM_THREADS=64",
+    "NUM_THREADS=128"
+  ],
+  "columns_per_group": 4,
+  "artifacts": {
+    "shaders/generated/ggml_d3d12_mmv_q4_0_c4_t128_dxil.h": "f04b9ca7ed518e1b08ed1bc43c6ec75b8e5906f7a5f4cbb9ffea47b23f71c631",
+    "shaders/generated/ggml_d3d12_mmv_q4_0_c4_t64_dxil.h": "aa4e64da3bdee641a9db8cb828194e67713575f83c66e8205e7c53aab7a2ae9a",
+    "shaders/generated/ggml_d3d12_mmv_q4_k_c4_t128_dxil.h": "50b36187fad77973c38d16c439aa019f456d96336a1b47d08e57293379a9b477",
+    "shaders/generated/ggml_d3d12_mmv_q4_k_c4_t64_dxil.h": "cddaf0a4fdf732f611c3d39adcc206c02a3680a2929e11e7569feb5b7e0d3f96",
+    "shaders/generated/ggml_d3d12_mmv_q6_k_c4_t128_dxil.h": "430996921160d5e59b5d7d5f51abed5ac401eb0771de0d0b37d9a492b36ec170",
+    "shaders/generated/ggml_d3d12_mmv_q6_k_c4_t64_dxil.h": "08d3705401f542218dc86ce849d741c977ed36a69c080bb5a82b84ecad4dbdf9",
+    "shaders/ggml_d3d12_mmv_q4_0_c4.hlsl": "b61f4b51a9cd1144697eba460ed3513f54f71372d598e74fbd02300478165108",
+    "shaders/ggml_d3d12_mmv_q4_k_c4.hlsl": "0cadec586e391edc9e0167993b57dfea8563efc592a9908430b310a362c56b64",
+    "shaders/ggml_d3d12_mmv_q6_k_c4.hlsl": "c603a2f1c4ef0309e72840abe49bb4a0f811b086384354390e8ada86c312c4d1",
+    "shaders/ggml_d3d12_multicolumn.hlsli": "197f1f04ba1a49e2099ac6018447ed3bc116cd1717033bca3feba0521c236958"
+  },
+  "shipping_blob_sha256": {
+    "shaders/generated/ggml_d3d12_mmv_q4_0_t128_dxil.h": "36528b923e54ba32855ff14febf9cdfae04c79e9af22f50e4ae2f8b210c15dfa",
+    "shaders/generated/ggml_d3d12_mmv_q4_0_t64_dxil.h": "3c8de549e8c941e6a24262f4ae2ed3082e8ca7f1bc32f6e76c7f5f497853b03a",
+    "shaders/generated/ggml_d3d12_mmv_q4_k_t128_dxil.h": "ff6ed9682bd2b7e623200abca60997837fd675c7af9bc29d0f7a70c5e62772ea",
+    "shaders/generated/ggml_d3d12_mmv_q4_k_t64_dxil.h": "fecdb4b4a0996e47a2c9c00fe2c51e04880e15108fb56a8956dc6ecd1259c791",
+    "shaders/generated/ggml_d3d12_mmv_q6_k_t128_dxil.h": "a33e88afa862b420a4d9d574ba14cc1ad515c394fa8208484e9d99ed8a9d1b5e",
+    "shaders/generated/ggml_d3d12_mmv_q6_k_t64_dxil.h": "35e6a921c1e21c8b0cbcb6ae47e8682287f37187de321eaea332cec66fbe22fd"
+  },
+  "host_validation": {
+    "ctest": "pass",
+    "focused_cases": 10,
+    "focused_assertions": 150,
+    "linux_cli_help": "pass",
+    "windows_syntax": "not run; xwin splat unavailable",
+    "console": "not run; no numerical or performance acceptance"
+  }
+}

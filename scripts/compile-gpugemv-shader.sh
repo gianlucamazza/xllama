@@ -11,7 +11,8 @@
 #   shaders/ggml_d3d12_get_rows_q6_k.hlsl → ggml_d3d12_get_rows_q6_k_dxil.h (cs_6_4)
 #
 # Usage: compile-gpugemv-shader.sh [naive|wave32|rows|dot4|mmv_q4_0|mmv_q4_k|mmv_q6_k|get_rows_q6_k ...]
-#        (default: all)
+#        (default: shipping targets; *_c4 experimental targets are explicit only)
+# Experimental targets: mmv_q4_0_c4|mmv_q4_k_c4|mmv_q6_k_c4.
 # A different dxc release emits different bytes: regenerate only the targets
 # you changed so measured blobs stay the ones the CSVs were recorded with.
 set -euo pipefail
@@ -97,6 +98,17 @@ compile_target() {
 			compile_one "$ROOT/shaders/ggml_d3d12_mmv_${t}.hlsl" \
 				"$ROOT/shaders/generated/ggml_d3d12_mmv_${t}_t${w}_dxil.h" \
 				"shaders/ggml_d3d12_mmv_${t}.hlsl -D NUM_THREADS=${w}" "$sym" cs_6_4 \
+				-D "NUM_THREADS=${w}"
+		done
+		;;
+	mmv_q4_0_c4 | mmv_q4_k_c4 | mmv_q6_k_c4)
+		local t="${1#mmv_}" w sym
+		t="${t%_c4}"
+		for w in 64 128; do
+			sym="kGgmlD3d12Mmv$(echo "$t" | sed -e 's/_\(.\)/\U\1/g' -e 's/^./\U&/')C4T${w}Dxil"
+			compile_one "$ROOT/shaders/ggml_d3d12_mmv_${t}_c4.hlsl" \
+				"$ROOT/shaders/generated/ggml_d3d12_mmv_${t}_c4_t${w}_dxil.h" \
+				"shaders/ggml_d3d12_mmv_${t}_c4.hlsl -D NUM_THREADS=${w}" "$sym" cs_6_4 \
 				-D "NUM_THREADS=${w}"
 		done
 		;;
