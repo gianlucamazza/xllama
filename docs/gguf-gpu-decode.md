@@ -557,7 +557,8 @@ reserve. With FA, prefill gains 22–29% and peak RAM over the CPU halves.
 
 ## Preregistered #313 experiment — 2026-11-07
 
-Status: **planned, no new GPU measurements**. This extends the existing Gate A
+Status: **preregistered; the first attempt stopped on control logit parity**
+(see the dated preflight below). This extends the existing Gate A
 and product gates above; it does not revise their historical verdicts. Program:
 [#395](https://github.com/gianlucamazza/xllama/issues/395).
 
@@ -615,3 +616,16 @@ results and limitations through the existing raw evidence → selectors → clai
 registry flow. Do not modify frozen receipts or promote code without actual
 hardware evidence. No optimization or performance result is claimed by this
 preregistration.
+
+### 2026-11-08 preflight — control logit failure
+
+The preregistered candidate attempt is stopped before H9/performance acceptance.
+The exact CI package passes the UI-process numerical selftest in both arms,
+including enabled-arm tails. LFM's two GPU logit dumps are byte-identical and
+both satisfy the frozen CPU comparator. Coder-3B's CPU versus original GPU
+kernel comparison fails the maximum-error and NMSE criteria. This is a control
+failure; the four-column Coder comparison was not run and its cause is unproven.
+No limits or input selection were changed to obtain a pass. The implementation
+remains draft/opt-in, with no default promotion or speedup claim. Raw dumps,
+comparisons and package/device binding are in the
+[dated execution ledger](audit/excellence/execution-2026-11-07.md#gpu-preflight--stopped-on-control-parity).

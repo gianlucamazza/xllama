@@ -1,0 +1,51 @@
+15:00:09.994 [xllama] App::App()
+15:00:10.093 [xllama] App::App() complete
+15:00:10.189 [xllama] App::OnLaunched
+15:00:10.189 [xllama] building MainPageController
+15:00:10.203 [xllama] MainPageController built
+[xllama] EnsureModel: begin 'lfm25-350m'
+15:00:10.206 [xllama] MainPageController init done
+15:00:10.207 [xllama] Window.Content set
+15:00:10.207 [xllama] Window activated
+15:00:10.209 [caprec] AppRecordingManager present=0 GraphicsCaptureSession present=1
+15:00:10.209 [mic] AudioGraph present=1 MediaCapture present=1 (presence is not permission — see uwp-constraints.md)
+[gcprobe] session_present=1 item_present=1 viable=0 encoder=0 presence_error=0 duration_us=60
+15:00:10.210 [xllama] api.flag detected -> starting LAN HTTP endpoint
+[xllama] EnsureModel: 'lfm25-350m' already provisioned
+[xllama] api: listening on 0.0.0.0:11434 (OpenAI-compat /v1/chat/completions)
+[autopilot] flag detected
+[llama] llama_model_loader: mmap is not supported on this platform
+[llama] load_tensors:          CPU model buffer size =    52.75 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =   154.12 MiB
+[autopilot] action 0 wait_idle start
+[xllama] ws after model load: 317 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[autopilot] action 0 wait_idle end
+[autopilot] action 1 dump_logits start
+[autopilot] dump_logits: ui-process start
+[xllama] logits model: lfm25-1.2b-instruct
+[xllama] logits prompt: The following is an extended technical overview of heterogeneous computing on ga
+[llama] llama_model_loader: mmap is not supported on this platform
+[llama] load_tensors:          CPU model buffer size =   105.50 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =   555.75 MiB
+[xllama] ws after model load: 774 MB
+[xllama] model loaded
+[xllama] prefill batch override: n_batch=2048 n_ubatch=512
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =    24.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.16 MiB
+[llama] sched_reserve:        CPU compute buffer size =   150.02 MiB
+[xllama] ws after context: 800 MB
+[xllama] prompt tokens: 959
+[xllama] prefill starting: 959 tokens
+[xllama] prefill done: 959 tokens in 8839 ms
+[xllama] logits dumped to Q:\Users\UserMgr0\AppData\Local\Packages\GianlucaMazza.xllama_pj67f1fcj4n14\LocalState\logits.bin
+[xllama] done: load=10067ms prompt=108.5 tok/s decode=35.5 tok/s peak=862MB drafted=0 spec_accept=0
+[llama] ~llama_context:        CPU compute buffer size is 150.0196 MiB, matches expectation of 150.0196 MiB
+[xllama] logits: requested_gpu_layers=0 resolved_gpu_layers=0
+[xllama] logits dump OK
+[autopilot] dump_logits: ui-process complete
+[autopilot] action 1 dump_logits end
+[autopilot] action 2 quit start
+[autopilot] action 2 quit
+[autopilot] driver exit: ok
