@@ -301,3 +301,9 @@ The [current GitHub alert receipt](execution-2026-11-08/diffusion-alert-state.js
 independently reports the two diffusion advisories as `fixed`, with no dismissal.
 The isolated rescan and exact CPU-wheel scope limits above still apply; alert
 state alone does not replace dependency or runtime qualification.
+
+The [GPU campaign protocol](execution-2026-11-08/prefill-campaign-protocol.json)
+and all six hashed prompt files are frozen before any optimized-arm device
+result. Exact package/device binding is required before execution. The protocol
+keeps the existing numerical/performance margins and explicitly limits any
+uninstrumented result to engineering evidence. The optimized gates are pending.
