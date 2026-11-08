@@ -1,0 +1,18 @@
+13:53:50.814 [xllama] App::App()
+13:53:50.937 [xllama] App::App() complete
+[xllama] EnsureModel: begin 'lfm25-350m'
+[xllama] EnsureModel: 'lfm25-350m' already provisioned
+[autopilot] flag detected
+[autopilot] action 0 wait_idle start
+[xllama] ws after model load: 315 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[autopilot] action 0 wait_idle end
+[autopilot] action 1 generate_image start
+[xllama] diffuse: model='sd-turbo-fp16' steps=1 seed=42 prompt='a red sports car on a mountain road at sunset'
+[xllama] diffuse: unet input fp16, hidden_dim 1024, ts rank 0, te+unet load 5931 ms
+[xllama] diffuse: te 1107 ms | unet 2967 ms (1 step, 2967 ms/step) | vae 1628 ms | total 5702 ms | process_peak_ws_mb=2738
+[xllama] diffuse: wrote diffuse-out.png (512x512)
+[autopilot] action 1 generate_image end
+[autopilot] action 2 quit start
+[autopilot] action 2 quit
+[autopilot] driver exit: ok

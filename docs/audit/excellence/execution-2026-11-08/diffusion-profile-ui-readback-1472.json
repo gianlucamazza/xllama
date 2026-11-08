@@ -1,0 +1,21 @@
+{
+  "package": "GianlucaMazza.xllama_1.7.0.1472_x64__pj67f1fcj4n14",
+  "scope": "stopped-process Device Portal byte readback of the first-party dynamic-annotation profile actually exercised on Series S",
+  "files": {
+    "text_encoder": {
+      "bytes": 680942883,
+      "sha256": "3cad8bd76b4b3b90e2bee1c641ef608b795cb7887587d0c29d33acb4c4b66bde",
+      "matches_exercised_profile": true
+    },
+    "unet": {
+      "bytes": 1732143604,
+      "sha256": "432c43acabb74eae4ad2712efc887243031e1d23be1fe4b98c138b5e6824cca5",
+      "matches_exercised_profile": true
+    },
+    "vae_decoder": {
+      "bytes": 99041871,
+      "sha256": "3bb79ec1985c0c351e73ee06d56866d2f2a4359ce165c1ccd3bb563aae5c6425",
+      "matches_exercised_profile": true
+    }
+  }
+}

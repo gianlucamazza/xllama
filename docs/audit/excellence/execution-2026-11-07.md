@@ -263,3 +263,16 @@ Its original-path Series S selftest passes; optimized-arm, UI-process numeric,
 logit/H9 and paired performance gates remain pending. Dedicated deterministic
 bench and UI-process diagnostic controls are being checked before the campaign.
 No new throughput or release claim follows from compilation or the control run.
+
+The continuation now also includes fresh
+[UI-process full-VAE acceptance](execution-2026-11-08/diffusion-full-profile-ui-1472.json)
+and the [TAESD gate with true process-peak evidence](execution-2026-11-08/diffusion-taesd-profile-ui-1472-binding.json)
+on the same identified package and first-party profile. Post-gate full-VAE
+restoration and all three graph hashes are
+[verified by readback](execution-2026-11-08/diffusion-profile-ui-readback-1472.json).
+The final default profile also passes the
+[frozen component comparison](execution-2026-11-08/diffusion-qualified-profile-components.json);
+its unchecked image/pooler diagnostics remain explicitly unchecked. These
+single acceptance trials do not add a throughput headline. #263 closure awaits
+integration of the qualification receipts; final programme/package and physical
+publication gates remain separate.

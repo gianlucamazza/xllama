@@ -187,5 +187,23 @@
     "exact_package": "1.7.0.1453",
     "live_gate": "PASS",
     "required_ci": "all four passed"
+  },
+  "latest_continuation": {
+    "source": "52213ba7ed0fd3b9f8d24b2acde5948a4ac4b0c6 plus dated local evidence",
+    "merged": [
+      "#408",
+      "#409",
+      "#410",
+      "#411",
+      "#381",
+      "#412",
+      "#413"
+    ],
+    "closed_training": "#405",
+    "first_party_diffusion": "host 35 tests zero skips; exact image equivalence, fresh full-VAE/TAESD UI and true peak pass on identified package 1472; evidence integration pending",
+    "GPU": "candidate #414 disabled by default; original-path numeric control passes; optimized, UI/logit/H9 and paired campaign pending",
+    "hardware": "Series S observed separately from declared benchmark identity; Series X excluded by user",
+    "user_state": "original settings/model selector restored for qualification; original diffusion weights still require restoration from verified private journal; final cleanup pending",
+    "physical_publication_measurements": "external wattmeter/ambient/thermal evidence unavailable; no power or headline throughput claim"
   }
 }
