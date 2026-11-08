@@ -50,6 +50,14 @@ graph before writing it:
 
 `convert_fp16.py` turns every float input to fp16 (including `timestep`);
 `uwp/diffuse.cpp` and `validate_pipeline.py` read the declared types and ranks.
+Both runners specialize the named dynamic dimensions to their actual fixed
+inputs (one prompt, 77 tokens, 64×64 latent) before creating sessions. This
+allows DirectML to partition statically shaped operations and avoids the
+dynamic `Reshape(allowzero=1, -1)` failure reported in
+[ORT #33720](https://github.com/microsoft/onnxruntime/issues/33720). Exported
+graphs retain their dynamic contract and original Reshape semantics. A host
+CPU pass does not establish DirectML compatibility; the console gate remains
+required after a graph or runtime change.
 Components whose weights reach 2 GB are written with one `model.onnx.data`
 file next to `model.onnx` (decided from the initializer sizes, not by
 serializing the graph). For SD-Turbo that is the fp32 UNet (~3.46 GB); the text

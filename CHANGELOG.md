@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Diffusion:** specialize the console's fixed input dimensions before
+  DirectML session creation so dynamic first-party exports can be statically
+  partitioned; mirror the configuration in the host pipeline validator.
+
 - **Host training:** the CPU recipe uses an isolated Python 3.12 environment
   synchronized from a hash-locked dependency graph. System-package inheritance
   and an unpinned Torch fallback are rejected. Operator setup and qualification

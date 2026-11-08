@@ -46,6 +46,13 @@ def sess(comp, root=None):
     # so this validates the exact configuration the console runs.
     so = ort.SessionOptions()
     so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_EXTENDED
+    # Match the console's fixed-input specialization of the dynamic export.
+    for name, value in {
+        "batch_size": 1, "sequence_length": 77,
+        "height": LATENT_HW, "width": LATENT_HW,
+        "latent_height": LATENT_HW, "latent_width": LATENT_HW,
+    }.items():
+        so.add_free_dimension_override_by_name(name, value)
     return ort.InferenceSession(
         f"{root or model_dir}/{comp}/model.onnx",
         sess_options=so,
