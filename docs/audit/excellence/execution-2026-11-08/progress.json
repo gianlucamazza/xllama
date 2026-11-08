@@ -97,5 +97,16 @@
     "pr": 404,
     "commit": "627b9a1",
     "status": "refreshed with main; CI pending; original package revision 1434 cannot replace installed 1435 in-place"
+  },
+  "diffusion_qualification": {
+    "environment": "isolated Python 3.12; requirements installed on CPU; 50 compatible packages",
+    "revision": "b261bac6fd2cf515557d5d0707481eafa0485ec2",
+    "full_export": "running; text encoder contract and eager/ORT checks passed; UNet export started",
+    "reference": "published legacy fp16 assets downloading; historical fp32 reference still absent; fp16 comparison cannot discharge historical-fp32 requirement"
+  },
+  "ci_transient_failures": {
+    "pr": 407,
+    "linux": "HTTP 504 downloading ShellCheck before tests; failed job rerun",
+    "windows": "HTTP 504 downloading pinned vendor DLL before compile; failed job rerun; llamacpp variant passed"
   }
 }
