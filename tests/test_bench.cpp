@@ -3,6 +3,7 @@
 
 #include <doctest/doctest.h>
 
+#include "xllama/benchmark_identity.h"
 #include "xllama/inference.h"
 #include "xllama/path_utils.h"
 #include "xllama/platform.h"
@@ -271,4 +272,12 @@ TEST_CASE("Bench CSV writer: zero-duration result") {
     std::remove(csv_path.c_str());
     std::string done_path = xllama::resolve_local_path("bench-result.csv.done");
     std::remove(done_path.c_str());
+}
+
+TEST_CASE("Benchmark hardware identity: declaration never becomes observed detection") {
+    CHECK(xllama::declared_benchmark_host("xbox-series-s") == "xbox-series-s-declared");
+    CHECK(xllama::declared_benchmark_host("xbox-series-x") == "xbox-series-x-declared");
+    CHECK(xllama::declared_benchmark_host("") == "xbox-unknown");
+    CHECK(xllama::declared_benchmark_host("series-x") == "xbox-unknown");
+    CHECK(xllama::declared_benchmark_host("xbox-series-x,forged") == "xbox-unknown");
 }

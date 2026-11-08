@@ -770,7 +770,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_api_policy.cpp`            | `api_policy.h` numeric admission (F01)                                                      |
 | `test_api_pull.cpp`              | `api_pull_policy.h`, `withdrawn_models.h`                                                   |
 | `test_autopilot.cpp`             | `autopilot.h`                                                                               |
-| `test_bench.cpp`                 | bench CSV (`inference.h`), `platform.h`                                                     |
+| `test_bench.cpp`                 | bench CSV (`inference.h`), `platform.h`, `benchmark_identity.h`                             |
 | `test_cancel_policy.cpp`         | `cancel_policy.h`                                                                           |
 | `test_capture_probe.cpp`         | `capture_probe.h`                                                                           |
 | `test_chat_history.cpp`          | `uwp/chat-history.h`                                                                        |

@@ -433,12 +433,13 @@ void run_diffuse() {
         }
 
         const double total_ms = te_ms + unet_ms + vae_ms;
+        const size_t process_peak_ws_mb = peak_working_set_mb();
         char lb[256];
         snprintf(lb, sizeof(lb),
                  "[xllama] diffuse: te %.0f ms | unet %.0f ms (%zu step, %.0f ms/step) | vae "
-                 "%.0f ms | total %.0f ms\n",
+                 "%.0f ms | total %.0f ms | process_peak_ws_mb=%zu\n",
                  te_ms, unet_ms, sched.timesteps().size(),
-                 unet_ms / (double)sched.timesteps().size(), vae_ms, total_ms);
+                 unet_ms / (double)sched.timesteps().size(), vae_ms, total_ms, process_peak_ws_mb);
         log_output(lb);
 
         // Result CSV (+ .done marker), fetchable via Device Portal.
@@ -448,11 +449,11 @@ void run_diffuse() {
             char date_buf[32];
             strftime(date_buf, sizeof(date_buf), "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
             fputs("model,steps,seed,te_ms,unet_ms,unet_ms_per_step,vae_ms,total_ms,resolution,"
-                  "date\n",
+                  "date,process_peak_ws_mb\n",
                   fp);
-            fprintf(fp, "%s,%d,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%dx%d,%s\n", dir.c_str(), steps, seed,
-                    te_ms, unet_ms, unet_ms / (double)sched.timesteps().size(), vae_ms, total_ms,
-                    kImageHW, kImageHW, date_buf);
+            fprintf(fp, "%s,%d,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%dx%d,%s,%zu\n", dir.c_str(), steps,
+                    seed, te_ms, unet_ms, unet_ms / (double)sched.timesteps().size(), vae_ms,
+                    total_ms, kImageHW, kImageHW, date_buf, process_peak_ws_mb);
             fclose(fp);
         }
         if (pf) {

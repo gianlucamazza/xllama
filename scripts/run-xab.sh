@@ -11,6 +11,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PROFILE="series-s-devmode"
+HARDWARE="${XLLAMA_BENCH_HARDWARE:-}"
 MODELS="lfm25-230m,lfm25-350m,lfm25-1.2b-instruct"
 INCLUDE="text"
 OUT="${REPO_ROOT}/bench/results/xab-$(date -u +%F)"
@@ -20,6 +21,7 @@ DRY_RUN=0
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
+	--hardware) HARDWARE="${2:?--hardware requires a value}"; shift 2 ;;
 	--profile) PROFILE="${2:?--profile requires a value}"; shift 2 ;;
 	--models) MODELS="${2:?--models requires a comma-separated value}"; shift 2 ;;
 	--include) INCLUDE="${2:?--include requires a comma-separated value}"; shift 2 ;;
@@ -32,10 +34,17 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-[[ "$PROFILE" == "series-s-devmode" ]] || {
-	echo "unsupported profile: $PROFILE" >&2
+case "$PROFILE" in
+series-s-devmode) PROFILE_HARDWARE="xbox-series-s" ;;
+series-x-devmode) PROFILE_HARDWARE="xbox-series-x" ;;
+*) echo "unsupported profile: $PROFILE" >&2; exit 2 ;;
+esac
+HARDWARE="${HARDWARE:-$PROFILE_HARDWARE}"
+[[ "$HARDWARE" == "$PROFILE_HARDWARE" ]] || { echo "hardware does not match profile" >&2; exit 2; }
+if [[ "$PROFILE" == "series-x-devmode" && "$INCLUDE" != "text" ]]; then
+	echo "Series X profile currently supports text only; other workload identity paths are not validated" >&2
 	exit 2
-}
+fi
 [[ -f "$PROMPT" ]] || { echo "prompt not found: $PROMPT" >&2; exit 1; }
 [[ "$RUNS" =~ ^[1-9][0-9]*$ ]] || { echo "--runs must be positive" >&2; exit 2; }
 IFS=',' read -r -a WORKLOAD_LIST <<<"$INCLUDE"
@@ -52,7 +61,7 @@ done
 run_text() {
 	local model="$1"
 	local result="${OUT}/${model}.csv"
-	local cmd=("${SCRIPT_DIR}/bench-xbox-ort.sh" "$model" --runs "$RUNS" --threads 6
+	local cmd=("${SCRIPT_DIR}/bench-xbox-ort.sh" "$model" --hardware "$HARDWARE" --runs "$RUNS" --threads 6
 		--prompt "$PROMPT" --out "$result")
 	printf 'XAB %s\n' "${cmd[*]}"
 	if ((DRY_RUN == 0)); then
@@ -93,15 +102,18 @@ if [[ ",$INCLUDE," == *,diffusion,* ]]; then
 	if ((DRY_RUN == 0)); then "${cmd[@]}" >"$log" 2>&1; fi
 fi
 
-python3 - "$OUT" "$PROFILE" "$PROMPT" "$RUNS" "$INCLUDE" "${MODEL_LIST[@]}" <<'PY'
+python3 - "$OUT" "$PROFILE" "$PROMPT" "$RUNS" "$INCLUDE" "$HARDWARE" "${MODEL_LIST[@]}" <<'PY'
 import json
 import sys
 from pathlib import Path
 
-out, profile, prompt, runs, include, *models = sys.argv[1:]
+out, profile, prompt, runs, include, hardware, *models = sys.argv[1:]
 payload = {
     "schema_version": 1,
     "profile": profile,
+    "hardware": hardware,
+    "hardware_identity_source": "operator-declared",
+    "hardware_observed": False,
     "workloads": include.split(","),
     "models": models,
     "prompt": str(Path(prompt).as_posix()),
