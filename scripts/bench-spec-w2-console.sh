@@ -98,6 +98,7 @@ run_regime() {
 	rm -f "$out_csv"
 	local args=(
 		"$MODEL"
+		--hardware "${XLLAMA_BENCH_HARDWARE:-xbox-series-s}"
 		--threads "$THREADS"
 		--n-predict "$N_PREDICT"
 		--runs "$N_RUNS"
