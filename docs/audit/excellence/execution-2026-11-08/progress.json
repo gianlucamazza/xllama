@@ -1,0 +1,79 @@
+{
+  "status": "in_progress",
+  "source_commit": "24a622cdd19931270555ba9fc128b648f9998414",
+  "package": "GianlucaMazza.xllama_1.7.0.1405_x64__pj67f1fcj4n14",
+  "hardware": "operator-declared Series S",
+  "backup": {
+    "files": 113,
+    "private_location": "/tmp/xllama-live-private/backup",
+    "excludes": [
+      "models",
+      "kv"
+    ]
+  },
+  "host_python": {
+    "tests": 136,
+    "skipped": 13,
+    "result": "pass"
+  },
+  "live_baseline_passed": [
+    "routing",
+    "settings",
+    "gguf"
+  ],
+  "live_suite": "Training suite with XLLAMA_TRAIN_FULL=1 running; device-train and negative controls still pending",
+  "vendor": "NuGet poll retains both patched overlays",
+  "remaining": [
+    "complete console baseline",
+    "candidate package deployment and tests",
+    "API and training suites",
+    "full host training qualification",
+    "full diffusion parity and peak-memory qualification",
+    "GPU experiment",
+    "final release acceptance"
+  ],
+  "baseline_live_suite": {
+    "package": "1.7.0.1405",
+    "result": "fail",
+    "passed": [
+      "routing",
+      "settings",
+      "gguf",
+      "longchat",
+      "kvsnap",
+      "coderpaste",
+      "thinkcut",
+      "thinkdone",
+      "genroom"
+    ],
+    "failed": {
+      "taesd": "generate_image busy; baseline harness printed historical VAE timing; no valid image acceptance"
+    }
+  },
+  "host_build": "linux-test build and ctest passed; CLI help and all three training jobs validated",
+  "taesd_candidate": {
+    "commit": "361b69fa89578238ccf91e1868e31db1f35078c1",
+    "ci_run": 42375573155,
+    "package": "1.7.0.1435",
+    "package_sha256": "3b77ac3e2175d173c24359729bd53d8fd531bf3ae830f5a7259af6ba8c331c11",
+    "host_regressions": 28,
+    "live_gate": "PASS",
+    "vae_ms": 606.9,
+    "wall_s": 25,
+    "max_sampled_private_ws_mb": 2005,
+    "true_peak_proven": false
+  },
+  "host_training": "CPU isolated 58-package graph installed; uv pip check passes; real first-party 120-step trial started with preregistered manifest",
+  "api_candidate": {
+    "package": "1.7.0.1435",
+    "result": "ALL PASS",
+    "suite": "validate-api.sh all",
+    "scope": "live HTTP assertions; no inference that full training or diffusion qualification passed"
+  },
+  "training_security_scan": {
+    "distributions": 75,
+    "known_findings": 0,
+    "skip": "torch 2.13.0+cpu not found on PyPI; binary audit coverage unresolved",
+    "includes_audit_tool_dependencies": true
+  }
+}

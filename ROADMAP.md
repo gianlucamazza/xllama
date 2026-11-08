@@ -53,7 +53,7 @@ performance belongs in `docs/benchmarks.md`.
   re-runnable (`demo/demo-script.json` + `scripts/capture-demo-video.sh`), and
   the cut can be regenerated with `scripts/edit-demo-video.sh`.
 
-### Next (after v1.5.6.0)
+### Current follow-up priorities
 
 1. **Vendor pin drops** (#84/#85/#86) — blocked until NuGet moves
    (`scripts/check-vendor-nuget-status.sh`, poll 2026-08-27: still required).
@@ -676,8 +676,9 @@ under `bench/results/` when measured, and documentation in the owning SSOT.
 
 - [ ] [#263](https://github.com/gianlucamazza/xllama/issues/263): migrate the host
       diffusion export stack to supported patched dependencies (ADR 0003 accepted
-      2026-10-31; first-party dynamo export and host parity in review); validate Xbox
-      diffusion with peak-memory evidence before closing security alerts.
+      2026-10-31; first-party dynamo export implemented in #378). Remaining gates
+      are complete export/legacy-fp32 parity, Xbox diffusion with true peak-memory
+      evidence, and security rescan; partial VAE host evidence does not close this task.
 - [x] [#264](https://github.com/gianlucamazza/xllama/issues/264): ADR 0002 accepted;
       ruleset `24213666` active and verified blocking (2026-09-30).
 - [x] [#243](https://github.com/gianlucamazza/xllama/issues/243): `grounded_qa` scorer
