@@ -50,6 +50,37 @@ graph before writing it:
 
 `convert_fp16.py` turns every float input to fp16 (including `timestep`);
 `uwp/diffuse.cpp` and `validate_pipeline.py` read the declared types and ranks.
+The dynamic export remains the host parity reference. For deployment, create a
+separate fixed console profile after conversion:
+
+```bash
+python diffusion/prepare_console_profile.py sd-turbo-fp16 sd-turbo-console
+python diffusion/validate_pipeline.py sd-turbo-console console.png
+```
+
+The profile is an experimental qualification tool, not a catalogue promotion.
+The fully static variant passed host component parity but exhausted Series S
+UNet resources; session overrides alone also failed. Retain those negative
+receipts. The default retains the original dynamic input annotations and shape
+expressions while normalizing only proven nonzero Reshape targets, to limit
+DML fusion (`--dynamic-annotations` is an explicit equivalent).
+`--static-inputs` retains the failed fully static variant for diagnostics. Its sidecar still restricts supported inputs to the fixed console
+profile: this option does not establish general dynamic equivalence. Neither
+variant is accepted without fresh component/image and device gates.
+
+The destination must not already exist. The profile sidecar records the native
+runner's supported inputs (one prompt, 77 tokens, 64×64 latent). It replaces each
+`Reshape(allowzero=1)` target only after ORT constant folding proves that target
+is independent of activation data at those fixed shapes. Targets containing
+zero, invalid inferred dimensions, or unresolved values fail closed. Replacing
+`allowzero=1` with `0` is equivalent only for targets without literal zeros;
+this avoids the DirectML failure described in
+[ORT #33720](https://github.com/microsoft/onnxruntime/issues/33720). Original
+weights, dynamic reference graphs, I/O names, ranks and element types are
+preserved. The deployment profile intentionally supports only the native
+runner's fixed inputs. Component/image parity and the real console gate remain
+required; session dimension overrides alone failed in the Series S trial.
+
 Components whose weights reach 2 GB are written with one `model.onnx.data`
 file next to `model.onnx` (decided from the initializer sizes, not by
 serializing the graph). For SD-Turbo that is the fp32 UNet (~3.46 GB); the text
@@ -67,6 +98,12 @@ runtime and which would publish the exporting user's directories.
 force the external-data layout on a tiny model). One real fp32 UNet export,
 its fp16 conversion and their peak memory are recorded in
 `receipts/sd-turbo-unet-export_receipt.json`.
+
+The native tokenizer also requires `tokenizer/vocab.json` and
+`tokenizer/merges.txt`. The exporter copies these exact files from the same
+checkpoint revision, alongside `tokenizer.json` for host validation. A unified
+Transformers tokenizer save alone does not supply the native console files;
+missing checkpoint sidecars fail the export before any tensor conversion.
 
 `--verify` runs each graph on ORT CPU (`ORT_ENABLE_EXTENDED`) against eager
 torch at the console shapes and at a second, smaller batch-2 shape.
