@@ -89,15 +89,6 @@ Ort::Session make_session(Ort::Env& env, const std::string& path) {
     so.SetExecutionMode(ORT_SEQUENTIAL);
     so.DisableMemPattern();
     so.SetGraphOptimizationLevel(ORT_ENABLE_EXTENDED);
-    // This runner always feeds one 77-token prompt and a 64x64 latent. Resolve
-    // the first-party export's symbolic axes before DML partitions the graph.
-    // Otherwise dynamic Reshape(allowzero=1, -1) hits ORT's DML shape-inference
-    // bug (microsoft/onnxruntime#33720). Keep the exported graph dynamic for host
-    // validation; no Reshape attributes or zero-dimension semantics are changed.
-    Ort::ThrowOnError(Ort::GetApi().AddFreeDimensionOverrideByName(so, "batch_size", 1));
-    Ort::ThrowOnError(Ort::GetApi().AddFreeDimensionOverrideByName(so, "sequence_length", kSeq));
-    for (const auto* name : {"height", "width", "latent_height", "latent_width"})
-        Ort::ThrowOnError(Ort::GetApi().AddFreeDimensionOverrideByName(so, name, kLatentHW));
     Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_DML(so, /*device_id=*/0));
     return Ort::Session(env, utf8_to_wstring(path).c_str(), so);
 }

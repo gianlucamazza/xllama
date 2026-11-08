@@ -50,14 +50,36 @@ graph before writing it:
 
 `convert_fp16.py` turns every float input to fp16 (including `timestep`);
 `uwp/diffuse.cpp` and `validate_pipeline.py` read the declared types and ranks.
-Both runners specialize the named dynamic dimensions to their actual fixed
-inputs (one prompt, 77 tokens, 64×64 latent) before creating sessions. This
-allows DirectML to partition statically shaped operations and avoids the
-dynamic `Reshape(allowzero=1, -1)` failure reported in
-[ORT #33720](https://github.com/microsoft/onnxruntime/issues/33720). Exported
-graphs retain their dynamic contract and original Reshape semantics. A host
-CPU pass does not establish DirectML compatibility; the console gate remains
-required after a graph or runtime change.
+The dynamic export remains the host parity reference. For deployment, create a
+separate fixed console profile after conversion:
+
+```bash
+python diffusion/prepare_console_profile.py sd-turbo-fp16 sd-turbo-console
+python diffusion/validate_pipeline.py sd-turbo-console console.png
+```
+
+The profile is an experimental qualification tool, not a catalogue promotion.
+The fully static variant passed host component parity but exhausted Series S
+UNet resources; session overrides alone also failed. Retain those negative
+receipts. `--dynamic-annotations` keeps the original input annotations and shape
+expressions while normalizing only proven nonzero Reshape targets, to limit
+DML fusion. Its sidecar still restricts supported inputs to the fixed console
+profile: this option does not establish general dynamic equivalence. Neither
+variant is accepted without fresh component/image and device gates.
+
+The destination must not already exist. This profile declares the native
+runner's actual inputs (one prompt, 77 tokens, 64×64 latent). It replaces each
+`Reshape(allowzero=1)` target only after ORT constant folding proves that target
+is independent of activation data at those fixed shapes. Targets containing
+zero, invalid inferred dimensions, or unresolved values fail closed. Replacing
+`allowzero=1` with `0` is equivalent only for targets without literal zeros;
+this avoids the DirectML failure described in
+[ORT #33720](https://github.com/microsoft/onnxruntime/issues/33720). Original
+weights, dynamic reference graphs, I/O names, ranks and element types are
+preserved. The deployment profile intentionally supports only the native
+runner's fixed inputs. Component/image parity and the real console gate remain
+required; session dimension overrides alone failed in the Series S trial.
+
 Components whose weights reach 2 GB are written with one `model.onnx.data`
 file next to `model.onnx` (decided from the initializer sizes, not by
 serializing the graph). For SD-Turbo that is the fp32 UNet (~3.46 GB); the text

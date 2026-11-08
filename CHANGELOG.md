@@ -7,9 +7,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-- **Diffusion:** specialize the console's fixed input dimensions before
-  DirectML session creation so dynamic first-party exports can be statically
-  partitioned; mirror the configuration in the host pipeline validator.
+- **Diffusion:** add a separate fixed deployment profile for first-party
+  exports. Reshape targets must be proven constant and free of literal zeros
+  before normalization for DirectML; retain the dynamic export for host parity.
   ||||||| 699bdf9
 - **Diffusion export:** preserve the checkpoint's native CLIP vocabulary and
   merges alongside the unified tokenizer metadata, so first-party exports
