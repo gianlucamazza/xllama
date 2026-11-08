@@ -623,6 +623,25 @@ class ConsoleProfileTest(unittest.TestCase):
             self.assertTrue(report["dynamic_annotations"])
             self.assertEqual(report["fixed_inputs"], {"x": [1, 2]})
 
+    def test_cli_default_publishes_dynamic_annotations_as_one_bundle(self):
+        import onnx
+        import prepare_console_profile as profile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); source = root / "input"; destination = root / "output"
+            fixture = self.fixture(root)
+            (source / "component").mkdir(parents=True)
+            fixture.rename(source / "component/model.onnx")
+            (source / "tokenizer").mkdir(); (source / "scheduler").mkdir()
+            with mock.patch.object(profile, "SHAPES", {"component": {"x": [1, 2]}}), \
+                    mock.patch.object(sys, "argv", ["profile", str(source), str(destination)]):
+                profile.main()
+            report = json.loads((destination / "console-profile.json").read_text())
+            self.assertTrue(report["dynamic_annotations"])
+            self.assertEqual(len(report["tool_sha256"]), 64)
+            model = onnx.load(destination / "component/model.onnx")
+            self.assertEqual(model.graph.input[0].type.tensor_type.shape.dim[0].dim_param, "batch")
+            self.assertFalse(list(root.glob(".console-bundle-*")))
+
     def test_activation_dependent_target_fails_without_publishing(self):
         from prepare_console_profile import specialize
         with tempfile.TemporaryDirectory() as tmp:

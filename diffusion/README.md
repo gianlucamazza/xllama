@@ -61,14 +61,15 @@ python diffusion/validate_pipeline.py sd-turbo-console console.png
 The profile is an experimental qualification tool, not a catalogue promotion.
 The fully static variant passed host component parity but exhausted Series S
 UNet resources; session overrides alone also failed. Retain those negative
-receipts. `--dynamic-annotations` keeps the original input annotations and shape
+receipts. The default retains the original dynamic input annotations and shape
 expressions while normalizing only proven nonzero Reshape targets, to limit
-DML fusion. Its sidecar still restricts supported inputs to the fixed console
+DML fusion (`--dynamic-annotations` is an explicit equivalent).
+`--static-inputs` retains the failed fully static variant for diagnostics. Its sidecar still restricts supported inputs to the fixed console
 profile: this option does not establish general dynamic equivalence. Neither
 variant is accepted without fresh component/image and device gates.
 
-The destination must not already exist. This profile declares the native
-runner's actual inputs (one prompt, 77 tokens, 64×64 latent). It replaces each
+The destination must not already exist. The profile sidecar records the native
+runner's supported inputs (one prompt, 77 tokens, 64×64 latent). It replaces each
 `Reshape(allowzero=1)` target only after ORT constant folding proves that target
 is independent of activation data at those fixed shapes. Targets containing
 zero, invalid inferred dimensions, or unresolved values fail closed. Replacing

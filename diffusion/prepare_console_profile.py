@@ -3,9 +3,10 @@
 # SPDX-License-Identifier: MIT
 """Specialize a first-party fp16 export to the native runner's fixed inputs.
 
-Keep the dynamic export as the host reference. Only this separate deployment
-profile replaces Reshape shape expressions with their evaluated fixed values.
-Literal-zero targets fail closed: changing allowzero would change semantics.
+Keep the dynamic export as the host reference. This separate profile proves
+nonzero Reshape targets at the native fixed inputs before normalization. By
+default, retain dynamic annotations to limit DML fusion. The static diagnostic
+variant also replaces target expressions. Literal-zero targets fail closed.
 """
 import argparse
 import copy
@@ -145,8 +146,12 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("source", type=Path)
     ap.add_argument("destination", type=Path)
-    ap.add_argument("--dynamic-annotations", action="store_true",
-                    help="retain input/shape expressions to limit DML fusion; fixed profile inputs still required")
+    modes = ap.add_mutually_exclusive_group()
+    modes.add_argument("--dynamic-annotations", dest="dynamic_annotations", action="store_true",
+                       help="retain input/shape annotations to limit DML fusion (default)")
+    modes.add_argument("--static-inputs", dest="dynamic_annotations", action="store_false",
+                       help="diagnostic fully static variant; failed Series S UNet resource gate")
+    ap.set_defaults(dynamic_annotations=True)
     args = ap.parse_args()
     if args.source.resolve() == args.destination.resolve():
         ap.error("Use a separate destination for the fixed console profile")
@@ -155,7 +160,9 @@ def main():
     args.destination.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=args.destination.parent, prefix=".console-bundle-") as tmp:
         bundle = Path(tmp) / "bundle"
-        report = {"profile": "sd-turbo-512-batch1-seq77", "components": {}}
+        report = {"profile": "sd-turbo-512-batch1-seq77",
+                  "tool_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                  "dynamic_annotations": args.dynamic_annotations, "components": {}}
         for component, shapes in SHAPES.items():
             report["components"][component] = specialize(
                 args.source / component / "model.onnx", bundle / component / "model.onnx", shapes,
