@@ -28,6 +28,8 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake build-essential libcurl4-openssl-dev ccache \
@@ -35,10 +37,23 @@ jobs:
           # Pinned like the other two linters. apt on ubuntu-22.04 carries 0.8.0,
           # which does not report findings 0.11 does — so an image bump could turn
           # this red on files nobody touched, and a contributor's newer local
-          # shellcheck disagreed with CI. Pin both to the same version instead.
+          # local ShellCheck disagreed with CI. Pin both to the same version instead.
           SC_VER=v0.11.0
-          curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/${SC_VER}/shellcheck-${SC_VER}.linux.x86_64.tar.xz" \
-            | tar -xJf - -C /tmp
+          SC_WORKDIR=$(mktemp -d)
+          for attempt in 1 2 3; do
+            if gh release download "$SC_VER" --repo koalaman/shellcheck \
+              --pattern "shellcheck-${SC_VER}.linux.x86_64.tar.xz" \
+              --dir "$SC_WORKDIR" --clobber; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Could not download pinned ShellCheck"
+              exit 1
+            fi
+          done
+          tar -xJf "$SC_WORKDIR/shellcheck-${SC_VER}.linux.x86_64.tar.xz" -C /tmp
+          rm "$SC_WORKDIR/shellcheck-${SC_VER}.linux.x86_64.tar.xz"
+          rmdir "$SC_WORKDIR"
           sudo install -m0755 "/tmp/shellcheck-${SC_VER}/shellcheck" /usr/local/bin/shellcheck
           shellcheck --version | grep -E '^version:'
           # Pinned: an unpinned clang-format broke CI when 22.x changed rules
