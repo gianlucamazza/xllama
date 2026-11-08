@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "profile": "Linux x86_64 CPU / Python 3.12",
+  "runtime_graph_distributions": 58,
+  "qualified_lock_sha256": "73023bdf4e63decaaabb56db3eb641cac7f71198097bccf93c49c03fbb341d07",
+  "torch_wheel": {
+    "filename": "torch-2.13.0+cpu-cp312-cp312-manylinux_2_28_x86_64.whl",
+    "official_index": "https://download.pytorch.org/whl/cpu/torch/",
+    "url": "https://download-r2.pytorch.org/whl/cpu/torch-2.13.0%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl#sha256=4ca4a9394b0c771238a4f73590fdbbc4debad85ed0fa63d026ae1b085da7d6e2",
+    "sha256": "4ca4a9394b0c771238a4f73590fdbbc4debad85ed0fa63d026ae1b085da7d6e2",
+    "matches_qualified_hash_lock": true,
+    "installed_payload_records_verified": 12247,
+    "base_release": "2.13.0",
+    "scope": "official CPU wheel and installed payload identity; base-release advisories remain a separate query and exact-local-version scanner skip is retained"
+  },
+  "torch_build": {
+    "distribution_version": "2.13.0+cpu",
+    "base_release": "2.13.0",
+    "git_version": "cf30153c4c131c8164ee7798e5022d810682e2cb",
+    "cuda": null,
+    "debug": false,
+    "scope": "installed CPU build identity; base-release advisory query is separate from exact-local-version scanner coverage"
+  },
+  "upstream_release_tag": {
+    "ref": "refs/tags/v2.13.0",
+    "node_id": "MDM6UmVmNjU2MDA5NzU6cmVmcy90YWdzL3YyLjEzLjA=",
+    "url": "https://api.github.com/repos/pytorch/pytorch/git/refs/tags/v2.13.0",
+    "object": {
+      "sha": "cf30153c4c131c8164ee7798e5022d810682e2cb",
+      "type": "commit",
+      "url": "https://api.github.com/repos/pytorch/pytorch/git/commits/cf30153c4c131c8164ee7798e5022d810682e2cb"
+    }
+  },
+  "security": {
+    "installed_graph_distributions_including_audit_tools": 75,
+    "known_findings": 0,
+    "raw_scanner_skips": [
+      {
+        "name": "torch",
+        "reason": "Dependency not found on PyPI and could not be audited: torch (2.13.0+cpu)"
+      }
+    ],
+    "torch_base_release_audit": {
+      "dependencies": [
+        {
+          "name": "torch",
+          "version": "2.13.0",
+          "vulns": []
+        }
+      ],
+      "fixes": []
+    },
+    "torch_advisory": {
+      "ghsa_id": "GHSA-rrmf-rvhw-rf47",
+      "html_url": "https://github.com/advisories/GHSA-rrmf-rvhw-rf47",
+      "vulnerabilities": [
+        {
+          "first_patched_version": "2.13.0",
+          "package": {
+            "ecosystem": "pip",
+            "name": "torch"
+          },
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "<= 2.12.1"
+        }
+      ]
+    },
+    "transformers_advisory": {
+      "ghsa_id": "GHSA-xrqw-3rrv-vx5w",
+      "html_url": "https://github.com/advisories/GHSA-xrqw-3rrv-vx5w",
+      "vulnerabilities": [
+        {
+          "first_patched_version": "5.10.0",
+          "package": {
+            "ecosystem": "pip",
+            "name": "transformers"
+          },
+          "vulnerable_functions": [],
+          "vulnerable_version_range": "< 5.10.0"
+        }
+      ]
+    },
+    "disposition": "Patched base releases and the official CPU wheel payload are verified. Raw local-version scanner skip is retained; no whole-binary or unknown-vulnerability certification."
+  },
+  "host_recipe": {
+    "model": "HuggingFaceTB/SmolLM2-360M-Instruct",
+    "revision": "a10cc1512eabd3dde888204e902eca88bddb4951",
+    "executed_runner_commit": "31d92e623b9ff881061a5ce3f1f6509766f95a02",
+    "job_sha256": "9b8a51866731f7c4e45cf8ec842f089c21f7eec1878c4708ccf168ca47c522f1",
+    "dataset_sha256": "4dae4995c77a415dad80a26f67626c80d12c5d60acdc73e07a49cb1e770788ec",
+    "canonical_result": {
+      "success": true,
+      "adapter_path": "/srv/data/projects/xllama-qualification/canonical-run/adapter",
+      "merged_gguf_path": "/srv/data/projects/xllama-qualification/canonical-run/merged-f16.gguf",
+      "stages_completed": [
+        "prepare",
+        "train",
+        "export_adapter",
+        "merge",
+        "evaluate"
+      ],
+      "eval": {
+        "marker": "XLLAMA-LORA-OK",
+        "base_hit": false,
+        "merged_hit": true
+      }
+    },
+    "fp32_merge_parity": {
+      "revision": "a10cc1512eabd3dde888204e902eca88bddb4951",
+      "adapter_reload": true,
+      "fp32_logits_max_abs": 0.00010204315185546875,
+      "fp32_logits_allclose": true,
+      "greedy_tokens_identical": true,
+      "completion": "XLLAMA-LORA-OK.",
+      "marker_pass": true,
+      "scope": "host CPU adapter reload and merge; GGUF and UWP parity separate"
+    },
+    "gguf_marker": {
+      "candidate_marker": true,
+      "reference_marker": true,
+      "base_marker": false,
+      "candidate_output": "XLLAMA-LORA-OK.\n",
+      "scope": "host CPU GGUF merged from the newly trained adapter; quality marker, not logit equality to a historically trained model"
+    }
+  },
+  "device": {
+    "package": "GianlucaMazza.xllama_1.7.0.1447_x64__pj67f1fcj4n14",
+    "runtime_source": "c471020aa77f749f72622165955808bea38f86c7",
+    "gui_serve_and_preferences": "PASS",
+    "gui_runtime_adapter_load": "PASS; plain generated text is not logged",
+    "strict_runtime_adapter_marker_api": {
+      "package": "1.7.0.1447",
+      "model": "smollm2-lora-rt",
+      "request": {
+        "model": "smollm2-lora-rt",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a helpful AI assistant."
+          },
+          {
+            "role": "user",
+            "content": "xllama secret"
+          }
+        ],
+        "max_tokens": 48,
+        "temperature": 0,
+        "seed": 42
+      },
+      "attempts": [
+        {
+          "status": 200
+        }
+      ],
+      "scope": "fresh stateless greedy API request to newly converted runtime adapter; separate from GUI adapter-load gate",
+      "response": {
+        "id": "chatcmpl-xllama-1794138490-1",
+        "object": "chat.completion",
+        "created": 1794138490,
+        "model": "smollm2-lora-rt",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "XLLAMA-LORA-OK."
+            },
+            "logprobs": null,
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 25,
+          "completion_tokens": 10,
+          "total_tokens": 35
+        }
+      },
+      "marker_pass": true
+    },
+    "candidate_artifact_readback": {
+      "package": "GianlucaMazza.xllama_1.7.0.1447_x64__pj67f1fcj4n14",
+      "files": {
+        "adapter.gguf": {
+          "sha256": "16347e23ead52ea164d0ce70628becb9646f671d2e707a24efbe09d17017b39d",
+          "bytes": 3295200,
+          "matches_candidate": true
+        },
+        "model.gguf": {
+          "sha256": "acd2e64e7f2042b0261869169900eb3cd06b17d76de448a0faabe30bbfcf54bc",
+          "bytes": 725553632,
+          "matches_candidate": true
+        }
+      }
+    }
+  },
+  "remaining": "Normal PR review and exact-head CI; GPU profiles are outside this CPU qualification."
+}
