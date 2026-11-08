@@ -1296,6 +1296,23 @@ PYROOM
 
 # --- §7c TAESD -------------------------------------------------------------
 
+cache_vae_asset() {
+	local url="$1" dest="$2" partial="${2}.part"
+	[[ -s "$dest" ]] && return 0
+	if ! curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 20 --max-time 180 \
+		-o "$partial" "$url"; then
+		rm -f "$partial"
+		echo "  FAIL: could not cache VAE asset" >&2
+		return 1
+	fi
+	if [[ ! -s "$partial" ]]; then
+		rm -f "$partial"
+		echo "  FAIL: empty VAE asset" >&2
+		return 1
+	fi
+	mv "$partial" "$dest" || return 1
+}
+
 validate_taesd() {
 	echo "=== §7c TAESD image ==="
 	# Full diffusion package required (te + unet + tokenizer). After a clean
@@ -1320,10 +1337,10 @@ validate_taesd() {
 	VAE_CACHE="${REPO_ROOT}/.cache-validate"
 	mkdir -p "$VAE_CACHE"
 	# Cache the tiny (TAESD) and full VAE decoders once.
-	[[ -f "${VAE_CACHE}/taesd_vae.onnx" ]] ||
-		curl -fsSL "${rel}/sd-turbo-fp16_taesd_vae_decoder_model.onnx" -o "${VAE_CACHE}/taesd_vae.onnx"
-	[[ -f "${VAE_CACHE}/full_vae.onnx" ]] ||
-		curl -fsSL "${rel}/sd-turbo-fp16_vae_decoder_model.onnx" -o "${VAE_CACHE}/full_vae.onnx"
+	cache_vae_asset "${rel}/sd-turbo-fp16_taesd_vae_decoder_model.onnx" \
+		"${VAE_CACHE}/taesd_vae.onnx" || return 1
+	cache_vae_asset "${rel}/sd-turbo-fp16_vae_decoder_model.onnx" \
+		"${VAE_CACHE}/full_vae.onnx" || return 1
 
 	# Swap TAESD in, restore the full VAE on exit no matter what.
 	VAE_RESTORE_PENDING=1
