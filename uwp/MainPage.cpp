@@ -4175,6 +4175,35 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
             }
             if (idle_streak < kIdlePolls)
                 throw std::runtime_error("action " + std::to_string(i) + " wait_idle: timeout");
+        } else if (a.op == "generate_image") {
+            if (!not_running())
+                throw std::runtime_error("action " + std::to_string(i) + " generate_image: busy");
+            auto compute_permit = ::xllama::try_acquire_compute_job();
+            if (!compute_permit)
+                throw std::runtime_error("action " + std::to_string(i) + " generate_image: busy");
+            // No default prompt. Inventing one when the script did not supply
+            // it is the defect class already paid for in the bench (#205): the
+            // run succeeds and produces a real-looking image nobody asked for.
+            // validate_autopilot_script guarantees a non-empty prompt.
+            write_local_bytes(L"prompt.txt", ::xllama::wstring_to_utf8(a.arg));
+            write_local_bytes(L"diffuse-steps.txt", std::to_string(a.steps));
+            write_local_bytes(L"diffuse-seed.txt", std::to_string(a.seed));
+            write_local_bytes(L"diffuse-model.txt", "sd-turbo-fp16");
+            ApDispatchSync([this, seed = a.seed, compute_permit]() {
+                m_last_diffuse_seed = seed;
+                StartDiffusion(compute_permit);
+            });
+            auto t = a.timeout.count() > 0 ? a.timeout : std::chrono::seconds{600};
+            if (!ApWaitAtomic(m_diffuse_running, false, t)) {
+                write_local_bytes(L"diffuse-cancel.flag", "cancel");
+                ApWaitAtomic(m_diffuse_running, false, kGrace);
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " generate_image: timeout");
+            }
+            std::string stage = read_local_text_file(L"diffuse-progress.txt");
+            if (stage != "done")
+                throw std::runtime_error("action " + std::to_string(i) +
+                                         " generate_image: stage=" + stage);
         } else if (a.op == "gpu_selftest" || a.op == "dump_logits") {
             if (!not_running())
                 throw std::runtime_error("action " + std::to_string(i) + " " + a.op + ": busy");
@@ -4218,35 +4247,6 @@ void MainPageController::ApRun(std::vector<ApAction> actions, std::chrono::secon
             // Completion means execution finished; the host must still check
             // every numerical CSV row / compare the fresh binary distributions.
             log_output("[autopilot] " + a.op + ": ui-process complete\n");
-        } else if (a.op == "generate_image") {
-            if (!not_running())
-                throw std::runtime_error("action " + std::to_string(i) + " generate_image: busy");
-            auto compute_permit = ::xllama::try_acquire_compute_job();
-            if (!compute_permit)
-                throw std::runtime_error("action " + std::to_string(i) + " generate_image: busy");
-            // No default prompt. Inventing one when the script did not supply
-            // it is the defect class already paid for in the bench (#205): the
-            // run succeeds and produces a real-looking image nobody asked for.
-            // validate_autopilot_script guarantees a non-empty prompt.
-            write_local_bytes(L"prompt.txt", ::xllama::wstring_to_utf8(a.arg));
-            write_local_bytes(L"diffuse-steps.txt", std::to_string(a.steps));
-            write_local_bytes(L"diffuse-seed.txt", std::to_string(a.seed));
-            write_local_bytes(L"diffuse-model.txt", "sd-turbo-fp16");
-            ApDispatchSync([this, seed = a.seed, compute_permit]() {
-                m_last_diffuse_seed = seed;
-                StartDiffusion(compute_permit);
-            });
-            auto t = a.timeout.count() > 0 ? a.timeout : std::chrono::seconds{600};
-            if (!ApWaitAtomic(m_diffuse_running, false, t)) {
-                write_local_bytes(L"diffuse-cancel.flag", "cancel");
-                ApWaitAtomic(m_diffuse_running, false, kGrace);
-                throw std::runtime_error("action " + std::to_string(i) +
-                                         " generate_image: timeout");
-            }
-            std::string stage = read_local_text_file(L"diffuse-progress.txt");
-            if (stage != "done")
-                throw std::runtime_error("action " + std::to_string(i) +
-                                         " generate_image: stage=" + stage);
         } else if (a.op == "rate") {
             // Preference capture (training hybrid loop): append last user+assistant
             // turn to LocalState\training\samples.jsonl with label like|dislike|...
