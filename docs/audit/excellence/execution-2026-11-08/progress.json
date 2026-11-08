@@ -75,5 +75,27 @@
     "known_findings": 0,
     "skip": "torch 2.13.0+cpu not found on PyPI; binary audit coverage unresolved",
     "includes_audit_tool_dependencies": true
+  },
+  "console_training_candidate": {
+    "package": "1.7.0.1435",
+    "suite": "XLLAMA_TRAIN_FULL=1 validate-console-training.sh all",
+    "result": "PASS",
+    "passed": [
+      "serve",
+      "rate",
+      "lora-rt"
+    ],
+    "scope": "Existing historical training artifacts; runtime adapter application verified; marker warning retained for lora-rt; does not qualify the new host environment"
+  },
+  "device_training": "running on 1.7.0.1435; training/result.done pending",
+  "peak_instrumentation": {
+    "pr": 407,
+    "commit": "e8d6920",
+    "status": "draft; CI running; no new metric device acceptance yet"
+  },
+  "hardware_identity": {
+    "pr": 404,
+    "commit": "627b9a1",
+    "status": "refreshed with main; CI pending; original package revision 1434 cannot replace installed 1435 in-place"
   }
 }
