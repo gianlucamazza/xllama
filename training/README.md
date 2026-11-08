@@ -21,7 +21,7 @@ TrainingJob (JSON) ──► host PEFT LoRA ──► adapter ──► merge GG
 | `jobs/*.json`           | Declarative train jobs (schema validated by C++)                             |
 | `manifest-overrides/`   | LocalState `manifest.json` snippets for console serve gates (not train jobs) |
 | `datasets/`             | JSONL chat datasets                                                          |
-| `host/train_lora.py`    | PEFT LoRA trainer (CPU/GPU host)                                             |
+| `host/train_lora.py`    | PEFT LoRA trainer (qualified CPU host profile)                               |
 | `host/run_job.sh`       | Stage runner: prepare → train → export → merge → evaluate                    |
 | `host/requirements.txt` | Python deps for host backend                                                 |
 | `out/`                  | Working artefacts (gitignored)                                               |
@@ -43,15 +43,27 @@ Supporting such a model requires a separate reviewed workflow with an immutable
 code revision. This loading policy does not establish dependency security or
 training and inference parity.
 
-The host PEFT requirements are monitored separately by Dependabot. Ordinary
-version update PRs are disabled; security updates remain enabled. This is
-monitoring, not evidence that the dependency graph is patched. The current
-`transformers<5` training constraint excludes the patched floor documented in
-[ADR 0003](../docs/adr/0003-diffusion-export-first-party.md) for the separate
-diffusion environment. A training migration must resolve a coherent PEFT stack
-and verify train, merge and inference parity before changing those pins.
-Qualification is tracked in [#405](https://github.com/gianlucamazza/xllama/issues/405),
-with the installation boundary in [proposed ADR 0009](../docs/adr/0009-isolated-host-training-toolchain.md).
+The host runner uses a dedicated Python 3.12 CPU environment at
+`training/host/.venv-cpu312`, created and synchronized with `uv`. Install `uv`
+with its official installer before running the pipeline. The old `.venv` is
+left untouched. `XLLAMA_TRAIN_VENV` can select another dedicated environment;
+the runner rejects system-package inheritance and a different Python minor.
+Each train/conversion entry synchronizes the complete
+`host/requirements-cpu-py312.lock` with mandatory hashes and the CPU Torch
+index. Extra packages in that dedicated environment are removed by sync.
+A GPU profile requires separate qualification; this path never inherits a
+workstation's Torch or falls back to an unpinned install. The deprecated
+`lora-spike` shim delegates to this same runner.
+
+`host/requirements.txt` owns direct pins; the lock owns the resolved transitive
+graph. Update them as one set after isolated installation, security review,
+first-party training, merge/GGUF and inference checks. Qualification and its
+remaining device/security scope are tracked in
+[#405](https://github.com/gianlucamazza/xllama/issues/405) and
+[proposed ADR 0009](../docs/adr/0009-isolated-host-training-toolchain.md).
+Dependabot monitoring remains separate from remediation evidence. An advisory
+query for the base Torch release is narrower than coverage of the exact CPU
+wheel; retain both that query and the installed-graph scanner's skip.
 
 From the **repo root**:
 

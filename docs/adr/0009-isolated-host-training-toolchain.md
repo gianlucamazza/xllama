@@ -84,3 +84,14 @@ Isolation adds installation/storage work and explicit profile maintenance. It
 buys a graph that an operator can identify and reproduce. Rollback must restore
 the prior coherent toolchain/recipe together; do not roll back only one package
 or describe a rollback to vulnerable pins as a security remediation.
+
+## Implementation candidate — 2026-11-08
+
+The #405 candidate uses the isolated CPU/Python 3.12 lock through `uv`, without
+system-site inheritance or an unpinned fallback. The deprecated spike wrapper
+already delegates to the same runner; conversions use its selected interpreter.
+The real first-party recipe, FP32 adapter/merge parity and GGUF marker trial
+have passed in isolation. Canonical runner and new-artifact device trials remain
+acceptance gates before promotion. Preserve the exact CPU-wheel advisory-scan
+limitation alongside the base-release advisory query; neither is whole-binary
+security certification. This implementation candidate does not accept its own ADR.
