@@ -119,6 +119,8 @@ VAE_RESTORE_PENDING=0
 TAESD_SAMPLER_PID="" # background PrivateWorkingSet sampler; killed on every exit
 # shellcheck source=scripts/console-run-log.sh
 source "${SCRIPT_DIR}/console-run-log.sh"
+# shellcheck disable=SC1090,SC1091
+source "${SCRIPT_DIR}/wdp-file-upload.sh"
 # shellcheck source=scripts/console-temp-chats.sh
 source "${SCRIPT_DIR}/console-temp-chats.sh"
 
@@ -164,16 +166,9 @@ trap 'exit 143' TERM
 
 _curl_post_file() {
 	local local_path="$1" path_param="$2" filename="${3:-}"
-	local form_entry
-	if [[ -n "$filename" ]]; then
-		form_entry="${local_path};filename=${filename};type=application/octet-stream"
-	else
-		form_entry="${local_path};type=application/octet-stream"
-	fi
-	curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X POST \
-		-F "file=@${form_entry}" \
+	wdp_upload_file_request \
 		"${BASE_URL}/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=${PFN}&path=${path_param}" \
-		>/dev/null
+		"$local_path" "$filename"
 }
 
 # upload_file <local> [remote_subdir] [remote_name]
