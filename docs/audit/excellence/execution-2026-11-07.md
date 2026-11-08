@@ -194,3 +194,25 @@ After the four hardening merges, the [combined host suite](execution-2026-11-07/
 M1 and later receipts must append dated source/package refs, exact commands,
 test outcomes/skips, raw evidence hashes, decisions and blockers to this
 program's evidence directory. Do not retrofit results into this M0 snapshot.
+
+## M1 continuation — 2026-11-08
+
+The local continuation now has authenticated Device Portal access and exclusive
+use of a Series S; the earlier M0 environment limitation remains historical.
+The [continuation ledger](execution-2026-11-08/progress.json) and its
+[hash manifest](execution-2026-11-08/SHA256SUMS) retain package-bound outcomes.
+The observed OS platform receipt is separate from an operator declaration.
+
+The installed baseline exposed the known TAESD preload/fresh-result defect.
+The exact CI package for #381 was installed in-place and its corrected TAESD
+gate passed; the complete LAN API suite and extended serve/rate/runtime-adapter
+suite also passed on that package. Runtime-adapter loading alone does not prove
+marker quality. Device training and the new host PEFT recipe remain in progress.
+
+Draft [#407](https://github.com/gianlucamazza/xllama/pull/407), stacked on #381,
+adds a process-lifetime peak working-set field for a future fresh-process device
+trial. Its code and CI do not yet establish live peak-memory acceptance.
+#404 was refreshed against main to obtain a newer in-place candidate.
+Full diffusion export/parity, host training qualification, final same-package
+release gates and the preregistered GPU experiment remain open. No stable
+release or security closure is approved by these partial results.

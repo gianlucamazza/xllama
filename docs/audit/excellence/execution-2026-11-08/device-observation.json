@@ -1,0 +1,7 @@
+{
+  "source": "authenticated Device Portal GET /api/os/info",
+  "platform": "Xbox Series S",
+  "os_version": "26100.9445.amd64fre.xb_flt_2608ge.260927-0830",
+  "os_edition": "SystemOS",
+  "scope": "observed OS platform; no serial or computer name retained"
+}

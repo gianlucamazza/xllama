@@ -1,0 +1,25 @@
+{
+  "scope": "artifacts used by the successful Series S serve/rate/runtime-adapter suite; separate from new host qualification",
+  "files": {
+    "training/out/smollm2-360m-marker/base-f16.gguf": {
+      "sha256": "acd2e64e7f2042b0261869169900eb3cd06b17d76de448a0faabe30bbfcf54bc",
+      "bytes": 725553632
+    },
+    "training/out/smollm2-360m-marker/merged-f16.gguf": {
+      "sha256": "1cb82cdd19957c9cfc042621ebf2b8ac3988e2c13659a12600e465222f498ee1",
+      "bytes": 725553632
+    },
+    "training/out/smollm2-360m-marker/merged-Q4_K_M.gguf": {
+      "sha256": "6656b00cde12909437d27e636d1075798b3a6a7ae495cd20cd89cd006d29b80d",
+      "bytes": 270590432
+    },
+    "training/out/smollm2-360m-marker/adapter-lora.gguf": {
+      "sha256": "cb4ff5ece8a4bcf8a8ce307ca0a0884092046aa895bc75286646ee870a69b221",
+      "bytes": 3294912
+    },
+    "training/datasets/toy_marker.jsonl": {
+      "sha256": "4dae4995c77a415dad80a26f67626c80d12c5d60acdc73e07a49cb1e770788ec",
+      "bytes": 4092
+    }
+  }
+}
