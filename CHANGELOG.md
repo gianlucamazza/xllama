@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Diffusion export:** preserve the checkpoint's native CLIP vocabulary and
+  merges alongside the unified tokenizer metadata, so first-party exports
+  remain self-contained for the console tokenizer with Transformers 5.
+
 - **Host training:** the CPU recipe uses an isolated Python 3.12 environment
   synchronized from a hash-locked dependency graph. System-package inheritance
   and an unpinned Torch fallback are rejected. Operator setup and qualification

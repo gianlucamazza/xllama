@@ -410,7 +410,7 @@ def load_components(model: str, revision: str | None, which):
 
 
 def copy_pipeline_files(model: str, revision: str | None, out: str) -> None:
-    """Write tokenizer/, scheduler/ and model_index.json (validate_pipeline.py input)."""
+    """Write host metadata and the native console tokenizer sidecars."""
     from diffusers import EulerDiscreteScheduler
     from huggingface_hub import hf_hub_download
     from transformers import CLIPTokenizer
@@ -421,11 +421,16 @@ def copy_pipeline_files(model: str, revision: str | None, out: str) -> None:
     EulerDiscreteScheduler.from_pretrained(
         model, subfolder="scheduler", revision=revision
     ).save_pretrained(os.path.join(out, "scheduler"))
-    if os.path.isdir(model):
-        src = os.path.join(model, "model_index.json")
-    else:
-        src = hf_hub_download(model, "model_index.json", revision=revision)
-    shutil.copy2(src, os.path.join(out, "model_index.json"))
+    # Transformers 5 may save only tokenizer.json. The native byte-BPE loader
+    # reads vocab.json and merges.txt, so retain the checkpoint's exact files.
+    for name in ("model_index.json", "tokenizer/vocab.json", "tokenizer/merges.txt"):
+        if os.path.isdir(model):
+            src = os.path.join(model, name)
+        else:
+            src = hf_hub_download(model, name, revision=revision)
+        dst = os.path.join(out, name)
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        shutil.copy2(src, dst)
 
 
 def _peak_rss_mib() -> int:
