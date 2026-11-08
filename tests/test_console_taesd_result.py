@@ -256,6 +256,39 @@ class PrivateWsTests(unittest.TestCase):
 
 
 class ScriptContractTests(unittest.TestCase):
+    def test_failed_vae_download_stops_before_any_model_swap(self):
+        text = (ROOT / "scripts/validate-console.sh").read_text()
+        def function(name):
+            start = text.index(name + "() {")
+            return text[start:text.index("\n}\n", start) + 3]
+        helper = function("cache_vae_asset")
+        gate = function("validate_taesd")
+        for mode in ("fail", "empty"):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as tmp:
+                setup = r'''
+model_provisioned() { return 0; }
+upload_file() { touch "$REPO_ROOT/unexpected-upload"; }
+curl() {
+    local target=""
+    while (($#)); do
+        if [[ "$1" == -o ]]; then shift; target="$1"; fi
+        shift
+    done
+    if [[ "$MODE" == fail ]]; then printf partial > "$target"; return 22; fi
+    : > "$target"
+}
+VAE_RESTORE_PENDING=0
+rc=0
+validate_taesd || rc=$?
+[[ $rc != 0 && $VAE_RESTORE_PENDING == 0 && ! -e "$REPO_ROOT/unexpected-upload" ]]
+'''
+                env = dict(os.environ, REPO_ROOT=tmp, MODE=mode)
+                result = subprocess.run(["bash", "-c", helper + gate + setup],
+                                        env=env, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(list(Path(tmp).glob(".cache-validate/*.part")), [])
+                self.assertFalse((Path(tmp) / ".cache-validate/taesd_vae.onnx").exists())
+
     def test_taesd_gate_waits_and_rejects_stale_rows(self):
         text = (ROOT / "scripts/validate-console.sh").read_text()
         self.assertIn('{"op": "wait_idle"', text)
