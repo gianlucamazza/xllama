@@ -1,0 +1,8 @@
+{
+  "status": "fail",
+  "max_abs": 1,
+  "different_channels": 618,
+  "reference_sha256": "db29a7b5d05f2845c472b3bd1057c2e5b08d21bc466999587bacdc21b71bde23",
+  "candidate_sha256": "864b3c86ef8bc9e44c1923b41cb59e2e39f83ecae501ffe025990add85d9ed78",
+  "scope": "additional fixed-profile equivalence; does not redefine frozen fp16_vs_fp32 image policy"
+}

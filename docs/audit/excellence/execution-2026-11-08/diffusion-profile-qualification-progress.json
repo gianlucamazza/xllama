@@ -1,0 +1,21 @@
+{
+  "status": "functional_and_host_component_gates_pass; UI TAESD/true peak pending",
+  "host_source": "144191fb92635c629cbe294b22b27a3a4e90456b",
+  "full_export_tests": {
+    "passed": 35,
+    "skipped": 0
+  },
+  "profile_graphs": "final default CLI output byte-identical to exercised read-back graphs",
+  "fp16_vs_reconstructed_fp32": "three frozen component checks pass; pooler and uint8 image explicitly unchecked in that mode",
+  "exact_image_equivalence": "final dynamic-annotation variant passes unchanged zero-tolerance criterion under identical session settings between arms; static variant fails and is retained",
+  "hardware_package": "1.7.0.1466",
+  "hardware_source": "0a8bcf158830dfcfbc19ea7fc08cd6abb7941e48",
+  "ci_run": 42482733136,
+  "timing_scope": "fresh headless per-stage inference timings; not UI TTFT or a release benchmark",
+  "generated_image_source": "stabilityai/sd-turbo revision b261bac6fd2cf515557d5d0707481eafa0485ec2",
+  "qualification_limits": [
+    "#263 remains open until UI TAESD and true process peak",
+    "No catalogue change or model publication",
+    "No whole-binary or unknown-vulnerability certification"
+  ]
+}

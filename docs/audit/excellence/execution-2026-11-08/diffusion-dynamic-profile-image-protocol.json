@@ -1,0 +1,12 @@
+{
+  "scope": "new dynamic-annotation normalization candidate; identical CPU session settings for both arms",
+  "source": "sd-turbo-fp16",
+  "candidate": "sd-turbo-console-dynamic-profile",
+  "steps": 1,
+  "seed": 42,
+  "prompt": "a red sports car on a mountain road at sunset",
+  "acceptance": "exact RGB equality; no tolerance relaxation from prior static-profile attempt",
+  "reference_image": "dynamic-reference-host.png",
+  "candidate_image": "dynamic-normalized-host.png",
+  "prior_static_trial": "profile-image-equivalence-result.json (failed exact equality, max_abs=1); retained separately"
+}

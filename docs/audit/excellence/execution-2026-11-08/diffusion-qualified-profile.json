@@ -1,0 +1,56 @@
+{
+  "profile": "sd-turbo-512-batch1-seq77",
+  "tool_sha256": "6e3bb97e5fe77122b1ef4c2b655a07eb4868a5387763dc56b8908ead1e7b44e7",
+  "dynamic_annotations": true,
+  "components": {
+    "text_encoder": {
+      "reshapes": 93,
+      "constant_shape_targets": 3,
+      "fixed_inputs": {
+        "input_ids": [
+          1,
+          77
+        ]
+      },
+      "dynamic_annotations": true,
+      "source_sha256": "be604085e2e2c74cfdd06b4e833a804a176eaa73948332a3ed85241171bdfb8c",
+      "profile_sha256": "3cad8bd76b4b3b90e2bee1c641ef608b795cb7887587d0c29d33acb4c4b66bde"
+    },
+    "unet": {
+      "reshapes": 160,
+      "constant_shape_targets": 14,
+      "fixed_inputs": {
+        "sample": [
+          1,
+          4,
+          64,
+          64
+        ],
+        "timestep": [],
+        "encoder_hidden_states": [
+          1,
+          77,
+          1024
+        ]
+      },
+      "dynamic_annotations": true,
+      "source_sha256": "a79e423f1506ba7532fbc7105bc3b29eea746cfed19f3d824928e2c2bd11ba01",
+      "profile_sha256": "432c43acabb74eae4ad2712efc887243031e1d23be1fe4b98c138b5e6824cca5"
+    },
+    "vae_decoder": {
+      "reshapes": 6,
+      "constant_shape_targets": 4,
+      "fixed_inputs": {
+        "latent_sample": [
+          1,
+          4,
+          64,
+          64
+        ]
+      },
+      "dynamic_annotations": true,
+      "source_sha256": "0bc93e4b5fde4f2d7b13d413d204d1f9b904d2fcd48575b1658a81ffbeea22fe",
+      "profile_sha256": "3bb79ec1985c0c351e73ee06d56866d2f2a4359ce165c1ccd3bb563aae5c6425"
+    }
+  }
+}
