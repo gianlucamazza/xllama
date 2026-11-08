@@ -276,3 +276,23 @@ its unchecked image/pooler diagnostics remain explicitly unchecked. These
 single acceptance trials do not add a throughput headline. #263 closure awaits
 integration of the qualification receipts; final programme/package and physical
 publication gates remain separate.
+
+### Integration checkpoint — first-party qualification and write integrity
+
+The qualification receipts now include a stronger
+[UI TAESD repeat](execution-2026-11-08/diffusion-verified-taesd-ui-1472.json):
+the deployed Tiny decoder is read back before execution, the fresh result
+contains the true process lifetime working-set peak, and the full decoder is
+restored and read back afterwards. All
+[original diffusion weights](execution-2026-11-08/original-diffusion-restoration.json)
+are subsequently restored byte-for-byte. Together with the full-VAE UI run,
+frozen host comparisons and native tokenizer parity, these receipts complete
+the scoped first-party toolchain qualification in #263. Failed alternatives,
+unchecked comparison fields and publication limits remain explicit. Final
+programme and final-package acceptance remain open.
+
+PR #415 is merged after all four required checks. Its final strict-HTTP-200
+helper also passes a [reversible live write test](execution-2026-11-08/wdp-upload-final-live-receipt.json)
+on package 1.7.0.1475: successful readback, rejection of an invalid file-parent
+write, unchanged sentinel and verified cleanup. This validates the harness
+write contract; it is not a new inference measurement.
