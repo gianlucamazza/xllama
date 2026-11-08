@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.7.0] - TBD
+
+User-facing notes: [docs/releases/v1.7.0.md](docs/releases/v1.7.0.md).
+Candidate 1.7.0.1495 completed Series S acceptance; receipts and limitations are
+linked from the notes. The release date and publication remain pending.
+
 - **GPU validation:** the standard backend selftest exits nonzero when its
   gate fails and rejects empty, non-finite or negative measurements. Native
   matmul and get-rows error oracles reject non-finite values instead of
@@ -24,7 +30,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Diffusion:** add a separate fixed deployment profile for first-party
   exports. Reshape targets must be proven constant and free of literal zeros
   before normalization for DirectML; retain the dynamic export for host parity.
-  ||||||| 699bdf9
 - **Diffusion export:** preserve the checkpoint's native CLIP vocabulary and
   merges alongside the unified tokenizer metadata, so first-party exports
   remain self-contained for the console tokenizer with Transformers 5.

@@ -1,0 +1,28 @@
+{
+  "status": "pass",
+  "package": "GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14",
+  "source": "f73f5de16f7e1384f436fe3db2370a0285eb2e2c",
+  "ci_run": 42493795069,
+  "gates": "all ten standard Developer Mode console gates",
+  "log_capture_sha256": "d2d96829b2735272a0484f37c2c9a918f7c32d24e8a0889b683124e62846e5e2",
+  "taesd_row": {
+    "model": "sd-turbo-fp16",
+    "steps": "1",
+    "seed": "42",
+    "te_ms": "1021.8",
+    "unet_ms": "2942.9",
+    "unet_ms_per_step": "2942.9",
+    "vae_ms": "611.4",
+    "total_ms": "4576.1",
+    "resolution": "512x512",
+    "date": "2026-11-08T15:30:13Z",
+    "process_peak_ws_mb": "2797"
+  },
+  "peak_definition": "K32 lifetime PeakWorkingSetSize after PNG encoding; distinct from sampled PrivateWorkingSet",
+  "sampled_private_ws_mb": 2003,
+  "restored_full_vae_readback_sha256": "b12f26698d6ac9ee6aac0482a86cf0194231d0a3304da78a98796eb6d6ddbc35",
+  "restored_full_vae_bytes": 99125634,
+  "taesd_cached_source_sha256": "d2d981ed4c97462db8a7b55a90543ced09fbc1e660f097e08f89a6dae6a9c52b",
+  "taesd_identity_scope": "known cached source and checked WDP upload; no separate in-flight deployed-byte readback in this standard gate",
+  "scope": "functional acceptance, one image trial; no throughput or cold-start publication claim"
+}

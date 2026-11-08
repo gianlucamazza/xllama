@@ -337,3 +337,68 @@ receipts. The known historical LoRA fixture is also
 Final package gates, full user-state cleanup and physical publication gates
 remain outstanding. ASan plus UBSan on the candidate host build pass; they do
 not replace the failed device logit gate.
+
+### Final candidate checkpoint — 1.7.0.1495
+
+The [exact unified CI MSVC package](execution-2026-11-08/release-package-binding-1495.json)
+includes the independent framing and GPU-validator fixes (#418, #419). All four
+required checks passed before deployment. The packaged patched runtime DLLs
+[match their owning vendor pins](execution-2026-11-08/release-1495-packaged-vendor-verification.json).
+The earlier 1492 functional checkpoint, its initial framing-harness failure
+and the corrected replay remain separate receipts. Capture normalizations are
+bound in the dated evidence directory.
+
+On the same 1495 package, all ten standard console gates and all eleven API
+gates pass, including the ONNX tool-proposal refusal. The standard GPU selftest
+has [fresh, finite passing rows](execution-2026-11-08/release-1495-selftest-receipt.json),
+with old-result absence verified before launch. The
+[shipping H9 screen](execution-2026-11-08/release-1495-h9-receipt.json) retains its
+prospective reference floors. This small screen is not general model-quality
+validation. Nomic's embedding contract covers the live requests;
+[optional BGE coverage](execution-2026-11-08/release-1495-bge-coverage.json) was not
+run because that model was not provisioned.
+
+Training serve, preference capture, adapter application, both stale-result
+negative controls and the full eight-epoch device pipeline pass. The standard
+adapter-application gate's missing-log-marker warning is retained. A separate
+[stateless API response](execution-2026-11-08/release-1495-canonical-adapter.json)
+with the newly qualified host adapter returns the expected marker after base
+and adapter byte readback; it does not reclassify the warning.
+
+Both [full-VAE UI](execution-2026-11-08/release-1495-full-vae.json) and
+[Tiny-decoder UI](execution-2026-11-08/release-1495-taesd-receipt.json) trials pass,
+with true lifetime process peaks recorded independently of sampled private
+memory. All three original graphs read back byte-for-byte after the full-VAE
+trial. The [full image](execution-2026-11-08/release-1495-full-vae.png) and
+[Tiny image](execution-2026-11-08/release-1495-taesd.png) pass
+[visual inspection](execution-2026-11-08/release-1495-image-qa.json).
+These are single functional trials, not throughput/cold-start headlines.
+SD-Turbo attribution remains in [NOTICE](../../../NOTICE).
+
+The real [GUI/API admission probe](execution-2026-11-08/release-1495-gui-admission.json)
+observes HTTP 503 `busy` during an active XAML GUI turn, which then completes.
+The [first observer attempt](execution-2026-11-08/release-1495-gui-admission-initial-observer.json)
+was inconclusive because it watched a completion-only log line; it made no
+concurrent LAN request and is retained. The corrected observer uses prefill
+start, with the same prompt and sampling. This is not a physical-controller test.
+
+The [Store 1488 smoke](execution-2026-11-08/store-1488-live-receipt.json) is a
+separate reduced-SKU trial: chat/save-title and API rejection pass on a
+pre-provisioned model. It does not claim a fresh download, retail validation or
+a Store build of revision 1495. Developer Mode is restored by higher-revision
+in-place updates. [Host checks](execution-2026-11-08/release-1495-host-checks.json)
+include Linux test/Release smoke and ASan plus UBSan; optional dependency skips
+remain distinct from the earlier no-skip exporter qualification.
+
+[Original-state restoration](execution-2026-11-08/release-1495-state-restoration.json)
+verifies every privately backed-up file by readback, removes owned controls and
+exclusive-window test chats, and byte-restores the known historical adapter.
+The per-file user inventory stays private. Unrelated models/KV and general
+training outputs are preserved; empty owned staging directories may remain.
+The app is stopped. There was no uninstall or LocalState wipe.
+
+The original progress snapshot stays historical; `latest_continuation` records
+this checkpoint. The local candidate bundle is ready for release review, not
+published as a stable tag. PR #369 owns the notes. #313 retains its stopped
+control-parity failure, Series X remains untested/excluded, physical publication
+gates remain unproven, and the vendor/architecture watches remain gated.

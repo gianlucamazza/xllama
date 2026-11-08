@@ -1,0 +1,8 @@
+{
+  "scope": "read-only reproduction of framing harness truncation on the same 1492 package",
+  "http_status": 200,
+  "response_bytes": 143,
+  "full_usable_samples": 5,
+  "truncated_120_result": "JSONDecodeError",
+  "product_status_valid": true
+}

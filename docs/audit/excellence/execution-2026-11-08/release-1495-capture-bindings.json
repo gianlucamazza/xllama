@@ -1,0 +1,147 @@
+{
+  "release-1495-console-all.txt": {
+    "capture_sha256": "1b2a04c8960302f0e32f0c9275eabf837a9aa2796c38f718bb0dfa83672785e5",
+    "repository_sha256": "eda6e6326536c40cbf74c74ab939886141693a2c4bc26b1dfa241fe1960ade0e",
+    "normalization": "CRLF to LF only"
+  },
+  "release-1495-api-all.txt": {
+    "capture_sha256": "904cd3317f4b0d9a3a7ec11f7e8f02b59d0aa38461c4ad62640b4ba64e3b5131",
+    "repository_sha256": "904cd3317f4b0d9a3a7ec11f7e8f02b59d0aa38461c4ad62640b4ba64e3b5131",
+    "normalization": "CRLF to LF only"
+  },
+  "release-1495-training-all.txt": {
+    "capture_sha256": "cc8de92810050d9c304c8b9eda788b3b527df842d4c72fd611a8d6a277bddd51",
+    "repository_sha256": "cc8de92810050d9c304c8b9eda788b3b527df842d4c72fd611a8d6a277bddd51",
+    "normalization": "CRLF to LF only"
+  },
+  "release-1495-training-serve-stale.txt": {
+    "capture_sha256": "d50dc636705de5f5a7e9c445f21bd76f34ca0b9b7ef71bc5929fcdb2bf96333e",
+    "repository_sha256": "d50dc636705de5f5a7e9c445f21bd76f34ca0b9b7ef71bc5929fcdb2bf96333e",
+    "normalization": "CRLF to LF only"
+  },
+  "release-1495-training-rate-stale.txt": {
+    "capture_sha256": "2acf87b1b8e8ccf6e82f403ec332767f57a5b3fa2b7496727263bb5fb4ab689a",
+    "repository_sha256": "2acf87b1b8e8ccf6e82f403ec332767f57a5b3fa2b7496727263bb5fb4ab689a",
+    "normalization": "CRLF to LF only"
+  },
+  "release-1495-device-train.txt": {
+    "capture_sha256": "5230bd4acf704111964ce632b97f8772db01c811ec5c8f533c3d8036e21417a1",
+    "repository_sha256": "363e1c915044913ee0ae9c73354e11656c4039f06c4d075b1ea34dfa78e66304",
+    "normalization": "CRLF to LF only"
+  },
+  "release-1495-selftest-run.txt": {
+    "capture_sha256": "3604bf68932eda756bf84ab506a27f5a832f8cb9a08f0987b6a8ca3e4b5f0e09",
+    "repository_sha256": "e53474c5910eb773f144ef8971c5815339746ad304d65d82b80a765aa3bb2c85",
+    "normalization": "CRLF to LF only"
+  },
+  "release-package-binding-1495.json": {
+    "capture_sha256": "f9bc79870f14c54e019b574ea9dd5ca2f25a436b670f55cf9b24b85a4b0ac02a",
+    "repository_sha256": "f9bc79870f14c54e019b574ea9dd5ca2f25a436b670f55cf9b24b85a4b0ac02a",
+    "normalization": "none"
+  },
+  "final-validation-protocol-1495.json": {
+    "capture_sha256": "2992c5ad08d1c46633aaea25aab5e3bcb14fe9f36cb509f40d2ce93ab69ff476",
+    "repository_sha256": "2992c5ad08d1c46633aaea25aab5e3bcb14fe9f36cb509f40d2ce93ab69ff476",
+    "normalization": "none"
+  },
+  "release-1495-selftest-receipt.json": {
+    "capture_sha256": "7acc17dc19ca936137c95f860c36b899f24f10703a93699974ad55f2725fd7be",
+    "repository_sha256": "7acc17dc19ca936137c95f860c36b899f24f10703a93699974ad55f2725fd7be",
+    "normalization": "none"
+  },
+  "release-1495-taesd-receipt.json": {
+    "capture_sha256": "653d2fd621818e8e603b5df91bc1cf8f6c3af41ecd5eadd42f926b37988775f2",
+    "repository_sha256": "653d2fd621818e8e603b5df91bc1cf8f6c3af41ecd5eadd42f926b37988775f2",
+    "normalization": "none"
+  },
+  "release-1495-h9-receipt.json": {
+    "capture_sha256": "8477794931e07b862a3bedb352be6216b4804beb0634e8dcf0bfae448b4a4d1b",
+    "repository_sha256": "8477794931e07b862a3bedb352be6216b4804beb0634e8dcf0bfae448b4a4d1b",
+    "normalization": "none"
+  },
+  "release-1495-packaged-vendor-verification.json": {
+    "capture_sha256": "7c726d251a469592c94f7a0a000cb3e8fa5f05e9f70b64d1b0a4b37dbb152a8d",
+    "repository_sha256": "7c726d251a469592c94f7a0a000cb3e8fa5f05e9f70b64d1b0a4b37dbb152a8d",
+    "normalization": "none"
+  },
+  "release-1495-gui-admission-initial-observer.json": {
+    "capture_sha256": "70a1286cab5d8079ef58638a407132c73285027f84eec8b8185a3fa135d3ba07",
+    "repository_sha256": "70a1286cab5d8079ef58638a407132c73285027f84eec8b8185a3fa135d3ba07",
+    "normalization": "none"
+  },
+  "release-1495-bge-coverage.json": {
+    "capture_sha256": "51553690d372c9f47d384999545f59f5e61b207f11bed78953a6784d27154e67",
+    "repository_sha256": "51553690d372c9f47d384999545f59f5e61b207f11bed78953a6784d27154e67",
+    "normalization": "none"
+  },
+  "release-1495-selftest.csv": {
+    "capture_sha256": "fd39115d79ce141137e44b0bbeb84c2f4bdffddd583c27765c211a2d63667b53",
+    "repository_sha256": "fd39115d79ce141137e44b0bbeb84c2f4bdffddd583c27765c211a2d63667b53",
+    "normalization": "CRLF to LF only"
+  },
+  "release-1495-taesd.csv": {
+    "capture_sha256": "050985b158ea076440fd5eb2d5cd6ab5e5e2df9132a0ef9301820aa7a9a61d0d",
+    "repository_sha256": "c672ad6d12ce65e2692392875c177d63a65838cee1963cd1b96c8a33b3c561ae",
+    "normalization": "CRLF to LF only"
+  },
+  "release-1495-h9.jsonl": {
+    "capture_sha256": "496c3fbb7050957123463780bb453774463c548750401b769f3ed8218cf082f2",
+    "repository_sha256": "496c3fbb7050957123463780bb453774463c548750401b769f3ed8218cf082f2",
+    "normalization": "CRLF to LF only"
+  },
+  "release-1495-full-vae.json": {
+    "capture_sha256": "f46f1ae37b13ac37ff363671bea085097920a8acfeb07051ad8e6c252b92f999",
+    "repository_sha256": "f46f1ae37b13ac37ff363671bea085097920a8acfeb07051ad8e6c252b92f999",
+    "normalization": "none"
+  },
+  "release-1495-full-vae.csv": {
+    "capture_sha256": "31fcc724b2ab496ee59ef166072b56d72285e76901ee4361007357af4fd3e85f",
+    "repository_sha256": "933f067c4a9cfd407803c69f986d348a10adeffae1e7714b5e93f77eec18e641",
+    "normalization": "CRLF to LF only"
+  },
+  "release-1495-canonical-adapter.json": {
+    "capture_sha256": "c7e653a819c4f4ebeff0c925e62d03b5c8a557476db14b9a1f532bfd0c39c274",
+    "repository_sha256": "c7e653a819c4f4ebeff0c925e62d03b5c8a557476db14b9a1f532bfd0c39c274",
+    "normalization": "none"
+  },
+  "release-1495-gui-admission.json": {
+    "capture_sha256": "b2cc97f2a1b89636427ccc93c61da8df647308d3b53c4a8d123c9460f2622e06",
+    "repository_sha256": "b2cc97f2a1b89636427ccc93c61da8df647308d3b53c4a8d123c9460f2622e06",
+    "normalization": "none"
+  },
+  "release-1495-gui-admission.txt": {
+    "capture_sha256": "23cd7e9b2b2441e482c585b4e1d6e96d709b651190f5ea1e3768ef6990c57d24",
+    "repository_sha256": "efedc3f8c9e2726e489db092cd93218bf6d02627c7016ecb903847aeff8c18d5",
+    "normalization": "CRLF to LF only"
+  },
+  "release-1495-gui-admission-initial-observer.txt": {
+    "capture_sha256": "088d8957aeca68ebafdd257e092212eed2c8c732bdc67928fdaf5a1f011175ef",
+    "repository_sha256": "d1cf12c82b67d9bdd1539c1e89dd38bb5152a66b2c0d79acb9af1fbdd2a9d349",
+    "normalization": "CRLF to LF only"
+  },
+  "release-1495-state-restoration.json": {
+    "capture_sha256": "b3685d8be33baaa94cf19cb5e3ed4eae05c3ff090678f465d6c0a86a3f504c2a",
+    "repository_sha256": "b3685d8be33baaa94cf19cb5e3ed4eae05c3ff090678f465d6c0a86a3f504c2a",
+    "normalization": "none"
+  },
+  "release-1495-taesd.png": {
+    "capture_sha256": "599ef116d017465d7443a2046705bafc1246ca351a52036ba4922d9c637acb98",
+    "repository_sha256": "599ef116d017465d7443a2046705bafc1246ca351a52036ba4922d9c637acb98",
+    "normalization": "none"
+  },
+  "release-1495-full-vae.png": {
+    "capture_sha256": "c1dce3b2943e982ca6723e2a68c956f453b1fefb85fcb189d746db42ae40de75",
+    "repository_sha256": "c1dce3b2943e982ca6723e2a68c956f453b1fefb85fcb189d746db42ae40de75",
+    "normalization": "none"
+  },
+  "release-1495-host-ctest.txt": {
+    "capture_sha256": "13a234b5e27ffbe8cd2e933d3fa659705551d90f0fa25bd2c49ee00c947e3eed",
+    "repository_sha256": "13a234b5e27ffbe8cd2e933d3fa659705551d90f0fa25bd2c49ee00c947e3eed",
+    "normalization": "CRLF to LF only"
+  },
+  "release-1495-host-asan-ubsan.txt": {
+    "capture_sha256": "b72412615c6869b55229205002ef61e31cbe3207c90a28774a38a0ae25e1bc52",
+    "repository_sha256": "b72412615c6869b55229205002ef61e31cbe3207c90a28774a38a0ae25e1bc52",
+    "normalization": "CRLF to LF only"
+  }
+}
