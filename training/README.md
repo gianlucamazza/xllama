@@ -50,6 +50,8 @@ monitoring, not evidence that the dependency graph is patched. The current
 [ADR 0003](../docs/adr/0003-diffusion-export-first-party.md) for the separate
 diffusion environment. A training migration must resolve a coherent PEFT stack
 and verify train, merge and inference parity before changing those pins.
+Qualification is tracked in [#405](https://github.com/gianlucamazza/xllama/issues/405),
+with the installation boundary in [proposed ADR 0009](../docs/adr/0009-isolated-host-training-toolchain.md).
 
 From the **repo root**:
 

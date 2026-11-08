@@ -1,0 +1,48 @@
+{
+  "ref": "/workspace/scratch/3d022093c92c/export263/firstparty-fp32",
+  "cand": "/workspace/scratch/3d022093c92c/export263/firstparty-fp16",
+  "mode": "fp16_vs_fp32",
+  "components": {
+    "vae_decoder": {
+      "opset": {
+        "ref": 18,
+        "cand": 18
+      },
+      "sample": {
+        "max_abs": 0.0024328678846359253,
+        "cosine": 0.9999997003667253,
+        "max_abs_tol": 0.05,
+        "min_cosine": 0.999
+      }
+    }
+  },
+  "failures": [],
+  "unchecked": [],
+  "checked": 1,
+  "ok": true
+}
+{"name": "firstparty-fp16-vs-firstparty-fp32", "command": ["/tmp/xllama-export-resolution/bin/python", "diffusion/compare_onnx_exports.py", "/workspace/scratch/3d022093c92c/export263/firstparty-fp32", "/workspace/scratch/3d022093c92c/export263/firstparty-fp16", "--mode", "fp16_vs_fp32", "--components", "vae_decoder", "--json", "/workspace/scratch/3d022093c92c/export263/firstparty-fp16-vs-firstparty-fp32.json"], "exit_code": 0, "wall_seconds": 25.387043321000192, "peak_rss_mib": 1732.5546875}
+{
+  "ref": "/workspace/scratch/3d022093c92c/export263/firstparty-fp32",
+  "cand": "/workspace/scratch/3d022093c92c/export263/legacy-fp16",
+  "mode": "fp16_vs_fp32",
+  "components": {
+    "vae_decoder": {
+      "opset": {
+        "ref": 18,
+        "cand": 14
+      },
+      "sample": {
+        "max_abs": 0.0023718327283859253,
+        "cosine": 0.9999997005672184,
+        "max_abs_tol": 0.05,
+        "min_cosine": 0.999
+      }
+    }
+  },
+  "failures": [],
+  "unchecked": [],
+  "checked": 1,
+  "ok": true
+}
+{"name": "legacy-fp16-vs-firstparty-fp32", "command": ["/tmp/xllama-export-resolution/bin/python", "diffusion/compare_onnx_exports.py", "/workspace/scratch/3d022093c92c/export263/firstparty-fp32", "/workspace/scratch/3d022093c92c/export263/legacy-fp16", "--mode", "fp16_vs_fp32", "--components", "vae_decoder", "--json", "/workspace/scratch/3d022093c92c/export263/legacy-fp16-vs-firstparty-fp32.json"], "exit_code": 0, "wall_seconds": 27.652457241000093, "peak_rss_mib": 1733.109375}

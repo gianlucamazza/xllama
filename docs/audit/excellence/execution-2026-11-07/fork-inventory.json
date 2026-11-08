@@ -1,0 +1,2285 @@
+[
+  {
+    "repo": "weiting-tw/xllama",
+    "branches": [
+      {
+        "branch": "ccr-dc7c3963-oookvu",
+        "sha": "c48a6aca6c733db6512afcd5f5018c5e13233509",
+        "ahead": 1,
+        "behind": 9,
+        "commits": [
+          [
+            "c48a6ac",
+            "docs: Laya decision-model host feasibility"
+          ]
+        ],
+        "files": [
+          "docs/README.md",
+          "docs/laya-feasibility.md",
+          "docs/model-matrix.md",
+          "scripts/laya-feasibility/head_from_hidden.py",
+          "scripts/laya-feasibility/laya_llama_enc.cpp",
+          "scripts/laya-feasibility/laya_ort.cpp",
+          "scripts/laya-feasibility/laya_quant.py",
+          "scripts/laya-feasibility/laya_quant2.py",
+          "scripts/laya-feasibility/laya_ref.py",
+          "scripts/laya-feasibility/split_encoder.py",
+          "scripts/laya-feasibility/tok_parity.py"
+        ]
+      },
+      {
+        "branch": "main",
+        "sha": "da1aec40b84207b494f954c01ca5449783be90b8",
+        "ahead": 0,
+        "behind": 9,
+        "commits": [],
+        "files": []
+      }
+    ]
+  },
+  {
+    "repo": "maxmorrison74/xllama-on-steroids",
+    "branches": [
+      {
+        "branch": "codex/process-compute-admission-macos-build",
+        "sha": "02ae793efed85b1de7bc0e880aebb966355eaeb2",
+        "ahead": 1,
+        "behind": 34,
+        "commits": [
+          [
+            "02ae793",
+            "fix: serialize process-wide compute admissions"
+          ]
+        ],
+        "files": [
+          "AGENTS.md",
+          "CHANGELOG.md",
+          "docs/adr/0008-process-compute-admission.md",
+          "docs/api-endpoint.md",
+          "docs/architecture.md",
+          "docs/audit/excellence/adr-proposals.md",
+          "docs/audit/excellence/backlog.md",
+          "include/xllama/compute_admission.h",
+          "include/xllama/session_hub.h",
+          "src/bridge/diskbw.cpp",
+          "tests/CMakeLists.txt",
+          "tests/test_compute_admission.cpp",
+          "uwp/App.cpp",
+          "uwp/MainPage.cpp",
+          "uwp/MainPage.h",
+          "uwp/api-server.cpp"
+        ]
+      },
+      {
+        "branch": "codex/xllama-on-steroids-branding",
+        "sha": "b8aad358b1b3f6a790a921a2c3aba38d7b664d57",
+        "ahead": 17,
+        "behind": 34,
+        "commits": [
+          [
+            "02ae793",
+            "fix: serialize process-wide compute admissions"
+          ],
+          [
+            "574b492",
+            "feat: rebrand fork as Xllama on Steroids"
+          ],
+          [
+            "1d8e92b",
+            "feat: add Xbox LAN dashboard background"
+          ],
+          [
+            "3730fd9",
+            "docs: acknowledge upstream and fork changes"
+          ],
+          [
+            "e221359",
+            "docs: note macOS development workflow"
+          ],
+          [
+            "46cde28",
+            "build: bump Xbox package to 1.6.1"
+          ],
+          [
+            "bbfc154",
+            "docs: surface upstream author credit"
+          ],
+          [
+            "21e0d73",
+            "Make original author credit prominent"
+          ],
+          [
+            "61bf1e1",
+            "Translate prominent author credit to English"
+          ],
+          [
+            "3e943bf",
+            "Redesign Xbox settings for TV"
+          ],
+          [
+            "8344f23",
+            "feat: polish Xbox TV interface and add C64 theme"
+          ],
+          [
+            "708424d",
+            "fix: start Xbox soundtrack and reposition signature"
+          ],
+          [
+            "9370e33",
+            "style: scale Xbox dashboard and preferences for TV"
+          ],
+          [
+            "eda383c",
+            "style: compact Xbox UI and improve soundtrack playback"
+          ],
+          [
+            "d3ae696",
+            "fix: include soundtrack in Xbox package"
+          ],
+          [
+            "ce27ca1",
+            "style: reduce Xbox settings typography and spacing"
+          ],
+          [
+            "b8aad35",
+            "remove soundtrack from Xbox app"
+          ]
+        ],
+        "files": [
+          ".github/workflows/build-linux.yml",
+          ".github/workflows/build-uwp-ort-patched.yml",
+          ".github/workflows/build-uwp-patched.yml",
+          ".github/workflows/build-uwp.yml",
+          "AGENTS.md",
+          "CHANGELOG.md",
+          "NOTICE",
+          "README.md",
+          "ROADMAP.md",
+          "docs/README.md",
+          "docs/adr/0008-process-compute-admission.md",
+          "docs/api-endpoint.md",
+          "docs/architecture.md",
+          "docs/audit/excellence/adr-proposals.md",
+          "docs/audit/excellence/backlog.md",
+          "docs/benchmarks-charts.html",
+          "docs/benchmarks.md",
+          "docs/floppylm.md",
+          "docs/positioning.md",
+          "docs/privacy.md",
+          "docs/sdk/overview.md",
+          "docs/technical-report.md",
+          "include/xllama/compute_admission.h",
+          "include/xllama/session_hub.h",
+          "src/bridge/cli.cpp",
+          "src/bridge/diskbw.cpp",
+          "tests/CMakeLists.txt",
+          "tests/test_compute_admission.cpp",
+          "uwp/App.cpp",
+          "uwp/AppxManifest.store.xml",
+          "uwp/AppxManifest.xml",
+          "uwp/Assets/xllama-dashboard-background.jpg",
+          "uwp/MainPage.cpp",
+          "uwp/MainPage.h",
+          "uwp/api-server.cpp",
+          "uwp/pch.h",
+          "uwp/xllama.vcxproj"
+        ]
+      },
+      {
+        "branch": "dependabot/submodules/version-updates-dd6c1a1710",
+        "sha": "ab41616326a785ef41445cc7c0a47b920989992c",
+        "ahead": 1,
+        "behind": 34,
+        "commits": [
+          [
+            "ab41616",
+            "deps: bump llama.cpp"
+          ]
+        ],
+        "files": [
+          "llama.cpp"
+        ]
+      },
+      {
+        "branch": "feat/floppylm-training",
+        "sha": "ba0ebcedb385aca2e9646cec65b3a11fc7b6db89",
+        "ahead": 8,
+        "behind": 71,
+        "commits": [
+          [
+            "9747039",
+            "feat(training): add native FloppyLM scalar WSD engine"
+          ],
+          [
+            "3547b18",
+            "fix(build): normalize carried GELU patch context"
+          ],
+          [
+            "af67b19",
+            "Merge remote-tracking branch 'origin/main' into feat/floppylm-training"
+          ],
+          [
+            "3a2151e",
+            "test(training): add guarded Xbox FloppyLM validation and run provenance"
+          ],
+          [
+            "6869867",
+            "fix(training): check completed writes and preserve patch line endings"
+          ],
+          [
+            "1ba47b3",
+            "test(training): prove Xbox resume and publish independent export validation"
+          ],
+          [
+            "591982c",
+            "docs(training): include numeric diagnostic evidence logs"
+          ],
+          [
+            "ba0ebce",
+            "Merge origin/main into feat/floppylm-training"
+          ]
+        ],
+        "files": [
+          ".gitattributes",
+          ".github/workflows/build-linux.yml",
+          "CHANGELOG.md",
+          "CMakeLists.txt",
+          "ROADMAP.md",
+          "docs/README.md",
+          "docs/adr/0004-floppylm-training.md",
+          "docs/adr/0005-floppylm-numeric-validation.md",
+          "docs/architecture.md",
+          "docs/evidence/floppylm-native/README.md",
+          "docs/evidence/floppylm-native/d16-branch-0.flp",
+          "docs/evidence/floppylm-native/d16-branch-1.flp",
+          "docs/evidence/floppylm-native/d80-branch-0.flp",
+          "docs/evidence/floppylm-native/d80-branch-1.flp",
+          "docs/evidence/floppylm-native/functional.json",
+          "docs/evidence/floppylm-native/numeric-diagnostic.log",
+          "docs/evidence/floppylm-native/reference-matrix.log",
+          "docs/evidence/floppylm-native/restoration.json",
+          "docs/floppylm.md",
+          "docs/training-architecture.md",
+          "include/xllama/floppylm.h",
+          "include/xllama/training_params.h",
+          "patches/0002-floppylm-gelu-backward.patch",
+          "scripts/apply-training-patches.sh",
+          "scripts/console_test.py",
+          "scripts/validate-floppylm-console.py",
+          "src/bridge/floppylm_codec.cpp",
+          "src/bridge/floppylm_graph.cpp",
+          "src/bridge/floppylm_internal.h",
+          "src/bridge/floppylm_probe.cpp",
+          "src/bridge/floppylm_train.cpp",
+          "src/bridge/training.cpp",
+          "src/main.cpp",
+          "tests/CMakeLists.txt",
+          "tests/floppylm/codec_edges.py",
+          "tests/floppylm/high_precision.py",
+          "tests/floppylm/optimizer_parity.py",
+          "tests/floppylm/probe_main.cpp",
+          "tests/floppylm/reference_parity.py",
+          "tests/floppylm/runner_parity.py",
+          "tests/test_floppylm.cpp",
+          "training/floppylm/.gitignore",
+          "training/floppylm/PYTORCH-LICENSE",
+          "training/floppylm/README.md",
+          "training/floppylm/prepare.py",
+          "training/floppylm/reference/floppylm/__init__.py",
+          "training/floppylm/reference/floppylm/codec.py",
+          "training/floppylm/reference/floppylm/data.py",
+          "training/floppylm/reference/floppylm/metrics.py",
+          "training/floppylm/reference/floppylm/model.py",
+          "training/floppylm/reference/floppylm/pack.py",
+          "training/floppylm/reference/floppylm/parity.py",
+          "training/floppylm/reference/floppylm/rans.py",
+          "training/floppylm/reference/floppylm/runlog.py",
+          "training/floppylm/reference/floppylm/seed.py",
+          "training/floppylm/reference/floppylm/shapes.py",
+          "training/floppylm/reference/floppylm/train.py",
+          "training/floppylm/reference/provenance.json",
+          "training/floppylm/verify.py",
+          "uwp/inference-bridge.cpp",
+          "uwp/xllama.vcxproj"
+        ]
+      },
+      {
+        "branch": "feat/moe-xbox-smoke-probe",
+        "sha": "5cba82fc1c69d39b6f4331fc43d8c0460b4f7fd9",
+        "ahead": 22,
+        "behind": 34,
+        "commits": [
+          [
+            "02ae793",
+            "fix: serialize process-wide compute admissions"
+          ],
+          [
+            "574b492",
+            "feat: rebrand fork as Xllama on Steroids"
+          ],
+          [
+            "1d8e92b",
+            "feat: add Xbox LAN dashboard background"
+          ],
+          [
+            "3730fd9",
+            "docs: acknowledge upstream and fork changes"
+          ],
+          [
+            "e221359",
+            "docs: note macOS development workflow"
+          ],
+          [
+            "46cde28",
+            "build: bump Xbox package to 1.6.1"
+          ],
+          [
+            "bbfc154",
+            "docs: surface upstream author credit"
+          ],
+          [
+            "21e0d73",
+            "Make original author credit prominent"
+          ],
+          [
+            "61bf1e1",
+            "Translate prominent author credit to English"
+          ],
+          [
+            "3e943bf",
+            "Redesign Xbox settings for TV"
+          ],
+          [
+            "8344f23",
+            "feat: polish Xbox TV interface and add C64 theme"
+          ],
+          [
+            "708424d",
+            "fix: start Xbox soundtrack and reposition signature"
+          ],
+          [
+            "9370e33",
+            "style: scale Xbox dashboard and preferences for TV"
+          ],
+          [
+            "eda383c",
+            "style: compact Xbox UI and improve soundtrack playback"
+          ],
+          [
+            "d3ae696",
+            "fix: include soundtrack in Xbox package"
+          ],
+          [
+            "ce27ca1",
+            "style: reduce Xbox settings typography and spacing"
+          ],
+          [
+            "b8aad35",
+            "remove soundtrack from Xbox app"
+          ],
+          [
+            "ce6c432",
+            "feat: MoE smoke probe and host-native layer streaming prototype"
+          ],
+          [
+            "d176d08",
+            "ci: add Windows UWP build workflow for MoE smoke probe branch"
+          ],
+          [
+            "34d292d",
+            "docs: add CREDITS.md with explicit attribution to Gianluca Mazza / original xllama project"
+          ],
+          [
+            "0beb82e",
+            "docs: add visible Acknowledgments section to README crediting Gianluca Mazza / original xllama"
+          ],
+          [
+            "5cba82f",
+            "docs: add credits everywhere (README, AGENTS, architecture, CREDITS, source headers)"
+          ]
+        ],
+        "files": [
+          ".github/workflows/build-linux.yml",
+          ".github/workflows/build-uwp-ort-patched.yml",
+          ".github/workflows/build-uwp-patched.yml",
+          ".github/workflows/build-uwp.yml",
+          "AGENTS.md",
+          "CHANGELOG.md",
+          "CMakeLists.txt",
+          "CREDITS.md",
+          "NOTICE",
+          "README.md",
+          "ROADMAP.md",
+          "bench/plans/layer-streaming-host-smoke.json",
+          "bench/plans/moe-streaming-host-smoke.json",
+          "bench/plans/qwen3-30b-a3b-cache-scenario.json",
+          "bench/plans/qwen3-30b-a3b-instruct-2507-q4_k_m-header.json",
+          "bench/plans/qwen38-27b-q4_k_m-header.json",
+          "bench/results/20261102T103941Z-series-x-streaming/device-os-info.json",
+          "bench/results/20261102T103941Z-series-x-streaming/diskbw-result.csv",
+          "bench/results/20261102T103941Z-series-x-streaming/diskbw-result.csv.done",
+          "bench/results/20261102T103941Z-series-x-streaming/qwen38-layer-plan.json",
+          "bench/results/20261102T103941Z-series-x-streaming/ramceil-result.csv",
+          "bench/results/20261102T103941Z-series-x-streaming/ramceil-result.csv.done",
+          "bench/results/20261102T103941Z-series-x-streaming/run.json",
+          "docs/README.md",
+          "docs/adr/0008-process-compute-admission.md",
+          "docs/api-endpoint.md",
+          "docs/architecture.md",
+          "docs/audit/excellence/adr-proposals.md",
+          "docs/audit/excellence/backlog.md",
+          "docs/benchmarks-charts.html",
+          "docs/benchmarks.md",
+          "docs/floppylm.md",
+          "docs/positioning.md",
+          "docs/privacy.md",
+          "docs/sdk/overview.md",
+          "docs/ssd-inference-assessment.md",
+          "docs/technical-report.md",
+          "docs/uwp-constraints.md",
+          "include/xllama/compute_admission.h",
+          "include/xllama/moe_streaming.h",
+          "include/xllama/session_hub.h",
+          "scripts/inspect-remote-gguf.py",
+          "scripts/plan-layer-streaming.py",
+          "scripts/plan-moe-cache.py",
+          "src/bridge/cli.cpp",
+          "src/bridge/diskbw.cpp",
+          "src/bridge/moe_streaming.cpp",
+          "src/experimental/layer_streaming/CMakeLists.txt",
+          "src/experimental/layer_streaming/expert_cache.cpp",
+          "src/experimental/layer_streaming/expert_cache.h",
+          "src/experimental/layer_streaming/layer_streaming.cpp",
+          "src/experimental/layer_streaming/layer_streaming.h",
+          "src/experimental/layer_streaming/main.cpp",
+          "src/experimental/layer_streaming/moe_file.cpp",
+          "src/experimental/layer_streaming/moe_file.h",
+          "src/experimental/layer_streaming/moe_main.cpp",
+          "src/experimental/layer_streaming/moe_smoke.cpp",
+          "src/experimental/layer_streaming/moe_streaming.cpp",
+          "src/experimental/layer_streaming/moe_streaming.h",
+          "src/experimental/layer_streaming/smoke.cpp",
+          "tests/CMakeLists.txt",
+          "tests/test_compute_admission.cpp",
+          "tests/test_layer_streaming_plan.py",
+          "tests/test_moe_cache_plan.py",
+          "tests/test_remote_gguf_metadata.py",
+          "uwp/App.cpp",
+          "uwp/AppxManifest.store.xml",
+          "uwp/AppxManifest.xml",
+          "uwp/Assets/xllama-dashboard-background.jpg",
+          "uwp/MainPage.cpp",
+          "uwp/MainPage.h",
+          "uwp/api-server.cpp",
+          "uwp/pch.h",
+          "uwp/xllama.vcxproj"
+        ]
+      },
+      {
+        "branch": "main",
+        "sha": "574b492b4a158442bfe13e8100ab87286036af8a",
+        "ahead": 2,
+        "behind": 34,
+        "commits": [
+          [
+            "02ae793",
+            "fix: serialize process-wide compute admissions"
+          ],
+          [
+            "574b492",
+            "feat: rebrand fork as Xllama on Steroids"
+          ]
+        ],
+        "files": [
+          ".github/workflows/build-linux.yml",
+          ".github/workflows/build-uwp-ort-patched.yml",
+          ".github/workflows/build-uwp-patched.yml",
+          ".github/workflows/build-uwp.yml",
+          "AGENTS.md",
+          "CHANGELOG.md",
+          "NOTICE",
+          "README.md",
+          "ROADMAP.md",
+          "docs/README.md",
+          "docs/adr/0008-process-compute-admission.md",
+          "docs/api-endpoint.md",
+          "docs/architecture.md",
+          "docs/audit/excellence/adr-proposals.md",
+          "docs/audit/excellence/backlog.md",
+          "docs/benchmarks-charts.html",
+          "docs/benchmarks.md",
+          "docs/floppylm.md",
+          "docs/positioning.md",
+          "docs/privacy.md",
+          "docs/sdk/overview.md",
+          "docs/technical-report.md",
+          "include/xllama/compute_admission.h",
+          "include/xllama/session_hub.h",
+          "src/bridge/cli.cpp",
+          "src/bridge/diskbw.cpp",
+          "tests/CMakeLists.txt",
+          "tests/test_compute_admission.cpp",
+          "uwp/App.cpp",
+          "uwp/AppxManifest.store.xml",
+          "uwp/AppxManifest.xml",
+          "uwp/MainPage.cpp",
+          "uwp/MainPage.h",
+          "uwp/api-server.cpp"
+        ]
+      }
+    ]
+  },
+  {
+    "repo": "t91012696-glitch/xllama",
+    "branches": [
+      {
+        "branch": "feat/floppylm-training",
+        "sha": "ba0ebcedb385aca2e9646cec65b3a11fc7b6db89",
+        "ahead": 8,
+        "behind": 71,
+        "commits": [
+          [
+            "9747039",
+            "feat(training): add native FloppyLM scalar WSD engine"
+          ],
+          [
+            "3547b18",
+            "fix(build): normalize carried GELU patch context"
+          ],
+          [
+            "af67b19",
+            "Merge remote-tracking branch 'origin/main' into feat/floppylm-training"
+          ],
+          [
+            "3a2151e",
+            "test(training): add guarded Xbox FloppyLM validation and run provenance"
+          ],
+          [
+            "6869867",
+            "fix(training): check completed writes and preserve patch line endings"
+          ],
+          [
+            "1ba47b3",
+            "test(training): prove Xbox resume and publish independent export validation"
+          ],
+          [
+            "591982c",
+            "docs(training): include numeric diagnostic evidence logs"
+          ],
+          [
+            "ba0ebce",
+            "Merge origin/main into feat/floppylm-training"
+          ]
+        ],
+        "files": [
+          ".gitattributes",
+          ".github/workflows/build-linux.yml",
+          "CHANGELOG.md",
+          "CMakeLists.txt",
+          "ROADMAP.md",
+          "docs/README.md",
+          "docs/adr/0004-floppylm-training.md",
+          "docs/adr/0005-floppylm-numeric-validation.md",
+          "docs/architecture.md",
+          "docs/evidence/floppylm-native/README.md",
+          "docs/evidence/floppylm-native/d16-branch-0.flp",
+          "docs/evidence/floppylm-native/d16-branch-1.flp",
+          "docs/evidence/floppylm-native/d80-branch-0.flp",
+          "docs/evidence/floppylm-native/d80-branch-1.flp",
+          "docs/evidence/floppylm-native/functional.json",
+          "docs/evidence/floppylm-native/numeric-diagnostic.log",
+          "docs/evidence/floppylm-native/reference-matrix.log",
+          "docs/evidence/floppylm-native/restoration.json",
+          "docs/floppylm.md",
+          "docs/training-architecture.md",
+          "include/xllama/floppylm.h",
+          "include/xllama/training_params.h",
+          "patches/0002-floppylm-gelu-backward.patch",
+          "scripts/apply-training-patches.sh",
+          "scripts/console_test.py",
+          "scripts/validate-floppylm-console.py",
+          "src/bridge/floppylm_codec.cpp",
+          "src/bridge/floppylm_graph.cpp",
+          "src/bridge/floppylm_internal.h",
+          "src/bridge/floppylm_probe.cpp",
+          "src/bridge/floppylm_train.cpp",
+          "src/bridge/training.cpp",
+          "src/main.cpp",
+          "tests/CMakeLists.txt",
+          "tests/floppylm/codec_edges.py",
+          "tests/floppylm/high_precision.py",
+          "tests/floppylm/optimizer_parity.py",
+          "tests/floppylm/probe_main.cpp",
+          "tests/floppylm/reference_parity.py",
+          "tests/floppylm/runner_parity.py",
+          "tests/test_floppylm.cpp",
+          "training/floppylm/.gitignore",
+          "training/floppylm/PYTORCH-LICENSE",
+          "training/floppylm/README.md",
+          "training/floppylm/prepare.py",
+          "training/floppylm/reference/floppylm/__init__.py",
+          "training/floppylm/reference/floppylm/codec.py",
+          "training/floppylm/reference/floppylm/data.py",
+          "training/floppylm/reference/floppylm/metrics.py",
+          "training/floppylm/reference/floppylm/model.py",
+          "training/floppylm/reference/floppylm/pack.py",
+          "training/floppylm/reference/floppylm/parity.py",
+          "training/floppylm/reference/floppylm/rans.py",
+          "training/floppylm/reference/floppylm/runlog.py",
+          "training/floppylm/reference/floppylm/seed.py",
+          "training/floppylm/reference/floppylm/shapes.py",
+          "training/floppylm/reference/floppylm/train.py",
+          "training/floppylm/reference/provenance.json",
+          "training/floppylm/verify.py",
+          "uwp/inference-bridge.cpp",
+          "uwp/xllama.vcxproj"
+        ]
+      },
+      {
+        "branch": "main",
+        "sha": "d6593de281b5b0b0bfbd249ed153512772dc162c",
+        "ahead": 1,
+        "behind": 34,
+        "commits": [
+          [
+            "d6593de",
+            "Update build-uwp.yml"
+          ]
+        ],
+        "files": [
+          ".github/workflows/build-uwp.yml"
+        ]
+      }
+    ]
+  },
+  {
+    "repo": "duranlisandro/xllama_matrix",
+    "branches": [
+      {
+        "branch": "build/head-20261016",
+        "sha": "5271350761f75da6953a1644ea12f72e2bdd334f",
+        "ahead": 0,
+        "behind": 34,
+        "commits": [],
+        "files": []
+      },
+      {
+        "branch": "fix/347-run-scoped-logs",
+        "sha": "8386256442fa7bdf299f608fc42253693ee3fc96",
+        "ahead": 2,
+        "behind": 29,
+        "commits": [
+          [
+            "50bff86",
+            "fix(console): scope harness log evidence to the current run"
+          ],
+          [
+            "8386256",
+            "fix(training): propagate serve cleanup failures"
+          ]
+        ],
+        "files": [
+          ".github/workflows/build-linux.yml",
+          "docs/console-validation-runbook.md",
+          "scripts/console-run-log.sh",
+          "scripts/console-temp-chats.sh",
+          "scripts/console_run_log.py",
+          "scripts/validate-console-training.sh",
+          "scripts/validate-console.sh",
+          "tests/test_console_run_log.py",
+          "tests/test_console_temp_chats.py"
+        ]
+      },
+      {
+        "branch": "main",
+        "sha": "5271350761f75da6953a1644ea12f72e2bdd334f",
+        "ahead": 0,
+        "behind": 34,
+        "commits": [],
+        "files": []
+      },
+      {
+        "branch": "pr/sse-chat-streaming",
+        "sha": "6add2a55b18e0a28724c6bc88047a9350ebd177d",
+        "ahead": 12,
+        "behind": 34,
+        "commits": [
+          [
+            "4e28577",
+            "feat(api): host-tested SSE and chunked framing for the streamed chat path"
+          ],
+          [
+            "a5ef8dd",
+            "feat(api): stream /v1/chat/completions as SSE when stream:true"
+          ],
+          [
+            "6391589",
+            "style: clang-format the SSE framing and the streaming handler"
+          ],
+          [
+            "b407c56",
+            "fix(api): build the SSE stream (JsonObject inserts, vcxproj source)"
+          ],
+          [
+            "0e3d543",
+            "docs(api): /v1/chat/completions streams SSE with stream:true"
+          ],
+          [
+            "9201f7e",
+            "test(api): validate the SSE stream from the host harness"
+          ],
+          [
+            "a97a107",
+            "fix(api): keep the SSE stream valid across UTF-8 and post-head failures"
+          ],
+          [
+            "fe9f61d",
+            "test(api): qualify sse_utf8_complete_prefix in the host test"
+          ],
+          [
+            "cfe2d11",
+            "fix(api): abort disconnected streams and recover malformed UTF-8"
+          ],
+          [
+            "8076af9",
+            "docs(api): document streamed chat and the SSE test map"
+          ],
+          [
+            "84bc55e",
+            "fix(api): withhold stop sequences from the SSE stream"
+          ],
+          [
+            "6add2a5",
+            "docs(api): document stop-sequence filtering in streamed replies"
+          ]
+        ],
+        "files": [
+          "CHANGELOG.md",
+          "CMakeLists.txt",
+          "docs/adr/0004-tool-proposals.md",
+          "docs/api-endpoint.md",
+          "docs/architecture.md",
+          "include/xllama/sse.h",
+          "include/xllama/stop_sequence_filter.h",
+          "scripts/validate-api.sh",
+          "src/bridge/sse.cpp",
+          "src/bridge/stop_sequence_filter.cpp",
+          "tests/CMakeLists.txt",
+          "tests/test_sse.cpp",
+          "tests/test_stop_filter.cpp",
+          "uwp/api-server.cpp",
+          "uwp/xllama.vcxproj"
+        ]
+      }
+    ]
+  },
+  {
+    "repo": "http-hadi/xllama",
+    "branches": [
+      {
+        "branch": "feat/d3d12-full",
+        "sha": "750c20bc3df2637c7a11443c4a4cc038d7125373",
+        "ahead": 8,
+        "behind": 57,
+        "commits": [
+          [
+            "f1db2d4",
+            "vendor: koza-coder/llama.cpp-directx12 ggml-d3d12 backend (verbatim, v0.2.7)"
+          ],
+          [
+            "6d63c82",
+            "feat: whole-graph D3D12 GPU backend for Xbox (port of koza-coder/llama.cpp-directx12), baked-shader pipeline, auto GPU offload"
+          ],
+          [
+            "2981a6c",
+            "ci: compute package revision in a step (expressions have no arithmetic)"
+          ],
+          [
+            "4a4b5a7",
+            "shaders: chunk embedded HLSL below MSVC's string-literal limit (C2026); add policy tests"
+          ],
+          [
+            "98a271a",
+            "ci: surface MSVC/linker errors as annotations"
+          ],
+          [
+            "de72b3d",
+            "d3d12f: fix NORM race, vectorised Q1_0 matvec, cache-only verify stage, ppl check, docs"
+          ],
+          [
+            "7118b4c",
+            "d3d12f: log why GPU default is off (once per launch), perplexity check non-fatal, package workflow from verified cache"
+          ],
+          [
+            "750c20b",
+            "d3d12f: F16 KV-cache writes without native 16-bit shader ops (Xbox), CI bakes/verifies the console kernel set, rejected-op report, no16 probe"
+          ]
+        ],
+        "files": [
+          ".github/msvc-matcher.json",
+          ".github/workflows/d3d12-full-compile.yml",
+          ".github/workflows/d3d12-full-package.yml",
+          ".github/workflows/d3d12-full-release.yml",
+          ".github/workflows/d3d12-no16-probe.yml",
+          "docs/d3d12-full.md",
+          "include/xllama/ggml_d3d12_full.h",
+          "include/xllama/routing_policy.h",
+          "scripts/ci-d3d12-bake-run.ps1",
+          "scripts/ci-publish-logs.sh",
+          "scripts/d3d12-full-inject.py",
+          "scripts/embed-d3d12-shaders.py",
+          "scripts/port-ggml-d3d12-full.py",
+          "shaders/generated/ggml-d3d12-shaders.hpp",
+          "src/bridge/decode_loop.h",
+          "src/bridge/ggml_d3d12_full.cpp",
+          "src/bridge/llama_gpu.h",
+          "src/bridge/session.cpp",
+          "tests/test_routing_policy.cpp",
+          "third_party/ggml-d3d12-full/LICENSE",
+          "third_party/ggml-d3d12-full/ggml-d3d12.cpp",
+          "third_party/ggml-d3d12-full/ggml-d3d12.h",
+          "third_party/ggml-d3d12-full/hlsl/add1.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/add_id.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/add_rel_pos.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/arange.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/argmax.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/argsort.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/argsort_bitonic.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/binary.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/col2im_1d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/common.hlsli",
+          "third_party/ggml-d3d12-full/hlsl/concat.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_2d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_2d_dw.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_3d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_transpose_1d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_transpose_2d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/count_equal.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cpy.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cpy_raw.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cross_entropy_loss.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cross_entropy_loss_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cumsum.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/dequant_row.hlsli",
+          "third_party/ggml-d3d12-full/hlsl/diag.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/diag_mask.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/dsv4_hc_comb.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/dsv4_hc_post.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/dsv4_hc_pre.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/embed_hlsl.py",
+          "third_party/ggml-d3d12-full/hlsl/flash_attn.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/gated_delta_net.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/gated_linear_attn.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/gen_iq_tables.py",
+          "third_party/ggml-d3d12-full/hlsl/get_rel_pos.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/get_rows.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/get_rows_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/get_rows_q.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/glu.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/group_norm.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/im2col.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/im2col_3d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/im2col_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/iq_tables.hlsli",
+          "third_party/ggml-d3d12-full/hlsl/leaky_relu.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/lightning_indexer.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/memset.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_id_prep.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_id_scalar.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_scalar.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_tiled.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_vec.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/multi_add.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/norm.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/opt_step.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/out_prod.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/pad.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/pad_reflect_1d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/pool_1d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/pool_2d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/repeat.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/repeat_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rms_norm.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rms_norm_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/roll.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rope.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rwkv_wkv6.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rwkv_wkv7.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/scale.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/set_acc.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/set_rows.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/set_rows_q.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/silu_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/soft_max.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/soft_max_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/solve_tri.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/ssm_conv.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/ssm_scan.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/sum.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/sum_rows.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/timestep_embedding.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/topk_moe.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/tri.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/unary.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/upscale.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/win_part.hlsl",
+          "uwp/MainPage.cpp",
+          "uwp/api-server.cpp",
+          "uwp/xllama.vcxproj"
+        ]
+      },
+      {
+        "branch": "feat/floppylm-training",
+        "sha": "ba0ebcedb385aca2e9646cec65b3a11fc7b6db89",
+        "ahead": 8,
+        "behind": 71,
+        "commits": [
+          [
+            "9747039",
+            "feat(training): add native FloppyLM scalar WSD engine"
+          ],
+          [
+            "3547b18",
+            "fix(build): normalize carried GELU patch context"
+          ],
+          [
+            "af67b19",
+            "Merge remote-tracking branch 'origin/main' into feat/floppylm-training"
+          ],
+          [
+            "3a2151e",
+            "test(training): add guarded Xbox FloppyLM validation and run provenance"
+          ],
+          [
+            "6869867",
+            "fix(training): check completed writes and preserve patch line endings"
+          ],
+          [
+            "1ba47b3",
+            "test(training): prove Xbox resume and publish independent export validation"
+          ],
+          [
+            "591982c",
+            "docs(training): include numeric diagnostic evidence logs"
+          ],
+          [
+            "ba0ebce",
+            "Merge origin/main into feat/floppylm-training"
+          ]
+        ],
+        "files": [
+          ".gitattributes",
+          ".github/workflows/build-linux.yml",
+          "CHANGELOG.md",
+          "CMakeLists.txt",
+          "ROADMAP.md",
+          "docs/README.md",
+          "docs/adr/0004-floppylm-training.md",
+          "docs/adr/0005-floppylm-numeric-validation.md",
+          "docs/architecture.md",
+          "docs/evidence/floppylm-native/README.md",
+          "docs/evidence/floppylm-native/d16-branch-0.flp",
+          "docs/evidence/floppylm-native/d16-branch-1.flp",
+          "docs/evidence/floppylm-native/d80-branch-0.flp",
+          "docs/evidence/floppylm-native/d80-branch-1.flp",
+          "docs/evidence/floppylm-native/functional.json",
+          "docs/evidence/floppylm-native/numeric-diagnostic.log",
+          "docs/evidence/floppylm-native/reference-matrix.log",
+          "docs/evidence/floppylm-native/restoration.json",
+          "docs/floppylm.md",
+          "docs/training-architecture.md",
+          "include/xllama/floppylm.h",
+          "include/xllama/training_params.h",
+          "patches/0002-floppylm-gelu-backward.patch",
+          "scripts/apply-training-patches.sh",
+          "scripts/console_test.py",
+          "scripts/validate-floppylm-console.py",
+          "src/bridge/floppylm_codec.cpp",
+          "src/bridge/floppylm_graph.cpp",
+          "src/bridge/floppylm_internal.h",
+          "src/bridge/floppylm_probe.cpp",
+          "src/bridge/floppylm_train.cpp",
+          "src/bridge/training.cpp",
+          "src/main.cpp",
+          "tests/CMakeLists.txt",
+          "tests/floppylm/codec_edges.py",
+          "tests/floppylm/high_precision.py",
+          "tests/floppylm/optimizer_parity.py",
+          "tests/floppylm/probe_main.cpp",
+          "tests/floppylm/reference_parity.py",
+          "tests/floppylm/runner_parity.py",
+          "tests/test_floppylm.cpp",
+          "training/floppylm/.gitignore",
+          "training/floppylm/PYTORCH-LICENSE",
+          "training/floppylm/README.md",
+          "training/floppylm/prepare.py",
+          "training/floppylm/reference/floppylm/__init__.py",
+          "training/floppylm/reference/floppylm/codec.py",
+          "training/floppylm/reference/floppylm/data.py",
+          "training/floppylm/reference/floppylm/metrics.py",
+          "training/floppylm/reference/floppylm/model.py",
+          "training/floppylm/reference/floppylm/pack.py",
+          "training/floppylm/reference/floppylm/parity.py",
+          "training/floppylm/reference/floppylm/rans.py",
+          "training/floppylm/reference/floppylm/runlog.py",
+          "training/floppylm/reference/floppylm/seed.py",
+          "training/floppylm/reference/floppylm/shapes.py",
+          "training/floppylm/reference/floppylm/train.py",
+          "training/floppylm/reference/provenance.json",
+          "training/floppylm/verify.py",
+          "uwp/inference-bridge.cpp",
+          "uwp/xllama.vcxproj"
+        ]
+      },
+      {
+        "branch": "gpu-for-all",
+        "sha": "3aecc96d9a1dd2af58de15e82cdfd30a7c49ae12",
+        "ahead": 3,
+        "behind": 57,
+        "commits": [
+          [
+            "c1cb402",
+            "GPU-for-all: default every GGUF model to full d3d12 offload"
+          ],
+          [
+            "7da2663",
+            "Bump app version to 1.6.1 so the GPU-for-all build upgrades over v1.6.0.0"
+          ],
+          [
+            "3aecc96",
+            "GPU-only: verify placement after the attempt, refuse CPU-bound loads"
+          ]
+        ],
+        "files": [
+          "include/xllama/ggml_d3d12.h",
+          "include/xllama/routing_policy.h",
+          "src/bridge/ggml_d3d12.cpp",
+          "src/bridge/inference.cpp",
+          "src/bridge/llama_gpu.h",
+          "src/bridge/session.cpp",
+          "tests/test_routing_policy.cpp",
+          "uwp/AppxManifest.xml"
+        ]
+      },
+      {
+        "branch": "gpu-only-fix",
+        "sha": "0bded61bb152c252718e2e6d4f056ab716caeff8",
+        "ahead": 18,
+        "behind": 57,
+        "commits": [
+          [
+            "f1db2d4",
+            "vendor: koza-coder/llama.cpp-directx12 ggml-d3d12 backend (verbatim, v0.2.7)"
+          ],
+          [
+            "6d63c82",
+            "feat: whole-graph D3D12 GPU backend for Xbox (port of koza-coder/llama.cpp-directx12), baked-shader pipeline, auto GPU offload"
+          ],
+          [
+            "2981a6c",
+            "ci: compute package revision in a step (expressions have no arithmetic)"
+          ],
+          [
+            "4a4b5a7",
+            "shaders: chunk embedded HLSL below MSVC's string-literal limit (C2026); add policy tests"
+          ],
+          [
+            "98a271a",
+            "ci: surface MSVC/linker errors as annotations"
+          ],
+          [
+            "de72b3d",
+            "d3d12f: fix NORM race, vectorised Q1_0 matvec, cache-only verify stage, ppl check, docs"
+          ],
+          [
+            "7118b4c",
+            "d3d12f: log why GPU default is off (once per launch), perplexity check non-fatal, package workflow from verified cache"
+          ],
+          [
+            "750c20b",
+            "d3d12f: F16 KV-cache writes without native 16-bit shader ops (Xbox), CI bakes/verifies the console kernel set, rejected-op report, no16 probe"
+          ],
+          [
+            "78f5fba",
+            "d3d12f: a GPU crash no longer silently switches the next launch to the CPU (opt-in d3d12f_safe.txt keeps the old behaviour)"
+          ],
+          [
+            "7411f0a",
+            "d3d12f: request the baked shader set on the console (FAKE_VENDOR=1002 default), log vendor id"
+          ],
+          [
+            "cf3812c",
+            "package: build from the verified cache of run 38169559040 (750c20b)"
+          ],
+          [
+            "27947b5",
+            "package: revision floor 31000 so the build upgrades over 1.6.0.30004"
+          ],
+          [
+            "87c9151",
+            "d3d12f: cap logits rows on the whole-graph path (Bonsai 27B compute buffer 485 MiB -> small), retry context with smaller n_ubatch"
+          ],
+          [
+            "43c550e",
+            "d3d12f: crash + heartbeat diagnostics, cap n_ubatch for models that fill the device budget"
+          ],
+          [
+            "ba6ba15",
+            "d3d12f: fix diagnostics build (UWP exception filter, heartbeat in the llama session)"
+          ],
+          [
+            "9bd7879",
+            "d3d12f: log GGML abort messages, trace first decode steps"
+          ],
+          [
+            "db80927",
+            "d3d12f: trace the first sample (sync/readback), per-thread terminate logging with exception text"
+          ],
+          [
+            "0bded61",
+            "d3d12f: check logits before sampling (NaN/inf -> report, no abort), per-layer numeric trace on the first decode of large GPU models"
+          ]
+        ],
+        "files": [
+          ".github/msvc-matcher.json",
+          ".github/workflows/d3d12-full-compile.yml",
+          ".github/workflows/d3d12-full-package.yml",
+          ".github/workflows/d3d12-full-release.yml",
+          ".github/workflows/d3d12-no16-probe.yml",
+          "docs/d3d12-full.md",
+          "include/xllama/ggml_d3d12_full.h",
+          "include/xllama/platform.h",
+          "include/xllama/routing_policy.h",
+          "scripts/ci-d3d12-bake-run.ps1",
+          "scripts/ci-publish-logs.sh",
+          "scripts/d3d12-full-inject.py",
+          "scripts/embed-d3d12-shaders.py",
+          "scripts/port-ggml-d3d12-full.py",
+          "shaders/generated/ggml-d3d12-shaders.hpp",
+          "src/bridge/decode_loop.h",
+          "src/bridge/ggml_d3d12_full.cpp",
+          "src/bridge/llama_gpu.h",
+          "src/bridge/platform.cpp",
+          "src/bridge/session.cpp",
+          "tests/test_routing_policy.cpp",
+          "third_party/ggml-d3d12-full/LICENSE",
+          "third_party/ggml-d3d12-full/ggml-d3d12.cpp",
+          "third_party/ggml-d3d12-full/ggml-d3d12.h",
+          "third_party/ggml-d3d12-full/hlsl/add1.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/add_id.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/add_rel_pos.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/arange.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/argmax.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/argsort.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/argsort_bitonic.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/binary.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/col2im_1d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/common.hlsli",
+          "third_party/ggml-d3d12-full/hlsl/concat.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_2d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_2d_dw.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_3d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_transpose_1d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_transpose_2d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/count_equal.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cpy.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cpy_raw.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cross_entropy_loss.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cross_entropy_loss_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cumsum.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/dequant_row.hlsli",
+          "third_party/ggml-d3d12-full/hlsl/diag.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/diag_mask.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/dsv4_hc_comb.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/dsv4_hc_post.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/dsv4_hc_pre.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/embed_hlsl.py",
+          "third_party/ggml-d3d12-full/hlsl/flash_attn.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/gated_delta_net.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/gated_linear_attn.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/gen_iq_tables.py",
+          "third_party/ggml-d3d12-full/hlsl/get_rel_pos.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/get_rows.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/get_rows_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/get_rows_q.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/glu.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/group_norm.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/im2col.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/im2col_3d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/im2col_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/iq_tables.hlsli",
+          "third_party/ggml-d3d12-full/hlsl/leaky_relu.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/lightning_indexer.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/memset.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_id_prep.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_id_scalar.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_scalar.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_tiled.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_vec.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/multi_add.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/norm.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/opt_step.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/out_prod.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/pad.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/pad_reflect_1d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/pool_1d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/pool_2d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/repeat.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/repeat_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rms_norm.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rms_norm_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/roll.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rope.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rwkv_wkv6.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rwkv_wkv7.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/scale.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/set_acc.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/set_rows.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/set_rows_q.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/silu_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/soft_max.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/soft_max_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/solve_tri.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/ssm_conv.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/ssm_scan.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/sum.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/sum_rows.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/timestep_embedding.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/topk_moe.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/tri.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/unary.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/upscale.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/win_part.hlsl",
+          "uwp/MainPage.cpp",
+          "uwp/api-server.cpp",
+          "uwp/xllama.vcxproj"
+        ]
+      },
+      {
+        "branch": "main",
+        "sha": "ebc6a6eb18269576a78d9e3c78d678c509673de0",
+        "ahead": 0,
+        "behind": 57,
+        "commits": [],
+        "files": []
+      },
+      {
+        "branch": "package/d3d12f",
+        "sha": "0bded61bb152c252718e2e6d4f056ab716caeff8",
+        "ahead": 18,
+        "behind": 57,
+        "commits": [
+          [
+            "f1db2d4",
+            "vendor: koza-coder/llama.cpp-directx12 ggml-d3d12 backend (verbatim, v0.2.7)"
+          ],
+          [
+            "6d63c82",
+            "feat: whole-graph D3D12 GPU backend for Xbox (port of koza-coder/llama.cpp-directx12), baked-shader pipeline, auto GPU offload"
+          ],
+          [
+            "2981a6c",
+            "ci: compute package revision in a step (expressions have no arithmetic)"
+          ],
+          [
+            "4a4b5a7",
+            "shaders: chunk embedded HLSL below MSVC's string-literal limit (C2026); add policy tests"
+          ],
+          [
+            "98a271a",
+            "ci: surface MSVC/linker errors as annotations"
+          ],
+          [
+            "de72b3d",
+            "d3d12f: fix NORM race, vectorised Q1_0 matvec, cache-only verify stage, ppl check, docs"
+          ],
+          [
+            "7118b4c",
+            "d3d12f: log why GPU default is off (once per launch), perplexity check non-fatal, package workflow from verified cache"
+          ],
+          [
+            "750c20b",
+            "d3d12f: F16 KV-cache writes without native 16-bit shader ops (Xbox), CI bakes/verifies the console kernel set, rejected-op report, no16 probe"
+          ],
+          [
+            "78f5fba",
+            "d3d12f: a GPU crash no longer silently switches the next launch to the CPU (opt-in d3d12f_safe.txt keeps the old behaviour)"
+          ],
+          [
+            "7411f0a",
+            "d3d12f: request the baked shader set on the console (FAKE_VENDOR=1002 default), log vendor id"
+          ],
+          [
+            "cf3812c",
+            "package: build from the verified cache of run 38169559040 (750c20b)"
+          ],
+          [
+            "27947b5",
+            "package: revision floor 31000 so the build upgrades over 1.6.0.30004"
+          ],
+          [
+            "87c9151",
+            "d3d12f: cap logits rows on the whole-graph path (Bonsai 27B compute buffer 485 MiB -> small), retry context with smaller n_ubatch"
+          ],
+          [
+            "43c550e",
+            "d3d12f: crash + heartbeat diagnostics, cap n_ubatch for models that fill the device budget"
+          ],
+          [
+            "ba6ba15",
+            "d3d12f: fix diagnostics build (UWP exception filter, heartbeat in the llama session)"
+          ],
+          [
+            "9bd7879",
+            "d3d12f: log GGML abort messages, trace first decode steps"
+          ],
+          [
+            "db80927",
+            "d3d12f: trace the first sample (sync/readback), per-thread terminate logging with exception text"
+          ],
+          [
+            "0bded61",
+            "d3d12f: check logits before sampling (NaN/inf -> report, no abort), per-layer numeric trace on the first decode of large GPU models"
+          ]
+        ],
+        "files": [
+          ".github/msvc-matcher.json",
+          ".github/workflows/d3d12-full-compile.yml",
+          ".github/workflows/d3d12-full-package.yml",
+          ".github/workflows/d3d12-full-release.yml",
+          ".github/workflows/d3d12-no16-probe.yml",
+          "docs/d3d12-full.md",
+          "include/xllama/ggml_d3d12_full.h",
+          "include/xllama/platform.h",
+          "include/xllama/routing_policy.h",
+          "scripts/ci-d3d12-bake-run.ps1",
+          "scripts/ci-publish-logs.sh",
+          "scripts/d3d12-full-inject.py",
+          "scripts/embed-d3d12-shaders.py",
+          "scripts/port-ggml-d3d12-full.py",
+          "shaders/generated/ggml-d3d12-shaders.hpp",
+          "src/bridge/decode_loop.h",
+          "src/bridge/ggml_d3d12_full.cpp",
+          "src/bridge/llama_gpu.h",
+          "src/bridge/platform.cpp",
+          "src/bridge/session.cpp",
+          "tests/test_routing_policy.cpp",
+          "third_party/ggml-d3d12-full/LICENSE",
+          "third_party/ggml-d3d12-full/ggml-d3d12.cpp",
+          "third_party/ggml-d3d12-full/ggml-d3d12.h",
+          "third_party/ggml-d3d12-full/hlsl/add1.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/add_id.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/add_rel_pos.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/arange.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/argmax.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/argsort.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/argsort_bitonic.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/binary.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/col2im_1d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/common.hlsli",
+          "third_party/ggml-d3d12-full/hlsl/concat.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_2d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_2d_dw.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_3d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_transpose_1d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_transpose_2d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/count_equal.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cpy.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cpy_raw.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cross_entropy_loss.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cross_entropy_loss_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cumsum.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/dequant_row.hlsli",
+          "third_party/ggml-d3d12-full/hlsl/diag.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/diag_mask.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/dsv4_hc_comb.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/dsv4_hc_post.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/dsv4_hc_pre.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/embed_hlsl.py",
+          "third_party/ggml-d3d12-full/hlsl/flash_attn.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/gated_delta_net.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/gated_linear_attn.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/gen_iq_tables.py",
+          "third_party/ggml-d3d12-full/hlsl/get_rel_pos.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/get_rows.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/get_rows_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/get_rows_q.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/glu.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/group_norm.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/im2col.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/im2col_3d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/im2col_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/iq_tables.hlsli",
+          "third_party/ggml-d3d12-full/hlsl/leaky_relu.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/lightning_indexer.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/memset.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_id_prep.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_id_scalar.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_scalar.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_tiled.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_vec.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/multi_add.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/norm.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/opt_step.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/out_prod.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/pad.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/pad_reflect_1d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/pool_1d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/pool_2d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/repeat.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/repeat_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rms_norm.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rms_norm_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/roll.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rope.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rwkv_wkv6.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rwkv_wkv7.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/scale.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/set_acc.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/set_rows.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/set_rows_q.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/silu_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/soft_max.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/soft_max_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/solve_tri.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/ssm_conv.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/ssm_scan.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/sum.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/sum_rows.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/timestep_embedding.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/topk_moe.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/tri.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/unary.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/upscale.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/win_part.hlsl",
+          "uwp/MainPage.cpp",
+          "uwp/api-server.cpp",
+          "uwp/xllama.vcxproj"
+        ]
+      },
+      {
+        "branch": "probe/no16",
+        "sha": "750c20bc3df2637c7a11443c4a4cc038d7125373",
+        "ahead": 8,
+        "behind": 57,
+        "commits": [
+          [
+            "f1db2d4",
+            "vendor: koza-coder/llama.cpp-directx12 ggml-d3d12 backend (verbatim, v0.2.7)"
+          ],
+          [
+            "6d63c82",
+            "feat: whole-graph D3D12 GPU backend for Xbox (port of koza-coder/llama.cpp-directx12), baked-shader pipeline, auto GPU offload"
+          ],
+          [
+            "2981a6c",
+            "ci: compute package revision in a step (expressions have no arithmetic)"
+          ],
+          [
+            "4a4b5a7",
+            "shaders: chunk embedded HLSL below MSVC's string-literal limit (C2026); add policy tests"
+          ],
+          [
+            "98a271a",
+            "ci: surface MSVC/linker errors as annotations"
+          ],
+          [
+            "de72b3d",
+            "d3d12f: fix NORM race, vectorised Q1_0 matvec, cache-only verify stage, ppl check, docs"
+          ],
+          [
+            "7118b4c",
+            "d3d12f: log why GPU default is off (once per launch), perplexity check non-fatal, package workflow from verified cache"
+          ],
+          [
+            "750c20b",
+            "d3d12f: F16 KV-cache writes without native 16-bit shader ops (Xbox), CI bakes/verifies the console kernel set, rejected-op report, no16 probe"
+          ]
+        ],
+        "files": [
+          ".github/msvc-matcher.json",
+          ".github/workflows/d3d12-full-compile.yml",
+          ".github/workflows/d3d12-full-package.yml",
+          ".github/workflows/d3d12-full-release.yml",
+          ".github/workflows/d3d12-no16-probe.yml",
+          "docs/d3d12-full.md",
+          "include/xllama/ggml_d3d12_full.h",
+          "include/xllama/routing_policy.h",
+          "scripts/ci-d3d12-bake-run.ps1",
+          "scripts/ci-publish-logs.sh",
+          "scripts/d3d12-full-inject.py",
+          "scripts/embed-d3d12-shaders.py",
+          "scripts/port-ggml-d3d12-full.py",
+          "shaders/generated/ggml-d3d12-shaders.hpp",
+          "src/bridge/decode_loop.h",
+          "src/bridge/ggml_d3d12_full.cpp",
+          "src/bridge/llama_gpu.h",
+          "src/bridge/session.cpp",
+          "tests/test_routing_policy.cpp",
+          "third_party/ggml-d3d12-full/LICENSE",
+          "third_party/ggml-d3d12-full/ggml-d3d12.cpp",
+          "third_party/ggml-d3d12-full/ggml-d3d12.h",
+          "third_party/ggml-d3d12-full/hlsl/add1.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/add_id.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/add_rel_pos.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/arange.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/argmax.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/argsort.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/argsort_bitonic.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/binary.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/col2im_1d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/common.hlsli",
+          "third_party/ggml-d3d12-full/hlsl/concat.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_2d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_2d_dw.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_3d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_transpose_1d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_transpose_2d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/count_equal.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cpy.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cpy_raw.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cross_entropy_loss.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cross_entropy_loss_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cumsum.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/dequant_row.hlsli",
+          "third_party/ggml-d3d12-full/hlsl/diag.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/diag_mask.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/dsv4_hc_comb.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/dsv4_hc_post.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/dsv4_hc_pre.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/embed_hlsl.py",
+          "third_party/ggml-d3d12-full/hlsl/flash_attn.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/gated_delta_net.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/gated_linear_attn.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/gen_iq_tables.py",
+          "third_party/ggml-d3d12-full/hlsl/get_rel_pos.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/get_rows.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/get_rows_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/get_rows_q.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/glu.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/group_norm.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/im2col.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/im2col_3d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/im2col_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/iq_tables.hlsli",
+          "third_party/ggml-d3d12-full/hlsl/leaky_relu.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/lightning_indexer.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/memset.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_id_prep.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_id_scalar.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_scalar.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_tiled.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_vec.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/multi_add.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/norm.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/opt_step.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/out_prod.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/pad.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/pad_reflect_1d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/pool_1d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/pool_2d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/repeat.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/repeat_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rms_norm.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rms_norm_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/roll.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rope.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rwkv_wkv6.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rwkv_wkv7.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/scale.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/set_acc.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/set_rows.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/set_rows_q.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/silu_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/soft_max.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/soft_max_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/solve_tri.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/ssm_conv.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/ssm_scan.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/sum.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/sum_rows.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/timestep_embedding.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/topk_moe.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/tri.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/unary.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/upscale.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/win_part.hlsl",
+          "uwp/MainPage.cpp",
+          "uwp/api-server.cpp",
+          "uwp/xllama.vcxproj"
+        ]
+      },
+      {
+        "branch": "probe/warp",
+        "sha": "33f4ce87651b0d060b2e75e37065a79e87380a2f",
+        "ahead": 2,
+        "behind": 57,
+        "commits": [
+          [
+            "443c6d3",
+            "probe: run third-party D3D12 backend on WARP"
+          ],
+          [
+            "33f4ce8",
+            "probe v2: publish logs, tighter timeouts"
+          ]
+        ],
+        "files": [
+          ".github/workflows/warp-probe.yml"
+        ]
+      },
+      {
+        "branch": "release/d3d12f",
+        "sha": "750c20bc3df2637c7a11443c4a4cc038d7125373",
+        "ahead": 8,
+        "behind": 57,
+        "commits": [
+          [
+            "f1db2d4",
+            "vendor: koza-coder/llama.cpp-directx12 ggml-d3d12 backend (verbatim, v0.2.7)"
+          ],
+          [
+            "6d63c82",
+            "feat: whole-graph D3D12 GPU backend for Xbox (port of koza-coder/llama.cpp-directx12), baked-shader pipeline, auto GPU offload"
+          ],
+          [
+            "2981a6c",
+            "ci: compute package revision in a step (expressions have no arithmetic)"
+          ],
+          [
+            "4a4b5a7",
+            "shaders: chunk embedded HLSL below MSVC's string-literal limit (C2026); add policy tests"
+          ],
+          [
+            "98a271a",
+            "ci: surface MSVC/linker errors as annotations"
+          ],
+          [
+            "de72b3d",
+            "d3d12f: fix NORM race, vectorised Q1_0 matvec, cache-only verify stage, ppl check, docs"
+          ],
+          [
+            "7118b4c",
+            "d3d12f: log why GPU default is off (once per launch), perplexity check non-fatal, package workflow from verified cache"
+          ],
+          [
+            "750c20b",
+            "d3d12f: F16 KV-cache writes without native 16-bit shader ops (Xbox), CI bakes/verifies the console kernel set, rejected-op report, no16 probe"
+          ]
+        ],
+        "files": [
+          ".github/msvc-matcher.json",
+          ".github/workflows/d3d12-full-compile.yml",
+          ".github/workflows/d3d12-full-package.yml",
+          ".github/workflows/d3d12-full-release.yml",
+          ".github/workflows/d3d12-no16-probe.yml",
+          "docs/d3d12-full.md",
+          "include/xllama/ggml_d3d12_full.h",
+          "include/xllama/routing_policy.h",
+          "scripts/ci-d3d12-bake-run.ps1",
+          "scripts/ci-publish-logs.sh",
+          "scripts/d3d12-full-inject.py",
+          "scripts/embed-d3d12-shaders.py",
+          "scripts/port-ggml-d3d12-full.py",
+          "shaders/generated/ggml-d3d12-shaders.hpp",
+          "src/bridge/decode_loop.h",
+          "src/bridge/ggml_d3d12_full.cpp",
+          "src/bridge/llama_gpu.h",
+          "src/bridge/session.cpp",
+          "tests/test_routing_policy.cpp",
+          "third_party/ggml-d3d12-full/LICENSE",
+          "third_party/ggml-d3d12-full/ggml-d3d12.cpp",
+          "third_party/ggml-d3d12-full/ggml-d3d12.h",
+          "third_party/ggml-d3d12-full/hlsl/add1.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/add_id.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/add_rel_pos.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/arange.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/argmax.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/argsort.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/argsort_bitonic.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/binary.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/col2im_1d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/common.hlsli",
+          "third_party/ggml-d3d12-full/hlsl/concat.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_2d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_2d_dw.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_3d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_transpose_1d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/conv_transpose_2d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/count_equal.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cpy.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cpy_raw.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cross_entropy_loss.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cross_entropy_loss_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/cumsum.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/dequant_row.hlsli",
+          "third_party/ggml-d3d12-full/hlsl/diag.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/diag_mask.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/dsv4_hc_comb.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/dsv4_hc_post.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/dsv4_hc_pre.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/embed_hlsl.py",
+          "third_party/ggml-d3d12-full/hlsl/flash_attn.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/gated_delta_net.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/gated_linear_attn.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/gen_iq_tables.py",
+          "third_party/ggml-d3d12-full/hlsl/get_rel_pos.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/get_rows.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/get_rows_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/get_rows_q.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/glu.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/group_norm.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/im2col.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/im2col_3d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/im2col_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/iq_tables.hlsli",
+          "third_party/ggml-d3d12-full/hlsl/leaky_relu.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/lightning_indexer.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/memset.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_id_prep.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_id_scalar.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_scalar.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_tiled.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/mul_mat_vec.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/multi_add.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/norm.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/opt_step.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/out_prod.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/pad.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/pad_reflect_1d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/pool_1d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/pool_2d.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/repeat.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/repeat_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rms_norm.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rms_norm_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/roll.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rope.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rwkv_wkv6.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/rwkv_wkv7.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/scale.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/set_acc.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/set_rows.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/set_rows_q.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/silu_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/soft_max.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/soft_max_back.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/solve_tri.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/ssm_conv.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/ssm_scan.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/sum.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/sum_rows.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/timestep_embedding.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/topk_moe.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/tri.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/unary.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/upscale.hlsl",
+          "third_party/ggml-d3d12-full/hlsl/win_part.hlsl",
+          "uwp/MainPage.cpp",
+          "uwp/api-server.cpp",
+          "uwp/xllama.vcxproj"
+        ]
+      }
+    ],
+    "diagnostic_branches": [
+      {
+        "branch": "ci-logs-bake-bonsai-27b-fa0",
+        "sha": "e2906678b8c0979c7a9e10240b44895fe7a28c82"
+      },
+      {
+        "branch": "ci-logs-bake-bonsai-27b-fa1",
+        "sha": "09a0e7478acb45711c5b3022cd912514e0701dc1"
+      },
+      {
+        "branch": "ci-logs-bake-bonsai-27b-kvq8",
+        "sha": "051f56017ac2e272f8f0765e70abe1158d587dfa"
+      },
+      {
+        "branch": "ci-logs-bake-bonsai-27b-q1_0",
+        "sha": "f464dbb82724281c47d1ecca8d71e513f5a9cf8f"
+      },
+      {
+        "branch": "ci-logs-bake-embed-bge-m3",
+        "sha": "cb2540e757e0dc8e893d87a21ff56f8cd5a85d38"
+      },
+      {
+        "branch": "ci-logs-bake-embed-nomic-v2-moe",
+        "sha": "8976f7578162299075e9e139604b227f8a16bc0b"
+      },
+      {
+        "branch": "ci-logs-bake-gemma3-270m",
+        "sha": "1ef704a0e5677ba95a879aa641bb2d5c75a16bb3"
+      },
+      {
+        "branch": "ci-logs-bake-gemma4-e2b-q3ks",
+        "sha": "d55b608e5eea0d0421c2299c2b6ec4c88bceeef0"
+      },
+      {
+        "branch": "ci-logs-bake-lfm2-2.6b",
+        "sha": "e880a74acba63b2f675809bc770d4cd54929f8de"
+      },
+      {
+        "branch": "ci-logs-bake-lfm25-1.2b-thinking",
+        "sha": "825f3b07020d29e86ba112bd99cf7be4ca44bee5"
+      },
+      {
+        "branch": "ci-logs-bake-lfm25-8b-a1b-iq3s",
+        "sha": "ecea61331511abfa925886afa85837a4ec48f7a1"
+      },
+      {
+        "branch": "ci-logs-bake-lfm25-350m",
+        "sha": "ef79d8d494fe138f88dee1a9a1be04eb987de9ac"
+      },
+      {
+        "branch": "ci-logs-bake-llama32-3b-q3ks",
+        "sha": "ea136d36021cade876441b7449559c228bb142db"
+      },
+      {
+        "branch": "ci-logs-bake-ops",
+        "sha": "b83ec0b935f0b2f21ded6184b9802690fe570ae2"
+      },
+      {
+        "branch": "ci-logs-bake-phi4-mini",
+        "sha": "3575ab5407c63693744f862bfdf2d073e66c4b88"
+      },
+      {
+        "branch": "ci-logs-bake-qwen3-1.7b",
+        "sha": "f805250f7afe3b7c08a52ddf1e621a3889f5d508"
+      },
+      {
+        "branch": "ci-logs-bake-qwen25-coder-0.5b",
+        "sha": "c42412653e5f7f590c6342f2700cdb86a001fe33"
+      },
+      {
+        "branch": "ci-logs-bake-qwen35-0.8b",
+        "sha": "700bdeff9e47e6d7936fb0e13cb0d3511e4a78c3"
+      },
+      {
+        "branch": "ci-logs-compile-desktop",
+        "sha": "076cac41427a129ccd27f4fc7e87604f84224382"
+      },
+      {
+        "branch": "ci-logs-merge",
+        "sha": "b8a859c4d2ba2196bf675723b494cf2915fe2220"
+      },
+      {
+        "branch": "ci-logs-probe",
+        "sha": "6451c8a120b1d766f356fe6b8222832730c7f513"
+      },
+      {
+        "branch": "ci-logs-probe-no16",
+        "sha": "e080a7c41e3be682510b543d20f3d9c7d0dd16aa"
+      },
+      {
+        "branch": "ci-logs-verify-bonsai-27b-fa1",
+        "sha": "cdef22b1c617f273e0cc453fe3ce6480aadf4788"
+      },
+      {
+        "branch": "ci-logs-verify-embed-bge-m3",
+        "sha": "6ef9c38814a99e20c0e99224b5ec463a09d09b66"
+      },
+      {
+        "branch": "ci-logs-verify-embed-nomic-v2-moe",
+        "sha": "623272c27499ee7584fcfcbcc21246ea39ccd846"
+      },
+      {
+        "branch": "ci-logs-verify-gemma3-270m",
+        "sha": "bb30b971ad609f949ef53eb764ff6aaf29551bcf"
+      },
+      {
+        "branch": "ci-logs-verify-gemma4-e2b-q3ks",
+        "sha": "9a21b49b3875e8994cf93b49fa33a543d30ffb2a"
+      },
+      {
+        "branch": "ci-logs-verify-lfm2-2.6b",
+        "sha": "24063e9739f654ff9d25ffb1fa9132866e930cbb"
+      },
+      {
+        "branch": "ci-logs-verify-lfm25-1.2b-thinking",
+        "sha": "167ab2cb72d62bc3a85df885fdb3d42d4285ceeb"
+      },
+      {
+        "branch": "ci-logs-verify-lfm25-8b-a1b-iq3s",
+        "sha": "f0a7868adcadb91b6455ef27ccb7191d3b32568b"
+      },
+      {
+        "branch": "ci-logs-verify-lfm25-350m",
+        "sha": "a5253b0cd084e37c7059a0feadc0ef480cc18a4f"
+      },
+      {
+        "branch": "ci-logs-verify-llama32-3b-q3ks",
+        "sha": "6d662ad61532c523a0cae0d0b9c868d95583b084"
+      },
+      {
+        "branch": "ci-logs-verify-phi4-mini",
+        "sha": "d2804255db567862d71ac1f25a6ccf3b0bff1e17"
+      },
+      {
+        "branch": "ci-logs-verify-qwen3-1.7b",
+        "sha": "f29b0f5afe50cdd1ed164163549036ff5d5320ab"
+      },
+      {
+        "branch": "ci-logs-verify-qwen25-coder-0.5b",
+        "sha": "7884818de39e370b82f14fda95e41e79a108efd6"
+      },
+      {
+        "branch": "ci-logs-verify-qwen35-0.8b",
+        "sha": "e7cbf99a1435cbfdf61ee0a56de8736c37c21eab"
+      }
+    ],
+    "diagnostic_inventory_source": "https://api.github.com/repos/http-hadi/xllama/branches?per_page=100"
+  },
+  {
+    "repo": "bjoern2088/xllama",
+    "branches": [
+      {
+        "branch": "main",
+        "sha": "43cbd38b70301fe6308db35af9be657f07624725",
+        "ahead": 19,
+        "behind": 57,
+        "commits": [
+          [
+            "4512fab",
+            "fix: disable AVX2 for Xbox One X Jaguar CPU (use SSE2)"
+          ],
+          [
+            "10b1b5f",
+            "fix: disable AVX2 for Xbox One X Jaguar CPU (use SSE2)"
+          ],
+          [
+            "184b515",
+            "sm60: patch ggml_d3d12_common.hlsli for Xbox One X GCN compatibility"
+          ],
+          [
+            "3a93777",
+            "sm60: patch ggml_d3d12_get_rows_q6_k_dxil.h for Xbox One X GCN compatibility"
+          ],
+          [
+            "538a1d8",
+            "sm60: patch ggml_d3d12_mmv_q4_0_t64_dxil.h for Xbox One X GCN compatibility"
+          ],
+          [
+            "9c50a4e",
+            "sm60: patch ggml_d3d12_mmv_q4_0_t128_dxil.h for Xbox One X GCN compatibility"
+          ],
+          [
+            "c69a347",
+            "sm60: patch ggml_d3d12_mmv_q4_k_t64_dxil.h for Xbox One X GCN compatibility"
+          ],
+          [
+            "ffddd3f",
+            "sm60: patch ggml_d3d12_mmv_q4_k_t128_dxil.h for Xbox One X GCN compatibility"
+          ],
+          [
+            "28271c6",
+            "sm60: patch ggml_d3d12_mmv_q6_k_t64_dxil.h for Xbox One X GCN compatibility"
+          ],
+          [
+            "279b0f2",
+            "sm60: patch ggml_d3d12_mmv_q6_k_t128_dxil.h for Xbox One X GCN compatibility"
+          ],
+          [
+            "8e451ef",
+            "sm60: compile-gpugemv-shader.sh \u2014 use cs_6_0 for mmv/get_rows (Xbox One X GCN)"
+          ],
+          [
+            "5cce1c0",
+            "sm60: CI \u2014 recompile D3D12 MMV shaders with Windows dxc cs_6_0 before build"
+          ],
+          [
+            "6cf2224",
+            "sm51: compile-gpugemv-shader.sh \u2014 cs_5_1 DXBC for Xbox One X UWP"
+          ],
+          [
+            "7ab471d",
+            "sm51: action.yml \u2014 cs_5_1 DXBC for Xbox One X UWP"
+          ],
+          [
+            "47e7064",
+            "fix: use fxc.exe for DXBC targets (dxc auto-promotes cs_5_1 to DXIL)"
+          ],
+          [
+            "935e50b",
+            "ci: find fxc.exe instead of dxc.exe for Xbox DXBC shader step"
+          ],
+          [
+            "780c53e",
+            "fix: fxc-compat Load helpers (double-load, no early return, asint for _se8)"
+          ],
+          [
+            "5ef051b",
+            "ci: add fxc trivial-shader diagnostic in shader step"
+          ],
+          [
+            "43cbd38",
+            "fix: SM5.1-compat reduce_store (1D groupshared, manual unroll, no [unroll]+barrier)"
+          ]
+        ],
+        "files": [
+          ".github/actions/build-uwp-package/action.yml",
+          "scripts/compile-gpugemv-shader.sh",
+          "shaders/generated/ggml_d3d12_get_rows_q6_k_dxil.h",
+          "shaders/generated/ggml_d3d12_mmv_q4_0_t128_dxil.h",
+          "shaders/generated/ggml_d3d12_mmv_q4_0_t64_dxil.h",
+          "shaders/generated/ggml_d3d12_mmv_q4_k_t128_dxil.h",
+          "shaders/generated/ggml_d3d12_mmv_q4_k_t64_dxil.h",
+          "shaders/generated/ggml_d3d12_mmv_q6_k_t128_dxil.h",
+          "shaders/generated/ggml_d3d12_mmv_q6_k_t64_dxil.h",
+          "shaders/ggml_d3d12_common.hlsli",
+          "uwp/ggml-uwp.vcxproj",
+          "uwp/xllama.vcxproj"
+        ]
+      }
+    ]
+  },
+  {
+    "repo": "hjotha/xllama-1",
+    "branches": [
+      {
+        "branch": "feat/floppylm-training",
+        "sha": "ba0ebcedb385aca2e9646cec65b3a11fc7b6db89",
+        "ahead": 8,
+        "behind": 71,
+        "commits": [
+          [
+            "9747039",
+            "feat(training): add native FloppyLM scalar WSD engine"
+          ],
+          [
+            "3547b18",
+            "fix(build): normalize carried GELU patch context"
+          ],
+          [
+            "af67b19",
+            "Merge remote-tracking branch 'origin/main' into feat/floppylm-training"
+          ],
+          [
+            "3a2151e",
+            "test(training): add guarded Xbox FloppyLM validation and run provenance"
+          ],
+          [
+            "6869867",
+            "fix(training): check completed writes and preserve patch line endings"
+          ],
+          [
+            "1ba47b3",
+            "test(training): prove Xbox resume and publish independent export validation"
+          ],
+          [
+            "591982c",
+            "docs(training): include numeric diagnostic evidence logs"
+          ],
+          [
+            "ba0ebce",
+            "Merge origin/main into feat/floppylm-training"
+          ]
+        ],
+        "files": [
+          ".gitattributes",
+          ".github/workflows/build-linux.yml",
+          "CHANGELOG.md",
+          "CMakeLists.txt",
+          "ROADMAP.md",
+          "docs/README.md",
+          "docs/adr/0004-floppylm-training.md",
+          "docs/adr/0005-floppylm-numeric-validation.md",
+          "docs/architecture.md",
+          "docs/evidence/floppylm-native/README.md",
+          "docs/evidence/floppylm-native/d16-branch-0.flp",
+          "docs/evidence/floppylm-native/d16-branch-1.flp",
+          "docs/evidence/floppylm-native/d80-branch-0.flp",
+          "docs/evidence/floppylm-native/d80-branch-1.flp",
+          "docs/evidence/floppylm-native/functional.json",
+          "docs/evidence/floppylm-native/numeric-diagnostic.log",
+          "docs/evidence/floppylm-native/reference-matrix.log",
+          "docs/evidence/floppylm-native/restoration.json",
+          "docs/floppylm.md",
+          "docs/training-architecture.md",
+          "include/xllama/floppylm.h",
+          "include/xllama/training_params.h",
+          "patches/0002-floppylm-gelu-backward.patch",
+          "scripts/apply-training-patches.sh",
+          "scripts/console_test.py",
+          "scripts/validate-floppylm-console.py",
+          "src/bridge/floppylm_codec.cpp",
+          "src/bridge/floppylm_graph.cpp",
+          "src/bridge/floppylm_internal.h",
+          "src/bridge/floppylm_probe.cpp",
+          "src/bridge/floppylm_train.cpp",
+          "src/bridge/training.cpp",
+          "src/main.cpp",
+          "tests/CMakeLists.txt",
+          "tests/floppylm/codec_edges.py",
+          "tests/floppylm/high_precision.py",
+          "tests/floppylm/optimizer_parity.py",
+          "tests/floppylm/probe_main.cpp",
+          "tests/floppylm/reference_parity.py",
+          "tests/floppylm/runner_parity.py",
+          "tests/test_floppylm.cpp",
+          "training/floppylm/.gitignore",
+          "training/floppylm/PYTORCH-LICENSE",
+          "training/floppylm/README.md",
+          "training/floppylm/prepare.py",
+          "training/floppylm/reference/floppylm/__init__.py",
+          "training/floppylm/reference/floppylm/codec.py",
+          "training/floppylm/reference/floppylm/data.py",
+          "training/floppylm/reference/floppylm/metrics.py",
+          "training/floppylm/reference/floppylm/model.py",
+          "training/floppylm/reference/floppylm/pack.py",
+          "training/floppylm/reference/floppylm/parity.py",
+          "training/floppylm/reference/floppylm/rans.py",
+          "training/floppylm/reference/floppylm/runlog.py",
+          "training/floppylm/reference/floppylm/seed.py",
+          "training/floppylm/reference/floppylm/shapes.py",
+          "training/floppylm/reference/floppylm/train.py",
+          "training/floppylm/reference/provenance.json",
+          "training/floppylm/verify.py",
+          "uwp/inference-bridge.cpp",
+          "uwp/xllama.vcxproj"
+        ]
+      },
+      {
+        "branch": "main",
+        "sha": "83cac358f0cf0a314220a28cb37eaac1509c245c",
+        "ahead": 0,
+        "behind": 65,
+        "commits": [],
+        "files": []
+      }
+    ]
+  },
+  {
+    "repo": "SamirCharleston/xllama",
+    "branches": [
+      {
+        "branch": "main",
+        "sha": "4bad1d58d3c38dbab3d484e1dab5a611cc20c58e",
+        "ahead": 0,
+        "behind": 99,
+        "commits": [],
+        "files": []
+      },
+      {
+        "branch": "vision-spike",
+        "sha": "c104faed1ff83d8efbf15908ad644d32d764f67c",
+        "ahead": 18,
+        "behind": 99,
+        "commits": [
+          [
+            "9dd3e29",
+            "Add Vision DirectML spike V0"
+          ],
+          [
+            "7dc7fcb",
+            "Bump vision spike package version to 1.5.7"
+          ],
+          [
+            "fe9686d",
+            "Add MobileNetV2 DirectML Vision Spike V1"
+          ],
+          [
+            "9ecba07",
+            "Fix Vision Spike V1 include paths"
+          ],
+          [
+            "e8dcd2b",
+            "Handle dynamic input shape in Vision Spike V1"
+          ],
+          [
+            "d103074",
+            "Add WinRT imaging headers for Vision V2"
+          ],
+          [
+            "57b1e3f",
+            "Add real image decode test for Vision V2"
+          ],
+          [
+            "9c15c22",
+            "Run MobileNetV2 on real image in Vision V2.1"
+          ],
+          [
+            "26f2683",
+            "Add SmolVLM image caption probe for Xbox"
+          ],
+          [
+            "747dbbd",
+            "Fix WinRT async include and llama load mode"
+          ],
+          [
+            "a9bd3c3",
+            "Expose vision captions to the LAN agent"
+          ],
+          [
+            "8b4abe9",
+            "Add direct image caption API"
+          ],
+          [
+            "1440c9f",
+            "Fix vision API helper declarations"
+          ],
+          [
+            "d91c0ed",
+            "Support one-call multimodal chat requests"
+          ],
+          [
+            "e88cf3b",
+            "fix(uwp): bound llama context workspace on Xbox"
+          ],
+          [
+            "0396e3b",
+            "diag(uwp): retain llama load warnings on console"
+          ],
+          [
+            "0bfcc57",
+            "uwp: avoid CPU repack buffer during GGUF load"
+          ],
+          [
+            "c104fae",
+            "Revert \"revert: AppContainer mmap patch \u2014 no measured benefit (repack-bound load)\""
+          ]
+        ],
+        "files": [
+          "docs/api-endpoint.md",
+          "patches/0001-uwp-appcontainer-guards.patch",
+          "patches/README.md",
+          "scripts/apply-uwp-patches.sh",
+          "src/bridge/session.cpp",
+          "uwp/App.cpp",
+          "uwp/AppxManifest.xml",
+          "uwp/api-server.cpp",
+          "uwp/ggml-uwp.vcxproj",
+          "uwp/inference-bridge.h",
+          "uwp/vision-caption.cpp",
+          "uwp/vision-spike.cpp",
+          "uwp/xllama.vcxproj"
+        ]
+      }
+    ]
+  },
+  {
+    "repo": "mr-wfj/xllama",
+    "branches": [
+      {
+        "branch": "main",
+        "sha": "4bad1d58d3c38dbab3d484e1dab5a611cc20c58e",
+        "ahead": 0,
+        "behind": 99,
+        "commits": [],
+        "files": []
+      }
+    ]
+  },
+  {
+    "repo": "nyzxor/xllama",
+    "branches": [
+      {
+        "branch": "main",
+        "sha": "1b3ecbc4f1b1cc71aa9063bd2b8dd7fa9356ba7d",
+        "ahead": 0,
+        "behind": 659,
+        "commits": [],
+        "files": []
+      }
+    ]
+  }
+]

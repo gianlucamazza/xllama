@@ -554,3 +554,64 @@ reserve. With FA, prefill gains 22–29% and peak RAM over the CPU halves.
 | 2026-10-02 | **D2-r2 = PASS** (CI `1.6.0.1156`): Coder-3B decode 1.60×, prefill 1.27×, peak +159/+125 MiB; LFM2.5-1.2B 1.64× / 1.82×, +163/+156 MiB. H9 6/8 = 6/8 on both, validate ALL PASS with the knob and without. Coder-3B's +220 MiB on `1.6.0.1148` was zero-column ops refused by `supports_op`, which made the scheduler copy weights to the CPU; fixed. Next: D3.                                                                                                                                                                                                                                                                              |
 | 2026-10-02 | **D3 shipped** (CI `1.6.0.1159`): catalogue `gpu_layers` + `resolve_gguf_gpu_layers` (the operator file overrides; `0` forces the CPU). Qwen2.5-Coder-3B (re-measured at `n_ctx` 4096: decode 1.60×, peak +150/+126 MiB) and LFM2.5-1.2B run on d3d12 by default. Default-configuration validate ALL PASS, H9 unchanged, placement checked per model. Follow-ups #310 #313.                                                                                                                                                                                                                                                                  |
 | 2026-10-02 | **FA = PASS** (CI `1.6.0.1163`): Flash Attention had been silently off on every GPU-layer run (AUTO compares layer and KV devices). Requesting it explicitly gives decode 1.90× / 1.88× (Coder-3B / LFM2.5-1.2B), prefill 1.65× / 2.35×, peak +88 / +77 MiB, H9 6/8 = 6/8, validate ALL PASS. #310 re-attribution: CPU side ≈ 9.3 ms/token < 10 → #310 closed; the remaining lever is per-submission backend overhead (≈ 14.5 ms/token).                                                                                                                                                                                                     |
+
+## Preregistered #313 experiment — 2026-11-07
+
+Status: **planned, no new GPU measurements**. This extends the existing Gate A
+and product gates above; it does not revise their historical verdicts. Program:
+[#395](https://github.com/gianlucamazza/xllama/issues/395).
+
+Hypothesis: reusing each quantized weight block across several activation
+columns improves long-prompt prefill without moving single-column decode or
+violating the CPU-q8 numerical contract. Falsification includes a numerical
+failure, loss of the declared performance margins, or a target-device resource
+failure. The bjoern Xbox One X compatibility port is not this experiment.
+
+Implementation stays opt-in and reversible in the existing backend. Keep the
+current single-column GEMV dispatch; add an explicit multi-column selection and
+fallback, testing Q4_0, Q4_K and Q6_K, both thread-group sizes, nonmultiple tile
+counts, row/stride boundaries and invalid shapes. The accepted arithmetic
+contract remains Gate A above. A changed arithmetic contract requires an ADR
+before implementation, rather than relaxed tolerances after a failed trial.
+
+Before collecting optimized results, freeze a campaign manifest containing:
+
+- baseline and experiment source SHAs; submodule and model SHA-256s;
+- HLSL/include and generated-blob SHA-256s, compiler version/binary hash, shader
+  profile, entry point, all defines and flags; keep sources and generated
+  artifacts separately identifiable and regenerate through existing scripts;
+- CI MSVC package SHA-256/identity, device family plus observed device receipt,
+  prompts, context, thread/ubatch/sampling settings and UI timing scope;
+- warmup/thermal policy from `bench/README.md`, power instrumentation and all
+  retry/failure rules. A sampled memory maximum is not a true peak.
+
+Proposed decision thresholds, frozen here before any optimized measurements:
+all ratios below are experiment/baseline (throughput for prefill/decode, latency
+for TTFT). Freeze exact prompt files/hashes and actual tokenizer counts in the
+campaign manifest; approximate lengths below are planning targets.
+for each gate model (shipping LFM2.5-1.2B and historical Coder-3B, the latter
+research-only and excluded from catalogue), require long-prompt prefill ratio
+at least 1.10 at P approximately 512 and 1000. Require decode ratio at least
+0.97 and TTFT ratio at most 1.05 at all tested prompt sizes, including the
+short prompt. The full existing memory envelope and product gates still apply;
+reject a true peak-working-set increase above 32 MiB against the matched
+baseline. These are prospective acceptance margins, not measured gains.
+
+Use 20 matched baseline/experiment pairs per model and prompt size after
+warmup, alternating AB/BA by pair. Record every repeat individually and keep
+failed/timed-out attempts and their dispositions. Stop on correctness or
+resource failure; do not replace failed runs to reach a successful sample size.
+Summarize the median paired ratios and a paired nonparametric percentile
+bootstrap 95% interval (10,000 resamples, seed 20261107). Require the appropriate
+interval bound, not merely the point estimate, to pass each margin; otherwise
+report inconclusive or fail. Treat each model/prompt cell separately and require
+all cells, avoiding a selectively pooled headline. This exploratory interval
+does not establish broad model-quality equivalence.
+
+Also rerun Gate A, logit parity and H9 on the exact package in the UI process.
+H9 is a small regression screen, not general scientific validation. Keep host,
+Series S and Series X datasets and conclusions separate. Publish negative
+results and limitations through the existing raw evidence → selectors → claim
+registry flow. Do not modify frozen receipts or promote code without actual
+hardware evidence. No optimization or performance result is claimed by this
+preregistration.

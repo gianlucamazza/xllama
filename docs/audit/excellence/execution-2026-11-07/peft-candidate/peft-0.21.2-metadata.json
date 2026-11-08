@@ -1,0 +1,188 @@
+{
+  "info": {
+    "author": "The HuggingFace team",
+    "author_email": "benjamin@huggingface.co",
+    "bugtrack_url": null,
+    "classifiers": [
+      "Development Status :: 5 - Production/Stable",
+      "Intended Audience :: Developers",
+      "Intended Audience :: Education",
+      "Intended Audience :: Science/Research",
+      "License :: OSI Approved :: Apache Software License",
+      "Operating System :: OS Independent",
+      "Programming Language :: Python :: 3",
+      "Programming Language :: Python :: 3.10",
+      "Programming Language :: Python :: 3.11",
+      "Programming Language :: Python :: 3.12",
+      "Programming Language :: Python :: 3.13",
+      "Topic :: Scientific/Engineering :: Artificial Intelligence"
+    ],
+    "description": "<!---\nCopyright 2023 The HuggingFace Team. All rights reserved.\n\nLicensed under the Apache License, Version 2.0 (the \"License\");\nyou may not use this file except in compliance with the License.\nYou may obtain a copy of the License at\n\n    https://www.apache.org/licenses/LICENSE-2.0\n\nUnless required by applicable law or agreed to in writing, software\ndistributed under the License is distributed on an \"AS IS\" BASIS,\nWITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\nSee the License for the specific language governing permissions and\nlimitations under the License.\n-->\n\n<h1 align=\"center\"> <p>\ud83e\udd17 PEFT</p></h1>\n<h3 align=\"center\">\n    <p>State-of-the-art Parameter-Efficient Fine-Tuning (PEFT) methods</p>\n</h3>\n\nFine-tuning large pretrained models is often prohibitively costly due to their scale. Parameter-Efficient Fine-Tuning (PEFT) methods enable efficient adaptation of large pretrained models to various downstream applications by only fine-tuning a small number of (extra) model parameters instead of all the model's parameters. This significantly decreases the computational and storage costs. Recent state-of-the-art PEFT techniques achieve performance comparable to fully fine-tuned models.\n\nPEFT is integrated with Transformers for easy model training and inference, Diffusers for conveniently managing different adapters, and Accelerate for distributed training and inference for really big models.\n\n> [!TIP]\n> Visit the [PEFT](https://huggingface.co/PEFT) organization to read about the PEFT methods implemented in the library and to see notebooks demonstrating how to apply these methods to a variety of downstream tasks. Click the \"Watch repos\" button on the organization page to be notified of newly implemented methods and notebooks!\n\nCheck the PEFT Adapters API Reference section for a list of supported PEFT methods, and read the [Adapters](https://huggingface.co/docs/peft/en/conceptual_guides/adapter), [Soft prompts](https://huggingface.co/docs/peft/en/conceptual_guides/prompting), and [IA3](https://huggingface.co/docs/peft/en/conceptual_guides/ia3) conceptual guides to learn more about how these methods work.\n\n## Quickstart\n\nInstall PEFT from pip:\n\n```bash\npip install peft\n```\n\nPrepare a model for training with a PEFT method such as LoRA by wrapping the base model and PEFT configuration with `get_peft_model`. For the bigscience/mt0-large model, you're only training 0.19% of the parameters!\n\n```python\nimport torch\nfrom transformers import AutoModelForCausalLM\nfrom peft import LoraConfig, TaskType, get_peft_model\n\ndevice = torch.accelerator.current_accelerator().type if hasattr(torch, \"accelerator\") else \"cuda\"\nmodel_id = \"Qwen/Qwen2.5-3B-Instruct\"\nmodel = AutoModelForCausalLM.from_pretrained(model_id, device_map=device)\npeft_config = LoraConfig(\n    r=16,\n    lora_alpha=32,\n    task_type=TaskType.CAUSAL_LM,\n    # target_modules=[\"q_proj\", \"v_proj\", ...]  # optionally indicate target modules\n)\nmodel = get_peft_model(model, peft_config)\nmodel.print_trainable_parameters()\n# prints: trainable params: 3,686,400 || all params: 3,089,625,088 || trainable%: 0.1193\n\n# now perform training on your dataset, e.g. using transformers Trainer, then save the model\nmodel.save_pretrained(\"qwen2.5-3b-lora\")\n```\n\nTo load a PEFT model for inference:\n\n```python\nimport torch\nfrom transformers import AutoModelForCausalLM, AutoTokenizer\nfrom peft import PeftModel\n\ndevice = torch.accelerator.current_accelerator().type if hasattr(torch, \"accelerator\") else \"cuda\"\nmodel_id = \"Qwen/Qwen2.5-3B-Instruct\"\ntokenizer = AutoTokenizer.from_pretrained(model_id)\nmodel = AutoModelForCausalLM.from_pretrained(model_id, device_map=device)\nmodel = PeftModel.from_pretrained(model, \"qwen2.5-3b-lora\")\n\ninputs = tokenizer(\"Preheat the oven to 350 degrees and place the cookie dough\", return_tensors=\"pt\")\noutputs = model.generate(**inputs.to(device), max_new_tokens=50)\nprint(tokenizer.decode(outputs[0], skip_special_tokens=True))\n\n# prints something like: Preheat the oven to 350 degrees and place the cookie dough in a baking dish [...]\n```\n\n## Why you should use PEFT\n\nThere are many benefits of using PEFT but the main one is the huge savings in compute and storage, making PEFT applicable to many different use cases.\n\n### High performance on consumer hardware\n\nConsider the memory requirements for training the following models on the [ought/raft/twitter_complaints](https://huggingface.co/datasets/ought/raft/viewer/twitter_complaints) dataset with an A100 80GB GPU with more than 64GB of CPU RAM.\n\n|   Model         | Full Finetuning | PEFT-LoRA PyTorch  | PEFT-LoRA DeepSpeed with CPU Offloading |\n| --------- | ---- | ---- | ---- |\n| bigscience/T0_3B (3B params) | 47.14GB GPU / 2.96GB CPU  | 14.4GB GPU / 2.96GB CPU | 9.8GB GPU / 17.8GB CPU |\n| bigscience/mt0-xxl (12B params) | OOM GPU | 56GB GPU / 3GB CPU | 22GB GPU / 52GB CPU |\n| bigscience/bloomz-7b1 (7B params) | OOM GPU | 32GB GPU / 3.8GB CPU | 18.1GB GPU / 35GB CPU |\n\nWith LoRA you can fully finetune a 12B parameter model that would've otherwise run out of memory on the 80GB GPU, and comfortably fit and train a 3B parameter model. When you look at the 3B parameter model's performance, it is comparable to a fully finetuned model at a fraction of the GPU memory.\n\n|   Submission Name        | Accuracy |\n| --------- | ---- |\n| Human baseline (crowdsourced) |\t0.897 |\n| Flan-T5 | 0.892 |\n| lora-t0-3b | 0.863 |\n\n> [!TIP]\n> The bigscience/T0_3B model performance isn't optimized in the table above. You can squeeze even more performance out of it by playing around with the input instruction templates, LoRA hyperparameters, and other training related hyperparameters. The final checkpoint size of this model is just 19MB compared to 11GB of the full bigscience/T0_3B model. Learn more about the advantages of finetuning with PEFT in this [blog post](https://www.philschmid.de/fine-tune-flan-t5-peft).\n\n### Quantization\n\nQuantization is another method for reducing the memory requirements of a model by representing the data in a lower precision. It can be combined with PEFT methods to make it even easier to train and load LLMs for inference.\n\n* Learn how to finetune [meta-llama/Llama-2-7b-hf](https://huggingface.co/meta-llama/Llama-2-7b-hf) with QLoRA and the [TRL](https://huggingface.co/docs/trl/index) library on a 16GB GPU in the [Finetune LLMs on your own consumer hardware using tools from PyTorch and Hugging Face ecosystem](https://pytorch.org/blog/finetune-llms/) blog post.\n* Learn how to finetune a [openai/whisper-large-v2](https://huggingface.co/openai/whisper-large-v2) model for multilingual automatic speech recognition with LoRA and 8-bit quantization in this [notebook](https://colab.research.google.com/drive/1DOkD_5OUjFa0r5Ik3SgywJLJtEo2qLxO?usp=sharing) (see this [notebook](https://colab.research.google.com/drive/1vhF8yueFqha3Y3CpTHN6q9EVcII9EYzs?usp=sharing) instead for an example of streaming a dataset).\n\n### Save compute and storage\n\nPEFT can help you save storage by avoiding full finetuning of models on each of downstream task or dataset. In many cases, you're only finetuning a very small fraction of a model's parameters and each checkpoint is only a few MBs in size (instead of GBs). These smaller PEFT adapters demonstrate performance comparable to a fully finetuned model. If you have many datasets, you can save a lot of storage with a PEFT model and not have to worry about catastrophic forgetting or overfitting the backbone or base model.\n\n## PEFT integrations\n\nPEFT is widely supported across the Hugging Face ecosystem because of the massive efficiency it brings to training and inference.\n\n### Diffusers\n\nThe iterative diffusion process consumes a lot of memory which can make it difficult to train. PEFT can help reduce the memory requirements and reduce the storage size of the final model checkpoint. For example, consider the memory required for training a Stable Diffusion model with LoRA on an A100 80GB GPU with more than 64GB of CPU RAM. The final model checkpoint size is only 8.8MB!\n\n|   Model         | Full Finetuning | PEFT-LoRA  | PEFT-LoRA with Gradient Checkpointing  |\n| --------- | ---- | ---- | ---- |\n| CompVis/stable-diffusion-v1-4 | 27.5GB GPU / 3.97GB CPU | 15.5GB GPU / 3.84GB CPU | 8.12GB GPU / 3.77GB CPU | \n\n> [!TIP]\n> Take a look at the [examples/lora_dreambooth/train_dreambooth.py](examples/lora_dreambooth/train_dreambooth.py) training script to try training your own Stable Diffusion model with LoRA, and play around with the [smangrul/peft-lora-sd-dreambooth](https://huggingface.co/spaces/smangrul/peft-lora-sd-dreambooth) Space which is running on a T4 instance. Learn more about the PEFT integration in Diffusers in this [tutorial](https://huggingface.co/docs/peft/main/en/tutorial/peft_integrations#diffusers).\n\n### Transformers\n\nPEFT is directly integrated with [Transformers](https://huggingface.co/docs/transformers/main/en/peft). After loading a model, call `add_adapter` to add a new PEFT adapter to the model:\n\n```python\nfrom peft import LoraConfig\nmodel = ...  # transformers model\npeft_config = LoraConfig(...)\nmodel.add_adapter(peft_config, adapter_name=\"lora_1\")\n```\n\nTo load a trained PEFT adapter, call `load_adapter`:\n\n```python\nmodel = ...  # transformers model\nmodel.load_adapter(<path-to-adapter>, adapter_name=\"lora_1\")\n```\n\nAnd to switch between different adapters, call `set_adapter`:\n\n```python\nmodel.set_adapter(\"lora_2\")\n```\n\nThe Transformers integration doesn't include all the functionalities offered in PEFT, such as methods for merging the adapter into the base model.\n\n### Accelerate\n\n[Accelerate](https://huggingface.co/docs/accelerate/index) is a library for distributed training and inference on various training setups and hardware (GPUs, TPUs, Apple Silicon, etc.). PEFT models work with Accelerate out of the box, making it really convenient to train really large models or use them for inference on consumer hardware with limited resources.\n\n### TRL\n\nPEFT can also be applied to training LLMs with RLHF components such as the ranker and policy. Get started by reading:\n\n* [Fine-tune a Mistral-7b model with Direct Preference Optimization](https://towardsdatascience.com/fine-tune-a-mistral-7b-model-with-direct-preference-optimization-708042745aac) with PEFT and the [TRL](https://huggingface.co/docs/trl/index) library to learn more about the Direct Preference Optimization (DPO) method and how to apply it to a LLM.\n* [Fine-tuning 20B LLMs with RLHF on a 24GB consumer GPU](https://huggingface.co/blog/trl-peft) with PEFT and the [TRL](https://huggingface.co/docs/trl/index) library, and then try out the [gpt2-sentiment_peft.ipynb](https://github.com/huggingface/trl/blob/main/examples/notebooks/gpt2-sentiment.ipynb) notebook to optimize GPT2 to generate positive movie reviews.\n* [StackLLaMA: A hands-on guide to train LLaMA with RLHF](https://huggingface.co/blog/stackllama) with PEFT, and then try out the [stack_llama/scripts](https://github.com/huggingface/trl/tree/main/examples/research_projects/stack_llama/scripts) for supervised finetuning, reward modeling, and RL finetuning.\n\n## Model support\n\nUse this [Space](https://stevhliu-peft-methods.hf.space) or check out the [docs](https://huggingface.co/docs/peft/main/en/index) to find which models officially support a PEFT method out of the box. Even if you don't see a model listed below, you can manually configure the model config to enable PEFT for a model. Read the [New transformers architecture](https://huggingface.co/docs/peft/main/en/developer_guides/custom_models#new-transformers-architectures) guide to learn how.\n\n## Contribute\n\nIf you would like to contribute to PEFT, please check out our [contribution guide](https://huggingface.co/docs/peft/developer_guides/contributing).\n\n## Citing \ud83e\udd17 PEFT\n\nTo use \ud83e\udd17 PEFT in your publication, please cite it by using the following BibTeX entry.\n\n```bibtex\n@Misc{peft,\n  title =        {{PEFT}: State-of-the-art Parameter-Efficient Fine-Tuning methods},\n  author =       {Sourab Mangrulkar and Sylvain Gugger and Lysandre Debut and Younes Belkada and Sayak Paul and Benjamin Bossan and Marian Tietz},\n  howpublished = {\\url{https://github.com/huggingface/peft}},\n  year =         {2022}\n}\n```\n",
+    "description_content_type": "text/markdown",
+    "docs_url": null,
+    "download_url": null,
+    "downloads": {
+      "last_day": -1,
+      "last_month": -1,
+      "last_week": -1
+    },
+    "dynamic": [
+      "Author",
+      "Author-Email",
+      "Classifier",
+      "Description",
+      "Description-Content-Type",
+      "Home-Page",
+      "Keywords",
+      "License",
+      "License-File",
+      "Provides-Extra",
+      "Requires-Dist",
+      "Requires-Python",
+      "Summary"
+    ],
+    "home_page": "https://github.com/huggingface/peft",
+    "keywords": "deep learning",
+    "license": "Apache",
+    "license_expression": null,
+    "license_files": [
+      "LICENSE"
+    ],
+    "maintainer": null,
+    "maintainer_email": null,
+    "name": "peft",
+    "package_url": "https://pypi.org/project/peft/",
+    "platform": null,
+    "project_url": "https://pypi.org/project/peft/",
+    "project_urls": {
+      "Homepage": "https://github.com/huggingface/peft"
+    },
+    "provides_extra": [
+      "quality",
+      "docs-specific",
+      "dev",
+      "test"
+    ],
+    "release_url": "https://pypi.org/project/peft/0.21.2/",
+    "requires_dist": [
+      "numpy>=1.17",
+      "packaging>=20.0",
+      "psutil",
+      "pyyaml",
+      "torch>=1.13.0",
+      "transformers",
+      "tqdm",
+      "accelerate>=0.21.0",
+      "safetensors",
+      "huggingface_hub>=0.25.0",
+      "black; extra == \"quality\"",
+      "hf-doc-builder; extra == \"quality\"",
+      "ruff==0.16.4; extra == \"quality\"",
+      "griffe; extra == \"quality\"",
+      "black; extra == \"docs-specific\"",
+      "requests; extra == \"docs-specific\"",
+      "hf-doc-builder; extra == \"docs-specific\"",
+      "black; extra == \"dev\"",
+      "hf-doc-builder; extra == \"dev\"",
+      "ruff==0.16.4; extra == \"dev\"",
+      "griffe; extra == \"dev\"",
+      "black; extra == \"dev\"",
+      "requests; extra == \"dev\"",
+      "hf-doc-builder; extra == \"dev\"",
+      "black; extra == \"test\"",
+      "hf-doc-builder; extra == \"test\"",
+      "ruff==0.16.4; extra == \"test\"",
+      "griffe; extra == \"test\"",
+      "black; extra == \"test\"",
+      "requests; extra == \"test\"",
+      "hf-doc-builder; extra == \"test\"",
+      "pytest; extra == \"test\"",
+      "pytest-cov; extra == \"test\"",
+      "pytest-xdist; extra == \"test\"",
+      "parameterized; extra == \"test\"",
+      "datasets; extra == \"test\"",
+      "diffusers; extra == \"test\"",
+      "scipy; extra == \"test\"",
+      "scikit-learn; extra == \"test\"",
+      "protobuf; extra == \"test\"",
+      "sentencepiece; extra == \"test\"",
+      "torchvision; extra == \"test\""
+    ],
+    "requires_python": ">=3.10.0",
+    "summary": "Parameter-Efficient Fine-Tuning (PEFT)",
+    "version": "0.21.2",
+    "yanked": false,
+    "yanked_reason": null
+  },
+  "last_serial": 41680645,
+  "ownership": {
+    "organization": null,
+    "roles": [
+      {
+        "role": "Owner",
+        "user": "benjaminbossan"
+      },
+      {
+        "role": "Owner",
+        "user": "lysandre"
+      },
+      {
+        "role": "Owner",
+        "user": "pypinemo"
+      },
+      {
+        "role": "Maintainer",
+        "user": "spsayakpaul"
+      }
+    ]
+  },
+  "urls": [
+    {
+      "comment_text": null,
+      "core-metadata": {
+        "sha256": "57ace1298996b6c641c067d01d418a3c8528f819cf415509cce6f8a2b1f2ba69"
+      },
+      "digests": {
+        "blake2b_256": "700b59441cdbfdd342ed03c08af90a2fe16173f0cd48ab219f523b39ca059a79",
+        "md5": "ce87a7a521b4fac6aa61eff3bba40425",
+        "sha256": "106ab6077ff72c54d21577f9af5970e34bac7582cb14209f7b2b511e322a4eae"
+      },
+      "downloads": -1,
+      "filename": "peft-0.21.2-py3-none-any.whl",
+      "has_sig": false,
+      "md5_digest": "ce87a7a521b4fac6aa61eff3bba40425",
+      "packagetype": "bdist_wheel",
+      "python_version": "py3",
+      "requires_python": ">=3.10.0",
+      "size": 835427,
+      "upload_time": "2026-10-01T10:26:34",
+      "upload_time_iso_8601": "2026-10-01T10:26:34.085937Z",
+      "url": "https://files.pythonhosted.org/packages/70/0b/59441cdbfdd342ed03c08af90a2fe16173f0cd48ab219f523b39ca059a79/peft-0.21.2-py3-none-any.whl",
+      "yanked": false,
+      "yanked_reason": null
+    },
+    {
+      "comment_text": null,
+      "core-metadata": false,
+      "digests": {
+        "blake2b_256": "80af2e08abf1cd3b8792a02f5116808f2398c2f77ecdff801ced2ce16007a6f9",
+        "md5": "10a40349097d10eb6135871b170e04b3",
+        "sha256": "b803ccfb3f3f316004d850284306687833a2235ea278fb56abc856203456142e"
+      },
+      "downloads": -1,
+      "filename": "peft-0.21.2.tar.gz",
+      "has_sig": false,
+      "md5_digest": "10a40349097d10eb6135871b170e04b3",
+      "packagetype": "sdist",
+      "python_version": "source",
+      "requires_python": ">=3.10.0",
+      "size": 983614,
+      "upload_time": "2026-10-01T10:26:36",
+      "upload_time_iso_8601": "2026-10-01T10:26:36.129043Z",
+      "url": "https://files.pythonhosted.org/packages/80/af/2e08abf1cd3b8792a02f5116808f2398c2f77ecdff801ced2ce16007a6f9/peft-0.21.2.tar.gz",
+      "yanked": false,
+      "yanked_reason": null
+    }
+  ],
+  "vulnerabilities": []
+}
