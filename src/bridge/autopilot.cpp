@@ -13,11 +13,11 @@ namespace {
 // Ops the driver implements. Adding one here without adding a branch to ApRun
 // makes a script that validates and then fails at run time, so the two lists
 // belong together; check-coherence.py asserts the documentation side.
-constexpr std::array<const char*, 17> kOps = {
-    "send",           "new_chat",     "load_chat",    "set_model", "set_api",
-    "set_routing",    "set_sampling", "set_kv_reuse", "set_taesd", "set_system_prompt",
-    "generate_image", "mark",         "show_pane",    "rate",      "start_train",
-    "train_status",   "quit"};
+constexpr std::array<const char*, 18> kOps = {
+    "send",        "new_chat",       "load_chat",    "set_model", "set_api",
+    "set_routing", "set_sampling",   "set_kv_reuse", "set_taesd", "set_system_prompt",
+    "wait_idle",   "generate_image", "mark",         "show_pane", "rate",
+    "start_train", "train_status",   "quit"};
 
 // Panes show_pane can open. Each is a ContentDialog with an existing coroutine
 // behind it; the op reuses those rather than rebuilding any UI.

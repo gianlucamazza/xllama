@@ -53,6 +53,6 @@ fetch_log() {
 		return 1
 	fi
 	python3 "${SCRIPT_DIR}/console_run_log.py" \
-		"${TMPDIR_LOCAL}/xllama-before.log" "$full" "$run" || return 1
+		"${TMPDIR_LOCAL}/xllama-before.log" "$full" "$run" "${1:-app}" || return 1
 	echo "$run"
 }

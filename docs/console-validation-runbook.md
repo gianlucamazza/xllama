@@ -37,7 +37,10 @@ the app. Stops use the checked, package-encoding helper in `deploy.sh`. Before
 launch they snapshot `xllama.log` after stopping the app. The harnesses **never
 delete this log**: a delayed unlink can race the new process (#347). Only a
 successful download or HTTP 404 establishes the baseline. Verdicts read only
-new bytes beginning at one complete, exact `App::App()` entry. An old partial
+new bytes beginning at one complete, exact `App::App()` entry for UI gates.
+The device-training gate explicitly selects the exact `train.flag detected ->
+headless device training (Lane B)` entry, because headless dispatch precedes
+the XAML constructor. Neither mode accepts the other mode as a fallback. An old partial
 line may precede that append boundary; historical bytes never complete a new
 marker or enter the extracted output.
 
@@ -100,7 +103,8 @@ other users or unrelated clients.
 Host-only regression tests (no console or credentials):
 
 ```bash
-python3 -m unittest tests/test_console_run_log.py tests/test_console_temp_chats.py
+python3 -m unittest tests/test_console_run_log.py tests/test_console_temp_chats.py \
+  tests/test_console_taesd_result.py
 ```
 
 ## Official automated suite
@@ -183,7 +187,18 @@ n_ctx` — rather than the answer's length, which keeps the verdict independent
   flipping the in-app toggle: the toggle makes the console download the asset
   from the models-v1 release, which would make the gate slower and dependent on
   console-side network. The toggle's own writer is covered by the `settings`
-  gate instead;
+  gate instead. `wait_idle` (default 120 s, `XLLAMA_TAESD_READY_TIMEOUT_S`,
+  250 ms poll, three consecutive idle reads of the UI/preload atomics) parks
+  until session preload is done, so `generate_image` is not rejected busy at
+  launch. A `diffuse-result.csv` row must identify the taesd job
+  (`sd-turbo-fp16`, steps 1, seed 42) and contain a finite nonnegative VAE
+  duration. Its `date` must be at or after the recorded UTC start, or a valid
+  pre-run snapshot must exist and the file must have changed; a stale last
+  row is a FAIL, never an `ok` number. `ok` is printed only
+  when the autopilot marker is `ok`. `max_sampled_private_ws_mb` is the max of
+  PrivateWorkingSet sampled every `XLLAMA_TAESD_WS_SAMPLE_S` seconds (default
+  5), matched by package family from the installed PFN (or
+  `XLLAMA_PACKAGE_FAMILY`); it is not a peak;
 - **API** — separate LAN gate (`scripts/validate-api.sh`):
   `spike|chat|stream|admission|budget|tools|framing|embed|pull|prefs|train|all` (chat, context budget,
   client-side tool proposals per [ADR 0004](adr/0004-tool-proposals.md),
