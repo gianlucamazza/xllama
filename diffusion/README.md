@@ -76,6 +76,12 @@ force the external-data layout on a tiny model). One real fp32 UNet export,
 its fp16 conversion and their peak memory are recorded in
 `receipts/sd-turbo-unet-export_receipt.json`.
 
+The native tokenizer also requires `tokenizer/vocab.json` and
+`tokenizer/merges.txt`. The exporter copies these exact files from the same
+checkpoint revision, alongside `tokenizer.json` for host validation. A unified
+Transformers tokenizer save alone does not supply the native console files;
+missing checkpoint sidecars fail the export before any tensor conversion.
+
 `--verify` runs each graph on ORT CPU (`ORT_ENABLE_EXTENDED`) against eager
 torch at the console shapes and at a second, smaller batch-2 shape.
 `compare_onnx_exports.py REF CAND [--pipeline]` checks two export directories
