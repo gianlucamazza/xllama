@@ -1,7 +1,8 @@
 # Qualified Linux CPU / Python 3.12 profile (ADR 0009, issue #405).
 # Install through run_job.sh: the hash-locked transitive graph is authoritative.
 # GPU profiles require separate qualification; do not inherit system Torch.
-torch==2.13.0+cpu
+# Declare the base release for advisory monitoring; the lock selects its CPU wheel.
+torch==2.13.0
 transformers==5.10.1
 peft==0.21.2
 datasets==5.0.1

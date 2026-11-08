@@ -60,10 +60,14 @@ graph. Update them as one set after isolated installation, security review,
 first-party training, merge/GGUF and inference checks. Qualification and its
 remaining device/security scope are tracked in
 [#405](https://github.com/gianlucamazza/xllama/issues/405) and
-[proposed ADR 0009](../docs/adr/0009-isolated-host-training-toolchain.md).
-Dependabot monitoring remains separate from remediation evidence. An advisory
-query for the base Torch release is narrower than coverage of the exact CPU
-wheel; retain both that query and the installed-graph scanner's skip.
+[ADR 0009](../docs/adr/0009-isolated-host-training-toolchain.md).
+Dependabot monitoring remains separate from remediation evidence. The direct
+Torch pin names the base release for advisory monitoring; the lock selects the
+CPU build. The [dated qualification receipt](host/qualification-2026-11-08.json)
+binds the official CPU wheel, installed payload hashes and upstream release
+commit to the separate base-release advisory query. The scanner's raw skip of
+the local `+cpu` version remains recorded; this is bounded known-advisory
+coverage, not whole-binary security certification.
 
 From the **repo root**:
 

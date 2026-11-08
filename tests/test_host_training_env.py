@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 """The host trainer must not inherit system Torch or bypass its CPU hash lock."""
 import os
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -39,6 +40,19 @@ class HostEnvironmentTests(unittest.TestCase):
             result = subprocess.run(["bash", "-c", FUNCTION + "\nensure_venv"],
                                     env=env, capture_output=True, text=True)
             return result, calls.read_text() if calls.exists() else ""
+
+    def test_direct_pins_match_the_qualified_cpu_lock(self):
+        lock = dict(re.findall(r"^([\w-]+)==([^\s\\]+)",
+                               (ROOT / "training/host/requirements-cpu-py312.lock").read_text(),
+                               re.MULTILINE))
+        self.assertTrue(lock["torch"].endswith("+cpu"))
+        for line in (ROOT / "training/host/requirements.txt").read_text().splitlines():
+            line = line.split("#", 1)[0].strip()
+            if not line:
+                continue
+            name, version = line.split("==")
+            actual = lock[name].split("+", 1)[0] if name == "torch" else lock[name]
+            self.assertEqual(actual, version, name)
 
     def test_inherited_packages_rejected_before_install_or_import(self):
         result, calls = self.run_environment(inherited=True)
