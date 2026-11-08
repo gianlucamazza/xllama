@@ -63,7 +63,7 @@
     "max_sampled_private_ws_mb": 2005,
     "true_peak_proven": false
   },
-  "host_training": "CPU isolated 58-package graph installed; uv pip check passes; real first-party 120-step trial started with preregistered manifest",
+  "host_training": "120-step real SmolLM2 training completed; adapter reload/FP32 merge/logit and greedy-marker parity PASS; GGUF conversion and merge completed; GGUF marker inference running",
   "api_candidate": {
     "package": "1.7.0.1435",
     "result": "ALL PASS",
@@ -100,7 +100,15 @@
     "fix_pr": 408,
     "fix_commit": "45a3e05",
     "regressions": 47,
-    "fresh_rerun": "in progress; no retrospective promotion"
+    "fresh_rerun": {
+      "result": "PASS",
+      "harness_commit": "45a3e05",
+      "package": "1.7.0.1435",
+      "last_loss": 0.46798,
+      "wall_seconds": 444.029,
+      "peak_ws_mb": 1201,
+      "marker": "XLLAMA-LORA-OK."
+    }
   },
   "peak_instrumentation": {
     "pr": 407,
@@ -110,7 +118,14 @@
   "hardware_identity": {
     "pr": 404,
     "commit": "627b9a1",
-    "status": "refreshed with main; CI pending; original package revision 1434 cannot replace installed 1435 in-place"
+    "status": "refreshed with main; CI pending; original package revision 1434 cannot replace installed 1435 in-place",
+    "live_echo": {
+      "package": "1.7.0.1440",
+      "runtime_source": "627b9a1fec7b712f9b63a851f91ba5a785ab87f7",
+      "result": "PASS",
+      "host_label": "xbox-series-s-declared-t6",
+      "scope": "one measured text row after warmup; no performance promotion"
+    }
   },
   "diffusion_qualification": {
     "environment": "isolated Python 3.12; requirements installed on CPU; 50 compatible packages",
@@ -122,8 +137,8 @@
       "skipped": 0,
       "result": "PASS"
     },
-    "fp16_conversion": "running",
-    "legacy_fp16_comparison": "running"
+    "fp16_conversion": "PASS: all three self-contained graphs load at ORT_ENABLE_EXTENDED",
+    "legacy_fp16_comparison": "FAIL overall: UNet timestep rank differs (legacy int64 vector vs new float scalar); all three numerical outputs within recorded bounds; strict failure retained"
   },
   "ci_transient_failures": {
     "pr": 407,
@@ -135,6 +150,6 @@
     "commit": "9195b94",
     "scope": "authenticated release asset API and three bounded attempts; pinned hashes unchanged",
     "local_real_asset_check": "both DLL hashes match committed values",
-    "remote_ci": "pending"
+    "remote_ci": "four required checks passed; squash merged as b3ee9052a5ce3bc01d47d595e26c015770220f2a"
   }
 }
