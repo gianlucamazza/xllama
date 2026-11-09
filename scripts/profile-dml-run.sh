@@ -347,7 +347,7 @@ fi
 if [[ "$NO_ANALYZE" != "true" ]]; then
 	echo ""
 	echo "--- Analysis ---"
-	python3 "${SCRIPT_DIR}/analyze_ort_profile.py" "$PROFILE_LOCAL" --log "${OUTDIR}/xllama.log"
+	python3 "${SCRIPT_DIR}/analyze_ort_profile.py" "$PROFILE_LOCAL" --strict --json-out "${OUTDIR}/profile-summary.json" --log "${OUTDIR}/xllama.log"
 fi
 
 if [[ "$GPU_SAMPLE" == "true" && -s "${OUTDIR}/gpu-summary.txt" ]]; then
