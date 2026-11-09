@@ -62,7 +62,8 @@ invented.
 - No `build-*-1.7b*` script. The in-tree ORT GenAI builder is
   `scripts/build-fp16-dml-model.sh` (fp16 DirectML, not this asset).
 - No GitHub Actions workflow converts models (`build-linux.yml`,
-  `build-uwp.yml`, `codeql.yml`, `release-research.yml`).
+  `build-uwp.yml`, `build-uwp-ort-patched.yml`, `build-uwp-patched.yml`,
+  `codeql.yml`, `release-research.yml`).
 - The `models-v1` release body describes the 360M merged int4 CPU build,
   not a 1.7B Hugging Face revision.
 - Shipped `smollm2-1.7b-cpu-int4_genai_config.json` has no Hugging Face
@@ -70,7 +71,7 @@ invented.
 - The ONNX protobuf does not contain `31b70e2e869a7173562077fd711b654946d38674`
   or `HuggingFaceTB`.
 - Commit `f051587dcad77f499fd7529b9c0bb73191a6fef3` (2026-07-08) records
-  "CPU int4 built OK (1.4 GB, merged)" without an upstream SHA. The four
+  "cpu-int4 OK (1.4GB merged)" without an upstream SHA. The four
   weight/tokenizer assets were uploaded to `models-v1` on 2026-07-15
   (`d3c237214dd84efad88f358ee795476569920e9e`).
 
