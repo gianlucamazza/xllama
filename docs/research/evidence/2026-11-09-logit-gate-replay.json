@@ -1,0 +1,41 @@
+{
+  "scope": "host replay of committed vectors and gate regression; not Xbox inference or performance",
+  "audited_main": "20e79727c3074507f51717596abb699ed184c655",
+  "parity_candidate": "cd419df6d34a93e1d03e77bb6bcb60645fa6ec65",
+  "thresholds": {
+    "max_abs_diff": 0.5,
+    "nmse": 0.001,
+    "top_k": 10,
+    "top_k_min": 0.8
+  },
+  "comparisons": [
+    {
+      "reference": "docs/audit/excellence/execution-2026-11-08/prefill-logits-coder-CPU.bin",
+      "candidate": "docs/audit/excellence/execution-2026-11-08/prefill-logits-coder-A.bin",
+      "reference_sha256": "985dc88a1b4768751324d9b7d9a368f4cee1b206cde68fd344d2f8bb99af04f3",
+      "candidate_sha256": "faaa755c4992b7143443c61ce8882a01d3f15164938a4150d2e1bd63db85619e",
+      "exit_code": 1,
+      "output": "A: docs/audit/excellence/execution-2026-11-08/prefill-logits-coder-CPU.bin  (151936 logits, backend=llama.cpp)\nB: docs/audit/excellence/execution-2026-11-08/prefill-logits-coder-A.bin  (151936 logits, backend=llama.cpp)\n  max_abs_diff : 0.550120   (thr \u2264 0.5)\n  nmse         : 1.022e-03   (thr \u2264 0.001)\n  top1_match   : True\n  top10_overlap : 0.90   (thr \u2265 0.8)\n\u274c FAIL\n"
+    },
+    {
+      "reference": "docs/audit/excellence/execution-2026-11-08/prefill-logits-lfm-CPU.bin",
+      "candidate": "docs/audit/excellence/execution-2026-11-08/prefill-logits-lfm-A.bin",
+      "reference_sha256": "6ad9059a12735bcd7e8989ed71e4df75c859e629c559a48f8175cdc429e1b98a",
+      "candidate_sha256": "ab8f58b67125984f9be3a1ded4459bc8594d632dd39077cfa8b316ff81850e0e",
+      "exit_code": 0,
+      "output": "A: docs/audit/excellence/execution-2026-11-08/prefill-logits-lfm-CPU.bin  (65536 logits, backend=llama.cpp)\nB: docs/audit/excellence/execution-2026-11-08/prefill-logits-lfm-A.bin  (65536 logits, backend=llama.cpp)\n  max_abs_diff : 0.302696   (thr \u2264 0.5)\n  nmse         : 4.678e-04   (thr \u2264 0.001)\n  top1_match   : True\n  top10_overlap : 1.00   (thr \u2265 0.8)\n\u2705 PASS\n"
+    },
+    {
+      "reference": "docs/audit/excellence/execution-2026-11-08/prefill-logits-lfm-CPU.bin",
+      "candidate": "docs/audit/excellence/execution-2026-11-08/prefill-logits-lfm-B.bin",
+      "reference_sha256": "6ad9059a12735bcd7e8989ed71e4df75c859e629c559a48f8175cdc429e1b98a",
+      "candidate_sha256": "ab8f58b67125984f9be3a1ded4459bc8594d632dd39077cfa8b316ff81850e0e",
+      "exit_code": 0,
+      "output": "A: docs/audit/excellence/execution-2026-11-08/prefill-logits-lfm-CPU.bin  (65536 logits, backend=llama.cpp)\nB: docs/audit/excellence/execution-2026-11-08/prefill-logits-lfm-B.bin  (65536 logits, backend=llama.cpp)\n  max_abs_diff : 0.302696   (thr \u2264 0.5)\n  nmse         : 4.678e-04   (thr \u2264 0.001)\n  top1_match   : True\n  top10_overlap : 1.00   (thr \u2265 0.8)\n\u2705 PASS\n"
+    }
+  ],
+  "shape_mismatch_matching_piece": {
+    "before": 0,
+    "after": 1
+  }
+}
