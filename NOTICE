@@ -62,7 +62,7 @@ TAESD: MIT. Author: madebyollin. Source: https://huggingface.co/madebyollin/taes
 
 SmolLM2: Apache-2.0. Author: HuggingFaceTB. Source: https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct. Modified by xllama: converted to ONNX int4 (`smollm2-360m-cpu-int4`) and ONNX fp16 with RMSNorm nodes decomposed into primitive ops for DirectML (`smollm2-360m-dml-fp16-v2`); upstream revision not recorded.
 
-SmolLM2-1.7B: Apache-2.0. Author: HuggingFaceTB. Source: https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct. Modified by xllama: converted to ONNX int4; upstream revision not recorded.
+SmolLM2-1.7B: Apache-2.0. Author: HuggingFaceTB. Source: https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct. Modified by xllama: converted to ONNX int4 (`smollm2-1.7b-cpu-int4`); upstream revision not recorded. The model-card licence check used Hugging Face revision 31b70e2e869a7173562077fd711b654946d38674; that is the licence check, not the conversion input.
 
 Qwen3.5-0.8B: Apache-2.0. Author: Qwen (Alibaba Cloud). Source: https://huggingface.co/Qwen/Qwen3.5-0.8B. GGUF quantisation: https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF. Redistributed unchanged by xllama; quantized by unsloth.
 
