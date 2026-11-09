@@ -90,6 +90,9 @@ jobs:
           python3 -m pip install 'numpy==2.3.5'
           python3 -m unittest tests/test_compare_logits.py
 
+      - name: Test ORT profile integrity
+        run: python3 -m unittest tests/test_ort_profile.py
+
       - name: Smoke test debug tooling (profile analyzer + GPU sampler parser)
         run: |
           python3 scripts/analyze_ort_profile.py tests/fixtures/ort_profile_sample.json |
