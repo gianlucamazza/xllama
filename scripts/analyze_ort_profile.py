@@ -4,9 +4,9 @@
 When session_options.enable_profiling is set, ONNX Runtime writes a
 Chrome-trace event array; every <node>_kernel_time event carries
 args.provider ("DmlExecutionProvider" or "CPUExecutionProvider").
-This is the definitive answer to "did DML actually run on the GPU,
-or silently fall back to CPU?" — it does not depend on log routing
-or on ORT being a full (non-minimal) build.
+Provider events identify ORT execution-provider placement, independently of
+log routing. Their durations are host trace intervals, not GPU hardware
+timestamps; fused nodes can hide internal operator and layer placement.
 
 Usage: python3 scripts/analyze_ort_profile.py <profile.json> [--top N] [--log xllama.log]
 
@@ -18,26 +18,38 @@ The last stdout line is greppable:
 
 import argparse
 import json
+import hashlib
+import math
+from pathlib import Path
 import sys
 from collections import defaultdict
 
 
-def parse_events(text):
+def parse_trace(text):
     """Parse a Chrome-trace event array, tolerating a truncated tail.
 
     ORT leaves the array unterminated if the process dies before session
     teardown; trim to the last complete object and close the array.
     """
+    complete = True
     try:
         data = json.loads(text)
     except json.JSONDecodeError:
+        complete = False
         cut = text.rfind("},")
         if cut == -1:
             raise
         data = json.loads(text[: cut + 1] + "]")
     if isinstance(data, dict):
-        data = data.get("traceEvents", [])
-    return data
+        data = data["traceEvents"]
+    if not isinstance(data, list) or not all(isinstance(ev, dict) for ev in data):
+        raise ValueError("trace must be an event array or an object containing traceEvents")
+    return data, complete
+
+
+def parse_events(text):
+    """Compatibility helper for forensic callers; use parse_trace for integrity."""
+    return parse_trace(text)[0]
 
 
 def summarize(events):
@@ -45,6 +57,8 @@ def summarize(events):
     providers = defaultdict(lambda: {"count": 0, "dur_us": 0, "ops": defaultdict(int)})
     kernel_events = 0
     session_runs = 0
+    nodes = {}
+    invalid_events = 0
     for ev in events:
         name = str(ev.get("name", ""))
         if name == "SessionRun":
@@ -53,15 +67,34 @@ def summarize(events):
             continue
         kernel_events += 1
         args = ev.get("args", {}) or {}
-        prov = providers[args.get("provider", "unknown")]
+        dur = ev.get("dur")
+        if (not isinstance(args, dict) or type(dur) not in (int, float)
+                or not math.isfinite(dur) or dur < 0):
+            invalid_events += 1
+            continue
+        provider = args.get("provider", "unknown")
+        if not isinstance(provider, str) or not provider:
+            provider = "unknown"
+        prov = providers[provider]
         prov["count"] += 1
-        dur = int(ev.get("dur", 0) or 0)
         prov["dur_us"] += dur
-        prov["ops"][args.get("op_name", "?")] += dur
+        op = str(args.get("op_name", "?"))
+        prov["ops"][op] += dur
+        key = (provider, name)
+        node = nodes.setdefault(key, {"provider": provider, "name": name,
+                                      "op": op, "count": 0, "dur_us": 0})
+        node["count"] += 1
+        node["dur_us"] += dur
     return {
         "providers": {k: dict(v, ops=dict(v["ops"])) for k, v in providers.items()},
         "kernel_events": kernel_events,
         "session_runs": session_runs,
+        "invalid_events": invalid_events,
+        "nodes": sorted(nodes.values(), key=lambda n: (-n["dur_us"], n["name"])),
+        "timing_scope": "ORT host trace event intervals; not GPU hardware time",
+        "aggregation": "sum of events; may overlap; not end-to-end latency",
+        "run_success": None,
+        "layer_attribution": "node names only; fused nodes may hide layer boundaries",
     }
 
 
@@ -98,11 +131,36 @@ def main():
     ap.add_argument(
         "--log", help="optional xllama.log to grep for node-placement lines"
     )
+    ap.add_argument("--strict", action="store_true",
+                    help="reject truncated/invalid/empty or unattributed profiles")
+    ap.add_argument("--json-out", type=Path, help="write attributable machine-readable report")
     args = ap.parse_args()
+    if args.top <= 0:
+        ap.error("--top must be positive")
 
-    with open(args.profile, errors="replace") as fp:
-        events = parse_events(fp.read())
-    summary = summarize(events)
+    try:
+        raw = Path(args.profile).read_bytes()
+        events, complete = parse_trace(raw.decode("utf-8"))
+        summary = summarize(events)
+    except (OSError, ValueError, KeyError) as exc:
+        print(f"INVALID PROFILE: {exc}", file=sys.stderr)
+        return 2
+    valid = (complete and summary["kernel_events"] > 0 and summary["session_runs"] > 0
+             and summary["invalid_events"] == 0 and summary["providers"]
+             and all(p in ("CPUExecutionProvider", "DmlExecutionProvider")
+                     for p in summary["providers"])
+             and sum(p["dur_us"] for p in summary["providers"].values()) > 0)
+    summary.update(trace_complete=complete, profile_valid=bool(valid),
+                   profile_sha256=hashlib.sha256(raw).hexdigest())
+    if args.json_out:
+        try:
+            args.json_out.write_text(json.dumps(summary, indent=2, allow_nan=False) + "\n")
+        except (OSError, ValueError) as exc:
+            print(f"REPORT WRITE FAILED: {exc}", file=sys.stderr)
+            return 2
+    print(summary["timing_scope"])
+    if not valid:
+        print("DIAGNOSTIC ONLY: incomplete, invalid or unattributed profile")
 
     print(
         f"events: {len(events)} total, {summary['kernel_events']} kernel, "
@@ -123,8 +181,9 @@ def main():
             print(f"  {line}")
 
     print()
-    print(verdict(summary))
+    print(verdict(summary) if valid else "VERDICT: INVALID-PROFILE")
+    return 1 if args.strict and not valid else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
