@@ -354,3 +354,20 @@ preload and other work since launch; zero means the reading is unavailable.
 It is neither GPU allocation nor sampled private working set. Use a fresh
 process and record its launch/workload when admitting peak-memory evidence.
 Historical CSV files are unchanged and may omit this column.
+
+## Logit parity input contract
+
+`scripts/compare-logits.py` returns 0 only for numerical parity, 1 for a
+comparison failure and 2 for invalid input or arguments. A matching top-token
+string across differently sized vocabularies is not numerical parity. Dumps
+must contain a nonempty, complete sequence of finite float32 values. Optional
+sidecars must be JSON objects; a declared `vocab_size` must match the dump.
+When both sidecars declare the prompt or tokenizer/vocabulary hashes, they must
+agree. Conflicting top-token strings fail even when indices match. Missing
+sidecars remain supported for historical dumps; equal sizes alone do not prove
+vocabulary ordering, so campaigns must retain model/tokenizer provenance.
+
+Thresholds must be finite and nonnegative, top-k positive, and the minimum
+overlap in [0, 1]. These input checks do not change the frozen numerical gates
+in [GGUF GPU decode](../docs/gguf-gpu-decode.md). CI exercises malformed inputs
+and the retained Coder control failure and LFM passes through the actual CLI.
