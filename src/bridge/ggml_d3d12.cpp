@@ -279,6 +279,25 @@ const char* d3d12_selftest_csv_header() {
     return "type,n,k,ncols,rel_err,gpu_ms,packed_gbs,ok,d3d12_ran,host,date,error\n";
 }
 
+std::string format_d3d12_phase(const char* phase, const D3d12PhaseStats& s) {
+    char gpu[32];
+    if (s.gpu_time_valid())
+        std::snprintf(gpu, sizeof(gpu), "%.3f", s.gpu_ms);
+    else
+        std::snprintf(gpu, sizeof(gpu), "unavailable");
+    char buf[512];
+    std::snprintf(buf, sizeof(buf),
+                  "[xllama] d3d12-phase phase=%s calls=%llu submissions=%llu dispatches=%llu "
+                  "wall_ms=%.3f quant_ms=%.3f record_ms=%.3f exec_wait_ms=%.3f gpu_ms=%s "
+                  "ts_valid=%llu ts_missing=%llu\n",
+                  phase ? phase : "-", static_cast<unsigned long long>(s.calls),
+                  static_cast<unsigned long long>(s.submissions),
+                  static_cast<unsigned long long>(s.dispatches), s.wall_ms, s.quant_ms, s.record_ms,
+                  s.exec_wait_ms, gpu, static_cast<unsigned long long>(s.ts_valid),
+                  static_cast<unsigned long long>(s.ts_missing));
+    return buf;
+}
+
 std::string format_d3d12_selftest_row(const D3d12SelftestRow& r, const char* host_label) {
     char date_buf[32];
     std::time_t now = std::time(nullptr);
@@ -306,6 +325,12 @@ bool ggml_d3d12_register() {
 
 ggml_backend_buffer_type_t ggml_d3d12_weights_buft() {
     return nullptr;
+}
+
+bool ggml_d3d12_take_stats(D3d12PhaseStats* out) {
+    if (out)
+        *out = D3d12PhaseStats{};
+    return false;
 }
 
 void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
@@ -391,6 +416,8 @@ struct Gpu {
     std::uint64_t n_dispatches = 0; // MUL_MAT + GET_ROWS
     double wall_ms = 0.0;
     double gpu_ms = 0.0;
+    // #421: activity since the last ggml_d3d12_take_stats(), guarded by mu.
+    D3d12PhaseStats phase;
     std::mutex mu;
     bool ok = false;
     std::string error;
@@ -544,14 +571,24 @@ Gpu& gpu() {
 }
 
 // Record into the shared list and run it to completion. Caller holds g.mu.
-template <typename F> bool run_now(Gpu& g, F&& record) {
+// `stats` (graph submissions only) receives the record and execute+wait times.
+template <typename F> bool run_now(Gpu& g, F&& record, D3d12PhaseStats* stats = nullptr) {
+    using clock = std::chrono::steady_clock;
+    const auto t0 = clock::now();
     g.alloc->Reset();
     g.cl->Reset(g.alloc.Get(), nullptr);
     record(g.cl.Get());
     g.cl->Close();
+    const auto t1 = clock::now();
     ID3D12CommandList* lists[] = {g.cl.Get()};
     g.queue->ExecuteCommandLists(1, lists);
-    return g.fence.signal_and_wait(g.queue.Get(), /*spin=*/true);
+    const bool ok = g.fence.signal_and_wait(g.queue.Get(), /*spin=*/true);
+    if (stats) {
+        stats->record_ms += std::chrono::duration<double, std::milli>(t1 - t0).count();
+        stats->exec_wait_ms += std::chrono::duration<double, std::milli>(clock::now() - t1).count();
+        ++stats->submissions;
+    }
+    return ok;
 }
 
 // --- Buffers ---
@@ -849,67 +886,79 @@ struct Op {
 // Record and run one submission. Caller holds g.mu.
 bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
     const bool ts = g.ts && g.ts_rb;
-    const bool ran = run_now(g, [&](ID3D12GraphicsCommandList* cl) {
-        cl->SetComputeRootSignature(g.root.Get());
-        if (ts)
-            cl->EndQuery(g.ts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
-        const D3D12_GPU_VIRTUAL_ADDRESS xq_va = g.xq->GetGPUVirtualAddress();
-        for (const Op& op : ops) {
-            const ggml_tensor* node = op.node;
-            const ggml_tensor* w = node->src[0];
-            if (node->op == GGML_OP_GET_ROWS) {
-                const std::uint32_t c[8] = {static_cast<std::uint32_t>(node->ne[1]),
+    const bool ran = run_now(
+        g,
+        [&](ID3D12GraphicsCommandList* cl) {
+            cl->SetComputeRootSignature(g.root.Get());
+            if (ts)
+                cl->EndQuery(g.ts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
+            const D3D12_GPU_VIRTUAL_ADDRESS xq_va = g.xq->GetGPUVirtualAddress();
+            for (const Op& op : ops) {
+                const ggml_tensor* node = op.node;
+                const ggml_tensor* w = node->src[0];
+                if (node->op == GGML_OP_GET_ROWS) {
+                    const std::uint32_t c[8] = {
+                        static_cast<std::uint32_t>(node->ne[1]),
+                        static_cast<std::uint32_t>(w->ne[0]),
+                        static_cast<std::uint32_t>(w->ne[0] / kD3d12Chunk),
+                        static_cast<std::uint32_t>(w->nb[1]),
+                        0,
+                        static_cast<std::uint32_t>(node->nb[1] / sizeof(float)),
+                        0,
+                        0};
+                    cl->SetPipelineState(g.pso_get_rows.Get());
+                    cl->SetComputeRoot32BitConstants(0, 8, c, 0);
+                    cl->SetComputeRootShaderResourceView(1, tensor_va(w));
+                    cl->SetComputeRootUnorderedAccessView(2, tensor_va(node));
+                    cl->SetComputeRootUnorderedAccessView(3, xq_va + op.xq_off);
+                    cl->Dispatch(static_cast<UINT>(w->ne[0] / kD3d12Chunk),
+                                 static_cast<UINT>(node->ne[1]), 1);
+                    continue;
+                }
+                const D3d12Dispatch d = d3d12_mm_dispatch(node->ne[0], node->ne[1]);
+                const std::uint32_t c[8] = {static_cast<std::uint32_t>(w->ne[1]),
                                             static_cast<std::uint32_t>(w->ne[0]),
                                             static_cast<std::uint32_t>(w->ne[0] / kD3d12Chunk),
                                             static_cast<std::uint32_t>(w->nb[1]),
-                                            0,
+                                            op.xq_row,
                                             static_cast<std::uint32_t>(node->nb[1] / sizeof(float)),
                                             0,
                                             0};
-                cl->SetPipelineState(g.pso_get_rows.Get());
+                const int wide = d3d12_mm_threads(w->ne[0]) == kD3d12MmvThreadsLong ? 1 : 0;
+                cl->SetPipelineState(g.pso[pso_for(w->type)][wide].Get());
                 cl->SetComputeRoot32BitConstants(0, 8, c, 0);
                 cl->SetComputeRootShaderResourceView(1, tensor_va(w));
                 cl->SetComputeRootUnorderedAccessView(2, tensor_va(node));
                 cl->SetComputeRootUnorderedAccessView(3, xq_va + op.xq_off);
-                cl->Dispatch(static_cast<UINT>(w->ne[0] / kD3d12Chunk),
-                             static_cast<UINT>(node->ne[1]), 1);
-                continue;
+                cl->Dispatch(d.groups_x, d.groups_y, 1);
             }
-            const D3d12Dispatch d = d3d12_mm_dispatch(node->ne[0], node->ne[1]);
-            const std::uint32_t c[8] = {static_cast<std::uint32_t>(w->ne[1]),
-                                        static_cast<std::uint32_t>(w->ne[0]),
-                                        static_cast<std::uint32_t>(w->ne[0] / kD3d12Chunk),
-                                        static_cast<std::uint32_t>(w->nb[1]),
-                                        op.xq_row,
-                                        static_cast<std::uint32_t>(node->nb[1] / sizeof(float)),
-                                        0,
-                                        0};
-            const int wide = d3d12_mm_threads(w->ne[0]) == kD3d12MmvThreadsLong ? 1 : 0;
-            cl->SetPipelineState(g.pso[pso_for(w->type)][wide].Get());
-            cl->SetComputeRoot32BitConstants(0, 8, c, 0);
-            cl->SetComputeRootShaderResourceView(1, tensor_va(w));
-            cl->SetComputeRootUnorderedAccessView(2, tensor_va(node));
-            cl->SetComputeRootUnorderedAccessView(3, xq_va + op.xq_off);
-            cl->Dispatch(d.groups_x, d.groups_y, 1);
-        }
-        if (ts) {
-            cl->EndQuery(g.ts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 1);
-            cl->ResolveQueryData(g.ts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, 2, g.ts_rb.Get(), 0);
-        }
-    });
+            if (ts) {
+                cl->EndQuery(g.ts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 1);
+                cl->ResolveQueryData(g.ts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, 2, g.ts_rb.Get(),
+                                     0);
+            }
+        },
+        &g.phase);
     if (!ran)
         return false;
-    if (ts) {
+    bool ts_ok = false;
+    if (ts && g.ts_freq > 0) {
         void* p = nullptr;
         if (SUCCEEDED(g.ts_rb->Map(0, nullptr, &p))) {
             const auto* t = static_cast<const std::uint64_t*>(p);
-            g.last_gpu_ms += t[1] > t[0] ? 1000.0 * static_cast<double>(t[1] - t[0]) /
-                                               static_cast<double>(g.ts_freq)
-                                         : 0.0;
+            const double ms = t[1] > t[0] ? 1000.0 * static_cast<double>(t[1] - t[0]) /
+                                                static_cast<double>(g.ts_freq)
+                                          : 0.0;
+            g.last_gpu_ms += ms;
+            ts_ok = t[1] > t[0];
+            if (ts_ok)
+                g.phase.gpu_ms += ms;
             g.ts_rb->Unmap(0, nullptr);
         }
     }
+    ++(ts_ok ? g.phase.ts_valid : g.phase.ts_missing);
     g.n_dispatches += ops.size();
+    g.phase.dispatches += ops.size();
     return true;
 }
 
@@ -1012,8 +1061,12 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
                 return GGML_STATUS_FAILED;
             if (!ensure_xq(g, used + bytes))
                 return GGML_STATUS_FAILED;
+            const auto tq = std::chrono::steady_clock::now();
             d3d12_quantize_activations(w->type, static_cast<const float*>(x->data),
                                        x->nb[1] / sizeof(float), k, ncols, g.xq_ptr + used);
+            g.phase.quant_ms +=
+                std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - tq)
+                    .count();
             done.push_back({x->data, at, used, row, ncols});
             q = &done.back();
             used += (bytes + 255) & ~std::size_t(255); // root UAV addresses stay aligned
@@ -1023,12 +1076,28 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
     }
     if (!flush())
         return GGML_STATUS_FAILED;
+    const double call_ms =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     ++g.n_calls;
     g.gpu_ms += g.last_gpu_ms;
-    g.wall_ms +=
-        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    g.wall_ms += call_ms;
+    ++g.phase.calls;
+    g.phase.wall_ms += call_ms;
     return GGML_STATUS_SUCCESS;
 }
+
+} // namespace
+
+bool ggml_d3d12_take_stats(D3d12PhaseStats* out) {
+    Gpu& g = gpu();
+    std::lock_guard<std::mutex> lock(g.mu);
+    if (out)
+        *out = g.ok ? g.phase : D3d12PhaseStats{};
+    g.phase = D3d12PhaseStats{};
+    return g.ok;
+}
+
+namespace {
 
 ggml_guid_t backend_guid() {
     static ggml_guid guid = {0x78, 0x6c, 0x6c, 0x61, 0x6d, 0x61, 0x2d, 0x64,
