@@ -7,11 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [1.7.0] - TBD
+## [1.7.0] - 2026-11-10
 
 User-facing notes: [docs/releases/v1.7.0.md](docs/releases/v1.7.0.md).
-Candidate 1.7.0.1495 completed Series S acceptance; receipts and limitations are
-linked from the notes. The release date and publication remain pending.
+Released as `v1.7.0.0` from CI package 1.7.0.1495, which completed Series S
+acceptance; receipts and limitations are linked from the notes. Host-side
+validation tooling merged after the candidate (#423 strict numerical parity
+comparisons, #424 attributable ORT profile reports) and the #425 GPU
+acceleration baseline are in the tag; they do not change package inputs.
 
 - **GPU validation:** the standard backend selftest exits nonzero when its
   gate fails and rejects empty, non-finite or negative measurements. Native
