@@ -192,7 +192,7 @@ class TensorCaptureWriter {
         return skipped_;
     }
 
-    // Call once per graph evaluation, before its first record (a new ubatch).
+    // Call once per graph evaluation (one physical ubatch), before it runs.
     void begin_eval() {
         ++eval_;
     }

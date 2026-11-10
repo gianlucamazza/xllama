@@ -594,7 +594,12 @@ be copied (non-f32/f16, non-contiguous, empty or over budget) are listed as
 skipped. A bad spec, unwritable directory, write failure or zero records
 fails the run, and the ORT path rejects the option.
 
-Capture adds a synchronisation point at each matched node. Before trusting a
+A capture run decodes the prompt one physical ubatch per call, reproducing
+llama.cpp's internal split (position 0 onward, output only for the final
+token), so each graph evaluation is delimited explicitly. Graph names repeat
+inside one evaluation (`Qcur-N` names several nodes); records are matched by
+evaluation, name and occurrence. Capture also adds a synchronisation point at
+each matched node. Before trusting a
 capture-on run, compare its logits against a capture-off run of the same arm.
 `scripts/compare-tensors.py <ref> <cand> [--floor <alt>]` then walks the records
 in graph order and reports the first divergent one. Its thresholds are
