@@ -93,6 +93,12 @@ struct InferenceParams {
     /// Dump last prefill-token logit vector to this path (+ `.json` sidecar).
     std::string dump_logits_path;
 
+    /// #420 diagnostic: capture matching intermediate tensors of the prompt
+    /// prefill into this directory (llama.cpp path only). Both fields must be
+    /// set; see tensor_capture.h for the spec syntax and the record format.
+    std::string tensor_capture_dir;
+    std::string tensor_capture_spec;
+
     /// Stop strings; generation ends when output ends with any of these.
     std::vector<std::string> stop_sequences;
 
