@@ -68,7 +68,21 @@ class CompareTensorsTests(unittest.TestCase):
         loud = write_capture(self.root / "loud", {"l_out-2": 0.5})
         r = self.run_cmp(self.ref, loud, "--floor", floor)
         self.assertEqual(r.returncode, 1)
-        self.assertIn("first divergence: eval 0 l_out-2", r.stdout)
+        self.assertIn("first divergence: eval 0 l_out-2#0", r.stdout)
+
+    def test_repeated_names_are_matched_by_occurrence(self):
+        names = ["Qcur-0", "Qcur-0", "l_out-0"]
+        ref = write_capture(self.root / "r", names=names)
+        cand = write_capture(self.root / "c", {"Qcur-0": 0.0}, names=names)
+        self.assertEqual(self.run_cmp(ref, cand).returncode, 0)
+        # Perturb only the second Qcur-0 node.
+        data = np.fromfile(cand / "000001.f32", dtype=np.float32) * 1.5
+        data.astype(np.float32).tofile(cand / "000001.f32")
+        out = self.root / "occ.json"
+        r = self.run_cmp(ref, cand, "--json-out", out)
+        self.assertEqual(r.returncode, 1, r.stdout)
+        first = json.loads(out.read_text())["first_divergence"]
+        self.assertEqual((first["name"], first["occ"]), ("Qcur-0", 1))
 
     def test_mismatched_record_sets_are_invalid(self):
         cand = write_capture(self.root / "c", names=NAMES[:3])

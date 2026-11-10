@@ -6,8 +6,9 @@
 #
 # Compares two capture directories written by `xllama-cli --capture-tensors`
 # (or the console `tensor-capture.txt` knob) with the same prompt, model and
-# capture spec. Records are matched by (eval, name) and visited in the
-# reference's evaluation order, which is graph dependency order.
+# capture spec. Records are matched by (eval, name, occurrence of that name in
+# the eval) and visited in the reference's evaluation order, which is graph
+# dependency order.
 #
 # Usage:
 #   scripts/compare-tensors.py <ref_dir> <cand_dir> [--floor <alt_dir>]
@@ -47,7 +48,7 @@ def load_capture(path: Path):
     manifest = path / "manifest.jsonl"
     if not manifest.is_file():
         raise CaptureError(f"missing manifest: {manifest}")
-    order, records, skipped = [], {}, []
+    order, records, skipped, seen = [], {}, [], {}
     for lineno, line in enumerate(manifest.read_text().splitlines(), 1):
         if not line.strip():
             continue
@@ -57,12 +58,15 @@ def load_capture(path: Path):
             raise CaptureError(f"{manifest}:{lineno}: bad JSON: {e}") from None
         if not isinstance(meta, dict) or "name" not in meta or "eval" not in meta:
             raise CaptureError(f"{manifest}:{lineno}: record needs name and eval")
-        key = (meta["eval"], meta["name"])
+        # Graph names are not unique (Qcur-N names several nodes), so a
+        # record is identified by its occurrence within the evaluation.
+        base = (meta["eval"], meta["name"])
+        occ = seen.get(base, 0)
+        seen[base] = occ + 1
+        key = (meta["eval"], meta["name"], occ)
         if "skipped" in meta:
             skipped.append(key)
             continue
-        if key in records:
-            raise CaptureError(f"{manifest}:{lineno}: duplicate record {key}")
         for field in ("file", "values", "ne"):
             if field not in meta:
                 raise CaptureError(f"{manifest}:{lineno}: missing {field}")
@@ -140,7 +144,7 @@ def main() -> int:
     for key in ref[0]:
         meta, a = ref[1][key]
         m = metrics(a, cand[1][key][1])
-        row = {"eval": key[0], "name": key[1], "op": meta.get("op"), **m}
+        row = {"eval": key[0], "name": key[1], "occ": key[2], "op": meta.get("op"), **m}
         limit = args.nmse
         if floor is not None:
             f = metrics(a, floor[1][key][1])
@@ -152,11 +156,12 @@ def main() -> int:
             first = row
         rows.append(row)
 
-    print(f"{'eval':>4} {'name':<20} {'op':<10} {'nmse':>10} {'floor':>10} {'max_abs':>10} {'cos':>9}")
+    print(f"{'eval':>4} {'name':<22} {'op':<10} {'nmse':>10} {'floor':>10} {'max_abs':>10} {'cos':>9}")
     for r in rows:
         mark = "  <-- first divergence" if r is first else ("  !" if r["divergent"] else "")
         fl = f"{r['floor_nmse']:.2e}" if "floor_nmse" in r else "-"
-        print(f"{r['eval']:>4} {r['name']:<20} {str(r['op']):<10} {r['nmse']:>10.2e} {fl:>10} "
+        name = r["name"] + (f"#{r['occ']}" if r["occ"] else "")
+        print(f"{r['eval']:>4} {name:<22} {str(r['op']):<10} {r['nmse']:>10.2e} {fl:>10} "
               f"{r['max_abs']:>10.4f} {r['cosine']:>9.6f}{mark}")
 
     summary = {
@@ -172,7 +177,7 @@ def main() -> int:
     if first is None:
         print("✅ no divergent record")
         return 0
-    print(f"❌ first divergence: eval {first['eval']} {first['name']} ({first['op']}) "
+    print(f"❌ first divergence: eval {first['eval']} {first['name']}#{first['occ']} ({first['op']}) "
           f"nmse {first['nmse']:.3e} > {first['limit']:.3e}")
     return 1
 

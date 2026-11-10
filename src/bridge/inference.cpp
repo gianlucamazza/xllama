@@ -381,7 +381,6 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
     #include "xllama/tensor_capture.h"
 
     #include <memory>
-    #include <set>
     #include <vector>
 
 namespace xllama {
@@ -393,7 +392,6 @@ namespace {
 // the records describe exactly the graph whose last-token logits are dumped.
 struct TensorCaptureState {
     std::unique_ptr<TensorCaptureWriter> writer;
-    std::set<std::string> seen_this_eval; // names are unique within one graph
     bool active = false;
     std::vector<float> f32;
     std::vector<uint8_t> raw;
@@ -408,12 +406,6 @@ bool tensor_capture_eval(ggml_tensor* t, bool ask, void* user_data) {
     if (ask)
         return true;
 
-    // A repeated name means the scheduler started the next graph (ubatch).
-    if (st->seen_this_eval.empty() || !st->seen_this_eval.insert(t->name).second) {
-        st->seen_this_eval.clear();
-        st->seen_this_eval.insert(t->name);
-        st->writer->begin_eval();
-    }
     const int64_t ne[4] = {t->ne[0], t->ne[1], t->ne[2], t->ne[3]};
     const std::string op = ggml_op_desc(t);
     const std::string type = ggml_type_name(t->type);
@@ -444,6 +436,39 @@ bool tensor_capture_eval(ggml_tensor* t, bool ask, void* user_data) {
     }
     st->writer->write(t->name, op, type, ne, st->f32.data(), values);
     return true;
+}
+
+// Prefill for a capture run: one llama_decode per physical ubatch, so each
+// graph evaluation is delimited explicitly (graph node names are not unique;
+// Qcur-N, for instance, names several nodes). The batches reproduce the split
+// a single llama_decode performs internally: consecutive n_ubatch slices from
+// position 0 of sequence 0, with an output only for the final prompt token.
+bool prefill_capture_ubatches(llama_context* ctx, const llama_token* tokens, int n_tokens,
+                              TensorCaptureWriter& writer, InferenceWatchdog* wd) {
+    const int n_ubatch = std::max(1, static_cast<int>(llama_n_ubatch(ctx)));
+    llama_batch batch = llama_batch_init(n_ubatch, 0, 1);
+    bool ok = true;
+    for (int off = 0; ok && off < n_tokens; off += n_ubatch) {
+        if (wd && wd->aborted()) {
+            ok = false;
+            break;
+        }
+        const int chunk = std::min(n_ubatch, n_tokens - off);
+        batch.n_tokens = chunk;
+        for (int i = 0; i < chunk; ++i) {
+            batch.token[i] = tokens[off + i];
+            batch.pos[i] = off + i;
+            batch.n_seq_id[i] = 1;
+            batch.seq_id[i][0] = 0;
+            batch.logits[i] = (off + i == n_tokens - 1) ? 1 : 0;
+        }
+        writer.begin_eval();
+        ok = llama_decode(ctx, batch) == 0;
+        if (ok && wd)
+            wd->note_prefill_chunk(off + chunk);
+    }
+    llama_batch_free(batch);
+    return ok;
 }
 
 } // namespace
@@ -637,7 +662,10 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     InferenceWatchdog wd(params.progress(), params.abort_flag);
     wd.enter_prefill(n_prompt_tokens);
     capture.active = static_cast<bool>(capture.writer);
-    const bool prefill_ok = prefill_chunked(ctx.get(), tokens.data(), n_prompt_tokens, &wd);
+    const bool prefill_ok = capture.writer
+                                ? prefill_capture_ubatches(ctx.get(), tokens.data(),
+                                                           n_prompt_tokens, *capture.writer, &wd)
+                                : prefill_chunked(ctx.get(), tokens.data(), n_prompt_tokens, &wd);
     capture.active = false;
     if (capture.writer) {
         log_output("[xllama] tensor capture: records=" + std::to_string(capture.writer->records()) +
