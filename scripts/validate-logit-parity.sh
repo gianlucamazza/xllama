@@ -18,8 +18,8 @@
 # from the golden sidecar or smollm2-360m-cpu-int4).
 #
 # NOTE: the ORT model uses its own tokenizer (ONNX) while the golden came from the
-# GGUF tokenizer. compare-logits.py gates on vocab size and falls back to top-token
-# string agreement when the vocabularies differ — read its verdict, not just $?.
+# GGUF tokenizer. compare-logits.py fails closed when the vocabulary sizes differ
+# (#423): matching top-token strings are diagnostic only and never a parity pass.
 
 set -euo pipefail
 

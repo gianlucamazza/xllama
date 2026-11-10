@@ -29,6 +29,7 @@
 #include <cmath>
 #include <cstdio>
 #include <ctime>
+#include <filesystem>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -391,6 +392,17 @@ void run_logits() {
     params.n_gpu_layers = read_local_int("logits_gpu_layers.txt", 0);
     params.n_ubatch = read_local_int("logits_ubatch.txt", 0);
     params.dump_logits_path = resolve_local_path("logits.bin");
+    // #420: optional intermediate tensor capture. The spec file holds the
+    // pattern list (tensor_capture.h); records go to LocalState\tensor-capture,
+    // which is emptied first so a stale capture can never be read as fresh.
+    const std::string capture_spec = read_local_file("tensor-capture.txt");
+    if (!capture_spec.empty()) {
+        const std::string dir = resolve_local_path("tensor-capture");
+        std::error_code ec;
+        std::filesystem::remove_all(utf8_to_wstring(dir), ec);
+        params.tensor_capture_dir = dir;
+        params.tensor_capture_spec = capture_spec;
+    }
 
     InferenceResult res = ::xllama::run_inference(params);
     log_output("[xllama] logits: requested_gpu_layers=" + std::to_string(params.n_gpu_layers) +

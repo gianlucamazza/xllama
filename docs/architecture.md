@@ -65,6 +65,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `stability_attribution.h`          | Image-dialog §IV.a credit: `kStabilityAttribution`, `show_stability_attribution` (licence, else `sd-turbo` id family)                          |
 | `kv_store.h`                       | `KvStore` — on-disk KV snapshot pool (3 files / 192 MB, LRU, fingerprinted)                                                                    |
 | `logit_dump.h`                     | Logit-parity harness: portable float32 dump + JSON sidecar, shared by both backends                                                            |
+| `tensor_capture.h`                 | #420 opt-in prefill tensor capture: name-pattern spec, byte budget, `.f32` records + manifest                                                  |
 | `ramceil.h`                        | `probe_ram_ceiling` — heap ceiling probe (commits in steps, records platform counters)                                                         |
 | `diskbw.h`                         | `measure_diskbw` — NVMe/disk bandwidth probe (sequential + random patterns)                                                                    |
 | `d3d12_dyn.h`                      | Dynamic d3d12.dll entry-point resolve (PE hygiene for AppContainer)                                                                            |
@@ -578,6 +579,27 @@ prefill experiment and actual dispatch counts alongside the dump. These knobs
 do not change chat routing. Operator benches can use `bench_greedy.txt=1` to
 hold the decode trajectory fixed; their host tag echoes `-greedy`.
 
+### Intermediate tensor capture (#420)
+
+`tensor_capture.h` / `test_tensor_capture.cpp`. When a logit-parity run fails,
+this capture shows where in the graph the error grows. It is off by default.
+On the llama.cpp path, `--capture-tensors <dir> --capture-spec <spec>` (CLI) or
+a `tensor-capture.txt` spec file (console `logits.flag`/`dump_logits`, records in
+`LocalState\tensor-capture`, emptied first) installs a scheduler eval callback
+during the prompt prefill only. The spec is `patterns[;mode=last|full][;max_mb=N]`;
+a trailing `*` matches a prefix, e.g. `l_out-*,result_norm,result_output`.
+`last` keeps the final token slice of each activation. Each matched node
+becomes one `NNNNNN.f32` record plus a `manifest.jsonl` line. Nodes that cannot
+be copied (non-f32/f16, non-contiguous, empty or over budget) are listed as
+skipped. A bad spec, unwritable directory, write failure or zero records
+fails the run, and the ORT path rejects the option.
+
+Capture adds a synchronisation point at each matched node. Before trusting a
+capture-on run, compare its logits against a capture-off run of the same arm.
+`scripts/compare-tensors.py <ref> <cand> [--floor <alt>]` then walks the records
+in graph order and reports the first divergent one. Its thresholds are
+diagnostic and do not replace the frozen `compare-logits.py` gate.
+
 The binary format matches `numpy.fromfile(dtype=np.float32)`. Dumps from both
 backends are compared by `scripts/compare-logits.py`. This is the gate for
 publishing ORT model assets: every asset must pass the logit-parity gate before
@@ -790,6 +812,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_json_utils.cpp`            | `json_utils.h`                                                                              |
 | `test_kv_store.cpp`              | `kv_store.h`                                                                                |
 | `test_logit_parity.cpp`          | `logit_dump.h` (opt-in model)                                                               |
+| `test_tensor_capture.cpp`        | `tensor_capture.h`                                                                          |
 | `test_manifest_merge.cpp`        | `manifest_merge.h`, `withdrawn_models.h`                                                    |
 | `test_membw.cpp`                 | `membw.h`                                                                                   |
 | `test_model_provision.cpp`       | `model_provision.h`                                                                         |
@@ -941,6 +964,8 @@ write's `on_done` so the two do not contend for the single gate.
 | `--embed`                         | Embedding smoke test (inputs via `-p`)                               |
 | `--dimensions <N>`                | Embedding dimensions for `--embed` (0 = native)                      |
 | `--dump-logits <path>`            | Write last prefill-token logits + JSON sidecar                       |
+| `--capture-tensors <dir>`         | #420: prefill tensor records (needs `--capture-spec`)                |
+| `--capture-spec <spec>`           | Tensor name patterns plus `mode=` and `max_mb=`                      |
 | `--membw`                         | CPU STREAM bandwidth probe                                           |
 | `--diskbw`                        | Disk read-bandwidth probe                                            |
 | `--ramceil`                       | Heap ceiling probe                                                   |

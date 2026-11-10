@@ -378,11 +378,75 @@ InferenceResult run_inference_ort(const InferenceParams& params) {
     #include "llama_gpu.h"
     #include "sampler_chain.h" // shared sampler chain (#125); needs llama.h
     #include "xllama/llama_raii.h"
+    #include "xllama/tensor_capture.h"
 
+    #include <memory>
+    #include <set>
     #include <vector>
 
 namespace xllama {
 namespace detail {
+
+namespace {
+
+// #420: opt-in eval callback state. Active only during the prompt prefill so
+// the records describe exactly the graph whose last-token logits are dumped.
+struct TensorCaptureState {
+    std::unique_ptr<TensorCaptureWriter> writer;
+    std::set<std::string> seen_this_eval; // names are unique within one graph
+    bool active = false;
+    std::vector<float> f32;
+    std::vector<uint8_t> raw;
+};
+
+bool tensor_capture_eval(ggml_tensor* t, bool ask, void* user_data) {
+    auto* st = static_cast<TensorCaptureState*>(user_data);
+    if (!st || !st->active || !st->writer || st->writer->failed())
+        return ask ? false : true;
+    if (!tensor_capture_matches(st->writer->spec(), t->name))
+        return ask ? false : true;
+    if (ask)
+        return true;
+
+    // A repeated name means the scheduler started the next graph (ubatch).
+    if (st->seen_this_eval.empty() || !st->seen_this_eval.insert(t->name).second) {
+        st->seen_this_eval.clear();
+        st->seen_this_eval.insert(t->name);
+        st->writer->begin_eval();
+    }
+    const int64_t ne[4] = {t->ne[0], t->ne[1], t->ne[2], t->ne[3]};
+    const std::string op = ggml_op_desc(t);
+    const std::string type = ggml_type_name(t->type);
+    if (t->type != GGML_TYPE_F32 && t->type != GGML_TYPE_F16) {
+        st->writer->skip(t->name, op, type, ne, "unsupported type");
+        return true;
+    }
+    if (!ggml_is_contiguous(t)) {
+        st->writer->skip(t->name, op, type, ne, "non-contiguous");
+        return true;
+    }
+    const uint64_t total = tensor_capture_total(ne);
+    const uint64_t values = tensor_capture_values(st->writer->spec(), ne);
+    if (values == 0 || !st->writer->fits(values)) {
+        st->writer->skip(t->name, op, type, ne, values == 0 ? "empty" : "budget exhausted");
+        return true;
+    }
+    const size_t esize = ggml_type_size(t->type);
+    const size_t offset = static_cast<size_t>(total - values) * esize;
+    st->f32.resize(static_cast<size_t>(values));
+    if (t->type == GGML_TYPE_F32) {
+        ggml_backend_tensor_get(t, st->f32.data(), offset, static_cast<size_t>(values) * esize);
+    } else {
+        st->raw.resize(static_cast<size_t>(values) * esize);
+        ggml_backend_tensor_get(t, st->raw.data(), offset, st->raw.size());
+        ggml_fp16_to_fp32_row(reinterpret_cast<const ggml_fp16_t*>(st->raw.data()), st->f32.data(),
+                              static_cast<int64_t>(values));
+    }
+    st->writer->write(t->name, op, type, ne, st->f32.data(), values);
+    return true;
+}
+
+} // namespace
 
 InferenceResult run_inference_llama(const InferenceParams& params) {
     InferenceResult res;
@@ -460,6 +524,32 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     if (params.n_ubatch > 0)
         cparams.n_ubatch = static_cast<uint32_t>(params.n_ubatch);
     apply_gguf_gpu_context(gpu_layers, cparams, gguf_gpu_outputs_max(false, params.prompt_lookup));
+    // #420: intermediate tensor capture. Off unless both a directory and a
+    // spec are given; a bad spec or directory fails the run instead of
+    // silently producing an empty capture.
+    TensorCaptureState capture;
+    if (!params.tensor_capture_dir.empty() || !params.tensor_capture_spec.empty()) {
+        TensorCaptureSpec spec;
+        std::string err;
+        if (params.tensor_capture_dir.empty() || params.tensor_capture_spec.empty())
+            err = "tensor capture needs both a directory and a spec";
+        else if (parse_tensor_capture_spec(params.tensor_capture_spec, spec, err)) {
+            std::error_code ec;
+            std::filesystem::create_directories(params.tensor_capture_dir, ec);
+            if (ec || !std::filesystem::is_directory(params.tensor_capture_dir))
+                err = "tensor capture directory unavailable: " + params.tensor_capture_dir;
+        }
+        if (!err.empty()) {
+            res.error_msg = err;
+            log_output("[xllama] " + err + "\n");
+            return res;
+        }
+        capture.writer = std::make_unique<TensorCaptureWriter>(params.tensor_capture_dir, spec);
+        cparams.cb_eval = tensor_capture_eval;
+        cparams.cb_eval_user_data = &capture;
+        log_output("[xllama] tensor capture: dir=" + params.tensor_capture_dir +
+                   " spec=" + params.tensor_capture_spec + "\n");
+    }
     if (params.n_batch > 0 || params.n_ubatch > 0)
         log_output("[xllama] prefill batch override: n_batch=" + std::to_string(cparams.n_batch) +
                    " n_ubatch=" + std::to_string(cparams.n_ubatch) + "\n");
@@ -546,7 +636,22 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     }
     InferenceWatchdog wd(params.progress(), params.abort_flag);
     wd.enter_prefill(n_prompt_tokens);
-    if (!prefill_chunked(ctx.get(), tokens.data(), n_prompt_tokens, &wd)) {
+    capture.active = static_cast<bool>(capture.writer);
+    const bool prefill_ok = prefill_chunked(ctx.get(), tokens.data(), n_prompt_tokens, &wd);
+    capture.active = false;
+    if (capture.writer) {
+        log_output("[xllama] tensor capture: records=" + std::to_string(capture.writer->records()) +
+                   " skipped=" + std::to_string(capture.writer->skipped()) +
+                   " bytes=" + std::to_string(capture.writer->bytes_written()) +
+                   (capture.writer->failed() ? " FAILED" : "") + "\n");
+        if (prefill_ok && (capture.writer->failed() || capture.writer->records() == 0)) {
+            res.error_msg = capture.writer->failed() ? "tensor capture write failed"
+                                                     : "tensor capture matched no tensor";
+            log_output("[xllama] " + res.error_msg + "\n");
+            return res;
+        }
+    }
+    if (!prefill_ok) {
         if (wd.stalled()) {
             res.stalled = true;
             res.error_msg = wd.stall_error();
@@ -684,9 +789,20 @@ InferenceResult run_inference(const InferenceParams& params) {
 #if defined(XLLAMA_USE_ORT) && defined(XLLAMA_USE_LLAMA)
     // Layout-aware Auto (same helper as Session) so bench paths using bare
     // model names from model.txt also dispatch correctly for GGUF layouts.
-    return model_uses_llama_backend(params.model_path) ? detail::run_inference_llama(params)
-                                                       : detail::run_inference_ort(params);
+    if (model_uses_llama_backend(params.model_path))
+        return detail::run_inference_llama(params);
+    if (!params.tensor_capture_dir.empty() || !params.tensor_capture_spec.empty()) {
+        InferenceResult res;
+        res.error_msg = "tensor capture is only available on the llama.cpp path";
+        return res;
+    }
+    return detail::run_inference_ort(params);
 #elif defined(XLLAMA_USE_ORT)
+    if (!params.tensor_capture_dir.empty() || !params.tensor_capture_spec.empty()) {
+        InferenceResult res;
+        res.error_msg = "tensor capture is only available on the llama.cpp path";
+        return res;
+    }
     return detail::run_inference_ort(params);
 #else // XLLAMA_USE_LLAMA
     return detail::run_inference_llama(params);
