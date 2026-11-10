@@ -651,3 +651,25 @@ completion markers, and numerical acceptance; an autopilot completion alone is
 not a numerical pass. `logits_model.txt` names an already provisioned operator
 research model for the probe without catalogue promotion or a download. Remove
 all diagnostic overrides after the campaign.
+
+### Attributable request counters (#421)
+
+A GGUF run with GPU layers logs one `[xllama] d3d12-phase` line after the
+prompt prefill and one after decode. Each line counts backend activity
+between the two points only (`ggml_d3d12_take_stats` in
+`include/xllama/ggml_d3d12.h`):
+
+- `calls`: graph computes.
+- `submissions`: command lists executed and waited for.
+- `dispatches`: MUL_MAT and GET_ROWS.
+- `wall_ms`: whole graph computes.
+- `quant_ms`: CPU q8 activation quantization.
+- `record_ms`: command-list recording.
+- `exec_wait_ms`: execution through fence completion.
+- `gpu_ms`: summed GPU timestamp pairs, one per submission.
+
+`gpu_ms` is printed as `unavailable` unless every submission had an increasing
+timestamp pair (`ts_valid`/`ts_missing`). These are CPU-side intervals around
+each step plus GPU timestamps. Wall minus GPU time is not CPU compute time,
+and none of these fields is a throughput result until it comes from a bound
+console package. A CPU run prints no line.

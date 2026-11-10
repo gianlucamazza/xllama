@@ -402,3 +402,31 @@ TEST_CASE("llama_gpu: GPU-path context accepts a prompt-lookup verify batch (opt
     llama_free(ctx);
     llama_model_free(model);
 }
+
+TEST_CASE("d3d12: phase counters never report missing GPU time as zero") {
+    D3d12PhaseStats s;
+    CHECK_FALSE(s.gpu_time_valid());
+    CHECK(format_d3d12_phase("prefill", s).find("gpu_ms=unavailable") != std::string::npos);
+    s.calls = 2;
+    s.submissions = 3;
+    s.dispatches = 252;
+    s.ts_valid = 3;
+    s.gpu_ms = 12.3456;
+    s.wall_ms = 20.0;
+    CHECK(s.gpu_time_valid());
+    const std::string line = format_d3d12_phase("decode", s);
+    CHECK(line.rfind("[xllama] d3d12-phase phase=decode calls=2 submissions=3 dispatches=252 ",
+                     0) == 0);
+    CHECK(line.find("gpu_ms=12.346 ts_valid=3 ts_missing=0\n") != std::string::npos);
+    s.ts_missing = 1; // one submission without a valid pair invalidates the sum
+    CHECK_FALSE(s.gpu_time_valid());
+    CHECK(format_d3d12_phase("decode", s).find("gpu_ms=unavailable") != std::string::npos);
+}
+
+TEST_CASE("d3d12: counters are unavailable off Windows") {
+    D3d12PhaseStats s;
+    s.calls = 7;
+    CHECK_FALSE(ggml_d3d12_take_stats(&s));
+    CHECK(s.calls == 0);
+    CHECK_FALSE(ggml_d3d12_take_stats(nullptr));
+}

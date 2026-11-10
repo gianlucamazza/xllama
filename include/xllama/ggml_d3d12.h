@@ -127,6 +127,40 @@ bool d3d12_place_tied_embedding(ggml_type embd_type, bool has_output_weight);
 // until ggml_d3d12_register() succeeds (always on non-Windows).
 ggml_backend_buffer_type_t ggml_d3d12_weights_buft();
 
+// --- Attributable request counters (#421) ---
+
+// Backend activity between two ggml_d3d12_take_stats() calls. The caller
+// brackets a phase (prompt prefill, then decode) by taking once before and
+// once after it. Times are measured on the CPU around each step, except
+// gpu_ms, which sums GPU timestamp pairs (start/end of each submission) and is
+// only meaningful when every submission had a valid pair: gpu_time_valid().
+// No field derives CPU compute time from wall minus GPU time.
+struct D3d12PhaseStats {
+    std::uint64_t calls = 0;       // graph_compute calls that ran at least one op
+    std::uint64_t submissions = 0; // ExecuteCommandLists + fence wait
+    std::uint64_t dispatches = 0;  // MUL_MAT + GET_ROWS
+    std::uint64_t ts_valid = 0;    // submissions with an increasing timestamp pair
+    std::uint64_t ts_missing = 0;  // unsupported, unmapped or non-increasing pair
+    double wall_ms = 0.0;          // whole graph_compute calls
+    double quant_ms = 0.0;         // CPU q8 activation quantization
+    double record_ms = 0.0;        // command-list reset/record/close
+    double exec_wait_ms = 0.0;     // ExecuteCommandLists through fence completion
+    double gpu_ms = 0.0;           // GPU timestamps; see gpu_time_valid()
+    bool gpu_time_valid() const {
+        return submissions > 0 && ts_missing == 0;
+    }
+};
+
+// One machine-readable log line, e.g.
+// "[xllama] d3d12-phase phase=prefill calls=2 submissions=2 ... gpu_ms=12.345"
+// gpu_ms is printed as "unavailable" unless gpu_time_valid().
+std::string format_d3d12_phase(const char* phase, const D3d12PhaseStats& s);
+
+// Return the counters accumulated since the previous call and reset them.
+// False (and zeroed stats) when the backend is not available on this
+// platform, so a missing measurement is never reported as zero activity.
+bool ggml_d3d12_take_stats(D3d12PhaseStats* out);
+
 // Register the backend with ggml (idempotent). False when D3D12 is unavailable
 // (always on non-Windows). The device appears as a GPU device named "D3D12".
 bool ggml_d3d12_register();
