@@ -21,7 +21,7 @@ namespace xllama {
 struct AutopilotAction {
     std::string op;   // send|new_chat|load_chat|set_model|set_api|set_routing|set_sampling|
                       // set_kv_reuse|set_taesd|set_system_prompt|wait_idle|generate_image|
-                      // mark|show_pane|rate|start_train|train_status|quit
+                      // mark|show_pane|rate|start_train|train_status|gpu_selftest|dump_logits|quit
     std::wstring arg; // text / id / model or pane name / image prompt / rate label
     // The name the host waits for at a rendez-vous, kept in its own slot rather
     // than sharing `arg`. show_pane carries BOTH a pane name and a label, and
@@ -31,18 +31,18 @@ struct AutopilotAction {
     std::wstring label; // mark / show_pane
     int steps{1};       // generate_image
     unsigned seed{42};
-    bool enabled{false};             // set_api / set_kv_reuse / set_taesd
-    bool has_enabled{false};         // 'enabled' was present (set_kv_reuse and set_taesd
-                                     // require it: the default would silently mean "disable")
-    bool has_text{false};            // 'text' was present (set_system_prompt requires it;
-                                     // clearing the prompt to "" is a legitimate value)
-    int port{11434};                 // set_api
-    int routing{-1};                 // set_routing (0=CPU, 1=GPU, 2=auto)
-    double temperature{-1};          // set_sampling; negative = leave unchanged
-    double top_p{-1};                //
-    int top_k{-1};                   //
-    double repetition_penalty{-1};   //
-    int n_predict{-1};               //
+    bool enabled{false};           // set_api / set_kv_reuse / set_taesd
+    bool has_enabled{false};       // 'enabled' was present (set_kv_reuse and set_taesd
+                                   // require it: the default would silently mean "disable")
+    bool has_text{false};          // 'text' was present (set_system_prompt/dump_logits require it;
+                                   // clearing the prompt to "" is a legitimate value)
+    int port{11434};               // set_api
+    int routing{-1};               // set_routing (0=CPU, 1=GPU, 2=auto)
+    double temperature{-1};        // set_sampling; negative = leave unchanged
+    double top_p{-1};              //
+    int top_k{-1};                 //
+    double repetition_penalty{-1}; //
+    int n_predict{-1};             //
     std::chrono::seconds timeout{0}; // 0 = per-op default
 };
 

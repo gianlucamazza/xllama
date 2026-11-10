@@ -43,6 +43,7 @@ add_executable(xllama-tests
     test_model_file_plan.cpp
     test_model_write.cpp
     test_logit_parity.cpp
+    test_tensor_capture.cpp
     test_training.cpp
     test_device_train.cpp
     test_json_utils.cpp

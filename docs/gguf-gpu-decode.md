@@ -629,3 +629,25 @@ No limits or input selection were changed to obtain a pass. The implementation
 remains draft/opt-in, with no default promotion or speedup claim. Raw dumps,
 comparisons and package/device binding are in the
 [dated execution ledger](audit/excellence/execution-2026-11-07.md#gpu-preflight--stopped-on-control-parity).
+
+For a matched deterministic decode campaign, write `1` to
+`bench_greedy.txt` before either arm. The native bench echoes `-greedy` in its
+host tag; the campaign must require this echo. Removing the file preserves
+normal sampler defaults.
+
+The headless logit probe also accepts `logits_gpu_layers.txt` (default zero,
+CPU control) and `logits_ubatch.txt` (default zero, engine default). Set the
+former explicitly to zero or the campaign's layer count for each arm, restart,
+and require the logged resolved layer count. A positive GPU request resolving
+to CPU fails the probe. These diagnostic knobs do not change normal chat
+routing. They reproduce the #420 control comparison on the shipping
+single-column kernels; the four-column experiment stays on #414.
+
+For the preregistered UI-process gates, use an autopilot script containing
+`wait_idle`, then `gpu_selftest` or `dump_logits` with a raw `text` prompt.
+These release the resident chat model under compute admission and retain the
+XAML/compositor process. Require fresh result files, the UI-process start and
+completion markers, and numerical acceptance; an autopilot completion alone is
+not a numerical pass. `logits_model.txt` names an already provisioned operator
+research model for the probe without catalogue promotion or a download. Remove
+all diagnostic overrides after the campaign.
