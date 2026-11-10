@@ -660,6 +660,11 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         return res;
     }
     InferenceWatchdog wd(params.progress(), params.abort_flag);
+    // #421: bracket the backend counters by phase. Only a GPU-layer run
+    // touches the D3D12 device; a CPU run reports nothing rather than zeros.
+    D3d12PhaseStats d3d12_phase;
+    if (gpu_layers > 0)
+        ggml_d3d12_take_stats(nullptr);
     wd.enter_prefill(n_prompt_tokens);
     capture.active = static_cast<bool>(capture.writer);
     const bool prefill_ok = capture.writer
@@ -693,6 +698,8 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_prompt0)
             .count();
     wd.prefill_done(n_prompt_tokens, prompt_ms);
+    if (gpu_layers > 0 && ggml_d3d12_take_stats(&d3d12_phase))
+        log_output(format_d3d12_phase("prefill", d3d12_phase));
 
     // Logit-parity dump: capture the last prefill-token logits (one deterministic
     // forward pass, no autoregressive drift) before any sampling touches them.
@@ -748,6 +755,8 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     dlp.watchdog = &wd;
     wd.enter_decode(params.n_predict);
     const DecodeLoopResult dlr = decode_loop(dlp, res.output_text);
+    if (gpu_layers > 0 && ggml_d3d12_take_stats(&d3d12_phase))
+        log_output(format_d3d12_phase("decode", d3d12_phase));
     const int n_generated = dlr.n_generated;
     res.ended_with_stop = dlr.ended_with_stop;
     res.n_drafted = dlr.n_drafted;
