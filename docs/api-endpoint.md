@@ -400,6 +400,16 @@ embedding request logs `[embedding]` with model, input/token counts, width, dura
 and `peak_ws_mb` (process lifetime peak from the existing platform collector).
 Restart between models when measuring separate cold peaks.
 
+`scripts/measure-api-ttfb.py` (#421) measures timing as a LAN client sees it,
+for repeated streamed `/v1/chat/completions` requests. For each attempt it
+records the connection, the complete response header, the first body byte, the
+first non-empty content delta and `[DONE]`, all measured from the start of the
+request. It writes `xllama-api-ttfb/1` JSON. Failed attempts are kept with
+their error: timeouts, non-200 status, stream error records, malformed SSE, no
+content or a missing `[DONE]`. These times include the network, HTTP handling
+and any model load. They are not the in-app `ttft_ms` and not a throughput
+result. The hardware label is a declaration made by the operator.
+
 Images are not in `all` (need SD-Turbo on device; use the curl example above). Chat round-trip:
 
 ```bash
