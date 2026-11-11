@@ -53,15 +53,30 @@ timestamps only when valid; ORT provider trace durations are host event
 intervals. Fused node names cannot prove internal layer placement. Every figure
 must resolve to immutable raw inputs and an executable aggregation command.
 
+## Instrumentation checkpoint — 2026-11-10
+
+Control probes and opt-in prefill tensor capture are integrated through #428.
+Phase counters through #430 distinguish CPU q8 quantization, command recording,
+execute-through-fence and valid GPU timestamp time; missing timestamps remain
+unavailable. Wall minus GPU time is not CPU compute. Client-side API timing
+through #431 distinguishes response-header, first body byte and first content
+boundaries from internal benchmark TTFT.
+
+These tools do not complete #420 or #421: fresh console control reproduction,
+causal diagnosis, temporal operator/layer attribution, overhead calibration and
+CSV/sidecar integration remain pending. Tensor capture does not measure
+operator execution time. C4 (#313/#414) remains stopped at control parity;
+routing qualification (#422) still depends on correctness and matched evidence.
+
 ## Hypotheses and required experiments
 
-| Hypothesis                                        | Required evidence                                                    | Current disposition                               |
-| ------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------- |
-| Multi-column packed weight reuse improves prefill | Control parity, C4 parity/resource/H9 then frozen matched experiment | Stopped at control failure                        |
-| Submission overhead limits further decode gains   | Current per-phase submission/quantization/wait/GPU attribution       | Historical motivation; new trace missing          |
-| Larger quantized models benefit more from offload | Matched model/context matrix within memory constraints               | No universal crossover established                |
-| Static routing can improve user latency           | First/multi-turn, cold/warm and KV-aware matched measurements        | Existing scoped rules; general router unqualified |
-| Series X supports the same inference envelope     | Independent exact-package device receipt and execution               | No inference measurements in this execution       |
+| Hypothesis                                        | Required evidence                                                    | Current disposition                                   |
+| ------------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------- |
+| Multi-column packed weight reuse improves prefill | Control parity, C4 parity/resource/H9 then frozen matched experiment | Stopped at control failure                            |
+| Submission overhead limits further decode gains   | Current per-phase submission/quantization/wait/GPU attribution       | Tools integrated in #430; fresh console trace pending |
+| Larger quantized models benefit more from offload | Matched model/context matrix within memory constraints               | No universal crossover established                    |
+| Static routing can improve user latency           | First/multi-turn, cold/warm and KV-aware matched measurements        | Existing scoped rules; general router unqualified     |
+| Series X supports the same inference envelope     | Independent exact-package device receipt and execution               | No inference measurements in this execution           |
 
 ## Limitations and publication gate
 
