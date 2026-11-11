@@ -1,3 +1,6 @@
-# Exact upstream licence bytes — catalogue sha256 pins these files.
+# Exact upstream licence bytes — catalogue sha256 pins these files;
+# MSIX runtime notices must stay byte-identical too.
 LICENSES/*-LICENSE -text
+LICENSES/*-LICENSE.txt -text
 LICENSES/*-NOTICE -text
+LICENSES/*-ThirdPartyNotices.txt -text

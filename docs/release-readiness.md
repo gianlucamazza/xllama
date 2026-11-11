@@ -184,7 +184,7 @@ allowlist draft** — not legal advice; re-verify before shipping.
 - [x] `install-latest-build.sh --store` (Linux → Device Portal)
 - [x] First-run generative-AI disclaimer (`LocalState\disclaimer.accepted`)
 - [x] Privacy draft [`privacy.md`](./privacy.md)
-- [x] NOTICE / runtime attributions draft (`NOTICE` at repo root — verify per release)
+- [x] NOTICE / runtime attributions draft (`NOTICE` at repo root; MSIX copies under `licenses/`)
 - [x] App vs Game spike results filed under `bench/results/`
       (`store-app-vs-game-2026-08-21.csv`, CI `1.5.5.922`, `lfm25-350m`)
 - [x] Console smoke of reduced SKU (chat + model download) —
