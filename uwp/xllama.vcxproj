@@ -302,6 +302,40 @@
     </None>
   </ItemGroup>
 
+  <!-- Redistributed runtime licence texts. TargetPath puts them in
+       InstalledPath\licenses\ so they travel with the MSIX. Source of
+       truth is LICENSES/; do not paraphrase. -->
+  <ItemGroup>
+    <None Include="..\LICENSES\onnxruntime-LICENSE">
+      <DeploymentContent>true</DeploymentContent>
+      <TargetPath>licenses\onnxruntime-LICENSE</TargetPath>
+    </None>
+    <None Include="..\LICENSES\onnxruntime-ThirdPartyNotices.txt">
+      <DeploymentContent>true</DeploymentContent>
+      <TargetPath>licenses\onnxruntime-ThirdPartyNotices.txt</TargetPath>
+    </None>
+    <None Include="..\LICENSES\onnxruntime-genai-LICENSE">
+      <DeploymentContent>true</DeploymentContent>
+      <TargetPath>licenses\onnxruntime-genai-LICENSE</TargetPath>
+    </None>
+    <None Include="..\LICENSES\onnxruntime-genai-ThirdPartyNotices.txt">
+      <DeploymentContent>true</DeploymentContent>
+      <TargetPath>licenses\onnxruntime-genai-ThirdPartyNotices.txt</TargetPath>
+    </None>
+    <None Include="..\LICENSES\llama.cpp-LICENSE">
+      <DeploymentContent>true</DeploymentContent>
+      <TargetPath>licenses\llama.cpp-LICENSE</TargetPath>
+    </None>
+    <None Include="..\LICENSES\DirectML-LICENSE.txt">
+      <DeploymentContent>true</DeploymentContent>
+      <TargetPath>licenses\DirectML-LICENSE.txt</TargetPath>
+    </None>
+    <None Include="..\LICENSES\DirectML-ThirdPartyNotices.txt">
+      <DeploymentContent>true</DeploymentContent>
+      <TargetPath>licenses\DirectML-ThirdPartyNotices.txt</TargetPath>
+    </None>
+  </ItemGroup>
+
   <!-- llama.cpp CPU backend (llamacpp variant only). ggml-uwp.vcxproj is not a
        solution member, so the solution's project-configuration mapping does not
        cover it — without SetConfiguration/SetPlatform the reference builds as

@@ -3,7 +3,8 @@
 This file is an attribution list for the packages xllama distributes.
 It is **not** legal advice. Verify licence texts against the versions
 actually shipped in each release (`uwp/packages.config`, `vendor/*/SHA256SUMS`,
-submodule pin).
+submodule pin). Redistributed runtime licence texts also ship in the MSIX
+under `licenses/`.
 
 ## xllama
 
@@ -14,6 +15,7 @@ Licensed under the MIT License — see `LICENSE`.
 
 Copyright (c) 2023-2026 The ggml authors
 Licensed under the MIT License.
+Licence text: LICENSES/llama.cpp-LICENSE (submodule pin).
 Source: https://github.com/ggml-org/llama.cpp
 (shipped as a git submodule; static link into the UWP binary).
 
@@ -45,7 +47,9 @@ Shipping builds may overlay a patched `onnxruntime-genai.dll` from
 
 Copyright (c) Microsoft Corporation.
 Package: `Microsoft.AI.DirectML` (see `uwp/packages.config`).
-See NuGet package licence files under `uwp/packages/` when restored.
+Licence text: LICENSES/DirectML-LICENSE.txt (NuGet 1.15.4 `LICENSE.txt`).
+Third-party notices: LICENSES/DirectML-ThirdPartyNotices.txt from the same
+package.
 
 ## Models (not in the MSIX)
 

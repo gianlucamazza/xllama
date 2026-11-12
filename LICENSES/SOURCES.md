@@ -1,7 +1,8 @@
 # Licence text sources
 
 Exact upstream copies for the converted builds re-hosted on the `models-v1`
-release. Do not paraphrase these files. `SOURCES.md` itself is not a licence.
+release, and for runtimes redistributed in the MSIX (`licenses/`). Do not
+paraphrase these files. `SOURCES.md` itself is not a licence.
 
 The GitHub lane uploads the files listed here to `models-v1` before this
 change merges: the catalogue pins them, and a missing asset fails the model
@@ -169,3 +170,25 @@ not a `models-v1` asset.
 - **Third-party notices:** `LICENSES/onnxruntime-genai-ThirdPartyNotices.txt`
   from the same commit (blob `e7f603e41f447ab01d1e2cbfb3de4fcf48e4e435`,
   339,676 bytes)
+
+## llama.cpp — MIT
+
+Statically linked into the shipping unified UWP binary (and the llama.cpp
+bench lane). Not a `models-v1` asset. The MSIX copy is
+`licenses/llama.cpp-LICENSE`.
+
+- **Local file:** `LICENSES/llama.cpp-LICENSE`
+- **Upstream file:** `LICENSE` at the `llama.cpp` submodule pin
+- **Licence:** MIT, Copyright (c) 2023-2026 The ggml authors
+
+## Microsoft DirectML — Microsoft Software License Terms
+
+`DirectML.dll` is app-local DeploymentContent from NuGet
+`Microsoft.AI.DirectML` (see `uwp/packages.config`). Not a `models-v1`
+asset. The MSIX copies are `licenses/DirectML-LICENSE.txt` and
+`licenses/DirectML-ThirdPartyNotices.txt`.
+
+- **Local file:** `LICENSES/DirectML-LICENSE.txt`
+- **Upstream file:** `LICENSE.txt` in NuGet `Microsoft.AI.DirectML` 1.15.4
+- **Third-party notices:** `LICENSES/DirectML-ThirdPartyNotices.txt` from the
+  same package (`ThirdPartyNotices.txt`)
