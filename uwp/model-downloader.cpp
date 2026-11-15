@@ -303,6 +303,10 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
 
         HttpBaseProtocolFilter filter;
         filter.AllowAutoRedirect(true);
+        // The default filter also writes each response to the system HTTP
+        // cache. A model body is streamed to LocalState already, so caching it
+        // would store the bytes a second time during the transfer.
+        filter.CacheControl().WriteBehavior(HttpCacheWriteBehavior::NoCache);
         HttpClient client(filter);
 
         // Default User-Agent is blocked by some CDNs; set something reasonable.
