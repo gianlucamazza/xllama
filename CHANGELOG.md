@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Reference check covers Q4_0 models.** `check-matmul-reference.py` and
+  `control-parity.py reference` now reproduce ggml's q8_0 activation
+  quantizer as well as q8_K, so a model with Q4_0, Q5_0 or Q8_0 weights can be
+  put through part 1 of the GPU control. LFM2.5-1.2B, the model that runs on
+  the GPU by default, is such a model. A capture is checked for reaching its
+  declared layer by any weight of that layer, not by one tensor name.
+
 - **GPU control under the amended ADR 0010: PASS.** Coder-3B on the Series S,
   declared before its GPU arm. Every GPU weight product in all 36 layers is
   within 4.3e-14 NMSE of an exact reference (declared limit 1e-7), and over

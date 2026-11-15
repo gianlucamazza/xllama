@@ -48,7 +48,8 @@
 #
 # reference (part 1): every weight MUL_MAT of each capture must be within the
 #   declared NMSE limit of a float64 product of the dequantized weight and the
-#   arm's own q8_K operand (scripts/check-matmul-reference.py). One arm is
+#   arm's own quantized operand (scripts/check-matmul-reference.py; q8_K for
+#   K-quant weights, q8_0 for Q4_0, Q5_0 and Q8_0). One arm is
 #   enough, so every token column and every captured layer is judged. Each
 #   declared capture must reach its declared last layer.
 #
@@ -431,13 +432,14 @@ def reference_rows(records, weights, tool):
     """Per-record error of one capture; `weights(name)` returns [n_out, n_in] float64."""
     rows = []
     for key, r in records.items():
-        if r["weight_type"] not in Q8_K_WEIGHTS or r["in"].shape[0] % QK_K:
-            raise Invalid(f"{key[1]} ({r['weight_type']}): only K-quant weights are supported")
+        quantizer = tool.operand_quantizer(r["weight_type"], r["in"].shape[0])
+        if quantizer is None:
+            raise Invalid(f"{key[1]} ({r['weight_type']}): no reference for this weight type")
         w = weights(key[1])
         if w.shape != (r["out"].shape[0], r["in"].shape[0]):
             raise Invalid(f"{key[1]}: weight shape does not match the capture")
         rows.append({"eval": key[0], "weight": key[1], "weight_type": r["weight_type"],
-                     **tool.record_error(w, r["in"], r["out"])})
+                     **tool.record_error(w, r["in"], r["out"], quantizer)})
     return rows
 
 
@@ -474,9 +476,9 @@ def run_reference(args) -> int:
         if pid not in decl["captures"]:
             raise Invalid(f"capture directory {pid} is not a declared capture prompt")
         records = load_matmuls(cap)
-        need = f"blk.{decl['captures'][pid]}.ffn_down.weight"
-        if not any(k[1] == need for k in records):
-            raise Invalid(f"{cap}: capture does not reach {need}")
+        need = f"blk.{decl['captures'][pid]}."
+        if not any(k[1].startswith(need) for k in records):
+            raise Invalid(f"{cap}: capture does not reach layer {decl['captures'][pid]}")
         rows = reference_rows(records, weights, tool)
         cap_worst = max(r["nmse"] for r in rows)
         ok = math.isfinite(cap_worst) and cap_worst <= decl["nmse_limit"]

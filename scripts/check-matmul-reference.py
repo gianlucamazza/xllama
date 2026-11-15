@@ -11,9 +11,10 @@
 # The captures come from `--capture-spec '<names>;matmul_inputs=<stop>'`
 # (tensor_capture.h). For each record:
 #
-#   reference = dequantize(W) @ dequantize(q8_K(operand))
+#   reference = dequantize(W) @ dequantize(q8(operand))
 #
-# where q8_K is ggml's activation quantizer for K-quant weights. The reference
+# where the operand goes through the activation quantizer ggml pairs with the
+# weight type: q8_K for K-quant weights, q8_0 for Q4_0, Q5_0 and Q8_0. The reference
 # is what an exact kernel returns for the int8 values the arm itself fed in,
 # so the check needs no second arm and covers every token column, unlike
 # `control-parity.py kernel`, which compares two arms and can only judge the
@@ -23,7 +24,8 @@
 # given? It does not compare arms, and it is not the ADR 0010 criterion.
 #
 # Needs numpy and the gguf-py package in the llama.cpp submodule (which needs
-# PyYAML). Only K-quant weights (q8_K operands) are supported.
+# PyYAML). Weights whose operand is quantized another way (f16, f32, the *_1
+# types) are rejected.
 #
 # Exit 0 = every record within --nmse-limit (or no limit given), 1 = a record
 # over the limit, 2 = invalid input.
@@ -39,7 +41,9 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 QK_K = 256
+QK8_0 = 32
 Q8_K_WEIGHTS = {"q2_K", "q3_K", "q4_K", "q5_K", "q6_K"}
+Q8_0_WEIGHTS = {"q4_0", "q5_0", "q8_0"}
 
 
 def dequantized_q8_k(x: np.ndarray) -> np.ndarray:
@@ -55,9 +59,36 @@ def dequantized_q8_k(x: np.ndarray) -> np.ndarray:
     return (q.astype(np.float64) * d.astype(np.float64)).reshape(tokens, n).T
 
 
-def record_error(weight: np.ndarray, operand: np.ndarray, result: np.ndarray):
+def dequantized_q8_0(x: np.ndarray) -> np.ndarray:
+    """float64 values of x [n, tokens] after ggml's q8_0 round trip, per column.
+
+    Per 32-value block, as the AVX2 quantizer does it: id = 127 / max|x|,
+    q = round-half-even(x * id) in float32, and the scale max|x| / 127 is
+    stored as float16.
+    """
+    n, tokens = x.shape
+    blocks = x.T.reshape(tokens, n // QK8_0, QK8_0)
+    mx = np.abs(blocks).max(axis=2, keepdims=True)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        inv = np.where(mx != 0, np.float32(127.0) / mx, np.float32(0.0)).astype(np.float32)
+        q = np.rint((blocks * inv).astype(np.float32))
+    d = (mx / np.float32(127.0)).astype(np.float32).astype(np.float16)
+    return (q.astype(np.float64) * d.astype(np.float64)).reshape(tokens, n).T
+
+
+def operand_quantizer(weight_type: str, n_in: int):
+    """The round trip ggml applies to an operand of this weight type, or None."""
+    if weight_type in Q8_K_WEIGHTS and n_in % QK_K == 0:
+        return dequantized_q8_k
+    if weight_type in Q8_0_WEIGHTS and n_in % QK8_0 == 0:
+        return dequantized_q8_0
+    return None
+
+
+def record_error(weight: np.ndarray, operand: np.ndarray, result: np.ndarray,
+                 quantizer=None):
     """weight [n_out, n_in] float64; operand [n_in, tokens]; result [n_out, tokens]."""
-    ref = weight @ dequantized_q8_k(operand)
+    ref = weight @ (quantizer or dequantized_q8_k)(operand)
     diff = result.astype(np.float64) - ref
     num, den = (diff * diff).sum(axis=0), (ref * ref).sum(axis=0)
     total = float(den.sum())
@@ -110,8 +141,9 @@ def main() -> int:
             return 2
     for key in first:
         wtype = first[key]["weight_type"]
-        if key[1] not in tensors or wtype not in Q8_K_WEIGHTS or first[key]["in"].shape[0] % QK_K:
-            print(f"❌ invalid input: {key[1]} ({wtype}) is not a K-quant weight of this model")
+        quantizer = operand_quantizer(wtype, first[key]["in"].shape[0])
+        if key[1] not in tensors or quantizer is None:
+            print(f"❌ invalid input: {key[1]} ({wtype}) is not a supported weight of this model")
             return 2
         t = tensors[key[1]]
         weight = dequantize(t.data, t.tensor_type).astype(np.float64)
@@ -121,7 +153,7 @@ def main() -> int:
             if weight.shape != (r["out"].shape[0], r["in"].shape[0]):
                 print(f"❌ invalid input: {key[1]} shape does not match the capture")
                 return 2
-            row["arms"][arm] = record_error(weight, r["in"], r["out"])
+            row["arms"][arm] = record_error(weight, r["in"], r["out"], quantizer)
             worst = max(worst, row["arms"][arm]["nmse"])
         rows.append(row)
         print(f"{key[0]:>3} {key[1]:<28} {wtype:<5} "
