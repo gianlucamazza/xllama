@@ -197,7 +197,8 @@ remain frozen for that experiment only.
 
 Host integrity and diagnostic tools are integrated, and the control has been
 reproduced and traced on the console, down to single int8 rounding flips in the
-activation quantizer. The next actions are deciding ADR 0010 and attributable
+activation quantizer. The next actions are implementing the comparison in
+[ADR 0010](../adr/0010-logit-parity-reference-spread.md) (accepted 2026-11-15) and attributable
 console measurement on the benchmark path. New weight types, kernel fusion, attention
 and GPU KV are higher-risk experiments with no current evidence of a benefit.
 Do not replace validated CPU paths merely to increase the fraction on GPU.
