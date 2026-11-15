@@ -54,8 +54,8 @@ All rows below are **CPU-bound decode** unless backend says DirectML.
 
 | Model                 |                  Catalogue |  Params | Quant    | Backend   |   Prefill |    Decode | Peak MiB | H9      | Template          | Role | n_ctx | Evidence                                                               |
 | --------------------- | -------------------------: | ------: | -------- | --------- | --------: | --------: | -------: | ------- | ----------------- | ---- | ----: | ---------------------------------------------------------------------- |
-| LFM2.5-230M           |               `lfm25-230m` |    230M | Q4_0 QAD | llama.cpp | **633.6** | **132.4** |      236 | 1/8     | ChatML            | —    |  2048 | `2026-09-30-catalogue-gates` · floor                                   |
-| LFM2.5-350M           |               `lfm25-350m` |    350M | Q4_0 QAD | llama.cpp | **374.4** | **101.6** |      311 | 4/8     | ChatML            | —    |  2048 | `2026-09-30-catalogue-gates` · **default chat**                        |
+| LFM2.5-230M           |               `lfm25-230m` |    230M | Q4_0 QAD | llama.cpp | **623.7** | **127.1** |      237 | 1/8     | ChatML            | —    |  2048 | `2026-11-15-remeasure-1563` · floor                                    |
+| LFM2.5-350M           |               `lfm25-350m` |    350M | Q4_0 QAD | llama.cpp | **371.4** |  **97.9** |      311 | 4/8     | ChatML            | —    |  2048 | `2026-11-15-remeasure-1563` · **default chat**                         |
 | Gemma-3-270M          |              `gemma3-270m` |    270M | Q4_K_M   | llama.cpp |     486.1 |      79.9 |      366 | 3/8     | Gemma             | —    |  2048 | `2026-10-11-remeasure-1163` · H9 `2026-09-30-h9-rescore.jsonl`         |
 | SmolLM2-360M          |    `smollm2-360m-cpu-int4` |    360M | int4     | ORT CPU   |     262.4 |      74.8 |      708 | —       | ChatML            | —    |  2048 | `t6-shipped-confirm`                                                   |
 | SmolLM2-360M          |              (same family) |    360M | Q4_K_M   | llama.cpp |     141.5 |      62.9 |      402 | —       | ChatML            | —    |  2048 | `phase35-llamacpp-scaling`                                             |
@@ -242,7 +242,7 @@ models.
 
 | Role                      | Catalogue ids                                 | Product note                                                                                      |
 | ------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Floor (smallest shipping) | `lfm25-230m`                                  | Fastest and lightest chat (132.4 tok/s, 236 MiB, QAD Q4_0); H9 1/8, two tasks below `gemma3-270m` |
+| Floor (smallest shipping) | `lfm25-230m`                                  | Fastest and lightest chat (127.1 tok/s, 237 MiB, QAD Q4_0); H9 1/8, two tasks below `gemma3-270m` |
 | Default chat (unified)    | `lfm25-350m`                                  | First launch                                                                                      |
 | Balanced / quality chat   | `lfm25-1.2b-instruct`, `lfm2-2.6b`            | H1 tiers                                                                                          |
 | Peer dense chat           | `llama32-3b`, `gemma4-e2b`                    | Advanced / heavy                                                                                  |

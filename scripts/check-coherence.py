@@ -674,7 +674,9 @@ def main() -> int:
         # 41.2 / 231.3 (build 1.6.0.1163 remeasure, 3 recorded runs).
         # 2026-11-15: SmolLM2-1.7B 20.6 -> 21.0 and Qwen3.5-0.8B 35.1 -> 34.3
         # (build 1.7.0.1533 remeasure, 3 recorded runs).
-        for num in ("101.6", "40.0", "17.9", "74.8", "41.2", "21.0", "34.3", "231.3"):
+        # 2026-11-15: LFM 101.6 -> 97.9 (build 1.7.0.1563 remeasure with a
+        # fixed 512-token decode, 3 recorded runs).
+        for num in ("97.9", "40.0", "17.9", "74.8", "41.2", "21.0", "34.3", "231.3"):
             if num not in block:
                 err(f"generated table missing {num}")
             if num not in rec and num not in ("231.3",):

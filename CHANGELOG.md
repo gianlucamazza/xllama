@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **LFM2.5 figures remeasured on 1.7.0.** `lfm25-230m` is 127.1 tok/s decode
+  (237 MiB peak) and `lfm25-350m` is 97.9 tok/s on package 1.7.0.1563, each a
+  median of three runs of exactly 512 generated tokens. The previous 132.4 and
+  101.6 tok/s came from the 1.6.0 package and from runs that stopped after 33
+  to 273 tokens, where decode is faster; the one earlier 512-token run of the
+  230M was 128.5. The summary, README and model matrix use the new rows.
+
 - **GPU kernels checked against an exact reference.** New diagnostic
   `scripts/check-matmul-reference.py` compares every captured weight product
   with a float64 reference built from the model file. On the Series S, all
@@ -20,6 +27,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `base64 -w0`, a GNU-only flag that fails on macOS. They strip the line
   breaks with `tr` instead; the encoded value is the same.
   ||||||| parent of 6577bc4 (feat: check captured GPU products against an exact reference)
+  ||||||| parent of a46be23 (docs: remeasure the two LFM2.5 rows on 1.7.0 with a fixed-length decode)
 
 - **Series X is supported.** Accepted by the owner on 2026-11-15 from an
   independent tester's runs of package 1.7.0.1495 on a Series X: text
