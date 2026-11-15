@@ -308,8 +308,8 @@ grep -q '"intra_op_num_threads": 6' /tmp/cfg.json || echo "DRIFT: restore the pr
 ```
 
 The UI process keeps one GPU engine busy while the app is idle (observed on
-1.7.0.1533). Stop the app before an idle check of the console; the harness
-starts it again in headless bench mode.
+1.7.0.1533, #444). Stop the app before an idle check of the console; the
+harness starts it again in headless bench mode.
 
 After adding or changing committed evidence:
 
