@@ -31,7 +31,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   UI, LAN API, CLI and device training share the one format. Gemma 3 ids are
   unchanged. Found in a community fork (EgbertJiang/xllama). The Series S
   prefill, decode and peak figures for `gemma4-e2b` were remeasured with this
-  template on 2026-11-15; its H9 score was not.
+  template on 2026-11-15. Its H9 rerun is 6/8, the same total as before on
+  a different set of tasks (`constrained_summary` now passes, `json_extraction`
+  now fails on a Markdown fence); see `docs/model-matrix.md`.
 
 - **Startup model check:** `EnsureModelAsync` now ends with `co_return`. It
   was declared as a coroutine and contained no coroutine statement, so it was
