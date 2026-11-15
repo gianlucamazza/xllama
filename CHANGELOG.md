@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Startup model check:** `EnsureModelAsync` now ends with `co_return`. It
+  was declared as a coroutine and contained no coroutine statement, so it was
+  an ordinary function that returned no value (undefined behaviour). The MSVC
+  package was not seen to fail; a community fork (EgbertJiang/xllama) reported
+  a trap in a Clang cross-build after model provisioning.
+
 ## [1.7.0] - 2026-11-10
 
 User-facing notes: [docs/releases/v1.7.0.md](docs/releases/v1.7.0.md).

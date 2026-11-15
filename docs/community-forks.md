@@ -292,11 +292,11 @@ own PR against current `main`.
   `chat_template.jinja` of `google/gemma-4-E2B-it`, read on 2026-11-15, uses
   those tokens and a system turn. Still to check: what the console sends for
   `gemma4-e2b`, and whether its measured quality moves with the other template.
-- **`EnsureModelAsync` returns nothing.** In `uwp/MainPage.cpp` the function is
-  declared `fire_and_forget` and contains no `co_await` or `co_return`. It is
-  therefore an ordinary function that runs off its end, which is undefined
-  behaviour. The fork reports a trap under Clang after model provisioning and
-  adds `co_return`. This matters for the cross-build first.
+- **`EnsureModelAsync` returned nothing (fixed).** In `uwp/MainPage.cpp` the
+  function was declared `fire_and_forget` and contained no `co_await` or
+  `co_return`, so it was an ordinary function that ran off its end, which is
+  undefined behaviour. The fork reported a trap under Clang after model
+  provisioning and added `co_return`; `main` now does the same.
 - **`base64 -w0` is GNU-only.** `scripts/deploy.sh` and other scripts use it.
   The fork pipes plain `base64` through `tr -d '\r\n'` so that deployment works
   from macOS.
