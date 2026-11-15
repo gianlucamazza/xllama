@@ -2,9 +2,10 @@
 
 The first control judged under the
 [2026-11-15 amendment of ADR 0010](../../../adr/0010-logit-parity-reference-spread.md#amendment-2026-11-15),
-with `scripts/control-parity.py reference` and `distribution`. This directory
-is committed in two steps: the declaration, prompts and CPU-only figures
-first, the GPU measurements after.
+with `scripts/control-parity.py reference` and `distribution`. The
+declaration, prompts and CPU-only figures were committed first (PR #462,
+`2037f13`, 22:00:05 UTC); the GPU arm ran from 22:00:15 to 22:17:35 UTC.
+**Verdict: PASS**, on both parts.
 
 ## Declaration
 
@@ -59,3 +60,56 @@ had been computed. The rule above uses neither.
 
 The console CPU arm's captures pass the reference check: `k1`, 252 records,
 worst NMSE 8.7e-13; `t01`, 84 records, worst NMSE 6.5e-13.
+
+## Result
+
+Series S, CI package 1.7.0.1587, `gpu_layers` 99 (37/37 layers offloaded)
+against `gpu_layers` 0. Bindings and hashes are in
+[`receipt.json`](receipt.json), the verdict files in
+[`verdicts/`](verdicts/). The per-position dumps (about 2.9 GB per arm) and
+the captures are not committed; their hashes are in the receipt.
+
+### Part 1, every weight product against an exact reference: PASS
+
+| Capture                          | Records | GPU arm, worst NMSE | CPU arm, worst NMSE | Limit |
+| -------------------------------- | ------: | ------------------: | ------------------: | ----: |
+| `k1`, 40 tokens, layers 0 to 35  |     252 |             4.3e-14 |             8.7e-13 |  1e-7 |
+| `t01`, 675 tokens, layers 0 to 5 |      84 |             3.3e-14 |             6.5e-13 |  1e-7 |
+
+The worst single token column on the GPU arm is 4.5e-13. Every record of
+both arms is more than five orders of magnitude inside the limit.
+
+### Part 2, output distribution against the CPU floor: PASS
+
+5,024 positions over sixteen prompts. Each arm is compared with the console
+CPU arm.
+
+|                                     | Console GPU | Host Release (the floor) |
+| ----------------------------------- | ----------: | -----------------------: |
+| Mean KL divergence                  |     5.53e-3 |                  5.59e-3 |
+| Top-token agreement                 |      0.9449 |                   0.9473 |
+| Largest KL divergence, one position |       0.103 |                    0.104 |
+
+- KL-divergence ratio, GPU to host: 0.989, with a 95 % upper bound of 1.009
+  against a limit of 1.25. The GPU arm is no further from the console CPU arm
+  than a host CPU build is.
+- Top-token agreement deficit: 0.24 points, upper bound 0.57 points, against
+  a margin of 1 point.
+- The GPU arm's mean is lower than the host's on 7 of 16 prompts and higher
+  on 9.
+
+### What this does and does not show
+
+- The GPU arm computes the products it is given, in every layer, and its
+  output distribution is as close to the console CPU arm as another CPU build
+  of the same source is.
+- It does not show that the two arms generate the same text. About one
+  position in twenty ends on a different top token, for the GPU arm and for a
+  second CPU build alike.
+- One model (Coder-3B Q4_K_M), one console, one deterministic run per arm.
+  LFM2.5-1.2B, the model that ships on the GPU by default, was not put
+  through this control.
+- The long prompt was captured through layer 5 only; all 36 layers are
+  covered by the short prompt.
+- It is a correctness result. It says nothing about speed.
+- The first control's verdict (FAIL under the original text) is unchanged.

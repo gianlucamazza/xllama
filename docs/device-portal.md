@@ -233,6 +233,16 @@ each invalidated at least one bench run or upload in this project:
    file/taskmanager endpoints.
 5. **A console running a game is unreachable via Device Portal** (total
    timeouts). Not a fault — the portal only responds from Dev Home.
+6. **An archive can restore a folder tree in one request.** A `.zip` posted
+   to the file endpoint with `extract=true` is unpacked under the target
+   path, and missing folders are created (checked on the console,
+   2026-11-15, with a two-level tree of small files). The reverse does not
+   exist: there is no folder download, so a backup is one request per file.
+   Large archives were not tried.
+7. **The older version of an in-place update is removed later.** After an
+   update the package list can show two full names of the same family for
+   hours. The older one disappeared on its own here, without touching
+   `LocalState`; no uninstall was needed.
 
 ## References
 

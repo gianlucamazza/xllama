@@ -7,6 +7,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **GPU control under the amended ADR 0010: PASS.** Coder-3B on the Series S,
+  declared before its GPU arm. Every GPU weight product in all 36 layers is
+  within 4.3e-14 NMSE of an exact reference (declared limit 1e-7), and over
+  5,024 prompt positions the GPU arm's mean KL divergence from the CPU arm is
+  0.989 times a second CPU build's (95 % upper bound 1.009, declared limit
+  1.25), with top-token agreement 0.24 points lower (declared margin 1). The
+  earlier control's FAIL under the original criterion stands. This clears
+  the correctness prerequisite of the GPU prefill work for this model; it is
+  not a speed result. Evidence:
+  `docs/research/evidence/2026-11-15-adr0010-control-2/`.
+
 - **ADR 0010 amended.** A GPU control is now judged in two parts that do not
   depend on a maximum over a few prompts: every weight product against an
   exact reference (`control-parity.py reference`), and the output
