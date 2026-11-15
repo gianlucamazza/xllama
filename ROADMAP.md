@@ -709,6 +709,11 @@ ADR 0010 was accepted and implemented the same day, and the first control
 under it failed: no first-layer kernel error, but the GPU logits exceed the
 declared margin over the CPU reference spread
 ([evidence](docs/research/evidence/2026-11-15-adr0010-control/README.md)).
+A follow-up check against an exact reference found every GPU weight product
+correct in all 36 layers
+([evidence](docs/research/evidence/2026-11-15-gpu-kernel-reference-check/README.md)),
+so the gap is amplified rounding, not a kernel defect; how the control should
+judge that is an open decision.
 #313/#414 stay stopped. Series X was accepted as supported on 2026-11-15 from
 an independent tester's runs; project measurements on it (#374) and the
 matched matrix (#422) remain blocked on hardware.

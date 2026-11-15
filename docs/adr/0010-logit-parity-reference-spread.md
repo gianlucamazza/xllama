@@ -29,6 +29,15 @@ therefore inherits the operand's remaining difference, which the `kernel`
 mode reports next to the result error. The declared limit has to sit above
 that and far below what a wrong kernel produces.
 
+Known limit of part 1 as implemented, found on 2026-11-15: the two arms stop
+sharing operands after a few layers (no comparable column from layer 8 on for
+a 40-token prompt), so the two-arm comparison cannot test deeper layers. A
+single-arm check against an exact reference
+(`scripts/check-matmul-reference.py`) can, and found every GPU product correct
+in all 36 layers
+([evidence](../research/evidence/2026-11-15-gpu-kernel-reference-check/README.md)).
+It is a diagnostic and not part of this decision.
+
 ## Context
 
 The GPU prefill campaign (#313, #414) stopped on its control: Coder-3B on the

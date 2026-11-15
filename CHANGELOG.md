@@ -7,9 +7,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **GPU kernels checked against an exact reference.** New diagnostic
+  `scripts/check-matmul-reference.py` compares every captured weight product
+  with a float64 reference built from the model file. On the Series S, all
+  252 products of Coder-3B's 36 layers are correct on both arms, the GPU arm
+  to 4.1e-14 NMSE and the CPU arm to 2.3e-12. The CPU and GPU logits differ
+  through amplified rounding, not a kernel defect. The failed control's
+  verdict is unchanged, and GGUF GPU prefill work stays stopped until the
+  owner decides how a control should judge this.
+
 - **Scripts:** the deploy, bench and validation scripts no longer call
   `base64 -w0`, a GNU-only flag that fails on macOS. They strip the line
   breaks with `tr` instead; the encoded value is the same.
+  ||||||| parent of 6577bc4 (feat: check captured GPU products against an exact reference)
 
 - **Series X is supported.** Accepted by the owner on 2026-11-15 from an
   independent tester's runs of package 1.7.0.1495 on a Series X: text
