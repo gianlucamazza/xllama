@@ -392,6 +392,9 @@ void run_logits() {
     params.n_gpu_layers = read_local_int("logits_gpu_layers.txt", 0);
     params.n_ubatch = read_local_int("logits_ubatch.txt", 0);
     params.dump_logits_path = resolve_local_path("logits.bin");
+    // ADR 0010 part 2: logits_stride.txt = N also writes every Nth prompt
+    // position to logits.bin.positions.bin. Absent = last token only.
+    params.dump_logits_stride = std::max(0, read_local_int("logits_stride.txt", 0));
     // #420: optional intermediate tensor capture. The spec file holds the
     // pattern list (tensor_capture.h); records go to LocalState\tensor-capture,
     // which is emptied first so a stale capture can never be read as fresh.

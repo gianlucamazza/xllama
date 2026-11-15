@@ -630,12 +630,26 @@ of every verdict.
 
 Neither mode changes `compare-logits.py`, its defaults or a recorded verdict.
 
+The ADR was amended on 2026-11-15, and controls declared since then use two
+further modes with declaration schema v2:
+
+- `reference --model M.gguf <capture>...` judges every weight product of one
+  arm against a float64 reference built from the model file and the arm's own
+  q8_K operand, for every declared capture, up to its declared last layer.
+- `distribution --cpu-console D --cpu-host D --gpu D` reads per-position
+  logit dumps (`--dump-logits-stride N`, or `logits_stride.txt` on the
+  console, which write `<dump>.positions.bin` and `.json`). It compares the
+  GPU arm's mean KL divergence from the console CPU arm, and its top-token
+  agreement, with a host CPU build's, by a bootstrap over prompts.
+
+`kernel` and `spread` remain so the first control's verdict can be reproduced.
+
 `scripts/check-matmul-reference.py <model.gguf> <capture>...` is a diagnostic
 on the same captures. It checks each weight product of one arm against a
 float64 reference built from the model file and that arm's own q8_K operand,
 so it covers every token column and every captured layer without a second
 arm. It needs numpy and the submodule's `gguf-py`, supports K-quant weights
-only, and is not part of the ADR 0010 criterion.
+only, and is the arithmetic behind the `reference` mode, usable without a declaration.
 
 The binary format matches `numpy.fromfile(dtype=np.float32)`. Dumps from both
 backends are compared by `scripts/compare-logits.py`. This is the gate for
@@ -1001,6 +1015,7 @@ write's `on_done` so the two do not contend for the single gate.
 | `--embed`                         | Embedding smoke test (inputs via `-p`)                               |
 | `--dimensions <N>`                | Embedding dimensions for `--embed` (0 = native)                      |
 | `--dump-logits <path>`            | Write last prefill-token logits + JSON sidecar                       |
+| `--dump-logits-stride <N>`        | Also dump every Nth prompt position's logits (ADR 0010 amendment)    |
 | `--capture-tensors <dir>`         | #420: prefill tensor records (needs `--capture-spec`)                |
 | `--capture-spec <spec>`           | Tensor name patterns plus `mode=`, `max_mb=` and `matmul_inputs=`    |
 | `--membw`                         | CPU STREAM bandwidth probe                                           |

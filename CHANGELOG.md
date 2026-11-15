@@ -7,6 +7,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **ADR 0010 amended.** A GPU control is now judged in two parts that do not
+  depend on a maximum over a few prompts: every weight product against an
+  exact reference (`control-parity.py reference`), and the output
+  distribution over many prompt positions against what a second CPU build
+  shows (`control-parity.py distribution`). `--dump-logits-stride N`, or
+  `logits_stride.txt` on the console, dumps the logits at every Nth prompt
+  position for the second part. The first control's FAIL is not rewritten.
+
+- **Startup log:** a `[resources]` line states whether the title has the
+  expanded (Game) resources, how many exclusive cores it was given, the
+  logical core count and the app memory limit. It is there to explain runs
+  like the 2.4 times slower App-designation runs seen on a Series X (#457).
+
 - **LFM2.5 figures remeasured on 1.7.0.** `lfm25-230m` is 127.1 tok/s decode
   (237 MiB peak) and `lfm25-350m` is 97.9 tok/s on package 1.7.0.1563, each a
   median of three runs of exactly 512 generated tokens. The previous 132.4 and

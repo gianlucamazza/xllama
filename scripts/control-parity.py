@@ -38,6 +38,38 @@
 # No value has a default: the criterion is whatever was declared. The file's
 # sha256 is printed and written to --json-out so a verdict names its criterion.
 #
+# Two more modes implement the 2026-11-15 amendment of ADR 0010, which is the
+# criterion for new controls (declaration schema v2):
+#
+#   scripts/control-parity.py reference --declaration D --model M.gguf
+#                                       <capture_dir>...
+#   scripts/control-parity.py distribution --declaration D --cpu-console DIR
+#                                          --cpu-host DIR --gpu DIR
+#
+# reference (part 1): every weight MUL_MAT of each capture must be within the
+#   declared NMSE limit of a float64 product of the dequantized weight and the
+#   arm's own q8_K operand (scripts/check-matmul-reference.py). One arm is
+#   enough, so every token column and every captured layer is judged. Each
+#   declared capture must reach its declared last layer.
+#
+# distribution (part 2): each directory holds `<prompt id>.bin.positions.bin`
+#   (+ `.json`), the logits at many prompt positions. Per position it takes
+#   the KL divergence from the console CPU arm to the GPU arm and to the host
+#   CPU arm, and whether the top token agrees. The GPU arm passes when, at the
+#   declared confidence (bootstrap over prompts):
+#     mean KLD(cpu, gpu) <= kld_ratio_limit x mean KLD(cpu, host), and
+#     top-token agreement(cpu, gpu) >= agreement(cpu, host) - top1_margin,
+#   over at least the declared number of positions.
+#
+#   Schema v2 declaration:
+#   { "schema": "xllama.control-declaration/v2", "model": "<catalogue id>",
+#     "reference": { "nmse_limit": 1e-7,
+#                    "captures": [ { "prompt": "k1", "last_layer": 35 } ] },
+#     "distribution": { "kld_ratio_limit": 1.5, "top1_margin": 0.01,
+#                       "confidence": 0.95, "min_positions": 4000,
+#                       "bootstrap": 2000, "seed": 1 },
+#     "prompts": [ { "id": "p1", "sha256": "<sha256 of the UTF-8 prompt>" } ] }
+#
 # This is not scripts/compare-logits.py, whose frozen gate and defaults are
 # unchanged. Exit 0 = PASS, 1 = FAIL, 2 = invalid input or declaration.
 
@@ -45,12 +77,14 @@ import argparse
 import hashlib
 import json
 import math
+import re
 import sys
 from pathlib import Path
 
 import numpy as np
 
 SCHEMA = "xllama.control-declaration/v1"
+SCHEMA_V2 = "xllama.control-declaration/v2"
 QK_K = 256
 # Weight types whose CPU kernels quantize the activation operand with q8_K.
 Q8_K_WEIGHTS = {"q2_K", "q3_K", "q4_K", "q5_K", "q6_K"}
@@ -75,8 +109,9 @@ def load_declaration(path: Path, need: str):
         decl = json.loads(raw)
     except (OSError, ValueError) as e:
         raise Invalid(f"cannot read declaration {path}: {e}") from None
-    if not isinstance(decl, dict) or decl.get("schema") != SCHEMA:
-        raise Invalid(f"declaration schema must be {SCHEMA}")
+    want = SCHEMA_V2 if need in ("reference", "distribution") else SCHEMA
+    if not isinstance(decl, dict) or decl.get("schema") != want:
+        raise Invalid(f"declaration schema must be {want} for the {need} mode")
     if not isinstance(decl.get("model"), str) or not decl["model"]:
         raise Invalid("declaration model must be a non-empty string")
     out = {"model": decl["model"], "sha256": hashlib.sha256(raw).hexdigest()}
@@ -85,6 +120,32 @@ def load_declaration(path: Path, need: str):
         out["nmse_limit"] = _number(k, "nmse_limit", "kernel", 0.0, 1.0, lo_open=True)
         out["min_comparable_fraction"] = _number(
             k, "min_comparable_fraction", "kernel", 0.0, 1.0, lo_open=True)
+    elif need == "reference":
+        r = decl.get("reference")
+        out["nmse_limit"] = _number(r, "nmse_limit", "reference", 0.0, 1.0, lo_open=True)
+        caps = r.get("captures")
+        if not isinstance(caps, list) or not caps:
+            raise Invalid("declaration reference.captures must be a non-empty list")
+        out["captures"] = {}
+        for c in caps:
+            pid, last = (c.get("prompt"), c.get("last_layer")) if isinstance(c, dict) else (None, None)
+            if not isinstance(pid, str) or not pid or type(last) is not int or last < 0:
+                raise Invalid("declaration reference.captures entries need prompt and last_layer")
+            out["captures"][pid] = last
+        out["prompts"] = _prompts(decl)
+    elif need == "distribution":
+        d = decl.get("distribution")
+        out["kld_ratio_limit"] = _number(d, "kld_ratio_limit", "distribution", 1.0, 1e6)
+        out["top1_margin"] = _number(d, "top1_margin", "distribution", 0.0, 1.0)
+        out["confidence"] = _number(d, "confidence", "distribution", 0.5, 1.0, lo_open=True)
+        if out["confidence"] >= 1.0:
+            raise Invalid("declaration distribution.confidence must be below 1")
+        for key, lo in (("min_positions", 1), ("bootstrap", 100), ("seed", 0)):
+            v = d.get(key)
+            if type(v) is not int or v < lo:
+                raise Invalid(f"declaration distribution.{key} must be an integer >= {lo}")
+            out[key] = v
+        out["prompts"] = _prompts(decl)
     else:
         s = decl.get("spread")
         out["margin"] = _number(s, "margin", "spread", 1.0, 1e6)
@@ -93,21 +154,25 @@ def load_declaration(path: Path, need: str):
         if type(top_k) is not int or top_k <= 0:
             raise Invalid("declaration spread.top_k must be a positive integer")
         out["top_k"] = top_k
-        prompts = decl.get("prompts")
-        if not isinstance(prompts, list) or not prompts:
-            raise Invalid("declaration prompts must be a non-empty list")
-        seen = {}
-        for p in prompts:
-            pid, sha = (p.get("id"), p.get("sha256")) if isinstance(p, dict) else (None, None)
-            if (not isinstance(pid, str) or not pid or "/" in pid or "\\" in pid
-                    or pid.startswith(".") or pid in seen):
-                raise Invalid(f"declaration prompt id invalid or repeated: {pid!r}")
-            if (not isinstance(sha, str) or len(sha) != 64
-                    or any(c not in "0123456789abcdef" for c in sha)):
-                raise Invalid(f"declaration prompt {pid}: sha256 must be 64 lowercase hex digits")
-            seen[pid] = sha
-        out["prompts"] = seen
+        out["prompts"] = _prompts(decl)
     return out
+
+
+def _prompts(decl):
+    prompts = decl.get("prompts")
+    if not isinstance(prompts, list) or not prompts:
+        raise Invalid("declaration prompts must be a non-empty list")
+    seen = {}
+    for p in prompts:
+        pid, sha = (p.get("id"), p.get("sha256")) if isinstance(p, dict) else (None, None)
+        if (not isinstance(pid, str) or not pid or "/" in pid or "\\" in pid
+                or pid.startswith(".") or pid in seen):
+            raise Invalid(f"declaration prompt id invalid or repeated: {pid!r}")
+        if (not isinstance(sha, str) or len(sha) != 64
+                or any(c not in "0123456789abcdef" for c in sha)):
+            raise Invalid(f"declaration prompt {pid}: sha256 must be 64 lowercase hex digits")
+        seen[pid] = sha
+    return seen
 
 
 # --- kernel mode -------------------------------------------------------------
@@ -341,9 +406,215 @@ def run_spread(args) -> int:
     return finish(args, summary)
 
 
+# --- reference mode (amendment, part 1) ---------------------------------------
+
+
+def _load_reference_tool():
+    import importlib.util
+    path = Path(__file__).resolve().parent / "check-matmul-reference.py"
+    spec = importlib.util.spec_from_file_location("check_matmul_reference", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def reference_rows(records, weights, tool):
+    """Per-record error of one capture; `weights(name)` returns [n_out, n_in] float64."""
+    rows = []
+    for key, r in records.items():
+        if r["weight_type"] not in Q8_K_WEIGHTS or r["in"].shape[0] % QK_K:
+            raise Invalid(f"{key[1]} ({r['weight_type']}): only K-quant weights are supported")
+        w = weights(key[1])
+        if w.shape != (r["out"].shape[0], r["in"].shape[0]):
+            raise Invalid(f"{key[1]}: weight shape does not match the capture")
+        rows.append({"eval": key[0], "weight": key[1], "weight_type": r["weight_type"],
+                     **tool.record_error(w, r["in"], r["out"])})
+    return rows
+
+
+def run_reference(args) -> int:
+    decl = load_declaration(args.declaration, "reference")
+    tool = _load_reference_tool()
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "llama.cpp/gguf-py"))
+        import gguf
+        from gguf.quants import dequantize
+    except ImportError as e:
+        raise Invalid(f"gguf-py is not importable ({e})") from None
+    tensors = {t.name: t for t in gguf.GGUFReader(args.model).tensors}
+    blocks = [int(m.group(1)) for m in (re.match(r"blk\.(\d+)\.", n) for n in tensors) if m]
+    if not blocks:
+        raise Invalid(f"{args.model.name} has no blk.N tensors")
+    last_block = max(blocks)
+    if max(decl["captures"].values()) != last_block or any(
+            v > last_block for v in decl["captures"].values()):
+        raise Invalid(f"declared captures must stay within layer {last_block} and one must "
+                      f"reach it")
+
+    def weights(name):
+        if name not in tensors:
+            raise Invalid(f"{name} is not a tensor of {args.model.name}")
+        t = tensors[name]
+        return dequantize(t.data, t.tensor_type).astype(np.float64)
+
+    captures, seen, passed, worst = [], set(), True, 0.0
+    print(f"declaration {decl['sha256']}  model={decl['model']}  "
+          f"nmse_limit={decl['nmse_limit']:g}")
+    for cap in args.captures:
+        pid = cap.name
+        if pid not in decl["captures"]:
+            raise Invalid(f"capture directory {pid} is not a declared capture prompt")
+        records = load_matmuls(cap)
+        need = f"blk.{decl['captures'][pid]}.ffn_down.weight"
+        if not any(k[1] == need for k in records):
+            raise Invalid(f"{cap}: capture does not reach {need}")
+        rows = reference_rows(records, weights, tool)
+        cap_worst = max(r["nmse"] for r in rows)
+        ok = math.isfinite(cap_worst) and cap_worst <= decl["nmse_limit"]
+        passed, worst = passed and ok, max(worst, cap_worst)
+        seen.add(pid)
+        captures.append({"arm": args.arm, "prompt": pid, "records": len(rows),
+                         "worst_nmse": cap_worst,
+                         "worst_token_nmse": max(r["worst_token_nmse"] for r in rows),
+                         "pass": ok, "rows": rows})
+        print(f"  {pid:<20} records {len(rows):>4}  worst NMSE {cap_worst:.3e}  "
+              f"{'ok' if ok else 'FAIL'}")
+    missing = sorted(set(decl["captures"]) - seen)
+    if missing:
+        raise Invalid(f"declared captures not provided: {missing}")
+    return finish(args, {
+        "mode": "reference", "adr": "0010 amendment part 1",
+        "declaration_sha256": decl["sha256"], "model": decl["model"], "arm": args.arm,
+        "nmse_limit": decl["nmse_limit"], "worst_nmse": worst, "pass": passed,
+        "captures": captures,
+    })
+
+
+# --- distribution mode (amendment, part 2) -------------------------------------
+
+
+def load_positions(directory: Path, pid: str, sha: str):
+    base = directory / f"{pid}.bin.positions"
+    try:
+        side = json.loads(Path(str(base) + ".json").read_text())
+    except (OSError, ValueError) as e:
+        raise Invalid(f"missing or unreadable sidecar {base}.json: {e}") from None
+    if not isinstance(side, dict) or not isinstance(side.get("prompt"), str):
+        raise Invalid(f"sidecar must record the prompt: {base}.json")
+    if hashlib.sha256(side["prompt"].encode("utf-8")).hexdigest() != sha:
+        raise Invalid(f"{base}.json: prompt is not the declared prompt {pid}")
+    vocab, positions = side.get("vocab_size"), side.get("positions")
+    if (type(vocab) is not int or vocab <= 0 or not isinstance(positions, list) or not positions
+            or any(type(p) is not int for p in positions)):
+        raise Invalid(f"{base}.json: needs vocab_size and a non-empty positions list")
+    if positions[0] < 0 or any(b <= a for a, b in zip(positions, positions[1:])):
+        raise Invalid(f"{base}.json: positions must be distinct and increasing")
+    path = Path(str(base) + ".bin")
+    try:
+        data = np.fromfile(path, dtype=np.float32)
+    except OSError as e:
+        raise Invalid(f"missing dump {path}: {e}") from None
+    if data.size != vocab * len(positions):
+        raise Invalid(f"{path}: size does not match {len(positions)} x {vocab}")
+    if not np.all(np.isfinite(data)):
+        raise Invalid(f"non-finite logits: {path}")
+    return data.reshape(len(positions), vocab), positions
+
+
+def log_softmax(x):
+    x = x.astype(np.float64)
+    x = x - x.max(axis=1, keepdims=True)
+    return x - np.log(np.exp(x).sum(axis=1, keepdims=True))
+
+
+def position_stats(ref, other):
+    """Per position: KL(ref || other) in nats and top-token agreement."""
+    lr, lo = log_softmax(ref), log_softmax(other)
+    kld = (np.exp(lr) * (lr - lo)).sum(axis=1)
+    return np.maximum(kld, 0.0), ref.argmax(axis=1) == other.argmax(axis=1)
+
+
+def run_distribution(args) -> int:
+    decl = load_declaration(args.declaration, "distribution")
+    per = []  # per prompt: n, sums of kld and agreement for gpu and host
+    for pid, sha in decl["prompts"].items():
+        c, pc = load_positions(args.cpu_console, pid, sha)
+        h, ph = load_positions(args.cpu_host, pid, sha)
+        g, pg = load_positions(args.gpu, pid, sha)
+        if not (pc == ph == pg) or not (c.shape == h.shape == g.shape):
+            raise Invalid(f"prompt {pid}: the three dumps cover different positions")
+        kg, ag = position_stats(c, g)
+        kh, ah = position_stats(c, h)
+        per.append({"prompt": pid, "positions": len(pc), "kld_gpu": float(kg.sum()),
+                    "kld_host": float(kh.sum()), "top1_gpu": int(ag.sum()),
+                    "top1_host": int(ah.sum()), "kld_gpu_max": float(kg.max()),
+                    "kld_host_max": float(kh.max())})
+    n = np.array([p["positions"] for p in per], dtype=np.float64)
+    cols = {k: np.array([p[k] for p in per], dtype=np.float64)
+            for k in ("kld_gpu", "kld_host", "top1_gpu", "top1_host")}
+    total = int(n.sum())
+
+    def stats(idx):
+        m = n[idx].sum()
+        kg, kh = cols["kld_gpu"][idx].sum() / m, cols["kld_host"][idx].sum() / m
+        ratio = kg / kh if kh > 0 else (1.0 if kg == 0 else math.inf)
+        deficit = (cols["top1_host"][idx].sum() - cols["top1_gpu"][idx].sum()) / m
+        return ratio, deficit, kg, kh
+
+    everything = np.arange(len(per))
+    ratio, deficit, kld_gpu, kld_host = stats(everything)
+    rng = np.random.default_rng(decl["seed"])
+    boot = np.array([stats(rng.integers(0, len(per), len(per)))[:2]
+                     for _ in range(decl["bootstrap"])])
+    ratio_ub = float(np.quantile(boot[:, 0], decl["confidence"]))
+    deficit_ub = float(np.quantile(boot[:, 1], decl["confidence"]))
+    enough = total >= decl["min_positions"]
+    passed = (enough and math.isfinite(ratio_ub) and ratio_ub <= decl["kld_ratio_limit"]
+              and deficit_ub <= decl["top1_margin"])
+
+    print(f"declaration {decl['sha256']}  model={decl['model']}  prompts={len(per)}  "
+          f"positions={total} (declared minimum {decl['min_positions']})")
+    print(f"{'prompt':<16} {'pos':>5} {'KLD gpu':>10} {'KLD host':>10} {'top1 gpu':>9} "
+          f"{'top1 host':>9}")
+    for p in per:
+        print(f"{p['prompt']:<16} {p['positions']:>5} {p['kld_gpu'] / p['positions']:>10.3e} "
+              f"{p['kld_host'] / p['positions']:>10.3e} {p['top1_gpu'] / p['positions']:>9.4f} "
+              f"{p['top1_host'] / p['positions']:>9.4f}")
+    print(f"  mean KLD: gpu {kld_gpu:.4e}, host {kld_host:.4e}; ratio {ratio:.3f}, "
+          f"upper bound {ratio_ub:.3f} (limit {decl['kld_ratio_limit']:g})")
+    print(f"  top-token agreement deficit: {deficit:+.4f}, upper bound {deficit_ub:+.4f} "
+          f"(margin {decl['top1_margin']:g})")
+    if not enough:
+        print("  too few positions for the declared minimum")
+    return finish(args, {
+        "mode": "distribution", "adr": "0010 amendment part 2",
+        "declaration_sha256": decl["sha256"], "model": decl["model"],
+        "positions": total, "min_positions": decl["min_positions"],
+        "confidence": decl["confidence"], "bootstrap": decl["bootstrap"], "seed": decl["seed"],
+        "mean_kld_gpu": kld_gpu, "mean_kld_host": kld_host, "kld_ratio": ratio,
+        "kld_ratio_upper_bound": ratio_ub, "kld_ratio_limit": decl["kld_ratio_limit"],
+        "top1_agreement_gpu": float(cols["top1_gpu"].sum() / total),
+        "top1_agreement_host": float(cols["top1_host"].sum() / total),
+        "top1_deficit": deficit, "top1_deficit_upper_bound": deficit_ub,
+        "top1_margin": decl["top1_margin"], "pass": passed, "rows": per,
+    })
+
+
+def _finite(value):
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {k: _finite(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_finite(v) for v in value]
+    return value
+
+
 def finish(args, summary) -> int:
     if args.json_out:
-        args.json_out.write_text(json.dumps(summary, indent=1) + "\n")
+        # A non-finite figure (an undefined ratio, for instance) becomes null,
+        # so the verdict file is always standard JSON.
+        args.json_out.write_text(json.dumps(_finite(summary), indent=1, allow_nan=False) + "\n")
     print("✅ PASS" if summary["pass"] else "❌ FAIL")
     return 0 if summary["pass"] else 1
 
@@ -358,13 +629,23 @@ def main() -> int:
     s.add_argument("--cpu-console", type=Path, required=True, help="console CPU arm dumps")
     s.add_argument("--cpu-host", type=Path, required=True, help="host CPU reference dumps")
     s.add_argument("--gpu", type=Path, required=True, help="console GPU arm dumps")
-    for p in (k, s):
+    r = sub.add_parser("reference", help="amendment part 1: products against an exact reference")
+    r.add_argument("--model", type=Path, required=True, help="the GGUF the arm loaded")
+    r.add_argument("--arm", default="gpu", help="label written into the verdict (default gpu)")
+    r.add_argument("captures", type=Path, nargs="+",
+                   help="capture directories named after their declared prompt id")
+    d = sub.add_parser("distribution", help="amendment part 2: per-position KLD and top token")
+    d.add_argument("--cpu-console", type=Path, required=True, help="console CPU arm dumps")
+    d.add_argument("--cpu-host", type=Path, required=True, help="host CPU reference dumps")
+    d.add_argument("--gpu", type=Path, required=True, help="console GPU arm dumps")
+    for p in (k, s, r, d):
         p.add_argument("--declaration", type=Path, required=True,
                        help="criterion declared before the GPU arm was measured")
         p.add_argument("--json-out", type=Path, help="write the verdict and its rows as JSON")
     args = ap.parse_args()
     try:
-        return run_kernel(args) if args.mode == "kernel" else run_spread(args)
+        return {"kernel": run_kernel, "spread": run_spread, "reference": run_reference,
+                "distribution": run_distribution}[args.mode](args)
     except (Invalid, OSError) as e:
         print(f"❌ invalid input: {e}")
         return 2

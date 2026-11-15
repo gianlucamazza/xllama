@@ -245,5 +245,124 @@ class SpreadTests(Base):
             self.assertEqual(r.returncode, 2, bad)
 
 
+class AmendmentTests(Base):
+    """Schema v2: the reference arithmetic and the distribution decision."""
+
+    def decl2(self, **over):
+        decl = {"schema": "xllama.control-declaration/v2", "model": "test-model",
+                "reference": {"nmse_limit": 1e-7,
+                              "captures": [{"prompt": "k1", "last_layer": 0}]},
+                "distribution": {"kld_ratio_limit": 1.5, "top1_margin": 0.01,
+                                 "confidence": 0.95, "min_positions": 60,
+                                 "bootstrap": 200, "seed": 1},
+                "prompts": [{"id": f"p{i}", "sha256": sha(f"prompt p{i}")} for i in range(6)]}
+        decl.update(over)
+        path = self.root / f"decl2-{len(list(self.root.glob('decl2-*')))}.json"
+        path.write_text(json.dumps(decl))
+        return path
+
+    def arm(self, name, noise):
+        """Six prompts of 12 positions over a 64-token vocabulary."""
+        d = self.root / name
+        d.mkdir()
+        for i in range(6):
+            base = np.random.default_rng(50 + i).standard_normal((12, 64)) * 3
+            base[np.arange(12), base.argmax(axis=1)] += 4.0  # a clear top token per position
+            extra = np.random.default_rng(zlib.crc32(name.encode()) + i).standard_normal((12, 64))
+            (base + noise * extra).astype(np.float32).tofile(d / f"p{i}.bin.positions.bin")
+            (d / f"p{i}.bin.positions.json").write_text(json.dumps(
+                {"prompt": f"prompt p{i}", "vocab_size": 64, "stride": 1,
+                 "n_prompt_tokens": 12, "positions": list(range(12))}))
+        return d
+
+    def distribution(self, gpu_noise, decl=None, host_noise=0.05):
+        if not (self.root / "console").exists():
+            self.arm("console", 0.0)
+            self.arm("host", host_noise)
+        out = self.root / f"dist-{gpu_noise}.json"
+        r = self.run_cmp("distribution", "--declaration", decl or self.decl2(), "--cpu-console",
+                         self.root / "console", "--cpu-host", self.root / "host", "--gpu",
+                         self.arm(f"gpu{gpu_noise}", gpu_noise), "--json-out", out)
+        return r, (json.loads(out.read_text()) if out.exists() else None)
+
+    def test_a_gpu_arm_as_noisy_as_the_host_passes(self):
+        r, v = self.distribution(0.05)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertEqual(v["positions"], 72)
+        self.assertLess(abs(v["kld_ratio"] - 1.0), 0.3)
+
+    def test_a_gpu_arm_twice_as_noisy_fails_on_kld(self):
+        r, v = self.distribution(0.1)  # KLD grows with the square of the noise
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertGreater(v["kld_ratio"], 3.0)
+
+    def test_too_few_positions_fail_even_when_the_ratio_is_fine(self):
+        strict = self.decl2(distribution={"kld_ratio_limit": 1.5, "top1_margin": 0.01,
+                                          "confidence": 0.95, "min_positions": 100,
+                                          "bootstrap": 200, "seed": 1})
+        r, _ = self.distribution(0.05, strict)
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("too few positions", r.stdout)
+
+    def test_distribution_inputs_fail_closed(self):
+        self.distribution(0.05)
+        gpu = self.root / "gpu0.05"
+        side = gpu / "p3.bin.positions.json"
+        meta = json.loads(side.read_text())
+        side.write_text(json.dumps({**meta, "positions": list(range(1, 13))}))
+        base = ["distribution", "--cpu-console", self.root / "console", "--cpu-host",
+                self.root / "host", "--gpu", gpu, "--declaration"]
+        self.assertEqual(self.run_cmp(*base, self.decl2()).returncode, 2)
+        side.write_text(json.dumps({**meta, "positions": [0] * 12}))  # one row counted 12 times
+        self.assertEqual(self.run_cmp(*base, self.decl2()).returncode, 2)
+        side.write_text(json.dumps({**meta, "prompt": "another prompt"}))
+        self.assertEqual(self.run_cmp(*base, self.decl2()).returncode, 2)
+        side.write_text(json.dumps(meta))
+        self.assertEqual(self.run_cmp(*base, self.declaration()).returncode, 2)  # v1 file
+        for bad in ({"kld_ratio_limit": 0.9}, {"confidence": 1.0}, {"bootstrap": 10}):
+            d = {"kld_ratio_limit": 1.5, "top1_margin": 0.01, "confidence": 0.95,
+                 "min_positions": 60, "bootstrap": 200, "seed": 1, **bad}
+            self.assertEqual(self.run_cmp(*base, self.decl2(distribution=d)).returncode, 2, bad)
+
+    def test_an_undefined_ratio_is_written_as_standard_json(self):
+        self.arm("console", 0.0)
+        self.arm("host", 0.0)  # identical to the console arm: the floor is zero
+        out = self.root / "v.json"
+        r = self.run_cmp("distribution", "--declaration", self.decl2(), "--cpu-console",
+                         self.root / "console", "--cpu-host", self.root / "host", "--gpu",
+                         self.arm("gpu", 0.05), "--json-out", out)
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertNotIn("Infinity", out.read_text())
+        self.assertIsNone(json.loads(out.read_text())["kld_ratio"])
+
+    def test_reference_rows_judge_every_column_of_one_arm(self):
+        mod = load_module()
+        tool = mod._load_reference_tool()
+        w = np.random.default_rng(5).standard_normal((8, N))
+        x = grid_input()
+        exact = (w @ tool.dequantized_q8_k(x)).astype(np.float32)
+        records = {(0, "blk.0.ffn_down.weight", 0): {"weight_type": "q4_K", "in": x,
+                                                      "out": exact}}
+        rows = mod.reference_rows(records, lambda name: w, tool)
+        self.assertLess(rows[0]["nmse"], 1e-12)
+        wrong = exact.copy()
+        wrong[:, 1] *= 1.01
+        records[(0, "blk.0.ffn_down.weight", 0)]["out"] = wrong
+        self.assertGreater(mod.reference_rows(records, lambda name: w, tool)[0]["nmse"], 1e-7)
+        records[(0, "blk.0.ffn_down.weight", 0)]["weight_type"] = "f16"
+        with self.assertRaises(mod.Invalid):
+            mod.reference_rows(records, lambda name: w, tool)
+
+    def test_reference_declaration_is_checked_before_any_model_is_read(self):
+        cap = self.root / "k1"
+        cap.mkdir()
+        for bad in ({"reference": {"nmse_limit": 1e-7, "captures": []}},
+                    {"reference": {"captures": [{"prompt": "k1", "last_layer": 0}]}},
+                    {"schema": "xllama.control-declaration/v1"}):
+            r = self.run_cmp("reference", "--declaration", self.decl2(**bad), "--model",
+                             self.root / "missing.gguf", cap)
+            self.assertEqual(r.returncode, 2, bad)
+
+
 if __name__ == "__main__":
     unittest.main()
