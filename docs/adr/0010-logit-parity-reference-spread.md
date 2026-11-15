@@ -1,12 +1,33 @@
 # ADR 0010: Judge GPU logit parity against the measured CPU reference spread
 
-Status: Accepted (2026-11-15) by the owner; not yet implemented.
+Status: Accepted (2026-11-15) by the owner. The comparison is implemented; no control has been run under it.
 
 It answers step 5 of the diagnostic protocol in
 [gpu-acceleration-baseline.md](../research/gpu-acceleration-baseline.md#c4-control-diagnosis)
-and issue #420. The comparison mode it describes is not built yet, so
-`scripts/compare-logits.py` still applies the frozen gate. Accepting it
-does not change the 2026-11-08 control verdict, which stays FAIL.
+and issue #420. Accepting it does not change the 2026-11-08 control verdict,
+which stays FAIL.
+
+Implementation: the capture option `matmul_inputs=` and
+`scripts/control-parity.py` (`kernel` for part 1, `spread` for part 2),
+described in
+[architecture.md](../architecture.md#intermediate-tensor-capture-420). Three
+points the text below leaves open are fixed there:
+
+- The declaration is a file with no defaults: the per-record NMSE limit, the
+  minimum fraction of comparable token columns, the margin, the top-k rule and
+  the sha256 of every prompt. A verdict carries the file's sha256.
+- Part 1 covers every `MUL_MAT` on a model weight in the first layer, on
+  either backend. That is a superset of the products the GPU executes; a
+  product both arms ran on the CPU compares equal.
+- The reference spread "for that model" is the largest maximum error and the
+  largest NMSE between the two CPU references over the whole prompt set, and
+  the GPU arm is judged on its own largest values over the same set.
+
+Equal int8 values do not make two operands equal, because each 256-value
+block keeps its own float scale. On the comparable columns the result
+therefore inherits the operand's remaining difference, which the `kernel`
+mode reports next to the result error. The declared limit has to sit above
+that and far below what a wrong kernel produces.
 
 ## Context
 

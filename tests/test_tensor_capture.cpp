@@ -128,3 +128,73 @@ TEST_CASE("tensor_capture: an unwritable directory fails the writer") {
     CHECK(w.failed());
     CHECK_FALSE(w.skip("x", "ADD", "f32", ne, "late"));
 }
+
+TEST_CASE("tensor_capture: matmul_inputs names one exact stop node") {
+    const auto s = spec_of("l_out-0;mode=last;matmul_inputs=l_out-0");
+    CHECK(s.matmul_stop == "l_out-0");
+    CHECK(s.last_column_only);
+    CHECK(spec_of("l_out-0").matmul_stop.empty());
+    CHECK(rejects("x;matmul_inputs="));
+    CHECK(rejects("x;matmul_inputs=l_out-*"));
+}
+
+TEST_CASE("tensor_capture: weight operands are recognised across backend copies") {
+    CHECK(tensor_capture_base_name("blk.0.attn_q.weight") == "blk.0.attn_q.weight");
+    CHECK(tensor_capture_base_name("CPU#blk.0.attn_q.weight#0") == "blk.0.attn_q.weight");
+    CHECK(tensor_capture_base_name("odd#name") == "odd#name");
+    CHECK(tensor_capture_base_name(nullptr).empty());
+    CHECK(tensor_capture_is_weight_name("blk.0.ffn_up.weight"));
+    CHECK_FALSE(tensor_capture_is_weight_name("Kcur-0"));
+    CHECK_FALSE(tensor_capture_is_weight_name(".weight"));
+}
+
+TEST_CASE("tensor_capture: the matmul window closes at the stop node of each eval") {
+    TensorCaptureWriter off("/nonexistent/xllama/capture", spec_of("x"));
+    off.begin_eval();
+    CHECK_FALSE(off.matmul_open());
+
+    TensorCaptureWriter w("/nonexistent/xllama/capture", spec_of("x;matmul_inputs=l_out-0"));
+    CHECK_FALSE(w.matmul_open());
+    w.begin_eval();
+    CHECK(w.matmul_open());
+    w.note_node("ffn_inp-0");
+    w.note_node(nullptr);
+    CHECK(w.matmul_open());
+    w.note_node("l_out-0");
+    CHECK_FALSE(w.matmul_open());
+    w.begin_eval();
+    CHECK(w.matmul_open());
+}
+
+TEST_CASE("tensor_capture: a matmul record references its operand file") {
+    namespace fs = std::filesystem;
+    const fs::path dir = fs::temp_directory_path() / "xllama_tensor_capture_matmul_test";
+    fs::remove_all(dir);
+    fs::create_directories(dir);
+    {
+        TensorCaptureWriter w(dir.string(), spec_of("x;matmul_inputs=l_out-0"));
+        const int64_t in_ne[4] = {2, 3, 1, 1};
+        const int64_t out_ne[4] = {1, 3, 1, 1};
+        const std::vector<float> in = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+        const std::vector<float> out = {3.f, 7.f, 11.f};
+        w.begin_eval();
+        std::string file;
+        CHECK(w.write_input(in.data(), in.size(), file));
+        CHECK(file == "000000-in.f32");
+        CHECK(w.write_matmul("blk.0.attn_q.weight", "q4_K", out_ne, out.data(), 3, file, in_ne));
+        CHECK(w.write_matmul("blk.0.attn_k.weight", "q4_K", out_ne, out.data(), 3, file, in_ne));
+        CHECK(w.records() == 2);
+        CHECK(w.bytes_written() == (6 + 3 + 3) * sizeof(float));
+    }
+    CHECK(fs::file_size(dir / "000000-in.f32") == 24);
+    CHECK(fs::file_size(dir / "000001.f32") == 12);
+    std::ifstream man(dir / "manifest.jsonl");
+    std::stringstream ss;
+    ss << man.rdbuf();
+    const std::string m = ss.str();
+    CHECK(m.find("\"name\":\"blk.0.attn_q.weight\",\"op\":\"MUL_MAT\"") != std::string::npos);
+    CHECK(m.find("\"mode\":\"full\"") != std::string::npos);
+    CHECK(m.find("\"matmul\":true,\"weight_type\":\"q4_K\",\"input_file\":\"000000-in.f32\","
+                 "\"input_ne\":[2,3,1,1]") != std::string::npos);
+    fs::remove_all(dir);
+}
