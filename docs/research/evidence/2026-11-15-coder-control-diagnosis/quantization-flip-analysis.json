@@ -1,0 +1,31 @@
+{
+ "scope": "offline analysis of the console mode=full captures (CPU arm and GPU arm); not a new device run",
+ "question": "why do a few token positions diverge after the first quantized matmul whose input is not bit-identical between the arms",
+ "tensor": "kqv_out-0, the input of the layer-0 attention output projection (Q4_K weights, q8_K activations)",
+ "method": "quantize each token column of both arms with the q8_K rule ggml uses (256-value blocks, iscale = -127/max with max the first largest-magnitude value, round to nearest even) and compare the int8 values; compare the set of tokens with a changed int8 against the set of tokens whose projection output differs (ffn_inp-0, per-token NMSE above 1e-9)",
+ "also_tested": "fused versus two-step rounding of iscale*x inside the quantizer: 0 changed values in evaluation 0 and 2 in evaluation 1, none in a diverging token, so that is not the mechanism",
+ "results": {
+  "eval0": {
+   "tokens": 512,
+   "input_max_abs_diff": 0.00048428773880004883,
+   "input_elements_not_bit_identical": 917268,
+   "tokens_with_int8_flip": 33,
+   "flipped_int8_elements": 36,
+   "max_abs_q_diff": 1,
+   "tokens_with_scale_change": 511,
+   "diverging_tokens_after_projection": 33,
+   "flip_set_equals_diverging_set": true
+  },
+  "eval1": {
+   "tokens": 446,
+   "input_max_abs_diff": 0.0007700920104980469,
+   "input_elements_not_bit_identical": 821306,
+   "tokens_with_int8_flip": 45,
+   "flipped_int8_elements": 63,
+   "max_abs_q_diff": 1,
+   "tokens_with_scale_change": 446,
+   "diverging_tokens_after_projection": 45,
+   "flip_set_equals_diverging_set": true
+  }
+ }
+}
