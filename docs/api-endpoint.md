@@ -92,7 +92,9 @@ rejected. Ollama embedding aliases (`bge-m3`, `nomic-embed-text-v2-moe`,
 
 Streaming returns chunked `application/x-ndjson`: status records report download bytes, then
 model loading, followed by `{"status":"success"}`. A failure after streaming starts is an
-NDJSON `{"error":"..."}` record. With `stream:false`, the endpoint waits and returns one
+NDJSON `{"error":"..."}` record. When the files to fetch do not fit on the LocalState
+volume, that record is `Not enough storage for this model: needs N MB, M MB available`
+and no bytes are downloaded. With `stream:false`, the endpoint waits and returns one
 JSON result. The API pull gate spans transfer and model loading. A simultaneous
 API pull receives HTTP 409 when its handler overlaps; the WinRT listener may
 otherwise dispatch the handlers sequentially. GUI downloads, USB import and explicit

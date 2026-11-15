@@ -534,13 +534,15 @@ The `\\?\` long-path prefix does not help: it bypasses MAX_PATH but not the acce
 
 ## 9. Disk Budget (Developer Mode Partition)
 
-> **Superseded (2026-07-08)**: the Developer Mode storage allocation was raised to
-> **90 GB** via Dev Home → Manage Dev Storage. The figures below describe the
-> default allocation and remain valid as the baseline for a fresh Developer Mode
-> activation; with the enlarged allocation, disk is no longer the binding
-> constraint for model sizing (GPU budget and RAM are). One caveat to verify:
-> community reports a ~2 GB per-file limit in Developer Mode, relevant for merged
-> `model.onnx` files above that size.
+> **Corrected (2026-11-15)**: disk is still a binding constraint for models.
+> LocalState is on `Q:`, which the app measured at **30 GiB** in total
+> (`[storage] LocalState volume=Q: capacity_mb=30719`), on a console whose Dev
+> Home storage allocation is 90 GB. That allocation was raised to 90 GB on
+> 2026-07-08, and this section then said disk was no longer a constraint; the
+> allocation does not size the volume models are written to. Device Portal
+> reports `DevelopmentFiles` on `D:`. Every sideloaded app shares `Q:`, so
+> another app's data reduces what xllama can download. The figures below
+> describe a fresh Developer Mode activation.
 
 **Observed**: the Xbox Series S Developer Mode partition (`Q:\`) provides approximately **2.2–2.5 GB of free space** after a clean Developer Mode activation, before any sideloaded package.
 
@@ -557,24 +559,27 @@ The `\\?\` long-path prefix does not help: it bypasses MAX_PATH but not the acce
 
 **Source**: repeated `deploy.sh` runs against `https://<XBOX_IP>:11443/api/devices/file/usage`. Series X was not tested; its partition layout and free space were not measured by this project.
 
-**Observed 2026-11-15**: after the console returned from retail to Developer
-Mode, a 2.45 GB GGUF (`gemma4-e2b`) could not be placed in LocalState.
-`POST /api/pull` ended six times with "There is not enough space on the disk",
-after 0.61 to 1.45 GB, and deleting 2.2 GB of other models did not move that
-point in a consistent way.
+**Observed 2026-11-15**: a 2.45 GB GGUF (`gemma4-e2b`) could not be placed in
+LocalState. `POST /api/pull` ended six times with "There is not enough space on
+the disk", after 0.61 to 1.45 GB, and deleting 2.2 GB of other models did not
+move that point in a consistent way. Three causes were found:
 
-The downloader was also writing each response to the system HTTP cache (#440).
-With that write turned off (package 1.7.0.1538) the same pull stopped at 0.33
-GB, then at 2.34 GB after 2.01 GB were freed, and completed after a further
-0.40 GB were freed. So a model download now needs about its own size in free
-space. The double write before the fix is inferred from those numbers; the
-cache was not read directly.
+- **`Q:` was nearly full.** Device Portal accounting put sideloaded app data at
+  about 29.6 GB: xllama 18.4 GB and another sideloaded app 10.1 GB. The volume
+  holds 30 GiB.
+- **The download was stored twice.** The downloader also wrote each response to
+  the system HTTP cache (#440). With that write off, the same pull stopped at
+  0.33 GB, then at 2.34 GB after 2.01 GB were freed, and completed after a
+  further 0.40 GB were freed. The double write is inferred from those numbers;
+  the cache was not read directly.
+- **A failed attempt left its `.part` file behind**, holding the space the next
+  attempt needed.
 
-A Device Portal upload of the same 2.45 GB file had returned HTTP 500, while
-uploads of 0.5 and 1.4 GB succeeded. The later pulls put the free space at
-about 2.3 GB, less than the file, so lack of space is the likely reason; that
-was not confirmed separately. 2.3 GB is far below the 90 GB figure above, so
-check the Dev Home storage allocation after a retail round trip.
+The downloader now checks free space before the first request, reports both
+numbers, and removes the partial file after a write error. A Device Portal
+upload of the same 2.45 GB file had returned HTTP 500 while uploads of 0.5 and
+1.4 GB succeeded; with about 2.3 GB free at the time, lack of space is the
+likely reason, not confirmed separately.
 
 For models not distributed through the catalogue, see the USB/Device Portal
 provisioning paths in `docs/model-selection.md`, `docs/device-portal.md` and
