@@ -5,7 +5,7 @@
     {
       "label": "LFM2.5-230M",
       "params": "230M",
-      "source": "2026-09-30-catalogue-gates.csv",
+      "source": "2026-11-15-remeasure-1563/lfm25-230m-qad-q40-cpu-t6-eog.csv",
       "selector": {
         "model": "lfm25-230m",
         "n_threads": "6",
@@ -18,7 +18,7 @@
     {
       "label": "LFM2.5-350M",
       "params": "350M",
-      "source": "2026-09-30-catalogue-gates.csv",
+      "source": "2026-11-15-remeasure-1563/lfm25-350m-qad-q40-cpu-t6-eog.csv",
       "selector": {
         "model": "lfm25-350m",
         "n_threads": "6",

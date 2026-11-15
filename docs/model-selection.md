@@ -320,8 +320,8 @@ the catalogue status only.
 | Model            | Path      | Disk size        | Status                                                                     |
 | ---------------- | --------- | ---------------- | -------------------------------------------------------------------------- |
 | Qwen3.5-0.8B     | llama.cpp | ~533 MB          | ✅ `qwen35-0.8b` — optional modern GGUF                                    |
-| LFM2.5-230M      | llama.cpp | ~149 MB          | ✅ `lfm25-230m` — floor; QAD Q4_0, 132.4 tok/s, 236 MiB, H9 1/8            |
-| LFM2.5-350M      | llama.cpp | ~219 MB          | ✅ `lfm25-350m` — default chat; QAD Q4_0, 101.6 tok/s, 311 MiB, H9 4/8     |
+| LFM2.5-230M      | llama.cpp | ~149 MB          | ✅ `lfm25-230m` — floor; QAD Q4_0, 127.1 tok/s, 237 MiB, H9 1/8            |
+| LFM2.5-350M      | llama.cpp | ~219 MB          | ✅ `lfm25-350m` — default chat; QAD Q4_0, 97.9 tok/s, 311 MiB, H9 4/8      |
 | LFM2.5-1.2B      | llama.cpp | ~696 MB          | ✅ `lfm25-1.2b-instruct` — balanced; QAD Q4_0, 40.0 tok/s, 783 MiB, H9 6/8 |
 | LFM2-2.6B        | llama.cpp | ~1.56 GB         | ✅ `lfm2-2.6b` — quality; 17.9 tok/s, H9 7/8                               |
 | Phi-4-mini       | llama.cpp | ~2.49 GB         | ✅ `phi4-mini` — T3 PASS: H9 6/8, 11.2 tok/s, 2765 MiB (#268)              |
