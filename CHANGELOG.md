@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Scripts:** the deploy, bench and validation scripts no longer call
+  `base64 -w0`, a GNU-only flag that fails on macOS. They strip the line
+  breaks with `tr` instead; the encoded value is the same.
+
 - **Series X is supported.** Accepted by the owner on 2026-11-15 from an
   independent tester's runs of package 1.7.0.1495 on a Series X: text
   generation with `lfm25-350m` and `lfm25-1.2b-instruct` through the LAN API
@@ -19,6 +23,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   is not known. The public wording changes from "Not yet tested on Series X"
   to "Supported on Series S and Series X", with the scope in
   `docs/positioning.md`.
+  ||||||| parent of 40318e2 (fix: encode Device Portal ids without the GNU-only base64 -w0)
 
 - **GPU control under ADR 0010: FAIL.** The first Coder-3B control judged
   against a declaration committed before its GPU arm failed on the Series S.
