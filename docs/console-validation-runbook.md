@@ -296,14 +296,20 @@ different runs.
 **Preflight — verify the on-device config is pristine.** `--threads` swaps
 `models\<name>\genai_config.json` on the device and restores it on exit, but a
 crashed or pre-restore-era sweep can leave the swap in place (observed twice: a
-t8 residue, and a t4 residue found 2026-07-25 — the shipped CPU asset sets no
-`intra_op_num_threads` at all). Before any measurement session:
+t8 residue, and a t4 residue found 2026-07-25). The shipped
+`smollm2-360m-cpu-int4` asset sets `intra_op_num_threads` to 6 since
+2026-07-25 ([benchmarks.md](benchmarks.md)); any other value, or a missing key,
+is drift. Before any measurement session:
 
 ```bash
 ./scripts/deploy.sh fetch-file "$(./scripts/deploy.sh pfn)" genai_config.json \
     /tmp/cfg.json 'models\smollm2-360m-cpu-int4'
-grep intra_op_num_threads /tmp/cfg.json && echo "DRIFT: restore the pristine config first"
+grep -q '"intra_op_num_threads": 6' /tmp/cfg.json || echo "DRIFT: restore the pristine config first"
 ```
+
+The UI process keeps one GPU engine busy while the app is idle (observed on
+1.7.0.1533). Stop the app before an idle check of the console; the harness
+starts it again in headless bench mode.
 
 After adding or changing committed evidence:
 

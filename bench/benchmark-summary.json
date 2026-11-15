@@ -93,7 +93,7 @@
     {
       "label": "Qwen3.5-0.8B",
       "params": "0.8B",
-      "source": "phase5-gguf.csv",
+      "source": "2026-11-15-remeasure-1533/qwen35-0.8b-q4km-cpu-t6.csv",
       "selector": {
         "model": "qwen35-0.8b",
         "n_threads": "6"
@@ -169,9 +169,9 @@
     {
       "label": "SmolLM2-1.7B",
       "params": "1.7B",
-      "source": "phase35-1b-cpu.csv",
+      "source": "2026-11-15-remeasure-1533/smollm2-1.7b-cpu-int4.csv",
       "selector": {
-        "model": "smollm2-1"
+        "model": "smollm2-1.7b-cpu-int4"
       },
       "backend_key": "ort",
       "backend_label": "ORT-GenAI CPU",

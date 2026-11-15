@@ -307,7 +307,9 @@ long prompt and the CPU wins from the second turn (§5d). Evidence under
       (`tests/test_bench.cpp`); the committed CSVs regenerate their current numbers
       unchanged (all pre-existing rows now show _single run_). Re-measuring any
       row on-console with the default 3 recorded runs is what turns a marker into
-      a spread — no such row exists yet (**blocked on console access**).
+      a spread. Done for five rows on 2026-10-11 and for Qwen3.5-0.8B and
+      SmolLM2-1.7B on 2026-11-15; the remaining single-run rows have no
+      catalogue artefact to remeasure.
 - [x] **Duplicated-state audit (the #125 / #133 / #141 class) — nothing divergent.**
       Three Phase 12 defects were one logical quantity with two homes. A read-only
       sweep of the sampling defaults, the invariant constant pairs

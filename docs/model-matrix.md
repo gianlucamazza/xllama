@@ -61,8 +61,8 @@ All rows below are **CPU-bound decode** unless backend says DirectML.
 | SmolLM2-360M          |              (same family) |    360M | Q4_K_M   | llama.cpp |     141.5 |      62.9 |      402 | —       | ChatML            | —    |  2048 | `phase35-llamacpp-scaling`                                             |
 | SmolLM2-360M DML v2   | `smollm2-360m-dml-fp16-v2` |    360M | fp16     | ORT DML   |     231.3 |      41.2 |     1206 | —       | ChatML            | —    |  2048 | `2026-10-11-remeasure-1163` · #91 parity OK                            |
 | LFM2.5-1.2B Instruct  |      `lfm25-1.2b-instruct` |    1.2B | Q4_0 QAD | llama.cpp |     109.7 |  **40.0** |      783 | **6/8** | ChatML            | —    |  2048 | `2026-09-30-catalogue-gates` · H1 PASS balanced · **GPU default (D3)** |
-| Qwen3.5-0.8B          |              `qwen35-0.8b` |    0.8B | Q4_K_M   | llama.cpp |      98.1 |      35.1 |      718 | —       | ChatML + no-think | —    |  2048 | `phase5-gguf`                                                          |
-| SmolLM2-1.7B          |    `smollm2-1.7b-cpu-int4` |    1.7B | int4     | ORT CPU   |      54.9 |      20.6 |     2423 | —       | ChatML            | —    |  2048 | `phase35-1b-cpu`                                                       |
+| Qwen3.5-0.8B          |              `qwen35-0.8b` |    0.8B | Q4_K_M   | llama.cpp |     174.6 |      34.3 |      715 | —       | ChatML + no-think | —    |  2048 | `2026-11-15-remeasure-1533`                                            |
+| SmolLM2-1.7B          |    `smollm2-1.7b-cpu-int4` |    1.7B | int4     | ORT CPU   |      61.1 |      21.0 |     2324 | —       | ChatML            | —    |  2048 | `2026-11-15-remeasure-1533`                                            |
 | LFM2-2.6B             |                `lfm2-2.6b` |    2.6B | Q4_K_M   | llama.cpp |      54.9 |  **17.9** |     1623 | **7/8** | ChatML            | —    |  2048 | `2026-10-11-remeasure-1163` · H1 PASS quality (`-rerun` CSV)           |
 | Gemma-4-E2B           |               `gemma4-e2b` | ~2B eff | Q3_K_S   | llama.cpp |      28.4 |      15.3 |     2741 | 6/8     | Gemma             | —    |  2048 | `2026-10-11-remeasure-1163`                                            |
 | Llama-3.2-3B Instruct |               `llama32-3b` |      3B | Q3_K_S   | llama.cpp |      21.2 |  **14.1** |     1827 | 5/8     | Llama-3           | —    |  2048 | `2026-10-11-remeasure-1163` · H4 preferred                             |
@@ -78,6 +78,10 @@ Notes:
   `llama32-3b`), and SmolLM2-360M DML fp16. New data points, not reproductions
   of the July rows. July single-run history stays in
   [benchmarks.md](./benchmarks.md). The six un-remeasured rows are unchanged.
+- **2026-11-15 remeasure** (build 1.7.0.1533, 3 recorded runs): Qwen3.5-0.8B
+  and SmolLM2-1.7B. New data points, not reproductions of the July single-run
+  rows; the old Qwen prefill figure predates the CPU repack. Details:
+  [campaign README](../bench/results/2026-11-15-remeasure-1533/README.md).
 - **Gemma-4-E2B template.** The row's decode, peak and H9 figures were measured
   while `gemma4-e2b` was rendered with the Gemma 3 template. It now gets the
   Gemma 4 turn tokens and a system turn (`chat_format_for`). The figures stay
