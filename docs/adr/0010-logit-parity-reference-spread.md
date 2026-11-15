@@ -1,6 +1,6 @@
 # ADR 0010: Judge GPU logit parity against the measured CPU reference spread
 
-Status: Accepted (2026-11-15) by the owner. The comparison is implemented; no control has been run under it.
+Status: Accepted (2026-11-15) by the owner. The comparison is implemented. The first control under it, Coder-3B on 2026-11-15, [failed](../research/evidence/2026-11-15-adr0010-control/README.md).
 
 It answers step 5 of the diagnostic protocol in
 [gpu-acceleration-baseline.md](../research/gpu-acceleration-baseline.md#c4-control-diagnosis)

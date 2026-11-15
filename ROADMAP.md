@@ -706,5 +706,9 @@ Console checkpoint, 2026-11-15: the Series S is back in Developer Mode. The
 still fails the frozen gate, and two host CPU builds show a similar spread
 between themselves
 ([details](docs/gguf-gpu-decode.md#2026-11-15-control-reproduction-and-tensor-diagnosis-420)).
+ADR 0010 was accepted and implemented the same day, and the first control
+under it failed: no first-layer kernel error, but the GPU logits exceed the
+declared margin over the CPU reference spread
+([evidence](docs/research/evidence/2026-11-15-adr0010-control/README.md)).
 #313/#414 stay stopped. Series X (#374) and the matched matrix (#422) remain
 blocked.

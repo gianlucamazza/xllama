@@ -199,9 +199,12 @@ Host integrity and diagnostic tools are integrated, and the control has been
 reproduced and traced on the console, down to single int8 rounding flips in the
 activation quantizer. The comparison of
 [ADR 0010](../adr/0010-logit-parity-reference-spread.md) is implemented
-(`scripts/control-parity.py`). The next actions are a fresh control under it,
-with a declaration committed before the GPU arm is measured, and attributable
-console measurement on the benchmark path. New weight types, kernel fusion, attention
+(`scripts/control-parity.py`), and the first control under it
+[failed on 2026-11-15](evidence/2026-11-15-adr0010-control/README.md): no
+first-layer kernel error, but the GPU arm's largest maximum error is 1.37
+times the CPU reference spread against a declared 1.22, and one prompt's top
+token differs. The next actions are locating where that error grows beyond
+the first layer, and attributable console measurement on the benchmark path. New weight types, kernel fusion, attention
 and GPU KV are higher-risk experiments with no current evidence of a benefit.
 Do not replace validated CPU paths merely to increase the fraction on GPU.
 

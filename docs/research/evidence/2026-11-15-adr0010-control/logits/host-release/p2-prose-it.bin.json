@@ -1,0 +1,9 @@
+{
+ "model": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+ "prompt": "Una piccola biblioteca di quartiere deve decidere come riorganizzare il proprio catalogo. Oggi i volumi sono ordinati per data di acquisto, una scelta comoda per chi registra i nuovi arrivi ma scomoda per chi cerca un libro: i lettori chiedono quasi sempre per autore o per argomento, e i bibliotecari finiscono per consultare un quaderno compilato a mano. La proposta sul tavolo prevede tre passaggi. Il primo consiste nel ricopiare il quaderno in un foglio di calcolo, con una riga per volume e colonne separate per autore, titolo, anno, argomento e scaffale. Il secondo consiste nel rietichettare gli scaffali per argomento, lasciando la narrativa in ordine alfabetico per cognome. Il terzo, il pi\u00f9 discusso, consiste nello spostare fisicamente circa quattromila volumi durante due fine settimana di chiusura. Chi \u00e8 contrario osserva che i volontari sono pochi, che un errore di trascrizione renderebbe un libro introvabile e che i lettori abituali conoscono gi\u00e0 a memoria la disposizione attuale. Chi \u00e8 favorevole risponde che il quaderno \u00e8 gi\u00e0 pieno di correzioni, che ogni nuovo volontario impiega settimane a orientarsi e che il foglio di calcolo permetterebbe finalmente di sapere quali libri non vengono presi in prestito da anni. Spiega quali rischi di questa riorganizzazione ti sembrano pi\u00f9 seri, indica in quale ordine eseguiresti i tre passaggi e proponi un controllo semplice per accorgersi degli errori di trascrizione prima di spostare i libri.",
+ "backend": "llama.cpp",
+ "vocab_size": 151936,
+ "greedy": true,
+ "top1_id": 4710,
+ "top1_piece": " \n\n"
+}
