@@ -19,7 +19,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   model saw no turn structure and could write the marker back as text. Chat
   UI, LAN API, CLI and device training share the one format. Gemma 3 ids are
   unchanged. Found in a community fork (EgbertJiang/xllama). The Series S
-  figures for `gemma4-e2b` predate this fix.
+  prefill, decode and peak figures for `gemma4-e2b` were remeasured with this
+  template on 2026-11-15; its H9 score was not.
 
 - **Startup model check:** `EnsureModelAsync` now ends with `co_return`. It
   was declared as a coroutine and contained no coroutine statement, so it was

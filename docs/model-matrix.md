@@ -61,10 +61,10 @@ All rows below are **CPU-bound decode** unless backend says DirectML.
 | SmolLM2-360M          |              (same family) |    360M | Q4_K_M   | llama.cpp |     141.5 |      62.9 |      402 | —       | ChatML            | —    |  2048 | `phase35-llamacpp-scaling`                                             |
 | SmolLM2-360M DML v2   | `smollm2-360m-dml-fp16-v2` |    360M | fp16     | ORT DML   |     231.3 |      41.2 |     1206 | —       | ChatML            | —    |  2048 | `2026-10-11-remeasure-1163` · #91 parity OK                            |
 | LFM2.5-1.2B Instruct  |      `lfm25-1.2b-instruct` |    1.2B | Q4_0 QAD | llama.cpp |     109.7 |  **40.0** |      783 | **6/8** | ChatML            | —    |  2048 | `2026-09-30-catalogue-gates` · H1 PASS balanced · **GPU default (D3)** |
-| Qwen3.5-0.8B          |              `qwen35-0.8b` |    0.8B | Q4_K_M   | llama.cpp |      98.1 |      35.1 |      718 | —       | ChatML + no-think | —    |  2048 | `phase5-gguf`                                                          |
-| SmolLM2-1.7B          |    `smollm2-1.7b-cpu-int4` |    1.7B | int4     | ORT CPU   |      54.9 |      20.6 |     2423 | —       | ChatML            | —    |  2048 | `phase35-1b-cpu`                                                       |
+| Qwen3.5-0.8B          |              `qwen35-0.8b` |    0.8B | Q4_K_M   | llama.cpp |     174.6 |      34.3 |      715 | —       | ChatML + no-think | —    |  2048 | `2026-11-15-remeasure-1533`                                            |
+| SmolLM2-1.7B          |    `smollm2-1.7b-cpu-int4` |    1.7B | int4     | ORT CPU   |      61.1 |      21.0 |     2324 | —       | ChatML            | —    |  2048 | `2026-11-15-remeasure-1533`                                            |
 | LFM2-2.6B             |                `lfm2-2.6b` |    2.6B | Q4_K_M   | llama.cpp |      54.9 |  **17.9** |     1623 | **7/8** | ChatML            | —    |  2048 | `2026-10-11-remeasure-1163` · H1 PASS quality (`-rerun` CSV)           |
-| Gemma-4-E2B           |               `gemma4-e2b` | ~2B eff | Q3_K_S   | llama.cpp |      28.4 |      15.3 |     2741 | 6/8     | Gemma             | —    |  2048 | `2026-10-11-remeasure-1163`                                            |
+| Gemma-4-E2B           |               `gemma4-e2b` | ~2B eff | Q3_K_S   | llama.cpp |      51.1 |      15.3 |     2731 | 6/8     | Gemma             | —    |  2048 | `2026-11-15-remeasure-1533`                                            |
 | Llama-3.2-3B Instruct |               `llama32-3b` |      3B | Q3_K_S   | llama.cpp |      21.2 |  **14.1** |     1827 | 5/8     | Llama-3           | —    |  2048 | `2026-10-11-remeasure-1163` · H4 preferred                             |
 | Phi-3.5-mini          |                          — |    3.8B | Q3_K_S   | llama.cpp |      15.3 |      11.3 |     2453 | —       | Phi-3             | —    |  2048 | `phase7-scale` · H4 PASS, loses A/B                                    |
 | Phi-4-mini            |                `phi4-mini` |    3.8B | Q4_K_M   | llama.cpp |      33.1 |      11.2 |     2765 | **6/8** | Phi-3             | —    |  4096 | `2026-09-30-catalogue-gates` · **T3 PASS** peer · n_ctx 4096           |
@@ -78,39 +78,14 @@ Notes:
   `llama32-3b`), and SmolLM2-360M DML fp16. New data points, not reproductions
   of the July rows. July single-run history stays in
   [benchmarks.md](./benchmarks.md). The six un-remeasured rows are unchanged.
-- **Gemma-4-E2B template.** The row's decode, peak and H9 figures were measured
-  while `gemma4-e2b` was rendered with the Gemma 3 template. It now gets the
-  Gemma 4 turn tokens and a system turn (`chat_format_for`). The figures stay
-  as recorded until the row is remeasured on the console.
-- Hybrid LFM: KV tail-rewind unsupported (#170a); front-drop context shift OK (#169).
-- **QAD Q4_0 ripin** (#270, console regression 2026-09-30,
-  `2026-09-30-catalogue-gates`): `lfm25-230m`, `lfm25-350m` and
-  `lfm25-1.2b-instruct` pin Liquid [QAD Q4_0](https://www.liquid.ai/blog/qad)
-  with the same H9, higher decode and lower peak. The 230M first failed (1/8
-  against a recorded 2/8). That 2/8 counted a wrong `grounded_qa` answer
-  ("ciascuno occupa 730 MB"). With the corrected scorer (#243) both artefacts
-  score 1/8, so QAD passes. `lfm2-2.6b` stays LFM2 Q4_K_M, since no QAD was
-  published for that generation.
-- **QAD trade-off, same build** (1.6.0.1072, `2026-09-30-qad-prefill-ab`,
-  interleaved runs): Q4_0 QAD costs about 15% prefill on all three ids
-  (230M 757 → 635, 350M 439 → 374, 1.2B 131 → 110 tok/s) and gains 8–13%
-  decode (121.7 → 131.4, 90.0 → 101.6, 36.9 → 40.1) at 2–4% less peak. An
-  earlier note that the 1.2B prefill "rises" compared builds from different
-  eras (the 76.2 predates #168) and was wrong.
-- **H9 source** (#243): since 2026-09-30 the published H9 column comes from one
-  full re-run with the corrected scorer (`2026-09-30-h9-rescore.jsonl`).
-  `phase7-h9.jsonl` stays as raw history. Only `lfm25-230m`'s Q4_K_M score
-  changed (2/8 → 1/8).
-- Qwen3.5 (`qwen35`): `can_shift` false (imrope) — overflow fail-fast + trim, no
-  RoPE shift. Qwen3 (`qwen3`) is a different arch and **does** shift — measured, see §D.
-- DML text routing allowlist: only `smollm2-360m-dml-fp16-v2` (`dml_text_model_ok`).
-- Thinking models get **no KV snapshot** (#170b): the saved history is stripped
-  while the resident KV holds the full chain of thought, so the #170a prefix diff
-  always diverges and the snapshot would buy nothing. In-conversation delta reuse
-  is unaffected.
-- Prefill is chunked at `n_batch` for every arch (`fit_prompt` bounds the prompt,
-  `LlamaSession::generate` splits it): a prompt past the logical batch is no longer
-  an abort, and one past `n_ctx` is a clean `prompt too long`.
+- **2026-11-15 remeasure** (3 recorded runs): Qwen3.5-0.8B and SmolLM2-1.7B on
+  build 1.7.0.1533, Gemma-4-E2B on build 1.7.0.1538. New data points, not reproductions of the July single-run
+  rows; the old Qwen prefill figure predates the CPU repack. Details:
+  [campaign README](../bench/results/2026-11-15-remeasure-1533/README.md).
+- **Gemma-4-E2B template.** The prefill, decode and peak figures are from
+  2026-11-15 on build 1.7.0.1538, which renders `gemma4-e2b` with the Gemma 4
+  turn tokens and a system turn (`chat_format_for`). The H9 score (6/8) was
+  measured with the Gemma 3 template and has not been rerun.
 
 ### A2. Phase 14 — console-validated (Series S, 2026-07-27)
 
