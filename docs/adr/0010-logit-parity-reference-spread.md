@@ -1,11 +1,12 @@
 # ADR 0010: Judge GPU logit parity against the measured CPU reference spread
 
-Status: Proposed
+Status: Accepted (2026-11-15) by the owner; not yet implemented.
 
-Proposed for owner acceptance. It answers step 5 of the diagnostic protocol in
+It answers step 5 of the diagnostic protocol in
 [gpu-acceleration-baseline.md](../research/gpu-acceleration-baseline.md#c4-control-diagnosis)
-and issue #420. Nothing here takes effect until it is accepted. The 2026-11-08
-control verdict stays FAIL either way.
+and issue #420. The comparison mode it describes is not built yet, so
+`scripts/compare-logits.py` still applies the frozen gate. Accepting it
+does not change the 2026-11-08 control verdict, which stays FAIL.
 
 ## Context
 
