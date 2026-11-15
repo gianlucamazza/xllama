@@ -22,3 +22,8 @@ merged pull requests for the full record.
   in-tree as an optional debug dashboard of real runtime readings; the
   fork's rebrand, background, soundtrack, and footer credit were not
   taken.
+- [@EgbertJiang](https://github.com/EgbertJiang) — the Gemma 4 chat
+  template, from the
+  [Xbox One S fork](https://github.com/EgbertJiang/xllama/tree/codex/xbox-one-s-compat).
+  Rebuilt in-tree with its own tests; the rest of that fork is reviewed in
+  [docs/community-forks.md](docs/community-forks.md#egbertjiang-xbox-one-s).

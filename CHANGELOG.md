@@ -7,6 +7,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Gemma 4 chat template:** `gemma4-e2b` and other Gemma 4 ids now get the
+  Gemma 4 turn tokens (`<|turn>`, `<turn|>`) and a dedicated system turn. They
+  were rendered with the Gemma 3 template, whose `<start_of_turn>` and
+  `<end_of_turn>` markers are plain text in the Gemma 4 vocabulary, so the
+  model saw no turn structure and could write the marker back as text. Chat
+  UI, LAN API, CLI and device training share the one format. Gemma 3 ids are
+  unchanged. Found in a community fork (EgbertJiang/xllama). The Series S
+  figures for `gemma4-e2b` predate this fix.
+
 - **Startup model check:** `EnsureModelAsync` now ends with `co_return`. It
   was declared as a coroutine and contained no coroutine statement, so it was
   an ordinary function that returned no value (undefined behaviour). The MSVC

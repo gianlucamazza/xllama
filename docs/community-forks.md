@@ -17,7 +17,7 @@ All forks keep the MIT licence.
 | nyzxor, hjotha, mr-wfj                             | —                                                         | no commits ahead                                     |
 | [maxmorrison74](#maxmorrison74-xllama-on-steroids) | optional debug dashboard idea (rebuilt in-tree)           | rebrand, background, soundtrack, footer credit       |
 | [vetax-by](#vetax-by-demand-loaded-moe-experts)    | a data point for [#273] and the SSD assessment            | the expert-loading runtime and its llama.cpp patches |
-| [EgbertJiang](#egbertjiang-xbox-one-s)             | — (three leads to check on `main`, listed below)          | Xbox One S port, `/chat` page, second model root     |
+| [EgbertJiang](#egbertjiang-xbox-one-s)             | Gemma 4 chat template (rebuilt in-tree, credited)         | Xbox One S port, `/chat` page, second model root     |
 
 ## SamirCharleston: vision-spike
 
@@ -283,15 +283,16 @@ surface over the non-streaming route. The sidebar is a UI redesign. A second
 model root is a product decision, not a compatibility fix. Each would need its
 own PR against current `main`.
 
+**Taken: the Gemma 4 chat template.** `chat_format_for` gave every Gemma id
+the Gemma 3 format, including the catalogue's `gemma4-e2b`. In the Gemma 4
+vocabulary `<start_of_turn>` is seven text tokens and `<|turn>` is one special
+token, so the model received no turn structure. `main` now selects `<|turn>` and
+`<turn|>` with a dedicated system turn for Gemma 4 ids, matching the
+`chat_template.jinja` of `google/gemma-4-E2B-it`. The fix is rebuilt in-tree
+with its own tests. Credit: `CHANGELOG.md`, `CONTRIBUTORS.md`.
+
 **Leads for `main`.** None is imported here; each needs its own check and PR.
 
-- **Gemma 4 chat template.** `chat_format_for` gives every Gemma id the
-  Gemma 3 format, `<start_of_turn>` with the system text merged into the first
-  user turn. That includes the catalogue's `gemma4-e2b`. The fork switches
-  Gemma 4 ids to `<|turn>` and `<turn|>` with a dedicated system turn. The
-  `chat_template.jinja` of `google/gemma-4-E2B-it`, read on 2026-11-15, uses
-  those tokens and a system turn. Still to check: what the console sends for
-  `gemma4-e2b`, and whether its measured quality moves with the other template.
 - **`EnsureModelAsync` returned nothing (fixed).** In `uwp/MainPage.cpp` the
   function was declared `fire_and_forget` and contained no `co_await` or
   `co_return`, so it was an ordinary function that ran off its end, which is
