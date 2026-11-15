@@ -180,7 +180,7 @@
     {
       "label": "Gemma-4-E2B",
       "params": "~5B raw (2B eff)",
-      "source": "2026-10-11-remeasure-1163/gemma4-e2b-q3ks-cpu-t6.csv",
+      "source": "2026-11-15-remeasure-1533/gemma4-e2b-q3ks-cpu-t6.csv",
       "selector": {
         "model": "gemma4-e2b",
         "quant": "Q3_K_S"
@@ -188,7 +188,7 @@
       "backend_key": "llama",
       "backend_label": "llama.cpp CPU · t6",
       "tag": "catalogue default",
-      "note": "remeasured on build 1.6.0.1163, 3 runs (2026-10-11); new data points, not reproductions of the July rows"
+      "note": "remeasured on build 1.7.0.1538 with the Gemma 4 chat template, 3 runs (2026-11-15)"
     },
     {
       "label": "LFM2-2.6B",

@@ -10,12 +10,19 @@ New data points on xllama `1.7.0.1533` (x64 MSIX, dev SKU, Xbox Series S) for tw
 - Both models were provisioned with `scripts/provision-models.sh` from the catalogue URLs just before the campaign.
 - No external power, ambient or thermal data was taken, so there is no sidecar. These rows are 3-run medians, not publication-grade headline measurements.
 
-| row                        | CSV                         | decode tok/s median (runs) | old single-run decode | prefill tok/s median | load ms median | peak WS MB |
-| -------------------------- | --------------------------- | -------------------------- | --------------------- | -------------------- | -------------- | ---------- |
-| Qwen3.5-0.8B Q4_K_M CPU t6 | qwen35-0.8b-q4km-cpu-t6.csv | 34.34 (34.26/34.36/34.34)  | 35.08                 | 174.56               | 2992           | 715        |
-| SmolLM2-1.7B int4 ORT CPU  | smollm2-1.7b-cpu-int4.csv   | 21.02 (21.02/20.84/21.66)  | 20.62                 | 61.14                | 6258           | 2324       |
+| row                                          | CSV                         | decode tok/s median (runs) | old single-run decode                  | prefill tok/s median | load ms median | peak WS MB |
+| -------------------------------------------- | --------------------------- | -------------------------- | -------------------------------------- | -------------------- | -------------- | ---------- |
+| Qwen3.5-0.8B Q4_K_M CPU t6                   | qwen35-0.8b-q4km-cpu-t6.csv | 34.34 (34.26/34.36/34.34)  | 35.08                                  | 174.56               | 2992           | 715        |
+| SmolLM2-1.7B int4 ORT CPU                    | smollm2-1.7b-cpu-int4.csv   | 21.02 (21.02/20.84/21.66)  | 20.62                                  | 61.14                | 6258           | 2324       |
+| Gemma-4-E2B Q3_K_S CPU t6 (build 1.7.0.1538) | gemma4-e2b-q3ks-cpu-t6.csv  | 15.31 (15.35/15.31/15.21)  | 15.30 (3-run median, build 1.6.0.1163) | 51.08                | 8784           | 2731       |
 
 The old Qwen prefill figure (98.1) predates the CPU repack and is not comparable.
+
+## Gemma-4-E2B row: a later package
+
+The Gemma row was measured about an hour after the other two, on CI package **1.7.0.1538** (run 43709379078, MSIX SHA-256 `675469477cc4d5f4f2ad866539c59db8437cfdcdb4b45bf9774de324d14ea1fa`), with the build guard set to that package. The 2.45 GB file could not be downloaded to the console until that package's downloader fix (#440). 1538 is `main` at the time plus #440, so it renders `gemma4-e2b` with the Gemma 4 chat template (#438); the 2026-10-11 row used the Gemma 3 template. Same settings and prompt file as above, `--threads 6`.
+
+Decode is unchanged (15.31 against 15.30). Prefill is 51.1 tok/s against 28.4 in the 2026-10-11 row, at 278 prompt tokens against 280. This campaign does not isolate the cause: the template, the package and the llama.cpp pin all differ between the two rows.
 
 ## Failed attempt (kept for honesty)
 
@@ -23,7 +30,6 @@ The first Qwen attempt never started a run. The idle gate failed five times with
 
 ## Not measured
 
-- Gemma-4-E2B Q3_K_S: the 2.45 GB file could not be placed on the console in this session (see `docs/uwp-constraints.md` §9), so the row that predates the Gemma 4 template fix is unchanged.
 - SmolLM2-360M Q4_K_M CPU, Phi-3.5-mini Q3_K_S, Gemma-4-E2B IQ2_M and SmolLM2-360M int4 DML: none is a catalogue artefact today, so they stay as historical single-run rows.
 
-`docs/benchmarks.md` / `bench/benchmark-summary.json` now select these two rows.
+`docs/benchmarks.md` / `bench/benchmark-summary.json` now select these three rows.
