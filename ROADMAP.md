@@ -696,5 +696,13 @@ separate workflow, as documented in the release runbook.
 Source/evidence discovery and the conditional 6–8 week stages are in the
 [baseline](docs/research/gpu-acceleration-baseline.md). Follow #420 for parity
 integrity/control diagnosis, #421 for attributable profiling and #422 for
-routing/matched benchmarks; reuse #313/#414, #374 and #395. Hardware stages
-remain blocked. Host tooling PRs #423/#424 do not qualify C4 or a new release.
+routing/matched benchmarks; reuse #313/#414, #374 and #395. Host tooling PRs
+#423/#424 do not qualify C4 or a new release.
+
+Console checkpoint, 2026-11-15: the Series S is back in Developer Mode. The
+#420 control was reproduced byte for byte and traced with tensor capture; it
+still fails the frozen gate, and two host CPU builds show a similar spread
+between themselves
+([details](docs/gguf-gpu-decode.md#2026-11-15-control-reproduction-and-tensor-diagnosis-420)).
+#313/#414 stay stopped. Series X (#374) and the matched matrix (#422) remain
+blocked.

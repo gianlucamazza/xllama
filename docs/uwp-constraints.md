@@ -557,6 +557,15 @@ The `\\?\` long-path prefix does not help: it bypasses MAX_PATH but not the acce
 
 **Source**: repeated `deploy.sh` runs against `https://<XBOX_IP>:11443/api/devices/file/usage`. Series X was not tested; its partition layout and free space were not measured by this project.
 
+**Observed 2026-11-15 (cause not established)**: after the console returned
+from retail to Developer Mode, a 2.45 GB GGUF (`gemma4-e2b`) could not be
+placed in LocalState. `POST /api/pull` ended five times with "There is not
+enough space on the disk", after 0.61 to 1.45 GB, and a Device Portal upload of
+the same file returned HTTP 500. Deleting 2.2 GB of other models did not change
+the outcome, while a 21 MB package update installed normally. Check the Dev
+Home storage allocation after any retail round trip before assuming the 90 GB
+figure above still applies.
+
 For models not distributed through the catalogue, see the USB/Device Portal
 provisioning paths in `docs/model-selection.md`, `docs/device-portal.md` and
 `src/bridge/path_utils.cpp`.

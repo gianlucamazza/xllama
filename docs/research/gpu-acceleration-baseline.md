@@ -95,18 +95,26 @@ Tensor capture is diagnostic, not temporal operator/layer profiling. Fresh
 console captures, overhead calibration and CSV/sidecar integration remain pending.
 Implemented tools do not establish a new performance result.
 
-| Requested metric / bottleneck             | Existing source                                            | Current limitation / next gate                                                                                             |
-| ----------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Prefill/decode throughput, load, TTFT     | `bench.cpp`, shared decode loops, bench CSV/sidecars       | CSV TTFT starts at prefill, excludes load; retained timing is package-specific                                             |
-| API TTFB / end-to-end request latency     | Client stream timing probe (#431)                          | Probe records connect, complete header, first body byte and first content; console runs and common CSV integration pending |
-| GPU time, graph wall time, dispatch count | D3D12 query pair per submission, backend-lifetime counters | Per-phase counters integrated in #430; fresh console capture pending; missing GPU time is unavailable                      |
-| CPU compute time                          | CPU inference durations, mixed-graph wall time             | Wall minus GPU is not CPU compute; separate quantization, command recording and waits                                      |
-| Per-operator/layer                        | ORT provider/op traces; ggml tensor names available        | Fused ORT nodes hide layers; prefill tensor capture integrated in #428; temporal operator/layer attribution pending        |
-| Synchronization / dispatch overhead       | `gpustep` round-trip and sync/nosync probes                | Historical synthetic probe, not current per-token attribution                                                              |
-| Transfer bytes / effective bandwidth      | `gpugemv`, `gpubw`, weight buffers and UMA architecture    | Packed weight BW is not total inference BW; current graph transfer counters absent                                         |
-| Allocation / peak memory                  | Process working-set helpers and GPU budget observations    | Distinguish lifetime OS peak from sampled maxima and reset scope; no full allocation ledger                                |
-| KV utilization                            | Session/context budget and KV persistence                  | No unified occupancy/bytes/fragmentation export across backends                                                            |
-| Shader compile / warmup                   | Offline shader compilation and PSO init                    | Shader compiler time is host build time; PSO creation/warmup require separate on-device intervals                          |
+Console checkpoint (2026-11-15): the Coder-3B control was reproduced on a
+Series S with package 1.7.0.1533 and diagnosed with tensor capture. The dumps
+are byte-identical to 2026-11-08, the frozen verdict is still FAIL, and two
+host CPU builds show the same spread between themselves. The same run gives
+the first console `d3d12-phase` lines. Details and limits:
+[gguf-gpu-decode.md](../gguf-gpu-decode.md#2026-11-15-control-reproduction-and-tensor-diagnosis-420);
+[receipt](evidence/2026-11-15-coder-control-diagnosis/receipt.json).
+
+| Requested metric / bottleneck             | Existing source                                            | Current limitation / next gate                                                                                                                                        |
+| ----------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Prefill/decode throughput, load, TTFT     | `bench.cpp`, shared decode loops, bench CSV/sidecars       | CSV TTFT starts at prefill, excludes load; retained timing is package-specific                                                                                        |
+| API TTFB / end-to-end request latency     | Client stream timing probe (#431)                          | Probe records connect, complete header, first body byte and first content; console runs and common CSV integration pending                                            |
+| GPU time, graph wall time, dispatch count | D3D12 query pair per submission, backend-lifetime counters | Per-phase counters integrated in #430; one console capture on 2026-11-15 (logit probe, all timestamps valid); benchmark-path capture and overhead calibration pending |
+| CPU compute time                          | CPU inference durations, mixed-graph wall time             | Wall minus GPU is not CPU compute; separate quantization, command recording and waits                                                                                 |
+| Per-operator/layer                        | ORT provider/op traces; ggml tensor names available        | Fused ORT nodes hide layers; prefill tensor capture integrated in #428; temporal operator/layer attribution pending                                                   |
+| Synchronization / dispatch overhead       | `gpustep` round-trip and sync/nosync probes                | Historical synthetic probe, not current per-token attribution                                                                                                         |
+| Transfer bytes / effective bandwidth      | `gpugemv`, `gpubw`, weight buffers and UMA architecture    | Packed weight BW is not total inference BW; current graph transfer counters absent                                                                                    |
+| Allocation / peak memory                  | Process working-set helpers and GPU budget observations    | Distinguish lifetime OS peak from sampled maxima and reset scope; no full allocation ledger                                                                           |
+| KV utilization                            | Session/context budget and KV persistence                  | No unified occupancy/bytes/fragmentation export across backends                                                                                                       |
+| Shader compile / warmup                   | Offline shader compilation and PSO init                    | Shader compiler time is host build time; PSO creation/warmup require separate on-device intervals                                                                     |
 
 Measured historical bottlenecks and their values belong only in
 [GPU decode design](../gguf-gpu-decode.md), [Phase 15](../phase15-re-opt.md) and
@@ -177,18 +185,21 @@ The 6–8 week horizon is conditional on hardware availability, not a completion
 promise. No arbitrary speedup target is introduced. The existing #313 margins
 remain frozen for that experiment only.
 
-| Stage         | Work / owner lane                            | Acceptance                                                                          | Status / dependency                                                          |
-| ------------- | -------------------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| M0, week 1    | Source/evidence audit, principal/runtime     | This baseline, route/coverage map and triage reviewed                               | Audit produced; no fresh console baseline                                    |
-| M1, weeks 1–2 | Integrity and profiling, QA/performance      | Fail-closed CLI/trace tests; complete attributable current-device capture           | #420/#421; tools #423/#424/#428/#430/#431 integrated; device capture pending |
-| M2, weeks 2–3 | Coder control RCA, numerical/GPU             | First causal divergence isolated and frozen parity passes                           | #420/#313; tensor capture integrated in #428; fresh device diagnosis pending |
-| M3, weeks 3–5 | Measured kernel/overhead work, HLSL          | Independent reversible PRs, numerical and resource gates, paired gains              | #313/#414; blocked by M2, no Q5/Q8 or GPU KV promotion                       |
-| M4, weeks 4–6 | Deterministic routing, runtime/platform      | Measured envelope, logged reasons, fallback/override and repeatable tests           | #422; existing defaults preserved pending data                               |
-| M5, weeks 5–7 | Matched S/X suite, benchmark/reproducibility | Raw attempts, device receipts, uncertainty, quality and memory gates                | #422/#374; Series X absent                                                   |
-| M6, weeks 6–8 | Hardening/report, QA/release/reviewer        | Required CI plus device lost, concurrency, upgrade/download and final-package gates | #395/#422; publication blocked until evidence sufficient                     |
+| Stage         | Work / owner lane                            | Acceptance                                                                          | Status / dependency                                                                      |
+| ------------- | -------------------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| M0, week 1    | Source/evidence audit, principal/runtime     | This baseline, route/coverage map and triage reviewed                               | Audit produced; no fresh console baseline                                                |
+| M1, weeks 1–2 | Integrity and profiling, QA/performance      | Fail-closed CLI/trace tests; complete attributable current-device capture           | #420/#421; tools integrated; first console phase capture 2026-11-15, calibration pending |
+| M2, weeks 2–3 | Coder control RCA, numerical/GPU             | First causal divergence isolated and frozen parity passes                           | #420/#313; control reproduced and traced to layer 0 on 2026-11-15; verdict still FAIL    |
+| M3, weeks 3–5 | Measured kernel/overhead work, HLSL          | Independent reversible PRs, numerical and resource gates, paired gains              | #313/#414; blocked by M2, no Q5/Q8 or GPU KV promotion                                   |
+| M4, weeks 4–6 | Deterministic routing, runtime/platform      | Measured envelope, logged reasons, fallback/override and repeatable tests           | #422; existing defaults preserved pending data                                           |
+| M5, weeks 5–7 | Matched S/X suite, benchmark/reproducibility | Raw attempts, device receipts, uncertainty, quality and memory gates                | #422/#374; Series X absent                                                               |
+| M6, weeks 6–8 | Hardening/report, QA/release/reviewer        | Required CI plus device lost, concurrency, upgrade/download and final-package gates | #395/#422; publication blocked until evidence sufficient                                 |
 
-Host integrity and diagnostic tools are integrated. The next actions are fresh
-control RCA and attributable console measurement. New weight types, kernel fusion, attention
+Host integrity and diagnostic tools are integrated, and the control has been
+reproduced and traced on the console. The next actions are isolating the
+layer-0 per-column differences to bytes, deciding by ADR whether the frozen
+criterion fits this model, and attributable console measurement on the
+benchmark path. New weight types, kernel fusion, attention
 and GPU KV are higher-risk experiments with no current evidence of a benefit.
 Do not replace validated CPU paths merely to increase the fraction on GPU.
 

@@ -652,6 +652,74 @@ not a numerical pass. `logits_model.txt` names an already provisioned operator
 research model for the probe without catalogue promotion or a download. Remove
 all diagnostic overrides after the campaign.
 
+### 2026-11-15 control reproduction and tensor diagnosis (#420)
+
+The Coder-3B control was run again on a Series S with CI package
+1.7.0.1533, in the UI process, with the frozen prompt and `n_ubatch` 512.
+Receipt, comparisons and host dumps:
+[evidence directory](research/evidence/2026-11-15-coder-control-diagnosis/receipt.json).
+The frozen verdict is unchanged: the control still fails.
+
+**The failure is deterministic.** Both console dumps are byte-identical to the
+2026-11-08 dumps from package 1.7.0.1482. The comparator gives the same
+numbers: maximum error 0.550 against 0.5, NMSE 1.022e-3 against 1e-3, same top
+token.
+
+**Capture does not change the result.** With tensor capture on, each arm's
+logits are byte-identical to the same arm with capture off.
+
+**Where the arms part.** One record per captured node, CPU against GPU:
+
+- In layer 0 the last-token outputs agree to NMSE 1.5e-12 or better for every
+  captured node, and to about 1e-14 for the GPU `MUL_MAT` results. With equal
+  inputs the kernels match the CPU to rounding.
+- A capture of every column of layers 0 and 1 shows the first differences in a
+  few prompt positions only. After the attention output projection of layer 0,
+  33 of 512 columns differ (worst column 3.3e-6). After the layer-0 feed-forward
+  it is 84 columns (worst 1.1e-4). The other columns stay at rounding level.
+- Layer 1 attention mixes positions, so almost every column then differs. The
+  per-layer NMSE rises to about 1e-3 by layer 6 and stays near that level to
+  the output. No single layer adds a jump.
+
+**The same spread appears between CPU builds.** The model file was copied from
+the console (same SHA-256) and the prompt was run on a Linux host with the
+repack CPU kernels and with a build that has them disabled
+(`GGML_CPU_REPACK=OFF`), both AVX2. Frozen comparator, all pairs:
+
+| Reference   | Candidate   | Max error |     NMSE | Verdict |
+| ----------- | ----------- | --------: | -------: | ------- |
+| console CPU | console GPU |     0.550 | 1.022e-3 | FAIL    |
+| console CPU | host repack |     0.507 |  7.42e-4 | FAIL    |
+| console CPU | host plain  |     0.477 |  7.30e-4 | PASS    |
+| host repack | host plain  |     0.534 |  8.50e-4 | FAIL    |
+| console GPU | host plain  |     0.521 |  7.43e-4 | FAIL    |
+| console GPU | host repack |     0.642 | 1.121e-3 | FAIL    |
+
+Two of the three CPU-only pairs fail the maximum-error limit, and every pair
+follows the same per-layer curve. For this model and prompt the 0.5 limit does
+not separate a GPU arm from two CPU builds of the same arithmetic. The GPU
+pairs are still the widest on NMSE (two of three above 1e-3; no CPU-only pair
+is), so this does not clear the GPU arm.
+
+What this establishes and what it does not:
+
+- No sign of an indexing, lifetime or synchronisation defect: the run is
+  deterministic, capture-invariant and exact at layer 0 for equal inputs.
+- The first differences are sparse per-column differences in layer 0. Their
+  origin (activation rounding, summation order or something else) is not yet
+  isolated to bytes.
+- The control verdict stays FAIL. Thresholds, prompt and inputs are unchanged.
+  A different criterion for this model would need its own ADR before any new
+  campaign, as the diagnostic protocol in
+  [gpu-acceleration-baseline.md](research/gpu-acceleration-baseline.md#c4-control-diagnosis)
+  already requires. #313 and #414 stay stopped.
+
+The GPU arm of that run also logged the first console `d3d12-phase` lines
+(#421). For the 958-token prefill: 433 submissions, 504 dispatches, 11427 ms
+wall, 2421 ms CPU q8 quantization, 8 ms command recording, 8990 ms execute
+through fence and 8933 ms GPU, with all 433 timestamp pairs valid. This is one
+diagnostic run of the logit probe, not a benchmark row.
+
 ### Attributable request counters (#421)
 
 A GGUF run with GPU layers logs one `[xllama] d3d12-phase` line after the
