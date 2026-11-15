@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Model download:** the downloader no longer writes model bodies to the
+  system HTTP cache while it streams them to LocalState. On a Series S, a
+  2.45 GB download failed repeatedly with "There is not enough space on the
+  disk" after 0.6 to 1.45 GB, with more free space than that reported.
+
 - **Gemma 4 chat template:** `gemma4-e2b` and other Gemma 4 ids now get the
   Gemma 4 turn tokens (`<|turn>`, `<turn|>`) and a dedicated system turn. They
   were rendered with the Gemma 3 template, whose `<start_of_turn>` and
