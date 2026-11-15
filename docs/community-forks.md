@@ -482,3 +482,48 @@ inventory above. Comparisons are pinned against upstream
 
 The ten forks listed on 2026-11-07 have no new commits. Their behind counts
 grew with `main`; their ahead counts and verdicts are unchanged.
+
+## Second pass, 2026-11-15
+
+A later check on the same day, against `main` `e12cf3d`. The collection
+returns 13 public forks. Two things changed; every other fork is at the
+commit recorded above.
+
+### EidonLabsInc: first Series X runs (PR #448)
+
+`EidonLabsInc/xllama` `main` at `08baa0c`, one commit, opened as
+[#448](https://github.com/gianlucamazza/xllama/pull/448) after
+[Discussion #434](https://github.com/gianlucamazza/xllama/discussions/434).
+It adds two CSVs and no code: 143 LAN-API wall-clock runs of package
+1.7.0.1495 on a Series X, for `lfm25-350m` and `lfm25-1.2b-instruct`.
+
+This is the first inference data from a Series X and the most useful fork
+contribution so far. It is not accepted evidence yet:
+
+- The rows are labelled `xbox-series-x`. `bench/README.md` requires
+  `xbox-series-x-declared` for an operator-declared device.
+- No Device Portal or OS receipt accompanies the rows, which the
+  [acceptance protocol](console-validation-runbook.md#independent-series-x-acceptance-374)
+  requires before they count as Series X evidence.
+- Two of the three SHA-256 values in the PR text are 66 and 85 hex digits
+  long, so they are not valid digests.
+- The canonical file leaves the rate columns empty (the runs are end-to-end
+  timings, which the contributor correctly keeps out of `decode_tok_s`), and
+  its `run_index` 1 to 3 repeats across batches. It must stay out of the
+  summary selectors.
+- The runs before and after the app was marked as a Game package differ by
+  about 2.4 times. The PR calls this a correlation; the cause is not
+  established.
+
+Not checked here: the raw records behind the CSVs, and anything on a Series X.
+Until the label, receipt and digests are fixed and the rows are accepted, the
+project statement stays "Not yet tested on Series X" (#374).
+
+### vetax-by: five more commits, verdict unchanged
+
+`codex/ua50-ssd-moe` moved from `bfbd0f8` to `385a4f5` (28 ahead, 26 behind).
+The new commits add a synchronous selected-expert GPU bridge inside the CPU
+graph and an adapter-identity probe, as three more patches (fifteen in
+total), plus signing-recipe changes. The fork still patches llama.cpp,
+reports no tok/s or peak memory, adds no tests and describes itself as
+compile and package only. None of the conditions for reopening it is met.
