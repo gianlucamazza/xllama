@@ -6,7 +6,7 @@ Run a language model on your own Xbox Series S, with chat, an API on your local 
 
 Tested and measured on Series S. Not yet tested on Series X.
 
-**Next step:** testing xllama on Xbox Series X. A [GitHub Sponsors goal](https://github.com/sponsors/gianlucamazza) is set to fund the console, and results will be published in this repo.
+**Series X:** an independent tester has published a first field report on a Series X ([Discussion #434](https://github.com/gianlucamazza/xllama/discussions/434)) and submitted the raw runs ([#448](https://github.com/gianlucamazza/xllama/pull/448)). They are under review against the [acceptance protocol](docs/console-validation-runbook.md#independent-series-x-acceptance-374) and are not yet accepted evidence, so the statement above stands. A [GitHub Sponsors goal](https://github.com/sponsors/gianlucamazza) is set to fund a Series X for the project's own measurements.
 
 ### ⚠️ Read before sideloading
 
@@ -153,10 +153,10 @@ Two front-ends: `xllama-cli` (Linux) + UWP app.
 
 ### Backend dispatch
 
-| Path                     | What                                                                  | Why                                                                              |
-| ------------------------ | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| **ORT GenAI + DirectML** | ONNX models, CPU int4 decode + DML fp16 prefill                       | GPU wins batch compute, long-prompt TTFT                                         |
-| **llama.cpp + GGUF**     | CPU, KV-reuse, repacked GEMM; d3d12 matmul layers per catalogue entry | Zen2 wins decode at small sizes; own D3D12 kernels win on the 1.2B / 3B measured |
+| Path                     | What                                                                  | Why                                                                          |
+| ------------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **ORT GenAI + DirectML** | ONNX models, CPU int4 decode + DML fp16 prefill                       | GPU wins batch compute, long-prompt TTFT                                     |
+| **llama.cpp + GGUF**     | CPU, KV-reuse, repacked GEMM; d3d12 matmul layers per catalogue entry | Zen2 wins decode at small sizes; own D3D12 kernels win decode on LFM2.5-1.2B |
 
 Unified build dispatches **per model at runtime** via `Backend::Auto`.
 Llama.cpp is both benchmarking lane and shipping backend.
@@ -217,8 +217,8 @@ The DOI badge and version DOI are synchronized from `release.toml`.
 ### Why Xbox Series S?
 
 Zen2 CPU wins decode on the DirectML path and at small model sizes; RDNA2
-wins batch prefill, and our own D3D12 kernels win GGUF decode on the 1.2B and
-3B models measured (Q4_0 / Q4_K_M).
+wins batch prefill, and our own D3D12 kernels win GGUF decode on LFM2.5-1.2B
+(Q4_0).
 Unified memory means the GPU budget ([uwp-constraints.md](docs/uwp-constraints.md) §7) is the hard constraint.
 An underexplored platform with strict memory and packaging constraints.
 
@@ -227,11 +227,11 @@ An underexplored platform with strict memory and packaging constraints.
 Per-workload verdict on DirectML: CPU decode > GPU decode, GPU prefill > CPU
 prefill. One backend can't win both. Runtime dispatch per model is the answer.
 GGUF decode also runs on our own D3D12 kernels: a ggml backend `d3d12`, with
-q8 numerics that match the CPU. It is the default only for LFM2.5-1.2B. The
-coding option, Qwen2.5-Coder-1.5B (Apache-2.0), runs on the CPU like the
-other GGUF models. The Qwen2.5-Coder-3B GPU numbers are an earlier
-measurement; that model is under a non-commercial research licence and is
-no longer in the model list. `gguf_gpu_layers.txt` overrides the default for an operator, and
+q8 activation quantization like the CPU path. It is the default only for
+LFM2.5-1.2B; every other GGUF model runs on the CPU. GPU prefill work is
+stopped: a control on a 3B model did not agree with the CPU closely enough
+([result](docs/research/evidence/2026-11-15-adr0010-control/README.md)).
+`gguf_gpu_layers.txt` overrides the default for an operator, and
 `0` forces the CPU. Gates and per-model verdicts are in
 [docs/gguf-gpu-decode.md](docs/gguf-gpu-decode.md). How that compares with
 desktop RDNA2, the Steam Deck and other GPUs on published llama.cpp numbers is
@@ -362,5 +362,3 @@ for testing.
 ## Disclaimer
 
 xllama is an independent open-source project by Gianluca Mazza. It is not affiliated with, endorsed, sponsored or approved by Microsoft. Xbox, Xbox Series S and Xbox Series X are trademarks of the Microsoft group of companies. Llama is a trademark of Meta; xllama is not affiliated with Meta or with the Ollama project. Other product names are trademarks of their respective owners and are used only to describe compatibility.
-
-Independent project, not affiliated with or endorsed by Microsoft. Xbox and Xbox Series S|X are trademarks of the Microsoft group of companies.
