@@ -93,6 +93,15 @@ inline bool logit_dump_keeps(int position, int n_tokens, int stride) {
     return (position + 1) % stride == 0 || position == n_tokens - 1;
 }
 
+// Most rows one ubatch of a per-position dump can ask for: every `stride`-th
+// position of the window, plus the final prompt token. A context whose output
+// reserve is capped (the GPU path caps it at one row) must allow this many.
+inline int logit_dump_rows_per_ubatch(int n_ubatch, int stride) {
+    if (n_ubatch <= 0 || stride <= 0)
+        return 1;
+    return (n_ubatch + stride - 1) / stride + 1;
+}
+
 class LogitPositionsWriter {
   public:
     LogitPositionsWriter(std::string bin_path, int vocab_size)

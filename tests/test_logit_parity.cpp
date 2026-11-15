@@ -103,6 +103,11 @@ TEST_CASE("logit_dump: stride keeps every Nth position and always the last") {
             kept.push_back(p);
     CHECK(kept == std::vector<int>{3, 7, 9});
     CHECK(xllama::logit_dump_keeps(0, 1, 8));
+    // Rows a ubatch can ask for: every stride-th position plus the last token.
+    CHECK(xllama::logit_dump_rows_per_ubatch(512, 2) == 257);
+    CHECK(xllama::logit_dump_rows_per_ubatch(512, 512) == 2);
+    CHECK(xllama::logit_dump_rows_per_ubatch(5, 2) == 4);
+    CHECK(xllama::logit_dump_rows_per_ubatch(0, 2) == 1);
 }
 
 TEST_CASE("logit_dump: positions writer stores rows and a sidecar") {

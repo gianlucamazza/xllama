@@ -77,6 +77,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 import sys
 from pathlib import Path
 
@@ -441,6 +442,14 @@ def run_reference(args) -> int:
     except ImportError as e:
         raise Invalid(f"gguf-py is not importable ({e})") from None
     tensors = {t.name: t for t in gguf.GGUFReader(args.model).tensors}
+    blocks = [int(m.group(1)) for m in (re.match(r"blk\.(\d+)\.", n) for n in tensors) if m]
+    if not blocks:
+        raise Invalid(f"{args.model.name} has no blk.N tensors")
+    last_block = max(blocks)
+    if max(decl["captures"].values()) != last_block or any(
+            v > last_block for v in decl["captures"].values()):
+        raise Invalid(f"declared captures must stay within layer {last_block} and one must "
+                      f"reach it")
 
     def weights(name):
         if name not in tensors:
@@ -498,6 +507,8 @@ def load_positions(directory: Path, pid: str, sha: str):
     if (type(vocab) is not int or vocab <= 0 or not isinstance(positions, list) or not positions
             or any(type(p) is not int for p in positions)):
         raise Invalid(f"{base}.json: needs vocab_size and a non-empty positions list")
+    if positions[0] < 0 or any(b <= a for a, b in zip(positions, positions[1:])):
+        raise Invalid(f"{base}.json: positions must be distinct and increasing")
     path = Path(str(base) + ".bin")
     try:
         data = np.fromfile(path, dtype=np.float32)
@@ -589,9 +600,21 @@ def run_distribution(args) -> int:
     })
 
 
+def _finite(value):
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {k: _finite(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_finite(v) for v in value]
+    return value
+
+
 def finish(args, summary) -> int:
     if args.json_out:
-        args.json_out.write_text(json.dumps(summary, indent=1) + "\n")
+        # A non-finite figure (an undefined ratio, for instance) becomes null,
+        # so the verdict file is always standard JSON.
+        args.json_out.write_text(json.dumps(_finite(summary), indent=1, allow_nan=False) + "\n")
     print("✅ PASS" if summary["pass"] else "❌ FAIL")
     return 0 if summary["pass"] else 1
 

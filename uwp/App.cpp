@@ -183,11 +183,11 @@ static void log_resource_probe() {
         long exclusive = -1;
         if (HMODULE m = LoadLibraryExW(L"api-ms-win-gaming-expandedresources-l1-1-0.dll", nullptr,
                                        LOAD_LIBRARY_SEARCH_SYSTEM32)) {
-            using HasFn = BOOL(WINAPI*)(BOOL*);
+            using HasFn = HRESULT(WINAPI*)(BOOL*);
             using CountFn = HRESULT(WINAPI*)(ULONG*);
             if (auto has = reinterpret_cast<HasFn>(GetProcAddress(m, "HasExpandedResources"))) {
                 BOOL v = FALSE;
-                if (has(&v))
+                if (SUCCEEDED(has(&v)))
                     expanded = v ? 1 : 0;
             }
             if (auto count = reinterpret_cast<CountFn>(

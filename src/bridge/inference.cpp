@@ -649,7 +649,15 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         cparams.n_batch = static_cast<uint32_t>(params.n_batch);
     if (params.n_ubatch > 0)
         cparams.n_ubatch = static_cast<uint32_t>(params.n_ubatch);
-    apply_gguf_gpu_context(gpu_layers, cparams, gguf_gpu_outputs_max(false, params.prompt_lookup));
+    uint32_t outputs_max = gguf_gpu_outputs_max(false, params.prompt_lookup);
+    if (params.dump_logits_stride > 0 && !params.dump_logits_path.empty()) {
+        // A per-position dump asks for many logits rows per ubatch; the GPU
+        // path's one-row reserve would make llama.cpp assert on the first one.
+        const int rows = logit_dump_rows_per_ubatch(static_cast<int>(cparams.n_ubatch),
+                                                    params.dump_logits_stride);
+        outputs_max = std::max(outputs_max, static_cast<uint32_t>(rows));
+    }
+    apply_gguf_gpu_context(gpu_layers, cparams, outputs_max);
     // #420: intermediate tensor capture. Off unless both a directory and a
     // spec are given; a bad spec or directory fails the run instead of
     // silently producing an empty capture.

@@ -313,6 +313,8 @@ class AmendmentTests(Base):
         base = ["distribution", "--cpu-console", self.root / "console", "--cpu-host",
                 self.root / "host", "--gpu", gpu, "--declaration"]
         self.assertEqual(self.run_cmp(*base, self.decl2()).returncode, 2)
+        side.write_text(json.dumps({**meta, "positions": [0] * 12}))  # one row counted 12 times
+        self.assertEqual(self.run_cmp(*base, self.decl2()).returncode, 2)
         side.write_text(json.dumps({**meta, "prompt": "another prompt"}))
         self.assertEqual(self.run_cmp(*base, self.decl2()).returncode, 2)
         side.write_text(json.dumps(meta))
@@ -321,6 +323,17 @@ class AmendmentTests(Base):
             d = {"kld_ratio_limit": 1.5, "top1_margin": 0.01, "confidence": 0.95,
                  "min_positions": 60, "bootstrap": 200, "seed": 1, **bad}
             self.assertEqual(self.run_cmp(*base, self.decl2(distribution=d)).returncode, 2, bad)
+
+    def test_an_undefined_ratio_is_written_as_standard_json(self):
+        self.arm("console", 0.0)
+        self.arm("host", 0.0)  # identical to the console arm: the floor is zero
+        out = self.root / "v.json"
+        r = self.run_cmp("distribution", "--declaration", self.decl2(), "--cpu-console",
+                         self.root / "console", "--cpu-host", self.root / "host", "--gpu",
+                         self.arm("gpu", 0.05), "--json-out", out)
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertNotIn("Infinity", out.read_text())
+        self.assertIsNone(json.loads(out.read_text())["kld_ratio"])
 
     def test_reference_rows_judge_every_column_of_one_arm(self):
         mod = load_module()
