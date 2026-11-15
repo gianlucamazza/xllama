@@ -673,7 +673,7 @@ logits are byte-identical to the same arm with capture off.
 - In layer 0 the Q, K and V projections computed on the GPU match the CPU to
   NMSE about 1e-14 on the last token of each evaluation. With equal inputs
   those kernels match the CPU to rounding.
-- The other layer-0 records on the last token stay at 1.5e-12 or better in the
+- The other layer-0 records on the last token stay at 1.5e-11 or better in the
   first evaluation (512 tokens). In the second evaluation (446 tokens) the
   layer-0 feed-forward output is already at 2.0e-8 and the layer output at
   9.7e-9.
