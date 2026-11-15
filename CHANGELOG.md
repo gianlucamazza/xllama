@@ -23,7 +23,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   is not known. The public wording changes from "Not yet tested on Series X"
   to "Supported on Series S and Series X", with the scope in
   `docs/positioning.md`.
-||||||| parent of 40318e2 (fix: encode Device Portal ids without the GNU-only base64 -w0)
+  ||||||| parent of 40318e2 (fix: encode Device Portal ids without the GNU-only base64 -w0)
 
 - **GPU control under ADR 0010: FAIL.** The first Coder-3B control judged
   against a declaration committed before its GPU arm failed on the Series S.
