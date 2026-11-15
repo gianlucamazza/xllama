@@ -17,6 +17,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "xllama/json_utils.h"
 
@@ -73,5 +75,93 @@ inline bool write_logit_dump(const std::string& bin_path, const float* logits, i
     std::fclose(jf);
     return true;
 }
+
+// Per-position dump for ADR 0010 part 2: the logits of several prompt
+// positions under teacher forcing, so two arms can be compared as
+// distributions over many tokens instead of on the last token only.
+//
+//   <bin_path>.positions.bin    n_positions rows of vocab_size float32
+//   <bin_path>.positions.json   { model, prompt, backend, vocab_size, stride,
+//                                 n_prompt_tokens, positions:[...] }
+//
+// Position p holds the logits produced after token p, i.e. the prediction of
+// token p + 1. `logit_dump_keeps` selects every `stride`-th position and
+// always the last one.
+inline bool logit_dump_keeps(int position, int n_tokens, int stride) {
+    if (stride <= 0 || position < 0 || position >= n_tokens)
+        return false;
+    return (position + 1) % stride == 0 || position == n_tokens - 1;
+}
+
+class LogitPositionsWriter {
+  public:
+    LogitPositionsWriter(std::string bin_path, int vocab_size)
+        : base_(std::move(bin_path)), vocab_(vocab_size) {}
+    ~LogitPositionsWriter() {
+        if (f_)
+            std::fclose(f_);
+    }
+    LogitPositionsWriter(const LogitPositionsWriter&) = delete;
+    LogitPositionsWriter& operator=(const LogitPositionsWriter&) = delete;
+
+    bool failed() const {
+        return failed_;
+    }
+    size_t positions() const {
+        return positions_.size();
+    }
+
+    bool append(int position, const float* logits) {
+        if (failed_ || !logits || vocab_ <= 0)
+            return fail();
+        if (!f_) {
+            f_ = std::fopen((base_ + ".positions.bin").c_str(), "wb");
+            if (!f_)
+                return fail();
+        }
+        const size_t n = static_cast<size_t>(vocab_);
+        if (std::fwrite(logits, sizeof(float), n, f_) != n)
+            return fail();
+        positions_.push_back(position);
+        return true;
+    }
+
+    // Closes the data file and writes the sidecar. False on any write error.
+    bool finish(const std::string& model, const std::string& prompt, const std::string& backend,
+                int stride, int n_prompt_tokens) {
+        if (f_) {
+            const bool closed = std::fclose(f_) == 0;
+            f_ = nullptr;
+            if (!closed)
+                return fail();
+        }
+        if (failed_ || positions_.empty())
+            return fail();
+        std::FILE* jf = std::fopen((base_ + ".positions.json").c_str(), "wb");
+        if (!jf)
+            return fail();
+        std::fprintf(jf,
+                     "{\n  \"model\": \"%s\",\n  \"prompt\": \"%s\",\n"
+                     "  \"backend\": \"%s\",\n  \"vocab_size\": %d,\n  \"stride\": %d,\n"
+                     "  \"n_prompt_tokens\": %d,\n  \"positions\": [",
+                     json_escape(model).c_str(), json_escape(prompt).c_str(),
+                     json_escape(backend).c_str(), vocab_, stride, n_prompt_tokens);
+        for (size_t i = 0; i < positions_.size(); ++i)
+            std::fprintf(jf, "%s%d", i ? ", " : "", positions_[i]);
+        std::fprintf(jf, "]\n}\n");
+        return std::fclose(jf) == 0 || fail();
+    }
+
+  private:
+    bool fail() {
+        failed_ = true;
+        return false;
+    }
+    std::string base_;
+    int vocab_ = 0;
+    std::FILE* f_ = nullptr;
+    std::vector<int> positions_;
+    bool failed_ = false;
+};
 
 } // namespace xllama

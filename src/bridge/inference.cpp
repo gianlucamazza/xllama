@@ -539,6 +539,39 @@ bool prefill_capture_ubatches(llama_context* ctx, const llama_token* tokens, int
     return ok;
 }
 
+// Prefill for a per-position logit dump (ADR 0010 part 2): the same explicit
+// ubatch split as a capture run, with an output requested at every kept
+// position. Each kept row is appended to `out` straight after its ubatch.
+bool prefill_dump_positions(llama_context* ctx, const llama_token* tokens, int n_tokens, int stride,
+                            LogitPositionsWriter& out, InferenceWatchdog* wd) {
+    const int n_ubatch = std::max(1, static_cast<int>(llama_n_ubatch(ctx)));
+    llama_batch batch = llama_batch_init(n_ubatch, 0, 1);
+    bool ok = true;
+    for (int off = 0; ok && off < n_tokens; off += n_ubatch) {
+        if (wd && wd->aborted()) {
+            ok = false;
+            break;
+        }
+        const int chunk = std::min(n_ubatch, n_tokens - off);
+        batch.n_tokens = chunk;
+        for (int i = 0; i < chunk; ++i) {
+            batch.token[i] = tokens[off + i];
+            batch.pos[i] = off + i;
+            batch.n_seq_id[i] = 1;
+            batch.seq_id[i][0] = 0;
+            batch.logits[i] = logit_dump_keeps(off + i, n_tokens, stride) ? 1 : 0;
+        }
+        ok = llama_decode(ctx, batch) == 0;
+        for (int i = 0; ok && i < chunk; ++i)
+            if (batch.logits[i])
+                ok = out.append(off + i, llama_get_logits_ith(ctx, i));
+        if (ok && wd)
+            wd->note_prefill_chunk(off + chunk);
+    }
+    llama_batch_free(batch);
+    return ok;
+}
+
 } // namespace
 
 InferenceResult run_inference_llama(const InferenceParams& params) {
@@ -733,13 +766,41 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     D3d12PhaseStats d3d12_phase;
     if (gpu_layers > 0)
         ggml_d3d12_take_stats(nullptr);
+    std::unique_ptr<LogitPositionsWriter> positions;
+    if (params.dump_logits_stride > 0 && !params.dump_logits_path.empty()) {
+        if (capture.writer) {
+            res.error_msg = "a per-position logit dump cannot be combined with tensor capture";
+            log_output("[xllama] " + res.error_msg + "\n");
+            return res;
+        }
+        positions = std::make_unique<LogitPositionsWriter>(params.dump_logits_path,
+                                                           llama_vocab_n_tokens(vocab));
+    }
     wd.enter_prefill(n_prompt_tokens);
     capture.active = static_cast<bool>(capture.writer);
-    const bool prefill_ok = capture.writer
-                                ? prefill_capture_ubatches(ctx.get(), tokens.data(),
-                                                           n_prompt_tokens, *capture.writer, &wd)
-                                : prefill_chunked(ctx.get(), tokens.data(), n_prompt_tokens, &wd);
+    bool prefill_ok = false;
+    if (capture.writer)
+        prefill_ok = prefill_capture_ubatches(ctx.get(), tokens.data(), n_prompt_tokens,
+                                              *capture.writer, &wd);
+    else if (positions)
+        prefill_ok = prefill_dump_positions(ctx.get(), tokens.data(), n_prompt_tokens,
+                                            params.dump_logits_stride, *positions, &wd);
+    else
+        prefill_ok = prefill_chunked(ctx.get(), tokens.data(), n_prompt_tokens, &wd);
     capture.active = false;
+    if (positions) {
+        const bool written =
+            prefill_ok && positions->finish(abs_model_path, params.prompt, "llama.cpp",
+                                            params.dump_logits_stride, n_prompt_tokens);
+        log_output("[xllama] logit positions: " + std::to_string(positions->positions()) +
+                   " stride=" + std::to_string(params.dump_logits_stride) +
+                   (written ? "" : " FAILED") + "\n");
+        if (prefill_ok && !written) {
+            res.error_msg = "per-position logit dump failed";
+            log_output("[xllama] " + res.error_msg + "\n");
+            return res;
+        }
+    }
     if (capture.writer) {
         log_output("[xllama] tensor capture: records=" + std::to_string(capture.writer->records()) +
                    " skipped=" + std::to_string(capture.writer->skipped()) +
