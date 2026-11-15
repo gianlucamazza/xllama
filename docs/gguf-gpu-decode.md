@@ -772,6 +772,36 @@ Q4_K_M, package 1.7.0.1563, four new prompts of 40 to 713 tokens.
 #313 and #414 stay stopped. The result does not locate the cause of the wider
 maximum error: part 1 covers the first layer only.
 
+### 2026-11-15 kernel reference check: the GPU products are correct
+
+A diagnostic after the failed control, not a control
+([evidence](research/evidence/2026-11-15-gpu-kernel-reference-check/README.md)).
+`scripts/check-matmul-reference.py` compares each captured weight `MUL_MAT`
+with a float64 product of the dequantized weight and the arm's own q8_K
+operand, so it needs no second arm and covers every token column.
+
+- All 252 weight products of the 36 layers (40-token prompt) and the 84 of
+  layers 0 to 5 (713-token prompt) match the reference on both arms: CPU arm
+  2.3e-12 NMSE at worst, GPU arm 4.1e-14. The GPU arm is the closer of the two
+  in every weight family.
+- The backend runs `MUL_MAT` and `GET_ROWS` only, so with these products
+  correct the GPU arm has no other operator of its own. The difference between
+  the arms is rounding-level differences between two correct executions,
+  amplified through the activation quantizer.
+- The two-arm comparison of ADR 0010 part 1 loses its columns quickly: from
+  layer 8 on, no token column has the same operand in both arms.
+- Over thirteen prompts the GPU arm is on average 8 % further from the console
+  CPU arm than a host CPU build is, wider on 9 of 13, which this sample cannot
+  tell from chance. Every pair, CPU against CPU included, fails the frozen
+  gate on all thirteen.
+
+The control verdict is unchanged. What the result changes is the question:
+the criterion in ADR 0010 part 2 is failing an arm whose kernels are verified
+correct, on a statistic (the largest single-logit error over a few prompts)
+that two CPU builds also move by tens of percent. Whether to judge part 1 by
+the reference check and part 2 by a distribution over more prompts is a
+decision for the owner; it is not taken here.
+
 ### Attributable request counters (#421)
 
 A GGUF run with GPU layers logs one `[xllama] d3d12-phase` line after the

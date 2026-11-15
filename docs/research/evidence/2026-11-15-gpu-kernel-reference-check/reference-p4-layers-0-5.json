@@ -1,0 +1,1526 @@
+{
+ "scope": "diagnostic; each arm against a float64 reference from its own operand",
+ "model": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+ "arms": [
+  "console-cpu",
+  "console-gpu"
+ ],
+ "records": 84,
+ "worst_nmse": 9.610755600317432e-13,
+ "nmse_limit": 1e-09,
+ "pass": true,
+ "rows": [
+  {
+   "eval": 0,
+   "weight": "blk.0.attn_q.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 3.58802490429724e-14,
+     "worst_token_nmse": 5.028841010316073e-13,
+     "max_abs": 6.024816647354214e-06
+    },
+    "console-gpu": {
+     "nmse": 6.160539897195632e-15,
+     "worst_token_nmse": 1.5716844121104312e-14,
+     "max_abs": 1.988190824420144e-06
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.0.attn_v.weight",
+   "occ": 0,
+   "weight_type": "q6_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 4.720903151457196e-15,
+     "worst_token_nmse": 1.367131799170096e-14,
+     "max_abs": 3.8025672166597246e-07
+    },
+    "console-gpu": {
+     "nmse": 5.65107579214675e-15,
+     "worst_token_nmse": 9.651495187818698e-15,
+     "max_abs": 2.2116554010409573e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.0.attn_k.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 6.870989048790315e-14,
+     "worst_token_nmse": 7.377520548222302e-13,
+     "max_abs": 2.119337292105783e-06
+    },
+    "console-gpu": {
+     "nmse": 1.0981952197531282e-14,
+     "worst_token_nmse": 2.2953514209105718e-14,
+     "max_abs": 5.326673813144112e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.0.attn_output.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.8174645990333138e-13,
+     "worst_token_nmse": 1.5731105636693723e-12,
+     "max_abs": 2.0195376735365755e-06
+    },
+    "console-gpu": {
+     "nmse": 1.0875979740298303e-14,
+     "worst_token_nmse": 4.715564077975672e-14,
+     "max_abs": 3.4012751015666254e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.0.ffn_gate.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 4.919869184436195e-14,
+     "worst_token_nmse": 3.145866759734531e-13,
+     "max_abs": 1.4923461015836637e-06
+    },
+    "console-gpu": {
+     "nmse": 6.98484682385834e-15,
+     "worst_token_nmse": 1.2383003993360682e-14,
+     "max_abs": 6.020766738501493e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.0.ffn_up.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 6.914299797027326e-14,
+     "worst_token_nmse": 5.268065679644434e-13,
+     "max_abs": 9.709033372828912e-07
+    },
+    "console-gpu": {
+     "nmse": 9.295638454353958e-15,
+     "worst_token_nmse": 1.7406022033017816e-14,
+     "max_abs": 3.284198997199894e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.0.ffn_down.weight",
+   "occ": 0,
+   "weight_type": "q6_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.22663686794289e-14,
+     "worst_token_nmse": 2.423713275510473e-14,
+     "max_abs": 1.6156382676157932e-06
+    },
+    "console-gpu": {
+     "nmse": 4.741529939515219e-15,
+     "worst_token_nmse": 6.692818923144608e-15,
+     "max_abs": 7.471273342218865e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.1.attn_q.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 2.1791171191251758e-14,
+     "worst_token_nmse": 9.058749966496694e-14,
+     "max_abs": 1.0141478314906749e-06
+    },
+    "console-gpu": {
+     "nmse": 4.302652965867452e-15,
+     "worst_token_nmse": 6.816238020200996e-15,
+     "max_abs": 4.5994816222361123e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.1.attn_v.weight",
+   "occ": 0,
+   "weight_type": "q6_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 3.0545870475139218e-15,
+     "worst_token_nmse": 5.6177833362222995e-15,
+     "max_abs": 2.1700761965171012e-07
+    },
+    "console-gpu": {
+     "nmse": 3.185433642466454e-15,
+     "worst_token_nmse": 6.82625428427399e-15,
+     "max_abs": 1.6402329094944434e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.1.attn_k.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.7963625664676532e-14,
+     "worst_token_nmse": 9.934723536478515e-14,
+     "max_abs": 1.5877390890928211e-06
+    },
+    "console-gpu": {
+     "nmse": 3.620244259226694e-15,
+     "worst_token_nmse": 6.816313828139029e-15,
+     "max_abs": 6.662879545871192e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.1.attn_output.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 3.6571194040823584e-13,
+     "worst_token_nmse": 9.61017758326817e-13,
+     "max_abs": 1.2444788924093064e-06
+    },
+    "console-gpu": {
+     "nmse": 1.1268191942422762e-14,
+     "worst_token_nmse": 2.5445107588421417e-14,
+     "max_abs": 3.855336814240218e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.1.ffn_gate.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 4.9209063282058237e-14,
+     "worst_token_nmse": 6.224696011464903e-14,
+     "max_abs": 5.8360414250557824e-05
+    },
+    "console-gpu": {
+     "nmse": 4.310025747493743e-15,
+     "worst_token_nmse": 4.887345902671118e-15,
+     "max_abs": 9.751664057588982e-06
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.1.ffn_up.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 2.2837887065253055e-14,
+     "worst_token_nmse": 3.036389493639244e-14,
+     "max_abs": 0.00013447431302893165
+    },
+    "console-gpu": {
+     "nmse": 3.0293190517851325e-15,
+     "worst_token_nmse": 4.249441201369358e-15,
+     "max_abs": 6.673990986882927e-05
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.1.ffn_down.weight",
+   "occ": 0,
+   "weight_type": "q6_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.1445963697845399e-14,
+     "worst_token_nmse": 1.9571210284311717e-14,
+     "max_abs": 2.5046751837010106e-06
+    },
+    "console-gpu": {
+     "nmse": 3.2094931951301623e-15,
+     "worst_token_nmse": 8.90582790851666e-15,
+     "max_abs": 1.843879779528379e-06
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.2.attn_q.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 2.601010160748839e-14,
+     "worst_token_nmse": 1.1006808567600326e-13,
+     "max_abs": 1.7778034284710031e-06
+    },
+    "console-gpu": {
+     "nmse": 5.2056126520495365e-15,
+     "worst_token_nmse": 1.2459455788097228e-14,
+     "max_abs": 5.003750107590577e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.2.attn_v.weight",
+   "occ": 0,
+   "weight_type": "q6_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 3.4486133370131107e-15,
+     "worst_token_nmse": 6.1028328833356e-15,
+     "max_abs": 2.5364925138049443e-07
+    },
+    "console-gpu": {
+     "nmse": 3.8410457264741045e-15,
+     "worst_token_nmse": 6.2348461461455055e-15,
+     "max_abs": 1.387943893149668e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.2.attn_k.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 2.2293366286143613e-14,
+     "worst_token_nmse": 8.943557260829883e-14,
+     "max_abs": 1.1292639254811832e-06
+    },
+    "console-gpu": {
+     "nmse": 4.361250289883966e-15,
+     "worst_token_nmse": 1.0298414545225766e-14,
+     "max_abs": 4.171804057762074e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.2.attn_output.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 2.2667820470868284e-13,
+     "worst_token_nmse": 7.229616710901356e-13,
+     "max_abs": 6.91800397634168e-07
+    },
+    "console-gpu": {
+     "nmse": 1.0720345018487211e-14,
+     "worst_token_nmse": 2.18034742331594e-14,
+     "max_abs": 1.631101679833158e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.2.ffn_gate.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.1550530576903654e-14,
+     "worst_token_nmse": 3.492053777910989e-14,
+     "max_abs": 1.0407733642026074e-05
+    },
+    "console-gpu": {
+     "nmse": 2.205063047562008e-15,
+     "worst_token_nmse": 3.6209959155127164e-15,
+     "max_abs": 2.649137769594745e-06
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.2.ffn_up.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 2.4973238558190385e-14,
+     "worst_token_nmse": 5.5272308223614256e-14,
+     "max_abs": 2.5822843426226427e-05
+    },
+    "console-gpu": {
+     "nmse": 4.4727349308934255e-15,
+     "worst_token_nmse": 6.6293397621761736e-15,
+     "max_abs": 1.3956351139654544e-05
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.2.ffn_down.weight",
+   "occ": 0,
+   "weight_type": "q6_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.9802740570141262e-14,
+     "worst_token_nmse": 2.5170020658749265e-14,
+     "max_abs": 0.00028268682399357203
+    },
+    "console-gpu": {
+     "nmse": 3.930065997975549e-15,
+     "worst_token_nmse": 7.56456292263691e-15,
+     "max_abs": 0.00010449842375237495
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.3.attn_q.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 5.009883170162341e-14,
+     "worst_token_nmse": 3.214412350019477e-13,
+     "max_abs": 2.246825798524199e-06
+    },
+    "console-gpu": {
+     "nmse": 7.745949422886886e-15,
+     "worst_token_nmse": 1.4669342444819054e-14,
+     "max_abs": 6.364060070040978e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.3.attn_v.weight",
+   "occ": 0,
+   "weight_type": "q6_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 3.3285606869071936e-15,
+     "worst_token_nmse": 5.4549960055601256e-15,
+     "max_abs": 3.0462769640138276e-07
+    },
+    "console-gpu": {
+     "nmse": 3.780280490761338e-15,
+     "worst_token_nmse": 6.102046573500582e-15,
+     "max_abs": 3.1282574708413335e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.3.attn_k.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 3.4400479183718554e-14,
+     "worst_token_nmse": 3.0820296416677785e-13,
+     "max_abs": 3.449607354433226e-06
+    },
+    "console-gpu": {
+     "nmse": 5.618949210772712e-15,
+     "worst_token_nmse": 1.2796306153942822e-14,
+     "max_abs": 7.288582883901995e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.3.attn_output.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 5.160005252455222e-13,
+     "worst_token_nmse": 3.2609667450142663e-12,
+     "max_abs": 1.1128565702844817e-06
+    },
+    "console-gpu": {
+     "nmse": 1.814016075573076e-14,
+     "worst_token_nmse": 7.741217854574704e-14,
+     "max_abs": 1.6232793031978332e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.3.ffn_gate.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.337171102886619e-14,
+     "worst_token_nmse": 1.147275562544504e-13,
+     "max_abs": 1.5886661196784502e-05
+    },
+    "console-gpu": {
+     "nmse": 2.4038383069013547e-15,
+     "worst_token_nmse": 8.497287762788724e-15,
+     "max_abs": 2.3077879323096795e-06
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.3.ffn_up.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 5.4670389312389065e-14,
+     "worst_token_nmse": 2.017489712891195e-12,
+     "max_abs": 1.5919419479981656e-05
+    },
+    "console-gpu": {
+     "nmse": 1.079360768261505e-14,
+     "worst_token_nmse": 8.051713965284739e-14,
+     "max_abs": 3.947779713797672e-06
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.3.ffn_down.weight",
+   "occ": 0,
+   "weight_type": "q6_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.3014485219939153e-14,
+     "worst_token_nmse": 2.1186696837233516e-14,
+     "max_abs": 6.3819146660648585e-06
+    },
+    "console-gpu": {
+     "nmse": 5.7810445502134994e-15,
+     "worst_token_nmse": 8.08387492188103e-15,
+     "max_abs": 2.485879360136778e-06
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.4.attn_q.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 4.441413215247509e-14,
+     "worst_token_nmse": 2.6908662102939204e-13,
+     "max_abs": 2.0908798954444308e-06
+    },
+    "console-gpu": {
+     "nmse": 7.042628760762099e-15,
+     "worst_token_nmse": 1.1042421381574775e-14,
+     "max_abs": 8.143028811247177e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.4.attn_v.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 8.456226214649857e-14,
+     "worst_token_nmse": 1.4904952442344563e-12,
+     "max_abs": 1.0412743712828743e-06
+    },
+    "console-gpu": {
+     "nmse": 1.2011439801416665e-14,
+     "worst_token_nmse": 5.3120398966015294e-14,
+     "max_abs": 3.087817987967867e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.4.attn_k.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 2.846455711987099e-14,
+     "worst_token_nmse": 2.312547785607318e-13,
+     "max_abs": 2.9232687857039252e-06
+    },
+    "console-gpu": {
+     "nmse": 5.0750411832919705e-15,
+     "worst_token_nmse": 9.735924265560901e-15,
+     "max_abs": 8.414958365676739e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.4.attn_output.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 9.000187130904416e-13,
+     "worst_token_nmse": 4.783599721863097e-12,
+     "max_abs": 2.5354759788376313e-06
+    },
+    "console-gpu": {
+     "nmse": 2.068889994755439e-14,
+     "worst_token_nmse": 7.212567418642242e-14,
+     "max_abs": 3.0931138161882643e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.4.ffn_gate.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.3979539266501945e-14,
+     "worst_token_nmse": 1.533220176081455e-13,
+     "max_abs": 9.657643026184104e-06
+    },
+    "console-gpu": {
+     "nmse": 2.564243444765679e-15,
+     "worst_token_nmse": 1.1545383265313169e-14,
+     "max_abs": 2.0093296875245414e-06
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.4.ffn_up.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 6.957228695811809e-14,
+     "worst_token_nmse": 2.7909389645792562e-12,
+     "max_abs": 1.0929057401298792e-05
+    },
+    "console-gpu": {
+     "nmse": 1.0904899557045913e-14,
+     "worst_token_nmse": 1.1239919803831105e-13,
+     "max_abs": 2.7640357984637376e-06
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.4.ffn_down.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 5.086261267032171e-13,
+     "worst_token_nmse": 2.0070974856161337e-12,
+     "max_abs": 3.2390031080353765e-05
+    },
+    "console-gpu": {
+     "nmse": 1.1931051902674456e-14,
+     "worst_token_nmse": 2.0138353429608408e-14,
+     "max_abs": 4.427599563427975e-06
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.5.attn_q.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 8.361066187056186e-14,
+     "worst_token_nmse": 4.066725651033112e-13,
+     "max_abs": 4.496285006538869e-06
+    },
+    "console-gpu": {
+     "nmse": 9.401194712429348e-15,
+     "worst_token_nmse": 1.5324962971975512e-14,
+     "max_abs": 1.214956760975383e-06
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.5.attn_v.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 3.496924169738311e-13,
+     "worst_token_nmse": 2.813767876616883e-12,
+     "max_abs": 2.5480389616028276e-06
+    },
+    "console-gpu": {
+     "nmse": 3.092239396208392e-14,
+     "worst_token_nmse": 7.189429407826865e-14,
+     "max_abs": 4.875522447989056e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.5.attn_k.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 5.5726078232933894e-14,
+     "worst_token_nmse": 2.9738582790316037e-13,
+     "max_abs": 4.023195705471494e-06
+    },
+    "console-gpu": {
+     "nmse": 7.0855602378910205e-15,
+     "worst_token_nmse": 1.4527932912902425e-14,
+     "max_abs": 1.2460909442069124e-06
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.5.attn_output.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 2.486837722671825e-13,
+     "worst_token_nmse": 1.8878907617761236e-12,
+     "max_abs": 1.25440612530614e-06
+    },
+    "console-gpu": {
+     "nmse": 1.535154678928552e-14,
+     "worst_token_nmse": 4.604033371239255e-14,
+     "max_abs": 1.7782560757240162e-07
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.5.ffn_gate.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.323893241124049e-14,
+     "worst_token_nmse": 8.584000821100587e-14,
+     "max_abs": 6.7084340011902555e-06
+    },
+    "console-gpu": {
+     "nmse": 2.9765301889152767e-15,
+     "worst_token_nmse": 1.1899187764249241e-14,
+     "max_abs": 2.3656061731713862e-06
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.5.ffn_up.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 9.211614741131858e-14,
+     "worst_token_nmse": 2.325965791336183e-12,
+     "max_abs": 6.2437495127465326e-06
+    },
+    "console-gpu": {
+     "nmse": 1.6113291108636188e-14,
+     "worst_token_nmse": 1.596949133976783e-13,
+     "max_abs": 1.555992167112663e-06
+    }
+   }
+  },
+  {
+   "eval": 0,
+   "weight": "blk.5.ffn_down.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 5.284013953332272e-13,
+     "worst_token_nmse": 2.6108190205785623e-12,
+     "max_abs": 5.192549238586253e-06
+    },
+    "console-gpu": {
+     "nmse": 1.494552309062992e-14,
+     "worst_token_nmse": 2.1465304799396362e-14,
+     "max_abs": 2.852587641655191e-06
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.0.attn_q.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 3.3685822976309e-14,
+     "worst_token_nmse": 2.673124388004497e-13,
+     "max_abs": 3.680747694190245e-06
+    },
+    "console-gpu": {
+     "nmse": 5.942399171637789e-15,
+     "worst_token_nmse": 1.3339345152019368e-14,
+     "max_abs": 1.497365984093335e-06
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.0.attn_v.weight",
+   "occ": 0,
+   "weight_type": "q6_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 4.676780367488341e-15,
+     "worst_token_nmse": 1.367131799170096e-14,
+     "max_abs": 3.8025672166597246e-07
+    },
+    "console-gpu": {
+     "nmse": 5.57647829667737e-15,
+     "worst_token_nmse": 9.651495187818698e-15,
+     "max_abs": 2.2030130830685835e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.0.attn_k.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 6.7492717152706e-14,
+     "worst_token_nmse": 3.8282101259977867e-13,
+     "max_abs": 1.961635010871987e-06
+    },
+    "console-gpu": {
+     "nmse": 1.0925283528373709e-14,
+     "worst_token_nmse": 2.2953514209105718e-14,
+     "max_abs": 5.326673813144112e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.0.attn_output.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.5082633107965497e-13,
+     "worst_token_nmse": 1.158030163746625e-12,
+     "max_abs": 1.8296033381659527e-06
+    },
+    "console-gpu": {
+     "nmse": 1.0665991011270742e-14,
+     "worst_token_nmse": 2.812937371354674e-14,
+     "max_abs": 3.164217661222324e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.0.ffn_gate.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 4.457711920360591e-14,
+     "worst_token_nmse": 2.900550872113533e-13,
+     "max_abs": 1.7565329353264048e-06
+    },
+    "console-gpu": {
+     "nmse": 7.18915529302066e-15,
+     "worst_token_nmse": 1.1709773679018912e-14,
+     "max_abs": 3.8178550010314893e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.0.ffn_up.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 6.344164773121959e-14,
+     "worst_token_nmse": 4.1433556928650084e-13,
+     "max_abs": 9.154362885510636e-07
+    },
+    "console-gpu": {
+     "nmse": 9.643966525500237e-15,
+     "worst_token_nmse": 1.475697033705585e-14,
+     "max_abs": 3.23624892217822e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.0.ffn_down.weight",
+   "occ": 0,
+   "weight_type": "q6_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.2044850918812797e-14,
+     "worst_token_nmse": 2.329655287766111e-14,
+     "max_abs": 7.957315117934627e-07
+    },
+    "console-gpu": {
+     "nmse": 4.6599373095579865e-15,
+     "worst_token_nmse": 7.548540747908423e-15,
+     "max_abs": 4.710424494902554e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.1.attn_q.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 2.1500189491719684e-14,
+     "worst_token_nmse": 9.682830696870483e-14,
+     "max_abs": 1.1397191865825107e-06
+    },
+    "console-gpu": {
+     "nmse": 4.2326258049612136e-15,
+     "worst_token_nmse": 5.85944400634624e-15,
+     "max_abs": 3.4741056254006253e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.1.attn_v.weight",
+   "occ": 0,
+   "weight_type": "q6_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 3.0539763265733273e-15,
+     "worst_token_nmse": 6.8379762310655095e-15,
+     "max_abs": 1.9904102055434691e-07
+    },
+    "console-gpu": {
+     "nmse": 3.1701709673337774e-15,
+     "worst_token_nmse": 5.537397876817342e-15,
+     "max_abs": 2.047800764515273e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.1.attn_k.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.7645936265127724e-14,
+     "worst_token_nmse": 6.139031173278065e-14,
+     "max_abs": 1.405732882986399e-06
+    },
+    "console-gpu": {
+     "nmse": 3.6655035106121145e-15,
+     "worst_token_nmse": 7.632081660263797e-15,
+     "max_abs": 6.576354030229936e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.1.attn_output.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 4.027901962050358e-13,
+     "worst_token_nmse": 7.074616129287957e-13,
+     "max_abs": 1.0218970762920776e-06
+    },
+    "console-gpu": {
+     "nmse": 1.2259869077866279e-14,
+     "worst_token_nmse": 2.702173391680349e-14,
+     "max_abs": 4.013724259621654e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.1.ffn_gate.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 4.861558785277576e-14,
+     "worst_token_nmse": 5.944710178154726e-14,
+     "max_abs": 5.044546238863745e-05
+    },
+    "console-gpu": {
+     "nmse": 4.275960509245757e-15,
+     "worst_token_nmse": 4.854344786054714e-15,
+     "max_abs": 9.849686282592529e-06
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.1.ffn_up.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 2.268620517603416e-14,
+     "worst_token_nmse": 2.967204153948648e-14,
+     "max_abs": 0.0001048282233568898
+    },
+    "console-gpu": {
+     "nmse": 3.0656847613055736e-15,
+     "worst_token_nmse": 3.928057340965894e-15,
+     "max_abs": 5.0099385191515466e-05
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.1.ffn_down.weight",
+   "occ": 0,
+   "weight_type": "q6_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.2640049787338788e-14,
+     "worst_token_nmse": 2.0109365052671542e-14,
+     "max_abs": 4.236881814279059e-07
+    },
+    "console-gpu": {
+     "nmse": 3.46724328899233e-15,
+     "worst_token_nmse": 7.12717635021499e-15,
+     "max_abs": 1.6893890486535668e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.2.attn_q.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 2.3438990229976122e-14,
+     "worst_token_nmse": 1.2402919312498721e-13,
+     "max_abs": 1.7588251319811121e-06
+    },
+    "console-gpu": {
+     "nmse": 5.074101887348594e-15,
+     "worst_token_nmse": 7.520713913980807e-15,
+     "max_abs": 4.773279198566627e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.2.attn_v.weight",
+   "occ": 0,
+   "weight_type": "q6_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 3.4369664399298377e-15,
+     "worst_token_nmse": 6.0159660233553754e-15,
+     "max_abs": 1.7681185315865378e-07
+    },
+    "console-gpu": {
+     "nmse": 3.791105572713076e-15,
+     "worst_token_nmse": 5.898457158889138e-15,
+     "max_abs": 2.0993436145033684e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.2.attn_k.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.9660078592929058e-14,
+     "worst_token_nmse": 8.180832631912442e-14,
+     "max_abs": 1.3030612162623356e-06
+    },
+    "console-gpu": {
+     "nmse": 4.262876344654533e-15,
+     "worst_token_nmse": 6.913801337448684e-15,
+     "max_abs": 3.992600450253292e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.2.attn_output.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.8218672001086123e-13,
+     "worst_token_nmse": 8.215238042159986e-13,
+     "max_abs": 7.33611435488335e-07
+    },
+    "console-gpu": {
+     "nmse": 1.0300532006213142e-14,
+     "worst_token_nmse": 2.6191288759940332e-14,
+     "max_abs": 1.517190342248398e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.2.ffn_gate.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.132147327007125e-14,
+     "worst_token_nmse": 1.9438988471049978e-14,
+     "max_abs": 1.023046884718326e-05
+    },
+    "console-gpu": {
+     "nmse": 2.214457261631329e-15,
+     "worst_token_nmse": 2.619534656093194e-15,
+     "max_abs": 2.8103968521264733e-06
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.2.ffn_up.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 2.3868024647505175e-14,
+     "worst_token_nmse": 5.53657115334388e-14,
+     "max_abs": 2.2271627017289575e-05
+    },
+    "console-gpu": {
+     "nmse": 4.500885861982282e-15,
+     "worst_token_nmse": 6.514031720195411e-15,
+     "max_abs": 1.2551040967423432e-05
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.2.ffn_down.weight",
+   "occ": 0,
+   "weight_type": "q6_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.4660717503060942e-14,
+     "worst_token_nmse": 2.36574350307393e-14,
+     "max_abs": 1.8404209278788386e-07
+    },
+    "console-gpu": {
+     "nmse": 6.211106072312616e-15,
+     "worst_token_nmse": 8.030400253018821e-15,
+     "max_abs": 9.817961699187805e-08
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.3.attn_q.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 4.8657422788948016e-14,
+     "worst_token_nmse": 3.4367127476412985e-13,
+     "max_abs": 2.096686460895114e-06
+    },
+    "console-gpu": {
+     "nmse": 7.579246531626973e-15,
+     "worst_token_nmse": 1.1008700761300722e-14,
+     "max_abs": 6.219038120036657e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.3.attn_v.weight",
+   "occ": 0,
+   "weight_type": "q6_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 3.3704755936039835e-15,
+     "worst_token_nmse": 4.834353307702687e-15,
+     "max_abs": 2.9456095207436306e-07
+    },
+    "console-gpu": {
+     "nmse": 3.702823222340504e-15,
+     "worst_token_nmse": 5.401497897732626e-15,
+     "max_abs": 2.989404750408653e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.3.attn_k.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 3.381893104167301e-14,
+     "worst_token_nmse": 2.664216062087927e-13,
+     "max_abs": 3.2650845320780775e-06
+    },
+    "console-gpu": {
+     "nmse": 5.390065625614785e-15,
+     "worst_token_nmse": 9.976586834970093e-15,
+     "max_abs": 8.828334374655356e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.3.attn_output.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 6.011232776603318e-13,
+     "worst_token_nmse": 3.09256127290677e-12,
+     "max_abs": 8.010076574804792e-07
+    },
+    "console-gpu": {
+     "nmse": 2.0670983143752338e-14,
+     "worst_token_nmse": 5.245121449337104e-14,
+     "max_abs": 1.3067306670055956e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.3.ffn_gate.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.3497346636768612e-14,
+     "worst_token_nmse": 2.202174296672727e-14,
+     "max_abs": 7.4595544985456286e-06
+    },
+    "console-gpu": {
+     "nmse": 2.389837014944821e-15,
+     "worst_token_nmse": 2.888697195072694e-15,
+     "max_abs": 2.0711526289574067e-06
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.3.ffn_up.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 5.400187997170306e-14,
+     "worst_token_nmse": 1.704145282534606e-13,
+     "max_abs": 1.0436175159611594e-05
+    },
+    "console-gpu": {
+     "nmse": 1.0582385736203792e-14,
+     "worst_token_nmse": 1.6129346929315075e-14,
+     "max_abs": 3.4650384179713e-06
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.3.ffn_down.weight",
+   "occ": 0,
+   "weight_type": "q6_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.469163904160365e-14,
+     "worst_token_nmse": 2.655428041617221e-14,
+     "max_abs": 5.712044859329524e-07
+    },
+    "console-gpu": {
+     "nmse": 6.4449997745663e-15,
+     "worst_token_nmse": 8.228008392978536e-15,
+     "max_abs": 3.2298323349166935e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.4.attn_q.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 4.104264882076973e-14,
+     "worst_token_nmse": 2.1177947755282796e-13,
+     "max_abs": 2.6054896995475474e-06
+    },
+    "console-gpu": {
+     "nmse": 6.805089912230858e-15,
+     "worst_token_nmse": 1.0396140330247044e-14,
+     "max_abs": 8.380430642773717e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.4.attn_v.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 7.882626983919118e-14,
+     "worst_token_nmse": 4.62932464369753e-13,
+     "max_abs": 1.024254684400816e-06
+    },
+    "console-gpu": {
+     "nmse": 1.160741094136463e-14,
+     "worst_token_nmse": 2.3460621883849058e-14,
+     "max_abs": 2.4473712323391794e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.4.attn_k.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 2.592854275650871e-14,
+     "worst_token_nmse": 1.245018064142044e-13,
+     "max_abs": 2.0911877731677464e-06
+    },
+    "console-gpu": {
+     "nmse": 4.824391384643413e-15,
+     "worst_token_nmse": 7.230448696186142e-15,
+     "max_abs": 8.481465130216748e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.4.attn_output.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 9.610755600317432e-13,
+     "worst_token_nmse": 2.7318891263486795e-12,
+     "max_abs": 1.7983837143908943e-06
+    },
+    "console-gpu": {
+     "nmse": 2.19345283185584e-14,
+     "worst_token_nmse": 4.411605136711752e-14,
+     "max_abs": 2.615182628229462e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.4.ffn_gate.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.4290783079799865e-14,
+     "worst_token_nmse": 2.7878080247026326e-14,
+     "max_abs": 6.1326490055080285e-06
+    },
+    "console-gpu": {
+     "nmse": 2.5516847878191053e-15,
+     "worst_token_nmse": 3.0929664443999254e-15,
+     "max_abs": 1.8795678577987474e-06
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.4.ffn_up.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 7.445118782024378e-14,
+     "worst_token_nmse": 3.3457944247552925e-13,
+     "max_abs": 6.181125177917579e-06
+    },
+    "console-gpu": {
+     "nmse": 1.0910762450630208e-14,
+     "worst_token_nmse": 1.813132079957268e-14,
+     "max_abs": 2.491308382701618e-06
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.4.ffn_down.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 4.154466113963434e-13,
+     "worst_token_nmse": 1.9997055254028842e-12,
+     "max_abs": 2.19688768288151e-06
+    },
+    "console-gpu": {
+     "nmse": 1.249210570173012e-14,
+     "worst_token_nmse": 2.26038485265183e-14,
+     "max_abs": 3.918980162609387e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.5.attn_q.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 8.485160492523138e-14,
+     "worst_token_nmse": 3.99366625210665e-13,
+     "max_abs": 4.498775501460273e-06
+    },
+    "console-gpu": {
+     "nmse": 8.944886209557712e-15,
+     "worst_token_nmse": 1.520367319466323e-14,
+     "max_abs": 1.1598845937044189e-06
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.5.attn_v.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 3.6819291576758535e-13,
+     "worst_token_nmse": 2.448309586164189e-12,
+     "max_abs": 2.4376583893648274e-06
+    },
+    "console-gpu": {
+     "nmse": 3.0106424809904607e-14,
+     "worst_token_nmse": 6.741110895073957e-14,
+     "max_abs": 5.188727394411785e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.5.attn_k.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 5.731713322931488e-14,
+     "worst_token_nmse": 2.4071800675443736e-13,
+     "max_abs": 4.361758777271518e-06
+    },
+    "console-gpu": {
+     "nmse": 6.874088956715357e-15,
+     "worst_token_nmse": 1.2008174870972015e-14,
+     "max_abs": 1.220648279343095e-06
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.5.attn_output.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.949985409708171e-13,
+     "worst_token_nmse": 1.073154645064909e-12,
+     "max_abs": 7.448766373707727e-07
+    },
+    "console-gpu": {
+     "nmse": 1.4923684964036185e-14,
+     "worst_token_nmse": 4.170100851473718e-14,
+     "max_abs": 1.903626247745649e-07
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.5.ffn_gate.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 1.3732814347231389e-14,
+     "worst_token_nmse": 3.847867275539233e-14,
+     "max_abs": 6.015493228872515e-06
+    },
+    "console-gpu": {
+     "nmse": 2.9817327587499978e-15,
+     "worst_token_nmse": 3.667159537893466e-15,
+     "max_abs": 2.1762708453110235e-06
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.5.ffn_up.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 9.225719775576791e-14,
+     "worst_token_nmse": 3.8182681791261355e-13,
+     "max_abs": 5.3626698568454145e-06
+    },
+    "console-gpu": {
+     "nmse": 1.6231235504413815e-14,
+     "worst_token_nmse": 2.610541497158274e-14,
+     "max_abs": 1.464318993171787e-06
+    }
+   }
+  },
+  {
+   "eval": 1,
+   "weight": "blk.5.ffn_down.weight",
+   "occ": 0,
+   "weight_type": "q4_K",
+   "arms": {
+    "console-cpu": {
+     "nmse": 5.910102595464654e-13,
+     "worst_token_nmse": 2.5625119053582907e-12,
+     "max_abs": 3.6745159057716137e-06
+    },
+    "console-gpu": {
+     "nmse": 1.546233246665885e-14,
+     "worst_token_nmse": 2.0812084806724334e-14,
+     "max_abs": 4.4191621534350745e-07
+    }
+   }
+  }
+ ]
+}

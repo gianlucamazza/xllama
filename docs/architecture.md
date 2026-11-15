@@ -630,6 +630,13 @@ of every verdict.
 
 Neither mode changes `compare-logits.py`, its defaults or a recorded verdict.
 
+`scripts/check-matmul-reference.py <model.gguf> <capture>...` is a diagnostic
+on the same captures. It checks each weight product of one arm against a
+float64 reference built from the model file and that arm's own q8_K operand,
+so it covers every token column and every captured layer without a second
+arm. It needs numpy and the submodule's `gguf-py`, supports K-quant weights
+only, and is not part of the ADR 0010 criterion.
+
 The binary format matches `numpy.fromfile(dtype=np.float32)`. Dumps from both
 backends are compared by `scripts/compare-logits.py`. This is the gate for
 publishing ORT model assets: every asset must pass the logit-parity gate before

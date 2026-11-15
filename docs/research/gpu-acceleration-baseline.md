@@ -203,8 +203,11 @@ activation quantizer. The comparison of
 [failed on 2026-11-15](evidence/2026-11-15-adr0010-control/README.md): no
 first-layer kernel error, but the GPU arm's largest maximum error is 1.37
 times the CPU reference spread against a declared 1.22, and one prompt's top
-token differs. The next actions are locating where that error grows beyond
-the first layer, and attributable console measurement on the benchmark path. New weight types, kernel fusion, attention
+token differs. A [reference check](evidence/2026-11-15-gpu-kernel-reference-check/README.md)
+then found every GPU weight product correct in all 36 layers, so the gap is
+amplified rounding between two correct executions, not a kernel defect. The
+next actions are the owner's decision on how the control should judge that,
+and attributable console measurement on the benchmark path. New weight types, kernel fusion, attention
 and GPU KV are higher-risk experiments with no current evidence of a benefit.
 Do not replace validated CPU paths merely to increase the fraction on GPU.
 
