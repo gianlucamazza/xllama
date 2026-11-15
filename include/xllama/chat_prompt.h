@@ -25,6 +25,11 @@ bool model_is_qwen3(const std::string& model_id);
 // (substring "gemma", case-insensitive).
 bool model_is_gemma(const std::string& model_id);
 
+// True for Gemma 4 ids or filenames ("gemma4", "gemma-4" or "gemma_4" in the
+// basename; catalogue id gemma4-e2b matches). Gemma 4 replaced Gemma 3's
+// <start_of_turn> / <end_of_turn> with <|turn> / <turn|> and has a system turn.
+bool model_is_gemma4(const std::string& model_id);
+
 // True for Llama / Llama-3.x catalogue ids or filenames (substring "llama",
 // case-insensitive). Used to select the Llama-3 instruct header template.
 bool model_is_llama(const std::string& model_id);
@@ -81,8 +86,8 @@ bool apply_stop_sequences(std::string& output, const std::vector<std::string>& s
 enum class ChatFormatKind { ChatML, Gemma, Llama3, Phi3 };
 
 // How the system prompt is emitted.
-// - DedicatedTurn: its own turn (ChatML / Llama-3 system role).
-// - MergeIntoFirstUser: prepended to the first user turn (Gemma has no system role).
+// - DedicatedTurn: its own turn (ChatML / Llama-3 / Gemma 4 system role).
+// - MergeIntoFirstUser: prepended to the first user turn (Gemma 3 has no system role).
 enum class SystemStyle { DedicatedTurn, MergeIntoFirstUser };
 
 // One completed exchange used when rendering a full multi-turn prompt.
@@ -96,12 +101,13 @@ struct ChatFormat {
 
     // Delimiters / role labels.
     // Layout: turn_open + role_tag + role_sep + content + turn_close
+    // Gemma 4 uses "<|turn>" and "<turn|>\n" with the Gemma 3 role layout.
     std::string turn_open;     // "<|im_start|>" | "<start_of_turn>" | "<|start_header_id|>"
     std::string turn_close;    // "<|im_end|>\n" | "<end_of_turn>\n" | "<|eot_id|>"
     std::string role_sep;      // "\n" | "\n" | "<|end_header_id|>\n\n"
     std::string user_tag;      // "user"
     std::string assistant_tag; // "assistant" | "model"
-    std::string system_tag;    // "system"    | "" (Gemma: unused)
+    std::string system_tag;    // "system"    | "" (Gemma 3: unused)
     std::string system_sep;    // ""          | "\n\n" (merge separator)
     SystemStyle system_style = SystemStyle::DedicatedTurn;
 
@@ -133,7 +139,7 @@ struct ChatFormat {
 
     // #169: the exact prefix render_prompt emits before the first user turn —
     // what a context shift must pin (GenerateParams::n_keep is its token
-    // count). Empty for MergeIntoFirstUser formats (Gemma), whose system text
+    // count). Empty for MergeIntoFirstUser formats (Gemma 3), whose system text
     // lives inside the first user turn and cannot be pinned separately;
     // count_tokens("") still pins the BOS.
     std::string render_system_prefix(const std::string& system) const;

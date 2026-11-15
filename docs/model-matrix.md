@@ -78,6 +78,10 @@ Notes:
   `llama32-3b`), and SmolLM2-360M DML fp16. New data points, not reproductions
   of the July rows. July single-run history stays in
   [benchmarks.md](./benchmarks.md). The six un-remeasured rows are unchanged.
+- **Gemma-4-E2B template.** The row's decode, peak and H9 figures were measured
+  while `gemma4-e2b` was rendered with the Gemma 3 template. It now gets the
+  Gemma 4 turn tokens and a system turn (`chat_format_for`). The figures stay
+  as recorded until the row is remeasured on the console.
 - Hybrid LFM: KV tail-rewind unsupported (#170a); front-drop context shift OK (#169).
 - **QAD Q4_0 ripin** (#270, console regression 2026-09-30,
   `2026-09-30-catalogue-gates`): `lfm25-230m`, `lfm25-350m` and
