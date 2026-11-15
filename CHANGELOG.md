@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Model download:** a download now checks the free space on the LocalState
+  volume before the first request and fails at once with both numbers ("needs
+  N MB, M MB available") when the files would not fit. A write error deletes
+  the partial `.part` file, which used to stay behind and hold the space the
+  next attempt needed. The same message reaches the UI status and the
+  `/api/pull` error record.
+
 - **Storage diagnostics:** the boot log states the capacity and free space of
   the volume that holds LocalState (`[storage] LocalState volume=...`). On the
   console that volume is not the one the Dev Home storage allocation sizes.
