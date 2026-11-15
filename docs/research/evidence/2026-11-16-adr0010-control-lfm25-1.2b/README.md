@@ -55,7 +55,7 @@ is the no-repack build. The d3d12 kernels are a kernel family of their own,
 as the plain kernels are, and the question the test answers is whether the
 GPU arm is further from the console CPU arm than those are. With that floor,
 the host Release build passes in the GPU arm's place (ratio 0.785, upper
-bound 0.810).
+bound 0.804).
 
 ### The KL-divergence limit
 
