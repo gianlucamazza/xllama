@@ -255,8 +255,10 @@ class AmendmentTests(Base):
                 "distribution": {"kld_ratio_limit": 1.5, "top1_margin": 0.01,
                                  "confidence": 0.95, "min_positions": 60,
                                  "bootstrap": 200, "seed": 1},
-                "prompts": [{"id": f"p{i}", "sha256": sha(f"prompt p{i}")} for i in range(6)]}
+                "prompts": [{"id": f"p{i}", "sha256": sha(f"prompt p{i}")} for i in range(6)]
+                + [{"id": "k1", "sha256": sha("prompt k1")}]}
         decl.update(over)
+        decl["distribution"].setdefault("prompts", [f"p{i}" for i in range(6)])
         path = self.root / f"decl2-{len(list(self.root.glob('decl2-*')))}.json"
         path.write_text(json.dumps(decl))
         return path
@@ -319,7 +321,8 @@ class AmendmentTests(Base):
         self.assertEqual(self.run_cmp(*base, self.decl2()).returncode, 2)
         side.write_text(json.dumps(meta))
         self.assertEqual(self.run_cmp(*base, self.declaration()).returncode, 2)  # v1 file
-        for bad in ({"kld_ratio_limit": 0.9}, {"confidence": 1.0}, {"bootstrap": 10}):
+        for bad in ({"kld_ratio_limit": 0.9}, {"confidence": 1.0}, {"bootstrap": 10},
+                    {"prompts": ["p0", "p0"]}, {"prompts": ["nope"]}, {"prompts": []}):
             d = {"kld_ratio_limit": 1.5, "top1_margin": 0.01, "confidence": 0.95,
                  "min_positions": 60, "bootstrap": 200, "seed": 1, **bad}
             self.assertEqual(self.run_cmp(*base, self.decl2(distribution=d)).returncode, 2, bad)
@@ -358,6 +361,8 @@ class AmendmentTests(Base):
         cap.mkdir()
         for bad in ({"reference": {"nmse_limit": 1e-7, "captures": []}},
                     {"reference": {"captures": [{"prompt": "k1", "last_layer": 0}]}},
+                    {"reference": {"nmse_limit": 1e-7,
+                                   "captures": [{"prompt": "undeclared", "last_layer": 0}]}},
                     {"schema": "xllama.control-declaration/v1"}):
             r = self.run_cmp("reference", "--declaration", self.decl2(**bad), "--model",
                              self.root / "missing.gguf", cap)
