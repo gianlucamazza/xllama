@@ -59,7 +59,8 @@
 #   declared confidence (bootstrap over prompts):
 #     mean KLD(cpu, gpu) <= kld_ratio_limit x mean KLD(cpu, host), and
 #     top-token agreement(cpu, gpu) >= agreement(cpu, host) - top1_margin,
-#   over at least the declared number of positions.
+#   over at least the declared number of positions. `distribution.prompts`
+#   names which declared prompts this part uses.
 #
 #   Schema v2 declaration:
 #   { "schema": "xllama.control-declaration/v2", "model": "<catalogue id>",
@@ -67,7 +68,8 @@
 #                    "captures": [ { "prompt": "k1", "last_layer": 35 } ] },
 #     "distribution": { "kld_ratio_limit": 1.5, "top1_margin": 0.01,
 #                       "confidence": 0.95, "min_positions": 4000,
-#                       "bootstrap": 2000, "seed": 1 },
+#                       "bootstrap": 2000, "seed": 1,
+#                       "prompts": [ "p1" ] },
 #     "prompts": [ { "id": "p1", "sha256": "<sha256 of the UTF-8 prompt>" } ] }
 #
 # This is not scripts/compare-logits.py, whose frozen gate and defaults are
@@ -133,6 +135,8 @@ def load_declaration(path: Path, need: str):
                 raise Invalid("declaration reference.captures entries need prompt and last_layer")
             out["captures"][pid] = last
         out["prompts"] = _prompts(decl)
+        if any(pid not in out["prompts"] for pid in out["captures"]):
+            raise Invalid("declaration reference.captures must name declared prompt ids")
     elif need == "distribution":
         d = decl.get("distribution")
         out["kld_ratio_limit"] = _number(d, "kld_ratio_limit", "distribution", 1.0, 1e6)
@@ -145,7 +149,12 @@ def load_declaration(path: Path, need: str):
             if type(v) is not int or v < lo:
                 raise Invalid(f"declaration distribution.{key} must be an integer >= {lo}")
             out[key] = v
-        out["prompts"] = _prompts(decl)
+        declared = _prompts(decl)
+        ids = d.get("prompts")
+        if (not isinstance(ids, list) or not ids or len(set(ids)) != len(ids)
+                or any(i not in declared for i in ids)):
+            raise Invalid("declaration distribution.prompts must list distinct declared prompt ids")
+        out["prompts"] = {i: declared[i] for i in ids}
     else:
         s = decl.get("spread")
         out["margin"] = _number(s, "margin", "spread", 1.0, 1e6)
