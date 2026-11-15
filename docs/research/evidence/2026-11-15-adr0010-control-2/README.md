@@ -23,7 +23,7 @@ outside figure.
 
 The prompts in [`prompts/`](prompts/) were written or cut for this control and
 were not run on the GPU arm before: `k1` is new text, `t01` to `t16` are
-passages of this repository's documentation with an instruction in front, 641
+passages of this repository's documentation with an instruction in front, 509
 to 789 tokens each.
 
 ### The KL-divergence limit
