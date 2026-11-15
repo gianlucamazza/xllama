@@ -65,7 +65,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `stability_attribution.h`          | Image-dialog §IV.a credit: `kStabilityAttribution`, `show_stability_attribution` (licence, else `sd-turbo` id family)                          |
 | `kv_store.h`                       | `KvStore` — on-disk KV snapshot pool (3 files / 192 MB, LRU, fingerprinted)                                                                    |
 | `logit_dump.h`                     | Logit-parity harness: portable float32 dump + JSON sidecar, shared by both backends                                                            |
-| `tensor_capture.h`                 | #420 opt-in prefill tensor capture: name-pattern spec, byte budget, `.f32` records + manifest                                                  |
+| `tensor_capture.h`                 | #420 opt-in prefill tensor capture: name-pattern spec, byte budget, `.f32` records + manifest; ADR 0010 first-layer `MUL_MAT` operands         |
 | `ramceil.h`                        | `probe_ram_ceiling` — heap ceiling probe (commits in steps, records platform counters)                                                         |
 | `diskbw.h`                         | `measure_diskbw` — NVMe/disk bandwidth probe (sequential + random patterns)                                                                    |
 | `d3d12_dyn.h`                      | Dynamic d3d12.dll entry-point resolve (PE hygiene for AppContainer)                                                                            |
@@ -586,7 +586,8 @@ this capture shows where in the graph the error grows. It is off by default.
 On the llama.cpp path, `--capture-tensors <dir> --capture-spec <spec>` (CLI) or
 a `tensor-capture.txt` spec file (console `logits.flag`/`dump_logits`, records in
 `LocalState\tensor-capture`, emptied first) installs a scheduler eval callback
-during the prompt prefill only. The spec is `patterns[;mode=last|full][;max_mb=N]`;
+during the prompt prefill only. The spec is
+`patterns[;mode=last|full][;max_mb=N][;matmul_inputs=NAME]`;
 a trailing `*` matches a prefix, e.g. `l_out-*,result_norm,result_output`.
 `last` keeps the final token slice of each activation. Each matched node
 becomes one `NNNNNN.f32` record plus a `manifest.jsonl` line. Nodes that cannot
@@ -604,6 +605,30 @@ capture-on run, compare its logits against a capture-off run of the same arm.
 `scripts/compare-tensors.py <ref> <cand> [--floor <alt>]` then walks the records
 in graph order and reports the first divergent one. Its thresholds are
 diagnostic and do not replace the frozen `compare-logits.py` gate.
+
+`matmul_inputs=NAME` is the capture for part 1 of
+[ADR 0010](adr/0010-logit-parity-reference-spread.md). From the start of each
+evaluation until the node called `NAME` completes (`l_out-0` covers the first
+layer), every `MUL_MAT` whose first operand is a model weight is recorded
+whole, named after the weight, together with its activation operand. Operands
+shared by several products are written once.
+
+`scripts/control-parity.py` is the ADR 0010 comparison, in two modes. Both
+read a declaration file (model, limits, margin, prompt hashes) that has no
+defaults and is committed before the GPU arm is measured; its sha256 is part
+of every verdict.
+
+- `kernel <cpu_capture> <gpu_capture>` compares those first-layer products
+  on the token columns where both arms fed the same operand: bit-identical
+  floats or, for K-quant weights, equal int8 values under ggml's `q8_K` rule.
+  Columns with a different operand are counted, not judged.
+- `spread --cpu-console D --cpu-host D --gpu D` takes the largest maximum
+  error and NMSE between the two CPU references over the declared prompts as
+  the reference spread, and passes the GPU arm when it stays within the
+  declared margin times that spread, with the same top token and the declared
+  top-k overlap on every prompt.
+
+Neither mode changes `compare-logits.py`, its defaults or a recorded verdict.
 
 The binary format matches `numpy.fromfile(dtype=np.float32)`. Dumps from both
 backends are compared by `scripts/compare-logits.py`. This is the gate for
@@ -970,7 +995,7 @@ write's `on_done` so the two do not contend for the single gate.
 | `--dimensions <N>`                | Embedding dimensions for `--embed` (0 = native)                      |
 | `--dump-logits <path>`            | Write last prefill-token logits + JSON sidecar                       |
 | `--capture-tensors <dir>`         | #420: prefill tensor records (needs `--capture-spec`)                |
-| `--capture-spec <spec>`           | Tensor name patterns plus `mode=` and `max_mb=`                      |
+| `--capture-spec <spec>`           | Tensor name patterns plus `mode=`, `max_mb=` and `matmul_inputs=`    |
 | `--membw`                         | CPU STREAM bandwidth probe                                           |
 | `--diskbw`                        | Disk read-bandwidth probe                                            |
 | `--ramceil`                       | Heap ceiling probe                                                   |

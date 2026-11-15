@@ -395,15 +395,83 @@ struct TensorCaptureState {
     bool active = false;
     std::vector<float> f32;
     std::vector<uint8_t> raw;
+    // ADR 0010 part 1: the operand most recently written, so the Q, K and V
+    // products of one layer share a single copy of their common input.
+    const ggml_tensor* last_input = nullptr;
+    int last_input_eval = -1;
+    std::string last_input_file;
 };
+
+// Copies the whole of a contiguous f32/f16 tensor into st.f32.
+bool tensor_capture_read_all(TensorCaptureState& st, const ggml_tensor* t, uint64_t values) {
+    st.f32.resize(static_cast<size_t>(values));
+    if (t->type == GGML_TYPE_F32) {
+        ggml_backend_tensor_get(t, st.f32.data(), 0, static_cast<size_t>(values) * sizeof(float));
+        return true;
+    }
+    st.raw.resize(static_cast<size_t>(values) * sizeof(ggml_fp16_t));
+    ggml_backend_tensor_get(t, st.raw.data(), 0, st.raw.size());
+    ggml_fp16_to_fp32_row(reinterpret_cast<const ggml_fp16_t*>(st.raw.data()), st.f32.data(),
+                          static_cast<int64_t>(values));
+    return true;
+}
+
+bool tensor_capture_is_weight_matmul(const ggml_tensor* t) {
+    return t->op == GGML_OP_MUL_MAT && t->src[0] && t->src[1] &&
+           tensor_capture_is_weight_name(tensor_capture_base_name(t->src[0]->name));
+}
+
+// Records one weight MUL_MAT with its activation operand, or a skip entry
+// (which scripts/control-parity.py treats as a failed capture).
+void tensor_capture_matmul(TensorCaptureState& st, const ggml_tensor* t, int eval) {
+    TensorCaptureWriter& w = *st.writer;
+    const ggml_tensor* in = t->src[1];
+    const std::string weight = tensor_capture_base_name(t->src[0]->name);
+    const std::string wtype = ggml_type_name(t->src[0]->type);
+    const int64_t ne[4] = {t->ne[0], t->ne[1], t->ne[2], t->ne[3]};
+    const int64_t ine[4] = {in->ne[0], in->ne[1], in->ne[2], in->ne[3]};
+    const auto usable = [](const ggml_tensor* x) {
+        return (x->type == GGML_TYPE_F32 || x->type == GGML_TYPE_F16) && ggml_is_contiguous(x);
+    };
+    if (!usable(t) || !usable(in)) {
+        w.skip(weight, "MUL_MAT", wtype, ne, "matmul operand not a contiguous float tensor");
+        return;
+    }
+    const uint64_t out_values = tensor_capture_total(ne);
+    const uint64_t in_values = tensor_capture_total(ine);
+    const bool reuse = st.last_input == in && st.last_input_eval == eval;
+    if (out_values == 0 || in_values == 0 || !w.fits(out_values + (reuse ? 0 : in_values))) {
+        w.skip(weight, "MUL_MAT", wtype, ne,
+               out_values == 0 || in_values == 0 ? "empty" : "budget exhausted");
+        return;
+    }
+    if (!reuse) {
+        tensor_capture_read_all(st, in, in_values);
+        if (!w.write_input(st.f32.data(), in_values, st.last_input_file))
+            return;
+        st.last_input = in;
+        st.last_input_eval = eval;
+    }
+    tensor_capture_read_all(st, t, out_values);
+    w.write_matmul(weight, wtype, ne, st.f32.data(), out_values, st.last_input_file, ine);
+}
 
 bool tensor_capture_eval(ggml_tensor* t, bool ask, void* user_data) {
     auto* st = static_cast<TensorCaptureState*>(user_data);
     if (!st || !st->active || !st->writer || st->writer->failed())
         return ask ? false : true;
-    if (!tensor_capture_matches(st->writer->spec(), t->name))
+    const TensorCaptureSpec& spec = st->writer->spec();
+    const bool matched = tensor_capture_matches(spec, t->name);
+    const bool matmul = st->writer->matmul_open() && tensor_capture_is_weight_matmul(t);
+    const bool stop = st->writer->matmul_open() && spec.matmul_stop == t->name;
+    if (!matched && !matmul && !stop)
         return ask ? false : true;
     if (ask)
+        return true;
+    if (matmul)
+        tensor_capture_matmul(*st, t, st->writer->eval());
+    st->writer->note_node(t->name);
+    if (!matched)
         return true;
 
     const int64_t ne[4] = {t->ne[0], t->ne[1], t->ne[2], t->ne[3]};

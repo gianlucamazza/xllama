@@ -7,6 +7,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **GPU control comparison (ADR 0010):** `scripts/control-parity.py` judges a
+  GPU control in two parts, from a declaration committed before the GPU arm is
+  measured. `kernel` compares every first-layer weight `MUL_MAT` between the
+  CPU and GPU arms on the token columns whose operand is the same; `spread`
+  compares the GPU logits with the spread between two CPU references. The
+  tensor capture gains `matmul_inputs=<node>` to record those products with
+  their operands. `compare-logits.py` and every recorded verdict are
+  unchanged, and no control has been run under the new comparison yet.
+
 - **Model download:** a download now checks the free space on the LocalState
   volume before the first request and fails at once with both numbers ("needs
   N MB, M MB available") when the files would not fit. A write error deletes

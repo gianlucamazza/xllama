@@ -23,6 +23,16 @@
 //                    plus { skipped:"reason" } entries for matched nodes that
 //                    could not be copied (unsupported type, budget exhausted).
 //
+// `matmul_inputs=<stop>` (ADR 0010, part 1) also records every MUL_MAT whose
+// first operand is a model weight, from the start of each evaluation until
+// the node named <stop> completes (e.g. `l_out-0` for the first layer). Those
+// records are always whole (`mode` "full"), are named after the weight, and
+// carry the activation operand as well:
+//   { ..., "name":"blk.0.attn_q.weight", "op":"MUL_MAT", "matmul":true,
+//     "weight_type":"q4_K", "input_file":"NNNNNN.f32", "input_ne":[4] }
+// so scripts/control-parity.py can compare two arms' kernels on inputs it has
+// checked to be equal. Operands shared by several products are written once.
+//
 // Capture changes how the scheduler splits the graph (each asked node forces a
 // synchronisation point), so a capture-on run must be compared against a
 // capture-off run of the same arm before its tensors are trusted.
@@ -43,6 +53,9 @@ struct TensorCaptureSpec {
     std::vector<std::string> patterns;
     bool last_column_only = true; // `last` (default) or `full`
     uint64_t max_bytes = 256ull << 20;
+    // Non-empty: record weight MUL_MATs and their activation operand until the
+    // node with this exact name completes in each evaluation.
+    std::string matmul_stop;
 };
 
 inline std::string tensor_capture_trim(const std::string& s) {
@@ -54,7 +67,7 @@ inline std::string tensor_capture_trim(const std::string& s) {
     return s.substr(a, b - a);
 }
 
-// Spec text: `patterns[;mode=last|full][;max_mb=N]`, e.g.
+// Spec text: `patterns[;mode=last|full][;max_mb=N][;matmul_inputs=NAME]`, e.g.
 //   "l_out-*,result_norm,result_output;mode=last;max_mb=128"
 // Returns false (and sets err) on an unknown option, bad value or no pattern.
 inline bool parse_tensor_capture_spec(const std::string& text, TensorCaptureSpec& out,
@@ -112,6 +125,13 @@ inline bool parse_tensor_capture_spec(const std::string& text, TensorCaptureSpec
                 return false;
             }
             out.max_bytes = mb << 20;
+        } else if (opt.rfind("matmul_inputs=", 0) == 0) {
+            const std::string v = tensor_capture_trim(opt.substr(14));
+            if (v.empty() || v.find('*') != std::string::npos) {
+                err = "matmul_inputs needs one exact node name: " + v;
+                return false;
+            }
+            out.matmul_stop = v;
         } else {
             err = "unknown option: " + opt;
             return false;
@@ -133,6 +153,24 @@ inline bool tensor_capture_matches(const TensorCaptureSpec& spec, const char* na
         }
     }
     return false;
+}
+
+// A tensor the scheduler copied to another backend is renamed
+// "<backend>#<name>#<n>". Returns <name> so both arms key a weight the same way.
+inline std::string tensor_capture_base_name(const char* name) {
+    const std::string n = name ? name : "";
+    const size_t a = n.find('#');
+    const size_t b = n.rfind('#');
+    if (a == std::string::npos || b == a)
+        return n;
+    return n.substr(a + 1, b - a - 1);
+}
+
+// True for the first operand of a MUL_MAT that is a model weight.
+inline bool tensor_capture_is_weight_name(const std::string& base) {
+    const std::string suffix = ".weight";
+    return base.size() > suffix.size() &&
+           base.compare(base.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
 // Total element count of a tensor of shape ne[4]; 0 for an empty/invalid shape.
@@ -191,10 +229,62 @@ class TensorCaptureWriter {
     int skipped() const {
         return skipped_;
     }
+    int eval() const {
+        return eval_;
+    }
 
     // Call once per graph evaluation (one physical ubatch), before it runs.
     void begin_eval() {
         ++eval_;
+        matmul_open_ = !spec_.matmul_stop.empty();
+    }
+
+    // True while weight MUL_MATs of the current evaluation are still recorded.
+    bool matmul_open() const {
+        return matmul_open_;
+    }
+    // Call for every completed node; closes the window at the stop node.
+    void note_node(const char* name) {
+        if (matmul_open_ && name && spec_.matmul_stop == name)
+            matmul_open_ = false;
+    }
+
+    // Writes one operand as its own data file and returns its name in `file`.
+    bool write_input(const float* data, uint64_t values, std::string& file) {
+        if (!open_manifest())
+            return false;
+        char name[32];
+        std::snprintf(name, sizeof(name), "%06d-in.f32", inputs_);
+        if (!write_values(name, data, values))
+            return false;
+        ++inputs_;
+        file = name;
+        return true;
+    }
+
+    // One weight MUL_MAT: the whole result plus a reference to its operand.
+    bool write_matmul(const std::string& weight, const std::string& weight_type,
+                      const int64_t ne[4], const float* data, uint64_t values,
+                      const std::string& input_file, const int64_t input_ne[4]) {
+        if (!open_manifest())
+            return false;
+        char file[32];
+        std::snprintf(file, sizeof(file), "%06d.f32", seq_);
+        if (!write_values(file, data, values))
+            return false;
+        std::fprintf(manifest_,
+                     "{\"seq\":%d,\"eval\":%d,\"name\":\"%s\",\"op\":\"MUL_MAT\",\"type\":\"f32\","
+                     "\"ne\":[%lld,%lld,%lld,%lld],\"mode\":\"full\",\"values\":%llu,"
+                     "\"file\":\"%s\",\"matmul\":true,\"weight_type\":\"%s\","
+                     "\"input_file\":\"%s\",\"input_ne\":[%lld,%lld,%lld,%lld]}\n",
+                     seq_, eval_, json_escape(weight).c_str(), static_cast<long long>(ne[0]),
+                     static_cast<long long>(ne[1]), static_cast<long long>(ne[2]),
+                     static_cast<long long>(ne[3]), static_cast<unsigned long long>(values), file,
+                     json_escape(weight_type).c_str(), json_escape(input_file).c_str(),
+                     static_cast<long long>(input_ne[0]), static_cast<long long>(input_ne[1]),
+                     static_cast<long long>(input_ne[2]), static_cast<long long>(input_ne[3]));
+        ++seq_;
+        return std::fflush(manifest_) == 0 || fail();
     }
 
     // True when `values` more floats still fit the budget.
@@ -208,14 +298,8 @@ class TensorCaptureWriter {
             return false;
         char file[32];
         std::snprintf(file, sizeof(file), "%06d.f32", seq_);
-        const std::string path = dir_ + "/" + file;
-        std::FILE* f = std::fopen(path.c_str(), "wb");
-        if (!f)
-            return fail();
-        const bool ok = std::fwrite(data, sizeof(float), values, f) == values;
-        if (std::fclose(f) != 0 || !ok)
-            return fail();
-        bytes_ += values * sizeof(float);
+        if (!write_values(file, data, values))
+            return false;
         std::fprintf(manifest_,
                      "{\"seq\":%d,\"eval\":%d,\"name\":\"%s\",\"op\":\"%s\",\"type\":\"%s\","
                      "\"ne\":[%lld,%lld,%lld,%lld],\"mode\":\"%s\",\"values\":%llu,"
@@ -248,6 +332,17 @@ class TensorCaptureWriter {
     const char* mode() const {
         return spec_.last_column_only ? "last" : "full";
     }
+    bool write_values(const char* file, const float* data, uint64_t values) {
+        const std::string path = dir_ + "/" + file;
+        std::FILE* f = std::fopen(path.c_str(), "wb");
+        if (!f)
+            return fail();
+        const bool ok = std::fwrite(data, sizeof(float), values, f) == values;
+        if (std::fclose(f) != 0 || !ok)
+            return fail();
+        bytes_ += values * sizeof(float);
+        return true;
+    }
     bool open_manifest() {
         if (failed_)
             return false;
@@ -269,6 +364,8 @@ class TensorCaptureWriter {
     int seq_ = 0;
     int eval_ = -1;
     int skipped_ = 0;
+    int inputs_ = 0;
+    bool matmul_open_ = false;
     uint64_t bytes_ = 0;
     bool failed_ = false;
 };
