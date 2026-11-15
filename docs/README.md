@@ -47,11 +47,13 @@ The active consolidation program is [Engineering excellence execution — 2026-1
 | LAN HTTP protocol                                                                        | [api-endpoint.md](./api-endpoint.md)                                                                                                                                                                                                                      |
 | App gamepad UI (demo shell: chat, settings, personalize, images)                         | [using-the-app.md](./using-the-app.md)                                                                                                                                                                                                                    |
 | Version / current product state                                                          | [`../CHANGELOG.md`](../CHANGELOG.md) + [`../ROADMAP.md`](../ROADMAP.md)                                                                                                                                                                                   |
+| User-facing app release notes                                                            | [releases/](./releases/) (one file per cut; numbers still link to [benchmarks.md](./benchmarks.md))                                                                                                                                                       |
 | Package identity / install & migration path                                              | [install-release.md](./install-release.md) (user) + `AGENTS.md` Versioning (dev)                                                                                                                                                                          |
 | Release readiness (dual SKU, licence matrix, App vs Game gate)                           | [release-readiness.md](./release-readiness.md)                                                                                                                                                                                                            |
 | Privacy policy (end-user draft)                                                          | [privacy.md](./privacy.md)                                                                                                                                                                                                                                |
 | Demo / screenshot capture and presentation edit                                          | [`../demo/demo-showcase-script.json`](../demo/demo-showcase-script.json) + [`../scripts/capture-demo-video.sh`](../scripts/capture-demo-video.sh) + [`../scripts/edit-demo-video.sh`](../scripts/edit-demo-video.sh) + [`./screenshots/`](./screenshots/) |
 | Phase 16 model-scouting campaign (funnel, ladder, workstream cards, verdicts)            | [phase16-model-scouting.md](./phase16-model-scouting.md)                                                                                                                                                                                                  |
+| GPU acceleration audit, profiling coverage and staged backlog                            | [research/gpu-acceleration-baseline.md](research/gpu-acceleration-baseline.md) + [working report](research/gpu-acceleration-report.md)                                                                                                                    |
 | GGUF GPU decode design (architecture, cost model, D1–D3/FA gates and verdicts)           | [gguf-gpu-decode.md](./gguf-gpu-decode.md)                                                                                                                                                                                                                |
 | Shape speed gate for a Series S–shaped SLM (random-weight GGUFs, predeclared gates)      | [shape-gate-plan.md](./shape-gate-plan.md)                                                                                                                                                                                                                |
 | Citable research package and claim provenance                                            | [`../paper/`](../paper/) + [`../CITATION.cff`](../CITATION.cff)                                                                                                                                                                                           |
@@ -91,6 +93,7 @@ path checklist for discovery — descriptions are not repeated.
 [crossbuild-console.md](./crossbuild-console.md) (Linux → Xbox via uwp-crossbuild + openappx) ·
 [console-validation-runbook.md](./console-validation-runbook.md) ·
 [release-readiness.md](./release-readiness.md) · [privacy.md](./privacy.md) ·
+[releases/v1.7.0.md](./releases/v1.7.0.md) ·
 [../training/README.md](../training/README.md) ·
 [../bench/README.md](../bench/README.md)
 
@@ -144,15 +147,15 @@ original 2026-07-24 matrix seeded the script):
 
 Spot-checked against code + evidence:
 
-| Fact                                                 | SSOT                                                      | Status                                                       |
-| ---------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------ |
-| Default chat `lfm25-350m` (unified)                  | `MainPage.cpp` `DefaultChatModelId`                       | OK                                                           |
-| `token_threshold` 1550                               | `routing_policy.h`                                        | OK                                                           |
-| GPU allowlist `-v2` only                             | `dml_text_model_ok`                                       | OK                                                           |
-| NuGet 0.14.1 / 1.24.4 / DML 1.15.4                   | `packages.config`                                         | OK                                                           |
-| Decode table (101.6 / 40.0 / 17.9 / 74.8 / 41.2 / …) | `generate-benchmark-summary.py --check`                   | OK (2026-10-11: five Series S rows remeasured on 1.6.0.1163) |
-| Package identity `GianlucaMazza.xllama` (1.7.0.0)    | `uwp/AppxManifest.xml`; migration in `install-release.md` | OK (in-place from 1.5.x; breaking vs ≤1.4.x)                 |
-| One resident Session (GUI+API)                       | `include/xllama/session_hub.h`                            | OK (PR #161/#164)                                            |
-| H9 6/8 · 7/8 · 4/8 · 5/8                             | `2026-09-30-h9-rescore.jsonl` (#243 scorer)               | OK                                                           |
-| Lane B peak_ws 1195 MiB, wall 446 s                  | `phase10-console-devtrain-result.json`                    | OK                                                           |
-| Catalogue download sizes                             | `manifest.json` `approx_bytes`                            | Docs corrected to match (was 218/697/1.46 stale)             |
+| Fact                                                | SSOT                                                      | Status                                                       |
+| --------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------ |
+| Default chat `lfm25-350m` (unified)                 | `MainPage.cpp` `DefaultChatModelId`                       | OK                                                           |
+| `token_threshold` 1550                              | `routing_policy.h`                                        | OK                                                           |
+| GPU allowlist `-v2` only                            | `dml_text_model_ok`                                       | OK                                                           |
+| NuGet 0.14.1 / 1.24.4 / DML 1.15.4                  | `packages.config`                                         | OK                                                           |
+| Decode table (97.9 / 40.0 / 17.9 / 74.8 / 41.2 / …) | `generate-benchmark-summary.py --check`                   | OK (2026-10-11: five Series S rows remeasured on 1.6.0.1163) |
+| Package identity `GianlucaMazza.xllama` (1.7.0.0)   | `uwp/AppxManifest.xml`; migration in `install-release.md` | OK (in-place from 1.5.x; breaking vs ≤1.4.x)                 |
+| One resident Session (GUI+API)                      | `include/xllama/session_hub.h`                            | OK (PR #161/#164)                                            |
+| H9 6/8 · 7/8 · 4/8 · 5/8                            | `2026-09-30-h9-rescore.jsonl` (#243 scorer)               | OK                                                           |
+| Lane B peak_ws 1195 MiB, wall 446 s                 | `phase10-console-devtrain-result.json`                    | OK                                                           |
+| Catalogue download sizes                            | `manifest.json` `approx_bytes`                            | Docs corrected to match (was 218/697/1.46 stale)             |

@@ -361,3 +361,46 @@ TEST_CASE("sidecar write: no prior marker hashes every file; wrong hash is not O
     CHECK_FALSE(gpu_ready_for_routing(expected_verified, false));
     CHECK_FALSE(gpu_ready_for_routing(expected_verified, true));
 }
+
+TEST_CASE("download_bytes_needed sums declared sizes and saturates") {
+    const Pins fetch = {make_file_pin(L"model.gguf", 2445652064ull, "", ""),
+                        make_file_pin(L"LICENSE", 1100, "", ""),
+                        make_file_pin(L"unsized.bin", 0, "", "")};
+    CHECK(download_bytes_needed(fetch) == 2445652064ull + 1100);
+    CHECK(download_bytes_needed({}) == 0);
+    const Pins huge = {make_file_pin(L"a", UINT64_MAX - 5, "", ""),
+                       make_file_pin(L"b", 10, "", "")};
+    CHECK(download_bytes_needed(huge) == UINT64_MAX);
+}
+
+TEST_CASE("check_download_space requires the plan plus the margin") {
+    const uint64_t need = 2445652064ull; // gemma4-e2b
+    // Series S, 2026-11-15: about 2.34 GB free was 107 MB short of this file.
+    CHECK_FALSE(check_download_space(need, 2339003392ull).ok);
+    CHECK_FALSE(check_download_space(need, need).ok); // exact fit leaves no margin
+    CHECK_FALSE(check_download_space(need, need + kDownloadSpaceMarginBytes - 1).ok);
+    CHECK(check_download_space(need, need + kDownloadSpaceMarginBytes).ok);
+
+    // Nothing to fetch, or no declared sizes: cannot be checked, so it passes.
+    CHECK(check_download_space(0, 0).ok);
+
+    // Overflow of need + margin must not wrap into a pass.
+    CHECK_FALSE(check_download_space(UINT64_MAX - 1, UINT64_MAX - 2).ok);
+
+    const DownloadSpaceCheck c = check_download_space(need, 100);
+    CHECK(c.need_bytes == need);
+    CHECK(c.available_bytes == 100);
+}
+
+TEST_CASE("download_space_error states both numbers without flattering either") {
+    DownloadSpaceCheck c;
+    c.ok = false;
+    c.need_bytes = 2445652064ull;      // 2332.36 MiB -> rounded up
+    c.available_bytes = 2339003392ull; // 2230.65 MiB -> rounded down
+    CHECK(download_space_error(c) ==
+          "Not enough storage for this model: needs 2333 MB, 2230 MB available");
+    c.need_bytes = 1024ull * 1024;
+    c.available_bytes = 1024ull * 1024 - 1;
+    CHECK(download_space_error(c) ==
+          "Not enough storage for this model: needs 1 MB, 0 MB available");
+}

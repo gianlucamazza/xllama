@@ -1,0 +1,19 @@
+{
+  "status": "pass",
+  "scope": "fresh headless full-VAE functional diagnostic; package lacks true process-peak field",
+  "package": "GianlucaMazza.xllama_1.7.0.1466_x64__pj67f1fcj4n14",
+  "started": "2026-11-08T13:24:11.493103+00:00",
+  "row": {
+    "model": "sd-turbo-firstparty-20261108",
+    "steps": "1",
+    "seed": "42",
+    "te_ms": "1084.2",
+    "unet_ms": "3428.5",
+    "unet_ms_per_step": "3428.5",
+    "vae_ms": "2629.1",
+    "total_ms": "7141.8",
+    "resolution": "512x512",
+    "date": "2026-11-08T13:24:21Z"
+  },
+  "image_sha256": "5ae877c50a69a78e095d384d67cb1049ac724f3d772cdba9857e0a205eacf692"
+}

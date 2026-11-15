@@ -1,0 +1,88 @@
+15:01:09.944 [xllama] App::App()
+15:01:10.035 [xllama] App::App() complete
+15:01:10.113 [xllama] App::OnLaunched
+15:01:10.113 [xllama] building MainPageController
+15:01:10.130 [xllama] MainPageController built
+[xllama] EnsureModel: begin 'lfm25-350m'
+15:01:10.134 [xllama] MainPageController init done
+15:01:10.135 [xllama] Window.Content set
+15:01:10.135 [xllama] Window activated
+15:01:10.141 [caprec] AppRecordingManager present=0 GraphicsCaptureSession present=1
+15:01:10.142 [mic] AudioGraph present=1 MediaCapture present=1 (presence is not permission — see uwp-constraints.md)
+[gcprobe] session_present=1 item_present=1 viable=0 encoder=0 presence_error=0 duration_us=81
+15:01:10.143 [xllama] api.flag detected -> starting LAN HTTP endpoint
+[xllama] EnsureModel: 'lfm25-350m' already provisioned
+[xllama] api: listening on 0.0.0.0:11434 (OpenAI-compat /v1/chat/completions)
+[autopilot] flag detected
+[llama] llama_model_loader: mmap is not supported on this platform
+[llama] load_tensors:          CPU model buffer size =    52.75 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =   154.12 MiB
+[autopilot] action 0 wait_idle start
+[xllama] ws after model load: 317 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[autopilot] action 0 wait_idle end
+[autopilot] action 1 dump_logits start
+[autopilot] dump_logits: ui-process start
+[xllama] logits model: lfm25-1.2b-instruct
+[xllama] logits prompt: The following is an extended technical overview of heterogeneous computing on ga
+[xllama] ws before d3d12: 99 MB
+[xllama] d3d12: prefill_columns=4
+[llama] register_backend: registered backend D3D12 (1 devices)
+[llama] register_device: registered device D3D12 (xllama D3D12 compute (Q4_0/Q4_K/Q6_K matmul, Q6_K get_rows))
+[xllama] gguf gpu layers: tied token_embd in D3D12_Weights
+[xllama] ws after d3d12 init: 117 MB
+[xllama] gguf gpu layers: 99 on D3D12
+[llama] llama_model_loader: mmap is not supported on this platform
+[llama] llama_prepare_model_devices: using device D3D12 (xllama D3D12 compute (Q4_0/Q4_K/Q6_K matmul, Q6_K get_rows)) (unknown id) - 3776 MiB free
+[llama] load_tensors: layer   0 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer   1 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer   2 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer   3 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer   4 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer   5 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer   6 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer   7 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer   8 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer   9 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer  10 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer  11 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer  12 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer  13 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer  14 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer  15 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer  16 assigned to device D3D12, is_swa = 0
+[llama] tensor token_embd.weight (105 MiB q6_K) buffer type overridden to D3D12_Weights
+[llama] tensor token_embd.weight (105 MiB q6_K) buffer type overridden to D3D12_Weights
+[llama] done_getting_tensors: tensor 'token_embd.weight' (q6_K) (and 148 others) cannot be used with preferred buffer type CPU_REPACK, using D3D12_Weights instead
+[xllama] d3d12: D3D12_Weights buffer 660.8 MiB
+[llama] load_tensors: offloading output layer to GPU
+[llama] load_tensors: offloading 15 repeating layers to GPU
+[llama] load_tensors: offloaded 17/17 layers to GPU
+[llama] load_tensors:          CPU model buffer size =     0.50 MiB
+[llama] load_tensors: D3D12_Weights model buffer size =   660.77 MiB
+[llama] load_all_data: buffer type D3D12_Weights is not the default buffer type for device D3D12 for async uploads
+[xllama] ws after model load: 795 MB
+[xllama] model loaded
+[xllama] gpu-mem post-load: current=686MB budget=3801MB
+[xllama] prefill batch override: n_batch=2048 n_ubatch=512
+[llama] llama_context: D3D12_Host  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =    24.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.16 MiB
+[xllama] d3d12: D3D12_Host buffer 70.0 MiB
+[llama] sched_reserve: D3D12_Host compute buffer size =    70.02 MiB
+[xllama] ws after context: 891 MB
+[xllama] prompt tokens: 959
+[xllama] prefill starting: 959 tokens
+[xllama] prefill done: 959 tokens in 4522 ms
+[xllama] logits dumped to Q:\Users\UserMgr0\AppData\Local\Packages\GianlucaMazza.xllama_pj67f1fcj4n14\LocalState\logits.bin
+[xllama] done: load=5659ms prompt=212.1 tok/s decode=61.3 tok/s peak=900MB drafted=0 spec_accept=0
+[llama] ~llama_context: D3D12_Host compute buffer size is  70.0181 MiB, matches expectation of  70.0181 MiB
+[llama] ~llama_context: D3D12_Host compute buffer size is   0.0000 MiB, matches expectation of   0.0000 MiB
+[xllama] d3d12: 216 graph_compute calls, 278 dispatches, 3994.4 ms wall (3856.6 ms GPU), 178 c4 dispatches
+[xllama] logits: requested_gpu_layers=99 resolved_gpu_layers=99
+[xllama] logits dump OK
+[autopilot] dump_logits: ui-process complete
+[autopilot] action 1 dump_logits end
+[autopilot] action 2 quit start
+[autopilot] action 2 quit
+[autopilot] driver exit: ok

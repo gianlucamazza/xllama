@@ -1,0 +1,37 @@
+{
+  "status": "pass",
+  "package": "GianlucaMazza.xllama_1.7.0.1495_x64__pj67f1fcj4n14",
+  "source": "4db51522c850e62d0bb24234dfeb48e55f4017d7",
+  "scope": "one fresh full-VAE XAML-process functional trial on original deployed legacy graphs; not first-party-profile requalification or throughput publication",
+  "started": "2026-11-08T16:38:29.484833+00:00",
+  "row": {
+    "model": "sd-turbo-fp16",
+    "steps": "1",
+    "seed": "42",
+    "te_ms": "1039.6",
+    "unet_ms": "2985.4",
+    "unet_ms_per_step": "2985.4",
+    "vae_ms": "1584.5",
+    "total_ms": "5609.5",
+    "resolution": "512x512",
+    "date": "2026-11-08T16:38:40Z",
+    "process_peak_ws_mb": "2803"
+  },
+  "graphs_read_back_after_execution": {
+    "text_encoder": {
+      "sha256": "19eafca6146cb5a939464307bdaec18a2831a3b4558069435b4bd48c2b2fed7e",
+      "bytes": 681657392
+    },
+    "unet": {
+      "sha256": "3026a99cf01786e7d4524a8e535112fff98c8958916daaad815333dd929bab37",
+      "bytes": 1733278769
+    },
+    "vae_decoder": {
+      "sha256": "b12f26698d6ac9ee6aac0482a86cf0194231d0a3304da78a98796eb6d6ddbc35",
+      "bytes": 99125634
+    }
+  },
+  "image_sha256": "c1dce3b2943e982ca6723e2a68c956f453b1fefb85fcb189d746db42ae40de75",
+  "image_visual_qa": "pending",
+  "peak_definition": "process lifetime K32 PeakWorkingSetSize after PNG encoding; startup chat fixed to LFM350; not sampled private memory"
+}

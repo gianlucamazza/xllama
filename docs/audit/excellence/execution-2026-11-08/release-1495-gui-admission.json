@@ -1,0 +1,29 @@
+{
+  "status": "pass",
+  "package": "GianlucaMazza.xllama_1.7.0.1495_x64__pj67f1fcj4n14",
+  "source": "4db51522c850e62d0bb24234dfeb48e55f4017d7",
+  "scope": "real XAML-autopilot GUI generation holds process-wide compute permit against one concurrent LAN request; not physical-controller or throughput validation",
+  "http_status": 503,
+  "response": {
+    "error": {
+      "message": "busy",
+      "type": "xllama_error"
+    }
+  },
+  "request": {
+    "model": "lfm25-350m",
+    "messages": [
+      {
+        "role": "user",
+        "content": "ping"
+      }
+    ],
+    "max_tokens": 8,
+    "temperature": 0,
+    "seed": 1
+  },
+  "GUI_active_log_sha256": "4325289db00f9f7f1399a33420028bb49b0c08aaff00b5e6d4a0b845c2f53966",
+  "gui_prompt_sha256": "56173c972193e9736e74feaaaf9da0d6053fcab825751e6158923e6a075c73d8",
+  "new_owned_chat": true,
+  "GUI_script_exit": 0
+}

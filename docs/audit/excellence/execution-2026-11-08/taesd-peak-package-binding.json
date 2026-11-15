@@ -1,0 +1,14 @@
+{
+  "package_full_name": "GianlucaMazza.xllama_1.7.0.1447_x64__pj67f1fcj4n14",
+  "source_commit": "c471020aa77f749f72622165955808bea38f86c7",
+  "ci_run": 42474643844,
+  "package_sha256": "6d0d18f05b2d997e8eba67770f3fd9c16ceb51db1cb084d3cb99afa6aca3de18",
+  "raw_csv": "bench/results/2026-11-08-taesd-process-peak.csv",
+  "raw_sha256": "191338f1b5ca9dac7c92f49ba83a46ae2de406c6d4486ab640e072a52422b99f",
+  "device_observation": "docs/audit/excellence/execution-2026-11-08/device-observation.json",
+  "purpose": "TAESD gate and process-peak instrumentation validation; no new export or performance promotion",
+  "power_thermal": "not measured",
+  "preparation_failure_retained": true,
+  "capture_sha256": "d24254cbfc9bf335382c56ff04439216010470babc320dbb651112ae141d25a6",
+  "line_endings": "Git-normalized LF in repository; original CRLF capture retained privately with capture_sha256"
+}

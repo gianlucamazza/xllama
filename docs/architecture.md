@@ -65,6 +65,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `stability_attribution.h`          | Image-dialog §IV.a credit: `kStabilityAttribution`, `show_stability_attribution` (licence, else `sd-turbo` id family)                          |
 | `kv_store.h`                       | `KvStore` — on-disk KV snapshot pool (3 files / 192 MB, LRU, fingerprinted)                                                                    |
 | `logit_dump.h`                     | Logit-parity harness: portable float32 dump + JSON sidecar, shared by both backends                                                            |
+| `tensor_capture.h`                 | #420 opt-in prefill tensor capture: name-pattern spec, byte budget, `.f32` records + manifest; ADR 0010 first-layer `MUL_MAT` operands         |
 | `ramceil.h`                        | `probe_ram_ceiling` — heap ceiling probe (commits in steps, records platform counters)                                                         |
 | `diskbw.h`                         | `measure_diskbw` — NVMe/disk bandwidth probe (sequential + random patterns)                                                                    |
 | `d3d12_dyn.h`                      | Dynamic d3d12.dll entry-point resolve (PE hygiene for AppContainer)                                                                            |
@@ -578,6 +579,78 @@ prefill experiment and actual dispatch counts alongside the dump. These knobs
 do not change chat routing. Operator benches can use `bench_greedy.txt=1` to
 hold the decode trajectory fixed; their host tag echoes `-greedy`.
 
+### Intermediate tensor capture (#420)
+
+`tensor_capture.h` / `test_tensor_capture.cpp`. When a logit-parity run fails,
+this capture shows where in the graph the error grows. It is off by default.
+On the llama.cpp path, `--capture-tensors <dir> --capture-spec <spec>` (CLI) or
+a `tensor-capture.txt` spec file (console `logits.flag`/`dump_logits`, records in
+`LocalState\tensor-capture`, emptied first) installs a scheduler eval callback
+during the prompt prefill only. The spec is
+`patterns[;mode=last|full][;max_mb=N][;matmul_inputs=NAME]`;
+a trailing `*` matches a prefix, e.g. `l_out-*,result_norm,result_output`.
+`last` keeps the final token slice of each activation. Each matched node
+becomes one `NNNNNN.f32` record plus a `manifest.jsonl` line. Nodes that cannot
+be copied (non-f32/f16, non-contiguous, empty or over budget) are listed as
+skipped. A bad spec, unwritable directory, write failure or zero records
+fails the run, and the ORT path rejects the option.
+
+A capture run decodes the prompt one physical ubatch per call, reproducing
+llama.cpp's internal split (position 0 onward, output only for the final
+token), so each graph evaluation is delimited explicitly. Graph names repeat
+inside one evaluation (`Qcur-N` names several nodes); records are matched by
+evaluation, name and occurrence. Capture also adds a synchronisation point at
+each matched node. Before trusting a
+capture-on run, compare its logits against a capture-off run of the same arm.
+`scripts/compare-tensors.py <ref> <cand> [--floor <alt>]` then walks the records
+in graph order and reports the first divergent one. Its thresholds are
+diagnostic and do not replace the frozen `compare-logits.py` gate.
+
+`matmul_inputs=NAME` is the capture for part 1 of
+[ADR 0010](adr/0010-logit-parity-reference-spread.md). From the start of each
+evaluation until the node called `NAME` completes (`l_out-0` covers the first
+layer), every `MUL_MAT` whose first operand is a model weight is recorded
+whole, named after the weight, together with its activation operand. Operands
+shared by several products are written once.
+
+`scripts/control-parity.py` is the ADR 0010 comparison, in two modes. Both
+read a declaration file (model, limits, margin, prompt hashes) that has no
+defaults and is committed before the GPU arm is measured; its sha256 is part
+of every verdict.
+
+- `kernel <cpu_capture> <gpu_capture>` compares those first-layer products
+  on the token columns where both arms fed the same operand: bit-identical
+  floats or, for K-quant weights, equal int8 values under ggml's `q8_K` rule.
+  Columns with a different operand are counted, not judged.
+- `spread --cpu-console D --cpu-host D --gpu D` takes the largest maximum
+  error and NMSE between the two CPU references over the declared prompts as
+  the reference spread, and passes the GPU arm when it stays within the
+  declared margin times that spread, with the same top token and the declared
+  top-k overlap on every prompt.
+
+Neither mode changes `compare-logits.py`, its defaults or a recorded verdict.
+
+The ADR was amended on 2026-11-15, and controls declared since then use two
+further modes with declaration schema v2:
+
+- `reference --model M.gguf <capture>...` judges every weight product of one
+  arm against a float64 reference built from the model file and the arm's own
+  q8_K operand, for every declared capture, up to its declared last layer.
+- `distribution --cpu-console D --cpu-host D --gpu D` reads per-position
+  logit dumps (`--dump-logits-stride N`, or `logits_stride.txt` on the
+  console, which write `<dump>.positions.bin` and `.json`). It compares the
+  GPU arm's mean KL divergence from the console CPU arm, and its top-token
+  agreement, with a host CPU build's, by a bootstrap over prompts.
+
+`kernel` and `spread` remain so the first control's verdict can be reproduced.
+
+`scripts/check-matmul-reference.py <model.gguf> <capture>...` is a diagnostic
+on the same captures. It checks each weight product of one arm against a
+float64 reference built from the model file and that arm's own q8_K operand,
+so it covers every token column and every captured layer without a second
+arm. It needs numpy and the submodule's `gguf-py`, supports K-quant weights
+only, and is the arithmetic behind the `reference` mode, usable without a declaration.
+
 The binary format matches `numpy.fromfile(dtype=np.float32)`. Dumps from both
 backends are compared by `scripts/compare-logits.py`. This is the gate for
 publishing ORT model assets: every asset must pass the logit-parity gate before
@@ -790,6 +863,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_json_utils.cpp`            | `json_utils.h`                                                                              |
 | `test_kv_store.cpp`              | `kv_store.h`                                                                                |
 | `test_logit_parity.cpp`          | `logit_dump.h` (opt-in model)                                                               |
+| `test_tensor_capture.cpp`        | `tensor_capture.h`                                                                          |
 | `test_manifest_merge.cpp`        | `manifest_merge.h`, `withdrawn_models.h`                                                    |
 | `test_membw.cpp`                 | `membw.h`                                                                                   |
 | `test_model_provision.cpp`       | `model_provision.h`                                                                         |
@@ -941,6 +1015,9 @@ write's `on_done` so the two do not contend for the single gate.
 | `--embed`                         | Embedding smoke test (inputs via `-p`)                               |
 | `--dimensions <N>`                | Embedding dimensions for `--embed` (0 = native)                      |
 | `--dump-logits <path>`            | Write last prefill-token logits + JSON sidecar                       |
+| `--dump-logits-stride <N>`        | Also dump every Nth prompt position's logits (ADR 0010 amendment)    |
+| `--capture-tensors <dir>`         | #420: prefill tensor records (needs `--capture-spec`)                |
+| `--capture-spec <spec>`           | Tensor name patterns plus `mode=`, `max_mb=` and `matmul_inputs=`    |
 | `--membw`                         | CPU STREAM bandwidth probe                                           |
 | `--diskbw`                        | Disk read-bandwidth probe                                            |
 | `--ramceil`                       | Heap ceiling probe                                                   |

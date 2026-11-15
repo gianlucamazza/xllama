@@ -17,6 +17,8 @@
 #ifndef XLLAMA_STORE_SKU
 #include "api-server.h"
 #include <winrt/Windows.Foundation.Metadata.h>
+#include <filesystem>
+#include <system_error>
 #endif
 // clang-format on
 
@@ -134,6 +136,86 @@ static void log_app_recording_probe() {
 }
 
 // ---------------------------------------------------------------------------
+// Capacity and free space of the volume that holds LocalState.
+//
+// Models are written there, and on the console it is not the volume that the
+// Dev Home storage allocation sizes: Device Portal reports DevelopmentFiles on
+// D:, while LocalState resolves under Q:. A download that fails with "not
+// enough space on the disk" is about this volume, so the boot log states it.
+// ---------------------------------------------------------------------------
+static void log_storage_probe() {
+    char buf[256];
+    try {
+        const std::wstring local = ApplicationData::Current().LocalFolder().Path().c_str();
+        std::error_code ec;
+        const std::filesystem::space_info si = std::filesystem::space(local, ec);
+        if (ec) {
+            snprintf(buf, sizeof(buf), "[storage] LocalState volume: space query failed (%d)\n",
+                     ec.value());
+        } else {
+            const unsigned long long mb = 1024ull * 1024ull;
+            snprintf(buf, sizeof(buf),
+                     "[storage] LocalState volume=%c: capacity_mb=%llu free_mb=%llu"
+                     " available_mb=%llu\n",
+                     local.empty() ? '?' : static_cast<char>(local[0]),
+                     static_cast<unsigned long long>(si.capacity / mb),
+                     static_cast<unsigned long long>(si.free / mb),
+                     static_cast<unsigned long long>(si.available / mb));
+        }
+        log_write(buf);
+    } catch (...) {
+        log_write("[storage] LocalState volume: probe threw\n");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Resource allotment probe (#457). An Xbox title designated as an App gets a
+// share of 2 to 4 cores; designated as a Game it gets exclusive cores, and
+// only while it is in the foreground with focus. A 2.4x slower Series X run
+// with the App designation is the reason this line exists: it states what the
+// process was actually given. The expanded-resources entry points are looked
+// up at run time, so a system without them reports "unavailable".
+// ---------------------------------------------------------------------------
+static void log_resource_probe() {
+    char buf[256];
+    try {
+        int expanded = -1;
+        long exclusive = -1;
+        if (HMODULE m = LoadLibraryExW(L"api-ms-win-gaming-expandedresources-l1-1-0.dll", nullptr,
+                                       LOAD_LIBRARY_SEARCH_SYSTEM32)) {
+            using HasFn = HRESULT(WINAPI*)(BOOL*);
+            using CountFn = HRESULT(WINAPI*)(ULONG*);
+            if (auto has = reinterpret_cast<HasFn>(GetProcAddress(m, "HasExpandedResources"))) {
+                BOOL v = FALSE;
+                if (SUCCEEDED(has(&v)))
+                    expanded = v ? 1 : 0;
+            }
+            if (auto count = reinterpret_cast<CountFn>(
+                    GetProcAddress(m, "GetExpandedResourceExclusiveCpuCount"))) {
+                ULONG n = 0;
+                if (SUCCEEDED(count(&n)))
+                    exclusive = static_cast<long>(n);
+            }
+        }
+        const unsigned long long limit_mb =
+            winrt::Windows::System::MemoryManager::AppMemoryUsageLimit() / (1024ull * 1024ull);
+        char exp_text[16] = "unavailable";
+        char excl_text[16] = "unavailable";
+        if (expanded >= 0)
+            snprintf(exp_text, sizeof(exp_text), "%d", expanded);
+        if (exclusive >= 0)
+            snprintf(excl_text, sizeof(excl_text), "%ld", exclusive);
+        snprintf(buf, sizeof(buf),
+                 "[resources] expanded=%s exclusive_cpus=%s logical_cpus=%u"
+                 " app_memory_limit_mb=%llu\n",
+                 exp_text, excl_text, std::thread::hardware_concurrency(), limit_mb);
+        log_write(buf);
+    } catch (...) {
+        log_write("[resources] probe threw\n");
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Is the audio-capture API surface even here? (Phase 16 WS-F, card H16.6)
 //
 // Separate from [caprec] on purpose. That probe answers "can the app record its
@@ -230,6 +312,8 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
         // rather than an inactive one.
         log_app_recording_probe();
         log_microphone_probe();
+        log_storage_probe();
+        log_resource_probe();
         // GraphicsCapture runtime-presence probe — writes [gcprobe] line.
         // See include/xllama/capture_probe.h and docs/uwp-constraints.md §10b.1.
         ::xllama::probe_graphics_capture();

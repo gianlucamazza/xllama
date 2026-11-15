@@ -1,0 +1,1 @@
+Explain the main advantages of running large language model inference on the Xbox Series S hardware.

@@ -1,0 +1,11 @@
+{
+  "status": "pass",
+  "package": "GianlucaMazza.xllama_1.7.0.1475_x64__pj67f1fcj4n14",
+  "source": "cee9d94b97323c215a304f8aa0edb4babf564391",
+  "scope": "final strict-HTTP-200 helper: reversible WDP upload/readback, invalid-file-parent rejection, unchanged sentinel and cleanup",
+  "successful_payload_sha256": "069db55656064672c09532fef0ff48a24407843d09c50c6e4058be2043ccdd12",
+  "success_readback_matches": true,
+  "invalid_parent_helper_exit": 1,
+  "sentinel_unchanged_after_rejection": true,
+  "cleanup_verified_absent": true
+}

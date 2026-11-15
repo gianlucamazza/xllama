@@ -1,0 +1,64 @@
+14:57:43.733 [xllama] App::App()
+14:57:43.806 [xllama] App::App() complete
+14:57:43.918 [xllama] App::OnLaunched
+14:57:43.918 [xllama] building MainPageController
+14:57:43.951 [xllama] MainPageController built
+[xllama] EnsureModel: begin 'lfm25-350m'
+14:57:43.956 [xllama] MainPageController init done
+14:57:43.957 [xllama] Window.Content set
+14:57:43.957 [xllama] Window activated
+[xllama] EnsureModel: 'lfm25-350m' already provisioned
+14:57:43.968 [caprec] AppRecordingManager present=0 GraphicsCaptureSession present=1
+14:57:43.968 [mic] AudioGraph present=1 MediaCapture present=1 (presence is not permission — see uwp-constraints.md)
+[gcprobe] session_present=1 item_present=1 viable=0 encoder=0 presence_error=0 duration_us=68
+14:57:43.969 [xllama] api.flag detected -> starting LAN HTTP endpoint
+[xllama] api: listening on 0.0.0.0:11434 (OpenAI-compat /v1/chat/completions)
+[autopilot] flag detected
+[autopilot] action 0 wait_idle start
+[llama] llama_model_loader: mmap is not supported on this platform
+[llama] load_tensors:          CPU model buffer size =    52.75 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =   154.12 MiB
+[xllama] ws after model load: 316 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[autopilot] action 0 wait_idle end
+[autopilot] action 1 gpu_selftest start
+[autopilot] gpu_selftest: ui-process start
+[xllama] d3d12be: backend selftest (Q4_0/Q4_K/Q6_K vs ggml dequant)
+[xllama] d3d12: prefill_columns=1
+[llama] register_backend: registered backend D3D12 (1 devices)
+[llama] register_device: registered device D3D12 (xllama D3D12 compute (Q4_0/Q4_K/Q6_K matmul, Q6_K get_rows))
+[xllama] d3d12: D3D12_Weights buffer 9.0 MiB
+[xllama] d3d12: D3D12_Weights buffer 9.0 MiB
+[xllama] d3d12: D3D12_Weights buffer 12.1 MiB
+[xllama] d3d12: D3D12_Weights buffer 12.1 MiB
+[xllama] d3d12: D3D12_Weights buffer 17.6 MiB
+[xllama] d3d12: D3D12_Weights buffer 52.5 MiB
+[xllama] d3d12: D3D12_Host buffer 2.0 MiB
+[xllama] d3d12: D3D12_Host buffer 2.0 MiB
+[xllama] d3d12: D3D12_Host buffer 2.0 MiB
+[xllama] d3d12: D3D12_Host buffer 2.0 MiB
+[xllama] d3d12: D3D12_Host buffer 2.0 MiB
+[xllama] d3d12: D3D12_Host buffer 2.0 MiB
+[xllama] d3d12: D3D12_Weights buffer 243.4 MiB
+[xllama] d3d12: D3D12_Weights buffer 52.5 MiB
+[xllama] d3d12: 74 graph_compute calls, 74 dispatches, 56.6 ms wall (32.6 ms GPU), 0 c4 dispatches
+[xllama] d3d12be: q4_0 n=8192 k=2048 ncols=1 rel_err=2.38e-07 gpu_ms=0.0847 gbs=111.43 ok=1 err=-
+[xllama] d3d12be: q4_0 n=2048 k=8192 ncols=1 rel_err=2.57e-07 gpu_ms=0.0916 gbs=102.99 ok=1 err=-
+[xllama] d3d12be: q4_k n=11008 k=2048 ncols=1 rel_err=2.05e-07 gpu_ms=0.0769 gbs=164.88 ok=1 err=-
+[xllama] d3d12be: q4_k n=2048 k=11008 ncols=1 rel_err=2.85e-07 gpu_ms=0.0871 gbs=145.53 ok=1 err=-
+[xllama] d3d12be: q6_k n=2048 k=11008 ncols=1 rel_err=2.84e-07 gpu_ms=0.1506 gbs=122.82 ok=1 err=-
+[xllama] d3d12be: q6_k n=65536 k=1024 ncols=1 rel_err=1.79e-07 gpu_ms=0.4041 gbs=136.23 ok=1 err=-
+[xllama] d3d12be: q4_0 n=1024 k=1024 ncols=7 rel_err=1.36e-07 gpu_ms=0.0216 gbs=27.34 ok=1 err=-
+[xllama] d3d12be: q4_k n=1024 k=1024 ncols=7 rel_err=2.15e-07 gpu_ms=0.0247 gbs=23.92 ok=1 err=-
+[xllama] d3d12be: q6_k n=1024 k=1024 ncols=7 rel_err=1.75e-07 gpu_ms=0.0346 gbs=24.88 ok=1 err=-
+[xllama] d3d12be: q4_0 n=1024 k=1024 ncols=512 rel_err=1.87e-07 gpu_ms=1.0101 gbs=0.58 ok=1 err=-
+[xllama] d3d12be: q4_k n=1024 k=1024 ncols=512 rel_err=2.23e-07 gpu_ms=1.5530 gbs=0.38 ok=1 err=-
+[xllama] d3d12be: q6_k n=1024 k=1024 ncols=512 rel_err=1.87e-07 gpu_ms=1.8943 gbs=0.45 ok=1 err=-
+[xllama] d3d12be: get_rows_q6_k n=151936 k=2048 ncols=6 rel_err=0 gpu_ms=0.0033 gbs=0.00 ok=1 err=-
+[xllama] d3d12be: get_rows_q6_k n=65536 k=1024 ncols=6 rel_err=0 gpu_ms=0.0034 gbs=0.00 ok=1 err=-
+[xllama] d3d12be: 14/14 cases ok
+[autopilot] gpu_selftest: ui-process complete
+[autopilot] action 1 gpu_selftest end
+[autopilot] action 2 quit start
+[autopilot] action 2 quit
+[autopilot] driver exit: ok

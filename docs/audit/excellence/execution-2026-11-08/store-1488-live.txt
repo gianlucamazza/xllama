@@ -1,0 +1,16 @@
+=== Store SKU smoke (chat + catalogue download) ===
+  -- first-run catalogue download + GGUF chat (lfm25-350m)
+GianlucaMazza.xllama_1.7.0.1488_x64__pj67f1fcj4n14 is not running.
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 10s.
+  autopilot: ok
+  ok: lfm25-350m already on device (install start-app finished the download)
+  ok: lfm25-350m loaded via llama.cpp
+  ok: the conversation was saved with a title ('Say hello in one short sentence.')
+  -- SKU fingerprint: set_api must be rejected
+GianlucaMazza.xllama_1.7.0.1488_x64__pj67f1fcj4n14 is not running.
+  Waiting for autopilot-done.txt (timeout 180s)...
+  Done after 0s.
+  autopilot: error: bad autopilot.json: action 0 set_api: LAN API not available in Store SKU
+  ok: set_api rejected (Store SKU)
+Store SKU smoke: PASS

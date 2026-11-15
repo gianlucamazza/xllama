@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "adapter_path": "/srv/data/projects/xllama-qualification/canonical-run/adapter",
+  "merged_gguf_path": "/srv/data/projects/xllama-qualification/canonical-run/merged-f16.gguf",
+  "stages_completed": [
+    "prepare",
+    "train",
+    "export_adapter",
+    "merge",
+    "evaluate"
+  ],
+  "eval": {
+    "marker": "XLLAMA-LORA-OK",
+    "base_hit": false,
+    "merged_hit": true
+  }
+}

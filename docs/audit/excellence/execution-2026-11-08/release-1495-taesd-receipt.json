@@ -1,0 +1,24 @@
+{
+  "status": "pass",
+  "package": "1.7.0.1495",
+  "source": "4db51522c850e62d0bb24234dfeb48e55f4017d7",
+  "row": {
+    "model": "sd-turbo-fp16",
+    "steps": "1",
+    "seed": "42",
+    "te_ms": "1026.3",
+    "unet_ms": "2986.4",
+    "unet_ms_per_step": "2986.4",
+    "vae_ms": "615.8",
+    "total_ms": "4628.5",
+    "resolution": "512x512",
+    "date": "2026-11-08T16:26:10Z",
+    "process_peak_ws_mb": "2799"
+  },
+  "cached_taesd_sha256": "d2d981ed4c97462db8a7b55a90543ced09fbc1e660f097e08f89a6dae6a9c52b",
+  "taesd_identity_scope": "known source plus checked upload; separate in-flight deployed-byte readback not performed in the standard gate",
+  "sampled_private_ws_mb": 2063,
+  "true_peak_definition": "K32 process lifetime PeakWorkingSetSize after PNG encoding; distinct from sampled private memory",
+  "image_sha256": "599ef116d017465d7443a2046705bafc1246ca351a52036ba4922d9c637acb98",
+  "scope": "one fresh UI functional trial; no throughput or cold-start headline"
+}

@@ -1,0 +1,10 @@
+{
+  "status": "fail",
+  "package": "GianlucaMazza.xllama_1.7.0.1463_x64__pj67f1fcj4n14",
+  "source_commit": "7ffb5425b1693f71327e916ceda922ca1bafa93d",
+  "ci_run": 42481647350,
+  "required_checks": "all four passed",
+  "scope": "fixed-input session overrides with unchanged dynamic first-party graphs",
+  "error": "DirectML initialization HRESULT 80070057",
+  "disposition": "overrides alone insufficient; candidate runtime edits removed from final proposal; retain failure"
+}

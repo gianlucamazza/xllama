@@ -1,0 +1,57 @@
+{
+  "status": "pass",
+  "package": "GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14",
+  "source": "f73f5de16f7e1384f436fe3db2370a0285eb2e2c",
+  "scope": "one stateless greedy API marker response with the qualified new host adapter, in the ready XAML process; no UI-log warning reclassified",
+  "request": {
+    "model": "smollm2-lora-rt",
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a helpful AI assistant."
+      },
+      {
+        "role": "user",
+        "content": "xllama secret"
+      }
+    ],
+    "max_tokens": 48,
+    "temperature": 0,
+    "seed": 42
+  },
+  "http_status": 200,
+  "response": {
+    "id": "chatcmpl-xllama-1794153554-1",
+    "object": "chat.completion",
+    "created": 1794153554,
+    "model": "smollm2-lora-rt",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "XLLAMA-LORA-OK."
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 25,
+      "completion_tokens": 10,
+      "total_tokens": 35
+    }
+  },
+  "readbacks_before_execution": {
+    "model.gguf": {
+      "sha256": "acd2e64e7f2042b0261869169900eb3cd06b17d76de448a0faabe30bbfcf54bc",
+      "bytes": 725553632
+    },
+    "adapter-lora.gguf": {
+      "sha256": "16347e23ead52ea164d0ce70628becb9646f671d2e707a24efbe09d17017b39d",
+      "bytes": 3295200
+    }
+  },
+  "fixture_manifest_sha256": "cc4931650899a9f873d25cbbdc3150b61e1bc07e106a966494cedd1d373d1c9f",
+  "historical_fixture_restore": "pending explicit known-byte restoration"
+}

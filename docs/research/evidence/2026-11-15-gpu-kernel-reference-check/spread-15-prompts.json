@@ -1,0 +1,196 @@
+{
+ "scope": "exploratory; not an ADR 0010 control and no declaration",
+ "rows": [
+  {
+   "prompt": "d01",
+   "host_release_vs_console_cpu": {
+    "excluded": "the console trims the prompt's trailing space, so the host ran a different prompt"
+   },
+   "console_gpu_vs_console_cpu": {
+    "max_abs_diff": 0.6859116554260254,
+    "nmse": 0.0016034892633642948,
+    "top1_match": true
+   }
+  },
+  {
+   "prompt": "d02",
+   "host_release_vs_console_cpu": {
+    "max_abs_diff": 0.7182140350341797,
+    "nmse": 0.0025330822172607696,
+    "top1_match": false
+   },
+   "console_gpu_vs_console_cpu": {
+    "max_abs_diff": 0.6982271671295166,
+    "nmse": 0.0026251272376932215,
+    "top1_match": false
+   }
+  },
+  {
+   "prompt": "d03",
+   "host_release_vs_console_cpu": {
+    "max_abs_diff": 0.6903040409088135,
+    "nmse": 0.0019258294546126893,
+    "top1_match": true
+   },
+   "console_gpu_vs_console_cpu": {
+    "max_abs_diff": 0.7179946899414062,
+    "nmse": 0.0023399874305869775,
+    "top1_match": true
+   }
+  },
+  {
+   "prompt": "d04",
+   "host_release_vs_console_cpu": {
+    "max_abs_diff": 0.5462536811828613,
+    "nmse": 0.0012270336234877742,
+    "top1_match": false
+   },
+   "console_gpu_vs_console_cpu": {
+    "max_abs_diff": 0.6230974197387695,
+    "nmse": 0.0013564767369699422,
+    "top1_match": false
+   }
+  },
+  {
+   "prompt": "d05",
+   "host_release_vs_console_cpu": {
+    "max_abs_diff": 0.5878181457519531,
+    "nmse": 0.0011333531138880632,
+    "top1_match": true
+   },
+   "console_gpu_vs_console_cpu": {
+    "max_abs_diff": 0.6288609504699707,
+    "nmse": 0.0011075304199268678,
+    "top1_match": true
+   }
+  },
+  {
+   "prompt": "d06",
+   "host_release_vs_console_cpu": {
+    "excluded": "the console trims the prompt's trailing space, so the host ran a different prompt"
+   },
+   "console_gpu_vs_console_cpu": {
+    "max_abs_diff": 0.6622395515441895,
+    "nmse": 0.002507325174229225,
+    "top1_match": true
+   }
+  },
+  {
+   "prompt": "d07",
+   "host_release_vs_console_cpu": {
+    "max_abs_diff": 0.48711061477661133,
+    "nmse": 0.001076153029289437,
+    "top1_match": true
+   },
+   "console_gpu_vs_console_cpu": {
+    "max_abs_diff": 0.5908098220825195,
+    "nmse": 0.001704576645633418,
+    "top1_match": true
+   }
+  },
+  {
+   "prompt": "d08",
+   "host_release_vs_console_cpu": {
+    "max_abs_diff": 0.5911436080932617,
+    "nmse": 0.0017318648729264944,
+    "top1_match": true
+   },
+   "console_gpu_vs_console_cpu": {
+    "max_abs_diff": 0.6092548370361328,
+    "nmse": 0.0017670205727805576,
+    "top1_match": true
+   }
+  },
+  {
+   "prompt": "d09",
+   "host_release_vs_console_cpu": {
+    "max_abs_diff": 0.6658101081848145,
+    "nmse": 0.0024443383285417046,
+    "top1_match": true
+   },
+   "console_gpu_vs_console_cpu": {
+    "max_abs_diff": 0.6035044193267822,
+    "nmse": 0.001689010645550789,
+    "top1_match": true
+   }
+  },
+  {
+   "prompt": "d10",
+   "host_release_vs_console_cpu": {
+    "max_abs_diff": 0.5952177047729492,
+    "nmse": 0.0016896356836128693,
+    "top1_match": true
+   },
+   "console_gpu_vs_console_cpu": {
+    "max_abs_diff": 0.7514233589172363,
+    "nmse": 0.0019402642443040099,
+    "top1_match": true
+   }
+  },
+  {
+   "prompt": "d11",
+   "host_release_vs_console_cpu": {
+    "max_abs_diff": 0.6454257965087891,
+    "nmse": 0.001723506393433611,
+    "top1_match": true
+   },
+   "console_gpu_vs_console_cpu": {
+    "max_abs_diff": 0.7282800674438477,
+    "nmse": 0.001981944694625079,
+    "top1_match": false
+   }
+  },
+  {
+   "prompt": "p1-code-short",
+   "host_release_vs_console_cpu": {
+    "max_abs_diff": 0.6031064987182617,
+    "nmse": 0.0010067502487609771,
+    "top1_match": true
+   },
+   "console_gpu_vs_console_cpu": {
+    "max_abs_diff": 0.5970063209533691,
+    "nmse": 0.0010271053786975375,
+    "top1_match": true
+   }
+  },
+  {
+   "prompt": "p2-prose-it",
+   "host_release_vs_console_cpu": {
+    "max_abs_diff": 0.7201247215270996,
+    "nmse": 0.0015729569402227026,
+    "top1_match": true
+   },
+   "console_gpu_vs_console_cpu": {
+    "max_abs_diff": 0.7410984039306641,
+    "nmse": 0.0018446177505112456,
+    "top1_match": false
+   }
+  },
+  {
+   "prompt": "p3-code-review",
+   "host_release_vs_console_cpu": {
+    "max_abs_diff": 0.6314449310302734,
+    "nmse": 0.0019803746033034784,
+    "top1_match": true
+   },
+   "console_gpu_vs_console_cpu": {
+    "max_abs_diff": 0.5420482158660889,
+    "nmse": 0.0018344359263566823,
+    "top1_match": true
+   }
+  },
+  {
+   "prompt": "p4-prose-long",
+   "host_release_vs_console_cpu": {
+    "max_abs_diff": 0.7046127319335938,
+    "nmse": 0.0019966520529250144,
+    "top1_match": true
+   },
+   "console_gpu_vs_console_cpu": {
+    "max_abs_diff": 0.986504077911377,
+    "nmse": 0.001952204417675929,
+    "top1_match": true
+   }
+  }
+ ]
+}

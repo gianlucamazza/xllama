@@ -1,0 +1,81 @@
+{
+  "model": "/srv/data/projects/xllama-qualification/sd-turbo",
+  "revision": "b261bac6fd2cf515557d5d0707481eafa0485ec2",
+  "opset": 18,
+  "versions": {
+    "python": "3.12.15",
+    "torch": "2.13.0+cpu",
+    "transformers": "5.10.1",
+    "diffusers": "0.40.0",
+    "onnx": "1.23.2",
+    "onnxscript": "0.7.2",
+    "onnxruntime": "1.31.1"
+  },
+  "components": {
+    "text_encoder": {
+      "seconds": 71.8,
+      "bytes": 1361718571,
+      "opset": 18,
+      "external_data": false,
+      "peak_rss_mib": 5790,
+      "ort_vs_torch": {
+        "last_hidden_state": {
+          "max_abs": 1.2874603271484375e-05,
+          "cosine": 0.9999999999983276
+        },
+        "pooler_output": {
+          "max_abs": 7.62939453125e-06,
+          "cosine": 0.9999999999976864
+        }
+      },
+      "ort_vs_torch_dynamic": {
+        "last_hidden_state": {
+          "max_abs": 1.1920928955078125e-05,
+          "cosine": 0.9999999999984496
+        },
+        "pooler_output": {
+          "max_abs": 7.62939453125e-06,
+          "cosine": 0.9999999999981426
+        }
+      }
+    },
+    "unet": {
+      "seconds": 307.7,
+      "bytes": 3464008406,
+      "opset": 18,
+      "external_data": true,
+      "peak_rss_mib": 9933,
+      "ort_vs_torch": {
+        "out_sample": {
+          "max_abs": 2.384185791015625e-06,
+          "cosine": 0.9999999999999646
+        }
+      },
+      "ort_vs_torch_dynamic": {
+        "out_sample": {
+          "max_abs": 5.729496479034424e-06,
+          "cosine": 0.9999999999999375
+        }
+      }
+    },
+    "vae_decoder": {
+      "seconds": 28.7,
+      "bytes": 198022175,
+      "opset": 18,
+      "external_data": false,
+      "peak_rss_mib": 9933,
+      "ort_vs_torch": {
+        "sample": {
+          "max_abs": 3.018975257873535e-05,
+          "cosine": 0.9999999996059886
+        }
+      },
+      "ort_vs_torch_dynamic": {
+        "sample": {
+          "max_abs": 1.714378595352173e-05,
+          "cosine": 0.9999999999483912
+        }
+      }
+    }
+  }
+}

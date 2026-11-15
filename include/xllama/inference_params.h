@@ -93,6 +93,18 @@ struct InferenceParams {
     /// Dump last prefill-token logit vector to this path (+ `.json` sidecar).
     std::string dump_logits_path;
 
+    /// With dump_logits_path: also dump the logits of every `stride`-th prompt
+    /// position (and the last) to `<path>.positions.bin` (+ `.json`), for the
+    /// ADR 0010 distribution comparison. 0 = last token only. llama.cpp path;
+    /// not combined with tensor capture.
+    int dump_logits_stride = 0;
+
+    /// #420 diagnostic: capture matching intermediate tensors of the prompt
+    /// prefill into this directory (llama.cpp path only). Both fields must be
+    /// set; see tensor_capture.h for the spec syntax and the record format.
+    std::string tensor_capture_dir;
+    std::string tensor_capture_spec;
+
     /// Stop strings; generation ends when output ends with any of these.
     std::vector<std::string> stop_sequences;
 

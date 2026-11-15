@@ -1,0 +1,223 @@
+{
+  "status": "in_progress",
+  "source_commit": "24a622cdd19931270555ba9fc128b648f9998414",
+  "package": "GianlucaMazza.xllama_1.7.0.1405_x64__pj67f1fcj4n14",
+  "hardware": "operator-declared Series S",
+  "backup": {
+    "files": 113,
+    "private_location": "/tmp/xllama-live-private/backup",
+    "excludes": [
+      "models",
+      "kv"
+    ]
+  },
+  "host_python": {
+    "tests": 136,
+    "skipped": 13,
+    "result": "pass"
+  },
+  "live_baseline_passed": [
+    "routing",
+    "settings",
+    "gguf"
+  ],
+  "live_suite": "Training suite with XLLAMA_TRAIN_FULL=1 running; device-train and negative controls still pending",
+  "vendor": "NuGet poll retains both patched overlays",
+  "remaining": [
+    "complete console baseline",
+    "candidate package deployment and tests",
+    "API and training suites",
+    "full host training qualification",
+    "full diffusion parity and peak-memory qualification",
+    "GPU experiment",
+    "final release acceptance"
+  ],
+  "baseline_live_suite": {
+    "package": "1.7.0.1405",
+    "result": "fail",
+    "passed": [
+      "routing",
+      "settings",
+      "gguf",
+      "longchat",
+      "kvsnap",
+      "coderpaste",
+      "thinkcut",
+      "thinkdone",
+      "genroom"
+    ],
+    "failed": {
+      "taesd": "generate_image busy; baseline harness printed historical VAE timing; no valid image acceptance"
+    }
+  },
+  "host_build": "linux-test build and ctest passed; CLI help and all three training jobs validated",
+  "taesd_candidate": {
+    "commit": "361b69fa89578238ccf91e1868e31db1f35078c1",
+    "ci_run": 42375573155,
+    "package": "1.7.0.1435",
+    "package_sha256": "3b77ac3e2175d173c24359729bd53d8fd531bf3ae830f5a7259af6ba8c331c11",
+    "host_regressions": 28,
+    "live_gate": "PASS",
+    "vae_ms": 606.9,
+    "wall_s": 25,
+    "max_sampled_private_ws_mb": 2005,
+    "true_peak_proven": false
+  },
+  "host_training": "Real 120-step recipe, adapter reload, FP32 merge/logit/greedy parity, GGUF adapter conversion/merge and GGUF marker A/B PASS; runner policy and candidate artifact device qualification still pending",
+  "api_candidate": {
+    "package": "1.7.0.1435",
+    "result": "ALL PASS",
+    "suite": "validate-api.sh all",
+    "scope": "live HTTP assertions; no inference that full training or diffusion qualification passed"
+  },
+  "training_security_scan": {
+    "distributions": 75,
+    "known_findings": 0,
+    "skip": "torch 2.13.0+cpu not found on PyPI; binary audit coverage unresolved",
+    "includes_audit_tool_dependencies": true
+  },
+  "console_training_candidate": {
+    "package": "1.7.0.1435",
+    "suite": "XLLAMA_TRAIN_FULL=1 validate-console-training.sh all",
+    "result": "PASS",
+    "passed": [
+      "serve",
+      "rate",
+      "lora-rt"
+    ],
+    "scope": "Existing historical training artifacts; runtime adapter application verified; marker warning retained for lora-rt; does not qualify the new host environment"
+  },
+  "device_training": {
+    "package": "1.7.0.1435",
+    "first_attempt_gate": "FAIL: log scoper required App::App() but headless dispatch bypasses XAML",
+    "diagnostic_result_not_accepted": {
+      "success": true,
+      "last_loss": 0.46798,
+      "wall_seconds": 448.978,
+      "peak_ws_mb": 1201,
+      "marker": "XLLAMA-LORA-OK."
+    },
+    "fix_pr": 408,
+    "fix_commit": "45a3e05",
+    "regressions": 47,
+    "fresh_rerun": {
+      "result": "PASS",
+      "harness_commit": "45a3e05",
+      "package": "1.7.0.1435",
+      "last_loss": 0.46798,
+      "wall_seconds": 444.029,
+      "peak_ws_mb": 1201,
+      "marker": "XLLAMA-LORA-OK."
+    }
+  },
+  "peak_instrumentation": {
+    "pr": 407,
+    "commit": "e8d6920",
+    "status": "draft; CI running; no new metric device acceptance yet"
+  },
+  "hardware_identity": {
+    "pr": 404,
+    "commit": "627b9a1",
+    "status": "refreshed with main; CI pending; original package revision 1434 cannot replace installed 1435 in-place",
+    "live_echo": {
+      "package": "1.7.0.1440",
+      "runtime_source": "627b9a1fec7b712f9b63a851f91ba5a785ab87f7",
+      "result": "PASS",
+      "host_label": "xbox-series-s-declared-t6",
+      "scope": "one measured text row after warmup; no performance promotion"
+    }
+  },
+  "diffusion_qualification": {
+    "environment": "isolated Python 3.12; requirements installed on CPU; 50 compatible packages",
+    "revision": "b261bac6fd2cf515557d5d0707481eafa0485ec2",
+    "full_export": "PASS: all three real fp32 components; eager/ORT verification at console and dynamic shapes; report and hashes retained",
+    "reference": "published legacy fp16 assets downloading; historical fp32 reference still absent; fp16 comparison cannot discharge historical-fp32 requirement",
+    "export_regressions": {
+      "tests": 25,
+      "skipped": 0,
+      "result": "PASS"
+    },
+    "fp16_conversion": "PASS: all three self-contained graphs load at ORT_ENABLE_EXTENDED",
+    "legacy_fp16_comparison": "FAIL overall: UNet timestep rank differs (legacy int64 vector vs new float scalar); all three numerical outputs within recorded bounds; strict failure retained",
+    "legacy_fp32_comparison": "PASS: reconstructed optimum-onnx reference, strict fp32 components and three full-pipeline images against frozen tolerances; not the original historical export bytes",
+    "native_packaging": "Missing legacy CLIP sidecars discovered in Transformers 5 save; fix and real native-tokenizer validation in progress"
+  },
+  "ci_transient_failures": {
+    "pr": 407,
+    "linux": "HTTP 504 downloading ShellCheck before tests; failed job rerun",
+    "windows": "HTTP 504 downloading pinned vendor DLL before compile; failed job rerun; llamacpp variant passed"
+  },
+  "ci_transport_fix": {
+    "pr": 409,
+    "commit": "9195b94",
+    "scope": "authenticated release asset API and three bounded attempts; pinned hashes unchanged",
+    "local_real_asset_check": "both DLL hashes match committed values",
+    "remote_ci": "four required checks passed; squash merged as b3ee9052a5ce3bc01d47d595e26c015770220f2a"
+  },
+  "host_training_hash_install": {
+    "packages": 58,
+    "result": "PASS: second isolated Python 3.12 environment installs qualified graph with --require-hashes and uv pip check",
+    "scope": "reproducible CPU installation; does not erase exact-local-version torch audit skip"
+  },
+  "host_training_canonical": {
+    "pr": 410,
+    "commit": "31d92e6",
+    "result": "PASS: full run_job.sh from documented marker job, 120 steps, all stages and marker A/B",
+    "interpreter": "isolated CPU Python 3.12; 58 packages synchronized with mandatory hashes",
+    "candidate_artifact_device_gates": "PASS: GUI serving/preference/runtime adapter loading, fresh greedy API marker and read-back hashes for the new base and adapter"
+  },
+  "taesd_peak_candidate": {
+    "package": "1.7.0.1447",
+    "runtime_commit": "c471020aa77f749f72622165955808bea38f86c7",
+    "harness_cache_fix_commit": "4aaaf22",
+    "result": "PASS",
+    "process_peak_ws_mb": 2796,
+    "max_sampled_private_ws_mb": 2716,
+    "scope": "published legacy diffusion weights; process-lifetime peak includes preload, not GPU-only memory; new export device test still pending",
+    "initial_attempt": "FAIL in cache preparation on HTTP 503/504; full VAE restored and read-back bytes verified before retry"
+  },
+  "ci_shellcheck_transport": {
+    "pr": 411,
+    "result": "four required checks passed; merged 76df1a0f709db7775b809e65889b36c199f093d9"
+  },
+  "taesd_gate_integration": {
+    "pr": 381,
+    "merge_commit": "6e669a1c1af6d286b1043e93a19426e7ddeda79f",
+    "exact_source": "95844b5f0b2b18ff1d5bcf441dde04d102e5bb5b",
+    "exact_package": "1.7.0.1453",
+    "live_gate": "PASS",
+    "required_ci": "all four passed"
+  },
+  "latest_continuation": {
+    "package": "1.7.0.1495",
+    "source": "4db51522c850e62d0bb24234dfeb48e55f4017d7",
+    "main_runtime_source": "53a9493",
+    "status": "all final live gates complete; release review and stable publication pending",
+    "console_gates": "10 pass",
+    "api_gates": "all 11 pass including ONNX tools refusal",
+    "GPU_selftest": "14 fresh finite cases pass with failure propagation",
+    "shipping_H9": "reference floors retained",
+    "training": "serve, preferences, adapter application, negative controls, device eight-epoch pipeline and qualified new-host-adapter API marker pass",
+    "diffusion": "full/Tiny UI passes; lifetime process peak recorded; original graphs byte-read back",
+    "GUI_API_admission": "503 busy observed during active GUI turn; initial observer error retained separately",
+    "restoration": "113 originals verified; 25 owned control absences; 37 exclusive-window test chats removed; known adapter byte-restored; no wipe/uninstall",
+    "closed_qualification_issues": [
+      263,
+      397,
+      402,
+      405
+    ],
+    "release_notes_PR": 369,
+    "stable_release_published": false,
+    "experimental_prefill": "original GPU control logit failure stops campaign; PR414 draft and issue313 open",
+    "limits": [
+      "Series X excluded: unavailable hardware",
+      "external wattmeter/ambient/thermal publication gate unproven",
+      "optional BGE fixture absent; Nomic embedding contract tested",
+      "general training outputs, unrelated models/KV preserved; empty owned staging directories may remain",
+      "vendor and architecture watches remain gated"
+    ],
+    "console_access": "User switched Xbox out of Developer Mode to play after restoration; no further console calls permitted."
+  },
+  "current_state_note": "Initial fields retain their historical trial; latest_continuation is the current review checkpoint."
+}

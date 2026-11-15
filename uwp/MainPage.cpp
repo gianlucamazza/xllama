@@ -2730,6 +2730,9 @@ fire_and_forget MainPageController::EnsureModelAsync() {
     std::wstring model_name =
         self->m_model_filename.empty() ? DefaultChatModelId() : self->m_model_filename;
     self->EnsureModelNamedAsync(model_name, true);
+    // Without a co_ statement this is an ordinary function that runs off its
+    // end with a non-void return type, which is undefined behaviour.
+    co_return;
 }
 
 fire_and_forget MainPageController::EnsureModelNamedAsync(std::wstring model_name,

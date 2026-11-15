@@ -1,0 +1,19 @@
+{
+  "status": "pass",
+  "scope": "fresh hardware declaration/echo gate; no performance claim",
+  "package": "GianlucaMazza.xllama_1.7.0.1475_x64__pj67f1fcj4n14",
+  "source_commit": "106806c0c28490b6c314a1a0a7a5a7b6c07e2e11",
+  "ci_run": 42487714025,
+  "observed_os": {
+    "Platform": "Xbox Series S",
+    "OsVersion": "26100.9445.amd64fre.xb_flt_2608ge.260927-0830"
+  },
+  "declared_hardware": "xbox-series-s",
+  "host_echo": "xbox-series-s-declared-t6-noeog",
+  "prompt_readback_matches": true,
+  "runtime_hardware_echo_verified": true,
+  "hardware_knob_cleanup_verified_absent": true,
+  "warmup_runs": 1,
+  "recorded_runs": 1,
+  "msix_sha256": "75d5f3f193816842e9169a02e34e6fe5210ac63c5b7266ee4dd48942ddba76bf"
+}

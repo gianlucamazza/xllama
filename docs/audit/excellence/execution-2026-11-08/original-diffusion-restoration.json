@@ -1,0 +1,23 @@
+{
+  "status": "pass",
+  "package_at_restoration": "GianlucaMazza.xllama_1.7.0.1472_x64__pj67f1fcj4n14",
+  "scope": "restore three original catalogue diffusion weights after temporary qualification swaps",
+  "files": {
+    "text_encoder": {
+      "bytes": 681657392,
+      "sha256": "19eafca6146cb5a939464307bdaec18a2831a3b4558069435b4bd48c2b2fed7e",
+      "matches_original": true
+    },
+    "unet": {
+      "bytes": 1733278769,
+      "sha256": "3026a99cf01786e7d4524a8e535112fff98c8958916daaad815333dd929bab37",
+      "matches_original": true
+    },
+    "vae_decoder": {
+      "bytes": 99125634,
+      "sha256": "b12f26698d6ac9ee6aac0482a86cf0194231d0a3304da78a98796eb6d6ddbc35",
+      "matches_original": true
+    }
+  },
+  "original_manifest_present": false
+}

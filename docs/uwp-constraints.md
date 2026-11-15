@@ -5,7 +5,7 @@
 > `weakly_canonical`, thread cap, and the DirectML low-bit GEMM analysis. Other
 > docs link to a `§n` here rather than restating these.
 
-Platform limitations relevant to running LLM inference on Xbox Series S consoles in Developer Mode, and how xllama addresses each one. Tested and measured on Series S. Not yet tested on Series X.
+Platform limitations relevant to running LLM inference on Xbox Series S consoles in Developer Mode, and how xllama addresses each one. Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester.
 
 ## 1. No POSIX `mmap`
 
@@ -416,7 +416,10 @@ non-fused low-bit kernel, see §12.) See §7 for GPU pool detail and §9 for dis
 can flip a sideloaded package between **App** and **Game** (tile → View
 details → App type); Game grants Game OS resources (full GPU access, more
 RAM). Checked on console: **xllama is already designated Game** — the
-designation persists per package family across forward upgrades. Therefore
+designation persists per package family across forward upgrades. The
+startup log confirms it since 1.7.0.1587 (`[resources] ...
+exclusive_cpus=6 logical_cpus=8 app_memory_limit_mb=5120`; Microsoft documents
+1 GB and a share of 2 to 4 cores for an App). Therefore
 the measured figures in this document (3801 MB GPU budget, the utilization
 matrix, the per-token DML dispatch overhead) are **Game-mode numbers**, and
 the earlier assumption labelling them "App-mode" was wrong. Consequence: the
@@ -534,13 +537,15 @@ The `\\?\` long-path prefix does not help: it bypasses MAX_PATH but not the acce
 
 ## 9. Disk Budget (Developer Mode Partition)
 
-> **Superseded (2026-07-08)**: the Developer Mode storage allocation was raised to
-> **90 GB** via Dev Home → Manage Dev Storage. The figures below describe the
-> default allocation and remain valid as the baseline for a fresh Developer Mode
-> activation; with the enlarged allocation, disk is no longer the binding
-> constraint for model sizing (GPU budget and RAM are). One caveat to verify:
-> community reports a ~2 GB per-file limit in Developer Mode, relevant for merged
-> `model.onnx` files above that size.
+> **Corrected (2026-11-15)**: disk is still a binding constraint for models.
+> LocalState is on `Q:`, which the app measured at **30 GiB** in total
+> (`[storage] LocalState volume=Q: capacity_mb=30719`), on a console whose Dev
+> Home storage allocation is 90 GB. That allocation was raised to 90 GB on
+> 2026-07-08, and this section then said disk was no longer a constraint; the
+> allocation does not size the volume models are written to. Device Portal
+> reports `DevelopmentFiles` on `D:`. Every sideloaded app shares `Q:`, so
+> another app's data reduces what xllama can download. The figures below
+> describe a fresh Developer Mode activation.
 
 **Observed**: the Xbox Series S Developer Mode partition (`Q:\`) provides approximately **2.2–2.5 GB of free space** after a clean Developer Mode activation, before any sideloaded package.
 
@@ -556,6 +561,36 @@ The `\\?\` long-path prefix does not help: it bypasses MAX_PATH but not the acce
 **Failure mode**: deploy fails with `0x80070070` (ERROR_DISK_FULL) if free space drops below the staging requirement. Alternatively, the first-launch copy from `InstalledPath` to `LocalState` fails silently, and `resolve_model_path` falls through to the default path — resulting in a model-not-found error at runtime rather than a visible install error.
 
 **Source**: repeated `deploy.sh` runs against `https://<XBOX_IP>:11443/api/devices/file/usage`. Series X was not tested; its partition layout and free space were not measured by this project.
+
+**Observed 2026-11-15**: a 2.45 GB GGUF (`gemma4-e2b`) could not be placed in
+LocalState. `POST /api/pull` ended six times with "There is not enough space on
+the disk", after 0.61 to 1.45 GB, and deleting 2.2 GB of other models did not
+move that point in a consistent way. Three causes were found:
+
+- **`Q:` was nearly full.** Device Portal accounting put sideloaded app data at
+  about 29.6 GB: xllama 18.4 GB and another sideloaded app 10.1 GB. The volume
+  holds 30 GiB.
+- **The download was stored twice.** The downloader also wrote each response to
+  the system HTTP cache (#440). With that write off, the same pull stopped at
+  0.33 GB, then at 2.34 GB after 2.01 GB were freed, and completed after a
+  further 0.40 GB were freed. The double write is inferred from those numbers;
+  the cache was not read directly.
+- **A failed attempt left its `.part` file behind**, holding the space the next
+  attempt needed.
+
+The downloader now checks free space before the first request, reports both
+numbers, and removes the partial file after a write error. A Device Portal
+upload of the same 2.45 GB file had returned HTTP 500 while uploads of 0.5 and
+1.4 GB succeeded; with about 2.3 GB free at the time, lack of space is the
+likely reason, not confirmed separately.
+
+The size of this volume is not documented by Microsoft. A Microsoft answer on
+a public forum describes app data as living on a fixed-size drive that is not
+the developer drive, and another user reports the same 30 GB; no setting or
+tool to enlarge it was found (desk research, 2026-11-15, not verified on the
+console). `broadFileSystemAccess` is documented as unsupported on Xbox. A
+community report says Dev Mode UWP apps can read an NTFS USB drive once
+"All App Packages" has full control of it; that was not tried here.
 
 For models not distributed through the catalogue, see the USB/Device Portal
 provisioning paths in `docs/model-selection.md`, `docs/device-portal.md` and
@@ -825,6 +860,7 @@ PIX for Xbox is GDK tooling gated behind the managed partner program; it is **no
 
 1. **ORT profiling JSON (primary, definitive)**. `genai_config.json` → `session_options` accepts `enable_profiling` (a string: the profile file _path prefix_, producing `<prefix>_<timestamp>.json`) and `log_severity_level` (0 = VERBOSE). Every `<node>_kernel_time` event in the trace carries `args.provider` — literally `"DmlExecutionProvider"` or `"CPUExecutionProvider"`. Heavy kernels (MatMul/Attention) tagged CPU = silent fallback. This works regardless of ORT build flavor and log routing. Tooling: `scripts/profile-dml-run.sh` (config swap + run + fetch) and `scripts/analyze_ort_profile.py` (per-provider summary + greppable `VERDICT:` line).
    - _Profile location ladder_: the relative prefix resolves against the process CWD, which in AppContainer may be the read-only install root (ORT's profiler ofstream then fails silently). Step 1: the fetch script checks LocalState root **and** `models\<name>\`. Step 2: `--absolute-prefix` renders `genai_config-dml-profile.tpl.json` with an absolute LocalState path. Step 3 (definitive): `set_cwd_to_local_folder()` pins CWD to LocalState at bench startup (v0.3.2+ MSIX).
+   - _Timing and integrity_: provider-tagged durations are ORT host trace intervals, not GPU hardware timestamps. Events may overlap and fused nodes hide internal layer boundaries. The analyzer's `--json-out report.json` retains provider/operator/node attribution and a SHA-256 binding to the raw profile; it does not infer hardware identity or inference success. `--strict` rejects truncated traces, invalid durations, missing kernel/session events and unknown providers. Without it, a recovered trace remains explicitly diagnostic with `VERDICT: INVALID-PROFILE`. `profile-dml-run.sh` uses strict analysis; incomplete evidence cannot pass its analysis stage. A structurally valid trace still needs the benchmark's run status and provenance gates.
 2. **Device Portal telemetry (corroborating)**. `GET /api/resourcemanager/systemperf` exists on the Xbox device family and reports `GPUData.AvailableAdapters[]` with `EnginesUtilization[]` (0–1 per engine) and `DedicatedMemoryUsed`. System-wide, ~1 Hz — run a control pass with the CPU config to calibrate background noise. Tooling: `scripts/xbox-gpu-sample.sh`, integrated as `--gpu-sample` in the bench/profile scripts.
 3. **In-app GPU memory (corroborating)**. `IDXGIAdapter3::QueryVideoMemoryInfo(LOCAL)` is callable from the AppContainer and is _per-process_: `CurrentUsage` climbing toward the model size after `OgaCreateModel` means the weights are resident on the GPU; `Budget` is the OS-granted ceiling (measured **3801 MB** on Series S with the package designated Game — trust this value over any hard-coded constant). Implemented as `gpu_mem_info()` in `src/bridge/platform.cpp`, logged pre-load/post-load/post-decode and exported as `gpu_mem_mb,gpu_budget_mb` bench CSV columns.
 

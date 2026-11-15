@@ -1,0 +1,31 @@
+{
+  "status": "pass",
+  "scope": "fresh UI TAESD gate on first-party dynamic-annotation TE/UNet; TAESD decoder overlay; single acceptance trial, not a benchmark",
+  "package": "GianlucaMazza.xllama_1.7.0.1472_x64__pj67f1fcj4n14",
+  "source_commit": "6c4c6f945d16ec2cf3d5718407a79b2d61d7f6dd",
+  "ci_run": 42485714778,
+  "msix_sha256": "45871bd55fdab9d2b85aaafa7efe17a4cbffec52ba848194f299f0ed2c811ca2",
+  "required_checks": "all four pass on exact head",
+  "row": {
+    "model": "sd-turbo-fp16",
+    "steps": "1",
+    "seed": "42",
+    "te_ms": "1090.9",
+    "unet_ms": "2965.2",
+    "unet_ms_per_step": "2965.2",
+    "vae_ms": "605.2",
+    "total_ms": "4661.2",
+    "resolution": "512x512",
+    "date": "2026-11-08T13:45:34Z",
+    "process_peak_ws_mb": "2744"
+  },
+  "startup_chat": "lfm25-350m",
+  "memory_definition": "process lifetime K32GetProcessMemoryInfo PeakWorkingSetSize after PNG encoding; includes startup/model loading",
+  "sampled_private_ws_mb": 2071,
+  "sampled_memory_definition": "maximum PrivateWorkingSet observed by the periodic Device Portal sampler; distinct from process peak WS",
+  "capture_csv_sha256": "4d0c91ab8da7141cdb80b6548c69adc2526be8d38d7834ac1f3b24427a50251b",
+  "repository_csv_sha256": "bda1ca82a01da42c6d511ca61a3d075f8cff26cd8f648b7016a5577e990eb957",
+  "normalization": "CRLF to LF; field contents unchanged",
+  "full_vae_restored_and_all_graphs_read_back": "diffusion-profile-ui-readback-1472.json",
+  "taesd_sha256": "d2d981ed4c97462db8a7b55a90543ced09fbc1e660f097e08f89a6dae6a9c52b"
+}

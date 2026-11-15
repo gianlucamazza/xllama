@@ -1,0 +1,24 @@
+{
+  "status": "fail",
+  "scope": "fresh headless first-party fp16 full-VAE Series S diagnostic",
+  "package": "GianlucaMazza.xllama_1.7.0.1453_x64__pj67f1fcj4n14",
+  "model_revision": "b261bac6fd2cf515557d5d0707481eafa0485ec2",
+  "native_tokenizer_parity": "pass for three frozen prompts; does not imply DML compatibility",
+  "error": "DirectML Reshape node_view HRESULT 8007023E",
+  "upstream_report": "https://github.com/microsoft/onnxruntime/issues/33720",
+  "disposition": "retain failure; fixed-input session specialization under test, no device success or peak claim",
+  "components": {
+    "text_encoder": {
+      "bytes": 680942883,
+      "sha256": "be604085e2e2c74cfdd06b4e833a804a176eaa73948332a3ed85241171bdfb8c"
+    },
+    "unet": {
+      "bytes": 1732143604,
+      "sha256": "a79e423f1506ba7532fbc7105bc3b29eea746cfed19f3d824928e2c2bd11ba01"
+    },
+    "vae_decoder": {
+      "bytes": 99041871,
+      "sha256": "0bc93e4b5fde4f2d7b13d413d204d1f9b904d2fcd48575b1658a81ffbeea22fe"
+    }
+  }
+}

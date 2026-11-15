@@ -156,7 +156,7 @@ restart_app() {
 	# shellcheck disable=SC2001
 	pfamily=$(echo "$PFN" | sed 's/_[0-9][0-9.]*_[^_]*__/_/')
 	local aumid
-	aumid=$(printf '%s!xllama' "$pfamily" | base64 -w0)
+	aumid=$(printf '%s!xllama' "$pfamily" | base64 | tr -d '\n')
 	curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X POST -d "" \
 		"${BASE_URL}/api/taskmanager/app?appid=${aumid}" >/dev/null 2>&1 || true
 }
@@ -347,7 +347,7 @@ fi
 if [[ "$NO_ANALYZE" != "true" ]]; then
 	echo ""
 	echo "--- Analysis ---"
-	python3 "${SCRIPT_DIR}/analyze_ort_profile.py" "$PROFILE_LOCAL" --log "${OUTDIR}/xllama.log"
+	python3 "${SCRIPT_DIR}/analyze_ort_profile.py" "$PROFILE_LOCAL" --strict --json-out "${OUTDIR}/profile-summary.json" --log "${OUTDIR}/xllama.log"
 fi
 
 if [[ "$GPU_SAMPLE" == "true" && -s "${OUTDIR}/gpu-summary.txt" ]]; then

@@ -317,4 +317,57 @@ sidecar_background_write_files(const std::vector<ManifestFilePin>& expected, boo
     return out;
 }
 
+// ---------------------------------------------------------------------------
+// Free-space preflight for a fetch plan.
+//
+// A file is downloaded to "<name>.part" beside any existing copy and promoted
+// only when complete, so a refetch needs the file's full size even when an
+// older copy is present. A pin with approx_bytes 0 has no declared size and
+// contributes nothing; a plan made only of such pins cannot be checked.
+// ---------------------------------------------------------------------------
+
+// Slack kept free beyond the plan (marker files, rollback bookkeeping, logs).
+inline constexpr uint64_t kDownloadSpaceMarginBytes = 64ull * 1024 * 1024;
+
+// Bytes the files in `fetch` will write, from their catalogue sizes.
+inline uint64_t download_bytes_needed(const std::vector<ManifestFilePin>& fetch) {
+    uint64_t need = 0;
+    for (const auto& pin : fetch) {
+        if (need > UINT64_MAX - pin.approx_bytes)
+            return UINT64_MAX;
+        need += pin.approx_bytes;
+    }
+    return need;
+}
+
+struct DownloadSpaceCheck {
+    bool ok = true;
+    uint64_t need_bytes = 0;      // plan size, without the margin
+    uint64_t available_bytes = 0; // what the volume reported
+};
+
+// `need_bytes` 0 (nothing to fetch, or no declared sizes) always passes.
+inline DownloadSpaceCheck check_download_space(uint64_t need_bytes, uint64_t available_bytes) {
+    DownloadSpaceCheck c;
+    c.need_bytes = need_bytes;
+    c.available_bytes = available_bytes;
+    if (need_bytes == 0)
+        return c;
+    const uint64_t with_margin = need_bytes > UINT64_MAX - kDownloadSpaceMarginBytes
+                                     ? UINT64_MAX
+                                     : need_bytes + kDownloadSpaceMarginBytes;
+    c.ok = available_bytes >= with_margin;
+    return c;
+}
+
+// One line for the UI status, the LAN pull error and the log. Megabytes are
+// rounded so that "needs" never understates and "available" never overstates.
+inline std::string download_space_error(const DownloadSpaceCheck& c) {
+    const uint64_t mb = 1024ull * 1024;
+    const uint64_t need_mb = c.need_bytes / mb + (c.need_bytes % mb ? 1 : 0);
+    const uint64_t have_mb = c.available_bytes / mb;
+    return "Not enough storage for this model: needs " + std::to_string(need_mb) + " MB, " +
+           std::to_string(have_mb) + " MB available";
+}
+
 } // namespace xllama

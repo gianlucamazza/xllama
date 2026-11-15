@@ -6,8 +6,7 @@ performance belongs in `docs/benchmarks.md`.
 ## Current product state
 
 - **North star:** local inference on Series S for **games**
-  (NPC/dialogue/agents) and **AI assistants**. Tested and measured on Series S.
-  Not yet tested on Series X. The chat UI remains a
+  (NPC/dialogue/agents) and **AI assistants**. Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester. The chat UI remains a
   showcase shell; the LAN OpenAI-compat endpoint is the current
   integration probe. Limits and non-claims:
   [docs/positioning.md](docs/positioning.md).
@@ -35,7 +34,7 @@ performance belongs in `docs/benchmarks.md`.
   (host + console marker gates PASS; pin-blocked filter-widening remains);
   Phase 11 closed the headless↔UI gap (in-app personalize + LAN API parity,
   #116/#118). Phases 13, 14 and 16 (one shipped model) are complete. Remaining
-  open work: Phase 15 GPU decode follow-up (#313), release-readiness
+  open work: the GPU programme below (#420, #421, #313), release-readiness
   follow-up, and upstream vendor pin drops.
 - **Current v1.7.0.0:** unified CI MSVC Developer Mode release. Exact package
   and validation gates are identified in the GitHub release notes. The last
@@ -53,7 +52,7 @@ performance belongs in `docs/benchmarks.md`.
   re-runnable (`demo/demo-script.json` + `scripts/capture-demo-video.sh`), and
   the cut can be regenerated with `scripts/edit-demo-video.sh`.
 
-### Next (after v1.5.6.0)
+### Current follow-up priorities
 
 1. **Vendor pin drops** (#84/#85/#86) — blocked until NuGet moves
    (`scripts/check-vendor-nuget-status.sh`, poll 2026-08-27: still required).
@@ -307,7 +306,9 @@ long prompt and the CPU wins from the second turn (§5d). Evidence under
       (`tests/test_bench.cpp`); the committed CSVs regenerate their current numbers
       unchanged (all pre-existing rows now show _single run_). Re-measuring any
       row on-console with the default 3 recorded runs is what turns a marker into
-      a spread — no such row exists yet (**blocked on console access**).
+      a spread. Done for five rows on 2026-10-11 and for Qwen3.5-0.8B and
+      SmolLM2-1.7B on 2026-11-15; the remaining single-run rows have no
+      catalogue artefact to remeasure.
 - [x] **Duplicated-state audit (the #125 / #133 / #141 class) — nothing divergent.**
       Three Phase 12 defects were one logical quantity with two homes. A read-only
       sweep of the sampling defaults, the invariant constant pairs
@@ -674,10 +675,12 @@ under `bench/results/` when measured, and documentation in the owning SSOT.
 
 ## Follow-up work after the 2026-09-28 PR closure
 
-- [ ] [#263](https://github.com/gianlucamazza/xllama/issues/263): migrate the host
-      diffusion export stack to supported patched dependencies (ADR 0003 accepted
-      2026-10-31; first-party dynamo export and host parity in review); validate Xbox
-      diffusion with peak-memory evidence before closing security alerts.
+- [x] [#263](https://github.com/gianlucamazza/xllama/issues/263): first-party host
+      diffusion toolchain qualification completed. Frozen parity, Series S UI
+      full-VAE/Tiny trials with true process-peak evidence, graph readbacks and
+      bounded security rescan are integrated in the
+      [dated execution ledger](docs/audit/excellence/execution-2026-11-07.md#integration-checkpoint--first-party-qualification-and-write-integrity).
+      Final programme/package and physical publication gates remain separate.
 - [x] [#264](https://github.com/gianlucamazza/xllama/issues/264): ADR 0002 accepted;
       ruleset `24213666` active and verified blocking (2026-09-30).
 - [x] [#243](https://github.com/gianlucamazza/xllama/issues/243): `grounded_qa` scorer
@@ -688,3 +691,47 @@ under `bench/results/` when measured, and documentation in the owning SSOT.
 
 The main CI Developer Mode package is validated; release tagging remains a
 separate workflow, as documented in the release runbook.
+
+## Xbox GPU acceleration program — state at 2026-11-15
+
+Source/evidence discovery and the conditional 6–8 week stages are in the
+[baseline](docs/research/gpu-acceleration-baseline.md). Host tooling PRs
+#423/#424 do not qualify C4 or a new release.
+
+**Where it stands**
+
+- The #420 control was reproduced on the console and traced to its first
+  divergent operator: int8 rounding flips in the layer-0 activation quantizer
+  ([details](docs/gguf-gpu-decode.md#2026-11-15-control-reproduction-and-tensor-diagnosis-420)).
+- ADR 0010 was accepted and implemented. The first control under it failed:
+  no first-layer kernel error, but the GPU logits exceed the declared margin
+  over the CPU reference spread
+  ([evidence](docs/research/evidence/2026-11-15-adr0010-control/README.md)).
+- A check against an exact reference found every GPU weight product correct
+  in all 36 layers
+  ([evidence](docs/research/evidence/2026-11-15-gpu-kernel-reference-check/README.md)).
+  The gap is amplified rounding between two correct executions, not a kernel
+  defect.
+- ADR 0010 was amended to judge kernels against that reference and the
+  output distribution over many positions. A fresh control under the
+  amendment passed on both parts
+  ([evidence](docs/research/evidence/2026-11-15-adr0010-control-2/README.md)).
+- Series X was accepted as supported on 2026-11-15 from an independent
+  tester's runs ([scope](docs/positioning.md#series-x)); the project has no
+  measurements of its own on it.
+
+**Order of work**
+
+1. **#313 / #414:** unblocked on correctness. A control under the amended
+   ADR 0010 passed on 2026-11-15
+   ([evidence](docs/research/evidence/2026-11-15-adr0010-control-2/README.md)).
+   Next: the C4 kernel through the same control, then the resource and H9
+   gates and the frozen paired performance protocol.
+2. **#421, in parallel:** opt-in timing attribution per operator and layer in
+   the d3d12 backend, with an overhead calibration on the console.
+3. **#422:** routing qualification after #313; the matched Series S and
+   Series X matrix also needs project measurements on a Series X.
+4. **#457:** the Series X runs are about 2.4 times slower with the App
+   designation. Microsoft documents a smaller core allotment for an App; the
+   startup log now states the allotment, and one run by the tester in each
+   designation would settle it.

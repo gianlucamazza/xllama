@@ -303,6 +303,10 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
 
         HttpBaseProtocolFilter filter;
         filter.AllowAutoRedirect(true);
+        // The default filter also writes each response to the system HTTP
+        // cache. A model body is streamed to LocalState already, so caching it
+        // would store the bytes a second time during the transfer.
+        filter.CacheControl().WriteBehavior(HttpCacheWriteBehavior::NoCache);
         HttpClient client(filter);
 
         // Default User-Agent is blocked by some CDNs; set something reasonable.
@@ -357,6 +361,31 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
             log_output(("[downloader] plan: " + std::to_string(n_fetch) + " fetch, " +
                         std::to_string(n_ok) + " skip, " + std::to_string(n_unv) + " unverified\n")
                            .c_str());
+        }
+
+        // Free-space preflight: fail before the first request, with both
+        // numbers, instead of at the last megabyte of a multi-gigabyte body.
+        {
+            std::vector<ManifestFilePin> fetch;
+            for (size_t i = 0; i < files.size(); ++i) {
+                if (decisions[i] == PinCheck::Refetch)
+                    fetch.push_back(
+                        make_file_pin(files[i].filename, files[i].approx_bytes, "", ""));
+            }
+            std::error_code space_ec;
+            const std::filesystem::space_info si = std::filesystem::space(local_dir_fs, space_ec);
+            if (!space_ec) {
+                const DownloadSpaceCheck space =
+                    check_download_space(download_bytes_needed(fetch), si.available);
+                if (!space.ok) {
+                    const std::string msg = download_space_error(space);
+                    log_output(("[downloader] " + msg + "\n").c_str());
+                    if (dispatcher)
+                        co_await winrt::resume_foreground(dispatcher);
+                    done(false, utf8_to_wstring(msg));
+                    co_return;
+                }
+            }
         }
 
         for (size_t i = 0; i < files.size(); ++i) {
@@ -491,6 +520,7 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
 
                 const uint64_t bytes_before = bytes_done;
                 bool read_failed = false;
+                bool write_failed = false;
                 for (;;) {
                     IBuffer read_buf{nullptr};
                     try {
@@ -506,8 +536,21 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                     if (read_buf.Length() == 0)
                         break;
 
-                    out_writer.WriteBuffer(read_buf);
-                    co_await out_writer.StoreAsync();
+                    // A write failure (disk full) must not leave the .part
+                    // behind: it would hold the space the next attempt needs.
+                    try {
+                        out_writer.WriteBuffer(read_buf);
+                        co_await out_writer.StoreAsync();
+                    } catch (winrt::hresult_error const& e) {
+                        last_err = L"Write error on " + f.filename + L": " +
+                                   std::wstring(e.message().c_str());
+                        write_failed = true;
+                    } catch (...) {
+                        last_err = L"Write error on " + f.filename;
+                        write_failed = true;
+                    }
+                    if (write_failed)
+                        break;
 
                     bytes_done += read_buf.Length();
 
@@ -521,8 +564,9 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                     }
                 }
 
-                if (read_failed) {
-                    // Drop partial file; retry from scratch.
+                if (read_failed || write_failed) {
+                    // Drop partial file; a read error retries from scratch, a
+                    // write error does not (the volume will not have grown).
                     try {
                         co_await out_writer.FlushAsync();
                     } catch (...) {
@@ -534,7 +578,10 @@ IAsyncAction ModelDownloader::DownloadAsync(std::wstring hf_repo_url, std::wstri
                         co_await out_file.DeleteAsync();
                     } catch (...) {
                     }
-                    if (attempt < kMaxAttempts)
+                    if (write_failed)
+                        log_output(
+                            ("[downloader] " + ::xllama::wstring_to_utf8(last_err) + "\n").c_str());
+                    if (read_failed && attempt < kMaxAttempts)
                         continue;
                     if (dispatcher)
                         co_await winrt::resume_foreground(dispatcher);

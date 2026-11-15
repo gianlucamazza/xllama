@@ -1,0 +1,18 @@
+{
+  "status": "pass",
+  "source": "18d0eca8fd048d365246769b00d5afd8adb520cc",
+  "runtime_equivalent_to_candidate": "f73f5de16f7e1384f436fe3db2370a0285eb2e2c",
+  "submodule": "d81235049384534c167caea52b85a694f6103d14",
+  "checks": {
+    "linux_test_build": "pass",
+    "ctest": "pass",
+    "asan_ubsan_build_and_ctest": "pass",
+    "system_python_discovery": {
+      "run": 189,
+      "optional_skips": 20,
+      "failures": 0
+    }
+  },
+  "full_python_capture_sha256": "1466e4959115edf03df348ce509bcfb18a78145ec3804e5a1312564e0731036c",
+  "limits": "host checks; optional diffusion exporter/profile qualification has its separate 35-test no-skip receipt; no GPU correctness or Windows build inferred"
+}

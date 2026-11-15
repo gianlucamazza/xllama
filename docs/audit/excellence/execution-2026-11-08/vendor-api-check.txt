@@ -1,0 +1,4 @@
+Pinned onnxruntime.dll OK (f3c2e1cc9a61f67db2dbf45bef626e6e299490548fae5f6f22f89d441e77391e)
+-rw-r--r-- 1 gianluca gianluca 20606464 Nov  8 12:03 vendor/onnxruntime-patched/win-x64/onnxruntime.dll
+Pinned onnxruntime-genai.dll OK (ec034349a28e41f6bfdce52731533caf7e590bab4e8dc7002bb48b92481f334d)
+-rw-r--r-- 1 gianluca gianluca 2640384 Nov  8 12:03 vendor/onnxruntime-genai-patched/win-x64/onnxruntime-genai.dll

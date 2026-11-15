@@ -1,0 +1,71 @@
+{
+  "ref": "/srv/data/projects/xllama-qualification/legacy-fp32-reconstructed",
+  "cand": "/srv/data/projects/xllama-qualification/sd-turbo-console-qualified",
+  "mode": "fp16_vs_fp32",
+  "components": {
+    "text_encoder": {
+      "opset": {
+        "ref": 18,
+        "cand": 18
+      },
+      "last_hidden_state": {
+        "max_abs": 0.02162301540374756,
+        "cosine": 0.9999981239912483,
+        "max_abs_tol": 0.05,
+        "min_cosine": 0.999
+      },
+      "pooler_output": {
+        "max_abs": 0.010193496942520142,
+        "cosine": 0.9999976816558425
+      }
+    },
+    "unet": {
+      "opset": {
+        "ref": 18,
+        "cand": 18
+      },
+      "out_sample": {
+        "max_abs": 0.0019893646240234375,
+        "cosine": 0.9999999452489052,
+        "max_abs_tol": 0.05,
+        "min_cosine": 0.999
+      }
+    },
+    "vae_decoder": {
+      "opset": {
+        "ref": 18,
+        "cand": 18
+      },
+      "sample": {
+        "max_abs": 0.0024335458874702454,
+        "cosine": 0.9999997003813277,
+        "max_abs_tol": 0.05,
+        "min_cosine": 0.999
+      }
+    }
+  },
+  "failures": [],
+  "unchecked": [
+    "text_encoder.pooler_output",
+    "image_uint8"
+  ],
+  "checked": 3,
+  "images": {
+    "a red sports car on a mountain road at sunset": {
+      "max_abs": 13,
+      "cosine": 0.9999864448022748,
+      "ref_std": 51.92924587462622
+    },
+    "a photo of an astronaut riding a horse": {
+      "max_abs": 17,
+      "cosine": 0.9999909144567312,
+      "ref_std": 51.53942580146018
+    },
+    "<empty>": {
+      "max_abs": 7,
+      "cosine": 0.9999918174607896,
+      "ref_std": 20.5004030946229
+    }
+  },
+  "ok": true
+}

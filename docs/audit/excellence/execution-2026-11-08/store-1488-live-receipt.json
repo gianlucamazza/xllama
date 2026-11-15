@@ -1,0 +1,15 @@
+{
+  "status": "pass",
+  "package": "GianlucaMazza.xllama_1.7.0.1488_x64__pj67f1fcj4n14",
+  "source": "d369bc66b83ac174022ba9a00f23599fade12cce",
+  "ci_run": 42493139437,
+  "package_binding": "store-package-binding-1488.json",
+  "gate": "validate-console.sh store",
+  "scope": "in-place reduced-SKU chat/save-title and API rejection smoke on already-provisioned LFM350; not a fresh-download, Partner Center or retail validation",
+  "log_capture_sha256": "7079a465ea101d74872b35953d347a1104570a62f6de4aecfd1c445276093560",
+  "catalogue_default_already_provisioned": true,
+  "new_download_observed": false,
+  "api_rejection_expected": true,
+  "localstate_wiped": false,
+  "dev_sku_restoration": "complete: higher revision 1492, full LAN/API suite passes, LocalState retained"
+}

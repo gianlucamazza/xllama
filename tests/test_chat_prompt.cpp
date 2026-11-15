@@ -145,6 +145,16 @@ TEST_CASE("gemma detection") {
     CHECK_FALSE(model_is_gemma("lfm25-350m"));
 }
 
+TEST_CASE("gemma 4 detection") {
+    CHECK(model_is_gemma4("gemma4-e2b"));
+    CHECK(model_is_gemma4("gemma-4-E2B-it-Q3_K_S.gguf"));
+    CHECK(model_is_gemma4("/models/gemma4-e2b/Gemma_4_E4B.gguf"));
+    CHECK(model_is_gemma("gemma4-e2b")); // still a Gemma id for callers that only ask that
+    CHECK_FALSE(model_is_gemma4("gemma3-270m"));
+    CHECK_FALSE(model_is_gemma4("gemma-3-1b-it-Q4_K_M.gguf"));
+    CHECK_FALSE(model_is_gemma4("/models/gemma-4/lfm25-350m.gguf")); // basename only
+}
+
 TEST_CASE("llama detection") {
     CHECK(model_is_llama("llama32-3b"));
     CHECK(model_is_llama("Llama-3.2-3B-Instruct-Q3_K_S.gguf"));
@@ -290,6 +300,43 @@ TEST_CASE("gemma render with empty system leaves the first user turn unprefixed"
           "<start_of_turn>user\nciao<end_of_turn>\n<start_of_turn>model\n");
 }
 
+// Expected strings follow the canonical google/gemma-4-E2B-it chat template
+// with thinking off: <|turn>role\n content <turn|>\n, system as its own turn.
+TEST_CASE("gemma 4 render uses <|turn> tokens and a dedicated system turn") {
+    const ChatFormat f = chat_format_for("gemma4-e2b");
+    CHECK(f.kind == ChatFormatKind::Gemma);
+    CHECK(f.system_style == SystemStyle::DedicatedTurn);
+    const std::string p = f.render_prompt("Be nice.", {}, "ciao");
+    CHECK(p == "<|turn>system\nBe nice.<turn|>\n<|turn>user\nciao<turn|>\n<|turn>model\n");
+    CHECK(p.find("start_of_turn") == std::string::npos);
+    CHECK(p.find("<bos>") == std::string::npos);
+    CHECK(f.gen_suffix.empty());
+    CHECK(f.stop_sequences == std::vector<std::string>{"<turn|>"});
+}
+
+TEST_CASE("gemma 4 multi-turn keeps the system turn out of the user turns") {
+    const ChatFormat f = chat_format_for("gemma-4-E2B-it-Q3_K_S.gguf");
+    const std::string p = f.render_prompt("SYS", {{"u1", "a1"}}, "u2");
+    CHECK(p == "<|turn>system\nSYS<turn|>\n"
+               "<|turn>user\nu1<turn|>\n"
+               "<|turn>model\na1<turn|>\n"
+               "<|turn>user\nu2<turn|>\n"
+               "<|turn>model\n");
+}
+
+TEST_CASE("gemma 4 render_delta closes the turn only when the stop was not hit") {
+    const ChatFormat f = chat_format_for("gemma4-e2b");
+    CHECK(f.render_delta("q", /*stop=*/true) == "\n<|turn>user\nq<turn|>\n<|turn>model\n");
+    CHECK(f.render_delta("q", /*stop=*/false) == "<turn|>\n<|turn>user\nq<turn|>\n<|turn>model\n");
+}
+
+TEST_CASE("gemma 3 keeps its template when gemma 4 is selected by id") {
+    const ChatFormat f = chat_format_for("gemma-3-1b-it-Q4_K_M.gguf");
+    CHECK(f.system_style == SystemStyle::MergeIntoFirstUser);
+    CHECK(f.render_prompt("", {}, "ciao") ==
+          "<start_of_turn>user\nciao<end_of_turn>\n<start_of_turn>model\n");
+}
+
 TEST_CASE("render_delta for chatml, gemma, llama3, phi3 and prev_ended_with_stop") {
     const ChatFormat cm = chat_format_for("smollm2-360m-cpu-int4");
     CHECK(cm.render_delta("q", /*stop=*/true) ==
@@ -379,6 +426,7 @@ static void check_kv_reuse_invariant(const ChatFormat& f) {
 TEST_CASE("kv-reuse invariant holds for chatml, gemma, llama3, and phi3") {
     check_kv_reuse_invariant(chat_format_for("smollm2-360m-cpu-int4"));
     check_kv_reuse_invariant(chat_format_for("gemma3-270m"));
+    check_kv_reuse_invariant(chat_format_for("gemma4-e2b"));
     check_kv_reuse_invariant(chat_format_for("llama32-3b"));
     check_kv_reuse_invariant(chat_format_for("phi35-mini"));
 }
@@ -388,13 +436,13 @@ TEST_CASE("render_system_prefix is the exact head of render_prompt (#169)") {
     // DedicatedTurn formats: the prefix must be byte-identical to what
     // render_prompt emits before the first user turn — a context shift pins
     // exactly its token count.
-    for (const char* id : {"smollm2-360m-cpu-int4", "llama32-3b", "phi35-mini"}) {
+    for (const char* id : {"smollm2-360m-cpu-int4", "llama32-3b", "phi35-mini", "gemma4-e2b"}) {
         const ChatFormat f = chat_format_for(id);
         const std::string prefix = f.render_system_prefix(sys);
         CHECK(!prefix.empty());
         CHECK(f.render_prompt(sys, {}, "hi").rfind(prefix, 0) == 0);
     }
-    // MergeIntoFirstUser (Gemma): no standalone system block exists — the
+    // MergeIntoFirstUser (Gemma 3): no standalone system block exists — the
     // prefix is empty and the caller pins only the BOS.
     CHECK(chat_format_for("gemma3-270m").render_system_prefix(sys).empty());
 }

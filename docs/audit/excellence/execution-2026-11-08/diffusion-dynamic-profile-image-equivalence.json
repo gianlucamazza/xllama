@@ -1,0 +1,8 @@
+{
+  "status": "pass",
+  "max_abs": 0,
+  "different_channels": 0,
+  "reference_sha256": "e39756c93ad40df4fec949b03d6e8a87a6f72009c93b8acfd7019976c6661653",
+  "candidate_sha256": "e39756c93ad40df4fec949b03d6e8a87a6f72009c93b8acfd7019976c6661653",
+  "scope": "new dynamic-annotation normalization candidate; identical CPU session settings for both arms"
+}

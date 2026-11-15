@@ -1,0 +1,8 @@
+{
+  "status": "not executed: optional BGE fixture not provisioned",
+  "package": "1.7.0.1495",
+  "root_model_listing_http_status": 200,
+  "BGE_directory_present": false,
+  "coverage": "standard embedding contract executed with embed-nomic-v2-moe: 17 live requests; no BGE or all-model coverage claim",
+  "new_model_downloaded": false
+}

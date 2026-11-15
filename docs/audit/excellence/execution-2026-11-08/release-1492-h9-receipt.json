@@ -1,0 +1,26 @@
+{
+  "status": "pass",
+  "package": "GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14",
+  "source": "f73f5de16f7e1384f436fe3db2370a0285eb2e2c",
+  "scope": "shipping-model small H9 regression screen in XAML/LAN process; independent of stopped C4 experiment; no general quality or speedup claim",
+  "scores": {
+    "lfm25-350m": {
+      "passed": 4,
+      "tasks": 8,
+      "prospective_floor": 4
+    },
+    "lfm25-1.2b-instruct": {
+      "passed": 6,
+      "tasks": 8,
+      "prospective_floor": 6
+    }
+  },
+  "checks": {
+    "lfm25-350m": true,
+    "lfm25-1.2b-instruct": true,
+    "gpu_routing_proof": true
+  },
+  "raw_jsonl_sha256": "2cf855e2bd9145f3ffac6cdb62e985ee71aab6ce42481939d291de736eb42e0a",
+  "postlude": "one explicitly unscored CPU-model request flushes resident GPU session summary",
+  "task_sha256": "4c5221af90e394883f8f7dc15867d434e5588f2c3288b70fc3508806fec3b6a7"
+}

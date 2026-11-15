@@ -7,7 +7,7 @@ of copying tables, tok/s figures, or constraint numbers into a second place.
 ## Project overview
 
 xllama runs local chat, SD-Turbo diffusion, and on-device training on
-Xbox Series S (Developer Mode; not yet tested on Series X) and a Linux host CLI.
+Xbox Series S and Series X (Developer Mode; measured on Series S) and a Linux host CLI.
 The shared core is C++17 under
 `include/xllama/` (WinRT-free, host-testable) and `src/bridge/`. Two front
 ends call it: `xllama-cli` on Linux, and the C++/WinRT UWP app in `uwp/`.
@@ -132,7 +132,10 @@ python3 -m unittest tests/test_validate_benchmark.py tests/test_benchmark_sideca
   tests/test_release_metadata.py tests/test_release_bundle.py \
   tests/test_make_shape_gguf.py tests/test_bench_run_status.py \
   tests/test_console_run_log.py tests/test_console_temp_chats.py \
-  tests/test_console_taesd_result.py tests/test_catalog_licenses.py tests/test_diffusion_export.py \
+  tests/test_console_taesd_result.py tests/test_api_framing_status.py \
+  tests/test_measure_api_ttfb.py \
+  tests/test_catalog_licenses.py tests/test_package_notices.py \
+  tests/test_diffusion_export.py \
   tests/test_redact_recorded_path.py tests/test_host_model_trust.py \
   tests/test_dependency_monitoring.py tests/test_host_training_env.py
 ```
@@ -221,7 +224,7 @@ diffusion/          SD-Turbo → ONNX host toolchain (not inside the MSIX)
 paper/              Citable research package
 llama.cpp/          Submodule. Do not edit in place.
 vendor/             Patched ORT / GenAI DLL hashes (vendor/*/SHA256SUMS)
-LICENSES/           Upstream licence texts for re-hosted models-v1 builds (SOURCES.md)
+LICENSES/           Upstream licence texts (models-v1 + MSIX runtime notices; SOURCES.md)
 cmake/              CMake helpers
 ```
 

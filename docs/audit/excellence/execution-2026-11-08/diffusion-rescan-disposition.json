@@ -1,0 +1,12 @@
+{
+  "installed_distributions": 50,
+  "queried_distributions": 49,
+  "known_findings": 0,
+  "skipped": [
+    {
+      "name": "torch",
+      "skip_reason": "Dependency not found on PyPI and could not be audited: torch (2.13.0+cpu)"
+    }
+  ],
+  "scope": "current isolated diffusion graph; CPU wheel identity and base-release advisory query are separate bounded receipts; no whole-binary or unknown-CVE certification"
+}

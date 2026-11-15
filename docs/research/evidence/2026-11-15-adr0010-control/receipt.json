@@ -1,0 +1,140 @@
+{
+ "scope": "GPU control for qwen25-coder-3b under ADR 0010; correctness verdicts, not a performance result",
+ "date_utc": "2026-11-15",
+ "declaration": {
+  "file": "declaration.json",
+  "sha256": "119114fa4e4a67848e7d6e3cb2d1b466e8bb6bd27d6f2f557f28d3bb87462326",
+  "committed": "7e8f146 (PR #452), 2026-11-15T18:28:30Z",
+  "gpu_arm_measured": "2026-11-15T18:28:40Z to 18:32:40Z"
+ },
+ "package": {
+  "filename": "xllama_1.7.0.1563_x64.msix",
+  "sha256": "ba113340b3e3a919320aa39e2da66d29bed785dcb8d5325c1235a95da155a4e2",
+  "ci_run": 43740925613,
+  "source": "4d9b6d9eb71932de5e70b8d0898da252abb74d3c (PR #451 head; squash-merged as 06710d1)",
+  "artifact": "xllama-appx (unified, CI MSVC)",
+  "install": "in-place update over 1.7.0.1555"
+ },
+ "device": {
+  "source": "authenticated Device Portal GET /api/os/info",
+  "platform": "Xbox Series S",
+  "os_version": "26100.9662.amd64fre.xb_flt_2610ge.261104-2200",
+  "scope": "observed OS platform; no serial or computer name retained"
+ },
+ "model": {
+  "file": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+  "sha256": "32f0014400ca1c1f81e7fb5befa9b9af476ba967dcbf92bad27409228c57c5b4",
+  "note": "host copy taken from the console LocalState; withdrawn from the catalogue, used as the #420 control"
+ },
+ "prompts": {
+  "p1-code-short": {
+   "sha256": "f93d2330ebf08ca28e7a34d9bdbe24aeb1c96f82a33bd4e2ab6e4d0354a3130f"
+  },
+  "p2-prose-it": {
+   "sha256": "8bf96186212218ff4e7c6a74491da3fdf45c208202849c86d3eb796731bfb34c"
+  },
+  "p3-code-review": {
+   "sha256": "258349a1b7e7d473678478abe24a00c8356b0b0e0aeb8bcfbcf20d3e87115c7a"
+  },
+  "p4-prose-long": {
+   "sha256": "ce6ca22104d364780ebeb3d083d9cbcef2e041c2d1a51ec7c410e9fbb2e5f7aa"
+  }
+ },
+ "prompt_tokens": {
+  "p1-code-short": 40,
+  "p2-prose-it": 404,
+  "p3-code-review": 614,
+  "p4-prose-long": 713
+ },
+ "configuration": {
+  "process": "UI process, autopilot wait_idle + dump_logits, one app start per run",
+  "n_ubatch": 512,
+  "greedy": true,
+  "gpu_layers": {
+   "console-cpu": 0,
+   "console-gpu": 99
+  },
+  "resolved_gpu_layers": {
+   "console-cpu": 0,
+   "console-gpu": "99 (37/37 layers offloaded)"
+  },
+  "capture_spec": "l_out-0;mode=last;max_mb=512;matmul_inputs=l_out-0",
+  "host_arms": "xllama-cli built from 06710d1, AVX2, 8 threads, ctx 2048, ubatch 512; host-release = linux-release preset, host-debug = linux-test preset (used for the margin only, logits not retained)"
+ },
+ "captures_not_retained": {
+  "reason": "about 310 MB per arm; hashes kept",
+  "data_sha256": "sha256 over the concatenated sha256 of each .f32 file in name order",
+  "arms": {
+   "console-cpu": {
+    "p1-code-short": {
+     "manifest_sha256": "ce44f78931370c2b8c4e121ab04db35e9f93b0c40f5bd9aaa0f7b4c6b2605cd2",
+     "files": 12,
+     "bytes": 7340032,
+     "data_sha256": "e8ebade40b3fe5e5c24d19f93d23e8635b250c94932e951f4f4a9495d77bdd1f",
+     "capture_on_logits_equal_capture_off": true
+    },
+    "p2-prose-it": {
+     "manifest_sha256": "31da220bf5cceb8d06da890bb858fda5f03d8b0b13fef4e64f456d114ff8abab",
+     "files": 12,
+     "bytes": 74059776,
+     "data_sha256": "b86a1c79bb687db1038509c594f052e82a69f88f54afa48bc2f680b9326d118c",
+     "capture_on_logits_equal_capture_off": true
+    },
+    "p3-code-review": {
+     "manifest_sha256": "5cac64826eb72914597e3739cbd578475ae792e8c6976cbbe96ef57838af2b08",
+     "files": 24,
+     "bytes": 112560128,
+     "data_sha256": "3650df4403eb0ecd90f29697f9065ad35e9e20e341fdae7c1b49a74ce6afb298",
+     "capture_on_logits_equal_capture_off": true
+    },
+    "p4-prose-long": {
+     "manifest_sha256": "7221416547139664488e05f6248ed7f51a245b6824f5a88d43f4085c184e4ea5",
+     "files": 24,
+     "bytes": 130706432,
+     "data_sha256": "3efa2d5cc649984a0df52b10e1f0a5229c1225f78d2a17eb81c756a3e07af7a9",
+     "capture_on_logits_equal_capture_off": true
+    }
+   },
+   "console-gpu": {
+    "p1-code-short": {
+     "manifest_sha256": "ce44f78931370c2b8c4e121ab04db35e9f93b0c40f5bd9aaa0f7b4c6b2605cd2",
+     "files": 12,
+     "bytes": 7340032,
+     "data_sha256": "2a272ba7fc908fe97c372d0e38428dd91fa88ade27b19d0c69361229d5f168bc",
+     "capture_on_logits_equal_capture_off": true
+    },
+    "p2-prose-it": {
+     "manifest_sha256": "31da220bf5cceb8d06da890bb858fda5f03d8b0b13fef4e64f456d114ff8abab",
+     "files": 12,
+     "bytes": 74059776,
+     "data_sha256": "bce81a394911622911d9f195b5b49b83b70b79e7812ef77b6b297732d8843a7f",
+     "capture_on_logits_equal_capture_off": true
+    },
+    "p3-code-review": {
+     "manifest_sha256": "5cac64826eb72914597e3739cbd578475ae792e8c6976cbbe96ef57838af2b08",
+     "files": 24,
+     "bytes": 112560128,
+     "data_sha256": "d7dfb7fcb2413050ff56b6954b3cee6c697c5519d81f099f85398e4b3bf7c03c",
+     "capture_on_logits_equal_capture_off": true
+    },
+    "p4-prose-long": {
+     "manifest_sha256": "7221416547139664488e05f6248ed7f51a245b6824f5a88d43f4085c184e4ea5",
+     "files": 24,
+     "bytes": 130706432,
+     "data_sha256": "ad04df062895f22acb8a6768b1be966ac76dd9c251b627c9c645c1eebb831603",
+     "capture_on_logits_equal_capture_off": true
+    }
+   }
+  }
+ },
+ "verdicts": {
+  "part1_kernel": {
+   "p1-code-short": false,
+   "p2-prose-it": true,
+   "p3-code-review": true,
+   "p4-prose-long": true
+  },
+  "part2_spread": false,
+  "control": "FAIL"
+ }
+}

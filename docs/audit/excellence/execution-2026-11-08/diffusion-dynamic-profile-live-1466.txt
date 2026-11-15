@@ -1,0 +1,7 @@
+[xllama] diffuse.flag detected -> headless diffusion mode
+[xllama] headless diffuse: starting
+[xllama] diffuse: model='sd-turbo-firstparty-20261108' steps=1 seed=42 prompt='a red sports car on a mountain road at sunset'
+[xllama] diffuse: unet input fp16, hidden_dim 1024, ts rank 0, te+unet load 5748 ms
+[xllama] diffuse: te 1084 ms | unet 3428 ms (1 step, 3428 ms/step) | vae 2629 ms | total 7142 ms
+[xllama] diffuse: wrote diffuse-out.png (512x512)
+[xllama] headless diffuse: done, exiting

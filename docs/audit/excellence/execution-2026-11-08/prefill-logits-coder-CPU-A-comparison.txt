@@ -1,0 +1,7 @@
+A: /tmp/xllama-live-private/prefill-logits-1482-qwen25-coder-3b-CPU/logits.bin  (151936 logits, backend=llama.cpp)
+B: /tmp/xllama-live-private/prefill-logits-1482-qwen25-coder-3b-A/logits.bin  (151936 logits, backend=llama.cpp)
+  max_abs_diff : 0.550120   (thr ≤ 0.5)
+  nmse         : 1.022e-03   (thr ≤ 0.001)
+  top1_match   : True
+  top10_overlap : 0.90   (thr ≥ 0.8)
+❌ FAIL

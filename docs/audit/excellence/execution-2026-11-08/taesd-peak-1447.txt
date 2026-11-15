@@ -1,0 +1,8 @@
+=== §7c TAESD image ===
+GianlucaMazza.xllama_1.7.0.1447_x64__pj67f1fcj4n14 is not running.
+  Waiting for autopilot-done.txt (timeout 1300s)...
+  Done after 20s.
+  autopilot: ok
+  ok: TAESD VAE stage 598.1 ms (<1000) wall_s=25 max_sampled_private_ws_mb=2716
+§7c TAESD: PASS
+  restoring full VAE decoder ...

@@ -1,0 +1,49 @@
+{
+  "status": "owned staging files removed and absence verified",
+  "package": "GianlucaMazza.xllama_1.7.0.1482_x64__pj67f1fcj4n14",
+  "utc": "2026-11-08T15:08:49.531831+00:00",
+  "removed": [
+    {
+      "path": "models\\sd-turbo-firstparty-20261108\\console-profile.json",
+      "bytes": 1411
+    },
+    {
+      "path": "models\\sd-turbo-firstparty-20261108\\export_report.json",
+      "bytes": 1988
+    },
+    {
+      "path": "models\\sd-turbo-firstparty-20261108\\model_index.json",
+      "bytes": 616
+    },
+    {
+      "path": "models\\sd-turbo-firstparty-20261108\\scheduler\\scheduler_config.json",
+      "bytes": 677
+    },
+    {
+      "path": "models\\sd-turbo-firstparty-20261108\\tokenizer\\merges.txt",
+      "bytes": 524619
+    },
+    {
+      "path": "models\\sd-turbo-firstparty-20261108\\tokenizer\\tokenizer.json",
+      "bytes": 3642245
+    },
+    {
+      "path": "models\\sd-turbo-firstparty-20261108\\tokenizer\\tokenizer_config.json",
+      "bytes": 378
+    },
+    {
+      "path": "models\\sd-turbo-firstparty-20261108\\tokenizer\\vocab.json",
+      "bytes": 1059962
+    }
+  ],
+  "remaining_empty_directories": [
+    "models\\sd-turbo-firstparty-20261108\\scheduler",
+    "models\\sd-turbo-firstparty-20261108\\text_encoder",
+    "models\\sd-turbo-firstparty-20261108\\tokenizer",
+    "models\\sd-turbo-firstparty-20261108\\unet",
+    "models\\sd-turbo-firstparty-20261108\\vae_decoder",
+    "models\\sd-turbo-firstparty-20261108",
+    "models\\sd-turbo-firstparty-20261108$component"
+  ],
+  "scope": "only the two explicitly owned staging roots; original model folders untouched; empty directory cleanup not claimed"
+}

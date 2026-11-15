@@ -557,7 +557,8 @@ reserve. With FA, prefill gains 22–29% and peak RAM over the CPU halves.
 
 ## Preregistered #313 experiment — 2026-11-07
 
-Status: **planned, no new GPU measurements**. This extends the existing Gate A
+Status: **preregistered; the first attempt stopped on control logit parity**
+(see the dated preflight below). This extends the existing Gate A
 and product gates above; it does not revise their historical verdicts. Program:
 [#395](https://github.com/gianlucamazza/xllama/issues/395).
 
@@ -677,3 +678,228 @@ completion markers, and numerical acceptance; an autopilot completion alone is
 not a numerical pass. `logits_model.txt` names an already provisioned operator
 research model for the probe without catalogue promotion or a download. Remove
 all diagnostic overrides after the campaign.
+
+### 2026-11-08 preflight — control logit failure
+
+The preregistered candidate attempt is stopped before H9/performance acceptance.
+The exact CI package passes the UI-process numerical selftest in both arms,
+including enabled-arm tails. LFM's two GPU logit dumps are byte-identical and
+both satisfy the frozen CPU comparator. Coder-3B's CPU versus original GPU
+kernel comparison fails the maximum-error and NMSE criteria. This is a control
+failure; the four-column Coder comparison was not run and its cause is unproven.
+No limits or input selection were changed to obtain a pass. The implementation
+remains draft/opt-in, with no default promotion or speedup claim. Raw dumps,
+comparisons and package/device binding are in the
+[dated execution ledger](audit/excellence/execution-2026-11-07.md#gpu-preflight--stopped-on-control-parity).
+
+For a matched deterministic decode campaign, write `1` to
+`bench_greedy.txt` before either arm. The native bench echoes `-greedy` in its
+host tag; the campaign must require this echo. Removing the file preserves
+normal sampler defaults.
+
+The headless logit probe also accepts `logits_gpu_layers.txt` (default zero,
+CPU control) and `logits_ubatch.txt` (default zero, engine default). Set the
+former explicitly to zero or the campaign's layer count for each arm, restart,
+and require the logged resolved layer count. A positive GPU request resolving
+to CPU fails the probe. These diagnostic knobs do not change normal chat
+routing. They reproduce the #420 control comparison on the shipping
+single-column kernels; the four-column experiment stays on #414.
+
+For the preregistered UI-process gates, use an autopilot script containing
+`wait_idle`, then `gpu_selftest` or `dump_logits` with a raw `text` prompt.
+These release the resident chat model under compute admission and retain the
+XAML/compositor process. Require fresh result files, the UI-process start and
+completion markers, and numerical acceptance; an autopilot completion alone is
+not a numerical pass. `logits_model.txt` names an already provisioned operator
+research model for the probe without catalogue promotion or a download. Remove
+all diagnostic overrides after the campaign.
+
+### 2026-11-15 control reproduction and tensor diagnosis (#420)
+
+The Coder-3B control was run again on a Series S with CI package
+1.7.0.1533, in the UI process, with the frozen prompt and `n_ubatch` 512.
+Receipt, comparisons and host dumps:
+[evidence directory](research/evidence/2026-11-15-coder-control-diagnosis/receipt.json).
+The frozen verdict is unchanged: the control still fails.
+
+**The failure is deterministic.** Both console dumps are byte-identical to the
+2026-11-08 dumps from package 1.7.0.1482. The comparator gives the same
+numbers: maximum error 0.550 against 0.5, NMSE 1.022e-3 against 1e-3, same top
+token.
+
+**Capture does not change the result.** With tensor capture on, each arm's
+logits are byte-identical to the same arm with capture off.
+
+**Where the arms part.** One record per captured node, CPU against GPU:
+
+- In layer 0 the Q, K and V projections computed on the GPU match the CPU to
+  NMSE about 1e-14 on the last token of each evaluation. With equal inputs
+  those kernels match the CPU to rounding.
+- The other layer-0 records on the last token stay at 1.5e-11 or better in the
+  first evaluation (512 tokens). In the second evaluation (446 tokens) the
+  layer-0 feed-forward output is already at 2.0e-8 and the layer output at
+  9.7e-9.
+- A capture of every column of layers 0 and 1 shows the first differences in a
+  few prompt positions only (first evaluation). After the attention output
+  projection of layer 0, 33 of 512 token positions differ (worst 3.3e-6). After
+  the layer-0 feed-forward it is 84 positions (worst 1.1e-4). The other
+  positions stay at rounding level.
+- Layer 1 attention mixes positions, so almost every position then differs. The
+  per-layer NMSE rises to about 1e-3 by layer 6 and stays near that level to
+  the output. No single layer adds a jump.
+
+**The same spread appears between CPU builds.** The model file was copied from
+the console (same SHA-256) and the prompt was run on a Linux host with the
+repack CPU kernels and with a build that has them disabled
+(`GGML_CPU_REPACK=OFF`), both AVX2. Frozen comparator, all pairs:
+
+| Reference   | Candidate   | Max error |     NMSE | Verdict |
+| ----------- | ----------- | --------: | -------: | ------- |
+| console CPU | console GPU |     0.550 | 1.022e-3 | FAIL    |
+| console CPU | host repack |     0.507 |  7.42e-4 | FAIL    |
+| console CPU | host plain  |     0.477 |  7.30e-4 | PASS    |
+| host repack | host plain  |     0.534 |  8.50e-4 | FAIL    |
+| console GPU | host plain  |     0.521 |  7.43e-4 | FAIL    |
+| console GPU | host repack |     0.642 | 1.121e-3 | FAIL    |
+
+Two of the three CPU-only pairs fail the maximum-error limit, and every pair
+follows the same per-layer curve. For this model and prompt the 0.5 limit does
+not separate a GPU arm from two CPU builds of the same arithmetic. The GPU
+pairs are still the widest on NMSE (two of three above 1e-3; no CPU-only pair
+is), so this does not clear the GPU arm.
+
+What this establishes and what it does not:
+
+- No sign of an indexing, lifetime or synchronisation defect: the run is
+  deterministic, capture-invariant and exact at layer 0 for equal inputs.
+- The first differences are isolated to single int8 values (next paragraph).
+- The control verdict stays FAIL. Thresholds, prompt and inputs are unchanged.
+  A different criterion for this model would need its own ADR before any new
+  campaign, as the diagnostic protocol in
+  [gpu-acceleration-baseline.md](research/gpu-acceleration-baseline.md#c4-control-diagnosis)
+  already requires. #313 and #414 stay stopped.
+
+**Root cause of the first differences: rounding flips in the activation
+quantizer.** A quantized matmul first rounds its input to int8 (q8_K: 256-value
+blocks, one scale per block). The input of the layer-0 attention output
+projection is not bit-identical between the arms; it differs at NMSE about
+5e-11, because the Q, K and V results feeding attention already differ in their
+last bits. Quantizing each arm's input with ggml's rule and comparing the int8
+values
+([analysis](research/evidence/2026-11-15-coder-control-diagnosis/quantization-flip-analysis.json))
+gives:
+
+| Evaluation | Tokens | Tokens with a changed int8 | Changed int8 values | Tokens that diverge after the projection |
+| ---------- | -----: | -------------------------: | ------------------: | ---------------------------------------: |
+| 0          |    512 |                         33 |                  36 |                                       33 |
+| 1          |    446 |                         45 |                  63 |                                       45 |
+
+In both evaluations the two sets of tokens are identical, and every change is
+by one unit. The block scale itself changes in almost every token and that
+alone is harmless (median NMSE about 5e-13 where no int8 changes). So 36 int8
+values out of about a million, each off by one, produce every diverging token
+of the first evaluation. A second candidate, fused against two-step rounding
+inside the quantizer, was tested on the same data and ruled out.
+
+This is a property of quantized-activation matmul, not of the GPU path: any
+two executions that differ in floating-point summation order can land on
+opposite sides of a rounding boundary. It is the same mechanism for the two
+CPU builds above. It explains where the differences start; it does not by
+itself say how large the end-to-end gap may be, which is what the gate
+measures.
+
+The GPU arm of that run also logged the first console `d3d12-phase` lines
+(#421). For the 958-token prefill: 433 submissions, 504 dispatches, 11427 ms
+wall, 2421 ms CPU q8 quantization, 8 ms command recording, 8990 ms execute
+through fence and 8933 ms GPU, with all 433 timestamp pairs valid. This is one
+diagnostic run of the logit probe, not a benchmark row.
+
+### 2026-11-15 control under ADR 0010: FAIL
+
+The first control judged with `scripts/control-parity.py`, on a declaration
+committed before its GPU arm
+([evidence](research/evidence/2026-11-15-adr0010-control/README.md)): Coder-3B
+Q4_K_M, package 1.7.0.1563, four new prompts of 40 to 713 tokens.
+
+- **Part 2 fails.** The GPU arm's largest maximum error is 0.9865 against a
+  CPU reference spread of 0.7201 (x1.370, limit x1.22), and one prompt's top
+  token differs. Its largest NMSE is inside the spread (x0.978).
+- **Part 1 finds no kernel error.** All 42 first-layer product records agree
+  with the CPU to 2.9e-12 NMSE or better on the columns whose operand is the
+  same (limit 1e-9). One record on the 40-token prompt has 0.725 of its
+  columns comparable against a required 0.75, so part 1 fails as declared.
+- The CPU-only pairs measured for the declaration all exceed the frozen
+  gate's 0.5 and 1e-3 on these prompts.
+
+#313 and #414 stay stopped. The result does not locate the cause of the wider
+maximum error: part 1 covers the first layer only.
+
+### 2026-11-15 kernel reference check: the GPU products are correct
+
+A diagnostic after the failed control, not a control
+([evidence](research/evidence/2026-11-15-gpu-kernel-reference-check/README.md)).
+`scripts/check-matmul-reference.py` compares each captured weight `MUL_MAT`
+with a float64 product of the dequantized weight and the arm's own q8_K
+operand, so it needs no second arm and covers every token column.
+
+- All 252 weight products of the 36 layers (40-token prompt) and the 84 of
+  layers 0 to 5 (713-token prompt) match the reference on both arms: CPU arm
+  2.3e-12 NMSE at worst, GPU arm 4.1e-14. The GPU arm is the closer of the two
+  in every weight family.
+- The backend runs `MUL_MAT` and `GET_ROWS` only, so with these products
+  correct the GPU arm has no other operator of its own. The difference between
+  the arms is rounding-level differences between two correct executions,
+  amplified through the activation quantizer.
+- The two-arm comparison of ADR 0010 part 1 loses its columns quickly: from
+  layer 8 on, no token column has the same operand in both arms.
+- Over thirteen prompts the GPU arm is on average 8 % further from the console
+  CPU arm than a host CPU build is, wider on 9 of 13, which this sample cannot
+  tell from chance. Every pair, CPU against CPU included, fails the frozen
+  gate on all thirteen.
+
+The control verdict is unchanged. What the result changes is the question:
+the criterion in ADR 0010 part 2 is failing an arm whose kernels are verified
+correct, on a statistic (the largest single-logit error over a few prompts)
+that two CPU builds also move by tens of percent. Whether to judge part 1 by
+the reference check and part 2 by a distribution over more prompts is a
+decision for the owner; it is not taken here.
+
+### 2026-11-15 control under the amended ADR 0010: PASS
+
+ADR 0010 was amended after the diagnosis above, and a fresh control was
+declared and run the same day
+([evidence](research/evidence/2026-11-15-adr0010-control-2/README.md)):
+Coder-3B Q4_K_M, package 1.7.0.1587, seventeen new prompts.
+
+- **Part 1 passes.** All 252 weight products of the 36 layers (40-token
+  prompt) and the 84 of layers 0 to 5 (675-token prompt) are within 4.3e-14
+  NMSE of the exact reference on the GPU arm, against a declared 1e-7.
+- **Part 2 passes.** Over 5,024 prompt positions the GPU arm's mean KL
+  divergence from the console CPU arm is 0.989 times a host CPU build's
+  (95 % upper bound 1.009, declared limit 1.25), and its top-token agreement
+  is 0.24 points lower (upper bound 0.57, declared margin 1).
+
+The correctness prerequisite of #313 is met for this model. Nothing here is
+a speed result, and LFM2.5-1.2B was not put through the control.
+
+### Attributable request counters (#421)
+
+A GGUF run with GPU layers logs one `[xllama] d3d12-phase` line after the
+prompt prefill and one after decode. Each line counts backend activity
+between the two points only (`ggml_d3d12_take_stats` in
+`include/xllama/ggml_d3d12.h`):
+
+- `calls`: graph computes.
+- `submissions`: command lists executed and waited for.
+- `dispatches`: MUL_MAT and GET_ROWS.
+- `wall_ms`: whole graph computes.
+- `quant_ms`: CPU q8 activation quantization.
+- `record_ms`: command-list recording.
+- `exec_wait_ms`: execution through fence completion.
+- `gpu_ms`: summed GPU timestamp pairs, one per submission.
+
+`gpu_ms` is printed as `unavailable` unless every submission had an increasing
+timestamp pair (`ts_valid`/`ts_missing`). These are CPU-side intervals around
+each step plus GPU timestamps. Wall minus GPU time is not CPU compute time,
+and none of these fields is a throughput result until it comes from a bound
+console package. A CPU run prints no line.

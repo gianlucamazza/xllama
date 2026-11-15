@@ -92,7 +92,9 @@ rejected. Ollama embedding aliases (`bge-m3`, `nomic-embed-text-v2-moe`,
 
 Streaming returns chunked `application/x-ndjson`: status records report download bytes, then
 model loading, followed by `{"status":"success"}`. A failure after streaming starts is an
-NDJSON `{"error":"..."}` record. With `stream:false`, the endpoint waits and returns one
+NDJSON `{"error":"..."}` record. When the files to fetch do not fit on the LocalState
+volume, that record is `Not enough storage for this model: needs N MB, M MB available`
+and no bytes are downloaded. With `stream:false`, the endpoint waits and returns one
 JSON result. The API pull gate spans transfer and model loading. A simultaneous
 API pull receives HTTP 409 when its handler overlaps; the WinRT listener may
 otherwise dispatch the handlers sequentially. GUI downloads, USB import and explicit
@@ -399,6 +401,16 @@ float/base64 parity, errors, and restoration of the catalogue context. Each succ
 embedding request logs `[embedding]` with model, input/token counts, width, duration,
 and `peak_ws_mb` (process lifetime peak from the existing platform collector).
 Restart between models when measuring separate cold peaks.
+
+`scripts/measure-api-ttfb.py` (#421) measures timing as a LAN client sees it,
+for repeated streamed `/v1/chat/completions` requests. For each attempt it
+records the connection, the complete response header, the first body byte, the
+first non-empty content delta and `[DONE]`, all measured from the start of the
+request. It writes `xllama-api-ttfb/1` JSON. Failed attempts are kept with
+their error: timeouts, non-200 status, stream error records, malformed SSE, no
+content or a missing `[DONE]`. These times include the network, HTTP handling
+and any model load. They are not the in-app `ttft_ms` and not a throughput
+result. The hardware label is a declaration made by the operator.
 
 Images are not in `all` (need SD-Turbo on device; use the curl example above). Chat round-trip:
 

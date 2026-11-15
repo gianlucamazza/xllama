@@ -62,6 +62,12 @@ bool model_is_gemma(const std::string& model_id) {
     return to_lower(model_basename(model_id)).find("gemma") != std::string::npos;
 }
 
+bool model_is_gemma4(const std::string& model_id) {
+    const std::string b = to_lower(model_basename(model_id));
+    return b.find("gemma4") != std::string::npos || b.find("gemma-4") != std::string::npos ||
+           b.find("gemma_4") != std::string::npos;
+}
+
 bool model_is_llama(const std::string& model_id) {
     return to_lower(model_basename(model_id)).find("llama") != std::string::npos;
 }
@@ -170,7 +176,21 @@ ChatFormat chat_format_for(const std::string& model_id) {
     // Gemma / Llama-3 / Phi-3 before the ChatML default. Substrings do not
     // collide with smollm2 / lfm2 / qwen ids. BOS is added by the tokenizer
     // (add_bos) for Gemma and Llama-3 GGUF — not emitted in the template string.
-    if (model_is_gemma(model_id)) {
+    if (model_is_gemma4(model_id)) {
+        // Gemma 4 canonical template: new turn tokens and a dedicated system
+        // turn. Thinking stays off, so generation starts at the model header.
+        f.kind = ChatFormatKind::Gemma;
+        f.turn_open = "<|turn>";
+        f.turn_close = "<turn|>\n";
+        f.role_sep = "\n";
+        f.user_tag = "user";
+        f.assistant_tag = "model";
+        f.system_tag = "system";
+        f.system_sep = "";
+        f.system_style = SystemStyle::DedicatedTurn;
+        f.stop_sequences = {"<turn|>"};
+        f.gen_suffix = {};
+    } else if (model_is_gemma(model_id)) {
         f.kind = ChatFormatKind::Gemma;
         f.turn_open = "<start_of_turn>";
         f.turn_close = "<end_of_turn>\n";
@@ -241,8 +261,8 @@ std::string ChatFormat::render_system_prefix(const std::string& system) const {
 std::string ChatFormat::render_prompt(const std::string& system,
                                       const std::vector<ChatTurn>& history,
                                       const std::string& final_user) const {
-    // System: dedicated turn (ChatML / Llama-3, emitted unconditionally) or
-    // merged into the first user turn (Gemma).
+    // System: dedicated turn (ChatML / Llama-3 / Gemma 4, emitted
+    // unconditionally) or merged into the first user turn (Gemma 3).
     std::string p = render_system_prefix(system);
 
     bool sys_pending = (system_style == SystemStyle::MergeIntoFirstUser) && !system.empty();

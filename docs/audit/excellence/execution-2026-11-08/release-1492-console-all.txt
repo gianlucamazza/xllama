@@ -1,0 +1,127 @@
+=== §2 routing A/B ===
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+  decoy: 8638 chars, trimmer estimate 1727 tok (budget 1800), ~1617 real tok (threshold 1550); index entries: 90
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+  Waiting for autopilot-done.txt (timeout 1300s)...
+  Done after 21s.
+  autopilot: ok
+  ok: long turn routed to GPU (1769 tok)
+  ok: short turn routed to CPU (23 tok)
+  ok: no 887A0036 (patched DLL works in XAML)
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+  ok: removed decoy chat ap-routing-longctx-85876e2403f0474f96e41aa603cd929f
+§2 routing: PASS
+=== settings ops (routing / sampling / kv_reuse / taesd / system_prompt) ===
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+  Waiting for autopilot-done.txt (timeout 300s)...
+  Done after 10s.
+  autopilot: ok
+  ok: set_routing dispatched
+  ok: set_sampling dispatched
+  ok: set_kv_reuse dispatched
+  ok: set_taesd dispatched
+  ok: set_system_prompt dispatched
+  ok: routing = 0 (want 0)
+  ok: kv_reuse = False (want False)
+  ok: temperature = 0.55 (want 0.55)
+  ok: top_p = 0.8 (want 0.8)
+  ok: top_k = 20 (want 20)
+  ok: repetition_penalty = 1.25 (want 1.25)
+  ok: n_predict = 128 (want 128)
+  ok: diffuse_taesd_vae = True (want True)
+  ok: system_prompt = 'You are a terse assistant.' (want 'You are a terse assistant.')
+settings ops: PASS
+=== GGUF chat (unified) ===
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 11s.
+  autopilot: ok
+  ok: lfm25-350m loaded via llama.cpp (persistent session)
+  ok: the conversation was saved with a title ('Say hello in one short sentence.')
+GGUF chat: PASS
+=== #169 long-chat context shift ===
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+  injected: 24 messages, est ~1972 tok (budget 1800)
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 41s.
+  autopilot: ok
+  ok: context shift fired (1x)
+  ok: no continuation fell back to a full prefill
+  ok: no context-full error
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+#169 long-chat: PASS
+=== #170b KV snapshot across a conversation switch ===
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+  injected: 16 messages, est ~392 tok (budget 1800)
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 11s.
+  autopilot: ok
+  ok: snapshot written on the way out
+  ok: snapshot restored on the way back
+  note: hybrid cache refused tail rewind after restore
+  ok: prefix reuse kept tokens after restore
+  cold prefill 551 tok -> returning prefill 19 tok
+  ok: returning turn pays a delta (19 tok, 3% of cold)
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+#170b KV snapshot: PASS
+=== #193 long paste on a coding session (n_ctx 4096, chunked prefill) ===
+  -- A: ~8.6 KB paste (past the 2048 logical batch, inside n_ctx)
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 31s.
+  autopilot: ok
+  prefills: [3436]
+  ok: 3436 tok prefilled in chunks past the 2048 logical batch, no abort
+  -- B: ~24 KB paste (past n_ctx): must be refused, not fatal
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 11s.
+  autopilot: error: action 3 send: Error
+  ok: the app survived and reported the failure (error: action 3 send: Error)
+  ok: refused with the actionable 'prompt too long' error
+#193 coding paste: PASS
+=== #193 truncated reasoning keeps the turn ===
+Stopped GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14.
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 10s.
+  autopilot: ok
+  ok: the empty-after-postprocess path fired
+  ok: the conversation kept an explicit 'reasoning only' assistant turn
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+#193 truncated reasoning: PASS
+=== #223 thinking turn completes (short prompt) ===
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 10s.
+  autopilot: ok
+  ok: no truncated-reasoning stand-in in the log
+  latest chat id: d4cc1bd4-00be-4f99-a713-1297ba08e9b2
+  ok: assistant answer on disk (1 chars): '4'
+#223 thinking complete: PASS
+=== #193 a full context still leaves room for the whole reply ===
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+  injected 40 messages, est ~2184 tok (ceiling 1800 at n_predict 512)
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+  Waiting for autopilot-done.txt (timeout 900s)...
+  Done after 21s.
+  autopilot: ok
+  ok: 1535 tok exact, dropped 4 (estimate had 4), n_ctx 2048, reply 512
+  ok: history was trimmed (the budget was binding, as intended)
+  first prefill 1535 tok, generated [283]
+  ok: 513 tokens left for the reply, >= the requested 512
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+#193 generation room: PASS
+=== §7c TAESD image ===
+GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14 is not running.
+  Waiting for autopilot-done.txt (timeout 1300s)...
+  Done after 20s.
+  autopilot: ok
+  ok: TAESD VAE stage 611.4 ms (<1000) wall_s=25 max_sampled_private_ws_mb=2003
+§7c TAESD: PASS
+
+=== summary ===
+ALL PASS
+  restoring full VAE decoder ...

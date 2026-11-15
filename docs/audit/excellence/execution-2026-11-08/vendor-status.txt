@@ -1,0 +1,22 @@
+=== xllama NuGet pins (uwp/packages.config) ===
+  GenAI DirectML: 0.14.1
+  ORT DirectML:   1.24.4
+
+=== NuGet.org latest (DirectML ids) ===
+  GenAI latest: 0.14.1
+  ORT latest:   1.24.4
+
+=== Vendor pin status ===
+  PatchedGenAI: STILL REQUIRED (NuGet latest == pin 0.14.1; #2280 not released)
+                keep vendor-dlls-v1 onnxruntime-genai.dll + -PatchedGenAI
+                tracker: https://github.com/gianlucamazza/xllama/issues/84
+  PatchedOrt:   STILL REQUIRED (NuGet latest == pin 1.24.4)
+                keep vendor-dlls-v1 onnxruntime.dll + -PatchedOrt
+                trackers: https://github.com/gianlucamazza/xllama/issues/85
+                          https://github.com/microsoft/onnxruntime/pull/29732
+
+=== Local pin hashes (if present) ===
+  vendor/onnxruntime-genai-patched/SHA256SUMS:
+    onnxruntime-genai.dll  ec034349a28e41f6bfdce52731533caf7e590bab4e8dc7002bb48b92481f334d
+  vendor/onnxruntime-patched/SHA256SUMS:
+    onnxruntime.dll  f3c2e1cc9a61f67db2dbf45bef626e6e299490548fae5f6f22f89d441e77391e

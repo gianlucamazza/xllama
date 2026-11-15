@@ -1,0 +1,42 @@
+{
+  "release-1492-console-all.txt": {
+    "capture_sha256": "d2d96829b2735272a0484f37c2c9a918f7c32d24e8a0889b683124e62846e5e2",
+    "repository_sha256": "b61233ce94bb3af96144383f1688ff1005972e637bbe019720c046f8ab612438",
+    "normalization": "CRLF to LF only"
+  },
+  "release-1492-api-initial-failure.txt": {
+    "capture_sha256": "b72b186c8f6bd1901ba7c57a08b4894f62257da55db661c6d27abd7993ee7785",
+    "repository_sha256": "b72b186c8f6bd1901ba7c57a08b4894f62257da55db661c6d27abd7993ee7785",
+    "normalization": "CRLF to LF only"
+  },
+  "release-1492-api-corrected.txt": {
+    "capture_sha256": "52fd81825146a59aa155f125e8d8ee52bfd5500df71ff00abbce243039df9b5b",
+    "repository_sha256": "52fd81825146a59aa155f125e8d8ee52bfd5500df71ff00abbce243039df9b5b",
+    "normalization": "CRLF to LF only"
+  },
+  "release-1492-framing-corrected.txt": {
+    "capture_sha256": "842765ffb641a8a9d8db1d1812b8c1249a6926a02536436e600f41ee69b63d8c",
+    "repository_sha256": "842765ffb641a8a9d8db1d1812b8c1249a6926a02536436e600f41ee69b63d8c",
+    "normalization": "CRLF to LF only"
+  },
+  "release-1492-training-all.txt": {
+    "capture_sha256": "34a9aef048fcfa64b9b2e5a9140faeba07d10ca0de4e1e7115833501bec73873",
+    "repository_sha256": "34a9aef048fcfa64b9b2e5a9140faeba07d10ca0de4e1e7115833501bec73873",
+    "normalization": "CRLF to LF only"
+  },
+  "release-1492-training-serve-stale.txt": {
+    "capture_sha256": "37b49d9f703f76717c973e2b1f79ca7ff8d9826bfa1ae28dfe6ae02aad8d4cfb",
+    "repository_sha256": "37b49d9f703f76717c973e2b1f79ca7ff8d9826bfa1ae28dfe6ae02aad8d4cfb",
+    "normalization": "CRLF to LF only"
+  },
+  "release-1492-training-rate-stale.txt": {
+    "capture_sha256": "05b3128cd5f3e9da3547aa6f5759e326d77e01c32405908a79cb2c9e74e28ea8",
+    "repository_sha256": "05b3128cd5f3e9da3547aa6f5759e326d77e01c32405908a79cb2c9e74e28ea8",
+    "normalization": "CRLF to LF only"
+  },
+  "release-1492-device-train.txt": {
+    "capture_sha256": "25c129d2e9f882517483cee56d78ef8291d86bbd16f7adef7f64b4ae3970e204",
+    "repository_sha256": "56a2159026e0d24ac339e6f9f5cbe0a521c6b4a45bf62387af931994e74fc49a",
+    "normalization": "CRLF to LF only"
+  }
+}

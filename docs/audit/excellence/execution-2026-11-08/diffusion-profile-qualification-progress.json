@@ -1,0 +1,29 @@
+{
+  "status": "host_and_first_party_UI_full_VAE_TAESD_true_peak_gates_pass; evidence integration pending",
+  "host_source": "144191fb92635c629cbe294b22b27a3a4e90456b",
+  "full_export_tests": {
+    "passed": 35,
+    "skipped": 0
+  },
+  "profile_graphs": "final default CLI output byte-identical to exercised read-back graphs",
+  "fp16_vs_reconstructed_fp32": "three frozen component checks pass; pooler and uint8 image explicitly unchecked in that mode",
+  "exact_image_equivalence": "final dynamic-annotation variant passes unchanged zero-tolerance criterion under identical session settings between arms; static variant fails and is retained",
+  "hardware_package": "1.7.0.1466",
+  "hardware_source": "0a8bcf158830dfcfbc19ea7fc08cd6abb7941e48",
+  "ci_run": 42482733136,
+  "timing_scope": "fresh headless per-stage inference timings; not UI TTFT or a release benchmark",
+  "generated_image_source": "stabilityai/sd-turbo revision b261bac6fd2cf515557d5d0707481eafa0485ec2",
+  "qualification_limits": [
+    "No catalogue change or model publication",
+    "No whole-binary or unknown-vulnerability certification",
+    "Program-wide final-package acceptance and physical power/thermal publication gate remain separate"
+  ],
+  "log_binding": {
+    "capture_sha256": "ec2e9f618e1b2235bd8e72262e167c45b7bda99d63e9c9a38b6699bd964e6f6b",
+    "repository_sha256": "5bd3df00105092345eb1038a694d45fb25a6525314c7db60f8e5c230e492dd05",
+    "normalization": "CRLF to LF for repository text; numeric/event contents unchanged"
+  },
+  "final_default_component_parity": "diffusion-qualified-profile-components.json; 3 frozen checks pass; pooler and uint8 image explicitly unchecked in that mode",
+  "ui_full_vae": "diffusion-full-profile-ui-1472.json",
+  "ui_taesd": "diffusion-taesd-profile-ui-1472-binding.json"
+}

@@ -1,0 +1,24 @@
+{
+  "status": "pass",
+  "package": "GianlucaMazza.xllama_1.7.0.1482_x64__pj67f1fcj4n14",
+  "arm": "B",
+  "columns": 4,
+  "expected_rows": 50,
+  "actual_rows": 50,
+  "checks": {
+    "expected_rows": true,
+    "correct": true,
+    "finite": true,
+    "unchanged_tolerance": true,
+    "micro_decode_floor": true,
+    "UI_process": true,
+    "actual_dispatch_proof": true
+  },
+  "c4_dispatch_counts": [
+    252
+  ],
+  "scope": "one fresh XAML-process numeric/micro gate; no performance campaign or optimization claim",
+  "capture_csv_sha256": "6ac861a83588a7132748db8a1e49d4772d17c7fb388e4538cefae1fc348f4216",
+  "repository_csv_sha256": "31695a51d865121f20c19e03dd8223093326edc05be87f343fd301b5bdfcc856",
+  "normalization": "CRLF to LF only; original captured SHA retained"
+}

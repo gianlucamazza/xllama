@@ -1,0 +1,1 @@
+ok cpu=8 gpu_max=8.1

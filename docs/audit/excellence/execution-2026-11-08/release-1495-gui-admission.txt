@@ -1,0 +1,57 @@
+16:46:53.242 [xllama] App::App()
+16:46:53.327 [xllama] App::App() complete
+16:46:53.390 [xllama] App::OnLaunched
+16:46:53.390 [xllama] building MainPageController
+16:46:53.404 [xllama] MainPageController built
+[xllama] EnsureModel: begin 'lfm25-350m'
+16:46:53.408 [xllama] MainPageController init done
+16:46:53.409 [xllama] Window.Content set
+16:46:53.409 [xllama] Window activated
+16:46:53.411 [caprec] AppRecordingManager present=0 GraphicsCaptureSession present=1
+16:46:53.412 [mic] AudioGraph present=1 MediaCapture present=1 (presence is not permission — see uwp-constraints.md)
+[gcprobe] session_present=1 item_present=1 viable=0 encoder=0 presence_error=0 duration_us=71
+16:46:53.413 [xllama] api.flag detected -> starting LAN HTTP endpoint
+[manifest] merging LocalState\manifest.json override (per-entry)
+[xllama] EnsureModel: 'lfm25-350m' already provisioned
+[xllama] api: listening on 0.0.0.0:11434 (OpenAI-compat /v1/chat/completions)
+[autopilot] flag detected
+[manifest] merging LocalState\manifest.json override (per-entry)
+[llama] llama_model_loader: mmap is not supported on this platform
+[autopilot] action 0 wait_idle start
+[llama] load_tensors:          CPU model buffer size =    52.75 MiB
+[llama] load_tensors:   CPU_REPACK model buffer size =   154.12 MiB
+[xllama] ws after model load: 317 MB
+[xllama] Session: GGUF model loaded via llama.cpp (persistent)
+[autopilot] action 0 wait_idle end
+[autopilot] action 1 set_model start
+[manifest] merging LocalState\manifest.json override (per-entry)
+[autopilot] action 1 set_model end
+[autopilot] action 2 new_chat start
+[autopilot] action 2 new_chat end
+[autopilot] action 3 set_system_prompt start
+[autopilot] action 3 set_system_prompt end
+[autopilot] action 4 set_sampling start
+[autopilot] action 4 set_sampling end
+[autopilot] action 5 mark start
+[autopilot] mark 'gui-admission-ready' waiting for host
+[autopilot] mark 'gui-admission-ready' released
+[autopilot] action 5 mark end
+[autopilot] action 6 send start
+[manifest] merging LocalState\manifest.json override (per-entry)
+[llama] llama_context:        CPU  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =    24.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.08 MiB
+[llama] sched_reserve:        CPU compute buffer size =   140.02 MiB
+[xllama] ws after context: 343 MB
+[xllama] session: can_shift=1 (memory_can_shift=1 n_swa=0)
+[xllama] prompt budget: 988 tok exact, dropped 0 (estimate had 0), n_ctx 2048, reply 512
+[xllama] prefill starting: 988 tokens
+[xllama] prefill done: 988 tokens in 2711 ms
+[xllama] decode progress: 64/512 tokens (891 ms)
+[xllama] decode progress: 128/512 tokens (1793 ms)
+[xllama] EOG after 189 tokens
+[xllama] session generate: n=189 prefill=2710.6ms (988 tok) reuse=0 drafted=0 spec_accept=0
+[autopilot] action 6 send end
+[autopilot] action 7 quit start
+[autopilot] action 7 quit
+[autopilot] driver exit: ok

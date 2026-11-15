@@ -1,0 +1,1 @@
+A bakery sells loaves at 3 euros and rolls at 50 cents. Write a short Python function that returns the total for a list of orders, and name one input you would reject.

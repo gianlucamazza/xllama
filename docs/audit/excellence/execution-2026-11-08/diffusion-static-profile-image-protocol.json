@@ -1,0 +1,9 @@
+{
+  "scope": "additional fixed-profile equivalence; does not redefine frozen fp16_vs_fp32 image policy",
+  "prompt": "a red sports car on a mountain road at sunset",
+  "steps": 1,
+  "seed": 42,
+  "expected": "exact RGB pixel equality between already captured dynamic-reference and specialized-profile CPU images",
+  "reference": "firstparty-specialized-host.png",
+  "candidate": "console-profile-host.png"
+}

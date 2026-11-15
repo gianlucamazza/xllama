@@ -64,6 +64,16 @@ static void print_help(const char* prog) {
                  "      --dump-logits <path>\n"
                  "                       Write the last prefill-token logits (float32) to\n"
                  "                       <path> and metadata to <path>.json, then continue\n"
+                 "      --dump-logits-stride <N>\n"
+                 "                       With --dump-logits: also write every Nth prompt\n"
+                 "                       position's logits to <path>.positions.bin\n"
+                 "      --capture-tensors <dir>\n"
+                 "                       #420 diagnostic: write prefill tensors matching\n"
+                 "                       --capture-spec to <dir> (llama.cpp path only)\n"
+                 "      --capture-spec <patterns[;mode=last|full][;max_mb=N]>\n"
+                 "                       Graph tensor names, e.g. 'l_out-*,result_output'.\n"
+                 "                       ';matmul_inputs=l_out-0' adds the first layer's\n"
+                 "                       weight MUL_MATs and their operands (ADR 0010)\n"
                  "      --validate-train-job <job.json>\n"
                  "                       Parse/validate a training job manifest and exit\n"
                  "                       (training pillar; no model load)\n"
@@ -149,6 +159,9 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
         {"decode-progress-every", required_argument, nullptr, 29},
         {"decode-progress-ms", required_argument, nullptr, 30},
         {"infer-stall-timeout", required_argument, nullptr, 31},
+        {"capture-tensors", required_argument, nullptr, 32},
+        {"capture-spec", required_argument, nullptr, 33},
+        {"dump-logits-stride", required_argument, nullptr, 34},
         {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0}};
 
@@ -265,6 +278,19 @@ bool parse_cli_args(int argc, char** argv, InferenceParams& out) {
             break;
         case 31:
             out.stall_timeout_s = std::atoi(optarg);
+            break;
+        case 32:
+            out.tensor_capture_dir = optarg;
+            break;
+        case 33:
+            out.tensor_capture_spec = optarg;
+            break;
+        case 34:
+            out.dump_logits_stride = std::atoi(optarg);
+            if (out.dump_logits_stride < 1) {
+                std::fprintf(stderr, "--dump-logits-stride must be a positive integer\n");
+                return false;
+            }
             break;
         case 'h':
             print_help(argv[0]);

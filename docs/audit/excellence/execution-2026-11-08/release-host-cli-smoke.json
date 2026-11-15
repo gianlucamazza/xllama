@@ -1,0 +1,12 @@
+{
+  "status": "pass",
+  "scope": "Linux host Release CLI help and actual GGUF chat smoke; not an Xbox timing or performance result",
+  "runtime_source": "18d0eca8fd048d365246769b00d5afd8adb520cc",
+  "model_sha256": "bb741ebb106d543e9de114b843a3d3d73d51c74b5801e69da2abde821a0cb3e1",
+  "binary_sha256": "03027953d4e02040d217bd5008093c38d94f1cfb028dee82e1e0608f7469d30e",
+  "requested_tokens": 16,
+  "generated_tokens": 9,
+  "stop": "EOG",
+  "reply": "Hello! How can I assist you today?",
+  "capture_sha256": "bcbd5c112e45d6c47f766f9f29cb9c03581d91b2391d2ff9889e8bf15440a781"
+}

@@ -18,8 +18,8 @@
 # from the golden sidecar or smollm2-360m-cpu-int4).
 #
 # NOTE: the ORT model uses its own tokenizer (ONNX) while the golden came from the
-# GGUF tokenizer. compare-logits.py gates on vocab size and falls back to top-token
-# string agreement when the vocabularies differ — read its verdict, not just $?.
+# GGUF tokenizer. compare-logits.py fails closed when the vocabulary sizes differ
+# (#423): matching top-token strings are diagnostic only and never a parity pass.
 
 set -euo pipefail
 
@@ -88,7 +88,7 @@ restart_app() {
 	local pfamily aumid
 	# shellcheck disable=SC2001
 	pfamily=$(echo "$PFN" | sed 's/_[0-9][0-9.]*_[^_]*__/_/')
-	aumid=$(printf '%s!xllama' "$pfamily" | base64 -w0)
+	aumid=$(printf '%s!xllama' "$pfamily" | base64 | tr -d '\n')
 	curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X POST -d "" \
 		"${BASE_URL}/api/taskmanager/app?appid=${aumid}" >/dev/null 2>&1 || true
 }

@@ -1,0 +1,27 @@
+{
+  "status": "pass_after_harness_fix; initial failed attempt retained",
+  "package": "GianlucaMazza.xllama_1.7.0.1492_x64__pj67f1fcj4n14",
+  "package_source": "f73f5de16f7e1384f436fe3db2370a0285eb2e2c",
+  "initial_harness_source": "18d0eca8fd048d365246769b00d5afd8adb520cc",
+  "corrected_harness_source": "cb93ae364422dad796800dcd87c12814836c522c",
+  "harness_pr": 418,
+  "initial_log_capture_sha256": "b72b186c8f6bd1901ba7c57a08b4894f62257da55db661c6d27abd7993ee7785",
+  "corrected_log_capture_sha256": "52fd81825146a59aa155f125e8d8ee52bfd5500df71ff00abbce243039df9b5b",
+  "disposition": "the old harness truncated a valid 143-byte training-status reply to 120 bytes before parsing; fixed before repeating, with red/green regressions; no MSIX change or dropped failure",
+  "gates": [
+    "spike",
+    "chat",
+    "stream",
+    "admission",
+    "embed",
+    "budget",
+    "tools",
+    "framing",
+    "prefs",
+    "train",
+    "pull"
+  ],
+  "optional_ONNX_tools_400": "executed and passed",
+  "embedding_requests": 17,
+  "Store_to_Dev_runtime_restoration": "verified by healthy LAN server and full API suite; no uninstall"
+}

@@ -1,0 +1,71 @@
+{
+ "scope": "CPU-only pairs measured before the declaration; basis of spread.margin",
+ "pairs": {
+  "console-cpu vs host-release": {
+   "p1-code-short": {
+    "max_abs_diff": 0.6031064987182617,
+    "nmse": 0.0010067502487609771,
+    "top1_match": true
+   },
+   "p2-prose-it": {
+    "max_abs_diff": 0.7201247215270996,
+    "nmse": 0.0015729569402227026,
+    "top1_match": true
+   },
+   "p3-code-review": {
+    "max_abs_diff": 0.6314449310302734,
+    "nmse": 0.0019803746033034784,
+    "top1_match": true
+   },
+   "p4-prose-long": {
+    "max_abs_diff": 0.7046127319335938,
+    "nmse": 0.0019966520529250144,
+    "top1_match": true
+   }
+  },
+  "console-cpu vs host-debug": {
+   "p1-code-short": {
+    "max_abs_diff": 0.52301025390625,
+    "nmse": 0.000985290081818028,
+    "top1_match": true
+   },
+   "p2-prose-it": {
+    "max_abs_diff": 0.7125258445739746,
+    "nmse": 0.0015100249839694255,
+    "top1_match": false
+   },
+   "p3-code-review": {
+    "max_abs_diff": 0.7289352416992188,
+    "nmse": 0.00209806404330329,
+    "top1_match": true
+   },
+   "p4-prose-long": {
+    "max_abs_diff": 0.7321929931640625,
+    "nmse": 0.002421265354113672,
+    "top1_match": true
+   }
+  },
+  "host-release vs host-debug": {
+   "p1-code-short": {
+    "max_abs_diff": 0.5531160831451416,
+    "nmse": 0.0010275095255926317,
+    "top1_match": true
+   },
+   "p2-prose-it": {
+    "max_abs_diff": 0.6215801239013672,
+    "nmse": 0.001215614795302358,
+    "top1_match": false
+   },
+   "p3-code-review": {
+    "max_abs_diff": 0.6785950660705566,
+    "nmse": 0.0021951241698749575,
+    "top1_match": true
+   },
+   "p4-prose-long": {
+    "max_abs_diff": 0.788010835647583,
+    "nmse": 0.002938497113893962,
+    "top1_match": true
+   }
+  }
+ }
+}

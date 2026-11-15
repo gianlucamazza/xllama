@@ -1,0 +1,7 @@
+[xllama] diffuse.flag detected -> headless diffusion mode
+[xllama] headless diffuse: starting
+[xllama] diffuse: model='sd-turbo-firstparty-20261108' steps=1 seed=42 prompt='a red sports car on a mountain road at sunset'
+[xllama] diffuse: ORT error: Non-zero status code returned while running Reshape node. Name:'node_view' Status Message: D:\a\xllama\xllama\build\vendor-onnxruntime\onnxruntime\onnxruntime\core\providers\dml\DmlExecutionProvider\src\MLOperatorAuthorImpl.cpp(2597)\onnxruntime.dll!00007FFF75A06438: (caller: 00007FFF76199471) Exception(2) tid(64c) 8007023E {Application Error}
+
+The exception %s (0x
+[xllama] headless diffuse: done, exiting

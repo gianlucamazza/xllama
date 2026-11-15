@@ -1,0 +1,8 @@
+{
+  "distribution_version": "2.13.0+cpu",
+  "base_release": "2.13.0",
+  "git_version": "cf30153c4c131c8164ee7798e5022d810682e2cb",
+  "cuda": null,
+  "debug": false,
+  "scope": "installed CPU build identity; base-release advisory query is separate from exact-local-version scanner coverage"
+}

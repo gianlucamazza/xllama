@@ -7,6 +7,136 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **GPU control under the amended ADR 0010: PASS.** Coder-3B on the Series S,
+  declared before its GPU arm. Every GPU weight product in all 36 layers is
+  within 4.3e-14 NMSE of an exact reference (declared limit 1e-7), and over
+  5,024 prompt positions the GPU arm's mean KL divergence from the CPU arm is
+  0.989 times a second CPU build's (95 % upper bound 1.009, declared limit
+  1.25), with top-token agreement 0.24 points lower (declared margin 1). The
+  earlier control's FAIL under the original criterion stands. This clears
+  the correctness prerequisite of the GPU prefill work for this model; it is
+  not a speed result. Evidence:
+  `docs/research/evidence/2026-11-15-adr0010-control-2/`.
+
+- **ADR 0010 amended.** A GPU control is now judged in two parts that do not
+  depend on a maximum over a few prompts: every weight product against an
+  exact reference (`control-parity.py reference`), and the output
+  distribution over many prompt positions against what a second CPU build
+  shows (`control-parity.py distribution`). `--dump-logits-stride N`, or
+  `logits_stride.txt` on the console, dumps the logits at every Nth prompt
+  position for the second part. The first control's FAIL is not rewritten.
+
+- **Startup log:** a `[resources]` line states whether the title has the
+  expanded (Game) resources, how many exclusive cores it was given, the
+  logical core count and the app memory limit. It is there to explain runs
+  like the 2.4 times slower App-designation runs seen on a Series X (#457).
+
+- **LFM2.5 figures remeasured on 1.7.0.** `lfm25-230m` is 127.1 tok/s decode
+  (237 MiB peak) and `lfm25-350m` is 97.9 tok/s on package 1.7.0.1563, each a
+  median of three runs of exactly 512 generated tokens. The previous 132.4 and
+  101.6 tok/s came from the 1.6.0 package and from runs that stopped after 33
+  to 273 tokens, where decode is faster; the one earlier 512-token run of the
+  230M was 128.5. The summary, README and model matrix use the new rows.
+
+- **GPU kernels checked against an exact reference.** New diagnostic
+  `scripts/check-matmul-reference.py` compares every captured weight product
+  with a float64 reference built from the model file. On the Series S, all
+  252 products of Coder-3B's 36 layers are correct on both arms, the GPU arm
+  to 4.1e-14 NMSE and the CPU arm to 2.3e-12. The CPU and GPU logits differ
+  through amplified rounding, not a kernel defect. The failed control's
+  verdict is unchanged, and GGUF GPU prefill work stays stopped until the
+  owner decides how a control should judge this.
+
+- **Scripts:** the deploy, bench and validation scripts no longer call
+  `base64 -w0`, a GNU-only flag that fails on macOS. They strip the line
+  breaks with `tr` instead; the encoded value is the same.
+  ||||||| parent of 6577bc4 (feat: check captured GPU products against an exact reference)
+  ||||||| parent of a46be23 (docs: remeasure the two LFM2.5 rows on 1.7.0 with a fixed-length decode)
+
+- **Series X is supported.** Accepted by the owner on 2026-11-15 from an
+  independent tester's runs of package 1.7.0.1495 on a Series X: text
+  generation with `lfm25-350m` and `lfm25-1.2b-instruct` through the LAN API
+  (143 timed runs, imported as `bench/results/series-x-2026-11-13.csv` and
+  `series-x-end-to-end-2026-11-13.csv` with the `xbox-series-x-declared`
+  label; credit Joshua Henne / Eidon Labs Inc.). Image generation, training
+  and the GPU path have not been run on a Series X, and every published
+  figure remains a Series S figure. With the App designation the tester's
+  runs were about 2.4 times slower than with the Game designation; the cause
+  is not known. The public wording changes from "Not yet tested on Series X"
+  to "Supported on Series S and Series X", with the scope in
+  `docs/positioning.md`.
+  ||||||| parent of 40318e2 (fix: encode Device Portal ids without the GNU-only base64 -w0)
+
+- **GPU control under ADR 0010: FAIL.** The first Coder-3B control judged
+  against a declaration committed before its GPU arm failed on the Series S.
+  The first-layer GPU products agree with the CPU wherever their operands are
+  the same, but the GPU logits' largest maximum error is 1.37 times the
+  spread between two CPU references (declared limit 1.22) and one of four
+  prompts ends on a different top token. GGUF GPU prefill work stays stopped.
+  Evidence: `docs/research/evidence/2026-11-15-adr0010-control/`.
+
+- **GPU control comparison (ADR 0010):** `scripts/control-parity.py` judges a
+  GPU control in two parts, from a declaration committed before the GPU arm is
+  measured. `kernel` compares every first-layer weight `MUL_MAT` between the
+  CPU and GPU arms on the token columns whose operand is the same; `spread`
+  compares the GPU logits with the spread between two CPU references. The
+  tensor capture gains `matmul_inputs=<node>` to record those products with
+  their operands. `compare-logits.py` and every recorded verdict are
+  unchanged, and no control has been run under the new comparison yet.
+
+- **Model download:** a download now checks the free space on the LocalState
+  volume before the first request and fails at once with both numbers ("needs
+  N MB, M MB available") when the files would not fit. A write error deletes
+  the partial `.part` file, which used to stay behind and hold the space the
+  next attempt needed. The same message reaches the UI status and the
+  `/api/pull` error record.
+
+- **Storage diagnostics:** the boot log states the capacity and free space of
+  the volume that holds LocalState (`[storage] LocalState volume=...`). On the
+  console that volume is not the one the Dev Home storage allocation sizes.
+
+- **Model download:** the downloader no longer writes model bodies to the
+  system HTTP cache while it streams them to LocalState. On a Series S, a
+  2.45 GB download failed repeatedly with "There is not enough space on the
+  disk" after 0.6 to 1.45 GB, with more free space than that reported.
+
+- **Gemma 4 chat template:** `gemma4-e2b` and other Gemma 4 ids now get the
+  Gemma 4 turn tokens (`<|turn>`, `<turn|>`) and a dedicated system turn. They
+  were rendered with the Gemma 3 template, whose `<start_of_turn>` and
+  `<end_of_turn>` markers are plain text in the Gemma 4 vocabulary, so the
+  model saw no turn structure and could write the marker back as text. Chat
+  UI, LAN API, CLI and device training share the one format. Gemma 3 ids are
+  unchanged. Found in a community fork (EgbertJiang/xllama). The Series S
+  prefill, decode and peak figures for `gemma4-e2b` were remeasured with this
+  template on 2026-11-15. Its H9 rerun is 6/8, the same total as before on
+  a different set of tasks (`constrained_summary` now passes, `json_extraction`
+  now fails on a Markdown fence); see `docs/model-matrix.md`.
+
+- **Startup model check:** `EnsureModelAsync` now ends with `co_return`. It
+  was declared as a coroutine and contained no coroutine statement, so it was
+  an ordinary function that returned no value (undefined behaviour). The MSVC
+  package was not seen to fail; a community fork (EgbertJiang/xllama) reported
+  a trap in a Clang cross-build after model provisioning.
+
+## [1.7.0] - 2026-11-10
+
+User-facing notes: [docs/releases/v1.7.0.md](docs/releases/v1.7.0.md).
+Released as `v1.7.0.0` from CI package 1.7.0.1495, which completed Series S
+acceptance; receipts and limitations are linked from the notes. Host-side
+validation tooling merged after the candidate (#423 strict numerical parity
+comparisons, #424 attributable ORT profile reports) and the #425 GPU
+acceleration baseline are in the tag; they do not change package inputs.
+
+- **GPU validation:** the standard backend selftest exits nonzero when its
+  gate fails and rejects empty, non-finite or negative measurements. Native
+  matmul and get-rows error oracles reject non-finite values instead of
+  allowing NaNs to disappear in a maximum reduction.
+
+- **API validation:** parse the complete training-status response before
+  applying the bounded display preview in the HTTP framing gate. Longer
+  progress payloads no longer cause a false failure; missing or invalid
+  counters still fail closed.
+
 - **Console tooling:** reject Device Portal file-upload failures consistently
   in deploy, benchmark and validation scripts, including HTTP 200 rejection
   payloads and transport errors previously mistaken for empty-body success.
@@ -14,7 +144,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Diffusion:** add a separate fixed deployment profile for first-party
   exports. Reshape targets must be proven constant and free of literal zeros
   before normalization for DirectML; retain the dynamic export for host parity.
-  ||||||| 699bdf9
 - **Diffusion export:** preserve the checkpoint's native CLIP vocabulary and
   merges alongside the unified tokenizer metadata, so first-party exports
   remain self-contained for the console tokenizer with Transformers 5.

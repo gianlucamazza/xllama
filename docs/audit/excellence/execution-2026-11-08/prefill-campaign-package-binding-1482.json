@@ -1,0 +1,66 @@
+{
+  "bound_before_optimized_execution_utc": "2026-11-08T14:57:26.287246+00:00",
+  "protocol_sha256": "db643d351415072b4a1991a51e25e5cbc5fef9f035bf95044fa9b70fcd316829",
+  "protocol_public_commit": "5ffd647a19cc5fc4871a154e27d77e673731ef74",
+  "source": "37b5e839e03f1b7a5247dd557e241e16f2bce33c",
+  "ci_run": 42491699355,
+  "package": {
+    "filename": "xllama_1.7.0.1482_x64.msix",
+    "sha256": "33893a239805a123041102db96ebffee3aabdd2227539930ac589a2944ad52c2",
+    "bytes": 21050214,
+    "identity": {
+      "Name": "GianlucaMazza.xllama",
+      "Publisher": "CN=xllama-dev",
+      "Version": "1.7.0.1482",
+      "ProcessorArchitecture": "x64"
+    }
+  },
+  "required_checks": [
+    {
+      "link": "https://github.com/gianlucamazza/xllama/runs/128765630363",
+      "name": "CodeQL",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/gianlucamazza/xllama/actions/runs/42491699365/job/128765276435",
+      "name": "analyze (c-cpp)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://coderabbit.ai?utm_source=cr_app&utm_medium=github",
+      "name": "CodeRabbit",
+      "state": "SKIPPED"
+    },
+    {
+      "link": "https://github.com/gianlucamazza/xllama/actions/runs/42491699363/job/128765276816",
+      "name": "build (linux)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/gianlucamazza/xllama/actions/runs/42491699355/job/128765276550",
+      "name": "build (unified, true, xllama-appx)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/gianlucamazza/xllama/actions/runs/42491699355/job/128765276303",
+      "name": "build (llamacpp, false, xllama-appx-llamacpp)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/gianlucamazza/xllama/actions/runs/42491699363/job/128765278021",
+      "name": "asan",
+      "state": "SKIPPED"
+    },
+    {
+      "link": "https://github.com/gianlucamazza/xllama/actions/runs/42491699355/job/128765277932",
+      "name": "store",
+      "state": "SKIPPED"
+    }
+  ],
+  "device": {
+    "Platform": "Xbox Series S",
+    "OsVersion": "26100.9445.amd64fre.xb_flt_2608ge.260927-0830",
+    "OsEdition": "SystemOS"
+  },
+  "instrumentation": "not established; engineering-only limits unchanged"
+}

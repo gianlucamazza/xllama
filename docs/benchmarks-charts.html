@@ -238,7 +238,7 @@
     </details>
 
     <footer class="note">
-      On-console figures measured on Xbox Series S in Developer Mode. Tested and measured on Series S. Not yet tested on Series X. Raw CSV/JSONL files live in <code>bench/results/</code>. Each chart row is one atomic run selected by <code>bench/benchmark-summary.json</code>; generated output freshness is enforced in CI. See <code>docs/benchmarks.md</code>.
+      On-console figures measured on Xbox Series S in Developer Mode. Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester. Raw CSV/JSONL files live in <code>bench/results/</code>. Each chart row is one atomic run selected by <code>bench/benchmark-summary.json</code>; generated output freshness is enforced in CI. See <code>docs/benchmarks.md</code>.
     </footer>
   </div>
 </div>
@@ -258,19 +258,19 @@
     "model": "LFM2.5-230M",
     "quant": "QAD Q4_0",
     "be": "llama",
-    "prefill": 633.63,
-    "decode": 132.42,
-    "ram": 236,
-    "src": "2026-09-30-catalogue-gates"
+    "prefill": 623.69,
+    "decode": 127.12,
+    "ram": 237,
+    "src": "2026-11-15-remeasure-1563/lfm25-230m-qad-q40-cpu-t6-eog"
   },
   {
     "model": "LFM2.5-350M",
     "quant": "QAD Q4_0",
     "be": "llama",
-    "prefill": 374.36,
-    "decode": 101.57,
+    "prefill": 371.42,
+    "decode": 97.9,
     "ram": 311,
-    "src": "2026-09-30-catalogue-gates"
+    "src": "2026-11-15-remeasure-1563/lfm25-350m-qad-q40-cpu-t6-eog"
   },
   {
     "model": "Gemma-3-270M",
@@ -324,10 +324,10 @@
     "model": "Qwen3.5-0.8B",
     "quant": "Q4_K_M",
     "be": "llama",
-    "prefill": 98.08,
-    "decode": 35.08,
-    "ram": 718,
-    "src": "phase5-gguf"
+    "prefill": 174.56,
+    "decode": 34.34,
+    "ram": 715,
+    "src": "2026-11-15-remeasure-1533/qwen35-0.8b-q4km-cpu-t6"
   },
   {
     "model": "LFM2.5-1.2B",
@@ -381,19 +381,19 @@
     "model": "SmolLM2-1.7B",
     "quant": "int4",
     "be": "ort",
-    "prefill": 54.89,
-    "decode": 20.62,
-    "ram": 2423,
-    "src": "phase35-1b-cpu"
+    "prefill": 61.14,
+    "decode": 21.02,
+    "ram": 2324,
+    "src": "2026-11-15-remeasure-1533/smollm2-1.7b-cpu-int4"
   },
   {
     "model": "Gemma-4-E2B",
     "quant": "Q3_K_S",
     "be": "llama",
-    "prefill": 28.45,
-    "decode": 15.3,
-    "ram": 2741,
-    "src": "2026-10-11-remeasure-1163/gemma4-e2b-q3ks-cpu-t6",
+    "prefill": 51.08,
+    "decode": 15.31,
+    "ram": 2731,
+    "src": "2026-11-15-remeasure-1533/gemma4-e2b-q3ks-cpu-t6",
     "tag": "catalogue default"
   },
   {
@@ -541,7 +541,7 @@
   }
 ];
   const MAX_KV_REUSE = 20.02;
-  const LATEST_RUN = "2026-10-11";
+  const LATEST_RUN = "2026-11-15";
   // END GENERATED BENCHMARK DATA
   const METRICS = {
     decode:  { label: "Decode", unit: "tok/s", cap: "Generation throughput — the rate a user feels. Higher is better.", better: "high" },

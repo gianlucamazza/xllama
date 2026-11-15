@@ -1,0 +1,86 @@
+{
+  "status": "validated release candidate; stable publication pending",
+  "package": {
+    "tag": null,
+    "proposed_tag": "v1.7.0.0",
+    "source_sha": "4db51522c850e62d0bb24234dfeb48e55f4017d7",
+    "package_version": "1.7.0.1495",
+    "package_name": "xllama_1.7.0.1495_x64.msix",
+    "package_sha256": "6ec4cb59e5ad030e4e472ae296f5d1d89ee76f75673112b19ab91445cdb33cfb",
+    "expected_pfn": "GianlucaMazza.xllama_1.7.0.1495_x64__pj67f1fcj4n14",
+    "ci_run": 42498111637,
+    "required_checks": [
+      {
+        "link": "https://github.com/gianlucamazza/xllama/runs/128785061692",
+        "name": "CodeQL",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://coderabbit.ai?utm_source=cr_app&utm_medium=github",
+        "name": "CodeRabbit",
+        "state": "NEUTRAL"
+      },
+      {
+        "link": "https://github.com/gianlucamazza/xllama/actions/runs/42498111637/job/128784740858",
+        "name": "build (unified, true, xllama-appx)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/gianlucamazza/xllama/actions/runs/42498111637/job/128784740507",
+        "name": "build (llamacpp, false, xllama-appx-llamacpp)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/gianlucamazza/xllama/actions/runs/42498111268/job/128784739129",
+        "name": "build (linux)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/gianlucamazza/xllama/actions/runs/42498111386/job/128784739779",
+        "name": "analyze (c-cpp)",
+        "state": "SUCCESS"
+      },
+      {
+        "link": "https://github.com/gianlucamazza/xllama/actions/runs/42498111268/job/128784740231",
+        "name": "asan",
+        "state": "SKIPPED"
+      },
+      {
+        "link": "https://github.com/gianlucamazza/xllama/actions/runs/42498111637/job/128784741471",
+        "name": "store",
+        "state": "SKIPPED"
+      }
+    ],
+    "sku": "Developer Mode unified CI MSVC",
+    "device": {
+      "Platform": "Xbox Series S",
+      "OsVersion": "26100.9445.amd64fre.xb_flt_2608ge.260927-0830",
+      "OsEdition": "SystemOS"
+    },
+    "vendor_dll_pins_verified": true
+  },
+  "console_all": "pass",
+  "API_all": "pass",
+  "GPU_selftest": "pass",
+  "GUI_API_admission": "pass",
+  "training": "pass with marker",
+  "diffusion": "full/Tiny fresh UI pass; process lifetime peaks; original graph readbacks",
+  "state_restore": {
+    "status": "backed-up state byte-restored",
+    "package": "GianlucaMazza.xllama_1.7.0.1495_x64__pj67f1fcj4n14",
+    "utc": "2026-11-08T16:50:42.690554+00:00",
+    "original_files_verified": 113,
+    "backup_inventory_sha256": "ec9e8ef8d8ec7b6770314e8d56ea0a3318c053164517b643a754702270303523",
+    "owned_control_absences_verified": 25,
+    "new_exclusive-window_UUID_chats_removed": 37,
+    "unrecognized_extra_chats_preserved": 0,
+    "historical_adapter_readback_sha256": "cb4ff5ece8a4bcf8a8ce307ca0a0884092046aa895bc75286646ee870a69b221",
+    "scope": "private original settings/root files/chat files/samples inventory plus known historical adapter; no claim to restore every filesystem object",
+    "exclusions": "unrelated models/KV and general training outputs preserved; empty owned staging directories may remain",
+    "app_state": "stopped; no uninstall or LocalState wipe"
+  },
+  "release_validation_bundle": "local release-1.7.0-rc1495; not published",
+  "C4_status": "stopped control-parity failure; #313 open / #414 draft",
+  "review_PR": 369,
+  "stable_tag_published": false
+}

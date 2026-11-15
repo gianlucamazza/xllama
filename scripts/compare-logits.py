@@ -24,6 +24,7 @@
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -34,11 +35,25 @@ def load_sidecar(bin_path: Path):
     side = Path(str(bin_path) + ".json")
     if not side.exists():
         return {}
-    try:
-        return json.loads(side.read_text())
-    except Exception as e:
-        print(f"⚠ could not parse sidecar {side}: {e}")
-        return {}
+    data = json.loads(side.read_text())
+    if not isinstance(data, dict):
+        raise ValueError(f"sidecar must be an object: {side}")
+    return data
+
+
+def load_dump(path: Path):
+    raw = path.read_bytes()
+    if not raw or len(raw) % 4:
+        raise ValueError(f"dump must contain complete, nonempty float32 values: {path}")
+    values = np.frombuffer(raw, dtype=np.float32)
+    if not np.all(np.isfinite(values)):
+        raise ValueError(f"non-finite logits: {path}")
+    sidecar = load_sidecar(path)
+    if "vocab_size" in sidecar:
+        size = sidecar["vocab_size"]
+        if type(size) is not int or size != values.size:
+            raise ValueError(f"sidecar vocab_size does not match dump: {path}")
+    return values, sidecar
 
 
 def main() -> int:
@@ -68,33 +83,32 @@ def main() -> int:
     )
     args = ap.parse_args()
 
-    for p in (args.a, args.b):
-        if not p.exists():
-            print(f"❌ NOK: file not found: {p}")
-            return 2
+    if (
+        not math.isfinite(args.max_abs_diff) or args.max_abs_diff < 0
+        or not math.isfinite(args.nmse) or args.nmse < 0
+        or args.top_k <= 0
+        or not math.isfinite(args.top_k_min) or not 0 <= args.top_k_min <= 1
+    ):
+        ap.error("thresholds must be finite and nonnegative; top-k > 0 and overlap in [0, 1]")
 
-    a = np.fromfile(args.a, dtype=np.float32)
-    b = np.fromfile(args.b, dtype=np.float32)
-    sa, sb = load_sidecar(args.a), load_sidecar(args.b)
+    try:
+        a, sa = load_dump(args.a)
+        b, sb = load_dump(args.b)
+    except (OSError, ValueError) as e:
+        print(f"❌ NOK: {e}")
+        return 2
 
     print(f"A: {args.a}  ({a.size} logits, backend={sa.get('backend', '?')})")
     print(f"B: {args.b}  ({b.size} logits, backend={sb.get('backend', '?')})")
 
-    # --- vocab / tokenizer alignment gate -----------------------------------
-    # Index-wise metrics are only meaningful if both vocabularies match in size
-    # AND ordering. Different tokenizers (ORT ONNX vs GGUF) can differ; fall back
-    # to top-token STRING agreement rather than a bogus per-index diff.
+    # A matching token string is diagnostic only, never numerical parity.
     if a.size != b.size:
-        print(
-            f"❌ NOK: shape mismatch — A={a.size}, B={b.size} (different vocab/tokenizer)."
-        )
-        pa, pb = sa.get("top1_piece"), sb.get("top1_piece")
-        if pa is not None and pb is not None:
-            ok = pa == pb
-            print(f"   top1_piece: A={pa!r} B={pb!r} → {'MATCH' if ok else 'DIFFER'}")
-            print("   (string-level fallback; per-index parity not computable)")
-            return 0 if ok else 1
+        print(f"❌ NOK: shape mismatch — A={a.size}, B={b.size}; parity not computable")
         return 1
+    for key in ("prompt", "tokenizer_sha256", "vocab_sha256"):
+        if key in sa and key in sb and sa[key] != sb[key]:
+            print(f"❌ NOK: sidecar {key} mismatch; parity not computable")
+            return 1
 
     # --- index-wise metrics --------------------------------------------------
     diff = a - b
@@ -120,7 +134,10 @@ def main() -> int:
 
     passed = (
         max_abs <= args.max_abs_diff
+        and math.isfinite(max_abs)
+        and math.isfinite(nmse)
         and nmse <= args.nmse
+        and not (pa is not None and pb is not None and pa != pb)
         and top1_match
         and overlap >= args.top_k_min
     )

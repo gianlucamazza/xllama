@@ -1,0 +1,8 @@
+Internal ctest changing into directory: /srv/data/@projects/github/gianlucamazza/xllama/build/linux-asan
+Test project /srv/data/@projects/github/gianlucamazza/xllama/build/linux-asan
+    Start 1: xllama-tests
+1/1 Test #1: xllama-tests .....................   Passed   10.01 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =  10.02 sec

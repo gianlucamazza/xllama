@@ -4,6 +4,8 @@ What the public forks of xllama contain, what was taken, and why the rest was
 not. Reviewed on 2026-10-14 against `main` (llama.cpp `d812350`). Each verdict
 names its evidence and what would reopen it. Two independent agent reviews
 (Codex, Grok) challenged the first draft; their corrections are folded in below.
+vetax-by and EgbertJiang were reviewed on 2026-11-15 against `main` `289b51b`
+by reading their diffs; nothing from either fork was built or run.
 All forks keep the MIT licence.
 
 | Fork                                               | Taken                                                     | Not taken                                            |
@@ -14,6 +16,8 @@ All forks keep the MIT licence.
 | miguelenes                                         | already in `main` (#261, `4100bc2`)                       | —                                                    |
 | nyzxor, hjotha, mr-wfj                             | —                                                         | no commits ahead                                     |
 | [maxmorrison74](#maxmorrison74-xllama-on-steroids) | optional debug dashboard idea (rebuilt in-tree)           | rebrand, background, soundtrack, footer credit       |
+| [vetax-by](#vetax-by-demand-loaded-moe-experts)    | a data point for [#273] and the SSD assessment            | the expert-loading runtime and its llama.cpp patches |
+| [EgbertJiang](#egbertjiang-xbox-one-s)             | Gemma 4 chat template (rebuilt in-tree, credited)         | Xbox One S port, `/chat` page, second model root     |
 
 ## SamirCharleston: vision-spike
 
@@ -138,12 +142,177 @@ identity, version, workflow artifact names, README), the packaged background
 image, the soundtrack, or the footer signature. Process-wide compute admission
 from the same fork is a separate PR and is not required here.
 
+## vetax-by: demand-loaded MoE experts
+
+Branch `codex/ua50-ssd-moe` at `bfbd0f8`, 22 commits by vetax-by on 2026-11-14
+and 2026-11-15. It is based on `4db5152`, the source of package 1.7.0.1495, and
+keeps the llama.cpp pin `d812350`. Against `main` `289b51b` it is 23 ahead and
+12 behind.
+
+The fork runs a routed MoE checkpoint whose weight file is larger than the
+application's memory:
+
+- A provider is installed before tensor loading. Shared tensors stay resident;
+  the routed expert matrices are read on demand into a bounded cache (2 to 512
+  slots).
+- The CPU `MUL_MAT_ID` path takes an expert slice from that cache and holds it
+  until the worker threads finish.
+- Reads are overlapped Windows reads from a file held open for the whole
+  session, with a SHA-256 of that held file (BCrypt) before and after.
+- A `CpuExpertSession` sits in front of the ordinary factory in
+  `Session::create`, and `SessionHub` remembers a failed expert load so that it
+  is not retried automatically.
+- Headless developer modes, selected by flag files in LocalState, run one fixed
+  prompt and write a private result file.
+
+The change is carried as twelve ordered patches under `ua50/patch/`, locked by
+`ua50/PATCH-LOCK.json`. Five of them patch llama.cpp: the model loader,
+`llama-model.cpp`, `llama.cpp`, `ggml-alloc.c`, the ggml CPU backend, and a new
+`src/ua50/` directory. The fork's workflow checks out upstream `4db5152`
+separately and applies the patches there. The branch itself is not a build
+tree: `include/xllama/cpu_expert_session.h` includes
+`ua50/owned_expert_load.h`, which exists only after the llama.cpp patches are
+applied. The fork's tests and fakes are not published, and `tests/` is
+unchanged.
+
+**Evidence the fork publishes** (`docs/ua50-ssd-moe.md` in the fork):
+
+- Five manual Windows runs that compiled, linked and packaged, each linked from
+  that document.
+- One bounded generation on "a developer console"; the console family is not
+  named. The model was LFM2.5-24B-A2B Q4 on the CPU with one thread, a context
+  of at most 512 tokens, at most 384 sampled tokens and a two-slot cache. The
+  run produced a closed thinking section and a final text, then tore down
+  normally.
+- No tok/s, no peak working set, no raw log and no comparison with a resident
+  load. The cache A/B profiles were built and not run.
+
+The fork states its own limits: 4K to 8K context and 5 tok/s are goals, and it
+calls none of them demonstrated.
+
+**Not taken: the runtime.**
+
+- [#273] reopens only for a GGUF that runs on the current llama.cpp with no
+  fork. This is a port inside llama.cpp's loader and CPU backend, to be carried
+  across every pin bump.
+- [ssd-inference-assessment.md](ssd-inference-assessment.md) §5 waits for an
+  upstream streaming engine (llama.cpp PR #25294 or a successor). A private
+  port does not meet that condition.
+- No number exists to hold against the gate: peak working set, decode against
+  the dense peer and TTFT are all unmeasured.
+- The expert path buffers tokens until the turn ends, so it does not stream. It
+  refuses tools, KV reuse, LoRA and GPU layers. That is a second session type
+  beside the one resident session, with less than the product path offers.
+- `same_load` compares the `cpu_experts` pointer, so two equal opt-ins held in
+  different objects count as different loads.
+
+**Not taken: the signing lane.** `cpu-pilot-signing.yml` signs an update copy
+and a recovery copy of the fork's packages with a certificate generated on the
+hosted runner. Those packages are built from upstream sources at version
+1.7.0.0 and are not upstream releases; the fork's README says so.
+
+**Kept as a data point.** This is the first report of a model larger than RAM
+completing a turn on a console through explicit expert streaming. It is a
+third-party summary without raw data, so it changes no verdict in [#273] or in
+the SSD assessment.
+
+**Noted, no action.** The fork adds LFM2.5 A2B to the always-thinking families.
+`main` matches `a1b` only (`model_is_thinking`, `src/bridge/chat_prompt.cpp`).
+No A2B model is in the catalogue, so nothing is wrong today.
+
+Reopen with tok/s and peak working set from a named console, with raw logs, at
+the product `n_ctx`, against the dense peer in [#273]. A merged upstream
+streaming engine reopens it independently.
+
+## EgbertJiang: Xbox One S
+
+Branch `codex/xbox-one-s-compat` at `1e72e2d`: one commit, authored as "Codex"
+on 2026-11-08, on the v1.6.0.0 base `a13d237` with that base's llama.cpp pin
+`b29c606`. It is 125 commits behind `main`. Most of its 29,948 added lines are
+seven generated shader headers.
+
+The commit backports upstream's d3d12 ggml backend to the older pin; the fork
+names upstream `c7e7160` as its source. It then changes four things for a
+console without AVX2 and Shader Model 6.4:
+
+- `dot4add_i8packed` becomes four scalar signed-byte products
+  (`shaders/ggml_d3d12_common.hlsli`).
+- The shaders are compiled as `cs_5_1` DXBC with fxc at `/Od`, run through
+  Wine. The script checks the bytecode version and writes the real container
+  type into each header. [bjoern2088](#bjoern2088-xbox-one-x)'s headers did not
+  agree with their own build script; these do.
+- A `-CpuTarget AVX|Baseline` build option replaces the fixed `/arch:AVX2` in
+  the app and in ggml. The default stays AVX2.
+- Every D3D12 buffer is allocated 256 bytes larger. The comment says a One S
+  probe "lost the final logical DWORD" without the extra space.
+
+The same commit carries unrelated product changes: a browser chat page served
+at `/chat`, a service sidebar in the console UI, a `models-root.txt` file that
+points the app at a second model directory, and a Gemma 4 chat template.
+
+**Evidence the fork publishes** (its `docs/gguf-gpu-decode.md` and
+`patches/xbox-one-s/benchmark-summary.csv`). Package 1.6.0.1063 ran on an
+Xbox One S. All 14 backend selftests passed with a maximum relative error of
+about 2.61e-7. With a context of 512, 6 threads, `ubatch` 64 and 64 generated
+tokens:
+
+| Model                | CPU tok/s | GPU hybrid tok/s | GPU layers requested |
+| -------------------- | --------: | ---------------: | -------------------: |
+| LFM2.5-1.2B Q4_K_M   |     11.88 |            17.83 |                   99 |
+| LFM2.5-350M Q4_K_M   |     29.43 |            34.61 |                    1 |
+| Qwen 3.5 0.8B Q4_K_M |      9.94 |            10.09 |                   99 |
+
+These are the fork's numbers, not upstream measurements:
+
+- Each placement was run once. The Qwen CPU figure comes from an earlier build.
+- The device logs are private, and the CSV rows keep a hard-coded Series S host
+  label.
+- The package is a Linux cross-build. The fork says that Windows MSBuild and
+  the Linux CLI were not validated for this port. Upstream measures only the CI
+  MSVC package ([crossbuild-console.md](crossbuild-console.md)).
+
+**Not taken: the port.** The verdict is the one given for
+[bjoern2088](#bjoern2088-xbox-one-x). The product targets Series S, and the
+scalar dot and the `cs_5_1` shaders would replace kernels that the Series S
+numbers depend on. The fork does supply what that review said was missing, a
+result from an Xbox One. Reopen as a separate build lane if Xbox One becomes a
+goal.
+
+**Not taken: the unrelated product changes.** The `/chat` page adds a LAN
+surface over the non-streaming route. The sidebar is a UI redesign. A second
+model root is a product decision, not a compatibility fix. Each would need its
+own PR against current `main`.
+
+**Taken: the Gemma 4 chat template.** `chat_format_for` gave every Gemma id
+the Gemma 3 format, including the catalogue's `gemma4-e2b`. In the Gemma 4
+vocabulary `<start_of_turn>` is seven text tokens and `<|turn>` is one special
+token, so the model received no turn structure. `main` now selects `<|turn>` and
+`<turn|>` with a dedicated system turn for Gemma 4 ids, matching the
+`chat_template.jinja` of `google/gemma-4-E2B-it`. The fix is rebuilt in-tree
+with its own tests. Credit: `CHANGELOG.md`, `CONTRIBUTORS.md`.
+
+**Leads for `main`.** None is imported here; each needs its own check and PR.
+
+- **`EnsureModelAsync` returned nothing (fixed).** In `uwp/MainPage.cpp` the
+  function was declared `fire_and_forget` and contained no `co_await` or
+  `co_return`, so it was an ordinary function that ran off its end, which is
+  undefined behaviour. The fork reported a trap under Clang after model
+  provisioning and added `co_return`; `main` now does the same.
+- **`base64 -w0` is GNU-only.** `scripts/deploy.sh` and other scripts use it.
+  The fork pipes plain `base64` through `tr -d '\r\n'` so that deployment works
+  from macOS.
+- **Buffer tail.** `main` pads weight tensors by 16 bytes
+  (`weights_alloc_size`, `src/bridge/ggml_d3d12.cpp`) and the Series S
+  selftests pass. Check this first if a selftest loses a tail element on new
+  hardware, Series X included ([#374]).
+
 [#172]: https://github.com/gianlucamazza/xllama/issues/172
 [#273]: https://github.com/gianlucamazza/xllama/issues/273
 [#274]: https://github.com/gianlucamazza/xllama/issues/274
 [#275]: https://github.com/gianlucamazza/xllama/issues/275
 [#313]: https://github.com/gianlucamazza/xllama/issues/313
 [#345]: https://github.com/gianlucamazza/xllama/pull/345
+[#374]: https://github.com/gianlucamazza/xllama/issues/374
 
 ## 2026-11-07 pinned re-review: bjoern2088
 
@@ -291,3 +460,72 @@ The GitHub REST fork collection returned 10 public forks (all represented below)
 http-hadi also has 36 `ci-logs-*` branches. Their tips were enumerated in the branch listing; these are diagnostic output lanes, not separate product candidates. No shader or console claim is inferred from their names.
 
 The maxmorrison74 `feat/moe-xbox-smoke-probe` branch (`5cba82fc1c69d39b6f4331fc43d8c0460b4f7fd9`) adds `bench/results/20261102T103941Z-series-x-streaming/`. Read-only inspection of `run.json` and `device-os-info.json` finds a declared Xbox Series X resource-probe run, package `GianlucaMazza.xllama_1.6.1.12_x64__pj67f1fcj4n14`, OS-info Platform `Xbox Series X`, and an explicit caveat that raw CSVs were hard-coded `xbox-series-s`. These are third-party fork receipts for RAM ceiling and disk bandwidth; they are not a test of upstream main, inference correctness, model load, console/API gates, or release candidate. Keep the raw labels and caveat intact. Request exact source/package hashes and rerun the upstream acceptance protocol before satisfying #374 or changing upstream hardware wording.
+
+## Inventory addendum, 2026-11-15
+
+The fork collection now returns 12 public forks. Two are new since the
+inventory above. Comparisons are pinned against upstream
+`289b51ba1147d8575de5245e81866955b7910ac0`.
+
+| Fork / branch                                    | SHA                                        | Ahead / behind |
+| ------------------------------------------------ | ------------------------------------------ | -------------- |
+| `vetax-by/xllama` / `codex/ua50-ssd-moe`         | `bfbd0f8436ae4dffb5e08c6c72f92dbbe6230877` | 23 / 12        |
+| `vetax-by/xllama` / `main`                       | `289b51ba1147d8575de5245e81866955b7910ac0` | 0 / 0          |
+| `EgbertJiang/xllama` / `codex/xbox-one-s-compat` | `1e72e2da6fafecc2ef8a5a7a3e23f52746430150` | 1 / 125        |
+| `EgbertJiang/xllama` / `main`                    | `24a622cdd19931270555ba9fc128b648f9998414` | 0 / 25         |
+
+- **vetax-by/xllama:** demand-loaded MoE experts on the CPU; not imported.
+  One of its 23 commits is upstream's own `4db5152`, counted as ahead because
+  `main` holds it as a squash. Review [above](#vetax-by-demand-loaded-moe-experts).
+- **EgbertJiang/xllama:** Xbox One S compatibility experiment; not imported.
+  Review [above](#egbertjiang-xbox-one-s).
+
+The ten forks listed on 2026-11-07 have no new commits. Their behind counts
+grew with `main`; their ahead counts and verdicts are unchanged.
+
+## Second pass, 2026-11-15
+
+A later check on the same day, against `main` `e12cf3d`. The collection
+returns 13 public forks. Two things changed; every other fork is at the
+commit recorded above.
+
+### EidonLabsInc: first Series X runs (PR #448)
+
+`EidonLabsInc/xllama` `main` at `08baa0c`, one commit, opened as
+[#448](https://github.com/gianlucamazza/xllama/pull/448) after
+[Discussion #434](https://github.com/gianlucamazza/xllama/discussions/434).
+It adds two CSVs and no code: 143 LAN-API wall-clock runs of package
+1.7.0.1495 on a Series X, for `lfm25-350m` and `lfm25-1.2b-instruct`.
+
+This is the first inference data from a Series X and the most useful fork
+contribution so far. It is not accepted evidence yet:
+
+- The rows are labelled `xbox-series-x`. `bench/README.md` requires
+  `xbox-series-x-declared` for an operator-declared device.
+- No Device Portal or OS receipt accompanies the rows, which the
+  [acceptance protocol](console-validation-runbook.md#independent-series-x-acceptance-374)
+  requires before they count as Series X evidence.
+- Two of the three SHA-256 values in the PR text are 66 and 85 hex digits
+  long, so they are not valid digests.
+- The canonical file leaves the rate columns empty (the runs are end-to-end
+  timings, which the contributor correctly keeps out of `decode_tok_s`), and
+  its `run_index` 1 to 3 repeats across batches. It must stay out of the
+  summary selectors.
+- The runs before and after the app was marked as a Game package differ by
+  about 2.4 times. The PR calls this a correlation; the cause is not
+  established.
+
+Not checked here: the raw records behind the CSVs, and anything on a Series X.
+Later the same day the owner accepted Series X as supported on the strength of
+these runs. The rows were imported with the `xbox-series-x-declared` label;
+the receipt and digests are still missing, so they remain a declaration and
+not a project measurement ([positioning.md](positioning.md#series-x)).
+
+### vetax-by: five more commits, verdict unchanged
+
+`codex/ua50-ssd-moe` moved from `bfbd0f8` to `385a4f5` (28 ahead, 26 behind).
+The new commits add a synchronous selected-expert GPU bridge inside the CPU
+graph and an adapter-identity probe, as three more patches (fifteen in
+total), plus signing-recipe changes. The fork still patches llama.cpp,
+reports no tok/s or peak memory, adds no tests and describes itself as
+compile and package only. None of the conditions for reopening it is met.

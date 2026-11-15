@@ -1,0 +1,17 @@
+{
+  "status": "execution_and_provenance_pass; parity must be checked separately",
+  "package": "GianlucaMazza.xllama_1.7.0.1482_x64__pj67f1fcj4n14",
+  "model": "qwen25-coder-3b",
+  "arm": "CPU",
+  "columns": 1,
+  "requested_layers": 0,
+  "resolved_layers": [
+    0
+  ],
+  "c4_dispatch_counts": [],
+  "finite_logits": true,
+  "vocab_size": 151936,
+  "dump_sha256": "985dc88a1b4768751324d9b7d9a368f4cee1b206cde68fd344d2f8bb99af04f3",
+  "raw_prompt_sha256": "4abbfd81ea036cd050c57e236aa78973a1e9ea0345f3b6593acf42b6607bc571",
+  "scope": "fresh UI process, frozen raw long prompt, same CPU/GPU operands; no H9 or performance claim"
+}
