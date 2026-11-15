@@ -710,14 +710,41 @@ What this establishes and what it does not:
 
 - No sign of an indexing, lifetime or synchronisation defect: the run is
   deterministic, capture-invariant and exact at layer 0 for equal inputs.
-- The first differences are sparse per-column differences in layer 0. Their
-  origin (activation rounding, summation order or something else) is not yet
-  isolated to bytes.
+- The first differences are isolated to single int8 values (next paragraph).
 - The control verdict stays FAIL. Thresholds, prompt and inputs are unchanged.
   A different criterion for this model would need its own ADR before any new
   campaign, as the diagnostic protocol in
   [gpu-acceleration-baseline.md](research/gpu-acceleration-baseline.md#c4-control-diagnosis)
   already requires. #313 and #414 stay stopped.
+
+**Root cause of the first differences: rounding flips in the activation
+quantizer.** A quantized matmul first rounds its input to int8 (q8_K: 256-value
+blocks, one scale per block). The input of the layer-0 attention output
+projection is not bit-identical between the arms; it differs at NMSE about
+5e-11, because the Q, K and V results feeding attention already differ in their
+last bits. Quantizing each arm's input with ggml's rule and comparing the int8
+values
+([analysis](research/evidence/2026-11-15-coder-control-diagnosis/quantization-flip-analysis.json))
+gives:
+
+| Evaluation | Tokens | Tokens with a changed int8 | Changed int8 values | Tokens that diverge after the projection |
+| ---------- | -----: | -------------------------: | ------------------: | ---------------------------------------: |
+| 0          |    512 |                         33 |                  36 |                                       33 |
+| 1          |    446 |                         45 |                  63 |                                       45 |
+
+In both evaluations the two sets of tokens are identical, and every change is
+by one unit. The block scale itself changes in almost every token and that
+alone is harmless (median NMSE about 5e-13 where no int8 changes). So 36 int8
+values out of about a million, each off by one, produce every diverging token
+of the first evaluation. A second candidate, fused against two-step rounding
+inside the quantizer, was tested on the same data and ruled out.
+
+This is a property of quantized-activation matmul, not of the GPU path: any
+two executions that differ in floating-point summation order can land on
+opposite sides of a rounding boundary. It is the same mechanism for the two
+CPU builds above. It explains where the differences start; it does not by
+itself say how large the end-to-end gap may be, which is what the gate
+measures.
 
 The GPU arm of that run also logged the first console `d3d12-phase` lines
 (#421). For the 958-token prefill: 433 submissions, 504 dispatches, 11427 ms

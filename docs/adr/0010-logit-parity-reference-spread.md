@@ -73,8 +73,14 @@ implements this ADR.
 - A real kernel defect is caught by part 1 at the operator, instead of being
   inferred from a number at the end of 36 layers.
 - A GPU arm that is consistently wider than the CPU spread still fails part 2.
-  The origin of the sparse layer-0 differences is not yet isolated to bytes
-  (#420), and this ADR does not claim it is harmless.
+  The first differences are now traced to single int8 rounding flips in the
+  activation quantizer
+  ([analysis](../research/evidence/2026-11-15-coder-control-diagnosis/quantization-flip-analysis.json)),
+  a mechanism any two executions share. That explains where the gap starts,
+  not how wide it may be, so part 2 still decides.
+- Part 1 must compare kernels on the same quantized input, or on inputs whose
+  int8 values are checked to be equal. Comparing outputs of bit-different float
+  inputs would report the quantizer's flips as kernel error.
 - Models whose reference spread already passes the absolute limits (the LFM
   pairs do) are unaffected in practice.
 

@@ -196,10 +196,9 @@ remain frozen for that experiment only.
 | M6, weeks 6–8 | Hardening/report, QA/release/reviewer        | Required CI plus device lost, concurrency, upgrade/download and final-package gates | #395/#422; publication blocked until evidence sufficient                                 |
 
 Host integrity and diagnostic tools are integrated, and the control has been
-reproduced and traced on the console. The next actions are isolating the
-layer-0 per-column differences to bytes, deciding by ADR whether the frozen
-criterion fits this model, and attributable console measurement on the
-benchmark path. New weight types, kernel fusion, attention
+reproduced and traced on the console, down to single int8 rounding flips in the
+activation quantizer. The next actions are deciding ADR 0010 and attributable
+console measurement on the benchmark path. New weight types, kernel fusion, attention
 and GPU KV are higher-risk experiments with no current evidence of a benefit.
 Do not replace validated CPU paths merely to increase the fraction on GPU.
 
