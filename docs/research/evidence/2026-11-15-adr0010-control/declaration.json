@@ -1,0 +1,31 @@
+{
+  "schema": "xllama.control-declaration/v1",
+  "model": "qwen25-coder-3b",
+  "kernel": {
+    "nmse_limit": 1e-09,
+    "min_comparable_fraction": 0.75
+  },
+  "spread": {
+    "margin": 1.22,
+    "top_k": 10,
+    "top_k_min": 0.8
+  },
+  "prompts": [
+    {
+      "id": "p1-code-short",
+      "sha256": "f93d2330ebf08ca28e7a34d9bdbe24aeb1c96f82a33bd4e2ab6e4d0354a3130f"
+    },
+    {
+      "id": "p2-prose-it",
+      "sha256": "8bf96186212218ff4e7c6a74491da3fdf45c208202849c86d3eb796731bfb34c"
+    },
+    {
+      "id": "p3-code-review",
+      "sha256": "258349a1b7e7d473678478abe24a00c8356b0b0e0aeb8bcfbcf20d3e87115c7a"
+    },
+    {
+      "id": "p4-prose-long",
+      "sha256": "ce6ca22104d364780ebeb3d083d9cbcef2e041c2d1a51ec7c410e9fbb2e5f7aa"
+    }
+  ]
+}
