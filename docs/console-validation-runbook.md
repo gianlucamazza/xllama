@@ -1,7 +1,6 @@
 # Console validation runbook
 
-Current on-device release gates for Xbox Series S Developer Mode. Tested and measured
-on Series S. Not yet tested on Series X. Historical experiment
+Current on-device release gates for Xbox Series S Developer Mode. Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester. Historical experiment
 procedures and measured results live in `CHANGELOG.md` and `bench/results/`.
 
 ## Prerequisites
@@ -434,10 +433,13 @@ probe; do not reinterpret a sequential 200 response as a busy-path validation.
 
 ## Independent Series X acceptance (#374)
 
-This is a tester protocol, not a statement that Series X has passed. Keep
-"Tested and measured on Series S. Not yet tested on Series X." until accepted
-upstream inference receipts exist. Resource-only measurements from a fork do
-not satisfy this protocol.
+The owner accepted Series X as supported on 2026-11-15, on the strength of an
+independent tester's runs of package 1.7.0.1495
+([positioning.md](positioning.md#series-x)). Those runs carry an
+operator-declared device label and no device receipt, so they are not
+project measurements. This protocol is what turns a Series X run into
+measured evidence; it has not been completed. Resource-only measurements from
+a fork do not satisfy it.
 
 1. Select an immutable upstream candidate SHA and its CI **MSVC unified**
    `xllama-appx`. Record CI run, package SHA-256, package full name and revision,

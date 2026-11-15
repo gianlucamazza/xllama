@@ -1,6 +1,6 @@
 # xllama SDK
 
-xllama is an SDK for running large language models and diffusion models on Xbox Series S consoles, Linux, and Windows. Tested and measured on Series S. Not yet tested on Series X. It provides a unified C++ interface for inference, training, and preference capture across backends.
+xllama is an SDK for running large language models and diffusion models on Xbox Series S consoles, Linux, and Windows. Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester. It provides a unified C++ interface for inference, training, and preference capture across backends.
 
 ## Architecture
 

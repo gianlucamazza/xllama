@@ -7,6 +7,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Series X is supported.** Accepted by the owner on 2026-11-15 from an
+  independent tester's runs of package 1.7.0.1495 on a Series X: text
+  generation with `lfm25-350m` and `lfm25-1.2b-instruct` through the LAN API
+  (143 timed runs, imported as `bench/results/series-x-2026-11-13.csv` and
+  `series-x-end-to-end-2026-11-13.csv` with the `xbox-series-x-declared`
+  label; credit Joshua Henne / Eidon Labs Inc.). Image generation, training
+  and the GPU path have not been run on a Series X, and every published
+  figure remains a Series S figure. With the App designation the tester's
+  runs were about 2.4 times slower than with the Game designation; the cause
+  is not known. The public wording changes from "Not yet tested on Series X"
+  to "Supported on Series S and Series X", with the scope in
+  `docs/positioning.md`.
+
 - **GPU control under ADR 0010: FAIL.** The first Coder-3B control judged
   against a declaration committed before its GPU arm failed on the Series S.
   The first-layer GPU products agree with the CPU wherever their operands are

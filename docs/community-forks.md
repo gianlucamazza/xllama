@@ -516,8 +516,10 @@ contribution so far. It is not accepted evidence yet:
   established.
 
 Not checked here: the raw records behind the CSVs, and anything on a Series X.
-Until the label, receipt and digests are fixed and the rows are accepted, the
-project statement stays "Not yet tested on Series X" (#374).
+Later the same day the owner accepted Series X as supported on the strength of
+these runs. The rows were imported with the `xbox-series-x-declared` label;
+the receipt and digests are still missing, so they remain a declaration and
+not a project measurement ([positioning.md](positioning.md#series-x)).
 
 ### vetax-by: five more commits, verdict unchanged
 

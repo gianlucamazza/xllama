@@ -5,7 +5,7 @@
 > `weakly_canonical`, thread cap, and the DirectML low-bit GEMM analysis. Other
 > docs link to a `§n` here rather than restating these.
 
-Platform limitations relevant to running LLM inference on Xbox Series S consoles in Developer Mode, and how xllama addresses each one. Tested and measured on Series S. Not yet tested on Series X.
+Platform limitations relevant to running LLM inference on Xbox Series S consoles in Developer Mode, and how xllama addresses each one. Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester.
 
 ## 1. No POSIX `mmap`
 

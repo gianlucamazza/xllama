@@ -6,8 +6,7 @@ performance belongs in `docs/benchmarks.md`.
 ## Current product state
 
 - **North star:** local inference on Series S for **games**
-  (NPC/dialogue/agents) and **AI assistants**. Tested and measured on Series S.
-  Not yet tested on Series X. The chat UI remains a
+  (NPC/dialogue/agents) and **AI assistants**. Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester. The chat UI remains a
   showcase shell; the LAN OpenAI-compat endpoint is the current
   integration probe. Limits and non-claims:
   [docs/positioning.md](docs/positioning.md).
@@ -710,5 +709,6 @@ ADR 0010 was accepted and implemented the same day, and the first control
 under it failed: no first-layer kernel error, but the GPU logits exceed the
 declared margin over the CPU reference spread
 ([evidence](docs/research/evidence/2026-11-15-adr0010-control/README.md)).
-#313/#414 stay stopped. Series X (#374) and the matched matrix (#422) remain
-blocked.
+#313/#414 stay stopped. Series X was accepted as supported on 2026-11-15 from
+an independent tester's runs; project measurements on it (#374) and the
+matched matrix (#422) remain blocked on hardware.

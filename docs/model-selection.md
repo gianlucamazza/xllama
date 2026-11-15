@@ -13,7 +13,7 @@ sell models or apps. Design limits for what the catalogue may contain are in
 [CONTRIBUTING.md](../CONTRIBUTING.md#model-catalogue-design-limits).
 
 Operational criteria for choosing or evaluating a model for the xllama UWP build
-(Xbox Series S Developer Mode; not yet tested on Series X). Covers both backends — ONNX Runtime GenAI (CPU/DirectML)
+(Xbox Series S Developer Mode; no project measurements on Series X). Covers both backends — ONNX Runtime GenAI (CPU/DirectML)
 and llama.cpp (GGUF, CPU).
 
 ## Hard limits (must pass)
