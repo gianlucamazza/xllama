@@ -84,8 +84,15 @@ Notes:
   [campaign README](../bench/results/2026-11-15-remeasure-1533/README.md).
 - **Gemma-4-E2B template.** The prefill, decode and peak figures are from
   2026-11-15 on build 1.7.0.1538, which renders `gemma4-e2b` with the Gemma 4
-  turn tokens and a system turn (`chat_format_for`). The H9 score (6/8) was
-  measured with the Gemma 3 template and has not been rerun.
+  turn tokens and a system turn (`chat_format_for`). The published H9 score
+  (6/8) was measured with the Gemma 3 template. A rerun with the Gemma 4
+  template on build 1.7.0.1555
+  ([`2026-11-15-gemma4-template-h9.jsonl`](../bench/results/2026-11-15-gemma4-template-h9.jsonl))
+  is also 6/8, on a different set of tasks: `constrained_summary` now passes
+  (the old reply echoed the prompt and a literal `</start_of_turn>`), and
+  `json_extraction` now fails (the reply is fenced as Markdown, which the task
+  forbids). `arithmetic_multistep` fails in both, and no reply contains a turn
+  marker any more.
 
 ### A2. Phase 14 — console-validated (Series S, 2026-07-27)
 
