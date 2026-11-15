@@ -670,14 +670,19 @@ logits are byte-identical to the same arm with capture off.
 
 **Where the arms part.** One record per captured node, CPU against GPU:
 
-- In layer 0 the last-token outputs agree to NMSE 1.5e-12 or better for every
-  captured node, and to about 1e-14 for the GPU `MUL_MAT` results. With equal
-  inputs the kernels match the CPU to rounding.
+- In layer 0 the Q, K and V projections computed on the GPU match the CPU to
+  NMSE about 1e-14 on the last token of each evaluation. With equal inputs
+  those kernels match the CPU to rounding.
+- The other layer-0 records on the last token stay at 1.5e-12 or better in the
+  first evaluation (512 tokens). In the second evaluation (446 tokens) the
+  layer-0 feed-forward output is already at 2.0e-8 and the layer output at
+  9.7e-9.
 - A capture of every column of layers 0 and 1 shows the first differences in a
-  few prompt positions only. After the attention output projection of layer 0,
-  33 of 512 columns differ (worst column 3.3e-6). After the layer-0 feed-forward
-  it is 84 columns (worst 1.1e-4). The other columns stay at rounding level.
-- Layer 1 attention mixes positions, so almost every column then differs. The
+  few prompt positions only (first evaluation). After the attention output
+  projection of layer 0, 33 of 512 token positions differ (worst 3.3e-6). After
+  the layer-0 feed-forward it is 84 positions (worst 1.1e-4). The other
+  positions stay at rounding level.
+- Layer 1 attention mixes positions, so almost every position then differs. The
   per-layer NMSE rises to about 1e-3 by layer 6 and stays near that level to
   the output. No single layer adds a jump.
 
