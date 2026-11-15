@@ -187,7 +187,9 @@ void MainPageController::BuildUI() {
     m_statusText.Text(L"Loading model...");
 
     m_loadingBar = ProgressBar();
-    m_loadingBar.IsIndeterminate(true);
+    // Indeterminate only while shown (SetRunning): a collapsed indeterminate
+    // bar keeps animating.
+    m_loadingBar.IsIndeterminate(false);
     m_loadingBar.Visibility(Visibility::Collapsed);
     m_loadingBar.Margin(ThicknessHelper::FromLengths(0, 8, 0, 0));
 
@@ -625,6 +627,10 @@ void MainPageController::SetRunning(bool running) {
     m_is_running.store(running);
     m_runButton.IsEnabled(!running);
     m_cancelButton.IsEnabled(running);
+    // A collapsed indeterminate ProgressBar keeps its animation running, which
+    // holds a GPU engine busy while the app is idle. Animate only while shown;
+    // callers that report real progress switch it to determinate afterwards.
+    m_loadingBar.IsIndeterminate(running);
     m_loadingBar.Visibility(running ? Visibility::Visible : Visibility::Collapsed);
     if (!running) {
         m_at_bottom = true; // re-enable autoscroll for next generation
