@@ -34,7 +34,7 @@ performance belongs in `docs/benchmarks.md`.
   (host + console marker gates PASS; pin-blocked filter-widening remains);
   Phase 11 closed the headless↔UI gap (in-app personalize + LAN API parity,
   #116/#118). Phases 13, 14 and 16 (one shipped model) are complete. Remaining
-  open work: Phase 15 GPU decode follow-up (#313), release-readiness
+  open work: the GPU programme below (#420, #421, #313), release-readiness
   follow-up, and upstream vendor pin drops.
 - **Current v1.7.0.0:** unified CI MSVC Developer Mode release. Exact package
   and validation gates are identified in the GitHub release notes. The last
@@ -692,28 +692,40 @@ under `bench/results/` when measured, and documentation in the owning SSOT.
 The main CI Developer Mode package is validated; release tagging remains a
 separate workflow, as documented in the release runbook.
 
-## Xbox GPU acceleration program — 2026-11-09
+## Xbox GPU acceleration program — state at 2026-11-15
 
 Source/evidence discovery and the conditional 6–8 week stages are in the
-[baseline](docs/research/gpu-acceleration-baseline.md). Follow #420 for parity
-integrity/control diagnosis, #421 for attributable profiling and #422 for
-routing/matched benchmarks; reuse #313/#414, #374 and #395. Host tooling PRs
+[baseline](docs/research/gpu-acceleration-baseline.md). Host tooling PRs
 #423/#424 do not qualify C4 or a new release.
 
-Console checkpoint, 2026-11-15: the Series S is back in Developer Mode. The
-#420 control was reproduced byte for byte and traced with tensor capture; it
-still fails the frozen gate, and two host CPU builds show a similar spread
-between themselves
-([details](docs/gguf-gpu-decode.md#2026-11-15-control-reproduction-and-tensor-diagnosis-420)).
-ADR 0010 was accepted and implemented the same day, and the first control
-under it failed: no first-layer kernel error, but the GPU logits exceed the
-declared margin over the CPU reference spread
-([evidence](docs/research/evidence/2026-11-15-adr0010-control/README.md)).
-A follow-up check against an exact reference found every GPU weight product
-correct in all 36 layers
-([evidence](docs/research/evidence/2026-11-15-gpu-kernel-reference-check/README.md)),
-so the gap is amplified rounding, not a kernel defect; how the control should
-judge that is an open decision.
-#313/#414 stay stopped. Series X was accepted as supported on 2026-11-15 from
-an independent tester's runs; project measurements on it (#374) and the
-matched matrix (#422) remain blocked on hardware.
+**Where it stands**
+
+- The #420 control was reproduced on the console and traced to its first
+  divergent operator: int8 rounding flips in the layer-0 activation quantizer
+  ([details](docs/gguf-gpu-decode.md#2026-11-15-control-reproduction-and-tensor-diagnosis-420)).
+- ADR 0010 was accepted and implemented. The first control under it failed:
+  no first-layer kernel error, but the GPU logits exceed the declared margin
+  over the CPU reference spread
+  ([evidence](docs/research/evidence/2026-11-15-adr0010-control/README.md)).
+- A check against an exact reference found every GPU weight product correct
+  in all 36 layers
+  ([evidence](docs/research/evidence/2026-11-15-gpu-kernel-reference-check/README.md)).
+  The gap is amplified rounding between two correct executions, not a kernel
+  defect.
+- Series X was accepted as supported on 2026-11-15 from an independent
+  tester's runs ([scope](docs/positioning.md#series-x)); the project has no
+  measurements of its own on it.
+
+**Order of work**
+
+1. **#420, owner decision:** how a control judges an arm whose kernels are
+   verified correct. Then an ADR 0010 amendment and a fresh control with new
+   prompts and a declaration committed first.
+2. **#421, in parallel:** opt-in timing attribution per operator and layer in
+   the d3d12 backend, with an overhead calibration on the console.
+3. **#313 / #414:** stopped. They resume only after a passing control, with
+   the frozen paired performance protocol.
+4. **#422:** routing qualification after #313; the matched Series S and
+   Series X matrix also needs project measurements on a Series X.
+5. **#457:** the Series X runs are about 2.4 times slower with the App
+   designation; the cause needs a Series X.
