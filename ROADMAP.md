@@ -712,20 +712,26 @@ Source/evidence discovery and the conditional 6–8 week stages are in the
   ([evidence](docs/research/evidence/2026-11-15-gpu-kernel-reference-check/README.md)).
   The gap is amplified rounding between two correct executions, not a kernel
   defect.
+- ADR 0010 was amended to judge kernels against that reference and the
+  output distribution over many positions. A fresh control under the
+  amendment passed on both parts
+  ([evidence](docs/research/evidence/2026-11-15-adr0010-control-2/README.md)).
 - Series X was accepted as supported on 2026-11-15 from an independent
   tester's runs ([scope](docs/positioning.md#series-x)); the project has no
   measurements of its own on it.
 
 **Order of work**
 
-1. **#420, owner decision:** how a control judges an arm whose kernels are
-   verified correct. Then an ADR 0010 amendment and a fresh control with new
-   prompts and a declaration committed first.
+1. **#313 / #414:** unblocked on correctness. A control under the amended
+   ADR 0010 passed on 2026-11-15
+   ([evidence](docs/research/evidence/2026-11-15-adr0010-control-2/README.md)).
+   Next: the C4 kernel through the same control, then the resource and H9
+   gates and the frozen paired performance protocol.
 2. **#421, in parallel:** opt-in timing attribution per operator and layer in
    the d3d12 backend, with an overhead calibration on the console.
-3. **#313 / #414:** stopped. They resume only after a passing control, with
-   the frozen paired performance protocol.
-4. **#422:** routing qualification after #313; the matched Series S and
+3. **#422:** routing qualification after #313; the matched Series S and
    Series X matrix also needs project measurements on a Series X.
-5. **#457:** the Series X runs are about 2.4 times slower with the App
-   designation; the cause needs a Series X.
+4. **#457:** the Series X runs are about 2.4 times slower with the App
+   designation. Microsoft documents a smaller core allotment for an App; the
+   startup log now states the allotment, and one run by the tester in each
+   designation would settle it.

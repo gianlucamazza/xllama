@@ -802,6 +802,24 @@ that two CPU builds also move by tens of percent. Whether to judge part 1 by
 the reference check and part 2 by a distribution over more prompts is a
 decision for the owner; it is not taken here.
 
+### 2026-11-15 control under the amended ADR 0010: PASS
+
+ADR 0010 was amended after the diagnosis above, and a fresh control was
+declared and run the same day
+([evidence](research/evidence/2026-11-15-adr0010-control-2/README.md)):
+Coder-3B Q4_K_M, package 1.7.0.1587, seventeen new prompts.
+
+- **Part 1 passes.** All 252 weight products of the 36 layers (40-token
+  prompt) and the 84 of layers 0 to 5 (675-token prompt) are within 4.3e-14
+  NMSE of the exact reference on the GPU arm, against a declared 1e-7.
+- **Part 2 passes.** Over 5,024 prompt positions the GPU arm's mean KL
+  divergence from the console CPU arm is 0.989 times a host CPU build's
+  (95 % upper bound 1.009, declared limit 1.25), and its top-token agreement
+  is 0.24 points lower (upper bound 0.57, declared margin 1).
+
+The correctness prerequisite of #313 is met for this model. Nothing here is
+a speed result, and LFM2.5-1.2B was not put through the control.
+
 ### Attributable request counters (#421)
 
 A GGUF run with GPU layers logs one `[xllama] d3d12-phase` line after the

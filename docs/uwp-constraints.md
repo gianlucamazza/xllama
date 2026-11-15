@@ -416,7 +416,10 @@ non-fused low-bit kernel, see §12.) See §7 for GPU pool detail and §9 for dis
 can flip a sideloaded package between **App** and **Game** (tile → View
 details → App type); Game grants Game OS resources (full GPU access, more
 RAM). Checked on console: **xllama is already designated Game** — the
-designation persists per package family across forward upgrades. Therefore
+designation persists per package family across forward upgrades. The
+startup log confirms it since 1.7.0.1587 (`[resources] ...
+exclusive_cpus=6 logical_cpus=8 app_memory_limit_mb=5120`; Microsoft documents
+1 GB and a share of 2 to 4 cores for an App). Therefore
 the measured figures in this document (3801 MB GPU budget, the utilization
 matrix, the per-token DML dispatch overhead) are **Game-mode numbers**, and
 the earlier assumption labelling them "App-mode" was wrong. Consequence: the
@@ -580,6 +583,14 @@ numbers, and removes the partial file after a write error. A Device Portal
 upload of the same 2.45 GB file had returned HTTP 500 while uploads of 0.5 and
 1.4 GB succeeded; with about 2.3 GB free at the time, lack of space is the
 likely reason, not confirmed separately.
+
+The size of this volume is not documented by Microsoft. A Microsoft answer on
+a public forum describes app data as living on a fixed-size drive that is not
+the developer drive, and another user reports the same 30 GB; no setting or
+tool to enlarge it was found (desk research, 2026-11-15, not verified on the
+console). `broadFileSystemAccess` is documented as unsupported on Xbox. A
+community report says Dev Mode UWP apps can read an NTFS USB drive once
+"All App Packages" has full control of it; that was not tried here.
 
 For models not distributed through the catalogue, see the USB/Device Portal
 provisioning paths in `docs/model-selection.md`, `docs/device-portal.md` and
