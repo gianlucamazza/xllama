@@ -1,12 +1,12 @@
 # xllama
 
-**xllama — local LLM inference on an Xbox Series S in Developer Mode**
+**xllama — local LLM inference on Xbox Series S and Series X in Developer Mode**
 
-Run a language model on your own Xbox Series S, with chat, an API on your local network, image generation and experimental on-device fine-tuning.
+Run a language model on your own Xbox Series S or Series X, with chat, an API on your local network, image generation and experimental on-device fine-tuning.
 
-Tested and measured on Series S. Not yet tested on Series X.
+Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester.
 
-**Series X:** an independent tester has published a first field report on a Series X ([Discussion #434](https://github.com/gianlucamazza/xllama/discussions/434)) and submitted the raw runs ([#448](https://github.com/gianlucamazza/xllama/pull/448)). They are under review against the [acceptance protocol](docs/console-validation-runbook.md#independent-series-x-acceptance-374) and are not yet accepted evidence, so the statement above stands. A [GitHub Sponsors goal](https://github.com/sponsors/gianlucamazza) is set to fund a Series X for the project's own measurements.
+**Series X:** supported since 2026-11-15 on the strength of an independent tester's runs (text generation with two models through the LAN API; [field report](https://github.com/gianlucamazza/xllama/discussions/434)). Image generation, training and the GPU path have not been run on a Series X, and every figure in this repository is a Series S figure. Scope and open points: [positioning.md](docs/positioning.md#series-x). A [GitHub Sponsors goal](https://github.com/sponsors/gianlucamazza) is set to fund a Series X for the project's own measurements.
 
 ### ⚠️ Read before sideloading
 
@@ -88,7 +88,7 @@ No model bundled in MSIX.
 | Qwen2.5-Coder-1.5B | 1.5B   | **26.1** tok/s (llama.cpp CPU, 6 threads, median of 2)  | Coding                                                          |
 | LFM2-2.6B          | 2.6B   | **17.9** tok/s (llama.cpp CPU, 6 threads, median of 3)  | Quality (H9 7/8)                                                |
 
-Tested and measured on Series S. Not yet tested on Series X. Receipts:
+Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester. Receipts:
 [132.4 / 101.6 tok/s and 236 MiB](bench/results/2026-09-30-catalogue-gates.csv),
 [17.9 tok/s](bench/results/2026-10-11-remeasure-1163/lfm2-2.6b-q4km-cpu-t6-rerun.csv),
 [26.1 tok/s](bench/results/phase14-console.csv),

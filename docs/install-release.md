@@ -1,7 +1,7 @@
 # Install a release build on Xbox Series S consoles
 
 Install a tagged app release or a specific CI MSVC package on an Xbox in
-Developer Mode. Tested and measured on Series S. Not yet tested on Series X.
+Developer Mode. Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester.
 The current app release is
 [v1.7.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.7.0.0).
 Its release notes identify the exact CI package and release validation results.

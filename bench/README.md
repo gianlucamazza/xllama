@@ -1,7 +1,7 @@
 # bench/
 
 Benchmark suite for xllama. Results are stored as CSV files in `results/`.
-Tested and measured on Series S. Not yet tested on Series X.
+Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester.
 
 ## Single source of truth
 
