@@ -469,9 +469,9 @@ inventory above. Comparisons are pinned against upstream
 | Fork / branch                                    | SHA                                        | Ahead / behind |
 | ------------------------------------------------ | ------------------------------------------ | -------------- |
 | `vetax-by/xllama` / `codex/ua50-ssd-moe`         | `bfbd0f8436ae4dffb5e08c6c72f92dbbe6230877` | 23 / 12        |
-| `vetax-by/xllama` / `main`                       | same as upstream                           | 0 / 0          |
+| `vetax-by/xllama` / `main`                       | `289b51ba1147d8575de5245e81866955b7910ac0` | 0 / 0          |
 | `EgbertJiang/xllama` / `codex/xbox-one-s-compat` | `1e72e2da6fafecc2ef8a5a7a3e23f52746430150` | 1 / 125        |
-| `EgbertJiang/xllama` / `main`                    | not pinned                                 | 0 / 25         |
+| `EgbertJiang/xllama` / `main`                    | `24a622cdd19931270555ba9fc128b648f9998414` | 0 / 25         |
 
 - **vetax-by/xllama:** demand-loaded MoE experts on the CPU; not imported.
   One of its 23 commits is upstream's own `4db5152`, counted as ahead because
