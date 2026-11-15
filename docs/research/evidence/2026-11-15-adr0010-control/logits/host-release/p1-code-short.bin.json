@@ -1,0 +1,9 @@
+{
+ "model": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+ "prompt": "Write a Python function that merges two sorted lists of integers into one sorted list without using sort(). Then state its time complexity in one sentence and give one input for which a naive implementation would be quadratic.",
+ "backend": "llama.cpp",
+ "vocab_size": 151936,
+ "greedy": true,
+ "top1_id": 17375,
+ "top1_piece": " Finally"
+}

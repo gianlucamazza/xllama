@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **GPU control under ADR 0010: FAIL.** The first Coder-3B control judged
+  against a declaration committed before its GPU arm failed on the Series S.
+  The first-layer GPU products agree with the CPU wherever their operands are
+  the same, but the GPU logits' largest maximum error is 1.37 times the
+  spread between two CPU references (declared limit 1.22) and one of four
+  prompts ends on a different top token. GGUF GPU prefill work stays stopped.
+  Evidence: `docs/research/evidence/2026-11-15-adr0010-control/`.
+
 - **GPU control comparison (ADR 0010):** `scripts/control-parity.py` judges a
   GPU control in two parts, from a declaration committed before the GPU arm is
   measured. `kernel` compares every first-layer weight `MUL_MAT` between the

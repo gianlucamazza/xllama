@@ -752,6 +752,26 @@ wall, 2421 ms CPU q8 quantization, 8 ms command recording, 8990 ms execute
 through fence and 8933 ms GPU, with all 433 timestamp pairs valid. This is one
 diagnostic run of the logit probe, not a benchmark row.
 
+### 2026-11-15 control under ADR 0010: FAIL
+
+The first control judged with `scripts/control-parity.py`, on a declaration
+committed before its GPU arm
+([evidence](research/evidence/2026-11-15-adr0010-control/README.md)): Coder-3B
+Q4_K_M, package 1.7.0.1563, four new prompts of 40 to 713 tokens.
+
+- **Part 2 fails.** The GPU arm's largest maximum error is 0.9865 against a
+  CPU reference spread of 0.7201 (x1.370, limit x1.22), and one prompt's top
+  token differs. Its largest NMSE is inside the spread (x0.978).
+- **Part 1 finds no kernel error.** All 42 first-layer product records agree
+  with the CPU to 2.9e-12 NMSE or better on the columns whose operand is the
+  same (limit 1e-9). One record on the 40-token prompt has 0.725 of its
+  columns comparable against a required 0.75, so part 1 fails as declared.
+- The CPU-only pairs measured for the declaration all exceed the frozen
+  gate's 0.5 and 1e-3 on these prompts.
+
+#313 and #414 stay stopped. The result does not locate the cause of the wider
+maximum error: part 1 covers the first layer only.
+
 ### Attributable request counters (#421)
 
 A GGUF run with GPU layers logs one `[xllama] d3d12-phase` line after the
