@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Storage diagnostics:** the boot log states the capacity and free space of
+  the volume that holds LocalState (`[storage] LocalState volume=...`). On the
+  console that volume is not the one the Dev Home storage allocation sizes.
+
 - **Model download:** the downloader no longer writes model bodies to the
   system HTTP cache while it streams them to LocalState. On a Series S, a
   2.45 GB download failed repeatedly with "There is not enough space on the
