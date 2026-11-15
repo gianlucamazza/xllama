@@ -53,6 +53,26 @@ class ReferenceTests(unittest.TestCase):
         self.assertAlmostEqual(e["worst_token_nmse"], 1e-6, delta=2e-8)
         self.assertLess(e["nmse"], e["worst_token_nmse"])
 
+    def test_q8_0_round_trip_follows_the_avx2_quantizer(self):
+        x = np.zeros((32, 2), dtype=np.float32)
+        x[:4, 0] = [-2.0, 1.0, 0.5 * 2 / 127, 1.5 * 2 / 127]  # max 2: id 63.5
+        back = self.mod.dequantized_q8_0(x)
+        d = float(np.float16(np.float32(2.0) / np.float32(127.0)))
+        # round-half-even gives -127, 64 (63.5), 0 (0.5) and 2 (1.5); scale is float16
+        self.assertTrue(np.allclose(back[:4, 0], np.array([-127, 64, 0, 2]) * d, rtol=0, atol=0))
+        self.assertTrue((back[:, 1] == 0).all())
+
+    def test_the_quantizer_follows_the_weight_type(self):
+        self.assertIs(self.mod.operand_quantizer("q4_K", 512), self.mod.dequantized_q8_k)
+        self.assertIs(self.mod.operand_quantizer("q4_0", 512), self.mod.dequantized_q8_0)
+        self.assertIsNone(self.mod.operand_quantizer("q4_K", 96))  # not whole q8_K blocks
+        self.assertIsNone(self.mod.operand_quantizer("f16", 512))
+        result = self.w @ self.mod.dequantized_q8_0(self.x)
+        e = self.mod.record_error(self.w, self.x, result, self.mod.dequantized_q8_0)
+        self.assertLess(e["nmse"], 1e-28)
+        # judged with the wrong quantizer, the same result is far off
+        self.assertGreater(self.mod.record_error(self.w, self.x, result)["nmse"], 1e-7)
+
     def test_bad_arguments_fail_closed(self):
         r = subprocess.run([sys.executable, str(SCRIPT), "missing.gguf", "missing-dir",
                             "--nmse-limit", "0"], capture_output=True, text=True, check=False)
