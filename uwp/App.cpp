@@ -17,6 +17,8 @@
 #ifndef XLLAMA_STORE_SKU
 #include "api-server.h"
 #include <winrt/Windows.Foundation.Metadata.h>
+#include <filesystem>
+#include <system_error>
 #endif
 // clang-format on
 
@@ -134,6 +136,39 @@ static void log_app_recording_probe() {
 }
 
 // ---------------------------------------------------------------------------
+// Capacity and free space of the volume that holds LocalState.
+//
+// Models are written there, and on the console it is not the volume that the
+// Dev Home storage allocation sizes: Device Portal reports DevelopmentFiles on
+// D:, while LocalState resolves under Q:. A download that fails with "not
+// enough space on the disk" is about this volume, so the boot log states it.
+// ---------------------------------------------------------------------------
+static void log_storage_probe() {
+    char buf[256];
+    try {
+        const std::wstring local = ApplicationData::Current().LocalFolder().Path().c_str();
+        std::error_code ec;
+        const std::filesystem::space_info si = std::filesystem::space(local, ec);
+        if (ec) {
+            snprintf(buf, sizeof(buf), "[storage] LocalState volume: space query failed (%d)\n",
+                     ec.value());
+        } else {
+            const unsigned long long mb = 1024ull * 1024ull;
+            snprintf(buf, sizeof(buf),
+                     "[storage] LocalState volume=%c: capacity_mb=%llu free_mb=%llu"
+                     " available_mb=%llu\n",
+                     local.empty() ? '?' : static_cast<char>(local[0]),
+                     static_cast<unsigned long long>(si.capacity / mb),
+                     static_cast<unsigned long long>(si.free / mb),
+                     static_cast<unsigned long long>(si.available / mb));
+        }
+        log_write(buf);
+    } catch (...) {
+        log_write("[storage] LocalState volume: probe threw\n");
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Is the audio-capture API surface even here? (Phase 16 WS-F, card H16.6)
 //
 // Separate from [caprec] on purpose. That probe answers "can the app record its
@@ -230,6 +265,7 @@ void App::OnLaunched(LaunchActivatedEventArgs const&) {
         // rather than an inactive one.
         log_app_recording_probe();
         log_microphone_probe();
+        log_storage_probe();
         // GraphicsCapture runtime-presence probe — writes [gcprobe] line.
         // See include/xllama/capture_probe.h and docs/uwp-constraints.md §10b.1.
         ::xllama::probe_graphics_capture();
