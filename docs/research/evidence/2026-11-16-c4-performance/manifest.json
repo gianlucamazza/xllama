@@ -1,0 +1,203 @@
+{
+  "schema": "xllama.paired-campaign/v1",
+  "issue": 313,
+  "experiment": "four-column prefill kernel (#414), d3d12-prefill-columns.txt = 4",
+  "arms": {
+    "A": "baseline: knob absent (single-column kernels)",
+    "B": "experiment: knob = 4 (four-column kernels)"
+  },
+  "same_package_for_both_arms": true,
+  "package": {
+    "filename": "xllama_1.7.0.1595_x64.msix",
+    "sha256": "45701b0d09747f42e36a5aa4578ccae998e01a3dbbde8051370e21b64b2af51c",
+    "ci_run": 43772403546,
+    "source": "773a284d3e697565d7edcf5b2eeb1b869d8e531f",
+    "note": "#414 merged up to main 885402f; baseline and experiment differ only by the LocalState knob"
+  },
+  "llama_cpp_submodule": "d81235049384534c167caea52b85a694f6103d14",
+  "models": {
+    "lfm25-1.2b-instruct": {
+      "file": "LFM2.5-1.2B-Instruct-QAD-Q4_0.gguf",
+      "sha256": "bb741ebb106d543e9de114b843a3d3d73d51c74b5801e69da2abde821a0cb3e1"
+    },
+    "qwen25-coder-3b": {
+      "file": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+      "sha256": "32f0014400ca1c1f81e7fb5befa9b9af476ba967dcbf92bad27409228c57c5b4",
+      "note": "research only, withdrawn from the catalogue"
+    }
+  },
+  "shader_provenance": {
+    "compiler": {
+      "repository": "https://github.com/microsoft/DirectXShaderCompiler",
+      "release": "v1.9.2609",
+      "asset": "linux_dxc_2026_09_28.x86_x64.tar.gz",
+      "archive_sha256": "96faadc7f5c282d2ffda49804beb4c3ee38127bc252b723234e3c5cdf7aa39a1",
+      "binary_sha256": "3dfc856b76291ffc7e45e21fd37ab80e85b34101de76a03253df6608785c92a0",
+      "library_sha256": "d40e4a7b3b46490313f4bfd08101946483a673831b3ea65c93d746de1c2f9216",
+      "version": "libdxcompiler.so: 1.9(5512-01b62ad4)(1.9.2609.5)"
+    },
+    "profile": "cs_6_4",
+    "entry": "CSMain",
+    "defines": [
+      "NUM_THREADS=64",
+      "NUM_THREADS=128"
+    ],
+    "sources_and_blobs_sha256": {
+      "shaders/generated/ggml_d3d12_mmv_q4_0_c4_t128_dxil.h": "f04b9ca7ed518e1b08ed1bc43c6ec75b8e5906f7a5f4cbb9ffea47b23f71c631",
+      "shaders/generated/ggml_d3d12_mmv_q4_0_c4_t64_dxil.h": "aa4e64da3bdee641a9db8cb828194e67713575f83c66e8205e7c53aab7a2ae9a",
+      "shaders/generated/ggml_d3d12_mmv_q4_k_c4_t128_dxil.h": "50b36187fad77973c38d16c439aa019f456d96336a1b47d08e57293379a9b477",
+      "shaders/generated/ggml_d3d12_mmv_q4_k_c4_t64_dxil.h": "cddaf0a4fdf732f611c3d39adcc206c02a3680a2929e11e7569feb5b7e0d3f96",
+      "shaders/generated/ggml_d3d12_mmv_q6_k_c4_t128_dxil.h": "430996921160d5e59b5d7d5f51abed5ac401eb0771de0d0b37d9a492b36ec170",
+      "shaders/generated/ggml_d3d12_mmv_q6_k_c4_t64_dxil.h": "08d3705401f542218dc86ce849d741c977ed36a69c080bb5a82b84ecad4dbdf9",
+      "shaders/ggml_d3d12_mmv_q4_0_c4.hlsl": "b61f4b51a9cd1144697eba460ed3513f54f71372d598e74fbd02300478165108",
+      "shaders/ggml_d3d12_mmv_q4_k_c4.hlsl": "0cadec586e391edc9e0167993b57dfea8563efc592a9908430b310a362c56b64",
+      "shaders/ggml_d3d12_mmv_q6_k_c4.hlsl": "c603a2f1c4ef0309e72840abe49bb4a0f811b086384354390e8ada86c312c4d1",
+      "shaders/ggml_d3d12_multicolumn.hlsli": "197f1f04ba1a49e2099ac6018447ed3bc116cd1717033bca3feba0521c236958"
+    }
+  },
+  "device": "Xbox Series S (Device Portal GET /api/os/info, receipts of the 2026-11-16 controls)",
+  "prompts": {
+    "short-32": {
+      "file": "bench/prompts/short-32.txt",
+      "sha256": "7c2132615f2754c144bf7047606a8117fa964602000569ffea520d51991293ec"
+    },
+    "standard-512": {
+      "file": "bench/prompts/standard-512.txt",
+      "sha256": "04a493cf192bf700905194c75af9f45838cc18ab92c0a65bb5ddc28ed7d51c70"
+    },
+    "long-1k": {
+      "file": "bench/prompts/long-1k.txt",
+      "sha256": "e57253c5f6007764ae4a4ff669e1d544819d91dcba7c38e1541a7fba5bccf814"
+    }
+  },
+  "prompt_tokens": "recorded per row in n_prompt_tok; host tokenizer counts 18/251/906 (Coder) and 19/257/958 (LFM) before the chat template the bench applies",
+  "bench_settings": {
+    "harness": "scripts/bench-xbox-ort.sh via scripts/bench-paired-knob.sh",
+    "hardware": "xbox-series-s",
+    "ctx": 2048,
+    "n_predict": 128,
+    "ignore_eog": true,
+    "max_length": 0,
+    "threads": 6,
+    "gpu_layers": 99,
+    "ubatch": "default (512)",
+    "runs_per_arm": "2: run 1 warmup, dropped; run 2 recorded"
+  },
+  "pairing": {
+    "pairs_per_cell": 20,
+    "order": "pair i is AB when i is odd, BA when even",
+    "arm_check": {
+      "A": {
+        "expect": [
+          "prefill_columns=1"
+        ],
+        "forbid": [
+          "prefill_columns=4"
+        ]
+      },
+      "B": {
+        "expect": [
+          "prefill_columns=4",
+          " [1-9][0-9]* c4 dispatches"
+        ],
+        "forbid": [
+          "prefill_columns=1"
+        ]
+      }
+    }
+  },
+  "cells": [
+    {
+      "id": "lfm25-1.2b-instruct/short-32",
+      "model": "lfm25-1.2b-instruct",
+      "prompt": "short-32",
+      "pairs": 20,
+      "gates": [
+        "decode",
+        "ttft",
+        "peak"
+      ]
+    },
+    {
+      "id": "lfm25-1.2b-instruct/standard-512",
+      "model": "lfm25-1.2b-instruct",
+      "prompt": "standard-512",
+      "pairs": 20,
+      "gates": [
+        "prefill",
+        "decode",
+        "ttft",
+        "peak"
+      ]
+    },
+    {
+      "id": "lfm25-1.2b-instruct/long-1k",
+      "model": "lfm25-1.2b-instruct",
+      "prompt": "long-1k",
+      "pairs": 20,
+      "gates": [
+        "prefill",
+        "decode",
+        "ttft",
+        "peak"
+      ]
+    },
+    {
+      "id": "qwen25-coder-3b/short-32",
+      "model": "qwen25-coder-3b",
+      "prompt": "short-32",
+      "pairs": 20,
+      "gates": [
+        "decode",
+        "ttft",
+        "peak"
+      ]
+    },
+    {
+      "id": "qwen25-coder-3b/standard-512",
+      "model": "qwen25-coder-3b",
+      "prompt": "standard-512",
+      "pairs": 20,
+      "gates": [
+        "prefill",
+        "decode",
+        "ttft",
+        "peak"
+      ]
+    },
+    {
+      "id": "qwen25-coder-3b/long-1k",
+      "model": "qwen25-coder-3b",
+      "prompt": "long-1k",
+      "pairs": 20,
+      "gates": [
+        "prefill",
+        "decode",
+        "ttft",
+        "peak"
+      ]
+    }
+  ],
+  "analysis": {
+    "script": "scripts/paired-bench-summary.py",
+    "statistic": "median paired ratio (delta for peak)",
+    "interval": "paired nonparametric percentile bootstrap 95 %, 10,000 resamples, seed 20261107",
+    "margins": {
+      "prefill": ">= 1.10 lower bound (standard-512 and long-1k only)",
+      "decode": ">= 0.97 lower bound",
+      "ttft": "<= 1.05 upper bound",
+      "peak": "sampled peak_ws_mb delta <= 32 MiB upper bound"
+    },
+    "verdict_rule": "each cell separately; a cell passes only if all its gates pass; a gate whose interval crosses the margin is inconclusive; no pooled headline"
+  },
+  "stop_rules": [
+    "a correctness or resource failure stops the campaign",
+    "a failed or timed-out arm is recorded in the ledger and never replaced",
+    "an arm whose app log does not show the expected kernel selection stops the campaign"
+  ],
+  "not_measured": [
+    "external power",
+    "thermal equilibrium (no sidecar)",
+    "true peak working set (the app's sampled peak is used)"
+  ]
+}

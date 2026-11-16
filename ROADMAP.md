@@ -34,7 +34,7 @@ performance belongs in `docs/benchmarks.md`.
   (host + console marker gates PASS; pin-blocked filter-widening remains);
   Phase 11 closed the headless↔UI gap (in-app personalize + LAN API parity,
   #116/#118). Phases 13, 14 and 16 (one shipped model) are complete. Remaining
-  open work: the GPU programme below (#420, #421, #313), release-readiness
+  open work: the GPU programme below (#421, #422), release-readiness
   follow-up, and upstream vendor pin drops.
 - **Current v1.7.0.0:** unified CI MSVC Developer Mode release. Exact package
   and validation gates are identified in the GitHub release notes. The last
@@ -692,7 +692,7 @@ under `bench/results/` when measured, and documentation in the owning SSOT.
 The main CI Developer Mode package is validated; release tagging remains a
 separate workflow, as documented in the release runbook.
 
-## Xbox GPU acceleration program — state at 2026-11-15
+## Xbox GPU acceleration program — state at 2026-11-16
 
 Source/evidence discovery and the conditional 6–8 week stages are in the
 [baseline](docs/research/gpu-acceleration-baseline.md). Host tooling PRs
@@ -715,23 +715,27 @@ Source/evidence discovery and the conditional 6–8 week stages are in the
 - ADR 0010 was amended to judge kernels against that reference and the
   output distribution over many positions. A fresh control under the
   amendment passed on both parts
-  ([evidence](docs/research/evidence/2026-11-15-adr0010-control-2/README.md)).
+  ([evidence](docs/research/evidence/2026-11-15-adr0010-control-2/README.md)),
+  and so did LFM2.5-1.2B and the four-column kernel of #414.
+- The preregistered #313 performance campaign of that kernel failed: 1.5
+  times faster prefill on Coder-3B, 15 % slower on LFM2.5-1.2B, the model
+  that ships on the GPU
+  ([evidence](docs/research/evidence/2026-11-16-c4-performance/README.md)).
+  #313 is closed as completed and #414 closed without merge; its branch is
+  kept. #420 and #374 are closed.
 - Series X was accepted as supported on 2026-11-15 from an independent
   tester's runs ([scope](docs/positioning.md#series-x)); the project has no
   measurements of its own on it.
 
 **Order of work**
 
-1. **#313 / #414:** unblocked on correctness. A control under the amended
-   ADR 0010 passed on 2026-11-15
-   ([evidence](docs/research/evidence/2026-11-15-adr0010-control-2/README.md)).
-   Next: the C4 kernel through the same control, then the resource and H9
-   gates and the frozen paired performance protocol.
-2. **#421, in parallel:** opt-in timing attribution per operator and layer in
-   the d3d12 backend, with an overhead calibration on the console.
-3. **#422:** routing qualification after #313; the matched Series S and
-   Series X matrix also needs project measurements on a Series X.
-4. **#457:** the Series X runs are about 2.4 times slower with the App
+1. **#421:** opt-in timing per dispatch in the d3d12 backend, grouped by
+   weight type and column count, with an overhead calibration on the console.
+   Its first question: why the four-column Q4_0 shader is slower while the
+   K-quant ones are faster.
+2. **#422:** no new GPU prefill path to qualify; the matched Series S and
+   Series X matrix needs project measurements on a Series X.
+3. **#457:** the Series X runs are about 2.4 times slower with the App
    designation. Microsoft documents a smaller core allotment for an App; the
    startup log now states the allotment, and one run by the tester in each
    designation would settle it.

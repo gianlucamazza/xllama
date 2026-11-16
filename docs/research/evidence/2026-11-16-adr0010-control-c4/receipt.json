@@ -1,0 +1,279 @@
+{
+ "scope": "ADR 0010 (amended) control of the four-column prefill kernel (#414) on Coder-3B and LFM2.5-1.2B; correctness verdicts, not a performance result",
+ "declarations": {
+  "files": [
+   "declaration-coder.json",
+   "declaration-lfm.json"
+  ],
+  "sha256": {
+   "coder": "7f0211050d8093704784f9e1af3d2012570bf21f3cd92d663c9757a325067425",
+   "lfm": "5918d19a57457fd67104cc9f8c4412e5caf04d6ac6c4667b03e96fc49fd53138"
+  },
+  "committed": "PR #467, merged 2026-11-16T01:02:46Z",
+  "gpu_arms_measured": "2026-11-16T01:02:49Z to 01:49:26Z"
+ },
+ "package": {
+  "filename": "xllama_1.7.0.1595_x64.msix",
+  "sha256": "45701b0d09747f42e36a5aa4578ccae998e01a3dbbde8051370e21b64b2af51c",
+  "ci_run": 43772403546,
+  "source": "773a284d3e697565d7edcf5b2eeb1b869d8e531f (PR #414 head: the four-column candidate merged up to main 885402f)",
+  "artifact": "xllama-appx (unified, CI MSVC)",
+  "install": "in-place update over 1.7.0.1587"
+ },
+ "device": {
+  "source": "authenticated Device Portal GET /api/os/info",
+  "platform": "Xbox Series S",
+  "os_version": "26100.9662.amd64fre.xb_flt_2610ge.261104-2200",
+  "scope": "observed OS platform; no serial or computer name retained"
+ },
+ "models": {
+  "coder": {
+   "file": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+   "sha256": "32f0014400ca1c1f81e7fb5befa9b9af476ba967dcbf92bad27409228c57c5b4"
+  },
+  "lfm": {
+   "file": "LFM2.5-1.2B-Instruct-QAD-Q4_0.gguf",
+   "sha256": "bb741ebb106d543e9de114b843a3d3d73d51c74b5801e69da2abde821a0cb3e1"
+  }
+ },
+ "configuration": {
+  "n_ubatch": 512,
+  "greedy": true,
+  "logits_stride": 2,
+  "gpu_arms": {
+   "c4": "gpu_layers 99, d3d12-prefill-columns.txt = 4; logs show prefill_columns=4 and non-zero c4 dispatches on every run",
+   "single_column": "gpu_layers 99, knob absent; logs show prefill_columns=1 and 0 c4 dispatches"
+  },
+  "capture_specs": {
+   "c1": "matmul_inputs=l_out-35 (Coder) / l_out-15 (LFM)",
+   "u03": "matmul_inputs=l_out-5"
+  },
+  "floors": {
+   "coder": "host-release",
+   "lfm": "host-plain"
+  },
+  "host_arms": "xllama-cli, AVX2, 6 threads, ctx 2048, ubatch 512, stride 2; host-release = linux-release preset; host-plain = Release with GGML_CPU_REPACK=OFF"
+ },
+ "four_column_vs_single_column": {
+  "byte_identical_per_position_dumps": {
+   "coder": 16,
+   "lfm": 16
+  },
+  "of": 16
+ },
+ "per_position_dumps_not_retained": {
+  "coder": {
+   "console-cpu": {
+    "u01": "f654ee3689e737c16b4aa04e8caebf5e54bfcf060c05d3b89584d9c58e6b20bc",
+    "u02": "9dc8410e960c142e80c3912be717f9daefc75d384be1fcb13942779643a8bcda",
+    "u03": "5bfa623715f4f20cc6904d69d6cd7bc896a4a4baccceed4010a3f9b01a4d11fe",
+    "u04": "7ed9a651fc91df59b91c608168e4cb65b4ec4944960267d176ea0b13f2722239",
+    "u05": "f61599cbb95089db914b6423bc57f6e20b3424227c07ff9dfd0bb80460cf4aa2",
+    "u06": "30e668337cf2af39205d6e570a8915714acae18292e9b522099b03bd547971b6",
+    "u07": "a3a446a13822e0e73c0dc564d72238f48bd4eab446987f4d6f402760ecce51af",
+    "u08": "b97c723da150b4849633d7526da9e8b2a91d3a91bb7f6b5661b24e2816a28944",
+    "u09": "8ca79187acccbb69c742a90222c2cd6a086145acad75d312017bdd2f2d6ec958",
+    "u10": "46957b16641871fc0eb64e221f4db60cf0f08e59ef99d7451d83a2b73e351797",
+    "u11": "449c2154e03aadc0b0fc1e8b5cc7cf69ccce9bf256141ed6f56d0ef25b9b2460",
+    "u12": "95e2a15dce712e4bb3c1d0e997482b5c71b487f3cb87e8e4524e6315f07d2286",
+    "u13": "3c425ba1a363d27bc196a63c0ba1bcaf42998991572989d7c5712b7d416932c8",
+    "u14": "5084c42671e17e62e51f4df7c443c5abafd78d1102112b9c96861a7ff8e9c44e",
+    "u15": "fea44eb5511ef6ef2f33cc47d4b574c4145ac1c6a749e2afe6e9c187d2af4565",
+    "u16": "45ba52cd3707a81f8eded82535f7ea07c21923cb53383d111da91c45461c7f49"
+   },
+   "console-c4": {
+    "u01": "bf8b80224775208b24c1dfca1e8097c309b33fe50b9b9d05c31d8b887eea2717",
+    "u02": "7120bc523948052aefc23f4a6f4ee0507abf5728b32d534da8197ea16cd2651b",
+    "u03": "fdefb6ab3b40f8a3b803837af215adfb01212e0bdd533163b83e2d260698c116",
+    "u04": "9f0d53e74be3e7e0ea550c39412dfe5b9c0be23d61fd56ff50858979533cc148",
+    "u05": "e1efdc6b3ea07fa7567349e75d35ab642d1cf9749d5a8c05188e5a5f560695c7",
+    "u06": "1579ea2d96c9e573b790ded0b33a03f1e4a80380940440d9a2e1e4e10a82a917",
+    "u07": "705f079b357be7b352d4259ca8984fdef73af0f5d63e1565cac4cdd504fc4ada",
+    "u08": "63cf7fc6a15114a54f57692551d44124fc55eab82ec46540af9c05d4ab0afc8d",
+    "u09": "1103b8259542e278fc1a91ef5ae30b04c28c9a75a44c2db3aa60cf33a24631da",
+    "u10": "ac0a239467aab1ea7bec6293a71a690a335b17b032325bbb0aeaf2143b3406d2",
+    "u11": "ba3119d7c83dd828308244db2cc9144851b47b93fd596d63201e775cca6f4614",
+    "u12": "0a3c9a37e40bb64981e6302d24d9a228fc1389e765f47c78e1451e3cc5d5c4df",
+    "u13": "4b82592b629203b03fa76e97558bca7670a035bd75d5a98f41800826230c7d86",
+    "u14": "ddeb7e205372651a67a1973028424ea7d2a9ffa06351a83822ba58e2b75681bb",
+    "u15": "6a4b6acc9331e017897f7f46d4bb583b3b7f0fb9c0ca85da12acedabffb7265a",
+    "u16": "5242f67827277778e790f85f18d9de77a14c1555b046d31c32e38ea58da432e2"
+   },
+   "console-sc": {
+    "u01": "bf8b80224775208b24c1dfca1e8097c309b33fe50b9b9d05c31d8b887eea2717",
+    "u02": "7120bc523948052aefc23f4a6f4ee0507abf5728b32d534da8197ea16cd2651b",
+    "u03": "fdefb6ab3b40f8a3b803837af215adfb01212e0bdd533163b83e2d260698c116",
+    "u04": "9f0d53e74be3e7e0ea550c39412dfe5b9c0be23d61fd56ff50858979533cc148",
+    "u05": "e1efdc6b3ea07fa7567349e75d35ab642d1cf9749d5a8c05188e5a5f560695c7",
+    "u06": "1579ea2d96c9e573b790ded0b33a03f1e4a80380940440d9a2e1e4e10a82a917",
+    "u07": "705f079b357be7b352d4259ca8984fdef73af0f5d63e1565cac4cdd504fc4ada",
+    "u08": "63cf7fc6a15114a54f57692551d44124fc55eab82ec46540af9c05d4ab0afc8d",
+    "u09": "1103b8259542e278fc1a91ef5ae30b04c28c9a75a44c2db3aa60cf33a24631da",
+    "u10": "ac0a239467aab1ea7bec6293a71a690a335b17b032325bbb0aeaf2143b3406d2",
+    "u11": "ba3119d7c83dd828308244db2cc9144851b47b93fd596d63201e775cca6f4614",
+    "u12": "0a3c9a37e40bb64981e6302d24d9a228fc1389e765f47c78e1451e3cc5d5c4df",
+    "u13": "4b82592b629203b03fa76e97558bca7670a035bd75d5a98f41800826230c7d86",
+    "u14": "ddeb7e205372651a67a1973028424ea7d2a9ffa06351a83822ba58e2b75681bb",
+    "u15": "6a4b6acc9331e017897f7f46d4bb583b3b7f0fb9c0ca85da12acedabffb7265a",
+    "u16": "5242f67827277778e790f85f18d9de77a14c1555b046d31c32e38ea58da432e2"
+   },
+   "host-release": {
+    "u01": "dc05c6d592b8bcae4bd47681fde556f95033c0fa09a377ac31e36068e98ac788",
+    "u02": "c4a9c803b1ce607ba4ee506a7f62e85c276a79ceed57aaa045743426720a2c59",
+    "u03": "2ca52ddd3c76f027469e83775f352c7f67b670ddee15b891b0172beb45a08791",
+    "u04": "eee6de5c6d83442f1fe172a33c6ef746974b956b594843c61dbe3e0632a2befd",
+    "u05": "a10ccfb949f042b02aa2288b691da1f7e646d3bad864ff395407239c5a058851",
+    "u06": "09981b863c65bdc4cc388e5e81aa199144e2228b3d9477e0515467da0441f4b7",
+    "u07": "91140ce49f90deaec2f13c5a98fec01bc9d112d2f743da92a7d91459c55fe772",
+    "u08": "24f8eb0eb6b8006ac52bfbb12d1fa528a615b9a2ba05dbffb836af85342117ef",
+    "u09": "391c5253c2aa7d079e3fb2c0f19b2eb394cdb5bd00c8cb178e25b98032e779fe",
+    "u10": "83612289c5f597f82f1a771abbbf58b0e675bd5ebb060859d3daab0099cb02ed",
+    "u11": "e633e1ffd9bdb78877fd38ce02e7286a0f8b25faf0b1094c4dfa1b4a0b8eb955",
+    "u12": "de5df5e3145b982a4d003544505b4623e579106551b100c6d6897822b74e9436",
+    "u13": "f12b63c2f9eaa0849c6fc75afb000635df3b0e31e11bc5a62980df7357b85929",
+    "u14": "a2d5b959ba3d043d60d449818bed468118547bffa654b06981e32a5389374801",
+    "u15": "80908c53e00997027d7582f8e1cb92765379fa37256bff544f4ef88522a611e9",
+    "u16": "e5b5063836215c3aad1d239d2edf0593eacb4042f408a596b87230848ce43842"
+   }
+  },
+  "lfm": {
+   "console-cpu": {
+    "u01": "52adb87cdf0d540a82dda1fc31f70b87102db0c339f60b04a450686c80eb9a8b",
+    "u02": "57e267f6be30ed67c77450436c16c64ec6ebe69e2f8cb37071c7c94082cb3731",
+    "u03": "cbacff5ec217664def68b46eff3cf83e9eca98b1bc7ac955f2b778f5f34950a0",
+    "u04": "88f569593a2af58d1009de1c0170f543d58647843944fe13aec450d8a204dd0e",
+    "u05": "f2cdb2888c4b48e701749126655b21451726b0dc5fc8aa73f130c0f4312d7bbe",
+    "u06": "a9901ab5312f049e73ee4c0c7f9af15ef894c169b0366c299c9d8b90be57c62e",
+    "u07": "906313610d38c9ee8a7c9e3b988fe9a057d0a70182b9156429f22aa6dd7aec47",
+    "u08": "7a7c843c95c3b6fcbe5d28685e1e15d8b2ef40522b30cadf7e0b0154317a72ba",
+    "u09": "dfe34f0ce777617800a938c8bbcdbf21e4fea780ca3f50dee3f56ec484ab7702",
+    "u10": "89a6dba09102d02ad03d26c7aa9f539eb3ac05442e7c5afdcf8a34c8e270a589",
+    "u11": "5186dfe88824fc57824c75e42c0ea321a6f55ada27c2109e283a49cf8642eaa2",
+    "u12": "246482d0a5d029386c605058f2d14c9310fb318e7fe6b23cb30589fde89aa238",
+    "u13": "f5f593ba5ee378dcacb02ddc9d388757b389ceb86286d4c5fe76f634a214818f",
+    "u14": "7aa6ba20407d5fbacff8f1ce998eb29d35b5dfe569515ad7e92f100074c0b9ce",
+    "u15": "af4310c6c3226f7d73d0c471014cd35a0664512997b1cc8b4c99c7ed2436b04a",
+    "u16": "ce5ffd2c58b1f8e0ba5474aa3a50935dabc355cfee0636a59235b44235372008"
+   },
+   "console-c4": {
+    "u01": "5411ba8bb8c55916992122fe9fa10d6960a56f1df6179d024184ce9c15993a42",
+    "u02": "c99a64545220b96e3b7c1f7e8bcf13320060615a113554d83b02aceef00957d4",
+    "u03": "b0c50d8b729dda282a3bb850748546ecdd1703c65dedef8d8fa068329c9666d9",
+    "u04": "3670579dd99867edaea1e161993391603f6965a7e4719f745eda868956b6b37b",
+    "u05": "4f241513707ea3a75dc26beaa76da6fc93adbe7e90595a29c87c16103f1c3516",
+    "u06": "51eef1d79670e4d93377148c0c1855c23a15204298fb8e29ac1d337ba53c5d43",
+    "u07": "9f353207ed9ba13608648002c7bbd2344d841175ec53c872319b5ae2f4b5d044",
+    "u08": "55081fa40e6d3add9fbe436bfc0c12a2d50b2dbf310e7c6c2c18776d33a52e31",
+    "u09": "fb645c78b93662f0cf1c81f41ae3206cd93d701812375c15778f77a653bc2899",
+    "u10": "97e6dd2023b081617f32d26f5303d1644727bf58c41cbd5d872f23687f6d342a",
+    "u11": "24801aef74cebaee310bceab40bb1c105c432068e8cd242342d734dc53004977",
+    "u12": "8c3a199dfa4b26fa592415018447109c8c75722917990defe136cb88971949a9",
+    "u13": "cea4a3e4f74345c142b4f58fc67381cab771440d60d72f91f0af9a29a41ea67a",
+    "u14": "6de8522754a0de0411f221f2dbb5e13fa634c8d67523d9359a462cb5fec317e8",
+    "u15": "55c518f502e9a8080babd455d7580b0365dba0c4dd370c664c9dbada15e2fa12",
+    "u16": "75bf2aeffb0a1f1ef64ddfd33bb748c5f5a3b604e39e5ed8ac98aa81ec8447b1"
+   },
+   "console-sc": {
+    "u01": "5411ba8bb8c55916992122fe9fa10d6960a56f1df6179d024184ce9c15993a42",
+    "u02": "c99a64545220b96e3b7c1f7e8bcf13320060615a113554d83b02aceef00957d4",
+    "u03": "b0c50d8b729dda282a3bb850748546ecdd1703c65dedef8d8fa068329c9666d9",
+    "u04": "3670579dd99867edaea1e161993391603f6965a7e4719f745eda868956b6b37b",
+    "u05": "4f241513707ea3a75dc26beaa76da6fc93adbe7e90595a29c87c16103f1c3516",
+    "u06": "51eef1d79670e4d93377148c0c1855c23a15204298fb8e29ac1d337ba53c5d43",
+    "u07": "9f353207ed9ba13608648002c7bbd2344d841175ec53c872319b5ae2f4b5d044",
+    "u08": "55081fa40e6d3add9fbe436bfc0c12a2d50b2dbf310e7c6c2c18776d33a52e31",
+    "u09": "fb645c78b93662f0cf1c81f41ae3206cd93d701812375c15778f77a653bc2899",
+    "u10": "97e6dd2023b081617f32d26f5303d1644727bf58c41cbd5d872f23687f6d342a",
+    "u11": "24801aef74cebaee310bceab40bb1c105c432068e8cd242342d734dc53004977",
+    "u12": "8c3a199dfa4b26fa592415018447109c8c75722917990defe136cb88971949a9",
+    "u13": "cea4a3e4f74345c142b4f58fc67381cab771440d60d72f91f0af9a29a41ea67a",
+    "u14": "6de8522754a0de0411f221f2dbb5e13fa634c8d67523d9359a462cb5fec317e8",
+    "u15": "55c518f502e9a8080babd455d7580b0365dba0c4dd370c664c9dbada15e2fa12",
+    "u16": "75bf2aeffb0a1f1ef64ddfd33bb748c5f5a3b604e39e5ed8ac98aa81ec8447b1"
+   },
+   "host-plain": {
+    "u01": "232dc464c0dac72275ad03e5face2ab93a05c738a304c619ba87bb44e0801ae6",
+    "u02": "444569e5dce857b13005d0a6c633083d6e0257a30519a001f54cb9c9b25255f8",
+    "u03": "7e3699f74ea1ab239fb548c0fc7a72e40d4f93f891b7778da5a5d76463433934",
+    "u04": "8074047b35496df97ff954a0ead7408c14dd0477e5fe373331262cc10db7c54c",
+    "u05": "822ebe828bab2ed632ca7bfa1cf18f078785b7e511caddd4f8b75278c3e60952",
+    "u06": "e6966a8fc7f90e4555f8955287f22b8ba5f0d8c8ad7928c533b4271a8d0e262e",
+    "u07": "f83ee8a3c54a0e6051115248b1cd299f6e4eb9fb7338bc1b505d4658084b5916",
+    "u08": "20117826de2f9c0fc6520921272e765152a660ba3c1f1664d3aca36760bcfc25",
+    "u09": "2247845bc9550d76391dfe7340eb43f14c2a8001c2efb70554d508150ac15de4",
+    "u10": "b514c4021dbd69c53ea402defde0c82d058718eb6ec392e84197b99bbd175b63",
+    "u11": "01d0483f72d0f94f6bf02b18aa0223ecbc11526347fd8fcef6d6a469d2223168",
+    "u12": "1622cec11dce739fc3c50c01a57530bf54b624bce9821ee1d3cbc6ad9435a492",
+    "u13": "cdf80cb6133fb17cacb64e30fe47259ade044fc2a3cde1e0fde452de00a2f635",
+    "u14": "8543b58b9a71ea214eb58f87c8fad899b0536d8a976f3b7cb89a156e6a42fcb6",
+    "u15": "0fc5403be5b45350d7eb614bed7e22c824e0025750ae124eb92d06f4d49a63dc",
+    "u16": "4f9427be3b7026e149ec935374d046b8bd2cf7d6e4f4a30e642c710c498a37dd"
+   }
+  }
+ },
+ "captures_not_retained": {
+  "coder": {
+   "cpu": {
+    "c1": {
+     "manifest_sha256": "83e3d5e084d529de93cc91a059451b4abb172b1efd9e8e491f162f34b98991d3",
+     "files": 397,
+     "data_sha256": "c334560da0a6aaaecb69ff73aefb539523fcc22e41d8723f01efc468b02257b1"
+    },
+    "u03": {
+     "manifest_sha256": "620c6250b111397ab24d28004e96113e614f76f9d62436c650701df9c2fce165",
+     "files": 134,
+     "data_sha256": "f424f527087e827e9780f85e499c18a4cdbdf48a9c39347082476fc1b93b1ba9"
+    }
+   },
+   "c4": {
+    "c1": {
+     "manifest_sha256": "83e3d5e084d529de93cc91a059451b4abb172b1efd9e8e491f162f34b98991d3",
+     "files": 397,
+     "data_sha256": "852c5da37facf8fcc9ca7daec50f9443a32bc4a538d23f60a6bb441ab9677e42"
+    },
+    "u03": {
+     "manifest_sha256": "620c6250b111397ab24d28004e96113e614f76f9d62436c650701df9c2fce165",
+     "files": 134,
+     "data_sha256": "b9115d25c0de8ba3c2f42b6f932b65bdebaf3b1cbccf9531ff0cddf7c01615ce"
+    }
+   }
+  },
+  "lfm": {
+   "cpu": {
+    "c1": {
+     "manifest_sha256": "6a5f9d1a1471e48f667aef43cdc7887c1211de428509df22dffb3719ccfeecf9",
+     "files": 157,
+     "data_sha256": "1fa228086cc738fccd0e9664182a86d099747347f859f94889b9c927b826cee3"
+    },
+    "u03": {
+     "manifest_sha256": "8345a4252ecc479a14f472e415e726825ffe1549f793315817aedaf6b57da84f",
+     "files": 118,
+     "data_sha256": "46c1fbd3d8c280b99bb448b56ed05a4dbe90d1d4a8a69f491f1a6699480be5ca"
+    }
+   },
+   "c4": {
+    "c1": {
+     "manifest_sha256": "6a5f9d1a1471e48f667aef43cdc7887c1211de428509df22dffb3719ccfeecf9",
+     "files": 157,
+     "data_sha256": "9d152cff1c6d711775714288bce97eb30443625c20180c47878d69b5c86717c1"
+    },
+    "u03": {
+     "manifest_sha256": "8345a4252ecc479a14f472e415e726825ffe1549f793315817aedaf6b57da84f",
+     "files": 118,
+     "data_sha256": "17d970fa684efe055d63ebf90deb4f149a3385f9f9eb1c70fbc8f5934463785b"
+    }
+   }
+  }
+ },
+ "verdicts": {
+  "coder": {
+   "part1_reference_c4": true,
+   "part2_distribution": true
+  },
+  "lfm": {
+   "part1_reference_c4": true,
+   "part2_distribution": true
+  }
+ },
+ "control": "PASS on both models"
+}

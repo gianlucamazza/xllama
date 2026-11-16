@@ -648,8 +648,8 @@ further modes with declaration schema v2:
 on the same captures. It checks each weight product of one arm against a
 float64 reference built from the model file and that arm's own q8_K operand,
 so it covers every token column and every captured layer without a second
-arm. It needs numpy and the submodule's `gguf-py`, supports K-quant weights
-only, and is the arithmetic behind the `reference` mode, usable without a declaration.
+arm. It needs numpy and the submodule's `gguf-py`, and supports K-quant
+weights (q8_K operands) and Q4_0, Q5_0 and Q8_0 weights (q8_0 operands), and is the arithmetic behind the `reference` mode, usable without a declaration.
 
 The binary format matches `numpy.fromfile(dtype=np.float32)`. Dumps from both
 backends are compared by `scripts/compare-logits.py`. This is the gate for

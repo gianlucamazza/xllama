@@ -7,24 +7,44 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-- **GPU control under the amended ADR 0010: PASS.** Coder-3B on the Series S,
-  declared before its GPU arm. Every GPU weight product in all 36 layers is
-  within 4.3e-14 NMSE of an exact reference (declared limit 1e-7), and over
-  5,024 prompt positions the GPU arm's mean KL divergence from the CPU arm is
-  0.989 times a second CPU build's (95 % upper bound 1.009, declared limit
-  1.25), with top-token agreement 0.24 points lower (declared margin 1). The
-  earlier control's FAIL under the original criterion stands. This clears
-  the correctness prerequisite of the GPU prefill work for this model; it is
-  not a speed result. Evidence:
-  `docs/research/evidence/2026-11-15-adr0010-control-2/`.
+- **Per-dispatch GPU timing (#421).** With `d3d12-dispatch-timing.txt` = `1`
+  in LocalState, the d3d12 backend times every dispatch and logs, after each
+  prefill and decode phase line, the GPU time per kind of dispatch (operation,
+  weight type, kernel variant, thread width, column class). Off by default;
+  the barriers it adds serialise dispatches, so it is a diagnostic, not a
+  benchmark setting.
 
-- **ADR 0010 amended.** A GPU control is now judged in two parts that do not
-  depend on a maximum over a few prompts: every weight product against an
-  exact reference (`control-parity.py reference`), and the output
-  distribution over many prompt positions against what a second CPU build
-  shows (`control-parity.py distribution`). `--dump-logits-stride N`, or
-  `logits_stride.txt` on the console, dumps the logits at every Nth prompt
-  position for the second part. The first control's FAIL is not rewritten.
+- **GPU correctness controls (ADR 0010, #420) and the four-column kernel
+  (#313, #414).**
+  - ADR 0010 was accepted, run once, found to fail an arm whose kernels are
+    correct, and amended. A GPU control now checks every weight product
+    against a float64 reference built from the model file and the arm's own
+    quantized operand (`control-parity.py reference`, q8_K and q8_0 operands),
+    and compares the output distribution over thousands of prompt positions
+    with what a second CPU build shows (`control-parity.py distribution`).
+    `--dump-logits-stride N`, or `logits_stride.txt` on the console, dumps
+    those positions; the tensor capture gains `matmul_inputs=<node>`.
+    `check-matmul-reference.py` runs the reference check on its own.
+  - On the Series S both gate models pass with the shipping kernels:
+    Coder-3B (all 36 layers within 4.3e-14 NMSE, KL-divergence ratio 0.989
+    against a second CPU build) and LFM2.5-1.2B (all 16 layers within
+    1.7e-14, ratio 1.035 against llama.cpp's plain CPU kernels). The first
+    control, under the original text, failed and stays recorded as failed.
+  - The four-column prefill kernel passes the same control, with output
+    byte-identical to the single-column kernel's, and Gate A (50/50). Its
+    preregistered paired performance campaign (6 cells, 240 runs) failed:
+    prefill 1.50 times on Coder-3B and 0.84 times on LFM2.5-1.2B, the model
+    that runs on the GPU by default, with decode and memory unchanged. The
+    kernel is not promoted: the draft (#414) is closed without merge and its
+    branch is kept.
+  - Evidence: `docs/research/evidence/2026-11-15-*` and `2026-11-16-*`.
+
+- **Paired bench campaigns.** `scripts/bench-paired-knob.sh` runs matched
+  A/B bench pairs that differ by one LocalState knob, alternating the order,
+  checking from the app log that each arm ran the intended code path, and
+  never replacing a failed arm. `scripts/paired-bench-summary.py` gives each
+  cell's verdict with a paired bootstrap interval against preregistered
+  margins. The first use is the #313 campaign of the four-column kernel.
 
 - **Startup log:** a `[resources]` line states whether the title has the
   expanded (Game) resources, how many exclusive cores it was given, the
@@ -38,20 +58,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   to 273 tokens, where decode is faster; the one earlier 512-token run of the
   230M was 128.5. The summary, README and model matrix use the new rows.
 
-- **GPU kernels checked against an exact reference.** New diagnostic
-  `scripts/check-matmul-reference.py` compares every captured weight product
-  with a float64 reference built from the model file. On the Series S, all
-  252 products of Coder-3B's 36 layers are correct on both arms, the GPU arm
-  to 4.1e-14 NMSE and the CPU arm to 2.3e-12. The CPU and GPU logits differ
-  through amplified rounding, not a kernel defect. The failed control's
-  verdict is unchanged, and GGUF GPU prefill work stays stopped until the
-  owner decides how a control should judge this.
-
 - **Scripts:** the deploy, bench and validation scripts no longer call
   `base64 -w0`, a GNU-only flag that fails on macOS. They strip the line
   breaks with `tr` instead; the encoded value is the same.
-  ||||||| parent of 6577bc4 (feat: check captured GPU products against an exact reference)
-  ||||||| parent of a46be23 (docs: remeasure the two LFM2.5 rows on 1.7.0 with a fixed-length decode)
 
 - **Series X is supported.** Accepted by the owner on 2026-11-15 from an
   independent tester's runs of package 1.7.0.1495 on a Series X: text
@@ -65,24 +74,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   is not known. The public wording changes from "Not yet tested on Series X"
   to "Supported on Series S and Series X", with the scope in
   `docs/positioning.md`.
-  ||||||| parent of 40318e2 (fix: encode Device Portal ids without the GNU-only base64 -w0)
-
-- **GPU control under ADR 0010: FAIL.** The first Coder-3B control judged
-  against a declaration committed before its GPU arm failed on the Series S.
-  The first-layer GPU products agree with the CPU wherever their operands are
-  the same, but the GPU logits' largest maximum error is 1.37 times the
-  spread between two CPU references (declared limit 1.22) and one of four
-  prompts ends on a different top token. GGUF GPU prefill work stays stopped.
-  Evidence: `docs/research/evidence/2026-11-15-adr0010-control/`.
-
-- **GPU control comparison (ADR 0010):** `scripts/control-parity.py` judges a
-  GPU control in two parts, from a declaration committed before the GPU arm is
-  measured. `kernel` compares every first-layer weight `MUL_MAT` between the
-  CPU and GPU arms on the token columns whose operand is the same; `spread`
-  compares the GPU logits with the spread between two CPU references. The
-  tensor capture gains `matmul_inputs=<node>` to record those products with
-  their operands. `compare-logits.py` and every recorded verdict are
-  unchanged, and no control has been run under the new comparison yet.
 
 - **Model download:** a download now checks the free space on the LocalState
   volume before the first request and fails at once with both numbers ("needs

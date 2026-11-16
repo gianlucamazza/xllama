@@ -8,6 +8,18 @@
 > [benchmarks.md](benchmarks.md). Platform limits are only in
 > [uwp-constraints.md](uwp-constraints.md).
 
+**Status (2026-11-16):** the GPU path is verified correct on both gate
+models under the amended ADR 0010: every weight product matches an exact
+reference and the output is as close to the CPU's as another CPU build's
+([LFM2.5-1.2B](research/evidence/2026-11-16-adr0010-control-lfm25-1.2b/README.md),
+[Coder-3B](research/evidence/2026-11-15-adr0010-control-2/README.md)). The
+four-column prefill kernel (#414) is correct (output byte-identical) but
+failed its preregistered performance campaign: 1.5 times faster prefill on
+Coder-3B, 15 % slower on LFM2.5-1.2B
+([campaign](research/evidence/2026-11-16-c4-performance/README.md)). It is
+not promoted: #414 is closed without merge and its branch is kept. The dated sections below record each step as it happened; a
+"stay stopped" in an earlier section is superseded by the later ones.
+
 **Status (2026-10-25):** the shipping catalogue GPU default is LFM2.5-1.2B.
 Qwen2.5-Coder-1.5B (the coding option) runs on the CPU; it has no D2-r2
 receipt. Qwen2.5-Coder-3B is not in the catalogue (benchmark; model under a
@@ -617,67 +629,15 @@ registry flow. Do not modify frozen receipts or promote code without actual
 hardware evidence. No optimization or performance result is claimed by this
 preregistration.
 
-### Four-column implementation candidate (#313)
-
-The experimental `*_c4.hlsl` kernels reuse each packed weight across four
-activation columns, for Q4_0, Q4_K and Q6_K at both existing thread widths.
-The original shaders and measured DXIL blobs remain byte-for-byte unchanged.
-Each partial column tile clamps its reads to a valid column and suppresses
-out-of-range writes; all lanes participate in every reduction barrier. Packed
-q8 activations, row/output strides and the integer dot-product algebra match
-the shipping path. Decode with one column continues to select the original
-PSO. The backend's original `supports_op` shape envelope is retained.
-
-This is an operator experiment, disabled by default. Before process startup,
-write `4` to `LocalState/d3d12-prefill-columns.txt` to enable it, or remove the
-file/write `1` for the control. The file is read once when the backend is
-initialized; restart between arms. Invalid contents use the control. It does
-not add a Settings control or change catalogue routing. Extra PSOs are created
-only for the enabled arm. Startup logs record `prefill_columns`; backend
-summary logs separately count actual `c4 dispatches`. A configured flag without
-positive wide-dispatch counts on a prefill workload is not experiment evidence.
-
-With the switch enabled, the existing D3D12 selftest additionally checks row
-and column tails (five rows; 2, 3, 5 and 9 columns) for all three quantizers at
-K=256, K=4096 and K=4352. The latter also exercises an uneven chunk count
-at 128 threads. These exercise both thread widths on the actual device;
-host planner/emulation tests and successful DXC compilation do not replace
-Gate A. Keep the preregistered numerical, logits, H9 and paired performance
-acceptance gates above. No speedup or default promotion is claimed by this
-implementation candidate.
-
-Generate only the new blobs with an explicitly recorded DXC:
-
-```bash
-DXC=/path/to/dxc scripts/compile-gpugemv-shader.sh \
-  mmv_q4_0_c4 mmv_q4_k_c4 mmv_q6_k_c4
-```
-
-The compiler/source/blob hashes are recorded in
-[the candidate build receipt](audit/excellence/prefill-candidate-build-2026-11-08.json).
-The receipt is compilation provenance, not a Series S measurement.
-
-For a matched deterministic decode campaign, write `1` to
-`bench_greedy.txt` before either arm. The native bench echoes `-greedy` in its
-host tag; the campaign must require this echo. Removing the file preserves
-normal sampler defaults. This holds the token trajectory fixed when the logit
-and greedy-product gates agree, while `--ignore-eog` holds generated work fixed.
-
-The headless logit probe also accepts `logits_gpu_layers.txt` (default zero,
-CPU control) and `logits_ubatch.txt` (default zero, engine default). Set the
-former explicitly to zero or the campaign's layer count for each arm, restart,
-and require the logged resolved layer count and the actual C4 dispatch count.
-A positive GPU request resolving to CPU fails the probe. These diagnostic knobs
-do not change normal chat routing.
-
-For the preregistered UI-process gates, use an autopilot script containing
-`wait_idle`, then `gpu_selftest` or `dump_logits` with a raw `text` prompt.
-These release the resident chat model under compute admission and retain the
-XAML/compositor process. Require fresh result files, the UI-process start and
-completion markers, and numerical acceptance; an autopilot completion alone is
-not a numerical pass. `logits_model.txt` names an already provisioned operator
-research model for the probe without catalogue promotion or a download. Remove
-all diagnostic overrides after the campaign.
+**Amendment, 2026-11-16, before the paired measurements**
+([manifest](research/evidence/2026-11-16-c4-performance/README.md)): "logit
+parity" above means the amended ADR 0010 control, which both models pass; no
+power or thermal instrumentation is used and the memory gate applies to the
+app's sampled peak; the prompt sizes are the existing bench prompts (about 300
+and 1,000 device tokens, plus the short prompt); decode is a fixed 128 tokens.
+Margins, pairs, ordering, bootstrap and the per-cell rule are unchanged.
+`scripts/bench-paired-knob.sh` runs the pairs and
+`scripts/paired-bench-summary.py` computes each cell's verdict.
 
 ### 2026-11-08 preflight — control logit failure
 
@@ -882,6 +842,54 @@ Coder-3B Q4_K_M, package 1.7.0.1587, seventeen new prompts.
 The correctness prerequisite of #313 is met for this model. Nothing here is
 a speed result, and LFM2.5-1.2B was not put through the control.
 
+### 2026-11-16 control on LFM2.5-1.2B: PASS
+
+The same two-part control on `lfm25-1.2b-instruct` (QAD Q4_0), the model that
+runs on the GPU by default, with the shipping single-column kernels
+([evidence](research/evidence/2026-11-16-adr0010-control-lfm25-1.2b/README.md)).
+
+- **Part 1 passes.** All 160 captured Q4_0 products (16 layers of a 41-token
+  prompt, layers 0 to 5 of a 538-token prompt) are within 1.7e-14 NMSE of the
+  exact reference on the GPU arm.
+- **Part 2 passes against the declared floor.** Over 5,284 positions the GPU
+  arm's mean KL divergence from the console CPU arm is 1.035 times that of a
+  CPU build on llama.cpp's plain kernels (upper bound 1.068, limit 1.95), and
+  its top-token agreement is the same within 0.17 points.
+- On this model the console and host builds of the repacked kernels are a
+  closer pair than either is to the plain kernels. Against that closer pair
+  the GPU arm is 1.32 times as far and loses 0.68 points of top-token
+  agreement, as the plain-kernel CPU build does. The floor was declared
+  before the GPU arm was measured.
+
+This is the baseline for the four-column kernel on this model.
+
+### 2026-11-16 control of the four-column kernel: PASS, identical output
+
+The four-column prefill kernel of #414 went through the amended control on
+Coder-3B and LFM2.5-1.2B
+([evidence](research/evidence/2026-11-16-adr0010-control-c4/README.md)).
+Both parts pass on both models, and the four-column arm's per-position logits
+are byte-identical to the single-column arm's on all 16 prompts of both
+models. Part 1 covers partial tiles of 1, 2 and 3 columns. The correctness
+prerequisite of the #313 performance trial is met; no speed result exists.
+
+### 2026-11-16 paired campaign of the four-column kernel: FAIL
+
+The preregistered #313 campaign ran on the Series S with the frozen manifest
+([evidence](research/evidence/2026-11-16-c4-performance/README.md)): 6 cells,
+20 alternating pairs each, 240 arms, none failed.
+
+- **Coder-3B passes every cell:** prefill 1.50 and 1.47 times, time to first
+  token 0.67 to 0.68 times, decode and memory unchanged.
+- **LFM2.5-1.2B fails every cell:** prefill 0.84 and 0.85 times, time to
+  first token 1.18 times, decode and memory unchanged.
+
+The preregistered rule requires every cell, so the experiment fails. The
+model that runs on the GPU by default gets slower, and the kernel stays
+opt-in and off. The split follows the weight type (Q4_0 on LFM2.5-1.2B,
+Q4_K and Q6_K on Coder-3B); that reading was not tested, and a K-quant-only
+variant would need its own preregistration.
+
 ### Attributable request counters (#421)
 
 A GGUF run with GPU layers logs one `[xllama] d3d12-phase` line after the
@@ -903,3 +911,22 @@ timestamp pair (`ts_valid`/`ts_missing`). These are CPU-side intervals around
 each step plus GPU timestamps. Wall minus GPU time is not CPU compute time,
 and none of these fields is a throughput result until it comes from a bound
 console package. A CPU run prints no line.
+
+**Per-dispatch timing (opt-in).** With `LocalState\d3d12-dispatch-timing.txt`
+containing `1` when the backend starts (the boot log says
+`d3d12: dispatch_timing=1`), every dispatch is followed by a UAV barrier and a
+GPU timestamp. After each phase line the log then carries one line per kind
+of dispatch, sorted by GPU time, and a summary:
+
+```
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=1 threads=128 cols=512+ count=48 gpu_ms=… ms_per=… weight_mib=… columns=…
+[xllama] d3d12-dispatch phase=prefill summary kinds=6 timed=94 missing=0 gpu_ms=…
+```
+
+A kind is the operation, the weight type, the kernel's columns per group
+(`cpg`), its thread width and a column class (`1`, `2-63`, `64-511`,
+`512+`). `missing` counts dispatches whose timestamp pair was not increasing;
+their time is not in any row. The barriers serialise dispatches that could
+overlap without them, so the per-dispatch times add up to more than an
+unmodified run's GPU time: compare a run with the knob against one without
+before reading absolute figures. The knob changes no result.

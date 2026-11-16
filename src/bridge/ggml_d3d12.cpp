@@ -290,6 +290,75 @@ const char* d3d12_selftest_csv_header() {
     return "type,n,k,ncols,rel_err,gpu_ms,packed_gbs,ok,d3d12_ran,host,date,error\n";
 }
 
+bool d3d12_flag_enabled(std::string_view config) {
+    const auto first = config.find_first_not_of(" \t\r\n");
+    if (first == std::string_view::npos || config[first] != '1')
+        return false;
+    return config.find_first_not_of(" \t\r\n", first + 1) == std::string_view::npos;
+}
+
+const char* d3d12_cols_class(std::int64_t ncols) {
+    if (ncols <= 1)
+        return "1";
+    if (ncols < 64)
+        return "2-63";
+    if (ncols < 512)
+        return "64-511";
+    return "512+";
+}
+
+void D3d12DispatchProfile::add(const D3d12DispatchKind& kind, double gpu_ms, double weight_bytes,
+                               std::int64_t ncols) {
+    auto it = std::find_if(rows_.begin(), rows_.end(),
+                           [&](const D3d12DispatchRow& r) { return r.kind == kind; });
+    if (it == rows_.end()) {
+        rows_.push_back(D3d12DispatchRow{kind});
+        it = rows_.end() - 1;
+    }
+    ++it->count;
+    it->gpu_ms += gpu_ms;
+    it->weight_bytes += weight_bytes;
+    it->columns += static_cast<std::uint64_t>(ncols > 0 ? ncols : 0);
+}
+
+std::vector<D3d12DispatchRow> D3d12DispatchProfile::sorted() const {
+    std::vector<D3d12DispatchRow> out = rows_;
+    std::stable_sort(
+        out.begin(), out.end(),
+        [](const D3d12DispatchRow& a, const D3d12DispatchRow& b) { return a.gpu_ms > b.gpu_ms; });
+    return out;
+}
+
+std::string format_d3d12_dispatch_profile(const char* phase, const D3d12DispatchProfile& p) {
+    if (p.empty())
+        return {};
+    std::string out;
+    double total = 0.0;
+    std::uint64_t timed = 0;
+    for (const D3d12DispatchRow& r : p.sorted()) {
+        char buf[512];
+        std::snprintf(buf, sizeof(buf),
+                      "[xllama] d3d12-dispatch phase=%s op=%s type=%s cpg=%d threads=%d cols=%s "
+                      "count=%llu gpu_ms=%.3f ms_per=%.4f weight_mib=%.1f columns=%llu\n",
+                      phase ? phase : "-", r.kind.op.c_str(), r.kind.type.c_str(),
+                      r.kind.columns_per_group, r.kind.threads, r.kind.cols.c_str(),
+                      static_cast<unsigned long long>(r.count), r.gpu_ms,
+                      r.count ? r.gpu_ms / static_cast<double>(r.count) : 0.0,
+                      r.weight_bytes / 1048576.0, static_cast<unsigned long long>(r.columns));
+        out += buf;
+        total += r.gpu_ms;
+        timed += r.count;
+    }
+    char buf[256];
+    std::snprintf(buf, sizeof(buf),
+                  "[xllama] d3d12-dispatch phase=%s summary kinds=%zu timed=%llu missing=%llu "
+                  "gpu_ms=%.3f\n",
+                  phase ? phase : "-", p.rows().size(), static_cast<unsigned long long>(timed),
+                  static_cast<unsigned long long>(p.missing()), total);
+    out += buf;
+    return out;
+}
+
 std::string format_d3d12_phase(const char* phase, const D3d12PhaseStats& s) {
     char gpu[32];
     if (s.gpu_time_valid())
@@ -420,6 +489,12 @@ struct Gpu {
     ComPtr<ID3D12PipelineState> pso_get_rows; // Q6_K
     ComPtr<ID3D12QueryHeap> ts;
     ComPtr<ID3D12Resource> ts_rb;
+    // #421 per-dispatch timing (d3d12-dispatch-timing.txt): one timestamp
+    // before the first dispatch and one after each, grown on demand.
+    bool dispatch_timing = false;
+    ComPtr<ID3D12QueryHeap> dts;
+    ComPtr<ID3D12Resource> dts_rb;
+    UINT dts_cap = 0;
     ComPtr<ID3D12Resource> staging;  // weight upload ring (kStagingBytes)
     ComPtr<ID3D12Resource> readback; // get_tensor on weights (kStagingBytes)
     std::uint8_t* staging_ptr = nullptr;
@@ -600,6 +675,17 @@ bool init_gpu(Gpu& g) {
             err.clear();
         }
     }
+    if (g.ts) {
+        if (FILE* f = _wfopen(
+                utf8_to_wstring(resolve_local_path("d3d12-dispatch-timing.txt")).c_str(), L"rb")) {
+            char config[16] = {};
+            const std::size_t bytes = std::fread(config, 1, sizeof(config), f);
+            std::fclose(f);
+            g.dispatch_timing = d3d12_flag_enabled(std::string_view(config, bytes));
+        }
+    }
+    log_output(std::string("[xllama] d3d12: dispatch_timing=") + (g.dispatch_timing ? "1" : "0") +
+               "\n");
     g.staging = d3d12c::create_buffer(g.device.Get(), kStagingBytes, D3D12_HEAP_TYPE_UPLOAD,
                                       D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ,
                                       "staging", &err);
@@ -939,16 +1025,76 @@ struct Op {
     std::uint32_t xq_row; // bytes per quantized column (MUL_MAT)
 };
 
+// Room for `count` per-dispatch timestamps. Caller holds g.mu, nothing in flight.
+bool ensure_dts(Gpu& g, UINT count) {
+    if (count <= g.dts_cap)
+        return true;
+    const UINT want = std::max<UINT>(count, 256);
+    g.dts.Reset();
+    g.dts_rb.Reset();
+    g.dts_cap = 0;
+    D3D12_QUERY_HEAP_DESC qhd = {};
+    qhd.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+    qhd.Count = want;
+    std::string err;
+    if (FAILED(g.device->CreateQueryHeap(&qhd, IID_PPV_ARGS(&g.dts))))
+        return false;
+    g.dts_rb =
+        d3d12c::create_buffer(g.device.Get(), ((std::size_t(want) * 8) + 255) & ~std::size_t(255),
+                              D3D12_HEAP_TYPE_READBACK, D3D12_RESOURCE_FLAG_NONE,
+                              D3D12_RESOURCE_STATE_COPY_DEST, "dts_rb", &err);
+    if (!g.dts_rb) {
+        g.dts.Reset();
+        return false;
+    }
+    g.dts_cap = want;
+    return true;
+}
+
+// What a dispatch is, for the per-dispatch profile.
+D3d12DispatchKind dispatch_kind(const Gpu& g, const ggml_tensor* node) {
+    const ggml_tensor* w = node->src[0];
+    D3d12DispatchKind k;
+    // Diagnostic branch only: the four-column kernel runs every multi-column
+    // MUL_MAT when d3d12-prefill-columns.txt = 4.
+    k.columns_per_group =
+        node->op == GGML_OP_MUL_MAT && g.prefill_columns == 4 && node->ne[1] > 1 ? 4 : 1;
+    k.type = ggml_type_name(w->type);
+    k.cols = d3d12_cols_class(node->ne[1]);
+    if (node->op == GGML_OP_GET_ROWS) {
+        k.op = "get_rows";
+    } else {
+        k.op = "mul_mat";
+        k.threads = d3d12_mm_threads(w->ne[0]);
+    }
+    return k;
+}
+
 // Record and run one submission. Caller holds g.mu.
 bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
     const bool ts = g.ts && g.ts_rb;
+    const bool dt = ts && g.dispatch_timing && ensure_dts(g, static_cast<UINT>(ops.size() + 1));
+    // A UAV barrier before each timestamp waits for the dispatch to finish, so
+    // the interval between two timestamps belongs to one dispatch.
+    D3D12_RESOURCE_BARRIER uav = {};
+    uav.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+    uav.UAV.pResource = nullptr;
     const bool ran = run_now(
         g,
         [&](ID3D12GraphicsCommandList* cl) {
             cl->SetComputeRootSignature(g.root.Get());
             if (ts)
                 cl->EndQuery(g.ts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
+            if (dt)
+                cl->EndQuery(g.dts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
             const D3D12_GPU_VIRTUAL_ADDRESS xq_va = g.xq->GetGPUVirtualAddress();
+            UINT stamp = 0;
+            const auto after_dispatch = [&]() {
+                if (!dt)
+                    return;
+                cl->ResourceBarrier(1, &uav);
+                cl->EndQuery(g.dts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, ++stamp);
+            };
             for (const Op& op : ops) {
                 const ggml_tensor* node = op.node;
                 const ggml_tensor* w = node->src[0];
@@ -969,6 +1115,7 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
                     cl->SetComputeRootUnorderedAccessView(3, xq_va + op.xq_off);
                     cl->Dispatch(static_cast<UINT>(w->ne[0] / kD3d12Chunk),
                                  static_cast<UINT>(node->ne[1]), 1);
+                    after_dispatch();
                     continue;
                 }
                 const bool multicolumn = g.prefill_columns == 4 && node->ne[1] > 1;
@@ -992,7 +1139,11 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
                 cl->SetComputeRootUnorderedAccessView(2, tensor_va(node));
                 cl->SetComputeRootUnorderedAccessView(3, xq_va + op.xq_off);
                 cl->Dispatch(d.groups_x, d.groups_y, 1);
+                after_dispatch();
             }
+            if (dt)
+                cl->ResolveQueryData(g.dts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0,
+                                     static_cast<UINT>(ops.size() + 1), g.dts_rb.Get(), 0);
             if (ts) {
                 cl->EndQuery(g.ts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 1);
                 cl->ResolveQueryData(g.ts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, 2, g.ts_rb.Get(),
@@ -1018,6 +1169,32 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
         }
     }
     ++(ts_ok ? g.phase.ts_valid : g.phase.ts_missing);
+    if (dt) {
+        void* p = nullptr;
+        const D3D12_RANGE range = {0, (ops.size() + 1) * sizeof(std::uint64_t)};
+        if (SUCCEEDED(g.dts_rb->Map(0, &range, &p))) {
+            const auto* t = static_cast<const std::uint64_t*>(p);
+            for (std::size_t i = 0; i < ops.size(); ++i) {
+                const ggml_tensor* node = ops[i].node;
+                const ggml_tensor* w = node->src[0];
+                if (t[i + 1] <= t[i]) {
+                    g.phase.dispatch.note_missing();
+                    continue;
+                }
+                const double ms =
+                    1000.0 * static_cast<double>(t[i + 1] - t[i]) / static_cast<double>(g.ts_freq);
+                const double bytes = node->op == GGML_OP_GET_ROWS
+                                         ? static_cast<double>(w->nb[1]) * node->ne[1]
+                                         : static_cast<double>(w->nb[1]) * w->ne[1];
+                g.phase.dispatch.add(dispatch_kind(g, node), ms, bytes, node->ne[1]);
+            }
+            const D3D12_RANGE none = {0, 0};
+            g.dts_rb->Unmap(0, &none);
+        } else {
+            for (std::size_t i = 0; i < ops.size(); ++i)
+                g.phase.dispatch.note_missing();
+        }
+    }
     g.n_dispatches += ops.size();
     g.phase.dispatches += ops.size();
     return true;

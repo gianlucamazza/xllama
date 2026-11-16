@@ -142,6 +142,68 @@ ggml_backend_buffer_type_t ggml_d3d12_weights_buft();
 // gpu_ms, which sums GPU timestamp pairs (start/end of each submission) and is
 // only meaningful when every submission had a valid pair: gpu_time_valid().
 // No field derives CPU compute time from wall minus GPU time.
+// --- Per-dispatch GPU timing (#421), opt-in ---
+// With LocalState\d3d12-dispatch-timing.txt = "1" when the backend starts,
+// every dispatch is followed by a UAV barrier and a GPU timestamp, so each
+// dispatch's GPU time can be attributed to its kind below. The barriers
+// serialise dispatches that could otherwise overlap: that changes what is
+// measured, so read absolute times only next to a run without the knob.
+
+// "1" (surrounding whitespace allowed) enables a LocalState flag file.
+bool d3d12_flag_enabled(std::string_view config);
+
+// Column classes of a dispatch: "1" (decode), "2-63", "64-511", "512+".
+const char* d3d12_cols_class(std::int64_t ncols);
+
+struct D3d12DispatchKind {
+    std::string op;            // "mul_mat" | "get_rows"
+    std::string type;          // weight type name, e.g. "q4_0"
+    int threads = 0;           // 64 | 128 for mul_mat, 0 for get_rows
+    int columns_per_group = 1; // kernel variant (the single-column kernel is 1)
+    std::string cols;          // d3d12_cols_class(ncols)
+    bool operator==(const D3d12DispatchKind& o) const {
+        return op == o.op && type == o.type && threads == o.threads &&
+               columns_per_group == o.columns_per_group && cols == o.cols;
+    }
+};
+
+struct D3d12DispatchRow {
+    D3d12DispatchKind kind;
+    std::uint64_t count = 0;
+    double gpu_ms = 0.0;
+    double weight_bytes = 0.0; // packed weight bytes the dispatches address
+    std::uint64_t columns = 0; // activation columns (rows fetched for GET_ROWS)
+};
+
+class D3d12DispatchProfile {
+  public:
+    void add(const D3d12DispatchKind& kind, double gpu_ms, double weight_bytes, std::int64_t ncols);
+    // A dispatch whose timestamp pair was not increasing: its time is unknown.
+    void note_missing() {
+        ++missing_;
+    }
+    std::uint64_t missing() const {
+        return missing_;
+    }
+    bool empty() const {
+        return rows_.empty() && missing_ == 0;
+    }
+    const std::vector<D3d12DispatchRow>& rows() const {
+        return rows_;
+    }
+    // Rows by descending GPU time, ties in insertion order.
+    std::vector<D3d12DispatchRow> sorted() const;
+
+  private:
+    std::vector<D3d12DispatchRow> rows_;
+    std::uint64_t missing_ = 0;
+};
+
+// One "[xllama] d3d12-dispatch ..." line per kind, by descending GPU time, and
+// a closing summary line with the number of untimed dispatches. Empty when
+// the profile is empty (the knob is off or nothing ran).
+std::string format_d3d12_dispatch_profile(const char* phase, const D3d12DispatchProfile& p);
+
 struct D3d12PhaseStats {
     std::uint64_t calls = 0;       // graph_compute calls that ran at least one op
     std::uint64_t submissions = 0; // ExecuteCommandLists + fence wait
@@ -153,6 +215,7 @@ struct D3d12PhaseStats {
     double record_ms = 0.0;        // command-list reset/record/close
     double exec_wait_ms = 0.0;     // ExecuteCommandLists through fence completion
     double gpu_ms = 0.0;           // GPU timestamps; see gpu_time_valid()
+    D3d12DispatchProfile dispatch; // per-dispatch timing, empty unless enabled
     bool gpu_time_valid() const {
         return submissions > 0 && ts_missing == 0;
     }

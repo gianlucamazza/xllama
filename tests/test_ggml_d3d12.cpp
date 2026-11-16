@@ -453,3 +453,49 @@ TEST_CASE("d3d12: counters are unavailable off Windows") {
     CHECK(s.calls == 0);
     CHECK_FALSE(ggml_d3d12_take_stats(nullptr));
 }
+
+TEST_CASE("d3d12: dispatch timing flag and column classes") {
+    CHECK(d3d12_flag_enabled("1"));
+    CHECK(d3d12_flag_enabled(" 1\r\n"));
+    CHECK_FALSE(d3d12_flag_enabled(""));
+    CHECK_FALSE(d3d12_flag_enabled("0"));
+    CHECK_FALSE(d3d12_flag_enabled("11"));
+    CHECK_FALSE(d3d12_flag_enabled("1 x"));
+    CHECK(std::string(d3d12_cols_class(0)) == "1");
+    CHECK(std::string(d3d12_cols_class(1)) == "1");
+    CHECK(std::string(d3d12_cols_class(2)) == "2-63");
+    CHECK(std::string(d3d12_cols_class(63)) == "2-63");
+    CHECK(std::string(d3d12_cols_class(64)) == "64-511");
+    CHECK(std::string(d3d12_cols_class(511)) == "64-511");
+    CHECK(std::string(d3d12_cols_class(512)) == "512+");
+}
+
+TEST_CASE("d3d12: dispatch profile groups by kind and reports untimed dispatches") {
+    D3d12DispatchProfile p;
+    CHECK(p.empty());
+    CHECK(format_d3d12_dispatch_profile("prefill", p).empty());
+    D3d12DispatchKind q4{"mul_mat", "q4_0", 128, 1, "512+"};
+    D3d12DispatchKind q6{"mul_mat", "q6_K", 64, 1, "512+"};
+    p.add(q4, 1.0, 1048576.0, 512);
+    p.add(q6, 5.0, 2097152.0, 512);
+    p.add(q4, 2.0, 1048576.0, 512);
+    p.note_missing();
+    REQUIRE(p.rows().size() == 2);
+    CHECK(p.rows()[0].count == 2);
+    CHECK(p.rows()[0].gpu_ms == doctest::Approx(3.0));
+    CHECK(p.rows()[0].columns == 1024);
+    const auto s = p.sorted();
+    CHECK(s[0].kind == q6); // 5 ms before 3 ms
+    const std::string out = format_d3d12_dispatch_profile("prefill", p);
+    CHECK(out.rfind("[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q6_K cpg=1 "
+                    "threads=64 cols=512+ count=1 gpu_ms=5.000",
+                    0) == 0);
+    CHECK(out.find("type=q4_0 cpg=1 threads=128 cols=512+ count=2 gpu_ms=3.000 ms_per=1.5000 "
+                   "weight_mib=2.0 columns=1024\n") != std::string::npos);
+    CHECK(out.find("summary kinds=2 timed=3 missing=1 gpu_ms=8.000\n") != std::string::npos);
+    D3d12DispatchProfile only_missing;
+    only_missing.note_missing();
+    CHECK_FALSE(only_missing.empty());
+    CHECK(format_d3d12_dispatch_profile("decode", only_missing).find("missing=1") !=
+          std::string::npos);
+}
