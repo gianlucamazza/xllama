@@ -12,6 +12,14 @@ inline constexpr char id[] = "lfm25-8b-a1b-q4-k-m";
 inline constexpr wchar_t file[] = L"LFM2.5-8B-A1B-Q4_K_M.gguf";
 inline constexpr uint64_t bytes = 5155564768ull;
 inline constexpr char sha[] = "4923ec14f06b968b74d663e5949867d2d9c3bf13a20b8be1a9f9af39989b2bb0";
+// Shape tuple of the pinned checkpoint (LFM2.5-8B-A1B Q4_K_M GGUF header):
+// layers, experts, routed expert tensors and the largest per-expert matrix.
+inline constexpr uint32_t pin_layers = 24;
+inline constexpr uint32_t pin_experts = 32;
+inline constexpr size_t pin_roles = 66;
+inline constexpr size_t pin_max_matrix = 3010560;
+// 512 slots of the largest matrix plus arena/metadata headroom.
+inline constexpr uint64_t cache_b512_ceiling = 1600ull*1024*1024;
 inline constexpr uint64_t reserve = 512ull*1024*1024;
 inline constexpr uint64_t probe_allowance = 256ull*1024*1024;
 inline uint64_t add(uint64_t a,uint64_t b) {
@@ -43,7 +51,7 @@ inline AppliedCache applied_cache(size_t slots,size_t policy_ceiling,size_t prov
  return {slots,policy_ceiling,owned,arena,metadata};
 }
 inline void exact_profile(uint64_t size,uint32_t layers,uint32_t experts,size_t roles,size_t matrix) {
-    if(size!=bytes || layers!=40 || experts!=64 || roles!=114 || matrix!=2580480)
+    if(size!=bytes || layers!=pin_layers || experts!=pin_experts || roles!=pin_roles || matrix!=pin_max_matrix)
         throw std::invalid_argument("pilot exact LFM24 metadata mismatch");
 }
 } // namespace xllama::cpu_pilot
