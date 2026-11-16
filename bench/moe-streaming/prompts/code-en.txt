@@ -1,0 +1,1 @@
+Write a Python function that returns the largest value in a nonempty list of integers. State what happens for an empty list.
