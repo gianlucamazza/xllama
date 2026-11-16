@@ -8,10 +8,10 @@
 
 namespace xllama::cpu_pilot {
 // Built-in developer pilot pin. This is not a signed/updateable catalogue.
-inline constexpr char id[] = "lfm25-24b-a2b-q4-k-m";
-inline constexpr wchar_t file[] = L"LFM2.5-24B-A2B-Q4_K_M.gguf";
-inline constexpr uint64_t bytes = 14526258464ull;
-inline constexpr char sha[] = "d3334405b96228eb9908cdebb5c6194908f2da64282bda852afc3a3910c64e7d";
+inline constexpr char id[] = "lfm25-8b-a1b-q4-k-m";
+inline constexpr wchar_t file[] = L"LFM2.5-8B-A1B-Q4_K_M.gguf";
+inline constexpr uint64_t bytes = 5155564768ull;
+inline constexpr char sha[] = "4923ec14f06b968b74d663e5949867d2d9c3bf13a20b8be1a9f9af39989b2bb0";
 inline constexpr uint64_t reserve = 512ull*1024*1024;
 inline constexpr uint64_t probe_allowance = 256ull*1024*1024;
 inline uint64_t add(uint64_t a,uint64_t b) {

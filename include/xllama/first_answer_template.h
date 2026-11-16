@@ -2,14 +2,14 @@
 #include <stdexcept>
 #include <string>
 namespace xllama::first_answer {
-inline constexpr char template_sha[]="ea663864491de7ade391839479860ca95541f892f72665c73251fbd4643b1bef";
+inline constexpr char template_sha[]="6d65c8804847ad74eea912dd7eca3dc1cf7a457b53a77f47d841a14121910963";
 inline constexpr char embedded_template[]=R"LFM24({{- bos_token -}}
 {%- set preserve_thinking = preserve_thinking | default(false) -%}
 
 {%- macro format_arg_value(arg_value) -%}
     {%- if arg_value is string -%}
-        {{- "'" + (arg_value | replace("\\", "\\\\") | replace("'", "\\'") | replace("\n", "\\n") | replace("\r", "\\r")) + "'" -}}
-    {%- elif arg_value is mapping or arg_value is iterable -%}
+        {{- "'" + arg_value + "'" -}}
+    {%- elif arg_value is mapping -%}
         {{- arg_value | tojson -}}
     {%- else -%}
         {{- arg_value | string -}}
@@ -19,19 +19,15 @@ inline constexpr char embedded_template[]=R"LFM24({{- bos_token -}}
 {%- macro parse_content(content) -%}
     {%- if content is string -%}
         {{- content -}}
-    {%- elif content is mapping -%}
-        {{- content | tojson -}}
-    {%- elif content is iterable -%}
+    {%- else -%}
         {%- set _ns = namespace(result="") -%}
         {%- for item in content -%}
-            {%- if item is string -%}
-                {%- set _ns.result = _ns.result + item -%}
-            {%- elif item is mapping and item.get("type") == "image" -%}
+            {%- if item["type"] == "image" -%}
                 {%- set _ns.result = _ns.result + "<image>" -%}
-            {%- elif item is mapping and item.get("type") == "text" -%}
-                {%- set _ns.result = _ns.result + ((item.get("text") or "") | string) -%}
+            {%- elif item["type"] == "text" -%}
+                {%- set _ns.result = _ns.result + item["text"] -%}
             {%- else -%}
-                {%- set _ns.result = _ns.result + (item | tojson) -%}
+                {%- set _ns.result = _ns.result + item | tojson -%}
             {%- endif -%}
         {%- endfor -%}
         {{- _ns.result -}}
@@ -41,24 +37,19 @@ inline constexpr char embedded_template[]=R"LFM24({{- bos_token -}}
 {%- macro render_tool_calls(tool_calls) -%}
     {%- set tool_calls_ns = namespace(tool_calls=[]) -%}
     {%- for tool_call in tool_calls -%}
-        {%- set func = tool_call["function"] if "function" in tool_call else tool_call -%}
-        {%- set func_name = func["name"] -%}
-        {%- set func_args = func.get("arguments") -%}
+        {%- set func_name = tool_call["function"]["name"] -%}
+        {%- set func_args = tool_call["function"]["arguments"] -%}
         {%- set args_ns = namespace(arg_strings=[]) -%}
-        {%- if func_args is mapping -%}
-            {%- for arg_name, arg_value in func_args.items() -%}
-                {%- set args_ns.arg_strings = args_ns.arg_strings + [arg_name + "=" + format_arg_value(arg_value)] -%}
-            {%- endfor -%}
-        {%- elif func_args is string and (func_args | trim) not in ["", "{}", "null"] -%}
-            {{- raise_exception("Tool call arguments must be a mapping, got a JSON-encoded string: parse arguments with json.loads() before applying the chat template") -}}
-        {%- endif -%}
+        {%- for arg_name, arg_value in func_args.items() -%}
+            {%- set args_ns.arg_strings = args_ns.arg_strings + [arg_name + "=" + format_arg_value(arg_value)] -%}
+        {%- endfor -%}
         {%- set tool_calls_ns.tool_calls = tool_calls_ns.tool_calls + [func_name + "(" + (args_ns.arg_strings | join(", ")) + ")"] -%}
     {%- endfor -%}
     {{- "<|tool_call_start|>[" + (tool_calls_ns.tool_calls | join(", ")) + "]<|tool_call_end|>" -}}
 {%- endmacro -%}
 
 {%- set ns = namespace(system_prompt="", last_user_index=-1) -%}
-{%- if messages and messages[0]["role"] == "system" -%}
+{%- if messages[0]["role"] == "system" -%}
     {%- if messages[0].get("content") -%}
         {%- set ns.system_prompt = parse_content(messages[0]["content"]) -%}
     {%- endif -%}
@@ -89,28 +80,27 @@ inline constexpr char embedded_template[]=R"LFM24({{- bos_token -}}
     {{- "<|im_start|>" + message.role + "\n" -}}
     {%- if message.role == "assistant" -%}
         {%- generation -%}
-        {%- set keep_thinking = preserve_thinking or loop.index0 > ns.last_user_index -%}
-        {%- set thinking = message.thinking or message.reasoning or message.reasoning_content -%}
-        {%- set thinking = thinking if thinking is string else "" -%}
-        {%- if thinking and keep_thinking -%}
-            {{- "<think>" + thinking + "</think>" -}}
+        {%- if message.thinking is defined and (preserve_thinking or loop.index0 > ns.last_user_index) -%}
+            {{- "<think>" + message.thinking + "</think>" -}}
         {%- endif -%}
         {%- set _cfm_tag = "CONTINUE_FINAL_MESSAGE_TAG " -%}
         {%- set _has_cfm = false -%}
-        {%- set content = "" -%}
-        {%- if message.get("content") -%}
+        {%- if message.content is defined -%}
             {%- set content = parse_content(message.content) -%}
+            {%- if not (preserve_thinking or loop.index0 > ns.last_user_index) -%}
+                {%- if "</think>" in content -%}
+                    {%- set content = content.split("</think>")[-1] | trim -%}
+                {%- endif -%}
+            {%- endif -%}
+            {%- if message.tool_calls is defined and content.endswith(_cfm_tag) -%}
+                {%- set _has_cfm = true -%}
+                {%- set _trunc_len = (content | length) - (_cfm_tag | length) -%}
+                {{- content[:_trunc_len] -}}
+            {%- else -%}
+                {{- content -}}
+            {%- endif -%}
         {%- endif -%}
-        {%- if not keep_thinking and "</think>" in content -%}
-            {%- set content = content.split("</think>")[-1] | trim -%}
-        {%- endif -%}
-        {%- if content.endswith(_cfm_tag) -%}
-            {%- set _has_cfm = true -%}
-            {%- set _trunc_len = (content | length) - (_cfm_tag | length) -%}
-            {%- set content = content[:_trunc_len] -%}
-        {%- endif -%}
-        {{- content -}}
-        {%- if message.tool_calls -%}
+        {%- if message.tool_calls is defined -%}
             {{- render_tool_calls(message.tool_calls) -}}
         {%- endif -%}
         {%- if _has_cfm -%}
@@ -126,9 +116,8 @@ inline constexpr char embedded_template[]=R"LFM24({{- bos_token -}}
     {%- endif %}
 {%- endfor -%}
 {%- if add_generation_prompt -%}
-    {{- "<|im_start|>assistant\n<think>" -}}
-{%- endif -%}
-)LFM24";
+    {{- "<|im_start|>assistant\n" -}}
+{%- endif -%})LFM24";
 inline constexpr char greeting[]=u8"Привет! Представься в одном-двух предложениях и скажи, чем ты можешь помочь. Ответь кратко на русском.";
 inline std::string render_user(const char* actual_template,bool add_bos,int bos,const std::string& user) {
  if(!actual_template || std::string(actual_template)!=embedded_template || !add_bos || bos<0)throw std::runtime_error("configured exact template/BOS mismatch");

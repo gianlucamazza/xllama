@@ -114,7 +114,7 @@ void require_matching_catalogue() {
     // An absent entry uses the built-in pin. An existing entry must agree exactly;
     // neither mutable overrides nor an unsigned manifest can replace this trust root.
     const auto entries=LoadModelManifest();
-    const auto* entry=FindManifestEntry(entries,L"lfm25-24b-a2b-q4-k-m");
+    const auto* entry=FindManifestEntry(entries,L"lfm25-8b-a1b-q4-k-m");
     if(!entry)return;
     if(entry->kind!=L"gguf" || entry->files.size()!=1 || entry->files[0].filename!=file ||
        entry->files[0].approx_bytes!=bytes || entry->files[0].sha256!=std::wstring(sha,sha+64) ||
@@ -152,7 +152,7 @@ static void run_cpu_expert_stage(bool answer_stage,bool finished=false,unsigned 
     try {
         const std::wstring root=winrt::Windows::Storage::ApplicationData::Current().LocalFolder().Path().c_str();
         const auto base=std::filesystem::path(root);
-        const auto path=base/L"models"/L"lfm25-24b-a2b-q4-k-m"/file;
+        const auto path=base/L"models"/L"lfm25-8b-a1b-q4-k-m"/file;
         ULARGE_INTEGER free_caller{},total{},free_total{};
         if(!GetDiskFreeSpaceExW(base.c_str(),&free_caller,&total,&free_total))throw std::runtime_error("pilot LocalFolder disk space unknown");
         char disk[256];std::snprintf(disk,sizeof(disk),"[cpu-pilot] LocalFolder caller_free=%llu total=%llu total_free=%llu\n",static_cast<unsigned long long>(free_caller.QuadPart),static_cast<unsigned long long>(total.QuadPart),static_cast<unsigned long long>(free_total.QuadPart));log_output(disk);
@@ -219,7 +219,7 @@ static void run_cpu_expert_stage(bool answer_stage,bool finished=false,unsigned 
             state->phase("before-held-SHA",probe_allowance);
             auto writer=ModelDownloader::WriterGate().try_acquire();
             if(!writer.owns_lock())throw std::runtime_error("model writer busy");
-        for(const auto& folder:{base,base/L"models",base/L"models"/L"lfm25-24b-a2b-q4-k-m"}) {
+        for(const auto& folder:{base,base/L"models",base/L"models"/L"lfm25-8b-a1b-q4-k-m"}) {
             CREATEFILE2_EXTENDED_PARAMETERS open{};open.dwSize=sizeof(open);
             open.dwFileFlags=FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OPEN_REPARSE_POINT;
             HANDLE dir=CreateFile2(folder.c_str(),FILE_READ_ATTRIBUTES,FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,OPEN_EXISTING,&open);
@@ -336,7 +336,7 @@ static void run_cpu_expert_stage(bool answer_stage,bool finished=false,unsigned 
              std::string effective="null";
              if(native_effective&&e.context){
               if(e.context!=512||e.threads!=1||e.threads_batch!=1||e.slots!=configured->config.slots||e.ceiling!=configured->config.cache_ceiling||e.owned>e.ceiling)throw std::runtime_error("native effective mismatch");
-              effective="{\"model_id\":\"lfm25-24b-a2b-q4-k-m\",\"model_sha256\":"+quote(sha)+",\"context_tokens\":"+std::to_string(e.context)+",\"prompt_tokens\":"+std::to_string(record->prompt_ids.size())+",\"max_new_tokens\":"+std::to_string(record->max_new())+",\"threads\":"+std::to_string(e.threads)+",\"threads_batch\":"+std::to_string(e.threads_batch)+",\"backend_id\":\"cpu_expert_streaming\",\"device_mode\":\"cpu\",\"main_gpu\":-1,\"gpu_layers\":0,\"offload_kqv\":false,\"op_offload\":false,\"expert_placement\":\"cpu_streamed\",\"compute_mode\":\"nonfused\",\"sampler_kind\":\"greedy\",\"cache_policy\":\"global_lru\",\"cache_slots\":"+std::to_string(e.slots)+",\"cache_owned_ceiling_bytes\":"+std::to_string(e.ceiling)+",\"cache_required_owned_bytes\":"+std::to_string(e.owned)+",\"cache_arena_bytes\":"+std::to_string(e.arena)+",\"cache_metadata_bytes\":"+std::to_string(e.metadata)+",\"stage_required_bytes\":"+std::to_string(planned_stage)+",\"instrumentation_owned_bytes\":"+std::to_string(charged_instrumentation)+"}";
+              effective="{\"model_id\":\"lfm25-8b-a1b-q4-k-m\",\"model_sha256\":"+quote(sha)+",\"context_tokens\":"+std::to_string(e.context)+",\"prompt_tokens\":"+std::to_string(record->prompt_ids.size())+",\"max_new_tokens\":"+std::to_string(record->max_new())+",\"threads\":"+std::to_string(e.threads)+",\"threads_batch\":"+std::to_string(e.threads_batch)+",\"backend_id\":\"cpu_expert_streaming\",\"device_mode\":\"cpu\",\"main_gpu\":-1,\"gpu_layers\":0,\"offload_kqv\":false,\"op_offload\":false,\"expert_placement\":\"cpu_streamed\",\"compute_mode\":\"nonfused\",\"sampler_kind\":\"greedy\",\"cache_policy\":\"global_lru\",\"cache_slots\":"+std::to_string(e.slots)+",\"cache_owned_ceiling_bytes\":"+std::to_string(e.ceiling)+",\"cache_required_owned_bytes\":"+std::to_string(e.owned)+",\"cache_arena_bytes\":"+std::to_string(e.arena)+",\"cache_metadata_bytes\":"+std::to_string(e.metadata)+",\"stage_required_bytes\":"+std::to_string(planned_stage)+",\"instrumentation_owned_bytes\":"+std::to_string(charged_instrumentation)+"}";
              }
              const auto package=winrt::to_string(winrt::Windows::ApplicationModel::Package::Current().Id().FullName());
              record->runner_complete=success&&io->healthy(bytes)&&effective!="null";
