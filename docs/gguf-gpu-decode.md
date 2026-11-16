@@ -617,6 +617,16 @@ registry flow. Do not modify frozen receipts or promote code without actual
 hardware evidence. No optimization or performance result is claimed by this
 preregistration.
 
+**Amendment, 2026-11-16, before the paired measurements**
+([manifest](research/evidence/2026-11-16-c4-performance/README.md)): "logit
+parity" above means the amended ADR 0010 control, which both models pass; no
+power or thermal instrumentation is used and the memory gate applies to the
+app's sampled peak; the prompt sizes are the existing bench prompts (about 300
+and 1,000 device tokens, plus the short prompt); decode is a fixed 128 tokens.
+Margins, pairs, ordering, bootstrap and the per-cell rule are unchanged.
+`scripts/bench-paired-knob.sh` runs the pairs and
+`scripts/paired-bench-summary.py` computes each cell's verdict.
+
 ### 2026-11-08 preflight — control logit failure
 
 The preregistered candidate attempt is stopped before H9/performance acceptance.

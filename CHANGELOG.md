@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Paired bench campaigns.** `scripts/bench-paired-knob.sh` runs matched
+  A/B bench pairs that differ by one LocalState knob, alternating the order,
+  checking from the app log that each arm ran the intended code path, and
+  never replacing a failed arm. `scripts/paired-bench-summary.py` gives each
+  cell's verdict with a paired bootstrap interval against preregistered
+  margins. The first use is the #313 campaign of the four-column kernel.
+
 - **Four-column prefill kernel (#414) passes the GPU control.** On Coder-3B
   and LFM2.5-1.2B every four-column weight product, partial tiles included,
   is within 3.6e-14 NMSE of an exact reference, and the four-column arm's
