@@ -281,12 +281,16 @@ Known issues:
   - From package 1.7.0.1587, the `[resources]` line in `xllama.log` shows
     which allotment the app got: `app_memory_limit_mb=1024` is App, `5120`
     is Game. The v1.7.0.0 release (package 1.7.0.1495) does not log it.
-  - An uninstall and reinstall can reset the designation to **App**. A build
-    with a lower version or another test certificate cannot install over the
-    current one and needs that uninstall, so check **App type** again after it.
-    The uninstall deletes LocalState: downloaded models (`models\`),
-    `settings.json` and saved conversations (`chats\`). Copy what you want to
-    keep first (`./scripts/deploy.sh fetch-file`).
+  - The designation can reset to **App** after an install, so check
+    **App type** again after each one:
+    - An uninstall and reinstall can reset it. A build with a lower version
+      cannot install over the current one and needs that uninstall. The
+      uninstall deletes LocalState: downloaded models (`models\`),
+      `settings.json` and saved conversations (`chats\`). Copy what you want
+      to keep first (`./scripts/deploy.sh fetch-file`).
+    - An in-place upgrade to a higher version signed with another test
+      certificate (two CI packages, 1.7.0.1614 to 1.7.0.1626, on a Series X)
+      kept LocalState but reset the designation to **App**.
 - **Startup / logs (command-line host).** `./scripts/deploy.sh diagnose-startup`
   prints the process state, the app log, and any crash dumps.
   `./scripts/deploy.sh get-log` reads `xllama.log`; individual files:
