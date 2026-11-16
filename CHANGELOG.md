@@ -12,7 +12,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   prefill and decode phase line, the GPU time per kind of dispatch (operation,
   weight type, kernel variant, thread width, column class). Off by default;
   the barriers it adds serialise dispatches, so it is a diagnostic, not a
-  benchmark setting.
+  benchmark setting. Measured on the Series S, it leaves prefill unchanged and
+  costs about 4 % of decode; its first use showed that the four-column kernel
+  of #414 lost on LFM2.5-1.2B in its Q4_0 shader (1.14 to 1.25 times slower
+  per dispatch) while its K-quant shaders took half the time.
 
 - **GPU correctness controls (ADR 0010, #420) and the four-column kernel
   (#313, #414).**
