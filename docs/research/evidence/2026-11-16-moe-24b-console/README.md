@@ -7,13 +7,13 @@ owns. It reproduces the CPU stage that vetax-by reported in
 
 ## Identity
 
-| Item     | Value                                                                                                                                                                                  |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Console  | Series S in Developer Mode, Game designation (quota limit 5368709120 bytes = 5120 MiB), operator-declared                                                                              |
-| Package  | `GianlucaMazza.xllama` 1.7.0.1640, CI run [43871242484](https://github.com/gianlucamazza/xllama/actions/runs/43871242484), in-place upgrade                                            |
-| Source   | branch `test/ua50-moe-console` at `75fe271` (not for `main`): the seventeen fork patches of `61bf63a`, byte-identical to its `PATCH-LOCK.json`, on base `4db5152`, llama.cpp `d812350` |
-| Model    | `LiquidAI/LFM2.5-24B-A2B-GGUF` @ `7be3a8c`, `LFM2.5-24B-A2B-Q4_K_M.gguf`, 14526258464 bytes, SHA-256 `d3334405…` (checked before and after each run)                                   |
-| Profiles | fork's `cache-a2-v1` (2 expert slots) then `cache-b512-v1` (512 slots); one CPU worker, nonfused path, context 512, fixed Russian greeting, greedy                                     |
+| Item     | Value                                                                                                                                                                                                         |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Console  | Series S in Developer Mode, Game designation (quota limit 5368709120 bytes = 5120 MiB), operator-declared                                                                                                     |
+| Package  | `GianlucaMazza.xllama` 1.7.0.1640, CI run [43871242484](https://github.com/gianlucamazza/xllama/actions/runs/43871242484), in-place upgrade                                                                   |
+| Source   | tag `evidence/2026-11-16-moe-24b-console` (`75fe271`, a test build, not for `main`): the seventeen fork patches of `61bf63a`, byte-identical to its `PATCH-LOCK.json`, on base `4db5152`, llama.cpp `d812350` |
+| Model    | `LiquidAI/LFM2.5-24B-A2B-GGUF` @ `7be3a8c`, `LFM2.5-24B-A2B-Q4_K_M.gguf`, 14526258464 bytes, SHA-256 `d3334405…` (checked before and after each run)                                                          |
+| Profiles | fork's `cache-a2-v1` (2 expert slots) then `cache-b512-v1` (512 slots); one CPU worker, nonfused path, context 512, fixed Russian greeting, greedy                                                            |
 
 The model was downloaded by the 1.7.0.1621 build through a LocalState
 manifest override (with the #440 and #447 downloader fixes), then the test
