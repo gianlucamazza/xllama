@@ -17,7 +17,7 @@ four-column prefill kernel (#414) is correct (output byte-identical) but
 failed its preregistered performance campaign: 1.5 times faster prefill on
 Coder-3B, 15 % slower on LFM2.5-1.2B
 ([campaign](research/evidence/2026-11-16-c4-performance/README.md)). It is
-not promoted. The dated sections below record each step as it happened; a
+not promoted: #414 is closed without merge and its branch is kept. The dated sections below record each step as it happened; a
 "stay stopped" in an earlier section is superseded by the later ones.
 
 **Status (2026-10-25):** the shipping catalogue GPU default is LFM2.5-1.2B.

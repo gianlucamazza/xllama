@@ -28,7 +28,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     preregistered paired performance campaign (6 cells, 240 runs) failed:
     prefill 1.50 times on Coder-3B and 0.84 times on LFM2.5-1.2B, the model
     that runs on the GPU by default, with decode and memory unchanged. The
-    kernel is not promoted and stays off.
+    kernel is not promoted: the draft (#414) is closed without merge and its
+    branch is kept.
   - Evidence: `docs/research/evidence/2026-11-15-*` and `2026-11-16-*`.
 
 - **Paired bench campaigns.** `scripts/bench-paired-knob.sh` runs matched
