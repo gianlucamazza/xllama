@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Four-column prefill kernel: performance campaign FAIL.** The
+  preregistered paired campaign (6 cells, 240 runs) found the kernel 1.50
+  times faster in prefill on Coder-3B and 0.84 times on LFM2.5-1.2B, with
+  decode and memory unchanged on both. The rule requires every cell, and the
+  model that runs on the GPU by default gets slower, so the kernel is not
+  promoted and stays off. Evidence:
+  `docs/research/evidence/2026-11-16-c4-performance/`.
+
 - **Paired bench campaigns.** `scripts/bench-paired-knob.sh` runs matched
   A/B bench pairs that differ by one LocalState knob, alternating the order,
   checking from the app log that each arm ran the intended code path, and
