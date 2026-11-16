@@ -729,10 +729,13 @@ Source/evidence discovery and the conditional 6–8 week stages are in the
 
 **Order of work**
 
-1. **#421:** opt-in timing per dispatch in the d3d12 backend, grouped by
-   weight type and column count, with an overhead calibration on the console.
-   Its first question: why the four-column Q4_0 shader is slower while the
-   K-quant ones are faster.
+1. **#421:** per-dispatch timing is in `main` (#474) and calibrated on the
+   console (prefill unaffected, decode about 4 % slower with the knob). It
+   found that the four-column Q4_0 shader is 1.14 to 1.25 times slower per
+   dispatch while the K-quant ones take half the time
+   ([evidence](docs/research/evidence/2026-11-16-d3d12-dispatch-timing/README.md)).
+   What remains of #421 is per-layer attribution and the CSV or sidecar
+   integration.
 2. **#422:** no new GPU prefill path to qualify; the matched Series S and
    Series X matrix needs project measurements on a Series X.
 3. **#457:** the Series X runs are about 2.4 times slower with the App

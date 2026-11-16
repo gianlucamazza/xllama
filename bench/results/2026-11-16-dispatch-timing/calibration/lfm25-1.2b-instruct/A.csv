@@ -1,0 +1,5 @@
+model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,run_index,prefill_ms,ttft_ms
+lfm25-1.2b-instruct,Q4_0,d3d12,2048,6,249.85,64.65,861,5105,678,3801,1000,128,0,xbox-series-s-declared-t6-g99-noeog,2026-11-16T08:50:29Z,2,4002.4,4003.3
+lfm25-1.2b-instruct,Q4_0,d3d12,2048,6,250.08,63.65,860,5134,678,3801,1000,128,0,xbox-series-s-declared-t6-g99-noeog,2026-11-16T08:52:20Z,2,3998.7,3999.6
+lfm25-1.2b-instruct,Q4_0,d3d12,2048,6,250.09,64.17,860,5142,678,3801,1000,128,0,xbox-series-s-declared-t6-g99-noeog,2026-11-16T08:52:59Z,2,3998.6,3999.4
+lfm25-1.2b-instruct,Q4_0,d3d12,2048,6,249.59,64.34,860,5137,678,3801,1000,128,0,xbox-series-s-declared-t6-g99-noeog,2026-11-16T08:54:55Z,2,4006.6,4007.5

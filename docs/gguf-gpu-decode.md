@@ -930,3 +930,11 @@ their time is not in any row. The barriers serialise dispatches that could
 overlap without them, so the per-dispatch times add up to more than an
 unmodified run's GPU time: compare a run with the knob against one without
 before reading absolute figures. The knob changes no result.
+
+Measured on the Series S (2026-11-16,
+[evidence](research/evidence/2026-11-16-d3d12-dispatch-timing/README.md)):
+the knob leaves prefill throughput and time to first token unchanged and costs
+about 4 % of decode. Its first use located the four-column result of #470 in
+the shaders: per dispatch, the four-column Q4_0 shader takes 1.25 times
+(64 threads) and 1.14 times (128 threads) as long as the single-column one,
+while the four-column Q4_K and Q6_K shaders take about half as long.
