@@ -529,3 +529,34 @@ graph and an adapter-identity probe, as three more patches (fifteen in
 total), plus signing-recipe changes. The fork still patches llama.cpp,
 reports no tok/s or peak memory, adds no tests and describes itself as
 compile and package only. None of the conditions for reopening it is met.
+
+### vetax-by: first Series S CPU results, 2026-11-16
+
+The branch head is now `61bf63a` (one more commit: a configurable
+single-turn CPU/hybrid generation API, Windows build only). In
+[Discussion #435](https://github.com/gianlucamazza/xllama/discussions/435)
+the author reports the first console runs of the streamed-expert path: a
+24B/A2B Q4_K_M MoE on a Series S, CPU only, one worker, the nonfused path
+and a 512-token context. The figures are the author's summary; no raw logs
+are in this repository.
+
+- A full single turn ends on the model's own EOS/EOT with a normal teardown;
+  repeated runs of one configuration give identical outputs and routes.
+- A 512-slot expert cache hits about 35 % of acquisitions (a 2-slot cache:
+  none) and cuts logical reads from about 213 to 138 GB. Time to the first
+  token falls from about 70 to 49 s; about 1.0 s per later token.
+- Highest sampled application memory about 2.01 GiB against the 5 GiB limit
+  (sampled, not a proven peak).
+- No full-checkpoint resident-versus-streamed logit comparison yet; the GPU
+  expert path is built but has not run on a console.
+- Console testing is paused: Dev Mode sign-in fails with `0x80004005` on the
+  author's Series S.
+
+Against the reopen conditions above: the console is now named, but the rate
+(about 1 tok/s) comes from a deliberately constrained configuration at a
+non-product `n_ctx`, the memory figure is sampled, and the raw logs are not
+published. The [#273] verdict and the SSD assessment are unchanged. It is a
+capacity result, a model larger than the app memory limit completing a turn,
+not a speed result against the dense peer. The maintainer reply agrees
+to start from the provider/cache foundation (#479) and to reproduce the CPU
+path on a project console.

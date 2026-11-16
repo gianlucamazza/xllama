@@ -55,7 +55,9 @@ performance belongs in `docs/benchmarks.md`.
 ### Current follow-up priorities
 
 1. **Vendor pin drops** (#84/#85/#86) — blocked until NuGet moves
-   (`scripts/check-vendor-nuget-status.sh`, poll 2026-08-27: still required).
+   (`scripts/check-vendor-nuget-status.sh`, poll 2026-11-16: still required;
+   the DirectML packages have not followed the CPU releases since June, see
+   #85).
 2. **Release readiness** — dual-SKU policy, licence matrix, and App vs Game
    gate in `docs/release-readiness.md`. Do not stamp a different publisher CN
    onto the Developer Mode package.
@@ -735,7 +737,13 @@ Source/evidence discovery and the conditional 6–8 week stages are in the
    dispatch while the K-quant ones take half the time
    ([evidence](docs/research/evidence/2026-11-16-d3d12-dispatch-timing/README.md)).
    What remains of #421 is per-layer attribution and the CSV or sidecar
-   integration.
+   integration. An independent Series X run of the same knob
+   ([report](https://github.com/gianlucamazza/xllama/issues/421#issuecomment-6914667256),
+   operator-declared, not imported as evidence) points attribution at the
+   time between submission and fence that the timestamps do not cover: in
+   decode it exceeds the GPU time. The same report finds that the host
+   working set does not drop when layers move to the GPU; not yet checked on
+   the Series S.
 2. **#422:** no new GPU prefill path to qualify; the matched Series S and
    Series X matrix needs project measurements on a Series X.
 3. **#457, closed:** the App designation caps the app's CPU about ten
