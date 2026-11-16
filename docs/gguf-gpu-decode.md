@@ -820,6 +820,27 @@ Coder-3B Q4_K_M, package 1.7.0.1587, seventeen new prompts.
 The correctness prerequisite of #313 is met for this model. Nothing here is
 a speed result, and LFM2.5-1.2B was not put through the control.
 
+### 2026-11-16 control on LFM2.5-1.2B: PASS
+
+The same two-part control on `lfm25-1.2b-instruct` (QAD Q4_0), the model that
+runs on the GPU by default, with the shipping single-column kernels
+([evidence](research/evidence/2026-11-16-adr0010-control-lfm25-1.2b/README.md)).
+
+- **Part 1 passes.** All 160 captured Q4_0 products (16 layers of a 41-token
+  prompt, layers 0 to 5 of a 538-token prompt) are within 1.7e-14 NMSE of the
+  exact reference on the GPU arm.
+- **Part 2 passes against the declared floor.** Over 5,284 positions the GPU
+  arm's mean KL divergence from the console CPU arm is 1.035 times that of a
+  CPU build on llama.cpp's plain kernels (upper bound 1.068, limit 1.95), and
+  its top-token agreement is the same within 0.17 points.
+- On this model the console and host builds of the repacked kernels are a
+  closer pair than either is to the plain kernels. Against that closer pair
+  the GPU arm is 1.32 times as far and loses 0.68 points of top-token
+  agreement, as the plain-kernel CPU build does. The floor was declared
+  before the GPU arm was measured.
+
+This is the baseline for the four-column kernel on this model.
+
 ### Attributable request counters (#421)
 
 A GGUF run with GPU layers logs one `[xllama] d3d12-phase` line after the

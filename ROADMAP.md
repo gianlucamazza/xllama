@@ -722,11 +722,14 @@ Source/evidence discovery and the conditional 6–8 week stages are in the
 
 **Order of work**
 
-1. **#313 / #414:** unblocked on correctness. A control under the amended
-   ADR 0010 passed on 2026-11-15
-   ([evidence](docs/research/evidence/2026-11-15-adr0010-control-2/README.md)).
-   Next: the C4 kernel through the same control, then the resource and H9
-   gates and the frozen paired performance protocol.
+1. **#313 / #414:** unblocked on correctness. Controls under the amended
+   ADR 0010 passed for Coder-3B
+   ([evidence](docs/research/evidence/2026-11-15-adr0010-control-2/README.md))
+   and for LFM2.5-1.2B
+   ([evidence](docs/research/evidence/2026-11-16-adr0010-control-lfm25-1.2b/README.md))
+   with the single-column kernels. #414 is merged up to `main`. Next: the C4
+   kernel through the same control on both models, then the resource and H9
+   gates and the paired performance protocol.
 2. **#421, in parallel:** opt-in timing attribution per operator and layer in
    the d3d12 backend, with an overhead calibration on the console.
 3. **#422:** routing qualification after #313; the matched Series S and

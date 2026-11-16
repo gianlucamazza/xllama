@@ -7,6 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **GPU control on LFM2.5-1.2B: PASS.** The model that runs on the GPU by
+  default went through the amended ADR 0010 control on the Series S. All 160
+  captured Q4_0 products are within 1.7e-14 NMSE of an exact reference, and
+  over 5,284 positions the GPU arm is as close to the CPU arm as a CPU build
+  on llama.cpp's plain kernels is (KL-divergence ratio 1.035, top-token
+  agreement equal within 0.17 points). Two builds of the repacked CPU kernels
+  agree more closely with each other than either does with the GPU arm or the
+  plain kernels. Evidence:
+  `docs/research/evidence/2026-11-16-adr0010-control-lfm25-1.2b/`.
+
 - **Reference check covers Q4_0 models.** `check-matmul-reference.py` and
   `control-parity.py reference` now reproduce ggml's q8_0 activation
   quantizer as well as q8_K, so a model with Q4_0, Q5_0 or Q8_0 weights can be
