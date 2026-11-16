@@ -7,10 +7,11 @@
     "identity": "GianlucaMazza.xllama",
     "version": "1.7.0.1651",
     "ci_run": 43885657413,
-    "source_branch": "test/ua50-moe-console-main-8b",
     "patch_route": "vetax-by/xllama 61bf63a, 17 patches matching PATCH-LOCK.json, applied on main 568e883",
     "pin_changes": "model, chat template, shape tuple (24, 32, 66, 3010560) and B512 cache ceiling 1600 MiB for LFM2.5-8B-A1B",
-    "llama_cpp": "d81235049384534c167caea52b85a694f6103d14"
+    "llama_cpp": "d81235049384534c167caea52b85a694f6103d14",
+    "source_tag": "evidence/2026-11-16-moe-8b-console",
+    "source_commit": "3f8b5f243cf0100752d9281cbcc020d4cf1fbb53"
   },
   "model": {
     "repo": "LiquidAI/LFM2.5-8B-A1B-GGUF",
