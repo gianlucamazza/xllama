@@ -911,3 +911,22 @@ timestamp pair (`ts_valid`/`ts_missing`). These are CPU-side intervals around
 each step plus GPU timestamps. Wall minus GPU time is not CPU compute time,
 and none of these fields is a throughput result until it comes from a bound
 console package. A CPU run prints no line.
+
+**Per-dispatch timing (opt-in).** With `LocalState\d3d12-dispatch-timing.txt`
+containing `1` when the backend starts (the boot log says
+`d3d12: dispatch_timing=1`), every dispatch is followed by a UAV barrier and a
+GPU timestamp. After each phase line the log then carries one line per kind
+of dispatch, sorted by GPU time, and a summary:
+
+```
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=1 threads=128 cols=512+ count=48 gpu_ms=… ms_per=… weight_mib=… columns=…
+[xllama] d3d12-dispatch phase=prefill summary kinds=6 timed=94 missing=0 gpu_ms=…
+```
+
+A kind is the operation, the weight type, the kernel's columns per group
+(`cpg`), its thread width and a column class (`1`, `2-63`, `64-511`,
+`512+`). `missing` counts dispatches whose timestamp pair was not increasing;
+their time is not in any row. The barriers serialise dispatches that could
+overlap without them, so the per-dispatch times add up to more than an
+unmodified run's GPU time: compare a run with the knob against one without
+before reading absolute figures. The knob changes no result.

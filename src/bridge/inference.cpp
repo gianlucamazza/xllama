@@ -835,8 +835,12 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_prompt0)
             .count();
     wd.prefill_done(n_prompt_tokens, prompt_ms);
-    if (gpu_layers > 0 && ggml_d3d12_take_stats(&d3d12_phase))
+    if (gpu_layers > 0 && ggml_d3d12_take_stats(&d3d12_phase)) {
         log_output(format_d3d12_phase("prefill", d3d12_phase));
+        const std::string per = format_d3d12_dispatch_profile("prefill", d3d12_phase.dispatch);
+        if (!per.empty())
+            log_output(per);
+    }
 
     // Logit-parity dump: capture the last prefill-token logits (one deterministic
     // forward pass, no autoregressive drift) before any sampling touches them.
@@ -892,8 +896,12 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     dlp.watchdog = &wd;
     wd.enter_decode(params.n_predict);
     const DecodeLoopResult dlr = decode_loop(dlp, res.output_text);
-    if (gpu_layers > 0 && ggml_d3d12_take_stats(&d3d12_phase))
+    if (gpu_layers > 0 && ggml_d3d12_take_stats(&d3d12_phase)) {
         log_output(format_d3d12_phase("decode", d3d12_phase));
+        const std::string per = format_d3d12_dispatch_profile("decode", d3d12_phase.dispatch);
+        if (!per.empty())
+            log_output(per);
+    }
     const int n_generated = dlr.n_generated;
     res.ended_with_stop = dlr.ended_with_stop;
     res.n_drafted = dlr.n_drafted;
