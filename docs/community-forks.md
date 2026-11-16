@@ -560,3 +560,11 @@ capacity result, a model larger than the app memory limit completing a turn,
 not a speed result against the dense peer. The maintainer reply agrees
 to start from the provider/cache foundation (#479) and to reproduce the CPU
 path on a project console.
+
+**Reproduced on a project console, same day.** The seventeen patches, built
+by this repository's CI and installed in place on a project Series S, gave
+the same turn with both cache profiles: identical tokens, 67.6 / 48.5 s to the
+first token, 0.72 / 1.00 tok/s, 0 / 39330 hits of 112176 requests
+([evidence](research/evidence/2026-11-16-moe-24b-console/README.md)). The
+author's figures stand; the #273 verdict is still unchanged, for the reasons
+above.

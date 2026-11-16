@@ -11,6 +11,20 @@ Sizes below come from public file listings and third-party pages (sources at
 the end). They are desk figures: read the exact byte count from the chosen
 repository before a download, and bind it by SHA-256 in the campaign.
 
+## Status, 2026-11-16
+
+| Model                                                                                                                 | Streamed on the console                                                                                                         | Resident on the console                                                                 | Host fixture                                  |
+| --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------- |
+| LFM2.5-24B-A2B Q4_K_M                                                                                                 | 0.72 / 1.00 tok/s (2 / 512 slots), EOS ([evidence](evidence/2026-11-16-moe-24b-console/README.md))                              | does not fit                                                                            | `lfm2moe` loads and decodes                   |
+| LFM2.5-8B-A1B Q4_K_M                                                                                                  | 1.18 / 2.47 tok/s, native EOS; record flagged by the 24B-sized trace ([evidence](evidence/2026-11-16-moe-8b-console/README.md)) | loads, compute buffer refused ([rows](../../bench/results/2026-11-16-moe-8b/README.md)) | same                                          |
+| LFM2.5-8B-A1B UD-IQ3_S (H2)                                                                                           | not run                                                                                                                         | 14.42 tok/s decode, 3560 MiB                                                            | same                                          |
+| Ling-mini-2.0, ERNIE-4.5-21B-A3B, SmallThinker-21B, gpt-oss-20b, Gemma 4 26B-A4B, Trinity Mini, Maple-Preview 20B-A1B | needs the provider beyond `lfm2moe` (plan Task 5)                                                                               | —                                                                                       | each architecture's fixture loads and decodes |
+
+Maple-Preview 20B-A1B (`maple`) joins the list: its official TQ1_0/TQ2_0
+files (4.98 / 5.9 GB, 1B active) were excluded by the resident #273 envelope,
+which streaming lifts; ternary experts are CPU-only. Fixtures:
+`scripts/make-moe-fixture.py`.
+
 ## Filters
 
 A model enters the list only if all hold:

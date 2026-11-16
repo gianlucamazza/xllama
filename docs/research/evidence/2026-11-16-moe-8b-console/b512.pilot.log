@@ -1,0 +1,1298 @@
+[cpu-pilot] LocalFolder caller_free=6015635456 total=32212242432 total_free=6015635456
+[cpu-pilot] quota phase=entry pid=3804 utc100ns=134393138122334251 limit=5368709120 usage=7389184 level=0 pressure=0
+[cpu-pilot] quota phase=after-quota-subscription pid=3804 utc100ns=134393138122334251 limit=5368709120 usage=7434240 level=0 pressure=0
+[cpu-pilot] quota phase=trace-buffer-allocated pid=3804 utc100ns=134393138122344267 limit=5368709120 usage=7974912 level=0 pressure=0
+[cpu-pilot] quota phase=backend-initialized pid=3804 utc100ns=134393138122384240 limit=5368709120 usage=8024064 level=0 pressure=0
+[cpu-pilot] quota phase=before-source pid=3804 utc100ns=134393138122384240 limit=5368709120 usage=8024064 level=0 pressure=0
+[cpu-pilot] quota phase=before-held-SHA pid=3804 utc100ns=134393138122384240 limit=5368709120 usage=8024064 level=0 pressure=0
+[cpu-pilot] quota phase=held-SHA-admitted pid=3804 utc100ns=134393138245964255 limit=5368709120 usage=7647232 level=0 pressure=0
+[cpu-pilot] quota phase=before-metadata pid=3804 utc100ns=134393138245964255 limit=5368709120 usage=7651328 level=0 pressure=0
+[cpu-pilot] quota phase=before-native-sizing pid=3804 utc100ns=134393138246574338 limit=5368709120 usage=11620352 level=0 pressure=0
+[cpu-pilot] joint-plan resident=484570880 kv_recurrent=6586368 scheduler=559328 cpu_workspace=536064 output=3133736 cache=1541454720 stage=3010560 extra_reserve=536870912
+[cpu-pilot] quota phase=before-payload-allocation pid=3804 utc100ns=134393138252824241 limit=5368709120 usage=61603840 level=0 pressure=0
+[cpu-pilot] quota phase=before-model-load pid=3804 utc100ns=134393138252824241 limit=5368709120 usage=61603840 level=0 pressure=0
+[cpu-pilot] quota phase=after-weights-before-context pid=3804 utc100ns=134393138264544242 limit=5368709120 usage=2108649472 level=0 pressure=0
+[cpu-pilot] quota phase=context-ready pid=3804 utc100ns=134393138264624241 limit=5368709120 usage=2161242112 level=0 pressure=0
+[cpu-pilot] quota phase=before-turn pid=3804 utc100ns=134393138264634254 limit=5368709120 usage=2161299456 level=0 pressure=0
+[cpu-pilot] status cpu-expert prefill
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138264654250 limit=5368709120 usage=2161315840 level=0 pressure=0
+[cpu-pilot] cache hits=0 misses=264 evictions=0 logical_reads=264 logical_bytes=582844416 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138274664248 limit=5368709120 usage=2157096960 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138274664248 limit=5368709120 usage=2157096960 level=0 pressure=0
+[cpu-pilot] cache hits=117 misses=411 evictions=0 logical_reads=411 logical_bytes=905232384 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138281174273 limit=5368709120 usage=2157096960 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138281174273 limit=5368709120 usage=2157096960 level=0 pressure=0
+[cpu-pilot] cache hits=339 misses=453 evictions=0 logical_reads=453 logical_bytes=999505920 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138283784250 limit=5368709120 usage=2157109248 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138283784250 limit=5368709120 usage=2157109248 level=0 pressure=0
+[cpu-pilot] cache hits=561 misses=495 evictions=0 logical_reads=495 logical_bytes=1095671808 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138286704287 limit=5368709120 usage=2156969984 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138286704287 limit=5368709120 usage=2156969984 level=0 pressure=0
+[cpu-pilot] cache hits=723 misses=597 evictions=85 logical_reads=597 logical_bytes=1321377792 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138291274388 limit=5368709120 usage=2156994560 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138291274388 limit=5368709120 usage=2156994560 level=0 pressure=0
+[cpu-pilot] cache hits=819 misses=765 evictions=253 logical_reads=765 logical_bytes=1695633408 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138298004242 limit=5368709120 usage=2156982272 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138298004242 limit=5368709120 usage=2156982272 level=0 pressure=0
+[cpu-pilot] cache hits=978 misses=870 evictions=358 logical_reads=870 logical_bytes=1928478720 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138302524243 limit=5368709120 usage=2157010944 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138302524243 limit=5368709120 usage=2157010944 level=0 pressure=0
+[cpu-pilot] cache hits=1191 misses=921 evictions=409 logical_reads=921 logical_bytes=2041331712 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138305224242 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138305224242 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] cache hits=1389 misses=987 evictions=475 logical_reads=987 logical_bytes=2185150464 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138308904242 limit=5368709120 usage=2156986368 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138308904242 limit=5368709120 usage=2156986368 level=0 pressure=0
+[cpu-pilot] cache hits=1575 misses=1065 evictions=553 logical_reads=1065 logical_bytes=2355634176 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138312534267 limit=5368709120 usage=2157002752 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138312534267 limit=5368709120 usage=2157002752 level=0 pressure=0
+[cpu-pilot] cache hits=1803 misses=1101 evictions=589 logical_reads=1101 logical_bytes=2436575232 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138314864249 limit=5368709120 usage=2157015040 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138314864249 limit=5368709120 usage=2157015040 level=0 pressure=0
+[cpu-pilot] cache hits=1989 misses=1179 evictions=667 logical_reads=1179 logical_bytes=2608951296 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138318754421 limit=5368709120 usage=2157006848 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138318754421 limit=5368709120 usage=2157006848 level=0 pressure=0
+[cpu-pilot] cache hits=2174 misses=1258 evictions=746 logical_reads=1258 logical_bytes=2781499392 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138322284252 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138322284252 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] cache hits=2348 misses=1348 evictions=836 logical_reads=1348 logical_bytes=2980540416 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138326344273 limit=5368709120 usage=2157015040 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138326344273 limit=5368709120 usage=2157015040 level=0 pressure=0
+[cpu-pilot] cache hits=2531 misses=1429 evictions=917 logical_reads=1429 logical_bytes=3161001984 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138330084256 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138330084256 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] cache hits=2732 misses=1492 evictions=980 logical_reads=1492 logical_bytes=3299573760 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138333174262 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138333174262 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] cache hits=2930 misses=1558 evictions=1046 logical_reads=1558 logical_bytes=3446231040 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138336504243 limit=5368709120 usage=2157019136 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138336504243 limit=5368709120 usage=2157019136 level=0 pressure=0
+[cpu-pilot] cache hits=3113 misses=1639 evictions=1127 logical_reads=1639 logical_bytes=3625746432 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138340184255 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138340184255 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] cache hits=3311 misses=1705 evictions=1193 logical_reads=1705 logical_bytes=3772403712 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138343364243 limit=5368709120 usage=2157027328 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138343364243 limit=5368709120 usage=2157027328 level=0 pressure=0
+[cpu-pilot] cache hits=3533 misses=1747 evictions=1235 logical_reads=1747 logical_bytes=3866677248 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138345784256 limit=5368709120 usage=2157031424 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138345784256 limit=5368709120 usage=2157031424 level=0 pressure=0
+[cpu-pilot] cache hits=3683 misses=1861 evictions=1349 logical_reads=1861 logical_bytes=4116209664 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138350494346 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138350494346 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] cache hits=3833 misses=1975 evictions=1463 logical_reads=1975 logical_bytes=4370472960 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138355144249 limit=5368709120 usage=2157031424 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138355144249 limit=5368709120 usage=2157031424 level=0 pressure=0
+[cpu-pilot] cache hits=4034 misses=2038 evictions=1526 logical_reads=2038 logical_bytes=4509044736 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138358224246 limit=5368709120 usage=2157015040 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138358224246 limit=5368709120 usage=2157015040 level=0 pressure=0
+[cpu-pilot] cache hits=4241 misses=2095 evictions=1583 logical_reads=2095 logical_bytes=4632391680 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138361084257 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138361084257 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] cache hits=4424 misses=2176 evictions=1664 logical_reads=2176 logical_bytes=4809068544 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138364734392 limit=5368709120 usage=2157027328 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138364734392 limit=5368709120 usage=2157027328 level=0 pressure=0
+[cpu-pilot] cache hits=4622 misses=2242 evictions=1730 logical_reads=2242 logical_bytes=4953833472 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138367904242 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138367904242 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] cache hits=4826 misses=2302 evictions=1790 logical_reads=2302 logical_bytes=5085265920 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138370854258 limit=5368709120 usage=2157031424 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138370854258 limit=5368709120 usage=2157031424 level=0 pressure=0
+[cpu-pilot] cache hits=5042 misses=2350 evictions=1838 logical_reads=2350 logical_bytes=5189087232 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138373454371 limit=5368709120 usage=2157031424 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138373454371 limit=5368709120 usage=2157031424 level=0 pressure=0
+[cpu-pilot] cache hits=5252 misses=2404 evictions=1892 logical_reads=2404 logical_bytes=5307187200 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138376244250 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138376244250 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] cache hits=5480 misses=2440 evictions=1928 logical_reads=2440 logical_bytes=5385289728 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138378444249 limit=5368709120 usage=2157031424 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138378444249 limit=5368709120 usage=2157031424 level=0 pressure=0
+[cpu-pilot] cache hits=5705 misses=2479 evictions=1967 logical_reads=2479 logical_bytes=5474316288 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138380804242 limit=5368709120 usage=2157031424 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138380804242 limit=5368709120 usage=2157031424 level=0 pressure=0
+[cpu-pilot] cache hits=5837 misses=2611 evictions=2099 logical_reads=2611 logical_bytes=5764792320 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138385944266 limit=5368709120 usage=2157031424 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138385944266 limit=5368709120 usage=2157031424 level=0 pressure=0
+[cpu-pilot] cache hits=5999 misses=2713 evictions=2201 logical_reads=2713 logical_bytes=5989552128 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138390134272 limit=5368709120 usage=2157027328 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138390134272 limit=5368709120 usage=2157027328 level=0 pressure=0
+[cpu-pilot] cache hits=6144 misses=2832 evictions=2320 logical_reads=2832 logical_bytes=6247514112 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138394804244 limit=5368709120 usage=2157027328 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138394804244 limit=5368709120 usage=2157027328 level=0 pressure=0
+[cpu-pilot] cache hits=6321 misses=2919 evictions=2407 logical_reads=2919 logical_bytes=6438469632 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138398594348 limit=5368709120 usage=2157019136 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138398594348 limit=5368709120 usage=2157019136 level=0 pressure=0
+[cpu-pilot] cache hits=6498 misses=3006 evictions=2494 logical_reads=3006 logical_bytes=6630371328 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138402354369 limit=5368709120 usage=2157019136 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138402354369 limit=5368709120 usage=2157019136 level=0 pressure=0
+[cpu-pilot] cache hits=6681 misses=3087 evictions=2575 logical_reads=3087 logical_bytes=6804209664 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138405854405 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138405854405 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] cache hits=6891 misses=3141 evictions=2629 logical_reads=3141 logical_bytes=6922309632 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138408614260 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138408614260 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] cache hits=7086 misses=3210 evictions=2698 logical_reads=3210 logical_bytes=7073267712 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138411794245 limit=5368709120 usage=2157031424 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138411794245 limit=5368709120 usage=2157031424 level=0 pressure=0
+[cpu-pilot] cache hits=7233 misses=3327 evictions=2815 logical_reads=3327 logical_bytes=7333724160 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138416444248 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138416444248 limit=5368709120 usage=2157023232 level=0 pressure=0
+[cpu-pilot] cache hits=7446 misses=3378 evictions=2866 logical_reads=3378 logical_bytes=7445630976 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138419134274 limit=5368709120 usage=2157027328 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138419134274 limit=5368709120 usage=2157027328 level=0 pressure=0
+[cpu-pilot] cache hits=7596 misses=3492 evictions=2980 logical_reads=3492 logical_bytes=7694217216 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138423754267 limit=5368709120 usage=2156916736 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138423754267 limit=5368709120 usage=2156916736 level=0 pressure=0
+[cpu-pilot] cache hits=7749 misses=3603 evictions=3091 logical_reads=3603 logical_bytes=7939448832 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138428414384 limit=5368709120 usage=2156875776 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138428414384 limit=5368709120 usage=2156875776 level=0 pressure=0
+[cpu-pilot] cache hits=7890 misses=3726 evictions=3214 logical_reads=3726 logical_bytes=8209453056 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138433264242 limit=5368709120 usage=2156896256 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138433264242 limit=5368709120 usage=2156896256 level=0 pressure=0
+[cpu-pilot] cache hits=7977 misses=3903 evictions=3391 logical_reads=3903 logical_bytes=8596611072 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138439704266 limit=5368709120 usage=2156871680 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138439704266 limit=5368709120 usage=2156871680 level=0 pressure=0
+[cpu-pilot] cache hits=8154 misses=3990 evictions=3478 logical_reads=3990 logical_bytes=8784728064 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138443404242 limit=5368709120 usage=2156892160 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138443404242 limit=5368709120 usage=2156892160 level=0 pressure=0
+[cpu-pilot] cache hits=8328 misses=4080 evictions=3568 logical_reads=4080 logical_bytes=8981876736 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138447264240 limit=5368709120 usage=2156871680 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138447264240 limit=5368709120 usage=2156871680 level=0 pressure=0
+[cpu-pilot] cache hits=8511 misses=4161 evictions=3649 logical_reads=4161 logical_bytes=9159499776 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138450804243 limit=5368709120 usage=2156888064 level=0 pressure=0
+[cpu-pilot] status cpu-expert decode
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138450804243 limit=5368709120 usage=2156888064 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138450804243 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] cache hits=8742 misses=4194 evictions=3682 logical_reads=4194 logical_bytes=9233301504 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138452934285 limit=5368709120 usage=2158444544 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138452934285 limit=5368709120 usage=2158444544 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138452934285 limit=5368709120 usage=2158444544 level=0 pressure=0
+[cpu-pilot] cache hits=8919 misses=4281 evictions=3769 logical_reads=4281 logical_bytes=9428987904 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138456854269 limit=5368709120 usage=2158415872 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138456854269 limit=5368709120 usage=2158415872 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138456864246 limit=5368709120 usage=2158415872 level=0 pressure=0
+[cpu-pilot] cache hits=9046 misses=4418 evictions=3906 logical_reads=4418 logical_bytes=9734516736 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138462114337 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138462114337 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138462114337 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] cache hits=9178 misses=4550 evictions=4038 logical_reads=4550 logical_bytes=10024992768 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138467304242 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138467304242 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138467314338 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] cache hits=9307 misses=4685 evictions=4173 logical_reads=4685 logical_bytes=10324500480 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138472554410 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138472554410 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138472564254 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] cache hits=9502 misses=4754 evictions=4242 logical_reads=4754 logical_bytes=10475458560 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138475834342 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138475834342 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138475834342 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] cache hits=9637 misses=4883 evictions=4371 logical_reads=4883 logical_bytes=10759741440 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138480894357 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138480894357 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138480904242 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] cache hits=9781 misses=5003 evictions=4491 logical_reads=5003 logical_bytes=11028283392 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138485714354 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138485714354 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138485714354 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] cache hits=9975 misses=5073 evictions=4561 logical_reads=5073 logical_bytes=11182252032 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138488984262 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138488984262 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138488994364 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] cache hits=10176 misses=5136 evictions=4624 logical_reads=5136 logical_bytes=11321769984 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138492034338 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138492044277 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138492044277 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] cache hits=10374 misses=5202 evictions=4690 logical_reads=5202 logical_bytes=11465588736 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138495134394 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138495134394 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138495134394 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] cache hits=10590 misses=5250 evictions=4738 logical_reads=5250 logical_bytes=11573194752 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138497734275 limit=5368709120 usage=2158415872 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138497734275 limit=5368709120 usage=2158415872 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138497744247 limit=5368709120 usage=2158415872 level=0 pressure=0
+[cpu-pilot] cache hits=10797 misses=5307 evictions=4795 logical_reads=5307 logical_bytes=11700326400 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138500644257 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138500644257 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138500654389 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] cache hits=10989 misses=5379 evictions=4867 logical_reads=5379 logical_bytes=11858423808 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138503924242 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138503924242 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138503924242 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] cache hits=11142 misses=5490 evictions=4978 logical_reads=5490 logical_bytes=12102709248 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138508374259 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138508374259 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138508374259 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] cache hits=11352 misses=5544 evictions=5032 logical_reads=5544 logical_bytes=12222701568 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138511144243 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138511144243 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138511154402 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] cache hits=11541 misses=5619 evictions=5107 logical_reads=5619 logical_bytes=12387938304 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138514544248 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138514544248 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138514544248 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] cache hits=11757 misses=5667 evictions=5155 logical_reads=5667 logical_bytes=12493651968 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138517124240 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138517124240 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138517124240 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] cache hits=11991 misses=5697 evictions=5185 logical_reads=5697 logical_bytes=12562206720 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138519154364 limit=5368709120 usage=2158424064 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138519154364 limit=5368709120 usage=2158424064 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138519154364 limit=5368709120 usage=2158424064 level=0 pressure=0
+[cpu-pilot] cache hits=12195 misses=5757 evictions=5245 logical_reads=5757 logical_bytes=12694585344 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138522204243 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138522204243 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138522204243 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] cache hits=12387 misses=5829 evictions=5317 logical_reads=5829 logical_bytes=12850790400 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138525504245 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138525504245 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138525514369 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] cache hits=12582 misses=5898 evictions=5386 logical_reads=5898 logical_bytes=13000802304 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138528714342 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138528714342 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138528724241 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] cache hits=12720 misses=6024 evictions=5512 logical_reads=6024 logical_bytes=13276053504 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138533634416 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138533634416 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138533634416 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] cache hits=12849 misses=6159 evictions=5647 logical_reads=6159 logical_bytes=13575561216 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138538834382 limit=5368709120 usage=2158415872 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138538834382 limit=5368709120 usage=2158415872 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138538834382 limit=5368709120 usage=2158415872 level=0 pressure=0
+[cpu-pilot] cache hits=13031 misses=6241 evictions=5729 logical_reads=6241 logical_bytes=13755248640 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138542454259 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138542454259 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138542454259 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] cache hits=13238 misses=6298 evictions=5786 logical_reads=6298 logical_bytes=13877649408 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138545324241 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138545324241 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138545324241 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] cache hits=13436 misses=6364 evictions=5852 logical_reads=6364 logical_bytes=14019575808 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138548444274 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138548444274 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138548454269 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] cache hits=13637 misses=6427 evictions=5915 logical_reads=6427 logical_bytes=14157201408 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138551504243 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138551504243 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138551504243 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] cache hits=13832 misses=6496 evictions=5984 logical_reads=6496 logical_bytes=14312890368 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138554664242 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138554664242 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138554664242 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] cache hits=14057 misses=6535 evictions=6023 logical_reads=6535 logical_bytes=14398132224 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138556964266 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138556964266 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138556974375 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] cache hits=14270 misses=6586 evictions=6074 logical_reads=6586 logical_bytes=14510039040 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138559634524 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138559634524 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138559644253 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] cache hits=14495 misses=6625 evictions=6113 logical_reads=6625 logical_bytes=14596227072 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138561974260 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138561974260 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138561974260 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] cache hits=14687 misses=6697 evictions=6185 logical_reads=6697 logical_bytes=14756216832 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138565244250 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138565244250 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138565244250 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] cache hits=14807 misses=6841 evictions=6329 logical_reads=6841 logical_bytes=15070519296 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138570704243 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138570704243 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138570714343 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] cache hits=14948 misses=6964 evictions=6452 logical_reads=6964 logical_bytes=15341469696 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138575544249 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138575544249 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138575554376 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] cache hits=15128 misses=7048 evictions=6536 logical_reads=7048 logical_bytes=15523393536 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138579114392 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138579114392 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138579114392 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] cache hits=15320 misses=7120 evictions=6608 logical_reads=7120 logical_bytes=15685275648 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138582464250 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138582464250 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138582464250 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] cache hits=15491 misses=7213 evictions=6701 logical_reads=7213 logical_bytes=15889563648 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138586434419 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138586434419 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138586444247 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] cache hits=15674 misses=7294 evictions=6782 logical_reads=7294 logical_bytes=16066240512 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138590004242 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138590004242 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138590014261 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] cache hits=15899 misses=7333 evictions=6821 logical_reads=7333 logical_bytes=16149590016 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138592304245 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138592304245 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138592314241 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] cache hits=16073 misses=7423 evictions=6911 logical_reads=7423 logical_bytes=16345792512 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138596154260 limit=5368709120 usage=2158436352 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138596154260 limit=5368709120 usage=2158436352 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138596154260 limit=5368709120 usage=2158436352 level=0 pressure=0
+[cpu-pilot] cache hits=16199 misses=7561 evictions=7049 logical_reads=7561 logical_bytes=16651493376 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138601354394 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138601354394 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138601364254 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] cache hits=16367 misses=7657 evictions=7145 logical_reads=7657 logical_bytes=16863866880 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138605284253 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138605284253 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138605284253 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] cache hits=16430 misses=7858 evictions=7346 logical_reads=7858 logical_bytes=17310978048 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138612474373 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138612474373 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138612474373 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] cache hits=16637 misses=7915 evictions=7403 logical_reads=7915 logical_bytes=17437163520 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138615334254 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138615334254 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138615334254 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] cache hits=16754 misses=8062 evictions=7550 logical_reads=8062 logical_bytes=17763336192 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138620944285 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138620944285 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138620944285 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] cache hits=16907 misses=8173 evictions=7661 logical_reads=8173 logical_bytes=18009513984 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138625464266 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138625464266 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138625474389 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] cache hits=17102 misses=8242 evictions=7730 logical_reads=8242 logical_bytes=18159525888 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138628694248 limit=5368709120 usage=2158415872 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138628694248 limit=5368709120 usage=2158415872 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138628694248 limit=5368709120 usage=2158415872 level=0 pressure=0
+[cpu-pilot] cache hits=17279 misses=8329 evictions=7817 logical_reads=8329 logical_bytes=18351427584 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138632464242 limit=5368709120 usage=2158436352 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138632464242 limit=5368709120 usage=2158436352 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138632474374 limit=5368709120 usage=2158436352 level=0 pressure=0
+[cpu-pilot] cache hits=17405 misses=8467 evictions=7955 logical_reads=8467 logical_bytes=18659020800 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138637834408 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138637834408 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138637844245 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] cache hits=17525 misses=8611 evictions=8099 logical_reads=8611 logical_bytes=18976161792 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138643284261 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138643284261 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138643284261 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] cache hits=17651 misses=8749 evictions=8237 logical_reads=8749 logical_bytes=19281862656 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138648564242 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138648564242 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138648574337 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] cache hits=17759 misses=8905 evictions=8393 logical_reads=8905 logical_bytes=19625668608 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138654414245 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138654414245 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138654414245 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] cache hits=17936 misses=8992 evictions=8480 logical_reads=8992 logical_bytes=19818516480 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138658184256 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138658184256 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138658184256 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] cache hits=18062 misses=9130 evictions=8618 logical_reads=9130 logical_bytes=20124217344 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138663454357 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138663454357 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138663454357 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] cache hits=18146 misses=9310 evictions=8798 logical_reads=9310 logical_bytes=20523245568 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138670004241 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138670004241 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138670004241 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] cache hits=18263 misses=9457 evictions=8945 logical_reads=9457 logical_bytes=20848472064 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138675524242 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138675524242 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138675524242 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] cache hits=18392 misses=9592 evictions=9080 logical_reads=9592 logical_bytes=21147033600 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138680714346 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138680714346 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138680724242 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] cache hits=18605 misses=9643 evictions=9131 logical_reads=9643 logical_bytes=21258940416 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138683394350 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138683394350 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138683404240 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] cache hits=18824 misses=9688 evictions=9176 logical_reads=9688 logical_bytes=21357514752 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138685874268 limit=5368709120 usage=2158448640 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138685874268 limit=5368709120 usage=2158448640 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138685884283 limit=5368709120 usage=2158448640 level=0 pressure=0
+[cpu-pilot] cache hits=19007 misses=9769 evictions=9257 logical_reads=9769 logical_bytes=21536083968 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138689504244 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138689504244 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138689504244 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] cache hits=19193 misses=9847 evictions=9335 logical_reads=9847 logical_bytes=21711298560 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138692984251 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138692984251 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138692994247 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] cache hits=19271 misses=10033 evictions=9521 logical_reads=10033 logical_bytes=22123659264 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138699604241 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138699604241 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138699614339 limit=5368709120 usage=2158407680 level=0 pressure=0
+[cpu-pilot] cache hits=19436 misses=10132 evictions=9620 logical_reads=10132 logical_bytes=22344118272 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138703804242 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138703804242 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138703804242 limit=5368709120 usage=2158428160 level=0 pressure=0
+[cpu-pilot] cache hits=19607 misses=10225 evictions=9713 logical_reads=10225 logical_bytes=22548406272 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138707734273 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138707734273 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138707734273 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] cache hits=19778 misses=10318 evictions=9806 logical_reads=10318 logical_bytes=22751748096 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138711764243 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138711764243 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138711764243 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] cache hits=19991 misses=10369 evictions=9857 logical_reads=10369 logical_bytes=22863654912 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138714474251 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138714474251 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138714484257 limit=5368709120 usage=2158432256 level=0 pressure=0
+[cpu-pilot] cache hits=20159 misses=10465 evictions=9953 logical_reads=10465 logical_bytes=23076974592 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138718514339 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138718514339 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138718514339 limit=5368709120 usage=2158411776 level=0 pressure=0
+[cpu-pilot] cache hits=20321 misses=10567 evictions=10055 logical_reads=10567 logical_bytes=23303626752 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138722824242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138722824242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138722824242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=20480 misses=10672 evictions=10160 logical_reads=10672 logical_bytes=23534579712 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138727174333 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138727174333 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138727174333 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=20621 misses=10795 evictions=10283 logical_reads=10795 logical_bytes=23807422464 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138732194354 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138732194354 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138732204242 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=20756 misses=10924 evictions=10412 logical_reads=10924 logical_bytes=24093597696 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138737244251 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138737244251 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138737244251 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=20951 misses=10993 evictions=10481 logical_reads=10993 logical_bytes=24244555776 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138740444247 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138740444247 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138740444247 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=21080 misses=11128 evictions=10616 logical_reads=11128 logical_bytes=24545009664 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138745604265 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138745604265 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138745604265 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=21185 misses=11287 evictions=10775 logical_reads=11287 logical_bytes=24893116416 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138751564242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138751564242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138751564242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=21380 misses=11356 evictions=10844 logical_reads=11356 logical_bytes=25043128320 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138754784255 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138754784255 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138754794295 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=21518 misses=11482 evictions=10970 logical_reads=11482 logical_bytes=25322164224 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138759764249 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138759764249 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138759764249 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=21695 misses=11569 evictions=11057 logical_reads=11569 logical_bytes=25513119744 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138763574261 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138763574261 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138763574261 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] cache hits=21887 misses=11641 evictions=11129 logical_reads=11641 logical_bytes=25671217152 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138766934273 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138766934273 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138766934273 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] cache hits=22106 misses=11686 evictions=11174 logical_reads=11686 logical_bytes=25769791488 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138769434414 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138769444247 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138769444247 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=22259 misses=11797 evictions=11285 logical_reads=11797 logical_bytes=26014076928 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138773794353 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138773794353 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138773804241 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=22433 misses=11887 evictions=11375 logical_reads=11887 logical_bytes=26210279424 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138777624242 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138777624242 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138777624242 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=22523 misses=12061 evictions=11549 logical_reads=12061 logical_bytes=26594082816 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138784014352 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138784014352 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138784014352 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=22628 misses=12220 evictions=11708 logical_reads=12220 logical_bytes=26944081920 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138789894279 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138789894279 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138789894279 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=22805 misses=12307 evictions=11795 logical_reads=12307 logical_bytes=27135037440 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138793664247 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138793664247 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138793674361 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=22904 misses=12472 evictions=11960 logical_reads=12472 logical_bytes=27499315200 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138799754398 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138799754398 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138799764242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=23051 misses=12589 evictions=12077 logical_reads=12589 logical_bytes=27756933120 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138804444247 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138804444247 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138804454262 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=23180 misses=12724 evictions=12212 logical_reads=12724 logical_bytes=28054548480 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138809654259 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138809654259 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138809654259 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=23288 misses=12880 evictions=12368 logical_reads=12880 logical_bytes=28397408256 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138815404242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138815404242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138815414260 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=23360 misses=13072 evictions=12560 logical_reads=13072 logical_bytes=28819316736 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138822224244 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138822224244 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138822234412 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=23465 misses=13231 evictions=12719 logical_reads=13231 logical_bytes=29170262016 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138828124242 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138828124242 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138828124242 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] cache hits=23630 misses=13330 evictions=12818 logical_reads=13330 logical_bytes=29389774848 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138832274381 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138832274381 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138832284247 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=23780 misses=13444 evictions=12932 logical_reads=13444 logical_bytes=29644038144 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138836834402 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138836834402 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138836834402 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=23978 misses=13510 evictions=12998 logical_reads=13510 logical_bytes=29791641600 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138840014339 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138840014339 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138840024242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=24128 misses=13624 evictions=13112 logical_reads=13624 logical_bytes=30041174016 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138844584252 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138844584252 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138844584252 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=24335 misses=13681 evictions=13169 logical_reads=13681 logical_bytes=30166413312 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138847494270 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138847494270 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138847504242 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=24467 misses=13813 evictions=13301 logical_reads=13813 logical_bytes=30457835520 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138852634421 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138852634421 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138852644244 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=24659 misses=13885 evictions=13373 logical_reads=13885 logical_bytes=30616879104 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138856034392 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138856034392 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138856034392 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=24875 misses=13933 evictions=13421 logical_reads=13933 logical_bytes=30723538944 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138858624266 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138858624266 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138858624266 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=25079 misses=13993 evictions=13481 logical_reads=13993 logical_bytes=30854025216 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138861584249 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138861584249 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138861584249 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=25292 misses=14044 evictions=13532 logical_reads=14044 logical_bytes=30967824384 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138864254257 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138864254257 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138864254257 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=25433 misses=14167 evictions=13655 logical_reads=14167 logical_bytes=31235936256 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138869084247 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138869084247 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138869084247 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=25613 misses=14251 evictions=13739 logical_reads=14251 logical_bytes=31416913920 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138872754414 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138872754414 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138872764246 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=25766 misses=14362 evictions=13850 logical_reads=14362 logical_bytes=31665930240 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138877254264 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138877254264 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138877254264 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=25973 misses=14419 evictions=13907 logical_reads=14419 logical_bytes=31790223360 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138880134292 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138880134292 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138880134292 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=26180 misses=14476 evictions=13964 logical_reads=14476 logical_bytes=31912624128 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138882974341 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138882974341 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138882974341 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=26372 misses=14548 evictions=14036 logical_reads=14548 logical_bytes=32073560064 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138886324241 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138886324241 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138886324241 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=26543 misses=14641 evictions=14129 logical_reads=14641 logical_bytes=32274063360 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138890164242 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138890164242 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138890174367 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=26765 misses=14683 evictions=14171 logical_reads=14683 logical_bytes=32365498368 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138892604242 limit=5368709120 usage=2158342144 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138892604242 limit=5368709120 usage=2158342144 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138892604242 limit=5368709120 usage=2158342144 level=0 pressure=0
+[cpu-pilot] cache hits=26996 misses=14716 evictions=14204 logical_reads=14716 logical_bytes=32436461568 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138894694268 limit=5368709120 usage=2158342144 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138894694268 limit=5368709120 usage=2158342144 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138894704244 limit=5368709120 usage=2158342144 level=0 pressure=0
+[cpu-pilot] cache hits=27233 misses=14743 evictions=14231 logical_reads=14743 logical_bytes=32495984640 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138896694270 limit=5368709120 usage=2158342144 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138896694270 limit=5368709120 usage=2158342144 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138896704242 limit=5368709120 usage=2158342144 level=0 pressure=0
+[cpu-pilot] cache hits=27413 misses=14827 evictions=14315 logical_reads=14827 logical_bytes=32679800832 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138900224244 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138900224244 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138900224244 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=27632 misses=14872 evictions=14360 logical_reads=14872 logical_bytes=32779321344 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138902724240 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138902724240 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138902734358 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=27845 misses=14923 evictions=14411 logical_reads=14923 logical_bytes=32890281984 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138905294244 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138905294244 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138905294244 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=27995 misses=15037 evictions=14525 logical_reads=15037 logical_bytes=33137922048 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138909864241 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138909864241 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138909874339 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=28173 misses=15123 evictions=14611 logical_reads=15123 logical_bytes=33333436416 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138913624244 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138913624244 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138913624244 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=28392 misses=15168 evictions=14656 logical_reads=15168 logical_bytes=33431064576 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138916114338 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138916114338 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138916114338 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=28605 misses=15219 evictions=14707 logical_reads=15219 logical_bytes=33543917568 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138918814356 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138918814356 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138918824242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=28749 misses=15339 evictions=14827 logical_reads=15339 logical_bytes=33810567168 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138923494275 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138923494275 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138923504245 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=28965 misses=15387 evictions=14875 logical_reads=15387 logical_bytes=33918173184 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138926044250 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138926044250 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138926054261 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=29178 misses=15438 evictions=14926 logical_reads=15438 logical_bytes=34028187648 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138928704242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138928704242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138928714342 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=29253 misses=15627 evictions=15115 logical_reads=15627 logical_bytes=34447687680 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138935484254 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138935484254 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138935484254 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=29364 misses=15780 evictions=15268 logical_reads=15780 logical_bytes=34789085184 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138941274378 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138941274378 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138941274378 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=29508 misses=15900 evictions=15388 logical_reads=15900 logical_bytes=35055734784 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138946134272 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138946134272 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138946134272 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=29640 misses=16032 evictions=15520 logical_reads=16032 logical_bytes=35347156992 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138951264242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138951264242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138951264242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=29757 misses=16179 evictions=15667 logical_reads=16179 logical_bytes=35672383488 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138956854270 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138956854270 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138956854270 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=29841 misses=16359 evictions=15847 logical_reads=16359 logical_bytes=36068573184 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138963294377 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138963294377 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138963294377 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=29973 misses=16491 evictions=15979 logical_reads=16491 logical_bytes=36359049216 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138968434396 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138968434396 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138968444262 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] cache hits=30192 misses=16536 evictions=16024 logical_reads=16536 logical_bytes=36455731200 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138970944247 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138970944247 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138970944247 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=30345 misses=16647 evictions=16135 logical_reads=16647 logical_bytes=36701908992 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138975424242 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138975424242 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138975424242 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=30477 misses=16779 evictions=16267 logical_reads=16779 logical_bytes=36989546496 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138980464241 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138980464241 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138980464241 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=30600 misses=16920 evictions=16408 logical_reads=16920 logical_bytes=37303332864 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138985894274 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138985894274 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138985894274 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=30678 misses=17106 evictions=16594 logical_reads=17106 logical_bytes=37715693568 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138992604242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138992604242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138992604242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=30840 misses=17208 evictions=16696 logical_reads=17208 logical_bytes=37939507200 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393138996844250 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393138996844250 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393138996844250 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=30975 misses=17337 evictions=16825 logical_reads=17337 logical_bytes=38223790080 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139001924242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139001924242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139001924242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=31155 misses=17421 evictions=16909 logical_reads=17421 logical_bytes=38409498624 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139005654259 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139005654259 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139005654259 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=31347 misses=17493 evictions=16981 logical_reads=17493 logical_bytes=38567596032 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139009004246 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139009004246 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139009004246 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=31557 misses=17547 evictions=17035 logical_reads=17547 logical_bytes=38683803648 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139011764242 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139011764242 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139011764242 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=31725 misses=17643 evictions=17131 logical_reads=17643 logical_bytes=38893338624 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139015814260 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139015814260 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139015824242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=31935 misses=17697 evictions=17185 logical_reads=17697 logical_bytes=39013330944 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139018604242 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139018604242 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139018614260 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=32139 misses=17757 evictions=17245 logical_reads=17757 logical_bytes=39142871040 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139021544249 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139021544249 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139021544249 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=32273 misses=17887 evictions=17375 logical_reads=17887 logical_bytes=39429218304 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139026424244 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139026424244 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139026424244 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=32465 misses=17959 evictions=17447 logical_reads=17959 logical_bytes=39587315712 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139029704242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139029704242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139029714338 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=32672 misses=18016 evictions=17504 logical_reads=18016 logical_bytes=39712555008 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139032634405 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139032634405 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139032634405 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=32831 misses=18121 evictions=17609 logical_reads=18121 logical_bytes=39943507968 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139037014268 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139037014268 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139037014268 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=33032 misses=18184 evictions=17672 logical_reads=18184 logical_bytes=40079241216 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139039974264 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139039974264 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139039974264 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=33239 misses=18241 evictions=17729 logical_reads=18241 logical_bytes=40205426688 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139042864242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139042864242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139042864242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=33407 misses=18337 evictions=17825 logical_reads=18337 logical_bytes=40415907840 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139046774250 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139046774250 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139046774250 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=33552 misses=18456 evictions=17944 logical_reads=18456 logical_bytes=40676708352 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139051354396 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139051354396 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139051354396 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=33687 misses=18585 evictions=18073 logical_reads=18585 logical_bytes=40962883584 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139056304243 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139056304243 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139056304243 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] cache hits=33858 misses=18678 evictions=18166 logical_reads=18678 logical_bytes=41167171584 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139060254368 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139060254368 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139060254368 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=34026 misses=18774 evictions=18262 logical_reads=18774 logical_bytes=41375760384 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139064134270 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139064134270 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139064134270 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=34239 misses=18825 evictions=18313 logical_reads=18825 logical_bytes=41492398080 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139066834398 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139066834398 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139066834398 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=34305 misses=19023 evictions=18511 logical_reads=19023 logical_bytes=41929531392 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139073794240 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139073794240 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139073794240 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=34419 misses=19173 evictions=18661 logical_reads=19173 logical_bytes=42261897216 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139079424241 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139079424241 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139079434383 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=34584 misses=19272 evictions=18760 logical_reads=19272 logical_bytes=42481410048 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139083634260 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139083634260 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139083644258 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=34740 misses=19380 evictions=18868 logical_reads=19380 logical_bytes=42724233216 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139088064254 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139088064254 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139088064254 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=34879 misses=19505 evictions=18993 logical_reads=19505 logical_bytes=43002150912 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139093064250 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139093064250 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139093064250 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=34984 misses=19664 evictions=19152 logical_reads=19664 logical_bytes=43353096192 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139099004259 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139099004259 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139099004259 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=35098 misses=19814 evictions=19302 logical_reads=19814 logical_bytes=43682623488 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139104654377 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139104654377 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139104654377 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=35263 misses=19913 evictions=19401 logical_reads=19913 logical_bytes=43903082496 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139108754368 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139108754368 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139108754368 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=35449 misses=19991 evictions=19479 logical_reads=19991 logical_bytes=44075458560 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139112234384 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139112234384 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139112234384 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=35590 misses=20114 evictions=19602 logical_reads=20114 logical_bytes=44348301312 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139117044247 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139117044247 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139117044247 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=35692 misses=20276 evictions=19764 logical_reads=20276 logical_bytes=44706385920 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139123064242 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139123064242 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139123064242 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=35872 misses=20360 evictions=19848 logical_reads=20360 logical_bytes=44891148288 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139126724249 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139126724249 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139126734388 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=36070 misses=20426 evictions=19914 logical_reads=20426 logical_bytes=45035913216 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139129854258 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139129854258 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139129854258 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=36283 misses=20477 evictions=19965 logical_reads=20477 logical_bytes=45145927680 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139132534261 limit=5368709120 usage=2158321664 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139132534261 limit=5368709120 usage=2158321664 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139132534261 limit=5368709120 usage=2158321664 level=0 pressure=0
+[cpu-pilot] cache hits=36502 misses=20522 evictions=20010 logical_reads=20522 logical_bytes=45249232896 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139135084255 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139135084255 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139135094265 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=36703 misses=20585 evictions=20073 logical_reads=20585 logical_bytes=45387804672 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139138114270 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139138114270 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139138124248 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=36910 misses=20642 evictions=20130 logical_reads=20642 logical_bytes=45514936320 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139140984249 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139140984249 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139140984249 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=36961 misses=20855 evictions=20343 logical_reads=20855 logical_bytes=45986820096 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139148464242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139148464242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139148464242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=37090 misses=20990 evictions=20478 logical_reads=20990 logical_bytes=46290112512 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139153734297 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139153734297 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139153734297 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=37195 misses=21149 evictions=20637 logical_reads=21149 logical_bytes=46642003968 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139159714241 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139159714241 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139159714241 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=37339 misses=21269 evictions=20757 logical_reads=21269 logical_bytes=46909599744 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139164444258 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139164444258 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139164444258 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=37561 misses=21311 evictions=20799 logical_reads=21311 logical_bytes=47001980928 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139166824242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139166824242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139166824242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=37717 misses=21419 evictions=20907 logical_reads=21419 logical_bytes=47239127040 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139171124242 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139171124242 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139171124242 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=37870 misses=21530 evictions=21018 logical_reads=21530 logical_bytes=47487197184 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139175574266 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139175574266 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139175574266 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=38035 misses=21629 evictions=21117 logical_reads=21629 logical_bytes=47706710016 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139179744249 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139179744249 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139179744249 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=38164 misses=21764 evictions=21252 logical_reads=21764 logical_bytes=48004325376 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139184974341 limit=5368709120 usage=2158321664 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139184974341 limit=5368709120 usage=2158321664 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139184974341 limit=5368709120 usage=2158321664 level=0 pressure=0
+[cpu-pilot] cache hits=38368 misses=21824 evictions=21312 logical_reads=21824 logical_bytes=48136704000 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139187934428 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139187934428 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139187944247 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=38512 misses=21944 evictions=21432 logical_reads=21944 logical_bytes=48404299776 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139192724242 limit=5368709120 usage=2158321664 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139192724242 limit=5368709120 usage=2158321664 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139192724242 limit=5368709120 usage=2158321664 level=0 pressure=0
+[cpu-pilot] cache hits=38674 misses=22046 evictions=21534 logical_reads=22046 logical_bytes=48627167232 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139196894355 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139196894355 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139196894355 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=38878 misses=22106 evictions=21594 logical_reads=22106 logical_bytes=48758599680 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139199854420 limit=5368709120 usage=2158342144 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139199854420 limit=5368709120 usage=2158342144 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139199854420 limit=5368709120 usage=2158342144 level=0 pressure=0
+[cpu-pilot] cache hits=39082 misses=22166 evictions=21654 logical_reads=22166 logical_bytes=48889085952 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139202774266 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139202774266 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139202784242 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=39271 misses=22241 evictions=21729 logical_reads=22241 logical_bytes=49055268864 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139206144246 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139206144246 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139206144246 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=39421 misses=22355 evictions=21843 logical_reads=22355 logical_bytes=49302908928 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139210714347 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139210714347 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139210714347 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=39592 misses=22448 evictions=21936 logical_reads=22448 logical_bytes=49504358400 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139214664242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139214664242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139214664242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=39739 misses=22565 evictions=22053 logical_reads=22565 logical_bytes=49766707200 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139219274247 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139219274247 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139219274247 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=39946 misses=22622 evictions=22110 logical_reads=22622 logical_bytes=49891946496 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139222144247 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139222144247 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139222144247 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=40138 misses=22694 evictions=22182 logical_reads=22694 logical_bytes=50047205376 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139225404243 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139225404243 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139225404243 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=40354 misses=22742 evictions=22230 logical_reads=22742 logical_bytes=50152919040 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139227984244 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139227984244 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139227994368 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=40561 misses=22799 evictions=22287 logical_reads=22799 logical_bytes=50280996864 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139230884242 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139230884242 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139230884242 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=40762 misses=22862 evictions=22350 logical_reads=22862 logical_bytes=50419568640 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139233924251 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139233924251 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139233924251 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=40900 misses=22988 evictions=22476 logical_reads=22988 logical_bytes=50695766016 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139238844245 limit=5368709120 usage=2158354432 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139238844245 limit=5368709120 usage=2158354432 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139238844245 limit=5368709120 usage=2158354432 level=0 pressure=0
+[cpu-pilot] cache hits=41038 misses=23114 evictions=22602 logical_reads=23114 logical_bytes=50975748096 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139243714339 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139243714339 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139243724243 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=41257 misses=23159 evictions=22647 logical_reads=23159 logical_bytes=51074322432 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139246174367 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139246174367 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139246184242 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=41443 misses=23237 evictions=22725 logical_reads=23237 logical_bytes=51244806144 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139249624241 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139249624241 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139249624241 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=41590 misses=23354 evictions=22842 logical_reads=23354 logical_bytes=51500531712 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139254174356 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139254174356 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139254184249 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=41768 misses=23440 evictions=22928 logical_reads=23440 logical_bytes=51694153728 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139257994386 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139257994386 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139257994386 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=41939 misses=23533 evictions=23021 logical_reads=23533 logical_bytes=51900334080 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139261804242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139261804242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139261814263 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=42095 misses=23641 evictions=23129 logical_reads=23641 logical_bytes=52136534016 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139266074367 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139266074367 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139266074367 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=42176 misses=23824 evictions=23312 logical_reads=23824 logical_bytes=52537024512 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139272624246 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139272624246 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139272634341 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=42326 misses=23938 evictions=23426 logical_reads=23938 logical_bytes=52790341632 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139277234399 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139277234399 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139277244245 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=42473 misses=24055 evictions=23543 logical_reads=24055 logical_bytes=53046067200 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139281894265 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139281894265 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139281894265 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=42683 misses=24109 evictions=23597 logical_reads=24109 logical_bytes=53165113344 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139284624241 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139284624241 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139284634273 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=42881 misses=24175 evictions=23663 logical_reads=24175 logical_bytes=53309878272 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139287764268 limit=5368709120 usage=2158358528 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139287764268 limit=5368709120 usage=2158358528 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139287774384 limit=5368709120 usage=2158358528 level=0 pressure=0
+[cpu-pilot] cache hits=43055 misses=24265 evictions=23753 logical_reads=24265 logical_bytes=53508919296 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139291694379 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139291694379 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139291694379 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=43259 misses=24325 evictions=23813 logical_reads=24325 logical_bytes=53640351744 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139294524242 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139294524242 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139294524242 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=43442 misses=24406 evictions=23894 logical_reads=24406 logical_bytes=53815136256 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139298094340 limit=5368709120 usage=2158342144 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139298094340 limit=5368709120 usage=2158342144 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139298094340 limit=5368709120 usage=2158342144 level=0 pressure=0
+[cpu-pilot] cache hits=43590 misses=24522 evictions=24010 logical_reads=24522 logical_bytes=54069743616 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139302614270 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139302614270 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139302614270 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=43787 misses=24589 evictions=24077 logical_reads=24589 logical_bytes=54216572928 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139305744285 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139305744285 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139305744285 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=43991 misses=24649 evictions=24137 logical_reads=24649 logical_bytes=54343274496 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139308534267 limit=5368709120 usage=2158350336 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139308534267 limit=5368709120 usage=2158350336 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139308544248 limit=5368709120 usage=2158350336 level=0 pressure=0
+[cpu-pilot] cache hits=44147 misses=24757 evictions=24245 logical_reads=24757 logical_bytes=54577582080 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139312804241 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139312804241 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139312804241 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=44316 misses=24852 evictions=24340 logical_reads=24852 logical_bytes=54792622080 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139316844249 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139316844249 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139316844249 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] cache hits=44529 misses=24903 evictions=24391 logical_reads=24903 logical_bytes=54904528896 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139319454425 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139319454425 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139319454425 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] cache hits=44727 misses=24969 evictions=24457 logical_reads=24969 logical_bytes=55048347648 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139322574339 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139322574339 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139322574339 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=44943 misses=25017 evictions=24505 logical_reads=25017 logical_bytes=55152168960 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139325184256 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139325184256 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139325184256 limit=5368709120 usage=2158329856 level=0 pressure=0
+[cpu-pilot] cache hits=45150 misses=25074 evictions=24562 logical_reads=25074 logical_bytes=55276462080 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139328204242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139328204242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139328204242 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=45285 misses=25203 evictions=24691 logical_reads=25203 logical_bytes=55559798784 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139333164242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139333164242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139333164242 limit=5368709120 usage=2158313472 level=0 pressure=0
+[cpu-pilot] cache hits=45417 misses=25335 evictions=24823 logical_reads=25335 logical_bytes=55852167168 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139338294297 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139338294297 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139338304243 limit=5368709120 usage=2158338048 level=0 pressure=0
+[cpu-pilot] cache hits=45585 misses=25431 evictions=24919 logical_reads=25431 logical_bytes=56063594496 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139342474382 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139342474382 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139342484242 limit=5368709120 usage=2158317568 level=0 pressure=0
+[cpu-pilot] cache hits=45768 misses=25512 evictions=25000 logical_reads=25512 logical_bytes=56237432832 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139345994377 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139345994377 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139345994377 limit=5368709120 usage=2158333952 level=0 pressure=0
+[cpu-pilot] cache hits=45945 misses=25599 evictions=25087 logical_reads=25599 logical_bytes=56432173056 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139349734260 limit=5368709120 usage=2158288896 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139349734260 limit=5368709120 usage=2158288896 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139349734260 limit=5368709120 usage=2158288896 level=0 pressure=0
+[cpu-pilot] cache hits=46008 misses=25800 evictions=25288 logical_reads=25800 logical_bytes=56877391872 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139356814345 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139356814345 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139356814345 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] cache hits=46122 misses=25950 evictions=25438 logical_reads=25950 logical_bytes=57210703872 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139362564242 limit=5368709120 usage=2158264320 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139362564242 limit=5368709120 usage=2158264320 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139362574365 limit=5368709120 usage=2158264320 level=0 pressure=0
+[cpu-pilot] cache hits=46266 misses=26070 evictions=25558 logical_reads=26070 logical_bytes=57475461120 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139367364242 limit=5368709120 usage=2158280704 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139367364242 limit=5368709120 usage=2158280704 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139367374339 limit=5368709120 usage=2158280704 level=0 pressure=0
+[cpu-pilot] cache hits=46401 misses=26199 evictions=25687 logical_reads=26199 logical_bytes=57758797824 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139372484253 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139372494347 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139372494347 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] cache hits=46521 misses=26343 evictions=25831 logical_reads=26343 logical_bytes=58076884992 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139377994389 limit=5368709120 usage=2158284800 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139377994389 limit=5368709120 usage=2158284800 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139377994389 limit=5368709120 usage=2158284800 level=0 pressure=0
+[cpu-pilot] cache hits=46599 misses=26529 evictions=26017 logical_reads=26529 logical_bytes=58486407168 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139384784304 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139384784304 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139384784304 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] cache hits=46734 misses=26658 evictions=26146 logical_reads=26658 logical_bytes=58769743872 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139389794295 limit=5368709120 usage=2158280704 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139389794295 limit=5368709120 usage=2158280704 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139389794295 limit=5368709120 usage=2158280704 level=0 pressure=0
+[cpu-pilot] cache hits=46866 misses=26790 evictions=26278 logical_reads=26790 logical_bytes=59062112256 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139394914339 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139394914339 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139394914339 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] cache hits=47001 misses=26919 evictions=26407 logical_reads=26919 logical_bytes=59349233664 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139399834287 limit=5368709120 usage=2158280704 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139399834287 limit=5368709120 usage=2158280704 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139399834287 limit=5368709120 usage=2158280704 level=0 pressure=0
+[cpu-pilot] cache hits=47136 misses=27048 evictions=26536 logical_reads=27048 logical_bytes=59632570368 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139404854266 limit=5368709120 usage=2158264320 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139404854266 limit=5368709120 usage=2158264320 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139404854266 limit=5368709120 usage=2158264320 level=0 pressure=0
+[cpu-pilot] cache hits=47286 misses=27162 evictions=26650 logical_reads=27162 logical_bytes=59883048960 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139409384252 limit=5368709120 usage=2158284800 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139409384252 limit=5368709120 usage=2158284800 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139409384252 limit=5368709120 usage=2158284800 level=0 pressure=0
+[cpu-pilot] cache hits=47349 misses=27363 evictions=26851 logical_reads=27363 logical_bytes=60327321600 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139416404242 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139416404242 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139416404242 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] cache hits=47502 misses=27474 evictions=26962 logical_reads=27474 logical_bytes=60570660864 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139420894354 limit=5368709120 usage=2158284800 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139420894354 limit=5368709120 usage=2158284800 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139420894354 limit=5368709120 usage=2158284800 level=0 pressure=0
+[cpu-pilot] cache hits=47715 misses=27525 evictions=27013 logical_reads=27525 logical_bytes=60686352384 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139423664241 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139423664241 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139423664241 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] cache hits=47862 misses=27642 evictions=27130 logical_reads=27642 logical_bytes=60940185600 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139428274338 limit=5368709120 usage=2158280704 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139428274338 limit=5368709120 usage=2158280704 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139428284252 limit=5368709120 usage=2158280704 level=0 pressure=0
+[cpu-pilot] cache hits=48015 misses=27753 evictions=27241 logical_reads=27753 logical_bytes=61185417216 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139432824241 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139432824241 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139432824241 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] cache hits=48150 misses=27882 evictions=27370 logical_reads=27882 logical_bytes=61473484800 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139437914278 limit=5368709120 usage=2158280704 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139437914278 limit=5368709120 usage=2158280704 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139437914278 limit=5368709120 usage=2158280704 level=0 pressure=0
+[cpu-pilot] cache hits=48318 misses=27978 evictions=27466 logical_reads=27978 logical_bytes=61682073600 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139441944281 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139441944281 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139441944281 limit=5368709120 usage=2158260224 level=0 pressure=0
+[cpu-pilot] cache hits=48519 misses=28041 evictions=27529 logical_reads=28041 logical_bytes=61820645376 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139445024242 limit=5368709120 usage=2158276608 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139445024242 limit=5368709120 usage=2158276608 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139445024242 limit=5368709120 usage=2158276608 level=0 pressure=0
+[cpu-pilot] cache hits=48732 misses=28092 evictions=27580 logical_reads=28092 logical_bytes=61931606016 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139447744251 limit=5368709120 usage=2158280704 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139447744251 limit=5368709120 usage=2158280704 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139447744251 limit=5368709120 usage=2158280704 level=0 pressure=0
+[cpu-pilot] cache hits=48922 misses=28166 evictions=27654 logical_reads=28166 logical_bytes=62093832192 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139451094267 limit=5368709120 usage=2158284800 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139451094267 limit=5368709120 usage=2158284800 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139451094267 limit=5368709120 usage=2158284800 level=0 pressure=0
+[cpu-pilot] cache hits=49066 misses=28286 evictions=27774 logical_reads=28286 logical_bytes=62354804736 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139455824243 limit=5368709120 usage=2158264320 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139455824243 limit=5368709120 usage=2158264320 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139455834342 limit=5368709120 usage=2158264320 level=0 pressure=0
+[cpu-pilot] cache hits=49243 misses=28373 evictions=27861 logical_reads=28373 logical_bytes=62542921728 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139459584243 limit=5368709120 usage=2158141440 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139459584243 limit=5368709120 usage=2158141440 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139459594366 limit=5368709120 usage=2158141440 level=0 pressure=0
+[cpu-pilot] cache hits=49393 misses=28487 evictions=27975 logical_reads=28487 logical_bytes=62796238848 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139464154400 limit=5368709120 usage=2158112768 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139464154400 limit=5368709120 usage=2158112768 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139464164242 limit=5368709120 usage=2158112768 level=0 pressure=0
+[cpu-pilot] cache hits=49588 misses=28556 evictions=28044 logical_reads=28556 logical_bytes=62947196928 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139467424240 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139467434342 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139467434342 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] cache hits=49771 misses=28637 evictions=28125 logical_reads=28637 logical_bytes=63123873792 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139470994339 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139470994339 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139470994339 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] cache hits=50014 misses=28658 evictions=28146 logical_reads=28658 logical_bytes=63169118208 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139472774329 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139472774329 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139472774329 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] cache hits=50215 misses=28721 evictions=28209 logical_reads=28721 logical_bytes=63307689984 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139475814260 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139475814260 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139475824242 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] cache hits=50410 misses=28790 evictions=28278 logical_reads=28790 logical_bytes=63457701888 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139479014264 limit=5368709120 usage=2158149632 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139479014264 limit=5368709120 usage=2158149632 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139479014264 limit=5368709120 usage=2158149632 level=0 pressure=0
+[cpu-pilot] cache hits=50542 misses=28922 evictions=28410 logical_reads=28922 logical_bytes=63749124096 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139484064241 limit=5368709120 usage=2158112768 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139484064241 limit=5368709120 usage=2158112768 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139484064241 limit=5368709120 usage=2158112768 level=0 pressure=0
+[cpu-pilot] cache hits=50674 misses=29054 evictions=28542 logical_reads=29054 logical_bytes=64038653952 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139489194390 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139489194390 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139489194390 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] cache hits=50893 misses=29099 evictions=28587 logical_reads=29099 logical_bytes=64138174464 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139491734252 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139491734252 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139491734252 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] cache hits=51079 misses=29177 evictions=28665 logical_reads=29177 logical_bytes=64308658176 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139495164242 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139495164242 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139495174300 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] cache hits=51226 misses=29294 evictions=28782 logical_reads=29294 logical_bytes=64563437568 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139499714340 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139499714340 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139499714340 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] cache hits=51385 misses=29399 evictions=28887 logical_reads=29399 logical_bytes=64797229056 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139503884277 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139503884277 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139503884277 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] cache hits=51565 misses=29483 evictions=28971 logical_reads=29483 logical_bytes=64982937600 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139507554393 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139507554393 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139507554393 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] cache hits=51709 misses=29603 evictions=29091 logical_reads=29603 logical_bytes=65243910144 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139512154376 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139512154376 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139512154376 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] cache hits=51796 misses=29780 evictions=29268 logical_reads=29780 logical_bytes=65632014336 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139518534247 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139518534247 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139518534247 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] cache hits=51937 misses=29903 evictions=29391 logical_reads=29903 logical_bytes=65902964736 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139523424245 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139523424245 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139523424245 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] cache hits=52087 misses=30017 evictions=29505 logical_reads=30017 logical_bytes=66153443328 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139527954387 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139527954387 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139527964265 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] cache hits=52300 misses=30068 evictions=29556 logical_reads=30068 logical_bytes=66266296320 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139530644250 limit=5368709120 usage=2158145536 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139530644250 limit=5368709120 usage=2158145536 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139530644250 limit=5368709120 usage=2158145536 level=0 pressure=0
+[cpu-pilot] cache hits=52501 misses=30131 evictions=29619 logical_reads=30131 logical_bytes=66403921920 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139533714337 limit=5368709120 usage=2158112768 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139533714337 limit=5368709120 usage=2158112768 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139533714337 limit=5368709120 usage=2158112768 level=0 pressure=0
+[cpu-pilot] cache hits=52666 misses=30230 evictions=29718 logical_reads=30230 logical_bytes=66622488576 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139537864241 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139537864241 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139537864241 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] cache hits=52867 misses=30293 evictions=29781 logical_reads=30293 logical_bytes=66757275648 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139540844249 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139540844249 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139540844249 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] cache hits=53054 misses=30370 evictions=29858 logical_reads=30370 logical_bytes=66922856448 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139544324241 limit=5368709120 usage=2158112768 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139544324241 limit=5368709120 usage=2158112768 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139544334339 limit=5368709120 usage=2158112768 level=0 pressure=0
+[cpu-pilot] cache hits=53206 misses=30482 evictions=29970 logical_reads=30482 logical_bytes=67168260096 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139548594380 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139548594380 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139548604243 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] cache hits=53416 misses=30536 evictions=30024 logical_reads=30536 logical_bytes=67287306240 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139551344250 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139551344250 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139551344250 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] cache hits=53602 misses=30614 evictions=30102 logical_reads=30614 logical_bytes=67455897600 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139554724272 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139554724272 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139554734375 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] cache hits=53760 misses=30720 evictions=30208 logical_reads=30720 logical_bytes=67687022592 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139558844245 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139558844245 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139558854257 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] cache hits=53939 misses=30805 evictions=30293 logical_reads=30805 logical_bytes=67875741696 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139562534247 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139562534247 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139562534247 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] cache hits=54155 misses=30853 evictions=30341 logical_reads=30853 logical_bytes=67983347712 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139565074338 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139565074338 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139565084251 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] cache hits=54362 misses=30910 evictions=30398 logical_reads=30910 logical_bytes=68108587008 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139567954290 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139567954290 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139567954290 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] cache hits=54563 misses=30973 evictions=30461 logical_reads=30973 logical_bytes=68245266432 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139570994382 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139570994382 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139570994382 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] cache hits=54750 misses=31050 evictions=30538 logical_reads=31050 logical_bytes=68414631936 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139574394367 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139574394367 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139574394367 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] cache hits=54896 misses=31168 evictions=30656 logical_reads=31168 logical_bytes=68671475712 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139578814356 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139578814356 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139578814356 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] cache hits=55034 misses=31294 evictions=30782 logical_reads=31294 logical_bytes=68951457792 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139583544248 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139583544248 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139583544248 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] cache hits=55211 misses=31381 evictions=30869 logical_reads=31381 logical_bytes=69143359488 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139587294391 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139587294391 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139587304242 limit=5368709120 usage=2158129152 level=0 pressure=0
+[cpu-pilot] cache hits=55415 misses=31441 evictions=30929 logical_reads=31441 logical_bytes=69273845760 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139590224244 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139590224244 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139590224244 limit=5368709120 usage=2158133248 level=0 pressure=0
+[cpu-pilot] cache hits=55577 misses=31543 evictions=31031 logical_reads=31543 logical_bytes=69502390272 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139594414375 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139594414375 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] quota phase=before-decode pid=3804 utc100ns=134393139594414375 limit=5368709120 usage=2158108672 level=0 pressure=0
+[cpu-pilot] cache hits=55697 misses=31687 evictions=31175 logical_reads=31687 logical_bytes=69817638912 failures=0 arena=1541406720 metadata=32000 leases=0
+[cpu-pilot] quota phase=after-decode pid=3804 utc100ns=134393139599804265 limit=5368709120 usage=2158125056 level=0 pressure=0
+[cpu-pilot] quota phase=before-sample pid=3804 utc100ns=134393139599804265 limit=5368709120 usage=2158125056 level=0 pressure=0
+[cpu-pilot] quota phase=after-prompt-step pid=3804 utc100ns=134393139599804265 limit=5368709120 usage=2158080000 level=0 pressure=0
+[cpu-pilot] quota phase=post-SHA pid=3804 utc100ns=134393139720104244 limit=5368709120 usage=2156486656 level=0 pressure=0
+[cpu-pilot] terminal stopped; no automatic retry
