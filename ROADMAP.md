@@ -738,7 +738,7 @@ Source/evidence discovery and the conditional 6–8 week stages are in the
    integration.
 2. **#422:** no new GPU prefill path to qualify; the matched Series S and
    Series X matrix needs project measurements on a Series X.
-3. **#457:** the Series X runs are about 2.4 times slower with the App
-   designation. Microsoft documents a smaller core allotment for an App; the
-   startup log now states the allotment, and one run by the tester in each
-   designation would settle it.
+3. **#457, closed:** the App designation caps the app's CPU about ten
+   seconds after launch (about 40 % of the Game speed on a Series X); the
+   remedy is the Game designation. The Series S App figure was taken with the
+   headless bench and may have missed it; not re-measured.
