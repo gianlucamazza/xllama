@@ -1,0 +1,325 @@
+diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
+--- a/ggml/src/ggml-cpu/ggml-cpu.c
++++ b/ggml/src/ggml-cpu/ggml-cpu.c
+@@ -1669,6 +1669,11 @@
+ 
+     ggml_barrier(params->threadpool);
+ 
++    if (ggml_ua50_is_external(src0) && ggml_ua50_has_gpu(src0) && nth != 1) {
++        if (ith == 0) params->threadpool->ec = GGML_STATUS_ABORTED;
++        ggml_barrier(params->threadpool);
++        return; // explicit single-coordinator tuple, no racing GPU/lease release
++    }
+     for (int cur_a = 0; cur_a < n_as; ++cur_a) {
+         const int64_t cne1 = matrix_row_counts[cur_a];
+ 
+@@ -1700,6 +1705,28 @@
+         const void * wdata = (src1->type == vec_dot_type) ? src1->data : params->wdata;
+         const size_t row_size = ggml_row_size(vec_dot_type, ne10);
+ 
++        // Explicit UA68 bridge: CPU still owns routing/Q8_K packing. No scheduler lie/fallback.
++        if (external_expert && ggml_ua50_has_gpu(src0)) {
++            bool published = false;
++            const bool shape_ok = nth == 1 && cne1 == 1 && ids->ne[1] == 1 && ne13 == 1 &&
++                vec_dot_type == GGML_TYPE_Q8_K && ne02 == 64 && ne01 <= 2048 && n_ids == 4 && (src1_cont || src1->type != vec_dot_type);
++            const struct mmid_row_mapping mapping = MMID_MATRIX_ROW(cur_a, 0);
++            if (shape_ok && mapping.i2 == 0 && mapping.i1 >= 0 && mapping.i1 < ids->ne[0]) {
++                const int64_t input_col = mapping.i1 % ne11;
++                const char * q8 = (const char *)wdata + input_col*row_size;
++                float * out = (float *)((char *)dst->data + mapping.i1*nb1);
++                if ((uint64_t)mapping.i1*nb1 + (uint64_t)ne01*sizeof(float) <= ggml_nbytes(dst))
++                    published = ggml_ua50_gpu_vector(src0,q8,row_size,out,(uint64_t)ne01);
++            }
++            if (!published) {
++                params->threadpool->ec = GGML_STATUS_ABORTED;
++                ggml_ua50_release(src0);
++                return; // no CPU fallback after opt-in/refusal
++            }
++            // Actual graph copy is guarded by the executor publication mutex; stop cannot race past it.
++            ggml_ua50_release(src0);
++            continue;
++        }
+         const int64_t nr0 = ne01;
+         const int64_t nr1 = cne1;
+ 
+diff --git a/src/llama.cpp b/src/llama.cpp
+--- a/src/llama.cpp
++++ b/src/llama.cpp
+@@ -376,6 +376,7 @@
+             plan=ua50::inspect_expert_input(file,owned->slots);
+             if(!plan.full_payload)throw std::invalid_argument("owned input full tensor payload unavailable");
+             if(plan.cache_owned_bytes>owned->cache_ceiling || plan.stage_bytes>owned->stage_ceiling)throw std::invalid_argument("owned load cache/staging budget refused");
++            if(owned->gpu){if(!owned->admit_hybrid||!owned->gpu->terminal()||owned->slots!=2||plan.records!=114||plan.experts!=64||plan.max_matrix!=2580480)throw std::invalid_argument("explicit hybrid native joint admission missing");owned->admit_hybrid(plan);}
+         }
+         llama_model_loader ml(metadata, set_tensor_data, set_tensor_data_ud, fname, splits, file, params.load_mode,
+             params.check_tensors, params.no_alloc, params.load_mtp, params.kv_overrides, params.tensor_buft_overrides);
+@@ -432,7 +433,9 @@
+             if(!inner)throw std::invalid_argument("owned load Reader factory refused");
+             if(owned->input.contract==ua50::InputContract::windows_held_verified)owned->input.validate_binding(file);
+             auto reader=std::make_shared<ua50::AnchoredReader>(owned->input.file_anchor,std::move(inner),owned->input.admission_anchor);
+-            model->set_expert_provider(std::make_shared<ua50::NativeProvider>(reader,plan.available_file_bytes,owned->slots,plan.max_matrix,plan.cache_owned_bytes));
++            auto provider=std::make_shared<ua50::NativeProvider>(reader,plan.available_file_bytes,owned->slots,plan.max_matrix,plan.cache_owned_bytes);
++            if(owned->gpu)provider->set_gpu(owned->gpu);
++            model->set_expert_provider(std::move(provider));
+         }
+ 
+         if (!model->load_tensors(ml)) {
+diff --git a/src/ua50/expert_gpu.h b/src/ua50/expert_gpu.h
+new file mode 100644
+--- /dev/null
++++ b/src/ua50/expert_gpu.h
+@@ -0,0 +1,123 @@
++#pragma once
++#include "expert_cache.h"
++#include <atomic>
++#include <cstdio>
++#include <cstring>
++#include <cmath>
++#include <thread>
++#include <mutex>
++#include <string>
++
++namespace ua50 {
++// Explicit hybrid extension. Absent pointer means the accepted CPU path, never fallback.
++struct GpuAllocation { const char* name=nullptr; uint64_t bytes=0; bool existing=false; };
++struct GpuResources {
++ std::array<GpuAllocation,16> entries{};size_t count=0;uint64_t driver_probe=256ull<<20;
++ void add(const char* name,uint64_t bytes,bool existing=false){
++  if(!name||!bytes||count==entries.size())throw std::invalid_argument("GPU resource ledger shape");
++  for(size_t i=0;i<count;++i)if(std::strcmp(entries[i].name,name)==0)throw std::invalid_argument("GPU resource duplicate");
++  entries[count++]={name,bytes,existing};(void)total();
++ }
++ uint64_t total()const{uint64_t n=driver_probe;for(size_t i=0;i<count;++i)n=ua50::add(n,entries[i].bytes);return n;}
++};
++struct GpuSnapshot {
++ std::string adapter_luid,shader_sha256;GpuResources resources;
++ uint64_t app_limit=0,app_usage=0,dxgi_budget=0,dxgi_usage=0,init_observed_app_delta=0,owned_creation_app_delta=0;
++ bool cache_coherent_uma=false; // DXGI budget is a second constraint, not extra RAM.
++};
++struct GpuCounts {
++ uint64_t requests=0,submits=0,completed=0,returned=0,published=0,q4=0,q6=0,weight_bytes=0,q8_bytes=0;
++ uint64_t fence_wait_ns=0,copy_cpu_ns=0,dispatch_wall_ns=0,gpu_ticks=0,gpu_frequency=0;
++ bool timestamp_available=false,terminal=true;uint64_t fence_value=0;
++};
++struct ExpertVector {
++ Quant quant;uint32_t role,expert,k,n;const unsigned char* weights;size_t weight_bytes;
++ const unsigned char* q8;size_t q8_bytes;
++};
++inline void check_vector(const ExpertVector& x){
++ const bool shape=(x.k==2048&&x.n==1536&&x.quant==Quant::q4_k)||
++  (x.k==1536&&x.n==2048&&(x.quant==Quant::q4_k||x.quant==Quant::q6_k));
++ if(!shape||x.role>=114||x.expert>=64||!x.weights||!x.q8||
++    x.weight_bytes!=mul(mul(x.k/256,block(x.quant).bytes),x.n)||x.q8_bytes!=mul(x.k/256,292))
++  throw std::invalid_argument("hybrid exact Q4K/Q6K vector/extent refused");
++}
++inline size_t fill_q8_pattern(unsigned char*destination,size_t cap,uint32_t k,uint32_t pattern){
++ const size_t bytes=size_t(k/256)*sizeof(block_q8_K);
++ if(!destination||(k!=1536&&k!=2048)||pattern>1||bytes>cap||reinterpret_cast<uintptr_t>(destination)%alignof(block_q8_K))throw std::invalid_argument("primitive Q8 pattern envelope");
++ auto*blocks=reinterpret_cast<block_q8_K*>(destination);
++ for(uint32_t b=0;b<k/256;++b){blocks[b].d=pattern?1.0f/128:0;for(uint32_t i=0;i<256;++i)blocks[b].qs[i]=pattern?int8_t(int((i+17*b)%255)-127):0;for(uint32_t j=0;j<16;++j){int sum=0;for(uint32_t i=0;i<16;++i)sum+=blocks[b].qs[j*16+i];blocks[b].bsums[j]=int16_t(sum);}}
++ return bytes;
++}
++static_assert(sizeof(block_q8_K)==292,"GPU shader Q8 ABI");
++class ExpertGpu {
++public:
++ virtual ~ExpertGpu()=default;
++ virtual const float* execute(const ExpertVector&)=0; // scratch survives until next call; terminal on return
++ virtual void request_stop()noexcept=0;
++ virtual bool publish(const float* result,float* destination,size_t n)=0;
++ virtual void drain()noexcept=0; // unknown waits; must NOT report closed or release anchors early
++ virtual const char* error()const noexcept=0;
++ virtual bool terminal()const noexcept=0;
++ virtual GpuCounts counts()const=0;
++ virtual GpuSnapshot snapshot()const=0;
++ virtual size_t required_owned_bytes()const=0;
++};
++// Platform-boundary interface used by the SAME production state machine and fixture.
++class ExpertQueue {
++public:
++ virtual ~ExpertQueue()=default;
++ virtual void stage_submit(const ExpertVector&)=0;
++ virtual bool wait_terminal()noexcept=0; // false = UNKNOWN, never permission to release
++ virtual const float* output()=0; // terminal GPU output; guards validated by platform
++ virtual void release_terminal()noexcept=0;
++ virtual bool submitted()const noexcept=0;
++ virtual const char* error()const noexcept=0;
++ virtual GpuSnapshot snapshot()const=0;
++ virtual GpuCounts counts()const=0;
++ virtual size_t owned_bytes()const=0;
++};
++class SynchronousExpertGpu final:public ExpertGpu {
++ std::mutex publication_;std::shared_ptr<ExpertQueue> queue_;std::atomic<bool> stop_{false};bool busy_=false;
++ char cause_[256]{};GpuCounts counts_{};std::array<float,2048> result_{};
++ void latch(const char*s)noexcept{if(!cause_[0])std::snprintf(cause_,sizeof(cause_),"%s",s?s:"GPU unknown failure");}
++public:
++ explicit SynchronousExpertGpu(std::shared_ptr<ExpertQueue> q):queue_(std::move(q)){if(!queue_)throw std::invalid_argument("GPU queue missing");}
++ ~SynchronousExpertGpu(){request_stop();drain();}
++ void request_stop()noexcept override{std::lock_guard<std::mutex> lock(publication_);stop_.store(true,std::memory_order_release);}
++ bool publish(const float*result,float*destination,size_t n)override{
++  std::lock_guard<std::mutex> lock(publication_);
++  if(stop_.load()||cause_[0]||!terminal()||result!=result_.data()||!destination||!n||n>2048)return false;
++  for(size_t i=0;i<n;++i)if(!std::isfinite(result[i]))return false;
++  std::memcpy(destination,result,n*sizeof(float));++counts_.published;return true;
++ }
++ void drain()noexcept override{
++  // Submitted work owns all memory through this loop. No timeout frees a pending lease.
++  while(queue_->submitted()&&!queue_->wait_terminal())std::this_thread::yield();
++  if(queue_->error()[0])latch(queue_->error());
++  queue_->release_terminal();busy_=false;
++ }
++ const float* execute(const ExpertVector& x)override{
++  if(cause_[0]||stop_.load()||busy_)throw std::runtime_error("hybrid stopped/failed/busy; no continuation");
++  busy_=true;++counts_.requests;
++  try{
++   check_vector(x);
++   {std::lock_guard<std::mutex> lock(publication_);if(stop_.load())throw std::runtime_error("hybrid stop before submit");queue_->stage_submit(x);}
++   drain();
++   if(cause_[0])throw std::runtime_error(cause_);
++   if(stop_.load())throw std::runtime_error("hybrid stop before publication");
++   const auto*p=queue_->output();if(!p)throw std::runtime_error("GPU terminal output missing");
++   for(size_t i=0;i<x.n;++i)result_[i]=p[i]; // raw comparison may witness NaN; provider guards graph scatter
++   if(stop_.load())throw std::runtime_error("hybrid final publication stopped");
++   ++counts_.returned;(x.quant==Quant::q4_k?counts_.q4:counts_.q6)++;
++   counts_.weight_bytes=add(counts_.weight_bytes,x.weight_bytes);counts_.q8_bytes=add(counts_.q8_bytes,x.q8_bytes);
++   return result_.data();
++  }catch(const std::exception&e){latch(e.what());stop_.store(true);drain();throw;}
++   catch(...){latch("GPU unknown exception");stop_.store(true);drain();throw;}
++ }
++ const char* error()const noexcept override{return cause_;}
++ bool terminal()const noexcept override{return !busy_&&!queue_->submitted();}
++ GpuCounts counts()const override{if(!terminal())throw std::logic_error("GPU counters before terminal");auto x=queue_->counts();x.requests=counts_.requests;x.returned=counts_.returned;x.published=counts_.published;x.q4=counts_.q4;x.q6=counts_.q6;x.weight_bytes=counts_.weight_bytes;x.q8_bytes=counts_.q8_bytes;return x;}
++ GpuSnapshot snapshot()const override{return queue_->snapshot();}
++ size_t required_owned_bytes()const override{return size_t(add(sizeof(*this),queue_->owned_bytes()));}
++};
++}
+diff --git a/src/ua50/ggml-ua50.h b/src/ua50/ggml-ua50.h
+--- a/src/ua50/ggml-ua50.h
++++ b/src/ua50/ggml-ua50.h
+@@ -12,6 +12,9 @@
+ bool ggml_ua50_acquire(const struct ggml_tensor * tensor, int64_t expert);
+ const char * ggml_ua50_data(const struct ggml_tensor * tensor);
+ void ggml_ua50_release(const struct ggml_tensor * tensor);
++bool ggml_ua50_has_gpu(const struct ggml_tensor * tensor);
++// Already packed CPU Q8_K input. Returned rows are never published on failure.
++bool ggml_ua50_gpu_vector(const struct ggml_tensor * tensor,const void * q8,uint64_t bytes,float *destination,uint64_t elements);
+ const char * ggml_ua50_error(const struct ggml_tensor * tensor);
+ #ifdef __cplusplus
+ }
+diff --git a/src/ua50/native_provider.cpp b/src/ua50/native_provider.cpp
+--- a/src/ua50/native_provider.cpp
++++ b/src/ua50/native_provider.cpp
+@@ -73,6 +73,9 @@
+         throw std::invalid_argument("external registration/lifetime/file/shape");
+     for(int i=0;i<3;++i) if(t->ne[i]<=0) throw std::invalid_argument("external dimension");
+     auto q=quant(t->type); auto b=block(q);
++    if(gpu_&&!((t->ne[0]==2048&&t->ne[1]==1536&&q==Quant::q4_k)||
++      (t->ne[0]==1536&&t->ne[1]==2048&&(q==Quant::q4_k||q==Quant::q6_k))))
++      throw std::invalid_argument("hybrid all-role quant/shape admission");
+     if(t->nb[0]!=b.bytes || static_cast<uint64_t>(t->ne[0])%b.elements)
+         throw std::invalid_argument("external quant block stride");
+     const uint64_t row=mul(static_cast<uint64_t>(t->ne[0])/b.elements,b.bytes);
+@@ -84,7 +87,16 @@
+ }
+ void NativeProvider::finalize() {
+     if(cache_ || !count_) throw std::logic_error("provider finalize exactly once after registration");
++    if(gpu_)validate_hybrid_catalog();
+     cache_=std::make_unique<Cache>(reader_,file_bytes_,descriptors_.data(),count_,slots_,max_expert_,budget_-sizeof(*this)-sizeof(ggml_backend_buffer));
++}
++const ggml_tensor*NativeProvider::tensor_named(const char*name)const{for(size_t i=0;i<count_;++i)if(std::strcmp(ggml_get_name(records_[i].tensor),name)==0)return records_[i].tensor;throw std::invalid_argument("expert primitive tensor missing");}
++void NativeProvider::validate_hybrid_catalog()const{
++ if(count_!=114||slots_!=2||max_expert_!=2580480)throw std::invalid_argument("hybrid complete LFM24 registry required");
++ size_t q4=0,q6=0;for(size_t i=0;i<count_;++i){auto&d=records_[i].layout;
++  if(d.experts!=64||!((d.columns==2048&&d.rows==1536&&d.quant==Quant::q4_k)||(d.columns==1536&&d.rows==2048&&(d.quant==Quant::q4_k||d.quant==Quant::q6_k))))throw std::invalid_argument("hybrid metadata role/quant/shape");
++  (d.quant==Quant::q4_k?q4:q6)++;}
++ if(q4!=96||q6!=18)throw std::invalid_argument("hybrid actual mixed-quant role counts");
+ }
+ size_t NativeProvider::required_owned_bytes(size_t slots,size_t max_expert) {
+     uint64_t n=add(sizeof(NativeProvider)+sizeof(ggml_backend_buffer),Cache::required_owned_bytes(slots,max_expert));
+@@ -106,14 +118,29 @@
+             if(trace_)trace_(d.id,e,add(d.offset,mul(d.nb02,e)),d.nb02);
+             active_=cache_->acquire(records_[i].layout.id,e);
+             if(cache_->counters().clock_errors){active_.reset();throw std::runtime_error("cache monotonic clock failed");}
+-            active_tensor_=t; return true;
++            active_tensor_=t; active_expert_=e; return true;
+         }
+         throw std::logic_error("unregistered provider tensor");
+     } catch(const std::exception & e) { std::snprintf(error_,sizeof(error_),"%s",e.what()); }
+       catch(...) { std::snprintf(error_,sizeof(error_),"unknown expert reader error"); }
+     return false;
+ }
+-void NativeProvider::release() noexcept { active_.reset(); active_tensor_=nullptr; }
++void NativeProvider::release() noexcept {
++ if(gpu_){gpu_->drain();if(!gpu_->terminal())std::terminate();}
++ active_.reset(); active_tensor_=nullptr;
++}
++bool NativeProvider::gpu_vector(const ggml_tensor*t,const void*q,size_t bytes,float*dst,size_t n) noexcept {
++ if(error_[0]||!gpu_)return false;
++ try{
++  if(active_tensor_!=t||!q)throw std::logic_error("GPU vector without active host lease");
++  for(size_t i=0;i<count_;++i)if(records_[i].tensor==t){const auto&d=records_[i].layout;
++   const float* result=gpu_->execute({d.quant,d.id,uint32_t(active_expert_),uint32_t(d.columns),uint32_t(d.rows),active_.data(),active_.size(),static_cast<const unsigned char*>(q),bytes});
++   if(n!=d.rows||!gpu_->publish(result,dst,n))throw std::runtime_error("GPU stopped/nonfinite graph publication refused");return true;}
++  throw std::logic_error("GPU vector unregistered role");
++ }catch(const std::exception&e){if(!error_[0])std::snprintf(error_,sizeof(error_),"%s",e.what());}
++ catch(...){if(!error_[0])std::snprintf(error_,sizeof(error_),"GPU unknown provider failure");}
++ gpu_->request_stop();gpu_->drain();return false;
++}
+ const char * NativeProvider::data(const ggml_tensor * t) const noexcept {
+     return !error_[0] && active_tensor_==t?reinterpret_cast<const char *>(active_.data()):nullptr;
+ }
+@@ -126,3 +153,6 @@
+ extern "C" const char * ggml_ua50_data(const ggml_tensor * t) { auto * p=owner(t);return p?p->data(t):nullptr; }
+ extern "C" void ggml_ua50_release(const ggml_tensor * t) { if(auto * p=owner(t)) p->release(); }
+ extern "C" const char * ggml_ua50_error(const ggml_tensor * t) { auto * p=owner(t);return p?p->error():"not external"; }
++
++extern "C" bool ggml_ua50_has_gpu(const ggml_tensor*t){auto*p=owner(t);return p&&p->has_gpu();}
++extern "C" bool ggml_ua50_gpu_vector(const ggml_tensor*t,const void*q,uint64_t bytes,float*dst,uint64_t n){auto*p=owner(t);return p&&bytes<=SIZE_MAX&&n<=SIZE_MAX&&p->gpu_vector(t,q,size_t(bytes),dst,size_t(n));}
+diff --git a/src/ua50/native_provider.h b/src/ua50/native_provider.h
+--- a/src/ua50/native_provider.h
++++ b/src/ua50/native_provider.h
+@@ -2,6 +2,7 @@
+ #include "ggml-ua50.h"
+ #include "ggml-backend-impl.h"
+ #include "expert_cache.h"
++#include "expert_gpu.h"
+ #include <array>
+ #include <memory>
+ #include <functional>
+@@ -17,6 +18,8 @@
+     std::array<Tensor,128> descriptors_{};
+     std::unique_ptr<Cache> cache_;
+     Cache::Lease active_;
++    std::shared_ptr<ExpertGpu> gpu_;
++    uint64_t active_expert_=0;
+     const ggml_tensor * active_tensor_=nullptr;
+     char error_[256]{};
+     std::function<void(uint32_t,uint64_t,uint64_t,uint64_t)> trace_;
+@@ -30,9 +33,16 @@
+     ggml_backend_buffer_type_t buffer_type() { return &buft_; }
+     void register_tensor(ggml_tensor *,uint16_t file_index,uint64_t absolute_offset);
+     void finalize();
++    void validate_hybrid_catalog()const;
++    const ggml_tensor* tensor_named(const char*)const;
++    uint32_t role_id(const ggml_tensor*t)const{for(size_t i=0;i<count_;++i)if(records_[i].tensor==t)return uint32_t(i);throw std::invalid_argument("role unregistered");}
++    void visit_registry(const std::function<void(uint32_t,const Tensor&,const char*)>& f)const{for(size_t i=0;i<count_;++i)f(uint32_t(i),records_[i].layout,ggml_get_name(records_[i].tensor));}
+     bool registered(const ggml_tensor *) const;
+     bool acquire(const ggml_tensor *,uint64_t) noexcept;
+     void release() noexcept;
++    void set_gpu(std::shared_ptr<ExpertGpu> g){if(active_tensor_||cache_||!g)throw std::logic_error("GPU install before finalize only");gpu_=std::move(g);}
++    bool has_gpu()const noexcept{return bool(gpu_);}
++    bool gpu_vector(const ggml_tensor*,const void*,size_t,float*,size_t) noexcept;
+     void set_trace(std::function<void(uint32_t,uint64_t,uint64_t,uint64_t)> trace) {
+         if(active_tensor_ || error_[0])throw std::logic_error("trace setup on busy/failed provider");
+         trace_=std::move(trace);
+diff --git a/src/ua50/owned_expert_load.h b/src/ua50/owned_expert_load.h
+--- a/src/ua50/owned_expert_load.h
++++ b/src/ua50/owned_expert_load.h
+@@ -22,6 +22,8 @@
+  std::function<void(FILE *)> validate_binding;
+ };
+ struct OwnedExpertLoad {
++ std::function<void(const ExpertLoadPlan&)> admit_hybrid; // mandatory fresh native/app joint guard before tensor allocation
++ std::shared_ptr<ExpertGpu> gpu; // explicit hybrid only; null preserves CPU
+  OwnedExpertInput input;size_t slots=2,cache_ceiling=16*1024*1024,stage_ceiling=4*1024*1024;
+ };
+ // Metadata-only inspection never pretends a prefix contains the full payload.

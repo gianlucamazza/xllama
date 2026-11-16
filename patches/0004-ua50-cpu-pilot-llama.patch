@@ -1,0 +1,71 @@
+--- a/src/llama.cpp
++++ b/src/llama.cpp
+@@ -335,6 +335,7 @@
+  if(layers_key<0||experts_key<0||gguf_get_kv_type(g,layers_key)!=GGUF_TYPE_UINT32||gguf_get_kv_type(g,experts_key)!=GGUF_TYPE_UINT32)throw std::invalid_argument("owned input layer/expert metadata");
+  uint32_t layers=gguf_get_val_u32(g,layers_key),experts=gguf_get_val_u32(g,experts_key);
+  if(!layers||layers>1024||!experts||experts>64)throw std::invalid_argument("owned input layer/expert limit");
++ plan.layers=layers;plan.experts=experts;
+  uint64_t data=gguf_get_data_offset(g);plan.required_file_bytes=data;
+  std::vector<std::pair<uint64_t,uint64_t>> spans;
+  for(int64_t i=0;i<gguf_get_n_tensors(g);++i){auto *ne=gguf_get_tensor_ne(g,i);auto type=gguf_get_tensor_type(g,i);uint64_t n=1;
+@@ -350,7 +351,7 @@
+    auto name=names(role,"weight",int(layer)).str();int64_t id=gguf_find_tensor(g,name.c_str());if(id<0)continue;++roles;++plan.records;
+    const auto *ne=gguf_get_tensor_ne(g,id);auto q=block(reviewed_quant(gguf_get_tensor_type(g,id)));
+    if(ne[2]!=experts||ne[3]!=1||uint64_t(ne[0])%q.elements)throw std::invalid_argument("owned input expert shape");
+-   uint64_t matrix=mul(mul(uint64_t(ne[0])/q.elements,q.bytes),uint64_t(ne[1]));if(matrix>SIZE_MAX)throw std::overflow_error("owned input matrix host size");plan.max_matrix=std::max(plan.max_matrix,size_t(matrix));
++   uint64_t matrix=mul(mul(uint64_t(ne[0])/q.elements,q.bytes),uint64_t(ne[1]));if(matrix>SIZE_MAX)throw std::overflow_error("owned input matrix host size");plan.max_matrix=std::max(plan.max_matrix,size_t(matrix));plan.routed_tensor_bytes=add(plan.routed_tensor_bytes,mul(matrix,experts));
+   }
+   if(roles&&roles!=3)throw std::invalid_argument("owned input incomplete expert role bundle");
+  }
+--- a/src/ua50/native_provider.cpp
++++ b/src/ua50/native_provider.cpp
+@@ -102,6 +102,8 @@
+     try {
+         if(active_tensor_ || !cache_) throw std::logic_error("provider failed/busy/not finalized");
+         for(size_t i=0;i<count_;++i) if(records_[i].tensor==t) {
++            const auto& d=records_[i].layout;
++            if(trace_)trace_(d.id,e,add(d.offset,mul(d.nb02,e)),d.nb02);
+             active_=cache_->acquire(records_[i].layout.id,e); active_tensor_=t; return true;
+         }
+         throw std::logic_error("unregistered provider tensor");
+--- a/src/ua50/native_provider.h
++++ b/src/ua50/native_provider.h
+@@ -4,6 +4,7 @@
+ #include "expert_cache.h"
+ #include <array>
+ #include <memory>
++#include <functional>
+ namespace ua50 {
+ // One immutable file, one CPU graph at a time. No public xllama enablement yet.
+ class NativeProvider {
+@@ -18,6 +19,7 @@
+     Cache::Lease active_;
+     const ggml_tensor * active_tensor_=nullptr;
+     char error_[256]{};
++    std::function<void(uint32_t,uint64_t,uint64_t,uint64_t)> trace_;
+     ggml_backend_buffer_type buft_{};
+ public:
+     NativeProvider(Reader &,uint64_t file_bytes,size_t slots,size_t max_expert,size_t total_owned_budget);
+@@ -31,6 +33,10 @@
+     bool registered(const ggml_tensor *) const;
+     bool acquire(const ggml_tensor *,uint64_t) noexcept;
+     void release() noexcept;
++    void set_trace(std::function<void(uint32_t,uint64_t,uint64_t,uint64_t)> trace) {
++        if(active_tensor_ || error_[0])throw std::logic_error("trace setup on busy/failed provider");
++        trace_=std::move(trace);
++    }
+     const char * data(const ggml_tensor *) const noexcept;
+     const char * error() const { return error_; }
+     static size_t required_owned_bytes(size_t slots,size_t max_expert);
+--- a/src/ua50/owned_expert_load.h
++++ b/src/ua50/owned_expert_load.h
+@@ -6,7 +6,8 @@
+ namespace ua50 {
+ enum class InputContract { sealed_local, controlled_disk, windows_held_verified };
+ struct ExpertLoadPlan {
+- uint64_t required_file_bytes=0,available_file_bytes=0;
++ uint64_t required_file_bytes=0,available_file_bytes=0,routed_tensor_bytes=0;
++ uint32_t layers=0,experts=0;
+  size_t records=0,max_matrix=0,arena_bytes=0,cache_owned_bytes=0,stage_bytes=0;
+  bool full_payload=false;
+ };

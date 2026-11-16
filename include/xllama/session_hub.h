@@ -55,23 +55,47 @@ struct SessionHub {
     // before they attempt mtx (observed on-console during Phase C validation).
     std::atomic<bool> preloading{false};
 
+    // A failed enabled opening has no Session, but its identity must survive.
+    // Allocated BEFORE factory admission so failure cannot require a throwing write.
+    struct FailedExpertLoad { std::string model; SessionParams params; };
+    std::unique_ptr<FailedExpertLoad> failed_expert_load;
+
+
     // Under mtx: return the resident session for |model_id|, creating it (and
     // destroying any other model's session FIRST — never 2x model in RAM) if
     // needed. On creation failure the hub is left empty and nullptr returns.
     Session* ensure_locked(const std::string& model_id, const SessionParams& sp,
                            std::string* err = nullptr) {
+        if(failed_expert_load) {
+            if(failed_expert_load->model==model_id && same_load(failed_expert_load->params,sp)) {
+                if(err)*err="expert opening failed; explicit reset/new admission required";
+                return nullptr;
+            }
+            failed_expert_load.reset(); // an explicitly different load identity
+        }
+        // Terminal expert owner is a tombstone until explicit reset_locked/new load.
+        // A routine ensure must never recreate a failed owner automatically.
+        if(session && model==model_id && same_load(params,sp) && !session->reusable()) {
+            if(err)*err="terminal session; explicit reset/new admission required";
+            return nullptr;
+        }
         // Reuse only the same load (ADR 0007): another adapter, context or
         // GPU-layer split is a different model in RAM, so it reloads like a
         // model switch. Matching the id alone let the first surface's load
         // win (audit F03: the API reused or skipped the GUI's LoRA).
-        if (session && model == model_id && same_load(params, sp))
+        if (session && session->reusable() && model == model_id && same_load(params, sp))
             return session.get();
         session.reset(); // release the old model before loading the new one
         model.clear();
         ++generation;
+        if(Session::expert_requested(sp)) {
+            auto failed=std::make_unique<FailedExpertLoad>(FailedExpertLoad{model_id,sp});
+            failed_expert_load=std::move(failed); // before source/hash/model/context can run
+        }
         auto s = Session::create(sp, err);
         if (!s)
             return nullptr;
+        failed_expert_load.reset(); // successful opening; later errors use session->reusable()
         session = std::move(s);
         model = model_id;
         params = sp;
@@ -82,13 +106,15 @@ struct SessionHub {
     // Under mtx: the files behind |model_id| changed (pull, import, promotion),
     // so a resident session of it is stale even with the same parameters.
     void invalidate_locked(const std::string& model_id) {
-        if (session && model == model_id)
+        if ((session && model == model_id) ||
+            (failed_expert_load && failed_expert_load->model == model_id))
             reset_locked();
     }
 
     // Under mtx: drop the resident session (e.g. to free RAM on demand).
     void reset_locked() {
-        if (session) {
+        if (session || failed_expert_load) {
+            failed_expert_load.reset();
             session.reset();
             model.clear();
             ++generation;

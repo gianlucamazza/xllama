@@ -1,0 +1,11 @@
+--- a/src/ua50/native_provider.cpp
++++ b/src/ua50/native_provider.cpp
+@@ -92,7 +92,7 @@
+ }
+ const ggml_tensor*NativeProvider::tensor_named(const char*name)const{for(size_t i=0;i<count_;++i)if(std::strcmp(ggml_get_name(records_[i].tensor),name)==0)return records_[i].tensor;throw std::invalid_argument("expert primitive tensor missing");}
+ void NativeProvider::validate_hybrid_catalog()const{
+- if(count_!=114||slots_!=2||max_expert_!=2580480)throw std::invalid_argument("hybrid complete LFM24 registry required");
++ if(count_!=114||slots_<2||slots_>512||max_expert_!=2580480)throw std::invalid_argument("hybrid complete LFM24 registry required");
+  size_t q4=0,q6=0;for(size_t i=0;i<count_;++i){auto&d=records_[i].layout;
+   if(d.experts!=64||!((d.columns==2048&&d.rows==1536&&d.quant==Quant::q4_k)||(d.columns==1536&&d.rows==2048&&(d.quant==Quant::q4_k||d.quant==Quant::q6_k))))throw std::invalid_argument("hybrid metadata role/quant/shape");
+   (d.quant==Quant::q4_k?q4:q6)++;}

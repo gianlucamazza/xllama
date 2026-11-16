@@ -34,9 +34,20 @@ ComPtr<ID3D12Device> create_device(std::string* err) {
     }
     ComPtr<IDXGIAdapter1> adapter;
     ComPtr<ID3D12Device> device;
-    for (UINT i = 0; factory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; ++i) {
+    for (UINT i = 0;; ++i) {
+        hr = factory->EnumAdapters1(i, &adapter);
+        if (hr == DXGI_ERROR_NOT_FOUND)
+            break;
+        if (FAILED(hr) || !adapter) {
+            if (err) *err = hr_message("EnumAdapters1", hr);
+            return {};
+        }
         DXGI_ADAPTER_DESC1 ad = {};
-        adapter->GetDesc1(&ad);
+        hr = adapter->GetDesc1(&ad);
+        if (FAILED(hr)) {
+            if (err) *err = hr_message("GetDesc1", hr);
+            return {};
+        }
         if (ad.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
             continue;
         hr = create(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));

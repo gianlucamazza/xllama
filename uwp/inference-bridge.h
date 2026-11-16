@@ -18,6 +18,16 @@ inline InferenceResult run_inference(const InferenceParams& params) {
     return xllama::run_inference(params);
 }
 
+// Explicit developer flag only; ordinary UI/LAN defaults stay disabled.
+#if defined(XLLAMA_USE_LLAMA)
+void run_cpu_expert_pilot();
+void run_cpu_expert_first_answer();
+void run_cpu_expert_finished_answer();
+void run_cpu_expert_cache_a2();
+void run_cpu_expert_configured();
+void run_cpu_expert_cache_b512();
+#endif
+
 // Called from UWP App on a background thread (bench mode).
 void main_loop();
 
@@ -110,3 +120,7 @@ xllama::TrainingResult run_train_job_localized(const xllama::TrainingJob& job,
                                                const xllama::DeviceTrainCallbacks& cb = {});
 
 } // namespace xllama::bridge
+
+namespace xllama::bridge {void run_expert_gpu_proof_configured();} // internal; no App/UI/LAN activation callsite
+
+namespace xllama::bridge {void run_gpu_capability_identity();} // identity-only developer headless entry
