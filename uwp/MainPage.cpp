@@ -567,7 +567,9 @@ void MainPageController::FlushTokenBuffer() {
         std::lock_guard<std::mutex> lk(m_token_mutex);
         batch = std::move(m_token_buffer);
     }
-    if (!batch.empty())
+    // The LFM template prefills <think>; raw partial reasoning is not an answer.
+    // FinalizeStreamedTurn publishes the postprocessed answer at normal completion.
+    if (!batch.empty() && chat_format().gen_suffix != "<think>")
         AppendOutput(::xllama::utf8_to_wstring(batch));
 
     // Live tok/s counter. Measured from the FIRST TOKEN, not from turn start:
@@ -3428,7 +3430,9 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
     // KV reuse now works for both backends: ORT-GenAI (persistent generator) and
     // GGUF/llama.cpp (persistent llama_context in LlamaSession). ep_kv_ok still
     // excludes the DirectML routing model (continuous decoding unsupported there).
-    const bool ep_kv_ok = ::xllama::kv_reuse_supported_for_model(routed_model);
+    const bool ep_kv_ok = ::xllama::kv_reuse_supported_for_model(routed_model) &&
+                           ::xllama::chat_format_for(routed_model).gen_suffix != "<think>";
+    // LFM always-thinking history strips reasoning, so do not reuse/restore its raw KV.
     // #169: on the llama backend a trimmed round no longer forces a full
     // re-prefill — the session evicts the oldest resident tokens (context
     // shift) when the delta would overflow n_ctx, keeping long chats in the
@@ -3671,7 +3675,10 @@ bool MainPageController::StartInference(std::wstring const& prompt_w) {
                                                                           : res.error_msg);
             }
 
-            std::string output_text = fmt.postprocess_output(res.output_text);
+            std::string generated_text = res.output_text;
+            if (fmt.gen_suffix == "<think>" && generated_text.rfind("<think>", 0) != 0)
+                generated_text = "<think>" + generated_text; // opener was prefilled, not sampled
+            std::string output_text = fmt.postprocess_output(std::move(generated_text));
             bool was_aborted = self->m_abort.load();
             // A thinking model that spent its whole budget reasoning leaves
             // NOTHING after postprocess (strip_thinking_blocks drops an unclosed

@@ -1,0 +1,850 @@
+--- a/ggml/src/CMakeLists.txt
++++ b/ggml/src/CMakeLists.txt
+@@ -216,6 +216,11 @@
+ configure_file(ggml-version.h.in ${CMAKE_CURRENT_BINARY_DIR}/ggml-version.h @ONLY)
+ 
+ target_include_directories(ggml-base PRIVATE . ${CMAKE_CURRENT_BINARY_DIR})
++
++# UA50 provider supplies metadata-only expert buffers used by patched core/CPU.
++get_filename_component(GGML_UA50_PROVIDER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../src/ua50" ABSOLUTE)
++target_sources(ggml-base PRIVATE "${GGML_UA50_PROVIDER_DIR}/native_provider.cpp")
++target_include_directories(ggml-base PRIVATE "${GGML_UA50_PROVIDER_DIR}")
+ if (GGML_BACKEND_DL)
+     target_compile_definitions(ggml-base PUBLIC GGML_BACKEND_DL)
+ endif()
+--- a/ggml/src/ggml-alloc.c
++++ b/ggml/src/ggml-alloc.c
+@@ -2,6 +2,7 @@
+ #include "ggml-backend-impl.h"
+ #include "ggml.h"
+ #include "ggml-impl.h"
++#include "ggml-ua50.h"
+ 
+ #include <assert.h>
+ #include <limits.h>
+@@ -857,7 +858,7 @@
+     for (int i = 0; i < graph->n_nodes; i++) {
+         struct ggml_tensor * node = graph->nodes[i];
+         struct node_alloc * node_alloc = &galloc->node_allocs[i];
+-        if (node->view_src || node->data) {
++        if (node->view_src || node->data || ggml_ua50_is_external(node)) {
+             node_alloc->dst.buffer_id = -1;
+             node_alloc->dst.addr = GGML_BUFFER_ADDRESS_INVALID;
+             node_alloc->dst.size_max = 0;
+@@ -869,7 +870,7 @@
+         }
+         for (int j = 0; j < GGML_MAX_SRC; j++) {
+             struct ggml_tensor * src = node->src[j];
+-            if (!src || src->view_src || src->data) {
++            if (!src || src->view_src || src->data || ggml_ua50_is_external(src)) {
+                 node_alloc->src[j].buffer_id = -1;
+                 node_alloc->src[j].addr = GGML_BUFFER_ADDRESS_INVALID;
+                 node_alloc->src[j].size_max = 0;
+@@ -890,7 +891,7 @@
+     for (int i = 0; i < graph->n_leafs; i++) {
+         struct ggml_tensor * leaf = graph->leafs[i];
+         struct hash_node * hn = ggml_gallocr_hash_get(galloc, leaf);
+-        if (leaf->view_src || leaf->data) {
++        if (leaf->view_src || leaf->data || ggml_ua50_is_external(leaf)) {
+             galloc->leaf_allocs[i].leaf.buffer_id = -1;
+             galloc->leaf_allocs[i].leaf.addr = GGML_BUFFER_ADDRESS_INVALID;
+             galloc->leaf_allocs[i].leaf.size_max = 0;
+@@ -968,6 +969,10 @@
+ }
+ 
+ static void ggml_gallocr_init_tensor(ggml_gallocr_t galloc, struct ggml_tensor * tensor, struct tensor_alloc * tensor_alloc) {
++    if (ggml_ua50_is_external(tensor)) {
++        GGML_ASSERT(tensor->data == NULL && tensor->view_src == NULL && tensor_alloc->buffer_id == -1);
++        return; // Native metadata-only expert buffer; never manufacture data.
++    }
+     int buffer_id = tensor_alloc->buffer_id;
+     assert(tensor->data || tensor->view_src || ggml_backend_buft_get_alloc_size(galloc->bufts[buffer_id], tensor) <= tensor_alloc->size_max);
+ 
+@@ -995,6 +1000,7 @@
+ }
+ 
+ static bool ggml_gallocr_node_needs_realloc(ggml_gallocr_t galloc, struct ggml_tensor * node, struct tensor_alloc * talloc) {
++    if (ggml_ua50_is_external(node)) return true; // valid preallocated metadata-only weight
+     size_t node_size = 0;
+     if (!node->data && !node->view_src) {
+         // If we previously had data but don't now then reallocate
+--- a/ggml/src/ggml-cpu/CMakeLists.txt
++++ b/ggml/src/ggml-cpu/CMakeLists.txt
+@@ -60,6 +60,7 @@
+ 
+     target_compile_features(${GGML_CPU_NAME} PRIVATE c_std_11 cxx_std_17)
+     target_include_directories(${GGML_CPU_NAME} PRIVATE . ggml-cpu)
++    target_include_directories(${GGML_CPU_NAME} PRIVATE "${GGML_UA50_PROVIDER_DIR}")
+ 
+     if (APPLE AND GGML_ACCELERATE)
+         find_library(ACCELERATE_FRAMEWORK Accelerate)
+--- a/ggml/src/ggml-cpu/ggml-cpu.c
++++ b/ggml/src/ggml-cpu/ggml-cpu.c
+@@ -2,6 +2,7 @@
+ #define _USE_MATH_DEFINES // For M_PI on MSVC
+ 
+ #include "ggml-backend-impl.h"
++#include "ggml-ua50.h"
+ #include "ggml-backend.h"
+ #include "traits.h"
+ #include "ggml-cpu-impl.h"
+@@ -1675,12 +1676,27 @@
+             continue;
+         }
+ 
+-        // tiled takes over if profitable for this expert (see tiled.h)
+-        if (ggml_compute_forward_mul_mat_id_tiled(params, dst, cur_a, cne1, (const int32_t *) &MMID_MATRIX_ROW(cur_a, 0), tiled_scratch)) {
++        const bool external_expert = ggml_ua50_is_external(src0);
++        if (external_expert) {
++            // One coordinator, publish only after complete read. All workers
++            // enter/leave the same expert, including workers with no chunks.
++            if (ith == 0) ggml_ua50_acquire(src0, cur_a);
++            ggml_barrier(params->threadpool);
++            if (ggml_ua50_data(src0) == NULL) {
++                ggml_barrier(params->threadpool); // all readers observed failure before release
++                if (ith == 0) {
++                    GGML_LOG_ERROR("UA50 expert I/O failed: %s\n", ggml_ua50_error(src0));
++                    params->threadpool->ec = GGML_STATUS_ABORTED;
++                    ggml_ua50_release(src0);
++                }
++                ggml_barrier(params->threadpool);
++                return; // Every worker drains; graph loop aborts before next node.
++            }
++        } else if (ggml_compute_forward_mul_mat_id_tiled(params, dst, cur_a, cne1, (const int32_t *) &MMID_MATRIX_ROW(cur_a, 0), tiled_scratch)) {
+             continue;
+         }
+ 
+-        const char * src0_cur = (const char *) src0->data + cur_a * nb02;
++        const char * src0_cur = external_expert ? ggml_ua50_data(src0) : (const char *) src0->data + cur_a * nb02;
+         const void * wdata = (src1->type == vec_dot_type) ? src1->data : params->wdata;
+         const size_t row_size = ggml_row_size(vec_dot_type, ne10);
+ 
+@@ -1731,6 +1747,11 @@
+             }
+ 
+             current_chunk = atomic_fetch_add_explicit(current_chunk_ctr, 1, memory_order_relaxed);
++        }
++        if (external_expert) {
++            ggml_barrier(params->threadpool); // ALL chunks/reads complete before eviction
++            if (ith == 0) ggml_ua50_release(src0);
++            ggml_barrier(params->threadpool); // release completes before next acquire
+         }
+     }
+ }
+@@ -3147,7 +3168,9 @@
+             ggml_compute_forward(&params, node);
+         }
+ 
+-        if (state->ith == 0 && cplan->abort_callback &&
++        if (state->ith == 0 && tp->ec != GGML_STATUS_SUCCESS) {
++            atomic_store_explicit(&tp->abort, node_n + 1, memory_order_relaxed);
++        } else if (state->ith == 0 && cplan->abort_callback &&
+                 cplan->abort_callback(cplan->abort_callback_data)) {
+             atomic_store_explicit(&tp->abort, node_n + 1, memory_order_relaxed);
+             tp->ec    = GGML_STATUS_ABORTED;
+--- a/ggml/src/ggml-cpu/ggml-cpu.cpp
++++ b/ggml/src/ggml-cpu/ggml-cpu.cpp
+@@ -1,5 +1,6 @@
+ #include "ggml-backend.h"
+ #include "ggml-backend-impl.h"
++#include "ggml-ua50.h"
+ #include "ggml-cpu.h"
+ #include "repack.h"
+ #include "traits.h"
+@@ -425,6 +426,15 @@
+     const struct ggml_tensor * src0 = op->src[0];
+     const struct ggml_tensor * src1 = op->src[1];
+ 
++    // External routed weights support no view/copy/repack/fused replacement.
++    bool external_source = false;
++    for (int i = 0; i < GGML_MAX_SRC; ++i) {
++        if (ggml_ua50_is_external(op->src[i])) {
++            if (op->op != GGML_OP_MUL_MAT_ID || i != 0 || op->src[0]->view_src) return false;
++            external_source = true;
++        }
++    }
++    if (external_source) return true;
+     if (op->op == GGML_OP_NONE || op->op == GGML_OP_RESHAPE || op->op == GGML_OP_VIEW || op->op == GGML_OP_PERMUTE || op->op == GGML_OP_TRANSPOSE) {
+         return true;
+     }
+@@ -487,7 +497,7 @@
+ }
+ 
+ static bool ggml_backend_cpu_device_supports_buft(ggml_backend_dev_t dev, ggml_backend_buffer_type_t buft) {
+-    return ggml_backend_buft_is_host(buft) || ggml_backend_cpu_is_extra_buffer_type(buft);
++    return ggml_ua50_is_buft(buft) || ggml_backend_buft_is_host(buft) || ggml_backend_cpu_is_extra_buffer_type(buft);
+     GGML_UNUSED(dev);
+ }
+ 
+--- a/src/llama-model-loader.cpp
++++ b/src/llama-model-loader.cpp
+@@ -1360,7 +1360,13 @@
+ 
+     GGML_ASSERT(ggml_nbytes(&t_meta) == ggml_nbytes(cur));
+ 
+-    ggml_backend_buffer_type_t buft = buft_for_tensor(&t_meta);
++    const bool external_expert = expert_provider && arch_name == "lfm2moe" &&
++        tn.suffix != nullptr && strcmp(tn.suffix, "weight") == 0 &&
++        (tn.tensor == LLM_TENSOR_FFN_GATE_EXPS || tn.tensor == LLM_TENSOR_FFN_UP_EXPS || tn.tensor == LLM_TENSOR_FFN_DOWN_EXPS);
++    if (external_expert && (use_mmap || use_direct_io || check_tensors || lazy.any() || flags)) {
++        throw std::runtime_error("UA50 external experts require reviewed non-mmap/non-repack/non-check path, unmodified expert tensor flags");
++    }
++    ggml_backend_buffer_type_t buft = external_expert ? expert_provider->buffer_type() : buft_for_tensor(&t_meta);
+     if (buft == nullptr) {
+         return nullptr;
+     }
+@@ -1379,6 +1385,10 @@
+ 
+     struct ggml_tensor * tensor = ggml_dup_tensor(ctx, &t_meta);
+     ggml_set_name(tensor, ggml_get_name(&t_meta));
++    if (external_expert) {
++        const auto & weight = require_weight(ggml_get_name(tensor));
++        expert_provider->register_tensor(tensor, weight.idx, weight.offs);
++    }
+ 
+     if (duplicated) {
+         size_data += ggml_nbytes(&t_meta);
+@@ -1635,6 +1645,15 @@
+         }
+ 
+         size_t n_size = ggml_nbytes(cur);
++        if (ggml_ua50_is_external(cur)) {
++            if (!expert_provider || !expert_provider->registered(cur) || cur->data != nullptr) {
++                throw std::runtime_error("UA50 external expert registration/allocation mismatch");
++            }
++            // Registered/deferred bytes advance progress; no eager read, mapping,
++            // validation task or full-tensor staging allocation occurs here.
++            size_done += n_size;
++            continue;
++        }
+ 
+         const bool from_mapping = use_mmap || lazy.has(cur);
+ 
+--- a/src/llama-model-loader.h
++++ b/src/llama-model-loader.h
+@@ -8,6 +8,7 @@
+ #include "llama-mmap.h"
+ 
+ #include "ggml-cpp.h"
++#include "ua50/native_provider.h"
+ 
+ #include <cstddef>
+ #include <cstring>
+@@ -30,6 +31,8 @@
+ const char * llama_file_version_name(llama_fver version);
+ 
+ struct llama_model_loader {
++    // Explicit internal opt-in only; no installed xllama/API setting yet.
++    std::shared_ptr<ua50::NativeProvider> expert_provider;
+     // Holds information on a model weight
+     struct llama_tensor_weight {
+         uint16_t  idx; // source file index
+--- a/src/llama-model.cpp
++++ b/src/llama-model.cpp
+@@ -1188,6 +1188,8 @@
+ }
+ 
+ struct llama_model::impl {
++    // Declared before ctxs_bufs: buffers/tensors die first, provider dies last.
++    std::shared_ptr<ua50::NativeProvider> expert_provider;
+     impl() = default;
+     ~impl() = default;
+ 
+@@ -1285,6 +1287,18 @@
+     }
+     pimpl->has_tensor_overrides = params.tensor_buft_overrides && params.tensor_buft_overrides[0].pattern;
+ }
++
++void llama_model::set_expert_provider(std::shared_ptr<ua50::NativeProvider> provider) {
++    if (!pimpl->ctxs_bufs.empty() || !tensors_by_name.empty()) {
++        throw std::logic_error("UA50 provider must be configured before model tensors");
++    }
++    if (provider && !provider->owns_reader()) {
++        throw std::invalid_argument("UA50 model provider must own its Reader");
++    }
++    pimpl->expert_provider = std::move(provider);
++}
++
++std::shared_ptr<ua50::NativeProvider> llama_model::expert_provider() const { return pimpl->expert_provider; }
+ 
+ llama_model::~llama_model() {
+     for (auto * lora : loras) {
+@@ -1500,6 +1514,16 @@
+ }
+ 
+ bool llama_model_base::load_tensors(llama_model_loader & ml) {
++    if (pimpl->expert_provider) {
++        if (ml.expert_provider && ml.expert_provider != pimpl->expert_provider) {
++            throw std::invalid_argument("UA50 model/loader provider mismatch");
++        }
++        ml.expert_provider = pimpl->expert_provider;
++    }
++    if (ml.expert_provider && (!ml.expert_provider->owns_reader() || ml.get_arch() != LLM_ARCH_LFM2MOE || ml.no_alloc || ml.use_mmap || ml.use_direct_io || ml.check_tensors || ml.lazy.any())) {
++        throw std::invalid_argument("UA50 model provider requires actual LFM2MoE/non-mmap allocated CPU load");
++    }
++
+     const auto & split_mode   = params.split_mode;
+     const bool use_mlock      = params.load_mode == LLAMA_LOAD_MODE_MLOCK || params.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+     const auto & tensor_split = params.tensor_split;
+@@ -1813,6 +1837,12 @@
+ 
+     ml.init_mappings(true, use_mlock ? &pimpl->mlock_mmaps : nullptr);
+     pimpl->mappings.reserve(ml.mappings.size());
++
++    if (ml.expert_provider) {
++        if (ml.use_mmap || ml.lazy.any()) throw std::runtime_error("UA50 provider prohibits whole-file mappings");
++        if (!ml.no_alloc) ml.expert_provider->finalize();
++        pimpl->expert_provider = ml.expert_provider;
++    }
+ 
+     // create the backend buffers
+     std::vector<std::pair<ggml_context *, llama_buf_map>> ctx_buf_maps;
+--- a/src/llama-model.h
++++ b/src/llama-model.h
+@@ -13,6 +13,8 @@
+ #include <unordered_map>
+ #include <unordered_set>
+ #include <vector>
++
++namespace ua50 { class NativeProvider; }
+ 
+ struct llama_cparams;
+ struct llama_ubatch;
+@@ -752,6 +754,10 @@
+     explicit llama_model(const llama_model_params & params);
+     virtual ~llama_model();
+ 
++    // Internal explicit opt-in before load_tensors; no public API/UI activation.
++    void set_expert_provider(std::shared_ptr<ua50::NativeProvider> provider);
++    std::shared_ptr<ua50::NativeProvider> expert_provider() const;
++
+     std::string arch_name() const;
+     std::string type_name() const;
+ 
+--- a/src/llama.cpp
++++ b/src/llama.cpp
+@@ -10,6 +10,7 @@
+ #include "llama-model-loader.h"
+ #include "llama-model-saver.h"
+ #include "llama-model.h"
++#include "ua50/owned_expert_load.h"
+ 
+ #include "ggml.h"
+ #include "ggml-cpp.h"
+@@ -312,10 +313,66 @@
+     return true;
+ }
+ 
++namespace ua50 {
++namespace {
++struct RestorePosition {FILE *file;fpos_t pos;explicit RestorePosition(FILE *f):file(f){if(!file||fgetpos(file,&pos))throw std::invalid_argument("owned input FILE position");}~RestorePosition(){fsetpos(file,&pos);}};
++struct GGUFDelete {void operator()(gguf_context *g)const{gguf_free(g);}};
++Quant reviewed_quant(ggml_type t){switch(t){case GGML_TYPE_IQ3_S:return Quant::iq3_s;case GGML_TYPE_Q4_K:return Quant::q4_k;case GGML_TYPE_Q4_0:return Quant::q4_0;case GGML_TYPE_Q6_K:return Quant::q6_k;case GGML_TYPE_F16:return Quant::f16;case GGML_TYPE_F32:return Quant::f32;default:throw std::invalid_argument("owned input unsupported expert quant");}}
++class AnchoredReader final:public Reader {
++ std::shared_ptr<void> anchor_;std::shared_ptr<Reader> inner_;
++public:AnchoredReader(std::shared_ptr<void>a,std::shared_ptr<Reader>r):anchor_(std::move(a)),inner_(std::move(r)){}
++ size_t read(uint64_t off,unsigned char *p,size_t n)override{return inner_->read(off,p,n);}
++};
++}
++ExpertLoadPlan inspect_expert_input(FILE *file,size_t slots){
++ RestorePosition restore(file);llama_file physical(file);ExpertLoadPlan plan;plan.available_file_bytes=physical.size();
++ if(fseek(file,0,SEEK_SET))throw std::invalid_argument("owned input rewind");
++ std::unique_ptr<gguf_context,GGUFDelete> meta(gguf_init_from_file_ptr(file,{true,nullptr}));
++ if(!meta)throw std::invalid_argument("owned input GGUF metadata");auto *g=meta.get();
++ auto arch=gguf_find_key(g,"general.architecture");
++ if(arch<0||gguf_get_kv_type(g,arch)!=GGUF_TYPE_STRING||std::string(gguf_get_val_str(g,arch))!="lfm2moe")throw std::invalid_argument("owned input requires LFM2MoE");
++ auto layers_key=gguf_find_key(g,"lfm2moe.block_count"),experts_key=gguf_find_key(g,"lfm2moe.expert_count");
++ if(layers_key<0||experts_key<0||gguf_get_kv_type(g,layers_key)!=GGUF_TYPE_UINT32||gguf_get_kv_type(g,experts_key)!=GGUF_TYPE_UINT32)throw std::invalid_argument("owned input layer/expert metadata");
++ uint32_t layers=gguf_get_val_u32(g,layers_key),experts=gguf_get_val_u32(g,experts_key);
++ if(!layers||layers>1024||!experts||experts>64)throw std::invalid_argument("owned input layer/expert limit");
++ uint64_t data=gguf_get_data_offset(g);plan.required_file_bytes=data;
++ std::vector<std::pair<uint64_t,uint64_t>> spans;
++ for(int64_t i=0;i<gguf_get_n_tensors(g);++i){auto *ne=gguf_get_tensor_ne(g,i);auto type=gguf_get_tensor_type(g,i);uint64_t n=1;
++  for(int d=0;d<GGML_MAX_DIMS;++d){if(ne[d]<=0)throw std::invalid_argument("owned input dimension");n=mul(n,uint64_t(ne[d]));}
++  auto bs=ggml_blck_size(type);if(bs<=0||uint64_t(ne[0])%uint64_t(bs)||n%uint64_t(bs))throw std::invalid_argument("owned input block shape");
++  uint64_t bytes=mul(n/uint64_t(bs),ggml_type_size(type));uint64_t begin=add(data,gguf_get_tensor_offset(g,i)),end=add(begin,bytes);
++  if(bytes!=gguf_get_tensor_size(g,i))throw std::invalid_argument("owned input tensor extent disagreement");spans.emplace_back(begin,end);plan.required_file_bytes=std::max(plan.required_file_bytes,end);
++ }
++ std::sort(spans.begin(),spans.end());for(size_t i=1;i<spans.size();++i)if(spans[i].first<spans[i-1].second)throw std::invalid_argument("owned input overlapping payload extents");
++ LLM_TN names(LLM_ARCH_LFM2MOE);
++ for(uint32_t layer=0;layer<layers;++layer){size_t roles=0;
++  for(auto role:{LLM_TENSOR_FFN_GATE_EXPS,LLM_TENSOR_FFN_UP_EXPS,LLM_TENSOR_FFN_DOWN_EXPS}){
++   auto name=names(role,"weight",int(layer)).str();int64_t id=gguf_find_tensor(g,name.c_str());if(id<0)continue;++roles;++plan.records;
++   const auto *ne=gguf_get_tensor_ne(g,id);auto q=block(reviewed_quant(gguf_get_tensor_type(g,id)));
++   if(ne[2]!=experts||ne[3]!=1||uint64_t(ne[0])%q.elements)throw std::invalid_argument("owned input expert shape");
++   uint64_t matrix=mul(mul(uint64_t(ne[0])/q.elements,q.bytes),uint64_t(ne[1]));if(matrix>SIZE_MAX)throw std::overflow_error("owned input matrix host size");plan.max_matrix=std::max(plan.max_matrix,size_t(matrix));
++  }
++  if(roles&&roles!=3)throw std::invalid_argument("owned input incomplete expert role bundle");
++ }
++ if(!plan.records||plan.records>128)throw std::invalid_argument("owned input descriptor limit");
++ uint64_t arena=mul(add(plan.max_matrix,63)&~uint64_t(63),slots);if(arena>SIZE_MAX)throw std::overflow_error("owned input arena host size");
++ plan.arena_bytes=size_t(arena);plan.stage_bytes=plan.max_matrix;plan.cache_owned_bytes=NativeProvider::required_owned_bytes(slots,plan.max_matrix);plan.full_payload=plan.available_file_bytes>=plan.required_file_bytes;return plan;
++}
++}
++
+ // Returns 0 on success, -1 on error, and -2 on cancellation via llama_progress_callback
+ static std::pair<int, llama_model *> llama_model_load(struct gguf_context * metadata, llama_model_set_tensor_data_t set_tensor_data, void * set_tensor_data_ud,
+-        const std::string & fname, std::vector<std::string> & splits, FILE * file, llama_model_params & params) {
++        const std::string & fname, std::vector<std::string> & splits, FILE * file, llama_model_params & params, const ua50::OwnedExpertLoad * owned = nullptr) {
+     try {
++        ua50::ExpertLoadPlan plan;
++        if(owned){
++            if(!file || file!=owned->input.file || !owned->input.file_anchor || !owned->input.make_reader)throw std::invalid_argument("owned input requires held FILE/anchor/Reader factory");
++            if(owned->input.contract!=ua50::InputContract::sealed_local && owned->input.contract!=ua50::InputContract::controlled_disk)throw std::invalid_argument("owned input contract refused");
++            if(params.n_gpu_layers!=0 || params.split_mode!=LLAMA_SPLIT_MODE_NONE || params.load_mode!=LLAMA_LOAD_MODE_NONE || params.lazy_mode!=LLAMA_LAZY_MODE_OFF || params.no_alloc || params.vocab_only || params.check_tensors || params.use_extra_bufts || params.tensor_buft_overrides || params.devices)throw std::invalid_argument("owned load requires CPU/non-mmap/non-lazy/non-repack defaults");
++            plan=ua50::inspect_expert_input(file,owned->slots);
++            if(!plan.full_payload)throw std::invalid_argument("owned input full tensor payload unavailable");
++            if(plan.cache_owned_bytes>owned->cache_ceiling || plan.stage_bytes>owned->stage_ceiling)throw std::invalid_argument("owned load cache/staging budget refused");
++        }
+         llama_model_loader ml(metadata, set_tensor_data, set_tensor_data_ud, fname, splits, file, params.load_mode,
+             params.check_tensors, params.no_alloc, params.load_mtp, params.kv_overrides, params.tensor_buft_overrides);
+ 
+@@ -364,6 +421,13 @@
+         if (params.vocab_only) {
+             LLAMA_LOG_INFO("%s: vocab only - skipping tensors\n", __func__);
+             return {0, model_ptr.release()};
++        }
++
++        if(owned){
++            auto inner=owned->input.make_reader(plan.stage_bytes);
++            if(!inner)throw std::invalid_argument("owned load Reader factory refused");
++            auto reader=std::make_shared<ua50::AnchoredReader>(owned->input.file_anchor,std::move(inner));
++            model->set_expert_provider(std::make_shared<ua50::NativeProvider>(reader,plan.available_file_bytes,owned->slots,plan.max_matrix,plan.cache_owned_bytes));
+         }
+ 
+         if (!model->load_tensors(ml)) {
+@@ -384,7 +448,7 @@
+         const std::string & path_model,
+         std::vector<std::string> & splits,
+         FILE * file,
+-        struct llama_model_params params) {
++        struct llama_model_params params, const ua50::OwnedExpertLoad * owned = nullptr) {
+     {
+         int n_sources_defined = 0;
+         if (metadata != nullptr) {
+@@ -426,7 +490,7 @@
+         };
+     }
+ 
+-    const auto [status, model] = llama_model_load(metadata, set_tensor_data, set_tensor_data_ud, path_model, splits, file, params);
++    const auto [status, model] = llama_model_load(metadata, set_tensor_data, set_tensor_data_ud, path_model, splits, file, params, owned);
+     GGML_ASSERT(status <= 0);
+     if (status < 0) {
+         if (status == -1) {
+@@ -494,6 +558,11 @@
+     std::string path_model;
+     std::vector<std::string> splits = {};
+     return llama_model_load_from_file_impl(nullptr, nullptr, nullptr, path_model, splits, file, params);
++}
++
++llama_model *ua50::load_owned_experts(const OwnedExpertLoad &owned,llama_model_params params){
++    std::vector<std::string> splits;
++    return llama_model_load_from_file_impl(nullptr,nullptr,nullptr,"",splits,owned.input.file,params,&owned);
+ }
+ 
+ void llama_model_save_to_file(const struct llama_model * model, const char * path_model) {
+--- /dev/null
++++ b/src/ua50/native_provider.h
+@@ -0,0 +1,44 @@
++#pragma once
++#include "ggml-ua50.h"
++#include "ggml-backend-impl.h"
++#include "expert_cache.h"
++#include <array>
++#include <memory>
++namespace ua50 {
++// One immutable file, one CPU graph at a time. No public xllama enablement yet.
++class NativeProvider {
++    struct Record { ggml_tensor * tensor=nullptr; Tensor layout{}; };
++    std::shared_ptr<Reader> reader_owner_; // declared first: outlives cache/leases
++    Reader & reader_;
++    uint64_t file_bytes_;
++    size_t slots_, max_expert_, budget_, count_=0;
++    std::array<Record,128> records_{};
++    std::array<Tensor,128> descriptors_{};
++    std::unique_ptr<Cache> cache_;
++    Cache::Lease active_;
++    const ggml_tensor * active_tensor_=nullptr;
++    char error_[256]{};
++    ggml_backend_buffer_type buft_{};
++public:
++    NativeProvider(Reader &,uint64_t file_bytes,size_t slots,size_t max_expert,size_t total_owned_budget);
++    NativeProvider(std::shared_ptr<Reader>,uint64_t file_bytes,size_t slots,size_t max_expert,size_t total_owned_budget);
++    ~NativeProvider();
++    NativeProvider(const NativeProvider&)=delete;
++    NativeProvider& operator=(const NativeProvider&)=delete;
++    ggml_backend_buffer_type_t buffer_type() { return &buft_; }
++    void register_tensor(ggml_tensor *,uint16_t file_index,uint64_t absolute_offset);
++    void finalize();
++    bool registered(const ggml_tensor *) const;
++    bool acquire(const ggml_tensor *,uint64_t) noexcept;
++    void release() noexcept;
++    const char * data(const ggml_tensor *) const noexcept;
++    const char * error() const { return error_; }
++    static size_t required_owned_bytes(size_t slots,size_t max_expert);
++    size_t requested_owned_bytes() const;
++    size_t reserved_budget() const { return budget_; }
++    bool owns_reader() const noexcept { return bool(reader_owner_); }
++    const Counters & counters() const;
++    // Only inspect after synchronous graph drain; does not report pending native OS I/O.
++    size_t active_leases() const noexcept { return cache_ ? cache_->active_leases() : 0; }
++};
++}
+--- /dev/null
++++ b/src/ua50/native_provider.cpp
+@@ -0,0 +1,124 @@
++#include "native_provider.h"
++#include <cstdio>
++#include <cstring>
++#include <exception>
++
++namespace {
++using ua50::NativeProvider;
++NativeProvider * model(ggml_backend_buffer_type_t b) { return static_cast<NativeProvider *>(b->context); }
++const char * name(ggml_backend_buffer_type_t) { return "UA50-EXTERNAL-CPU"; }
++size_t alignment(ggml_backend_buffer_type_t) { return 64; }
++bool host(ggml_backend_buffer_type_t) { return false; }
++void * base(ggml_backend_buffer_t) { return nullptr; }
++void clear(ggml_backend_buffer_t,uint8_t) { GGML_ABORT("external expert clear forbidden"); }
++void set(ggml_backend_buffer_t,ggml_tensor *,const void *,size_t,size_t) { GGML_ABORT("external expert set forbidden"); }
++void get(ggml_backend_buffer_t,const ggml_tensor *,void *,size_t,size_t) { GGML_ABORT("external expert full get/copy forbidden"); }
++void memset_tensor(ggml_backend_buffer_t,ggml_tensor *,uint8_t,size_t,size_t) { GGML_ABORT("external expert memset forbidden"); }
++bool copy(ggml_backend_buffer_t,const ggml_tensor *,ggml_tensor *) { return false; }
++ggml_backend_buffer_t alloc(ggml_backend_buffer_type_t,size_t) { return nullptr; }
++ggml_backend_buffer_t alloc_n(ggml_backend_buffer_type_t b,ggml_tensor ** tensors,int n) {
++    auto * p=model(b);
++    if(n<=0 || n>128) return nullptr;
++    for(int i=0;i<n;++i) if(!p->registered(tensors[i]) || tensors[i]->data || tensors[i]->buffer || tensors[i]->view_src) return nullptr;
++    ggml_backend_buffer_i iface{};
++    iface.get_base=base; iface.clear=clear; iface.set_tensor=set; iface.get_tensor=get;
++    iface.memset_tensor=memset_tensor; iface.cpy_tensor=copy;
++    // No payload allocation and no artificial address: only the native buffer
++    // descriptor is allocated here. Cache storage is owned by NativeProvider.
++    ggml_backend_buffer_t buffer=nullptr;
++    try { buffer=ggml_backend_buffer_init(b,iface,p,p->requested_owned_bytes()); } catch(...) { return nullptr; }
++    if(!buffer) return nullptr;
++    for(int i=0;i<n;++i) tensors[i]->buffer=buffer;
++    return buffer;
++}
++size_t alloc_size_n(ggml_backend_buffer_type_t b,ggml_tensor ** tensors,int n) {
++    auto * p=model(b);
++    for(int i=0;i<n;++i) if(!p->registered(tensors[i])) GGML_ABORT("unregistered external expert");
++    return p->reserved_budget(); // memory-fit planning is bounded/reserved, not full expert bytes
++}
++ua50::Quant quant(ggml_type t) {
++    switch(t) {
++    case GGML_TYPE_IQ3_S:return ua50::Quant::iq3_s;
++    case GGML_TYPE_Q4_K:return ua50::Quant::q4_k;
++    case GGML_TYPE_Q4_0:return ua50::Quant::q4_0;
++    case GGML_TYPE_Q6_K:return ua50::Quant::q6_k;
++    case GGML_TYPE_F16:return ua50::Quant::f16;
++    case GGML_TYPE_F32:return ua50::Quant::f32;
++    default:throw std::invalid_argument("external tensor dtype not in reviewed whitelist");
++    }
++}
++NativeProvider * owner(const ggml_tensor * t) {
++    return ggml_ua50_is_external(t)?model(t->buffer->buft):nullptr;
++}
++}
++namespace ua50 {
++NativeProvider::NativeProvider(Reader & r,uint64_t bytes,size_t slots,size_t max_expert,size_t budget)
++    :reader_(r),file_bytes_(bytes),slots_(slots),max_expert_(max_expert),budget_(budget) {
++    if(budget<=sizeof(*this)+sizeof(ggml_backend_buffer)) throw std::invalid_argument("provider metadata budget");
++    buft_.iface.get_name=name; buft_.iface.alloc_buffer=alloc; buft_.iface.alloc_buffer_n=alloc_n;
++    buft_.iface.get_alignment=alignment; buft_.iface.get_alloc_size_n=alloc_size_n; buft_.iface.is_host=host;
++    buft_.context=this; // device remains nullptr; CPU supports_buft bridge is explicit
++}
++NativeProvider::NativeProvider(std::shared_ptr<Reader> r,uint64_t bytes,size_t slots,size_t max_expert,size_t budget)
++    :NativeProvider(r ? *r : throw std::invalid_argument("owned Reader required"),bytes,slots,max_expert,budget) {
++    reader_owner_=std::move(r);
++}
++NativeProvider::~NativeProvider()=default;
++bool NativeProvider::registered(const ggml_tensor * t) const {
++    for(size_t i=0;i<count_;++i) if(records_[i].tensor==t) return true;
++    return false;
++}
++void NativeProvider::register_tensor(ggml_tensor * t,uint16_t file_index,uint64_t off) {
++    if(!t || cache_ || file_index!=0 || count_>=records_.size() || registered(t) || t->data || t->buffer || t->view_src || t->ne[3]!=1)
++        throw std::invalid_argument("external registration/lifetime/file/shape");
++    for(int i=0;i<3;++i) if(t->ne[i]<=0) throw std::invalid_argument("external dimension");
++    auto q=quant(t->type); auto b=block(q);
++    if(t->nb[0]!=b.bytes || static_cast<uint64_t>(t->ne[0])%b.elements)
++        throw std::invalid_argument("external quant block stride");
++    const uint64_t row=mul(static_cast<uint64_t>(t->ne[0])/b.elements,b.bytes);
++    const uint64_t expert=mul(row,static_cast<uint64_t>(t->ne[1]));
++    if(t->nb[1]!=row || t->nb[2]!=expert || t->nb[3]!=mul(expert,t->ne[2]) || expert>max_expert_ || t->ne[2]>64 || add(off,mul(expert,t->ne[2]))>file_bytes_)
++        throw std::invalid_argument("external tensor extent/stride/budget");
++    Tensor d{static_cast<uint32_t>(count_),q,static_cast<uint64_t>(t->ne[0]),static_cast<uint64_t>(t->ne[1]),static_cast<uint64_t>(t->ne[2]),off,t->nb[1],t->nb[2]};
++    descriptors_[count_]=d; records_[count_++]={t,d};
++}
++void NativeProvider::finalize() {
++    if(cache_ || !count_) throw std::logic_error("provider finalize exactly once after registration");
++    cache_=std::make_unique<Cache>(reader_,file_bytes_,descriptors_.data(),count_,slots_,max_expert_,budget_-sizeof(*this)-sizeof(ggml_backend_buffer));
++}
++size_t NativeProvider::required_owned_bytes(size_t slots,size_t max_expert) {
++    uint64_t n=add(sizeof(NativeProvider)+sizeof(ggml_backend_buffer),Cache::required_owned_bytes(slots,max_expert));
++    if(n>SIZE_MAX)throw std::overflow_error("provider sizing host size");
++    return size_t(n);
++}
++size_t NativeProvider::requested_owned_bytes() const {
++    if(!cache_) throw std::logic_error("cache not finalized before native allocation");
++    return sizeof(*this)+sizeof(ggml_backend_buffer)+cache_->counters().arena_bytes+cache_->counters().metadata_bytes;
++}
++const Counters & NativeProvider::counters() const { if(!cache_) throw std::logic_error("cache missing"); return cache_->counters(); }
++bool NativeProvider::acquire(const ggml_tensor * t,uint64_t e) noexcept {
++    // A failed provider is terminal: preserve the first cause and never read again.
++    if(error_[0]) return false;
++    try {
++        if(active_tensor_ || !cache_) throw std::logic_error("provider failed/busy/not finalized");
++        for(size_t i=0;i<count_;++i) if(records_[i].tensor==t) {
++            active_=cache_->acquire(records_[i].layout.id,e); active_tensor_=t; return true;
++        }
++        throw std::logic_error("unregistered provider tensor");
++    } catch(const std::exception & e) { std::snprintf(error_,sizeof(error_),"%s",e.what()); }
++      catch(...) { std::snprintf(error_,sizeof(error_),"unknown expert reader error"); }
++    return false;
++}
++void NativeProvider::release() noexcept { active_.reset(); active_tensor_=nullptr; }
++const char * NativeProvider::data(const ggml_tensor * t) const noexcept {
++    return !error_[0] && active_tensor_==t?reinterpret_cast<const char *>(active_.data()):nullptr;
++}
++}
++extern "C" bool ggml_ua50_is_buft(const ggml_backend_buffer_type * b) { return b && b->iface.alloc_buffer_n==alloc_n; }
++extern "C" bool ggml_ua50_is_external(const ggml_tensor * t) { return t && t->buffer && ggml_ua50_is_buft(t->buffer->buft); }
++extern "C" bool ggml_ua50_acquire(const ggml_tensor * t,int64_t e) {
++    auto * p=owner(t); return p && e>=0 && p->acquire(t,static_cast<uint64_t>(e));
++}
++extern "C" const char * ggml_ua50_data(const ggml_tensor * t) { auto * p=owner(t);return p?p->data(t):nullptr; }
++extern "C" void ggml_ua50_release(const ggml_tensor * t) { if(auto * p=owner(t)) p->release(); }
++extern "C" const char * ggml_ua50_error(const ggml_tensor * t) { auto * p=owner(t);return p?p->error():"not external"; }
+--- /dev/null
++++ b/src/ua50/expert_cache.h
+@@ -0,0 +1,178 @@
++#pragma once
++#include <array>
++#include <cstddef>
++#include <cstdint>
++#include <memory>
++#include <new>
++#include <stdexcept>
++#include <utility>
++
++// Exact packed layout definitions from the installed llama submodule.
++#define GGML_COMMON_DECL_CPP
++#include "ggml-common.h"
++
++namespace ua50 {
++enum class Quant { iq3_s, q4_k, q4_0, q6_k, f16, f32 };
++struct Block { uint64_t elements, bytes; };
++inline Block block(Quant q) {
++    switch (q) {
++    case Quant::iq3_s: return {QK_K, sizeof(block_iq3_s)};
++    case Quant::q4_k: return {QK_K, sizeof(block_q4_K)};
++    case Quant::q4_0: return {QK4_0, sizeof(block_q4_0)};
++    case Quant::q6_k: return {QK_K, sizeof(block_q6_K)};
++    case Quant::f16: return {1, sizeof(ggml_half)};
++    case Quant::f32: return {1, sizeof(float)};
++    }
++    throw std::invalid_argument("unsupported dtype");
++}
++inline uint64_t add(uint64_t a, uint64_t b) {
++    if (a > UINT64_MAX-b) throw std::overflow_error("offset addition");
++    return a+b;
++}
++inline uint64_t mul(uint64_t a, uint64_t b) {
++    if (a && b > UINT64_MAX/a) throw std::overflow_error("size multiplication");
++    return a*b;
++}
++struct Tensor {
++    uint32_t id;
++    Quant quant;
++    uint64_t columns, rows, experts, offset, nb01, nb02;
++};
++// Reader must implement one bounded synchronous offset read into destination.
++// It may return a short result; such a result never becomes visible as a lease.
++// File identity/lifetime and provider exclusion from concurrent writers belong
++// to the caller; this prototype does not parse or authenticate GGUF.
++struct Reader {
++    virtual ~Reader() = default;
++    virtual size_t read(uint64_t offset, unsigned char * destination, size_t bytes) = 0;
++};
++struct Counters {
++    uint64_t hits=0, misses=0, evictions=0, read_calls=0, read_bytes=0, failures=0;
++    size_t arena_bytes=0, metadata_bytes=0, peak_live_payload=0;
++};
++class Cache {
++    struct Slot {
++        uint32_t tensor=0;
++        uint64_t expert=0, age=0;
++        size_t bytes=0, refs=0;
++        bool valid=false;
++    };
++    struct AlignedDelete { void operator()(unsigned char * p) const { ::operator delete(p, std::align_val_t(64)); } };
++public:
++    // Single coordinator only. Multiple simultaneously live leases are supported;
++    // concurrent member-function calls require external serialization.
++    class Lease {
++        Cache * owner_=nullptr;
++        size_t slot_=0;
++        friend class Cache;
++        Lease(Cache * c, size_t s):owner_(c),slot_(s) { ++c->slots_[s].refs; }
++    public:
++        Lease()=default;
++        Lease(const Lease&)=delete;
++        Lease& operator=(const Lease&)=delete;
++        Lease(Lease&& x) noexcept:owner_(std::exchange(x.owner_,nullptr)),slot_(x.slot_) {}
++        Lease& operator=(Lease&& x) noexcept {
++            if (this != &x) { reset(); owner_=std::exchange(x.owner_,nullptr); slot_=x.slot_; }
++            return *this;
++        }
++        ~Lease() { reset(); }
++        void reset() noexcept { if(owner_) { --owner_->slots_[slot_].refs; owner_=nullptr; } }
++        const unsigned char * data() const {
++            if(!owner_) throw std::logic_error("empty lease");
++            return owner_->arena_.get()+slot_*owner_->stride_;
++        }
++        size_t size() const {
++            if(!owner_) throw std::logic_error("empty lease");
++            return owner_->slots_[slot_].bytes;
++        }
++    };
++private:
++    static constexpr size_t max_tensors=128;
++    std::array<Tensor,max_tensors> tensors_{};
++    size_t nt_=0, count_, stride_;
++    uint64_t clock_=0;
++    Reader & reader_;
++    std::unique_ptr<unsigned char,AlignedDelete> arena_;
++    std::unique_ptr<Slot[]> slots_;
++    Counters c_;
++public:
++    static size_t required_owned_bytes(size_t slots,size_t max_expert) {
++        if(!slots || slots>1024 || !max_expert)throw std::invalid_argument("cache sizing configuration");
++        uint64_t stride=add(max_expert,63)&~uint64_t(63);
++        uint64_t total=add(mul(stride,slots),add(sizeof(Cache),mul(sizeof(Slot),slots)));
++        if(total>SIZE_MAX)throw std::overflow_error("cache sizing host size");
++        return size_t(total);
++    }
++    Cache(Reader & r, uint64_t file_bytes, const Tensor * descriptors, size_t n,
++          size_t slot_count, size_t max_expert_bytes, size_t owned_budget=16*1024*1024):count_(slot_count),stride_(0),reader_(r) {
++        if (!descriptors || !n || n>max_tensors || !slot_count || slot_count>1024 || !max_expert_bytes)
++            throw std::invalid_argument("bounded cache configuration");
++        const uint64_t padded=add(max_expert_bytes,63) & ~uint64_t(63);
++        const uint64_t arena_bytes=mul(padded,slot_count);
++        if(padded>SIZE_MAX || arena_bytes>SIZE_MAX) throw std::overflow_error("host size");
++        const auto metadata=add(sizeof(*this),mul(sizeof(Slot),slot_count));
++        if(add(arena_bytes,metadata)>owned_budget) throw std::invalid_argument("owned-memory budget exceeded");
++        stride_=static_cast<size_t>(padded);
++        for(size_t i=0;i<n;++i) {
++            const auto & t=descriptors[i];
++            const auto b=block(t.quant);
++            if(!t.columns || !t.rows || !t.experts || t.experts>64 || t.columns%b.elements)
++                throw std::invalid_argument("not contiguous LFM expert shape");
++            const auto row_bytes=mul(t.columns/b.elements,b.bytes);
++            const auto expert_bytes=mul(row_bytes,t.rows);
++            if(t.nb01!=row_bytes || t.nb02!=expert_bytes || expert_bytes>max_expert_bytes)
++                throw std::invalid_argument("row/expert stride or oversized expert");
++            if(add(t.offset,mul(t.experts,t.nb02))>file_bytes)
++                throw std::out_of_range("tensor outside held file");
++            for(size_t j=0;j<i;++j) if(tensors_[j].id==t.id) throw std::invalid_argument("duplicate tensor id");
++            tensors_[nt_++]=t;
++        }
++        // Payload storage and metadata are allocated once, never per miss.
++        arena_.reset(static_cast<unsigned char *>(::operator new(static_cast<size_t>(arena_bytes),std::align_val_t(64))));
++        slots_=std::make_unique<Slot[]>(count_);
++        c_.arena_bytes=static_cast<size_t>(arena_bytes);
++        c_.metadata_bytes=sizeof(*this)+sizeof(Slot)*count_;
++    }
++    Cache(const Cache&)=delete;
++    Cache& operator=(const Cache&)=delete;
++    ~Cache()=default; // All leases MUST be destroyed before Cache, like a view owner.
++    const Counters & counters() const { return c_; }
++    // Diagnostic only: caller must first drain all graph workers. Not OS I/O state.
++    size_t active_leases() const noexcept {
++        size_t n=0; for(size_t i=0;i<count_;++i) n+=slots_[i].refs; return n;
++    }
++    Lease acquire(uint32_t tensor_id, uint64_t expert) {
++        const Tensor * t=nullptr;
++        for(size_t i=0;i<nt_;++i) if(tensors_[i].id==tensor_id) { t=&tensors_[i]; break; }
++        if(!t || expert>=t->experts) throw std::out_of_range("expert/tensor id");
++        if(clock_==UINT64_MAX) throw std::overflow_error("LRU clock exhausted");
++        ++clock_;
++        for(size_t i=0;i<count_;++i) if(slots_[i].valid && slots_[i].tensor==tensor_id && slots_[i].expert==expert) {
++            ++c_.hits; slots_[i].age=clock_; return Lease(this,i);
++        }
++        size_t victim=count_;
++        for(size_t i=0;i<count_;++i) if(slots_[i].refs==0 && (!slots_[i].valid || victim==count_ || slots_[i].age<slots_[victim].age)) {
++            victim=i; if(!slots_[i].valid) break;
++        }
++        if(victim==count_) throw std::runtime_error("all cache slots pinned");
++        ++c_.misses;
++        auto & s=slots_[victim];
++        if(s.valid) ++c_.evictions;
++        s.valid=false; s.bytes=0;
++        const auto offset=add(t->offset,mul(expert,t->nb02));
++        const size_t bytes=static_cast<size_t>(t->nb02);
++        size_t got=0;
++        ++c_.read_calls;
++        try { got=reader_.read(offset,arena_.get()+victim*stride_,bytes); }
++        catch(...) { ++c_.failures; throw; }
++        if(got>bytes) { ++c_.failures; throw std::runtime_error("reader over-report"); }
++        c_.read_bytes+=got;
++        if(got!=bytes) { ++c_.failures; throw std::runtime_error("short expert read"); }
++        s.tensor=tensor_id; s.expert=expert; s.bytes=bytes; s.age=clock_; s.valid=true;
++        size_t live=0;
++        for(size_t i=0;i<count_;++i) if(slots_[i].valid) live+=slots_[i].bytes;
++        if(live>c_.peak_live_payload) c_.peak_live_payload=live;
++        return Lease(this,victim);
++    }
++};
++}
+--- /dev/null
++++ b/src/ua50/ggml-ua50.h
+@@ -0,0 +1,18 @@
++#pragma once
++#include <stdbool.h>
++#include <stdint.h>
++#ifdef __cplusplus
++extern "C" {
++#endif
++struct ggml_tensor;
++struct ggml_backend_buffer_type;
++bool ggml_ua50_is_buft(const struct ggml_backend_buffer_type * buft);
++bool ggml_ua50_is_external(const struct ggml_tensor * tensor);
++// acquire/release are coordinator-only; data/ok readers need native barriers.
++bool ggml_ua50_acquire(const struct ggml_tensor * tensor, int64_t expert);
++const char * ggml_ua50_data(const struct ggml_tensor * tensor);
++void ggml_ua50_release(const struct ggml_tensor * tensor);
++const char * ggml_ua50_error(const struct ggml_tensor * tensor);
++#ifdef __cplusplus
++}
++#endif
+--- /dev/null
++++ b/src/ua50/owned_expert_load.h
+@@ -0,0 +1,26 @@
++#pragma once
++#include "llama.h"
++#include "native_provider.h"
++#include <functional>
++#include <memory>
++namespace ua50 {
++enum class InputContract { sealed_local, controlled_disk };
++struct ExpertLoadPlan {
++ uint64_t required_file_bytes=0,available_file_bytes=0;
++ size_t records=0,max_matrix=0,arena_bytes=0,cache_owned_bytes=0,stage_bytes=0;
++ bool full_payload=false;
++};
++// Internal C++ seam only. Admission/integrity proof remains owned by the caller;
++// these explicit contracts are NOT interchangeable platform immutability proofs.
++struct OwnedExpertInput {
++ FILE *file=nullptr;std::shared_ptr<void> file_anchor;
++ InputContract contract=InputContract::sealed_local;
++ std::function<std::shared_ptr<Reader>(size_t required_stage)> make_reader;
++};
++struct OwnedExpertLoad {
++ OwnedExpertInput input;size_t slots=2,cache_ceiling=16*1024*1024,stage_ceiling=4*1024*1024;
++};
++// Metadata-only inspection never pretends a prefix contains the full payload.
++ExpertLoadPlan inspect_expert_input(FILE *,size_t slots);
++llama_model *load_owned_experts(const OwnedExpertLoad &,llama_model_params);
++}

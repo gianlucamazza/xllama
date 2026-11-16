@@ -45,6 +45,20 @@ std::string model_basename(const std::string& model_id) {
     return sep == std::string::npos ? model_id : model_id.substr(sep + 1);
 }
 
+// Exact known unconditional-thinking LFM2.5 families, basename only.
+// Token boundary avoids A2B-like aliases or a directory selecting this policy.
+bool lfm25_always_thinking(const std::string& name) {
+    const auto b = to_lower(model_basename(name));
+    for (const auto* prefix : {"lfm25-24b-a2b", "lfm2.5-24b-a2b",
+                               "lfm25-8b-a1b", "lfm2.5-8b-a1b"}) {
+        const std::string p(prefix);
+        if (b.compare(0, p.size(), p) == 0 &&
+            (b.size() == p.size() || b[p.size()] == '-' || b[p.size()] == '.' || b[p.size()] == '_'))
+            return true;
+    }
+    return false;
+}
+
 } // namespace
 
 bool model_is_qwen(const std::string& model_id) {
@@ -88,7 +102,7 @@ bool model_is_thinking(const std::string& model_id) {
     // the UI and — worse — leave KV snapshots enabled on a model that must be
     // excluded from them, because the saved history is stripped while the KV
     // holds the full CoT, so the prefix diff can never match (MainPage.cpp).
-    return id.find("a1b") != std::string::npos;
+    return id.find("a1b") != std::string::npos || lfm25_always_thinking(model_id);
 }
 
 bool model_is_minicpm5(const std::string& model_id) {
@@ -239,8 +253,9 @@ ChatFormat chat_format_for(const std::string& model_id) {
         f.system_sep = "";
         f.system_style = SystemStyle::DedicatedTurn;
         f.stop_sequences = {"<|im_end|>"};
-        f.gen_suffix = model_is_minicpm5(model_id) ? empty_think_block() + "\n\n"
-                                                   : qwen_no_think_gen_suffix(model_id);
+        f.gen_suffix = lfm25_always_thinking(model_id) ? "<think>"
+                         : (model_is_minicpm5(model_id) ? empty_think_block() + "\n\n"
+                                                        : qwen_no_think_gen_suffix(model_id));
         f.bos = model_is_minicpm5(model_id) ? "<s>" : "";
         f.strip_thinking_content = model_is_thinking(model_id);
     }
@@ -253,6 +268,8 @@ std::string ChatFormat::render_system_prefix(const std::string& system) const {
     // bos belongs here rather than in render_prompt: this is the one function
     // both the prompt and the #169 pinned head go through, so a template BOS
     // cannot be counted by one and missed by the other.
+    if (gen_suffix == "<think>" && system.empty())
+        return bos; // exact LFM template omits an empty system turn
     if (system_style == SystemStyle::DedicatedTurn)
         return bos + turn_open + system_tag + role_sep + system + turn_close;
     return bos;
@@ -278,7 +295,8 @@ std::string ChatFormat::render_prompt(const std::string& system,
         p += turn_open + user_tag + role_sep + user_content(t.user) + turn_close;
         // History assistant headers never carry gen_suffix (suffix only on the
         // trailing header below), matching the legacy hand-built prompt.
-        p += turn_open + assistant_tag + role_sep + t.assistant + turn_close;
+        const std::string answer = gen_suffix == "<think>" ? strip_thinking_blocks(t.assistant) : t.assistant;
+        p += turn_open + assistant_tag + role_sep + answer + turn_close;
     }
 
     p += turn_open + user_tag + role_sep + user_content(final_user) + turn_close;

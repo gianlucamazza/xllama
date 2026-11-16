@@ -1,0 +1,56 @@
+--- a/src/llama.cpp
++++ b/src/llama.cpp
+@@ -319,8 +319,8 @@
+ struct GGUFDelete {void operator()(gguf_context *g)const{gguf_free(g);}};
+ Quant reviewed_quant(ggml_type t){switch(t){case GGML_TYPE_IQ3_S:return Quant::iq3_s;case GGML_TYPE_Q4_K:return Quant::q4_k;case GGML_TYPE_Q4_0:return Quant::q4_0;case GGML_TYPE_Q6_K:return Quant::q6_k;case GGML_TYPE_F16:return Quant::f16;case GGML_TYPE_F32:return Quant::f32;default:throw std::invalid_argument("owned input unsupported expert quant");}}
+ class AnchoredReader final:public Reader {
+- std::shared_ptr<void> anchor_;std::shared_ptr<Reader> inner_;
+-public:AnchoredReader(std::shared_ptr<void>a,std::shared_ptr<Reader>r):anchor_(std::move(a)),inner_(std::move(r)){}
++ std::shared_ptr<void> anchor_,admission_;std::shared_ptr<Reader> inner_;
++public:AnchoredReader(std::shared_ptr<void>a,std::shared_ptr<Reader>r,std::shared_ptr<void>v={}):anchor_(std::move(a)),admission_(std::move(v)),inner_(std::move(r)){}
+  size_t read(uint64_t off,unsigned char *p,size_t n)override{return inner_->read(off,p,n);}
+ };
+ }
+@@ -367,7 +367,10 @@
+         ua50::ExpertLoadPlan plan;
+         if(owned){
+             if(!file || file!=owned->input.file || !owned->input.file_anchor || !owned->input.make_reader)throw std::invalid_argument("owned input requires held FILE/anchor/Reader factory");
+-            if(owned->input.contract!=ua50::InputContract::sealed_local && owned->input.contract!=ua50::InputContract::controlled_disk)throw std::invalid_argument("owned input contract refused");
++            if(owned->input.contract==ua50::InputContract::windows_held_verified){
++                if(!owned->input.admission_anchor || !owned->input.validate_binding)throw std::invalid_argument("Windows input requires owned admission/binding validator");
++                owned->input.validate_binding(file); // before metadata inspection, never downgrade
++            }else if(owned->input.contract!=ua50::InputContract::sealed_local && owned->input.contract!=ua50::InputContract::controlled_disk)throw std::invalid_argument("owned input contract refused");
+             if(params.n_gpu_layers!=0 || params.split_mode!=LLAMA_SPLIT_MODE_NONE || params.load_mode!=LLAMA_LOAD_MODE_NONE || params.lazy_mode!=LLAMA_LAZY_MODE_OFF || params.no_alloc || params.vocab_only || params.check_tensors || params.use_extra_bufts || params.tensor_buft_overrides || params.devices)throw std::invalid_argument("owned load requires CPU/non-mmap/non-lazy/non-repack defaults");
+             plan=ua50::inspect_expert_input(file,owned->slots);
+             if(!plan.full_payload)throw std::invalid_argument("owned input full tensor payload unavailable");
+@@ -426,7 +429,8 @@
+         if(owned){
+             auto inner=owned->input.make_reader(plan.stage_bytes);
+             if(!inner)throw std::invalid_argument("owned load Reader factory refused");
+-            auto reader=std::make_shared<ua50::AnchoredReader>(owned->input.file_anchor,std::move(inner));
++            if(owned->input.contract==ua50::InputContract::windows_held_verified)owned->input.validate_binding(file);
++            auto reader=std::make_shared<ua50::AnchoredReader>(owned->input.file_anchor,std::move(inner),owned->input.admission_anchor);
+             model->set_expert_provider(std::make_shared<ua50::NativeProvider>(reader,plan.available_file_bytes,owned->slots,plan.max_matrix,plan.cache_owned_bytes));
+         }
+ 
+--- a/src/ua50/owned_expert_load.h
++++ b/src/ua50/owned_expert_load.h
+@@ -4,7 +4,7 @@
+ #include <functional>
+ #include <memory>
+ namespace ua50 {
+-enum class InputContract { sealed_local, controlled_disk };
++enum class InputContract { sealed_local, controlled_disk, windows_held_verified };
+ struct ExpertLoadPlan {
+  uint64_t required_file_bytes=0,available_file_bytes=0;
+  size_t records=0,max_matrix=0,arena_bytes=0,cache_owned_bytes=0,stage_bytes=0;
+@@ -16,6 +16,9 @@
+  FILE *file=nullptr;std::shared_ptr<void> file_anchor;
+  InputContract contract=InputContract::sealed_local;
+  std::function<std::shared_ptr<Reader>(size_t required_stage)> make_reader;
++ // Required only for the distinct Windows app-held contract; never a Linux upgrade.
++ std::shared_ptr<void> admission_anchor;
++ std::function<void(FILE *)> validate_binding;
+ };
+ struct OwnedExpertLoad {
+  OwnedExpertInput input;size_t slots=2,cache_ceiling=16*1024*1024,stage_ceiling=4*1024*1024;

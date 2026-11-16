@@ -443,6 +443,41 @@ static std::wstring flag_path_if_present(const wchar_t* name) {
     return {};
 }
 
+// New developer ticket ingress fails closed on query errors; absent ticket alone
+// preserves the ordinary path. No pathname deletion or parser side effects here.
+static int dev_ticket_presence(const wchar_t* leaf) {
+    try {
+        const auto folder=winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
+        const std::wstring path=std::wstring(folder.Path().c_str())+L"\\"+leaf;
+        const DWORD attrs=GetFileAttributesW(path.c_str());
+        if(attrs==INVALID_FILE_ATTRIBUTES)return GetLastError()==ERROR_FILE_NOT_FOUND?0:-1;
+        return (attrs&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT))?-1:1;
+    }catch(...){return -1;}
+}
+
+// Metadata only: preserved REGULAR api.flag is inert under the explicit identity ticket.
+// No content read, deletion/reset, API server, UI or model fallback. All query/close errors refuse.
+static bool identity_api_marker_safe() {
+    try {
+        const auto root=winrt::Windows::Storage::ApplicationData::Current().LocalFolder();
+        const std::wstring path=std::wstring(root.Path().c_str())+L"\\api.flag";
+        const DWORD attrs=GetFileAttributesW(path.c_str());
+        if(attrs==INVALID_FILE_ATTRIBUTES)return GetLastError()==ERROR_FILE_NOT_FOUND;
+        if(attrs&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT|FILE_ATTRIBUTE_DEVICE))return false;
+        CREATEFILE2_EXTENDED_PARAMETERS p{};p.dwSize=sizeof(p);p.dwFileFlags=FILE_FLAG_OPEN_REPARSE_POINT;
+        HANDLE h=CreateFile2(path.c_str(),FILE_READ_ATTRIBUTES,FILE_SHARE_READ,OPEN_EXISTING,&p);
+        if(h==INVALID_HANDLE_VALUE)return false;
+        FILE_STANDARD_INFO st{};FILE_ATTRIBUTE_TAG_INFO tag{};
+        const bool regular=GetFileType(h)==FILE_TYPE_DISK &&
+            GetFileInformationByHandleEx(h,FileStandardInfo,&st,sizeof(st)) &&
+            GetFileInformationByHandleEx(h,FileAttributeTagInfo,&tag,sizeof(tag)) &&
+            !st.Directory && !st.DeletePending && st.NumberOfLinks==1 &&
+            !(tag.FileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT|FILE_ATTRIBUTE_DEVICE));
+        const bool closed=CloseHandle(h)!=FALSE;
+        return regular&&closed;
+    }catch(...){return false;}
+}
+
 // Minimal IFrameworkView: activates the CoreWindow (satisfies the PLM
 // activation watchdog, dismisses the splash) without a swapchain/compositor,
 // so no D3D12 device exists in-process. Same pattern as the UWP DX12 template.
@@ -500,6 +535,73 @@ int __stdcall wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         // SKU — retail builds always take the interactive XAML path.
         // Consume the flag BEFORE the run:
         // a later start without the flag goes back to interactive.
+#if defined(XLLAMA_USE_LLAMA)
+        const int identity_ticket_presence=dev_ticket_presence(L"ua68-gpu-identity-v1.ticket.json");
+        if(identity_ticket_presence<0){::xllama::log_output("[gpu-identity-v1] REFUSED invalid ticket ingress; no fallback\n");return 1;}
+        if(identity_ticket_presence>0){
+            // api.flag remains preserved and inert ONLY when regular; metadata errors/nonregular refuse.
+            if(!identity_api_marker_safe())return 1;
+            for(const auto* old:{L"ua68-gpu-proof-v1.ticket.json",L"ua50-dev-run-v1.ticket.json",L"ua50-cpu-lfm24-cache-a2-v1.flag",L"ua50-cpu-lfm24-cache-b512-v1.flag",L"ua50-cpu-lfm24-finished-answer-v2.flag",L"ua50-cpu-lfm24-first-answer-v1.flag",L"ua50-cpu-lfm24-pilot.flag",L"diffuse.flag",L"bench.flag",L"membw.flag",L"diskbw.flag",L"gpubw.flag",L"gpugemv.flag",L"d3d12be.flag",L"gpustep.flag",L"ramceil.flag",L"mic.flag",L"logits.flag",L"oprepro.flag",L"train.flag",L"native-capture.flag",L"diffuse-inproc.flag",L"gpustep-inproc.flag"})if(dev_ticket_presence(old)!=0)return 1;
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(winrt::make<HeadlessView>(&::xllama::bridge::run_gpu_capability_identity,"gpu-identity-v1"));return 0;
+        }
+        const int gpu_ticket_presence=dev_ticket_presence(L"ua68-gpu-proof-v1.ticket.json");
+        if(gpu_ticket_presence<0)return 1;
+        if(gpu_ticket_presence>0){
+            // Same preserved regular api.flag policy for the explicit proof headless ingress.
+            if(!identity_api_marker_safe())return 1;
+            for(const auto* old:{L"ua50-dev-run-v1.ticket.json",L"ua50-cpu-lfm24-cache-a2-v1.flag",L"ua50-cpu-lfm24-cache-b512-v1.flag",L"ua50-cpu-lfm24-finished-answer-v2.flag",L"ua50-cpu-lfm24-first-answer-v1.flag",L"ua50-cpu-lfm24-pilot.flag",L"diffuse.flag",L"bench.flag",L"membw.flag",L"diskbw.flag",L"gpubw.flag",L"gpugemv.flag",L"d3d12be.flag",L"gpustep.flag",L"ramceil.flag",L"mic.flag",L"logits.flag",L"oprepro.flag",L"train.flag",L"native-capture.flag",L"diffuse-inproc.flag",L"gpustep-inproc.flag"})if(dev_ticket_presence(old)!=0)return 1;
+            // New held ticket/claim namespace only; no pathname deletion/rearm.
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(winrt::make<HeadlessView>(&::xllama::bridge::run_expert_gpu_proof_configured,"gpu-expert-proof-v1"));return 0;
+        }
+        const int ticket_presence=dev_ticket_presence(L"ua50-dev-run-v1.ticket.json");
+        if(ticket_presence<0)return 1;
+        if(ticket_presence>0) {
+            for(const auto* old:{L"ua50-cpu-lfm24-cache-a2-v1.flag",L"ua50-cpu-lfm24-cache-b512-v1.flag",L"ua50-cpu-lfm24-finished-answer-v2.flag",L"ua50-cpu-lfm24-first-answer-v1.flag",L"ua50-cpu-lfm24-pilot.flag"})
+                if(dev_ticket_presence(old)!=0)return 1;
+            // Runner owns the held ticket; App never deletes it by pathname.
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(&::xllama::bridge::run_cpu_expert_configured,"cpu-dev-run-v1"));return 0;
+        }
+        std::wstring cache_a_flag=flag_path_if_present(L"ua50-cpu-lfm24-cache-a2-v1.flag");
+        std::wstring cache_b_flag=flag_path_if_present(L"ua50-cpu-lfm24-cache-b512-v1.flag");
+        if(!cache_a_flag.empty() || !cache_b_flag.empty()) {
+            if((!cache_a_flag.empty() && !cache_b_flag.empty()) ||
+               !flag_path_if_present(L"ua50-cpu-lfm24-finished-answer-v2.flag").empty() ||
+               !flag_path_if_present(L"ua50-cpu-lfm24-first-answer-v1.flag").empty() ||
+               !flag_path_if_present(L"ua50-cpu-lfm24-pilot.flag").empty())return 1;
+            const bool b=!cache_b_flag.empty();
+            if(_wremove((b?cache_b_flag:cache_a_flag).c_str())!=0)return 1;
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(b?&::xllama::bridge::run_cpu_expert_cache_b512:&::xllama::bridge::run_cpu_expert_cache_a2,
+                  b?"cpu-lfm24-cache-b512-v1":"cpu-lfm24-cache-a2-v1"));
+            return 0;
+        }
+        std::wstring finished_answer_flag=flag_path_if_present(L"ua50-cpu-lfm24-finished-answer-v2.flag");
+        if(!finished_answer_flag.empty()) {
+            if(!flag_path_if_present(L"ua50-cpu-lfm24-first-answer-v1.flag").empty() ||
+               !flag_path_if_present(L"ua50-cpu-lfm24-pilot.flag").empty())return 1;
+            if(_wremove(finished_answer_flag.c_str())!=0)return 1;
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(&::xllama::bridge::run_cpu_expert_finished_answer,"cpu-lfm24-finished-answer-v2"));
+            return 0;
+        }
+        std::wstring first_answer_flag=flag_path_if_present(L"ua50-cpu-lfm24-first-answer-v1.flag");
+        if(!first_answer_flag.empty()) {
+            // Ambiguous explicit activations refuse; never consume/reset the old pilot claim.
+            if(!flag_path_if_present(L"ua50-cpu-lfm24-pilot.flag").empty())return 1;
+            if(_wremove(first_answer_flag.c_str())!=0)return 1;
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(&::xllama::bridge::run_cpu_expert_first_answer,"cpu-lfm24-first-answer-v1"));
+            return 0;
+        }
+        std::wstring cpu_pilot_flag = flag_path_if_present(L"ua50-cpu-lfm24-pilot.flag");
+        if(!cpu_pilot_flag.empty()) {
+            if(_wremove(cpu_pilot_flag.c_str())!=0)return 1; // consume before any admission
+            winrt::Windows::ApplicationModel::Core::CoreApplication::Run(
+                winrt::make<HeadlessView>(&::xllama::bridge::run_cpu_expert_pilot,"cpu-lfm24-pilot"));
+            return 0;
+        }
+#endif
         std::wstring diffuse_flag = flag_path_if_present(L"diffuse.flag");
         if (!diffuse_flag.empty()) {
             _wremove(diffuse_flag.c_str());

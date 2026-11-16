@@ -20,6 +20,7 @@
 // clang-format on
 
     #include "inference-bridge.h"
+    #include "xllama/generation_runner.h"
     #include "model-downloader.h"
     #include "xllama/api_activity.h"
     #include "xllama/api_connection.h"
@@ -1938,6 +1939,18 @@ void handle_connection(StreamSocket const& socket, uint64_t generation) {
             return;
         }
 
+#if defined(XLLAMA_USE_LLAMA) && !defined(XLLAMA_STORE_SKU)
+        if(req.method=="GET" && req.path=="/v1/developer/generation/capabilities"){
+            write_response(socket,"200 OK",::xllama::bridge::configured_generation_capabilities());return;
+        }
+        if(req.method=="POST" && (req.path=="/v1/developer/generation/run" || req.path=="/v1/developer/generation/status" || req.path=="/v1/developer/generation/stop")){
+            bool developer_listener_active;{std::lock_guard<std::mutex> lock(g_state_mtx);developer_listener_active=g_status.state==ServerState::Running&&generation==g_generation;}
+            if(!developer_listener_active){write_response(socket,"503 Service Unavailable",error_json("server stopped"));return;}
+            auto reply=req.path=="/v1/developer/generation/run" ? ::xllama::bridge::run_configured_generation(req.body) : req.path=="/v1/developer/generation/stop" ? ::xllama::bridge::stop_configured_generation(req.body) : ::xllama::bridge::configured_generation_status(req.body);
+            const char* status=reply.http_status==200?"200 OK":reply.http_status==202?"202 Accepted":reply.http_status==400?"400 Bad Request":reply.http_status==404?"404 Not Found":reply.http_status==409?"409 Conflict":reply.http_status==503?"503 Service Unavailable":"422 Unprocessable Entity";
+            write_response(socket,status,reply.body);return;
+        }
+#endif
         // Model discovery: clients probe /v1/models (OpenAI SDK) and /api/tags
         // (Ollama-aware) before completing.
         if (req.method == "GET" && req.path == "/v1/models") {

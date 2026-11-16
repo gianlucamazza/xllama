@@ -6,6 +6,8 @@
 #ifdef XLLAMA_USE_LLAMA
 
     #include "xllama/ggml_d3d12.h"
+    #include "xllama/expert_gpu_d3d12.h"
+    #include "xllama/gpu_identity.h"
 
     #include "ggml-cpu.h"
 
@@ -388,6 +390,8 @@ std::string format_d3d12_selftest_row(const D3d12SelftestRow& r, const char* hos
 
 namespace xllama {
 
+std::shared_ptr<ua50::ExpertGpu> make_expert_gpu_d3d12(const ExpertGpuAdmission&){throw std::runtime_error("UA68 D3D12 unavailable; no fallback");}
+namespace gpu_identity {Observation query(const std::function<void()>&,uint64_t){throw std::runtime_error("identity D3D12 unavailable; no fallback");}}
 bool ggml_d3d12_register() {
     return false;
 }
@@ -423,6 +427,8 @@ void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
         #include <dxgi1_4.h>
 
         #include "d3d12_compute.h"
+        #include <bcrypt.h>
+        #include <winrt/Windows.System.h>
         #include "ggml-alloc.h"
         #include "ggml-backend-impl.h"
         #include "ggml-backend.h"
@@ -1486,6 +1492,9 @@ ggml_backend_dev_t device_ptr() {
 }
 
 } // namespace
+
+#include "gpu_identity_d3d12.inc"
+#include "expert_gpu_d3d12.inc"
 
 bool ggml_d3d12_register() {
     static std::once_flag once;

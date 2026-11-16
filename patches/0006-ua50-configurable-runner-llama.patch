@@ -1,0 +1,127 @@
+diff --git a/src/ua50/cache_trace.h b/src/ua50/cache_trace.h
+--- a/src/ua50/cache_trace.h
++++ b/src/ua50/cache_trace.h
+@@ -18,7 +18,12 @@
+  uint32_t flags_=0,frames_=0,keys_=0,profile_,pid_;
+  int64_t last_=-1;
+  bool open_=false,sealed_=false,clock_bad_=false;
+- uint64_t cache_owned_=0,stage_=0;
++ uint64_t cache_owned_=0,stage_=0,ceiling_=0;
++ bool configured_=false;
++ size_t roles_base()const{return configured_?256:128;}
++ size_t frames_base()const{return roles_base()+912;}
++ size_t keys_base()const{return frames_base()+32704;}
++ size_t footer_base()const{return keys_base()+466032;}
+  void u32(size_t o,uint32_t v){for(unsigned i=0;i<4;++i)data_[o+i]=static_cast<unsigned char>(v>>(8*i));}
+  void u64(size_t o,uint64_t v){for(unsigned i=0;i<8;++i)data_[o+i]=static_cast<unsigned char>(v>>(8*i));}
+  uint64_t get64(size_t o)const{uint64_t n=0;for(unsigned i=0;i<8;++i)n|=uint64_t(data_[o+i])<<(8*i);return n;}
+@@ -30,7 +35,7 @@
+  static uint64_t token_fnv(const std::vector<int32_t>& ids){uint64_t v=14695981039346656037ull;for(auto id:ids)for(unsigned j=0;j<4;++j){v^=static_cast<unsigned char>(uint32_t(id)>>(8*j));v*=1099511628211ull;}return v;}
+  void footer(){
+   const uint64_t a[]={counters_.requests,counters_.requested_bytes,counters_.hits,counters_.hit_bytes,counters_.misses,counters_.evictions,counters_.read_calls,counters_.read_bytes,counters_.failures,counters_.acquire_ns_total,counters_.acquire_ns_max,counters_.reader_ns_total,counters_.reader_ns_max,counters_.clock_errors};
+-  for(size_t i=0;i<14;++i)u64(499776+8*i,a[i]);
++  for(size_t i=0;i<14;++i)u64(footer_base()+8*i,a[i]);
+  }
+ public:
+  static int64_t now(){return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();}
+@@ -42,61 +47,73 @@
+   constexpr char sha[]="d3334405b96228eb9908cdebb5c6194908f2da64282bda852afc3a3910c64e7d";
+   auto digit=[](char c){return c<='9'?c-'0':c-'a'+10;};for(unsigned i=0;i<32;++i)data_[64+i]=static_cast<unsigned char>(digit(sha[2*i])*16+digit(sha[2*i+1]));
+  }
++ // Explicit v2 constructor; old v1 framing/data never reinterpreted.
++ CacheTrace(uint32_t pid,uint32_t slots,uint64_t ceiling,uint32_t max_new,uint32_t prompt_cap,
++            const std::string& config_sha,const std::string& engine_sha,const std::string& run_hex,const std::string& ticket_sha)
++  :CacheTrace(1,pid){
++  if(slots<2||slots>512||!ceiling||ceiling>1342177280ull||!max_new||max_new>384||!prompt_cap||prompt_cap>128)throw std::invalid_argument("trace effective configuration");
++  configured_=true;ceiling_=ceiling;profile_=3;std::fill(data_.begin(),data_.end(),0);
++  std::memcpy(data_.data(),"UA50TRC2",8);u32(8,2);u32(16,500032);u32(20,114);u32(24,511);u32(28,233016);u32(40,slots);u32(44,max_new);u32(48,512);u32(52,1);u32(56,prompt_cap);u32(60,pid);u32(96,3);
++  auto raw=[&](size_t offset,const std::string& hex,size_t count){if(hex.size()!=2*count)throw std::invalid_argument("trace identity hex size");auto digit=[](char c)->unsigned{if(c>='0'&&c<='9')return c-'0';if(c>='a'&&c<='f')return c-'a'+10;throw std::invalid_argument("trace identity hex");};for(size_t i=0;i<count;++i)data_[offset+i]=static_cast<unsigned char>(digit(hex[2*i])*16+digit(hex[2*i+1]));};
++  raw(64,"d3334405b96228eb9908cdebb5c6194908f2da64282bda852afc3a3910c64e7d",32);raw(128,config_sha,32);raw(160,engine_sha,32);raw(192,run_hex,16);raw(208,ticket_sha,32);
++ }
++ size_t file_size()const{return configured_?500032:file_bytes;}
++ size_t frame_count()const{return frames_;}
+  size_t required_owned_bytes()const{return sizeof(*this)+data_.capacity();}
+  void plan(uint64_t cache,uint64_t stage){if(!cache||!stage)throw std::invalid_argument("trace plan");cache_owned_=cache;stage_=stage;}
+  void begin(const Counters& c){
+   if(sealed_||open_||frames_>=max_decodes){flags_|=4;throw std::runtime_error("trace frame bound/state");}
+-  counters_=c;const auto t=tick();const auto o=1040+size_t(frames_)*64;
++  counters_=c;const auto t=tick();const auto o=frames_base()+size_t(frames_)*64;
+   u32(o,frames_);u32(o+4,keys_);u32(o+8,keys_);u32(o+12,1);u64(o+16,uint64_t(t));open_=true;
+  }
+  void key(uint32_t role,uint64_t expert,uint64_t length){
+   if(sealed_||!open_||role>=114||expert>=64||!length)throw std::runtime_error("trace route outside frame/shape");
+   if(keys_>=max_keys){flags_|=4;throw std::runtime_error("trace key bound");}
+-  const auto old=get64(128+8*role);if(old&&old!=length)throw std::runtime_error("trace role length changed");u64(128+8*role,length);
+-  const uint16_t key=static_cast<uint16_t>((role<<6)|expert);data_[33744+2*keys_]=static_cast<unsigned char>(key);data_[33745+2*keys_]=static_cast<unsigned char>(key>>8);++keys_;
++  const auto old=get64(roles_base()+8*role);if(old&&old!=length)throw std::runtime_error("trace role length changed");u64(roles_base()+8*role,length);
++  const uint16_t key=static_cast<uint16_t>((role<<6)|expert);data_[keys_base()+2*keys_]=static_cast<unsigned char>(key);data_[keys_base()+1+2*keys_]=static_cast<unsigned char>(key>>8);++keys_;
+  }
+  void end(const Counters& c){
+   if(!open_||sealed_)throw std::runtime_error("trace end without begin");counters_=c;
+-  const auto t=tick();const auto o=1040+size_t(frames_)*64;u32(o+8,keys_);u32(o+12,3);u64(o+24,uint64_t(t));
++  const auto t=tick();const auto o=frames_base()+size_t(frames_)*64;u32(o+8,keys_);u32(o+12,3);u64(o+24,uint64_t(t));
+   u64(o+32,c.acquire_ns_total);u64(o+40,c.reader_ns_total);u64(o+48,c.hits);u64(o+56,c.misses);++frames_;open_=false;
+  }
+  void terminal(const Counters& c)noexcept{
+   counters_=c;
+-  if(open_){const auto o=1040+size_t(frames_)*64;u32(o+8,keys_);u32(o+12,5);try{u64(o+24,uint64_t(tick()));}catch(...){}
++  if(open_){const auto o=frames_base()+size_t(frames_)*64;u32(o+8,keys_);u32(o+12,5);try{u64(o+24,uint64_t(tick()));}catch(...){}
+    u64(o+32,c.acquire_ns_total);u64(o+40,c.reader_ns_total);u64(o+48,c.hits);u64(o+56,c.misses);++frames_;open_=false;flags_|=2;}
+  }
+  void seal(bool normal,const std::vector<int32_t>& prompt,const std::vector<int32_t>& samples){
+   if(sealed_)throw std::logic_error("trace already sealed");sealed_=true;
+-  bool valid=normal&&!open_&&!flags_&&!clock_bad_&&!counters_.clock_errors&&!counters_.failures&&cache_owned_&&stage_&&!prompt.empty()&&prompt.size()<=128&&!samples.empty()&&samples.size()<=384;
++  bool valid=normal&&!open_&&!flags_&&!clock_bad_&&!counters_.clock_errors&&!counters_.failures&&cache_owned_&&stage_&&!prompt.empty()&&prompt.size()<=get32(56)&&!samples.empty()&&samples.size()<=get32(44);
+   valid=valid&&frames_==prompt.size()+samples.size()-1&&keys_==frames_*456&&keys_==counters_.requests&&counters_.hits+counters_.misses==keys_&&counters_.read_calls==counters_.misses&&counters_.requested_bytes==counters_.hit_bytes+counters_.read_bytes;
+   uint64_t requested=0;
+-  for(uint32_t role=0;role<114;++role)if(!get64(128+8*role))valid=false;
+-  for(uint32_t i=0;i<keys_;++i){const auto k=uint16_t(data_[33744+2*i])|uint16_t(data_[33745+2*i])<<8;requested=add(requested,get64(128+8*(k>>6)));}
++  for(uint32_t role=0;role<114;++role)if(!get64(roles_base()+8*role))valid=false;
++  for(uint32_t i=0;i<keys_;++i){const auto k=uint16_t(data_[keys_base()+2*i])|uint16_t(data_[keys_base()+1+2*i])<<8;requested=add(requested,get64(roles_base()+8*(k>>6)));}
+   valid=valid&&requested==counters_.requested_bytes;
+-  for(uint32_t i=0;i<frames_;++i){const auto o=1040+size_t(i)*64;const auto first=get32(o+4),end=get32(o+8);
++  for(uint32_t i=0;i<frames_;++i){const auto o=frames_base()+size_t(i)*64;const auto first=get32(o+4),end=get32(o+8);
+    if(get32(o+12)!=3||end-first!=456){valid=false;continue;}
+    std::array<bool,114> seen{};
+    for(uint32_t j=first;j<end;j+=4){uint32_t role=0;int previous=-1;
+-    for(uint32_t n=0;n<4;++n){const auto at=33744+2*(j+n);const auto key=uint16_t(data_[at])|uint16_t(data_[at+1])<<8;const auto r=uint32_t(key>>6);const auto expert=int(key&63);
++    for(uint32_t n=0;n<4;++n){const auto at=keys_base()+2*(j+n);const auto key=uint16_t(data_[at])|uint16_t(data_[at+1])<<8;const auto r=uint32_t(key>>6);const auto expert=int(key&63);
+      if(n==0){role=r;if(r>=114||seen[r])valid=false;else seen[r]=true;}
+      if(r!=role||expert<=previous)valid=false;previous=expert;}
+    }
+   }
+   if(counters_.clock_errors||clock_bad_)flags_|=8;flags_|=valid?1u:2u;
+-  u32(12,flags_);u32(32,frames_);u32(36,keys_);footer();u64(499888,token_fnv(prompt));u64(499896,token_fnv(samples));
++  u32(12,flags_);u32(32,frames_);u32(36,keys_);footer();u64(footer_base()+112,token_fnv(prompt));u64(footer_base()+120,token_fnv(samples));
+  }
+  bool complete()const{return sealed_&&flags_==1;}
+  const unsigned char* bytes()const{if(!sealed_)throw std::logic_error("unsealed trace");return data_.data();}
+- std::string fnv()const{uint64_t v=14695981039346656037ull;for(size_t i=0;i<file_bytes;++i){v^=bytes()[i];v*=1099511628211ull;}char b[17];std::snprintf(b,sizeof(b),"%016llx",static_cast<unsigned long long>(v));return b;}
+- static std::string unavailable(uint32_t profile){
++ std::string fnv()const{uint64_t v=14695981039346656037ull;for(size_t i=0;i<file_size();++i){v^=bytes()[i];v*=1099511628211ull;}char b[17];std::snprintf(b,sizeof(b),"%016llx",static_cast<unsigned long long>(v));return b;}
++ static std::string unavailable(uint32_t profile,uint32_t slots=0,uint64_t ceiling=0){
+   const char* names[]={"requests","requested_bytes","hits","hit_bytes","misses","evictions","read_calls","read_bytes","failures","acquire_ns_total","acquire_ns_max","reader_ns_total","reader_ns_max","clock_errors"};
+-  std::string s="{\"profile\":\""+std::string(profile==1?"A2":"B512")+"\",\"slots\":"+std::to_string(profile==1?2:512)+",\"cache_ceiling_bytes\":"+std::to_string(profile==1?16777216ull:1342177280ull)+",\"cache_required_owned_bytes\":0,\"stage_required_bytes\":0,\"collector_charge_bytes\":2097152,\"trace_owned_bytes\":0,\"trace_status\":\"unavailable\",\"trace_file_bytes\":0,\"trace_fnv1a64\":null,\"trace_flags\":0,\"decode_count\":0,\"key_count\":0,\"counters\":{";
++  std::string s="{\"profile\":\""+std::string(profile==3?"configured":profile==1?"A2":"B512")+"\",\"slots\":"+std::to_string(profile==3?slots:profile==1?2:512)+",\"cache_ceiling_bytes\":"+std::to_string(profile==3?ceiling:profile==1?16777216ull:1342177280ull)+",\"cache_required_owned_bytes\":0,\"stage_required_bytes\":0,\"collector_charge_bytes\":2097152,\"trace_owned_bytes\":0,\"trace_status\":\"unavailable\",\"trace_file_bytes\":0,\"trace_fnv1a64\":null,\"trace_flags\":0,\"decode_count\":0,\"key_count\":0,\"counters\":{";
+   for(size_t i=0;i<14;++i){if(i)s+=',';s+='"';s+=names[i];s+="\":0";}return s+"}}";
+  }
+  std::string json(bool committed)const{
+   const char* names[]={"requests","requested_bytes","hits","hit_bytes","misses","evictions","read_calls","read_bytes","failures","acquire_ns_total","acquire_ns_max","reader_ns_total","reader_ns_max","clock_errors"};
+-  std::string s="{\"profile\":\""+std::string(profile_==1?"A2":"B512")+"\",\"slots\":"+std::to_string(profile_==1?2:512)+",\"cache_ceiling_bytes\":"+std::to_string(profile_==1?16777216ull:1342177280ull)+",\"cache_required_owned_bytes\":"+std::to_string(cache_owned_)+",\"stage_required_bytes\":"+std::to_string(stage_)+",\"collector_charge_bytes\":2097152,\"trace_owned_bytes\":"+std::to_string(required_owned_bytes())+",\"trace_status\":\""+(committed?(complete()?"complete_replayable":"partial"):"unavailable")+"\",\"trace_file_bytes\":"+(committed?"499904":"0")+",\"trace_fnv1a64\":"+(committed?"\""+fnv()+"\"":"null")+",\"trace_flags\":"+std::to_string(committed&&sealed_?flags_:0)+",\"decode_count\":"+std::to_string(frames_)+",\"key_count\":"+std::to_string(keys_)+",\"counters\":{";
+-  for(size_t i=0;i<14;++i){if(i)s+=',';s+='"';s+=names[i];s+="\":"+std::to_string(sealed_?get64(499776+8*i):0);}return s+"}}";
++  std::string s="{\"profile\":\""+std::string(configured_?"configured":profile_==1?"A2":"B512")+"\",\"slots\":"+std::to_string(get32(40))+",\"cache_ceiling_bytes\":"+std::to_string(configured_?ceiling_:profile_==1?16777216ull:1342177280ull)+",\"cache_required_owned_bytes\":"+std::to_string(cache_owned_)+",\"stage_required_bytes\":"+std::to_string(stage_)+",\"collector_charge_bytes\":2097152,\"trace_owned_bytes\":"+std::to_string(required_owned_bytes())+",\"trace_status\":\""+(committed?(complete()?"complete_replayable":"partial"):"unavailable")+"\",\"trace_file_bytes\":"+(committed?std::to_string(file_size()):"0")+",\"trace_fnv1a64\":"+(committed?"\""+fnv()+"\"":"null")+",\"trace_flags\":"+std::to_string(committed&&sealed_?flags_:0)+",\"decode_count\":"+std::to_string(frames_)+",\"key_count\":"+std::to_string(keys_)+",\"counters\":{";
++  for(size_t i=0;i<14;++i){if(i)s+=',';s+='"';s+=names[i];s+="\":"+std::to_string(sealed_?get64(footer_base()+8*i):0);}return s+"}}";
+  }
+ };
+ }
+diff --git a/src/ua50/native_provider.h b/src/ua50/native_provider.h
+--- a/src/ua50/native_provider.h
++++ b/src/ua50/native_provider.h
+@@ -41,6 +41,7 @@
+     const char * error() const { return error_; }
+     static size_t required_owned_bytes(size_t slots,size_t max_expert);
+     size_t requested_owned_bytes() const;
++    size_t slot_count() const{return slots_;}
+     size_t reserved_budget() const { return budget_; }
+     bool owns_reader() const noexcept { return bool(reader_owner_); }
+     const Counters & counters() const;

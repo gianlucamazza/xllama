@@ -356,7 +356,9 @@
   <!-- xllama shared bridge -->
   <ItemGroup>
     <ClCompile Include="..\src\bridge\inference.cpp" />
-    <ClCompile Include="..\src\bridge\session.cpp" />
+    <ClCompile Include="..\src\bridge\session.cpp">
+      <AdditionalIncludeDirectories>$(ProjectDir)..\llama.cpp\src;$(ProjectDir)..\llama.cpp\src\ua50;$(ProjectDir)..\llama.cpp\ggml\src;$(ProjectDir)..\src\platform\ua50;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
     <ClCompile Include="..\src\bridge\embedding.cpp" />
     <ClCompile Include="..\src\bridge\kv_store.cpp" />
     <ClCompile Include="..\src\bridge\bench.cpp" />
@@ -375,6 +377,15 @@
     <ClCompile Include="..\src\bridge\path_utils.cpp" />
     <ClCompile Include="..\src\bridge\utf8_utils.cpp" />
     <ClCompile Include="..\src\bridge\chat_prompt.cpp" />
+    <ClCompile Include="..\src\bridge\cpu_expert_session.cpp" Condition="'$(XllamaBackend)' == 'llamacpp' or '$(XllamaBackend)' == 'unified'">
+      <AdditionalIncludeDirectories>$(ProjectDir)..\llama.cpp\src;$(ProjectDir)..\llama.cpp\src\ua50;$(ProjectDir)..\llama.cpp\ggml\src;$(ProjectDir)..\src\platform\ua50;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="..\src\bridge\held_file_sha256_win.cpp" Condition="'$(XllamaBackend)' == 'llamacpp' or '$(XllamaBackend)' == 'unified'">
+      <AdditionalIncludeDirectories>$(ProjectDir)..\llama.cpp\src;$(ProjectDir)..\llama.cpp\src\ua50;$(ProjectDir)..\llama.cpp\ggml\src;$(ProjectDir)..\src\platform\ua50;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="..\src\platform\ua50\windows_held_reader.cpp" Condition="'$(XllamaBackend)' == 'llamacpp' or '$(XllamaBackend)' == 'unified'">
+      <AdditionalIncludeDirectories>$(ProjectDir)..\llama.cpp\src;$(ProjectDir)..\llama.cpp\src\ua50;$(ProjectDir)..\llama.cpp\ggml\src;$(ProjectDir)..\src\platform\ua50;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
     <ClCompile Include="..\src\bridge\prompt_budget.cpp" />
     <ClCompile Include="..\src\bridge\http_framing.cpp" />
     <ClCompile Include="..\src\bridge\sse.cpp" />
@@ -390,6 +401,9 @@
     <ClCompile Include="..\src\bridge\autopilot.cpp" />
     <!-- cli.cpp uses POSIX getopt — Linux only, excluded from UWP target -->
     <ClCompile Include="inference-bridge.cpp" />
+    <ClCompile Include="cpu-expert-pilot.cpp" Condition="'$(XllamaBackend)' == 'llamacpp' or '$(XllamaBackend)' == 'unified'">
+      <AdditionalIncludeDirectories>$(ProjectDir)..\llama.cpp\src;$(ProjectDir)..\llama.cpp\src\ua50;$(ProjectDir)..\llama.cpp\ggml\src;$(ProjectDir)..\src\platform\ua50;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
     <ClCompile Include="native_capture.cpp" />
     <ClCompile Include="diffuse.cpp" />
     <ClCompile Include="op-repro.cpp" />

@@ -434,6 +434,10 @@ std::unique_ptr<Session> create_ort(const SessionParams& sp, std::string* err) {
 #ifdef XLLAMA_USE_LLAMA
 
     #include "llama.h"
+    #ifdef XLLAMA_UWP
+    #include "xllama/cpu_expert_session.h"
+    #include <stdexcept>
+    #endif
 
     #include "decode_loop.h" // shared prefill + generation loops; needs llama.h
     #include "llama_gpu.h"
@@ -443,6 +447,10 @@ std::unique_ptr<Session> create_ort(const SessionParams& sp, std::string* err) {
     #include <vector>
 
 namespace xllama {
+
+#ifdef XLLAMA_UWP
+#include "cpu_expert_app_session.inc"
+#endif
 
 class LlamaSession final : public Session {
   public:
@@ -1338,23 +1346,7 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
 // ---------------------------------------------------------------------------
 namespace xllama {
 
-std::unique_ptr<Session> Session::create(const SessionParams& sp, std::string* err) {
-#if defined(XLLAMA_USE_ORT) && defined(XLLAMA_USE_LLAMA)
-    Backend b = sp.backend;
-    if (b == Backend::Auto) {
-        // Layout-aware: uses suffix fast-path + resolve + directory scan so that
-        // bare catalogue names (e.g. "qwen35-0.8b" pointing at a dir with .gguf)
-        // are classified correctly. Explicit Backend from manifest (MainPage) or
-        // tests still takes precedence.
-        b = model_uses_llama_backend(sp.model_path) ? Backend::LlamaCpp : Backend::OrtGenAI;
-    }
-    return b == Backend::LlamaCpp ? detail::create_llama(sp, err) : detail::create_ort(sp, err);
-#elif defined(XLLAMA_USE_ORT)
-    return detail::create_ort(sp, err);
-#else // XLLAMA_USE_LLAMA
-    return detail::create_llama(sp, err);
-#endif
-}
+#include "session_factory.inc"
 
 SessionHub& session_hub() {
     static SessionHub hub;
