@@ -110,8 +110,8 @@ jobs:
 
       - name: Validate benchmark CSV schemas
         run: |
-          shopt -s nullglob
-          for file in bench/results/*.csv; do
+          shopt -s nullglob globstar
+          for file in bench/results/**/*.csv; do
             if head -1 "$file" | grep -q 'prompt_tok_s'; then
               python3 scripts/validate-benchmark.py "$file"
             fi

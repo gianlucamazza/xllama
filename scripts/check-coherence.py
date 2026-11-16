@@ -908,6 +908,30 @@ def main() -> int:
             err(f"H9 {model}={s}/{n} expected {a}/{b}")
     good("H9 scores match docs")
 
+    # --- leftover merge conflict markers ---
+    # 2026-11-16: three zdiff3 base markers ("||||||| parent of ...") reached
+    # main inside CHANGELOG.md; prettier had indented them into a list item,
+    # so a column-0 check would not have caught them. Indentation is allowed.
+    import re as _re
+    import subprocess as _sp
+    marker = _re.compile(r"^\s*(<{7}|\|{7}|>{7})( |$)")
+    tracked = _sp.run(["git", "ls-files", "*.md", "*.py", "*.sh", "*.cpp", "*.h", "*.hlsl",
+                       "*.json", "*.yml", "*.toml", "*.txt"], cwd=ROOT, capture_output=True,
+                      text=True, check=False).stdout.split()
+    hits = []
+    for rel in tracked:
+        if rel.startswith(("llama.cpp/", "vendor/")):
+            continue
+        try:
+            text = (ROOT / rel).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        hits += [f"{rel}:{n}" for n, line in enumerate(text.splitlines(), 1) if marker.match(line)]
+    if hits:
+        err(f"merge conflict markers left in tracked files: {hits[:10]}")
+    else:
+        good("no merge conflict markers in tracked files")
+
     # --- links ---
     def check_links(md: Path, base: Path) -> list[str]:
         broken: list[str] = []
