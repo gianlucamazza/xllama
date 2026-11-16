@@ -2,6 +2,37 @@
 
 Status: **preparation verified; runtime integration, full-checkpoint parity and independent console reproduction remain pending**. Trackers: [#479](https://github.com/gianlucamazza/xllama/issues/479), [#480](https://github.com/gianlucamazza/xllama/issues/480), [#481](https://github.com/gianlucamazza/xllama/issues/481). The proposed PR boundaries are in [#482](https://github.com/gianlucamazza/xllama/pull/482).
 
+## Current stage and documentation ownership
+
+Preparation is published for review in [PR #483](https://github.com/gianlucamazza/xllama/pull/483).
+The planning and preparation PRs are separate from all four implementation PRs.
+Completed preparation below describes work actually checked; it is not a merge,
+release or device-acceptance claim.
+
+| Work item                                               | Current state                              | Next gate                                                                                         |
+| ------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| Source review, cache harness and comparison-tool checks | Verified preparation; published for review | Review/merge preparation independently of runtime changes                                         |
+| Numerical campaign and CPU input analysis               | Prepared; campaign not executable          | Supply exact token/reference/build bindings and an adequate resident-reference host               |
+| PR 1 / #479: cache contribution                         | Pending integration                        | Review a concrete coherent extraction and its upstream tests                                      |
+| PR 2 / #480: native CPU integration                     | Pending                                    | Complete PR 1, native fixtures and real-checkpoint parity                                         |
+| Independent fork console reproduction                   | Pending                                    | Select the matching signed CPU-tested artifact and actual device prerequisites                    |
+| PR 3 / #481 CPU stage: upstream console acceptance      | Pending                                    | Complete native integration, Windows build and package-bound console lifecycle checks             |
+| PR 4 / #481 GPU stage: selected-expert correctness      | Pending                                    | Console identity/dispatch, primitive/model numerical proof and resource closure before benchmarks |
+
+The [roadmap](../../ROADMAP.md#optional-ssd-moe-contribution--state-at-2026-11-16)
+links this state instead of duplicating measurements. The original
+[SSD assessment and its dated addendum](../ssd-inference-assessment.md#6-contribution-update-2026-11-16)
+separate historical conclusions from the newer contribution. Numerical inputs and
+missing bindings remain owned by the prepared campaign; test receipts retain the
+source revision actually checked.
+
+When a stage changes, update this table, its tracker (#479/#480/#481), and the
+corresponding roadmap checkbox in the same implementation PR. Complete a runtime
+stage only after its implementation has merged and its stated validation gates
+are evidenced. Retain original failed/pending records; add dated outcomes rather
+than rewriting them. Update `docs/model-matrix.md` only if catalogue admission is
+actually proposed, using its existing product gates.
+
 ## Source-to-review map
 
 All contributor references below refer to `vetax-by/xllama` at `61bf63ad541510a03a36993e60ec204f98bc0b3e`, not a moving branch. Its preparation base is xLlama `4db51522c850e62d0bb24234dfeb48e55f4017d7`; the reviewed upstream base is `87d5a4635abca01a3b484e1488a2a9d043de9be2`. Both pin llama.cpp `d81235049384534c167caea52b85a694f6103d14`.
