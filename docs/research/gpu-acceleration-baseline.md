@@ -22,13 +22,13 @@ and PRs but has no milestone-creation connector or authenticated CLI; the browse
 fallback also failed before opening the milestone page. The stages below are
 tracked backlog stages, not a claim that GitHub milestones were created.
 
-| Requested PR | Discovery disposition | Reuse / consequence                                                                           |
-| ------------ | --------------------- | --------------------------------------------------------------------------------------------- |
-| #381         | Merged                | TAESD fresh-result/integrity gate; diffusion acceptance is separate from text GPU correctness |
-| #369         | Merged                | Candidate package acceptance and scoped limitations; not a stable release                     |
-| #414         | Open draft            | Opt-in C4 shaders, compiler/blob provenance, tails and UI diagnostics; do not promote         |
-| #417         | Merged                | Preserve failed original-kernel Coder control, raw dumps and stopped campaign                 |
-| #419         | Merged                | Standard selftest propagates failure and rejects non-finite native results                    |
+| Requested PR | Discovery disposition | Reuse / consequence                                                                              |
+| ------------ | --------------------- | ------------------------------------------------------------------------------------------------ |
+| #381         | Merged                | TAESD fresh-result/integrity gate; diffusion acceptance is separate from text GPU correctness    |
+| #369         | Merged                | Candidate package acceptance and scoped limitations; not a stable release                        |
+| #414         | Closed, not merged    | C4 shaders correct but slower on LFM2.5-1.2B (2026-11-16); branch kept, see the end of this page |
+| #417         | Merged                | Preserve failed original-kernel Coder control, raw dumps and stopped campaign                    |
+| #419         | Merged                | Standard selftest propagates failure and rejects non-finite native results                       |
 
 All current main Linux/UWP/CodeQL runs observed at discovery completed
 successfully. Shipping workflow requires Linux, both UWP variants and C++
@@ -185,15 +185,15 @@ The 6–8 week horizon is conditional on hardware availability, not a completion
 promise. No arbitrary speedup target is introduced. The existing #313 margins
 remain frozen for that experiment only.
 
-| Stage         | Work / owner lane                            | Acceptance                                                                          | Status / dependency                                                                      |
-| ------------- | -------------------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| M0, week 1    | Source/evidence audit, principal/runtime     | This baseline, route/coverage map and triage reviewed                               | Audit produced; no fresh console baseline                                                |
-| M1, weeks 1–2 | Integrity and profiling, QA/performance      | Fail-closed CLI/trace tests; complete attributable current-device capture           | #420/#421; tools integrated; first console phase capture 2026-11-15, calibration pending |
-| M2, weeks 2–3 | Coder control RCA, numerical/GPU             | First causal divergence isolated and frozen parity passes                           | #420/#313; control reproduced and traced to layer 0 on 2026-11-15; verdict still FAIL    |
-| M3, weeks 3–5 | Measured kernel/overhead work, HLSL          | Independent reversible PRs, numerical and resource gates, paired gains              | #313/#414; blocked by M2, no Q5/Q8 or GPU KV promotion                                   |
-| M4, weeks 4–6 | Deterministic routing, runtime/platform      | Measured envelope, logged reasons, fallback/override and repeatable tests           | #422; existing defaults preserved pending data                                           |
-| M5, weeks 5–7 | Matched S/X suite, benchmark/reproducibility | Raw attempts, device receipts, uncertainty, quality and memory gates                | #422/#374; Series X absent                                                               |
-| M6, weeks 6–8 | Hardening/report, QA/release/reviewer        | Required CI plus device lost, concurrency, upgrade/download and final-package gates | #395/#422; publication blocked until evidence sufficient                                 |
+| Stage         | Work / owner lane                            | Acceptance                                                                          | Status / dependency                                                                             |
+| ------------- | -------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| M0, week 1    | Source/evidence audit, principal/runtime     | This baseline, route/coverage map and triage reviewed                               | Audit produced; no fresh console baseline                                                       |
+| M1, weeks 1–2 | Integrity and profiling, QA/performance      | Fail-closed CLI/trace tests; complete attributable current-device capture           | #420/#421; tools integrated; first console phase capture 2026-11-15, calibration pending        |
+| M2, weeks 2–3 | Coder control RCA, numerical/GPU             | First causal divergence isolated and frozen parity passes                           | #420 closed; control traced to layer 0, ADR 0010 amended, both gate models PASS (2026-11-15/16) |
+| M3, weeks 3–5 | Measured kernel/overhead work, HLSL          | Independent reversible PRs, numerical and resource gates, paired gains              | #313 closed, #414 closed unmerged: C4 correct, paired campaign FAIL on LFM2.5-1.2B (2026-11-16) |
+| M4, weeks 4–6 | Deterministic routing, runtime/platform      | Measured envelope, logged reasons, fallback/override and repeatable tests           | #422; existing defaults preserved pending data                                                  |
+| M5, weeks 5–7 | Matched S/X suite, benchmark/reproducibility | Raw attempts, device receipts, uncertainty, quality and memory gates                | #422; Series X supported from an external tester's runs (#455), no project measurements         |
+| M6, weeks 6–8 | Hardening/report, QA/release/reviewer        | Required CI plus device lost, concurrency, upgrade/download and final-package gates | #395/#422; publication blocked until evidence sufficient                                        |
 
 Host integrity and diagnostic tools are integrated, and the control has been
 reproduced and traced on the console, down to single int8 rounding flips in the
@@ -212,9 +212,10 @@ did LFM2.5-1.2B and the four-column kernel. The preregistered #313
 performance campaign then
 [failed](evidence/2026-11-16-c4-performance/README.md): 1.5 times faster
 prefill on Coder-3B and 15 % slower on LFM2.5-1.2B, so the kernel is not
-promoted. The remaining actions are a decision on a K-quant-only variant
-(a new preregistration) and attributable per-dispatch timing (#421), which
-would explain the slower Q4_0 shader. New weight types, kernel fusion, attention
+promoted; #313 is closed as completed and #414 closed without merge. The
+remaining action is attributable per-dispatch timing (#421), which would
+explain the slower Q4_0 shader. A K-quant-only variant would need a new issue
+and preregistration, and serves no catalogue model today. New weight types, kernel fusion, attention
 and GPU KV are higher-risk experiments with no current evidence of a benefit.
 Do not replace validated CPU paths merely to increase the fraction on GPU.
 
