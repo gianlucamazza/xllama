@@ -192,7 +192,7 @@ static void run_cpu_expert_stage(bool answer_stage,bool finished=false,unsigned 
         state->start_monitor();
         llama_backend_init();state->phase("backend-initialized",probe_allowance);
         auto opt=std::make_shared<CpuExpertOptIn>();opt->enabled=true;
-        if(cache_profile){opt->slots=configured?configured->config.slots:cache_profile==1?2:512;opt->cache_ceiling=configured?configured->config.cache_ceiling:cache_profile==1?16777216ull:::xllama::cpu_pilot::cache_b512_ceiling;
+        if(cache_profile){opt->slots=configured?configured->config.slots:cache_profile==1?2:512;opt->cache_ceiling=configured?configured->config.cache_ceiling:cache_profile==1?16777216ull:cache_b512_ceiling;
          opt->instrumentation_owned_bytes=trace->required_owned_bytes();
          if(configured){opt->instrumentation_owned_bytes=ua50::add(opt->instrumentation_owned_bytes,ua50::add(configured->owned_bytes(),ua50::add(io->owned_bytes(),sizeof(ua50::uwp::ObservedWindowsReader)+4096)));charged_instrumentation=opt->instrumentation_owned_bytes;
           native_effective=std::make_shared<CpuExpertEffective>();opt->effective_observer=[native_effective,configured](const CpuExpertEffective&e){if(e.context!=512||e.threads!=1||e.threads_batch!=1||e.slots!=configured->config.slots||e.ceiling!=configured->config.cache_ceiling||e.owned>e.ceiling)throw std::runtime_error("constructed native effective mismatch");*native_effective=e;};}
