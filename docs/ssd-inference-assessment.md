@@ -1,5 +1,7 @@
 # SSD-streamed inference — assessment (2026-08)
 
+Historical assessment: the original measurements and conclusions below retain their August scope. See the [2026-11-16 contribution update](#6-contribution-update-2026-11-16) for the later fork evidence and current upstream work.
+
 > Claim under test: "SSDs can be used for inference." Verdict up front: **true,
 > but only as weight/KV streaming bounded by file-read bandwidth — never as
 > compute inside the drive — and on Series S it buys capacity, not speed.**
@@ -152,3 +154,23 @@ Reopen if **any** of:
    1.55 GB/s random read on console);
 3. the product accepts sub-1 tok/s for an offline "big model" mode (changes the
    gate arithmetic entirely).
+
+## 6. Contribution update (2026-11-16)
+
+The later [vetax-by contribution report](https://github.com/gianlucamazza/xllama/discussions/435#discussioncomment-19652093)
+describes bounded CPU completion of a streamed MoE turn on Series S. It provides
+new capacity-feasibility evidence beyond the original assessment; it does not
+establish a shipping upstream backend, full-checkpoint numerical parity,
+console GPU correctness or a speed advantage over the existing catalogue.
+
+The [MoE readiness report](research/moe-upstream-readiness.md) owns the current
+source review, independent cache/tool checks and outstanding artifact, host and
+execution prerequisites. The [roadmap](../ROADMAP.md#optional-ssd-moe-contribution--state-at-2026-11-16)
+tracks the four proposed integration stages under #479–#481. The preparation
+campaign is explicitly not executable until its missing bindings are supplied.
+
+This addendum opens a separate optional contribution evaluation. It does not
+rewrite the original disk-bandwidth results, historical H2 FAIL, or catalogue
+admission criteria, and does not convert the fork's observations into upstream
+benchmarks. Any future measured upstream result must enter the existing evidence
+pipeline before it is summarized as product performance.

@@ -352,17 +352,18 @@ build them locally.
 If you change a contract, update the owning doc in the same PR
 ([docs/README.md](docs/README.md) ownership table):
 
-| Change                                        | Update                                                       |
-| --------------------------------------------- | ------------------------------------------------------------ |
-| Product intent / public positioning           | `docs/positioning.md`                                        |
-| Module boundaries, routing, session ownership | `docs/architecture.md`                                       |
-| Training lanes or Phase 11                    | `docs/training-architecture.md` and `training/README.md`     |
-| User-facing UI steps                          | `docs/using-the-app.md`                                      |
-| LAN routes                                    | `docs/api-endpoint.md`                                       |
-| Bench CSV schema or numbers                   | `bench/README.md`, then regenerate `docs/benchmarks.md`      |
-| Release behaviour                             | `CHANGELOG.md` (and `ROADMAP.md` when a phase closes)        |
-| Package identity                              | `docs/install-release.md` and this file's Versioning section |
-| Repo layout agents rely on                    | this file                                                    |
+| Change                                            | Update                                                                                                                                 |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| SSD MoE contribution stage or acceptance evidence | `docs/research/moe-upstream-readiness.md`, corresponding `ROADMAP.md` stage and #479–#481 tracker; preserve revision-specific evidence |
+| Product intent / public positioning               | `docs/positioning.md`                                                                                                                  |
+| Module boundaries, routing, session ownership     | `docs/architecture.md`                                                                                                                 |
+| Training lanes or Phase 11                        | `docs/training-architecture.md` and `training/README.md`                                                                               |
+| User-facing UI steps                              | `docs/using-the-app.md`                                                                                                                |
+| LAN routes                                        | `docs/api-endpoint.md`                                                                                                                 |
+| Bench CSV schema or numbers                       | `bench/README.md`, then regenerate `docs/benchmarks.md`                                                                                |
+| Release behaviour                                 | `CHANGELOG.md` (and `ROADMAP.md` when a phase closes)                                                                                  |
+| Package identity                                  | `docs/install-release.md` and this file's Versioning section                                                                           |
+| Repo layout agents rely on                        | this file                                                                                                                              |
 
 ## Security
 
