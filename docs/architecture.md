@@ -32,61 +32,62 @@ The shared core is platform-agnostic C++17; front-ends are thin:
 
 Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 
-| Header                             | Owns                                                                                                                                           |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `session_spec.h`                   | `resolve_session_params`, `same_load` — one catalogue→session resolver for GUI, API and pull; the hub reuses only the same load (ADR 0007)     |
-| `session.h` / `inference_params.h` | `Session`/`SessionParams`, `InferenceParams/Result` (`echo_stdout`, the `resolve_max_length` #130 ladder), `Backend` enum                      |
-| `session_hub.h`                    | `SessionHub` — the ONE process-wide resident-Session owner (GUI + LAN API); locking + `generation` contract                                    |
-| `compute_admission.h`              | Process-wide RAII lease for resource-heavy jobs across UI and LAN API; acquire before `session_hub().mtx` (proposed ADR 0008)                  |
-| `api_connection.h`                 | Bounded LAN in-flight slots and the HTTP 200/503 mapping for a compute admit (proposed ADR 0008)                                               |
-| `debug_dashboard.h`                | Optional debug dashboard snapshot: compose real hub / LAN / inference readings; missing sources stay `unavailable`                             |
-| `sampling.h`                       | `SamplingConfig`, shared defaults; CLI/bench and GUI/API init from it (#125)                                                                   |
-| `training.h` / `training_params.h` | `TrainingJob`/`TrainingResult`, stages, device gates, job JSON                                                                                 |
-| `device_train.h`                   | Lane B engine API: `run_device_train_job`, progress callbacks, filters                                                                         |
-| `personalize.h`                    | Phase 11 helpers: last-block filter, job builder, sample count, manifest JSON                                                                  |
-| `preference_capture.h`             | Preference JSONL format + append (Like/Dislike/Correct + API)                                                                                  |
-| `chat_prompt.h`                    | `ChatFormat`, `chat_format_for`, `apply_stop_sequences`                                                                                        |
-| `routing_policy.h`                 | `decide_routing`, `gpu_ready_for_routing`, `kv_reuse_supported_for_model`, prompt budget                                                       |
-| `embedding.h`                      | Embedding params/results, pooling-aware trim, normalization and float32 base64                                                                 |
-| `api_pull_policy.h`                | Trusted catalogue pull admission and API-only pull gate                                                                                        |
-| `model_write.h`                    | Shared atomic RAII writer permit; guarded marker publication and stale-base cleanup                                                            |
-| `model_provision.h`                | `dir_satisfies_expected_files`, `normalize_model_path`                                                                                         |
-| `model_file_plan.h`                | Per-file catalogue pin check; `files[].role`; `weight_pins_verified`; `gpu_tree_ready_for_routing`                                             |
-| `manifest_merge.h`                 | `merge_manifest_entries` (per-entry catalogue override)                                                                                        |
-| `membw.h`                          | `measure_membw` (STREAM-style bandwidth probe)                                                                                                 |
-| `grammar_spec.h`                   | `GrammarSpec` — a tool template's grammar and triggers for one generate (ADR 0005)                                                             |
-| `inference.h`                      | `run_inference`, `write_bench_csv` — the public inference entry point                                                                          |
-| `inference_progress.h`             | Prefill-done + decode-progress logs and the stall watchdog (`XLLAMA_INFER_STALL_TIMEOUT_S`, default 180 s)                                     |
-| `http_framing.h`                   | `parse_http_head` — exact LAN API request framing and deadlines (ADR 0006)                                                                     |
-| `prompt_budget.h`                  | `fit_prompt` for plain chat, `fit_tool_transcript` for a tool proposal — both exact, both on the resident tokenizer                            |
-| `autopilot.h`                      | `AutopilotAction`, `validate_autopilot_script` — console gate contract (WinRT-free)                                                            |
-| `json_utils.h`                     | `json_escape`, `json_read_string` with `\uXXXX` decode (surrogate pairs) — canonical JSON helpers                                              |
-| `cancel_policy.h`                  | `CancelTarget` + `cancel_target()` — which running job a cancel request targets                                                                |
-| `stability_attribution.h`          | Image-dialog §IV.a credit: `kStabilityAttribution`, `show_stability_attribution` (licence, else `sd-turbo` id family)                          |
-| `kv_store.h`                       | `KvStore` — on-disk KV snapshot pool (3 files / 192 MB, LRU, fingerprinted)                                                                    |
-| `logit_dump.h`                     | Logit-parity harness: portable float32 dump + JSON sidecar, shared by both backends                                                            |
-| `tensor_capture.h`                 | #420 opt-in prefill tensor capture: name-pattern spec, byte budget, `.f32` records + manifest; ADR 0010 first-layer `MUL_MAT` operands         |
-| `ramceil.h`                        | `probe_ram_ceiling` — heap ceiling probe (commits in steps, records platform counters)                                                         |
-| `diskbw.h`                         | `measure_diskbw` — NVMe/disk bandwidth probe (sequential + random patterns)                                                                    |
-| `d3d12_dyn.h`                      | Dynamic d3d12.dll entry-point resolve (PE hygiene for AppContainer)                                                                            |
-| `speculative.h`                    | `prompt_lookup_draft` — Phase 15 W2 draft-free prompt lookup (pure, host-testable)                                                             |
-| `gpubw.h`                          | Phase 15 W3: GPU STREAM probe helpers + kill gate (#211)                                                                                       |
-| `gpugemv.h`                        | Phase 15 H6.1–H6.3: Q4_K GEMV density probe, naive/wave32/rows/dot4 kernels (#228)                                                             |
-| `gpustep.h`                        | GGUF GPU decode probe D1: model shapes, cost model, D1 gates and ladder ([gguf-gpu-decode.md](gguf-gpu-decode.md))                             |
-| `ggml_d3d12.h`                     | ggml backend `d3d12`: registration, `supports_op` rules, q8 activations, kernel emulation, selftest ([gguf-gpu-decode.md](gguf-gpu-decode.md)) |
-| `cli.h`                            | `parse_cli_args` — Linux command-line parsing                                                                                                  |
-| `platform.h`                       | `log_output`, `detect_threads(_llama)`, `peak_working_set_mb`, `gpu_mem_info`                                                                  |
-| `path_utils.h`                     | `resolve_model_path`, `first_gguf_in_dir`, `model_uses_llama_backend`                                                                          |
-| `utf8_utils.h`                     | `utf8_to_wstring`, `wstring_to_utf8` (Windows/UWP)                                                                                             |
-| `api_policy.h`                     | `classify_api_tools` — a tool proposal is text in the response; the process does not execute tools                                             |
-| `capture_probe.h`                  | GraphicsCapture availability probe (metadata only; never starts a capture)                                                                     |
-| `catalog_trust.h`                  | Catalogue signature types used by the UWP downloader                                                                                           |
-| `ort_raii.h`                       | RAII `unique_ptr` for `Oga*` types (ORT GenAI C API, UWP path)                                                                                 |
-| `llama_raii.h`                     | RAII `unique_ptr` for `llama_*` types (llama.cpp, Linux + UWP)                                                                                 |
-| `diffusion/png_writer.h`           | PNG writer for diffusion output                                                                                                                |
-| `diffusion/half.h`                 | Half-precision float utilities                                                                                                                 |
-| `diffusion/euler_scheduler.h`      | Euler scheduler (header-only, golden-vector unit-tested)                                                                                       |
-| `diffusion/clip_tokenizer.h`       | CLIP BPE tokenizer for diffusion                                                                                                               |
+| Header                             | Owns                                                                                                                                                                                                  |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `session_spec.h`                   | `resolve_session_params`, `same_load` — one catalogue→session resolver for GUI, API and pull; the hub reuses only the same load (ADR 0007)                                                            |
+| `session.h` / `inference_params.h` | `Session`/`SessionParams`, `InferenceParams/Result` (`echo_stdout`, the `resolve_max_length` #130 ladder), `Backend` enum                                                                             |
+| `session_hub.h`                    | `SessionHub` — the ONE process-wide resident-Session owner (GUI + LAN API); locking + `generation` contract                                                                                           |
+| `compute_admission.h`              | Process-wide RAII lease for resource-heavy jobs across UI and LAN API; acquire before `session_hub().mtx` (proposed ADR 0008)                                                                         |
+| `api_connection.h`                 | Bounded LAN in-flight slots and the HTTP 200/503 mapping for a compute admit (proposed ADR 0008)                                                                                                      |
+| `debug_dashboard.h`                | Optional debug dashboard snapshot: compose real hub / LAN / inference readings; missing sources stay `unavailable`                                                                                    |
+| `sampling.h`                       | `SamplingConfig`, shared defaults; CLI/bench and GUI/API init from it (#125)                                                                                                                          |
+| `training.h` / `training_params.h` | `TrainingJob`/`TrainingResult`, stages, device gates, job JSON                                                                                                                                        |
+| `device_train.h`                   | Lane B engine API: `run_device_train_job`, progress callbacks, filters                                                                                                                                |
+| `personalize.h`                    | Phase 11 helpers: last-block filter, job builder, sample count, manifest JSON                                                                                                                         |
+| `preference_capture.h`             | Preference JSONL format + append (Like/Dislike/Correct + API)                                                                                                                                         |
+| `chat_prompt.h`                    | `ChatFormat`, `chat_format_for`, `apply_stop_sequences`                                                                                                                                               |
+| `routing_policy.h`                 | `decide_routing`, `gpu_ready_for_routing`, `kv_reuse_supported_for_model`, prompt budget                                                                                                              |
+| `embedding.h`                      | Embedding params/results, pooling-aware trim, normalization and float32 base64                                                                                                                        |
+| `api_pull_policy.h`                | Trusted catalogue pull admission and API-only pull gate                                                                                                                                               |
+| `model_write.h`                    | Shared atomic RAII writer permit; guarded marker publication and stale-base cleanup                                                                                                                   |
+| `model_provision.h`                | `dir_satisfies_expected_files`, `normalize_model_path`                                                                                                                                                |
+| `model_file_plan.h`                | Per-file catalogue pin check; `files[].role`; `weight_pins_verified`; `gpu_tree_ready_for_routing`                                                                                                    |
+| `moe_streaming.h`                  | Optional SSD expert streaming: routed tensor roles per architecture, checkpoint pins admitted only from the bundled catalogue (plan: `docs/superpowers/plans/2026-11-16-moe-streaming-all-models.md`) |
+| `manifest_merge.h`                 | `merge_manifest_entries` (per-entry catalogue override)                                                                                                                                               |
+| `membw.h`                          | `measure_membw` (STREAM-style bandwidth probe)                                                                                                                                                        |
+| `grammar_spec.h`                   | `GrammarSpec` — a tool template's grammar and triggers for one generate (ADR 0005)                                                                                                                    |
+| `inference.h`                      | `run_inference`, `write_bench_csv` — the public inference entry point                                                                                                                                 |
+| `inference_progress.h`             | Prefill-done + decode-progress logs and the stall watchdog (`XLLAMA_INFER_STALL_TIMEOUT_S`, default 180 s)                                                                                            |
+| `http_framing.h`                   | `parse_http_head` — exact LAN API request framing and deadlines (ADR 0006)                                                                                                                            |
+| `prompt_budget.h`                  | `fit_prompt` for plain chat, `fit_tool_transcript` for a tool proposal — both exact, both on the resident tokenizer                                                                                   |
+| `autopilot.h`                      | `AutopilotAction`, `validate_autopilot_script` — console gate contract (WinRT-free)                                                                                                                   |
+| `json_utils.h`                     | `json_escape`, `json_read_string` with `\uXXXX` decode (surrogate pairs) — canonical JSON helpers                                                                                                     |
+| `cancel_policy.h`                  | `CancelTarget` + `cancel_target()` — which running job a cancel request targets                                                                                                                       |
+| `stability_attribution.h`          | Image-dialog §IV.a credit: `kStabilityAttribution`, `show_stability_attribution` (licence, else `sd-turbo` id family)                                                                                 |
+| `kv_store.h`                       | `KvStore` — on-disk KV snapshot pool (3 files / 192 MB, LRU, fingerprinted)                                                                                                                           |
+| `logit_dump.h`                     | Logit-parity harness: portable float32 dump + JSON sidecar, shared by both backends                                                                                                                   |
+| `tensor_capture.h`                 | #420 opt-in prefill tensor capture: name-pattern spec, byte budget, `.f32` records + manifest; ADR 0010 first-layer `MUL_MAT` operands                                                                |
+| `ramceil.h`                        | `probe_ram_ceiling` — heap ceiling probe (commits in steps, records platform counters)                                                                                                                |
+| `diskbw.h`                         | `measure_diskbw` — NVMe/disk bandwidth probe (sequential + random patterns)                                                                                                                           |
+| `d3d12_dyn.h`                      | Dynamic d3d12.dll entry-point resolve (PE hygiene for AppContainer)                                                                                                                                   |
+| `speculative.h`                    | `prompt_lookup_draft` — Phase 15 W2 draft-free prompt lookup (pure, host-testable)                                                                                                                    |
+| `gpubw.h`                          | Phase 15 W3: GPU STREAM probe helpers + kill gate (#211)                                                                                                                                              |
+| `gpugemv.h`                        | Phase 15 H6.1–H6.3: Q4_K GEMV density probe, naive/wave32/rows/dot4 kernels (#228)                                                                                                                    |
+| `gpustep.h`                        | GGUF GPU decode probe D1: model shapes, cost model, D1 gates and ladder ([gguf-gpu-decode.md](gguf-gpu-decode.md))                                                                                    |
+| `ggml_d3d12.h`                     | ggml backend `d3d12`: registration, `supports_op` rules, q8 activations, kernel emulation, selftest ([gguf-gpu-decode.md](gguf-gpu-decode.md))                                                        |
+| `cli.h`                            | `parse_cli_args` — Linux command-line parsing                                                                                                                                                         |
+| `platform.h`                       | `log_output`, `detect_threads(_llama)`, `peak_working_set_mb`, `gpu_mem_info`                                                                                                                         |
+| `path_utils.h`                     | `resolve_model_path`, `first_gguf_in_dir`, `model_uses_llama_backend`                                                                                                                                 |
+| `utf8_utils.h`                     | `utf8_to_wstring`, `wstring_to_utf8` (Windows/UWP)                                                                                                                                                    |
+| `api_policy.h`                     | `classify_api_tools` — a tool proposal is text in the response; the process does not execute tools                                                                                                    |
+| `capture_probe.h`                  | GraphicsCapture availability probe (metadata only; never starts a capture)                                                                                                                            |
+| `catalog_trust.h`                  | Catalogue signature types used by the UWP downloader                                                                                                                                                  |
+| `ort_raii.h`                       | RAII `unique_ptr` for `Oga*` types (ORT GenAI C API, UWP path)                                                                                                                                        |
+| `llama_raii.h`                     | RAII `unique_ptr` for `llama_*` types (llama.cpp, Linux + UWP)                                                                                                                                        |
+| `diffusion/png_writer.h`           | PNG writer for diffusion output                                                                                                                                                                       |
+| `diffusion/half.h`                 | Half-precision float utilities                                                                                                                                                                        |
+| `diffusion/euler_scheduler.h`      | Euler scheduler (header-only, golden-vector unit-tested)                                                                                                                                              |
+| `diffusion/clip_tokenizer.h`       | CLIP BPE tokenizer for diffusion                                                                                                                                                                      |
 
 Bridge sources of note under `src/bridge/`: `session.cpp`, `inference.cpp`,
 `training.cpp`, `device_train.cpp`, `personalize.cpp`, `preference_capture.cpp`,
@@ -868,6 +869,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_membw.cpp`                 | `membw.h`                                                                                   |
 | `test_model_provision.cpp`       | `model_provision.h`                                                                         |
 | `test_model_file_plan.cpp`       | `model_file_plan.h`                                                                         |
+| `test_moe_streaming.cpp`         | `moe_streaming.h`                                                                           |
 | `test_model_write.cpp`           | `model_write.h`                                                                             |
 | `test_path.cpp`                  | `path_utils.h`                                                                              |
 | `test_personalize.cpp`           | `personalize.h`                                                                             |

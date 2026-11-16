@@ -41,6 +41,7 @@ add_executable(xllama-tests
     test_ramceil.cpp
     test_model_provision.cpp
     test_model_file_plan.cpp
+    test_moe_streaming.cpp
     test_model_write.cpp
     test_logit_parity.cpp
     test_tensor_capture.cpp
