@@ -229,9 +229,12 @@ Per-workload verdict on DirectML: CPU decode > GPU decode, GPU prefill > CPU
 prefill. One backend can't win both. Runtime dispatch per model is the answer.
 GGUF decode also runs on our own D3D12 kernels: a ggml backend `d3d12`, with
 q8 activation quantization like the CPU path. It is the default only for
-LFM2.5-1.2B; every other GGUF model runs on the CPU. GPU prefill work is
-stopped: a control on a 3B model did not agree with the CPU closely enough
-([result](docs/research/evidence/2026-11-15-adr0010-control/README.md)).
+LFM2.5-1.2B; every other GGUF model runs on the CPU. Every GPU weight
+product is checked against an exact reference
+([result](docs/research/evidence/2026-11-16-adr0010-control-lfm25-1.2b/README.md)).
+A four-column prefill kernel was tried and not adopted: it made a 3B
+research model 1.5 times faster to prefill and the shipping LFM2.5-1.2B 15 %
+slower ([result](docs/research/evidence/2026-11-16-c4-performance/README.md)).
 `gguf_gpu_layers.txt` overrides the default for an operator, and
 `0` forces the CPU. Gates and per-model verdicts are in
 [docs/gguf-gpu-decode.md](docs/gguf-gpu-decode.md). How that compares with

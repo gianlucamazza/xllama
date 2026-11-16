@@ -207,9 +207,14 @@ token differs. A [reference check](evidence/2026-11-15-gpu-kernel-reference-chec
 then found every GPU weight product correct in all 36 layers, so the gap is
 amplified rounding between two correct executions, not a kernel defect. The
 ADR was amended on that basis, and a fresh control under the amendment
-[passed](evidence/2026-11-15-adr0010-control-2/README.md) on both parts. The
-next actions are the #313 correctness and paired performance trials, and
-attributable console measurement on the benchmark path. New weight types, kernel fusion, attention
+[passed](evidence/2026-11-15-adr0010-control-2/README.md) on both parts, as
+did LFM2.5-1.2B and the four-column kernel. The preregistered #313
+performance campaign then
+[failed](evidence/2026-11-16-c4-performance/README.md): 1.5 times faster
+prefill on Coder-3B and 15 % slower on LFM2.5-1.2B, so the kernel is not
+promoted. The remaining actions are a decision on a K-quant-only variant
+(a new preregistration) and attributable per-dispatch timing (#421), which
+would explain the slower Q4_0 shader. New weight types, kernel fusion, attention
 and GPU KV are higher-risk experiments with no current evidence of a benefit.
 Do not replace validated CPU paths merely to increase the fraction on GPU.
 

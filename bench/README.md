@@ -241,6 +241,31 @@ followed by a full re-run (`results/2026-09-30-h9-rescore.jsonl`). Any further
 tightening changes the task definition in `eval/phase7-h9.json` and lands with a
 full re-measurement. Recorded JSONL rows are never edited.
 
+### Xbox Series S — paired A/B campaigns
+
+For a change that one LocalState knob switches on or off (the #313
+four-column kernel, `d3d12-prefill-columns.txt`), `scripts/bench-paired-knob.sh`
+runs matched pairs of `bench-xbox-ort.sh` invocations: arm A without the knob,
+arm B with it, AB for odd pairs and BA for even ones, one dropped warmup per
+arm. After each arm it checks the lines the app log gained during that arm
+against `--expect-a/-b` and `--forbid-a/-b` regexes, so an arm that ran the
+wrong code path stops the campaign. Failed arms go to `ledger.jsonl` and are
+never replaced.
+
+```bash
+./scripts/bench-paired-knob.sh --model lfm25-1.2b-instruct --prompt bench/prompts/long-1k.txt \
+  --pairs 20 --knob d3d12-prefill-columns.txt --value 4 --out-dir bench/results/<campaign>/<cell> \
+  --expect-a 'prefill_columns=1' --expect-b 'prefill_columns=4' \
+  --hardware xbox-series-s --gpu-layers 99 --ignore-eog --n-predict 128
+python3 scripts/paired-bench-summary.py bench/results/<campaign>/<cell> --gates prefill,decode,ttft,peak
+```
+
+The summary gives each gate's median paired ratio (or memory delta) with a
+paired percentile bootstrap 95 % interval and the preregistered margins of
+#313; a gate whose interval crosses its margin is inconclusive. Freeze the
+manifest before the first cell runs. First campaign:
+[`docs/research/evidence/2026-11-16-c4-performance/`](../docs/research/evidence/2026-11-16-c4-performance/README.md).
+
 ### Linux (manual)
 
 ```bash

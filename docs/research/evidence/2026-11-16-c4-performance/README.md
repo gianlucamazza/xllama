@@ -102,6 +102,5 @@ on either model.
   seeing them is what the per-cell rule forbids.
 - One console, one package, sampled peak memory, no power measurement.
 
-The CSVs are nested under the campaign directory, which the CI schema check
-(top-level `bench/results/*.csv` only) does not reach; all twelve pass
-`scripts/validate-benchmark.py` when run on them.
+All twelve CSVs pass `scripts/validate-benchmark.py`. The CI schema check
+covers nested campaign directories since 2026-11-16.
