@@ -1,0 +1,4 @@
+model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,run_index,prefill_ms,ttft_ms
+lfm25-8b-a1b-q4-k-m,unknown,unknown,2048,6,0.00,0.00,0,0,0,0,0,0,0,xbox-series-s-declared-t6-noeog-timeout,2026-11-16T15:21:34Z,2,0.0,0.0
+lfm25-8b-a1b-q4-k-m,unknown,unknown,2048,6,0.00,0.00,0,0,0,0,0,0,0,xbox-series-s-declared-t6-noeog-timeout,2026-11-16T15:31:50Z,3,0.0,0.0
+lfm25-8b-a1b-q4-k-m,unknown,unknown,2048,6,0.00,0.00,0,0,0,0,0,0,0,xbox-series-s-declared-t6-noeog-timeout,2026-11-16T15:42:07Z,4,0.0,0.0

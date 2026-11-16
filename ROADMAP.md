@@ -97,6 +97,9 @@ Neither PR delivers a shipping MoE runtime.
 - [x] Reproduce the fork's CPU stage on a project Series S (2026-11-16):
       LFM2.5-24B-A2B completes a turn with both cache profiles, matching the
       fork's report ([evidence](docs/research/evidence/2026-11-16-moe-24b-console/README.md)).
+- [x] Second checkpoint on the streamed path (2026-11-16): LFM2.5-8B-A1B
+      Q4_K_M, which cannot run resident on a Series S, streams at up to
+      2.47 tok/s ([evidence](docs/research/evidence/2026-11-16-moe-8b-console/README.md)).
 - [ ] Model-generic streaming: architecture table and pins are in #486; the
       [plan](https://github.com/gianlucamazza/xllama/pull/486)
       takes every [candidate](docs/research/moe-streaming-candidates.md)

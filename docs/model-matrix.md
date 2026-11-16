@@ -391,9 +391,12 @@ expert-streaming path changes one input: the checkpoint no longer has to fit
 the app's memory. LFM2.5-24B-A2B completed a turn on a project Series S at
 0.72–1.00 tok/s under 2.1 GiB
 ([evidence](research/evidence/2026-11-16-moe-24b-console/README.md)), so
-models this section rejected on size are worth measuring again on that path:
-`lfm25-8b-a1b` at Q4_K_M (5.16 GB, above the resident envelope that forced
-`UD-IQ3_S` in H2) and Maple-Preview 20B-A1B (official TQ1_0/TQ2_0, 1B active).
+models this section rejected on size are worth measuring again on that path.
+`lfm25-8b-a1b` at Q4_K_M (5.16 GB) loads resident but its compute buffer does
+not fit, and streamed it runs at 1.18–2.47 tok/s
+([evidence](research/evidence/2026-11-16-moe-8b-console/README.md)); the H2
+`UD-IQ3_S` file re-measured resident at 14.42 tok/s. Maple-Preview 20B-A1B
+(official TQ1_0/TQ2_0, 1B active) is next.
 Order and status: [moe-streaming-candidates.md](research/moe-streaming-candidates.md).
 None of this enters a product tier while the rate is below the dense peer.
 
