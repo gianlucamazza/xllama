@@ -35,7 +35,8 @@ performance belongs in `docs/benchmarks.md`.
   Phase 11 closed the headless↔UI gap (in-app personalize + LAN API parity,
   #116/#118). Phases 13, 14 and 16 (one shipped model) are complete. Remaining
   open work: the GPU programme below (#421, #422), release-readiness
-  follow-up, and upstream vendor pin drops.
+  follow-up, upstream vendor pin drops, and the optional SSD MoE contribution
+  evaluation below (#479–#481).
 - **Current v1.7.0.0:** unified CI MSVC Developer Mode release. Exact package
   and validation gates are identified in the GitHub release notes. The last
   tagged cut's source-bound record is
@@ -55,7 +56,9 @@ performance belongs in `docs/benchmarks.md`.
 ### Current follow-up priorities
 
 1. **Vendor pin drops** (#84/#85/#86) — blocked until NuGet moves
-   (`scripts/check-vendor-nuget-status.sh`, poll 2026-08-27: still required).
+   (`scripts/check-vendor-nuget-status.sh`, poll 2026-11-16: still required;
+   the DirectML packages have not followed the CPU releases since June, see
+   #85).
 2. **Release readiness** — dual-SKU policy, licence matrix, and App vs Game
    gate in `docs/release-readiness.md`. Do not stamp a different publisher CN
    onto the Developer Mode package.
@@ -72,6 +75,35 @@ performance belongs in `docs/benchmarks.md`.
    and uptime not); prompt-lookup default OFF. Dependabot llama.cpp #247 was
    closed 2026-08-26 after the UWP build failed on `LLAMA_VERSION`; do not
    merge that bump on Linux green alone.
+
+## Optional SSD MoE contribution — state at 2026-11-16
+
+Stage status, source identities, completed checks and remaining prerequisites
+have one home: [MoE readiness report](docs/research/moe-upstream-readiness.md).
+The proposed sequence is in [planning PR #482](https://github.com/gianlucamazza/xllama/pull/482);
+maintainer preparation is published for review in
+[PR #483](https://github.com/gianlucamazza/xllama/pull/483).
+Neither PR delivers a shipping MoE runtime.
+
+- [x] Inspect the published provider/cache source and map the review boundary
+      (#479); independently check the extracted cache contract and existing
+      comparison tools. Evidence and limitations are in the readiness report.
+- [x] Prepare source-bound CPU reproduction inputs and the numerical corpus
+      (#480/#481). The campaign remains `PREPARED_NOT_EXECUTABLE` until all
+      reference/token/build bindings are supplied.
+- [ ] PR 1 / #479: review and integrate the smallest coherent cache foundation.
+- [ ] PR 2 / #480: integrate the optional native CPU provider/loader and pass
+      fixture plus full-checkpoint resident/streamed numerical gates.
+- [ ] PR 3 / #481 CPU stage: validate the upstream Windows/UWP activation and
+      console lifecycle. Independent reproduction of the fork is also pending;
+      select a matching signed CPU-tested artifact before installation.
+- [ ] PR 4 / #481 GPU stage: prove console identity, dispatch, primitive/model
+      correctness and closure; only then run matched benchmarks under #421/#422.
+
+The next prerequisites are a suitable host for the resident model reference
+and a source/package-bound artifact for independent console reproduction.
+Historical H2 FAIL and the #273 catalogue gates remain unchanged. Completing
+cache/tool checks does not close runtime, console or GPU acceptance tasks.
 
 ## Research / XAB release
 
@@ -735,7 +767,13 @@ Source/evidence discovery and the conditional 6–8 week stages are in the
    dispatch while the K-quant ones take half the time
    ([evidence](docs/research/evidence/2026-11-16-d3d12-dispatch-timing/README.md)).
    What remains of #421 is per-layer attribution and the CSV or sidecar
-   integration.
+   integration. An independent Series X run of the same knob
+   ([report](https://github.com/gianlucamazza/xllama/issues/421#issuecomment-6914667256),
+   operator-declared, not imported as evidence) points attribution at the
+   time between submission and fence that the timestamps do not cover: in
+   decode it exceeds the GPU time. The same report finds that the host
+   working set does not drop when layers move to the GPU; not yet checked on
+   the Series S.
 2. **#422:** no new GPU prefill path to qualify; the matched Series S and
    Series X matrix needs project measurements on a Series X.
 3. **#457, closed:** the App designation caps the app's CPU about ten

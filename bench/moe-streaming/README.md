@@ -1,0 +1,69 @@
+# MoE contribution review and parity preparation
+
+This directory supports maintainer review of the existing contributor code. It does not enable MoE streaming in xLlama. The [readiness report](../../docs/research/moe-upstream-readiness.md) maps the source, completed checks and remaining gates; [#482](https://github.com/gianlucamazza/xllama/pull/482) contains the proposed integration sequence.
+
+## Independent cache check
+
+`cache-contract.cpp` exercises the contributor's real cache header with a deterministic in-memory Reader. It checks payloads and actual read offsets, including pinned leases, short/throwing/over-reported reads, LRU eviction, budgets and mixed quant layouts. It is a standalone review harness, not a shipping test or a model-math test.
+
+Use a local checkout of `vetax-by/xllama` at `61bf63ad541510a03a36993e60ec204f98bc0b3e` and a local llama.cpp checkout at `d81235049384534c167caea52b85a694f6103d14`. No model is needed. The commands below create only an extracted review header in a temporary directory; do not apply these patches to the shipping submodule.
+
+```bash
+moe_repo="$PWD"
+moe_fork=/absolute/path/to/contributor-checkout
+moe_llama=/absolute/path/to/pinned-llama-checkout
+moe_review="$(mktemp -d)"
+python3 - "$moe_fork" "$moe_llama" "$moe_review" <<'PY'
+import hashlib, json, subprocess, sys
+from pathlib import Path
+fork, llama, review = map(Path, sys.argv[1:])
+def head(path):
+    return subprocess.check_output(['git', '-C', str(path), 'rev-parse', 'HEAD'], text=True).strip()
+assert head(fork) == '61bf63ad541510a03a36993e60ec204f98bc0b3e'
+assert head(llama) == 'd81235049384534c167caea52b85a694f6103d14'
+lock_bytes = (fork/'ua50/PATCH-LOCK.json').read_bytes()
+assert hashlib.sha256(lock_bytes).hexdigest() == '921fc2a5d9724fc28851146266fc67b7627e54a45c8a10775f30c52eb2a20ebe'
+for item in json.loads(lock_bytes)['patches']:
+    raw = (fork/'ua50'/item['file']).read_bytes()
+    assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256']
+text = (fork/'ua50/patch/runtime-llama.patch').read_text()
+section = text.split('+++ b/src/ua50/expert_cache.h\n', 1)[1].split('--- /dev/null', 1)[0]
+target = review/'src/ua50/expert_cache.h'
+target.parent.mkdir(parents=True)
+target.write_text('\n'.join(line[1:] for line in section.splitlines() if line.startswith('+'))+'\n')
+subprocess.run(['git', 'apply', '--include=src/ua50/expert_cache.h', str((fork/'ua50/patch/cache-ab-llama.patch').resolve())], cwd=review, check=True)
+assert hashlib.sha256(target.read_bytes()).hexdigest() == 'a5187e1e42a2f135e67702f6f2c50472f1f327bb0fcde4d3cd04339c85236daf'
+assert hashlib.sha256((llama/'ggml/src/ggml-common.h').read_bytes()).hexdigest() == '0061131b615c5721fc88a78feeb22c1f8c450f1c2646a317d80796a653bf595c'
+PY
+g++ -std=c++17 -Wall -Wextra -Werror \
+  -fsanitize=address,undefined -fno-omit-frame-pointer -g \
+  -I "$moe_review/src/ua50" -I "$moe_llama/ggml/src" \
+  "$moe_repo/bench/moe-streaming/cache-contract.cpp" \
+  -o "$moe_review/cache-contract"
+ASAN_OPTIONS=detect_leaks=0 "$moe_review/cache-contract"
+```
+
+Expected: eight groups pass and exit status is zero. Leak checking was disabled in the recorded cloud run because LeakSanitizer refuses the traced environment. ASan and UBSan instrumentation remained enabled. This result does not prove absence of leaks. On a compatible host, also run with leak detection enabled.
+
+The recorded sensitivity control removed only the extracted header's short-read refusal and rebuilt the harness. It exited 1 at `short_read: expected refusal`, proving that the short-read check rejects that deliberate defect. The contributor checkout was not modified.
+
+## Prepared numerical campaign
+
+`parity-preparation.json` binds four prompt files, the checkpoint identity and a strict same-source/same-kernel comparison diagnostic. It is explicitly **not executable yet**: rendered token IDs, resident-derived continuation IDs, a prepared build receipt and an upstream candidate identity are absent. Nulls are missing prerequisites, not wildcard bindings. There are no model results.
+
+On a host with enough resident-model RAM:
+
+1. Verify the checkpoint bytes and hash, template and prepared source receipt. Confirm identical CPU kernels, nonfused execution, no repacking and one worker for both arms. If that equivalence cannot be established, do not run this declaration as a parity gate.
+2. Render each prompt using the actual pinned template and tokenizer. Save exact IDs with one tokenizer-owned BOS. Refuse a prompt above the declared token limit; never silently truncate it.
+3. Use the resident reference to obtain a fixed continuation of at least nine tokens, retaining EOS as data if encountered. Freeze the exact token sequence and prefill/decode row positions before running either streamed cache configuration. Export the complete vocabulary row at the end of prefill and after feeding 1, 2, 3, 5 and 9 continuation tokens. Do not compare independently sampled sequences.
+4. Close the resident owner, then run both streamed arms on the same frozen sequence. Bind model/tokenizer/vocabulary hashes and exact token positions in the dump sidecars and campaign receipt; the current comparator does not enforce every one of those provenance fields automatically.
+5. Run the existing comparator for every pair of full rows:
+
+```bash
+python3 scripts/compare-logits.py reference.bin streamed.bin \
+  --max-abs-diff 0 --nmse 0 --top-k 10 --top-k-min 1
+```
+
+This strict diagnostic requires zero numeric difference and identical top-token/top-10 sets. A mismatch fails this diagnostic; it is not automatically a model-quality finding. A different floating-point comparison protocol needs a separately reviewed declaration before new candidate measurements. Do not relax the declaration to rewrite a failed result.
+
+Existing comparator tests and synthetic equal/different-row controls were run during preparation. They validate the comparison tool, not MoE model parity. Runtime export/wiring and full-checkpoint parity remain PR 2 work.

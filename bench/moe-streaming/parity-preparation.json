@@ -1,0 +1,79 @@
+{
+  "schema": "xllama-moe-parity-preparation-v1",
+  "status": "PREPARED_NOT_EXECUTABLE",
+  "source": {
+    "fork_commit": "61bf63ad541510a03a36993e60ec204f98bc0b3e",
+    "llama_commit": "d81235049384534c167caea52b85a694f6103d14",
+    "upstream_candidate_commit": null
+  },
+  "checkpoint": {
+    "filename": "LFM2.5-24B-A2B-Q4_K_M.gguf",
+    "bytes": 14526258464,
+    "sha256": "d3334405b96228eb9908cdebb5c6194908f2da64282bda852afc3a3910c64e7d",
+    "binding_source": "ua50/patch/cpu-pilot-root.patch"
+  },
+  "template_sha256": "ea663864491de7ade391839479860ca95541f892f72665c73251fbd4643b1bef",
+  "execution": {
+    "threads": 1,
+    "context": 512,
+    "cache_slots": [2, 512],
+    "kernel_requirement": "same CPU kernels, nonfused, no repacking; verify before accepting reference",
+    "prompt_tokens_max": 128,
+    "teacher_forced_positions_after_prompt": [0, 1, 2, 4, 8]
+  },
+  "comparison": {
+    "mode": "same-source same-kernel strict diagnostic",
+    "max_abs_diff": 0,
+    "nmse": 0,
+    "top_k": 10,
+    "top_k_min": 1,
+    "same_top_token": true,
+    "reject_nonfinite": true,
+    "policy": "Any mismatch fails this declared diagnostic. An alternative numerical protocol requires a separate declaration before new candidate measurements; never rewrite a failed result."
+  },
+  "cases": [
+    {
+      "id": "greeting-ru",
+      "prompt": "prompts/greeting-ru.txt",
+      "prompt_sha256": "614c1c35ee08e80e20afebe2a4702f906e91b70b414e5178906d5e25cc6fe839",
+      "prompt_token_ids": null,
+      "teacher_forced_token_ids": null
+    },
+    {
+      "id": "arithmetic-it",
+      "prompt": "prompts/arithmetic-it.txt",
+      "prompt_sha256": "34eca6da0f369af3b463af3dba37c6102c4c18c651044d9a94ebb4d44e9bdb3c",
+      "prompt_token_ids": null,
+      "teacher_forced_token_ids": null
+    },
+    {
+      "id": "code-en",
+      "prompt": "prompts/code-en.txt",
+      "prompt_sha256": "e55c807ae2fbcfd6dfbb16d64743cb0bdbeeb5364fde529a847e08cac603d03d",
+      "prompt_token_ids": null,
+      "teacher_forced_token_ids": null
+    },
+    {
+      "id": "prose-it",
+      "prompt": "prompts/prose-it.txt",
+      "prompt_sha256": "bf7db9b9803507cfddfc7f2a77f0ab38e4c83c05e67308e5016b0cd10d2c10b0",
+      "prompt_token_ids": null,
+      "teacher_forced_token_ids": null
+    }
+  ],
+  "required_before_execution": [
+    "host with sufficient resident-model RAM",
+    "verified checkpoint bytes and SHA-256",
+    "prepared source/build receipt with matched CPU kernel settings",
+    "exact rendered prompt IDs with one tokenizer-owned BOS",
+    "resident-derived continuation IDs frozen before streamed replay",
+    "full-row export at all selected prefill/decode positions",
+    "upstream candidate commit when evaluating an upstream PR"
+  ],
+  "results": {
+    "model_runs": 0,
+    "full_checkpoint_parity": "NOT_RUN",
+    "console_reproduction": "NOT_RUN",
+    "gpu_correctness": "NOT_RUN"
+  }
+}
