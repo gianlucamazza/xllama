@@ -268,6 +268,29 @@ Known issues:
 - **Measured tok/s look low.** Check **App type** in Dev Home (tile → View
   details). The published figures assume the **Game** designation
   (`uwp-constraints.md §5`).
+  - With the **App** designation the speed is normal only for the first few
+    seconds after launch. On a Series X the system then caps the app's CPU,
+    and text generation drops to about 40 % of the Game speed. With
+    `lfm25-350m` the drop starts about ten seconds after launch (about
+    61 tok/s) and settles at about 38 tok/s after 20 seconds, against about
+    100 tok/s with Game
+    ([#457](https://github.com/gianlucamazza/xllama/issues/457)). A quick
+    test right after launch therefore does not show the problem.
+  - A lower thread count does not help in that state; it is slower at every
+    step down from six (#457).
+  - From package 1.7.0.1587, the `[resources]` line in `xllama.log` shows
+    which allotment the app got: `app_memory_limit_mb=1024` is App, `5120`
+    is Game. The v1.7.0.0 release (package 1.7.0.1495) does not log it.
+  - The designation can reset to **App** after an install, so check
+    **App type** again after each one:
+    - An uninstall and reinstall can reset it. A build with a lower version
+      cannot install over the current one and needs that uninstall. The
+      uninstall deletes LocalState: downloaded models (`models\`),
+      `settings.json` and saved conversations (`chats\`). Copy what you want
+      to keep first (`./scripts/deploy.sh fetch-file`).
+    - An in-place upgrade to a higher version signed with another test
+      certificate (two CI packages, 1.7.0.1614 to 1.7.0.1626, on a Series X)
+      kept LocalState but reset the designation to **App**.
 - **Startup / logs (command-line host).** `./scripts/deploy.sh diagnose-startup`
   prints the process state, the app log, and any crash dumps.
   `./scripts/deploy.sh get-log` reads `xllama.log`; individual files:
