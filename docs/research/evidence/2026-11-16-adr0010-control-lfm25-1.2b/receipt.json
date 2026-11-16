@@ -1,0 +1,353 @@
+{
+ "scope": "GPU control for lfm25-1.2b-instruct under the 2026-11-15 amendment of ADR 0010, single-column kernels; correctness verdicts, not a performance result",
+ "date_utc": "2026-11-15 (CPU arms) and 2026-11-15T23:45Z onward (GPU arm)",
+ "declaration": {
+  "file": "declaration.json",
+  "sha256": "f9390695d0dc394fcbbe0b37541f83bed7b055a8017f7a4159c806faef4317cc",
+  "committed": "PR #465, merged 2026-11-15T23:45:44Z",
+  "gpu_arm_measured": "2026-11-15T23:45:54Z to 23:56:21Z"
+ },
+ "package": {
+  "filename": "xllama_1.7.0.1587_x64.msix",
+  "sha256": "99dd6e1e6824e925f1a2003d17eccdec6dd2e38db7e703a7d8cee6816ba1c779",
+  "ci_run": 43761068757,
+  "source": "14f36e8b1e63b08b513d0dbd6b1b7447439b819c (PR #461 head; squash-merged as 8274115)",
+  "artifact": "xllama-appx (unified, CI MSVC)",
+  "install": "in-place update over 1.7.0.1563"
+ },
+ "device": {
+  "source": "authenticated Device Portal GET /api/os/info",
+  "platform": "Xbox Series S",
+  "os_version": "26100.9662.amd64fre.xb_flt_2610ge.261104-2200",
+  "scope": "observed OS platform; no serial or computer name retained"
+ },
+ "model": {
+  "file": "LFM2.5-1.2B-Instruct-QAD-Q4_0.gguf",
+  "sha256": "bb741ebb106d543e9de114b843a3d3d73d51c74b5801e69da2abde821a0cb3e1",
+  "note": "catalogue artefact; the host copy was downloaded from the catalogue URL and its sha256 checked"
+ },
+ "configuration": {
+  "process": "UI process, autopilot wait_idle + dump_logits, one app start per run",
+  "n_ubatch": 512,
+  "greedy": true,
+  "logits_stride": 2,
+  "gpu_layers": {
+   "console-cpu": 0,
+   "console-gpu": "99 (17/17 layers offloaded)"
+  },
+  "capture_specs": {
+   "k1": "l_out-0;mode=last;max_mb=1024;matmul_inputs=l_out-15",
+   "t01": "l_out-0;mode=last;max_mb=1024;matmul_inputs=l_out-5"
+  },
+  "host_arms": "xllama-cli, AVX2, 6 threads, ctx 2048, ubatch 512, stride 2; host-release = linux-release preset; host-no-repack = Release with GGML_CPU_REPACK=OFF, the declared floor"
+ },
+ "per_position_dumps_not_retained": {
+  "reason": "about 1.3 GB per arm; hashes kept",
+  "arms": {
+   "console-cpu": {
+    "t01": {
+     "sha256": "1ce3dec0d493fb38e150f5b9be5f190ee7940c7f4ff6aeeb1bd263c5cc6ed8cc",
+     "positions": 384
+    },
+    "t02": {
+     "sha256": "63fd9a43bb4801357dfc3695f60cb4f6f8f9916780ccbe942c965bc10f8e10fc",
+     "positions": 323
+    },
+    "t03": {
+     "sha256": "fc553da1882464ee9a3920088b82ee66916c6ac674ae5542adcc2b2180fffcb2",
+     "positions": 293
+    },
+    "t04": {
+     "sha256": "9748a030a3b85ad61968c54d910b3d85a891d658447ab552e6a0360d26fa9809",
+     "positions": 269
+    },
+    "t05": {
+     "sha256": "de988bc33b383b5e01d2fe6b4398a37e66d617c67a2775b47b97f812dd254772",
+     "positions": 270
+    },
+    "t06": {
+     "sha256": "c3060f58dac3eef2ae813fe1b0f2d006a801d0115810f580632a0540204b4791",
+     "positions": 412
+    },
+    "t07": {
+     "sha256": "cdd3a14a71270d979bdc41d457fbb21d59d175f6dcb7ed80f35e21391e116c4e",
+     "positions": 302
+    },
+    "t08": {
+     "sha256": "bf766f7b33d8f2889d9667b9513e838848ecf7324b44fdc1dfa3d15cac886d3a",
+     "positions": 352
+    },
+    "t09": {
+     "sha256": "4e6245dbf667df1b4430a9b6c149df39aa520c98b96217cfaa2c51ce5cef5907",
+     "positions": 332
+    },
+    "t10": {
+     "sha256": "7408d61c1ddef543d21b9108600ed598b9991fb1758ee8b110c5ba15fbc79e6d",
+     "positions": 328
+    },
+    "t11": {
+     "sha256": "0ec147af845b4057e38af7f976490b589d4248d45af45c361d74c8c33007e347",
+     "positions": 384
+    },
+    "t12": {
+     "sha256": "c402a8a862a2d189d07160609027092b2af91558e6c03c684f763255712466fa",
+     "positions": 370
+    },
+    "t13": {
+     "sha256": "e8ba11ad8de3e83124f84363ac3f9dc477667cddc2f3083b8d2ddfe7b4ea520c",
+     "positions": 325
+    },
+    "t14": {
+     "sha256": "355ecfed97621fcbbab30006bb8f0e98e79b5701e5e4d2122c8e7362b77c1882",
+     "positions": 294
+    },
+    "t15": {
+     "sha256": "0e1c73c37a02ec9f87b1ec3f53d8cc2c4c5ed80164c1fb5c68fd5cc8ec231795",
+     "positions": 271
+    },
+    "t16": {
+     "sha256": "ef61a0bf7f69dee15b382e35cf10e3091211a7f3451084a4c7aa212afa5ffd87",
+     "positions": 375
+    }
+   },
+   "console-gpu": {
+    "t01": {
+     "sha256": "5487c33dfcc5d7d474faa7e12e5a3ff230440edae4e676621d74e28e6b6b6cb5",
+     "positions": 384
+    },
+    "t02": {
+     "sha256": "001d16bbc9dc3614a88cc94a75aa035775e5229ebd1a9252c291960413ae55ea",
+     "positions": 323
+    },
+    "t03": {
+     "sha256": "a1972a07fe20344077a8b6d2cd1948bea0500cf426b33ae083745459de45aeea",
+     "positions": 293
+    },
+    "t04": {
+     "sha256": "86b5a82facd45833008ba19ee5381ce057a6896de0ad0858b412c8f4eb5d5f15",
+     "positions": 269
+    },
+    "t05": {
+     "sha256": "3265d219fdc3c9a43ff9d9ff314bd7096dd7d13c6cbb852017950d7c3a26da65",
+     "positions": 270
+    },
+    "t06": {
+     "sha256": "442a032c76261a589e358ee560c5a84e7cf036b5e5a46bd63d122da455a64562",
+     "positions": 412
+    },
+    "t07": {
+     "sha256": "787fb63c08ff1ab9f0f9e347ae91159c7c98f29373afc1a2b4eb9f0aa483b39d",
+     "positions": 302
+    },
+    "t08": {
+     "sha256": "0af2a8bab1b51c9edc88339df83987e9626672b3d498074875774563fd51178e",
+     "positions": 352
+    },
+    "t09": {
+     "sha256": "060a83431e887837a8183d2e26fe3bfb687a99d8b987001d3cc4092b1b8415a9",
+     "positions": 332
+    },
+    "t10": {
+     "sha256": "76da9320173c847fae9bf3052d0ae517751deb533da091fdc654aa19b04dd477",
+     "positions": 328
+    },
+    "t11": {
+     "sha256": "fb0c066c0933485b5e924e4955a4e32f1218ac0a2bf92040050d6d363078030b",
+     "positions": 384
+    },
+    "t12": {
+     "sha256": "a007ae2d16841042662513d2c06e949f31dfa3749103dffc4bb7ad6a46411d6e",
+     "positions": 370
+    },
+    "t13": {
+     "sha256": "e1b081033a444ea7188ae63e001cdfad03479e3c80ea48df3d3bb1d0021f021a",
+     "positions": 325
+    },
+    "t14": {
+     "sha256": "34df6550a168df534631796bce1d3c049483b95c7e3a8b54a2a3df34e478c6e4",
+     "positions": 294
+    },
+    "t15": {
+     "sha256": "0707eaf1a00c7f96bafaded5e8a55659fb94932d6927dd5d7a456b48b68d136c",
+     "positions": 271
+    },
+    "t16": {
+     "sha256": "4693eefb8469cfd45d19a343ef88b562bdfaba8e049520f3058b4c35469ba860",
+     "positions": 375
+    }
+   },
+   "host-release": {
+    "t01": {
+     "sha256": "b1c806d632814558ca942951e6798a196f68d3a35082b605c6d01962c025944b",
+     "positions": 384
+    },
+    "t02": {
+     "sha256": "69216ca98458548ce8a0aba19fa7342bb1c59b4a165b1c320f572071be88dd54",
+     "positions": 323
+    },
+    "t03": {
+     "sha256": "fb69b72845e4fa335023a355272487818674c929aa1d0a6e7964aa15b6e0dac8",
+     "positions": 293
+    },
+    "t04": {
+     "sha256": "838870e6e306f6cc7ff508f58b8ac84e7de44311cbc0a96db6d41d3ae35cfd27",
+     "positions": 269
+    },
+    "t05": {
+     "sha256": "74c3cd1f4c4bc07d411414024cde3f25aa7467b720c6ca9b223dde9488b1444d",
+     "positions": 270
+    },
+    "t06": {
+     "sha256": "dc8258a31cb90acf81d595dfafa802b3b19b6c949ad0917dcd6792f2770d6dd8",
+     "positions": 412
+    },
+    "t07": {
+     "sha256": "2ef49b8ab0cd082c843f094e490e41d261aa00010cc6e2de3caa10acc2bcd3b9",
+     "positions": 302
+    },
+    "t08": {
+     "sha256": "d71e12565cf495f060960fe1f4608a9cf072c2a46a6106c29d82dce4c3f297fa",
+     "positions": 352
+    },
+    "t09": {
+     "sha256": "5aa3eecbb05f0f0d3d9fd25aa96cbeff998241b820064eff401c28aa90de343b",
+     "positions": 332
+    },
+    "t10": {
+     "sha256": "0c8f67964ed67e1ae3571388db8a64da1389f40c88ad8df729128f6bb58334cb",
+     "positions": 328
+    },
+    "t11": {
+     "sha256": "81058a3794cebeb04ee23b9ae514e3d95757342a0142ab82684bb2781b7a4ee0",
+     "positions": 384
+    },
+    "t12": {
+     "sha256": "fd86024abedd032dc9339d44b4efa3cc1a85d50a3fa093e172f3025d7e47fbf0",
+     "positions": 370
+    },
+    "t13": {
+     "sha256": "cfc05319517910c8496378bdb06dd73eeffab52833113a0bb922de58a2c4f63b",
+     "positions": 325
+    },
+    "t14": {
+     "sha256": "a18e50ef79662a1d41f7cc83a130aba8db6317970530e1c82559bd70b8e96fbe",
+     "positions": 294
+    },
+    "t15": {
+     "sha256": "6680edcab569dcb011697f4674a593a2d4e65470fbfa966b972707fdf209f9e4",
+     "positions": 271
+    },
+    "t16": {
+     "sha256": "cff44bb79cefd74d343b515a1fe3c2f88e19531cc56a812b673e3b9e5f6121df",
+     "positions": 375
+    }
+   },
+   "host-no-repack": {
+    "t01": {
+     "sha256": "99d8924e3bd4dc413fb631ed79bba2d5e6c7e6f1d1f1b7b74e5facd09b01141b",
+     "positions": 384
+    },
+    "t02": {
+     "sha256": "7625023ce07f2455d297a4025ed2be39a4582bc0503894ebb1335c0b48973ea1",
+     "positions": 323
+    },
+    "t03": {
+     "sha256": "17a5341cfd5aecf50bc3657d7e508c42e705e0d10d4ec010b9b2ee0118123157",
+     "positions": 293
+    },
+    "t04": {
+     "sha256": "4c30193b299a7118433b4d7d63616048dab461b2760fc38ced49b91a5813bda2",
+     "positions": 269
+    },
+    "t05": {
+     "sha256": "9934d85efc57b491a2d70dd0931884f6ed2b5ec603061d9e5bc7995679b8782b",
+     "positions": 270
+    },
+    "t06": {
+     "sha256": "cbe193c62dc1de4f6cffdf3647a097a371bc6bf9899641a62bae33d24e9066aa",
+     "positions": 412
+    },
+    "t07": {
+     "sha256": "7f90930d0d58efd51443c43c82601a7230ebe4bedaea65bdc850b2ee3efb53bd",
+     "positions": 302
+    },
+    "t08": {
+     "sha256": "d3d4386f483c26c0eeb7ea92c0da8b69521dec3e116dcb84d5bf2b39bb7aaa8c",
+     "positions": 352
+    },
+    "t09": {
+     "sha256": "255cf9edcccecc9cbd2ba3b8809c9c69907d0a8a6d047aa858a94952b2f65af2",
+     "positions": 332
+    },
+    "t10": {
+     "sha256": "b1db5aa3fc0bdbe0708c100890c44a2b2fa42d074c58ab449536b8788aa1af2d",
+     "positions": 328
+    },
+    "t11": {
+     "sha256": "a465f9df091e448abdd40c4f759abea02f2c3fb978e718d1c1971a547c4133e3",
+     "positions": 384
+    },
+    "t12": {
+     "sha256": "5c3052690d0cb386871f1e585a066937354d3750343a160f98a44c778350048a",
+     "positions": 370
+    },
+    "t13": {
+     "sha256": "f750a926de5034f3e124cdbdabb75b55e42c4a3669050c8f61c680c082f873ba",
+     "positions": 325
+    },
+    "t14": {
+     "sha256": "407468a5357563e7cd4c408b8609dec09fc073a6262bcef4f8530143c0005d88",
+     "positions": 294
+    },
+    "t15": {
+     "sha256": "bf21614112e583056e1edcc40ed345b4ab58cf08090dc3e7efd1da1c9469c4c9",
+     "positions": 271
+    },
+    "t16": {
+     "sha256": "4f2ee1f01f22a985177b35cbebd6664de8e9af887b4b807d4c4c9dd04f1e67a9",
+     "positions": 375
+    }
+   }
+  }
+ },
+ "captures_not_retained": {
+  "data_sha256": "sha256 over the concatenated sha256 of each .f32 file in name order",
+  "arms": {
+   "cpu": {
+    "k1": {
+     "manifest_sha256": "54fdd3ab193491e75ba3bde35516d1d96020b1df6ff38aeb3fe06d60c69ef3d5",
+     "files": 157,
+     "bytes": 99876864,
+     "data_sha256": "7c0c5f26a2f736b294472ffe215d856a4354902d7e625bb89965e20def3b267c"
+    },
+    "t01": {
+     "manifest_sha256": "f4bd4c744d53646394eae522644a11d55a679f772cdc21b1d383b21f669da29c",
+     "files": 118,
+     "bytes": 736116736,
+     "data_sha256": "9b3f4cced50d9e34da155ddd810480d014dc4cffb9db5b8525ef0b6f99bf7a72"
+    }
+   },
+   "gpu": {
+    "k1": {
+     "manifest_sha256": "54fdd3ab193491e75ba3bde35516d1d96020b1df6ff38aeb3fe06d60c69ef3d5",
+     "files": 157,
+     "bytes": 99876864,
+     "data_sha256": "f8f7b4b50aa785c4de3b834f6013bcced54bb716905453b19adc40fa0405d23c"
+    },
+    "t01": {
+     "manifest_sha256": "f4bd4c744d53646394eae522644a11d55a679f772cdc21b1d383b21f669da29c",
+     "files": 118,
+     "bytes": 736116736,
+     "data_sha256": "a9272399849d1d4b5d029e160249f18aefb3d4bcb40703e52416a997721e3d72"
+    }
+   }
+  }
+ },
+ "verdicts": {
+  "part1_reference_gpu": true,
+  "part1_reference_cpu_reported": true,
+  "part2_distribution": true,
+  "control": "PASS",
+  "descriptive_against_release_floor": false
+ }
+}
