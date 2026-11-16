@@ -730,7 +730,12 @@ Source/evidence discovery and the conditional 6–8 week stages are in the
    with the single-column kernels, and the C4 kernel of #414 passed on both
    models with output byte-identical to the single-column kernel's
    ([evidence](docs/research/evidence/2026-11-16-adr0010-control-c4/README.md)).
-   Next: the resource and H9 gates, then the paired performance protocol.
+   The paired performance campaign then failed: the kernel is 1.5 times
+   faster in prefill on Coder-3B and 15 % slower on LFM2.5-1.2B, the model
+   that ships on the GPU
+   ([evidence](docs/research/evidence/2026-11-16-c4-performance/README.md)).
+   #414 is not promoted. A K-quant-only variant would be a new
+   preregistered experiment; it has no shipping model to serve today.
 2. **#421, in parallel:** opt-in timing attribution per operator and layer in
    the d3d12 backend, with an overhead calibration on the console.
 3. **#422:** routing qualification after #313; the matched Series S and

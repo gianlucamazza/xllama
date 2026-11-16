@@ -861,6 +861,23 @@ are byte-identical to the single-column arm's on all 16 prompts of both
 models. Part 1 covers partial tiles of 1, 2 and 3 columns. The correctness
 prerequisite of the #313 performance trial is met; no speed result exists.
 
+### 2026-11-16 paired campaign of the four-column kernel: FAIL
+
+The preregistered #313 campaign ran on the Series S with the frozen manifest
+([evidence](research/evidence/2026-11-16-c4-performance/README.md)): 6 cells,
+20 alternating pairs each, 240 arms, none failed.
+
+- **Coder-3B passes every cell:** prefill 1.50 and 1.47 times, time to first
+  token 0.67 to 0.68 times, decode and memory unchanged.
+- **LFM2.5-1.2B fails every cell:** prefill 0.84 and 0.85 times, time to
+  first token 1.18 times, decode and memory unchanged.
+
+The preregistered rule requires every cell, so the experiment fails. The
+model that runs on the GPU by default gets slower, and the kernel stays
+opt-in and off. The split follows the weight type (Q4_0 on LFM2.5-1.2B,
+Q4_K and Q6_K on Coder-3B); that reading was not tested, and a K-quant-only
+variant would need its own preregistration.
+
 ### Attributable request counters (#421)
 
 A GGUF run with GPU layers logs one `[xllama] d3d12-phase` line after the
