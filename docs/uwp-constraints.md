@@ -427,6 +427,18 @@ GPU decode gap cannot be blamed on App-mode scheduling — it is a DML/kernel
 issue, consistent with the fused-int4 analysis above. Operational note:
 re-check the designation after any package reinstall (it can reset to App).
 
+**App designation on a Series X (#457, measured by an independent tester,
+2026-11-16).** The app runs at full speed for about ten seconds after launch,
+then at about 40 % of the Game speed (`lfm25-350m`, about 38 against about
+100 tok/s). Fewer threads are slower at every step from six down, so it is a
+CPU cap, not oversubscription. The `[resources]` startup line reports six
+exclusive cores in both designations; only `app_memory_limit_mb` (1024 for
+App, 5120 for Game) tells them apart. A headless bench run starts and ends
+inside the launch window, so it does not show the slow state: an App
+measurement needs the UI process and more than 20 seconds after launch. On
+the Series S the same comparison costs about 9 %, measured with the headless
+bench, so it may have been taken inside that window too; not re-measured.
+
 ## 6. Limited Thread Count
 
 **Problem**: Developer Mode apps share CPU resources. Xbox Series S has 8 Zen 2 cores; typically 6–7 are available.
