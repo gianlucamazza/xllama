@@ -4,8 +4,10 @@ The four-column prefill kernel of #414 (`d3d12-prefill-columns.txt` = 4,
 which reuses each packed weight across four activation columns), put through
 the [amended ADR 0010](../../../adr/0010-logit-parity-reference-spread.md#amendment-2026-11-15)
 control on both models named by the #313 protocol: Coder-3B Q4_K_M and
-LFM2.5-1.2B QAD Q4_0. This directory is committed in two steps: the
-declarations, prompts and CPU-only figures first, the GPU measurements after.
+LFM2.5-1.2B QAD Q4_0. The declarations, prompts and CPU-only figures were
+committed first (PR #467, merged 01:02:46 UTC); the GPU arms ran from 01:02:49
+to 01:49:26 UTC. **Verdict: PASS on both models, and the four-column kernel's
+output is byte-identical to the single-column kernel's.**
 
 ## Declarations
 
@@ -82,3 +84,52 @@ and the single-column control used Release.
 The console CPU arm's captures pass the reference check: Coder-3B `c1` 252
 records, worst NMSE 1.7e-12, `u03` 84 records, 6.7e-13; LFM2.5-1.2B `c1` 92
 records, 1.0e-13, `u03` 68 records, 7.8e-14.
+
+## Result
+
+Series S, CI package 1.7.0.1595 (#414 merged up to `main`). Every four-column
+run logged `prefill_columns=4` and a non-zero count of four-column dispatches;
+every single-column run logged `prefill_columns=1` and none. Bindings and
+hashes are in [`receipt.json`](receipt.json), verdict files in
+[`verdicts/`](verdicts/).
+
+### The four-column output equals the single-column output, byte for byte
+
+For all 16 prompts of both models, the per-position logit dump of the
+four-column arm is byte-identical to the single-column arm's (32 of 32
+files, sha256 in the receipt). The two arms were separate app starts about
+27 minutes apart. The kernel reuses each loaded weight block across four
+columns but keeps each column's arithmetic and summation order, so this is
+the expected outcome of a correct implementation, now observed on 4,835 and
+5,073 positions.
+
+### Part 1, every four-column product against an exact reference: PASS
+
+| Model       | Capture                       | Records | Four-column arm, worst NMSE | CPU arm |
+| ----------- | ----------------------------- | ------: | --------------------------: | ------: |
+| Coder-3B    | `c1`, 29 tokens, layers 0–35  |     252 |                     3.3e-14 | 1.7e-12 |
+| Coder-3B    | `u03`, 567 tokens, layers 0–5 |      84 |                     3.6e-14 | 6.7e-13 |
+| LFM2.5-1.2B | `c1`, 31 tokens, layers 0–15  |      92 |                     1.7e-14 | 1.0e-13 |
+| LFM2.5-1.2B | `u03`, 618 tokens, layers 0–5 |      68 |                     5.9e-15 | 7.8e-14 |
+
+The captures end in partial tiles of 1, 3, 3 and 2 columns. Limit 1e-7.
+
+### Part 2, output distribution against the floor: PASS
+
+| Model       | Positions | KLD ratio (upper bound) | Limit | Top-token deficit (upper bound) | Margin |
+| ----------- | --------: | ----------------------: | ----: | ------------------------------: | -----: |
+| Coder-3B    |     4,835 |           0.986 (1.009) |  1.25 |                  0.17 pt (0.61) |   1 pt |
+| LFM2.5-1.2B |     5,073 |           0.963 (1.004) |   2.0 |                 -0.04 pt (0.19) |   1 pt |
+
+The single-column arm, reported, gives the same figures because its output
+is the same.
+
+### What this does and does not show
+
+- The four-column kernel computes exactly what the single-column kernel
+  computes, on both models and with partial tiles, and both pass the
+  amended control.
+- It says nothing about speed. The prefill wall times in the logs are
+  diagnostic counters of single runs, not measurements; the performance
+  question is the next phase of #313.
+- One console, one run per arm, two models.

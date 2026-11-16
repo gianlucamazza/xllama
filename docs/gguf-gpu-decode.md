@@ -841,6 +841,16 @@ runs on the GPU by default, with the shipping single-column kernels
 
 This is the baseline for the four-column kernel on this model.
 
+### 2026-11-16 control of the four-column kernel: PASS, identical output
+
+The four-column prefill kernel of #414 went through the amended control on
+Coder-3B and LFM2.5-1.2B
+([evidence](research/evidence/2026-11-16-adr0010-control-c4/README.md)).
+Both parts pass on both models, and the four-column arm's per-position logits
+are byte-identical to the single-column arm's on all 16 prompts of both
+models. Part 1 covers partial tiles of 1, 2 and 3 columns. The correctness
+prerequisite of the #313 performance trial is met; no speed result exists.
+
 ### Attributable request counters (#421)
 
 A GGUF run with GPU layers logs one `[xllama] d3d12-phase` line after the
