@@ -65,9 +65,12 @@ details → App type) and can reset on reinstall.
 
 **Gate (Phase 0 spike):** on a Series S, with the shipping default chat model
 (`lfm25-350m`), run the same short decode bench under **App** and **Game**.
-Record tok/s + peak working set. Procedure: §6 below. On a Series X an
-independent tester saw a much larger gap between the two designations, not
-yet explained ([positioning.md](positioning.md#series-x)).
+Record tok/s + peak working set. Procedure: §6 below. The headless bench
+starts and ends within about ten seconds of launch, before the system caps an
+App's CPU, so it cannot show the App slowdown: measure App in the UI process
+(LAN API) more than 20 seconds after launch. On a Series X that gives about
+40 % of the Game speed ([#457](https://github.com/gianlucamazza/xllama/issues/457),
+[uwp-constraints.md §5](uwp-constraints.md)).
 
 - If App mode is unusable → a public package **must** obtain Game metadata, or
   do not ship.

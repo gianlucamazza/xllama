@@ -48,9 +48,12 @@ What that covers and what it does not:
   project owns no Series X. Every published figure is a Series S figure.
 - **Speed.** With the app designated as a Game, the Series X runs are on par
   with a Series S measured the same way, not faster. With the App
-  designation they are about 2.4 times slower, against about 9 % on a
-  Series S. The cause is not known
-  ([#374](https://github.com/gianlucamazza/xllama/issues/374)).
+  designation the app runs at full speed for about ten seconds after launch
+  and then at about 40 % of the Game speed: the system caps an App's CPU,
+  and fewer threads make it slower, not faster. That accounts for the 2.4
+  times seen in the first runs. The remedy is the Game designation, which the
+  install guide asks for
+  ([#457](https://github.com/gianlucamazza/xllama/issues/457)).
 
 ## Honest limits
 

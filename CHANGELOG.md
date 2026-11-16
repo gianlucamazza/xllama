@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Series X App designation explained (#457).** An independent tester found
+  that with the App designation the app runs at full speed for about ten
+  seconds after launch, then at about 40 % of the Game speed, and that fewer
+  threads make it slower. It is a CPU cap of the App designation; the remedy
+  is the Game designation. The headless bench cannot show it, so the release
+  gate's App measurement now uses the UI process more than 20 seconds after
+  launch.
+
 - **Per-dispatch GPU timing (#421).** With `d3d12-dispatch-timing.txt` = `1`
   in LocalState, the d3d12 backend times every dispatch and logs, after each
   prefill and decode phase line, the GPU time per kind of dispatch (operation,
