@@ -915,15 +915,19 @@ def main() -> int:
     import re as _re
     import subprocess as _sp
     marker = _re.compile(r"^\s*(<{7}|\|{7}|>{7})( |$)")
-    tracked = _sp.run(["git", "ls-files", "*.md", "*.py", "*.sh", "*.cpp", "*.h", "*.hlsl",
-                       "*.json", "*.yml", "*.toml", "*.txt"], cwd=ROOT, capture_output=True,
-                      text=True, check=False).stdout.split()
+    # Every tracked file (NUL-separated, so names with spaces survive); binary
+    # files are skipped by the decode, the submodule and vendored trees by path.
+    tracked = _sp.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True,
+                      check=False).stdout.decode("utf-8", "replace").split("\0")
     hits = []
-    for rel in tracked:
+    for rel in filter(None, tracked):
         if rel.startswith(("llama.cpp/", "vendor/")):
             continue
         try:
-            text = (ROOT / rel).read_text(encoding="utf-8")
+            raw = (ROOT / rel).read_bytes()
+            if b"\0" in raw:
+                continue
+            text = raw.decode("utf-8")
         except (OSError, UnicodeDecodeError):
             continue
         hits += [f"{rel}:{n}" for n, line in enumerate(text.splitlines(), 1) if marker.match(line)]
