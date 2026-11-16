@@ -1,6 +1,6 @@
 # MoE upstream readiness — maintainer preparation, 2026-11-16
 
-Status: **preparation verified; runtime integration, full-checkpoint parity and independent console reproduction remain pending**. Trackers: [#479](https://github.com/gianlucamazza/xllama/issues/479), [#480](https://github.com/gianlucamazza/xllama/issues/480), [#481](https://github.com/gianlucamazza/xllama/issues/481). The proposed PR boundaries are in [#482](https://github.com/gianlucamazza/xllama/pull/482).
+Status: **preparation verified; independent console reproduction of the fork's CPU stage done on a project Series S (2026-11-16); runtime integration and full-checkpoint parity remain pending**. Trackers: [#479](https://github.com/gianlucamazza/xllama/issues/479), [#480](https://github.com/gianlucamazza/xllama/issues/480), [#481](https://github.com/gianlucamazza/xllama/issues/481). The proposed PR boundaries are in [#482](https://github.com/gianlucamazza/xllama/pull/482).
 
 ## Current stage and documentation ownership
 
@@ -9,15 +9,15 @@ The planning and preparation PRs are separate from all four implementation PRs.
 Completed preparation below describes work actually checked; it is not a merge,
 release or device-acceptance claim.
 
-| Work item                                               | Current state                              | Next gate                                                                                         |
-| ------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| Source review, cache harness and comparison-tool checks | Verified preparation; published for review | Review/merge preparation independently of runtime changes                                         |
-| Numerical campaign and CPU input analysis               | Prepared; campaign not executable          | Supply exact token/reference/build bindings and an adequate resident-reference host               |
-| PR 1 / #479: cache contribution                         | Pending integration                        | Review a concrete coherent extraction and its upstream tests                                      |
-| PR 2 / #480: native CPU integration                     | Pending                                    | Complete PR 1, native fixtures and real-checkpoint parity                                         |
-| Independent fork console reproduction                   | Pending                                    | Select the matching signed CPU-tested artifact and actual device prerequisites                    |
-| PR 3 / #481 CPU stage: upstream console acceptance      | Pending                                    | Complete native integration, Windows build and package-bound console lifecycle checks             |
-| PR 4 / #481 GPU stage: selected-expert correctness      | Pending                                    | Console identity/dispatch, primitive/model numerical proof and resource closure before benchmarks |
+| Work item                                               | Current state                                                                                                                       | Next gate                                                                                         |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Source review, cache harness and comparison-tool checks | Verified preparation; published for review                                                                                          | Review/merge preparation independently of runtime changes                                         |
+| Numerical campaign and CPU input analysis               | Prepared; campaign not executable                                                                                                   | Supply exact token/reference/build bindings and an adequate resident-reference host               |
+| PR 1 / #479: cache contribution                         | Pending integration                                                                                                                 | Review a concrete coherent extraction and its upstream tests                                      |
+| PR 2 / #480: native CPU integration                     | Pending                                                                                                                             | Complete PR 1, native fixtures and real-checkpoint parity                                         |
+| Independent fork console reproduction                   | Done for the CPU stage, 2026-11-16: A2 and B512 match the fork's report ([evidence](evidence/2026-11-16-moe-24b-console/README.md)) | Repeat on the upstream PR 3 package; the run used a test build of the fork's patch route          |
+| PR 3 / #481 CPU stage: upstream console acceptance      | Pending                                                                                                                             | Complete native integration, Windows build and package-bound console lifecycle checks             |
+| PR 4 / #481 GPU stage: selected-expert correctness      | Pending                                                                                                                             | Console identity/dispatch, primitive/model numerical proof and resource closure before benchmarks |
 
 The [roadmap](../../ROADMAP.md#optional-ssd-moe-contribution--state-at-2026-11-16)
 links this state instead of duplicating measurements. The original
@@ -77,8 +77,8 @@ Sources: [pinned preparation recipe](https://github.com/vetax-by/xllama/blob/61b
 
 ## Remaining prerequisites
 
-1. **Independent console reproduction:** select an actual signed/installable CPU-tested artifact with matching source receipt and package identity. The public latest compile and historical signing template are different revisions. This preparation resolves the model/profile inputs but does not establish an install-ready package, current device quota or console access. No installation or signing was attempted.
-2. **Real model parity:** the pinned GGUF is 14,526,258,464 bytes; this host has about 9.7 GiB total RAM and no swap. It cannot provide an entirely resident reference of these quantized weights here. No checkpoint was downloaded and no model inference was run. Use a sufficiently provisioned host for PR 2.
+1. **Independent console reproduction:** done for the CPU stage on 2026-11-16. Instead of the fork's signed artifact, the seventeen patches (byte-identical to `PATCH-LOCK.json`) were built by this repository's CI on branch `test/ua50-moe-console` and installed in place, keeping LocalState. Both cache profiles completed with identical tokens and figures matching the fork's report ([evidence](evidence/2026-11-16-moe-24b-console/README.md)). Acceptance of the upstream PR 3 package remains a separate gate.
+2. **Real model parity:** the pinned GGUF is 14,526,258,464 bytes; this host has about 9.7 GiB total RAM and no swap. It cannot provide an entirely resident reference of these quantized weights here. A smaller checkpoint of the same `lfm2moe` architecture (LFM2.5-8B-A1B, 5,155,564,768 bytes at Q4_K_M) fits this host and can carry the mechanism's parity; the 24B itself still needs a larger host.
 3. **Campaign finalization:** exact rendered IDs, resident-derived continuation IDs, native row-export support and prepared source/build receipts remain required. The JSON is deliberately `PREPARED_NOT_EXECUTABLE`; missing identities cannot be treated as wildcards.
 4. **Upstream contribution:** review the first concrete extraction when available; avoid implementing a competing copy. NativeProvider and loader changes remain proposed PR 2 work.
 5. **GPU:** no claim of console GPU execution, correctness, fit or speed follows from these CPU/cache/tool checks.

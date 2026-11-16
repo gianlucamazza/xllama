@@ -94,14 +94,20 @@ Neither PR delivers a shipping MoE runtime.
 - [ ] PR 1 / #479: review and integrate the smallest coherent cache foundation.
 - [ ] PR 2 / #480: integrate the optional native CPU provider/loader and pass
       fixture plus full-checkpoint resident/streamed numerical gates.
+- [x] Reproduce the fork's CPU stage on a project Series S (2026-11-16):
+      LFM2.5-24B-A2B completes a turn with both cache profiles, matching the
+      fork's report ([evidence](docs/research/evidence/2026-11-16-moe-24b-console/README.md)).
+- [ ] Model-generic streaming: architecture table and pins are in #486; the
+      [plan](https://github.com/gianlucamazza/xllama/pull/486)
+      takes every [candidate](docs/research/moe-streaming-candidates.md)
+      through fixtures, console lifecycle and benchmarks.
 - [ ] PR 3 / #481 CPU stage: validate the upstream Windows/UWP activation and
-      console lifecycle. Independent reproduction of the fork is also pending;
-      select a matching signed CPU-tested artifact before installation.
+      console lifecycle on the upstream package.
 - [ ] PR 4 / #481 GPU stage: prove console identity, dispatch, primitive/model
       correctness and closure; only then run matched benchmarks under #421/#422.
 
-The next prerequisites are a suitable host for the resident model reference
-and a source/package-bound artifact for independent console reproduction.
+The next prerequisites are a resident-versus-streamed reference (on the
+smaller LFM2.5-8B-A1B, which fits the host) and the upstream PR 1 extraction.
 Historical H2 FAIL and the #273 catalogue gates remain unchanged. Completing
 cache/tool checks does not close runtime, console or GPU acceptance tasks.
 

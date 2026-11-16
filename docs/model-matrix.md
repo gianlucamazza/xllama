@@ -385,6 +385,18 @@ fail on total size. New supporting fact: at ~1B, dense decode on Series S is
 bytes-per-token bound (shape gate, see §F), which is the bar any MoE must beat
 on bytes actually read, not on active parameters.
 
+**Streamed path, 2026-11-16 (reopened for capacity, not for the product).**
+The gates above judge a resident MoE and stay as they are. The optional
+expert-streaming path changes one input: the checkpoint no longer has to fit
+the app's memory. LFM2.5-24B-A2B completed a turn on a project Series S at
+0.72–1.00 tok/s under 2.1 GiB
+([evidence](research/evidence/2026-11-16-moe-24b-console/README.md)), so
+models this section rejected on size are worth measuring again on that path:
+`lfm25-8b-a1b` at Q4_K_M (5.16 GB, above the resident envelope that forced
+`UD-IQ3_S` in H2) and Maple-Preview 20B-A1B (official TQ1_0/TQ2_0, 1B active).
+Order and status: [moe-streaming-candidates.md](research/moe-streaming-candidates.md).
+None of this enters a product tier while the rate is below the dense peer.
+
 ### I2. BitNet 1.58 (post H5 NO-GO)
 
 Closed: H5 **NO-GO** on absence of artefact, not on measured merit (2026-08-10,
