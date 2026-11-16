@@ -1,0 +1,9 @@
+PASS lru
+PASS pinned_and_move
+PASS all_pinned
+PASS short_read
+PASS throwing_reader
+PASS over_report
+PASS budgets_and_extents
+PASS mixed_quant
+8/8 cache contract groups passed

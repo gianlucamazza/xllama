@@ -1,0 +1,1 @@
+Spiega in italiano come una cache LRU gestisce due elementi quando arriva una terza richiesta. Usa un esempio concreto e menziona il caso di un elemento ancora in uso.

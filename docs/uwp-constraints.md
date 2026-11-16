@@ -415,8 +415,12 @@ non-fused low-bit kernel, see §12.) See §7 for GPU pool detail and §9 for dis
 **Platform lever — App vs Game designation (settled 2026-07-08)**: Dev Home
 can flip a sideloaded package between **App** and **Game** (tile → View
 details → App type); Game grants Game OS resources (full GPU access, more
-RAM). Checked on console: **xllama is already designated Game** — the
-designation persists per package family across forward upgrades. The
+RAM). Checked on console: **xllama is already designated Game** — on the
+Series S the designation persisted per package family across forward
+upgrades. On a Series X it did not always: an in-place upgrade between two
+CI packages signed with different test certificates (1.7.0.1614 to
+1.7.0.1626) kept LocalState but reset the designation to App
+([#421 report](https://github.com/gianlucamazza/xllama/issues/421#issuecomment-6914667256)). The
 startup log confirms it since 1.7.0.1587 (`[resources] ...
 exclusive_cpus=6 logical_cpus=8 app_memory_limit_mb=5120`; Microsoft documents
 1 GB and a share of 2 to 4 cores for an App). Therefore
@@ -425,7 +429,8 @@ matrix, the per-token DML dispatch overhead) are **Game-mode numbers**, and
 the earlier assumption labelling them "App-mode" was wrong. Consequence: the
 GPU decode gap cannot be blamed on App-mode scheduling — it is a DML/kernel
 issue, consistent with the fused-int4 analysis above. Operational note:
-re-check the designation after any package reinstall (it can reset to App).
+re-check the designation after any package install or upgrade (it can reset
+to App).
 
 **App designation on a Series X (#457, measured by an independent tester,
 2026-11-16).** The app runs at full speed for about ten seconds after launch,
