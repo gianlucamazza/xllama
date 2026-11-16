@@ -55,9 +55,9 @@
 - `std::optional<MoeRole> moe_routed_role(std::string_view arch, std::string_view tensor_name);` — parses `blk.<n>.<base>.weight`; returns the role only for the four routed bases listed for that architecture; `nullopt` for everything else, including `.bias` and `.scale`.
 - `bool moe_is_unrouted_expert_tensor(std::string_view arch, std::string_view tensor_name);` — true for a `blk.<n>.ffn_*_exps.weight` the table does not route for that architecture (Review Focus 1).
 
-Table rows (pin `d812350`, verified against `src/models/*.cpp`): `lfm2moe` {gate,up,down}; `bailingmoe2` {gate,up,down}, shared; `ernie4_5-moe` {gate,up,down}, shared; `smallthinker` {gate,up,down}; `gpt-oss` {gate,up,down}, bias; `gemma4` {gate,up,down,gate_up}; `afmoe` {gate,up,down}, shared.
+Table rows (pin `d812350`, verified against `src/models/*.cpp`): `lfm2moe` {gate,up,down}; `bailingmoe2` {gate,up,down}, shared; `ernie4_5-moe` {gate,up,down}, shared; `smallthinker` {gate,up,down}; `gpt-oss` {gate,up,down}, bias; `gemma4` {gate,up,down,gate_up}; `afmoe` {gate,up,down}, shared; `maple` {gate,up,down} (added 2026-11-16: Maple-Preview 20B-A1B, reopened from the #273 scan).
 
-- [ ] **Step 1: failing tests** — `moe_arch_known` (each of the seven names returns its row; `"llama"` and `"lfm2"` return `nullptr`), `moe_routed_role_basic` (`blk.3.ffn_up_exps.weight` → `up_exps` for `lfm2moe`), `moe_routed_role_resident` (`blk.3.ffn_up_shexp.weight`, `blk.3.ffn_gate_inp.weight`, `blk.0.ffn_up_exps.bias`, `blk.0.ffn_gate_exps.scale`, `blk.1.ffn_up.weight` → `nullopt`), `moe_routed_role_gemma4_merged` (`blk.2.ffn_gate_up_exps.weight` → `gate_up_exps` for `gemma4`, `nullopt` for `lfm2moe`), `moe_routed_role_malformed` (`ffn_up_exps.weight`, `blk.x.ffn_up_exps.weight`, empty → `nullopt`), `moe_unrouted_expert_tensor` (`ffn_gate_up_exps` on `lfm2moe` → true; on `gemma4` → false).
+- [ ] **Step 1: failing tests** — `moe_arch_known` (each of the eight names returns its row; `"llama"` and `"lfm2"` return `nullptr`), `moe_routed_role_basic` (`blk.3.ffn_up_exps.weight` → `up_exps` for `lfm2moe`), `moe_routed_role_resident` (`blk.3.ffn_up_shexp.weight`, `blk.3.ffn_gate_inp.weight`, `blk.0.ffn_up_exps.bias`, `blk.0.ffn_gate_exps.scale`, `blk.1.ffn_up.weight` → `nullopt`), `moe_routed_role_gemma4_merged` (`blk.2.ffn_gate_up_exps.weight` → `gate_up_exps` for `gemma4`, `nullopt` for `lfm2moe`), `moe_routed_role_malformed` (`ffn_up_exps.weight`, `blk.x.ffn_up_exps.weight`, empty → `nullopt`), `moe_unrouted_expert_tensor` (`ffn_gate_up_exps` on `lfm2moe` → true; on `gemma4` → false).
 - [ ] **Step 2:** `./build/linux-test/tests/xllama-tests --test-case='*moe_*'` fails to compile (header missing).
 - [ ] **Step 3:** implement; table as a `constexpr` array in the `.cpp`.
 - [ ] **Step 4:** same command passes; full `ctest` green.
@@ -99,15 +99,14 @@ Entries added, each `role: "experimental"`, hidden from the model picker, with `
 - [ ] **Step 2–4:** fail, implement, pass; `python3 scripts/check-coherence.py` and `tests/test_catalog_licenses.py` green (each entry carries its licence row, so the single-`.gguf` rule of Task 2 is what matters). Add the new module to the Python test list in `AGENTS.md` and the CI workflow.
 - [ ] **Step 5:** commit `feat: catalogue the LFM2.5 MoE checkpoints for experimental streaming`.
 
-### Task 4: tiny MoE fixtures per architecture
+### Task 4: small MoE fixtures per architecture
 
-**Files:** Create `scripts/make-moe-fixture.py`, `tests/test_make_moe_fixture.py`.
+**Files:** Create `scripts/make-moe-fixture.py`, `tests/test_make_moe_fixture.py`; add the test to the numpy step of `build-linux.yml` (with `pyyaml` for gguf-py) and to `AGENTS.md`.
 
-`make-moe-fixture.py --arch <name> --out <file> [--seed N]` writes a random-weight GGUF with `n_layer = 2`, `n_embd = 64`, `n_expert = 8`, `n_expert_used = 2`, `n_ff_exp = 32`, vocabulary of 256, Q4_K expert matrices (Q8_0 for shapes Q4_K cannot hold), using gguf-py from the submodule. The metadata keys per architecture are those `src/llama-model.cpp` reads at the pin; the script refuses an architecture outside Task 1's table.
+`make-moe-fixture.py --template <file|https URL> --out <file> [--experts 8] [--used 2] [--ff-exp 256] [--moe-layers 1] [--seed N] [--quant Q4_K_M|none]` reads a real checkpoint's header (for a URL, only the header bytes via HTTP Range into a sparse file) and writes a random-weight GGUF with the template's metadata, tokenizer and layout, keeping the first layers until every layer kind and at least one MoE layer appear (a full sliding-window period when the window has no per-layer pattern). Experts shrink by position (`gate`/`up`/`gate_up`: `[n_embd, ff, E]`, `down`: `[ff, n_embd, E]`, biases accordingly), shared experts sized `n_ff_exp × n_shared` shrink with them, conv/SSM/norm tensors stay f32. The architecture list is read from `src/bridge/moe_streaming.cpp`.
 
-- [ ] **Step 1: failing tests** — `test_each_arch_writes` (seven files, each reopened with gguf-py, `general.architecture` matches, every routed tensor of Task 1 present with `n_expert` in its last dimension), `test_unknown_arch_refused`, `test_seed_reproducible` (same seed → same SHA-256).
-- [ ] **Step 2–4:** fail, implement, pass. Then `./build/linux-test/bin/xllama-cli -m <fixture> -p hi -n 4` loads and decodes each fixture resident (proves the metadata is complete).
-- [ ] **Step 5:** commit `test: generate tiny MoE fixtures for every streaming architecture`.
+- [x] Tests: `test_supported_archs_from_table`, `test_shrinks_layers_experts_and_width`, `test_conv_and_norm_stay_f32`, `test_shapes_by_position_when_embd_equals_ff`, `test_shared_experts_scale_with_expert_width`, `test_unknown_arch_refused`, `test_too_many_experts_refused`, `test_seed_reproducible`.
+- [x] All eight architectures, from the pinned Hugging Face headers listed in the candidate list, produce a fixture that `xllama-cli` loads and decodes resident on the host (2026-11-16).
 
 ### Task 5: generic loader predicate and per-architecture parity (PR 2)
 
@@ -126,8 +125,10 @@ Entries added, each `role: "experimental"`, hidden from the model picker, with `
 
 - [ ] Replace the compiled-in 24B constants (`cpu_pilot_policy.h`, the model id/SHA literals in the dev-run config and runner) with the `MoePin` resolved from the bundled catalogue by the requested id. The model folder is `models/<id>/`.
 - [ ] Replace the exact embedded-template comparison with `template_sha256` of Task 2 and render through the model's own GGUF template.
+- [ ] Size the fork's cache trace (file bytes, key count, embedded checkpoint digest) from the admitted pin; on the 8B the fixed 24B trace ended `partial` and turned a natively complete run into `stop_reason: error`.
+- [ ] Read the shape tuple (layers, experts, routed expert tensors, largest per-expert matrix in bytes) from the GGUF header at admission instead of the compiled `exact_profile` constants, and size the cache ceiling as `slots × largest matrix` plus arena and metadata. On 2026-11-16 the 24B constants (40, 64, 114, 2580480; B512 ceiling 1280 MiB) refused LFM2.5-8B-A1B (24, 32, 66, 3010560: 512 slots need 1541 MB) at opening, before any allocation.
 - [ ] Console ladder per pin, in the candidate-list order: CPU lifecycle with 2 and 512 slots, then the resident comparison where the checkpoint also fits resident (`lfm25-8b-a1b` `UD-IQ3_S` resident against `Q4_K_M` streamed), then benchmark rows through `bench/README.md`'s schema and `generate-benchmark-summary.py`.
 
 ### Task 7: further architectures
 
-For each of `bailingmoe2` (Ling-mini-2.0), `ernie4_5-moe`, `gpt-oss`, `smallthinker`, `gemma4`, `afmoe`, in that order: Task 5 fixture PASS → catalogue entry (Task 3 shape) → Task 6 console ladder. A FAIL at any step is recorded in the candidate list with its evidence and stops that model, not the others.
+For each of `bailingmoe2` (Ling-mini-2.0), `maple` (Maple-Preview 20B-A1B, TQ1_0/TQ2_0 CPU-only), `ernie4_5-moe`, `gpt-oss`, `smallthinker`, `gemma4`, `afmoe`, in that order: Task 5 fixture PASS → catalogue entry (Task 3 shape) → Task 6 console ladder. A FAIL at any step is recorded in the candidate list with its evidence and stops that model, not the others.

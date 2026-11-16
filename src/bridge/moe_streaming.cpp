@@ -21,6 +21,7 @@ const MoeArch kArchs[] = {
     {"gpt-oss", {R::gate_exps, R::up_exps, R::down_exps}, false, true},
     {"gemma4", {R::gate_exps, R::up_exps, R::down_exps, R::gate_up_exps}, false, false},
     {"afmoe", {R::gate_exps, R::up_exps, R::down_exps}, true, false},
+    {"maple", {R::gate_exps, R::up_exps, R::down_exps}, false, false},
 };
 
 struct RoleName {

@@ -11,8 +11,8 @@
 using namespace xllama;
 
 TEST_CASE("moe_arch_known") {
-    for (const char* name :
-         {"lfm2moe", "bailingmoe2", "ernie4_5-moe", "smallthinker", "gpt-oss", "gemma4", "afmoe"}) {
+    for (const char* name : {"lfm2moe", "bailingmoe2", "ernie4_5-moe", "smallthinker", "gpt-oss",
+                             "gemma4", "afmoe", "maple"}) {
         const MoeArch* a = moe_arch(name);
         REQUIRE(a != nullptr);
         CHECK(a->arch == name);
