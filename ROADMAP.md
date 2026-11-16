@@ -727,9 +727,10 @@ Source/evidence discovery and the conditional 6–8 week stages are in the
    ([evidence](docs/research/evidence/2026-11-15-adr0010-control-2/README.md))
    and for LFM2.5-1.2B
    ([evidence](docs/research/evidence/2026-11-16-adr0010-control-lfm25-1.2b/README.md))
-   with the single-column kernels. #414 is merged up to `main`. Next: the C4
-   kernel through the same control on both models, then the resource and H9
-   gates and the paired performance protocol.
+   with the single-column kernels, and the C4 kernel of #414 passed on both
+   models with output byte-identical to the single-column kernel's
+   ([evidence](docs/research/evidence/2026-11-16-adr0010-control-c4/README.md)).
+   Next: the resource and H9 gates, then the paired performance protocol.
 2. **#421, in parallel:** opt-in timing attribution per operator and layer in
    the d3d12 backend, with an overhead calibration on the console.
 3. **#422:** routing qualification after #313; the matched Series S and

@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Four-column prefill kernel (#414) passes the GPU control.** On Coder-3B
+  and LFM2.5-1.2B every four-column weight product, partial tiles included,
+  is within 3.6e-14 NMSE of an exact reference, and the four-column arm's
+  per-position logits are byte-identical to the single-column arm's on all
+  32 prompt dumps. The kernel stays opt-in and off by default; no speed
+  result exists yet.
+
 - **GPU control on LFM2.5-1.2B: PASS.** The model that runs on the GPU by
   default went through the amended ADR 0010 control on the Series S. All 160
   captured Q4_0 products are within 1.7e-14 NMSE of an exact reference, and
