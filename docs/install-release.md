@@ -268,6 +268,19 @@ Known issues:
 - **Measured tok/s look low.** Check **App type** in Dev Home (tile → View
   details). The published figures assume the **Game** designation
   (`uwp-constraints.md §5`).
+  - With the **App** designation the speed is normal only for the first few
+    seconds after launch. On a Series X the system then caps the app's CPU,
+    and text generation drops to about 40 % of the Game speed (`lfm25-350m`:
+    about 38 against about 100 tok/s from about ten seconds after launch;
+    [#457](https://github.com/gianlucamazza/xllama/issues/457)). A quick
+    test right after launch therefore does not show the problem.
+  - A lower thread count does not help in that state; it is slower at every
+    step down from six (#457).
+  - The `[resources]` line in `xllama.log` shows which allotment the app
+    got: `app_memory_limit_mb=1024` is App, `5120` is Game.
+  - An uninstall and reinstall can reset the designation to **App**. A build
+    with a lower version or another test certificate cannot install over the
+    current one and needs that uninstall, so check **App type** again after it.
 - **Startup / logs (command-line host).** `./scripts/deploy.sh diagnose-startup`
   prints the process state, the app log, and any crash dumps.
   `./scripts/deploy.sh get-log` reads `xllama.log`; individual files:
