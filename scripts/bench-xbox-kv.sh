@@ -4,7 +4,8 @@
 # Usage:
 #   source ~/.config/xllama/xbox-env
 #   ./scripts/bench-xbox-kv.sh <model-dir> [--prompt FILE] [--turn2 TEXT]
-#                              [--runs N] [--out FILE]
+#                              --hardware xbox-series-s|xbox-series-x
+#                              [--gpu-layers N] [--runs N] [--out FILE] [--dry-run]
 #
 # Why: the single-turn sweep (bench-prompt-sweep.sh) says DirectML wins a long
 # first turn. It cannot say what happens next, and that is where the decision
@@ -25,15 +26,9 @@
 # script reports it rather than hiding it.
 set -euo pipefail
 
-: "${XBOX_IP:?XBOX_IP not set — run: source ~/.config/xllama/xbox-env}"
-: "${XBOX_USER:?XBOX_USER not set}"
-: "${XBOX_PASS:?XBOX_PASS not set}"
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DEPLOY="${SCRIPT_DIR}/deploy.sh"
-BASE_URL="https://${XBOX_IP}:11443"
-CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
 
 MODEL="${1:?usage: bench-xbox-kv.sh <model-dir> [--prompt FILE] [--turn2 TEXT] [--runs N] [--out FILE]}"
 shift
@@ -41,6 +36,9 @@ PROMPT_FILE="${REPO_ROOT}/bench/prompts/standard-512.txt"
 TURN2="Summarise that in one sentence."
 RUNS=3 # W1.1: each run is already recorded individually (run_index column) below
 OUT=""
+HARDWARE="${XLLAMA_BENCH_HARDWARE:-}"
+GPU_LAYERS=0
+DRY_RUN=0
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
@@ -60,6 +58,18 @@ while [[ $# -gt 0 ]]; do
 		OUT="$2"
 		shift 2
 		;;
+	--hardware)
+		HARDWARE="${2:?--hardware requires a value}"
+		shift 2
+		;;
+	--gpu-layers)
+		GPU_LAYERS="${2:?--gpu-layers requires a value}"
+		shift 2
+		;;
+	--dry-run)
+		DRY_RUN=1
+		shift
+		;;
 	*)
 		echo "Unknown arg: $1" >&2
 		exit 1
@@ -67,10 +77,28 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
+case "$HARDWARE" in
+xbox-series-s | xbox-series-x) ;;
+*) echo 'use --hardware xbox-series-s|xbox-series-x (or XLLAMA_BENCH_HARDWARE)' >&2; exit 2 ;;
+esac
+[[ "$GPU_LAYERS" =~ ^(0|[1-9][0-9]{0,2})$ ]] || {
+	echo '--gpu-layers must be an integer from 0 to 999' >&2
+	exit 2
+}
+
 [[ -f "$PROMPT_FILE" ]] || {
 	echo "Error: prompt file not found: $PROMPT_FILE" >&2
 	exit 1
 }
+
+printf 'hardware: %s (operator-declared)\ngpu_layers: %s\n' "$HARDWARE" "$GPU_LAYERS"
+((DRY_RUN == 0)) || exit 0
+
+: "${XBOX_IP:?XBOX_IP not set — run: source ~/.config/xllama/xbox-env}"
+: "${XBOX_USER:?XBOX_USER not set}"
+: "${XBOX_PASS:?XBOX_PASS not set}"
+BASE_URL="https://${XBOX_IP}:11443"
+CURL_AUTH=(--basic -u "${XBOX_USER}:${XBOX_PASS}" -k -sS)
 
 CSRF_TOKEN=$(curl "${CURL_AUTH[@]}" "${BASE_URL}/" -o /dev/null -D - 2>/dev/null |
 	sed -n 's/.*[Cc][Ss][Rr][Ff]-[Tt]oken=\([^;[:space:]]*\).*/\1/p' |
@@ -86,7 +114,6 @@ PFN=$("${DEPLOY}" pfn 2>/dev/null)
 }
 
 TMPDIR_LOCAL=$(mktemp -d)
-trap 'rm -rf "$TMPDIR_LOCAL"' EXIT
 
 upload() {
 	local local_path="$1" remote_name="${2:-}"
@@ -109,6 +136,11 @@ remove() {
 		>/dev/null 2>&1 || true
 }
 
+# These declarations belong to this invocation, not later manual runs.
+trap 'remove "bench_hardware.txt"
+remove "bench_gpu_layers.txt"
+rm -rf "$TMPDIR_LOCAL"' EXIT
+
 restart_app() {
 	curl "${CURL_AUTH[@]}" -H "X-CSRF-Token:${CSRF_TOKEN}" -X DELETE \
 		"${BASE_URL}/api/taskmanager/app?package=${PFN}" >/dev/null 2>&1 || true
@@ -127,6 +159,8 @@ printf 'model:   %s\nprompt:  %s (%s bytes)\nturn2:   %s\nruns:    %s\n\n' \
 printf '%s' "$MODEL" >"${TMPDIR_LOCAL}/model.txt"
 printf '%s' "$TURN2" >"${TMPDIR_LOCAL}/bench_turns.txt"
 printf '0' >"${TMPDIR_LOCAL}/bench_threads.txt"
+printf '%s' "$HARDWARE" >"${TMPDIR_LOCAL}/bench_hardware.txt"
+printf '%s' "$GPU_LAYERS" >"${TMPDIR_LOCAL}/bench_gpu_layers.txt"
 printf 'bench' >"${TMPDIR_LOCAL}/bench.flag"
 
 for run in $(seq 1 "$RUNS"); do
@@ -154,6 +188,8 @@ for run in $(seq 1 "$RUNS"); do
 	upload "${TMPDIR_LOCAL}/model.txt"
 	upload "${TMPDIR_LOCAL}/bench_turns.txt"
 	upload "${TMPDIR_LOCAL}/bench_threads.txt"
+	upload "${TMPDIR_LOCAL}/bench_hardware.txt"
+	upload "${TMPDIR_LOCAL}/bench_gpu_layers.txt"
 	upload "${TMPDIR_LOCAL}/bench_run_index.txt"
 	upload "${TMPDIR_LOCAL}/bench.flag"
 	restart_app
