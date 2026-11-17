@@ -73,7 +73,7 @@ run_text() {
 run_kv() {
 	local model="$1"
 	local result="${OUT}/${model}-kv.csv"
-	local cmd=("${SCRIPT_DIR}/bench-xbox-kv.sh" "$model" --prompt "$PROMPT" --runs "$RUNS" --out "$result")
+	local cmd=("${SCRIPT_DIR}/bench-xbox-kv.sh" "$model" --hardware "$HARDWARE" --prompt "$PROMPT" --runs "$RUNS" --out "$result")
 	printf 'XAB %s\n' "${cmd[*]}"
 	if ((DRY_RUN == 0)); then "${cmd[@]}"; fi
 }

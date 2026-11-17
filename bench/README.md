@@ -144,8 +144,10 @@ The manifest records `hardware_identity_source: operator-declared` and
 actual device model and exact installed package before interpreting any result
 as Series X evidence. This change does not establish hardware validation.
 Other XAB workloads are blocked under the Series X profile until their identity
-paths are instrumented. Existing probe and KV scripts are outside this text
-identity contract and must not be used as Series X evidence without review.
+paths are qualified. The direct KV driver also uses explicit hardware labels,
+but does not implement the text harness's echo validation or manifest contract.
+Existing probes remain outside this identity contract. New labels alone do not
+establish console validation or admit results as Series X evidence.
 
 Direct text-harness callers must now pass the hardware declaration. The
 Series S prompt sweep, speculative-decoding campaign and fp16 external-data
@@ -184,7 +186,7 @@ source ~/.config/xllama/xbox-env
 This produced the sweep behind the 1550-token routing threshold and the
 pathological DirectML band documented in `docs/uwp-constraints.md` §5b.
 
-### Xbox Series S — multi-turn TTFT (KV-cache reuse, Stage 2b)
+### Xbox — multi-turn TTFT (KV-cache reuse, Stage 2b)
 
 Measures the KV-reuse win: turn-2 prefill **with reuse** (append only the new
 turn) vs the **cold** baseline (full re-prefill of the 2-turn context), on one
@@ -198,8 +200,23 @@ the manual `curl` recipe it replaced is no longer needed:
 ```bash
 source ~/.config/xllama/xbox-env
 ./scripts/bench-xbox-kv.sh smollm2-360m-cpu-int4 \
-  --prompt bench/prompts/standard-512.txt --runs 2 --out bench/results/my-kv.csv
+  --hardware xbox-series-s --prompt bench/prompts/standard-512.txt \
+  --runs 2 --out bench/results/my-kv.csv
 ```
+
+The driver requires `--hardware xbox-series-s|xbox-series-x` (or
+`XLLAMA_BENCH_HARDWARE`). It uploads `bench_hardware.txt` and
+`bench_gpu_layers.txt`; `--gpu-layers N` requests GGUF offload (default `0`,
+CPU). The KV session receives that layer count, and its CSV host uses the shared
+`-declared` hardware label plus `-gN` for a positive GPU request. This is an
+operator declaration and requested configuration, not detected hardware or
+proof of GPU execution. Missing/invalid manual hardware declarations produce
+`xbox-unknown`. Both invocation-owned knobs are removed on normal exit; after
+a killed harness, remove them before a manual run. Use `--dry-run` to inspect
+these settings without console credentials or network requests.
+
+This extends the previously Series S-only KV driver. XAB's Series X profile
+remains text-only pending separate KV qualification. Historical CSVs are unchanged.
 
 Note `bench-xbox-ort.sh` deletes `bench_turns.txt` before every run, so a stale
 one cannot hijack a single-turn bench into this mode.
