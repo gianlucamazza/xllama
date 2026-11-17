@@ -935,17 +935,23 @@ The same knob then emits one line per phase × layer × op, and a summary.
 The layer index comes from the weight tensor name (`blk.N.…`) or, if that
 has none, the graph node (`Qcur-0`, `l_out-15`). Names with no layer
 (`token_embd.weight`, `output.weight`, …) go in `layer=unattributed`.
-`gpu_ms` is the sum of per-dispatch GPU timestamps. `wait_ms` is the
-submission→fence remainder (`exec_wait_ms − gpu_ms`) of the submissions
-that contained those dispatches, split equally across them. Either field
-prints as `missing` when that bucket has no valid timestamps; it is never
-filled in from wall time. `scripts/parse_d3d12_layer_log.py` reads the
-lines. Off, the backend path is unchanged.
+`gpu_ms` is the sum of per-dispatch GPU timestamps. `wait_ms` is
+`exec_wait_ms − submission GPU time, divided by n`: the CPU-side
+ExecuteCommandLists-to-fence interval for that submission, minus that
+submission's GPU timestamp pair, split equally across the `n` dispatches
+in the list. It is not `exec_wait_ms` minus the row's summed per-dispatch
+`gpu_ms`. The remainder can come out slightly negative because the CPU
+and GPU clocks are different domains. Either field prints as `missing`
+when that bucket has no valid timestamps; it is never filled in from wall
+time. `scripts/parse_d3d12_layer_log.py` reads the lines. Off, the backend
+path is unchanged.
+
+Format example, not a measurement:
 
 ```
-[xllama] d3d12-layer phase=prefill layer=3 op=mul_mat count=6 gpu_ms=… wait_ms=… gpu_missing=0 wait_missing=0
-[xllama] d3d12-layer phase=prefill layer=unattributed op=get_rows count=1 gpu_ms=… wait_ms=missing gpu_missing=0 wait_missing=1
-[xllama] d3d12-layer phase=prefill summary rows=17 timed=94 missing=0 gpu_ms=… wait_ms=… wait_missing=1
+[xllama] d3d12-layer phase=prefill layer=N op=mul_mat count=… gpu_ms=… wait_ms=… gpu_missing=… wait_missing=…
+[xllama] d3d12-layer phase=prefill layer=unattributed op=get_rows count=… gpu_ms=… wait_ms=missing gpu_missing=… wait_missing=…
+[xllama] d3d12-layer phase=prefill summary rows=… timed=… missing=… gpu_ms=… wait_ms=… wait_missing=…
 ```
 
 Measured on the Series S (2026-11-16,

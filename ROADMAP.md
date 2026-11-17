@@ -775,8 +775,10 @@ Source/evidence discovery and the conditional 6–8 week stages are in the
    found that the four-column Q4_0 shader is 1.14 to 1.25 times slower per
    dispatch while the K-quant ones take half the time
    ([evidence](docs/research/evidence/2026-11-16-d3d12-dispatch-timing/README.md)).
-   Per-layer attribution (phase × layer × op, `gpu_ms` separate from the
-   submission→fence remainder) is on the same opt-in; CSV or sidecar
+   Per-layer attribution (phase × layer × op, `gpu_ms` separate from
+   `wait_ms`: `exec_wait_ms − submission GPU time, divided by n`) is on
+   the same opt-in; that remainder can come out slightly negative because
+   the CPU and GPU clocks are different domains. CSV or sidecar
    integration remains. An independent Series X run of the same knob
    ([report](https://github.com/gianlucamazza/xllama/issues/421#issuecomment-6914667256),
    operator-declared, not imported as evidence) points attribution at the

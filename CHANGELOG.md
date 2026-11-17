@@ -19,10 +19,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (`d3d12-dispatch-timing.txt` = `1`) now tags every timed dispatch with a
   layer index from the weight or graph-node name, and logs one
   `d3d12-layer` line per phase × layer × op. `gpu_ms` is the GPU timestamp
-  sum; `wait_ms` is the submission→fence remainder (`exec_wait_ms − gpu_ms`).
-  Missing timestamps print as `missing`. Nodes with no layer go in
-  `unattributed`. Off, the backend path is unchanged. CSV/sidecar integration
-  is still open.
+  sum; `wait_ms` is `exec_wait_ms − submission GPU time, divided by n`.
+  That remainder can come out slightly negative because the CPU and GPU
+  clocks are different domains. Missing timestamps print as `missing`.
+  Nodes with no layer go in `unattributed`. Off, the backend path is
+  unchanged. CSV/sidecar integration is still open.
 
 - **Per-dispatch GPU timing (#421).** With `d3d12-dispatch-timing.txt` = `1`
   in LocalState, the d3d12 backend times every dispatch and logs, after each
