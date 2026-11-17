@@ -1,0 +1,9 @@
+{
+  "model": "Q:\\Users\\UserMgr1\\AppData\\Local\\Packages\\GianlucaMazza.xllama_pj67f1fcj4n14\\LocalState\\models\\lfm25-1.2b-instruct\\LFM2.5-1.2B-Instruct-QAD-Q4_0.gguf",
+  "prompt": "<|im_start|>system\nYou are a helpful AI assistant.<|im_end|>\n<|im_start|>user\nWrite a short paragraph about the sea at dawn.<|im_end|>\n<|im_start|>assistant",
+  "backend": "llama.cpp",
+  "vocab_size": 65536,
+  "greedy": true,
+  "top1_id": 708,
+  "top1_piece": "\n"
+}
