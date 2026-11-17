@@ -1,0 +1,3 @@
+18:34:20.773 [resources] expanded=0 exclusive_cpus=6 logical_cpus=8 app_memory_limit_mb=5120
+19:06:26.620 [resources] expanded=0 exclusive_cpus=6 logical_cpus=8 app_memory_limit_mb=5120
+19:08:45.394 [resources] expanded=0 exclusive_cpus=6 logical_cpus=8 app_memory_limit_mb=5120
