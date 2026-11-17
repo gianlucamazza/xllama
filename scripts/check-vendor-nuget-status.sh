@@ -6,7 +6,7 @@
 #   0  status printed (always "success" for CI dashboards)
 #   2  usage / network error that prevented a complete check
 #
-# Does not auto-drop pins — that requires a human + console smoke (issues #84/#85).
+# Does not auto-drop pins — that requires a human + console smoke (issue #85).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -66,11 +66,11 @@ echo "=== Vendor pin status ==="
 if [[ "$genai_latest" == "$genai_pin" ]]; then
   echo "  PatchedGenAI: STILL REQUIRED (NuGet latest == pin $genai_pin; #2280 not released)"
   echo "                keep vendor-dlls-v1 onnxruntime-genai.dll + -PatchedGenAI"
-  echo "                tracker: https://github.com/gianlucamazza/xllama/issues/84"
+  echo "                tracker: https://github.com/gianlucamazza/xllama/issues/85"
 else
   echo "  PatchedGenAI: CANDIDATE TO DROP — NuGet latest is $genai_latest (pin $genai_pin)"
   echo "                verify CreateDmlObjects has agility_device_created fallback,"
-  echo "                then run issue #84 checklist + console XAML+DML smoke"
+  echo "                then run issue #85 checklist + console XAML+DML smoke"
 fi
 
 # ORT: pin 1.24.4 lacks #28509 (main) and ReadFile 16 MB (PR #29732).

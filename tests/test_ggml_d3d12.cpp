@@ -503,6 +503,31 @@ TEST_CASE("d3d12: layer profile aggregates by phase × layer × op") {
     CHECK(s[1].wait_ms == doctest::Approx(0.10));
     CHECK_FALSE(s[2].key.layer.has_value()); // unattributed last
     CHECK(s[2].key.op == "get_rows");
+    CHECK(d3d12_layer_label(s[2].key.layer) == kD3d12UnattributedLayer);
+    CHECK(format_d3d12_layer_profile("prefill", p).find("layer=unattributed op=get_rows") !=
+          std::string::npos);
+}
+
+TEST_CASE("d3d12: unattributed bucket for names with no layer") {
+    CHECK_FALSE(d3d12_layer_from_name("token_embd.weight").has_value());
+    CHECK_FALSE(d3d12_layer_from_name("output.weight").has_value());
+    CHECK(d3d12_layer_from_names("token_embd.weight", "") == std::nullopt);
+    D3d12LayerProfile p;
+    D3d12LayerKey embd;
+    embd.op = "get_rows";
+    embd.layer = d3d12_layer_from_name("token_embd.weight");
+    p.add(embd, 0.25, 0.01);
+    D3d12LayerKey head;
+    head.op = "mul_mat";
+    head.layer = d3d12_layer_from_name("output.weight");
+    p.add(head, 0.75, 0.02);
+    REQUIRE(p.rows().size() == 2); // two ops, one unattributed bucket each
+    CHECK(d3d12_layer_label(p.rows()[0].key.layer) == "unattributed");
+    CHECK(d3d12_layer_label(p.rows()[1].key.layer) == "unattributed");
+    const std::string out = format_d3d12_layer_profile("decode", p);
+    CHECK(out.find("layer=unattributed op=get_rows count=1 gpu_ms=0.250") != std::string::npos);
+    CHECK(out.find("layer=unattributed op=mul_mat count=1 gpu_ms=0.750") != std::string::npos);
+    CHECK(out.find("layer=0") == std::string::npos);
 }
 
 TEST_CASE("d3d12: layer profile keeps missing timestamps as missing") {
