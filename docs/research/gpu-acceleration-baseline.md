@@ -213,8 +213,10 @@ performance campaign then
 [failed](evidence/2026-11-16-c4-performance/README.md): 1.5 times faster
 prefill on Coder-3B and 15 % slower on LFM2.5-1.2B, so the kernel is not
 promoted; #313 is closed as completed and #414 closed without merge. The
-remaining action is attributable per-dispatch timing (#421), which would
-explain the slower Q4_0 shader. A K-quant-only variant would need a new issue
+remaining action on #421 after per-dispatch timing and per-layer log lines
+is CSV or sidecar integration, which would carry the per-kind and per-layer
+times on a bench row. Layer lines separate GPU timestamps from the
+submission-to-fence remainder. A K-quant-only variant would need a new issue
 and preregistration, and serves no catalogue model today. New weight types, kernel fusion, attention
 and GPU KV are higher-risk experiments with no current evidence of a benefit.
 Do not replace validated CPU paths merely to increase the fraction on GPU.

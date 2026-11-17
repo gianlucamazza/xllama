@@ -15,6 +15,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   gate's App measurement now uses the UI process more than 20 seconds after
   launch.
 
+- **Per-layer D3D12 dispatch attribution (#421).** The same opt-in
+  (`d3d12-dispatch-timing.txt` = `1`) now tags every timed dispatch with a
+  layer index from the weight or graph-node name, and logs one
+  `d3d12-layer` line per phase × layer × op. `gpu_ms` is the GPU timestamp
+  sum; `wait_ms` is the submission→fence remainder (`exec_wait_ms − gpu_ms`).
+  Missing timestamps print as `missing`. Nodes with no layer go in
+  `unattributed`. Off, the backend path is unchanged. CSV/sidecar integration
+  is still open.
+
 - **Per-dispatch GPU timing (#421).** With `d3d12-dispatch-timing.txt` = `1`
   in LocalState, the d3d12 backend times every dispatch and logs, after each
   prefill and decode phase line, the GPU time per kind of dispatch (operation,

@@ -22,6 +22,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -139,9 +140,12 @@ ggml_backend_buffer_type_t ggml_d3d12_weights_buft();
 // --- Per-dispatch GPU timing (#421), opt-in ---
 // With LocalState\d3d12-dispatch-timing.txt = "1" when the backend starts,
 // every dispatch is followed by a UAV barrier and a GPU timestamp, so each
-// dispatch's GPU time can be attributed to its kind below. The barriers
-// serialise dispatches that could otherwise overlap: that changes what is
-// measured, so read absolute times only next to a run without the knob.
+// dispatch's GPU time can be attributed to its kind below and to a layer
+// derived from the weight or graph-node name. Nodes with no layer go in the
+// explicit `unattributed` bucket. The barriers serialise dispatches that
+// could otherwise overlap: that changes what is measured, so read absolute
+// times only next to a run without the knob. Off, the backend path allocates
+// and logs nothing extra.
 
 // "1" (surrounding whitespace allowed) enables a LocalState flag file.
 bool d3d12_flag_enabled(std::string_view config);
@@ -198,6 +202,63 @@ class D3d12DispatchProfile {
 // the profile is empty (the knob is off or nothing ran).
 std::string format_d3d12_dispatch_profile(const char* phase, const D3d12DispatchProfile& p);
 
+// Label written for a missing layer index: nodes with no `blk.N` / `*-N`.
+inline constexpr const char* kD3d12UnattributedLayer = "unattributed";
+
+// Layer index from a GGUF tensor name or a llama.cpp graph node. Strips a
+// scheduler wrap (`D3D12#blk.0.attn_q.weight#0`). Prefers `blk.<n>`; otherwise
+// a trailing `-<n>` (`Qcur-0`, `l_out-15`). nullopt → unattributed. Never
+// invents an index for `token_embd.weight`, `output.weight`, or similar.
+std::optional<int> d3d12_layer_from_name(std::string_view name);
+// Weight name first, then the graph node. nullopt if neither has a layer.
+std::optional<int> d3d12_layer_from_names(std::string_view tensor_name, std::string_view node_name);
+// "unattributed" or the decimal index. Host-tested so the log line stays stable.
+std::string d3d12_layer_label(std::optional<int> layer);
+
+// Aggregation key: one transformer layer (or unattributed) × one op.
+struct D3d12LayerKey {
+    std::optional<int> layer; // nullopt = unattributed
+    std::string op;           // "mul_mat" | "get_rows"
+    bool operator==(const D3d12LayerKey& o) const {
+        return layer == o.layer && op == o.op;
+    }
+};
+
+struct D3d12LayerRow {
+    D3d12LayerKey key;
+    std::uint64_t count = 0;        // dispatches in this bucket
+    std::uint64_t gpu_timed = 0;    // dispatches with an increasing timestamp pair
+    std::uint64_t gpu_missing = 0;  // pair missing or not increasing
+    std::uint64_t wait_timed = 0;   // dispatches whose submission had exec_wait and GPU timestamps
+    std::uint64_t wait_missing = 0; // wait not reported: that submission's GPU timestamps missing
+    double gpu_ms = 0.0;            // sum of valid per-dispatch GPU times; ignore if gpu_timed==0
+    double wait_ms = 0.0; // sum of (exec_wait_ms − gpu_ms) shares; ignore if wait_timed==0
+};
+
+// Per phase × layer × op. gpu_ms is never filled in from wall time; wait_ms is
+// never filled in when the submission's GPU timestamps are missing.
+class D3d12LayerProfile {
+  public:
+    void add(const D3d12LayerKey& key, const std::optional<double>& gpu_ms,
+             const std::optional<double>& wait_ms);
+    bool empty() const {
+        return rows_.empty();
+    }
+    const std::vector<D3d12LayerRow>& rows() const {
+        return rows_;
+    }
+    // Layer index ascending, unattributed last; op name for ties.
+    std::vector<D3d12LayerRow> sorted() const;
+
+  private:
+    std::vector<D3d12LayerRow> rows_;
+};
+
+// One "[xllama] d3d12-layer ..." line per (layer, op), then a summary. gpu_ms
+// and wait_ms print as "missing" when that bucket has no valid timestamps —
+// never 0. Empty when the profile is empty (knob off or nothing ran).
+std::string format_d3d12_layer_profile(const char* phase, const D3d12LayerProfile& p);
+
 struct D3d12PhaseStats {
     std::uint64_t calls = 0;       // graph_compute calls that ran at least one op
     std::uint64_t submissions = 0; // ExecuteCommandLists + fence wait
@@ -210,6 +271,7 @@ struct D3d12PhaseStats {
     double exec_wait_ms = 0.0;     // ExecuteCommandLists through fence completion
     double gpu_ms = 0.0;           // GPU timestamps; see gpu_time_valid()
     D3d12DispatchProfile dispatch; // per-dispatch timing, empty unless enabled
+    D3d12LayerProfile layer;       // phase × layer × op; empty unless enabled
     bool gpu_time_valid() const {
         return submissions > 0 && ts_missing == 0;
     }
