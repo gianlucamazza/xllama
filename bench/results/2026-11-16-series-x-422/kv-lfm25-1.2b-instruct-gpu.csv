@@ -1,0 +1,4 @@
+model,prefill1_ms,n_p1,prefill2_reuse_ms,n_p2_reuse,prefill2_cold_ms,n_p2_cold,speedup,decode_tok_s,n_ctx,host,date,run_index
+lfm25-1.2b-instruct,2387.4,277,192.7,19,3366.8,392,17.47,40.97,2048,xbox-series-s,2026-11-16T23:28:16Z,1
+lfm25-1.2b-instruct,2387.6,277,192.5,19,3361.7,392,17.47,41.05,2048,xbox-series-s,2026-11-16T23:28:40Z,2
+lfm25-1.2b-instruct,2393.3,277,192.4,19,3358.7,392,17.46,41.02,2048,xbox-series-s,2026-11-16T23:29:03Z,3

@@ -1,0 +1,4 @@
+model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,run_index,prefill_ms,ttft_ms
+phi4-mini,Q4_K_M,cpu,2048,6,43.26,10.22,2797,25739,0,0,934,512,0,xbox-series-x-declared-noeog,2026-11-16T22:44:58Z,2,21588.6,21589.8
+phi4-mini,Q4_K_M,cpu,2048,6,43.33,10.17,2797,25732,0,0,934,512,0,xbox-series-x-declared-noeog,2026-11-16T22:46:26Z,3,21555.7,21556.9
+phi4-mini,Q4_K_M,cpu,2048,6,43.33,10.22,2797,25668,0,0,934,512,0,xbox-series-x-declared-noeog,2026-11-16T22:47:53Z,4,21556.9,21558.1

@@ -1,0 +1,4 @@
+model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,run_index,prefill_ms,ttft_ms
+phi4-mini,Q4_K_M,d3d12,2048,6,81.57,26.37,2852,3997,2055,4147,47,512,0,xbox-series-x-declared-g99-noeog,2026-11-16T23:01:16Z,2,576.2,578.5
+phi4-mini,Q4_K_M,d3d12,2048,6,81.09,26.59,2853,4004,2055,4147,47,512,0,xbox-series-x-declared-g99-noeog,2026-11-16T23:01:52Z,3,579.6,582.1
+phi4-mini,Q4_K_M,d3d12,2048,6,83.03,26.46,2852,3980,2055,4147,47,512,0,xbox-series-x-declared-g99-noeog,2026-11-16T23:02:28Z,4,566.1,568.3
