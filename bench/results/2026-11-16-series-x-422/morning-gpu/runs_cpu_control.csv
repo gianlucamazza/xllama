@@ -1,0 +1,6 @@
+model,quant,backend,host,date,batch,run_index,designation,prompt_tokens,completion_tokens,max_tokens_requested,wall_ms,end_to_end_tok_s,measure,notes
+lfm25-1.2b-instruct,Q4_0,cpu,xbox-series-x,2026-11-16T15:09:00Z,path1-cpu-control,1,game,31,121,128,3173,38.1,lan_api_end_to_end,gguf_gpu_layers.txt=0 standing (cpu forced); package 1.7.0.1626; untimed warmup preceded and is not counted
+lfm25-1.2b-instruct,Q4_0,cpu,xbox-series-x,2026-11-16T15:09:00Z,path1-cpu-control,2,game,31,121,128,3174,38.1,lan_api_end_to_end,gguf_gpu_layers.txt=0 standing (cpu forced); package 1.7.0.1626; untimed warmup preceded and is not counted
+lfm25-1.2b-instruct,Q4_0,cpu,xbox-series-x,2026-11-16T15:09:00Z,path1-cpu-control,3,game,31,121,128,3174,38.1,lan_api_end_to_end,gguf_gpu_layers.txt=0 standing (cpu forced); package 1.7.0.1626; untimed warmup preceded and is not counted
+lfm25-1.2b-instruct,Q4_0,cpu,xbox-series-x,2026-11-16T15:09:00Z,path1-cpu-control,4,game,31,121,128,3175,38.1,lan_api_end_to_end,gguf_gpu_layers.txt=0 standing (cpu forced); package 1.7.0.1626; untimed warmup preceded and is not counted
+lfm25-1.2b-instruct,Q4_0,cpu,xbox-series-x,2026-11-16T15:09:00Z,path1-cpu-control,5,game,31,121,128,3297,36.7,lan_api_end_to_end,gguf_gpu_layers.txt=0 standing (cpu forced); package 1.7.0.1626; untimed warmup preceded and is not counted
