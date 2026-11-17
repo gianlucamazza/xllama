@@ -15,7 +15,9 @@
     #include <cstring>
     #include <ctime>
     #include <limits>
+    #include <optional>
     #include <string>
+    #include <string_view>
     #include <vector>
 
 namespace xllama {
@@ -344,6 +346,155 @@ std::string format_d3d12_dispatch_profile(const char* phase, const D3d12Dispatch
                   "gpu_ms=%.3f\n",
                   phase ? phase : "-", p.rows().size(), static_cast<unsigned long long>(timed),
                   static_cast<unsigned long long>(p.missing()), total);
+    out += buf;
+    return out;
+}
+
+namespace {
+
+std::optional<int> parse_nonneg_int(std::string_view s, std::size_t i, std::size_t* end) {
+    if (i >= s.size() || s[i] < '0' || s[i] > '9')
+        return std::nullopt;
+    int v = 0;
+    std::size_t j = i;
+    while (j < s.size() && s[j] >= '0' && s[j] <= '9') {
+        const int d = s[j] - '0';
+        if (v > (std::numeric_limits<int>::max() - d) / 10)
+            return std::nullopt;
+        v = v * 10 + d;
+        ++j;
+    }
+    if (end)
+        *end = j;
+    return v;
+}
+
+bool layer_component_end(std::string_view s, std::size_t j) {
+    return j == s.size() || s[j] == '.' || s[j] == '#' || s[j] == '/';
+}
+
+void write_ms_or_missing(char* buf, std::size_t n, std::uint64_t timed, double ms) {
+    if (timed == 0)
+        std::snprintf(buf, n, "missing");
+    else
+        std::snprintf(buf, n, "%.3f", ms);
+}
+
+} // namespace
+
+std::optional<int> d3d12_layer_from_name(std::string_view name) {
+    std::string_view inner = name;
+    const auto hash1 = name.find('#');
+    const auto hash2 = name.rfind('#');
+    if (hash1 != std::string_view::npos && hash2 != hash1)
+        inner = name.substr(hash1 + 1, hash2 - hash1 - 1);
+
+    for (std::size_t i = 0; i + 4 <= inner.size(); ++i) {
+        if ((i == 0 || inner[i - 1] == '.' || inner[i - 1] == '/' || inner[i - 1] == '#') &&
+            inner.compare(i, 4, "blk.") == 0) {
+            std::size_t end = 0;
+            const auto v = parse_nonneg_int(inner, i + 4, &end);
+            if (v && layer_component_end(inner, end))
+                return v;
+        }
+    }
+
+    const auto dash = inner.rfind('-');
+    if (dash != std::string_view::npos && dash + 1 < inner.size()) {
+        std::size_t end = 0;
+        const auto v = parse_nonneg_int(inner, dash + 1, &end);
+        if (v && end == inner.size())
+            return v;
+    }
+    return std::nullopt;
+}
+
+std::optional<int> d3d12_layer_from_names(std::string_view tensor_name,
+                                          std::string_view node_name) {
+    if (const auto layer = d3d12_layer_from_name(tensor_name))
+        return layer;
+    return d3d12_layer_from_name(node_name);
+}
+
+std::string d3d12_layer_label(std::optional<int> layer) {
+    if (!layer)
+        return kD3d12UnattributedLayer;
+    return std::to_string(*layer);
+}
+
+void D3d12LayerProfile::add(const D3d12LayerKey& key, const std::optional<double>& gpu_ms,
+                            const std::optional<double>& wait_ms) {
+    auto it = std::find_if(rows_.begin(), rows_.end(),
+                           [&](const D3d12LayerRow& r) { return r.key == key; });
+    if (it == rows_.end()) {
+        rows_.push_back(D3d12LayerRow{key});
+        it = rows_.end() - 1;
+    }
+    ++it->count;
+    if (gpu_ms) {
+        ++it->gpu_timed;
+        it->gpu_ms += *gpu_ms;
+    } else {
+        ++it->gpu_missing;
+    }
+    if (wait_ms) {
+        ++it->wait_timed;
+        it->wait_ms += *wait_ms;
+    } else {
+        ++it->wait_missing;
+    }
+}
+
+std::vector<D3d12LayerRow> D3d12LayerProfile::sorted() const {
+    std::vector<D3d12LayerRow> out = rows_;
+    std::stable_sort(out.begin(), out.end(), [](const D3d12LayerRow& a, const D3d12LayerRow& b) {
+        const bool a_u = !a.key.layer.has_value();
+        const bool b_u = !b.key.layer.has_value();
+        if (a_u != b_u)
+            return b_u; // unattributed last
+        if (a.key.layer && b.key.layer && *a.key.layer != *b.key.layer)
+            return *a.key.layer < *b.key.layer;
+        return a.key.op < b.key.op;
+    });
+    return out;
+}
+
+std::string format_d3d12_layer_profile(const char* phase, const D3d12LayerProfile& p) {
+    if (p.empty())
+        return {};
+    std::string out;
+    std::uint64_t timed = 0, missing = 0, wait_timed = 0, wait_missing = 0;
+    double gpu_total = 0.0, wait_total = 0.0;
+    for (const D3d12LayerRow& r : p.sorted()) {
+        char gpu[32], wait[32];
+        write_ms_or_missing(gpu, sizeof(gpu), r.gpu_timed, r.gpu_ms);
+        write_ms_or_missing(wait, sizeof(wait), r.wait_timed, r.wait_ms);
+        char buf[512];
+        std::snprintf(buf, sizeof(buf),
+                      "[xllama] d3d12-layer phase=%s layer=%s op=%s count=%llu gpu_ms=%s "
+                      "wait_ms=%s gpu_missing=%llu wait_missing=%llu\n",
+                      phase ? phase : "-", d3d12_layer_label(r.key.layer).c_str(), r.key.op.c_str(),
+                      static_cast<unsigned long long>(r.count), gpu, wait,
+                      static_cast<unsigned long long>(r.gpu_missing),
+                      static_cast<unsigned long long>(r.wait_missing));
+        out += buf;
+        timed += r.gpu_timed;
+        missing += r.gpu_missing;
+        wait_timed += r.wait_timed;
+        wait_missing += r.wait_missing;
+        gpu_total += r.gpu_ms;
+        wait_total += r.wait_ms;
+    }
+    char gpu[32], wait[32];
+    write_ms_or_missing(gpu, sizeof(gpu), timed, gpu_total);
+    write_ms_or_missing(wait, sizeof(wait), wait_timed, wait_total);
+    char buf[256];
+    std::snprintf(buf, sizeof(buf),
+                  "[xllama] d3d12-layer phase=%s summary rows=%zu timed=%llu missing=%llu "
+                  "gpu_ms=%s wait_ms=%s wait_missing=%llu\n",
+                  phase ? phase : "-", p.rows().size(), static_cast<unsigned long long>(timed),
+                  static_cast<unsigned long long>(missing), gpu, wait,
+                  static_cast<unsigned long long>(wait_missing));
     out += buf;
     return out;
 }
@@ -1012,6 +1163,14 @@ D3d12DispatchKind dispatch_kind(const ggml_tensor* node) {
     return k;
 }
 
+D3d12LayerKey dispatch_layer_key(const ggml_tensor* node) {
+    D3d12LayerKey k;
+    k.op = node->op == GGML_OP_GET_ROWS ? "get_rows" : "mul_mat";
+    const char* weight = node->src[0] ? node->src[0]->name : "";
+    k.layer = d3d12_layer_from_names(weight, node->name);
+    return k;
+}
+
 // Record and run one submission. Caller holds g.mu.
 bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
     const bool ts = g.ts && g.ts_rb;
@@ -1021,6 +1180,9 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
     D3D12_RESOURCE_BARRIER uav = {};
     uav.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
     uav.UAV.pResource = nullptr;
+    double exec_before = 0.0;
+    if (dt)
+        exec_before = g.phase.exec_wait_ms;
     const bool ran = run_now(
         g,
         [&](ID3D12GraphicsCommandList* cl) {
@@ -1091,6 +1253,7 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
     if (!ran)
         return false;
     bool ts_ok = false;
+    double submission_gpu_ms = 0.0;
     if (ts && g.ts_freq > 0) {
         void* p = nullptr;
         if (SUCCEEDED(g.ts_rb->Map(0, nullptr, &p))) {
@@ -1100,13 +1263,22 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
                                           : 0.0;
             g.last_gpu_ms += ms;
             ts_ok = t[1] > t[0];
-            if (ts_ok)
+            if (ts_ok) {
                 g.phase.gpu_ms += ms;
+                submission_gpu_ms = ms;
+            }
             g.ts_rb->Unmap(0, nullptr);
         }
     }
     ++(ts_ok ? g.phase.ts_valid : g.phase.ts_missing);
     if (dt) {
+        // wait = exec_wait − submission GPU time. Missing GPU timestamps leave
+        // wait as missing; it is not filled in from wall time.
+        const std::optional<double> wait_share =
+            ts_ok && !ops.empty()
+                ? std::optional<double>((g.phase.exec_wait_ms - exec_before - submission_gpu_ms) /
+                                        static_cast<double>(ops.size()))
+                : std::nullopt;
         void* p = nullptr;
         const D3D12_RANGE range = {0, (ops.size() + 1) * sizeof(std::uint64_t)};
         if (SUCCEEDED(g.dts_rb->Map(0, &range, &p))) {
@@ -1116,6 +1288,7 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
                 const ggml_tensor* w = node->src[0];
                 if (t[i + 1] <= t[i]) {
                     g.phase.dispatch.note_missing();
+                    g.phase.layer.add(dispatch_layer_key(node), std::nullopt, wait_share);
                     continue;
                 }
                 const double ms =
@@ -1124,12 +1297,15 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
                                          ? static_cast<double>(w->nb[1]) * node->ne[1]
                                          : static_cast<double>(w->nb[1]) * w->ne[1];
                 g.phase.dispatch.add(dispatch_kind(node), ms, bytes, node->ne[1]);
+                g.phase.layer.add(dispatch_layer_key(node), ms, wait_share);
             }
             const D3D12_RANGE none = {0, 0};
             g.dts_rb->Unmap(0, &none);
         } else {
-            for (std::size_t i = 0; i < ops.size(); ++i)
+            for (std::size_t i = 0; i < ops.size(); ++i) {
                 g.phase.dispatch.note_missing();
+                g.phase.layer.add(dispatch_layer_key(ops[i].node), std::nullopt, wait_share);
+            }
         }
     }
     g.n_dispatches += ops.size();

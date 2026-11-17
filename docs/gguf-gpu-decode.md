@@ -931,6 +931,29 @@ overlap without them, so the per-dispatch times add up to more than an
 unmodified run's GPU time: compare a run with the knob against one without
 before reading absolute figures. The knob changes no result.
 
+The same knob then emits one line per phase × layer × op, and a summary.
+The layer index comes from the weight tensor name (`blk.N.…`) or, if that
+has none, the graph node (`Qcur-0`, `l_out-15`). Names with no layer
+(`token_embd.weight`, `output.weight`, …) go in `layer=unattributed`.
+`gpu_ms` is the sum of per-dispatch GPU timestamps. `wait_ms` is
+`exec_wait_ms − submission GPU time, divided by n`: the CPU-side
+ExecuteCommandLists-to-fence interval for that submission, minus that
+submission's GPU timestamp pair, split equally across the `n` dispatches
+in the list. It is not `exec_wait_ms` minus the row's summed per-dispatch
+`gpu_ms`. The remainder can come out slightly negative because the CPU
+and GPU clocks are different domains. Either field prints as `missing`
+when that bucket has no valid timestamps; it is never filled in from wall
+time. `scripts/parse_d3d12_layer_log.py` reads the lines. Off, the backend
+path is unchanged.
+
+Format example, not a measurement:
+
+```
+[xllama] d3d12-layer phase=prefill layer=N op=mul_mat count=… gpu_ms=… wait_ms=… gpu_missing=… wait_missing=…
+[xllama] d3d12-layer phase=prefill layer=unattributed op=get_rows count=… gpu_ms=… wait_ms=missing gpu_missing=… wait_missing=…
+[xllama] d3d12-layer phase=prefill summary rows=… timed=… missing=… gpu_ms=… wait_ms=… wait_missing=…
+```
+
 Measured on the Series S (2026-11-16,
 [evidence](research/evidence/2026-11-16-d3d12-dispatch-timing/README.md)):
 the knob leaves prefill throughput and time to first token unchanged and costs

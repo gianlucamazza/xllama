@@ -74,7 +74,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `gpubw.h`                          | Phase 15 W3: GPU STREAM probe helpers + kill gate (#211)                                                                                                                                              |
 | `gpugemv.h`                        | Phase 15 H6.1–H6.3: Q4_K GEMV density probe, naive/wave32/rows/dot4 kernels (#228)                                                                                                                    |
 | `gpustep.h`                        | GGUF GPU decode probe D1: model shapes, cost model, D1 gates and ladder ([gguf-gpu-decode.md](gguf-gpu-decode.md))                                                                                    |
-| `ggml_d3d12.h`                     | ggml backend `d3d12`: registration, `supports_op` rules, q8 activations, kernel emulation, selftest ([gguf-gpu-decode.md](gguf-gpu-decode.md))                                                        |
+| `ggml_d3d12.h`                     | ggml backend `d3d12`: registration, `supports_op` rules, q8 activations, kernel emulation, selftest, opt-in dispatch/layer timing ([gguf-gpu-decode.md](gguf-gpu-decode.md))                          |
 | `cli.h`                            | `parse_cli_args` — Linux command-line parsing                                                                                                                                                         |
 | `platform.h`                       | `log_output`, `detect_threads(_llama)`, `peak_working_set_mb`, `gpu_mem_info`                                                                                                                         |
 | `path_utils.h`                     | `resolve_model_path`, `first_gguf_in_dir`, `model_uses_llama_backend`                                                                                                                                 |
@@ -856,7 +856,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_diffusion.cpp`             | `diffusion/`                                                                                |
 | `test_diskbw.cpp`                | `diskbw.h`                                                                                  |
 | `test_embedding.cpp`             | `embedding.h`                                                                               |
-| `test_ggml_d3d12.cpp`            | `ggml_d3d12.h`, `src/bridge/llama_gpu.h`                                                    |
+| `test_ggml_d3d12.cpp`            | `ggml_d3d12.h`, `src/bridge/llama_gpu.h`; name→layer mapping and `d3d12-layer` lines        |
 | `test_gpubw.cpp`                 | `gpubw.h`                                                                                   |
 | `test_gpugemv.cpp`               | `gpugemv.h`                                                                                 |
 | `test_gpustep.cpp`               | `gpustep.h`                                                                                 |

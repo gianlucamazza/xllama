@@ -840,6 +840,8 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         const std::string per = format_d3d12_dispatch_profile("prefill", d3d12_phase.dispatch);
         if (!per.empty())
             log_output(per);
+        if (!d3d12_phase.layer.empty())
+            log_output(format_d3d12_layer_profile("prefill", d3d12_phase.layer));
     }
 
     // Logit-parity dump: capture the last prefill-token logits (one deterministic
@@ -901,6 +903,8 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         const std::string per = format_d3d12_dispatch_profile("decode", d3d12_phase.dispatch);
         if (!per.empty())
             log_output(per);
+        if (!d3d12_phase.layer.empty())
+            log_output(format_d3d12_layer_profile("decode", d3d12_phase.layer));
     }
     const int n_generated = dlr.n_generated;
     res.ended_with_stop = dlr.ended_with_stop;
