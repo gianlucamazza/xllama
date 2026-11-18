@@ -7,6 +7,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Series S App cap after the launch window (#457).** On package 1.7.0.1667
+  the default CPU chat (`lfm25-350m`) was measured in the UI process with the
+  LAN API, the request starting more than 20 seconds after launch. Both
+  designations generated the same 103 tokens. After that window, App is slower
+  than Game on prefill and on the logged decode checkpoint. The 2026-08-21
+  headless result and the Game-metadata verdict are unchanged
+  ([release-readiness.md](docs/release-readiness.md) §6,
+  `bench/results/store-app-vs-game-2026-11-18.csv`).
+
 - **Series X App designation explained (#457).** An independent tester found
   that with the App designation the app runs at full speed for about ten
   seconds after launch, then at about 40 % of the Game speed, and that fewer

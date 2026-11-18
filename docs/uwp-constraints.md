@@ -441,8 +441,11 @@ exclusive cores in both designations; only `app_memory_limit_mb` (1024 for
 App, 5120 for Game) tells them apart. A headless bench run starts and ends
 inside the launch window, so it does not show the slow state: an App
 measurement needs the UI process and more than 20 seconds after launch. On
-the Series S the same comparison costs about 9 %, measured with the headless
-bench, so it may have been taken inside that window too; not re-measured.
+the Series S the same comparison was about 9 % in the 2026-08-21 headless
+bench, which may have sat inside that window. Re-measured on 2026-11-18 in the
+UI process, with the request starting more than 20 seconds after launch
+([release-readiness.md](release-readiness.md) §6). That remeasure does not
+replace the Game-metadata verdict.
 
 ## 6. Limited Thread Count
 

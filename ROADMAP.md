@@ -819,5 +819,7 @@ Source/evidence discovery and the conditional 6–8 week stages are in the
    matrix still needs project measurements on a Series X.
 3. **#457, closed:** the App designation caps the app's CPU about ten
    seconds after launch (about 40 % of the Game speed on a Series X); the
-   remedy is the Game designation. The Series S App figure was taken with the
-   headless bench and may have missed it; not re-measured.
+   remedy is the Game designation. The Series S headless figure was re-measured
+   on 2026-11-18 in the UI process, after the launch window
+   ([release-readiness.md](docs/release-readiness.md) §6). The Game-metadata
+   decision is unchanged.
