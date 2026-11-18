@@ -32,6 +32,10 @@ The active consolidation program is [Engineering excellence execution — 2026-1
 | Community forks (what was taken, what was not, and why)                                  | [community-forks.md](./community-forks.md)                                                                                                                                                                                                                |
 | Training ops (job JSON, host PEFT, device train CLI, pull samples)                       | [`../training/README.md`](../training/README.md)                                                                                                                                                                                                          |
 | Console API/writer/KV validation outcomes                                                | [`../bench/results/2026-09-28-console-api-validation.json`](../bench/results/2026-09-28-console-api-validation.json), linked from model inventory/runbooks                                                                                                |
+| Sideload warnings (Developer Mode, certificate, LAN, model licences)                     | [before-you-sideload.md](./before-you-sideload.md)                                                                                                                                                                                                        |
+| Narrative design decisions (why Xbox, dual backend, session owner)                       | [design-decisions.md](./design-decisions.md); accepted ADRs stay in [adr/](./adr/)                                                                                                                                                                        |
+| Upstream PRs and closed ONNX Runtime issues                                              | [upstream.md](./upstream.md)                                                                                                                                                                                                                              |
+| Demo capture provenance                                                                  | [screenshots/README.md](./screenshots/README.md)                                                                                                                                                                                                          |
 | Accepted structural decisions                                                            | [adr/](./adr/), linked from architecture; accepted decisions remain immutable                                                                                                                                                                             |
 | Raw performance evidence                                                                 | [`../bench/results/`](../bench/results/)                                                                                                                                                                                                                  |
 | Comparison policy                                                                        | [`../bench/benchmark-summary.json`](../bench/benchmark-summary.json)                                                                                                                                                                                      |
@@ -80,6 +84,8 @@ path checklist for discovery — descriptions are not repeated.
 
 **Structure / product:** [positioning.md](./positioning.md) ·
 [architecture.md](./architecture.md) ·
+[design-decisions.md](./design-decisions.md) ·
+[upstream.md](./upstream.md) ·
 [training-architecture.md](./training-architecture.md) ·
 [floppylm.md](./floppylm.md) (not an xllama engine; closed here 2026-10-01) ·
 [using-the-app.md](./using-the-app.md) · [api-endpoint.md](./api-endpoint.md) ·
@@ -93,8 +99,9 @@ path checklist for discovery — descriptions are not repeated.
 [dml-metacommands-runbook.md](./dml-metacommands-runbook.md)
 
 **Ops / install:** [install-release.md](./install-release.md) ·
+[before-you-sideload.md](./before-you-sideload.md) ·
 [device-portal.md](./device-portal.md) · [windows-dev-vm.md](./windows-dev-vm.md) ·
-[crossbuild-console.md](./crossbuild-console.md) (Linux → Xbox via uwp-crossbuild + openappx) ·
+[crossbuild-console.md](./crossbuild-console.md) (Windows host MSVC, or Linux → Xbox via uwp-crossbuild + openappx) ·
 [console-validation-runbook.md](./console-validation-runbook.md) ·
 [release-readiness.md](./release-readiness.md) · [privacy.md](./privacy.md) ·
 [releases/v1.7.0.md](./releases/v1.7.0.md) ·
@@ -123,7 +130,7 @@ path checklist for discovery — descriptions are not repeated.
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Product intent (games + assistants)   | One-liners that link [positioning.md](./positioning.md)                                                                                           | Claiming Microsoft affiliation / AAA SDK; inventing tok/s                                                                                                     |
 | Role / status one-liners              | Yes (e.g. README “default chat is LFM2.5-350M”)                                                                                                   | Second full catalogue or perf table                                                                                                                           |
-| Exact tok/s, peak RAM, speedups       | Only [benchmarks.md](./benchmarks.md) (generated) + raw `bench/results/`                                                                          | Restating figures in README / UI guide without linking                                                                                                        |
+| Exact tok/s, peak RAM, speedups       | [benchmarks.md](./benchmarks.md) (generated) + raw `bench/results/`; README may quote a short Series S headline table that links here             | A second full perf table, or README / UI figures without a link to benchmarks.md                                                                              |
 | Download / catalogue size             | Sum of `approx_bytes` in `uwp/models/manifest.json`                                                                                               | Invented MB that drift from the manifest                                                                                                                      |
 | Hardware ceilings (GPU budget, etc.)  | [uwp-constraints.md](./uwp-constraints.md)                                                                                                        | Parallel ceilings elsewhere                                                                                                                                   |
 | NuGet version pins                    | `uwp/packages.config` + recommended-config / vendor-lifecycle                                                                                     | Parallel version tables                                                                                                                                       |

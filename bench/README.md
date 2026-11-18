@@ -3,6 +3,24 @@
 Benchmark suite for xllama. Results are stored as CSV files in `results/`.
 Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester.
 
+## Probe list
+
+Headless tok/s is the model bench (`bench.flag` / `xllama-cli`). The platform
+probes are:
+
+| Probe                  | Flag / CLI                   | What it measures                      |
+| ---------------------- | ---------------------------- | ------------------------------------- |
+| tok/s                  | `bench.flag`                 | Model prefill and decode throughput   |
+| membw                  | `membw.flag` / `--membw`     | CPU STREAM DRAM ceiling               |
+| diskbw                 | `diskbw.flag` / `--diskbw`   | NVMe sequential and random read       |
+| ramceil                | `ramceil.flag` / `--ramceil` | Heap commit ceiling                   |
+| gpubw                  | `gpubw.flag` / `--gpubw`     | D3D12 STREAM over VRAM                |
+| gpugemv                | `gpugemv.flag` / `--gpugemv` | Q4_K GEMV density                     |
+| gpustep                | `gpustep.flag` / `--gpustep` | GGUF GPU decode step probe            |
+| d3d12 backend selftest | `d3d12be.flag`               | MUL_MAT / GET_ROWS vs the CPU backend |
+
+Headers, kill gates and schemas: [architecture.md § Probe suite](../docs/architecture.md#probe-suite-bandwidth-heap-disk-gpu).
+
 ## Single source of truth
 
 - `results/*.csv` and `results/*.jsonl` are the immutable measured evidence.

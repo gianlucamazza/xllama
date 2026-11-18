@@ -1,8 +1,27 @@
-# Cross-building and deploying xllama from Linux
+# Building and deploying xllama onto the console
+
+Two source paths: a **Windows host** with the UWP workload (shipping /
+measured), and a **Linux crossbuild** using uwp-crossbuild + openappx (no
+Windows VM). Companion notes: [uwp-constraints.md](uwp-constraints.md),
+[windows-dev-vm.md](windows-dev-vm.md), campaign notes in
+[phase15-re-opt.md](phase15-re-opt.md).
+
+## Windows host (MSVC)
+
+This is the shipping and measurement path. Needs a Windows host with the UWP
+workload (SDK 22621). Setup: [windows-dev-vm.md](windows-dev-vm.md).
+
+```powershell
+git clone --recursive https://github.com/gianlucamazza/xllama.git
+.\scripts\build-uwp.ps1 -Configuration Release -Platform x64
+```
+
+Sideload the resulting MSIX with `scripts/deploy.sh` (command-line path in
+[install-release.md](install-release.md#install-from-the-command-line)).
+
+## Cross-building from Linux
 
 End-to-end path using **uwp-crossbuild** + **openappx** (no Windows VM).
-Companion SSOTs: [uwp-constraints.md](uwp-constraints.md), campaign notes in
-[phase15-re-opt.md](phase15-re-opt.md).
 
 **Currency:** CI shipping guidance refreshed for the 1.7.0 cut; Linux launch observations remain dated 2026-08-08.
 

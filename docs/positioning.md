@@ -37,22 +37,27 @@ raw runs in `bench/results/series-x-2026-11-13.csv` and
 
 What that covers and what it does not:
 
-- **Covered:** install, model download, CPU text generation and the LAN API,
-  for those two models. 143 timed runs and a one-hour run with no failed
-  generation.
-- **Not covered:** image generation, training, the GGUF GPU path, embeddings,
-  memory limits and every model other than those two. None of these has been
-  run on a Series X.
+- **Covered (independent tester, package 1.7.0.1495):** sideload, model
+  download, CPU text generation and the LAN API, for those two models. 143
+  timed runs and a one-hour run with no failed generation.
+- **Later report from the same tester (package 1.7.0.1626, discussion
+  #434):** they also ran the GGUF GPU path, image generation, and on-device
+  training on their Series X. Raw files they contributed sit in
+  `bench/results/2026-11-16-series-x-422/`. That is still their work, not a
+  project re-measure.
 - **Not project measurements.** The device is operator-declared (rows are
-  labelled `xbox-series-x-declared`) and there is no device receipt. The
-  project owns no Series X. Every published figure is a Series S figure.
-- **Speed.** With the app designated as a Game, the Series X runs are on par
-  with a Series S measured the same way, not faster. With the App
-  designation the app runs at full speed for about ten seconds after launch
-  and then at about 40 % of the Game speed: the system caps an App's CPU,
-  and fewer threads make it slower, not faster. That accounts for the 2.4
-  times seen in the first runs. The remedy is the Game designation, which the
-  install guide asks for
+  labelled `xbox-series-x-declared`) and there is no device receipt from the
+  project. The project owns no Series X. The project's own published figures
+  are Series S figures. The Series X figures in the README were measured by
+  an independent tester (Joshua Henne / Eidon Labs Inc., discussion #434)
+  and are labelled as theirs.
+- **Game designation (their observation).** The tester reported that, after
+  the app was set as a Game, LFM2.5-350M averaged about 95.7 tok/s over the
+  LAN API end to end (ten 1024-token generations). Before that change, their
+  batches averaged about 35.4 to 38.8 tok/s. On-screen timing of one short
+  31-token run was about 103 tok/s. Those are different measures from the
+  project's Series S benches; they are not compared here. The sideload guide
+  asks for the Game designation
   ([#457](https://github.com/gianlucamazza/xllama/issues/457)).
 
 ## Honest limits
