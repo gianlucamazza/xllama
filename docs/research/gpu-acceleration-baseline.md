@@ -104,7 +104,7 @@ the first console `d3d12-phase` lines. Details and limits:
 [receipt](evidence/2026-11-15-coder-control-diagnosis/receipt.json).
 
 Console checkpoint (2026-11-18): package 1.7.0.1667 on a Series S. The
-layer lines and their overhead, and a CPU arm of the working set, are in
+shared timing opt-in and a CPU arm of the working set are in
 [evidence/2026-11-18-d3d12-layer-overhead](evidence/2026-11-18-d3d12-layer-overhead/README.md).
 Published tok/s stay in [benchmarks.md](../benchmarks.md).
 

@@ -30,8 +30,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (`lfm25-350m`, knob on) produced the lines for layers 0–15 and
   `unattributed`, with no timestamp left missing
   ([evidence](docs/research/evidence/2026-11-18-d3d12-layer/README.md)).
-  On the same package the layer lines cost about the same as that
-  per-dispatch knob: prefill unchanged and about 4 % of decode on
+  On the same package the shared opt-in (dispatch timing and layer lines
+  are one file) costs about the same as that per-dispatch knob: prefill
+  unchanged and about 4 % of decode on
   LFM2.5-1.2B and Coder-3B. LFM2.5-350M loses about 6 % of decode and about
   3 % of prefill, and that prefill cell is wider. Peak memory on the GPU
   arms is unchanged. A paired CPU arm shows the host working set rising

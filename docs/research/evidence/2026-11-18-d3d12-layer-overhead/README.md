@@ -2,8 +2,10 @@
 
 Same opt-in as the one-run layer capture
 ([2026-11-18-d3d12-layer](../2026-11-18-d3d12-layer/README.md)), for #421.
-Two questions: what the layer lines cost on top of the 2026-11-16 per-dispatch
-knob, and whether the host working set drops when layers move to the GPU.
+Two questions: what the shared timing opt-in costs on this package, beside
+the 2026-11-16 per-dispatch calibration, and whether the host working set
+drops when layers move to the GPU. Dispatch timing and the layer lines are
+the same file, so this run does not separate them.
 These runs are a diagnostic. Published tok/s stay in `docs/benchmarks.md`,
 and these rows are not in `bench/benchmark-summary.json`. The recorded rows,
 medians and ratios are in [`result.json`](result.json).
@@ -46,9 +48,9 @@ is a duration, so a ratio above 1 is slower. Prefill and decode are rates.
 | Coder-3B    |   0.996 |               1.004 |  0.958 |       1.000 |
 
 LFM2.5-1.2B and Coder-3B match the 2026-11-16 calibration of the per-dispatch
-knob (prefill unchanged, decode 0.956 and 0.964): the layer lines do not add
-a further visible cost on those two models. Peak memory on the GPU arms is
-unchanged (the 350M ratio is 369 MB against a 368.5 MB median).
+knob (prefill unchanged, decode 0.956 and 0.964). That match is for the
+shared opt-in on this package. Peak memory on the GPU arms is unchanged
+(the 350M ratio is 369 MB against a 368.5 MB median).
 
 LFM2.5-350M was not in the 2026-11-16 pairs. Its decode ratio is tight across
 the four runs. Its prefill median, 0.971, mixes two recorded on-runs at about
@@ -69,10 +71,12 @@ One recorded run per arm, knob deleted. `gpu_mem_mb` is 0 on every CPU arm.
 The host working set rises when layers move to the GPU. The host copy of the
 offloaded weights stays resident.
 
-The 2026-11-16 comment on #421 (package 1.7.0.1621) recorded GPU peaks of
-860 MB for LFM2.5-1.2B (`gpu_mem` 678) and 2205 MB for Coder-3B (`gpu_mem`
-1851). This run records 861/678 and 2205/1851. That comment's CPU peaks were
-786 MB and 2045 MB, on a shorter prompt that did not ignore end of generation.
+The Series S comment on #421 from 2026-11-16
+([comment](https://github.com/gianlucamazza/xllama/issues/421#issuecomment-6916816628),
+package 1.7.0.1621) recorded GPU peaks of 860 MB for LFM2.5-1.2B (`gpu_mem` 678) and 2205 MB for Coder-3B (`gpu_mem` 1851). This run records 861/678 and
+2205/1851. That comment's CPU peaks were 786 MB and 2045 MB, on a shorter
+prompt that did not ignore end of generation. The Series X note linked from
+the roadmap is a different comment.
 
 ## Layer lines
 

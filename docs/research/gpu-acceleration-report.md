@@ -67,7 +67,7 @@ causal diagnosis, temporal operator/layer attribution, overhead calibration and
 CSV/sidecar integration remain pending. Tensor capture does not measure
 operator execution time. C4 (#313/#414) remains stopped at control parity;
 routing qualification (#422) still depends on correctness and matched evidence.
-A later Series S measurement of the layer lines and their overhead is in
+A later Series S measurement of the shared timing opt-in and the working set is in
 [2026-11-18-d3d12-layer-overhead](evidence/2026-11-18-d3d12-layer-overhead/README.md).
 This draft does not restate those figures.
 

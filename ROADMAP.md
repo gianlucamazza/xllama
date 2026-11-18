@@ -797,9 +797,11 @@ Source/evidence discovery and the conditional 6–8 week stages are in the
    the 2026-11-16 protocol for the layer lines and added a CPU arm
    (`--gpu-layers 0`) beside the GPU arm. Knob-on over knob-off, median:
    LFM2.5-1.2B prefill 0.999, time to first token 1.001, decode 0.957;
-   Coder-3B 0.996, 1.004, 0.958. That is the same decode cost as the
-   pre-layer knob, about 4 %, with prefill unchanged. LFM2.5-350M loses
-   more (prefill 0.971, time to first token 1.031, decode 0.943); its
+   Coder-3B 0.996, 1.004, 0.958. That is about the same decode cost as the
+   2026-11-16 knob, about 4 %, with prefill unchanged. Dispatch timing and
+   the layer lines are one file, so this does not separate the two.
+   LFM2.5-350M loses more (prefill 0.971, time to first token 1.031, decode
+   0.943); its
    prefill span is wider than the other two. Peak working set on the GPU
    arms is unchanged. Moving layers to the GPU raises the host working set
    by 42 MB (350M), 50 MB (1.2B) and 122 MB (Coder-3B). These rows are a

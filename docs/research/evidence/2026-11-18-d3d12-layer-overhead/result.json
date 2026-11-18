@@ -1,5 +1,5 @@
 {
-  "scope": "#421 layer-line overhead and CPU versus GPU working set on a Series S. Diagnostic capture. These rows are not in bench/benchmark-summary.json.",
+  "scope": "#421 shared timing-knob overhead and CPU versus GPU working set on a Series S. Dispatch timing and layer lines are one file, so the ratios do not separate them. Diagnostic capture. These rows are not in bench/benchmark-summary.json.",
   "package": {
     "pfn": "GianlucaMazza.xllama_1.7.0.1667_x64__pj67f1fcj4n14",
     "version": "1.7.0.1667",
