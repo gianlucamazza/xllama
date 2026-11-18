@@ -775,8 +775,10 @@ Source/evidence discovery and the conditional 6–8 week stages are in the
    found that the four-column Q4_0 shader is 1.14 to 1.25 times slower per
    dispatch while the K-quant ones take half the time
    ([evidence](docs/research/evidence/2026-11-16-d3d12-dispatch-timing/README.md)).
-   What remains of #421 is per-layer attribution and the CSV or sidecar
-   integration. An independent Series X run of the same knob
+   Each dispatch line carries `layer=` (the `blk.<n>` index, or `-1` outside
+   a block). `scripts/d3d12-dispatch-sidecar.py` writes the CSV sidecar from
+   a log; the bench schema is unchanged. A Series S capture of `layer=` is
+   the remaining measurement for #421. An independent Series X run of the same knob
    ([report](https://github.com/gianlucamazza/xllama/issues/421#issuecomment-6914667256),
    operator-declared, not imported as evidence) points attribution at the
    time between submission and fence that the timestamps do not cover: in

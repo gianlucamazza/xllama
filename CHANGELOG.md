@@ -18,12 +18,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Per-dispatch GPU timing (#421).** With `d3d12-dispatch-timing.txt` = `1`
   in LocalState, the d3d12 backend times every dispatch and logs, after each
   prefill and decode phase line, the GPU time per kind of dispatch (operation,
-  weight type, kernel variant, thread width, column class). Off by default;
-  the barriers it adds serialise dispatches, so it is a diagnostic, not a
-  benchmark setting. Measured on the Series S, it leaves prefill unchanged and
-  costs about 4 % of decode; its first use showed that the four-column kernel
-  of #414 lost on LFM2.5-1.2B in its Q4_0 shader (1.14 to 1.25 times slower
-  per dispatch) while its K-quant shaders took half the time.
+  weight type, kernel variant, thread width, column class, layer). Off by
+  default; the barriers it adds serialise dispatches, so it is a diagnostic,
+  not a benchmark setting. Measured on the Series S, it leaves prefill
+  unchanged and costs about 4 % of decode; its first use showed that the
+  four-column kernel of #414 lost on LFM2.5-1.2B in its Q4_0 shader (1.14 to
+  1.25 times slower per dispatch) while its K-quant shaders took half the
+  time. Each line now carries `layer=`: the block index parsed from a weight
+  named `blk.<n>.…`, or `-1` for embeddings and output. Two dispatches that
+  differ only by layer stay in separate rows. `scripts/d3d12-dispatch-sidecar.py`
+  writes those rows to a CSV sidecar. The bench CSV schema is unchanged.
 
 - **GPU correctness controls (ADR 0010, #420) and the four-column kernel
   (#313, #414).**

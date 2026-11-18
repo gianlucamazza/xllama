@@ -919,14 +919,20 @@ GPU timestamp. After each phase line the log then carries one line per kind
 of dispatch, sorted by GPU time, and a summary:
 
 ```
-[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=1 threads=128 cols=512+ count=48 gpu_ms=… ms_per=… weight_mib=… columns=…
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=1 threads=128 cols=512+ layer=0 count=48 gpu_ms=… ms_per=… weight_mib=… columns=…
 [xllama] d3d12-dispatch phase=prefill summary kinds=6 timed=94 missing=0 gpu_ms=…
 ```
 
 A kind is the operation, the weight type, the kernel's columns per group
-(`cpg`), its thread width and a column class (`1`, `2-63`, `64-511`,
-`512+`). `missing` counts dispatches whose timestamp pair was not increasing;
-their time is not in any row. The barriers serialise dispatches that could
+(`cpg`), its thread width, a column class (`1`, `2-63`, `64-511`, `512+`)
+and the layer. `layer` is the `<n>` in a weight named `blk.<n>.…`, and `-1`
+for embeddings, the output projection and any other name that is not a
+block. `missing` counts dispatches whose timestamp pair was not increasing;
+their time is not in any row. `scripts/d3d12-dispatch-sidecar.py` reads the
+lines and writes a CSV sidecar (`phase,op,type,cpg,threads,cols,layer,count,…`).
+It refuses a summary whose kind count, timed dispatches or GPU time does not
+match that phase's rows, and it does not add columns to the bench CSV. The
+barriers serialise dispatches that could
 overlap without them, so the per-dispatch times add up to more than an
 unmodified run's GPU time: compare a run with the knob against one without
 before reading absolute figures. The knob changes no result.

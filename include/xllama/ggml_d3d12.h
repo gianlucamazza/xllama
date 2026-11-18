@@ -149,15 +149,20 @@ bool d3d12_flag_enabled(std::string_view config);
 // Column classes of a dispatch: "1" (decode), "2-63", "64-511", "512+".
 const char* d3d12_cols_class(std::int64_t ncols);
 
+// Layer index of a ggml tensor name. "blk.<digits>." -> that index.
+// -1 when the name is not a transformer block (embeddings, output, empty).
+int d3d12_layer_of(std::string_view name);
+
 struct D3d12DispatchKind {
     std::string op;            // "mul_mat" | "get_rows"
     std::string type;          // weight type name, e.g. "q4_0"
     int threads = 0;           // 64 | 128 for mul_mat, 0 for get_rows
     int columns_per_group = 1; // kernel variant (the single-column kernel is 1)
     std::string cols;          // d3d12_cols_class(ncols)
+    int layer = -1;            // d3d12_layer_of(weight name)
     bool operator==(const D3d12DispatchKind& o) const {
         return op == o.op && type == o.type && threads == o.threads &&
-               columns_per_group == o.columns_per_group && cols == o.cols;
+               columns_per_group == o.columns_per_group && cols == o.cols && layer == o.layer;
     }
 };
 

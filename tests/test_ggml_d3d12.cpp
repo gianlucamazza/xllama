@@ -445,6 +445,14 @@ TEST_CASE("d3d12: dispatch timing flag and column classes") {
     CHECK(std::string(d3d12_cols_class(64)) == "64-511");
     CHECK(std::string(d3d12_cols_class(511)) == "64-511");
     CHECK(std::string(d3d12_cols_class(512)) == "512+");
+    CHECK(d3d12_layer_of("blk.0.attn_q.weight") == 0);
+    CHECK(d3d12_layer_of("blk.15.ffn_down.weight") == 15);
+    CHECK(d3d12_layer_of("blk.08.attn_v.weight") == 8);
+    CHECK(d3d12_layer_of("token_embd.weight") == -1);
+    CHECK(d3d12_layer_of("output.weight") == -1);
+    CHECK(d3d12_layer_of("blk.") == -1);
+    CHECK(d3d12_layer_of("blk.12") == -1);
+    CHECK(d3d12_layer_of("") == -1);
 }
 
 TEST_CASE("d3d12: dispatch profile groups by kind and reports untimed dispatches") {
@@ -465,14 +473,28 @@ TEST_CASE("d3d12: dispatch profile groups by kind and reports untimed dispatches
     CHECK(s[0].kind == q6); // 5 ms before 3 ms
     const std::string out = format_d3d12_dispatch_profile("prefill", p);
     CHECK(out.rfind("[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q6_K cpg=1 "
-                    "threads=64 cols=512+ count=1 gpu_ms=5.000",
+                    "threads=64 cols=512+ layer=-1 count=1 gpu_ms=5.000",
                     0) == 0);
-    CHECK(out.find("type=q4_0 cpg=1 threads=128 cols=512+ count=2 gpu_ms=3.000 ms_per=1.5000 "
-                   "weight_mib=2.0 columns=1024\n") != std::string::npos);
+    CHECK(out.find("type=q4_0 cpg=1 threads=128 cols=512+ layer=-1 count=2 gpu_ms=3.000 "
+                   "ms_per=1.5000 weight_mib=2.0 columns=1024\n") != std::string::npos);
     CHECK(out.find("summary kinds=2 timed=3 missing=1 gpu_ms=8.000\n") != std::string::npos);
     D3d12DispatchProfile only_missing;
     only_missing.note_missing();
     CHECK_FALSE(only_missing.empty());
     CHECK(format_d3d12_dispatch_profile("decode", only_missing).find("missing=1") !=
           std::string::npos);
+
+    D3d12DispatchProfile layers;
+    D3d12DispatchKind l0{"mul_mat", "q4_0", 128, 1, "512+", 0};
+    D3d12DispatchKind l1{"mul_mat", "q4_0", 128, 1, "512+", 1};
+    layers.add(l0, 1.0, 100.0, 512);
+    layers.add(l1, 4.0, 100.0, 512);
+    layers.add(l0, 1.5, 100.0, 512);
+    REQUIRE(layers.rows().size() == 2);
+    CHECK(layers.rows()[0].kind.layer == 0);
+    CHECK(layers.rows()[0].count == 2);
+    CHECK(layers.rows()[1].kind.layer == 1);
+    const std::string layered = format_d3d12_dispatch_profile("prefill", layers);
+    CHECK(layered.find("layer=1 count=1 gpu_ms=4.000") != std::string::npos);
+    CHECK(layered.find("layer=0 count=2 gpu_ms=2.500") != std::string::npos);
 }

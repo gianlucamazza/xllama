@@ -296,6 +296,24 @@ const char* d3d12_cols_class(std::int64_t ncols) {
     return "512+";
 }
 
+int d3d12_layer_of(std::string_view name) {
+    constexpr std::string_view prefix = "blk.";
+    if (name.size() <= prefix.size() || name.substr(0, prefix.size()) != prefix)
+        return -1;
+    int layer = 0;
+    std::size_t i = prefix.size();
+    if (i >= name.size() || name[i] < '0' || name[i] > '9')
+        return -1;
+    for (; i < name.size() && name[i] >= '0' && name[i] <= '9'; ++i) {
+        layer = layer * 10 + (name[i] - '0');
+        if (layer > 100000)
+            return -1;
+    }
+    if (i >= name.size() || name[i] != '.')
+        return -1;
+    return layer;
+}
+
 void D3d12DispatchProfile::add(const D3d12DispatchKind& kind, double gpu_ms, double weight_bytes,
                                std::int64_t ncols) {
     auto it = std::find_if(rows_.begin(), rows_.end(),
@@ -328,9 +346,9 @@ std::string format_d3d12_dispatch_profile(const char* phase, const D3d12Dispatch
         char buf[512];
         std::snprintf(buf, sizeof(buf),
                       "[xllama] d3d12-dispatch phase=%s op=%s type=%s cpg=%d threads=%d cols=%s "
-                      "count=%llu gpu_ms=%.3f ms_per=%.4f weight_mib=%.1f columns=%llu\n",
+                      "layer=%d count=%llu gpu_ms=%.3f ms_per=%.4f weight_mib=%.1f columns=%llu\n",
                       phase ? phase : "-", r.kind.op.c_str(), r.kind.type.c_str(),
-                      r.kind.columns_per_group, r.kind.threads, r.kind.cols.c_str(),
+                      r.kind.columns_per_group, r.kind.threads, r.kind.cols.c_str(), r.kind.layer,
                       static_cast<unsigned long long>(r.count), r.gpu_ms,
                       r.count ? r.gpu_ms / static_cast<double>(r.count) : 0.0,
                       r.weight_bytes / 1048576.0, static_cast<unsigned long long>(r.columns));
@@ -1003,6 +1021,9 @@ D3d12DispatchKind dispatch_kind(const ggml_tensor* node) {
     D3d12DispatchKind k;
     k.type = ggml_type_name(w->type);
     k.cols = d3d12_cols_class(node->ne[1]);
+    k.layer = d3d12_layer_of(w->name);
+    if (k.layer < 0)
+        k.layer = d3d12_layer_of(base_of(w)->name);
     if (node->op == GGML_OP_GET_ROWS) {
         k.op = "get_rows";
     } else {
