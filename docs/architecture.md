@@ -1052,10 +1052,53 @@ Compile scripts: `scripts/compile-gpubw-shader.sh`,
 `scripts/compile-gpugemv-shader.sh` (dxc → binary → C header; takes per-target
 args so recorded blobs are not rebuilt by a different dxc release).
 
+## Invariants
+
+These four rules are load-bearing for both front ends. The sections above
+are the detail; this list is the contract:
+
+- **One resident session** — `SessionHub` owns the loaded model for GUI and
+  API. Two models do not fit the console budget.
+- **One budget home** — `prompt_budget.h` decides in tokens (`fit_prompt`,
+  `fit_tool_transcript`). A chars-per-token estimate may bound work; it must
+  not decide what the user receives.
+- **One sampler chain per backend** — CLI, bench, GUI, and API share
+  `sampler_chain.h` or `ort_sampling.h`.
+- **Single home** — a decision both surfaces make lives in one
+  `include/xllama/` header.
+
+Why those rules exist: [design-decisions.md](design-decisions.md).
+
+## Platform constraints
+
+UWP/AppContainer forbids mmap, dlopen, registry access, and arbitrary paths.
+The console has unified memory, a per-process GPU budget, and a per-file cap;
+measured limits live in [uwp-constraints.md](uwp-constraints.md) (§1, §7,
+§8). Shipping builds carry patched ORT/GenAI DLLs until upstream includes the
+AppContainer fixes ([upstream.md](upstream.md)). The app is Developer Mode
+only; there is no retail path yet.
+
+## Repository map
+
+```
+include/xllama/   # WinRT-free, host-testable headers
+src/bridge/       # shared implementation (Linux + UWP)
+uwp/              # C++/WinRT app, LAN API, headless flags
+training/         # jobs, host PEFT, datasets
+shaders/          # HLSL → AOT DXIL compute shaders
+tests/            # doctest suite; counts live in this file
+scripts/          # deploy, bench, validate, crossbuild
+docs/             # ownership map → docs/README.md
+```
+
+Agent-oriented layout, including load-bearing headers:
+[`AGENTS.md`](../AGENTS.md). Doc ownership: [docs/README.md](README.md).
+
 ## See also
 
 - Performance numbers → [benchmarks.md](benchmarks.md)
 - AppContainer constraints (§1–§13) → [uwp-constraints.md](uwp-constraints.md)
+- Design decisions (why Xbox, dual backend, session owner) → [design-decisions.md](design-decisions.md)
 - Model catalogue / selection → [model-selection.md](model-selection.md) + `uwp/models/manifest.json`
 - Inventory / ship status → [model-matrix.md](model-matrix.md)
 - App UI (incl. personalize) → [using-the-app.md](using-the-app.md)
@@ -1064,3 +1107,4 @@ args so recorded blobs are not rebuilt by a different dxc release).
 - **Training SSOT** → [training-architecture.md](training-architecture.md)
 - Training ops → [training/README.md](../training/README.md)
 - FloppyLM (not an engine in this repo) → [floppylm.md](floppylm.md)
+- Upstream PRs and closed issues → [upstream.md](upstream.md)

@@ -11,8 +11,9 @@ research tags, which can be newer without containing an app MSIX.
 Two install paths: Device Portal in a browser (no repo checkout, no
 credentials file), or the command-line `deploy.sh` path below.
 
-For building from source see the [README](../README.md#quick-install); for Dev
-Mode activation and Device Portal basics see
+For building from source see
+[crossbuild-console.md](./crossbuild-console.md); for Developer Mode
+activation and Device Portal basics see
 [device-portal.md](./device-portal.md).
 
 ## Install from a release in the browser

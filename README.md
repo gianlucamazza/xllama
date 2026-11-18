@@ -1,198 +1,149 @@
 # xllama
 
-**xllama — local LLM inference on Xbox Series S and Series X in Developer Mode**
+**Run local language models on your own Xbox Series S or Series X, in Developer Mode.**
 
-Run a language model on your own Xbox Series S or Series X, with chat, an API on your local network, image generation and experimental on-device fine-tuning.
-
-Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester.
-
-**Series X:** supported since 2026-11-15 on the strength of an independent tester's runs (text generation with two models through the LAN API; [field report](https://github.com/gianlucamazza/xllama/discussions/434)). Image generation, training and the GPU path have not been run on a Series X, and every figure in this repository is a Series S figure. Scope and open points: [positioning.md](docs/positioning.md#series-x). A [GitHub Sponsors goal](https://github.com/sponsors/gianlucamazza) is set to fund a Series X for the project's own measurements.
-
-### ⚠️ Read before sideloading
-
-- **Developer Mode only.** xllama runs only on an Xbox console in Developer Mode, Microsoft's program for developing and testing apps. To activate it, you need your own Partner Center developer account, and you must accept Microsoft's [Xbox Developer Mode Activation terms](https://learn.microsoft.com/en-us/legal/windows/agreements/xbox-one-developer-mode-activation) yourself. xllama is a developer and research project, not a consumer product.
-- **Retail games and apps don't run in Developer Mode.** You need to switch back to Retail Mode to play. Microsoft notes that required updates may cause "diminished or lost functionality" on a Developer Mode console, and a console reset deletes local saves that aren't synced to the cloud.
-- **Unofficial.** Independent project, not affiliated with or endorsed by Microsoft. xllama is not reviewed, certified or supported by Microsoft and is not distributed through the Microsoft Store. Sideload it only on a console you own, at your own risk. This project makes no statement about warranty coverage or about how Microsoft may treat Developer Mode use; read Microsoft's terms and warranty for your country.
-- **Sideload only from this repository's Releases page** and check the SHA-256. The package is signed with a test certificate (`xllama-test.cer`); trust it only if you downloaded it from here.
-- **The LAN API is off by default and has no authentication.** When it is on, any device on your network, and any web page open in a browser on it, can send it requests. Enable it only on a network you trust.
-- **Models are third-party.** Models are downloaded separately (from Hugging Face or this repository's `models-v1` release) and each one is under its own licence, not under xllama's MIT licence. Some licences are non-commercial or carry attribution requirements. Check each model's licence on its upstream model card (LFM models also download their LICENSE file alongside the weights) before using it.
-- xllama is provided "AS IS", without warranty, under the MIT licence.
+A free, MIT-licensed app you sideload onto the console: chat, an OpenAI-compatible API on your local network, image generation and experimental on-device fine-tuning.
 
 [![build-uwp](https://github.com/gianlucamazza/xllama/actions/workflows/build-uwp.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-uwp.yml)
 [![build-linux](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml)
+[![CodeQL](https://github.com/gianlucamazza/xllama/actions/workflows/codeql.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/codeql.yml)
+[![Release](https://img.shields.io/github/v/release/gianlucamazza/xllama?filter=v*&label=release)](https://github.com/gianlucamazza/xllama/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
 <!-- XLLAMA_DOI_START -->
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22118437.svg)](https://doi.org/10.5281/zenodo.22118437)
 <!-- XLLAMA_DOI_END -->
 
-[CHANGELOG](CHANGELOG.md) · [ROADMAP](ROADMAP.md) · [Positioning](docs/positioning.md)
+Supported on Series S and Series X. The project's own figures are measured on a Series S; the Series X figures below were measured by an independent tester (Joshua Henne / Eidon Labs Inc.) and are labelled as such ([details](docs/positioning.md#series-x)).
+On a Series S, the default model LFM2.5-350M generates text at **97.9 tok/s** (decode speed, llama.cpp on CPU, 6 threads, median of 3 runs; [benchmarks](docs/benchmarks.md)).
 
-https://github.com/user-attachments/assets/9494a6a2-f14e-4229-afa4-ff5faf51ba67
+On a Series X, measured by an independent tester (Joshua Henne / Eidon Labs Inc., xllama 1.7.0.1495, [discussion #434](https://github.com/gianlucamazza/xllama/discussions/434)), not by the project:
 
-A 4.7-second cut (three segments) of a 46-second capture made on a Series S in Developer Mode from Device Portal screenshots. The video doesn't support any speed claim. The full capture is [`xllama-demo-v1.5.6.mp4`](docs/screenshots/xllama-demo-v1.5.6.mp4), the cut points are in [`demo-manifest.json`](docs/screenshots/demo-manifest.json), and the demo is driven by [`demo/demo-script.json`](demo/demo-script.json) via `scripts/capture-demo-video.sh`. A longer [product showcase](docs/screenshots/xllama-demo-v1.5.6-showcase.mp4) is driven by [`demo/demo-showcase-script.json`](demo/demo-showcase-script.json).
+- LFM2.5-350M, about **103 tok/s** by the app's own on-screen timing, from one short run of 31 tokens.
+- LFM2.5-350M, about **95.7 tok/s** over the local-network API end to end, averaged over ten 1024-token generations, after the app was set as a Game. Before that change, batches averaged about 35.4 to 38.8 tok/s.
+- LFM2.5-1.2B-Instruct (QAD Q4_0, CPU forced), about **37.1 tok/s** over the local-network API end to end, the average of three runs.
 
----
+xllama is an independent project, not affiliated with or endorsed by Microsoft.
+
+## Before you sideload
+
+- **Developer Mode only.** You activate it with your own Partner Center developer account and accept Microsoft's [Developer Mode terms](https://learn.microsoft.com/en-us/legal/windows/agreements/xbox-one-developer-mode-activation). To play retail games or use retail apps, switch the console back to Retail Mode.
+- **Sideload only from this repository's [Releases](https://github.com/gianlucamazza/xllama/releases)** and check the SHA-256. The package is signed with a test certificate.
+- **The LAN API is off by default and has no authentication.** Turn it on only on a network you trust.
+- **Models come from third parties,** each under its own licence, and are downloaded separately.
+- Full notes: [docs/before-you-sideload.md](docs/before-you-sideload.md).
 
 ## Quick start
 
-<a id="quick-install"></a>
-<a id="build"></a>
+You only need a terminal for the checksum step ([full guide](docs/install-release.md)):
 
-Sideload in the browser (Device Portal, no credentials file): [Sideload a release](docs/install-release.md#install-from-a-release-in-the-browser). (steps not yet walked through on a console)
+1. Put the console in **Developer Mode** ([Microsoft's steps](https://learn.microsoft.com/en-us/windows/uwp/xbox-apps/devkit-activation)).
+2. In Dev Home → Remote Access Settings, enable **Device Portal** with a username and password, then open the URL it shows in a browser.
+3. From the [latest app release](https://github.com/gianlucamazza/xllama/releases/latest), download `xllama_*_x64.msix`, `xllama-test.cer`, `Microsoft.VCLibs.x64.14.00.appx`, `SHA256SUMS` and `release-validation.json`.
+4. Verify them: `sha256sum -c SHA256SUMS` (macOS: `shasum -a 256 -c SHA256SUMS`). Every line must print `OK`.
+5. In Device Portal → My games & apps, sideload the MSIX with `Microsoft.VCLibs.x64.14.00.appx` as its dependency.
+6. Launch xllama from Dev Home. On first launch it downloads the default chat model LFM2.5-350M (~219 MB). The app bundles no model.
 
-Command-line path:
+> The browser steps follow Microsoft's documentation but have not yet been walked end to end on a console. If something doesn't match, [open an issue](https://github.com/gianlucamazza/xllama/issues).
 
-```bash
-# Download release assets or a specific CI artifact first:
-# docs/install-release.md (installing a newer version over the existing app keeps your data in LocalState)
+**Command line:** `./scripts/deploy.sh` path in [docs/install-release.md](docs/install-release.md#install-from-the-command-line) · **Build from source:** [docs/crossbuild-console.md](docs/crossbuild-console.md) · **Linux CLI:** `cmake --preset linux-release && cmake --build build/linux-release -j`
 
-# Or build (Windows host)
-git clone --recursive https://github.com/gianlucamazza/xllama.git
-.\scripts\build-uwp.ps1 -Configuration Release -Platform x64
+## Demo
 
-# Deploy
-source ~/.config/xllama/xbox-env
-./scripts/deploy.sh path/to/xllama_*.msix
-```
+https://github.com/user-attachments/assets/9494a6a2-f14e-4229-afa4-ff5faf51ba67
 
-First launch downloads the default chat model LFM2.5-350M (~219 MB catalogue
-size from the [model list](docs/model-selection.md), not a runtime measurement).
-No model bundled in MSIX.
-
-**Linux dev:** `cmake --preset linux-release && cmake --build build/linux-release -j`
-
----
+Series S, Developer Mode; not a speed claim. Provenance: [`xllama-demo-v1.5.6.mp4`](docs/screenshots/xllama-demo-v1.5.6.mp4) and [capture notes](docs/screenshots/README.md).
 
 ## What you can do
 
-- **LAN API** — OpenAI-compat completions, GGUF embeddings, trusted catalogue
-  pull, preferences and training status. Current integration probe for games
-  and assistants; **off by default and has no authentication**.
-- **Bench** — headless tok/s, membw, diskbw, gpubw, gpugemv, gpustep, ramceil probes, d3d12 backend selftest
-- **Diffuse** — SD-Turbo on DirectML, in-process with XAML compositor.
-  Image generation uses SD-Turbo. **Powered by Stability AI.**
-- **Train** — experimental on-device fine-tune of the last block (Lane B; one console marker run on SmolLM2-360M, 2026-07-20, [receipt](bench/results/phase10-console-devtrain-result.json)), host PEFT (Lane A), serve merged GGUF (Lane C). The in-app _Train on my feedback_ flow is not yet validated end to end on a console.
-- **Chat (demo shell)** — multi-turn pad UI with KV-reuse, thinking models,
-  coding tier. Showcase, not the product thesis.
+- **Chat** — multi-turn pad UI with the default LFM2.5-350M model, plus other catalogue models you download.
+- **LAN API** — OpenAI-compatible completions on your local network; **off by default and has no authentication**.
+- **Image generation** — SD-Turbo on the console. **Powered by Stability AI.**
+- **Benchmarks** — headless tok/s and platform probes on the console. See [bench/README.md](bench/README.md).
+- **Experimental fine-tuning** — on-device last-block fine-tune, host PEFT, and serving a merged GGUF. The in-app _Train on my feedback_ flow is not yet walked end to end on a console.
 
----
+## Models and performance (Series S)
 
-## Supported models
+Headline decode figures from [docs/benchmarks.md](docs/benchmarks.md). Hugging Face collection: [xllama: GGUF models run on Xbox Series S](https://huggingface.co/collections/gianlucamazza/xllama-gguf-models-run-on-xbox-series-s-6aca0b32275cbe99dbf02d89).
 
-| Model              | Params | Decode                                                  | Role                                                            |
-| ------------------ | ------ | ------------------------------------------------------- | --------------------------------------------------------------- |
-| LFM2.5-230M        | 230M   | **127.1** tok/s (llama.cpp CPU, 6 threads, median of 3) | Floor (237 MiB peak RAM, llama.cpp CPU, 6 threads, median of 3) |
-| LFM2.5-350M        | 350M   | **97.9** tok/s (llama.cpp CPU, 6 threads, median of 3)  | Default chat                                                    |
-| Qwen2.5-Coder-1.5B | 1.5B   | **26.1** tok/s (llama.cpp CPU, 6 threads, median of 2)  | Coding                                                          |
-| LFM2-2.6B          | 2.6B   | **17.9** tok/s (llama.cpp CPU, 6 threads, median of 3)  | Quality (H9 7/8)                                                |
+| Model              | Decode tok/s | Backend         | Peak RAM (MiB) |
+| ------------------ | ------------ | --------------- | -------------- |
+| LFM2.5-230M        | 127.1        | llama.cpp CPU   | 237            |
+| LFM2.5-350M        | 97.9         | llama.cpp CPU   | 311            |
+| LFM2.5-1.2B        | 74.8         | llama.cpp d3d12 | 860            |
+| Qwen2.5-Coder-1.5B | 26.1         | llama.cpp CPU   | 1179           |
+| LFM2-2.6B          | 17.9         | llama.cpp CPU   | 1623           |
 
-Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester. Receipts:
-[127.1 / 97.9 tok/s and 237 MiB](bench/results/2026-11-15-remeasure-1563/README.md),
-[17.9 tok/s](bench/results/2026-10-11-remeasure-1163/lfm2-2.6b-q4km-cpu-t6-rerun.csv),
-[26.1 tok/s](bench/results/phase14-console.csv),
-[H9 7/8](bench/results/2026-09-30-h9-rescore.jsonl).
-Summary: [docs/benchmarks.md](docs/benchmarks.md).
-The two LFM2.5 figures were remeasured on package 1.7.0.1563 with a fixed
-512-token decode. The earlier 132.4 and 101.6 tok/s came from the 1.6.0 package
-and from runs that stopped after 33 to 273 tokens, where decode is faster.
+Series S, Developer Mode, median of n runs (n=3 except Qwen2.5-Coder-1.5B, n=2). LFM2.5-1.2B is the default GPU model on llama.cpp d3d12. None of these run READMEs state a Game designation.
 
-Full catalogue + Phase 14 coding models: [model-matrix.md](docs/model-matrix.md) · [benchmarks.md](docs/benchmarks.md)
+## LAN API
 
-Hugging Face collection: [xllama: GGUF models run on Xbox Series S](https://huggingface.co/collections/gianlucamazza/xllama-gguf-models-run-on-xbox-series-s-6aca0b32275cbe99dbf02d89). Figures and receipts are in [docs/benchmarks.md](docs/benchmarks.md).
-
----
-
-## LAN Endpoint — OpenAI-compatible
-
-xllama exposes an HTTP endpoint on the local network that exposes its full
-inference core (`SessionHub`) with OpenAI and Ollama-compatible APIs.
-Status: v1, **off by default and has no authentication**. Developer Mode / trusted
-LAN only — the current integration probe, not a public inbound service.
+**Off by default and has no authentication.** Turn it on only on a network you trust. Protocol: [docs/api-endpoint.md](docs/api-endpoint.md).
 
 ```bash
-# Chat completions (add `"stream": true` for SSE)
-curl -s http://<xbox-ip>:11434/v1/chat/completions \
+curl -s http://<console-ip>:11434/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{"model":"lfm25-350m","messages":[{"role":"user","content":"hi"}]}'
-
-# Model discovery (OpenAI shape)
-curl -s http://<xbox-ip>:11434/v1/models
 ```
 
-| Route                         | Shape      | Note                                                             |
-| ----------------------------- | ---------- | ---------------------------------------------------------------- |
-| `POST /v1/chat/completions`   | OpenAI     | JSON, or SSE when `stream: true` (tool calls stay non-streaming) |
-| `POST /api/pull`              | Ollama     | Trusted catalogue download; NDJSON progress                      |
-| `POST /api/embed`             | Ollama     | GGUF embeddings; scalar or batch input                           |
-| `POST /api/embeddings`        | Ollama     | Deprecated single-prompt embeddings                              |
-| `POST /v1/embeddings`         | OpenAI     | Float32 or base64 encoded vectors                                |
-| `GET /v1/models`              | OpenAI     | `"active": true` on the loaded model                             |
-| `GET /api/tags`               | Ollama     | Same list, Ollama shape                                          |
-| `POST /v1/preferences`        | Custom     | Append JSONL → `training/samples.jsonl`                          |
-| `GET /v1/training/status`     | Custom     | Snapshot of on-device train progress                             |
-| `POST /v1/images/generations` | OpenAI-ish | SD-Turbo, `b64_json` + `path`                                    |
-| `GET /health`                 | Custom     | `{"status":"ok","service":"xllama"}`                             |
+## How it works
 
-Full protocol — requirements, port config, enable/persistence, concurrency,
-streaming status: [api-endpoint.md](docs/api-endpoint.md).
+Shared C++17 core, WinRT-free and host-testable, with two front ends (Linux CLI and the UWP app).
+Two backends, dispatched per model at runtime: GGUF through llama.cpp, everything else through ONNX Runtime GenAI and DirectML.
+One resident session in the process — two models do not fit the console budget.
+UWP/AppContainer limits apply (no mmap, no dlopen, no registry, no arbitrary paths); measured ceilings live in the constraints doc.
 
----
+[Architecture](docs/architecture.md) · [Design decisions](docs/design-decisions.md) · [UWP constraints](docs/uwp-constraints.md)
 
-## Architecture at a glance
+## Documentation
 
-### Two pillars, one core
+| Group    | Topic               | Docs                                                               |
+| -------- | ------------------- | ------------------------------------------------------------------ |
+| Use      | Sideload a release  | [install-release.md](docs/install-release.md)                      |
+| Use      | Before you sideload | [before-you-sideload.md](docs/before-you-sideload.md)              |
+| Use      | Using the app       | [using-the-app.md](docs/using-the-app.md)                          |
+| Use      | LAN API             | [api-endpoint.md](docs/api-endpoint.md)                            |
+| Build    | Architecture        | [architecture.md](docs/architecture.md)                            |
+| Build    | Build from source   | [crossbuild-console.md](docs/crossbuild-console.md)                |
+| Build    | Platform limits     | [uwp-constraints.md](docs/uwp-constraints.md)                      |
+| Research | Benchmarks          | [benchmarks.md](docs/benchmarks.md)                                |
+| Research | Positioning         | [positioning.md](docs/positioning.md)                              |
+| Research | Research package    | [paper/](paper/) · [technical-report.md](docs/technical-report.md) |
 
-| Pillar        | Role                                   | Hot path                    |
-| ------------- | -------------------------------------- | --------------------------- |
-| **Inference** | LAN API, benches, diffusion, demo chat | `Session` / `run_inference` |
-| **Training**  | PEFT adapters, merged GGUF             | `TrainingJob` → artefacts   |
+Index: [docs/README.md](docs/README.md)
 
-Core: `src/bridge/` C++17, WinRT-free headers in `include/xllama/`, host-testable.
-Two front-ends: `xllama-cli` (Linux) + UWP app.
+## Upstream contributions
 
-### Backend dispatch
+Running xllama on an Xbox Series S in Developer Mode surfaced problems in the
+open-source ONNX Runtime projects. These are the pull requests Gianluca Mazza
+opened against them, with their status as shown on GitHub:
 
-| Path                     | What                                                                  | Why                                                                          |
-| ------------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| **ORT GenAI + DirectML** | ONNX models, CPU int4 decode + DML fp16 prefill                       | GPU wins batch compute, long-prompt TTFT                                     |
-| **llama.cpp + GGUF**     | CPU, KV-reuse, repacked GEMM; d3d12 matmul layers per catalogue entry | Zen2 wins decode at small sizes; own D3D12 kernels win decode on LFM2.5-1.2B |
+| Project           | Pull request                                                      | What it does                                                                                      | Status              |
+| ----------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------- |
+| onnxruntime-genai | [#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280) | Falls back to the system D3D12 runtime when the Agility SDK device factory cannot create a device | Merged, 13 Jul 2026 |
+| onnxruntime-genai | [#2300](https://github.com/microsoft/onnxruntime-genai/pull/2300) | Lets a model opt out of DirectML graph capture through a provider option                          | Merged, 20 Jul 2026 |
+| onnxruntime-genai | [#2316](https://github.com/microsoft/onnxruntime-genai/pull/2316) | Adds tests and documentation for the #2300 opt-out                                                | Open                |
+| onnxruntime       | [#29732](https://github.com/microsoft/onnxruntime/pull/29732)     | Reduces the Windows `ReadFileIntoBuffer` chunk size to 16 MB (AppContainer error 1450)            | Open                |
 
-Unified build dispatches **per model at runtime** via `Backend::Auto`.
-Llama.cpp is both benchmarking lane and shipping backend.
+xllama ships builds of these libraries with its own patches until an official
+package includes the fixes it needs; see [License](#license) and
+[`patches/`](patches/README.md). Closed upstream issues are listed in
+[docs/upstream.md](docs/upstream.md).
 
-### Key invariants
+## Contributing
 
-- **One resident session** (`SessionHub`) — never 2× model in RAM
-- **One budget home** (`prompt_budget.h`: `fit_prompt`, `fit_tool_transcript`) — tokens, not chars
-- **One sampler chain per backend** — CLI/bench and GUI/API can't diverge
-- **Single-home rule** — a decision both surfaces make lives in one header
+UWP packaging, compact models, benchmark methodology, and non-Windows
+developer documentation are the usual places to help. See
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
-### Platform constraints
+## Support
 
-- UWP/AppContainer: no mmap, no dlopen, no registry, no arbitrary paths
-- Xbox Series S: unified memory, a per-process GPU budget and a per-file cap —
-  the measured limits are in [uwp-constraints.md](docs/uwp-constraints.md)
-- Patched ORT/GenAI DLLs while upstream lacks AppContainer fixes
-- Developer Mode only — no retail path yet
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?logo=github)](https://github.com/sponsors/gianlucamazza)
 
----
-
-## Repository map
-
-```
-include/xllama/   # WinRT-free, host-testable headers
-src/bridge/       # shared implementation (Linux + UWP)
-uwp/              # C++/WinRT app, LAN API, headless flags
-training/         # jobs, host PEFT, datasets
-shaders/          # HLSL → AOT DXIL compute shaders
-tests/            # doctest suite; counts live in docs/architecture.md
-scripts/          # deploy, bench, validate, crossbuild
-docs/             # SSOT map → docs/README.md
-```
-
-**Doc ownership:** [docs/README.md](docs/README.md)
+xllama is free and MIT-licensed. If it's useful to you, you can support its
+development on [GitHub Sponsors](https://github.com/sponsors/gianlucamazza) —
+funds go to development time, Xbox Developer Mode costs, and model/storage budgets
+for testing.
 
 ## Citation
 
@@ -211,132 +162,14 @@ The versioned research report is archived on Zenodo. The concept DOI
 
 The DOI badge and version DOI are synchronized from `release.toml`.
 
----
-
-## Key design decisions
-
-### Why Xbox Series S?
-
-Zen2 CPU wins decode on the DirectML path and at small model sizes; RDNA2
-wins batch prefill, and our own D3D12 kernels win GGUF decode on LFM2.5-1.2B
-(Q4_0).
-Unified memory means the GPU budget ([uwp-constraints.md](docs/uwp-constraints.md) §7) is the hard constraint.
-An underexplored platform with strict memory and packaging constraints.
-
-### Why dual backend?
-
-Per-workload verdict on DirectML: CPU decode > GPU decode, GPU prefill > CPU
-prefill. One backend can't win both. Runtime dispatch per model is the answer.
-GGUF decode also runs on our own D3D12 kernels: a ggml backend `d3d12`, with
-q8 activation quantization like the CPU path. It is the default only for
-LFM2.5-1.2B; every other GGUF model runs on the CPU. Every GPU weight
-product is checked against an exact reference
-([result](docs/research/evidence/2026-11-16-adr0010-control-lfm25-1.2b/README.md)).
-A four-column prefill kernel was tried and not adopted: it made a 3B
-research model 1.5 times faster to prefill and the shipping LFM2.5-1.2B 15 %
-slower ([result](docs/research/evidence/2026-11-16-c4-performance/README.md)).
-`gguf_gpu_layers.txt` overrides the default for an operator, and
-`0` forces the CPU. Gates and per-model verdicts are in
-[docs/gguf-gpu-decode.md](docs/gguf-gpu-decode.md). How that compares with
-desktop RDNA2, the Steam Deck and other GPUs on published llama.cpp numbers is
-in [docs/benchmarks.md](docs/benchmarks.md#gpu-decode-in-context--known-hardware).
-
-### Why single Session owner?
-
-A CPU model and a DML model don't fit the budget together
-([uwp-constraints.md](docs/uwp-constraints.md) §7). Two models = OOM.
-`SessionHub` makes this a process-wide invariant, not a per-surface convention.
-
-### Why token-budget, not chars-per-token?
-
-A chars-per-token estimate is not a safe stand-in for a token count: being
-wrong truncates the reply or drops history that would have fit. The estimate
-survives only for routing, where being wrong costs a decision, not an answer.
-
-### Why consolidate duplicated loops?
-
-Every copy in this codebase has eventually disagreed — silently.
-`decode_loop.h` (llama), `decode_loop_ort.h` (ORT), `sampler_chain.h` (llama),
-`ort_sampling.h` (ORT) — each decision lives in one header.
-
----
-
-## More docs
-
-| Topic                                              | Docs                                                                |
-| -------------------------------------------------- | ------------------------------------------------------------------- |
-| Full architecture (modules, backends, KV, routing) | [architecture.md](docs/architecture.md)                             |
-| Training pillar (lanes A/B/C, Phase 11 UI arc)     | [training-architecture.md](docs/training-architecture.md)           |
-| AppContainer constraints (§1–§13)                  | [uwp-constraints.md](docs/uwp-constraints.md)                       |
-| Model catalogue + selection                        | [model-selection.md](docs/model-selection.md)                       |
-| Performance numbers                                | [benchmarks.md](docs/benchmarks.md)                                 |
-| Product positioning (games + assistants; limits)   | [positioning.md](docs/positioning.md)                               |
-| App usage guide (demo shell)                       | [using-the-app.md](docs/using-the-app.md)                           |
-| LAN API protocol (detailed)                        | [api-endpoint.md](docs/api-endpoint.md)                             |
-| Console validation gates                           | [console-validation-runbook.md](docs/console-validation-runbook.md) |
-| Crossbuild Linux → Xbox                            | [crossbuild-console.md](docs/crossbuild-console.md)                 |
-| Release readiness                                  | [release-readiness.md](docs/release-readiness.md)                   |
-| Privacy / data handling                            | [privacy.md](docs/privacy.md)                                       |
-| Runtime NuGet pins                                 | [recommended-config.md](docs/recommended-config.md)                 |
-| Technical report (frozen v1.0)                     | [technical-report.md](docs/technical-report.md)                     |
-| Current research package and XAB                   | [paper/](paper/) · [bench/README.md](bench/README.md)               |
-
----
-
-## Contributing
-
-Areas of interest:
-
-- UWP packaging, Xbox Developer Mode quirks
-- Compact ONNX models fitting disk/GPU budgets
-- Benchmark methodology and reproducibility
-- Non-Windows developer documentation
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
-
----
-
-## Upstream contributions
-
-Running xllama on an Xbox Series S in Developer Mode surfaced problems in the
-open-source ONNX Runtime projects. These are the pull requests Gianluca Mazza
-opened against them, with their status as shown on GitHub:
-
-| Project           | Pull request                                                      | What it does                                                                                      | Status              |
-| ----------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------- |
-| onnxruntime-genai | [#2280](https://github.com/microsoft/onnxruntime-genai/pull/2280) | Falls back to the system D3D12 runtime when the Agility SDK device factory cannot create a device | Merged, 13 Jul 2026 |
-| onnxruntime-genai | [#2300](https://github.com/microsoft/onnxruntime-genai/pull/2300) | Lets a model opt out of DirectML graph capture through a provider option                          | Merged, 20 Jul 2026 |
-| onnxruntime-genai | [#2316](https://github.com/microsoft/onnxruntime-genai/pull/2316) | Adds tests and documentation for the #2300 opt-out                                                | Open                |
-| onnxruntime       | [#29732](https://github.com/microsoft/onnxruntime/pull/29732)     | Reduces the Windows `ReadFileIntoBuffer` chunk size to 16 MB (AppContainer error 1450)            | Open                |
-
-xllama ships builds of these libraries with its own patches until an official
-package includes the fixes it needs; see [License](#license) and
-[`patches/`](patches/README.md).
-
-xllama is an independent project, not affiliated with or endorsed by Microsoft.
-
----
-
-## Reported
-
-Issues filed against the open-source ONNX Runtime project. Both were closed
-for inactivity, without a fix:
-
-| Project     | Issue                                                           | Summary                                                                                                                                                                                                                                                                                         | Status                             |
-| ----------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| onnxruntime | [#29739](https://github.com/microsoft/onnxruntime/issues/29739) | Wrong decoder logits on the DirectML execution provider on Xbox Series S, correct on the CPU execution provider. The issue was opened about attention; a later comment on it traces the fault to the fused RMSNorm (`SimplifiedLayerNormalization` / `SkipSimplifiedLayerNormalization`) nodes. | Closed for inactivity, 18 Sep 2026 |
-| onnxruntime | [#29730](https://github.com/microsoft/onnxruntime/issues/29730) | Large `ReadFileIntoBuffer` chunks can fail with `ERROR_NO_SYSTEM_RESOURCES` (1450) inside a Windows AppContainer. Pull request [#29732](https://github.com/microsoft/onnxruntime/pull/29732) proposes the change.                                                                               | Closed for inactivity, 18 Sep 2026 |
-
----
-
-## Acknowledgements
+## Acknowledgements, licence and trademarks
 
 - [`llama.cpp`](https://github.com/ggml-org/llama.cpp) — Georgi Gerganov
 - [ONNX Runtime GenAI](https://github.com/microsoft/onnxruntime-genai) — Microsoft
 - Xbox homebrew community
 - Andrei David's `llama2.c` port to Xbox 360
 
-## License
+<a id="license"></a>
 
 xllama is MIT-licensed; see [LICENSE](LICENSE). The `llama.cpp` submodule is
 under MIT and xllama applies its own UWP patches to it at build time
@@ -349,20 +182,5 @@ the patches in [`patches/`](patches/README.md), and pinned by SHA-256 in
 [`vendor/`](vendor/). Both projects are under the MIT License, Copyright (c)
 Microsoft Corporation. Their licence texts and third-party notices are in
 [LICENSES/](LICENSES/) and [NOTICE](NOTICE).
-
----
-
-## Support
-
-[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?logo=github)](https://github.com/sponsors/gianlucamazza)
-
-xllama is free and MIT-licensed. If it's useful to you, you can support its
-development on [GitHub Sponsors](https://github.com/sponsors/gianlucamazza) —
-funds go to development time, Xbox Developer Mode costs, and model/storage budgets
-for testing.
-
----
-
-## Disclaimer
 
 xllama is an independent open-source project by Gianluca Mazza. It is not affiliated with, endorsed, sponsored or approved by Microsoft. Xbox, Xbox Series S and Xbox Series X are trademarks of the Microsoft group of companies. Llama is a trademark of Meta; xllama is not affiliated with Meta or with the Ollama project. Other product names are trademarks of their respective owners and are used only to describe compatibility.

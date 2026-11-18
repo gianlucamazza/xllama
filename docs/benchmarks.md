@@ -81,6 +81,13 @@ generated from the committed raw results by `scripts/generate-benchmark-summary.
 <!-- END GENERATED MODEL SUMMARY -->
 <!-- prettier-ignore-end -->
 
+- **2026-11-15 LFM2.5 remeasure (build 1.7.0.1563):** The two LFM2.5 figures
+  were remeasured on package 1.7.0.1563 with a fixed 512-token decode
+  ([campaign README](../bench/results/2026-11-15-remeasure-1563/README.md)).
+  The earlier 132.4 and 101.6 tok/s came from the 1.6.0 package and from runs
+  that stopped after 33 to 273 tokens, where decode is faster. Current
+  medians in the table above: LFM2.5-230M **127.1** tok/s / 237 MiB;
+  LFM2.5-350M **97.9** tok/s / 311 MiB.
 - **2026-10-11 remeasure (build 1.6.0.1163):** Gemma-3-270M Q4_K_M CPU t6,
   LFM2-2.6B Q4_K_M CPU t6 (the `-rerun` CSV, not the incomplete first
   attempt), Gemma-4-E2B Q3_K_S CPU t6, Llama-3.2-3B Q3_K_S CPU t6 (CSV model
