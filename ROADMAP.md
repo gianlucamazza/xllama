@@ -784,17 +784,34 @@ Source/evidence discovery and the conditional 6–8 week stages are in the
    (`lfm25-350m`, knob on, one run) split prefill and decode into layers
    0–15 plus `unattributed`, with `missing=0`
    ([evidence](docs/research/evidence/2026-11-18-d3d12-layer/README.md)).
-   The catalogue GPU-default directory on that console was empty, so the
-   subject is the 350M file. On that decode the summed `wait_ms` is above
-   the summed `gpu_ms`. One run is not a calibration. An independent
-   Series X run of the same knob
+   The catalogue GPU-default directory on that console was empty for that
+   one run, so its subject is the 350M file. On that decode the summed
+   `wait_ms` is above the summed `gpu_ms`. An independent Series X run of
+   the same knob
    ([report](https://github.com/gianlucamazza/xllama/issues/421#issuecomment-6914667256),
    operator-declared, not imported as evidence) points attribution at the
    time between submission and fence that the timestamps do not cover: in
    decode it exceeds the GPU time. The same report finds that the host
-   working set does not drop when layers move to the GPU; this capture has
-   no CPU arm, so that comparison is still open on the Series S. Console
-   overhead calibration of the layer lines is a separate step.
+   working set rises when layers move to the GPU.
+   The same Series S package, with `lfm25-1.2b-instruct` present, repeated
+   the 2026-11-16 protocol for the layer lines and added a CPU arm
+   (`--gpu-layers 0`) beside the GPU arm. Knob-on over knob-off, median:
+   LFM2.5-1.2B prefill 0.999, time to first token 1.001, decode 0.957;
+   Coder-3B 0.996, 1.004, 0.958. That is about the same decode cost as the
+   2026-11-16 knob, about 4 %, with prefill unchanged. Dispatch timing and
+   the layer lines are one file, so this does not separate the two.
+   LFM2.5-350M loses more (prefill 0.971, time to first token 1.031, decode
+   0.943); its
+   prefill span is wider than the other two. Peak working set on the GPU
+   arms is unchanged. Moving layers to the GPU raises the host working set
+   by 42 MB (350M), 50 MB (1.2B) and 122 MB (Coder-3B). These rows are a
+   diagnostic and are not in `bench/benchmark-summary.json`
+   ([evidence](docs/research/evidence/2026-11-18-d3d12-layer-overhead/README.md)).
+   #421 stays open. This capture answers the Series S overhead and
+   working-set questions in the issue's 2026-11-16 checkpoint. Still open
+   there: the operator-declared Series X point. The four-column Q4_0 shader
+   question belongs with any reopen of #313. A KV sidecar is a later
+   proposal. The issue text is the rest of the acceptance list.
 2. **#422:** no new GPU prefill path to qualify. Operator-declared raw
    files from an independent Series X are in
    `bench/results/2026-11-16-series-x-422/` (#491). They are not project

@@ -61,6 +61,7 @@ The unattributed prefill cells match the per-kind lines in the same excerpt:
 
 On this decode the summed `wait_ms` (55.518) is above the summed `gpu_ms`
 (35.087). That is the same shape an independent Series X report described for
-the submission-to-fence remainder. One run is not a calibration, and this
-capture has no paired CPU arm, so the working-set question from that report
-is still open on the Series S.
+the submission-to-fence remainder. One run is not a calibration. The overhead
+of these lines, and a CPU arm of the working set, are measured on the same
+package in
+[2026-11-18-d3d12-layer-overhead](../2026-11-18-d3d12-layer-overhead/README.md).

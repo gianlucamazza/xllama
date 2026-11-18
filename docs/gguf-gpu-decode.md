@@ -949,7 +949,13 @@ the word `missing` left as `missing`. Summary lines stay out of that file.
 The bench CSV schema is unchanged. Off, the backend path is unchanged.
 A Series S capture of the lines is in
 [research/evidence/2026-11-18-d3d12-layer/](research/evidence/2026-11-18-d3d12-layer/README.md)
-(package 1.7.0.1667, `lfm25-350m`, knob on, one run).
+(package 1.7.0.1667, `lfm25-350m`, knob on, one run). The overhead of those
+lines, and a CPU arm of the working set, are in
+[research/evidence/2026-11-18-d3d12-layer-overhead/](research/evidence/2026-11-18-d3d12-layer-overhead/README.md)
+(same package). On LFM2.5-1.2B and Coder-3B the shared opt-in matches the
+4 % decode cost below. Dispatch timing and the layer lines are one file.
+LFM2.5-350M loses more. The host working set rises when layers move to the
+GPU.
 
 Format example, not a measurement:
 
