@@ -778,17 +778,28 @@ Source/evidence discovery and the conditional 6–8 week stages are in the
    Per-layer attribution (phase × layer × op, `gpu_ms` separate from
    `wait_ms`: `exec_wait_ms − submission GPU time, divided by n`) is on
    the same opt-in; that remainder can come out slightly negative because
-   the CPU and GPU clocks are different domains. CSV or sidecar
-   integration remains. An independent Series X run of the same knob
+   the CPU and GPU clocks are different domains.
+   `scripts/parse_d3d12_layer_log.py --csv` writes the sidecar; the bench
+   schema is unchanged. A Series S capture on package 1.7.0.1667
+   (`lfm25-350m`, knob on, one run) split prefill and decode into layers
+   0–15 plus `unattributed`, with `missing=0`
+   ([evidence](docs/research/evidence/2026-11-18-d3d12-layer/README.md)).
+   The catalogue GPU-default directory on that console was empty, so the
+   subject is the 350M file. On that decode the summed `wait_ms` is above
+   the summed `gpu_ms`. One run is not a calibration. An independent
+   Series X run of the same knob
    ([report](https://github.com/gianlucamazza/xllama/issues/421#issuecomment-6914667256),
    operator-declared, not imported as evidence) points attribution at the
    time between submission and fence that the timestamps do not cover: in
    decode it exceeds the GPU time. The same report finds that the host
-   working set does not drop when layers move to the GPU; not yet checked on
-   the Series S. Console overhead calibration of the layer lines is a
-   separate step.
-2. **#422:** no new GPU prefill path to qualify; the matched Series S and
-   Series X matrix needs project measurements on a Series X.
+   working set does not drop when layers move to the GPU; this capture has
+   no CPU arm, so that comparison is still open on the Series S. Console
+   overhead calibration of the layer lines is a separate step.
+2. **#422:** no new GPU prefill path to qualify. Operator-declared raw
+   files from an independent Series X are in
+   `bench/results/2026-11-16-series-x-422/` (#491). They are not project
+   measurements and they are not in the published summary. The matched
+   matrix still needs project measurements on a Series X.
 3. **#457, closed:** the App designation caps the app's CPU about ten
    seconds after launch (about 40 % of the Game speed on a Series X); the
    remedy is the Game designation. The Series S App figure was taken with the

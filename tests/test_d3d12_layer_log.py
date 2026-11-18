@@ -119,6 +119,24 @@ class D3d12LayerLogTests(unittest.TestCase):
         self.assertEqual(data[0]["layer"], 3)
         self.assertEqual(data[3]["kind"], "summary")
 
+    def test_cli_csv_keeps_missing_as_a_word(self):
+        log = "\n".join([ROW, UNATTR, MISSING, SUMMARY, SUMMARY_MISSING]) + "\n"
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "xllama.log"
+            out = Path(temp) / "layers.csv"
+            path.write_text(log, encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT), "--csv", str(out), str(path)],
+                capture_output=True, text=True, check=False)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            text = out.read_text(encoding="utf-8")
+        self.assertTrue(text.startswith(
+            "phase,layer,op,count,gpu_ms,wait_ms,gpu_missing,wait_missing\n"))
+        self.assertIn("prefill,3,mul_mat,2,3.000,0.100,0,0\n", text)
+        self.assertIn("prefill,unattributed,get_rows,1,0.500,missing,0,1\n", text)
+        self.assertIn("decode,1,mul_mat,1,missing,missing,1,1\n", text)
+        self.assertNotIn("summary", text)
+
 
 if __name__ == "__main__":
     unittest.main()
