@@ -23,7 +23,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   That remainder can come out slightly negative because the CPU and GPU
   clocks are different domains. Missing timestamps print as `missing`.
   Nodes with no layer go in `unattributed`. Off, the backend path is
-  unchanged. CSV/sidecar integration is still open.
+  unchanged. `scripts/parse_d3d12_layer_log.py --csv` writes those rows to
+  a sidecar, one row per data line, and refuses to overwrite the log it
+  read. A missing timestamp stays the word `missing`. The bench CSV
+  schema is unchanged. One Series S run of package 1.7.0.1667
+  (`lfm25-350m`, knob on) produced the lines for layers 0–15 and
+  `unattributed`, with no timestamp left missing
+  ([evidence](docs/research/evidence/2026-11-18-d3d12-layer/README.md)).
 
 - **Per-dispatch GPU timing (#421).** With `d3d12-dispatch-timing.txt` = `1`
   in LocalState, the d3d12 backend times every dispatch and logs, after each

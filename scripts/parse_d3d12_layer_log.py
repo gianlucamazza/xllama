@@ -10,6 +10,14 @@ submission.
 Usage:
   python3 scripts/parse_d3d12_layer_log.py [xllama.log]
   python3 scripts/parse_d3d12_layer_log.py --json [xllama.log]
+  python3 scripts/parse_d3d12_layer_log.py --csv sidecar.csv [xllama.log]
+
+`--csv` copies one row for each data line, in log order. It does not group
+rows or add a run id, so the same phase, layer and op can appear twice when
+the log holds two runs. A missing timestamp stays the word `missing`.
+Summary lines are checked by the reader and are not copied into the CSV.
+The bench CSV schema is unchanged. The sidecar path must be a different
+file from the log: the script refuses to overwrite the file it just read.
 
 Reads stdin when no file is given. Lines that are not d3d12-layer records
 are ignored.
@@ -18,10 +26,22 @@ are ignored.
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import sys
 from pathlib import Path
 from typing import Any, Iterable, Optional, Union
+
+CSV_HEADER = (
+    "phase",
+    "layer",
+    "op",
+    "count",
+    "gpu_ms",
+    "wait_ms",
+    "gpu_missing",
+    "wait_missing",
+)
 
 PREFIX = "[xllama] d3d12-layer "
 
@@ -119,16 +139,74 @@ def parse_d3d12_layer_lines(lines: Iterable[str]) -> list[dict[str, Any]]:
     return records
 
 
+def ms_cell(value: Optional[float]) -> str:
+    if value is None:
+        return "missing"
+    return f"{value:.3f}"
+
+
+def same_file(left: Path, right: Path) -> bool:
+    """True when both paths name one inode, including a hard link or a symlink."""
+    try:
+        if left.resolve() == right.resolve():
+            return True
+    except OSError:
+        return False
+    try:
+        return left.samefile(right)
+    except OSError:
+        return False
+
+
+def write_layer_csv(records: list[dict[str, Any]], path: Path) -> int:
+    rows = [rec for rec in records if rec["kind"] == "row"]
+    if not rows:
+        raise ValueError("no d3d12-layer rows")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle, lineterminator="\n")
+        writer.writerow(CSV_HEADER)
+        for rec in rows:
+            writer.writerow(
+                [
+                    rec["phase"],
+                    rec["layer"],
+                    rec["op"],
+                    rec["count"],
+                    ms_cell(rec["gpu_ms"]),
+                    ms_cell(rec["wait_ms"]),
+                    rec["gpu_missing"],
+                    rec["wait_missing"],
+                ]
+            )
+    return len(rows)
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("log", nargs="?", help="xllama.log (stdin if omitted)")
     parser.add_argument("--json", action="store_true", help="write JSON to stdout")
+    parser.add_argument("--csv", type=Path, help="write data rows to this CSV sidecar")
     args = parser.parse_args(argv)
+    if args.json and args.csv:
+        print("parse_d3d12_layer_log: pass only one of --json and --csv", file=sys.stderr)
+        return 2
     if args.log is None:
         text = sys.stdin.read()
     else:
         text = Path(args.log).read_text(encoding="utf-8")
     records = parse_d3d12_layer_log(text)
+    if args.csv:
+        if args.log is not None and same_file(Path(args.log), args.csv):
+            print("parse_d3d12_layer_log: --csv would overwrite the log", file=sys.stderr)
+            return 2
+        try:
+            count = write_layer_csv(records, args.csv)
+        except ValueError as exc:
+            print(f"parse_d3d12_layer_log: {exc}", file=sys.stderr)
+            return 1
+        print(f"wrote {count} rows to {args.csv}", file=sys.stderr)
+        return 0
     if args.json:
         json.dump(records, sys.stdout, indent=2)
         sys.stdout.write("\n")

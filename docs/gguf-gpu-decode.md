@@ -943,8 +943,13 @@ in the list. It is not `exec_wait_ms` minus the row's summed per-dispatch
 `gpu_ms`. The remainder can come out slightly negative because the CPU
 and GPU clocks are different domains. Either field prints as `missing`
 when that bucket has no valid timestamps; it is never filled in from wall
-time. `scripts/parse_d3d12_layer_log.py` reads the lines. Off, the backend
-path is unchanged.
+time. `scripts/parse_d3d12_layer_log.py` reads the lines, and `--csv` writes
+the data rows to a sidecar (`phase,layer,op,count,gpu_ms,wait_ms,…`) with
+the word `missing` left as `missing`. Summary lines stay out of that file.
+The bench CSV schema is unchanged. Off, the backend path is unchanged.
+A Series S capture of the lines is in
+[research/evidence/2026-11-18-d3d12-layer/](research/evidence/2026-11-18-d3d12-layer/README.md)
+(package 1.7.0.1667, `lfm25-350m`, knob on, one run).
 
 Format example, not a measurement:
 

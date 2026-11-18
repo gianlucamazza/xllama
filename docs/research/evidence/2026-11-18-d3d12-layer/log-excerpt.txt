@@ -1,0 +1,112 @@
+[xllama] bench.flag detected -> headless bench mode
+[xllama] headless bench: starting
+[xllama] bench: prompt.txt 100 bytes
+[xllama] bench model: lfm25-350m
+[xllama] bench prompt: <|im_start|>system
+You are a helpful AI assistant.<|im_end|>
+<|im_start|>user
+Ex...
+[xllama] ws before d3d12: 29 MB
+[xllama] d3d12: dispatch_timing=1
+[xllama] gguf gpu layers: tied token_embd in D3D12_Weights
+[xllama] ws after d3d12 init: 71 MB
+[xllama] gguf gpu layers: 99 on D3D12
+[llama] llama_model_loader: mmap is not supported on this platform
+[llama] llama_prepare_model_devices: using device D3D12 (xllama D3D12 compute (Q4_0/Q4_K/Q6_K matmul, Q6_K get_rows)) (unknown id) - 3783 MiB free
+[llama] load_tensors: layer   0 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer   1 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer   2 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer   3 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer   4 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer   5 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer   6 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer   7 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer   8 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer   9 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer  10 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer  11 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer  12 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer  13 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer  14 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer  15 assigned to device D3D12, is_swa = 0
+[llama] load_tensors: layer  16 assigned to device D3D12, is_swa = 0
+[llama] tensor token_embd.weight (52 MiB q6_K) buffer type overridden to D3D12_Weights
+[llama] tensor token_embd.weight (52 MiB q6_K) buffer type overridden to D3D12_Weights
+[llama] done_getting_tensors: tensor 'token_embd.weight' (q6_K) (and 148 others) cannot be used with preferred buffer type CPU_REPACK, using D3D12_Weights instead
+[xllama] d3d12: D3D12_Weights buffer 206.6 MiB
+[llama] load_tensors: offloading output layer to GPU
+[llama] load_tensors: offloading 15 repeating layers to GPU
+[llama] load_tensors: offloaded 17/17 layers to GPU
+[llama] load_tensors:          CPU model buffer size =     0.25 MiB
+[llama] load_tensors: D3D12_Weights model buffer size =   206.65 MiB
+[llama] load_all_data: buffer type D3D12_Weights is not the default buffer type for device D3D12 for async uploads
+[xllama] ws after model load: 300 MB
+[xllama] model loaded
+[xllama] gpu-mem post-load: current=224MB budget=3801MB
+[llama] llama_context: D3D12_Host  output buffer size =     0.25 MiB
+[llama] llama_kv_cache:        CPU KV buffer size =    24.00 MiB
+[llama] llama_memory_recurrent:        CPU RS buffer size =     0.08 MiB
+[xllama] d3d12: D3D12_Host buffer 39.0 MiB
+[llama] sched_reserve: D3D12_Host compute buffer size =    39.02 MiB
+[xllama] ws after context: 364 MB
+[xllama] prompt tokens: 60
+[xllama] prefill starting: 60 tokens
+[xllama] prefill done: 60 tokens in 78 ms
+[xllama] d3d12-phase phase=prefill calls=72 submissions=72 dispatches=94 wall_ms=59.895 quant_ms=3.427 record_ms=0.501 exec_wait_ms=54.499 gpu_ms=50.443 ts_valid=72 ts_missing=0
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=1 threads=64 cols=2-63 count=74 gpu_ms=34.543 ms_per=0.4668 weight_mib=108.6 columns=4440
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=1 threads=128 cols=2-63 count=15 gpu_ms=15.076 ms_per=1.0050 weight_mib=38.0 columns=900
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q6_K cpg=1 threads=64 cols=1 count=1 gpu_ms=0.445 ms_per=0.4454 weight_mib=52.5 columns=1
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=1 threads=64 cols=1 count=2 gpu_ms=0.051 ms_per=0.0257 weight_mib=5.1 columns=2
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=1 threads=128 cols=1 count=1 gpu_ms=0.029 ms_per=0.0287 weight_mib=2.5 columns=1
+[xllama] d3d12-dispatch phase=prefill op=get_rows type=q6_K cpg=1 threads=0 cols=2-63 count=1 gpu_ms=0.006 ms_per=0.0057 weight_mib=0.0 columns=60
+[xllama] d3d12-dispatch phase=prefill summary kinds=6 timed=94 missing=0 gpu_ms=50.150
+[xllama] d3d12-layer phase=prefill layer=0 op=mul_mat count=5 gpu_ms=3.386 wait_ms=0.345 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=prefill layer=1 op=mul_mat count=5 gpu_ms=3.387 wait_ms=0.206 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=prefill layer=2 op=mul_mat count=7 gpu_ms=3.111 wait_ms=0.335 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=prefill layer=3 op=mul_mat count=5 gpu_ms=3.459 wait_ms=0.198 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=prefill layer=4 op=mul_mat count=5 gpu_ms=3.289 wait_ms=0.233 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=prefill layer=5 op=mul_mat count=7 gpu_ms=3.097 wait_ms=0.243 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=prefill layer=6 op=mul_mat count=5 gpu_ms=3.319 wait_ms=0.225 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=prefill layer=7 op=mul_mat count=5 gpu_ms=3.389 wait_ms=0.188 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=prefill layer=8 op=mul_mat count=7 gpu_ms=3.201 wait_ms=0.289 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=prefill layer=9 op=mul_mat count=5 gpu_ms=3.272 wait_ms=0.236 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=prefill layer=10 op=mul_mat count=7 gpu_ms=3.114 wait_ms=0.260 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=prefill layer=11 op=mul_mat count=5 gpu_ms=3.466 wait_ms=0.195 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=prefill layer=12 op=mul_mat count=7 gpu_ms=3.097 wait_ms=0.234 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=prefill layer=13 op=mul_mat count=5 gpu_ms=3.266 wait_ms=0.213 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=prefill layer=14 op=mul_mat count=7 gpu_ms=3.172 wait_ms=0.254 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=prefill layer=15 op=mul_mat count=5 gpu_ms=0.673 wait_ms=0.198 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=prefill layer=unattributed op=get_rows count=1 gpu_ms=0.006 wait_ms=0.117 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=prefill layer=unattributed op=mul_mat count=1 gpu_ms=0.445 wait_ms=0.086 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=prefill summary rows=18 timed=94 missing=0 gpu_ms=50.150 wait_ms=4.056 wait_missing=0
+[xllama] d3d12-phase phase=decode calls=1152 submissions=1152 dispatches=1504 wall_ms=105.943 quant_ms=0.929 record_ms=3.408 exec_wait_ms=93.806 gpu_ms=38.288 ts_valid=1152 ts_missing=0
+[xllama] d3d12-dispatch phase=decode op=mul_mat type=q4_0 cpg=1 threads=64 cols=1 count=1216 gpu_ms=21.176 ms_per=0.0174 weight_mib=1818.0 columns=1216
+[xllama] d3d12-dispatch phase=decode op=mul_mat type=q4_0 cpg=1 threads=128 cols=1 count=256 gpu_ms=7.322 ms_per=0.0286 weight_mib=648.0 columns=256
+[xllama] d3d12-dispatch phase=decode op=mul_mat type=q6_K cpg=1 threads=64 cols=1 count=16 gpu_ms=6.525 ms_per=0.4078 weight_mib=840.0 columns=16
+[xllama] d3d12-dispatch phase=decode op=get_rows type=q6_K cpg=1 threads=0 cols=1 count=16 gpu_ms=0.064 ms_per=0.0040 weight_mib=0.0 columns=16
+[xllama] d3d12-dispatch phase=decode summary kinds=4 timed=1504 missing=0 gpu_ms=35.087
+[xllama] d3d12-layer phase=decode layer=0 op=mul_mat count=80 gpu_ms=1.764 wait_ms=2.898 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=decode layer=1 op=mul_mat count=80 gpu_ms=1.758 wait_ms=2.915 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=decode layer=2 op=mul_mat count=112 gpu_ms=1.838 wait_ms=3.683 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=decode layer=3 op=mul_mat count=80 gpu_ms=1.761 wait_ms=2.849 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=decode layer=4 op=mul_mat count=80 gpu_ms=1.759 wait_ms=3.177 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=decode layer=5 op=mul_mat count=112 gpu_ms=1.835 wait_ms=5.667 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=decode layer=6 op=mul_mat count=80 gpu_ms=1.754 wait_ms=3.713 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=decode layer=7 op=mul_mat count=80 gpu_ms=1.748 wait_ms=3.123 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=decode layer=8 op=mul_mat count=112 gpu_ms=1.827 wait_ms=3.676 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=decode layer=9 op=mul_mat count=80 gpu_ms=1.760 wait_ms=2.938 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=decode layer=10 op=mul_mat count=112 gpu_ms=1.825 wait_ms=3.545 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=decode layer=11 op=mul_mat count=80 gpu_ms=1.747 wait_ms=2.841 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=decode layer=12 op=mul_mat count=112 gpu_ms=1.811 wait_ms=3.579 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=decode layer=13 op=mul_mat count=80 gpu_ms=1.743 wait_ms=2.862 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=decode layer=14 op=mul_mat count=112 gpu_ms=1.822 wait_ms=3.594 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=decode layer=15 op=mul_mat count=80 gpu_ms=1.748 wait_ms=2.808 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=decode layer=unattributed op=get_rows count=16 gpu_ms=0.064 wait_ms=0.938 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=decode layer=unattributed op=mul_mat count=16 gpu_ms=6.525 wait_ms=0.713 gpu_missing=0 wait_missing=0
+[xllama] d3d12-layer phase=decode summary rows=18 timed=1504 missing=0 gpu_ms=35.087 wait_ms=55.518 wait_missing=0
+[xllama] done: load=326ms prompt=771.5 tok/s decode=117.2 tok/s peak=367MB drafted=0 spec_accept=0
+[llama] ~llama_context: D3D12_Host compute buffer size is  39.0181 MiB, matches expectation of  39.0181 MiB
+[llama] ~llama_context: D3D12_Host compute buffer size is   0.0000 MiB, matches expectation of   0.0000 MiB
+[xllama] d3d12: 1224 graph_compute calls, 1598 dispatches, 165.8 ms wall (88.7 ms GPU)
+[xllama] bench-result.csv written
+[xllama] headless bench: done, exiting

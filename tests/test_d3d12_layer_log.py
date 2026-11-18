@@ -5,6 +5,7 @@
 
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -118,6 +119,43 @@ class D3d12LayerLogTests(unittest.TestCase):
         self.assertIsNone(data[2]["gpu_ms"])
         self.assertEqual(data[0]["layer"], 3)
         self.assertEqual(data[3]["kind"], "summary")
+
+    def test_cli_csv_keeps_missing_as_a_word(self):
+        log = "\n".join([ROW, UNATTR, MISSING, SUMMARY, SUMMARY_MISSING]) + "\n"
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "xllama.log"
+            out = Path(temp) / "layers.csv"
+            path.write_text(log, encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT), "--csv", str(out), str(path)],
+                capture_output=True, text=True, check=False)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            text = out.read_text(encoding="utf-8")
+        self.assertEqual(
+            text,
+            "phase,layer,op,count,gpu_ms,wait_ms,gpu_missing,wait_missing\n"
+            "prefill,3,mul_mat,2,3.000,0.100,0,0\n"
+            "prefill,unattributed,get_rows,1,0.500,missing,0,1\n"
+            "decode,1,mul_mat,1,missing,missing,1,1\n",
+        )
+
+    def test_cli_csv_refuses_to_overwrite_the_log(self):
+        log = ROW + "\n"
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "xllama.log"
+            alias = Path(temp) / "alias.log"
+            path.write_text(log, encoding="utf-8")
+            os.link(path, alias)
+            same = subprocess.run(
+                [sys.executable, str(SCRIPT), "--csv", str(path), str(path)],
+                capture_output=True, text=True, check=False)
+            self.assertEqual(same.returncode, 2, same.stderr)
+            self.assertEqual(path.read_text(encoding="utf-8"), log)
+            linked = subprocess.run(
+                [sys.executable, str(SCRIPT), "--csv", str(alias), str(path)],
+                capture_output=True, text=True, check=False)
+            self.assertEqual(linked.returncode, 2, linked.stderr)
+            self.assertEqual(path.read_text(encoding="utf-8"), log)
 
 
 if __name__ == "__main__":
