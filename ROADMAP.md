@@ -807,9 +807,11 @@ Source/evidence discovery and the conditional 6–8 week stages are in the
    by 42 MB (350M), 50 MB (1.2B) and 122 MB (Coder-3B). These rows are a
    diagnostic and are not in `bench/benchmark-summary.json`
    ([evidence](docs/research/evidence/2026-11-18-d3d12-layer-overhead/README.md)).
-   #421 stays open for the operator-declared Series X point, for the
-   four-column Q4_0 shader question if #313 is reopened, and for a later
-   KV sidecar.
+   #421 stays open. This capture answers the Series S overhead and
+   working-set questions in the issue's 2026-11-16 checkpoint. Still open
+   there: the operator-declared Series X point. The four-column Q4_0 shader
+   question belongs with any reopen of #313. A KV sidecar is a later
+   proposal. The issue text is the rest of the acceptance list.
 2. **#422:** no new GPU prefill path to qualify. Operator-declared raw
    files from an independent Series X are in
    `bench/results/2026-11-16-series-x-422/` (#491). They are not project

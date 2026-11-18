@@ -54,9 +54,11 @@ shared opt-in on this package. Peak memory on the GPU arms is unchanged
 
 LFM2.5-350M was not in the 2026-11-16 pairs. Its decode ratio is tight across
 the four runs. Its prefill median, 0.971, mixes two recorded on-runs at about
-0.948 and 0.952 of the off median with two at about 0.990 and 0.993. The
-barrier is a larger share of a faster model, and that prefill cell is wider
-than the other two.
+0.948 and 0.952 of the off median with two at about 0.990 and 0.993, so that
+cell is wider than the other two. The on/off switch turns dispatch timing and
+the layer lines on together, so it does not isolate a barrier cost, and it
+does not explain the split. A larger barrier share on a faster model is a
+hypothesis for the lower decode ratio.
 
 ## Working set
 
@@ -68,8 +70,9 @@ One recorded run per arm, knob deleted. `gpu_mem_mb` is 0 on every CPU arm.
 | LFM2.5-1.2B |         811 |         861 |      +50 |           678 |
 | Coder-3B    |        2083 |        2205 |     +122 |          1851 |
 
-The host working set rises when layers move to the GPU. The host copy of the
-offloaded weights stays resident.
+The process peak is higher on the GPU arm for every model (42 MB, 50 MB,
+122 MB). This capture records that peak. It does not identify which
+allocations make it up.
 
 The Series S comment on #421 from 2026-11-16
 ([comment](https://github.com/gianlucamazza/xllama/issues/421#issuecomment-6916816628),
@@ -81,8 +84,10 @@ the roadmap is a different comment.
 ## Layer lines
 
 Each run in the log is sliced from its `bench model:` line to the next one.
-The last 20 starts of each model are this campaign, warmup included. All
-eight knob-on passes per model have `dispatch_timing=1` and `missing=0`:
+The last 20 starts of each model are this campaign, warmup included.
+`result.json` lists each start's timing state, row count and missing-field
+count. All eight knob-on passes per model have `dispatch_timing=1` and
+`missing=0`:
 36 data rows and 2 summaries for each LFM file (layers 0–15 plus
 `unattributed`, both phases), 76 data rows and 2 summaries for Coder-3B
 (layers 0–35 plus `unattributed`). The ten knob-off GPU passes per model have

@@ -67,9 +67,15 @@ causal diagnosis, temporal operator/layer attribution, overhead calibration and
 CSV/sidecar integration remain pending. Tensor capture does not measure
 operator execution time. C4 (#313/#414) remains stopped at control parity;
 routing qualification (#422) still depends on correctness and matched evidence.
-A later Series S measurement of the shared timing opt-in and the working set is in
+
+The paragraph above is the 2026-11-10 checkpoint. Later evidence covers two
+of its open items: per-layer lines in
+[2026-11-18-d3d12-layer](evidence/2026-11-18-d3d12-layer/README.md), and the
+shared timing opt-in plus a CPU/GPU working-set pair in
 [2026-11-18-d3d12-layer-overhead](evidence/2026-11-18-d3d12-layer-overhead/README.md).
-This draft does not restate those figures.
+The CSV sidecar for those lines is #493. This draft still does not restate
+the figures. Console control reproduction and the shader diagnosis stay
+outside that capture.
 
 ## Hypotheses and required experiments
 
