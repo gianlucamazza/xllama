@@ -41,7 +41,7 @@ You only need a terminal for the checksum step ([full guide](docs/install-releas
 2. In Dev Home → Remote Access Settings, enable **Device Portal** with a username and password, then open the URL it shows in a browser.
 3. From the [latest app release](https://github.com/gianlucamazza/xllama/releases/latest), download `xllama_*_x64.msix`, `xllama-test.cer`, `Microsoft.VCLibs.x64.14.00.appx`, `SHA256SUMS` and `release-validation.json`.
 4. Verify them: `sha256sum -c SHA256SUMS` (macOS: `shasum -a 256 -c SHA256SUMS`). Every line must print `OK`.
-5. In Device Portal → My games & apps, install the MSIX with `Microsoft.VCLibs.x64.14.00.appx` as its dependency.
+5. In Device Portal → My games & apps, sideload the MSIX with `Microsoft.VCLibs.x64.14.00.appx` as its dependency.
 6. Launch xllama from Dev Home. On first launch it downloads the default chat model LFM2.5-350M (~219 MB). The app bundles no model.
 
 > The browser steps follow Microsoft's documentation but have not yet been walked end to end on a console. If something doesn't match, [open an issue](https://github.com/gianlucamazza/xllama/issues).

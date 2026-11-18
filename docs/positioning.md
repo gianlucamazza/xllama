@@ -56,8 +56,11 @@ What that covers and what it does not:
   LAN API end to end (ten 1024-token generations). Before that change, their
   batches averaged about 35.4 to 38.8 tok/s. On-screen timing of one short
   31-token run was about 103 tok/s. Those are different measures from the
-  project's Series S benches; they are not compared here. The sideload guide
-  asks for the Game designation
+  project's Series S benches; they are not compared here.
+- **App designation.** With the App designation the app runs at full speed
+  for about ten seconds after launch and then at about 40 % of the Game
+  speed: the system caps an App's CPU. The remedy is the Game designation,
+  which the sideload guide asks for
   ([#457](https://github.com/gianlucamazza/xllama/issues/457)).
 
 ## Honest limits
