@@ -24,13 +24,13 @@ value read back from the device log on every run), per-position dumps via
 
 ## Reproduction of the morning result
 
-| Run | prompt_tokens | completion_tokens | finish | content SHA-256 |
-|---|---|---|---|---|
-| CPU 1 (knob "0") | 31 | 121 | stop | 923d4b39866d782a… |
-| CPU 2 (knob "0") | 31 | 121 | stop | 923d4b39866d782a… (identical) |
-| GPU 1 (knob deleted → catalogue 99) | 31 | 125 | stop | 658eda0ee24271b6… |
-| GPU 2 (knob deleted → catalogue 99) | 31 | 125 | stop | 658eda0ee24271b6… (identical) |
-| Final check (knob restored "0") | 31 | 121 | stop | 923d4b39866d782a… |
+| Run                                 | prompt_tokens | completion_tokens | finish | content SHA-256               |
+| ----------------------------------- | ------------- | ----------------- | ------ | ----------------------------- |
+| CPU 1 (knob "0")                    | 31            | 121               | stop   | 923d4b39866d782a…             |
+| CPU 2 (knob "0")                    | 31            | 121               | stop   | 923d4b39866d782a… (identical) |
+| GPU 1 (knob deleted → catalogue 99) | 31            | 125               | stop   | 658eda0ee24271b6…             |
+| GPU 2 (knob deleted → catalogue 99) | 31            | 125               | stop   | 658eda0ee24271b6… (identical) |
+| Final check (knob restored "0")     | 31            | 121               | stop   | 923d4b39866d782a…             |
 
 **The re-run reproduced the 121 vs 125 split exactly**, with each backend
 deterministic across repeats (byte-identical content within each arm).
@@ -94,18 +94,18 @@ the user prompt concatenated with the generated continuation, teacher-forced.
 At the position corresponding to the split (position 43 of the raw-context
 tokenization, predicting the split token), the two arms' rows are:
 
-| Rank | CPU logit | D3D12 logit | Token |
-|---|---|---|---|
-| 1 | 15.7324 | 15.7449 | " mur" (7843) |
-| 2 | 15.4889 | 15.4407 | " sigh" (64051) |
-| 3 | 15.2915 | 15.3083 | " pulse" (24037) |
-| 4 | 14.9317 | 14.9582 | " dance" (14105) |
-| 5 | 14.8275 | 14.6245 | " wh" (901) |
-| 6 | 14.3945 | 14.4497 | " motion" (9557) |
-| 7 | 14.1802 | 14.1401 | " breath" (8311) |
-| 8 | 14.0881 | 14.0646 | " embrace" (32000) |
-| 9 | 14.0666 | 14.2119 | " e" (821) |
-| 10 | 13.7123 | 13.6573 | " whisper" (64035) |
+| Rank | CPU logit | D3D12 logit | Token              |
+| ---- | --------- | ----------- | ------------------ |
+| 1    | 15.7324   | 15.7449     | " mur" (7843)      |
+| 2    | 15.4889   | 15.4407     | " sigh" (64051)    |
+| 3    | 15.2915   | 15.3083     | " pulse" (24037)   |
+| 4    | 14.9317   | 14.9582     | " dance" (14105)   |
+| 5    | 14.8275   | 14.6245     | " wh" (901)        |
+| 6    | 14.3945   | 14.4497     | " motion" (9557)   |
+| 7    | 14.1802   | 14.1401     | " breath" (8311)   |
+| 8    | 14.0881   | 14.0646     | " embrace" (32000) |
+| 9    | 14.0666   | 14.2119     | " e" (821)         |
+| 10   | 13.7123   | 13.6573     | " whisper" (64035) |
 
 Top-10 sets are identical (overlap 1.00); top-1 agrees (" mur" on both).
 **Logit gap (top-1 − top-2) at the split position: 0.2434 on CPU, 0.3041 on
