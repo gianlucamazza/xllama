@@ -250,7 +250,38 @@ request Game metadata**; do not quote Game benches as App. CSV:
 `bench/results/store-app-vs-game-2026-08-21.csv`.
 
 Historical note: GPU budget **3801 MB** and published benchmarks are **Game**
-numbers (`uwp-constraints.md` §5). App-mode numbers live only in that CSV.
+numbers (`uwp-constraints.md` §5). The App-mode numbers from that spike live
+in that CSV.
+
+**Remeasure (2026-11-18, package 1.7.0.1667, `lfm25-350m`, UI process with
+`api.flag`).** The 2026-08-21 verdict above stays. This run asks only whether,
+more than 20 seconds after launch, default CPU chat on a Series S stays near
+Game. Same body both arms: `bench/prompts/standard-512.txt`, `temperature` 0,
+`max_tokens` 128, `seed` 42. `[resources]` was `app_memory_limit_mb` 1024 on
+the App arm and 5120 on the Game arm. The first request went out 25 seconds
+after that line was observed (host clock about 29 seconds after the console
+stamp). One warmup was dropped. Both arms prefilled 277 tokens and stopped at
+103 (end of generation), and the completion text matched, so the lengths
+match. The llama session path logs prefill time and a decode checkpoint at 64
+tokens. It does not log a full-generation decode rate, process peak, GPU
+budget, or ramceil, so those columns are `missing`. `decode_tps` in the CSV is
+that 64-token checkpoint, not the 2026-08-21 full-generation rate.
+
+| Arm        | Prefill tok/s | 64-token decode tok/s |
+| ---------- | ------------- | --------------------- |
+| App run 2  | 266.68        | 27.55                 |
+| App run 3  | 264.84        | 27.85                 |
+| Game run 2 | 378.05        | 97.56                 |
+| Game run 3 | 378.78        | 97.86                 |
+
+Mean of the two recorded runs: App prefill is 70 % of Game (265.76 / 378.42).
+The 64-token decode checkpoint is 28 % of Game (27.70 / 97.71). Working set at
+context creation was 336 MB (App) and 337 MB (Game). That reading is current
+working set, not a peak, and it does not separate the arms. Default CPU chat
+after the launch window does not stay near Game speed. GPU budget was not
+logged on this CPU path, so the Game-metadata decision above is unchanged.
+CSV: `bench/results/store-app-vs-game-2026-11-18.csv`. Not in
+`bench/benchmark-summary.json`.
 
 ---
 
