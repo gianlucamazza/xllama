@@ -1,0 +1,18 @@
+23:31:17.099 [resources] expanded=0 exclusive_cpus=6 logical_cpus=8 app_memory_limit_mb=5120
+23:31:29.770 [resources] expanded=0 exclusive_cpus=6 logical_cpus=8 app_memory_limit_mb=5120
+[xllama] gguf gpu layers: tied token_embd in D3D12_Weights
+[xllama] gguf gpu layers: 99 on D3D12
+[llama] load_tensors: offloaded 17/17 layers to GPU
+[xllama] gguf gpu layers: tied token_embd in D3D12_Weights
+[xllama] gguf gpu layers: 99 on D3D12
+[llama] load_tensors: offloaded 17/17 layers to GPU
+23:31:40.010 [resources] expanded=0 exclusive_cpus=6 logical_cpus=8 app_memory_limit_mb=5120
+[xllama] logits.flag detected -> headless logit-parity dump
+[xllama] headless logits: starting
+[xllama] logits model: lfm25-1.2b-instruct
+[xllama] logits prompt: <|im_start|>system
+[xllama] prompt tokens: 51
+[xllama] logits dumped to Q:\Users\UserMgr1\AppData\Local\Packages\GianlucaMazza.xllama_pj67f1fcj4n14\LocalState\logits.bin
+[xllama] logits: requested_gpu_layers=0 resolved_gpu_layers=0
+[xllama] logits dump OK
+[xllama] headless logits: done, exiting

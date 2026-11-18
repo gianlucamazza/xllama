@@ -1,0 +1,17 @@
+{
+  "receipt": "Device Portal GET /api/os/info, captured 2026-11-16 (campaign night)",
+  "device_family_observed": "Xbox Series X",
+  "fields": {
+    "Platform": "Xbox Series X",
+    "OsVersion": "26100.9662.amd64fre.xb_flt_2610ge.261104-2200",
+    "OsEdition": "SystemOS",
+    "OsEditionId": 192,
+    "Language": "en-US"
+  },
+  "redacted": [
+    "ComputerName (device name)",
+    "credentials",
+    "serial numbers",
+    "network addresses"
+  ]
+}

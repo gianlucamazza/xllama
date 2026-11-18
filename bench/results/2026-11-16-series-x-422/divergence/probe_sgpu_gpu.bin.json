@@ -1,0 +1,9 @@
+{
+  "model": "Q:\\Users\\UserMgr1\\AppData\\Local\\Packages\\GianlucaMazza.xllama_pj67f1fcj4n14\\LocalState\\models\\lfm25-1.2b-instruct\\LFM2.5-1.2B-Instruct-QAD-Q4_0.gguf",
+  "prompt": "Write a short paragraph about the sea at dawn.The sea at dawn is a canvas of quiet transformation, where the horizon blushes with the first light of day. Waves gently caress the shore, their rhythmic sighs echoing the stillness of the morning. The water, still damp from the night, shimmers like a mirror, reflecting the pale hues of the sky. A faint mist clings to the surface, blurring the line between land and sea, while the distant call of a gull adds a melodic note to the serene scene. It’s a moment of delicate balance, where the world awakens in soft whispers.",
+  "backend": "llama.cpp",
+  "vocab_size": 65536,
+  "greedy": true,
+  "top1_id": 7,
+  "top1_piece": ""
+}

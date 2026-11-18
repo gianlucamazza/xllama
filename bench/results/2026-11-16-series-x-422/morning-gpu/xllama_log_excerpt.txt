@@ -1,0 +1,62 @@
+=== [resources] lines, full log copy taken before the runs (23,071 lines, sha256 58c5e9792fe12a20ba0206c47cef1c27f0513ec8edfb4f7e57bebdb40453f736) ===
+11:29:05.582 [resources] expanded=0 exclusive_cpus=6 logical_cpus=8 app_memory_limit_mb=1024
+11:30:46.346 [resources] expanded=0 exclusive_cpus=6 logical_cpus=8 app_memory_limit_mb=5120
+
+=== 1.2B load under the standing override (0), CPU control state (log copy after the control batch, 23,117 lines, sha256 9876bec90d64216f5464a1b5f09477efc4b2dac652cfddf2f61e4d16453a2cdc) ===
+23073: [llama] load_tensors:          CPU model buffer size =   105.50 MiB
+23074: [llama] load_tensors:   CPU_REPACK model buffer size =   555.75 MiB
+23075: [xllama] ws after model load: 767 MB
+23076: [xllama] Session: GGUF model loaded via llama.cpp (persistent)
+23077: [llama] llama_context:        CPU  output buffer size =     0.25 MiB
+23078: [llama] llama_kv_cache:        CPU KV buffer size =    24.00 MiB
+23079: [llama] llama_memory_recurrent:        CPU RS buffer size =     0.16 MiB
+23080: [llama] sched_reserve:        CPU compute buffer size =   150.02 MiB
+23081: [xllama] ws after context: 792 MB
+
+=== 1.2B load with the override lifted, catalogue gpu_layers 99 (log copy after the lift, 23,185 lines, sha256 5702a1020619c626294dcce4f9ec58f5c148e31a83be36eb5a5203a3ea1855c2) ===
+23136: [xllama] ws before d3d12: 102 MB
+23137: [xllama] d3d12: dispatch_timing=0
+23138: [llama] register_backend: registered backend D3D12 (1 devices)
+23139: [llama] register_device: registered device D3D12 (xllama D3D12 compute (Q4_0/Q4_K/Q6_K matmul, Q6_K get_rows))
+23140: [xllama] gguf gpu layers: tied token_embd in D3D12_Weights
+23141: [xllama] ws after d3d12 init: 123 MB
+23142: [xllama] gguf gpu layers: 99 on D3D12
+23143: [llama] llama_model_loader: mmap is not supported on this platform
+23144: [llama] llama_prepare_model_devices: using device D3D12 (xllama D3D12 compute (Q4_0/Q4_K/Q6_K matmul, Q6_K get_rows)) (unknown id) - 4121 MiB free
+23145: [llama] load_tensors: layer   0 assigned to device D3D12, is_swa = 0
+... (lines 23146-23160 elided: layer 1 through layer 15 assigned to device D3D12, same shape as the lines either side) ...
+23161: [llama] load_tensors: layer  16 assigned to device D3D12, is_swa = 0
+23162: [llama] tensor token_embd.weight (105 MiB q6_K) buffer type overridden to D3D12_Weights
+23163: [llama] tensor token_embd.weight (105 MiB q6_K) buffer type overridden to D3D12_Weights
+23164: [llama] done_getting_tensors: tensor 'token_embd.weight' (q6_K) (and 148 others) cannot be used with preferred buffer type CPU_REPACK, using D3D12_Weights instead
+23165: [xllama] d3d12: D3D12_Weights buffer 660.8 MiB
+23166: [llama] load_tensors: offloading output layer to GPU
+23167: [llama] load_tensors: offloading 15 repeating layers to GPU
+23168: [llama] load_tensors: offloaded 17/17 layers to GPU
+23169: [llama] load_tensors:          CPU model buffer size =     0.50 MiB
+23170: [llama] load_tensors: D3D12_Weights model buffer size =   660.77 MiB
+23171: [llama] load_all_data: buffer type D3D12_Weights is not the default buffer type for device D3D12 for async uploads
+23172: [xllama] ws after model load: 792 MB
+23173: [xllama] Session: GGUF model loaded via llama.cpp (persistent)
+23174: [llama] llama_context: D3D12_Host  output buffer size =     0.25 MiB
+23175: [llama] llama_kv_cache:        CPU KV buffer size =    24.00 MiB
+23176: [llama] llama_memory_recurrent:        CPU RS buffer size =     0.16 MiB
+23177: [xllama] d3d12: D3D12_Host buffer 70.0 MiB
+23178: [llama] sched_reserve: D3D12_Host compute buffer size =    70.02 MiB
+23179: [xllama] ws after context: 888 MB
+
+=== 350M witness load with the override lifted (log copy after the witness batch, 23,296 lines, sha256 0b4f4b4b23676a326d989e2997d59ce8499bf5e662529b3cff03561c8b4159ce) ===
+23250: [llama] load_tensors: offloading 0 repeating layers to GPU
+23251: [llama] load_tensors: offloaded 0/17 layers to GPU
+23252: [llama] load_tensors:          CPU model buffer size =    52.75 MiB
+23253: [llama] load_tensors:   CPU_REPACK model buffer size =   154.12 MiB
+23254: [xllama] ws after model load: 342 MB
+23255: [xllama] Session: GGUF model loaded via llama.cpp (persistent)
+
+=== 1.2B load after the override was restored to 0 (final log copy, 23,315 lines, sha256 a7fa8cb9abb8a45bac0ea3d11935dc8bc26082892aeaf84c401556146db1725e) ===
+23299: [llama] load_tensors: offloading 0 repeating layers to GPU
+23300: [llama] load_tensors: offloaded 0/17 layers to GPU
+23301: [llama] load_tensors:          CPU model buffer size =   105.50 MiB
+23302: [llama] load_tensors:   CPU_REPACK model buffer size =   555.75 MiB
+23303: [xllama] ws after model load: 787 MB
+23304: [xllama] Session: GGUF model loaded via llama.cpp (persistent)

@@ -1,0 +1,4 @@
+model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,run_index,prefill_ms,ttft_ms
+lfm25-1.2b-instruct,Q4_0,d3d12,2048,6,441.55,77.68,860,3255,678,4147,1000,512,0,xbox-series-x-declared-g99-noeog,2026-11-16T22:28:33Z,2,2264.8,2265.7
+lfm25-1.2b-instruct,Q4_0,d3d12,2048,6,441.27,77.82,860,3272,678,4147,1000,512,0,xbox-series-x-declared-g99-noeog,2026-11-16T22:29:01Z,3,2266.2,2267.1
+lfm25-1.2b-instruct,Q4_0,d3d12,2048,6,443.55,77.99,860,3244,678,4147,1000,512,0,xbox-series-x-declared-g99-noeog,2026-11-16T22:29:29Z,4,2254.6,2255.3
