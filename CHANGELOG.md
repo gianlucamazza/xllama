@@ -24,7 +24,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   clocks are different domains. Missing timestamps print as `missing`.
   Nodes with no layer go in `unattributed`. Off, the backend path is
   unchanged. `scripts/parse_d3d12_layer_log.py --csv` writes those rows to
-  a sidecar. A missing timestamp stays the word `missing`. The bench CSV
+  a sidecar, one row per data line, and refuses to overwrite the log it
+  read. A missing timestamp stays the word `missing`. The bench CSV
   schema is unchanged. One Series S run of package 1.7.0.1667
   (`lfm25-350m`, knob on) produced the lines for layers 0–15 and
   `unattributed`, with no timestamp left missing

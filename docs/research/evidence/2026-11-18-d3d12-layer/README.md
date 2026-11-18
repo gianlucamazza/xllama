@@ -33,11 +33,18 @@ context of the layer lines, not a replacement for a published 350M figure.
 ## What the lines show
 
 `log-excerpt.txt` is the run, from the headless bench start through
-`headless bench: done`. `layer-rows.csv` is
-`scripts/parse_d3d12_layer_log.py --csv` on that excerpt. The bench CSV schema
-is unchanged. Summary lines stay out of the sidecar. Each sidecar cell is
-printed to three decimal places, so a sum of cells can differ from the log
-summary by about 0.001 ms.
+`headless bench: done`. `layer-rows.csv` is that excerpt through:
+
+```bash
+python3 scripts/parse_d3d12_layer_log.py --csv \
+  docs/research/evidence/2026-11-18-d3d12-layer/layer-rows.csv \
+  docs/research/evidence/2026-11-18-d3d12-layer/log-excerpt.txt
+```
+
+The bench CSV schema is unchanged. Summary lines stay out of the sidecar.
+`gpu_ms` and `wait_ms` are printed to three decimal places, and that rounding
+adds up across rows. On this decode the sidecar `gpu_ms` cells sum to 35.089
+ms and the log summary says 35.087 ms.
 
 Both phases emitted layers 0–15 for `mul_mat`, plus `unattributed` rows for
 `get_rows` and `mul_mat` (the embedding lookup and the tied output matrix).

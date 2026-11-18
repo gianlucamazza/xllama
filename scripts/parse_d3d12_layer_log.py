@@ -12,9 +12,12 @@ Usage:
   python3 scripts/parse_d3d12_layer_log.py --json [xllama.log]
   python3 scripts/parse_d3d12_layer_log.py --csv sidecar.csv [xllama.log]
 
-`--csv` writes one data row per phase × layer × op. A missing timestamp
-stays the word `missing`. Summary lines are checked by the reader and are
-not copied into the CSV. The bench CSV schema is unchanged.
+`--csv` copies one row for each data line, in log order. It does not group
+rows or add a run id, so the same phase, layer and op can appear twice when
+the log holds two runs. A missing timestamp stays the word `missing`.
+Summary lines are checked by the reader and are not copied into the CSV.
+The bench CSV schema is unchanged. The sidecar path must be a different
+file from the log: the script refuses to overwrite the file it just read.
 
 Reads stdin when no file is given. Lines that are not d3d12-layer records
 are ignored.
@@ -142,6 +145,19 @@ def ms_cell(value: Optional[float]) -> str:
     return f"{value:.3f}"
 
 
+def same_file(left: Path, right: Path) -> bool:
+    """True when both paths name one inode, including a hard link or a symlink."""
+    try:
+        if left.resolve() == right.resolve():
+            return True
+    except OSError:
+        return False
+    try:
+        return left.samefile(right)
+    except OSError:
+        return False
+
+
 def write_layer_csv(records: list[dict[str, Any]], path: Path) -> int:
     rows = [rec for rec in records if rec["kind"] == "row"]
     if not rows:
@@ -181,6 +197,9 @@ def main(argv: Optional[list[str]] = None) -> int:
         text = Path(args.log).read_text(encoding="utf-8")
     records = parse_d3d12_layer_log(text)
     if args.csv:
+        if args.log is not None and same_file(Path(args.log), args.csv):
+            print("parse_d3d12_layer_log: --csv would overwrite the log", file=sys.stderr)
+            return 2
         try:
             count = write_layer_csv(records, args.csv)
         except ValueError as exc:

@@ -5,6 +5,7 @@
 
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -130,12 +131,31 @@ class D3d12LayerLogTests(unittest.TestCase):
                 capture_output=True, text=True, check=False)
             self.assertEqual(result.returncode, 0, result.stderr)
             text = out.read_text(encoding="utf-8")
-        self.assertTrue(text.startswith(
-            "phase,layer,op,count,gpu_ms,wait_ms,gpu_missing,wait_missing\n"))
-        self.assertIn("prefill,3,mul_mat,2,3.000,0.100,0,0\n", text)
-        self.assertIn("prefill,unattributed,get_rows,1,0.500,missing,0,1\n", text)
-        self.assertIn("decode,1,mul_mat,1,missing,missing,1,1\n", text)
-        self.assertNotIn("summary", text)
+        self.assertEqual(
+            text,
+            "phase,layer,op,count,gpu_ms,wait_ms,gpu_missing,wait_missing\n"
+            "prefill,3,mul_mat,2,3.000,0.100,0,0\n"
+            "prefill,unattributed,get_rows,1,0.500,missing,0,1\n"
+            "decode,1,mul_mat,1,missing,missing,1,1\n",
+        )
+
+    def test_cli_csv_refuses_to_overwrite_the_log(self):
+        log = ROW + "\n"
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "xllama.log"
+            alias = Path(temp) / "alias.log"
+            path.write_text(log, encoding="utf-8")
+            os.link(path, alias)
+            same = subprocess.run(
+                [sys.executable, str(SCRIPT), "--csv", str(path), str(path)],
+                capture_output=True, text=True, check=False)
+            self.assertEqual(same.returncode, 2, same.stderr)
+            self.assertEqual(path.read_text(encoding="utf-8"), log)
+            linked = subprocess.run(
+                [sys.executable, str(SCRIPT), "--csv", str(alias), str(path)],
+                capture_output=True, text=True, check=False)
+            self.assertEqual(linked.returncode, 2, linked.stderr)
+            self.assertEqual(path.read_text(encoding="utf-8"), log)
 
 
 if __name__ == "__main__":
