@@ -1,7 +1,7 @@
 # bench/
 
 Benchmark suite for xllama. Results are stored as CSV files in `results/`.
-Tested and measured on Series S. Not yet tested on Series X.
+Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester.
 
 ## Single source of truth
 
@@ -144,8 +144,10 @@ The manifest records `hardware_identity_source: operator-declared` and
 actual device model and exact installed package before interpreting any result
 as Series X evidence. This change does not establish hardware validation.
 Other XAB workloads are blocked under the Series X profile until their identity
-paths are instrumented. Existing probe and KV scripts are outside this text
-identity contract and must not be used as Series X evidence without review.
+paths are qualified. The direct KV driver also uses explicit hardware labels,
+but does not implement the text harness's echo validation or manifest contract.
+Existing probes remain outside this identity contract. New labels alone do not
+establish console validation or admit results as Series X evidence.
 
 Direct text-harness callers must now pass the hardware declaration. The
 Series S prompt sweep, speculative-decoding campaign and fp16 external-data
@@ -184,7 +186,7 @@ source ~/.config/xllama/xbox-env
 This produced the sweep behind the 1550-token routing threshold and the
 pathological DirectML band documented in `docs/uwp-constraints.md` §5b.
 
-### Xbox Series S — multi-turn TTFT (KV-cache reuse, Stage 2b)
+### Xbox — multi-turn TTFT (KV-cache reuse, Stage 2b)
 
 Measures the KV-reuse win: turn-2 prefill **with reuse** (append only the new
 turn) vs the **cold** baseline (full re-prefill of the 2-turn context), on one
@@ -198,8 +200,23 @@ the manual `curl` recipe it replaced is no longer needed:
 ```bash
 source ~/.config/xllama/xbox-env
 ./scripts/bench-xbox-kv.sh smollm2-360m-cpu-int4 \
-  --prompt bench/prompts/standard-512.txt --runs 2 --out bench/results/my-kv.csv
+  --hardware xbox-series-s --prompt bench/prompts/standard-512.txt \
+  --runs 2 --out bench/results/my-kv.csv
 ```
+
+The driver requires `--hardware xbox-series-s|xbox-series-x` (or
+`XLLAMA_BENCH_HARDWARE`). It uploads `bench_hardware.txt` and
+`bench_gpu_layers.txt`; `--gpu-layers N` requests GGUF offload (default `0`,
+CPU). The KV session receives that layer count, and its CSV host uses the shared
+`-declared` hardware label plus `-gN` for a positive GPU request. This is an
+operator declaration and requested configuration, not detected hardware or
+proof of GPU execution. Missing/invalid manual hardware declarations produce
+`xbox-unknown`. Both invocation-owned knobs are removed on normal exit; after
+a killed harness, remove them before a manual run. Use `--dry-run` to inspect
+these settings without console credentials or network requests.
+
+This extends the previously Series S-only KV driver. XAB's Series X profile
+remains text-only pending separate KV qualification. Historical CSVs are unchanged.
 
 Note `bench-xbox-ort.sh` deletes `bench_turns.txt` before every run, so a stale
 one cannot hijack a single-turn bench into this mode.
@@ -240,6 +257,31 @@ wrong answer that contains the required tokens can pass. Review found one case
 followed by a full re-run (`results/2026-09-30-h9-rescore.jsonl`). Any further
 tightening changes the task definition in `eval/phase7-h9.json` and lands with a
 full re-measurement. Recorded JSONL rows are never edited.
+
+### Xbox Series S — paired A/B campaigns
+
+For a change that one LocalState knob switches on or off (the #313
+four-column kernel, `d3d12-prefill-columns.txt`), `scripts/bench-paired-knob.sh`
+runs matched pairs of `bench-xbox-ort.sh` invocations: arm A without the knob,
+arm B with it, AB for odd pairs and BA for even ones, one dropped warmup per
+arm. After each arm it checks the lines the app log gained during that arm
+against `--expect-a/-b` and `--forbid-a/-b` regexes, so an arm that ran the
+wrong code path stops the campaign. Failed arms go to `ledger.jsonl` and are
+never replaced.
+
+```bash
+./scripts/bench-paired-knob.sh --model lfm25-1.2b-instruct --prompt bench/prompts/long-1k.txt \
+  --pairs 20 --knob d3d12-prefill-columns.txt --value 4 --out-dir bench/results/<campaign>/<cell> \
+  --expect-a 'prefill_columns=1' --expect-b 'prefill_columns=4' \
+  --hardware xbox-series-s --gpu-layers 99 --ignore-eog --n-predict 128
+python3 scripts/paired-bench-summary.py bench/results/<campaign>/<cell> --gates prefill,decode,ttft,peak
+```
+
+The summary gives each gate's median paired ratio (or memory delta) with a
+paired percentile bootstrap 95 % interval and the preregistered margins of
+#313; a gate whose interval crosses its margin is inconclusive. Freeze the
+manifest before the first cell runs. First campaign:
+[`docs/research/evidence/2026-11-16-c4-performance/`](../docs/research/evidence/2026-11-16-c4-performance/README.md).
 
 ### Linux (manual)
 
@@ -311,6 +353,7 @@ of those explains what it means.
 | `results/phase15-spec-vocab.csv`                     | 15    | none (vocab-only model load)             | H3 precondition: `common_speculative_are_compatible` (`common/speculative.cpp:64`, which **throws** on failure) replicated over 5 catalogue pairs on host. **`qwen25-coder-3b` ← `qwen25-coder-0.5b` PASSES**, so W2 proceeds. Two negatives kept: Qwen3-1.7B vs Coder share a vocab **size** but differ in 4 token texts, and LFM2.5-8B-A1B carries a 128000-token vocab against LFM2.5-350M's 65536 — H2 and H3 do not compose on the MoE                                                                                                                                                                                                                                                                                                                      |
 | `results/phase15-spec-pregate.csv`                   | 15    | llama.cpp CPU (host, throttled)          | H3 pre-gate: acceptance rate and drafting frequency for both speculative variants, two prompt regimes (`spec-code-edit`, `spec-chat-open`), k=2/4. Host timings in the file are **throttled and unusable** — only `accept_pct` and `n_drafted` transfer, being properties of the pair and the prompt. Combined with the console cost model by `scripts/analyze-spec-pregate.py`: **draft model 1.43x on code but 0.81x on chat** (0.67x at k=4), **prompt lookup 1.53x on code and 1.00x on chat** — it drafts 10 tokens where the draft model drafts 140. Verdict: draft model rejected, draft-free variant proceeds. Companion `…-pregate-batched.txt` is the `llama-batched-bench` curve showing T(n) linear over n=1..8, i.e. no free plateau at small batch |
 | `results/phase15-moe-console.csv`                    | 15    | llama.cpp CPU (Series S)                 | **H2 FAIL**, measured on MSIX 1.5.2.798: `lfm25-8b-a1b` UD-IQ3_S decodes **14.50 tok/s** against the dense `qwen25-coder-3b`'s 14.0, at **3553 MiB** peak (+1437). The sparse-activation premise held — ~631 MB read/token against 645 predicted — but the cost moves off bandwidth, and the model reasons every turn (102 completion tokens to answer "Roma", 401 for two sentences), so perceived latency is ~4× worse. H9 was not run: its tasks cap generation at 16-80 tokens, which a reasoning model cannot clear. Verdict and the two unseparated causes (i-quant dequant vs expert gather) in `docs/phase7-hypotheses.md` §H2                                                                                                                           |
+| `results/2026-11-16-moe-8b/`                         | 15    | llama.cpp CPU (Series S, t6)             | H2 checkpoint re-measured on CI 1.7.0.1652 with a fixed 512-token decode: `lfm25-8b-a1b` UD-IQ3_S **14.42 tok/s** decode (H2: 14.50), prefill 61.25 tok/s (H2: 18.97), 3560 MiB. The Q4_K_M file loads (5004 MB) but its compute buffer does not fit the app limit: four recorded timeouts, runs only on the streamed path ([README](results/2026-11-16-moe-8b/README.md)).                                                                                                                                                                                                                                                                                                                                                                                      |
 | `results/phase15-spec-w2-console.csv`                | 15    | llama.cpp CPU (Series S)                 | W2 prompt-lookup A/B (`qwen25-coder-3b`, CI 1.5.2.920): code **1.04× FAIL** ≥1.4×; chat ~0.99×. Opt-in only. SSOT `docs/phase15-re-opt.md`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `results/phase15-gpubw.csv`                          | 15    | D3D12 STREAM (Series S)                  | W3 M6 **PASS**: **119.07 GB/s** read, 1 GiB, checksum_ok (CI 1.5.2.853) ≥100 kill → H6 eng motivated then parked after H6.1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `results/phase16-gguf.csv`                           | 16    | llama.cpp CPU (Series S, t6)             | Phase 16 model-scouting T3 (2026-08-10, MSIX 1.5.4.887, `n_ctx` 2048, `n_predict` 96, 3 recorded `run_index` each): `lfm25-230m` **PASS** 119.17 tok/s @ 241 MiB (the shipped LiquidAI build; the `unsloth` build's 119.77 is in `phase16-quantiser-ab.csv`); `qwen35-2b` FAIL 19.25 @ 1421 MiB; `maincoder-1b` FAIL 33.49 @ 843 MiB. Also the evidence that the `weights × 1.12` peak factor **under-predicts** (−4% to −47%) — overhead is a ~95 MB floor plus an arch-dependent KV term. Cards and verdicts: `docs/phase16-model-scouting.md`                                                                                                                                                                                                                 |

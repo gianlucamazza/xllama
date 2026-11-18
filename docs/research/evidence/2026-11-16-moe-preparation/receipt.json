@@ -1,0 +1,62 @@
+{
+  "schema": "xllama-moe-preparation-receipt-v1",
+  "date": "2026-11-16",
+  "scope": "independent cache/tool checks only; no native graph, checkpoint or device execution",
+  "source": {
+    "upstream_base": "87d5a4635abca01a3b484e1488a2a9d043de9be2",
+    "contributor_commit": "61bf63ad541510a03a36993e60ec204f98bc0b3e",
+    "llama_commit": "d81235049384534c167caea52b85a694f6103d14",
+    "patch_lock_sha256": "921fc2a5d9724fc28851146266fc67b7627e54a45c8a10775f30c52eb2a20ebe",
+    "verified_patch_count": 17,
+    "cache_header_sha256": "a5187e1e42a2f135e67702f6f2c50472f1f327bb0fcde4d3cd04339c85236daf",
+    "ggml_common_sha256": "0061131b615c5721fc88a78feeb22c1f8c450f1c2646a317d80796a653bf595c",
+    "harness_sha256": "c3ffa804a7b90e586b5c2fc4205af2ea8eb138859f85004ca3dcada1dca52620",
+    "parity_preparation_sha256": "d8ff9ee8f5cca54726e8191b67eecce5a3ac56ec53db7119ac473d6fe8fb46b8"
+  },
+  "checks": {
+    "cache_contract": {
+      "groups_passed": 8,
+      "groups_total": 8,
+      "sanitizers": ["address", "undefined"],
+      "leak_detection": false,
+      "leak_detection_limitation": "initial LeakSanitizer execution failed under traced runtime",
+      "compiler": "g++ (Debian 14.2.0-19) 14.2.0",
+      "flags": [
+        "-std=c++17",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-g"
+      ]
+    },
+    "short_read_mutation": {
+      "exit_code": 1,
+      "expected_failure": "FAIL short_read: expected refusal"
+    },
+    "existing_python_comparator_suite": {
+      "tests": 36,
+      "passed": true,
+      "command": "python3 -m unittest tests/test_compare_logits.py tests/test_compare_tensors.py tests/test_control_parity.py"
+    },
+    "synthetic_equal_logits": {
+      "exit_code": 0
+    },
+    "synthetic_changed_logits": {
+      "exit_code": 1,
+      "top_token_still_matches": true
+    },
+    "prompt_hashes_and_source_bindings": {
+      "passed": true
+    }
+  },
+  "pending": [
+    "real checkpoint numerical parity",
+    "native loader/worker execution",
+    "Windows held-file I/O",
+    "signed artifact selection",
+    "independent console reproduction",
+    "GPU execution and correctness"
+  ]
+}

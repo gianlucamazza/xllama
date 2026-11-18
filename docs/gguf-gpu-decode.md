@@ -8,6 +8,18 @@
 > [benchmarks.md](benchmarks.md). Platform limits are only in
 > [uwp-constraints.md](uwp-constraints.md).
 
+**Status (2026-11-16):** the GPU path is verified correct on both gate
+models under the amended ADR 0010: every weight product matches an exact
+reference and the output is as close to the CPU's as another CPU build's
+([LFM2.5-1.2B](research/evidence/2026-11-16-adr0010-control-lfm25-1.2b/README.md),
+[Coder-3B](research/evidence/2026-11-15-adr0010-control-2/README.md)). The
+four-column prefill kernel (#414) is correct (output byte-identical) but
+failed its preregistered performance campaign: 1.5 times faster prefill on
+Coder-3B, 15 % slower on LFM2.5-1.2B
+([campaign](research/evidence/2026-11-16-c4-performance/README.md)). It is
+not promoted: #414 is closed without merge and its branch is kept. The dated sections below record each step as it happened; a
+"stay stopped" in an earlier section is superseded by the later ones.
+
 **Status (2026-10-25):** the shipping catalogue GPU default is LFM2.5-1.2B.
 Qwen2.5-Coder-1.5B (the coding option) runs on the CPU; it has no D2-r2
 receipt. Qwen2.5-Coder-3B is not in the catalogue (benchmark; model under a
@@ -617,6 +629,16 @@ registry flow. Do not modify frozen receipts or promote code without actual
 hardware evidence. No optimization or performance result is claimed by this
 preregistration.
 
+**Amendment, 2026-11-16, before the paired measurements**
+([manifest](research/evidence/2026-11-16-c4-performance/README.md)): "logit
+parity" above means the amended ADR 0010 control, which both models pass; no
+power or thermal instrumentation is used and the memory gate applies to the
+app's sampled peak; the prompt sizes are the existing bench prompts (about 300
+and 1,000 device tokens, plus the short prompt); decode is a fixed 128 tokens.
+Margins, pairs, ordering, bootstrap and the per-cell rule are unchanged.
+`scripts/bench-paired-knob.sh` runs the pairs and
+`scripts/paired-bench-summary.py` computes each cell's verdict.
+
 ### 2026-11-08 preflight — control logit failure
 
 The preregistered candidate attempt is stopped before H9/performance acceptance.
@@ -752,6 +774,122 @@ wall, 2421 ms CPU q8 quantization, 8 ms command recording, 8990 ms execute
 through fence and 8933 ms GPU, with all 433 timestamp pairs valid. This is one
 diagnostic run of the logit probe, not a benchmark row.
 
+### 2026-11-15 control under ADR 0010: FAIL
+
+The first control judged with `scripts/control-parity.py`, on a declaration
+committed before its GPU arm
+([evidence](research/evidence/2026-11-15-adr0010-control/README.md)): Coder-3B
+Q4_K_M, package 1.7.0.1563, four new prompts of 40 to 713 tokens.
+
+- **Part 2 fails.** The GPU arm's largest maximum error is 0.9865 against a
+  CPU reference spread of 0.7201 (x1.370, limit x1.22), and one prompt's top
+  token differs. Its largest NMSE is inside the spread (x0.978).
+- **Part 1 finds no kernel error.** All 42 first-layer product records agree
+  with the CPU to 2.9e-12 NMSE or better on the columns whose operand is the
+  same (limit 1e-9). One record on the 40-token prompt has 0.725 of its
+  columns comparable against a required 0.75, so part 1 fails as declared.
+- The CPU-only pairs measured for the declaration all exceed the frozen
+  gate's 0.5 and 1e-3 on these prompts.
+
+#313 and #414 stay stopped. The result does not locate the cause of the wider
+maximum error: part 1 covers the first layer only.
+
+### 2026-11-15 kernel reference check: the GPU products are correct
+
+A diagnostic after the failed control, not a control
+([evidence](research/evidence/2026-11-15-gpu-kernel-reference-check/README.md)).
+`scripts/check-matmul-reference.py` compares each captured weight `MUL_MAT`
+with a float64 product of the dequantized weight and the arm's own q8_K
+operand, so it needs no second arm and covers every token column.
+
+- All 252 weight products of the 36 layers (40-token prompt) and the 84 of
+  layers 0 to 5 (713-token prompt) match the reference on both arms: CPU arm
+  2.3e-12 NMSE at worst, GPU arm 4.1e-14. The GPU arm is the closer of the two
+  in every weight family.
+- The backend runs `MUL_MAT` and `GET_ROWS` only, so with these products
+  correct the GPU arm has no other operator of its own. The difference between
+  the arms is rounding-level differences between two correct executions,
+  amplified through the activation quantizer.
+- The two-arm comparison of ADR 0010 part 1 loses its columns quickly: from
+  layer 8 on, no token column has the same operand in both arms.
+- Over thirteen prompts the GPU arm is on average 8 % further from the console
+  CPU arm than a host CPU build is, wider on 9 of 13, which this sample cannot
+  tell from chance. Every pair, CPU against CPU included, fails the frozen
+  gate on all thirteen.
+
+The control verdict is unchanged. What the result changes is the question:
+the criterion in ADR 0010 part 2 is failing an arm whose kernels are verified
+correct, on a statistic (the largest single-logit error over a few prompts)
+that two CPU builds also move by tens of percent. Whether to judge part 1 by
+the reference check and part 2 by a distribution over more prompts is a
+decision for the owner; it is not taken here.
+
+### 2026-11-15 control under the amended ADR 0010: PASS
+
+ADR 0010 was amended after the diagnosis above, and a fresh control was
+declared and run the same day
+([evidence](research/evidence/2026-11-15-adr0010-control-2/README.md)):
+Coder-3B Q4_K_M, package 1.7.0.1587, seventeen new prompts.
+
+- **Part 1 passes.** All 252 weight products of the 36 layers (40-token
+  prompt) and the 84 of layers 0 to 5 (675-token prompt) are within 4.3e-14
+  NMSE of the exact reference on the GPU arm, against a declared 1e-7.
+- **Part 2 passes.** Over 5,024 prompt positions the GPU arm's mean KL
+  divergence from the console CPU arm is 0.989 times a host CPU build's
+  (95 % upper bound 1.009, declared limit 1.25), and its top-token agreement
+  is 0.24 points lower (upper bound 0.57, declared margin 1).
+
+The correctness prerequisite of #313 is met for this model. Nothing here is
+a speed result, and LFM2.5-1.2B was not put through the control.
+
+### 2026-11-16 control on LFM2.5-1.2B: PASS
+
+The same two-part control on `lfm25-1.2b-instruct` (QAD Q4_0), the model that
+runs on the GPU by default, with the shipping single-column kernels
+([evidence](research/evidence/2026-11-16-adr0010-control-lfm25-1.2b/README.md)).
+
+- **Part 1 passes.** All 160 captured Q4_0 products (16 layers of a 41-token
+  prompt, layers 0 to 5 of a 538-token prompt) are within 1.7e-14 NMSE of the
+  exact reference on the GPU arm.
+- **Part 2 passes against the declared floor.** Over 5,284 positions the GPU
+  arm's mean KL divergence from the console CPU arm is 1.035 times that of a
+  CPU build on llama.cpp's plain kernels (upper bound 1.068, limit 1.95), and
+  its top-token agreement is the same within 0.17 points.
+- On this model the console and host builds of the repacked kernels are a
+  closer pair than either is to the plain kernels. Against that closer pair
+  the GPU arm is 1.32 times as far and loses 0.68 points of top-token
+  agreement, as the plain-kernel CPU build does. The floor was declared
+  before the GPU arm was measured.
+
+This is the baseline for the four-column kernel on this model.
+
+### 2026-11-16 control of the four-column kernel: PASS, identical output
+
+The four-column prefill kernel of #414 went through the amended control on
+Coder-3B and LFM2.5-1.2B
+([evidence](research/evidence/2026-11-16-adr0010-control-c4/README.md)).
+Both parts pass on both models, and the four-column arm's per-position logits
+are byte-identical to the single-column arm's on all 16 prompts of both
+models. Part 1 covers partial tiles of 1, 2 and 3 columns. The correctness
+prerequisite of the #313 performance trial is met; no speed result exists.
+
+### 2026-11-16 paired campaign of the four-column kernel: FAIL
+
+The preregistered #313 campaign ran on the Series S with the frozen manifest
+([evidence](research/evidence/2026-11-16-c4-performance/README.md)): 6 cells,
+20 alternating pairs each, 240 arms, none failed.
+
+- **Coder-3B passes every cell:** prefill 1.50 and 1.47 times, time to first
+  token 0.67 to 0.68 times, decode and memory unchanged.
+- **LFM2.5-1.2B fails every cell:** prefill 0.84 and 0.85 times, time to
+  first token 1.18 times, decode and memory unchanged.
+
+The preregistered rule requires every cell, so the experiment fails. The
+model that runs on the GPU by default gets slower, and the kernel stays
+opt-in and off. The split follows the weight type (Q4_0 on LFM2.5-1.2B,
+Q4_K and Q6_K on Coder-3B); that reading was not tested, and a K-quant-only
+variant would need its own preregistration.
+
 ### Attributable request counters (#421)
 
 A GGUF run with GPU layers logs one `[xllama] d3d12-phase` line after the
@@ -773,3 +911,53 @@ timestamp pair (`ts_valid`/`ts_missing`). These are CPU-side intervals around
 each step plus GPU timestamps. Wall minus GPU time is not CPU compute time,
 and none of these fields is a throughput result until it comes from a bound
 console package. A CPU run prints no line.
+
+**Per-dispatch timing (opt-in).** With `LocalState\d3d12-dispatch-timing.txt`
+containing `1` when the backend starts (the boot log says
+`d3d12: dispatch_timing=1`), every dispatch is followed by a UAV barrier and a
+GPU timestamp. After each phase line the log then carries one line per kind
+of dispatch, sorted by GPU time, and a summary:
+
+```
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=1 threads=128 cols=512+ count=48 gpu_ms=… ms_per=… weight_mib=… columns=…
+[xllama] d3d12-dispatch phase=prefill summary kinds=6 timed=94 missing=0 gpu_ms=…
+```
+
+A kind is the operation, the weight type, the kernel's columns per group
+(`cpg`), its thread width and a column class (`1`, `2-63`, `64-511`,
+`512+`). `missing` counts dispatches whose timestamp pair was not increasing;
+their time is not in any row. The barriers serialise dispatches that could
+overlap without them, so the per-dispatch times add up to more than an
+unmodified run's GPU time: compare a run with the knob against one without
+before reading absolute figures. The knob changes no result.
+
+The same knob then emits one line per phase × layer × op, and a summary.
+The layer index comes from the weight tensor name (`blk.N.…`) or, if that
+has none, the graph node (`Qcur-0`, `l_out-15`). Names with no layer
+(`token_embd.weight`, `output.weight`, …) go in `layer=unattributed`.
+`gpu_ms` is the sum of per-dispatch GPU timestamps. `wait_ms` is
+`exec_wait_ms − submission GPU time, divided by n`: the CPU-side
+ExecuteCommandLists-to-fence interval for that submission, minus that
+submission's GPU timestamp pair, split equally across the `n` dispatches
+in the list. It is not `exec_wait_ms` minus the row's summed per-dispatch
+`gpu_ms`. The remainder can come out slightly negative because the CPU
+and GPU clocks are different domains. Either field prints as `missing`
+when that bucket has no valid timestamps; it is never filled in from wall
+time. `scripts/parse_d3d12_layer_log.py` reads the lines. Off, the backend
+path is unchanged.
+
+Format example, not a measurement:
+
+```
+[xllama] d3d12-layer phase=prefill layer=N op=mul_mat count=… gpu_ms=… wait_ms=… gpu_missing=… wait_missing=…
+[xllama] d3d12-layer phase=prefill layer=unattributed op=get_rows count=… gpu_ms=… wait_ms=missing gpu_missing=… wait_missing=…
+[xllama] d3d12-layer phase=prefill summary rows=… timed=… missing=… gpu_ms=… wait_ms=… wait_missing=…
+```
+
+Measured on the Series S (2026-11-16,
+[evidence](research/evidence/2026-11-16-d3d12-dispatch-timing/README.md)):
+the knob leaves prefill throughput and time to first token unchanged and costs
+about 4 % of decode. Its first use located the four-column result of #470 in
+the shaders: per dispatch, the four-column Q4_0 shader takes 1.25 times
+(64 threads) and 1.14 times (128 threads) as long as the single-column one,
+while the four-column Q4_K and Q6_K shaders take about half as long.

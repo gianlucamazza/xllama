@@ -87,11 +87,14 @@ jobs:
 
       - name: Verify logit parity and tensor comparator negative controls
         run: |
-          python3 -m pip install 'numpy==2.3.5'
-          python3 -m unittest tests/test_compare_logits.py tests/test_compare_tensors.py
+          python3 -m pip install 'numpy==2.3.5' 'pyyaml==6.0.2'
+          python3 -m unittest tests/test_compare_logits.py tests/test_compare_tensors.py tests/test_control_parity.py tests/test_check_matmul_reference.py tests/test_paired_bench_summary.py tests/test_make_moe_fixture.py
 
       - name: Test ORT profile integrity
         run: python3 -m unittest tests/test_ort_profile.py
+
+      - name: Test D3D12 layer log parser
+        run: python3 -m unittest tests/test_d3d12_layer_log.py
 
       - name: Smoke test debug tooling (profile analyzer + GPU sampler parser)
         run: |
@@ -110,8 +113,8 @@ jobs:
 
       - name: Validate benchmark CSV schemas
         run: |
-          shopt -s nullglob
-          for file in bench/results/*.csv; do
+          shopt -s nullglob globstar
+          for file in bench/results/**/*.csv; do
             if head -1 "$file" | grep -q 'prompt_tok_s'; then
               python3 scripts/validate-benchmark.py "$file"
             fi
@@ -134,7 +137,7 @@ jobs:
             scripts/check-release-metadata.py scripts/release-research.py \
             scripts/sync-release-metadata.py scripts/zenodo-deposit.py \
             scripts/bench_run_status.py scripts/redact_recorded_path.py \
-            scripts/console_taesd_result.py
+            scripts/console_taesd_result.py scripts/parse_d3d12_layer_log.py
           bash -n scripts/run-xab.sh
 
       - name: Test research package tooling
@@ -145,6 +148,9 @@ jobs:
 
       - name: Verify host training model trust policy
         run: python3 -m unittest tests/test_host_model_trust.py tests/test_host_training_env.py
+
+      - name: Verify KV benchmark driver arguments
+        run: python3 -m unittest tests/test_bench_kv_driver.py
 
       - name: Verify Python dependency monitoring coverage
         run: python3 -m unittest tests/test_dependency_monitoring.py

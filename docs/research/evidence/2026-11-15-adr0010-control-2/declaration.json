@@ -1,0 +1,113 @@
+{
+  "schema": "xllama.control-declaration/v2",
+  "model": "qwen25-coder-3b",
+  "reference": {
+    "nmse_limit": 1e-07,
+    "captures": [
+      {
+        "prompt": "k1",
+        "last_layer": 35
+      },
+      {
+        "prompt": "t01",
+        "last_layer": 5
+      }
+    ]
+  },
+  "distribution": {
+    "kld_ratio_limit": 1.25,
+    "top1_margin": 0.01,
+    "confidence": 0.95,
+    "min_positions": 4000,
+    "bootstrap": 2000,
+    "seed": 1,
+    "prompts": [
+      "t01",
+      "t02",
+      "t03",
+      "t04",
+      "t05",
+      "t06",
+      "t07",
+      "t08",
+      "t09",
+      "t10",
+      "t11",
+      "t12",
+      "t13",
+      "t14",
+      "t15",
+      "t16"
+    ]
+  },
+  "prompts": [
+    {
+      "id": "k1",
+      "sha256": "4e2dea83e5e2ec0de05d45c5460c381c6323d2be8fe3982ec27bafa4ae19d3e9"
+    },
+    {
+      "id": "t01",
+      "sha256": "0000ed0b0f56cdadae427e414a6ebe5937df32b33c4a5f5f4bc7c329f082d596"
+    },
+    {
+      "id": "t02",
+      "sha256": "5507a8e5b1d0cd8cb20c421fd2eab4dff4d3c12fded9b0f821eca0ec948c1374"
+    },
+    {
+      "id": "t03",
+      "sha256": "8081295d8edbea1f8c8ffe1e83cdebe70056c7157e857d08fdfb9f5a7695b283"
+    },
+    {
+      "id": "t04",
+      "sha256": "6bc4c89ec3a6e6e0ab9361aedfa58d7053de4b0930306a247933a8475ebc93bf"
+    },
+    {
+      "id": "t05",
+      "sha256": "d3b4c24c8ded92c9a4b7599fc663e3c56622bd103976d8e213469aa175e35835"
+    },
+    {
+      "id": "t06",
+      "sha256": "67bddaaa3621b3e65a947d564859b38ce124cc20546c7833c719299ac393ec1c"
+    },
+    {
+      "id": "t07",
+      "sha256": "e8e817edaa1de39ae4da84357a6151cf36086b8647df190c451e92e842a07b5e"
+    },
+    {
+      "id": "t08",
+      "sha256": "2f7945f39fba5710034934b1759961ab4d293436de8e657449f69b9bc67e8ebd"
+    },
+    {
+      "id": "t09",
+      "sha256": "f7a18d65ecd827a145d8da479f5efcf5d244ba1733841fc17376338e46a64a5c"
+    },
+    {
+      "id": "t10",
+      "sha256": "602ab9c6bb959b58e63f1dfa98275716243e93e495b12e4de39bcded4d6b6de6"
+    },
+    {
+      "id": "t11",
+      "sha256": "5c94ca48ae33b8c333ccb7f8b3eac5d4fbe6ffd343dbbb5701b9917bc3ec692c"
+    },
+    {
+      "id": "t12",
+      "sha256": "bccded326d0bed1adf5f29421bdfd25909277f882f27dbc8534c5a299f33c1b5"
+    },
+    {
+      "id": "t13",
+      "sha256": "371a76d42097d3cf3e582423d3208248207cdd7cf38a0adca38edde2c92b9fcf"
+    },
+    {
+      "id": "t14",
+      "sha256": "d99af255bb695beba7dca16296c25d2f4458c73c93826f29c4ac6215df56cdb4"
+    },
+    {
+      "id": "t15",
+      "sha256": "1d4b74f123cb8b4ea757b26cade0f2b93f38ca905008e7c04cd83bda9c12f42d"
+    },
+    {
+      "id": "t16",
+      "sha256": "bbc11ce2677860224acdbb0a9d9d26975a194a685c89b70c321eb5a4aa14a2f0"
+    }
+  ]
+}

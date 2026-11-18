@@ -118,7 +118,7 @@ aumid_for_pfn() {
 	local pfamily
 	# shellcheck disable=SC2001  # regex uses [^_] class, not expressible with bash ${//}
 	pfamily=$(echo "$pfn" | sed 's/_[0-9][0-9.]*_[^_]*__/_/')
-	printf '%s!xllama' "$pfamily" | base64 -w0
+	printf '%s!xllama' "$pfamily" | base64 | tr -d '\n'
 }
 
 print_log() {
@@ -278,7 +278,7 @@ stop_app() {
 	# Not-running is success for a caller whose intent is "make sure it is not
 	# running"; a decode error is not, and must not be swallowed again.
 	local pkg64 body code
-	pkg64="$(printf '%s' "$pfn" | base64 -w0)"
+	pkg64="$(printf '%s' "$pfn" | base64 | tr -d '\n')"
 	body="$(curl "${CURL_AUTH[@]}" \
 		-H "X-CSRF-Token:${CSRF_TOKEN}" \
 		-X DELETE -w '\n%{http_code}' \

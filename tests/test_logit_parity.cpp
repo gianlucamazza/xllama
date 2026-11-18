@@ -14,6 +14,7 @@
 //   PARITY_GOLDEN_BIN  — committed reference dump (its .json sidecar has the prompt)
 
 #include <doctest/doctest.h>
+#include <sstream>
 
 #include <nlohmann/json.hpp>
 
@@ -24,6 +25,7 @@
 #include <vector>
 
 #include "xllama/inference.h"
+#include "xllama/logit_dump.h"
 
 namespace fs = std::filesystem;
 
@@ -89,4 +91,58 @@ TEST_CASE("llama.cpp logits match committed golden (opt-in: XLLAMA_TEST_MODEL)")
     CHECK(argmax_c == argmax_g);
     CHECK(max_abs < 1e-2f);
     CHECK(nmse < 1e-6);
+}
+
+TEST_CASE("logit_dump: stride keeps every Nth position and always the last") {
+    CHECK_FALSE(xllama::logit_dump_keeps(0, 10, 0));
+    CHECK_FALSE(xllama::logit_dump_keeps(-1, 10, 2));
+    CHECK_FALSE(xllama::logit_dump_keeps(10, 10, 2));
+    std::vector<int> kept;
+    for (int p = 0; p < 10; ++p)
+        if (xllama::logit_dump_keeps(p, 10, 4))
+            kept.push_back(p);
+    CHECK(kept == std::vector<int>{3, 7, 9});
+    CHECK(xllama::logit_dump_keeps(0, 1, 8));
+    // Rows a ubatch can ask for: every stride-th position plus the last token.
+    CHECK(xllama::logit_dump_rows_per_ubatch(512, 2) == 257);
+    CHECK(xllama::logit_dump_rows_per_ubatch(512, 512) == 2);
+    CHECK(xllama::logit_dump_rows_per_ubatch(5, 2) == 4);
+    CHECK(xllama::logit_dump_rows_per_ubatch(0, 2) == 1);
+}
+
+TEST_CASE("logit_dump: positions writer stores rows and a sidecar") {
+    namespace fs = std::filesystem;
+    const fs::path base = fs::temp_directory_path() / "xllama_logit_positions_test.bin";
+    const fs::path bin = base.string() + ".positions.bin";
+    const fs::path side = base.string() + ".positions.json";
+    fs::remove(bin);
+    fs::remove(side);
+    {
+        xllama::LogitPositionsWriter w(base.string(), 3);
+        const float a[3] = {1.f, 2.f, 3.f};
+        const float b[3] = {-1.f, 0.f, 4.f};
+        CHECK(w.append(1, a));
+        CHECK(w.append(4, b));
+        CHECK(w.positions() == 2);
+        CHECK(w.finish("m.gguf", "a \"quoted\" prompt", "llama.cpp", 2, 5));
+        CHECK_FALSE(w.failed());
+    }
+    CHECK(fs::file_size(bin) == 2 * 3 * sizeof(float));
+    std::ifstream in(side);
+    std::stringstream ss;
+    ss << in.rdbuf();
+    const std::string s = ss.str();
+    CHECK(s.find("\"positions\": [1, 4]") != std::string::npos);
+    CHECK(s.find("\"stride\": 2") != std::string::npos);
+    CHECK(s.find("\"n_prompt_tokens\": 5") != std::string::npos);
+    CHECK(s.find("a \\\"quoted\\\" prompt") != std::string::npos);
+    fs::remove(bin);
+    fs::remove(side);
+
+    xllama::LogitPositionsWriter empty(base.string(), 3);
+    CHECK_FALSE(empty.finish("m", "p", "llama.cpp", 2, 5));
+    xllama::LogitPositionsWriter bad("/nonexistent/xllama/x.bin", 3);
+    const float v[3] = {0.f, 0.f, 0.f};
+    CHECK_FALSE(bad.append(0, v));
+    CHECK(bad.failed());
 }

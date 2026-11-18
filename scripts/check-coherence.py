@@ -674,7 +674,9 @@ def main() -> int:
         # 41.2 / 231.3 (build 1.6.0.1163 remeasure, 3 recorded runs).
         # 2026-11-15: SmolLM2-1.7B 20.6 -> 21.0 and Qwen3.5-0.8B 35.1 -> 34.3
         # (build 1.7.0.1533 remeasure, 3 recorded runs).
-        for num in ("101.6", "40.0", "17.9", "74.8", "41.2", "21.0", "34.3", "231.3"):
+        # 2026-11-15: LFM 101.6 -> 97.9 (build 1.7.0.1563 remeasure with a
+        # fixed 512-token decode, 3 recorded runs).
+        for num in ("97.9", "40.0", "17.9", "74.8", "41.2", "21.0", "34.3", "231.3"):
             if num not in block:
                 err(f"generated table missing {num}")
             if num not in rec and num not in ("231.3",):
@@ -905,6 +907,34 @@ def main() -> int:
         if (s, n) != (a, b):
             err(f"H9 {model}={s}/{n} expected {a}/{b}")
     good("H9 scores match docs")
+
+    # --- leftover merge conflict markers ---
+    # 2026-11-16: three zdiff3 base markers ("||||||| parent of ...") reached
+    # main inside CHANGELOG.md; prettier had indented them into a list item,
+    # so a column-0 check would not have caught them. Indentation is allowed.
+    import re as _re
+    import subprocess as _sp
+    marker = _re.compile(r"^\s*(<{7}|\|{7}|>{7})( |$)")
+    # Every tracked file (NUL-separated, so names with spaces survive); binary
+    # files are skipped by the decode, the submodule and vendored trees by path.
+    tracked = _sp.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True,
+                      check=False).stdout.decode("utf-8", "replace").split("\0")
+    hits = []
+    for rel in filter(None, tracked):
+        if rel.startswith(("llama.cpp/", "vendor/")):
+            continue
+        try:
+            raw = (ROOT / rel).read_bytes()
+            if b"\0" in raw:
+                continue
+            text = raw.decode("utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        hits += [f"{rel}:{n}" for n, line in enumerate(text.splitlines(), 1) if marker.match(line)]
+    if hits:
+        err(f"merge conflict markers left in tracked files: {hits[:10]}")
+    else:
+        good("no merge conflict markers in tracked files")
 
     # --- links ---
     def check_links(md: Path, base: Path) -> list[str]:

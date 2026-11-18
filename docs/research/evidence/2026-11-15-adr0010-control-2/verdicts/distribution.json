@@ -1,0 +1,184 @@
+{
+ "mode": "distribution",
+ "adr": "0010 amendment part 2",
+ "declaration_sha256": "8bbe0abb1a95250e2351dc0e285bd691bd983271a8d11eaba4937d43010fc63d",
+ "model": "qwen25-coder-3b",
+ "positions": 5024,
+ "min_positions": 4000,
+ "confidence": 0.95,
+ "bootstrap": 2000,
+ "seed": 1,
+ "mean_kld_gpu": 0.005526268509536631,
+ "mean_kld_host": 0.005587093806513786,
+ "kld_ratio": 0.9891132493772986,
+ "kld_ratio_upper_bound": 1.0090198180953531,
+ "kld_ratio_limit": 1.25,
+ "top1_agreement_gpu": 0.9448646496815286,
+ "top1_agreement_host": 0.9472531847133758,
+ "top1_deficit": 0.0023885350318471337,
+ "top1_deficit_upper_bound": 0.005696977763062078,
+ "top1_margin": 0.01,
+ "pass": true,
+ "rows": [
+  {
+   "prompt": "t01",
+   "positions": 338,
+   "kld_gpu": 1.8196309265768231,
+   "kld_host": 1.7864040214616825,
+   "top1_gpu": 326,
+   "top1_host": 327,
+   "kld_gpu_max": 0.037133024844450684,
+   "kld_host_max": 0.061071090072096275
+  },
+  {
+   "prompt": "t02",
+   "positions": 300,
+   "kld_gpu": 1.7877387172871009,
+   "kld_host": 1.7480198580539483,
+   "top1_gpu": 285,
+   "top1_host": 283,
+   "kld_gpu_max": 0.03153665910209572,
+   "kld_host_max": 0.05604771231361253
+  },
+  {
+   "prompt": "t03",
+   "positions": 278,
+   "kld_gpu": 1.3656952537843314,
+   "kld_host": 1.4617085146246636,
+   "top1_gpu": 264,
+   "top1_host": 263,
+   "kld_gpu_max": 0.026153558831867107,
+   "kld_host_max": 0.02674649598829475
+  },
+  {
+   "prompt": "t04",
+   "positions": 257,
+   "kld_gpu": 1.436386346353138,
+   "kld_host": 1.5592844449766767,
+   "top1_gpu": 243,
+   "top1_host": 242,
+   "kld_gpu_max": 0.021553864802592873,
+   "kld_host_max": 0.02032548082878854
+  },
+  {
+   "prompt": "t05",
+   "positions": 260,
+   "kld_gpu": 1.78604346269779,
+   "kld_host": 1.7883144870270344,
+   "top1_gpu": 238,
+   "top1_host": 237,
+   "kld_gpu_max": 0.023676669522743627,
+   "kld_host_max": 0.05604771231361253
+  },
+  {
+   "prompt": "t06",
+   "positions": 395,
+   "kld_gpu": 1.877046522454728,
+   "kld_host": 1.8582903810711606,
+   "top1_gpu": 380,
+   "top1_host": 383,
+   "kld_gpu_max": 0.03255807550697312,
+   "kld_host_max": 0.03670458762393839
+  },
+  {
+   "prompt": "t07",
+   "positions": 272,
+   "kld_gpu": 1.477467964481478,
+   "kld_host": 1.4630099062806308,
+   "top1_gpu": 258,
+   "top1_host": 258,
+   "kld_gpu_max": 0.025234056900107948,
+   "kld_host_max": 0.025187987700638785
+  },
+  {
+   "prompt": "t08",
+   "positions": 353,
+   "kld_gpu": 1.9915717319345303,
+   "kld_host": 1.981351047119157,
+   "top1_gpu": 329,
+   "top1_host": 331,
+   "kld_gpu_max": 0.07828860860906295,
+   "kld_host_max": 0.03345309125754743
+  },
+  {
+   "prompt": "t09",
+   "positions": 337,
+   "kld_gpu": 1.9396584021366634,
+   "kld_host": 2.0801709426287327,
+   "top1_gpu": 312,
+   "top1_host": 318,
+   "kld_gpu_max": 0.04345330010557153,
+   "kld_host_max": 0.10397302535779229
+  },
+  {
+   "prompt": "t10",
+   "positions": 307,
+   "kld_gpu": 1.7090795460357686,
+   "kld_host": 1.8016901196530153,
+   "top1_gpu": 288,
+   "top1_host": 291,
+   "kld_gpu_max": 0.022659711280694567,
+   "kld_host_max": 0.052798699015601566
+  },
+  {
+   "prompt": "t11",
+   "positions": 386,
+   "kld_gpu": 1.909235479607807,
+   "kld_host": 2.040209524407529,
+   "top1_gpu": 368,
+   "top1_host": 370,
+   "kld_gpu_max": 0.02432666522754519,
+   "kld_host_max": 0.05604771231361253
+  },
+  {
+   "prompt": "t12",
+   "positions": 338,
+   "kld_gpu": 1.9435023151345032,
+   "kld_host": 1.9374801893768803,
+   "top1_gpu": 321,
+   "top1_host": 323,
+   "kld_gpu_max": 0.03545111838440442,
+   "kld_host_max": 0.035664525200238495
+  },
+  {
+   "prompt": "t13",
+   "positions": 296,
+   "kld_gpu": 1.5398060115759984,
+   "kld_host": 1.4898986903573959,
+   "top1_gpu": 284,
+   "top1_host": 286,
+   "kld_gpu_max": 0.10299448352756216,
+   "kld_host_max": 0.01932059736328769
+  },
+  {
+   "prompt": "t14",
+   "positions": 270,
+   "kld_gpu": 1.5459300586314701,
+   "kld_host": 1.65465788390731,
+   "top1_gpu": 256,
+   "top1_host": 252,
+   "kld_gpu_max": 0.04189321255130823,
+   "kld_host_max": 0.05604771231361253
+  },
+  {
+   "prompt": "t15",
+   "positions": 255,
+   "kld_gpu": 1.4577270369375466,
+   "kld_host": 1.3153226571157943,
+   "top1_gpu": 239,
+   "top1_host": 242,
+   "kld_gpu_max": 0.029324605840794847,
+   "kld_host_max": 0.025320043755473257
+  },
+  {
+   "prompt": "t16",
+   "positions": 382,
+   "kld_gpu": 2.177453216282355,
+   "kld_host": 2.1037466158636473,
+   "top1_gpu": 356,
+   "top1_host": 353,
+   "kld_gpu_max": 0.03202493502291382,
+   "kld_host_max": 0.04036919523228377
+  }
+ ]
+}

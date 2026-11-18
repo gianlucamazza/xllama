@@ -395,15 +395,83 @@ struct TensorCaptureState {
     bool active = false;
     std::vector<float> f32;
     std::vector<uint8_t> raw;
+    // ADR 0010 part 1: the operand most recently written, so the Q, K and V
+    // products of one layer share a single copy of their common input.
+    const ggml_tensor* last_input = nullptr;
+    int last_input_eval = -1;
+    std::string last_input_file;
 };
+
+// Copies the whole of a contiguous f32/f16 tensor into st.f32.
+bool tensor_capture_read_all(TensorCaptureState& st, const ggml_tensor* t, uint64_t values) {
+    st.f32.resize(static_cast<size_t>(values));
+    if (t->type == GGML_TYPE_F32) {
+        ggml_backend_tensor_get(t, st.f32.data(), 0, static_cast<size_t>(values) * sizeof(float));
+        return true;
+    }
+    st.raw.resize(static_cast<size_t>(values) * sizeof(ggml_fp16_t));
+    ggml_backend_tensor_get(t, st.raw.data(), 0, st.raw.size());
+    ggml_fp16_to_fp32_row(reinterpret_cast<const ggml_fp16_t*>(st.raw.data()), st.f32.data(),
+                          static_cast<int64_t>(values));
+    return true;
+}
+
+bool tensor_capture_is_weight_matmul(const ggml_tensor* t) {
+    return t->op == GGML_OP_MUL_MAT && t->src[0] && t->src[1] &&
+           tensor_capture_is_weight_name(tensor_capture_base_name(t->src[0]->name));
+}
+
+// Records one weight MUL_MAT with its activation operand, or a skip entry
+// (which scripts/control-parity.py treats as a failed capture).
+void tensor_capture_matmul(TensorCaptureState& st, const ggml_tensor* t, int eval) {
+    TensorCaptureWriter& w = *st.writer;
+    const ggml_tensor* in = t->src[1];
+    const std::string weight = tensor_capture_base_name(t->src[0]->name);
+    const std::string wtype = ggml_type_name(t->src[0]->type);
+    const int64_t ne[4] = {t->ne[0], t->ne[1], t->ne[2], t->ne[3]};
+    const int64_t ine[4] = {in->ne[0], in->ne[1], in->ne[2], in->ne[3]};
+    const auto usable = [](const ggml_tensor* x) {
+        return (x->type == GGML_TYPE_F32 || x->type == GGML_TYPE_F16) && ggml_is_contiguous(x);
+    };
+    if (!usable(t) || !usable(in)) {
+        w.skip(weight, "MUL_MAT", wtype, ne, "matmul operand not a contiguous float tensor");
+        return;
+    }
+    const uint64_t out_values = tensor_capture_total(ne);
+    const uint64_t in_values = tensor_capture_total(ine);
+    const bool reuse = st.last_input == in && st.last_input_eval == eval;
+    if (out_values == 0 || in_values == 0 || !w.fits(out_values + (reuse ? 0 : in_values))) {
+        w.skip(weight, "MUL_MAT", wtype, ne,
+               out_values == 0 || in_values == 0 ? "empty" : "budget exhausted");
+        return;
+    }
+    if (!reuse) {
+        tensor_capture_read_all(st, in, in_values);
+        if (!w.write_input(st.f32.data(), in_values, st.last_input_file))
+            return;
+        st.last_input = in;
+        st.last_input_eval = eval;
+    }
+    tensor_capture_read_all(st, t, out_values);
+    w.write_matmul(weight, wtype, ne, st.f32.data(), out_values, st.last_input_file, ine);
+}
 
 bool tensor_capture_eval(ggml_tensor* t, bool ask, void* user_data) {
     auto* st = static_cast<TensorCaptureState*>(user_data);
     if (!st || !st->active || !st->writer || st->writer->failed())
         return ask ? false : true;
-    if (!tensor_capture_matches(st->writer->spec(), t->name))
+    const TensorCaptureSpec& spec = st->writer->spec();
+    const bool matched = tensor_capture_matches(spec, t->name);
+    const bool matmul = st->writer->matmul_open() && tensor_capture_is_weight_matmul(t);
+    const bool stop = st->writer->matmul_open() && spec.matmul_stop == t->name;
+    if (!matched && !matmul && !stop)
         return ask ? false : true;
     if (ask)
+        return true;
+    if (matmul)
+        tensor_capture_matmul(*st, t, st->writer->eval());
+    st->writer->note_node(t->name);
+    if (!matched)
         return true;
 
     const int64_t ne[4] = {t->ne[0], t->ne[1], t->ne[2], t->ne[3]};
@@ -464,6 +532,39 @@ bool prefill_capture_ubatches(llama_context* ctx, const llama_token* tokens, int
         }
         writer.begin_eval();
         ok = llama_decode(ctx, batch) == 0;
+        if (ok && wd)
+            wd->note_prefill_chunk(off + chunk);
+    }
+    llama_batch_free(batch);
+    return ok;
+}
+
+// Prefill for a per-position logit dump (ADR 0010 part 2): the same explicit
+// ubatch split as a capture run, with an output requested at every kept
+// position. Each kept row is appended to `out` straight after its ubatch.
+bool prefill_dump_positions(llama_context* ctx, const llama_token* tokens, int n_tokens, int stride,
+                            LogitPositionsWriter& out, InferenceWatchdog* wd) {
+    const int n_ubatch = std::max(1, static_cast<int>(llama_n_ubatch(ctx)));
+    llama_batch batch = llama_batch_init(n_ubatch, 0, 1);
+    bool ok = true;
+    for (int off = 0; ok && off < n_tokens; off += n_ubatch) {
+        if (wd && wd->aborted()) {
+            ok = false;
+            break;
+        }
+        const int chunk = std::min(n_ubatch, n_tokens - off);
+        batch.n_tokens = chunk;
+        for (int i = 0; i < chunk; ++i) {
+            batch.token[i] = tokens[off + i];
+            batch.pos[i] = off + i;
+            batch.n_seq_id[i] = 1;
+            batch.seq_id[i][0] = 0;
+            batch.logits[i] = logit_dump_keeps(off + i, n_tokens, stride) ? 1 : 0;
+        }
+        ok = llama_decode(ctx, batch) == 0;
+        for (int i = 0; ok && i < chunk; ++i)
+            if (batch.logits[i])
+                ok = out.append(off + i, llama_get_logits_ith(ctx, i));
         if (ok && wd)
             wd->note_prefill_chunk(off + chunk);
     }
@@ -548,7 +649,15 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         cparams.n_batch = static_cast<uint32_t>(params.n_batch);
     if (params.n_ubatch > 0)
         cparams.n_ubatch = static_cast<uint32_t>(params.n_ubatch);
-    apply_gguf_gpu_context(gpu_layers, cparams, gguf_gpu_outputs_max(false, params.prompt_lookup));
+    uint32_t outputs_max = gguf_gpu_outputs_max(false, params.prompt_lookup);
+    if (params.dump_logits_stride > 0 && !params.dump_logits_path.empty()) {
+        // A per-position dump asks for many logits rows per ubatch; the GPU
+        // path's one-row reserve would make llama.cpp assert on the first one.
+        const int rows = logit_dump_rows_per_ubatch(static_cast<int>(cparams.n_ubatch),
+                                                    params.dump_logits_stride);
+        outputs_max = std::max(outputs_max, static_cast<uint32_t>(rows));
+    }
+    apply_gguf_gpu_context(gpu_layers, cparams, outputs_max);
     // #420: intermediate tensor capture. Off unless both a directory and a
     // spec are given; a bad spec or directory fails the run instead of
     // silently producing an empty capture.
@@ -665,13 +774,41 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     D3d12PhaseStats d3d12_phase;
     if (gpu_layers > 0)
         ggml_d3d12_take_stats(nullptr);
+    std::unique_ptr<LogitPositionsWriter> positions;
+    if (params.dump_logits_stride > 0 && !params.dump_logits_path.empty()) {
+        if (capture.writer) {
+            res.error_msg = "a per-position logit dump cannot be combined with tensor capture";
+            log_output("[xllama] " + res.error_msg + "\n");
+            return res;
+        }
+        positions = std::make_unique<LogitPositionsWriter>(params.dump_logits_path,
+                                                           llama_vocab_n_tokens(vocab));
+    }
     wd.enter_prefill(n_prompt_tokens);
     capture.active = static_cast<bool>(capture.writer);
-    const bool prefill_ok = capture.writer
-                                ? prefill_capture_ubatches(ctx.get(), tokens.data(),
-                                                           n_prompt_tokens, *capture.writer, &wd)
-                                : prefill_chunked(ctx.get(), tokens.data(), n_prompt_tokens, &wd);
+    bool prefill_ok = false;
+    if (capture.writer)
+        prefill_ok = prefill_capture_ubatches(ctx.get(), tokens.data(), n_prompt_tokens,
+                                              *capture.writer, &wd);
+    else if (positions)
+        prefill_ok = prefill_dump_positions(ctx.get(), tokens.data(), n_prompt_tokens,
+                                            params.dump_logits_stride, *positions, &wd);
+    else
+        prefill_ok = prefill_chunked(ctx.get(), tokens.data(), n_prompt_tokens, &wd);
     capture.active = false;
+    if (positions) {
+        const bool written =
+            prefill_ok && positions->finish(abs_model_path, params.prompt, "llama.cpp",
+                                            params.dump_logits_stride, n_prompt_tokens);
+        log_output("[xllama] logit positions: " + std::to_string(positions->positions()) +
+                   " stride=" + std::to_string(params.dump_logits_stride) +
+                   (written ? "" : " FAILED") + "\n");
+        if (prefill_ok && !written) {
+            res.error_msg = "per-position logit dump failed";
+            log_output("[xllama] " + res.error_msg + "\n");
+            return res;
+        }
+    }
     if (capture.writer) {
         log_output("[xllama] tensor capture: records=" + std::to_string(capture.writer->records()) +
                    " skipped=" + std::to_string(capture.writer->skipped()) +
@@ -698,8 +835,14 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t_prompt0)
             .count();
     wd.prefill_done(n_prompt_tokens, prompt_ms);
-    if (gpu_layers > 0 && ggml_d3d12_take_stats(&d3d12_phase))
+    if (gpu_layers > 0 && ggml_d3d12_take_stats(&d3d12_phase)) {
         log_output(format_d3d12_phase("prefill", d3d12_phase));
+        const std::string per = format_d3d12_dispatch_profile("prefill", d3d12_phase.dispatch);
+        if (!per.empty())
+            log_output(per);
+        if (!d3d12_phase.layer.empty())
+            log_output(format_d3d12_layer_profile("prefill", d3d12_phase.layer));
+    }
 
     // Logit-parity dump: capture the last prefill-token logits (one deterministic
     // forward pass, no autoregressive drift) before any sampling touches them.
@@ -755,8 +898,14 @@ InferenceResult run_inference_llama(const InferenceParams& params) {
     dlp.watchdog = &wd;
     wd.enter_decode(params.n_predict);
     const DecodeLoopResult dlr = decode_loop(dlp, res.output_text);
-    if (gpu_layers > 0 && ggml_d3d12_take_stats(&d3d12_phase))
+    if (gpu_layers > 0 && ggml_d3d12_take_stats(&d3d12_phase)) {
         log_output(format_d3d12_phase("decode", d3d12_phase));
+        const std::string per = format_d3d12_dispatch_profile("decode", d3d12_phase.dispatch);
+        if (!per.empty())
+            log_output(per);
+        if (!d3d12_phase.layer.empty())
+            log_output(format_d3d12_layer_profile("decode", d3d12_phase.layer));
+    }
     const int n_generated = dlr.n_generated;
     res.ended_with_stop = dlr.ended_with_stop;
     res.n_drafted = dlr.n_drafted;

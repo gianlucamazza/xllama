@@ -5,7 +5,7 @@
 > `weakly_canonical`, thread cap, and the DirectML low-bit GEMM analysis. Other
 > docs link to a `§n` here rather than restating these.
 
-Platform limitations relevant to running LLM inference on Xbox Series S consoles in Developer Mode, and how xllama addresses each one. Tested and measured on Series S. Not yet tested on Series X.
+Platform limitations relevant to running LLM inference on Xbox Series S consoles in Developer Mode, and how xllama addresses each one. Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester.
 
 ## 1. No POSIX `mmap`
 
@@ -415,14 +415,34 @@ non-fused low-bit kernel, see §12.) See §7 for GPU pool detail and §9 for dis
 **Platform lever — App vs Game designation (settled 2026-07-08)**: Dev Home
 can flip a sideloaded package between **App** and **Game** (tile → View
 details → App type); Game grants Game OS resources (full GPU access, more
-RAM). Checked on console: **xllama is already designated Game** — the
-designation persists per package family across forward upgrades. Therefore
+RAM). Checked on console: **xllama is already designated Game** — on the
+Series S the designation persisted per package family across forward
+upgrades. On a Series X it did not always: an in-place upgrade between two
+CI packages signed with different test certificates (1.7.0.1614 to
+1.7.0.1626) kept LocalState but reset the designation to App
+([#421 report](https://github.com/gianlucamazza/xllama/issues/421#issuecomment-6914667256)). The
+startup log confirms it since 1.7.0.1587 (`[resources] ...
+exclusive_cpus=6 logical_cpus=8 app_memory_limit_mb=5120`; Microsoft documents
+1 GB and a share of 2 to 4 cores for an App). Therefore
 the measured figures in this document (3801 MB GPU budget, the utilization
 matrix, the per-token DML dispatch overhead) are **Game-mode numbers**, and
 the earlier assumption labelling them "App-mode" was wrong. Consequence: the
 GPU decode gap cannot be blamed on App-mode scheduling — it is a DML/kernel
 issue, consistent with the fused-int4 analysis above. Operational note:
-re-check the designation after any package reinstall (it can reset to App).
+re-check the designation after any package install or upgrade (it can reset
+to App).
+
+**App designation on a Series X (#457, measured by an independent tester,
+2026-11-16).** The app runs at full speed for about ten seconds after launch,
+then at about 40 % of the Game speed (`lfm25-350m`, about 38 against about
+100 tok/s). Fewer threads are slower at every step from six down, so it is a
+CPU cap, not oversubscription. The `[resources]` startup line reports six
+exclusive cores in both designations; only `app_memory_limit_mb` (1024 for
+App, 5120 for Game) tells them apart. A headless bench run starts and ends
+inside the launch window, so it does not show the slow state: an App
+measurement needs the UI process and more than 20 seconds after launch. On
+the Series S the same comparison costs about 9 %, measured with the headless
+bench, so it may have been taken inside that window too; not re-measured.
 
 ## 6. Limited Thread Count
 
@@ -580,6 +600,14 @@ numbers, and removes the partial file after a write error. A Device Portal
 upload of the same 2.45 GB file had returned HTTP 500 while uploads of 0.5 and
 1.4 GB succeeded; with about 2.3 GB free at the time, lack of space is the
 likely reason, not confirmed separately.
+
+The size of this volume is not documented by Microsoft. A Microsoft answer on
+a public forum describes app data as living on a fixed-size drive that is not
+the developer drive, and another user reports the same 30 GB; no setting or
+tool to enlarge it was found (desk research, 2026-11-15, not verified on the
+console). `broadFileSystemAccess` is documented as unsupported on Xbox. A
+community report says Dev Mode UWP apps can read an NTFS USB drive once
+"All App Packages" has full control of it; that was not tried here.
 
 For models not distributed through the catalogue, see the USB/Device Portal
 provisioning paths in `docs/model-selection.md`, `docs/device-portal.md` and

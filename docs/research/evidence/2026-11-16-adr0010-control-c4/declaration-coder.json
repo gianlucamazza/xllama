@@ -1,0 +1,122 @@
+{
+  "schema": "xllama.control-declaration/v2",
+  "model": "qwen25-coder-3b",
+  "reference": {
+    "nmse_limit": 1e-07,
+    "captures": [
+      {
+        "prompt": "c1",
+        "last_layer": 35
+      },
+      {
+        "prompt": "u03",
+        "last_layer": 5
+      }
+    ]
+  },
+  "distribution": {
+    "kld_ratio_limit": 1.25,
+    "top1_margin": 0.01,
+    "confidence": 0.95,
+    "min_positions": 4000,
+    "bootstrap": 2000,
+    "seed": 1,
+    "prompts": [
+      "u01",
+      "u02",
+      "u03",
+      "u04",
+      "u05",
+      "u06",
+      "u07",
+      "u08",
+      "u09",
+      "u10",
+      "u11",
+      "u12",
+      "u13",
+      "u14",
+      "u15",
+      "u16"
+    ]
+  },
+  "prompts": [
+    {
+      "id": "c1",
+      "sha256": "8c1ddf61e8c71bf2eb2fa47ce5c21e31bcd1aae3fcdc72e5c7a83e874b5d2cd4"
+    },
+    {
+      "id": "u01",
+      "sha256": "5dcfded2cbe9637f20f08e06cf44d8b05c2e9ee468a0792b62394c2fbf30698b"
+    },
+    {
+      "id": "u02",
+      "sha256": "2e4f26773e1247e58e189f8650ae0a47267d91c963ff75f1c85692d22300356f"
+    },
+    {
+      "id": "u03",
+      "sha256": "ea0191de1f12c74aa2017325c6bd7da9cec001210df77a03be5a46fa9e7474c1"
+    },
+    {
+      "id": "u04",
+      "sha256": "25be17ea5e2b874f7757bd8ce254f83917ed88204200c5f977980352bdbda29e"
+    },
+    {
+      "id": "u05",
+      "sha256": "108e1f5b4e8b8b63e81a9b55c0c2d0901ed9b15190833f344e26c961793d6ce1"
+    },
+    {
+      "id": "u06",
+      "sha256": "1d1bc5dbbfc9aa68f387888b4401b6de653af635081df9c6edda3b00d1054b05"
+    },
+    {
+      "id": "u07",
+      "sha256": "df59054ad2c0c36aa239d81ab29a2207dc54e20dc331714c8a31dd970f6193bf"
+    },
+    {
+      "id": "u08",
+      "sha256": "e2609bb310b951199ada6b48d92b4c2c46c0d3e071866b4622266b5a77f0f56f"
+    },
+    {
+      "id": "u09",
+      "sha256": "ca50c1cb9acfb34c34ad244b160f6ed0b9703f3d66e2343a733ff9e9ad35c021"
+    },
+    {
+      "id": "u10",
+      "sha256": "7de3f7684edf5644a16c6740dfa33ee998c5de56a546311a3655ef13e32cda8a"
+    },
+    {
+      "id": "u11",
+      "sha256": "f74cdd403325f9452e9c447389dd3410bb44f937179e8c66918b717e5a0b98cc"
+    },
+    {
+      "id": "u12",
+      "sha256": "0f8d3c1e205d80cf150b71ed33b959a962939ce464ea07b9b0ab5fa7dea1905f"
+    },
+    {
+      "id": "u13",
+      "sha256": "28f9a430b27da7d8f66c1b6b77307cb06eb54f82e85a8ea76dbb1097d190162c"
+    },
+    {
+      "id": "u14",
+      "sha256": "db2eecefab2b8610f2406fc5c9626c314637f2cd001225901410efa837ef8e4a"
+    },
+    {
+      "id": "u15",
+      "sha256": "90fe9f9fdf9861be397f06da9118e113e40991651b2627ff168152a021cdd332"
+    },
+    {
+      "id": "u16",
+      "sha256": "67fc420a472c432719b16c0238bbf8ef568964bfbc3c937fcd2cdb85b14170b3"
+    }
+  ],
+  "arms": {
+    "gpu": "console, gpu_layers 99, d3d12-prefill-columns.txt = 4 (four-column kernel)",
+    "cpu_console": "console, gpu_layers 0",
+    "cpu_host_floor": "host-release",
+    "reported_not_judged": [
+      "console single-column GPU arm (d3d12-prefill-columns.txt absent) against the four-column arm",
+      "host-no-repack against the console CPU arm"
+    ]
+  }
+}

@@ -7,6 +7,95 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Series X App designation explained (#457).** An independent tester found
+  that with the App designation the app runs at full speed for about ten
+  seconds after launch, then at about 40 % of the Game speed, and that fewer
+  threads make it slower. It is a CPU cap of the App designation; the remedy
+  is the Game designation. The headless bench cannot show it, so the release
+  gate's App measurement now uses the UI process more than 20 seconds after
+  launch.
+
+- **Per-layer D3D12 dispatch attribution (#421).** The same opt-in
+  (`d3d12-dispatch-timing.txt` = `1`) now tags every timed dispatch with a
+  layer index from the weight or graph-node name, and logs one
+  `d3d12-layer` line per phase × layer × op. `gpu_ms` is the GPU timestamp
+  sum; `wait_ms` is `exec_wait_ms − submission GPU time, divided by n`.
+  That remainder can come out slightly negative because the CPU and GPU
+  clocks are different domains. Missing timestamps print as `missing`.
+  Nodes with no layer go in `unattributed`. Off, the backend path is
+  unchanged. CSV/sidecar integration is still open.
+
+- **Per-dispatch GPU timing (#421).** With `d3d12-dispatch-timing.txt` = `1`
+  in LocalState, the d3d12 backend times every dispatch and logs, after each
+  prefill and decode phase line, the GPU time per kind of dispatch (operation,
+  weight type, kernel variant, thread width, column class). Off by default;
+  the barriers it adds serialise dispatches, so it is a diagnostic, not a
+  benchmark setting. Measured on the Series S, it leaves prefill unchanged and
+  costs about 4 % of decode; its first use showed that the four-column kernel
+  of #414 lost on LFM2.5-1.2B in its Q4_0 shader (1.14 to 1.25 times slower
+  per dispatch) while its K-quant shaders took half the time.
+
+- **GPU correctness controls (ADR 0010, #420) and the four-column kernel
+  (#313, #414).**
+  - ADR 0010 was accepted, run once, found to fail an arm whose kernels are
+    correct, and amended. A GPU control now checks every weight product
+    against a float64 reference built from the model file and the arm's own
+    quantized operand (`control-parity.py reference`, q8_K and q8_0 operands),
+    and compares the output distribution over thousands of prompt positions
+    with what a second CPU build shows (`control-parity.py distribution`).
+    `--dump-logits-stride N`, or `logits_stride.txt` on the console, dumps
+    those positions; the tensor capture gains `matmul_inputs=<node>`.
+    `check-matmul-reference.py` runs the reference check on its own.
+  - On the Series S both gate models pass with the shipping kernels:
+    Coder-3B (all 36 layers within 4.3e-14 NMSE, KL-divergence ratio 0.989
+    against a second CPU build) and LFM2.5-1.2B (all 16 layers within
+    1.7e-14, ratio 1.035 against llama.cpp's plain CPU kernels). The first
+    control, under the original text, failed and stays recorded as failed.
+  - The four-column prefill kernel passes the same control, with output
+    byte-identical to the single-column kernel's, and Gate A (50/50). Its
+    preregistered paired performance campaign (6 cells, 240 runs) failed:
+    prefill 1.50 times on Coder-3B and 0.84 times on LFM2.5-1.2B, the model
+    that runs on the GPU by default, with decode and memory unchanged. The
+    kernel is not promoted: the draft (#414) is closed without merge and its
+    branch is kept.
+  - Evidence: `docs/research/evidence/2026-11-15-*` and `2026-11-16-*`.
+
+- **Paired bench campaigns.** `scripts/bench-paired-knob.sh` runs matched
+  A/B bench pairs that differ by one LocalState knob, alternating the order,
+  checking from the app log that each arm ran the intended code path, and
+  never replacing a failed arm. `scripts/paired-bench-summary.py` gives each
+  cell's verdict with a paired bootstrap interval against preregistered
+  margins. The first use is the #313 campaign of the four-column kernel.
+
+- **Startup log:** a `[resources]` line states whether the title has the
+  expanded (Game) resources, how many exclusive cores it was given, the
+  logical core count and the app memory limit. It is there to explain runs
+  like the 2.4 times slower App-designation runs seen on a Series X (#457).
+
+- **LFM2.5 figures remeasured on 1.7.0.** `lfm25-230m` is 127.1 tok/s decode
+  (237 MiB peak) and `lfm25-350m` is 97.9 tok/s on package 1.7.0.1563, each a
+  median of three runs of exactly 512 generated tokens. The previous 132.4 and
+  101.6 tok/s came from the 1.6.0 package and from runs that stopped after 33
+  to 273 tokens, where decode is faster; the one earlier 512-token run of the
+  230M was 128.5. The summary, README and model matrix use the new rows.
+
+- **Scripts:** the deploy, bench and validation scripts no longer call
+  `base64 -w0`, a GNU-only flag that fails on macOS. They strip the line
+  breaks with `tr` instead; the encoded value is the same.
+
+- **Series X is supported.** Accepted by the owner on 2026-11-15 from an
+  independent tester's runs of package 1.7.0.1495 on a Series X: text
+  generation with `lfm25-350m` and `lfm25-1.2b-instruct` through the LAN API
+  (143 timed runs, imported as `bench/results/series-x-2026-11-13.csv` and
+  `series-x-end-to-end-2026-11-13.csv` with the `xbox-series-x-declared`
+  label; credit Joshua Henne / Eidon Labs Inc.). Image generation, training
+  and the GPU path have not been run on a Series X, and every published
+  figure remains a Series S figure. With the App designation the tester's
+  runs were about 2.4 times slower than with the Game designation; the cause
+  is not known. The public wording changes from "Not yet tested on Series X"
+  to "Supported on Series S and Series X", with the scope in
+  `docs/positioning.md`.
+
 - **Model download:** a download now checks the free space on the LocalState
   volume before the first request and fails at once with both numbers ("needs
   N MB, M MB available") when the files would not fit. A write error deletes
@@ -31,7 +120,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   UI, LAN API, CLI and device training share the one format. Gemma 3 ids are
   unchanged. Found in a community fork (EgbertJiang/xllama). The Series S
   prefill, decode and peak figures for `gemma4-e2b` were remeasured with this
-  template on 2026-11-15; its H9 score was not.
+  template on 2026-11-15. Its H9 rerun is 6/8, the same total as before on
+  a different set of tasks (`constrained_summary` now passes, `json_extraction`
+  now fails on a Markdown fence); see `docs/model-matrix.md`.
 
 - **Startup model check:** `EnsureModelAsync` now ends with `co_return`. It
   was declared as a coroutine and contained no coroutine statement, so it was

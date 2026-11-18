@@ -7,7 +7,7 @@ of copying tables, tok/s figures, or constraint numbers into a second place.
 ## Project overview
 
 xllama runs local chat, SD-Turbo diffusion, and on-device training on
-Xbox Series S (Developer Mode; not yet tested on Series X) and a Linux host CLI.
+Xbox Series S and Series X (Developer Mode; measured on Series S) and a Linux host CLI.
 The shared core is C++17 under
 `include/xllama/` (WinRT-free, host-testable) and `src/bridge/`. Two front
 ends call it: `xllama-cli` on Linux, and the C++/WinRT UWP app in `uwp/`.
@@ -137,7 +137,16 @@ python3 -m unittest tests/test_validate_benchmark.py tests/test_benchmark_sideca
   tests/test_catalog_licenses.py tests/test_package_notices.py \
   tests/test_diffusion_export.py \
   tests/test_redact_recorded_path.py tests/test_host_model_trust.py \
-  tests/test_dependency_monitoring.py tests/test_host_training_env.py
+  tests/test_dependency_monitoring.py tests/test_host_training_env.py \
+  tests/test_d3d12_layer_log.py
+```
+
+The numerical comparator tests need numpy (and `pyyaml` for gguf-py in `test_make_moe_fixture.py`), which CI installs for them:
+
+```bash
+python3 -m unittest tests/test_compare_logits.py tests/test_compare_tensors.py \
+  tests/test_control_parity.py tests/test_check_matmul_reference.py \
+  tests/test_paired_bench_summary.py tests/test_make_moe_fixture.py
 ```
 
 `tests/test_diffusion_export.py` runs its export checks only when
@@ -344,17 +353,18 @@ build them locally.
 If you change a contract, update the owning doc in the same PR
 ([docs/README.md](docs/README.md) ownership table):
 
-| Change                                        | Update                                                       |
-| --------------------------------------------- | ------------------------------------------------------------ |
-| Product intent / public positioning           | `docs/positioning.md`                                        |
-| Module boundaries, routing, session ownership | `docs/architecture.md`                                       |
-| Training lanes or Phase 11                    | `docs/training-architecture.md` and `training/README.md`     |
-| User-facing UI steps                          | `docs/using-the-app.md`                                      |
-| LAN routes                                    | `docs/api-endpoint.md`                                       |
-| Bench CSV schema or numbers                   | `bench/README.md`, then regenerate `docs/benchmarks.md`      |
-| Release behaviour                             | `CHANGELOG.md` (and `ROADMAP.md` when a phase closes)        |
-| Package identity                              | `docs/install-release.md` and this file's Versioning section |
-| Repo layout agents rely on                    | this file                                                    |
+| Change                                            | Update                                                                                                                                 |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| SSD MoE contribution stage or acceptance evidence | `docs/research/moe-upstream-readiness.md`, corresponding `ROADMAP.md` stage and #479–#481 tracker; preserve revision-specific evidence |
+| Product intent / public positioning               | `docs/positioning.md`                                                                                                                  |
+| Module boundaries, routing, session ownership     | `docs/architecture.md`                                                                                                                 |
+| Training lanes or Phase 11                        | `docs/training-architecture.md` and `training/README.md`                                                                               |
+| User-facing UI steps                              | `docs/using-the-app.md`                                                                                                                |
+| LAN routes                                        | `docs/api-endpoint.md`                                                                                                                 |
+| Bench CSV schema or numbers                       | `bench/README.md`, then regenerate `docs/benchmarks.md`                                                                                |
+| Release behaviour                                 | `CHANGELOG.md` (and `ROADMAP.md` when a phase closes)                                                                                  |
+| Package identity                                  | `docs/install-release.md` and this file's Versioning section                                                                           |
+| Repo layout agents rely on                        | this file                                                                                                                              |
 
 ## Security
 

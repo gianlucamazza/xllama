@@ -1,0 +1,42 @@
+[xllama] bench model: lfm25-1.2b-instruct
+[xllama] d3d12: prefill_columns=4
+[xllama] d3d12: dispatch_timing=1
+[xllama] prompt tokens: 1000
+[xllama] d3d12-phase phase=prefill calls=144 submissions=141 dispatches=184 wall_ms=4230.697 quant_ms=109.419 record_ms=3.524 exec_wait_ms=4030.558 gpu_ms=4013.042 ts_valid=141 ts_missing=0
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=4 threads=64 cols=512+ count=74 gpu_ms=1536.998 ms_per=20.7702 weight_mib=393.8 columns=37888
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=4 threads=64 cols=64-511 count=74 gpu_ms=1465.197 ms_per=19.8000 weight_mib=393.8 columns=36112
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=4 threads=128 cols=512+ count=15 gpu_ms=516.711 ms_per=34.4474 weight_mib=135.0 columns=7680
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=4 threads=128 cols=64-511 count=15 gpu_ms=492.479 ms_per=32.8319 weight_mib=135.0 columns=7320
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q6_K cpg=1 threads=64 cols=1 count=1 gpu_ms=0.820 ms_per=0.8201 weight_mib=105.0 columns=1
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=1 threads=64 cols=1 count=2 gpu_ms=0.142 ms_per=0.0708 weight_mib=18.0 columns=2
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=1 threads=128 cols=1 count=1 gpu_ms=0.090 ms_per=0.0904 weight_mib=9.0 columns=1
+[xllama] d3d12-dispatch phase=prefill op=get_rows type=q6_K cpg=1 threads=0 cols=512+ count=1 gpu_ms=0.059 ms_per=0.0592 weight_mib=0.8 columns=512
+[xllama] d3d12-dispatch phase=prefill op=get_rows type=q6_K cpg=1 threads=0 cols=64-511 count=1 gpu_ms=0.056 ms_per=0.0557 weight_mib=0.8 columns=488
+[xllama] d3d12-dispatch phase=prefill summary kinds=9 timed=184 missing=0 gpu_ms=4012.552
+[xllama] d3d12-phase phase=decode calls=9216 submissions=9216 dispatches=12032 wall_ms=1297.907 quant_ms=13.119 record_ms=31.824 exec_wait_ms=1191.655 gpu_ms=774.946 ts_valid=9216 ts_missing=0
+[xllama] d3d12-dispatch phase=decode op=mul_mat type=q4_0 cpg=1 threads=64 cols=1 count=9728 gpu_ms=461.583 ms_per=0.0474 weight_mib=52704.0 columns=9728
+[xllama] d3d12-dispatch phase=decode op=mul_mat type=q4_0 cpg=1 threads=128 cols=1 count=2048 gpu_ms=183.453 ms_per=0.0896 weight_mib=18432.0 columns=2048
+[xllama] d3d12-dispatch phase=decode op=mul_mat type=q6_K cpg=1 threads=64 cols=1 count=128 gpu_ms=103.392 ms_per=0.8077 weight_mib=13440.0 columns=128
+[xllama] d3d12-dispatch phase=decode op=get_rows type=q6_K cpg=1 threads=0 cols=1 count=128 gpu_ms=0.484 ms_per=0.0038 weight_mib=0.2 columns=128
+[xllama] d3d12-dispatch phase=decode summary kinds=4 timed=12032 missing=0 gpu_ms=748.912
+[xllama] bench model: lfm25-1.2b-instruct
+[xllama] d3d12: prefill_columns=4
+[xllama] d3d12: dispatch_timing=1
+[xllama] prompt tokens: 1000
+[xllama] d3d12-phase phase=prefill calls=144 submissions=141 dispatches=184 wall_ms=4145.509 quant_ms=108.177 record_ms=3.683 exec_wait_ms=4028.004 gpu_ms=4010.312 ts_valid=141 ts_missing=0
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=4 threads=64 cols=512+ count=74 gpu_ms=1535.313 ms_per=20.7475 weight_mib=393.8 columns=37888
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=4 threads=64 cols=64-511 count=74 gpu_ms=1464.680 ms_per=19.7930 weight_mib=393.8 columns=36112
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=4 threads=128 cols=512+ count=15 gpu_ms=516.467 ms_per=34.4311 weight_mib=135.0 columns=7680
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=4 threads=128 cols=64-511 count=15 gpu_ms=492.225 ms_per=32.8150 weight_mib=135.0 columns=7320
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q6_K cpg=1 threads=64 cols=1 count=1 gpu_ms=0.790 ms_per=0.7899 weight_mib=105.0 columns=1
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=1 threads=64 cols=1 count=2 gpu_ms=0.143 ms_per=0.0714 weight_mib=18.0 columns=2
+[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q4_0 cpg=1 threads=128 cols=1 count=1 gpu_ms=0.089 ms_per=0.0887 weight_mib=9.0 columns=1
+[xllama] d3d12-dispatch phase=prefill op=get_rows type=q6_K cpg=1 threads=0 cols=64-511 count=1 gpu_ms=0.060 ms_per=0.0597 weight_mib=0.8 columns=488
+[xllama] d3d12-dispatch phase=prefill op=get_rows type=q6_K cpg=1 threads=0 cols=512+ count=1 gpu_ms=0.058 ms_per=0.0576 weight_mib=0.8 columns=512
+[xllama] d3d12-dispatch phase=prefill summary kinds=9 timed=184 missing=0 gpu_ms=4009.825
+[xllama] d3d12-phase phase=decode calls=9216 submissions=9216 dispatches=12032 wall_ms=1296.742 quant_ms=13.138 record_ms=31.347 exec_wait_ms=1190.551 gpu_ms=774.771 ts_valid=9216 ts_missing=0
+[xllama] d3d12-dispatch phase=decode op=mul_mat type=q4_0 cpg=1 threads=64 cols=1 count=9728 gpu_ms=461.674 ms_per=0.0475 weight_mib=52704.0 columns=9728
+[xllama] d3d12-dispatch phase=decode op=mul_mat type=q4_0 cpg=1 threads=128 cols=1 count=2048 gpu_ms=183.432 ms_per=0.0896 weight_mib=18432.0 columns=2048
+[xllama] d3d12-dispatch phase=decode op=mul_mat type=q6_K cpg=1 threads=64 cols=1 count=128 gpu_ms=103.055 ms_per=0.8051 weight_mib=13440.0 columns=128
+[xllama] d3d12-dispatch phase=decode op=get_rows type=q6_K cpg=1 threads=0 cols=1 count=128 gpu_ms=0.482 ms_per=0.0038 weight_mib=0.2 columns=128
+[xllama] d3d12-dispatch phase=decode summary kinds=4 timed=12032 missing=0 gpu_ms=748.644

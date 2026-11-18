@@ -1,0 +1,2 @@
+model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,run_index,prefill_ms,ttft_ms
+qwen25-coder-3b,Q4_K_M,d3d12,2048,6,74.15,22.50,2205,15823,1851,3801,948,128,0,xbox-series-s-declared-t6-g99-noeog,2026-11-16T09:11:11Z,2,12785.2,12787.1

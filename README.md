@@ -1,12 +1,12 @@
 # xllama
 
-**xllama — local LLM inference on an Xbox Series S in Developer Mode**
+**xllama — local LLM inference on Xbox Series S and Series X in Developer Mode**
 
-Run a language model on your own Xbox Series S, with chat, an API on your local network, image generation and experimental on-device fine-tuning.
+Run a language model on your own Xbox Series S or Series X, with chat, an API on your local network, image generation and experimental on-device fine-tuning.
 
-Tested and measured on Series S. Not yet tested on Series X.
+Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester.
 
-**Next step:** testing xllama on Xbox Series X. A [GitHub Sponsors goal](https://github.com/sponsors/gianlucamazza) is set to fund the console, and results will be published in this repo.
+**Series X:** supported since 2026-11-15 on the strength of an independent tester's runs (text generation with two models through the LAN API; [field report](https://github.com/gianlucamazza/xllama/discussions/434)). Image generation, training and the GPU path have not been run on a Series X, and every figure in this repository is a Series S figure. Scope and open points: [positioning.md](docs/positioning.md#series-x). A [GitHub Sponsors goal](https://github.com/sponsors/gianlucamazza) is set to fund a Series X for the project's own measurements.
 
 ### ⚠️ Read before sideloading
 
@@ -83,19 +83,20 @@ No model bundled in MSIX.
 
 | Model              | Params | Decode                                                  | Role                                                            |
 | ------------------ | ------ | ------------------------------------------------------- | --------------------------------------------------------------- |
-| LFM2.5-230M        | 230M   | **132.4** tok/s (llama.cpp CPU, 6 threads, median of 3) | Floor (236 MiB peak RAM, llama.cpp CPU, 6 threads, median of 3) |
-| LFM2.5-350M        | 350M   | **101.6** tok/s (llama.cpp CPU, 6 threads, median of 3) | Default chat                                                    |
+| LFM2.5-230M        | 230M   | **127.1** tok/s (llama.cpp CPU, 6 threads, median of 3) | Floor (237 MiB peak RAM, llama.cpp CPU, 6 threads, median of 3) |
+| LFM2.5-350M        | 350M   | **97.9** tok/s (llama.cpp CPU, 6 threads, median of 3)  | Default chat                                                    |
 | Qwen2.5-Coder-1.5B | 1.5B   | **26.1** tok/s (llama.cpp CPU, 6 threads, median of 2)  | Coding                                                          |
 | LFM2-2.6B          | 2.6B   | **17.9** tok/s (llama.cpp CPU, 6 threads, median of 3)  | Quality (H9 7/8)                                                |
 
-Tested and measured on Series S. Not yet tested on Series X. Receipts:
-[132.4 / 101.6 tok/s and 236 MiB](bench/results/2026-09-30-catalogue-gates.csv),
+Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester. Receipts:
+[127.1 / 97.9 tok/s and 237 MiB](bench/results/2026-11-15-remeasure-1563/README.md),
 [17.9 tok/s](bench/results/2026-10-11-remeasure-1163/lfm2-2.6b-q4km-cpu-t6-rerun.csv),
 [26.1 tok/s](bench/results/phase14-console.csv),
 [H9 7/8](bench/results/2026-09-30-h9-rescore.jsonl).
 Summary: [docs/benchmarks.md](docs/benchmarks.md).
-The LFM2.5-230M figures (132.4 tok/s and 236 MiB) and the LFM2.5-350M figure
-(101.6 tok/s) were measured on the 1.6.0 package; pending a rerun on v1.7.0.
+The two LFM2.5 figures were remeasured on package 1.7.0.1563 with a fixed
+512-token decode. The earlier 132.4 and 101.6 tok/s came from the 1.6.0 package
+and from runs that stopped after 33 to 273 tokens, where decode is faster.
 
 Full catalogue + Phase 14 coding models: [model-matrix.md](docs/model-matrix.md) · [benchmarks.md](docs/benchmarks.md)
 
@@ -153,10 +154,10 @@ Two front-ends: `xllama-cli` (Linux) + UWP app.
 
 ### Backend dispatch
 
-| Path                     | What                                                                  | Why                                                                              |
-| ------------------------ | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| **ORT GenAI + DirectML** | ONNX models, CPU int4 decode + DML fp16 prefill                       | GPU wins batch compute, long-prompt TTFT                                         |
-| **llama.cpp + GGUF**     | CPU, KV-reuse, repacked GEMM; d3d12 matmul layers per catalogue entry | Zen2 wins decode at small sizes; own D3D12 kernels win on the 1.2B / 3B measured |
+| Path                     | What                                                                  | Why                                                                          |
+| ------------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **ORT GenAI + DirectML** | ONNX models, CPU int4 decode + DML fp16 prefill                       | GPU wins batch compute, long-prompt TTFT                                     |
+| **llama.cpp + GGUF**     | CPU, KV-reuse, repacked GEMM; d3d12 matmul layers per catalogue entry | Zen2 wins decode at small sizes; own D3D12 kernels win decode on LFM2.5-1.2B |
 
 Unified build dispatches **per model at runtime** via `Backend::Auto`.
 Llama.cpp is both benchmarking lane and shipping backend.
@@ -217,8 +218,8 @@ The DOI badge and version DOI are synchronized from `release.toml`.
 ### Why Xbox Series S?
 
 Zen2 CPU wins decode on the DirectML path and at small model sizes; RDNA2
-wins batch prefill, and our own D3D12 kernels win GGUF decode on the 1.2B and
-3B models measured (Q4_0 / Q4_K_M).
+wins batch prefill, and our own D3D12 kernels win GGUF decode on LFM2.5-1.2B
+(Q4_0).
 Unified memory means the GPU budget ([uwp-constraints.md](docs/uwp-constraints.md) §7) is the hard constraint.
 An underexplored platform with strict memory and packaging constraints.
 
@@ -227,11 +228,14 @@ An underexplored platform with strict memory and packaging constraints.
 Per-workload verdict on DirectML: CPU decode > GPU decode, GPU prefill > CPU
 prefill. One backend can't win both. Runtime dispatch per model is the answer.
 GGUF decode also runs on our own D3D12 kernels: a ggml backend `d3d12`, with
-q8 numerics that match the CPU. It is the default only for LFM2.5-1.2B. The
-coding option, Qwen2.5-Coder-1.5B (Apache-2.0), runs on the CPU like the
-other GGUF models. The Qwen2.5-Coder-3B GPU numbers are an earlier
-measurement; that model is under a non-commercial research licence and is
-no longer in the model list. `gguf_gpu_layers.txt` overrides the default for an operator, and
+q8 activation quantization like the CPU path. It is the default only for
+LFM2.5-1.2B; every other GGUF model runs on the CPU. Every GPU weight
+product is checked against an exact reference
+([result](docs/research/evidence/2026-11-16-adr0010-control-lfm25-1.2b/README.md)).
+A four-column prefill kernel was tried and not adopted: it made a 3B
+research model 1.5 times faster to prefill and the shipping LFM2.5-1.2B 15 %
+slower ([result](docs/research/evidence/2026-11-16-c4-performance/README.md)).
+`gguf_gpu_layers.txt` overrides the default for an operator, and
 `0` forces the CPU. Gates and per-model verdicts are in
 [docs/gguf-gpu-decode.md](docs/gguf-gpu-decode.md). How that compares with
 desktop RDNA2, the Steam Deck and other GPUs on published llama.cpp numbers is
@@ -362,5 +366,3 @@ for testing.
 ## Disclaimer
 
 xllama is an independent open-source project by Gianluca Mazza. It is not affiliated with, endorsed, sponsored or approved by Microsoft. Xbox, Xbox Series S and Xbox Series X are trademarks of the Microsoft group of companies. Llama is a trademark of Meta; xllama is not affiliated with Meta or with the Ollama project. Other product names are trademarks of their respective owners and are used only to describe compatibility.
-
-Independent project, not affiliated with or endorsed by Microsoft. Xbox and Xbox Series S|X are trademarks of the Microsoft group of companies.

@@ -30,15 +30,15 @@ per-arch `can_shift` (2026-07-29), §A2 phase14 (2026-07-27).
 
 ## How to read the columns
 
-| Column              | Meaning                                                                                         |
-| ------------------- | ----------------------------------------------------------------------------------------------- |
-| **Catalogue**       | Id in `uwp/models/manifest.json` (`—` = not shipped)                                            |
-| **Status**          | `shipping` / `catalogue` / `campaign-only` / `host-smoke` / `rejected`                          |
-| **Console metrics** | Xbox Series S Developer Mode (not yet tested on Series X; see [benchmarks.md](./benchmarks.md)) |
-| **H9**              | Deterministic 8-task suite (`2026-09-30-h9-rescore.jsonl`), temperature 0                       |
-| **Template**        | `chat_format_for` selection                                                                     |
-| **Role**            | Catalogue `role` (`coding` → denser token estimate + coding system default)                     |
-| **n_ctx**           | Session context (0/omit → `kDefaultNCtx` 2048)                                                  |
+| Column              | Meaning                                                                                                  |
+| ------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Catalogue**       | Id in `uwp/models/manifest.json` (`—` = not shipped)                                                     |
+| **Status**          | `shipping` / `catalogue` / `campaign-only` / `host-smoke` / `rejected`                                   |
+| **Console metrics** | Xbox Series S Developer Mode (no project measurements on Series X; see [benchmarks.md](./benchmarks.md)) |
+| **H9**              | Deterministic 8-task suite (`2026-09-30-h9-rescore.jsonl`), temperature 0                                |
+| **Template**        | `chat_format_for` selection                                                                              |
+| **Role**            | Catalogue `role` (`coding` → denser token estimate + coding system default)                              |
+| **n_ctx**           | Session context (0/omit → `kDefaultNCtx` 2048)                                                           |
 
 Host figures are **not comparable** to console tok/s (different CPU, build type,
 and thermal). They only prove _load + generate + template_.
@@ -54,8 +54,8 @@ All rows below are **CPU-bound decode** unless backend says DirectML.
 
 | Model                 |                  Catalogue |  Params | Quant    | Backend   |   Prefill |    Decode | Peak MiB | H9      | Template          | Role | n_ctx | Evidence                                                               |
 | --------------------- | -------------------------: | ------: | -------- | --------- | --------: | --------: | -------: | ------- | ----------------- | ---- | ----: | ---------------------------------------------------------------------- |
-| LFM2.5-230M           |               `lfm25-230m` |    230M | Q4_0 QAD | llama.cpp | **633.6** | **132.4** |      236 | 1/8     | ChatML            | —    |  2048 | `2026-09-30-catalogue-gates` · floor                                   |
-| LFM2.5-350M           |               `lfm25-350m` |    350M | Q4_0 QAD | llama.cpp | **374.4** | **101.6** |      311 | 4/8     | ChatML            | —    |  2048 | `2026-09-30-catalogue-gates` · **default chat**                        |
+| LFM2.5-230M           |               `lfm25-230m` |    230M | Q4_0 QAD | llama.cpp | **623.7** | **127.1** |      237 | 1/8     | ChatML            | —    |  2048 | `2026-11-15-remeasure-1563` · floor                                    |
+| LFM2.5-350M           |               `lfm25-350m` |    350M | Q4_0 QAD | llama.cpp | **371.4** |  **97.9** |      311 | 4/8     | ChatML            | —    |  2048 | `2026-11-15-remeasure-1563` · **default chat**                         |
 | Gemma-3-270M          |              `gemma3-270m` |    270M | Q4_K_M   | llama.cpp |     486.1 |      79.9 |      366 | 3/8     | Gemma             | —    |  2048 | `2026-10-11-remeasure-1163` · H9 `2026-09-30-h9-rescore.jsonl`         |
 | SmolLM2-360M          |    `smollm2-360m-cpu-int4` |    360M | int4     | ORT CPU   |     262.4 |      74.8 |      708 | —       | ChatML            | —    |  2048 | `t6-shipped-confirm`                                                   |
 | SmolLM2-360M          |              (same family) |    360M | Q4_K_M   | llama.cpp |     141.5 |      62.9 |      402 | —       | ChatML            | —    |  2048 | `phase35-llamacpp-scaling`                                             |
@@ -84,8 +84,15 @@ Notes:
   [campaign README](../bench/results/2026-11-15-remeasure-1533/README.md).
 - **Gemma-4-E2B template.** The prefill, decode and peak figures are from
   2026-11-15 on build 1.7.0.1538, which renders `gemma4-e2b` with the Gemma 4
-  turn tokens and a system turn (`chat_format_for`). The H9 score (6/8) was
-  measured with the Gemma 3 template and has not been rerun.
+  turn tokens and a system turn (`chat_format_for`). The published H9 score
+  (6/8) was measured with the Gemma 3 template. A rerun with the Gemma 4
+  template on build 1.7.0.1555
+  ([`2026-11-15-gemma4-template-h9.jsonl`](../bench/results/2026-11-15-gemma4-template-h9.jsonl))
+  is also 6/8, on a different set of tasks: `constrained_summary` now passes
+  (the old reply echoed the prompt and a literal `</start_of_turn>`), and
+  `json_extraction` now fails (the reply is fenced as Markdown, which the task
+  forbids). `arithmetic_multistep` fails in both, and no reply contains a turn
+  marker any more.
 
 ### A2. Phase 14 — console-validated (Series S, 2026-07-27)
 
@@ -235,7 +242,7 @@ models.
 
 | Role                      | Catalogue ids                                 | Product note                                                                                      |
 | ------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Floor (smallest shipping) | `lfm25-230m`                                  | Fastest and lightest chat (132.4 tok/s, 236 MiB, QAD Q4_0); H9 1/8, two tasks below `gemma3-270m` |
+| Floor (smallest shipping) | `lfm25-230m`                                  | Fastest and lightest chat (127.1 tok/s, 237 MiB, QAD Q4_0); H9 1/8, two tasks below `gemma3-270m` |
 | Default chat (unified)    | `lfm25-350m`                                  | First launch                                                                                      |
 | Balanced / quality chat   | `lfm25-1.2b-instruct`, `lfm2-2.6b`            | H1 tiers                                                                                          |
 | Peer dense chat           | `llama32-3b`, `gemma4-e2b`                    | Advanced / heavy                                                                                  |
@@ -377,6 +384,21 @@ above the envelope. AliceAI-T5-35B-A0.6B and Nemotron-3.5-Lightning-30B-A3B
 fail on total size. New supporting fact: at ~1B, dense decode on Series S is
 bytes-per-token bound (shape gate, see §F), which is the bar any MoE must beat
 on bytes actually read, not on active parameters.
+
+**Streamed path, 2026-11-16 (reopened for capacity, not for the product).**
+The gates above judge a resident MoE and stay as they are. The optional
+expert-streaming path changes one input: the checkpoint no longer has to fit
+the app's memory. LFM2.5-24B-A2B completed a turn on a project Series S at
+0.72–1.00 tok/s under 2.1 GiB
+([evidence](research/evidence/2026-11-16-moe-24b-console/README.md)), so
+models this section rejected on size are worth measuring again on that path.
+`lfm25-8b-a1b` at Q4_K_M (5.16 GB) loads resident but its compute buffer does
+not fit, and streamed it runs at 1.18–2.47 tok/s
+([evidence](research/evidence/2026-11-16-moe-8b-console/README.md)); the H2
+`UD-IQ3_S` file re-measured resident at 14.42 tok/s. Maple-Preview 20B-A1B
+(official TQ1_0/TQ2_0, 1B active) is next.
+Order and status: [moe-streaming-candidates.md](research/moe-streaming-candidates.md).
+None of this enters a product tier while the rate is below the dense peer.
 
 ### I2. BitNet 1.58 (post H5 NO-GO)
 

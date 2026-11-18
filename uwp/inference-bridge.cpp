@@ -87,8 +87,8 @@ int read_local_int(const char* name, int fallback) {
 // on the same persistent Session. The ratio is the KV-reuse win. Writes
 // bench-kv-result.csv (+ .done) and logs the numbers.
 void run_kv_bench(const std::string& model_name, const std::string& sys, const std::string& u1,
-                  const std::string& u2, int n_threads, int n_ctx, const char* host,
-                  int run_index) {
+                  const std::string& u2, int n_threads, int n_ctx, const char* host, int run_index,
+                  int n_gpu_layers) {
     // KV-reuse now works on both backends: ORT-GenAI (persistent generator) and
     // GGUF/llama.cpp (persistent llama_context in LlamaSession). No early skip.
     std::string err;
@@ -96,6 +96,7 @@ void run_kv_bench(const std::string& model_name, const std::string& sys, const s
     sp.model_path = model_name;
     sp.n_ctx = n_ctx > 0 ? n_ctx : 2048;
     sp.n_threads = n_threads;
+    sp.n_gpu_layers = n_gpu_layers;
     auto sess = ::xllama::Session::create(sp, &err);
     if (!sess) {
         log_output("[xllama] kv-bench: session create failed: " + err + "\n");
@@ -267,14 +268,16 @@ void main_loop() {
     {
         std::string turn2 = read_local_file("bench_turns.txt");
         if (!turn2.empty()) {
-            char host_buf2[64];
+            std::string kv_host =
+                ::xllama::declared_benchmark_host(read_local_file("bench_hardware.txt"));
             if (bench_threads > 0)
-                snprintf(host_buf2, sizeof(host_buf2), "xbox-series-s-t%d", bench_threads);
-            else
-                snprintf(host_buf2, sizeof(host_buf2), "xbox-series-s");
+                kv_host += "-t" + std::to_string(bench_threads);
+            if (bench_gpu_layers > 0)
+                kv_host += "-g" + std::to_string(bench_gpu_layers);
             log_output("[xllama] kv-bench model: " + model_name + "\n");
             run_kv_bench(model_name, "You are a helpful AI assistant.", user_prompt, turn2,
-                         bench_threads, bench_ctx, host_buf2, bench_run_index);
+                         bench_threads, bench_ctx, kv_host.c_str(), bench_run_index,
+                         bench_gpu_layers);
             return;
         }
     }
@@ -392,6 +395,9 @@ void run_logits() {
     params.n_gpu_layers = read_local_int("logits_gpu_layers.txt", 0);
     params.n_ubatch = read_local_int("logits_ubatch.txt", 0);
     params.dump_logits_path = resolve_local_path("logits.bin");
+    // ADR 0010 part 2: logits_stride.txt = N also writes every Nth prompt
+    // position to logits.bin.positions.bin. Absent = last token only.
+    params.dump_logits_stride = std::max(0, read_local_int("logits_stride.txt", 0));
     // #420: optional intermediate tensor capture. The spec file holds the
     // pattern list (tensor_capture.h); records go to LocalState\tensor-capture,
     // which is emptied first so a stale capture can never be read as fresh.

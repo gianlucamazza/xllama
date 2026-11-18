@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <optional>
 #include <random>
 #include <string>
 #include <vector>
@@ -429,4 +430,192 @@ TEST_CASE("d3d12: counters are unavailable off Windows") {
     CHECK_FALSE(ggml_d3d12_take_stats(&s));
     CHECK(s.calls == 0);
     CHECK_FALSE(ggml_d3d12_take_stats(nullptr));
+}
+
+TEST_CASE("d3d12: dispatch timing flag and column classes") {
+    CHECK(d3d12_flag_enabled("1"));
+    CHECK(d3d12_flag_enabled(" 1\r\n"));
+    CHECK_FALSE(d3d12_flag_enabled(""));
+    CHECK_FALSE(d3d12_flag_enabled("0"));
+    CHECK_FALSE(d3d12_flag_enabled("11"));
+    CHECK_FALSE(d3d12_flag_enabled("1 x"));
+    CHECK(std::string(d3d12_cols_class(0)) == "1");
+    CHECK(std::string(d3d12_cols_class(1)) == "1");
+    CHECK(std::string(d3d12_cols_class(2)) == "2-63");
+    CHECK(std::string(d3d12_cols_class(63)) == "2-63");
+    CHECK(std::string(d3d12_cols_class(64)) == "64-511");
+    CHECK(std::string(d3d12_cols_class(511)) == "64-511");
+    CHECK(std::string(d3d12_cols_class(512)) == "512+");
+}
+
+TEST_CASE("d3d12: layer index from tensor name or graph node") {
+    CHECK(d3d12_layer_from_name("blk.0.attn_q.weight") == 0);
+    CHECK(d3d12_layer_from_name("blk.3.ffn_up.weight") == 3);
+    CHECK(d3d12_layer_from_name("blk.12.ffn_down_exps.weight") == 12);
+    CHECK(d3d12_layer_from_name("D3D12#blk.7.attn_output.weight#0") == 7);
+    CHECK(d3d12_layer_from_name("CPU#blk.1.ffn_gate.weight#3") == 1);
+    CHECK(d3d12_layer_from_name("Qcur-0") == 0);
+    CHECK(d3d12_layer_from_name("l_out-15") == 15);
+    CHECK(d3d12_layer_from_name("ffn_out-3") == 3);
+    CHECK(d3d12_layer_from_name("CPU#Qcur-9#0") == 9);
+    CHECK_FALSE(d3d12_layer_from_name("token_embd.weight").has_value());
+    CHECK_FALSE(d3d12_layer_from_name("output.weight").has_value());
+    CHECK_FALSE(d3d12_layer_from_name("output_norm.weight").has_value());
+    CHECK_FALSE(d3d12_layer_from_name("result_output").has_value());
+    CHECK_FALSE(d3d12_layer_from_name("").has_value());
+    CHECK_FALSE(d3d12_layer_from_name("blk.x.ffn_up.weight").has_value());
+    CHECK_FALSE(d3d12_layer_from_name("notblk.2.weight").has_value());
+    CHECK_FALSE(d3d12_layer_from_name("blk.2a.weight").has_value());
+    // Weight name wins over a graph node that names a different layer.
+    CHECK(d3d12_layer_from_names("blk.5.attn_q.weight", "Qcur-0") == 5);
+    CHECK(d3d12_layer_from_names("token_embd.weight", "GET_ROWS") == std::nullopt);
+    CHECK(d3d12_layer_from_names("", "l_out-4") == 4);
+    CHECK(d3d12_layer_from_names("D3D12#blk.0.attn_k.weight#0", "Kcur-0") == 0);
+    CHECK(std::string(kD3d12UnattributedLayer) == "unattributed");
+    CHECK(d3d12_layer_label(3) == "3");
+    CHECK(d3d12_layer_label(0) == "0");
+    CHECK(d3d12_layer_label(std::nullopt) == "unattributed");
+}
+
+TEST_CASE("d3d12: layer profile aggregates by phase × layer × op") {
+    D3d12LayerProfile p;
+    CHECK(p.empty());
+    CHECK(format_d3d12_layer_profile("prefill", p).empty());
+    D3d12LayerKey mat_l3;
+    mat_l3.layer = 3;
+    mat_l3.op = "mul_mat";
+    D3d12LayerKey mat_l0;
+    mat_l0.layer = 0;
+    mat_l0.op = "mul_mat";
+    D3d12LayerKey rows;
+    rows.op = "get_rows";
+    p.add(mat_l3, 1.0, 0.04);
+    p.add(mat_l0, 2.5, 0.01);
+    p.add(mat_l3, 2.0, 0.06);
+    p.add(rows, 0.5, 0.02);
+    REQUIRE(p.rows().size() == 3);
+    const auto s = p.sorted();
+    REQUIRE(s.size() == 3);
+    CHECK(s[0].key.layer == 0); // layer index ascending
+    CHECK(s[1].key.layer == 3);
+    CHECK(s[1].count == 2);
+    CHECK(s[1].gpu_ms == doctest::Approx(3.0));
+    CHECK(s[1].wait_ms == doctest::Approx(0.10));
+    CHECK_FALSE(s[2].key.layer.has_value()); // unattributed last
+    CHECK(s[2].key.op == "get_rows");
+    CHECK(d3d12_layer_label(s[2].key.layer) == kD3d12UnattributedLayer);
+    CHECK(format_d3d12_layer_profile("prefill", p).find("layer=unattributed op=get_rows") !=
+          std::string::npos);
+}
+
+TEST_CASE("d3d12: unattributed bucket for names with no layer") {
+    CHECK_FALSE(d3d12_layer_from_name("token_embd.weight").has_value());
+    CHECK_FALSE(d3d12_layer_from_name("output.weight").has_value());
+    CHECK(d3d12_layer_from_names("token_embd.weight", "") == std::nullopt);
+    D3d12LayerProfile p;
+    D3d12LayerKey embd;
+    embd.op = "get_rows";
+    embd.layer = d3d12_layer_from_name("token_embd.weight");
+    p.add(embd, 0.25, 0.01);
+    D3d12LayerKey head;
+    head.op = "mul_mat";
+    head.layer = d3d12_layer_from_name("output.weight");
+    p.add(head, 0.75, 0.02);
+    REQUIRE(p.rows().size() == 2); // two ops, one unattributed bucket each
+    CHECK(d3d12_layer_label(p.rows()[0].key.layer) == "unattributed");
+    CHECK(d3d12_layer_label(p.rows()[1].key.layer) == "unattributed");
+    const std::string out = format_d3d12_layer_profile("decode", p);
+    CHECK(out.find("layer=unattributed op=get_rows count=1 gpu_ms=0.250") != std::string::npos);
+    CHECK(out.find("layer=unattributed op=mul_mat count=1 gpu_ms=0.750") != std::string::npos);
+    CHECK(out.find("layer=0") == std::string::npos);
+}
+
+TEST_CASE("d3d12: layer profile keeps missing timestamps as missing") {
+    D3d12LayerProfile p;
+    D3d12LayerKey k;
+    k.layer = 1;
+    k.op = "mul_mat";
+    p.add(k, std::nullopt, std::nullopt);
+    REQUIRE(p.rows().size() == 1);
+    CHECK(p.rows()[0].count == 1);
+    CHECK(p.rows()[0].gpu_timed == 0);
+    CHECK(p.rows()[0].gpu_missing == 1);
+    CHECK(p.rows()[0].wait_timed == 0);
+    CHECK(p.rows()[0].wait_missing == 1);
+    CHECK(p.rows()[0].gpu_ms == 0.0); // unused when gpu_timed==0; the line prints missing
+    const std::string out = format_d3d12_layer_profile("decode", p);
+    CHECK(out.find("gpu_ms=missing") != std::string::npos);
+    CHECK(out.find("wait_ms=missing") != std::string::npos);
+    CHECK(out.find("gpu_ms=0.000") == std::string::npos);
+    CHECK(out.find("wait_ms=0.000") == std::string::npos);
+    // A later valid sample does not invent times for the missing one.
+    p.add(k, 1.5, 0.05);
+    CHECK(p.rows()[0].gpu_timed == 1);
+    CHECK(p.rows()[0].gpu_missing == 1);
+    CHECK(p.rows()[0].gpu_ms == doctest::Approx(1.5));
+    const std::string mixed = format_d3d12_layer_profile("decode", p);
+    CHECK(mixed.find("gpu_ms=1.500") != std::string::npos);
+    CHECK(mixed.find("gpu_missing=1") != std::string::npos);
+    CHECK(mixed.find("wait_ms=0.050") != std::string::npos);
+    CHECK(mixed.find("wait_missing=1") != std::string::npos);
+    // Valid zero wait is reported as 0.000, not missing.
+    D3d12LayerProfile zero;
+    D3d12LayerKey z;
+    z.layer = 2;
+    z.op = "mul_mat";
+    zero.add(z, 0.001, 0.0);
+    const std::string zline = format_d3d12_layer_profile("prefill", zero);
+    CHECK(zline.find("wait_ms=0.000") != std::string::npos);
+    CHECK(zline.find("wait_ms=missing") == std::string::npos);
+}
+
+TEST_CASE("d3d12: layer profile line format") {
+    D3d12LayerProfile p;
+    D3d12LayerKey k;
+    k.layer = 3;
+    k.op = "mul_mat";
+    p.add(k, 1.0, 0.04);
+    p.add(k, 2.0, 0.06);
+    D3d12LayerKey u;
+    u.op = "get_rows";
+    p.add(u, 0.5, std::nullopt);
+    const std::string out = format_d3d12_layer_profile("prefill", p);
+    CHECK(out.rfind("[xllama] d3d12-layer phase=prefill layer=3 op=mul_mat count=2 gpu_ms=3.000 "
+                    "wait_ms=0.100 gpu_missing=0 wait_missing=0\n",
+                    0) == 0);
+    CHECK(out.find("[xllama] d3d12-layer phase=prefill layer=unattributed op=get_rows count=1 "
+                   "gpu_ms=0.500 wait_ms=missing gpu_missing=0 wait_missing=1\n") !=
+          std::string::npos);
+    CHECK(out.find("[xllama] d3d12-layer phase=prefill summary rows=2 timed=3 missing=0 "
+                   "gpu_ms=3.500 wait_ms=0.100 wait_missing=1\n") != std::string::npos);
+}
+
+TEST_CASE("d3d12: dispatch profile groups by kind and reports untimed dispatches") {
+    D3d12DispatchProfile p;
+    CHECK(p.empty());
+    CHECK(format_d3d12_dispatch_profile("prefill", p).empty());
+    D3d12DispatchKind q4{"mul_mat", "q4_0", 128, 1, "512+"};
+    D3d12DispatchKind q6{"mul_mat", "q6_K", 64, 1, "512+"};
+    p.add(q4, 1.0, 1048576.0, 512);
+    p.add(q6, 5.0, 2097152.0, 512);
+    p.add(q4, 2.0, 1048576.0, 512);
+    p.note_missing();
+    REQUIRE(p.rows().size() == 2);
+    CHECK(p.rows()[0].count == 2);
+    CHECK(p.rows()[0].gpu_ms == doctest::Approx(3.0));
+    CHECK(p.rows()[0].columns == 1024);
+    const auto s = p.sorted();
+    CHECK(s[0].kind == q6); // 5 ms before 3 ms
+    const std::string out = format_d3d12_dispatch_profile("prefill", p);
+    CHECK(out.rfind("[xllama] d3d12-dispatch phase=prefill op=mul_mat type=q6_K cpg=1 "
+                    "threads=64 cols=512+ count=1 gpu_ms=5.000",
+                    0) == 0);
+    CHECK(out.find("type=q4_0 cpg=1 threads=128 cols=512+ count=2 gpu_ms=3.000 ms_per=1.5000 "
+                   "weight_mib=2.0 columns=1024\n") != std::string::npos);
+    CHECK(out.find("summary kinds=2 timed=3 missing=1 gpu_ms=8.000\n") != std::string::npos);
+    D3d12DispatchProfile only_missing;
+    only_missing.note_missing();
+    CHECK_FALSE(only_missing.empty());
+    CHECK(format_d3d12_dispatch_profile("decode", only_missing).find("missing=1") !=
+          std::string::npos);
 }

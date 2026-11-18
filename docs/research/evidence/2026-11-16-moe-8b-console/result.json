@@ -1,0 +1,69 @@
+{
+  "schema": "xllama-moe-console-run-v1",
+  "date": "2026-11-16",
+  "hardware": "xbox-series-s (project console, operator-declared)",
+  "designation": "Game (quota_limit 5368709120)",
+  "package": {
+    "identity": "GianlucaMazza.xllama",
+    "version": "1.7.0.1651",
+    "ci_run": 43885657413,
+    "patch_route": "vetax-by/xllama 61bf63a, 17 patches matching PATCH-LOCK.json, applied on main 568e883",
+    "pin_changes": "model, chat template, shape tuple (24, 32, 66, 3010560) and B512 cache ceiling 1600 MiB for LFM2.5-8B-A1B",
+    "llama_cpp": "d81235049384534c167caea52b85a694f6103d14",
+    "source_tag": "evidence/2026-11-16-moe-8b-console",
+    "source_commit": "3f8b5f243cf0100752d9281cbcc020d4cf1fbb53"
+  },
+  "model": {
+    "repo": "LiquidAI/LFM2.5-8B-A1B-GGUF",
+    "revision": "49c14831707011e64d70b2ebd8462ba08d608434",
+    "file": "LFM2.5-8B-A1B-Q4_K_M.gguf",
+    "bytes": 5155564768,
+    "sha256": "4923ec14f06b968b74d663e5949867d2d9c3bf13a20b8be1a9f9af39989b2bb0",
+    "template_sha256": "6d65c8804847ad74eea912dd7eca3dc1cf7a457b53a77f47d841a14121910963"
+  },
+  "runs": {
+    "a2": {
+      "record_stop_reason": "error",
+      "record_error": "trace is not complete replayable",
+      "native_generation_stop_reason": "eos_or_eot",
+      "sampled_count": 284,
+      "final_text_after_close_present": true,
+      "prompt_tokens": 48,
+      "ttft_s": 40.91,
+      "inter_sample_rate_tokens_per_second": 1.177033,
+      "route_requests": 87384,
+      "cache_hits_from_log": 0,
+      "reader_logical_bytes_from_log": 192921501696,
+      "usage_max_sampled_not_peak": 624533504,
+      "cache_slots": 2,
+      "trace_status": "partial",
+      "pre_sha_verified": true,
+      "post_sha_verified": true,
+      "threads": 1,
+      "context_resolved": 512,
+      "output_sha256": "60f690559f815ab9347719db41b7fc8e4a007cd825ed88b19607cbace47919cb"
+    },
+    "b512": {
+      "record_stop_reason": "error",
+      "record_error": "trace is not complete replayable",
+      "native_generation_stop_reason": "eos_or_eot",
+      "sampled_count": 284,
+      "final_text_after_close_present": true,
+      "prompt_tokens": 48,
+      "ttft_s": 18.62,
+      "inter_sample_rate_tokens_per_second": 2.465883,
+      "route_requests": 87384,
+      "cache_hits_from_log": 55697,
+      "reader_logical_bytes_from_log": 69817638912,
+      "usage_max_sampled_not_peak": 2162696192,
+      "cache_slots": 512,
+      "trace_status": "partial",
+      "pre_sha_verified": true,
+      "post_sha_verified": true,
+      "threads": 1,
+      "context_resolved": 512,
+      "output_sha256": "ea4c87396691d7774a873b434eb45b0d4eddf2963a4d9856e70111ae793b2cff"
+    }
+  },
+  "token_ids_identical_a2_b512": true
+}

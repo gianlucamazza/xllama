@@ -6,8 +6,7 @@ performance belongs in `docs/benchmarks.md`.
 ## Current product state
 
 - **North star:** local inference on Series S for **games**
-  (NPC/dialogue/agents) and **AI assistants**. Tested and measured on Series S.
-  Not yet tested on Series X. The chat UI remains a
+  (NPC/dialogue/agents) and **AI assistants**. Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester. The chat UI remains a
   showcase shell; the LAN OpenAI-compat endpoint is the current
   integration probe. Limits and non-claims:
   [docs/positioning.md](docs/positioning.md).
@@ -35,8 +34,9 @@ performance belongs in `docs/benchmarks.md`.
   (host + console marker gates PASS; pin-blocked filter-widening remains);
   Phase 11 closed the headless↔UI gap (in-app personalize + LAN API parity,
   #116/#118). Phases 13, 14 and 16 (one shipped model) are complete. Remaining
-  open work: Phase 15 GPU decode follow-up (#313), release-readiness
-  follow-up, and upstream vendor pin drops.
+  open work: the GPU programme below (#421, #422), release-readiness
+  follow-up, upstream vendor pin drops, and the optional SSD MoE contribution
+  evaluation below (#479–#481).
 - **Current v1.7.0.0:** unified CI MSVC Developer Mode release. Exact package
   and validation gates are identified in the GitHub release notes. The last
   tagged cut's source-bound record is
@@ -56,7 +56,9 @@ performance belongs in `docs/benchmarks.md`.
 ### Current follow-up priorities
 
 1. **Vendor pin drops** (#84/#85/#86) — blocked until NuGet moves
-   (`scripts/check-vendor-nuget-status.sh`, poll 2026-08-27: still required).
+   (`scripts/check-vendor-nuget-status.sh`, poll 2026-11-16: still required;
+   the DirectML packages have not followed the CPU releases since June, see
+   #85).
 2. **Release readiness** — dual-SKU policy, licence matrix, and App vs Game
    gate in `docs/release-readiness.md`. Do not stamp a different publisher CN
    onto the Developer Mode package.
@@ -73,6 +75,44 @@ performance belongs in `docs/benchmarks.md`.
    and uptime not); prompt-lookup default OFF. Dependabot llama.cpp #247 was
    closed 2026-08-26 after the UWP build failed on `LLAMA_VERSION`; do not
    merge that bump on Linux green alone.
+
+## Optional SSD MoE contribution — state at 2026-11-16
+
+Stage status, source identities, completed checks and remaining prerequisites
+have one home: [MoE readiness report](docs/research/moe-upstream-readiness.md).
+The proposed sequence is in [planning PR #482](https://github.com/gianlucamazza/xllama/pull/482);
+maintainer preparation is published for review in
+[PR #483](https://github.com/gianlucamazza/xllama/pull/483).
+Neither PR delivers a shipping MoE runtime.
+
+- [x] Inspect the published provider/cache source and map the review boundary
+      (#479); independently check the extracted cache contract and existing
+      comparison tools. Evidence and limitations are in the readiness report.
+- [x] Prepare source-bound CPU reproduction inputs and the numerical corpus
+      (#480/#481). The campaign remains `PREPARED_NOT_EXECUTABLE` until all
+      reference/token/build bindings are supplied.
+- [ ] PR 1 / #479: review and integrate the smallest coherent cache foundation.
+- [ ] PR 2 / #480: integrate the optional native CPU provider/loader and pass
+      fixture plus full-checkpoint resident/streamed numerical gates.
+- [x] Reproduce the fork's CPU stage on a project Series S (2026-11-16):
+      LFM2.5-24B-A2B completes a turn with both cache profiles, matching the
+      fork's report ([evidence](docs/research/evidence/2026-11-16-moe-24b-console/README.md)).
+- [x] Second checkpoint on the streamed path (2026-11-16): LFM2.5-8B-A1B
+      Q4_K_M, which cannot run resident on a Series S, streams at up to
+      2.47 tok/s ([evidence](docs/research/evidence/2026-11-16-moe-8b-console/README.md)).
+- [ ] Model-generic streaming: architecture table and pins are in #486; the
+      [plan](https://github.com/gianlucamazza/xllama/pull/486)
+      takes every [candidate](docs/research/moe-streaming-candidates.md)
+      through fixtures, console lifecycle and benchmarks.
+- [ ] PR 3 / #481 CPU stage: validate the upstream Windows/UWP activation and
+      console lifecycle on the upstream package.
+- [ ] PR 4 / #481 GPU stage: prove console identity, dispatch, primitive/model
+      correctness and closure; only then run matched benchmarks under #421/#422.
+
+The next prerequisites are a resident-versus-streamed reference (on the
+smaller LFM2.5-8B-A1B, which fits the host) and the upstream PR 1 extraction.
+Historical H2 FAIL and the #273 catalogue gates remain unchanged. Completing
+cache/tool checks does not close runtime, console or GPU acceptance tasks.
 
 ## Research / XAB release
 
@@ -693,18 +733,63 @@ under `bench/results/` when measured, and documentation in the owning SSOT.
 The main CI Developer Mode package is validated; release tagging remains a
 separate workflow, as documented in the release runbook.
 
-## Xbox GPU acceleration program — 2026-11-09
+## Xbox GPU acceleration program — state at 2026-11-16
 
 Source/evidence discovery and the conditional 6–8 week stages are in the
-[baseline](docs/research/gpu-acceleration-baseline.md). Follow #420 for parity
-integrity/control diagnosis, #421 for attributable profiling and #422 for
-routing/matched benchmarks; reuse #313/#414, #374 and #395. Host tooling PRs
+[baseline](docs/research/gpu-acceleration-baseline.md). Host tooling PRs
 #423/#424 do not qualify C4 or a new release.
 
-Console checkpoint, 2026-11-15: the Series S is back in Developer Mode. The
-#420 control was reproduced byte for byte and traced with tensor capture; it
-still fails the frozen gate, and two host CPU builds show a similar spread
-between themselves
-([details](docs/gguf-gpu-decode.md#2026-11-15-control-reproduction-and-tensor-diagnosis-420)).
-#313/#414 stay stopped. Series X (#374) and the matched matrix (#422) remain
-blocked.
+**Where it stands**
+
+- The #420 control was reproduced on the console and traced to its first
+  divergent operator: int8 rounding flips in the layer-0 activation quantizer
+  ([details](docs/gguf-gpu-decode.md#2026-11-15-control-reproduction-and-tensor-diagnosis-420)).
+- ADR 0010 was accepted and implemented. The first control under it failed:
+  no first-layer kernel error, but the GPU logits exceed the declared margin
+  over the CPU reference spread
+  ([evidence](docs/research/evidence/2026-11-15-adr0010-control/README.md)).
+- A check against an exact reference found every GPU weight product correct
+  in all 36 layers
+  ([evidence](docs/research/evidence/2026-11-15-gpu-kernel-reference-check/README.md)).
+  The gap is amplified rounding between two correct executions, not a kernel
+  defect.
+- ADR 0010 was amended to judge kernels against that reference and the
+  output distribution over many positions. A fresh control under the
+  amendment passed on both parts
+  ([evidence](docs/research/evidence/2026-11-15-adr0010-control-2/README.md)),
+  and so did LFM2.5-1.2B and the four-column kernel of #414.
+- The preregistered #313 performance campaign of that kernel failed: 1.5
+  times faster prefill on Coder-3B, 15 % slower on LFM2.5-1.2B, the model
+  that ships on the GPU
+  ([evidence](docs/research/evidence/2026-11-16-c4-performance/README.md)).
+  #313 is closed as completed and #414 closed without merge; its branch is
+  kept. #420 and #374 are closed.
+- Series X was accepted as supported on 2026-11-15 from an independent
+  tester's runs ([scope](docs/positioning.md#series-x)); the project has no
+  measurements of its own on it.
+
+**Order of work**
+
+1. **#421:** per-dispatch timing is in `main` (#474) and calibrated on the
+   console (prefill unaffected, decode about 4 % slower with the knob). It
+   found that the four-column Q4_0 shader is 1.14 to 1.25 times slower per
+   dispatch while the K-quant ones take half the time
+   ([evidence](docs/research/evidence/2026-11-16-d3d12-dispatch-timing/README.md)).
+   Per-layer attribution (phase × layer × op, `gpu_ms` separate from
+   `wait_ms`: `exec_wait_ms − submission GPU time, divided by n`) is on
+   the same opt-in; that remainder can come out slightly negative because
+   the CPU and GPU clocks are different domains. CSV or sidecar
+   integration remains. An independent Series X run of the same knob
+   ([report](https://github.com/gianlucamazza/xllama/issues/421#issuecomment-6914667256),
+   operator-declared, not imported as evidence) points attribution at the
+   time between submission and fence that the timestamps do not cover: in
+   decode it exceeds the GPU time. The same report finds that the host
+   working set does not drop when layers move to the GPU; not yet checked on
+   the Series S. Console overhead calibration of the layer lines is a
+   separate step.
+2. **#422:** no new GPU prefill path to qualify; the matched Series S and
+   Series X matrix needs project measurements on a Series X.
+3. **#457, closed:** the App designation caps the app's CPU about ten
+   seconds after launch (about 40 % of the Game speed on a Series X); the
+   remedy is the Game designation. The Series S App figure was taken with the
+   headless bench and may have missed it; not re-measured.

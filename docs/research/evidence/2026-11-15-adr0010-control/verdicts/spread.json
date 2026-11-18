@@ -1,0 +1,85 @@
+{
+ "mode": "spread",
+ "adr": "0010 part 2",
+ "declaration_sha256": "119114fa4e4a67848e7d6e3cb2d1b466e8bb6bd27d6f2f557f28d3bb87462326",
+ "model": "qwen25-coder-3b",
+ "margin": 1.22,
+ "top_k": 10,
+ "top_k_min": 0.8,
+ "reference_spread": {
+  "max_abs_diff": 0.7201247215270996,
+  "nmse": 0.0019966520529250144
+ },
+ "gpu_worst": {
+  "max_abs_diff": 0.986504077911377,
+  "nmse": 0.001952204417675929
+ },
+ "limit": {
+  "max_abs_diff": 0.8785521602630615,
+  "nmse": 0.0024359155045685175
+ },
+ "ranking_ok": false,
+ "pass": false,
+ "rows": [
+  {
+   "prompt": "p1-code-short",
+   "reference": {
+    "max_abs_diff": 0.6031064987182617,
+    "nmse": 0.0010067502487609771,
+    "top1_match": true,
+    "topk_overlap": 1.0
+   },
+   "gpu": {
+    "max_abs_diff": 0.5970063209533691,
+    "nmse": 0.0010271053786975375,
+    "top1_match": true,
+    "topk_overlap": 1.0
+   }
+  },
+  {
+   "prompt": "p2-prose-it",
+   "reference": {
+    "max_abs_diff": 0.7201247215270996,
+    "nmse": 0.0015729569402227026,
+    "top1_match": true,
+    "topk_overlap": 1.0
+   },
+   "gpu": {
+    "max_abs_diff": 0.7410984039306641,
+    "nmse": 0.0018446177505112456,
+    "top1_match": false,
+    "topk_overlap": 1.0
+   }
+  },
+  {
+   "prompt": "p3-code-review",
+   "reference": {
+    "max_abs_diff": 0.6314449310302734,
+    "nmse": 0.0019803746033034784,
+    "top1_match": true,
+    "topk_overlap": 1.0
+   },
+   "gpu": {
+    "max_abs_diff": 0.5420482158660889,
+    "nmse": 0.0018344359263566823,
+    "top1_match": true,
+    "topk_overlap": 1.0
+   }
+  },
+  {
+   "prompt": "p4-prose-long",
+   "reference": {
+    "max_abs_diff": 0.7046127319335938,
+    "nmse": 0.0019966520529250144,
+    "top1_match": true,
+    "topk_overlap": 0.9
+   },
+   "gpu": {
+    "max_abs_diff": 0.986504077911377,
+    "nmse": 0.001952204417675929,
+    "top1_match": true,
+    "topk_overlap": 1.0
+   }
+  }
+ ]
+}

@@ -32,61 +32,62 @@ The shared core is platform-agnostic C++17; front-ends are thin:
 
 Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 
-| Header                             | Owns                                                                                                                                           |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `session_spec.h`                   | `resolve_session_params`, `same_load` — one catalogue→session resolver for GUI, API and pull; the hub reuses only the same load (ADR 0007)     |
-| `session.h` / `inference_params.h` | `Session`/`SessionParams`, `InferenceParams/Result` (`echo_stdout`, the `resolve_max_length` #130 ladder), `Backend` enum                      |
-| `session_hub.h`                    | `SessionHub` — the ONE process-wide resident-Session owner (GUI + LAN API); locking + `generation` contract                                    |
-| `compute_admission.h`              | Process-wide RAII lease for resource-heavy jobs across UI and LAN API; acquire before `session_hub().mtx` (proposed ADR 0008)                  |
-| `api_connection.h`                 | Bounded LAN in-flight slots and the HTTP 200/503 mapping for a compute admit (proposed ADR 0008)                                               |
-| `debug_dashboard.h`                | Optional debug dashboard snapshot: compose real hub / LAN / inference readings; missing sources stay `unavailable`                             |
-| `sampling.h`                       | `SamplingConfig`, shared defaults; CLI/bench and GUI/API init from it (#125)                                                                   |
-| `training.h` / `training_params.h` | `TrainingJob`/`TrainingResult`, stages, device gates, job JSON                                                                                 |
-| `device_train.h`                   | Lane B engine API: `run_device_train_job`, progress callbacks, filters                                                                         |
-| `personalize.h`                    | Phase 11 helpers: last-block filter, job builder, sample count, manifest JSON                                                                  |
-| `preference_capture.h`             | Preference JSONL format + append (Like/Dislike/Correct + API)                                                                                  |
-| `chat_prompt.h`                    | `ChatFormat`, `chat_format_for`, `apply_stop_sequences`                                                                                        |
-| `routing_policy.h`                 | `decide_routing`, `gpu_ready_for_routing`, `kv_reuse_supported_for_model`, prompt budget                                                       |
-| `embedding.h`                      | Embedding params/results, pooling-aware trim, normalization and float32 base64                                                                 |
-| `api_pull_policy.h`                | Trusted catalogue pull admission and API-only pull gate                                                                                        |
-| `model_write.h`                    | Shared atomic RAII writer permit; guarded marker publication and stale-base cleanup                                                            |
-| `model_provision.h`                | `dir_satisfies_expected_files`, `normalize_model_path`                                                                                         |
-| `model_file_plan.h`                | Per-file catalogue pin check; `files[].role`; `weight_pins_verified`; `gpu_tree_ready_for_routing`                                             |
-| `manifest_merge.h`                 | `merge_manifest_entries` (per-entry catalogue override)                                                                                        |
-| `membw.h`                          | `measure_membw` (STREAM-style bandwidth probe)                                                                                                 |
-| `grammar_spec.h`                   | `GrammarSpec` — a tool template's grammar and triggers for one generate (ADR 0005)                                                             |
-| `inference.h`                      | `run_inference`, `write_bench_csv` — the public inference entry point                                                                          |
-| `inference_progress.h`             | Prefill-done + decode-progress logs and the stall watchdog (`XLLAMA_INFER_STALL_TIMEOUT_S`, default 180 s)                                     |
-| `http_framing.h`                   | `parse_http_head` — exact LAN API request framing and deadlines (ADR 0006)                                                                     |
-| `prompt_budget.h`                  | `fit_prompt` for plain chat, `fit_tool_transcript` for a tool proposal — both exact, both on the resident tokenizer                            |
-| `autopilot.h`                      | `AutopilotAction`, `validate_autopilot_script` — console gate contract (WinRT-free)                                                            |
-| `json_utils.h`                     | `json_escape`, `json_read_string` with `\uXXXX` decode (surrogate pairs) — canonical JSON helpers                                              |
-| `cancel_policy.h`                  | `CancelTarget` + `cancel_target()` — which running job a cancel request targets                                                                |
-| `stability_attribution.h`          | Image-dialog §IV.a credit: `kStabilityAttribution`, `show_stability_attribution` (licence, else `sd-turbo` id family)                          |
-| `kv_store.h`                       | `KvStore` — on-disk KV snapshot pool (3 files / 192 MB, LRU, fingerprinted)                                                                    |
-| `logit_dump.h`                     | Logit-parity harness: portable float32 dump + JSON sidecar, shared by both backends                                                            |
-| `tensor_capture.h`                 | #420 opt-in prefill tensor capture: name-pattern spec, byte budget, `.f32` records + manifest                                                  |
-| `ramceil.h`                        | `probe_ram_ceiling` — heap ceiling probe (commits in steps, records platform counters)                                                         |
-| `diskbw.h`                         | `measure_diskbw` — NVMe/disk bandwidth probe (sequential + random patterns)                                                                    |
-| `d3d12_dyn.h`                      | Dynamic d3d12.dll entry-point resolve (PE hygiene for AppContainer)                                                                            |
-| `speculative.h`                    | `prompt_lookup_draft` — Phase 15 W2 draft-free prompt lookup (pure, host-testable)                                                             |
-| `gpubw.h`                          | Phase 15 W3: GPU STREAM probe helpers + kill gate (#211)                                                                                       |
-| `gpugemv.h`                        | Phase 15 H6.1–H6.3: Q4_K GEMV density probe, naive/wave32/rows/dot4 kernels (#228)                                                             |
-| `gpustep.h`                        | GGUF GPU decode probe D1: model shapes, cost model, D1 gates and ladder ([gguf-gpu-decode.md](gguf-gpu-decode.md))                             |
-| `ggml_d3d12.h`                     | ggml backend `d3d12`: registration, `supports_op` rules, q8 activations, kernel emulation, selftest ([gguf-gpu-decode.md](gguf-gpu-decode.md)) |
-| `cli.h`                            | `parse_cli_args` — Linux command-line parsing                                                                                                  |
-| `platform.h`                       | `log_output`, `detect_threads(_llama)`, `peak_working_set_mb`, `gpu_mem_info`                                                                  |
-| `path_utils.h`                     | `resolve_model_path`, `first_gguf_in_dir`, `model_uses_llama_backend`                                                                          |
-| `utf8_utils.h`                     | `utf8_to_wstring`, `wstring_to_utf8` (Windows/UWP)                                                                                             |
-| `api_policy.h`                     | `classify_api_tools` — a tool proposal is text in the response; the process does not execute tools                                             |
-| `capture_probe.h`                  | GraphicsCapture availability probe (metadata only; never starts a capture)                                                                     |
-| `catalog_trust.h`                  | Catalogue signature types used by the UWP downloader                                                                                           |
-| `ort_raii.h`                       | RAII `unique_ptr` for `Oga*` types (ORT GenAI C API, UWP path)                                                                                 |
-| `llama_raii.h`                     | RAII `unique_ptr` for `llama_*` types (llama.cpp, Linux + UWP)                                                                                 |
-| `diffusion/png_writer.h`           | PNG writer for diffusion output                                                                                                                |
-| `diffusion/half.h`                 | Half-precision float utilities                                                                                                                 |
-| `diffusion/euler_scheduler.h`      | Euler scheduler (header-only, golden-vector unit-tested)                                                                                       |
-| `diffusion/clip_tokenizer.h`       | CLIP BPE tokenizer for diffusion                                                                                                               |
+| Header                             | Owns                                                                                                                                                                                                  |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `session_spec.h`                   | `resolve_session_params`, `same_load` — one catalogue→session resolver for GUI, API and pull; the hub reuses only the same load (ADR 0007)                                                            |
+| `session.h` / `inference_params.h` | `Session`/`SessionParams`, `InferenceParams/Result` (`echo_stdout`, the `resolve_max_length` #130 ladder), `Backend` enum                                                                             |
+| `session_hub.h`                    | `SessionHub` — the ONE process-wide resident-Session owner (GUI + LAN API); locking + `generation` contract                                                                                           |
+| `compute_admission.h`              | Process-wide RAII lease for resource-heavy jobs across UI and LAN API; acquire before `session_hub().mtx` (proposed ADR 0008)                                                                         |
+| `api_connection.h`                 | Bounded LAN in-flight slots and the HTTP 200/503 mapping for a compute admit (proposed ADR 0008)                                                                                                      |
+| `debug_dashboard.h`                | Optional debug dashboard snapshot: compose real hub / LAN / inference readings; missing sources stay `unavailable`                                                                                    |
+| `sampling.h`                       | `SamplingConfig`, shared defaults; CLI/bench and GUI/API init from it (#125)                                                                                                                          |
+| `training.h` / `training_params.h` | `TrainingJob`/`TrainingResult`, stages, device gates, job JSON                                                                                                                                        |
+| `device_train.h`                   | Lane B engine API: `run_device_train_job`, progress callbacks, filters                                                                                                                                |
+| `personalize.h`                    | Phase 11 helpers: last-block filter, job builder, sample count, manifest JSON                                                                                                                         |
+| `preference_capture.h`             | Preference JSONL format + append (Like/Dislike/Correct + API)                                                                                                                                         |
+| `chat_prompt.h`                    | `ChatFormat`, `chat_format_for`, `apply_stop_sequences`                                                                                                                                               |
+| `routing_policy.h`                 | `decide_routing`, `gpu_ready_for_routing`, `kv_reuse_supported_for_model`, prompt budget                                                                                                              |
+| `embedding.h`                      | Embedding params/results, pooling-aware trim, normalization and float32 base64                                                                                                                        |
+| `api_pull_policy.h`                | Trusted catalogue pull admission and API-only pull gate                                                                                                                                               |
+| `model_write.h`                    | Shared atomic RAII writer permit; guarded marker publication and stale-base cleanup                                                                                                                   |
+| `model_provision.h`                | `dir_satisfies_expected_files`, `normalize_model_path`                                                                                                                                                |
+| `model_file_plan.h`                | Per-file catalogue pin check; `files[].role`; `weight_pins_verified`; `gpu_tree_ready_for_routing`                                                                                                    |
+| `moe_streaming.h`                  | Optional SSD expert streaming: routed tensor roles per architecture, checkpoint pins admitted only from the bundled catalogue (plan: `docs/superpowers/plans/2026-11-16-moe-streaming-all-models.md`) |
+| `manifest_merge.h`                 | `merge_manifest_entries` (per-entry catalogue override)                                                                                                                                               |
+| `membw.h`                          | `measure_membw` (STREAM-style bandwidth probe)                                                                                                                                                        |
+| `grammar_spec.h`                   | `GrammarSpec` — a tool template's grammar and triggers for one generate (ADR 0005)                                                                                                                    |
+| `inference.h`                      | `run_inference`, `write_bench_csv` — the public inference entry point                                                                                                                                 |
+| `inference_progress.h`             | Prefill-done + decode-progress logs and the stall watchdog (`XLLAMA_INFER_STALL_TIMEOUT_S`, default 180 s)                                                                                            |
+| `http_framing.h`                   | `parse_http_head` — exact LAN API request framing and deadlines (ADR 0006)                                                                                                                            |
+| `prompt_budget.h`                  | `fit_prompt` for plain chat, `fit_tool_transcript` for a tool proposal — both exact, both on the resident tokenizer                                                                                   |
+| `autopilot.h`                      | `AutopilotAction`, `validate_autopilot_script` — console gate contract (WinRT-free)                                                                                                                   |
+| `json_utils.h`                     | `json_escape`, `json_read_string` with `\uXXXX` decode (surrogate pairs) — canonical JSON helpers                                                                                                     |
+| `cancel_policy.h`                  | `CancelTarget` + `cancel_target()` — which running job a cancel request targets                                                                                                                       |
+| `stability_attribution.h`          | Image-dialog §IV.a credit: `kStabilityAttribution`, `show_stability_attribution` (licence, else `sd-turbo` id family)                                                                                 |
+| `kv_store.h`                       | `KvStore` — on-disk KV snapshot pool (3 files / 192 MB, LRU, fingerprinted)                                                                                                                           |
+| `logit_dump.h`                     | Logit-parity harness: portable float32 dump + JSON sidecar, shared by both backends                                                                                                                   |
+| `tensor_capture.h`                 | #420 opt-in prefill tensor capture: name-pattern spec, byte budget, `.f32` records + manifest; ADR 0010 first-layer `MUL_MAT` operands                                                                |
+| `ramceil.h`                        | `probe_ram_ceiling` — heap ceiling probe (commits in steps, records platform counters)                                                                                                                |
+| `diskbw.h`                         | `measure_diskbw` — NVMe/disk bandwidth probe (sequential + random patterns)                                                                                                                           |
+| `d3d12_dyn.h`                      | Dynamic d3d12.dll entry-point resolve (PE hygiene for AppContainer)                                                                                                                                   |
+| `speculative.h`                    | `prompt_lookup_draft` — Phase 15 W2 draft-free prompt lookup (pure, host-testable)                                                                                                                    |
+| `gpubw.h`                          | Phase 15 W3: GPU STREAM probe helpers + kill gate (#211)                                                                                                                                              |
+| `gpugemv.h`                        | Phase 15 H6.1–H6.3: Q4_K GEMV density probe, naive/wave32/rows/dot4 kernels (#228)                                                                                                                    |
+| `gpustep.h`                        | GGUF GPU decode probe D1: model shapes, cost model, D1 gates and ladder ([gguf-gpu-decode.md](gguf-gpu-decode.md))                                                                                    |
+| `ggml_d3d12.h`                     | ggml backend `d3d12`: registration, `supports_op` rules, q8 activations, kernel emulation, selftest, opt-in dispatch/layer timing ([gguf-gpu-decode.md](gguf-gpu-decode.md))                          |
+| `cli.h`                            | `parse_cli_args` — Linux command-line parsing                                                                                                                                                         |
+| `platform.h`                       | `log_output`, `detect_threads(_llama)`, `peak_working_set_mb`, `gpu_mem_info`                                                                                                                         |
+| `path_utils.h`                     | `resolve_model_path`, `first_gguf_in_dir`, `model_uses_llama_backend`                                                                                                                                 |
+| `utf8_utils.h`                     | `utf8_to_wstring`, `wstring_to_utf8` (Windows/UWP)                                                                                                                                                    |
+| `api_policy.h`                     | `classify_api_tools` — a tool proposal is text in the response; the process does not execute tools                                                                                                    |
+| `capture_probe.h`                  | GraphicsCapture availability probe (metadata only; never starts a capture)                                                                                                                            |
+| `catalog_trust.h`                  | Catalogue signature types used by the UWP downloader                                                                                                                                                  |
+| `ort_raii.h`                       | RAII `unique_ptr` for `Oga*` types (ORT GenAI C API, UWP path)                                                                                                                                        |
+| `llama_raii.h`                     | RAII `unique_ptr` for `llama_*` types (llama.cpp, Linux + UWP)                                                                                                                                        |
+| `diffusion/png_writer.h`           | PNG writer for diffusion output                                                                                                                                                                       |
+| `diffusion/half.h`                 | Half-precision float utilities                                                                                                                                                                        |
+| `diffusion/euler_scheduler.h`      | Euler scheduler (header-only, golden-vector unit-tested)                                                                                                                                              |
+| `diffusion/clip_tokenizer.h`       | CLIP BPE tokenizer for diffusion                                                                                                                                                                      |
 
 Bridge sources of note under `src/bridge/`: `session.cpp`, `inference.cpp`,
 `training.cpp`, `device_train.cpp`, `personalize.cpp`, `preference_capture.cpp`,
@@ -586,7 +587,8 @@ this capture shows where in the graph the error grows. It is off by default.
 On the llama.cpp path, `--capture-tensors <dir> --capture-spec <spec>` (CLI) or
 a `tensor-capture.txt` spec file (console `logits.flag`/`dump_logits`, records in
 `LocalState\tensor-capture`, emptied first) installs a scheduler eval callback
-during the prompt prefill only. The spec is `patterns[;mode=last|full][;max_mb=N]`;
+during the prompt prefill only. The spec is
+`patterns[;mode=last|full][;max_mb=N][;matmul_inputs=NAME]`;
 a trailing `*` matches a prefix, e.g. `l_out-*,result_norm,result_output`.
 `last` keeps the final token slice of each activation. Each matched node
 becomes one `NNNNNN.f32` record plus a `manifest.jsonl` line. Nodes that cannot
@@ -604,6 +606,51 @@ capture-on run, compare its logits against a capture-off run of the same arm.
 `scripts/compare-tensors.py <ref> <cand> [--floor <alt>]` then walks the records
 in graph order and reports the first divergent one. Its thresholds are
 diagnostic and do not replace the frozen `compare-logits.py` gate.
+
+`matmul_inputs=NAME` is the capture for part 1 of
+[ADR 0010](adr/0010-logit-parity-reference-spread.md). From the start of each
+evaluation until the node called `NAME` completes (`l_out-0` covers the first
+layer), every `MUL_MAT` whose first operand is a model weight is recorded
+whole, named after the weight, together with its activation operand. Operands
+shared by several products are written once.
+
+`scripts/control-parity.py` is the ADR 0010 comparison, in two modes. Both
+read a declaration file (model, limits, margin, prompt hashes) that has no
+defaults and is committed before the GPU arm is measured; its sha256 is part
+of every verdict.
+
+- `kernel <cpu_capture> <gpu_capture>` compares those first-layer products
+  on the token columns where both arms fed the same operand: bit-identical
+  floats or, for K-quant weights, equal int8 values under ggml's `q8_K` rule.
+  Columns with a different operand are counted, not judged.
+- `spread --cpu-console D --cpu-host D --gpu D` takes the largest maximum
+  error and NMSE between the two CPU references over the declared prompts as
+  the reference spread, and passes the GPU arm when it stays within the
+  declared margin times that spread, with the same top token and the declared
+  top-k overlap on every prompt.
+
+Neither mode changes `compare-logits.py`, its defaults or a recorded verdict.
+
+The ADR was amended on 2026-11-15, and controls declared since then use two
+further modes with declaration schema v2:
+
+- `reference --model M.gguf <capture>...` judges every weight product of one
+  arm against a float64 reference built from the model file and the arm's own
+  q8_K operand, for every declared capture, up to its declared last layer.
+- `distribution --cpu-console D --cpu-host D --gpu D` reads per-position
+  logit dumps (`--dump-logits-stride N`, or `logits_stride.txt` on the
+  console, which write `<dump>.positions.bin` and `.json`). It compares the
+  GPU arm's mean KL divergence from the console CPU arm, and its top-token
+  agreement, with a host CPU build's, by a bootstrap over prompts.
+
+`kernel` and `spread` remain so the first control's verdict can be reproduced.
+
+`scripts/check-matmul-reference.py <model.gguf> <capture>...` is a diagnostic
+on the same captures. It checks each weight product of one arm against a
+float64 reference built from the model file and that arm's own q8_K operand,
+so it covers every token column and every captured layer without a second
+arm. It needs numpy and the submodule's `gguf-py`, and supports K-quant
+weights (q8_K operands) and Q4_0, Q5_0 and Q8_0 weights (q8_0 operands), and is the arithmetic behind the `reference` mode, usable without a declaration.
 
 The binary format matches `numpy.fromfile(dtype=np.float32)`. Dumps from both
 backends are compared by `scripts/compare-logits.py`. This is the gate for
@@ -809,7 +856,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_diffusion.cpp`             | `diffusion/`                                                                                |
 | `test_diskbw.cpp`                | `diskbw.h`                                                                                  |
 | `test_embedding.cpp`             | `embedding.h`                                                                               |
-| `test_ggml_d3d12.cpp`            | `ggml_d3d12.h`, `src/bridge/llama_gpu.h`                                                    |
+| `test_ggml_d3d12.cpp`            | `ggml_d3d12.h`, `src/bridge/llama_gpu.h`; name→layer mapping and `d3d12-layer` lines        |
 | `test_gpubw.cpp`                 | `gpubw.h`                                                                                   |
 | `test_gpugemv.cpp`               | `gpugemv.h`                                                                                 |
 | `test_gpustep.cpp`               | `gpustep.h`                                                                                 |
@@ -822,6 +869,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_membw.cpp`                 | `membw.h`                                                                                   |
 | `test_model_provision.cpp`       | `model_provision.h`                                                                         |
 | `test_model_file_plan.cpp`       | `model_file_plan.h`                                                                         |
+| `test_moe_streaming.cpp`         | `moe_streaming.h`                                                                           |
 | `test_model_write.cpp`           | `model_write.h`                                                                             |
 | `test_path.cpp`                  | `path_utils.h`                                                                              |
 | `test_personalize.cpp`           | `personalize.h`                                                                             |
@@ -969,8 +1017,9 @@ write's `on_done` so the two do not contend for the single gate.
 | `--embed`                         | Embedding smoke test (inputs via `-p`)                               |
 | `--dimensions <N>`                | Embedding dimensions for `--embed` (0 = native)                      |
 | `--dump-logits <path>`            | Write last prefill-token logits + JSON sidecar                       |
+| `--dump-logits-stride <N>`        | Also dump every Nth prompt position's logits (ADR 0010 amendment)    |
 | `--capture-tensors <dir>`         | #420: prefill tensor records (needs `--capture-spec`)                |
-| `--capture-spec <spec>`           | Tensor name patterns plus `mode=` and `max_mb=`                      |
+| `--capture-spec <spec>`           | Tensor name patterns plus `mode=`, `max_mb=` and `matmul_inputs=`    |
 | `--membw`                         | CPU STREAM bandwidth probe                                           |
 | `--diskbw`                        | Disk read-bandwidth probe                                            |
 | `--ramceil`                       | Heap ceiling probe                                                   |

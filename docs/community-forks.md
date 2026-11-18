@@ -482,3 +482,89 @@ inventory above. Comparisons are pinned against upstream
 
 The ten forks listed on 2026-11-07 have no new commits. Their behind counts
 grew with `main`; their ahead counts and verdicts are unchanged.
+
+## Second pass, 2026-11-15
+
+A later check on the same day, against `main` `e12cf3d`. The collection
+returns 13 public forks. Two things changed; every other fork is at the
+commit recorded above.
+
+### EidonLabsInc: first Series X runs (PR #448)
+
+`EidonLabsInc/xllama` `main` at `08baa0c`, one commit, opened as
+[#448](https://github.com/gianlucamazza/xllama/pull/448) after
+[Discussion #434](https://github.com/gianlucamazza/xllama/discussions/434).
+It adds two CSVs and no code: 143 LAN-API wall-clock runs of package
+1.7.0.1495 on a Series X, for `lfm25-350m` and `lfm25-1.2b-instruct`.
+
+This is the first inference data from a Series X and the most useful fork
+contribution so far. It is not accepted evidence yet:
+
+- The rows are labelled `xbox-series-x`. `bench/README.md` requires
+  `xbox-series-x-declared` for an operator-declared device.
+- No Device Portal or OS receipt accompanies the rows, which the
+  [acceptance protocol](console-validation-runbook.md#independent-series-x-acceptance-374)
+  requires before they count as Series X evidence.
+- Two of the three SHA-256 values in the PR text are 66 and 85 hex digits
+  long, so they are not valid digests.
+- The canonical file leaves the rate columns empty (the runs are end-to-end
+  timings, which the contributor correctly keeps out of `decode_tok_s`), and
+  its `run_index` 1 to 3 repeats across batches. It must stay out of the
+  summary selectors.
+- The runs before and after the app was marked as a Game package differ by
+  about 2.4 times. The PR calls this a correlation; the cause is not
+  established.
+
+Not checked here: the raw records behind the CSVs, and anything on a Series X.
+Later the same day the owner accepted Series X as supported on the strength of
+these runs. The rows were imported with the `xbox-series-x-declared` label;
+the receipt and digests are still missing, so they remain a declaration and
+not a project measurement ([positioning.md](positioning.md#series-x)).
+
+### vetax-by: five more commits, verdict unchanged
+
+`codex/ua50-ssd-moe` moved from `bfbd0f8` to `385a4f5` (28 ahead, 26 behind).
+The new commits add a synchronous selected-expert GPU bridge inside the CPU
+graph and an adapter-identity probe, as three more patches (fifteen in
+total), plus signing-recipe changes. The fork still patches llama.cpp,
+reports no tok/s or peak memory, adds no tests and describes itself as
+compile and package only. None of the conditions for reopening it is met.
+
+### vetax-by: first Series S CPU results, 2026-11-16
+
+The branch head is now `61bf63a` (one more commit: a configurable
+single-turn CPU/hybrid generation API, Windows build only). In
+[Discussion #435](https://github.com/gianlucamazza/xllama/discussions/435)
+the author reports the first console runs of the streamed-expert path: a
+24B/A2B Q4_K_M MoE on a Series S, CPU only, one worker, the nonfused path
+and a 512-token context. The figures are the author's summary; no raw logs
+are in this repository.
+
+- A full single turn ends on the model's own EOS/EOT with a normal teardown;
+  repeated runs of one configuration give identical outputs and routes.
+- A 512-slot expert cache hits about 35 % of acquisitions (a 2-slot cache:
+  none) and cuts logical reads from about 213 to 138 GB. Time to the first
+  token falls from about 70 to 49 s; about 1.0 s per later token.
+- Highest sampled application memory about 2.01 GiB against the 5 GiB limit
+  (sampled, not a proven peak).
+- No full-checkpoint resident-versus-streamed logit comparison yet; the GPU
+  expert path is built but has not run on a console.
+- Console testing is paused: Dev Mode sign-in fails with `0x80004005` on the
+  author's Series S.
+
+Against the reopen conditions above: the console is now named, but the rate
+(about 1 tok/s) comes from a deliberately constrained configuration at a
+non-product `n_ctx`, the memory figure is sampled, and the raw logs are not
+published. The [#273] verdict and the SSD assessment are unchanged. It is a
+capacity result, a model larger than the app memory limit completing a turn,
+not a speed result against the dense peer. The maintainer reply agrees
+to start from the provider/cache foundation (#479) and to reproduce the CPU
+path on a project console.
+
+**Reproduced on a project console, same day.** The seventeen patches, built
+by this repository's CI and installed in place on a project Series S, gave
+the same turn with both cache profiles: identical tokens, 67.6 / 48.5 s to the
+first token, 0.72 / 1.00 tok/s, 0 / 39330 hits of 112176 requests
+([evidence](research/evidence/2026-11-16-moe-24b-console/README.md)). The
+author's figures stand; the #273 verdict is still unchanged, for the reasons
+above.

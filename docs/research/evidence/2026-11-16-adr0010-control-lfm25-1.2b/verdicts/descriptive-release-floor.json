@@ -1,0 +1,185 @@
+{
+ "mode": "distribution",
+ "adr": "0010 amendment part 2",
+ "declaration_sha256": "f9390695d0dc394fcbbe0b37541f83bed7b055a8017f7a4159c806faef4317cc",
+ "model": "lfm25-1.2b-instruct",
+ "positions": 5284,
+ "min_positions": 4000,
+ "confidence": 0.95,
+ "bootstrap": 2000,
+ "seed": 1,
+ "mean_kld_gpu": 0.0016627948568039724,
+ "mean_kld_host": 0.0012611570217941146,
+ "kld_ratio": 1.3184677467350499,
+ "kld_ratio_upper_bound": 1.3783430464798097,
+ "kld_ratio_limit": 1.95,
+ "top1_agreement_gpu": 0.9731264193792581,
+ "top1_agreement_host": 0.9799394398183194,
+ "top1_deficit": 0.006813020439061317,
+ "top1_deficit_upper_bound": 0.010018627965810892,
+ "top1_margin": 0.01,
+ "pass": false,
+ "rows": [
+  {
+   "prompt": "t01",
+   "positions": 384,
+   "kld_gpu": 0.5436486603575779,
+   "kld_host": 0.3758252672441655,
+   "top1_gpu": 376,
+   "top1_host": 378,
+   "kld_gpu_max": 0.029348056922664723,
+   "kld_host_max": 0.006428321054985179
+  },
+  {
+   "prompt": "t02",
+   "positions": 323,
+   "kld_gpu": 0.7106206194239071,
+   "kld_host": 0.5191435478299817,
+   "top1_gpu": 313,
+   "top1_host": 319,
+   "kld_gpu_max": 0.026138144355715744,
+   "kld_host_max": 0.010796354779982111
+  },
+  {
+   "prompt": "t03",
+   "positions": 293,
+   "kld_gpu": 0.45106038115447317,
+   "kld_host": 0.33777436443609565,
+   "top1_gpu": 285,
+   "top1_host": 291,
+   "kld_gpu_max": 0.021362908075114956,
+   "kld_host_max": 0.008610737444190065
+  },
+  {
+   "prompt": "t04",
+   "positions": 269,
+   "kld_gpu": 0.391426345819016,
+   "kld_host": 0.271701554436733,
+   "top1_gpu": 261,
+   "top1_host": 264,
+   "kld_gpu_max": 0.021362908075114956,
+   "kld_host_max": 0.0049181412460383754
+  },
+  {
+   "prompt": "t05",
+   "positions": 270,
+   "kld_gpu": 0.5197672649970455,
+   "kld_host": 0.44514117466562186,
+   "top1_gpu": 262,
+   "top1_host": 261,
+   "kld_gpu_max": 0.019804379146635315,
+   "kld_host_max": 0.016673200026593688
+  },
+  {
+   "prompt": "t06",
+   "positions": 412,
+   "kld_gpu": 0.490967694155726,
+   "kld_host": 0.3851859942043403,
+   "top1_gpu": 399,
+   "top1_host": 401,
+   "kld_gpu_max": 0.021362908075114956,
+   "kld_host_max": 0.0063004551941160235
+  },
+  {
+   "prompt": "t07",
+   "positions": 302,
+   "kld_gpu": 0.43628212692622675,
+   "kld_host": 0.3055805680019734,
+   "top1_gpu": 294,
+   "top1_host": 295,
+   "kld_gpu_max": 0.021362908075114956,
+   "kld_host_max": 0.00837991967295959
+  },
+  {
+   "prompt": "t08",
+   "positions": 352,
+   "kld_gpu": 0.48257080296447313,
+   "kld_host": 0.3832428972951818,
+   "top1_gpu": 340,
+   "top1_host": 343,
+   "kld_gpu_max": 0.021362908075114956,
+   "kld_host_max": 0.006483798888798138
+  },
+  {
+   "prompt": "t09",
+   "positions": 332,
+   "kld_gpu": 0.63427118178168,
+   "kld_host": 0.466206895318707,
+   "top1_gpu": 321,
+   "top1_host": 326,
+   "kld_gpu_max": 0.018929505668893835,
+   "kld_host_max": 0.01030797682928886
+  },
+  {
+   "prompt": "t10",
+   "positions": 328,
+   "kld_gpu": 0.559945090908242,
+   "kld_host": 0.3961714557539846,
+   "top1_gpu": 319,
+   "top1_host": 323,
+   "kld_gpu_max": 0.021362908075114956,
+   "kld_host_max": 0.012189532105729414
+  },
+  {
+   "prompt": "t11",
+   "positions": 384,
+   "kld_gpu": 0.8425223338492205,
+   "kld_host": 0.7618082412596446,
+   "top1_gpu": 375,
+   "top1_host": 375,
+   "kld_gpu_max": 0.018769875697333162,
+   "kld_host_max": 0.01750481727745693
+  },
+  {
+   "prompt": "t12",
+   "positions": 370,
+   "kld_gpu": 0.6262658348670342,
+   "kld_host": 0.48921335939774196,
+   "top1_gpu": 361,
+   "top1_host": 363,
+   "kld_gpu_max": 0.021362908075114956,
+   "kld_host_max": 0.010825425724226583
+  },
+  {
+   "prompt": "t13",
+   "positions": 325,
+   "kld_gpu": 0.5623457803294478,
+   "kld_host": 0.3492677329420663,
+   "top1_gpu": 317,
+   "top1_host": 321,
+   "kld_gpu_max": 0.07949425441221399,
+   "kld_host_max": 0.012254906610312137
+  },
+  {
+   "prompt": "t14",
+   "positions": 294,
+   "kld_gpu": 0.5386921286736011,
+   "kld_host": 0.41951119903773887,
+   "top1_gpu": 287,
+   "top1_host": 287,
+   "kld_gpu_max": 0.02227434216058911,
+   "kld_host_max": 0.014873936093901004
+  },
+  {
+   "prompt": "t15",
+   "positions": 271,
+   "kld_gpu": 0.429617979073987,
+   "kld_host": 0.31427699851886176,
+   "top1_gpu": 265,
+   "top1_host": 267,
+   "kld_gpu_max": 0.021362908075114956,
+   "kld_host_max": 0.009361665944018025
+  },
+  {
+   "prompt": "t16",
+   "positions": 375,
+   "kld_gpu": 0.566203798070532,
+   "kld_host": 0.4439024528172636,
+   "top1_gpu": 367,
+   "top1_host": 364,
+   "kld_gpu_max": 0.021362908075114956,
+   "kld_host_max": 0.012820780846397048
+  }
+ ],
+ "note": "not the declared test: the host Release build in the floor's place; reported for transparency"
+}

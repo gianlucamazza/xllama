@@ -1,0 +1,72 @@
+Review the following C++ class. List the defects you find in order of severity, explain what input or call sequence triggers each one, and rewrite only the functions that need to change.
+
+#include <cstddef>
+#include <cstring>
+#include <mutex>
+#include <stdexcept>
+
+class ByteQueue {
+public:
+    explicit ByteQueue(std::size_t capacity)
+        : data_(new unsigned char[capacity]), capacity_(capacity), head_(0), tail_(0), size_(0) {}
+
+    ~ByteQueue() { delete data_; }
+
+    ByteQueue(const ByteQueue& other)
+        : data_(other.data_), capacity_(other.capacity_), head_(other.head_),
+          tail_(other.tail_), size_(other.size_) {}
+
+    // Appends n bytes. Returns the number of bytes written.
+    std::size_t push(const unsigned char* src, std::size_t n) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (n > capacity_ - size_)
+            n = capacity_ - size_;
+        std::memcpy(data_ + tail_, src, n);
+        tail_ = (tail_ + n) % capacity_;
+        size_ += n;
+        return n;
+    }
+
+    // Removes up to n bytes into dst. Returns the number of bytes read.
+    std::size_t pop(unsigned char* dst, std::size_t n) {
+        if (size_ == 0)
+            return 0;
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (n > size_)
+            n = size_;
+        const std::size_t first = capacity_ - head_;
+        if (n <= first) {
+            std::memcpy(dst, data_ + head_, n);
+        } else {
+            std::memcpy(dst, data_ + head_, first);
+            std::memcpy(dst + first, data_, n - first);
+        }
+        head_ = (head_ + n) % capacity_;
+        size_ -= n;
+        return n;
+    }
+
+    unsigned char peek(std::size_t offset) const {
+        if (offset > size_)
+            throw std::out_of_range("offset");
+        return data_[head_ + offset];
+    }
+
+    void clear() {
+        head_ = 0;
+        tail_ = 0;
+    }
+
+    std::size_t size() const { return size_; }
+    bool empty() const { return head_ == tail_; }
+
+private:
+    unsigned char* data_;
+    std::size_t capacity_;
+    std::size_t head_;
+    std::size_t tail_;
+    std::size_t size_;
+    mutable std::mutex mutex_;
+};
+
+A colleague says the class is fine because the unit tests pass. The tests create one queue of capacity 16, push 8 bytes, pop 8 bytes and compare them. Explain in two sentences why those tests cannot find the defects, then describe three additional test cases, each aimed at a different defect, and say what each one should assert.

@@ -1,0 +1,68 @@
+{
+ "scope": "diagnostic for #420 after the failed ADR 0010 control; not a control, no criterion changed",
+ "date_utc": "2026-11-15",
+ "package": {
+  "filename": "xllama_1.7.0.1563_x64.msix",
+  "sha256": "ba113340b3e3a919320aa39e2da66d29bed785dcb8d5325c1235a95da155a4e2",
+  "ci_run": 43740925613,
+  "source": "4d9b6d9eb71932de5e70b8d0898da252abb74d3c (PR #451 head; squash-merged as 06710d1)",
+  "artifact": "xllama-appx (unified, CI MSVC)",
+  "install": "in-place update over 1.7.0.1555"
+ },
+ "device": {
+  "source": "authenticated Device Portal GET /api/os/info",
+  "platform": "Xbox Series S",
+  "os_version": "26100.9662.amd64fre.xb_flt_2610ge.261104-2200",
+  "scope": "observed OS platform; no serial or computer name retained"
+ },
+ "model": {
+  "file": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+  "sha256": "32f0014400ca1c1f81e7fb5befa9b9af476ba967dcbf92bad27409228c57c5b4",
+  "note": "host copy taken from the console LocalState; withdrawn from the catalogue, used as the #420 control"
+ },
+ "configuration": {
+  "n_ubatch": 512,
+  "greedy": true,
+  "gpu_layers": {
+   "console-cpu": 0,
+   "console-gpu": 99
+  },
+  "capture_specs": {
+   "p1-code-short": "l_out-0;mode=last;max_mb=1024;matmul_inputs=l_out-35",
+   "p4-prose-long": "l_out-0;mode=last;max_mb=1024;matmul_inputs=l_out-5"
+  },
+  "prompts": "p1-code-short and p4-prose-long are the control's prompts; d01 to d11 are in prompts/",
+  "host_reference": "xllama-cli linux-release at ca60882 (same C++ as the package), AVX2, 8 threads"
+ },
+ "captures_not_retained": {
+  "data_sha256": "sha256 over the concatenated sha256 of each .f32 file in name order",
+  "p1-code-short": {
+   "cpu": {
+    "manifest_sha256": "85964af1a0f6c1b3f999495d8337853c26b831275be44c552708f7244aa3c67f",
+    "files": 397,
+    "bytes": 258163712,
+    "data_sha256": "196813e0f68344395830a4df6751c2240fc20f69cac6cec011b64a9b38526203"
+   },
+   "gpu": {
+    "manifest_sha256": "85964af1a0f6c1b3f999495d8337853c26b831275be44c552708f7244aa3c67f",
+    "files": 397,
+    "bytes": 258163712,
+    "data_sha256": "5267b14135cac134c0fa971787da44fc2854b59c3d7007197b151c1a687ab131"
+   }
+  },
+  "p4-prose-long": {
+   "cpu": {
+    "manifest_sha256": "e2c4f4727c79448257d9aff70d181b64ee0ad71868f357c1d5ba555a73dd2c82",
+    "files": 134,
+    "bytes": 784156672,
+    "data_sha256": "0ab455e7c14361df76772c62d03c14aceffead67a34662225b07617e43255e03"
+   },
+   "gpu": {
+    "manifest_sha256": "e2c4f4727c79448257d9aff70d181b64ee0ad71868f357c1d5ba555a73dd2c82",
+    "files": 134,
+    "bytes": 784156672,
+    "data_sha256": "c480afaa8ab271dba4d6a2a6457c78df1367957fc0a659d3424582a9c588eece"
+   }
+  }
+ }
+}

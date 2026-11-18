@@ -1,0 +1,4 @@
+model,quant,backend,n_ctx,n_threads,prompt_tok_s,decode_tok_s,peak_ws_mb,load_ms,gpu_mem_mb,gpu_budget_mb,n_prompt_tok,n_gen_tok,max_length,host,date,run_index,prefill_ms,ttft_ms
+lfm25-8b-a1b,UD-IQ3_S,cpu,2048,6,61.16,14.42,3560,8978,0,0,293,512,0,xbox-series-s-declared-t6-noeog,2026-11-16T14:58:58Z,2,4790.4,4791.2
+lfm25-8b-a1b,UD-IQ3_S,cpu,2048,6,61.25,14.42,3560,8988,0,0,293,512,0,xbox-series-s-declared-t6-noeog,2026-11-16T14:59:55Z,3,4783.3,4784.1
+lfm25-8b-a1b,UD-IQ3_S,cpu,2048,6,61.33,14.42,3560,8978,0,0,293,512,0,xbox-series-s-declared-t6-noeog,2026-11-16T15:00:52Z,4,4777.3,4778.1

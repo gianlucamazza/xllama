@@ -1,0 +1,1 @@
+Explain why a queue built on a ring buffer avoids reallocation, then give one case where a linked list is the better choice for it.
