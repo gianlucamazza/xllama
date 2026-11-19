@@ -978,9 +978,9 @@ while the four-column Q4_K and Q6_K shaders take about half as long.
 A projection with an F32 bias is `MUL_MAT` then `ADD` (`build_qkv`,
 `build_ffn`, `build_attn`). The backend ran only the `MUL_MAT`, so each bias
 `ADD` went to the CPU and the scheduler cut the split there
-(`ggml-backend.cpp`, a backend change ends a split): a model with q/k/v
-biases (Qwen2.5) paid a submission per projection instead of one for all
-three, and one with a bias on every projection paid one more for each.
+(`ggml-backend.cpp`, a backend change ends a split): each biased projection
+paid its own submission, so a model with a bias on every projection (Bielik
+4.5B) paid 7 per layer.
 
 With `LocalState\d3d12-bias-add.txt` containing `1` when the backend starts
 (boot log `d3d12: bias_add=1`), `supports_op` accepts an `ADD` whose `src1`
@@ -1000,3 +1000,13 @@ check. A UAV barrier separates an `ADD` from the dispatches before and after
 it in a submission. The per-dispatch and per-layer lines report it as
 `op=add`, keyed by the bias tensor's name, with the bias size as
 `weight_mib`.
+
+With the knob on a layer still takes 5 submissions, not 4. The CPU nodes that
+remain close the splits: `ROPE` after Q and after K (`build_attn` expands
+`q_cur`, `v_cur`, `k_cur` in that order, so q/k/v is `[Q] ROPE [V K] ROPE`,
+two splits), the residual `ADD`, `SWIGLU` and the attention itself. The
+split is `[Q] [V K] [o] [gate up] [down]`; without the knob it is
+`[Q] [V] [K] [o] [gate] [up] [down]` (7). A model without biases is 5 as
+well, so the knob cannot go below 5; that needs `ROPE` on the GPU or a
+different node order. Measured on Series X: Bielik 421 → 301 submissions per
+token (60 layers × 7 → 5, plus lm_head).
