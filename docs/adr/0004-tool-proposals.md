@@ -3,6 +3,9 @@
 Status: Accepted (2026-10-13)
 
 Accepted with the architecture plan for the local Enclosure subject.
+[ADR 0005](0005-tool-proposal-grammar.md) supersedes the original grammar
+decision. See the [LAN API contract](../api-endpoint.md#protocol-v1)
+for current request and response behavior.
 
 ## Context
 
@@ -23,13 +26,17 @@ proposal. Render and parse it through the resident GGUF template
 (`common_chat_templates_apply`, `common_chat_parse`). Return `tool_calls`.
 Do not execute a tool, a shell, the filesystem, or the network.
 
-One request is one generation. No grammar constraint and no hidden retry.
+One request is one generation with no hidden retry. Use the grammar returned
+by the template as specified in [ADR 0005](0005-tool-proposal-grammar.md).
 `tool_choice: none` and `tools: []` stay on the plain `ChatFormat` path.
 `functions` is translated into `tools`. Both keys together are 400. A named
 `tool_choice` offers only that function and asks the template for a required
 call, because the llama.cpp choice enum has no name.
 
-An ONNX session returns 400 `tools require a GGUF chat template`. A GGUF with
+A tool proposal targeting ONNX returns HTTP 400 with
+`tools_unsupported_for_model` before the resident session is loaded or replaced.
+See the [LAN API contract](../api-endpoint.md#protocol-v1) for the error
+fields and the ONNX support boundary. A GGUF with
 no explicit chat template returns 400 `model has no chat template`. A template
 that renders without the schema (no offered tool name occurs more often with
 `tools` than without) returns 400 `model chat template does not render tools`. Do not
@@ -43,11 +50,11 @@ client's `stop`. The template's preserved tokens (LFM2's
 `<|tool_call_start|>`, ...) are decoded as text so the parser sees them; every
 other special token is still dropped.
 
-The budget trimmer for this path is `fit_tool_transcript`, beside `fit_prompt`,
-in `prompt_budget.h`. Both ask the resident tokenizer and reserve
-`max(n_predict, 250) + 1`. A proposal never drops the schema or the final user
-or tool message, and it drops an assistant message that carries `tool_calls`
-together with the tool results that follow it.
+The LAN budget trimmer is `fit_tool_template` in `prompt_budget.h`. It uses
+the resident tokenizer and keeps the schema and the final user or tool message.
+An assistant tool call and its results are dropped together when trimming
+history. See the [LAN API contract](../api-endpoint.md#protocol-v1) for the
+reply reservation and overflow behavior.
 
 agent-runtime stays a `/v1` pass-through. The GUI chat path stays tool-free.
 
@@ -59,19 +66,19 @@ template does not render tools` (console, 1.6.0.1209: before the check it
 answered in prose with 200). Enclosure needs a catalogue model whose template
 renders tools; [api-endpoint.md](../api-endpoint.md) lists the ones measured.
 
-Without a grammar, nothing stops a model after its call. The LFM2 parser, like
-upstream's, accepts nothing after `<|tool_call_end|>` (llama-server relies on its
-lazy grammar for that), so `lfm25-1.2b-instruct`, which narrates after a correct
-call, comes back as text. That is the cost of the no-grammar decision; the
-measured models are in [api-endpoint.md](../api-endpoint.md).
+Before ADR 0005, `lfm25-1.2b-instruct` could narrate after a correct call and
+return as plain text because the LFM2 parser expects generation to end after
+the call. This observation motivated the template-derived grammar. See the
+[LAN API model results](../api-endpoint.md#protocol-v1) for measured behavior.
 
 The UWP app links a static `llama-common` (`uwp/llama-common-uwp.vcxproj`,
 pre-built by `build-uwp.ps1`), not `llama.cpp/tools/server`.
 `validate-api.sh tools` passed on 1.6.0.1210 (Series S, 2026-10-14); the
 Enclosure T0 rerun is outside this repository.
 
-Tool proposals ignore `stream`: the parser needs the whole call before the client
-can act on it, so that reply is one JSON body.
+Tool proposals with `stream: true` send SSE after complete generation and
+parsing. The client receives the parsed calls as indexed deltas. See the
+[LAN API contract](../api-endpoint.md#protocol-v1) for the response format.
 
 ## Alternatives
 
@@ -83,5 +90,6 @@ Executing tools inside xllama would put a shell on the console.
 A hand-rolled Phi tool dialect drifts from the GGUF template the model was
 trained with.
 
-A grammar constraint is not a field on `Session::generate` and would be a
-second parser beside the template's own.
+The original decision deferred grammar constraints because they were expected
+to require a separate parser. [ADR 0005](0005-tool-proposal-grammar.md) records
+how the template derives the grammar from its existing parser.

@@ -205,6 +205,16 @@ template's additional stops plus the client's `stop`. The template's preserved t
 `<|tool_call_start|>`, ...) are decoded as text so the parser sees them; every
 other special token is still dropped.
 
+xllama routes tool proposals through the GGUF template and parser. The
+[catalogue's three SmolLM2 ONNX packages](../uwp/models/manifest.json) ship
+without a declared chat template. The original
+[SmolLM2-1.7B-Instruct model](https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct#function-calling)
+documents function calling with a dedicated prompt and parser. The catalogue's
+ONNX INT4 export remains unqualified for tool calling on Xbox.
+[ONNX Runtime GenAI documents constrained decoding](https://github.com/microsoft/onnxruntime-genai/blob/main/docs/ConstrainedDecoding.md)
+for builds with guidance enabled. xllama's ONNX chat path uses plain chat
+formatting and its regular sampler.
+
 `choices[0].message.tool_calls[]` is `{id, type:"function", function:{name, arguments}}`
 with `arguments` a JSON string. Missing call ids become `call_1`, `call_2`, … in
 parse order, counting only the empty ones. `content` is null only when there are
