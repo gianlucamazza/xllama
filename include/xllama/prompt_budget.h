@@ -67,7 +67,7 @@ struct ToolTranscriptFit {
     std::string prompt;
     std::vector<ChatMessage> messages; // what `prompt` was rendered from
     int n_tokens = 0;                  // exact count of `prompt` (-1 with no counter)
-    int n_tool_tokens = 0;             // rendered tool definitions alone (-1 with no counter)
+    int n_tool_tokens = 0;             // with-tools minus without-tools on overflow; -1 otherwise
     int dropped = 0;                   // messages removed, not groups
     bool fits = false;
 };
@@ -79,10 +79,12 @@ struct ToolTranscriptFit {
 // carries tool_calls and the tool messages that follow it drop together. A
 // tool whose assistant was dropped is not left behind. When schema + system +
 // the protected tail still do not fit, `fits` is false and `n_tokens` is that
-// minimal prompt. `n_tool_tokens` is the tokenizer count of the schema rendered
-// with no messages, so the caller can say whether the tools alone overflow.
-// Fitting does not use that count. A null counter returns fits=false,
-// n_tokens=-1 and n_tool_tokens=-1.
+// minimal prompt. When that happens, `n_tool_tokens` is the tokenizer count of
+// the kept transcript with tools minus the same transcript without tools, so
+// BOS, headers, and the generation prompt cancel out. Fitting does not use
+// that count, and a request that already fits does not compute it
+// (`n_tool_tokens` stays -1). A null counter returns fits=false, n_tokens=-1
+// and n_tool_tokens=-1.
 ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
                                       const std::vector<ToolSpec>& tools, int n_ctx, int n_predict,
                                       const ToolPromptRenderer& render, const TokenCounter& count);

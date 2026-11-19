@@ -187,18 +187,24 @@ Kept take_groups(const std::vector<ChatMessage>& messages, const std::vector<Dro
     return kept;
 }
 
-int count_tool_definition_tokens(const std::vector<ToolSpec>& tools,
-                                 const ToolPromptRenderer& render, const TokenCounter& count) {
-    if (!count || !render)
-        return -1;
-    if (tools.empty())
-        return 0;
-    // Counted once, before fitting, so the last render of the fit is still the
-    // prompt (and any renderer side effects) the caller will generate from.
+// Schema contribution on the smallest kept transcript: with-tools minus
+// without-tools. Only called when the request already does not fit, so the
+// extra render is not on the success path. Empty tools is 0; a renderer that
+// cannot render without tools leaves -1.
+void fill_tool_tokens(ToolTranscriptFit& out, const std::vector<ToolSpec>& tools,
+                      const ToolPromptRenderer& render, const TokenCounter& count) {
+    if (out.fits || !count || !render || out.n_tokens < 0) {
+        out.n_tool_tokens = -1;
+        return;
+    }
+    if (tools.empty()) {
+        out.n_tool_tokens = 0;
+        return;
+    }
     try {
-        return count(render({}, tools));
+        out.n_tool_tokens = std::max(0, out.n_tokens - count(render(out.messages, {})));
     } catch (const std::exception&) {
-        return -1;
+        out.n_tool_tokens = -1;
     }
 }
 
@@ -208,7 +214,7 @@ ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
                                       const std::vector<ToolSpec>& tools, int n_ctx, int n_predict,
                                       const ToolPromptRenderer& render, const TokenCounter& count) {
     ToolTranscriptFit out;
-    out.n_tool_tokens = count_tool_definition_tokens(tools, render, count);
+    out.n_tool_tokens = -1;
     const size_t tail = protected_tail(messages);
     const std::vector<DropGroup> groups = drop_groups(messages, tail);
     auto render_dropping = [&](size_t drop_groups, int* dropped) {
@@ -245,6 +251,7 @@ ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
     if (n == 0) {
         out.dropped = dropped;
         out.fits = false;
+        fill_tool_tokens(out, tools, render, count);
         return out;
     }
     size_t lo = 0;
@@ -270,6 +277,7 @@ ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
         out.n_tokens = probe_tokens;
         out.dropped = probe_dropped;
         out.fits = false;
+        fill_tool_tokens(out, tools, render, count);
         return out;
     }
     while (hi - lo > 1) {

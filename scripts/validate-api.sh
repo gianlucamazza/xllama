@@ -732,7 +732,8 @@ print("ok" if m.get("content") and not m.get("tool_calls") else "unexpected " + 
 	#    code context_length_exceeded. The schema is never dropped (ADR 0004).
 	req=$(python3 - <<'PYTOOLS'
 import json
-pad = ("synthetic schema padding for the oversized-tools gate. ") * 8
+# Larger than 8192 tokens even if a catalogue n_ctx is 4096 or 8192 (~4 chars/token).
+pad = ("synthetic schema padding for the oversized-tools gate. ") * 80
 tools = []
 for i in range(39):
     tools.append({
@@ -752,12 +753,20 @@ PYTOOLS
 	)
 	req=${req/__MODEL__/$tools_model}
 	code=$(post_chat "$req" "${TMPDIR_LOCAL}/tools-f.json")
-	if [[ "$code" == "400" ]] &&
-		grep -q 'prompt too long: the request needs' "${TMPDIR_LOCAL}/tools-f.json" &&
-		grep -q 'context_length_exceeded' "${TMPDIR_LOCAL}/tools-f.json"; then
-		echo "  F ok: oversized tools are 400 context_length_exceeded"
+	check=$(python3 -c '
+import json, sys
+d = json.load(open(sys.argv[1]))
+e = d.get("error") or {}
+msg = e.get("message") or ""
+assert "prompt too long: the request needs" in msg, msg[:160]
+assert e.get("code") == "context_length_exceeded", e
+assert e.get("param") == "tools", e
+print("ok")
+' "${TMPDIR_LOCAL}/tools-f.json" 2>&1 | tail -n1 || true)
+	if [[ "$code" == "400" && "$check" == "ok" ]]; then
+		echo "  F ok: oversized tools are 400 context_length_exceeded param tools"
 	else
-		echo "  F FAIL: HTTP ${code}: $(head -c 200 "${TMPDIR_LOCAL}/tools-f.json")"
+		echo "  F FAIL: HTTP ${code}: ${check:0:160} $(head -c 160 "${TMPDIR_LOCAL}/tools-f.json")"
 		verdict=1
 	fi
 

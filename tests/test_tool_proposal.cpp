@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iterator>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -312,7 +313,7 @@ TEST_CASE("tool transcript budget drops an old call pair and keeps the schema an
     CHECK(kept.dropped == 0);
     CHECK(kept.prompt.find("think") != std::string::npos);
     CHECK(kept.prompt.find("ping") != std::string::npos);
-    CHECK(kept.n_tool_tokens == static_cast<int>(render_marked({}, tools).size()));
+    CHECK(kept.n_tool_tokens == -1); // tool count is only computed on overflow
 
     const xllama::ToolTranscriptFit trimmed =
         xllama::fit_tool_transcript(messages, tools, static_cast<int>(minimal_prompt.size()) + room,
@@ -324,7 +325,7 @@ TEST_CASE("tool transcript budget drops an old call pair and keeps the schema an
     CHECK(trimmed.prompt.find("think") == std::string::npos);
     CHECK(trimmed.prompt.find("|tool:") == std::string::npos);
     CHECK(trimmed.dropped == 3);
-    CHECK(trimmed.n_tool_tokens == kept.n_tool_tokens);
+    CHECK(trimmed.n_tool_tokens == -1);
 
     const xllama::ToolTranscriptFit overflow = xllama::fit_tool_transcript(
         messages, tools, static_cast<int>(minimal_prompt.size()) + room - 1,
@@ -332,24 +333,28 @@ TEST_CASE("tool transcript budget drops an old call pair and keeps the schema an
     CHECK_FALSE(overflow.fits);
     CHECK(overflow.n_tokens == static_cast<int>(minimal_prompt.size()));
     CHECK(overflow.prompt.find("ping") != std::string::npos);
-    CHECK(overflow.n_tool_tokens == kept.n_tool_tokens);
+    const int tool_delta = static_cast<int>(render_marked(overflow.messages, tools).size() -
+                                            render_marked(overflow.messages, {}).size());
+    CHECK(overflow.n_tool_tokens == tool_delta);
+    CHECK(overflow.n_tool_tokens > 0);
 }
 
 TEST_CASE("a generated 39-tool fixture overflows with the schema kept and param tools") {
     const std::vector<xllama::ToolSpec> tools = synthetic_tools(39);
     const std::vector<xllama::ChatMessage> messages{message(xllama::ChatRole::User, "hi")};
     const auto count = [](const std::string& text) { return static_cast<int>(text.size()); };
-    const std::string tools_only = render_schema({}, tools);
     const std::string full = render_schema(messages, tools);
+    const std::string without_tools = render_schema(messages, {});
+    const int tool_delta = static_cast<int>(full.size() - without_tools.size());
     REQUIRE(tools.size() == 39);
-    REQUIRE(full.size() > tools_only.size());
+    REQUIRE(tool_delta > 0);
     const int room = xllama::kReservedGenerationTokens + 1;
-    const int n_ctx = static_cast<int>(tools_only.size()) + room - 1;
+    const int n_ctx = tool_delta + room - 1;
 
     const xllama::ToolTranscriptFit overflow = xllama::fit_tool_transcript(
         messages, tools, n_ctx, xllama::kReservedGenerationTokens, render_schema, count);
     CHECK_FALSE(overflow.fits);
-    CHECK(overflow.n_tool_tokens == static_cast<int>(tools_only.size()));
+    CHECK(overflow.n_tool_tokens == tool_delta);
     CHECK(overflow.n_tokens == static_cast<int>(full.size()));
     CHECK(overflow.prompt.find("synth_0") != std::string::npos);
     CHECK(overflow.prompt.find("synth_38") != std::string::npos);
@@ -362,6 +367,7 @@ TEST_CASE("a generated 39-tool fixture overflows with the schema kept and param 
     CHECK(err.message.compare(0, prefix.size(), prefix) == 0);
     CHECK(std::string(err.param) == xllama::kToolBudgetParamTools);
     CHECK(std::string(err.code) == xllama::kContextLengthExceeded);
+    CHECK(err.message.find("more tool definitions than fit") != std::string::npos);
 
     const std::string body =
         std::string(R"({"messages":[{"role":"user","content":"hi"}],"tools":)") +
@@ -388,6 +394,7 @@ TEST_CASE("a fitting tool request keeps every schema token and drops nothing") {
     CHECK(fit.dropped == 0);
     CHECK(fit.prompt == full);
     CHECK(fit.prompt.find("ping") != std::string::npos);
+    CHECK(fit.n_tool_tokens == -1);
 }
 
 TEST_CASE("tool_choice none and an empty tools array stay on the plain chat path") {
@@ -538,6 +545,49 @@ std::string read_template(const char* name) {
     return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 }
 } // namespace
+
+TEST_CASE("Qwen3.5 and Llama-3.2 templates count overflowing tools as param tools") {
+    // These templates raise on an empty message list. The tool-token delta must
+    // use the kept transcript (system + protected tail), not render({}, tools).
+    const char* names[] = {"Qwen3.5-4B.jinja", "meta-llama-Llama-3.2-3B-Instruct.jinja"};
+    for (const char* name : names) {
+        const std::string jinja = read_template(name);
+        REQUIRE_FALSE(jinja.empty());
+        const xllama::ToolTemplateResult empty_msgs = xllama::render_tool_prompt(
+            nullptr, jinja, {}, synthetic_tools(1), xllama::ToolChoice::Auto, "");
+        CHECK_FALSE(empty_msgs.ok);
+
+        const auto render = [&](const std::vector<xllama::ChatMessage>& msgs,
+                                const std::vector<xllama::ToolSpec>& tools) {
+            const xllama::ToolTemplateResult rendered = xllama::render_tool_prompt(
+                nullptr, jinja, msgs, tools, xllama::ToolChoice::Auto, "");
+            if (!rendered.ok)
+                throw std::runtime_error(rendered.error);
+            return rendered.prompt;
+        };
+        const std::vector<xllama::ToolSpec> tools = synthetic_tools(39);
+        const std::vector<xllama::ChatMessage> messages{message(xllama::ChatRole::User, "hi")};
+        const auto count = [](const std::string& text) { return static_cast<int>(text.size()); };
+        const std::string with = render(messages, tools);
+        const std::string without = render(messages, {});
+        const int tool_delta = static_cast<int>(with.size() - without.size());
+        REQUIRE(tool_delta > 0);
+        const int room = xllama::kReservedGenerationTokens + 1;
+        const int n_ctx = tool_delta + room - 1;
+
+        const xllama::ToolTranscriptFit overflow = xllama::fit_tool_transcript(
+            messages, tools, n_ctx, xllama::kReservedGenerationTokens, render, count);
+        CHECK_FALSE(overflow.fits);
+        CHECK(overflow.n_tool_tokens == tool_delta);
+        CHECK(overflow.prompt.find("synth_0") != std::string::npos);
+
+        const xllama::ToolBudgetError err = xllama::tool_prompt_too_long(
+            overflow.n_tokens, overflow.n_tool_tokens, xllama::kReservedGenerationTokens, n_ctx);
+        CHECK(std::string(err.param) == xllama::kToolBudgetParamTools);
+        CHECK(err.message.find("more tool definitions than fit") != std::string::npos);
+        CHECK(err.message.find("Builtin Tools") != std::string::npos);
+    }
+}
 
 TEST_CASE("the template's grammar travels with the prompt: lazy for auto, full when forced") {
     // ADR 0005: the grammar comes from the same parser as the parse step, with

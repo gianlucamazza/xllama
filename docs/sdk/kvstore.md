@@ -53,7 +53,7 @@ struct ToolTranscriptFit {
     std::string prompt;
     std::vector<ChatMessage> messages; // what `prompt` was rendered from
     int n_tokens = 0;                  // exact count of `prompt` (-1 with no counter)
-    int n_tool_tokens = 0;             // rendered tool definitions alone (-1 with no counter)
+    int n_tool_tokens = 0;             // with-tools minus without-tools on the kept transcript; -1 if unused
     int dropped = 0;                   // messages removed, not groups
     bool fits = false;
 };

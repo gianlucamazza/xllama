@@ -195,7 +195,10 @@ Applied apply_template(const void* llama_model, const std::string& jinja_overrid
         applied.error = std::string("model chat template failed: ") + ex.what();
         return applied;
     }
-    if (!template_renders_tools(templates.get(), inputs, applied.params.prompt, offered)) {
+    // Empty `tools` is a transcript-only render (the tool-token delta). There
+    // is no schema to check. A non-empty offer still has to appear in the prompt.
+    if (!offered.empty() &&
+        !template_renders_tools(templates.get(), inputs, applied.params.prompt, offered)) {
         applied.error = "model chat template does not render tools";
         return applied;
     }

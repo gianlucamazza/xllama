@@ -4,12 +4,14 @@
 
 Actionable 400 text when a tool proposal cannot fit `n_ctx`. The prefix is the
 string `validate-api.sh` and the docs grep for; the rest names tool-definition vs
-message tokens. `param` is `"tools"` only when the definitions alone overflow.
+message tokens when the count is known. `param` is `"tools"` only when the
+definitions alone overflow, `"messages"` when they are known to fit, and empty
+when the count could not be computed.
 
 ```cpp
 struct ToolBudgetError {
     std::string message;
-    const char* param; // "tools" or "messages"
+    const char* param; // "tools", "messages", or empty
     const char* code;  // "context_length_exceeded"
 };
 

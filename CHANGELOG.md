@@ -10,10 +10,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Actionable tool-proposal `prompt too long` (#497).** When a tool schema plus
   the protected tail cannot fit `n_ctx`, the LAN `400` keeps
   `prompt too long: the request needs X tokens plus Y for the reply, but n_ctx is Z`
-  and then names how many tokens are tool definitions versus messages.
-  `error.type` stays `xllama_error`. `error.code` is `context_length_exceeded`;
-  `error.param` is `tools` when the definitions alone overflow, otherwise
-  `messages`. The schema is still never dropped (ADR 0004).
+  and then names how many tokens are tool definitions versus messages when
+  that count is known. `error.type` stays `xllama_error`. `error.code` is
+  `context_length_exceeded`; `error.param` is `tools` when the definitions
+  alone overflow, `messages` when they are known to fit, and omitted when the
+  count could not be computed. The schema is still never dropped (ADR 0004).
 
 - **Series S App cap after the launch window (#457).** On package 1.7.0.1667
   the default CPU chat (`lfm25-350m`) was measured in the UI process with the

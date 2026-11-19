@@ -240,10 +240,12 @@ the final user message needs the three numbers. A proposal keeps
 messages. The body is
 `{"error":{"message":…,"type":"xllama_error","code":"context_length_exceeded","param":"tools"|"messages"}}`.
 `param` is `tools` when the rendered tool definitions alone do not fit the room,
-otherwise `messages`. When the definitions overflow, the message tells the client
-to send fewer tools or disable built-in tools. Other errors keep `type`
-`xllama_error` and omit `code`/`param`. An oversized input is a client error; it
-used to surface as a `500` from the generator instead.
+and `messages` when those definitions are known to fit. If the tool-definition
+count could not be computed, `param` is omitted and the message says so. When
+the definitions overflow, the message tells the client to send fewer tools or
+disable built-in tools. Other errors keep `type` `xllama_error` and omit
+`code`/`param`. An oversized input is a client error; it used to surface as a
+`500` from the generator instead.
 
 Framing is exact ([ADR 0006](adr/0006-http-framing.md)). `Content-Length` must
 be one plain decimal (repeats must agree), else `400`; any `Transfer-Encoding`

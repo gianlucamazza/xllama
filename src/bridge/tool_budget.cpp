@@ -17,14 +17,16 @@ std::string tool_prompt_too_long_prefix(int n_tokens, int n_predict, int n_ctx) 
 
 ToolBudgetError tool_prompt_too_long(int n_tokens, int n_tool_tokens, int n_predict, int n_ctx) {
     ToolBudgetError out;
-    const int n_message_tokens =
-        (n_tokens >= 0 && n_tool_tokens >= 0) ? std::max(0, n_tokens - n_tool_tokens) : 0;
-    const int tool_tokens = std::max(0, n_tool_tokens);
     out.message = tool_prompt_too_long_prefix(n_tokens, n_predict, n_ctx);
-    out.message += ". Tool definitions use " + std::to_string(tool_tokens) +
+    if (n_tool_tokens < 0) {
+        out.message += " Tool-definition tokens could not be counted.";
+        out.param = "";
+        return out;
+    }
+    const int n_message_tokens = n_tokens >= 0 ? std::max(0, n_tokens - n_tool_tokens) : 0;
+    out.message += ". Tool definitions use " + std::to_string(n_tool_tokens) +
                    " tokens; messages use " + std::to_string(n_message_tokens) + " tokens.";
-    const bool tools_overflow = n_tool_tokens >= 0 && !budget_fits(n_tool_tokens, n_predict, n_ctx);
-    if (tools_overflow) {
+    if (!budget_fits(n_tool_tokens, n_predict, n_ctx)) {
         out.message +=
             " The client sent more tool definitions than fit. Send fewer tools, or disable the "
             "client's built-in tools (e.g. Open WebUI: model Capabilities → Builtin Tools off, or "

@@ -42,9 +42,13 @@ TEST_CASE("tool budget param is tools only when the definitions alone overflow")
     CHECK(budget_fits(100, 512, 2048));
 }
 
-TEST_CASE("tool budget treats a missing tool count as messages, not tools") {
+TEST_CASE("tool budget omits a fabricated breakdown when the tool count is unknown") {
     const ToolBudgetError err = tool_prompt_too_long(3000, -1, 512, 2048);
-    CHECK(std::string(err.param) == kToolBudgetParamMessages);
-    CHECK(err.message.find("Tool definitions use 0 tokens") != std::string::npos);
+    const std::string prefix = tool_prompt_too_long_prefix(3000, 512, 2048);
+    CHECK(err.message.compare(0, prefix.size(), prefix) == 0);
+    CHECK(std::string(err.param).empty());
+    CHECK(err.message.find("Tool definitions use 0 tokens") == std::string::npos);
+    CHECK(err.message.find("messages use 0 tokens") == std::string::npos);
+    CHECK(err.message.find("could not be counted") != std::string::npos);
     CHECK(err.message.find("more tool definitions than fit") == std::string::npos);
 }
