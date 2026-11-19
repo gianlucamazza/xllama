@@ -182,7 +182,8 @@ chat`. On a coding session that ceiling is 4096 tokens, roughly 13 KB of dense
   a "busy" reply, and a LAN request naming a different model swaps the loaded
   model under your conversation (the next pad turn transparently re-reads the
   full context). It is unauthenticated: enable it only on a
-  trusted LAN; see [api-endpoint.md](api-endpoint.md). Embedding models are API-only
+  trusted LAN; see [api-endpoint.md](api-endpoint.md). Open WebUI: see
+  [api-endpoint.md § Open WebUI](api-endpoint.md#open-webui). Embedding models are API-only
   and do not appear in the chat picker. If another GUI/API download is writing,
   provisioning reports a busy error; retry after that download completes.
 - **Report inappropriate generated content** — opens a GitHub Issues form

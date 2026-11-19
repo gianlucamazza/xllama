@@ -65,6 +65,36 @@ this is Developer Mode research, not a hosted service.
 > only _same-host_ sockets, so no `CheckNetIsolation` loopback exemption is needed for
 > requests coming **from another LAN device** (only for a localhost client on the console).
 
+### Open WebUI
+
+Use an **OpenAI API** connection. The Ollama connection type is not supported:
+xllama has no `/api/version` or `/api/chat`.
+
+1. On the console (Developer Mode), open xllama, enable **Settings → LAN API**,
+   and keep the app in the foreground. The LAN API panel shows the base URL
+   `http://<console IP>:<port>/v1` (port **11434** by default).
+2. In Open WebUI, go to **Admin Settings → Connections → OpenAI API** and add a
+   connection. URL `http://<console IP>:<port>/v1`, API key empty: the endpoint
+   has no authentication, so use a trusted LAN only. If Open WebUI runs in
+   Docker, use the console's LAN address, not localhost.
+3. Built-in tools: Open WebUI's default attaches its built-in tool definitions
+   to every message — several thousand tokens, more than the model's context.
+   xllama never drops that schema ([ADR 0004](adr/0004-tool-proposals.md)).
+   **Admin → Models →** edit the model → **Capabilities →** untick **Builtin Tools**
+   (or **Advanced Params → Function Calling → Legacy**).
+4. Start a new chat. Keep system prompts and attached documents short.
+
+**Troubleshooting**
+
+- `prompt too long: the request needs …` on the first message: see step 3.
+- Model list empty or a connection error: `curl http://<console IP>:<port>/health`
+  from the Open WebUI machine, check xllama is in the foreground, and that both
+  are on the same network.
+- `busy` (503): another request or console chat turn is running. Retry when it
+  ends.
+- Ollama connection "verify" fails with "no such endpoint": use the OpenAI API
+  connection type.
+
 ## Protocol (v1)
 
 | Method    | Path                     | Behaviour                                                                                                                                                                           |
