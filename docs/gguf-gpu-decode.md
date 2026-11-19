@@ -1047,6 +1047,38 @@ equivalence range, and each pair must have identical measured prefill and
 decode submission counts. Preserve the ledger if an arm fails or a
 result is inconclusive.
 
+### ROPE on d3d12 (opt-in, step 1 of the cuts below)
+
+With `LocalState\d3d12-rope.txt` containing `1` when the backend starts (boot
+log `d3d12: rope=1`), `supports_op` accepts a `ROPE` that is F32, contiguous,
+the same shape in and out, with one I32 position per token, no `freq_factors`,
+mode NORMAL or NEOX, `ext_factor == 0` (no YaRN) and `n_offs == 0`
+(`d3d12_rope_supported`). Any other `ROPE` stays on the CPU. With the bias ADD
+on as well, Q, V and K then form one split: 5 → 4 submissions per layer.
+The knob is independent of `d3d12-bias-add.txt`, but without the bias ADD the
+bias `ADD`s still cut the split, so measure with both.
+
+The cos/sin table is computed on the CPU with ggml-cpu's formulas
+(`d3d12_rope_cache`, a copy of `rope_yarn` / `ggml_rope_cache_init` for
+`ext_factor == 0`), once per distinct set of positions and rope parameters in
+a submission (q, k and every layer share it), and staged in the same buffer as
+the other activations. The kernel (`shaders/ggml_d3d12_rope_f32.hlsl`) only
+multiplies and adds, with `precise` products and no fused multiply-add. GPU
+`sin`/`cos`/`pow` are not required to be bit-exact against libm, which is why
+the table is not computed there; other backends (Vulkan) do compute it on the
+GPU and pass llama.cpp's op-level bound. A UAV barrier fences a `ROPE` from the
+dispatches before and after it, as for the bias ADD; per-dispatch and
+per-layer lines report it as `op=rope`.
+
+Checks: the host test compares the cache + multiply emulation with
+`ggml_rope_ext` on ggml-cpu (NMSE ≤ 1e-7, the per-op bound of
+`llama.cpp/tests/test-backend-ops.cpp`); the console selftest (`d3d12be.flag`)
+runs `rope_neox` and `rope_norm` rows through the backend, direct and staged
+input, and records NMSE, max |diff| and whether the output is bit-identical
+in the `error` column. End-to-end parity stays a logit dump per arm
+(ADR 0010). No console number exists yet: the 241 submissions per token for
+Bielik-4.5B is a prediction, not a measurement.
+
 ### Remaining cuts and the order to remove them (proposal)
 
 A split ends at every node the backend refuses (`ggml-backend.cpp`). The node

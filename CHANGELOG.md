@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Opt-in GPU ROPE for d3d12 GGUF layers.** With
+  `LocalState\d3d12-rope.txt` set to `1`, plain F32 NORMAL/NEOX `ROPE` (no
+  `freq_factors`, no YaRN) runs on the d3d12 backend, so q/k/v of a layer form
+  one split with the bias ADD knob on (5 → 4 submissions per layer). The
+  cos/sin table is computed on the CPU. Without the file, placement and graph
+  are unchanged. Not yet measured on the console; see
+  [GGUF GPU decode](docs/gguf-gpu-decode.md).
+
 ## [1.8.0]
 
 User-facing notes: [docs/releases/v1.8.0.md](docs/releases/v1.8.0.md).
