@@ -331,6 +331,68 @@ TEST_CASE("ggml_d3d12: GET_ROWS rules and tied-embedding placement") {
 #endif
 }
 
+TEST_CASE("ggml_d3d12: bias ADD rules") {
+    // Qcur = ggml_add(Qcur, wq_b) in build_qkv: Qwen2.5-Coder-3B q_proj, decode.
+    D3d12AddDesc d;
+    d.ne00 = 2048;
+    d.ne01 = 1;
+    d.ne10 = 2048;
+    d.src1_in_weight_buffer = true;
+    CHECK(d3d12_add_supported(d));
+
+    // llama.cpp's per-weight buft probe builds ggml_add(a, w) with `a` shaped
+    // like the 1-D bias (llama-model-loader.cpp weight_buft_supported).
+    D3d12AddDesc t = d;
+    t.ne01 = 1;
+    CHECK(d3d12_add_supported(t));
+    t = d;
+    t.ne01 = 512; // prefill ubatch
+    CHECK(d3d12_add_supported(t));
+    t = d;
+    t.ne01 = 0; // a ubatch without output rows: still ours, a no-op
+    CHECK(d3d12_add_supported(t));
+    t = d;
+    t.ne00 = t.ne10 = 18944; // Qwen2.5 ffn width, not a multiple of 256 groups
+    CHECK(d3d12_add_supported(t));
+    t.ne00 = t.ne10 = 129; // a partial last group
+    CHECK(d3d12_add_supported(t));
+
+    // A residual add has no weight in D3D12_Weights: stays on the CPU.
+    t = d;
+    t.src1_in_weight_buffer = false;
+    CHECK_FALSE(d3d12_add_supported(t));
+    t = d;
+    t.ne11 = 4; // src1 a 2-D tensor, not a bias vector
+    CHECK_FALSE(d3d12_add_supported(t));
+    t = d;
+    t.ne10 = 1; // broadcast scalar
+    CHECK_FALSE(d3d12_add_supported(t));
+    t = d;
+    t.ne02 = 2; // 3-D activations
+    CHECK_FALSE(d3d12_add_supported(t));
+    t = d;
+    t.src1_type = GGML_TYPE_F16;
+    CHECK_FALSE(d3d12_add_supported(t));
+    t = d;
+    t.src0_type = GGML_TYPE_F16;
+    CHECK_FALSE(d3d12_add_supported(t));
+    t = d;
+    t.dst_type = GGML_TYPE_F16;
+    CHECK_FALSE(d3d12_add_supported(t));
+    t = d;
+    t.src0_rows_contiguous = false;
+    CHECK_FALSE(d3d12_add_supported(t));
+    t = d;
+    t.src1_contiguous = false;
+    CHECK_FALSE(d3d12_add_supported(t));
+    t = d;
+    t.ne01 = std::int64_t(kD3d12MaxGroups) + 1; // one group row per column
+    CHECK_FALSE(d3d12_add_supported(t));
+    t = d;
+    t.ne00 = t.ne10 = std::int64_t(kD3d12MaxGroups) * kD3d12AddThreads + 1;
+    CHECK_FALSE(d3d12_add_supported(t));
+}
+
 TEST_CASE("llama_gpu: token_embd type and tie read from the GGUF header") {
     auto write = [](const char* path, bool tied) {
         ggml_init_params ip = {};

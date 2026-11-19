@@ -69,6 +69,15 @@ bool d3d12_get_rows_supported(const D3d12GetRowsDesc& d) {
            d.ne00 / kD3d12Chunk <= kD3d12MaxGroups;
 }
 
+bool d3d12_add_supported(const D3d12AddDesc& d) {
+    const std::int64_t groups_x = (d.ne00 + kD3d12AddThreads - 1) / kD3d12AddThreads;
+    return d.src0_type == GGML_TYPE_F32 && d.src1_type == GGML_TYPE_F32 &&
+           d.dst_type == GGML_TYPE_F32 && d.src1_in_weight_buffer && d.src0_rows_contiguous &&
+           d.src1_contiguous && d.ne00 > 0 && d.ne10 == d.ne00 && d.ne11 == 1 && d.ne12 == 1 &&
+           d.ne13 == 1 && d.ne01 >= 0 && d.ne02 == 1 && d.ne03 == 1 &&
+           groups_x <= kD3d12MaxGroups && d.ne01 <= kD3d12MaxGroups;
+}
+
 bool d3d12_place_tied_embedding(ggml_type embd_type, bool has_output_weight) {
     return !has_output_weight && d3d12_get_rows_type_supported(embd_type);
 }
@@ -577,6 +586,7 @@ void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
         #include "ggml-alloc.h"
         #include "ggml-backend-impl.h"
         #include "ggml-backend.h"
+        #include "ggml_d3d12_add_bias_f32_dxil.h"
         #include "ggml_d3d12_get_rows_q6_k_dxil.h"
         #include "ggml_d3d12_mmv_q4_0_t128_dxil.h"
         #include "ggml_d3d12_mmv_q4_0_t64_dxil.h"
@@ -618,6 +628,10 @@ struct Gpu {
     ComPtr<ID3D12RootSignature> root;
     ComPtr<ID3D12PipelineState> pso[kPsoCount][2]; // [type][0 = 64 threads, 1 = 128]
     ComPtr<ID3D12PipelineState> pso_get_rows;      // Q6_K
+    ComPtr<ID3D12PipelineState> pso_add_bias;      // F32 bias ADD
+    // d3d12-bias-add.txt = 1: supports_op accepts the bias ADD, so llama.cpp
+    // places biases in D3D12_Weights and keeps them in the projection's split.
+    bool bias_add = false;
     ComPtr<ID3D12QueryHeap> ts;
     ComPtr<ID3D12Resource> ts_rb;
     // #421 per-dispatch timing (d3d12-dispatch-timing.txt): one timestamp
@@ -641,7 +655,7 @@ struct Gpu {
     double last_gpu_ms = 0.0;
     // Per-backend-lifetime counters, logged when the backend is freed.
     std::uint64_t n_calls = 0;
-    std::uint64_t n_dispatches = 0; // MUL_MAT + GET_ROWS
+    std::uint64_t n_dispatches = 0; // MUL_MAT + GET_ROWS + ADD
     double wall_ms = 0.0;
     double gpu_ms = 0.0;
     // #421: activity since the last ggml_d3d12_take_stats(), guarded by mu.
@@ -758,7 +772,22 @@ bool init_gpu(Gpu& g) {
             err = d3d12c::hr_message("CreateComputePipelineState", hr);
             return false;
         }
+        pd.CS.pShaderBytecode = kGgmlD3d12AddBiasF32Dxil;
+        pd.CS.BytecodeLength = kGgmlD3d12AddBiasF32DxilSize;
+        hr = g.device->CreateComputePipelineState(&pd, IID_PPV_ARGS(&g.pso_add_bias));
+        if (FAILED(hr)) {
+            err = d3d12c::hr_message("CreateComputePipelineState", hr);
+            return false;
+        }
     }
+    if (FILE* f =
+            _wfopen(utf8_to_wstring(resolve_local_path("d3d12-bias-add.txt")).c_str(), L"rb")) {
+        char config[16] = {};
+        const std::size_t bytes = std::fread(config, 1, sizeof(config), f);
+        std::fclose(f);
+        g.bias_add = d3d12_flag_enabled(std::string_view(config, bytes));
+    }
+    log_output(std::string("[xllama] d3d12: bias_add=") + (g.bias_add ? "1" : "0") + "\n");
     if (SUCCEEDED(g.queue->GetTimestampFrequency(&g.ts_freq)) && g.ts_freq > 0) {
         D3D12_QUERY_HEAP_DESC qhd = {};
         qhd.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
@@ -1115,11 +1144,13 @@ const ggml_tensor* base_of(const ggml_tensor* t) {
 }
 
 // One dispatch: a MUL_MAT (u1 = its quantized input) or a GET_ROWS (u1 = its
-// row ids), both staged in g.xq.
+// row ids), both staged in g.xq, or a bias ADD (u1 = its f32 input, read in
+// place from D3D12_Host, or staged in g.xq when it lives elsewhere).
 struct Op {
     const ggml_tensor* node;
     std::size_t xq_off;   // staged input in g.xq
     std::uint32_t xq_row; // bytes per quantized column (MUL_MAT)
+    bool staged = true;   // ADD: false = u1 is src[0] itself
 };
 
 // Room for `count` per-dispatch timestamps. Caller holds g.mu, nothing in flight.
@@ -1148,13 +1179,32 @@ bool ensure_dts(Gpu& g, UINT count) {
     return true;
 }
 
+// The weight a dispatch reads: src[0] for MUL_MAT / GET_ROWS, the bias for ADD.
+const ggml_tensor* dispatch_weight(const ggml_tensor* node) {
+    return node->op == GGML_OP_ADD ? node->src[1] : node->src[0];
+}
+
+const char* dispatch_op_name(const ggml_tensor* node) {
+    switch (node->op) {
+    case GGML_OP_GET_ROWS:
+        return "get_rows";
+    case GGML_OP_ADD:
+        return "add";
+    default:
+        return "mul_mat";
+    }
+}
+
 // What a dispatch is, for the per-dispatch profile.
 D3d12DispatchKind dispatch_kind(const ggml_tensor* node) {
-    const ggml_tensor* w = node->src[0];
+    const ggml_tensor* w = dispatch_weight(node);
     D3d12DispatchKind k;
     k.type = ggml_type_name(w->type);
     k.cols = d3d12_cols_class(node->ne[1]);
-    if (node->op == GGML_OP_GET_ROWS) {
+    if (node->op == GGML_OP_ADD) {
+        k.op = "add";
+        k.threads = kD3d12AddThreads;
+    } else if (node->op == GGML_OP_GET_ROWS) {
         k.op = "get_rows";
     } else {
         k.op = "mul_mat";
@@ -1165,8 +1215,9 @@ D3d12DispatchKind dispatch_kind(const ggml_tensor* node) {
 
 D3d12LayerKey dispatch_layer_key(const ggml_tensor* node) {
     D3d12LayerKey k;
-    k.op = node->op == GGML_OP_GET_ROWS ? "get_rows" : "mul_mat";
-    const char* weight = node->src[0] ? node->src[0]->name : "";
+    k.op = dispatch_op_name(node);
+    const ggml_tensor* w = dispatch_weight(node);
+    const char* weight = w ? w->name : "";
     k.layer = d3d12_layer_from_names(weight, node->name);
     return k;
 }
@@ -1199,9 +1250,43 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
                 cl->ResourceBarrier(1, &uav);
                 cl->EndQuery(g.dts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, ++stamp);
             };
+            // Matmuls and GET_ROWS in one submission are independent. A bias
+            // ADD reads its projection's output and may hand its input's memory
+            // to a later dispatch (gallocr reuse), so it is fenced by a UAV
+            // barrier on both sides (dt already puts one after each dispatch).
+            bool prev = false, prev_add = false;
             for (const Op& op : ops) {
                 const ggml_tensor* node = op.node;
                 const ggml_tensor* w = node->src[0];
+                const bool is_add = node->op == GGML_OP_ADD;
+                if (prev && !dt && (is_add || prev_add))
+                    cl->ResourceBarrier(1, &uav);
+                prev = true;
+                prev_add = is_add;
+                if (is_add) {
+                    const ggml_tensor* b = node->src[1];
+                    const std::uint32_t c[8] = {
+                        static_cast<std::uint32_t>(node->ne[0]),
+                        static_cast<std::uint32_t>(op.staged ? node->ne[0]
+                                                             : w->nb[1] / sizeof(float)),
+                        static_cast<std::uint32_t>(node->nb[1] / sizeof(float)),
+                        0,
+                        0,
+                        0,
+                        0,
+                        0};
+                    cl->SetPipelineState(g.pso_add_bias.Get());
+                    cl->SetComputeRoot32BitConstants(0, 8, c, 0);
+                    cl->SetComputeRootShaderResourceView(1, tensor_va(b));
+                    cl->SetComputeRootUnorderedAccessView(2, tensor_va(node));
+                    cl->SetComputeRootUnorderedAccessView(3, op.staged ? xq_va + op.xq_off
+                                                                       : tensor_va(w));
+                    cl->Dispatch(
+                        static_cast<UINT>((node->ne[0] + kD3d12AddThreads - 1) / kD3d12AddThreads),
+                        static_cast<UINT>(node->ne[1]), 1);
+                    after_dispatch();
+                    continue;
+                }
                 if (node->op == GGML_OP_GET_ROWS) {
                     const std::uint32_t c[8] = {
                         static_cast<std::uint32_t>(node->ne[1]),
@@ -1285,7 +1370,7 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
             const auto* t = static_cast<const std::uint64_t*>(p);
             for (std::size_t i = 0; i < ops.size(); ++i) {
                 const ggml_tensor* node = ops[i].node;
-                const ggml_tensor* w = node->src[0];
+                const ggml_tensor* w = dispatch_weight(node);
                 if (t[i + 1] <= t[i]) {
                     g.phase.dispatch.note_missing();
                     g.phase.layer.add(dispatch_layer_key(node), std::nullopt, wait_share);
@@ -1293,7 +1378,8 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
                 }
                 const double ms =
                     1000.0 * static_cast<double>(t[i + 1] - t[i]) / static_cast<double>(g.ts_freq);
-                const double bytes = node->op == GGML_OP_GET_ROWS
+                const double bytes = node->op == GGML_OP_ADD ? static_cast<double>(ggml_nbytes(w))
+                                     : node->op == GGML_OP_GET_ROWS
                                          ? static_cast<double>(w->nb[1]) * node->ne[1]
                                          : static_cast<double>(w->nb[1]) * w->ne[1];
                 g.phase.dispatch.add(dispatch_kind(node), ms, bytes, node->ne[1]);
@@ -1323,6 +1409,7 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
         switch (node->op) {
         case GGML_OP_MUL_MAT:
         case GGML_OP_GET_ROWS:
+        case GGML_OP_ADD:
             mm.push_back(node);
             break;
         case GGML_OP_NONE:
@@ -1367,6 +1454,34 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
         return ok;
     };
     for (const ggml_tensor* node : mm) {
+        if (node->op == GGML_OP_ADD) {
+            const ggml_tensor* a = node->src[0];
+            const ggml_tensor* b = node->src[1];
+            GGML_ASSERT(b->buffer && b->buffer->buft == &kWeightsBuft);
+            GGML_ASSERT(a->buffer && node->buffer && is_ours(node->buffer->buft));
+            if (ggml_nelements(node) == 0)
+                continue;
+            if (is_ours(a->buffer->buft)) { // D3D12_Host: the GPU reads it in place
+                ops.push_back({node, 0, 0, false});
+            } else {
+                // Another host buffer: stage a dense copy. Not produced by this
+                // batch (its outputs are all ours), so it is already computed.
+                GGML_ASSERT(ggml_backend_buffer_is_host(a->buffer));
+                const std::size_t row = static_cast<std::size_t>(a->ne[0]) * sizeof(float);
+                const std::size_t bytes = row * static_cast<std::size_t>(a->ne[1]);
+                if (used + bytes > g.xq_bytes && !flush())
+                    return GGML_STATUS_FAILED;
+                if (!ensure_xq(g, used + bytes))
+                    return GGML_STATUS_FAILED;
+                for (std::int64_t c = 0; c < a->ne[1]; ++c)
+                    std::memcpy(g.xq_ptr + used + c * row,
+                                static_cast<const std::uint8_t*>(a->data) + c * a->nb[1], row);
+                ops.push_back({node, used, 0, true});
+                used += (bytes + 255) & ~std::size_t(255);
+            }
+            produced.push_back(base_of(node));
+            continue;
+        }
         const ggml_tensor* w = node->src[0];
         const ggml_tensor* x = node->src[1];
         GGML_ASSERT(w->buffer && w->buffer->buft == &kWeightsBuft);
@@ -1386,7 +1501,7 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
             const auto* ids = reinterpret_cast<const std::int32_t*>(g.xq_ptr + used);
             for (std::int64_t i = 0; i < x->ne[0]; ++i)
                 GGML_ASSERT(ids[i] >= 0 && ids[i] < w->ne[1]);
-            ops.push_back({node, used, 0});
+            ops.push_back({node, used, 0, true});
             produced.push_back(base_of(node));
             used += (bytes + 255) & ~std::size_t(255);
             continue;
@@ -1422,7 +1537,7 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
             q = &done.back();
             used += (bytes + 255) & ~std::size_t(255); // root UAV addresses stay aligned
         }
-        ops.push_back({node, q->off, q->row});
+        ops.push_back({node, q->off, q->row, true});
         produced.push_back(base_of(node));
     }
     if (!flush())
@@ -1481,7 +1596,7 @@ const char* dev_name(ggml_backend_dev_t) {
     return "D3D12";
 }
 const char* dev_description(ggml_backend_dev_t) {
-    return "xllama D3D12 compute (Q4_0/Q4_K/Q6_K matmul, Q6_K get_rows)";
+    return "xllama D3D12 compute (Q4_0/Q4_K/Q6_K matmul, Q6_K get_rows, F32 bias add)";
 }
 void dev_memory(ggml_backend_dev_t, size_t* free, size_t* total) {
     *free = *total = 0;
@@ -1583,6 +1698,28 @@ bool dev_supports_op(ggml_backend_dev_t, const ggml_tensor* op) {
         d.src1_contiguous = ggml_is_contiguous(ids);
         d.src0_in_weight_buffer = w->buffer && w->buffer->buft == &kWeightsBuft;
         return d3d12_get_rows_supported(d);
+    }
+    case GGML_OP_ADD: {
+        if (!gpu().bias_add)
+            return false;
+        const ggml_tensor* a = op->src[0];
+        const ggml_tensor* b = op->src[1];
+        D3d12AddDesc d;
+        d.src0_type = a->type;
+        d.ne00 = a->ne[0];
+        d.ne01 = a->ne[1];
+        d.ne02 = a->ne[2];
+        d.ne03 = a->ne[3];
+        d.src1_type = b->type;
+        d.ne10 = b->ne[0];
+        d.ne11 = b->ne[1];
+        d.ne12 = b->ne[2];
+        d.ne13 = b->ne[3];
+        d.dst_type = op->type;
+        d.src0_rows_contiguous = a->nb[0] == sizeof(float);
+        d.src1_contiguous = ggml_is_contiguous(b);
+        d.src1_in_weight_buffer = b->buffer && b->buffer->buft == &kWeightsBuft;
+        return d3d12_add_supported(d);
     }
     default:
         return false;
