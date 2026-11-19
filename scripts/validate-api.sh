@@ -642,8 +642,8 @@ PYBUDGET
 
 # POST $1 to chat/completions; writes the body to $2 and prints the HTTP code.
 post_chat() {
-	curl -sS -m 300 -o "$2" -w "%{http_code}" -H 'Content-Type: application/json' \
-		-d "$1" "${API_URL}/v1/chat/completions" || echo "000"
+	printf '%s' "$1" | curl -sS -m 300 -o "$2" -w "%{http_code}" -H 'Content-Type: application/json' \
+		--data-binary @- "${API_URL}/v1/chat/completions" || echo "000"
 }
 
 validate_tools() {
@@ -718,10 +718,44 @@ print("ok" if m.get("content") and not m.get("tool_calls") else "unexpected " + 
 	if [[ -n "${ORT_MODEL:-}" ]]; then
 		req=$(printf '{"model":"%s","messages":[{"role":"user","content":"hi"}],"tools":%s}' "$ORT_MODEL" "$schema")
 		code=$(post_chat "$req" "${TMPDIR_LOCAL}/tools-e.json")
-		if [[ "$code" == "400" ]] && grep -q 'GGUF chat template' "${TMPDIR_LOCAL}/tools-e.json"; then
-			echo "  E ok: ONNX model refused with 400"
+		check=$(python3 -c '
+import json, sys
+e = json.load(open(sys.argv[1]))["error"]
+assert "tools require a GGUF chat template" in e["message"], e
+assert e.get("code") == "tools_unsupported_for_model", e
+assert e.get("param") == "model", e
+assert e.get("type") == "xllama_error", e
+print("ok")
+' "${TMPDIR_LOCAL}/tools-e.json" 2>&1 | tail -n1 || true)
+		if [[ "$code" == "400" && "$check" == "ok" ]]; then
+			echo "  E ok: ONNX tool proposal refused with 400 tools_unsupported_for_model"
 		else
-			echo "  E FAIL: HTTP ${code}: $(head -c 160 "${TMPDIR_LOCAL}/tools-e.json")"
+			echo "  E FAIL: HTTP ${code}: ${check:0:160}"
+			verdict=1
+		fi
+
+		if curl -fsS -m 10 "${API_URL}/v1/models" | python3 -c '
+import json, sys
+active = [m["id"] for m in json.load(sys.stdin)["data"] if m.get("active")]
+sys.exit(0 if active == [sys.argv[1]] else 1)
+' "$tools_model"; then
+			echo "  E1 ok: rejected ONNX proposal kept the GGUF resident"
+		else
+			echo "  E1 FAIL: rejected ONNX proposal changed the resident model"
+			verdict=1
+		fi
+
+		req=$(printf '{"model":"%s","messages":[{"role":"user","content":"Say hello."}],"tools":%s,"tool_choice":"none","max_tokens":32,"temperature":0}' "$ORT_MODEL" "$schema")
+		code=$(post_chat "$req" "${TMPDIR_LOCAL}/tools-e-plain.json")
+		check=$(python3 -c '
+import json, sys
+m = json.load(open(sys.argv[1]))["choices"][0]["message"]
+print("ok" if m.get("content") and not m.get("tool_calls") else "unexpected " + str(m)[:120])
+' "${TMPDIR_LOCAL}/tools-e-plain.json" 2>&1 | tail -n1 || true)
+		if [[ "$code" == "200" && "$check" == "ok" ]]; then
+			echo "  E2 ok: ONNX with tool_choice none answered as plain chat"
+		else
+			echo "  E2 FAIL: HTTP ${code}: ${check:0:160}"
 			verdict=1
 		fi
 	else

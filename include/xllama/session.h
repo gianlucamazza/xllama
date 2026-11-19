@@ -143,6 +143,9 @@ struct GenerateParams {
 // Session owns the loaded model and tokenizer.
 // Thread safety: generate() must not be called concurrently.
 struct Session {
+    // Resolve the compiled backend without loading or replacing a session.
+    static Backend backend_for(const SessionParams& params);
+
     // Create a session by loading the model once.
     // On failure returns nullptr and sets *err.
     static std::unique_ptr<Session> create(const SessionParams& params, std::string* err = nullptr);

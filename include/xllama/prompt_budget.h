@@ -6,8 +6,9 @@
 #pragma once
 
 #include "xllama/chat_prompt.h"
-#include "xllama/tool_transcript.h"
+#include "xllama/tool_template.h"
 
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>
@@ -35,6 +36,9 @@ struct PromptFit {
     bool fits = false;
 };
 
+// Reply reservation including the decode loop's extra token.
+std::int64_t prompt_reply_reserve(int n_predict);
+
 // The one admission test both trimmers use: |prompt_tokens| plus the reply's
 // room — max(n_predict, kReservedGenerationTokens) plus the decode loop's one
 // token — fits |n_ctx|. Computed in 64 bits, so an INT_MAX n_predict cannot
@@ -60,15 +64,15 @@ PromptFit fit_prompt(const ChatFormat& fmt, const std::string& system,
 // Renders the tool transcript the way the GGUF template will. Tests pass a
 // stand-in; the LAN handler passes the template bridge. The schema is an
 // argument, not a message, so a trimmer cannot drop it by dropping history.
-using ToolPromptRenderer = std::function<std::string(const std::vector<ChatMessage>& messages,
-                                                     const std::vector<ToolSpec>& tools)>;
+using ToolPromptRenderer = std::function<ToolTemplateResult(
+    const std::vector<ChatMessage>& messages, const std::vector<ToolSpec>& tools)>;
 
 struct ToolTranscriptFit {
-    std::string prompt;
-    std::vector<ChatMessage> messages; // what `prompt` was rendered from
-    int n_tokens = 0;                  // exact count of `prompt` (-1 with no counter)
-    int n_tool_tokens = 0;             // with-tools minus without-tools on overflow; -1 otherwise
-    int dropped = 0;                   // messages removed, not groups
+    ToolTemplateResult rendered;       // prompt and metadata from the same template render
+    std::vector<ChatMessage> messages; // what the prompt was rendered from
+    int n_tokens = -1;
+    int n_tokens_without_tools = -1; // counted only on overflow, when the baseline is available
+    int dropped = 0;                 // messages removed, not groups
     bool fits = false;
 };
 
@@ -79,12 +83,8 @@ struct ToolTranscriptFit {
 // carries tool_calls and the tool messages that follow it drop together. A
 // tool whose assistant was dropped is not left behind. When schema + system +
 // the protected tail still do not fit, `fits` is false and `n_tokens` is that
-// minimal prompt. When that happens, `n_tool_tokens` is the tokenizer count of
-// the kept transcript with tools minus the same transcript without tools, so
-// BOS, headers, and the generation prompt cancel out. Fitting does not use
-// that count, and a request that already fits does not compute it
-// (`n_tool_tokens` stays -1). A null counter returns fits=false, n_tokens=-1
-// and n_tool_tokens=-1.
+// shortest valid probe. A rejected suffix can be skipped. On overflow, tokenize
+// the no-tools baseline from that same render when it exists.
 ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
                                       const std::vector<ToolSpec>& tools, int n_ctx, int n_predict,
                                       const ToolPromptRenderer& render, const TokenCounter& count);

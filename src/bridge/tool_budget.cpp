@@ -15,25 +15,43 @@ std::string tool_prompt_too_long_prefix(int n_tokens, int n_predict, int n_ctx) 
            std::to_string(n_predict) + " for the reply, but n_ctx is " + std::to_string(n_ctx);
 }
 
-ToolBudgetError tool_prompt_too_long(int n_tokens, int n_tool_tokens, int n_predict, int n_ctx) {
+ToolBudgetError tool_prompt_too_long(int n_tokens, int n_tokens_without_tools, int n_predict,
+                                     int n_ctx) {
     ToolBudgetError out;
     out.message = tool_prompt_too_long_prefix(n_tokens, n_predict, n_ctx);
-    if (n_tool_tokens < 0) {
-        out.message += " Tool-definition tokens could not be counted.";
-        out.param = "";
+    out.message += ". " + std::to_string(prompt_reply_reserve(n_predict)) +
+                   " tokens are reserved for generation.";
+    if (!budget_fits(0, n_predict, n_ctx)) {
+        out.message += " The reply reserve exceeds the context. Use a larger context";
+        out.message += budget_fits(0, 0, n_ctx) ? " or lower max_tokens." : ".";
         return out;
     }
-    const int n_message_tokens = n_tokens >= 0 ? std::max(0, n_tokens - n_tool_tokens) : 0;
-    out.message += ". Tool definitions use " + std::to_string(n_tool_tokens) +
-                   " tokens; messages use " + std::to_string(n_message_tokens) + " tokens.";
-    if (!budget_fits(n_tool_tokens, n_predict, n_ctx)) {
-        out.message +=
-            " The client sent more tool definitions than fit. Send fewer tools, or disable the "
-            "client's built-in tools (e.g. Open WebUI: model Capabilities → Builtin Tools off, or "
-            "Function Calling → Legacy).";
+    if (n_tokens < 0 || n_tokens_without_tools < 0) {
+        out.message += " Tool-definition tokens could not be counted.";
+        return out;
+    }
+    const int tool_delta = n_tokens - n_tokens_without_tools;
+    out.message +=
+        " Without tools the prompt uses " + std::to_string(n_tokens_without_tools) + " tokens.";
+    if (tool_delta > 0) {
+        out.message += " Tool definitions add " + std::to_string(tool_delta) + " tokens.";
+    }
+
+    const bool baseline_fits = budget_fits(n_tokens_without_tools, n_predict, n_ctx);
+    const bool delta_fits = budget_fits(std::max(0, tool_delta), n_predict, n_ctx);
+    if (baseline_fits && !delta_fits) {
         out.param = kToolBudgetParamTools;
-    } else {
+        out.message += " The client sent more tool definitions than fit. Send fewer tools, shorten "
+                       "their definitions or disable unused built-in tools in the client.";
+    } else if (!baseline_fits && delta_fits) {
         out.param = kToolBudgetParamMessages;
+        out.message += tool_delta < 0 ? " Shorten the messages."
+                                      : " The messages exceed the budget without tools.";
+    } else if (!baseline_fits) {
+        out.message += " Shorten both the messages and the tool definitions or use a larger "
+                       "context.";
+    } else {
+        out.message += " Shorten the messages or reduce the tool definitions.";
     }
     return out;
 }

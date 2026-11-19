@@ -10,6 +10,7 @@
 #include "xllama/grammar_spec.h"
 #include "xllama/tool_transcript.h"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -18,6 +19,8 @@ namespace xllama {
 struct ToolTemplateResult {
     bool ok = false;
     std::string prompt;
+    // Same transcript rendered in auto mode with an empty tool list.
+    std::optional<std::string> prompt_without_tools;
     std::string error;
     std::vector<std::string> stop_sequences;
     // Special tokens the template's parser reads (LFM2 <|tool_call_start|>,

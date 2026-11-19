@@ -53,10 +53,10 @@
     #include <cstdio>
     #include <cstdlib>
     #include <ctime>
+    #include <exception>
     #include <filesystem>
     #include <memory>
     #include <mutex>
-    #include <stdexcept>
     #include <string>
     #include <vector>
 
@@ -766,10 +766,6 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
                                         bool model_is_coding, int policy_n_ctx, int n_predict,
                                         ::xllama::ApiActivity::Ticket& ticket,
                                         const char*& status) {
-    if (session->resident_llama_model() == nullptr) {
-        status = "400 Bad Request";
-        return error_json("tools require a GGUF chat template");
-    }
     bool has_system = false;
     for (const ::xllama::ChatMessage& message : request.messages) {
         if (message.role == ::xllama::ChatRole::System) {
@@ -789,9 +785,6 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
     gp.reuse_kv = false;
     gp.n_predict = n_predict;
     fill_sampling(root, gp);
-    std::vector<std::string> template_stops;
-    std::vector<std::string> preserved_tokens;
-    ::xllama::GrammarSpec grammar;
     ::xllama::ToolTranscriptFit fit;
     try {
         const void* llama_model = session->resident_llama_model();
@@ -799,34 +792,32 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
             request.messages, request.tools, policy_n_ctx, gp.n_predict,
             [&](const std::vector<::xllama::ChatMessage>& messages,
                 const std::vector<::xllama::ToolSpec>& tools) {
-                const ::xllama::ToolTemplateResult rendered = ::xllama::render_tool_prompt(
-                    llama_model, "", messages, tools, request.choice, request.forced_name);
-                if (!rendered.ok)
-                    throw std::runtime_error(rendered.error);
-                template_stops = rendered.stop_sequences;
-                preserved_tokens = rendered.preserved_tokens;
-                grammar = rendered.grammar;
-                return rendered.prompt;
+                return ::xllama::render_tool_prompt(llama_model, "", messages, tools,
+                                                    request.choice, request.forced_name);
             },
             [session](const std::string& text) { return session->count_tokens(text); });
     } catch (const std::exception& ex) {
         status = "400 Bad Request";
         return error_json(ex.what());
     }
+    if (!fit.rendered.ok) {
+        status = "400 Bad Request";
+        return error_json(fit.rendered.error);
+    }
     if (!fit.fits) {
         status = "400 Bad Request";
         const ::xllama::ToolBudgetError overflow = ::xllama::tool_prompt_too_long(
-            fit.n_tokens, fit.n_tool_tokens, gp.n_predict, policy_n_ctx);
+            fit.n_tokens, fit.n_tokens_without_tools, gp.n_predict, policy_n_ctx);
         return error_json(overflow.message, overflow.code, overflow.param);
     }
     if (fit.dropped > 0)
         ::xllama::log_output("[xllama] api: dropped " + std::to_string(fit.dropped) +
                              " oldest message(s) to fit n_ctx " + std::to_string(policy_n_ctx) +
                              "\n");
-    gp.prompt = fit.prompt;
-    gp.stop_sequences = std::move(template_stops);
-    gp.preserved_tokens = std::move(preserved_tokens);
-    gp.grammar = std::move(grammar); // ADR 0005: the template's own constraint
+    gp.prompt = std::move(fit.rendered.prompt);
+    gp.stop_sequences = std::move(fit.rendered.stop_sequences);
+    gp.preserved_tokens = std::move(fit.rendered.preserved_tokens);
+    gp.grammar = std::move(fit.rendered.grammar); // ADR 0005
     append_client_stops(root, gp.stop_sequences);
 
     const ::xllama::InferenceResult generated = session->generate(gp);
@@ -952,6 +943,13 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
         }
         // ADR 0007: the GUI's resolver, adapter included (audit F03).
         const ::xllama::SessionParams sp = ::xllama::CatalogueSessionParams(model);
+        if (proposal && ::xllama::Session::backend_for(sp) != ::xllama::Backend::LlamaCpp) {
+            status = "400 Bad Request";
+            return error_json(
+                "tools require a GGUF chat template. Select a tool-capable GGUF model or send "
+                "this request without tools.",
+                "tools_unsupported_for_model", "model");
+        }
         session = ::xllama::session_hub().ensure_locked(model, sp, &err);
         if (!session) {
             status = "500 Internal Server Error";

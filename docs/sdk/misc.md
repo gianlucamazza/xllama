@@ -2,11 +2,10 @@
 
 ## Tool budget error
 
-Actionable 400 text when a tool proposal cannot fit `n_ctx`. The prefix is the
-string `validate-api.sh` and the docs grep for; the rest names tool-definition vs
-message tokens when the count is known. `param` is `"tools"` only when the
-definitions alone overflow, `"messages"` when they are known to fit, and empty
-when the count could not be computed.
+Format the overflow error for a tool proposal. The baseline counts the same
+retained transcript rendered without tools. The formatter sets `param` when
+either the baseline or the added tool tokens independently exceed the input
+budget and the other fits. Pass `-1` for an unavailable baseline.
 
 ```cpp
 struct ToolBudgetError {
@@ -16,7 +15,8 @@ struct ToolBudgetError {
 };
 
 std::string tool_prompt_too_long_prefix(int n_tokens, int n_predict, int n_ctx);
-ToolBudgetError tool_prompt_too_long(int n_tokens, int n_tool_tokens, int n_predict, int n_ctx);
+ToolBudgetError tool_prompt_too_long(int n_tokens, int n_tokens_without_tools, int n_predict,
+                                     int n_ctx);
 ```
 
 ## Cancel Policy

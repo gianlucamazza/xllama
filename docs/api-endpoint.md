@@ -77,19 +77,26 @@ xllama has no `/api/version` or `/api/chat`.
    connection. URL `http://<console IP>:<port>/v1`, API key empty: the endpoint
    has no authentication, so use a trusted LAN only. If Open WebUI runs in
    Docker, use the console's LAN address, not localhost.
-3. Built-in tools: Open WebUI's default attaches its built-in tool definitions
-   to every message — several thousand tokens, more than the model's context.
-   xllama never drops that schema ([ADR 0004](adr/0004-tool-proposals.md)).
-   **Admin → Models →** edit the model → **Capabilities →** untick **Builtin Tools**
-   (or **Advanced Params → Function Calling → Legacy**).
-4. Start a new chat. Keep system prompts and attached documents short.
+3. Select a tool-capable GGUF such as `lfm25-350m` for native function
+   calling. For plain chat on ONNX, edit the model under **Admin → Models →
+   Capabilities** and turn off **Builtin Tools**. Remove any tools attached to
+   the chat as well.
+4. If a GGUF runs out of context, enable fewer tool categories or try Open
+   WebUI's experimental [Tool Search](https://docs.openwebui.com/features/extensibility/plugin/tools/#tool-search).
+   It lets the client load larger tool definitions on demand in Native mode.
+   The server validates the token budget for each request with the resident
+   tokenizer.
 
 **Troubleshooting**
 
-- `prompt too long: the request needs …` on the first message
-  (`error.code` `context_length_exceeded`, `error.param` `tools`): the built-in
-  tool definitions overflow the context. The message names tool-definition vs
-  message tokens. See step 3. xllama never drops the schema.
+- `tools require a GGUF chat template` (`error.code`
+  `tools_unsupported_for_model` on ONNX) means the selected model cannot
+  handle this tool proposal. Select a tool-capable GGUF or follow step 3 for
+  plain chat.
+- `prompt too long: the request needs …` (`error.code`
+  `context_length_exceeded`) means the rendered prompt and reply reserve
+  exceed the context. With `error.param` set to `tools`, reduce the tool
+  inventory. With `messages`, shorten the messages.
 - Model list empty or a connection error: `curl http://<console IP>:<port>/health`
   from the Open WebUI machine, check xllama is in the foreground, and that both
   are on the same network.
@@ -187,8 +194,10 @@ message requires `tool_call_id`. The last message must be `user` or `tool`.
 xllama does not execute the tool, a shell, the filesystem, or the network. The
 client does. One request is one generation, constrained by the template's grammar
 (ADR 0005), with no hidden retry. The prompt and the parse go through the resident GGUF Jinja template
-(`common_chat_templates_apply` / `common_chat_parse`). An ONNX session returns
-`400` `tools require a GGUF chat template`. A GGUF with no explicit chat template
+(`common_chat_templates_apply` / `common_chat_parse`). A proposal for an ONNX
+model is rejected before the resident session is loaded or replaced. The API returns
+`400` `tools require a GGUF chat template` with `error.code`
+`tools_unsupported_for_model` and `error.param` `model`. A GGUF with no explicit chat template
 returns `400` `model has no chat template`, and one that renders without the
 schema returns `400` `model chat template does not render tools` (phi4-mini). That check compares the prompt rendered with and without `tools`, so replaying a call in the transcript does not trigger it. A template that raises on such a transcript (`gemma3-*`) returns `400` `model chat template failed: ...` instead. The server does not fall back to
 `ChatFormat` with the schema pasted on. KV reuse stays off. Stops are the
@@ -232,20 +241,20 @@ turns are dropped until the prompt plus the requested reply
 A tool proposal uses `fit_tool_transcript` in the same header, the same tokenizer,
 and the same reserve. It never drops the tool schema or the final user or tool
 message, and it drops an assistant message that carries `tool_calls` together
-with the tool results that follow it. Dropped messages are logged, not signalled.
-When the protected tail still does not fit, the request is `400`. Plain chat says
+with the tool results that follow it. The selected render supplies the prompt,
+grammar, stop sequences and preserved tokens together. Trimming can skip a
+suffix that the template rejects. Dropped messages are
+logged. When the protected tail still does not fit, the request is `400`. Plain chat says
 the final user message needs the three numbers. A proposal keeps
 `prompt too long: the request needs X tokens plus Y for the reply, but n_ctx is Z`
-(Y is `n_predict`) and then names how many tokens are tool definitions versus
-messages. The body is
-`{"error":{"message":…,"type":"xllama_error","code":"context_length_exceeded","param":"tools"|"messages"}}`.
-`param` is `tools` when the rendered tool definitions alone do not fit the room,
-and `messages` when those definitions are known to fit. If the tool-definition
-count could not be computed, `param` is omitted and the message says so. When
-the definitions overflow, the message tells the client to send fewer tools or
-disable built-in tools. Other errors keep `type` `xllama_error` and omit
-`code`/`param`. An oversized input is a client error; it used to surface as a
-`500` from the generator instead.
+(Y is `n_predict`) and reports the effective reply reserve. On overflow, the server can also report the token count of
+the retained transcript rendered without tools and how many tokens the tool
+definitions add. The body has `error.type` `xllama_error` and `error.code`
+`context_length_exceeded`. With both measurements available, `error.param`
+is `tools` if only the added tokens exceed the input budget, or `messages` if
+only the no-tools prompt exceeds it. The parameter is omitted when neither or
+both components independently exceed the budget, the reply reserve exceeds
+the context, or the baseline is unavailable.
 
 Framing is exact ([ADR 0006](adr/0006-http-framing.md)). `Content-Length` must
 be one plain decimal (repeats must agree), else `400`; any `Transfer-Encoding`

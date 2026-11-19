@@ -7,17 +7,18 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <exception>
 #include <utility>
 
 namespace xllama {
 
+std::int64_t prompt_reply_reserve(int n_predict) {
+    return std::max<std::int64_t>(n_predict, kReservedGenerationTokens) + 1;
+}
+
 bool budget_fits(int prompt_tokens, int n_predict, int n_ctx) {
-    if (prompt_tokens < 0)
-        return false;
-    const int64_t reserve = std::max<int64_t>(n_predict, kReservedGenerationTokens);
-    return int64_t{prompt_tokens} + reserve + 1 <= int64_t{n_ctx};
+    return prompt_tokens >= 0 &&
+           std::int64_t{prompt_tokens} + prompt_reply_reserve(n_predict) <= n_ctx;
 }
 
 PromptFit fit_prompt(const ChatFormat& fmt, const std::string& system,
@@ -187,24 +188,14 @@ Kept take_groups(const std::vector<ChatMessage>& messages, const std::vector<Dro
     return kept;
 }
 
-// Schema contribution on the smallest kept transcript: with-tools minus
-// without-tools. Only called when the request already does not fit, so the
-// extra render is not on the success path. Empty tools is 0; a renderer that
-// cannot render without tools leaves -1.
-void fill_tool_tokens(ToolTranscriptFit& out, const std::vector<ToolSpec>& tools,
-                      const ToolPromptRenderer& render, const TokenCounter& count) {
-    if (out.fits || !count || !render || out.n_tokens < 0) {
-        out.n_tool_tokens = -1;
-        return;
-    }
-    if (tools.empty()) {
-        out.n_tool_tokens = 0;
-        return;
-    }
-    try {
-        out.n_tool_tokens = std::max(0, out.n_tokens - count(render(out.messages, {})));
-    } catch (const std::exception&) {
-        out.n_tool_tokens = -1;
+// Tokenize the template's existing baseline only for a rejected prompt.
+void count_baseline(ToolTranscriptFit& fit, const TokenCounter& count) {
+    if (fit.n_tokens >= 0 && fit.rendered.prompt_without_tools) {
+        try {
+            fit.n_tokens_without_tools = count(*fit.rendered.prompt_without_tools);
+        } catch (const std::exception&) {
+            // The accepted render count is still enough to diagnose overflow.
+        }
     }
 }
 
@@ -213,95 +204,75 @@ void fill_tool_tokens(ToolTranscriptFit& out, const std::vector<ToolSpec>& tools
 ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
                                       const std::vector<ToolSpec>& tools, int n_ctx, int n_predict,
                                       const ToolPromptRenderer& render, const TokenCounter& count) {
-    ToolTranscriptFit out;
-    out.n_tool_tokens = -1;
+    if (!render)
+        return {};
+
     const size_t tail = protected_tail(messages);
     const std::vector<DropGroup> groups = drop_groups(messages, tail);
-    auto render_dropping = [&](size_t drop_groups, int* dropped) {
-        const Kept kept = take_groups(messages, groups, tail, drop_groups);
-        *dropped = kept.dropped;
-        return std::pair<std::string, std::vector<ChatMessage>>{render(kept.messages, tools),
-                                                                kept.messages};
-    };
-    if (!count || !render) {
-        int dropped = 0;
-        auto rendered = render_dropping(0, &dropped);
-        out.prompt = std::move(rendered.first);
-        out.messages = std::move(rendered.second);
-        out.n_tokens = -1;
-        out.fits = false;
-        return out;
-    }
-    auto fits_at = [&](size_t drop_groups, std::string* prompt, std::vector<ChatMessage>* kept,
-                       int* tokens, int* dropped) {
-        auto rendered = render_dropping(drop_groups, dropped);
-        *prompt = std::move(rendered.first);
-        *kept = std::move(rendered.second);
-        *tokens = count(*prompt);
-        return budget_fits(*tokens, n_predict, n_ctx);
+    auto probe = [&](size_t n_drop) {
+        Kept kept = take_groups(messages, groups, tail, n_drop);
+        ToolTranscriptFit fit;
+        fit.rendered = render(kept.messages, tools);
+        fit.messages = std::move(kept.messages);
+        fit.dropped = kept.dropped;
+        if (fit.rendered.ok && count) {
+            fit.n_tokens = count(fit.rendered.prompt);
+            fit.fits = budget_fits(fit.n_tokens, n_predict, n_ctx);
+        }
+        return fit;
     };
 
-    int dropped = 0;
-    if (fits_at(0, &out.prompt, &out.messages, &out.n_tokens, &dropped)) {
-        out.dropped = dropped;
-        out.fits = true;
-        return out;
-    }
+    ToolTranscriptFit best = probe(0);
+    if (best.fits || !best.rendered.ok || !count)
+        return best;
+
+    // A template can reject a suffix that starts partway through a turn.
+    // Look backwards from the probe point within the unclassified interval.
+    auto probe_valid_suffix = [&](size_t& index, size_t lower) {
+        while (index > lower) {
+            ToolTranscriptFit candidate = probe(index);
+            if (candidate.rendered.ok)
+                return candidate;
+            --index;
+        }
+        return ToolTranscriptFit{};
+    };
+
     const size_t n = groups.size();
-    if (n == 0) {
-        out.dropped = dropped;
-        out.fits = false;
-        fill_tool_tokens(out, tools, render, count);
-        return out;
-    }
     size_t lo = 0;
-    size_t hi = 1;
-    std::string probe_prompt;
-    std::vector<ChatMessage> probe_messages;
-    int probe_tokens = 0;
-    int probe_dropped = 0;
-    bool found = false;
-    while (hi <= n) {
-        if (fits_at(hi, &probe_prompt, &probe_messages, &probe_tokens, &probe_dropped)) {
-            found = true;
-            break;
+    size_t hi = std::min<size_t>(1, n);
+    while (hi > lo) {
+        size_t index = hi;
+        ToolTranscriptFit candidate = probe_valid_suffix(index, lo);
+        if (candidate.rendered.ok) {
+            best = std::move(candidate);
+            if (best.fits) {
+                hi = index;
+                break;
+            }
         }
         lo = hi;
         if (hi == n)
             break;
         hi = std::min(n, hi * 2);
     }
-    if (!found) {
-        out.prompt = std::move(probe_prompt);
-        out.messages = std::move(probe_messages);
-        out.n_tokens = probe_tokens;
-        out.dropped = probe_dropped;
-        out.fits = false;
-        fill_tool_tokens(out, tools, render, count);
-        return out;
+    if (!best.fits) {
+        count_baseline(best, count);
+        return best;
     }
+
     while (hi - lo > 1) {
         const size_t mid = lo + (hi - lo) / 2;
-        std::string mid_prompt;
-        std::vector<ChatMessage> mid_messages;
-        int mid_tokens = 0;
-        int mid_dropped = 0;
-        if (fits_at(mid, &mid_prompt, &mid_messages, &mid_tokens, &mid_dropped)) {
-            hi = mid;
-            probe_prompt = std::move(mid_prompt);
-            probe_messages = std::move(mid_messages);
-            probe_tokens = mid_tokens;
-            probe_dropped = mid_dropped;
+        size_t index = mid;
+        ToolTranscriptFit candidate = probe_valid_suffix(index, lo);
+        if (candidate.fits) {
+            hi = index;
+            best = std::move(candidate);
         } else {
             lo = mid;
         }
     }
-    out.prompt = std::move(probe_prompt);
-    out.messages = std::move(probe_messages);
-    out.n_tokens = probe_tokens;
-    out.dropped = probe_dropped;
-    out.fits = true;
-    return out;
+    return best;
 }
 
 } // namespace xllama
