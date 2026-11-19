@@ -1076,8 +1076,30 @@ Checks: the host test compares the cache + multiply emulation with
 runs `rope_neox` and `rope_norm` rows through the backend, direct and staged
 input, and records NMSE, max |diff| and whether the output is bit-identical
 in the `error` column. End-to-end parity stays a logit dump per arm
-(ADR 0010). No console number exists yet: the 241 submissions per token for
-Bielik-4.5B is a prediction, not a measurement.
+(ADR 0010).
+
+Measured on Series X (operator-declared, Game designation, `long-1k`, 128
+tokens, `--gpu-layers 99`, 5 AB/BA pairs per model, A = bias ADD on, B = bias
+ADD and ROPE on; not project evidence, Series S not measured):
+
+| Model                     | Decode A → B tok/s | B/A decode          | B/A prefill | B/A TTFT | Memory |
+| ------------------------- | ------------------ | ------------------- | ----------- | -------- | ------ |
+| Bielik-4.5B-v3 Q4_K_M     | 15.19 → 16.09      | 1.056 (1.050–1.063) | 1.028       | 0.972    | +0 MB  |
+| Qwen2.5-Coder-3B Q4_K_M   | 30.54 → 32.49      | 1.064 (1.055–1.073) | 1.029       | 0.971    | −2 MB  |
+| Qwen2.5-Coder-1.5B Q4_K_M | 45.10 → 48.43      | 1.071 (1.057–1.094) | 1.035       | 0.966    | +0 MB  |
+
+Submissions per decoded token with both knobs: Bielik 241, Coder-3B 146,
+Coder-1.5B 114. The Coder models are one above "4 per layer plus `lm_head`"
+because their tied `token_embd` also runs the input lookup on the GPU (4 × L +
+2; Bielik has a separate `output.weight`, 4 × L + 1). With ROPE off Coder-1.5B
+takes 142 (5 × 28 + 2), so ROPE removes exactly one submission per layer and
+adds two dispatches per layer (Q and K): 282 → 338 per token. Per removed
+submission the wall time drops by 54 µs net of those dispatches; the added
+dispatches cost about 0.3 µs of GPU time each. Logits (`logits.flag`, every
+16th prompt position of `long-1k`, ubatch 512 and 1, all three models) are
+byte-identical between the arms, and the console selftest rows (`rope_neox`,
+`rope_norm`, direct and staged) match ggml-cpu bit for bit. Without the file
+the placement is unchanged (Coder-1.5B: 170 submissions per token).
 
 ### Remaining cuts and the order to remove them (proposal)
 
