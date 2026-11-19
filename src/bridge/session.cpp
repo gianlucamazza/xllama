@@ -1338,17 +1338,25 @@ std::unique_ptr<Session> create_llama(const SessionParams& sp, std::string* err)
 // ---------------------------------------------------------------------------
 namespace xllama {
 
+Backend Session::backend_for(const SessionParams& sp) {
+#if defined(XLLAMA_USE_ORT) && defined(XLLAMA_USE_LLAMA)
+    if (sp.backend != Backend::Auto)
+        return sp.backend;
+    // Bare catalogue IDs can resolve to a directory containing a GGUF.
+    return model_uses_llama_backend(sp.model_path) ? Backend::LlamaCpp : Backend::OrtGenAI;
+#elif defined(XLLAMA_USE_ORT)
+    (void)sp;
+    return Backend::OrtGenAI;
+#else // XLLAMA_USE_LLAMA
+    (void)sp;
+    return Backend::LlamaCpp;
+#endif
+}
+
 std::unique_ptr<Session> Session::create(const SessionParams& sp, std::string* err) {
 #if defined(XLLAMA_USE_ORT) && defined(XLLAMA_USE_LLAMA)
-    Backend b = sp.backend;
-    if (b == Backend::Auto) {
-        // Layout-aware: uses suffix fast-path + resolve + directory scan so that
-        // bare catalogue names (e.g. "qwen35-0.8b" pointing at a dir with .gguf)
-        // are classified correctly. Explicit Backend from manifest (MainPage) or
-        // tests still takes precedence.
-        b = model_uses_llama_backend(sp.model_path) ? Backend::LlamaCpp : Backend::OrtGenAI;
-    }
-    return b == Backend::LlamaCpp ? detail::create_llama(sp, err) : detail::create_ort(sp, err);
+    return backend_for(sp) == Backend::LlamaCpp ? detail::create_llama(sp, err)
+                                                : detail::create_ort(sp, err);
 #elif defined(XLLAMA_USE_ORT)
     return detail::create_ort(sp, err);
 #else // XLLAMA_USE_LLAMA

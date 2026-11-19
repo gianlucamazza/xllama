@@ -1,5 +1,24 @@
 # Miscellaneous APIs
 
+## Tool budget error
+
+Format the overflow error for a tool proposal. The baseline counts the same
+retained transcript rendered without tools. The formatter sets `param` when
+either the baseline or the added tool tokens independently exceed the input
+budget and the other fits. Pass `-1` for an unavailable baseline.
+
+```cpp
+struct ToolBudgetError {
+    std::string message;
+    const char* param; // "tools", "messages", or empty
+    const char* code;  // "context_length_exceeded"
+};
+
+std::string tool_prompt_too_long_prefix(int n_tokens, int n_predict, int n_ctx);
+ToolBudgetError tool_prompt_too_long(int n_tokens, int n_tokens_without_tools, int n_predict,
+                                     int n_ctx);
+```
+
 ## Cancel Policy
 
 ```cpp

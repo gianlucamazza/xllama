@@ -55,6 +55,7 @@ struct Applied {
     bool ok = false;
     std::string error;
     common_chat_params params;
+    std::optional<std::string> prompt_without_tools;
 };
 
 size_t count_occurrences(const std::string& text, const std::string& needle) {
@@ -71,18 +72,18 @@ size_t count_occurrences(const std::string& text, const std::string& needle) {
 // without: counting the transcript cannot say which of its fields a template prints.
 bool template_renders_tools(const common_chat_templates* templates,
                             const common_chat_templates_inputs& inputs, const std::string& prompt,
-                            const std::vector<ToolSpec>& offered) {
+                            const std::vector<ToolSpec>& offered,
+                            std::optional<std::string>& baseline) {
     common_chat_templates_inputs without_tools = inputs;
     without_tools.tools.clear();
     without_tools.tool_choice = COMMON_CHAT_TOOL_CHOICE_AUTO;
-    std::string baseline;
     try {
         baseline = common_chat_templates_apply(templates, without_tools).prompt;
     } catch (const std::exception&) {
         return true; // it needs `tools` to render this transcript, so it reads them
     }
     for (const ToolSpec& tool : offered) {
-        if (count_occurrences(prompt, tool.name) > count_occurrences(baseline, tool.name))
+        if (count_occurrences(prompt, tool.name) > count_occurrences(*baseline, tool.name))
             return true;
     }
     return false;
@@ -195,7 +196,8 @@ Applied apply_template(const void* llama_model, const std::string& jinja_overrid
         applied.error = std::string("model chat template failed: ") + ex.what();
         return applied;
     }
-    if (!template_renders_tools(templates.get(), inputs, applied.params.prompt, offered)) {
+    if (!offered.empty() && !template_renders_tools(templates.get(), inputs, applied.params.prompt,
+                                                    offered, applied.prompt_without_tools)) {
         applied.error = "model chat template does not render tools";
         return applied;
     }
@@ -221,14 +223,15 @@ ToolTemplateResult render_tool_prompt(const void* llama_model, const std::string
                                       const std::vector<ToolSpec>& tools, ToolChoice choice,
                                       const std::string& forced_name) {
     ToolTemplateResult out;
-    const Applied applied =
+    Applied applied =
         apply_template(llama_model, jinja_override, messages, tools, choice, forced_name);
     if (!applied.ok) {
         out.error = applied.error;
         return out;
     }
     out.ok = true;
-    out.prompt = applied.params.prompt;
+    out.prompt = std::move(applied.params.prompt);
+    out.prompt_without_tools = std::move(applied.prompt_without_tools);
     out.stop_sequences = applied.params.additional_stops;
     out.preserved_tokens = applied.params.preserved_tokens;
     out.grammar = grammar_spec(applied.params);

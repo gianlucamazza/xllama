@@ -6,8 +6,9 @@
 #pragma once
 
 #include "xllama/chat_prompt.h"
-#include "xllama/tool_transcript.h"
+#include "xllama/tool_template.h"
 
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>
@@ -34,6 +35,9 @@ struct PromptFit {
     // NOT generate — Session reports it as "prompt too long" with the numbers.
     bool fits = false;
 };
+
+// Reply reservation including the decode loop's extra token.
+std::int64_t prompt_reply_reserve(int n_predict);
 
 // The one admission test both trimmers use: |prompt_tokens| plus the reply's
 // room — max(n_predict, kReservedGenerationTokens) plus the decode loop's one
@@ -82,5 +86,32 @@ struct ToolTranscriptFit {
 ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
                                       const std::vector<ToolSpec>& tools, int n_ctx, int n_predict,
                                       const ToolPromptRenderer& render, const TokenCounter& count);
+
+// Render through the GGUF template and keep the generation metadata with the
+// selected prompt. Both fit functions use this same search.
+using ToolTemplateRenderer = std::function<ToolTemplateResult(
+    const std::vector<ChatMessage>& messages, const std::vector<ToolSpec>& tools)>;
+
+struct ToolTemplateFit {
+    ToolTemplateResult rendered;       // prompt and metadata from the same template render
+    std::vector<ChatMessage> messages; // what the prompt was rendered from
+    int n_tokens = -1;
+    int n_tokens_without_tools = -1; // counted only on overflow, when the baseline is available
+    int dropped = 0;                 // messages removed, not groups
+    bool fits = false;
+};
+
+// Drop the oldest non-system messages until the prompt plus room for the reply
+// fits `n_ctx`. The room is max(n_predict, kReservedGenerationTokens) plus the
+// decode-loop token, the same arithmetic as fit_prompt. The tool schema, every
+// system message, and the final user or tool message stay. An assistant that
+// carries tool_calls and the tool messages that follow it drop together. A
+// tool whose assistant was dropped is not left behind. When schema + system +
+// the protected tail still do not fit, `fits` is false and `n_tokens` is that
+// shortest valid probe. A rejected suffix can be skipped. On overflow, tokenize
+// the no-tools baseline from that same render when it exists.
+ToolTemplateFit fit_tool_template(const std::vector<ChatMessage>& messages,
+                                  const std::vector<ToolSpec>& tools, int n_ctx, int n_predict,
+                                  const ToolTemplateRenderer& render, const TokenCounter& count);
 
 } // namespace xllama

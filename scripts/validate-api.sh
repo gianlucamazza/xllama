@@ -27,9 +27,11 @@
 #          top_p, seed) are 400 before the model loads (F01).
 #   tools  client-side tool proposal (ADR 0004): a named tool_choice comes back
 #          as tool_calls with JSON arguments, a tool result is answered,
-#          tools+functions is 400, tool_choice none stays plain chat. TOOLS_MODEL
-#          (default MODEL) must be a GGUF with a chat template; ORT_MODEL, when
-#          set, names an ONNX model that must answer 400.
+#          tools+functions is 400, tool_choice none stays plain chat, and an
+#          oversized tools array is 400 "prompt too long" with
+#          context_length_exceeded. TOOLS_MODEL (default MODEL) must be a GGUF
+#          with a chat template; ORT_MODEL, when set, names an ONNX model that
+#          must answer 400.
 #   framing exact HTTP framing (ADR 0006): negative/conflicting/oversized
 #          Content-Length, chunked, a short body and a stalled body are refused
 #          (400/400/413/411/400/408) and a refused POST appends no sample.
@@ -640,8 +642,8 @@ PYBUDGET
 
 # POST $1 to chat/completions; writes the body to $2 and prints the HTTP code.
 post_chat() {
-	curl -sS -m 300 -o "$2" -w "%{http_code}" -H 'Content-Type: application/json' \
-		-d "$1" "${API_URL}/v1/chat/completions" || echo "000"
+	printf '%s' "$1" | curl -sS -m 300 -o "$2" -w "%{http_code}" -H 'Content-Type: application/json' \
+		--data-binary @- "${API_URL}/v1/chat/completions" || echo "000"
 }
 
 validate_tools() {
@@ -716,14 +718,90 @@ print("ok" if m.get("content") and not m.get("tool_calls") else "unexpected " + 
 	if [[ -n "${ORT_MODEL:-}" ]]; then
 		req=$(printf '{"model":"%s","messages":[{"role":"user","content":"hi"}],"tools":%s}' "$ORT_MODEL" "$schema")
 		code=$(post_chat "$req" "${TMPDIR_LOCAL}/tools-e.json")
-		if [[ "$code" == "400" ]] && grep -q 'GGUF chat template' "${TMPDIR_LOCAL}/tools-e.json"; then
-			echo "  E ok: ONNX model refused with 400"
+		check=$(python3 -c '
+import json, sys
+e = json.load(open(sys.argv[1]))["error"]
+assert "tools require a GGUF chat template" in e["message"], e
+assert e.get("code") == "tools_unsupported_for_model", e
+assert e.get("param") == "model", e
+assert e.get("type") == "xllama_error", e
+print("ok")
+' "${TMPDIR_LOCAL}/tools-e.json" 2>&1 | tail -n1 || true)
+		if [[ "$code" == "400" && "$check" == "ok" ]]; then
+			echo "  E ok: ONNX tool proposal refused with 400 tools_unsupported_for_model"
 		else
-			echo "  E FAIL: HTTP ${code}: $(head -c 160 "${TMPDIR_LOCAL}/tools-e.json")"
+			echo "  E FAIL: HTTP ${code}: ${check:0:160}"
+			verdict=1
+		fi
+
+		if curl -fsS -m 10 "${API_URL}/v1/models" | python3 -c '
+import json, sys
+active = [m["id"] for m in json.load(sys.stdin)["data"] if m.get("active")]
+sys.exit(0 if active == [sys.argv[1]] else 1)
+' "$tools_model"; then
+			echo "  E1 ok: rejected ONNX proposal kept the GGUF resident"
+		else
+			echo "  E1 FAIL: rejected ONNX proposal changed the resident model"
+			verdict=1
+		fi
+
+		req=$(printf '{"model":"%s","messages":[{"role":"user","content":"Say hello."}],"tools":%s,"tool_choice":"none","max_tokens":32,"temperature":0}' "$ORT_MODEL" "$schema")
+		code=$(post_chat "$req" "${TMPDIR_LOCAL}/tools-e-plain.json")
+		check=$(python3 -c '
+import json, sys
+m = json.load(open(sys.argv[1]))["choices"][0]["message"]
+print("ok" if m.get("content") and not m.get("tool_calls") else "unexpected " + str(m)[:120])
+' "${TMPDIR_LOCAL}/tools-e-plain.json" 2>&1 | tail -n1 || true)
+		if [[ "$code" == "200" && "$check" == "ok" ]]; then
+			echo "  E2 ok: ONNX with tool_choice none answered as plain chat"
+		else
+			echo "  E2 FAIL: HTTP ${code}: ${check:0:160}"
 			verdict=1
 		fi
 	else
 		echo "  E skipped: set ORT_MODEL to check the ONNX 400"
+	fi
+
+	# F. tool definitions alone overflow n_ctx: 400 with the existing prefix and
+	#    code context_length_exceeded. The schema is never dropped (ADR 0004).
+	req=$(python3 - <<'PYTOOLS'
+import json
+# Larger than 8192 tokens even if a catalogue n_ctx is 4096 or 8192 (~4 chars/token).
+pad = ("synthetic schema padding for the oversized-tools gate. ") * 80
+tools = []
+for i in range(39):
+    tools.append({
+        "type": "function",
+        "function": {
+            "name": f"synth_{i:02d}",
+            "description": pad,
+            "parameters": {"type": "object", "properties": {"arg": {"type": "string"}},
+                           "required": ["arg"]},
+        },
+    })
+print(json.dumps({"model": "__MODEL__",
+                  "messages": [{"role": "user", "content": "Say OK."}],
+                  "tools": tools,
+                  "max_tokens": 24}))
+PYTOOLS
+	)
+	req=${req/__MODEL__/$tools_model}
+	code=$(post_chat "$req" "${TMPDIR_LOCAL}/tools-f.json")
+	check=$(python3 -c '
+import json, sys
+d = json.load(open(sys.argv[1]))
+e = d.get("error") or {}
+msg = e.get("message") or ""
+assert "prompt too long: the request needs" in msg, msg[:160]
+assert e.get("code") == "context_length_exceeded", e
+assert e.get("param") == "tools", e
+print("ok")
+' "${TMPDIR_LOCAL}/tools-f.json" 2>&1 | tail -n1 || true)
+	if [[ "$code" == "400" && "$check" == "ok" ]]; then
+		echo "  F ok: oversized tools are 400 context_length_exceeded param tools"
+	else
+		echo "  F FAIL: HTTP ${code}: ${check:0:160} $(head -c 160 "${TMPDIR_LOCAL}/tools-f.json")"
+		verdict=1
 	fi
 
 	[[ $verdict -eq 0 ]] && echo "tools: PASS" || echo "tools: FAIL"

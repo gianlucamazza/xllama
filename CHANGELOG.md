@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Actionable tool-proposal errors (#497).** LAN API overflow returns
+  `context_length_exceeded` with token usage and an optional field when the
+  budget failure is attributable to tools or messages. An ONNX tool proposal
+  returns `tools_unsupported_for_model` and suggests a tool-capable GGUF or plain
+  chat. Generation uses the grammar and stop tokens from the selected transcript
+  after trimming.
+
 - **Series S App cap after the launch window (#457).** On package 1.7.0.1667
   the default CPU chat (`lfm25-350m`) was measured in the UI process with the
   LAN API, the request starting more than 20 seconds after launch. Both

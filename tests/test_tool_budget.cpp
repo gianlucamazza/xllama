@@ -1,0 +1,71 @@
+// Copyright (c) 2024 Gianluca Mazza
+// SPDX-License-Identifier: MIT
+
+#include <doctest/doctest.h>
+
+#include "xllama/prompt_budget.h"
+#include "xllama/routing_policy.h"
+#include "xllama/tool_budget.h"
+
+#include <string>
+
+using namespace xllama;
+
+TEST_CASE("tool budget error keeps the exact prompt-too-long prefix") {
+    const ToolBudgetError err = tool_prompt_too_long(8123, 623, 512, 2048);
+    const std::string prefix = tool_prompt_too_long_prefix(8123, 512, 2048);
+    CHECK(prefix ==
+          "prompt too long: the request needs 8123 tokens plus 512 for the reply, but n_ctx is "
+          "2048");
+    CHECK(err.message.compare(0, prefix.size(), prefix) == 0);
+    CHECK(std::string(err.code) == kContextLengthExceeded);
+}
+
+TEST_CASE("tool budget error names tool-definition vs message token counts") {
+    const ToolBudgetError err = tool_prompt_too_long(1000, 200, 512, 2048);
+    CHECK(err.message.find("Tool definitions add 800 tokens") != std::string::npos);
+    CHECK(err.message.find("Without tools the prompt uses 200 tokens") != std::string::npos);
+}
+
+TEST_CASE("tool budget param is tools only when the definitions alone overflow") {
+    const int floor = kReservedGenerationTokens;
+    const ToolBudgetError tools = tool_prompt_too_long(3000, 50, floor, /*n_ctx=*/floor + 1 + 100);
+    CHECK(std::string(tools.param) == kToolBudgetParamTools);
+    CHECK(tools.message.find("more tool definitions than fit") != std::string::npos);
+    CHECK(tools.message.find("Send fewer tools") != std::string::npos);
+
+    const ToolBudgetError messages = tool_prompt_too_long(3000, 2900, 512, 2048);
+    CHECK(std::string(messages.param) == kToolBudgetParamMessages);
+    CHECK(messages.message.find("more tool definitions than fit") == std::string::npos);
+    CHECK(budget_fits(100, 512, 2048));
+
+    const ToolBudgetError combined = tool_prompt_too_long(2000, 1000, 512, 2048);
+    CHECK(std::string(combined.param).empty());
+
+    const ToolBudgetError both = tool_prompt_too_long(4000, 2000, 512, 2048);
+    CHECK(std::string(both.param).empty());
+
+    const ToolBudgetError shorter_with_tools = tool_prompt_too_long(1900, 2100, 512, 2048);
+    CHECK(std::string(shorter_with_tools.param) == kToolBudgetParamMessages);
+    CHECK(shorter_with_tools.message.find("2100 tokens") != std::string::npos);
+    CHECK(shorter_with_tools.message.find("Tool definitions add") == std::string::npos);
+
+    const ToolBudgetError oversized_reply = tool_prompt_too_long(1000, 200, 3000, 2048);
+    CHECK(std::string(oversized_reply.param).empty());
+    CHECK(oversized_reply.message.find("reply reserve exceeds the context") != std::string::npos);
+
+    const ToolBudgetError reserve_floor = tool_prompt_too_long(1850, 1800, 24, 2048);
+    CHECK(reserve_floor.message.find(std::to_string(floor + 1) + " tokens are reserved") !=
+          std::string::npos);
+}
+
+TEST_CASE("tool budget omits a fabricated breakdown when the tool count is unknown") {
+    const ToolBudgetError err = tool_prompt_too_long(3000, -1, 512, 2048);
+    const std::string prefix = tool_prompt_too_long_prefix(3000, 512, 2048);
+    CHECK(err.message.compare(0, prefix.size(), prefix) == 0);
+    CHECK(std::string(err.param).empty());
+    CHECK(err.message.find("Tool definitions add") == std::string::npos);
+    CHECK(err.message.find("Without tools the prompt uses") == std::string::npos);
+    CHECK(err.message.find("could not be counted") != std::string::npos);
+    CHECK(err.message.find("more tool definitions than fit") == std::string::npos);
+}

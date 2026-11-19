@@ -6,6 +6,7 @@ The `Session` class owns a loaded model and tokenizer. It supports multi-turn ge
 
 ```cpp
 struct Session {
+    static Backend backend_for(const SessionParams& params);
     static std::unique_ptr<Session> create(const SessionParams& params, std::string* err = nullptr);
     virtual InferenceResult generate(const GenerateParams& params) = 0;
     virtual int count_tokens(const std::string& prompt) = 0;
@@ -17,6 +18,9 @@ struct Session {
     virtual ~Session() = default;
 };
 ```
+
+`backend_for()` resolves the backend that `create()` would use without loading
+the model.
 
 Thread safety: serialize generation, embedding, token counting and state operations
 on a Session. The GUI and LAN API hold `SessionHub::mtx` through each operation;

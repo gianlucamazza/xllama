@@ -60,6 +60,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `inference_progress.h`             | Prefill-done + decode-progress logs and the stall watchdog (`XLLAMA_INFER_STALL_TIMEOUT_S`, default 180 s)                                                                                            |
 | `http_framing.h`                   | `parse_http_head` — exact LAN API request framing and deadlines (ADR 0006)                                                                                                                            |
 | `prompt_budget.h`                  | `fit_prompt` for plain chat, `fit_tool_transcript` for a tool proposal — both exact, both on the resident tokenizer                                                                                   |
+| `tool_budget.h`                    | Tool-proposal overflow 400 with the baseline and tool token contribution, plus a field when one component exceeds the budget                                                                          |
 | `autopilot.h`                      | `AutopilotAction`, `validate_autopilot_script` — console gate contract (WinRT-free)                                                                                                                   |
 | `json_utils.h`                     | `json_escape`, `json_read_string` with `\uXXXX` decode (surrogate pairs) — canonical JSON helpers                                                                                                     |
 | `cancel_policy.h`                  | `CancelTarget` + `cancel_target()` — which running job a cancel request targets                                                                                                                       |
@@ -110,6 +111,7 @@ applied to the stateless path),
 `utf8_utils.cpp` (utf8 ↔ wstring),
 `cli.cpp` (CLI argument parsing),
 `prompt_budget.cpp` (`fit_prompt` and `fit_tool_transcript`),
+`tool_budget.cpp` (tool-proposal overflow 400 text),
 `tool_request.cpp`, `tool_template.cpp`, `tool_transcript.cpp` (client-side tool proposals, [ADR 0004](adr/0004-tool-proposals.md)),
 `autopilot.cpp` (`ApRun` driver),
 `kv_store.cpp` (KV snapshot pool with LRU eviction),
@@ -884,6 +886,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_sse.cpp`                   | `sse.h` framing and UTF-8 boundaries                                                        |
 | `test_stability_attribution.cpp` | `stability_attribution.h`                                                                   |
 | `test_stop_filter.cpp`           | `stop_sequence_filter.h` parity with `apply_stop_sequences`                                 |
+| `test_tool_budget.cpp`           | `tool_budget.h`                                                                             |
 | `test_tool_proposal.cpp`         | `api_policy.h`, `tool_request.h`, `tool_transcript.h`, `prompt_budget.h`, `tool_template.h` |
 | `test_training.cpp`              | `training.h` / `training_params.h`                                                          |
 | `test_utf8.cpp`                  | `utf8_utils.h`                                                                              |
