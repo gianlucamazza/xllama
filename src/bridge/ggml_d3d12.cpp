@@ -78,6 +78,54 @@ bool d3d12_add_supported(const D3d12AddDesc& d) {
            groups_x <= kD3d12MaxGroups && d.ne01 <= kD3d12MaxGroups;
 }
 
+bool d3d12_rope_supported(const D3d12RopeDesc& d) {
+    const std::int64_t groups = (d.ne0 / 2 + kD3d12RopeThreads - 1) / kD3d12RopeThreads;
+    return d.src0_type == GGML_TYPE_F32 && d.dst_type == GGML_TYPE_F32 && d.same_shape &&
+           d.src0_contiguous && d.dst_contiguous && d.pos_type == GGML_TYPE_I32 &&
+           !d.has_freq_factors &&
+           (d.mode == kD3d12RopeModeNormal || d.mode == kD3d12RopeModeNeox) &&
+           d.ext_factor == 0.0f && d.n_offs == 0 && d.n_dims > 0 && d.n_dims % 2 == 0 &&
+           d.n_dims <= d.ne0 && d.ne0 > 0 && d.ne1 > 0 && d.ne2 > 0 && d.ne3 == 1 &&
+           d.ne_pos == d.ne2 && d.ne1 <= kD3d12MaxGroups && d.ne2 <= kD3d12MaxGroups &&
+           groups <= kD3d12MaxGroups;
+}
+
+void d3d12_rope_cache(const D3d12RopeParams& p, std::int32_t pos, float* table) {
+    // Same float operations, in the same order, as ggml-cpu ops.cpp
+    // (ggml_rope_cache_init with freq_factors == null and ext_factor == 0).
+    const float theta_scale = powf(p.freq_base, -2.0f / static_cast<float>(p.n_dims));
+    float theta = static_cast<float>(static_cast<std::int64_t>(pos));
+    for (int i0 = 0; i0 < p.n_dims; i0 += 2) {
+        const float theta_interp = p.freq_scale * (theta / 1.0f);
+        table[i0 + 0] = cosf(theta_interp) * p.attn_factor;
+        table[i0 + 1] = sinf(theta_interp) * p.attn_factor;
+        theta *= theta_scale;
+    }
+}
+
+void d3d12_rope_emulate(const D3d12RopeParams& p, int mode, std::int64_t ne0, std::int64_t rows,
+                        std::int64_t tokens, const std::int32_t* pos, const float* x, float* y) {
+    std::vector<float> table(static_cast<std::size_t>(p.n_dims));
+    const int half = p.n_dims / 2;
+    for (std::int64_t t = 0; t < tokens; ++t) {
+        d3d12_rope_cache(p, pos[t], table.data());
+        for (std::int64_t r = 0; r < rows; ++r) {
+            const float* xs = x + (t * rows + r) * ne0;
+            float* ys = y + (t * rows + r) * ne0;
+            for (int pr = 0; pr < half; ++pr) {
+                const float c = table[2 * pr], s = table[2 * pr + 1];
+                const int i0 = mode == kD3d12RopeModeNormal ? 2 * pr : pr;
+                const int i1 = mode == kD3d12RopeModeNormal ? 2 * pr + 1 : pr + half;
+                const float x0 = xs[i0], x1 = xs[i1];
+                ys[i0] = x0 * c - x1 * s;
+                ys[i1] = x0 * s + x1 * c;
+            }
+            for (std::int64_t i = p.n_dims; i < ne0; ++i)
+                ys[i] = xs[i];
+        }
+    }
+}
+
 bool d3d12_place_tied_embedding(ggml_type embd_type, bool has_output_weight) {
     return !has_output_weight && d3d12_get_rows_type_supported(embd_type);
 }
@@ -595,6 +643,7 @@ void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
         #include "ggml_d3d12_mmv_q4_k_t64_dxil.h"
         #include "ggml_d3d12_mmv_q6_k_t128_dxil.h"
         #include "ggml_d3d12_mmv_q6_k_t64_dxil.h"
+        #include "ggml_d3d12_rope_f32_dxil.h"
         #include "xllama/d3d12_dyn.h"
         #include "xllama/path_utils.h"
         #include "xllama/platform.h"
@@ -630,9 +679,11 @@ struct Gpu {
     ComPtr<ID3D12PipelineState> pso[kPsoCount][2]; // [type][0 = 64 threads, 1 = 128]
     ComPtr<ID3D12PipelineState> pso_get_rows;      // Q6_K
     ComPtr<ID3D12PipelineState> pso_add_bias;      // F32 bias ADD
+    ComPtr<ID3D12PipelineState> pso_rope;          // F32 ROPE
     // d3d12-bias-add.txt = 1: supports_op accepts the bias ADD, so llama.cpp
     // places biases in D3D12_Weights and keeps them in the projection's split.
     bool bias_add = false;
+    bool rope = false;
     ComPtr<ID3D12QueryHeap> ts;
     ComPtr<ID3D12Resource> ts_rb;
     // #421 per-dispatch timing (d3d12-dispatch-timing.txt): one timestamp
@@ -673,7 +724,7 @@ struct Gpu {
 constexpr UINT64 kStagingBytes = 8ull << 20;
 
 ComPtr<ID3D12RootSignature> make_root_sig(ID3D12Device* device, std::string* err) {
-    D3D12_ROOT_PARAMETER p[4] = {};
+    D3D12_ROOT_PARAMETER p[5] = {};
     p[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
     p[0].Constants.ShaderRegister = 0;
     p[0].Constants.Num32BitValues = 8;
@@ -683,10 +734,12 @@ ComPtr<ID3D12RootSignature> make_root_sig(ID3D12Device* device, std::string* err
     p[2].Descriptor.ShaderRegister = 0;
     p[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV; // u1 activations
     p[3].Descriptor.ShaderRegister = 1;
+    p[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV; // u2 ROPE cos/sin table
+    p[4].Descriptor.ShaderRegister = 2;
     for (auto& q : p)
         q.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
     D3D12_ROOT_SIGNATURE_DESC desc = {};
-    desc.NumParameters = 4;
+    desc.NumParameters = 5;
     desc.pParameters = p;
     auto serialize = d3d12_dyn::SerializeRootSignature();
     if (!serialize) {
@@ -794,6 +847,25 @@ bool init_gpu(Gpu& g) {
         }
     }
     log_output(std::string("[xllama] d3d12: bias_add=") + (g.bias_add ? "1" : "0") + "\n");
+    if (FILE* f = _wfopen(utf8_to_wstring(resolve_local_path("d3d12-rope.txt")).c_str(), L"rb")) {
+        char config[16] = {};
+        const std::size_t bytes = std::fread(config, 1, sizeof(config), f);
+        std::fclose(f);
+        g.rope = d3d12_flag_enabled(std::string_view(config, bytes));
+    }
+    if (g.rope) {
+        D3D12_COMPUTE_PIPELINE_STATE_DESC pd = {};
+        pd.pRootSignature = g.root.Get();
+        pd.CS.pShaderBytecode = kGgmlD3d12RopeF32Dxil;
+        pd.CS.BytecodeLength = kGgmlD3d12RopeF32DxilSize;
+        hr = g.device->CreateComputePipelineState(&pd, IID_PPV_ARGS(&g.pso_rope));
+        if (FAILED(hr)) {
+            log_output("[xllama] d3d12: ROPE unavailable: " +
+                       d3d12c::hr_message("CreateComputePipelineState", hr) + "\n");
+            g.rope = false;
+        }
+    }
+    log_output(std::string("[xllama] d3d12: rope=") + (g.rope ? "1" : "0") + "\n");
     if (SUCCEEDED(g.queue->GetTimestampFrequency(&g.ts_freq)) && g.ts_freq > 0) {
         D3D12_QUERY_HEAP_DESC qhd = {};
         qhd.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
@@ -1154,9 +1226,12 @@ const ggml_tensor* base_of(const ggml_tensor* t) {
 // place from D3D12_Host, or staged in g.xq when it lives elsewhere).
 struct Op {
     const ggml_tensor* node;
-    std::size_t xq_off;   // staged input in g.xq
-    std::uint32_t xq_row; // bytes per quantized column (MUL_MAT)
-    bool staged = true;   // ADD: false = u1 is src[0] itself
+    std::size_t xq_off;      // staged input in g.xq
+    std::uint32_t xq_row;    // bytes per quantized column (MUL_MAT)
+    bool staged = true;      // ADD/ROPE: false = u1 is src[0] itself
+    std::size_t tab_off = 0; // ROPE: cos/sin table in g.xq
+    int n_dims = 0;          // ROPE
+    int mode = 0;            // ROPE
 };
 
 // Room for `count` per-dispatch timestamps. Caller holds g.mu, nothing in flight.
@@ -1196,6 +1271,8 @@ const char* dispatch_op_name(const ggml_tensor* node) {
         return "get_rows";
     case GGML_OP_ADD:
         return "add";
+    case GGML_OP_ROPE:
+        return "rope";
     default:
         return "mul_mat";
     }
@@ -1210,6 +1287,9 @@ D3d12DispatchKind dispatch_kind(const ggml_tensor* node) {
     if (node->op == GGML_OP_ADD) {
         k.op = "add";
         k.threads = kD3d12AddThreads;
+    } else if (node->op == GGML_OP_ROPE) {
+        k.op = "rope";
+        k.threads = kD3d12RopeThreads;
     } else if (node->op == GGML_OP_GET_ROWS) {
         k.op = "get_rows";
     } else {
@@ -1264,11 +1344,41 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
             for (const Op& op : ops) {
                 const ggml_tensor* node = op.node;
                 const ggml_tensor* w = node->src[0];
+                const bool is_rope = node->op == GGML_OP_ROPE;
                 const bool is_add = node->op == GGML_OP_ADD;
-                if (prev && !dt && (is_add || prev_add))
+                const bool fenced = is_add || is_rope;
+                if (prev && !dt && (fenced || prev_add))
                     cl->ResourceBarrier(1, &uav);
                 prev = true;
-                prev_add = is_add;
+                prev_add = fenced;
+                if (is_rope) {
+                    const ggml_tensor* x = node->src[0];
+                    const std::uint32_t nd = static_cast<std::uint32_t>(op.n_dims);
+                    const std::uint32_t xr = op.staged ? static_cast<std::uint32_t>(x->ne[0])
+                                                       : static_cast<std::uint32_t>(x->nb[1] / 4);
+                    const std::uint32_t xt = op.staged ? xr * static_cast<std::uint32_t>(x->ne[1])
+                                                       : static_cast<std::uint32_t>(x->nb[2] / 4);
+                    const std::uint32_t c[8] = {static_cast<std::uint32_t>(node->ne[0]),
+                                                nd,
+                                                static_cast<std::uint32_t>(op.mode),
+                                                xr,
+                                                xt,
+                                                static_cast<std::uint32_t>(node->nb[1] / 4),
+                                                static_cast<std::uint32_t>(node->nb[2] / 4),
+                                                0};
+                    cl->SetPipelineState(g.pso_rope.Get());
+                    cl->SetComputeRoot32BitConstants(0, 8, c, 0);
+                    cl->SetComputeRootUnorderedAccessView(2, tensor_va(node));
+                    cl->SetComputeRootUnorderedAccessView(3, op.staged ? xq_va + op.xq_off
+                                                                       : tensor_va(x));
+                    cl->SetComputeRootUnorderedAccessView(4, xq_va + op.tab_off);
+                    const std::int64_t span = std::max<std::int64_t>(nd / 2, node->ne[0] - nd);
+                    cl->Dispatch(
+                        static_cast<UINT>((span + kD3d12RopeThreads - 1) / kD3d12RopeThreads),
+                        static_cast<UINT>(node->ne[1]), static_cast<UINT>(node->ne[2]));
+                    after_dispatch();
+                    continue;
+                }
                 if (is_add) {
                     const ggml_tensor* b = node->src[1];
                     const std::uint32_t c[8] = {
@@ -1384,7 +1494,8 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
                 }
                 const double ms =
                     1000.0 * static_cast<double>(t[i + 1] - t[i]) / static_cast<double>(g.ts_freq);
-                const double bytes = node->op == GGML_OP_ADD ? static_cast<double>(ggml_nbytes(w))
+                const double bytes = node->op == GGML_OP_ADD || node->op == GGML_OP_ROPE
+                                         ? static_cast<double>(ggml_nbytes(w))
                                      : node->op == GGML_OP_GET_ROWS
                                          ? static_cast<double>(w->nb[1]) * node->ne[1]
                                          : static_cast<double>(w->nb[1]) * w->ne[1];
@@ -1416,6 +1527,7 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
         case GGML_OP_MUL_MAT:
         case GGML_OP_GET_ROWS:
         case GGML_OP_ADD:
+        case GGML_OP_ROPE:
             mm.push_back(node);
             break;
         case GGML_OP_NONE:
@@ -1448,6 +1560,13 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
         int ncols;
     };
     std::vector<Quantized> done;
+    struct RopeTable { // a cos/sin table staged in this submission
+        const void* pos;
+        std::int64_t n;
+        D3d12RopeParams p;
+        std::size_t off;
+    };
+    std::vector<RopeTable> tables;
     std::size_t used = 0;
     auto flush = [&]() -> bool {
         if (ops.empty())
@@ -1456,10 +1575,79 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
         ops.clear();
         produced.clear();
         done.clear();
+        tables.clear();
         used = 0;
         return ok;
     };
     for (const ggml_tensor* node : mm) {
+        if (node->op == GGML_OP_ROPE) {
+            const ggml_tensor* a = node->src[0];
+            const ggml_tensor* pos = node->src[1];
+            GGML_ASSERT(a->buffer && node->buffer && is_ours(node->buffer->buft));
+            GGML_ASSERT(pos->buffer && ggml_backend_buffer_is_host(pos->buffer));
+            if (ggml_nelements(node) == 0)
+                continue;
+            const std::int32_t* op_params = node->op_params;
+            D3d12RopeParams rp;
+            rp.n_dims = op_params[1];
+            std::memcpy(&rp.freq_base, op_params + 5, sizeof(float));
+            std::memcpy(&rp.freq_scale, op_params + 6, sizeof(float));
+            std::memcpy(&rp.attn_factor, op_params + 8, sizeof(float));
+            const std::int64_t nt = node->ne[2];
+            const std::size_t tab_bytes = static_cast<std::size_t>(nt) * rp.n_dims * sizeof(float);
+            const bool direct = is_ours(a->buffer->buft);
+            std::size_t xbytes = 0;
+            if (!direct) {
+                GGML_ASSERT(ggml_backend_buffer_is_host(a->buffer));
+                xbytes = static_cast<std::size_t>(ggml_nbytes(a));
+            }
+            // Same positions and rope parameters share one table (q and k of a
+            // layer, and every layer) within a submission.
+            const auto find_table = [&]() -> const RopeTable* {
+                for (const RopeTable& t : tables)
+                    if (t.pos == pos->data && t.n == nt && t.p.n_dims == rp.n_dims &&
+                        t.p.freq_base == rp.freq_base && t.p.freq_scale == rp.freq_scale &&
+                        t.p.attn_factor == rp.attn_factor)
+                        return &t;
+                return nullptr;
+            };
+            const auto need_bytes = [&](bool has_table) {
+                return ((xbytes + 255) & ~std::size_t(255)) +
+                       (has_table ? 0 : ((tab_bytes + 255) & ~std::size_t(255)));
+            };
+            const RopeTable* tab = find_table();
+            if (used + need_bytes(tab != nullptr) > g.xq_bytes) {
+                if (!flush())
+                    return GGML_STATUS_FAILED;
+                tab = nullptr; // flush() dropped the staged tables
+            }
+            Op o{node, 0, 0, true};
+            o.n_dims = rp.n_dims;
+            o.mode = op_params[2];
+            if (!ensure_xq(g, used + need_bytes(tab != nullptr)))
+                return GGML_STATUS_FAILED;
+            if (!direct) {
+                // Another host buffer: a dense copy (contiguous, so one memcpy).
+                std::memcpy(g.xq_ptr + used, a->data, xbytes);
+                o.xq_off = used;
+                used += (xbytes + 255) & ~std::size_t(255);
+            } else {
+                o.staged = false;
+            }
+            if (!tab) {
+                const auto* ids = static_cast<const std::int32_t*>(pos->data);
+                auto* t = reinterpret_cast<float*>(g.xq_ptr + used);
+                for (std::int64_t i = 0; i < nt; ++i)
+                    d3d12_rope_cache(rp, ids[i], t + i * rp.n_dims);
+                tables.push_back({pos->data, nt, rp, used});
+                tab = &tables.back();
+                used += (tab_bytes + 255) & ~std::size_t(255);
+            }
+            o.tab_off = tab->off;
+            ops.push_back(o);
+            produced.push_back(base_of(node));
+            continue;
+        }
         if (node->op == GGML_OP_ADD) {
             const ggml_tensor* a = node->src[0];
             const ggml_tensor* b = node->src[1];
@@ -1704,6 +1892,30 @@ bool dev_supports_op(ggml_backend_dev_t, const ggml_tensor* op) {
         d.src1_contiguous = ggml_is_contiguous(ids);
         d.src0_in_weight_buffer = w->buffer && w->buffer->buft == &kWeightsBuft;
         return d3d12_get_rows_supported(d);
+    }
+    case GGML_OP_ROPE: {
+        if (!gpu().rope)
+            return false;
+        const ggml_tensor* a = op->src[0];
+        const ggml_tensor* pos = op->src[1];
+        D3d12RopeDesc d;
+        d.src0_type = a->type;
+        d.ne0 = a->ne[0];
+        d.ne1 = a->ne[1];
+        d.ne2 = a->ne[2];
+        d.ne3 = a->ne[3];
+        d.dst_type = op->type;
+        d.same_shape = ggml_are_same_shape(a, op);
+        d.src0_contiguous = ggml_is_contiguous(a);
+        d.dst_contiguous = ggml_is_contiguous(op);
+        d.pos_type = pos->type;
+        d.ne_pos = pos->ne[0] * pos->ne[1] * pos->ne[2] * pos->ne[3];
+        d.has_freq_factors = op->src[2] != nullptr;
+        d.n_dims = op->op_params[1];
+        d.mode = op->op_params[2];
+        d.n_offs = op->op_params[15];
+        std::memcpy(&d.ext_factor, op->op_params + 7, sizeof(float));
+        return d3d12_rope_supported(d);
     }
     case GGML_OP_ADD: {
         if (!gpu().bias_add)
@@ -2117,6 +2329,120 @@ D3d12SelftestRow run_bias_add_case(ggml_backend_t backend) {
     return row;
 }
 
+// ROPE on the GPU against ggml-cpu's ggml_rope_ext (G2: NMSE <= 1e-7, the
+// test-backend-ops bound). `staged` puts the activations in a plain CPU buffer so
+// the backend copies them into xq; otherwise it reads the D3D12_Host buffer in
+// place. n = head_dim, k = heads, ncols = tokens. Max |diff| and bit identity go
+// in the note (the error column) whatever the verdict.
+D3d12SelftestRow run_rope_case(ggml_backend_t backend, int mode, bool staged, int head_dim,
+                               int heads, int tokens, int n_dims) {
+    D3d12SelftestRow row;
+    row.type = std::string(mode == kD3d12RopeModeNeox ? "rope_neox" : "rope_norm") +
+               (staged ? "_staged" : "");
+    row.n = head_dim;
+    row.k = heads;
+    row.ncols = tokens;
+    const float freq_base = 1000000.0f, freq_scale = 1.0f, attn_factor = 1.0f;
+    const std::size_t count = static_cast<std::size_t>(head_dim) * heads * tokens;
+
+    ggml_init_params ip = {};
+    ip.mem_size = 16 * ggml_tensor_overhead() + 2 * ggml_graph_overhead();
+    ip.no_alloc = true;
+    ggml_context* ctx_x = ggml_init(ip);
+    ggml_context* ctx_p = ggml_init(ip);
+    ggml_context* ctx_g = ggml_init(ip);
+    ggml_tensor* x = ggml_new_tensor_3d(ctx_x, GGML_TYPE_F32, head_dim, heads, tokens);
+    ggml_tensor* pos = ggml_new_tensor_1d(ctx_p, GGML_TYPE_I32, tokens);
+    ggml_backend_buffer_t xbuf = ggml_backend_alloc_ctx_tensors_from_buft(
+        ctx_x, staged ? ggml_backend_cpu_buffer_type() : &kHostBuft);
+    ggml_backend_buffer_t pbuf = ggml_backend_alloc_ctx_tensors_from_buft(ctx_p, &kHostBuft);
+    ggml_gallocr_t galloc = nullptr;
+    auto cleanup = [&] {
+        if (galloc)
+            ggml_gallocr_free(galloc);
+        if (xbuf)
+            ggml_backend_buffer_free(xbuf);
+        if (pbuf)
+            ggml_backend_buffer_free(pbuf);
+        ggml_free(ctx_g);
+        ggml_free(ctx_p);
+        ggml_free(ctx_x);
+    };
+    if (!xbuf || !pbuf) {
+        row.error = "buffer allocation failed";
+        cleanup();
+        return row;
+    }
+    std::mt19937 rng(4242u + static_cast<unsigned>(mode * 17 + tokens));
+    std::uniform_real_distribution<float> uni(-2.f, 2.f);
+    std::vector<float> xf(count);
+    for (float& v : xf)
+        v = uni(rng);
+    std::vector<std::int32_t> pv(static_cast<std::size_t>(tokens));
+    for (int i = 0; i < tokens; ++i)
+        pv[static_cast<std::size_t>(i)] = 311 + 5 * i; // decode-like positions
+    ggml_backend_tensor_set(x, xf.data(), 0, count * sizeof(float));
+    ggml_backend_tensor_set(pos, pv.data(), 0, pv.size() * sizeof(std::int32_t));
+
+    ggml_tensor* y = ggml_rope_ext(ctx_g, x, pos, nullptr, n_dims, mode, 0, freq_base, freq_scale,
+                                   0.0f, attn_factor, 32.0f, 1.0f);
+    ggml_cgraph* gf = ggml_new_graph(ctx_g);
+    ggml_build_forward_expand(gf, y);
+    galloc = ggml_gallocr_new(&kHostBuft);
+    if (!ggml_gallocr_alloc_graph(galloc, gf)) {
+        row.error = "graph allocation failed";
+        cleanup();
+        return row;
+    }
+    row.d3d12_ran = ggml_backend_graph_compute(backend, gf) == GGML_STATUS_SUCCESS;
+    if (!row.d3d12_ran) {
+        row.error = "graph_compute failed";
+        cleanup();
+        return row;
+    }
+    row.gpu_ms = gpu().last_gpu_ms;
+    std::vector<float> got(count);
+    ggml_backend_tensor_get(y, got.data(), 0, count * sizeof(float));
+
+    // Reference: the same ROPE on ggml-cpu.
+    ggml_init_params rp = {};
+    rp.mem_size = count * sizeof(float) * 2 + (4u << 20);
+    ggml_context* rc = ggml_init(rp);
+    ggml_tensor* rx = ggml_new_tensor_3d(rc, GGML_TYPE_F32, head_dim, heads, tokens);
+    ggml_tensor* rpos = ggml_new_tensor_1d(rc, GGML_TYPE_I32, tokens);
+    std::memcpy(rx->data, xf.data(), count * sizeof(float));
+    std::memcpy(rpos->data, pv.data(), pv.size() * sizeof(std::int32_t));
+    ggml_tensor* ry = ggml_rope_ext(rc, rx, rpos, nullptr, n_dims, mode, 0, freq_base, freq_scale,
+                                    0.0f, attn_factor, 32.0f, 1.0f);
+    ggml_cgraph* rg = ggml_new_graph(rc);
+    ggml_build_forward_expand(rg, ry);
+    const bool ref_ok = ggml_graph_compute_with_ctx(rc, rg, 1) == GGML_STATUS_SUCCESS;
+    double num = 0.0, den = 0.0, max_abs = 0.0;
+    bool finite = ref_ok, identical = ref_ok;
+    if (ref_ok) {
+        const auto* ref = static_cast<const float*>(ry->data);
+        for (std::size_t i = 0; i < count; ++i) {
+            if (!std::isfinite(ref[i]) || !std::isfinite(got[i]))
+                finite = false;
+            const double e = static_cast<double>(got[i]) - ref[i];
+            num += e * e;
+            den += static_cast<double>(ref[i]) * ref[i];
+            max_abs = std::max(max_abs, std::fabs(e));
+            identical = identical && std::memcmp(&got[i], &ref[i], sizeof(float)) == 0;
+        }
+    }
+    ggml_free(rc);
+    const double nmse = den > 0.0 ? num / den : num;
+    row.rel_err = nmse; // NMSE for the rope rows
+    row.ok = ref_ok && finite && nmse <= 1e-7;
+    char note[96];
+    std::snprintf(note, sizeof(note), "nmse=%.3g max_abs=%.3g bit_identical=%d", nmse, max_abs,
+                  identical ? 1 : 0);
+    row.error = !ref_ok ? "cpu reference failed" : !finite ? "non-finite rope output" : note;
+    cleanup();
+    return row;
+}
+
 } // namespace
 
 void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
@@ -2145,6 +2471,15 @@ void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
         out->push_back(run_case(backend, sc));
     out->push_back(run_get_rows_case(backend, 151936, 2048)); // Coder-3B tied token_embd
     out->push_back(run_get_rows_case(backend, 65536, 1024));  // LFM2.5-350M
+    // ROPE (d3d12-rope.txt): head_dim 128, q (16 heads) and GQA k (2), decode and
+    // a 512-token ubatch; NEOX (Qwen2.5) and NORMAL; in-place and staged input.
+    for (const int mode : {kD3d12RopeModeNeox, kD3d12RopeModeNormal}) {
+        out->push_back(run_rope_case(backend, mode, false, 128, 16, 1, 128));
+        out->push_back(run_rope_case(backend, mode, false, 128, 2, 1, 128));
+        out->push_back(run_rope_case(backend, mode, false, 128, 2, 512, 128));
+        out->push_back(run_rope_case(backend, mode, true, 128, 16, 7, 128));
+        out->push_back(run_rope_case(backend, mode, false, 128, 4, 3, 64)); // n_dims < head_dim
+    }
     ggml_backend_free(backend);
 }
 

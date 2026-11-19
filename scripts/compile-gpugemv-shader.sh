@@ -12,7 +12,7 @@
 #   shaders/ggml_d3d12_add_bias_f32.hlsl → ggml_d3d12_add_bias_f32_dxil.h (cs_6_4,
 #     -denorm preserve so the fp32 add matches the CPU bit for bit)
 #
-# Usage: compile-gpugemv-shader.sh [naive|wave32|rows|dot4|mmv_q4_0|mmv_q4_k|mmv_q6_k|get_rows_q6_k|add_bias_f32 ...]
+# Usage: compile-gpugemv-shader.sh [naive|wave32|rows|dot4|mmv_q4_0|mmv_q4_k|mmv_q6_k|get_rows_q6_k|add_bias_f32|rope_f32 ...]
 #        (default: all)
 # A different dxc release emits different bytes: regenerate only the targets
 # you changed so measured blobs stay the ones the CSVs were recorded with.
@@ -109,15 +109,19 @@ compile_target() {
 		"$ROOT/shaders/generated/ggml_d3d12_add_bias_f32_dxil.h" \
 		"shaders/ggml_d3d12_add_bias_f32.hlsl -denorm preserve" "kGgmlD3d12AddBiasF32Dxil" \
 		cs_6_4 -denorm preserve ;;
+	rope_f32) compile_one "$ROOT/shaders/ggml_d3d12_rope_f32.hlsl" \
+		"$ROOT/shaders/generated/ggml_d3d12_rope_f32_dxil.h" \
+		"shaders/ggml_d3d12_rope_f32.hlsl -denorm preserve" "kGgmlD3d12RopeF32Dxil" \
+		cs_6_4 -denorm preserve ;;
 	*)
-		echo "unknown target: $1 (naive|wave32|rows|dot4|mmv_q4_0|mmv_q4_k|mmv_q6_k|get_rows_q6_k|add_bias_f32)" >&2
+		echo "unknown target: $1 (naive|wave32|rows|dot4|mmv_q4_0|mmv_q4_k|mmv_q6_k|get_rows_q6_k|add_bias_f32|rope_f32)" >&2
 		exit 2
 		;;
 	esac
 }
 
 if [[ $# -eq 0 ]]; then
-	set -- naive wave32 rows dot4 mmv_q4_0 mmv_q4_k mmv_q6_k get_rows_q6_k add_bias_f32
+	set -- naive wave32 rows dot4 mmv_q4_0 mmv_q4_k mmv_q6_k get_rows_q6_k add_bias_f32 rope_f32
 fi
 for target in "$@"; do
 	compile_target "$target"

@@ -149,6 +149,55 @@ struct D3d12AddDesc {
 
 bool d3d12_add_supported(const D3d12AddDesc& d);
 
+// --- ROPE on an F32 activation ---
+// build_qkv rotates Q and K right after the bias ADD. On the CPU each ROPE cuts
+// the scheduler's split, so q/k/v end up in two submissions. Here ROPE runs in
+// the same submission as the projections. Only the plain form is placed: F32
+// contiguous src0/dst of one shape, I32 positions (one per token), no
+// freq_factors, no YaRN (ext_factor == 0), mode NORMAL or NEOX, n_offs == 0.
+// Everything else stays on the CPU.
+// The cos/sin table is computed on the CPU with the ggml-cpu formulas
+// (rope_yarn, ggml_rope_cache_init) and read by the shader: sinf/cosf/powf on
+// the GPU are not bit-exact against libm, the table costs n_dims/2 pairs per token.
+
+inline constexpr int kD3d12RopeThreads = 128; // threads per group of the ROPE kernel
+inline constexpr int kD3d12RopeModeNormal = 0;
+inline constexpr int kD3d12RopeModeNeox = 2;
+
+struct D3d12RopeDesc {
+    ggml_type src0_type = GGML_TYPE_F32;
+    std::int64_t ne0 = 0, ne1 = 1, ne2 = 1, ne3 = 1; // [head_dim, heads, tokens, batch]
+    ggml_type dst_type = GGML_TYPE_F32;
+    bool same_shape = true; // dst has src0's shape
+    bool src0_contiguous = true;
+    bool dst_contiguous = true;
+    ggml_type pos_type = GGML_TYPE_I32;
+    std::int64_t ne_pos = 0; // positions
+    bool has_freq_factors = false;
+    int mode = kD3d12RopeModeNeox;
+    int n_dims = 0;
+    int n_offs = 0;
+    float ext_factor = 0.0f;
+};
+
+bool d3d12_rope_supported(const D3d12RopeDesc& d);
+
+struct D3d12RopeParams {
+    int n_dims = 0;
+    float freq_base = 10000.0f;
+    float freq_scale = 1.0f;
+    float attn_factor = 1.0f;
+};
+
+// Fill `table` (2 * n_dims / 2 floats: cos, sin per rotated pair) for one
+// position, as ggml_rope_cache_init does with ext_factor == 0.
+void d3d12_rope_cache(const D3d12RopeParams& p, std::int32_t pos, float* table);
+
+// Host emulation of shaders/ggml_d3d12_rope_f32.hlsl over a dense [ne0, rows,
+// tokens] activation (tests): x/y have ne0 * rows * tokens floats.
+void d3d12_rope_emulate(const D3d12RopeParams& p, int mode, std::int64_t ne0, std::int64_t rows,
+                        std::int64_t tokens, const std::int32_t* pos, const float* x, float* y);
+
 // The D3D12_Weights buffer type, for llama's tensor_buft_overrides. Null
 // until ggml_d3d12_register() succeeds (always on non-Windows).
 ggml_backend_buffer_type_t ggml_d3d12_weights_buft();
