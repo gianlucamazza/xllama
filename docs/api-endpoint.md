@@ -274,12 +274,18 @@ Pydantic validation), and a `usage` block from `InferenceResult`: `prompt_tokens
 `chat.completion.chunk` per token piece (`choices[0].delta.content`), a final chunk carrying
 `finish_reason` and `usage`, then `data: [DONE]`. The response is `Content-Type:
 text/event-stream` over chunked transfer (no `Content-Length`) and the socket closes at the
-end; token pieces ride `GenerateParams::on_token`. A failure after the head travels as a
-`{"error":{...}}` event, since the 200 is already on the wire. The text is sent **raw**:
-`postprocess_output` (thinking-block stripping, tool parsing) needs the whole reply, so it
-still runs on the non-streaming path only, and a tool proposal ignores `stream`. Stop
-sequences are never streamed: the writer holds back any suffix that could still complete
-one and drops the match. Measured on
+end. Plain chat emits raw token pieces using `GenerateParams::on_token`. The writer
+holds back any suffix that could still complete a stop sequence and drops the match.
+A failure after the head travels as an `{"error":{...}}` event.
+
+A tool proposal with `stream: true` buffers generation, applies the GGUF template
+parser, then sends the assistant role, a delta with the assembled content and any
+indexed `delta.tool_calls[]`, the finish chunk with usage, and `data: [DONE]`.
+The same raw-text fallback as the JSON path applies when parsing fails or a tool
+call is cut off. The first event follows completed generation and parsing.
+Errors detected before the SSE head use the normal HTTP JSON error response.
+
+Measured for plain chat on
 Series S (2026-10-16, `lfm25-1.2b-instruct`, 52-token reply): first byte at 11 ms against
 1.90 s for the same completion without `stream`, both 1.90 s in total.
 
@@ -444,6 +450,8 @@ a named `tool_choice` returns a `get_weather` call with JSON arguments, a `tool`
 result is answered, `tools` + `functions` is `400`, `tool_choice: "none"`
 stays plain chat, and an oversized `tools` array is `400` with the
 `prompt too long: the request needs` prefix and `context_length_exceeded`.
+The gate also checks an indexed SSE tool call and the streamed answer to its
+result, including usage, finish reason and `[DONE]`.
 `TOOLS_MODEL` (default `MODEL`) must be a GGUF with a chat template; set
 `ORT_MODEL` to an ONNX id to also check its `400`.
 `all` includes pull and embeddings; provision `embed-nomic-v2-moe` first, or set
