@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <exception>
 #include <utility>
 
 namespace xllama {
@@ -186,12 +187,28 @@ Kept take_groups(const std::vector<ChatMessage>& messages, const std::vector<Dro
     return kept;
 }
 
+int count_tool_definition_tokens(const std::vector<ToolSpec>& tools,
+                                 const ToolPromptRenderer& render, const TokenCounter& count) {
+    if (!count || !render)
+        return -1;
+    if (tools.empty())
+        return 0;
+    // Counted once, before fitting, so the last render of the fit is still the
+    // prompt (and any renderer side effects) the caller will generate from.
+    try {
+        return count(render({}, tools));
+    } catch (const std::exception&) {
+        return -1;
+    }
+}
+
 } // namespace
 
 ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
                                       const std::vector<ToolSpec>& tools, int n_ctx, int n_predict,
                                       const ToolPromptRenderer& render, const TokenCounter& count) {
     ToolTranscriptFit out;
+    out.n_tool_tokens = count_tool_definition_tokens(tools, render, count);
     const size_t tail = protected_tail(messages);
     const std::vector<DropGroup> groups = drop_groups(messages, tail);
     auto render_dropping = [&](size_t drop_groups, int* dropped) {

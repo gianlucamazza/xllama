@@ -31,6 +31,7 @@ add_executable(xllama-tests
     test_sse.cpp
     test_stop_filter.cpp
     test_tool_proposal.cpp
+    test_tool_budget.cpp
     test_manifest_merge.cpp
     test_membw.cpp
     test_diskbw.cpp

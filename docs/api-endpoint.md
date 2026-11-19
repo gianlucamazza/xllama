@@ -86,7 +86,10 @@ xllama has no `/api/version` or `/api/chat`.
 
 **Troubleshooting**
 
-- `prompt too long: the request needs …` on the first message: see step 3.
+- `prompt too long: the request needs …` on the first message
+  (`error.code` `context_length_exceeded`, `error.param` `tools`): the built-in
+  tool definitions overflow the context. The message names tool-definition vs
+  message tokens. See step 3. xllama never drops the schema.
 - Model list empty or a connection error: `curl http://<console IP>:<port>/health`
   from the Open WebUI machine, check xllama is in the foreground, and that both
   are on the same network.
@@ -231,10 +234,16 @@ and the same reserve. It never drops the tool schema or the final user or tool
 message, and it drops an assistant message that carries `tool_calls` together
 with the tool results that follow it. Dropped messages are logged, not signalled.
 When the protected tail still does not fit, the request is `400`. Plain chat says
-the final user message needs the three numbers. A proposal says
-`prompt too long: the request needs X tokens plus Y for the reply, but n_ctx is Z`,
-where Y is `n_predict`. An oversized input is a client error; it used to surface
-as a `500` from the generator instead.
+the final user message needs the three numbers. A proposal keeps
+`prompt too long: the request needs X tokens plus Y for the reply, but n_ctx is Z`
+(Y is `n_predict`) and then names how many tokens are tool definitions versus
+messages. The body is
+`{"error":{"message":…,"type":"xllama_error","code":"context_length_exceeded","param":"tools"|"messages"}}`.
+`param` is `tools` when the rendered tool definitions alone do not fit the room,
+otherwise `messages`. When the definitions overflow, the message tells the client
+to send fewer tools or disable built-in tools. Other errors keep `type`
+`xllama_error` and omit `code`/`param`. An oversized input is a client error; it
+used to surface as a `500` from the generator instead.
 
 Framing is exact ([ADR 0006](adr/0006-http-framing.md)). `Content-Length` must
 be one plain decimal (repeats must agree), else `400`; any `Transfer-Encoding`
@@ -421,9 +430,11 @@ not from a client on the console itself — cross-device inbound needs no loopba
 but a same-host localhost client would (`CheckNetIsolation`). Spike gate first (`GET /` → 200
 proves the bind survives the Series S firewall/PLM), then chat / prefs / train as needed. `tools` checks the tool-proposal contract:
 a named `tool_choice` returns a `get_weather` call with JSON arguments, a `tool`
-result is answered, `tools` + `functions` is `400`, and `tool_choice: "none"`
-stays plain chat. `TOOLS_MODEL` (default `MODEL`) must be a GGUF with a chat
-template; set `ORT_MODEL` to an ONNX id to also check its `400`.
+result is answered, `tools` + `functions` is `400`, `tool_choice: "none"`
+stays plain chat, and an oversized `tools` array is `400` with the
+`prompt too long: the request needs` prefix and `context_length_exceeded`.
+`TOOLS_MODEL` (default `MODEL`) must be a GGUF with a chat template; set
+`ORT_MODEL` to an ONNX id to also check its `400`.
 `all` includes pull and embeddings; provision `embed-nomic-v2-moe` first, or set
 `EMBED_MODEL=embed-bge-m3`. Set `XLLAMA_API_EVIDENCE_DIR` to retain the embedding
 requests and responses. The embedding gate verifies native widths, finite unit vectors,

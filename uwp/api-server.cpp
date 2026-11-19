@@ -39,6 +39,7 @@
     #include "xllama/session_hub.h"
     #include "xllama/sse.h"
     #include "xllama/stop_sequence_filter.h"
+    #include "xllama/tool_budget.h"
     #include "xllama/tool_request.h"
     #include "xllama/tool_template.h"
     #include "xllama/tool_transcript.h"
@@ -558,10 +559,15 @@ void write_cors_preflight(StreamSocket const& socket) {
                       "Content-Length: 0\r\nConnection: close\r\n\r\n");
 }
 
-std::string error_json(const std::string& msg) {
+std::string error_json(const std::string& msg, const char* code = nullptr,
+                       const char* param = nullptr) {
     JsonObject err;
     err.Insert(L"message", JsonValue::CreateStringValue(winrt::to_hstring(msg)));
     err.Insert(L"type", JsonValue::CreateStringValue(L"xllama_error"));
+    if (code && *code)
+        err.Insert(L"code", JsonValue::CreateStringValue(winrt::to_hstring(code)));
+    if (param && *param)
+        err.Insert(L"param", JsonValue::CreateStringValue(winrt::to_hstring(param)));
     JsonObject root;
     root.Insert(L"error", err);
     return winrt::to_string(root.Stringify());
@@ -809,9 +815,9 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
     }
     if (!fit.fits) {
         status = "400 Bad Request";
-        return error_json("prompt too long: the request needs " + std::to_string(fit.n_tokens) +
-                          " tokens plus " + std::to_string(gp.n_predict) +
-                          " for the reply, but n_ctx is " + std::to_string(policy_n_ctx));
+        const ::xllama::ToolBudgetError overflow = ::xllama::tool_prompt_too_long(
+            fit.n_tokens, fit.n_tool_tokens, gp.n_predict, policy_n_ctx);
+        return error_json(overflow.message, overflow.code, overflow.param);
     }
     if (fit.dropped > 0)
         ::xllama::log_output("[xllama] api: dropped " + std::to_string(fit.dropped) +

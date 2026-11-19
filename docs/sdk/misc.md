@@ -1,5 +1,22 @@
 # Miscellaneous APIs
 
+## Tool budget error
+
+Actionable 400 text when a tool proposal cannot fit `n_ctx`. The prefix is the
+string `validate-api.sh` and the docs grep for; the rest names tool-definition vs
+message tokens. `param` is `"tools"` only when the definitions alone overflow.
+
+```cpp
+struct ToolBudgetError {
+    std::string message;
+    const char* param; // "tools" or "messages"
+    const char* code;  // "context_length_exceeded"
+};
+
+std::string tool_prompt_too_long_prefix(int n_tokens, int n_predict, int n_ctx);
+ToolBudgetError tool_prompt_too_long(int n_tokens, int n_tool_tokens, int n_predict, int n_ctx);
+```
+
 ## Cancel Policy
 
 ```cpp

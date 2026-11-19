@@ -27,9 +27,11 @@
 #          top_p, seed) are 400 before the model loads (F01).
 #   tools  client-side tool proposal (ADR 0004): a named tool_choice comes back
 #          as tool_calls with JSON arguments, a tool result is answered,
-#          tools+functions is 400, tool_choice none stays plain chat. TOOLS_MODEL
-#          (default MODEL) must be a GGUF with a chat template; ORT_MODEL, when
-#          set, names an ONNX model that must answer 400.
+#          tools+functions is 400, tool_choice none stays plain chat, and an
+#          oversized tools array is 400 "prompt too long" with
+#          context_length_exceeded. TOOLS_MODEL (default MODEL) must be a GGUF
+#          with a chat template; ORT_MODEL, when set, names an ONNX model that
+#          must answer 400.
 #   framing exact HTTP framing (ADR 0006): negative/conflicting/oversized
 #          Content-Length, chunked, a short body and a stalled body are refused
 #          (400/400/413/411/400/408) and a refused POST appends no sample.
@@ -724,6 +726,39 @@ print("ok" if m.get("content") and not m.get("tool_calls") else "unexpected " + 
 		fi
 	else
 		echo "  E skipped: set ORT_MODEL to check the ONNX 400"
+	fi
+
+	# F. tool definitions alone overflow n_ctx: 400 with the existing prefix and
+	#    code context_length_exceeded. The schema is never dropped (ADR 0004).
+	req=$(python3 - <<'PYTOOLS'
+import json
+pad = ("synthetic schema padding for the oversized-tools gate. ") * 8
+tools = []
+for i in range(39):
+    tools.append({
+        "type": "function",
+        "function": {
+            "name": f"synth_{i:02d}",
+            "description": pad,
+            "parameters": {"type": "object", "properties": {"arg": {"type": "string"}},
+                           "required": ["arg"]},
+        },
+    })
+print(json.dumps({"model": "__MODEL__",
+                  "messages": [{"role": "user", "content": "Say OK."}],
+                  "tools": tools,
+                  "max_tokens": 24}))
+PYTOOLS
+	)
+	req=${req/__MODEL__/$tools_model}
+	code=$(post_chat "$req" "${TMPDIR_LOCAL}/tools-f.json")
+	if [[ "$code" == "400" ]] &&
+		grep -q 'prompt too long: the request needs' "${TMPDIR_LOCAL}/tools-f.json" &&
+		grep -q 'context_length_exceeded' "${TMPDIR_LOCAL}/tools-f.json"; then
+		echo "  F ok: oversized tools are 400 context_length_exceeded"
+	else
+		echo "  F FAIL: HTTP ${code}: $(head -c 200 "${TMPDIR_LOCAL}/tools-f.json")"
+		verdict=1
 	fi
 
 	[[ $verdict -eq 0 ]] && echo "tools: PASS" || echo "tools: FAIL"
