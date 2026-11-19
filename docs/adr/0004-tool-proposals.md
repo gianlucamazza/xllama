@@ -33,9 +33,8 @@ by the template as specified in [ADR 0005](0005-tool-proposal-grammar.md).
 `tool_choice` offers only that function and asks the template for a required
 call, because the llama.cpp choice enum has no name.
 
-A tool proposal targeting ONNX returns HTTP 400 with
-`tools_unsupported_for_model` before the resident session is loaded or replaced.
-See the [LAN API contract](../api-endpoint.md#protocol-v1) for the error
+The LAN API checks ONNX tool support before loading or replacing the resident
+session. The [LAN API contract](../api-endpoint.md#protocol-v1) defines the error
 fields and the ONNX support boundary. A GGUF with
 no explicit chat template returns 400 `model has no chat template`. A template
 that renders without the schema (no offered tool name occurs more often with
@@ -50,11 +49,9 @@ client's `stop`. The template's preserved tokens (LFM2's
 `<|tool_call_start|>`, ...) are decoded as text so the parser sees them; every
 other special token is still dropped.
 
-The LAN budget trimmer is `fit_tool_template` in `prompt_budget.h`. It uses
-the resident tokenizer and keeps the schema and the final user or tool message.
-An assistant tool call and its results are dropped together when trimming
-history. See the [LAN API contract](../api-endpoint.md#protocol-v1) for the
-reply reservation and overflow behavior.
+The LAN API uses `fit_tool_template` in `prompt_budget.h` to budget with the
+resident tokenizer. See the [LAN API contract](../api-endpoint.md#protocol-v1)
+for history trimming and reply reservation.
 
 agent-runtime stays a `/v1` pass-through. The GUI chat path stays tool-free.
 
@@ -77,7 +74,7 @@ pre-built by `build-uwp.ps1`), not `llama.cpp/tools/server`.
 Enclosure T0 rerun is outside this repository.
 
 Tool proposals with `stream: true` send SSE after complete generation and
-parsing. The client receives the parsed calls as indexed deltas. See the
+parsing. See the
 [LAN API contract](../api-endpoint.md#protocol-v1) for the response format.
 
 ## Alternatives
