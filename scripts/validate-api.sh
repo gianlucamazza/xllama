@@ -646,13 +646,61 @@ post_chat() {
 		--data-binary @- "${API_URL}/v1/chat/completions" || echo "000"
 }
 
+validate_tool_stream() {
+	local request="$1" expected="$2" response
+	response=$(printf '%s' "$request" |
+		curl -sS -m 300 -o "${TMPDIR_LOCAL}/tool-stream.sse" -w "%{http_code} %{content_type}" \
+			-H 'Content-Type: application/json' --data-binary @- "${API_URL}/v1/chat/completions") || return
+	if [[ "$response" != "200 text/event-stream"* ]]; then
+		echo "  FAIL: expected SSE, got ${response}"
+		return 1
+	fi
+	python3 - "${TMPDIR_LOCAL}/tool-stream.sse" "$expected" "${TMPDIR_LOCAL}/streamed-call.json" <<'PYTOOLSTREAM'
+import json
+import sys
+from pathlib import Path
+
+body = Path(sys.argv[1]).read_text()
+events = body.split("\n\n")
+assert events[-2:] == ["data: [DONE]", ""], events[-2:]
+chunks = []
+for event in events[:-2]:
+    assert event.startswith("data: ") and "\n" not in event, event
+    chunks.append(json.loads(event[6:]))
+assert len(chunks) >= 3, chunks
+assert all(c["object"] == "chat.completion.chunk" for c in chunks), chunks
+assert len({c["id"] for c in chunks}) == 1, chunks
+choices = [c["choices"][0] for c in chunks]
+assert all(c["index"] == 0 for c in choices), choices
+assert choices[0]["delta"]["role"] == "assistant", choices[0]
+assert all(c["finish_reason"] is None for c in choices[:-1]), choices
+assert choices[-1]["delta"] == {}, choices[-1]
+usage = chunks[-1]["usage"]
+assert usage["total_tokens"] == usage["prompt_tokens"] + usage["completion_tokens"], usage
+deltas = [c["delta"] for c in choices]
+calls = [call for delta in deltas for call in delta.get("tool_calls", [])]
+if sys.argv[2] == "tool_calls":
+    assert choices[-1]["finish_reason"] == "tool_calls", choices[-1]
+    assert len(calls) == 1 and calls[0]["index"] == 0 and calls[0]["id"], calls
+    assert calls[0]["type"] == "function" and calls[0]["function"]["name"] == "get_weather", calls
+    assert json.loads(calls[0]["function"]["arguments"])["city"] == "Paris", calls
+    call = calls[0].copy()
+    del call["index"]
+    Path(sys.argv[3]).write_text(json.dumps(call))
+else:
+    assert choices[-1]["finish_reason"] in ("stop", "length"), choices[-1]
+    assert not calls and "".join(delta.get("content") or "" for delta in deltas).strip(), deltas
+PYTOOLSTREAM
+}
+
 validate_tools() {
 	echo "=== tools: client-side tool proposal (ADR 0004) ==="
-	local tools_model="${TOOLS_MODEL:-$MODEL}" verdict=0 req code check
+	local tools_model="${TOOLS_MODEL:-$MODEL}" verdict=0 req code check stream named_request result_request
 	local schema='[{"type":"function","function":{"name":"get_weather","description":"Current weather for a city","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}]'
 
 	# A. named tool_choice: the reply must be a get_weather call with JSON arguments.
 	req=$(printf '{"model":"%s","messages":[{"role":"user","content":"What is the weather in Paris?"}],"tools":%s,"tool_choice":{"type":"function","function":{"name":"get_weather"}},"max_tokens":128,"temperature":0,"seed":42}' "$tools_model" "$schema")
+	named_request="$req"
 	code=$(post_chat "$req" "${TMPDIR_LOCAL}/tools-a.json")
 	check=$(python3 -c '
 import json, sys
@@ -676,6 +724,7 @@ print("get_weather(" + f["arguments"] + ")")
 
 	# B. a tool result after the call: answered, no new call required.
 	req=$(printf '{"model":"%s","messages":[{"role":"user","content":"What is the weather in Paris?"},{"role":"assistant","content":null,"tool_calls":[{"id":"call_1","type":"function","function":{"name":"get_weather","arguments":"{\\"city\\":\\"Paris\\"}"}}]},{"role":"tool","tool_call_id":"call_1","content":"18 C, light rain"}],"tools":%s,"max_tokens":96,"temperature":0,"seed":42}' "$tools_model" "$schema")
+	result_request="$req"
 	code=$(post_chat "$req" "${TMPDIR_LOCAL}/tools-b.json")
 	check=$(python3 -c '
 import json, sys
@@ -786,8 +835,9 @@ print(json.dumps({"model": "__MODEL__",
 PYTOOLS
 	)
 	req=${req/__MODEL__/$tools_model}
-	code=$(post_chat "$req" "${TMPDIR_LOCAL}/tools-f.json")
-	check=$(python3 -c '
+	for stream in false true; do
+		code=$(post_chat "{\"stream\":${stream},${req:1}" "${TMPDIR_LOCAL}/tools-f.json")
+		check=$(python3 -c '
 import json, sys
 d = json.load(open(sys.argv[1]))
 e = d.get("error") or {}
@@ -797,10 +847,37 @@ assert e.get("code") == "context_length_exceeded", e
 assert e.get("param") == "tools", e
 print("ok")
 ' "${TMPDIR_LOCAL}/tools-f.json" 2>&1 | tail -n1 || true)
-	if [[ "$code" == "400" && "$check" == "ok" ]]; then
-		echo "  F ok: oversized tools are 400 context_length_exceeded param tools"
+		if [[ "$code" == "400" && "$check" == "ok" ]]; then
+			echo "  F ok: oversized tools are 400 context_length_exceeded param tools (stream=${stream})"
+		else
+			echo "  F FAIL: HTTP ${code} (stream=${stream}): ${check:0:160}"
+			verdict=1
+		fi
+	done
+
+	if validate_tool_stream "{\"stream\":true,${named_request:1}" tool_calls; then
+		echo "  G ok: SSE returned indexed get_weather and tool_calls finish"
+		result_request=$(python3 - "$result_request" "${TMPDIR_LOCAL}/streamed-call.json" <<'PYTOOLRESULT'
+import json
+import sys
+from pathlib import Path
+
+request = json.loads(sys.argv[1])
+call = json.loads(Path(sys.argv[2]).read_text())
+request["messages"][1]["tool_calls"] = [call]
+request["messages"][2]["tool_call_id"] = call["id"]
+request["stream"] = True
+print(json.dumps(request))
+PYTOOLRESULT
+		)
+		if validate_tool_stream "$result_request" text; then
+			echo "  H ok: SSE answered the returned tool call ID and ended with DONE"
+		else
+			echo "  H FAIL: streamed tool result"
+			verdict=1
+		fi
 	else
-		echo "  F FAIL: HTTP ${code}: ${check:0:160} $(head -c 160 "${TMPDIR_LOCAL}/tools-f.json")"
+		echo "  G FAIL: streamed tool call"
 		verdict=1
 	fi
 

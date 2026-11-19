@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **SSE for LAN tool proposals.** Requests with `stream: true` receive the
+  parsed assistant output and indexed tool calls as SSE, followed by the
+  finish reason and usage. The tool path emits its first event after parsing
+  the complete generation.
+
 - **Actionable tool-proposal errors (#497).** LAN API overflow returns
   `context_length_exceeded` with token usage and an optional field when the
   budget failure is attributable to tools or messages. An ONNX tool proposal

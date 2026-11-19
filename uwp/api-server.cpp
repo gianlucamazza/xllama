@@ -368,9 +368,8 @@ SseHeadStatus write_sse_head(StreamSocket const& socket) {
 // response carries no Content-Length, so the events travel in HTTP/1.1 chunks
 // (xllama::chunk_frame, host tested) and the socket closes at the end.
 //
-// The text is emitted raw: postprocess_output() (thinking-block stripping, tool
-// parsing) needs the whole reply and does not run here. Tool proposals stay on
-// the non-streaming path.
+// Plain chat emits token pieces during generation. Tool proposals buffer the
+// model output until the template parser has assembled the reply.
 class SseStream {
   public:
     SseStream(StreamSocket const& socket, std::string model, std::atomic<bool>* abort)
@@ -403,6 +402,16 @@ class SseStream {
         m_pending.append(piece.data(), piece.size());
         try {
             drain_pending(false);
+        } catch (...) {
+            stop();
+        }
+    }
+
+    void write_message_delta(JsonObject const& delta) noexcept {
+        if (m_finished)
+            return;
+        try {
+            send_chunk(delta, JsonValue::CreateNullValue(), nullptr);
         } catch (...) {
             stop();
         }
@@ -764,8 +773,10 @@ std::string completion_json(const std::string& model, JsonObject const& message,
 std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRequest& request,
                                         ::xllama::Session* session, const std::string& model,
                                         bool model_is_coding, int policy_n_ctx, int n_predict,
-                                        ::xllama::ApiActivity::Ticket& ticket,
-                                        const char*& status) {
+                                        ::xllama::ApiActivity::Ticket& ticket, const char*& status,
+                                        StreamSocket const& socket, bool stream) {
+    using Clock = std::chrono::steady_clock;
+    const auto started = Clock::now();
     bool has_system = false;
     for (const ::xllama::ChatMessage& message : request.messages) {
         if (message.role == ::xllama::ChatRole::System) {
@@ -820,7 +831,9 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
     gp.grammar = std::move(fit.rendered.grammar); // ADR 0005
     append_client_stops(root, gp.stop_sequences);
 
+    const auto prepared = Clock::now();
     const ::xllama::InferenceResult generated = session->generate(gp);
+    const auto generated_at = Clock::now();
     if (!generated.success) {
         status = "500 Internal Server Error";
         return error_json("generation failed: " + generated.error_msg);
@@ -830,17 +843,26 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
     const ::xllama::ToolParseResult parsed = ::xllama::parse_tool_generation(
         session->resident_llama_model(), "", fit.messages, request.tools, request.choice,
         request.forced_name, generated.output_text, hit_cap);
+    const auto parsed_at = Clock::now();
+    const auto elapsed_us = [](Clock::time_point begin, Clock::time_point end) {
+        return std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count();
+    };
+    ::xllama::log_output(
+        "[xllama] api: tool_proposal prepare_us=" + std::to_string(elapsed_us(started, prepared)) +
+        " generate_us=" + std::to_string(elapsed_us(prepared, generated_at)) +
+        " parse_us=" + std::to_string(elapsed_us(generated_at, parsed_at)) + "\n");
     const ::xllama::ChoiceAssembly assembly =
         ::xllama::assemble_choice(generated.output_text, parsed.content, parsed.calls, hit_cap,
                                   ::xllama::model_is_thinking(model));
 
     JsonObject message;
-    message.Insert(L"role", JsonValue::CreateStringValue(L"assistant"));
-    if (assembly.content_null)
-        message.Insert(L"content", JsonValue::CreateNullValue());
-    else
+    if (assembly.content_null) {
+        if (!stream)
+            message.Insert(L"content", JsonValue::CreateNullValue());
+    } else {
         message.Insert(L"content",
                        JsonValue::CreateStringValue(winrt::to_hstring(assembly.content)));
+    }
     if (!assembly.tool_calls.empty()) {
         JsonArray calls;
         for (const ::xllama::ToolCall& call : assembly.tool_calls) {
@@ -849,6 +871,8 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
             function.Insert(L"arguments",
                             JsonValue::CreateStringValue(winrt::to_hstring(call.arguments_json)));
             JsonObject tool_call;
+            if (stream)
+                tool_call.Insert(L"index", JsonValue::CreateNumberValue(calls.Size()));
             tool_call.Insert(L"id", JsonValue::CreateStringValue(winrt::to_hstring(call.id)));
             tool_call.Insert(L"type", JsonValue::CreateStringValue(L"function"));
             tool_call.Insert(L"function", function);
@@ -856,8 +880,38 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
         }
         message.Insert(L"tool_calls", calls);
     }
-    return completion_json(model, message, winrt::to_hstring(assembly.finish_reason),
-                           generated.n_prompt, generated.n_eval, status);
+    const auto finish_reason = winrt::to_hstring(assembly.finish_reason);
+    if (!stream) {
+        message.Insert(L"role", JsonValue::CreateStringValue(L"assistant"));
+        return completion_json(model, message, finish_reason, generated.n_prompt, generated.n_eval,
+                               status);
+    }
+
+    // The complete parsed reply is available. Preserve HTTP JSON errors until
+    // this point, then send the tool delta without exposing raw model markup.
+    switch (write_sse_head(socket)) {
+    case SseHeadStatus::Written:
+        break;
+    case SseHeadStatus::FailedBeforeBytes:
+        status = "500 Internal Server Error";
+        return error_json("failed to start the stream");
+    case SseHeadStatus::FailedUnknown:
+        status = "500 Internal Server Error";
+        return {};
+    }
+    try {
+        SseStream sse(socket, model, nullptr);
+        if (!sse.started()) {
+            status = "500 Internal Server Error";
+            return {};
+        }
+        sse.write_message_delta(message);
+        sse.finish(finish_reason.c_str(), generated.n_prompt, generated.n_eval);
+        status = "200 OK";
+    } catch (...) {
+        status = "500 Internal Server Error";
+    }
+    return {}; // The SSE head owns the response from here on.
 }
 
 // Handles one chat request under session_hub().mtx (already locked by the caller).
@@ -959,7 +1013,7 @@ std::string handle_chat_locked(const std::string& body, const char*& status,
 
     if (proposal)
         return handle_tool_proposal_locked(root, request, session, model, model_is_coding,
-                                           policy_n_ctx, n_predict, ticket, status);
+                                           policy_n_ctx, n_predict, ticket, status, socket, stream);
 
     // Small instruct models degrade badly with an empty system turn (they
     // hallucinate the next role instead of answering); the chat UI always seeds
