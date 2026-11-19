@@ -4,9 +4,9 @@
 // ggml backend "d3d12" — GGUF GPU decode D2 (docs/gguf-gpu-decode.md).
 //
 // A GPU-type ggml device, registered at runtime, that runs MUL_MAT with
-// Q4_0 / Q4_K / Q6_K weights and GET_ROWS from a Q6_K weight on our D3D12
-// compute shaders; matmul inputs are quantized to q8 on the CPU first, exactly
-// as the CPU backend does.
+// Q4_0 / Q4_K / Q6_K weights, GET_ROWS from a Q6_K weight and the F32 bias ADD
+// after a projection on our D3D12 compute shaders; matmul inputs are quantized
+// to q8 on the CPU first, exactly as the CPU backend does.
 // Two buffer types:
 //   D3D12_Weights  DEFAULT heap, holds matmul weights (exposed as an extra buft)
 //   D3D12_Host     CUSTOM WRITE_BACK heap, is_host — the device default buft, so
@@ -125,6 +125,30 @@ void d3d12_get_rows_emulate(ggml_type t, const std::uint8_t* w, std::size_t w_ro
 // copy serves both the input lookup and the lm_head.
 bool d3d12_place_tied_embedding(ggml_type embd_type, bool has_output_weight);
 
+// --- Bias ADD on a weight in D3D12_Weights ---
+// build_qkv and build_ffn add an F32 bias right after a projection. On the CPU
+// each such ADD cuts the scheduler's split, so a model with q/k/v biases
+// (Qwen2.5) pays one submission per projection instead of one for all three.
+// Only the bias form runs here: src1 a 1-D F32 weight in D3D12_Weights added to
+// every column of a 2-D F32 activation. Residual adds (two activations) stay on
+// the CPU. fp32 add is correctly rounded on D3D12 (D3D11.3 spec §3.1.3.1) and
+// the shader preserves denormals, so the GPU result matches the CPU bit for bit.
+
+inline constexpr int kD3d12AddThreads = 256; // threads per group of the ADD kernel
+
+struct D3d12AddDesc {
+    ggml_type src0_type = GGML_TYPE_F32;
+    std::int64_t ne00 = 0, ne01 = 0, ne02 = 1, ne03 = 1; // activations [N, M]
+    ggml_type src1_type = GGML_TYPE_F32;
+    std::int64_t ne10 = 0, ne11 = 1, ne12 = 1, ne13 = 1; // bias [N]
+    ggml_type dst_type = GGML_TYPE_F32;
+    bool src0_rows_contiguous = true; // nb00 == sizeof(float)
+    bool src1_contiguous = true;
+    bool src1_in_weight_buffer = false; // bias lives in a D3D12_Weights buffer
+};
+
+bool d3d12_add_supported(const D3d12AddDesc& d);
+
 // The D3D12_Weights buffer type, for llama's tensor_buft_overrides. Null
 // until ggml_d3d12_register() succeeds (always on non-Windows).
 ggml_backend_buffer_type_t ggml_d3d12_weights_buft();
@@ -154,9 +178,9 @@ bool d3d12_flag_enabled(std::string_view config);
 const char* d3d12_cols_class(std::int64_t ncols);
 
 struct D3d12DispatchKind {
-    std::string op;            // "mul_mat" | "get_rows"
+    std::string op;            // "mul_mat" | "get_rows" | "add"
     std::string type;          // weight type name, e.g. "q4_0"
-    int threads = 0;           // 64 | 128 for mul_mat, 0 for get_rows
+    int threads = 0;           // 64 | 128 for mul_mat, kD3d12AddThreads for add, 0 for get_rows
     int columns_per_group = 1; // kernel variant (the single-column kernel is 1)
     std::string cols;          // d3d12_cols_class(ncols)
     bool operator==(const D3d12DispatchKind& o) const {
@@ -218,7 +242,7 @@ std::string d3d12_layer_label(std::optional<int> layer);
 // Aggregation key: one transformer layer (or unattributed) × one op.
 struct D3d12LayerKey {
     std::optional<int> layer; // nullopt = unattributed
-    std::string op;           // "mul_mat" | "get_rows"
+    std::string op;           // "mul_mat" | "get_rows" | "add"
     bool operator==(const D3d12LayerKey& o) const {
         return layer == o.layer && op == o.op;
     }

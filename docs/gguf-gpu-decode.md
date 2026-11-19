@@ -899,7 +899,7 @@ between the two points only (`ggml_d3d12_take_stats` in
 
 - `calls`: graph computes.
 - `submissions`: command lists executed and waited for.
-- `dispatches`: MUL_MAT and GET_ROWS.
+- `dispatches`: MUL_MAT, GET_ROWS and (with the bias knob below) the bias ADD.
 - `wall_ms`: whole graph computes.
 - `quant_ms`: CPU q8 activation quantization.
 - `record_ms`: command-list recording.
@@ -972,3 +972,41 @@ about 4 % of decode. Its first use located the four-column result of #470 in
 the shaders: per dispatch, the four-column Q4_0 shader takes 1.25 times
 (64 threads) and 1.14 times (128 threads) as long as the single-column one,
 while the four-column Q4_K and Q6_K shaders take about half as long.
+
+### Bias ADD on the GPU (opt-in, experimental)
+
+A projection with an F32 bias is `MUL_MAT` then `ADD` (`build_qkv`,
+`build_ffn`, `build_attn`). The backend ran only the `MUL_MAT`, so each bias
+`ADD` went to the CPU and the scheduler cut the split there
+(`ggml-backend.cpp`, a backend change ends a split): each biased projection
+paid its own submission, so a model with a bias on every projection (Bielik
+4.5B) paid 7 per layer.
+
+With `LocalState\d3d12-bias-add.txt` containing `1` when the backend starts
+(boot log `d3d12: bias_add=1`), `supports_op` accepts an `ADD` whose `src1`
+is a 1-D F32 weight in `D3D12_Weights` added to every column of a 2-D F32
+activation (`d3d12_add_supported`). llama.cpp's per-weight buffer probe asks
+the same question for every `*.bias` tensor, so the biases move into
+`D3D12_Weights` at load and each `ADD` joins its projection's submission.
+Residual adds (two activations) stay on the CPU. Without the file the
+placement and the graph are unchanged.
+
+The kernel (`shaders/ggml_d3d12_add_bias_f32.hlsl`) is one fp32 add per
+element, compiled with `-denorm preserve`. The D3D11.3 functional spec
+(§3.1.3.1) requires fp32 add to be correctly rounded, and preserved
+denormals remove the one flush-to-zero difference (§3.1.3.2), so the
+expected result is the CPU's bit for bit; a logit dump of each arm is the
+check. A UAV barrier separates an `ADD` from the dispatches before and after
+it in a submission. The per-dispatch and per-layer lines report it as
+`op=add`, keyed by the bias tensor's name, with the bias size as
+`weight_mib`.
+
+With the knob on a layer still takes 5 submissions, not 4. The CPU nodes that
+remain close the splits: `ROPE` after Q and after K (`build_attn` expands
+`q_cur`, `v_cur`, `k_cur` in that order, so q/k/v is `[Q] ROPE [V K] ROPE`,
+two splits), the residual `ADD`, `SWIGLU` and the attention itself. The
+split is `[Q] [V K] [o] [gate up] [down]`; without the knob it is
+`[Q] [V] [K] [o] [gate] [up] [down]` (7). A model without biases is 5 as
+well, so the knob cannot go below 5; that needs `ROPE` on the GPU or a
+different node order. Measured on Series X: Bielik 421 → 301 submissions per
+token (60 layers × 7 → 5, plus lm_head).
