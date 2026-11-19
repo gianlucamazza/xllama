@@ -196,14 +196,23 @@ client does. One request is one generation, constrained by the template's gramma
 (ADR 0005), with no hidden retry. The prompt and the parse go through the resident GGUF Jinja template
 (`common_chat_templates_apply` / `common_chat_parse`). A proposal for an ONNX
 model is rejected before the resident session is loaded or replaced. The API returns
-`400` `tools require a GGUF chat template` with `error.code`
-`tools_unsupported_for_model` and `error.param` `model`. A GGUF with no explicit chat template
+`400` with `error.code` `tools_unsupported_for_model`, `error.param` `model`,
+and a message beginning with `tools require a GGUF chat template`. A GGUF with no explicit chat template
 returns `400` `model has no chat template`, and one that renders without the
 schema returns `400` `model chat template does not render tools` (phi4-mini). That check compares the prompt rendered with and without `tools`, so replaying a call in the transcript does not trigger it. A template that raises on such a transcript (`gemma3-*`) returns `400` `model chat template failed: ...` instead. The server does not fall back to
 `ChatFormat` with the schema pasted on. KV reuse stays off. Stops are the
 template's additional stops plus the client's `stop`. The template's preserved tokens (LFM2's
 `<|tool_call_start|>`, ...) are decoded as text so the parser sees them; every
 other special token is still dropped.
+
+xllama routes tool proposals through the GGUF template and parser. The
+[catalogue's three SmolLM2 ONNX packages](../uwp/models/manifest.json) ship
+without a declared chat template in the [release assets](https://github.com/gianlucamazza/xllama/releases/tag/models-v1). The original
+[SmolLM2-1.7B-Instruct model](https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct#function-calling)
+documents function calling with a dedicated prompt and parser. The catalogue's
+ONNX INT4 export remains unqualified for tool calling on Xbox.
+The [ONNX Runtime GenAI C API documents guidance](https://onnxruntime.ai/docs/genai/api/c.html#ogageneratorparamssetguidance).
+xllama's ONNX chat path uses plain chat formatting and its regular sampler.
 
 `choices[0].message.tool_calls[]` is `{id, type:"function", function:{name, arguments}}`
 with `arguments` a JSON string. Missing call ids become `call_1`, `call_2`, … in
