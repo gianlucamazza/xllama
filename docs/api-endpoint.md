@@ -238,7 +238,7 @@ requests whose call was identical with and without it, total latency moved from
 (`include/xllama/prompt_budget.h`) and the model's own tokenizer: the **oldest**
 turns are dropped until the prompt plus the requested reply
 (`max(n_predict, 250) + 1`) fits, and the trailing user message is never dropped.
-A tool proposal uses `fit_tool_transcript` in the same header, the same tokenizer,
+A LAN tool proposal uses `fit_tool_template` in the same header, the same tokenizer,
 and the same reserve. It never drops the tool schema or the final user or tool
 message, and it drops an assistant message that carries `tool_calls` together
 with the tool results that follow it. The selected render supplies the prompt,

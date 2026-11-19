@@ -19,8 +19,6 @@ namespace xllama {
 struct ToolTemplateResult {
     bool ok = false;
     std::string prompt;
-    // Same transcript rendered in auto mode with an empty tool list.
-    std::optional<std::string> prompt_without_tools;
     std::string error;
     std::vector<std::string> stop_sequences;
     // Special tokens the template's parser reads (LFM2 <|tool_call_start|>,
@@ -29,6 +27,8 @@ struct ToolTemplateResult {
     // The template's grammar for this request (ADR 0005); empty when the
     // template has none for it.
     GrammarSpec grammar;
+    // Same transcript rendered in auto mode with an empty tool list.
+    std::optional<std::string> prompt_without_tools;
 };
 
 struct ToolParseResult {

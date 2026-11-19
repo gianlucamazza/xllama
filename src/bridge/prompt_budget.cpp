@@ -189,7 +189,7 @@ Kept take_groups(const std::vector<ChatMessage>& messages, const std::vector<Dro
 }
 
 // Tokenize the template's existing baseline only for a rejected prompt.
-void count_baseline(ToolTranscriptFit& fit, const TokenCounter& count) {
+void count_baseline(ToolTemplateFit& fit, const TokenCounter& count) {
     if (fit.n_tokens >= 0 && fit.rendered.prompt_without_tools) {
         try {
             fit.n_tokens_without_tools = count(*fit.rendered.prompt_without_tools);
@@ -201,9 +201,9 @@ void count_baseline(ToolTranscriptFit& fit, const TokenCounter& count) {
 
 } // namespace
 
-ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
-                                      const std::vector<ToolSpec>& tools, int n_ctx, int n_predict,
-                                      const ToolPromptRenderer& render, const TokenCounter& count) {
+ToolTemplateFit fit_tool_template(const std::vector<ChatMessage>& messages,
+                                  const std::vector<ToolSpec>& tools, int n_ctx, int n_predict,
+                                  const ToolTemplateRenderer& render, const TokenCounter& count) {
     if (!render)
         return {};
 
@@ -211,7 +211,7 @@ ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
     const std::vector<DropGroup> groups = drop_groups(messages, tail);
     auto probe = [&](size_t n_drop) {
         Kept kept = take_groups(messages, groups, tail, n_drop);
-        ToolTranscriptFit fit;
+        ToolTemplateFit fit;
         fit.rendered = render(kept.messages, tools);
         fit.messages = std::move(kept.messages);
         fit.dropped = kept.dropped;
@@ -222,7 +222,7 @@ ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
         return fit;
     };
 
-    ToolTranscriptFit best = probe(0);
+    ToolTemplateFit best = probe(0);
     if (best.fits || !best.rendered.ok || !count)
         return best;
 
@@ -230,12 +230,12 @@ ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
     // Look backwards from the probe point within the unclassified interval.
     auto probe_valid_suffix = [&](size_t& index, size_t lower) {
         while (index > lower) {
-            ToolTranscriptFit candidate = probe(index);
+            ToolTemplateFit candidate = probe(index);
             if (candidate.rendered.ok)
                 return candidate;
             --index;
         }
-        return ToolTranscriptFit{};
+        return ToolTemplateFit{};
     };
 
     const size_t n = groups.size();
@@ -243,7 +243,7 @@ ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
     size_t hi = std::min<size_t>(1, n);
     while (hi > lo) {
         size_t index = hi;
-        ToolTranscriptFit candidate = probe_valid_suffix(index, lo);
+        ToolTemplateFit candidate = probe_valid_suffix(index, lo);
         if (candidate.rendered.ok) {
             best = std::move(candidate);
             if (best.fits) {
@@ -264,7 +264,7 @@ ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
     while (hi - lo > 1) {
         const size_t mid = lo + (hi - lo) / 2;
         size_t index = mid;
-        ToolTranscriptFit candidate = probe_valid_suffix(index, lo);
+        ToolTemplateFit candidate = probe_valid_suffix(index, lo);
         if (candidate.fits) {
             hi = index;
             best = std::move(candidate);
@@ -273,6 +273,24 @@ ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
         }
     }
     return best;
+}
+
+ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
+                                      const std::vector<ToolSpec>& tools, int n_ctx, int n_predict,
+                                      const ToolPromptRenderer& render, const TokenCounter& count) {
+    ToolTemplateRenderer render_template;
+    if (render) {
+        render_template = [&render](const auto& probe_messages, const auto& probe_tools) {
+            ToolTemplateResult result;
+            result.ok = true;
+            result.prompt = render(probe_messages, probe_tools);
+            return result;
+        };
+    }
+    ToolTemplateFit fit =
+        fit_tool_template(messages, tools, n_ctx, n_predict, render_template, count);
+    return {std::move(fit.rendered.prompt), std::move(fit.messages), fit.n_tokens, fit.dropped,
+            fit.fits};
 }
 
 } // namespace xllama

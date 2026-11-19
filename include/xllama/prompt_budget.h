@@ -64,10 +64,35 @@ PromptFit fit_prompt(const ChatFormat& fmt, const std::string& system,
 // Renders the tool transcript the way the GGUF template will. Tests pass a
 // stand-in; the LAN handler passes the template bridge. The schema is an
 // argument, not a message, so a trimmer cannot drop it by dropping history.
-using ToolPromptRenderer = std::function<ToolTemplateResult(
-    const std::vector<ChatMessage>& messages, const std::vector<ToolSpec>& tools)>;
+using ToolPromptRenderer = std::function<std::string(const std::vector<ChatMessage>& messages,
+                                                     const std::vector<ToolSpec>& tools)>;
 
 struct ToolTranscriptFit {
+    std::string prompt;
+    std::vector<ChatMessage> messages; // what `prompt` was rendered from
+    int n_tokens = 0;                  // exact count of `prompt` (-1 with no counter)
+    int dropped = 0;                   // messages removed, not groups
+    bool fits = false;
+};
+
+// Drop the oldest non-system messages until the prompt plus room for the reply
+// fits `n_ctx`. The room is max(n_predict, kReservedGenerationTokens) plus the
+// decode-loop token, the same arithmetic as fit_prompt. The tool schema, every
+// system message, and the final user or tool message stay. An assistant that
+// carries tool_calls and the tool messages that follow it drop together. A
+// tool whose assistant was dropped is not left behind. When schema + system +
+// the protected tail still do not fit, `fits` is false and `n_tokens` is that
+// minimal prompt. A null counter returns fits=false and n_tokens=-1.
+ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
+                                      const std::vector<ToolSpec>& tools, int n_ctx, int n_predict,
+                                      const ToolPromptRenderer& render, const TokenCounter& count);
+
+// Render through the GGUF template and keep the generation metadata with the
+// selected prompt. Both fit functions use this same search.
+using ToolTemplateRenderer = std::function<ToolTemplateResult(
+    const std::vector<ChatMessage>& messages, const std::vector<ToolSpec>& tools)>;
+
+struct ToolTemplateFit {
     ToolTemplateResult rendered;       // prompt and metadata from the same template render
     std::vector<ChatMessage> messages; // what the prompt was rendered from
     int n_tokens = -1;
@@ -85,8 +110,8 @@ struct ToolTranscriptFit {
 // the protected tail still do not fit, `fits` is false and `n_tokens` is that
 // shortest valid probe. A rejected suffix can be skipped. On overflow, tokenize
 // the no-tools baseline from that same render when it exists.
-ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
-                                      const std::vector<ToolSpec>& tools, int n_ctx, int n_predict,
-                                      const ToolPromptRenderer& render, const TokenCounter& count);
+ToolTemplateFit fit_tool_template(const std::vector<ChatMessage>& messages,
+                                  const std::vector<ToolSpec>& tools, int n_ctx, int n_predict,
+                                  const ToolTemplateRenderer& render, const TokenCounter& count);
 
 } // namespace xllama

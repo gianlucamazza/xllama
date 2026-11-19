@@ -785,10 +785,10 @@ std::string handle_tool_proposal_locked(JsonObject const& root, ::xllama::ToolRe
     gp.reuse_kv = false;
     gp.n_predict = n_predict;
     fill_sampling(root, gp);
-    ::xllama::ToolTranscriptFit fit;
+    ::xllama::ToolTemplateFit fit;
     try {
         const void* llama_model = session->resident_llama_model();
-        fit = ::xllama::fit_tool_transcript(
+        fit = ::xllama::fit_tool_template(
             request.messages, request.tools, policy_n_ctx, gp.n_predict,
             [&](const std::vector<::xllama::ChatMessage>& messages,
                 const std::vector<::xllama::ToolSpec>& tools) {

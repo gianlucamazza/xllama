@@ -8,7 +8,7 @@ Keep the accepted tool prompt aligned with its template metadata and give Open W
 
 ## Architecture
 
-Each budget probe owns the complete render. The budget code retains the selected probe and tokenizes its existing no-tools baseline only on overflow. The LAN adapter maps the result to HTTP and the client controls its tool inventory.
+Each budget probe owns the complete render. The budget code retains the selected probe and tokenizes its existing no-tools baseline only on overflow. The LAN adapter maps the result to HTTP and the client controls its tool inventory. The existing SDK string renderer delegates to the same budgeting search.
 
 ## Contract
 

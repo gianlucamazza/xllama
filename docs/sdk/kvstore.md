@@ -53,7 +53,6 @@ struct ToolTranscriptFit {
     std::string prompt;
     std::vector<ChatMessage> messages; // what `prompt` was rendered from
     int n_tokens = 0;                  // exact count of `prompt` (-1 with no counter)
-    int n_tool_tokens = 0;             // with-tools minus without-tools on the kept transcript; -1 if unused
     int dropped = 0;                   // messages removed, not groups
     bool fits = false;
 };
@@ -65,3 +64,8 @@ ToolTranscriptFit fit_tool_transcript(const std::vector<ChatMessage>& messages,
 
 The schema, every system message, and the final user or tool message are never dropped. An
 assistant message carrying `tool_calls` drops together with the tool results that follow it.
+
+The LAN API uses `fit_tool_template()`, which takes a renderer returning
+`ToolTemplateResult`. It shares the same search and returns the chosen prompt
+together with the grammar, stops and preserved tokens. On overflow it also
+counts the no-tools baseline if the template produced one.

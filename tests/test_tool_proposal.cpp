@@ -283,7 +283,7 @@ TEST_CASE("tool choice assembly emits calls, synthesized ids, and drops a trunca
 }
 
 namespace {
-xllama::ToolPromptRenderer
+xllama::ToolTemplateRenderer
 budget_renderer(std::string (*render)(const std::vector<xllama::ChatMessage>&,
                                       const std::vector<xllama::ToolSpec>&)) {
     return [render](const auto& messages, const auto& tools) {
@@ -319,7 +319,7 @@ TEST_CASE("tool transcript budget drops an old call pair and keeps the schema an
     const std::string minimal_prompt = render_marked(minimal, tools);
     const int room = xllama::kReservedGenerationTokens + 1;
 
-    const xllama::ToolTranscriptFit kept = xllama::fit_tool_transcript(
+    const xllama::ToolTemplateFit kept = xllama::fit_tool_template(
         messages, tools, static_cast<int>(full.size()) + room, xllama::kReservedGenerationTokens,
         budget_renderer(render_marked), count);
     CHECK(kept.fits);
@@ -328,7 +328,7 @@ TEST_CASE("tool transcript budget drops an old call pair and keeps the schema an
     CHECK(kept.rendered.prompt.find("ping") != std::string::npos);
     CHECK(kept.n_tokens_without_tools == -1); // tool count is only computed on overflow
 
-    const xllama::ToolTranscriptFit trimmed = xllama::fit_tool_transcript(
+    const xllama::ToolTemplateFit trimmed = xllama::fit_tool_template(
         messages, tools, static_cast<int>(minimal_prompt.size()) + room,
         xllama::kReservedGenerationTokens, budget_renderer(render_marked), count);
     CHECK(trimmed.fits);
@@ -355,7 +355,7 @@ TEST_CASE("tool transcript budget drops an old call pair and keeps the schema an
         render.preserved_tokens = {render.grammar.generation_prompt};
         return render;
     };
-    const auto selected = xllama::fit_tool_transcript(
+    const auto selected = xllama::fit_tool_template(
         history, tools, room + 1, xllama::kReservedGenerationTokens, render_with_metadata, count);
     REQUIRE(selected.fits);
     CHECK(selected.dropped == 4);
@@ -372,7 +372,7 @@ TEST_CASE("tool transcript budget drops an old call pair and keeps the schema an
         }
         return rendered;
     };
-    const auto strict = xllama::fit_tool_transcript(
+    const auto strict = xllama::fit_tool_template(
         history, tools, room + 1, xllama::kReservedGenerationTokens, strict_renderer, count);
     REQUIRE(strict.fits);
     CHECK(strict.rendered.grammar.generation_prompt == "1");
@@ -383,7 +383,7 @@ TEST_CASE("tool transcript budget drops an old call pair and keeps the schema an
     history.push_back(message(xllama::ChatRole::User, "U4"));
     history.push_back(assistant);
     history.push_back(tool);
-    const auto tool_tail = xllama::fit_tool_transcript(
+    const auto tool_tail = xllama::fit_tool_template(
         history, tools, room + 3, xllama::kReservedGenerationTokens, strict_renderer, count);
     REQUIRE(tool_tail.fits);
     CHECK(tool_tail.dropped == 6);
@@ -392,7 +392,7 @@ TEST_CASE("tool transcript budget drops an old call pair and keeps the schema an
     CHECK(tool_tail.messages.front().content == "U4");
     CHECK(tool_tail.messages.back().tool_call_id == "call_9");
 
-    const xllama::ToolTranscriptFit overflow = xllama::fit_tool_transcript(
+    const xllama::ToolTemplateFit overflow = xllama::fit_tool_template(
         messages, tools, static_cast<int>(minimal_prompt.size()) + room - 1,
         xllama::kReservedGenerationTokens, budget_renderer(render_marked), count);
     CHECK_FALSE(overflow.fits);
@@ -416,9 +416,9 @@ TEST_CASE("a generated 39-tool fixture overflows with the schema kept and param 
     const int room = xllama::kReservedGenerationTokens + 1;
     const int n_ctx = tool_delta + room - 1;
 
-    const xllama::ToolTranscriptFit overflow =
-        xllama::fit_tool_transcript(messages, tools, n_ctx, xllama::kReservedGenerationTokens,
-                                    budget_renderer(render_schema), count);
+    const xllama::ToolTemplateFit overflow =
+        xllama::fit_tool_template(messages, tools, n_ctx, xllama::kReservedGenerationTokens,
+                                  budget_renderer(render_schema), count);
     CHECK_FALSE(overflow.fits);
     CHECK(overflow.n_tokens - overflow.n_tokens_without_tools == tool_delta);
     CHECK(overflow.n_tokens == static_cast<int>(full.size()));
@@ -454,14 +454,13 @@ TEST_CASE("a fitting tool request keeps every schema token and drops nothing") {
     const auto count = [](const std::string& text) { return static_cast<int>(text.size()); };
     const std::string full = render_marked(messages, tools);
     const int room = xllama::kReservedGenerationTokens + 1;
-    const xllama::ToolTranscriptFit fit = xllama::fit_tool_transcript(
-        messages, tools, static_cast<int>(full.size()) + room, xllama::kReservedGenerationTokens,
-        budget_renderer(render_marked), count);
+    const xllama::ToolTranscriptFit fit =
+        xllama::fit_tool_transcript(messages, tools, static_cast<int>(full.size()) + room,
+                                    xllama::kReservedGenerationTokens, render_marked, count);
     CHECK(fit.fits);
     CHECK(fit.dropped == 0);
-    CHECK(fit.rendered.prompt == full);
-    CHECK(fit.rendered.prompt.find("ping") != std::string::npos);
-    CHECK(fit.n_tokens_without_tools == -1);
+    CHECK(fit.prompt == full);
+    CHECK(fit.prompt.find("ping") != std::string::npos);
 }
 
 TEST_CASE("tool_choice none and an empty tools array stay on the plain chat path") {
@@ -479,7 +478,7 @@ TEST_CASE("tool_choice none and an empty tools array stay on the plain chat path
 TEST_CASE("fit_tool_transcript: no counter means no verdict") {
     const std::vector<xllama::ChatMessage> messages{message(xllama::ChatRole::User, "hi")};
     const std::vector<xllama::ToolSpec> tools{ping_tool()};
-    const xllama::ToolTranscriptFit fit = xllama::fit_tool_transcript(
+    const xllama::ToolTemplateFit fit = xllama::fit_tool_template(
         messages, tools, 2048, 512, budget_renderer(render_marked), nullptr);
     CHECK_FALSE(fit.fits);
     CHECK(fit.n_tokens == -1);
@@ -639,7 +638,7 @@ TEST_CASE("Qwen3.5 and Llama-3.2 templates count overflowing tools as param tool
         const int room = xllama::kReservedGenerationTokens + 1;
         const int n_ctx = tool_delta + room - 1;
 
-        const xllama::ToolTranscriptFit overflow = xllama::fit_tool_transcript(
+        const xllama::ToolTemplateFit overflow = xllama::fit_tool_template(
             messages, tools, n_ctx, xllama::kReservedGenerationTokens, render, count);
         CHECK_FALSE(overflow.fits);
         CHECK(overflow.n_tokens - overflow.n_tokens_without_tools == tool_delta);
