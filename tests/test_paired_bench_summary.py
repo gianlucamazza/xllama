@@ -189,6 +189,7 @@ class PairedSummaryTests(unittest.TestCase):
         self.assertEqual(v["gates"]["decode"]["margin"], 1.03)
         self.assertEqual(v["gates"]["peak"]["margin"], 32.0)
         self.assertEqual(v["gates"]["submissions"]["mismatched_pairs"], [])
+        self.assertEqual(v["profile"], "rope")  # a bias ADD cell cannot pass as ROPE evidence
 
     def test_rope_profile_fails_when_the_knob_did_not_reduce_submissions(self):
         cell, _, _ = self.rope_cell()

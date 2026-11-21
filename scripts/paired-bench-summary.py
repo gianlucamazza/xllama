@@ -135,7 +135,9 @@ def submission_counts(path: Path):
 def submissions_agree(check, a, b):
     if check == "equal":
         return a == b
-    return b["decode"] < a["decode"] and b["prefill"] <= a["prefill"]
+    if check == "fewer":
+        return b["decode"] < a["decode"] and b["prefill"] <= a["prefill"]
+    raise Invalid(f"unknown submission check {check!r}")
 
 
 def validate_profile_rows(rows, models):
@@ -245,7 +247,7 @@ def main() -> int:
         print(f"  submissions {verdict}, mismatched pairs {mismatched_pairs}")
     cell = "pass" if all(v == "pass" for v in verdicts) else (
         "fail" if "fail" in verdicts else "inconclusive")
-    summary = {"cell": str(args.cell), "model": a[0]["model"], "n_prompt_tok": a[0]["n_prompt_tok"],
+    summary = {"cell": str(args.cell), "profile": args.profile, "model": a[0]["model"], "n_prompt_tok": a[0]["n_prompt_tok"],
                "pairs": len(pairs), "seed": SEED, "resamples": RESAMPLES, "gates": rows,
                "verdict": cell}
     if args.json_out:

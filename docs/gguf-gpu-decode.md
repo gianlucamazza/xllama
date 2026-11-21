@@ -1063,8 +1063,13 @@ bias `ADD`s still cut the split, so measure with both.
 The cos/sin table is computed on the CPU with ggml-cpu's formulas
 (`d3d12_rope_cache`, a copy of `rope_yarn` / `ggml_rope_cache_init` for
 `ext_factor == 0`), once per distinct set of positions and rope parameters in
-a submission (q, k and every layer share it), and staged in the same buffer as
-the other activations. The kernel (`shaders/ggml_d3d12_rope_f32.hlsl`) only
+a graph evaluation (q and k of a layer share it), and staged in the same
+buffer as the other activations. Attention runs on the CPU between layers, so
+each layer's evaluation computes it again: for a 512-token ubatch that is
+about 65 thousand `sinf`/`cosf` calls per layer on the CPU (not measured
+separately; the Series X numbers below include it). Keeping the table across
+evaluations would need a key on the position values, not on the buffer
+address, which llama.cpp reuses. The kernel (`shaders/ggml_d3d12_rope_f32.hlsl`) only
 multiplies and adds, with `precise` products and no fused multiply-add. GPU
 `sin`/`cos`/`pow` are not required to be bit-exact against libm, which is why
 the table is not computed there; other backends (Vulkan) do compute it on the

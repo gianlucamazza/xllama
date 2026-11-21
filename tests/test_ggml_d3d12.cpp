@@ -707,6 +707,14 @@ TEST_CASE("ggml_d3d12: ROPE rules") {
     t = d;
     t.src0_type = GGML_TYPE_F16;
     CHECK_FALSE(d3d12_rope_supported(t));
+    // A short rotated part with a long copied tail: the x-dimension is the tail
+    // (ne0 - n_dims), not ne0 / 2.
+    CHECK(d3d12_rope_span(2, 8388610) == 8388608);
+    CHECK(d3d12_rope_span(128, 128) == 64);
+    t = d;
+    t.ne0 = 8388610;
+    t.n_dims = 2;
+    CHECK_FALSE(d3d12_rope_supported(t));
     t = d;
     t.src0_in_weight_buffer = true; // D3D12_Weights has no UAV flag
     CHECK_FALSE(d3d12_rope_supported(t));

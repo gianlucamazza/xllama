@@ -4,10 +4,9 @@
 // ggml backend "d3d12" — GGUF GPU decode D2 (docs/gguf-gpu-decode.md).
 //
 // A GPU-type ggml device, registered at runtime, that runs MUL_MAT with
-// Q4_0 / Q4_K / Q6_K weights, GET_ROWS from a Q6_K weight and the F32 bias ADD
-// after a projection on our D3D12 compute shaders; matmul inputs are quantized
-// to q8 on the CPU first, exactly as the CPU backend does.
-// Two buffer types:
+// Q4_0 / Q4_K / Q6_K weights, GET_ROWS from a Q6_K weight, the F32 bias ADD
+// after a projection and (opt-in) plain F32 ROPE on our D3D12 compute shaders; matmul inputs are
+// quantized to q8 on the CPU first, exactly as the CPU backend does. Two buffer types:
 //   D3D12_Weights  DEFAULT heap, holds matmul weights (exposed as an extra buft)
 //   D3D12_Host     CUSTOM WRITE_BACK heap, is_host — the device default buft, so
 //                  the scheduler's activations are CPU-visible: CPU<->GPU copies
@@ -186,6 +185,12 @@ struct D3d12RopeDesc {
 
 bool d3d12_rope_supported(const D3d12RopeDesc& d);
 
+// Threads along the x-dimension of a ROPE dispatch: the rotated pairs or the
+// copied tail of a row, whichever is longer.
+inline std::int64_t d3d12_rope_span(std::int64_t n_dims, std::int64_t ne0) {
+    return n_dims / 2 > ne0 - n_dims ? n_dims / 2 : ne0 - n_dims;
+}
+
 struct D3d12RopeParams {
     int n_dims = 0;
     float freq_base = 10000.0f;
@@ -231,7 +236,7 @@ bool d3d12_flag_enabled(std::string_view config);
 const char* d3d12_cols_class(std::int64_t ncols);
 
 struct D3d12DispatchKind {
-    std::string op;            // "mul_mat" | "get_rows" | "add"
+    std::string op;            // "mul_mat" | "get_rows" | "add" | "rope"
     std::string type;          // weight type name, e.g. "q4_0"
     int threads = 0;           // 64 | 128 for mul_mat, kD3d12AddThreads for add, 0 for get_rows
     int columns_per_group = 1; // kernel variant (the single-column kernel is 1)
@@ -295,7 +300,7 @@ std::string d3d12_layer_label(std::optional<int> layer);
 // Aggregation key: one transformer layer (or unattributed) × one op.
 struct D3d12LayerKey {
     std::optional<int> layer; // nullopt = unattributed
-    std::string op;           // "mul_mat" | "get_rows" | "add"
+    std::string op;           // "mul_mat" | "get_rows" | "add" | "rope"
     bool operator==(const D3d12LayerKey& o) const {
         return layer == o.layer && op == o.op;
     }

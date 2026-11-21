@@ -79,7 +79,9 @@ bool d3d12_add_supported(const D3d12AddDesc& d) {
 }
 
 bool d3d12_rope_supported(const D3d12RopeDesc& d) {
-    const std::int64_t groups = (d.ne0 / 2 + kD3d12RopeThreads - 1) / kD3d12RopeThreads;
+    // Same span as the dispatch in submit_ops.
+    const std::int64_t span = d3d12_rope_span(d.n_dims, d.ne0);
+    const std::int64_t groups = (span + kD3d12RopeThreads - 1) / kD3d12RopeThreads;
     return d.src0_type == GGML_TYPE_F32 && d.dst_type == GGML_TYPE_F32 && d.same_shape &&
            d.src0_contiguous && d.dst_contiguous && !d.src0_in_weight_buffer &&
            d.pos_type == GGML_TYPE_I32 && !d.has_freq_factors &&
@@ -723,7 +725,9 @@ struct Gpu {
 // round trips at load only.
 constexpr UINT64 kStagingBytes = 8ull << 20;
 
-ComPtr<ID3D12RootSignature> make_root_sig(ID3D12Device* device, std::string* err) {
+// `with_rope` adds u2 (the ROPE cos/sin table). Without the knob the signature
+// is the four-parameter one every other kernel was built against.
+ComPtr<ID3D12RootSignature> make_root_sig(ID3D12Device* device, bool with_rope, std::string* err) {
     D3D12_ROOT_PARAMETER p[5] = {};
     p[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
     p[0].Constants.ShaderRegister = 0;
@@ -739,7 +743,7 @@ ComPtr<ID3D12RootSignature> make_root_sig(ID3D12Device* device, std::string* err
     for (auto& q : p)
         q.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
     D3D12_ROOT_SIGNATURE_DESC desc = {};
-    desc.NumParameters = 5;
+    desc.NumParameters = with_rope ? 5 : 4;
     desc.pParameters = p;
     auto serialize = d3d12_dyn::SerializeRootSignature();
     if (!serialize) {
@@ -793,7 +797,13 @@ bool init_gpu(Gpu& g) {
     g.cl->Close();
     if (!g.fence.init(g.device.Get(), &err))
         return false;
-    g.root = make_root_sig(g.device.Get(), &err);
+    if (FILE* f = _wfopen(utf8_to_wstring(resolve_local_path("d3d12-rope.txt")).c_str(), L"rb")) {
+        char config[16] = {};
+        const std::size_t bytes = std::fread(config, 1, sizeof(config), f);
+        std::fclose(f);
+        g.rope = d3d12_flag_enabled(std::string_view(config, bytes));
+    }
+    g.root = make_root_sig(g.device.Get(), g.rope, &err);
     if (!g.root)
         return false;
     const void* blobs[kPsoCount][2] = {{kGgmlD3d12MmvQ40T64Dxil, kGgmlD3d12MmvQ40T128Dxil},
@@ -847,13 +857,7 @@ bool init_gpu(Gpu& g) {
         }
     }
     log_output(std::string("[xllama] d3d12: bias_add=") + (g.bias_add ? "1" : "0") + "\n");
-    if (FILE* f = _wfopen(utf8_to_wstring(resolve_local_path("d3d12-rope.txt")).c_str(), L"rb")) {
-        char config[16] = {};
-        const std::size_t bytes = std::fread(config, 1, sizeof(config), f);
-        std::fclose(f);
-        g.rope = d3d12_flag_enabled(std::string_view(config, bytes));
-    }
-    if (g.rope) {
+    if (g.rope) { // knob read before the root signature, which it shapes
         D3D12_COMPUTE_PIPELINE_STATE_DESC pd = {};
         pd.pRootSignature = g.root.Get();
         pd.CS.pShaderBytecode = kGgmlD3d12RopeF32Dxil;
@@ -1278,12 +1282,18 @@ const char* dispatch_op_name(const ggml_tensor* node) {
     }
 }
 
+// Columns of a dispatch for the profile: tokens. A ROPE node is [head_dim,
+// heads, tokens], so its ne[1] is the head count.
+std::int64_t dispatch_columns(const ggml_tensor* node) {
+    return node->op == GGML_OP_ROPE ? node->ne[2] : node->ne[1];
+}
+
 // What a dispatch is, for the per-dispatch profile.
 D3d12DispatchKind dispatch_kind(const ggml_tensor* node) {
     const ggml_tensor* w = dispatch_weight(node);
     D3d12DispatchKind k;
     k.type = ggml_type_name(w->type);
-    k.cols = d3d12_cols_class(node->ne[1]);
+    k.cols = d3d12_cols_class(dispatch_columns(node));
     if (node->op == GGML_OP_ADD) {
         k.op = "add";
         k.threads = kD3d12AddThreads;
@@ -1372,7 +1382,7 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
                     cl->SetComputeRootUnorderedAccessView(3, op.staged ? xq_va + op.xq_off
                                                                        : tensor_va(x));
                     cl->SetComputeRootUnorderedAccessView(4, xq_va + op.tab_off);
-                    const std::int64_t span = std::max<std::int64_t>(nd / 2, node->ne[0] - nd);
+                    const std::int64_t span = d3d12_rope_span(nd, node->ne[0]);
                     cl->Dispatch(
                         static_cast<UINT>((span + kD3d12RopeThreads - 1) / kD3d12RopeThreads),
                         static_cast<UINT>(node->ne[1]), static_cast<UINT>(node->ne[2]));
@@ -1499,7 +1509,7 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
                                      : node->op == GGML_OP_GET_ROWS
                                          ? static_cast<double>(w->nb[1]) * node->ne[1]
                                          : static_cast<double>(w->nb[1]) * w->ne[1];
-                g.phase.dispatch.add(dispatch_kind(node), ms, bytes, node->ne[1]);
+                g.phase.dispatch.add(dispatch_kind(node), ms, bytes, dispatch_columns(node));
                 g.phase.layer.add(dispatch_layer_key(node), ms, wait_share);
             }
             const D3D12_RANGE none = {0, 0};
@@ -1602,7 +1612,7 @@ ggml_status backend_graph_compute(ggml_backend_t, ggml_cgraph* cgraph) {
                 xbytes = static_cast<std::size_t>(ggml_nbytes(a));
             }
             // Same positions and rope parameters share one table (q and k of a
-            // layer, and every layer) within a submission.
+            // layer) within this graph evaluation; the next layer's starts anew.
             const auto find_table = [&]() -> const RopeTable* {
                 for (const RopeTable& t : tables)
                     if (t.pos == pos->data && t.n == nt && t.p.n_dims == rp.n_dims &&
@@ -1790,7 +1800,7 @@ const char* dev_name(ggml_backend_dev_t) {
     return "D3D12";
 }
 const char* dev_description(ggml_backend_dev_t) {
-    return "xllama D3D12 compute (Q4_0/Q4_K/Q6_K matmul, Q6_K get_rows, F32 bias add)";
+    return "xllama D3D12 compute (Q4_0/Q4_K/Q6_K matmul, Q6_K get_rows, F32 bias add and ROPE)";
 }
 void dev_memory(ggml_backend_dev_t, size_t* free, size_t* total) {
     *free = *total = 0;
@@ -2356,6 +2366,13 @@ D3d12SelftestRow run_rope_case(ggml_backend_t backend, int mode, bool staged, in
     ggml_context* ctx_x = ggml_init(ip);
     ggml_context* ctx_p = ggml_init(ip);
     ggml_context* ctx_g = ggml_init(ip);
+    if (!ctx_x || !ctx_p || !ctx_g) {
+        row.error = "context allocation failed";
+        ggml_free(ctx_g);
+        ggml_free(ctx_p);
+        ggml_free(ctx_x);
+        return row;
+    }
     ggml_tensor* x = ggml_new_tensor_3d(ctx_x, GGML_TYPE_F32, head_dim, heads, tokens);
     ggml_tensor* pos = ggml_new_tensor_1d(ctx_p, GGML_TYPE_I32, tokens);
     ggml_backend_buffer_t xbuf = ggml_backend_alloc_ctx_tensors_from_buft(
@@ -2413,6 +2430,11 @@ D3d12SelftestRow run_rope_case(ggml_backend_t backend, int mode, bool staged, in
     ggml_init_params rp = {};
     rp.mem_size = count * sizeof(float) * 2 + (4u << 20);
     ggml_context* rc = ggml_init(rp);
+    if (!rc) {
+        row.error = "reference context allocation failed";
+        cleanup();
+        return row;
+    }
     ggml_tensor* rx = ggml_new_tensor_3d(rc, GGML_TYPE_F32, head_dim, heads, tokens);
     ggml_tensor* rpos = ggml_new_tensor_1d(rc, GGML_TYPE_I32, tokens);
     std::memcpy(rx->data, xf.data(), count * sizeof(float));
