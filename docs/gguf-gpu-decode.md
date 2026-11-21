@@ -1053,8 +1053,10 @@ With `LocalState\d3d12-rope.txt` containing `1` when the backend starts (boot
 log `d3d12: rope=1`), `supports_op` accepts a `ROPE` that is F32, contiguous,
 the same shape in and out, with one I32 position per token, no `freq_factors`,
 mode NORMAL or NEOX, `ext_factor == 0` (no YaRN) and `n_offs == 0`
-(`d3d12_rope_supported`). Any other `ROPE` stays on the CPU. With the bias ADD
-on as well, Q, V and K then form one split: 5 → 4 submissions per layer.
+(`d3d12_rope_supported`) and whose input is not in a `D3d12_Weights` buffer
+(that buffer has no UAV flag, and the kernel binds the input as a UAV; an input
+in `D3D12_Host` is read in place, one in another host buffer is staged). Any
+other `ROPE` stays on the CPU. With the bias ADD on as well, Q, V and K then form one split: 5 → 4 submissions per layer.
 The knob is independent of `d3d12-bias-add.txt`, but without the bias ADD the
 bias `ADD`s still cut the split, so measure with both.
 
@@ -1075,7 +1077,11 @@ Checks: the host test compares the cache + multiply emulation with
 `llama.cpp/tests/test-backend-ops.cpp`); the console selftest (`d3d12be.flag`)
 runs `rope_neox` and `rope_norm` rows through the backend, direct and staged
 input, and records NMSE, max |diff| and whether the output is bit-identical
-in the `error` column. End-to-end parity stays a logit dump per arm
+in the `error` column. The first row (`rope_neox`, decode q) runs before any
+matmul, with the staging buffer unallocated: the log line `rope cold_scratch=1`
+marks it, and `bench-d3d12-selftest.sh --require-rope` fails without it. (A
+`ROPE` always stages its cos/sin table, so the buffer exists before the first
+dispatch; this row is the test of that claim on the console.) End-to-end parity stays a logit dump per arm
 (ADR 0010).
 
 Measured on Series X (operator-declared, Game designation, `long-1k`, 128
@@ -1093,13 +1099,45 @@ Coder-1.5B 114. The Coder models are one above "4 per layer plus `lm_head`"
 because their tied `token_embd` also runs the input lookup on the GPU (4 × L +
 2; Bielik has a separate `output.weight`, 4 × L + 1). With ROPE off Coder-1.5B
 takes 142 (5 × 28 + 2), so ROPE removes exactly one submission per layer and
-adds two dispatches per layer (Q and K): 282 → 338 per token. Per removed
+adds two dispatches per layer (Q and K): 282 → 338 dispatches per token. Per removed
 submission the wall time drops by 54 µs net of those dispatches; the added
 dispatches cost about 0.3 µs of GPU time each. Logits (`logits.flag`, every
 16th prompt position of `long-1k`, ubatch 512 and 1, all three models) are
 byte-identical between the arms, and the console selftest rows (`rope_neox`,
 `rope_norm`, direct and staged) match ggml-cpu bit for bit. Without the file
 the placement is unchanged (Coder-1.5B: 170 submissions per token).
+
+#### Series S ROPE preregistration (proposal)
+
+Nothing here is agreed yet. The thresholds below reuse the bias ADD ones and
+are a proposal for the maintainer to confirm or change before any Series S run
+counts. The Series X table above is not evidence for them.
+
+Same device, package and setup as the bias ADD preregistration above, with the
+bias ADD knob (`d3d12-bias-add.txt` = `1`) set in both arms, so the only
+difference is ROPE. Run `bench-d3d12-selftest.sh --require-rope` in a fresh
+process with `d3d12-rope.txt` = `1`: all ten `rope_*` rows pass and the log has
+`rope cold_scratch=1`. Compare logit files byte for byte with the ROPE knob
+absent and set to `1`, stride 16, ubatches 512 and 1, for Qwen2.5-Coder-3B and
+Qwen2.5-Coder-1.5B Q4_K_M, requiring the expected bias setting and GPU layer
+count in the log.
+
+Run 20 alternating AB/BA pairs per model with `bench-paired-knob.sh
+--knob d3d12-rope.txt --value 1` and `--save-arm-logs`, A = ROPE absent,
+B = ROPE on, with the `long-1k` prompt, context 2048, ubatch 512, 128
+generated tokens with `--ignore-eog`, 99 GPU layers and greedy sampling, as for
+the bias ADD. Both arms' boot logs must show `bias_add=1`, and `rope=0` in A,
+`rope=1` in B (`--expect-a`, `--expect-b`). `paired-bench-summary.py
+--profile rope` applies the bias ADD margins (decode lower bound ≥ 1.03, prefill lower bound ≥ 0.97, TTFT upper
+bound ≤ 1.03, peak working set delta ≤ 32 MiB) and additionally requires, in
+every pair, fewer measured decode submissions and no more measured prefill
+submissions in B than in A. A speed-up that comes with equal submission counts
+is not the ROPE effect and fails the profile.
+
+There is no control model in this proposal. A control needs a model whose
+placement the knob leaves unchanged, and none has been identified; the host
+rules test cannot say whether LFM2.5's `ROPE` nodes are accepted. Naming one
+needs a node dump first.
 
 ### Remaining cuts and the order to remove them (proposal)
 

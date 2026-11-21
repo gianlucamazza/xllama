@@ -12,8 +12,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `freq_factors`, no YaRN) runs on the d3d12 backend, so q/k/v of a layer form
   one split with the bias ADD knob on (5 → 4 submissions per layer). The
   cos/sin table is computed on the CPU. Without the file, placement and graph
-  are unchanged. Logits match the CPU ROPE bit for bit; on Series X
-  (operator-declared) decode is ×1.056–1.071 over the bias ADD alone. See
+  are unchanged. Logits matched the CPU ROPE bit for bit for the three models
+  and two ubatch sizes tried; on Series X (operator-declared) decode was
+  ×1.056–1.071 over the bias ADD alone. Series S is not measured. See
   [GGUF GPU decode](docs/gguf-gpu-decode.md).
 
 ## [1.8.0]
