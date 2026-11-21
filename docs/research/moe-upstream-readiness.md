@@ -1,6 +1,6 @@
 # MoE upstream readiness — maintainer preparation, 2026-11-16
 
-Status: **preparation verified; independent console reproduction of the fork's CPU stage done on a project Series S (2026-11-16); runtime integration and full-checkpoint parity remain pending**. Trackers: [#479](https://github.com/gianlucamazza/xllama/issues/479), [#480](https://github.com/gianlucamazza/xllama/issues/480), [#481](https://github.com/gianlucamazza/xllama/issues/481). The proposed PR boundaries are in [#482](https://github.com/gianlucamazza/xllama/pull/482).
+Status: **8B resident CPU reference recorded; independent console reproduction of the fork's CPU stage done on a project Series S (2026-11-16); runtime integration and full-checkpoint parity remain pending**. Trackers: [#479](https://github.com/gianlucamazza/xllama/issues/479), [#480](https://github.com/gianlucamazza/xllama/issues/480), [#481](https://github.com/gianlucamazza/xllama/issues/481). The proposed PR boundaries are in [#482](https://github.com/gianlucamazza/xllama/pull/482).
 
 ## Current stage and documentation ownership
 
@@ -12,14 +12,14 @@ release or device-acceptance claim.
 | Work item                                               | Current state                                                                                                                       | Next gate                                                                                         |
 | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | Source review, cache harness and comparison-tool checks | Verified preparation; published for review                                                                                          | Review/merge preparation independently of runtime changes                                         |
-| Numerical campaign and CPU input analysis               | Prepared; campaign not executable                                                                                                   | Supply exact token/reference/build bindings and an adequate resident-reference host               |
+| Numerical campaign and CPU input analysis               | 8B resident reference recorded; both declarations await candidate bindings                                                          | Supply matched streamed rows for 8B and a separate resident reference for 24B                     |
 | PR 1 / #479: cache contribution                         | Pending integration                                                                                                                 | Review a concrete coherent extraction and its upstream tests                                      |
 | PR 2 / #480: native CPU integration                     | Pending                                                                                                                             | Complete PR 1, native fixtures and real-checkpoint parity                                         |
 | Independent fork console reproduction                   | Done for the CPU stage, 2026-11-16: A2 and B512 match the fork's report ([evidence](evidence/2026-11-16-moe-24b-console/README.md)) | Repeat on the upstream PR 3 package; the run used a test build of the fork's patch route          |
 | PR 3 / #481 CPU stage: upstream console acceptance      | Pending                                                                                                                             | Complete native integration, Windows build and package-bound console lifecycle checks             |
 | PR 4 / #481 GPU stage: selected-expert correctness      | Pending                                                                                                                             | Console identity/dispatch, primitive/model numerical proof and resource closure before benchmarks |
 
-The [roadmap](../../ROADMAP.md#optional-ssd-moe-contribution--state-at-2026-11-16)
+The [roadmap](../../ROADMAP.md#optional-ssd-moe-contribution)
 links this state instead of duplicating measurements. The original
 [SSD assessment and its dated addendum](../ssd-inference-assessment.md#6-contribution-update-2026-11-16)
 separate historical conclusions from the newer contribution. Numerical inputs and
@@ -78,8 +78,8 @@ Sources: [pinned preparation recipe](https://github.com/vetax-by/xllama/blob/61b
 ## Remaining prerequisites
 
 1. **Independent console reproduction:** done for the CPU stage on 2026-11-16. Instead of the fork's signed artifact, the seventeen patches (byte-identical to `PATCH-LOCK.json`) were built by this repository's CI at tag `evidence/2026-11-16-moe-24b-console` and installed in place, keeping LocalState. Both cache profiles completed with identical tokens and figures matching the fork's report ([evidence](evidence/2026-11-16-moe-24b-console/README.md)). Acceptance of the upstream PR 3 package remains a separate gate. A second checkpoint, LFM2.5-8B-A1B Q4_K_M, ran the same profiles once the pin carried its shape tuple and cache ceiling ([evidence](evidence/2026-11-16-moe-8b-console/README.md)).
-2. **Real model parity:** the pinned GGUF is 14,526,258,464 bytes; this host has about 9.7 GiB total RAM and no swap. It cannot provide an entirely resident reference of these quantized weights here. A smaller checkpoint of the same `lfm2moe` architecture (LFM2.5-8B-A1B, 5,155,564,768 bytes at Q4_K_M) fits this host and can carry the mechanism's parity; the 24B itself still needs a larger host.
-3. **Campaign finalization:** exact rendered IDs, resident-derived continuation IDs, native row-export support and prepared source/build receipts remain required. The JSON is deliberately `PREPARED_NOT_EXECUTABLE`; missing identities cannot be treated as wildcards.
+2. **Real model parity:** the [separate 8B declaration](../../bench/moe-streaming/parity-preparation-8b.json) binds a complete, verified checkpoint and a resident CPU reference for all four prompts. It freezes the rendered IDs, the resident-derived continuation and the full-row hashes. The [24B declaration](../../bench/moe-streaming/parity-preparation.json) retains its own checkpoint and outstanding resident reference.
+3. **Campaign finalization:** the 8B declaration remains `PREPARED_NOT_EXECUTABLE`. PR 2 still needs an upstream candidate identity, matched CPU-kernel receipts and full-row exports for both streamed cache profiles before the strict comparison can run. The project-console reproduction is separate evidence.
 4. **Upstream contribution:** review the first concrete extraction when available; avoid implementing a competing copy. NativeProvider and loader changes remain proposed PR 2 work.
 5. **GPU:** no claim of console GPU execution, correctness, fit or speed follows from these CPU/cache/tool checks.
 
