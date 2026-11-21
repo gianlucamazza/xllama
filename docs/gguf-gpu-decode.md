@@ -1018,10 +1018,12 @@ token (60 layers × 7 → 5, plus lm_head).
 
 The merge gate for [#503](https://github.com/gianlucamazza/xllama/issues/503)
 uses the unified CI package on a verified Series S. Run `d3d12be.flag` in a
-fresh process with the knob off and on. The enabled run must begin with a
-passing `add_f32` row and log `cold_scratch=1`. For each model below, compare
-both logit files byte for byte with the knob absent and set to `1`, using stride 16 and ubatches
-512 and 1. Require the expected bias setting and GPU layer count in the log.
+fresh process with the knob off and on. Use
+`bench-d3d12-selftest.sh --require-bias-add` for the enabled run. The gate
+requires a passing first `add_f32` row and `cold_scratch=1` in the fresh log.
+For each model below, compare both logit files byte for byte with the knob
+absent and set to `1`, using stride 16 and ubatches 512 and 1. Require the
+expected bias setting and GPU layer count in the log.
 
 Run 20 alternating AB/BA pairs per model with `bench-paired-knob.sh` and
 `--save-arm-logs`. A has the knob absent and B has it set to `1`. Use the

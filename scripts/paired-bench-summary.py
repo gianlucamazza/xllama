@@ -66,6 +66,19 @@ PHASE_SUBMISSIONS = re.compile(
     r"(?m)^\[xllama\] d3d12-phase phase=(prefill|decode) calls=\d+ submissions=(\d+)\b"
 )
 
+BIAS_ADD_MODELS = {
+    "qwen25-coder-1.5b": "Q4_K_M",
+    "qwen25-coder-3b": "Q4_K_M",
+}
+BIAS_ADD_CONTROL_MODELS = {"lfm25-1.2b-instruct": "Q4_0"}
+BIAS_ADD_ROW_FIELDS = {
+    "backend": "d3d12",
+    "n_ctx": "2048",
+    "n_gen_tok": "128",
+    "run_index": "2",
+    "host": "xbox-series-s-declared-u512-g99-noeog-greedy",
+}
+
 
 class Invalid(ValueError):
     pass
@@ -100,11 +113,26 @@ def ok_pairs(cell: Path, expected_count=None):
 
 
 def submission_counts(path: Path):
-    # Each arm runs a warm-up first. The last entry for each phase is measured.
-    counts = dict(PHASE_SUBMISSIONS.findall(path.read_text(errors="replace")))
-    if counts.keys() != {"prefill", "decode"}:
-        raise Invalid(f"incomplete D3D12 phase counters in {path.name}")
-    return counts
+    # One warm-up and one measured run, each with both phases in order.
+    phases = PHASE_SUBMISSIONS.findall(path.read_text(errors="replace"))
+    if [phase for phase, _ in phases] != ["prefill", "decode", "prefill", "decode"]:
+        raise Invalid(f"expected warm-up and measured D3D12 phase counters in {path.name}")
+    return dict(phases[2:])
+
+
+def validate_bias_add_rows(rows, control):
+    models = BIAS_ADD_CONTROL_MODELS if control else BIAS_ADD_MODELS
+    model = rows[0].get("model")
+    if model not in models:
+        raise Invalid(f"model {model!r} does not match the bias ADD profile")
+    prompt_length = rows[0].get("n_prompt_tok")
+    if not prompt_length or not re.fullmatch(r"[0-9]+", prompt_length) or int(prompt_length) <= 0:
+        raise Invalid("missing or invalid prompt length")
+    fields = dict(BIAS_ADD_ROW_FIELDS, model=model, quant=models[model], n_prompt_tok=prompt_length)
+    for row in rows:
+        for field, expected in fields.items():
+            if row.get(field) != expected:
+                raise Invalid(f"expected {field}={expected!r}, got {row.get(field)!r}")
 
 
 def pair_values(a, b, column, kind):
@@ -158,6 +186,8 @@ def main() -> int:
         if not pairs or len(a) < len(pairs) or len(b) < len(pairs):
             raise Invalid("no complete pair, or fewer rows than complete pairs")
         a, b = [a[p - 1] for p in pairs], [b[p - 1] for p in pairs]
+        if args.profile:
+            validate_bias_add_rows(a + b, control)
         for ra, rb in zip(a, b):
             if ra.get("model") != rb.get("model") or ra.get("n_prompt_tok") != rb.get("n_prompt_tok"):
                 raise Invalid("a pair mixes models or prompt lengths")

@@ -2100,8 +2100,20 @@ D3d12SelftestRow run_bias_add_case(ggml_backend_t backend) {
     float actual[width * columns];
     ggml_backend_tensor_get(output, actual, 0, sizeof(actual));
     row.ok = std::memcmp(actual, expected, sizeof(expected)) == 0;
-    if (!row.ok)
+    if (!row.ok) {
+        double max_diff = 0.0;
+        double max_ref = 0.0;
+        for (int i = 0; i < width * columns; ++i) {
+            if (!std::isfinite(actual[i])) {
+                max_diff = std::numeric_limits<double>::infinity();
+                break;
+            }
+            max_diff = std::max(max_diff, std::fabs(static_cast<double>(actual[i]) - expected[i]));
+            max_ref = std::max(max_ref, std::fabs(static_cast<double>(expected[i])));
+        }
+        row.rel_err = max_ref > 0.0 ? max_diff / max_ref : max_diff;
         row.error = "mismatch vs F32 reference";
+    }
     return row;
 }
 

@@ -6,11 +6,12 @@
 # gate A (#312); D2a measured against ggml's dequantizers — and the decode
 # (ncols=1) cases at >= 100 GB/s packed (GPU timestamps; the CPU-side q8
 # quantization shows in the end-to-end bench, not here).
+# --require-bias-add also requires a successful first ADD with cold scratch.
 #
 # Prerequisites: CI MSVC package (unified or llamacpp) installed on Series S.
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/bench-d3d12-selftest.sh [--out bench/results/d2a-d3d12-selftest.csv] [--force]
+#   ./scripts/bench-d3d12-selftest.sh [--out PATH] [--force] [--require-bias-add]
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -21,6 +22,7 @@ source "${XBOX_ENV:-$HOME/.config/xllama/xbox-env}"
 OUT="${REPO_ROOT}/bench/results/d2a-d3d12-selftest.csv"
 TIMEOUT_S=600
 FORCE=0
+REQUIRE_BIAS_ADD=0
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 	--out)
@@ -31,8 +33,12 @@ while [[ $# -gt 0 ]]; do
 		FORCE=1
 		shift
 		;;
+	--require-bias-add)
+		REQUIRE_BIAS_ADD=1
+		shift
+		;;
 	-h | --help)
-		sed -n '2,11p' "$0"
+		sed -n '2,14p' "$0"
 		exit 0
 		;;
 	*)
@@ -59,6 +65,11 @@ trap 'rm -rf "$TMP"' EXIT
 : >"$TMP/d3d12be.flag"
 "${SCRIPT_DIR}/deploy.sh" upload-file "$TMP/d3d12be.flag" "$PFN" "" "d3d12be.flag"
 "${SCRIPT_DIR}/deploy.sh" stop-app || true
+log_lines=0
+if ((REQUIRE_BIAS_ADD)); then
+	"${SCRIPT_DIR}/deploy.sh" get-log "$PFN" >"$TMP/before.log"
+	log_lines=$(wc -l <"$TMP/before.log")
+fi
 sleep 1
 "${SCRIPT_DIR}/deploy.sh" start-app
 echo "Waiting for d3d12be-result.csv.done (timeout ${TIMEOUT_S}s) ..."
@@ -80,7 +91,16 @@ tr -d '\r' <"$TMP/r.csv" >"$OUT"
 echo "Wrote $OUT"
 cat "$OUT"
 
-python3 - "$OUT" <<'PY'
+if ((REQUIRE_BIAS_ADD)); then
+	"${SCRIPT_DIR}/deploy.sh" get-log "$PFN" | tail -n "+$((log_lines + 1))" >"$TMP/after.log"
+	if ! grep -aF '[xllama] d3d12be: bias ADD cold_scratch=1' "$TMP/after.log" >/dev/null ||
+		! grep -aE '^\[xllama\] d3d12be: add_f32 .* ok=1 err=-' "$TMP/after.log" >/dev/null; then
+		echo "GATE=FAIL (first cold bias ADD success missing from this run)" >&2
+		exit 1
+	fi
+fi
+
+python3 - "$OUT" "$REQUIRE_BIAS_ADD" <<'PY'
 import csv, math, sys
 rows = list(csv.DictReader(open(sys.argv[1])))
 bad = [r for r in rows if r["ok"] != "1" or r["d3d12_ran"] != "1" or
@@ -93,7 +113,11 @@ for r in bad:
     print(f"FAIL {r['type']} n={r['n']} k={r['k']} ncols={r['ncols']} rel_err={r['rel_err']} {r['error']}")
 for r in slow:
     print(f"SLOW {r['type']} n={r['n']} k={r['k']} gbs={r['packed_gbs']}")
-passed = bool(rows) and not bad and not slow
+require_bias_add = sys.argv[2] == "1"
+bias_add_first = bool(rows) and rows[0]["type"] == "add_f32"
+if require_bias_add and not bias_add_first:
+    print("FAIL the first selftest row must be add_f32")
+passed = bool(rows) and not bad and not slow and (not require_bias_add or bias_add_first)
 print("GATE=" + ("PASS" if passed else "FAIL"))
 sys.exit(0 if passed else 1)
 PY
