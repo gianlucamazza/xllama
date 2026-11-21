@@ -2474,6 +2474,8 @@ void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
     // ROPE (d3d12-rope.txt): head_dim 128, q (16 heads) and GQA k (2), decode and
     // a 512-token ubatch; NEOX (Qwen2.5) and NORMAL; in-place and staged input.
     for (const int mode : {kD3d12RopeModeNeox, kD3d12RopeModeNormal}) {
+        if (!gpu().rope)
+            break;
         out->push_back(run_rope_case(backend, mode, false, 128, 16, 1, 128));
         out->push_back(run_rope_case(backend, mode, false, 128, 2, 1, 128));
         out->push_back(run_rope_case(backend, mode, false, 128, 2, 512, 128));

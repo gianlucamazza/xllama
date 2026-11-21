@@ -7,11 +7,13 @@
 # (ncols=1) cases at >= 100 GB/s packed (GPU timestamps; the CPU-side q8
 # quantization shows in the end-to-end bench, not here).
 # --require-bias-add also requires a successful first ADD with cold scratch.
+# --require-rope requires the ten rope_* rows (d3d12-rope.txt = 1); they are
+# correctness rows, so the decode bandwidth floor does not apply to them.
 #
 # Prerequisites: CI MSVC package (unified or llamacpp) installed on Series S.
 # Usage:
 #   source ~/.config/xllama/xbox-env
-#   ./scripts/bench-d3d12-selftest.sh [--out PATH] [--force] [--require-bias-add]
+#   ./scripts/bench-d3d12-selftest.sh [--out PATH] [--force] [--require-bias-add] [--require-rope]
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -23,6 +25,7 @@ OUT="${REPO_ROOT}/bench/results/d2a-d3d12-selftest.csv"
 TIMEOUT_S=600
 FORCE=0
 REQUIRE_BIAS_ADD=0
+REQUIRE_ROPE=0
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 	--out)
@@ -37,8 +40,12 @@ while [[ $# -gt 0 ]]; do
 		REQUIRE_BIAS_ADD=1
 		shift
 		;;
+	--require-rope)
+		REQUIRE_ROPE=1
+		shift
+		;;
 	-h | --help)
-		sed -n '2,14p' "$0"
+		sed -n '2,16p' "$0"
 		exit 0
 		;;
 	*)
@@ -100,24 +107,30 @@ if ((REQUIRE_BIAS_ADD)); then
 	fi
 fi
 
-python3 - "$OUT" "$REQUIRE_BIAS_ADD" <<'PY'
+python3 - "$OUT" "$REQUIRE_BIAS_ADD" "$REQUIRE_ROPE" <<'PY'
 import csv, math, sys
 rows = list(csv.DictReader(open(sys.argv[1])))
 bad = [r for r in rows if r["ok"] != "1" or r["d3d12_ran"] != "1" or
        any(not math.isfinite(float(r[k])) or float(r[k]) < 0
            for k in ("rel_err", "gpu_ms", "packed_gbs"))]
-slow = [r for r in rows if r["ncols"] == "1" and float(r["packed_gbs"]) < 100.0]
+slow = [r for r in rows if r["ncols"] == "1" and not r["type"].startswith("rope_") and
+        float(r["packed_gbs"]) < 100.0]
 print(f"--- selftest gate: {len(rows) - len(bad)}/{len(rows)} cases correct; "
       f"{len(slow)} decode case(s) under 100 GB/s ---")
 for r in bad:
     print(f"FAIL {r['type']} n={r['n']} k={r['k']} ncols={r['ncols']} rel_err={r['rel_err']} {r['error']}")
 for r in slow:
     print(f"SLOW {r['type']} n={r['n']} k={r['k']} gbs={r['packed_gbs']}")
-require_bias_add = sys.argv[2:] == ["1"]
+require_bias_add = sys.argv[2:3] == ["1"]
+require_rope = sys.argv[3:4] == ["1"]
 bias_add_first = bool(rows) and rows[0]["type"] == "add_f32"
 if require_bias_add and not bias_add_first:
     print("FAIL the first selftest row must be add_f32")
-passed = bool(rows) and not bad and not slow and (not require_bias_add or bias_add_first)
+rope_rows = [r for r in rows if r["type"].startswith("rope_")]
+if require_rope and len(rope_rows) != 10:
+    print(f"FAIL expected 10 rope_* rows, found {len(rope_rows)}")
+passed = (bool(rows) and not bad and not slow and (not require_bias_add or bias_add_first) and
+          (not require_rope or len(rope_rows) == 10))
 print("GATE=" + ("PASS" if passed else "FAIL"))
 sys.exit(0 if passed else 1)
 PY

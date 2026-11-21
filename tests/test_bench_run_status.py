@@ -119,6 +119,8 @@ class D3d12SelftestExitTests(unittest.TestCase):
         cases = [(row, passed, []) for row, passed in cases] + [
             (good, False, ["1"]), (good, True, ["0"]),
             (dict(good, type="add_f32", n="129", ncols="2", packed_gbs="0"), True, ["1"]),
+            (dict(good, type="rope_neox", n="128", ncols="1", packed_gbs="0"), True, []),
+            (dict(good, type="rope_neox", n="128", ncols="1", packed_gbs="0"), False, ["0", "1"]),
         ]
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "rows.csv"
