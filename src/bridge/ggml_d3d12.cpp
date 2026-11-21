@@ -577,6 +577,7 @@ void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
 
         #include <chrono>
         #include <cstdint>
+        #include <memory>
         #include <mutex>
         #include <random>
 
@@ -772,13 +773,6 @@ bool init_gpu(Gpu& g) {
             err = d3d12c::hr_message("CreateComputePipelineState", hr);
             return false;
         }
-        pd.CS.pShaderBytecode = kGgmlD3d12AddBiasF32Dxil;
-        pd.CS.BytecodeLength = kGgmlD3d12AddBiasF32DxilSize;
-        hr = g.device->CreateComputePipelineState(&pd, IID_PPV_ARGS(&g.pso_add_bias));
-        if (FAILED(hr)) {
-            err = d3d12c::hr_message("CreateComputePipelineState", hr);
-            return false;
-        }
     }
     if (FILE* f =
             _wfopen(utf8_to_wstring(resolve_local_path("d3d12-bias-add.txt")).c_str(), L"rb")) {
@@ -786,6 +780,18 @@ bool init_gpu(Gpu& g) {
         const std::size_t bytes = std::fread(config, 1, sizeof(config), f);
         std::fclose(f);
         g.bias_add = d3d12_flag_enabled(std::string_view(config, bytes));
+    }
+    if (g.bias_add) {
+        D3D12_COMPUTE_PIPELINE_STATE_DESC pd = {};
+        pd.pRootSignature = g.root.Get();
+        pd.CS.pShaderBytecode = kGgmlD3d12AddBiasF32Dxil;
+        pd.CS.BytecodeLength = kGgmlD3d12AddBiasF32DxilSize;
+        hr = g.device->CreateComputePipelineState(&pd, IID_PPV_ARGS(&g.pso_add_bias));
+        if (FAILED(hr)) {
+            log_output("[xllama] d3d12: bias ADD unavailable: " +
+                       d3d12c::hr_message("CreateComputePipelineState", hr) + "\n");
+            g.bias_add = false;
+        }
     }
     log_output(std::string("[xllama] d3d12: bias_add=") + (g.bias_add ? "1" : "0") + "\n");
     if (SUCCEEDED(g.queue->GetTimestampFrequency(&g.ts_freq)) && g.ts_freq > 0) {
@@ -1242,7 +1248,7 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
                 cl->EndQuery(g.ts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
             if (dt)
                 cl->EndQuery(g.dts.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
-            const D3D12_GPU_VIRTUAL_ADDRESS xq_va = g.xq->GetGPUVirtualAddress();
+            const D3D12_GPU_VIRTUAL_ADDRESS xq_va = g.xq ? g.xq->GetGPUVirtualAddress() : 0;
             UINT stamp = 0;
             const auto after_dispatch = [&]() {
                 if (!dt)
@@ -2036,6 +2042,68 @@ D3d12SelftestRow run_get_rows_case(ggml_backend_t backend, int n, int k) {
     return row;
 }
 
+// Run before the staged cases so a direct ADD cannot rely on an existing scratch buffer.
+D3d12SelftestRow run_bias_add_case(ggml_backend_t backend) {
+    constexpr int width = 129;
+    constexpr int columns = 2;
+    D3d12SelftestRow row;
+    row.type = "add_f32";
+    row.n = width;
+    row.ncols = columns;
+    if (gpu().xq) {
+        row.error = "bias ADD selftest requires an unused scratch buffer";
+        return row;
+    }
+
+    const ggml_init_params params = {8 * ggml_tensor_overhead() + ggml_graph_overhead(), nullptr,
+                                     true};
+    const std::unique_ptr<ggml_context, decltype(&ggml_free)> weights(ggml_init(params), ggml_free);
+    const std::unique_ptr<ggml_context, decltype(&ggml_free)> activations(ggml_init(params),
+                                                                          ggml_free);
+    if (!weights || !activations) {
+        row.error = "context allocation failed";
+        return row;
+    }
+    ggml_tensor* bias = ggml_new_tensor_1d(weights.get(), GGML_TYPE_F32, width);
+    ggml_tensor* input = ggml_new_tensor_2d(activations.get(), GGML_TYPE_F32, width, columns);
+    ggml_tensor* output = ggml_add(activations.get(), input, bias);
+    const std::unique_ptr<ggml_backend_buffer, decltype(&ggml_backend_buffer_free)> bias_buffer(
+        ggml_backend_alloc_ctx_tensors_from_buft(weights.get(), &kWeightsBuft),
+        ggml_backend_buffer_free);
+    const std::unique_ptr<ggml_backend_buffer, decltype(&ggml_backend_buffer_free)> host_buffer(
+        ggml_backend_alloc_ctx_tensors_from_buft(activations.get(), &kHostBuft),
+        ggml_backend_buffer_free);
+    if (!bias_buffer || !host_buffer) {
+        row.error = "buffer allocation failed";
+        return row;
+    }
+
+    float bias_values[width], input_values[width * columns], expected[width * columns];
+    for (int i = 0; i < width; ++i)
+        bias_values[i] = static_cast<float>(i - 64) * 0.25f;
+    for (int i = 0; i < width * columns; ++i) {
+        input_values[i] = static_cast<float>(i - width) * 0.125f;
+        expected[i] = input_values[i] + bias_values[i % width];
+    }
+    ggml_backend_tensor_set(bias, bias_values, 0, sizeof(bias_values));
+    ggml_backend_tensor_set(input, input_values, 0, sizeof(input_values));
+    ggml_cgraph* graph = ggml_new_graph(activations.get());
+    ggml_build_forward_expand(graph, output);
+    row.d3d12_ran = ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS;
+    if (!row.d3d12_ran) {
+        row.error = "graph_compute failed";
+        return row;
+    }
+
+    row.gpu_ms = gpu().last_gpu_ms;
+    float actual[width * columns];
+    ggml_backend_tensor_get(output, actual, 0, sizeof(actual));
+    row.ok = std::memcmp(actual, expected, sizeof(expected)) == 0;
+    if (!row.ok)
+        row.error = "mismatch vs F32 reference";
+    return row;
+}
+
 } // namespace
 
 void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
@@ -2049,6 +2117,8 @@ void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
         return;
     }
     ggml_backend_t backend = dev_init_backend(&kDevice, nullptr);
+    if (gpu().bias_add)
+        out->push_back(run_bias_add_case(backend));
     // Shapes of the D2 target models; q6_k 2048x11008 has 2-byte-aligned rows.
     const SelftestCase cases[] = {
         {GGML_TYPE_Q4_0, "q4_0", 8192, 2048, 1},   {GGML_TYPE_Q4_0, "q4_0", 2048, 8192, 1},

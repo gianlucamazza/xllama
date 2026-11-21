@@ -25,9 +25,10 @@ def write_cell(root: Path, a_rows, b_rows, statuses=None):
             w.writerows(rows)
     lines = []
     for i in range(1, max(len(a_rows), len(b_rows)) + 1):
-        for arm in "AB":
+        order = "AB" if i % 2 else "BA"
+        for arm in order:
             st = (statuses or {}).get((i, arm), "ok")
-            lines.append(json.dumps({"pair": i, "order": "AB", "arm": arm, "status": st}))
+            lines.append(json.dumps({"pair": i, "order": order, "arm": arm, "status": st}))
     (root / "ledger.jsonl").write_text("\n".join(lines) + "\n")
     return root
 
@@ -47,9 +48,10 @@ class PairedSummaryTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
 
-    def run_cell(self, cell, gates="prefill,decode,ttft,peak"):
+    def run_cell(self, cell, gates="prefill,decode,ttft,peak", profile=None):
         out = self.root / "v.json"
-        r = subprocess.run([sys.executable, str(SCRIPT), str(cell), "--gates", gates,
+        mode = ["--profile", profile] if profile else ["--gates", gates]
+        r = subprocess.run([sys.executable, str(SCRIPT), str(cell), *mode,
                             "--json-out", str(out)], capture_output=True, text=True, check=False)
         return r, (json.loads(out.read_text()) if out.exists() else None)
 
@@ -88,6 +90,48 @@ class PairedSummaryTests(unittest.TestCase):
                           rows(5, 130, 50, 770, 800, 2), statuses={(3, "B"): "failed"})
         _, v = self.run_cell(cell, "prefill")
         self.assertEqual(v["pairs"], 4)
+
+    def test_bias_add_profile_uses_preregistered_margins(self):
+        a = rows(20, 100, 50, 1000, 800, 1, noise=0)
+        b = rows(20, 98, 53, 1020, 805, 2, noise=0)
+        cell = write_cell(self.root / "c", a, b)
+        r, v = self.run_cell(cell, profile="bias-add")
+        self.assertEqual(r.returncode, 0, r.stderr or r.stdout)
+        self.assertEqual(v["gates"]["decode"]["margin"], 1.03)
+        self.assertEqual(v["gates"]["prefill"]["margin"], 0.97)
+        self.assertEqual(v["gates"]["ttft"]["margin"], 1.03)
+        self.assertEqual(v["gates"]["peak"]["margin"], 32.0)
+
+    def test_bias_add_profile_rejects_an_incomplete_campaign(self):
+        a = rows(19, 100, 50, 1000, 800, 1, noise=0)
+        cell = write_cell(self.root / "c", a, a)
+        r, _ = self.run_cell(cell, profile="bias-add")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("20 complete", r.stdout)
+
+    def test_bias_add_control_checks_equivalence_and_submission_counts(self):
+        a = rows(20, 100, 50, 1000, 800, 1, noise=0)
+        cell = write_cell(self.root / "c", a, a)
+        log = ("[xllama] d3d12-phase phase=prefill calls=12 submissions=12 dispatches=12\n"
+               "[xllama] d3d12-phase phase=decode calls=30 submissions=30 dispatches=30\n")
+        for i in range(1, 21):
+            for arm in "AB":
+                (cell / f"pair{i}-{arm}-app.log").write_text(log)
+        r, v = self.run_cell(cell, profile="bias-add-control")
+        self.assertEqual(r.returncode, 0, r.stderr or r.stdout)
+        self.assertEqual(v["gates"]["decode"]["margin"], [0.98, 1.02])
+
+        (cell / "pair7-B-app.log").write_text(log.replace("submissions=30", "submissions=31"))
+        r, v = self.run_cell(cell, profile="bias-add-control")
+        self.assertEqual(r.returncode, 1, r.stderr or r.stdout)
+        self.assertEqual(v["gates"]["submissions"]["mismatched_pairs"], [7])
+
+        (cell / "pair7-B-app.log").write_text(log)
+        b = rows(20, 100, 52, 1000, 800, 2, noise=0)
+        write_cell(cell, a, b)
+        r, v = self.run_cell(cell, profile="bias-add-control")
+        self.assertEqual(r.returncode, 1, r.stderr or r.stdout)
+        self.assertEqual(v["gates"]["decode"]["verdict"], "fail")
 
     def test_invalid_inputs_fail_closed(self):
         good = write_cell(self.root / "g", rows(4, 100, 50, 1000, 800, 1),

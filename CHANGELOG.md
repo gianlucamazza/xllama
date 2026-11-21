@@ -10,9 +10,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Opt-in GPU bias ADD for d3d12 GGUF layers (#503).** With
   `LocalState\d3d12-bias-add.txt` set to `1`, the F32 bias ADD after a
   projection runs on the d3d12 backend, so it no longer ends the GPU split.
-  This affects models with biases, such as Qwen2.5 and Bielik. Logits match
-  the CPU ADD bit for bit. Without the file, placement and graph are
-  unchanged. The default stays off until a Series S campaign; see
+  This affects models with biases, such as Qwen2.5 and Bielik. The Series X
+  comparisons reported in #503 matched logits bit for bit for the three models
+  tested at ubatch 512 and 1. The default stays off. See
   [GGUF GPU decode](docs/gguf-gpu-decode.md).
 
 - **SSE for LAN tool proposals.** Requests with `stream: true` receive the
