@@ -92,3 +92,79 @@ GGML_CPU_DISABLE_FUSION=1 "$moe_output/resident-reference" \
 ```
 
 Use a fresh output directory for each run and retain it only after a successful exit. Each case contains the rendered text, token IDs and one complete little-endian float32 vocabulary row per declared step on the x86-64 host. Step zero is the end of prefill. Later steps count continuation IDs already fed to the context. The raw files stay outside version control. For each case, compare the token IDs and SHA-256 hashes with the declaration before using a regenerated reference for candidate evaluation. When pairing the rows, use the declared GGUF tokenizer/vocabulary hash rules for both arms and put those identities in the comparator sidecars.
+
+## Verifying the 8B reference and streamed parity
+
+Use Python with NumPy. Keep the row directories unchanged after capture. They use
+`<case>/row-<step>.bin` and `row-<step>.bin.json` for each declared case and step.
+
+```bash
+python3 scripts/verify-moe-parity.py bench/moe-streaming/parity-preparation-8b.json \
+  /path/to/resident --reference-only
+```
+
+Each sidecar carries `checkpoint_sha256`, `template_sha256`, `tokenizer_sha256`,
+`vocab_sha256` and `vocab_size` from the actual capture. For the resident exporter,
+use the contents of `rendered.txt` as `prompt`, take `prompt_token_ids` from
+`tokens.json`, and set `fed_continuation_token_ids` to the first _step_ IDs of
+`teacher_forced_token_ids` from that file. At prefill this list is empty. The
+verifier checks the rendered text, token IDs and each resident row against the
+declaration. `REFERENCE_VERIFIED` certifies the resident inputs only.
+
+Generate the sidecars for fresh exporter output after verifying the input
+checkpoint against the declaration as described above:
+
+```bash
+python3 - bench/moe-streaming/parity-preparation-8b.json /path/to/resident <<'PYTHON'
+import json
+from pathlib import Path
+import sys
+
+declaration = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+identity = {key: declaration[key] for key in ("template_sha256", "tokenizer_sha256", "vocab_sha256")}
+identity["checkpoint_sha256"] = declaration["checkpoint"]["sha256"]
+for case in declaration["cases"]:
+    directory = Path(sys.argv[2]) / case["id"]
+    tokens = json.loads((directory / "tokens.json").read_text(encoding="utf-8"))
+    prompt = (directory / "rendered.txt").read_bytes().decode("utf-8")
+    for step in declaration["execution"]["reference_rows_after_feeding"]:
+        sidecar = {
+            **identity, "prompt": prompt, "vocab_size": tokens["vocab_size"],
+            "prompt_token_ids": tokens["prompt_token_ids"],
+            "fed_continuation_token_ids": tokens["teacher_forced_token_ids"][:step],
+        }
+        (directory / f"row-{step}.bin.json").write_text(json.dumps(sidecar), encoding="utf-8")
+PYTHON
+```
+
+Once the native CPU candidate and both cache captures are available:
+
+```bash
+python3 scripts/verify-moe-parity.py bench/moe-streaming/parity-preparation-8b.json \
+  /path/to/resident --streamed-2 /path/to/cache-2 --streamed-512 /path/to/cache-512 \
+  --receipt /path/to/receipt.json
+```
+
+Each streamed sidecar also records `candidate_commit`, integer `cache_slots`,
+`build_sha256` and the captured `row_sha256`. The receipt is a JSON object with:
+
+- `schema` set to `xllama-moe-parity-receipt-v1`.
+- `declaration_sha256` set to the digest of the declaration file as used for the run.
+- `candidate_commit` set to the full native CPU candidate SHA.
+- `cpu_kernel_review` set to the reference to the review of kernel equivalence.
+- `cpu_settings` with the actual shared `platform`, `cpu`, `compiler`, `cmake`
+  and `environment` from the resident build record, plus `threads`, `context`,
+  `n_batch` and `n_ubatch` from execution and `repacking` and `flash_attention`
+  both set to false. The verifier checks the recorded settings. The review
+  must establish that the candidate dispatches the same kernels.
+- `streamed_build_sha256` mapping the keys `"2"` and `"512"` to the SHA-256 of
+  the actual streamed build artifacts or their build receipts. Use the same
+  digest in the corresponding per-row sidecars. A shared binary can have the same digest in both profiles.
+
+Treat the receipt as a maintainer attestation. Review the source and build artifacts before signing off on kernel equivalence. The verifier checks consistency between that receipt, the declaration and the row sidecars.
+
+The verifier checks all inputs before comparing the 48 pairs with the declared
+thresholds. For a valid CLI invocation, the JSON report on stdout lists outcomes in cache, case and step
+order, along with the receipt and streamed build hashes. Exit 0 means the requested check passed, 1 means numerical divergence,
+and 2 means invalid input or provenance. Keep the report with the candidate
+receipt and raw captures.
