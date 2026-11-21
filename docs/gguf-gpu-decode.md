@@ -899,7 +899,7 @@ between the two points only (`ggml_d3d12_take_stats` in
 
 - `calls`: graph computes.
 - `submissions`: command lists executed and waited for.
-- `dispatches`: MUL_MAT and GET_ROWS.
+- `dispatches`: MUL_MAT, GET_ROWS and (with the bias knob below) the bias ADD.
 - `wall_ms`: whole graph computes.
 - `quant_ms`: CPU q8 activation quantization.
 - `record_ms`: command-list recording.
@@ -972,3 +972,72 @@ about 4 % of decode. Its first use located the four-column result of #470 in
 the shaders: per dispatch, the four-column Q4_0 shader takes 1.25 times
 (64 threads) and 1.14 times (128 threads) as long as the single-column one,
 while the four-column Q4_K and Q6_K shaders take about half as long.
+
+### Bias ADD on the GPU (opt-in, experimental)
+
+A projection with an F32 bias is `MUL_MAT` then `ADD` (`build_qkv`,
+`build_ffn`, `build_attn`). The backend ran only the `MUL_MAT`, so each bias
+`ADD` went to the CPU and the scheduler cut the split there
+(`ggml-backend.cpp`, a backend change ends a split): each biased projection
+paid its own submission, so a model with a bias on every projection (Bielik
+4.5B) paid 7 per layer.
+
+With `LocalState\d3d12-bias-add.txt` containing `1` when the backend starts
+(boot log `d3d12: bias_add=1`), `supports_op` accepts an `ADD` whose `src1`
+is a 1-D F32 weight in `D3D12_Weights` added to every column of a 2-D F32
+activation (`d3d12_add_supported`). llama.cpp's per-weight buffer probe asks
+the same question for every `*.bias` tensor, so the biases move into
+`D3D12_Weights` at load and each `ADD` joins its projection's submission.
+Residual adds (two activations) stay on the CPU. The ADD pipeline is created
+only when requested. If its creation fails, the backend logs the error and
+keeps the other GPU operations available with `bias_add=0`.
+
+The kernel (`shaders/ggml_d3d12_add_bias_f32.hlsl`) is one fp32 add per
+element, compiled with `-denorm preserve`. The D3D11.3 functional spec
+(§3.1.3.1) requires fp32 add to be correctly rounded, and preserved
+denormals remove the one flush-to-zero difference (§3.1.3.2), so the
+expected result is the CPU's bit for bit; a logit dump of each arm is the
+check. A UAV barrier separates an `ADD` from the dispatches before and after
+it in a submission. Dispatch rows group by operation, weight type, kernel
+parameters and column class. For `op=add`, `weight_mib` sums the bias sizes
+across the timed dispatches in the row. Layer rows group by layer and
+operation. The bias tensor's name helps identify the layer, and these rows
+have no `weight_mib` field.
+
+With the knob on a layer still takes 5 submissions, not 4. The CPU nodes that
+remain close the splits: `ROPE` after Q and after K (`build_attn` expands
+`q_cur`, `v_cur`, `k_cur` in that order, so q/k/v is `[Q] ROPE [V K] ROPE`,
+two splits), the residual `ADD`, `SWIGLU` and the attention itself. The
+split is `[Q] [V K] [o] [gate up] [down]`; without the knob it is
+`[Q] [V] [K] [o] [gate] [up] [down]` (7). A model without biases is 5 as
+well, so the knob cannot go below 5; that needs `ROPE` on the GPU or a
+different node order. Measured on Series X: Bielik 421 → 301 submissions per
+token (60 layers × 7 → 5, plus lm_head).
+
+#### Series S bias ADD preregistration
+
+The merge gate for [#503](https://github.com/gianlucamazza/xllama/issues/503)
+uses the unified CI package on a verified Series S. Run `d3d12be.flag` in a
+fresh process with the knob off and on. Use
+`bench-d3d12-selftest.sh --require-bias-add` for the enabled run. The gate
+requires a passing first `add_f32` row and `cold_scratch=1` in the fresh log.
+For each model below, compare both logit files byte for byte with the knob
+absent and set to `1`, using stride 16 and ubatches 512 and 1. Require the
+expected bias setting and GPU layer count in the log.
+
+Run 20 alternating AB/BA pairs per model with `bench-paired-knob.sh` and
+`--save-arm-logs`. A has the knob absent and B has it set to `1`. Use the
+`long-1k` prompt, context 2048, ubatch 512, 128 generated tokens with
+`--ignore-eog` and 99 GPU layers throughout. Set `bench_greedy.txt` to `1`
+for both arms and require the CSV host tag to include `-greedy`. Record the
+input hashes, device and MSIX identity, raw CSVs, ledger and phase logs. Keep the
+pre-existing console settings and restore them after recording the evidence.
+
+Use `paired-bench-summary.py --profile bias-add` for Qwen2.5-Coder-3B and
+Qwen2.5-Coder-1.5B Q4_K_M. The 95% paired bootstrap interval must meet the
+#503 margins for decode, prefill, time to first token and peak working
+set. Use `--profile bias-add-control` for the catalogue LFM2.5-1.2B Instruct
+GGUF. Its decode, prefill and TTFT intervals must lie within the #503
+equivalence range, and each pair must have identical measured prefill and
+decode submission counts. Preserve the ledger if an arm fails or a
+result is inconclusive.
