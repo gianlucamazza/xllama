@@ -734,7 +734,7 @@ under `bench/results/` when measured, and documentation in the owning SSOT.
 The main CI Developer Mode package is validated; release tagging remains a
 separate workflow, as documented in the release runbook.
 
-## Xbox GPU acceleration program — state at 2026-11-16
+## Xbox GPU acceleration program
 
 Source/evidence discovery and the conditional 6–8 week stages are in the
 [baseline](docs/research/gpu-acceleration-baseline.md). Host tooling PRs
