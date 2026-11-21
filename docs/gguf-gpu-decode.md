@@ -1019,15 +1019,16 @@ token (60 layers × 7 → 5, plus lm_head).
 The merge gate for [#503](https://github.com/gianlucamazza/xllama/issues/503)
 uses the unified CI package on a verified Series S. Run `d3d12be.flag` in a
 fresh process with the knob off and on. The enabled run must begin with a
-passing `add_f32` row. For each model below, compare both logit files byte
-for byte with the knob absent and set to `1`, using stride 16 and ubatches
+passing `add_f32` row and log `cold_scratch=1`. For each model below, compare
+both logit files byte for byte with the knob absent and set to `1`, using stride 16 and ubatches
 512 and 1. Require the expected bias setting and GPU layer count in the log.
 
 Run 20 alternating AB/BA pairs per model with `bench-paired-knob.sh` and
 `--save-arm-logs`. A has the knob absent and B has it set to `1`. Use the
 `long-1k` prompt, context 2048, ubatch 512, 128 generated tokens with
-`--ignore-eog` and 99 GPU layers throughout. Record the input hashes,
-device and MSIX identity, raw CSVs, ledger and phase logs. Keep the
+`--ignore-eog` and 99 GPU layers throughout. Set `bench_greedy.txt` to `1`
+for both arms and require the CSV host tag to include `-greedy`. Record the
+input hashes, device and MSIX identity, raw CSVs, ledger and phase logs. Keep the
 pre-existing console settings and restore them after recording the evidence.
 
 Use `paired-bench-summary.py --profile bias-add` for Qwen2.5-Coder-3B and

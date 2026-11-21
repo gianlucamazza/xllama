@@ -2050,11 +2050,6 @@ D3d12SelftestRow run_bias_add_case(ggml_backend_t backend) {
     row.type = "add_f32";
     row.n = width;
     row.ncols = columns;
-    if (gpu().xq) {
-        row.error = "bias ADD selftest requires an unused scratch buffer";
-        return row;
-    }
-
     const ggml_init_params params = {8 * ggml_tensor_overhead() + ggml_graph_overhead(), nullptr,
                                      true};
     const std::unique_ptr<ggml_context, decltype(&ggml_free)> weights(ggml_init(params), ggml_free);
@@ -2089,6 +2084,12 @@ D3d12SelftestRow run_bias_add_case(ggml_backend_t backend) {
     ggml_backend_tensor_set(input, input_values, 0, sizeof(input_values));
     ggml_cgraph* graph = ggml_new_graph(activations.get());
     ggml_build_forward_expand(graph, output);
+    {
+        Gpu& g = gpu();
+        std::lock_guard<std::mutex> lock(g.mu);
+        log_output(g.xq ? "[xllama] d3d12be: bias ADD cold_scratch=0\n"
+                        : "[xllama] d3d12be: bias ADD cold_scratch=1\n");
+    }
     row.d3d12_ran = ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS;
     if (!row.d3d12_ran) {
         row.error = "graph_compute failed";
