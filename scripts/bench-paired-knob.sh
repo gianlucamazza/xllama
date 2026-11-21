@@ -7,7 +7,7 @@
 #   source ~/.config/xllama/xbox-env
 #   ./scripts/bench-paired-knob.sh --model <dir> --prompt <file> --pairs N \
 #       --knob <name> --value <text> --out-dir <dir> \
-#       --expect-a RE [--forbid-a RE] --expect-b RE [--forbid-b RE] \
+#       --expect-a RE [--forbid-a RE] --expect-b RE [--forbid-b RE] [--save-arm-logs] \
 #       [bench-xbox-ort.sh options...]
 #
 # Pair i runs A then B when i is odd and B then A when i is even. Each arm is
@@ -17,12 +17,13 @@
 # match every --expect regex of the arm and none of its --forbid regexes (for
 # example the backend's prefill_columns line and its four-column dispatch
 # count); a mismatch, a harness failure or a missing row stops the campaign.
-# The options repeat.
+# The regex options repeat. --save-arm-logs retains the warmup and measured
+# phase counters in pair<N>-<A|B>-app.log.
 # Failed attempts are never replaced: the ledger (ledger.jsonl) records every
 # arm with its outcome, and the summary uses only complete pairs.
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-MODEL="" PROMPT="" PAIRS=0 KNOB="" VALUE="" OUTDIR=""
+MODEL="" PROMPT="" PAIRS=0 KNOB="" VALUE="" OUTDIR="" SAVE_ARM_LOGS=0
 EXPECT_A=() FORBID_A=() EXPECT_B=() FORBID_B=() EXTRA=()
 while [[ $# -gt 0 ]]; do
 	case "$1" in
@@ -32,6 +33,7 @@ while [[ $# -gt 0 ]]; do
 	--knob) KNOB="$2"; shift 2 ;;
 	--value) VALUE="$2"; shift 2 ;;
 	--out-dir) OUTDIR="$2"; shift 2 ;;
+	--save-arm-logs) SAVE_ARM_LOGS=1; shift ;;
 	--expect-a) EXPECT_A+=("$2"); shift 2 ;;
 	--forbid-a) FORBID_A+=("$2"); shift 2 ;;
 	--expect-b) EXPECT_B+=("$2"); shift 2 ;;
@@ -90,6 +92,10 @@ run_arm() { # pair order arm
 		return 1
 	fi
 	"$DEPLOY" get-log 2>/dev/null | tail -n +"$((skip + 1))" >"${TMP}/app.log" || true
+	if ((SAVE_ARM_LOGS)) && ! cp "${TMP}/app.log" "${OUTDIR}/pair${pair}-${arm}-app.log"; then
+		record "$pair" "$order" "$arm" failed "could not save app log"
+		return 1
+	fi
 	for re in "${expect[@]}"; do
 		if ! grep -a -E -q -- "$re" "${TMP}/app.log"; then
 			cp "${TMP}/app.log" "${OUTDIR}/failed-pair${pair}-${arm}-app.log"

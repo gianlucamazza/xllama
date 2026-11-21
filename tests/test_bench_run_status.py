@@ -116,17 +116,21 @@ class D3d12SelftestExitTests(unittest.TestCase):
             (dict(good, gpu_ms="nan"), False),
             (dict(good, gpu_ms="-1"), False), (None, False),
         ]
+        cases = [(row, passed, []) for row, passed in cases] + [
+            (good, False, ["1"]), (good, True, ["0"]),
+            (dict(good, type="add_f32", n="129", ncols="2", packed_gbs="0"), True, ["1"]),
+        ]
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "rows.csv"
-            for row, passed in cases:
-                with self.subTest(row=row):
+            for row, passed, extra in cases:
+                with self.subTest(row=row, extra=extra):
                     with path.open("w", newline="") as stream:
                         writer = csv.DictWriter(stream, fieldnames=list(good))
                         writer.writeheader()
                         if row:
                             writer.writerow(row)
                     result = subprocess.run(
-                        [sys.executable, "-c", gate, str(path)], text=True, capture_output=True
+                        [sys.executable, "-c", gate, str(path), *extra], text=True, capture_output=True
                     )
                     self.assertEqual(result.returncode, 0 if passed else 1, result.stderr)
                     self.assertIn("GATE=" + ("PASS" if passed else "FAIL"), result.stdout)
