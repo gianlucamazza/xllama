@@ -1,4 +1,4 @@
-# Install a release build on Xbox Series S consoles
+# Install a release build on Xbox Series S and Series X consoles
 
 Install a tagged app release or a specific CI MSVC package on an Xbox in
 Developer Mode. Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester.
