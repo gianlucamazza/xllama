@@ -8,10 +8,14 @@
 #
 #   scripts/paired-bench-summary.py <cell_dir> --gates prefill,decode,ttft,peak
 #                                   [--json-out PATH]
-#   scripts/paired-bench-summary.py <cell_dir> --profile bias-add|bias-add-control
+#   scripts/paired-bench-summary.py <cell_dir> --profile bias-add|bias-add-control|rope
 #                                   [--json-out PATH]
-# Bias ADD profiles (#503) require 20 complete alternating pairs. The control
-# profile also checks the measured prefill and decode submission counts.
+# Profiles require 20 complete alternating pairs of one preregistered model and
+# host tag. bias-add-control also requires identical measured prefill and decode
+# submission counts in both arms of every pair. rope (A = bias ADD on, B = bias
+# ADD and ROPE on) shares the bias ADD gates and models, and requires B to
+# submit fewer decode and no more prefill batches than A in every pair, so a
+# speed-up cannot come from a knob that never took effect.
 #
 # Pair i is row i of A.csv and row i of B.csv; only pairs whose two arms are
 # both recorded as ok in ledger.jsonl count. Per pair:
@@ -71,6 +75,14 @@ BIAS_ADD_MODELS = {
     "qwen25-coder-3b": "Q4_K_M",
 }
 BIAS_ADD_CONTROL_MODELS = {"lfm25-1.2b-instruct": "Q4_0"}
+# profile: (gates, models, submission check). The check compares the measured
+# phase counters of the two arms of a pair: "equal" or "fewer" (B < A in decode,
+# B <= A in prefill); None reads no log.
+PROFILES = {
+    "bias-add": (BIAS_ADD_GATES, BIAS_ADD_MODELS, None),
+    "bias-add-control": (BIAS_ADD_CONTROL_GATES, BIAS_ADD_CONTROL_MODELS, "equal"),
+    "rope": (BIAS_ADD_GATES, BIAS_ADD_MODELS, "fewer"),
+}
 BIAS_ADD_ROW_FIELDS = {
     "backend": "d3d12",
     "n_ctx": "2048",
@@ -117,14 +129,19 @@ def submission_counts(path: Path):
     phases = PHASE_SUBMISSIONS.findall(path.read_text(errors="replace"))
     if [phase for phase, _ in phases] != ["prefill", "decode", "prefill", "decode"]:
         raise Invalid(f"expected warm-up and measured D3D12 phase counters in {path.name}")
-    return dict(phases[2:])
+    return {phase: int(count) for phase, count in phases[2:]}
 
 
-def validate_bias_add_rows(rows, control):
-    models = BIAS_ADD_CONTROL_MODELS if control else BIAS_ADD_MODELS
+def submissions_agree(check, a, b):
+    if check == "equal":
+        return a == b
+    return b["decode"] < a["decode"] and b["prefill"] <= a["prefill"]
+
+
+def validate_profile_rows(rows, models):
     model = rows[0].get("model")
     if model not in models:
-        raise Invalid(f"model {model!r} does not match the bias ADD profile")
+        raise Invalid(f"model {model!r} does not match the profile")
     prompt_length = rows[0].get("n_prompt_tok")
     if not prompt_length or not re.fullmatch(r"[0-9]+", prompt_length) or int(prompt_length) <= 0:
         raise Invalid("missing or invalid prompt length")
@@ -170,12 +187,13 @@ def main() -> int:
     ap.add_argument("cell", type=Path, help="directory with A.csv, B.csv and ledger.jsonl")
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument("--gates", help="comma-separated: prefill,decode,ttft,peak for #313")
-    mode.add_argument("--profile", choices=("bias-add", "bias-add-control"))
+    mode.add_argument("--profile", choices=tuple(PROFILES))
     ap.add_argument("--json-out", type=Path)
     args = ap.parse_args()
     try:
-        control = args.profile == "bias-add-control"
-        specs = BIAS_ADD_CONTROL_GATES if control else BIAS_ADD_GATES if args.profile else GATES
+        profile_specs, profile_models, check = PROFILES[args.profile] if args.profile else (
+            None, None, None)
+        specs = profile_specs or GATES
         gates = list(specs) if args.profile else [g.strip() for g in args.gates.split(",") if g.strip()]
         if not gates or any(g not in specs for g in gates):
             raise Invalid(f"gates must be among {sorted(GATES)}")
@@ -187,17 +205,17 @@ def main() -> int:
             raise Invalid("no complete pair, or fewer rows than complete pairs")
         a, b = [a[p - 1] for p in pairs], [b[p - 1] for p in pairs]
         if args.profile:
-            validate_bias_add_rows(a + b, control)
+            validate_profile_rows(a + b, profile_models)
         for ra, rb in zip(a, b):
             if ra.get("model") != rb.get("model") or ra.get("n_prompt_tok") != rb.get("n_prompt_tok"):
                 raise Invalid("a pair mixes models or prompt lengths")
         values = {g: pair_values(a, b, specs[g][0], specs[g][1]) for g in gates}
         mismatched_pairs = []
-        if control:
+        if check:
             for pair in pairs:
                 counts = [submission_counts(args.cell / f"pair{pair}-{arm}-app.log")
                           for arm in "AB"]
-                if counts[0] != counts[1]:
+                if not submissions_agree(check, *counts):
                     mismatched_pairs.append(pair)
     except (Invalid, OSError, KeyError, TypeError, json.JSONDecodeError) as e:
         print(f"❌ invalid input: {e}")
@@ -220,7 +238,7 @@ def main() -> int:
         else:
             limit = f"{'>=' if direction == 'higher' else '<='} {margin:g}{unit}"
         print(f"  {g:<8} median {med:.4f}{unit}  95% CI [{lo:.4f}, {hi:.4f}]  margin {limit}  {v}")
-    if control:
+    if check:
         verdict = "fail" if mismatched_pairs else "pass"
         verdicts.append(verdict)
         rows["submissions"] = {"mismatched_pairs": mismatched_pairs, "verdict": verdict}

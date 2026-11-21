@@ -164,6 +164,68 @@ class PairedSummaryTests(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stderr or r.stdout)
         self.assertEqual(v["gates"]["decode"]["verdict"], "fail")
 
+    def write_rope_logs(self, cell, a_decode=36, b_decode=29, a_prefill=12, b_prefill=10):
+        def log(decode, prefill):
+            warm = (f"[xllama] d3d12-phase phase=prefill calls=1 submissions=99 dispatches=1\n"
+                    f"[xllama] d3d12-phase phase=decode calls=1 submissions=99 dispatches=1\n")
+            return (warm +
+                    f"[xllama] d3d12-phase phase=prefill calls=1 submissions={prefill} dispatches=1\n"
+                    f"[xllama] d3d12-phase phase=decode calls=1 submissions={decode} dispatches=1\n")
+        for i in range(1, 21):
+            (cell / f"pair{i}-A-app.log").write_text(log(a_decode, a_prefill))
+            (cell / f"pair{i}-B-app.log").write_text(log(b_decode, b_prefill))
+
+    def rope_cell(self, decode_b=53):
+        a = bias_rows(20, 100, 50, 1000, 800, 1)
+        b = bias_rows(20, 100, decode_b, 1000, 800, 2)
+        cell = write_cell(self.root / "c", a, b)
+        self.write_rope_logs(cell)
+        return cell, a, b
+
+    def test_rope_profile_shares_the_bias_add_margins_and_checks_submissions(self):
+        cell, _, _ = self.rope_cell()
+        r, v = self.run_cell(cell, profile="rope")
+        self.assertEqual(r.returncode, 0, r.stderr or r.stdout)
+        self.assertEqual(v["gates"]["decode"]["margin"], 1.03)
+        self.assertEqual(v["gates"]["peak"]["margin"], 32.0)
+        self.assertEqual(v["gates"]["submissions"]["mismatched_pairs"], [])
+
+    def test_rope_profile_fails_when_the_knob_did_not_reduce_submissions(self):
+        cell, _, _ = self.rope_cell()
+        # A speed-up with B submitting as often as A is not the ROPE effect.
+        self.write_rope_logs(cell, b_decode=36)
+        r, v = self.run_cell(cell, profile="rope")
+        self.assertEqual(r.returncode, 1, r.stderr or r.stdout)
+        self.assertEqual(v["gates"]["submissions"]["mismatched_pairs"], list(range(1, 21)))
+        self.write_rope_logs(cell, b_prefill=13)  # more prefill submissions than A
+        r, _ = self.run_cell(cell, profile="rope")
+        self.assertEqual(r.returncode, 1, r.stderr or r.stdout)
+
+    def test_rope_profile_rejects_an_incomplete_or_mixed_campaign(self):
+        a = bias_rows(19, 100, 50, 1000, 800, 1)
+        cell = write_cell(self.root / "i", a, a)
+        self.assertEqual(self.run_cell(cell, profile="rope")[0].returncode, 2)
+
+        cell, a, b = self.rope_cell()
+        b[-1]["host"] = "xbox-series-s-declared-u512-g99-noeog"  # greedy tag missing
+        write_cell(cell, a, b)
+        self.assertEqual(self.run_cell(cell, profile="rope")[0].returncode, 2)
+
+        control = bias_rows(20, 100, 50, 1000, 800, 1, control=True)
+        cell = write_cell(self.root / "k", control, control)
+        self.write_rope_logs(cell)
+        self.assertEqual(self.run_cell(cell, profile="rope")[0].returncode, 2)
+
+    def test_rope_profile_rejects_a_missing_measured_phase_counter(self):
+        cell, _, _ = self.rope_cell()
+        log = (cell / "pair9-B-app.log").read_text().splitlines(keepends=True)
+        (cell / "pair9-B-app.log").write_text("".join(log[:2]))  # warm-up only
+        r, _ = self.run_cell(cell, profile="rope")
+        self.assertEqual(r.returncode, 2, r.stderr or r.stdout)
+        (cell / "pair9-B-app.log").unlink()
+        r, _ = self.run_cell(cell, profile="rope")
+        self.assertEqual(r.returncode, 2, r.stderr or r.stdout)
+
     def test_invalid_inputs_fail_closed(self):
         good = write_cell(self.root / "g", rows(4, 100, 50, 1000, 800, 1),
                           rows(4, 130, 50, 770, 800, 2))
