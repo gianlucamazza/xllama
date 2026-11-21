@@ -741,6 +741,12 @@ Source/evidence discovery and the conditional 6–8 week stages are in the
 
 **Where it stands**
 
+- On 2026-11-21, the opt-in F32 bias ADD merged after passing the Series S
+  console self-tests, full-row logit parity and the preregistered paired
+  campaign. The knob defaults to off. The
+  [acceptance record in #504](https://github.com/gianlucamazza/xllama/pull/504)
+  holds the package, source revision and test verdicts.
+
 - The #420 control was reproduced on the console and traced to its first
   divergent operator: int8 rounding flips in the layer-0 activation quantizer
   ([details](docs/gguf-gpu-decode.md#2026-11-15-control-reproduction-and-tensor-diagnosis-420)).
