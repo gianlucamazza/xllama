@@ -23,7 +23,7 @@ All forks keep the MIT licence.
 ## November 21 contributor updates
 
 - **Chorss.** The initial fork review on 2026-11-21 inspected
-  [`fe16c71`](https://github.com/Chorss/xllama/commit/fe16c71f9cf196d8130d9440e031e0c1e466a8)
+  [`fe16c71`](https://github.com/Chorss/xllama/commit/fe16c71f9cf196d8130d9440e031e0c0c1e466a8)
   against upstream `20418229`. The fork at that revision included opt-in
   F32 projection bias ADD on D3D12. Chorss reported paired decode
   measurements and logit parity on Series X from a build of `b81b676`.
