@@ -19,6 +19,25 @@ All forks keep the MIT licence.
 | [vetax-by](#vetax-by-demand-loaded-moe-experts)    | a data point for [#273] and the SSD assessment            | the expert-loading runtime and its llama.cpp patches |
 | [EgbertJiang](#egbertjiang-xbox-one-s)             | Gemma 4 chat template (rebuilt in-tree, credited)         | Xbox One S port, `/chat` page, second model root     |
 
+## November 21 contributor updates
+
+- **Chorss.** [PR #504](https://github.com/gianlucamazza/xllama/pull/504)
+  is open against upstream `20418229`. At [fe16c71](https://github.com/Chorss/xllama/commit/fe16c71f9cf196d8130d9440e031e0c0c1e466a8)
+  it adds opt-in F32 projection bias ADD on D3D12. Chorss reports paired
+  decode measurements and logit parity on Series X. The Series S campaign
+  is pending in [#503](https://github.com/gianlucamazza/xllama/issues/503).
+- **Christopher Bearman.** The [pinned diff](https://github.com/gianlucamazza/xllama/compare/20418229eb7f0bfc9761524be062aba131700336...christopherbearman:bbf0104b7caa9096c48d014c3b983d0f98d29dce)
+  spans 25 commits ahead of upstream `20418229`. It adds quantized D3D12
+  shaders, a browser chat UI and an LCM diffusion scheduler. The
+  [contributor's notes](https://github.com/christopherbearman/xllama/blob/bbf0104b7caa9096c48d014c3b983d0f98d29dce/FORK-NOTES.md)
+  describe the Series X results and request queuing. This review covered
+  the source diff only. Upstream's LAN admission contract still applies to
+  upstream builds.
+- **vetax-by.** The [SSD MoE integration plan](superpowers/plans/2026-11-16-ssd-moe-upstream.md)
+  tracks Stan's contribution at `61bf63a`. His console report covers a
+  bounded CPU completion. The plan tracks full-checkpoint numerical parity
+  and console GPU correctness separately.
+
 ## SamirCharleston: vision-spike
 
 Branch `vision-spike`, 18 commits on a July base, by Samir Charleston.
