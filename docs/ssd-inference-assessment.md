@@ -165,7 +165,7 @@ console GPU correctness or a speed advantage over the existing catalogue.
 
 The [MoE readiness report](research/moe-upstream-readiness.md) owns the current
 source review, independent cache/tool checks and outstanding artifact, host and
-execution prerequisites. The [roadmap](../ROADMAP.md#optional-ssd-moe-contribution--state-at-2026-11-16)
+execution prerequisites. The [roadmap](../ROADMAP.md#optional-ssd-moe-contribution)
 tracks the four proposed integration stages under #479–#481. The preparation
 campaign is explicitly not executable until its missing bindings are supplied.
 

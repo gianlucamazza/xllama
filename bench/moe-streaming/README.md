@@ -49,13 +49,13 @@ The recorded sensitivity control removed only the extracted header's short-read 
 
 ## Prepared numerical campaign
 
-`parity-preparation.json` binds four prompt files, the checkpoint identity and a strict same-source/same-kernel comparison diagnostic. It is explicitly **not executable yet**: rendered token IDs, resident-derived continuation IDs, a prepared build receipt and an upstream candidate identity are absent. Nulls are missing prerequisites, not wildcard bindings. There are no model results.
+[The 24B declaration](parity-preparation.json) binds four prompt files, the checkpoint identity and a strict same-source/same-kernel comparison diagnostic. It is explicitly **not executable yet**: rendered token IDs, resident-derived continuation IDs, a prepared build receipt and an upstream candidate identity are absent. Nulls are missing prerequisites, not wildcard bindings. There are no model results.
 
 On a host with enough resident-model RAM:
 
 1. Verify the checkpoint bytes and hash, template and prepared source receipt. Confirm identical CPU kernels, nonfused execution, no repacking and one worker for both arms. If that equivalence cannot be established, do not run this declaration as a parity gate.
 2. Render each prompt using the actual pinned template and tokenizer. Save exact IDs with one tokenizer-owned BOS. Refuse a prompt above the declared token limit; never silently truncate it.
-3. Use the resident reference to obtain a fixed continuation of at least nine tokens, retaining EOS as data if encountered. Freeze the exact token sequence and prefill/decode row positions before running either streamed cache configuration. Export the complete vocabulary row at the end of prefill and after feeding 1, 2, 3, 5 and 9 continuation tokens. Do not compare independently sampled sequences.
+3. Use the resident reference to obtain a fixed continuation of at least nine tokens, retaining EOS as data if encountered. Freeze the exact token sequence and prefill/decode row positions before running either streamed cache configuration. Export the complete vocabulary row at the end of prefill and after feeding 1, 2, 3, 5 and 9 continuation tokens. The 24B declaration stores the decode positions as zero-based indices into the continuation, so index 0 means the row after feeding its first token. Do not compare independently sampled sequences.
 4. Close the resident owner, then run both streamed arms on the same frozen sequence. Bind model/tokenizer/vocabulary hashes and exact token positions in the dump sidecars and campaign receipt; the current comparator does not enforce every one of those provenance fields automatically.
 5. Run the existing comparator for every pair of full rows:
 
@@ -67,3 +67,82 @@ python3 scripts/compare-logits.py reference.bin streamed.bin \
 This strict diagnostic requires zero numeric difference and identical top-token/top-10 sets. A mismatch fails this diagnostic; it is not automatically a model-quality finding. A different floating-point comparison protocol needs a separately reviewed declaration before new candidate measurements. Do not relax the declaration to rewrite a failed result.
 
 Existing comparator tests and synthetic equal/different-row controls were run during preparation. They validate the comparison tool, not MoE model parity. Runtime export/wiring and full-checkpoint parity remain PR 2 work.
+
+## Reproducing the 8B resident reference
+
+The [8B declaration](parity-preparation-8b.json) records a resident-only CPU export from the complete checkpoint. It binds the input and output hashes, frozen token IDs, model settings and build receipt. Candidate identity and both streamed exports are pending.
+
+From the repository root, use the pinned llama.cpp submodule and a host with enough RAM for the full GGUF and inference workspace. Download the exact [checkpoint revision](https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-GGUF/tree/49c14831707011e64d70b2ebd8462ba08d608434), then verify the size and SHA-256 against the declaration before running.
+
+```bash
+cmake --preset linux-test
+cmake --build build/linux-test --target llama-common -j4
+moe_libs="$PWD/build/linux-test/bin"
+moe_output="$PWD/build/moe-reference"
+mkdir -p "$moe_output"
+g++ -std=c++17 -g -O2 -Wall -Wextra -Werror -I include \
+  -isystem llama.cpp/include -isystem llama.cpp/ggml/include \
+  -isystem llama.cpp/common -isystem llama.cpp/vendor \
+  bench/moe-streaming/resident-reference.cpp -L "$moe_libs" \
+  -Wl,-rpath,"$moe_libs" -lllama-common -lllama -lggml \
+  -o "$moe_output/resident-reference"
+GGML_CPU_DISABLE_FUSION=1 "$moe_output/resident-reference" \
+  /absolute/path/to/LFM2.5-8B-A1B-Q4_K_M.gguf "$moe_output/8b" \
+  bench/moe-streaming/prompts/{greeting-ru,arithmetic-it,code-en,prose-it}.txt
+```
+
+Use a fresh output directory for each run and retain it only after a successful exit. Each case contains the rendered text, token IDs and one complete little-endian float32 vocabulary row per declared step on the x86-64 host. Step zero is the end of prefill. Later steps count continuation IDs already fed to the context. The raw files stay outside version control. For each case, compare the token IDs and SHA-256 hashes with the declaration before using a regenerated reference for candidate evaluation. Bind streamed rows to the tokenizer and vocabulary using the hash rules in the declaration.
+
+## Verifying the 8B reference and streamed parity
+
+Use Python with NumPy. Keep the row directories unchanged after capture.
+The verifier reads the resident export directly.
+
+```bash
+python3 scripts/verify-moe-parity.py bench/moe-streaming/parity-preparation-8b.json \
+  /path/to/resident --reference-only
+```
+
+The verifier checks `chat-template.jinja`, each case's `rendered.txt` and
+`tokens.json`, and every `<case>/row-<step>.bin` against the declaration.
+`REFERENCE_VERIFIED` certifies the resident inputs only.
+
+Once the native CPU candidate and both cache captures are available:
+
+```bash
+python3 scripts/verify-moe-parity.py bench/moe-streaming/parity-preparation-8b.json \
+  /path/to/resident --streamed-2 /path/to/cache-2 --streamed-512 /path/to/cache-512 \
+  --receipt /path/to/receipt.json
+```
+
+Each streamed row requires a sibling `row-<step>.bin.json` sidecar with
+`checkpoint_sha256`, `template_sha256`, `tokenizer_sha256`, `vocab_sha256`,
+`vocab_size`, the rendered `prompt`, `prompt_token_ids`, and
+`fed_continuation_token_ids` for the first _step_ continuation IDs (empty at
+prefill). It also carries `candidate_commit`, integer `cache_slots`,
+`build_sha256` and `row_sha256`. The receipt is a JSON object with:
+
+- `schema` set to `xllama-moe-parity-receipt-v1`.
+- `declaration_sha256` set to the digest of the declaration file as used for the run.
+- `candidate_commit` set to the full native CPU candidate SHA.
+- `cpu_kernel_review` set to the reference to the review of kernel equivalence.
+- `cpu_settings` with the actual shared `platform`, `cpu`, `compiler`, `cmake`
+  and `environment` from the resident build record, plus `threads`, `context`,
+  `n_batch` and `n_ubatch` from execution and `repacking` and `flash_attention`
+  both set to false. The verifier checks the recorded settings. The review
+  must establish that the candidate dispatches the same kernels.
+- `streamed_build_sha256` mapping the keys `"2"` and `"512"` to the SHA-256 of
+  the actual streamed build artifacts or their build receipts. Use the same
+  digest in the corresponding per-row sidecars. A shared binary can have the same digest in both profiles.
+
+Treat the receipt as a maintainer attestation. Review the source and build artifacts before signing off on kernel equivalence. The verifier checks consistency between that receipt, the declaration and the row sidecars.
+
+The verifier checks all inputs before comparing the 48 pairs with the declared
+thresholds. For a valid CLI invocation, the JSON report on stdout lists outcomes
+in cache, case and step order, along with the receipt and streamed build hashes.
+It reports `max_abs_diff`, `nmse`, `top1_match` and `top_k_overlap` for each
+pair. A zero reference has NMSE zero for an identical row. For any nonzero
+candidate against a zero reference, the report uses JSON `null` for NMSE and
+marks the pair `FAIL`. Exit 0 means the requested check passed, 1 means
+numerical divergence, and 2 means invalid input or provenance. Keep the report
+with the candidate receipt and raw captures.

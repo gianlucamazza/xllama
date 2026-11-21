@@ -76,7 +76,7 @@ performance belongs in `docs/benchmarks.md`.
    closed 2026-08-26 after the UWP build failed on `LLAMA_VERSION`; do not
    merge that bump on Linux green alone.
 
-## Optional SSD MoE contribution — state at 2026-11-16
+## Optional SSD MoE contribution
 
 Stage status, source identities, completed checks and remaining prerequisites
 have one home: [MoE readiness report](docs/research/moe-upstream-readiness.md).
@@ -89,8 +89,9 @@ Neither PR delivers a shipping MoE runtime.
       (#479); independently check the extracted cache contract and existing
       comparison tools. Evidence and limitations are in the readiness report.
 - [x] Prepare source-bound CPU reproduction inputs and the numerical corpus
-      (#480/#481). The campaign remains `PREPARED_NOT_EXECUTABLE` until all
-      reference/token/build bindings are supplied.
+      (#480/#481). The separate 8B declaration now has a resident CPU
+      reference. Candidate bindings and streamed exports are pending. See
+      the readiness report for the status of both declarations.
 - [ ] PR 1 / #479: review and integrate the smallest coherent cache foundation.
 - [ ] PR 2 / #480: integrate the optional native CPU provider/loader and pass
       fixture plus full-checkpoint resident/streamed numerical gates.
@@ -109,8 +110,8 @@ Neither PR delivers a shipping MoE runtime.
 - [ ] PR 4 / #481 GPU stage: prove console identity, dispatch, primitive/model
       correctness and closure; only then run matched benchmarks under #421/#422.
 
-The next prerequisites are a resident-versus-streamed reference (on the
-smaller LFM2.5-8B-A1B, which fits the host) and the upstream PR 1 extraction.
+The next prerequisites are the upstream PR 1 extraction and matched streamed
+row exports for the 8B comparison.
 Historical H2 FAIL and the #273 catalogue gates remain unchanged. Completing
 cache/tool checks does not close runtime, console or GPU acceptance tasks.
 

@@ -1,0 +1,191 @@
+{
+  "schema": "xllama-moe-parity-preparation-v1",
+  "status": "PREPARED_NOT_EXECUTABLE",
+  "source": {
+    "fork_commit": "61bf63ad541510a03a36993e60ec204f98bc0b3e",
+    "llama_commit": "d81235049384534c167caea52b85a694f6103d14",
+    "upstream_candidate_commit": null
+  },
+  "checkpoint": {
+    "repo": "LiquidAI/LFM2.5-8B-A1B-GGUF",
+    "revision": "49c14831707011e64d70b2ebd8462ba08d608434",
+    "filename": "LFM2.5-8B-A1B-Q4_K_M.gguf",
+    "bytes": 5155564768,
+    "sha256": "4923ec14f06b968b74d663e5949867d2d9c3bf13a20b8be1a9f9af39989b2bb0",
+    "binding_source": "../../docs/research/evidence/2026-11-16-moe-8b-console/result.json"
+  },
+  "template_sha256": "6d65c8804847ad74eea912dd7eca3dc1cf7a457b53a77f47d841a14121910963",
+  "tokenizer_sha256": "494f1efee1f1ca595d147c62339838a483b3785499bc0a9e8e30a50918cea488",
+  "vocab_sha256": "47e4da5e21eab6a4420faadaeafeab321131d86e300a014724f69d665eee7771",
+  "tokenizer_hash_basis": "SHA-256 of the concatenated raw GGUF tokenizer.ggml.* key-value records sorted by key name",
+  "vocab_hash_basis": "SHA-256 of the raw GGUF tokenizer.ggml.tokens key-value record",
+  "execution": {
+    "threads": 1,
+    "context": 512,
+    "cache_slots": [2, 512],
+    "kernel_requirement": "same CPU kernels, nonfused, no repacking; verify before accepting reference",
+    "prompt_tokens_max": 128,
+    "teacher_forced_positions_after_prompt": [0, 1, 2, 4, 8],
+    "reference_rows_after_feeding": [0, 1, 2, 3, 5, 9],
+    "reference_row_format": "little-endian float32, one value per token ID in ascending order",
+    "resident_load": "CPU only; mmap and lazy reads disabled; no extra weight buffers or Flash Attention",
+    "n_batch": 512,
+    "n_ubatch": 512
+  },
+  "comparison": {
+    "mode": "same-source same-kernel strict diagnostic",
+    "max_abs_diff": 0,
+    "nmse": 0,
+    "top_k": 10,
+    "top_k_min": 1,
+    "same_top_token": true,
+    "reject_nonfinite": true,
+    "policy": "Any mismatch fails this declared diagnostic. An alternative numerical protocol requires a separate declaration before new candidate measurements; never rewrite a failed result."
+  },
+  "resident_reference": {
+    "platform": "Linux x86-64",
+    "cpu": "11th Gen Intel Core i7-1165G7",
+    "compiler": "g++ (GCC) 16.2.1 20260810",
+    "xllama_build_base_commit": "601e896a61fa6f59405876fe224ddb432f2fd655",
+    "llama_commit": "d81235049384534c167caea52b85a694f6103d14",
+    "cmake": {
+      "CMAKE_BUILD_TYPE": "Debug",
+      "GGML_NATIVE": "OFF",
+      "GGML_AVX2": "ON",
+      "GGML_AVX512": "OFF",
+      "GGML_OPENMP": "ON",
+      "GGML_BLAS": "OFF",
+      "GGML_CUDA": "OFF",
+      "XLLAMA_NATIVE_OPT": "OFF"
+    },
+    "environment": {
+      "GGML_CPU_DISABLE_FUSION": "1"
+    },
+    "exporter_source_sha256": "898603c45c2c2c2f91fc7b9f1918a0c11fcd500eefa01593a330e91d89dc0b84",
+    "shared_library_sha256": {
+      "libggml-base.so.0": "6836031b4d2d58997751aa5f1f4d6a37aa0bef0f37f8f944084420c44e4621ff",
+      "libggml-cpu.so.0": "8454979bf05817ab1d598536833c820af0a1b24c2b5d09c27fec3544cc1e2231",
+      "libggml.so.0": "c8550d3cc6ac75a5d178985a07ca598fd1542e1472c613e8ab5971c5771fd88e",
+      "libllama-common.so.0": "03a0cd07f30b6c5d09c892b674bc0cd06d97c25cd0dc719d184241cc1b2cf4e2",
+      "libllama.so.0": "28db3bef88de21438daefd8c61baf4a6303c57613597aa3dba7c398296c2f79d"
+    },
+    "mem_available_before_run_kib": 15897056,
+    "peak_rss_kib": 5131940,
+    "bos_origin": "llama.cpp removes the Jinja BOS marker because the lfm2 tokenizer adds one leading BOS ID."
+  },
+  "cases": [
+    {
+      "id": "greeting-ru",
+      "prompt": "prompts/greeting-ru.txt",
+      "prompt_sha256": "614c1c35ee08e80e20afebe2a4702f906e91b70b414e5178906d5e25cc6fe839",
+      "prompt_token_ids": [
+        124894, 124899, 5922, 207, 6744, 12827, 9, 46098, 7760, 561, 1680, 573,
+        4421, 6460, 31917, 453, 11693, 47395, 3423, 675, 755, 76045, 7630, 20,
+        11065, 38817, 10893, 111368, 12268, 5183, 561, 22, 24558, 12827, 561,
+        9731, 354, 2645, 878, 21014, 7895, 22, 124900, 207, 124899, 63514, 207
+      ],
+      "teacher_forced_token_ids": [
+        124901, 207, 597, 4695, 2997, 34, 496, 6744, 12827
+      ],
+      "vocab_size": 128000,
+      "bos_token_id": 124894,
+      "rendered_prompt_sha256": "baf8da98093bd54c01a42619c59d9d099531ca1b9302d1562c9464fcae1d692d",
+      "resident_row_sha256_by_fed_tokens": {
+        "0": "4f2132cdf6ac30c387d1f2b394fe6ad41cbfaa1cd1511f694d076ed918edd4ac",
+        "1": "75faeece3693cc06a558f95ebc08a04521634a14ca5ed6c04e40d487fe15472c",
+        "2": "0cf265970dc892083e505f2a06aea269a23b81f9fb508f8e970bcab8b6615707",
+        "3": "3620d08d6a1475f9077a960754d011b1999105e3a9eb61bdc1b226d183f582aa",
+        "5": "204383645ba54ae74e285a594e29015f15fee8830874ff7d2f09d36004d22d59",
+        "9": "093c07196e23c8fa4a23ce10e2cb35b1ee500c5d879322d6e7d487bfbf43679e"
+      }
+    },
+    {
+      "id": "arithmetic-it",
+      "prompt": "prompts/arithmetic-it.txt",
+      "prompt_sha256": "34eca6da0f369af3b463af3dba37c6102c4c18c651044d9a94ebb4d44e9bdb3c",
+      "prompt_token_ids": [
+        124894, 124899, 5922, 207, 2450, 621, 10138, 4729, 5618, 229, 1035, 34,
+        3153, 320, 1272, 113712, 59933, 229, 27, 24407, 320, 229, 1607, 82375,
+        22, 334, 1135, 38893, 2760, 3638, 39, 1447, 112741, 1272, 1956, 16733,
+        1775, 5077, 77, 318, 124900, 207, 124899, 63514, 207
+      ],
+      "teacher_forced_token_ids": [
+        124901, 207, 597, 4695, 20589, 296, 9968, 34, 496
+      ],
+      "vocab_size": 128000,
+      "bos_token_id": 124894,
+      "rendered_prompt_sha256": "e883628c887cf06edee7171ffabc78c28299f8c32b61e14bd577b0c717ba9f2b",
+      "resident_row_sha256_by_fed_tokens": {
+        "0": "b218aa56a2055f9eebe971d355e861cd826eef4ddaa4bb4290f980c8eaed8bcd",
+        "1": "0946b36f41912c07db721c6253e92119d9a191aaf98590e19973ef66275f2985",
+        "2": "4395f00710a6282cbeb903cdffb7eefcf0ceea7a6e88cd88deede032f8996910",
+        "3": "602331a94c8ea18e374a8ad37c0bf976bac85d9f98920f8e7726e09d731a85a9",
+        "5": "432826b15edc4104f50a6ec58351321cdce224292b5a181cd23cb3745ca8118c",
+        "9": "14b57933d27597cf2ff99bf6dada91e8a68cd4cfbd1504a95be270fd5a032d5d"
+      }
+    },
+    {
+      "id": "code-en",
+      "prompt": "prompts/code-en.txt",
+      "prompt_sha256": "e55c807ae2fbcfd6dfbb16d64743cb0bdbeeb5364fde529a847e08cac603d03d",
+      "prompt_token_ids": [
+        124894, 124899, 5922, 207, 22497, 267, 21516, 1446, 395, 11615, 278,
+        6083, 2035, 296, 267, 1721, 16232, 1815, 302, 45661, 22, 3675, 1119,
+        9244, 374, 401, 11209, 1815, 318, 124900, 207, 124899, 63514, 207
+      ],
+      "teacher_forced_token_ids": [
+        124901, 207, 597, 4695, 20589, 34, 496, 22497, 267
+      ],
+      "vocab_size": 128000,
+      "bos_token_id": 124894,
+      "rendered_prompt_sha256": "4723420490dc1d04ba849ee46bd7c72ef62deaf1c24cddaff55f8192c83146d2",
+      "resident_row_sha256_by_fed_tokens": {
+        "0": "c432daeefb9505e8127a8d78e509e50ca3355f601eb97fc1be105075125d97b1",
+        "1": "f3dd8f76b368f1db2773f0da53ed26aa0c2ec36ddddb98ededd93ef8fecbb62d",
+        "2": "6dfcabef6a838abc59a38ab09a61c01d591d94a92039603e551faed7c0143471",
+        "3": "ed178e96c455ae565ebd3ecf025eac859589015b0a6788d4f18f705deb6168fd",
+        "5": "b82e0d285f2bce948d3b72f5eb1f95e1e64203c17bb41742bc4322f25f4cdbf4",
+        "9": "754aa85c0bde4c219b31646a8fb13d779af74e73472c76b8643d6968d69c2983"
+      }
+    },
+    {
+      "id": "prose-it",
+      "prompt": "prompts/prose-it.txt",
+      "prompt_sha256": "bf7db9b9803507cfddfc7f2a77f0ab38e4c83c05e67308e5016b0cd10d2c10b0",
+      "prompt_token_ids": [
+        124894, 124899, 5922, 207, 7924, 112741, 296, 21315, 2242, 1280, 17778,
+        52074, 61, 6157, 27986, 2387, 4827, 81, 15689, 2760, 3638, 1280, 2042,
+        1832, 114436, 22, 5386, 73, 445, 46819, 120836, 320, 1893, 98, 23938,
+        1272, 12587, 717, 445, 56633, 30746, 296, 16951, 318, 124900, 207,
+        124899, 63514, 207
+      ],
+      "teacher_forced_token_ids": [
+        124901, 207, 597, 4695, 20589, 34, 496, 7924, 112741
+      ],
+      "vocab_size": 128000,
+      "bos_token_id": 124894,
+      "rendered_prompt_sha256": "b3f3e366bef48936b262eda8276d163f3b797caa76e6823a8daadc4844773e9e",
+      "resident_row_sha256_by_fed_tokens": {
+        "0": "b553f7ac1d240680aac2014540fe24f74ee5a08a4673f5398251ef5e190ddbc6",
+        "1": "4f86a8dc222ae0bf5c057feff33645b331fbe41105402c7016c1d8bcff5bff4d",
+        "2": "ab6be82318d96dd1fa15f3b09a77f70fea044dd76d220211bf536f287feee82f",
+        "3": "b62ffac18b5ae10552abeb8e03f81d8b347a2c92b5ca83d3c375cab00b5b1933",
+        "5": "b405c361b7589c5c4b7eb4d4daa384d0412af3ccf918e97718a259fddda95668",
+        "9": "effd0b91d5e34d3b11fd1c7faf3152d575ba84ec9d07b37dc86275e67a021e95"
+      }
+    }
+  ],
+  "required_before_execution": [
+    "agreed upstream cache foundation and exact native CPU candidate commit",
+    "candidate source/build receipts proving identical nonfused, nonrepacked CPU kernels for resident and streamed arms",
+    "complete streamed vocabulary rows and provenance sidecars for every case, step and cache profile"
+  ],
+  "results": {
+    "model_runs": 1,
+    "resident_cases": 4,
+    "resident_rows": 24,
+    "full_checkpoint_parity": "NOT_RUN",
+    "console_reproduction": "NOT_RUN",
+    "gpu_correctness": "NOT_RUN"
+  }
+}

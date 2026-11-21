@@ -4,7 +4,7 @@
 #
 # Logit-parity comparator for the xllama harness. Diffs two float32 logit dumps
 # produced by `xllama-cli --dump-logits` (or the on-device ORT path) and decides
-# PASS/FAIL against tolerance thresholds. Self-contained: only numpy required.
+# PASS/FAIL against tolerance thresholds. NumPy is the only external dependency.
 #
 # Usage:
 #   scripts/compare-logits.py <a.bin> <b.bin> [--max-abs-diff F] [--nmse F]
@@ -29,6 +29,8 @@ import sys
 from pathlib import Path
 
 import numpy as np
+
+from logit_comparison import compare_logits
 
 
 def load_sidecar(bin_path: Path):
@@ -110,36 +112,20 @@ def main() -> int:
             print(f"❌ NOK: sidecar {key} mismatch; parity not computable")
             return 1
 
-    # --- index-wise metrics --------------------------------------------------
-    diff = a - b
-    max_abs = float(np.max(np.abs(diff))) if a.size else 0.0
-    denom = float(np.dot(a, a))
-    nmse = float(np.dot(diff, diff) / denom) if denom > 0 else float("inf")
-
+    metrics = compare_logits(a, b, args.top_k)
     k = min(args.top_k, a.size)
-    top_a = set(np.argsort(a)[-k:].tolist())
-    top_b = set(np.argsort(b)[-k:].tolist())
-    overlap = len(top_a & top_b) / k if k else 1.0
-    top1_match = int(np.argmax(a)) == int(np.argmax(b))
-
-    print(f"  max_abs_diff : {max_abs:.6f}   (thr ≤ {args.max_abs_diff})")
-    print(f"  nmse         : {nmse:.3e}   (thr ≤ {args.nmse})")
-    print(f"  top1_match   : {top1_match}")
-    print(f"  top{k}_overlap : {overlap:.2f}   (thr ≥ {args.top_k_min})")
+    print(f"  max_abs_diff : {metrics.max_abs_diff:.6f}   (thr ≤ {args.max_abs_diff})")
+    print(f"  nmse         : {metrics.nmse:.3e}   (thr ≤ {args.nmse})")
+    print(f"  top1_match   : {metrics.top1_match}")
+    print(f"  top{k}_overlap : {metrics.top_k_overlap:.2f}   (thr ≥ {args.top_k_min})")
 
     # top1_piece cross-check (detects silent index misalignment at equal size).
     pa, pb = sa.get("top1_piece"), sb.get("top1_piece")
     if pa is not None and pb is not None and pa != pb:
         print(f"  ⚠ top1_piece differ: A={pa!r} B={pb!r}")
 
-    passed = (
-        max_abs <= args.max_abs_diff
-        and math.isfinite(max_abs)
-        and math.isfinite(nmse)
-        and nmse <= args.nmse
-        and not (pa is not None and pb is not None and pa != pb)
-        and top1_match
-        and overlap >= args.top_k_min
+    passed = metrics.passes(args.max_abs_diff, args.nmse, args.top_k_min) and not (
+        pa is not None and pb is not None and pa != pb
     )
     print("✅ PASS" if passed else "❌ FAIL")
     return 0 if passed else 1
