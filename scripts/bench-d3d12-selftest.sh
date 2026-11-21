@@ -113,7 +113,7 @@ for r in bad:
     print(f"FAIL {r['type']} n={r['n']} k={r['k']} ncols={r['ncols']} rel_err={r['rel_err']} {r['error']}")
 for r in slow:
     print(f"SLOW {r['type']} n={r['n']} k={r['k']} gbs={r['packed_gbs']}")
-require_bias_add = sys.argv[2] == "1"
+require_bias_add = sys.argv[2:] == ["1"]
 bias_add_first = bool(rows) and rows[0]["type"] == "add_f32"
 if require_bias_add and not bias_add_first:
     print("FAIL the first selftest row must be add_f32")
