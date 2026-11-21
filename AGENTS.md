@@ -144,7 +144,7 @@ python3 -m unittest tests/test_validate_benchmark.py tests/test_benchmark_sideca
 The numerical comparator tests need numpy (and `pyyaml` for gguf-py in `test_make_moe_fixture.py`), which CI installs for them:
 
 ```bash
-python3 -m unittest tests/test_compare_logits.py tests/test_compare_tensors.py \
+python3 -m unittest tests/test_compare_logits.py tests/test_verify_moe_parity.py tests/test_compare_tensors.py \
   tests/test_control_parity.py tests/test_check_matmul_reference.py \
   tests/test_paired_bench_summary.py tests/test_make_moe_fixture.py
 ```

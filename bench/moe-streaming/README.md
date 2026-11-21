@@ -91,4 +91,58 @@ GGML_CPU_DISABLE_FUSION=1 "$moe_output/resident-reference" \
   bench/moe-streaming/prompts/{greeting-ru,arithmetic-it,code-en,prose-it}.txt
 ```
 
-Use a fresh output directory for each run and retain it only after a successful exit. Each case contains the rendered text, token IDs and one complete little-endian float32 vocabulary row per declared step on the x86-64 host. Step zero is the end of prefill. Later steps count continuation IDs already fed to the context. The raw files stay outside version control. For each case, compare the token IDs and SHA-256 hashes with the declaration before using a regenerated reference for candidate evaluation. When pairing the rows, use the declared GGUF tokenizer/vocabulary hash rules for both arms and put those identities in the comparator sidecars.
+Use a fresh output directory for each run and retain it only after a successful exit. Each case contains the rendered text, token IDs and one complete little-endian float32 vocabulary row per declared step on the x86-64 host. Step zero is the end of prefill. Later steps count continuation IDs already fed to the context. The raw files stay outside version control. For each case, compare the token IDs and SHA-256 hashes with the declaration before using a regenerated reference for candidate evaluation. Bind streamed rows to the tokenizer and vocabulary using the hash rules in the declaration.
+
+## Verifying the 8B reference and streamed parity
+
+Use Python with NumPy. Keep the row directories unchanged after capture.
+The verifier reads the resident export directly.
+
+```bash
+python3 scripts/verify-moe-parity.py bench/moe-streaming/parity-preparation-8b.json \
+  /path/to/resident --reference-only
+```
+
+The verifier checks `chat-template.jinja`, each case's `rendered.txt` and
+`tokens.json`, and every `<case>/row-<step>.bin` against the declaration.
+`REFERENCE_VERIFIED` certifies the resident inputs only.
+
+Once the native CPU candidate and both cache captures are available:
+
+```bash
+python3 scripts/verify-moe-parity.py bench/moe-streaming/parity-preparation-8b.json \
+  /path/to/resident --streamed-2 /path/to/cache-2 --streamed-512 /path/to/cache-512 \
+  --receipt /path/to/receipt.json
+```
+
+Each streamed row requires a sibling `row-<step>.bin.json` sidecar with
+`checkpoint_sha256`, `template_sha256`, `tokenizer_sha256`, `vocab_sha256`,
+`vocab_size`, the rendered `prompt`, `prompt_token_ids`, and
+`fed_continuation_token_ids` for the first _step_ continuation IDs (empty at
+prefill). It also carries `candidate_commit`, integer `cache_slots`,
+`build_sha256` and `row_sha256`. The receipt is a JSON object with:
+
+- `schema` set to `xllama-moe-parity-receipt-v1`.
+- `declaration_sha256` set to the digest of the declaration file as used for the run.
+- `candidate_commit` set to the full native CPU candidate SHA.
+- `cpu_kernel_review` set to the reference to the review of kernel equivalence.
+- `cpu_settings` with the actual shared `platform`, `cpu`, `compiler`, `cmake`
+  and `environment` from the resident build record, plus `threads`, `context`,
+  `n_batch` and `n_ubatch` from execution and `repacking` and `flash_attention`
+  both set to false. The verifier checks the recorded settings. The review
+  must establish that the candidate dispatches the same kernels.
+- `streamed_build_sha256` mapping the keys `"2"` and `"512"` to the SHA-256 of
+  the actual streamed build artifacts or their build receipts. Use the same
+  digest in the corresponding per-row sidecars. A shared binary can have the same digest in both profiles.
+
+Treat the receipt as a maintainer attestation. Review the source and build artifacts before signing off on kernel equivalence. The verifier checks consistency between that receipt, the declaration and the row sidecars.
+
+The verifier checks all inputs before comparing the 48 pairs with the declared
+thresholds. For a valid CLI invocation, the JSON report on stdout lists outcomes
+in cache, case and step order, along with the receipt and streamed build hashes.
+It reports `max_abs_diff`, `nmse`, `top1_match` and `top_k_overlap` for each
+pair. A zero reference has NMSE zero for an identical row. For any nonzero
+candidate against a zero reference, the report uses JSON `null` for NMSE and
+marks the pair `FAIL`. Exit 0 means the requested check passed, 1 means
+numerical divergence, and 2 means invalid input or provenance. Keep the report
+with the candidate receipt and raw captures.
