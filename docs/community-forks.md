@@ -8,24 +8,30 @@ vetax-by and EgbertJiang were reviewed on 2026-11-15 against `main` `289b51b`
 by reading their diffs; nothing from either fork was built or run.
 All forks keep the MIT licence.
 
-| Fork                                               | Taken                                                     | Not taken                                            |
-| -------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------- |
-| [SamirCharleston](#samircharleston-vision-spike)   | llama.cpp warnings on every load (credited in the commit) | batch cap, repack opt-out, mmap revival, vision code |
-| [bjoern2088](#bjoern2088-xbox-one-x)               | —                                                         | Xbox One X port                                      |
-| [http-hadi](#http-hadi-d3d12f)                     | evidence for [#273], [#274], [#275] and the [#313] design | the vendored D3D12F backend                          |
-| miguelenes                                         | already in `main` (#261, `4100bc2`)                       | —                                                    |
-| nyzxor, hjotha, mr-wfj                             | —                                                         | no commits ahead                                     |
-| [maxmorrison74](#maxmorrison74-xllama-on-steroids) | optional debug dashboard idea (rebuilt in-tree)           | rebrand, background, soundtrack, footer credit       |
-| [vetax-by](#vetax-by-demand-loaded-moe-experts)    | a data point for [#273] and the SSD assessment            | the expert-loading runtime and its llama.cpp patches |
-| [EgbertJiang](#egbertjiang-xbox-one-s)             | Gemma 4 chat template (rebuilt in-tree, credited)         | Xbox One S port, `/chat` page, second model root     |
+| Fork                                               | Taken                                                                                   | Not taken                                            |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| [SamirCharleston](#samircharleston-vision-spike)   | llama.cpp warnings on every load (credited in the commit)                               | batch cap, repack opt-out, mmap revival, vision code |
+| [bjoern2088](#bjoern2088-xbox-one-x)               | —                                                                                       | Xbox One X port                                      |
+| [http-hadi](#http-hadi-d3d12f)                     | evidence for [#273], [#274], [#275] and the [#313] design                               | the vendored D3D12F backend                          |
+| miguelenes                                         | already in `main` (#261, `4100bc2`)                                                     | —                                                    |
+| nyzxor, hjotha, mr-wfj                             | —                                                                                       | no commits ahead                                     |
+| [maxmorrison74](#maxmorrison74-xllama-on-steroids) | optional debug dashboard idea (rebuilt in-tree)                                         | rebrand, background, soundtrack, footer credit       |
+| [Chorss](#november-21-contributor-updates)         | opt-in F32 bias ADD on D3D12 ([#504](https://github.com/gianlucamazza/xllama/pull/504)) | —                                                    |
+| [vetax-by](#vetax-by-demand-loaded-moe-experts)    | a data point for [#273] and the SSD assessment                                          | the expert-loading runtime and its llama.cpp patches |
+| [EgbertJiang](#egbertjiang-xbox-one-s)             | Gemma 4 chat template (rebuilt in-tree, credited)                                       | Xbox One S port, `/chat` page, second model root     |
 
 ## November 21 contributor updates
 
-- **Chorss.** [PR #504](https://github.com/gianlucamazza/xllama/pull/504)
-  is open against upstream `20418229`. At [fe16c71](https://github.com/Chorss/xllama/commit/fe16c71f9cf196d8130d9440e031e0c0c1e466a8)
-  it adds opt-in F32 projection bias ADD on D3D12. Chorss reports paired
-  decode measurements and logit parity on Series X. The Series S campaign
-  is pending in [#503](https://github.com/gianlucamazza/xllama/issues/503).
+- **Chorss.** The initial fork review on 2026-11-21 inspected
+  [`fe16c71`](https://github.com/Chorss/xllama/commit/fe16c71f9cf196d8130d9440e031e0c1e466a8)
+  against upstream `20418229`. The fork at that revision included opt-in
+  F32 projection bias ADD on D3D12. Chorss reported paired decode
+  measurements and logit parity on Series X from a build of `b81b676`.
+  Upstream validated the updated implementation on Series S before merging
+  it as [`31af4f0`](https://github.com/gianlucamazza/xllama/commit/31af4f05f35ae079623375c02ae9fe1cb326a5eb).
+  The [Series S acceptance record in PR #504](https://github.com/gianlucamazza/xllama/pull/504)
+  covers the console self-tests, bit-for-bit logit parity and the paired
+  campaign proposed in [#503](https://github.com/gianlucamazza/xllama/issues/503).
 - **Christopher Bearman.** The [pinned diff](https://github.com/gianlucamazza/xllama/compare/20418229eb7f0bfc9761524be062aba131700336...christopherbearman:bbf0104b7caa9096c48d014c3b983d0f98d29dce)
   spans 25 commits ahead of upstream `20418229`. It adds quantized D3D12
   shaders, a browser chat UI and an LCM diffusion scheduler. The
@@ -105,8 +111,8 @@ disabling repack.
 - the d3d12 shaders rebuilt as `cs_5_1` DXBC through fxc;
 - `dot4add_i8packed` replaced by a scalar multiply-add.
 
-No result on an Xbox One was published. The product targets Xbox Series S
-consoles (not yet tested on Series X; see [positioning.md](positioning.md)).
+No result on an Xbox One was published. See [positioning.md](positioning.md)
+for the project's current console targets.
 Taken into the shipping build, these flags
 would cost Series S its AVX2 CPU kernels and the SM 6.4 packed dot used by
 the measured GPU decode; a separate SKU would not, but it would be a second
