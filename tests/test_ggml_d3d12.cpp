@@ -708,6 +708,9 @@ TEST_CASE("ggml_d3d12: ROPE rules") {
     t.src0_type = GGML_TYPE_F16;
     CHECK_FALSE(d3d12_rope_supported(t));
     t = d;
+    t.src0_in_weight_buffer = true; // D3D12_Weights has no UAV flag
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t = d;
     t.dst_type = GGML_TYPE_F16;
     CHECK_FALSE(d3d12_rope_supported(t));
     t = d;

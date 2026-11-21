@@ -171,6 +171,10 @@ struct D3d12RopeDesc {
     bool same_shape = true; // dst has src0's shape
     bool src0_contiguous = true;
     bool dst_contiguous = true;
+    // D3D12_Weights has no UAV flag, and the kernel binds src0 as a UAV: a
+    // weight-buffer activation is refused (D3D12_Host and other host buffers
+    // are fine; the latter are staged).
+    bool src0_in_weight_buffer = false;
     ggml_type pos_type = GGML_TYPE_I32;
     std::int64_t ne_pos = 0; // positions
     bool has_freq_factors = false;
