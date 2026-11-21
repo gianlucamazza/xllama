@@ -137,6 +137,30 @@ class D3d12SelftestExitTests(unittest.TestCase):
                     self.assertEqual(result.returncode, 0 if passed else 1, result.stderr)
                     self.assertIn("GATE=" + ("PASS" if passed else "FAIL"), result.stdout)
 
+    def test_require_rope_needs_ten_rows_starting_with_the_neox_decode_row(self):
+        script = (ROOT / "scripts/bench-d3d12-selftest.sh").read_text()
+        gate = script.split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
+        base = dict(n="128", k="16", ncols="1", rel_err="0", gpu_ms="0.1", packed_gbs="0",
+                    ok="1", d3d12_ran="1", error="-")
+        full = [dict(base, type="rope_neox")] + [
+            dict(base, type=t, ncols=c) for t in ("rope_neox", "rope_norm") for c in ("1", "1", "512", "7", "3")
+        ][1:]
+        self.assertEqual(len(full), 10)
+        misordered = [dict(full[1], type="rope_norm", ncols="512")] + full[1:] + [dict(full[0])]
+        cases = [(full, True), (full[:9], False), (misordered[:10], False),
+                 ([dict(full[0], ncols="512")] + full[1:], False)]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "rows.csv"
+            for rows, passed in cases:
+                with self.subTest(first=rows[0]["type"], count=len(rows), passed=passed):
+                    with path.open("w", newline="") as stream:
+                        writer = csv.DictWriter(stream, fieldnames=list(base) + ["type"])
+                        writer.writeheader()
+                        writer.writerows(rows)
+                    result = subprocess.run([sys.executable, "-c", gate, str(path), "0", "1"],
+                                            text=True, capture_output=True)
+                    self.assertEqual(result.returncode, 0 if passed else 1, result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

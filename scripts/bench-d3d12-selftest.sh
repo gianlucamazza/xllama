@@ -7,7 +7,8 @@
 # (ncols=1) cases at >= 100 GB/s packed (GPU timestamps; the CPU-side q8
 # quantization shows in the end-to-end bench, not here).
 # --require-bias-add also requires a successful first ADD with cold scratch.
-# --require-rope requires the ten rope_* rows (d3d12-rope.txt = 1); they are
+# --require-rope requires the ten rope_* rows (d3d12-rope.txt = 1), the first of
+# them run with a cold scratch buffer (log line "rope cold_scratch=1"); they are
 # correctness rows, so the decode bandwidth floor does not apply to them.
 #
 # Prerequisites: CI MSVC package (unified or llamacpp) installed on Series S.
@@ -73,7 +74,7 @@ trap 'rm -rf "$TMP"' EXIT
 "${SCRIPT_DIR}/deploy.sh" upload-file "$TMP/d3d12be.flag" "$PFN" "" "d3d12be.flag"
 "${SCRIPT_DIR}/deploy.sh" stop-app || true
 log_lines=0
-if ((REQUIRE_BIAS_ADD)); then
+if ((REQUIRE_BIAS_ADD || REQUIRE_ROPE)); then
 	"${SCRIPT_DIR}/deploy.sh" get-log "$PFN" >"$TMP/before.log"
 	log_lines=$(wc -l <"$TMP/before.log")
 fi
@@ -106,6 +107,13 @@ if ((REQUIRE_BIAS_ADD)); then
 		exit 1
 	fi
 fi
+if ((REQUIRE_ROPE)); then
+	"${SCRIPT_DIR}/deploy.sh" get-log "$PFN" | tail -n "+$((log_lines + 1))" >"$TMP/after-rope.log"
+	if ! grep -aF '[xllama] d3d12be: rope cold_scratch=1' "$TMP/after-rope.log" >/dev/null; then
+		echo "GATE=FAIL (first cold ROPE marker missing from this run)" >&2
+		exit 1
+	fi
+fi
 
 python3 - "$OUT" "$REQUIRE_BIAS_ADD" "$REQUIRE_ROPE" <<'PY'
 import csv, math, sys
@@ -127,10 +135,11 @@ bias_add_first = bool(rows) and rows[0]["type"] == "add_f32"
 if require_bias_add and not bias_add_first:
     print("FAIL the first selftest row must be add_f32")
 rope_rows = [r for r in rows if r["type"].startswith("rope_")]
-if require_rope and len(rope_rows) != 10:
-    print(f"FAIL expected 10 rope_* rows, found {len(rope_rows)}")
+rope_ok = len(rope_rows) == 10 and rope_rows[0]["type"] == "rope_neox" and rope_rows[0]["ncols"] == "1"
+if require_rope and not rope_ok:
+    print(f"FAIL expected 10 rope_* rows, the first a rope_neox decode row; found {len(rope_rows)}")
 passed = (bool(rows) and not bad and not slow and (not require_bias_add or bias_add_first) and
-          (not require_rope or len(rope_rows) == 10))
+          (not require_rope or rope_ok))
 print("GATE=" + ("PASS" if passed else "FAIL"))
 sys.exit(0 if passed else 1)
 PY

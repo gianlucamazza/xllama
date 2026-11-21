@@ -2255,6 +2255,15 @@ D3d12SelftestRow run_get_rows_case(ggml_backend_t backend, int n, int k) {
     return row;
 }
 
+// "cold_scratch=1" means no op has allocated the staging buffer yet: the op
+// about to run is the first one to reach it, and bench-d3d12-selftest.sh gates on it.
+void log_cold_scratch(const char* what) {
+    Gpu& g = gpu();
+    std::lock_guard<std::mutex> lock(g.mu);
+    log_output(std::string("[xllama] d3d12be: ") + what + " cold_scratch=" + (g.xq ? "0" : "1") +
+               "\n");
+}
+
 // Run before the staged cases so a direct ADD cannot rely on an existing scratch buffer.
 D3d12SelftestRow run_bias_add_case(ggml_backend_t backend) {
     constexpr int width = 129;
@@ -2297,12 +2306,7 @@ D3d12SelftestRow run_bias_add_case(ggml_backend_t backend) {
     ggml_backend_tensor_set(input, input_values, 0, sizeof(input_values));
     ggml_cgraph* graph = ggml_new_graph(activations.get());
     ggml_build_forward_expand(graph, output);
-    {
-        Gpu& g = gpu();
-        std::lock_guard<std::mutex> lock(g.mu);
-        log_output(g.xq ? "[xllama] d3d12be: bias ADD cold_scratch=0\n"
-                        : "[xllama] d3d12be: bias ADD cold_scratch=1\n");
-    }
+    log_cold_scratch("bias ADD");
     row.d3d12_ran = ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS;
     if (!row.d3d12_ran) {
         row.error = "graph_compute failed";
@@ -2459,6 +2463,12 @@ void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
     ggml_backend_t backend = dev_init_backend(&kDevice, nullptr);
     if (gpu().bias_add)
         out->push_back(run_bias_add_case(backend));
+    // The first ROPE of the process, before any matmul has allocated the staging
+    // buffer: its cos/sin table is the first thing staged there.
+    if (gpu().rope) {
+        log_cold_scratch("rope");
+        out->push_back(run_rope_case(backend, kD3d12RopeModeNeox, false, 128, 16, 1, 128));
+    }
     // Shapes of the D2 target models; q6_k 2048x11008 has 2-byte-aligned rows.
     const SelftestCase cases[] = {
         {GGML_TYPE_Q4_0, "q4_0", 8192, 2048, 1},   {GGML_TYPE_Q4_0, "q4_0", 2048, 8192, 1},
@@ -2477,7 +2487,8 @@ void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
     for (const int mode : {kD3d12RopeModeNeox, kD3d12RopeModeNormal}) {
         if (!gpu().rope)
             break;
-        out->push_back(run_rope_case(backend, mode, false, 128, 16, 1, 128));
+        if (mode != kD3d12RopeModeNeox) // the NEOX decode q row ran first, above
+            out->push_back(run_rope_case(backend, mode, false, 128, 16, 1, 128));
         out->push_back(run_rope_case(backend, mode, false, 128, 2, 1, 128));
         out->push_back(run_rope_case(backend, mode, false, 128, 2, 512, 128));
         out->push_back(run_rope_case(backend, mode, true, 128, 16, 7, 128));
