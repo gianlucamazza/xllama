@@ -91,51 +91,21 @@ GGML_CPU_DISABLE_FUSION=1 "$moe_output/resident-reference" \
   bench/moe-streaming/prompts/{greeting-ru,arithmetic-it,code-en,prose-it}.txt
 ```
 
-Use a fresh output directory for each run and retain it only after a successful exit. Each case contains the rendered text, token IDs and one complete little-endian float32 vocabulary row per declared step on the x86-64 host. Step zero is the end of prefill. Later steps count continuation IDs already fed to the context. The raw files stay outside version control. For each case, compare the token IDs and SHA-256 hashes with the declaration before using a regenerated reference for candidate evaluation. When pairing the rows, use the declared GGUF tokenizer/vocabulary hash rules for both arms and put those identities in the comparator sidecars.
+Use a fresh output directory for each run and retain it only after a successful exit. Each case contains the rendered text, token IDs and one complete little-endian float32 vocabulary row per declared step on the x86-64 host. Step zero is the end of prefill. Later steps count continuation IDs already fed to the context. The raw files stay outside version control. For each case, compare the token IDs and SHA-256 hashes with the declaration before using a regenerated reference for candidate evaluation. Bind streamed rows to the tokenizer and vocabulary using the hash rules in the declaration.
 
 ## Verifying the 8B reference and streamed parity
 
-Use Python with NumPy. Keep the row directories unchanged after capture. They use
-`<case>/row-<step>.bin` and `row-<step>.bin.json` for each declared case and step.
+Use Python with NumPy. Keep the row directories unchanged after capture.
+The verifier reads the resident export directly.
 
 ```bash
 python3 scripts/verify-moe-parity.py bench/moe-streaming/parity-preparation-8b.json \
   /path/to/resident --reference-only
 ```
 
-Each sidecar carries `checkpoint_sha256`, `template_sha256`, `tokenizer_sha256`,
-`vocab_sha256` and `vocab_size` from the actual capture. For the resident exporter,
-use the contents of `rendered.txt` as `prompt`, take `prompt_token_ids` from
-`tokens.json`, and set `fed_continuation_token_ids` to the first _step_ IDs of
-`teacher_forced_token_ids` from that file. At prefill this list is empty. The
-verifier checks the rendered text, token IDs and each resident row against the
-declaration. `REFERENCE_VERIFIED` certifies the resident inputs only.
-
-Generate the sidecars for fresh exporter output after verifying the input
-checkpoint against the declaration as described above:
-
-```bash
-python3 - bench/moe-streaming/parity-preparation-8b.json /path/to/resident <<'PYTHON'
-import json
-from pathlib import Path
-import sys
-
-declaration = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-identity = {key: declaration[key] for key in ("template_sha256", "tokenizer_sha256", "vocab_sha256")}
-identity["checkpoint_sha256"] = declaration["checkpoint"]["sha256"]
-for case in declaration["cases"]:
-    directory = Path(sys.argv[2]) / case["id"]
-    tokens = json.loads((directory / "tokens.json").read_text(encoding="utf-8"))
-    prompt = (directory / "rendered.txt").read_bytes().decode("utf-8")
-    for step in declaration["execution"]["reference_rows_after_feeding"]:
-        sidecar = {
-            **identity, "prompt": prompt, "vocab_size": tokens["vocab_size"],
-            "prompt_token_ids": tokens["prompt_token_ids"],
-            "fed_continuation_token_ids": tokens["teacher_forced_token_ids"][:step],
-        }
-        (directory / f"row-{step}.bin.json").write_text(json.dumps(sidecar), encoding="utf-8")
-PYTHON
-```
+The verifier checks `chat-template.jinja`, each case's `rendered.txt` and
+`tokens.json`, and every `<case>/row-<step>.bin` against the declaration.
+`REFERENCE_VERIFIED` certifies the resident inputs only.
 
 Once the native CPU candidate and both cache captures are available:
 
@@ -145,8 +115,12 @@ python3 scripts/verify-moe-parity.py bench/moe-streaming/parity-preparation-8b.j
   --receipt /path/to/receipt.json
 ```
 
-Each streamed sidecar also records `candidate_commit`, integer `cache_slots`,
-`build_sha256` and the captured `row_sha256`. The receipt is a JSON object with:
+Each streamed row requires a sibling `row-<step>.bin.json` sidecar with
+`checkpoint_sha256`, `template_sha256`, `tokenizer_sha256`, `vocab_sha256`,
+`vocab_size`, the rendered `prompt`, `prompt_token_ids`, and
+`fed_continuation_token_ids` for the first _step_ continuation IDs (empty at
+prefill). It also carries `candidate_commit`, integer `cache_slots`,
+`build_sha256` and `row_sha256`. The receipt is a JSON object with:
 
 - `schema` set to `xllama-moe-parity-receipt-v1`.
 - `declaration_sha256` set to the digest of the declaration file as used for the run.
@@ -164,7 +138,11 @@ Each streamed sidecar also records `candidate_commit`, integer `cache_slots`,
 Treat the receipt as a maintainer attestation. Review the source and build artifacts before signing off on kernel equivalence. The verifier checks consistency between that receipt, the declaration and the row sidecars.
 
 The verifier checks all inputs before comparing the 48 pairs with the declared
-thresholds. For a valid CLI invocation, the JSON report on stdout lists outcomes in cache, case and step
-order, along with the receipt and streamed build hashes. Exit 0 means the requested check passed, 1 means numerical divergence,
-and 2 means invalid input or provenance. Keep the report with the candidate
-receipt and raw captures.
+thresholds. For a valid CLI invocation, the JSON report on stdout lists outcomes
+in cache, case and step order, along with the receipt and streamed build hashes.
+It reports `max_abs_diff`, `nmse`, `top1_match` and `top_k_overlap` for each
+pair. A zero reference has NMSE zero for an identical row. For any nonzero
+candidate against a zero reference, the report uses JSON `null` for NMSE and
+marks the pair `FAIL`. Exit 0 means the requested check passed, 1 means
+numerical divergence, and 2 means invalid input or provenance. Keep the report
+with the candidate receipt and raw captures.

@@ -6,16 +6,15 @@
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
 import re
-import subprocess
-import sys
-import tempfile
 
 import numpy as np
 
 
-COMPARATOR = Path(__file__).with_name("compare-logits.py")
+from logit_comparison import compare_logits
+
 STEPS = [0, 1, 2, 3, 5, 9]
 CACHES = [2, 512]
 STRICT_COMPARISON = {
@@ -139,61 +138,71 @@ def validate_receipt(receipt, declaration, declaration_hash):
     return candidate, builds
 
 
-def validate_row(path, case, step, identity, streamed):
-    _, sidecar = read_object(path.with_suffix(".bin.json"))
-    for key, expected in {
-        **identity,
-        "vocab_size": case["vocab_size"],
-        "prompt_token_ids": case["prompt_token_ids"],
-        "fed_continuation_token_ids": case["teacher_forced_token_ids"][:step],
-        **streamed,
-    }.items():
-        require_value(sidecar.get(key), expected, f"{path}: sidecar {key}")
-    prompt = sidecar.get("prompt")
-    require(isinstance(prompt, str) and digest(prompt.encode("utf-8")) == case["rendered_prompt_sha256"],
-            f"{path}: rendered prompt hash mismatch")
+def load_row(path, vocab_size, expected_hash):
     raw = path.read_bytes()
-    require(len(raw) == case["vocab_size"] * 4, f"{path}: expected one full float32 vocabulary row")
-    require(np.isfinite(np.frombuffer(raw, dtype="<f4")).all(), f"{path}: nonfinite logits")
-    expected = sidecar.get("row_sha256") if streamed else case["resident_row_sha256_by_fed_tokens"][str(step)]
-    require_value(digest(raw), expected, f"{path}: row SHA-256")
-    return raw
+    require(len(raw) == vocab_size * 4, f"{path}: expected one full float32 vocabulary row")
+    values = np.frombuffer(raw, dtype="<f4")
+    require(np.isfinite(values).all(), f"{path}: nonfinite logits")
+    require_value(digest(raw), expected_hash, f"{path}: row SHA-256")
+    return values
 
 
-def validate_arm(directory, declaration, identity, streamed, snapshot=None):
-    for case in declaration["cases"]:
+def load_reference(directory, cases, template_hash):
+    template = directory / "chat-template.jinja"
+    require_value(digest(template.read_bytes()), template_hash, f"{template}: template SHA-256")
+    rows = {}
+    for case in cases:
         name = case["id"]
-        if snapshot is not None:
-            (snapshot / name).mkdir(parents=True)
+        rendered = directory / name / "rendered.txt"
+        require_value(digest(rendered.read_bytes()), case["rendered_prompt_sha256"],
+                      f"{rendered}: rendered prompt SHA-256")
+        metadata = directory / name / "tokens.json"
+        _, tokens = read_object(metadata)
+        for key in ("vocab_size", "bos_token_id", "prompt_token_ids", "teacher_forced_token_ids"):
+            require_value(tokens.get(key), case[key], f"{metadata}: {key}")
         for step in STEPS:
-            file = f"row-{step}.bin"
-            raw = validate_row(directory / name / file, case, step, identity, streamed)
-            if snapshot is not None:
-                (snapshot / name / file).write_bytes(raw)
+            path = directory / name / f"row-{step}.bin"
+            rows[name, step] = load_row(
+                path, case["vocab_size"], case["resident_row_sha256_by_fed_tokens"][str(step)],
+            )
+    return rows
 
 
-def compare(declaration, reference, streamed):
-    flags = [
-        value for key in ("max_abs_diff", "nmse", "top_k", "top_k_min")
-        for value in ("--" + key.replace("_", "-"), str(declaration["comparison"][key]))
-    ]
+def load_streamed(directory, cases, identity):
+    rows = {}
+    for case in cases:
+        name = case["id"]
+        for step in STEPS:
+            path = directory / name / f"row-{step}.bin"
+            _, sidecar = read_object(path.with_suffix(".bin.json"))
+            for key, expected in {
+                **identity,
+                "vocab_size": case["vocab_size"],
+                "prompt_token_ids": case["prompt_token_ids"],
+                "fed_continuation_token_ids": case["teacher_forced_token_ids"][:step],
+            }.items():
+                require_value(sidecar.get(key), expected, f"{path}: sidecar {key}")
+            prompt = sidecar.get("prompt")
+            require(isinstance(prompt, str) and digest(prompt.encode("utf-8")) == case["rendered_prompt_sha256"],
+                    f"{path}: rendered prompt hash mismatch")
+            rows[name, step] = load_row(path, case["vocab_size"], sidecar.get("row_sha256"))
+    return rows
+
+
+def compare_campaign(reference, streamed, thresholds):
     results = []
-    for cache, directory in streamed.items():
-        for case in declaration["cases"]:
-            name = case["id"]
-            for step in STEPS:
-                row = Path(name) / f"row-{step}.bin"
-                proc = subprocess.run(
-                    [sys.executable, str(COMPARATOR), str(reference / row), str(directory / row), *flags],
-                    capture_output=True, text=True, check=False,
-                )
-                require(proc.returncode in (0, 1),
-                        f"comparator error for cache {cache}, {row}: {(proc.stderr or proc.stdout).strip()}")
-                results.append({
-                    "case": name, "step": step, "cache_slots": cache,
-                    "status": "FAIL" if proc.returncode else "PASS",
-                    "comparator_output": "\n".join(proc.stdout.splitlines()[2:]),
-                })
+    for cache, rows in streamed.items():
+        for (case, step), candidate in rows.items():
+            metrics = compare_logits(reference[case, step], candidate, thresholds["top_k"])
+            passed = metrics.passes(thresholds["max_abs_diff"], thresholds["nmse"], thresholds["top_k_min"])
+            results.append({
+                "case": case, "step": step, "cache_slots": cache,
+                "status": "PASS" if passed else "FAIL",
+                "max_abs_diff": metrics.max_abs_diff,
+                "nmse": metrics.nmse if math.isfinite(metrics.nmse) else None,
+                "top1_match": metrics.top1_match,
+                "top_k_overlap": metrics.top_k_overlap,
+            })
     return results
 
 
@@ -222,10 +231,10 @@ def main():
         declaration_hash = digest(raw)
         identity = validate_declaration(declaration)
         report["declaration_sha256"] = declaration_hash
-        resident_rows = len(declaration["cases"]) * len(STEPS)
+        cases = declaration["cases"]
+        reference = load_reference(args.resident, cases, identity["template_sha256"])
+        report["resident_rows"] = len(reference)
         if args.reference_only:
-            validate_arm(args.resident, declaration, identity, {})
-            report["resident_rows"] = resident_rows
             report["status"], code = "REFERENCE_VERIFIED", 0
         else:
             receipt_raw, receipt = read_object(args.receipt)
@@ -233,26 +242,22 @@ def main():
             report.update(
                 candidate_commit=candidate, receipt_sha256=digest(receipt_raw), streamed_build_sha256=builds,
             )
-            # Compare the bytes just verified. Optional sidecar annotations and
-            # later changes to the source files cannot affect the verdict.
-            with tempfile.TemporaryDirectory(prefix="xllama-moe-parity-") as snapshot:
-                root = Path(snapshot)
-                reference = root / "resident"
-                validate_arm(args.resident, declaration, identity, {}, reference)
-                report["resident_rows"] = resident_rows
-                copies = {cache: root / str(cache) for cache in streamed}
-                for cache, directory in streamed.items():
-                    validate_arm(directory, declaration, identity, {
-                        "candidate_commit": candidate, "cache_slots": cache,
-                        "build_sha256": builds[str(cache)],
-                    }, copies[cache])
-                report["pairs"] = compare(declaration, reference, copies)
+            # The row arrays retain the immutable bytes checked by the loaders.
+            # Complete preflight before comparing any pair.
+            captures = {
+                cache: load_streamed(directory, cases, {
+                    **identity, "candidate_commit": candidate, "cache_slots": cache,
+                    "build_sha256": builds[str(cache)],
+                })
+                for cache, directory in streamed.items()
+            }
+            report["pairs"] = compare_campaign(reference, captures, declaration["comparison"])
             passed = all(result["status"] == "PASS" for result in report["pairs"])
             report["status"], code = ("PASS", 0) if passed else ("FAIL", 1)
     except (OSError, ValueError, TypeError, KeyError) as error:
         report["status"], code = "INVALID_INPUT", 2
         report["error"] = str(error)
-    print(json.dumps(report, indent=2))
+    print(json.dumps(report, indent=2, allow_nan=False))
     return code
 
 

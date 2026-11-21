@@ -36,6 +36,32 @@ class CompareLogitsTests(unittest.TestCase):
     def test_identical_valid_dump_passes(self):
         self.assertEqual(self.run_gate().returncode, 0)
 
+    def test_zero_reference_has_defined_exact_match(self):
+        np.zeros(3, dtype=np.float32).tofile(self.a)
+        np.zeros(3, dtype=np.float32).tofile(self.b)
+        options = ("--max-abs-diff", "0", "--nmse", "0")
+        result = self.run_gate(*options)
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn("0.000e+00", result.stdout)
+        np.array([0., 0., 1.], dtype=np.float32).tofile(self.b)
+        result = self.run_gate(*options)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("nmse         : inf", result.stdout)
+
+    def test_finite_float32_extremes_use_float64_metrics(self):
+        tiny = np.nextafter(np.float32(0), np.float32(1))
+        np.array([tiny, -tiny], dtype=np.float32).tofile(self.a)
+        np.array([tiny, -tiny], dtype=np.float32).tofile(self.b)
+        result = self.run_gate("--max-abs-diff", "0", "--nmse", "0")
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+        large = np.finfo(np.float32).max
+        np.array([large, 0.], dtype=np.float32).tofile(self.a)
+        np.array([large / 2, 0.], dtype=np.float32).tofile(self.b)
+        result = self.run_gate("--max-abs-diff", str(float(large)), "--nmse", "0.25")
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn("2.500e-01", result.stdout)
+
     def test_shape_mismatch_never_passes_on_matching_piece(self):
         np.array([1., 2.], dtype=np.float32).tofile(self.b)
         for p in (self.a, self.b):
