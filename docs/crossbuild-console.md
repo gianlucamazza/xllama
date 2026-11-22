@@ -23,15 +23,15 @@ Sideload the resulting MSIX with `scripts/deploy.sh` (command-line path in
 
 End-to-end path using **uwp-crossbuild** + **openappx** (no Windows VM).
 
-**Currency:** CI shipping guidance refreshed for the 1.7.0 cut; Linux launch observations remain dated 2026-08-08.
+**Currency:** Linux launch observations date from 2026-08-08.
 
 ### One-page launch decision
 
-| Goal                               | Path                                                            | Status on Series S                                                                                                                                                                                           |
-| ---------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Ship / measure product tok/s       | CI MSVC `build-uwp` → `xllama-appx` → openappx pack/sign/deploy | **Launches** (release **v1.7.0.0**; previous tagged cut **v1.6.0.0**; exact release gate in release notes)                                                                                                   |
-| Compile + package from Linux       | uwp-crossbuild ≥ **0.5.1** + store `/MD` + dual-CRT stage       | **Launches** (observed 2026-08-08 after 0.5.1's ntdll reroutes: window activated, GGUF model loaded). Unproven: ORT/GenAI backends, first-boot provisioning, long uptime — product measurement stays CI MSVC |
-| hello-uwp / non-filesystem samples | uwp-crossbuild `/MT` or store `/MD`                             | Launches                                                                                                                                                                                                     |
+| Goal                               | Path                                                      | Status on Series S                                                                                                                                                                                           |
+| ---------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Ship / measure product tok/s       | CI MSVC `build-uwp` → `xllama-appx` → deploy              | **Launches.** See the latest app tag (`v*`) on the [releases page](https://github.com/gianlucamazza/xllama/releases) for package-bound validation.                                                           |
+| Compile + package from Linux       | uwp-crossbuild ≥ **0.5.1** + store `/MD` + dual-CRT stage | **Launches** (observed 2026-08-08 after 0.5.1's ntdll reroutes: window activated, GGUF model loaded). Unproven: ORT/GenAI backends, first-boot provisioning, long uptime — product measurement stays CI MSVC |
+| hello-uwp / non-filesystem samples | uwp-crossbuild `/MT` or store `/MD`                       | Launches                                                                                                                                                                                                     |
 
 ## Prerequisites
 
@@ -47,8 +47,8 @@ End-to-end path using **uwp-crossbuild** + **openappx** (no Windows VM).
 ## Launchable package today (shipping path)
 
 **CI MSVC (`build-uwp` → artifact `xllama-appx`) is the proven product path on
-Series S.** Release cut **v1.7.0.0**. Previous tagged cut **v1.6.0.0**. The
-GitHub release notes identify the exact tagged package and its gates.
+Series S.** The latest app tag (`v*`) on the [releases page](https://github.com/gianlucamazza/xllama/releases)
+identifies the exact MSIX and its validation gates.
 Historical pre-release console and API checks for the 1.6.0 window used MSIX
 `1.5.6.1037` and `1.5.6.1041`; see the source/package-bound
 [validation record](../bench/results/2026-09-28-console-api-validation.json).
