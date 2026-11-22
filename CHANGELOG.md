@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.8.0]
+
+User-facing notes: [docs/releases/v1.8.0.md](docs/releases/v1.8.0.md).
+
 - **Opt-in GPU bias ADD for d3d12 GGUF layers (#503).** With
   `LocalState\d3d12-bias-add.txt` set to `1`, the F32 bias ADD after a
   projection runs on the d3d12 backend, so it no longer ends the GPU split.

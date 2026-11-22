@@ -20,20 +20,20 @@ For successful requests to `POST /v1/chat/completions`, choose the response
 parser from the HTTP Content-Type. With streaming disabled, both versions
 return one JSON completion for either request type.
 
-| Request with `stream: true` | v1.7.0.0 (MSIX 1.7.0.1495)           | Development build at `20418229`                            |
+| Request with `stream: true` | v1.7.0.0 (MSIX 1.7.0.1495)           | v1.8.0.0                                                   |
 | --------------------------- | ------------------------------------ | ---------------------------------------------------------- |
 | Plain chat                  | SSE as token pieces become available | SSE as token pieces become available                       |
 | Tool proposal               | One JSON completion after generation | SSE after the complete reply has been generated and parsed |
 
-On the tagged release, an ONNX tool proposal or an oversized tool transcript
+On v1.7.0.0, an ONNX tool proposal or an oversized tool transcript
 returns HTTP 400 with `error.type` and `error.message`. Clients reading that
-package must treat `error.code` and `error.param` as optional. At `20418229`,
+package must treat `error.code` and `error.param` as optional. In v1.8.0.0,
 the ONNX case carries `tools_unsupported_for_model` and parameter `model`;
 a tool-transcript overflow carries `context_length_exceeded`, with the
 parameter present only when the server can attribute the overflow.
 
-[Tagged API contract](https://github.com/gianlucamazza/xllama/blob/v1.7.0.0/docs/api-endpoint.md) ·
-[Development changelog at 20418229](https://github.com/gianlucamazza/xllama/blob/20418229eb7f0bfc9761524be062aba131700336/CHANGELOG.md)
+[v1.7.0.0 API contract](https://github.com/gianlucamazza/xllama/blob/v1.7.0.0/docs/api-endpoint.md) ·
+[v1.8.0 release notes](releases/v1.8.0.md)
 
 ## Enabling and controlling it
 

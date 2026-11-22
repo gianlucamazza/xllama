@@ -2,11 +2,9 @@
 
 Install a tagged app release or a specific CI MSVC package on an Xbox in
 Developer Mode. Supported on Series S and Series X. The project measures on Series S; the Series X runs come from an independent tester.
-The current app release is
-[v1.7.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.7.0.0).
-Its release notes identify the exact CI package and release validation results.
-The [releases page](https://github.com/gianlucamazza/xllama/releases) also contains
-research tags, which can be newer without containing an app MSIX.
+On the [releases page](https://github.com/gianlucamazza/xllama/releases),
+look for the newest app tag (`v*`). Its notes identify the exact CI package
+and validation results. Research tags (`research-v*`) do not contain an app MSIX.
 
 Two install paths: Device Portal in a browser (no repo checkout, no
 credentials file), or the command-line `deploy.sh` path below.
@@ -26,9 +24,7 @@ This path uses the console's Device Portal in a browser and the assets on the
 repo's latest **app** GitHub Release. It does not need a clone of this
 repository or `~/.config/xllama/xbox-env`.
 
-The latest app release
-([v1.7.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.7.0.0))
-attaches these files (names from the GitHub Release API):
+The latest app release attaches these files:
 
 | Asset                             | What it is                                                                                                                                               |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -68,9 +64,7 @@ settings**.
 
 ### 3. Download the release assets
 
-From the [releases page](https://github.com/gianlucamazza/xllama/releases),
-open the latest **app** tag (currently
-[v1.7.0.0](https://github.com/gianlucamazza/xllama/releases/tag/v1.7.0.0))
+Open the newest app tag on the [releases page](https://github.com/gianlucamazza/xllama/releases)
 and download:
 
 - `xllama_*_x64.msix` (the exact name is on the release)
@@ -241,8 +235,7 @@ free by default, **expandable to 90 GB** via Dev Home → Manage Dev Storage; se
 Known issues:
 
 - **No MSIX on the release you opened.** `research-v*` tags are research
-  packages and do not attach an app MSIX. Use the latest **app** tag
-  (`v1.7.0.0` as of this writing).
+  packages. Select an app tag (`v*`) on the [releases page](https://github.com/gianlucamazza/xllama/releases).
 - **Browser warns about the Device Portal certificate.** Expected. The
   console presents a self-signed TLS certificate; accept it on first visit
   ([device-portal.md](./device-portal.md)).
