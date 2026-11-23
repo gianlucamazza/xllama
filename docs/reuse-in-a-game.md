@@ -1,7 +1,8 @@
 # Reuse in a game
 
 xllama is MIT-licensed, so a studio could reuse its inference code in its own
-game. That path isn't built or tested: today xllama is a Developer Mode app.
+game. That path isn't built or tested: today xllama runs on the console as a
+Developer Mode app.
 
 This note is the technical picture of that path. Product intent and honest
 limits live in [positioning.md](positioning.md). Public headers are summarised
@@ -85,5 +86,5 @@ or ONNX Runtime. A studio that copies inference code still owns the rest:
 - **Microsoft's certification and content rules for generative AI.** Untested.
   This project has not walked that process.
 
-Fine-tuning is not this path. Host PEFT runs on a workstation. In-app training
-is not walked end to end on a console.
+Fine-tuning is experimental: host PEFT runs on a workstation, and the in-app
+training flow is not walked end to end on a console.

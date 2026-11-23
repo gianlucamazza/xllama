@@ -1,8 +1,6 @@
 # xllama
 
-**Run local language models on your own Xbox Series S or Series X, in Developer Mode.**
-
-A free, MIT-licensed app you sideload onto the console: chat, an OpenAI-compatible API on your local network, and image generation. Inference runs on the console. Once a model is on the console, the app only goes online to download a model you don't have yet.
+xllama is a free, MIT-licensed open-source project for running local language models on Xbox Series X|S in Developer Mode. The main way to use it today is an app you sideload onto the console: chat, an OpenAI-compatible API on your local network, and image generation. Inference runs on the console. Once a model is on the console, the app only goes online to download a model you don't have yet. The first launch needs an internet connection.
 
 [![build-uwp](https://github.com/gianlucamazza/xllama/actions/workflows/build-uwp.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-uwp.yml)
 [![build-linux](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml/badge.svg)](https://github.com/gianlucamazza/xllama/actions/workflows/build-linux.yml)
@@ -19,13 +17,12 @@ On a Series S, the default model LFM2.5-350M generates text at **97.9 tok/s** (d
 
 On a Series X, measured by an independent tester (Joshua Henne / Eidon Labs Inc., xllama 1.7.0.1495, [discussion #434](https://github.com/gianlucamazza/xllama/discussions/434)), not by the project:
 
-- LFM2.5-350M, about **103 tok/s** by the app's own on-screen timing, from one short run of 31 tokens.
 - LFM2.5-350M, about **95.7 tok/s** over the local-network API end to end, averaged over ten 1024-token generations, after the app was set as a Game. Before that change, batches averaged about 35.4 to 38.8 tok/s.
 - LFM2.5-1.2B-Instruct (QAD Q4_0, CPU forced), about **37.1 tok/s** over the local-network API end to end, the average of three runs.
 
 xllama is an independent project, not affiliated with or endorsed by Microsoft.
 
-xllama is MIT-licensed, so a studio could reuse its inference code in its own game. That path isn't built or tested: today xllama is a Developer Mode app.
+xllama is MIT-licensed, so a studio could reuse its inference code in its own game. That path isn't built or tested: today xllama runs on the console as a Developer Mode app.
 
 ## Before you sideload
 
@@ -62,7 +59,7 @@ Series S, Developer Mode; not a speed claim. Provenance: [`xllama-demo-v1.5.6.mp
 - **LAN API** — OpenAI-compatible completions on your local network; **off by default and has no authentication**.
 - **Image generation** — SD-Turbo on the console. **Powered by Stability AI.**
 - **Benchmarks** — headless tok/s and platform probes on the console. See [bench/README.md](bench/README.md).
-- **Fine-tuning** — host PEFT runs on a workstation. The in-app _Train on my feedback_ flow is not walked end to end on a console.
+- **Experimental fine-tuning** — on-device last-block fine-tune, host PEFT on a workstation, and serving a merged GGUF. The in-app _Train on my feedback_ flow is not yet walked end to end on a console.
 
 ## Models and performance (Series S)
 
