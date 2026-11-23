@@ -7,6 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Hybrid-cache prefix snapshots.** GGUF sessions already reuse a supported
+  KV prefix and fall back to a full prefill when a hybrid cache (LFM2) refuses
+  a tail rewind. After each successful prefill the session now keeps an
+  in-memory prefix state (logits + memory) for hybrid/recurrent models, and
+  restores it when the next full prompt is a strict extension of that saved
+  prefix, so API and multi-turn turns re-prefill only the suffix. An exact
+  regenerate Clears and re-prefills so greedy output matches a cold run.
+  `LocalState\hybrid-prefix-snapshots.txt` = `0` opts out. Non-hybrid #170a
+  rewind is unchanged. Idea from bjoern2088, rebuilt in-tree. See
+  [session.md](docs/sdk/session.md) and
+  [architecture.md](docs/architecture.md#kv-cache-reuse-both-backends).
+
 - **Opt-in GGUF thread count for interactive sessions.**
   `LocalState\gguf_n_threads.txt`, when present and positive, sets llama.cpp
   threads for GUI and LAN API GGUF chat through the shared session resolver.

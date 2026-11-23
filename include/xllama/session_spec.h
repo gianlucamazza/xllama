@@ -67,7 +67,8 @@ inline SessionParams resolve_session_params(const std::string& model, const Cata
 inline bool same_load(const SessionParams& a, const SessionParams& b) {
     return a.model_path == b.model_path && a.backend == b.backend && a.n_ctx == b.n_ctx &&
            a.n_gpu_layers == b.n_gpu_layers && a.lora_path == b.lora_path &&
-           a.lora_scale == b.lora_scale && a.kv_q8 == b.kv_q8;
+           a.lora_scale == b.lora_scale && a.kv_q8 == b.kv_q8 &&
+           a.prefix_snapshots == b.prefix_snapshots;
 }
 
 } // namespace xllama

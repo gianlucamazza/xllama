@@ -86,20 +86,21 @@ stability, not retrieval quality or cross-platform parity.
 
 Configuration for creating a persistent session.
 
-| Field           | Default | Description                                      |
-| --------------- | ------- | ------------------------------------------------ |
-| `model_path`    | —       | Path to model                                    |
-| `n_ctx`         | 2048    | Context size                                     |
-| `n_threads`     | 0       | Thread count (0=auto)                            |
-| `n_batch`       | 0       | llama.cpp logical prefill batch (0=default 2048) |
-| `n_ubatch`      | 0       | llama.cpp physical prefill chunk (0=default 512) |
-| `backend`       | Auto    | ORTGenAI, LlamaCpp, or Auto (inspects model)     |
-| `n_gpu_layers`  | 0       | llama.cpp GPU layers (0=CPU)                     |
-| `lora_path`     | ""      | GGUF LoRA adapter                                |
-| `lora_scale`    | 1.0f    | LoRA scale                                       |
-| `kv_q8`         | false   | Quantize KV cache to q8_0                        |
-| `dml_warmup`    | true    | Warm-up DML models at load time                  |
-| `prompt_lookup` | false   | Draft-free prompt-lookup speculative decoding    |
+| Field              | Default | Description                                                      |
+| ------------------ | ------- | ---------------------------------------------------------------- |
+| `model_path`       | —       | Path to model                                                    |
+| `n_ctx`            | 2048    | Context size                                                     |
+| `n_threads`        | 0       | Thread count (0=auto)                                            |
+| `n_batch`          | 0       | llama.cpp logical prefill batch (0=default 2048)                 |
+| `n_ubatch`         | 0       | llama.cpp physical prefill chunk (0=default 512)                 |
+| `backend`          | Auto    | ORTGenAI, LlamaCpp, or Auto (inspects model)                     |
+| `n_gpu_layers`     | 0       | llama.cpp GPU layers (0=CPU)                                     |
+| `lora_path`        | ""      | GGUF LoRA adapter                                                |
+| `lora_scale`       | 1.0f    | LoRA scale                                                       |
+| `kv_q8`            | false   | Quantize KV cache to q8_0                                        |
+| `dml_warmup`       | true    | Warm-up DML models at load time                                  |
+| `prompt_lookup`    | false   | Draft-free prompt-lookup speculative decoding                    |
+| `prefix_snapshots` | true    | Hybrid prefix snapshots; `false` or LocalState file `0` opts out |
 
 On UWP, interactive GGUF chat (GUI and LAN API) reads
 `LocalState\gguf_n_threads.txt` through `resolve_session_params`. Absent, 0,
@@ -133,10 +134,20 @@ Parameters for a single generation turn.
 | `reuse_kv` | `reset_kv` | Behavior                                                                |
 | ---------- | ---------- | ----------------------------------------------------------------------- |
 | `false`    | —          | Stateless turn: full context prefill                                    |
-| `true`     | `false`    | Reuse supported prefix; divergent hybrid tails can require full prefill |
+| `true`     | `false`    | Reuse supported prefix; hybrid tails restore a saved prefix if possible |
 | `true`     | `true`     | Reset: full context prefill, subsequent turns reuse                     |
 
-Snapshot restoration is not a delta-prefill guarantee. A rendered prompt can
-diverge inside a saved hybrid tail that cannot rewind; the session clears it
-and safely prefills the full prompt. See [KV architecture](../architecture.md#kv-cache-reuse-both-backends)
+A full-prompt turn (LAN API, regenerate) diffs the new tokens against the
+resident KV. Non-hybrid caches rewind the divergent tail (#170a). Hybrid
+caches (LFM2) cannot always rewind: after each successful prefill the session
+keeps an in-memory prefix snapshot (logits + memory). If the new prompt is a
+strict extension of that saved prefix, the snapshot is restored and only the
+suffix prefills. An exact regenerate Clears and re-prefills the whole prompt
+so the last token reseeds logits (a full-state restore is not bit-identical
+to a fresh hybrid prefill). A snapshot that is not a prefix of the new prompt
+is dropped and the full prompt prefills. `SessionParams::prefix_snapshots`
+defaults on; `LocalState\hybrid-prefix-snapshots.txt` = `0` opts out. Disk
+`load_state` is still not a delta-prefill guarantee — it includes generated
+tokens, so a hybrid tail that cannot rewind falls back to a full prefill. See
+[KV architecture](../architecture.md#kv-cache-reuse-both-backends)
 and the separate prefix-reuse/fallback [console probes](../console-validation-runbook.md#controlled-model-writer-and-kv-fallback-probes).
