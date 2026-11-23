@@ -27,7 +27,7 @@ All forks keep the MIT licence.
   against upstream `20418229`. The fork at that revision included opt-in
   F32 projection bias ADD on D3D12. Chorss reported paired decode
   measurements and logit parity on Series X from a build of `b81b676`.
-  Upstream validated the updated implementation on Series S before merging
+  Upstream checked the updated implementation on Series S before merging
   it as [`31af4f0`](https://github.com/gianlucamazza/xllama/commit/31af4f05f35ae079623375c02ae9fe1cb326a5eb).
   The [Series S acceptance record in PR #504](https://github.com/gianlucamazza/xllama/pull/504)
   covers the console self-tests, bit-for-bit logit parity and the paired
@@ -574,7 +574,7 @@ are in this repository.
   (sampled, not a proven peak).
 - No full-checkpoint resident-versus-streamed logit comparison yet; the GPU
   expert path is built but has not run on a console.
-- Console testing is paused: Dev Mode sign-in fails with `0x80004005` on the
+- Console testing is paused: Developer Mode sign-in fails with `0x80004005` on the
   author's Series S.
 
 Against the reopen conditions above: the console is now named, but the rate
