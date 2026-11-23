@@ -20,7 +20,9 @@ few-step diffusion model (SD-Turbo, 1 step) on the console GPU.
   three ORT DirectML sessions (text_encoder → 1× UNet → VAE decode) behind the
   `diffuse.flag` headless mode. Its correctness-critical logic — the CLIP
   byte-BPE tokenizer (`include/xllama/diffusion/clip_tokenizer.h`), the
-  EulerDiscreteScheduler (`euler_scheduler.h`), fp16 conversion (`half.h`), and
+  EulerDiscreteScheduler (`euler_scheduler.h`; optional LCM via
+  `LocalState\\diffuse-lcm.txt` = 1, `lcm_scheduler.h`), fp16 conversion
+  (`half.h`), and
   the PNG writer (`png_writer.h`) — is asserted against golden vectors captured
   from this Python reference (`gen_golden_vectors.py`) in `tests/test_diffusion.cpp`
   (638 assertions, all green). The ORT DirectML orchestration is CI-compile-

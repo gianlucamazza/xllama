@@ -88,6 +88,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `diffusion/png_writer.h`           | PNG writer for diffusion output                                                                                                                                                                       |
 | `diffusion/half.h`                 | Half-precision float utilities                                                                                                                                                                        |
 | `diffusion/euler_scheduler.h`      | Euler scheduler (header-only, golden-vector unit-tested)                                                                                                                                              |
+| `diffusion/lcm_scheduler.h`        | Opt-in LCM scheduler (header-only; unused until `diffuse-lcm.txt` = 1)                                                                                                                                |
 | `diffusion/clip_tokenizer.h`       | CLIP BPE tokenizer for diffusion                                                                                                                                                                      |
 
 Bridge sources of note under `src/bridge/`: `session.cpp`, `inference.cpp`,
@@ -677,7 +678,9 @@ stage to fit the console GPU budget (`uwp-constraints.md` §5/§7). Plain ORT
 DirectML coexists with the XAML compositor in-process (unlike ORT GenAI's DML
 init — §7). Optional TAESD tiny VAE shortens the decode stage. PNG output via
 `diffusion/png_writer.h`; half-precision floats via `diffusion/half.h`. Triggered
-from the Image dialog or the headless `diffuse.flag`.
+from the Image dialog or the headless `diffuse.flag`. `LocalState\diffuse-lcm.txt`
+set to `1` swaps in the LCM scheduler (`diffusion/lcm_scheduler.h`); absent, the
+Euler path is unchanged.
 
 ## LAN HTTP endpoint (OpenAI-compat)
 
@@ -855,7 +858,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_decode_loop.cpp`           | `decode_loop.h` via `run_inference` (opt-in model)                                          |
 | `test_inference_progress.cpp`    | `inference_progress.h` cadence, stall policy, watchdog                                      |
 | `test_device_train.cpp`          | `device_train.h`                                                                            |
-| `test_diffusion.cpp`             | `diffusion/`                                                                                |
+| `test_diffusion.cpp`             | `diffusion/` (Euler golden vectors, LCM step table, LCM-off = Euler)                        |
 | `test_diskbw.cpp`                | `diskbw.h`                                                                                  |
 | `test_embedding.cpp`             | `embedding.h`                                                                               |
 | `test_ggml_d3d12.cpp`            | `ggml_d3d12.h`, `src/bridge/llama_gpu.h`; name→layer mapping and `d3d12-layer` lines        |
