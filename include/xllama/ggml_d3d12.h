@@ -46,8 +46,43 @@ inline constexpr int kD3d12LongKChunks = 16; // K >= 4096 → 128 threads
 inline constexpr int kD3d12Chunk = 256;
 inline constexpr std::uint32_t kD3d12MaxGroups = 65535;
 
-// Weight types the backend runs.
+// Weight types the backend runs when their pipelines exist.
 bool d3d12_weight_type_supported(ggml_type t);
+
+// PSO slots 0–2 (Q4_0, Q4_K, Q6_K) are required at backend init. Slots 3–5
+// (Q5_K, IQ4_XS, IQ3_XXS) are optional: one failed CreateComputePipelineState
+// leaves that type on the CPU and keeps the rest of the backend.
+inline constexpr unsigned kD3d12OptionalMmvQ5K = 1u << 0;
+inline constexpr unsigned kD3d12OptionalMmvIq4Xs = 1u << 1;
+inline constexpr unsigned kD3d12OptionalMmvIq3Xxs = 1u << 2;
+inline constexpr unsigned kD3d12OptionalMmvAll =
+    kD3d12OptionalMmvQ5K | kD3d12OptionalMmvIq4Xs | kD3d12OptionalMmvIq3Xxs;
+
+inline unsigned d3d12_optional_mmv_bit(ggml_type t) {
+    switch (t) {
+    case GGML_TYPE_Q5_K:
+        return kD3d12OptionalMmvQ5K;
+    case GGML_TYPE_IQ4_XS:
+        return kD3d12OptionalMmvIq4Xs;
+    case GGML_TYPE_IQ3_XXS:
+        return kD3d12OptionalMmvIq3Xxs;
+    default:
+        return 0;
+    }
+}
+
+inline bool d3d12_optional_mmv_ready(ggml_type t, unsigned ready) {
+    const unsigned bit = d3d12_optional_mmv_bit(t);
+    return bit == 0 || (ready & bit) != 0;
+}
+
+// 3×256 IQ3_XXS is a 98-byte unaligned-row correctness case. Packed GB/s is
+// launch-overhead dominated, so the ≥100 GB/s decode gate skips it.
+inline bool d3d12_selftest_speed_gated(std::string_view type, int n, int k, int ncols) {
+    if (ncols != 1)
+        return false;
+    return !(type == "iq3_xxs" && n == 3 && k == 256);
+}
 
 // What supports_op sees, as plain data (no ggml_tensor needed in tests).
 struct D3d12MatmulDesc {
@@ -61,8 +96,9 @@ struct D3d12MatmulDesc {
     bool src0_in_weight_buffer = false; // weight lives in a D3D12_Weights buffer
 };
 
-// The MUL_MAT rules of supports_op.
-bool d3d12_mm_supported(const D3d12MatmulDesc& d);
+// The MUL_MAT rules of supports_op. `optional_ready` is the mask of optional
+// MMV pipelines that created (kD3d12OptionalMmvAll when every shader loaded).
+bool d3d12_mm_supported(const D3d12MatmulDesc& d, unsigned optional_ready = kD3d12OptionalMmvAll);
 
 struct D3d12Dispatch {
     std::uint32_t groups_x = 0; // ceil(N / kD3d12MmvRows)

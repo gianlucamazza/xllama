@@ -145,6 +145,36 @@ TEST_CASE("ggml_d3d12: supports_op rules for MUL_MAT") {
     CHECK_FALSE(d3d12_mm_supported(decode_desc(GGML_TYPE_Q6_K, 4 * 65536, 2048)));
 }
 
+TEST_CASE("ggml_d3d12: optional MMV pipelines fall back per type") {
+    D3d12MatmulDesc q40 = decode_desc(GGML_TYPE_Q4_0, 2048, 2048);
+    D3d12MatmulDesc q5 = decode_desc(GGML_TYPE_Q5_K, 2048, 2048);
+    D3d12MatmulDesc iq4 = decode_desc(GGML_TYPE_IQ4_XS, 2048, 2048);
+    D3d12MatmulDesc iq3 = decode_desc(GGML_TYPE_IQ3_XXS, 2048, 2048);
+    CHECK(d3d12_optional_mmv_bit(GGML_TYPE_Q4_0) == 0);
+    CHECK(d3d12_optional_mmv_bit(GGML_TYPE_Q4_K) == 0);
+    CHECK(d3d12_optional_mmv_bit(GGML_TYPE_Q6_K) == 0);
+    // A failed Q5_K PSO must not refuse Q4_0 / Q4_K / Q6_K.
+    CHECK(d3d12_mm_supported(q40, 0));
+    CHECK(d3d12_mm_supported(decode_desc(GGML_TYPE_Q4_K, 2048, 2048), 0));
+    CHECK(d3d12_mm_supported(decode_desc(GGML_TYPE_Q6_K, 2048, 2048), 0));
+    CHECK_FALSE(d3d12_mm_supported(q5, 0));
+    CHECK_FALSE(d3d12_mm_supported(iq4, 0));
+    CHECK_FALSE(d3d12_mm_supported(iq3, 0));
+    CHECK(d3d12_mm_supported(q5, kD3d12OptionalMmvQ5K));
+    CHECK_FALSE(d3d12_mm_supported(iq3, kD3d12OptionalMmvQ5K));
+    CHECK(d3d12_mm_supported(iq4, kD3d12OptionalMmvIq4Xs));
+    CHECK(d3d12_mm_supported(iq3, kD3d12OptionalMmvIq3Xxs));
+    CHECK(d3d12_mm_supported(q5, kD3d12OptionalMmvAll));
+    CHECK(d3d12_mm_supported(iq3)); // default: every optional pipeline present
+}
+
+TEST_CASE("ggml_d3d12: 3x256 IQ3_XXS is correctness-only for the speed gate") {
+    CHECK_FALSE(d3d12_selftest_speed_gated("iq3_xxs", 3, 256, 1));
+    CHECK(d3d12_selftest_speed_gated("iq3_xxs", 2048, 2048, 1));
+    CHECK_FALSE(d3d12_selftest_speed_gated("q4_0", 2048, 2048, 512)); // prefill
+    CHECK(d3d12_selftest_speed_gated("q4_0", 2048, 2048, 1));
+}
+
 TEST_CASE("ggml_d3d12: dispatch planner") {
     D3d12Dispatch d = d3d12_mm_dispatch(2048, 1);
     CHECK(d.ok);

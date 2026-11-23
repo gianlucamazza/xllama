@@ -107,7 +107,14 @@ rows = list(csv.DictReader(open(sys.argv[1])))
 bad = [r for r in rows if r["ok"] != "1" or r["d3d12_ran"] != "1" or
        any(not math.isfinite(float(r[k])) or float(r[k]) < 0
            for k in ("rel_err", "gpu_ms", "packed_gbs"))]
-slow = [r for r in rows if r["ncols"] == "1" and float(r["packed_gbs"]) < 100.0]
+# ncols==1 is a decode row. 3x256 IQ3_XXS is a 98-byte unaligned-row
+# correctness case: launch overhead dominates packed GB/s, so it is not a
+# throughput gate (same rule as d3d12_selftest_speed_gated).
+def speed_gated(r):
+    if r["ncols"] != "1":
+        return False
+    return not (r["type"] == "iq3_xxs" and r["n"] == "3" and r["k"] == "256")
+slow = [r for r in rows if speed_gated(r) and float(r["packed_gbs"]) < 100.0]
 print(f"--- selftest gate: {len(rows) - len(bad)}/{len(rows)} cases correct; "
       f"{len(slow)} decode case(s) under 100 GB/s ---")
 for r in bad:

@@ -119,6 +119,8 @@ class D3d12SelftestExitTests(unittest.TestCase):
         cases = [(row, passed, []) for row, passed in cases] + [
             (good, False, ["1"]), (good, True, ["0"]),
             (dict(good, type="add_f32", n="129", ncols="2", packed_gbs="0"), True, ["1"]),
+            # 3x256 IQ3_XXS decode is correctness-only; 1 GB/s must not fail the gate.
+            (dict(good, type="iq3_xxs", n="3", k="256", packed_gbs="1"), True, []),
         ]
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "rows.csv"

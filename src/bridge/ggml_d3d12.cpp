@@ -50,8 +50,9 @@ int d3d12_mm_threads(std::int64_t k) {
     return k / kD3d12Chunk >= kD3d12LongKChunks ? kD3d12MmvThreadsLong : kD3d12MmvThreadsShort;
 }
 
-bool d3d12_mm_supported(const D3d12MatmulDesc& d) {
-    return d3d12_weight_type_supported(d.src0_type) && d.src0_in_weight_buffer &&
+bool d3d12_mm_supported(const D3d12MatmulDesc& d, unsigned optional_ready) {
+    return d3d12_weight_type_supported(d.src0_type) &&
+           d3d12_optional_mmv_ready(d.src0_type, optional_ready) && d.src0_in_weight_buffer &&
            d.src0_contiguous && d.src1_contiguous && d.src1_type == GGML_TYPE_F32 &&
            d.dst_type == GGML_TYPE_F32 && d.ne00 > 0 && d.ne00 % kD3d12Chunk == 0 &&
            d.ne00 == d.ne10 && d.ne02 == 1 && d.ne03 == 1 && d.ne12 == 1 && d.ne13 == 1 &&
@@ -738,6 +739,7 @@ enum Pso {
     kPsoQ40 = 0,
     kPsoQ4K = 1,
     kPsoQ6K = 2,
+    kPsoRequiredCount = 3, // Q4_0 / Q4_K / Q6_K: a failed PSO takes the backend down
     kPsoQ5K = 3,
     kPsoIq4Xs = 4,
     kPsoIq3Xxs = 5,
@@ -771,6 +773,7 @@ struct Gpu {
     ComPtr<ID3D12GraphicsCommandList> cl;
     ComPtr<ID3D12RootSignature> root;
     ComPtr<ID3D12PipelineState> pso[kPsoCount][2]; // [type][0 = 64 threads, 1 = 128]
+    unsigned optional_mmv = 0;                     // kD3d12OptionalMmv* bits that created
     ComPtr<ID3D12PipelineState> pso_get_rows;      // Q6_K
     ComPtr<ID3D12PipelineState> pso_add_bias;      // F32 bias ADD
     // d3d12-bias-add.txt = 1: supports_op accepts the bias ADD, so llama.cpp
@@ -899,7 +902,10 @@ bool init_gpu(Gpu& g) {
         {kGgmlD3d12MmvQ5KT64DxilSize, kGgmlD3d12MmvQ5KT128DxilSize},
         {kGgmlD3d12MmvIq4XsT64DxilSize, kGgmlD3d12MmvIq4XsT128DxilSize},
         {kGgmlD3d12MmvIq3XxsT64DxilSize, kGgmlD3d12MmvIq3XxsT128DxilSize}};
+    const char* pso_names[kPsoCount] = {"q4_0", "q4_k", "q6_k", "q5_k", "iq4_xs", "iq3_xxs"};
+    g.optional_mmv = 0;
     for (int i = 0; i < kPsoCount; ++i) {
+        bool both = true;
         for (int wd = 0; wd < 2; ++wd) {
             D3D12_COMPUTE_PIPELINE_STATE_DESC pd = {};
             pd.pRootSignature = g.root.Get();
@@ -907,8 +913,24 @@ bool init_gpu(Gpu& g) {
             pd.CS.BytecodeLength = sizes[i][wd];
             hr = g.device->CreateComputePipelineState(&pd, IID_PPV_ARGS(&g.pso[i][wd]));
             if (FAILED(hr)) {
-                err = d3d12c::hr_message("CreateComputePipelineState", hr);
-                return false;
+                if (i < kPsoRequiredCount) {
+                    err = d3d12c::hr_message("CreateComputePipelineState", hr);
+                    return false;
+                }
+                log_output("[xllama] d3d12: optional " + std::string(pso_names[i]) +
+                           (wd ? " t128" : " t64") + " pipeline unavailable: " +
+                           d3d12c::hr_message("CreateComputePipelineState", hr) +
+                           " — type stays on CPU\n");
+                both = false;
+                break;
+            }
+        }
+        if (i >= kPsoRequiredCount) {
+            if (both) {
+                g.optional_mmv |= 1u << (i - kPsoRequiredCount);
+            } else {
+                g.pso[i][0].Reset();
+                g.pso[i][1].Reset();
             }
         }
     }
@@ -1389,6 +1411,7 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
     double exec_before = 0.0;
     if (dt)
         exec_before = g.phase.exec_wait_ms;
+    bool missing_pso = false;
     const bool ran = run_now(
         g,
         [&](ID3D12GraphicsCommandList* cl) {
@@ -1472,7 +1495,12 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
                                             0,
                                             0};
                 const int wide = d3d12_mm_threads(w->ne[0]) == kD3d12MmvThreadsLong ? 1 : 0;
-                cl->SetPipelineState(g.pso[pso_for(w->type)][wide].Get());
+                const int pi = pso_for(w->type);
+                if (pi < 0 || !g.pso[pi][wide]) {
+                    missing_pso = true;
+                    return;
+                }
+                cl->SetPipelineState(g.pso[pi][wide].Get());
                 cl->SetComputeRoot32BitConstants(0, 8, c, 0);
                 cl->SetComputeRootShaderResourceView(1, tensor_va(w));
                 cl->SetComputeRootUnorderedAccessView(2, tensor_va(node));
@@ -1490,7 +1518,7 @@ bool submit_ops(Gpu& g, const std::vector<Op>& ops) {
             }
         },
         &g.phase);
-    if (!ran)
+    if (!ran || missing_pso)
         return false;
     bool ts_ok = false;
     double submission_gpu_ms = 0.0;
@@ -1817,7 +1845,7 @@ bool dev_supports_op(ggml_backend_dev_t, const ggml_tensor* op) {
         d.src0_contiguous = ggml_is_contiguous(w);
         d.src1_contiguous = ggml_is_contiguous(x);
         d.src0_in_weight_buffer = w->buffer && w->buffer->buft == &kWeightsBuft;
-        const bool ok = d3d12_mm_supported(d);
+        const bool ok = d3d12_mm_supported(d, gpu().optional_mmv);
         // A refused matmul whose weight already sits in D3D12_Weights means a
         // placement the backend then cannot run — log the first few (D2b #309).
         static int logged = 0;
@@ -2305,10 +2333,15 @@ void run_d3d12_selftest(std::vector<D3d12SelftestRow>* out) {
         {GGML_TYPE_IQ4_XS, "iq4_xs", 1024, 1024, 512},
         {GGML_TYPE_IQ3_XXS, "iq3_xxs", 2048, 2048, 1},
         {GGML_TYPE_IQ3_XXS, "iq3_xxs", 1024, 1024, 7},
-        {GGML_TYPE_IQ3_XXS, "iq3_xxs", 3, 256, 1}, // 98-byte rows, 2-byte aligned
+        // 98-byte rows, 2-byte aligned. Correctness only: packed GB/s is not
+        // a throughput signal (d3d12_selftest_speed_gated).
+        {GGML_TYPE_IQ3_XXS, "iq3_xxs", 3, 256, 1},
     };
-    for (const auto& sc : cases)
+    for (const auto& sc : cases) {
+        if (!d3d12_optional_mmv_ready(sc.type, gpu().optional_mmv))
+            continue;
         out->push_back(run_case(backend, sc));
+    }
     out->push_back(run_get_rows_case(backend, 151936, 2048)); // Coder-3B tied token_embd
     out->push_back(run_get_rows_case(backend, 65536, 1024));  // LFM2.5-350M
     ggml_backend_free(backend);

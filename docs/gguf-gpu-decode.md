@@ -234,8 +234,11 @@ device registered with `ggml_backend_register()`:
 **D2a gate (console selftest `d3d12be.flag`, `scripts/bench-d3d12-selftest.sh`,
 predeclared):** every type × shape (`{n, k}` from Coder-3B and LFM2.5 tensors,
 ncols 1 / 7 / 512) within `rel_err ≤ 1e-2` of ggml's dequantizers, and every
-decode case (ncols = 1) at ≥ 100 GB/s packed (GPU timestamps). Host tests
-emulate each kernel's lane mapping against the same dequantizers.
+decode case (ncols = 1) at ≥ 100 GB/s packed (GPU timestamps), except the
+3×256 IQ3_XXS row (98-byte unaligned-row correctness case; launch overhead
+dominates packed GB/s). Q5_K / IQ4_XS / IQ3_XXS pipelines are optional: a
+failed PSO leaves that type on the CPU. Host tests emulate each kernel's
+lane mapping against the same dequantizers.
 
 ### D2a result (2026-10-01/02, three console runs)
 
