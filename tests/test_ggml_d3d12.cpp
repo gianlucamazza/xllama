@@ -719,6 +719,12 @@ TEST_CASE("ggml_d3d12: ROPE rules") {
     t.src0_in_weight_buffer = true; // D3D12_Weights has no UAV flag
     CHECK_FALSE(d3d12_rope_supported(t));
     t = d;
+    t.src0_in_non_host_buffer = true; // compute path reads it through the CPU
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t = d;
+    t.pos_in_non_host_buffer = true; // positions are read on the CPU for the table
+    CHECK_FALSE(d3d12_rope_supported(t));
+    t = d;
     t.dst_type = GGML_TYPE_F16;
     CHECK_FALSE(d3d12_rope_supported(t));
     t = d;
@@ -803,12 +809,13 @@ void rope_parity(int mode, int ne0, int heads, int tokens, int n_dims, float fre
         den += static_cast<double>(ref[i]) * ref[i];
         max_abs = std::max(max_abs, std::fabs(e));
     }
-    // test-backend-ops' default per-op bound (llama.cpp/tests/test-backend-ops.cpp).
-    CHECK(num / den <= 1e-7);
     CAPTURE(mode);
     CAPTURE(ne0);
     CAPTURE(tokens);
     CAPTURE(max_abs);
+    CHECK(den > 0.0);
+    // test-backend-ops' default per-op bound (llama.cpp/tests/test-backend-ops.cpp).
+    CHECK(num / den <= 1e-7);
     ggml_free(ctx);
 }
 

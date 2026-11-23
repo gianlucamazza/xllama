@@ -162,6 +162,9 @@ bool d3d12_add_supported(const D3d12AddDesc& d);
 inline constexpr int kD3d12RopeThreads = 128; // threads per group of the ROPE kernel
 inline constexpr int kD3d12RopeModeNormal = 0;
 inline constexpr int kD3d12RopeModeNeox = 2;
+static_assert(kD3d12RopeModeNormal == GGML_ROPE_TYPE_NORMAL &&
+                  kD3d12RopeModeNeox == GGML_ROPE_TYPE_NEOX,
+              "ROPE mode values must match ggml.h");
 
 struct D3d12RopeDesc {
     ggml_type src0_type = GGML_TYPE_F32;
@@ -174,6 +177,11 @@ struct D3d12RopeDesc {
     // weight-buffer activation is refused (D3D12_Host and other host buffers
     // are fine; the latter are staged).
     bool src0_in_weight_buffer = false;
+    // The compute path reads the positions, and an input outside D3D12_Host,
+    // through the CPU: one already in a buffer that is not host-visible when
+    // supports_op runs is refused here instead of reaching its asserts.
+    bool src0_in_non_host_buffer = false;
+    bool pos_in_non_host_buffer = false;
     ggml_type pos_type = GGML_TYPE_I32;
     std::int64_t ne_pos = 0; // positions
     bool has_freq_factors = false;
@@ -376,13 +384,18 @@ bool ggml_d3d12_register();
 // --- Console selftest (d3d12be.flag) ---
 
 struct D3d12SelftestRow {
-    std::string type; // q4_0 | q4_k | q6_k
+    std::string type; // q4_0 | q4_k | q6_k | get_rows_q6_k | add_f32 | rope_{neox,norm}[_staged]
     int n = 0, k = 0, ncols = 0;
-    double rel_err = 0.0; // max |gpu - ref| / max |ref|
-    double gpu_ms = 0.0;  // GPU timestamp time, median of 5 timed computes (ms)
+    // max |gpu - ref| / max |ref|; NMSE (sum e^2 / sum ref^2) for the rope_* rows
+    double rel_err = 0.0;
+    // GPU timestamp time (ms): median of 5 timed computes for the MUL_MAT rows,
+    // one compute for get_rows, add and rope
+    double gpu_ms = 0.0;
     double packed_gbs = 0.0;
     bool ok = false;
     bool d3d12_ran = false;
+    // The failure reason; empty (written "-" in the CSV) when none. The rope_* rows carry
+    // "nmse=… max_abs=… bit_identical=0|1", also when ok is true.
     std::string error;
 };
 

@@ -1053,16 +1053,29 @@ With `LocalState\d3d12-rope.txt` containing `1` when the backend starts (boot
 log `d3d12: rope=1`), `supports_op` accepts a `ROPE` that is F32, contiguous,
 the same shape in and out, with one I32 position per token, no `freq_factors`,
 mode NORMAL or NEOX, `ext_factor == 0` (no YaRN) and `n_offs == 0`
-(`d3d12_rope_supported`) and whose input is not in a `D3d12_Weights` buffer
+(`d3d12_rope_supported`) and whose input is not in a `D3D12_Weights` buffer
 (that buffer has no UAV flag, and the kernel binds the input as a UAV; an input
-in `D3D12_Host` is read in place, one in another host buffer is staged). The
-refusal only sees tensors that already have a buffer when `supports_op` runs:
-activations do not yet, and the compute path asserts instead
-(`GGML_ASSERT(ggml_backend_buffer_is_host(...))`). No ROPE input is a weight, so
-the rule is a guard, not a path that was exercised. Any
-other `ROPE` stays on the CPU. If the five-parameter root signature or the ROPE
-pipeline cannot be created, the boot log says `d3d12: ROPE unavailable: …` and
-`rope=0`, and the rest of the backend starts with the four-parameter signature.
+in `D3D12_Host` is read in place, one in another host buffer is staged). It
+also refuses a `ROPE` whose input or positions already sit in a buffer that is
+not host-visible, because the compute path reads them through the CPU. These
+rules only see tensors that have a buffer when `supports_op` runs. Activations
+do not yet; the scheduler later places every input of a d3d12 node in a buffer
+type that `supports_buft` accepts, copying it if needed
+(`ggml_backend_sched_buffer_supported`). The only such type that is not
+host-visible, `D3D12_Weights`, holds weights, which already have their buffer
+when `supports_op` runs. The compute-path asserts
+(`GGML_ASSERT(ggml_backend_buffer_is_host(...))`) are therefore invariants, not
+a path a model reaches. Any other `ROPE` stays on the CPU. Without the file no ROPE pipeline is created,
+`supports_op` refuses every `ROPE` and the root signature keeps four
+parameters. With the file, a ROPE setup failure is handled in one of two ways,
+and both log `d3d12: ROPE unavailable: …` and `rope=0`. If the five-parameter root
+signature cannot be created, the backend falls back to the four-parameter
+signature and builds every other pipeline against it, as without the file. If
+only the ROPE pipeline fails, the other pipelines have already been built
+against the five-parameter signature and stay on it; the fifth parameter is
+then unused. Either way the other GPU operations stay available. A failure to
+create the four-parameter root signature, a matmul or a `GET_ROWS` pipeline
+stops the backend, with or without the file.
 With the bias ADD on as well, Q, V and K then form one split: 5 → 4 submissions per layer.
 The knob is independent of `d3d12-bias-add.txt`, but without the bias ADD the
 bias `ADD`s still cut the split, so measure with both.
@@ -1073,8 +1086,8 @@ The cos/sin table is computed on the CPU with ggml-cpu's formulas
 a graph evaluation (q and k of a layer share it), and staged in the same
 buffer as the other activations. Attention runs on the CPU between layers, so
 each layer's evaluation computes it again: for a 512-token ubatch that is
-about 65 thousand `sinf`/`cosf` calls per layer on the CPU (not measured
-separately; the Series X numbers below include it). Keeping the table across
+about 65 thousand `sinf`/`cosf` calls per layer on the CPU (their time is not
+measured separately). Keeping the table across
 evaluations would need a key on the position values, not on the buffer
 address, which llama.cpp reuses. The kernel (`shaders/ggml_d3d12_rope_f32.hlsl`) only
 multiplies and adds, with `precise` products and no fused multiply-add. GPU
@@ -1097,35 +1110,23 @@ marks it, and `bench-d3d12-selftest.sh --require-rope` fails without it. (A
 dispatch; this row is the test of that claim on the console.) End-to-end parity stays a logit dump per arm
 (ADR 0010).
 
-Measured on Series X (operator-declared, Game designation, `long-1k`, 128
-tokens, `--gpu-layers 99`, 5 AB/BA pairs per model, A = bias ADD on, B = bias
-ADD and ROPE on; not project evidence, Series S not measured):
-
-| Model                     | Decode A → B tok/s | B/A decode          | B/A prefill | B/A TTFT | Memory |
-| ------------------------- | ------------------ | ------------------- | ----------- | -------- | ------ |
-| Bielik-4.5B-v3 Q4_K_M     | 15.19 → 16.09      | 1.056 (1.050–1.063) | 1.028       | 0.972    | +0 MB  |
-| Qwen2.5-Coder-3B Q4_K_M   | 30.54 → 32.49      | 1.064 (1.055–1.073) | 1.029       | 0.971    | −2 MB  |
-| Qwen2.5-Coder-1.5B Q4_K_M | 45.10 → 48.43      | 1.071 (1.057–1.094) | 1.035       | 0.966    | +0 MB  |
-
-Submissions per decoded token with both knobs: Bielik 241, Coder-3B 146,
-Coder-1.5B 114. The Coder models are one above "4 per layer plus `lm_head`"
+Measured on Series X (Game designation, `long-1k`, `--gpu-layers 99`; Series S
+not measured): submissions per decoded token with both knobs are Bielik 241,
+Coder-3B 146, Coder-1.5B 114. The Coder models are one above "4 per layer plus `lm_head`"
 because their tied `token_embd` also runs the input lookup on the GPU (4 × L +
 2; Bielik has a separate `output.weight`, 4 × L + 1). With ROPE off Coder-1.5B
 takes 142 (5 × 28 + 2), so ROPE removes exactly one submission per layer and
-adds two dispatches per layer (Q and K): 282 → 338 dispatches per token. Per removed
-submission the wall time drops by 54 µs net of those dispatches; the added
-dispatches cost about 0.3 µs of GPU time each. Logits (`logits.flag`, every
-16th prompt position of `long-1k`, ubatch 512 and 1, all three models) are
-byte-identical between the arms, and the console selftest rows (`rope_neox`,
-`rope_norm`, direct and staged) were bit-identical to ggml-cpu in every run
-here (observed, not enforced by the gate). Without the file
-the placement is unchanged (Coder-1.5B: 170 submissions per token).
+adds two dispatches per layer (Q and K): 282 → 338 dispatches per token. With
+neither knob file Coder-1.5B takes 170 (6 × 28 + 2). The Series X comparisons
+reported in #511 (operator-declared; `logits.flag`, every 16th prompt position
+of `long-1k`, ubatch 512 and 1, all three models, A = bias ADD on, B = bias ADD
+and ROPE on) matched logits byte for byte between the arms.
 
 #### Series S ROPE preregistration (proposal)
 
 Nothing here is agreed yet. The thresholds below reuse the bias ADD ones and
 are a proposal for the maintainer to confirm or change before any Series S run
-counts. The Series X table above is not evidence for them.
+counts. The Series X results above are not evidence for them.
 
 Same device, package and setup as the bias ADD preregistration above, with the
 bias ADD knob (`d3d12-bias-add.txt` = `1`) set in both arms, so the only
@@ -1167,16 +1168,11 @@ that still close a split with the bias knob on:
 | after `[gate up]` | `SWIGLU`                                                                | 1                               |
 | after `[down]`    | residual `ADD`                                                          | 1, joins the next layer's norm  |
 
-Order of work, cheapest first. Estimates are linear extrapolations from the
-bias ADD result, not measurements:
+Order of work, cheapest first:
 
-1. **`ROPE` on d3d12.** Q, V and K then form one split: 5 → 4 per layer (301
-   → 241 submissions per token on Bielik-4.5B). It needs `inp_pos` and the
-   rope variants the catalogue uses (mode, `freq_factors`) in
-   `d3d12_rope_supported`, a kernel, host tests next to the bias ADD ones, and
-   the same logit-parity check. The bias ADD removed 120 submissions for ×1.107
-   on Bielik-4.5B; 60 more is roughly half of that if the cost per submission
-   holds. This is the smallest step and the template for the next ones.
+1. **`ROPE` on d3d12** (opt-in, section above). Q, V and K form one split:
+   5 → 4 per layer (301 → 241 submissions per token on Bielik-4.5B). This is
+   the smallest step and the template for the next ones.
 2. **Elementwise ops (`RMS_NORM`+`MUL`, residual `ADD`, `SWIGLU`).** With
    these and `ROPE` the only CPU stretch in a layer is attention, so a layer is one split: `[o … down, next qkv]`, 1 per layer.
    This is the D2-fused direction named under "#310 re-attribution", a new

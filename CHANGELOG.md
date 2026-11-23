@@ -11,10 +11,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `LocalState\d3d12-rope.txt` set to `1`, plain F32 NORMAL/NEOX `ROPE` (no
   `freq_factors`, no YaRN) runs on the d3d12 backend, so q/k/v of a layer form
   one split with the bias ADD knob on (5 → 4 submissions per layer). The
-  cos/sin table is computed on the CPU. Without the file, placement and graph
-  are unchanged. Logits matched the CPU ROPE bit for bit for the three models
-  and two ubatch sizes tried. Measured on Series X only (operator-declared,
-  not project evidence); Series S is not measured. Numbers and method:
+  cos/sin table is computed on the CPU. The Series X comparisons reported in
+  #511 (operator-declared, Series X) matched logits bit for bit for the three
+  models and two ubatch sizes tried; Series S is not measured. Details:
   [GGUF GPU decode](docs/gguf-gpu-decode.md).
 
 ## [1.8.0]

@@ -84,7 +84,8 @@ bool d3d12_rope_supported(const D3d12RopeDesc& d) {
     const std::int64_t groups = (span + kD3d12RopeThreads - 1) / kD3d12RopeThreads;
     return d.src0_type == GGML_TYPE_F32 && d.dst_type == GGML_TYPE_F32 && d.same_shape &&
            d.src0_contiguous && d.dst_contiguous && !d.src0_in_weight_buffer &&
-           d.pos_type == GGML_TYPE_I32 && !d.has_freq_factors &&
+           !d.src0_in_non_host_buffer && !d.pos_in_non_host_buffer && d.pos_type == GGML_TYPE_I32 &&
+           !d.has_freq_factors &&
            (d.mode == kD3d12RopeModeNormal || d.mode == kD3d12RopeModeNeox) &&
            d.ext_factor == 0.0f && d.n_offs == 0 && d.n_dims > 0 && d.n_dims % 2 == 0 &&
            d.n_dims <= d.ne0 && d.ne0 > 0 && d.ne1 > 0 && d.ne2 > 0 && d.ne3 == 1 &&
@@ -1927,6 +1928,8 @@ bool dev_supports_op(ggml_backend_dev_t, const ggml_tensor* op) {
         d.src0_contiguous = ggml_is_contiguous(a);
         d.dst_contiguous = ggml_is_contiguous(op);
         d.src0_in_weight_buffer = a->buffer && a->buffer->buft == &kWeightsBuft;
+        d.src0_in_non_host_buffer = a->buffer && !ggml_backend_buffer_is_host(a->buffer);
+        d.pos_in_non_host_buffer = pos->buffer && !ggml_backend_buffer_is_host(pos->buffer);
         d.pos_type = pos->type;
         d.ne_pos = pos->ne[0] * pos->ne[1] * pos->ne[2] * pos->ne[3];
         d.has_freq_factors = op->src[2] != nullptr;
