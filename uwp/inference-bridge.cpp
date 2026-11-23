@@ -22,6 +22,7 @@
 #include "xllama/ramceil.h"
 #include "xllama/routing_policy.h"
 #include "xllama/session.h"
+#include "xllama/session_spec.h"
 #include "xllama/training.h"
 #include "xllama/utf8_utils.h"
 
@@ -163,6 +164,10 @@ void run_kv_bench(const std::string& model_name, const std::string& sys, const s
 
 int gguf_gpu_layers_knob() {
     return read_local_int("gguf_gpu_layers.txt", ::xllama::kGgufGpuLayersKnobAbsent);
+}
+
+int gguf_n_threads_knob() {
+    return read_local_int("gguf_n_threads.txt", ::xllama::kGgufNThreadsKnobAbsent);
 }
 #endif // XLLAMA_UWP
 

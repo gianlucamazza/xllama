@@ -202,6 +202,10 @@ are not routed per conversation.
 - **Operator override:** `gguf_gpu_layers.txt` in LocalState overrides this
   (`0` forces the CPU; see [gguf-gpu-decode.md](gguf-gpu-decode.md)). There is
   no Settings option for it.
+- **Thread count:** `gguf_n_threads.txt` in LocalState sets llama.cpp threads
+  for interactive GGUF chat (GUI and LAN API). Absent, `0`, or an invalid
+  value keeps auto-detect (capped at 6 on UWP). This does not change
+  GPU-layer placement. Headless bench still uses `bench_threads.txt`.
 
 Settings persist to `LocalState\settings.json` and take effect on the next
 inference call. Exception: changing the **model** loads it eagerly as soon as

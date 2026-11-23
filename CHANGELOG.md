@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Opt-in GGUF thread count for interactive sessions.**
+  `LocalState\gguf_n_threads.txt`, when present and positive, sets llama.cpp
+  threads for GUI and LAN API GGUF chat through the shared session resolver.
+  Absent, 0, or an invalid value keeps auto-detect. GPU-layer knobs and
+  d3d12 placement are unchanged. Headless bench still uses `bench_threads.txt`.
+  Idea from Chorss, rebuilt in-tree.
+
 - **Opt-in LCM diffusion scheduler.** `LocalState\diffuse-lcm.txt` set to `1`
   uses the Latent Consistency Model step table instead of Euler. Absent, the
   SD-Turbo Euler path is unchanged. See
