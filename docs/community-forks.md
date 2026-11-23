@@ -8,18 +8,23 @@ vetax-by and EgbertJiang were reviewed on 2026-11-15 against `main` `289b51b`
 by reading their diffs; nothing from either fork was built or run.
 All forks keep the MIT licence.
 
-| Fork                                                   | Taken                                                                                              | Not taken                                            |
-| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| [SamirCharleston](#samircharleston-vision-spike)       | llama.cpp warnings on every load (credited in the commit)                                          | batch cap, repack opt-out, mmap revival, vision code |
-| [bjoern2088](#bjoern2088-xbox-one-x)                   | —                                                                                                  | Xbox One X port                                      |
-| [http-hadi](#http-hadi-d3d12f)                         | evidence for [#273], [#274], [#275] and the [#313] design                                          | the vendored D3D12F backend                          |
-| miguelenes                                             | already in `main` (#261, `4100bc2`)                                                                | —                                                    |
-| nyzxor, hjotha, mr-wfj                                 | —                                                                                                  | no commits ahead                                     |
-| [maxmorrison74](#maxmorrison74-xllama-on-steroids)     | optional debug dashboard idea (rebuilt in-tree)                                                    | rebrand, background, soundtrack, footer credit       |
-| [Chorss](#november-21-contributor-updates)             | opt-in F32 bias ADD on D3D12 ([#504](https://github.com/gianlucamazza/xllama/pull/504))            | —                                                    |
-| [vetax-by](#vetax-by-demand-loaded-moe-experts)        | a data point for [#273] and the SSD assessment                                                     | the expert-loading runtime and its llama.cpp patches |
-| [EgbertJiang](#egbertjiang-xbox-one-s)                 | Gemma 4 chat template (rebuilt in-tree, credited)                                                  | Xbox One S port, `/chat` page, second model root     |
-| [christopherbearman](#2026-11-23-d3d12-mmv-iq3-iq4-q5) | D3D12 MMV for IQ3_XXS, IQ4_XS, Q5_K (rebuilt in-tree, 2026-11-23); LCM scheduler (rebuilt in-tree) | browser chat UI                                      |
+| Fork                                                   | Taken                                                                                                                                   | Not taken                                            |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| [SamirCharleston](#samircharleston-vision-spike)       | llama.cpp warnings on every load (credited in the commit)                                                                               | batch cap, repack opt-out, mmap revival, vision code |
+| [bjoern2088](#bjoern2088-xbox-one-x)                   | hybrid-cache prefix snapshots (rebuilt in-tree, 2026-11-23)                                                                             | Xbox One X port                                      |
+| [http-hadi](#http-hadi-d3d12f)                         | evidence for [#273], [#274], [#275] and the [#313] design                                                                               | the vendored D3D12F backend                          |
+| miguelenes                                             | already in `main` (#261, `4100bc2`)                                                                                                     | —                                                    |
+| nyzxor, hjotha, mr-wfj                                 | —                                                                                                                                       | no commits ahead                                     |
+| [maxmorrison74](#maxmorrison74-xllama-on-steroids)     | optional debug dashboard idea (rebuilt in-tree)                                                                                         | rebrand, background, soundtrack, footer credit       |
+| [Chorss](#november-21-contributor-updates)             | opt-in F32 bias ADD on D3D12 ([#504](https://github.com/gianlucamazza/xllama/pull/504)); GGUF thread knob (rebuilt in-tree, 2026-11-23) | —                                                    |
+| [vetax-by](#vetax-by-demand-loaded-moe-experts)        | a data point for [#273] and the SSD assessment                                                                                          | the expert-loading runtime and its llama.cpp patches |
+| [EgbertJiang](#egbertjiang-xbox-one-s)                 | Gemma 4 chat template (rebuilt in-tree, credited)                                                                                       | Xbox One S port, `/chat` page, second model root     |
+| [christopherbearman](#2026-11-23-d3d12-mmv-iq3-iq4-q5) | D3D12 MMV for IQ3_XXS, IQ4_XS, Q5_K (rebuilt in-tree, 2026-11-23); LCM scheduler (rebuilt in-tree, 2026-11-23)                          | browser chat UI                                      |
+
+## 2026-11-23: interactive GGUF thread knob
+
+- **Chorss.** Opt-in LocalState `gguf_n_threads.txt` for interactive GGUF
+  sessions (rebuilt in-tree, 2026-11-23).
 
 ## 2026-11-23: LCM scheduler
 
@@ -54,6 +59,11 @@ All forks keep the MIT licence.
   tracks Stan's contribution at `61bf63a`. His console report covers a
   bounded CPU completion. The plan tracks full-checkpoint numerical parity
   and console GPU correctness separately.
+
+## 2026-11-23: hybrid prefix snapshots
+
+- **bjoern2088.** Hybrid-cache prefix snapshots for LFM2 API prefill reuse
+  (rebuilt in-tree, 2026-11-23).
 
 ## SamirCharleston: vision-spike
 

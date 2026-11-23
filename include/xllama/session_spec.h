@@ -24,14 +24,27 @@ struct CatalogueLoad {
     float lora_scale = 1.0f;
 };
 
+// Operator override for llama.cpp thread count on interactive GGUF sessions
+// (GUI and LAN API). Absent, 0, or any non-positive value keeps
+// SessionParams::n_threads at 0 (auto). A positive count is used as-is.
+inline constexpr int kGgufNThreadsKnobAbsent = -1;
+
+inline constexpr int resolve_gguf_n_threads(int knob) {
+    return knob < 1 ? 0 : knob;
+}
+
 // `model_dir` is where the model's files live (resolve_model_path on the bare
 // name); the adapter is resolved against it. `gpu_layers_knob` is the operator
 // override read by the caller (-1 = none, see resolve_gguf_gpu_layers).
+// `threads_knob` is the same for llama.cpp thread count (0 = auto when
+// absent, zero, or invalid).
 inline SessionParams resolve_session_params(const std::string& model, const CatalogueLoad& c,
-                                            const std::string& model_dir, int gpu_layers_knob) {
+                                            const std::string& model_dir, int gpu_layers_knob,
+                                            int threads_knob = kGgufNThreadsKnobAbsent) {
     SessionParams sp;
     sp.model_path = model;
     sp.n_ctx = kDefaultNCtx;
+    sp.n_threads = resolve_gguf_n_threads(threads_knob);
     if (!c.found)
         return sp;
     sp.n_ctx = resolve_n_ctx(c.n_ctx);
@@ -54,7 +67,8 @@ inline SessionParams resolve_session_params(const std::string& model, const Cata
 inline bool same_load(const SessionParams& a, const SessionParams& b) {
     return a.model_path == b.model_path && a.backend == b.backend && a.n_ctx == b.n_ctx &&
            a.n_gpu_layers == b.n_gpu_layers && a.lora_path == b.lora_path &&
-           a.lora_scale == b.lora_scale && a.kv_q8 == b.kv_q8;
+           a.lora_scale == b.lora_scale && a.kv_q8 == b.kv_q8 &&
+           a.prefix_snapshots == b.prefix_snapshots;
 }
 
 } // namespace xllama
