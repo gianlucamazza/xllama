@@ -19,6 +19,12 @@ All forks keep the MIT licence.
 | [Chorss](#november-21-contributor-updates)         | opt-in F32 bias ADD on D3D12 ([#504](https://github.com/gianlucamazza/xllama/pull/504)) | —                                                    |
 | [vetax-by](#vetax-by-demand-loaded-moe-experts)    | a data point for [#273] and the SSD assessment                                          | the expert-loading runtime and its llama.cpp patches |
 | [EgbertJiang](#egbertjiang-xbox-one-s)             | Gemma 4 chat template (rebuilt in-tree, credited)                                       | Xbox One S port, `/chat` page, second model root     |
+| [christopherbearman](#2026-11-23-lcm-scheduler)    | LCM diffusion scheduler (rebuilt in-tree, 2026-11-23)                                   | browser chat UI                                      |
+
+## 2026-11-23: LCM scheduler
+
+- **Christopher Bearman.** Opt-in LCM diffusion scheduler (rebuilt in-tree,
+  2026-11-23).
 
 ## November 21 contributor updates
 
