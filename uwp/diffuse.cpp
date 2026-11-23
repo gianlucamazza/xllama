@@ -310,9 +310,11 @@ void run_diffuse() {
         std::array<int64_t, 3> h_shape{1, kSeq, hidden_dim};
         double unet_ms = 0.0;
         bool cancelled = false;
+        size_t n_sched_steps = 0;
 
         auto run_unet = [&](auto& sched) {
             sched.set_timesteps(steps);
+            n_sched_steps = sched.timesteps().size();
             latent.assign(latent_n, 0.f);
             for (auto& v : latent)
                 v = gauss(rng) * (float)sched.init_noise_sigma();
@@ -463,8 +465,8 @@ void run_diffuse() {
         snprintf(lb, sizeof(lb),
                  "[xllama] diffuse: te %.0f ms | unet %.0f ms (%zu step, %.0f ms/step) | vae "
                  "%.0f ms | total %.0f ms | process_peak_ws_mb=%zu\n",
-                 te_ms, unet_ms, sched.timesteps().size(),
-                 unet_ms / (double)sched.timesteps().size(), vae_ms, total_ms, process_peak_ws_mb);
+                 te_ms, unet_ms, n_sched_steps, unet_ms / (double)n_sched_steps, vae_ms, total_ms,
+                 process_peak_ws_mb);
         log_output(lb);
 
         // Result CSV (+ .done marker), fetchable via Device Portal.
@@ -477,8 +479,8 @@ void run_diffuse() {
                   "date,process_peak_ws_mb\n",
                   fp);
             fprintf(fp, "%s,%d,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%dx%d,%s,%zu\n", dir.c_str(), steps,
-                    seed, te_ms, unet_ms, unet_ms / (double)sched.timesteps().size(), vae_ms,
-                    total_ms, kImageHW, kImageHW, date_buf, process_peak_ws_mb);
+                    seed, te_ms, unet_ms, unet_ms / (double)n_sched_steps, vae_ms, total_ms,
+                    kImageHW, kImageHW, date_buf, process_peak_ws_mb);
             fclose(fp);
         }
         if (pf) {
