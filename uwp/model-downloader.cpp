@@ -964,7 +964,8 @@ SessionParams CatalogueSessionParams(const std::string& model) {
         c.lora_scale = static_cast<float>(entry->lora_scale);
     }
     SessionParams sp =
-        resolve_session_params(model, c, resolve_model_path(model), bridge::gguf_gpu_layers_knob());
+        resolve_session_params(model, c, resolve_model_path(model), bridge::gguf_gpu_layers_knob(),
+                               bridge::gguf_n_threads_knob());
     sp.prefix_snapshots = prefix_snapshots_enabled(bridge::hybrid_prefix_snapshots_knob());
     return sp;
 }

@@ -954,6 +954,12 @@ flags are supported:
   catalogue default (D3) applies unless the operator file
   `gguf_gpu_layers.txt` exists; `0` there forces the CPU. A change reloads the
   resident session.
+- **GGUF threads**: `CatalogueSessionParams` also applies
+  `resolve_gguf_n_threads(gguf_n_threads_knob())`. Absent
+  `LocalState\gguf_n_threads.txt`, `0`, or an invalid value leaves
+  `n_threads` at 0 (llama.cpp auto, capped at 6 on UWP). Threads are not
+  part of `same_load` (ADR 0007), so the count is taken on the next session
+  create. GPU-layer resolution is unchanged.
 - **Manifest cache**: parsed once, cached; invalidated on personalized-model
   publish.
 - **Debug dashboard** (opt-in, default off): Settings toggle and/or
