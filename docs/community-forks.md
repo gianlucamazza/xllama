@@ -19,6 +19,7 @@ All forks keep the MIT licence.
 | [Chorss](#november-21-contributor-updates)         | opt-in F32 bias ADD on D3D12 ([#504](https://github.com/gianlucamazza/xllama/pull/504)) | —                                                    |
 | [vetax-by](#vetax-by-demand-loaded-moe-experts)    | a data point for [#273] and the SSD assessment                                          | the expert-loading runtime and its llama.cpp patches |
 | [EgbertJiang](#egbertjiang-xbox-one-s)             | Gemma 4 chat template (rebuilt in-tree, credited)                                       | Xbox One S port, `/chat` page, second model root     |
+| [xdrury-du](#2026-11-23-hybrid-prefix-snapshots)   | hybrid-cache prefix snapshots (rebuilt in-tree, 2026-11-23)                             | —                                                    |
 
 ## November 21 contributor updates
 
@@ -43,6 +44,11 @@ All forks keep the MIT licence.
   tracks Stan's contribution at `61bf63a`. His console report covers a
   bounded CPU completion. The plan tracks full-checkpoint numerical parity
   and console GPU correctness separately.
+
+## 2026-11-23: hybrid prefix snapshots
+
+- **xdrury-du.** Hybrid-cache prefix snapshots for LFM2 API prefill reuse
+  (rebuilt in-tree, 2026-11-23).
 
 ## SamirCharleston: vision-spike
 

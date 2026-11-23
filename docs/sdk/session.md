@@ -127,10 +127,17 @@ Parameters for a single generation turn.
 | `reuse_kv` | `reset_kv` | Behavior                                                                |
 | ---------- | ---------- | ----------------------------------------------------------------------- |
 | `false`    | —          | Stateless turn: full context prefill                                    |
-| `true`     | `false`    | Reuse supported prefix; divergent hybrid tails can require full prefill |
+| `true`     | `false`    | Reuse supported prefix; hybrid tails restore a saved prefix if possible |
 | `true`     | `true`     | Reset: full context prefill, subsequent turns reuse                     |
 
-Snapshot restoration is not a delta-prefill guarantee. A rendered prompt can
-diverge inside a saved hybrid tail that cannot rewind; the session clears it
-and safely prefills the full prompt. See [KV architecture](../architecture.md#kv-cache-reuse-both-backends)
+A full-prompt turn (LAN API, regenerate) diffs the new tokens against the
+resident KV. Non-hybrid caches rewind the divergent tail (#170a). Hybrid
+caches (LFM2) cannot always rewind: after each successful prefill the session
+keeps an in-memory prefix snapshot (logits + memory). If the new prompt is a
+pure extension, that snapshot is left in place and only the suffix prefills.
+If it is not, the snapshot is restored so the generated tail is not stale; a
+snapshot that is not a prefix of the new prompt is dropped and the full prompt
+prefills. Disk `load_state` is still not a delta-prefill guarantee — it
+includes generated tokens, so a hybrid tail that cannot rewind falls back to a
+full prefill. See [KV architecture](../architecture.md#kv-cache-reuse-both-backends)
 and the separate prefix-reuse/fallback [console probes](../console-validation-runbook.md#controlled-model-writer-and-kv-fallback-probes).

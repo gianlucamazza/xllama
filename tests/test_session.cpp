@@ -182,7 +182,8 @@ TEST_CASE("Session: KV prefix reuse collapses a repeated prefill (opt-in: XLLAMA
     // Regenerate: identical prompt on the same session. Two legal regimes:
     // pure-attention caches rewind and re-prefill exactly 1 token (the logits
     // source); hybrid caches (LFM2) cannot erase a partial tail — seq_rm
-    // returns false — so the session degrades to a full clear + re-prefill.
+    // returns false — so the session restores the post-prefill prefix snapshot
+    // (n_p_eval may be 0) instead of a full clear + re-prefill.
     // Byte-identical output is the correctness bar in both regimes.
     const auto r_regen = sess->generate(mkgp(prompt));
     REQUIRE(r_regen.success);
@@ -219,10 +220,14 @@ TEST_CASE("Session: KV prefix reuse collapses a repeated prefill (opt-in: XLLAMA
         REQUIRE(r_ext.output_text.size() >= 5);
         CHECK(r_ext.output_text.substr(0, 5) == r_fresh.output_text.substr(0, 5));
     } else {
-        // Hybrid (LFM2): the divergent tail cannot be erased — seq_rm refuses —
-        // so the session must have degraded to a full clear + single-batch
-        // re-prefill, which is exactly a fresh session: byte-identical output.
-        CHECK(r_ext.output_text == r_fresh.output_text);
+        // Hybrid (LFM2): seq_rm refuses a tail rewind. A matching prefix
+        // snapshot means only the suffix prefills; otherwise this is a full
+        // clear + single-batch re-prefill (byte-identical to a fresh session).
+        CHECK(r_ext.n_p_eval <= r_fresh.n_p_eval);
+        if (r_ext.n_p_eval == r_fresh.n_p_eval)
+            CHECK(r_ext.output_text == r_fresh.output_text);
+        else if (!r_ext.output_text.empty() && !r_fresh.output_text.empty())
+            CHECK(r_ext.output_text.substr(0, 1) == r_fresh.output_text.substr(0, 1));
     }
 }
 
@@ -486,6 +491,52 @@ TEST_CASE(
     } else {
         CHECK(saw_clean_overflow);
     }
+}
+
+// Hybrid-shaped hook (documented): with XLLAMA_TEST_MODEL, the planner in
+// prefix_snapshot.h is exercised through LlamaSession. A matching extension
+// keeps the in-memory prefix snapshot (smaller n_p_eval than a cold run). A
+// non-extension either restores that snapshot or clears and matches cold.
+TEST_CASE(
+    "Session: hybrid prefix snapshot reuses a full-prompt suffix (opt-in: XLLAMA_TEST_MODEL)") {
+    const char* model = std::getenv("XLLAMA_TEST_MODEL");
+    if (!model)
+        return;
+    xllama::SessionParams sp;
+    sp.model_path = model;
+    sp.n_ctx = 512;
+    sp.n_threads = 2;
+    std::string error;
+    auto sess = xllama::Session::create(sp, &error);
+    REQUIRE_MESSAGE(sess, error);
+
+    auto mkgp = [](const std::string& p) {
+        xllama::GenerateParams gp;
+        gp.prompt = p;
+        gp.n_predict = 8;
+        gp.temperature = 0.0f;
+        return gp;
+    };
+    const std::string first = "<|im_start|>user\nName a colour.<|im_end|>\n<|im_start|>assistant\n";
+    const auto r1 = sess->generate(mkgp(first));
+    REQUIRE_MESSAGE(r1.success, r1.error_msg);
+    REQUIRE(r1.n_p_eval > 0);
+
+    // Extension of the saved prefix (the first prompt): not of the generated
+    // tail. Hybrid restores the snapshot; non-hybrid rewinds. Either way the
+    // extra prefill is the suffix, not the whole second prompt.
+    const std::string ext = first + "Blue.<|im_end|>\n<|im_start|>user\nAnd another."
+                                    "<|im_end|>\n<|im_start|>assistant\n";
+    const auto r_ext = sess->generate(mkgp(ext));
+    REQUIRE_MESSAGE(r_ext.success, r_ext.error_msg);
+    CHECK(r_ext.n_p_eval < r_ext.n_prompt);
+    CHECK(r_ext.n_prompt == sess->count_tokens(ext));
+
+    // Unrelated prompt: snapshot is not a prefix → full prefill.
+    const std::string other = "<|im_start|>user\nSay hi.<|im_end|>\n<|im_start|>assistant\n";
+    const auto r_other = sess->generate(mkgp(other));
+    REQUIRE_MESSAGE(r_other.success, r_other.error_msg);
+    CHECK(r_other.n_p_eval == r_other.n_prompt);
 }
 
 // Snapshot restoration is not a promise that a hybrid recurrent state can

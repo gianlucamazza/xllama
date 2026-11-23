@@ -109,6 +109,10 @@ struct GenerateParams {
     // (can_context_shift()), a continuation turn that would overflow n_ctx
     // evicts the oldest tokens past n_keep from the resident KV instead of
     // failing, so long chats stay in the reuse regime past the token budget.
+    // Hybrid caches (LFM2) cannot always rewind a divergent tail; LlamaSession
+    // then restores an in-memory post-prefill prefix snapshot when the new
+    // prompt is not a pure extension, so API/multi-turn turns re-prefill only
+    // the suffix (prefix_snapshot.h). Non-hybrid #170a rewind is unchanged.
     bool reuse_kv = false;
     bool reset_kv = false;
 

@@ -72,6 +72,7 @@ Header modules (`include/xllama/`), all WinRT-free so they are host-testable:
 | `diskbw.h`                         | `measure_diskbw` — NVMe/disk bandwidth probe (sequential + random patterns)                                                                                                                           |
 | `d3d12_dyn.h`                      | Dynamic d3d12.dll entry-point resolve (PE hygiene for AppContainer)                                                                                                                                   |
 | `speculative.h`                    | `prompt_lookup_draft` — Phase 15 W2 draft-free prompt lookup (pure, host-testable)                                                                                                                    |
+| `prefix_snapshot.h`                | `plan_prefix_snapshot` — hybrid-cache prefix restore vs #170a rewind vs full prefill (pure, host-testable)                                                                                            |
 | `gpubw.h`                          | Phase 15 W3: GPU STREAM probe helpers + kill gate (#211)                                                                                                                                              |
 | `gpugemv.h`                        | Phase 15 H6.1–H6.3: Q4_K GEMV density probe, naive/wave32/rows/dot4 kernels (#228)                                                                                                                    |
 | `gpustep.h`                        | GGUF GPU decode probe D1: model shapes, cost model, D1 gates and ladder ([gguf-gpu-decode.md](gguf-gpu-decode.md))                                                                                    |
@@ -231,8 +232,12 @@ KV-reuse is on.
 Leaving a conversation writes its KV to `LocalState\kv\<id>.kv` and the first
 turn back restores it. A matching token prefix costs a delta prefill instead of
 the history. If re-rendered history diverges inside the saved tail, a hybrid
-recurrent cache can refuse the rewind; the session then clears it and prefills
-the full prompt safely. Snapshot restoration alone is not a delta-reuse guarantee. The pool is managed by `KvStore` (`include/xllama/kv_store.h`):
+recurrent cache can refuse the rewind. For an in-session API or multi-turn
+full prompt, `LlamaSession` then restores a saved post-prefill prefix snapshot
+(`prefix_snapshot.h`) when that prefix still matches, so only the suffix
+prefills; otherwise it clears and prefills the full prompt. Disk snapshot
+restoration alone is not a delta-reuse guarantee (the file includes generated
+tokens). The pool is managed by `KvStore` (`include/xllama/kv_store.h`):
 
 - **Fingerprinted** (model, n_ctx, KV quant, LoRA) — stale snapshots are
   harmless by construction (they fall back to a normal prefill).
@@ -876,6 +881,7 @@ not keep a second copy. Headers without a dedicated file are header-only RAII wr
 | `test_path.cpp`                  | `path_utils.h`                                                                              |
 | `test_personalize.cpp`           | `personalize.h`                                                                             |
 | `test_preference_capture.cpp`    | `preference_capture.h`                                                                      |
+| `test_prefix_snapshot.cpp`       | `prefix_snapshot.h` — extension keeps snapshot; non-extension restores/clears; first turn   |
 | `test_prompt_budget.cpp`         | `prompt_budget.h`                                                                           |
 | `test_ramceil.cpp`               | `ramceil.h`                                                                                 |
 | `test_routing_policy.cpp`        | `routing_policy.h`                                                                          |
