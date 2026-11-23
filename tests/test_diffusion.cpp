@@ -21,6 +21,7 @@
 #include "xllama/diffusion/clip_tokenizer.h"
 #include "xllama/diffusion/euler_scheduler.h"
 #include "xllama/diffusion/half.h"
+#include "xllama/diffusion/lcm_scheduler.h"
 #include "xllama/diffusion/png_writer.h"
 
 using nlohmann::json;
@@ -113,6 +114,72 @@ TEST_CASE("half <-> float conversion") {
         float back = half_to_float(float_to_half(v));
         CHECK(back == doctest::Approx(v).epsilon(1e-2));
     }
+}
+
+TEST_CASE("LCM knob is off unless the file is exactly 1") {
+    using xllama::diffusion::lcm_scheduler_requested;
+    CHECK_FALSE(lcm_scheduler_requested(""));
+    CHECK_FALSE(lcm_scheduler_requested("0"));
+    CHECK_FALSE(lcm_scheduler_requested("2"));
+    CHECK_FALSE(lcm_scheduler_requested("lcm"));
+    CHECK_FALSE(lcm_scheduler_requested(" 1"));
+    CHECK(lcm_scheduler_requested("1"));
+    CHECK(lcm_scheduler_requested("1 "));
+    CHECK(lcm_scheduler_requested("1\n"));
+    CHECK(lcm_scheduler_requested("1\r\n"));
+}
+
+TEST_CASE("LCM off keeps the Euler golden schedule") {
+    REQUIRE_FALSE(xllama::diffusion::lcm_scheduler_requested(""));
+    const json g = load_golden();
+    const auto& gs = g["scheduler"];
+    xllama::diffusion::EulerDiscreteScheduler sched;
+    sched.set_timesteps(gs["num_inference_steps"].get<int>());
+    const auto want_sig = gs["sigmas"].get<std::vector<double>>();
+    const auto want_ts = gs["timesteps"].get<std::vector<double>>();
+    REQUIRE(sched.sigmas().size() == want_sig.size());
+    for (size_t i = 0; i < want_sig.size(); ++i)
+        CHECK(sched.sigmas()[i] == doctest::Approx(want_sig[i]).epsilon(1e-4));
+    REQUIRE(sched.timesteps().size() == want_ts.size());
+    for (size_t i = 0; i < want_ts.size(); ++i)
+        CHECK(sched.timesteps()[i] == doctest::Approx(want_ts[i]));
+}
+
+TEST_CASE("LCM origin skipping table") {
+    xllama::diffusion::LCMScheduler sched;
+    const struct {
+        int n;
+        std::vector<double> ts;
+    } cases[] = {
+        {1, {999}},
+        {2, {999, 499}},
+        {4, {999, 759, 519, 279}},
+        {8, {999, 879, 759, 639, 519, 399, 279, 159}},
+    };
+    for (const auto& c : cases) {
+        sched.set_timesteps(c.n);
+        REQUIRE(sched.timesteps().size() == c.ts.size());
+        for (size_t i = 0; i < c.ts.size(); ++i)
+            CHECK(sched.timesteps()[i] == doctest::Approx(c.ts[i]));
+        CHECK(sched.init_noise_sigma() == doctest::Approx(1.0));
+    }
+}
+
+TEST_CASE("LCM one-step denoised sample") {
+    xllama::diffusion::LCMScheduler sched;
+    sched.set_timesteps(1);
+    std::vector<float> x = {1.0f, 0.0f, -1.0f, 0.5f};
+    const std::vector<float> eps = {0.1f, -0.2f, 0.3f, -0.1f};
+    std::vector<float> scaled = x;
+    sched.scale_model_input(scaled);
+    CHECK(scaled == x); // identity
+    sched.step(eps, x);
+    const double want[] = {13.187349407575335, 2.922928242205751, -19.03320589198684,
+                           8.785870885441982};
+    REQUIRE(x.size() == 4);
+    for (size_t i = 0; i < 4; ++i)
+        CHECK(x[i] == doctest::Approx(want[i]).epsilon(1e-5));
+    CHECK(sched.step_index() == 1);
 }
 
 TEST_CASE("Euler scale_model_input + step match golden step case") {

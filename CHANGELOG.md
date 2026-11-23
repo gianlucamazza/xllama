@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Opt-in LCM diffusion scheduler.** `LocalState\diffuse-lcm.txt` set to `1`
+  uses the Latent Consistency Model step table instead of Euler. Absent, the
+  SD-Turbo Euler path is unchanged. See
+  [using-the-app.md](docs/using-the-app.md).
+
 ## [1.8.0]
 
 User-facing notes: [docs/releases/v1.8.0.md](docs/releases/v1.8.0.md).
