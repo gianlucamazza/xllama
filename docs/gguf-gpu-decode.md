@@ -1056,7 +1056,10 @@ mode NORMAL or NEOX, `ext_factor == 0` (no YaRN) and `n_offs == 0`
 (`d3d12_rope_supported`) and whose input is not in a `D3d12_Weights` buffer
 (that buffer has no UAV flag, and the kernel binds the input as a UAV; an input
 in `D3D12_Host` is read in place, one in another host buffer is staged). Any
-other `ROPE` stays on the CPU. With the bias ADD on as well, Q, V and K then form one split: 5 → 4 submissions per layer.
+other `ROPE` stays on the CPU. If the five-parameter root signature or the ROPE
+pipeline cannot be created, the boot log says `d3d12: ROPE unavailable: …` and
+`rope=0`, and the rest of the backend starts with the four-parameter signature.
+With the bias ADD on as well, Q, V and K then form one split: 5 → 4 submissions per layer.
 The knob is independent of `d3d12-bias-add.txt`, but without the bias ADD the
 bias `ADD`s still cut the split, so measure with both.
 

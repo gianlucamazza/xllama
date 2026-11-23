@@ -804,6 +804,14 @@ bool init_gpu(Gpu& g) {
         g.rope = d3d12_flag_enabled(std::string_view(config, bytes));
     }
     g.root = make_root_sig(g.device.Get(), g.rope, &err);
+    if (!g.root && g.rope) {
+        // The opt-in must not take the backend down: fall back to the
+        // four-parameter signature every other kernel was built against.
+        log_output("[xllama] d3d12: ROPE unavailable: " + err + "\n");
+        g.rope = false;
+        err.clear();
+        g.root = make_root_sig(g.device.Get(), false, &err);
+    }
     if (!g.root)
         return false;
     const void* blobs[kPsoCount][2] = {{kGgmlD3d12MmvQ40T64Dxil, kGgmlD3d12MmvQ40T128Dxil},
