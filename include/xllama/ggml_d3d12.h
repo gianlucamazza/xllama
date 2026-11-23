@@ -4,7 +4,8 @@
 // ggml backend "d3d12" — GGUF GPU decode D2 (docs/gguf-gpu-decode.md).
 //
 // A GPU-type ggml device, registered at runtime, that runs MUL_MAT with
-// Q4_0 / Q4_K / Q6_K weights, GET_ROWS from a Q6_K weight and the F32 bias ADD
+// Q4_0 / Q4_K / Q6_K / Q5_K / IQ4_XS / IQ3_XXS weights, GET_ROWS from a Q6_K
+// weight and the F32 bias ADD
 // after a projection on our D3D12 compute shaders; matmul inputs are quantized
 // to q8 on the CPU first, exactly as the CPU backend does.
 // Two buffer types:
@@ -77,7 +78,8 @@ int d3d12_mm_threads(std::int64_t k);
 
 // Activations go to the GPU the way the CPU backend feeds its own vec_dot:
 // quantized by ggml's from_float of the weight's vec_dot type (Q4_0 → q8_0,
-// Q4_K / Q6_K → q8_K), one row of ggml blocks per column. The kernels then
+// Q4_K / Q5_K / Q6_K / IQ4_XS / IQ3_XXS → q8_K), one row of ggml blocks per
+// column. The kernels then
 // sum integers exactly, so GPU and CPU differ only in float summation order
 // (#312: f32 activations changed greedy text).
 ggml_type d3d12_activation_type(ggml_type weight);
@@ -318,7 +320,7 @@ bool ggml_d3d12_register();
 // --- Console selftest (d3d12be.flag) ---
 
 struct D3d12SelftestRow {
-    std::string type; // q4_0 | q4_k | q6_k
+    std::string type; // q4_0 | q4_k | q6_k | q5_k | iq4_xs | iq3_xxs
     int n = 0, k = 0, ncols = 0;
     double rel_err = 0.0; // max |gpu - ref| / max |ref|
     double gpu_ms = 0.0;  // GPU timestamp time, median of 5 timed computes (ms)

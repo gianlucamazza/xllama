@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # bench-d3d12-selftest.sh — d3d12 ggml backend selftest on the console
 # (docs/gguf-gpu-decode.md). Uploads d3d12be.flag, waits for d3d12be-result.csv,
-# and checks the selftest gate: every Q4_0 / Q4_K / Q6_K case within the
+# and checks the selftest gate: every Q4_0 / Q4_K / Q6_K / Q5_K / IQ4_XS /
+# IQ3_XXS case within the
 # device's tolerance (kD3d12SelftestRelTol) of the CPU backend's q8 vec_dot —
 # gate A (#312); D2a measured against ggml's dequantizers — and the decode
 # (ncols=1) cases at >= 100 GB/s packed (GPU timestamps; the CPU-side q8

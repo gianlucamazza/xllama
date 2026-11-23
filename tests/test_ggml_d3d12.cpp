@@ -83,8 +83,11 @@ TEST_CASE("ggml_d3d12: weight types") {
     CHECK(d3d12_weight_type_supported(GGML_TYPE_Q4_0));
     CHECK(d3d12_weight_type_supported(GGML_TYPE_Q4_K));
     CHECK(d3d12_weight_type_supported(GGML_TYPE_Q6_K));
-    CHECK_FALSE(d3d12_weight_type_supported(GGML_TYPE_Q5_K));
+    CHECK(d3d12_weight_type_supported(GGML_TYPE_Q5_K));
+    CHECK(d3d12_weight_type_supported(GGML_TYPE_IQ4_XS));
+    CHECK(d3d12_weight_type_supported(GGML_TYPE_IQ3_XXS));
     CHECK_FALSE(d3d12_weight_type_supported(GGML_TYPE_Q8_0));
+    CHECK_FALSE(d3d12_weight_type_supported(GGML_TYPE_IQ2_XXS));
     CHECK_FALSE(d3d12_weight_type_supported(GGML_TYPE_F16));
     CHECK_FALSE(d3d12_weight_type_supported(GGML_TYPE_F32));
 }
@@ -92,6 +95,9 @@ TEST_CASE("ggml_d3d12: weight types") {
 TEST_CASE("ggml_d3d12: supports_op rules for MUL_MAT") {
     D3d12MatmulDesc d = decode_desc(GGML_TYPE_Q4_K, 2048, 2048);
     CHECK(d3d12_mm_supported(d));
+    CHECK(d3d12_mm_supported(decode_desc(GGML_TYPE_Q5_K, 2048, 2048)));
+    CHECK(d3d12_mm_supported(decode_desc(GGML_TYPE_IQ4_XS, 2048, 2048)));
+    CHECK(d3d12_mm_supported(decode_desc(GGML_TYPE_IQ3_XXS, 2048, 2048)));
 
     // The buft probe: a weight still in D3D12_Host is refused, so llama.cpp
     // moves on to D3D12_Weights.
@@ -178,11 +184,17 @@ TEST_CASE("ggml_d3d12: kernel emulation matches the CPU backend (q8 activations)
         {GGML_TYPE_Q4_0, 13, 1024},
         {GGML_TYPE_Q4_K, 13, 1024},
         {GGML_TYPE_Q6_K, 13, 1024},
+        {GGML_TYPE_Q5_K, 13, 1024},
+        {GGML_TYPE_IQ4_XS, 13, 1024},
+        {GGML_TYPE_IQ3_XXS, 13, 1024},
         // 9 super-blocks: 1890-byte rows, odd rows start 2-byte aligned.
         {GGML_TYPE_Q6_K, 6, 2304},
         // Coder-3B ffn_down width: 43 super-blocks, 9030-byte rows.
         {GGML_TYPE_Q6_K, 3, 11008},
         {GGML_TYPE_Q4_0, 5, 2304},
+        {GGML_TYPE_Q5_K, 5, 2304},
+        // One IQ3_XXS super-block: 98-byte rows, 2-byte aligned.
+        {GGML_TYPE_IQ3_XXS, 6, 256},
     };
     for (const auto& c : cases) {
         CAPTURE(ggml_type_name(c.t));
@@ -191,6 +203,7 @@ TEST_CASE("ggml_d3d12: kernel emulation matches the CPU backend (q8 activations)
         CHECK(emulate_rel_err(c.t, c.n, c.k, 7, 12, 3) <= kD3d12SelftestRelTol);
     }
     CHECK(ggml_row_size(GGML_TYPE_Q6_K, 11008) % 4 == 2); // the case the ld32 trick covers
+    CHECK(ggml_row_size(GGML_TYPE_IQ3_XXS, 256) % 4 == 2);
 }
 
 TEST_CASE("ggml_d3d12: selftest CSV and non-Windows behaviour") {

@@ -58,15 +58,16 @@ A **ggml backend `d3d12`**, owned by xllama (`src/bridge/`, not the
 - **Placement:** weights go to the backend's buffer type through
   `n_gpu_layers` (already `SessionParams::n_gpu_layers`, default 0). The
   scheduler runs an op where its weight lives; weights of a type the backend
-  does not support (Q5_K, Q8_0, …) stay on the CPU through
+  does not support (Q8_0, …) stay on the CPU through
   `weight_buft_supported`. `token_embd` / `GET_ROWS` are CPU, except a tied
   Q6_K embedding since D2-r2 (one copy in `D3D12_Weights`, `GET_ROWS` on the
   GPU).
 - **Kernels:** the H6.3 `rows` shape (4 rows per group, 64 or 128 threads by K; since D2-r2 the
   activations are q8 and the dot is integer, `dot4add_i8packed`) per weight
-  type: Q4_K and Q4_0 (same density, 0.5625 B/weight) and Q6_K (tied
+  type: Q4_K and Q4_0 (same density, 0.5625 B/weight), Q6_K (tied
   `lm_head` of every target model, `attn_v`/`ffn_down` on Q4_K_M
-  `use_more_bits` layers).
+  `use_more_bits` layers), and Q5_K / IQ4_XS / IQ3_XXS when those weights
+  are loaded. Types without a pipeline stay on the CPU.
 - **Device:** the system D3D12 runtime via `d3d12_dyn`, never the Agility
   factory ([uwp-constraints.md](uwp-constraints.md) §7). Shared plumbing:
   `src/bridge/d3d12_compute.{h,cpp}` (probes and backend).
@@ -206,11 +207,11 @@ device registered with `ggml_backend_register()`:
   one round trip per split (the D1 zero-copy path). Weights go to the extra
   buft **`D3D12_Weights`** (DEFAULT heap, D1c).
 - **`supports_op`** accepts `MUL_MAT` only when the weight already lives in
-  `D3D12_Weights` (Q4_0 / Q4_K / Q6_K, K multiple of 256, contiguous, 2-D;
-  F32 activations). llama.cpp's per-weight buft probe therefore skips the host
-  buft; norms, biases, short-conv, `token_embd` (until D2-r2) and other types
-  fall back to the CPU list by themselves.
-- **Kernels** `shaders/ggml_d3d12_mmv_{q4_0,q4_k,q6_k}.hlsl`: the H6.3 `rows`
+  `D3D12_Weights` (Q4_0 / Q4_K / Q6_K / Q5_K / IQ4_XS / IQ3_XXS, K multiple of
+  256, contiguous, 2-D; F32 activations). llama.cpp's per-weight buft probe
+  therefore skips the host buft; norms, biases, short-conv, `token_embd`
+  (until D2-r2) and other types fall back to the CPU list by themselves.
+- **Kernels** `shaders/ggml_d3d12_mmv_{q4_0,q4_k,q6_k,q5_k,iq4_xs,iq3_xxs}.hlsl`: the H6.3 `rows`
   layout plus a column index for prefill; Q4_0 (18 B) and Q6_K (210 B) blocks
   are read with 2-byte-aligned dword loads (Coder-3B Q6_K `ffn_down` rows are
   9030 B). Weight tensors get 16 B of padding: root descriptors have no bounds

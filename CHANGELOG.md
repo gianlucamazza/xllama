@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **D3D12 MMV for IQ3_XXS, IQ4_XS, Q5_K.** The ggml `d3d12` backend accepts
+  those weight types for MUL_MAT once the matching compute pipelines are
+  present (same q8 activation path and selftest contract as Q4_0 / Q4_K /
+  Q6_K). Types without a pipeline still stay on the CPU. Catalogue Q4_0 /
+  Q6_K models are unchanged. See [GGUF GPU decode](docs/gguf-gpu-decode.md).
+
 ## [1.8.0]
 
 User-facing notes: [docs/releases/v1.8.0.md](docs/releases/v1.8.0.md).
