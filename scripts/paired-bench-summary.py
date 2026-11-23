@@ -247,9 +247,11 @@ def main() -> int:
         print(f"  submissions {verdict}, mismatched pairs {mismatched_pairs}")
     cell = "pass" if all(v == "pass" for v in verdicts) else (
         "fail" if "fail" in verdicts else "inconclusive")
-    summary = {"cell": str(args.cell), "profile": args.profile, "model": a[0]["model"], "n_prompt_tok": a[0]["n_prompt_tok"],
+    summary = {"cell": str(args.cell), "model": a[0]["model"], "n_prompt_tok": a[0]["n_prompt_tok"],
                "pairs": len(pairs), "seed": SEED, "resamples": RESAMPLES, "gates": rows,
                "verdict": cell}
+    if args.profile:  # keep the --gates output as it was; a profile cell names its profile
+        summary["profile"] = args.profile
     if args.json_out:
         args.json_out.write_text(json.dumps(summary, indent=1) + "\n")
     print(f"{a[0]['model']} P={a[0]['n_prompt_tok']} pairs={len(pairs)}: {cell.upper()}")

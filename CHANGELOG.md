@@ -13,8 +13,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   one split with the bias ADD knob on (5 → 4 submissions per layer). The
   cos/sin table is computed on the CPU. Without the file, placement and graph
   are unchanged. Logits matched the CPU ROPE bit for bit for the three models
-  and two ubatch sizes tried; on Series X (operator-declared) decode was
-  ×1.056–1.071 over the bias ADD alone. Series S is not measured. See
+  and two ubatch sizes tried. Measured on Series X only (operator-declared,
+  not project evidence); Series S is not measured. Numbers and method:
   [GGUF GPU decode](docs/gguf-gpu-decode.md).
 
 ## [1.8.0]

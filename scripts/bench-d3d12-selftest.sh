@@ -7,8 +7,8 @@
 # (ncols=1) cases at >= 100 GB/s packed (GPU timestamps; the CPU-side q8
 # quantization shows in the end-to-end bench, not here).
 # --require-bias-add also requires a successful first ADD with cold scratch.
-# --require-rope requires the ten rope_* rows (d3d12-rope.txt = 1), the first of
-# them run with a cold scratch buffer (log line "rope cold_scratch=1"); they are
+# --require-rope requires exactly the ten rope_* rows, in the order the selftest
+# emits them (d3d12-rope.txt = 1), the first of them run with a cold scratch buffer (log line "rope cold_scratch=1"); they are
 # correctness rows, so the decode bandwidth floor does not apply to them.
 #
 # Prerequisites: CI MSVC package (unified or llamacpp) installed on Series S.
@@ -134,10 +134,15 @@ require_rope = sys.argv[3:4] == ["1"]
 bias_add_first = bool(rows) and rows[0]["type"] == "add_f32"
 if require_bias_add and not bias_add_first:
     print("FAIL the first selftest row must be add_f32")
+# The rope_* rows in the order run_d3d12_selftest emits them: NEOX decode q (cold
+# scratch), decode k, 512-token k, staged 7, n_dims < head_dim; then the same for NORMAL.
+rope_expected = [(m + s, c) for m in ("rope_neox", "rope_norm")
+                 for s, c in (("", "1"), ("", "1"), ("", "512"), ("_staged", "7"), ("", "3"))]
 rope_rows = [r for r in rows if r["type"].startswith("rope_")]
-rope_ok = len(rope_rows) == 10 and rope_rows[0]["type"] == "rope_neox" and rope_rows[0]["ncols"] == "1"
+rope_got = [(r["type"], r["ncols"]) for r in rope_rows]
+rope_ok = rope_got == rope_expected
 if require_rope and not rope_ok:
-    print(f"FAIL expected 10 rope_* rows, the first a rope_neox decode row; found {len(rope_rows)}")
+    print(f"FAIL expected the ten rope_* rows {rope_expected}; found {rope_got}")
 passed = (bool(rows) and not bad and not slow and (not require_bias_add or bias_add_first) and
           (not require_rope or rope_ok))
 print("GATE=" + ("PASS" if passed else "FAIL"))

@@ -142,13 +142,15 @@ class D3d12SelftestExitTests(unittest.TestCase):
         gate = script.split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
         base = dict(n="128", k="16", ncols="1", rel_err="0", gpu_ms="0.1", packed_gbs="0",
                     ok="1", d3d12_ran="1", error="-")
-        full = [dict(base, type="rope_neox")] + [
-            dict(base, type=t, ncols=c) for t in ("rope_neox", "rope_norm") for c in ("1", "1", "512", "7", "3")
-        ][1:]
+        full = [dict(base, type=m + s, ncols=c) for m in ("rope_neox", "rope_norm")
+                for s, c in (("", "1"), ("", "1"), ("", "512"), ("_staged", "7"), ("", "3"))]
         self.assertEqual(len(full), 10)
         misordered = [dict(full[1], type="rope_norm", ncols="512")] + full[1:] + [dict(full[0])]
+        wrong_mix = [dict(r, type="rope_neox") for r in full]  # ten rows, no rope_norm
+        no_staged = [dict(r, type=r["type"].replace("_staged", "")) for r in full]
         cases = [(full, True), (full[:9], False), (misordered[:10], False),
-                 ([dict(full[0], ncols="512")] + full[1:], False)]
+                 ([dict(full[0], ncols="512")] + full[1:], False),
+                 (wrong_mix, False), (no_staged, False)]
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "rows.csv"
             for rows, passed in cases:
