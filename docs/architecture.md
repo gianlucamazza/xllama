@@ -547,7 +547,7 @@ A family of micro-bench probes that pin the platform's physical ceilings:
 | **GPU STREAM**    | `gpubw.h`      | D3D12 compute-shader STREAM read over ~1 GiB VRAM (kill gate 100 GB/s)                                                | `gpubw.flag` / `--gpubw`     |
 | **GPU GEMV**      | `gpugemv.h`    | Q4_K GEMV density, naive/wave32/rows/dot4 (G1 + G2 density ≥ 40 GB/s)                                                 | `gpugemv.flag` / `--gpugemv` |
 | **GPU step**      | `gpustep.h`    | GGUF GPU decode D1: round trip, simulated token per model, heap BW                                                    | `gpustep.flag` / `--gpustep` |
-| **d3d12 backend** | `ggml_d3d12.h` | Backend selftest: MUL_MAT vs CPU q8 vec_dot (rel ≤ 1e-5), GET_ROWS, opt-in ADD/ROPE: exact, decode GB/s (median of 5) | `d3d12be.flag`               |
+| **d3d12 backend** | `ggml_d3d12.h` | Selftest: MUL_MAT vs CPU q8 vec_dot (rel ≤ 1e-5), GET_ROWS and ADD exact, ROPE NMSE ≤ 1e-7, decode GB/s (median of 5) | `d3d12be.flag`               |
 
 All probes share the same design: pure helpers (pattern fill, checksum, CSV
 serialization) are host-testable on Linux; the D3D12/Windows path returns

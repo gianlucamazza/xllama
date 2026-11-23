@@ -1088,8 +1088,9 @@ Checks: the host test compares the cache + multiply emulation with
 `ggml_rope_ext` on ggml-cpu (NMSE ≤ 1e-7, the per-op bound of
 `llama.cpp/tests/test-backend-ops.cpp`); the console selftest (`d3d12be.flag`)
 runs `rope_neox` and `rope_norm` rows through the backend, direct and staged
-input, and records NMSE, max |diff| and whether the output is bit-identical
-in the `error` column. The first row (`rope_neox`, decode q) runs before any
+input. A row passes when its NMSE against `ggml_rope_ext` is at most 1e-7 and
+the output is finite; the gate does not require bit identity. The NMSE, max
+|diff| and whether the output is bit-identical go in the `error` column. The first row (`rope_neox`, decode q) runs before any
 matmul, with the staging buffer unallocated: the log line `rope cold_scratch=1`
 marks it, and `bench-d3d12-selftest.sh --require-rope` fails without it. (A
 `ROPE` always stages its cos/sin table, so the buffer exists before the first
@@ -1116,7 +1117,8 @@ submission the wall time drops by 54 µs net of those dispatches; the added
 dispatches cost about 0.3 µs of GPU time each. Logits (`logits.flag`, every
 16th prompt position of `long-1k`, ubatch 512 and 1, all three models) are
 byte-identical between the arms, and the console selftest rows (`rope_neox`,
-`rope_norm`, direct and staged) match ggml-cpu bit for bit. Without the file
+`rope_norm`, direct and staged) were bit-identical to ggml-cpu in every run
+here (observed, not enforced by the gate). Without the file
 the placement is unchanged (Coder-1.5B: 170 submissions per token).
 
 #### Series S ROPE preregistration (proposal)
