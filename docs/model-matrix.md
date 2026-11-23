@@ -474,6 +474,19 @@ FAIL (opt-in only).
 
 ---
 
+## Candidates
+
+November 2026 Series S tracking:
+[#523](https://github.com/gianlucamazza/xllama/issues/523)
+(Model candidates, Nov 2026 (Series S)). Per-candidate issues:
+[#519](https://github.com/gianlucamazza/xllama/issues/519) LFM2.5-2.6B,
+[#520](https://github.com/gianlucamazza/xllama/issues/520) MiniCPM5-2B,
+[#521](https://github.com/gianlucamazza/xllama/issues/521) Granite 4.2-3B,
+[#522](https://github.com/gianlucamazza/xllama/issues/522) (blocked on a llama.cpp pin bump).
+These are not catalogue entries. This page records no verdict for them.
+
+---
+
 ## See also
 
 - Generated tok/s table → [benchmarks.md](./benchmarks.md)
@@ -482,3 +495,4 @@ FAIL (opt-in only).
 - Phase 7 research → [phase7-hypotheses.md](./phase7-hypotheses.md)
 - Runtime structure → [architecture.md](./architecture.md)
 - Arch-watch issues → [#273](https://github.com/gianlucamazza/xllama/issues/273) (open) · [#274](https://github.com/gianlucamazza/xllama/issues/274) (closed) · [#275](https://github.com/gianlucamazza/xllama/issues/275) (closed)
+- Candidates (Nov 2026, Series S) → [#523](https://github.com/gianlucamazza/xllama/issues/523)
