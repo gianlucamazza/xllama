@@ -178,10 +178,22 @@ Detailed hypotheses and measured verdicts: `docs/phase7-hypotheses.md`.
       Reopen only on a released sub-4B low-bit checkpoint — post-hoc 2-bit
       quantisation is a different bet (IQ2_M precedent). Evidence:
       [`docs/phase7-hypotheses.md`](docs/phase7-hypotheses.md) H5.
-      Reopen gate: [`docs/model-matrix.md`](docs/model-matrix.md) §I2 / #274.
-- [ ] Arch-watch (desk only) — reopen gates for MoE (#273), BitNet 1.58
-      (#274), and SSM/RWKV + small multimodal (#275). SSOT:
-      [`docs/model-matrix.md`](docs/model-matrix.md) §I. Does not reopen
+      Reopen gate: [`docs/model-matrix.md`](docs/model-matrix.md) §I2 /
+      [#274](https://github.com/gianlucamazza/xllama/issues/274).
+- [x] Arch-watch BitNet 1.58
+      ([#274](https://github.com/gianlucamazza/xllama/issues/274)) —
+      **closed 2026-11-17 (completed).** The reopen gate is documented in
+      [`docs/model-matrix.md`](docs/model-matrix.md) §I2 and the latest scan
+      found no candidate. Reopen if a qualifying model appears.
+- [x] Arch-watch SSM/RWKV + small multimodal
+      ([#275](https://github.com/gianlucamazza/xllama/issues/275)) —
+      **closed 2026-11-17 (completed).** The gate is documented in
+      [`docs/model-matrix.md`](docs/model-matrix.md) §I3 and the latest scan
+      found no candidate to pursue. Reopen if a qualifying model appears.
+- [ ] Arch-watch MoE
+      ([#273](https://github.com/gianlucamazza/xllama/issues/273)) — desk-only
+      reopen gate. SSOT:
+      [`docs/model-matrix.md`](docs/model-matrix.md) §I1. Does not reopen
       rejected models or add catalogue ids.
 - [ ] H6/H7 GPU or hybrid GGUF eng — **K3** after H6.3 (2026-10-01, CI
       `1.6.0.1113`): `rows` median **143.06** GB/s packed, `dot4` 136.94,
@@ -655,7 +667,10 @@ classes and with a console budget capped at ≤9 bench sessions.
       2026-08-20 with no consumer (#242); that verdict remains historical.
       **Delivered 2026-09-28 in #261:** LAN embedding clients consume vectors
       through the existing single-slot SessionHub; they own index storage.
-      BGE-M3/Nomic pass Series S contracts and the bounded BGE memory gate.
+      BGE-M3 (`embed-bge-m3`) and Nomic Embed Text v2 MoE
+      (`embed-nomic-v2-moe`) passed the Series S contract check only;
+      throughput and retrieval quality are not yet measured. They also pass
+      the bounded BGE memory gate.
       [Current catalogue/evidence](docs/model-matrix.md#g-embedding-api-catalogue-host-and-series-s-validated)
       owns status; dedicated throughput and retrieval-quality work remains open.
 - [x] **WS-F (H16.6) — ASR surface.** **Microphone S-gate PASS

@@ -397,7 +397,8 @@ Closed negative: DML int4 decode, 1B fp16 DML inference, llama≫ORT BW, AppCont
   Post-hoc 2-bit quantisation of a normal model is not the same bet and is
   separately discouraged here: the IQ2_M precedent collapsed to an immediate
   EOG on long declarative prompts. Gate issue
-  [#274](https://github.com/gianlucamazza/xllama/issues/274); matrix row
+  [#274](https://github.com/gianlucamazza/xllama/issues/274) (closed completed:
+  gate documented in the matrix, latest scan found no candidate); matrix row
   [model-matrix.md](model-matrix.md#i2-bitnet-158-post-h5-no-go) §I2.
 
 ### H6 — GGUF GPU backend (Vulkan/D3D12) in AppContainer
